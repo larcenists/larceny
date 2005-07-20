@@ -285,8 +285,8 @@
   (syntax-rules ()
     ((define-ffi-predicate name type-handle)
      (begin
-       (define-syntax name
-         (syntax-rules ()
+     (define-syntax name
+       (syntax-rules ()
            ((name object) (clr/%isa? object type-handle))))
        (macro-expand
          '(define-syntax name

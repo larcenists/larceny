@@ -130,7 +130,7 @@ namespace Scheme.RT {
                 // SObject arg4 = Reg.Register6;
                 if (arg1 == arg2) {
                     Reg.Result = Factory.True;
-                    }
+                }
                 else if (arg1 is ForeignBox) {
                     if (arg2 is ForeignBox) {
                         // We can't use the Equals method on null objects,
@@ -139,7 +139,7 @@ namespace Scheme.RT {
                             Reg.Result = (((ForeignBox)arg2).value == null)
                                 ? Factory.True
                                 : Factory.False;
-                            }
+                }
                         else if (((ForeignBox)arg2).value == null) {
                             Reg.Result = Factory.False;
                             }
@@ -189,8 +189,8 @@ namespace Scheme.RT {
                     }
                 else
                     Exn.error("cannot unwrap foreign argument");
-                return;
-            }
+                    return;
+                }
 
             case 7: // get type
             {
@@ -326,7 +326,7 @@ namespace Scheme.RT {
                 object result;
                 try {
                     result = mi.Invoke (mi.IsStatic ? null : ((ForeignBox)arg2).value, args);
-                    }
+                }
                 catch (Exception e) {
                     Exn.error("ffi:invoke: error in foreign function: " + e);
                     return;

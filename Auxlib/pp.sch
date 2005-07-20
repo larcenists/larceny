@@ -172,7 +172,9 @@
             ((eq? obj (undefined))
              (out "#!undefined" col))
             ((structure? obj)
-             (out "#<STRUCTURE>" col))
+             (let ((temp (open-output-string)))
+               ((structure-printer) obj temp #t)
+               (out (get-output-string temp) col)))
             ((bytevector? obj)
              (out "#<BYTEVECTOR>" col))
             (else

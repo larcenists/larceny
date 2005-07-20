@@ -122,9 +122,11 @@
 ; Return a list of byte values representing an IEEE double precision number.
 ; Big endian always.
 
-(define (flonum-bits x)
-  (map char->integer
-       (string->list (real->floating-point-byte-string x 8))))
+(define flonum-bits
+  (if version-299?
+      (lambda (x) (bytes->list (real->floating-point-bytes x 8 #t)))
+      (lambda (x) (map char->integer
+                       (string->list (real->floating-point-byte-string x 8))))))
 
 ; utility
 

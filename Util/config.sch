@@ -73,8 +73,6 @@
 ;   use a defined name as a formal in a lambda expression, and don't define
 ;   a name using a Scheme reserved word.
 
-(define config-path "")                          ; hack
-
 ; "Config" takes configuration files as arguments and runs through each one
 ; in turn.
 
@@ -94,7 +92,7 @@
 
   (define (select-target target)
     (case target
-      ((sparc)
+      ((sparc standard-c)
        (set! asm-table-generator sparc-table)
        (set! asm-comment-template "! ~a")
        (set! asm-define-template  "#define ~a ~a~%"))
@@ -136,7 +134,7 @@
     (list->vector (cons '()
 			(map (lambda (x y z)
 			       (if x
-				   (let ((x (string-append config-path x)))
+				   (let ((x (string-append (nbuild-parameter 'build) x)))
                                      (delete-file x)
                                      (let ((f (open-output-file x)))
                                        (display z f)
@@ -252,7 +250,7 @@
 	  (else (delegate port op)))))
 
     (define (open-table-output name table comment)
-      (let ((name (string-append config-path name)))
+      (let ((name (string-append (nbuild-parameter 'build) name)))
         (delete-file name)
         (let ((port (open-output-file name)))
           (display comment port)
@@ -413,7 +411,7 @@
 
     (define (table-heading)
       (show '("#define ASSEMBLER 1" #\newline
-              "#include \"../Sys/config.h\"" #\newline
+              "#include \"../Build/config.h\"" #\newline
               "#include \"asmmacro.h\"" #\newline
 	      #\tab ".seg" #\tab "\"data\"" #\newline
 	      #\tab ".global EXTNAME(globals)" #\newline

@@ -3,17 +3,14 @@
 ; $Id$
 ;
 ; Load script for building a heap image with all compiler names exposed.
+; For SPARC Larceny only.
 ;
 ; Before you use this script, you must compile the development environment
-; and debugger.  The easiest way to do that is to run 'build' and then 
-; evaluate
-;   (make-development-environment)
+; and debugger.  The easiest way to do that is to run 'build-twobit' in
+; the standard development environment.
 
-(load "Util/load-twobit-sparc.sch")
-
-(load "Auxlib/io.fasl")
-(load "Auxlib/string.fasl")
-(load "Experimental/apropos.fasl")
+(load "Util/sparc-unix.sch")
+(load-compiler)
 
 (load "Debugger/debug.fasl")
 (load "Debugger/inspect-cont.fasl")

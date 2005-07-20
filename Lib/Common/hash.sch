@@ -33,10 +33,10 @@
       (adj:oport    2321003)
       (adj:weird    2321004)
       (budget0      32))
-
+  
   (define (combine hash adjustment)
     (modulo (+ hash hash hash adjustment) 16777216))
-
+  
   (define (hash-on-equal x budget)
     (if (> budget 0)
         (cond ((string? x)
@@ -58,7 +58,7 @@
               (else
                (object-hash x)))
         adj:weird))
-
+  
   (set! object-hash
         (lambda (x)
           (cond ((symbol? x)
@@ -123,7 +123,7 @@
                  adj:oport)
                 (else
                  adj:weird))))
-
+  
   (set! equal-hash
         (lambda (x)
           (hash-on-equal x budget0))))

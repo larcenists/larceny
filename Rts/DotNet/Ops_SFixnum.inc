@@ -22,13 +22,13 @@
             }
             catch (Exception) {
               Exn.fault (Constants.EX_VLREF, null, arg1, this);
-              return Factory.Impossible;
+                return Factory.Impossible;
             }
         }
         OP3_OVERRIDE_REVERSED(vector_like_set, SVL) {
           try {
             (arg1.elements)[this.value] = arg3;
-            return Factory.Unspecified;
+                return Factory.Unspecified;
             }
           catch (Exception) {
                 Exn.fault(Constants.EX_VLSET, null, arg1, this, arg3);
@@ -49,8 +49,8 @@
             return (arg1.elements)[this.value];
           }
           catch (Exception) {
-            Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this);
-            return Factory.Impossible;
+                Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this);
+                return Factory.Impossible;
             }
         }
         OP2_OVERRIDE_REVERSED(vector_ref_trusted, SVL) {
@@ -59,16 +59,16 @@
         OP3_OVERRIDE_REVERSED(vector_set, SVL) {
           try {
             (arg1.elements)[this.value] = arg3;
-            return Factory.Unspecified;
+                return Factory.Unspecified;
           }
           catch (Exception) {
-            Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3);
-            return Factory.Impossible;
-          }
+                Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3);
+                return Factory.Impossible;
+            }
         }
         OP3_OVERRIDE_REVERSED(vector_set_trusted, SVL) {
           (arg1.elements)[this.value] = arg3;
-          return Factory.Unspecified;
+                return Factory.Unspecified;
         }
         OP1_OVERRIDE(make_procedure) {
             int a = this.value - 2;
@@ -139,9 +139,9 @@
             return Factory.makeChar ((arg1.elements)[this.value]);
           }
           catch (Exception){
-            Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
-            return Factory.Impossible;
-          }
+                Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
+                return Factory.Impossible;
+            }
         }
         OP2_OVERRIDE_REVERSED(string_ref_trusted, SByteVL) {
           return Factory.makeChar ((arg1.elements)[this.value]);
@@ -149,16 +149,16 @@
         OP3_OVERRIDE_REVERSED(string_set, SByteVL) {
           try {
             (arg1.elements)[this.value] = (byte) ((SChar)arg3).val;
-            return Factory.Unspecified;
-          }
+                    return Factory.Unspecified;
+                }
           catch (Exception) {
             Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
             return Factory.Impossible;
-          }
+        }
         }
         OP3_OVERRIDE_REVERSED(string_set_trusted, SByteVL) {
           (arg1.elements)[this.value] = unchecked ((byte) ((SChar)arg3).val);
-          return Factory.Unspecified;
+            return Factory.Unspecified;
         }
 
         OP1_OVERRIDE(make_bytevector) {
@@ -176,36 +176,36 @@
         OP3_OVERRIDE_REVERSED(bytevector_set, SByteVL) {
           try {
             (arg1.elements) [this.value] = (byte) ((SFixnum)arg3).value;
-            return Factory.Unspecified;
-          }
+                    return Factory.Unspecified;
+                }
           catch (Exception) {
             Exn.fault(Constants.EX_BYTEVECTOR_SET, null, arg1, this, arg3);
             return Factory.Impossible;
-          }
+        }
         }
         OP2_OVERRIDE_REVERSED(bytevector_fill, SByteVL) {
             byte[] bytes = arg1.elements;
             byte fill = (byte) this.value;
             for (int i = 0; i < bytes.Length; ++i) {
-                bytes[i] = fill;
+               bytes[i] = fill;
             }
             return Factory.Unspecified;
         }
-
+        
         OP2_OVERRIDE_REVERSED(bytevector_like_ref, SByteVL) {
           try {
             return makeFixnum ((arg1.elements)[this.value]);
           }
           catch (Exception) {
-            Exn.fault(Constants.EX_BVLREF, null, arg1, this);
-            return Factory.Impossible;
-          }
+                Exn.fault(Constants.EX_BVLREF, null, arg1, this);
+                return Factory.Impossible;
+            }
         }
         OP3_OVERRIDE_REVERSED(bytevector_like_set, SByteVL) {
           try {
             (arg1.elements)[this.value] = (byte)((SFixnum)arg3).value;
-            return Factory.Unspecified;
-          }
+                    return Factory.Unspecified;
+                }
           catch (Exception) {
             Exn.fault(Constants.EX_BVLREF, null, arg1, this);
             return Factory.Impossible;
@@ -239,20 +239,20 @@
         OP2_CHAIN(fxequal)
 
         OP2_OVERRIDE_REVERSED(fxplus, SFixnum) {
-            int a = arg1.value, b = this.value;
-            int r = a + b;
+            int a = arg1.value, b = this.value; 
+            int r = a + b; 
             if (!inFixnumRange(r)) {
                 Exn.fault(Constants.EX_FXADD, null, arg1, this);
-                return Factory.Impossible;
+                return Factory.Impossible; 
             }
             return makeFixnum (r);
         }
         OP2_OVERRIDE_REVERSED(fxminus, SFixnum) {
-            int a = arg1.value, b = this.value;
-            int r = a - b;
+            int a = arg1.value, b = this.value; 
+            int r = a - b; 
             if (!inFixnumRange(r)) {
-                Exn.fault(Constants.EX_FXSUB, null, arg1, this);
-                return Factory.Impossible;
+                Exn.fault(Constants.EX_FXSUB, null, arg1, this); 
+                return Factory.Impossible; 
             }
             return makeFixnum (r);
         }
@@ -454,7 +454,7 @@
                 Exn.fault(Constants.EX_QUOTIENT, null, arg1, this);
                 return;
             } else if (bv > 0 &&
-                       Number.getBignumLength(arg1) == 1 &&
+                       Number.getBignumLength(arg1) == 1 && 
                        Number.getBignumSign(arg1)) {
                 uint av = arg1.getUInt32(1);
                 uint result = av / (uint)bv;
@@ -476,7 +476,7 @@
             // Must handle 1-word bignums too.
             int bv = this.value;
             if (bv > 0 &&
-                Number.getBignumLength(arg1) == 1 &&
+                Number.getBignumLength(arg1) == 1 && 
                 Number.getBignumSign(arg1)) {
                 uint av = arg1.getUInt32(1);
                 uint result = av % (uint)bv;

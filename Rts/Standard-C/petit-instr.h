@@ -397,7 +397,7 @@ extern cont_t twobit_cont_label;
        ALLOCATE( fixnum( PROC_HEADER_WORDS+PROC_OVERHEAD+regs+1 ) ); \
        p = (word*)RESULT; \
        p[0] = mkheader( (regs+1+PROC_OVERHEAD)*sizeof(word), PROC_HDR ); \
-       p[PROC_CODE] = (word)code_name; \
+       p[PROC_CODE] = ENCODE_CODEPTR((word)code_name); \
        p[PROC_CONST] = get_const( const_offs ); \
        init_closure( regs, p ); \
        integrity_check( "lambda" ); \
@@ -489,25 +489,18 @@ extern cont_t twobit_cont_label;
        integrity_check( "save" ); \
   } while (0)
 
-#if USE_GOTOS_LOCALLY
-# define twobit_setrtn( L_numeric, L_symbolic )  \
-   do { stack( STK_RETURN ) = ((word) L_numeric) << 2; \
+#define twobit_setrtn( L_numeric, L_symbolic )  \
+   do { stack( STK_RETURN ) = ENCODE_RETURN_ADDRESS(L_numeric,L_symbolic); \
         integrity_check( "setrtn" ); \
    } while(0)
-#else
-# define twobit_setrtn( L_numeric, L_symbolic )  \
-   do { stack( STK_RETURN ) = (word) L_symbolic; \
-        integrity_check( "setrtn" ); \
-   } while(0)
-#endif
 
 #if USE_GOTOS_LOCALLY
 # define twobit_return() \
    reg(0) = (word)stack( STK_REG0 ); \
-   nonlocal_control_transfer( (cont_t)(stack( STK_RETURN ) >> 2) )
+   nonlocal_control_transfer( DECODE_RETURN_ADDRESS(stack( STK_RETURN )) )
 #else
 # define twobit_return() \
-   twobit_skip( -1, ((cont_t)stack( STK_RETURN )) )
+   twobit_skip( -1, DECODE_RETURN_ADDRESS(stack( STK_RETURN )) )
 #endif
 
 #if USE_GOTOS_LOCALLY
@@ -573,9 +566,10 @@ extern cont_t twobit_cont_label;
 #if USE_GOTOS_LOCALLY
 #  if USE_LONGJUMP
 #    define nonlocal_control_transfer( L ) \
-  do { if (--TIMER == 0) \
-         WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L ) ); \
-            ((codeptr_t)(procedure_ref(reg(0),0)))( globals, L ); \
+       do { \
+         if (--TIMER == 0) \
+           WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L ) ); \
+         (DECODE_CODEPTR(procedure_ref(reg(0),IDX_PROC_CODE)))( globals, L ); \
        } while(0)
 #  elif USE_RETURN_WITH_VALUE
 #    define nonlocal_control_transfer( L ) \
@@ -588,20 +582,22 @@ extern cont_t twobit_cont_label;
 
 #if USE_GOTOS_LOCALLY
 # define twobit_branch( L_numeric, L_symbolic ) \
-   do { integrity_check( "branch" ); \
-        if (!--TIMER) \
-          WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L_numeric ) ); \
-        goto MKLABEL( L_symbolic ); \
+   do { \
+     integrity_check( "branch" ); \
+     if (!--TIMER) \
+       WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L_numeric ) ); \
+     goto MKLABEL( L_symbolic ); \
    } while(0)
 #else 
 # if USE_LONGJUMP
 #  define twobit_branch   twobit_skip
 # else
 # define twobit_branch( L_numeric, L_symbolic ) \
-   do { integrity_check( "branch" ); \
-        if (!--TIMER) \
-          WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L_symbolic ) ); \
-        twobit_skip( L_numeric, L_symbolic ); \
+   do { \
+     integrity_check( "branch" ); \
+     if (!--TIMER) \
+       WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L_symbolic ) ); \
+     twobit_skip( L_numeric, L_symbolic ); \
    } while(0)
 # endif
 #endif
@@ -623,7 +619,11 @@ extern cont_t twobit_cont_label;
     do { SAVE_STATE(); return (cont_t)L_symbolic; } while(0)
 # elif USE_RETURN_WITHOUT_VALUE 
 #  define twobit_skip( L_numeric, L_symbolic ) \
-    do { twobit_cont_label = (cont_t)L_symbolic; SAVE_STATE(); return; } while(0)
+    do { \
+      twobit_cont_label = (cont_t)L_symbolic; \
+      SAVE_STATE(); \
+      return; \
+    } while(0)
 # endif
 #endif
 

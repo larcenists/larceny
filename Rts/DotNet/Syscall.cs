@@ -10,23 +10,23 @@ namespace Scheme.RT {
         // pass in the file name we were trying to open.
         public NoMoreDescriptorsExn(string file)
             : base("No more file descriptors available when trying to open "
-                   + file)
+                   + file) 
         {}
     }
 
     class StdIOExn : Exception {
         public StdIOExn(string msg) : base(msg) {}
     }
-
+        
     // The standard library code depends heavily upon the behavior
     // of the Unix open(), close(), read(), write(), unlink() system calls.
     // This code aims to replicate that behavior.
     class Unix {
         private static int descriptor;
-
+        
         // open_files : hashtable[int => Stream]
         private static Hashtable open_files;
-
+                
         // Reserve 0,1,2 for standard streams
         private const int STDIN = 0;
         private const int STDOUT = 1;
@@ -34,17 +34,17 @@ namespace Scheme.RT {
 
         private const int min_descriptor = 3;
         private const int max_descriptor = SFixnum.maxPreAlloc;
-
+                
         static Unix() {
             // Reserve 0,1,2 for standard streams
             descriptor = min_descriptor;
             open_files = new Hashtable();
-
+            
             open_files[STDIN] = System.Console.OpenStandardInput();
             open_files[STDOUT] = System.Console.OpenStandardOutput();
         }
 
-        //
+        // 
         private static void check_for_stdio(int fd, string msg) {
             if ((fd >= 0) && (fd <= 2))
                 throw new StdIOExn(msg + fd);
@@ -105,7 +105,7 @@ namespace Scheme.RT {
         }
 
         // Return a int representing a descriptor.  A negative int
-        // indicates a generic error which will be handled by the
+        // indicates a generic error which will be handled by the 
         // standard library.
         public static int Open(string file, FileMode fm, FileAccess fa) {
             try {
@@ -180,7 +180,7 @@ namespace Scheme.RT {
         }
     }
 
-    // Syscall magic numbers are defined in
+    // Syscall magic numbers are defined in 
     // <larceny_src>/Lib/Common/syscall-id.sch
     // Generate the C# enum 'Sys' with larceny-csharp/scripts/syscall-enum.ss
     public class Syscall {
@@ -193,7 +193,7 @@ namespace Scheme.RT {
         // type checking is done in the scheme code that implements
         // the standard library.  if we get here, we can assume
         // that the parameters in the registers are all as expected.
-        // (starting at register 2)
+		// (starting at register 2)
         public static void dispatch(int num_args, Sys num_proc) {
             switch (num_proc) {
             case Sys.open : open(); break;
@@ -239,7 +239,7 @@ namespace Scheme.RT {
                     Reg.Result = g;
                 }
                 break;
-
+        
             default: Exn.internalError("unsupported syscall: " + num_proc); break;
             }
         }
@@ -257,10 +257,10 @@ namespace Scheme.RT {
             FileMode fm;
 
             // use append mode (file must already exist)
-            if ((flags & 0x04) != 0)
+            if ((flags & 0x04) != 0) 
                 fm = FileMode.Append;
             // if it exists, truncate, otherwise create a new file
-            else if (((flags & 0x08) != 0) && ((flags & 0x10) != 0))
+            else if (((flags & 0x08) != 0) && ((flags & 0x10) != 0)) 
                 fm = FileMode.Create;
             // create iff it doesn't exist
             else if ((flags & 0x08) != 0)
@@ -278,12 +278,12 @@ namespace Scheme.RT {
 
             Reg.Result = Factory.makeFixnum(Unix.Open(file_name, fm, fa));
         }
-
+                
         private static void unlink() {
             Reg.Result = Factory.makeFixnum(
                                 Unix.Unlink(((SByteVL)Reg.Register2).asString()));
         }
-
+                
         private static void close() {
             Reg.Result = Factory.makeFixnum(
                                 Unix.Close(((SFixnum)Reg.Register2).intValue()));
@@ -335,7 +335,7 @@ namespace Scheme.RT {
                 v.setElementAt(3, Factory.makeFixnum(time.Hour));
                 v.setElementAt(4, Factory.makeFixnum(time.Minute));
                 v.setElementAt(5, Factory.makeFixnum(time.Second));
-
+                                
                 Reg.Result = Factory.makeFixnum(0);
             }
             // file doesn't exist, or bad path name...
@@ -361,7 +361,7 @@ namespace Scheme.RT {
             }
             Reg.Result = Factory.makeNumber (result);
         }
-
+                
         // rename file
         private static void rename() {
             string from = ((SByteVL)Reg.Register2).asString();
@@ -373,11 +373,11 @@ namespace Scheme.RT {
                 Reg.Result = Factory.makeFixnum (-1);
             }
         }
-
+                
         private static void pollinput() {
             Reg.Result = Factory.makeFixnum(-1);
         }
-
+                
         private static void getenv() {
             // FIXME: #f seems to be right answer... but maybe not
             string result = Environment.GetEnvironmentVariable (((SByteVL)Reg.Register2).asString());
@@ -497,7 +497,7 @@ namespace Scheme.RT {
 #if !USING_ROTOR
           pi.CreateNoWindow = true;
 #endif
-
+			
           Process p = Process.Start (pi);
           p.WaitForExit();
           Reg.Result = Factory.makeNumber (p.ExitCode);

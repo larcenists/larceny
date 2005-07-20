@@ -361,7 +361,7 @@
   (environment-set! larc 'recognize-javadot-symbols? recognize-javadot-symbols?)
   (environment-set! larc 'javadot-type-suffix javadot-type-suffix)
   (environment-set! larc 'javadot-generic-suffix javadot-generic-suffix)
-  ;;(environment-set! larc 'recognize-keywords? recognize-keywords?)
+  (environment-set! larc 'recognize-keywords? recognize-keywords?)
   (environment-set! larc 'javadot-symbol? javadot-symbol?)
   (environment-set! larc 'javadot-symbol->symbol javadot-symbol->symbol)
   (environment-set! larc 'symbol->javadot-symbol symbol->javadot-symbol)
@@ -900,5 +900,14 @@
   (environment-set! larc 'install-environments! install-environments!)
 
   larc)
+
+;; *larceny-environment-extensions* : (listof (environment -> void))
+;; A list of procedures which accept an environment. The procedures are 
+;; expected to extend the environment with new bindings.
+(define *larceny-environment-extensions* '())
+
+;; *interactive-eval-list* : (listof s-expr)
+;; A list of forms to be evaluated when the interpreter starts.
+(define *interactive-eval-list* '())
 
 ; eof

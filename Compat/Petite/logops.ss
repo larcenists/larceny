@@ -9,6 +9,8 @@
 
 (define logior fxlogor)
 (define logand fxlogand)
+(define logxor fxlogxor)
+(define lognot fxlognot)
 (define lsh fxsll)
 (define rshl fxsrl)
 (define rsha fxsra)

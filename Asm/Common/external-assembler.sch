@@ -12,36 +12,47 @@
 (define *available-compilers* '())  ; Assigned below -- ((tag name obj functions) ...)
 (define *current-compiler* #f)      ; Assigned below -- (tag name obj functions)
 
+(define (make-compiler tag name extension commands) (list tag name extension commands))
+(define (compiler-tag c) (car c))
+(define (compiler-name c) (cadr c))
+(define (compiler-extension c) (caddr c))
+(define (compiler-commands c) (cadddr c))
+
+(define (current-compiler) *current-compiler*)
+
 (define (c-compile-file c-name o-name)
-  ((cdr (assq 'compile (cadddr *current-compiler*))) c-name o-name))
+  ((cdr (assq 'compile (compiler-commands (current-compiler)))) c-name o-name))
 
 (define (c-link-library output-name object-files libraries)
-  ((cdr (assq 'link-library (cadddr *current-compiler*))) 
+  ((cdr (assq 'link-library (compiler-commands (current-compiler)))) 
    output-name 
    object-files 
    libraries))
 
 (define (c-link-executable output-name object-files libraries)
-  ((cdr (assq 'link-executable (cadddr *current-compiler*))) 
+  ((cdr (assq 'link-executable (compiler-commands (current-compiler)))) 
    output-name 
    object-files 
    libraries))
 
 (define (c-link-shared-object output-name object-files libraries)
-  ((cdr (assq 'link-shared-object (cadddr *current-compiler*))) 
+  ((cdr (assq 'link-shared-object (compiler-commands (current-compiler)))) 
    output-name 
    object-files
    libraries))
 
+(define (default-makefile-configuration)
+  (cdr (assq 'make-configuration (compiler-commands (current-compiler)))))
+
 (define (obj-suffix)
-  (caddr *current-compiler*))
+  (compiler-extension (current-compiler)))
 
 (define (*append-file-shell-command* x y)
-  ((cdr (assq 'append-files (cadddr *current-compiler*))) x y))
+  ((cdr (assq 'append-files (compiler-commands (current-compiler)))) x y))
 
 (define (define-compiler name tag extension commands)
   (set! *available-compilers*
-	(cons (list tag name extension commands)
+	(cons (make-compiler tag name extension commands)
 	      *available-compilers*)))
 
 (define (select-compiler . rest)
@@ -90,7 +101,9 @@
 	  (display output-name)
 	  (newline)))
     (append-files 
-     . ,append-file-shell-command-portable)))
+     . ,append-file-shell-command-portable)
+    (makefile-configuration
+     . NOT-A-VALID-MAKEFILE-CONFIGURATION)))
 
 (select-compiler 'none)
 

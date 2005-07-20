@@ -21,7 +21,7 @@ namespace Scheme.RT {
      *  2: slot 0 = Register0 = Procedure, Has codevector of return address
      *  3: slot 1
      *  ...]
-     *
+     * 
      * The initial continuation will have a parent continuation of #f when a heap frame.
      */
 

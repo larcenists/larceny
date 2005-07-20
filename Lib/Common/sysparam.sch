@@ -9,8 +9,8 @@
 ; System parameters are defined in the Library using this procedure.
 
 (define (make-parameter name value . rest)
-  (let ((ok? (if (null? rest)
-                 (lambda (x) #t)
+  (let ((ok? (if (null? rest) 
+                 (lambda (x) #t) 
                  (car rest))))
     (lambda args
 ;; No need to protect this!
@@ -55,6 +55,7 @@
 	  (cons 'os-minor-version       (sys$system-feature 'os-minor))
 	  (cons 'fixnum-bits            (- wordsize 2))
 	  (cons 'fixnum-representation  'twos-complement)
+	  (cons 'codevector-representation (sys$system-feature 'codevec))
 	  (cons 'char-bits              char-bits)
 	  (cons 'char-representation    char-repr)
 	  (cons 'flonum-bits            64)

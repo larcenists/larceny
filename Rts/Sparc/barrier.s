@@ -34,7 +34,7 @@
  */
 
 #define ASSEMBLER 1
-#include "../Sys/config.h"
+#include "../Build/config.h"
 #include "../Sys/gclib.h"
 
 #include "asmdefs.h"

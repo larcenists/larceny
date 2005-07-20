@@ -24,14 +24,23 @@
 		      (syscall syscall:segment-code-address id number)))
   proc)
 
+; This code really wants BYTEVECTOR-WORD-REF.
+
 (define lookup-code-pointer-in-table 
-  (let ((word-size  #f)
-	(endianness #f))
+  (let ((endianness #f)
+	(word-size  0)
+	(shift      0))
     (lambda (table idx)
-      (if (not word-size)
+      (if (not endianness)
 	  (let ((features (system-features)))
 	    (set! word-size  (quotient (cdr (assq 'arch-word-size features)) 8))
-	    (set! endianness (cdr (assq 'arch-endianness features)))))
+	    (set! endianness (cdr (assq 'arch-endianness features)))
+	    (set! shift (let ((cvr (cdr (assq 'codevector-representation features))))
+			  (case cvr
+			    ((address) 0)
+			    ((address-shifted-1) 1)
+			    ((address-shifted-2) 2)
+			    (else (error "loadable.sch: Bad codevector representation": cvr)))))))
       (let ((bv (make-bytevector word-size)))
 	(syscall syscall:peek-bytes (+ table (* idx word-size)) bv word-size)
 	(let ((x (cond ((and (= word-size 4) (eq? endianness 'big))
@@ -46,8 +55,11 @@
 			   (bytevector-ref bv 0)))
 		       (else
 			(error "No DLL lookup procedure for this word size and endianness.")))))
-	  (quotient x 4))))))
-
+	  (lsh (let ((p (quotient x 4)))
+		 (if (fixnum? p)
+		     p
+		     (- p 1073741824)))  ; 2^30
+	       shift))))))
 
 ; Given the name of a shared object file that contains compiled code for
 ; one or more FASL files, load the file if it is not already loaded.  Register

@@ -58,13 +58,13 @@
     (bytevector-set! tbl i 4))
 
   (let ((f (lambda (x)
-             (let ((i (char->integer x)))
-               (bytevector-set! tbl i 8)))))
-    (f #\space)                         ;
-    (f #\newline)                       ; Unix: LF  (code 10)
-    (f (integer->char 13))              ; CR
-    (f (integer->char 9))               ; TAB
-    (f (integer->char 12))              ; Form feed
+	     (let ((i (char->integer x)))
+	       (bytevector-set! tbl i 8)))))
+    (f #\space)				;
+    (f #\newline)			; Unix: LF  (code 10)
+    (f (integer->char 13))		; CR
+    (f (integer->char 9))		; TAB
+    (f (integer->char 12))		; Form feed
     )
 
   tbl)
@@ -119,7 +119,7 @@
   (lambda (x)
     (if (char-lower-case? x)
         (integer->char (- (char->integer x) 32))
-        x)))
+	x)))
 
 (define char-downcase
   (lambda (x)
@@ -131,9 +131,9 @@
 
   (define (loop i)
     (cond ((< i 0))
-          ((char-ci=? (string-ref s1 i) (string-ref s2 i))
-           (loop (- i 1)))
-          (else #f)))
+	  ((char-ci=? (string-ref s1 i) (string-ref s2 i))
+	   (loop (- i 1)))
+	  (else #f)))
 
   (if (= (string-length s1) (string-length s2))
       (loop (- (string-length s1) 1))
@@ -143,13 +143,13 @@
 
   (define (loop i limit)
     (cond ((= i limit)
-           (< (string-length s1) (string-length s2)))
-          ((char-ci<? (string-ref s1 i) (string-ref s2 i))
-           #t)
-          ((char-ci>? (string-ref s1 i) (string-ref s2 i))
-           #f)
-          (else
-           (loop (+ i 1) limit))))
+	   (< (string-length s1) (string-length s2)))
+	  ((char-ci<? (string-ref s1 i) (string-ref s2 i))
+	   #t)
+	  ((char-ci>? (string-ref s1 i) (string-ref s2 i))
+	   #f)
+	  (else
+	   (loop (+ i 1) limit))))
 
   (loop 0 (min (string-length s1) (string-length s2))))
 
@@ -220,9 +220,9 @@
 (define string-fill!
   (lambda (s c)
     (if (and (string? s) (char? c))
-        (bytevector-fill! s (char->integer c))
-        (begin (error "string-fill!: bad operands: " s " " c)
-               #t))))
+	(bytevector-fill! s (char->integer c))
+	(begin (error "string-fill!: bad operands: " s " " c)
+	       #t))))
 
 (define substring-fill!
   (lambda (s start end c)
@@ -234,7 +234,7 @@
 
 ;(define (make-string n . rest)
 ;  (let ((init (char->integer (if (null? rest) #\space (car rest))))
-;       (s    (make-bytevector n)))
+;	(s    (make-bytevector n)))
 ;    (bytevector-fill! s init)
 ;    (typetag-set! s sys$tag.string-typetag)
 ;    s))
@@ -352,10 +352,10 @@
 ;(define (string-hash string)
 ;  (define (loop s i h)
 ;    (if (< i 0)
-;       h
-;       (loop s
-;             (- i 1)
-;             (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
+;	h
+;	(loop s
+;	      (- i 1)
+;	      (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
 ;  (let ((n (string-length string)))
 ;    (loop string (- n 1) n)))
 
@@ -428,7 +428,7 @@
 (define (string-compare name a b)
   (if (not (and (string? a) (string? b)))
       (begin (error name ": Operands must be strings: " a " " b)
-             #t)
+	     #t)
       (bytevector-like-compare a b)))
 
 

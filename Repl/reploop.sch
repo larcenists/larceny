@@ -32,13 +32,13 @@
     (flush-output-port (console-output-port))
     (let ((expr (read (console-input-port))))
       (if (not (eof-object? expr))
-	  (let-values ((results
+	  (let-values ((results 
                         (with-input-from-port (console-input-port)
                           (lambda ()
                             (with-output-to-port (console-output-port)
                               (lambda ()
-                                ((repl-evaluator)
-                                 expr
+                                ((repl-evaluator) 
+                                 expr 
                                  (interaction-environment))))))))
             (with-output-to-port (console-output-port)
               (lambda ()

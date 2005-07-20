@@ -4,6 +4,32 @@
 ;
 ; Completely fundamental pathname manipulation.
 
+; TODO doc
+(define (make-directory . components)
+  (system (string-append "mkdir " (apply make-filename components))))
+	
+; TODO doc
+(define (catfiles input-files output-file)
+  (system (string-append "cat " 
+			 (apply string-append 
+				(map (lambda (x) (string-append x " "))
+				     input-files))
+			 " > " 
+			 output-file)))
+
+; TODO doc
+(define (copy-file/regexp source-path pat target-path)
+  (system (string-append "cp " (make-filename source-path pat)
+			 "   " target-path)))
+
+; TODO doc
+(define (delete-file/regexp target-path pat)
+  (system (string-append "rm -f " (make-filename target-path pat))))
+
+; TODO doc
+(define (execute-in-directory dir cmd)
+  (system (string-append "( cd " dir "; " cmd " )" )))
+
 ; Takes zero or more directories and a filename and appends them, inserting
 ; the necessary pathname separators.  The first directory in the list, if
 ; present, has special meaning.  If "" or #f, it denotes the current 

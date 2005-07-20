@@ -13,7 +13,7 @@
 ;     common-subexpression-elimination
 ;     representation-inference
 ;     peephole-optimization
-;     fill-delay-slots
+;     fill-delay-slots (SPARC Larceny only)
 ;
 ; Requires Testsuite/Lib/test.sch.
 ; Test coverage should be confirmed by inspecting MacScheme machine

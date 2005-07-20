@@ -211,6 +211,8 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     vector_set( v, 0, fixnum(2) );
 #elif defined(WIN32)
     vector_set( v, 0, fixnum(3) );
+#elif defined(MACOS_X) // must come before BSD_UNIX; both features are set on MacOS X
+    vector_set( v, 0, fixnum(8) );
 #elif defined(BSD_UNIX)
     vector_set( v, 0, fixnum(7) );
 #elif defined(UNIX)  // Generic unix, this case should come after other Unix variants
@@ -233,6 +235,19 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     break;
   case 10 : /* stats-remsets */
     vector_set( v, 0, fixnum( stats_parameter( 1 ) ) );
+    break;
+  case 11 : /* codevec */
+#if defined PETIT_LARCENY || defined X86_NASM
+# if defined CODEPTR_SHIFT2
+    vector_set( v, 0, fixnum( 3 ) );  // pointer shifted two bits
+# elif defined CODEPTR_SHIFT1
+    vector_set( v, 0, fixnum( 2 ) );  // pointer shifted one bit
+# else
+    vector_set( v, 0, fixnum( 1 ) );  // raw pointer
+# endif
+#else
+    vector_set( v, 0, fixnum( 0 ) );  // bytevector
+#endif
     break;
   default : 
     panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );

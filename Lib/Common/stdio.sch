@@ -11,10 +11,10 @@
 
 ($$trace "stdio")
 
-(define current-input-port
+(define current-input-port 
   (make-parameter "current-input-port" #f (lambda (x) (input-port? x))))
 
-(define current-output-port
+(define current-output-port 
   (make-parameter "current-output-port" #f (lambda (x) (output-port? x))))
 
 (define (initialize-io-system)
@@ -114,7 +114,7 @@
   ((console-output-port-factory)))
 
 (define console-input-port-factory
-  (make-parameter "console-input-port-factory"
+  (make-parameter "console-input-port-factory" 
                   console-io/console-input-port
                   procedure?))
 
@@ -135,7 +135,7 @@
 (define (reset-output-string port)
   (string-io/reset-output-string port))
 
-(define (close-input-port p)
+(define (close-input-port p) 
   (cond ((input-port? p)
          (io/close-port p))
         ((not (output-port? p)) ; HACK: port is closed

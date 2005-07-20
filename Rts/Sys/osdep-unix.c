@@ -29,9 +29,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-//#if defined (SUNOS4) || defined(SUNOS5) || defined(LINUX) /* really should be HAVE_DLOPEN... */
-#include <dlfcn.h>  /* not on MacOS X */
-//#endif
+#ifdef HAVE_DLFCN
+# include <dlfcn.h>
+#endif
 
 #if defined(SUNOS4)		/* Not in any header file. */
 extern int gettimeofday( struct timeval *tp, struct timezone *tzp );
@@ -79,6 +79,12 @@ word w_fn, w_flags, w_mode;
   if (flags & 0x04) newflags |= O_APPEND;
   if (flags & 0x08) newflags |= O_CREAT;
   if (flags & 0x10) newflags |= O_TRUNC;
+#if defined O_BINARY
+  if (flags & 0x20) newflags |= O_BINARY;
+#endif
+#if defined O_RAW
+  if (flags & 0x20) newflags |= O_RAW;
+#endif
 
   if (fn == 0) {
     globals[ G_RESULT ] = fixnum( -1 );
@@ -571,31 +577,44 @@ static void get_rtclock( stat_time_t *real )
   real->usec = usec;
 }
 
+/* One can debate whether the mode choices are right.
+   Perhaps the mode should be a parameter to this function.
+
+   Note: libjava.so requires RTLD_GLOBAL; currently that is
+   hacked around in Scheme code.  RTLD_GLOBAL does not
+   strike me as a reasonable default mode.  --lars
+   */
 word
 osdep_dlopen( char *path )
 {
-#if defined(SUNOS4)
+#if defined DYNAMIC_LOADING && defined HAVE_DLFCN
+# if defined(SUNOS4)
   int mode = 1;
-#else
-  /* One can debate whether this mode is the right one.
-     Perhaps the mode should be a parameter to this function.
-
-     Note: libjava.so requires RTLD_GLOBAL; currently that is
-     hacked around in Scheme code.  RTLD_GLOBAL does not
-     strike me as a reasonable default mode.  --lars
-     */
+# elif defined(CYGWIN)
+  int mode = RTLD_LAZY;
+# else
   int mode = RTLD_LAZY | RTLD_LOCAL;
-#endif
+# endif
   void *desc = dlopen( path, mode );
   if (desc == 0)
     hardconsolemsg( "dlopen error: %s", dlerror() );
   return (word)desc;
+#else
+# ifndef DYNAMIC_LOADING
+  hardconsolemsg( "Larceny configured without DYNAMIC_LOADING" );
+# endif
+  return 0;
+#endif
 }
 
 word
 osdep_dlsym( word handle, char *sym )
 {
+#if defined DYNAMIC_LOADING && defined HAVE_DLFCN
   return (word)dlsym( (void*)handle, sym );
+#else
+  return 0;
+#endif
 }
 
 #endif /* defined(UNIX) */

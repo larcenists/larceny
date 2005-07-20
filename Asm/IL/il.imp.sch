@@ -75,7 +75,7 @@
     (cond ((null? x) #f)
           ((eq? (prim-opcodename (car x)) name)
            (car x))
-          (else
+          (else 
            (loop (cdr x))))))
 
 (define prim-arity cadr)
@@ -184,8 +184,8 @@
     (.char->integer   1 char->integer    #f            37 ,ak:immortal ,ak:none #f)
     (.--              1 --               #f            32 ,ak:immortal ,ak:none #t)
 
-    ; FIXME: unspecified, undefined and -- should not be here with these
-    ; names but are introduced by the compiler, macro expander, or standard
+    ; FIXME: unspecified, undefined and -- should not be here with these 
+    ; names but are introduced by the compiler, macro expander, or standard 
     ; macros.
 
 ;   (unspecified      0 unspecified      #f            -1 ,ak:dead     ,ak:none #f)

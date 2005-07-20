@@ -84,7 +84,7 @@
         SPECIALOP2_OVERRIDE_REV_MS(less_than, ratnum, SVL, RatnumTag, MS_RATNUM_LESS)
         SPECIALOP2_OVERRIDE_REV_MS(less_or_equal, ratnum, SVL, RatnumTag, MS_RATNUM_LESSEQ)
         SPECIALOP2_OVERRIDE_REV_MS(greater_than, ratnum, SVL, RatnumTag, MS_RATNUM_GREATER)
-        SPECIALOP2_OVERRIDE_REV_MS(greater_or_equal, ratnum, SVL, RatnumTag,
+        SPECIALOP2_OVERRIDE_REV_MS(greater_or_equal, ratnum, SVL, RatnumTag, 
                                    MS_RATNUM_GREATEREQ)
 
         SPECIALOP2_OVERRIDE_REV_MS(plus, ratnum, SVL, RatnumTag, MS_RATNUM_ADD)

@@ -1,6 +1,6 @@
 // Ops for SByteVL
 
-        PREDICATE_OVERRIDE_EXPR(isNumber, numberp,
+        PREDICATE_OVERRIDE_EXPR(isNumber, numberp, 
                                 this.isBignum() || this.isFlonum() || this.isCompnum())
         CLR_PREDICATE_OVERRIDE_EXPR(isExact, this.isBignum())
         CLR_PREDICATE_OVERRIDE_EXPR(isInexact, this.isFlonum() || this.isCompnum())
@@ -27,8 +27,8 @@
                                 this.isBignum() || this.isFlonum() || this.isCompnum())
         PREDICATE_OVERRIDE_EXPR(isReal, realp, this.isBignum() || this.isFlonum())
         PREDICATE_OVERRIDE_EXPR(isRational, rationalp, this.isBignum() || this.isFlonum())
-        PREDICATE_OVERRIDE_EXPR(isInteger, integerp,
-                                this.isBignum()
+        PREDICATE_OVERRIDE_EXPR(isInteger, integerp, 
+                                this.isBignum() 
                                 || (this.isFlonum() && this.isIntegralFlonum()))
         PREDICATE_OVERRIDE_TRUE(isByteVectorLike, bytevector_likep)
         PREDICATE_OVERRIDE_EXPR(isByteVector, bytevectorp, this.tag == Tags.ByteVectorTag)
@@ -108,17 +108,17 @@
         SPECIALOP2_CHAIN_SByteVL(remainder)
 
         // Bignums
-        SPECIALOP2_OVERRIDE_REV_MS(eqvp_not_eq, bignum, SByteVL, BignumTag,
+        SPECIALOP2_OVERRIDE_REV_MS(eqvp_not_eq, bignum, SByteVL, BignumTag, 
                                    MS_BIGNUM_EQUAL)
-        SPECIALOP2_OVERRIDE_REV_MS(numeric_equals, bignum, SByteVL, BignumTag,
+        SPECIALOP2_OVERRIDE_REV_MS(numeric_equals, bignum, SByteVL, BignumTag, 
                                    MS_BIGNUM_EQUAL)
-        SPECIALOP2_OVERRIDE_REV_MS(less_than, bignum, SByteVL, BignumTag,
+        SPECIALOP2_OVERRIDE_REV_MS(less_than, bignum, SByteVL, BignumTag, 
                                    MS_BIGNUM_LESS)
-        SPECIALOP2_OVERRIDE_REV_MS(less_or_equal, bignum, SByteVL, BignumTag,
+        SPECIALOP2_OVERRIDE_REV_MS(less_or_equal, bignum, SByteVL, BignumTag, 
                                    MS_BIGNUM_LESSEQ)
-        SPECIALOP2_OVERRIDE_REV_MS(greater_than, bignum, SByteVL, BignumTag,
+        SPECIALOP2_OVERRIDE_REV_MS(greater_than, bignum, SByteVL, BignumTag, 
                                    MS_BIGNUM_GREATER)
-        SPECIALOP2_OVERRIDE_REV_MS(greater_or_equal, bignum, SByteVL, BignumTag,
+        SPECIALOP2_OVERRIDE_REV_MS(greater_or_equal, bignum, SByteVL, BignumTag, 
                                    MS_BIGNUM_GREATEREQ)
 
         SPECIALOP2_OVERRIDE_REV_MS(plus, bignum, SByteVL, BignumTag, MS_BIGNUM_ADD)
@@ -162,12 +162,12 @@
         // Compnums
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, compnum, SByteVL, CompnumTag) {
             Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
-                          &&
+                                      &&
                           arg1.unsafeAsDouble(1) == this.unsafeAsDouble(1)) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(numeric_equals, compnum, SByteVL, CompnumTag) {
             Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
-                          &&
+                                      &&
                           arg1.unsafeAsDouble(1) == this.unsafeAsDouble(1)) ? Factory.True : Factory.False;
         }
 
@@ -202,7 +202,7 @@
                 ((ar * br + ai * bi) / denom,
                  (ai * br - ar * bi) / denom);
         }
-
+    
         SPECIALOP1_OVERRIDE(truncate) {
             if (this.tag == Tags.BignumTag) {
                 Reg.Result = this;

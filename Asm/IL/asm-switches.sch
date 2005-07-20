@@ -12,7 +12,7 @@
 
 (define inline-allocation
   (make-twobit-flag 'inline-allocation))
-
+  
 (define inline-assignment
   (make-twobit-flag 'inline-assignment))
 
@@ -53,7 +53,7 @@
     ((fast-unsafe)
      (set-assembler-flags! 'standard)
      (runtime-safety-checking #f))
-    (else
+    (else 
      (error "set-assembler-flags!: unknown mode: " mode))))
 
 (set-assembler-flags! 'standard)

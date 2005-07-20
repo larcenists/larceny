@@ -6,7 +6,7 @@
 ; Hook for a list of libraries for your platform.  This is normally
 ; set by code in the petit-*-*.sch file, after this file is loaded.
 
-(define unix/petit-lib-library-platform '())
+(define unix/petit-lib-library-platform '("-lm"))
 
 ; Hook for a set of switches that tells the compiler where to look for
 ; standard include files.  If twobit is not used for compiler
@@ -53,19 +53,30 @@
                          ,@unix/petit-lib-library-platform))
     executable-name))
 
-; Compiler definitions
+; General classification of a Unix system, a little more fine grained than 
+; SYSTEM-FEATURES currently provides.  A hack, really.
 
-(define gcc-name
-  (case (nbuild-parameter 'host-os)
-    ((macosx) "cc")     ; Apple brain damage
-    (else     "gcc")))
+(define (classify-unix-system)
+  (cond ((string=? "MacOS X" (cdr (assq 'os-name (system-features))))
+         'macosx)
+        ((and (string=? "BSD Unix" (cdr (assq 'os-name (system-features))))
+	      (file-exists? "/Desktop"))
+	 'macosx)
+	((string=? "SunOS" (cdr (assq 'os-name (system-features))))
+	 'sunos)
+	((zero? (system "test \"`uname`\" = \"Linux\""))
+	 'linux)
+	(else
+	 'generic)))
+  
+; Compiler definitions
 
 (define (c-compiler:gcc-unix c-name o-name)
   (execute
    (twobit-format 
     #f
-    "~a -c -gstabs+ ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
-    gcc-name
+    "gcc -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     unix/petit-include-path
     (if (optimize-c-code) "-O3 -DNDEBUG" "")
     o-name
@@ -73,19 +84,31 @@
 
 (define (c-library-linker:gcc-unix output-name object-files libs)
   (execute 
-   (twobit-format 
-    #f
-    "ar -r ~a ~a; ranlib ~a"
-    output-name
-    (apply string-append (insert-space object-files))
-    output-name)))
+   (twobit-format #f
+		  "ar -r ~a ~a"
+		  output-name (apply string-append 
+				     (insert-space object-files))))
+  (execute
+   (twobit-format #f
+		  "ranlib ~a"
+		  output-name)))
 
 (define (c-linker:gcc-linux output-name object-files libs)
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -rdynamic -o ~a ~a ~a"
-    gcc-name
+    "gcc ~a -rdynamic -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
+    output-name
+    (apply string-append (insert-space object-files))
+    (apply string-append (insert-space libs)))))
+
+(define (c-linker:gcc-macosx output-name object-files libs)
+  (execute
+   (twobit-format 
+    #f
+    "gcc ~a -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -94,31 +117,40 @@
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -o ~a ~a ~a"
-    gcc-name
+    "gcc ~a -Wl,-export-dynamic -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
 
 (define (c-so-linker:gcc-unix output-name object-files libs)
-  (error "Don't know how to build a shared object under generic unix"))
+  (execute
+   (twobit-format 
+    #f
+    "gcc ~a -shared -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
+    output-name
+    (apply string-append (insert-space object-files))
+    (apply string-append (insert-space libs)))))
 
 (define (c-so-linker:gcc-linux output-name object-files libs)
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -shared -o ~a ~a ~a"
-    gcc-name
+    "gcc ~a -shared -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
+
+; Known to work with 10.2.8
 
 (define (c-so-linker:gcc-macosx output-name object-files libs)
   (execute
    (twobit-format 
     #f
-    "~a -gstabs+ -r -shared -o ~a ~a ~a"
-    gcc-name
+    "gcc ~a -flat_namespace -bundle -undefined suppress -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -127,22 +159,18 @@
   "GCC under Unix"
   'gcc
   ".o"
-  (let ((host-os (nbuild-parameter 'host-os)))
-    (if (eq? host-os 'unix)
-	(if (zero? (system "test \"`uname`\" = \"Linux\""))
-	    (set! host-os 'linux)))
+  (let ((host-os (classify-unix-system)))
     `((compile            . ,c-compiler:gcc-unix)
       (link-library       . ,c-library-linker:gcc-unix)
       (link-executable    . ,(case host-os
+			       ((macosx) c-linker:gcc-macosx)
 			       ((linux) c-linker:gcc-linux)
 			       (else    c-linker:gcc-unix)))
       (link-shared-object . ,(case host-os
 			       ((macosx) c-so-linker:gcc-macosx)
-			       ((linux)  c-so-linker:gcc-linux)
 			       (else     c-so-linker:gcc-unix)))
-      (append-files       . ,append-file-shell-command-unix))))
-
-(select-compiler 'gcc)
+      (append-files       . ,append-file-shell-command-unix)
+      (make-configuration . PETIT-UNIX-STATIC-GCC))))
 
 ; eof
 

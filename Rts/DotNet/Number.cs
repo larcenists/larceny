@@ -6,7 +6,7 @@ public class Number {
     // ============
     //   BIGNUMS
     // ============
-
+    
     public const int BIGIT_BITS = 16;
     public const int BYTES_PER_BIGIT = 2;
     public const ushort BIGIT_MASK = 0xFFFF;
@@ -15,14 +15,14 @@ public class Number {
 
     public const ushort BIGNUM_POSITIVE = 0;
     public const ushort BIGNUM_NEGATIVE = 1;
-
-        #if !BIG_ENDIAN
+    
+	#if !BIG_ENDIAN
     public const int BIGNUM_LENGTH_OFFSET = 0;
     public const int BIGNUM_SIGN_OFFSET = 1;
-        #else
+	#else
     public const int BIGNUM_LENGTH_OFFSET = 1;
     public const int BIGNUM_SIGN_OFFSET = 0;
-        #endif
+	#endif
     public const int BIGNUM_DATA_OFFSET = 2;
 
     public static SByteVL makeBignum(ulong value, bool positive) {
@@ -33,7 +33,7 @@ public class Number {
 
         SByteVL b = allocBignum(bigitc);
         setBignumSign (b, positive);
-
+        
         for (int i = 0; i < bigitc; ++i) {
             bignumSet (b, i, (ushort)(value & BIGIT_MASK));
             value = value >> BIGIT_BITS;
@@ -142,7 +142,7 @@ public class Number {
     // ============
     //   Complex
     // ============
-
+    
     public static SObject rectRealPart(SVL n) {
         return n.elements[0];
     }

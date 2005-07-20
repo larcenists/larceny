@@ -11,15 +11,15 @@
 ; The first word contains bignum metadata: sign and bignum-length.
 ; The sign is kept in the upper two bytes and is 0 (positive) or 1 (negative).
 ; The bignum-length is kept in the lower two bytes and denotes the number
-; of 32-bit "bigits" in the number.
+; of 32-bit "bigits" in the number.  
 ;
 ; If the bignum's value is zero, then the sign is ignored and the length
 ; field must be 0.  Zero-valued bignums should never be allowed to be
 ; visible to user code.
 ;
-; The following code operates on 16-bit bigits since these fit
-; conveniently in a fixnum.  Thus a 32-bit bigit is split into two
-; 16-bit bigits.  This results in a little hair, as the length field
+; The following code operates on 16-bit bigits since these fit 
+; conveniently in a fixnum.  Thus a 32-bit bigit is split into two 
+; 16-bit bigits.  This results in a little hair, as the length field 
 ; still denotes 32-bit bigits.
 ;
 ; FIXME (see similar comments in bignums-be.sch):
@@ -57,7 +57,7 @@
 (define bignum-truncate-length!)	; (complicated)
 
 ; The following procedures are defined in a LET and exported to allow
-; the compiler to generate fast calls to internal definitions (or inline
+; the compiler to generate fast calls to internal definitions (or inline 
 ; them).
 
 (let ()
@@ -84,8 +84,8 @@
   (define (%bignum-set! a i v)
     (bytevector-like-halfword-set! a (+ i 2) v))
 
-  ; Return the number of 16-bit bigits. We check if the high 16-bit
-  ; bigit of the high 32-bit bigit is 0 and return length-1 if so.
+  ; Return the number of 16-bit bigits. We check if the high 16-bit 
+  ; bigit of the high 32-bit bigit is 0 and return length-1 if so. 
 
   (define (%bignum-length b)
     (let* ((l0 (bytevector-like-halfword-ref b 0))
@@ -106,7 +106,7 @@
       (bytevector-like-halfword-set! b 0 l)))
 
   ; This is like bignum-length-set!, except that it works also when the
-  ; length is odd and the most significant half of the 32-bit bigit is not
+  ; length is odd and the most significant half of the 32-bit bigit is not 
   ; zero, i.e., in that case, normalize would not work properly unless said
   ; half is zeroed out.  If this seems like a hack to you, you're right.
   ; I think the most reasonable thing to do would be to make this procedure
@@ -125,7 +125,7 @@
   (set! bignum-truncate-length! %bignum-truncate-length!)
   #t)
 
-; A bignum fits in fixnum if it has no more than two bigits, and if
+; A bignum fits in fixnum if it has no more than two bigits, and if 
 ; it has exactly two bigits then the high three bits of the high bigit
 ; must be equal.
 ;

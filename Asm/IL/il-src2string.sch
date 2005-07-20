@@ -38,7 +38,7 @@
     ((module)
      (twobit-format #f ".module '~a'" (car args)))
     ((line)
-     (twobit-format #f ".line ~a ~a" (car args)
+     (twobit-format #f ".line ~a ~a" (car args) 
                     (if (cadr args) (twobit-format #f "'~a'" (cadr args)) "")))
     (else same)))
 
@@ -50,12 +50,12 @@
          (twobit-format #f "~a ~a" bytecode (car args)))
         ((null? (cddr args))
          (twobit-format #f "~a ~a, ~a" bytecode (car args) (cadr args)))
-        (else (error 'unimplemented "unknown instruction format: "
+        (else (error 'unimplemented "unknown instruction format: " 
                      (cons bytecode args)))))
 
 (define (pickle-ldc-i4 bytecode datum)
   (cond ((memv datum '(0 1 2 3 4 5 6 7 8))
-         (pickle-instr (string-append (symbol->string bytecode) "."
+         (pickle-instr (string-append (symbol->string bytecode) "." 
                                       (number->string datum))
                        '()))
         ((equal? datum -1)

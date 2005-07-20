@@ -116,6 +116,25 @@ Test cases to add to test suite:
     and desired results:
       (expt 0 0) => 1
       (expt 0 2) => 0
+  - Petit arithmetic bug:
+      (+ (sqrt -3.9) 2) => 2.0+1.9748417658131499i
+    but would previously return 2.0 only
+  - This signals a compiler error in some cases:
+(compile 
+  '(define (read-sharp-thingie port)
+    ;; ASSERT: peek-char is #\#
+    (consume-char port)
+    (let ( (next (peek-char port)) )
+      (case next
+        (( #\t #\f #\T #\F ) (make-boolean port))
+        (( #\e #\i #\o #\b #\d #\x #\E #\I #\O #\B #\D #\X )
+         (read-number-loop '(#\#) port))
+        (( #\\ ) (read-character port))
+        (( #\( ) (read-vector    port))
+        (( #\' ) (read-sharp-sym port))
+        (else (error "Unknown sharp syntax" next)))
+  ) )
+)
 
 
 PORTABILITY TODO

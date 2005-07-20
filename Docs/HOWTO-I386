@@ -1,12 +1,32 @@
 Information about native Larceny on Intel 386-class systems
-4 July 2004 / lth
+12 December 2004 / lth
+
+
+INTRODUCTION.
+
+There is a version Petit Larceny that generates output for the x86
+macro-assembler "NASM".  It represents a middle point between Petit
+Larceny and native Larceny -- native code generation, with all its
+advantages, but using the host operating system's loader and a lot of
+the Petit Larceny infrastructure.
+
+Obviously you need to have NASM installed on your system.  It is free
+and can be downloaded from http://sourceforge.net/projects/nasm.
+
+At the present time the system appears to work and the system is as
+functional as Petit Larceny, but it feels brittle -- it is easy to run
+into bugs.
+
+Notably, dynamic loading of compiled code works, and though I've not
+tested on Win32, dynamic loading should work there as well because
+alignment is taken care of in the assembler.
 
 
 HOW TO BUILD AND USE.
 
-See HOWTO-PETIT for general information about how to use the build
-system.  Rather than loading Util/petit-whatever.sch you load one of
-these base files:
+See HOWTO-BUILD and HOWTO-PETIT for general information about how to
+use the build system.  Rather than loading Util/petit-whatever.sch you
+load one of these base files:
 
     Util/nasm-unix.sch
     Util/nasm-win32.sch     (does not yet exist :-)
@@ -15,31 +35,31 @@ The system works like Petit Larceny except that it generates source
 files in assembly language (to be processed by the NASM assembler)
 rather than source files in C.
 
-Obviously you need to have NASM installed on your system.  It is free
-and can be downloaded from http://sourceforge.net/projects/nasm.
-
-Technical details are scattered across Asm/Intel/README and files in
-Rts/Intel.
+There is no technical documentation for this port, but the source files
+are in Asm/Intel/ and Rts/Intel/.
 
 
-STATUS.
+BUGS.
 
-Operational.  Twobit running in the interpreter creates an executable
-and heap image identical to those it creates when running in Petit
-Larceny's interpreter.
+ * There is a bug in i386-instr.asm: the inline allocation code calls
+   MORECORE, but MORECORE does not reserve any particular amount of
+   space, and if the collector does not reclaim any memory then the
+   system gets into a steady state and we loop forever.  The inline
+   allocation code must instead call ALLOC, never MORECORE.
+
+ * A crash during GC was seen some time following a ^C, which could
+   indicate that kbd interrupts are not handled properly, but this has
+   not been reproduced since.
 
 
 TODO.
 
- - more extensive peephole optimization
+ - fix bugs
+ - more extensive peephole optimization (many more)
  - minor issues with performance, code size
  - test, test, test
-
-
-ISSUES.
-
- - a crash during GC was seen some time following a ^C, which 
-   could indicate that kbd interrupts are not handled properly
+ - Would be nice to reuse as much of Asm/Standard-C/dumpheap-* as
+   possible, there is substantial overlap both for -unix and -overrides.
 
 
 OTHER NOTES AND IDEAS.
@@ -63,17 +83,22 @@ OTHER NOTES AND IDEAS.
 PERFORMANCE.
 
 Five aspects:
+
   - Configuring Twobit to fit the x86.  I've done this a little by
     setting the number of hardware registers to 16 (means most generic
     code will use short instructions to fetch "hardware" registers
     located in the sw register file); unclear if much more can be
     done.
+
   - Configuring the RTS.  I've rearranged the globals array some to
     allow many references to use short instructions.
+
   - Peephole optimization, notably of boolean evaluation for control
     and the CHECK operations: need to port the optimizations from the
     other back-ends.
+
   - Code quality in the primitives.  See section below.
+
   - Millicode calls.  See section below.
 
 Should compile with profiling, to see if much time is being spent in
@@ -115,15 +140,15 @@ section below both for what's been done and remaining ideas); this
 seems to improve performance too.
 
 The Intel manuals stress the importance of being nice to the CPU by
-generating straight-line code and getting static prefetches right.
-(Eg, backward branch is predicted as taken, forward predicted as not
-taken, many details.  The current code does it the other way around,
-with a lot of skipping over error handlers or skipping backward to
-error handlers.  This minimizes code size, which is why it is the way
-it is.)  Also, several short instructions may be preferable to one
-long one, for the sake of the decoder.
+generating straight-line code and getting static branch prediction
+right.  (Eg, backward branch is predicted as taken, forward predicted
+as not taken, many details.  The current code does it the other way
+around, with a lot of skipping over error handlers or skipping
+backward to error handlers.  This minimizes code size, which is why it
+is the way it is.)  Also, several short instructions may be preferable
+to one long one, for the sake of the decoder.
 
-May also be able to use conditional move instruction on 586-class
+May also be able to use the conditional move instruction on 586-class
 systems (even better if it were introduced on 486, I haven't checked)
 to reduce branches, but it requires some reworking, and with proper
 peephole optimization the issue is less important.
@@ -156,13 +181,13 @@ Peephole optimization must be more generally implemented.
 
 Here are some further ideas:
 
- - Bumming: The assembler does *not* optimize short forward
-   conditional branches properly; insert a 'short' qualifier when the
-   target is known to be short, and weep when it is not.  I've
-   covered all the macros, but generated branches suffer.
-   (If we use -O2 it optimizes them just fine on small examples,
-    but NASM falls to pieces on larger files: optimizing
-    memstats.asm at -O2 generates bogus errors.)
+ - Bumming: NASM does *not* optimize short forward conditional
+   branches properly; insert a 'short' qualifier when the target is
+   known to be short, and weep when it is not.  I've covered all the
+   macros, but generated branches suffer.  (If we use -O2 it optimizes
+   them just fine on small examples, but NASM falls to pieces on
+   larger files: optimizing memstats.asm at -O2 generates bogus
+   errors.)
 
  - Bumming: Put most-used millicode procs at negative offsets from
    GLOBALS, so that short offsets are generated in calling them!
@@ -215,7 +240,8 @@ SIZE OPTIMIZATIONS IMPLEMENTED.
    the load test.
 
  - Peephole-optimize GLOBAL+INVOKE saves 7.5KB, down to 1456000 and
-   gives another 0.2s on the load test.
+   gives another 0.2s on the load test.  (Some of this may later have been
+   lost because a bug fix introduced another instruction into that code.)
 
  - Bumming T_INVOKE to have only one trap (shared for tag test and timer
    expiration) saves 38KB, down to 1418500.  Bumming it to avoid recomputing

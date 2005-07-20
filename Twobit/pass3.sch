@@ -99,7 +99,7 @@
                         exp
                         ; alpha-conversion
                         (copy-exp exp)))
-               (exp (a-normal-form exp)))
+               (exp (A-normal-form exp)))
           (if (representation-inference)
               (intraprocedural-commoning exp 'commoning)
               (intraprocedural-commoning exp)))
@@ -110,10 +110,10 @@
         (let ((exp (cond ((common-subexpression-elimination)
                           exp)
                          ((interprocedural-constant-propagation)
-                          (a-normal-form exp))
+                          (A-normal-form exp))
                          (else
                           ; alpha-conversion
-                          (a-normal-form (copy-exp exp))))))
+                          (A-normal-form (copy-exp exp))))))
           (intraprocedural-commoning
            (representation-analysis exp)))
         exp))

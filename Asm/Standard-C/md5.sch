@@ -34,6 +34,9 @@
 ;     compiled in either case.  To do this well we must either operate
 ;     on the bignum representation or redo the algorithm to use
 ;     fixnums only.)
+; 06-06-2005 / pnkfelix
+;   - Fixed a bug in the case where the input length is already
+;     congruent length 448 mod 512
 
 ;;; Summary
 ; This is an implementation of the md5 message-digest algorithm
@@ -170,6 +173,8 @@
     ;; return a vector of the first 16 elements of the list,
     ;;         and the rest of the list
     (define (block/list l)
+      (if (< (length l) 16)
+          (error 'block/list "list " l " must have length >= 16"))
       (let* (( v0 (car  l))  ( l0 (cdr l))
 	     ( v1 (car l0))  ( l1 (cdr l0))
 	     ( v2 (car l1))  ( l2 (cdr l1))
@@ -205,7 +210,12 @@
     ;; step1 : (list byte) -> (list byte)
 
     (define (step1 message)
-      (let ((zero-bits-to-append (modulo (- 448 (* 8 (length message))) 512)))
+      (let* ((zero-bits-to-append (modulo (- 448 (* 8 (length message))) 512))
+             ;; According to rfc1321, we're supposed to always pad the one bit,
+             ;; (even when the input is already congruent).
+             (zero-bits-to-append (if (= 0 zero-bits-to-append)
+                                      512
+                                      zero-bits-to-append)))
 	(append message 
 		(cons #x80 ; The byte containing the 1 bit => one less 
 		           ; 0 byte to append 
@@ -324,6 +334,9 @@
 		     (D (word+ D DD)))
 		  (loop A B C D rest)))))
   
+      (if (not (= 0 (remainder (length message) 16)))
+          (error 'step4 "message " message " must have length k*16"))
+
       ;; Step 3 :-) (magic constants)
       (loop #x67452301 #xefcdab89 #x98badcfe #x10325476 message))
 

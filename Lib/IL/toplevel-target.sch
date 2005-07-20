@@ -27,14 +27,4 @@
   
   larc)
 
-;; *larceny-environment-extensions* : (listof (environment -> void))
-;; A list of procedures which accept an environment. The procedures are 
-;; expected to extend the environment with new bindings.
-(define *larceny-environment-extensions* '())
-
-;; *interactive-eval-list* : (listof s-expr)
-;; A list of forms to be evaluated when the interpreter starts.
-(define *interactive-eval-list* '())
-
-
 ; eof

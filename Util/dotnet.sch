@@ -38,7 +38,7 @@
   (case option:endian
     ((big) (set! system-big-endian? (lambda () #t)))
     ((little) (set! system-big-endian? (lambda () #f))))
-
+  
   ;; FIXME:  might have to fudge more this for Cygwin
   ;; load code to work with pathnames
   (case option:os
@@ -48,6 +48,10 @@
      (begin (display "Host = ") (display host)
             (error "unknown host!"))))
 
+  ;; pnkfelix: Some global state is collected here.  We should probably
+  ;; merge the *larceny-root* and *root-directory* global variables.
+  (load (make-filename "Util" "petit-unix-defns-globals.sch"))
+  
   (set! *larceny-root* (make-filename ""))
 
   (let ((option:source? #t)
@@ -57,9 +61,10 @@
     (set!
      make-nbuild-parameter
      (lambda (dir hostdir hostname)
-       (let ((parameters
+       (let ((parameters 
               `((compiler       . ,(pathname-append dir "Twobit"))
                 (util           . ,(pathname-append dir "Util"))
+		(rts            . ,(pathname-append dir "Rts"))
                 (build          . ,(pathname-append dir "Rts" "Build"))
                 (source         . ,(pathname-append dir "Lib"))
                 (common-source  . ,(pathname-append dir "Lib" "Common"))
@@ -86,11 +91,11 @@
                 )))
          (lambda (key)
            (let ((probe (assq key parameters)))
-             (if probe
+             (if probe 
                  (cdr probe)
                  #f)))))))
-
-
+     
+  
   ;; set this so everybody can use it
   (set! nbuild-parameter
         (make-nbuild-parameter *larceny-root* host host))
@@ -100,7 +105,6 @@
   (compat:initialize)
   (load (string-append (nbuild-parameter 'util) "expander.sch"))
   (load (string-append (nbuild-parameter 'util) "config.sch"))
-  (set! config-path "Rts/Build/")
   (load (string-append (nbuild-parameter 'util) "csharp-config.scm"))
   )
 
@@ -117,13 +121,13 @@
            (make-filename *larceny-root* "Rts" "DotNet" "Constants.cs"))
           (rts-dir (make-filename *larceny-root* "Rts")))
       (lambda ()
-        (csharp-config
+        (csharp-config 
          output-c#-file
          `((,(make-filename rts-dir "layouts.cfg") int)
            (,(make-filename rts-dir "except.cfg")  int)
            (,(make-filename rts-dir "globals.cfg") int)
            (,(make-filename rts-dir "mprocs.cfg")  int))))))
-
+      
   (define (catfiles input-files output-file)
     (with-output-to-file output-file
       (lambda ()
@@ -150,11 +154,11 @@
            (catfiles (list src-file) target-file))))
    (map (lambda (f) (make-filename (string-append f ".cfg")))
         cfg-names))
-
+  
   ;; we don't need the C code
   ;;(expand-file (build-path "Standard-C" "arithmetic.mac")
   ;;             (build-path "Standard-C" "arithmetic.c"))
-
+  
   ;(parameterize [(current-directory *root-directory*)]
   (display " -- Running config ...")(newline)
   (for-each config
@@ -181,7 +185,7 @@
                                          (string-append f ".sh")))
               (remove "mprocs" cfg-names))
          (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))))
-
+  
   (display " -- Running C# config...")(newline)
   (let ((file (make-filename *larceny-root* "Rts" "DotNet" "Constants.cs")))
     (if (file-exists? file)

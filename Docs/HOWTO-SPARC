@@ -1,0 +1,106 @@
+Building and using SPARC-native Larceny
+24 November 2004 / lth
+
+
+HOW TO BUILD LARCENY AND USE THE BUILD ENVIRONMENT
+
+General build instructions are in HOWTO-BUILD.  The larceny executable
+is called larceny.bin and the heap image is called sparc.heap.  Both
+are deposited in the top-level directory if the build succeeds.
+
+
+COMPILING AND LOADING YOUR OWN PROGRAMS
+
+It is possible to load compiled Scheme code dynamically.  The procedure
+COMPILE-FILE compiles a Scheme source file into a compiled .FASL format
+file:
+
+    > (compile-file "fib.sch")
+    > (load "fib.fasl")
+    > (fib 10)
+    55
+
+
+BUILDING AN APPLICATION
+
+Since Larceny supports loading of arbitrary dynamic code and heap
+dumping, there is no "application" concept as such.  You simply compile
+the files you want to include in the application using COMPILE-FILE,
+then load the resulting .FASL files using LOAD, and dump the new heap
+image using DUMP-INTERACTIVE-HEAP (or even DUMP-HEAP).  See the user's
+manual for more information on these procedures.
+
+
+COMPILING TWOBIT
+
+A simple abstraction in Util/sparc-unix.sch is called BUILD-TWOBIT:
+
+    > (build-twobit)
+
+The BUILD-TWOBIT command compiles all the Twobit source files.  To dump
+a heap image containing the compiled development environment, first
+compile twobit, then quit Larceny and restart it, using larceny.bin and
+sparc.heap and requesting the nongenerational garbage collector:
+
+    $ ./larceny.bin -stopcopy ./sparc.heap
+
+Then load the following script to load the compiler and dump a suitable
+heap image:
+
+    > (load "Util/twobit-heap.sch")
+
+This leaves the heap image twobit.heap in the current directory,
+containing the compiler and debugger.  This heap image is suitable
+mainly for compiler development.
+
+See a later section for how to turn Twobit into a standalone compiler
+for other kinds of development.
+
+
+BUILDING STANDARD HEAP IMAGES
+
+Similarly to Util/twobit-heap.sch there are two other scripts that
+create standard heap images.  Both must be loaded on top of sparc.heap
+as outlined above.
+
+Util/r5rs-heap.sch
+
+  Creates a minimal heap image called r5rs.heap: like the heap generated
+  by BUILD-HEAP but with a pretty-printer installed.
+
+  To set up for this script, evaluate
+
+    > (build-r5rs-files)
+
+  in the development environment to compile the pretty-printer.
+
+Util/larceny-heap.sch
+
+  Creates a maximal heap image called larceny.heap: it contains the compiler, 
+  installed in such a way that every source file loaded will be compiled as 
+  it is loaded, many useful procedures and macros, the debugger, the pretty
+  printer, and a foreign function interface.
+
+  To set up for this script, evaluate
+
+    > (build-larceny-files)
+
+  in the development environment to compile the compiler; once it has
+  been loaded by the script it takes care of compiling everything else.
+
+
+INSTALLING TWOBIT ON YOUR SYSTEM
+
+The larceny executable and the heap images are generally completely
+moveable, so installing Larceny is simply a matter of copying these
+files and setting up a script that runs Larceny with the desired
+parameters.
+
+The Scripts directory contains two scripts, "larceny" and "twobit",
+that are suitable.
+
+
+--- Local Variables: ---
+--- mode: text ---
+--- indent-tabs-mode: nil ---
+--- End: ---

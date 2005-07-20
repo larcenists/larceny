@@ -1,0 +1,4 @@
+Test suite for Foreign Function Interface.
+
+You want to look at comments at the head of the files ffi-test.sch and
+std-ffi-test.sch.

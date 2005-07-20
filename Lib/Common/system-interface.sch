@@ -86,6 +86,7 @@
 (define feature$endianness        8)
 (define feature$stats-generations 9)
 (define feature$stats-remsets     10)
+(define feature$codevec           11)
 
 (define (sys$system-feature name)
 
@@ -136,6 +137,13 @@
      (get-feature feature$os-major))
     ((os-minor)
      (get-feature feature$os-minor))
+    ((codevec)
+     (case (get-feature feature$codevec)
+       ((0) 'bytevector)
+       ((1) 'address)
+       ((2) 'address-shifted-1)
+       ((3) 'address-shifted-2)
+       (else 'unknown)))
     ((gc-tech)
      (vector-set! v 0 feature$gc-info)
      (sysfeature v)

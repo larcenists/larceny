@@ -59,7 +59,7 @@
   (execute
    (twobit-format 
     #f
-    "nasm -O1 -f elf -IRts/Intel -IRts/Build -o ~a ~a"
+    "nasm -O1 -f elf -IRts/Intel/ -IRts/Build/ -o ~a ~a"
     o-name
     asm-name)))
 
@@ -76,7 +76,8 @@
   (execute
    (twobit-format 
     #f
-    "gcc -gstabs+ -rdynamic -o ~a ~a ~a"
+    "gcc ~a -rdynamic -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -85,7 +86,8 @@
   (execute
    (twobit-format 
     #f
-    "gcc -gstabs+ -o ~a ~a ~a"
+    "gcc ~a -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -97,7 +99,8 @@
   (execute
    (twobit-format 
     #f
-    "gcc -gstabs+ -shared -o ~a ~a ~a"
+    "gcc ~a -shared -o ~a ~a ~a"
+    (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -118,9 +121,8 @@
       (link-shared-object . ,(case host-os
 			       ((linux)  c-so-linker:gcc-linux)
 			       (else     c-so-linker:gcc-unix)))
-      (append-files       . ,append-file-shell-command-unix))))
-
-(select-compiler 'nasm+gcc)
+      (append-files       . ,append-file-shell-command-unix)
+      (make-configuration . x86-unix-static-gcc-nasm))))
 
 ; eof
 

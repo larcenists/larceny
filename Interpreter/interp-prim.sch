@@ -157,7 +157,7 @@
            (v (a env) (b env)))))))
 
 (define (interpret/invoke-prim2:> a b orig cell)
-  (interpreted-primitive
+  (interpreted-primitive 
    '> 2
    (lambda (env)
      (let ((v (car cell)))

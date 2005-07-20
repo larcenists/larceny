@@ -4,6 +4,9 @@
 ;;; between Scheme and the dotnet class library.  To use this code, you
 ;;; must follow these steps:
 ;;;
+;;;  0.  Ensure that the (recognize-keywords?) parameter is #t
+;;;      [maybe; FSK needs to check with JRM on necessity of this step]
+;;;  
 ;;;  It is no longer necessary to load dotnet-ffi.sch, it is built in
 ;;;  to the Common Larceny system.
 ;;;
@@ -65,6 +68,8 @@
 ;;;  JavaDot notation was invented by Tim Hickey and Ken Anderson.
 ;;;  See the files excel-demo.sch and windows.sch for examples of
 ;;;  using JavaDot notation.
+
+($$trace "dotnet")
 
 ;;; Snarf these three macros to facilitate bootstrapping.
 (define-syntax %set-instance/class!

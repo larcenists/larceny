@@ -83,7 +83,7 @@ static word *make_system_procedure( gc_t *gc, codeptr_t f )
 
   p = alloc_from_heap( sizeof(word)*(PROC_HEADER_WORDS+3) );
   p[0] = mkheader( sizeof(word)*3, PROC_HDR );
-  p[PROC_HEADER_WORDS+IDX_PROC_CODE] = (word)f;
+  p[PROC_HEADER_WORDS+IDX_PROC_CODE] = ENCODE_CODEPTR(f);
   p[PROC_HEADER_WORDS+IDX_PROC_CONST] = FALSE_CONST;
   p[PROC_HEADER_WORDS+IDX_PROC_REG0] = 0;
 
@@ -103,7 +103,7 @@ void scheme_start( word *globals )
 
   /* Patch in bootstrap code if necessary */
   if (procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ) == FALSE_CONST)
-    procedure_set( globals[ G_REG0 ], IDX_PROC_CODE, (word)twobit_start );
+    procedure_set(globals[G_REG0],IDX_PROC_CODE,ENCODE_CODEPTR(twobit_start));
 
   /* Return address for bottom-most frame */
 # if USE_GOTOS_LOCALLY
@@ -144,7 +144,7 @@ void scheme_start( word *globals )
 # if USE_GOTOS_LOCALLY
     f = 0;
 # else
-    f = (cont_t)(procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ));
+    f = DECODE_CODEPTR(procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ));
 # endif
     break;
   case DISPATCH_CALL_AGAIN :
@@ -153,7 +153,7 @@ void scheme_start( word *globals )
     f = twobit_cont_label;
     break;
 # else
-    panic_exit( "Unexpected entry to DISPATCH_CALL_AGAIN case in scheme_start()" );
+    panic_exit( "Unexpected entry to DISPATCH_CALL_AGAIN in scheme_start()" );
 # endif
   case DISPATCH_EXIT:
     already_running = 0;
@@ -177,7 +177,7 @@ void scheme_start( word *globals )
     f = twobit_cont_label;
     break;
 # else
-    panic_exit( "Unexpected entry to DISPATCH_TIMER case in scheme_start()" );
+    panic_exit( "Unexpected entry to DISPATCH_TIMER in scheme_start()" );
 # endif
   default :
     panic_exit( "Unexpected value %d from setjmp in scheme_start()", x );
@@ -185,19 +185,27 @@ void scheme_start( word *globals )
 
   /* Inner loop */
 # if USE_GOTOS_LOCALLY
-   /* INVARIANT: f is an entry point within the code of the procedure in REG0. */
+   /* INVARIANT: f is an entry point within the code of the procedure 
+      in REG0. */
 #  if USE_RETURN_WITH_VALUE
    while (1)
-     f = ((codeptr_t)procedure_ref(globals[G_REG0],0))( globals, f );
+   {
+     codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
+     f = p( globals, f );
+   }
 #  elif USE_RETURN_WITHOUT_VALUE
    twobit_cont_label = f;
    while (1) {
-     ((codeptr_t)procedure_ref(globals[G_REG0],0))( globals, twobit_cont_label );
+     codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
+     p( globals, twobit_cont_label );
    }
 #  elif USE_LONGJUMP
-   ((codeptr_t)procedure_ref(globals[G_REG0],0))( globals, f );
+   {
+     codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
+     p( globals, f );
+   }
 #  endif
-# else
+# else /* USE_GOTOS_LOCALLY */
 #  if USE_RETURN_WITH_VALUE
    while (1)
      f = ((codeptr_t)f)( globals );
@@ -207,9 +215,9 @@ void scheme_start( word *globals )
      ((codeptr_t)twobit_cont_label)( globals );
 #  elif USE_LONGJUMP
    ((codeptr_t)f)( globals );
-  panic_exit( "Unexpected return from procedure in scheme_start()" );
 #  endif
-# endif
+# endif /* USE_GOTOS_LOCALLY */
+   panic_exit( "Unexpected return from procedure in scheme_start()" );
 }
 
 void twobit_integrity_check( word *globals, const char *name )
@@ -285,7 +293,7 @@ void stk_initialize_underflow_frame( word *stkp )
   stkp[ STK_RETADDR ] = 0;
   stkp[ STK_REG0 ] = *stack_underflow_procedure;
 # else
-  stkp[ STK_RETADDR ] = (word)mem_stkuflow;
+  stkp[ STK_RETADDR ] = ENCODE_RETURN_ADDRESS(mem_stkuflow,0);
   stkp[ STK_REG0 ] = 0;
 # endif
 }
@@ -700,7 +708,7 @@ void EXPORT mc_petit_patch_boot_code( word *globals )
 
   for ( i=0, l=globals[ G_RESULT ] ; l != NIL_CONST ; l=pair_cdr(l), i++ ) {
     word p = pair_car( l );
-    procedure_set( p, IDX_PROC_CODE, (word)twobit_start_procedures[i] );
+    procedure_set(p,IDX_PROC_CODE,ENCODE_CODEPTR(twobit_start_procedures[i]));
   }
 }
 
@@ -761,10 +769,8 @@ cont_t refill_stack_cache( word *globals )
   stkp = (word*)globals[ G_STKP ];
 #if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
   globals[ G_REG0 ] = stkp[ STK_REG0 ];
-  return (cont_t)nativeuint( stkp[ STK_RETADDR ] );
-#else
-  return (cont_t)(stkp[ STK_RETADDR ]);
 #endif
+  return DECODE_RETURN_ADDRESS(stkp[ STK_RETADDR ]);
 }
 
 /* Cache flushing */
@@ -928,8 +934,8 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   stkp[ STK_RETADDR ] = (word)i386_return_from_scheme;
   stkp[ STK_REG0 ] = 0;
   stkp[ 4 ] = (word)k;
-#else
-  stkp[ STK_RETADDR ] = (word)return_from_scheme;
+#else /* PETIT_LARCENY && !USE_GOTOS_LOCALLY */
+  stkp[ STK_RETADDR ] = ENCODE_RETURN_ADDRESS(0,return_from_scheme);
   stkp[ STK_REG0 ] = 0;
   stkp[ 4 ] = (word)k;
 #endif

@@ -109,13 +109,13 @@
          (budget (quotient (* (- *multiplier* 100) size0) 100))
          (tail-threshold *tail-threshold*)
          (nontail-threshold *nontail-threshold*))
-
+    
     ; Given an expression,
     ; a boolean indicating whether the expression is in a tail context,
     ; a list of procedures that should not be inlined,
     ; and a size budget,
     ; performs inlining by side effect and returns the unused budget.
-
+    
     (define (inline exp tail? budget)
         (if (positive? budget)
 
@@ -188,13 +188,13 @@
                           (inline proc #f budget))))))
               (else (error "Unrecognized expression" exp)))
             -1))
-
+    
     (if (and #f debugging?)
         (begin
          (display "Processing ")
          (write name)
          (newline)))
-
+    
     (let ((budget (inline (if (lambda? exp)
                               (lambda.body exp)
                               exp)

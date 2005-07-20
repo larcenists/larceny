@@ -120,7 +120,7 @@ void C_panic( char *fmt, ... )
   va_start( args, fmt );
   vsprintf( buf, fmt, args );
   va_end( args );
-  panic( "%s", buf );
+  panic_exit( "%s", buf );
   in_noninterruptible_syscall = 0;
 }
 
@@ -251,7 +251,7 @@ void C_singlestep( word cidx )
   constvec = *( ptrof( globals[G_REG0] ) + 2 );
   s = *( ptrof( constvec ) + VEC_HEADER_WORDS + nativeint(cidx) );
   if (tagof( s ) != BVEC_TAG)
-    panic( "Internal: Bad arg to C_singlestep().\n" );
+    panic_exit( "Internal: Bad arg to C_singlestep().\n" );
 
   l = string_length( s );
   strncpy( buf, string_data( s ), min( l, sizeof( buf )-1 ) );

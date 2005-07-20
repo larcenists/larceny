@@ -4,9 +4,9 @@
 ;
 ; Record Package.
 ;
-; This is a record package as proposed by RRRS authors but never
-; made part of the report.  This implementation is based on a
-; proposal posted to rrrs-authors on 1 Sep 89 by Pavel Curtis,
+; This is a record package as proposed by RRRS authors but never 
+; made part of the report.  This implementation is based on a 
+; proposal posted to rrrs-authors on 1 Sep 89 by Pavel Curtis, 
 ; reposted to comp.lang.scheme by Norman Adams on 5 Feb, 1992.
 ;
 ; This implementation extends the proposal in the following ways:
@@ -36,7 +36,7 @@
 
 (let ((interface
 
-       ; Records of length n are represented as structures where element 0
+       ; Records of length n are represented as structures where element 0 
        ; contains the record type descriptor, and the other elements hold
        ; the field values.
        ;
@@ -46,7 +46,7 @@
        (let ((record-overhead 1))       ; Number of overhead slots.
 
          ; Records
-
+         
          ; RECORD-WITH-TYPE? assumes rtd is in fact an rtd.
 
          (define (record-with-type? obj rtd)
@@ -153,8 +153,8 @@
                                  new-val))))
 
          ; Record types
-
-         ; (define *rtd-type*
+  
+         ; (define *rtd-type* 
          ;   (make-record-type "record-type-descriptor-type"
          ;     '(name                symbol
          ;       slot-offsets        assoc list of (field-name . offset)
@@ -163,7 +163,7 @@
          ;       hierarchy-vector    vector of rtds
          ;       hierarchy-depth     fixnum
          ;       )))
-
+         
          ; Magic definiton of *rtd-type*, predicate, and accessors because
          ; of circularity problems.
 
@@ -175,7 +175,7 @@
                      (record-size . ,(+ record-overhead 3))
                      (hierarchy-vector . ,(+ record-overhead 4))
                      (hierarchy-depth . ,(+ record-overhead 5))))
-                  (x
+                  (x 
                    (make-structure (+ record-overhead (length slot-offsets))))
                   (name 'record-type))
              (vector-like-set! x 0 x)
@@ -198,7 +198,7 @@
                 (> (vector-like-length obj) 0)
                 (let ((slot0 (vector-like-ref obj 0)))
                   (and (structure? obj)
-                       (and (>= (vector-like-length slot0)
+                       (and (>= (vector-like-length slot0) 
                                 (vector-like-length *rtd-type*))
                             (vector? (rtd-hierarchy-vector slot0))
                             (rtd-extends? slot0 *rtd-type*))))))
@@ -220,14 +220,14 @@
 
          (define (rtd-field-offset rtd name)
            (cdr (assq name (rtd-slot-offsets rtd))))
-
+  
          (define (rtd-field-names rtd)
            (map car (rtd-slot-offsets rtd)))
 
          ; End magic
 
-         ; r1 extends r2
-         ;    iff
+         ; r1 extends r2 
+         ;    iff 
          ; r1.type-hierarchy-vector[ r2.type-hierarchy.depth ] = r2
 
          (define (rtd-extends? r1 r2)
@@ -303,13 +303,13 @@
 
          (define (assert-record-of-type obj rtd)
            (if (not (record-with-type? obj rtd))
-               (error "Object is not record of type: " (rtd-name rtd)
+               (error "Object is not record of type: " (rtd-name rtd) 
                       ": " obj)))
 
-         (list
-          (lambda (name field-names . rest)
-            (make-record-type name field-names (if (null? rest)
-                                                   #f
+         (list 
+          (lambda (name field-names . rest) 
+            (make-record-type name field-names (if (null? rest) 
+                                                   #f 
                                                    (car rest))))
           (lambda (x) (record-type-descriptor? x))
           (lambda (rtd) (record-type-field-names rtd))
@@ -317,7 +317,7 @@
           (lambda (rtd1 rtd2) (record-type-extends? rtd1 rtd2))
           (lambda (rtd) (record-type-parent rtd))
           (lambda (x) (record? x))
-          (lambda (rtd . rest)
+          (lambda (rtd . rest) 
             (record-constructor rtd (if (null? rest)
                                         #f
                                         (car rest))))

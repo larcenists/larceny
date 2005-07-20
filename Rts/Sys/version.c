@@ -46,6 +46,8 @@ char *user = USER;
   char *osname = "SunOS5";
 #elif defined(LINUX)
   char *osname = "Linux";
+#elif defined(CYGWIN)
+  char *osname = "Cygwin";
 #elif defined(BSD_UNIX)
   char *osname = "BSD Unix";
 #elif defined(POSIX_UNIX)

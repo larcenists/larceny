@@ -36,16 +36,16 @@
 ;   this config file at all.
 ;
 ;   Then the constants follow. The basic syntax of each constant is this:
-;
+; 
 ;     (define-const <name> <base value> <c name> <assy name> <scheme name>)
 ;
-;   The <x name> in the define-const can be #f, avoiding generating it
+;   The <x name> in the define-const can be #f, avoiding generating it 
 ;   altogether for the appropriate language. If the entry is not #f but the
 ;   file entry was #f, the entry is ignored.
 ;
 ;   This defines the base value and the names for the header files for all
 ;   languages. The base value can be any constant or it can be a previously
-;   defined <name>, or a general Scheme expression involving previously
+;   defined <name>, or a general Scheme expression involving previously 
 ;   defined <name>s and Scheme procedures. If the base value is not simply
 ;   a constant, known variables will be substituted for and the resulting
 ;   expression will be passed to "eval".
@@ -88,21 +88,21 @@
   (define (info.symtab! x v) (vector-set! x 0 v))
   (define (info.csharp x) (vector-ref x 1))
   (define (info.csharp! x v) (vector-set! x 1 v))
-
+  
   (define (info.lookup x n)
     (assq n (info.symtab x)))
-
+  
   (define make-lang vector)
   (define (lang.fn x)  (vector-ref x 0))
   (define (lang.port x) (vector-ref x 1))
   (define (lang.fmt x) (vector-ref x 2))
   (define (lang.action x) (vector-ref x 3))
-
+  
   (define (caddddr x) (car (cddddr x)))
   (define (cadddddr x) (car (cdr (cddddr x))))
-
+  
   ; predicates for commands
-
+  
   (define (define-files? x)
     (and (pair? x) (eq? (car x) 'define-files)))
 
@@ -131,7 +131,7 @@
     (and (pair? x) (eq? (car x) 'align)))
 
   (define (config-loop inp info)
-    (fold/sexprs/file
+    (fold/sexprs/file 
      handle-conf-item
      info
      inp))
@@ -142,7 +142,7 @@
         (if (eof-object? next)
             info
             (loop (op next info))))))
-
+  
   (define (handle-conf-item item info)
     (cond ((eof-object? item)
            info)
@@ -154,12 +154,12 @@
            '(define-table item)
            info)
           ((start-roots? item)
-           '(define-const
-             `(define-const first-root ,table-counter "FIRST_ROOT" #f #f)
+           '(define-const 
+             `(define-const first-root ,table-counter "FIRST_ROOT" #f #f) 
              accum)
            info)
           ((end-roots? item)
-           '(define-const
+           '(define-const 
              `(define-const last-root ,(- table-counter 1) "LAST_ROOT" #f #f)
              accum)
            info)
@@ -179,31 +179,31 @@
 
     (define (subs expr)
       (cond ((number? expr) expr)
-            ((symbol? expr)
-             (let ((probe (assq expr symtab)))
-               (if probe
-                   (cdr probe)
-                   expr)))
-            ((string? expr) expr)
-            ((boolean? expr) expr)
-            ((null? expr) expr)
-            ((pair? expr)
-             (if (eq? 'quote (car expr))
-                 expr
-                 (map subs expr)))
-            (else
-             (error "Invalid expression ~a" expr))))
+	    ((symbol? expr)
+	     (let ((probe (assq expr symtab)))
+	       (if probe
+		   (cdr probe)
+		   expr)))
+	    ((string? expr) expr)
+	    ((boolean? expr) expr)
+	    ((null? expr) expr)
+	    ((pair? expr)
+	     (if (eq? 'quote (car expr))
+		 expr
+		 (map subs expr)))
+	    (else
+	     (error "Invalid expression ~a" expr))))
 
-    (if (number? expr)
-        expr
-        (eval (subs expr))))
+    (if (number? expr) 
+	expr
+	(eval (subs expr))))
 
   ; Define a constant; return a new info structure.
 
   (define (define-const x info)
     (define (dump-const! entry lang base)
       (if lang
-          (cond ((string? entry)
+	  (cond ((string? entry)
                  (twobit-format (lang.port lang)
                                 (lang.fmt lang)
                                 entry
@@ -213,24 +213,24 @@
                  (error "Invalid entry for DEFINE-CONST: " x)))))
 
     (let ((name (cadr x))
-          (base (eval-expr (caddr x) (info.symtab info)))
+	  (base (eval-expr (caddr x) (info.symtab info)))
           (csharp (cadddr x))) ;; same as c was
       (let ((probe (info.lookup info name)))
-        (if probe
-            (begin
-              (error "Redefinition of ~a ignored." name)
-              info)
-            (begin
-              (dump-const! csharp (info.csharp info) base)
-              (make-info (cons (cons name base) (info.symtab info))
-                         (info.csharp info)))))))
+	(if probe
+	    (begin 
+	      (error "Redefinition of ~a ignored." name)
+	      info)
+	    (begin
+	      (dump-const! csharp (info.csharp info) base)
+	      (make-info (cons (cons name base) (info.symtab info))
+			 (info.csharp info)))))))
 
 
   (define (close-output-files info)
     (if (info.csharp info) (close-output-port (lang.port (info.csharp info)))))
-
+  
   (define (prologue out)
-    (display "namespace Scheme.RT {" out)
+    (display "namespace Scheme.RT {" out) 
     (newline out)
     (display "  public class Constants {" out)
     (newline out))
@@ -253,8 +253,8 @@
                              ((int) entry-format/int)
                              ((uint) entry-format))))
                       (let ((config-info
-                             (make-info
-                              '()
+                             (make-info 
+                              '() 
                               (make-lang #f outport entry-format values))))
                         (let* ((inp   (open-input-file fn))
                                (files (read inp)))

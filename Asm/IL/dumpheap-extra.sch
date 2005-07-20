@@ -47,7 +47,7 @@
          (label-count (cvclass-label-count codevector))
          (name (codevector-name id))
          (fullname (il-class #f il-namespace name)))
-    (class-start name il-namespace il-codevector
+    (class-start name il-namespace il-codevector 
                  '(private auto ansi beforefieldinit))
     (field-add "instance" iltype-codevector '(public static initonly))
 
@@ -74,20 +74,20 @@
     (method-finish)
 
     (method-start ".cctor" iltype-void '()
-                  '(private hidebysig specialname
+                  '(private hidebysig specialname 
                             rtspecialname static cil managed))
     (emit ilc
-          (il:directive
-           'maxstack
+          (il:directive 
+           'maxstack 
            (apply max (cons 4 (map il:constant-max-stack constants))))
           (il:call '(new instance) iltype-void fullname ".ctor" '())
           (il 'stsfld (il-field iltype-codevector fullname "instance"))
-
+          
           (let loop ((n 0) (constants constants))
             (cond ((null? constants) '())
                   ((pair? constants)
                    (list (il:build-constant (car constants))
-                         (il:stsfld iltype-schemeobject
+                         (il:stsfld iltype-schemeobject 
                                     fullname
                                     (twobit-format #f "constant~s" n))
                          (loop (+ 1 n) (cdr constants))))))
@@ -97,7 +97,7 @@
     (class-finish)))
 
 ;; dump-segment : Segment -> (cons string string)
-;; Dumps all codevectors in the segment. In addition, a Loader is defined
+;; Dumps all codevectors in the segment. In addition, a Loader is defined 
 ;; which creates a Procedure representing the top-level form of the segment.
 ;; Returns the pair of Loader classname and namespace.
 (define (dump-segment segment)
@@ -110,38 +110,38 @@
     (dump-nested-codevectors (segment.constants segment))
 
     (let ((loadable-classname (il:loader-name *segment-number*)))
-      (class-start loadable-classname il-namespace il-object
+      (class-start loadable-classname il-namespace il-object 
                    '(public auto ansi beforefieldinit))
       (method-start "constants" iltype-schemeobject '()
                     '(public hidebysig static cil managed))
-      (emit ilc
+      (emit ilc 
             (il:directive 'maxstack max-stack)
-            (il:constant-vector
+            (il:constant-vector 
              (vector->list (segment.constants segment)))
             (il 'ret))
       (method-finish)
-
+      
       (field-add "entrypoint" iltype-codevector '(public static initonly))
-
+      
       (method-start ".cctor" iltype-void '()
-                    '(private hidebysig specialname
+                    '(private hidebysig specialname 
                               rtspecialname static cil managed))
-      (emit ilc
-            (il 'ldsfld
+      (emit ilc 
+            (il 'ldsfld 
                 (il-field iltype-codevector
                           (il-class #f
                                     il-namespace
                                     (codevector-name entrypoint))
                           "instance"))
-            (il 'stsfld
+            (il 'stsfld 
                 (il-field iltype-codevector
                           (il-class #f il-namespace loadable-classname)
                           "entrypoint"))
             (il 'ret))
       (method-finish)
-
+      
       (method-start ".ctor" iltype-void '()
-                    '(private hidebysig specialname
+                    '(private hidebysig specialname 
                               rtspecialname instance cil managed))
       (emit ilc
             (il 'ldarg 0)
@@ -153,14 +153,14 @@
       (method-start "load" iltype-procedure '()
                     '(public hidebysig static cil managed))
       (emit ilc
-            (il:ldsfld iltype-codevector
+            (il:ldsfld iltype-codevector 
                        (il-class #f il-namespace loadable-classname)
                        "entrypoint")
             (il:call '() iltype-schemeobject
                      (il-class #f il-namespace loadable-classname)
                      "constants" '())
-            (il:call '(new instance) iltype-void
-                     il-procedure ".ctor"
+            (il:call '(new instance) iltype-void 
+                     il-procedure ".ctor" 
                      (list iltype-codevector
                            iltype-schemeobject))
             (il 'ret))
@@ -174,7 +174,7 @@
 ;;; source .lop file, the generated namespace for all classes in that
 ;;; segment, 0 (?), and the number of the segment.
 ;(define (dump-fasl segment filename out)
-;  (twobit-format
+;  (twobit-format 
 ;   out
 ;   "((.common-patch-procedure ~s ~s ~s ~s "
 ;   (rewrite-file-type filename ".lop" "")
@@ -196,7 +196,7 @@
 (define (dump-fasl/manifest base manifest)
   (with-input-from-file manifest
     (lambda ()
-      (read/for-each
+      (read/for-each 
        (lambda (entry)
          (twobit-format (current-output-port)
                         "((.common-patch-procedure ~s ~s ~s ~s~%  "
@@ -204,7 +204,7 @@
                         (list-ref entry 1)  ;; il namespace
                         (list-ref entry 2)  ;; 0
                         (+ 1 (list-ref entry 3))) ;; segment #
-         (dump-fasl-segment-to-port (cons #f (list-ref entry 4))
+         (dump-fasl-segment-to-port (cons #f (list-ref entry 4)) 
                                     (current-output-port)
                                     'no-code)
          (twobit-format (current-output-port)
@@ -216,7 +216,7 @@
                (cvclass-il-namespace (segment.code segment))
                (length *loadables*)
                *segment-number*
-               (copy-constant-vector/strip-code
+               (copy-constant-vector/strip-code 
                 (segment.constants segment)))
          out)
   (newline out))
@@ -232,8 +232,8 @@
     ((data) constant)
     ((global) constant)
     ((codevector) '(codevector #f))
-    ((constantvector)
-     `(constantvector
+    ((constantvector) 
+     `(constantvector 
        ,(copy-constant-vector/strip-code (cadr constant))))
     (else (error "copy-constant/strip-code: bad constant: " constant))))
 
@@ -258,7 +258,7 @@
             (call-with-input-file filename
               (lambda (in)
                 (do ((segment (read in) (read in)))
-                  ((eof-object? segment)
+                  ((eof-object? segment) 
                    (set! *loadables* (cons (cons *seed* (reverse entrypoints))
                                            *loadables*)))
                   (set! entrypoints (cons (dump-segment segment) entrypoints))
@@ -266,7 +266,7 @@
 ;                                   (segment.constants segment))
 ;                             filename out)
                   (dump-manifest segment
-                                 filename
+                                 filename 
                                  manifest-out)
                   (set! *segment-number* (+ *segment-number* 1)))))))
     (il-finalize *c-output*)
@@ -290,7 +290,7 @@
     (dump-toplevels (apply append (map manifest-get-loaders manifests)))
     (dump-debug-info (map manifest-get-namespace manifests))
     (class-finish)
-
+    
     (dump-main-function '() #f)
     (il-finalize *c-output*)
     (close-output-port *c-output*)
@@ -318,7 +318,7 @@
 (define (manifest-get-loaders manifest)
   (with-input-from-file manifest
     (lambda ()
-      (read/map
+      (read/map 
        (lambda (line)
          (let ((file-base (car line))
                (il-namespace (cadr line))
@@ -358,7 +358,7 @@
 (define (dump-toplevels loaders)
   (method-add
    "TopLevel"
-   iltype-procedure-array
+   iltype-procedure-array 
    '()
    '(public static cil managed)
    (let ((instrs '()))
@@ -366,7 +366,7 @@
            (list (il 'ldc.i4 (length loaders))
                  (il 'newarr iltype-procedure)
                  (let loop ((index 0) (loaders loaders))
-                   (if (null? loaders)
+                   (if (null? loaders) 
                        (list (il 'ret))
                        (list (il 'dup)
                              (il 'ldc.i4 index)
@@ -393,13 +393,13 @@
   (let loop ((funs funs) (entry #f))
     (cond ((null? funs)
            entry)
-          (else
+          (else 
            (let* ((fun (car funs))
                   (id (fun.id fun))
                   (il-namespace (fun.il-namespace fun))
                   (definite? (fun.definite? fun))
                   (entry? (fun.entry? fun)))
-             (loop (cdr funs)
+             (loop (cdr funs) 
                    (if entry? id entry)))))))
 
 ;; ===============================================
@@ -410,7 +410,7 @@
 
 (define (create-application app src-manifests fasl?)
   (let* ((app-exe (string-append app ".exe"))
-         (assembly-il
+         (assembly-il 
           (create-assembly app-exe src-manifests))
          (ordered-il-files
           (map (lambda (f) (rewrite-file-type f ".manifest" ".code-il"))
@@ -507,7 +507,7 @@
 ;; an EXE file and a FASL file.
 (define (compile-application app files)
   (for-each scheme->il files)
-  (create-application
+  (create-application 
    app
    (map (lambda (f) (rewrite-file-type f *scheme-suffixes* *manifest-file-type*))
         files)
@@ -517,7 +517,7 @@
 (define (scheme->app file)
   (let ((base (rewrite-file-type file *scheme-suffixes* "")))
     (scheme->il file)
-    (let ((app (create-application
+    (let ((app (create-application 
                 base
                 (list (string-append base *manifest-file-type*))
                 #t)))
@@ -553,13 +553,13 @@
 
 (define (mal->il filename)
   (let* ((base (rewrite-file-type filename '(".lap" ".mal") ""))
-         (listing-name (rewrite-file-type base "" ".list"))
-         (lop-name (rewrite-file-type base "" *lop-file-type*))
-         (il-name (rewrite-file-type base "" ".code-il")))
+	 (listing-name (rewrite-file-type base "" ".list"))
+	 (lop-name (rewrite-file-type base "" *lop-file-type*))
+	 (il-name (rewrite-file-type base "" ".code-il")))
     (if (codegen-option 'listify-write-list-file)
-        (begin (listify-reset)
-               (set! listify-filename listing-name)
-               (set! listify-oport (open-output-file listing-name))))
+	(begin (listify-reset)
+	       (set! listify-filename listing-name)
+	       (set! listify-oport (open-output-file listing-name))))
     ;; set the uid cookie so that namespace ids can be humanly read.
     (set! *unique-id-cookie* (filename->id-cookie base))
     (assemble313 filename)

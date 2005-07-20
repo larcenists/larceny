@@ -17,8 +17,7 @@
     `("sets.sch" "hash.sch" "hashtable.sch" "hashtree.sch"
       "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
       "prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
-      "expand.sch" "usual.sch"
-      "pass1.sch"
+      "expand.sch" "usual.sch" "pass1.sch"
       "copy.sch" "pass3commoning.aux.sch" "pass3rep.aux.sch")))
 
 (define *nbuild:sparc/twobit-files*
@@ -30,13 +29,14 @@
 		'("common.imp.sch" "standard-C.imp.sch" "standard-C.imp2.sch")))
 
 (define *nbuild:dotnet/twobit-files*
-  (append
-   (nbuild-files 'compiler
-                 '("common.imp.sch"))
+  (if (eq? 'dotnet (nbuild-parameter 'target-machine))
+      (append 
+       (nbuild-files 'compiler
+                     '("common.imp.sch"))
    ;;; FIXME:  Compiler is going to need to know about
    ;;;         Lib/Common/javadot-syntax.sch to implement .javadot macro
-   (nbuild-files 'dotnet-asm
-                 '("il.imp.sch" "il.imp2.sch"))))
+       (nbuild-files 'dotnet-asm
+                     '("il.imp.sch" "il.imp2.sch")))))
 
 (define *nbuild:twobit-files-2*
   (nbuild-files 'compiler
@@ -51,8 +51,7 @@
       ,(if (nbuild-parameter 'development?)
            "driver-twobit.sch"
            "driver-larceny.sch")
-      "printlap.sch"
-      )))
+      "printlap.sch")))
 
 (define *nbuild:common-asm-be*
   (nbuild-files 'common-asm
@@ -68,63 +67,76 @@
   (nbuild-files 'build '("schdefs.h")))
 
 (define *nbuild:sparcasm-files*
-  (nbuild-files 'sparc-asm
-		'("pass5p2.sch" "peepopt.sch" "sparcutil.sch" "sparcasm.sch"
-                  "sparcasm2.sch"
-		  "gen-msi.sch" "sparcprim-part1.sch" "sparcprim-part2.sch"
-		  "sparcprim-part3a.sch" "sparcprim-part3b.sch"
-                  "sparcprim-part4.sch"
-                  "switches.sch" "sparcdis.sch")))
+  (if (eq? 'SPARC (nbuild-parameter 'target-machine))
+      (nbuild-files 'sparc-asm
+                    '("pass5p2.sch" 
+                      "peepopt.sch"
+                      "sparcutil.sch"
+                      "sparcasm.sch"
+                      "sparcasm2.sch"
+                      "gen-msi.sch"
+                      "sparcprim-part1.sch"
+                      "sparcprim-part2.sch"
+                      "sparcprim-part3a.sch"
+                      "sparcprim-part3b.sch"
+                      "sparcprim-part4.sch"
+                      "switches.sch"
+                      "sparcdis.sch"))))
 
 (define *nbuild:petitasm-files*
-  (append
-   (nbuild-files 'common-asm
-		 '("external-assembler.sch"))
-   (nbuild-files 'standard-C-asm
-		 `("pass5p2.sch"
-		   "peepopt.sch"
-		   "asm-switches.sch"
-		   "dumpheap-overrides.sch"
-		   "petit-init-proc.sch"
-		   "md5.sch"
-		   ,@(case (nbuild-parameter 'host-os)
-		       ((macosx unix) '("dumpheap-unix.sch"))
-		       ((win32)       '("dumpheap-win32.sch"))
-		       (else          '()))))))
+  (if (eq? 'standard-c (nbuild-parameter 'target-machine))
+      (append
+       (nbuild-files 'common-asm
+                     '("external-assembler.sch"))
+       (nbuild-files 'standard-C-asm
+                     `("pass5p2.sch" 
+                       "peepopt.sch" 
+                       "asm-switches.sch" 
+                       "dumpheap-overrides.sch" 
+                       "petit-init-proc.sch"
+                       "md5.sch"
+                       ,@(case (nbuild-parameter 'host-os)
+                           ((macosx unix cygwin solaris linux-el) '("dumpheap-unix.sch"))
+                           ((win32)       '("dumpheap-win32.sch"))
+                           (else          (error '*nbuild:petitasm-files* "Unknown value for nbuild-parameter 'host-os"))))))
+      '()))
 
 (define *nbuild:x86-nasm-files*
-  (append
-   (nbuild-files 'common-asm
-		 '("external-assembler.sch"))
-   (nbuild-files 'x86-nasm-asm
-		 `("pass5p2-nasm.sch"
-		   "peepopt.sch"
-		   "dumpheap-overrides.sch"
-		   ,@(case (nbuild-parameter 'host-os)
-		      ((unix)  '("dumpheap-unix.sch"))
-		      ((win32) '("dumpheap-win32.sch"))
-		      (else    '()))))
-   (nbuild-files 'standard-C-asm
-		 '("asm-switches.sch"
-		   "petit-init-proc.sch"
-		   "md5.sch"))))
+  (if (eq? 'x86-nasm (nbuild-parameter 'target-machine))
+      (append
+       (nbuild-files 'common-asm
+                     '("external-assembler.sch"))
+       (nbuild-files 'x86-nasm-asm
+                     `("pass5p2-nasm.sch"
+                       "peepopt.sch"
+                       "dumpheap-overrides.sch" 
+                       ,@(case (nbuild-parameter 'host-os)
+                           ((unix cygwin)  '("dumpheap-unix.sch"))
+                           ((win32) '("dumpheap-win32.sch"))
+                           (else    '()))))
+       (nbuild-files 'standard-C-asm
+                     '("asm-switches.sch"
+                       "petit-init-proc.sch"
+                       "md5.sch")))
+      '()))
 
-(define *nbuild:dotnetasm-files*
-  (nbuild-files 'dotnet-asm
-                '("asm-switches.sch"
-                  "config.sch"
-                  "util.sch"
-                  "il-gen.sch"
-                  "il-rtif.sch"
-                  "pass5p2.sch"
-                  "pass5p2-instructions.sch"
-                  "pass5p2-ops.sch"
-                  "pass5p2-listify.sch"
-                  "peepopt.sch"
-                  "il-src2string.sch"
-                  "il-sourcefile.sch"
-                  "dumpheap-il.sch"
-                  "dumpheap-extra.sch")))
+(define *nbuild:dotnetasm-files* 
+  (if (eq? 'dotnet (nbuild-parameter 'target-machine))
+      (nbuild-files 'dotnet-asm
+                    '("asm-switches.sch"
+                      "config.sch"
+                      "util.sch"
+                      "il-gen.sch"
+                      "il-rtif.sch"
+                      "pass5p2.sch"
+                      "pass5p2-instructions.sch"
+                      "pass5p2-ops.sch"
+                      "pass5p2-listify.sch"
+                      "peepopt.sch"
+                      "il-src2string.sch"
+                      "il-sourcefile.sch"
+                      "dumpheap-il.sch"
+                      "dumpheap-extra.sch"))))
 
 (define *nbuild:make-files*
   `(,@(nbuild-files 'util '("make.sch"))
@@ -135,14 +147,17 @@
 (define *nbuild:help-files*
   (nbuild-files 'compiler '("help.sch")))
 
-(define *nbuild:sparc-heap-dumper-files*
+(define *nbuild:sparc-heap-dumper-files* 
   '())
 
 (define *nbuild:petit-heap-dumper-files*
-  (nbuild-files 'standard-C-asm '()))
+  (if (eq? 'standard-c (nbuild-parameter 'target-machine))
+      (nbuild-files 'standard-C-asm '())
+      '()))
 
 (define *nbuild:dotnet-heap-dumper-files*
-  (nbuild-files 'dotnet-asm '()))
+  (if (eq? 'dotnet (nbuild-parameter 'target-machine))
+      (nbuild-files 'dotnet-asm '())))
 
 (define (nbuild:twobit-files)
   (append *nbuild:twobit-files-1*
@@ -150,14 +165,14 @@
           *nbuild:build-files*
 	  (case (nbuild-parameter 'target-machine)
 	    ((SPARC)      *nbuild:sparc/twobit-files*)
-	    ((Standard-C) *nbuild:petit/twobit-files*)
+	    ((standard-c) *nbuild:petit/twobit-files*)
 	    ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
             ((dotnet)     *nbuild:dotnet/twobit-files*) ; FIXME
 	    (else (error "nbuild:twobit-files: bad architecture.")))
 	  *nbuild:twobit-files-2*))
 
 (define (nbuild:common-asm-files)
-  (case (nbuild-parameter 'endianness)
+  (case (nbuild-parameter 'target-endianness)
     ((big)    ;(append *nbuild:common-asm-be* *nbuild:build-files*)
               *nbuild:common-asm-be*)
     ((little) ;(append *nbuild:common-asm-el* *nbuild:build-files*)
@@ -167,7 +182,7 @@
 (define (nbuild:machine-asm-files)
   (case (nbuild-parameter 'target-machine)
     ((SPARC)      *nbuild:sparcasm-files*)
-    ((Standard-C) *nbuild:petitasm-files*)
+    ((standard-c) *nbuild:petitasm-files*)
     ((x86-nasm)   *nbuild:x86-nasm-files*)
     ((dotnet)     *nbuild:dotnetasm-files*) ; FIXME
     (else (error "nbuild:machine-asm-files: bad architecture."))))
@@ -175,7 +190,7 @@
 (define (nbuild:heap-dumper-files)
   (case (nbuild-parameter 'target-machine)
     ((SPARC)      *nbuild:sparc-heap-dumper-files*)
-    ((standard-C) *nbuild:petit-heap-dumper-files*)
+    ((standard-c) *nbuild:petit-heap-dumper-files*)
     ((x86-nasm)   *nbuild:petit-heap-dumper-files*)
     ((dotnet)     *nbuild:dotnet-heap-dumper-files*) ; FIXME
     (else (error "nbuild:heap-dumper-files: bad architecture."))))

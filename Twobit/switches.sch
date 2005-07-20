@@ -6,9 +6,6 @@
 ;
 ; Compiler switches needed by Twobit.
 
-(define make-twobit-flag #f)
-(define display-twobit-flag #f)
-
 (define make-twobit-flag
   (lambda (name)
 

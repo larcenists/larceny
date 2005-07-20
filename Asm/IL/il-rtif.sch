@@ -1,6 +1,6 @@
 ;; IL Runtime Interface
 
-;; Contains definitions for classes, types, methods, etc used to refer to
+;; Contains definitions for classes, types, methods, etc used to refer to 
 ;; the runtime.
 
 ;; Load AFTER il-gen.sch
@@ -19,13 +19,13 @@
        (define type-id (il-class-type class-id))))
     ((_ realm class-id class-string)
      (define-il-class class-id realm class-string))))
-(define-syntax define-il-class
+(define-syntax define-il-class 
   (syntax-rules (mac so)
     ((_ class-id mac class-string)
-     (define class-id
+     (define class-id 
        (il-class il:scheme-assembly-name '("Scheme" "RT") class-string)))
     ((_ class-id so class-string)
-     (define class-id
+     (define class-id 
        (il-class il:scheme-assembly-name '("Scheme" "Rep") class-string)))))
 
 (define-il-class/type*
@@ -38,19 +38,19 @@
  (mac il-load         "Load")
  (mac il-instructions "Instructions")
 
- (so il-schemefactory                      "Factory")
- (so il-schemeobject  iltype-schemeobject  "SObject")
- (so il-codevector    iltype-codevector    "CodeVector")
- (so il-fixnum        iltype-fixnum        "SFixnum")
- (so il-immediate     iltype-immediate     "SImmediate")
- (so il-schemechar    iltype-schemechar    "SChar")
- (so il-procedure     iltype-procedure     "Procedure")
- (so il-schemepair    iltype-schemepair    "SPair")
+ (so il-schemefactory                    "Factory")
+ (so il-schemeobject iltype-schemeobject "SObject")
+ (so il-codevector   iltype-codevector   "CodeVector")
+ (so il-fixnum       iltype-fixnum       "SFixnum")
+ (so il-immediate    iltype-immediate    "SImmediate")
+ (so il-schemechar   iltype-schemechar   "SChar")
+ (so il-procedure    iltype-procedure    "Procedure")
+ (so il-schemepair   iltype-schemepair   "SPair")
 
  (so il-svl               iltype-svl               "SVL")
  (so il-sbytevl           iltype-sbytevl           "SByteVL")
  (so il-continuation      iltype-continuation      "Continuation")
-
+ 
  (so il-loader-thunk iltype-loader-thunk "Twobit_Loader_Thunk")
  (mac il-code-address       iltype-code-address       "CodeAddress")
  (mac il-cache-link         iltype-cache-link         "CacheLink")
@@ -84,13 +84,13 @@
 (define il-object "[mscorlib]System.Object")
 
 (define (rep:make-fixnum)
-  (il:call '() iltype-fixnum il-schemefactory "makeFixnum"
+  (il:call '() iltype-fixnum il-schemefactory "makeFixnum" 
            (list iltype-int32)))
 (define (rep:make-boolean)
   (il:call '() iltype-immediate il-schemefactory "makeBoolean"
            (list iltype-bool)))
 (define (rep:make-flonum)
-  (il:call '() iltype-sbytevl il-schemefactory "makeFlonum"
+  (il:call '() iltype-sbytevl il-schemefactory "makeFlonum" 
            (list iltype-double)))
 ;(define (rep:make-flonum-from-int8)
 ;  (il:call '() iltype-sbytevl il-schemefactory "makeFlonum"
@@ -112,13 +112,13 @@
   (il:call '() iltype-sbytevl il-schemefactory "makeCompnum"
            (list iltype-double iltype-double)))
 (define (rep:make-string)
-  (il:call '() iltype-sbytevl il-schemefactory "makeString"
+  (il:call '() iltype-sbytevl il-schemefactory "makeString" 
            (list iltype-string)))
 (define (rep:make-char)
-  (il:call '() iltype-schemechar il-schemechar "makeChar"
+  (il:call '() iltype-schemechar il-schemechar "makeChar" 
            (list iltype-int32)))
 (define (rep:make-interned-symbol)
-  (il:call '() iltype-svl il-schemefactory "internSymbol"
+  (il:call '() iltype-svl il-schemefactory "internSymbol" 
            (list iltype-string)))
 (define (rep:make-pair)
   (il:call '() iltype-schemepair il-schemefactory "makePair"
@@ -127,18 +127,18 @@
   (il:call '() iltype-schemepair il-schemefactory "makePairReversed"
            (list iltype-schemeobject iltype-schemeobject)))
 (define (rep:make-vector)
-  (il:call '() iltype-svl il-schemefactory "makeVector"
+  (il:call '() iltype-svl il-schemefactory "makeVector" 
            (list iltype-schemeobject-array)))
 (define (rep:make-constantvector)
-  (il:call '(new instance) iltype-void il-constantvector ".ctor"
-           (list iltype-schemepair-array
+  (il:call '(new instance) iltype-void il-constantvector ".ctor" 
+           (list iltype-schemepair-array 
                  iltype-constantvector-array
                  iltype-schemeobject-array)))
 
 ;(define bignum/ulong/sign?
 ;  (let ((2^64 (expt 2 64)))
 ;    (lambda (n)
-;      (and (number? n) (exact? n) (integer? n)
+;      (and (number? n) (exact? n) (integer? n) 
 ;           (<= (abs n) (- 2^64 1))))))
 
 (define (bignum? x)
@@ -175,7 +175,7 @@
   (il:ldfld iltype-codevector il-procedure "entrypoint"))
 
 ;; rep:load-static-link : number -> ilpackage
-;; IL to load the MacScheme Procedure the given number of levels up the
+;; IL to load the MacScheme Procedure the given number of levels up the 
 ;; static link chain.
 (define (rep:load-static-link up)
   (list
@@ -191,7 +191,7 @@
                        (loop (- count 1))))))))
 
 ;; rep:load-rib : number -> ilpackage
-;; IL to load the MacScheme rib (array) the given number of levels up
+;; IL to load the MacScheme rib (array) the given number of levels up 
 ;; the static link chain.
 (define (rep:load-rib up)
   (list (rep:load-static-link up)

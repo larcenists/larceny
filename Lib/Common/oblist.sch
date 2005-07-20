@@ -47,7 +47,7 @@
 	    l
 	    (loop (- i 1) (append (vector-ref *obvector* i) l))))
       (loop (- (vector-length *obvector*) 1) '()))))
-
+      
 (define (oblist-set! symbols . rest)
   (let ((tablesize
 	 (cond ((null? rest) (* (+ *oblist-ratio* 1) (length symbols)))
@@ -105,8 +105,8 @@
 	(lambda ()
 	  (let ((plist (symbol.proplist sym)))
 	    (let ((probe (assq name plist)))
-	      (if probe
-		  (cdr probe)
+	      (if probe 
+		  (cdr probe) 
 		  #f)))))))
 
 (define (remprop sym name)
@@ -143,9 +143,9 @@
 ; Given a string, interns it in the current obvector, updating the
 ; count of symbols in the vector.  Returns the symbol.
 ;
-; Note: symbols are _NOT_ interned if the obvector has not been
-; initialized.  This allows string->symbol to be used during
-; initialization in cases where it doesn't matter if the symbols are
+; Note: symbols are _NOT_ interned if the obvector has not been 
+; initialized.  This allows string->symbol to be used during 
+; initialization in cases where it doesn't matter if the symbols are 
 ; interned.
 
 (define (intern s)
@@ -160,30 +160,30 @@
 
   (if *obvector*
       (call-without-interrupts
-       (lambda ()
-         (let* ((h     (string-hash s))
-                (probe (search-bucket
-                        (vector-ref *obvector*
-                                    (remainder h
-                                               (vector-length *obvector*))))))
-           (if probe
-               probe
-               (let ((s (install-symbol (make-symbol (string-copy s) h '())
-                                        *obvector*)))
-                 (set! *symbol-count* (+ *symbol-count* 1))
-                 (if (> *symbol-count* *oblist-watermark*)
-                     (let ((v *obvector*))
-                       ;; Install a new, larger obvector.
-                       (oblist-set! (oblist) (* (vector-length *obvector*) 2))
-                       ;; Clear the old vector to avoid retaining it in the
-                       ;; remembered set if it is in the static area.
-                       (vector-fill! v #f)))
-                 s)))))
+	(lambda ()
+	  (let* ((h     (string-hash s))
+		 (probe (search-bucket
+			 (vector-ref *obvector*
+				     (remainder h
+						(vector-length *obvector*))))))
+	    (if probe
+		probe
+		(let ((s (install-symbol (make-symbol (string-copy s) h '())
+					 *obvector*)))
+		  (set! *symbol-count* (+ *symbol-count* 1))
+		  (if (> *symbol-count* *oblist-watermark*)
+                      (let ((v *obvector*))
+                        ;; Install a new, larger obvector.
+                        (oblist-set! (oblist) (* (vector-length *obvector*) 2))
+                        ;; Clear the old vector to avoid retaining it in the
+                        ;; remembered set if it is in the static area.
+                        (vector-fill! v #f)))
+		  s)))))
       (begin
-        ;; Annoying in Petit Larceny, where the heap is never dumped.
-        ;; (display "WARNING: string->symbol: not interned: ")
-        ;; (display s)
-        ;; (newline)
+	;; Annoying in Petit Larceny, where the heap is never dumped.
+	;; (display "WARNING: string->symbol: not interned: ")
+	;; (display s)
+	;; (newline)
 	(make-symbol (string-copy s) 0 '()))))
 
 ; Given a string, checks to see if an interned symbol with that name exists.
@@ -206,11 +206,11 @@
                        (remainder (string-hash s)
                                   (vector-length *obvector*))))))))
 
-; Given a symbol, adds it to the given obvector, whether a symbol with the
+; Given a symbol, adds it to the given obvector, whether a symbol with the 
 ; same pname (or even the same symbol) is already there or not.
 ;
 ; Must run in critical section!
-
+         
 (define (install-symbol s obvector)
   (let ((i (remainder (symbol.hashname s) (vector-length obvector))))
     (vector-set! obvector i (cons s (vector-ref obvector i)))

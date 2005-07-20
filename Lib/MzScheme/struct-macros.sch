@@ -47,10 +47,10 @@
                  (muts (map (lambda (f) (join 'set- name '- f '!)) fields)))
              `(begin
                 (define-values (,sinfo ,mk ,s? ,@accs ,@muts)
-                  (let-values (((sinfo mk s? ref set)
+                  (let-values (((sinfo mk s? ref set) 
                                 (make-struct-type ',name ,super-exp ,(length fields) 0
                                                   #f '() ,insp)))
-                    (values
+                    (values 
                      sinfo
                      mk
                      s?

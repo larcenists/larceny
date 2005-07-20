@@ -35,7 +35,7 @@
     (let loop ((instrs instrs) (processed-instrs '()))
       (cond ((null? instrs)
              (cons (make-cvclass (cvclass-il-namespace code)
-                                 (cvclass-id code)
+                                 (cvclass-id code) 
                                  (reverse processed-instrs)
                                  (cvclass-constants code)
                                  (cvclass-label-count code))
@@ -79,7 +79,7 @@
 
 ;; add-function : as ... -> void
 (define (add-function as name il-namespace definite? entrypoint?)
-  (assembler-value! as 'functions
+  (assembler-value! as 'functions 
                     (cons (list name il-namespace definite? entrypoint?)
                           (lookup-functions as)))
   name)
@@ -100,7 +100,7 @@
   (cond ((null? implementations)
          (define-instruction/helper i implementation0))
         ((and (pair? implementations) (null? (cdr implementations)))
-         (define-instruction/helper i
+         (define-instruction/helper i 
                                     (if (codegen-option i)
                                         implementation0 ;; inlining
                                         (car implementations)))) ;; standard
@@ -113,7 +113,7 @@
 ;; new-proc-id : assembler -> number
 (define (new-proc-id as)
   (let* ((u (as-user as))
-         (x (user-data.proc-counter u)))
+	 (x (user-data.proc-counter u)))
     (user-data.proc-counter! u (+ 1 x))
     x))
 
@@ -122,7 +122,7 @@
   (new-proc-id as))
 
 ; User-data structure is shared between all assembly structures operating
-; on a particular source; assemble-nested-lambda passes user-data to new
+; on a particular source; assemble-nested-lambda passes user-data to new 
 ; assembly structure.
 
 ; User-data structure has these fields:
@@ -160,7 +160,7 @@
 
 ;; Assembler value slots:
 ;;   'current-codevector : (cons num num)
-;;   'basic-block-closed : boolean indicating whether control will have
+;;   'basic-block-closed : boolean indicating whether control will have 
 ;;           always been transferred out of the basic block at this point
 ;;           (eg, by a branch, rtn, etc)
 ;;   'next-jump-index : number indicating the next jump index to allocate
@@ -181,11 +181,11 @@
 
 ;; /Assembler ------
 
-;; cvclass
-;; Data structure for holding the essential code portion of a
+;; cvclass 
+;; Data structure for holding the essential code portion of a 
 ;; codevector class. Contains the id=(cons num num) of the codevector
-;; represented, the IL instruction stream (in correct order), and
-;; the data from the constant vector (but not the globals and nested
+;; represented, the IL instruction stream (in correct order), and 
+;; the data from the constant vector (but not the globals and nested 
 ;; constant vectors).
 
 (vector-struct $$cvclass make-cvclass cvclass?
@@ -201,11 +201,11 @@
 ;; CodeVectors
 ;; -----------------
 
-;; FIRST-JUMP-INDEX : number
+;; FIRST-JUMP-INDEX : number 
 (define FIRST-JUMP-INDEX 0)
 
 ;; LOCAL-RESULT : number | #f
-(define LOCAL-RESULT
+(define LOCAL-RESULT 
   (if (codegen-option 'cache-result)
       (let ((RESULT FIRST-LOCAL))
         (set! FIRST-LOCAL (+ 1 FIRST-LOCAL))
@@ -226,24 +226,24 @@
   (end-codevector-class as)
   (let* ((id (codevector-id as label))
          (name (codevector-name id)))
-
+    
     (add-function as id (as-il-namespace as) #t entrypoint?)
     ;; mimicked from C version
-
+    
     (as:current-codevector! as id)
     (as:next-jump-index! as FIRST-JUMP-INDEX)
     (as:local-variables! as '())
 
     (as-code! as '())
-    (emit as
+    (emit as 
           (il:delay
            (list (il:directive 'local (map car (as:local-variables as)))))
           ;; WARNING: Keep same order as LOCAL-RESULT, LOCAL-CONSTANT-VECTOR above
           (if (codegen-option 'cache-result)
-              (begin
+              (begin 
                 (allocate-il-local as iltype-schemeobject)
                 (list
-                 (il:comment "Caching Reg.Result in local variable ~s"
+                 (il:comment "Caching Reg.Result in local variable ~s" 
                              LOCAL-RESULT)
                  (il:recache-result)))
               '())
@@ -378,7 +378,7 @@
 (define (csharp-sanitize-name str)
   (let ((chars (string->list str)))
     (apply string-append
-           (cons ((csharp-switch-char
+           (cons ((csharp-switch-char 
                    (append csharp-initial-character-mapping
                            csharp-character-mapping))
                   (car chars))

@@ -38,15 +38,25 @@
   (assemble313 (car deps) target))
 
 (define (make-compile-file target deps)
-  (display "Making ") (display target) (newline)
+  (display "Compiling File ") (display target) (newline)
   (compile-file (car deps)))
 
 (define (make-compile-and-assemble target deps)
-  (display "Making ") (display target) (newline)
+  (display "Compiling and Assembling ") (display target) (newline)
   (compile-and-assemble313 (car deps) target))
 
+(define (make-compile-and-assemble/no-keywords target deps)
+  (display "Compiling and Assembling (no keywords) ") (display target) (newline)
+  (parameterize ((recognize-keywords? #f))
+    (compile-and-assemble313 (car deps) target)))
+
+(define (make-compile-and-assemble/keywords target deps)
+  (display "Compiling and Assembling (w/ keywords) ") (display target) (newline)
+  (parameterize ((recognize-keywords? #t))
+    (compile-and-assemble313 (car deps) target)))
+
 (define (make-assemble-file target deps)
-  (display "Making ") (display target) (newline)
+  (display "Assembling ") (display target) (newline)
   (assemble-file (car deps)))
 
 (define (make-dumpheap target files)
@@ -107,8 +117,8 @@
 (define (common-endian x . rest)
   (string-append (nbuild-parameter 'common-source)
                  x
-                 (if (eq? (nbuild-parameter 'endianness) 'little)
-                     "-el"
+                 (if (eq? (nbuild-parameter 'target-endianness) 'little) 
+                     "-el" 
                      "-be")
                  (if (null? rest)
                      ".lop"
@@ -225,6 +235,7 @@
                   "misc"
                   "record" "inspector"
                   "struct-proc0" "struct-proc" "struct" "struct-macros"
+                  ;; N.B.: class, generic, gprint, and dotnet need (recognize-keywords?) on
                   "instance0" "instance" "class" "generic" "gprint" ; Ripoff
                   "dotnet-ffi" "dotnet" ; dotnet support
                   ;; under development
@@ -299,6 +310,16 @@
                       . ,(make-filename "Lib" "IL" "loadable.manifest")))))
          (dotnet-eval-files
           (objects "" ".manifest" eval-files))
+         (mzscheme-source-target/keywords
+          (lambda (name)
+            (list (string-append (nbuild-parameter 'mzscheme-source) name)
+                  (lambda (tgt deps) 
+                    (parameterize ((recognize-keywords? #t))
+                      (sch->il (car deps)))))))
+         (mzscheme-source-dependency
+          (lambda (name source)
+            (list (string-append (nbuild-parameter 'mzscheme-source) name)
+                  (list (string-append (nbuild-parameter 'mzscheme-source) source)))))
          (dotnet-mzscheme-files
           (objects "" ".manifest" mzscheme-files)))
 
@@ -331,8 +352,16 @@
         (".manifest" ".sch" ,(lambda (tgt deps) (sch->il (car deps))))
         (".sch" ".sh"  ,make-copy))
       `(targets
+        ,(mzscheme-source-target/keywords "class.manifest")
+        ,(mzscheme-source-target/keywords "generic.manifest")
+        ,(mzscheme-source-target/keywords "gprint.manifest")
+        ,(mzscheme-source-target/keywords "dotnet.manifest")
         ("dotnet.heap" ,make-dumpheap))
       `(dependencies                    ; Order matters.  [Why??!]
+        ,(mzscheme-source-dependency "class.manifest"   "class.sch")
+        ,(mzscheme-source-dependency "generic.manifest" "generic.sch")
+        ,(mzscheme-source-dependency "gprint.manifest"  "gprint.sch")
+        ,(mzscheme-source-dependency "dotnet.manifest"  "dotnet.sch")
         ("dotnet.heap" ,dotnet-heap-files)
         ("dotnet.heap" ,dotnet-eval-files)
         ("dotnet.heap" ,dotnet-mzscheme-files)
@@ -433,13 +462,25 @@
          (replace-extension file-type (nbuild:utility-files)))
         (other-util-files
          (append
+          (objects (nbuild-parameter 'common-source)
+                   file-type
+                   '("toplevel"))
           (objects (nbuild-parameter 'machine-source)
                    file-type
                    '("toplevel-target"))
           (objects (nbuild-parameter 'util)
                    file-type
                    '("make-support" "init-comp"
-                     "std-heap" "twobit-heap" "r5rs-heap")))))
+                     "larceny-heap" "twobit-heap" "r5rs-heap"
+		     "petit-larceny-heap" "petit-r5rs-heap"))))
+        (compiler-target/no-keywords
+         (lambda (name)
+           (list (string-append (nbuild-parameter 'compiler) name)
+                 make-compile-and-assemble/no-keywords)))
+        (compiler-dependency
+         (lambda (name source)
+           (list (string-append (nbuild-parameter 'compiler) name)
+                 (list (string-append (nbuild-parameter 'compiler) source))))))
     (make:project "compiler.date"
       `(rules
         (".lop" ".sch" ,make-compile-and-assemble)
@@ -447,8 +488,13 @@
         (".fasl" ".h" ,make-compile-file)
         (".fasl" ".sch" ,make-compile-file))
       `(targets
+        ,(compiler-target/no-keywords "standard-C.imp.lop")
+        ,(compiler-target/no-keywords "sparc.imp.lop")
         ("compiler.date" ,(lambda args #t)))
       `(dependencies
+        ;; explicit targets need explicit dependencies
+        ,(compiler-dependency "standard-C.imp.lop" "standard-C.imp.sch")
+        ,(compiler-dependency "sparc.imp.lop" "sparc.imp.sch")
         ("compiler.date" ,compiler-files)
         ("compiler.date" ,comp-util-files)
         ("compiler.date" ,other-util-files)))))

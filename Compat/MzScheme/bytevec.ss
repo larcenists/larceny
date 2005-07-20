@@ -28,7 +28,7 @@
 
 (define bytevector-tag-set! (lambda (x y) '()))
 
-(define (integer->bytevector f)
+#;(define (integer->bytevector f)
   (let ((b (bignum-alloc (inexact->exact (ceiling (/ (log (abs f))
 						     (log bignum-base)))))))
     (let loop ((i 0) (n (abs f)))
@@ -41,7 +41,7 @@
 		 (loop (+ i 1) (quotient n bignum-base)))))))
 
 
-(define (bytevector->integer b)
+#;(define (bytevector->integer b)
   (let ((l (bignum-length b)))
     (let loop ((f 0) (i (- l 1)))
       (if (>= i 0)

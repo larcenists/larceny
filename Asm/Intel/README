@@ -1,20 +1,4 @@
-Larceny NASM back-end.
-
-This directory contains an assembler (pass5p2-nasm.sch) for Larceny
-that generates macros for the x86 macro assembler NASM, in the same
-way that the assembler in Asm/Standard-C generates macros for C.
-The macro definitions in Rts/Intel/i386-instr.asm correspond to the C
-macros in Rts/Standard-C/twobit.h.
-
-The present work represents a middle point between Petit Larceny and
-Native Larceny -- native code generation, with all its advantages, but
-using the host operating system's loader and a lot of the Petit
-Larceny infrastructure.
-
-Based on some experiments we can expect a 2x performance improvement.
-Code size is expected to drop, unknown by how much.
-
-See Docs/HOWTO-I386 and Rts/Intel/README for more information.
+See Docs/HOWTO-I386 for more information.
 
 (Ignore the file i386asm.sch, it is old work-in-progress on a native
 in-system assembler.)

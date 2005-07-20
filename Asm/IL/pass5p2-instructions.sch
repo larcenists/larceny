@@ -2,7 +2,7 @@
 ;; Instructions
 ;; -----------------
 
-;; Many instructions are implemented by the runtime. instr-runtime-method
+;; Many instructions are implemented by the runtime. instr-runtime-method 
 ;; creates IL that calls these implementations in the case where the runtime
 ;; method takes int arguments directly from the instruction.
 ;; Aided by the instruction to methodname mapping below.
@@ -22,7 +22,7 @@
              (error "more than 4 arguments to runtime method call"))
             (else (emit as (il 'ldc.i4 ((car selectors) instruction)))
                   (loop (- argc 1) (cdr selectors)))))
-    (emit as
+    (emit as 
           (il:flush-result-cache)
           (il:instr-method-call instr)
           (il:recache-result))
@@ -124,9 +124,9 @@
 (define-instruction $.entry
   (lambda (instruction as)
     ;; Entry point... marks beginning of codevector
-    (let ((local-variables-closed
+    (let ((local-variables-closed 
            (if (pair? (cdddr instruction)) (operand3 instruction) #f)))
-      (begin-codevector-class as
+      (begin-codevector-class as 
                               (operand1 instruction)
                               (operand2 instruction))
       (list-entry/line ".entry" instruction as))))
@@ -161,7 +161,7 @@
   (lambda (instruction as)
     (list-instruction/line "const" instruction as)
     (emit as
-          (il:set-register
+          (il:set-register 
            'result
            (cond ((immediate-constant? (operand1 instruction))
                   (il:load-constant (operand1 instruction)))
@@ -204,7 +204,7 @@
             (il:set-register/pop 'result))))
   (lambda (instruction as)
     (list-instruction/line "global" instruction as)
-    (emit as
+    (emit as 
           (il 'ldc.i4 (emit-global as (operand1 instruction)))
           (il:ldstr (symbol->string (operand1 instruction)))
           (il:instr-method-call 'global))))
@@ -219,7 +219,7 @@
           (rep:set-pair-car!)))
   (lambda (instruction as)
     (list-instruction/line "setglbl" instruction as)
-    (emit as
+    (emit as 
           (il 'ldc.i4 (emit-global as (operand1 instruction)))
           (il:instr-method-call 'setglbl))))
 
@@ -241,7 +241,7 @@
                (operand1 instruction))
          (operand3 instruction)
          (lambda (nested-as segment)
-           (assembler-value!
+           (assembler-value! 
             as 'functions
             (append (lookup-functions as)
                     (lookup-functions nested-as)))
@@ -250,7 +250,7 @@
          (as-user as))
         (set! code-offset (emit-codevector as (nested-id)))
         (set! const-offset (emit-constantvector as (nested-id)))
-
+        
         (emit as
               (il:load-codevector
                (codevector-name (codevector-id as entry))
@@ -295,26 +295,26 @@
   (lambda (instruction as)
     (list-instruction/line "invoke" instruction as)
     (with-il-locals as (list iltype-procedure)
-      (lambda (procedure-local)
-        (emit as
-              (il:load-register 'result)
-              (il:check-type
-               iltype-procedure
-               (il:fault/invoke-nonproc (operand1 instruction)))
-              (il 'stloc procedure-local)
-              ;; Stack is empty
-              (il:set-register 'second
-                               (il:load-register ENV-REGISTER))
-              (il:set-register 'result
-                               (il:load-constant (operand1 instruction)))
-              (il:set-register ENV-REGISTER
-                               (il 'ldloc procedure-local))
-
-              (il:use-fuel/call)
-              (il 'ldloc procedure-local)
-              (rep:procedure-entrypoint)
-              (il 'ldc.i4 FIRST-JUMP-INDEX)
-              (il:call-scheme))))
+     (lambda (procedure-local)
+       (emit as
+             (il:load-register 'result)
+             (il:check-type
+              iltype-procedure
+              (il:fault/invoke-nonproc (operand1 instruction)))
+             (il 'stloc procedure-local)
+             ;; Stack is empty
+             (il:set-register 'second
+                              (il:load-register ENV-REGISTER))
+             (il:set-register 'result 
+                              (il:load-constant (operand1 instruction)))
+             (il:set-register ENV-REGISTER
+                              (il 'ldloc procedure-local))
+             
+             (il:use-fuel/call)
+             (il 'ldloc procedure-local)
+             (rep:procedure-entrypoint)
+             (il 'ldc.i4 FIRST-JUMP-INDEX)
+             (il:call-scheme))))
     (assembler-value! as 'basic-block-closed #t))
   (lambda (instruction as)
     (define (default)
@@ -338,13 +338,13 @@
      (lambda (procedure-local)
        (emit as
              (il:load-register 'result)
-             (il:check-type
+             (il:check-type 
               iltype-procedure
               (il:fault/apply-nonproc
                (operand1 instruction)
                (operand2 instruction)))
              (il 'stloc procedure-local)
-
+             
              (il:set-register 'second
                               (il:load-register ENV-REGISTER))
              (il:set-register ENV-REGISTER
@@ -353,12 +353,12 @@
              ;; Destroys registers 1 - N
              (il 'ldc.i4 (operand1 instruction))
              (il 'ldc.i4 (operand2 instruction))
-             (il:call '() iltype-int32 il-call "applySetup"
+             (il:call '() iltype-int32 il-call "applySetup" 
                       (list iltype-int32 iltype-int32))
              ;; records N in RESULT
              (rep:make-fixnum)
              (il:set-register/pop 'result)
-
+             
              (il:use-fuel/call)
              (il 'ldloc procedure-local)
              (rep:procedure-entrypoint)
@@ -409,7 +409,7 @@
     (list-instruction/line "stack" instruction as)
     (emit as
           (il:set-register 'result
-                           (rep:load-current-frame-slot
+                           (rep:load-current-frame-slot 
                             (operand1 instruction)))))
   (lambda (instruction as)
     (define (default)
@@ -437,7 +437,7 @@
   (lambda (instruction as)
     (list-instruction/line "load" instruction as)
     (emit as
-          (il:set-register
+          (il:set-register 
            (operand1 instruction)
            (rep:load-current-frame-slot (operand2 instruction)))))
   (lambda (instruction as)
@@ -457,8 +457,8 @@
   (lambda (instruction as)
     (list-instruction/line "store" instruction as)
     (emit as
-          (rep:set-current-frame-slot
-           (operand2 instruction)
+          (rep:set-current-frame-slot 
+           (operand2 instruction) 
            (il:load-register (operand1 instruction)))))
   (lambda (instruction as)
     (let ((reg  (operand1 instruction))
@@ -569,7 +569,7 @@
   (lambda (instruction as)
     (list-instruction/line "movereg" instruction as)
     (emit as
-          (il:set-register
+          (il:set-register 
            (operand2 instruction)
            (il:load-register (operand1 instruction)))))
   (lambda (instruction as)
@@ -594,9 +594,9 @@
           ;; Set reg0 to right procedure
           (il:set-register
            ENV-REGISTER
-           (list
+           (list 
             (rep:load-static-link (operand1 instruction))))
-
+          
           (il:load-register ENV-REGISTER)
           ;(il 'castclass iltype-procedure)
           (rep:procedure-entrypoint)
@@ -644,15 +644,15 @@
     (list-instruction/line "trap" instruction as)
     (emit as
           (if (not (zero? (operand1 instruction)))
-              (il:set-register 'result
+              (il:set-register 'result 
                                (il:load-register (operand1 instruction)))
               '())
           (if (not (zero? (operand2 instruction)))
-              (il:set-register 'second
+              (il:set-register 'second 
                                (il:load-register (operand2 instruction)))
               '())
           (if (not (zero? (operand3 instruction)))
-              (il:set-register 'third
+              (il:set-register 'third 
                                (il:load-register (operand3 instruction)))
               '())
           (il:fault-abort/message
@@ -671,7 +671,7 @@
         (emit as
               (il:set-register
                (operand2 instruction)
-               (il:load-constant/vector
+               (il:load-constant/vector 
                 (emit-datum as (operand1 instruction))))))))
 
 ;; /Instructions ---

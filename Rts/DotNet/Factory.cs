@@ -6,7 +6,7 @@ using Scheme.RT;
 using Scheme.Rep;
 
 namespace Scheme.Rep {
-
+    
     // -------------------------------------------
     // Tags
     // -------------------------------------------
@@ -37,19 +37,19 @@ namespace Scheme.Rep {
         // ===================
         //   Immediates
         // ===================
-        public static readonly SImmediate True
+        public static readonly SImmediate True 
             = new SImmediate("#t");
-        public static readonly SImmediate False
+        public static readonly SImmediate False 
             = new SImmediate("#f");
         public static readonly SImmediate Null
             = new SImmediate("()");
-        public static readonly SImmediate Eof
+        public static readonly SImmediate Eof 
             = new SImmediate("#<eof>");
         public static readonly SImmediate Unspecified
             = new SImmediate("#<unspecified>");
         public static readonly SImmediate Undefined
             = new SImmediate("#<undefined>");
-
+        
         // Used as "return value" in escaping procedures
         public static readonly SImmediate Impossible
             = new SImmediate("#<IMPOSSIBLE>");
@@ -65,8 +65,8 @@ namespace Scheme.Rep {
         // ===================
         //   Numbers
         // ===================
-        public static SFixnum makeFixnum (sbyte num) {
-          return SFixnum.makeFixnum (num);
+	public static SFixnum makeFixnum (sbyte num) {
+	  return SFixnum.makeFixnum (num);
         }
         public static SFixnum makeFixnum (byte num) {
           return SFixnum.makeFixnum (num);
@@ -80,7 +80,7 @@ namespace Scheme.Rep {
 
         public static SFixnum makeFixnum(int num) {
             return SFixnum.makeFixnum(num);
-        }
+	    }
         public static SObject makeNumber(int num) {
             // Bignums are sign + magnitude, so we need to convert
             // negative numbers to the positive equivalent.
@@ -207,13 +207,13 @@ namespace Scheme.Rep {
         public static SVL makeVector(int size, SObject fill) {
             return new SVL(Tags.VectorTag, size, fill);
         }
-
+        
         // ===================
         //  Symbols
         // ===================
 
-        /* Symbols may only be created until (go ...) is called in
-         * the Scheme program. After that, symbol creation must be
+        /* Symbols may only be created until (go ...) is called in 
+         * the Scheme program. After that, symbol creation must be 
          * done in Scheme code.
          */
         // The literal 4500 is slightly more than the number of symbols
@@ -242,7 +242,7 @@ namespace Scheme.Rep {
             // SObject hash = makeNumber(stringHash(str));
             return new SVL(Tags.SymbolTag, new SObject[]{name, makeFixnum(0), Factory.Null});
         }
-
+        
         // Duplicates string-hash in Lib/Common/string.sch
         private static int stringHash(string str) {
             /*
@@ -284,11 +284,11 @@ namespace Scheme.Rep {
            // byte [] chars = new byte [SByteVL.stringEncoding.GetByteCount (s)];
            // SByteVL.stringEncoding.GetBytes (s, 0, s.Length, chars, 0);
            // return new SByteVL (Tags.StringTag, chars);
-           byte[] chars = new byte[s.Length];
+            byte[] chars = new byte[s.Length];
            for (int i = 0; i < chars.Length; i++) {
-               chars[i] = (byte)s[i];
-           }
-           return new SByteVL(Tags.StringTag, chars);
+                chars[i] = (byte)s[i];
+            }
+            return new SByteVL(Tags.StringTag, chars);
         }
         public static SByteVL makeString(byte[] elements) {
             return new SByteVL(Tags.StringTag, elements);
@@ -320,7 +320,7 @@ namespace Scheme.Rep {
 	      return copyhead.rest;
 	      }
         }
-
+        
         public static SObject arrayToList(SObject[] array, int start) {
             SObject list = Factory.Null;
             for (int i = start; i < array.Length; i++) {
@@ -331,7 +331,7 @@ namespace Scheme.Rep {
 
        public static SObject makeForeignBox (object x) {
            return new ForeignBox (x);
-       }
+        }
 
         // =================================================
         // Quick and Simple... and slow

@@ -6,19 +6,19 @@
 ;
 ; FIXME:
 ;  - Not entirely robust, but ok for now.
-;  - Loader should install reader macros for #^G, #^B, #^P so that
+;  - Loader should install reader macros for #^G, #^B, #^P so that 
 ;    the reader would not need to be aware of these extensions.
 
 ($$trace "load")
 
-; It's necessary to set the interaction environment so that any uses of
+; It's necessary to set the interaction environment so that any uses of 
 ; EVAL in the loaded file will reference the correct environment.
 
 (define load-evaluator
   (make-parameter "load-evaluator"
                   (lambda (expr env)
                     (let ((old-env (interaction-environment)))
-                      (dynamic-wind
+                      (dynamic-wind 
                        (lambda ()
                          (interaction-environment env))
                        (lambda ()
@@ -87,7 +87,7 @@
   (let ((old-resolver (global-name-resolver))
         (new-resolver (lambda (sym)
                         (environment-get-cell (get-environment) sym))))
-    (dynamic-wind
+    (dynamic-wind 
      (lambda () (global-name-resolver new-resolver))
      (lambda () (load-file))
      (lambda () (global-name-resolver old-resolver)))))

@@ -86,4 +86,13 @@
 	    (else
 	     (>= (vector-ref ta i) (vector-ref tb i)))))))
 
+;; "define" recognize-keywords? parameter only if it isn't already
+;; defined.  Note that this "definition" of the parameter is just a
+;; stub (for backwards compatibility when bootstrapping on older
+;; versions of Larceny); the parameter cannot be set in any meaningful
+;; way with this definition.
+(let ((env1 (interaction-environment)))
+  (if (not (environment-variable? env1 'recognize-keywords?))
+      (set! recognize-keywords? (lambda l #f))))
+  
 ; eof

@@ -137,11 +137,11 @@
 	  ((ret-ieee64)          (lambda (tr) (set-return-type! tr 'ieee64)))
 	  ((ret-ieee32)          (lambda (tr) (set-return-type! tr 'ieee32)))
 	  ((ret-void)            (lambda (tr) (set-return-type! tr 'void)))
-	  ((change-fptr)         (lambda (tr) (error "i386-ffi: change-fptr unsupported.")))
+	  ((change-fptr)         (lambda (tr) (error "i386-ffi: callout: change-fptr unsupported.")))
 	  ((done)                callout-done)
 	  ((done-pasteup)        (lambda (tr) #t))
 	  (else 
-	   (error "sparc-callout: bad selector " selector))))))
+	   (error "i386-ffi: callout: bad selector " selector))))))
 
   (define (make-callback-stdabi stdcall?)
     (let ()

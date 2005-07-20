@@ -1,31 +1,45 @@
-; 8 May 2001
+; 12 December 2004
 ;
-; General "script" for building Petit Larceny on Win32 systems,
-; may be dependent on (Petite) Chez Scheme.
+; General "script" for building Petit Larceny on Win32 systems, using
+; Win32-native C compilers like MinGW, CodeWarrior and Visual C/C++,
+; and hosting the build under Larceny.
 ;
-; On win32, the DOS shell is not all that useful, so the scripts that 
-; are used on Unix have been moved into this Scheme program.  It also
-; replaces the Util/Configurations/load-*.sch programs.
-
-; Loading this file loads the entire build environment.
+; See Docs/HOWTO-BUILD and Docs/HOWTO-PETIT for more information.
 
 (define nbuild-parameter #f)
-
-(define is-larceny? #t)
+(define *code-coverage* #f)
 
 (define (win32-initialize)
-
-  ; The following actions are performed also by load-twobit-C-el-win32-petite.sch,
-  ; but they are needed also for bootstrapping the build environment -- without
-  ; loading Util/nbuild.sch -- so are included here separately.
-
   (load "Util\\sysdep-win32.sch")
-  (load "Util\\Configurations\\nbuild-param-C-el-win32.sch")
-  (if is-larceny?
-      (set! nbuild-parameter 
-	    (make-nbuild-parameter "" #f #t #t "Larceny" "Petit Larceny"))
-      (set! nbuild-parameter 
-	    (make-nbuild-parameter "" #t #f #t "Petite" "Petite Chez Scheme")))
+  (load "Util\\nbuild-param.sch")
+  (set! nbuild-parameter 
+	(make-nbuild-parameter 'always-source? #f
+                               'verbose-load? #t
+                               'development? #t
+                               'machine-source "Lib\\Standard-C\\"
+                               'host-os 'win32
+                               'host-endianness 'little
+                               'target-machine 'standard-c
+                               'target-os 'win32
+                               'target-endianness 'little))
+  (load-initial-files)
+  (unspecified))
+
+(define (configure-system)
+  ; Compilers defined in Asm/Standard-C/dumpheap-win32.sch are:
+  ;   gcc-mingw   gcc (mingw) on Win32
+  ;   msvc        Microsoft Visual C/C++ 6.0 on Win32
+  ;   mwcc        Metrowerks CodeWarrior C/C++ 6.0 on Win32
+  (select-compiler 'gcc-mingw)
+  (set! win32/petit-rts-library (string-append "Rts\\libpetit" (lib-suffix)))
+  (set! win32/petit-lib-library (string-append "libheap" (lib-suffix))))
+
+(define (make-command)
+  (if (eq? 'gcc-mingw (compiler-tag (current-compiler)))
+      "mingw32-make"
+      "nmake"))
+
+(define (load-initial-files)
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
   (display " compatibility package.")
@@ -33,9 +47,13 @@
   (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
   (compat:initialize)
   (load (string-append (nbuild-parameter 'util) "expander.sch"))
-  (load (string-append (nbuild-parameter 'util) "config.sch"))
-  (set! config-path "Rts\\Build\\")
-  #t)
+  (load (string-append (nbuild-parameter 'util) "config.sch")))
+
+(define (build-makefile . rest)
+  (let ((c (if (null? rest)
+	       (default-makefile-configuration)
+	       (car rest))))
+    (generate-makefile "Rts\\Makefile" c)))
 
 (define (setup-directory-structure)
   (case (nbuild-parameter 'host-os)
@@ -50,7 +68,8 @@
      (system "copy Rts\\*.cfg Rts\\Build"))
     (else
      (error "Unknown host OS " (nbuild-parameter 'host-os))))
-  (expand-file "Rts\\Standard-C\\arithmetic.mac" "Rts\\Standard-C\\arithmetic.c")
+  (expand-file "Rts\\Standard-C\\arithmetic.mac"
+	       "Rts\\Standard-C\\arithmetic.c")
   (config "Rts\\Build\\except.cfg")
   (config "Rts\\Build\\layouts.cfg")
   (config "Rts\\Build\\globals.cfg")
@@ -82,16 +101,29 @@
   (apply make-petit-heap args))	     ; Defined in Lib/makefile.sch
 
 (define (build-runtime)
-  (execute-in-directory "Rts" "nmake petit-rts.lib"))
+  (if (not (file-exists? "Rts\\Makefile"))
+      (build-makefile))
+  (execute-in-directory "Rts" (make-command)))
 
 (define build-runtime-system build-runtime) ; Old name
 
-(define (build-executable)
+(define (build-petit)
   (build-application "petit.exe" '()))
 
 (define (build-twobit)
   (make-petit-development-environment)
   (build-application "twobit.exe" (petit-development-environment-lop-files)))
+
+; Set up for loading Util/petit-r5rs-heap.sch
+(define (build-r5rs-files)
+  (compile-and-assemble313 "Auxlib\\pp.sch")
+  (build-application "petit-r5rs" '("Auxlib\\pp.lop")))
+
+; Set up for loading Util/petit-larceny-heap.sch
+(define (build-larceny-files)
+  (make-petit-development-environment)
+  (build-application "petit-larceny"
+		     (petit-development-environment-lop-files)))
 
 (define (build-development-system dll-name)
   (let ((files '())
@@ -111,22 +143,26 @@
     (compile-files (reverse files) dll-name)))
 
 (define (load-compiler)
-  (if is-larceny?
-      (load "Util\\Configurations\\load-twobit-C-el-win32-larceny.sch")
-      (load "Util\\Configurations\\load-twobit-C-el-win32-petite.sch")))
+  (load "Util\\nbuild.sch")
+  (configure-system)
+  (welcome)
+  (unspecified))
+
+(define (lib-suffix)
+  (if (string=? (obj-suffix) ".o")
+      ".a"
+      ".lib"))
 
 (define (remove-runtime-objects)
-  (system "del Rts\\petit-rts.lib")
+  (system (string-append "del Rts\\libpetit" (lib-suffix)))
   (system "del Rts\\vc60.pdb")
-  (system "del Rts\\Sys\\*.obj")
-  (system "del Rts\\Standard-C\\*.obj")
-  (system "del Rts\\Build\\*.obj")
+  (system (string-append "del Rts\\Sys\\*" (obj-suffix)))
+  (system (string-append "del Rts\\Standard-C\\*" (obj-suffix)))
+  (system (string-append "del Rts\\Build\\*" (obj-suffix)))
   #t)
 
-(define remove-rts-objects remove-runtime-objects) ; Old name
-
 (define (remove-heap-objects . extensions)
-  (let ((ext   '("obj" "c" "lap" "lop"))
+  (let ((ext   '("obj" "o" "c" "lap" "lop"))
 	(names '(obj c lap lop)))
     (if (not (null? extensions))
 	(set! ext (apply append 
@@ -135,11 +171,11 @@
 			      names
 			      ext))))
     (system "del petit.exe")
-    (system "del petit.obj")
+    (system (string-append "del petit" (obj-suffix)))
     (system "del petit.pdb")
     (system "del petit.heap")
-    (system "del petit-lib.lib")
-    (system "del petit-lib.pdb")
+    (system (string-append "del libpetit" (lib-suffix)))
+    (system "del libpetit.pdb")
     (system "del vc60.pdb")
     (for-each (lambda (ext)
 		(for-each (lambda (dir) 
@@ -148,93 +184,39 @@
 				(nbuild-parameter 'machine-source)
 				(nbuild-parameter 'repl-source)
 				(nbuild-parameter 'interp-source)
-				(nbuild-parameter 'compiler))))
+				(nbuild-parameter 'compiler)
+                                (nbuild-parameter 'auxiliary))))
 	      ext)
     #t))
 
 (win32-initialize)
-
-; Chez Scheme only -- Larceny does not have 'current-directory'.
 
 (define (execute-in-directory dir cmd)
   (with-current-directory dir
     (lambda ()
       (system cmd))))
 
-(define (with-current-directory dir thunk)
-  (let ((cdir #f))
-    (dynamic-wind
-	(lambda ()
-	  (set! cdir (current-directory))
-	  (current-directory dir))
-	thunk
-	(lambda ()
-	  (set! dir (current-directory))
-	  (current-directory cdir)))))
-
-; A hack
-
-(if is-larceny?
-    (set! execute-in-directory 
-	  (lambda (dir cmd)
-	    (call-with-output-file "eid.bat"
-	      (lambda (out)
-		(display (string-append "cd " dir) out)
-		(newline out)
-		(display cmd out)
-		(newline out)))
-	    (system "eid.bat"))))
-
-; temporarily here
-
 (define (compile-files infilenames outfilename)
   (let ((user      (assembly-user-data))
 	(syntaxenv (syntactic-copy (the-usual-syntactic-environment)))
 	(segments  '())
 	(c-name    (rewrite-file-type outfilename ".fasl" ".c"))
-	(o-name    (rewrite-file-type outfilename ".fasl" ".obj"))
+	(o-name    (rewrite-file-type outfilename ".fasl" (obj-suffix)))
 	(so-name   (rewrite-file-type outfilename ".fasl" ".dll")))
     (for-each (lambda (infilename)
 		(call-with-input-file infilename
 		  (lambda (in)
 		    (do ((expr (read in) (read in)))
 			((eof-object? expr))
-		      (set! segments (cons (assemble (compile expr syntaxenv) user) 
+		      (set! segments (cons (assemble (compile expr syntaxenv)
+						     user) 
 					   segments))))))
 	      infilenames)
     (set! segments (reverse segments))
     (create-loadable-file outfilename segments so-name)
-    (c-link-shared-object so-name (list o-name) '("Rts/petit-rts.lib"))
+    (c-link-shared-object so-name 
+			  (list o-name) 
+			  (list (string-append "Rts/libpetit" (lib-suffix))))
     (unspecified)))
-
-; This is really the wrong thing because it creates one .c for all the files.
-; Doing that is fine as such but it destroys incremental compilation.  Perhaps
-; that's what we want...  We could generate LOP for all and then have a load
-; step at the end?
-
-'(define (compile-files infilenames so-name)
-  (begin-shared-object so-name (string-append "\"" so-name "\""))
-  (let ((user (assembly-user-data)))
-    (do ((infilenames infilenames (cdr infilenames)))
-	((null? infilenames))
-      (let ((infilename (car infilenames)))
-	(let ((syntaxenv   (syntactic-copy (the-usual-syntactic-environment)))
-	      (segments2   '())
-	      (outfilename (rewrite-file-type infilename ".sch" ".fasl")))
-	  (display "Compiling ")
-	  (display infilename)
-	  (newline)
-	  (call-with-input-file infilename
-	    (lambda (in)
-	      (do ((expr (read in) (read in)))
-		  ((eof-object? expr)
-		   (add-to-shared-object outfilename (reverse segments2)))
-		(set! segments2 (cons (assemble (compile expr syntaxenv) user) 
-				      segments2)))))))))
-  (end-shared-object)
-  (c-link-shared-object so-name 
-			(list (rewrite-file-type so-name ".dll" ".obj"))
-			'("Rts/petit-rts.lib"))
-  (unspecified))
 
 ; eof

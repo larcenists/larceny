@@ -31,46 +31,72 @@
 ;
 ; There might be other keys used by the compatibility packages.
 
+; Sanity check: normally we do not want always-source? to be true,
+; so warn if it is.  This decreases the likelihood that a true value
+; for this parameter escapes into a release.
+
+(if (nbuild-parameter 'always-source?)
+    (begin
+      (newline)
+      (newline)
+      (display "*** WARNING: Loading source code only")
+      (newline)
+      (newline)))
+
 (load (make-filename (nbuild-parameter 'util) "nbuild-files.sch"))
 
-; File lists and procedures
+(load "Util/nbuild-defns.sch")
 
-(define (writeln . x)
-  (for-each display x) (newline))
-
-(define (nbuild-load-files files)
-  (for-each compat:load files))
 
 (writeln "Loading Twobit.")
-(nbuild-load-files (nbuild:twobit-files))
+(if *code-coverage*
+    (begin
+      (if *rebuild-code-coverage*
+          (begin
+            (load "Util/Misc/stcov.sch")
+            (writeln "Preprocessing for code coverage")
+            (stcov-files (code-cov-files))))
+      (writeln "Loading code-coverage mangled files")
+      (load "stcov-util.sch")
+      (nbuild-load-files (new-files)))
 
-(writeln "Loading the common assembler.")
-(nbuild-load-files (nbuild:common-asm-files))
-
-(writeln "Loading " (nbuild-parameter 'target-machine) " machine assembler.")
-(nbuild-load-files (nbuild:machine-asm-files))
-
+    (begin
+      (nbuild-load-files (nbuild:twobit-files))
+      
+      (writeln "Loading the common assembler.")
+      (nbuild-load-files (nbuild:common-asm-files))
+      
+      (writeln "Loading " (nbuild-parameter 'target-machine) " machine assembler.")
+      (nbuild-load-files (nbuild:machine-asm-files))))
+    
 (writeln "Loading bootstrap heap dumper.")
 (nbuild-load-files (nbuild:heap-dumper-files))
 
 (writeln "Loading make utility, makefile, and help.")
 (nbuild-load-files (nbuild:utility-files))
 
+(writeln "Loading utility functions.")
+(compat:load (make-filename (nbuild-parameter 'rts) "make-templates.sch"))
+(compat:load (make-filename (nbuild-parameter 'util) "cleanup.sch"))
 
 ; Initialize Twobit and help system.
 
 (compiler-switches 'default)
 (compiler-switches 'fast-safe)
-(initialize-help (nbuild-parameter 'compiler))
+(initialize-help (nbuild-parameter 'compiler) 
+		 'full
+		 (if (eq? 'sparc (nbuild-parameter 'target-machine))
+		     'native
+		     'petit))
 
 ; Initialize assembler (Nothing yet -- must eventually adjust endianness.)
 
 ; Initialize heap dumper.
 
-(dumpheap.set-endianness! (nbuild-parameter 'endianness))
+(dumpheap.set-endianness! (nbuild-parameter 'target-endianness))
 
 ; And they're off!
 
-(writeln "Welcome. Type (help) for help.")
+;; (see nbuild-defns.sch for definition of welcome procedure)
 
 ; eof

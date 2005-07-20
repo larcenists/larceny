@@ -53,35 +53,35 @@
 (define (callgraphnode.info! x v) (set-car! (cddr (cddddr x)) v) #f)
 
 (define (callgraph exp)
-
+  
   ; Returns (union (list x) z).
 
   (define (adjoin x z)
     (if (memq x z)
         z
         (cons x z)))
-
+  
   (let ((result '()))
-
+    
     ; Given a <name> as described above, a lambda expression, a list
     ; of variables that are in scope, and a list of names of known
     ; local procedure that are in scope, computes an entry for L and
     ; entries for any nested known procedures or escaping lambda
     ; expressions, and adds them to the result.
-
+    
     (define (add-vertex! name L vars known)
-
+      
       (let ((tailcalls '())
             (nontailcalls '())
             (size 0))
-
+        
         ; Given an expression, a list of variables that are in scope,
         ; a list of names of known local procedures that are in scope,
         ; and a boolean indicating whether the expression occurs in a
         ; tail context, adds any tail or non-tail calls to known
         ; procedures that occur within the expression to the list
         ; variables declared above.
-
+        
         (define (graph! exp vars known tail?)
           (set! size (+ size 1))
           (cond ((constant? exp)    #f)
@@ -182,13 +182,13 @@
                                  (callgraphnode.size (car result)))))
                       defs)
             (graph! (lambda.body L) vars known tail?)))
-
+        
         (graph-lambda! L vars known #t)
-
+        
         (set! result
               (cons (list name L vars tailcalls nontailcalls size #f)
                     result))))
-
+    
     (add-vertex! #t
                  (make-lambda '() '() '() '() '() '() '() exp)
                  '()

@@ -8,12 +8,14 @@
 (define ($$trace x) #t)
 (define host-system 'mzscheme)
 
+(define version-299? (> (string->number (version)) 299))
+
 ;; Initialization
 
 (define (compat:initialize)
   (let ((hostdir (nbuild-parameter 'compatibility)))
     (load (string-append hostdir "logops.ss"))
-    (if (eq? 'little (nbuild-parameter 'endianness))
+    (if (eq? 'little (nbuild-parameter 'host-endianness))
         (begin (load (string-append hostdir "bytevec-el.ss"))
                (load (string-append hostdir "misc2bytevector-el.ss")))
         (begin (load (string-append hostdir "bytevec.ss"))
@@ -29,9 +31,10 @@
     (load fn))
   (loadit filename))
 
-(define (call-with-error-control thunk1 thunk2)
+(define (call-with-error-control thunk1 thunk2) 
   (with-handlers [(values (lambda _ (thunk2)))]
     (thunk1)))
+
 
 (define (call-with-error-handler handler thunk)
   (with-handlers [(values handler)]
@@ -53,7 +56,7 @@
 (define (eof-object) *eof-object*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
+; 
 ; Common non-standard operations
 
 (define some? ormap)
@@ -134,7 +137,7 @@
   (newline p)
   (newline p))
 
-; Does not use magic syntax for flonums and compnums, but produces
+; Does not use magic syntax for flonums and compnums, but produces 
 ; valid data anyway.
 
 (define write-fasl-datum write)
@@ -192,9 +195,19 @@
 ; Twobit is running on top of Larceny... b/c the reader needs to know
 ; about these too for them to be useful).
 
-(define recognize-javadot-symbols? (make-parameter #f boolean?))
-(define recognize-keywords? (make-parameter #t boolean?))
-(define case-sensitive? (make-parameter #f boolean?))
+(define (err-on-non-boolean name)
+  (lambda (x)
+    (if (boolean? x)
+        x
+        (error name "Passed non boolean"))))
+
+
+(define recognize-javadot-symbols? 
+  (mz:make-parameter #f (err-on-non-boolean 'recognize-javadot-symbols?)))
+(define recognize-keywords? 
+  (mz:make-parameter #f (err-on-non-boolean 'recognize-keywords?)))
+(define case-sensitive? 
+  (mz:make-parameter #f (err-on-non-boolean 'case-sensitive?)))
 (define javadot-symbol? (lambda (x) #f))
 (define (javadot-symbol->symbol x) x)
 (define (symbol->javadot-symbol x) x)
@@ -222,3 +235,47 @@
   (and (real? x) (inexact? x)))
 
 (define system system/exit-code)
+
+
+(define *root-directory* (let ((l (current-directory)))
+                           (cond
+                            ((string? l)  l)
+                            (else (path->string l)))))
+
+(define (system-features)
+  (define (chop s) (substring s 0 (sub1 (string-length s))))
+  (list (cons 'os-name      (case (system-type)
+                              ((macosx)  "MacOS X")
+                              ((windows) "Win32")
+                              ((unix) 
+                               (let ((s (open-output-string))) 
+                                 (mz:parameterize ((current-output-port s)) 
+                                   (system "uname"))
+                                 (chop (get-output-string s))))
+                              (else 
+                               (error 'system-features 
+                                      "Add a new case for system-type"))
+                              ))))
+
+(define (reset) (error "RESET"))
+
+;; In MzScheme 299, parameterize was changed so that it has to take
+;; parameter objects, rather than arbitrary procedures.  This macro
+;; reintroduces the old semantics that accepted procedures as well as
+;; parameter objects.
+(define-syntax parameterize 
+  (syntax-rules ()
+    ((parameterize ((PARAM EXP) ...) BODY ...)
+     (parameterize "help" () ((PARAM EXP) ...) () BODY ...))
+
+    ((parameterize "help" (NAMES ...) ((P E) R ...) (PE ...)       BODY ...)
+     (parameterize "help" (FRESH NAMES ...) (R ...) (PE ... (P E)) BODY ...))
+
+    ((parameterize "help" (ORIG ...) () ((PARAM EXPR) ...) BODY ...)
+     (let ((ORIG (PARAM)) ...)
+       (dynamic-wind 
+           (lambda () (PARAM EXPR) ...)
+           (lambda () BODY   ...)
+           (lambda () (PARAM ORIG) ...))))))
+
+(require (lib "pretty.ss"))

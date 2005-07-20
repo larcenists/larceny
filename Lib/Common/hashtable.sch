@@ -135,30 +135,30 @@
                  #t)))
 
     ; Internal operations.
-
+    
     (define (make-ht hashfun searcher size)
       (vector doc 0 hashfun searcher (make-vector size '())))
-
+    
     ; Substitute x for the first occurrence of y within the list z.
     ; y is known to occur within z.
-
+    
     (define (substitute1 x y z)
       (cond ((eq? y (car z))
              (cons x (cdr z)))
             (else
              (cons (car z)
                    (substitute1 x y (cdr z))))))
-
+    
     ; Remove the first occurrence of x from y.
     ; x is known to occur within y.
-
+    
     (define (remq1 x y)
       (cond ((eq? x (car y))
              (cdr y))
             (else
              (cons (car y)
                    (remq1 x (cdr y))))))
-
+    
     (define (resize ht0)
       (call-without-interrupts
        (lambda ()
@@ -169,9 +169,9 @@
                           (put! ht key val))
                         ht0)
            (buckets! ht0 (buckets ht))))))
-
+    
     ; Returns the contents of the hashtable as a vector of pairs.
-
+    
     (define (contents ht)
       (let* ((v (buckets ht))
              (n (vector-length v))
@@ -195,7 +195,7 @@
                            j)))
                 (else (error "Illegal hashtable structure."))))
         (loop 0 '() 0)))
-
+    
     (define (contains? ht key)
       (guarantee-hashtable 'contains? ht)
       (let* ((v (buckets ht))
@@ -266,7 +266,7 @@
 
     ; This code must be written so that the procedure can modify the
     ; hashtable without breaking any invariants.
-
+    
     (define (ht-for-each f ht)
       (guarantee-hashtable 'ht-for-each ht)
       (let* ((v (contents ht))
@@ -301,7 +301,7 @@
         newtable))
 
     ; External entry points.
-
+    
     (set! make-hashtable
           (lambda args
             (let* ((hashfun (if (null? args) object-hash (car args)))

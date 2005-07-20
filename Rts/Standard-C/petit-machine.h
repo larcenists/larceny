@@ -31,6 +31,25 @@
 #define STK_RETURN        STK_RETADDR
 /* End hacks */
 
+#if CODEPTR_SHIFT1
+# define DECODE_CODEPTR(w) ((codeptr_t)((word)w >> 1))
+# define ENCODE_CODEPTR(p) ((word)p << 1)
+#elif CODEPTR_SHIFT2
+# define DECODE_CODEPTR(w) ((codeptr_t)((word)w >> 2))
+# define ENCODE_CODEPTR(p) ((word)p << 2)
+#else
+# define DECODE_CODEPTR(w) ((codeptr_t)w)
+# define ENCODE_CODEPTR(p) ((word)p)
+#endif
+
+#if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
+# define ENCODE_RETURN_ADDRESS(L_numeric,L_symbolic) ((word)L_numeric << 2)
+# define DECODE_RETURN_ADDRESS(x) ((cont_t)((x) >> 2))
+#else
+# define ENCODE_RETURN_ADDRESS(L_numeric,L_symbolic) ENCODE_CODEPTR(L_symbolic)
+# define DECODE_RETURN_ADDRESS(x) ((cont_t)DECODE_CODEPTR(x))
+#endif
+
 /* Exception codes */
 /* These are strange cases; must check that Rts sources don't use the
    old/wrong names before renaming in except.cfg.

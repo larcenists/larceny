@@ -1,49 +1,17 @@
-Copyright 1998 Lars T Hansen.               -*- Text -*-
-
-$Id$
+; -*- Text -*-
+; 
+; $Id$
 
 
 	       Rainy day projects for the Larceny hacker
 
 
-Portable Graphical User Interface support
-  Requirements: 
-    Must run on Unix, Win32, and MacOS.  Would be nice if it runs
-    on or can easily be ported to BeOS and QNX.
-  We need to evaluate our options:
-  - vxWindows (need a C++ FFI) (mflatt says "don't do it")
-  - Tk (need a C FFI) (mflatt says "don't do it")
-  - a Java-based interface.  Then we need a Java FFI, which is hard,
-    unless the Scheme system is actually generating java code (see below).
-  - others?  (Shriram suggests Qt, but portability?)
-  Tk is attractive because it's pervasive and supported; it's unattractive
-  because it's pretty slow and (at least prior to version 8) had no
-  GC support.
-
-Mark/sweep non-predictive collector.
-Will's fast write barrier.
-Hybrid card-marking/remembered-set write barrier.
-Garbage collector that segregates non-scannable data.
-Exception system.
-Module system.
-Java code generator and libraries.
-Unicode support.
-A real debugger (the existing debugger should be scrapped).
-A profiler.
-Document the extensible I/O system.
-A faster reader (maybe).
-A faster printer (maybe).
-A garbage collector written mostly or entirely in Scheme.
-Larceny on Nexus.
-Grand Larceny.
-Many larceny notes.
-
-
-Projects currently under-way
-----------------------------
+Projects currently under-way (not up-to-date)
+---------------------------------------------
 
 FFIGEN version 2.
-  Much has been done, much remains.
+  Much has been done, much remains.  Brian Denheyer currently has
+  the code (briand@zipcon.net last time we communicated).
 
 Generic bitwise operations, as discussed at implementors' meeting.
   I've written much of this code, but it's not done.
@@ -51,12 +19,8 @@ Generic bitwise operations, as discussed at implementors' meeting.
 Bytecode code generator, libraries, and interpreter.
   I've written the bytecode interpreter.  Quite a bit of design and
   coding remains to be done.  The big unknown that must be resolved
-  is how to interact with compiled code.
-
-C Code generator (Petit Larceny)
-  Mostly operational on Mac, Unix, partly on Win32.  
-  - Much code still Unix-centric (relies on MetroWerks or Cygwin).
-  - Some portability issues currently ignored but visible.
+  is how to interact with native-compiled code.  (The code for the 
+  BCI appears to be lost, it is not in the CVS.)
 
 Generic functions (see Experimental/generic/*)
   We can build generic functions on top of the record system, the
@@ -75,5 +39,56 @@ Simple type-propagation Pass 3 (source not available).
 
 Threads package (see Experimental/tasking for existing code).
   General design is done, code works.
+
+
+Project proposals with a research flavor
+----------------------------------------
+
+C-- back-end
+  Write a back-end that generates C--, either directly or
+  through the usual macrology, and compare performance and code size of
+  the resulting code to the that of the C and x86 back-ends.  This may
+  even be somewhat publishable.  <URL:http://www.cminusminus.org/>
+
+Java back-end
+  As for the C-- back-end.  (Though Serrano and Feeley have published
+  here already.)
+
+Write barrier work / Implement Will's fast write barrier
+  The write barrier is probably too slow as it is, one can solve this
+  several ways.  Will's barrier is one solution.  It will reduce
+  the cost of vector updates substantially (though increase space
+  a little).  Other possibilities include using card marking, and
+  changing the remembered set to use the Symbolics design (at least
+  in the DOF collector).
+
+
+
+Project proposals with a hack-value flavor
+------------------------------------------
+
+Portable Graphical User Interface support
+  Requirements: 
+    Must run on Unix, Win32, and MacOS.  Would be nice if it runs
+    on or can easily be ported to BeOS and QNX.
+  We need to evaluate our options:
+  - vxWindows (need a C++ FFI) (mflatt says "don't do it")
+  - Tk (need a C FFI) (mflatt says "don't do it")
+  - a Java-based interface.  Then we need a Java FFI, which is hard,
+    unless the Scheme system is actually generating java code (see below).
+  - others?  (Shriram suggests Qt, but portability?)
+  Tk is attractive because it's pervasive and supported; it's unattractive
+  because it's pretty slow and (at least prior to version 8) had no
+  GC support.
+
+A C++ FFIGEN based on gcc-xml.
+Unicode support.
+A real debugger (the existing debugger should be scrapped).
+A profiler.
+Document the extensible I/O system.
+A faster reader (maybe).
+A faster printer (maybe).
+Grand Larceny.
+Many larceny notes.
 
 ; eof

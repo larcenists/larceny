@@ -75,22 +75,22 @@
 ; This procedure operates by side effect.
 
 (define (single-assignment-elimination L notepad)
-
+  
   (if (begin? (lambda.body L))
-
+      
       (let* ((formals (make-null-terminated (lambda.args L)))
              (defined (map def.lhs (lambda.defs L)))
              (escaping (intersection formals
                                      (notepad-captured-variables notepad)))
              (R (lambda.R L)))
-
+        
         ; Given:
         ;    exprs that remain in the body;
         ;    assigns that will be replaced by let* variables;
         ;    call-has-occurred?, a boolean;
         ;    free variables of the assigns;
         ; Performs the transformation described above.
-
+        
         (define (loop exprs assigns call-has-occurred? free)
           (cond ((null? (cdr exprs))
                  (return exprs assigns))
@@ -115,7 +115,7 @@
                                    newfree)))
                        (return exprs assigns))))
                 (else (return exprs assigns))))
-
+        
         (define (return exprs assigns)
           (if (not (null? assigns))
               (let ((I (assignment.lhs (car assigns)))
@@ -141,7 +141,7 @@
                               (lambda.R-set! L (remq entry R)))
                             (lambda.R L2))
                   (return-loop (cdr assigns) (make-call L2 (list E)))))))
-
+        
         (define (return-loop assigns body)
           (if (null? assigns)
               (let ((L3 (call.proc body)))
@@ -165,9 +165,9 @@
                   (lambda.R-set! L (remq (R-entry R I) R))
                   (lambda-lifting L3 L2)
                   (return-loop (cdr assigns) (make-call L2 (list E)))))))
-
+        
         (loop (begin.exprs (lambda.body L)) '() #f '())))
-
+  
   L)
 
 ; Temporary definitions.
@@ -210,9 +210,9 @@
 
 (define (assignment-elimination L)
   (let ((R (lambda.R L)))
-
+    
     ; Given a list of entries, return those for assigned variables.
-
+    
     (define (loop entries assigned)
       (cond ((null? entries)
              (if (not (null? assigned))
@@ -223,13 +223,13 @@
              (flag-as-ignored (R-entry.name (car entries)) L)
              (loop (cdr entries) assigned))
             (else (loop (cdr entries) assigned))))
-
+    
     ; Given a list of entries for assigned variables I1 ...,
     ; remove the assignments by replacing the body by a LET of the form
     ; ((LAMBDA (V1 ...) ...) (MAKE-CELL I1) ...), by replacing references
     ; by calls to CELL-REF, and by replacing assignments by calls to
     ; CELL-SET!.
-
+    
     (define (eliminate assigned)
       (let* ((oldnames (map R-entry.name assigned))
              (newnames (map generate-new-name oldnames)))
@@ -275,15 +275,15 @@
                            (call.args newbody)))
             (lambda.body-set! L newbody)
             (lambda-lifting (call.proc newbody) L)))))
-
+    
     (define (generate-new-name name)
       (string->symbol (string-append cell-prefix (symbol->string name))))
-
+    
     ; In addition to replacing references and assignments involving the
     ; old variable by calls to CELL-REF and CELL-SET! on the new, CELLIFY!
     ; uses the old entry to collect the referencing information for the
     ; new variable.
-
+    
     (define (cellify! augmented-entry)
       (let ((newname (car augmented-entry))
             (entry (cadr augmented-entry)))
@@ -313,24 +313,24 @@
                                        (cons newref
                                              (R-entry.references entry)))))
         (R-entry.assignments-set! entry '())))
-
+    
     ; This procedure creates a brand new entry for a new variable, extracting
     ; the references stored in the old entry by CELLIFY!.
-
+    
     (define (new-reference-info augmented-entry)
       (make-R-entry (car augmented-entry)
                     (R-entry.references (cadr augmented-entry))
                     '()
                     '()))
-
+    
     ; This procedure updates the old entry to reflect the fact that it is
     ; now referenced once and never assigned.
-
+    
     (define (update-old-reference-info! ref)
       (references-set! R (variable.name ref) (list ref))
       (assignments-set! R (variable.name ref) '())
       (calls-set! R (variable.name ref) '()))
-
+    
     (loop R '())))
 
 ; Lambda lifting raises internal definitions to outer scopes to avoid
@@ -347,11 +347,11 @@
 ; L2 can be the same as L, so the order of side effects is critical.
 
 (define (lambda-lifting L2 L)
-
+  
   ; The call to sort is optional.  It gets the added arguments into
   ; the same order they appear in the formals list, which is an
   ; advantage for register targeting.
-
+  
   (define (lift L2 L args-to-add)
     (let ((formals (make-null-terminated (lambda.args L2))))
       (do ((defs (lambda.defs L2) (cdr defs))
@@ -385,7 +385,7 @@
           (begin
            (lambda.defs-set! L (append (lambda.defs L2) (lambda.defs L)))
            (lambda.defs-set! L2 '())))))
-
+  
   (if L
       (if (not (null? (lambda.defs L2)))
           (let ((args-to-add (compute-added-arguments

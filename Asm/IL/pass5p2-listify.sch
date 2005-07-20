@@ -12,7 +12,7 @@
           (il:comment/info "instruction" (cons (string->symbol name) (cdr instr)))
           (if (and (codegen-option 'listify-debug-location)
                    (not (member name '(".end"))))
-              (il:set-debug-info line listify-filename
+              (il:set-debug-info line listify-filename 
                                  (member name '(".cont" ".proc")))
               '()))
     (if (codegen-option 'listify-write-list-file)
@@ -20,7 +20,7 @@
 
 (define (list-label/line instr as)
   (let ((line listify-counter))
-    (emit as
+    (emit as 
           (il:comment/info "Instruction" (cons '.label (cdr instr))))
     (if (codegen-option 'listify-write-list-file)
         (write-listify-label line (cadr instr)))))

@@ -64,7 +64,7 @@
                   (cons (make-clr-method name type argtypes options instrs)
                         (clr-class-members *current-clr-class*))))
 
-;; global-method-add :
+;; global-method-add : 
 ;;   string string (listof string) (listof string) (listof instr) -> void
 (define (global-method-add name type argtypes options instrs)
   (set! *il-top-level* (cons (make-clr-method name type argtypes options instrs)
@@ -94,7 +94,7 @@
   (set! *entrypoints* '())
   (set! *loadables* '())
   (set! *already-compiled* '())
-
+  
   (set! *il-top-level* '())
   (set! *current-clr-class* #f)
   (set! *current-clr-method* #f)

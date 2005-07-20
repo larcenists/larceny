@@ -10,7 +10,7 @@
 ; instruction is assembled.  It may replace the prefix of the instruction
 ; stream by some other instruction sequence.
 ;
-; Invariant: if the peephole optimizer doesn't change anything, then
+; Invariant: if the peephole optimizer doesn't change anything, then 
 ;
 ;  (let ((x (as-source as)))
 ;    (peep as)
@@ -357,7 +357,7 @@
 
 ; End of check optimization.
 
-; Reg-setreg is not restricted to hardware registers, as $movereg is
+; Reg-setreg is not restricted to hardware registers, as $movereg is 
 ; a standard instruction.
 
 (define (reg-setreg as i:reg i:setreg tail)

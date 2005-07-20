@@ -657,7 +657,7 @@
                              (available-kill!
                               available
                               (prim-kills (prim-entry f0)))
-                             (cond ((eq? f0 name:check!)
+                             (cond ((eq? f0 name:CHECK!)
                                     (let ((x (car (call.args E))))
                                       (cond ((not (runtime-safety-checking))
                                              (abandon-expression! E)
