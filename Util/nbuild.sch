@@ -20,7 +20,9 @@
 ;   host-system     the name of the host system
 ;   target-machine  a symbol that specifies the target architecture
 ;                      SPARC           Sparc v8  (32-bit, big endian)
-;                      Standard-C      ANSI C
+;                      standard-c      ANSI C
+;                      dotnet          Microsoft Common Language Runtime
+;                      x86-nasm        Intel 80x86, NASM assembler
 ;   endianness      endianness of target, either 'big' or 'little'.
 ;
 ; If target-machine = SPARC:
@@ -85,7 +87,7 @@
 (compiler-switches 'fast-safe)
 (initialize-help (nbuild-parameter 'compiler) 
 		 'full
-		 (if (eq? 'sparc (nbuild-parameter 'target-machine))
+		 (if (eq? 'SPARC (nbuild-parameter 'target-machine))
 		     'native
 		     'petit))
 
