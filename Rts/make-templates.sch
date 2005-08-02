@@ -109,6 +109,10 @@
      . ,(lambda ()
 	  (values make-template-petit-osf1-decc
 		  make-template-target-petit-unix-static)))
+    (X86-WIN32-STATIC-VISUALC-NASM
+     . ,(lambda ()
+	  (values make-template-petit-win32-visualc
+		  make-template-target-nasm-x86-win32-static)))
     (X86-UNIX-STATIC-GCC-NASM
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc
@@ -151,6 +155,9 @@ LIBS=-lm
 (define make-template-petit-win32-visualc
 "O=obj
 CC=cl
+AS=nasmw
+.asm.obj: 
+	nasmw -f win32 -DWIN32 -ISys/ -IIntel/ -IBuild/ -o $*.obj $<
 .c.obj:
 	cl /c /Zp4 /O2 /Zi /ISys /IStandard-C /IBuild /DSTDC_SOURCE /Fo$*.obj $<")
 
@@ -258,6 +265,12 @@ ASFLAGS=-P -ISparc -IBuild
 "libpetit.lib: $(PETIT_LARCENY_OBJECTS)
 	lib /libpath:Rts /name:libpetit /out:libpetit.lib \\
 	   $(PETIT_LARCENY_OBJECTS)")
+
+; Win32: Intel x86 with the NASM back-end
+(define make-template-target-nasm-x86-win32-static
+"libpetit.lib: $(X86_NASM_LARCENY_OBJECTS)
+	lib /libpath:Rts /name:libpetit /out:libpetit.lib \\
+	   $(X86_NASM_LARCENY_OBJECTS)")
 
 ; Unix: Intel x86 with the NASM back-end
 (define make-template-target-nasm-x86-unix-static

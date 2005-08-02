@@ -31,11 +31,11 @@
 ;;; 
 ;;; Machine language stubs for system operations implemented in C.
 	
-	extern	mem_stkuflow
-	extern	return_from_scheme
-	extern	dispatch_loop_return
-	extern	gclib_pagebase
-	extern	mc_exception
+	extern	EXTNAME(mem_stkuflow)
+	extern	EXTNAME(return_from_scheme)
+	extern	EXTNAME(dispatch_loop_return)
+	extern	EXTNAME(gclib_pagebase)
+	extern	EXTNAME(mc_exception)
 	
 ;;; The return address of the bottommost frame in the stack cache points
 ;;; to i386_stack_underflow; all we do is call the C function that
@@ -43,7 +43,7 @@
 	
 	align	code_align
 EXTNAME(i386_stack_underflow):
-	mov	eax, mem_stkuflow
+	mov	eax, EXTNAME(mem_stkuflow)
 	jmp	callout_to_C
 
 	
@@ -54,7 +54,7 @@ EXTNAME(i386_stack_underflow):
 	
 	align	code_align
 EXTNAME(i386_return_from_scheme):
-	mov	eax, return_from_scheme
+	mov	eax, EXTNAME(return_from_scheme)
 	jmp	callout_to_C
 
 	
@@ -64,7 +64,7 @@ EXTNAME(i386_return_from_scheme):
 	
 	align	code_align
 EXTNAME(i386_dispatch_loop_return):
-	mov	eax, dispatch_loop_return
+	mov	eax, EXTNAME(dispatch_loop_return)
 	jmp	callout_to_C
 
 	
@@ -98,9 +98,9 @@ EXTNAME(i386_scheme_jump):
 ;;; return to the caller.
 
 %macro PUBLIC 1
-	global	%1
+	global	EXTNAME(%1)
 	align	code_align
-%1:
+EXTNAME(%1):
 %endmacro
 
 ;;; The unadjusted return address is in GLOBALS[-1]; adjust it and
@@ -212,7 +212,7 @@ PUBLIC i386_restore_continuation
 PUBLIC i386_full_barrier
 %ifdef OPTIMIZE_MILLICODE
 	test	SECOND, 1			; If rhs is ptr
-	jnz	i386_partial_barrier		;   enter the barrier
+	jnz	EXTNAME(i386_partial_barrier)	;   enter the barrier
 	ret					; Otherwise return
 %else  ; OPTIMIZE_MILLICODE
 	MC2g	mc_full_barrier
@@ -231,11 +231,11 @@ PUBLIC i386_partial_barrier
 Lpb1:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
 	mov	[GLOBALS+G_REG1], REG1		;   working registers
 	mov	REG1, [GLOBALS+G_GENV]		; Map page -> generation
-	sub	RESULT, [gclib_pagebase]	; Load
+	sub	RESULT, [EXTNAME(gclib_pagebase)]	; Load
 	shr	RESULT, 12			;   generation number
 	shl	RESULT, 2			;     (using byte offset)
 	mov	RESULT, [REG1+RESULT]		;       for lhs
-	sub	SECOND, [gclib_pagebase]	; Load
+	sub	SECOND, [EXTNAME(gclib_pagebase)]	; Load
 	shr	SECOND, 12			;   generation number
 	shl	SECOND, 2			;     (using byte offset)
 	mov	SECOND, [REG1+SECOND]		;       for rhs
@@ -401,7 +401,7 @@ PUBLIC i386_invoke_exception			; RESULT holds defined value
 	cmp	dword [GLOBALS+G_TIMER], 0
 	jnz	Linv1
 	sub	esp, 4
-	jmp	i386_timer_exception
+	jmp	EXTNAME(i386_timer_exception)
 Linv1:	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
 	mov	SECOND, EX_NONPROC
 	jmp	i386_signal_exception
@@ -412,7 +412,7 @@ PUBLIC i386_global_invoke_exception		; RESULT holds the global cell
 	cmp	dword [GLOBALS+G_TIMER], 0
 	jnz	Lginv1
 	sub	esp, 4
-	jmp	i386_timer_exception
+	jmp	EXTNAME(i386_timer_exception)
 Lginv1:	cmp	dword [RESULT-PAIR_TAG], UNDEFINED_CONST
 	jnz	Lginv2
 	mov	SECOND, EX_UNDEF_GLOBAL
@@ -486,7 +486,7 @@ i386_signal_exception:
 	mov	esp, [ebx+G_SAVED_ESP]
 	push	dword [tmp_exception_code]	; exception code
 	push	ebx				; globals
-	call	mc_exception
+	call	EXTNAME(mc_exception)
 	add	esp, 8
 	RESTORE_STATE saved_globals_pointer
 	jmp	[GLOBALS + G_RETADDR]

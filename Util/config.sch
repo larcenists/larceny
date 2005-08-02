@@ -216,7 +216,7 @@
 		  (loop (read inp) i)))
 	       ((define-mproc)
 		(let ((size 
-		       (table-branch (extname (list-ref item 4)))))
+		       (table-branch (list-ref item 4))))
 		  (let ((i (define-const (cons 'define-const
 					       (cons (gensym "G_")
 						     (cons table-counter
@@ -448,14 +448,14 @@
     (define (table-heading)
       (show '("%include \"i386-machine.ah\"" #\newline
 	      #\tab "section .data" #\newline
-	      #\tab "global globals" #\newline
+	      #\tab "global EXTNAME(globals)" #\newline
 	      #\tab "align 8" #\newline
 	      "%macro MILLIPROC 1" #\newline
 	      #\tab "extern" #\tab "EXTNAME(%1)" #\newline
 	      #\tab "dd" #\tab "EXTNAME(%1)" #\newline
 	      "%endmacro" #\newline
 	      #\tab "dd" #\tab "0" #\newline ; hack: word for millicode calls
-	      "globals:" #\newline)))
+	      "EXTNAME(globals):" #\newline)))
 
     (define (table-word value . rest)
       (show `(#\tab "dd" #\tab ,value

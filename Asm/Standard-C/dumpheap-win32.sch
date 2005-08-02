@@ -93,13 +93,13 @@
     (execute
      (twobit-format #f "lib.exe /libpath:. /name:~a /out:~a @~a" lib-name output-name lnk-name))))
 
-(define (c-dll-linker:msvc-win32 output-name object-files)
+(define (c-dll-linker:msvc-win32 output-name object-files . ignored)
   ;; FIXME!!  (why??)
   (create-indirect-file "petit-objs.lnk" object-files)
   (system "del vc60.pdb")
   (execute
    (twobit-format #f
-		  "link.exe /dll /export:twobit_load_table /debug /out:~a @petit-objs.lnk petit.exe"
+		  "link.exe /dll /noentry /export:twobit_load_table /debug /out:~a @petit-objs.lnk petit.lib"
 		  output-name)))
 
 (define (c-linker:msvc-win32 output-name object-files libs)

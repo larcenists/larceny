@@ -443,6 +443,25 @@
     "DEBIAN_STRDUP_WEIRDNESS"
     ))
 
+(define features-x86-nasm-win32		; Windows, x86
+  '("X86_NASM"
+    "BITS_32"
+    "ENDIAN_LITTLE"
+    "WIN32"
+    "HAVE_STRDUP"
+    "HAVE_POLL"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "USE_GENERIC_IO"
+    "USE_GENERIC_FILESYSTEM"
+    "USE_STDIO"
+    "NO_SYNCHRONOUS_SIGNALS"
+    "HAVE_STAT"
+    ))
+
+
 (define features-petit-linux-redhat5	; Very old, Redhat linux 5.1
   '("PETIT_LARCENY"
     "BITS_32"
@@ -494,7 +513,7 @@
     "DEC_ALPHA_32BIT"
     "STACK_UNDERFLOW_COUNTING"))
 
-(define selected-feature-set features-x86-nasm-linux)
+(define selected-feature-set features-x86-nasm-win32)
 
 ; ------ END USER DEFINITION SECTION ------
 

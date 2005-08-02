@@ -24,8 +24,8 @@
       (apply twobit-format *asm-output* fmt args)))
 
 ; Constants
-(define *init-function-name* "twobit_start")
-(define *init-thunk-array-name* "twobit_start_procedures")
+(define *init-function-name* (extname "twobit_start"))
+(define *init-thunk-array-name* (extname "twobit_start_procedures"))
 (define *temp-file* "HEAPDATA.asm")
 (define *delete-temp-files* #f)
 
@@ -85,7 +85,7 @@
                                  "_"
                                  (number->string *segment-number*))))
         (emit-c-code "global ~a~%" name)
-	(emit-c-code "align 4~%" name)
+	(emit-c-code "align 4~%")
 	(emit-c-code "~a: jmp ~a~%~%" name entrypoint)
         name)))
 
@@ -147,8 +147,8 @@
 	      (set! *segment-number* (+ *segment-number* 1))))))
       (if so-name
 	  (begin
-	    (emit-c-code "global twobit_load_table~%")
-	    (emit-c-code "twobit_load_table:~%")
+	    (emit-c-code "global EXTNAME(twobit_load_table)~%")
+	    (emit-c-code "EXTNAME(twobit_load_table):~%")
 	    (do ((l (reverse entrypoints) (cdr l))
 		 (i 0 (+ i 1)))
 		((null? l))
@@ -219,8 +219,8 @@
 	    (set! *segment-number* (+ *segment-number* 1))))))))
 
 (define (end-shared-object)
-  (emit-c-code "global twobit_load_table~%")
-  (emit-c-code "twobit_load_table:~%")
+  (emit-c-code "global EXTNAME(twobit_load_table)~%")
+  (emit-c-code "EXTNAME(twobit_load_table):~%")
   (do ((l (reverse *shared-object-entrypoints*) (cdr l)))
       ((null? l))
     (emit-c-code "  dd ~a~%" (car l)))
@@ -362,7 +362,7 @@
   ; library that contains the startup heap.
 
   (define (dump-loadable-thunks)
-    (emit-c-code "extern twobit_load_table~%"))
+    (emit-c-code "extern EXTNAME(twobit_load_table)~%"))
 
   (let ((r #f))
     (delete-file *temp-file*)
@@ -389,13 +389,25 @@
   (call-with-output-file filename
     (lambda (f)
       (set! *asm-output* f)
+
+      (emit-c-code "%macro cglobal 1~%")
+      (emit-c-code "global _%1~%")
+      (emit-c-code "%define %1 _%1~%")
+      (emit-c-code "%endmacro~%")
+      
+      (emit-c-code "%macro cextern 1~%")
+      (emit-c-code "extern _%1~%")
+      (emit-c-code "%define %1 _%1~%")
+      (emit-c-code "%endmacro~%")
+
       (emit-c-code "%include \"i386-machine.ah\"~%")
       (emit-c-code "%include \"i386-instr.asm\"~%")
-      (emit-c-code "global main~%")
-      (emit-c-code "global twobit_load_table~%")
-      (emit-c-code "extern larceny_main~%")
-      (emit-c-code "main:~%")
-      (emit-c-code "jmp larceny_main~%~%")
+      (emit-c-code "global EXTNAME(main)~%")
+      (emit-c-code "global EXTNAME(twobit_load_table)~%")
+      (emit-c-code "extern EXTNAME(larceny_main)~%")
+      (emit-c-code "section .text~%")
+      (emit-c-code "EXTNAME(main):~%")
+      (emit-c-code "jmp EXTNAME(larceny_main)~%~%")
       (emit-c-code "; Loadable segments' code~%~%")
       (let ((l (reverse *loadables*)))
         ; Print prototypes
@@ -413,7 +425,7 @@
               ((null? x))
             (emit-c-code "  dd ~a~%" (car x))))
         ; Print outer table
-        (emit-c-code "twobit_load_table:~%")
+        (emit-c-code "EXTNAME(twobit_load_table):~%")
         (do ((l l (cdr l))
              (i 0 (+ i 1)))
             ((null? l))

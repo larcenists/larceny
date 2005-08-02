@@ -60,7 +60,7 @@
   (config "Rts/Build/layouts.cfg")
   (config "Rts/Build/globals.cfg")
   (config "Rts/Build/mprocs.cfg")
-  (config "Rts/Build/regs.cfg")    ; for Sparc native
+  (config "Rts/Build/regs.cfg")    ; for Sparc (and Intel?) native
   (catfiles '("Rts/Build/globals.ch"
 	      "Rts/Build/except.ch"
 	      "Rts/Build/layouts.ch"
@@ -71,7 +71,7 @@
 	      "Rts/Build/layouts.sh"
               "Rts/Build/regs.sh") ; for Sparc native
 	    "Rts/Build/schdefs.h")
-  ;; for Sparc native
+  ;; for Sparc and Intel native
   (catfiles '("Rts/Build/globals.ah"
               "Rts/Build/except.ah"
               "Rts/Build/layouts.ah"

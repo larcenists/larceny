@@ -17,6 +17,7 @@
                                'verbose-load? #t
                                'development? #t
                                'machine-source "Lib\\Standard-C\\"
+                               'mzscheme-source   (pathname-append "Lib" "MzScheme")
                                'host-os 'win32
                                'host-endianness 'little
                                'target-machine 'standard-c
@@ -30,7 +31,7 @@
   ;   gcc-mingw   gcc (mingw) on Win32
   ;   msvc        Microsoft Visual C/C++ 6.0 on Win32
   ;   mwcc        Metrowerks CodeWarrior C/C++ 6.0 on Win32
-  (select-compiler 'gcc-mingw)
+  ;; (select-compiler 'gcc-mingw)
   (set! win32/petit-rts-library (string-append "Rts\\libpetit" (lib-suffix)))
   (set! win32/petit-lib-library (string-append "libheap" (lib-suffix))))
 
@@ -63,6 +64,10 @@
      (error "Unknown host OS " (nbuild-parameter 'host-os)))))
 
 (define (build-config-files)
+
+  (define (maybe-file fn)
+    (if (file-exists? fn) (list fn) '()))
+
   (case (nbuild-parameter 'host-os)
     ((win32)
      (system "copy Rts\\*.cfg Rts\\Build"))
@@ -70,10 +75,14 @@
      (error "Unknown host OS " (nbuild-parameter 'host-os))))
   (expand-file "Rts\\Standard-C\\arithmetic.mac"
 	       "Rts\\Standard-C\\arithmetic.c")
-  (config "Rts\\Build\\except.cfg")
-  (config "Rts\\Build\\layouts.cfg")
-  (config "Rts\\Build\\globals.cfg")
-  (config "Rts\\Build\\mprocs.cfg")
+  (config "Rts\\Build\\except.cfg" (nbuild-parameter 'target-machine))
+  (config "Rts\\Build\\layouts.cfg" (nbuild-parameter 'target-machine))
+  (config 
+   (string-append "Rts\\Build\\" (nbuild-parameter 'globals-table))
+   (nbuild-parameter 'target-machine))
+  (config "Rts\\Build\\mprocs.cfg" (nbuild-parameter 'target-machine))
+;; Below is for Sparc, but breaks Intel.  Need to resolve this.
+;;  (config "Rts\\Build\\regs.cfg" (nbuild-parameter 'target-machine))
   (catfiles '("Rts\\Build\\globals.ch"
 	      "Rts\\Build\\except.ch"
 	      "Rts\\Build\\layouts.ch"
@@ -83,6 +92,15 @@
 	      "Rts\\Build\\except.sh" 
 	      "Rts\\Build\\layouts.sh")
 	    "Rts\\Build\\schdefs.h")
+  ;; for Sparc and Intel native
+  (catfiles (append (maybe-file "Rts/Build/globals.ah")
+		    (maybe-file "Rts/Build/except.ah")
+		    (maybe-file "Rts/Build/layouts.ah")
+		    (maybe-file "Rts/Build/mprocs.ah")
+;; Below is for Sparc, but breaks Intel.  Need to resolve this.
+;;		    (maybe-file "Rts/Build/regs.ah")
+		    )
+	    "Rts/Build/asmdefs.h")
   (load "features.sch"))
 
 (define (catfiles input-files output-file)
