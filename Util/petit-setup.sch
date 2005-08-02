@@ -144,6 +144,23 @@
       ((win32) 'win32)
       (else (error 'platform->os "Unhandled case: ~a" sym))))
 
+  ;; Warn about "semi-working" cases
+  (cond ((and (not native)
+	      (memq host-arch '(cygwin win32)))
+	 (display "Warning: Petit/Standard-C on Windows is incomplete.")
+	 (newline)
+	 (display "Use at own risk, or try Petit/NASM")
+	 (newline)
+	 (newline)
+	 ;; In particular, control transfer points are not guaranteed
+	 ;; to be 4-byte aligned, and therefore on win32 we use the
+	 ;; CODEPTR_SHIFT2 feature to ensure they have a fixnum tag.
+	 ;; This almost works, except that addresses with significant
+	 ;; bits that are corrupted by the shift-by-2; thus things
+	 ;; break when dynamically loading compiled code on win32
+	 ;; non-native.
+	 ))
+
   (case host-scheme
     ((mzscheme) 
      (set! *host-dir*  "MzScheme") 
@@ -164,7 +181,7 @@
           ((solaris)      (if native 'features-sparc-solaris 'features-petit-solaris))
           ((linux-el)     'features-petit-linux)
 	  ((cygwin)       'features-petit-cygwin)
-	  ((win32)        'features-petit-win32)
+	  ((win32)        (if native 'features-x86-nasm-win32 'features-petit-win32))
           ((unix)         *change-feature-set*) ;; if client says we're using unix, then just use value set by features.sch
 	  (else       (error 'petit-setup.sch "Must add support for target-arch"))
           ))
@@ -192,6 +209,14 @@
             (set! *makefile-configuration* 'sparc-solaris-static-gcc)
             (set! *heap-type* 'sparc-native)
             (set! *runtime-type* 'sparc-native))
+
+	   ;; Win32 native is actually Petit with extasm of NASM rather than C
+	   ((win32)
+            (set! *target:machine* 'x86-nasm)
+            (set! *target:machine-source* "Standard-C")
+            (set! *makefile-configuration* #f)
+            (set! *heap-type* 'petit)
+            (set! *runtime-type* 'petit))
            (else 
             (error "Unsupported architecture for native setup: " target-arch))))
 
@@ -216,8 +241,16 @@
   (set! *code-coverage* (or code-cov rebuild-code-cov))
   (set! *rebuild-code-coverage* rebuild-code-cov)
 	
-  (set! *host:c-compiler* c-compiler-choice)  ; [usually #f; user may override with e.g. 'mwcc aka CodeWarrior]
+  ;; [usually #f; user may override with e.g. 'mwcc aka CodeWarrior]
+  (set! *host:c-compiler* (or c-compiler-choice
+			      (and native 
+				   (eq? target-arch 'win32)
+				   'nasm+msvc)
+			      #f))
+  
+  (if (eq? *target:machine* 'x86-nasm)
+      (set! *globals-table* "globals-nasm.cfg"))
  
   (set! *always-source* always-source)
 
-  (unix-initialize))
+  (unix-&-win32-initialize))

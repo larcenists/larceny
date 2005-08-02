@@ -14,11 +14,11 @@
 ; used and mutated here and there.
 (load "Util/petit-unix-defns-globals.sch")
 
-(define (unix-initialize)
+(define (unix-&-win32-initialize)
   (load (case *host:os*
 	  ((unix macosx solaris linux-el) "Util/sysdep-unix.sch")
 	  ((cygwin win32)      "Util/sysdep-win32.sch")
-          (else (error 'unix-initialize "Must add support for host:os"))
+          (else (error 'unix-&-win32-initialize "Must add support for host:os"))
 	  ))
   (load "Util/nbuild-param.sch")
   (set! nbuild-parameter (make-nbuild-parameter 'always-source?    *always-source*
@@ -32,6 +32,7 @@
                                                 'target-os         *target:os*
                                                 'target-endianness *target:endianness*
                                                 'compatibility     (pathname-append "Compat" *host-dir*)
+						'globals-table     *globals-table*
                                                 'host-system       *host-name*))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
@@ -56,27 +57,35 @@
 (define (build-config-files)
   (copy-file/regexp "Rts" "*.cfg" (pathname-append "Rts" "Build"))
   (expand-file "Rts/Standard-C/arithmetic.mac" "Rts/Standard-C/arithmetic.c")
-  (config "Rts/Build/except.cfg")
-  (config "Rts/Build/layouts.cfg")
-  (config "Rts/Build/globals.cfg")
-  (config "Rts/Build/mprocs.cfg")
-  (config "Rts/Build/regs.cfg")    ; for Sparc (and Intel?) native
+  (config "Rts/Build/except.cfg"  (nbuild-parameter 'target-machine))
+  (config "Rts/Build/layouts.cfg" (nbuild-parameter 'target-machine))
+  (config (string-append "Rts/Build/" (nbuild-parameter 'globals-table))
+	                          (nbuild-parameter 'target-machine))
+  (config "Rts/Build/mprocs.cfg"  (nbuild-parameter 'target-machine))
+  ;; config'ing regs.cfg breaks x86-nasm.
+  (if (eq? *runtime-type* 'sparc-native)
+      (config "Rts/Build/regs.cfg" (nbuild-parameter 'target-machine)))
   (catfiles '("Rts/Build/globals.ch"
 	      "Rts/Build/except.ch"
 	      "Rts/Build/layouts.ch"
 	      "Rts/Build/mprocs.ch")
 	    "Rts/Build/cdefs.h")
-  (catfiles '("Rts/Build/globals.sh" 
+  (catfiles `("Rts/Build/globals.sh" 
 	      "Rts/Build/except.sh" 
 	      "Rts/Build/layouts.sh"
-              "Rts/Build/regs.sh") ; for Sparc native
+	      ;; for Sparc native
+	      ,@(if (eq? *runtime-type* 'sparc-native)
+		    '("Rts/Build/regs.sh")
+		    '()))
 	    "Rts/Build/schdefs.h")
   ;; for Sparc and Intel native
-  (catfiles '("Rts/Build/globals.ah"
-              "Rts/Build/except.ah"
-              "Rts/Build/layouts.ah"
-              "Rts/Build/mprocs.ah"
-              "Rts/Build/regs.ah")
+  (catfiles `("Rts/Build/globals.ah"
+	      "Rts/Build/except.ah"
+	      "Rts/Build/layouts.ah"
+	      "Rts/Build/mprocs.ah"
+	      ,@(if (eq? *runtime-type* 'sparc-native)
+		    '("Rts/Build/regs.ah")
+		    '()))
 	    "Rts/Build/asmdefs.h")
   (load "features.sch")
   ;; [pnkfelix] loading features.sch calls DEFINE-FEATURE-SET, but I
@@ -285,7 +294,7 @@
 
 ;; Do NOT execute anything within the definitions file; 
 ;; instead we'll call it all from the setup procedure.
-;; (unix-initialize)
+;; (unix-&-win32-initialize)
 
 (define (ensure-fresh-name filename)
   (define (helper filename num)
