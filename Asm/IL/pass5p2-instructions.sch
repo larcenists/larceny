@@ -34,14 +34,21 @@
   (instr-runtime-method/full instr argc #t))
 
 ; Mnemonic to IL methodname mapping
-(define instr-methodname-table (make-hash-table))
+(define instr-methodname-table (make-hashtable))
 (define (define-instr-methodname instr methodname)
-  (hash-table-put! instr-methodname-table instr methodname))
+  (hashtable-put! instr-methodname-table instr methodname))
 
-(define (il:instr-method-call instr)
-  (hash-table-get
-   instr-methodname-table instr
-   (lambda () (asm-error "Mnemonic has no IL method: " instr))))
+(define il:instr-method-call 
+  (let ((unique-val (gensym "unique-val")))
+    (lambda (instr)
+      (let ((hash-table-get (lambda (table key on-fail)
+                              (let ((val (hashtable-fetch 
+                                          instr-methodname-table instr 
+                                          unique-val)))
+                                (if (eq? val unique-val) (on-fail) val)))))
+        (hash-table-get
+         instr-methodname-table instr
+         (lambda () (asm-error "Mnemonic has no IL method: " instr)))))))
 
 (define-syntax instr-method/full
   (syntax-rules ()
