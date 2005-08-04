@@ -58,21 +58,17 @@
 
 ;; Miscellaneous
 (export add1
-        arg-check
         arity-at-least?
         arity-at-least-value
         arity-plus
         constantly
         false
-        generate-id
         getarg
         getarg*
         getargs
         get-serial-number
         identity
         sub1
-        vmap
-        vfor-each
         void
         void?
         make-arity-at-least
@@ -348,7 +344,6 @@
         make-generic
         make-method
         make-generic-combination
-        more-specific?
         rec-allocate-instance
         rec-initialize
         require-initarg
@@ -586,73 +581,70 @@
         hash-table-map
         hash-table-for-each)
 
-;;; Envaux
-;(export *current-namespace*
-;        *kernel-namespace*
-;        <environment-auxinfo>
-;        current-module-name
-;        env/extend-reflected!
-;        env/extend-syntax!
-;        env/lookup-syntax
-;        env/module-environment
-;        env/reflect!
-;        env/reflected-environments
-;        env/reify
-;        env/syntax-environment
-;        env/syntax-quote-environment
-;        make-namespace
-;        set-env/module-environment!
-;        set-env/reflected-environments!
-;        set-env/syntax-environment!
-;        set-env/syntax-quote-environment!
-;        )
+;; Envaux
+(export
+        expansion-environment
+        <environment-auxinfo>
+        current-module-name
+        env/extend-reflected!
+        env/extend-syntax!
+        env/lookup-syntax
+        env/module-environment
+        env/reflect!
+        env/reflected-environments
+        env/reify
+        env/syntax-environment
+        env/embedded-syntax-environment
+        make-namespace
+        set-env/module-environment!
+        set-env/reflected-environments!
+        set-env/syntax-environment!
+        set-env/embedded-syntax-environment!
+        )
 
-;;; Identifier
-;(export *current-meta-rename*
-;        *no-color*
-;        *source-color*
-;        *source-stack*
-;        *syntax-noise-level*
-;        <identifier>
-;        alist-cons
-;        alist-ref
-;        append-colors
-;        bind!
-;        bind-lexical!
-;        bind-toplevel!
-;        binding-name
-;        bound-identifier=?
-;        close-environment
-;        color
-;        const?
-;        datum->syntax
-;        datum->syntax0
-;        free-identifier=?
-;        formals?
-;        generate-color
-;        identifier?
-;        import!
-;        lexically-bound?
-;        literal-identifier=?
-;        macro-apply
-;        make-capturing-identifier
-;        make-meta-renaming-procedure
-;        make-renaming-procedure
-;        map-in-order
-;        paint-name
-;        quasi
-;        scan-let
-;        symbolic-name
-;        syntax->datum
-;        syntax-debug
-;        syntax-trace
-;        syntax-error
-;        unbind!
-;        )
+;; Compress
+(export compress-envs
+        uncompress-envs)
 
-;;; Compress
-;(export compress-envs
-;        uncompress-envs)
+;; Identifier
+(export *current-meta-rename*
+        *no-color*
+        *source-color*
+        *source-stack*
+        *syntax-noise-level*
+        <identifier>
+        alist-cons
+        alist-ref
+        bind!
+        bind-lexical!
+        bind-toplevel!
+        binding-name
+        bound-identifier=?
+        close-environment
+        color
+        const?
+        datum->syntax-object
+        datum->syntax-object0
+        free-identifier=?
+        formals?
+        generate-color
+        identifier?
+        import!
+        lexically-bound?
+        literal-identifier=?
+        make-fluid-identifier
+        make-meta-renaming-procedure
+        make-renaming-procedure
+        map-in-order
+        quasi
+        scan-let
+        symbolic-name
+        syntax-object->datum
+        syntax-debug
+        syntax-trace
+        syntax-error
+        unbind!
+        )
 
 ;; inspectors
 (export make-inspector
@@ -703,8 +695,7 @@
         )
 
 (define (begin-exports env)
-  (newline)
-  (display "; Exporting environment extensions."))
+  ($$trace "Exporting environment extensions."))
 
 (set! *larceny-environment-extensions*
       (cons begin-exports *larceny-environment-extensions*))
