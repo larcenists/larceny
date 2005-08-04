@@ -6,7 +6,11 @@
 ;;;
 ;;;  0.  Ensure that the (recognize-keywords?) parameter is #t
 ;;;      [maybe; FSK needs to check with JRM on necessity of this step]
-;;;  
+;;;
+;;;      JRM sez:  It is only necessary to ensure that keywords are
+;;;      recognized when compiling this code.  It is not necessary to
+;;;      ensure keywords are recognized when simply running this code.
+;;;
 ;;;  It is no longer necessary to load dotnet-ffi.sch, it is built in
 ;;;  to the Common Larceny system.
 ;;;
@@ -69,7 +73,6 @@
 ;;;  See the files excel-demo.sch and windows.sch for examples of
 ;;;  using JavaDot notation.
 
-($$trace "dotnet")
 
 ;;; Snarf these three macros to facilitate bootstrapping.
 (define-syntax %set-instance/class!
@@ -890,6 +893,7 @@
             (slot-set! System.RuntimeType 'slots (compute-slots System.RuntimeType))
             (slot-set! System.RuntimeType 'can-instantiate? #f)
             (slot-set! System.RuntimeType 'argument-marshaler   clr-object/clr-handle)
+            (slot-set! System.Type        'argument-marshaler   clr-object/clr-handle)
             (slot-set! System.RuntimeType 'return-marshaler     clr-object->class)
 
             (slot-set! System.Type 'StudlyName type-type-name)
