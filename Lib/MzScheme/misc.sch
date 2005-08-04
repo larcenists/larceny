@@ -10,9 +10,6 @@
 ;;; A bunch of miscellaneous functions that I can't figure out where
 ;;; else to put.
 
-(define (arg-check pred? x who)
-  (if (not (pred? x)) (error who ": invalid argument " x)))
-
 ;;; Cheesy implementation of MzScheme-like arity-at-least.
 (define (make-arity-at-least x)
   (cons 'arity-at-least x))
@@ -40,29 +37,6 @@
 
 ;; Special case that is very frequently used.
 (define (false . arguments) #f)
-
-;;; generate-id ideally produces globally unique symbols, i.e., symbols
-;;; unique across system runs, to support separate compilation/expansion.
-;;; Use gensym-hook if you do not need to support separate compilation/
-;;; expansion or if your system's gensym creates globally unique
-;;; symbols (as in Chez Scheme).  Otherwise, use the following code
-;;; as a starting point.  session-key should be a unique string for each
-;;; system run to support separate compilation; the default value given
-;;; is satisfactory during initial development only.
-(define generate-id
-  (let ((digits "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!$%&*/:<=>?~_^.+-"))
-    (let ((base (string-length digits)) (session-key "_"))
-      (define (make-digit x) (string-ref digits x))
-      (define (fmt n a)
-        (if (< n base)
-            (list->string (cons (make-digit n) a))
-            (let ((r (modulo n base))
-                  (rest (quotient n base)))
-              (fmt rest (cons (make-digit r) a)))))
-      (let ((n -1))
-        (lambda (name)                  ; name is #f or a symbol
-          (set! n (+ n 1))
-          (string->symbol (string-append session-key (fmt n '()))))))))
 
 ;;; ARGS should be a list of alternating keys and values.  The first
 ;;; (leftmost) value associated with KEYWORD is found and returned.  If
@@ -122,17 +96,6 @@
 
 (define (sub1 x)
   (- x 1))
-
-(define (vmap fn v)
-  (do ((i (- (vector-length v) 1) (- i 1))
-       (ls '() (cons (fn (vector-ref v i)) ls)))
-      ((< i 0) ls)))
-
-(define (vfor-each fn v)
-  (let ((len (vector-length v)))
-    (do ((i 0 (+ i 1)))
-        ((= i len))
-      (fn (vector-ref v i)))))
 
 (define (void)
   (if #f #f))
