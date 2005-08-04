@@ -117,8 +117,8 @@
 (define (common-endian x . rest)
   (string-append (nbuild-parameter 'common-source)
                  x
-                 (if (eq? (nbuild-parameter 'target-endianness) 'little) 
-                     "-el" 
+                 (if (eq? (nbuild-parameter 'target-endianness) 'little)
+                     "-el"
                      "-be")
                  (if (null? rest)
                      ".lop"
@@ -236,12 +236,13 @@
                   "record" "inspector"
                   "struct-proc0" "struct-proc" "struct" "struct-macros"
                   ;; N.B.: class, generic, gprint, and dotnet need (recognize-keywords?) on
+                  ;; See targets clause in dotnet heap below.
                   "instance0" "instance" "class" "generic" "gprint" ; Ripoff
                   "dotnet-ffi" "dotnet" ; dotnet support
                   ;; under development
-                  ;; "envaux"     ;; Auxiliary elements for environments
-                  ;; "identifier" ;; for hygienic macros
-                  ;; "compress" ;; environment compression for macros
+                  "envaux"     ;; Auxiliary elements for environments
+                  "identifier" ;; for hygienic macros
+                  "compress" ;; environment compression for macros
                   )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -313,7 +314,7 @@
          (mzscheme-source-target/keywords
           (lambda (name)
             (list (string-append (nbuild-parameter 'mzscheme-source) name)
-                  (lambda (tgt deps) 
+                  (lambda (tgt deps)
                     (parameterize ((recognize-keywords? #t))
                       (sch->il (car deps)))))))
          (mzscheme-source-dependency
@@ -353,15 +354,21 @@
         (".sch" ".sh"  ,make-copy))
       `(targets
         ,(mzscheme-source-target/keywords "class.manifest")
+        ,(mzscheme-source-target/keywords "compress.manifest")
+        ,(mzscheme-source-target/keywords "dotnet.manifest")
+        ,(mzscheme-source-target/keywords "envaux.manifest")
         ,(mzscheme-source-target/keywords "generic.manifest")
         ,(mzscheme-source-target/keywords "gprint.manifest")
-        ,(mzscheme-source-target/keywords "dotnet.manifest")
+        ,(mzscheme-source-target/keywords "identifier.manifest")
         ("dotnet.heap" ,make-dumpheap))
       `(dependencies                    ; Order matters.  [Why??!]
-        ,(mzscheme-source-dependency "class.manifest"   "class.sch")
-        ,(mzscheme-source-dependency "generic.manifest" "generic.sch")
-        ,(mzscheme-source-dependency "gprint.manifest"  "gprint.sch")
-        ,(mzscheme-source-dependency "dotnet.manifest"  "dotnet.sch")
+        ,(mzscheme-source-dependency "class.manifest"      "class.sch")
+        ,(mzscheme-source-dependency "compress.manifest"   "compress.sch")
+        ,(mzscheme-source-dependency "dotnet.manifest"     "dotnet.sch")
+        ,(mzscheme-source-dependency "envaux.manifest"     "envaux.sch")
+        ,(mzscheme-source-dependency "generic.manifest"    "generic.sch")
+        ,(mzscheme-source-dependency "gprint.manifest"     "gprint.sch")
+        ,(mzscheme-source-dependency "identifier.manifest" "identifier.sch")
         ("dotnet.heap" ,dotnet-heap-files)
         ("dotnet.heap" ,dotnet-eval-files)
         ("dotnet.heap" ,dotnet-mzscheme-files)
@@ -383,17 +390,17 @@
 (define (petit-select-target target)
   (define (select target)
     (set! petit-heap-files
-	  (objects (nbuild-parameter 'common-source)
-		   ".lop"
-		   common-heap-files
-		   `((primops  . ,(machine-relative "primops.lop"))
-		     (toplevel-target . ,(machine-relative "toplevel-target.lop"))
-		     (flonum-endian . ,(common-endian "flonums"))
-		     (bignum-endian . ,(common-endian "bignums"))
-		     (osdep    . ,(common-relative target))
-		     (extra    . ,(machine-relative "loadable.lop")))))
+          (objects (nbuild-parameter 'common-source)
+                   ".lop"
+                   common-heap-files
+                   `((primops  . ,(machine-relative "primops.lop"))
+                     (toplevel-target . ,(machine-relative "toplevel-target.lop"))
+                     (flonum-endian . ,(common-endian "flonums"))
+                     (bignum-endian . ,(common-endian "bignums"))
+                     (osdep    . ,(common-relative target))
+                     (extra    . ,(machine-relative "loadable.lop")))))
     (set! petit-eval-files
-	  (objects "" ".lop" eval-files))
+          (objects "" ".lop" eval-files))
     (unspecified))
 
   (case target
@@ -405,8 +412,8 @@
      (newline))
     (else
      (error "Unsupported target "
-	    target
-	    "; try one of unix, macosx, macos, win32."))))
+            target
+            "; try one of unix, macosx, macos, win32."))))
 
 (define (make-petit-heap-project heap-dumper)
   (make:project "petit.heap"
@@ -429,7 +436,7 @@
   (if (null? petit-heap-files)
       (petit-select-target (nbuild-parameter 'target-os)))
   (let ((petit-heap-project
-	 (make-petit-heap-project make-dumpheap)))
+         (make-petit-heap-project make-dumpheap)))
     (make:pretend (not (null? rest)))
     (parameterize ((integrate-procedures 'larceny))
       (make:make petit-heap-project "petit.heap"))))
@@ -472,7 +479,7 @@
                    file-type
                    '("make-support" "init-comp"
                      "larceny-heap" "twobit-heap" "r5rs-heap"
-		     "petit-larceny-heap" "petit-r5rs-heap"))))
+                     "petit-larceny-heap" "petit-r5rs-heap"))))
         (compiler-target/no-keywords
          (lambda (name)
            (list (string-append (nbuild-parameter 'compiler) name)
@@ -734,13 +741,13 @@
     (replace-extension ".lop" files))
 
   (append (list
-	   (string-append (nbuild-parameter 'compatibility) "compat2.lop")
-	   (string-append (nbuild-parameter 'auxiliary) "list.lop")
-	   (string-append (nbuild-parameter 'auxiliary) "pp.lop"))
-	  (fix (nbuild:twobit-files))
-	  (fix (nbuild:common-asm-files))
-	  (fix (nbuild:machine-asm-files))
-	  (fix (nbuild:heap-dumper-files))
-	  (fix (nbuild:utility-files))))
+           (string-append (nbuild-parameter 'compatibility) "compat2.lop")
+           (string-append (nbuild-parameter 'auxiliary) "list.lop")
+           (string-append (nbuild-parameter 'auxiliary) "pp.lop"))
+          (fix (nbuild:twobit-files))
+          (fix (nbuild:common-asm-files))
+          (fix (nbuild:machine-asm-files))
+          (fix (nbuild:heap-dumper-files))
+          (fix (nbuild:utility-files))))
 
 ; eof
