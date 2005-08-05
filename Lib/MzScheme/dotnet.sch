@@ -1007,8 +1007,8 @@
            :StudlyName (clr/%to-string clr-type-handle/system-array)
            :clr-handle clr-type-handle/system-array
            :direct-supers (cons (clr-object->class (clr-type/%base-type clr-type-handle/system-array))
-                                 (map-clr-array clr-object->class
-                                                (clr-type/%get-interfaces clr-type-handle/system-array)))
+                                (map-clr-array clr-object->class
+                                               (clr-type/%get-interfaces clr-type-handle/system-array)))
            :direct-slots '()
            :can-instantiate? #f
            :argument-marshaler clr-object/clr-handle
@@ -1020,11 +1020,11 @@
            :StudlyName (clr/%to-string clr-type-handle/system-enum)
            :clr-handle clr-type-handle/system-enum
            :direct-supers (cons (clr-object->class (clr-type/%base-type clr-type-handle/system-enum))
-                                 (map-clr-array clr-object->class
-                                                (clr-type/%get-interfaces clr-type-handle/system-enum)))
+                                (map-clr-array clr-object->class
+                                               (clr-type/%get-interfaces clr-type-handle/system-enum)))
            :direct-slots (list (list 'StudlyName :initarg :StudlyName :reader clr/StudlyName)
-                                (list 'enumerates :allocation :class :reader enum/enumerates)
-                                (list 'value      :initarg :value :reader enum/value))
+                               (list 'enumerates :allocation :class :reader enum/enumerates)
+                               (list 'value      :initarg :value :reader enum/value))
            :can-instantiate? #f
            :argument-marshaler clr-object/clr-handle
            :return-marshaler clr-object->class))
@@ -1035,11 +1035,11 @@
            :StudlyName (clr/%to-string clr-type-handle/system-reflection-methodbase)
            :clr-handle clr-type-handle/system-reflection-methodbase
            :direct-supers (list* <clr-method>
-                                  (clr-object->class
-                                   (clr-type/%base-type clr-type-handle/system-reflection-methodbase))
-                                  (map-clr-array clr-object->class
-                                                 (clr-type/%get-interfaces
-                                                  clr-type-handle/system-reflection-methodbase)))
+                                 (clr-object->class
+                                  (clr-type/%base-type clr-type-handle/system-reflection-methodbase))
+                                 (map-clr-array clr-object->class
+                                                (clr-type/%get-interfaces
+                                                 clr-type-handle/system-reflection-methodbase)))
            :direct-slots  (list (list 'max-arity :initarg :max-arity :reader max-arity))
            :can-instantiate? #f
            :argument-marshaler clr-object/clr-handle))
@@ -1081,33 +1081,39 @@
                        (initialize-array-class instance))
                    ))
 
-    ;; But we need special exceptions just for constructorbuilder and
-    ;; methodbuilder.
-    (extend-generic wrap-clr-object
-                    :specializers (list (singleton
-                                         (clr-object->class
-                                          clr-type-handle/system-reflection-emit-constructorbuilder)))
-                    :procedure (lambda (call-next-method class object)
-                                 (make class :clr-handle object)))
+    (let ((constructor-builder-class (clr-object->class
+                                      clr-type-handle/system-reflection-emit-constructorbuilder))
+          (method-builder-class (clr-object->class
+                                 clr-type-handle/system-reflection-emit-methodbuilder)))
 
-    (extend-generic wrap-clr-object
-                    :specializers (list (singleton
-                                         (clr-object->class
-                                          clr-type-handle/system-reflection-emit-methodbuilder)))
-                    :procedure (lambda (call-next-method class object)
-                                 (make class :clr-handle object)))
+      ;; But we need special exceptions just for constructorbuilder and
+      ;; methodbuilder.
+      (extend-generic wrap-clr-object
+        :specializers (list (singleton constructor-builder-class))
+        :procedure (lambda (call-next-method class object)
+                     (make class :clr-handle object)))
+
+      (extend-generic wrap-clr-object
+        :specializers (list (singleton method-builder-class))
+        :procedure (lambda (call-next-method class object)
+                     (make class :clr-handle object)))
+
+      (let ((constructor-builder? (class-predicate constructor-builder-class))
+            (method-builder? (class-predicate method-builder-class)))
 
 
-    (extend-generic initialize-instance
-      :specializers (list methodbase-class)
-      :procedure (lambda (call-next-method instance initargs)
-                   (call-next-method)
-                   (process-method-or-constructor
-                    instance
-                    (clr-methodbase/is-public?
-                     (clr-object/clr-handle instance)))))
-
-    ))
+        (extend-generic initialize-instance
+          :specializers (list methodbase-class)
+          :procedure (lambda (call-next-method instance initargs)
+                       (call-next-method)
+                       (if (or (constructor-builder? instance)
+                               (method-builder? instance))
+                           #f
+                           (process-method-or-constructor
+                            instance
+                            (clr-methodbase/is-public?
+                             (clr-object/clr-handle instance))))))
+        ))))
 
 (define (marshal-vector->array array-class)
   (define (vector->clr-array vector)
