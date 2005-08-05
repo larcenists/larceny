@@ -867,7 +867,7 @@
 
         (define (transform exp rename compare)
           (let* ((exp (cadr exp))
-                 (text (symbol->string (javadot-symbol->symbol exp))))
+                 (text (symbol->string exp)))
             (cond ((dot-dollar? text)
                    `(,(rename 'clr/find-instance-field-getter)
                      #f ;; public only
