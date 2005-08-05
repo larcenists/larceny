@@ -15,11 +15,11 @@
 
 ;; Set this variable to an integer from 0 through 5 to trace execution
 ;; of the dotnet code.  0 is least verbose, 5 is very detailed.
-(define *dotnet-noise-level* #f)
+(define *dotnet-noise-level* (make-parameter "*dotnet-noise-level*" #f))
 
 (define (dotnet-message message-level text . objects)
-  (if (and (number? *dotnet-noise-level*)
-           (>= *dotnet-noise-level* message-level))
+  (if (and (number? (*dotnet-noise-level*))
+           (>= (*dotnet-noise-level*) message-level))
       (begin
         (newline)
         (display "dotnet ")
@@ -32,7 +32,7 @@
                     (display " ")
                     (display object))
                   objects)
-        (force-output-port))))
+        (flush-output-port))))
 
 ;;; The syscalls that make this work.
 
