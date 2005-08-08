@@ -14,6 +14,7 @@
 ;; The reader calls javadot-syntax? when deciding to create symbols or
 ;; javadot symbols.
   (and (symbol? symbol)
+       (not (eq? symbol '...))
        (let* ((string (symbol->string symbol))
               (length (string-length string)))
 
