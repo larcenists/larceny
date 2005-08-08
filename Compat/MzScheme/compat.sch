@@ -209,8 +209,8 @@
 (define case-sensitive? 
   (mz:make-parameter #f (err-on-non-boolean 'case-sensitive?)))
 (define javadot-symbol? (lambda (x) #f))
-(define (javadot-symbol->symbol x) x)
-(define (symbol->javadot-symbol x) x)
+(define (javadot-symbol->symbol! x) x)
+(define (symbol->javadot-symbol! x) x)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

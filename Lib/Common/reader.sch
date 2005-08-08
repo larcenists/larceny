@@ -277,7 +277,7 @@
                             (warn peculiar-id-message x))
                         (if (and (recognize-javadot-symbols?)
                                  (javadot-syntax? x))
-                            (symbol->javadot-symbol x)
+                            (symbol->javadot-symbol! x)
                             x))))
                 (read-atom (tyinext p) p (cons c l))))))
 
@@ -439,7 +439,7 @@
            (let ((sym (read-symbol (tyipeek p) p (cons c '()))))
              (if (and (recognize-javadot-symbols?)
                       (javadot-syntax? sym))
-                 (symbol->javadot-symbol sym)
+                 (symbol->javadot-symbol! sym)
                  sym))))
 
        (read-dispatch-parse

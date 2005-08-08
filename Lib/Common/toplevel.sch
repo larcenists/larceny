@@ -363,8 +363,8 @@
   (environment-set! larc 'javadot-generic-suffix javadot-generic-suffix)
   (environment-set! larc 'recognize-keywords? recognize-keywords?)
   (environment-set! larc 'javadot-symbol? javadot-symbol?)
-  (environment-set! larc 'javadot-symbol->symbol javadot-symbol->symbol)
-  (environment-set! larc 'symbol->javadot-symbol symbol->javadot-symbol)
+  (environment-set! larc 'javadot-symbol->symbol! javadot-symbol->symbol!)
+  (environment-set! larc 'symbol->javadot-symbol! symbol->javadot-symbol!)
 
 
   ;; pairs and lists
