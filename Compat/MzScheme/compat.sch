@@ -269,13 +269,14 @@
      (parameterize "help" () ((PARAM EXP) ...) () BODY ...))
 
     ((parameterize "help" (NAMES ...) ((P E) R ...) (PE ...)       BODY ...)
-     (parameterize "help" (FRESH NAMES ...) (R ...) (PE ... (P E)) BODY ...))
+     (parameterize "help" ((FRESH-1 FRESH-2) NAMES ...) (R ...) (PE ... (P E)) BODY ...))
 
-    ((parameterize "help" (ORIG ...) () ((PARAM EXPR) ...) BODY ...)
+    ((parameterize "help" ((ORIG RHS) ...) () ((PARAM EXPR) ...) BODY ...)
      (let ((ORIG (PARAM)) ...)
-       (dynamic-wind 
-           (lambda () (PARAM EXPR) ...)
-           (lambda () BODY   ...)
-           (lambda () (PARAM ORIG) ...))))))
+       (let ((RHS EXPR) ...)
+         (dynamic-wind 
+             (lambda () (PARAM RHS) ...)
+             (lambda () BODY   ...)
+             (lambda () (PARAM ORIG) ...)))))))
 
 (require (lib "pretty.ss"))
