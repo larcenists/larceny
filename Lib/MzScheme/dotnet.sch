@@ -1177,7 +1177,7 @@
                     (define (method:print-object call-next-method object port slashify)
                       (print-unreadable-object
                        (clr/StudlyName enum-class) port
-                       (lambda () (clr/StudlyName object))))
+                       (lambda () (display (clr/StudlyName object) port))))
                     method:print-object)))
 
     (add-method clr/StudlyName (getter-method enum-class 'StudlyName))
