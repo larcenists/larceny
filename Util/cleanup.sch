@@ -33,6 +33,7 @@
 (define *schemedirs*
   '(("Lib")
     ("Lib" "Common")
+    ("Lib" "MzScheme")
     ("Lib" "Standard-C")
     ("Lib" "Sparc")
     ("Interpreter")
@@ -149,6 +150,8 @@
   (cleanup-files "*.so" *libdirs*)
   (cleanup-files "*.c" *schemedirs*)
   (cleanup-files "*.asm" *schemedirs*)
+  (cleanup-files "*.code-il" *schemedirs*)
+  (cleanup-files "*.manifest" *schemedirs*)
   (cleanup-files "ecodes.sch" '(("Lib" "Common")))
   (cleanup-files "globals.sch" '(("Lib" "Common")))
   (cleanup-files "*.so" '(("Testsuite" "FFI")))
