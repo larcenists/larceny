@@ -32,7 +32,22 @@
   (loadit filename))
 
 (define (call-with-error-control thunk1 thunk2) 
-  (with-handlers [(values (lambda _ (thunk2)))]
+  (with-handlers 
+   [(values (lambda (exn)
+
+	      ;; delay lookup of print-error-trace as long 
+	      ;; as possible, to allow errortrace.ss to be
+	      ;; required after this file is loaded.
+	      (cond 
+	       ((memq 'print-error-trace (mz:namespace-mapped-symbols))
+		(let* ((ns-var-val mz:namespace-variable-value)
+		       (exn-message (ns-var-val 'exn-message))
+		       (print-error-trace (ns-var-val 'print-error-trace)))
+		  (display (exn-message exn))
+		  (newline)
+		  (print-error-trace (current-output-port) exn))))
+
+	      (thunk2)))]
     (thunk1)))
 
 
