@@ -12,7 +12,14 @@
 ;; - (il:delay ilpackage ...)
 ;; - (list ilpackage ...)
 ;; - procedure : assembler -> ilpackage
+;; - IL-ref
 ;; - string
+;; 
+;; An IL-ref is one of:
+;; - IL-class
+;; - IL-method
+;; - IL-field
+;; - IL-type
 ;;
 ;; An IL consumer is either
 ;; - an assembler structure (as)
@@ -23,6 +30,69 @@
                (il.args #f))
 (vector-struct $$il-delay raw:make-il-delay il-delay?
                (il-delay.il #f))
+
+;; [pnkfelix] IL-class, IL-type, IL-method, and IL-field represent
+;; references in the IL code to classes, types, methods, and fields,
+;; respectively.  Do not confuse them with clr-class, clr-method, and
+;; [clr-]field (defined in dumpheap-il.sch), which are used to
+;; represent DEFINITIONS of such entities.  (IL-type was added later, to
+;; represented structured references to constructed types like arrays.)
+;; 
+;; For example, a [clr-]field does not need a class argument, because
+;; it is implicitly used in the context of some class definition,
+;; while an IL-field needs a class argument, because field references
+;; in the IL code need to know the class name as well as the field
+;; name.
+
+;; An IL-class is one of
+;; - (make-il-class [Maybe String] [Maybe String] String)
+;; - (make-il-class [Maybe String] [Listof String] String)
+(vector-struct $$il-class make-il-class il-class?
+	       (il-class.assembly #f)
+	       (il-class.namespaces #f)
+	       (il-class.name #f))
+
+;; An IL-type is one of
+;; - (make-il-primtype  String IL-class)
+;; - (make-il-classtype IL-class)
+;; - (make-il-arraytype IL-type)
+(vector-struct $$il-primtype  make-il-primtype  il-primtype?
+	       (il-primtype.string #f)
+	       (il-primtype.class #f))
+(vector-struct $$il-classtype make-il-classtype il-classtype?
+	       (il-classtype.class #f))
+(vector-struct $$il-arraytype make-il-arraytype il-arraytype?
+	       (il-arraytype.basetype #f))
+
+;; il-type? : Any -> Bool
+;; Returns non-false iff x is an IL-type.
+(define (il-type? x)
+  (or (il-primtype? x)
+      (il-classtype? x)
+      (and (il-arraytype? x)
+	   (il-type? (il-arraytype.basetype x)))))
+	       
+;; An IL-method is a 
+;;  (make-il-method Bool IL-type IL-class String [Listof IL-type])
+(vector-struct $$il-method make-il-method il-method?
+	       (il-method.instance? #f)
+	       (il-method.type #f)
+	       (il-method.class #f)
+	       (il-method.name #f)
+	       (il-method.argtypes #f))
+
+(define (make-il-instance-method type class name argtypes)
+  (make-il-method #t type class name argtypes))
+
+(define (make-il-static-method type class name argtypes)
+  (make-il-method #f type class name argtypes))
+
+;; An IL-field is a
+;;  (make-il-field IL-type IL-class String)
+(vector-struct $$il-field make-il-field il-field?
+	       (il-field.type #f)
+	       (il-field.class #f)
+	       (il-field.name #f))
 
 ;; il : symbol arg ... -> ilpackage
 (define (il code . args)
@@ -72,10 +142,9 @@
 ;; Emit a single IL representation to the consumer. Only IL structures and
 ;; IL-delay structures.
 (define (emit/il consumer il)
-  (cond ((procedure? consumer)
-         (consumer (pickle-il il)))
+  (cond ((procedure? consumer) (consumer il))
         (else
-         (as-code! consumer (cons (pickle-il il) (as-code consumer))))))
+         (as-code! consumer (cons il (as-code consumer))))))
 
 
 ;; =========================================================
@@ -206,22 +275,22 @@
 ;; il:ldfld : iltype ilclass string -> ilpackage
 ;; IL code to load from (instance) field
 (define (il:ldfld type class field)
-  (il 'ldfld (il-field type class field)))
+  (il 'ldfld (make-il-field type class field)))
 
 ;; il:stfld : iltype ilclass string -> ilpackage
 ;; IL code to store to (instance) field
 (define (il:stfld type class field)
-  (il 'stfld (il-field type class field)))
+  (il 'stfld (make-il-field type class field)))
 
 ;; il:ldsfld : iltype ilclass string -> ilpackage
 ;; IL code to load from a static field
 (define (il:ldsfld type class field)
-  (il 'ldsfld (il-field type class field)))
+  (il 'ldsfld (make-il-field type class field)))
 
 ;; il:stsfld : iltype ilclass string -> ilpackage
 ;; IL code to store to a static field
 (define (il:stsfld type class field)
-  (il 'stsfld (il-field type class field)))
+  (il 'stsfld (make-il-field type class field)))
 
 ;; il:load-real8 : real -> ilpackage
 (define (il:load-real8 datum)
@@ -255,7 +324,9 @@
 ;; IL to call method; opts may include '(virtual instance tail). If 'tail
 ;; option is given, generates 'ret automatically
 (define (il:call opts type class method argtypes)
-  (let ((method-name (if (memq 'instance opts) il-instance-method il-method)))
+  (let ((method-name (if (memq 'instance opts) 
+			 make-il-instance-method 
+			 make-il-static-method)))
     (il:call-name opts (method-name type class method argtypes))))
 
 ;; il:call-name : (listof sym) string -> ilpackage
@@ -374,38 +445,71 @@
     pop sealed
     ))
 
-;; il-field : string(type) string(class) string(fieldname) -> string
-(define (il-field type class fieldname)
-  (string-append type " " class "::" (il-quote-name fieldname)))
+;; il-field->string : IL-field -> string
+(define (il-field->string fld)
+  (let ((type (il-field.type fld))
+	(class (il-field.class fld))
+	(fieldname (il-field.name fld)))
+    (string-append (il-type->string type)
+		   " " (if (il-class? class)
+			   (il-class->string class)
+			   class)
+		   "::" (il-quote-name fieldname))))
 
-;; il-method : string string string (listof string) -> string
-(define (il-method type class methodname argtypes)
-  (let ((arglist
-         (apply string-append
-                (map/separated (lambda (x) x) (lambda () ",") argtypes))))
-    (string-append type " " class "::" (il-quote-name methodname)
-                   "(" arglist ")")))
+;; il-method->string : IL-method -> string
+(define (il-method->string mthd)
+  (let ((type (il-method.type mthd))
+	(class (il-method.class mthd))
+	(methodname (il-method.name mthd))
+	(argtypes (il-method.argtypes mthd)))
+    (let ((arglist
+	   (apply string-append
+		  (map/separated (lambda (x) (il-type->string x)) 
+				 (lambda () ",") 
+				 argtypes))))
+      (string-append (if (il-method.instance? mthd)
+			 "instance "
+			 "")
+		     (il-type->string type )
+		     " " (if (il-class? class)
+			     (il-class->string class) 
+			     class)
+		     "::" (il-quote-name methodname)
+		     "(" arglist ")"))))
 
-;; il-instance-method : string string string (listof string) ->  string
-(define (il-instance-method type class methodname argtypes)
-  (string-append "instance " (il-method type class methodname argtypes)))
+;; il-class->string : IL-class -> string
+(define (il-class->string cls)
+  (let ((assembly (il-class.assembly cls))
+	(namespaces (il-class.namespaces cls))
+	(classname (il-class.name cls)))
+    (apply string-append
+	   (append (if assembly
+		       `("[" ,assembly "]")
+		       '())
+		   (map/separated il-quote-name
+				  (lambda () ".")
+				  (if (string? namespaces)
+				      (list namespaces)
+				      (or namespaces '())))
+		   (list "." (il-quote-name classname))))))
+;; il-type->string : IL-type -> string
+(define (il-type->string typ)
+  (cond ((il-primtype? typ)
+	 (il-primtype.string typ))
+	((il-classtype? typ) 
+	 (il-classtype->string typ))
+	((il-arraytype? typ) 
+	 (string-append (il-type->string 
+			 (il-arraytype.basetype typ))
+			"[]"))
+	(else (error 'il-type->string 
+		     (twobit-format #f "Invalid argument: ~a" typ)))))
 
-;; il-class : string|#f string|#f|(listof string) string -> string
-(define (il-class assembly namespaces classname)
-  (apply string-append
-         (append (if assembly
-                     `("[" ,assembly "]")
-                     '())
-                 (map/separated il-quote-name
-                                (lambda () ".")
-                                (if (string? namespaces)
-                                    (list namespaces)
-                                    (or namespaces '())))
-                 (list "." (il-quote-name classname)))))
-
-;; il-class-type : string -> string
-(define (il-class-type classname)
-  (string-append "class " classname))
+;; il-classtype->string : IL-classtype -> string
+(define (il-classtype->string classname)
+  (string-append 
+   "class "
+   (il-class->string (il-classtype.class classname))))
 
 ;; =========================================================
 ;; CODEVECTORS
@@ -413,7 +517,7 @@
 ;; il:load-codevector : string -> ilpackage
 ;; IL to load a codevector instance based on class name
 (define (il:load-codevector cvname ns)
-  (il:ldsfld iltype-codevector (il-class #f ns cvname) "instance"))
+  (il:ldsfld iltype-codevector (make-il-class #f ns cvname) "instance"))
 
 ;; =========================================================
 ;; REGISTERS, STATIC AND DYNAMIC LINKS, GLOBALS

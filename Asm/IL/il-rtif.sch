@@ -13,20 +13,27 @@
      (begin (define-il-class/type . def) ...))))
 (define-syntax define-il-class/type
   (syntax-rules ()
+    ((_ realm class-id type-id class-string type-string)
+     (begin
+       (define-il-class class-id realm class-string)
+       (define type-id (make-il-primtype type-string class-id))))
     ((_ realm class-id type-id class-string)
      (begin
        (define-il-class class-id realm class-string)
-       (define type-id (il-class-type class-id))))
+       (define type-id (make-il-classtype class-id))))
     ((_ realm class-id class-string)
      (define-il-class class-id realm class-string))))
 (define-syntax define-il-class 
-  (syntax-rules (mac so)
+  (syntax-rules (mac so sys)
     ((_ class-id mac class-string)
      (define class-id 
-       (il-class il:scheme-assembly-name '("Scheme" "RT") class-string)))
+       (make-il-class il:scheme-assembly-name '("Scheme" "RT") class-string)))
+    ((_ class-id sys class-string)
+     (define class-id
+       (make-il-class "mscorlib" '("System") class-string)))
     ((_ class-id so class-string)
      (define class-id 
-       (il-class il:scheme-assembly-name '("Scheme" "Rep") class-string)))))
+       (make-il-class il:scheme-assembly-name '("Scheme" "Rep") class-string)))))
 
 (define-il-class/type*
  (mac il-reg          "Reg")
@@ -57,31 +64,32 @@
  (mac il-cache-frame        iltype-cache-frame        "StackCacheFrame")
  (mac il-continuation-frame iltype-continuation-frame "ContinuationFrame"))
 
-(define (iltype:array iltype) (string-append iltype "[]"))
+(define (iltype:array iltype) (make-il-arraytype iltype))
 (define iltype-schemeobject-array (iltype:array iltype-schemeobject))
 (define iltype-fixnum-array (iltype:array iltype-fixnum))
 (define iltype-schemechar-array (iltype:array iltype-schemechar))
 (define iltype-schemepair-array (iltype:array iltype-schemepair))
 (define iltype-procedure-array (iltype:array iltype-procedure))
 
-(define iltype-byte "unsigned int8")
-(define iltype-char "char")
-(define iltype-int16 "int16")
-(define iltype-int32 "int32")
-(define iltype-int64 "int64")
-(define iltype-uint32 "unsigned int32")
-(define iltype-uint64 "unsigned int64")
-(define iltype-double "float64")
-(define il-double "[mscorlib]System.Double")
-(define iltype-string "string")
-(define iltype-void "void")
-(define iltype-bool "bool")
+(define-il-class/type*
+  (sys il-byte   iltype-byte   "Byte"    "unsigned int8")
+  (sys il-char   iltype-char   "Char"    "char")
+  (sys il-int16  iltype-int16  "Int16"   "int16")
+  (sys il-int32  iltype-int32  "Int32"   "int32")
+  (sys il-int64	 iltype-int64  "Int64"   "int64")
+  (sys il-uint32 iltype-uint32 "UInt32"  "unsigned int32")
+  (sys il-uint64 iltype-uint64 "UInt64"  "unsigned int64")
+  (sys il-double iltype-double "Double"  "float64")
+  (sys il-string iltype-string "String"  "string")
+  (sys il-void	 iltype-void   "Void"    "void"  )
+  (sys il-bool	 iltype-bool   "Boolean" "bool"))
+
 (define iltype-byte-array (iltype:array iltype-byte))
 (define iltype-string-array (iltype:array iltype-string))
 (define iltype-int16-array (iltype:array iltype-int16))
 
 (define iltype-object "object")
-(define il-object "[mscorlib]System.Object")
+(define il-object (make-il-class "mscorlib" "System" "Object"))
 
 (define (rep:make-fixnum)
   (il:call '() iltype-fixnum il-schemefactory "makeFixnum" 

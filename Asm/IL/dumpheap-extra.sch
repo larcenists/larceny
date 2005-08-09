@@ -46,7 +46,7 @@
          (constants (cvclass-constants codevector))
          (label-count (cvclass-label-count codevector))
          (name (codevector-name id))
-         (fullname (il-class #f il-namespace name)))
+         (fullname (make-il-class #f il-namespace name)))
     (class-start name il-namespace il-codevector 
                  '(private auto ansi beforefieldinit))
     (field-add "instance" iltype-codevector '(public static initonly))
@@ -81,7 +81,7 @@
            'maxstack 
            (apply max (cons 4 (map il:constant-max-stack constants))))
           (il:call '(new instance) iltype-void fullname ".ctor" '())
-          (il 'stsfld (il-field iltype-codevector fullname "instance"))
+          (il 'stsfld (make-il-field iltype-codevector fullname "instance"))
           
           (let loop ((n 0) (constants constants))
             (cond ((null? constants) '())
@@ -128,14 +128,14 @@
                               rtspecialname static cil managed))
       (emit ilc 
             (il 'ldsfld 
-                (il-field iltype-codevector
-                          (il-class #f
+                (make-il-field iltype-codevector
+                          (make-il-class #f
                                     il-namespace
                                     (codevector-name entrypoint))
                           "instance"))
             (il 'stsfld 
-                (il-field iltype-codevector
-                          (il-class #f il-namespace loadable-classname)
+                (make-il-field iltype-codevector
+                          (make-il-class #f il-namespace loadable-classname)
                           "entrypoint"))
             (il 'ret))
       (method-finish)
@@ -154,10 +154,10 @@
                     '(public hidebysig static cil managed))
       (emit ilc
             (il:ldsfld iltype-codevector 
-                       (il-class #f il-namespace loadable-classname)
+                       (make-il-class #f il-namespace loadable-classname)
                        "entrypoint")
             (il:call '() iltype-schemeobject
-                     (il-class #f il-namespace loadable-classname)
+                     (make-il-class #f il-namespace loadable-classname)
                      "constants" '())
             (il:call '(new instance) iltype-void 
                      il-procedure ".ctor" 
@@ -323,7 +323,7 @@
          (let ((file-base (car line))
                (il-namespace (cadr line))
                (segment (cadddr line)))
-           (il-class #f il-namespace (il:loader-name segment))))))))
+           (make-il-class #f il-namespace (il:loader-name segment))))))))
 
 ;; dump-debug-info : (listof (string . string)) -> void
 (define (dump-debug-info nspairs)
@@ -378,7 +378,7 @@
 
 (define (il:call-invoke-procedure class)
   (list
-   (il 'ldsfld (il-field iltype-codevector class "entrypoint"))
+   (il 'ldsfld (make-il-field iltype-codevector class "entrypoint"))
    (il:call '() iltype-constantvector class "constants" '())
    (il:call '() iltype-void il-call "invokeProcedure"
             (list iltype-codevector iltype-constantvector))))

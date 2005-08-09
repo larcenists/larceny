@@ -8,13 +8,26 @@
       (begin
         (apply twobit-format *c-output* fmt args))))
 
-;; dump-source : string -> void
+
+
+;; dump-source : (oneof string IL-ref) any ... -> void
 (define (dump-source fmt . args)
+  (define (->formattable arg)
+    (cond ((il-class? arg)  (il-class->string arg))
+	  ((il-method? arg) (il-method->string arg))
+	  ((il-field? arg)  (il-field->string arg))
+	  ((il-type? arg)   (il-type->string arg))
+	  ((string? arg)    arg)
+	  ((number? arg)    arg)
+	  ((symbol? arg)    arg)
+	  (else (error '->formattable (twobit-format #f
+						     "what am i? ~a" arg)))))
   (if beginning-of-line? 
       (let ((indent (make-string source-indent #\space)))
         (dump-source-text "~a" indent)))
   (set! beginning-of-line? #f)
-  (apply dump-source-text (twobit-format #f "~a " fmt) args))
+  (apply dump-source-text (twobit-format #f "~a " (->formattable fmt))
+	 (map ->formattable args)))
 
 ;; indenting control
 (define (dump-newline)
