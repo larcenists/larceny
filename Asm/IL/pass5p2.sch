@@ -277,7 +277,7 @@
                     (list
                      (il:comment "Switch on jump index")
                      (il 'ldarg 1)
-                     (il 'switch (map label-name labels)))))))
+                     (il 'switch (map make-il-label labels)))))))
           (il:comment "First (default) target")
           (intern-label as id)
           (il:label/header id))))

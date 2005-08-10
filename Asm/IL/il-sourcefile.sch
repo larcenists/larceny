@@ -17,6 +17,7 @@
 	  ((il-method? arg) (il-method->string arg))
 	  ((il-field? arg)  (il-field->string arg))
 	  ((il-type? arg)   (il-type->string arg))
+	  ((il-label? arg)  (il-label->string arg))
 	  ((string? arg)    arg)
 	  ((number? arg)    arg)
 	  ((symbol? arg)    arg)

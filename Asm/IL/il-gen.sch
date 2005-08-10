@@ -20,6 +20,7 @@
 ;; - IL-method
 ;; - IL-field
 ;; - IL-type
+;; - IL-label
 ;;
 ;; An IL consumer is either
 ;; - an assembler structure (as)
@@ -35,8 +36,10 @@
 ;; references in the IL code to classes, types, methods, and fields,
 ;; respectively.  Do not confuse them with clr-class, clr-method, and
 ;; [clr-]field (defined in dumpheap-il.sch), which are used to
-;; represent DEFINITIONS of such entities.  (IL-type was added later, to
-;; represented structured references to constructed types like arrays.)
+;; represent DEFINITIONS of such entities.  IL-type was added later, to
+;; represented structured references to constructed types like arrays.
+;; Likewise, IL-label was added to allow preservation of the label
+;; structure that was being turned into a string prematurely.
 ;; 
 ;; For example, a [clr-]field does not need a class argument, because
 ;; it is implicitly used in the context of some class definition,
@@ -80,6 +83,19 @@
 	       (il-method.class #f)
 	       (il-method.name #f)
 	       (il-method.argtypes #f))
+
+;; An IL-label is one of
+;;  (make-il-label (cons Number Number))
+;;  (make-il-label Number)
+(vector-struct $$il-label make-il-label il-label?
+	       (il-label.key #f))
+
+;; Positive unary numbers are introduced by Twobit.  Negative unary
+;; numbers are used for labels that are introduced by the compilation
+;; of MacScheme to lower level code.
+;; Ryan tried to explained to Felix what the pairs are for (JUMP
+;; instruction?) but became unsure of himself mid-explanation, so
+;; we'll avoid defining them formally.
 
 (define (make-il-instance-method type class name argtypes)
   (make-il-method #t type class name argtypes))
@@ -385,12 +401,12 @@
 ;; il:branch : symbol number -> ilpackage
 ;; Takes a branch code ('br, 'bgt, ...) and a destination label number.
 (define (il:branch type target)
-  (il type (label-name target)))
+  (il type (make-il-label target)))
 
 ;; il:branch-s : symbol number -> ilpackage
 ;; Emits the short branch form of the given branch
 (define (il:branch-s type num)
-  (il (string->symbol (twobit-format #f "~a.s" type)) (label-name num)))
+  (il (string->symbol (twobit-format #f "~a.s" type)) (make-il-label num)))
 
 ;; il:check-type : iltype ilpackage -> ilpackage
 ;; Generates IL to test the top stack element as a given type.
@@ -754,7 +770,7 @@
 ;; il:label : number -> ilpackage
 ;; Represents an IL label based on a number
 (define (il:label num)
-  (il 'label (label-name num)))
+  (il 'label (make-il-label num)))
 
 ;; il:label/header : cvid -> ilpackage
 ;; Used for the first part of each codevector, with jump index 0.
@@ -795,15 +811,16 @@
            (error 'foreign-label->index " label " label " not found in "
                   (user-data.label-map user))))))
 
-;; label-name : number|cvid -> string
-(define (label-name label)
-  (cond ((pair? label)
-         (twobit-format #f "LABEL_HEADER_~a_~a" (car label) (cdr label)))
-        ((positive? label)
-         (twobit-format #f "LABEL_~a" label))
-        ((negative? label)
-         (twobit-format #f "L_~a" (- label)))
-        (else (error 'label-name ": bad label: " label))))
+;; il-label->string : IL-label -> string
+(define (il-label->string label)
+  (let ((label (il-label.key label)))
+    (cond ((pair? label)
+	   (twobit-format #f "LABEL_HEADER_~a_~a" (car label) (cdr label)))
+	  ((positive? label)
+	   (twobit-format #f "LABEL_~a" label))
+	  ((negative? label)
+	   (twobit-format #f "L_~a" (- label)))
+	  (else (error 'il-label->string ": bad label: " label)))))
 
 ;; =========================================================
 ;; DUMPHEAP
