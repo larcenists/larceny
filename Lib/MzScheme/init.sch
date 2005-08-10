@@ -191,6 +191,9 @@
         method?
         no-applicable-method
         no-next-method
+        nullable
+        nullable-value
+        nullable?
         object?
         record-type->class
         same-method-signature?
@@ -209,6 +212,7 @@
         slot-value-if-bound
         struct-type->class
         subclass?
+        subclasses-of?
         )
 
 ;; generic
@@ -320,7 +324,9 @@
         compute-default-initargs
         compute-getter-and-setter
         compute-method-more-specific?
+        compute-method-more-specific-by-class?
         compute-methods
+        compute-methods-by-class
         compute-slots
         extend-generic
         generic-+-combination
@@ -554,6 +560,7 @@
         clr/find-static-field-getter
         clr/find-static-field-setter
         clr/find-static-method
+        clr/specific-method
         enable-dotnet!
         enum/enumerates
         enum/has-flags-attribute?

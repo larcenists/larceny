@@ -446,6 +446,33 @@
 
 (define singleton-value cadr)
 
+;;; Nullable
+;;; A nullable specializer allows the empty list to appear
+;;; in an argument as a match for the specified class.  It is
+;;; used in the dotnet implementation.
+
+(define nullable-classes (make-hash-table 'weak))
+
+(define (nullable x)
+  (hash-table-get
+   nullable-classes x
+   (lambda ()
+     (let ((c (list 'nullable x)))
+       (hash-table-put! nullable-classes x c)
+       c))))
+
+(define (nullable? x)
+  (and (pair? x)
+       (eq? (car x) 'nullable)))
+
+(define-syntax %nullable?
+  (syntax-rules ()
+    ((%nullable? object)
+     (and (pair? object)
+          (eq? (car object) 'nullable)))))
+
+(define nullable-value cadr)
+
 ;;; Record classes
 (define record-to-class-table (make-hash-table))
 
@@ -486,33 +513,36 @@
           this))))))
 
 (define (subclass? c1 c2)
-  (if (%singleton? c1)
-      (if (%singleton? c2)
-          (eq? (singleton-value c1) (singleton-value c2))
-          (let ((cc2 (cond ((record-type-descriptor? c2) (record-type->class c2))
-                           ((struct-type? c2) (struct-type->class c2))
-                           (else c2))))
-            (instance-of? (singleton-value c1) cc2)))
-      (let ((cc1 (cond ((record-type-descriptor? c1) (record-type->class c1))
-                       ((struct-type? c1) (struct-type->class c1))
-                       (else c1)))
-            (cc2 (cond ((record-type-descriptor? c2) (record-type->class c2))
-                       ((struct-type? c2) (struct-type->class c2))
-                       (else c2))))
-        (memq c2 (%class-cpl c1)))))
+  (cond ((%nullable? c1) (subclass? (nullable-value c1) c2))
+        ((%nullable? c2) (subclass? c1 (nullable-value c2)))
+        ((%singleton? c1) (if (%singleton? c2)
+                              (eq? (singleton-value c1) (singleton-value c2))
+                              (let ((cc2 (cond ((record-type-descriptor? c2) (record-type->class c2))
+                                               ((struct-type? c2) (struct-type->class c2))
+                                               (else c2))))
+                                (instance-of? (singleton-value c1) cc2))))
+        (else
+         (let ((cc1 (cond ((record-type-descriptor? c1) (record-type->class c1))
+                          ((struct-type? c1) (struct-type->class c1))
+                          (else c1)))
+               (cc2 (cond ((record-type-descriptor? c2) (record-type->class c2))
+                          ((struct-type? c2) (struct-type->class c2))
+                          (else c2))))
+           (memq c2 (%class-cpl c1))))))
 
 (define (instance-of? x c)
   (or (eq? c <top>)
-      (if (%singleton? c)
-          (eq? (singleton-value c) x)
-          (let ((cx (class-of x)))
-            (or (eq? cx c)
-                (let ((cc (cond ((record-type-descriptor? c) (record-type->class c))
-                                ((struct-type? c) (struct-type->class c))
-                                (else c))))
-                  (memq cc (%class-cpl (cond ;; ((record-type-descriptor? cx) (record-type->class cx))
-                                             ((struct-type? cx) (struct-type->class cx))
-                                             (else cx))))))))))
+      (cond ((%singleton? c) (eq? (singleton-value c) x))
+            ((%nullable? c) (or (null? x) (instance-of? x (nullable-value c))))
+            (else
+             (let ((cx (class-of x)))
+               (or (eq? cx c)
+                   (let ((cc (cond ((record-type-descriptor? c) (record-type->class c))
+                                   ((struct-type? c) (struct-type->class c))
+                                   (else c))))
+                     (memq cc (%class-cpl (cond;; ((record-type-descriptor? cx) (record-type->class cx))
+                                           ((struct-type? cx) (struct-type->class cx))
+                                           (else cx)))))))))))
 
 ;; Given a class, singleton, record-type-descriptor, or struct-type,
 ;; return a predicate that tests if instances belong.
@@ -524,6 +554,11 @@
                           (lambda (object) (eq? object value))))
         ((record-type-descriptor? c) (class-predicate (record-type->class c)))
         ((struct-type? c) (class-predicate (struct-type->class c)))
+
+        ((nullable? c) (let ((inner-predicate (class-predicate (nullable-value c))))
+                         (lambda (object)
+                           (or (null? object)
+                               (inner-predicate object)))))
 
         ((subclass? c <object>)
          ;; If the class is an object class, then non-instances cannot
@@ -550,6 +585,18 @@
               (error "Improper list: " classes)))
       (or (null? items)
           (error "Improper list: " items))))
+
+;; Return #t if each class in left is a subclass of the corresponding
+;; class in right.  Stops at the shortest of the two lists.
+(define (subclasses-of? left right)
+  (if (pair? left)
+      (if (pair? right)
+          (and (subclass? (car left) (car right))
+               (subclasses-of? (cdr left) (cdr right)))
+          (or (null? right)
+              (error "Improper list: " right)))
+      (or (null? left)
+          (error "Improper list: " left))))
 
 ;;>>...
 ;;> *** Basic classes

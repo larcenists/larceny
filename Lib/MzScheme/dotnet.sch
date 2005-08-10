@@ -303,6 +303,12 @@
 (define clr/default-marshal-out
   (make-generic 'clr/default-marshal-out '(object)
     :method (make-method
+             :arity 1
+             :specializers (list <null>)
+             :procedure (lambda (call-next-method null-object)
+                          clr/null))
+
+    :method (make-method
               :arity 1
               :specializers (list <exact-integer>)
               :procedure (lambda (call-next-method number)
@@ -593,6 +599,8 @@
            <clr-generic> initargs)
           <clr-generic>)))))
 
+(define clr-generic? (class-predicate <clr-generic>))
+
 (extend-generic print-object
   :specializers (list <clr-generic>)
   :procedure ((lambda ()
@@ -604,6 +612,13 @@
                      (display " " port)
                      (display (clr/StudlyName object) port))))
                 method:print-object)))
+
+;; Make sure we can resolve elements of the type.
+(extend-generic compute-methods-by-class
+  :specializers (list <clr-generic>)
+  :qualifier :before
+  :procedure (lambda (call-next-method generic class-list)
+               (for-each clr-class/ensure-instantiable! class-list)))
 
 (define <clr-arity-overload>
   (let ((initargs (list
@@ -671,6 +686,25 @@
                 (begin (vector-set! new-vector index
                                     (vector-ref vector index))
                        (loop new-vector (+ index 1)))))))))
+
+(define (clr/specific-method generic . types)
+  (for-each clr-class/ensure-instantiable! types)
+  (cond ((clr-generic? generic)
+         (compute-apply-methods
+          generic
+          (compute-methods-by-class generic types)))
+        ((clr-arity-overload? generic)
+         (let ((argcount (length types))
+               (arity-vector (get-arity-vector generic)))
+           (if (>= argcount (vector-length arity-vector))
+               (error "No specific method matches types " generic types)
+               (let ((underlying (vector-ref arity-vector argcount)))
+                 (if (null? underlying)
+                     (error "No specific method matches types " generic types)
+                     (compute-apply-methods
+                      underlying
+                      (compute-methods-by-class underlying types)))))))
+        (else (error "clr/specific-method: not a clr generic " generic))))
 
 ;; (wrap-clr-object wrapper-class handle) => instance
 ;; Create an instance of a CLR class to represent the .NET object
@@ -899,7 +933,9 @@
             (slot-set! System.Type 'StudlyName type-type-name)
             (slot-set! System.RuntimeType 'StudlyName this-name)
 
-            (set! *delayed-initialized* (list* System.Type System.RuntimeType *delayed-initialized*))
+            (set! *delayed-initialized* (list* System.Object
+                                               System.Type
+                                               System.RuntimeType *delayed-initialized*))
 
             ;; Optimize the getter for the handle
             (extend-generic clr-object/clr-handle
@@ -1053,12 +1089,12 @@
     (extend-generic argument-specializer
       :specializers (list System.RuntimeType)
       :procedure (lambda (call-next-method type)
-                   (cond ((subclass? type array-class) <vector>)
+                   (cond ((subclass? type array-class) (nullable <vector>))
                          ((and (subclass? type enum-class)
                                (memq '|System.FlagsAttribute| (clr-type/get-custom-attributes
                                                                (clr-object/clr-handle type))))
                           <list>)
-                         (else type))))
+                         (else (nullable type)))))
 
     (add-method max-arity (getter-method methodbase-class 'max-arity))
 

@@ -95,6 +95,12 @@
      (and (pair? object)
           (eq? (car object) 'singleton)))))
 
+(define-syntax %nullable?
+  (syntax-rules ()
+    ((%nullable? object)
+     (and (pair? object)
+          (eq? (car object) 'nullable)))))
+
 ;;; ---------------------------------------------------------------------------
 ;;; Customization variables
 
@@ -275,12 +281,27 @@
 ;;>   there are singleton specializers).
 (define compute-methods               (make-generic 'compute-methods '(generic arguments)))
 
+;;>> (compute-methods-by-class generic argument-types)
+;;>   Computes the methods that should be applied for this generic
+;;>   invocation with args of argument-types.  The standard code filters applicable methods
+;;>   and sorts them according to their specificness.  The return value is
+;;>   expected to depend only on the types of the arguments.  If there
+;;>   are singleton specializers, an error is raised.
+(define compute-methods-by-class      (make-generic 'compute-methods-by-class '(generic argument-types)))
+
 ;;>> ((compute-method-more-specific? generic) mthd1 mthd2 args)
 ;;>   Get a generic and return a function that gets two methods and a list
 ;;>   of arguments and decide which of the two methods is more specific.
 ;;>   This decision should only be based on the argument types, or values
 ;;>   only in case of singletons.
 (define compute-method-more-specific? (make-generic 'compute-method-more-specific? '(generic)))
+
+;;>> ((compute-method-more-specific? generic) mthd1 mthd2 arg-classes)
+;;>   Get a generic and return a function that gets two methods and a list
+;;>   of argument classes and decide which of the two methods is more specific.
+;;>   This decision should only be based on the argument types.  An
+;;>   error is raised if either method is specialized on a singleton.
+(define compute-method-more-specific-by-class? (make-generic 'compute-method-more-specific-by-class? '(generic)))
 
 ;;>> ((compute-apply-methods generic methods) args ...)
 ;;>   Gets a generic and returns a function that gets the given arguments
@@ -304,8 +325,12 @@
 (define compute-apply-methods         (make-generic 'compute-apply-methods '(generic methods)))
 
 (define generic-invocation-generics
-  (list compute-apply-generic compute-methods
-        compute-method-more-specific? compute-apply-methods))
+  (list compute-apply-generic
+        compute-methods
+        compute-methods-by-class
+        compute-method-more-specific?
+        compute-method-more-specific-by-class?
+        compute-apply-methods))
 
 ;;; This is used to signal whenever all method caches are to be reset - so when
 ;;; a method is added to generic-invocation-generics, this is set to some value
@@ -468,41 +493,112 @@
 
                 method:compute-methods)))
 
-(extend-generic compute-method-more-specific?
+(extend-generic compute-methods-by-class
   :specializers (list <generic>)
   :procedure ((lambda ()
-                (define (method:compute-method-more-specific? call-next-method generic)
-                  (lambda (left right args)
-                    (let loop ((specls-left (%method-specializers left))
-                               (specls-right (%method-specializers right))
-                               (args    args))
-                      (cond ((and (null? specls-left) (null? specls-right))
-                             (if (eq? (%method-qualifier left) (%method-qualifier right))
-                                 (error "COMPUTE-METHOD-MORE-SPECIFIC?:  two methods are equally specific in " generic)
-                                 #f))
-                            ;; some methods in this file have fewer specializers than
-                            ;; others for things like args -- so remove this, leave the
-                            ;; args check but treat the missing as if it's <top>
-                            ;; ((or (null? specls-left) (null? specls-right))
-                            ;;  (error 'generic
-                            ;;         "two methods have different number of ~
-                            ;;          specializers in ~e" generic))
-                            ((null? args) ; shouldn't happen
-                             (error "COMPUTE-METHOD-MORE-SPECIFIC?: fewer arguments than specializers for " generic))
-                            ((null? specls-left) ; see above -> treat this like <top>
-                             (if (eq? <top> (car specls-right))
-                                 (loop specls-left (cdr specls-right) (cdr args))
-                                 #f))
-                            ((null? specls-right) ; see above -> treat this like <top>
-                             (if (eq? <top> (car specls-left))
-                                 (loop (cdr specls-left) specls-right (cdr args))
-                                 #t))
-                            (else (let ((c1 (car specls-left))
-                                        (c2 (car specls-right)))
-                                    (if (eq? c1 c2)
-                                        (loop (cdr specls-left) (cdr specls-right) (cdr args))
-                                        (more-specific? c1 c2 (car args)))))))))
-                method:compute-method-more-specific?)))
+                (define (sort-predicate compare arguments)
+                  (lambda (left-method right-method)
+                    (compare left-method right-method arguments)))
+
+                (define (method:compute-methods-by-class call-next-method generic arg-classes)
+                  (sort (filter
+                         (lambda (m)
+                           (subclasses-of? arg-classes (%method-specializers m)))
+                         (%generic-methods generic))
+                        (sort-predicate (compute-method-more-specific-by-class? generic) arg-classes)))
+
+                method:compute-methods-by-class)))
+
+;;>> (specializer? x)
+;;>   Determines whether `x' is a class, a singleton, or a struct-type.
+(define (specializer? x)
+  (or (class? x)
+      (%nullable? x)
+      (%singleton? x)
+      (struct-type? x)
+      (record-type-descriptor? x)))
+
+(define-syntax %struct->class
+  (syntax-rules ()
+    ((%struct->class c) (cond ((record-type-descriptor? c) (record-type->class c))
+                              ((struct-type? c) (struct-type->class c))
+                              (else c)))))
+
+;;>> (more-specific? class1 class2 x)
+;;>   Is `class1' more specific than `class2' for the given value?
+(define (more-specific? c1 c2 arg)
+  (cond ((%singleton? c1) (eq? (singleton-value c1) arg))
+        ((%singleton? c2) (not (eq? (singleton-value c2) arg)))
+        (else (let ((cc1 (memq (%struct->class c1) (%class-cpl (class-of arg)))))
+                (and cc1 (memq (%struct->class c2) (cdr cc1)))))))
+
+;; Is class1 more specific than class2 for an argument of the given type?
+;; Signals an error if either c1 or c2 are singletons.
+(define (more-specific-by-class? c1 c2 arg-class)
+  (cond ((%singleton? c1) (error "more-specific-by-class?:  singleton specializer" c1))
+        ((%singleton? c2) (error "more-specific-by-class?:  singleton specializer" c2))
+        (else (let ((cc1 (memq (%struct->class c1) (%class-cpl arg-class))))
+                (and cc1 (memq (%struct->class c2) (cdr cc1)))))))
+
+(define (make-compute-method-more-specific specificity-checker)
+  (define (method:compute-method-more-specific? call-next-method generic)
+    (lambda (left right args)
+      (let loop ((specls-left (%method-specializers left))
+                 (specls-right (%method-specializers right))
+                 (args    args))
+        (cond ((and (null? specls-left) (null? specls-right))
+               (if (eq? (%method-qualifier left) (%method-qualifier right))
+                   (error "COMPUTE-METHOD-MORE-SPECIFIC?:  two methods are equally specific in " generic)
+                   #f))
+              ;; some methods in this file have fewer specializers than
+              ;; others for things like args -- so remove this, leave the
+              ;; args check but treat the missing as if it's <top>
+              ;; ((or (null? specls-left) (null? specls-right))
+              ;;  (error 'generic
+              ;;         "two methods have different number of ~
+              ;;          specializers in ~e" generic))
+              ((null? args)             ; shouldn't happen
+               (error "COMPUTE-METHOD-MORE-SPECIFIC?: fewer arguments than specializers for " generic))
+              ((null? specls-left)      ; see above -> treat this like <top>
+               (if (eq? <top> (car specls-right))
+                   (loop specls-left (cdr specls-right) (cdr args))
+                   #f))
+              ((null? specls-right)     ; see above -> treat this like <top>
+               (if (eq? <top> (car specls-left))
+                   (loop (cdr specls-left) specls-right (cdr args))
+                   #t))
+              (else (let ((c1 (car specls-left))
+                          (c2 (car specls-right)))
+                      (cond ((eq? c1 c2)
+                             (loop (cdr specls-left) (cdr specls-right) (cdr args)))
+                            ((%nullable? c1) (if (%nullable? c2)
+                                                 (if (null? (car args))
+                                                     (loop (cdr specls-left) (cdr specls-right) (cdr args))
+                                                     (specificity-checker (nullable-value c1)
+                                                                          (nullable-value c2)
+                                                                          (car args)))
+                                                 (if (null? (car args))
+                                                     #t
+                                                     (specificity-checker (nullable-value c1)
+                                                                          c2
+                                                                          (car args)))))
+
+                            ((%nullable? c2) (if (null? (car args))
+                                                 #f
+                                                 (specificity-checker c1
+                                                                      (nullable-value c2)
+                                                                      (car args))))
+                            (else
+                             (specificity-checker c1 c2 (car args))))))))))
+  method:compute-method-more-specific?)
+
+(extend-generic compute-method-more-specific?
+  :specializers (list <generic>)
+  :procedure (make-compute-method-more-specific more-specific?))
+
+(extend-generic compute-method-more-specific-by-class?
+  :specializers (list <generic>)
+  :procedure (make-compute-method-more-specific more-specific-by-class?))
 
 (extend-generic compute-apply-methods
   :specializers (list <generic>)
@@ -705,28 +801,6 @@
 (define generic-or-combination
   (make-generic-combination #f identity identity (lambda (loop val this tail)
                                                    (or (this) (loop #f tail)))))
-
-;;>> (specializer? x)
-;;>   Determines whether `x' is a class, a singleton, or a struct-type.
-(define (specializer? x)
-  (or (class? x)
-      (%singleton? x)
-      (struct-type? x)
-      (record-type-descriptor? x)))
-
-(define-syntax %struct->class
-  (syntax-rules ()
-    ((%struct->class c) (cond ((record-type-descriptor? c) (record-type->class c))
-                              ((struct-type? c) (struct-type->class c))
-                              (else c)))))
-
-;;>> (more-specific? class1 class2 x)
-;;>   Is `class1' more specific than `class2' for the given value?
-(define (more-specific? c1 c2 arg)
-  (cond ((%singleton? c1) (eq? (singleton-value c1) arg))
-        ((%singleton? c2) (not (eq? (singleton-value c2) arg)))
-        (else (let ((cc1 (memq (%struct->class c1) (%class-cpl (class-of arg)))))
-                (and cc1 (memq (%struct->class c2) (cdr cc1)))))))
 
 ;;; Install the class initializers for the standard classes.
 (extend-generic initialize-instance
@@ -1293,6 +1367,9 @@
           (define (spec-string spec)
             (cond ((%singleton? spec) (let ((string-output-port (string-io/open-output-string)))
                                         (write (singleton-value spec) string-output-port)
+                                        (string-io/get-output-string string-output-port)))
+                  ((%nullable? spec) (let ((string-output-port (string-io/open-output-string)))
+                                        (write (nullable-value spec) string-output-port)
                                         (string-io/get-output-string string-output-port)))
                   ((class? spec)     (symbol->string
                                        (%class-name (%struct->class spec))))
