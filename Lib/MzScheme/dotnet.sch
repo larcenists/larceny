@@ -581,6 +581,14 @@
 ;; (clr-object/clr-handle instance) => handle
 (define clr-object/clr-handle (generic-getter 'clr-object/clr-handle))
 
+;; Arrange for the empty list to be marshaled out as the null object.
+(extend-generic clr-object/clr-handle
+  :specializers (list <null>)
+  :procedure ((lambda ()
+                (define (method:clr-object/clr-handle call-next-method object)
+                  clr/null)
+                method:clr-object/clr-handle)))
+
 (define <clr-generic>
   (let ((initargs (list
                    :direct-supers (list <generic>)
@@ -753,6 +761,8 @@
                    :can-instantiate? #f
                    :argument-marshaler clr-object/clr-handle
                    :return-marshaler (lambda (instance)
+                                       ;; Arrange for the null object to marshal in
+                                       ;; as the empty list.
                                         (if (clr/%null? instance)
                                             '()
                                             (wrap-clr-object descriptor instance))))))
@@ -2445,43 +2455,33 @@
 
   ;; (provide initialize!)
 (define (enable-dotnet!)
-  (cond (*dotnet-initialized* #f)
-        ((= (car (clr/%clr-version)) 1)
-         (newline)
-         (display "Initializing dotnet...")
-         ;; (flush-output)
-         ;; Enable profiling of the CLR so we can go in the back door.
-         ;; DONE IN BATCH FILE
-         ;; (putenv "Cor_Enable_Profiling" "1")
-         ;; (putenv "Cor_Profiler" "MysterX.DotnetProfiler")
+  (if *dotnet-initialized*
+      #f
+      (let* ((dotnet-version (clr/%clr-version))
+             (dotnet-major-version (car dotnet-version))
+             (full-version (string-append
+                            (number->string dotnet-major-version)
+                            (foldl (lambda (y x) (string-append x "." y))
+                                   "" (map number->string (cdr dotnet-version))))))
 
-         (let ((root-clr-object clr-type-handle/system-type))
-           ;; Bootstrap the classes needed to represent CLR objects.
-           ;; After this, we can use the marshaling routines.
-           (dotnet-message 0 "Bootstrap clr classes.")
-           (bootstrap-clr-classes! root-clr-object)
-           (dotnet-message 0 "Initialize clr generics.")
-           (initialize-clr-generics!)
-           (recognize-javadot-symbols? #t)
-           (display "done.")))
-        ((= (car (clr/%clr-version)) 2)
-         (newline)
-         (display "Initializing dotnet 2...")
-         (let ((root-clr-object clr-type-handle/system-type))
-           ;; Bootstrap the classes needed to represent CLR objects.
-           ;; After this, we can use the marshaling routines.
-           (dotnet-message 0 "Bootstrap clr classes.")
-           (bootstrap-clr-classes! root-clr-object)
-           (dotnet-message 0 "Initialize clr generics.")
-           (initialize-clr-generics!)
-           (recognize-javadot-symbols? #t)
-           (display "done.")))
+        (if (or (= dotnet-major-version 1)
+                (= dotnet-major-version 2))
+            (let ((root-clr-object clr-type-handle/system-type))
 
-        (else (error (string-append
-                      "Dotnet version "
-                      (number->string (car (clr/%clr-version)))
-                      (foldl (lambda (y x) (string-append x "." y)) "" (map number->string (cdr (clr/%clr-version))))
-                      " not yet supported.")))))
+              (newline)
+              (display "Initializing dotnet ")
+              (display full-version)
+              (display "...")
+
+              ;; Bootstrap the classes needed to represent CLR objects.
+              ;; After this, we can use the marshaling routines.
+              (dotnet-message 0 "Bootstrap clr classes.")
+              (bootstrap-clr-classes! root-clr-object)
+              (dotnet-message 0 "Initialize clr generics.")
+              (initialize-clr-generics!)
+              (recognize-javadot-symbols? #t)
+              (display "done."))
+            (error (string-append full-version " not yet supported."))))))
 
 ;;;; Utilities
 ;;;
