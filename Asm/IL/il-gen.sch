@@ -395,6 +395,8 @@
 
 ;; il:directive : symbol value ... -> ilpackage
 ;; Represents a directive (.maxstack, .locals, ...)
+;; One of: entrypoint maxstack module 
+;;         assembly-extern assembly local line
 (define (il:directive directive . args)
   (apply il 'directive directive args))
 
@@ -775,7 +777,7 @@
 ;; il:label/header : cvid -> ilpackage
 ;; Used for the first part of each codevector, with jump index 0.
 (define (il:label/header id)
-  (il 'label (twobit-format #f "LABEL_HEADER_~a_~a" (car id) (cdr id))))
+  (il 'label (make-il-label id)))
 
 ;; intern-label : as number|cvid -> number
 (define (intern-label as label)
