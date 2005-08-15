@@ -34,9 +34,16 @@
 	  (parameterize ((current-module-builder
 			  (.DefineDynamicModule 
 			   (current-assembly-builder) module-name dll-file-name)))
-	    (parameterize ((current-registered-class-table '()))
-	      (thunk))))))))
+	    (parameterize ((current-registered-class-table '())
+			   (current-registered-superclass-table '())
+			   (current-registered-field-table '())
+			   (current-registered-method-table '())
+			   (current-label-intern-table '()))
+	      (thunk)
+	      )))))))
 
+;; Not really as safe to use as with-fresh-dynamic-assembly-setup,
+;; but more convenient at times.
 (define (fresh-dynamic-assembly-setup! 
 	 assembly-name module-name dll-file-name)
   (let ((my-asm-name (System.Reflection.AssemblyName.)))
@@ -187,23 +194,37 @@
 	    (else 
 	     (let ((val (.DefineLabel (current-il-generator))))
 	       (current-label-intern-table
-		(cons (list label val)
+		(cons (list (il-label:key label) val)
 		      (current-label-intern-table)))
 	       val))))
 
+    ;; current-registered-class-table : [Map (list CanonNS String) TypeBuilder]
     (define current-registered-class-table
       (make-parameter "current-registered-class-table" '()))
 
+    ;; current-registered-superclass-table : [Map TypeBuilder Type]
+    (define current-registered-superclass-table
+      (make-parameter "current-registered-superclass-table" '()))
+
+    ;; current-registered-field-table : [Map (list Type String) FieldInfo]
     (define current-registered-field-table
       (make-parameter "current-registered-field-table" '()))
+
+    ;; current-registered-method-table : [Map (list Type String [Vectorof Type]) MethodBase]
+    (define current-registered-method-table
+      (make-parameter "current-registered-method-table" '()))
 
     ;; codump-directive : symbol string ... -> void
     (define (codump-directive directive . args)
       (case directive 
 	((entrypoint) 
 	 (.SetEntryPoint (current-assembly-name) (current-method-builder)))
-	((maxstack assembly-extern module line)
-	  (error 'codump-directive 
+	((maxstack)
+	 (display (twobit-format 
+		   #f "codump-directive: ignoring ~a for now" directive))
+	 (newline))
+	((assembly-extern module line)
+	 (error 'codump-directive 
 		 (twobit-format 
 		  #f "die on ~a for now" directive)))
 	((local) 
@@ -219,7 +240,6 @@
 
     ;; codump-il : il -> void
     (define (codump-il instr)
-      (display `(codump-il ,instr)) (newline)
       (let* ((bytecode (il:code instr))
 	     (args     (il:args instr))
 	     (IL       (current-il-generator))
@@ -263,7 +283,7 @@
 	    bgt bgt.s bgt.un bgt.un.s ble ble.s ble.un ble.un.s
 	    blt blt.s blt.un blt.un.s bne.un bne.un.s 
 	    br brfalse brfalse.s brtrue brtrue.s br.s) 
-	   (apply .Emit IL (opc) args))
+	   (.Emit IL (opc) (get-label-object (car args))))
 	  
 	  ;; ILGenerator.Emit(OpCode, short) form
 	  ((ldarg)
@@ -294,7 +314,6 @@
 	  ((ldloc stloc)
 	   (apply .Emit IL (opc) args))
 
-
 	  ;; ILGenerator.Emit(OpCode, string) form
 	  ((ldstr)
 	   (apply .Emit IL (opc) args))
@@ -305,11 +324,13 @@
 
 	  ;; ILGenerator.Emit(OpCode, Label[]) form
 	  ((  switch)
-	   (apply .Emit IL (opc) args))
-	  
+	   (let* ((labels (car args))
+		  (label-infos (list->vector 
+				(map get-label-object labels))))
+	     (.Emit IL (opc) label-infos)))
 
 	  ;; ILGenerator.Emit(OpCode, ConstructorInfo) form
-	  ((newobj)
+	  (();; (newobj)
 	   (apply .Emit IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, MethodInfo) form
@@ -318,23 +339,33 @@
 
 	  ;; ILGenerator.Emit(OpCode, MethodInfo) and
 	  ;; ILGenerator.EmitCall(OpCode, MethodInfo, Type[]) forms
-	  ((call callvirt)
+	  ;; ILGenerator.Emit(OpCode, ConstructorInfo) form
+	  ((call callvirt newobj)
 	   (let* ((il-method (car args))
-		  (type (il-method.type il-method))
-		  (name (il-method.name il-method))
-		  (class (il-method.class il-method))
-		  (argtypes (il-method.argtypes il-method)))
-	     (let ((method-info 
-		    (.GetMethod class name (list->vector argtypes))))
+		  (type (il-method:type il-method))
+		  (name (il-method:name il-method))
+		  (class (il-method:class il-method))
+		  (argtypes (il-method:argtypes il-method)))
+	     (let* ((class-info (co-find-class class))
+		    (args-info  (map co-find-class argtypes))
+		    (method-info 
+		     (co-find-method class-info
+				     name 
+				     (list->vector args-info))))
 	       ;; NOTE: Docs say I could use .Emit rather than .EmitCall
 	       ;; here.  Should give that a shot.
-	       (apply .EmitCall IL (opc) method-info clr/null))))
+	       (.Emit IL (opc) method-info))))
 	  
-	  ((label)      (.MarkLabel IL (get-label-object (car args))))
+	  ((label)      
+	   (let ((label-obj (get-label-object (car args))))
+	     (.MarkLabel IL label-obj)))
 	  
 	  ((comment)    (if #f 'ignore-comments))
 	  ((directive)  (apply codump-directive args))
 	  
+	  (else (error 'codump-il 
+		       (twobit-format
+			#f "unknown il code: ~a" (il:code instr))))
 	  )
 	))
 
@@ -348,7 +379,7 @@
 		 (.DefineField (current-type-builder) name cls
 			       (options->field-attributes options))))
 	    (current-registered-field-table
-	     (cons (list (list cls name) field-info)
+	     (cons (list (list (current-type-builder) name) field-info)
 		   (current-registered-field-table)))))))
 
     ;; co-register-class : class -> void
@@ -360,13 +391,36 @@
 	    (options (clr-class-options class))
 	    (members (clr-class-members class)))
 	(display `(co-register-class ,(list namespace name))) (newline)
-	(current-registered-class-table
-	 (cons (list (list namespace name)
-		     (.DefineType (current-module-builder)
-				  name
-				  (options->type-attributes options)
-				  (co-find-class super)))
-	       (current-registered-class-table)))))
+	(let ((type-builder (.DefineType (current-module-builder)
+					 name
+					 (options->type-attributes options)
+					 (co-find-class super))))
+	  (current-registered-class-table
+	   (cons (list (list namespace name) type-builder)
+		 (current-registered-class-table)))
+	  (current-registered-superclass-table
+	   (cons (list type-builder (co-find-class super))
+		 (current-registered-superclass-table)))
+	)))
+
+    ;; co-register-method : IL-method -> void
+    (define (co-register-method method)
+      (let ((name     (clr-method-name method))
+	    (ret-type (clr-method-type method))
+	    (argtypes (clr-method-argtypes method))
+	    (options  (clr-method-options method))
+	    (instrs   (clr-method-instrs method)))
+	(let* ((type-info (current-type-builder))
+	       (arg-infos (list->vector (map co-find-class argtypes)))
+	       (method-info (.DefineMethod 
+			     (current-type-builder)
+			     name 
+			     (options->method-attributes options)
+			     (co-find-class ret-type)
+			     arg-infos)))
+	  (current-registered-method-table
+	   (cons (list (list type-info name arg-infos) method-info)
+		 (current-registered-method-table))))))
 
     ;; A ClassRef is one of:
     ;; - (list namespace name)
@@ -392,6 +446,19 @@
 	       => cadr)
 	      (else #f))))
 
+    ;; registered-method : Type String [Vectorof Type] -> [Maybe MethodBuilder]
+    (define (registered-method type name args)
+      (let ((key (list type name args)))
+	(cond ((assoc key (current-registered-method-table))
+	       => cadr)
+	      (else #f))))
+
+    ;; co-find-superclass : TypeBuilder -> [Maybe [Oneof Type TypeBuilder]]
+    (define (co-find-superclass tb)
+      (cond ((assoc tb (current-registered-superclass-table))
+	     => cadr)
+	    (else #f)))
+
     ;; codump-class : class -> void
     (define (codump-class class)
       (parameterize ((current-il-namespace (clr-class-il-namespace class)))
@@ -404,6 +471,9 @@
     (define (options->field-attributes option-lst)
       (apply append (map option->field-attribute option-lst)))
 
+    ;; A CanonNS is a [Listof String]
+
+    ;; canonicalize-namespacez : [Oneof String [Listof String]] -> CanonNS
     (define (canonicalize-namespacez ns)
       (cond ((string? ns) (list ns))
 	    (else ns)))
@@ -416,20 +486,39 @@
       ;;; because fields are INHERITED, and so I need to be
       ;;; able to (e.g.) lookup the name "instance" of the 
       ;;; superclass of type: CodeVector_1_1
-      (write `(co-find-field ,type ,name)) (newline) (newline)
       (cond ((assoc (list type name) (current-registered-field-table))
 	     => cadr)
-	    ((assoc type (map reverse (current-registered-class-table)))
+	    ((assoc type (current-registered-superclass-table))
 	     ;; if type is one of our currently registered classes, 
 	     ;; try using its super type to get the field...
-	     ---)
+	     => (lambda (entry)
+		  (co-find-field (cadr entry) name)))
 	    (else (.GetField type name))))
+
+    ;; co-find-method : type string [Vectorof type] -> MethodBase
+    ;; Note that type is the type of the method receiver, not the return type.
+    (define (co-find-method type name args)
+      (cond ((assoc (list type name args) (current-registered-method-table))
+	     => cadr)
+            ((equal? name ".ctor")
+	     (.GetConstructor type args))
+	    (else (.GetMethod type name args))))
 
     (define (co-find-class x)
       (cond ((symbol? x)
 	     ;; at some point, this may prepend the current
 	     ;; namespace to its argument
 	     (clr/find-class x))
+	    ((il-arraytype? x)
+	     (let ((base-type (co-find-class (il-arraytype:basetype x))))
+	       ;; YUCK!  Is there a clean way to directly construct
+	       ;; the reflected array type given reflected base type?
+	       ;; Note that this didn't work (not that its cleaner)
+	       ;; (.GetType (System.Array.CreateInstance base-type 1))
+	       (let* ((name (.FullName$ base-type))
+		      (array-name (string-append name "[]")))
+		 (System.Type.GetType array-name))
+	       ))
 	    ((il-classtype? x)
 	     (co-find-class (il-classtype:class x)))
 	    ((il-primtype? x)
@@ -456,10 +545,10 @@
     
     ;; codump-naked-class : class -> void
     (define (codump-naked-class class)
-      (display `(codump-naked-class ,class)) (newline) (newline)
       (let ((members (clr-class-members class)))
 	(parameterize ((current-type-builder (registered-class class)))
-	  (for-each codump-member (reverse members)))))
+	  (for-each codump-member (reverse members))
+	  (.CreateType (current-type-builder)))))
     
     ;; codump-member : field | method -> void 
     (define (codump-member member)
@@ -474,7 +563,6 @@
 	    (type (field-type field))
 	    (options (field-options field)))
 	(let ((cls (co-find-class type)))
-	  (display `(.DefineField ,(current-type-builder) ,name ,cls ,(options->field-attributes options))) (newline) (newline)
 	  (.DefineField (current-type-builder) name cls
 			(options->field-attributes options)))))
 
@@ -484,19 +572,14 @@
 	    (argtypes (clr-method-argtypes method))
 	    (options (clr-method-options method))
 	    (instrs (clr-method-instrs method)))
-	(parameterize 
-	  ((current-method-builder
-	    (.DefineMethod 
-	     (current-type-builder)
-	     name ;; perhaps (il-quote-name name) here?
-	     ;; also, do before/after-options matter for this
-	     ;; code (see il-sourcefile.sch)?
-	     (options->method-attributes options) 
-	     (co-find-class type)
-	     (list->vector (map co-find-class argtypes)))))
-	  (parameterize ((current-il-generator (.GetILGenerator (current-method-builder)))
-			 (current-label-intern-table '()))
-	    (for-each codump-il instrs)))))
+	(let* ((type-info (current-type-builder))
+	       (arg-infos (list->vector (map co-find-class argtypes)))
+	       (method-info (registered-method type-info name arg-infos)))
+	  (parameterize ((current-method-builder method-info))
+	    (parameterize ((current-il-generator 
+			    (.GetILGenerator (current-method-builder)))
+			   (current-label-intern-table '()))
+	      (for-each codump-il instrs))))))
     
 ;;;    (define compile-class codump-class)
 ;;;    (define compile-member codump-member)
@@ -514,6 +597,43 @@
    (string-append filename "-module")
    (string-append filename ".dll")
    (lambda ()
+     (define (create-type-builders!)
+       ;; prepass creating types to represent all of the classes we
+       ;; are going to construct.
+       (for-each (lambda (tli)
+		   (cond ((clr-class? tli)
+			  (co-register-class tli))))
+		 (reverse *il-top-level*)))
+
+     (define (create-member-infos!)
+       ;; second prepass creating fields and methods (but no actual
+       ;; code) for all the classes that we are going to construct.
+       (for-each 
+	(letrec ((handle-member 
+		  (lambda (tli)
+		    (cond ((field? tli)
+			   (co-register-field tli))
+			  ((clr-method? tli)
+			   (co-register-method tli))))))
+	  (lambda (tli)
+	    (cond ((clr-class? tli)
+		   (parameterize ((current-type-builder 
+				   (registered-class tli)))
+		     (for-each handle-member
+			       (clr-class-members tli))))
+		  (else (handle-member tli)))))
+	(reverse *il-top-level*)))
+     
+     (define (emit-object-code!)
+       ;; now actually EMIT the content of the classes
+       (for-each (lambda (tli)
+		   ;; (display tli) (newline) (newline)
+		   (cond ((clr-class? tli) (codump-class tli))
+			 ((clr-method? tli) (codump-member tli))
+			 ((field? tli) (codump-member tli))
+			 (else (codump-il tli))))
+		 (reverse *il-top-level*)))
+       
      (init-variables)
      (let ((entrypoints '())
 	   (il-file-name (rewrite-file-type filename ".lop" ".code-il")))
@@ -525,32 +645,13 @@
 					*loadables*)))
 	     (set! entrypoints (cons (dump-segment segment) entrypoints))
 	     (set! *segment-number* (+ *segment-number* 1)))))
+       (create-type-builders!)
+       (create-member-infos!)
+       (emit-object-code!)
 
-       ;; prepass creating types to represent all of the classes we
-       ;; are going to construct.
-       (for-each (lambda (tli)
-		   (cond ((clr-class? tli)
-			  (co-register-class tli))))
-		 (reverse *il-top-level*))
-       ;; second prepass creating fields for all the classes that we
-       ;; are going to construct
-       (for-each 
-	(let ((handle-field co-register-field))
-	  (lambda (tli)
-	    (cond ((clr-class? tli)
-		   (parameterize ((current-type-builder 
-				   (registered-class tli)))
-		     (for-each handle-field
-			       (filter field? (clr-class-members tli)))))
-		  ((field? tli) handle-field))))
-	(reverse *il-top-level*))
-
-       ;; now actually EMIT the content of the classes
-       (for-each (lambda (tli)
-		   ;; (display tli) (newline) (newline)
-		   (cond ((clr-class? tli) (codump-class tli))
-			 ((clr-method? tli) (codump-member tli))
-			 ((field? tli) (codump-member tli))
-			 (else (codump-il tli))))
-		 (reverse *il-top-level*))))))
+       (list (current-assembly-builder)
+	     (current-module-builder)
+	     (current-registered-class-table)
+	     )
+       ))))
     
