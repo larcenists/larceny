@@ -1415,6 +1415,37 @@ public sealed class Instructions
   }
 
   public static void load_0_0 () { Reg.Register0 = Cont.cont.Slot0; }
+  public static void load_1_0 () { Reg.Register1 = Cont.cont.Slot0; }
+  public static void load_2_0 () { Reg.Register2 = Cont.cont.Slot0; }
+  public static void load_3_0 () { Reg.Register3 = Cont.cont.Slot0; }
+  public static void load_4_0 () { Reg.Register4 = Cont.cont.Slot0; }
+  public static void load_5_0 () { Reg.Register5 = Cont.cont.Slot0; }
+  public static void load_6_0 () { Reg.Register6 = Cont.cont.Slot0; }
+  public static void load_7_0 () { Reg.Register7 = Cont.cont.Slot0; }
+  public static void load_8_0 () { Reg.Register8 = Cont.cont.Slot0; }
+  public static void load_9_0 () { Reg.Register9 = Cont.cont.Slot0; }
+  public static void load_10_0 () { Reg.Register10 = Cont.cont.Slot0; }
+  public static void load_11_0 () { Reg.Register11 = Cont.cont.Slot0; }
+  public static void load_12_0 () { Reg.Register12 = Cont.cont.Slot0; }
+  public static void load_13_0 () { Reg.Register13 = Cont.cont.Slot0; }
+  public static void load_14_0 () { Reg.Register14 = Cont.cont.Slot0; }
+  public static void load_15_0 () { Reg.Register15 = Cont.cont.Slot0; }
+  public static void load_16_0 () { Reg.Register16 = Cont.cont.Slot0; }
+  public static void load_17_0 () { Reg.Register17 = Cont.cont.Slot0; }
+  public static void load_18_0 () { Reg.Register18 = Cont.cont.Slot0; }
+  public static void load_19_0 () { Reg.Register19 = Cont.cont.Slot0; }
+  public static void load_20_0 () { Reg.Register20 = Cont.cont.Slot0; }
+  public static void load_21_0 () { Reg.Register21 = Cont.cont.Slot0; }
+  public static void load_22_0 () { Reg.Register22 = Cont.cont.Slot0; }
+  public static void load_23_0 () { Reg.Register23 = Cont.cont.Slot0; }
+  public static void load_24_0 () { Reg.Register24 = Cont.cont.Slot0; }
+  public static void load_25_0 () { Reg.Register25 = Cont.cont.Slot0; }
+  public static void load_26_0 () { Reg.Register26 = Cont.cont.Slot0; }
+  public static void load_27_0 () { Reg.Register27 = Cont.cont.Slot0; }
+  public static void load_28_0 () { Reg.Register28 = Cont.cont.Slot0; }
+  public static void load_29_0 () { Reg.Register29 = Cont.cont.Slot0; }
+  public static void load_30_0 () { Reg.Register30 = Cont.cont.Slot0; }
+  public static void load_31_0 () { Reg.Register31 = Cont.cont.Slot0; }
 
   public static void load_1_1 () { Reg.Register1 = Cont.cont.Slot1; }
   public static void load_2_1 () { Reg.Register2 = Cont.cont.Slot1; }
