@@ -151,7 +151,7 @@
        (hasdefault) (hasfieldmarshal) (hasfieldrva) (initonly)
        (literal) (notserialized) (pinvokeimpl) (private)
        (privatescope) (public) (reservedmask) (rtspecialname)
-       (specialname static)))
+       (specialname) (static)))
     
     (define (il:code->opcode x)
       (lookup/adding-prefix 
@@ -210,7 +210,7 @@
     (define current-registered-field-table
       (make-parameter "current-registered-field-table" '()))
 
-    ;; current-registered-method-table : [Map (list Type String [Vectorof Type]) MethodBase]
+    ;; current-registered-method-table : [Map (list Type String [Vectorof Type]) [Oneof MethodBuilder ConstructorBuilder]]
     (define current-registered-method-table
       (make-parameter "current-registered-method-table" '()))
 
@@ -245,7 +245,11 @@
 	     (IL       (current-il-generator))
 	     ;; delay projection into OpCodes enumeration, 
 	     ;; to avoid error on il.code's that have no opcode.
-	     (opc      (lambda () (il:code->opcode bytecode))))
+	     (opc      (lambda () (il:code->opcode bytecode)))
+	     (emit     (lambda (il opc . args)
+			 ;; (display `(emit ,(il:code instr) ,@args)) (newline)
+			 (apply .Emit il opc args)))
+	     )
 	
 	(if (string? instr)
 	    (error 'codump-il 
@@ -276,30 +280,30 @@
 	    sub
 	    tail.
 	    ) 
-	   (apply .Emit IL (opc) args))
+	   (apply emit IL (opc) args))
 	  
 	  ;; ILGenerator.Emit(OpCode, Label) form
 	  ((beq beq.s bge bge.s bge.un bge.un.s
 	    bgt bgt.s bgt.un bgt.un.s ble ble.s ble.un ble.un.s
 	    blt blt.s blt.un blt.un.s bne.un bne.un.s 
 	    br brfalse brfalse.s brtrue brtrue.s br.s) 
-	   (.Emit IL (opc) (get-label-object (car args))))
+	   (emit IL (opc) (get-label-object (car args))))
 	  
 	  ;; ILGenerator.Emit(OpCode, short) form
 	  ((ldarg)
-	   (apply .Emit IL (opc) args))
+	   (apply emit IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, int) form
 	  ((ldc.i4)
-	   (apply .Emit IL (opc) args))
+	   (apply emit IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, long) form
 	  ((ldc.i8)
-	   (apply .Emit IL (opc) args))
+	   (apply emit IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, double) form
 	  ((ldc.r8)
-	   (apply .Emit IL (opc) args))
+	   (apply emit IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, FieldInfo) form
 	  ((ldfld ldsfld stfld stsfld)
@@ -307,31 +311,31 @@
 		  (type (il-field:type fld))
 		  (class (il-field:class fld))
 		  (name (il-field:name fld)))
-	     (.Emit IL (opc) (co-find-field (co-find-class class) name))))
+	     (emit IL (opc) (co-find-field (co-find-class class) name))))
 
 	  ;; ILGenerator.Emit(OpCode, LocalBuilder) and
 	  ;; ILGenerator.Emit(OpCode, short) forms
 	  ((ldloc stloc)
-	   (apply .Emit IL (opc) args))
+	   (apply emit IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, string) form
 	  ((ldstr)
-	   (apply .Emit IL (opc) args))
+	   (apply emit IL (opc) args))
 	  
 	  ;; ILGenerator.Emit(OpCode, Type) form
 	  ((box castclass cpobj initobj isinst newarr)
-	   (apply .Emit IL (opc) (map co-find-class args)))
+	   (apply emit IL (opc) (map co-find-class args)))
 
 	  ;; ILGenerator.Emit(OpCode, Label[]) form
 	  ((  switch)
 	   (let* ((labels (car args))
 		  (label-infos (list->vector 
 				(map get-label-object labels))))
-	     (.Emit IL (opc) label-infos)))
+	     (emit IL (opc) label-infos)))
 
 	  ;; ILGenerator.Emit(OpCode, ConstructorInfo) form
 	  (();; (newobj)
-	   (apply .Emit IL (opc) args))
+	   (apply emit IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, MethodInfo) form
 	  ((jmp)
@@ -352,9 +356,7 @@
 		     (co-find-method class-info
 				     name 
 				     (list->vector args-info))))
-	       ;; NOTE: Docs say I could use .Emit rather than .EmitCall
-	       ;; here.  Should give that a shot.
-	       (.Emit IL (opc) method-info))))
+	       (emit IL (opc) method-info))))
 	  
 	  ((label)      
 	   (let ((label-obj (get-label-object (car args))))
@@ -376,7 +378,9 @@
 	    (options (field-options field)))
 	(let ((cls (co-find-class type)))
 	  (let ((field-info 
-		 (.DefineField (current-type-builder) name cls
+		 (.DefineField (current-type-builder) 
+			       name
+			       cls
 			       (options->field-attributes options))))
 	    (current-registered-field-table
 	     (cons (list (list (current-type-builder) name) field-info)
@@ -410,14 +414,30 @@
 	    (argtypes (clr-method-argtypes method))
 	    (options  (clr-method-options method))
 	    (instrs   (clr-method-instrs method)))
+	(display `(registering method: ,name 
+			       type-info: ,(current-type-builder))) (newline)
 	(let* ((type-info (current-type-builder))
 	       (arg-infos (list->vector (map co-find-class argtypes)))
-	       (method-info (.DefineMethod 
-			     (current-type-builder)
-			     name 
-			     (options->method-attributes options)
-			     (co-find-class ret-type)
-			     arg-infos)))
+	       (method-info 
+		(cond 
+		 ((equal? name ".ctor") 
+		  (.DefineConstructor 
+		   (current-type-builder)
+		   (options->method-attributes options)
+		   (System.Reflection.CallingConventions.Standard$)
+		   arg-infos))
+
+		 ((equal? name ".cctor") 
+		  (.DefineTypeInitializer 
+		   (current-type-builder)))
+
+		 (else 
+		  (.DefineMethod 
+		   (current-type-builder)
+		   name
+		   (options->method-attributes options)
+		   (co-find-class ret-type)
+		   arg-infos)))))
 	  (current-registered-method-table
 	   (cons (list (list type-info name arg-infos) method-info)
 		 (current-registered-method-table))))))
@@ -553,19 +573,13 @@
     ;; codump-member : field | method -> void 
     (define (codump-member member)
       (cond ((field? member)
-	     (codump-field member))
+	     ;; Do nothing; we defined the field in co-register-field
+	     ;; (codump-field member)
+	     )
 	    ((clr-method? member)
 	     (codump-method member))))
     
-    ;; codump-field : field -> void
-    (define (codump-field field)
-      (let ((name (field-name field))
-	    (type (field-type field))
-	    (options (field-options field)))
-	(let ((cls (co-find-class type)))
-	  (.DefineField (current-type-builder) name cls
-			(options->field-attributes options)))))
-
+    ;; codump-method : clr-method -> void
     (define (codump-method method)
       (let ((name (clr-method-name method))
 	    (type (clr-method-type method))
@@ -589,15 +603,8 @@
 ;;;     (values compile-class compile-member compile-il)
 ;;;    ))
 
-;; compile-lop-to-clr : string -> void
-;; Loads a single .lop file into the current CLR runtime.
-(define (load-lop/clr filename)
-  (with-fresh-dynamic-assembly-setup
-   (string-append filename "-assembly")
-   (string-append filename "-module")
-   (string-append filename ".dll")
-   (lambda ()
-     (define (create-type-builders!)
+
+     (define (co-create-type-builders!)
        ;; prepass creating types to represent all of the classes we
        ;; are going to construct.
        (for-each (lambda (tli)
@@ -605,7 +612,7 @@
 			  (co-register-class tli))))
 		 (reverse *il-top-level*)))
 
-     (define (create-member-infos!)
+     (define (co-create-member-infos!)
        ;; second prepass creating fields and methods (but no actual
        ;; code) for all the classes that we are going to construct.
        (for-each 
@@ -624,7 +631,7 @@
 		  (else (handle-member tli)))))
 	(reverse *il-top-level*)))
      
-     (define (emit-object-code!)
+     (define (co-emit-object-code!)
        ;; now actually EMIT the content of the classes
        (for-each (lambda (tli)
 		   ;; (display tli) (newline) (newline)
@@ -633,6 +640,15 @@
 			 ((field? tli) (codump-member tli))
 			 (else (codump-il tli))))
 		 (reverse *il-top-level*)))
+
+;; compile-lop-to-clr : string -> void
+;; Loads a single .lop file into the current CLR runtime.
+(define (load-lop/clr filename)
+  (with-fresh-dynamic-assembly-setup
+   (string-append filename "-assembly")
+   (string-append filename "-module")
+   (string-append filename ".dll")
+   (lambda ()
        
      (init-variables)
      (let ((entrypoints '())
@@ -645,9 +661,10 @@
 					*loadables*)))
 	     (set! entrypoints (cons (dump-segment segment) entrypoints))
 	     (set! *segment-number* (+ *segment-number* 1)))))
-       (create-type-builders!)
-       (create-member-infos!)
-       (emit-object-code!)
+
+       (co-create-type-builders!)
+       (co-create-member-infos!)
+       (co-emit-object-code!)
 
        (list (current-assembly-builder)
 	     (current-module-builder)
