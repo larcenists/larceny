@@ -465,7 +465,7 @@ namespace Scheme.RT {
                 return;
             }
 #else
-	    case 23:
+            case 23:
             {
                Exn.error ("ffi:invoke property-value as native-window not supported in this version");
                return;
@@ -572,6 +572,16 @@ namespace Scheme.RT {
                     return Factory.Impossible;
 #endif
                 }
+
+            case 10: // single precision float
+            {
+                return Factory.makeForeignBox ((float) ((SByteVL)obj).unsafeAsDouble(0));
+            }
+
+            case 11: //double precision float
+            {
+                return Factory.makeForeignBox ((double) ((SByteVL)obj).unsafeAsDouble(0));
+            }
 
 #if NEVER
 
