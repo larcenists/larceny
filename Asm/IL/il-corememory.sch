@@ -14,6 +14,14 @@
 (define current-method-builder (make-parameter "current-method-builder" #f))
 (define current-il-generator  (make-parameter "current-il-generator" #f))
 
+;; Similar to with-fresh-dynamic-assembly-setup, except the names are
+;; all derived from the single basename
+(define (with-simple-fresh-dynamic-assembly-setup basename thunk)
+  (with-fresh-dynamic-assembly-setup
+   (string-append basename "-assembly")
+   (string-append basename "-module")
+   (string-append basename ".dll")
+   thunk))
 
 ;; Sets up assembly-name, domain, asm-builder, and module.
 ;; Does *not* set up type-builder.
@@ -645,6 +653,25 @@
 			 (else (codump-il tli))))
 		 (reverse *il-top-level*)))
 
+;; link-lop-segment/clr : segment string environment -> (-> any)
+;; Analogous to link-lop-segment, except that the lop-segment uses our
+;; internal IL rep (rather than machine code) for codevectors).
+(define (link-lop-segment/clr lop-segment name environment)
+  (with-simple-fresh-dynamic-assembly-setup
+   name
+   (lambda ()
+     (init-variables)
+     (let* ((entrypoint (dump-segment lop-segment))
+	    (pseudo-manifest (extract-manifest lop-segment name)))
+       (set! *segment-number* (+ *segment-number* 1))
+       (set! *loadables* (cons (list *seed* entrypoint) *loadables*))
+       
+       (co-create-type-builders!)
+       (co-create-member-infos!)
+       (co-emit-object-code!)
+       
+       (patch-procedure/pseudo-manifest pseudo-manifest environment)))))
+     
 ;; load-lop-to-clr : string [environment] -> void
 ;; Loads a single .lop file into the current CLR runtime.
 (define (load-lop/clr filename . rest)
@@ -654,11 +681,9 @@
 	   (interaction-environment))
 	  (else 
 	   (car rest))))
-
-  (with-fresh-dynamic-assembly-setup
-   (string-append filename "-assembly")
-   (string-append filename "-module")
-   (string-append filename ".dll")
+  
+  (with-simple-fresh-dynamic-assembly-setup
+   filename
    (lambda ()
      (init-variables)
      (let ((entrypoints '())
@@ -680,7 +705,7 @@
        (co-emit-object-code!)
 
        (for-each (lambda (x) 
-		   (patch-procedure/pseudo-manifest x (get-environment)))
+		   ((patch-procedure/pseudo-manifest x (get-environment))))
 		 pseudo-manifests)))))
 
 ;; patch-procedure/pseudo-manifest : PseudoManifest Envionment -> Any
@@ -702,4 +727,4 @@
 	   (patched-procedure 
 	    (begin (procedure-set! p 0 unwrapped-code-vec) 
 		   p)))
-      (patched-procedure))))
+      patched-procedure)))
