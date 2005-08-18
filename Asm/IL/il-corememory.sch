@@ -689,7 +689,7 @@
 	   (asm-bld (current-assembly-builder))
 	   (code-vec (find-code-in-assembly asm-bld il-ns segnum))
 	   (boxed-code-vec (clr-object/clr-handle code-vec))
-	   (unwrapped-code-vec (clr/%foreign->schemeobject code-vec))
+	   (unwrapped-code-vec (clr/foreign->schemeobject boxed-code-vec))
 	   (patched-procedure 
 	    (begin (procedure-set! p 0 unwrapped-code-vec) 
 		   p)))
