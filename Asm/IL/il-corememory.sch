@@ -645,9 +645,16 @@
 			 (else (codump-il tli))))
 		 (reverse *il-top-level*)))
 
-;; compile-lop-to-clr : string -> void
+;; load-lop-to-clr : string [environment] -> void
 ;; Loads a single .lop file into the current CLR runtime.
-(define (load-lop/clr filename)
+(define (load-lop/clr filename . rest)
+  
+  (define (get-environment)
+    (cond ((null? rest)
+	   (interaction-environment))
+	  (else 
+	   (car rest))))
+
   (with-fresh-dynamic-assembly-setup
    (string-append filename "-assembly")
    (string-append filename "-module")
@@ -672,16 +679,18 @@
        (co-create-member-infos!)
        (co-emit-object-code!)
 
-       (for-each patch-procedure/pseudo-manifest
+       (for-each (lambda (x) 
+		   (patch-procedure/pseudo-manifest x (get-environment)))
 		 pseudo-manifests)))))
 
-(define (patch-procedure/pseudo-manifest entry)
+;; patch-procedure/pseudo-manifest : PseudoManifest Envionment -> Any
+(define (patch-procedure/pseudo-manifest entry env)
   (let ((base   (list-ref entry 0))
 	(il-ns  (list-ref entry 1))
 	(zer    (list-ref entry 2)) ;; always 0?
 	(segnum (+ 1 (list-ref entry 3)))
 	(constant-vec (list-ref entry 4)))
-    (let* ((p (link-lop-segment (cons #f constant-vec) (interaction-environment)))
+    (let* ((p (link-lop-segment (cons #f constant-vec) env))
 	   ;; similar to operation of .common-patch-procedure, except
 	   ;; we don't use segment-code-address because that needs to
 	   ;; look for stuff in files.
