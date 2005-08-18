@@ -263,6 +263,7 @@
  usual-syntactic-environment)
 
 (define (clr/null? object) (clr/%null? object))
+(define (clr/foreign->schemeobject object) (clr/%foreign->schemeobject object))
 
 (define (clr/bool->foreign   obj) (if obj clr/true clr/false))
 (define (clr/double->foreign obj) (clr/%double->foreign obj))

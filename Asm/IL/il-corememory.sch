@@ -220,9 +220,11 @@
 	((entrypoint) 
 	 (.SetEntryPoint (current-assembly-name) (current-method-builder)))
 	((maxstack)
-	 (display (twobit-format 
-		   #f "codump-directive: ignoring ~a for now" directive))
-	 (newline))
+	 (cond 
+	  (#f
+	   (display (twobit-format 
+		     #f "codump-directive: ignoring ~a for now" directive)) 
+	   (newline))))
 	((assembly-extern module line)
 	 (error 'codump-directive 
 		 (twobit-format 
@@ -394,9 +396,10 @@
 	    (super (clr-class-super class))
 	    (options (clr-class-options class))
 	    (members (clr-class-members class)))
-	(display `(co-register-class ,(list namespace name))) (newline)
+	;; (display `(co-register-class ,(list namespace name))) (newline)
 	(let ((type-builder (.DefineType (current-module-builder)
-					 name
+					 (namespace+name->full-name 
+					  namespace name)
 					 (options->type-attributes options)
 					 (co-find-class super))))
 	  (current-registered-class-table
@@ -414,8 +417,6 @@
 	    (argtypes (clr-method-argtypes method))
 	    (options  (clr-method-options method))
 	    (instrs   (clr-method-instrs method)))
-	(display `(registering method: ,name 
-			       type-info: ,(current-type-builder))) (newline)
 	(let* ((type-info (current-type-builder))
 	       (arg-infos (list->vector (map co-find-class argtypes)))
 	       (method-info 
@@ -498,6 +499,12 @@
       (cond ((string? ns) (list ns))
 	    (else ns)))
 
+    ;; namespace+name->full-name : CanonNS String -> String
+    (define (namespace+name->full-name ns name)
+      (apply string-append 
+	     (map/separated (lambda (x) x) (lambda () ".") 
+			    (reverse (cons name (reverse ns))))))
+
     ;; co-get-field : type string -> FieldInfo
     ;; like Type.GetField method, except this will not die when first
     ;; argument is a TypeBuidler (rather than a Type)
@@ -552,11 +559,8 @@
 		((registered-class x))
 		(else 
 		 (clr/find-class (string->symbol
-				  (apply string-append
-					 (append (map/separated (lambda (x) x)
-								(lambda () ".")
-								(or namespaces '()))
-						 (list "." name)))))))))
+				  (namespace+name->full-name
+				   (or namespaces '()) name)))))))
 	    (else (error 'co-find-class 
 			 (twobit-format
 			  #f "Unknown class desc format: ~a" x)))))
@@ -649,9 +653,9 @@
    (string-append filename "-module")
    (string-append filename ".dll")
    (lambda ()
-       
      (init-variables)
      (let ((entrypoints '())
+	   (pseudo-manifests '())
 	   (il-file-name (rewrite-file-type filename ".lop" ".code-il")))
        (call-with-input-file filename
 	 (lambda (in)
@@ -660,15 +664,33 @@
 		(set! *loadables* (cons (cons *seed* (reverse entrypoints))
 					*loadables*)))
 	     (set! entrypoints (cons (dump-segment segment) entrypoints))
+	     (set! pseudo-manifests 
+		   (cons (extract-manifest segment filename) pseudo-manifests))
 	     (set! *segment-number* (+ *segment-number* 1)))))
 
        (co-create-type-builders!)
        (co-create-member-infos!)
        (co-emit-object-code!)
 
-       (list (current-assembly-builder)
-	     (current-module-builder)
-	     (current-registered-class-table)
-	     )
-       ))))
-    
+       (for-each patch-procedure/pseudo-manifest
+		 pseudo-manifests)))))
+
+(define (patch-procedure/pseudo-manifest entry)
+  (let ((base   (list-ref entry 0))
+	(il-ns  (list-ref entry 1))
+	(zer    (list-ref entry 2)) ;; always 0?
+	(segnum (+ 1 (list-ref entry 3)))
+	(constant-vec (list-ref entry 4)))
+    (let* ((p (link-lop-segment (cons #f constant-vec) (interaction-environment)))
+	   ;; similar to operation of .common-patch-procedure, except
+	   ;; we don't use segment-code-address because that needs to
+	   ;; look for stuff in files.
+	   (find-code-in-assembly Scheme.RT.Load.findCodeInAssembly)
+	   (asm-bld (current-assembly-builder))
+	   (code-vec (find-code-in-assembly asm-bld il-ns segnum))
+	   (boxed-code-vec (clr-object/clr-handle code-vec))
+	   (unwrapped-code-vec (clr/%foreign->schemeobject code-vec))
+	   (patched-procedure 
+	    (begin (procedure-set! p 0 unwrapped-code-vec) 
+		   p)))
+      (patched-procedure))))

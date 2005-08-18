@@ -517,6 +517,7 @@
         clr/foreign->int
         clr/foreign->string
         clr/foreign->symbol
+        clr/foreign->schemeobject
         clr/int->foreign
         clr/null
         clr/null?

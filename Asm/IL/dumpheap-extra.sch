@@ -210,15 +210,18 @@
          (twobit-format (current-output-port)
                         "))~%"))))))
 
+;; extract-manifest : segment string -> (list string string num num constant-vector)
+(define (extract-manifest segment filename)
+  (list (rewrite-file-type filename ".lop" "")
+	(cvclass-il-namespace (segment.code segment))
+	(length *loadables*)
+	*segment-number*
+	(copy-constant-vector/strip-code
+	 (segment.constants segment))))
+
 ;; dump-manifest : segment string output-port -> void
 (define (dump-manifest segment filename out)
-  (write (list (rewrite-file-type filename ".lop" "")
-               (cvclass-il-namespace (segment.code segment))
-               (length *loadables*)
-               *segment-number*
-               (copy-constant-vector/strip-code 
-                (segment.constants segment)))
-         out)
+  (write (extract-manifest segment filename) out)
   (newline out))
 
 ;; copy-constant-vector/strip-code : constant-vector -> constant-vector
