@@ -233,6 +233,8 @@
 (define-syscall clr/%number->foreign-int32  34 19 7)
 (define-syscall clr/%procedure->message-filter 34 19 8)
 ;(define-syscall clr/%void->foreign         34 19 9)
+(define-syscall clr/%flonum->foreign-single 34 19 10)
+(define-syscall clr/%flonum->foreign-double 34 19 11)
 
 (define-syscall clr/%foreign->object       34 20 0)
 (define-syscall clr/%foreign->schemeobject 34 20 1)
@@ -240,8 +242,8 @@
 ;(define-syscall clr/%foreign->symbol      34 20 3)
 (define-syscall clr/%foreign->bytes        34 20 4)
 (define-syscall clr/%foreign->int          34 20 5)
-(define-syscall clr/%foreign->flonum       34 20 6)
-(define-syscall clr/%foreign->double       34 20 7)
+(define-syscall clr/%foreign-single->flonum 34 20 6)
+(define-syscall clr/%foreign-double->double 34 20 7)
 (define-syscall clr/%foreign->void         34 20 8)
 
 ;; special for performance
@@ -269,8 +271,10 @@
          usual-syntactic-environment)))))
 
 (define-ffi-predicate %clr-array?      clr-type-handle/system-array)
+(define-ffi-predicate %clr-double?     clr-type-handle/system-double)
 (define-ffi-predicate %clr-enum?       clr-type-handle/system-enum)
 (define-ffi-predicate %clr-int32?      clr-type-handle/system-int32)
+(define-ffi-predicate %clr-single?     clr-type-handle/system-single)
 (define-ffi-predicate %clr-string?     clr-type-handle/system-string)
 (define-ffi-predicate %clr-type?       clr-type-handle/system-type)
 
@@ -302,11 +306,6 @@
 
 (define clr/default-marshal-out
   (make-generic 'clr/default-marshal-out '(object)
-    :method (make-method
-             :arity 1
-             :specializers (list <null>)
-             :procedure (lambda (call-next-method null-object)
-                          clr/null))
 
     :method (make-method
               :arity 1
@@ -316,15 +315,29 @@
 
     :method (make-method
               :arity 1
-              :specializers (list <string>)
-              :procedure (lambda (call-next-method string)
-                           (clr/%string->foreign string)))
+              :specializers (list <flonum>)
+              :procedure (lambda (call-next-method number)
+                           (clr/%flonum->foreign-double number)))
+
+    :method (make-method
+             :arity 1
+             :specializers (list <null>)
+             :procedure (lambda (call-next-method null-object)
+                          clr/null))
 
     :method (make-method
               :arity 1
               :specializers (list <procedure>)
               :procedure (lambda (call-next-method proc)
-                           (clr/%schemeobject->foreign proc)))))
+                           (clr/%schemeobject->foreign proc)))
+
+    :method (make-method
+              :arity 1
+              :specializers (list <string>)
+              :procedure (lambda (call-next-method string)
+                           (clr/%string->foreign string)))
+
+    ))
 
 ;;;; .NET Class hierarchy
 
@@ -784,8 +797,10 @@
   (cond ((eq? object (unspecified)) object)
         ((%clr-array? object)
          (list->vector (map-clr-array clr/default-marshal-in object)))
+        ((%clr-double? object) (clr/%foreign-double->flonum object))
         ((%clr-enum? object) (clr/%foreign->int object))
         ((%clr-int32? object) (clr/%foreign->int object))
+        ((%clr-single? object) (clr/%foreign-single->flonum object))
         ((%clr-string? object) (clr/foreign->string object))
         ((clr/%null? object) '())
         ((clr/%eq? object clr/true) #t)
@@ -975,12 +990,14 @@
               (extend-generic argument-specializer
                 :specializers (list (singleton (clr-object->class handle)))
                 :procedure (lambda (call-next-method instance) builtin)))
-            (list clr-type-handle/system-char
-                  clr-type-handle/system-boolean
+            (list clr-type-handle/system-boolean
+                  clr-type-handle/system-char
+                  clr-type-handle/system-double
                   clr-type-handle/system-int32
                   clr-type-handle/system-string)
-            (list <char>
-                  <boolean>
+            (list <boolean>
+                  <char>
+                  <flonum>
                   <exact-integer>
                   <string>))
 
@@ -995,6 +1012,22 @@
   (let ((bool-class (clr-object->class clr-type-handle/system-boolean)))
     (slot-set! bool-class 'argument-marshaler clr/bool->foreign)
     (slot-set! bool-class 'return-marshaler   clr/foreign->bool))
+
+  (let ((double-class (clr-object->class clr-type-handle/system-double)))
+    (slot-set! double-class 'argument-marshaler clr/flonum->foreign-double)
+    (slot-set! double-class 'return-marshaler
+               (lambda (thing)
+                 (if (clr/%null? thing)
+                     #f
+                     (clr/foreign-double->flonum thing)))))
+
+  (let ((single-class (clr-object->class clr-type-handle/system-single)))
+    (slot-set! single-class 'argument-marshaler clr/flonum->foreign-single)
+    (slot-set! single-class 'return-marshaler
+               (lambda (thing)
+                 (if (clr/%null? thing)
+                     #f
+                     (clr/foreign-single->flonum thing)))))
 
   (let ((string-class (clr-object->class clr-type-handle/system-string)))
     (slot-set! string-class 'argument-marshaler clr/string->foreign)
@@ -2471,7 +2504,7 @@
               (newline)
               (display "Initializing dotnet ")
               (display full-version)
-              (display "...")
+              (display " ...")
 
               ;; Bootstrap the classes needed to represent CLR objects.
               ;; After this, we can use the marshaling routines.

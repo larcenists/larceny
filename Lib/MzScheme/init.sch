@@ -365,8 +365,10 @@
 
 ;; dotnet-ffi
 (export %clr-array?
+        %clr-double?
         %clr-enum?
         %clr-int32?
+        %clr-single?
         %clr-string?
         %clr-type?
         %foreign?
@@ -426,6 +428,7 @@
         clr-type-handle/system-byte
         clr-type-handle/system-char
         clr-type-handle/system-convert
+        clr-type-handle/system-double
         clr-type-handle/system-enum
         clr-type-handle/system-guid
         clr-type-handle/system-int16
@@ -445,6 +448,7 @@
         clr-type-handle/system-reflection-parameterinfo
         clr-type-handle/system-reflection-propertyinfo
         clr-type-handle/system-sbyte
+        clr-type-handle/system-single
         clr-type-handle/system-string
         clr-type-handle/system-type
         clr-type-handle/system-uint16
@@ -470,9 +474,9 @@
         clr/%ffi-version
         clr/%field-ref
         clr/%field-set!
+        clr/%flonum->foreign-double
+        clr/%flonum->foreign-single
         clr/%foreign->bytes
-        clr/%foreign->double
-        clr/%foreign->flonum
         clr/%foreign->int
         clr/%foreign->object
         clr/%foreign->schemeobject
@@ -481,6 +485,8 @@
         clr/%foreign-aref
         clr/%foreign-aset
         clr/%foreign-box
+        clr/%foreign-double->flonum
+        clr/%foreign-single->flonum
         clr/%get-constructor
         clr/%get-field
         clr/%get-method
@@ -508,16 +514,17 @@
         clr/%to-string
         clr/%type-as-string
         clr/bool->foreign
-        clr/double->foreign
         clr/false
+        clr/flonum->foreign-double
+        clr/flonum->foreign-single
         clr/foreign->bool
         clr/foreign->char
-        clr/foreign->double
-        clr/foreign->float
         clr/foreign->int
+        clr/foreign->schemeobject
         clr/foreign->string
         clr/foreign->symbol
-        clr/foreign->schemeobject
+        clr/foreign-double->flonum
+        clr/foreign-single->flonum
         clr/int->foreign
         clr/null
         clr/null?
@@ -653,6 +660,9 @@
         syntax-error
         unbind!
         )
+
+;; MzScheme magic
+(export #%app #%datum #%top)
 
 ;; inspectors
 (export make-inspector
