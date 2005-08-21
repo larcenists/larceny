@@ -1672,6 +1672,7 @@ public sealed class Instructions
 
   public static void store_0_0 () { Cont.cont.Slot0 = Reg.Register0; }
 
+  public static void store_0_1 () { Cont.cont.Slot1 = Reg.Register0; }
   public static void store_1_1 () { Cont.cont.Slot1 = Reg.Register1; }
   public static void store_2_1 () { Cont.cont.Slot1 = Reg.Register2; }
   public static void store_3_1 () { Cont.cont.Slot1 = Reg.Register3; }
@@ -1703,6 +1704,7 @@ public sealed class Instructions
   public static void store_29_1 () { Cont.cont.Slot1 = Reg.Register29; }
   public static void store_30_1 () { Cont.cont.Slot1 = Reg.Register30; }
   public static void store_31_1 () { Cont.cont.Slot1 = Reg.Register31; }
+  public static void store_0_2 () { Cont.cont.Slot2 = Reg.Register0; }
   public static void store_1_2 () { Cont.cont.Slot2 = Reg.Register1; }
   public static void store_2_2 () { Cont.cont.Slot2 = Reg.Register2; }
   public static void store_3_2 () { Cont.cont.Slot2 = Reg.Register3; }
@@ -1734,6 +1736,7 @@ public sealed class Instructions
   public static void store_29_2 () { Cont.cont.Slot2 = Reg.Register29; }
   public static void store_30_2 () { Cont.cont.Slot2 = Reg.Register30; }
   public static void store_31_2 () { Cont.cont.Slot2 = Reg.Register31; }
+  public static void store_0_3 () { Cont.cont.Slot3 = Reg.Register0; }
   public static void store_1_3 () { Cont.cont.Slot3 = Reg.Register1; }
   public static void store_2_3 () { Cont.cont.Slot3 = Reg.Register2; }
   public static void store_3_3 () { Cont.cont.Slot3 = Reg.Register3; }
@@ -1765,6 +1768,7 @@ public sealed class Instructions
   public static void store_29_3 () { Cont.cont.Slot3 = Reg.Register29; }
   public static void store_30_3 () { Cont.cont.Slot3 = Reg.Register30; }
   public static void store_31_3 () { Cont.cont.Slot3 = Reg.Register31; }
+  public static void store_0_4 () { Cont.cont.Slot4 = Reg.Register0; }
   public static void store_1_4 () { Cont.cont.Slot4 = Reg.Register1; }
   public static void store_2_4 () { Cont.cont.Slot4 = Reg.Register2; }
   public static void store_3_4 () { Cont.cont.Slot4 = Reg.Register3; }
@@ -1796,6 +1800,7 @@ public sealed class Instructions
   public static void store_29_4 () { Cont.cont.Slot4 = Reg.Register29; }
   public static void store_30_4 () { Cont.cont.Slot4 = Reg.Register30; }
   public static void store_31_4 () { Cont.cont.Slot4 = Reg.Register31; }
+  public static void store_0_5 () { Cont.cont.Slot5 = Reg.Register0; }
   public static void store_1_5 () { Cont.cont.Slot5 = Reg.Register1; }
   public static void store_2_5 () { Cont.cont.Slot5 = Reg.Register2; }
   public static void store_3_5 () { Cont.cont.Slot5 = Reg.Register3; }
@@ -1827,6 +1832,7 @@ public sealed class Instructions
   public static void store_29_5 () { Cont.cont.Slot5 = Reg.Register29; }
   public static void store_30_5 () { Cont.cont.Slot5 = Reg.Register30; }
   public static void store_31_5 () { Cont.cont.Slot5 = Reg.Register31; }
+  public static void store_0_6 () { Cont.cont.Slot6 = Reg.Register0; }
   public static void store_1_6 () { Cont.cont.Slot6 = Reg.Register1; }
   public static void store_2_6 () { Cont.cont.Slot6 = Reg.Register2; }
   public static void store_3_6 () { Cont.cont.Slot6 = Reg.Register3; }
@@ -1858,6 +1864,7 @@ public sealed class Instructions
   public static void store_29_6 () { Cont.cont.Slot6 = Reg.Register29; }
   public static void store_30_6 () { Cont.cont.Slot6 = Reg.Register30; }
   public static void store_31_6 () { Cont.cont.Slot6 = Reg.Register31; }
+  public static void store_0_7 () { Cont.cont.Slot7 = Reg.Register0; }
   public static void store_1_7 () { Cont.cont.Slot7 = Reg.Register1; }
   public static void store_2_7 () { Cont.cont.Slot7 = Reg.Register2; }
   public static void store_3_7 () { Cont.cont.Slot7 = Reg.Register3; }
