@@ -452,12 +452,13 @@
       (string?  t)
       (char?    t)))
 
+;; Like mapcar, but preserves dotted tail.
 (define (map-in-order f ls)
   (cond ((pair? ls) (let ((first (f (car ls))))
                       (cons first
                             (map-in-order f (cdr ls)))))
         ((null? ls) '())
-        (else (error "map-in-order: improper list"))))
+        (else (f ls))))
 
 (define (sexp-map f s)
   (cond ((pair? s) (cons (sexp-map f (car s))
