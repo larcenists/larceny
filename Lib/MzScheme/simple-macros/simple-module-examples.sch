@@ -5,7 +5,7 @@
 ;(repl '
 ; (
 
-  (module m scheme (v)
+  (module m #%kernel (v)
 
     (import syntax-case-module)
 
@@ -29,8 +29,8 @@
 
   (module records (define-record record-ref)
     (import syntax-case-module)
-
-    (display "Creating fresh table")
+    (newline)
+    (display "; Creating fresh table")
     (newline)
     (define registry '())
 

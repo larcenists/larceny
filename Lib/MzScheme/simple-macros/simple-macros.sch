@@ -109,6 +109,15 @@
       (rename symbolic-name
               symbolic-name))))
 
+(define (source-colored? form)
+  (syntax-trace 1 'source-colored? form (binding-name form) (symbolic-name form))
+  (let* ((bname (symbol->string (binding-name form)))
+         (blength (string-length bname))
+         (sname (symbol->string (symbolic-name form)))
+         (slength (string-length sname)))
+    (and (= (- blength slength) 4)
+         (string=? (substring bname slength blength) "#top"))))
+
 ;=========================================================================
 
 ;;; Expander dispatch:
@@ -136,30 +145,39 @@
                               form
                               namespace)))
                        (else (let ((operator-name (binding-name operator)))
-                               (cons operator-name
-                                     (map-in-order (lambda (subform)
-                                                     (expand subform namespace))
-                                                   (cdr form))))))
-                 (map-in-order (lambda (subform)
-                                 (expand subform namespace))
-                               form))))
+                               (cons '#%app
+                                     (cons operator-name
+                                           (map-in-order (lambda (subform)
+                                                           (expand subform namespace))
+                                                         (cdr form)))))))
+                 (let ((rename (make-primitive-renaming-procedure namespace)))
+                   (cons '#%app
+                         (map-in-order (lambda (subform)
+                                         (expand subform namespace))
+                                       form))))))
 
           ((identifier? form) (binding-name form))
-          ((const?      form) form)
+          ((const?      form) (cons '#%datum form))
           (else
            (syntax-error "Expand: Invalid syntax object: " form)))))
 
 (define *builtin-special-forms*
   '(
+    and
+    begin
     define
     define-syntax
+    if
     lambda
     let-syntax
     letrec-syntax
     module
+    or
     quote
+    set!
     set-syntax!
     with-fresh-renaming-scope
+    ;; %vt-module
     ))
 
 (define (head-expand form namespace)
@@ -176,6 +194,31 @@
                form
                namespace)))
         (else form)))
+
+(define (expand-begin re-expand form namespace)
+  `(begin ,@(map-in-order (lambda (subform)
+                       (expand subform namespace))
+                     (cdr form))))
+
+(define (expand-if re-expand form namespace)
+  `(if ,@(map-in-order (lambda (subform)
+                       (expand subform namespace))
+                     (cdr form))))
+
+(define (expand-and re-expand form namespace)
+  `(and ,@(map-in-order (lambda (subform)
+                        (expand subform namespace))
+                      (cdr form))))
+
+(define (expand-or re-expand form namespace)
+  `(or ,@(map-in-order (lambda (subform)
+                       (expand subform namespace))
+                     (cdr form))))
+
+(define (expand-set! re-expand form namespace)
+  `(set! ,@(map-in-order (lambda (subform)
+                       (expand subform namespace))
+                     (cdr form))))
 
 (define (expand-quote re-expand form namespace)
   (syntax-trace 5 'expand-quote form)
@@ -412,10 +455,12 @@
   (let ((t (normalize-definition form namespace #t))
         (r (make-primitive-renaming-procedure namespace)))
     (bind-toplevel! (cadr t))
-    `(env/extend-syntax! (expansion-environment) ',(binding-name (cadr t))
-                         (lambda (re-expand form namespace)
-                           (parameterize ((expansion-environment namespace))
-                             (re-expand (,(expand (caddr t) namespace) form)))))))
+    `(begin
+       (env/extend-syntax! (expansion-environment) ',(binding-name (cadr t))
+                           (lambda (re-expand form namespace)
+                             (parameterize ((expansion-environment namespace))
+                               (re-expand (,(expand (caddr t) namespace) form)))))
+       ',(symbolic-name (cadr t)))))
 
 (define (expand-define re-expand t namespace)
   (define (alist-delete key alist)
@@ -616,7 +661,7 @@
 
            ;; The default initial language is SCHEME.
 
-           (expand-module-syntax re-expand `(,(car exp) ,(cadr exp) ,(r 'scheme)
+           (expand-module-syntax re-expand `(,(car exp) ,(cadr exp) ,(r '#%kernel)
                                              . ,(cddr exp)) namespace))
 
           ((and (pair?       (cdr exp))
@@ -704,7 +749,8 @@
 
 
                                    ,expanded-initial
-                                   ,@(defines->sets expanded-body))))))
+                                   ,@(defines->sets expanded-body)
+                                   ',(symbolic-name name))))))
 
                  expanded-module))))
 
@@ -752,19 +798,27 @@
 
 (define (load-module name)
   (if (not (alist-ref name (env/module-environment (expansion-environment))))
-      (eval-for-expander `(,name))))
+      (eval-for-expander `(,name))
+      name))
 
 ;===========================================================================
 
 ;;; Standard environments:
 
 (define empty-env #f)
+(define larceny-env #f)
 (define scheme-env #f)
-(define scheme #f)
+(define #%kernel #f)
+(define #%larceny #f)
 (define source-rename #f)
 
 (define (initialize-kernel-namespace kernel-namespace)
-  (let ((scheme-tokens `(;; R5RS Scheme minus macros and literals:
+  (let ((default-larceny-tokens
+          (filter (lambda (name)
+                    (not (eq? (car (environment-get-cell (interaction-environment) name))
+                              (undefined))))
+                  (environment-variables (interaction-environment))))
+        (scheme-tokens `(;; R5RS Scheme minus macros and literals:
 
                          *
                          +
@@ -789,8 +843,6 @@
                          atan
                          begin
                          boolean?
-                         caar
-                         cadr
                          call-with-current-continuation
                          call-with-input-file
                          call-with-output-file
@@ -1015,10 +1067,13 @@
 
                          make-fluid-identifier
                          datum->syntax-object
+                         datum->syntax-object0
+                         expand
                          syntax-object->datum
 
                          load-module
                          module
+                         ;; %vt-module
                          import
                          scheme
                          ;; *default-initial-language*
@@ -1039,46 +1094,1264 @@
 
                          uninstall!
                          parameterize
-                         )))
+                         macroexpand
 
+                         %class-cpl
+                         %class-default-initargs
+                         %class-direct-additional-initargs
+                         %class-direct-default-initargs
+                         %class-direct-slots
+                         %class-direct-supers
+                         %class-effective-valid-initargs
+                         %class-field-initializers
+                         %class-getters-n-setters
+                         %class-initializers
+                         %class-name
+                         %class-nfields
+                         %class-slots
+                         %generic-app-cache
+                         %generic-arity
+                         %generic-combination
+                         %generic-methods
+                         %generic-name
+                         %generic-singletons-list
+                         %instance
+                         %make-entity
+                         %make-entity*
+                         %make-instance
+                         %make-instance*
+                         %method-arity
+                         %method-name
+                         %method-procedure
+                         %method-qualifier
+                         %method-specializers
+                         %nary->fixed-arity
+                         %set-class-cpl!
+                         %set-class-default-initargs!
+                         %set-class-direct-additional-initargs!
+                         %set-class-direct-default-initargs!
+                         %set-class-direct-slots!
+                         %set-class-direct-supers!
+                         %set-class-effective-valid-initargs!
+                         %set-class-field-initializers!
+                         %set-class-getters-n-setters!
+                         %set-class-initializers!
+                         %set-class-name!
+                         %set-class-nfields!
+                         %set-class-slots!
+                         %set-generic-app-cache!
+                         %set-generic-arity!
+                         %set-generic-combination!
+                         %set-generic-methods!
+                         %set-generic-name!
+                         %set-generic-singletons-list!
+                         %set-method-arity!
+                         %set-method-name!
+                         %set-method-procedure!
+                         %set-method-qualifier!
+                         %set-method-specializers!
+                         %update-class-effective-valid-initargs!
+                         *
+                         *builtin-special-forms*
+                         *current-meta-rename*
+                         *current-renamer*
+                         *default-class-class*
+                         *default-entityclass-class*
+                         *default-generic-class*
+                         *default-method-class*
+                         *default-object-class*
+                         *dotnet-noise-level*
+                         *inside-quasisyntax*
+                         *make-safely*
+                         *no-color*
+                         *record-type-type*
+                         *source-color*
+                         *source-stack*
+                         *syntax-noise-level*
+                         +
+                         -
+                         .append
+                         .car
+                         .cdr
+                         .cell-ref
+                         .cell-set!
+                         .check!
+                         .common-patch-procedure
+                         .cons
+                         .list
+                         .list->vector
+                         .make-cell
+                         .make-promise
+                         .undefined
+                         .unspecified
+                         /
+                         <
+                         <:fix:fix
+                         <=
+                         <=:fix:fix
+                         <assignment>
+                         <begin>
+                         <bignum>
+                         <boolean>
+                         <builtin>
+                         <bytevector-like>
+                         <bytevector>
+                         <call>
+                         <char>
+                         <class>
+                         <clr-arity-overload>
+                         <clr-generic>
+                         <clr-instance-field-getter>
+                         <clr-instance-field-setter>
+                         <clr-method>
+                         <clr-static-field-getter>
+                         <clr-static-field-setter>
+                         <code-object>
+                         <complex>
+                         <conditional>
+                         <constant>
+                         <end-of-file>
+                         <entity-class>
+                         <environment-auxinfo>
+                         <exact-complex>
+                         <exact-integer>
+                         <exact-rational>
+                         <exact-real>
+                         <exact>
+                         <fixnum>
+                         <flonum>
+                         <function>
+                         <generic>
+                         <hash-table>
+                         <identifier>
+                         <inexact-complex>
+                         <inexact-integer>
+                         <inexact-rational>
+                         <inexact-real>
+                         <inexact>
+                         <input-port>
+                         <integer>
+                         <interned-symbol>
+                         <interpreted-expression>
+                         <interpreted-primitive>
+                         <interpreted-procedure>
+                         <lambda>
+                         <list>
+                         <method>
+                         <namespace>
+                         <nonempty-list>
+                         <null>
+                         <number>
+                         <object>
+                         <output-port>
+                         <pair>
+                         <port>
+                         <primitive-class>
+                         <primitive-structure>
+                         <procedure-class>
+                         <procedure>
+                         <rational>
+                         <ratnum>
+                         <real>
+                         <record>
+                         <rectnum>
+                         <sequence>
+                         <string>
+                         <struct-type>
+                         <symbol>
+                         <top>
+                         <uninterned-symbol>
+                         <unknown-primitive>
+                         <variable>
+                         <vector-like>
+                         <vector>
+                         <void>
+                         =
+                         =:fix:fix
+                         >
+                         >:fix:fix
+                         >=
+                         >=:fix:fix
+                         abs
+                         acos
+                         add-exit-procedure!
+                         add-init-procedure!
+                         add-method
+                         add1
+                         adjoin
+                         alist-cons
+                         alist-ref
+                         allocate-clr-array
+                         allocate-instance
+                         allocate-instance-state-vector
+                         angle
+                         append
+                         append!
+                         append-map
+                         append-map!
+                         apply
+                         argument-marshaler
+                         argument-specializer
+                         arity-at-least-value
+                         arity-at-least?
+                         arity-plus
+                         asin
+                         assignment.lhs
+                         assignment.rhs
+                         assignment?
+                         assoc
+                         assoc-string
+                         assoc-string-ci
+                         assq
+                         assv
+                         atan
+                         begin-for-import?
+                         begin-for-syntax?
+                         begin.exprs
+                         begin?
+                         bignum?
+                         bind!
+                         bind-lexical!
+                         bind-toplevel!
+                         binding-name
+                         bogon
+                         boolean?
+                         bound-identifier=?
+                         break
+                         break-handler
+                         builtin?
+                         bytevector-copy
+                         bytevector-equal?
+                         bytevector-fill!
+                         bytevector-length
+                         bytevector-like-copy
+                         bytevector-like-equal?
+                         bytevector-like-length
+                         bytevector-like-ref
+                         bytevector-like-set!
+                         bytevector-like?
+                         bytevector-ref
+                         bytevector-set!
+                         bytevector?
+                         caaaar
+                         caaadr
+                         caaar
+                         caadar
+                         caaddr
+                         caadr
+                         caar
+                         cadaar
+                         cadadr
+                         cadar
+                         caddar
+                         cadddr
+                         caddr
+                         cadr
+                         call-with-binary-input-file
+                         call-with-binary-output-file
+                         call-with-continuation-mark
+                         call-with-current-continuation
+                         call-with-error-handler
+                         call-with-input-file
+                         call-with-output-file
+                         call-with-reset-handler
+                         call-with-values
+                         call-without-errors
+                         call-without-interrupts
+                         call.args
+                         call.proc
+                         call?
+                         car
+                         car:pair
+                         case-sensitive?
+                         cdaaar
+                         cdaadr
+                         cdaar
+                         cdadar
+                         cdaddr
+                         cdadr
+                         cdar
+                         cddaar
+                         cddadr
+                         cddar
+                         cdddar
+                         cddddr
+                         cdddr
+                         cddr
+                         cdr
+                         cdr:pair
+                         ceiling
+                         char->integer
+                         char-alphabetic?
+                         char-ci<=?
+                         char-ci<?
+                         char-ci=?
+                         char-ci>=?
+                         char-ci>?
+                         char-downcase
+                         char-lower-case?
+                         char-numeric?
+                         char-ready?
+                         char-upcase
+                         char-upper-case?
+                         char-whitespace?
+                         char<=?
+                         char<?
+                         char=?
+                         char>=?
+                         char>?
+                         char?
+                         check-initargs
+                         class-cpl
+                         class-default-initargs
+                         class-direct-additional-initargs
+                         class-direct-default-initargs
+                         class-direct-slots
+                         class-direct-supers
+                         class-effective-valid-initargs
+                         class-field-initializers
+                         class-getters-n-setters
+                         class-initializers
+                         class-name
+                         class-name-no-angles
+                         class-nfields
+                         class-of
+                         class-predicate
+                         class-slots
+                         class?
+                         close-environment
+                         close-input-port
+                         close-open-files
+                         close-output-port
+                         clr-app-domain/%current-domain
+                         clr-app-domain/%get-assemblies
+                         clr-arity-overload?
+                         clr-array->list
+                         clr-array/length
+                         clr-assembly/%get-type
+                         clr-binding-flags/instance
+                         clr-binding-flags/non-public
+                         clr-binding-flags/public
+                         clr-binding-flags/static
+                         clr-convert/%change-type
+                         clr-dynamic-cast
+                         clr-enum/%get-names
+                         clr-enum/%get-values
+                         clr-enum/get-names
+                         clr-enum/get-values
+                         clr-enum/to-object
+                         clr-field-info/%get-value
+                         clr-fieldinfo/%field-type
+                         clr-fieldinfo/is-init-only?
+                         clr-fieldinfo/is-literal?
+                         clr-fieldinfo/is-static?
+                         clr-guid/%new-guid
+                         clr-member-type/constructor
+                         clr-member-type/custom
+                         clr-member-type/event
+                         clr-member-type/field
+                         clr-member-type/method
+                         clr-member-type/nested-type
+                         clr-member-type/property
+                         clr-member-type/type-info
+                         clr-memberinfo/%declaring-type
+                         clr-memberinfo/%name
+                         clr-memberinfo/%reflected-type
+                         clr-memberinfo/member-type
+                         clr-memberinfo/name
+                         clr-methodbase/%get-parameters
+                         clr-methodbase/is-public?
+                         clr-methodbase/is-static?
+                         clr-methodinfo/%return-type
+                         clr-methodinfo/contains-generic-parameters?
+                         clr-object->clr-instance
+                         clr-object/clr-handle
+                         clr-object/potential-types
+                         clr-parameterinfo/%default-value
+                         clr-parameterinfo/%parameter-type
+                         clr-parameterinfo/is-optional?
+                         clr-propertyinfo/%get-get-method
+                         clr-propertyinfo/%get-index-parameters
+                         clr-propertyinfo/%property-type
+                         clr-propertyinfo/can-read?
+                         clr-propertyinfo/can-write?
+                         clr-type-handle/scheme-rt-ffi
+                         clr-type-handle/system-appdomain
+                         clr-type-handle/system-array
+                         clr-type-handle/system-boolean
+                         clr-type-handle/system-byte
+                         clr-type-handle/system-char
+                         clr-type-handle/system-convert
+                         clr-type-handle/system-double
+                         clr-type-handle/system-enum
+                         clr-type-handle/system-guid
+                         clr-type-handle/system-int16
+                         clr-type-handle/system-int32
+                         clr-type-handle/system-int64
+                         clr-type-handle/system-object
+                         clr-type-handle/system-reflection-assembly
+                         clr-type-handle/system-reflection-bindingflags
+                         clr-type-handle/system-reflection-constructorinfo
+                         clr-type-handle/system-reflection-emit-constructorbuilder
+                         clr-type-handle/system-reflection-emit-methodbuilder
+                         clr-type-handle/system-reflection-fieldinfo
+                         clr-type-handle/system-reflection-memberinfo
+                         clr-type-handle/system-reflection-membertypes
+                         clr-type-handle/system-reflection-methodbase
+                         clr-type-handle/system-reflection-methodinfo
+                         clr-type-handle/system-reflection-parameterinfo
+                         clr-type-handle/system-reflection-propertyinfo
+                         clr-type-handle/system-sbyte
+                         clr-type-handle/system-single
+                         clr-type-handle/system-string
+                         clr-type-handle/system-type
+                         clr-type-handle/system-uint16
+                         clr-type-handle/system-uint32
+                         clr-type-handle/system-uint64
+                         clr-type-handle/system-void
+                         clr-type/%assembly
+                         clr-type/%assembly-qualified-name
+                         clr-type/%attributes
+                         clr-type/%base-type
+                         clr-type/%full-name
+                         clr-type/%get-custom-attributes
+                         clr-type/%get-element-type
+                         clr-type/%get-interfaces
+                         clr-type/%get-members
+                         clr-type/contains-generic-parameters?
+                         clr-type/get-custom-attributes
+                         clr-type/is-enum?
+                         clr-type/is-generic?
+                         clr-type/is-special-name?
+                         clr/%foreign-aset
+                         clr/%type-as-string
+                         clr/bool->foreign
+                         clr/default-marshal-in
+                         clr/default-marshal-out
+                         clr/false
+                         clr/find-class
+                         clr/find-constructor
+                         clr/find-generic
+                         clr/find-instance-field-getter
+                         clr/find-instance-field-setter
+                         clr/find-static-field-getter
+                         clr/find-static-field-setter
+                         clr/find-static-method
+                         clr/flonum->foreign-double
+                         clr/flonum->foreign-single
+                         clr/foreign->bool
+                         clr/foreign->char
+                         clr/foreign->int
+                         clr/foreign->schemeobject
+                         clr/foreign->string
+                         clr/foreign->symbol
+                         clr/foreign-double->flonum
+                         clr/foreign-single->flonum
+                         clr/int->foreign
+                         clr/null
+                         clr/null?
+                         clr/parse-enum
+                         clr/specific-method
+                         clr/string->foreign
+                         clr/studlyname
+                         clr/symbol->foreign
+                         clr/true
+                         clr/type-not-found
+                         code-object?
+                         collect
+                         color
+                         command-line-arguments
+                         complex?
+                         compnum?
+                         compress-envs
+                         compute-apply-generic
+                         compute-apply-method
+                         compute-apply-methods
+                         compute-cpl
+                         compute-default-initargs
+                         compute-getter-and-setter
+                         compute-method-more-specific-by-class?
+                         compute-method-more-specific?
+                         compute-methods
+                         compute-methods-by-class
+                         compute-slots
+                         conditional?
+                         cons
+                         console-input-port
+                         console-input-port-factory
+                         console-output-port
+                         console-output-port-factory
+                         const?
+                         constant.value
+                         constant?
+                         constantly
+                         continuation-mark-set->list
+                         continuation-marks
+                         continuation-marks/structure
+                         cos
+                         current-continuation-marks
+                         current-continuation-structure
+                         current-directory
+                         current-input-port
+                         current-inspector
+                         current-module-name
+                         current-output-port
+                         datum->syntax-object
+                         datum->syntax-object0
+                         decode-error
+                         delete-file
+                         denominator
+                         disable-interrupts
+                         display
+                         display-memstats
+                         doc.arity
+                         doc.arity-set!
+                         doc.code
+                         doc.code-set!
+                         doc.file
+                         doc.file-set!
+                         doc.filepos
+                         doc.filepos-set!
+                         doc.formals
+                         doc.formals-set!
+                         doc.name
+                         doc.name-set!
+                         dotnet-message
+                         dynamic-wind
+                         embedded-syntax-lookup
+                         emit-lexical-syntax
+                         empty-env
+                         enable-dotnet!
+                         enable-interrupts
+                         enum/enumerates
+                         enum/has-flags-attribute?
+                         enum/value
+                         env/embedded-syntax-environment
+                         env/extend-reflected!
+                         env/extend-syntax!
+                         env/lookup-syntax
+                         env/module-environment
+                         env/reflect!
+                         env/reflected-environments
+                         env/reify
+                         env/syntax-environment
+                         environment-auxiliary-info
+                         environment-copy
+                         environment-get
+                         environment-get-cell
+                         environment-get-macro
+                         environment-link-variables!
+                         environment-macro?
+                         environment-macros
+                         environment-name
+                         environment-printer
+                         environment-set!
+                         environment-set-auxiliary-info!
+                         environment-set-macro!
+                         environment-syntax-environment
+                         environment-variable?
+                         environment-variables
+                         environment?
+                         eof-object
+                         eof-object?
+                         eq?
+                         equal-hash
+                         equal?
+                         eqv?
+                         error
+                         error-handler
+                         eval
+                         eval-for-expander
+                         evaluator
+                         even?
+                         every?
+                         exact->inexact
+                         exact?
+                         exit
+                         exp
+                         expand
+                         expand-and
+                         expand-begin
+                         expand-define
+                         expand-define-syntax
+                         expand-embedded-syntax
+                         expand-fresh-scope
+                         expand-if
+                         expand-import
+                         expand-lambda
+                         expand-let-syntax
+                         expand-letrec-syntax
+                         expand-module-syntax
+                         expand-or
+                         expand-quasiquote
+                         expand-quasisyntax
+                         expand-quote
+                         expand-set!
+                         expand-set-syntax
+                         expand-syntax
+                         expand-syntax0
+                         expand-toplevel
+                         expansion-environment
+                         expt
+                         extend-generic
+                         false
+                         file-exists?
+                         file-modification-time
+                         filter
+                         find-clr-type
+                         find-if
+                         find-if-not
+                         fixnum?
+                         flonum?
+                         floor
+                         flush-output-port
+                         foldl
+                         foldr
+                         for-each
+                         force
+                         formals?
+                         format
+                         free-identifier=?
+                         gc-counter
+                         gcctl
+                         gcd
+                         generate-color
+                         generic-+-combination
+                         generic-and-combination
+                         generic-append!-combination
+                         generic-append-combination
+                         generic-arity
+                         generic-begin-combination
+                         generic-combination
+                         generic-combination-cons
+                         generic-combination-control
+                         generic-getter
+                         generic-list-combination
+                         generic-max-combination
+                         generic-methods
+                         generic-min-combination
+                         generic-name
+                         generic-or-combination
+                         generic-setter
+                         generic-updater
+                         generic?
+                         gensym
+                         get-arity-vector
+                         get-output-string
+                         get-serial-number
+                         getarg
+                         getarg*
+                         getargs
+                         getenv
+                         getprop
+                         getter-method
+                         hash-table-count
+                         hash-table-for-each
+                         hash-table-get
+                         hash-table-map
+                         hash-table-put!
+                         hash-table-remove!
+                         hash-table?
+                         hashtable-clear!
+                         hashtable-contains?
+                         hashtable-copy
+                         hashtable-fetch
+                         hashtable-for-each
+                         hashtable-get
+                         hashtable-map
+                         hashtable-printer
+                         hashtable-put!
+                         hashtable-remove!
+                         hashtable-size
+                         hashtable?
+                         head-expand
+                         herald
+                         identifier?
+                         identity
+                         if.else
+                         if.test
+                         if.then
+                         imag-part
+                         import!
+                         improper-length
+                         inexact->exact
+                         inexact?
+                         initialize-generic-accessors
+                         initialize-instance
+                         initialize-kernel-namespace
+                         input-port?
+                         inspector?
+                         install!
+                         install-environments!
+                         install-simple-macros!
+                         instance-of?
+                         instance/class
+                         instance/procedure
+                         instance/ref
+                         instance/replace!
+                         instance/serial-number
+                         instance/set!
+                         instance/update!
+                         instance?
+                         instances-of?
+                         integer->char
+                         integer?
+                         interaction-environment
+                         interpret
+                         interpret-code-object
+                         interpreted-expression-source
+                         interpreted-expression?
+                         interpreted-primitive?
+                         interpreted-procedure?
+                         javadot-generic-suffix
+                         javadot-symbol->symbol!
+                         javadot-symbol?
+                         javadot-type-suffix
+                         keyboard-interrupt-handler
+                         lambda.args
+                         lambda.body
+                         lambda.decls
+                         lambda.defs
+                         lambda.doc
+                         lambda.f
+                         lambda.g
+                         lambda.r
+                         lambda?
+                         larceny-env
+                         last
+                         last-pair
+                         lcm
+                         length
+                         length<=?
+                         length<?
+                         length=?
+                         length>=?
+                         length>?
+                         lexically-bound?
+                         list
+                         list*
+                         list->string
+                         list->vector
+                         list-clr-classes
+                         list-copy
+                         list-head
+                         list-ref
+                         list-set!
+                         list-tail
+                         list?
+                         literal-identifier=?
+                         load
+                         load-evaluator
+                         load-module
+                         load-print
+                         load-verbose
+                         loadit
+                         log
+                         logand
+                         logior
+                         lognot
+                         logxor
+                         longer?
+                         lowlevel-write
+                         lsh
+                         macro-expand
+                         macro-expander
+                         macroexpand
+                         magnitude
+                         make
+                         make-arity-at-least
+                         make-assignment
+                         make-begin
+                         make-bytevector
+                         make-call
+                         make-class
+                         make-conditional
+                         make-constant
+                         make-doc
+                         make-environment
+                         make-fluid-identifier
+                         make-generic
+                         make-generic-combination
+                         make-hash-table
+                         make-hashtable
+                         make-inspector
+                         make-lambda
+                         make-meta-renaming-procedure
+                         make-method
+                         make-module
+                         make-namespace
+                         make-operator-predicate
+                         make-parameter
+                         make-polar
+                         make-primitive-renaming-procedure
+                         make-procedure
+                         make-readable
+                         make-record-type
+                         make-rectangular
+                         make-renaming-procedure
+                         make-string
+                         make-struct-field-accessor
+                         make-struct-field-mutator
+                         make-struct-type
+                         make-struct-type-property
+                         make-structure
+                         make-trampoline
+                         make-variable
+                         make-vector
+                         map
+                         map-clr-array
+                         map-in-order
+                         max
+                         member
+                         memf
+                         memf-not
+                         memq
+                         memstats
+                         memstats-acc-assimilate-gc
+                         memstats-acc-assimilate-promotion
+                         memstats-acc-decrement-after-gc
+                         memstats-acc-dof-remset-scan
+                         memstats-acc-free-unused
+                         memstats-acc-gc
+                         memstats-acc-gc-barrier-hits
+                         memstats-acc-los-sweep-gc
+                         memstats-acc-los-sweep-promotion
+                         memstats-acc-msgc-mark
+                         memstats-acc-pointers-forwarded
+                         memstats-acc-promotion
+                         memstats-acc-remset-large-object-words-scanned
+                         memstats-acc-remset-large-objects-scanned
+                         memstats-acc-remset-scan-gc
+                         memstats-acc-remset-scan-promotion
+                         memstats-acc-reset-after-gc
+                         memstats-acc-root-scan-gc
+                         memstats-acc-root-scan-promotion
+                         memstats-acc-sweep-dof-sets
+                         memstats-acc-sweep-los
+                         memstats-acc-sweep-remset
+                         memstats-acc-sweep-shadow
+                         memstats-acc-tospace-scan-gc
+                         memstats-acc-tospace-scan-promotion
+                         memstats-acc-words-copied-by-gc
+                         memstats-acc-words-copied-by-promotion
+                         memstats-acc-words-forwarded
+                         memstats-allocated
+                         memstats-dofgc-repeats
+                         memstats-dofgc-resets
+                         memstats-elapsed-time
+                         memstats-frames-flushed
+                         memstats-frames-restored
+                         memstats-fullgc-collections
+                         memstats-fullgc-copied
+                         memstats-fullgc-cpu-time
+                         memstats-fullgc-elapsed-time
+                         memstats-fullgc-marked
+                         memstats-fullgc-moved
+                         memstats-fullgc-traced
+                         memstats-gc-accounting
+                         memstats-gc-copied
+                         memstats-gc-promotion-cpu-time
+                         memstats-gc-promotion-elapsed-time
+                         memstats-gc-reclaimed
+                         memstats-gc-total-cpu-time
+                         memstats-gc-total-elapsed-time
+                         memstats-gen-allocated-now
+                         memstats-gen-collections
+                         memstats-gen-live-now
+                         memstats-gen-major-id
+                         memstats-gen-minor-id
+                         memstats-gen-promotion-cpu-time
+                         memstats-gen-promotion-elapsed-time
+                         memstats-gen-promotions
+                         memstats-gen-target-size-now
+                         memstats-gen-total-cpu-time
+                         memstats-gen-total-elapsed-time
+                         memstats-generations
+                         memstats-heap-allocated-max
+                         memstats-heap-allocated-now
+                         memstats-heap-fragmentation-max
+                         memstats-heap-fragmentation-now
+                         memstats-heap-live-now
+                         memstats-major-faults
+                         memstats-mem-allocated-max
+                         memstats-mem-allocated-now
+                         memstats-minor-faults
+                         memstats-remset-allocated-max
+                         memstats-remset-allocated-now
+                         memstats-remset-live-now
+                         memstats-remset-major-id
+                         memstats-remset-minor-id
+                         memstats-remset-object-words-scanned
+                         memstats-remset-recorded
+                         memstats-remset-removed
+                         memstats-remset-scanned
+                         memstats-remset-times-cleared
+                         memstats-remset-times-compacted
+                         memstats-remset-times-scanned
+                         memstats-remset-transactions
+                         memstats-remset-used-now
+                         memstats-remsets
+                         memstats-remsets-allocated-max
+                         memstats-remsets-allocated-now
+                         memstats-rts-allocated-max
+                         memstats-rts-allocated-now
+                         memstats-stacks-created
+                         memstats-swb-lhs-young-or-remembered
+                         memstats-swb-not-intergenerational
+                         memstats-swb-rhs-immediate
+                         memstats-swb-total-assignments
+                         memstats-swb-transactions
+                         memstats-swb-vector-assignments
+                         memstats-system-time
+                         memstats-user-time
+                         memstats-words-flushed
+                         memv
+                         method-arity
+                         method-name
+                         method-procedure
+                         method-qualifier
+                         method-specializers
+                         method:compute-apply-method
+                         method?
+                         min
+                         module/name
+                         module/runtime-exports
+                         module/syntax-exports
+                         modulo
+                         most-negative-fixnum
+                         most-positive-fixnum
+                         named-object-printer-method
+                         negative?
+                         newline
+                         no-applicable-method
+                         no-next-method
+                         normalize-definition
+                         not
+                         null-environment
+                         null?
+                         nullable
+                         nullable-value
+                         nullable?
+                         number->string
+                         number?
+                         numerator
+                         object-hash
+                         object?
+                         oblist
+                         oblist-set!
+                         odd?
+                         open-binary-input-file
+                         open-binary-output-file
+                         open-input-file
+                         open-input-string
+                         open-output-file
+                         open-output-string
+                         original-macro-expander
+                         output-port?
+                         pair?
+                         peek-char
+                         port-name
+                         port-position
+                         port?
+                         position-of
+                         positive?
+                         print-length
+                         print-level
+                         print-object
+                         print-unreadable-object
+                         procedure-arity
+                         procedure-copy
+                         procedure-documentation
+                         procedure-documentation-string
+                         procedure-environment
+                         procedure-expression
+                         procedure-hasher
+                         procedure-length
+                         procedure-name
+                         procedure-printer
+                         procedure-ref
+                         procedure-set!
+                         procedure-source-file
+                         procedure-source-position
+                         procedure?
+                         putprop
+                         quasi
+                         quit
+                         quit-handler
+                         quotient
+                         random
+                         rational?
+                         rationalize
+                         ratnum?
+                         read
+                         read-char
+                         read-square-bracket-as-paren
+                         readtable-ref
+                         readtable-set!
+                         real-part
+                         real?
+                         rec-allocate-instance
+                         rec-initialize
+                         recognize-javadot-symbols?
+                         recognize-keywords?
+                         record-accessor
+                         record-constructor
+                         record-indexer
+                         record-mutator
+                         record-predicate
+                         record-type->class
+                         record-type-descriptor
+                         record-type-descriptor?
+                         record-type-extends?
+                         record-type-field-names
+                         record-type-name
+                         record-type-parent
+                         record-updater
+                         record?
+                         rectnum?
+                         reflect-syntax
+                         remainder
+                         remove
+                         remove!
+                         remprop
+                         remq
+                         remq!
+                         remv
+                         remv!
+                         rename-file
+                         repl
+                         repl-evaluator
+                         repl-level
+                         repl-printer
+                         repl-prompt
+                         require-initarg
+                         reset
+                         reset-handler
+                         reset-output-string
+                         return-marshaler
+                         revappend
+                         revappend!
+                         reverse
+                         reverse!
+                         round
+                         rsha
+                         rshl
+                         run-benchmark
+                         run-with-stats
+                         same-method-signature?
+                         scan-body
+                         scan-let
+                         scheme-env
+                         scheme-report-environment
+                         set-car!
+                         set-cdr!
+                         set-env/embedded-syntax-environment!
+                         set-env/module-environment!
+                         set-env/reflected-environments!
+                         set-env/syntax-environment!
+                         set-instance-class-to-self!
+                         set-last!
+                         set-syntax!
+                         setter-method
+                         shorter?
+                         sin
+                         singleton
+                         singleton-value
+                         singleton?
+                         slot-bound?
+                         slot-exists?
+                         slot-makunbound
+                         slot-missing
+                         slot-ref
+                         slot-set!
+                         slot-unbound
+                         slot-update!
+                         slot-value
+                         slot-value-if-bound
+                         some?
+                         sort
+                         sort!
+                         source-colored?
+                         source-rename
+                         sqrt
+                         sro
+                         standard-timeslice
+                         startup-stats
+                         stats-dump-off
+                         stats-dump-on
+                         stats-dump-stdout
+                         string
+                         string->list
+                         string->number
+                         string->symbol
+                         string-append
+                         string-ci<=?
+                         string-ci<?
+                         string-ci=?
+                         string-ci>=?
+                         string-ci>?
+                         string-copy
+                         string-downcase
+                         string-downcase!
+                         string-fill!
+                         string-hash
+                         string-length
+                         string-ref
+                         string-set!
+                         string-upcase
+                         string-upcase!
+                         string<=?
+                         string<?
+                         string=?
+                         string>=?
+                         string>?
+                         string?
+                         struct-accessor-procedure?
+                         struct-constructor-procedure?
+                         struct-mutator-procedure?
+                         struct-predicate-procedure?
+                         struct-type->class
+                         struct-type-info
+                         struct-type-property?
+                         struct-type?
+                         struct?
+                         structure-comparator
+                         structure-printer
+                         structure?
+                         sub1
+                         subclass?
+                         subclasses-of?
+                         substring
+                         substring-fill!
+                         symbol->javadot-symbol!
+                         symbol->string
+                         symbol-hash
+                         symbol?
+                         symbolic-name
+                         syntax-case-macro
+                         syntax-debug
+                         syntax-error
+                         syntax-object->datum
+                         syntax-trace
+                         syscall
+                         system
+                         system-features
+                         system-function
+                         system.object
+                         system.runtimetype
+                         system.type
+                         tan
+                         timer-interrupt-handler
+                         truncate
+                         typetag
+                         typetag-set!
+                         unbind!
+                         uncompress-envs
+                         undefined
+                         uninitialized-entity-procedure
+                         uninstall!
+                         uninterned-symbol?
+                         union
+                         unspecified
+                         updater-method
+                         values
+                         values-list
+                         variable.name
+                         variable?
+                         vector
+                         vector->list
+                         vector-copy
+                         vector-fill!
+                         vector-length
+                         vector-length:vec
+                         vector-like-length
+                         vector-like-ref
+                         vector-like-set!
+                         vector-like?
+                         vector-ref
+                         vector-ref:trusted
+                         vector-set!
+                         vector-set!:trusted
+                         vector?
+                         void
+                         void?
+                         weird-printer
+                         with-input-from-binary-file
+                         with-input-from-file
+                         with-input-from-port
+                         with-output-to-binary-file
+                         with-output-to-file
+                         with-output-to-port
+                         wrap-clr-object
+                         wrap-lexical-syntax
+                         write
+                         write-bytevector-like
+                         write-char
+                         write-string
+                         zero?
+
+                         )))
 
     (set-env/reflected-environments! kernel-namespace '())
     (set-env/module-environment! kernel-namespace '())
     (set-env/syntax-environment! kernel-namespace '())
     (set-env/embedded-syntax-environment! kernel-namespace '())
 
+    (env/extend-syntax! kernel-namespace 'and                       expand-and)
+    (env/extend-syntax! kernel-namespace 'begin                     expand-begin)
     (env/extend-syntax! kernel-namespace 'define                    expand-define)
     (env/extend-syntax! kernel-namespace 'define-syntax             expand-define-syntax)
+    (env/extend-syntax! kernel-namespace 'if                        expand-if)
     (env/extend-syntax! kernel-namespace 'import                    expand-import)
     (env/extend-syntax! kernel-namespace 'lambda                    expand-lambda)
     (env/extend-syntax! kernel-namespace 'let-syntax                expand-let-syntax)
     (env/extend-syntax! kernel-namespace 'letrec-syntax             expand-letrec-syntax)
     (env/extend-syntax! kernel-namespace 'module                    expand-module-syntax)
+    ;; Scheme modules will expand to %vt-modules
+    ;; (env/extend-syntax! kernel-namespace '%vt-module                expand-module-syntax)
+    (env/extend-syntax! kernel-namespace 'or                        expand-or)
     (env/extend-syntax! kernel-namespace 'quasiquote                expand-quasiquote)
     (env/extend-syntax! kernel-namespace 'quasisyntax               expand-quasisyntax)
     (env/extend-syntax! kernel-namespace 'quote                     expand-quote)
+    (env/extend-syntax! kernel-namespace 'set!                      expand-set!)
     (env/extend-syntax! kernel-namespace 'set-syntax!               expand-set-syntax)
     (env/extend-syntax! kernel-namespace 'syntax                    expand-syntax)
     (env/extend-syntax! kernel-namespace 'syntax0                   expand-syntax0)
     (env/extend-syntax! kernel-namespace 'embedded-syntax           expand-embedded-syntax)
     (env/extend-syntax! kernel-namespace 'with-fresh-renaming-scope expand-fresh-scope)
 
-    (set! empty-env (env/reflect! kernel-namespace '()))
+    (set! empty-env   (env/reflect! kernel-namespace '()))
+    (set! larceny-env (env/reflect! kernel-namespace
+                                    (map (lambda (name) (cons name name))
+                                         default-larceny-tokens)))
+
     (set! scheme-env  (env/reflect! kernel-namespace
                                     (map (lambda (name) (cons name name))
                                          scheme-tokens)))
-    (let ((scheme-entry (make-module 'scheme
+
+    (let ((larceny-entry (make-module '#%larceny
+                                      '()
+                                      (map (lambda (token) (cons token token))
+                                           default-larceny-tokens)))
+          (scheme-entry (make-module '#%kernel
                                      '()
                                      (map (lambda (token) (cons token token))
                                           scheme-tokens))))
       (set-env/module-environment!
        kernel-namespace
-       (alist-cons 'scheme scheme-entry '()))
+       (alist-cons '#%larceny larceny-entry
+                   (alist-cons '#%kernel scheme-entry '())))
 
-      (set! scheme
+      (set! #%kernel
             (lambda ()
               (set-env/module-environment! (expansion-environment)
-                                           (alist-cons 'scheme scheme-entry
+                                           (alist-cons '#%kernel scheme-entry
+                                                       (env/module-environment (expansion-environment))))))
+
+      (set! #%larceny
+            (lambda ()
+              (set-env/module-environment! (expansion-environment)
+                                           (alist-cons '#%larceny larceny-entry
                                                        (env/module-environment (expansion-environment))))))
       (set! source-rename
             (make-renaming-procedure kernel-namespace *source-color* scheme-env #f))
@@ -1200,6 +2473,16 @@
                      (end (caddr exp))
                      (body (cdddr exp))
                      (loop (syntax loop)))
+
+                 (define (do-spec? s)
+                   (and (pair? s)
+                        (identifier? (car s))
+                        (pair? (cdr s))
+                        (let ((rest (cddr s)))
+                          (or (null? rest)
+                              (and (pair? rest)
+                                   (null? (cdr rest)))))))
+
                  (or (and (list? specs)
                           (every? do-spec? specs)
                           (list? end))
@@ -1216,16 +2499,6 @@
                                                         (caddr spec)))
                                                   specs)))))))
                     (,loop ,@(map cadr specs)))))))
-
-
-           (define (do-spec? s)
-             (and (pair? s)
-                  (identifier? (car s))
-                  (pair? (cdr s))
-                  (let ((rest (cddr s)))
-                    (or (null? rest)
-                        (and (pair? rest)
-                             (null? (cdr rest)))))))
 
            ))))))
 
@@ -1258,9 +2531,21 @@
         (make-renaming-procedure toplevel-namespace *source-color*
                                  (close-environment toplevel-namespace (source-rename 'dummy))
                                  #f))
-  (original-macro-expander
-   (expand (datum->syntax-object0 source-rename exp) toplevel-namespace)
-   toplevel-namespace))
+  (let ((partial-expansion    (expand (datum->syntax-object0 source-rename exp) toplevel-namespace)))
+    (syntax-trace 0 'expand-toplevel partial-expansion)
+    (original-macro-expander
+     partial-expansion
+     toplevel-namespace)))
+
+(define (macroexpand form)
+  (syntax-trace 0 'macroexpand form)
+  (*source-stack* '())
+  (set! source-rename
+        (make-renaming-procedure (interaction-environment) *source-color*
+                                 (close-environment (interaction-environment) (source-rename 'dummy))
+                                 #f))
+  (expand (datum->syntax-object0 source-rename form) (interaction-environment)))
+
 
 ;===================================================================================
 
@@ -1269,6 +2554,3 @@
 ;; Here we need to redefine all binding forms of the host Scheme.
 ;; We also need to redefine all forms that treat parts of their body
 ;; as literals.
-
-
-

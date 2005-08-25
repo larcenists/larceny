@@ -62,11 +62,11 @@
     ;; refer to the original SYNTAX and QUASISYNTAX in generated
     ;; code.
 
-    (import scheme (lambda (sym)
-                     (case sym
-                       ((syntax)      'scheme:syntax)
-                       ((quasisyntax) 'scheme:quasisyntax)
-                       (else #f))))
+    (import #%kernel (lambda (sym)
+                       (case sym
+                         ((syntax)      'scheme:syntax)
+                         ((quasisyntax) 'scheme:quasisyntax)
+                         (else #f))))
 
 
     (define-syntax (syntax x)
@@ -221,6 +221,7 @@
                        (syntax-error "Syntax-case: Template dimension error (too few ...'s?):"
                                      (syntax-debug template)))
                    (quasisyntax (scheme:syntax ,template)))))
+
             ((segment-template? template)
              (let* ((depth (segment-depth template))
                     (seg-dim (+ dim depth))
