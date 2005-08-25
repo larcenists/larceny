@@ -508,12 +508,16 @@
     clr-member-type/type-info
     clr-member-type/custom
     clr-member-type/nested-type)
-   #t #t)
+   #t  ; static
+   #t  ; public
+   )
 
   (clr-class/for-selected-members
    process-private-member runtime-type
    (list
-    clr-member-type/constructor
+    ;; The type .cctor is (the only?) private static constructor.
+    ;; You can't call it anyway, and it takes time to set it up.
+    ;; clr-member-type/constructor
     clr-member-type/event
     clr-member-type/field
     clr-member-type/method
@@ -521,20 +525,28 @@
     clr-member-type/type-info
     clr-member-type/custom
     clr-member-type/nested-type)
-   #t #f)
+   #t ; static
+   #f ; private
+   )
 
-  ;; Have to do constructors, which are instance methods?!
+  ;; Have to do constructors, which are tagged as instance methods!
   (clr-class/for-selected-members
    (lambda (constructor member-type)
      (install-constructor constructor #t))
    runtime-type
-   (list clr-member-type/constructor) #f #t)
+   (list clr-member-type/constructor)
+   #f ; nonstatic
+   #t ; public
+   )
 
   (clr-class/for-selected-members
    (lambda (constructor member-type)
      (install-constructor constructor #f))
    runtime-type
-   (list clr-member-type/constructor) #f #t))
+   (list clr-member-type/constructor)
+   #f ; nonstatic
+   #t ; private
+   ))
 
 (define (clr-class/ensure-instantiable! runtime-type)
   (or (clr-class/can-instantiate? runtime-type)
