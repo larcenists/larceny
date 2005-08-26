@@ -1447,6 +1447,7 @@ public sealed class Instructions
   public static void load_30_0 () { Reg.Register30 = Cont.cont.Slot0; }
   public static void load_31_0 () { Reg.Register31 = Cont.cont.Slot0; }
 
+  public static void load_0_1 () { Reg.Register0 = (Procedure) Cont.cont.Slot1; }
   public static void load_1_1 () { Reg.Register1 = Cont.cont.Slot1; }
   public static void load_2_1 () { Reg.Register2 = Cont.cont.Slot1; }
   public static void load_3_1 () { Reg.Register3 = Cont.cont.Slot1; }
@@ -1478,6 +1479,7 @@ public sealed class Instructions
   public static void load_29_1 () { Reg.Register29 = Cont.cont.Slot1; }
   public static void load_30_1 () { Reg.Register30 = Cont.cont.Slot1; }
   public static void load_31_1 () { Reg.Register31 = Cont.cont.Slot1; }
+  public static void load_0_2 () { Reg.Register0 = (Procedure) Cont.cont.Slot2; }
   public static void load_1_2 () { Reg.Register1 = Cont.cont.Slot2; }
   public static void load_2_2 () { Reg.Register2 = Cont.cont.Slot2; }
   public static void load_3_2 () { Reg.Register3 = Cont.cont.Slot2; }
@@ -1509,6 +1511,7 @@ public sealed class Instructions
   public static void load_29_2 () { Reg.Register29 = Cont.cont.Slot2; }
   public static void load_30_2 () { Reg.Register30 = Cont.cont.Slot2; }
   public static void load_31_2 () { Reg.Register31 = Cont.cont.Slot2; }
+  public static void load_0_3 () { Reg.Register0 = (Procedure) Cont.cont.Slot3; }
   public static void load_1_3 () { Reg.Register1 = Cont.cont.Slot3; }
   public static void load_2_3 () { Reg.Register2 = Cont.cont.Slot3; }
   public static void load_3_3 () { Reg.Register3 = Cont.cont.Slot3; }
@@ -1540,6 +1543,7 @@ public sealed class Instructions
   public static void load_29_3 () { Reg.Register29 = Cont.cont.Slot3; }
   public static void load_30_3 () { Reg.Register30 = Cont.cont.Slot3; }
   public static void load_31_3 () { Reg.Register31 = Cont.cont.Slot3; }
+  public static void load_0_4 () { Reg.Register0 = (Procedure) Cont.cont.Slot4; }
   public static void load_1_4 () { Reg.Register1 = Cont.cont.Slot4; }
   public static void load_2_4 () { Reg.Register2 = Cont.cont.Slot4; }
   public static void load_3_4 () { Reg.Register3 = Cont.cont.Slot4; }
@@ -1571,6 +1575,7 @@ public sealed class Instructions
   public static void load_29_4 () { Reg.Register29 = Cont.cont.Slot4; }
   public static void load_30_4 () { Reg.Register30 = Cont.cont.Slot4; }
   public static void load_31_4 () { Reg.Register31 = Cont.cont.Slot4; }
+  public static void load_0_5 () { Reg.Register0 = (Procedure) Cont.cont.Slot5; }
   public static void load_1_5 () { Reg.Register1 = Cont.cont.Slot5; }
   public static void load_2_5 () { Reg.Register2 = Cont.cont.Slot5; }
   public static void load_3_5 () { Reg.Register3 = Cont.cont.Slot5; }
@@ -1602,6 +1607,7 @@ public sealed class Instructions
   public static void load_29_5 () { Reg.Register29 = Cont.cont.Slot5; }
   public static void load_30_5 () { Reg.Register30 = Cont.cont.Slot5; }
   public static void load_31_5 () { Reg.Register31 = Cont.cont.Slot5; }
+  public static void load_0_6 () { Reg.Register0 = (Procedure) Cont.cont.Slot6; }
   public static void load_1_6 () { Reg.Register1 = Cont.cont.Slot6; }
   public static void load_2_6 () { Reg.Register2 = Cont.cont.Slot6; }
   public static void load_3_6 () { Reg.Register3 = Cont.cont.Slot6; }
@@ -1633,6 +1639,7 @@ public sealed class Instructions
   public static void load_29_6 () { Reg.Register29 = Cont.cont.Slot6; }
   public static void load_30_6 () { Reg.Register30 = Cont.cont.Slot6; }
   public static void load_31_6 () { Reg.Register31 = Cont.cont.Slot6; }
+  public static void load_0_7 () { Reg.Register0 = (Procedure) Cont.cont.Slot7; }
   public static void load_1_7 () { Reg.Register1 = Cont.cont.Slot7; }
   public static void load_2_7 () { Reg.Register2 = Cont.cont.Slot7; }
   public static void load_3_7 () { Reg.Register3 = Cont.cont.Slot7; }
