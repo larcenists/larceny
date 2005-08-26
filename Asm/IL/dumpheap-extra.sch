@@ -193,24 +193,31 @@
                   (dump-fasl/manifest base manifest))
                 manifests))))
 
+;; dump-fasl/manifest : String String -> Void
 (define (dump-fasl/manifest base manifest)
   (with-input-from-file manifest
     (lambda ()
       (read/for-each 
        (lambda (entry)
-         (twobit-format (current-output-port)
-                        "((.common-patch-procedure ~s ~s ~s ~s~%  "
-                        base
-                        (list-ref entry 1)  ;; il namespace
-                        (list-ref entry 2)  ;; 0
-                        (+ 1 (list-ref entry 3))) ;; segment #
-         (dump-fasl-segment-to-port (cons #f (list-ref entry 4)) 
-                                    (current-output-port)
-                                    'no-code)
-         (twobit-format (current-output-port)
-                        "))~%"))))))
+	 (dump-fasl/pmanifest base entry))))))
 
-;; extract-manifest : segment string -> (list string string num num constant-vector)
+;; dump-fasl/pmanifest : String PseudoManifest -> Void
+(define (dump-fasl/pmanifest base pmanifest)
+  (twobit-format (current-output-port)
+		 "((.common-patch-procedure ~s ~s ~s ~s~%  "
+		 base
+		 (list-ref pmanifest 1)  ;; il namespace
+		 (list-ref pmanifest 2)  ;; 0
+		 (+ 1 (list-ref pmanifest 3))) ;; segment #
+  (dump-fasl-segment-to-port (cons #f (list-ref pmanifest 4)) 
+			     (current-output-port)
+			     'no-code)
+  (twobit-format (current-output-port)
+		 "))~%"))
+
+;; A PseudoManifest is a (list string string num num constant-vector)
+
+;; extract-manifest : segment string -> PseudoManifest
 (define (extract-manifest segment filename)
   (list (rewrite-file-type filename ".lop" "")
 	(cvclass-il-namespace (segment.code segment))
