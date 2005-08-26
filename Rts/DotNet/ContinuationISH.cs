@@ -512,7 +512,7 @@ public class ContinuationFrame
     if (this.lastslot != lastslot) {
 	Exn.internalError ("pop: wrong number of slots");
 	}
-    if (this.s0 != reg0) {
+    if (this.s0.entrypoint != reg0.entrypoint) {
 	Exn.internalError ("pop: can't pop someone else's frame!");
 	}
   }
@@ -526,7 +526,7 @@ public class ContinuationFrame
 			   + ", got "
 			   + this.lastslot.ToString());
 
-    if (this.s0 != Reg.Register0)
+    if (this.s0.entrypoint != Reg.Register0.entrypoint)
 	Exn.internalError ("pop: can't pop someone else's frame!");
 
     Cont.pop();
