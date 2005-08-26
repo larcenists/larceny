@@ -109,4 +109,24 @@
 	(string-append n "\\")
 	n)))
 
+;; split-path-string : String -> (values String String)
+;; Splits an input path into the container portion and the immediate target.
+;; (The container is either a path itself or "")
+(define (split-path-string path)
+  (let loop ((chars (reverse (string->list path)))
+	     (file '()))
+
+    (cond ((null? chars)
+	   (values "" (list->string file)))
+	  ((char=? (car chars) #\\)
+	   (values (list->string (reverse chars))
+		   (list->string file)))
+	  (else 
+	   (loop (cdr chars)
+		 (cons (car chars) file))))))
+
+(define (relative-path-string? path)
+  (or (< (string-length path) 2)
+      (not (char=? #\: (string-ref path 1)))))
+
 ; eof
