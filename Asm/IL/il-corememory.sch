@@ -2,17 +2,68 @@
 ;; Common Larceny runtime.
 (enable-dotnet!)
 
+(define (default-assembly-basename)
+  "larsembly")
+
+;; current-assembly-basename : [Param String]
+(define current-assembly-basename (make-parameter "current-assembly-basename" (default-assembly-basename)))
+
+;; current-assembly-name : [Param System.Reflection.AssemblyName]
 (define current-assembly-name (make-parameter "current-assembly-name" #f))
+
+;; current-domain : [Param System.AppDomain]
 (define current-domain        (make-parameter "current-domain" #f))
+
+;; current-assembly-builder : [Param System.Reflection.Emit.AssemblyBuilder]
 (define current-assembly-builder 
   (make-parameter "current-assembly-builder" #f))
+
+;; current-module-builder : [Param System.Reflection.Emit.ModuleBuilder]
 (define current-module-builder    
   (make-parameter "current-module-builder" #f))
 
+;; current-il-namespace : [Param String]
 (define current-il-namespace  (make-parameter "current-il-namespace" #f))
+
+;; current-type-builder : [Param System.Reflection.Emit.TypeBuilder]
 (define current-type-builder  (make-parameter "current-type-builder" #f))
+
+;; current-method-builder : 
+;;   [Param [Oneof System.Reflection.Emit.MethodBuilder 
+;;                 System.Reflection.Emit.ConstructorBuilder]]
 (define current-method-builder (make-parameter "current-method-builder" #f))
+
+;; current-il-generator : [Param System.Reflection.Emit.ILGenerator]
 (define current-il-generator  (make-parameter "current-il-generator" #f))
+
+;; current-registered-class-table : [Map (list CanonNS String) TypeBuilder]
+(define current-registered-class-table
+  (make-parameter "current-registered-class-table" '()))
+
+;; current-registered-superclass-table : [Map TypeBuilder Type]
+(define current-registered-superclass-table
+  (make-parameter "current-registered-superclass-table" '()))
+
+;; current-registered-field-table : [Map (list Type String) FieldInfo]
+(define current-registered-field-table
+  (make-parameter "current-registered-field-table" '()))
+
+;; current-registered-method-table : [Map (list Type String [Vectorof Type]) [Oneof MethodBuilder ConstructorBuilder]]
+(define current-registered-method-table
+  (make-parameter "current-registered-method-table" '()))
+
+;; current-saved-manifests : [Listof PseudoManifest]
+;; Stored in *reverse* order!
+(define current-saved-manifests (make-parameter "current-saved-manifests" '()))
+
+;; Resets the parameters which don't require any input state for their
+;; default value.
+(define (reset-valueless-parameters!)
+  (current-registered-class-table '())
+  (current-registered-superclass-table '())
+  (current-registered-field-table '())
+  (current-registered-method-table '())
+  (current-saved-manifests '()))
 
 ;; Similar to with-fresh-dynamic-assembly-setup, except the names are
 ;; all derived from the single basename
@@ -21,24 +72,33 @@
    (string-append basename "-assembly")
    (string-append basename "-module")
    (string-append basename ".dll")
+   ""
    thunk))
 
+;; with-fresh-dynamic-assembly-setup : String String String String (-> X) -> X
 ;; Sets up assembly-name, domain, asm-builder, and module.
 ;; Does *not* set up type-builder.
 (define (with-fresh-dynamic-assembly-setup assembly-name 
 					   module-name dll-file-name 
+					   storage-directory
 					   thunk)
   (let ((my-asm-name (System.Reflection.AssemblyName.)))
     (if assembly-name 
 	(set-.name$! my-asm-name assembly-name))
     (parameterize ((current-assembly-name my-asm-name))
       (parameterize ((current-domain (System.Threading.Thread.GetDomain)))
+	(display (current-assembly-name)) (newline)
 	(parameterize ((current-assembly-builder 
-			(.DefineDynamicAssembly 
+			(apply .DefineDynamicAssembly 
 			 (current-domain) (current-assembly-name)
 			 ;; below permissions are liberal; might allow
 			 ;; developer to select Run or Save alone
-			 (System.Reflection.Emit.AssemblyBuilderAccess.RunAndSave$))))
+			 (System.Reflection.Emit.AssemblyBuilderAccess.RunAndSave$)
+			 ;; This expression conspires with apply above
+			 ;; to pass storage-directory iff not ""
+			 (if (string=? "" storage-directory)
+			     (list)
+			     (list storage-directory)))))
 	  (parameterize ((current-module-builder
 			  (.DefineDynamicModule 
 			   (current-assembly-builder) module-name dll-file-name)))
@@ -46,7 +106,8 @@
 			   (current-registered-superclass-table '())
 			   (current-registered-field-table '())
 			   (current-registered-method-table '())
-			   (current-label-intern-table '()))
+			   (current-label-intern-table '())
+			   (current-saved-manifests '()))
 	      (thunk)
 	      )))))))
 
@@ -65,7 +126,17 @@
 			     ;; developer to select Run or Save alone
 			     (System.Reflection.Emit.AssemblyBuilderAccess.RunAndSave$)))
     (current-module-builder (.DefineDynamicModule 
-			     (current-assembly-builder) module-name dll-file-name))))
+			     (current-assembly-builder) module-name dll-file-name))
+    (reset-valueless-parameters!)
+    ))
+
+;; Resetting default values of parameters above to something
+;; reasonable.
+(let ((basename (default-assembly-basename)))
+  (fresh-dynamic-assembly-setup!
+   (string-append basename "-assembly")
+   (string-append basename "-module")
+   (string-append basename ".dll")))
 
 (define (fresh-type-setup! name)
   (current-type-builder (.DefineType (current-module-builder)
@@ -206,21 +277,6 @@
 		      (current-label-intern-table)))
 	       val))))
 
-    ;; current-registered-class-table : [Map (list CanonNS String) TypeBuilder]
-    (define current-registered-class-table
-      (make-parameter "current-registered-class-table" '()))
-
-    ;; current-registered-superclass-table : [Map TypeBuilder Type]
-    (define current-registered-superclass-table
-      (make-parameter "current-registered-superclass-table" '()))
-
-    ;; current-registered-field-table : [Map (list Type String) FieldInfo]
-    (define current-registered-field-table
-      (make-parameter "current-registered-field-table" '()))
-
-    ;; current-registered-method-table : [Map (list Type String [Vectorof Type]) [Oneof MethodBuilder ConstructorBuilder]]
-    (define current-registered-method-table
-      (make-parameter "current-registered-method-table" '()))
 
     ;; codump-directive : symbol string ... -> void
     (define (codump-directive directive . args)
@@ -366,6 +422,11 @@
 		     (co-find-method class-info
 				     name 
 				     (list->vector args-info))))
+	       (if (null? method-info)
+		   (error 'codump-il 
+			  (twobit-format 
+			   #f "couldn't find method for ~a.~a ~a"
+			   class-info name args-info)))
 	       (emit IL (opc) method-info))))
 	  
 	  ((label)      
@@ -657,21 +718,50 @@
 ;; Analogous to link-lop-segment, except that the lop-segment uses our
 ;; internal IL rep (rather than machine code) for codevectors).
 (define (link-lop-segment/clr lop-segment name environment)
-  (with-simple-fresh-dynamic-assembly-setup
-   name
-   (lambda ()
-     (init-variables)
-     (let* ((entrypoint (dump-segment lop-segment))
-	    (pseudo-manifest (extract-manifest lop-segment name)))
-       (set! *segment-number* (+ *segment-number* 1))
-       (set! *loadables* (cons (list *seed* entrypoint) *loadables*))
-       
-       (co-create-type-builders!)
-       (co-create-member-infos!)
-       (co-emit-object-code!)
-       
-       (patch-procedure/pseudo-manifest pseudo-manifest environment)))))
-     
+  (let ((with-potential-setup 
+	 ;; with-simple-fresh-dynamic-assembly-setup
+	 (lambda (name thunk) 
+	   (thunk))))
+    (with-potential-setup
+     name
+     (lambda ()
+       (init-variables)
+       (let* ((entrypoint (dump-segment lop-segment))
+	      (pseudo-manifest (extract-manifest lop-segment name)))
+	 (set! *segment-number* (+ *segment-number* 1))
+	 (set! *loadables* (cons (list *seed* entrypoint) *loadables*))
+
+	 (co-create-type-builders!)
+	 (co-create-member-infos!)
+	 (co-emit-object-code!)
+
+	 (current-saved-manifests (cons pseudo-manifest
+					(current-saved-manifests)))
+	 
+	 (patch-procedure/pseudo-manifest pseudo-manifest environment))))))
+
+;; eval/clr : sexp [environment] -> any
+(define (eval/clr x . rest)
+  (let ((env (cond ((null? rest) (interaction-environment))
+		   (else (car rest)))))
+    ((link-lop-segment/clr (assemble (compile x)) 
+			   (default-assembly-basename)
+			   env))))
+
+;; escape-assembly-illegal-chars : String -> String
+;; Removes occurrences of #\\ #\/ and #\. from filename,
+;; possibly replacing them with something else.
+(define (escape-assembly-illegal-chars filename)
+  ;; very inefficient!
+  (list->string
+   (apply append (map (lambda (char)
+			(string->list (case char
+					((#\\) "(hsals)")
+					((#\/) "(slash)")
+					((#\:) "(colon)")
+					(else (string char)))))
+		      (string->list filename)))))
+					 
 ;; load-lop-to-clr : string [environment] -> void
 ;; Loads a single .lop file into the current CLR runtime.
 (define (load-lop/clr filename . rest)
@@ -683,11 +773,10 @@
 	   (car rest))))
   
   (with-simple-fresh-dynamic-assembly-setup
-   filename
+   (escape-assembly-illegal-chars filename)
    (lambda ()
      (init-variables)
      (let ((entrypoints '())
-	   (pseudo-manifests '())
 	   (il-file-name (rewrite-file-type filename ".lop" ".code-il")))
        (call-with-input-file filename
 	 (lambda (in)
@@ -696,8 +785,9 @@
 		(set! *loadables* (cons (cons *seed* (reverse entrypoints))
 					*loadables*)))
 	     (set! entrypoints (cons (dump-segment segment) entrypoints))
-	     (set! pseudo-manifests 
-		   (cons (extract-manifest segment filename) pseudo-manifests))
+	     (current-saved-manifests
+	      (cons (extract-manifest segment filename) 
+		    (current-saved-manifests)))
 	     (set! *segment-number* (+ *segment-number* 1)))))
 
        (co-create-type-builders!)
@@ -706,7 +796,7 @@
 
        (for-each (lambda (x) 
 		   ((patch-procedure/pseudo-manifest x (get-environment))))
-		 pseudo-manifests)))))
+		 (reverse (current-saved-manifests)))))))
 
 ;; patch-procedure/pseudo-manifest : PseudoManifest Envionment -> Any
 (define (patch-procedure/pseudo-manifest entry env)
@@ -722,9 +812,90 @@
 	   (find-code-in-assembly Scheme.RT.Load.findCodeInAssembly)
 	   (asm-bld (current-assembly-builder))
 	   (code-vec (find-code-in-assembly asm-bld il-ns segnum))
+	   (ignore (begin (display code-vec) (newline)))
 	   (boxed-code-vec (clr-object/clr-handle code-vec))
+	   (ignore (begin (display boxed-code-vec) (newline)))
 	   (unwrapped-code-vec (clr/foreign->schemeobject boxed-code-vec))
+	   (ignore (begin (display unwrapped-code-vec) (newline)))
 	   (patched-procedure 
 	    (begin (procedure-set! p 0 unwrapped-code-vec) 
 		   p)))
       patched-procedure)))
+
+(define (with-saving-assembly-to-dll/full-control
+	 base-name assembly-name module-name
+	 dll-filename fasl-filename
+	 storage-directory
+	 thunk)
+  (with-fresh-dynamic-assembly-setup 
+   assembly-name module-name dll-filename storage-directory
+   (lambda ()
+     (let ((val (thunk)))
+       (with-output-to-file fasl-filename
+	 (lambda ()
+	   (for-each (lambda (pm)
+		       (dump-fasl/pmanifest base-name pm))
+		     (reverse (current-saved-manifests)))))
+       (.Save (current-assembly-builder) dll-filename)
+       val))))
+
+(define (with-saving-assembly-to-dll base-name thunk)
+  (with-saving-assembly-to-dll/full-control
+   base-name 
+   (string-append base-name "-assembly")
+   (string-append base-name "-module")
+   (string-append base-name ".dll")
+   (string-append base-name ".fasl")
+   thunk))
+
+(define (compile-file infilename . rest)
+  (let ((outfilename 
+	 (if (not (null? rest))
+	     (car rest)
+	     (rewrite-file-type infilename 
+				*scheme-file-types*
+				*fasl-file-type*)))
+	(user (assembly-user-data))
+	(syntaxenv (syntactic-copy (the-usual-syntactic-environment))))
+    (call-with-values (lambda () (split-path-string outfilename))
+      (lambda (dir file)
+	(let* ((basename (rewrite-file-type file *fasl-file-type* ""))
+	       (fully-qualified-basename
+		(if (relative-path-string? dir)
+		    (make-filename (current-directory) 
+				   (string-append dir basename))
+		    (string-append dir basename))))
+
+	  (with-saving-assembly-to-dll/full-control
+	   fully-qualified-basename
+	   (string-append basename "-assem")
+	   (string-append basename "-mod")
+	   (string-append basename ".dll")
+	   outfilename
+	   dir
+	   
+	   ;; Note: *seriously* need to abstract out this extremely 
+	   ;; common pattern from go2.sch and il-corememory.sch
+	   (lambda ()
+	     (init-variables)
+	     (let ((entrypoints '()))
+	       
+	       (process-file 
+		infilename
+		`(,outfilename binary)
+		(assembly-declarations user)
+		dump-fasl-segment-to-port
+		(lambda (expr)
+		  (let ((lop-segment (assemble (compile expr syntaxenv) user)))
+		    (set! entrypoints (cons (dump-segment lop-segment)
+					    entrypoints))
+		    (current-saved-manifests
+		     (cons (extract-manifest lop-segment 
+					     fully-qualified-basename)
+			   (current-saved-manifests)))
+		    (set! *segment-number* (+ *segment-number* 1)))))
+	       
+	       (co-create-type-builders!)
+	       (co-create-member-infos!)
+	       (co-emit-object-code!)
+	       ))))))))
