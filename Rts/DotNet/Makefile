@@ -45,7 +45,7 @@ SRCS =	CodeAddress.cs \
 	FFI.cs
 
 DEBUG_OPT = /checked+ /warn:4 /debug:full /d:DEBUG
-#DEBUG_OPT =
+#DEBUG_OPT = /optimize+
 
 OUTFILE = Scheme.dll
 
