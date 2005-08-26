@@ -241,9 +241,14 @@ public class Load {
 	moduleAssembly = Assembly.LoadFrom (module + ".exe");
 	}
     catch {
-	Exn.error ("code not found (no EXE file): " + module);
+      try { 
+	moduleAssembly = Assembly.LoadFrom (module + ".dll");
+      }	
+      catch {	
+	Exn.error ("code not found (no EXE or DLL file): " + module);
 	return Factory.Impossible;
-	}
+      }
+    }
     cv = findCodeInAssembly (moduleAssembly, ns, number);
     if (cv != null) return cv;
     Exn.error ("code not found: " + module + " " + ns + " " + number);
