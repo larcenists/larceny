@@ -865,12 +865,16 @@
 		    (make-filename (current-directory) 
 				   (string-append dir basename))
 		    (string-append dir basename))))
-
+	  (display `(compile-file ,infilename 
+				  to ,outfilename
+				  ,fully-qualified-basename
+				  (escape-assembly-illegal-chars basename)
+				  dir)) (newline)
 	  (with-saving-assembly-to-dll/full-control
 	   fully-qualified-basename
-	   (string-append basename "-assem")
-	   (string-append basename "-mod")
-	   (string-append basename ".dll")
+	   (string-append (escape-assembly-illegal-chars basename) "-assem")
+	   (string-append (escape-assembly-illegal-chars basename) "-mod")
+	   (string-append (escape-assembly-illegal-chars basename) ".dll")
 	   outfilename
 	   dir
 	   
