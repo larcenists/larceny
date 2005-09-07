@@ -14,24 +14,7 @@
 (define *current-clr-method* #f)
 (define *current-il-stream* '())
 
-(vector-struct $$clr-class make-clr-class clr-class?
-               (clr-class-name clr-class-name!)
-               (clr-class-il-namespace clr-class-il-namespace!)
-               (clr-class-super clr-class-super!)
-               (clr-class-options clr-class-options!)
-               (clr-class-members clr-class-members!))
-
-(vector-struct $$clr-method make-clr-method clr-method?
-               (clr-method-name clr-method-name!)
-               (clr-method-type clr-method-type!)
-               (clr-method-argtypes clr-method-argtypes!)
-               (clr-method-options clr-method-options!)
-               (clr-method-instrs clr-method-instrs!))
-
-(vector-struct $$field make-field field?
-               (field-name field-name!)
-               (field-type field-type!)
-               (field-options field-options!))
+; (see util-struct.sch)
 
 ;; class-start : string string string (listof option) -> void
 (define (class-start name il-namespace super options)

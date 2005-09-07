@@ -125,6 +125,7 @@
       (nbuild-files 'dotnet-asm
                     '("asm-switches.sch"
                       "config.sch"
+		      "util-structs.sch"
                       "util.sch"
                       "il-gen.sch"
                       "il-rtif.sch"

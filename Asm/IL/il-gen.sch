@@ -10,6 +10,8 @@
 ;; An ilpackage is
 ;; - (il code arg ...)
 ;; - (il:delay ilpackage ...)
+;;     [[ alternatively, for a single delay:      ]]
+;;     [[     (raw:make-il-delay (-> ilpackage))  ]]
 ;; - (list ilpackage ...)
 ;; - procedure : assembler -> ilpackage
 ;; - IL-ref
@@ -25,12 +27,8 @@
 ;; An IL consumer is either
 ;; - an assembler structure (as)
 ;; - procedure : ilpackage -> void
-
-(vector-struct $$il raw:make-il il?
-               (il.code #f)
-               (il.args #f))
-(vector-struct $$il-delay raw:make-il-delay il-delay?
-               (il-delay.il #f))
+;;
+;; (see util-structs.sch)
 
 ;; [pnkfelix] IL-class, IL-type, IL-method, and IL-field represent
 ;; references in the IL code to classes, types, methods, and fields,
@@ -46,26 +44,17 @@
 ;; while an IL-field needs a class argument, because field references
 ;; in the IL code need to know the class name as well as the field
 ;; name.
+;;
+;; (see util-structs.sch)
 
 ;; An IL-class is one of
 ;; - (make-il-class [Maybe String] [Maybe String] String)
 ;; - (make-il-class [Maybe String] [Listof String] String)
-(vector-struct $$il-class make-il-class il-class?
-	       (il-class.assembly #f)
-	       (il-class.namespaces #f)
-	       (il-class.name #f))
 
 ;; An IL-type is one of
 ;; - (make-il-primtype  String IL-class)
 ;; - (make-il-classtype IL-class)
 ;; - (make-il-arraytype IL-type)
-(vector-struct $$il-primtype  make-il-primtype  il-primtype?
-	       (il-primtype.string #f)
-	       (il-primtype.class #f))
-(vector-struct $$il-classtype make-il-classtype il-classtype?
-	       (il-classtype.class #f))
-(vector-struct $$il-arraytype make-il-arraytype il-arraytype?
-	       (il-arraytype.basetype #f))
 
 ;; il-type? : Any -> Bool
 ;; Returns non-false iff x is an IL-type.
@@ -77,18 +66,10 @@
 	       
 ;; An IL-method is a 
 ;;  (make-il-method Bool IL-type IL-class String [Listof IL-type])
-(vector-struct $$il-method make-il-method il-method?
-	       (il-method.instance? #f)
-	       (il-method.type #f)
-	       (il-method.class #f)
-	       (il-method.name #f)
-	       (il-method.argtypes #f))
 
 ;; An IL-label is one of
 ;;  (make-il-label (cons Number Number))
 ;;  (make-il-label Number)
-(vector-struct $$il-label make-il-label il-label?
-	       (il-label.key #f))
 
 ;; Positive unary numbers are introduced by Twobit.  Negative unary
 ;; numbers are used for labels that are introduced by the compilation
@@ -105,10 +86,6 @@
 
 ;; An IL-field is a
 ;;  (make-il-field IL-type IL-class String)
-(vector-struct $$il-field make-il-field il-field?
-	       (il-field.type #f)
-	       (il-field.class #f)
-	       (il-field.name #f))
 
 ;; il : symbol arg ... -> ilpackage
 (define (il code . args)
@@ -117,19 +94,6 @@
         (else
          (error "procedure IL expects symbol as first arg, got " code
                 "; other arguments were: " args))))
-
-;; il:delay SYNTAX
-;; (il:delay expr ...)
-;; Delays evaluation of each expr until patch-up time in assembler.
-;; ASM ONLY
-(define-syntax il:delay
-  (syntax-rules ()
-    ((_ il)
-     (raw:make-il-delay (lambda () il)))
-    ((_ il ...)
-     (list
-      (raw:make-il-delay (lambda () il))
-      ...))))
 
 ;; il-delay-force : il-delay -> ilpackage
 ;; Forces a delayed ilpackage

@@ -609,7 +609,8 @@
           (rep:procedure-entrypoint)
           ;; Load the jump index (delayed, will be forced
           ;; in patch-up, when all info is available)
-          (il:delay (list (il 'ldc.i4 (as:label->index as (operand2 instruction)))))
+          (raw:make-il-delay 
+	   (lambda () (list (il 'ldc.i4 (as:label->index as (operand2 instruction))))))
           ;; And call.
           ;; NOTE: no fuel used on jump (FIXME???)
           (il:call-scheme))

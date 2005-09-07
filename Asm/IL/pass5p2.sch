@@ -27,6 +27,19 @@
 ;    retry          (a thunk or #f)
 ;    user-data      (anything)
 
+;; il:delay SYNTAX
+;; (il:delay expr ...)
+;; Delays evaluation of each expr until patch-up time in assembler.
+;; ASM ONLY
+(define-syntax il:delay
+  (syntax-rules ()
+    ((_ il)
+     (raw:make-il-delay (lambda () il)))
+    ((_ il ...)
+     (list
+      (raw:make-il-delay (lambda () il))
+      ...))))
+
 ;; assemble-pasteup : assembler -> (cons code constants)
 ;; Forces all il:delay ilpackages in the instruction stream
 (define (assemble-pasteup as)
@@ -132,13 +145,8 @@
 ;  label-counter        A serial number for labels
 ;  label-map            alist: num => (cons num cvid)
 ;                       Mapping twobit label to (jump-index . codevector-id)
-
-(vector-struct $$user-data raw-make-user-data user-data?
-               (user-data.il-namespace user-data.il-namespace!)
-               (user-data.toplevel-counter user-data.toplevel-counter!)
-               (user-data.proc-counter user-data.proc-counter!)
-               (user-data.label-counter user-data.label-counter!)
-               (user-data.label-map user-data.label-map!))
+;
+; (see util-structs.sch)
 
 (define (make-user-data)
   (raw-make-user-data (generate-globally-unique-id) 0 0 1 (make-gvector '())))
@@ -187,13 +195,8 @@
 ;; represented, the IL instruction stream (in correct order), and 
 ;; the data from the constant vector (but not the globals and nested 
 ;; constant vectors).
-
-(vector-struct $$cvclass make-cvclass cvclass?
-               (cvclass-il-namespace cvclass-il-namespace!)
-               (cvclass-id cvclass-id!)
-               (cvclass-instrs cvclass-instrs!)
-               (cvclass-constants cvclass-constants!)
-               (cvclass-label-count cvclass-label-count!))
+;;
+;; (see util-structs.sch)
 
 ;; /Code Emission --
 
