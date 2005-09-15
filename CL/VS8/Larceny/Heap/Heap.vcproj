@@ -4,7 +4,9 @@
 	Version="8.00"
 	Name="Heap"
 	ProjectGUID="{7FA63D79-41CD-450B-8A14-51532B8D9144}"
+	RootNamespace="Heap"
 	Keyword="Win32Proj"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -31,9 +33,6 @@
 				Name="VCMIDLTool"
 			/>
 			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -54,9 +53,6 @@
 				Name="VCMIDLTool"
 			/>
 			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -72,7 +68,7 @@
 				>
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="mzscheme -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					CommandLine="mzscheme -f &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 					Outputs="..\..\..\..\dotnet.heap.exe"
 				/>
 			</FileConfiguration>
@@ -87,4 +83,6 @@
 			</FileConfiguration>
 		</File>
 	</Files>
+	<Globals>
+	</Globals>
 </VisualStudioProject>

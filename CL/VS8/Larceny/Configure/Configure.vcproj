@@ -4,7 +4,9 @@
 	Version="8.00"
 	Name="Configure"
 	ProjectGUID="{2676DC54-6C59-4BE9-9D65-544F5181808A}"
+	RootNamespace="Configure"
 	Keyword="Win32Proj"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -31,9 +33,6 @@
 				Name="VCMIDLTool"
 			/>
 			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -54,9 +53,6 @@
 				Name="VCMIDLTool"
 			/>
 			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -73,7 +69,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Generating config files"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
+					CommandLine="&quot;C:\Program Files\PLT v299\MzScheme.exe&quot; -f &quot;$(InputPath)&quot;"
 					Outputs="..\..\..\..\Rts\DotNet\Constants.cs"
 				/>
 			</FileConfiguration>
@@ -83,10 +79,12 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Generating config files"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
+					CommandLine="mzscheme -Gqfmv $(InputPath)&#x0D;&#x0A;"
 					Outputs="..\..\..\..\Rts\DotNet\Constants.cs"
 				/>
 			</FileConfiguration>
 		</File>
 	</Files>
+	<Globals>
+	</Globals>
 </VisualStudioProject>
