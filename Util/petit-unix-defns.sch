@@ -163,8 +163,16 @@
                         (error "You need to build-runtime [in order to generate Rts/larceny.bin]")
                         ))))
 
+(define (build-development-environment)
+  (case *heap-type*
+    ((petit)
+     (make-petit-development-environment))
+    ((sparc-native)
+     (make-development-environment))
+    (else (error 'build-development-environment "Unknown heap type"))))
+
 (define (build-twobit)
-  (make-petit-development-environment)
+  (build-development-environment)
   (if (eq? 'petit *runtime-type*)
       (build-application *twobit-executable-name*
                          (petit-development-environment-lop-files))))
@@ -181,13 +189,13 @@
 
 ; Set up for loading Util/petit-larceny-heap.sch
 (define (build-larceny-files)
+  (build-development-environment)
   (case *heap-type*
     ((petit)
-     (make-petit-development-environment)
      (build-application "petit-larceny"
                         (petit-development-environment-lop-files)))
     ((sparc-native)
-     (make-development-environment))
+     'done)
     (else (error 'build-larceny-files "Unknown heap type"))))
      
 
