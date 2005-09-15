@@ -417,19 +417,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_40512A3441994ADDBDEE5C7FD0FF7686"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_4067EB3E380C401A8485CF4EC00209AE"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_4270EE73FA3C4C4791D8D6BF5F881A3D"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -615,12 +603,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_68AF91B3ED764C7AA7B2463B0349EC9D"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_6938E64F00C248DE9706581277497F67"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -628,12 +610,6 @@
         "Entry"
         {
         "MsmKey" = "8:_69BFEA3CE6144B548C8AFD03019C40E9"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_6A5AB475435F4892A8F2D9F9B025B667"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -1293,12 +1269,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_C1372623CBBF45648876A3CE9E34BA66"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_C196D3A21EFB4EE7B6C98C929D7D4D35"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -1383,12 +1353,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_CFFC1605740740BBA9937B255BA7E2E4"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_D250748244764BF38C0E4A78FD14D737"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -1413,12 +1377,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_D5E9921F01DB4B79A4309FC90F6BCA8F"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_D66B9E4508A54A10886A610150B9F581"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -1432,12 +1390,6 @@
         "Entry"
         {
         "MsmKey" = "8:_D8AF34816E3449FDA9279BCB76758114"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_D8C18BC9BF4F4F66982669433101397A"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -1702,7 +1654,19 @@
         "Entry"
         {
         "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_ED87D0BF0D3244AF883A481A83809484"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_CE6748F6E1BA40E8ADA6CE5E920CAB62"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_93F3CC9DEB9440A1AEFDC5A92744D9BC"
         "MsmSig" = "8:_UNDEFINED"
         }
     }
@@ -1760,8 +1724,10 @@
                 {
                 "Name" = "8:MsiNetAssemblySupport"
                 "Message" = "8:[VSDNETMSG]"
-                "SupportedRuntimes" = "8:2.0.40607"
+                "Version" = "8:2.0.50215"
+                "AllowLaterVersions" = "11:TRUE"
                 "InstallUrl" = "8:http://go.microsoft.com/fwlink/?LinkId=9832"
+                "SupportedRuntimes" = "8:2.0.40607"
                 }
             }
         }
@@ -3107,52 +3073,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_40512A3441994ADDBDEE5C7FD0FF7686"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Util\\std-heap.sch"
-            "TargetName" = "8:std-heap.sch"
-            "Tag" = "8:"
-            "Folder" = "8:_0BFE633D23E64AFEB5B59C20544E8322"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4067EB3E380C401A8485CF4EC00209AE"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Lib\\Common\\procinfo.sch"
             "TargetName" = "8:procinfo.sch"
             "Tag" = "8:"
             "Folder" = "8:_01609792C13B4D14B4C330F3AC532693"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4270EE73FA3C4C4791D8D6BF5F881A3D"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -3731,7 +3657,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:Scheme, Version=1.0.1868.21400, Culture=neutral"
+            "AssemblyAsmDisplayName" = "8:Scheme, Version=1.0.2076.13059, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_63CC8CBCF2E74879857609C1AEB4CD7F"
@@ -3778,26 +3704,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_68AF91B3ED764C7AA7B2463B0349EC9D"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Util\\petit-macosx-on-win32.sch"
-            "TargetName" = "8:petit-macosx-on-win32.sch"
-            "Tag" = "8:"
-            "Folder" = "8:_0BFE633D23E64AFEB5B59C20544E8322"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6938E64F00C248DE9706581277497F67"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Repl\\reploop.sch"
@@ -3824,26 +3730,6 @@
             "TargetName" = "8:sets.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6A5AB475435F4892A8F2D9F9B025B667"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Interpreter\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_3D01F8E8EEEC4D479BB78C7224CB5CC4"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -4782,7 +4668,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:dotnet.heap, Version=0.0.0.0, Culture=neutral"
+            "AssemblyAsmDisplayName" = "8:dotnet.heap, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_93F3CC9DEB9440A1AEFDC5A92744D9BC"
@@ -6049,26 +5935,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C1372623CBBF45648876A3CE9E34BA66"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Lib\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_65698E2B0CCF4BE781A9CB7365118B04"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C196D3A21EFB4EE7B6C98C929D7D4D35"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Twobit\\help.sch"
@@ -6253,7 +6119,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:Scheme, Version=1.0.1868.20017, Culture=neutral"
+            "AssemblyAsmDisplayName" = "8:Scheme, Version=1.0.2075.27587, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_CE6748F6E1BA40E8ADA6CE5E920CAB62"
@@ -6360,26 +6226,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_CFFC1605740740BBA9937B255BA7E2E4"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Compat\\Larceny\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_A466FF36958B4FCD82AB3D2570D71C5B"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D250748244764BF38C0E4A78FD14D737"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Rts\\Build\\c-table.c"
@@ -6460,26 +6306,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D5E9921F01DB4B79A4309FC90F6BCA8F"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Repl\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_4171E8A8743E4E5FA3843306772E24AB"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D66B9E4508A54A10886A610150B9F581"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Twobit\\hashtree.sch"
@@ -6526,26 +6352,6 @@
             "TargetName" = "8:pass1.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D8C18BC9BF4F4F66982669433101397A"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Compat\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_4223AA6EBCC1477BA33534143D29A289"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -6964,7 +6770,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:dotnet.heap, Version=0.0.0.0, Culture=neutral"
+            "AssemblyAsmDisplayName" = "8:dotnet.heap, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_ED87D0BF0D3244AF883A481A83809484"
