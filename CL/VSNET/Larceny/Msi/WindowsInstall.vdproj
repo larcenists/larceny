@@ -429,27 +429,9 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_40512A3441994ADDBDEE5C7FD0FF7686"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\UTIL\\STD-HEAP.SCH"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_4067EB3E380C401A8485CF4EC00209AE"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\LIB\\COMMON\\PROCINFO.SCH"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_41A948DBA57843709CE91E675518973F"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VS8\\LARCENY\\MSI\\WINDOWSINSTALL.VDPROJ"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_4270EE73FA3C4C4791D8D6BF5F881A3D"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\TWOBIT\\MAKEFILE"
         }
         "Entry"
         {
@@ -585,6 +567,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_5B3BA5CCE4E343CAB467D155B176FBED"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\DOCUMENTS AND SETTINGS\\FELIX S KLOCK II\\DEV\\COURSES\\262\\LARCENYCVS\\TRUNK\\LARCENY_SRC\\BIN\\DEBUG\\SCHEME.DLL"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_5B61D1395DC14951A3C1CEA2A1A8BC74"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\RTS\\DOTNET\\NUMBER.CS"
@@ -645,21 +633,9 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_63CC8CBCF2E74879857609C1AEB4CD7F"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:schemec:\\home\\jrm\\commonlarceny\\bin\\debug\\scheme.dll"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_66CE51E211904AEAAA569ACF243AECDF"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\LIB\\MZSCHEME\\WCM.SCH"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_68AF91B3ED764C7AA7B2463B0349EC9D"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\UTIL\\PETIT-MACOSX-ON-WIN32.SCH"
         }
         "Entry"
         {
@@ -672,12 +648,6 @@
         "MsmKey" = "8:_69BFEA3CE6144B548C8AFD03019C40E9"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\TWOBIT\\SETS.SCH"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_6A5AB475435F4892A8F2D9F9B025B667"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\INTERPRETER\\MAKEFILE"
         }
         "Entry"
         {
@@ -972,12 +942,6 @@
         "MsmKey" = "8:_93331EC12C2F44E3ACDEA54DB0376ACF"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\LIB\\COMMON\\SYS-WIN32.SCH"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_93F3CC9DEB9440A1AEFDC5A92744D9BC"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:dotnet.heapc:\\home\\jrm\\commonlarceny\\bin\\release\\commonlarceny.exe"
         }
         "Entry"
         {
@@ -1359,12 +1323,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_C1372623CBBF45648876A3CE9E34BA66"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\LIB\\MAKEFILE"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_C196D3A21EFB4EE7B6C98C929D7D4D35"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\TWOBIT\\HELP.SCH"
@@ -1419,12 +1377,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_CE6748F6E1BA40E8ADA6CE5E920CAB62"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:schemec:\\home\\jrm\\commonlarceny\\bin\\release\\scheme.dll"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_CEC800B1A73E44AC85CFF615519D333E"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\TWOBIT\\USUAL.SCH"
@@ -1446,12 +1398,6 @@
         "MsmKey" = "8:_CFDF666D54A843778323D1C7E3571B83"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VSNET\\LARCENY\\MSI\\WINDOWSINSTALL.VDPROJ"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_CFFC1605740740BBA9937B255BA7E2E4"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\COMPAT\\LARCENY\\MAKEFILE"
         }
         "Entry"
         {
@@ -1479,12 +1425,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_D5E9921F01DB4B79A4309FC90F6BCA8F"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\REPL\\MAKEFILE"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_D66B9E4508A54A10886A610150B9F581"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\TWOBIT\\HASHTREE.SCH"
@@ -1500,12 +1440,6 @@
         "MsmKey" = "8:_D8AF34816E3449FDA9279BCB76758114"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\TWOBIT\\PASS1.SCH"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_D8C18BC9BF4F4F66982669433101397A"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\COMPAT\\MAKEFILE"
         }
         "Entry"
         {
@@ -1617,6 +1551,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_EC7E7A2397B849E78F1E60463C46DC09"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\DOCUMENTS AND SETTINGS\\FELIX S KLOCK II\\DEV\\COURSES\\262\\LARCENYCVS\\TRUNK\\LARCENY_SRC\\BIN\\DEBUG\\COMMONLARCENY.EXE"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_ED3B624E82C149689C71CD1925AE979F"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\ASM\\COMMON\\ASMUTIL32EL.SCH"
@@ -1626,12 +1566,6 @@
         "MsmKey" = "8:_ED53723CF8F64F1388708C62C7D806A7"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\COMPAT\\LARCENY\\COMPAT.SCH"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_ED87D0BF0D3244AF883A481A83809484"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:dotnet.heapc:\\home\\jrm\\commonlarceny\\bin\\debug\\commonlarceny.exe"
         }
         "Entry"
         {
@@ -1695,6 +1629,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_F3822A25BD05475D8847723E7BF8401E"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\DOCUMENTS AND SETTINGS\\FELIX S KLOCK II\\DEV\\COURSES\\262\\LARCENYCVS\\TRUNK\\LARCENY_SRC\\BIN\\RELEASE\\COMMONLARCENY.EXE"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_F4806272BDD546E9B91C51C3AC3CBBA4"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\CL\\VSNET\\LARCENY\\HEAP\\HEAP.VCPROJ"
@@ -1704,6 +1644,12 @@
         "MsmKey" = "8:_F48BA716F1EC4321BED344346B45870D"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:C:\\HOME\\JRM\\COMMONLARCENY\\RTS\\BUILD\\GLOBALS.AH"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_F5465777BA75472E9A7C3060485A49EC"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:C:\\DOCUMENTS AND SETTINGS\\FELIX S KLOCK II\\DEV\\COURSES\\262\\LARCENYCVS\\TRUNK\\LARCENY_SRC\\BIN\\RELEASE\\SCHEME.DLL"
         }
         "Entry"
         {
@@ -3203,72 +3149,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_40512A3441994ADDBDEE5C7FD0FF7686"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Util\\std-heap.sch"
-            "TargetName" = "8:std-heap.sch"
-            "Tag" = "8:"
-            "Folder" = "8:_0BFE633D23E64AFEB5B59C20544E8322"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_4067EB3E380C401A8485CF4EC00209AE"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Lib\\Common\\procinfo.sch"
             "TargetName" = "8:procinfo.sch"
             "Tag" = "8:"
             "Folder" = "8:_01609792C13B4D14B4C330F3AC532693"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_41A948DBA57843709CE91E675518973F"
-            {
-            "SourcePath" = "8:..\\..\\..\\VS8\\Larceny\\Msi\\WindowsInstall.vdproj"
-            "TargetName" = "8:WindowsInstall.vdproj"
-            "Tag" = "8:"
-            "Folder" = "8:_6DDEEC440BC8410BB0AFBE1AFF7024FA"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_4270EE73FA3C4C4791D8D6BF5F881A3D"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -3723,6 +3609,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_5B3BA5CCE4E343CAB467D155B176FBED"
+            {
+            "SourcePath" = "8:..\\..\\..\\..\\bin\\Debug\\Scheme.dll"
+            "TargetName" = "8:Scheme.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_99035ED4EADF4165895F863ACB6139FB"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_5B61D1395DC14951A3C1CEA2A1A8BC74"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Rts\\DotNet\\Number.cs"
@@ -3923,63 +3829,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{C7BF5952-4B9D-11D3-8E24-00C04F6837D0}:_63CC8CBCF2E74879857609C1AEB4CD7F"
-            {
-            "AssemblyRegister" = "3:1"
-            "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:Scheme, Version=1.0.1868.21400, Culture=neutral"
-                "ScatterAssemblies"
-                {
-                    "_63CC8CBCF2E74879857609C1AEB4CD7F"
-                    {
-                    "Name" = "8:Scheme.dll"
-                    "Attributes" = "3:512"
-                    }
-                }
-            "SourcePath" = "8:..\\..\\..\\..\\bin\\Debug\\Scheme.dll"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_99035ED4EADF4165895F863ACB6139FB"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_66CE51E211904AEAAA569ACF243AECDF"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Lib\\MzScheme\\wcm.sch"
             "TargetName" = "8:wcm.sch"
             "Tag" = "8:"
             "Folder" = "8:_1F4C602FB98A4CE59E470D3D85518411"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_68AF91B3ED764C7AA7B2463B0349EC9D"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Util\\petit-macosx-on-win32.sch"
-            "TargetName" = "8:petit-macosx-on-win32.sch"
-            "Tag" = "8:"
-            "Folder" = "8:_0BFE633D23E64AFEB5B59C20544E8322"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -4020,26 +3875,6 @@
             "TargetName" = "8:sets.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_6A5AB475435F4892A8F2D9F9B025B667"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Interpreter\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_3D01F8E8EEEC4D479BB78C7224CB5CC4"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -5020,37 +4855,6 @@
             "TargetName" = "8:sys-win32.sch"
             "Tag" = "8:"
             "Folder" = "8:_01609792C13B4D14B4C330F3AC532693"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{C7BF5952-4B9D-11D3-8E24-00C04F6837D0}:_93F3CC9DEB9440A1AEFDC5A92744D9BC"
-            {
-            "AssemblyRegister" = "3:1"
-            "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:dotnet.heap, Version=0.0.0.0, Culture=neutral"
-                "ScatterAssemblies"
-                {
-                    "_93F3CC9DEB9440A1AEFDC5A92744D9BC"
-                    {
-                    "Name" = "8:CommonLarceny.exe"
-                    "Attributes" = "3:512"
-                    }
-                }
-            "SourcePath" = "8:..\\..\\..\\..\\bin\\Release\\CommonLarceny.exe"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_8FDFAFF54A544D18A179E9FA8681F350"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -6325,26 +6129,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_C1372623CBBF45648876A3CE9E34BA66"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Lib\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_65698E2B0CCF4BE781A9CB7365118B04"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_C196D3A21EFB4EE7B6C98C929D7D4D35"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Twobit\\help.sch"
@@ -6525,37 +6309,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{C7BF5952-4B9D-11D3-8E24-00C04F6837D0}:_CE6748F6E1BA40E8ADA6CE5E920CAB62"
-            {
-            "AssemblyRegister" = "3:1"
-            "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:Scheme, Version=1.0.1868.20017, Culture=neutral"
-                "ScatterAssemblies"
-                {
-                    "_CE6748F6E1BA40E8ADA6CE5E920CAB62"
-                    {
-                    "Name" = "8:Scheme.dll"
-                    "Attributes" = "3:512"
-                    }
-                }
-            "SourcePath" = "8:..\\..\\..\\..\\bin\\Release\\Scheme.dll"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_8FDFAFF54A544D18A179E9FA8681F350"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_CEC800B1A73E44AC85CFF615519D333E"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Twobit\\usual.sch"
@@ -6622,26 +6375,6 @@
             "TargetName" = "8:WindowsInstall.vdproj"
             "Tag" = "8:"
             "Folder" = "8:_3F492EFF2E234BDE9412AB55FA1BD537"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_CFFC1605740740BBA9937B255BA7E2E4"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Compat\\Larceny\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_A466FF36958B4FCD82AB3D2570D71C5B"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -6736,26 +6469,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_D5E9921F01DB4B79A4309FC90F6BCA8F"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Repl\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_4171E8A8743E4E5FA3843306772E24AB"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_D66B9E4508A54A10886A610150B9F581"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Twobit\\hashtree.sch"
@@ -6802,26 +6515,6 @@
             "TargetName" = "8:pass1.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_D8C18BC9BF4F4F66982669433101397A"
-            {
-            "SourcePath" = "8:..\\..\\..\\..\\Compat\\Makefile"
-            "TargetName" = "8:Makefile"
-            "Tag" = "8:"
-            "Folder" = "8:_4223AA6EBCC1477BA33534143D29A289"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -7196,6 +6889,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_EC7E7A2397B849E78F1E60463C46DC09"
+            {
+            "SourcePath" = "8:..\\..\\..\\..\\bin\\Debug\\CommonLarceny.exe"
+            "TargetName" = "8:CommonLarceny.exe"
+            "Tag" = "8:"
+            "Folder" = "8:_99035ED4EADF4165895F863ACB6139FB"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_ED3B624E82C149689C71CD1925AE979F"
             {
             "SourcePath" = "8:..\\..\\..\\..\\Asm\\Common\\asmutil32el.sch"
@@ -7222,37 +6935,6 @@
             "TargetName" = "8:compat.sch"
             "Tag" = "8:"
             "Folder" = "8:_A466FF36958B4FCD82AB3D2570D71C5B"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{C7BF5952-4B9D-11D3-8E24-00C04F6837D0}:_ED87D0BF0D3244AF883A481A83809484"
-            {
-            "AssemblyRegister" = "3:1"
-            "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:dotnet.heap, Version=0.0.0.0, Culture=neutral"
-                "ScatterAssemblies"
-                {
-                    "_ED87D0BF0D3244AF883A481A83809484"
-                    {
-                    "Name" = "8:CommonLarceny.exe"
-                    "Attributes" = "3:512"
-                    }
-                }
-            "SourcePath" = "8:..\\..\\..\\..\\bin\\Debug\\CommonLarceny.exe"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_99035ED4EADF4165895F863ACB6139FB"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -7467,6 +7149,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_F3822A25BD05475D8847723E7BF8401E"
+            {
+            "SourcePath" = "8:..\\..\\..\\..\\bin\\Release\\CommonLarceny.exe"
+            "TargetName" = "8:CommonLarceny.exe"
+            "Tag" = "8:"
+            "Folder" = "8:_8FDFAFF54A544D18A179E9FA8681F350"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_F4806272BDD546E9B91C51C3AC3CBBA4"
             {
             "SourcePath" = "8:..\\Heap\\Heap.vcproj"
@@ -7493,6 +7195,26 @@
             "TargetName" = "8:globals.ah"
             "Tag" = "8:"
             "Folder" = "8:_FC513E3A9E184124BDB11D8F680A57B2"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_F5465777BA75472E9A7C3060485A49EC"
+            {
+            "SourcePath" = "8:..\\..\\..\\..\\bin\\Release\\Scheme.dll"
+            "TargetName" = "8:Scheme.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_8FDFAFF54A544D18A179E9FA8681F350"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -8211,7 +7933,7 @@
         }
         "Shortcut"
         {
-            "{D0C99CFE-1238-11D3-8E00-00C04F6837D0}:_8821F2AAA03547318CD6A16C55D1806E"
+            "{D0C99CFE-1238-11D3-8E00-00C04F6837D0}:_B2A3B6A83CE44EFAB01A70913190C4FE"
             {
             "Name" = "8:CommonLarceny REPL"
             "Arguments" = "8:"
@@ -8219,7 +7941,7 @@
             "ShowCmd" = "3:1"
             "IconIndex" = "3:0"
             "Transitive" = "11:FALSE"
-            "Target" = "8:_93F3CC9DEB9440A1AEFDC5A92744D9BC"
+            "Target" = "8:_F3822A25BD05475D8847723E7BF8401E"
             "Folder" = "8:_4AD41FAD036A4FD4A6D6EE3A89CA4ABB"
             "WorkingFolder" = "8:_8FDFAFF54A544D18A179E9FA8681F350"
             "Icon" = "8:"
@@ -8326,7 +8048,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:CommonLarceny"
         "ProductCode" = "8:{4A0160E0-5505-450F-84F3-BDBF5AC89BB4}"
-        "PackageCode" = "8:{D15351B2-5CC3-45AC-8960-EE58D81FFEA2}"
+        "PackageCode" = "8:{711F5E88-C2D6-4AC7-A49E-41DC5BDA0DA1}"
         "UpgradeCode" = "8:{52AF3015-39C2-4E82-837E-DBD8D86747FB}"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:FALSE"
