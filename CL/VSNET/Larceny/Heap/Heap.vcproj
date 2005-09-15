@@ -48,15 +48,18 @@
 				Name="Debug|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-					Outputs="..\..\..\..\dotnet.heap.exe"/>
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -C &quot;$(InputPath)&quot; debug
+
+"
+					Outputs="..\..\..\..\dotnet.heap.exe;..\..\..\..\dotnet.heap.pdb;..\..\..\..\bin\Debug\CommonLarceny.exe;..\..\..\..\bin\Debug\CommonLarceny.pdb"/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-					Outputs="..\..\..\..\dotnet.heap.exe"/>
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -C &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\dotnet.heap.exe;..\..\..\..\bin\Release\CommonLarceny.exe"/>
 			</FileConfiguration>
 		</File>
 	</Files>

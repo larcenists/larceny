@@ -48,19 +48,19 @@
 				Name="Debug|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-                                        Description="Generating config files"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-                                        Outputs="..\..\..\..\Rts\DotNet\Constants.cs"
-					/>
+					Description="Generating config files"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -f &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\Rts\DotNet\Constants.cs"/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-                                        Description="Generating config files"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-                                        Outputs="..\..\..\..\Rts\DotNet\Constants.cs"
-					/>
+					Description="Generating config files"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -f &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\Rts\DotNet\Constants.cs"/>
 			</FileConfiguration>
 		</File>
 	</Files>

@@ -48,40 +48,19 @@
 				Name="Debug|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-                                        Description="Generating PLT SDK"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-                                        Outputs="..\..\..\..\Distribution\LarcenySDK.plt"
-					/>
+					Description="Generating PLT SDK"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -f &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.plt"/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-                                        Description="Generating PLT SDK"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-                                        Outputs="..\..\..\..\Distribution\LarcenySDK.plt"
-					/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="bundlezip.ss">
-			<FileConfiguration
-				Name="Debug|Win32">
-				<Tool
-					Name="VCCustomBuildTool"
-                                        Description="Generating PLT SDK zip"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-                                        Outputs="..\..\..\..\Distribution\LarcenySDK.zip"
-					/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32">
-				<Tool
-					Name="VCCustomBuildTool"
-                                        Description="Generating PLT SDK zip"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-                                        Outputs="..\..\..\..\Distribution\LarcenySDK.zip"
-					/>
+					Description="Generating PLT SDK"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -f &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.plt"/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -90,20 +69,47 @@
 				Name="Debug|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-                                        Description="Generating PLT SDK tgz"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-                                        Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
-					/>
+					Description="Generating PLT SDK tgz"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -f &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
 				<Tool
 					Name="VCCustomBuildTool"
-                                        Description="Generating PLT SDK tgz"
-					CommandLine="mzscheme -Gqfmv $(InputPath)"
-                                        Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
-					/>
+					Description="Generating PLT SDK tgz"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -f &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"/>
 			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="bundlezip.ss">
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Generating PLT SDK zip"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -f &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.zip"/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Generating PLT SDK zip"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -f &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\Distribution\LarcenySDK.zip"/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\..\..\files.ss">
+		</File>
+		<File
+			RelativePath="..\..\..\mzscheme-runner.ss">
 		</File>
 	</Files>
 	<Globals>
