@@ -321,6 +321,10 @@
           (lambda (name source)
             (list (string-append (nbuild-parameter 'mzscheme-source) name)
                   (list (string-append (nbuild-parameter 'mzscheme-source) source)))))
+	 (common-larceny/debug
+	  (string-append (pathname-append "bin" "Debug") "CommonLarceny"))
+	 (common-larceny/release
+	  (string-append (pathname-append "bin" "Release") "CommonLarceny"))
          (dotnet-mzscheme-files
           (objects "" ".manifest" mzscheme-files)))
 
@@ -360,7 +364,9 @@
         ,(mzscheme-source-target/keywords "generic.manifest")
         ,(mzscheme-source-target/keywords "gprint.manifest")
         ,(mzscheme-source-target/keywords "identifier.manifest")
-        ("dotnet.heap" ,make-dumpheap))
+        ("dotnet.heap" ,make-dumpheap)
+	(,common-larceny/debug ,make-dumpheap)
+	(,common-larceny/release ,make-dumpheap))
       `(dependencies                    ; Order matters.  [Why??!]
         ,(mzscheme-source-dependency "class.manifest"      "class.sch")
         ,(mzscheme-source-dependency "compress.manifest"   "compress.sch")
@@ -372,6 +378,15 @@
         ("dotnet.heap" ,dotnet-heap-files)
         ("dotnet.heap" ,dotnet-eval-files)
         ("dotnet.heap" ,dotnet-mzscheme-files)
+
+        (,common-larceny/debug ,dotnet-heap-files)
+        (,common-larceny/debug ,dotnet-eval-files)
+        (,common-larceny/debug ,dotnet-mzscheme-files)
+
+        (,common-larceny/release ,dotnet-heap-files)
+        (,common-larceny/release ,dotnet-eval-files)
+        (,common-larceny/release ,dotnet-mzscheme-files)
+
         (,(common-relative "ecodes.sch") ,(nbuild-files 'build '("except.sh")))
         (,(common-relative "globals.sch") ,(nbuild-files 'build '("globals.sh")))))))
 
@@ -523,6 +538,10 @@
 ; Project for building all the files in the new generic assembler and
 ; the Sparc assembler.
 
+; Note that this project also "works" for non sparc targets.
+; That is, the magic here may trick you into thinking that you have
+; instant support for your non-sparc backend.
+
 (define sparcasm-project
   (let ((common-asm-files
          (append
@@ -576,6 +595,31 @@
 (define (make-petit-petitasm . rest)
   (make:pretend (not (null? rest)))
   (make:make petit-asm-project/lop "petitasm.date"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Project for building all the files in the Common Larceny assembler
+
+(define dotnetasm-project
+  (let ((common-asm-files
+         (append
+          (replace-extension ".fasl" (nbuild:common-asm-files))
+          (nbuild-files 'common-asm '("link-lop.fasl"))))
+        (dotnetasm-files
+         (replace-extension ".fasl" (nbuild:machine-asm-files))))
+    (make:project "dotnetasm.date"
+      `(rules
+        (".fasl" ".h" ,make-compile-file)
+        (".fasl" ".sch" ,make-compile-file))
+      `(targets
+        ("dotnetasm.date" ,(lambda args #t)))
+      `(dependencies
+        ("dotnetasm.date" ,common-asm-files)
+        ("dotnetasm.date" ,dotnetasm-files)))))
+
+(define (make-dotnetasm . rest)
+  (make:pretend (not (null? rest)))
+  (make:make dotnetasm-project "dotnetasm.date"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -723,7 +767,7 @@
   (apply make-compiler rest)
   (apply make-sparcasm rest)
   (apply make-compat rest)
-  (compile-file "Lib/makefile.sch"))
+  (compile-file (make-filename "Lib" "makefile.sch")))
 
 ; Compile to LOP
 
@@ -749,5 +793,12 @@
           (fix (nbuild:machine-asm-files))
           (fix (nbuild:heap-dumper-files))
           (fix (nbuild:utility-files))))
+
+(define (make-dotnet-development-environment . rest)
+  (apply make-auxlib rest)
+  (apply make-compiler rest)
+  (apply make-dotnetasm rest)
+  (apply make-compat rest)
+  (compile-file (make-filename "Lib" "makefile.sch")))
 
 ; eof

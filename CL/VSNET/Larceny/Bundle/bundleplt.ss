@@ -51,13 +51,11 @@
   (for-each (lambda (file)
               (copy-file (build-path from-directory file)
                          (build-path to-directory file)))
-            (larceny-distribution-files))
-  (copy-file (build-path from-directory "dotnet.heap.exe")
-             (build-path to-directory "bin\\Debug\\CommonLarceny.exe"))
-  (copy-file (build-path from-directory "dotnet.heap.pdb")
-             (build-path to-directory "bin\\Debug\\CommonLarceny.pdb"))
-  (copy-file (build-path from-directory "dotnet.heap.exe")
-             (build-path to-directory "bin\\Release\\CommonLarceny.exe")))
+            (append (larceny-distribution-files)
+					(list	"bin\\Debug\\CommonLarceny.exe"
+							"bin\\Debug\\CommonLarceny.pdb"
+							"bin\\Release\\CommonLarceny.exe"))
+			))
 
 (define (setup-distribution-directory distribution-directory)
   (if (not (directory-exists? distribution-directory))
