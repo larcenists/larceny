@@ -54,8 +54,8 @@
   
   (set! *larceny-root* (make-filename ""))
 
-  (let ((option:source? #t)
-        (option:verbose? #f)
+  (let ((option:source? #f)
+        (option:verbose? #t)
         (option:development? #t))
     ;; set! burns my eyes!
     (set!
