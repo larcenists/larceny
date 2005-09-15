@@ -4,6 +4,6 @@
 @pushd %~d0%~p0
 
 @cd ..\VS8\Larceny\Heap
-@MzScheme -fGmqv Rebuild.ss
+@MzScheme -C ..\mzscheme-runner.ss -f Rebuild.ss
 @popd
 @ENDLOCAL

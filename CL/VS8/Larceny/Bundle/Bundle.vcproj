@@ -4,7 +4,9 @@
 	Version="8.00"
 	Name="Bundle"
 	ProjectGUID="{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}"
+	RootNamespace="Bundle"
 	Keyword="Win32Proj"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -31,9 +33,6 @@
 				Name="VCMIDLTool"
 			/>
 			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -54,9 +53,6 @@
 				Name="VCMIDLTool"
 			/>
 			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -64,6 +60,10 @@
 	<References>
 	</References>
 	<Files>
+		<File
+			RelativePath=".\bundle-common.ss"
+			>
+		</File>
 		<File
 			RelativePath="bundleplt.ss"
 			>
@@ -73,7 +73,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Generating PLT SDK"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					CommandLine="mzscheme.exe -C ..\..\..\mzscheme-runner.ss &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 					Outputs="..\..\..\..\Distribution\LarcenySDK.plt"
 				/>
 			</FileConfiguration>
@@ -83,7 +83,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Generating PLT SDK"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					CommandLine="mzscheme.exe -qfmv $(InputPath)&#x0D;&#x0A;"
 					Outputs="..\..\..\..\Distribution\LarcenySDK.plt"
 				/>
 			</FileConfiguration>
@@ -97,7 +97,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Generating PLT SDK tgz"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					CommandLine="mzscheme.exe -C ..\..\..\mzscheme-runner.ss &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 					Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
 				/>
 			</FileConfiguration>
@@ -107,7 +107,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Generating PLT SDK tgz"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					CommandLine="mzscheme.exe -qfmv $(InputPath)&#x0D;&#x0A;"
 					Outputs="..\..\..\..\Distribution\LarcenySDK.tgz"
 				/>
 			</FileConfiguration>
@@ -121,7 +121,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Generating PLT SDK zip"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					CommandLine="mzscheme.exe -C ..\..\..\mzscheme-runner.ss &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 					Outputs="..\..\..\..\Distribution\LarcenySDK.zip"
 				/>
 			</FileConfiguration>
@@ -131,10 +131,16 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Generating PLT SDK zip"
-					CommandLine="mzscheme.exe -Gqfmv $(InputPath)&#x0D;&#x0A;"
+					CommandLine="mzscheme.exe -qfmv $(InputPath)&#x0D;&#x0A;"
 					Outputs="..\..\..\..\Distribution\LarcenySDK.zip"
 				/>
 			</FileConfiguration>
 		</File>
+		<File
+			RelativePath="..\..\..\mzscheme-runner.ss"
+			>
+		</File>
 	</Files>
+	<Globals>
+	</Globals>
 </VisualStudioProject>
