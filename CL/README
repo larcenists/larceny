@@ -44,7 +44,8 @@ works on a temporary copy of the directory structure.
 
 Once a temporary copy of the Common Larceny distribution is created,
 an archiving program such as WinZip or tar is used to create the
-distribution bundle.  The files
+distribution bundle.  The current source code uses the 7-Zip utility
+to provide this functionality.  The files
 
     CL\VSNET\Larceny\Bundle\bundleplt.ss
     CL\VSNET\Larceny\Bundle\bundletar.ss
