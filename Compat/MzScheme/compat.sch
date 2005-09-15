@@ -294,4 +294,6 @@
              (lambda () BODY   ...)
              (lambda () (PARAM ORIG) ...)))))))
 
+(set! copy-file mz:copy-file)
+
 (require (lib "pretty.ss"))
