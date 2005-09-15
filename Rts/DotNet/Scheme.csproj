@@ -1,7 +1,7 @@
 <VisualStudioProject>
     <CSHARP
         ProjectType = "Local"
-        ProductVersion = "7.0.9466"
+        ProductVersion = "7.0.9955"
         SchemaVersion = "1.0"
         ProjectGuid = "{8A0E5AAE-E7A5-4E48-AEC8-E8DDE113D7CB}"
     >
@@ -31,6 +31,7 @@
                     FileAlignment = "4096"
                     IncrementalBuild = "false"
                     Optimize = "false"
+                    OutputPath = "..\..\bin\Debug\"
                     RegisterForComInterop = "false"
                     RemoveIntegerChecks = "false"
                     TreatWarningsAsErrors = "false"
@@ -48,6 +49,7 @@
                     FileAlignment = "4096"
                     IncrementalBuild = "false"
                     Optimize = "true"
+                    OutputPath = "..\..\bin\Release\"
                     RegisterForComInterop = "false"
                     RemoveIntegerChecks = "false"
                     TreatWarningsAsErrors = "false"
@@ -143,6 +145,10 @@
                     RelPath = "OpsSpecial.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Rebuild.ss"
+                    BuildAction = "None"
                 />
                 <File
                     RelPath = "Reg.cs"

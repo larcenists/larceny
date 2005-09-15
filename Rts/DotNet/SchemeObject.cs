@@ -1,5 +1,5 @@
-#line 1 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops.h"
+#line 1 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops.h"
     
 
 
@@ -247,7 +247,7 @@
 
 
 
-#line 2 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 2 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
 
 using System;
 using System.Collections;
@@ -274,7 +274,7 @@ namespace Scheme.Rep {
             w.Write(">");
         }
 
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SObject.inc"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SObject.inc"
 
 
 
@@ -513,7 +513,7 @@ namespace Scheme.Rep {
         public virtual void op_negative() { Exn.fault(Constants.EX_NEG, null, this); }
         public virtual void op_exact2inexact() { Call.callMillicodeSupport1(Constants.MS_GENERIC_EXACT2INEXACT, this); }
         public virtual void op_inexact2exact() { Call.callMillicodeSupport1(Constants.MS_GENERIC_INEXACT2EXACT, this); }
-#line 29 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 29 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -528,11 +528,11 @@ namespace Scheme.Rep {
             w.Write(rep);
         }
 
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SImmediate.inc"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SImmediate.inc"
 
 
         public override SObject op_immediatep() { return Factory.True; } public override bool isImmediate() { return true; }
-#line 44 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 44 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -567,7 +567,7 @@ namespace Scheme.Rep {
             w.Write(val);
         }
 
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SChar.inc"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SChar.inc"
 
 
         public override SObject op_charp() { return Factory.True; } public override bool isChar() { return true; }
@@ -605,7 +605,7 @@ namespace Scheme.Rep {
         public override void op_reversed_char_eqvp_not_eq(SChar arg1) {
             Reg.Result = (arg1.val == this.val) ? Factory.True : Factory.False;
         }
-#line 79 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 79 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -689,7 +689,7 @@ namespace Scheme.Rep {
                 return new SFixnum(val);
         }
 
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SFixnum.inc"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SFixnum.inc"
 
 
         public override SObject op_numberp() { return Factory.True; } public override bool isNumber() { return true; }
@@ -1193,7 +1193,7 @@ namespace Scheme.Rep {
         public override void op_inexact2exact() {
             Reg.Result = this;
         }
-#line 163 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 163 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -1216,13 +1216,13 @@ namespace Scheme.Rep {
             if (this.tag != tag) Exn.fault(excode, null, this, arg2, arg3);
         }
 
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_STagged.inc"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_STagged.inc"
 
 
         public override SObject op_typetag() { return Factory.makeFixnum (this.tag); }
         public override SObject op_typetag_set(SObject arg2) { return arg2.op_reversed_typetag_set(this); }
 
-#line 186 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 186 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -1272,7 +1272,7 @@ namespace Scheme.Rep {
             }
         }
 
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SVL.inc"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SVL.inc"
 
 
         public override SObject op_numberp() { return (this.isRatnum() || this.isRectnum()) ? Factory.True : Factory.False; } public override bool isNumber() { return (this.isRatnum() || this.isRectnum()); }
@@ -1360,7 +1360,7 @@ namespace Scheme.Rep {
         public override void op_reversed_ratnum_less_or_equal(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_LESSEQ, arg1, this); } else { base.op_reversed_ratnum_less_or_equal(arg1); } }
         public override void op_reversed_ratnum_greater_than(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_GREATER, arg1, this); } else { base.op_reversed_ratnum_greater_than(arg1); } }
         public override void op_reversed_ratnum_greater_or_equal(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_GREATEREQ, arg1, this); } else { base.op_reversed_ratnum_greater_or_equal(arg1); } }
-#line 89 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SVL.inc"
+#line 89 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SVL.inc"
 
         public override void op_reversed_ratnum_plus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_ADD, arg1, this); } else { base.op_reversed_ratnum_plus(arg1); } }
         public override void op_reversed_ratnum_minus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RATNUM_SUB, arg1, this); } else { base.op_reversed_ratnum_minus(arg1); } }
@@ -1408,7 +1408,7 @@ namespace Scheme.Rep {
                 base.op_truncate();
             }
         }
-#line 236 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 236 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -1539,7 +1539,7 @@ namespace Scheme.Rep {
             return stringEncoding.GetString(elements);
         }
 
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
 
 
         public override SObject op_numberp() { return (this.isBignum() || this.isFlonum() || this.isCompnum()) ? Factory.True : Factory.False; } public override bool isNumber() { return (this.isBignum() || this.isFlonum() || this.isCompnum()); }
@@ -1647,17 +1647,17 @@ namespace Scheme.Rep {
 
         
         public override void op_reversed_bignum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_eqvp_not_eq(arg1); } }
-#line 113 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 113 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_numeric_equals(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_EQUAL, arg1, this); } else { base.op_reversed_bignum_numeric_equals(arg1); } }
-#line 115 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 115 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_less_than(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_LESS, arg1, this); } else { base.op_reversed_bignum_less_than(arg1); } }
-#line 117 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 117 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_less_or_equal(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_LESSEQ, arg1, this); } else { base.op_reversed_bignum_less_or_equal(arg1); } }
-#line 119 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 119 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_greater_than(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_GREATER, arg1, this); } else { base.op_reversed_bignum_greater_than(arg1); } }
-#line 121 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 121 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
         public override void op_reversed_bignum_greater_or_equal(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_GREATEREQ, arg1, this); } else { base.op_reversed_bignum_greater_or_equal(arg1); } }
-#line 123 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SByteVL.inc"
+#line 123 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SByteVL.inc"
 
         public override void op_reversed_bignum_plus(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_ADD, arg1, this); } else { base.op_reversed_bignum_plus(arg1); } }
         public override void op_reversed_bignum_minus(SByteVL arg1) { if (this.tag == Tags.BignumTag) { Call.callMillicodeSupport2(Constants.MS_BIGNUM_SUB, arg1, this); } else { base.op_reversed_bignum_minus(arg1); } }
@@ -1795,7 +1795,7 @@ namespace Scheme.Rep {
                 base.op_inexact2exact();
             }
         }
-#line 367 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 367 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -1848,7 +1848,7 @@ namespace Scheme.Rep {
             this.rest = rest;
         }
 
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_SPair.inc"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_SPair.inc"
 
 
         public override SObject op_pairp() { return Factory.True; } public override bool isPair() { return true; }
@@ -1866,7 +1866,7 @@ namespace Scheme.Rep {
         public override SObject op_set_car_pair(SObject arg2) { this.first = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
         public override SObject op_set_cdr_pair(SObject arg2) { this.rest = arg2; return Factory.Unspecified; }
-#line 420 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 420 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
@@ -2405,9 +2405,9 @@ namespace Scheme.Rep {
 
 
 
-#line 959 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 959 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
 
-#line 1 "c:\\home\\jrm\\larceny\\rts\\dotnet\\Ops_Procedure.inc"
+#line 1 "c:\\documents and settings\\felix s klock ii\\dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\rts\\dotnet\\Ops_Procedure.inc"
 
 
         public override SObject op_procedurep() { return Factory.True; } public override bool isProcedure() { return true; }
@@ -2416,7 +2416,7 @@ namespace Scheme.Rep {
         }
         public override SObject op_procedure_ref(SObject arg2) { return arg2.op_reversed_procedure_ref(this); }
         public override SObject op_procedure_set(SObject arg2, SObject arg3) { return arg2.op_reversed_procedure_set(this, arg3); }
-#line 961 "c:\\Home\\Jrm\\Larceny\\Rts\\DotNet\\SchemeObject.cs.cpp"
+#line 961 "c:\\Documents and Settings\\Felix S Klock II\\Dev\\courses\\262\\larcenycvs\\trunk\\larceny_src\\Rts\\DotNet\\SchemeObject.cs.cpp"
     }
 
     
