@@ -77,6 +77,7 @@
    "Asm\\IL\\pass5p2.sch"
    "Asm\\IL\\peepopt.sch"
    "Asm\\IL\\util.sch"
+   "Asm\\IL\\util-structs.sch"
 
    "Auxlib\\format.sch"
    "Auxlib\\io.sch"
@@ -220,8 +221,8 @@
    "Lib\\IL\\toplevel-target.sch"
 
    "Lib\\MzScheme\\class.sch"
-   "Lib\\MzScheme\\ClassInCore-demo.sch"
-   "Lib\\MzScheme\\CodeDOM-demo.sch"
+;   "Lib\\MzScheme\\ClassInCore-demo.sch"
+;   "Lib\\MzScheme\\CodeDOM-demo.sch"
    "Lib\\MzScheme\\compress.sch"
    "Lib\\MzScheme\\cont.sch"
    "Lib\\MzScheme\\custodian.sch"
@@ -329,6 +330,7 @@
    "Rts\\DotNet\\SchemeObject.cs.cpp"
    "Rts\\DotNet\\Syscall-enum.cs"
    "Rts\\DotNet\\Syscall.cs"
+   "Rts\\make-templates.sch"
 
    "Twobit\\common.imp.sch"
    "Twobit\\copy.sch"
@@ -392,9 +394,11 @@
    "Util\\nasm-unix.sch"
    "Util\\nbuild-files.sch"
    "Util\\nbuild.sch"
+   "Util\\nbuild-defns.sch"
    ;"Util\\petit-macosx-on-win32.sch"
    "Util\\petit-unix-be.sch"
    "Util\\petit-unix-el.sch"
+   "Util\\petit-unix-defns-globals.sch"
    "Util\\petit-win32.sch"
    "Util\\process-stats.sch"
    "Util\\r5rs-heap.sch"
@@ -403,6 +407,7 @@
    "Util\\sysdep-unix.sch"
    "Util\\sysdep-win32.sch"
    "Util\\twobit-heap.sch"
+   "Util\\cleanup.sch"
    ))
 
 ;;;
