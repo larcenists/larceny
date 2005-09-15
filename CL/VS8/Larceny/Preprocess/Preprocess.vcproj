@@ -4,7 +4,9 @@
 	Version="8.00"
 	Name="Preprocess"
 	ProjectGUID="{57710DF1-A0C6-45B6-A0C8-8FB6A04CE926}"
+	RootNamespace="Preprocess"
 	Keyword="Win32Proj"
+	SignManifests="true"
 	>
 	<Platforms>
 		<Platform
@@ -31,9 +33,6 @@
 				Name="VCMIDLTool"
 			/>
 			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -52,9 +51,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -77,7 +73,7 @@
 					<Tool
 						Name="VCCustomBuildTool"
 						Description="Preprocessing $(InputFileName)"
-						CommandLine="cl.exe /nologo /D_DEBUG /E $(InputPath) &gt; $(InputDir)$(InputName)&#x0D;&#x0A;"
+						CommandLine="cl.exe /nologo /D_DEBUG /E &quot;$(InputPath)&quot; &gt; &quot;$(InputDir)$(InputName)&quot;&#x0D;&#x0A;"
 						Outputs="$(InputDir)$(InputName)"
 					/>
 				</FileConfiguration>
@@ -148,4 +144,6 @@
 			>
 		</Filter>
 	</Files>
+	<Globals>
+	</Globals>
 </VisualStudioProject>
