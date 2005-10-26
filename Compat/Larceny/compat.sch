@@ -8,6 +8,12 @@
 
 (define host-system 'larceny)
 
+(define (write-byte bytenum . rest)
+  (let ((port (if (null? rest) 
+                  (current-output-port)
+                  (car rest))))
+    (write-char (integer->char bytenum) port)))
+
 ; Temporary?
 
 (define (.check! flag exn . args)
