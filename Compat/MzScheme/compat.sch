@@ -10,6 +10,15 @@
 
 (define version-299? (> (string->number (version)) 299))
 
+(define write-byte 
+  (if version-299?
+      write-byte
+      (lambda (bytenum . rest)
+        (let ((port (if (null? rest)
+                        (current-output-port)
+                        (car rest))))
+          (write-char (integer->char bytenum) port)))))
+
 ;; Initialization
 
 (define (compat:initialize)
