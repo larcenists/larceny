@@ -129,4 +129,7 @@
   (or (< (string-length path) 2)
       (not (char=? #\: (string-ref path 1)))))
 
+(define (absolute-path-string? path)
+  (not (relative-path-string? path)))
+
 ; eof

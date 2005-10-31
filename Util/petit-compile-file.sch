@@ -16,8 +16,8 @@
                   (if (absolute-path? path)
                       path
                       (string-append compile-root "/" path))))
-               (infilename (fix-path infilename))
-               (outfilename 
+               (infilename-fixed (fix-path infilename))
+               (outfilename-fixed
                 (fix-path
                  (if (not (null? rest))
                      (car rest)
@@ -25,4 +25,4 @@
                                         *scheme-file-types*
                                         *fasl-file-type*)))))
           (parameterize ((current-directory larceny-root))
-            (compile-files (list infilename) outfilename))))))
+            (compile-files (list infilename-fixed) outfilename-fixed))))))

@@ -109,4 +109,7 @@
 (define (relative-path-string? path)
   (not (char=? #\/ (string-ref path 0))))
 
+(define (absolute-path-string? path)
+  (not (relative-path-string? path)))
+
 ; eof
