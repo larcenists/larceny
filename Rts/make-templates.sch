@@ -65,55 +65,55 @@
 		  (newline out)))))))))
 
 (define *makefile-configurations*
-  `((SPARC-SOLARIS-STATIC-GCC
+  `((sparc-solaris-static-gcc
      . ,(lambda ()
 	  (values make-template-sparc-solaris-gcc-gas 
 		  make-template-target-sparc-solaris)))
-    (SPARC-SOLARIS-STATIC-GCC-BDW
+    (sparc-solaris-static-gcc-bdw
      . ,(lambda ()
 	  (values make-template-sparc-solaris-gcc-gas 
 		  make-template-target-sparc-solaris-bdw)))
-    (SPARC-SOLARIS-STATIC-CC
+    (sparc-solaris-static-cc
      . ,(lambda ()
 	  (values make-template-sparc-solaris-cc-as 
 		  make-template-target-sparc-solaris)))
-    (SPARC-SOLARIS-STATIC-CC-BDW
+    (sparc-solaris-static-cc-bdw
      . ,(lambda ()
 	  (values make-template-sparc-solaris-cc-as 
 		  make-template-target-sparc-solaris-bdw)))
-    (PETIT-UNIX-SHARED-GCC
+    (petit-unix-shared-gcc
      . ,(lambda ()
 	  (values make-template-petit-unix-gcc
 		  make-template-target-petit-unix-shared)))
-    (PETIT-MACOSX-SHARED-GCC
+    (petit-macosx-shared-gcc
      . ,(lambda ()
 	  (values make-template-petit-macosx-gcc-shared 
 		  make-template-target-petit-macosx-shared)))
-    (PETIT-UNIX-STATIC-GCC
+    (petit-unix-static-gcc
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc
 		  make-template-target-petit-unix-static)))
-    (PETIT-WIN32-STATIC-MINGW
+    (petit-win32-static-mingw
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc
 		  make-template-target-petit-unix-static)))
-    (PETIT-WIN32-STATIC-CODEWARRIOR
+    (petit-win32-static-codewarrior
      . ,(lambda () 
 	  (values make-template-petit-win32-cw6
 		  make-template-target-petit-win32-static)))
-    (PETIT-WIN32-STATIC-VISUALC
+    (petit-win32-static-visualc
      . ,(lambda () 
 	  (values make-template-petit-win32-visualc
 		  make-template-target-petit-win32-static)))
-    (PETIT-OSF/1-STATIC-DECC
+    (petit-osf/1-static-decc
      . ,(lambda ()
 	  (values make-template-petit-osf1-decc
 		  make-template-target-petit-unix-static)))
-    (X86-WIN32-STATIC-VISUALC-NASM
+    (x86-win32-static-visualc-nasm
      . ,(lambda ()
 	  (values make-template-petit-win32-visualc
 		  make-template-target-nasm-x86-win32-static)))
-    (X86-UNIX-STATIC-GCC-NASM
+    (x86-unix-static-gcc-nasm
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc
 		  make-template-target-nasm-x86-unix-static)))))
