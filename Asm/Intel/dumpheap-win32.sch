@@ -59,7 +59,7 @@
   (execute
    (twobit-format 
     #f
-    "nasmw -O1 -f win32 -IRts\\Intel\\ -IRts\\Build\\ -o ~a ~a"
+    "nasmw -O1 -f win32 -IRts\\Intel\\ -IRts\\Build\\ -o \"~a\" \"~a\""
     o-name
     asm-name)))
 
@@ -68,8 +68,7 @@
   (call-with-output-file filename
     (lambda (out)
       (for-each (lambda (x)
-		  (display x out)
-		  (newline out))
+		  (twobit-format out "\"~a\"~%" x))
 		object-files))))
 
 (define (c-library-linker:msvc-win32 output-name object-files libs)
@@ -78,14 +77,14 @@
     (create-indirect-file lnk-name object-files)
     (delete-file output-name)
     (execute
-     (twobit-format #f "lib.exe /libpath:. /name:~a /out:~a @~a" lib-name output-name lnk-name))))
+     (twobit-format #f "lib.exe /libpath:. /name:\"~a\" /out:\"~a\" @\"~a\"" lib-name output-name lnk-name))))
 
 (define (c-linker:msvc-win32 output-name object-files libs)
   (create-indirect-file "petit-objs.lnk" object-files)
   (system "del vc60.pdb")
   (execute
    (twobit-format #f
-		  "link.exe /debug /export:mc_alloc /out:~a @petit-objs.lnk ~a"
+		  "link.exe /debug /export:mc_alloc /out:\"~a\" @petit-objs.lnk \"~a\""
 		  output-name
 		  (apply string-append (insert-space libs)))))
 
@@ -95,7 +94,7 @@
   (system "del vc60.pdb")
   (execute
    (twobit-format #f
-		  "link.exe /dll /noentry /export:twobit_load_table /debug /out:~a @petit-objs.lnk petit.lib"
+		  "link.exe /dll /noentry /export:twobit_load_table /debug /out:\"~a\" @petit-objs.lnk petit.lib"
 		  output-name)))
 
 (define-compiler 
