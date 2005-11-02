@@ -170,7 +170,7 @@
 			       ((macosx) c-so-linker:gcc-macosx)
 			       (else     c-so-linker:gcc-unix)))
       (append-files       . ,append-file-shell-command-unix)
-      (make-configuration . PETIT-UNIX-STATIC-GCC))))
+      (make-configuration . petit-unix-static-gcc))))
 
 ; eof
 
