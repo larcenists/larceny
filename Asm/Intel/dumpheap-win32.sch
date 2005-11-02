@@ -84,9 +84,12 @@
   (system "del vc60.pdb")
   (execute
    (twobit-format #f
-		  "link.exe /debug /export:mc_alloc /out:\"~a\" @petit-objs.lnk \"~a\""
+		  "link.exe /debug /export:mc_alloc /out:\"~a\" @petit-objs.lnk ~a"
 		  output-name
-		  (apply string-append (insert-space libs)))))
+		  (apply string-append
+                         (insert-space (map (lambda (lib)
+                                              (string-append "\"" lib "\""))
+                                            libs))))))
 
 (define (c-dll-linker:msvc-win32 output-name object-files . ignored)
   ;; FIXME!!  (why??)
@@ -107,7 +110,7 @@
       (link-executable    . ,c-linker:msvc-win32)
       (link-shared-object . ,c-dll-linker:msvc-win32)
       (append-files       . ,append-file-shell-command-msdos)
-      (make-configuration . X86-WIN32-STATIC-VISUALC-NASM))))
+      (make-configuration . x86-win32-static-visualc-nasm))))
 
 ; eof
 
