@@ -464,7 +464,7 @@
               (append files
                       (map (lambda (x) (rewrite-file-type x '(".lop") ".c"))
                            files)
-                      (map (lambda (x) (rewrite-file-type x '(".lop") ".o"))
+                      (map (lambda (x) (rewrite-file-type x '(".lop") (obj-suffix)))
                            files)
                       (map (lambda (x) (rewrite-file-type x '(".lop") ".lap"))
                            files)))))
