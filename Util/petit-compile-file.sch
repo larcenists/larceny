@@ -6,16 +6,14 @@
 ;; (e.g. the Testsuite)
 
 (define compile-file 
-  (let ((larceny-root (current-directory))
-        (absolute-path? (lambda (string)
-                            (char=? #\/ (string-ref string 0)))))
+  (let ((larceny-root (current-directory)))
       (lambda (infilename . rest)
         (let* ((compile-root (current-directory))
                (fix-path
                 (lambda (path)
-                  (if (absolute-path? path)
+                  (if (absolute-path-string? path)
                       path
-                      (string-append compile-root "/" path))))
+                      (make-filename compile-root path))))
                (infilename-fixed (fix-path infilename))
                (outfilename-fixed
                 (fix-path
