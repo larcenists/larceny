@@ -41,6 +41,7 @@
     ("Auxlib")
     ("Twobit")
     ("Compat" "Larceny")
+    ("Compat" "MzScheme")
     ("Asm")
     ("Asm" "Common")
     ("Asm" "Standard-C")
