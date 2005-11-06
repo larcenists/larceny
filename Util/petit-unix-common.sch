@@ -176,7 +176,7 @@
       (delete-file c-name)
       (delete-file o-name)
       (delete-file so-name)
-      (create-loadable-file outfilename segments so-name)
+      (create-loadable-file/fasl->sharedobj outfilename segments so-name)
       (c-link-shared-object so-name (list o-name) '())
       (unspecified))))
 

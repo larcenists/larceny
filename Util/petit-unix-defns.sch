@@ -304,9 +304,16 @@
 ;; instead we'll call it all from the setup procedure.
 ;; (unix-&-win32-initialize)
 
-(define (ensure-fresh-name filename)
+(define (ensure-fresh-name filename suffix)
+  (define filename/no-suffix 
+    (substring filename 0 (- (string-length filename)
+			     (string-length suffix))))
   (define (helper filename num)
-    (let ((filename* (string-append filename "." (number->string num 16))))
+    (let ((filename* (string-append filename/no-suffix 
+				    "." 
+				    (number->string num 16) 
+				    suffix
+				    )))
       (if (not (file-exists? filename*))
           filename*
           (helper filename (+ num 1)))))
@@ -329,7 +336,8 @@
 	(c-name    (rewrite-file-type outfilename ".fasl" ".c"))
 	(o-name    (rewrite-file-type outfilename ".fasl" (obj-suffix)))
 	(so-name   (ensure-fresh-name
-                    (rewrite-file-type outfilename ".fasl" (shared-obj-suffix)))))
+                    (rewrite-file-type outfilename ".fasl" (shared-obj-suffix))
+		    (shared-obj-suffix))))
     (for-each (lambda (infilename)
 		(call-with-input-file infilename
 		  (lambda (in)
@@ -343,7 +351,7 @@
       (delete-file c-name)  ; win32 doesn't do this
       (delete-file o-name)  ; or this
       (delete-file so-name) ; or this
-      (create-loadable-file outfilename segments so-name)
+      (create-loadable-file/fasl->sharedobj outfilename segments so-name)
       (c-link-shared-object so-name 
 			    (list o-name) 
 			    (case *host:os*
