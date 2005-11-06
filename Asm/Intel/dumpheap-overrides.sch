@@ -63,7 +63,13 @@
 (define (before-all-files heap output-file-name input-file-names)
   (init-variables))
 
-(define (create-loadable-file filename . rest)
+(define (create-loadable-file lop-filename)
+  (create-loadable-file/old lop-filename))
+
+(define (create-loadable-file/fasl->sharedobj fasl-filename segments so-name)
+  (create-loadable-file/old fasl-filename segments so-name))
+
+(define (create-loadable-file/old filename . rest)
 
   (define (dump-constants cv)
     (for-each (lambda (x)
@@ -276,13 +282,20 @@
 	     (file-exists? filename)
 	     (compat:file-newer? c-name filename))
 	(set! *asm-output* #f)
-	(let ((c-file (open-output-file c-name)))
+	(let ((c-file (begin
+			(if (file-exists? c-name)
+			    (delete-file c-name))
+			(open-output-file c-name))))
 	  (set! *asm-output* c-file)
 	  (for-each (lambda (d) (emit-c-code "~a~%" d))
 		    decls)
 	  (emit-c-code "%include \"i386-machine.ah\"~%")
 	  (emit-c-code "%include \"i386-instr.asm\"~%")))))
 
+;;; TODO: parameterize this code over o-name, so that
+;;; we can pass in fresh names for architectures which I 
+;;; suspect are succumbing to timestamp issues in their
+;;; linkers (*cough*windows*cough*)
 (define (after-dump-file h filename)
   (if *asm-output*
       (close-output-port *asm-output*))

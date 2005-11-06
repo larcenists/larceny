@@ -50,7 +50,13 @@
 (define (before-all-files heap output-file-name input-file-names)
   (init-variables))
 
-(define (create-loadable-file filename . rest)
+(define (create-loadable-file lop-filename)
+  (create-loadable-file/old lop-filename))
+
+(define (create-loadable-file/fasl->sharedobj fasl-filename segments so-name)
+  (create-loadable-file/old fasl-filename segments so-name))
+
+(define (create-loadable-file/old filename . rest)
 
   (define (dump-constants cv)
     (for-each (lambda (x)
