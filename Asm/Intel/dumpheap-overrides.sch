@@ -63,13 +63,18 @@
 (define (before-all-files heap output-file-name input-file-names)
   (init-variables))
 
-(define (create-loadable-file lop-filename)
-  (create-loadable-file/old lop-filename))
+(define (dump-segments bootstrap-id fasl-file segments decls so-name so-asm-name so-obj-name)
 
-(define (create-loadable-file/fasl->sharedobj fasl-filename segments so-name)
-  (create-loadable-file/old fasl-filename segments so-name))
-
-(define (create-loadable-file/old filename . rest)
+  (define (dump-fasl bootstrap-id segment out)
+    (display "((.petit-patch-procedure " out)
+    (display bootstrap-id out)
+    (display " " out)
+    (display *segment-number* out)
+    (newline out)
+    (display "'" out)
+    (dump-fasl-segment-to-port segment out 'no-code)
+    (display "))" out)
+    (newline out))
 
   (define (dump-constants cv)
     (for-each (lambda (x)
@@ -95,20 +100,54 @@
 	(emit-c-code "~a: jmp ~a~%~%" name entrypoint)
         name)))
 
-  (define (dump-fasl bootstrap-id segment out)
-    (display "((.petit-patch-procedure " out)
-    (display bootstrap-id out)
-    (display " " out)
-    (display *segment-number* out)
-    (newline out)
-    (display "'" out)
-    (dump-fasl-segment-to-port segment out 'no-code)
-    (display "))" out)
-    (newline out))
+  (before-dump-file #f fasl-file decls so-asm-name)
+  (delete-file fasl-file)
+  (let ((entrypoints '())
+	(bootstrap-id (or bootstrap-id (string-append ".petit-bootstrap-id-" *unique-id*))))
+    (call-with-output-file fasl-file
+      (lambda (out)
+	(if so-name
+	    (begin (display "(define " out)
+		   (display bootstrap-id out)
+		   (display " (.petit-shared-object " out)
+		   (write so-name out)
+		   (display "))" out)
+		   (newline out)
+		   (newline out)))
+	(do ((segments segments (cdr segments)))
+	    ((null? segments))
+	  (let ((segment (car segments)))
+	    (set! entrypoints (cons (dump-code segment) entrypoints))
+	    (dump-fasl bootstrap-id
+		       (cons (segment.code segment)
+			     (segment.constants segment))
+		       out)
+	    (set! *segment-number* (+ *segment-number* 1))))))
+    (if so-name
+	(begin
+	  (emit-c-code "global EXTNAME(twobit_load_table)~%")
+	  (emit-c-code "EXTNAME(twobit_load_table):~%")
+	  (do ((l (reverse entrypoints) (cdr l))
+	       (i 0 (+ i 1)))
+	      ((null? l))
+	    (emit-c-code "  dd ~a~%" (car l)))))
+    (after-dump-file #f fasl-file so-asm-name so-obj-name)
+    entrypoints))
 
+(define (list-ref/def lst idx default)
+  (cond
+   ((null? lst) default)
+   ((= idx 0) (car lst))
+   (else (list-ref/def (cdr lst) (- idx 1) default))))
+
+(define (create-loadable-file lop-filename . rest)
+  
   (define (dump-one-file lop-file)
     (display "Loading code for ") (display lop-file) (newline)
-    (let ((fasl-file (rewrite-file-type lop-file ".lop" ".fasl")))
+    (let* ((rewrite-lop (lambda (ext) (rewrite-file-type lop-file ".lop" ext)))
+	   (fasl-file (list-ref/def rest 0 (rewrite-lop ".fasl")))
+	   (asm-file  (list-ref/def rest 1 (rewrite-lop ".asm")))
+	   (obj-file  (list-ref/def rest 2 (rewrite-lop (obj-suffix)))))
       (let ((entrypoints 
 	     (call-with-input-file lop-file
 	       (lambda (in)
@@ -123,49 +162,20 @@
 					     fasl-file
 					     (reverse segments)
 					     (reverse decls)
-					     #f))))))))))
+					     #f
+					     asm-file
+					     obj-file))))))))))
 	(set! *loadables* (cons (cons *unique-id* (reverse entrypoints))
 				*loadables*)))))
 
-  (define (dump-segments bootstrap-id fasl-file segments decls so-name)
-    (before-dump-file #f filename decls)
-    (delete-file fasl-file)
-    (let ((entrypoints '())
-	  (bootstrap-id (or bootstrap-id (string-append ".petit-bootstrap-id-" *unique-id*))))
-      (call-with-output-file fasl-file
-	(lambda (out)
-	  (if so-name
-	      (begin (display "(define " out)
-		     (display bootstrap-id out)
-		     (display " (.petit-shared-object " out)
-		     (write so-name out)
-		     (display "))" out)
-		     (newline out)
-		     (newline out)))
-	  (do ((segments segments (cdr segments)))
-	      ((null? segments))
-	    (let ((segment (car segments)))
-	      (set! entrypoints (cons (dump-code segment) entrypoints))
-	      (dump-fasl bootstrap-id
-			 (cons (segment.code segment)
-			       (segment.constants segment))
-			 out)
-	      (set! *segment-number* (+ *segment-number* 1))))))
-      (if so-name
-	  (begin
-	    (emit-c-code "global EXTNAME(twobit_load_table)~%")
-	    (emit-c-code "EXTNAME(twobit_load_table):~%")
-	    (do ((l (reverse entrypoints) (cdr l))
-		 (i 0 (+ i 1)))
-		((null? l))
-	      (emit-c-code "  dd ~a~%" (car l)))))
-      (after-dump-file #f filename)
-      entrypoints))
+  (dump-one-file lop-filename))
 
-  (if (null? rest)
-      (dump-one-file filename)
-      (dump-segments #f filename (car rest) '() (cadr rest))))
-
+(define (create-loadable-file/fasl->sharedobj fasl-filename segments so-name . rest)
+  (let* ((rewrite-fasl-to 
+	  (lambda (idx ext) (list-ref/def rest idx (rewrite-file-type fasl-filename ".fasl" ext))))
+	 (asm-name (rewrite-fasl-to 0 ".asm"))
+	 (obj-name (rewrite-fasl-to 1 (obj-suffix))))
+    (dump-segments #f fasl-filename segments '() so-name asm-name obj-name)))
 
 ; Specialized and more rational version of create-loadable-file, in three parts.
 
@@ -272,9 +282,9 @@
 (define (after-all-files heap output-file-name input-file-names)
   (build-petit-larceny heap output-file-name input-file-names))
 
-(define (before-dump-file h filename decls)
+(define (before-dump-file h filename decls so-asm-name)
   (set! *segment-number* 0)
-  (let* ((c-name (rewrite-file-type filename '(".fasl" ".lop") ".asm"))
+  (let* ((c-name so-asm-name) 
 	 (id     (compute-unique-id c-name)))
     (set! *unique-id* id)
     (set! *already-compiled* (cons c-name *already-compiled*))
@@ -292,15 +302,11 @@
 	  (emit-c-code "%include \"i386-machine.ah\"~%")
 	  (emit-c-code "%include \"i386-instr.asm\"~%")))))
 
-;;; TODO: parameterize this code over o-name, so that
-;;; we can pass in fresh names for architectures which I 
-;;; suspect are succumbing to timestamp issues in their
-;;; linkers (*cough*windows*cough*)
-(define (after-dump-file h filename)
+(define (after-dump-file h filename so-asm-name so-obj-name)
   (if *asm-output*
       (close-output-port *asm-output*))
-  (let ((c-name (rewrite-file-type filename '(".fasl" ".lop") ".asm"))
-        (o-name (rewrite-file-type filename '(".fasl" ".lop") (obj-suffix))))
+  (let ((c-name so-asm-name)  
+        (o-name so-obj-name)) 
     (if (not (and (file-exists? o-name)
 		  (file-exists? c-name)
                   (compat:file-newer? o-name c-name)))

@@ -324,6 +324,18 @@
 ; I think this works, but dynamic loading does not work on MacOS X 10.1.5,
 ; so I've been unable to test.
 
+;; String UserData SyntaxEnv -> [Listof Segment]
+(define (compile-files/file->segments infilename user syntaxenv)
+  (call-with-input-file infilename 
+    (lambda (in)
+      (let loop ((expr (read in))
+		 (segments (list)))
+	(cond 
+	 ((eof-object? expr) segments)
+	 (else (loop (read in) 
+		     (cons (assemble (compile expr syntaxenv) user)
+			   segments))))))))
+	 
 (define (compile-files infilenames outfilename . rest)
   (let ((user      (assembly-user-data))
 	(syntaxenv (if (null? rest)
@@ -334,24 +346,21 @@
 	;			    (interaction-environment))))
 	(segments  '())
 	(c-name    (rewrite-file-type outfilename ".fasl" ".c"))
-	(o-name    (rewrite-file-type outfilename ".fasl" (obj-suffix)))
+	(o-name    (ensure-fresh-name (rewrite-file-type outfilename ".fasl" (obj-suffix))
+				      (obj-suffix)))
 	(so-name   (ensure-fresh-name
                     (rewrite-file-type outfilename ".fasl" (shared-obj-suffix))
 		    (shared-obj-suffix))))
     (for-each (lambda (infilename)
-		(call-with-input-file infilename
-		  (lambda (in)
-		    (do ((expr (read in) (read in)))
-			((eof-object? expr))
-		      (set! segments 
-			    (cons (assemble (compile expr syntaxenv) user) 
-				  segments))))))
+		(set! segments
+		      (append (compile-files/file->segments infilename user syntaxenv) 
+			      segments)))
 	      infilenames)
     (let ((segments (reverse segments)))
       (delete-file c-name)  ; win32 doesn't do this
       (delete-file o-name)  ; or this
       (delete-file so-name) ; or this
-      (create-loadable-file/fasl->sharedobj outfilename segments so-name)
+      (create-loadable-file/fasl->sharedobj outfilename segments so-name c-name o-name)
       (c-link-shared-object so-name 
 			    (list o-name) 
 			    (case *host:os*
