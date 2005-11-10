@@ -288,19 +288,29 @@
 	 (id     (compute-unique-id c-name)))
     (set! *unique-id* id)
     (set! *already-compiled* (cons c-name *already-compiled*))
-    (if (and (file-exists? c-name)
-	     (file-exists? filename)
-	     (compat:file-newer? c-name filename))
-	(set! *asm-output* #f)
-	(let ((c-file (begin
-			(if (file-exists? c-name)
-			    (delete-file c-name))
-			(open-output-file c-name))))
-	  (set! *asm-output* c-file)
-	  (for-each (lambda (d) (emit-c-code "~a~%" d))
-		    decls)
-	  (emit-c-code "%include \"i386-machine.ah\"~%")
-	  (emit-c-code "%include \"i386-instr.asm\"~%")))))
+
+    ;; There once was logic here to build the c file only if there
+    ;; wasn't already a C file in place that was newer than the fasl
+    ;; file.  This is a nice idea, except that we're always generating
+    ;; a fasl file in this function, so doing that step here is bound
+    ;; to either yield: (1) dead code, or (2) incorrect code that
+    ;; leads to non-trivially detected bugs in terms of whether
+    ;; compilation has any effect.
+
+    ;; So, the real answer is that it was a nice idea, but it
+    ;; shouldn't be implemented at this point in the control flow, but
+    ;; rather somewhere earlier (before we decide to generate a fasl
+    ;; file at all).
+
+    (let ((c-file (begin
+		    (if (file-exists? c-name)
+			(delete-file c-name))
+		    (open-output-file c-name))))
+      (set! *asm-output* c-file)
+      (for-each (lambda (d) (emit-c-code "~a~%" d))
+		decls)
+      (emit-c-code "%include \"i386-machine.ah\"~%")
+      (emit-c-code "%include \"i386-instr.asm\"~%"))))
 
 (define (after-dump-file h filename so-asm-name so-obj-name)
   (if *asm-output*
