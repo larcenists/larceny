@@ -346,8 +346,7 @@
 	;			    (interaction-environment))))
 	(segments  '())
 	(c-name    (rewrite-file-type outfilename ".fasl" ".c"))
-	(o-name    (ensure-fresh-name (rewrite-file-type outfilename ".fasl" (obj-suffix))
-				      (obj-suffix)))
+	(o-name    (rewrite-file-type outfilename ".fasl" (obj-suffix)))
 	(so-name   (ensure-fresh-name
                     (rewrite-file-type outfilename ".fasl" (shared-obj-suffix))
 		    (shared-obj-suffix))))
@@ -360,7 +359,8 @@
       (delete-file c-name)  ; win32 doesn't do this
       (delete-file o-name)  ; or this
       (delete-file so-name) ; or this
-      (create-loadable-file/fasl->sharedobj outfilename segments so-name c-name o-name)
+      ;; (create-loadable-file/fasl->sharedobj outfilename segments so-name c-name o-name)
+      (create-loadable-file/fasl->sharedobj outfilename segments so-name)
       (c-link-shared-object so-name 
 			    (list o-name) 
 			    (case *host:os*
