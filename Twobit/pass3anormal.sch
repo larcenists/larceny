@@ -498,7 +498,8 @@
         (cond ((null? formals)
                (if (null? args)
                    (begin (lambda.args-set! L (reverse newformals))
-                          (call.args-set! exp (reverse newargs)))
+                          (call.args-set! exp (reverse newargs))
+                          exp)
                    (begin (normalize-let-error exp)
                           (loop (list (newtemp))
                                 args
@@ -518,7 +519,7 @@
                                 newargs))))
               (else
                (loop (list formals)
-                     (list (make-call-to-list args))
+                     (list (make-call-to-LIST args))
                      newformals
                      newargs))))))
   
