@@ -282,9 +282,13 @@
 (define (after-all-files heap output-file-name input-file-names)
   (build-petit-larceny heap output-file-name input-file-names))
 
-(define (before-dump-file h filename decls so-asm-name)
+(define (before-dump-file h filename decls . rest)
   (set! *segment-number* 0)
-  (let* ((c-name so-asm-name) 
+  (let* ((so-asm-name (if (null? rest) #f (car rest)))
+	 (c-name (if so-asm-name
+		     so-asm-name
+		     (rewrite-file-type 
+		      filename '(".fasl" ".lop") ".asm")))
 	 (id     (compute-unique-id c-name)))
     (set! *unique-id* id)
     (set! *already-compiled* (cons c-name *already-compiled*))
@@ -312,11 +316,15 @@
       (emit-c-code "%include \"i386-machine.ah\"~%")
       (emit-c-code "%include \"i386-instr.asm\"~%"))))
 
-(define (after-dump-file h filename so-asm-name so-obj-name)
+(define (after-dump-file h filename . rest)
   (if *asm-output*
       (close-output-port *asm-output*))
-  (let ((c-name so-asm-name)  
-        (o-name so-obj-name)) 
+  (let* ((so-asm-name (if (null? rest) #f (car rest)))
+	 (so-obj-name (if (< (length rest) 2) #f (cadr rest)))
+	 (c-name (if so-asm-name so-asm-name
+		     (rewrite-file-type filename '(".fasl" ".lop") ".asm")))
+	 (o-name (if so-obj-name so-obj-name
+		     (rewrite-file-type filename '(".fasl" ".lop") (obj-suffix)))))
     (if (not (and (file-exists? o-name)
 		  (file-exists? c-name)
                   (compat:file-newer? o-name c-name)))
