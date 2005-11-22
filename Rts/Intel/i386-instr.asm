@@ -822,6 +822,7 @@ t_label(%1):
 %%L1:	exception_continuable %4, %%L0	; second is tmp so 2nd arg is in place
 %%L2:
 %else
+ ; This looks totally bogus -- should use %2?
  %if is_hwreg(%1)
 	add	RESULT, REG%1
  %else
@@ -2016,7 +2017,9 @@ t_label(%1):
 	fixnum_compare  %1, ge, EX_FXGE
 %endmacro
 
-%macro T_OP2_211 0		; fxzero?
+; Changed T_OP2_2{11,12,13} to OP1.
+; Do we refer to these as OP2 anywhere?
+%macro T_OP1_211 0		; fxzero?
 %ifndef UNSAFE_CODE
 %%L0:	test	RESULT_LOW, fixtag_mask
 	jz short %%L1
@@ -2027,7 +2030,7 @@ t_label(%1):
 	setcc	z
 %endmacro
 
-%macro T_OP2_212 0		; fxpositive?
+%macro T_OP1_212 0		; fxpositive?
 %ifndef UNSAFE_CODE
 %%L0:	test	RESULT_LOW, fixtag_mask
 	jz short %%L1
@@ -2035,10 +2038,10 @@ t_label(%1):
 %%L1:
 %endif
 	cmp	RESULT, 0
-	setcc	gt
+	setcc	g
 %endmacro
 
-%macro T_OP2_213 0		; fxnegative?
+%macro T_OP1_213 0		; fxnegative?
 %ifndef UNSAFE_CODE
 %%L0:	test	RESULT_LOW, fixtag_mask
 	jz short %%L1
@@ -2046,7 +2049,69 @@ t_label(%1):
 %%L1:
 %endif
 	cmp	RESULT, 0
-	setcc	lt
+	setcc	l
+%endmacro
+
+%macro fixnum_imm_arithmetic 4
+%ifndef UNSAFE_CODE
+%%L0:	const2regf TEMP, %1
+	or	TEMP, RESULT
+	test	TEMP_LOW, fixtag_mask
+	jnz short %%L1
+	const2regf TEMP, %1
+	%2	RESULT, TEMP
+	jno short %%L2
+	%3	RESULT, TEMP
+%%L1:	exception_continuable %4, %%L0	; second is tmp so 2nd arg is in place
+%%L2:
+%else
+	const2regf TEMP, %1
+	%2	RESULT, TEMP
+%endif
+%endmacro
+	
+%macro T_OP2IMM_250 1           ; fx+
+	fixnum_imm_arithmetic %1, add, sub, EX_FXADD
+%endmacro
+
+%macro T_OP2IMM_251 1           ; fx-
+	fixnum_imm_arithmetic %1, sub, add, EX_FXSUB
+%endmacro
+
+;;; fixnum_imm_compare const, cc, ex
+%macro fixnum_imm_compare 3
+%ifndef UNSAFE_CODE
+%%L0:	const2regf TEMP, %1
+	or	TEMP, RESULT
+	test	TEMP_LOW, fixtag_mask
+	jz short %%L1
+	const2regf TEMP, %1
+	exception_continuable %3, %%L0	; second is tmp so 2nd arg is in place
+%%L1:
+%endif
+	cmp	RESULT,	TEMP
+	setcc %2
+%endmacro
+
+
+%macro T_OP2IMM_253 1		; fx=
+	fixnum_imm_compare %1, e, EX_FXEQ
+%endmacro
+
+%macro T_OP2IMM_254 1		; fx<
+	fixnum_imm_compare  %1, l, EX_FXLT
+%endmacro
+
+%macro T_OP2IMM_255 1		; fx<=
+	fixnum_imm_compare  %1, le, EX_FXLE
+%endmacro
+
+%macro T_OP2IMM_256 1		; fx>
+	fixnum_imm_compare  %1, g, EX_FXGT
+%endmacro
+
+%macro T_OP2IMM_257 1		; fx>=
+	fixnum_imm_compare  %1, ge, EX_FXGE
 %endmacro
 
 ;;; Unsafe/trusted primitives

@@ -110,7 +110,7 @@
 
    (mustfail "mul#1" fxmul 10 1.5)	          ; 1.5 is not a fixnum
    (mustfail "mul#2" fxmul 524288 1024)	          ; barely overflows (positive)
-   (mustfail "mul#2" fxmul 524288 -1025)	  ; overflows (negative)
+   (mustfail "mul#3" fxmul 524288 -1025)	  ; overflows (negative)
    ))
 
 ; eof
