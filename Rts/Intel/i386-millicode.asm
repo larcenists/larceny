@@ -8,6 +8,7 @@
 ;;; be replaced by hand-coded assembler or similar code.
 	
 %include "i386-machine.ah"
+%define fixnum(n)           ((n)<<2)
 
 ;;; It is generally helpful to enable OPTIMIZE_MILLICODE: it turns
 ;;; on some assembler versions of millicode routines normally written
@@ -393,7 +394,7 @@ PUBLIC i386_exception				; Exn encoded in instr stream
 PUBLIC i386_global_exception			; RESULT holds the global cell
 	add	esp, 4				; Fixup GLOBALS
 	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
-	mov	SECOND, EX_UNDEF_GLOBAL
+	mov	SECOND, fixnum(EX_UNDEF_GLOBAL)
 	jmp	i386_signal_exception
 	
 PUBLIC i386_invoke_exception			; RESULT holds defined value
@@ -403,7 +404,7 @@ PUBLIC i386_invoke_exception			; RESULT holds defined value
 	sub	esp, 4
 	jmp	EXTNAME(i386_timer_exception)
 Linv1:	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
-	mov	SECOND, EX_NONPROC
+	mov	SECOND, fixnum(EX_NONPROC)
 	jmp	i386_signal_exception
 	
 PUBLIC i386_global_invoke_exception		; RESULT holds the global cell
@@ -415,16 +416,16 @@ PUBLIC i386_global_invoke_exception		; RESULT holds the global cell
 	jmp	EXTNAME(i386_timer_exception)
 Lginv1:	cmp	dword [RESULT-PAIR_TAG], UNDEFINED_CONST
 	jnz	Lginv2
-	mov	SECOND, EX_UNDEF_GLOBAL
+	mov	SECOND, fixnum(EX_UNDEF_GLOBAL)
 	jmp	i386_signal_exception	
 Lginv2:	mov	RESULT, [RESULT-PAIR_TAG]
-	mov	SECOND, EX_NONPROC
+	mov	SECOND, fixnum(EX_NONPROC)
 	jmp	i386_signal_exception
 	
 PUBLIC i386_argc_exception			; RESULT holds actual arg cnt
 	add	esp, 4				; Fixup GLOBALS
 	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
-	mov	SECOND, EX_ARGC
+	mov	SECOND, fixnum(EX_ARGC)
 	jmp	i386_signal_exception
 	
 PUBLIC i386_petit_patch_boot_code
