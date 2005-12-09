@@ -111,7 +111,7 @@
                        "peepopt.sch"
                        "dumpheap-overrides.sch" 
                        ,@(case (nbuild-parameter 'host-os)
-                           ((unix cygwin)  '("dumpheap-unix.sch"))
+                           ((unix cygwin linux-el)  '("dumpheap-unix.sch"))
                            ((win32) '("dumpheap-win32.sch"))
                            (else    '()))))
        (nbuild-files 'standard-C-asm

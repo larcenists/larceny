@@ -179,7 +179,7 @@
         (case target-arch
           ((macosx)       'features-petit-macosx)
           ((solaris)      (if native 'features-sparc-solaris 'features-petit-solaris))
-          ((linux-el)     'features-petit-linux)
+          ((linux-el)     (if native 'features-x86-nasm-linux 'features-petit-linux))
 	  ((cygwin)       'features-petit-cygwin)
 	  ((win32)        (if native 'features-x86-nasm-win32 'features-petit-win32))
           ((unix)         *change-feature-set*) ;; if client says we're using unix, then just use value set by features.sch
@@ -217,6 +217,15 @@
             (set! *makefile-configuration* #f)
             (set! *heap-type* 'petit)
             (set! *runtime-type* 'petit))
+
+	   ;; Linux86 native is actually Petit with extasm of NASM rather than C           
+           ((linux-el)
+            (set! *target:machine* 'x86-nasm)
+            (set! *target:machine-source* "Standard-C")
+            (set! *makefile-configuration* #f)
+            (set! *heap-type* 'petit)
+            (set! *runtime-type* 'petit))
+
            (else 
             (error "Unsupported architecture for native setup: " target-arch))))
 
@@ -246,6 +255,9 @@
 			      (and native 
 				   (eq? target-arch 'win32)
 				   'nasm+msvc)
+                              (and native
+                                   (eq? target-arch 'linux-el)
+                                   'nasm+gcc)
 			      #f))
   
   (if (eq? *target:machine* 'x86-nasm)

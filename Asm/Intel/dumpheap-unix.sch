@@ -116,10 +116,10 @@
     `((compile            . ,assembler:nasm-unix)
       (link-library       . ,c-library-linker:gcc-unix)
       (link-executable    . ,(case host-os
-			       ((linux) c-linker:gcc-linux)
+			       ((linux linux-el) c-linker:gcc-linux)
 			       (else    c-linker:gcc-unix)))
       (link-shared-object . ,(case host-os
-			       ((linux)  c-so-linker:gcc-linux)
+			       ((linux linux-el)  c-so-linker:gcc-linux)
 			       (else     c-so-linker:gcc-unix)))
       (append-files       . ,append-file-shell-command-unix)
       (make-configuration . x86-unix-static-gcc-nasm))))
