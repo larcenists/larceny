@@ -526,6 +526,8 @@
 
   ;; io
 
+  (environment-set! larc 'call-with-text-input-file call-with-text-input-file)
+  (environment-set! larc 'call-with-text-output-file call-with-text-output-file)
   (environment-set! larc 'call-with-binary-input-file call-with-binary-input-file)
   (environment-set! larc 'call-with-binary-output-file call-with-binary-output-file)
   (environment-set! larc 'close-open-files close-open-files)
@@ -543,6 +545,8 @@
   (environment-set! larc 'get-output-string get-output-string)
   (environment-set! larc 'hashtable-printer hashtable-printer)
   (environment-set! larc 'lowlevel-write lowlevel-write)
+  (environment-set! larc 'open-text-input-file open-text-input-file)
+  (environment-set! larc 'open-text-output-file open-text-output-file)
   (environment-set! larc 'open-binary-input-file open-binary-input-file)
   (environment-set! larc 'open-binary-output-file open-binary-output-file)
   (environment-set! larc 'open-input-string open-input-string)

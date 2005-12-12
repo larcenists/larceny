@@ -95,10 +95,10 @@
 (define (port-name p)
   (io/port-name p))
 
-(define (open-input-file filename)
+(define (open-text-input-file filename)
   (file-io/open-file filename 'input 'text))
 
-(define (open-output-file filename)
+(define (open-text-output-file filename)
   (file-io/open-file filename 'output 'text))
 
 (define (open-binary-input-file filename)
@@ -106,6 +106,9 @@
 
 (define (open-binary-output-file filename)
   (file-io/open-file filename 'output 'binary))
+
+(define open-input-file open-binary-input-file)
+(define open-output-file open-binary-output-file)
 
 (define (console-input-port)
   ((console-input-port-factory)))
@@ -162,14 +165,14 @@
          (error "flush-output-port: too many arguments.")
          #t)))
 
-(define (call-with-input-file file proc)
-  (let ((port (open-input-file file)))
+(define (call-with-text-input-file file proc)
+  (let ((port (open-text-input-file file)))
     (let ((r (proc port)))
       (close-input-port port)
       r)))
 
-(define (call-with-output-file file proc)
-  (let ((port (open-output-file file)))
+(define (call-with-text-output-file file proc)
+  (let ((port (open-text-output-file file)))
     (let ((r (proc port)))
       (close-output-port port)
       r)))
@@ -185,6 +188,9 @@
     (let ((r (proc port)))
       (close-output-port port)
       r)))
+
+(define call-with-input-file call-with-binary-input-file)
+(define call-with-output-file call-with-binary-output-file)
 
 (define (with-input-from-port port thunk)
   (parameterize ((current-input-port port))
