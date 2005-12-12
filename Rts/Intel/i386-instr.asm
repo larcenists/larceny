@@ -822,7 +822,7 @@ t_label(%1):
 %%L1:	exception_continuable %4, %%L0	; second is tmp so 2nd arg is in place
 %%L2:
 %else
- ; This looks totally bogus -- should use %2?
+ ; This looks totally bogus -- should use %2? XXX TODO BUG HERE
  %if is_hwreg(%1)
 	add	RESULT, REG%1
  %else
@@ -1983,7 +1983,7 @@ t_label(%1):
 	fixnum_arithmetic %1, sub, add, EX_FXSUB
 %endmacro
 
-%macro T_OP2_204 1		; fx--
+%macro T_OP1_204 0		; fx--
 %ifndef UNSAFE_CODE
 %%L0:	test	RESULT_LOW, fixtag_mask
 	jnz short %%L1
@@ -1994,6 +1994,30 @@ t_label(%1):
 %%L2:	
 %else
 	neg	RESULT
+%endif
+%endmacro
+
+%macro T_OP2_205 1              ; fx*
+%ifndef UNSAFE_CODE
+%%L0:	loadr	TEMP, %1
+	or	TEMP, RESULT
+	test	TEMP_LOW, fixtag_mask
+	jnz short %%L1
+	loadr	TEMP, %1
+	sar	TEMP, 2
+	imul	TEMP, RESULT
+	jno short %%L2
+%%L1:	loadr	TEMP, %1
+	exception_continuable EX_FXMUL, %%L0
+%%L2:
+	mov	RESULT, TEMP
+%else
+	shr	RESULT
+ %if is_hwreg(%1)
+	imul	RESULT, REG%1
+ %else
+	imul	RESULT, [GLOBALS+G_REG%1]
+ %endif
 %endif
 %endmacro
 	

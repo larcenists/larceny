@@ -1341,6 +1341,15 @@ extern cont_t twobit_cont_label;
        else { SECOND=b; FAIL( ex ); }         \
   } while(0)
 
+#define twobit_op2_205( y ) /* fx* */				\
+  do { word a = RESULT, b = reg(y), res = a * (b >> 2);		\
+      if (UNSAFE_TRUE(is_both_fixnums(a,b)) &&			\
+          UNSAFE_TRUE((long long)res == 			\
+                      (long long)a * ((long long)b >> 2)))	\
+        RESULT = res;						\
+      else { SECOND = b; FAIL( EX_FXMUL ); }			\
+  } while(0)
+
 #define twobit_op2_206( y ) twobit_fxcmp( y, ==, EX_FXEQ )  /* fx= */
 #define twobit_op2_207( y ) twobit_fxcmp( y, <, EX_FXLT )   /* fx< */
 #define twobit_op2_208( y ) twobit_fxcmp( y, <=, EX_FXLE )  /* fx<= */

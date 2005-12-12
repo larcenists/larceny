@@ -391,8 +391,7 @@
     (fx+          2 fx+          ,stdc-imm?    202 ,:immortal ,:none #f)
     (fx-          2 fx-          ,stdc-imm?    203 ,:immortal ,:none #f)
     (fx--         1 fx--         #f            204 ,:immortal ,:none #f)
-; FIXME: not implemented
-;    (fx*          2 fx*          #f            205 ,:immortal ,:none #f)
+    (fx*          2 fx*          #f            205 ,:immortal ,:none #f)
     (fx=          2 fx=          ,stdc-imm?    206 ,:immortal ,:none #f)
     (fx<          2 fx<          ,stdc-imm?    207 ,:immortal ,:none #f)
     (fx<=         2 fx<=         ,stdc-imm?    208 ,:immortal ,:none #f)
