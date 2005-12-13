@@ -1341,11 +1341,13 @@ extern cont_t twobit_cont_label;
        else { SECOND=b; FAIL( ex ); }         \
   } while(0)
 
+#define sllong(X) ((long long)(signed)(X))
+
 #define twobit_op2_205( y ) /* fx* */				\
-  do { word a = RESULT, b = reg(y), res = a * (b >> 2);		\
+  do { word a = RESULT, b = reg(y), res = (signed)a * ((signed)b / 4);		\
       if (UNSAFE_TRUE(is_both_fixnums(a,b)) &&			\
-          UNSAFE_TRUE((long long)res == 			\
-                      (long long)a * ((long long)b >> 2)))	\
+          UNSAFE_TRUE(sllong(res) == 			\
+                      sllong(a) * (sllong(b) / 4)))	\
         RESULT = res;						\
       else { SECOND = b; FAIL( EX_FXMUL ); }			\
   } while(0)

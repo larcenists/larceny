@@ -16,7 +16,7 @@
 ;(load "fixnums.fasl")                   ; Fixnum-specific operations
 (load "number.fasl")			; Numbers and arithmetic
 (load "pred.fasl")                      ; Predicates
-;(load "regression.fasl")		; Past error cases
+(load "regression.fasl")		; Past error cases
 
 (define (run-all-tests)
   (run-boolean-tests)
@@ -28,7 +28,7 @@
   (run-ctak-tests)
   (run-dynamic-wind-tests)
   ;(run-env-tests)
-  ;(run-regression-tests)
+  (run-regression-tests)
   ;(run-fixnum-tests)
   )
 
