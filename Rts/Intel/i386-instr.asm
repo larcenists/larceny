@@ -2113,6 +2113,7 @@ t_label(%1):
 	exception_continuable %3, %%L0	; second is tmp so 2nd arg is in place
 %%L1:
 %endif
+	const2regf TEMP, %1
 	cmp	RESULT,	TEMP
 	setcc %2
 %endmacro
