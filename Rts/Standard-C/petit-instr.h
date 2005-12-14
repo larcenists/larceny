@@ -135,13 +135,13 @@ extern cont_t twobit_cont_label;
    to compile without type checks.
    */
 #ifdef UNSAFE_CODE
-# define UNSAFE_TRUE( code )              1
-# define UNSAFE_TRUE2( code1, code2 )     code2
-# define UNSAFE_FALSE( code )             0
+# define UNSAFE_TRUE( code )              (1)
+# define UNSAFE_TRUE2( code1, code2 )     (code2)
+# define UNSAFE_FALSE( code )             (0)
 #else
-# define UNSAFE_TRUE( code )              code
-# define UNSAFE_TRUE2( code1, code2 )     code1
-# define UNSAFE_FALSE( code )             code
+# define UNSAFE_TRUE( code )              (code)
+# define UNSAFE_TRUE2( code1, code2 )     (code1)
+# define UNSAFE_FALSE( code )             (code)
 #endif
 
 /* Define INLINE_ALLOCATION at the head of a file (before including petit-instr.h)
@@ -1358,55 +1358,55 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_209( y ) twobit_fxcmp( y, >, EX_FXGT )   /* fx> */
 #define twobit_op2_210( y ) twobit_fxcmp( y, >=, EX_FXGE )  /* fx>= */
 
-#define twobit_op_211() /* fxzero? */		\
+#define twobit_op1_211() /* fxzero? */		\
   do { word a = RESULT;				\
        if (UNSAFE_TRUE(is_fixnum(a)))		\
          setcc( (s_word)a == fixnum(0) );	\
-       else { SECOND=b; FAIL( EX_FXZERO ); }    \
+       else { FAIL( EX_FXZERO ); }    \
   } while(0)
   
-#define twobit_op_212() /* fxpositive? */	\
+#define twobit_op1_212() /* fxpositive? */	\
   do { word a = RESULT;				\
        if (UNSAFE_TRUE(is_fixnum(a)))		\
          setcc( (s_word)a > fixnum(0) );	\
-       else { SECOND=b; FAIL( EX_FXPOSITIVE ); } \
+       else { FAIL( EX_FXPOSITIVE ); } \
   } while(0)
   
-#define twobit_op_213() /* fxnegative? */	\
+#define twobit_op1_213() /* fxnegative? */	\
   do { word a = RESULT;				\
        if (UNSAFE_TRUE(is_fixnum(a)))		\
          setcc( (s_word)a < fixnum(0) );	\
-       else { SECOND=b; FAIL( EX_FXNEGATIVE ); } \
+       else { FAIL( EX_FXNEGATIVE ); } \
   } while(0)
   
-#define twobit_op2_250( y ) /* fx+ */					    \
+#define twobit_op2imm_250( y ) /* fx+ */					    \
   do { word a = RESULT, b = y, res = a + b;			    	    \
-      if (UNSAFE_TRUE(is_fixnum(a)) &&				            \
+      if (UNSAFE_TRUE(is_both_fixnums(a,b)) &&				            \
           UNSAFE_TRUE((s_word)(a ^ b) < 0 || (s_word)(res ^ a) >= 0))	    \
         RESULT = res;							    \
       else { SECOND = b; FAIL( EX_FXADD ); }                                \
   } while(0)
 
-#define twobit_op2_251( y ) /* fx- */					      \
-   do { word a = RESULT, b = y, res = a - b;			              \
-	if (UNSAFE_TRUE(is_fixnum(a)) &&  		                      \
-            UNSAFE_TRUE((s_word)(a ^ b) >= 0 || (s_word)(res ^ a) >= 0))      \
-          RESULT = res;							      \
-        else { SECOND = b; FAIL( EX_FXSUB ); }                                \
+#define twobit_op2imm_251( y ) /* fx- */					    \
+   do { word a = RESULT, b = y, res = a - b;			        \
+	if (UNSAFE_TRUE(is_both_fixnums(a,b)) &&  		            \
+            UNSAFE_TRUE((s_word)(a ^ b) >= 0 || (s_word)(res ^ a) >= 0))   \
+          RESULT = res;							                \
+        else { SECOND = b; FAIL( EX_FXSUB ); }                  \
    } while(0)
 
-#define twobit_fxcmp_imm( b, op, ex )		\
-  do { word a = RESULT;				\
-       if (UNSAFE_TRUE(is_fixnum(a)))		\
+#define twobit_fxcmp_imm( y, op, ex )		\
+  do { word a = RESULT, b = y;				\
+       if (UNSAFE_TRUE(is_both_fixnums(a,b)))		\
          setcc( (s_word)a op (s_word)b );		\
        else { SECOND=b; FAIL( ex ); }		\
   } while(0)
 
-#define twobit_op2_253( y ) twobit_fxcmp_imm( y, ==, EX_FXEQ )  /* fx= */
-#define twobit_op2_254( y ) twobit_fxcmp_imm( y, <, EX_FXLT )   /* fx< */
-#define twobit_op2_255( y ) twobit_fxcmp_imm( y, <=, EX_FXLE )  /* fx<= */
-#define twobit_op2_256( y ) twobit_fxcmp_imm( y, >, EX_FXGT )   /* fx> */
-#define twobit_op2_257( y ) twobit_fxcmp_imm( y, >=, EX_FXGE )  /* fx>= */
+#define twobit_op2imm_253( y ) twobit_fxcmp_imm( y, ==, EX_FXEQ )  /* fx= */
+#define twobit_op2imm_254( y ) twobit_fxcmp_imm( y, <, EX_FXLT )   /* fx< */
+#define twobit_op2imm_255( y ) twobit_fxcmp_imm( y, <=, EX_FXLE )  /* fx<= */
+#define twobit_op2imm_256( y ) twobit_fxcmp_imm( y, >, EX_FXGT )   /* fx> */
+#define twobit_op2imm_257( y ) twobit_fxcmp_imm( y, >=, EX_FXGE )  /* fx>= */
 
 
 /* For CSE and representation analysis: 400 - 499 */
