@@ -1341,10 +1341,10 @@ extern cont_t twobit_cont_label;
        else { SECOND=b; FAIL( ex ); }         \
   } while(0)
 
-#define sllong(X) ((long long)(signed)(X))
+#define sllong(X) ((long long)(s_word)(X))
 
 #define twobit_op2_205( y ) /* fx* */				\
-  do { word a = RESULT, b = reg(y), res = (signed)a * ((signed)b / 4);		\
+  do { word a = RESULT, b = reg(y), res = (s_word)a * ((s_word)b / 4);		\
       if (UNSAFE_TRUE(is_both_fixnums(a,b)) &&			\
           UNSAFE_TRUE(sllong(res) == 			\
                       sllong(a) * (sllong(b) / 4)))	\
