@@ -3,6 +3,21 @@
 ;
 ; $Id$
 
+(compile-file "test.sch")
+
+(compile-file "bool.sch")
+(compile-file "char.sch")
+;(compile-file "complex.sch")
+(compile-file "ctak.sch")
+(compile-file "dynamic-wind.sch")
+;(compile-file "env.sch")
+(compile-file "fact.sch")
+(compile-file "fib.sch")
+(compile-file "fixnums.sch")
+(compile-file "number.sch")
+(compile-file "pred.sch")
+(compile-file "regression.sch")
+
 (load "test.fasl")			; Scaffolding
 
 (load "bool.fasl")			; Booleans
@@ -13,7 +28,7 @@
 ;(load "env.fasl")                       ; Environments
 (load "fact.fasl")                      ; Factorial, big and small
 (load "fib.fasl")			; Fibonacci function
-;(load "fixnums.fasl")                   ; Fixnum-specific operations
+(load "fixnums.fasl")                   ; Fixnum-specific operations
 (load "number.fasl")			; Numbers and arithmetic
 (load "pred.fasl")                      ; Predicates
 (load "regression.fasl")		; Past error cases
@@ -29,7 +44,7 @@
   (run-dynamic-wind-tests)
   ;(run-env-tests)
   (run-regression-tests)
-  ;(run-fixnum-tests)
+  (run-fixnum-tests)
   )
 
 
