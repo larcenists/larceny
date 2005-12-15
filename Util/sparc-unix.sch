@@ -16,6 +16,7 @@
                                'verbose-load? #t
                                'development? #t
                                'machine-source "Lib/Sparc/"
+                               'mzscheme-source "Lib/MzScheme/"
                                'host-os 'unix
                                'host-endianness 'big
                                'target-machine 'SPARC
