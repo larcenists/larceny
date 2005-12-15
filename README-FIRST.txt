@@ -1,41 +1,57 @@
 SYSTEM REQUIREMENTS
 
-Currently, this software is distributed for Solaris on Sparc machines
-and Mac OS X on PowerPC machines (versions 10.2 and higher).  
+Currently, this software is distributed for:
+ - Solaris on Sparc machines
+ - Mac OS X on PowerPC machines (versions 10.2 and higher)
+ - Linux on Intel x86 machines
+ - Windows on Intel x86 machines
 
 You may be able to make it work on other platforms (e.g. Linux on
-Intel machines), but we do not yet provide support for those systems.
-We expect to support Windows and Linux on Intel machines in the near
-future.
+PowerPC machines), but we do not yet provide support for those systems.
 
-For Sparc Native, everything should work out of the box.  For Sparc
-and Mac OS X Petit, you need to ensure that the Gnu C Compiler (GCC)
-is on your search path.  For Mac OS X Petit, it should suffice to
-install the Developer Tools that come with your operating system
-installation disks.
+WHAT YOU NEED
+
+Native (Sparc): everything should work out of the box.
+Petit/C (Sparc, Linux, Mac OS X): ensure that the GNU C Compiler (GCC)
+    is in your search path
+Petit/NASM (Linux): both the GNU C Compiler and NASM (The Netwide
+    Assembler) must be in your path
+Petit/NASM (Win32): both Microsoft's development tools and NASM must be
+    in your search path
+
+NASM:     http://sourceforge.net/projects/nasm
+MS Tools: See http://www.winprog.org/tutorial/msvc.html
+OS X:     Use Apple's Developer Tools, http://developer.apple.com/
 
 
-QUICK START 
+QUICK START
 
-* Sparc Native 
+* Native (Sparc)
   - If you want to use the compiler, run
-    % larceny.bin larceny.heap
+    % ./larceny.bin larceny.heap
 
-  - If you're content to use only the interpreter, run 
-    % larceny.bin r5rs.heap
+  - If you're content to use only the interpreter, run
+    % ./larceny.bin r5rs.heap
 
-* Sparc Petit  
+* Petit (Linux, Sparc)
+  - If you want to use the compiler, run
+    % ./twobit twobit.heap
+
+  - If you're content to use only the interpreter, run
+    % ./petit petit.heap
+
+* Petit/NASM (Win32)
   - If you want to use the compiler, run
     % twobit twobit.heap
 
-  - If you're content to use only the interpreter, run 
+  - If you're content to use only the interpreter, run
     % petit petit.heap
 
-* Mac OS X Petit
+* Petit/C (Mac OS X)
   - If you want to use the compiler, run
     % twobit.app twobit.heap
 
-  - If you're content to use only the interpreter, run 
+  - If you're content to use only the interpreter, run
     % petit petit.heap
 
 
@@ -47,10 +63,10 @@ named "X" is meant to run with the heap named "X.heap".)
 
 COMPILING
 
-* Sparc Native
+* Native (Sparc)
   - (compile-file <source> [<target>])
 
-    (compile-file "source.sch") 
+    (compile-file "source.sch")
     compiles "source.sch", leaving the compiled code in "source.fasl".
     (The .scm suffix is also recognized.)
 
@@ -61,7 +77,7 @@ COMPILING
   - (load "target.fasl")
     loads the compiled code in "target.fasl"
 
-* Petit (both Sparc and Mac OS X)
+* Petit (all platforms)
   - (compile-files <source-file-list> <target>)
 
     (compile-files '("source1.sch" "source2.sch") "target.fasl")
@@ -80,7 +96,7 @@ COMPILING
     - load "Util/petit-compile-file.sch" while in the root directory
       of the Larceny distribution.  This will define compile-file
       (*not* compile-files) in a manner that works outside the root
-      directory.  
+      directory.
 
       Note that the arguments to compile-file and to compile-files are
       different; see the Sparc Native documentation above for the
