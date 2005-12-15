@@ -12,6 +12,12 @@
 
 (define host-system 'chez)
 
+(define (write-byte bytenum . rest)
+  (let ((port (if (null? rest) 
+                  (current-output-port)
+                  (car rest))))
+    (write-char (integer->char bytenum) port)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Initialization
