@@ -5,14 +5,15 @@
  * Larceny run-time system -- the version number :-)
  *
  * Some nicknames to choose from:
- *  Ambassador de Sadesky       0.50
  *  Burpelson AFB               0.46
  *  'Bat' Guano                 0.47
  *  Big Board                   0.48
  *  'Buck' Turgidson            0.49
+ *  Ambassador de Sadesky       0.50
  *  The Coca-Cola Company       0.51
  *  CRM-114                     0.52
  *  Dear John                   0.53
+ *  Operation Drop-Kick         0.90
  *  Doomsday Device
  *  Fluoridation
  *  General Ripper 
@@ -20,7 +21,6 @@
  *  Hi There!
  *  'King' Kong
  *  Missile Complex at Laputa
- *  Operation Drop-Kick
  *  Peace is our Profession
  *  Plan R
  *  Precious Bodily Fluids
@@ -33,8 +33,8 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 53;
-char *larceny_version_qualifier = " \"Dear John\"";
+int  larceny_minor_version = 90;
+char *larceny_version_qualifier = " \"Operation Drop-Kick\"";
 
 char *date = DATE;
 char *user = USER;
