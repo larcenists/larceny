@@ -97,8 +97,12 @@
 ;; stub (for backwards compatibility when bootstrapping on older
 ;; versions of Larceny); the parameter cannot be set in any meaningful
 ;; way with this definition.
+;; Doing the same trick to handle recognize-javadot-symbols? on older
+;; versions of Larceny.
 (let ((env1 (interaction-environment)))
   (if (not (environment-variable? env1 'recognize-keywords?))
-      (set! recognize-keywords? (lambda l #f))))
+      (set! recognize-keywords? (lambda l #f)))
+  (if (not (environment-variable? env1 'recognize-javadot-symbols?))
+      (set! recognize-javadot-symbols? (lambda l #f))))
   
 ; eof
