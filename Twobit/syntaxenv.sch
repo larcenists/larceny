@@ -38,6 +38,9 @@
 ($$trace "syntaxenv")
 
 (define standard-syntactic-environment
+ (let ((hash-percent-datum (string->symbol "#%datum"))
+       (hash-percent-top   (string->symbol "#%top"))
+       (hash-percent-app   (string->symbol "#%app")))
   `((quote         . (special quote))
     (lambda        . (special lambda))
     (if            . (special if))
@@ -51,10 +54,10 @@
     (syntax-rules  . (special syntax-rules))
 
     ;; MzScheme specific
-    (#%datum       . (special #%datum))
-    (#%top         . (special #%top))
-    (#%app         . (special #%app))
-    ))
+    (,hash-percent-datum       . (special ,hash-percent-datum))
+    (,hash-percent-top         . (special ,hash-percent-top))
+    (,hash-percent-app         . (special ,hash-percent-app))
+    )))
 
 ; Unforgeable synonyms for lambda and set!, used to expand definitions.
 
@@ -269,13 +272,13 @@
   (syntactic-lookup standard-syntactic-environment 'transformer))
 
 (define denotation-of-app
-  (syntactic-lookup standard-syntactic-environment '#%app))
+  (syntactic-lookup standard-syntactic-environment (string->symbol "#%app")))
 
 (define denotation-of-datum
-  (syntactic-lookup standard-syntactic-environment '#%datum))
+  (syntactic-lookup standard-syntactic-environment (string->symbol "#%datum")))
 
 (define denotation-of-top
-  (syntactic-lookup standard-syntactic-environment '#%top))
+  (syntactic-lookup standard-syntactic-environment (string->symbol "#%top")))
 
 ; Given a syntactic environment env to be extended, an alist returned
 ; by rename-vars, and a syntactic environment env2, extends env by
