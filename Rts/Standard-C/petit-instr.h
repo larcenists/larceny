@@ -199,7 +199,7 @@ extern cont_t twobit_cont_label;
 #endif
 
 
-/* Define INLINE_ALLOCATION at the head of a file (before including petit-instr.h)
+/* Define INLINE_ASSIGNMENT at the head of a file (before including petit-instr.h)
    to compile with a fast pointer check inlined before calling the barrier.
    */
 #ifdef INLINE_ASSIGNMENT
