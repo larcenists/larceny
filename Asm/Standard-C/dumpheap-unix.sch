@@ -75,7 +75,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
+    "gcc -falign-functions=4 -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     unix/petit-include-path
     (if (optimize-c-code) "-O3 -DNDEBUG" "")

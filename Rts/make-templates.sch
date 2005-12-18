@@ -127,7 +127,7 @@
 CC=gcc
 DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS=-c -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+CFLAGS=-c -falign-functions=4 -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 AS=nasm
 ASFLAGS=-f elf -IIntel/ -IBuild/ -DLINUX")
 
