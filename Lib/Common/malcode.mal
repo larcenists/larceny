@@ -67,16 +67,26 @@
              (,$args=   1)
              (,$op1     creg)
              (,$setreg  2)
+	     
+	     ;; Added for continuation-mark support
+	     (,$global *cms*)
+	     (,$setreg 3)
+	     
              (,$lambda  ((,$.proc)
                          (,$args>=  0)
                          (,$movereg 1 2)
+			 
+			 ;; Added for continuation-mark support
+			 (,$lexical 0 3)
+			 (,$setglbl *cms*)
+			 
                          (,$global  values)
                          (,$setreg  1)
                          (,$lexical 0 2)
                          (,$op1     creg-set!)
                          (,$global  apply)
                          (,$invoke  2))        ; (apply values args)
-                        2
+                        3 ;; changed from 2
                         #f)
              (,$setreg  3)
              (,$reg     1)
@@ -221,5 +231,93 @@
   (,$setglbl write-char)
   (,$const write-char)
   (,$return))
+
+
+;; call-with-continuation-mark : key mark (-> 'a) -> 'a
+;;
+;; The essence of continuation mark semantics is the reduction rule
+;; (with-continuation-mark/1 <mark1>
+;;   (with-continuation-mark/1 <mark2> e))
+;; -->
+;; (with-continuation-mark/1 <marks2> e)
+;;
+;; The actual continuation marks system generalizes to multiple keys.
+;;
+;; The essence of the implementation is to detect on entry to 
+;; with-continuation-mark whether the top of the stack is *already*
+;; a with-continuation-mark frame.
+;;   - If not, we add a new layer to the global variable that stores
+;;     the continuation mark stack and evaluate the body expression in 
+;;     non-tail context. When the body expression has produced a value,
+;;     it is returned to the with-continuation-marks frame, which pops
+;;     a layer off the continuation mark stack and returns the result.
+;;   - If the top of the stack is already a with-continuation-mark frame,
+;;     then we *collapse* the two 'with-continuation-marks' by just
+;;     updating the continuation mark stack and tail-calling to the 
+;;     evaluation of the body expression, so that it remains directly 
+;;     inside the outer with-continuation-marks form.
+
+
+;; We implement with-continuation-mark as a macro (see usual.sch)
+;; in terms of call-with-continuation-mark.
+
+;; Mark Frame structure
+;; +---------------+
+;; | RA | up | ENV |
+;; +---------------+
+;;   --   --  slot0
+;;
+;; On a mark frame, ENV will always be 'call-with-continuation-mark',
+;; so we can test for that.
+
+ `((,$lambda ((,$.proc)
+	      (,$args= 3)
+	      
+	      ;; Before we save, is the *current frame* a mark frame?
+	      ;; It's a mark frame iff it's ENV slot is CALL/CM, 
+	      ;; that is, the currently executing procedure.
+	      (,$load 4 0)      ;; Get the current frame's ENV slot => reg4
+	      (,$reg 0)         ;; Load self (call/cm) to Result
+	      (,$op2 eq? 4)     ;; Compare
+	      (,$branchf 1002)  ;; If different, save and invoke.
+	                        ;; Otherwise, fall though to overwrite.
+	      
+	      ;; ** Overwrite and invoke.
+	      ;; The CM frame already exists, and it will do cleanup
+	      ;; when the thunk returns. (see control.sch)
+	      (,$global sys$replace-mark/call-thunk)
+	      (,$invoke 3)
+	      
+	      ;; ** New CM frame needed
+	      (,$.label 1002)
+	      (,$save 1)        ;; Create a new CM frame
+	      (,$store 0 0)     ;; (Unnecessary?)
+	      (,$global *cms*)  ;; Result = *cms*
+	      (,$setreg 4)      ;; Reg 4 = *cms*
+	      (,$reg 1)         ;; Result = key
+	      (,$op2 cons 2)    ;; Result = (cons key mark)
+	      (,$op2imm cons ()) ;; Result = (list (cons key mark))
+	      (,$op2 cons 4)    ;; Result = (cons (list (cons key mark)) *cms*)
+	      (,$setglbl *cms*) ;; *cms* := (cons (cons key mark) *cms*)
+	      (,$setrtn 1001)     
+	      (,$reg 3)
+	      (,$invoke 0)      ;; Invoke the thunk... mark frame remains!
+	      
+	      ;; Now remove mark frame
+	      (,$.cont)
+	      (,$.label 1001)
+	      (,$load 0 0)        ;; Required invariant
+	      (,$setreg 1)        ;; Reg 1 = (thunk) result
+	      (,$global *cms*)    ;; Result = *cms*
+	      (,$op1 cdr)         ;; Result = (cdr *cms*)
+	      (,$setglbl *cms*)   ;; *cms* := (cdr *cms*)
+	      (,$reg 1)           ;; Result = (thunk) result
+	      (,$pop 1)
+	      (,$return))
+	     0
+	     #f)
+   (,$setglbl call-with-continuation-mark)
+   (,$const   call-with-continuation-mark)
+   (,$return))
 
 ; eof

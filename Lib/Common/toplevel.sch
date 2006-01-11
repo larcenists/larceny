@@ -880,6 +880,16 @@
   (environment-set! larc 'interpreted-primitive?  interpreted-primitive?)
   (environment-set! larc 'interpreted-expression-source interpreted-expression-source)
 
+  ;; Continuation marks
+  (environment-set-macro! larc 'with-continuation-mark
+			  (usual-syntax 'with-continuation-mark))
+  (environment-set! larc 'call-with-continuation-mark
+		    call-with-continuation-mark)
+  (environment-set! larc 'current-continuation-marks
+		    current-continuation-marks)
+  (environment-set! larc 'continuation-mark-set->list
+		    continuation-mark-set->list)
+
   ;; miscellaneous extensions and hacks
 
   (environment-set! larc 'repl repl)

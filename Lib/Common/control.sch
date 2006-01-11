@@ -329,4 +329,64 @@
     (reroot-loop there)
     (if ticks (enable-interrupts ticks))))
 
+;; Continuation Marks
+
+;; *cms* : (listof (list-of (cons key value)))
+;; Manipulated by call-with-continuation-mark in malcode.mal
+;; It is important for continuation/mutation safety that the 
+;; structure of the continuation mark stack is never mutated; all
+;; changes must be done by creating a new structure and mutating
+;; only the variable.
+(define *cms* '())
+
+;; sys$replace-mark/call-thunk
+;; Called by call-with-continuation-mark in malcode.mal
+(define (sys$replace-mark/call-thunk key mark thunk)
+  (define (alist-replace alist key mark)
+    (cond ((pair? alist)
+	   (let ((p0 (car alist)))
+	     (if (eq? key (car p0))
+		 (cons (cons key mark) (cdr alist))
+		 (cons p0 (alist-replace (cdr alist) key mark)))))
+	  (else (list (cons key mark)))))
+  (if (not (pair? *cms*))
+      (error "sys$replace-mark/call-thunk: *cms* not a pair"))
+  (let ((frame0 (car *cms*)))
+    (set! *cms* (cons (alist-replace frame0 key mark) (cdr *cms*)))
+    ;; Tail call--call/cm frame is still at top of stack
+    (thunk)))
+
+;; A CMS (continuation mark set) should be opaque; transparent for now.
+(define (cms-box alists) alists)
+(define (cms-unbox cms) cms)
+
+;; Library procedures
+
+;; continuation-marks : continuation-procedure -> cms
+;; Need to change continuation implementation if we need 
+;; to support this function.
+
+;; current-continuation-marks : -> cms
+(define (current-continuation-marks)
+  (cms-box *cms*))
+
+;; continuation-mark-set->list : cms key -> (list-of mark)
+(define (continuation-mark-set->list cms key)
+  (define (process alists)
+    (cond ((pair? alists)
+	   (let loop ((alist (car alists)))
+	     (cond ((pair? alist)
+		    (let ((p0 (car alist)))
+		      (if (eq? key (car p0))
+			  (cons (cdr p0) (process (cdr alists)))
+			  (loop (cdr alist)))))
+		   ((null? alist)
+		    (cons '... (process (cdr alists)))))))
+	  ((null? alists)
+	   '())))
+  (process (cms-unbox cms)))
+
+
+
+
 ; eof

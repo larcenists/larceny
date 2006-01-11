@@ -522,6 +522,12 @@
      (define-values helper (<var2> ...) (<temp> . <temp>s)
        (<name> ...) <body> ...))))
 
+(define-syntax with-continuation-mark
+  (syntax-rules ()
+    ((with-continuation-mark key mark expr)
+     ; =>
+     (call-with-continuation-mark key mark (lambda () expr)))))
+
 ))  ; end of (for-each (lambda (x) (macro-expand ...)) ...)
 
 (define-syntax-scope 'letrec)
