@@ -331,6 +331,21 @@
 
 ;; Continuation Marks
 
+;; Continuation marks are pushed or added by the with-continuation-mark
+;; macro or the more primitive call-with-continuation-mark procedure
+;; (see malcode.mal)
+
+;; The context changes in three main ways:
+;; - normal procedure call and return:
+;;   call/cm installs a cleanup frame to manage marks on procedure returns
+;; - call/cc jumps
+;;   The primitive continuation captured by call/cc closes over the
+;;   continuation mark stack and restores it on continuation invocation.
+;; - dynamic-wind
+;;   Dynamic-wind is modified below to restore the appropriate continuation
+;;   mark stack for the execution of the before and after thunks.
+
+
 ;; *cms* : (listof (list-of (cons key value)))
 ;; Manipulated by call-with-continuation-mark in malcode.mal
 ;; It is important for continuation/mutation safety that the 
@@ -349,8 +364,8 @@
 		 (cons (cons key mark) (cdr alist))
 		 (cons p0 (alist-replace (cdr alist) key mark)))))
 	  (else (list (cons key mark)))))
-  (if (not (pair? *cms*))
-      (error "sys$replace-mark/call-thunk: *cms* not a pair"))
+;  (if (not (pair? *cms*))
+;      (error "sys$replace-mark/call-thunk: *cms* not a pair"))
   (let ((frame0 (car *cms*)))
     (set! *cms* (cons (alist-replace frame0 key mark) (cdr *cms*)))
     ;; Tail call--call/cm frame is still at top of stack
@@ -359,6 +374,19 @@
 ;; A CMS (continuation mark set) should be opaque; transparent for now.
 (define (cms-box alists) alists)
 (define (cms-unbox cms) cms)
+
+;; dynamic-wind redefinition
+;; When the before and after thunks of a dynamic-wind execute, they
+;; should observe the continuation marks belonging to the continuation
+;; of the dynamic wind expression.
+(define dynamic-wind
+  (let ((dynamic-wind dynamic-wind))
+    (lambda (before during after)
+      (let ((cms *cms*))
+        (dynamic-wind
+            (lambda () (set! *cms* cms) (before))
+            during
+            (lambda () (set! *cms* cms) (after)))))))
 
 ;; Library procedures
 
