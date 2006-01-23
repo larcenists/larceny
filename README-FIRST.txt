@@ -9,6 +9,7 @@ Currently, this software is distributed for:
 You may be able to make it work on other platforms (e.g. Linux on
 PowerPC machines), but we do not yet provide support for those systems.
 
+
 WHAT YOU NEED
 
 Native (Sparc): everything should work out of the box.
@@ -49,10 +50,10 @@ QUICK START
 
 * Petit/C (Mac OS X)
   - If you want to use the compiler, run
-    % twobit.app twobit.heap
+    % ./twobit.app twobit.heap
 
   - If you're content to use only the interpreter, run
-    % petit petit.heap
+    % ./petit petit.heap
 
 
 There are other binaries and heaps in the root directory of the
@@ -63,44 +64,32 @@ named "X" is meant to run with the heap named "X.heap".)
 
 COMPILING
 
-* Native (Sparc)
-  - (compile-file <source> [<target>])
+ - (compile-file <source> [<target>])
 
-    (compile-file "source.sch")
-    compiles "source.sch", leaving the compiled code in "source.fasl".
-    (The .scm suffix is also recognized.)
+   (compile-file "source.sch")
+     compiles "source.sch", leaving the compiled code in "source.fasl".
+     (The .scm suffix is also recognized.)
 
-    (compile-file "source.sch" "target.fasl")
-    compiles "source.sch", leaving the compiled code in "target.fasl"
+   (compile-file "source.sch" "target.fasl")
+     compiles "source.sch", leaving the compiled code in "target.fasl"
 
 
-  - (load "target.fasl")
-    loads the compiled code in "target.fasl"
+ - (load "target.fasl")
+     loads the compiled code in "target.fasl"
 
-* Petit (all platforms)
-  - (compile-files <source-file-list> <target>)
+*** IMPORTANT NOTE FOR COMPILING IN PETIT LARCENY ***
 
-    (compile-files '("source1.sch" "source2.sch") "target.fasl")
-    compiles the two input source files, leaving the compiled code in
-    "target.fasl", along with a shared object file with a name similar
-    to "target.so".
+Out of the box, compile-file works only when the current directory is
+the root of the Larceny distribution.  To allow compilation with a
+different current-directory, either:
 
-    Out of the box, compile-files only works when the
-    current-directory is the root directory of the Larceny
-    distribution.  To allow compilation with a different
-    current-directory, either:
+ - follow the steps given in Docs/HOWTO-PETIT, section "INSTALLING
+   TWOBIT ON YOUR SYSTEM", or,
 
-    - follow the steps given in Docs/HOWTO-PETIT, section "INSTALLING
-      TWOBIT ON YOUR SYSTEM", or,
-
-    - load "Util/petit-compile-file.sch" while in the root directory
-      of the Larceny distribution.  This will define compile-file
-      (*not* compile-files) in a manner that works outside the root
-      directory.
-
-      Note that the arguments to compile-file and to compile-files are
-      different; see the Sparc Native documentation above for the
-      description of compile-file.
+ - (load "Util/petit-compile-file.sch") while in the root directory of
+   the Larceny distribution.  This will define compile-file in a manner
+   that works outside the root directory.  You can then change
+   directories using (current-directory NEWDIR).
 
 
 FURTHER READING
