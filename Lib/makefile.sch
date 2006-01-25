@@ -231,7 +231,7 @@
 
 (define mzscheme-files
   (nbuild-files 'mzscheme-source
-                '("init" "wcm0" "wcm" "hash-compat"
+                '("init" "hash-compat"
                   "misc"
                   "record" "inspector"
                   "struct-proc0" "struct-proc" "struct" "struct-macros"

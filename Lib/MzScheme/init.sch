@@ -579,13 +579,6 @@
         wrap-clr-object
         )
 
-;; continuation marks
-(export call-with-continuation-mark
-        current-continuation-marks
-        continuation-marks
-        continuation-marks/structure
-        continuation-mark-set->list)
-
 ;; mzscheme-style hashtables
 (export hash-table?
         make-hash-table
