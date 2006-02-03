@@ -321,6 +321,16 @@
       filename
       (helper filename 0)))
 
+;; ensure-slash-in-path:: String -> String
+;; dlopen only works right when the path to the shared object contains
+;; a slash -- otherwise it looks for system libraries.  So, we prepend
+;; ./ if necessary.
+(define (ensure-slash-in-path filename)
+  (if (and (string=? (shared-obj-suffix) ".so")
+           (not (memv #\/ (string->list filename))))
+    (string-append "./" filename)
+    filename))
+
 ; I think this works, but dynamic loading does not work on MacOS X 10.1.5,
 ; so I've been unable to test.
 
@@ -347,9 +357,10 @@
 	(segments  '())
 	(c-name    (rewrite-file-type outfilename ".fasl" ".c"))
 	(o-name    (rewrite-file-type outfilename ".fasl" (obj-suffix)))
-	(so-name   (ensure-fresh-name
-                    (rewrite-file-type outfilename ".fasl" (shared-obj-suffix))
-		    (shared-obj-suffix))))
+	(so-name   (ensure-slash-in-path
+                    (ensure-fresh-name
+                     (rewrite-file-type outfilename ".fasl" (shared-obj-suffix))
+		     (shared-obj-suffix)))))
     (for-each (lambda (infilename)
 		(set! segments
 		      (append (compile-files/file->segments infilename user syntaxenv) 
