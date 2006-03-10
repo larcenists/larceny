@@ -9,9 +9,11 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 16 June 1999.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Intraprocedural representation inference.
+;
+; FIXME: Isn't taking advantage of the rep-informing table.
 
 (define (representation-analysis exp)
   (let* ((debugging? #f)
@@ -268,13 +270,13 @@
             (analyze-unknown-call exp constraints))))
     
     (define (analyze-primop-call exp constraints entry)
-      (let* ((op (prim-opcodename entry))
+      (let* ((op (variable.name (call.proc exp)))
              (args (call.args exp))
              (argtypes (map (lambda (arg) (analyze arg constraints))
                             args))
              (type (rep-result? op argtypes)))
         (constraints-kill! constraints (prim-kills entry))
-        (cond ((and (eq? op 'check!)
+        (cond ((and (eq? op '.check!)
                     (variable? (car args)))
                (let ((varname (variable.name (car args))))
                  (if (and mutate?

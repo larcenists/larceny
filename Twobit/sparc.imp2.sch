@@ -131,6 +131,11 @@
 ; and the information about representations that are implied
 ; by certain operations.
 
+; IMPORTANT:  Every representation-specific procedure listed
+; in the rep-specific table must also be listed in the rep-result
+; table, and provide at least as much information about its
+; result as the procedure it can replace.
+
 (define rep-specific
   
   (representation-table
@@ -195,14 +200,43 @@
    ; When the operation in the first column is called with
    ; arguments described in the middle column, then the result
    ; is described by the last column.
-   ; Note: operation names in this table are internal, so no dots.
+   ; Note: operation names in this table are external, hence the dots.
    
-   '((fixnum?           (fixnum)                    (truth))
+   '(
+     (boolean?          (boolean)                   (truth))
+     (procedure?        (procedure)                 (truth))
      (vector?           (vector)                    (truth))
+     (bytevector?       (bytevector)                (truth))
+     (string?           (string)                    (truth))
+     (pair?             (pair)                      (truth))
+     (null?             (emptylist)                 (truth))
+     (symbol?           (symbol)                    (truth))
+     (char?             (char)                      (truth))
+     (fixnum?           (fixnum)                    (truth))
+     (.fixnum?          (fixnum)                    (truth))
+     (flonum?           (flonum)                    (truth))
+     (exact?            (exact)                     (truth))
+     (inexact?          (inexact)                   (truth))
+
+     (boolean?          (object)                    (boolean))
+     (procedure?        (object)                    (boolean))
+     (vector?           (object)                    (boolean))
+     (bytevector?       (object)                    (boolean))
+     (string?           (object)                    (boolean))
+     (pair?             (object)                    (boolean))
+     (null?             (object)                    (boolean))
+     (symbol?           (object)                    (boolean))
+     (char?             (object)                    (boolean))
+     (fixnum?           (object)                    (boolean))
+     (.fixnum?          (object)                    (boolean))
+     (flonum?           (object)                    (boolean))
+     (exact?            (object)                    (boolean))
+     (inexact?          (object)                    (boolean))
+
      (<=                (zero !fixnum)              (truth))
      (>=                (!fixnum zero)              (truth))
-     (<=:fix:fix        (zero !fixnum)              (truth))
-     (>=:fix:fix        (!fixnum zero)              (truth))
+     (.<=:fix:fix       (zero !fixnum)              (truth))
+     (.>=:fix:fix       (!fixnum zero)              (truth))
      
      (+                 (index index)               (!fixnum))
      (+                 (fixnum fixnum)             (exactint))
@@ -212,12 +246,12 @@
      (+                 (flonum flonum)             (flonum))
      (-                 (flonum flonum)             (flonum))
      
-     (+:idx:idx         (index index)               (!fixnum))
-     (+:fix:fix         (index index)               (fixnum))
-     (+:fix:fix         (fixnum fixnum)             (exactint))
-     (-:idx:idx         (index index)               (fixnum!))
-     (-:fix:fix         (index index)               (fixnum))
-     (-:fix:fix         (fixnum fixnum)             (exactint))
+     (.+:idx:idx        (index index)               (!fixnum))
+     (.+:fix:fix        (index index)               (fixnum))
+     (.+:fix:fix        (fixnum fixnum)             (exactint))
+     (.-:idx:idx        (index index)               (fixnum!))
+     (.-:fix:fix        (index index)               (fixnum))
+     (.-:fix:fix        (fixnum fixnum)             (exactint))
      
      (fx+               (fixnum fixnum)             (fixnum))
      (fx-               (fixnum fixnum)             (fixnum))
@@ -228,11 +262,11 @@
      (fl/               (flonum flonum)             (flonum))
 
      (make-vector       (object object)             (vector))
-     (vector-length:vec (vector)                    (index))
+     (.vector-length:vec (vector)                   (index))
 
      (make-string       (object object)             (string))
-     (string-length:str (string)                    (index))
-     (string-ref:trusted (string fixnum)            (char))
+     (.string-length:str (string)                    (index))
+     (.string-ref:trusted (string fixnum)            (char))
 
      (cons              (object object)             (pair))
 
@@ -243,17 +277,26 @@
      ; of these comparisons is a boolean?
      ; FIXME:  If it is, then there are a zillion other predicates.
      
+     (eq?               (object object)             (boolean))
+     (eqv?              (object object)             (boolean))
+
      (=                 (number number)             (boolean))
      (<                 (number number)             (boolean))
      (<=                (number number)             (boolean))
      (>                 (number number)             (boolean))
      (>=                (number number)             (boolean))
      
-     (=:fix:fix         (fixnum fixnum)             (boolean))
-     (<:fix:fix         (fixnum fixnum)             (boolean))
-     (<=:fix:fix        (fixnum fixnum)             (boolean))
-     (>:fix:fix         (fixnum fixnum)             (boolean))
-     (>=:fix:fix        (fixnum fixnum)             (boolean))
+     (fx=               (fixnum fixnum)             (boolean))
+     (fx<               (fixnum fixnum)             (boolean))
+     (fx<=              (fixnum fixnum)             (boolean))
+     (fx>               (fixnum fixnum)             (boolean))
+     (fx>=              (fixnum fixnum)             (boolean))
+
+     (.=:fix:fix        (fixnum fixnum)             (boolean))
+     (.<:fix:fix        (fixnum fixnum)             (boolean))
+     (.<=:fix:fix       (fixnum fixnum)             (boolean))
+     (.>:fix:fix        (fixnum fixnum)             (boolean))
+     (.>=:fix:fix       (fixnum fixnum)             (boolean))
      )))
 
 (define rep-informing
@@ -268,11 +311,65 @@
    
    '(
      (fixnum?     (object)           (fixnum)          (object))
+     (.fixnum?    (object)           (fixnum)          (object))
      (flonum?     (object)           (flonum)          (object))
      (vector?     (object)           (vector)          (object))
      (string?     (object)           (string)          (object))
      (char?       (object)           (char)            (object))
      (pair?       (object)           (pair)            (object))
+     (null?       (object)           (emptylist)       (object))
+
+     (eq?         (object true)      (true true)       (object true))
+     (eq?  (object nonpointer) (nonpointer nonpointer) (object nonpointer))
+     (eq?         (object boolean)   (boolean boolean) (object boolean))
+    ;(eq?     (object procedure) (procedure procedure) (object procedure))
+    ;(eq?         (object vector)    (vector vector)   (object vector))
+    ;(eq?  (object bytevector) (bytevector bytevector) (object bytevector))
+    ;(eq?         (object string)    (string string)   (object string))
+     (eq?         (object pair)      (pair pair)       (object pair))
+     (eq?     (object emptylist) (emptylist emptylist) (object emptylist))
+     (eq?         (object symbol)    (symbol symbol)   (object symbol))
+     (eq?         (object char)      (char char)       (object char))
+     (eq?         (object fixnum)    (fixnum fixnum)   (object fixnum))
+     (eq?         (object !fixnum)   (!fixnum !fixnum) (object !fixnum))
+     (eq?         (object fixnum!)   (fixnum! fixnum!) (object fixnum!))
+     (eq?         (object index)     (index index)     (object index))
+     
+     (eq?         (true object)      (true true)       (true object))
+     (eq?  (nonpointer object) (nonpointer nonpointer) (nonpointer object))
+     (eq?         (boolean object)   (boolean boolean) (boolean object))
+     (eq?         (pair object)      (pair pair)       (pair object))
+     (eq?     (emptylist object) (emptylist emptylist) (emptylist object))
+     (eq?         (symbol object)    (symbol symbol)   (symbol object))
+     (eq?         (char object)      (char char)       (char object))
+     (eq?         (fixnum object)    (fixnum fixnum)   (fixnum object))
+     (eq?         (!fixnum object)   (!fixnum !fixnum) (!fixnum object))
+     (eq?         (fixnum! object)   (fixnum! fixnum!) (fixnum! object))
+     (eq?         (index object)     (index index)     (index object))
+     
+     (eqv?        (object true)      (true true)       (object true))
+     (eqv? (object nonpointer) (nonpointer nonpointer) (object nonpointer))
+     (eqv?        (object boolean)   (boolean boolean) (object boolean))
+     (eqv?        (object pair)      (pair pair)       (object pair))
+     (eqv?    (object emptylist) (emptylist emptylist) (object emptylist))
+     (eqv?        (object symbol)    (symbol symbol)   (object symbol))
+     (eqv?        (object char)      (char char)       (object char))
+     (eqv?        (object fixnum)    (fixnum fixnum)   (object fixnum))
+     (eqv?        (object !fixnum)   (!fixnum !fixnum) (object !fixnum))
+     (eqv?        (object fixnum!)   (fixnum! fixnum!) (object fixnum!))
+     (eqv?        (object index)     (index index)     (object index))
+     
+     (eqv?        (true object)      (true true)       (true object))
+     (eqv? (nonpointer object) (nonpointer nonpointer) (nonpointer object))
+     (eqv?        (boolean object)   (boolean boolean) (boolean object))
+     (eqv?        (pair object)      (pair pair)       (pair object))
+     (eqv?    (emptylist object) (emptylist emptylist) (emptylist object))
+     (eqv?        (symbol object)    (symbol symbol)   (symbol object))
+     (eqv?        (char object)      (char char)       (char object))
+     (eqv?        (fixnum object)    (fixnum fixnum)   (fixnum object))
+     (eqv?        (!fixnum object)   (!fixnum !fixnum) (!fixnum object))
+     (eqv?        (fixnum! object)   (fixnum! fixnum!) (fixnum! object))
+     (eqv?        (index object)     (index index)     (index object))
      
      (=           (exactint index)   (index index)     (exactint index))
      (=           (index exactint)   (index index)     (index exactint))
@@ -281,26 +378,6 @@
      (=           (exactint fixnum!) (fixnum! fixnum!) (exactint fixnum!))
      (=           (fixnum! exactint) (fixnum! fixnum!) (fixnum! exactint))
      
-     (<           (!fixnum fixnum!)  (index index)     (!fixnum fixnum!))
-     (<           (fixnum fixnum!)   (fixnum! fixnum!) (fixnum fixnum!))
-     (<           (!fixnum fixnum)   (!fixnum !fixnum) (!fixnum fixnum))
-     (<           (fixnum! !fixnum)  (fixnum! !fixnum) (index index))
-     
-     (<=          (!fixnum fixnum!)  (index index)     (!fixnum fixnum!))
-     (<=          (fixnum! !fixnum)  (fixnum! !fixnum) (index index))
-     (<=          (fixnum fixnum!)   (fixnum! fixnum!) (fixnum fixnum!))
-     (<=          (!fixnum fixnum)   (!fixnum !fixnum) (!fixnum fixnum))
-     
-     (>           (!fixnum fixnum!)  (!fixnum fixnum!) (index index))
-     (>           (fixnum! !fixnum)  (index index)     (fixnum! !fixnum))
-     (>           (fixnum fixnum!)   (fixnum fixnum!)  (fixnum! fixnum!))
-     (>           (!fixnum fixnum)   (!fixnum fixnum)  (!fixnum !fixnum))
-     
-     (>=          (!fixnum fixnum!)  (!fixnum fixnum!) (index index))
-     (>=          (fixnum! !fixnum)  (index index)     (fixnum! !fixnum))
-     (>=          (fixnum fixnum!)   (fixnum fixnum!)  (fixnum! fixnum!))
-     (>=          (!fixnum fixnum)   (!fixnum fixnum)  (!fixnum !fixnum))
-     
      (=:fix:fix   (exactint index)   (index index)     (exactint index))
      (=:fix:fix   (index exactint)   (index index)     (index exactint))
      (=:fix:fix   (exactint !fixnum) (!fixnum !fixnum) (exactint !fixnum))
@@ -308,23 +385,70 @@
      (=:fix:fix   (exactint fixnum!) (fixnum! fixnum!) (exactint fixnum!))
      (=:fix:fix   (fixnum! exactint) (fixnum! fixnum!) (fixnum! exactint))
 
+     (.=:fix:fix  (exactint index)   (index index)     (exactint index))
+     (.=:fix:fix  (index exactint)   (index index)     (index exactint))
+     (.=:fix:fix  (exactint !fixnum) (!fixnum !fixnum) (exactint !fixnum))
+     (.=:fix:fix  (!fixnum exactint) (!fixnum !fixnum) (!fixnum exactint))
+     (.=:fix:fix  (exactint fixnum!) (fixnum! fixnum!) (exactint fixnum!))
+     (.=:fix:fix  (fixnum! exactint) (fixnum! fixnum!) (fixnum! exactint))
+
+     (<           (!fixnum fixnum!)  (index index)     (!fixnum fixnum!))
+     (<           (fixnum fixnum!)   (fixnum! fixnum!) (fixnum fixnum!))
+     (<           (!fixnum fixnum)   (!fixnum !fixnum) (!fixnum fixnum))
+     (<           (fixnum! !fixnum)  (fixnum! !fixnum) (index index))
+     
      (<:fix:fix   (!fixnum fixnum!)  (index index)     (!fixnum fixnum!))
-     (<:fix:fix   (fixnum! !fixnum)  (fixnum! !fixnum) (index index))
      (<:fix:fix   (fixnum fixnum!)   (fixnum! fixnum!) (fixnum fixnum!))
      (<:fix:fix   (!fixnum fixnum)   (!fixnum !fixnum) (!fixnum fixnum))
+     (<:fix:fix   (fixnum! !fixnum)  (fixnum! !fixnum) (index index))
+     
+     (.<:fix:fix  (!fixnum fixnum!)  (index index)     (!fixnum fixnum!))
+     (.<:fix:fix  (fixnum fixnum!)   (fixnum! fixnum!) (fixnum fixnum!))
+     (.<:fix:fix  (!fixnum fixnum)   (!fixnum !fixnum) (!fixnum fixnum))
+     (.<:fix:fix  (fixnum! !fixnum)  (fixnum! !fixnum) (index index))
+     
+     (<=          (!fixnum fixnum!)  (index index)     (!fixnum fixnum!))
+     (<=          (fixnum! !fixnum)  (fixnum! !fixnum) (index index))
+     (<=          (fixnum fixnum!)   (fixnum! fixnum!) (fixnum fixnum!))
+     (<=          (!fixnum fixnum)   (!fixnum !fixnum) (!fixnum fixnum))
      
      (<=:fix:fix  (!fixnum fixnum!)  (index index)     (!fixnum fixnum!))
      (<=:fix:fix  (fixnum! !fixnum)  (fixnum! !fixnum) (index index))
      (<=:fix:fix  (fixnum fixnum!)   (fixnum! fixnum!) (fixnum fixnum!))
      (<=:fix:fix  (!fixnum fixnum)   (!fixnum !fixnum) (!fixnum fixnum))
      
+     (.<=:fix:fix (!fixnum fixnum!)  (index index)     (!fixnum fixnum!))
+     (.<=:fix:fix (fixnum! !fixnum)  (fixnum! !fixnum) (index index))
+     (.<=:fix:fix (fixnum fixnum!)   (fixnum! fixnum!) (fixnum fixnum!))
+     (.<=:fix:fix (!fixnum fixnum)   (!fixnum !fixnum) (!fixnum fixnum))
+     
+     (>           (!fixnum fixnum!)  (!fixnum fixnum!) (index index))
+     (>           (fixnum! !fixnum)  (index index)     (fixnum! !fixnum))
+     (>           (fixnum fixnum!)   (fixnum fixnum!)  (fixnum! fixnum!))
+     (>           (!fixnum fixnum)   (!fixnum fixnum)  (!fixnum !fixnum))
+     
      (>:fix:fix   (!fixnum fixnum!)  (!fixnum fixnum!) (index index))
      (>:fix:fix   (fixnum! !fixnum)  (index index)     (fixnum! !fixnum))
      (>:fix:fix   (fixnum fixnum!)   (fixnum fixnum!)  (fixnum! fixnum!))
      (>:fix:fix   (!fixnum fixnum)   (!fixnum fixnum)  (!fixnum !fixnum))
      
+     (.>:fix:fix  (!fixnum fixnum!)  (!fixnum fixnum!) (index index))
+     (.>:fix:fix  (fixnum! !fixnum)  (index index)     (fixnum! !fixnum))
+     (.>:fix:fix  (fixnum fixnum!)   (fixnum fixnum!)  (fixnum! fixnum!))
+     (.>:fix:fix  (!fixnum fixnum)   (!fixnum fixnum)  (!fixnum !fixnum))
+     
+     (>=          (!fixnum fixnum!)  (!fixnum fixnum!) (index index))
+     (>=          (fixnum! !fixnum)  (index index)     (fixnum! !fixnum))
+     (>=          (fixnum fixnum!)   (fixnum fixnum!)  (fixnum! fixnum!))
+     (>=          (!fixnum fixnum)   (!fixnum fixnum)  (!fixnum !fixnum))
+     
      (>=:fix:fix  (!fixnum fixnum!)  (!fixnum fixnum!) (index index))
      (>=:fix:fix  (fixnum! !fixnum)  (index index)     (fixnum! !fixnum))
      (>=:fix:fix  (fixnum fixnum!)   (fixnum fixnum!)  (fixnum! fixnum!))
      (>=:fix:fix  (!fixnum fixnum)   (!fixnum fixnum)  (!fixnum !fixnum))
+
+     (.>=:fix:fix (!fixnum fixnum!)  (!fixnum fixnum!) (index index))
+     (.>=:fix:fix (fixnum! !fixnum)  (index index)     (fixnum! !fixnum))
+     (.>=:fix:fix (fixnum fixnum!)   (fixnum fixnum!)  (fixnum! fixnum!))
+     (.>=:fix:fix (!fixnum fixnum)   (!fixnum fixnum)  (!fixnum !fixnum))
      )))

@@ -233,7 +233,7 @@
 
 (define (display-unions-and-intersections)
   (let* ((column-width 10)
-         (columns/row (quotient 80 column-width)))
+         (columns/row (- (quotient 80 column-width) 1)))
     
     (define (display-symbol sym)
       (let* ((s (symbol->string sym))
