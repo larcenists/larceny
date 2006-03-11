@@ -54,7 +54,8 @@
     (make-rectnum f 0))
 
   (define (ratnum->flonum f)
-    (/ (exact->inexact (numerator f)) (exact->inexact (denominator f))))
+    ; This is hard when the denominator is large.
+    (exact->inexact:rational f))
 
   (define (ratnum->compnum f)
     (make-compnum (ratnum->flonum f) 0.0))
@@ -70,7 +71,12 @@
 
   (define (oops a b retry)
     (error "INTERNAL ERROR in contagion: same-representation arithmetic: "
-	   "ops = "a ", " b "; code=" (contagion-error-code retry))
+	   "ops = " a ", " b "; code=" (contagion-error-code retry))
+    #t)
+
+  (define (oops-in-predicate a b retry)
+    (error "INTERNAL ERROR in pcontagion: illegal comparison: "
+	   "ops = " a ", " b "; code=" (contagion-error-code retry))
     #t)
 
   (define (fun f1 f2)
@@ -128,7 +134,7 @@
     (cond ((compnum? a) a)
 	  ((rectnum? a)
 	   (make-rectangular (exact->inexact (real-part a))
-			     (exact->inexact (real-part b))))
+			     (exact->inexact (imag-part a))))
 	  (else
 	   (make-rectangular (exact->inexact a) 0))))
 
@@ -306,28 +312,46 @@
 		    oops)))
 
   ; Predicate matrix: for <, <=, >, >=
+  ; No loss of accuracy can be tolerated here.
   ; Algorithm*p handles illegal complex numbers.
 
   (set! pmatrix
-    (vector (vector oops (fun fixnum->bignum id) (fun fixnum->ratnum id) 
-		    (fun fixnum->rectnum id) (fun fixnum->flonum id) 
-		    (fun fixnum->compnum id))
-	    (vector (fun id fixnum->bignum) oops (fun bignum->ratnum id)
-		    (fun bignum->rectnum id) algorithm*p algorithm*p)
-	    (vector (fun id fixnum->ratnum) (fun id bignum->ratnum) oops
-		    (fun ratnum->rectnum id) (fun ratnum->flonum id)
-		    (fun ratnum->compnum id))
-	    (vector (fun id fixnum->rectnum) (fun id bignum->rectnum)
-		    (fun id ratnum->rectnum) oops
-		    (fun rectnum->compnum flonum->compnum)
-		    (fun rectnum->compnum id))
-	    (vector (fun id fixnum->flonum) algorithm*p 
-		    (fun id ratnum->flonum) 
+    (vector (vector oops
+                    (fun fixnum->bignum id)
+                    (fun fixnum->ratnum id) 
+		    (fun fixnum->rectnum id)
+                    (fun fixnum->flonum id) 
+		    oops-in-predicate)
+	    (vector (fun id fixnum->bignum)
+                    oops
+                    (fun bignum->ratnum id)
+		    (fun bignum->rectnum id)
+                    algorithm*p
+                    oops-in-predicate)
+	    (vector (fun id fixnum->ratnum)
+                    (fun id bignum->ratnum)
+                    oops
+		    (fun ratnum->rectnum id)
+                    (fun id flonum->ratnum)
+		    oops-in-predicate)
+	    (vector (fun id fixnum->rectnum)
+                    (fun id bignum->rectnum)
+		    (fun id ratnum->rectnum)
+                    oops
+                    (fun id flonum->ratnum)
+                    oops-in-predicate)
+	    (vector (fun id fixnum->flonum)
+                     algorithm*p 
+		    (fun flonum->ratnum id)
 		    (fun flonum->compnum rectnum->compnum)
-		    oops (fun flonum->compnum id))
-	    (vector (fun id fixnum->compnum) algorithm*p
-		    (fun id ratnum->compnum) (fun id rectnum->compnum)
-		    (fun id flonum->compnum) oops)))
+		    oops
+                    oops-in-predicate)
+	    (vector oops-in-predicate
+                    oops-in-predicate
+                    oops-in-predicate
+                    oops-in-predicate
+                    oops-in-predicate
+                    oops-in-predicate)))
 
   ; Equality matrix: for = (only)
 
@@ -348,8 +372,8 @@
 		    (fun id bignum->ratnum)
 		    oops
 		    (fun ratnum->rectnum id)
-		    (fun ratnum->flonum id)
-		    (fun ratnum->compnum id))
+		    (fun id flonum->ratnum)
+		    (fun ratnum->rectnum id))
 	    (vector (fun id fixnum->rectnum)
 		    (fun id bignum->rectnum)
 		    (fun id ratnum->rectnum)
@@ -374,7 +398,7 @@
 		    (do-contagion cmatrix a b retry)))
 
   (set! econtagion (lambda (a b retry)
-		     (do-contagion ematrix a b retry)))
+ 		     (do-contagion ematrix a b retry)))
 
   (set! pcontagion (lambda (a b retry)
 		     (do-contagion pmatrix a b retry)))

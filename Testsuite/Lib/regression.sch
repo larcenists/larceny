@@ -143,6 +143,15 @@
    (test "Error case #26"		; Bug in Larceny through 0.51
 	 (remainder (hide #xc6450c30) (hide #x100000000))
 	 #xc6450c30)
+   (test "Ticket #27"                   ; Bug in Larceny through 0.90
+         (+ 1+2i 1.1+2.1i)
+         2.1+4.1i)
+   (test "Ticket #28"                   ; Bug in Larceny through 0.90
+         (exact->inexact (/ (expt 2 1500) (- (expt 2 1500) 1)))
+         1.0)
+   (test "(= 1234567890 3.4)"           ; discovered via Ticket #28
+         (= 1234567890 3.4)
+         #f)
    ))
 
 (define (bug-105-test1)

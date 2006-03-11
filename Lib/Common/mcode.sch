@@ -48,8 +48,11 @@
     ; x is an inexact approximation to p/q
     
     (define (hard-case p q x)
-      (let* ((k (- (inexact->exact (ceiling (log2 x)))
-                   n)))
+      ; Beware of NaNs.
+      (let* ((k (if (= x x)
+                    (- (inexact->exact (ceiling (log2 x)))
+                       n)
+                    0)))
         (if (> k 0)
             (loop p (* q (expt 2 k)) k)
             (loop (* p (expt 2 (- k))) q k))))

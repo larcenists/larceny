@@ -1082,7 +1082,7 @@ Lequal_bvec:
 	b	_econtagion
 	mov	MS_GENERIC_EQUAL, %TMP2
 Lequal_bvec2:
-	ldub	[ %RESULT - BVEC_TAG + 3 ], %TMP1
+	ldub	[ %ARGREG2 - BVEC_TAG + 3 ], %TMP1
 	cmp	%TMP0, FLONUM_HDR
 	be,a	Lequal_flo
 	cmp	%TMP1, FLONUM_HDR
