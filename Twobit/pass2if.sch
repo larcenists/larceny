@@ -10,8 +10,6 @@
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
-; 14 September 2000.
-;
 
 ; Thresholds that determine how CASE expressions are compiled.
 ;
@@ -515,7 +513,7 @@
   (let* ((intervals (complete-intervals
                      (calculate-intervals (+ prior 1) lists)))
          (lo (car (car intervals)))
-         (hi (car (car (reverse intervals))))
+         (hi (cadr (car (reverse intervals))))
          (p (length intervals)))
     (make-conditional
      (make-call (make-variable name:FX<)
@@ -539,21 +537,22 @@
                        (map compat:char->integer constants))
                      lists))
          (name:n ((make-rename-procedure) 'n))
-         ; Referencing information is destroyed by pass 2.
-         ;(entry (make-R-entry name:n '() '() '()))
+         (ref1 (make-variable name:n))
+         (entry (make-R-entry name:n (list ref1) '() '()))
          (F (list name:n name:EQ? name:FX< name:FX- name:VECTOR-REF))
          (L (make-lambda
              (list name:n)
              '()
-             '()  ; entry
+             (list entry)
              F
              '()
              '()
              #f
-             (implement-dispatch-fixnum prior (make-variable name:n) lists))))
+             (implement-dispatch-fixnum prior ref1 lists))))
     (make-call L
-               (make-call (make-variable name:CHAR->INTEGER)
-                          (list ref0)))))
+               (list
+                (make-call (make-variable name:CHAR->INTEGER)
+                           (list ref0))))))
 
 (define (implement-dispatch-symbol prior ref0 lists)
   (implement-dispatch-other (make-constant 0) prior ref0 lists))

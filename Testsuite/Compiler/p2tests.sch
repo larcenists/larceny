@@ -537,3 +537,34 @@
                    (f n))))
         (foo 1003 'ab 'ba 'aa 'bb))
       'bb)
+
+(test "case-1"
+      (let ((foo (lambda (c)
+                   (case c
+                     ((#\h) 8)
+                     ((#\j) 10)
+                     ((#\k) 11)
+                     ((#\l) 12)
+                     ((#\a #\e #\i #\o #\u) 'vowel)
+                     ((#\b) 2)
+                     ((#\d) 4)
+                     ((#\p #\q #\r #\s) 'pqrs)
+                     ((#\f) 6)
+                     ((#\g) 7)
+                     ((#\m) 13)
+                     ((#\n) 14)
+                     ((#\t #\v #\w #\x #\y #\z) 'tvwxyz)))))
+        (map foo (string->list "hello")))
+      '(8 vowel 12 12 vowel))
+
+(test "case-2"
+      (let ((foo (lambda (k)
+                   (case k
+                     ((2 3 5 7 11 13 17 19) 'prime)
+                     ((0 4 6 8 10 12 14 16 18) 'even)
+                     ((1 9 15) 'odd)
+                     (else (if (negative? k) 'negative 'big))))))
+        (map foo '(10 15 20 25 18 12 6 0 -6 3)))
+      '(even odd big big even even even even negative prime))
+
+

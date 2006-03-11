@@ -144,6 +144,7 @@
     (.symbol?         1 symbol?          #f          #x1f ,:immortal ,:none)
     (.char?           1 char?            #f          #x40 ,:immortal ,:none)
     (.char->integer   1 char->integer    #f          #x41 ,:immortal ,:none)
+    (.char->integer:chr 1 char->integer  #f          #x41 ,:immortal ,:none)
     (.--              1 --               #f          #x2d ,:immortal ,:none)
 
     ; Added for CSE, representation analysis.
