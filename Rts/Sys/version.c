@@ -14,20 +14,39 @@
  *  CRM-114                     0.52
  *  Dear John                   0.53
  *  Operation Drop-Kick         0.90
+ *  Children's Ice Cream
+ *  Definite Missile Track
+ *  Deviated Prevert
  *  Doomsday Device
+ *  First Safety
  *  Fluoridation
  *  General Ripper 
+ *  Goldie
+ *  Grain Alcohol and Rainwater
  *  Group Commander Mandrake
  *  Hi There!
+ *  Horsing Around
  *  'King' Kong
+ *  Mein Fuhrer
+ *  Mineshaft Gap
  *  Missile Complex at Laputa
+ *  Ominous Rumors
  *  Peace is our Profession
+ *  People's Central Air Defense
+ *  Personal Feelings
  *  Plan R
  *  Precious Bodily Fluids
  *  Premier Kissoff
  *  President Muffley
+ *  Recall Code
+ *  Ridiculous Camera
+ *  Sleigh Bells
+ *  Some Sunny Day
  *  Dr Strangelove
+ *  Vegas
  *  War Room
+ *  World Targets in MegaDeaths
+ *  Zhokhov Islands
  */
 
 #include "config.h"
