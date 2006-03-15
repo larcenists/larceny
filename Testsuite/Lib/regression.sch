@@ -144,14 +144,62 @@
 	 (remainder (hide #xc6450c30) (hide #x100000000))
 	 #xc6450c30)
    (test "Ticket #27"                   ; Bug in Larceny through 0.90
-         (+ 1+2i 1.1+2.1i)
+         (+ (hide 1+2i) (hide 1.1+2.1i))
          2.1+4.1i)
    (test "Ticket #28"                   ; Bug in Larceny through 0.90
-         (exact->inexact (/ (expt 2 1500) (- (expt 2 1500) 1)))
+         (exact->inexact (hide (/ (expt 2 1500) (- (expt 2 1500) 1))))
          1.0)
    (test "(= 1234567890 3.4)"           ; discovered via Ticket #28
-         (= 1234567890 3.4)
+         (= (hide 1234567890) (hide 3.4))
          #f)
+   (test "Ticket #31 (1)"               ; Bug in Larceny through 0.90
+         (exact->inexact (hide (/ (expt 10 1000) 3)))
+         +inf.0)
+   (test "Ticket #31 (2)"               ; Bug in Larceny through 0.90
+         (* (hide 12345678901) (hide +inf.0))
+         +inf.0)
+   (test "Ticket #31 (3)"               ; Bug in Larceny through 0.90
+         (/ (hide 1.0) (hide (expt 2 -2000)))
+         +inf.0)
+   (test "Ticket #31 (4)"               ; Bug in Larceny through 0.90
+         (/ (hide 1.0) (hide (expt 2 1000)))
+         9.332636185032189e-302)
+   (test "Ticket #31 (5)"               ; Bug in Larceny through 0.90
+         (/ (hide 1.0) (hide (expt 2 2000)))
+         0.0)
+   (test "Ticket #32 (1)"               ; Bug in Larceny through 0.90
+         (string->number (hide "1/0"))
+         #f)
+   (test "Ticket #32 (2)"               ; Bug in Larceny through 0.90
+         (string->number (hide "-1/0"))
+         #f)
+   (test "Ticket #32 (3)"               ; Bug in Larceny through 0.90
+         (string->number (hide "0/0"))
+         #f)
+   (test "Ticket #32 (4)"               ; Bug in Larceny through 0.90
+         (let ((x (string->number (hide "#i0/0")))) (= x x))
+         #f)
+   (test "Ticket #32 (5)"               ; Bug in Larceny through 0.90
+         (string->number (hide "#i7/0"))
+         +inf.0)
+   (test "Ticket #32 (6)"               ; Bug in Larceny through 0.90
+         (string->number (hide "#i-1/0"))
+         -inf.0)
+   (test "Ticket #33 (1)"               ; Bug in Larceny through 0.90
+         (/ (hide 3+4.5i) (hide 3+4.5i))
+         1.0)
+   (test "Ticket #33 (2)"               ; Bug in Larceny through 0.90
+         (/ (hide 4.5+3i) (hide 4.5+3i))
+         1.0)
+   (test "Ticket #33 (3)"               ; Bug in Larceny through 0.90
+         (number->string (hide (/ (hide 3.0i) (hide 3.0i))))
+         "1.0")
+   (test "Ticket #33 (4)"               ; Bug in Larceny through 0.90
+         (flonum? (/ (hide 3+4.5i) (hide 3+4.5i)))
+         #t)
+   (test "Ticket #33 (5)"               ; Bug in Larceny through 0.90
+         (flonum? (/ (hide 4.5+3i) (hide 4.5+3i)))
+         #t)
    ))
 
 (define (bug-105-test1)

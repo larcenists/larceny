@@ -443,13 +443,20 @@
     ;
     ;   sign        = 1 or -1
     ;   exactness   = a symbol, e or i
-    ;   numerator   = an exact integer
-    ;   denominator = an exact integer
+    ;   numerator   = an exact integer >= 0
+    ;   denominator = an exact integer >= 0
     ;   exponent    = an exact integer
     
     (define (create-number exactness sign numerator denominator exponent)
       (cond ((not (eq? denominator 1))
-             (coerce-exactness exactness (/ (* sign numerator) denominator)))
+             ; exponent must be 0
+             (if (eq? denominator 0)
+                 (if (eq? exactness 'i)
+                     (/ (exact->inexact (* sign numerator))
+                        (exact->inexact 0))
+                     #f)
+                 (coerce-exactness exactness
+                                   (/ (* sign numerator) denominator))))
             ((eq? exactness 'i)
              (* sign (bellerophon numerator exponent)))
             ((zero? exponent)
@@ -459,11 +466,12 @@
                 (expt 10 (- exponent))))
             (else (* sign numerator (expt 10 exponent)))))
     
+    ; Given an exactness (e or i or #f) and an exact number x,
+    ; coerces x to the specified exactness.  #f means e.
+
     (define (coerce-exactness exactness x)
       (cond ((eq? exactness 'i)
              (if (inexact? x) x (exact->inexact x)))
-            ((exact? x) x)
-            ((integer? x) (inexact->exact x))
             (else x)))
     
     (set! string->number
