@@ -2403,7 +2403,7 @@ _box_flonum:
  * front where it is conspicuously inefficient and easy to find.
  */
 _box_compnum:
-	fcmpd	%f0, %f2
+	fcmpd	%f0, %f4
 	nop
 	fbe,a	_box_flonum
 	nop	
