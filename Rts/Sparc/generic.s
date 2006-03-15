@@ -568,10 +568,12 @@ Ldiv_comp2:
 	/* needs scheduling badly. */
 	/* when scheduled, move one instruction into the slot above. */
 
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f6
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f8
-	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f10
-	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f12
+        /* divide a+bi by c+di, using algorithm in rectnums.sch */
+
+	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f10         /* c */
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f12        /* d */
+	ldd	[ %RESULT - BVEC_TAG + 8 ], %f6           /* a */
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f8          /* b */
 #if defined(V8PLUS)
 	fabsd	%f10, %f14
 	fabsd	%f12, %f16
@@ -584,20 +586,19 @@ Ldiv_comp2:
 	fbl	Ldiv_comp3
 	nop
 
-	/* FIXME: f16 is imag_part of b!!!  Bug???  (But: cf rectnum code.) */
-	/* case 1: (>= (abs (real-part b)) (abs (imag-part a))) */
+	/* case 1: (>= (abs c) (abs d)) */
 
-	fdivd	%f12, %f10, %f14  /* r:   (/ (imag-part b) (real-part b)) */
+	fdivd	%f12, %f10, %f14  /* r:   (/ d c)              */
 	fmuld	%f14, %f12, %f16
-	faddd	%f10, %f16, %f16  /* den: (+ (real-part b) (* r (imag-part b))) */
+	faddd	%f10, %f16, %f16  /* den: (+ c (* r d))        */
 
-	fmuld	%f14, %f8, %f18
-	faddd	%f6, %f18, %f2
-	fdivd	%f2, %f16, %f2	  /* c.r */
+	fmuld	%f14, %f8, %f18   /* (* r b)                   */
+	faddd	%f6, %f18, %f2    /* (+ a (* r b))             */
+	fdivd	%f2, %f16, %f2	  /* (/ (+ a (* r b)) den)     */
 
-	fmuld	%f14, %f6, %f18
-	fsubd	%f8, %f18, %f4
-	fdivd	%f4, %f16, %f4	  /* c.i */
+	fmuld	%f14, %f6, %f20   /* (* r a)                   */
+	fsubd	%f8, %f20, %f4    /* (- b (* r a))             */
+	fdivd	%f4, %f16, %f4	  /* (/ (- b (* r a)) den)     */
 	b	_box_compnum
 	nop
 
@@ -605,17 +606,17 @@ Ldiv_comp3:
 
 	/* case 2: (< (abs (real-part b)) (abs (imag-part a))) */
 
-	fdivd	%f10, %f12, %f14  /* r:   (/ (real-part b) (imag-part b)) */
+	fdivd	%f10, %f12, %f14  /* r:   (/ c d)              */
 	fmuld	%f14, %f10, %f16
-	faddd	%f12, %f16, %f16  /* den: (+ (imag-part b) (* r (real-part b))) */
+	faddd	%f12, %f16, %f16  /* den: (+ d (* r c))        */
 
-	fmuld	%f6, %f16, %f18
-	faddd	%f18, %f8, %f2
-	fdivd	%f2, %f16, %f2	  /* c.r */
+	fmuld	%f14, %f6, %f18   /* (* r a)                   */
+	faddd	%f18, %f8, %f2    /* (+ b (* r a))             */
+	fdivd	%f2, %f16, %f2	  /* (/ (+ b (* r a)) den)     */
 
-	fmuld	%f8, %f16, %f18
-	fsubd	%f18, %f6, %f4
-	fdivd	%f4, %f16, %f4
+	fmuld	%f14, %f8, %f20   /* (* r b)                   */
+	fsubd	%f6, %f20, %f4    /* (- a (* r b))             */
+	fdivd	%f4, %f16, %f4    /* (/ (- a (* r b)) den)     */
 	b	_box_compnum
 	nop
 
@@ -2396,8 +2397,16 @@ _box_flonum:
 /* Box the two doubles in %f2/%f3 and %f4/%f5 as a compnum.
  * Return tagged pointer in RESULT.
  * Scheme return address is in %o7.
+ *
+ * For now, we return a flonum if the imaginary part is zero.
+ * This will probably have to change for R6RS, so leave it up
+ * front where it is conspicuously inefficient and easy to find.
  */
 _box_compnum:
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	_box_flonum
+	nop	
 #if !defined( BDW_GC )
 	add	%E_TOP, 24, %E_TOP
 	cmp	%E_TOP, %E_LIMIT
