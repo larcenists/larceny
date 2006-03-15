@@ -42,24 +42,62 @@
   (let* ((n         53)
          (two^n-1   4503599627370496)     ; (expt 2 (- n 1))
          (two^n     9007199254740992)     ; (expt 2 n)
+         (flonum:maxexponent 1024)
          (flonum:minexponent -1023)
          (log:2     0.6931471805599453))  ; (log 2)
     
     ; x is an inexact approximation to p/q
     
     (define (hard-case p q x)
-      ; Beware of NaNs.
-      (let* ((k (if (= x x)
-                    (- (inexact->exact (ceiling (log2 x)))
-                       n)
-                    0)))
-        (if (> k 0)
-            (loop p (* q (expt 2 k)) k)
-            (loop (* p (expt 2 (- k))) q k))))
+      ; Beware of NaNs and infinities.
+      (let* ((k (- (inexact->exact
+                    (round (approximate-log2-of-ratio p q x)))
+                   n)))
+        (cond ((> k flonum:maxexponent)
+               (expt 2.0 k))
+              ((> k 0)
+               (loop p (* q (expt 2 k)) k))
+              ((< k (- flonum:minexponent n))
+               0.0)
+              (else
+               (loop (* p (expt 2 (- k))) q k)))))
+
+    ; Returns an exact integer that approximates (lg p/q).
+    ; x is an inexact approximation to p/q.
+
+    (define (approximate-log2-of-ratio p q x)
+      (let ((unity (/ x x)))
+        (cond ((= unity unity)
+               ; x is not 0.0, +inf.0, -inf.0, or +nan.0
+               (inexact->exact (ceiling (log2 x))))
+              ((and (> p 1) (> q 1))
+               (if (< p q)
+                   (let* ((q/p (quotient q p))
+                          (x (/ 1.0 (exact->inexact q/p))))
+                     (approximate-log2-of-ratio 1 q/p x))
+                   (let* ((p/q (quotient p q))
+                          (x (/ 1.0 (exact->inexact p/q))))
+                     (approximate-log2-of-ratio p/q 1 x))))
+              ((< p q)
+               ; p is 1
+               (- (approximate-log2-of-ratio q 1 (exact->inexact q))))
+              (else
+               ; p is very large, and q is 1
+               (approximate-log2-of-integer p)))))
+    
+    ; Given a positive integer p, Returns an approximation to (lg p).
+
+    (define (approximate-log2-of-integer p)
+      (if (<= p two^n)
+          (log2 (exact->inexact p))
+          (do ((q two^n (* q q))
+               (k n (+ k k)))
+              ((<= p q)
+               (- k (approximate-log2-of-integer (quotient q p)))))))
     
     (define (log2 x)
       (/ (log x) log:2))
-    
+
     ; r = u/v * 2^k
     
     (define (loop u v k)
@@ -69,9 +107,11 @@
               ((< x two^n-1)
                (loop (* 2 u) v (- k 1)))
               ((<= two^n x)
-               (loop u (* 2 v) (+ k 1))))))
+               (loop u (* 2 v) (+ k 1)))
+              (else
+               (error "exact->inexact:rational: internal error: " u v k)))))
     
-    ; Given exact positive integers p and q with
+    ; Given exact positive integers u and v with
     ; 2^(n-1) <= u/v < 2^n, and exact integer k,
     ; returns the float closest to u/v * 2^k.
     

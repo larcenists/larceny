@@ -95,11 +95,24 @@
 		((eq? t sys$tag.flonum-typetag) (flonum->bignum a))
 		((eq? t sys$tag.compnum-typetag)
 		 (if (zero? (imag-part a))
-		     (flonum->bignum a)
+		     (flonum->bignum (real-part a))
 		     #f))
 		(else
 		 #f)))
 	#f))
+
+  (define (->rat a)			; 'a' flonum, compnum w/0i, ratnum
+    (if (bytevector-like? a)
+	(let ((t (typetag a)))
+	  (cond ((eq? t sys$tag.flonum-typetag) (flonum->ratnum a))
+		((eq? t sys$tag.compnum-typetag)
+		 (if (zero? (imag-part a))
+		     (flonum->ratnum (real-part a))
+		     #f))
+		(else
+		 #f)))
+        ; must be a ratnum, so return it
+	a))
 
   (define (->flo a)			; 'a' flonum, compnum w/0i, bignum
     (if (bytevector-like? a)
@@ -139,12 +152,19 @@
 	   (make-rectangular (exact->inexact a) 0))))
 
   ; Algorithm* for arithmetic.  If both are representable as
-  ; integers, convert to bignums and compute, and then convert to inexact.
+  ; exact integers, convert to bignums and compute, and then
+  ; convert to inexact.
   ; Otherwise, convert to flonums and compute.
   ; One input is a bignum, the other a flonum or compnum.
 
   (define (algorithm*c a b retry)
-    (if (and (integer? a) (integer? b))
+    (if (and (integer? a)
+             (integer? b)
+             (if (inexact? a)
+                 (let ((unity (/ a a)))
+                   (= unity unity))
+                 (let ((unity (/ b b)))
+                   (= unity unity))))
 	(let ((a (->int a))
 	      (b (->int b)))
 	  (exact->inexact (retry a b)))
@@ -153,13 +173,19 @@
 	  (retry a b))))
 
   ; Algorithm* for ordering predicates (<, <=, >, >=): if both are
-  ; representable as integers, represent as bignums and compare. 
+  ; representable as exact integers, represent as bignums and compare. 
   ; Otherwise represent as flonums and compare.  One of the arguments
   ; is a bignum, the other is a flonum or compnum.  Compnums with non-zero
   ; imaginary parts are illegal and flagged as such.
 
   (define (algorithm*p a b retry)
-    (if (and (integer? a) (integer? b))
+    (if (and (integer? a)
+             (integer? b)
+             (if (inexact? a)
+                 (let ((unity (/ a a)))
+                   (= unity unity))
+                 (let ((unity (/ b b)))
+                   (= unity unity))))
 	(let ((a (->int a))
 	      (b (->int b)))
 	  (if (and a b)
@@ -171,14 +197,49 @@
 	      (retry a b)
 	      (contagion-error a b retry)))))
 
+  ; Algorithm* for ordering predicates (<, <=, >, >=): if both are
+  ; representable as exact rationals, represent as such and compare. 
+  ; Otherwise the other involves an infinity or NaN, so 0.0 can be
+  ; substituted for the ratnum.
+  ; One of the arguments is a ratnum, the other is a flonum or compnum.
+  ; Compnums with non-zero imaginary parts are illegal
+  ; and flagged as such.
 
+  (define (algorithm*pratnum a b retry)
+    (cond ((flonum? a)
+           (let ((unity (/ a a)))
+             (if (= unity unity)
+                 (retry (->rat a) b)
+                 (retry a 0.0))))
+          ((flonum? b)
+           (let ((unity (/ b b)))
+             (if (= unity unity)
+                 (retry a (->rat b))
+                 (retry 0.0 b))))
+          ((compnum? a)
+           (if (= 0.0 (imag-part a))
+               (algorithm*pratnum (real-part a) b retry)
+               (contagion-error a b retry)))
+          ((compnum? b)
+           (if (= 0.0 (imag-part b))
+               (algorithm*pratnum a (real-part b) retry)
+               (contagion-error a b retry)))
+          (else
+           (contagion-error a b retry))))
+          
   ; Algorithm* for equality predicates.  If both are representable as
-  ; integers, convert to bignums and compare.  Otherwise, convert to
-  ; flonums and compare.
+  ; exact integers, convert to bignums and compare.  Otherwise, convert
+  ; to flonums and compare.
   ; One input is a bignum, the other a flonum or compnum.
 
   (define (algorithm*e a b retry)
-    (if (and (integer? a) (integer? b))
+    (if (and (integer? a)
+             (integer? b)
+             (if (inexact? a)
+                 (let ((unity (/ a a)))
+                   (= unity unity))
+                 (let ((unity (/ b b)))
+                   (= unity unity))))
 	(let ((a (->int a))
 	      (b (->int b)))
 	  (retry a b))
@@ -186,7 +247,36 @@
 	      (b (->flo/comp b)))
 	  (retry a b))))
 
+  ; Algorithm* for equality.  If both are representable as exact
+  ; rationals, represent as such and compare. 
+  ; Otherwise the other involves an infinity or NaN, so 0.0 can be
+  ; substituted for the ratnum.
+  ; One of the arguments is a ratnum, the other is a flonum or compnum.
+
+  (define (algorithm*eratnum a b retry)
+    (cond ((flonum? a)
+           (let ((unity (/ a a)))
+             (if (= unity unity)
+                 (retry (->rat a) b)
+                 (retry a 0.0))))
+          ((flonum? b)
+           (let ((unity (/ b b)))
+             (if (= unity unity)
+                 (retry a (->rat b))
+                 (retry 0.0 b))))
+          ((compnum? a)
+           (if (real? a)
+               (algorithm*eratnum (real-part a) b retry)
+               #f))
+          ((compnum? b)
+           (if (real? b)
+               (algorithm*eratnum a (real-part b) retry)
+               #f))
+          (else
+           (contagion-error a b retry))))
+          
   ; Algorithm*c for at least one complex number.
+  ; FIXME: watch out for infinities and NaNs.
 
   (define (algorithm*cr a b retry)
     (if (and (integer? (real-part a))
@@ -201,6 +291,7 @@
 	  (retry a b))))
 
   ; Algorithm*e for at least one complex number.
+  ; FIXME: watch out for infinities and NaNs.
 
   (define (algorithm*cre a b retry)
     (if (and (integer? (real-part a))
@@ -332,18 +423,18 @@
                     (fun id bignum->ratnum)
                     oops
 		    (fun ratnum->rectnum id)
-                    (fun id flonum->ratnum)
+                    algorithm*pratnum
 		    oops-in-predicate)
 	    (vector (fun id fixnum->rectnum)
                     (fun id bignum->rectnum)
 		    (fun id ratnum->rectnum)
                     oops
-                    (fun id flonum->ratnum)
+                    (fun id flonum->ratnum)      ;FIXME
                     oops-in-predicate)
 	    (vector (fun id fixnum->flonum)
-                     algorithm*p 
-		    (fun flonum->ratnum id)
-		    (fun flonum->compnum rectnum->compnum)
+                    algorithm*p 
+		    algorithm*pratnum
+		    (fun flonum->compnum rectnum->compnum) ;FIXME
 		    oops
                     oops-in-predicate)
 	    (vector oops-in-predicate
@@ -372,8 +463,8 @@
 		    (fun id bignum->ratnum)
 		    oops
 		    (fun ratnum->rectnum id)
-		    (fun id flonum->ratnum)
-		    (fun ratnum->rectnum id))
+		    algorithm*eratnum
+		    algorithm*eratnum)
 	    (vector (fun id fixnum->rectnum)
 		    (fun id bignum->rectnum)
 		    (fun id ratnum->rectnum)
@@ -383,13 +474,13 @@
 		    )
 	    (vector (fun id fixnum->flonum)
 		    algorithm*e
-		    (fun id ratnum->flonum) 
+		    algorithm*eratnum
 		    algorithm*cre ; (fun flonum->compnum rectnum->compnum)
 		    oops
 		    (fun flonum->compnum id))
 	    (vector (fun id fixnum->compnum)
 		    algorithm*e
-		    (fun id ratnum->compnum)
+		    algorithm*eratnum
 		    algorithm*cre ; (fun id rectnum->compnum)
 		    (fun id flonum->compnum)
 		    oops)))
