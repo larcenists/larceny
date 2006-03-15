@@ -41,7 +41,7 @@
       (let ((r (real-part x))
 	    (i (imag-part x)))
 	(cond ((= i 0.0)
-	       (flonum->string i radix))
+	       (flonum->string r radix))
 	      ; FIXME: could convert to rectnum, then do #i.
 	      ((not (= radix 10))
 	       (error "number->string: can't do complexes in non-10 radix: " 
