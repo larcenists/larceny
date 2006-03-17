@@ -1,0 +1,20 @@
+#! /usr/bin/env scheme-srfi-7
+
+; To run this test program:
+;  - make sure that Larceny's scheme-srfi-7 program is in your path
+;  - make sure this script has execute permissions set
+;
+; Then CD to some other directory than the one containing the present
+; file (for example the parent directory), and invoke this file as a
+; program with some arguments:
+;
+;    test/srfi-22-test foo bar baz
+;
+; The program should print some test results, followed by "Done.", and
+; then exit to the shell with code 13.  (In bash, at least, you can
+; check the code by "echo $PIPESTATUS".)
+
+(program
+ (feature-cond (larceny (files "srfi-22-helper1.sch" "srfi-22-helper2.sch")))
+ (code
+  (define srfi-22-value-1 37)))

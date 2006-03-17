@@ -1,0 +1,114 @@
+SRFI implementations adapted to Larceny.
+2004-01-11 / lth
+
+Most of the SRFI implementations in this directory are simple
+adaptations to Larceny of the SRFI reference implementations.  In some
+cases bugs have been fixed; a test suite is included in the test/
+subdirectory.
+
+The SRFIs have not been tested together; there may be conflicts and
+nasty interactions.  Please report bugs to larceny@ccs.neu.edu.
+
+How to use:
+
+ - The REQUIRE package (in the parent directory) is set up to load
+   the SRFIs properly.  Just evaluate eg
+
+     (require 'srfi-1)
+
+   If you load SRFI-0 (via REQUIRE or any other way), then COND-EXPAND
+   will automatically load those SRFIs that are known as they are
+   requested.
+
+ - SRFI-22 requires special care, see comments in srfi-22.sch.
+
+Known bugs:
+
+ - There are bugs in the Knuth-Morris-Pratt string search algorithm in
+   SRFI-13, this seems to be a problem in the reference implementation
+   and not in Larceny.  See post-finalization mail on the SRFI-13
+   mailing list and the failing tests in the SRFI-13 test suite.
+
+Known quasi-bugs:
+
+ - The SRFIs work out of the box in the interpreter but there may be
+   problems when an SRFI is compiled if it redefines a standard
+   procedure that is open-coded by Twobit: Twobit will not use the
+   redefined version.
+
+   Obvious examples are the MAP and FOR-EACH procedures that are
+   redefined by SRFI-1.
+
+   Open-coding of some known procedures occurs at the default
+   optimization setting.  Generally Twobit reserves the right to
+   open-code any R5RS procedure.
+
+   Possible workarounds are: to reduce the optimization setting; to
+   hack the SRFI to change the names of the procedures (and perhaps
+   introduce macros that expand to calls to renamed procedures); to
+   use DEFINE-INLINE to make Twobit aware of the new implementation;
+   and to change the definitions in Twobit and the Larceny libraries
+   to be compatible with the SRFIs.
+
+ - Another compilation problem is that COND-EXPAND expands to code
+   that loads SRFI code on demand.  But SRFIs that export syntax are
+   not loaded in time for the compiler to see the syntax definitions.
+
+   The way to work around this problem is to load an SRFI before you
+   try to compile it; that way, all SRFIs it depends on are also
+   loaded, and their macros will be available to Twobit.
+
+ - SRFI-0 should really only load SRFI packages as needed; as it is,
+   it loads them eagerly, so
+
+      (cond-expand ((and srfi-1 srfi-6 srfi-21) ...)
+                   (else ...))
+
+   will load srfi-1 and srfi-6 and then execute the code in the ELSE
+   case after all, since SRFI-21 is not supported.
+
+ - The localizations package (SRFI-29) depends on Larceny providing
+   information about the current locale.  As of version 0.53, Larceny
+   does not provide that information, so the locale defaults to en-us
+   everywhere.
+
+Known compatibility issues:
+
+ - Larceny has a built-in MAKE-PARAMETER procedure that has a
+   signature different from the MAKE-PARAMETER of SRFI-39: in Larceny,
+   MAKE-PARAMETER takes a name, an initial value, and a validity
+   checker predicate.
+
+   The parameter objects produced by the built-in MAKE-PARAMETER and
+   that of SRFI-39 are compatible as far as the built-in PARAMETERIZE
+   is concerned.
+
+ - STRING-HASH is defined by Larceny and redefined in SRFI-13, the two
+   procedures have different but compatible signatures (the built-in
+   version only takes a string).
+
+   In addition, the SRFI-13 STRING-HASH does not produce the same hash
+   values as the built-in STRING-HASH, so use of the two functions
+   must be mixed only very carefully.
+
+ - The built-in CHAR-WHATEVER? predicates in Larceny are not fully
+   compatible with the character sets defined by SRFI-14, consider
+   for example #xA0, non-breaking space:
+
+     > (char-whitespace? (integer->char #xa0))
+     #f
+     > (char-set-contains? char-set:whitespace (integer->char #xa0))
+     #t
+
+Other improvements:
+
+ - Use CASE-LAMBDA rather than the :OPTIONAL and LET-OPTIONAL* forms
+   in SRFIs 1, 13, 14; when Twobit supports CASE-LAMBDA natively, rest
+   argument list consing will be reduced.
+
+ - SRFIs 1 and 14 were hacked to avoid using the code that is now in
+   the SHIVERS-SYNTAX package (in the parent directory); it would
+   perhaps be good to revert those SRFIs to something closer to the
+   reference implementations, to reduce maintenance overhead
+
+
