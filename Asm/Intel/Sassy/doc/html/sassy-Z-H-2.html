@@ -1,0 +1,131 @@
+<!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--
+
+Generated from sassy.tex by tex2page, v 20050501
+(running on MzScheme 301, unix), 
+(c) Dorai Sitaram, 
+http://www.ccs.neu.edu/~dorai/tex2page/tex2page-doc.html
+
+-->
+<head>
+<title>
+Sassy - 0.2
+</title>
+<link rel="stylesheet" type="text/css" href="sassy-Z-S.css" title=default>
+<meta name=robots content="noindex,follow">
+</head>
+<body>
+<div id=content>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-1.html">previous</a></span><span>, <a href="sassy-Z-H-3.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span class=disable>contents</span><span><span class=disable>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+<a name="node_chap_Temp_1"></a>
+<h1 class=chapter>
+<div class=chapterheading>&nbsp;</div><br>
+<a href="#node_toc_node_chap_Temp_1">Contents</a></h1>
+<p><a name="node_toc_start"></a></p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_1"></a><a href="sassy-Z-H-3.html#node_chap_1">1&nbsp;&nbsp;Overview</a></b><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_2"></a><a href="sassy-Z-H-4.html#node_chap_2">2&nbsp;&nbsp;Installation</a></b><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_2.1"></a><a href="sassy-Z-H-4.html#node_sec_2.1">2.1&nbsp;&nbsp;Supported Schemes</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_2.2"></a><a href="sassy-Z-H-4.html#node_sec_2.2">2.2&nbsp;&nbsp;Installing</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_2.2.1"></a><a href="sassy-Z-H-4.html#node_sec_2.2.1">2.2.1&nbsp;&nbsp;Chicken</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_2.2.2"></a><a href="sassy-Z-H-4.html#node_sec_2.2.2">2.2.2&nbsp;&nbsp;Scheme48</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_2.2.3"></a><a href="sassy-Z-H-4.html#node_sec_2.2.3">2.2.3&nbsp;&nbsp;Other Schemes</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_2.2.4"></a><a href="sassy-Z-H-4.html#node_sec_2.2.4">2.2.4&nbsp;&nbsp;Caveats</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_2.3"></a><a href="sassy-Z-H-4.html#node_sec_2.3">2.3&nbsp;&nbsp;Sassy and GNU Emacs</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_2.4"></a><a href="sassy-Z-H-4.html#node_sec_2.4">2.4&nbsp;&nbsp;Porting Sassy</a><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_3"></a><a href="sassy-Z-H-5.html#node_chap_3">3&nbsp;&nbsp;Usage</a></b><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_3.1"></a><a href="sassy-Z-H-5.html#node_sec_3.1">3.1&nbsp;&nbsp;Basic Syntax</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_3.2"></a><a href="sassy-Z-H-5.html#node_sec_3.2">3.2&nbsp;&nbsp;Escaping to Scheme</a><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_4"></a><a href="sassy-Z-H-6.html#node_chap_4">4&nbsp;&nbsp;Directives</a></b><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.1"></a><a href="sassy-Z-H-6.html#node_sec_4.1">4.1&nbsp;&nbsp;Label Definitions and Lexical Scoping</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.1.1"></a><a href="sassy-Z-H-6.html#node_sec_4.1.1">4.1.1&nbsp;&nbsp;Defining Labels</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.1.2"></a><a href="sassy-Z-H-6.html#node_sec_4.1.2">4.1.2&nbsp;&nbsp;Lexical Scoping</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.2"></a><a href="sassy-Z-H-6.html#node_sec_4.2">4.2&nbsp;&nbsp;The <code class=scheme><span class=keyword>align</span></code> special form</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3"></a><a href="sassy-Z-H-6.html#node_sec_4.3">4.3&nbsp;&nbsp;Descriptions of directives</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.1"></a><a href="sassy-Z-H-6.html#node_sec_4.3.1">4.3.1&nbsp;&nbsp;<code class=scheme><span class=keyword>heap</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.2"></a><a href="sassy-Z-H-6.html#node_sec_4.3.2">4.3.2&nbsp;&nbsp;<code class=scheme><span class=keyword>data</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.3"></a><a href="sassy-Z-H-6.html#node_sec_4.3.3">4.3.3&nbsp;&nbsp;<code class=scheme><span class=keyword>text</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.4"></a><a href="sassy-Z-H-6.html#node_sec_4.3.4">4.3.4&nbsp;&nbsp;<code class=scheme><span class=keyword>include</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.5"></a><a href="sassy-Z-H-6.html#node_sec_4.3.5">4.3.5&nbsp;&nbsp;<code class=scheme><span class=keyword>import</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.6"></a><a href="sassy-Z-H-6.html#node_sec_4.3.6">4.3.6&nbsp;&nbsp;<code class=scheme><span class=keyword>export</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.7"></a><a href="sassy-Z-H-6.html#node_sec_4.3.7">4.3.7&nbsp;&nbsp;<code class=scheme><span class=keyword>entry</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.8"></a><a href="sassy-Z-H-6.html#node_sec_4.3.8">4.3.8&nbsp;&nbsp;<code class=scheme><span class=keyword>org</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.9"></a><a href="sassy-Z-H-6.html#node_sec_4.3.9">4.3.9&nbsp;&nbsp;<code class=scheme><span class=keyword>bits</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.10"></a><a href="sassy-Z-H-6.html#node_sec_4.3.10">4.3.10&nbsp;&nbsp;<code class=scheme><span class=keyword>macro</span></code></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_4.3.11"></a><a href="sassy-Z-H-6.html#node_sec_4.3.11">4.3.11&nbsp;&nbsp;<code class=scheme><span class=keyword>begin</span></code></a><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_5"></a><a href="sassy-Z-H-7.html#node_chap_5">5&nbsp;&nbsp;The Text Section</a></b><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.1"></a><a href="sassy-Z-H-7.html#node_sec_5.1">5.1&nbsp;&nbsp;Instructions</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.1.1"></a><a href="sassy-Z-H-7.html#node_sec_5.1.1">5.1.1&nbsp;&nbsp;Immediates</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.1.2"></a><a href="sassy-Z-H-7.html#node_sec_5.1.2">5.1.2&nbsp;&nbsp;Addressing</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.1.3"></a><a href="sassy-Z-H-7.html#node_sec_5.1.3">5.1.3&nbsp;&nbsp;Operand Sizes</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.1.4"></a><a href="sassy-Z-H-7.html#node_sec_5.1.4">5.1.4&nbsp;&nbsp;Jumps and Calls</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.1.5"></a><a href="sassy-Z-H-7.html#node_sec_5.1.5">5.1.5&nbsp;&nbsp;Prefixes</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.2"></a><a href="sassy-Z-H-7.html#node_sec_5.2">5.2&nbsp;&nbsp;Assertions</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.3"></a><a href="sassy-Z-H-7.html#node_sec_5.3">5.3&nbsp;&nbsp;Control Primitives</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.3.1"></a><a href="sassy-Z-H-7.html#node_sec_5.3.1">5.3.1&nbsp;&nbsp;The COMFY core</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.3.2"></a><a href="sassy-Z-H-7.html#node_sec_5.3.2">5.3.2&nbsp;&nbsp;Sassy Extensions</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_5.3.3"></a><a href="sassy-Z-H-7.html#node_sec_5.3.3">5.3.3&nbsp;&nbsp;A Note on Branch Optimization</a><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_6"></a><a href="sassy-Z-H-8.html#node_chap_6">6&nbsp;&nbsp;Custom Relocations</a></b><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_7"></a><a href="sassy-Z-H-9.html#node_chap_7">7&nbsp;&nbsp;Output</a></b><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_7.1"></a><a href="sassy-Z-H-9.html#node_sec_7.1">7.1&nbsp;&nbsp;Record-types</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_7.1.1"></a><a href="sassy-Z-H-9.html#node_sec_7.1.1">7.1.1&nbsp;&nbsp;<i>sassy-output</i></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_7.1.2"></a><a href="sassy-Z-H-9.html#node_sec_7.1.2">7.1.2&nbsp;&nbsp;<i>sassy-symbol</i></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_7.1.3"></a><a href="sassy-Z-H-9.html#node_sec_7.1.3">7.1.3&nbsp;&nbsp;<i>sassy-reloc</i></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_7.2"></a><a href="sassy-Z-H-9.html#node_sec_7.2">7.2&nbsp;&nbsp;Additional procedures for <i>sassy-output</i></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_7.3"></a><a href="sassy-Z-H-9.html#node_sec_7.3">7.3&nbsp;&nbsp;<i>push-stacks</i></a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_7.4"></a><a href="sassy-Z-H-9.html#node_sec_7.4">7.4&nbsp;&nbsp;Utilities</a><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_8"></a><a href="sassy-Z-H-10.html#node_chap_8">8&nbsp;&nbsp;Output Modules</a></b><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_8.1"></a><a href="sassy-Z-H-10.html#node_sec_8.1">8.1&nbsp;&nbsp;Flat Binaries</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_8.2"></a><a href="sassy-Z-H-10.html#node_sec_8.2">8.2&nbsp;&nbsp;ELF Output</a><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_A"></a><a href="sassy-Z-H-11.html#node_chap_A">A&nbsp;&nbsp;Macro Expansions</a></b><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_A.0.1"></a><a href="sassy-Z-H-11.html#node_sec_A.0.1">A.0.1&nbsp;&nbsp;Comparisons</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_A.0.2"></a><a href="sassy-Z-H-11.html#node_sec_A.0.2">A.0.2&nbsp;&nbsp;More Control Primitives</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_A.0.3"></a><a href="sassy-Z-H-11.html#node_sec_A.0.3">A.0.3&nbsp;&nbsp;ELF helpers</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_sec_A.0.4"></a><a href="sassy-Z-H-11.html#node_sec_A.0.4">A.0.4&nbsp;&nbsp;Explicit Continuation Versions</a><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;GNU Free Documentation License</a></b><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;1. APPLICABILITY AND DEFINITIONS</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;2. VERBATIM COPYING</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;3. COPYING IN QUANTITY</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;4. MODIFICATIONS</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;5. COMBINING DOCUMENTS</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;6. COLLECTIONS OF DOCUMENTS</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;7. AGGREGATION WITH INDEPENDENT WORKS</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;8. TRANSLATION</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;9. TERMINATION</a><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_B"></a><a href="sassy-Z-H-12.html#node_chap_B">B&nbsp;&nbsp;10. FUTURE REVISIONS OF THIS LICENSE</a><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_C"></a><a href="sassy-Z-H-13.html#node_chap_C">C&nbsp;&nbsp;Extended Sassy Examples</a></b><br>
+&nbsp; &nbsp; &nbsp; &nbsp; <a name="node_toc_node_chap_C"></a><a href="sassy-Z-H-13.html#node_chap_C">C&nbsp;&nbsp;1. 16-bit x86 boot sector</a><br>
+</p>
+<p><b>
+&nbsp; &nbsp; <a name="node_toc_node_chap_D"></a><a href="sassy-Z-H-14.html#node_chap_D">D&nbsp;&nbsp;News</a></b><br>
+</p>
+<p>
+
+</p>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-1.html">previous</a></span><span>, <a href="sassy-Z-H-3.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span class=disable>contents</span><span><span class=disable>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+</div>
+</body>
+</html>

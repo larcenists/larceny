@@ -1,0 +1,146 @@
+<!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--
+
+Generated from sassy.tex by tex2page, v 20050501
+(running on MzScheme 301, unix), 
+(c) Dorai Sitaram, 
+http://www.ccs.neu.edu/~dorai/tex2page/tex2page-doc.html
+
+-->
+<head>
+<title>
+Sassy - 0.2
+</title>
+<link rel="stylesheet" type="text/css" href="sassy-Z-S.css" title=default>
+<meta name=robots content="noindex,follow">
+</head>
+<body>
+<div id=content>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-4.html">previous</a></span><span>, <a href="sassy-Z-H-6.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+<a name="node_chap_3"></a>
+<h1 class=chapter>
+<div class=chapterheading><a href="sassy-Z-H-2.html#node_toc_node_chap_3">Chapter 3</a></div><br>
+<a href="sassy-Z-H-2.html#node_toc_node_chap_3">Usage</a></h1>
+<p>
+<a name="node_idx_28"></a></p>
+<p>
+Programming in the language Sassy usually consists of calling the procedure
+<code class=verbatim>sassy</code>, and then either passing the returned result to an
+<a href="sassy-Z-H-10.html#node_tag_Temp_17">output module</a> or manipulating the result directly with the
+procedures from <a href="sassy-Z-H-9.html#node_tag_Temp_15">Sassy's output API</a>.</p>
+<p>
+<a name="node_idx_30"></a>
+<a name="node_idx_32"></a>
+ -- procedure: <strong>sassy</strong> <i>input -&gt; sassy-output</i>
+</p>
+<p></p>
+<p></p>
+<blockquote>
+<code class=verbatim>sassy</code> assembles the contents of <i>input</i> and returns a
+record of type <i>sassy-ouput</i> that contains the results. The
+<i>input</i> should be either a file composed wholly of Sassy's
+<a href="sassy-Z-H-6.html#node_tag_Temp_6">directives</a> at its ``top level'', or a list of directives.
+</blockquote><p>
+</p>
+<pre class=scheme>(<span class=variable>sassy-make-elf</span>
+ <span class=selfeval>&quot;sysexit.o&quot;</span>
+ (<span class=variable>sassy</span> <span class=keyword>'</span>((<span class=keyword>entry</span> <span class=variable>_start</span>)
+	  (<span class=keyword>text</span>
+	   (<span class=keyword>label</span> <span class=variable>_start</span> 
+             (<span class=keyword>begin</span> (<span class=variable>mov</span> <span class=variable>eax</span> <span class=selfeval>1</span>)
+		    (<span class=variable>mov</span> <span class=variable>ebx</span> <span class=selfeval>0</span>)
+		    (<span class=variable>int</span> <span class=selfeval>#x80</span>)))))))
+
+(<span class=variable>sassy-text-list</span>
+ (<span class=variable>sassy</span> <span class=keyword>'</span>((<span class=keyword>entry</span> <span class=variable>_start</span>)
+	  (<span class=keyword>text</span>
+	   (<span class=keyword>label</span> <span class=variable>_start</span> 
+             (<span class=keyword>begin</span> (<span class=variable>mov</span> <span class=variable>eax</span> <span class=selfeval>1</span>)
+		    (<span class=variable>mov</span> <span class=variable>ebx</span> <span class=selfeval>0</span>)
+		    (<span class=variable>int</span> <span class=selfeval>#x80</span>)))))))
+
+<span class=variable>==&gt;</span> <span class=keyword>'</span>(<span class=selfeval>184</span> <span class=selfeval>1</span> <span class=selfeval>0</span> <span class=selfeval>0</span> <span class=selfeval>0</span> <span class=selfeval>187</span> <span class=selfeval>0</span> <span class=selfeval>0</span> <span class=selfeval>0</span> <span class=selfeval>0</span> <span class=selfeval>205</span> <span class=selfeval>128</span>)
+</pre><p></p>
+<p>
+
+</p>
+<a name="node_sec_3.1"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_3.1">3.1&nbsp;&nbsp;Basic Syntax</a></h2>
+<p>
+<a name="node_idx_34"></a></p>
+<p>
+Since Sassy is embedded in Scheme, write numbers, characters, and
+strings just as you would in Scheme. Normally, to write an assembly
+label (denoting an address, and annotated as <code class=verbatim>&lt;label-name&gt;</code> in the
+grammars), you write a Scheme symbol. Write s-expressions for
+everything else.</p>
+<p>
+The only caveat concerning the use of Scheme symbols for labels is
+that in <a href="http://schemers.org/Documents/Standards/R5RS/HTML/">the
+current Scheme standard</a> ``case is insignificant,'' and thus writing
+symbols with uppercase letters may be problematic. As well, symbols
+may not begin with a period. There are two solutions: either use a
+Scheme implementation with a reader that accepts the Scheme symbols
+you want to write, or use Sassy's <a href="#node_tag_Temp_2">special escape form</a> to call, for
+instance, <code class=verbatim>string-&gt;symbol</code>. You may also define the result of
+this call to be a constant using Sassy's internal macro system.</p>
+<p>
+</p>
+<pre class=scheme>(<span class=variable>sassy</span>
+ <span class=keyword>'</span>((<span class=keyword>macro</span> <span class=variable>dot-dot-weird</span> (<span class=keyword>!</span> (<span class=variable>string-&gt;symbol</span> <span class=selfeval>&quot;..WEirD&quot;</span>))) 
+   (<span class=keyword>text</span> (<span class=keyword>label</span> <span class=variable>dot-dot-weird</span>
+           (<span class=keyword>begin</span> ...)))))
+</pre><p></p>
+<p>
+The resulting label will be '<code class=verbatim>..WEirD</code>'.</p>
+<p>
+<a name="node_tag_Temp_2"></a>
+<a name="node_tag_Temp_3"></a>
+<a name="node_tag_Temp_4"></a>
+<a name="node_idx_36"></a>
+
+</p>
+<a name="node_sec_3.2"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_3.2">3.2&nbsp;&nbsp;Escaping to Scheme</a></h2>
+<p>
+<a name="node_idx_38"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>!</span> <span class=variable>&lt;scheme-expression&gt;</span>)
+</pre><p></p>
+<p>
+Use this special ``escape'' form to tell <code class=verbatim>sassy</code> to suspend itself momentarily and request that the host Scheme evaluate <code class=verbatim>&lt;scheme-expression&gt;</code>. This way, you can take advantage of Scheme's more advanced macro systems or perform conditional compilation, for instance. </p>
+<p>
+An escape, which is not a <a href="sassy-Z-H-6.html#node_tag_Temp_5">directive</a>, can occur <strong>in any position</strong> in a Sassy program. Normally the result returned by the evaluation of the <code class=verbatim>&lt;scheme-expression&gt;</code> must be a syntactically correct form that <code class=verbatim>sassy</code> can directly substitute in place for the escape. The exception occurs when <code class=verbatim>sassy</code> is looking for a directive (i.e. at the top level) and instead encounters an escape. In this case if the escape returns <code class=verbatim>'void</code>, then <code class=verbatim>sassy</code> ignores the <code class=verbatim>'void</code> and continues processing.</p>
+<p>
+</p>
+<pre class=scheme>(<span class=variable>define</span> (<span class=variable>foo</span> <span class=variable>x</span>) (<span class=variable>+</span> <span class=variable>x</span> <span class=selfeval>4</span>))
+
+(<span class=variable>define-syntax</span> <span class=variable>get-dogs</span>
+  (<span class=variable>syntax-rules</span> ()
+    ((<span class=variable>_</span>) <span class=keyword>'</span>(<span class=keyword>export</span> <span class=variable>lucky</span> <span class=variable>toto</span> <span class=variable>spot</span>))))
+
+(<span class=variable>sassy</span> <span class=keyword>'</span>((<span class=keyword>!</span> (<span class=variable>get-dogs</span>))
+
+         (<span class=keyword>!</span> (<span class=builtin>if</span> (<span class=variable>file-exists?</span> <span class=selfeval>&quot;sassy-libs/cats&quot;</span>)
+                <span class=keyword>'</span>(<span class=keyword>include</span> <span class=selfeval>&quot;sassy-libs/cats&quot;</span>))
+                <span class=keyword>'</span><span class=keyword>void</span>)
+                
+         (<span class=keyword>text</span> (<span class=variable>mov</span> <span class=variable>eax</span> (<span class=builtin>&amp;</span> <span class=variable>spot</span> (<span class=keyword>!</span> (<span class=variable>foo</span> <span class=selfeval>4</span>)))))))
+</pre><p></p>
+<p>
+<code class=verbatim>sassy</code> processes the special escape forms and substitutes the return values in place of the escapes during macro expansion. <code class=verbatim>sassy</code> calls <code class=verbatim>eval</code> in the following manner:</p>
+<p>
+</p>
+<pre class=scheme>(<span class=variable>eval</span> <span class=variable>&lt;scheme-expression&gt;</span> (<span class=variable>interaction-environment</span>))
+</pre><p></p>
+<p>
+
+</p>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-4.html">previous</a></span><span>, <a href="sassy-Z-H-6.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+</div>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--
+
+Generated from sassy.tex by tex2page, v 20050501
+(running on MzScheme 301, unix), 
+(c) Dorai Sitaram, 
+http://www.ccs.neu.edu/~dorai/tex2page/tex2page-doc.html
+
+-->
+<head>
+<title>
+Sassy - 0.2
+</title>
+<link rel="stylesheet" type="text/css" href="sassy-Z-S.css" title=default>
+<meta name=robots content="noindex,follow">
+</head>
+<body>
+<div id=content>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-7.html">previous</a></span><span>, <a href="sassy-Z-H-9.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+<a name="node_chap_6"></a>
+<h1 class=chapter>
+<div class=chapterheading><a href="sassy-Z-H-2.html#node_toc_node_chap_6">Chapter 6</a></div><br>
+<a href="sassy-Z-H-2.html#node_toc_node_chap_6">Custom Relocations</a></h1>
+<p>
+<a name="node_idx_212"></a></p>
+<p>
+<a name="node_tag_Temp_13"></a>
+<a name="node_tag_Temp_14"></a></p>
+<p>
+Sometimes you'll want to use or write an output module that needs more information about a particular label reference. Usually this is because it will need to communicate to the linker that the relocation the label reference generates is special, and that the linker should handle it differently.</p>
+<p>
+The custom relocation is supplied just for this reason. You can use it anywhere you would normally use a label reference.</p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>reloc</span> <span class=variable>type</span>)
+(<span class=keyword>reloc</span> <span class=variable>type</span> <span class=variable>target</span>)
+(<span class=keyword>reloc</span> <span class=variable>type</span> <span class=variable>target</span> <span class=variable>value</span>)
+</pre><p></p>
+<p>
+The <i>type</i> is a symbol, and should be the particular symbol the output module needs in order to designate the relocation as a particular type. The <i>target</i>, if supplied, should be an actual label. If <i>value</i> is supplied as well, which should be an integer, the <i>value</i> will be added to the value Sassy would normally place in the relocation field. When using a custom relocation within a memory reference <code class=scheme>(<span class=builtin>&amp;</span> ...)</code>, the <i>value</i> will be added to the offset.</p>
+<p>
+See <a href="sassy-Z-H-9.html#node_tag_Temp_16">here</a> for information on how this information is stored in the relocation record.</p>
+<p>
+
+</p>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-7.html">previous</a></span><span>, <a href="sassy-Z-H-9.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+</div>
+</body>
+</html>

@@ -1,0 +1,509 @@
+<!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--
+
+Generated from sassy.tex by tex2page, v 20050501
+(running on MzScheme 301, unix), 
+(c) Dorai Sitaram, 
+http://www.ccs.neu.edu/~dorai/tex2page/tex2page-doc.html
+
+-->
+<head>
+<title>
+Sassy - 0.2
+</title>
+<link rel="stylesheet" type="text/css" href="sassy-Z-S.css" title=default>
+<meta name=robots content="noindex,follow">
+</head>
+<body>
+<div id=content>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-5.html">previous</a></span><span>, <a href="sassy-Z-H-7.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+<a name="node_chap_4"></a>
+<h1 class=chapter>
+<div class=chapterheading><a href="sassy-Z-H-2.html#node_toc_node_chap_4">Chapter 4</a></div><br>
+<a href="sassy-Z-H-2.html#node_toc_node_chap_4">Directives</a></h1>
+<p>
+<a name="node_idx_40"></a></p>
+<p>
+<a name="node_tag_Temp_5"></a>
+<a name="node_tag_Temp_6"></a></p>
+<p>
+<code class=verbatim>sassy</code> processes a series of ``directives'' that describe various 
+aspects of the object that <code class=verbatim>sassy</code> is assembling. Some, none, or
+all of the directives described here may be present, and they usually
+may occur in any order (there are some exceptions; see
+below). Directives may occur multiple times; <code class=verbatim>sassy</code> either
+appends the results of the later usages to the results of the earlier
+usages, or simply updates the object it is assembling with the new
+information from the later usages.</p>
+<p>
+<code class=verbatim>sassy</code> processes the directives in the order that you wrote them. 
+It's possible to <code class=scheme><span class=keyword>include</span></code> <a href="#node_tag_Temp_7">additional sources</a> of input. In this
+case, <code class=verbatim>sassy</code> does not continue with the current source until it
+has completely processed the directives of each additional source
+specified by <code class=scheme><span class=keyword>include</span></code>, in order.</p>
+<p>
+
+</p>
+<a name="node_sec_4.1"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_4.1">4.1&nbsp;&nbsp;Label Definitions and Lexical Scoping</a></h2>
+<p>
+<a name="node_idx_42"></a></p>
+<p>
+<a name="node_idx_44"></a>
+
+</p>
+<a name="node_sec_4.1.1"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.1.1">4.1.1&nbsp;&nbsp;Defining Labels</a></h3>
+<p>
+<a name="node_idx_46"></a></p>
+<p>
+To ``define'' a label or symbol, meaning to assign an actual location or address to a label so that you can reference that address by using the label, write the following in a <code class=scheme><span class=keyword>heap</span></code>, <code class=scheme><span class=keyword>data</span></code>, or <code class=scheme><span class=keyword>text</span></code> directive:
+</p>
+<pre class=scheme>(<span class=keyword>label</span> <span class=variable>&lt;label-name&gt;</span> <span class=variable>&lt;item&gt;</span> ...)
+</pre><p>
+As mentioned above, <code class=verbatim>&lt;label&gt;</code> is a Scheme symbol, and <code class=verbatim>&lt;item&gt;</code> is the appropriate syntax for the item in the enclosing directive. In a <code class=scheme><span class=keyword>text</span></code> directive, if there are more than one <code class=verbatim>&lt;item&gt;</code>, all the <code class=verbatim>&lt;items&gt;</code> are wrapped in an implicit <code class=scheme><span class=keyword>begin</span></code>, for the purposes of continuations. See below.</p>
+<p>
+Sassy also records, for each label definition, the total size of all the <code class=verbatim>&lt;items&gt;</code> that it encloses, for use by <a href="sassy-Z-H-9.html#node_tag_Temp_15">Sassy's output API</a>.</p>
+<p>
+You may also omit the <code class=verbatim>&lt;items&gt;</code> in a label definition. In that case, the label is defined at that point, but <code class=verbatim>sassy</code> records its size as zero, and processing continues. Thus you may define multiple labels to be the same address:</p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>text</span> (<span class=keyword>label</span> <span class=variable>foo</span>)
+      (<span class=keyword>label</span> <span class=variable>bar</span>)
+      (<span class=keyword>label</span> <span class=variable>wizo</span>)
+      (<span class=variable>nop</span>))
+</pre><p></p>
+<p>
+No label may be defined (assigned an address) more than once in any given lexical scope. No label may be both defined in the top-level scope and imported. The top-level scope consists of every label not shadowed by any <code class=scheme><span class=keyword>locals</span></code> declaration.</p>
+<p>
+<a name="node_idx_48"></a>
+<a name="node_idx_50"></a>
+
+</p>
+<a name="node_sec_4.1.2"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.1.2">4.1.2&nbsp;&nbsp;Lexical Scoping</a></h3>
+<p>
+<a name="node_idx_52"></a></p>
+<p>
+Sassy has a mechanism to allow you to write lexically scoped blocks of arbitrary depth so that you can re-use names of labels without fear of referring to the wrong address. This mechanism is usuable in the <code class=scheme><span class=keyword>text</span></code> and <code class=scheme><span class=keyword>data</span></code> directives.</p>
+<p>
+To open up a new scope, you write:</p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>locals</span> (<span class=variable>&lt;label-name&gt;</span> ...) <span class=variable>&lt;item&gt;</span> ...)
+</pre><p></p>
+<p>
+The <code class=scheme><span class=keyword>locals</span></code> form declares that for all references to the <code class=verbatim>&lt;label-names&gt;</code> in the <code class=verbatim>&lt;items&gt;</code> in the current scope level, the addresses that they refer to are the addresses of the accompanying label definitions of those names in the <code class=verbatim>&lt;items&gt;</code>.</p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>text</span>
+  (<span class=keyword>label</span> <span class=variable>loop</span>        <span class=comment>; the outer 'loop'</span>
+    
+    (<span class=keyword>locals</span> (<span class=variable>loop</span>)   <span class=comment>; open up a new scope and declare 'loop' to be shadowed</span>
+      (<span class=variable>push</span> <span class=variable>loop</span>)    <span class=comment>; push the address of the inner 'loop' defined later in this scope</span>
+      (<span class=variable>nop</span>)
+      (<span class=keyword>label</span> <span class=variable>loop</span>    <span class=comment>; the definition of the inner 'loop'</span>
+	(<span class=variable>jmp</span> <span class=variable>loop</span>))  <span class=comment>; jmp to the inner 'loop'</span>
+      (<span class=variable>nop</span>))
+    
+    (<span class=variable>push</span> <span class=variable>loop</span>)))    <span class=comment>; this is outside the previously declared scope,</span>
+                     <span class=comment>; and so refers to the outer 'loop'</span>
+</pre><p></p>
+<p>
+Or in a data section:</p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>data</span>
+  (<span class=keyword>label</span> <span class=variable>foo</span> (<span class=keyword>dwords</span> <span class=variable>bar</span>))    <span class=comment>; The outer 'foo' contains the address of the outer 'bar'</span>
+
+  (<span class=keyword>locals</span> (<span class=variable>foo</span> <span class=variable>bar</span>)           <span class=comment>; Declare a new scope</span>
+    (<span class=keyword>label</span> <span class=variable>foo</span> (<span class=keyword>dwords</span> <span class=variable>bar</span>))  <span class=comment>; The inner 'foo' contains the address of the inner 'bar'</span>
+    (<span class=keyword>label</span> <span class=variable>bar</span> (<span class=keyword>dwords</span> <span class=variable>foo</span>))) <span class=comment>; The inner 'bar' contains the address of the inner 'foo'</span>
+  
+  (<span class=keyword>label</span> <span class=variable>bar</span> (<span class=keyword>dwords</span> <span class=variable>foo</span>)))   <span class=comment>; The outer 'bar' contains the address of the outer 'foo'</span>
+</pre><p></p>
+<p>
+Please keep in mind:</p>
+<p>
+</p>
+<ul>
+<li><p>Any definitions of, or references to, labels whose name does not appear in an immediately enclosing <code class=scheme><span class=keyword>locals</span></code> form ``fall-up'', recursively, to the next higher scope, until the top level is reached.</p>
+<p>
+</p>
+<li><p>It is an error to declare a local label and then to fail to define it somewhere in the body of the <code class=scheme><span class=keyword>locals</span></code> form.</p>
+<p>
+</p>
+<li><p>Sassy <strong>does not</strong> rename local labels. The final symbol-table consists only of labels defined in the top-level scope. Thus you cannot break lexical scoping by using a label name (but this is assembly, so you can always break it by figuring out a local label's actual address).</p>
+<p>
+</p>
+<li><p>Sassy <strong>does</strong> record ``anonymous'' relocations for all local labels, meaning the value returned by <code class=verbatim>sassy-reloc-name</code> is <code class=verbatim>#f</code>, but all the other relocation information will be filled in. Please refer to <a href="sassy-Z-H-9.html#node_tag_Temp_15">Sassy's output API</a>.
+</p>
+</ul><p></p>
+<p>
+<a name="node_idx_54"></a>
+
+</p>
+<a name="node_sec_4.2"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_4.2">4.2&nbsp;&nbsp;The <code class=scheme><span class=keyword>align</span></code> special form</a></h2>
+<p>
+<a name="node_idx_56"></a></p>
+<p>
+You may insert an <code class=scheme><span class=keyword>align</span></code> special form in a  <code class=scheme><span class=keyword>heap</span></code>, <code class=scheme><span class=keyword>data</span></code>, or <code class=scheme><span class=keyword>text</span></code> directive: </p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>align</span> <span class=variable>&lt;amount&gt;</span>)
+</pre><p></p>
+<p>
+In a <code class=scheme><span class=keyword>text</span></code> directive, any uses of <code class=scheme><span class=keyword>align</span></code> must occur at the <code class=scheme><span class=keyword>text</span></code> directive's top level.</p>
+<p>
+The <code class=scheme><span class=keyword>align</span></code> special form tells <code class=verbatim>sassy</code> to place the next item in the section at the next available address (counting up from the current address in the section) such that</p>
+<p>
+</p>
+<pre class=scheme>(<span class=variable>zero?</span> (<span class=variable>modulo</span> <span class=variable>&lt;the-new-address&gt;</span> <span class=variable>&lt;amount&gt;</span>))
+</pre><p></p>
+<p>
+is true. </p>
+<p>
+The <code class=verbatim>&lt;amount&gt;</code> must be a positive power of two. If you use <code class=scheme><span class=keyword>align</span></code> within a <code class=scheme><span class=keyword>data</span></code> directive, <code class=verbatim>sassy</code> pads the data section with the byte <code class=verbatim>0</code>. If you use it within a <code class=scheme><span class=keyword>text</span></code> directive, <code class=verbatim>sassy</code> pads the text section with the <code class=scheme>(<span class=variable>nop</span>)</code> instruction.</p>
+<p>
+
+</p>
+<a name="node_sec_4.3"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3">4.3&nbsp;&nbsp;Descriptions of directives</a></h2>
+<p>
+<a name="node_idx_58"></a></p>
+<p>
+
+</p>
+<a name="node_sec_4.3.1"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.1">4.3.1&nbsp;&nbsp;<code class=scheme><span class=keyword>heap</span></code></a></h3>
+<p>
+<a name="node_idx_60"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>heap</span> <span class=variable>&lt;heap-item&gt;</span> ...)
+
+<span class=variable>heap-item</span>      <span class=variable>=</span> (<span class=keyword>label</span> <span class=variable>&lt;label-name&gt;</span>)                 <span class=comment>; &quot;empty&quot; label definition</span>
+               | (<span class=keyword>label</span> <span class=variable>&lt;label-name&gt;</span> <span class=variable>&lt;heap-item&gt;</span> ...) <span class=comment>; label definition</span>
+               | <span class=variable>&lt;heap-sizer&gt;</span>                         <span class=comment>; anonymous heap &quot;space&quot;</span>
+               | (<span class=keyword>align</span> <span class=variable>&lt;amount&gt;</span>)
+               | (<span class=keyword>begin</span> <span class=variable>&lt;heap-item&gt;</span> ...)              <span class=comment>; useful for macro defs.</span>
+
+<span class=variable>heap-sizer</span>     <span class=variable>=</span> (<span class=keyword>bytes</span>  <span class=variable>&lt;integer&gt;</span>)
+               | (<span class=keyword>words</span>  <span class=variable>&lt;integer&gt;</span>)
+               | (<span class=keyword>dwords</span> <span class=variable>&lt;integer&gt;</span>)
+               | (<span class=keyword>qwords</span> <span class=variable>&lt;integer&gt;</span>)
+</pre><p></p>
+<p>
+Use the <code class=scheme><span class=keyword>heap</span></code> directive to reserve uninitialized storage space. <code class=verbatim>sassy</code> computes the number of bytes to reserve by multiplying the <code class=verbatim>&lt;integer&gt;</code> by <code class=verbatim>1</code>, <code class=verbatim>2</code>, <code class=verbatim>4</code>, or <code class=verbatim>8</code>, depending on whether you wrote <code class=scheme><span class=keyword>bytes</span></code>, <code class=scheme><span class=keyword>words</span></code>, <code class=scheme><span class=keyword>dwords</span></code>, or <code class=scheme><span class=keyword>qwords</span></code>, respectively, in the <code class=verbatim>&lt;heap-sizer&gt;</code>. The <code class=verbatim>&lt;integer&gt;</code> may not be negative.</p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>heap</span> (<span class=keyword>bytes</span> <span class=selfeval>7</span>)           <span class=comment>; reserve 7 bytes</span>
+      (<span class=keyword>align</span> <span class=selfeval>32</span>)          <span class=comment>; align the next item to 32</span>
+      (<span class=keyword>label</span> <span class=variable>foo</span> (<span class=keyword>dwords</span> <span class=selfeval>100</span>))) <span class=comment>; reserve 400 bytes and call it &quot;foo&quot;</span>
+</pre><p></p>
+<p>
+
+</p>
+<a name="node_sec_4.3.2"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.2">4.3.2&nbsp;&nbsp;<code class=scheme><span class=keyword>data</span></code></a></h3>
+<p>
+<a name="node_idx_62"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>data</span> <span class=variable>&lt;data-item&gt;</span> ...)
+
+<span class=variable>data-item</span>      <span class=variable>=</span> (<span class=keyword>label</span> <span class=variable>&lt;label&gt;</span>)                             <span class=comment>; &quot;empty&quot; label definition</span>
+               | (<span class=keyword>label</span> <span class=variable>&lt;label&gt;</span> <span class=variable>&lt;data-item&gt;</span> ...)             <span class=comment>; label definition</span>
+               | (<span class=keyword>locals</span> (<span class=variable>&lt;label-name&gt;</span> ...) <span class=variable>&lt;data-item&gt;</span> ...) <span class=comment>; local labels declaration</span>
+               | <span class=variable>&lt;data-contents&gt;</span>                             <span class=comment>; anonymous data</span>
+               | (<span class=keyword>align</span> <span class=variable>&lt;amount&gt;</span>)
+               | (<span class=keyword>begin</span> <span class=variable>&lt;data-item&gt;</span> ...)                     <span class=comment>; useful for macro defs.</span>
+
+<span class=variable>data-contents</span>  <span class=variable>=</span> (<span class=keyword>bytes</span>  <span class=variable>&lt;any-data&gt;</span> ...)
+               | (<span class=keyword>words</span>  <span class=variable>&lt;any-data&gt;</span> ...)
+               | (<span class=keyword>dwords</span> <span class=variable>&lt;any-data&gt;</span> ...)
+               | (<span class=keyword>qwords</span> <span class=variable>&lt;any-data&gt;</span> ...)
+               | (<span class=variable>asciiz</span> <span class=variable>&lt;any-data&gt;</span>)
+
+<span class=variable>any-data</span>       <span class=variable>=</span> <span class=variable>&lt;integer&gt;</span>
+               | <span class=variable>&lt;character&gt;</span>
+               | <span class=variable>&lt;string&gt;</span>
+               | <span class=variable>&lt;label-name&gt;</span>        <span class=comment>; data-contents size must match current bits setting</span>
+               | <span class=variable>&lt;custom-relocation&gt;</span> <span class=comment>; ditto</span>
+               | <span class=variable>&lt;float&gt;</span>             <span class=comment>; data contents size must be dwords or qwords</span>
+</pre><p></p>
+<p>
+With the <code class=scheme><span class=keyword>data</span></code> directive you may specify initialized data
+consisting of numbers, byte-sized characters, or strings of bytes, and
+in some cases addresses. <code class=verbatim>sassy</code> writes the data into the
+assembled object's data section in a series of fields of specific
+widths. You specify the width of the fields to be 1, 2, 4, or 8 bytes
+with the <code class=scheme><span class=keyword>bytes</span></code>, <code class=scheme><span class=keyword>words</span></code>, <code class=scheme><span class=keyword>dwords</span></code>, and <code class=scheme><span class=keyword>qwords</span></code>
+forms of <code class=verbatim>&lt;data-contents&gt;</code>, respectively.</p>
+<p>
+<code class=verbatim>sassy</code> places integers into the field in little-endian order. Integers may be unsigned, or signed, in which case <code class=verbatim>sassy</code> uses the two's-complement representation. In either case the number must be able to fit in the specified field size.</p>
+<p>
+If you write a float, it should be in the context of a <code class=scheme><span class=keyword>dwords</span></code> or
+<code class=scheme><span class=keyword>qwords</span></code> field, and produces the little-endian IEEE-754
+single-precision or double-precision representation. (Sassy currently has no
+mechanism for specifying double-extended-precision, meaning 80-bit,
+floats).</p>
+<p>
+<code class=verbatim>sassy</code> places characters at the low address of the field and
+pads the rest of the unused field (if any) with the byte <code class=verbatim>0</code>. If
+you write a string, <code class=verbatim>sassy</code> places each character into a byte,
+and pads any unused bytes of the last field with the byte
+<code class=verbatim>0</code>. If you specify a field size of <code class=scheme><span class=keyword>bytes</span></code>, however, no zero
+padding occurs at the end.</p>
+<p>
+<a name="node_idx_64"></a></p>
+<p>
+The included <code class=verbatim>(asciiz &lt;any-data&gt;)</code> macro places characters at the low
+address towards higher addresses and then places a 0 at the end. It
+is equivalent to <code class=scheme>(<span class=keyword>bytes</span> <span class=variable>&lt;any-data&gt;</span> <span class=selfeval>0</span>)</code>.</p>
+<p>
+If you want to use the address of a <code class=verbatim>&lt;label&gt;</code> or a <a href="sassy-Z-H-8.html#node_tag_Temp_14"><code class=verbatim>&lt;custom-relocation&gt;</code></a> as data, you have to place it in a field whose size matches the current setting of the <code class=scheme><span class=keyword>bits</span></code> directive, e.g. either in a <code class=scheme><span class=keyword>dwords</span></code> field under (the default) of <code class=scheme>(<span class=keyword>bits</span> <span class=selfeval>32</span>)</code>, or in a <code class=scheme><span class=keyword>words</span></code> field under <code class=scheme>(<span class=keyword>bits</span> <span class=selfeval>16</span>)</code>.</p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>data</span> (<span class=keyword>label</span> <span class=variable>foo</span> (<span class=keyword>dwords</span> <span class=selfeval>&quot;abcde&quot;</span>))   <span class=comment>; #x61 62 63 64  65 00 00 00</span>
+      (<span class=keyword>align</span> <span class=selfeval>16</span>)                     <span class=comment>; #x00 00 00 00  00 00 00 00</span>
+      (<span class=keyword>dwords</span> <span class=selfeval>-3242.52</span> <span class=selfeval>1000</span>)         <span class=comment>; #x52 a8 4a c5  e8 03 00 00</span>
+      (<span class=keyword>qwords</span> <span class=selfeval>-84930284902.48392048</span>) <span class=comment>; #xe2 7b 66 4d  3d c6 33 c2</span>
+      (<span class=keyword>label</span> <span class=variable>quux</span> (<span class=keyword>dwords</span> <span class=selfeval>#\a</span> <span class=selfeval>#\b</span>))  <span class=comment>; #x61 00 00 00  62 00 00 00</span>
+      (<span class=keyword>bytes</span> <span class=selfeval>#\a</span> <span class=selfeval>#\b</span> <span class=selfeval>#\c</span> <span class=selfeval>#\d</span> <span class=selfeval>#\e</span>)    <span class=comment>; #x61 62 63 64  65</span>
+      (<span class=keyword>align</span> <span class=selfeval>4</span>)                      <span class=comment>;                   00 00 00</span>
+      (<span class=keyword>dwords</span> <span class=variable>foo</span> <span class=variable>quux</span>))             <span class=comment>; #x00 00 00 00  20 00 00 00</span>
+</pre><p></p>
+<p>
+
+</p>
+<a name="node_sec_4.3.3"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.3">4.3.3&nbsp;&nbsp;<code class=scheme><span class=keyword>text</span></code></a></h3>
+<p>
+<a name="node_idx_66"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>text</span> <span class=variable>&lt;top-level-text&gt;</span> ...)
+
+<span class=variable>top-level-text</span> <span class=variable>=</span> (<span class=keyword>label</span> <span class=variable>&lt;label&gt;</span>)                             <span class=comment>; &quot;empty&quot; label definition</span>
+               | (<span class=keyword>label</span> <span class=variable>&lt;label&gt;</span> <span class=variable>&lt;text-item&gt;</span> ...)             <span class=comment>; label definition</span>
+               | (<span class=keyword>locals</span> (<span class=variable>&lt;label-name&gt;</span> ...) <span class=variable>&lt;text-item&gt;</span> ...) <span class=comment>; local labels declaration</span>
+               | <span class=variable>&lt;text-item&gt;</span>                                 <span class=comment>; anonymous text</span>
+               | (<span class=keyword>align</span> <span class=variable>&lt;amount&gt;</span>)
+
+<span class=variable>text-item</span>      <span class=variable>=</span> (<span class=keyword>label</span> <span class=variable>&lt;label&gt;</span>)
+               | (<span class=keyword>label</span> <span class=variable>&lt;label&gt;</span> <span class=variable>&lt;text-item&gt;</span> ...)
+               | (<span class=keyword>locals</span> (<span class=variable>&lt;label-name&gt;</span> ...) <span class=variable>&lt;text-item&gt;</span> ...)
+               | <span class=variable>&lt;instruction&gt;</span>
+               | <span class=variable>&lt;assertion&gt;</span>
+               | <span class=variable>&lt;control-primitive&gt;</span>
+               
+</pre><p></p>
+<p>
+The above is the basic grammar for the <code class=scheme><span class=keyword>text</span></code> directive. For a full explanation, please refer to <a href="sassy-Z-H-7.html#node_tag_Temp_10">Instructions</a> and <a href="sassy-Z-H-7.html#node_tag_Temp_8">The Text Section</a>.</p>
+<p>
+<a name="node_tag_Temp_7"></a>
+
+</p>
+<a name="node_sec_4.3.4"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.4">4.3.4&nbsp;&nbsp;<code class=scheme><span class=keyword>include</span></code></a></h3>
+<p>
+<a name="node_idx_68"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>include</span> <span class=variable>&lt;input&gt;</span> ...)
+</pre><p></p>
+<p>
+<code class=scheme><span class=keyword>include</span></code> lets you specify (by name) additional input sources, such as libraries of code, to add to the object <code class=verbatim>sassy</code> is assembling. Each <code class=verbatim>&lt;input&gt;</code> should be either a symbol that is bound to a list of Sassy's directives in the host Scheme's ``interaction-environment'', or a file of directives. <code class=verbatim>sassy</code> processes each additional <code class=verbatim>&lt;input&gt;</code> in its entirety before proceeding to the next <code class=verbatim>&lt;input&gt;</code>, or the directive following <code class=scheme><span class=keyword>include</span></code>. An <code class=verbatim>&lt;input&gt;</code> may in turn use <code class=scheme><span class=keyword>include</span></code>, and thus <code class=verbatim>sassy</code> processes all of the sources in depth-first order. This means that if you want to <code class=scheme><span class=keyword>include</span></code> a file of Sassy macros, for instance, you must <code class=scheme><span class=keyword>include</span></code> that file before using any of the macros in it.</p>
+<p>
+
+</p>
+<a name="node_sec_4.3.5"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.5">4.3.5&nbsp;&nbsp;<code class=scheme><span class=keyword>import</span></code></a></h3>
+<p>
+<a name="node_idx_70"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>import</span> <span class=variable>&lt;label&gt;</span> ...)
+</pre><p></p>
+<p>
+Use <code class=scheme><span class=keyword>import</span></code> to declare that each <code class=verbatim>&lt;label&gt;</code> is not defined in the current object <code class=verbatim>sassy</code> is assembling, and that the output module or linker should link references in the current object to their definitions in other objects. This is similar to, for instance, <a href="http://nasm.sourceforge.net/">NASM's</a> ``.extern'' directive.</p>
+<p>
+
+</p>
+<a name="node_sec_4.3.6"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.6">4.3.6&nbsp;&nbsp;<code class=scheme><span class=keyword>export</span></code></a></h3>
+<p>
+<a name="node_idx_72"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>export</span> <span class=variable>&lt;label&gt;</span> ...)
+</pre><p></p>
+<p>
+The <code class=scheme><span class=keyword>export</span></code> directive declares that each <code class=verbatim>&lt;label&gt;</code> should be made available to other assembled objects for linking, similar to, for instance <a href="http://nasm.sourceforge.net/">NASM's</a> ``.global'' directive.</p>
+<p>
+
+</p>
+<a name="node_sec_4.3.7"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.7">4.3.7&nbsp;&nbsp;<code class=scheme><span class=keyword>entry</span></code></a></h3>
+<p>
+<a name="node_idx_74"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>entry</span> <span class=variable>&lt;label&gt;</span>)
+</pre><p></p>
+<p>
+The <code class=scheme><span class=keyword>entry</span></code> directive declares the <code class=verbatim>&lt;label&gt;</code> as the main entry point for the assembled object. The <code class=verbatim>&lt;label&gt;</code> will also become <code class=scheme><span class=keyword>export</span></code>ed.</p>
+<p>
+
+</p>
+<a name="node_sec_4.3.8"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.8">4.3.8&nbsp;&nbsp;<code class=scheme><span class=keyword>org</span></code></a></h3>
+<p>
+<a name="node_idx_76"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>org</span> <span class=variable>&lt;integer&gt;</span>)
+</pre><p>
+The <code class=scheme><span class=keyword>org</span></code> directive must appear before any <code class=scheme><span class=keyword>text</span></code> directives, and tells <code class=verbatim>sassy</code> to assemble the contents of all the <code class=scheme><span class=keyword>text</span></code> directives such that the resulting text section will be loaded at the ``absolute'' address given by <code class=verbatim>&lt;integer&gt;</code>. The <code class=verbatim>&lt;integer&gt;</code> may not be negative.</p>
+<p>
+</p>
+<a name="node_sec_4.3.9"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.9">4.3.9&nbsp;&nbsp;<code class=scheme><span class=keyword>bits</span></code></a></h3>
+<p></p>
+<pre class=scheme>(<span class=keyword>bits</span> <span class=variable>&lt;16</span>|<span class=variable>32&gt;</span>))
+</pre><p>
+The <code class=scheme><span class=keyword>bits</span></code> directive alters the assembly of the following <code class=scheme><span class=keyword>text</span></code> 
+directives to follow either 16-bit or 32-bit programming. 32-bit programming
+is fully supported, but 16-bit programming currently uses 32-bit addressing.
+If <code class=scheme><span class=keyword>bits</span></code> is not defined, it defaults to 32-bit.</p>
+<p>
+
+</p>
+<a name="node_sec_4.3.10"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.10">4.3.10&nbsp;&nbsp;<code class=scheme><span class=keyword>macro</span></code></a></h3>
+<p>
+<a name="node_idx_78"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>macro</span> <span class=variable>&lt;name&gt;</span> <span class=variable>&lt;transformer&gt;</span>)
+
+<span class=variable>transformer</span> <span class=variable>=</span> <span class=variable>&lt;constant-like&gt;</span>
+            | <span class=variable>&lt;lambda-expression&gt;</span>
+</pre><p></p>
+<p>
+Sassy has a simple internal macro system so that you may write macros
+with names that would otherwise re-define or be confused with Scheme
+bindings, syntactic or otherwise. Sassy comes with a few such macros
+installed internally. Please refer to <a href="sassy-Z-H-11.html#node_tag_Temp_18">Appendix A</a> for their
+expansions. Since the procedure <code class=verbatim>sassy</code> accepts lists as input,
+it's always possible to use quasiquotation. As well, you may write
+<a href="sassy-Z-H-5.html#node_tag_Temp_4">escapes</a> in order to use the host Scheme's macro system(s).</p>
+<p>
+In the above <code class=verbatim>&lt;name&gt;</code> should be a Scheme symbol, and it should be
+different from any labels that you plan to use. You may bind a macro
+<code class=verbatim>&lt;name&gt;</code> to a constant, such as a number, string, or character,
+or for instance, an expression or a piece of an expression to be
+inserted wholesale. To use such a macro just write the <code class=verbatim>&lt;name&gt;</code>,
+without parantheses.</p>
+<p>
+</p>
+<pre class=scheme>(<span class=variable>sassy</span>
+ <span class=keyword>'</span>((<span class=keyword>macro</span> <span class=variable>true</span> <span class=selfeval>&quot;TRUE&quot;</span>)
+   (<span class=keyword>macro</span> <span class=variable>set!</span> <span class=variable>mov</span>)
+   (<span class=keyword>macro</span> <span class=variable>return-true</span> (<span class=variable>set!</span> <span class=variable>eax</span> <span class=variable>true</span>))
+   (<span class=keyword>text</span> (<span class=builtin>seq</span> (<span class=variable>=</span> <span class=variable>eax</span> <span class=selfeval>3</span>)
+              <span class=variable>return-true</span>))))
+</pre><p></p>
+<p>
+Or you may bind a <code class=verbatim>name</code> to a <code class=verbatim>&lt;lambda-expression&gt;</code> that composes a piece of valid syntax from its arguments. To use the macro you ``call'' it in the normal way.</p>
+<p>
+</p>
+<pre class=scheme>(<span class=variable>sassy</span>
+ <span class=keyword>'</span>((<span class=keyword>macro</span> <span class=variable>push-some</span> (<span class=keyword>lambda</span> <span class=variable>regs</span>
+		      <span class=keyword>`</span>(<span class=keyword>begin</span> <span class=keyword>,@</span>(<span class=variable>map</span> (<span class=keyword>lambda</span> (<span class=variable>reg</span>)
+				       <span class=keyword>`</span>(<span class=variable>push</span> <span class=keyword>,</span><span class=variable>reg</span>))
+				     <span class=variable>regs</span>))))
+   (<span class=keyword>text</span> (<span class=variable>push-some</span> <span class=variable>eax</span> <span class=variable>ebx</span> <span class=variable>ecx</span>))))
+</pre><p></p>
+<p>
+Please be aware of the following:
+</p>
+<ul>
+<li><p>You must define any macros before you use them.
+</p>
+<li><p><code class=verbatim>sassy</code> does not expand the right-hand sides of macro definitions; it simply records the definition. If the definition is a <code class=verbatim>&lt;lambda-expression&gt;</code>, it is evaluated in the ``interaction-environment'' immediately.
+</p>
+<li><p><code class=verbatim>sassy</code> <strong>does</strong> continuously expand the result returned by a macro usage until it contains no more macros.
+</p>
+<li><p>If <code class=verbatim>sassy</code> finds a usage of a <code class=verbatim>&lt;lambda-expression&gt;</code>, it expands all the arguments first, applies the macro, and expands the result.
+</p>
+<li><p>User macro definitions all go into a single flat syntactic environment that shadows the environment containing Sassy's pre-defined macros.
+</p>
+<li><p><a href="sassy-Z-H-5.html#node_tag_Temp_3">Escapes</a> are handled during macro expansion.
+</p>
+<li><p>Macros may return macro definitions.
+</p>
+<li><p>Crude hygiene: If the expander encounters a <code class=scheme><span class=keyword>label</span></code> or <code class=scheme><span class=keyword>locals</span></code> form, then if and only if the item(s) in the position <code class=verbatim>&lt;label&gt;</code> or <code class=verbatim>&lt;label-name&gt;</code> are actually symbols, the expander returns them literally without checking to see if they are bound to macros.
+</p>
+</ul><p></p>
+<p>
+The expander is available to the user for debugging purposes:</p>
+<p>
+<a name="node_idx_80"></a>
+<a name="node_idx_82"></a>
+ -- procedure: <strong>sassy-expand</strong> <i>hash-table or something to expand</i>
+</p>
+<p></p>
+<p></p>
+<blockquote>
+If the argument is a <i>hash-table</i>, <code class=verbatim>sassy-expand</code> installs the hash-table as its current user syntactic environment. See the file <code class=verbatim>macros.scm</code> for an example of such a hash-table. If the argument is <i>something to expand</i>, <code class=verbatim>sassy-expand</code> returns the expansion within the context of its current user syntactic environment. All user macros are lost in between invocations of <code class=verbatim>sassy</code>, since every invocation of <code class=verbatim>sassy</code> calls <code class=verbatim>sassy-expand</code> with an empty hash-table. However, after calling <code class=verbatim>sassy</code> you may call <code class=verbatim>sassy-expand</code> to see how something was expanded.<p>
+</p>
+<pre class=scheme>(<span class=variable>sassy</span> <span class=keyword>'</span>((<span class=keyword>macro</span> <span class=variable>my-register</span> <span class=selfeval>3</span>)
+         (<span class=keyword>macro</span> <span class=variable>foo</span> (<span class=keyword>lambda</span> (<span class=variable>x</span>) <span class=keyword>`</span>(<span class=variable>mov</span> <span class=keyword>,</span><span class=variable>x</span> <span class=variable>eax</span>)))
+         (<span class=keyword>text</span> (<span class=variable>foo</span> <span class=variable>my-register</span>)))) 
+<span class=variable>=&gt;</span> <span class=variable>an</span> <span class=variable>error</span> <span class=variable>is</span> <span class=variable>signalled</span>
+
+(<span class=variable>sassy-expand</span> <span class=keyword>'</span>(<span class=keyword>text</span> (<span class=variable>foo</span> <span class=variable>my-register</span>))) 
+<span class=variable>=&gt;</span> (<span class=keyword>text</span> (<span class=variable>mov</span> <span class=selfeval>3</span> <span class=variable>eax</span>))
+</pre><p></p>
+<p>
+</p>
+</blockquote><p>
+
+</p>
+<a name="node_sec_4.3.11"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_4.3.11">4.3.11&nbsp;&nbsp;<code class=scheme><span class=keyword>begin</span></code></a></h3>
+<p>
+<a name="node_idx_84"></a></p>
+<p>
+</p>
+<pre class=scheme>(<span class=keyword>begin</span> <span class=variable>&lt;item</span> <span class=variable>or</span> <span class=variable>directive&gt;</span> ...)
+</pre><p></p>
+<p>
+Sometimes you may want to write a macro that returns a sequence of several directives, or a sequence of several items in a <code class=scheme><span class=keyword>heap</span></code> or <code class=scheme><span class=keyword>data</span></code> directive. Using <code class=scheme><span class=keyword>begin</span></code> in these contexts allows you to do this. This form is also usable in a <code class=scheme><span class=keyword>text</span></code> directive, where it has certain <a href="sassy-Z-H-7.html#node_tag_Temp_12">additional semantics</a> regarding continuations.</p>
+<p>
+</p>
+<pre class=scheme>(<span class=variable>sassy</span>
+ <span class=keyword>'</span>((<span class=keyword>macro</span> <span class=variable>define-cell</span>
+	  (<span class=keyword>lambda</span> (<span class=variable>name</span> <span class=variable>init</span>)
+	    <span class=keyword>`</span>(<span class=keyword>begin</span> (<span class=keyword>macro</span> <span class=variable>cell-tag</span> <span class=selfeval>&quot;CELL&quot;</span>)
+		     (<span class=keyword>data</span> (<span class=keyword>label</span> <span class=keyword>,</span><span class=variable>name</span> (<span class=keyword>dwords</span> <span class=variable>cell-tag</span> <span class=keyword>,</span><span class=variable>init</span>)))
+		     (<span class=keyword>macro</span> <span class=keyword>,</span>(<span class=variable>string-&gt;symbol</span>
+			      (<span class=variable>string-append</span> (<span class=variable>symbol-&gt;string</span> <span class=variable>name</span>) <span class=selfeval>&quot;-ref&quot;</span>))
+			    (<span class=builtin>&amp;</span> <span class=keyword>,</span><span class=variable>name</span> <span class=selfeval>4</span>)))))
+   (<span class=variable>define-cell</span> <span class=variable>foo</span> <span class=selfeval>100</span>)
+
+   (<span class=keyword>text</span> (<span class=variable>mov</span> <span class=variable>ebx</span> <span class=variable>foo-ref</span>))))
+</pre><p></p>
+<p>
+
+</p>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-5.html">previous</a></span><span>, <a href="sassy-Z-H-7.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+</div>
+</body>
+</html>

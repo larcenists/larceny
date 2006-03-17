@@ -1,0 +1,211 @@
+<!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--
+
+Generated from sassy.tex by tex2page, v 20050501
+(running on MzScheme 301, unix), 
+(c) Dorai Sitaram, 
+http://www.ccs.neu.edu/~dorai/tex2page/tex2page-doc.html
+
+-->
+<head>
+<title>
+Sassy - 0.2
+</title>
+<link rel="stylesheet" type="text/css" href="sassy-Z-S.css" title=default>
+<meta name=robots content="noindex,follow">
+</head>
+<body>
+<div id=content>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-3.html">previous</a></span><span>, <a href="sassy-Z-H-5.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+<a name="node_chap_2"></a>
+<h1 class=chapter>
+<div class=chapterheading><a href="sassy-Z-H-2.html#node_toc_node_chap_2">Chapter 2</a></div><br>
+<a href="sassy-Z-H-2.html#node_toc_node_chap_2">Installation</a></h1>
+<p>
+<a name="node_idx_4"></a></p>
+<p>
+
+</p>
+<a name="node_sec_2.1"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_2.1">2.1&nbsp;&nbsp;Supported Schemes</a></h2>
+<p>
+<a name="node_idx_6"></a></p>
+<p>
+Sassy ships with support for the following Scheme interpreters (with the indicated minimal version number):
+</p>
+<ul>
+<li><p><a href="http://www.plt-scheme.org/software/mzscheme/">PLT Scheme</a>: mzscheme (&gt;= v299.400)
+</p>
+<li><p><a href="http://www.call-with-current-continuation.org/">Chicken</a>: csi (&gt;= v2.2 with libffi support, and syntax-case and numbers eggs installed)
+</p>
+<li><p><a href="http://www.shiro.dreamhost.com/scheme/gauche/">Gauche</a>: gosh (&gt;= v0.8.5)
+</p>
+<li><p><a href="http://s48.org/">Scheme48</a>: scheme48 (v1.3)
+</p>
+<li><p><a href="http://swiss.csail.mit.edu/~jaffer/SCM.html">SCM</a>: scm (v5e1 with SLIB v3a2)
+</p>
+<li><p><a href="http://www.gnu.org/software/guile/guile.html">Guile</a>: guile (&gt;= v1.7.91)
+</p>
+</ul><p></p>
+<p>
+Sassy was developed on GNU/Linux, though since Sassy is embedded in Scheme, Sassy should (theoretically) run everywhere Scheme does. If you are running Scheme on a non *nix box, (Windows, for instance), you may want to grab the .zip archive instead of the .tar.gz.</p>
+<p>
+
+</p>
+<a name="node_sec_2.2"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_2.2">2.2&nbsp;&nbsp;Installing</a></h2>
+<p>
+<a name="node_idx_8"></a></p>
+<p>
+(<code class=verbatim>$</code> means a shell prompt, <code class=verbatim>&gt;</code> means a Scheme prompt.)</p>
+<p>
+
+</p>
+<a name="node_sec_2.2.1"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_2.2.1">2.2.1&nbsp;&nbsp;Chicken</a></h3>
+<p>
+<a name="node_idx_10"></a></p>
+<p>
+Sassy is available as an egg, so the easiest way to install (and compile) Sassy is to do:</p>
+<p>
+</p>
+<pre class=verbatim>$ chicken-setup sassy&nbsp;
+</pre><p></p>
+<p>
+If you don't want to compile Sassy (it can take a while), see below.</p>
+<p>
+
+</p>
+<a name="node_sec_2.2.2"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_2.2.2">2.2.2&nbsp;&nbsp;Scheme48</a></h3>
+<p>
+<a name="node_idx_12"></a></p>
+<p>
+Starting with version 0.2, Sassy now includes module definitions for Scheme48's module system.</p>
+<p>
+First unpack the archive, change directories, and load scheme48 with a fairly large heap:</p>
+<p>
+</p>
+<pre class=verbatim>$ tar xfz sassy-0.2.tar.gz; cd sassy-0.2&nbsp;
+$ scheme48 -h 6000000&nbsp;
+</pre><p></p>
+<p>
+Then:</p>
+<p>
+</p>
+<pre class=verbatim>&gt; ,config ,load sassy-48.scm&nbsp;
+&gt; ,open sassy&nbsp;
+</pre><p></p>
+<p>
+
+</p>
+<a name="node_sec_2.2.3"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_2.2.3">2.2.3&nbsp;&nbsp;Other Schemes</a></h3>
+<p>
+<a name="node_idx_14"></a></p>
+<p>
+To start up Sassy, unpack Sassy's distribution directory and enter it:</p>
+<p>
+</p>
+<pre class=verbatim>$ tar xfz sassy-0.2.tar.gz&nbsp;
+$ cd sassy-0.2&nbsp;
+</pre><p></p>
+<p>
+Now you have to edit one line in the file <code class=verbatim>sassy.scm</code>. At the top
+of the file, un-comment the line that loads the initialization file
+for the Scheme interpreter you want to use, and comment out the
+others. Then quit your editor and start the Scheme interpreter. Gauche
+users should start gosh with <code class=verbatim>gosh -I.</code> in order to add the
+current directory to gosh's load-path.</p>
+<p>
+Then:</p>
+<p>
+</p>
+<pre class=verbatim>&gt; (load &quot;sassy.scm&quot;)&nbsp;
+</pre><p></p>
+<p>
+Loading all the source files may take a few seconds. When your Scheme
+prompt returns, Sassy is loaded and ready to go.</p>
+<p>
+If you want to run the test-suite:</p>
+<p>
+</p>
+<pre class=verbatim>&gt; (load &quot;tests/run-tests.scm&quot;)&nbsp;
+&gt; (sassy-run-tests 'all)&nbsp;
+</pre><p></p>
+<p>
+
+</p>
+<a name="node_sec_2.2.4"></a>
+<h3><a href="sassy-Z-H-2.html#node_toc_node_sec_2.2.4">2.2.4&nbsp;&nbsp;Caveats</a></h3>
+<p>
+<a name="node_idx_16"></a></p>
+<p>
+</p>
+<ul>
+<li><p>The Scheme48 init file sets <code class=verbatim>char-&gt;integer</code> and <code class=verbatim>integer-&gt;char</code> to <code class=verbatim>char-&gt;ascii</code> and <code class=verbatim>ascii-&gt;char</code>.
+</p>
+<li><p>The SCM init file sets <code class=verbatim>eval</code> to something that looks more like R5RS <code class=verbatim>eval</code>, but isn't actually compliant. It also changes the number of arguments to <code class=verbatim>make-hash-table</code>.
+</p>
+</ul><p></p>
+<p>
+<a name="node_idx_18"></a>
+
+</p>
+<a name="node_sec_2.3"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_2.3">2.3&nbsp;&nbsp;Sassy and GNU Emacs</a></h2>
+<p>
+<a name="node_idx_20"></a></p>
+<p>
+A minor mode with some syntax highlighting exists for editing sassy files under GNU Emacs. See the file <code class=verbatim>sassy.el</code> in the top level of Sassy's distribution directory.</p>
+<p>
+
+</p>
+<a name="node_sec_2.4"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_2.4">2.4&nbsp;&nbsp;Porting Sassy</a></h2>
+<p>
+<a name="node_idx_22"></a></p>
+<p>
+Sassy is written in <a href="http://schemers.org/Documents/Standards/R5RS/HTML/">R5RS Scheme</a> with the addition of the following:</p>
+<p>
+</p>
+<ul>
+<li><p><a href="http://srfi.schemers.org/srfi-1/">SRFI 1</a>: List Library (make-list filter)
+</p>
+<li><p><a href="http://srfi.schemers.org/srfi-9/">SRFI 9</a>: Defining Record Types (define-record-type)
+</p>
+<li><p><a href="http://srfi.schemers.org/srfi-23/">SRFI 23</a>: Error reporting mechanism (error)
+</p>
+<li><p><a href="http://srfi.schemers.org/srfi-56/">SRFI 56</a>: Binary I/O (this SRFI was withdrawn by its author. However Sassy's output modules and test-suite make use of write-byte and read-byte)
+</p>
+<li><p><a href="http://srfi.schemers.org/srfi-60/">SRFI 60</a>: Integers as Bits  (logand logior lognot ash bit-field logcount)
+</p>
+<li><p><a href="http://srfi.schemers.org/srfi-69/">SRFI 69</a>: Basic hash tables (make-hash-table hash-table? hash-table-ref hash-table-set! alist-&gt;hash-table hash-table-values)
+</p>
+</ul><p></p>
+<p>
+Sassy makes use of bignum and floating-point arithmetic (when you write floating-point data) and the optional <code class=verbatim>(interaction-environment)</code> to perform macro-expansion.</p>
+<p>
+The included output modules also need:</p>
+<p>
+<a name="node_idx_24"></a>
+ -- procedure: <strong>file-exists?</strong> <i>file -&gt; boolean</i><br>
+
+<a name="node_idx_26"></a>
+ -- procedure: <strong>delete-file</strong> <i>file</i><br>
+</p>
+<p>
+Most (good) Scheme implementations provide a version of the underlying
+functionality if they don't provide the SRFI itself. You only need to
+write wrappers that implement the specified interfaces for just the
+functions or syntax listed above.</p>
+<p>
+
+</p>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-3.html">previous</a></span><span>, <a href="sassy-Z-H-5.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+</div>
+</body>
+</html>

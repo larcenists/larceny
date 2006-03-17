@@ -1,0 +1,123 @@
+<!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--
+
+Generated from sassy.tex by tex2page, v 20050501
+(running on MzScheme 301, unix), 
+(c) Dorai Sitaram, 
+http://www.ccs.neu.edu/~dorai/tex2page/tex2page-doc.html
+
+-->
+<head>
+<title>
+Sassy - 0.2
+</title>
+<link rel="stylesheet" type="text/css" href="sassy-Z-S.css" title=default>
+<meta name=robots content="noindex,follow">
+</head>
+<body>
+<div id=content>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-9.html">previous</a></span><span>, <a href="sassy-Z-H-11.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+<a name="node_chap_8"></a>
+<h1 class=chapter>
+<div class=chapterheading><a href="sassy-Z-H-2.html#node_toc_node_chap_8">Chapter 8</a></div><br>
+<a href="sassy-Z-H-2.html#node_toc_node_chap_8">Output Modules</a></h1>
+<p>
+<a name="node_idx_318"></a></p>
+<p>
+<a name="node_tag_Temp_17"></a></p>
+<p>
+This chapter describes the output modules included with Sassy.</p>
+<p>
+
+</p>
+<a name="node_sec_8.1"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_8.1">8.1&nbsp;&nbsp;Flat Binaries</a></h2>
+<p>
+<a name="node_idx_320"></a></p>
+<p>
+<a name="node_idx_322"></a>
+ -- procedure: <strong>sassy-make-bin</strong> <i>file sassy-output . opts</i>
+</p>
+<p></p>
+<p></p>
+<blockquote>
+Dumps the raw contents of the text section of <i>sassy-output</i>
+to <i>file</i> followed by the data section, if any. If there is no
+text section and only a data section, then the data section will be
+dumped.  If the <i>file</i> exists, it will be overwritten.
+<i>opts</i> is a set of zero, one or more of the following quoted
+symbols: 
+<ul>
+<li><p><code class=verbatim>'boot</code> 
+Creates a flat binary with the text section first,
+then the data section, then zero bytes until byte
+510 at which <code class=verbatim>aa55</code> is written. The resultant
+size of the assembled binary will be exactly 512
+bytes-the common size of a boot sector.</p>
+<p>
+</p>
+<li><p><code class=verbatim>'stats</code>
+Emits to stdout the size of the text segment in bytes,
+the size of the data section in bytes, and the number
+of bytes consumed by alignment requirements.
+</p>
+</ul><p></p>
+<p>
+</p>
+</blockquote><p>
+
+</p>
+<a name="node_sec_8.2"></a>
+<h2><a href="sassy-Z-H-2.html#node_toc_node_sec_8.2">8.2&nbsp;&nbsp;ELF Output</a></h2>
+<p>
+<a name="node_idx_324"></a></p>
+<p>
+<a name="node_idx_326"></a>
+ -- procedure: <strong>sassy-make-elf</strong> <i>file sassy-output</i>
+</p>
+<p></p>
+<p></p>
+<blockquote>
+Constructs a GNU/Linux x86 ELF object-file based on the contents
+of the <i>sassy-output</i> and writes it to <i>file</i>. If the <i>file</i> exists it will be overwritten.<p>
+If you are creating an executable, you'll need to <code class=scheme><span class=keyword>export</span></code> the symbol <code class=verbatim>_start</code>, or use <code class=scheme><span class=keyword>entry</span></code>.</p>
+<p>
+If you are writing shared libraries:
+</p>
+<ul>
+<li><p>You must write <code class=scheme>(<span class=keyword>export</span> <span class=variable>_global_offset_table_</span>)</code>
+</p>
+<li><p><code class=scheme><span class=keyword>import</span></code> any labels in other libraries you want to use.
+</p>
+<li><p>To call or branch to a procedure in another library, instead of writing the label ``foo'', you write.
+</p>
+<pre class=scheme>(<span class=variable>call</span> (<span class=variable>plt</span> <span class=variable>foo</span>))
+(<span class=variable>jmp</span> (<span class=variable>plt</span> <span class=variable>foo</span>))
+</pre><p>
+</p>
+<li><p>To access local data in your library, you use the following sequence to get the address of the data into a register via <code class=scheme>(<span class=variable>lea</span> ...)</code>. (in this example the address of foo is loaded into eax).:
+</p>
+<pre class=scheme>(<span class=keyword>begin</span> <span class=variable>get-got</span>
+       (<span class=variable>lea</span> <span class=variable>eax</span> (<span class=builtin>&amp;</span> <span class=variable>ebx</span> (<span class=variable>got-offset</span> <span class=variable>foo</span>))))
+</pre><p>
+The important thing is to load the global offset table into ebx via the <code class=verbatim>get-got</code> macro, and use the <code class=verbatim>(got-offset ...)</code> macro to load the data.</p>
+<p>
+</p>
+<li><p>To access data in another library, you do something slightly different to obtain its address. You load the GOT with <code class=verbatim>get-got</code>, but instead you use the <code class=verbatim>(got ...)</code> macro.
+</p>
+<pre class=scheme>(<span class=keyword>begin</span> <span class=variable>get-got</span>
+       (<span class=variable>mov</span> <span class=variable>eax</span> (<span class=builtin>&amp;</span> <span class=variable>ebx</span> (<span class=variable>got</span> <span class=variable>foo</span>))))
+</pre><p>
+</p>
+</ul><p>
+</p>
+</blockquote><p>
+
+</p>
+<div align=right class=navigation><i>[Go to <span><a href="sassy.html">first</a>, <a href="sassy-Z-H-9.html">previous</a></span><span>, <a href="sassy-Z-H-11.html">next</a></span> page<span>; &nbsp;&nbsp;</span><span><a href="sassy-Z-H-2.html#node_toc_start">contents</a></span><span><span>; &nbsp;&nbsp;</span><a href="sassy-Z-H-15.html#node_index_start">index</a></span>]</i></div>
+<p></p>
+</div>
+</body>
+</html>
