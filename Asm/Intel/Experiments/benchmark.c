@@ -120,13 +120,9 @@ static inline float timing()
 int main(int argc, char **argv)
 {
     unsigned int bs, ts, nb, ni;
-    unsigned int i;
 
-    char *data;
     TN *tree;
     nextFun_t entry;
-
-    size_t bskip, pskip;
 
     const char *const program = "benchmark.i";
     size_t progsize;
@@ -146,40 +142,56 @@ int main(int argc, char **argv)
     nb = atoi(argv[3]);
     ni = atoi(argv[4]);
 
-    if (bs == 0) {
-        bskip = progsize + ts * sizeof(TN);
-        pskip = progsize;
-    } else {
-        assert(bs >= progsize);
-        assert(bs >= ts * sizeof(TN));
+    {
+        unsigned int i;
+        char *b;
+        size_t bskip, pskip;
 
-        bskip = 2 * bs;
-        pskip = bs;
+        if (bs == 0) {
+            bskip = progsize + ts * sizeof(TN);
+            pskip = progsize;
+        } else {
+            assert(bs >= progsize);
+            assert(bs >= ts * sizeof(TN));
+
+            bskip = 2 * bs;
+            pskip = bs;
+        }
+
+        b = malloc(nb * bskip);
+
+        for (i = 0; i < nb; ++i) {
+            nextFun_t f0 = (nextFun_t)(b + i * bskip);
+            TN *t0       = (TN *)(b + i * bskip + pskip);
+
+            nextFun_t f1 = (nextFun_t)(b + ((i + 1) % nb) * bskip);
+            TN *t1       = (TN *)(b + ((i + 1) % nb) * bskip + pskip);
+
+            // Copy program text:
+            memcpy(f0, progtext, progsize);
+
+            // Create a tree:
+            tree_init(t0, ts);
+
+            // Link this tree to the next tree and next code:
+            tree_connect(t0, t1, f1);
+        }
+
+        tree  = (TN *)(b + pskip);
+        entry = (nextFun_t)b;
     }
 
-    data = malloc(nb * bskip);
+    {
+        float duration;
 
-    for (i = 0; i < nb; ++i) {
-        nextFun_t f0 = (nextFun_t)(data + i * bskip);
-        TN *t0       = (TN *)(data + i * bskip + pskip);
+        timing();
+        entry(tree, 0, ni);
+        duration = timing();
 
-        nextFun_t f1 = (nextFun_t)(data + ((i + 1) % nb) * bskip);
-        TN *t1       = (TN *)(data + ((i + 1) % nb) * bskip + pskip);
-
-        // Copy program text:
-        memcpy(f0, progtext, progsize);
-
-        // Create a tree:
-        tree_init(t0, ts);
-
-        // Link this tree to the next tree and next code:
-        tree_connect(t0, t1, f1);
+        printf("%8d  %4d  %4d  %12d          %8.4f\n",
+               bs, ts, nb, ni, duration);
     }
-
-    tree  = (TN *)(data + pskip);
-    entry = (nextFun_t)data;
-
-    entry(tree, 0, ni);
 
     return 0;
 }
+
