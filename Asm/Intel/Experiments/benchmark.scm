@@ -15,6 +15,8 @@
 ;;     while (tree->key != key)
 ;;         tree = key < tree->key ? tree->left : tree->right;
 ;;
+;;     tree->dummy = count;
+;;
 ;;     if (count == 0)
 ;;         return tree->nextKey;
 ;;     else

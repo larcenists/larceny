@@ -4,6 +4,19 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+/*
+
+   BLOCKSIZE   TIME   (on stewie: ./benchmark bs 4 100000 10000000)
+   4096         ~7.8
+   2048         ~7.8
+   1024         ~7.5
+   512          ~8.1
+   256          ~5
+   128          ~5.7
+   0
+*/
+
+#define MAX(X,Y) (((X)>(Y)) ? (X) : (Y))
 
 struct TreeNode;
 typedef struct TreeNode TN;
@@ -19,6 +32,24 @@ struct TreeNode {
     nextFun_t nextFun;
     int dummy;
 };
+
+int test_entry(struct TreeNode *tree, int key, int count)
+{
+top:
+    while (tree->key != key)
+        tree = key < tree->key ? tree->left : tree->right;
+
+    tree->dummy = count;
+
+    if (count == 0) return tree->nextKey;
+
+    count = count - 1;
+    key = tree->nextKey;
+    tree = tree->nextTree;
+
+    goto top;
+    // return tree->nextFun(tree->nextTree, tree->nextKey, count - 1);
+}
 
 void tree_init(TN *thisTree, size_t size)
 {
@@ -103,7 +134,7 @@ char *file_read(const char *filename)
     return buf;
 }
 
-static inline float timing()
+static inline double timing()
 {
     static double time1 = 1e35;
     double time2, tmp;
@@ -145,50 +176,55 @@ int main(int argc, char **argv)
     {
         unsigned int i;
         char *b;
-        size_t bskip, pskip;
+        size_t dskip, cskip, dstart;
 
         if (bs == 0) {
-            bskip = progsize + ts * sizeof(TN);
-            pskip = progsize;
+            dstart = progsize;
+            cskip = dskip = progsize + ts * sizeof(TN);
+        } else if (bs == 1) {
+            dstart = bs * progsize;
+            cskip  = progsize;
+            dskip  = ts * sizeof(TN);
         } else {
             assert(bs >= progsize);
             assert(bs >= ts * sizeof(TN));
 
-            bskip = 2 * bs;
-            pskip = bs;
+            dstart = bs;
+            cskip = dskip = bs;
         }
 
-        b = malloc(nb * bskip);
+        b = malloc(nb * (cskip + dskip) + dstart);
 
         for (i = 0; i < nb; ++i) {
-            nextFun_t f0 = (nextFun_t)(b + i * bskip);
-            TN *t0       = (TN *)(b + i * bskip + pskip);
+            nextFun_t f0 = (nextFun_t)(b + i * cskip);
+            TN *t0       = (TN *)(b + i * dskip + dstart);
 
-            nextFun_t f1 = (nextFun_t)(b + ((i + 1) % nb) * bskip);
-            TN *t1       = (TN *)(b + ((i + 1) % nb) * bskip + pskip);
+            nextFun_t f1 = (nextFun_t)(b + ((i + 1) % nb) * cskip);
+            TN *t1       = (TN *)(b + ((i + 1) % nb) * dskip + dstart);
 
             // Copy program text:
             memcpy(f0, progtext, progsize);
 
-            // Create a tree:
+            // Create a tree, call bzero, not in that order
             tree_init(t0, ts);
 
             // Link this tree to the next tree and next code:
             tree_connect(t0, t1, f1);
         }
 
-        tree  = (TN *)(b + pskip);
+        tree  = (TN *)(b + dstart);
         entry = (nextFun_t)b;
     }
 
+
     {
-        float duration;
+        double duration;
 
         timing();
-        entry(tree, 0, ni);
+        (0 ? entry : test_entry)(tree, 0, ni);
         duration = timing();
 
-        printf("%8d  %4d  %4d  %12d          %8.4f\n",
+        printf("%8d  %4d  %4d  %12d          %8.4lf\n",
                bs, ts, nb, ni, duration);
     }
 
