@@ -182,14 +182,14 @@ int main(int argc, char **argv)
             dstart = progsize;
             cskip = dskip = progsize + ts * sizeof(TN);
         } else if (bs == 1) {
-            dstart = bs * progsize;
+            dstart = nb * progsize;
             cskip  = progsize;
             dskip  = ts * sizeof(TN);
         } else {
             assert(bs >= progsize);
             assert(bs >= ts * sizeof(TN));
 
-            dstart = bs;
+            dstart = nb * bs;
             cskip = dskip = bs;
         }
 
@@ -221,7 +221,7 @@ int main(int argc, char **argv)
         double duration;
 
         timing();
-        (0 ? entry : test_entry)(tree, 0, ni);
+        (1 ? entry : test_entry)(tree, 0, ni);
         duration = timing();
 
         printf("%8d  %4d  %4d  %12d          %8.4lf\n",
