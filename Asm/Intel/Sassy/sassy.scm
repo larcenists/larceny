@@ -30,7 +30,7 @@
 ; *****************************************
 
 ; MZSCHEME 299.400
-; (load "inits/mzscheme-299.400.scm")
+(load "inits/mzscheme-299.400.scm")
 
 ; CHICKEN/CSI 2.2 with libffi, syntax-case and numbers eggs
 ; (load "inits/csi-2.2-libffi.scm")

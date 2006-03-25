@@ -61,7 +61,7 @@ void osdep_init( void )
     if ( GetModuleFileName(NULL, buf + l + 1, MAX_PATH + 1) == 0 )
       goto giveup;
 
-    if ( (end = strrchr(buf, '\\')) = NULL )
+    if ( (end = strrchr(buf, '\\')) == NULL )
       goto giveup;
 
     *end = '\0';
