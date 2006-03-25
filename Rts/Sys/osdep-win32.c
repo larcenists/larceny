@@ -40,11 +40,38 @@ static stat_time_t real_start;
 
 static void get_rtclock( stat_time_t *real );
 
+#define LARCENY_ROOT "LARCENY_ROOT"
+
 void osdep_init( void )
 {
+  char buf[sizeof(LARCENY_ROOT) + 1 + MAX_PATH + 1];
+  char *end;
+  size_t l;
+
   real_start.sec = 0;
   real_start.usec = 0;
   get_rtclock( &real_start );
+
+  if (getenv(LARCENY_ROOT) == NULL) {
+    l = strlen(LARCENY_ROOT);
+
+    memcpy(buf, LARCENY_ROOT, l);
+    buf[l] = '=';
+
+    if ( GetModuleFileName(NULL, buf + l + 1, MAX_PATH + 1) == 0 )
+      goto giveup;
+
+    if ( (end = strrchr(buf, '\\')) = NULL )
+      goto giveup;
+
+    *end = '\0';
+
+    _putenv( buf );
+  }
+  return;
+
+giveup:
+  return;
 }
 
 void osdep_poll_events( word *globals )
