@@ -186,11 +186,6 @@
 	  (else       (error 'petit-setup.sch "Must add support for target-arch"))
           ))
 
-  (set! *petit-executable-name* 
-	(case target-arch
-	  ((win32) "petit.exe")
-	  (else "petit")))
-
   (set! *make:larceny-target*
         (case target-arch
           ((macosx) "petitmacosx")
@@ -236,16 +231,6 @@
          (set! *heap-type* 'petit)
          (set! *runtime-type* 'petit)
          ))
-  
-  ;; Miscellaneous set!'s to target specific hacks.
-  (case target-arch
-    ((macosx)       
-     ;; Twobit.app on MacOS X because MacOS X can't distinguish "Twobit"
-     ;; (the directory) and "twobit" (the program).  Unix?  I think not.
-     (set! *twobit-executable-name* "twobit.app"))
-    ((cygwin win32)
-     (set! *twobit-executable-name* "twobit.exe"))
-    )
 
   (set! *code-coverage* (or code-cov rebuild-code-cov))
   (set! *rebuild-code-coverage* rebuild-code-cov)
