@@ -3,12 +3,12 @@
 (define *host* 'larceny)
 (define *target* 'unix)
 
-(define *petit-executable-name* "petit.exe")
+(define *petit-executable-name* "petit.bin")
 
 (define *host-dir*  "Larceny")
 (define *host-name* "Petit Larceny")
 
-(define *twobit-executable-name* "twobit.exe")
+(define *twobit-executable-name* "twobit.bin")
 
 (define *petit-linking-flags* '())
 

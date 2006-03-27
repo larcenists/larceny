@@ -186,6 +186,11 @@
 	  (else       (error 'petit-setup.sch "Must add support for target-arch"))
           ))
 
+  (case target-arch
+    ((cygwin win32)
+       (set! *twobit-executable-name* "twobit.exe")
+       (set! *petit-executable-name*  "petit.exe")))
+
   (set! *make:larceny-target*
         (case target-arch
           ((macosx) "petitmacosx")
