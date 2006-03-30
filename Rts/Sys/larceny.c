@@ -164,8 +164,19 @@ int main( int argc, char **os_argv )
 
   osdep_poll_startup_events();
 
-  if (o.heapfile == 0)
-    o.heapfile = larceny_heap_name; /* Default name or set by startup events */
+  if (o.heapfile == 0) {
+    char *path = getenv(LARCENY_ROOT);
+    size_t path_length = strlen(path);
+    size_t base_length = strlen(larceny_heap_name);
+
+    /* This leaks, but only once at startup.  I think it's worth it: */
+    o.heapfile = malloc(path_length + base_length + 2);
+    if (o.heapfile == NULL) {
+      panic_exit("Cannot allocate buffer for heapfile name.");
+    }
+
+    sprintf(o.heapfile, "%s/%s", path, larceny_heap_name);
+  }
 
   quiet = o.quiet;
   annoying = o.annoying;
@@ -520,7 +531,13 @@ parse_options( int argc, char **argv, opt_t *o )
       o->noflush = 1;
     else if (hstrcmp( *argv, "-reorganize-and-dump" ) == 0)
       o->reorganize_and_dump = 1;
-    else if (hstrcmp( *argv, "-args" ) == 0) {
+    else if (hstrcmp( *argv, "-heap" ) == 0) {
+      ++argv;
+      --argc;
+      o->heapfile = *argv;
+    }
+    else if (hstrcmp( *argv, "-args" ) == 0 ||
+               strcmp( *argv, "--" ) == 0) {
       o->restc = argc-1;
       o->restv = argv+1;
       break;
@@ -539,12 +556,10 @@ parse_options( int argc, char **argv, opt_t *o )
       consolemsg( "Error: Invalid option '%s'", *argv );
       usage();
     }
-    else if (o->heapfile != NULL) {
-      consolemsg( "Error: Only one heap file allowed." );
+    else {
+      consolemsg( "Error: Deprecated heap file syntax." );
       usage();
     }
-    else
-      o->heapfile = *argv;
   }
 
   /* Initial validation */
@@ -954,7 +969,7 @@ static void invalid( char *s )
 static void usage( void )
 {
   consolemsg( "" );
-  consolemsg( "Usage: larceny [ options ][ heapfile ][-args arguments]" );
+  consolemsg( "Usage: larceny [ OPTIONS ][ -heap HEAPFILE ][-- ARGUMENTS]" );
   consolemsg( "Type \"larceny -help\" for help." );
   exit( 1 );
 }
@@ -964,6 +979,8 @@ static void usage( void )
 #define STR2(x) #x
 
 static char *helptext[] = {
+  "  -heap",
+  "     Select the initial heap image.",
 #if !defined(BDW_GC)
   "  -stopcopy",
   "     Select the stop-and-copy collector." ,
@@ -1160,7 +1177,7 @@ static void help(int wizardp)
 {
   int i;
 
-  consolemsg("Usage: larceny [options][heapfile][-args arg-to-scheme ...]");
+  consolemsg("Usage: larceny [options][heapfile][-- arg-to-scheme ...]");
   consolemsg("" );
   consolemsg("Options:" );
   for (i=0 ; helptext[i] != 0 ; i++ )

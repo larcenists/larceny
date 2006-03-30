@@ -40,8 +40,6 @@ static stat_time_t real_start;
 
 static void get_rtclock( stat_time_t *real );
 
-#define LARCENY_ROOT "LARCENY_ROOT"
-
 void osdep_init( void )
 {
   char buf[sizeof(LARCENY_ROOT) + 1 + MAX_PATH + 1];

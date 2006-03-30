@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# This script will assume that the Larceny binaries and heaps are in
+# the same directory as itself, unless you set LARCENY_ROOT either here
+# or elsewhere:
+
+# export LARCENY_ROOT=/usr/local/lib/larceny
+
+test -z "$LARCENY_ROOT" && export LARCENY_ROOT="`dirname "$0"`"
+exec $LARCENY_ROOT/petit.bin -heap $LARCENY_ROOT/petit.heap "$@"
+

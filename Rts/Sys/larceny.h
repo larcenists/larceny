@@ -20,6 +20,9 @@
 #define NOGLOBALS      /* globals[] array is not declared in this file */
 #endif
 
+/* Environment variable for where to find Larceny support files: */
+#define LARCENY_ROOT   "LARCENY_ROOT"
+
 /* In "Build/table.s" */
 
 #ifndef NOGLOBALS
