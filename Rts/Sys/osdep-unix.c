@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <sys/mman.h>		/* For mmap() and munmap() */
+#include <limits.h>
 #include <unistd.h>
 #include <time.h>
 #ifdef HAVE_POLL
@@ -52,6 +53,21 @@ void osdep_init( void )
   real_start.sec = 0;
   real_start.usec = 0;
   get_rtclock( &real_start );
+
+  if ( getenv( LARCENY_ROOT ) == NULL ) {
+    char cwd[PATH_MAX + 2];
+
+    if ( getcwd( cwd, PATH_MAX + 1 ) == NULL ) {
+      panic_exit( "Couldn't get cwd for LARCENY_ROOT: %s",
+                  strerror( errno ) );
+    }
+
+    if ( osdep_setenv( LARCENY_ROOT, cwd, 1) ) {
+      panic_exit( "Couldn't set LARCENY_ROOT" );
+    }
+
+    consolemsg( "LARCENY_ROOT not set; using current directory" );
+  }
 }
 
 void osdep_poll_events( word *globals )
@@ -615,6 +631,27 @@ osdep_dlsym( word handle, char *sym )
 #else
   return 0;
 #endif
+}
+
+int
+osdep_setenv(const char *name, const char *value, int overwrite)
+{
+  if (overwrite || getenv(name) == NULL) {
+    char *buf;
+
+    buf = malloc(strlen(name) + strlen(value) + 2);
+    if ( buf == NULL ) return -1;
+
+    sprintf( buf, "%s=%s", name, value );
+    if ( putenv( buf ) ) {
+      free( buf );
+      return -1;
+    }
+
+    free( buf );
+  }
+
+  return 0;
 }
 
 #endif /* defined(UNIX) */

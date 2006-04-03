@@ -125,6 +125,13 @@ osdep_dlsym( word handle, char *sym )
   return 0;
 }
 
+int
+osdep_setenv(const char *name, const char *value, int overwrite)
+{
+  /* nothing now */
+  return 0;
+}
+
 #endif /* GENERIC_OS */
 
 #if USE_GENERIC_FILESYSTEM || GENERIC_OS

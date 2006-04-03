@@ -347,6 +347,12 @@ static void get_rtclock( stat_time_t *real )
   real->usec = usec;
 }
 
+int
+osdep_setenv(const char *name, const char *value, int overwrite)
+{
+  /* nothing now */
+  return 0;
+}
 
 #endif /* if MACOS */
 

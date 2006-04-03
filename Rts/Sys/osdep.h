@@ -284,6 +284,11 @@ extern void osdep_open_shared_object( word params, word results );
      #f and leaves results unchanged.
      */
 
+extern int osdep_setenv(const char *name, const char *value,
+                         int overwrite);
+  /* Set the environment variable name to the given value if either it
+   * is unset or overwrite is true.  Returns non-zero on failure. */
+
 #endif /* !defined(INCLUDED_OSDEP_H) */
 
 /* eof */

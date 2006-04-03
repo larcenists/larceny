@@ -42,7 +42,7 @@ static void get_rtclock( stat_time_t *real );
 
 void osdep_init( void )
 {
-  char buf[sizeof(LARCENY_ROOT) + 1 + MAX_PATH + 1];
+  char buf[MAX_PATH + 1];
   char *end;
   size_t l;
 
@@ -50,13 +50,8 @@ void osdep_init( void )
   real_start.usec = 0;
   get_rtclock( &real_start );
 
-  if (getenv(LARCENY_ROOT) == NULL) {
-    l = strlen(LARCENY_ROOT);
-
-    memcpy(buf, LARCENY_ROOT, l);
-    buf[l] = '=';
-
-    if ( GetModuleFileName(NULL, buf + l + 1, MAX_PATH + 1) == 0 )
+  if ( getenv( LARCENY_ROOT ) == NULL ) {
+    if ( GetModuleFileName(NULL, buf, MAX_PATH + 1) == 0 )
       goto giveup;
 
     if ( (end = strrchr(buf, '\\')) == NULL )
@@ -64,7 +59,8 @@ void osdep_init( void )
 
     *end = '\0';
 
-    _putenv( buf );
+    if ( osdep_setenv(LARCENY_ROOT, buf, 1) )
+      panic_exit( "Couldn't set LARCENY_ROOT" );
   }
   return;
 
@@ -280,6 +276,24 @@ osdep_dlsym( word handle, char *sym )
 #else
   return 0;
 #endif
+}
+
+int
+osdep_setenv(const char *name, const char *value, int overwrite)
+{
+  if (overwrite || getenv(name) == NULL) {
+    char *buf;
+
+    buf = malloc(strlen(name) + strlen(value) + 2);
+    if ( buf == NULL ) return -1;
+
+    sprintf( buf, "%s=%s", name, value );
+    _putenv( buf );
+
+    free( buf );
+  }
+
+  return 0;
 }
 
 #endif /* defined( WIN32 ) */
