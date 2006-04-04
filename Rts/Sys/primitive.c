@@ -54,6 +54,18 @@ word w_envvar;
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
 
+void primitive_setenv( word w_name, word w_value )
+{
+  int rv;
+  char *name;
+
+  name  = strdup( string2asciiz( w_name ) );
+  rv = osdep_setenv( name, string2asciiz( w_value ), 1 );
+  free( name );
+
+  globals[ G_RESULT ] = rv ? FALSE_CONST : TRUE_CONST;
+}
+
 void primitive_garbage_collect( w_gen, w_type )
 word w_gen;			/* fixnum: generation */
 word w_type;			/* fixnum: type requested */

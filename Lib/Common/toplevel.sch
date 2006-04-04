@@ -810,6 +810,8 @@
 
   (environment-set! larc 'command-line-arguments command-line-arguments)
   (environment-set! larc 'getenv getenv)
+  (environment-set! larc 'setenv setenv)
+  (environment-set! larc 'make-env-parameter make-env-parameter)
   (environment-set! larc 'system system)
   (environment-set! larc 'current-directory current-directory)
 

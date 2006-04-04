@@ -53,5 +53,6 @@
 (define syscall:stats-dump-stdout 43)
 (define syscall:chdir 44)
 (define syscall:cwd 45)
+(define syscall:setenv 46)
 
 ; eof

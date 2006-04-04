@@ -191,14 +191,32 @@
 
 ; Get the value of an environment variable.
 
+(define (check-env-var fn name)
+  (cond ((symbol? name)  (symbol->string name))
+        ((string? name)  name)
+        (else  (error fn ": not a valid name: " name)
+               #t)))
+
 (define (getenv name)
-  (cond ((symbol? name)
-         (syscall syscall:getenv (symbol->string name)))
-        ((string? name)
-         (syscall syscall:getenv name))
+  (syscall syscall:getenv (check-env-var 'getenv name)))
+
+(define (setenv name value)
+  (syscall syscall:setenv (check-env-var 'setenv name) value))
+
+(define (make-env-parameter name)
+  (let ((*name* (check-env-var 'make-env-parameter name)))
+    (lambda maybe-value
+      (cond
+        ((null? maybe-value)
+             (getenv name))
+        ((null? (cdr maybe-value))
+             (let ((old (getenv name)))
+               (setenv name (car maybe-value))
+               old))
         (else
-         (error "getenv: not a valid name: " name)
-         #t)))
+             (error "env-parameter " name
+                    ": takes no arguments or one string argument")
+             #t)))))
 
 (define (sro ptr hdr limit)
   (if (not (and (fixnum? ptr)
