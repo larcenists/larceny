@@ -55,18 +55,23 @@ void osdep_init( void )
   get_rtclock( &real_start );
 
   if ( getenv( LARCENY_ROOT ) == NULL ) {
-    char cwd[PATH_MAX + 2];
+    size_t cwdsize = pathconf( ".", _PC_PATH_MAX );
+    char *cwd;
 
-    if ( getcwd( cwd, PATH_MAX + 1 ) == NULL ) {
+    if ( ( cwd = malloc(cwdsize) ) == NULL )
+      panic_exit( "Couldn't allocate buffer for getcwd: %s",
+                  strerror( errno ) );
+
+    if ( getcwd( cwd, cwdsize ) == NULL )
       panic_exit( "Couldn't get cwd for LARCENY_ROOT: %s",
                   strerror( errno ) );
-    }
 
-    if ( osdep_setenv( LARCENY_ROOT, cwd, 1) ) {
+    if ( osdep_setenv( LARCENY_ROOT, cwd, 1) )
       panic_exit( "Couldn't set LARCENY_ROOT" );
-    }
 
     consolemsg( "LARCENY_ROOT not set; using current directory" );
+
+    free( cwd );
   }
 }
 
@@ -636,22 +641,7 @@ osdep_dlsym( word handle, char *sym )
 int
 osdep_setenv(const char *name, const char *value, int overwrite)
 {
-  if (overwrite || getenv(name) == NULL) {
-    char *buf;
-
-    buf = malloc(strlen(name) + strlen(value) + 2);
-    if ( buf == NULL ) return -1;
-
-    sprintf( buf, "%s=%s", name, value );
-    if ( putenv( buf ) ) {
-      free( buf );
-      return -1;
-    }
-
-    free( buf );
-  }
-
-  return 0;
+  return setenv(name, value, overwrite);
 }
 
 #endif /* defined(UNIX) */
