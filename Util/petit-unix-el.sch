@@ -31,10 +31,10 @@
 	    '("-lm"))))
 
 (define (petit-application-name)
-  "petit")
+  "petit.bin")
 
 (define (twobit-application-name)
-  "twobit")
+  "twobit.bin")
 
 (unix-initialize)
 

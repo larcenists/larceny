@@ -37,7 +37,7 @@
 		(else         '("-lm -ldl"))))))
 
 (define (petit-application-name)
-  "petit")
+  "petit.bin")
 
 ; classify-unix-system is in Asm/Standard-C/dumpheap-unix.sch
 
@@ -50,13 +50,8 @@
 (define (is-sunos?)
   (eq? 'sunos (classify-unix-system)))
 
-;; Twobit.app on MacOS X because MacOS X can't distinguish "Twobit"
-;; (the directory) and "twobit" (the program).  Unix?  I think not.
-
 (define (twobit-application-name)
-  (if (is-macosx?)
-      "twobit.app"
-      "twobit"))
+      "twobit.bin")
 
 (unix-initialize)
 

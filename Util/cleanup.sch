@@ -25,7 +25,7 @@
 	 (set! rmdir-command "rmdir")
 	 (set! pathsep "\\"))
 	(else
-	 (set! exe-suffix "")		; Except MacOS X, fixme!
+	 (set! exe-suffix ".bin")
 	 (set! rm-command "rm -f")
 	 (set! rmdir-command "rmdir")
 	 (set! pathsep "/"))))
