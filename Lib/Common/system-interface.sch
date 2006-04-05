@@ -207,7 +207,7 @@
   (unspecified))
 
 (define (make-env-parameter name . rest)
-  (let ((*name* (check-env-var 'make-env-parameter name))
+  (let ((*name* (sys$check-env-var 'make-env-parameter name))
         (ok?    (if (null? rest)
                   (lambda (x) #t)
                   (car rest))))
@@ -218,7 +218,7 @@
         ((not (null? (cdr args)))
                 (error *name* ": too many arguments."))
         ((ok? (car args))
-                (setenv *name* (car maybe-value)))
+                (setenv *name* (car args)))
         (else
                 (error *name* ": Invalid value " (car args)))))))
 
