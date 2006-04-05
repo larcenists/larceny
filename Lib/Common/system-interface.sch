@@ -191,32 +191,36 @@
 
 ; Get the value of an environment variable.
 
-(define (check-env-var fn name)
+(define (sys$check-env-var fn name)
   (cond ((symbol? name)  (symbol->string name))
         ((string? name)  name)
         (else  (error fn ": not a valid name: " name)
                #t)))
 
 (define (getenv name)
-  (syscall syscall:getenv (check-env-var 'getenv name)))
+  (syscall syscall:getenv (sys$check-env-var 'getenv name)))
 
 (define (setenv name value)
-  (syscall syscall:setenv (check-env-var 'setenv name) value))
+  (if (string? value)
+    (syscall syscall:setenv (sys$check-env-var 'setenv name) value)
+    (error "setenv: not a string: " value))
+  (unspecified))
 
-(define (make-env-parameter name)
-  (let ((*name* (check-env-var 'make-env-parameter name)))
-    (lambda maybe-value
+(define (make-env-parameter name . rest)
+  (let ((*name* (check-env-var 'make-env-parameter name))
+        (ok?    (if (null? rest)
+                  (lambda (x) #t)
+                  (car rest))))
+    (lambda args
       (cond
-        ((null? maybe-value)
-             (getenv name))
-        ((null? (cdr maybe-value))
-             (let ((old (getenv name)))
-               (setenv name (car maybe-value))
-               old))
+        ((not (pair? args))
+                (getenv *name*))
+        ((not (null? (cdr args)))
+                (error *name* ": too many arguments."))
+        ((ok? (car args))
+                (setenv *name* (car maybe-value)))
         (else
-             (error "env-parameter " name
-                    ": takes no arguments or one string argument")
-             #t)))))
+                (error *name* ": Invalid value " (car args)))))))
 
 (define (sro ptr hdr limit)
   (if (not (and (fixnum? ptr)
