@@ -192,6 +192,19 @@
 (define call-with-input-file call-with-binary-input-file)
 (define call-with-output-file call-with-binary-output-file)
 
+(define (call-with-input-string str proc)
+  (let ((port (open-input-string str)))
+    (let ((r (proc port)))
+      (close-input-port port)
+      r)))
+
+(define (call-with-output-string proc)
+  (let ((port (open-output-string)))
+    (proc port)
+    (let ((str (get-output-string port)))
+      (close-output-port port)
+      str)))
+
 (define (with-input-from-port port thunk)
   (parameterize ((current-input-port port))
     (thunk)))
@@ -217,6 +230,16 @@
 
 (define (with-output-to-binary-file fn thunk)
   (call-with-binary-output-file fn
+    (lambda (p)
+      (with-output-to-port p thunk))))
+
+(define (with-input-from-string str thunk)
+  (call-with-input-string str
+    (lambda (p)
+      (with-input-from-port p thunk))))
+
+(define (with-output-to-string thunk)
+  (call-with-output-string
     (lambda (p)
       (with-output-to-port p thunk))))
 

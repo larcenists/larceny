@@ -566,6 +566,10 @@
   (environment-set! larc 'with-input-from-port with-input-from-port)
   (environment-set! larc 'with-output-to-binary-file with-output-to-binary-file)
   (environment-set! larc 'with-output-to-port with-output-to-port)
+  (environment-set! larc 'call-with-input-string call-with-input-string)
+  (environment-set! larc 'call-with-output-string call-with-output-string)
+  (environment-set! larc 'with-input-from-string with-input-from-string)
+  (environment-set! larc 'with-output-to-string with-output-to-string)
   (environment-set! larc 'write-bytevector-like write-bytevector-like)
   (environment-set! larc 'write-string write-string)
 
