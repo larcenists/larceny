@@ -169,8 +169,8 @@
 
 (define (osdep/find-init-file)
   (let ((init-file-name ".larceny"))
-    (cond ((file-exists? init-file-name)
-           init-file-name)
+    (cond ;((file-exists? init-file-name)
+          ; init-file-name)
           ((getenv "HOME")
            => 
            (lambda (home)
