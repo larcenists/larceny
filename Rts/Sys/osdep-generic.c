@@ -394,6 +394,7 @@ void osdep_writefile( word w_fd, word w_buf, word w_cnt, word w_offset )
     globals[G_RESULT] = fixnum(-1);
   else
     globals[G_RESULT] = fixnum(res);
+  fflush(fp); /* Larceny does its own buffering. */
 }
 
 /* Standard C does not have a procedure to check for input-ready.
