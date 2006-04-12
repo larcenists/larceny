@@ -98,8 +98,8 @@
 (define-sassy-constant LASTREG 31)
 
 (define-sassy-constant PROC_OVERHEAD_WORDS         2)             ; code and constants
-(define-sassy-constant PROC_CONSTVECTOR            'CONSTVECTOR)   ; byte offset
-(define-sassy-constant PROC_CODEVECTOR_NATIVE      'CODEVECTOR)    ; byte offset
+(define-sassy-constant PROC_CONSTVECTOR            8)   ; byte offset
+(define-sassy-constant PROC_CODEVECTOR_NATIVE      4)    ; byte offset
 (define-sassy-constant PROC_REG0                   12)            ; byte offset
 
 (define-sassy-constant EX_PROCEDURE_REF	            'EX_PREF)
