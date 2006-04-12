@@ -1,4 +1,12 @@
 ;; Implementation of REQUIRE, for loading libraries.
+;;
+;; Provides:
+;;     require
+;;     current-larceny-root
+;;     current-library-resolver 
+;;     current-require-path
+;;
+;; Names starting with require/ are "not exported."
 
 ;; require/resolve-ext: String x (List-of String) -> String+{#f}
 ;; Given a base name and a list of extentions, return the first
