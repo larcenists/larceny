@@ -5,7 +5,7 @@
 ;; NOTES
 ;; Uses syntax defined in il-gen, thus order of loading is important
 
-;; The following procedures are overridden from Twobit/Common/pass5p1:
+;; The following procedures are overridden from Compiler/Common/pass5p1:
 ;;   assemble-pasteup
 ;;   assemble-finalize!
 ;;   assembly-start

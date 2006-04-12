@@ -44,13 +44,13 @@
 ;
 ; Note
 ;   The ADT returned by the expander stored in MACRO-EXPANDER is
-;   defined in Twobit/pass2.aux.sch.
+;   defined in Compiler/pass2.aux.sch.
 
 ($$trace "interpret")
 
 ;;; This entry point interprets full R4RS Scheme represented as list
 ;;; structure.  The macro expander is used to convert this to the core
-;;; Scheme ADT as defined in Twobit/pass2.aux.sch.  The resulting core
+;;; Scheme ADT as defined in Compiler/pass2.aux.sch.  The resulting core
 ;;; Scheme code is then preprocessed and executed.
 
 (define (interpret expr env)
@@ -58,7 +58,7 @@
     (interpret-code-object expanded-form env)))
 
 ;;; This entry point interprets core Scheme code as specified in
-;;; Twobit/pass2.aux.sch
+;;; Compiler/pass2.aux.sch
 (define (interpret-code-object code-object env)
   ((interpret/preprocess code-object
                          '()

@@ -102,6 +102,12 @@
 (define (file-io/file-exists? filename)
   (osdep/file-exists? filename))
 
+(define (file-io/relative-path-string? filename)
+  (osdep/relative-path-string? filename))
+
+(define (file-io/absolute-path-string? filename)
+  (osdep/absolute-path-string? filename))
+
 (define (file-io/rename-file from to)
   (osdep/rename-file from to))
 

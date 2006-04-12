@@ -539,6 +539,8 @@
   (environment-set! larc 'environment-printer environment-printer)
   (environment-set! larc 'eof-object eof-object)
   (environment-set! larc 'file-exists? file-exists?)
+  (environment-set! larc 'relative-path-string? relative-path-string?)
+  (environment-set! larc 'absolute-path-string? absolute-path-string?)
   (environment-set! larc 'file-modification-time file-modification-time)
   (environment-set! larc 'flush-output-port flush-output-port)
   (environment-set! larc 'format format)
@@ -895,6 +897,10 @@
 		    current-continuation-marks)
   (environment-set! larc 'continuation-mark-set->list
 		    continuation-mark-set->list)
+
+  ;; require (library system)
+  (environment-set! larc 'current-larceny-root current-larceny-root)
+  (environment-set! larc 'current-require-path current-require-path)
 
   ;; miscellaneous extensions and hacks
 

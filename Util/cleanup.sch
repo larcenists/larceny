@@ -39,7 +39,7 @@
     ("Interpreter")
     ("Repl")
     ("Auxlib")
-    ("Twobit")
+    ("Compiler")
     ("Compat" "Larceny")
     ("Compat" "MzScheme")
     ("Asm")

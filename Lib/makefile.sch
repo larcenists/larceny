@@ -165,6 +165,7 @@
     "exit"              ; exit procedure; exit/init hooks
     "dump"              ; dump-heap procedure
     "secret"            ; some "hidden" top-level names
+    "require"           ; rudimentary library system
 
     ; New I/O subsystem
 

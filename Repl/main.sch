@@ -25,7 +25,7 @@
   (command-line-arguments argv)
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
-  (failsafe-load-init-file)
+  (failsafe-load-init-files)
   (failsafe-load-file-arguments)
   (if (herald)
       (writeln (herald)))
@@ -77,9 +77,8 @@
 
 ; Init file loading.
 
-(define (failsafe-load-init-file)
-  (let ((fn (osdep/find-init-file)))
-    (if fn (failsafe-load-file fn))))
+(define (failsafe-load-init-files)
+  (map failsafe-load-file (osdep/find-init-files)))
 
 (define (failsafe-load-file-arguments)
   (let ((argv (command-line-arguments)))

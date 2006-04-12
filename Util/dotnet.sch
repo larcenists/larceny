@@ -62,7 +62,7 @@
      make-nbuild-parameter
      (lambda (dir hostdir hostname)
        (let ((parameters 
-              `((compiler       . ,(pathname-append dir "Twobit"))
+              `((compiler       . ,(pathname-append dir "Compiler"))
                 (util           . ,(pathname-append dir "Util"))
 		(rts            . ,(pathname-append dir "Rts"))
                 (build          . ,(pathname-append dir "Rts" "Build"))

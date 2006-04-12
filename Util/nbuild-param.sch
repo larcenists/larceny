@@ -57,7 +57,7 @@
 
   (apply-parameter-value 'root "")
   (let ((dir (parameter-value 'root)))
-    (apply-parameter-value 'compiler (pathname-append dir "Twobit"))
+    (apply-parameter-value 'compiler (pathname-append dir "Compiler"))
     (apply-parameter-value 'util     (pathname-append dir "Util"))
     (apply-parameter-value 'rts      (pathname-append dir "Rts"))
     (apply-parameter-value 'build    (pathname-append dir "Rts" "Build"))

@@ -163,22 +163,26 @@
       (error "osdep/file-exists?: bad file name " fn))
   (zero? (syscall syscall:access fn unix:access-exists)))
 
+(define (osdep/relative-path-string? path)
+  (not (char=? #\/ (string-ref path 0))))
+
+(define (osdep/absolute-path-string? path)
+  (not (osdep/relative-path-string? path)))
+
 
 ; Other system hooks
 
-(define (osdep/find-init-file)
-  (let ((init-file-name ".larceny"))
-    (cond ;((file-exists? init-file-name)
-          ; init-file-name)
-          ((getenv "HOME")
-           => 
-           (lambda (home)
-             (let ((fn (string-append home "/" init-file-name)))
-               (if (file-exists? fn)
-                   fn
-                   #f))))
-          (else
-           #f))))
+(define (osdep/find-init-files)
+  (let ((result '())
+        (system (string-append (current-larceny-root) "/startup.sch"))
+        (home   (getenv "HOME")))
+    (if home
+      (let ((user (string-append home "/.larceny")))
+        (if (file-exists? user)
+          (set! result (cons user result)))))
+    (if (file-exists? system)
+      (set! result (cons system result)))
+    result))
 
 ; RTS debugging utility function
 

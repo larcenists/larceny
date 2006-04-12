@@ -129,6 +129,10 @@
     (else "make")))
 
 
+(define (copy-script name)
+  (if (not (eq? *host:os* 'win32))
+    (copy-file/regexp "Scripts" "larceny.sh" name)))
+
 ;; sparc-unix.sch copies the resulting larceny.bin executable to
 ;; current directory; do we want that?  Or perhaps that should be
 ;; something BUILD-EXECUTABLE does?
@@ -157,9 +161,12 @@
 
 (define (build-executable)
   (case *runtime-type*
-    ((petit)        (build-application *petit-executable-name* '()))
+    ((petit)        (build-application *petit-executable-name* '())
+                    (copy-script "petit"))
     ((sparc-native) (if (file-exists? "Rts/larceny.bin")
-			(copy-file/regexp "Rts" "larceny.bin" ".")
+                        (begin
+			  (copy-file/regexp "Rts" "larceny.bin" ".")
+                          (copy-script "larceny"))
                         (error "You need to build-runtime [in order to generate Rts/larceny.bin]")
                         ))))
 
@@ -175,16 +182,18 @@
   (build-development-environment)
   (if (eq? 'petit *runtime-type*)
       (build-application *twobit-executable-name*
-                         (petit-development-environment-lop-files))))
+                         (petit-development-environment-lop-files)))
+  (copy-script "twobit"))
 
 ; Set up for loading Util/petit-r5rs-heap.sch
 (define (build-r5rs-files)
   (case *heap-type*
     ((petit) 
      (compile-and-assemble313 "Auxlib/pp.sch")
-     (build-application "petit-r5rs" '("Auxlib/pp.lop")))
+     (build-application "petit-r5rs.bin" '("Auxlib/pp.lop")))
     ((sparc-native)
-     (compile-file "Auxlib/pp.sch"))
+     (compile-file "Auxlib/pp.sch")
+     (copy-script "larceny-r5rs"))
     (else (error 'build-r5rs-files "Unknown heap type"))))
 
 ; Set up for loading Util/petit-larceny-heap.sch
@@ -192,7 +201,7 @@
   (build-development-environment)
   (case *heap-type*
     ((petit)
-     (build-application "petit-larceny"
+     (build-application "petit-larceny.bin"
                         (petit-development-environment-lop-files)))
     ((sparc-native)
      'done)

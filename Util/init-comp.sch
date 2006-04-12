@@ -5,6 +5,6 @@
 ; Code that initializes twobit after loading with load-environment.
 
 (compiler-switches 'factory-settings)
-(initialize-help "Twobit/" 'brief)
+(initialize-help "Compiler/" 'brief)
 
 ; eof

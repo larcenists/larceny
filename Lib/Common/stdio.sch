@@ -256,6 +256,12 @@
 (define (file-exists? filename)
   (file-io/file-exists? filename))
 
+(define (relative-path-string? filename)
+  (file-io/relative-path-string? filename))
+
+(define (absolute-path-string? filename)
+  (file-io/absolute-path-string? filename))
+
 (define (rename-file from to)
   (file-io/rename-file from to))
 

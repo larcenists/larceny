@@ -1791,7 +1791,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_056C972843C34834A5A599B757A046E0"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3.sch"
             "TargetName" = "8:pass3.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -2151,7 +2151,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_13A0F64F37FC4A5EA946FB9466BA3D00"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\printlap.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\printlap.sch"
             "TargetName" = "8:printlap.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -2191,7 +2191,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_14E8397F25E840869DD1A0629ECF151E"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\syntaxrules.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\syntaxrules.sch"
             "TargetName" = "8:syntaxrules.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -2491,7 +2491,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_23B6704B9C934F86A3F0E69E6C7EEC46"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3callgraph.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3callgraph.sch"
             "TargetName" = "8:pass3callgraph.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -3011,7 +3011,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_3D1289D296844974B2A9ECDCC2332F89"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3commoning.aux.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3commoning.aux.sch"
             "TargetName" = "8:pass3commoning.aux.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -3371,7 +3371,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_4B48947DA9B24ACF811692BAFC4675B7"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3rep.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3rep.sch"
             "TargetName" = "8:pass3rep.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -3391,7 +3391,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_4DCC07DCF33A4092B19E15C534AE4366"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass4p2.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass4p2.sch"
             "TargetName" = "8:pass4p2.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -3451,7 +3451,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_4F0F3A12D0E34005B0C75DA0CA694BDC"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3anormal.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3anormal.sch"
             "TargetName" = "8:pass3anormal.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -3531,7 +3531,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_589D2A1724364A44B67EFAD03DF69279"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\standard-C.imp2.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\standard-C.imp2.sch"
             "TargetName" = "8:standard-C.imp2.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -3871,7 +3871,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_69BFEA3CE6144B548C8AFD03019C40E9"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\sets.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\sets.sch"
             "TargetName" = "8:sets.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -3891,7 +3891,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_6B9969B9CB3F4868988AEBD76F4768FD"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\copy.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\copy.sch"
             "TargetName" = "8:copy.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -4011,7 +4011,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_708F72EAC939411B86BEB6273C01FA70"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass2.aux.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass2.aux.sch"
             "TargetName" = "8:pass2.aux.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -4031,7 +4031,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_70EB50BAFF494213A9A66F6F9E266252"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\driver-larceny.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\driver-larceny.sch"
             "TargetName" = "8:driver-larceny.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -4211,7 +4211,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_788405AE84364089B262008E9A44E241"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\driver-twobit.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\driver-twobit.sch"
             "TargetName" = "8:driver-twobit.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -4631,7 +4631,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_8ABD240AB39A4721935A2AA3AC1BECFA"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\lowlevel.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\lowlevel.sch"
             "TargetName" = "8:lowlevel.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -4651,7 +4651,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_8B10463EAF174F7CA53FB8B49FC50E44"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\hashtable.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\hashtable.sch"
             "TargetName" = "8:hashtable.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -4731,7 +4731,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_8D5D232A3EFB4DE78CD6251A4833C59E"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3folding.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3folding.sch"
             "TargetName" = "8:pass3folding.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -4791,7 +4791,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_922103DF767C4578B417CD79260AB0CF"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\switches.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\switches.sch"
             "TargetName" = "8:switches.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5151,7 +5151,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_9B15DF4DB04B49B6A4572DB8B4AF6DFF"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\sparc.imp.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\sparc.imp.sch"
             "TargetName" = "8:sparc.imp.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5291,7 +5291,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_9EE696EF34974D63940DAD93CB3EA248"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass2if.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass2if.sch"
             "TargetName" = "8:pass2if.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5311,7 +5311,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_9F817181A8334EBB89948660E5B61807"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\prefs.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\prefs.sch"
             "TargetName" = "8:prefs.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5391,7 +5391,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_A0FD7081AF3D45EA916E93FA5B50D746"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass4p3.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass4p3.sch"
             "TargetName" = "8:pass4p3.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5411,7 +5411,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_A3C5F0618F044BAA950BEA824FA35F59"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass2p2.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass2p2.sch"
             "TargetName" = "8:pass2p2.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5491,7 +5491,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_A789B4349BAB4BA1BC73054040CE7EBE"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\expand.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\expand.sch"
             "TargetName" = "8:expand.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5611,7 +5611,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_AB8598D6562646518F903D1253157C3D"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\help-topics.txt"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\help-topics.txt"
             "TargetName" = "8:help-topics.txt"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5671,7 +5671,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_ADB2ADEE02F44409AA7B0CE115079E21"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\common.imp.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\common.imp.sch"
             "TargetName" = "8:common.imp.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5811,7 +5811,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_B45E4700D7C34657BA307D0C63DD289E"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass4let.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass4let.sch"
             "TargetName" = "8:pass4let.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5831,7 +5831,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_B47D4BBD8C944D178DE93F559695EEE2"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass4special.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass4special.sch"
             "TargetName" = "8:pass4special.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5851,7 +5851,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_B4AB908621ED4311BE4694B0A8C2485A"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\driver-common.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\driver-common.sch"
             "TargetName" = "8:driver-common.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5931,7 +5931,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_B721940AD26F4A1CAFD6B62281602BF2"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass2p1.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass2p1.sch"
             "TargetName" = "8:pass2p1.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -5951,7 +5951,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_B7901E0CF0A74DEFA248C49551DF4A1A"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3rep.aux.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3rep.aux.sch"
             "TargetName" = "8:pass3rep.aux.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -6051,7 +6051,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_BDF7E32957764539A671F0C70F1F04DB"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3inlining.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3inlining.sch"
             "TargetName" = "8:pass3inlining.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -6131,7 +6131,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_C196D3A21EFB4EE7B6C98C929D7D4D35"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\help.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\help.sch"
             "TargetName" = "8:help.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -6191,7 +6191,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_C599EFBE789A42A88E3F760490CA6777"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\hash.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\hash.sch"
             "TargetName" = "8:hash.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -6251,7 +6251,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_CBEE456EAC5D492E83C097654E1B8963"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass1.aux.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass1.aux.sch"
             "TargetName" = "8:pass1.aux.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -6311,7 +6311,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_CEC800B1A73E44AC85CFF615519D333E"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\usual.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\usual.sch"
             "TargetName" = "8:usual.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -6471,7 +6471,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_D66B9E4508A54A10886A610150B9F581"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\hashtree.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\hashtree.sch"
             "TargetName" = "8:hashtree.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -6511,7 +6511,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_D8AF34816E3449FDA9279BCB76758114"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass1.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass1.sch"
             "TargetName" = "8:pass1.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -6651,7 +6651,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_DD45B4BECA424421BC7B5D1224D40044"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3commoning.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3commoning.sch"
             "TargetName" = "8:pass3commoning.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -7051,7 +7051,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_F03D15E189F24DB8A08D080CC76A47C6"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass3anormal2.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass3anormal2.sch"
             "TargetName" = "8:pass3anormal2.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -7071,7 +7071,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_F0650A37D1C04CE19F96C034E46C9279"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass4p1.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass4p1.sch"
             "TargetName" = "8:pass4p1.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -7091,7 +7091,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_F0D5B1065F0B44FDB9256C1260ECC224"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\syntaxenv.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\syntaxenv.sch"
             "TargetName" = "8:syntaxenv.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -7371,7 +7371,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_FCADED205BF249DF96B147006412EDCA"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\standard-C.imp.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\standard-C.imp.sch"
             "TargetName" = "8:standard-C.imp.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -7411,7 +7411,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_FE1220518BF34B8DB965FFB1D85FFD5D"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\pass4.aux.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\pass4.aux.sch"
             "TargetName" = "8:pass4.aux.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
@@ -7431,7 +7431,7 @@
             }
             "{54DA9790-1474-11D3-8E00-00C04F6837D0}:_FFFC94F30FB541AEAE659F74BD184036"
             {
-            "SourcePath" = "8:..\\..\\..\\..\\Twobit\\sparc.imp2.sch"
+            "SourcePath" = "8:..\\..\\..\\..\\Compiler\\sparc.imp2.sch"
             "TargetName" = "8:sparc.imp2.sch"
             "Tag" = "8:"
             "Folder" = "8:_0E7EEF38CB1E498FA1127BBBCE6C4290"
