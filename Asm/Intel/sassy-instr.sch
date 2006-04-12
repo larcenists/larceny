@@ -83,7 +83,20 @@
              (cons '(macro NAME (lambda (ARGS ...) BODY))
                    sassy-instr-directives))))))
 
+(define-sassy-constant PAIR_TAG $tag.pair-tag)
 (define-sassy-constant VEC_TAG $tag.vector-tag)  
+(define-sassy-constant PROC_TAG $tag.procedure-tag)  
+(define-sassy-constant M_GLOBAL_EX $m.global-ex)
+(define-sassy-constant M_INVOKE_EX $m.invoke-ex)
+(define-sassy-constant M_GLOBAL_INVOKE_EX $m.global-invoke-ex)
+
+(define (G_REG n) (+ 12 (* n 4))) ;; FSK: YUCK!  HACK!
+(define (REG n) (case n           ;; FSK: YUCK!  ANOTHER HACK!
+                  ((1) 'ecx)
+                  ((2) 'edx)
+                  ((3) 'edi)
+                  ((4) 'esi)
+                  (else (error 'REG "unknown register"))))
        
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
@@ -111,8 +124,9 @@
 ;;; Utility macros for MAL instruction definitions
 
 (define-sassy-macro (mcall fcn)
-  `(begin (call	(& (+ GLOBALS ,fcn)))
-	  (align code_align)))
+  `(begin (call	(& GLOBALS ,fcn))
+                                        ;FSK!BAD!(align code_align)
+          ))
 
 ;;; loadr targetreg, regno
 ;;; 	load HW register targetreg from VM register regno
@@ -120,7 +134,7 @@
 (define-sassy-macro (loadr targetreg regno)
   (if (is_hwreg regno)
       `(mov ,targetreg (REG ,regno))
-      `(mov ,targetreg (& (+ GLOBALS (G_REG ,regno))))))
+      `(mov ,targetreg (& GLOBALS ,(+ (G_REG regno))))))
 
 ;;; storer regno, sourcereg
 ;;;     store VM register regno from HW register sourcereg
@@ -128,8 +142,8 @@
 
 (define-sassy-macro (storer regno sourcereg)
   (if (is_hwreg regno)
-      `(mov	(REG ,regno) ,sourcereg)
-      `(mov     (& (+ GLOBALS (G_REG ,regno))) ,sourcereg)))
+      `(mov	,(REG regno) ,sourcereg)
+      `(mov     (& GLOBALS ,(+ (G_REG regno))) ,sourcereg)))
 
 ;;; loadc hwreg, slot
 ;;;	Load constant vector element 'slot' into hwreg
@@ -137,8 +151,8 @@
 (define-sassy-macro (loadc hwreg slot)
   `(begin 
      (loadr	,hwreg 0)
-     (mov	,hwreg (& (+ ,hwreg (- PROC_TAG) PROC_CONSTVECTOR)))
-     (mov	,hwreg (& (+ ,hwreg (- VEC_TAG) (words2bytes ,(+ slot 1)))))))
+     (mov	,hwreg (& ,hwreg ,(+ (- PROC_TAG) PROC_CONSTVECTOR)))
+     (mov	,hwreg (& ,hwreg ,(+ (- VEC_TAG) (words2bytes (+ slot 1)))))))
 
 ;;; write_barrier r1 r2
 ;;;	Move values from hardware registers r1 and r2 to RESULT 
@@ -162,22 +176,22 @@
 		(mov	SECOND (reg ,r2)))
 	      `(begin
 		,@(if (not (= r2 -1))
-		      (list `(mov	SECOND (REG ,r2)))
+		      (list `(mov	SECOND ,(REG r2)))
 		      (list))
 		(test	SECOND 1)
 		(jz short L0)))
 	 ,(if (not (= r1 -1))
-	      (list `(mov	RESULT (reg ,r1)))
+	      (list `(mov	RESULT ,(reg r1)))
 	      (list))
 	 (mcall M_PARTIAL_BARRIER)
 	 (label L0))))
    (else 
     `(begin 
        ,(if (not (= r1 -1))
-	    (list `(mov RESULT (reg ,r1)))
+	    (list `(mov RESULT ,(reg r1)))
 	    (list))
        ,(if (not (= r2 -1))
-	    (list `(mov SECOND (reg ,r2)))
+	    (list `(mov SECOND ,(reg r2)))
 	    (list))
        (mcall M_FULL_BARRIER)))))
 	
@@ -220,7 +234,7 @@
   `(begin
      (call	(& (+ GLOBALS M_EXCEPTION)))
      (dw	,excode)
-     (align	code_align)
+                                        ;FSK!BAD!(align	code_align)
      (jmp	,restart)))
 
 ;;; FSK: umm.  these probably can't work this way in Sassy
@@ -313,7 +327,7 @@
 
 (define-sassy-macro (T_CONST_SETREG_IMM x r)
   (if (is_hwreg r)
-      `(mov (reg ,r) x)
+      `(mov ,(reg r) x)
       `(begin 
 	 (mov TEMP ,x)
 	 (storer ,r TEMP))))
@@ -332,7 +346,7 @@
   `(locals (L0 L1)
      (label L0 
        (loadc TEMP ,x)
-       (mov RESULT (& (- TEMP PAIR_TAG)))
+       (mov RESULT (& TEMP ,(- PAIR_TAG)))
        ,@(if (not (unsafe-globals))
 	     `((cmp RESULT UNDEFINED_CONST)
 	       (jne short L1)
@@ -346,20 +360,20 @@
   `(begin
      (mov	SECOND RESULT)
      (loadc	RESULT ,x)
-     (mov	(& (- RESULT PAIR_TAG) SECOND))
+     (mov	(& RESULT ,(- PAIR_TAG) SECOND))
      (write_barrier -1 -1)))
 
 (define-sassy-macro (T_LEXICAL rib off)
   `(begin
      (loadr	TEMP 0)		; We know R0 is not a HWREG
-     (times rib (mov TEMP (& (+ TEMP (- PROC_TAG) PROC_REG0))))
-     (mov RESULT (& (+ TEMP (- PROC_TAG) PROC_REG0 (words2bytes off))))))
+     (times rib (mov TEMP (& TEMP ,(+ (- PROC_TAG) PROC_REG0))))
+     (mov RESULT (& TEMP ,(+ (- PROC_TAG) PROC_REG0 (words2bytes off))))))
 
 (define-sassy-macro (T_SETLEX rib off)
   `(begin 
      (loadr	TEMP 0)		; We know R0 is not a HWREG
-     (times rib (mov TEMP (& (+ TEMP (- PROC_TAG) PROC_REG0))))
-     (mov (& (+ TEMP (- PROC_TAG) PROC_REG0 (words2bytes off))) RESULT)))
+     (times rib (mov TEMP (& TEMP ,(+ (- PROC_TAG) PROC_REG0))))
+     (mov (& TEMP ,(+ (- PROC_TAG) PROC_REG0 (words2bytes off))) RESULT)))
 	
 (define-sassy-macro (T_STACK slot)
   `(mov	RESULT (stkslot ,slot)))
@@ -369,13 +383,13 @@
 
 (define-sassy-macro (T_LOAD r slot)
   (if (is_hwreg r)
-      `(mov (reg ,r) (stkslot ,slot))
+      `(mov ,(reg r) (stkslot ,slot))
       `(begin (mov TEMP (stkslot ,slot))
 	      (storer ,r TEMP))))
 
 (define-sassy-macro (T_STORE r slot)
   (if (is_hwreg r)
-      `(mov	(stkslot ,slot) (reg ,r))
+      `(mov	(stkslot ,slot) ,(reg r))
       `(begin 
 	 (loadr	TEMP ,r)
 	 (mov	(stkslot ,slot) TEMP))))
@@ -389,9 +403,9 @@
 
 (define-sassy-macro (T_MOVEREG r1 r2)
   (cond ((is_hwreg r1)
-	 `(storer ,r2 (reg ,r1)))
+	 `(storer ,r2 ,(reg r1)))
 	((is_hwreg r2)
-	 `(loadr (reg ,r2) ,r1))
+	 `(loadr ,(reg r2) ,r1))
 	(else
 	 `(begin 
 	    (loadr TEMP ,r1)
@@ -404,19 +418,19 @@
 	 ((> r *lastreg*)
 	  (set! regno (- *lastreg* 1))
 	  `(locals (L1)
-	     (mov (& (+ GLOBALS G_STKP)) CONT)     ; Need a working register!
-	     (mov (& (+ GLOBALS G_RESULT)) RESULT) ; Save for later
+	     (mov (& GLOBALS ,(+ G_STKP)) CONT)     ; Need a working register!
+	     (mov (& GLOBALS ,(+ G_RESULT)) RESULT) ; Save for later
 	     (add RESULT (+ PROC_REG0 (words2bytes LASTREG)))
 	     (loadr CONT 31)
 	     (label L1
 	       (mov TEMP (& (- CONT PAIR_TAG)))
 	       (mov (& RESULT) TEMP)
 	       (add RESULT wordsize)
-	       (mov CONT (& (+ CONT (- PAIR_TAG) wordsize)))
+	       (mov CONT (& CONT ,(+ (- PAIR_TAG) wordsize)))
 	       (cmp CONT NIL_CONST)
 	       (jne short L1)
-	       (mov CONT (& (+ GLOBALS G_STKP)))
-	       (mov RESULT (& (+ GLOBALS G_RESULT))))))
+	       (mov CONT (& GLOBALS ,(+ G_STKP)))
+	       (mov RESULT (& GLOBALS ,(+ G_RESULT))))))
 	 (else
 	  (set! regno r)
 	  '()))
@@ -425,11 +439,11 @@
 	    ((>= regno 0)
 	     (cons 
 	      (if (is_hwreg regno)
-		  `(mov (& (+ RESULT PROC_REG0 (words2bytes ,regno))) 
-			(reg ,regno))
+		  `(mov (& RESULT ,(+ PROC_REG0 (words2bytes ,regno))) 
+			,(reg regno))
 		  `(begin 
 		     (loadr TEMP ,regno)
-		     (mov (& (+ RESULT PROC_REG0 (words2bytes ,regno))) TEMP)))
+		     (mov (& RESULT ,(+ PROC_REG0 (words2bytes ,regno))) TEMP)))
 	      (rep (- regno 1))))
 	    (else 
 	     '())))
@@ -446,9 +460,9 @@
 			      PROC_HDR))
      ;; Adjust only if code is in bytevectors!
      ;mov	dword [RESULT+PROC_CODEVECTOR_NATIVE], ,codevec + BVEC_TAG
-     (mov	(dword (& (+ RESULT PROC_CODEVECTOR_NATIVE))) ,codevec)
+     (mov	(dword (& RESULT ,(+ PROC_CODEVECTOR_NATIVE))) ,codevec)
      (loadc	TEMP ,constvec)
-     (mov	(& (+ RESULT PROC_CONSTVECTOR)) TEMP)
+     (mov	(& RESULT ,(+ PROC_CONSTVECTOR)) TEMP)
      (init_closure ,n)))
 
 (define-sassy-macro (T_LEXES n)
@@ -461,11 +475,11 @@
 					 8)
 				    PROC_HDR))
      (loadr	TEMP 0)
-     (mov	TEMP (& (+ TEMP (- PROC_TAG) PROC_CODEVECTOR_NATIVE)))
-     (mov	(dword (& (+ RESULT PROC_CODEVECTOR_NATIVE))) TEMP)
+     (mov	TEMP (& TEMP ,(+ (- PROC_TAG) PROC_CODEVECTOR_NATIVE)))
+     (mov	(dword (& RESULT ,(+ PROC_CODEVECTOR_NATIVE))) TEMP)
      (loadr	TEMP 0)
-     (mov	TEMP (& (+ TEMP (- PROC_TAG) PROC_CONSTVECTOR)))
-     (mov	(dword (& (+ RESULT PROC_CONSTVECTOR))) TEMP)
+     (mov	TEMP (& TEMP ,(+ (- PROC_TAG) PROC_CONSTVECTOR)))
+     (mov	(dword (& RESULT ,(+ PROC_CONSTVECTOR))) TEMP)
      (init_closure ,n)))
 
 (define-sassy-macro (T_ARGSEQ n)
@@ -503,14 +517,14 @@
 	      (storer 0 RESULT)
 	      (mov TEMP RESULT)
 	      (const2regf RESULT (fixnum ,n))
-	      (jmp (& (+ TEMP (- PROC_TAG) PROC_CODEVECTOR_NATIVE))))
+	      (jmp (& TEMP ,(+ (- PROC_TAG) PROC_CODEVECTOR_NATIVE))))
       `(locals (L0 L1)
-	 (dec (dword (& (+ GLOBALS G_TIMER))))
+	 (dec (dword (& GLOBALS ,(+ G_TIMER))))
 	 (jnz short L1)
 	 (label L0 
 	   (mcall M_INVOKE_EX))
 	 (label L1 
-	   (lea TEMP (& (+ RESULT 8 (- PROC_TAG))))
+	   (lea TEMP (& RESULT ,(+ 8 (- PROC_TAG))))
 	   (test TEMP_LOW tag_mask)
 	   (jnz short L0)
 	;; Observe TEMP points to proc+8 here and that if we were
@@ -519,7 +533,7 @@
 	;; of the JMP instruction below.
 	   (storer	0 RESULT)
 	   (const2regf RESULT (fixnum ,n))
-	   (jmp	(& (+ TEMP -8 PROC_CODEVECTOR_NATIVE)))))))
+	   (jmp	(& TEMP ,(+ -8 PROC_CODEVECTOR_NATIVE)))))))
 
 ;;; Introduced by peephole optimization.
 ;;; 
@@ -545,13 +559,13 @@
 	   (jmp short L2))		; Since TEMP is dead following timer interrupt
 	 (label L0
 	   (dec (dword                  ; timer
-		 (& (+ GLOBALS G_TIMER))))
+		 (& GLOBALS ,(+ G_TIMER))))
 	   (jz short L1)                ;   test
 	   (dec TEMP)                   ; undo ptr adjustment
 	   (storer 0 TEMP)              ; save proc ptr
 	   (const2regf RESULT           ; argument count
 		       (fixnum ,n))
-	   (jmp	(& (+ TEMP (- PROC_TAG) PROC_CODEVECTOR_NATIVE)))))))
+	   (jmp	(& TEMP ,(+ (- PROC_TAG) PROC_CODEVECTOR_NATIVE)))))))
 	
 ;;; Allocate the frame but initialize only the basic slots
 ;;; and any pad words.  Leave RESULT clear at the end; this
@@ -561,7 +575,7 @@
   `(locals (L0 L1)
      (label L0 
        (sub CONT (framesize ,n))
-       (cmp CONT (& (+ GLOBALS G_ETOP)))
+       (cmp CONT (& GLOBALS ,(+ G_ETOP)))
        (jge short L1)
        (add CONT (framesize ,n))
        (mcall M_STKOFLOW)
@@ -571,7 +585,7 @@
        ;; Not necessary to store reg0 here, this is handled
        ;; explicitly by the generated code.
        (xor	RESULT RESULT)
-       (mov	(dword (& (+ CONT STK_RETADDR))) RESULT)
+       (mov	(dword (& CONT ,(+ STK_RETADDR))) RESULT)
        ,@(if (= (- (framesize n) (recordedsize n)) 8)
 	     ;; We have a pad word at the end -- clear it
 	     (list `(mov (dword (& (stkslot (+ ,n 1)))) RESULT))
@@ -599,15 +613,15 @@
 		'())))))
 
 (define-sassy-macro (T_SETRTN lbl)
-  `(mov	(dword (& (+ CONT STK_RETADDR))) (t_label ,lbl)))
+  `(mov	(dword (& CONT ,(+ STK_RETADDR))) (t_label ,lbl)))
 
 (define-sassy-macro (T_RESTORE n)
   (let rep ((slotno 0))
     (cond ((<= slotno n)
 	   (cons (if (is_hwreg slotno)
-		     `(mov (reg ,slotno) (dword (& (stkslot ,slotno))))
+		     `(mov ,(reg slotno) (dword (& (stkslot ,slotno))))
 		     `(begin (mov TEMP (dword (& (stkslot ,slotno))))
-			     (mov (& (+ GLOBALS (g_reg ,slotno))) TEMP)))
+			     (mov (& GLOBALS ,(+ (g_reg ,slotno))) TEMP)))
 		 (rep (+ slotno 1))))
 	  (else
 	   '()))))
@@ -619,17 +633,17 @@
   (error 'T_POPSTK "not implemented -- students only"))
 
 (define-sassy-macro (T_RETURN)
-  '(jmp (& (+ CONT STK_RETADDR))))
+  '(jmp (& CONT ,(+ STK_RETADDR))))
 	
 (define-sassy-macro (T_APPLY x y)
   `(begin
      (timer_check)
      (loadr	TEMP ,y)
-     (mov	(& (+ GLOBALS G_THIRD)) TEMP)
+     (mov	(& GLOBALS ,(+ G_THIRD)) TEMP)
      (loadr	SECOND ,x)
      (mcall	M_APPLY)
      (loadr	TEMP 0)
-     (mov	TEMP (& (+ TEMP (- PROC_TAG) PROC_CODEVECTOR_NATIVE)))
+     (mov	TEMP (& TEMP ,(+ (- PROC_TAG) PROC_CODEVECTOR_NATIVE)))
      (jmp	TEMP)))
 
 (define-sassy-macro (T_NOP)
@@ -646,7 +660,7 @@
 	   (list '(begin 
 		    (loadr TEMP 0)		; We know R0 is not a HWREG
 		    (times levels 
-		      (mov TEMP (& (+ TEMP (- PROC_TAG) PROC_REG0))))
+		      (mov TEMP (& TEMP ,(+ (- PROC_TAG) PROC_REG0))))
 		    (storer 0 TEMP)))
 	   (list))
      (jmp ,name)))
@@ -664,7 +678,7 @@
 
 (define-sassy-macro (T_BRANCH lbl)
   `(begin
-     (dec	(dword (& (+ GLOBALS G_TIMER))))
+     (dec	(dword (& GLOBALS ,(+ G_TIMER))))
      (jnz	(t_label ,lbl))
      (mcall	M_TIMER_EXCEPTION)
      (jmp	(t_label ,lbl))))
@@ -694,7 +708,7 @@
 	   ;; OPTIMIZEME: optimize for case when %3 is HW reg
 	   ;; (this will however have almost no impact)
 	   (list `(begin (loadr	TEMP ,y)
-			 (mov (& (+ GLOBALS G_THIRD)) TEMP)))
+			 (mov (& GLOBALS ,(+ G_THIRD)) TEMP)))
 	   (list))
      ,@(if (not (= x 0))
 	   (list `(loadr SECOND ,x))
@@ -754,7 +768,7 @@
                   (mov	TEMP (REG,reg))
                   (test	TEMP_LOW fixtag_mask)))))
             (else
-             '(test	byte (& (+ GLOBALS (G_REG,reg))) fixtag_mask)))))
+             '(test	byte (& GLOBALS ,(+ (G_REG reg))) fixtag_mask)))))
 
 ;;; single_tag_test ptrtag
 ;;;	Leave zero flag set if RESULT contains a value with the given
@@ -762,7 +776,7 @@
 
 (define-sassy-macro (single_tag_test x)
   `(begin
-     (lea	TEMP (& (+ RESULT (- 8 ,x))))
+     (lea	TEMP (& RESULT ,(+ (- 8 ,x))))
      (test	TEMP_LOW 7)))
 	
 ;;; single_tag_test_ex ptrtag, exception_code
@@ -815,14 +829,14 @@
          ;; This looks totally bogus -- should use ,y? XXX TODO BUG HERE
          `(add	RESULT (REG,x)))
         (else
-         `(add	RESULT (& (+ GLOBALS (G_REG,x)))))))
+         `(add	RESULT (& GLOBALS ,(+ (G_REG x)))))))
 	
 ;;; trusted_fixnum_compare r, cc
 (define-sassy-macro (trusted_fixnum_compare x y)
   `(begin
      ,(if (is_hwreg x)
           `(cmp	RESULT (REG,x))
-          `(cmp	RESULT (& (+ GLOBALS (G_REG,x)))))
+          `(cmp	RESULT (& GLOBALS ,(+ (G_REG x)))))
      (setcc	,y)))
 
 ;;; fixnum_compare reg, cc, ex
@@ -843,7 +857,7 @@
             ((is_hwreg x)
              `(cmp	RESULT (REG,x)))
             (else
-             `(cmp	RESULT (& (+ GLOBALS (G_REG,x))))))
+             `(cmp	RESULT (& GLOBALS ,(+ (G_REG x))))))
      (setcc ,y)))
 
 ;;; fixnum_shift r2, operation, ex
@@ -869,10 +883,10 @@
             (else
              `(loadr	TEMP ,x)))
      (shr	TEMP 2)
-     (mov	(& (+ GLOBALS G_REGALIAS_ECX)) ecx)
+     (mov	(& GLOBALS ,(+ G_REGALIAS_ECX)) ecx)
      (mov	cl al)			; Code knows TEMP is EAX
      (,y	RESULT cl)
-     (mov	ecx (& (+ GLOBALS G_REGALIAS_ECX)))
+     (mov	ecx (& GLOBALS ,(+ G_REGALIAS_ECX)))
      ,@(cond ((eq? y 'shl)
               (list)) ;; Nothing
              (else
@@ -932,7 +946,7 @@
             ((is_hwreg x)
              `(cmp	RESULT (REG,x)))
             (else
-             `(cmp	RESULT (& (+ GLOBALS (G_REG,x))))))
+             `(cmp	RESULT (& GLOBALS ,(+ (G_REG x))))))
      (setcc	,y)))
 	
 ;;; generic_imm_compare imm, cc, millicode
@@ -1026,7 +1040,7 @@
                     (list))
               ,(if (is_hwreg x)
                    `(cmp	TEMP (REG,x))
-                   `(cmp	TEMP (& (+ GLOBALS (G_REG,x)))))
+                   `(cmp	TEMP (& GLOBALS ,(+ (G_REG x)))))
               (jbe short L1)
               (,test_reg_value	,y L1))))
         (else
@@ -1073,22 +1087,22 @@
          `(begin
             (loadr	TEMP ,x)
             (shr	TEMP 2)
-            (mov	RESULT_LOW (& (+ RESULT (- ,y) wordsize TEMP)))
+            (mov	RESULT_LOW (& RESULT ,(+ (- ,y) wordsize TEMP)))
             (and	RESULT #xFF)))
         ((is_hwreg x)
-         `(mov	RESULT (& (+ RESULT (- ,y) wordsize (REG,x)))))
+         `(mov	RESULT (& RESULT ,(+ (- ,y) wordsize (REG,x)))))
         (else
          `(begin
             (loadr	TEMP ,x)
-            (mov	RESULT (& (+ RESULT (- ,y) wordsize TEMP)))))))
+            (mov	RESULT (& RESULT ,(+ (- ,y) wordsize TEMP)))))))
 
 (define-sassy-macro (load_from_indexed_structure_imm x y z)
   (cond (z
          `(begin
-            (mov	RESULT_LOW (& (+ RESULT (- ,y) wordsize (,x/4))))
+            (mov	RESULT_LOW (& RESULT ,(+ (- ,y) wordsize (,x/4))))
             (and	RESULT #xFF)))
         (else
-         `(mov	RESULT (& (+ RESULT (- ,y) wordsize ,x))))))
+         `(mov	RESULT (& RESULT ,(+ (- ,y) wordsize ,x))))))
 				
 ;;; indexed_structure_ref reg, ptrtag, hdrtag, ex, byte?
 ;;;	Leave the raw value in RESULT.
@@ -1150,23 +1164,23 @@
 (define-sassy-macro (indexed_structure_set_char x y z hdrtag ex)
   `(begin
      (indexed_structure_test ,x ,y ,z ,hdrtag ,ex 1 check_char)
-     (mov	(& (+ GLOBALS G_STKP)) CONT)
+     (mov	(& GLOBALS ,(+ G_STKP)) CONT)
      (loadr	CONT ,x)
      (shr	TEMP 16)
      (shr	CONT 2)
-     (mov	(& (+ RESULT (- ,z) wordsize CONT)) TEMP_LOW)
-     (mov	CONT (& (+ GLOBALS G_STKP)))))
+     (mov	(& RESULT ,(+ (- ,z) wordsize CONT)) TEMP_LOW)
+     (mov	CONT (& GLOBALS ,(+ G_STKP)))))
 
 (define-sassy-macro (indexed_structure_set_byte x y z hdrtag ex)
   `(begin
      (indexed_structure_test ,x ,y ,z ,hdrbyte ,ex 1 check_fixnum)
-     (mov	(& (+ GLOBALS G_STKP)) CONT)
+     (mov	(& GLOBALS ,(+ G_STKP)) CONT)
      (loadr	CONT ,x)
      (shr	CONT 2)
      (loadr	TEMP ,y)
      (shr	TEMP 2)
-     (mov	(& (+ RESULT (- ,z) wordsize CONT)) TEMP_LOW)
-     (mov	CONT (& (+ GLOBALS G_STKP)))))
+     (mov	(& RESULT ,(+ (- ,z) wordsize CONT)) TEMP_LOW)
+     (mov	CONT (& GLOBALS ,(+ G_STKP)))))
 
 (define-sassy-macro (indexed_structure_set_word x y z hdrtag ex)
   `(begin
@@ -1176,25 +1190,25 @@
 (define-sassy-macro (do_indexed_structure_set_word x y z)
   (cond ((and (is_hwreg y) (is_hwreg x))
          `(begin
-            (mov	(& (+ RESULT (- ,z) wordsize (REG,x))) (REG,y))
+            (mov	(& RESULT ,(+ (- ,z) wordsize (REG,x))) (REG,y))
             (write_barrier -1 ,y)))
         ((is_hwreg y)
          `(begin
             (loadr	TEMP ,x)
-            (mov	(& (+ RESULT (- ,z) wordsize TEMP)) (REG,y))
+            (mov	(& RESULT ,(+ (- ,z) wordsize TEMP)) (REG,y))
             (write_barrier -1 ,y)))
         ((is_hwreg x)
          `(begin
             (loadr	SECOND ,y)
-            (mov	(& (+ RESULT (- ,z) wordsize (REG,x))) SECOND)
+            (mov	(& RESULT ,(+ (- ,z) wordsize (REG,x))) SECOND)
             (write_barrier -1 -1)))
         (else
          `(begin
-            (mov	(& (+ GLOBALS G_STKP)) CONT)
+            (mov	(& GLOBALS ,(+ G_STKP)) CONT)
             (loadr	CONT ,x)
             (loadr	SECOND ,y)
-            (mov	(& (+ RESULT (- ,z) wordsize CONT)) SECOND)
-            (mov	CONT (& (+ GLOBALS G_STKP)))
+            (mov	(& RESULT ,(+ (- ,z) wordsize CONT)) SECOND)
+            (mov	CONT (& GLOBALS ,(+ G_STKP)))
             (write_barrier -1 -1)))))
 
 ;;; make_indexed_structure_word regno ptrtag hdrtag ex
@@ -1213,17 +1227,17 @@
                        (label L1))))
              (else
               (list)))
-     (mov	(& (+ GLOBALS G_ALLOCTMP)) RESULT)
+     (mov	(& GLOBALS ,(+ G_ALLOCTMP)) RESULT)
      (add	RESULT wordsize)
      ,(cond ((= x -1)
              `(mov	SECOND UNSPECIFIED_CONST))
             (else
              `(loadr	SECOND ,x)))
      (mcall	M_ALLOCI)
-     (mov	TEMP (& (+ GLOBALS G_ALLOCTMP)))
+     (mov	TEMP (& GLOBALS ,(+ G_ALLOCTMP)))
      (shl	TEMP 8)
      (or	TEMP ,z)
-     (mov	(& (+ RESULT)) TEMP)
+     (mov	(& RESULT)) ,(+ TEMP)
      (add	RESULT ,y)))
 
 ;;; make_indexed_structure_byte regno hdrtag ex
@@ -1258,29 +1272,29 @@
                               '()))))))
               (else
                (list))))
-     (mov	(& (+ GLOBALS G_ALLOCTMP)) RESULT)
+     (mov	(& GLOBALS ,(+ G_ALLOCTMP)) RESULT)
      (add	RESULT fixnum(wordsize))
      (mcall	M_ALLOC_BV)
      ,@(cond ((not (= x -1))
               (list
                `(begin
                   (loadr	eax ,x)		; Code knows that eax is TEMP/SECOND
-                  (mov	(& (+ GLOBALS G_REGALIAS_ECX)) ecx)
-                  (mov	(& (+ GLOBALS G_REGALIAS_EDI)) edi)
+                  (mov	(& GLOBALS ,(+ G_REGALIAS_ECX)) ecx)
+                  (mov	(& GLOBALS ,(+ G_REGALIAS_EDI)) edi)
                   (shr	eax char_shift)	; byte value
-                  (mov	ecx (& (+ GLOBALS G_ALLOCTMP)))
+                  (mov	ecx (& GLOBALS ,(+ G_ALLOCTMP)))
                   (shr	ecx 2)		; byte count
-                  (lea	edi (& (+ RESULT 4)))	; destination ptr
+                  (lea	edi (& RESULT ,(+ 4)))	; destination ptr
                   (cld)
                   (rep stosb)		; byte fill
-                  (mov	ecx (& (+ GLOBALS G_REGALIAS_ECX)))
-                  (mov	edi (& (+ GLOBALS G_REGALIAS_EDI))))))
+                  (mov	ecx (& GLOBALS ,(+ G_REGALIAS_ECX)))
+                  (mov	edi (& GLOBALS ,(+ G_REGALIAS_EDI))))))
              (else 
               (list)))
-     (mov	TEMP (& (+ GLOBALS G_ALLOCTMP)))
+     (mov	TEMP (& GLOBALS ,(+ G_ALLOCTMP)))
      (shl	TEMP 6)
      (or	TEMP ,y)
-     (mov	(& (+ RESULT)) TEMP)
+     (mov	(& RESULT)) ,(+ TEMP)
      (add	RESULT BVEC_TAG)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1354,7 +1368,7 @@
 (define-sassy-macro (T_OP1_16)		; cdr
   `(begin
      (single_tag_test_ex PAIR_TAG EX_CDR)
-     (mov	RESULT (& (+ RESULT (- PAIR_TAG) wordsize)))))
+     (mov	RESULT (& RESULT ,(+ (- PAIR_TAG) wordsize)))))
 
 (define-sassy-macro (T_OP1_17)		; symbol?
   `(double_tag_predicate VEC_TAG SYMBOL_HDR))
@@ -1427,7 +1441,7 @@
                (exception_continuable EX_LOGNOT L0))
              (label L1))
            '())
-     (lea	RESULT (& (+ RESULT fixtag_mask)))
+     (lea	RESULT (& RESULT ,(+ fixtag_mask)))
      (not	RESULT)))
 
 (define-sassy-macro (T_OP1_34)		; real-part
@@ -1519,7 +1533,7 @@
 (define-sassy-macro (T_OP1_52)		; make-cell just maps to cons, for now
   `(begin
      (T_OP2_58 1)		; OPTIMIZEME: remove next instr by specializing
-     (mov	(& (+ RESULT 4-PAIR_TAG)) dword UNSPECIFIED_CONST)))
+     (mov	(& RESULT ,(+ 4-PAIR_TAG)) dword UNSPECIFIED_CONST)))
 
 (define-sassy-macro (T_OP1_54)		; cell-ref
   `(mov	RESULT (& (- RESULT PAIR_TAG))))
@@ -1534,7 +1548,7 @@
      ,(cond ((is_hwreg x)
              `(cmp	RESULT (REG,x)))
             (else
-             `(cmp	RESULT (& (+ GLOBALS (G_REG,x))))))
+             `(cmp	RESULT (& GLOBALS ,(+ (G_REG x))))))
      (setcc	z)))
 
 (define-sassy-macro (T_OP2_57 x)		; eqv?
@@ -1546,33 +1560,33 @@
   (cond ((inline-allocation)
          `(locals (L1 L2)
             (label L1
-              (mov	TEMP (& (+ GLOBALS G_ETOP)))
+              (mov	TEMP (& GLOBALS ,(+ G_ETOP)))
               (add	TEMP 8)
               (cmp	TEMP CONT)
               (jle short L2)
               (mcall	M_MORECORE)
               (jmp short L1))
             (label L2
-              (mov	(& (+ GLOBALS G_ETOP)) TEMP)
-              (mov	(& (+ TEMP-8)) RESULT)
-              (lea	RESULT (& (+ TEMP-8 PAIR_TAG)))
+              (mov	(& GLOBALS ,(+ G_ETOP)) TEMP)
+              (mov	(& TEMP-8)) ,(+ RESULT)
+              (lea	RESULT (& TEMP-8 ,(+ PAIR_TAG)))
               ,(if (is_hwreg x)
-                   `(mov	(& (+ RESULT (- PAIR_TAG) 4)) (REG,x))
+                   `(mov	(& RESULT ,(+ (- PAIR_TAG) 4)) (REG,x))
                    `(begin
                       (loadr	TEMP ,x)
-                      (mov	(& (+ RESULT (- PAIR_TAG) 4)) TEMP))))))
+                      (mov	(& RESULT ,(+ (- PAIR_TAG) 4)) TEMP))))))
         (else
          `(begin
-            (mov	(& (+ GLOBALS G_ALLOCTMP)) RESULT)
+            (mov	(& GLOBALS ,(+ G_ALLOCTMP)) RESULT)
             (mov	RESULT 8)
             (mcall	M_ALLOC)
-            (mov	TEMP (& (+ GLOBALS G_ALLOCTMP)))
-            (mov	(& (+ RESULT)) TEMP)
+            (mov	TEMP (& GLOBALS ,(+ G_ALLOCTMP)))
+            (mov	(& RESULT)) ,(+ TEMP)
             ,(if (is_hwreg x)
-                 `(mov	(& (+ RESULT 4)) (REG,x))
+                 `(mov	(& RESULT ,(+ 4)) (REG,x))
                  `(begin
                     (loadr	TEMP ,x)
-                    (mov	(& (+ RESULT 4)) TEMP)))
+                    (mov	(& RESULT ,(+ 4)) TEMP)))
             (add	RESULT PAIR_TAG)))))
 	
 (define-sassy-macro (T_OP2_59 x)		; set-car!
@@ -1591,11 +1605,11 @@
   `(begin
      (single_tag_test_ex PAIR_TAG EX_SETCDR)
      ,@(cond ((is_hwreg x)
-              `((mov	(& (+ RESULT (- PAIR_TAG) wordsize)) (REG,x))
+              `((mov	(& RESULT ,(+ (- PAIR_TAG) wordsize)) (REG,x))
                 (write_barrier -1 ,x)))
              (else
               `((loadr	SECOND ,x)
-                (mov	(& (+ RESULT (- PAIR_TAG) wordsize)) SECOND)
+                (mov	(& RESULT ,(+ (- PAIR_TAG) wordsize)) SECOND)
                 (write_barrier -1 -1))))))
 
 (define-sassy-macro (T_OP2_61 x)		; +
@@ -1649,7 +1663,7 @@
         ((is_hwreg x)
          `(and	RESULT (REG,x)))
         (else
-         `(and	RESULT (& (+ GLOBALS (G_REG,x)))))))
+         `(and	RESULT (& GLOBALS ,(+ (G_REG x)))))))
 
 (define-sassy-macro (T_OP2_72 x)		; logior
   (cond ((not (unsafe-code))
@@ -1666,7 +1680,7 @@
         ((is_hwreg x)
          `(or	RESULT (REG,x)))
         (else
-         `(or	RESULT (& (+ GLOBALS (G_REG,x)))))))
+         `(or	RESULT (& GLOBALS ,(+ (G_REG x)))))))
 
 (define-sassy-macro (T_OP2_73 x)		; logxor
   (cond ((not (unsafe-code))
@@ -1683,7 +1697,7 @@
         ((is_hwreg x)
          `(xor	RESULT (REG,x)))
         (else
-         `(xor	RESULT (& (+ GLOBALS (G_REG,x)))))))
+         `(xor	RESULT (& GLOBALS ,(+ (G_REG x)))))))
 
 (define-sassy-macro (T_OP2_74 x)		; lsh
   `(fixnum_shift ,x shl  EX_LSH))
@@ -1723,12 +1737,12 @@
 (define-sassy-macro (T_OP2_84 x)		; cell-set!
   (cond ((is_hwreg x)
          `(begin
-            (mov	(& (+ RESULT-PAIR_TAG)) (REG,x))
+            (mov	(& RESULT-PAIR_TAG)) ,(+ (REG,x))
             (write_barrier -1 ,x)))
         (else
          `(begin
             (loadr	SECOND ,x)
-            (mov	(& (+ RESULT-PAIR_TAG)) SECOND)
+            (mov	(& RESULT-PAIR_TAG)) ,(+ SECOND)
             (write_barrier -1 -1)))))
 
 (define-sassy-macro (T_OP2_85 x)		; char<?
@@ -1813,7 +1827,7 @@
   `(mcall	M_CREG_SET))
 
 (define-sassy-macro (T_OP1_108)		; gc-counter
-  `(mov	RESULT (& (+ GLOBALS G_GC_CNT))))
+  `(mov	RESULT (& GLOBALS ,(+ G_GC_CNT))))
 
 (define-sassy-macro (T_OP2_109 x)		; make-string
   `(make_indexed_structure_byte ,x STR_HDR  EX_MAKE_STRING))
@@ -1955,7 +1969,7 @@
             (shr	RESULT)
             ,(if (is_hwreg x)
                  `(imul	RESULT (REG,x))
-                 `(imul	RESULT (& (+ GLOBALS (G_REG,x)))))))))
+                 `(imul	RESULT (& GLOBALS ,(+ (G_REG x)))))))))
 	
 (define-sassy-macro (T_OP2_206 x)		; fx=
   `(fixnum_compare ,x e  EX_FXEQ))
@@ -2077,25 +2091,25 @@
 
 (define-sassy-macro (T_OP1_401)		; vector-length:vec
   `(begin
-     (mov	RESULT (& (+ (- RESULT VEC_TAG))))
+     (mov	RESULT (& (- ,(+ RESULT VEC_TAG))))
      (shr	RESULT 8)))
 
 (define-sassy-macro (T_OP2_402 x)		; vector-ref:trusted
   `(begin
      (add	RESULT wordsize-VEC_TAG)
      ,@(if (is_hwreg x)
-           `((mov	RESULT (& (+ RESULT (REG,x)))))
+           `((mov	RESULT (& RESULT ,(+ (REG,x)))))
            `((loadr	TEMP ,x)
-             (mov	RESULT (& (+ RESULT TEMP)))))))
+             (mov	RESULT (& RESULT ,(+ TEMP)))))))
 
 (define-sassy-macro (T_OP3_403 x y)		; vector-set!:trusted
   `(do_indexed_structure_set_word ,x ,y VEC_TAG))
 
 (define-sassy-macro (T_OP1_404)		; car:pair
-  `(mov	RESULT (& (+ RESULT-PAIR_TAG))))
+  `(mov	RESULT (& RESULT ,(- PAIR_TAG))))
 
 (define-sassy-macro (T_OP1_405)		; cdr:pair
-  `(mov	RESULT (& (+ RESULT-PAIR_TAG wordsize))))
+  `(mov	RESULT (& RESULT ,(+ (- PAIR_TAG) wordsize))))
 
 (define-sassy-macro (T_OP2_406 x)		; =:fix:fix
   `(trusted_fixnum_compare ,x e))
@@ -2146,7 +2160,7 @@
 (define-sassy-macro (T_OP2_500 x)		; +:idx:idx
   (if (is_hwreg x)
       `(add	RESULT (REG,x))
-      `(add	RESULT (& (+ GLOBALS (G_REG,x))))))
+      `(add	RESULT (& GLOBALS ,(+ (G_REG x))))))
 
 (define-sassy-macro (T_OP2_501 x)		; +:fix:fix
   `(locals (L1)
@@ -2159,8 +2173,8 @@
 	
 (define-sassy-macro (T_OP2_502 x)		; -:idx:idx
   (if (is_hwreg x)
-      `(sub	RESULT (REG ,x))
-      `(sub	RESULT (& (+ GLOBALS (G_REG,x))))))
+      `(sub	RESULT ,(REG x))
+      `(sub	RESULT (& GLOBALS ,(+ (G_REG x))))))
 
 (define-sassy-macro (T_OP2_503 x)		; -:fix:fix
   `(locals (L1)
