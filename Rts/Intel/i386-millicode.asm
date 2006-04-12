@@ -424,7 +424,8 @@ Lginv2:	mov	RESULT, [RESULT-PAIR_TAG]
 	
 PUBLIC i386_argc_exception			; RESULT holds actual arg cnt
 	add	esp, 4				; Fixup GLOBALS
-	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
+        mov     SECOND, [GLOBALS+G_REG0]
+	mov	dword [GLOBALS+G_THIRD], SECOND
 	mov	SECOND, fixnum(EX_ARGC)
 	jmp	i386_signal_exception
 	

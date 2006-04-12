@@ -476,6 +476,7 @@ t_label(%1):
 %%L0:	
 	cmp	RESULT, fixnum(%1)
 	je short %%L1
+	mov	dword [GLOBALS+G_SECOND], fixnum(%1)
 	mcall	M_ARGC_EX
 	jmp	%%L0
 %%L1:
@@ -488,6 +489,7 @@ t_label(%1):
  %if %1 > 0
 %%L0:	cmp	RESULT, SECOND
 	jge short %%L1
+	mov	dword [GLOBALS+G_SECOND], fixnum(%1)
 	mcall	M_ARGC_EX
 	jmp	%%L0
 %%L1:
