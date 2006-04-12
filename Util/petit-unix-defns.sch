@@ -210,8 +210,12 @@
 
 (define (is-macosx?)
   (string=? "MacOS X" (cdr (assq 'os-name (system-features)))))
-
+(define load load)
 (define (load-compiler . how)
+  (define do-etags #f)
+  (define old-load load)
+  (define loaded-files '())
+
   (if (not (null? how))
       (case (car how)
         ((release) ;; matching code in sparc-unix.sch
@@ -219,8 +223,21 @@
          (nbuild-parameter 'verbose-load? #f)
          (nbuild-parameter 'development? #f))
         ((development) ;; matching code in petit-unix-common.sch
-         (nbuild-parameter 'development? #t))))
+         (nbuild-parameter 'development? #t))
+        ((etags)
+         (set! do-etags #t)
+         (set! load (lambda (filename)
+                      (let ((val (old-load filename)))
+                        (set! loaded-files (cons filename loaded-files))
+                        val))))
+        ))
   (load (make-filename "Util" "nbuild.sch"))
+  (set! load old-load)
+  (cond (do-etags 
+         (let ((cmd (apply string-append 
+                           (cons "etags " (apply append 
+                                                 (map (lambda (x) (list x " ")) loaded-files))))))
+           (system cmd))))
   (if (eq? 'petit *heap-type*)
       (configure-system))
   (welcome)
