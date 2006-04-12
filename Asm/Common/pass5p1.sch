@@ -437,10 +437,21 @@
       (paste-code! (as-code as) (- (as-lc as) 1))
       (as-code! as (list code))
       (cons code constants)))
+  
+  (define (pasteup-sexps)
+    (let ((code (as-code as))
+          (constants (list->vector (as-constants as))))
+      ;; maybe reverse, maybe flatten, but for now just let it be.
+      (cons (reverse code) constants)))
 
-  (if (bytevector? (car (as-code as)))
-      (pasteup-code)
-      (pasteup-strings)))
+  (cond ((bytevector? (car (as-code as)))
+         (pasteup-code))
+        ((string? (car (as-code as)))
+         (pasteup-strings))
+        ((pair? (car (as-code as)))
+         (pasteup-sexps))
+        (else
+         (error 'assemble-pasteup "Unknown Code Representation"))))
 
 (define (assemble-finalize! as)
   (let ((code (car (as-code as))))
