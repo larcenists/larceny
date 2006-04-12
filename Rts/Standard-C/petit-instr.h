@@ -415,14 +415,17 @@ extern cont_t twobit_cont_label;
   } while(0)
 
 #define twobit_argseq( n ) \
-   do { if (UNSAFE_FALSE(RESULT != fixnum(n))) { \
+   do { SECOND = fixnum(n); \
+        THIRD = reg(0); \
+        if (UNSAFE_FALSE(RESULT != fixnum(n))) { \
           FAIL( EX_ARGSEQ ); \
         } \
         integrity_check( "argseq" ); \
    } while(0)
 
 #define twobit_argsge( n ) \
-   do { SECOND=fixnum(n); \
+   do { SECOND = fixnum(n); \
+        THIRD = reg(0); \
         if (UNSAFE_FALSE(RESULT < fixnum(n))) { \
           FAIL( EX_ARGSGE ); \
         } \
