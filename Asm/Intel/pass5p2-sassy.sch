@@ -117,9 +117,15 @@
 
 ; Auxiliary assembler interface.
 
+(define emit-sassy 
+  (lambda (as . x)
+    (as-code! as (cons x (as-code as)))
+    (as-lc! as (+ (as-lc as) 1)))) ; FSK: perhaps incrementing by 1 won't work, but what the hell.
+
 (define emit-text-noindent
   (let ((linebreak (string #\newline)))
     (lambda (as fmt . operands)
+      (error 'emit-text-noindent "calls to emit-text should be replaced in Sassy")
       (emit-string! as (apply twobit-format #f fmt operands))
       (emit-string! as linebreak))))
 
@@ -133,7 +139,7 @@
 
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label)))
-    (emit-text as "begin_codevector ~a" name)
+    ;(emit-text as "begin_codevector ~a" name)
     (add-function as name #t entrypoint?)
     (set! code-indentation (string #\tab))
     (set! code-name name)))
@@ -145,8 +151,9 @@
 
 (define (end-compiled-scheme-function as)
   (set! code-indentation "")
-  (emit-text as "end_codevector ~a" code-name)
-  (emit-text as ""))
+  ;(emit-text as "end_codevector ~a" code-name)
+  ;(emit-text as "")
+  )
 
 (define code-indentation "")
 (define code-name "")
@@ -215,47 +222,54 @@
 (define-instruction $op1
   (lambda (instruction as)
     (list-instruction "op1" instruction)
-    (emit-primop.1arg! as (operand1 instruction))))
+    (emit-sassy as 'T_OP1
+	       (op1-primcode (operand1 instruction)))))
 
 (define-instruction $op2
   (lambda (instruction as)
     (list-instruction "op2" instruction)
-    (emit-primop.2arg! as
-		       (operand1 instruction)
-		       (regname (operand2 instruction)))))
+    (emit-sassy as 'T_OP2
+                (op2-primcode (operand1 instruction))
+                (operand2 instruction))))
 
 (define-instruction $op2imm
   (lambda (instruction as)
     (list-instruction "op2imm" instruction)
-    (emit-constant->register as (operand2 instruction) $r.argreg2)
-    (emit-primop.2arg! as (operand1 instruction) $r.argreg2)))
+    (emit-sassy as 'T_OP2IMM
+                (op2imm-primcode (operand1 instruction))
+                (constant-value (operand2 instruction)))))
 
 (define-instruction $op3
   (lambda (instruction as)
     (list-instruction "op3" instruction)
-    (emit-primop.3arg! as
-		       (operand1 instruction)
-		       (regname (operand2 instruction))
-		       (regname (operand3 instruction)))))
+    (emit-sassy as 'T_OP3
+                (op3-primcode (operand1 instruction))
+                (operand2 instruction)
+                (operand3 instruction))))
+
 
 (define-instruction $const
   (lambda (instruction as)
     (list-instruction "const" instruction)
-    (emit-constant->register as (operand1 instruction) $r.result)))
+    (if (immediate-constant? (operand1 instruction))
+	(emit-sassy as 'T_CONST_IMM
+                    (constant-value (operand1 instruction)))
+	(emit-sassy as 'T_CONST_CONSTVECTOR
+                    (emit-datum as (operand1 instruction))))))
+
 
 (define-instruction $global
   (lambda (instruction as)
     (list-instruction "global" instruction)
-    (emit-global->register! as
-			    (emit-global as (operand1 instruction))
-			    $r.result)))
+    (emit-sassy as 'T_GLOBAL
+                (emit-global as (operand1 instruction)))))
 
 (define-instruction $setglbl
   (lambda (instruction as)
     (list-instruction "setglbl" instruction)
-    (emit-register->global! as
-			    $r.result
-			    (emit-global as (operand1 instruction)))))
+    (emit-sassy as 'T_SETGLBL
+	       (emit-global as (operand1 instruction))
+	       (operand1 instruction))))
 
 (define-instruction $lambda
   (lambda (instruction as)
@@ -278,245 +292,118 @@
       (list-lambda-end)
       (set! code-offset (emit-codevector as 0))
       (set! const-offset (emit-constantvector as 0))
-      (emit-lambda! as 
-		    code-offset
-		    const-offset
-		    (operan2 instruction)))))
+      (emit-sassy as 'T_LAMBDA
+		 (compiled-procedure as entry)
+		 const-offset
+		 (operand2 instruction)))))
 
 (define-instruction $lexes
   (lambda (instruction as)
     (list-instruction "lexes" instruction)
-    (let ((n (operand1 instruction)))
-      (emit-sassy 
-       as
-       `((const2regf $r.result (fixnum (+ PROC_HEADER_WORDS 
-					  PROC_OVERHEAD_WORDS
-					  ,n
-					  1)))
-	 (alloc)
-	 (mov (dword $r.result) (| (<< (words2bytes 
-					(+ PROC_OVERHEAD_WORDS ,n 1))
-					 8)
-				     PROC_HDR))
-	 (loadr TEMP 0)
-	 (mov TEMP (+ (- TEMP PROC_TAG) PROC_CODEVECTOR_NATIVE))
-	 (mov (dword (+ RESULT PROC_CODEVECTOR_NATIVE)) TEMP)
-	 (loadr TEMP 0)
-	 (mov TEMP (+ (- TEMP PROC_TAG) PROC_CONSTVECTOR))
-	 (mov (dword (+ RESULT PROC_CONSTVECTOR)) TEMP)
-	 (init_closure ,n))))))
+    (emit-sassy as 'T_LEXES (operand1 instruction))))
 
 (define-instruction $args=
   (lambda (instruction as)
     (list-instruction "args=" instruction)
-    (if (not (unsafe-code))
-	(let ((n (operand1 instruction)))
-	  (emit-sassy as
-	   `((locals (L1 L0)
-	       (label L0
-		 (cmp RESULT (fixnum ,n))
-		 (je short L1)
-		 (mcall M_ARGC_EX)
-		 (jmp L0))
-	       (label L1))))))))
+    (emit-sassy as 'T_ARGSEQ (operand1 instruction))))
 
 (define-instruction $args>=
   (lambda (instruction as)
     (list-instruction "args>=" instruction)
-    (let ((n (operand1 instruction)))
-      (emit-sassy as
-	`((const2regf SECOND (fixnum ,n))
-	  ,@(if (and (not (unsafe-code))
-		    (> n 0))
-	       (list `(locals (L0 L1)
-			(label L0
-			  (cmp RESULT SECOND)
-			  (jge short L1)
-			  (mcall M_ARGC_EX)
-			  (jmp L0))
-			(label L1)))
-	       (list))
-	  (mcall M_VARARGS))))))
+    (emit-sassy as 'T_ARGSGE (operand1 instruction))))
 
 (define-instruction $invoke
   (lambda (instruction as)
     (list-instruction "invoke" instruction)
-    (let ((tgt (operand1 instruction)))
-      (emit-sassy as
-       (if (unsafe-code)
-	   `((timer-check)
-	     (storer 0 RESULT)
-	     (mov TEMP RESULT)
-	     (const2regf RESULT (fixnum ,tgt)) ; bogus
-	     (jmp (+ TEMP (- PROC_TAG) PROC_CODEVECTOR_NATIVE)))
-	   `(locals (L0 L1)
-	      (dec dword (+ GLOBALS G_TIMER))
-	      (jnz short L1)
-	      (label L0
-		(mcall M_INVOKE_EX))
-	      (label L1
-		(lea TEMP (+ RESULT (- 8 PROC_TAG)))
-		(test TEMP_LOW tag_mask)
-		(jnz short L0)
-		;; Observe TEMP points to proc+8 here and that if we were
-		;; really perverse we would lay the procedure out so that
-		;; the codevector is stored at offset 4, reducing the size
-		;; of the JMP instruction below.
-		(storer	0 RESULT)
-		(const2regf RESULT (fixnum ,tgt))
-		(jmp	(+ TEMP -8 PROC_CODEVECTOR_NATIVE)))))))))
+    (emit-sassy as 'T_INVOKE (operand1 instruction))))
 
 (define-instruction $restore
   (lambda (instruction as)
     (if (not (negative? (operand1 instruction)))
 	(begin
 	  (list-instruction "restore" instruction)
-	  (let ((n (min (operand1 instruction) (- *nregs* 1))))
-	    (let rep ((slotno 0))
-	      (cond ((<= slotno n)
-		     (emit-sassy as
-		      (if (is_hwreg slotno)
-			  `((mov (+ REG ,slotno) (dword (stkslot ,slotno))))
-			  `((mov TEMP (dword (stkslot ,slotno)))
-			    (mov (& (+ GLOBALS (G_REG ,slotno))) TEMP))))
-		     (rep (+ slotno 1))))))))))
+	  (emit-sassy as 'T_RESTORE
+		     (min (operand1 instruction) (- *nregs* 1)))))))
 
 (define-instruction $pop
   (lambda (instruction as)
     (if (not (negative? (operand1 instruction)))
 	(begin
 	  (list-instruction "pop" instruction)
-	  (emit-sassy as `(add CONT (framesize ,(operand1 instruction))))))))
+	  (emit-sassy as 'T_POP (operand1 instruction))))))
 
 (define-instruction $popstk
   (lambda (instruction as)
-    (error "POPSTK is not yet implemented by the x86-SASSY assembler.")))
+    (error "POPSTK is not yet implemented by the x86-NASM assembler.")))
 
 (define-instruction $stack
   (lambda (instruction as)
     (list-instruction "stack" instruction)
-    (emit-sassy as `(mov RESULT (stkslot ,(operand1 instruction))))))
+    (emit-sassy as 'T_STACK (operand1 instruction))))
 
 (define-instruction $setstk
   (lambda (instruction as)
     (list-instruction "setstk" instruction)
-    (emit-sassy as `(mov (& (stkslot ,(operand1 instruction))) RESULT))))
+    (emit-sassy as 'T_SETSTK (operand1 instruction))))
 
 (define-instruction $load
   (lambda (instruction as)
     (list-instruction "load" instruction)
-    (emit-sassy as
-     (if (is_hwreg (operand1 instruction))
-	 `(mov (reg ,(operand1 instruction)) (& (stkslot ,(operand2 instruction))))
-	 `(begin
-	    (mov TEMP (& (stkslot ,(operand2 instruction))))
-	    (storer ,(operand1 instruction) TEMP))))))
+    (emit-sassy as 'T_LOAD
+	       (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $store
   (lambda (instruction as)
     (list-instruction "store" instruction)
-    (emit-store as (operand1 instruction) (operand2 instruction))))
+    (emit-sassy as 'T_STORE
+	       (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $lexical
   (lambda (instruction as)
     (list-instruction "lexical" instruction)
-    (let rep ((ribno 0))
-      (cond ((< ribno (operand1 instruction))
-	     (emit-sassy as
-	      `(mov TEMP (& (+ TEMP (- PROC_TAG) PROC_REG0))))
-	     (rep (+ ribno 1)))))
-    (emit-sassy as
-     `(mov RESULT (& (+ TEMP (- PROC_TAG) PROC_REG0 (words2bytes ,(operand2 instruction))))))))
+    (emit-sassy as 'T_LEXICAL
+	       (operand1 instruction)
+	       (operand2 instruction))))
 
 (define-instruction $setlex
   (lambda (instruction as)
     (list-instruction "setlex" instruction)
-    (emit-sassy as
-     `(loadr TEMP 0))
-    (let rep ((ribno 0))
-      (cond ((< ribno (operand1 instruction))
-	     (emit-sassy as
-	      `(mov TEMP (& (+ TEMP (- PROC_TAG) PROC_REG0))))
-	     (rep (+ ribno 1)))))
-    (emit-sassy as
-     `(mov (& (+ TEMP (- PROC_TAG) PROC_REG0 (words2bytes ,(operand2 instruction)))) RESULT))))
+    (emit-sassy as 'T_SETLEX
+	       (operand1 instruction)
+	       (operand2 instruction))))
 
 (define-instruction $reg
   (lambda (instruction as)
     (list-instruction "reg" instruction)
-    (emit-sassy as `(loadr RESULT ,(operand1 instruction)))))
+    (emit-sassy as 'T_REG (operand1 instruction))))
 
-;;; Does not destroy RESULT.  The peephole optimizer uses that fact.
 (define-instruction $setreg
   (lambda (instruction as)
     (list-instruction "setreg" instruction)
-    (emit-sassy as `(storer ,(operand1 instruction) RESULT))))
+    (emit-sassy as 'T_SETREG (operand1 instruction))))
 
 (define-instruction $movereg
   (lambda (instruction as)
     (list-instruction "movereg" instruction)
-    (emit-sassy as
-     (cond ((is_hwreg (operand1 instruction))
-	    `(storer ,(operand2 instruction) (reg ,(operand1 instruction))))
-	   ((is_hwreg (operand2 instruction))
-	    `(loadr  ,(reg ,(operand2 instruction)) (operand1 instruction)))
-	   (else
-	    `(begin 
-	       (loadr TEMP ,(operand1 instruction))
-	       (storer ,(operand2 instruction) TEMP)))))))
+    (emit-sassy as 'T_MOVEREG
+	       (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $return
   (lambda (instruction as)
     (list-instruction "return" instruction)
-    (emit-sassy as '(jmp (& (+ CONT STK_RETADDR))))))
+    (emit-sassy as 'T_RETURN)))
 
 (define-instruction $nop
   (lambda (instruction as)
-    (list-instruction "nop" instruction)))
-
+    (list-instruction "nop" instruction)
+    (emit-sassy as 'T_NOP)))
 
 ; (define-instruction $save
 ;   (lambda (instruction as)
 ;     (if (not (negative? (operand1 instruction)))
 ;         (begin
 ;          (list-instruction "save" instruction)
-; 	 (emit-text as "T_SAVE ~a" (operand1 instruction))))))
-
-(define (emit-save0 as n)
-  (emit-sassy 
-   `(locals (L0 L1)
-      (label L0
-	(sub CONT (framesize ,n))
-	(cmp CONT (& (+ GLOBALS G_ETOP)))
-	(jge short L1)
-	(add CONT (framesize ,n))
-	(mcall M_STKOFLOW)
-	(jmp L0))
-      (label L1
-	(mov (dword (& CONT)) (recordedsize ,n))
-	;; Not necessary to store reg0 here, this is handled
-	;; explicitly by the generated code.
-	(xor	RESULT RESULT)
-	(mov	(dword (& (+ CONT STK_RETADDR))) RESULT)
-	,@(if (= (- (framesize n) (recordedsize n)) 8)
-	      ;; We have a pad word at the end -- clear it
-	      (list `(mov (dword (& (stkslot (+ n 1)))) RESULT))
-	      (list))))))
-
-
-;;; Initialize the numbered slot to the value of RESULT.
-;;; Using RESULT is probably OK because it is almost certainly 0
-;;; after executing T_SAVE0 and only T_STORE instructions
-;;; after that.
-(define (emit-save1 as i)
-  (emit-sassy as `(mov (dword (& (stkslot ,i))) RESULT)))
-(define (emit-store src tgt)
-  (emit-sassy as
-   (if (is_hwreg ,src)
-       `(mov (& (stkslot ,tgt)) (reg ,src))
-       `(begin 
-	  (loadr TEMP ,src)
-	  (mov (& (stkslot ,tgt)) TEMP)))))
+; 	 (emit-sassy as 'T_SAVE (operand1 instruction))))))
 
 (define-instruction $save
   (lambda (instruction as)
@@ -525,118 +412,74 @@
 	  (list-instruction "save" instruction)
 	  (let* ((n (operand1 instruction))
 		 (v (make-vector (+ n 1) #t)))
-	    (emit-save0 as n)
+	    (emit-sassy as 'T_SAVE0 n)
 	    (if (peephole-optimization)
 		(let loop ((instruction (next-instruction as)))
 		  (if (eqv? $store (operand0 instruction))
 		      (begin (list-instruction "store" instruction)
-			     (emit-store as 
-					 (operand1 instruction)
-					 (operand2 instruction))
+			     (emit-sassy as 'T_STORE 
+					(operand1 instruction)
+					(operand2 instruction))
 			     (consume-next-instruction! as)
 			     (vector-set! v (operand2 instruction) #f)
 			     (loop (next-instruction as))))))
 	    (do ((i 0 (+ i 1)))
 		((= i (vector-length v)))
 	      (if (vector-ref v i)
-		  (emit-save1 as i))))))))
+		  (emit-sassy as 'T_SAVE1 i))))))))
 
 (define-instruction $setrtn
   (lambda (instruction as)
     (list-instruction "setrtn" instruction)
-    (emit-sassy as `(mov (dword (& (+ CONT STK_RETADDR))) 
-			 (t_label ,(compiled-procedure (operand1 instruction)))))))
+    (emit-sassy as 'T_SETRTN 
+	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $apply
   (lambda (instruction as)
     (list-instruction "apply" instruction)
-    (emit-sassy as
-     `(begin
-	(timer-check)
-	(loadr TEMP ,(operand2 instruction))
-	(mov (& (+ GLOBALS G_THIRD)) TEMP)
-	(loadr SECOND ,(operand1 instruction))
-	(mcall M_APPLY)
-	(loadr TEMP 0)
-	(mov TEMP (& (+ TEMP (- PROC_TAG) PROC_CODEVECTOR_NATIVE)))
-	(jmp TEMP)))))
-
-;;; JUMP: Arguments are levels, label, and name of the code vector
-;;; into which we are jumping (an artifact of the labelling system
-;;; in this implementation)
+    (emit-sassy as 'T_APPLY
+	       (operand1 instruction)
+	       (operand2 instruction))))
 
 (define-instruction $jump
   (lambda (instruction as)
     (list-instruction "jump" instruction)
-    (let ((levels (operand1 instruction))
-	  (label  (operand2 instruction))
-	  (name   (compiled-procedure (operand2 instruction))))
-      (emit-sassy
-       `(begin 
-	  (timer-check)
-	  ,@(if (> levels 0)
-		(list `((loadr TEMP 0)
-			,@(let rep ((ribno 0))
-			    (cond ((< ribno levels)
-				   (cons 
-				    '(mov TEMP (& (+ TEMP (- PROC_TAG) PROC_REG0)))
-				    (rep (+ ribno 1))))
-				  (else 
-				   (list))))
-			(storer 0 TEMP)))
-		(list))
-	  (jmp ,name))))))
-
-;;; The MAL assembler translates BRANCH and BRANCHF to SKIP and SKIPF
-;;; as appropriate to avoid timer checks.
-
-(define (emit-skip as label)
-  (emit-sassy as `(jmp (t_label ,label))))
-(define (emit-skipf as label)
-  (emit-sassy as `(begin (cmp RESULT_LOW FALSE_CONST)
-			 (je (t_label ,label)))))
-(define (emit-branch as label)
-  (emit-sassy as `(begin (dec (dword (& (+ GLOBALS G_TIMER))))
-			 (jnz (t_label ,label))
-			 (mcall M_TIMER_EXCEPTION)
-			 (jmp (t_label ,label)))))
-(define (emit-branchf as label)
-  (emit-sassy as `(begin (timer-check)
-			 (cmp RESULT_LOW FALSE_CONST)
-			 (je (t_label ,label)))))
-(define (emit-check as x1 x2 x3 x4)
-  (emit-sassy as `(begin (cmp RESULT_LOW FALSE_CONST)
-			 (je (t_label ,x4)))))
+    (emit-sassy as 'T_JUMP
+               (operand1 instruction)
+               (operand2 instruction)
+	       (compiled-procedure as (operand2 instruction)))))
 
 (define-instruction $skip
   (lambda (instruction as)
     (list-instruction "skip" instruction)
-    (emit-skip as (compiled-procedure as (operand1 instruction)))))
+    (emit-sassy as
+	       'T_SKIP
+	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $branch
   (lambda (instruction as)
     (list-instruction "branch" instruction)
-    (emit-text as
+    (emit-sassy as
 	       (if (memq (operand1 instruction) 
 			 (user-data.labels (as-user as)))
-		   "T_BRANCH ~a"
-		   "T_SKIP ~a")
+		   'T_BRANCH
+		   'T_SKIP)
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $branchf
   (lambda (instruction as)
     (list-instruction "branchf" instruction)
-    (emit-text as 
+    (emit-sassy as 
 	       (if (memq (operand1 instruction)
 			 (user-data.labels (as-user as)))
-		   "T_BRANCHF ~a" 
-		   "T_SKIPF ~a")
+		   'T_BRANCHF 
+		   'T_SKIPF)
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $check
   (lambda (instruction as)
     (list-instruction "check" instruction)
-    (emit-text as "T_CHECK ~a, ~a, ~a, ~a"
+    (emit-sassy as 'T_CHECK
                (operand1 instruction)
                (operand2 instruction)
                (operand3 instruction)
@@ -645,7 +488,7 @@
 (define-instruction $trap
   (lambda (instruction as)
     (list-instruction "trap" instruction)
-    (emit-text as "T_TRAP ~a, ~a, ~a, ~a"
+    (emit-sassy as 'T_TRAP
                (operand1 instruction)
                (operand2 instruction)
                (operand3 instruction)
@@ -655,46 +498,20 @@
   (lambda (instruction as)
     (list-instruction "const/setreg" instruction)
     (if (immediate-constant? (operand1 instruction))
-	(emit-text as "T_CONST_SETREG_IMM  ~a, ~a"
+	(emit-sassy as 'T_CONST_SETREG_IMM 
 		   (constant-value (operand1 instruction))
 		   (operand2 instruction))
-	(emit-text as "T_CONST_SETREG_CONSTVECTOR ~a, ~a"
+	(emit-sassy as 'T_CONST_SETREG_CONSTVECTOR
 		   (emit-datum as (operand1 instruction))
                    (operand2 instruction)))))
-
-(define-instruction $op1/branchf
-  (lambda (instruction as)
-    (list-instruction "op1/branchf" instruction)
-    (emit-text as "T_OP1_BRANCHF_~a ~a  ; ~a"
-	       (op-primcode (operand1 instruction))
-	       (compiled-procedure as (operand2 instruction))
-	       (operand1 instruction))))
-
-(define-instruction $op2/branchf
-  (lambda (instruction as)
-    (list-instruction "op2/branchf" instruction)
-    (emit-text as "T_OP2_BRANCHF_~a ~a, ~a ; ~a"
-	       (op-primcode (operand1 instruction))
-	       (operand2 instruction)
-	       (compiled-procedure as (operand3 instruction))
-	       (operand1 instruction))))
-
-(define-instruction $op2imm/branchf
-  (lambda (instruction as)
-    (list-instruction "op2imm/branchf" instruction)
-    (emit-text as "T_OP2IMM_BRANCHF_~a  ~a, ~a  ; ~a"
-	       (op-primcode (operand1 instruction))            ; Note, not op2imm-primcode
-	       (constant-value (operand2 instruction))
-	       (compiled-procedure as (operand3 instruction))
-	       (operand1 instruction))))
 
 (define-instruction $global/invoke
   (lambda (instruction as)
     (list-instruction "global/invoke" instruction)
-    (emit-text as "T_GLOBAL_INVOKE  ~a, ~a  ; ~a" 
-	       (emit-global as (operand1 instruction))
-	       (operand2 instruction)
-	       (operand1 instruction))))
+    (emit-sassy as 'T_GLOBAL_INVOKE
+                (emit-global as (operand1 instruction))
+                (operand2 instruction))))
+
 
 ;    Note, for the _check_ optimizations there is a hack in place.  Rather
 ;    than using register numbers in the instructions the assembler emits
