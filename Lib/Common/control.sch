@@ -371,10 +371,6 @@
     ;; Tail call--call/cm frame is still at top of stack
     (thunk)))
 
-;; A CMS (continuation mark set) should be opaque; transparent for now.
-(define (cms-box alists) alists)
-(define (cms-unbox cms) cms)
-
 ;; dynamic-wind redefinition
 ;; When the before and after thunks of a dynamic-wind execute, they
 ;; should observe the continuation marks belonging to the continuation
@@ -388,33 +384,77 @@
             during
             (lambda () (set! *cms* cms) (after)))))))
 
+;; This would be nice, but we don't have records everywhere yet.
+;(require 'record)
+;
+;(define cms/rtd
+;  (make-record-type "continuation-mark-set" '(data) #f))
+;
+;((record-updater (record-type-descriptor cms/rtd) 'printer)
+; cms/rtd
+; (lambda (obj port)
+;   (display "#<continuation-mark-set>" port)))
+;
+;(define cms-box (record-constructor cms/rtd))
+;(define cms-unbox (record-accessor cms/rtd 'data))
+
 ;; Library procedures
 
-;; continuation-marks : continuation-procedure -> cms
-;; Need to change continuation implementation if we need 
-;; to support this function.
+; continuation-mark-set?: Any -> Boolean
+(define continuation-mark-set?)
 
-;; current-continuation-marks : -> cms
-(define (current-continuation-marks)
-  (cms-box *cms*))
+; current-continuation-marks: -> CMS
+(define current-continuation-marks)
 
-;; continuation-mark-set->list : cms key -> (list-of mark)
-(define (continuation-mark-set->list cms key)
-  (define (process alists)
-    (cond ((pair? alists)
-	   (let loop ((alist (car alists)))
-	     (cond ((pair? alist)
-		    (let ((p0 (car alist)))
-		      (if (eq? key (car p0))
-			  (cons (cdr p0) (process (cdr alists)))
-			  (loop (cdr alist)))))
-		   ((null? alist)
-		    (cons '... (process (cdr alists)))))))
-	  ((null? alists)
-	   '())))
-  (process (cms-unbox cms)))
+; continuation-mark-set->list: CMS x key -> (list-of mark)
+(define continuation-mark-set->list)
 
+(begin
+  ;; A CMS (continuation mark set) should be opaque.  Sadly, records aren't
+  ;; available everywhere, so we'll make do with structures:
+  (define cms-tag (list 'cms-tag))
 
+  (define (cms-box alists)
+    (let ((cms (make-structure 2)))
+      (vector-like-set! cms 0 cms-tag)
+      (vector-like-set! cms 1 alists)
+      cms))
 
+  (define (cms-unbox cms)
+    (vector-like-ref cms 1))
+
+  (set! continuation-mark-set?
+    (lambda (cms)
+      (and (structure? cms)
+           (= 2 (vector-like-length cms))
+           (eq? cms-tag (vector-like-ref cms 0)))))
+
+  (set! current-continuation-marks
+    (lambda ()
+      (cms-box *cms*)))
+
+  (set! continuation-mark-set->list 
+    (lambda (cms key)
+      (define (process alists)
+        (cond ((pair? alists)
+               (let loop ((alist (car alists)))
+                 (cond ((pair? alist)
+                        (let ((p0 (car alist)))
+                          (if (eq? key (car p0))
+                            (cons (cdr p0) (process (cdr alists)))
+                            (loop (cdr alist)))))
+                       ((null? alist)
+                        (cons '... (process (cdr alists)))))))
+              ((null? alists)
+               '())))
+      (process (cms-unbox cms)))))
+
+;; Print them nicely, so they can pretend to be opaque:
+(let ((old-structure-printer (structure-printer)))
+  (structure-printer
+    (lambda (obj port quote?)
+      (if (continuation-mark-set? obj)
+        (display "#<continuation-mark-set>" port)
+        (old-structure-printer obj port quote?)))))
 
 ; eof

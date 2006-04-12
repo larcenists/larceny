@@ -898,6 +898,7 @@
 		    current-continuation-marks)
   (environment-set! larc 'continuation-mark-set->list
 		    continuation-mark-set->list)
+  (environment-set! larc 'continuation-mark-set? continuation-mark-set?)
 
   ;; require (library system)
   (environment-set! larc 'current-larceny-root current-larceny-root)
