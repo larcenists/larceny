@@ -542,6 +542,7 @@
   (environment-set! larc 'relative-path-string? relative-path-string?)
   (environment-set! larc 'absolute-path-string? absolute-path-string?)
   (environment-set! larc 'file-modification-time file-modification-time)
+  (environment-set! larc 'file-newer? file-newer?)
   (environment-set! larc 'flush-output-port flush-output-port)
   (environment-set! larc 'format format)
   (environment-set! larc 'get-output-string get-output-string)
@@ -901,6 +902,8 @@
   ;; require (library system)
   (environment-set! larc 'current-larceny-root current-larceny-root)
   (environment-set! larc 'current-require-path current-require-path)
+  (environment-set! larc 'current-library-resolver current-library-resolver)
+  (environment-set! larc 'require require)
 
   ;; miscellaneous extensions and hacks
 
