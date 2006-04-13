@@ -126,11 +126,11 @@
 (define build-runtime-system build-runtime) ; Old name
 
 (define (build-petit)
-  (build-application "petit.exe" '()))
+  (build-application "petit.bin.exe" '()))
 
 (define (build-twobit)
   (make-petit-development-environment)
-  (build-application "twobit.exe" (petit-development-environment-lop-files)))
+  (build-application "twobit.bin.exe" (petit-development-environment-lop-files)))
 
 ; Set up for loading Util/petit-r5rs-heap.sch
 (define (build-r5rs-files)
@@ -188,7 +188,7 @@
 				(if (memq n extensions) (list ext) '()))
 			      names
 			      ext))))
-    (system "del petit.exe")
+    (system "del petit.bin.exe")
     (system (string-append "del petit" (obj-suffix)))
     (system "del petit.pdb")
     (system "del petit.heap")

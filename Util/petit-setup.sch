@@ -188,8 +188,8 @@
 
   (case target-arch
     ((cygwin win32)
-       (set! *twobit-executable-name* "twobit.exe")
-       (set! *petit-executable-name*  "petit.exe")))
+       (set! *twobit-executable-name* "twobit.bin.exe")
+       (set! *petit-executable-name*  "petit.bin.exe")))
 
   (set! *make:larceny-target*
         (case target-arch

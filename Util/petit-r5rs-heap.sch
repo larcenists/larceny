@@ -28,10 +28,10 @@
 (if (string=? "Win32" (cdr (assq 'os-name (system-features))))
     (begin
       (set! mv-command "rename")
-      (set! petit-command ".\\petit-r5rs.exe"))
+      (set! petit-command ".\\petit-r5rs.bin.exe"))
     (begin
       (set! mv-command "mv")
-      (set! petit-command "./petit-r5rs")))
+      (set! petit-command "./petit-r5rs.bin")))
 
 (system (string-append petit-command " -reorganize-and-dump petit-r5rs.heap"))
 (system (string-append mv-command " petit-r5rs.heap.split petit-r5rs.heap"))

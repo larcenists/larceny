@@ -20,7 +20,7 @@
 
 (let ((os (cdr (assq 'os-name (system-features)))))
   (cond ((equal? os "Win32")
-	 (set! exe-suffix ".exe")
+	 (set! exe-suffix ".bin.exe")
 	 (set! rm-command "del")
 	 (set! rmdir-command "rmdir")
 	 (set! pathsep "\\"))

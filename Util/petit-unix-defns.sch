@@ -130,7 +130,8 @@
 
 
 (define (copy-script name)
-  (if (not (eq? *host:os* 'win32))
+  (if (eq? *host:os* 'win32)
+    (copy-file/regexp "Scripts" "larceny.bat" (string-append name ".bat"))
     (copy-file/regexp "Scripts" "larceny.sh" name)))
 
 ;; sparc-unix.sch copies the resulting larceny.bin executable to
@@ -303,7 +304,8 @@
 				(if (memq n extensions) (list ext) '()))
 			      names
 			      ext))))
-    (delete-files `("petit" "petit.exe" ,(string-append "petit" (obj-suffix)) 
+    (delete-files `("petit.bin" "petit.bin.exe"
+                    ,(string-append "petit" (obj-suffix)) 
 		    "petit.pdb"
 		    "petit.heap" 
 		    ,(string-append "libpetit" (lib-suffix))
