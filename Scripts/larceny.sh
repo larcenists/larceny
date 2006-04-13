@@ -6,7 +6,7 @@
 # looks in the same directory as itself.
 
 # You can specify a particular LARCENY_ROOT here:
-# export LARCENY_ROOT=/usr/local/lib/larceny
+# LARCENY_ROOT=/usr/local/lib/larceny
 
 if [ -z "$LARCENY_ROOT" ]; then
     # To guess LARCENY_ROOT, we start with the directory containing this
@@ -18,8 +18,10 @@ if [ -z "$LARCENY_ROOT" ]; then
     [ "`basename "$dir"`" = Scripts ] && dir="`dirname "$dir"`"
 
     # Now we have LARCENY_ROOT.
-    export LARCENY_ROOT="$dir"
+    LARCENY_ROOT="$dir"
 fi
+
+export LARCENY_ROOT
 
 # Do not remove the #option comments following each case branch; they
 # are used for generating help text.
