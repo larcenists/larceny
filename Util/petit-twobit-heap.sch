@@ -10,9 +10,12 @@
 
 (define (dump host . native)
   (load "Util/petit-setup.sch")
+
   (apply setup 'scheme: 'larceny 'host: host native)
 
   (load-compiler)
+
+  (load "Util/petit-compile-file.sch")
 
   (require 'debug)
   (require 'inspect-cont)
