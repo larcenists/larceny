@@ -641,7 +641,19 @@ osdep_dlsym( word handle, char *sym )
 int
 osdep_setenv(const char *name, const char *value, int overwrite)
 {
-  return setenv(name, value, overwrite);
+  if (overwrite || getenv(name) == NULL) {
+    char *buf;
+
+    buf = malloc(strlen(name) + strlen(value) + 2);
+    if ( buf == NULL ) return -1;
+
+    sprintf( buf, "%s=%s", name, value );
+    putenv( buf );
+
+    free( buf );
+  }
+
+  return 0;
 }
 
 #endif /* defined(UNIX) */
