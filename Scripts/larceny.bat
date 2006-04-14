@@ -23,22 +23,20 @@ if %~n0 == petit (
     echo Usage:
     echo     petit LARCENYOPTIONS
     echo     twobit LARCENYOPTIONS
-    exit 1
+    goto :EOF
 )
 
-REM Shouldn't get here:
-exit 1
+goto :EOF
 
 :check
 
 if not exist %1 (
     echo Not found: %1 >&2
-    exit 1
+    goto :EOF
 ) else if not exist %3 (
     echo Not found: %3 >&2
-    exit 1
+    goto :EOF
 )
 
 %*
-exit 0
 
