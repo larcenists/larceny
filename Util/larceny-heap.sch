@@ -254,7 +254,7 @@
 
 (gctwa)
 (dump-interactive-heap "larceny.heap")
-(system "./larceny.bin -reorganize-and-dump larceny.heap")
+(system "./larceny.bin -reorganize-and-dump -heap larceny.heap")
 (system "/bin/mv larceny.heap.split larceny.heap")
 
 ; eof

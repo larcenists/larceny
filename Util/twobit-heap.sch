@@ -23,7 +23,7 @@
        (pretty-print x port))))
 
 (dump-interactive-heap "twobit.heap")
-(system "./larceny.bin -reorganize-and-dump twobit.heap")
+(system "./larceny.bin -reorganize-and-dump -heap twobit.heap")
 (system "/bin/mv twobit.heap.split twobit.heap")
 
 ; eof
