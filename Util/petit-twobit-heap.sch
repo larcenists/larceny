@@ -1,5 +1,5 @@
 ; Load script for building a heap image with all compiler names exposed.
-; For Petit Larceny only.
+; For Petit Larceny only.  Make sure you start twobit.bin with -stopcopy.
 ;
 ; Before you use this script, you must compile the development environment
 ; and debugger.  The easiest way to do that is to run 'build-twobit' in
@@ -7,6 +7,7 @@
 
 (display "Thanks for dumping a Petit Twobit heap.  Now you need to say\n")
 (display "something like (dump 'linux-el) or (dump 'win32 'native)\n")
+(display "(N.B.: heap dumping only works with -stopcopy\n")
 
 (define (dump host . native)
   (load "Util/petit-setup.sch")

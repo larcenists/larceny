@@ -253,6 +253,8 @@
 (define (file-modification-time filename)
   (file-io/file-modification-time filename))
 
+; Maybe this should use >= instead?  Usually what we actually want is
+; file-not-older?.
 (define (file-newer? f1 f2)
   (let ((t1 (file-modification-time f1))
         (t2 (file-modification-time f2)))
