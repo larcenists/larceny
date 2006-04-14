@@ -127,7 +127,7 @@
 CC=gcc
 DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS=-c -falign-functions=4 -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
+CFLAGS=-c -falign-functions=4 -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE) -DUSER=$(USER)
 AS=nasm
 ASFLAGS=-f elf -IIntel/ -IBuild/ -DLINUX")
 
@@ -137,7 +137,7 @@ ASFLAGS=-f elf -IIntel/ -IBuild/ -DLINUX")
 CC=gcc
 DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS=-c -fno-common -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)")
+CFLAGS=-c -fno-common -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE) -DUSER=$(USER)")
 
 ; Petit Larceny: Win32: Metrowerks CodeWarrior 6
 (define make-template-petit-win32-cw6
@@ -165,7 +165,7 @@ AS=nasmw
 ; Probably not up-to-date, has not been tested for some time!
 (define make-template-petit-osf1-decc
 "CC=cc
-CCXFLAGS=-g3 -taso -xtaso_short -ieee
+CCXFLAGS=-g3 -taso -xtaso_short -ieee -DUSER=$(USER)
 LD_SHARED=ld -shared -taso -g3 -soname libpetit.so -o libpetit.so -lm -lc -all
 # Needed because make leaves the -o off.
 # Why is this here?  See other .c.o rule below.
@@ -183,7 +183,7 @@ LDXFLAGS=#Util/ffi-dummy.o  # For compiling with -p (avoids linker trouble)
 CFLAGS=-c -ISys -IBuild -IStandard-C \\
 	$(DEBUG) $(OPTIMIZE) $(PROFILE) $(TCOV) $(BDW_DEBUG) $(CCXFLAGS)
 CCXFLAGS=-D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wmissing-prototypes \\
-	-Wimplicit -Wreturn-type -Wunused -Wuninitialized
+	-Wimplicit -Wreturn-type -Wunused -Wuninitialized -DUSER=$(USER)
 AS=../Util/gasmask.sh
 LIBS=-lm -ldl
 .c.o:
@@ -215,7 +215,7 @@ ASFLAGS=-P -ISparc -IBuild
 (define make-template-target-sparc-solaris
 "larceny.bin: $(LARCENY_OBJECTS) Util/ffi-dummy.o
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(LARCENY_OBJECTS) \\
-		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS) -DUSER=$(USER)
 	/bin/rm -f Sys/version.o")
 
 ; SPARC-SOLARIS with Boehm collector
@@ -224,7 +224,7 @@ ASFLAGS=-P -ISparc -IBuild
 	( cd bdw-gc ; make gc.a )
 	$(CC) $(PROFILE) $(TCOV) -o bdwlarceny.bin $(BDW_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) \\
-		$(BOEHM_GC_LIBRARIES) $(LDXFLAGS) $(LDYFLAGS)
+		$(BOEHM_GC_LIBRARIES) $(LDXFLAGS) $(LDYFLAGS) -DUSER=$(USER)
 	/bin/rm -f Sys/version.o")
 
 ; Unix: generic

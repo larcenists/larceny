@@ -14,6 +14,7 @@
  *  CRM-114                     0.52
  *  Dear John                   0.53
  *  Operation Drop-Kick         0.90
+ *  Hi There!                   0.91
  *  Children's Ice Cream
  *  Definite Missile Track
  *  Deviated Prevert
@@ -24,7 +25,6 @@
  *  Goldie
  *  Grain Alcohol and Rainwater
  *  Group Commander Mandrake
- *  Hi There!
  *  Horsing Around
  *  'King' Kong
  *  Mein Fuhrer
@@ -52,10 +52,10 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 90;
-char *larceny_version_qualifier = " \"Operation Drop-Kick\"";
+int  larceny_minor_version = 91;
+char *larceny_version_qualifier = "dev \"Hi There!\"";
 
-char *date = DATE;
+char *date = DATE " " TIME;
 char *user = USER;
 
 /* Corresponds to the OS list in Rts/Sys/config.h */

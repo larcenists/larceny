@@ -530,10 +530,25 @@
 
 (define features-boilerplate-end 
 "#ifndef DATE
-#  define DATE \"1964-01-29\"
+#  ifdef __DATE__
+#    define DATE __DATE__
+#  else
+#    define DATE \"Jan 29 1964\"
+# endif
+#endif
+#ifndef TIME
+#  ifdef __TIME__
+#    define TIME __TIME__
+#  else
+#    define TIME \"03:00:00\"
+#  endif
 #endif
 #ifndef USER
-#  define USER \"stanley\"
+#  ifdef __USER__
+#    define USER __USER__
+#  else
+#    define USER \"stanley\"
+#  endif
 #endif
 #endif /* INCLUDED_CONFIG_H */
 ")

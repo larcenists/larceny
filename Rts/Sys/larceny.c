@@ -114,11 +114,12 @@ int main( int argc, char **os_argv )
 #endif
 
 #ifndef PETIT_LARCENY
-  consolemsg( "%s v%d.%d%s (%s:%s:%s)",
+  consolemsg( "%s v%d.%d%s (%s, %s:%s:%s)",
               larceny_system_name,
               larceny_major_version, 
               larceny_minor_version,
               larceny_version_qualifier,
+              date,
               larceny_gc_technology,
               osname, 
               (globals[ G_CACHE_FLUSH ] ? "split" : "unified") );
