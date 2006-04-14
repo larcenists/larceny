@@ -282,15 +282,7 @@ int
 osdep_setenv(const char *name, const char *value, int overwrite)
 {
   if (overwrite || getenv(name) == NULL) {
-    char *buf;
-
-    buf = malloc(strlen(name) + strlen(value) + 2);
-    if ( buf == NULL ) return -1;
-
-    sprintf( buf, "%s=%s", name, value );
-    _putenv( buf );
-
-    free( buf );
+    _putenv_s(name, value);
   }
 
   return 0;

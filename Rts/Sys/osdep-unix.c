@@ -638,11 +638,62 @@ osdep_dlsym( word handle, char *sym )
 #endif
 }
 
+/*
+ * osdep_setenv needs to keep track of what memory it allocates, so it can free
+ * it later.  To do this, we keep a linked list of a pointer to the buffer we
+ * allocate and a pointer to the matching value that will be returned by
+ * getenv.  (On conforming putenv()s, value will point into buffer, but on some
+ * older systems, which copy the argue to putenv, it may not.  This should be
+ * correct in either case, provided getenv(FOO) == getenv(FOO).)
+ */
+struct setenv_struct {
+    char *buffer;
+    char *value;
+    struct setenv_struct *next;
+};
+
 int
 osdep_setenv(const char *name, const char *value, int overwrite)
 {
-  if (overwrite || getenv(name) == NULL) {
+  static struct setenv_struct *setenv_list = NULL;
+  char *oldvalue;
+  
+  /*
+   * The value returned by getenv provides an index into setenv_list for
+   * buffers we have allocated.
+   */
+  oldvalue = getenv(name);
+
+  if (overwrite || oldvalue == NULL) {
     char *buf;
+    struct setenv_struct *node;
+
+    for (node = setenv_list; node != NULL; node = node->next) {
+      if (node->value == oldvalue) {
+        /*
+         * We're replacing an environment variable that _we_ set earlier.
+         * First we have to tell putenv to release its pointer to the old
+         * buffer, and then we can free it.
+         */
+        putenv(name);
+        free(node->buffer);
+        break;
+      }
+    }
+
+    /*
+     * We haven't allocated for this env var before, so we need a new node
+     * in our linked list.  Stick it on the head of the list.
+     */
+    if (node == NULL) {
+      node = malloc(sizeof(*node));
+      if (node == NULL) {
+        return -1;
+      }
+
+      node->next = setenv_list;
+      setenv_list = node;
+    }
 
     buf = malloc(strlen(name) + strlen(value) + 2);
     if ( buf == NULL ) return -1;
@@ -650,7 +701,12 @@ osdep_setenv(const char *name, const char *value, int overwrite)
     sprintf( buf, "%s=%s", name, value );
     putenv( buf );
 
-    free( buf );
+    /*
+     * Remember the address of the buffer we allocated and the value that
+     * getenv will return next time corresponding to that buffer.
+     */
+    node->buffer = buf;
+    node->value  = getenv(name);
   }
 
   return 0;
