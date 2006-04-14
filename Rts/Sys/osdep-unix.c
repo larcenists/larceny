@@ -657,6 +657,14 @@ osdep_setenv(const char *name, const char *value, int overwrite)
 {
   static struct setenv_struct *setenv_list = NULL;
   char *oldvalue;
+
+  /*
+   * The name had better not have an = in it, or funny things will
+   * happen.
+   */
+  if (strchr(name, '=')) {
+      return -1;
+  }
   
   /*
    * The value returned by getenv provides an index into setenv_list for
@@ -673,9 +681,11 @@ osdep_setenv(const char *name, const char *value, int overwrite)
         /*
          * We're replacing an environment variable that _we_ set earlier.
          * First we have to tell putenv to release its pointer to the old
-         * buffer, and then we can free it.
+         * buffer, and then we can free it.  We have to discard the
+         * constness from name to avoid a compiler warning -- we know if
+         * there's no '=' in name then putenv won't hold onto it.
          */
-        putenv(name);
+        putenv((char *)name);
         free(node->buffer);
         break;
       }
