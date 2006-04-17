@@ -97,7 +97,7 @@
   (system "del vc60.pdb")
   (execute
    (twobit-format #f
-		  "link.exe /dll /noentry /export:twobit_load_table /debug /out:\"~a\" @petit-objs.lnk petit.lib"
+		  "link.exe /dll /noentry /export:twobit_load_table /debug /out:\"~a\" @petit-objs.lnk petit.bin.lib"
 		  output-name)))
 
 (define-compiler 

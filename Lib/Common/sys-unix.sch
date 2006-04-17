@@ -164,10 +164,13 @@
   (zero? (syscall syscall:access fn unix:access-exists)))
 
 (define (osdep/relative-path-string? path)
-  (not (char=? #\/ (string-ref path 0))))
+  (not (osdep/absolute-path-string? path)))
 
+; Why is this file used on Win32?  We'll support windows paths...for now.
 (define (osdep/absolute-path-string? path)
-  (not (osdep/relative-path-string? path)))
+  (or (char=? #\/ (string-ref path 0))
+      (and (> (string-length path) 1)
+           (char=? #\: (string-ref path 1)))))
 
 
 ; Other system hooks

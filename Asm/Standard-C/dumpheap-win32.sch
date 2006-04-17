@@ -99,7 +99,7 @@
   (system "del vc60.pdb")
   (execute
    (twobit-format #f
-		  "link.exe /dll /noentry /export:twobit_load_table /debug /out:~a @petit-objs.lnk petit.lib"
+		  "link.exe /dll /noentry /export:twobit_load_table /debug /out:~a @petit-objs.lnk petit.bin.lib"
 		  output-name)))
 
 (define (c-linker:msvc-win32 output-name object-files libs)
@@ -130,7 +130,7 @@
   (create-indirect-file "petit-objs.lnk" object-files)
   (execute
    (twobit-format #f
-		  "mwld -noentry -shared -export sym=twobit_load_table -g -o ~a @petit-objs.lnk petit.lib"
+		  "mwld -noentry -shared -export sym=twobit_load_table -g -o ~a @petit-objs.lnk petit.bin.lib"
 		  output-name)))
 
 (define (c-linker:mwld-win32 output-name object-files libs)
@@ -173,7 +173,7 @@
   (create-indirect-file "petit-objs.lnk" object-files)
   (execute
    (twobit-format #f
-		  "mwld -noentry -shared -export sym=twobit_load_table -g -o ~a @petit-objs.lnk petit.lib"
+		  "mwld -noentry -shared -export sym=twobit_load_table -g -o ~a @petit-objs.lnk petit.bin.lib"
 		  output-name)))
 
 (define (c-linker:gcc-win32 output-name object-files libs)
