@@ -63,7 +63,7 @@
       (install-procedures (interaction-environment)
                           '(; Compilation
 			    compile-files
-                            ;macro-expand-expression
+                            macro-expand-expression
                             ; On-line help
                             help
                             ; Compiler and assembler switches
@@ -223,7 +223,7 @@
       (set! petit-command "./petit-larceny.bin")))
 
 (system
- (string-append petit-command " -reorganize-and-dump petit-larceny.heap"))
+ (string-append petit-command " -reorganize-and-dump -heap petit-larceny.heap"))
 (system
  (string-append mv-command " petit-larceny.heap.split petit-larceny.heap"))
 
