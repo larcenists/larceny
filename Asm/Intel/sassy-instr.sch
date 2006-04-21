@@ -61,7 +61,8 @@
 ;;;   INLINE_ASSIGNMENT  inline the write barrier (partially)
 
 ;; [Maybe (make-assembly-structure ...)]
-(define current-sassy-assembly-structure (make-parameter #f))
+(define current-sassy-assembly-structure 
+  (make-parameter "current-sassy-assembly-structure" #f))
 
 (define (unsafe-globals)
   (unsafe-code))
@@ -926,7 +927,7 @@
     `(label ,L1)
     (ia86.mcall	,millicode)		; second is temp so 2nd arg is in place
     `(label ,L2 )))
-	
+
 ;;; generic_compare reg, condition, millicode
 
 (define-sassy-instr (ia86.generic_compare x y z)
@@ -1348,10 +1349,10 @@
 (define-sassy-instr (ia86.T_OP1_15)		; car
   (ia86.single_tag_test_ex PAIR_TAG EX_CAR)
   `(mov	RESULT (& (- RESULT PAIR_TAG))))
-	
+
 (define-sassy-instr (ia86.T_OP1_16)		; cdr
   (ia86.single_tag_test_ex PAIR_TAG EX_CDR)
-  `(mov	RESULT (& RESULT ,(+ (- PAIR_TAG) wordsize)))))
+  `(mov	RESULT (& RESULT ,(+ (- PAIR_TAG) wordsize))))
 
 (define-sassy-instr (ia86.T_OP1_17)		; symbol?
   (ia86.double_tag_predicate VEC_TAG SYMBOL_HDR))
@@ -1448,7 +1449,7 @@
            (ia86.exception_continuable EX_CHAR2INT L0))
           `(label ,L1))
     `(shr	RESULT 14)))
-	
+
 (define-sassy-instr (ia86.T_OP1_38)		; integer->char
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
@@ -1601,7 +1602,7 @@
 (define-sassy-instr (ia86.T_OP2_64 x)		; /
   (ia86.loadr	SECOND ,x)
   (ia86.mcall	M_DIVIDE))
-	
+
 (define-sassy-instr (ia86.T_OP2_65 x)		; quotient
   (ia86.loadr	SECOND ,x)
   (ia86.mcall	M_QUOTIENT))
@@ -1734,7 +1735,7 @@
 
 (define-sassy-instr (ia86.T_OP2_90 x)		; sys$partial-list->vector
   (ia86.loadr	SECOND ,x)
-  (ia86.mcall	M_PARTIAL_LIST2VECTOR)))
+  (ia86.mcall	M_PARTIAL_LIST2VECTOR))
 
 (define-sassy-instr (ia86.T_OP3_91 x y)		; vector-set!
   (ia86.indexed_structure_set_word ,x ,y  VEC_TAG  VEC_HDR  EX_VECTOR_SET))
@@ -1938,7 +1939,7 @@
         (else
          `(shr	RESULT)
          `(imul	RESULT (& GLOBALS ,(+ (G_REG x)))))))
-	
+
 (define-sassy-instr (ia86.T_OP2_206 x)		; fx=
   (ia86.fixnum_compare ,x e  EX_FXEQ))
 
@@ -2055,7 +2056,7 @@
 
 (define-sassy-instr (ia86.T_OP1_401)		; vector-length:vec
   `(mov	RESULT (& (- ,(+ RESULT VEC_TAG))))
-  `(shr	RESULT 8)))
+  `(shr	RESULT 8))
 
 (define-sassy-instr (ia86.T_OP2_402 x)		; vector-ref:trusted
   `(add	RESULT wordsize-VEC_TAG)
@@ -2095,23 +2096,23 @@
 
 (define-sassy-instr (ia86.T_OP2IMM_451 x)		; =:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	e)))
+  (ia86.setcc	e))
 
 (define-sassy-instr (ia86.T_OP2IMM_452 x)		; <:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	l)))
+  (ia86.setcc	l))
 
 (define-sassy-instr (ia86.T_OP2IMM_453 x)		; <=:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	le)))
+  (ia86.setcc	le))
 
 (define-sassy-instr (ia86.T_OP2IMM_454 x)		; >:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	g)))
+  (ia86.setcc	g))
 
 (define-sassy-instr (ia86.T_OP2IMM_455 x)		; >=:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	ge)))
+  (ia86.setcc	ge))
 
 ;;; Introduced by representation inference.  Trusted.
 
