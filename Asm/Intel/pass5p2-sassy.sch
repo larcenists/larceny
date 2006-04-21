@@ -26,7 +26,8 @@
     (user-data.proc-counter! u 0)
     (user-data.toplevel-counter! u (+ 1 (user-data.toplevel-counter u))))
   (let ((e (new-proc-id as)))
-    (as-source! as (cons (list $.entry e #t) (as-source as)))))
+    (as-source! as (cons (list $.entry e #t) (as-source as))))
+  (current-sassy-assembly-structure as))
 
 (define (assembly-end as segment)
   (list (car segment) (cdr segment) (lookup-functions as)))
@@ -52,17 +53,29 @@
 ;  toplevel-counter     Different for each compiled segment
 ;  proc-counter         A serial number for labels
 ;  seen-labels          A list of labels at lower addresses
+;  local-counter        A serial number for (local) labels
 
-(define (make-user-data) (list 0 0 '()))
+(define (make-user-data) (list 0 0 '() 0))
 
 (define (user-data.toplevel-counter u) (car u))
 (define (user-data.proc-counter u) (cadr u))
 (define (user-data.labels u) (caddr u))
+(define (user-data.local-counter u) (cadddr u))
 
 (define (user-data.toplevel-counter! u x) (set-car! u x))
 (define (user-data.proc-counter! u x) (set-car! (cdr u) x))
 (define (user-data.labels! u x) (set-car! (cddr u) x))
+(define (user-data.local-counter! u x) (set-car! (cdddr u) x))
 
+(define (fresh-label)
+  (let ((local (user-data.local-counter 
+                (as-user (current-sassy-assembly-structure))))
+        (new-local (- local 1)))
+    (user-data.local-counter! 
+     (as-user (current-sassy-assembly-structure))
+     new-local)
+    (string->symbol
+     (string-append ".L" (number->string new-local)))))
 
 ; Assembly listing.
 

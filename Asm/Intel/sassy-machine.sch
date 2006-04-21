@@ -67,6 +67,8 @@
 (define-sassy-constant G_REGALIAS_ECX	$g.reg1)	; used by rep stos constructions
 (define-sassy-constant G_REGALIAS_EDI	$g.reg3)	; ditto
 
+(define-sassy-constant G_TIMER          $g.timer)
+
 (define-sassy-constant FIRST_HWREG	1)
 (define-sassy-constant LAST_HWREG	4)
 
