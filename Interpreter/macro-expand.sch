@@ -15,7 +15,7 @@
 (define macro-expander
   (make-parameter "macro-expander"
                   (lambda (form environment)
-                    (macro-expand form (environment-syntax-environment environment)))
+                    (twobit-expand form (environment-syntax-environment environment)))
                   procedure?))
 
 ; Exported to the user environment.

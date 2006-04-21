@@ -30,7 +30,7 @@
 			  (lambda ()
 			    (compiler-switches 'standard))
 			  (lambda ()
-			    (macro-expand form (environment-syntax-environment environment)))
+			    (twobit-expand form (environment-syntax-environment environment)))
 			  (lambda ()
 			    (compiler-switches 'set! switches))))))
   ; Kids, don't try this at home

@@ -89,7 +89,7 @@
          ((name . args)
           (syscall code ... . args)))
        )
-     (macro-expand
+     (twobit-expand
       '(define-syntax name
 ;       ;; Very slow, thoroughly traced version.
 ;       (syntax-rules ()
@@ -259,7 +259,7 @@
     ((clr/%null? form)
      (clr/%eq? form clr/null))))
 
-(macro-expand
+(twobit-expand
  '(define-syntax clr/%null?
     (syntax-rules ()
       ((clr/%null? form)
@@ -295,7 +295,7 @@
      (define-syntax name
        (syntax-rules ()
            ((name object) (clr/%isa? object type-handle))))
-       (macro-expand
+       (twobit-expand
          '(define-syntax name
             (syntax-rules ()
               ((name object) (clr/%isa? object type-handle))))

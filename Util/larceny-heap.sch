@@ -91,6 +91,22 @@
 
     (evaluator twobit))
 
+  ; Install twobit's macro expander as the interpreter's ditto
+
+  (macro-expander (lambda (form environment)
+		    (let ((switches (compiler-switches 'get)))
+		      (dynamic-wind
+			  (lambda ()
+			    (compiler-switches 'standard))
+			  (lambda ()
+			    (twobit-expand form (environment-syntax-environment environment)))
+			  (lambda ()
+			    (compiler-switches 'set! switches))))))
+  ; Kids, don't try this at home
+  (vector-like-set! (interaction-environment) 
+		    4
+		    (the-usual-syntactic-environment))
+
   ; Replace and populate the top-level environment
   
   (load "Lib/Common/toplevel.fasl")

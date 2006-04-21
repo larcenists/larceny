@@ -200,7 +200,7 @@
                            names))))
 
 (for-each (lambda (x) 
-            (macro-expand x (the-usual-syntactic-environment)))
+            (twobit-expand x (the-usual-syntactic-environment)))
 `(
 
 (define-syntax .rewrite-eqv?

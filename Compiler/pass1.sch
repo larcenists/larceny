@@ -76,7 +76,7 @@
   (set! pass1-block-assignments '())
   (set! pass1-block-inlines '())
   (set! renaming-counter 0)
-  (apply macro-expand def-or-exp syntaxenv rest))
+  (apply twobit-expand def-or-exp syntaxenv rest))
 
 ; Compiles a whole sequence of top-level forms on the assumption
 ; that no variable that is defined by a form in the sequence is
@@ -84,10 +84,10 @@
 ;
 ; This is a crock in three parts:
 ;
-;    1.  Macro-expand each form and record assignments.
+;    1.  Twobit-expand each form and record assignments.
 ;    2.  Find the top-level variables that are defined but not
 ;        assigned, give them local names, generate a DEFINE-INLINE
-;        for each of the top-level procedures, and macro-expand
+;        for each of the top-level procedures, and twobit-expand
 ;        each form again.
 ;    3.  Wrap the whole mess in an appropriate LET and recompute
 ;        the referencing information by copying it.

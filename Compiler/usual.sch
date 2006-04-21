@@ -20,7 +20,7 @@
 (define-syntax-scope 'letrec*)
 
 (for-each (lambda (form)
-            (macro-expand form usual-syntactic-environment))
+            (twobit-expand form usual-syntactic-environment))
           '(
 
 ; Named LET is defined later, after LETREC has been defined.
@@ -364,7 +364,7 @@
      (let-values (?binding0)
        (let*-values (?binding1 ...) ?body0 ?body1 ...)))))
 
-; For the macro-expander; will be redefined later.
+; For the twobit-expander; will be redefined later.
 
 (define-syntax .call
   (syntax-rules ()
@@ -528,7 +528,7 @@
      ; =>
      (call-with-continuation-mark key mark (lambda () expr)))))
 
-))  ; end of (for-each (lambda (x) (macro-expand ...)) ...)
+))  ; end of (for-each (lambda (x) (twobit-expand ...)) ...)
 
 (define-syntax-scope 'letrec)
 

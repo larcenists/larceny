@@ -25,9 +25,9 @@
 ; The outermost lambda allows known procedures to be lifted outside
 ; all local variables.
 
-; macro-expand takes an optional second argument, for inline procedures.
+; twobit-expand takes an optional second argument, for inline procedures.
 
-(define (macro-expand def-or-exp syntaxenv . rest)
+(define (twobit-expand def-or-exp syntaxenv . rest)
   (call-with-current-continuation
    (lambda (k)
      (parameterize ((global-syntactic-environment
@@ -498,7 +498,7 @@
             (m-application-args proc args env)))
       (m-application-args proc args env)))
 
-; The proc expression has already been macro-expanded.
+; The proc expression has already been twobit-expanded.
 
 (define (m-application-args proc args env)
   (let* ((args (map (lambda (exp) (m-expand exp env))
@@ -672,7 +672,7 @@
                              (m-application exp env)
                              (m-expand newexp env)))))
 
-(define m-quit             ; assigned by macro-expand
+(define m-quit             ; assigned by twobit-expand
   (lambda (v) v))
 
 ; To do:
