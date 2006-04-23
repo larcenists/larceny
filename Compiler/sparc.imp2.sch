@@ -247,14 +247,14 @@
      (-                 (flonum flonum)             (flonum))
      
      (.+:idx:idx        (index index)               (!fixnum))
-     (.+:fix:fix        (index index)               (fixnum))
+     (.+:fix:fix        (index index)               (!fixnum))
      (.+:fix:fix        (fixnum fixnum)             (exactint))
      (.-:idx:idx        (index index)               (fixnum!))
-     (.-:fix:fix        (index index)               (fixnum))
+     (.-:fix:fix        (index index)               (fixnum!))
      (.-:fix:fix        (fixnum fixnum)             (exactint))
      
-     (fx+               (fixnum fixnum)             (fixnum))
-     (fx-               (fixnum fixnum)             (fixnum))
+     (fx+               (fixnum fixnum)             (fixnum))  ;FIXME
+     (fx-               (fixnum fixnum)             (fixnum))  ;FIXME
 
      (fl+               (flonum flonum)             (flonum))
      (fl-               (flonum flonum)             (flonum))
