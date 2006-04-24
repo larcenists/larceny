@@ -150,7 +150,6 @@
 
 (define-sassy-macro (is_hwreg n)         (<= FIRST_HWREG n LAST_HWREG))
 (define-sassy-macro (fixnum n)           (lsh n 2))
-(define-sassy-macro (char n)	         (logior (lsh n char_shift) IMM_CHAR))
 (define-sassy-macro (roundup4 x)	 (logand (+ x 3) (complement 3)))
 (define-sassy-macro (roundup8 x)	 (logand (+ x 7) (complement 7)))
 (define-sassy-macro (words2bytes n)      (* n 4))

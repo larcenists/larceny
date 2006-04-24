@@ -272,7 +272,7 @@
   (lambda (instruction as)
     (list-instruction "const" instruction)
     (if (immediate-constant? (operand1 instruction))
-	(emit-sassy as 'T_CONST_IMM
+	(emit-sassy as ia86.T_CONST_IMM
                     (constant-value (operand1 instruction)))
 	(emit-sassy as 'T_CONST_CONSTVECTOR
                     (emit-datum as (operand1 instruction))))))
@@ -400,7 +400,7 @@
 (define-instruction $setreg
   (lambda (instruction as)
     (list-instruction "setreg" instruction)
-    (emit-sassy as 'T_SETREG (operand1 instruction))))
+    (emit-sassy as ia86.T_SETREG (operand1 instruction))))
 
 (define-instruction $movereg
   (lambda (instruction as)
@@ -528,7 +528,7 @@
 (define-instruction $global/invoke
   (lambda (instruction as)
     (list-instruction "global/invoke" instruction)
-    (emit-sassy as 'T_GLOBAL_INVOKE
+    (emit-sassy as ia86.T_GLOBAL_INVOKE
                 (emit-global as (operand1 instruction))
                 (operand2 instruction))))
 
@@ -603,6 +603,8 @@
       (equal? x (undefined))))
 
 (define (constant-value x)
+  (define (char n)
+    (logior (lsh (char->integer n) char_shift) IMM_CHAR))
 
   (define (exact-int->fixnum x)
     (* x 4))
@@ -610,20 +612,14 @@
   (define (char->immediate c)
     (+ (* (char->integer c) 65536) $imm.character))
 
-  (cond ((fixnum? x)              (twobit-format #f "fixnum(~a)" x))
-        ((eq? x #t)               "TRUE_CONST")
-        ((eq? x #f)               "FALSE_CONST")
-	((equal? x (eof-object))  "EOF_CONST")
-	((equal? x (unspecified)) "UNSPECIFIED_CONST")
-	((equal? x (undefined))   "UNDEFINED_CONST")
-        ((null? x)                "NIL_CONST")
-        ((char? x)                (if (and (char>? x #\space)
-					   (char<=? x #\~)
-					   (not (char=? x #\\))
-					   (not (char=? x #\')))
-				      (twobit-format #f "char('~a')" x)
-				      (twobit-format #f "char(~a)" 
-						 (char->integer x))))
+  (cond ((fixnum? x)              (fixnum x))
+        ((eq? x #t)               TRUE_CONST)
+        ((eq? x #f)               FALSE_CONST)
+        ((equal? x (eof-object))  EOF_CONST)
+        ((equal? x (unspecified)) UNSPECIFIED_CONST)
+        ((equal? x (undefined))   UNDEFINED_CONST)
+        ((null? x)                NIL_CONST)
+        ((char? x)                (char x))
 	(else ???)))
 
 (define (new-proc-id as)
