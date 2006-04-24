@@ -262,7 +262,7 @@
 (define-instruction $op3
   (lambda (instruction as)
     (list-instruction "op3" instruction)
-    (emit-sassy as 'T_OP3
+    (emit-sassy as ia86.T_OP3
                 (op3-primcode (operand1 instruction))
                 (operand2 instruction)
                 (operand3 instruction))))
