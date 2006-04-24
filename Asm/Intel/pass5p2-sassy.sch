@@ -68,9 +68,9 @@
 (define (user-data.local-counter! u x) (set-car! (cdddr u) x))
 
 (define (fresh-label)
-  (let ((local (user-data.local-counter 
+  (let* ((local (user-data.local-counter 
                 (as-user (current-sassy-assembly-structure))))
-        (new-local (- local 1)))
+         (new-local (- local 1)))
     (user-data.local-counter! 
      (as-user (current-sassy-assembly-structure))
      new-local)
