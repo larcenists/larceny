@@ -287,9 +287,8 @@
 (define-instruction $setglbl
   (lambda (instruction as)
     (list-instruction "setglbl" instruction)
-    (emit-sassy as 'T_SETGLBL
-	       (emit-global as (operand1 instruction))
-	       (operand1 instruction))))
+    (emit-sassy as ia86.T_SETGLBL
+	       (emit-global as (operand1 instruction)))))
 
 (define-instruction $lambda
   (lambda (instruction as)
