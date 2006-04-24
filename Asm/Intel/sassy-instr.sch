@@ -1063,7 +1063,7 @@
                  (else
                   `(cmp	TEMP (& GLOBALS ,(+ (G_REG x))))))
            `(jbe short ,L1)
-           (ia86.test_reg_value	y L1)))))
+           (test_reg_value	y L1)))))
 
 ;;; indexed_structure_test_imm index, ptrtag, hdrtag, ex, byte?
 ;;;	Check that RESULT is a pointer tagged as appropriate,
@@ -1170,23 +1170,23 @@
 ;;;	If hdrtag is 0 then do not check it.
 
 (define-sassy-instr (ia86.indexed_structure_set_char x y z hdrtag ex)
-  (ia86.indexed_structure_test x y z hdrtag ex 1 check_char)
-  `(mov	(& GLOBALS ,(+ G_STKP)) CONT)
+  (ia86.indexed_structure_test x y z hdrtag ex 1 ia86.check_char)
+  `(mov	(& GLOBALS ,(+ $g.stkp)) CONT)
   (ia86.loadr	CONT x)
   `(shr	TEMP 16)
   `(shr	CONT 2)
-  `(mov	(& RESULT ,(+ (- z) wordsize CONT)) TEMP_LOW)
-  `(mov	CONT (& GLOBALS ,(+ G_STKP))))
+  `(mov	(& RESULT CONT ,(+ (- z) wordsize)) TEMP_LOW)
+  `(mov	CONT (& GLOBALS ,(+ $g.stkp))))
 
 (define-sassy-instr (ia86.indexed_structure_set_byte x y z hdrtag ex)
   (ia86.indexed_structure_test x y z hdrbyte ex 1 check_fixnum)
-  `(mov	(& GLOBALS ,(+ G_STKP)) CONT)
+  `(mov	(& GLOBALS ,(+ $g.stkp)) CONT)
   (ia86.loadr	CONT x)
   `(shr	CONT 2)
   (ia86.loadr	TEMP y)
   `(shr	TEMP 2)
-  `(mov	(& RESULT ,(+ (- z) wordsize CONT)) TEMP_LOW)
-  `(mov	CONT (& GLOBALS ,(+ G_STKP))))
+  `(mov	(& RESULT CONT ,(+ (- z) wordsize)) TEMP_LOW)
+  `(mov	CONT (& GLOBALS ,(+ $g.stkp))))
 
 (define-sassy-instr (ia86.indexed_structure_set_word x y z hdrtag ex)
   (ia86.indexed_structure_test x y z hdrtag ex 0 check_nothing)
@@ -1205,11 +1205,11 @@
          `(mov	(& RESULT ,(+ (- z) wordsize (REG x))) SECOND)
          (ia86.write_barrier -1 -1))
         (else
-         `(mov	(& GLOBALS ,(+ G_STKP)) CONT)
+         `(mov	(& GLOBALS ,(+ $g.stkp)) CONT)
          (ia86.loadr	CONT x)
          (ia86.loadr	SECOND y)
-         `(mov	(& RESULT ,(+ (- z) wordsize CONT)) SECOND)
-         `(mov	CONT (& GLOBALS ,(+ G_STKP)))
+         `(mov	(& RESULT CONT ,(+ (- z) wordsize)) SECOND)
+         `(mov	CONT (& GLOBALS ,(+ $g.stkp)))
          (ia86.write_barrier -1 -1))))
 
 ;;; make_indexed_structure_word regno ptrtag hdrtag ex
@@ -1303,6 +1303,9 @@
 (define-sassy-instr (ia86.T_OP2IMM x y) ;; YUCK eval!
   ((eval (string->symbol (string-append "ia86.T_OP2IMM_" (number->string x))))
    y))
+(define-sassy-instr (ia86.T_OP3 x y z) ;; YUCK eval!
+  ((eval (string->symbol (string-append "ia86.T_OP3_" (number->string x))))
+   y z))
 
 (define-sassy-instr (ia86.T_OP1_1)		; break
   (ia86.mcall	$m.break))
