@@ -376,15 +376,15 @@
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
     `(label L0)
-    `(loadc TEMP ,x)
+    (ia86.loadc TEMP x)
     `(mov RESULT (& TEMP ,(- PAIR_TAG)))
     (cond ((not (unsafe-globals))
            `(cmp RESULT UNDEFINED_CONST)
-           `(jne short L1)
+           `(jne short ,L1)
            `(mov RESULT TEMP)
            (ia86.mcall M_GLOBAL_EX)
-           `(jmp short L0)
-           `(label L1)))))
+           `(jmp short ,L0)
+           `(label ,L1)))))
 
 (define-sassy-instr (ia86.T_SETGLBL x)
   `(mov	SECOND RESULT)
@@ -469,7 +469,7 @@
            (if (is_hwreg regno)
                `((mov (& RESULT ,(+ PROC_REG0 (words2bytes regno))) 
                       ,(reg regno)))
-               `((loadr TEMP ,regno)
+               `(,@(ia86.loadr TEMP regno)
                  (mov (& RESULT ,(+ PROC_REG0 (words2bytes regno))) TEMP)))
            (rep (- regno 1))))
          (else 
@@ -478,16 +478,16 @@
 
 (define-sassy-instr (ia86.T_LAMBDA codevec constvec n)
   ;; arguments are codevector name, constant vector offset, and n
-  `(const2regf RESULT (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS ,n 1)))
+  (ia86.const2regf RESULT (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
   (ia86.alloc)
-  `(mov (dword (& RESULT)) (orr 
-                            (lsh (words2bytes ,(+ PROC_OVERHEAD_WORDS n 1))
-                                 8)
+  `(mov (dword (& RESULT)) ,(logior
+                             (lsh (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
+                                  8)
                             PROC_HDR))
   ;; Adjust only if code is in bytevectors!
   ;;mov	dword [RESULT+PROC_CODEVECTOR_NATIVE], ,codevec + BVEC_TAG
   `(mov	(dword (& RESULT ,(+ PROC_CODEVECTOR_NATIVE))) ,codevec)
-  `(loadc	TEMP ,constvec)
+  (ia86.loadc	TEMP constvec)
   `(mov	(& RESULT ,(+ PROC_CONSTVECTOR)) TEMP)
   (ia86.init_closure n))
 
@@ -513,14 +513,14 @@
                (L1 (fresh-label)))
            `(label ,L0)
            `(cmp	RESULT (fixnum ,n))
-           `(je short L1)
+           `(je short ,L1)
            (ia86.mcall	M_ARGC_EX)
            `(jmp	L0)
-           `(label L1)))))
+           `(label ,L1)))))
 
 
 (define-sassy-instr (ia86.T_ARGSGE n)
-  (const2regf SECOND (fixnum n))
+  (ia86.const2regf SECOND (fixnum n))
   (cond ((and (not (unsafe-code))
               (> n 0))
          (let ((L0 (fresh-label))
@@ -724,14 +724,14 @@
 	;; Order matters here, because SECOND is TEMP and
 	;; may be destroyed by loading of THIRD
   (cond ((not (= w 0))
-         `(loadr RESULT ,w)))
+         (ia86.loadr RESULT w)))
   (cond ((not (= y 0))
 	   ;; OPTIMIZEME: optimize for case when %3 is HW reg
 	   ;; (this will however have almost no impact)
          (ia86.loadr	TEMP y)
          `(mov (& GLOBALS ,(+ G_THIRD)) TEMP)))
   (cond ((not (= x 0))
-        `(loadr SECOND ,x)))
+         (ia86.loadr SECOND x)))
   (ia86.exception_noncontinuable z))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -759,7 +759,7 @@
   (let ((L1 (fresh-label))
         (jcc (string->symbol (string-append "j" (symbol->string cc)))))
     (ia86.const2reg RESULT TRUE_CONST)	; 5 bytes
-    `(,jcc short L1)			; 2 bytes
+    `(,jcc short ,L1)			; 2 bytes
     `(sub	RESULT_LOW 4)		; 3 bytes (would be 2 if RESULT=eax)
     `(label ,L1)))
 
@@ -808,7 +808,7 @@
           (L1 (fresh-label)))
       `(label ,L0)
       (ia86.single_tag_test x)
-      `(jz short L1)
+      `(jz short ,L1)
       (ia86.exception_continuable y L0)
       `(label ,L1)))))
 
@@ -833,11 +833,11 @@
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           `(loadr	TEMP ,x)
+           (ia86.loadr	TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jnz short ,L1)
-           `(loadr	TEMP ,x)
+           (ia86.loadr	TEMP x)
            `(,y	RESULT TEMP)
            `(jno short ,L2)
            `(,z	RESULT TEMP)
@@ -866,7 +866,7 @@
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           `(loadr	TEMP ,x)
+           (ia86.loadr	TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jz short ,L1)
@@ -1042,7 +1042,7 @@
                (L3 (fresh-label)))
            `(label ,L0)
            (ia86.fixnum_test_temp_is_free x)
-           `(jnz short L1)
+           `(jnz short ,L1)
            (cond (hdrtag
                   `(double_tag_test ,z ,hdrtag)
                   `(jz short L2))
@@ -1182,9 +1182,9 @@
 (define-sassy-instr (ia86.indexed_structure_set_byte x y z hdrtag ex)
   (ia86.indexed_structure_test x y z hdrbyte ex 1 check_fixnum)
   `(mov	(& GLOBALS ,(+ G_STKP)) CONT)
-  `(loadr	CONT ,x)
+  (ia86.loadr	CONT x)
   `(shr	CONT 2)
-  `(loadr	TEMP ,y)
+  (ia86.loadr	TEMP y)
   `(shr	TEMP 2)
   `(mov	(& RESULT ,(+ (- z) wordsize CONT)) TEMP_LOW)
   `(mov	CONT (& GLOBALS ,(+ G_STKP))))
@@ -1232,7 +1232,7 @@
   (cond ((= x -1)
          `(mov	SECOND UNSPECIFIED_CONST))
         (else
-         `(loadr	SECOND ,x)))
+         (ia86.loadr	SECOND x)))
   (ia86.mcall	M_ALLOCI)
   `(mov	TEMP (& GLOBALS ,(+ G_ALLOCTMP)))
   `(shl	TEMP 8)
@@ -1259,7 +1259,7 @@
            ;; OPTIMIZEME (speed): Both branches are mispredicted here.
            `(label ,L0)
            (cond ((not (= (x -1)))
-                  `(loadr	SECOND ,x)))
+                  (ia86.loadr	SECOND x)))
            `(test	RESULT (logior fixtag_mask #x80000000))
            `(jz short L2)
            `(label ,L1)
@@ -1272,7 +1272,7 @@
     `(add	RESULT fixnum(wordsize))
     (ia86.mcall	M_ALLOC_BV)
     (cond ((not (= x -1))
-           `(loadr	eax ,x)		; Code knows that eax is TEMP/SECOND
+           (ia86.loadr	eax x)		; Code knows that eax is TEMP/SECOND
            `(mov	(& GLOBALS ,(+ G_REGALIAS_ECX)) ecx)
            `(mov	(& GLOBALS ,(+ G_REGALIAS_EDI)) edi)
            `(shr	eax char_shift)	; byte value
@@ -1297,12 +1297,12 @@
 ;;; Compiler/standard-C.imp.sch (yes, that's right).
 
 (define-sassy-instr (ia86.T_OP1 x)   ;; YUCK eval!
-  ((eval (string->symbol (string-append "T_OP1_" (number->string x))))))
+  ((eval (string->symbol (string-append "ia86.T_OP1_" (number->string x))))))
 (define-sassy-instr (ia86.T_OP2 x y) ;; YUCK eval!
-  ((eval (string->symbol (string-append "T_OP2_" (number->string x))))
+  ((eval (string->symbol (string-append "ia86.T_OP2_" (number->string x))))
    y))
 (define-sassy-instr (ia86.T_OP2IMM x y) ;; YUCK eval!
-  ((eval (string->symbol (string-append "T_OP2IMM_" (number->string x))))
+  ((eval (string->symbol (string-append "ia86.T_OP2IMM_" (number->string x))))
    y))
 
 (define-sassy-instr (ia86.T_OP1_1)		; break
@@ -1328,19 +1328,19 @@
 
 (define-sassy-instr (ia86.T_OP1_9)		; not
   `(cmp	RESULT_LOW FALSE_CONST)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP1_10)		; null?
   `(cmp	RESULT_LOW NIL_CONST)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP1_11)		; pair?
   (ia86.single_tag_test PAIR_TAG)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 	
 (define-sassy-instr (ia86.T_OP1_12)		; eof-object?
   `(cmp	RESULT EOF_CONST)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP1_13)		; port?
   (ia86.double_tag_predicate VEC_TAG PORT_HDR))
@@ -1408,9 +1408,9 @@
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
     `(test	RESULT_LOW fixtag_mask)
-    `(jz short L1)
+    `(jz short ,L1)
     (ia86.mcall	M_ZEROP)
-    `(jmp short L2)
+    `(jmp short ,L2)
     `(label ,L1)
     `(and	RESULT RESULT)
     (ia86.setcc	z)
@@ -1425,7 +1425,7 @@
     (cond ((not (unsafe-code))
            `(label ,L0)
            `(test	RESULT_LOW fixtag_mask)
-           `(jz short L1)
+           `(jz short ,L1)
            (ia86.exception_continuable EX_LOGNOT L0)
            `(label ,L1)))
     `(lea	RESULT (& RESULT ,(+ fixtag_mask)))
@@ -1813,9 +1813,9 @@
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
     `(test	RESULT_LOW fixtag_mask)
-    `(jnz short L1)
+    `(jnz short ,L1)
     `(add	RESULT ,x)
-    `(jno short L2)
+    `(jno short ,L2)
     `(sub	RESULT ,x)
     `(label ,L1)
     `(mov	SECOND ,x)
@@ -1827,9 +1827,9 @@
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
     `(test	RESULT_LOW fixtag_mask)
-    `(jnz short L1)
+    `(jnz short ,L1)
     `(sub	RESULT ,x)
-    `(jno short L2)
+    `(jno short ,L2)
     `(add	RESULT ,x)
     `(label ,L1)
     `(mov	SECOND ,x)
@@ -1906,9 +1906,9 @@
                (L2 (fresh-label)))
            `(label ,L0)
            `(test	RESULT_LOW fixtag_mask)
-           `(jnz short L1)
+           `(jnz short ,L1)
            `(neg	RESULT)
-           `(jno short L2)
+           `(jno short ,L2)
            ;; No need to undo: RESULT is unchanged
            `(label ,L1)
            (ia86.exception_continuable EX_FXNEG L0)
@@ -2031,7 +2031,7 @@
            (ia86.const2regf TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
-           `(jz short L1)
+           `(jz short ,L1)
            (ia86.const2regf TEMP x)
            (ia86.exception_continuable z L0)	; second is tmp so 2nd arg is in place
            `(label ,L1)))
@@ -2128,7 +2128,7 @@
   (let ((L1 (fresh-label)))
     (ia86.loadr	TEMP x)
     `(add	RESULT TEMP)
-    `(jno short L1)
+    `(jno short ,L1)
     `(sub	RESULT TEMP)
     (ia86.mcall	M_ADD)                          ; second is temp so 2nd arg is in place
     `(label ,L1)))
