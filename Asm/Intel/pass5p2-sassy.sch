@@ -603,7 +603,7 @@
 
 (define (constant-value x)
   (define (char n)
-    (logior (lsh (char->integer n) char_shift) IMM_CHAR))
+    (logior (lsh (char->integer n) char_shift) $imm.character))
 
   (define (exact-int->fixnum x)
     (* x 4))
