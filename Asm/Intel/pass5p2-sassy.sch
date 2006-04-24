@@ -274,7 +274,7 @@
     (if (immediate-constant? (operand1 instruction))
 	(emit-sassy as ia86.T_CONST_IMM
                     (constant-value (operand1 instruction)))
-	(emit-sassy as 'T_CONST_CONSTVECTOR
+	(emit-sassy as ia86.T_CONST_CONSTVECTOR
                     (emit-datum as (operand1 instruction))))))
 
 
