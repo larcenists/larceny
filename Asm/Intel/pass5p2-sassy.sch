@@ -248,7 +248,7 @@
 (define-instruction $op2
   (lambda (instruction as)
     (list-instruction "op2" instruction)
-    (emit-sassy as 'T_OP2
+    (emit-sassy as ia86.T_OP2
                 (op2-primcode (operand1 instruction))
                 (operand2 instruction))))
 
@@ -281,7 +281,7 @@
 (define-instruction $global
   (lambda (instruction as)
     (list-instruction "global" instruction)
-    (emit-sassy as 'T_GLOBAL
+    (emit-sassy as ia86.T_GLOBAL
                 (emit-global as (operand1 instruction)))))
 
 (define-instruction $setglbl

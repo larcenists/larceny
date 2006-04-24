@@ -374,7 +374,7 @@
 (define-sassy-instr (ia86.T_GLOBAL x)
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
-    `(label L0)
+    `(label ,L0)
     (ia86.loadc TEMP x)
     `(mov RESULT (& TEMP ,(- PAIR_TAG)))
     (cond ((not (unsafe-globals))
@@ -769,7 +769,7 @@
 
 (define-sassy-instr (ia86.double_tag_predicate ptrtag hdr)
   (ia86.double_tag_test ptrtag hdr)
-  (ia86.setcc z))
+  (ia86.setcc 'z))
 
 ;;; fixnum_test_temp_is_free reg
 ;;;	Test reg for fixnum-ness and clear zero flag if fixnum.  OK to
@@ -1380,7 +1380,7 @@
 
 (define-sassy-instr (ia86.T_OP1_23)		; fixnum?
   `(test	RESULT_LOW fixtag_mask)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 	
 (define-sassy-instr (ia86.T_OP1_24)		; flonum?
   (ia86.double_tag_predicate BVEC_TAG FLONUM_HDR))
@@ -1412,7 +1412,7 @@
     `(jmp short ,L2)
     `(label ,L1)
     `(and	RESULT RESULT)
-    (ia86.setcc	z)
+    (ia86.setcc	'z)
     `(label ,L2)))
 
 (define-sassy-instr (ia86.T_OP1_32)		; --
@@ -1438,7 +1438,7 @@
 
 (define-sassy-instr (ia86.T_OP1_36)		; char?
   `(cmp	RESULT_LOW IMM_CHAR)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP1_37)		; char->integer
   (let ((L0 (fresh-label))
@@ -1507,7 +1507,7 @@
 
 (define-sassy-instr (ia86.T_OP1_47)		; procedure?
   (ia86.single_tag_test PROC_TAG)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP1_48)		; procedure-length
   (ia86.indexed_structure_length PROC_TAG EX_PROCEDURE_LENGTH  0))
@@ -1531,7 +1531,7 @@
          `(cmp	RESULT ,(REG x)))
         (else
          `(cmp	RESULT (& GLOBALS ,(+ (G_REG x))))))
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP2_57 x)		; eqv?
   (ia86.loadr	SECOND x)
@@ -1749,11 +1749,11 @@
 
 (define-sassy-instr (ia86.T_OP1_94)		; bytevector-like?
   (ia86.single_tag_test BVEC_TAG)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP1_95)		; vector-like?
   (ia86.single_tag_test VEC_TAG)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP2_96 x)		; bytevector-like-ref
   (ia86.indexed_structure_ref x BVEC_TAG  EX_BYTEVECTOR_LIKE_REF  1)
@@ -1806,7 +1806,7 @@
 
 (define-sassy-instr (ia86.T_OP2IMM_129 x)		; eq?
   `(cmp	RESULT ,x)
-  (ia86.setcc	z))
+  (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP2IMM_130 x)		; +
   (let ((L1 (fresh-label))
@@ -2097,23 +2097,23 @@
 
 (define-sassy-instr (ia86.T_OP2IMM_451 x)		; =:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	e))
+  (ia86.setcc	'e))
 
 (define-sassy-instr (ia86.T_OP2IMM_452 x)		; <:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	l))
+  (ia86.setcc	'l))
 
 (define-sassy-instr (ia86.T_OP2IMM_453 x)		; <=:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	le))
+  (ia86.setcc	'le))
 
 (define-sassy-instr (ia86.T_OP2IMM_454 x)		; >:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	g))
+  (ia86.setcc	'g))
 
 (define-sassy-instr (ia86.T_OP2IMM_455 x)		; >=:fix:fix
   `(cmp	RESULT ,x)
-  (ia86.setcc	ge))
+  (ia86.setcc	'ge))
 
 ;;; Introduced by representation inference.  Trusted.
 
