@@ -1512,7 +1512,7 @@ t_label(%1):
 %endmacro
 
 %macro T_OP1_46 0		; make-bytevector
-	make_indexed_structure_byte -1, BYTEVECTOR_HDR, EX_MAKE_BYTEVECTOR
+	make_indexed_structure_byte -1, BYTEVECTOR_HDR, EX_MKBVL
 %endmacro
 
 %macro T_OP1_47 0		; procedure?
@@ -1525,7 +1525,8 @@ t_label(%1):
 %endmacro
 
 %macro T_OP1_49 0		; make-procedure
-	make_indexed_structure_word -1, PROC_TAG, PROC_HDR, EX_MAKE_PROCEDURE
+	; exception code wrong, matches Sparc
+	make_indexed_structure_word -1, PROC_TAG, PROC_HDR, EX_MKVL
 %endmacro
 		
 %macro T_OP1_52 0		; make-cell just maps to cons, for now
@@ -1740,7 +1741,7 @@ t_label(%1):
 %endmacro
 
 %macro T_OP2_80 1		; make-vector
-	make_indexed_structure_word %1, VEC_TAG, VEC_HDR, EX_MAKE_VECTOR
+	make_indexed_structure_word %1, VEC_TAG, VEC_HDR, EX_MKVL
 %endmacro
 
 %macro T_OP2_81 1		; vector-ref
@@ -1815,12 +1816,12 @@ t_label(%1):
 %endmacro
 
 %macro T_OP2_96 1		; bytevector-like-ref
-	indexed_structure_ref %1, BVEC_TAG, EX_BYTEVECTOR_LIKE_REF, 1
+	indexed_structure_ref %1, BVEC_TAG, EX_BVLREF, 1
 	shl	RESULT, 2
 %endmacro
 
 %macro T_OP3_97 2		; bytevector-like-set!
-	indexed_structure_set_byte %1, %2, BVEC_TAG, 0, EX_BYTEVECTOR_LIKE_SET
+	indexed_structure_set_byte %1, %2, BVEC_TAG, 0, EX_BVLSET
 %endmacro
 
 %macro T_OP2_98 1		; sys$bvlcmp
@@ -1837,11 +1838,11 @@ t_label(%1):
 %endmacro
 
 %macro T_OP1_101 0		; vector-like-length
-	indexed_structure_length VEC_TAG, EX_VECTOR_LIKE_LENGTH, 0
+	indexed_structure_length VEC_TAG, EX_VLLEN, 0
 %endmacro
 
 %macro T_OP1_102 0		; bytevector-like-length
-	indexed_structure_length BVEC_TAG, EX_BYTEVECTOR_LIKE_LENGTH, 1
+	indexed_structure_length BVEC_TAG, EX_BVLLEN, 1
 %endmacro
 
 %macro T_OP2_103 1		; remainder
@@ -1870,7 +1871,8 @@ t_label(%1):
 %endmacro
 
 %macro T_OP2_109 1		; make-string
-	make_indexed_structure_byte %1, STR_HDR, EX_MAKE_STRING
+	; exception code wrong, matches Sparc
+	make_indexed_structure_byte %1, STR_HDR, EX_MKBVL 
 %endmacro
 
 %macro T_OP2IMM_128 1		; typetag-set!
@@ -1963,12 +1965,12 @@ t_label(%1):
 %endmacro
 	
 %macro T_OP2IMM_145 1		; bytevector-like-ref
-	indexed_structure_ref_imm %1, BVEC_TAG, EX_BYTEVECTOR_LIKE_REF, 1
+	indexed_structure_ref_imm %1, BVEC_TAG, EX_BVLREF, 1
 	shl	RESULT, 2
 %endmacro
 
 %macro T_OP2IMM_146 1		; vector-like-ref
-	indexed_structure_ref_imm %1, VEC_TAG, EX_VECTOR_LIKE_REF, 0
+	indexed_structure_ref_imm %1, VEC_TAG, EX_VLREF, 0
 %endmacro
 
 %macro T_OP1_200 0		; most-positive-fixnum
