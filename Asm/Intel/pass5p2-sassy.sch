@@ -132,7 +132,14 @@
 
 (define emit-sassy 
   (lambda (as . x)
-    (as-code! as (cons x (as-code as)))
+    (cond 
+     ((procedure? (car x))
+      (parameterize ((current-sassy-assembly-structure as))
+        ;;; HACK HACK HACK!
+        (as-code! as (append (reverse (apply (car x) (cdr x)))
+                             (as-code as)))))
+     (else
+      (as-code! as (cons x (as-code as)))))
     (as-lc! as (+ (as-lc as) 1)))) ; FSK: perhaps incrementing by 1 won't work, but what the hell.
 
 (define emit-text-noindent
@@ -211,7 +218,7 @@
     (let ((u (as-user as)))
       (user-data.labels! u (cons (operand1 instruction) (user-data.labels u))))
     (emit-sassy as 
-	`(label ,(compiled-procedure as (operand1 instruction))))))
+	'label (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $.proc
   (lambda (instruction as)
@@ -235,7 +242,7 @@
 (define-instruction $op1
   (lambda (instruction as)
     (list-instruction "op1" instruction)
-    (emit-sassy as 'T_OP1
+    (emit-sassy as ia86.T_OP1
 	       (op1-primcode (operand1 instruction)))))
 
 (define-instruction $op2
@@ -305,7 +312,7 @@
       (list-lambda-end)
       (set! code-offset (emit-codevector as 0))
       (set! const-offset (emit-constantvector as 0))
-      (emit-sassy as 'T_LAMBDA
+      (emit-sassy as ia86.T_LAMBDA
 		 (compiled-procedure as entry)
 		 const-offset
 		 (operand2 instruction)))))
@@ -323,7 +330,7 @@
 (define-instruction $args>=
   (lambda (instruction as)
     (list-instruction "args>=" instruction)
-    (emit-sassy as 'T_ARGSGE (operand1 instruction))))
+    (emit-sassy as ia86.T_ARGSGE (operand1 instruction))))
 
 (define-instruction $invoke
   (lambda (instruction as)
@@ -388,7 +395,7 @@
 (define-instruction $reg
   (lambda (instruction as)
     (list-instruction "reg" instruction)
-    (emit-sassy as 'T_REG (operand1 instruction))))
+    (emit-sassy as ia86.T_REG (operand1 instruction))))
 
 (define-instruction $setreg
   (lambda (instruction as)
@@ -404,7 +411,7 @@
 (define-instruction $return
   (lambda (instruction as)
     (list-instruction "return" instruction)
-    (emit-sassy as 'T_RETURN)))
+    (emit-sassy as ia86.T_RETURN)))
 
 (define-instruction $nop
   (lambda (instruction as)
@@ -492,7 +499,7 @@
 (define-instruction $check
   (lambda (instruction as)
     (list-instruction "check" instruction)
-    (emit-sassy as 'T_CHECK
+    (emit-sassy as ia86.T_CHECK
                (operand1 instruction)
                (operand2 instruction)
                (operand3 instruction)
@@ -501,7 +508,7 @@
 (define-instruction $trap
   (lambda (instruction as)
     (list-instruction "trap" instruction)
-    (emit-sassy as 'T_TRAP
+    (emit-sassy as ia86.T_TRAP
                (operand1 instruction)
                (operand2 instruction)
                (operand3 instruction)
