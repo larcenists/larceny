@@ -736,6 +736,8 @@ t_label(%1):
 ;	or	RESULT_LOW, TRUE_CONST	; 3 bytes
 ;%endmacro
 
+;;; Jesse thinks that the above is buggy (should be or'ing with FALSE_CONST)
+
 ;;; TRUE=6
 ;;; FALSE=2
 %macro setcc 1				; 10 bytes, jump

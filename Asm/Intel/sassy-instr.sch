@@ -751,6 +751,8 @@
 ;	or	RESULT_LOW, TRUE_CONST	; 3 bytes
 ;)
 
+;;; Jesse thinks that the above is buggy (should be or'ing with FALSE_CONST)
+
 ;;; TRUE=6
 ;;; FALSE=2
 (define-sassy-instr (ia86.setcc cc)				; 10 bytes, jump
