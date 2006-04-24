@@ -99,6 +99,13 @@
 
 (define-sassy-constant LASTREG 31)
 
+(define-sassy-constant TRUE_CONST $imm.true)
+
+(define-sassy-constant M_VARARGS  $m.varargs)
+(define-sassy-constant M_MORECORE $m.morecore)
+
+(define-sassy-constant PROC_HDR $imm.procedure-header)
+(define-sassy-constant PROC_HEADER_WORDS           1)
 (define-sassy-constant PROC_OVERHEAD_WORDS         2)             ; code and constants
 (define-sassy-constant PROC_CONSTVECTOR            8)   ; byte offset
 (define-sassy-constant PROC_CODEVECTOR_NATIVE      4)    ; byte offset
