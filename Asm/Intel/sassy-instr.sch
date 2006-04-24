@@ -482,7 +482,7 @@
   `(mov (dword (& RESULT)) ,(logior
                              (lsh (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
                                   8)
-                            PROC_HDR))
+                             $hdr.procedure))
   ;; Adjust only if code is in bytevectors!
   ;;mov	dword [RESULT+PROC_CODEVECTOR_NATIVE], ,codevec + BVEC_TAG
   `(mov	(dword (& RESULT ,(+ PROC_CODEVECTOR_NATIVE))) ,codevec)
@@ -494,10 +494,10 @@
   ;; argument is n
   (ia86.const2regf RESULT (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
   (ia86.alloc)
-  `(mov	(dword (& RESULT)) (orr 
-                            (lsh (words2bytes ,(+ PROC_OVERHEAD_WORDS n 1))
-                                 8)
-                            PROC_HDR))
+  `(mov	(dword (& RESULT)) ,(logior
+                             (lsh (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
+                                  8)
+                             $hdr.procedure))
   (ia86.loadr	TEMP 0)
   `(mov	TEMP (& TEMP ,(+ (- PROC_TAG) PROC_CODEVECTOR_NATIVE)))
   `(mov	(dword (& RESULT ,(+ PROC_CODEVECTOR_NATIVE))) TEMP)
@@ -1342,10 +1342,10 @@
   (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP1_13)		; port?
-  (ia86.double_tag_predicate VEC_TAG PORT_HDR))
+  (ia86.double_tag_predicate VEC_TAG $hdr.port))
 
 (define-sassy-instr (ia86.T_OP1_14)		; structure?
-  (ia86.double_tag_predicate VEC_TAG STRUCT_HDR))
+  (ia86.double_tag_predicate VEC_TAG $hdr.struct))
 
 (define-sassy-instr (ia86.T_OP1_15)		; car
   (ia86.single_tag_test_ex PAIR_TAG $ex.car)
@@ -1356,7 +1356,7 @@
   `(mov	RESULT (& RESULT ,(+ (- PAIR_TAG) wordsize))))
 
 (define-sassy-instr (ia86.T_OP1_17)		; symbol?
-  (ia86.double_tag_predicate VEC_TAG SYMBOL_HDR))
+  (ia86.double_tag_predicate VEC_TAG $hdr.symbol))
 
 (define-sassy-instr (ia86.T_OP1_18)		; number? and complex?
   (ia86.mcall	$m.complexp))
@@ -1365,7 +1365,7 @@
   (ia86.mcall	$m.rationalp))
 
 (define-sassy-instr (ia86.T_OP1_21)		; compnum?
-  (ia86.double_tag_predicate BVEC_TAG COMPNUM_HDR))
+  (ia86.double_tag_predicate BVEC_TAG $hdr.compnum))
 
 (define-sassy-instr (ia86.T_OP1_22)		; integer?
   (let ((L1 (fresh-label))
@@ -1383,7 +1383,7 @@
   (ia86.setcc	'z))
 	
 (define-sassy-instr (ia86.T_OP1_24)		; flonum?
-  (ia86.double_tag_predicate BVEC_TAG FLONUM_HDR))
+  (ia86.double_tag_predicate BVEC_TAG $hdr.flonum))
 
 (define-sassy-instr (ia86.T_OP1_25)		; exact?
   (ia86.mcall	$m.exactp))
@@ -1465,24 +1465,23 @@
   `(or	RESULT_LOW IMM_CHAR))
 
 (define-sassy-instr (ia86.T_OP1_39)		; string?
-  (ia86.double_tag_predicate BVEC_TAG STR_HDR))
+  (ia86.double_tag_predicate $tag.bytevector-tag $hdr.string))
 
 (define-sassy-instr (ia86.T_OP1_40)		; string-length
-  (ia86.indexed_structure_length BVEC_TAG STR_HDR $ex.slen 1))
+  (ia86.indexed_structure_length $tag.bytevector-tag $hdr.string $ex.slen 1))
 		
 (define-sassy-instr (ia86.T_OP1_41)		; vector?
-  (ia86.double_tag_predicate VEC_TAG VECTOR_HDR))
+  (ia86.double_tag_predicate VEC_TAG $hdr.vector))
 
 
 (define-sassy-instr (ia86.T_OP1_42)		; vector-length
-  (ia86.indexed_structure_length VEC_TAG VECTOR_HDR $ex.vlen 0))
-
+  (ia86.indexed_structure_length VEC_TAG $hdr.vector $ex.vlen 0))
 		
 (define-sassy-instr (ia86.T_OP1_43)		; bytevector?
-  (ia86.double_tag_predicate BVEC_TAG BYTEVECTOR_HDR))
+  (ia86.double_tag_predicate $tag.bytevector-tag $hdr.bytevector))
 
 (define-sassy-instr (ia86.T_OP1_44)		; bytevector-length
-  (ia86.indexed_structure_length BVEC_TAG BYTEVECTOR_HDR $ex.bvlen 1))
+  (ia86.indexed_structure_length $tag.bytevector-tag $hdr.bytevector $ex.bvlen 1))
 
 (define-sassy-instr (ia86.T_OP2_45 x)		; bytevector-fill!
   (cond ((not (unsafe-code))
@@ -1490,7 +1489,7 @@
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.single_tag_test BVEC_TAG)
+           (ia86.single_tag_test $tag.bytevector-tag)
            `(jz short ,L2)
            `(label ,L1)
            (ia86.exception_continuable $ex.bvfill L0)
@@ -1503,7 +1502,7 @@
   (ia86.mcall	$m.bytevector-like-fill))
 
 (define-sassy-instr (ia86.T_OP1_46)		; make-bytevector
-  (ia86.make_indexed_structure_byte -1 BYTEVECTOR_HDR  $ex.mkbvl))
+  (ia86.make_indexed_structure_byte -1 $hdr.bytevector  $ex.mkbvl))
 
 (define-sassy-instr (ia86.T_OP1_47)		; procedure?
   (ia86.single_tag_test PROC_TAG)
@@ -1514,7 +1513,7 @@
 
 (define-sassy-instr (ia86.T_OP1_49)		; make-procedure
   ;; exception code wrong, matches Sparc
-  (ia86.make_indexed_structure_word -1 PROC_TAG  PROC_HDR  $ex.mkvl)) 
+  (ia86.make_indexed_structure_word -1 PROC_TAG  $hdr.procedure  $ex.mkvl))
 		
 (define-sassy-instr (ia86.T_OP1_52)		; make-cell just maps to cons, for now
   (T_OP2_58 1)		; OPTIMIZEME: remove next instr by specializing
@@ -1691,21 +1690,21 @@
   (error 'T_OP2_rot "not implemented"))
 
 (define-sassy-instr (ia86.T_OP2_78 x)		; string-ref
-  (ia86.indexed_structure_ref x BVEC_TAG  STR_HDR  $ex.sref 1)
+  (ia86.indexed_structure_ref x $tag.bytevector-tag  $hdr.string  $ex.sref 1)
   `(shl	RESULT char_shift)
   `(or	RESULT_LOW IMM_CHAR))
 
 (define-sassy-instr (ia86.T_OP3_79 x y)		; string-set!
-  (ia86.indexed_structure_set_char x y  BVEC_TAG  STR_HDR  $ex.sset))
+  (ia86.indexed_structure_set_char x y  $tag.bytevector-tag  $hdr.string  $ex.sset))
 
 (define-sassy-instr (ia86.T_OP2_80 x)		; make-vector
-  (ia86.make_indexed_structure_word x VEC_TAG  VEC_HDR  $ex.mkvl))
+  (ia86.make_indexed_structure_word x VEC_TAG  $hdr.vector  $ex.mkvl))
 
 (define-sassy-instr (ia86.T_OP2_81 x)		; vector-ref
-  (ia86.indexed_structure_ref x VEC_TAG  VEC_HDR  $ex.vref 0))
+  (ia86.indexed_structure_ref x VEC_TAG  $hdr.vector  $ex.vref 0))
 
 (define-sassy-instr (ia86.T_OP2_82 x)		; bytevector-ref
-  (ia86.indexed_structure_ref x BVEC_TAG  BYTEVECTOR_HDR  $ex.bvref 1)
+  (ia86.indexed_structure_ref x $tag.bytevector-tag  $hdr.bytevector  $ex.bvref 1)
   `(shl	RESULT 2))
 
 (define-sassy-instr (ia86.T_OP2_83 x)		; procedure-ref
@@ -1740,16 +1739,16 @@
   (ia86.mcall	$m.partial-list->vector))
 
 (define-sassy-instr (ia86.T_OP3_91 x y)		; vector-set!
-  (ia86.indexed_structure_set_word x y  VEC_TAG  VEC_HDR  $ex.vset))
+  (ia86.indexed_structure_set_word x y  VEC_TAG  $hdr.vector  $ex.vset))
 
 (define-sassy-instr (ia86.T_OP3_92 x y)		; bytevector-set!
-  (ia86.indexed_structure_set_byte x y  BVEC_TAG  BYTEVECTOR_HDR  $ex.bvset))
+  (ia86.indexed_structure_set_byte x y  $tag.bytevector-tag  $hdr.bytevector  $ex.bvset))
 
 (define-sassy-instr (ia86.T_OP3_93 x y)		; procedure-set!
   (ia86.indexed_structure_set_word x y  PROC_TAG  0  $ex.pset))
 
 (define-sassy-instr (ia86.T_OP1_94)		; bytevector-like?
-  (ia86.single_tag_test BVEC_TAG)
+  (ia86.single_tag_test $tag.bytevector-tag)
   (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP1_95)		; vector-like?
@@ -1757,11 +1756,11 @@
   (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP2_96 x)		; bytevector-like-ref
-  (ia86.indexed_structure_ref x BVEC_TAG  $ex.bvlref 1)
+  (ia86.indexed_structure_ref x $tag.bytevector-tag  $ex.bvlref 1)
   `(shl	RESULT 2))
 
 (define-sassy-instr (ia86.T_OP3_97 x y)		; bytevector-like-set!
-  (ia86.indexed_structure_set_byte x y  BVEC_TAG  0  $ex.bvlset))
+  (ia86.indexed_structure_set_byte x y  $tag.bytevector-tag  0  $ex.bvlset))
 
 (define-sassy-instr (ia86.T_OP2_98 x)		; sys$bvlcmp
   (ia86.loadr	SECOND x)
@@ -1777,7 +1776,7 @@
   (ia86.indexed_structure_length VEC_TAG $ex.vllen 0))
 
 (define-sassy-instr (ia86.T_OP1_102)		; bytevector-like-length
-  (ia86.indexed_structure_length BVEC_TAG $ex.bvllen 1))
+  (ia86.indexed_structure_length $tag.bytevector-tag $ex.bvllen 1))
 
 (define-sassy-instr (ia86.T_OP2_103 x)		; remainder
   (ia86.loadr	SECOND x)
@@ -1800,7 +1799,7 @@
 
 (define-sassy-instr (ia86.T_OP2_109 x)		; make-string
   ;; exception code wrong, matches Sparc
-  (ia86.make_indexed_structure_byte x STR_HDR  $ex.mkbvl))
+  (ia86.make_indexed_structure_byte x $hdr.string  $ex.mkbvl))
 
 (define-sassy-instr (ia86.T_OP2IMM_128 x)		; typetag-set!
   (ia86.const2regf SECOND x)
@@ -1870,19 +1869,19 @@
 ;;; The following five are probably a waste of effort.
 
 (define-sassy-instr (ia86.T_OP2IMM_142 x)		; string-ref
-  (ia86.indexed_structure_ref_imm x BVEC_TAG  STR_HDR  $ex.sref  1)
+  (ia86.indexed_structure_ref_imm x $tag.bytevector-tag  $hdr.string  $ex.sref  1)
   `(shl	RESULT char_shift)
   `(or	RESULT_LOW IMM_CHAR))
 
 (define-sassy-instr (ia86.T_OP2IMM_143 x)		; vector-ref
-  (ia86.indexed_structure_ref_imm x VEC_TAG  VECTOR_HDR  $ex.vref  0))
+  (ia86.indexed_structure_ref_imm x VEC_TAG  $hdr.vector  $ex.vref  0))
 
 (define-sassy-instr (ia86.T_OP2IMM_144 x)		; bytevector-ref
-  (ia86.indexed_structure_ref_imm x BVEC_TAG  BYTEVECTOR_HDR  $ex.bvref  1)
+  (ia86.indexed_structure_ref_imm x $tag.bytevector-tag  $hdr.bytevector  $ex.bvref  1)
   `(shl	RESULT 2))
 	
 (define-sassy-instr (ia86.T_OP2IMM_145 x)		; bytevector-like-ref
-  (ia86.indexed_structure_ref_imm x BVEC_TAG  $ex.bvlref  1)
+  (ia86.indexed_structure_ref_imm x $tag.bytevector-tag  $ex.bvlref  1)
   `(shl	RESULT 2))
 
 (define-sassy-instr (ia86.T_OP2IMM_146 x)		; vector-like-ref
