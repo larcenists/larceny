@@ -255,7 +255,7 @@
 (define-instruction $op2imm
   (lambda (instruction as)
     (list-instruction "op2imm" instruction)
-    (emit-sassy as 'T_OP2IMM
+    (emit-sassy as ia86.T_OP2IMM
                 (op2imm-primcode (operand1 instruction))
                 (constant-value (operand2 instruction)))))
 
