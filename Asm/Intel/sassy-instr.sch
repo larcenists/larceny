@@ -669,7 +669,7 @@
   `(jmp	TEMP))
 
 (define-sassy-instr (ia86.T_NOP)
-  '()) ;; nothing
+  `(nop)) ;; The interface doesn't actually support empty lists, I think...
 
 ;;; JUMP: Arguments are levels, label, and name of the code vector
 ;;; into which we are jumping (an artifact of the labelling system
@@ -679,7 +679,7 @@
   (ia86.timer_check)
   (cond ((> levels 0) 
          (ia86.loadr TEMP 0)		; We know R0 is not a HWREG
-         `(times levels 
+         `(times ,levels 
                  (mov TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_REG0))))
          (ia86.storer 0 TEMP)))
   `(jmp ,name))
