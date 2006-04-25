@@ -386,13 +386,13 @@
 
 (define-sassy-instr (ia86.T_LEXICAL rib off)
   (ia86.loadr	TEMP 0)		; We know R0 is not a HWREG
-  `(times ,rib (mov TEMP (& TEMP PROC_REG0 ,(+ (- $tag.procedure-tag)))))
-  `(mov RESULT (& TEMP PROG_REG0 ,(+ (- $tag.procedure-tag) (words2bytes off)))))
+  `(times ,rib (mov TEMP (& TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
+  `(mov RESULT (& TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off)))))
 
 (define-sassy-instr (ia86.T_SETLEX rib off)
   (ia86.loadr	TEMP 0)		; We know R0 is not a HWREG
-  `(times ,rib (mov TEMP (& TEMP PROC_REG0 ,(+ (- $tag.procedure-tag)))))
-  `(mov (& TEMP PROC_REG0 ,(+ (- $tag.procedure-tag) (words2bytes off))) RESULT))
+  `(times ,rib (mov TEMP (& TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
+  `(mov (& TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off))) RESULT))
 	
 (define-sassy-instr (ia86.T_STACK slot)
   `(mov	RESULT (stkslot ,slot)))
@@ -439,7 +439,7 @@
         (set! regno (- *lastreg* 1))
         `((mov (& GLOBALS ,(+ G_STKP)) CONT)     ; Need a working register!
           (mov (& GLOBALS ,(+ G_RESULT)) RESULT) ; Save for later
-          (add RESULT (+ PROC_REG0 (words2bytes LASTREG)))
+          (add RESULT ,(+ PROC_REG0 (words2bytes LASTREG)))
           (loadr CONT 31)
           (label ,L1)
           (mov TEMP (& CONT ,(- $tag.pair-tag)))
