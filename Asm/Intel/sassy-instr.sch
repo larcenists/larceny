@@ -146,7 +146,7 @@
 (define-sassy-macro (roundup4 x)	 (logand (+ x 3) (lognot 3)))
 (define-sassy-macro (roundup8 x)	 (logand (+ x 7) (lognot 7)))
 (define-sassy-macro (words2bytes n)      (* n 4))
-(define-sassy-macro (stkslot n)          (+ CONT STK_REG0 (words2bytes n)))
+(define-sassy-macro (stkslot n)          `(& CONT ,(+ STK_REG0 (words2bytes n))))
 (define-sassy-macro (framesize n)        (roundup8 (+ wordsize STK_OVERHEAD (words2bytes n))))
 (define-sassy-macro (recordedsize n)     (+ STK_OVERHEAD (words2bytes n)))
 			
@@ -395,24 +395,24 @@
   `(mov (& TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off))) RESULT))
 	
 (define-sassy-instr (ia86.T_STACK slot)
-  `(mov	RESULT (stkslot ,slot)))
+  `(mov	RESULT ,(stkslot slot)))
 
 (define-sassy-instr (ia86.T_SETSTK slot)
-  `(mov	(stkslot ,slot) RESULT))
+  `(mov	,(stkslot slot) RESULT))
 
 (define-sassy-instr (ia86.T_LOAD r slot)
   (cond ((is_hwreg r)
-         `(mov ,(reg r) (stkslot ,slot)))
+         `(mov ,(reg r) ,(stkslot slot)))
         (else
-         `(mov TEMP (stkslot ,slot))
+         `(mov TEMP ,(stkslot slot))
          (ia86.storer r TEMP))))
 
 (define-sassy-instr (ia86.T_STORE r slot)
   (cond ((is_hwreg r)
-         `(mov	(stkslot ,slot) ,(reg r)))
+         `(mov	,(stkslot slot) ,(reg r)))
         (else
 	 (ia86.loadr	TEMP r)
-	 `(mov	(stkslot ,slot) TEMP))))
+	 `(mov	,(stkslot slot) TEMP))))
 
 (define-sassy-instr (ia86.T_REG r)
   (ia86.loadr RESULT r))
@@ -611,7 +611,7 @@
     `(mov	(dword (& CONT ,(+ STK_RETADDR))) RESULT)
     (cond ((= (- (framesize n) (recordedsize n)) 8)
            ;; We have a pad word at the end -- clear it
-           `(mov (dword (& (stkslot (+ ,n 1)))) RESULT)))))
+           `(mov (dword ,(stkslot (+ n 1))) RESULT)))))
 
 ;;; Initialize the numbered slot to the value of RESULT.
 ;;; Using RESULT is probably OK because it is almost certainly 0
@@ -619,7 +619,7 @@
 ;;; after that.
 
 (define-sassy-instr (ia86.T_SAVE1 n)
-  `(mov	(dword (& (stkslot ,n))) RESULT))
+  `(mov	(dword ,(stkslot n)) RESULT))
 
 ;;; T_SAVE may still be emitted by the assembler when peephole 
 ;;; optimization is disabled.
@@ -642,8 +642,8 @@
     (let rep ((slotno 0))
       (cond ((<= slotno n)
              (append (if (is_hwreg slotno)
-                         `((mov ,(reg slotno) (dword (& (stkslot ,slotno)))))
-                         `((mov TEMP (dword (& (stkslot ,slotno))))
+                         `((mov ,(reg slotno) (dword ,(stkslot slotno))))
+                         `((mov TEMP (dword ,(stkslot slotno)))
                            (mov (& GLOBALS ,(+ (g_reg slotno))) TEMP)))
                      (rep (+ slotno 1))))
             (else
