@@ -79,7 +79,8 @@
 
  ; The byte-list returned is little-endian
 (define (number->byte-list number size)
-  (cond ((integer? number) (integer->byte-list number size))
+  (cond ((and (integer? number)
+              (exact? number)) (integer->byte-list number size))
 	((real? number)
 	 (cond ((= 4 size) (float32->byte-list number))
 	       ((= 8 size) (float64->byte-list number))
