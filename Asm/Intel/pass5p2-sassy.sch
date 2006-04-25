@@ -319,7 +319,7 @@
 (define-instruction $lexes
   (lambda (instruction as)
     (list-instruction "lexes" instruction)
-    (emit-sassy as 'T_LEXES (operand1 instruction))))
+    (emit-sassy as ia86.T_LEXES (operand1 instruction))))
 
 (define-instruction $args=
   (lambda (instruction as)
