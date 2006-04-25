@@ -6,7 +6,7 @@
 
 (define compile-files
   (let ((compile-files compile-files))
-    (lambda (infiles outfile)
+    (lambda (infiles outfile . stxenv)
       (let* ((compile-root (current-directory))
              (fix-path
                (lambda (path)
@@ -16,7 +16,7 @@
              (infiles-fixed (map fix-path infiles))
              (outfile-fixed (fix-path outfile)))
         (parameterize ((current-directory (current-larceny-root)))
-          (compile-files infiles-fixed outfile-fixed))))))
+          (apply compile-files infiles-fixed outfile-fixed stxenv))))))
 
 (define (compile-file infile . rest)
   (let ((outfile
