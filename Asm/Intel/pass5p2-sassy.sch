@@ -341,7 +341,7 @@
     (if (not (negative? (operand1 instruction)))
 	(begin
 	  (list-instruction "restore" instruction)
-	  (emit-sassy as 'T_RESTORE
+	  (emit-sassy as ia86.T_RESTORE
 		     (min (operand1 instruction) (- *nregs* 1)))))))
 
 (define-instruction $pop
@@ -387,7 +387,7 @@
 (define-instruction $setlex
   (lambda (instruction as)
     (list-instruction "setlex" instruction)
-    (emit-sassy as 'T_SETLEX
+    (emit-sassy as ia86.T_SETLEX
 	       (operand1 instruction)
 	       (operand2 instruction))))
 
@@ -415,7 +415,7 @@
 (define-instruction $nop
   (lambda (instruction as)
     (list-instruction "nop" instruction)
-    (emit-sassy as 'T_NOP)))
+    (emit-sassy as ia86.T_NOP)))
 
 ; (define-instruction $save
 ;   (lambda (instruction as)
@@ -456,14 +456,14 @@
 (define-instruction $apply
   (lambda (instruction as)
     (list-instruction "apply" instruction)
-    (emit-sassy as 'T_APPLY
+    (emit-sassy as ia86.T_APPLY
 	       (operand1 instruction)
 	       (operand2 instruction))))
 
 (define-instruction $jump
   (lambda (instruction as)
     (list-instruction "jump" instruction)
-    (emit-sassy as 'T_JUMP
+    (emit-sassy as ia86.T_JUMP
                (operand1 instruction)
                (operand2 instruction)
 	       (compiled-procedure as (operand2 instruction)))))
@@ -472,7 +472,7 @@
   (lambda (instruction as)
     (list-instruction "skip" instruction)
     (emit-sassy as
-	       'T_SKIP
+                ia86.T_SKIP
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $branch
@@ -482,7 +482,7 @@
 	       (if (memq (operand1 instruction) 
 			 (user-data.labels (as-user as)))
 		   ia86.T_BRANCH
-		   'T_SKIP)
+		   ia86.T_SKIP)
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $branchf
@@ -491,7 +491,7 @@
     (emit-sassy as 
 	       (if (memq (operand1 instruction)
 			 (user-data.labels (as-user as)))
-		   'T_BRANCHF 
+		   ia86.T_BRANCHF 
 		   ia86.T_SKIPF)
 	       (compiled-procedure as (operand1 instruction)))))
 
