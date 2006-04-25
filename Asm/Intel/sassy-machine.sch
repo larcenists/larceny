@@ -1,7 +1,6 @@
-; -*- mode: asm -*-
-;
-; Copyright 2003 Lars T Hansen
-; Machine description for x86-nasm port of Larceny.
+; Copyright 2006 Felix S Klock
+; (Based on Lars T Hansen's i386-machine.asm file)
+; Machine description for x86-sassy port of Larceny.
 ;
 ; $Id: i386-machine.ah 2543 2005-07-20 21:54:03Z pnkfelix $
 ;
