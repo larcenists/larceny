@@ -42,7 +42,7 @@ a heap image containing the compiled development environment, first
 compile twobit, then quit Larceny and restart it, using larceny.bin and
 sparc.heap and requesting the nongenerational garbage collector:
 
-    $ ./larceny.bin -stopcopy ./sparc.heap
+    $ ./larceny.bin -stopcopy -heap ./sparc.heap
 
 Then load the following script to load the compiler and dump a suitable
 heap image:

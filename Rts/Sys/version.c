@@ -14,8 +14,7 @@
  *  CRM-114                     0.52
  *  Dear John                   0.53
  *  Operation Drop-Kick         0.90
- *  Hi There!                   0.91
- *  Children's Ice Cream
+ *  Children's Ice Cream        0.91
  *  Definite Missile Track
  *  Deviated Prevert
  *  Doomsday Device
@@ -25,6 +24,7 @@
  *  Goldie
  *  Grain Alcohol and Rainwater
  *  Group Commander Mandrake
+ *  Hi There!
  *  Horsing Around
  *  'King' Kong
  *  Mein Fuhrer
@@ -53,7 +53,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 91;
-char *larceny_version_qualifier = "dev \"Hi There!\"";
+char *larceny_version_qualifier = "dev \"Children's Ice Cream\"";
 
 char *date = DATE " " TIME;
 char *user = USER;
