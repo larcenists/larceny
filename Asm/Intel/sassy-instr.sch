@@ -271,7 +271,7 @@
          (let ((L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L1)
-	   `(mov TEMP (& (+ GLOBALS G_ETOP)))
+	   `(mov TEMP (& GLOBALS ,$g.etop))
 	   `(add TEMP RESULT) ; allocate
 	   `(add TEMP 4)      ;  and
 	   `(add TEMP -8)     ;   round up to 8-byte boundary
@@ -280,8 +280,8 @@
 	   (ia86.mcall $m.morecore)
 	   `(jmp short ,L1)
            `(label ,L2)
-           `(mov RESULT (& (+ GLOBALS G_ETOP)))
-	   `(mov (& (+ GLOBALS G_ETOP)) TEMP)))
+           `(mov RESULT (& GLOBALS ,$g.etop))
+	   `(mov (& GLOBALS ,$g.etop) TEMP)))
         (else
          (ia86.mcall $m.alloc))))
 
@@ -416,28 +416,26 @@
          (ia86.storer r2 TEMP))))
 
 (define-sassy-instr (ia86.init_closure r)
-  (let ((regno 'set-banged-below)
+  (let ((regno (cond ((> r *lastreg*)
+                      (- *lastreg* 1))
+                     (else 
+                      r)))
         (L1 (fresh-label)))
     (cond 
      ((> r *lastreg*)
-      (begin 
-        (set! regno (- *lastreg* 1))
-        `((mov (& GLOBALS ,(+ G_STKP)) CONT)     ; Need a working register!
-          (mov (& GLOBALS ,(+ G_RESULT)) RESULT) ; Save for later
-          (add RESULT ,(+ PROC_REG0 (words2bytes LASTREG)))
-          (loadr CONT 31)
-          (label ,L1)
-          (mov TEMP (& CONT ,(- $tag.pair-tag)))
-          (mov (& RESULT) TEMP)
-          (add RESULT wordsize)
-          (mov CONT (& CONT ,(+ (- $tag.pair-tag) wordsize)))
-          (cmp CONT NIL_CONST)
-          (jne short ,L1)
-          (mov CONT (& GLOBALS ,(+ G_STKP)))
-          (mov RESULT (& GLOBALS ,(+ G_RESULT))))))
-     (else
-      (begin (set! regno r)
-             '())))
+      `(mov (& GLOBALS ,(+ G_STKP)) CONT)     ; Need a working register!
+      `(mov (& GLOBALS ,(+ G_RESULT)) RESULT) ; Save for later
+      `(add RESULT ,(+ PROC_REG0 (words2bytes LASTREG)))
+      `(loadr CONT 31)
+      `(label ,L1)
+      `(mov TEMP (& CONT ,(- $tag.pair-tag)))
+      `(mov (& RESULT) TEMP)
+      `(add RESULT wordsize)
+      `(mov CONT (& CONT ,(+ (- $tag.pair-tag) wordsize)))
+      `(cmp CONT NIL_CONST)
+      `(jne short ,L1)
+      `(mov CONT (& GLOBALS ,(+ G_STKP)))
+      `(mov RESULT (& GLOBALS ,(+ G_RESULT)))))
     (begin
       (let rep ((regno regno))
         (cond 
