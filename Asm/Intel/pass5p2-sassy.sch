@@ -380,7 +380,7 @@
 (define-instruction $lexical
   (lambda (instruction as)
     (list-instruction "lexical" instruction)
-    (emit-sassy as 'T_LEXICAL
+    (emit-sassy as ia86.T_LEXICAL
 	       (operand1 instruction)
 	       (operand2 instruction))))
 
@@ -612,12 +612,12 @@
     (+ (* (char->integer c) 65536) $imm.character))
 
   (cond ((fixnum? x)              (fixnum x))
-        ((eq? x #t)               TRUE_CONST)
-        ((eq? x #f)               FALSE_CONST)
-        ((equal? x (eof-object))  EOF_CONST)
-        ((equal? x (unspecified)) UNSPECIFIED_CONST)
-        ((equal? x (undefined))   UNDEFINED_CONST)
-        ((null? x)                NIL_CONST)
+        ((eq? x #t)               $imm.true)
+        ((eq? x #f)               $imm.false)
+        ((equal? x (eof-object))  $imm.eof)
+        ((equal? x (unspecified)) $imm.unspecified)
+        ((equal? x (undefined))   $imm.undefined)
+        ((null? x)                $imm.null)
         ((char? x)                (char x))
 	(else ???)))
 
