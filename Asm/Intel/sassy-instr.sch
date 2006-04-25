@@ -2,19 +2,6 @@
 ;;;
 ;;; $Id: i386-instr.asm 2715 2005-12-14 22:27:51Z tov $
 ;;; 
-;;; On the i386 architecture, the Twobit native assembler emits
-;;; textual assembly language rather than machine code.  The output
-;;; is then assembled with nasm, "The Netwide Assembler", a macro
-;;; assembler that runs on many platforms and accepts the same syntax
-;;; everywhere (namely, standard Intel syntax).  The assembled files
-;;; can then be loaded into Larceny via its already-existing mechanism
-;;; for loading code dynamically.
-;;; 
-;;; Because nasm is a macro assembler, Twobit's assembler just outputs
-;;; something that is only superficially different from MacScheme assembly
-;;; language.  The present file defines the macros that allow that output
-;;; to be assembled.
-;;; 
 ;;; Sections in this file
 ;;;   - Section 1: handy macros
 ;;;   - Section 2: utility macros for MAL instruction definitions
@@ -22,8 +9,6 @@
 ;;;   - Section 4: MAL primitive operations (OP1, OP2, OP2IMM, OP3)
 ;;; 
 ;;; Conventions in the generated code:
-;;;   - All generated codevectors are bracketed by uses of
-;;;     'begin_codevector' and 'end_codevector'.
 ;;;   - Labels defined within the a codevector are local to the
 ;;;     codevector they are defined in (using the NASM convention
 ;;;     for local labels).
@@ -674,6 +659,9 @@
 ;;; JUMP: Arguments are levels, label, and name of the code vector
 ;;; into which we are jumping (an artifact of the labelling system
 ;;; in this implementation)
+
+;;; FSK: does this even work in this context?  Need to review how
+;;; Sassy differs from NASM.
 	
 (define-sassy-instr (ia86.T_JUMP levels label name)
   (ia86.timer_check)
