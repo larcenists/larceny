@@ -150,8 +150,8 @@
 
 (define-sassy-macro (is_hwreg n)         (<= FIRST_HWREG n LAST_HWREG))
 (define-sassy-macro (fixnum n)           (lsh n 2))
-(define-sassy-macro (roundup4 x)	 (logand (+ x 3) (complement 3)))
-(define-sassy-macro (roundup8 x)	 (logand (+ x 7) (complement 7)))
+(define-sassy-macro (roundup4 x)	 (logand (+ x 3) (lognot 3)))
+(define-sassy-macro (roundup8 x)	 (logand (+ x 7) (lognot 7)))
 (define-sassy-macro (words2bytes n)      (* n 4))
 (define-sassy-macro (stkslot n)          (+ CONT STK_REG0 (words2bytes n)))
 (define-sassy-macro (framesize n)        (roundup8 (+ wordsize STK_OVERHEAD (words2bytes n))))
@@ -418,7 +418,7 @@
   (cond ((is_hwreg r)
          `(mov	(stkslot ,slot) ,(reg r)))
         (else
-	 (ia8.loadr	TEMP r)
+	 (ia86.loadr	TEMP r)
 	 `(mov	(stkslot ,slot) TEMP))))
 
 (define-sassy-instr (ia86.T_REG r)
@@ -605,7 +605,7 @@
         (L1 (fresh-label)))
     `(label ,L0)
     `(sub CONT (framesize ,n))
-    `(cmp CONT (& GLOBALS ,(+ G_ETOP)))
+    `(cmp CONT (& GLOBALS ,(+ $g.etop)))
     `(jge short ,L1)
     `(add CONT (framesize ,n))
     (ia86.mcall $m.stkoflow)
