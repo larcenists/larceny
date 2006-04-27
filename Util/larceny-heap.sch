@@ -72,7 +72,8 @@
 		  (load fn)))
 	      files))
 
-  (load "Util/sparc-unix.sch")
+  (load "Util/petit-setup.sch")
+  (setup 'host: 'solaris 'scheme: 'larceny 'native)
   (load-compiler 'release)
   (load "Asm/Common/link-lop.fasl")
 

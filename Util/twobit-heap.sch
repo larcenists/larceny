@@ -9,7 +9,8 @@
 ; and debugger.  The easiest way to do that is to run 'build-twobit' in
 ; the standard development environment.
 
-(load "Util/sparc-unix.sch")
+(load "Util/petit-setup.sch")
+(setup 'host: 'solaris 'scheme: 'larceny 'native)
 (load-compiler)
 
 (load "Debugger/debug.fasl")
