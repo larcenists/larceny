@@ -1,104 +1,85 @@
 SYSTEM REQUIREMENTS
 
 Currently, this software is distributed for:
- - Solaris on Sparc machines
- - Mac OS X on PowerPC machines (versions 10.2 and higher)
- - Linux on Intel x86 machines
- - Windows on Intel x86 machines
+ - Solaris on SPARC machines (native SPARC and C backends)
+ - Mac OS X (>= 10.2) on PPC machines (C backend)
+ - Linux on Intel x86 machines (NASM and C backends)
+ - Windows on Intel x86 machines (NASM backend)
 
-You may be able to make it work on other platforms (e.g. Linux on
-PowerPC machines), but we do not yet provide support for those systems.
+"Petit Larceny" is used throughout this documentation to refer to all
+versions other than the SPARC native backend [1].
 
 
 WHAT YOU NEED
 
-Native (Sparc): everything should work out of the box.
-Petit/C (Sparc, Linux, Mac OS X): ensure that the GNU C Compiler (GCC)
-    is in your search path
-Petit/NASM (Linux): both the GNU C Compiler and NASM (The Netwide
-    Assembler) must be in your path
-Petit/NASM (Win32): both Microsoft's development tools and NASM must be
-    in your search path
+Native (SPARC): everything should work out of the box.
 
-NASM:     http://sourceforge.net/projects/nasm
+Petit/C (SPARC, Linux, Mac OS X): ensure that the GNU C Compiler (GCC)
+    is in your search path [2].
+
+Petit/NASM (Linux): both the GNU C Compiler and NASM (The Netwide
+    Assembler) must be in your path.
+
+Petit/NASM (Win32): Microsoft's development tools and NASM must be in
+    your search path.
+
+NASM:     See http://sourceforge.net/projects/nasm
 MS Tools: See http://www.winprog.org/tutorial/msvc.html
 OS X:     Use Apple's Developer Tools, http://developer.apple.com/
 
 
 QUICK START
 
-* Native (Sparc)
-  - If you want to use the compiler, run
-    % ./larceny.bin larceny.heap
+Native (SPARC):
+ - If you want to use the compiler, run
+   % ./larceny
 
-  - If you're content to use only the interpreter, run
-    % ./larceny.bin r5rs.heap
+ - If you're content to use only the interpreter, run
+   % ./larceny-r5rs
 
-* Petit (Linux, Sparc)
-  - If you want to use the compiler, run
-    % ./twobit twobit.heap
+Petit (Linux, SPARC, Mac OS X):
+ - If you want to use the compiler, run
+   % ./twobit
 
-  - If you're content to use only the interpreter, run
-    % ./petit petit.heap
+ - If you're content to use only the interpreter, run
+   % ./petit
 
-* Petit/NASM (Win32)
-  - If you want to use the compiler, run
-    % twobit twobit.heap
+Petit (Win32):
+ - If you want to use the compiler, run
+   > twobit
 
-  - If you're content to use only the interpreter, run
-    % petit petit.heap
-
-* Petit/C (Mac OS X)
-  - If you want to use the compiler, run
-    % ./twobit.app twobit.heap
-
-  - If you're content to use only the interpreter, run
-    % ./petit petit.heap
+ - If you're content to use only the interpreter, run
+   > petit
 
 
-There are other binaries and heaps in the root directory of the
-distribution, but they are meant for developers and are not all
-mutually compatible with one another.  (In general, an executable
-named "X" is meant to run with the heap named "X.heap".)
+COMPILING SCHEME SOURCE WITH LARCENY
 
-
-COMPILING
-
- - (compile-file <source> [<target>])
+ - (compile-file <SOURCE> [<TARGET>])
 
    (compile-file "source.sch")
-     compiles "source.sch", leaving the compiled code in "source.fasl".
-     (The .scm suffix is also recognized.)
+     compiles "source.sch", leaving the compiled code in "source.fasl"
 
    (compile-file "source.sch" "target.fasl")
      compiles "source.sch", leaving the compiled code in "target.fasl"
 
-
  - (load "target.fasl")
      loads the compiled code in "target.fasl"
-
-*** IMPORTANT NOTE FOR COMPILING IN PETIT LARCENY ***
-
-Out of the box, compile-file works only when the current directory is
-the root of the Larceny distribution.  To allow compilation with a
-different current-directory, either:
-
- - follow the steps given in Docs/HOWTO-PETIT, section "INSTALLING
-   TWOBIT ON YOUR SYSTEM", or,
-
- - (load "Util/petit-compile-file.sch") while in the root directory of
-   the Larceny distribution.  This will define compile-file in a manner
-   that works outside the root directory.  You can then change
-   directories using (current-directory NEWDIR).
 
 
 FURTHER READING
 
-There is a lot of documentation available in the Docs/ directory, all
-in various states of completeness.
+If you want to install Larceny for other users on your system, see
+Docs/HOWTO-INSTALL.  To build your own Larceny, take a look at
+Docs/HOWTO-SETUP.
 
-If you want to build your own copy of Petit Larceny, the easiest way
-to get your feet wet is to read Docs/HOWTO-SETUP.  There you'll find
-the eight scheme commands to build Larceny from scratch, both from an
-existing Larceny executable, or from another Scheme interpreter such
-as Chez or PLT Scheme.
+
+NOTES
+
+[1] You may be able to make Petit Larceny work on other platforms (e.g.
+Linux/PPC with the C backend, or Mac OS X/x86 with the NASM backend) but
+we do not yet provide support for those systems.
+
+[2] We currently support GCC version 3.3; other versions may work, but
+currently GCC 4.0 seems to have trouble with the code we generate.  GCC
+version 4.0 is the default C compiler on Mac OS X 10.4, but you can
+select another version using /usr/sbin/gcc_select.

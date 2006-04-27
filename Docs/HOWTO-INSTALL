@@ -1,0 +1,44 @@
+Installing Larceny
+April 2006 / tov+pnkfelix
+
+Short version:  Copy the startup script(s) to wherever you like, and
+then edit it to set LARCENY_ROOT to wherever the Larceny tree is
+installed.
+
+
+Long version:
+
+After you download a binary distribution of Larceny or build from
+source, there will be several scripts for starting Larceny in the root
+of the Larceny tree.  These can be run from that location, regardless of
+where you keep the tree.  If you want to make Larceny available to other
+users of your system, however, or if you want to install the executables
+in a standard place, this document will tell you how.
+
+Larceny is usually started by a script, which has two functions:
+
+ - It sets an environment variable LARCENY_ROOT to the absolute path of
+   the Larceny tree, which is assumed to be the same as the directory
+   that the script is in.
+
+ - It dispatches on the name of the script, to choose both a Larceny
+   executable (such as twobit.bin) and a heap image (such as
+   petit.heap).
+
+Which scripts you have depends on what platform you are using:
+
+ - Windows: Batch files "petit.bat" and "twobit.bat"
+ - SPARC Native Larceny: Shell scripts "larceny" and "larceny-r5rs"
+ - Petit Larceny: Shell scripts "petit" and "twobit"
+
+If you would like to move one of these scripts to another directory but
+not rename it, it is sufficient to hard-code the location of the Larceny
+tree in the script.  For example, to install Petit Larceny into
+/usr/local on Linux, untar the Larceny tree as /usr/local/lib/larceny.
+Then, copy the scripts "petit" and "twobit" to /usr/local/bin, and edit
+each one by uncommenting the line that sets LARCENY_ROOT, and setting it
+to /usr/local/lib/larceny.
+
+If you would like to change something else, such as the name of one of
+the scripts, editing the script should not be too difficult.
+
