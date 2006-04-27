@@ -82,11 +82,11 @@ If you are using Native Larceny (SPARC), you should dump heaps
 corresponding to (build-twobit), (build-larceny-files), and
 (build-r5rs-files) above:
 
-    % ./larceny.bin -heap sparc.heap -- Util/twobit-heap.sch
+    % ./larceny.bin -stopcopy -heap sparc.heap -- Util/twobit-heap.sch
 
-    % ./larceny.bin -heap sparc.heap -- Util/larceny-heap.sch
+    % ./larceny.bin -stopcopy -heap sparc.heap -- Util/larceny-heap.sch
 
-    % ./larceny.bin -heap sparc.heap -- Util/r5rs-heap.sch
+    % ./larceny.bin -stopcopy -heap sparc.heap -- Util/r5rs-heap.sch
 
 You can now run ./twobit, ./larceny, and ./larceny-r5rs.
 
