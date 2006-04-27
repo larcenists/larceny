@@ -1,9 +1,8 @@
 Installing Larceny
 April 2006 / tov+pnkfelix
 
-Short version:  Copy the startup script(s) to wherever you like, and
-then edit it to set LARCENY_ROOT to wherever the Larceny tree is
-installed.
+Short version:  Copy the startup scripts to wherever you like, and then
+edit them to set LARCENY_ROOT to the absolute path of the Larceny tree.
 
 
 Long version:
