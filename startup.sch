@@ -1,1 +1,1 @@
-(current-require-path (list "Auxlib" "Lib/SRFI" "Ffi" "Debugger"))
+(current-require-path (list "Auxlib" "Lib/SRFI" "Debugger"))

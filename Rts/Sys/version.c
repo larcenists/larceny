@@ -53,7 +53,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 91;
-char *larceny_version_qualifier = "dev \"Children's Ice Cream\"";
+char *larceny_version_qualifier = " \"Children's Ice Cream\"";
 
 char *date = DATE " " TIME;
 char *user = USER;
