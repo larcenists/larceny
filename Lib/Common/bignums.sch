@@ -141,7 +141,7 @@
 (define (bignum-alloc bigits)
 
   (define (roundup4 n)
-    (logand (+ n 3) (lognot 3)))
+    (fxlogand (+ n 3) (fxlognot 3)))
 
   (let ((l (roundup4 (* bigits bytes-per-bigit))))
     (if (> l max-bignum-bytes)
@@ -171,16 +171,16 @@
 
 (define (big2+ a b c i carry)
   (let ((r (+ (bignum-ref a i) (bignum-ref b i) carry)))
-    (bignum-set! c i (logand r bigit-mask))
-    (rshl r bigit-shift)))
+    (bignum-set! c i (fxlogand r bigit-mask))
+    (fxrshl r bigit-shift)))
 
 
 ; Special case: carry propagation.
 
 (define (big1+ a c i carry)
   (let ((r (+ (bignum-ref a i) carry)))
-    (bignum-set! c i (logand r bigit-mask))
-    (rshl r bigit-shift)))
+    (bignum-set! c i (fxlogand r bigit-mask))
+    (fxrshl r bigit-shift)))
 
 
 ; SUBTRACTION
@@ -190,7 +190,7 @@
 
 (define (big2- a b c i borrow)
   (let ((r (- (bignum-ref a i) (bignum-ref b i) borrow)))
-    (bignum-set! c i (logand (+ r bignum-base) bigit-mask))
+    (bignum-set! c i (fxlogand (+ r bignum-base) bigit-mask))
     (if (< r 0) 1 0)))
 
 
@@ -198,7 +198,7 @@
 
 (define (big1- a c i borrow)
   (let ((r (- (bignum-ref a i) borrow)))
-    (bignum-set! c i (logand (+ r bignum-base) bigit-mask))
+    (bignum-set! c i (fxlogand (+ r bignum-base) bigit-mask))
     (if (< r 0) 1 0)))
 
 
@@ -216,8 +216,8 @@
 	      (bignum-ref c (+ i j))
 	      carry)))
     (if (fixnum? t)
-	(begin (bignum-set! c (+ i j) (logand t bigit-mask))
-	       (rshl t bigit-shift))
+	(begin (bignum-set! c (+ i j) (fxlogand t bigit-mask))
+	       (fxrshl t bigit-shift))
 	(begin (bignum-set! c (+ i j) (bignum-ref t 0))
 	       (bignum-ref t 1)))))
 
@@ -267,7 +267,7 @@
 	      (lambda (i k borrow)
 		(if (<= i j)
 		    (let ((r (- (bignum-ref u i) (bignum-ref newv k) borrow)))
-		      (bignum-set! u i (logand (+ r bignum-base) bigit-mask))
+		      (bignum-set! u i (fxlogand (+ r bignum-base) bigit-mask))
 		      (if (negative? r)
 			  (loop (+ i 1) (+ k 1) 1)
 			  (loop (+ i 1) (+ k 1) 0)))
@@ -316,8 +316,8 @@
 		    (bignum-set! q i carry)
 		    (let ((r (+ (* (bignum-ref b i) f) carry)))
 		      (if (fixnum? r)
-			  (let ((lo (logand r bigit-mask))
-				(hi (rsha r bigit-shift)))
+			  (let ((lo (fxlogand r bigit-mask))
+				(hi (fxrsha r bigit-shift)))
 			    (bignum-set! q i lo)
 			    (loop (+ i 1) hi))
 			  (let ((lo (bignum-ref r 0))
@@ -350,9 +350,9 @@
   (let ((d0 (bignum-ref b 0))
 	(d1 (bignum-ref b 1))
 	(n  (sign-negative? (bignum-sign b))))
-    (if (>= (lsh d1 2) bignum-base/2)
+    (if (>= (fxlsh d1 2) bignum-base/2)
 	max-negative-fixnum
-	(let ((c (logior (lsh d1 bigit-shift) d0)))
+	(let ((c (fxlogior (fxlsh d1 bigit-shift) d0)))
 	  (if n
 	      (- c)
 	      c)))))
@@ -374,8 +374,8 @@
 	  (if (zero? f)
 	      (bignum-length-set! b 0)
 	      (begin
-		(bignum-set! b 0 (logand a bigit-mask))
-		(bignum-set! b 1 (rsha a bigit-shift))))
+		(bignum-set! b 0 (fxlogand a bigit-mask))
+		(bignum-set! b 1 (fxrsha a bigit-shift))))
 	  (if (< f 0) (bignum-sign-set! b negative-sign))
 	  b))))
 

@@ -1847,13 +1847,13 @@
                          load-verbose
                          loadit
                          log
-                         logand
-                         logior
-                         lognot
-                         logxor
+                         fxlogand
+                         fxlogior
+                         fxlognot
+                         fxlogxor
                          longer?
                          lowlevel-write
-                         lsh
+                         fxlsh
                          macro-expand
                          macro-expander
                          macroexpand
@@ -2134,8 +2134,8 @@
                          reverse
                          reverse!
                          round
-                         rsha
-                         rshl
+                         fxrsha
+                         fxrshl
                          run-benchmark
                          run-with-stats
                          same-method-signature?

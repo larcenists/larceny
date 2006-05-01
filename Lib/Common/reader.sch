@@ -70,19 +70,19 @@
 
        (whitespace?
 	(lambda (x)
-	  (not (zero? (logand 1 (bytevector-ref 
+	  (not (zero? (fxlogand 1 (bytevector-ref 
 				 character-syntax-table
 				 (char->integer x)))))))
 
        (separator?
 	(lambda (x)
-	  (not (zero? (logand 2 (bytevector-ref
+	  (not (zero? (fxlogand 2 (bytevector-ref
 				 character-syntax-table
 				 (char->integer x)))))))
 
        (digit?
 	(lambda (x)
-	  (not (zero? (logand 4 (bytevector-ref
+	  (not (zero? (fxlogand 4 (bytevector-ref
 				 character-syntax-table
 				 (char->integer x)))))))
  
@@ -644,7 +644,7 @@
 		  (bytevector-set! 
 		   character-syntax-table
 		   c
-		   (logior 3 (bytevector-ref character-syntax-table c))))
+		   (fxlogior 3 (bytevector-ref character-syntax-table c))))
        '(32      ;space
 	 13      ;carriage return
 	 10      ;line feed
@@ -661,13 +661,13 @@
 	(bytevector-set!
 	 character-syntax-table
 	 c
-	 (logior 2 (bytevector-ref character-syntax-table c))))
+	 (fxlogior 2 (bytevector-ref character-syntax-table c))))
 
       (for-each (lambda (c)
 		  (bytevector-set!
 		   character-syntax-table
 		   (char->integer c)
-		   (logior 2 (bytevector-ref character-syntax-table 
+		   (fxlogior 2 (bytevector-ref character-syntax-table 
 					     (char->integer c)))))
 		(list #\( #\) #\[ #\] #\{ #\} #\; #\\))
 
@@ -675,7 +675,7 @@
               (bytevector-set!
                 character-syntax-table
                 (char->integer c)
-                (logior 4 (bytevector-ref character-syntax-table
+                (fxlogior 4 (bytevector-ref character-syntax-table
 					  (char->integer c)))))
             (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
 

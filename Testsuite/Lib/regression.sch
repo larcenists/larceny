@@ -39,7 +39,7 @@
 	 (- (expt 2 29))
 	 -536870912)
    (test "Error case #8"		; Bug 061
-	 (logand -536870912 1)
+	 (fxlogand -536870912 1)
 	 0)
    (test "Error case #9"		; Bug 066
 	 (exact->inexact 14285714285714285714285)

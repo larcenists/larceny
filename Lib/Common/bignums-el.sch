@@ -68,12 +68,12 @@
 
   (define (bytevector-like-halfword-ref bv i)
     (let ((i (+ i i)))
-      (logior (lsh (bytevector-like-ref bv (+ i 1)) 8)
+      (fxlogior (fxlsh (bytevector-like-ref bv (+ i 1)) 8)
 	      (bytevector-like-ref bv i))))
 
   (define (bytevector-like-halfword-set! bv i v)
-    (let ((hi (rsha v 8))
-	  (lo (logand v 255))
+    (let ((hi (fxrsha v 8))
+	  (lo (fxlogand v 255))
 	  (i  (+ i i)))
       (bytevector-like-set! bv (+ i 1) hi)
       (bytevector-like-set! bv i lo)))
@@ -102,7 +102,7 @@
   ; to adding 1 and dividing by 2.
 
   (define (%bignum-length-set! b l)
-    (let ((l (rsha (+ l 1) 1)))
+    (let ((l (fxrsha (+ l 1) 1)))
       (bytevector-like-halfword-set! b 0 l)))
 
   ; This is like bignum-length-set!, except that it works also when the
@@ -113,7 +113,7 @@
   ; the definition of bignum-length-set!.
 
   (define (%bignum-truncate-length! b ln)
-    (let ((l (rsha (+ ln 1) 1)))
+    (let ((l (fxrsha (+ ln 1) 1)))
       (bytevector-like-halfword-set! b 0 l)
       (if (not (= ln (+ l l)))
 	  (bignum-set! b ln 0))))
@@ -139,7 +139,7 @@
 ;	   #t)
 ;	  ((= s 2)
 ;	   (let* ((x (bignum-ref b 1))
-;		  (y (rshl x 13)))
+;		  (y (fxrshl x 13)))
 ;	     (cond ((= y 0) #t)
 ;		   ((= y 7) #t)
 ;		   (else    #f))))

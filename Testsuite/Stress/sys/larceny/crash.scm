@@ -10,9 +10,9 @@
 (define FLOATround round)
 (define FLOATinexact->exact inexact->exact)
 
-(define bitwise-or logior)
-(define bitwise-and logand)
-(define bitwise-not lognot)
+(define bitwise-or fxlogior)
+(define bitwise-and fxlogand)
+(define bitwise-not fxlognot)
 (define boyer-iters        10)
 (define browse-iters      600)
 (define conform-iters      20)

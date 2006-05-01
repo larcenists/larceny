@@ -904,7 +904,7 @@
 		(if (>= i bound) (- i 1) (lp (+ i i))))))
     (let lp ((i start) (ans 0))
       (if (>= i end) (modulo ans bound)
-	  (lp (+ i 1) (logand mask (+ (* 37 ans) (iref s i))))))))
+	  (lp (+ i 1) (fxlogand mask (+ (* 37 ans) (iref s i))))))))
 
 (define (string-hash s . maybe-bound+start+end)
   (let-optionals* maybe-bound+start+end ((bound 4194304 (and (integer? bound)

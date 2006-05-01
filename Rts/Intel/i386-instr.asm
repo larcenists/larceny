@@ -1426,7 +1426,7 @@ t_label(%1):
 	mcall	M_NEGATE
 %endmacro
 
-%macro T_OP1_33 0		; lognot
+%macro T_OP1_33 0		; fxlognot
 %ifndef UNSAFE_CODE
 %%L0:	test	RESULT_LOW, fixtag_mask
 	jz short %%L1
@@ -1657,7 +1657,7 @@ t_label(%1):
 	generic_compare %1, ge, M_NUMGE
 %endmacro
 
-%macro T_OP2_71 1		; logand
+%macro T_OP2_71 1		; fxlogand
 %ifndef UNSAFE_CODE
 %%L0:	loadr	TEMP, %1
 	or	TEMP, RESULT
@@ -1676,7 +1676,7 @@ t_label(%1):
 %endif
 %endmacro
 
-%macro T_OP2_72 1		; logior
+%macro T_OP2_72 1		; fxlogior
 %ifndef UNSAFE_CODE
 %%L0:	loadr	TEMP, %1
 	or	TEMP, RESULT
@@ -1695,7 +1695,7 @@ t_label(%1):
 %endif
 %endmacro
 
-%macro T_OP2_73 1		; logxor
+%macro T_OP2_73 1		; fxlogxor
 %ifndef UNSAFE_CODE
 %%L0:	loadr	TEMP, %1
 	or	TEMP, RESULT
@@ -1714,15 +1714,15 @@ t_label(%1):
 %endif
 %endmacro
 
-%macro T_OP2_74 1		; lsh
+%macro T_OP2_74 1		; fxlsh
 	fixnum_shift %1, shl, EX_LSH
 %endmacro
 	
-%macro T_OP2_75 1		; rsha
+%macro T_OP2_75 1		; fxrsha
 	fixnum_shift %1, sar, EX_RSHA
 %endmacro
 
-%macro T_OP2_76 1		; rshl
+%macro T_OP2_76 1		; fxrshl
 	fixnum_shift %1, shr, EX_RSHL
 %endmacro
 	

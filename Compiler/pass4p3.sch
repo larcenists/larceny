@@ -107,21 +107,21 @@
     (bytevector-set! backward-table $.label  backward:begins-block)
     
     (bytevector-set! backward-table $op2     backward:uses-arg2)
-    (bytevector-set! backward-table $op3     (logior backward:uses-arg2
+    (bytevector-set! backward-table $op3     (fxlogior backward:uses-arg2
                                                      backward:uses-arg3))
-    (bytevector-set! backward-table $check   (logior
+    (bytevector-set! backward-table $check   (fxlogior
                                               backward:uses-arg1
-                                              (logior backward:uses-arg2
+                                              (fxlogior backward:uses-arg2
                                                       backward:uses-arg3)))
-    (bytevector-set! backward-table $trap    (logior
+    (bytevector-set! backward-table $trap    (fxlogior
                                               backward:uses-arg1
-                                              (logior backward:uses-arg2
+                                              (fxlogior backward:uses-arg2
                                                       backward:uses-arg3)))
     (bytevector-set! backward-table $store   backward:uses-arg1)
     (bytevector-set! backward-table $reg     backward:uses-arg1)
     (bytevector-set! backward-table $load    backward:kills-arg1)
     (bytevector-set! backward-table $setreg  backward:kills-arg1)
-    (bytevector-set! backward-table $movereg (logior backward:uses-arg1
+    (bytevector-set! backward-table $movereg (fxlogior backward:uses-arg1
                                                      backward:kills-arg2))
     (bytevector-set! backward-table $const/setreg
                                              backward:kills-arg2)
@@ -343,7 +343,7 @@
                                          (cons instruction filtered)))
                              (else
                               (local-optimization-error op))))
-                      ((and (eqv? (logand flags backward:kills-arg1)
+                      ((and (eqv? (fxlogand flags backward:kills-arg1)
                                   backward:kills-arg1)
                             (not (vector-ref registers
                                              (instruction.arg1 instruction))))
@@ -351,7 +351,7 @@
                        (suppress-backwards instruction
                                            instructions
                                            filtered))
-                      ((and (eqv? (logand flags backward:kills-arg2)
+                      ((and (eqv? (fxlogand flags backward:kills-arg2)
                                   backward:kills-arg2)
                             (not (vector-ref registers
                                              (instruction.arg2 instruction))))
@@ -365,27 +365,27 @@
                        (backwards instructions filtered))
                       (else
                        (let ((filtered (cons instruction filtered)))
-                         (if (eqv? (logand flags backward:kills-arg1)
+                         (if (eqv? (fxlogand flags backward:kills-arg1)
                                    backward:kills-arg1)
                              (vector-set! registers
                                           (instruction.arg1 instruction)
                                           #f))
-                         (if (eqv? (logand flags backward:kills-arg2)
+                         (if (eqv? (fxlogand flags backward:kills-arg2)
                                    backward:kills-arg2)
                              (vector-set! registers
                                           (instruction.arg2 instruction)
                                           #f))
-                         (if (eqv? (logand flags backward:uses-arg1)
+                         (if (eqv? (fxlogand flags backward:uses-arg1)
                                    backward:uses-arg1)
                              (vector-set! registers
                                           (instruction.arg1 instruction)
                                           #t))
-                         (if (eqv? (logand flags backward:uses-arg2)
+                         (if (eqv? (fxlogand flags backward:uses-arg2)
                                    backward:uses-arg2)
                              (vector-set! registers
                                           (instruction.arg2 instruction)
                                           #t))
-                         (if (eqv? (logand flags backward:uses-arg3)
+                         (if (eqv? (fxlogand flags backward:uses-arg3)
                                    backward:uses-arg3)
                              (vector-set! registers
                                           (instruction.arg3 instruction)

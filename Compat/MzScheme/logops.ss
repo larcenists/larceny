@@ -2,12 +2,12 @@
 
 ;; Logical operations
 
-(define logior bitwise-ior)
-(define logand bitwise-and)
-(define logxor bitwise-xor)
-(define lognot bitwise-not)
+(define fxlogior bitwise-ior)
+(define fxlogand bitwise-and)
+(define fxlogxor bitwise-xor)
+(define fxlognot bitwise-not)
 
-(define lsh arithmetic-shift)
+(define fxlsh arithmetic-shift)
 
 
 ;; This is hardcoded for 30 bit words (to ensure that its as much like
@@ -18,8 +18,8 @@
 ;; off the upper most bits; then we would know that we could replace
 ;; this implementation with one that did not need to emulate 30 bit
 ;; twos-complement.
-(define (rshl n m)
+(define (fxrshl n m)
   (if (< n 0)
       (arithmetic-shift (bitwise-and n (- (expt 2 30) 1)) (- 0 m))
       (arithmetic-shift n (- 0 m))))
-(define (rsha n m) (arithmetic-shift n (- 0 m)))
+(define (fxrsha n m) (arithmetic-shift n (- 0 m)))

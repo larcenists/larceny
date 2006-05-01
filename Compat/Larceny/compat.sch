@@ -104,5 +104,21 @@
       (set! recognize-keywords? (lambda l #f)))
   (if (not (environment-variable? env1 'recognize-javadot-symbols?))
       (set! recognize-javadot-symbols? (lambda l #f))))
+
+;; Doing the same trick to handle fx* on older
+;; versions of Larceny.
+(let ((env1 (interaction-environment)))
+  (let-syntax ((establish! (syntax-rules () 
+                             ((establish name alias)
+                              (if (not (environment-variable? env1 'name))
+                                  (set! name alias))))))
+    (establish! fxlognot lognot)
+    (establish! fxlogand logand)
+    (establish! fxlogior logior)
+    (establish! fxlogxor logxor)
+    (establish! fxlsh    lsh)
+    (establish! fxrshl   rshl)
+    (establish! fxrsha   rsha)
+    ))
   
 ; eof

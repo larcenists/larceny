@@ -134,14 +134,14 @@
 
 (define-syntax bitwise-or
   (syntax-rules ()
-    ((bitwise-or x y) (logior x y))))
+    ((bitwise-or x y) (fxlogior x y))))
 
 (define-syntax bitwise-and
   (syntax-rules ()
-    ((bitwise-and x y) (logand x y))))
+    ((bitwise-and x y) (fxlogand x y))))
 
 (define-syntax bitwise-not
   (syntax-rules ()
-    ((bitwise-not x) (lognot x))))
+    ((bitwise-not x) (fxlognot x))))
 
 ; eof

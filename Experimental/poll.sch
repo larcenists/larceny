@@ -44,7 +44,7 @@
             (else
              (let loop ((ready '()) (i 0))
                (cond ((= i n) ready)
-                     ((not (zero? (logand (pollfdv-revents-get v i)
+                     ((not (zero? (fxlogand (pollfdv-revents-get v i)
                                           (+ unix/POLLERR
                                              unix/POLLNVAL))))
                       (error "Poll: error on descriptor "

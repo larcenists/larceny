@@ -192,7 +192,7 @@
                                   available
                                   T
                                   E
-                                  (logior killer k)))))))))))
+                                  (fxlogior killer k)))))))))))
        
        ; Given an expression E,
        ; an environment containing all variables that are in scope,

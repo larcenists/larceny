@@ -68,10 +68,10 @@
 	       (d3 (bytevector-ref m 3))
 	       (n  (remainder n 8))
 	       (n- (- 8 n)))
-	  (asm:bv (logand (logior (lsh d3 n) (rshl d2 n-)) 255)
-		  (logand (logior (lsh d2 n) (rshl d1 n-)) 255)
-		  (logand (logior (lsh d1 n) (rshl d0 n-)) 255)
-		  (logand (lsh d0 n) 255))))))
+	  (asm:bv (fxlogand (fxlogior (fxlsh d3 n) (fxrshl d2 n-)) 255)
+		  (fxlogand (fxlogior (fxlsh d2 n) (fxrshl d1 n-)) 255)
+		  (fxlogand (fxlogior (fxlsh d1 n) (fxrshl d0 n-)) 255)
+		  (fxlogand (fxlsh d0 n) 255))))))
 
 
 ; Shift the bits of m right by n bits, shifting in zeroes at the high end.
@@ -99,10 +99,10 @@
 	       (d3 (bytevector-ref m 3))
 	       (n  (remainder n 8))
 	       (n- (- 8 n)))
-	  (asm:bv (logand (rshl d3 n) 255)
-		  (logand (logior (rshl d2 n) (lsh d3 n-)) 255)
-		  (logand (logior (rshl d1 n) (lsh d2 n-)) 255)
-		  (logand (logior (rshl d0 n) (lsh d1 n-)) 255))))))
+	  (asm:bv (fxlogand (fxrshl d3 n) 255)
+		  (fxlogand (fxlogior (fxrshl d2 n) (fxlsh d3 n-)) 255)
+		  (fxlogand (fxlogior (fxrshl d1 n) (fxlsh d2 n-)) 255)
+		  (fxlogand (fxlogior (fxrshl d0 n) (fxlsh d1 n-)) 255))))))
 
 
 ; Shift the bits of m right by n bits, shifting in the sign bit at the
@@ -116,7 +116,7 @@
     (lambda (m n)
       (let* ((m (if (bytevector? m) m (asm:int->bv m)))
 	     (n (remainder n 33))
-	     (h (rshl (bytevector-ref m 3) 7))
+	     (h (fxrshl (bytevector-ref m 3) 7))
 	     (k (asm:rshl m n)))
 	(if (zero? h)
 	    k

@@ -71,7 +71,7 @@
 	  (bytevector-like? obj)
 	  (pair? obj))
       (let* ((id (ffi/new-object-id))
-	     (handle (cons-nonrelocatable obj (logior id 1))))
+	     (handle (cons-nonrelocatable obj (fxlogior id 1))))
 	(ffi/remember-handle handle id)
 	handle)
       (error "Can't gcprotect a non-pointer: " obj)))
@@ -86,14 +86,14 @@
 ; handle to the object).
 
 (define (ffi/gcunprotect handle)
-  (let ((c  (logand (cdr handle) 65535))
-	(id (rsha (cdr handle) 16)))
+  (let ((c  (fxlogand (cdr handle) 65535))
+	(id (fxrsha (cdr handle) 16)))
     (if (= c 1)
 	(begin 
 	  (ffi/forget-handle handle id)
 	  (set-car! handle #f)
 	  (set-cdr! handle #f))
-	(set-cdr! handle (logior id (- c 1))))))
+	(set-cdr! handle (fxlogior id (- c 1))))))
 
 
 ; Here we can use a hash table with the id being the hash code, this

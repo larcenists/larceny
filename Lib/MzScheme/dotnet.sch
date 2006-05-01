@@ -1397,7 +1397,7 @@
     (clr-enum/to-object
      (clr-object/clr-handle class)
      (foldl (lambda (enumerate accum)
-              (logior accum (enum/value enumerate)))
+              (fxlogior accum (enum/value enumerate)))
             0 flag-list))))
 
 (define (enumerate->foreign class)

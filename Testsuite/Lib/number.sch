@@ -394,65 +394,65 @@
 ; Bitwise operations on fixnums, only.
 
 (define (test-bit-operations)
-  (test-bit-operations-help logand logior logxor lognot lsh rshl rsha))
+  (test-bit-operations-help fxlogand fxlogior fxlogxor fxlognot fxlsh fxrshl fxrsha))
 
-(define (test-bit-operations-help logandp logiorp logxorp lognotp lshp rshlp rshap)
+(define (test-bit-operations-help fxlogandp fxlogiorp fxlogxorp fxlognotp fxlshp fxrshlp fxrshap)
 
   (define (test-logand)
-    (allof "logand"
-      (test "(logand #x33 #x55)" (logand #x33 #x55) #x11)
-      (test "(logand 536870911 1)" (logand 536870911 1) 1)
-      (test "(logand -536870912 1)" (logand -536870912 1) 0)
+    (allof "fxlogand"
+      (test "(fxlogand #x33 #x55)" (fxlogand #x33 #x55) #x11)
+      (test "(fxlogand 536870911 1)" (fxlogand 536870911 1) 1)
+      (test "(fxlogand -536870912 1)" (fxlogand -536870912 1) 0)
 
-      (test "(logandp #x33 #x55)" (logandp #x33 #x55) #x11)
-      (test "(logandp 536870911 1)" (logandp 536870911 1) 1)
-      (test "(logandp -536870912 1)" (logandp -536870912 1) 0)))
+      (test "(fxlogandp #x33 #x55)" (fxlogandp #x33 #x55) #x11)
+      (test "(fxlogandp 536870911 1)" (fxlogandp 536870911 1) 1)
+      (test "(fxlogandp -536870912 1)" (fxlogandp -536870912 1) 0)))
 
   (define (test-logior)
-    (allof "logior"
-      (test "(logior 3 5)" (logior 3 5) 7)
-      (test "(logior 536870911 1)" (logior 536870911 1) 536870911)
-      (test "(logior -536870912 1)" (logior -536870912 1) -536870911)
+    (allof "fxlogior"
+      (test "(fxlogior 3 5)" (fxlogior 3 5) 7)
+      (test "(fxlogior 536870911 1)" (fxlogior 536870911 1) 536870911)
+      (test "(fxlogior -536870912 1)" (fxlogior -536870912 1) -536870911)
 
-      (test "(logiorp 3 5) 7)" (logiorp 3 5) 7)
-      (test "(logiorp 536870911 1)" (logiorp 536870911 1) 536870911)
-      (test "(logiorp -536870912 1)" (logiorp -536870912 1) -536870911)))
+      (test "(fxlogiorp 3 5) 7)" (fxlogiorp 3 5) 7)
+      (test "(fxlogiorp 536870911 1)" (fxlogiorp 536870911 1) 536870911)
+      (test "(fxlogiorp -536870912 1)" (fxlogiorp -536870912 1) -536870911)))
 
   (define (test-logxor)
-    (allof "logxor"
-      (test "(logxor #x33 #x55)" (logxor #x33 #x55) #x66)
-      (test "(logxor 536870911 1)" (logxor 536870911 1) 536870910)
-      (test "(logxor -536870912 1)" (logxor -536870912 1) -536870911)
+    (allof "fxlogxor"
+      (test "(fxlogxor #x33 #x55)" (fxlogxor #x33 #x55) #x66)
+      (test "(fxlogxor 536870911 1)" (fxlogxor 536870911 1) 536870910)
+      (test "(fxlogxor -536870912 1)" (fxlogxor -536870912 1) -536870911)
 
-      (test "(logxorp #x33 #x55)" (logxorp #x33 #x55) #x66)
-      (test "(logxorp 536870911 1)" (logxorp 536870911 1) 536870910)
-      (test "(logxorp -536870912 1)" (logxorp -536870912 1) -536870911)))
+      (test "(fxlogxorp #x33 #x55)" (fxlogxorp #x33 #x55) #x66)
+      (test "(fxlogxorp 536870911 1)" (fxlogxorp 536870911 1) 536870910)
+      (test "(fxlogxorp -536870912 1)" (fxlogxorp -536870912 1) -536870911)))
 
   (define (test-lognot)
-    (allof "lognot" 
-      (test "(lognot 0)" (lognot 0) -1)
-      (test "(lognot -1)" (lognot -1) 0)
-      (test "(lognot 1)" (lognot 1) -2)
-      (test "(lognot 536870911)" (lognot 536870911) -536870912)
-      (test "(lognot -536870912)" (lognot -536870912) 536870911)
+    (allof "fxlognot" 
+      (test "(fxlognot 0)" (fxlognot 0) -1)
+      (test "(fxlognot -1)" (fxlognot -1) 0)
+      (test "(fxlognot 1)" (fxlognot 1) -2)
+      (test "(fxlognot 536870911)" (fxlognot 536870911) -536870912)
+      (test "(fxlognot -536870912)" (fxlognot -536870912) 536870911)
 
-      (test "(lognotp 0)" (lognotp 0) -1)
-      (test "(lognotp -1)" (lognotp -1) 0)
-      (test "(lognotp 1)" (lognotp 1) -2)
-      (test "(lognotp 536870911)" (lognotp 536870911) -536870912)
-      (test "(lognotp -536870912)" (lognotp -536870912) 536870911)))
+      (test "(fxlognotp 0)" (fxlognotp 0) -1)
+      (test "(fxlognotp -1)" (fxlognotp -1) 0)
+      (test "(fxlognotp 1)" (fxlognotp 1) -2)
+      (test "(fxlognotp 536870911)" (fxlognotp 536870911) -536870912)
+      (test "(fxlognotp -536870912)" (fxlognotp -536870912) 536870911)))
 
   ; FIXME: need to implement tests on lshp, etc.
 
   (define (test-shift)
     (allof "shift"
-     (test "(= (lsh #x44 2) #x110)" (= (lsh #x44 2) #x110) #t)
-     (test "(= (lsh #x44 4) #x440)" (= (lsh #x44 4) #x440) #t)
-     (test "(= (rshl #x44 2) #x11)" (= (rshl #x44 2) #x11) #t)
-     (test "(= (rshl #x44 7) 0)" (= (rshl #x44 7) 0) #t)
-     (test "(= (rsha -1 4) -1)" (= (rsha -1 4) -1) #t)
-     (test "(= (rshl #x-20000000 4) #x2000000)"
-	   (= (rshl #x-20000000 4) #x2000000)
+     (test "(= (fxlsh #x44 2) #x110)" (= (fxlsh #x44 2) #x110) #t)
+     (test "(= (fxlsh #x44 4) #x440)" (= (fxlsh #x44 4) #x440) #t)
+     (test "(= (fxrshl #x44 2) #x11)" (= (fxrshl #x44 2) #x11) #t)
+     (test "(= (fxrshl #x44 7) 0)" (= (fxrshl #x44 7) 0) #t)
+     (test "(= (fxrsha -1 4) -1)" (= (fxrsha -1 4) -1) #t)
+     (test "(= (fxrshl #x-20000000 4) #x2000000)"
+	   (= (fxrshl #x-20000000 4) #x2000000)
 	   #t)))
 
   (test-logand)

@@ -219,7 +219,7 @@
 	(if (< i 0) (modulo ans bound)
 	    (lp (- i 1)
 		(if (si=0? s i) ans
-		    (logand mask (+ (* 37 ans) i))))))))
+		    (fxlogand mask (+ (* 37 ans) i))))))))
 
 
 (define (char-set-contains? cs char)

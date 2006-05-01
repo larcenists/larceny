@@ -97,7 +97,7 @@
 
 (define char-alphabetic?
   (lambda (x)
-    (not (eq? 0 (logand 3 (bytevector-ref *char-table* (char->integer x)))))))
+    (not (eq? 0 (fxlogand 3 (bytevector-ref *char-table* (char->integer x)))))))
 
 (define char-upper-case?
   (lambda (x)
@@ -269,7 +269,7 @@
 ;;;     url = "citeseer.ist.psu.edu/article/ramakrishna97performance.html" }
 
 ;;; Note, the stepping function is this:
-;;;   hash_n+1 <- (logxor hash_n (+ (shift-left hash_n 5)
+;;;   hash_n+1 <- (fxlogxor hash_n (+ (shift-left hash_n 5)
 ;;;                                 (shift-right hash_n 2)
 ;;;                                 (string-ref string index)))
 ;;;
@@ -284,11 +284,11 @@
 (define (string-hash string)
 
   (define (string-hash-step code byte)
-    (logxor code
+    (fxlogxor code
             ;; Avoid consing fixnums
-            (let ((l (lsh (logand code #x01FF) 5))
-                  ;; R must be less than (+ (rshl #x01FF 2) 256)
-                  (r (+ (rshl code 2) byte)))
+            (let ((l (fxlsh (fxlogand code #x01FF) 5))
+                  ;; R must be less than (+ (fxrshl #x01FF 2) 256)
+                  (r (+ (fxrshl code 2) byte)))
               (if (> (- 16383 l) (- r 1))
                   (+ l r)
                   (+ (- l (- 16384 128)) (- r 128))))))
@@ -301,7 +301,7 @@
          (string-hash-step code (bytevector-like-ref string i)))))
 
   (let ((n (string-length string)))
-    (string-hash-loop string n 0 (logxor n #x1aa5))))
+    (string-hash-loop string n 0 (fxlogxor n #x1aa5))))
 
 ;;; This version (commented out) trades space for speed.  The problem
 ;;; is that fixnums take 16 bytes *each*, so keeping a shift table may
@@ -324,13 +324,13 @@
           code
           (string-hash-loop
            string limit (+ i 1)
-           (logxor code
+           (fxlogxor code
                    (+ (vector-ref shift-table code)
                       (bytevector-like-ref string i))))))
 
     (define (string-hash-internal string)
       (let ((n (string-length string)))
-        (string-hash-loop string n 0 (logxor n #x5aa5))))
+        (string-hash-loop string n 0 (fxlogxor n #x5aa5))))
 
     ;; C is zero every fourth time
     ;; This computation is funky to avoid straying into bignum land,
@@ -355,7 +355,7 @@
 ;	h
 ;	(loop s
 ;	      (- i 1)
-;	      (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
+;	      (fxlogand 65535 (+ (char->integer (string-ref s i)) h h h)))))
 ;  (let ((n (string-length string)))
 ;    (loop string (- n 1) n)))
 

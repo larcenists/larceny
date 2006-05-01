@@ -80,29 +80,29 @@
 
   (define (bytevector-like-halfword-ref bv i)
     (let ((i (+ i i)))
-      (logior (lsh (bytevector-like-ref bv i) 8)
+      (fxlogior (fxlsh (bytevector-like-ref bv i) 8)
 	      (bytevector-like-ref bv (+ i 1)))))
 
   (define (bytevector-like-halfword-set! bv i v)
-    (let ((hi (rsha v 8))
-	  (lo (logand v 255))
+    (let ((hi (fxrsha v 8))
+	  (lo (fxlogand v 255))
 	  (i  (+ i i)))
       (bytevector-like-set! bv i hi)
       (bytevector-like-set! bv (+ i 1) lo)))
 
   (define (%bignum-ref a i)
-    (let ((x (+ i (if (eq? (logand i 1) 0) 3 1))))  ; (big->hw-index i)
+    (let ((x (+ i (if (eq? (fxlogand i 1) 0) 3 1))))  ; (big->hw-index i)
       (bytevector-like-halfword-ref a x)))
 
   (define (%bignum-set! a i v)
-    (let ((x (+ i (if (eq? (logand i 1) 0) 3 1))))  ; (big->hw-index i)
+    (let ((x (+ i (if (eq? (fxlogand i 1) 0) 3 1))))  ; (big->hw-index i)
       (bytevector-like-halfword-set! a x v)))
 
   ; Return the number of 16-bit bigits. We check if the high 16-bit 
   ; bigit of the high 32-bit bigit is 0 and return length-1 if so. 
 
   (define (%bignum-length b)
-    (let* ((l0 (logior (lsh (bytevector-like-ref b 2) 8)
+    (let* ((l0 (fxlogior (fxlsh (bytevector-like-ref b 2) 8)
 		       (bytevector-like-ref b 3)))
 	   (l  (+ l0 l0)))
       (cond ((zero? l) l)
@@ -117,9 +117,9 @@
   ; to adding 1 and dividing by 2.
 
   (define (%bignum-length-set! b l)
-    (let ((l (rsha (+ l 1) 1)))
-      (bytevector-like-set! b 2 (rshl l 8))
-      (bytevector-like-set! b 3 (logand l 255))))
+    (let ((l (fxrsha (+ l 1) 1)))
+      (bytevector-like-set! b 2 (fxrshl l 8))
+      (bytevector-like-set! b 3 (fxlogand l 255))))
 
   ; This is like bignum-length-set!, except that it works also when the
   ; length is odd and the most significant half of the 32-bit bigit is not 
@@ -129,9 +129,9 @@
   ; the definition of bignum-length-set!.
 
   (define (%bignum-truncate-length! b ln)
-    (let ((l (rsha (+ ln 1) 1)))
-      (bytevector-like-set! b 2 (rshl l 8))
-      (bytevector-like-set! b 3 (logand l 255))
+    (let ((l (fxrsha (+ ln 1) 1)))
+      (bytevector-like-set! b 2 (fxrshl l 8))
+      (bytevector-like-set! b 3 (fxlogand l 255))
       (if (not (= ln (+ l l)))
 	  (bignum-set! b ln 0))))
 
@@ -156,7 +156,7 @@
 ;	   #t)
 ;	  ((= s 2)
 ;	   (let* ((x (bignum-ref b 1))
-;		  (y (rshl x 13)))
+;		  (y (fxrshl x 13)))
 ;	     (cond ((= y 0) #t)
 ;		   ((= y 7) #t)
 ;		   (else    #f))))

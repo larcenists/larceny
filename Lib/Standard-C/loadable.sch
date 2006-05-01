@@ -55,7 +55,7 @@
 			   (bytevector-ref bv 0)))
 		       (else
 			(error "No DLL lookup procedure for this word size and endianness.")))))
-	  (lsh (let ((p (quotient x 4)))
+	  (fxlsh (let ((p (quotient x 4)))
 		 (if (fixnum? p)
 		     p
 		     (- p 1073741824)))  ; 2^30

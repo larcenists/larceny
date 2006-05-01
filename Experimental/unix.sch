@@ -242,13 +242,13 @@
 ; sys/wait.h & bits/waitflags.h
 
 (define (unix/WEXITSTATUS stat) 
-  (logand (rsha stat 8) #xFF))
+  (fxlogand (fxrsha stat 8) #xFF))
 
 (define (unix/WTERMSIG stat) 
-  (not (zero? (logand stat #x07F))))
+  (not (zero? (fxlogand stat #x07F))))
 
 (define (unix/WSTOPSIG stat) 
-  (logand (rsha stat 8) #xFF))
+  (fxlogand (fxrsha stat 8) #xFF))
 
 (cond-expand 
  (linux  
@@ -260,25 +260,25 @@
 	 (not (unix/WIFEXITED stat))))
 
   (define (unix/WIFSTOPPED stat)
-    (= #x7F (logand stat #xFF))) )
+    (= #x7F (fxlogand stat #xFF))) )
 
  (solaris
   (define (unix/WIFEXITED stat) 
-    (zero? (logand stat #xFF))) 
+    (zero? (fxlogand stat #xFF))) 
 
   (define (unix/WIFSIGNALED stat) 
-    (and (positive? (logand stat #xFF)) 
-	 (zero? (logand stat #xFF00)))) 
+    (and (positive? (fxlogand stat #xFF)) 
+	 (zero? (fxlogand stat #xFF00)))) 
 
   (define (unix/WIFSTOPPED stat) 
-    (and (= (logand stat #xFF) #o177)
-	 (not (zero? (logand stat #xFF00))))) 
+    (and (= (fxlogand stat #xFF) #o177)
+	 (not (zero? (fxlogand stat #xFF00))))) 
 
   (define (unix/WIFCONTINUED stat) 
-    (= (logand stat #o177777) #o177777)) ))
+    (= (fxlogand stat #o177777) #o177777)) ))
 
 (define (unix/WCOREDUMP stat) 
-  (not (zero? (logand stat #o200))))
+  (not (zero? (fxlogand stat #o200))))
 
   
 ; write(2)

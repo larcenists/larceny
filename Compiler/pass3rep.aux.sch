@@ -119,8 +119,8 @@
                   ((= k n))
                   (do ((j 0 (+ j 1))
                        (sum 0
-                            (logior sum
-                                    (logand
+                            (fxlogior sum
+                                    (fxlogand
                                      (representation-aref matrix i j)
                                      (representation-aref matrix j k)))))
                       ((= j n)
@@ -460,14 +460,14 @@
                 (let* ((type2 (constant.value E2))
                        (type3 (representation-intersection type type2)))
                   (cond ((eq? type2 type3)
-                         (if (= K2 (logand K K2))
+                         (if (= K2 (fxlogand K K2))
                              (append newcs cs)
                              (loop (representation-intersection type type2)
                                    (available:killer-combine K K2)
                                    cs
                                    (cons c2 newcs))))
                         ((representation-subtype? type type3)
-                         (if (= K (logand K K2))
+                         (if (= K (fxlogand K K2))
                              (loop type K cs newcs)
                              (loop type K cs (cons c2 newcs))))
                         (else
@@ -581,7 +581,7 @@
         (do ((i 0 (+ i 1))
              (k 1 (+ k k)))
             ((= i number-of-basic-killers))
-            (if (not (zero? (logand k K0)))
+            (if (not (zero? (fxlogand k K0)))
                 (vector-set! v i (cons T (vector-ref v i))))))))
 
 (define (constraints-kill! constraints K)
@@ -590,7 +590,7 @@
             (killed (constraints.killed constraints)))
         (define (examine! T)
           (let ((cs (filter (lambda (c)
-                              (zero? (logand (constraint.killer c) K)))
+                              (zero? (fxlogand (constraint.killer c) K)))
                             (hashtable-fetch table T '()))))
             (if (null? cs)
                 (hashtable-remove! table T)
@@ -598,7 +598,7 @@
         (do ((i 0 (+ i 1))
              (j 1 (+ j j)))
             ((= i number-of-basic-killers))
-            (if (not (zero? (logand j K)))
+            (if (not (zero? (fxlogand j K)))
                 (begin (for-each examine! (vector-ref killed i))
                        (vector-set! killed i '())))))))
 

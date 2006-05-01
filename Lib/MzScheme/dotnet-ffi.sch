@@ -623,22 +623,22 @@
         (arglist-instance-public
          (vector
           (clr-enum/to-object clr-type-handle/system-reflection-bindingflags
-                              (logior clr-binding-flags/instance
+                              (fxlogior clr-binding-flags/instance
                                       clr-binding-flags/public))))
         (arglist-instance-non-public
          (vector
           (clr-enum/to-object clr-type-handle/system-reflection-bindingflags
-                              (logior clr-binding-flags/instance
+                              (fxlogior clr-binding-flags/instance
                                       clr-binding-flags/non-public))))
         (arglist-static-public
          (vector
           (clr-enum/to-object clr-type-handle/system-reflection-bindingflags
-                              (logior clr-binding-flags/static
+                              (fxlogior clr-binding-flags/static
                                       clr-binding-flags/public))))
         (arglist-static-non-public
          (vector
           (clr-enum/to-object clr-type-handle/system-reflection-bindingflags
-                              (logior clr-binding-flags/static
+                              (fxlogior clr-binding-flags/static
                                       clr-binding-flags/non-public)))))
     (lambda (type static? public?)
       ;; (dotnet-message 5 "clr-type/%get-members" static? public?)

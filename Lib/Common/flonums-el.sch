@@ -64,15 +64,15 @@
 	(bytevector-set! n 7 (bytevector-like-ref f 7))
 	(bytevector-set! n 8 (bytevector-like-ref f 8))
 	(bytevector-set! n 9 (bytevector-like-ref f 9))
-	(bytevector-set! n 10 (logior 16 (logand 15 
+	(bytevector-set! n 10 (fxlogior 16 (fxlogand 15 
 						 (bytevector-like-ref f 10))))
 	(bytevector-set! n 11 0)
 
 	; Subtract hidden bit if x is denormalized or zero.
 
 	(typetag-set! n sys$tag.bignum-typetag)
-	(if (and (zero? (logand 127 (bytevector-like-ref f 11)))
-		 (zero? (logand -16 (bytevector-like-ref f 10))))
+	(if (and (zero? (fxlogand 127 (bytevector-like-ref f 11)))
+		 (zero? (fxlogand -16 (bytevector-like-ref f 10))))
 	    (- n two^52)
 	    n)))))
 
@@ -85,8 +85,8 @@
 (define float-exponent
   (let ((flonum:minexponent-51 -1074))
     (lambda (f)
-      (let ((e (logior (lsh (logand 127 (bytevector-like-ref f 11)) 4)
-		       (rshl (bytevector-like-ref f 10) 4))))
+      (let ((e (fxlogior (fxlsh (fxlogand 127 (bytevector-like-ref f 11)) 4)
+		       (fxrshl (bytevector-like-ref f 10) 4))))
 	(if (zero? e)
 	    flonum:minexponent-51	; no hidden bit
 	    (- e (+ 1023 52)))))))
@@ -97,13 +97,13 @@
 ; thus not the "natural" exponent.
 
 (define (float-unbiased-exponent f)
-  (let ((e (logior (lsh (logand 127 (bytevector-like-ref f 11)) 4)
-		   (rshl (bytevector-like-ref f 10) 4))))
+  (let ((e (fxlogior (fxlsh (fxlogand 127 (bytevector-like-ref f 11)) 4)
+		   (fxrshl (bytevector-like-ref f 10) 4))))
     (- e 1023)))
 
 ; Return the sign of the flonum as 0 (positive) or 1 (negative).
 
 (define (float-sign f)
-  (rshl (bytevector-like-ref f 11) 7))
+  (fxrshl (bytevector-like-ref f 11) 7))
 
 ; eof

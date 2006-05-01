@@ -85,11 +85,11 @@
 
 (define (mnemonic:test bit)
   (lambda (mnemonic)
-    (not (zero? (logand mnemonic bit)))))
+    (not (zero? (fxlogand mnemonic bit)))))
 
 (define (mnemonic:test-not bit)
   (lambda (mnemonic)
-    (zero? (logand mnemonic bit))))
+    (zero? (fxlogand mnemonic bit))))
 
 (define mnemonic:annul? (mnemonic:test *asm-annul*))
 (define mnemonic:immediate? (mnemonic:test *asm-immed*))

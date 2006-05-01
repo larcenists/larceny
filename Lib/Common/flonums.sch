@@ -57,7 +57,7 @@
     (define (leading-zeroes n e)
       (if (zero? n)
           (- bits-per-bigit e)
-          (leading-zeroes (rsha n 1) (+ e 1))))
+          (leading-zeroes (fxrsha n 1) (+ e 1))))
     
     ; Returns the greatest fixnum n such that (<= (expt 2 n) (abs b)).
     

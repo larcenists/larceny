@@ -48,13 +48,13 @@
 (define primop-vector (make-vector 256 '()))
 
 (define (define-primop name proc)
-  (let ((h (logand (symbol-hash name) 255)))
+  (let ((h (fxlogand (symbol-hash name) 255)))
     (vector-set! primop-vector h (cons (cons name proc)
 				       (vector-ref primop-vector h)))
     name))
 
 (define (find-primop name)
-  (let ((h (logand (symbol-hash name) 255)))
+  (let ((h (fxlogand (symbol-hash name) 255)))
     (cdr (assq name (vector-ref primop-vector h)))))
 
 (define (for-each-primop proc)
@@ -212,22 +212,22 @@
   (lambda (as)
     (millicode-call/0arg as $m.truncate)))
 
-(define-primop 'lognot
+(define-primop 'fxlognot
   (lambda (as)
     (if (not (unsafe-code))
 	(emit-assert-fixnum! as $r.result $ex.lognot))
     (sparc.ornr as $r.g0 $r.result $r.result)  ; argument order matters
     (sparc.xori as $r.result 3 $r.result)))
 
-(define-primop 'logand
+(define-primop 'fxlogand
   (lambda (as x)
     (logical-op as $r.result x $r.result sparc.andr $ex.logand)))
 
-(define-primop 'logior
+(define-primop 'fxlogior
   (lambda (as x)
     (logical-op as $r.result x $r.result sparc.orr $ex.logior)))
 
-(define-primop 'logxor
+(define-primop 'fxlogxor
   (lambda (as x)
     (logical-op as $r.result x $r.result sparc.xorr $ex.logxor)))
 
@@ -237,15 +237,15 @@
 ; FIXME: These are incompatible with MacScheme and MIT Scheme.
 ; FIXME: need to return to start of sequence after fault.
 
-(define-primop 'lsh
+(define-primop 'fxlsh
   (lambda (as x)
     (emit-shift-operation as $ex.lsh $r.result x $r.result)))
 
-(define-primop 'rshl
+(define-primop 'fxrshl
   (lambda (as x)
     (emit-shift-operation as $ex.rshl $r.result x $r.result)))
 
-(define-primop 'rsha
+(define-primop 'fxrsha
   (lambda (as x)
     (emit-shift-operation as $ex.rsha $r.result x $r.result)))
 

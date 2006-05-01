@@ -182,7 +182,7 @@
       #f)))
 
 (define (ldb width position source)
-  (logand (quotient source (vector-ref '#(#x00000001
+  (fxlogand (quotient source (vector-ref '#(#x00000001
                                           #x00000002
                                           #x00000004
                                           #x00000008

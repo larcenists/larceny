@@ -751,7 +751,7 @@ extern cont_t twobit_cont_label;
 #define twobit_op1_32( kn, k ) /* -- */ \
    implicit_label( mc_neg( globals, CONT_LOCAL(kn,k) ), kn, k )
 
-#define twobit_op1_33() /* lognot */ \
+#define twobit_op1_33() /* fxlognot */ \
    do { word a=RESULT; \
         if (UNSAFE_TRUE(is_fixnum(a))) \
           RESULT = ~a & ~3; \
@@ -938,7 +938,7 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_70( y, kn, k ) /* >= */ \
   twobit_compare( RESULT, reg(y), >=, mc_greater_or_equalp, kn, k )
 
-#define twobit_op2_71( y ) /* logand */ \
+#define twobit_op2_71( y ) /* fxlogand */ \
    do { word a=RESULT, b=reg(y); \
         if (UNSAFE_TRUE(is_both_fixnums( a, b ))) \
           RESULT = (a & b); \
@@ -946,7 +946,7 @@ extern cont_t twobit_cont_label;
 	       FAIL( EX_LOGAND ); } \
    } while(0)
 
-#define twobit_op2_72( y ) /* logior */ \
+#define twobit_op2_72( y ) /* fxlogior */ \
    do { word a=RESULT, b=reg(y); \
         if (UNSAFE_TRUE(is_both_fixnums( a, b ))) \
           RESULT = (a | b); \
@@ -954,7 +954,7 @@ extern cont_t twobit_cont_label;
 	       FAIL( EX_LOGIOR ); } \
    } while(0)
 
-#define twobit_op2_73( y ) /* logxor */ \
+#define twobit_op2_73( y ) /* fxlogxor */ \
    do { word a=RESULT, b=reg(y); \
         if (UNSAFE_TRUE(is_both_fixnums( a, b ))) \
           RESULT = (a ^ b); \
@@ -962,7 +962,7 @@ extern cont_t twobit_cont_label;
 	       FAIL( EX_LOGXOR ); } \
    } while(0)
 
-#define twobit_op2_74( y ) /* lsh */ \
+#define twobit_op2_74( y ) /* fxlsh */ \
    do { word a=RESULT, b=reg(y); \
         if (UNSAFE_TRUE(is_both_fixnums( a, b ) && b < fixnum(SHIFT_LIMIT))) \
           RESULT = a << (b >> 2); \
@@ -970,7 +970,7 @@ extern cont_t twobit_cont_label;
 	       FAIL( EX_LSH ); } \
    } while(0)
 
-#define twobit_op2_75( y ) /* rsha */ \
+#define twobit_op2_75( y ) /* fxrsha */ \
    do { word a=RESULT, b=reg(y); \
         if (UNSAFE_TRUE(is_both_fixnums( a, b ) && b < fixnum(SHIFT_LIMIT))) \
           RESULT = ((s_word)a >> (b >> 2)) & ~3; \
@@ -978,7 +978,7 @@ extern cont_t twobit_cont_label;
                FAIL( EX_RSHL ); } \
    } while(0)
 
-#define twobit_op2_76( y ) /* rshl */ \
+#define twobit_op2_76( y ) /* fxrshl */ \
    do { word a=RESULT, b=reg(y); \
         if (UNSAFE_TRUE(is_both_fixnums( a, b ) && b < fixnum(SHIFT_LIMIT))) \
           RESULT = (a >> (b >> 2)) & ~3; \

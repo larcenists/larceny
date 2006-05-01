@@ -252,7 +252,7 @@ namespace Scheme.Rep {
                       h
                       (loop s
                             (- i 1)
-                            (logand 65535 (+ (char->integer (string-ref s i)) h h h)))))
+                            (fxlogand 65535 (+ (char->integer (string-ref s i)) h h h)))))
                 (let ((n (string-length string)))
                   (loop string (- n 1) n)))
             */

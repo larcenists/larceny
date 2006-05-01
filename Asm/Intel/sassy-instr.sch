@@ -127,9 +127,9 @@
 (define-sassy-constant char_shift	    16)
 
 (define-sassy-macro (is_hwreg n)         (<= FIRST_HWREG n LAST_HWREG))
-(define-sassy-macro (fixnum n)           (lsh n 2))
-(define-sassy-macro (roundup4 x)	 (logand (+ x 3) (lognot 3)))
-(define-sassy-macro (roundup8 x)	 (logand (+ x 7) (lognot 7)))
+(define-sassy-macro (fixnum n)           (fxlsh n 2))
+(define-sassy-macro (roundup4 x)	 (fxlogand (+ x 3) (fxlognot 3)))
+(define-sassy-macro (roundup8 x)	 (fxlogand (+ x 7) (fxlognot 7)))
 (define-sassy-macro (words2bytes n)      (* n 4))
 (define-sassy-macro (stkslot n)          `(& CONT ,(+ STK_REG0 (words2bytes n))))
 (define-sassy-macro (framesize n)        (roundup8 (+ wordsize STK_OVERHEAD (words2bytes n))))
@@ -455,8 +455,8 @@
   ;; arguments are codevector name, constant vector offset, and n
   (ia86.const2regf RESULT (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
   (ia86.alloc)
-  `(mov (dword (& RESULT)) ,(logior
-                             (lsh (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
+  `(mov (dword (& RESULT)) ,(fxlogior
+                             (fxlsh (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
                                   8)
                              $hdr.procedure))
   ;; Adjust only if code is in bytevectors!
@@ -470,8 +470,8 @@
   ;; argument is n
   (ia86.const2regf RESULT (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
   (ia86.alloc)
-  `(mov	(dword (& RESULT)) ,(logior
-                             (lsh (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
+  `(mov	(dword (& RESULT)) ,(fxlogior
+                             (fxlsh (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
                                   8)
                              $hdr.procedure))
   (ia86.loadr	TEMP 0)
@@ -1201,7 +1201,7 @@
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           `(test	RESULT (logior fixtag_mask #x80000000))
+           `(test	RESULT (fxlogior fixtag_mask #x80000000))
            `(jz short ,L1)
            (ia86.exception_continuable ex L0)
            `(label ,L1))))
@@ -1238,7 +1238,7 @@
            `(label ,L0)
            (cond ((not (= (x -1)))
                   (ia86.loadr	SECOND x)))
-           `(test	RESULT (logior fixtag_mask #x80000000))
+           `(test	RESULT (fxlogior fixtag_mask #x80000000))
            `(jz short L2)
            `(label ,L1)
            (ia86.exception_continuable z L0)
@@ -1459,7 +1459,7 @@
 (define-sassy-instr (ia86.T_OP1_32)		; --
   (ia86.mcall	$m.negate))
 
-(define-sassy-instr (ia86.T_OP1_33)		; lognot
+(define-sassy-instr (ia86.T_OP1_33)		; fxlognot
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
     (cond ((not (unsafe-code))
@@ -1664,7 +1664,7 @@
 (define-sassy-instr (ia86.T_OP2_70 x)		; >=
   (ia86.generic_compare x 'ge $m.numge))
 
-(define-sassy-instr (ia86.T_OP2_71 x)		; logand
+(define-sassy-instr (ia86.T_OP2_71 x)		; fxlogand
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
@@ -1682,7 +1682,7 @@
         (else
          `(and	RESULT (& GLOBALS ,(+ (G_REG x)))))))
 
-(define-sassy-instr (ia86.T_OP2_72 x)		; logior
+(define-sassy-instr (ia86.T_OP2_72 x)		; fxlogior
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
@@ -1700,7 +1700,7 @@
         (else
          `(or	RESULT (& GLOBALS ,(+ (G_REG x)))))))
 
-(define-sassy-instr (ia86.T_OP2_73 x)		; logxor
+(define-sassy-instr (ia86.T_OP2_73 x)		; fxlogxor
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))

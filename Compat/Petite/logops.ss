@@ -7,13 +7,13 @@
 ; The following work because Chez Scheme fixnums are the same as Larceny 
 ; fixnums.
 
-(define logior fxlogor)
-(define logand fxlogand)
-(define logxor fxlogxor)
-(define lognot fxlognot)
-(define lsh fxsll)
-(define rshl fxsrl)
-(define rsha fxsra)
+(define fxlogior fxlogor)
+(define fxlogand fxlogand)
+(define fxlogxor fxlogxor)
+(define fxlognot fxlognot)
+(define fxlsh fxsll)
+(define fxrshl fxsrl)
+(define fxrsha fxsra)
 
 ; eof
 

@@ -113,14 +113,14 @@
                0
                (filter (lambda (binding)
                          (zero?
-                          (logand K
+                          (fxlogand K
                                   (caddr binding))))
                        (vector-ref available 0)))
   (vector-set! available
                1
                (filter (lambda (binding)
                          (zero?
-                          (logand K
+                          (fxlogand K
                                   (caddr binding))))
                        (vector-ref available 1))))
 
@@ -165,7 +165,7 @@
 
 
 (define (available:killer-combine k1 k2)
-  (logior k1 k2))
+  (fxlogior k1 k2))
 
 ; Miscellaneous.
 

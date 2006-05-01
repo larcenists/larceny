@@ -51,8 +51,8 @@
 (define random
   (letrec ((random14
             (lambda (n)
-              (set! x (logand (+ (* a x) c) m))
-              (remainder (rshl x 3) n)))
+              (set! x (fxlogand (+ (* a x) c) m))
+              (remainder (fxrshl x 3) n)))
            (a 701)
            (x 1)
            (c 743483)
@@ -236,17 +236,17 @@
 
 (define (even? x)
   (cond ((fixnum? x)
-	 (= (logand x 1) 0))
+	 (= (fxlogand x 1) 0))
 	((bignum? x)
-	 (= (logand (bignum-ref x 0) 1) 0))
+	 (= (fxlogand (bignum-ref x 0) 1) 0))
 	(else
 	 (zero? (remainder x 2)))))
 
 (define (odd? x)
   (cond ((fixnum? x) 
-	 (= (logand x 1) 1))
+	 (= (fxlogand x 1) 1))
 	((bignum? x)
-	 (= (logand (bignum-ref x 0) 1) 1))
+	 (= (fxlogand (bignum-ref x 0) 1) 1))
 	(else
 	 (not (zero? (remainder x 2))))))
 
