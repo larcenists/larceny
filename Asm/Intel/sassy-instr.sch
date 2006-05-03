@@ -108,13 +108,13 @@
 ;; ;; NAME : Operand ... -> [Listof SassyInstr]
 ;; (define-sassy-instr (NAME ARGS ...) BODY)
 
-(define (G_REG n) (+ 12 (* n 4))) ;; FSK: YUCK!  HACK!
-(define (REG n) (case n           ;; FSK: YUCK!  ANOTHER HACK!
-                  ((1) 'ecx)
-                  ((2) 'edx)
-                  ((3) 'edi)
-                  ((4) 'esi)
-                  (else (error 'REG "unknown register"))))
+(define-sassy-macro (G_REG n) (+ 12 (* n 4))) ;; FSK: YUCK!  HACK!
+(define-sassy-macro (REG n) (case n           ;; FSK: YUCK!  ANOTHER HACK!
+                              ((1) 'REG1)
+                              ((2) 'REG2)
+                              ((3) 'REG3)
+                              ((4) 'REG4)
+                              (else (error 'REG "unknown register"))))
        
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
@@ -139,8 +139,8 @@
 ;;; 
 ;;; Utility macros for MAL instruction definitions
 
-(define-sassy-instr (ia86.mcall fcn)
-  `(call	(& GLOBALS ,fcn))
+(define-sassy-instr (ia86.mcall fcn name)
+  `(call	(& GLOBALS ,fcn) -- ,name)
   `(align code_align))
 
 ;;; loadr targetreg, regno
@@ -150,7 +150,7 @@
   (cond ((is_hwreg regno)
          `(mov ,targetreg (REG ,regno)))
         (else 
-         `(mov ,targetreg (& GLOBALS ,(+ (G_REG regno)))))))
+         `(mov ,targetreg (& GLOBALS (G_REG ,regno))))))
 
 ;;; storer regno, sourcereg
 ;;;     store VM register regno from HW register sourcereg
@@ -158,9 +158,9 @@
 
 (define-sassy-instr (ia86.storer regno sourcereg)
   (cond ((is_hwreg regno)
-         `(mov	,(REG regno) ,sourcereg))
+         `(mov	(REG ,regno) ,sourcereg))
         (else
-         `(mov  (& GLOBALS ,(+ (G_REG regno))) ,sourcereg))))
+         `(mov  (& GLOBALS (G_REG ,regno)) ,sourcereg))))
 
 ;;; loadc hwreg, slot
 ;;;	Load constant vector element 'slot' into hwreg
@@ -185,24 +185,24 @@
     (let ((L0 (fresh-label)))
       (cond ((and (not (= r2 -1))
                   (is_hwreg r2))
-             `(test	(reg ,r2) 1)
+             `(test	(REG ,r2) 1)
              `(jz short ,L0)
-             `(mov	SECOND (reg ,r2)))
+             `(mov	SECOND (REG ,r2)))
             (else
              (cond ((not (= r2 -1))
-                    `(mov	SECOND ,(REG r2))))
+                    `(mov	SECOND (REG ,r2))))
              `(test	SECOND 1)
              `(jz short ,L0)))
       (cond ((not (= r1 -1))
-             `(mov	RESULT ,(reg r1))))
-      (ia86.mcall $m.partial-barrier)
+             `(mov	RESULT (REG ,r1))))
+      (ia86.mcall $m.partial-barrier 'partial-barrier)
       `(label ,L0)))
    (else 
     (cond ((not (= r1 -1))
-           `(mov RESULT ,(reg r1))))
+           `(mov RESULT (REG ,r1))))
     (cond ((not (= r2 -1))
-           `(mov SECOND ,(reg r2))))
-    (ia86.mcall $m.full-barrier))))
+           `(mov SECOND (REG ,r2))))
+    (ia86.mcall $m.full-barrier 'full-barrier))))
 	
 ;;; timer_check
 ;;;	decrement timer and take interrupt if zero
@@ -211,7 +211,7 @@
   (let ((L1 (fresh-label)))
     `(dec (dword (& (+ GLOBALS G_TIMER))))
     `(jnz short ,L1)
-    (ia86.mcall	$m.timer-exception)
+    (ia86.mcall	$m.timer-exception 'timer-exception)
     `(label ,L1)))
 
 ;;; exception_noncontinuable excode
@@ -219,8 +219,8 @@
 ;;;	any registers; exception is noncontinuable
 	
 (define-sassy-instr (ia86.exception_noncontinuable excode)
-  `(call	(& (+ GLOBALS ,$m.exception)))
-  `(dw	,excode))
+  `(call	(& (+ GLOBALS ,$m.exception)) -- exception)
+  `(dw	,excode)                              -- exception code)
 		
 ;;; exception_continuable excode restart
 ;;;	Jump to exception handler with code without destroying
@@ -238,8 +238,8 @@
 ;;;	globals, to save 3 bytes!  (It can be a negative offset.)
 
 (define-sassy-instr (ia86.exception_continuable excode restart)
-  `(call	(& (+ GLOBALS ,$m.exception)))
-  `(dw	,excode)
+  `(call	(& GLOBALS ,$m.exception) -- exception)
+  `(dw	,excode                           -- exception code)
   `(align	code_align)
   `(jmp	,restart))
 
@@ -271,19 +271,19 @@
          (let ((L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L1)
-	   `(mov TEMP (& GLOBALS ,$g.etop))
+	   `(mov TEMP (& GLOBALS G_ETOP))
 	   `(add TEMP RESULT) ; allocate
 	   `(add TEMP 4)      ;  and
 	   `(add TEMP -8)     ;   round up to 8-byte boundary
 	   `(cmp TEMP CONT)
 	   `(jle short ,L2)
-	   (ia86.mcall $m.morecore)
+	   (ia86.mcall $m.morecore 'morecore)
 	   `(jmp short ,L1)
            `(label ,L2)
-           `(mov RESULT (& GLOBALS ,$g.etop))
-	   `(mov (& GLOBALS ,$g.etop) TEMP)))
+           `(mov RESULT (& GLOBALS G_ETOP))
+	   `(mov (& GLOBALS G_ETOP) TEMP)))
         (else
-         (ia86.mcall $m.alloc))))
+         (ia86.mcall $m.alloc 'alloc))))
 
 ;;; const2reg hwreg const
 ;;; Move a constant to a register *without changing the flags*
@@ -327,24 +327,24 @@
 ;;; constant vector index.
 	
 (define-sassy-instr (ia86.T_CONST_IMM x)
-  (ia86.const2regf RESULT x))
+  (ia86.const2regf 'RESULT x))
 
 (define-sassy-instr (ia86.T_CONST_CONSTVECTOR x)
-  (ia86.loadc	RESULT x))
+  (ia86.loadc	'RESULT x))
 
 (define-sassy-instr (ia86.T_CONST_SETREG_IMM x r)
   (cond ((is_hwreg r)
-         `(mov ,(reg r) ,x))
+         `(mov (REG ,r) ,x))
         (else
          `(mov TEMP ,x)
-	 (ia86.storer r TEMP))))
+	 (ia86.storer r 'TEMP))))
 
 (define-sassy-instr (ia86.T_CONST_SETREG_CONSTVECTOR x r)
   (cond ((is_hwreg r)
          (ia86.loadc (reg r) x))
         (else
-	 (ia86.loadc TEMP x)
-	 (ia86.storer r TEMP))))
+	 (ia86.loadc 'TEMP x)
+	 (ia86.storer r 'TEMP))))
 
 ;;; OPTIMIZEME:	if #!undefined fit in a byte, then we could do a byte
 ;;; compare here, at least.  (Why does it not fit in a byte?)
@@ -353,29 +353,29 @@
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
     `(label ,L0)
-    (ia86.loadc TEMP x)
+    (ia86.loadc 'TEMP x)
     `(mov RESULT (& TEMP ,(- $tag.pair-tag)))
     (cond ((not (unsafe-globals))
            `(cmp RESULT UNDEFINED_CONST)
            `(jne short ,L1)
            `(mov RESULT TEMP)
-           (ia86.mcall $m.global-ex)
+           (ia86.mcall $m.global-ex 'global-ex)
            `(jmp short ,L0)
            `(label ,L1)))))
 
 (define-sassy-instr (ia86.T_SETGLBL x)
   `(mov	SECOND RESULT)
-  (ia86.loadc	RESULT x)
-  `(mov	(& RESULT ,(- $tag.pair-tag) SECOND))
+  (ia86.loadc	'RESULT x)
+  `(mov	(& RESULT ,(- $tag.pair-tag)) SECOND)
   (ia86.write_barrier -1 -1))
 
 (define-sassy-instr (ia86.T_LEXICAL rib off)
-  (ia86.loadr	TEMP 0)		; We know R0 is not a HWREG
+  (ia86.loadr	'TEMP 0)		; We know R0 is not a HWREG
   `(times ,rib (mov TEMP (& TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
   `(mov RESULT (& TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off)))))
 
 (define-sassy-instr (ia86.T_SETLEX rib off)
-  (ia86.loadr	TEMP 0)		; We know R0 is not a HWREG
+  (ia86.loadr	'TEMP 0)		; We know R0 is not a HWREG
   `(times ,rib (mov TEMP (& TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
   `(mov (& TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off))) RESULT))
 	
@@ -387,24 +387,24 @@
 
 (define-sassy-instr (ia86.T_LOAD r slot)
   (cond ((is_hwreg r)
-         `(mov ,(reg r) ,(stkslot slot)))
+         `(mov (REG ,r) ,(stkslot slot)))
         (else
          `(mov TEMP ,(stkslot slot))
-         (ia86.storer r TEMP))))
+         (ia86.storer r 'TEMP))))
 
 (define-sassy-instr (ia86.T_STORE r slot)
   (cond ((is_hwreg r)
-         `(mov	,(stkslot slot) ,(reg r)))
+         `(mov	,(stkslot slot) (REG ,r)))
         (else
-	 (ia86.loadr	TEMP r)
+	 (ia86.loadr	'TEMP r)
 	 `(mov	,(stkslot slot) TEMP))))
 
 (define-sassy-instr (ia86.T_REG r)
-  (ia86.loadr RESULT r))
+  (ia86.loadr 'RESULT r))
 	
 ;;; Does not destroy RESULT.  The peephole optimizer uses that fact.
 (define-sassy-instr (ia86.T_SETREG r)
-  (ia86.storer	r RESULT))
+  (ia86.storer	r 'RESULT))
 
 (define-sassy-instr (ia86.T_MOVEREG r1 r2)
   (cond ((is_hwreg r1)
@@ -412,8 +412,8 @@
 	((is_hwreg r2)
 	 (ia86.loadr (reg r2) r1))
 	(else
-         (ia86.loadr TEMP r1)
-         (ia86.storer r2 TEMP))))
+         (ia86.loadr 'TEMP r1)
+         (ia86.storer r2 'TEMP))))
 
 (define-sassy-instr (ia86.init_closure r)
   (let ((regno (cond ((> r *lastreg*)
@@ -423,8 +423,8 @@
         (L1 (fresh-label)))
     (cond 
      ((> r *lastreg*)
-      `(mov (& GLOBALS ,(+ G_STKP)) CONT)     ; Need a working register!
-      `(mov (& GLOBALS ,(+ G_RESULT)) RESULT) ; Save for later
+      `(mov (& GLOBALS G_STKP) CONT)     ; Need a working register!
+      `(mov (& GLOBALS G_RESULT) RESULT) ; Save for later
       `(add RESULT ,(+ PROC_REG0 (words2bytes LASTREG)))
       `(loadr CONT 31)
       `(label ,L1)
@@ -434,8 +434,8 @@
       `(mov CONT (& CONT ,(+ (- $tag.pair-tag) wordsize)))
       `(cmp CONT NIL_CONST)
       `(jne short ,L1)
-      `(mov CONT (& GLOBALS ,(+ G_STKP)))
-      `(mov RESULT (& GLOBALS ,(+ G_RESULT)))))
+      `(mov CONT (& GLOBALS G_STKP))
+      `(mov RESULT (& GLOBALS G_RESULT))))
     (begin
       (let rep ((regno regno))
         (cond 
@@ -443,8 +443,8 @@
           (append
            (if (is_hwreg regno)
                `((mov (& RESULT ,(+ PROC_REG0 (words2bytes regno))) 
-                      ,(reg regno)))
-               `(,@(ia86.loadr TEMP regno)
+                      (REG ,regno)))
+               `(,@(ia86.loadr 'TEMP regno)
                  (mov (& RESULT ,(+ PROC_REG0 (words2bytes regno))) TEMP)))
            (rep (- regno 1))))
          (else 
@@ -452,34 +452,33 @@
     `(add RESULT_LOW ,$tag.procedure-tag)))
 
 (define-sassy-instr (ia86.T_LAMBDA codevec constvec n)
-  ;; arguments are codevector name, constant vector offset, and n
-  (ia86.const2regf RESULT (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
+  ;; arguments are codevector offset, constant vector offset, and n
+  (ia86.const2regf 'RESULT (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
   (ia86.alloc)
   `(mov (dword (& RESULT)) ,(fxlogior
                              (fxlsh (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
                                   8)
                              $hdr.procedure))
-  ;; Adjust only if code is in bytevectors!
-  ;;mov	dword [RESULT+PROC_CODEVECTOR_NATIVE], ,codevec + BVEC_TAG
-  `(mov	(dword (& RESULT ,(+ PROC_CODEVECTOR_NATIVE))) ,codevec)
-  (ia86.loadc	TEMP constvec)
-  `(mov	(& RESULT ,(+ PROC_CONSTVECTOR)) TEMP)
+  (ia86.loadc   'TEMP codevec)
+  `(mov	(dword (& RESULT PROC_CODEVECTOR_NATIVE)) TEMP)
+  (ia86.loadc	'TEMP constvec)
+  `(mov	(& RESULT PROC_CONSTVECTOR) TEMP)
   (ia86.init_closure n))
 
 (define-sassy-instr (ia86.T_LEXES n)
   ;; argument is n
-  (ia86.const2regf RESULT (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
+  (ia86.const2regf 'RESULT (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
   (ia86.alloc)
   `(mov	(dword (& RESULT)) ,(fxlogior
                              (fxlsh (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
                                   8)
                              $hdr.procedure))
-  (ia86.loadr	TEMP 0)
+  (ia86.loadr	'TEMP 0)
   `(mov	TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-  `(mov	(dword (& RESULT ,(+ PROC_CODEVECTOR_NATIVE))) TEMP)
-  (ia86.loadr	TEMP 0)
+  `(mov	(dword (& RESULT PROC_CODEVECTOR_NATIVE)) TEMP)
+  (ia86.loadr	'TEMP 0)
   `(mov	TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
-  `(mov	(dword (& RESULT ,(+ PROC_CONSTVECTOR))) TEMP)
+  `(mov	(dword (& RESULT PROC_CONSTVECTOR)) TEMP)
   (ia86.init_closure n))
 
 (define-sassy-instr (ia86.T_ARGSEQ n)
@@ -489,7 +488,7 @@
            `(label ,L0)
            `(cmp	RESULT (fixnum ,n))
            `(je short ,L1)
-           (ia86.mcall	$m.argc-ex)
+           (ia86.mcall	$m.argc-ex 'argc-ex)
            `(jmp	L0)
            `(label ,L1)))))
 
@@ -503,10 +502,10 @@
            `(label ,L0)
            `(cmp RESULT SECOND)
            `(jge short ,L1)
-           (ia86.mcall $m.argc-ex)
+           (ia86.mcall $m.argc-ex 'argc-ex)
            `(jmp ,L0)
            `(label ,L1))))
-  (ia86.mcall $m.varargs))
+  (ia86.mcall $m.varargs 'varargs))
 
 ;;; Note the millicode for M_INVOKE_EX is used to check for timer
 ;;; exception as well, and must check the timer first.
@@ -514,17 +513,17 @@
 (define-sassy-instr (ia86.T_INVOKE n)
   (cond ((unsafe-code)
          (ia86.timer_check)
-         (ia86.storer 0 RESULT)
+         (ia86.storer 0 'RESULT)
          `(mov TEMP RESULT)
-         (ia86.const2regf RESULT (fixnum n))
+         (ia86.const2regf 'RESULT (fixnum n))
          `(jmp (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE))))
         (else
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
-           `(dec (dword (& GLOBALS ,(+ G_TIMER))))
+           `(dec (dword (& GLOBALS G_TIMER)))
            `(jnz short ,L1)
            `(label ,L0)
-	   (ia86.mcall $m.invoke-ex)
+	   (ia86.mcall $m.invoke-ex 'invoke-ex)
            `(label ,L1)
 	   `(lea TEMP (& RESULT ,(+ 8 (- $tag.procedure-tag))))
 	   `(test TEMP_LOW tag_mask)
@@ -533,8 +532,8 @@
            ;; really perverse we would lay the procedure out so that
            ;; the codevector is stored at offset 4, reducing the size
            ;; of the JMP instruction below.
-	   (ia86.storer	0 RESULT)
-	   (ia86.const2regf RESULT (fixnum n))
+	   (ia86.storer	0 'RESULT)
+	   (ia86.const2regf 'RESULT (fixnum n))
 	   `(jmp	(& TEMP ,(+ -8 PROC_CODEVECTOR_NATIVE)))))))
 
 ;;; Introduced by peephole optimization.
@@ -552,7 +551,7 @@
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
-           (ia86.loadc	RESULT g)		; global cell
+           (ia86.loadc	'RESULT g)		; global cell
            `(label ,L2)
 	   `(mov TEMP                    ;   dereference
                  (& RESULT ,(- $tag.pair-tag)))
@@ -560,15 +559,15 @@
 	   `(test TEMP_LOW tag_mask)	; tag test
 	   `(jz short ,L0)
            `(label ,L1)
-	   (ia86.mcall $m.global-invoke-ex) ; RESULT has global cell (always)
+	   (ia86.mcall $m.global-invoke-ex 'global-invoke-ex) ; RESULT has global cell (always)
 	   `(jmp short ,L2)		; Since TEMP is dead following timer interrupt
            `(label ,L0)
 	   `(dec (dword                  ; timer
-                  (& GLOBALS ,(+ G_TIMER))))
+                  (& GLOBALS G_TIMER)))
 	   `(jz short ,L1)                ;   test
 	   `(dec TEMP)                   ; undo ptr adjustment
-	   (ia86.storer 0 TEMP)              ; save proc ptr
-	   (ia86.const2regf RESULT           ; argument count
+	   (ia86.storer 0 'TEMP)              ; save proc ptr
+	   (ia86.const2regf 'RESULT           ; argument count
                             (fixnum n))
 	   `(jmp	(& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))))))
 	
@@ -581,17 +580,17 @@
         (L1 (fresh-label)))
     `(label ,L0)
     `(sub CONT (framesize ,n))
-    `(cmp CONT (& GLOBALS ,(+ $g.etop)))
+    `(cmp CONT (& GLOBALS G_ETOP))
     `(jge short ,L1)
     `(add CONT (framesize ,n))
-    (ia86.mcall $m.stkoflow)
+    (ia86.mcall $m.stkoflow 'stkoflow)
     `(jmp ,L0)
     `(label ,L1)
     `(mov (dword (& CONT)) (recordedsize ,n))
     ;; Not necessary to store reg0 here, this is handled
     ;; explicitly by the generated code.
     `(xor	RESULT RESULT)
-    `(mov	(dword (& CONT ,(+ STK_RETADDR))) RESULT)
+    `(mov	(dword (& CONT STK_RETADDR)) RESULT)
     (cond ((= (- (framesize n) (recordedsize n)) 8)
            ;; We have a pad word at the end -- clear it
            `(mov (dword ,(stkslot (+ n 1))) RESULT)))))
@@ -618,7 +617,7 @@
              '())))))
 
 (define-sassy-instr (ia86.T_SETRTN lbl)
-  `(mov	(dword (& CONT ,(+ STK_RETADDR))) (t_label ,lbl)))
+  `(mov	(dword (& CONT STK_RETADDR)) (t_label ,lbl)))
 
 (define-sassy-instr (ia86.T_RESTORE n)
   (begin
@@ -627,7 +626,7 @@
              (append (if (is_hwreg slotno)
                          `((mov ,(reg slotno) (dword ,(stkslot slotno))))
                          `((mov TEMP (dword ,(stkslot slotno)))
-                           (mov (& GLOBALS ,(+ (g_reg slotno))) TEMP)))
+                           (mov (& GLOBALS (G_REG ,slotno)) TEMP)))
                      (rep (+ slotno 1))))
             (else
              '())))))
@@ -639,15 +638,15 @@
   (error 'T_POPSTK "not implemented -- students only"))
 
 (define-sassy-instr (ia86.T_RETURN)
-  `(jmp (& CONT ,(+ STK_RETADDR))))
+  `(jmp (& CONT STK_RETADDR)))
 	
 (define-sassy-instr (ia86.T_APPLY x y)
   (ia86.timer_check)
-  (ia86.loadr	TEMP y)
-  `(mov	(& GLOBALS ,(+ $g.third)) TEMP)
+  (ia86.loadr	'TEMP y)
+  `(mov	(& GLOBALS ,$g.third) TEMP)
   (ia86.loadr	SECOND x)
-  (ia86.mcall	$m.apply)
-  (ia86.loadr	TEMP 0)
+  (ia86.mcall	$m.apply 'apply)
+  (ia86.loadr	'TEMP 0)
   `(mov	TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
   `(jmp	TEMP))
 
@@ -664,10 +663,10 @@
 (define-sassy-instr (ia86.T_JUMP levels label name)
   (ia86.timer_check)
   (cond ((> levels 0) 
-         (ia86.loadr TEMP 0)		; We know R0 is not a HWREG
+         (ia86.loadr 'TEMP 0)		; We know R0 is not a HWREG
          `(times ,levels 
                  (mov TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_REG0))))
-         (ia86.storer 0 TEMP)))
+         (ia86.storer 0 'TEMP)))
   `(jmp ,name))
 
 ;;; The MAL assembler translates BRANCH and BRANCHF to SKIP and SKIPF
@@ -681,9 +680,9 @@
   `(je	(t_label ,lbl)))
 
 (define-sassy-instr (ia86.T_BRANCH lbl)
-  `(dec	(dword (& GLOBALS ,(+ G_TIMER))))
+  `(dec	(dword (& GLOBALS G_TIMER)))
   `(jnz	(t_label ,lbl))
-  (ia86.mcall	$m.timer-exception)
+  (ia86.mcall	$m.timer-exception 'timer-exception)
   `(jmp	(t_label ,lbl)))
 
 (define-sassy-instr (ia86.T_BRANCHF lbl)
@@ -702,12 +701,12 @@
 	;; Order matters here, because SECOND is TEMP and
 	;; may be destroyed by loading of THIRD
   (cond ((not (= w 0))
-         (ia86.loadr RESULT w)))
+         (ia86.loadr 'RESULT w)))
   (cond ((not (= y 0))
 	   ;; OPTIMIZEME: optimize for case when %3 is HW reg
 	   ;; (this will however have almost no impact)
-         (ia86.loadr	TEMP y)
-         `(mov (& GLOBALS ,(+ $g.third)) TEMP)))
+         (ia86.loadr	'TEMP y)
+         `(mov (& GLOBALS ,$g.third) TEMP)))
   (cond ((not (= x 0))
          (ia86.loadr SECOND x)))
   (ia86.exception_noncontinuable z))
@@ -736,7 +735,7 @@
 (define-sassy-instr (ia86.setcc cc)				; 10 bytes, jump
   (let ((L1 (fresh-label))
         (jcc (string->symbol (string-append "j" (symbol->string cc)))))
-    (ia86.const2reg RESULT TRUE_CONST)	; 5 bytes
+    (ia86.const2reg 'RESULT TRUE_CONST)	; 5 bytes
     `(,jcc short ,L1)			; 2 bytes
     `(sub	RESULT_LOW 4)		; 3 bytes (would be 2 if RESULT=eax)
     `(label ,L1)))
@@ -765,14 +764,14 @@
            `(mov	TEMP (REG,reg))
            `(test	TEMP_LOW fixtag_mask))))
         (else
-         `(test	byte (& GLOBALS ,(+ (G_REG reg))) fixtag_mask))))
+         `(test	byte (& GLOBALS (G_REG ,reg)) fixtag_mask))))
 
 ;;; single_tag_test ptrtag
 ;;;	Leave zero flag set if RESULT contains a value with the given
 ;;;     3-bit tag.
 
 (define-sassy-instr (ia86.single_tag_test x)
-  `(lea	TEMP (& RESULT ,(+ (- 8 x))))
+  `(lea	TEMP (& RESULT ,(- 8 x)))
   `(test	TEMP_LOW 7))
 	
 ;;; single_tag_test_ex ptrtag, exception_code
@@ -799,7 +798,7 @@
   (let ((L1 (fresh-label)))
     (ia86.single_tag_test x)
     `(jnz short ,L1)
-    `(mov	TEMP (& (- RESULT ,x)))
+    `(mov	TEMP (& RESULT ,(- x)))
     `(cmp	TEMP_LOW ,y)
     `(label ,L1)))
 	
@@ -811,11 +810,11 @@
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jnz short ,L1)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            `(,y	RESULT TEMP)
            `(jno short ,L2)
            `(,z	RESULT TEMP)
@@ -824,15 +823,15 @@
            `(label ,L2)))
         ((is_hwreg x)
          ;; This looks totally bogus -- should use ,y? XXX TODO BUG HERE
-         `(add	RESULT (REG,x)))
+         `(add	RESULT ,(REG x)))
         (else
-         `(add	RESULT (& GLOBALS ,(+ (G_REG x)))))))
+         `(add	RESULT (& GLOBALS (G_REG ,x))))))
 	
 ;;; trusted_fixnum_compare r, cc
 (define-sassy-instr (ia86.trusted_fixnum_compare x y)
   (cond ((is_hwreg x)
-         `(cmp	RESULT (REG,x))
-         `(cmp	RESULT (& GLOBALS ,(+ (G_REG x)))))
+         `(cmp	RESULT ,(REG x))
+         `(cmp	RESULT (& GLOBALS (G_REG ,x))))
         (else
          (ia86.setcc	y))))
 
@@ -844,7 +843,7 @@
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jz short ,L1)
@@ -854,7 +853,7 @@
         ((is_hwreg x)
          `(cmp	RESULT (REG,x)))
         (else
-         `(cmp	RESULT (& GLOBALS ,(+ (G_REG x))))))
+         `(cmp	RESULT (& GLOBALS (G_REG ,x)))))
   (ia86.setcc y))
 
 ;;; fixnum_shift r2, operation, ex
@@ -868,10 +867,10 @@
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
-           (ia86.loadr	SECOND x)
+           (ia86.loadr	'SECOND x)
            `(jz short ,L2)
            `(label ,L1)
            (ia86.exception_continuable z L0)
@@ -879,12 +878,12 @@
            `(cmp	TEMP fixnum(32))	; SECOND is TEMP
            `(jge short ,L1)))
         (else
-         (ia86.loadr	TEMP x)))
+         (ia86.loadr	'TEMP x)))
   `(shr	TEMP 2)
-  `(mov	(& GLOBALS ,(+ G_REGALIAS_ECX)) ecx)
+  `(mov	(& GLOBALS G_REGALIAS_ECX) ecx)
   `(mov	cl al)			; Code knows TEMP is EAX
   `(,y	RESULT cl)
-  `(mov	ecx (& GLOBALS ,(+ G_REGALIAS_ECX)))
+  `(mov	ecx (& GLOBALS G_REGALIAS_ECX))
   (cond ((not (eq? y 'shl))
          ;; Right shifts: mask out low bits
          ;; OPTIMIZEME: if RESULT were eax, masking RESULT_LOW with a byte
@@ -896,10 +895,10 @@
 (define-sassy-instr (ia86.generic_arithmetic x y z millicode)
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
-    (ia86.loadr	TEMP x)
+    (ia86.loadr	'TEMP x)
     `(or	TEMP RESULT)
     `(test	TEMP_LOW fixtag_mask)
-    (ia86.loadr	TEMP x)
+    (ia86.loadr	'TEMP x)
     `(jnz short ,L1)
     `(,y	RESULT TEMP)
     `(jno short ,L2)
@@ -913,10 +912,10 @@
 (define-sassy-instr (ia86.generic_compare x y z)
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
-    (ia86.loadr	TEMP x)
+    (ia86.loadr	'TEMP x)
     `(or	TEMP RESULT)
     `(test	TEMP_LOW fixtag_mask)
-    (ia86.loadr	SECOND x)
+    (ia86.loadr	'SECOND x)
     `(jz short ,L1)
     (ia86.mcall	z)
     `(jmp short L2	)
@@ -945,7 +944,7 @@
         ((is_hwreg x)
          `(cmp	RESULT (REG,x)))
         (else
-         `(cmp	RESULT (& GLOBALS ,(+ (G_REG x))))))
+         `(cmp	RESULT (& GLOBALS (G_REG ,x)))))
   (ia86.setcc	y))
 	
 ;;; generic_imm_compare imm, cc, millicode
@@ -991,7 +990,7 @@
            `(label ,L1)
            `(mov	RESULT TEMP)))
         (else
-         `(mov	RESULT (& (- RESULT ,ptrtag)))))
+         `(mov	RESULT (& RESULT ,(- ptrtag)))))
   `(shr	RESULT 8)
   (cond (byte?
          `(shl	RESULT 2))))
@@ -1001,7 +1000,7 @@
 	
 (define-sassy-instr (ia86.indexed_structure_length ptrtag ex byte?)
   (ia86.single_tag_test_ex ptrtag ex)
-  `(mov	RESULT (& (- RESULT ,ptrtag)))
+  `(mov	RESULT (& RESULT ,(- ptrtag)))
   `(shr	RESULT 8)
   (cond (byte?
          `(shl	RESULT 2))))
@@ -1032,7 +1031,7 @@
            (ia86.exception_continuable ex L0)
            (cond ((= hdrtag 0)
                   `(label ,L3)
-                  `(mov	TEMP (& (- RESULT ,z)))))
+                  `(mov	TEMP (& RESULT ,(- z)))))
            `(label ,L2)
            `(shr	TEMP 8)
            (cond (byte?
@@ -1040,7 +1039,7 @@
            (cond ((is_hwreg x)
                   `(cmp	TEMP (REG,x)))
                  (else
-                  `(cmp	TEMP (& GLOBALS ,(+ (G_REG x))))))
+                  `(cmp	TEMP (& GLOBALS (G_REG ,x)))))
            `(jbe short ,L1)
            (test_reg_value	y L1)))))
 
@@ -1068,7 +1067,7 @@
       (ia86.exception_continuable ex L0)
       (cond ((= z 0)
              `(label ,L3)
-             `(mov	TEMP (& (- RESULT ,y)))))
+             `(mov	TEMP (& RESULT ,(- y)))))
       `(label ,L2)
       `(shr	TEMP 8)
       (cond (byte?
@@ -1080,15 +1079,15 @@
 	
 (define-sassy-instr (ia86.load_from_indexed_structure x y z)
   (cond (z
-         (ia86.loadr	TEMP x)
+         (ia86.loadr	'TEMP x)
          `(shr	TEMP 2)
-         `(mov	RESULT_LOW (& RESULT ,(+ (- y) wordsize TEMP)))
+         `(mov	RESULT_LOW (& RESULT TEMP ,(+ (- y) wordsize)))
          `(and	RESULT #xFF))
         ((is_hwreg x)
-         `(mov	RESULT (& RESULT ,(+ (- y) wordsize (REG x)))))
+         `(mov	RESULT (& RESULT (REG x) ,(+ (- y) wordsize))))
         (else
-         (ia86.loadr	TEMP x)
-         `(mov	RESULT (& RESULT ,(+ (- y) wordsize TEMP))))))
+         (ia86.loadr	'TEMP x)
+         `(mov	RESULT (& RESULT TEMP ,(+ (- y) wordsize))))))
 
 (define-sassy-instr (ia86.load_from_indexed_structure_imm x y z)
   (cond (z
@@ -1141,7 +1140,7 @@
 ;;;	be shifted anyway).
 
 (define-sassy-instr (ia86.check_char x y)
-  (ia86.loadr	TEMP x)
+  (ia86.loadr	'TEMP x)
   `(cmp	TEMP_LOW ,$imm.character)
   `(jnz short ,y))
 
@@ -1150,22 +1149,22 @@
 
 (define-sassy-instr (ia86.indexed_structure_set_char x y z hdrtag ex)
   (ia86.indexed_structure_test x y z hdrtag ex 1 ia86.check_char)
-  `(mov	(& GLOBALS ,(+ $g.stkp)) CONT)
+  `(mov	(& GLOBALS G_STKP) CONT)
   (ia86.loadr	CONT x)
   `(shr	TEMP 16)
   `(shr	CONT 2)
   `(mov	(& RESULT CONT ,(+ (- z) wordsize)) TEMP_LOW)
-  `(mov	CONT (& GLOBALS ,(+ $g.stkp))))
+  `(mov	CONT (& GLOBALS G_STKP)))
 
 (define-sassy-instr (ia86.indexed_structure_set_byte x y z hdrtag ex)
   (ia86.indexed_structure_test x y z hdrbyte ex 1 check_fixnum)
-  `(mov	(& GLOBALS ,(+ $g.stkp)) CONT)
-  (ia86.loadr	CONT x)
+  `(mov	(& GLOBALS G_STKP) CONT)
+  (ia86.loadr	'CONT x)
   `(shr	CONT 2)
-  (ia86.loadr	TEMP y)
+  (ia86.loadr	'TEMP y)
   `(shr	TEMP 2)
   `(mov	(& RESULT CONT ,(+ (- z) wordsize)) TEMP_LOW)
-  `(mov	CONT (& GLOBALS ,(+ $g.stkp))))
+  `(mov	CONT (& GLOBALS G_STKP)))
 
 (define-sassy-instr (ia86.indexed_structure_set_word x y z hdrtag ex)
   (ia86.indexed_structure_test x y z hdrtag ex 0 check_nothing)
@@ -1173,22 +1172,22 @@
 
 (define-sassy-instr (ia86.do_indexed_structure_set_word x y z)
   (cond ((and (is_hwreg y) (is_hwreg x))
-         `(mov	(& RESULT ,(+ (- z) wordsize (REG x))) (REG y))
+         `(mov	(& RESULT (REG x) ,(+ (- z) wordsize)) (REG y))
          (ia86.write_barrier -1 y))
         ((is_hwreg y)
-         (ia86.loadr	TEMP x)
-         `(mov	(& RESULT ,(+ (- z) wordsize TEMP)) (REG y))
+         (ia86.loadr	'TEMP x)
+         `(mov	(& RESULT TEMP ,(+ (- z) wordsize)) (REG y))
          (ia86.write_barrier -1 y))
         ((is_hwreg x)
-         (ia86.loadr	SECOND y)
-         `(mov	(& RESULT ,(+ (- z) wordsize (REG x))) SECOND)
+         (ia86.loadr	'SECOND y)
+         `(mov	(& RESULT (REG x) ,(+ (- z) wordsize)) SECOND)
          (ia86.write_barrier -1 -1))
         (else
-         `(mov	(& GLOBALS ,(+ $g.stkp)) CONT)
+         `(mov	(& GLOBALS G_STKP) CONT)
          (ia86.loadr	CONT x)
          (ia86.loadr	SECOND y)
          `(mov	(& RESULT CONT ,(+ (- z) wordsize)) SECOND)
-         `(mov	CONT (& GLOBALS ,(+ $g.stkp)))
+         `(mov	CONT (& GLOBALS G_STKP))
          (ia86.write_barrier -1 -1))))
 
 ;;; make_indexed_structure_word regno ptrtag hdrtag ex
@@ -1205,14 +1204,14 @@
            `(jz short ,L1)
            (ia86.exception_continuable ex L0)
            `(label ,L1))))
-  `(mov	(& GLOBALS ,(+ G_ALLOCTMP)) RESULT)
+  `(mov	(& GLOBALS G_ALLOCTMP) RESULT)
   `(add	RESULT wordsize)
   (cond ((= x -1)
          `(mov	SECOND UNSPECIFIED_CONST))
         (else
          (ia86.loadr	SECOND x)))
-  (ia86.mcall	$m.alloci)
-  `(mov	TEMP (& GLOBALS ,(+ G_ALLOCTMP)))
+  (ia86.mcall	$m.alloci 'alloci)
+  `(mov	TEMP (& GLOBALS G_ALLOCTMP))
   `(shl	TEMP 8)
   `(or	TEMP ,z)
   `(mov	(& RESULT) ,TEMP)
@@ -1246,25 +1245,25 @@
            (cond ((not (= x -1))
                   `(cmp	SECOND_LOW ,$imm.character)
                   `(jne	L1)))))
-    `(mov	(& GLOBALS ,(+ G_ALLOCTMP)) RESULT)
+    `(mov	(& GLOBALS G_ALLOCTMP) RESULT)
     `(add	RESULT fixnum(wordsize))
-    (ia86.mcall	$m.alloc-bv)
+    (ia86.mcall	$m.alloc-bv 'alloc-bv)
     (cond ((not (= x -1))
            (ia86.loadr	eax x)		; Code knows that eax is TEMP/SECOND
-           `(mov	(& GLOBALS ,(+ G_REGALIAS_ECX)) ecx)
-           `(mov	(& GLOBALS ,(+ G_REGALIAS_EDI)) edi)
+           `(mov	(& GLOBALS G_REGALIAS_ECX) ecx)
+           `(mov	(& GLOBALS G_REGALIAS_EDI) edi)
            `(shr	eax char_shift)	; byte value
-           `(mov	ecx (& GLOBALS ,(+ G_ALLOCTMP)))
+           `(mov	ecx (& GLOBALS G_ALLOCTMP))
            `(shr	ecx 2)		; byte count
-           `(lea	edi (& RESULT ,(+ 4)))	; destination ptr
+           `(lea	edi (& RESULT 4))	; destination ptr
            `(cld)
            `(rep stosb)		; byte fill
-           `(mov	ecx (& GLOBALS ,(+ G_REGALIAS_ECX)))
-           `(mov	edi (& GLOBALS ,(+ G_REGALIAS_EDI)))))
-    `(mov	TEMP (& GLOBALS ,(+ G_ALLOCTMP)))
+           `(mov	ecx (& GLOBALS G_REGALIAS_ECX))
+           `(mov	edi (& GLOBALS G_REGALIAS_EDI))))
+    `(mov	TEMP (& GLOBALS G_ALLOCTMP))
     `(shl	TEMP 6)
     `(or	TEMP ,y)
-    `(mov	(& RESULT)  ,TEMP)
+    `(mov	(& RESULT)  TEMP)
     `(add	RESULT ,$tag.bytevector-tag)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1346,25 +1345,25 @@
     (f y z)))
 
 (define-sassy-instr (ia86.T_OP1_1)		; break
-  (ia86.mcall	$m.break))
+  (ia86.mcall	$m.break 'break))
 
 (define-sassy-instr (ia86.T_OP1_3)		; unspecified
-  (ia86.const2regf RESULT $imm.unspecified))
+  (ia86.const2regf 'RESULT $imm.unspecified))
 
 (define-sassy-instr (ia86.T_OP1_4)		; undefined
-  (ia86.const2regf RESULT $imm.undefined))
+  (ia86.const2regf 'RESULT $imm.undefined))
 
 (define-sassy-instr (ia86.T_OP1_5)		; eof-object
-  (ia86.const2regf RESULT $imm.eof))
+  (ia86.const2regf 'RESULT $imm.eof))
 
 (define-sassy-instr (ia86.T_OP1_6)		; enable-interrupts
-  (ia86.mcall	$m.enable-interrupts))
+  (ia86.mcall	$m.enable-interrupts 'enable-interrupts))
 
 (define-sassy-instr (ia86.T_OP1_7)		; disable-interrupts
-  (ia86.mcall	$m.disable-interrupts))
+  (ia86.mcall	$m.disable-interrupts 'disable-interrupts))
 
 (define-sassy-instr (ia86.T_OP1_8)		; typetag
-  (ia86.mcall	$m.typetag))
+  (ia86.mcall	$m.typetag 'typetag))
 
 (define-sassy-instr (ia86.T_OP1_9)		; not
   `(cmp	RESULT_LOW ,$imm.false)
@@ -1390,7 +1389,7 @@
 
 (define-sassy-instr (ia86.T_OP1_15)		; car
   (ia86.single_tag_test_ex $tag.pair-tag $ex.car)
-  `(mov	RESULT (& (- RESULT ,$tag.pair-tag))))
+  `(mov	RESULT (& RESULT ,(- $tag.pair-tag))))
 
 (define-sassy-instr (ia86.T_OP1_16)		; cdr
   (ia86.single_tag_test_ex $tag.pair-tag $ex.cdr)
@@ -1400,10 +1399,10 @@
   (ia86.double_tag_predicate $tag.vector-tag $hdr.symbol))
 
 (define-sassy-instr (ia86.T_OP1_18)		; number? and complex?
-  (ia86.mcall	$m.complexp))
+  (ia86.mcall	$m.complexp 'complexp))
 
 (define-sassy-instr (ia86.T_OP1_20)		; real? and rational?
-  (ia86.mcall	$m.rationalp))
+  (ia86.mcall	$m.rationalp 'rationalp))
 
 (define-sassy-instr (ia86.T_OP1_21)		; compnum?
   (ia86.double_tag_predicate $tag.bytevector-tag $hdr.compnum))
@@ -1413,10 +1412,10 @@
         (L2 (fresh-label)))
     `(test	RESULT_LOW fixtag_mask)
     `(je	,L1)
-    (ia86.mcall	$m.integerp)
+    (ia86.mcall	$m.integerp 'integerp)
     `(jmp short ,L2)
     `(label ,L1)
-    (ia86.const2regf RESULT $imm.true)
+    (ia86.const2regf 'RESULT $imm.true)
     `(label ,L2 )))
 
 (define-sassy-instr (ia86.T_OP1_23)		; fixnum?
@@ -1427,29 +1426,29 @@
   (ia86.double_tag_predicate $tag.bytevector-tag $hdr.flonum))
 
 (define-sassy-instr (ia86.T_OP1_25)		; exact?
-  (ia86.mcall	$m.exactp))
+  (ia86.mcall	$m.exactp 'exactp))
 
 (define-sassy-instr (ia86.T_OP1_26)		; inexact?
-  (ia86.mcall	$m.inexactp))
+  (ia86.mcall	$m.inexactp 'inexactp))
 
 (define-sassy-instr (ia86.T_OP1_27)		; exact->inexact
-  (ia86.mcall	$m.exact->inexact))
+  (ia86.mcall	$m.exact->inexact 'exact->inexact))
 
 (define-sassy-instr (ia86.T_OP1_28)		; inexact->exact
-  (ia86.mcall	$m.inexact->exact))
+  (ia86.mcall	$m.inexact->exact 'inexact->exact))
 
 (define-sassy-instr (ia86.T_OP1_29)		; round
-  (ia86.mcall	$m.round))
+  (ia86.mcall	$m.round 'round))
 
 (define-sassy-instr (ia86.T_OP1_30)		; truncate
-  (ia86.mcall	$m.truncate))
+  (ia86.mcall	$m.truncate 'truncate))
 
 (define-sassy-instr (ia86.T_OP1_31)		; zero?
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
     `(test	RESULT_LOW fixtag_mask)
     `(jz short ,L1)
-    (ia86.mcall	$m.zerop)
+    (ia86.mcall	$m.zerop 'zerop)
     `(jmp short ,L2)
     `(label ,L1)
     `(and	RESULT RESULT)
@@ -1457,7 +1456,7 @@
     `(label ,L2)))
 
 (define-sassy-instr (ia86.T_OP1_32)		; --
-  (ia86.mcall	$m.negate))
+  (ia86.mcall	$m.negate 'negate))
 
 (define-sassy-instr (ia86.T_OP1_33)		; fxlognot
   (let ((L0 (fresh-label))
@@ -1468,14 +1467,14 @@
            `(jz short ,L1)
            (ia86.exception_continuable $ex.lognot L0)
            `(label ,L1)))
-    `(lea	RESULT (& RESULT ,(+ fixtag_mask)))
+    `(lea	RESULT (& RESULT fixtag_mask))
     `(not	RESULT)))
 
 (define-sassy-instr (ia86.T_OP1_34)		; real-part
-  (ia86.mcall	$m.real-part))
+  (ia86.mcall	$m.real-part 'real-part))
 	
 (define-sassy-instr (ia86.T_OP1_35)		; imag-part
-  (ia86.mcall	$m.imag-part))
+  (ia86.mcall	$m.imag-part 'imag-part))
 
 (define-sassy-instr (ia86.T_OP1_36)		; char?
   `(cmp	RESULT_LOW ,$imm.character)
@@ -1540,7 +1539,7 @@
            `(jnz short ,L1)))
         (else
          (ia86.loadr	SECOND x)))
-  (ia86.mcall	$m.bytevector-like-fill))
+  (ia86.mcall	$m.bytevector-like-fill 'bytevector-like-fill))
 
 (define-sassy-instr (ia86.T_OP1_46)		; make-bytevector
   (ia86.make_indexed_structure_byte -1 $hdr.bytevector  $ex.mkbvl))
@@ -1565,50 +1564,50 @@
 
 (define-sassy-instr (ia86.T_OP2_55 x)		; typetag-set!
   (ia86.loadr	SECOND x)
-  (ia86.mcall	$m.typetag-set))
+  (ia86.mcall	$m.typetag-set 'typetag-set))
 
 (define-sassy-instr (ia86.T_OP2_56 x)		; eq?
   (cond ((is_hwreg x)
          `(cmp	RESULT ,(REG x)))
         (else
-         `(cmp	RESULT (& GLOBALS ,(+ (G_REG x))))))
+         `(cmp	RESULT (& GLOBALS (G_REG ,x)))))
   (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP2_57 x)		; eqv?
   (ia86.loadr	SECOND x)
-  (ia86.mcall	$m.eqv))
+  (ia86.mcall	$m.eqv 'eqv))
 				
 (define-sassy-instr (ia86.T_OP2_58 x)		; cons
   (cond ((inline-allocation)
          (let ((L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L1)
-           `(mov	TEMP (& GLOBALS ,(+ $g.etop)))
+           `(mov	TEMP (& GLOBALS G_ETOP))
            `(add	TEMP 8)
            `(cmp	TEMP CONT)
            `(jle short ,L2)
-           (ia86.mcall	$m.morecore)
+           (ia86.mcall	$m.morecore 'morecore)
            `(jmp short ,L1)
            `(label ,L2)
-           `(mov	(& GLOBALS ,(+ $g.etop)) TEMP)
-           `(mov	(& TEMP-8)  ,RESULT)
-           `(lea	RESULT (& TEMP-8 ,(+ $tag.pair-tag)))
+           `(mov	(& GLOBALS G_ETOP) TEMP)
+           `(mov	(& TEMP -8)  RESULT)
+           `(lea	RESULT (& TEMP ,(+ -8 $tag.pair-tag)))
            (cond ((is_hwreg x)
                   `(mov	(& RESULT ,(+ (- $tag.pair-tag) 4)) ,(REG x)))
                  (else
-                  (ia86.loadr	TEMP x)
+                  (ia86.loadr	'TEMP x)
                   `(mov	(& RESULT ,(+ (- $tag.pair-tag) 4)) TEMP)))))
         (else
-         `(mov	(& GLOBALS ,(+ $g.alloctmp)) RESULT)
+         `(mov	(& GLOBALS ,$g.alloctmp) RESULT)
          `(mov	RESULT 8)
-         (ia86.mcall	$m.alloc)
-         `(mov	TEMP (& GLOBALS ,(+ $g.alloctmp)))
+         (ia86.mcall	$m.alloc 'alloc)
+         `(mov	TEMP (& GLOBALS ,$g.alloctmp))
          `(mov	(& RESULT)  ,TEMP)
          (cond ((is_hwreg x)
-                `(mov	(& RESULT ,(+ 4)) ,(REG x)))
+                `(mov	(& RESULT 4) ,(REG x)))
                (else
-                (ia86.loadr	TEMP x)
-                `(mov	(& RESULT ,(+ 4)) TEMP)))
+                (ia86.loadr	'TEMP x)
+                `(mov	(& RESULT 4) TEMP)))
         `(add	RESULT ,$tag.pair-tag))))
 	
 (define-sassy-instr (ia86.T_OP2_59 x)		; set-car!
@@ -1639,15 +1638,15 @@
 
 (define-sassy-instr (ia86.T_OP2_63 x)		; *
   (ia86.loadr	SECOND x)
-  (ia86.mcall	$m.multiply))
+  (ia86.mcall	$m.multiply 'multiply))
 	
 (define-sassy-instr (ia86.T_OP2_64 x)		; /
   (ia86.loadr	SECOND x)
-  (ia86.mcall	$m.divide))
+  (ia86.mcall	$m.divide 'divide))
 
 (define-sassy-instr (ia86.T_OP2_65 x)		; quotient
   (ia86.loadr	SECOND x)
-  (ia86.mcall	$m.quotient))
+  (ia86.mcall	$m.quotient 'quotient))
 
 (define-sassy-instr (ia86.T_OP2_66 x)		; <
   (ia86.generic_compare x 'l  $m.numlt))
@@ -1669,10 +1668,10 @@
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
-           (ia86.loadr	SECOND x)
+           (ia86.loadr	'SECOND x)
            `(jz short ,L1)
            (ia86.exception_continuable $ex.logand L0)
            `(label ,L1)
@@ -1680,35 +1679,35 @@
         ((is_hwreg x)
          `(and	RESULT ,(REG x)))
         (else
-         `(and	RESULT (& GLOBALS ,(+ (G_REG x)))))))
+         `(and	RESULT (& GLOBALS (G_REG ,x))))))
 
 (define-sassy-instr (ia86.T_OP2_72 x)		; fxlogior
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jz short ,L1)
-           (ia86.loadr	SECOND x)
+           (ia86.loadr	'SECOND x)
            (ia86.exception_continuable $ex.logior L0)
            `(label ,L1)
            `(mov	RESULT TEMP)))
         ((is_hwreg x)
          `(or	RESULT ,(REG x)))
         (else
-         `(or	RESULT (& GLOBALS ,(+ (G_REG x)))))))
+         `(or	RESULT (& GLOBALS (G_REG ,x))))))
 
 (define-sassy-instr (ia86.T_OP2_73 x)		; fxlogxor
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
-           (ia86.loadr	SECOND x)
+           (ia86.loadr	'SECOND x)
            `(jz short ,L1)
            (ia86.exception_continuable $ex.logxor L0)
            `(label ,L1)	
@@ -1716,7 +1715,7 @@
         ((is_hwreg x)
          `(xor	RESULT ,(REG x)))
         (else
-         `(xor	RESULT (& GLOBALS ,(+ (G_REG x)))))))
+         `(xor	RESULT (& GLOBALS (G_REG ,x))))))
 
 (define-sassy-instr (ia86.T_OP2_74 x)		; lsh
   (ia86.fixnum_shift x shl  $ex.lsh))
@@ -1777,7 +1776,7 @@
 
 (define-sassy-instr (ia86.T_OP2_90 x)		; sys$partial-list->vector
   (ia86.loadr	SECOND x)
-  (ia86.mcall	$m.partial-list->vector))
+  (ia86.mcall	$m.partial-list->vector 'partial-list->vector))
 
 (define-sassy-instr (ia86.T_OP3_91 x y)		; vector-set!
   (ia86.indexed_structure_set_word x y  $tag.vector-tag  $hdr.vector  $ex.vset))
@@ -1805,7 +1804,7 @@
 
 (define-sassy-instr (ia86.T_OP2_98 x)		; sys$bvlcmp
   (ia86.loadr	SECOND x)
-  (ia86.mcall	$m.bvlcmp))
+  (ia86.mcall	$m.bvlcmp 'bvlcmp))
 
 (define-sassy-instr (ia86.T_OP2_99 x)		; vector-like-ref
   (ia86.indexed_structure_ref x $tag.vector-tag  $ex.vlref  0))
@@ -1821,22 +1820,22 @@
 
 (define-sassy-instr (ia86.T_OP2_103 x)		; remainder
   (ia86.loadr	SECOND x)
-  (ia86.mcall	$m.remainder))
+  (ia86.mcall	$m.remainder 'remainder))
 
 (define-sassy-instr (ia86.T_OP1_104)		; petit-patch-boot-code
-  (ia86.mcall	$m.petit-patch-boot-code))
+  (ia86.mcall	$m.petit-patch-boot-code 'petit-patch-boot-code))
 
 (define-sassy-instr (ia86.T_OP1_105)		; syscall
-  (ia86.mcall	$m.syscall))
+  (ia86.mcall	$m.syscall 'syscall))
 
 (define-sassy-instr (ia86.T_OP1_106)		; creg
-  (ia86.mcall	$m.creg))
+  (ia86.mcall	$m.creg 'creg))
 
 (define-sassy-instr (ia86.T_OP1_107)		; creg-set!
-  (ia86.mcall	$m.creg-set!))
+  (ia86.mcall	$m.creg-set! 'creg-set!))
 
 (define-sassy-instr (ia86.T_OP1_108)		; gc-counter
-  `(mov	RESULT (& GLOBALS ,(+ G_GC_CNT))))
+  `(mov	RESULT (& GLOBALS G_GC_CNT)))
 
 (define-sassy-instr (ia86.T_OP2_109 x)		; make-string
   ;; exception code wrong, matches Sparc
@@ -1844,7 +1843,7 @@
 
 (define-sassy-instr (ia86.T_OP2IMM_128 x)		; typetag-set!
   (ia86.const2regf SECOND x)
-  (ia86.mcall	$m.typetag-set))
+  (ia86.mcall	$m.typetag-set 'typetag-set))
 
 (define-sassy-instr (ia86.T_OP2IMM_129 x)		; eq?
   `(cmp	RESULT ,x)
@@ -1860,7 +1859,7 @@
     `(sub	RESULT ,x)
     `(label ,L1)
     `(mov	SECOND ,x)
-    (ia86.mcall	$m.add)
+    (ia86.mcall	$m.add 'add)
     `(label ,L2)))
 
 
@@ -1874,7 +1873,7 @@
     `(add	RESULT ,x)
     `(label ,L1)
     `(mov	SECOND ,x)
-    (ia86.mcall	$m.subtract)
+    (ia86.mcall	$m.subtract 'subtract)
     `(label ,L2)))
 
 (define-sassy-instr (ia86.T_OP2IMM_132 x)		; <
@@ -1929,10 +1928,10 @@
   (ia86.indexed_structure_ref_imm x $tag.vector-tag  $ex.vlref  0))
 
 (define-sassy-instr (ia86.T_OP1_200)		; most-positive-fixnum
-  (ia86.const2regf RESULT #x7FFFFFFC))
+  (ia86.const2regf 'RESULT #x7FFFFFFC))
 
 (define-sassy-instr (ia86.T_OP1_201)		; most-negative-fixnum
-  (ia86.const2regf RESULT #x80000000))
+  (ia86.const2regf 'RESULT #x80000000))
 
 (define-sassy-instr (ia86.T_OP2_202 x)		; fx+
   (ia86.fixnum_arithmetic x add  sub  $ex.fx+))
@@ -1963,16 +1962,16 @@
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            `(or	TEMP RESULT)
-           (ia86.test	TEMP_LOW fixtag_mask)
+           (ia86.test	'TEMP_LOW fixtag_mask)
            `(jnz short ,L1)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            `(sar	TEMP 2)
            `(imul	TEMP RESULT)
            `(jno short ,L2)
            `(label ,L1)
-           (ia86.loadr	TEMP x)
+           (ia86.loadr	'TEMP x)
            (ia86.exception_continuable $ex.fx* L0)
            `(label ,L2)
            `(mov	RESULT TEMP)))
@@ -1981,7 +1980,7 @@
          `(imul	RESULT ,(REG x)))
         (else
          `(shr	RESULT)
-         `(imul	RESULT (& GLOBALS ,(+ (G_REG x)))))))
+         `(imul	RESULT (& GLOBALS (G_REG ,x))))))
 
 (define-sassy-instr (ia86.T_OP2_206 x)		; fx=
   (ia86.fixnum_compare x e  $ex.fx=))
@@ -2009,7 +2008,7 @@
            `(jz short ,L1)
            (ia86.exception_continuable $ex.fxzero? L0)
            `(label ,L1))))
-  (ia86.test	RESULT RESULT)
+  (ia86.test	'RESULT 'RESULT)
   (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP1_212)		; fxpositive?
@@ -2029,7 +2028,7 @@
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           (ia86.test	RESULT_LOW fixtag_mask)
+           (ia86.test	'RESULT_LOW fixtag_mask)
            `(jz short ,L1)
            (ia86.exception_continuable $ex.fxnegative? L0)
            `(label ,L1))))
@@ -2042,11 +2041,11 @@
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.const2regf TEMP x)
+           (ia86.const2regf 'TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jnz short ,L1)
-           (ia86.const2regf TEMP x)
+           (ia86.const2regf 'TEMP x)
            `(,y	RESULT TEMP)
            `(jno short ,L2)
            `(,z	RESULT TEMP)
@@ -2054,7 +2053,7 @@
            (ia86.exception_continuable ex L0)	; second is tmp so 2nd arg is in place
            `(label ,L2)))
         (else
-         (ia86.const2regf TEMP x)
+         (ia86.const2regf 'TEMP x)
          `(,y	RESULT TEMP))))
 	
 (define-sassy-instr (ia86.T_OP2IMM_250 x)           ; fx+
@@ -2069,14 +2068,14 @@
         (L1 (fresh-label)))
     (cond ((not (unsafe-code))
            `(label ,L0)
-           (ia86.const2regf TEMP x)
+           (ia86.const2regf 'TEMP x)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jz short ,L1)
-           (ia86.const2regf TEMP x)
+           (ia86.const2regf 'TEMP x)
            (ia86.exception_continuable z L0)	; second is tmp so 2nd arg is in place
            `(label ,L1)))
-    (ia86.const2regf TEMP x)
+    (ia86.const2regf 'TEMP x)
     `(cmp	RESULT 	TEMP)
     (ia86.setcc y)))
 
@@ -2098,16 +2097,16 @@
 ;;; Unsafe/trusted primitives
 
 (define-sassy-instr (ia86.T_OP1_401)		; vector-length:vec
-  `(mov	RESULT (& RESULT ,(- (+ $tag.vector-tag))))
+  `(mov	RESULT (& RESULT ,(- $tag.vector-tag)))
   `(shr	RESULT 8))
 
 (define-sassy-instr (ia86.T_OP2_402 x)		; vector-ref:trusted
   `(add	RESULT ,(- wordsize $tag.vector-tag))
   (cond ((is_hwreg x)
-         `(mov	RESULT (& RESULT ,(+ (REG x)))))
+         `(mov	RESULT (& RESULT ,(REG x))))
         (else
-         (ia86.loadr	TEMP x)
-         `(mov	RESULT (& RESULT ,(+ TEMP))))))
+         (ia86.loadr	'TEMP x)
+         `(mov	RESULT (& RESULT TEMP)))))
 
 (define-sassy-instr (ia86.T_OP3_403 x y)		; vector-set!:trusted
   (ia86.do_indexed_structure_set_word x y $tag.vector-tag))
@@ -2163,30 +2162,30 @@
   (cond ((is_hwreg x)
          `(add	RESULT ,(REG x)))
         (else
-         `(add	RESULT (& GLOBALS ,(+ (G_REG x)))))))
+         `(add	RESULT (& GLOBALS (G_REG ,x))))))
 
 (define-sassy-instr (ia86.T_OP2_501 x)		; +:fix:fix
   (let ((L1 (fresh-label)))
-    (ia86.loadr	TEMP x)
+    (ia86.loadr	'TEMP x)
     `(add	RESULT TEMP)
     `(jno short ,L1)
     `(sub	RESULT TEMP)
-    (ia86.mcall	$m.add)                          ; second is temp so 2nd arg is in place
+    (ia86.mcall	$m.add 'add)                          ; second is temp so 2nd arg is in place
     `(label ,L1)))
 
 (define-sassy-instr (ia86.T_OP2_502 x)		; -:idx:idx
   (cond ((is_hwreg x)
          `(sub	RESULT ,(REG x)))
         (else
-         `(sub	RESULT (& GLOBALS ,(+ (G_REG x)))))))
+         `(sub	RESULT (& GLOBALS (G_REG ,x))))))
 
 (define-sassy-instr (ia86.T_OP2_503 x)		; -:fix:fix
   (let ((L1 (fresh-label)))
-    (ia86.loadr	TEMP x)
+    (ia86.loadr	'TEMP x)
     `(sub	RESULT TEMP)
     `(jno short ,L1)
     `(add	RESULT TEMP)
-    (ia86.mcall	$m.subtract)	; second is temp so 2nd arg is in place
+    (ia86.mcall	$m.subtract 'subtract)	; second is temp so 2nd arg is in place
     `(label ,L1)))
 
 (define-sassy-instr (ia86.T_OP2IMM_520 x)		; +:idx:idx
@@ -2198,7 +2197,7 @@
     `(jno short ,L1)
     `(sub	RESULT ,x)
     `(mov	SECOND ,x)
-    (ia86.mcall	$m.add)
+    (ia86.mcall	$m.add 'add)
     `(label ,L1)))
 
 (define-sassy-instr (ia86.T_OP2IMM_522 x)		; -:idx:idx
@@ -2210,7 +2209,7 @@
     `(jno short ,L1)
     `(add	RESULT ,x)
     `(mov	SECOND ,x)
-    (ia86.mcall	$m.subtract)
+    (ia86.mcall	$m.subtract 'subtract)
     `(label ,L1)))
 
 
@@ -2223,7 +2222,7 @@
     (ia86.timer_check)
     `(test	RESULT_LOW fixtag_mask)
     `(jz short ,L1)
-    (ia86.mcall	$m.zerop)
+    (ia86.mcall	$m.zerop 'zerop)
     `(cmp	RESULT_LOW ,$imm.false)
     `(je	(t_label ,x))
     `(jmp short ,L2)
@@ -2238,7 +2237,7 @@
     `(test	RESULT_LOW fixtag_mask)
     `(jz short ,L1)
     (ia86.const2regf SECOND x)
-    (ia86.mcall	$m.numlt)
+    (ia86.mcall	$m.numlt 'numlt)
     `(cmp	RESULT_LOW ,$imm.false)
     `(je	(t_label ,y))
     `(jmp short ,L2)

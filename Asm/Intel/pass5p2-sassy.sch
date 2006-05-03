@@ -29,11 +29,31 @@
     (as-source! as (cons (list $.entry e #t) (as-source as))))
   (current-sassy-assembly-structure as))
 
+(define (sassy-assemble code)
+  (sassy `(,@sassy-machine-directives 
+           ,@sassy-instr-directives 
+           (text ,@code))))
+
 (define (assembly-end as segment)
   (list (car segment) (cdr segment) (lookup-functions as)))
 
 (define (assembly-user-data)
   (make-user-data))
+
+(define (sassy-postpass-segment segment)
+  (define (postpass-code sexp)
+    (list->bytevector (sassy-text-list (sassy-assemble sexp))))
+  ;; data def'n for constvec is in Asm/Common/dumpheap.sch
+  (define (postpass-constants constvec)
+    (list->vector (map postpass-c-entry (vector->list constvec))))
+  (define (postpass-c-entry ce)
+    (case (car ce)
+      ((data global bits) ce)
+      ((codevector) `(codevector ,(postpass-code (cadr ce))))
+      ((constantvector) `(constantvector ,(postpass-constants (cadr ce))))))
+  (cons (postpass-code (car segment))
+        (postpass-constants (cadr segment))))
+  
 
 (define (assembly-declarations user-data)
   (append (if (not (runtime-safety-checking))
@@ -160,6 +180,7 @@
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label)))
     ;(emit-text as "begin_codevector ~a" name)
+    (emit-sassy as 'align 'code_align)
     (add-function as name #t entrypoint?)
     (set! code-indentation (string #\tab))
     (set! code-name name)))
@@ -312,7 +333,7 @@
       (set! code-offset (emit-codevector as 0))
       (set! const-offset (emit-constantvector as 0))
       (emit-sassy as ia86.T_LAMBDA
-		 (compiled-procedure as entry)
+                 code-offset 
 		 const-offset
 		 (operand2 instruction)))))
 
