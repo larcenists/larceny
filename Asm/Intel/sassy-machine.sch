@@ -67,6 +67,7 @@
 (define-sassy-constant G_REGALIAS_EDI	$g.reg3)	; ditto
 
 (define-sassy-constant G_TIMER          $g.timer)
+(define-sassy-constant G_ETOP           $g.etop)
 
 (define-sassy-constant FIRST_HWREG	1)
 (define-sassy-constant LAST_HWREG	4)
