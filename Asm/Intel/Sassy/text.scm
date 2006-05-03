@@ -303,12 +303,18 @@
       (meta-lambda
        (or
 	(and opcode? __ (lambda (opcode . rands)
+                          (define rands2 ; w/o comments
+                            (let loop ((rands rands))
+                              (cond ((null? rands) rands)
+                                    ((eq? (car rands) '--) '())
+                                    (else (cons (car rands) 
+                                                (loop (cdr rands)))))))
 			  (and (or (symbol win)
 				   (not (= win (push-stack-size
 						(t-text textb)))))
 			       (gen-opt-jmp win win lose))
 			  (emit-direct2 (car exp)
-					opcode rands win lose textb outp)))
+					opcode rands2 win lose textb outp)))
 	(and 'seq (or (begin win) ; allowed to write (seq)
 		      (and ? (lambda (tail) (really-compile tail)))
 		      (and __ (lambda body
