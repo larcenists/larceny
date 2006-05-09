@@ -209,6 +209,7 @@ namespace Scheme.RT {
             case Sys.rename : rename(); break;
             case Sys.pollinput : pollinput(); break;
             case Sys.getenv : getenv(); break;
+            case Sys.setenv : setenv(); break;
             // case Sys.gc : gc(); break;
             case Sys.flonum_acos:  flonum_acos(); break;
             case Sys.flonum_asin:  flonum_asin(); break;
@@ -386,6 +387,17 @@ namespace Scheme.RT {
               ? (SObject) Factory.False
               : (SObject) Factory.makeString (result);
         }
+
+        private static void setenv() {
+            try {
+              String arg1 = (((SByteVL)Reg.Register2).asString());
+              String arg2 = (((SByteVL)Reg.Register3).asString());
+              Environment.SetEnvironmentVariable( arg1, arg2 );
+              Reg.Result = (SObject) Factory.True;
+            } catch (ArgumentException) {
+              Reg.Result = (SObject) Factory.False;
+            }
+	}
 
         private static void flonum_acos()
         {

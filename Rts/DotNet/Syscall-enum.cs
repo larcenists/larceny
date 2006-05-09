@@ -46,6 +46,7 @@ namespace Scheme.RT {
 		stats_dump_stdout=43,
 		chdir=44,
 		cwd=45,
+		setenv=46,
 		sysglobal = 91
 	};
 }

@@ -111,6 +111,16 @@ public class Load {
     Debug.WriteLine ("DEBUG version of Scheme runtime.");
     Debug.WriteLine (test_checked() ? "CHECKED arithmetic" : "UNCHECKED arithmetic");
 
+    { // Establish invariant that LARCENY_ROOT has been set before we
+      // invoke (interactive-entry-point ...)
+      string lar_root = Environment.GetEnvironmentVariable( "LARCENY_ROOT" );
+      if (lar_root == null) {
+	string location = Assembly.GetCallingAssembly().Location;
+	lar_root = System.IO.Path.GetDirectoryName(location);
+	Environment.SetEnvironmentVariable( "LARCENY_ROOT", lar_root );
+      }
+    }
+
     // Mono throws a not implemented exception here.
     try {
 	InitializePerformanceCounters();

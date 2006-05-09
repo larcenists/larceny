@@ -3,8 +3,9 @@
 ; $Id$
 ;
 ; Syscall ID definitions.
-; Values correspond to the table ordering in Rts/Sys/syscall.c.
-;
+; Values correspond to the table ordering in Rts/Sys/syscall.c
+; and Rts/DotNet/Syscall-enum.cs
+; 
 ; FIXME: These values (may) belong in a configuration file.
 
 (define syscall:open 0)
