@@ -504,29 +504,29 @@ public class Ops {
     /* Logical operations operate on fixnums
      * What about bignums? See SRFI... ?
      */
-    public static SObject op1_lognot(SObject arg) {
-        return arg.op_lognot();
+    public static SObject op1_fxlognot(SObject arg) {
+        return arg.op_fxlognot();
     }
-    public static SObject op2_logand(SObject arg1, SObject arg2) {
-        return arg1.op_logand(arg2);
+    public static SObject op2_fxlogand(SObject arg1, SObject arg2) {
+        return arg1.op_fxlogand(arg2);
     }
-    public static SObject op2_logior(SObject arg1, SObject arg2) {
-        return arg1.op_logior(arg2);
+    public static SObject op2_fxlogior(SObject arg1, SObject arg2) {
+        return arg1.op_fxlogior(arg2);
     }
-    public static SObject op2_logxor(SObject arg1, SObject arg2) {
-        return arg1.op_logxor(arg2);
+    public static SObject op2_fxlogxor(SObject arg1, SObject arg2) {
+        return arg1.op_fxlogxor(arg2);
     }
-    public static SObject op2_lsh(SObject arg1, SObject arg2) {
-        return arg1.op_lsh(arg2);
+    public static SObject op2_fxlsh(SObject arg1, SObject arg2) {
+        return arg1.op_fxlsh(arg2);
     }
-    public static SObject op2_rsh(SObject arg1, SObject arg2) {
-        return arg1.op_rsh(arg2);
+    public static SObject op2_fxrsh(SObject arg1, SObject arg2) {
+        return arg1.op_fxrsh(arg2);
     }
-    public static SObject op2_rsha(SObject arg1, SObject arg2) {
-        return arg1.op_rsha(arg2);
+    public static SObject op2_fxrsha(SObject arg1, SObject arg2) {
+        return arg1.op_fxrsha(arg2);
     }
-    public static SObject op2_rshl(SObject arg1, SObject arg2) {
-        return arg1.op_rshl(arg2);
+    public static SObject op2_fxrshl(SObject arg1, SObject arg2) {
+        return arg1.op_fxrshl(arg2);
     }
     // rot
 

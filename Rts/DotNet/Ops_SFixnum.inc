@@ -281,42 +281,42 @@
             return (arg1.value == this.value) ? Factory.True : Factory.False;
         }
 
-        OP1_OVERRIDE(lognot) {
+        OP1_OVERRIDE(fxlognot) {
             return Factory.makeNumber (~this.value);
         }
-        OP2_CHAIN(logand)
-        OP2_CHAIN(logior)
-        OP2_CHAIN(logxor)
-        OP2_CHAIN(lsh)
-        OP2_CHAIN(rsh)
-        OP2_CHAIN(rsha)
-        OP2_CHAIN(rshl)
+        OP2_CHAIN(fxlogand)
+        OP2_CHAIN(fxlogior)
+        OP2_CHAIN(fxlogxor)
+        OP2_CHAIN(fxlsh)
+        OP2_CHAIN(fxrsh)
+        OP2_CHAIN(fxrsha)
+        OP2_CHAIN(fxrshl)
 
-        OP2_OVERRIDE_REVERSED(logand, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxlogand, SFixnum) {
             return makeFixnum (arg1.value & this.value);
         }
-        OP2_OVERRIDE_REVERSED(logior, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxlogior, SFixnum) {
             return makeFixnum (arg1.value | this.value);
         }
-        OP2_OVERRIDE_REVERSED(logxor, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxlogxor, SFixnum) {
             return makeFixnum (arg1.value ^ this.value);
         }
-        OP2_OVERRIDE_REVERSED(lsh, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxlsh, SFixnum) {
             int r = arg1.value << this.value;
             r = (r << 2) >> 2; // mask out top bits (w/ sign extend)
             return makeFixnum (r);
         }
-        OP2_OVERRIDE_REVERSED(rsh, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxrsh, SFixnum) {
             int r = arg1.value >> this.value;
             // r = (r << 2) >> 2;
             return makeFixnum (r);
         }
-        OP2_OVERRIDE_REVERSED(rsha, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxrsha, SFixnum) {
             int r = arg1.value >> this.value;
             // r = (r << 2) >> 2;
             return makeFixnum (r);
         }
-        OP2_OVERRIDE_REVERSED(rshl, SFixnum) {
+        OP2_OVERRIDE_REVERSED(fxrshl, SFixnum) {
             uint a = (uint)arg1.value << 2;
             int b = this.value;
             int r = (int)(a >> b) >> 2;

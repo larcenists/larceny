@@ -151,14 +151,14 @@
         OP1(most_negative_fixnum) { return Factory.makeFixnum(SFixnum.MIN); }
 
         // Logical Operations
-        OP1_VIRTUAL_EXN(lognot, EX_LOGNOT)
-        OP2_VIRTUAL_EXN_PAIR(logand, EX_LOGAND, SFixnum)
-        OP2_VIRTUAL_EXN_PAIR(logior, EX_LOGIOR, SFixnum)
-        OP2_VIRTUAL_EXN_PAIR(logxor, EX_LOGXOR, SFixnum)
-        OP2_VIRTUAL_EXN_PAIR(lsh, EX_LSH, SFixnum)
-        OP2_VIRTUAL_EXN_PAIR(rsh, EX_RSHA, SFixnum)
-        OP2_VIRTUAL_EXN_PAIR(rsha, EX_RSHA, SFixnum)
-        OP2_VIRTUAL_EXN_PAIR(rshl, EX_RSHL, SFixnum)
+        OP1_VIRTUAL_EXN(fxlognot, EX_LOGNOT)
+        OP2_VIRTUAL_EXN_PAIR(fxlogand, EX_LOGAND, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxlogior, EX_LOGIOR, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxlogxor, EX_LOGXOR, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxlsh, EX_LSH, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxrsh, EX_RSHA, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxrsha, EX_RSHA, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(fxrshl, EX_RSHL, SFixnum)
 
         // Arithmetic Operations
         OP1_VIRTUAL_EXN(real_part, EX_REALPART)
