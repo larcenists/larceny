@@ -20,6 +20,9 @@ First things first:
     have only the .NET SDK, look for ilasm.exe in
     \windows\microsoft.net\framework\v?.?.?\ilasm.exe.
 
+    Alternatively, if you have Visual Studio installed, you can run:
+    \Program Files\Microsoft Visual Studio 8\SDK\v2.0\Bin\sdkvars.bat
+
 Then start your host Scheme system, change your working directory to
 be the Larceny source directory if necessary, and load the configuration 
 file for Larceny.NET:
