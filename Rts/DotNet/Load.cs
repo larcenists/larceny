@@ -115,9 +115,13 @@ public class Load {
       // invoke (interactive-entry-point ...)
       string lar_root = Environment.GetEnvironmentVariable( "LARCENY_ROOT" );
       if (lar_root == null) {
+#if HAS_SETENV_SUPPORT
 	string location = Assembly.GetCallingAssembly().Location;
 	lar_root = System.IO.Path.GetDirectoryName(location);
 	Environment.SetEnvironmentVariable( "LARCENY_ROOT", lar_root );
+#else
+	throw new Exception("No SetEnvironmentVariable method; must set LARCENY_ROOT by hand");
+#endif
       }
     }
 

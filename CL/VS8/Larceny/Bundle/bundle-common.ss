@@ -50,12 +50,18 @@
               (copy-file (build-path from-directory file)
                          (build-path to-directory file)))
             (larceny-distribution-files))
-  (copy-file (build-path from-directory "bin\\Debug\\CommonLarceny.exe")
-             (build-path to-directory "bin\\Debug\\CommonLarceny.exe"))
-  (copy-file (build-path from-directory "bin\\Debug\\CommonLarceny.pdb")
-             (build-path to-directory "bin\\Debug\\CommonLarceny.pdb"))
-  (copy-file (build-path from-directory "bin\\Release\\CommonLarceny.exe")
-             (build-path to-directory "bin\\Release\\CommonLarceny.exe")))
+  (cond 
+   (#f
+    (copy-file (build-path from-directory "bin\\Debug\\CommonLarceny.exe")
+	       (build-path to-directory "bin\\Debug\\CommonLarceny.exe"))
+    (copy-file (build-path from-directory "bin\\Debug\\CommonLarceny.pdb")
+	       (build-path to-directory "bin\\Debug\\CommonLarceny.pdb"))
+    (copy-file (build-path from-directory "bin\\Release\\CommonLarceny.exe")
+	       (build-path to-directory "bin\\Release\\CommonLarceny.exe")))
+   (#t
+    (copy-file (build-path from-directory "dotnet.heap.exe")
+	       (build-path to-directory "CommonLarceny.exe")))
+   ))
 
 (define system
   (let ((op (current-output-port)))

@@ -1,5 +1,5 @@
 ;; Provides a procedure
-;; larceny-setup : host-sym OS-sym -> ???
+;; larceny-setup : host-sym OS-sym endianness codegen-option ... -> ???
 ;;
 ;; Loads appropriate system-dependent stuff
 
@@ -22,8 +22,11 @@
 (define make-nbuild-parameter
   (lambda x (display "!! make-nbuild-parameter not yet set! (Util/dotnet.sch)")))
 
-;; this needs to be global for the definition of lib-files
+;; These needs to be global for the definition of lib-files
+;; They are set!'d by larceny-setup
 (define option:os #f)
+(define option:endian #f)
+(define option:codegen-options '())
 
 (define system-big-endian?
   (lambda x (display "!! system-big-endian not set yet")(newline)))
@@ -31,13 +34,34 @@
 (define copy-file
   (lambda x (display "!! copy-file not set yet") (newline)))
 
-;; FIXME:  figure out endian from host scheme system?
-(define (larceny-setup host os option:endian)
-  (set! option:os os)
+(define body-crock-1 '())
+(define body-crock-2 '())
 
-  (case option:endian
-    ((big) (set! system-big-endian? (lambda () #t)))
-    ((little) (set! system-big-endian? (lambda () #f))))
+(define-syntax begin-crock 
+  (syntax-rules ()
+    ((_ 1)
+     (if #f #f))
+    ((_ 2)
+     (if #f #f))
+    ((_ 1 EXP REST ...)
+     (begin (set! body-crock-1 (append body-crock-1 (list (quote EXP))))
+	    EXP
+	    (begin-crock 1 REST ...)))
+    ((_ 2 EXP REST ...)
+     (begin (set! body-crock-2 (append body-crock-2 (list (quote EXP))))
+	    EXP
+	    (begin-crock 2 REST ...)))))
+
+;; FIXME:  figure out endian from host scheme system?
+(define (larceny-setup host os endian . codegen-options)
+  (begin-crock 1  ;; see crock craziness above and below
+   (set! option:os os)
+   (set! option:endian endian)
+   (set! option:codegen-options codegen-options)
+
+   (case option:endian
+     ((big) (set! system-big-endian? (lambda () #t)))
+     ((little) (set! system-big-endian? (lambda () #f)))))
   
   ;; FIXME:  might have to fudge more this for Cygwin
   ;; load code to work with pathnames
@@ -52,53 +76,54 @@
   ;; merge the *larceny-root* and *root-directory* global variables.
   (load (make-filename "Util" "petit-unix-defns-globals.sch"))
   
-  (set! *larceny-root* (make-filename ""))
-
-  (let ((option:source? #f)
-        (option:verbose? #t)
-        (option:development? #t))
-    ;; set! burns my eyes!
-    (set!
-     make-nbuild-parameter
-     (lambda (dir hostdir hostname)
-       (let ((parameters 
-              `((compiler       . ,(pathname-append dir "Compiler"))
-                (util           . ,(pathname-append dir "Util"))
-		(rts            . ,(pathname-append dir "Rts"))
-                (build          . ,(pathname-append dir "Rts" "Build"))
-                (source         . ,(pathname-append dir "Lib"))
-                (common-source  . ,(pathname-append dir "Lib" "Common"))
-                (repl-source    . ,(pathname-append dir "Repl"))
-                (interp-source  . ,(pathname-append dir "Interpreter"))
-                (machine-source . ,(pathname-append dir "Lib" "IL"))
-                (mzscheme-source . ,(pathname-append dir "Lib" "MzScheme"))
-                (common-asm     . ,(pathname-append dir "Asm" "Common"))
-                (dotnet-asm     . ,(pathname-append dir "Asm" "IL"))
-                (always-source? . ,option:source?)
-                (verbose-load?  . ,option:verbose?)
-                (development?   . ,option:development?)
-                (compatibility  . ,(pathname-append dir "Compat" hostdir))
-                (auxiliary      . ,(pathname-append dir "Auxlib"))
-                (root           . ,dir)
-                (host-system    . ,hostname)
-                (target-machine . dotnet)
-                (target-os      . ,option:os)
-                (host-os        . ,option:os)
-                (endianness     . ,option:endian)
-                (target-endianness . ,option:endian)
-                (host-endianness . ,option:endian)
-                (word-size      . 32)
-                )))
-         (lambda (key)
-           (let ((probe (assq key parameters)))
-             (if probe 
-                 (cdr probe)
-                 #f)))))))
+  (begin-crock 2
+    (set! *larceny-root* (make-filename ""))
+ 
+    (let ((option:source? #f)
+          (option:verbose? #t)
+          (option:development? #t))
+      ;; set! burns my eyes!
+      (set!
+       make-nbuild-parameter
+       (lambda (dir hostdir hostname)
+	 (let ((parameters 
+		`((compiler       . ,(pathname-append dir "Compiler"))
+		  (util           . ,(pathname-append dir "Util"))
+		  (rts            . ,(pathname-append dir "Rts"))
+		  (build          . ,(pathname-append dir "Rts" "Build"))
+		  (source         . ,(pathname-append dir "Lib"))
+		  (common-source  . ,(pathname-append dir "Lib" "Common"))
+		  (repl-source    . ,(pathname-append dir "Repl"))
+		  (interp-source  . ,(pathname-append dir "Interpreter"))
+		  (machine-source . ,(pathname-append dir "Lib" "IL"))
+		  (mzscheme-source . ,(pathname-append dir "Lib" "MzScheme"))
+		  (common-asm     . ,(pathname-append dir "Asm" "Common"))
+		  (dotnet-asm     . ,(pathname-append dir "Asm" "IL"))
+		  (always-source? . ,option:source?)
+		  (verbose-load?  . ,option:verbose?)
+		  (development?   . ,option:development?)
+		  (compatibility  . ,(pathname-append dir "Compat" hostdir))
+		  (auxiliary      . ,(pathname-append dir "Auxlib"))
+		  (root           . ,dir)
+		  (host-system    . ,hostname)
+		  (target-machine . dotnet)
+		  (target-os      . ,option:os)
+		  (host-os        . ,option:os)
+		  (endianness     . ,option:endian)
+		  (target-endianness . ,option:endian)
+		  (host-endianness . ,option:endian)
+		  (word-size      . 32)
+		  )))
+	   (lambda (key)
+	     (let ((probe (assq key parameters)))
+	       (if probe 
+		   (cdr probe)
+		   #f)))))))
      
   
   ;; set this so everybody can use it
   (set! nbuild-parameter
-        (make-nbuild-parameter *larceny-root* host host))
+        (make-nbuild-parameter *larceny-root* host host)))
 
   ;; Load the compatibility file, expander, and config system.
   (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
@@ -194,19 +219,108 @@
 
 ;; Load the compiler
 (define (load-compiler)
-  (load (make-filename *larceny-root* "Util" "nbuild.sch")))
-
-(define nmake-executable "nmake.exe")
+  (load (make-filename *larceny-root* "Util" "nbuild.sch"))
+  (for-each set-codegen-option! option:codegen-options))
 
 (define (build-runtime-system)
-  (case (nbuild-parameter 'host-os)
-    ((win32)
-     (system (twobit-format #f "cd Rts\\DotNet && ~s" nmake-executable)))
-    ((unix macosx)
-     (system "cd Rts/DotNet; make"))
-    (else
-     (error "Unknown operating system: " (nbuild-paramter 'host-os)))))
+  (let ((cmd-string 
+	 (twobit-format 
+	  #f (case (nbuild-parameter 'host-os)
+	       ((win32)       "cd Rts\\DotNet && nmake.exe ~a DEBUG_OPT=\"~a\" DEFINES=\"~a\"")
+	       ((unix macosx) "cd Rts/DotNet;    make      ~a DEBUG_OPT='~a'   DEFINES='~a'")
+	       (else
+		(error "Unknown operating system: " (nbuild-parameter 'host-os))))
+	  (if (codegen-option 'mono)
+	      "CSC=mcs "
+	      "CSC=csc ")
+	  (if (codegen-option 'debug)
+	      "/checked+ /warn:4 /debug:full /d:DEBUG "
+	      "/optimize+ ")
+	  (string-append 
+	   (if (eq? (nbuild-parameter 'endianness) 'big) 
+	       "/d:BIG_ENDIAN " "")
+	   (if (codegen-option 'mono) 
+	       "/d:USING_MONO " "")
+	   (if (codegen-option 'rotor)
+	       "/d:USING_ROTOR " "")
+	   (if (and (not (codegen-option 'mono)) 
+		    (eq? (nbuild-parameter 'host-os) 'win32))
+	       "/d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS " "")
+	   (if (memq (nbuild-parameter 'host-os) '(unix macosx))
+	       "/d:USING_UNIX " "")
+	   (if (codegen-option 'clr-2.0)
+	       "/d:HAS_SETENV_SUPPORT " "")
+	   ))))
+    (display cmd-string) (newline)
+    (system cmd-string)))
 
+(define (write-crock num port body)
+  (define (displayln x) (display x port) (newline port))
+  (define (writeln x) (write x port) (newline port))
+  (displayln (string-append 
+	      ";; This (autogenerated) file is part " (number->string num) 
+	      " of a two-part crock."))
+  (displayln  ";; Felix essentially took larceny-setup from dotnet.sch,      ")
+  (displayln  ";; split it into component pieces, interleaving the loading   ")
+  (displayln  ";; and global variable initialization as necessary, in order  ")
+  (displayln  ";; to create a parallel setup to that of larceny-setup itself.")
+  (displayln  ";; (larceny-setup \"Larceny\" os  endian)                     ")
+  (writeln `(let ((host   "Larceny")
+		  (os     ',option:os)
+		  (endian ',option:endian)
+		  (codegen-options ',option:codegen-options))
+	      ,@body)))
+
+(define (write-crock-one file)
+  (if (file-exists? file)
+      (delete-file file))
+  (let ((p (open-output-file file)))
+    (write-crock 1 p body-crock-1)
+    (close-output-port p)))
+
+(define (write-crock-two file)
+  (if (file-exists? file)
+      (delete-file file))
+  (let ((p (open-output-file file)))
+    (write-crock 2 p body-crock-2)
+    (close-output-port p)))
+  
+(define (build-twobit)
+  (define crock-file-1 "Rts/Build/dotnet-twobit-1.sch")
+  (define crock-file-2 "Rts/Build/dotnet-twobit-2.sch")  
+
+  (cond ((file-exists? "Twobit.fasl")
+	 (delete-file "Twobit.fasl")))
+  
+  (write-crock-one crock-file-1)
+  (write-crock-two crock-file-2)
+
+  (compile-application 
+   "Twobit" 
+   (append (list "Util/dotnet.sch") 
+	   ;; Next bunch is the result of breaking down larceny-setup
+	   ;; into seperate components seperated by its calls to load
+	   (list crock-file-1)
+	   (case option:os 
+	     ((win32) (list "Util\\sysdep-win32.sch"))
+	     ((unix macosx) (list "Util/sysdep-unix.sch")))
+	   (list "Util/petit-unix-defns-globals.sch")
+	   (list crock-file-2)
+	   (list "Compat/Larceny/compat.sch" "Compat/Larceny/compat2.sch"
+		 "Auxlib/list.sch" "Auxlib/pp.sch")
+	   (list "Util/expander.sch" "Util/config.sch"
+		 "Util/csharp-config.scm")
+	   ;; Rest is from load-compiler
+	   (list "Util/nbuild-files.sch" "Util/nbuild-defns.sch"
+		 ;; "Util/nbuild.sch" ;; This does the loading that's inlined below
+		 )
+	   (nbuild:twobit-files)
+	   (nbuild:common-asm-files)
+	   (nbuild:machine-asm-files)
+	   (nbuild:utility-files)
+	   (list "Rts/make-templates.sch" "Util/cleanup.sch")
+	   (list "Util/dotnet-compile-file.sch")
+	   )))
 
 ;; Convenience
 (define (load-debugger)

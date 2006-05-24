@@ -4,12 +4,18 @@
 ;; Listify, .list file generation
 ;; ------------------------------
 
+(define output-full-msi-in-il-comments
+  (make-parameter 'output-full-msi-in-il-comments #f))
+
 (define (list-instruction/line name instr as)
   (let ((line listify-counter))
     (emit as
           (if (codegen-option 'listify-line-directive)
               (il:directive 'line line listify-filename))
-          (il:comment/info "instruction" (cons (string->symbol name) (cdr instr)))
+          (il:comment/info "instruction" 
+			   (if (output-full-msi-in-il-comments)
+			       (cons (string->symbol name) (cdr instr))
+			       (string->symbol name)))
           (if (and (codegen-option 'listify-debug-location)
                    (not (member name '(".end"))))
               (il:set-debug-info line listify-filename 
@@ -21,7 +27,10 @@
 (define (list-label/line instr as)
   (let ((line listify-counter))
     (emit as 
-          (il:comment/info "Instruction" (cons '.label (cdr instr))))
+          (il:comment/info "Instruction" 
+			   (if (output-full-msi-in-il-comments)
+			       (cons '.label (cdr instr))
+			       '.label)))
     (if (codegen-option 'listify-write-list-file)
         (write-listify-label line (cadr instr)))))
 

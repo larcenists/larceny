@@ -389,6 +389,7 @@ namespace Scheme.RT {
         }
 
         private static void setenv() {
+#if HAS_SETENV_SUPPORT
             try {
               String arg1 = (((SByteVL)Reg.Register2).asString());
               String arg2 = (((SByteVL)Reg.Register3).asString());
@@ -397,6 +398,9 @@ namespace Scheme.RT {
             } catch (ArgumentException) {
               Reg.Result = (SObject) Factory.False;
             }
+#else
+            Reg.Result = (SObject) Factory.False;
+#endif
 	}
 
         private static void flonum_acos()
@@ -500,16 +504,16 @@ namespace Scheme.RT {
         {
           string command = ((SByteVL) Reg.Register2).asString();
           ProcessStartInfo pi = new ProcessStartInfo();
+#if USING_UNIX
+          pi.FileName = "sh";
+          pi.Arguments = "-c \"" + command +"\"";
+#else
           pi.FileName = "cmd";
           pi.Arguments = "/c " + command;
-          pi.UseShellExecute = true;
-
-          // The CreateNoWindow field isn't defined in
-          // ProcessStartInfo on Rotor. :(
-#if !USING_ROTOR
-          pi.CreateNoWindow = true;
 #endif
-			
+          pi.UseShellExecute = false;
+          pi.CreateNoWindow = false;
+
           Process p = Process.Start (pi);
           p.WaitForExit();
           Reg.Result = Factory.makeNumber (p.ExitCode);

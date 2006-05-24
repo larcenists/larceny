@@ -73,6 +73,7 @@
         OP1(make_cell) { return Factory.makePair(this, Factory.False); }
         OP1_VIRTUAL_EXN(cell_ref, EX_CAR)
         OP2_VIRTUAL_EXN(cell_set, EX_SETCAR)
+        OP2_VIRTUAL_EXN(cell_set_nwb, EX_SETCAR)
 
         // Pair Operations
         OP2(cons) { return Factory.makePair(this, arg2); }
@@ -103,6 +104,7 @@
         OP2_VIRTUAL_EXN_PAIR(vector_ref_trusted, EX_VECTOR_REF, SVL)
         OP3_VIRTUAL_EXN_PAIR(vector_set, EX_VECTOR_SET, SVL)
         OP3_VIRTUAL_EXN_PAIR(vector_set_trusted, EX_VECTOR_SET, SVL)
+        OP3_VIRTUAL_EXN_PAIR(vector_set_trusted_nwb, EX_VECTOR_SET, SVL)
 
         // Procedure Operations
         OP1_VIRTUAL_EXN(procedure_length, EX_PROCEDURE_LENGTH)
@@ -165,7 +167,9 @@
         OP1_VIRTUAL_EXN(imag_part, EX_IMAGPART)
 
         OP2_VIRTUAL_EXN_PAIR(plus_idx_idx, EX_ADD, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(plus_fix_fix, EX_ADD, SFixnum)
         OP2_VIRTUAL_EXN_PAIR(minus_idx_idx, EX_SUB, SFixnum)
+        OP2_VIRTUAL_EXN_PAIR(minus_fix_fix, EX_SUB, SFixnum)
         OP2_VIRTUAL_EXN_PAIR(equal_fix_fix, EX_EQUALP, SFixnum)
         OP2_VIRTUAL_EXN_PAIR(less_fix_fix, EX_LESSP, SFixnum)
         OP2_VIRTUAL_EXN_PAIR(lessequal_fix_fix, EX_LESSEQP, SFixnum)

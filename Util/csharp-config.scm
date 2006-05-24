@@ -130,6 +130,9 @@
   (define (align? x)
     (and (pair? x) (eq? (car x) 'align)))
 
+  (define (include? x)
+    (and (pair? x) (eq? (car x) 'include)))
+
   (define (config-loop inp info)
     (fold/sexprs/file 
      handle-conf-item
@@ -169,6 +172,10 @@
            info)
           ((align? item)
            info)
+	  ((include? item)
+	   (call-with-input-file (cadr item)
+	     (lambda (inp)
+	       (config-loop inp info))))
           (else
            (twobit-format #t "Unknown command ~a~%" item)
            info)))

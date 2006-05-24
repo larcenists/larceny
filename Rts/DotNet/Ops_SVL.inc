@@ -5,6 +5,7 @@
         PREDICATE_OVERRIDE_EXPR(isRectnum, rectnump, this.tag == Tags.RectnumTag)
         PREDICATE_OVERRIDE_EXPR(isComplex, complexp, this.isRatnum() || this.isRectnum())
         PREDICATE_OVERRIDE_EXPR(isReal, realp, this.isRatnum())
+        PREDICATE_OVERRIDE_EXPR(isRational, rationalp, this.isRatnum())
 
         // FIXME!!!! exact?, inexact? should throw errors on non-numbers
         CLR_PREDICATE_OVERRIDE_EXPR(isExact, this.isRatnum() || this.isRectnum())
@@ -94,12 +95,12 @@
 
         // Rectnums
         SPECIALOP2_OVERRIDE_REV_MS(eqvp_not_eq, rectnum, SVL, RectnumTag, MS_RECTNUM_EQUAL)
-        SPECIALOP2_OVERRIDE_REV_MS(numeric_equals, rectnum, SVL, RatnumTag, MS_RECTNUM_EQUAL)
+        SPECIALOP2_OVERRIDE_REV_MS(numeric_equals, rectnum, SVL, RectnumTag, MS_RECTNUM_EQUAL)
 
-        SPECIALOP2_OVERRIDE_REV_MS(plus, rectnum, SVL, RatnumTag, MS_RECTNUM_ADD)
-        SPECIALOP2_OVERRIDE_REV_MS(minus, rectnum, SVL, RatnumTag, MS_RECTNUM_SUB)
-        SPECIALOP2_OVERRIDE_REV_MS(multiply, rectnum, SVL, RatnumTag, MS_RECTNUM_MUL)
-        SPECIALOP2_OVERRIDE_REV_MS(divide, rectnum, SVL, RatnumTag, MS_RECTNUM_DIV)
+        SPECIALOP2_OVERRIDE_REV_MS(plus, rectnum, SVL, RectnumTag, MS_RECTNUM_ADD)
+        SPECIALOP2_OVERRIDE_REV_MS(minus, rectnum, SVL, RectnumTag, MS_RECTNUM_SUB)
+        SPECIALOP2_OVERRIDE_REV_MS(multiply, rectnum, SVL, RectnumTag, MS_RECTNUM_MUL)
+        SPECIALOP2_OVERRIDE_REV_MS(divide, rectnum, SVL, RectnumTag, MS_RECTNUM_DIV)
 
         SPECIALOP1_OVERRIDE(truncate) {
             if (this.tag == Tags.RatnumTag) {
@@ -131,5 +132,23 @@
                 Reg.Result = this;
             } else {
                 base.op_truncate();
+            }
+        }
+        OP1_OVERRIDE(real_part) {
+            if (this.tag == Tags.RatnumTag) {
+                return this;
+            } else if (this.tag == Tags.RectnumTag) {
+                return elements[0];
+            } else {
+                return base.op_real_part();
+            }
+        }
+        OP1_OVERRIDE(imag_part) {
+            if (this.tag == Tags.RatnumTag) {
+                return Factory.makeFixnum(0);
+            } else if (this.tag == Tags.RectnumTag) {
+                return elements[1];
+            } else {
+                return base.op_imag_part();
             }
         }

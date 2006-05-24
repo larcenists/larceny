@@ -275,7 +275,7 @@
 ;; il:load-real8 : real -> ilpackage
 (define (il:load-real8 datum)
   (cond ((equal? datum +nan.0)
-         (il:ldsfld iltype-double il-schemefactory "NaN"))
+         (il:ldsfld iltype-double il-schemefactory "Nan"))
         ((equal? datum +inf.0)
          (il:ldsfld iltype-double il-schemefactory "PositiveInfinity"))
         ((equal? datum -inf.0)

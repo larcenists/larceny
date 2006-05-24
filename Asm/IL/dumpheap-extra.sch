@@ -456,7 +456,10 @@
 
          (command-line (twobit-format #f "~a ~a ~a /output:~a ~a"
                            ilasm-executable
-                           "/nologo /quiet /alignment=4096 /clock"
+                           (cond ((codegen-option 'mono)
+				  "")
+				 (else 
+				  "/nologo /quiet /alignment=4096 /clock"))
                            options
                            exe-file
                            (apply string-append

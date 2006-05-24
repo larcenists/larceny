@@ -6,6 +6,10 @@
             this.first = arg2;
             return Factory.Unspecified;
         }
+        OP2_OVERRIDE(cell_set_nwb) {
+            this.first = arg2;
+            return Factory.Unspecified;
+        }
         OP1_OVERRIDE(car) { return this.first; }
         OP1_OVERRIDE(car_pair) { return this.first; }
         OP1_OVERRIDE(cdr) { return this.rest; }

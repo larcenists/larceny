@@ -223,7 +223,7 @@
         }
         OP1_OVERRIDE(fxnegative) {
             int a = - this.value;
-            if (!inFixnumRange(-a)) {
+            if (!inFixnumRange(a)) {
                 Exn.fault(Constants.EX_FXNEG, "result not a fixnum", this);
                 return Factory.Impossible;
             }
@@ -317,7 +317,8 @@
             return makeFixnum (r);
         }
         OP2_OVERRIDE_REVERSED(fxrshl, SFixnum) {
-            uint a = (uint)arg1.value << 2;
+            uint a_preshift = unchecked((uint)arg1.value);
+            uint a = a_preshift << 2;
             int b = this.value;
             int r = (int)(a >> b) >> 2;
             return Factory.makeNumber ((int)r);
@@ -331,7 +332,9 @@
         }
 
         OP2_CHAIN(plus_idx_idx)
+        OP2_CHAIN(plus_fix_fix)
         OP2_CHAIN(minus_idx_idx)
+        OP2_CHAIN(minus_fix_fix)
         OP2_CHAIN(equal_fix_fix)
         OP2_CHAIN(less_fix_fix)
         OP2_CHAIN(lessequal_fix_fix)
@@ -341,7 +344,13 @@
         OP2_OVERRIDE_REVERSED(plus_idx_idx, SFixnum) {
             return Factory.makeNumber (arg1.value + this.value);
         }
+        OP2_OVERRIDE_REVERSED(plus_fix_fix, SFixnum) {
+            return Factory.makeNumber (arg1.value + this.value);
+        }
         OP2_OVERRIDE_REVERSED(minus_idx_idx, SFixnum) {
+            return Factory.makeNumber (arg1.value - this.value);
+        }
+        OP2_OVERRIDE_REVERSED(minus_fix_fix, SFixnum) {
             return Factory.makeNumber (arg1.value - this.value);
         }
         OP2_OVERRIDE_REVERSED(equal_fix_fix, SFixnum) {

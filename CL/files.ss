@@ -9,8 +9,8 @@
    "Asm\\IL\\"
    "Auxlib\\"
    "bin\\"
-   "bin\\Debug\\"
-   "bin\\Release\\"
+;   "bin\\Debug\\"
+;   "bin\\Release\\"
    "CL\\"
    "CL\\Scripts\\"
    "CL\\VS8\\"
@@ -34,6 +34,7 @@
    "Interpreter\\"
    "Lib\\"
    "Lib\\Common\\"
+   "Lib\\SRFI\\"
    "Lib\\IL\\"
    "Lib\\MzScheme\\"
    "Lib\\MzScheme\\simple-macros\\"
@@ -48,6 +49,11 @@
 (define (larceny-distribution-files)
   (list
    "COPYRIGHT"
+   "README-DOTNET.txt"
+   "startup.sch"
+   "Scheme.dll"
+   "Twobit.fasl"
+   "Twobit.exe"
 
    "Asm\\Common\\asmutil.sch"
    "Asm\\Common\\asmutil32-test.sch"
@@ -79,6 +85,10 @@
    "Asm\\IL\\util.sch"
    "Asm\\IL\\util-structs.sch"
 
+   "Asm\\IL\\il-corememory.sch"
+   "Asm\\IL\\il-jdot-aliases.sch"
+   "Asm\\IL\\il-load-coremem.sch"
+
    "Auxlib\\format.sch"
    "Auxlib\\io.sch"
    "Auxlib\\list.sch"
@@ -95,9 +105,9 @@
    "Auxlib\\unix-functions.sch"
    "Auxlib\\vector.sch"
 
-   "bin\\Debug\\Scheme.dll"
-   "bin\\Debug\\Scheme.pdb"
-   "bin\\Release\\Scheme.dll"
+;;   "bin\\Debug\\Scheme.dll"
+;;   "bin\\Debug\\Scheme.pdb"
+;;   "bin\\Release\\Scheme.dll"
 
    "CL\\files.ss"
    "CL\\README"
@@ -143,6 +153,7 @@
    "Compat\\MzScheme\\misc2bytevector.ss"
 
    "Docs\\HOWTO-DOTNET"
+   "Docs\\KNOWN-BUGS"
 
    "Interpreter\\interp-prim.sch"
    "Interpreter\\interp.sch"
@@ -215,6 +226,37 @@
    "Lib\\Common\\transio.sch"
    "Lib\\Common\\typetags.sch"
    "Lib\\Common\\vector.sch"
+
+   "Lib\\Common\\require.sch"
+
+   "Lib\\SRFI\\scheme-r5rs.c"
+   "Lib\\SRFI\\srfi-0.sch"
+   "Lib\\SRFI\\srfi-1.sch"
+   "Lib\\SRFI\\srfi-2.sch"
+   "Lib\\SRFI\\srfi-5.sch"
+   "Lib\\SRFI\\srfi-6.sch"
+   "Lib\\SRFI\\srfi-7.sch"
+   "Lib\\SRFI\\srfi-8.sch"
+   "Lib\\SRFI\\srfi-9.sch"
+   "Lib\\SRFI\\srfi-11.sch"
+   "Lib\\SRFI\\srfi-13.sch"
+   "Lib\\SRFI\\srfi-14.sch"
+   "Lib\\SRFI\\srfi-16.sch"
+   "Lib\\SRFI\\srfi-17.sch"
+   "Lib\\SRFI\\srfi-19.sch"
+   "Lib\\SRFI\\srfi-22.sch"
+   "Lib\\SRFI\\srfi-23.sch"
+   "Lib\\SRFI\\srfi-25.sch"
+   "Lib\\SRFI\\srfi-26.sch"
+   "Lib\\SRFI\\srfi-27.sch"
+   "Lib\\SRFI\\srfi-28.sch"
+   "Lib\\SRFI\\srfi-29.sch"
+   "Lib\\SRFI\\srfi-30.sch"
+   "Lib\\SRFI\\srfi-31.sch"
+   "Lib\\SRFI\\srfi-37.sch"
+   "Lib\\SRFI\\srfi-38.sch"
+   "Lib\\SRFI\\srfi-39.sch"
+   "Lib\\SRFI\\srfi-42.sch"
 
    "Lib\\IL\\loadable.sch"
    "Lib\\IL\\primops.sch"
@@ -297,6 +339,7 @@
    "Rts\\DotNet\\Call.cs"
    "Rts\\DotNet\\ClassicOps.cs"
    "Rts\\DotNet\\ClassicOpsSpecial.cs"
+   "Rts\\DotNet\\CodeAddress.cs"
    "Rts\\DotNet\\Constants.cs"
    "Rts\\DotNet\\ContinuationISH.cs"
    "Rts\\DotNet\\DynLoad.cs"
@@ -394,6 +437,7 @@
    "Util\\nasm-unix.sch"
    "Util\\nbuild-files.sch"
    "Util\\nbuild.sch"
+   "Util\\nbuild-param.sch"
    "Util\\nbuild-defns.sch"
    ;"Util\\petit-macosx-on-win32.sch"
    "Util\\petit-unix-be.sch"
@@ -408,6 +452,7 @@
    "Util\\sysdep-win32.sch"
    "Util\\twobit-heap.sch"
    "Util\\cleanup.sch"
+   "Util\\dotnet-compile-file.sch"
    ))
 
 ;;;

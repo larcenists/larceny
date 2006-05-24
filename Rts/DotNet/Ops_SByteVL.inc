@@ -257,3 +257,25 @@
                 base.op_inexact2exact();
             }
         }
+        OP1_OVERRIDE(real_part) {
+            if (this.tag == Tags.BignumTag) {
+                return this;
+            } else if (this.tag == Tags.FlonumTag) {
+                return this;
+            } else if (this.tag == Tags.CompnumTag) {
+                return Factory.makeFlonum(this.unsafeAsDouble(0));
+            } else {
+                return base.op_real_part();
+            }
+        }
+        OP1_OVERRIDE(imag_part) {
+            if (this.tag == Tags.BignumTag) {
+                return Factory.makeFixnum(0);
+            } else if (this.tag == Tags.FlonumTag) {
+                return Factory.makeFixnum(0);
+            } else if (this.tag == Tags.CompnumTag) {
+                return Factory.makeFlonum(this.unsafeAsDouble(1));
+            } else {
+                return base.op_imag_part();
+            }
+        }

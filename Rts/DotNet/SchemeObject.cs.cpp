@@ -88,7 +88,7 @@ namespace Scheme.Rep {
      *     - flonum  = SByteVL/flonum
      *     - ratnum  = SVL/ratnum
      *     - rectnum = SVL/rectnum
-     *     - compnum = SVL/compnum
+     *     - compnum = SByteVL/compnum
      */
 
     // -------------------------------------------

@@ -9,6 +9,14 @@
 
 ;; set-codegen-option! : key [value]
 (define (set-codegen-option! k . v)
+  (case k ((clr-1.1 clr-2.0)
+	   ;; clr versions are mutually exclusive options
+	   (set! codegen-option-table 
+		 (let loop ((t codegen-option-table))
+		   (cond ((null? t) t)
+			 ((or (memq (caar t) '(clr-1.1 'clr-2.0))) 
+			  (loop (cdr t)))
+			 (else (cons (car t) (loop (cdr t)))))))))
   (let ((v (if (null? v) #t (car v))))
     (set! codegen-option-table (cons (cons k v) codegen-option-table))))
 

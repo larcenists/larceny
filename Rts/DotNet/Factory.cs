@@ -104,11 +104,12 @@ namespace Scheme.Rep {
             // We have to be tricky here because simply negating
             // the num might fall out of the range of representable
             // signed longs.  We therefore add 1 before negating it
-            // and subtract that result from the unsigned long maximum value.
+            // (effectively subtracting 1 from the magnitude) and 
+            // then add 1 after casting to restore magnitude.
 
             return
                  SFixnum.inFixnumRange (num) ? SFixnum.makeFixnum ((int) num)
-               : (num < 0) ? (SObject) makeBignum (UInt64.MaxValue - ((ulong)(- (num + 1))), false)
+               : (num < 0) ? (SObject) makeBignum (((ulong)(- (num + 1))) + 1, false)
                : (SObject) makeBignum ((ulong) num, true);
         }
 
@@ -159,6 +160,9 @@ namespace Scheme.Rep {
         }
 
         public static SByteVL makeCompnum(double real, double imag) {
+            if (imag == 0.0) {
+               return Factory.makeFlonum(real);
+            }
             byte[] bvec = new byte[20];
             byte[] realbytes = System.BitConverter.GetBytes(real);
             byte[] imagbytes = System.BitConverter.GetBytes(imag);

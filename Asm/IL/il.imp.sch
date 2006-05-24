@@ -68,10 +68,10 @@
 ;     exception.
 
 (define (prim-entry name)
-  (assq name $usual-integrable-procedures$))
+  (assq name (twobit-integrable-procedures)))
 
 (define (prim-entry-by-opcodename name)
-  (let loop ((x $usual-integrable-procedures$))
+  (let loop ((x (twobit-integrable-procedures)))
     (cond ((null? x) #f)
           ((eq? (prim-opcodename (car x)) name)
            (car x))
@@ -173,7 +173,7 @@
     (,name:MAKE-CELL  1 make-cell        #f            52 ,ak:dead     ,ak:none #f)
     (,name:CELL-REF   1 cell-ref         #f            54 ,ak:cell     ,ak:none #f)
     (,name:CELL-SET!  2 cell-set!        #f            84 ,ak:dead     ,ak:cell #f)
-    (.cell-set!:nwb   2 cell-set!:nwb    #f            -1 ,ak:dead     ,ak:cell #f)  ; FIXME
+    (.cell-set!:nwb   2 cell-set!        #f            -1 ,ak:dead     ,ak:cell #f)  ; FIXME
     (,name:CONS       2 cons             #f            58 ,ak:dead     ,ak:none #f)
 
     (.unspecified     0 unspecified      #f             3 ,ak:dead     ,ak:none #f)
@@ -182,6 +182,7 @@
     (.symbol?         1 symbol?          #f            17 ,ak:immortal ,ak:none #f)
     (.char?           1 char?            #f            36 ,ak:immortal ,ak:none #f)
     (.char->integer   1 char->integer    #f            37 ,ak:immortal ,ak:none #f)
+    (.char->integer:chr 1 char->integer  #f            -1 ,ak:immortal ,ak:none #f)
     (.--              1 --               #f            32 ,ak:immortal ,ak:none #t)
 
     ; FIXME: unspecified, undefined and -- should not be here with these 
@@ -198,7 +199,7 @@
     (.vector-length:vec 1 vector-length:vec     #f        401 ,ak:immortal ,ak:none #f)
     (.vector-ref:trusted 2 vector-ref:trusted ,stdc-imm?  402 ,ak:vector   ,ak:none #f)
     (.vector-set!:trusted 3 vector-set!:trusted #f        403 ,ak:dead     ,ak:vector #f)
-    (.vector-set!:trusted:nwb 3 vector-set!:trusted:nwb #f -1 ,ak:dead     ,ak:vector #f)   ; FIXME
+    (.vector-set!:trusted:nwb 3 vector-set!:trusted #f     -1 ,ak:dead     ,ak:vector #f)   ; FIXME
     (.string-length:str 1 string-length:str     #f         40 ,ak:immortal ,ak:none #f)
     (.string-ref:trusted 2 string-ref:trusted   #f         78 ,ak:string   ,ak:none #f)
     (.string-set!:trusted 3 string-set!:trusted ,stdc-imm? 79 ,ak:dead     ,ak:string #f)
@@ -207,9 +208,9 @@
     (.cdr:pair        1 cdr:pair         #f           405 ,ak:cdr      ,ak:none #f)
 
     (.+:idx:idx       2 +:idx:idx        ,stdc-imm?   500 ,ak:immortal ,ak:none #f)
-    (.+:fix:fix       2 +                #f           501 ,ak:immortal ,ak:none #f)
+    (.+:fix:fix       2 +:fix:fix        #f           501 ,ak:immortal ,ak:none #f)
     (.-:idx:idx       2 -:idx:idx        ,stdc-imm?    -1 ,ak:immortal ,ak:none #f)     ; FIXME
-    (.-:fix:fix       2 -                #f            -1 ,ak:immortal ,ak:none #f)     ; FIXME
+    (.-:fix:fix       2 -:fix:fix        #f            -1 ,ak:immortal ,ak:none #f)     ; FIXME
 
     (.=:fix:fix       2 =:fix:fix        ,stdc-imm?   406 ,ak:immortal ,ak:none #f)
     (.<:fix:fix       2 <:fix:fix        ,stdc-imm?   407 ,ak:immortal ,ak:none #f)

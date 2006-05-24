@@ -1,0 +1,18 @@
+;; The semi-colons in this file aren't necessarily comment indicators
+;; (you need two semi-colons rather than just one).
+;; The MakeMSI documentation says that the program scans lines 
+;; for an equals sign to find keywords with information attached, e.g:
+
+; ProductName = CommonLarceny
+; Description = The Common Larceny Runtime, targetting Microsoft's 
+;             = Common Language Runtime.  Supports CLR 2.0 out of the
+;             = box.  CLR 1.1 and/or Mono support is DIY.
+; MsiName     = CommonLarceny
+; Installed   = WINDOWS_ALL
+
+; ###########################################################################
+VERSION : 0.091.0000
+DATE    : 18 May 2006
+CHANGES : Bugfixes.  
+        : Compiled Twobit included.  
+	: See README-FIRST.txt

@@ -2,12 +2,12 @@
 ## USER-CONFIGURABLE SECTION
 ##########################################
 
-# Uncomment the block corresponding to the platform
-# you are building on.
+# Parameters are set by make invocation constructed 
+# by (build-runtime-system); see Util/dotnet.sch
 
 ## Win32 (.NET SDK)
-CSC = csc
-DEFINES = /d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS
+#CSC = csc
+#DEFINES = /d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS /d:HAS_SETENV_SUPPORT
 
 ## MacOS X (Rotor)
 #CSC = csc
@@ -15,10 +15,11 @@ DEFINES = /d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS
 
 ## Solaris & MacOS X (Mono)
 #CSC = mcs
-#DEFINES = /d:BIG_ENDIAN
+#DEFINES = /d:BIG_ENDIAN /d:USING_MONO /d:USING_UNIX
 
 ## Linux (Mono)
-#CSC = mcs
+# CSC = mcs
+# DEFINES = /d:USING_MONO /d:USING_UNIX
 
 ##########################################
 ## END USER-CONFIGURABLE SECTION
@@ -44,7 +45,7 @@ SRCS =	CodeAddress.cs \
 	Load.cs \
 	FFI.cs
 
-DEBUG_OPT = /checked+ /warn:4 /debug:full /d:DEBUG
+#DEBUG_OPT = /checked+ /warn:4 /debug:full /d:DEBUG
 #DEBUG_OPT = /optimize+
 
 OUTFILE = Scheme.dll
