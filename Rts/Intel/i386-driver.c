@@ -5,6 +5,8 @@
  * x86-nasm Larceny -- run-time support for Petit Larceny framework.
  */
 
+#define NOGLOBALS
+
 #include <assert.h>
 #include "larceny.h"
 #include "millicode.h"
