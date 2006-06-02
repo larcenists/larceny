@@ -454,6 +454,7 @@
 	      #\tab "extern" #\tab "EXTNAME(%1)" #\newline
 	      #\tab "dd" #\tab "EXTNAME(%1)" #\newline
 	      "%endmacro" #\newline
+              #\tab "times 4096 dd 0" #\newline ; hack : interrupt stack space
 	      #\tab "dd" #\tab "0" #\newline ; hack: word for millicode calls
 	      "EXTNAME(globals):" #\newline)))
 
