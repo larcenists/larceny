@@ -509,6 +509,8 @@ extern cont_t twobit_cont_label;
 #if USE_GOTOS_LOCALLY
 # define twobit_invoke( n ) \
    do { word a=RESULT; \
+        if (!--TIMER) \
+          WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)0 ) );	\
         if (tagof(a) != PROC_TAG) { \
           FAIL( EX_NONPROC ); \
         } \
