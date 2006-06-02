@@ -399,6 +399,16 @@ static int getuint( char **cmdl )
   if (isspace(*p) || *p == 0) {
     strncpy( buf, q, p-q );
     buf[p-q] = 0;
+    /* FIXME: sscanf( buf, "%i", &n ) [[ on Linux ]]
+     *           puts 0x7fffffff in n when buf is e.g. "0xb7d482d7" 
+     * 1. use "%u" for the format string, (but then get an unsigned
+     *    int instead of a signed one, which violates return type).
+     * 2. We really should be passing back an unsigned int in some
+     *    manner, and handle failure in a different way.
+     * 3. "Xo 0xb7d482d7" segfaulting because of sscanf's insane
+     *    result for n.  Need to handle sscanf robustly.  (Perhaps
+     *    verify with sprintf that we had a proper conversion?) 
+     */
     if (sscanf( buf, "%i", &n ) == 1) {
       *cmdl = p;
       return n;
