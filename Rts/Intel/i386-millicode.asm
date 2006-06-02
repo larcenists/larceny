@@ -115,16 +115,24 @@ EXTNAME(%1):
 	and	eax, 0xFFFFFFFC	                ;   to 4-byte boundary
 	mov	dword [GLOBALS+G_RETADDR], eax  ;    saved for later
 %endmacro
-	
+
+	;; On entry, GLOBALS pointer is off by 4
+%macro SAVE_RETURN_ADDRESS_INTRSAFE 0
+	mov	eax, dword [GLOBALS]			; return address
+	add	eax, 3		                	;  rounded up
+	and	eax, 0xFFFFFFFC	                	;   to 4-byte boundary
+	mov	dword [GLOBALS+G_RETADDR+4], eax	;    saved for later
+	add	GLOBALS, 4				; fixup globals
+%endmacro
+
 ;;; Arguments: second? c-name callout-method
 
 %macro MILLICODE_STUB 3
 	extern	EXTNAME(%2)
-	add	esp, 4				; Fixup GLOBALS
 %if %1
-	mov	[GLOBALS+G_SECOND], eax
+	mov	[GLOBALS+G_SECOND+4], eax
 %endif
-	SAVE_RETURN_ADDRESS
+	SAVE_RETURN_ADDRESS_INTRSAFE
 	mov	eax, EXTNAME(%2)
 	jmp	%3
 %endmacro
@@ -145,56 +153,52 @@ EXTNAME(%1):
 	MILLICODE_STUB 1, %1, callout_to_Ck
 %endmacro
 
+	;; On entry, GLOBALS pointer is off by 4
 PUBLIC i386_alloc_bv
 	MCg	mc_alloc_bv
 PUBLIC i386_alloc
 %ifdef OPTIMIZE_MILLICODE
-	add	GLOBALS, 4
-	mov	TEMP, [GLOBALS+G_ETOP]
+	mov	TEMP, [GLOBALS+G_ETOP+4]
 	add	RESULT, 7
 	and	RESULT, 0xfffffff8
 	add	TEMP, RESULT
 	cmp	TEMP, CONT
 	jg	L1
-	mov	RESULT, [GLOBALS+G_ETOP]
-	mov	[GLOBALS+G_ETOP], TEMP
+	mov	RESULT, [GLOBALS+G_ETOP+4]
+	mov	[GLOBALS+G_ETOP+4], TEMP
 	xor	TEMP, TEMP
-	sub	GLOBALS, 4
 	ret
-L1:	sub	GLOBALS, 4
-	xor	TEMP, TEMP
+L1:	xor	TEMP, TEMP
 %endif ; OPTIMIZE_MILLICODE
 	MCg	mc_alloc
-	
+
+	;; On entry, GLOBALS pointer is off by 4
 PUBLIC i386_alloci
 %ifdef OPTIMIZE_MILLICODE
-	add	GLOBALS, 4
-	mov	[GLOBALS+G_SECOND], SECOND
-	mov	[GLOBALS+G_REGALIAS_ECX], ecx
-	mov	[GLOBALS+G_REGALIAS_EDI], edi
+	mov	[GLOBALS+G_SECOND+4], SECOND
+	mov	[GLOBALS+G_REGALIAS_ECX+4], ecx
+	mov	[GLOBALS+G_REGALIAS_EDI+4], edi
 	add	RESULT, 7
 	and	RESULT, 0xfffffff8
 	mov	ecx, RESULT		; Byte count for initialization
 	shr	ecx, 2			;   really want words
-	mov	TEMP, [GLOBALS+G_ETOP]
+	mov	TEMP, [GLOBALS+G_ETOP+4]
 	add	TEMP, RESULT
 	cmp	TEMP, CONT
 	jg	L2
-	mov	RESULT, [GLOBALS+G_ETOP]
-	mov	[GLOBALS+G_ETOP], TEMP
-	mov	eax, [ GLOBALS+G_SECOND ]
+	mov	RESULT, [GLOBALS+G_ETOP+4]
+	mov	[GLOBALS+G_ETOP+4], TEMP
+	mov	eax, [ GLOBALS+G_SECOND+4 ]
 	mov	edi, RESULT
 	cld
 	rep stosd
-	mov	REG1, [GLOBALS+G_REG1]
-	mov	REG3, [GLOBALS+G_REG3]
+	mov	REG1, [GLOBALS+G_REG1+4]
+	mov	REG3, [GLOBALS+G_REG3+4]
 	xor	SECOND, SECOND
-	sub	GLOBALS, 4
 	ret
-L2:	mov	SECOND, [GLOBALS+G_SECOND]
-	mov	ecx, [GLOBALS+G_REGALIAS_ECX]
-	mov	edi, [GLOBALS+G_REGALIAS_EDI]
-	sub	GLOBALS, 4
+L2:	mov	SECOND, [GLOBALS+G_SECOND+4]
+	mov	ecx, [GLOBALS+G_REGALIAS_ECX+4]
+	mov	edi, [GLOBALS+G_REGALIAS_EDI+4]
 %endif ; OPTIMIZE_MILLICODE
 	MC2g	mc_alloci
 	
@@ -224,14 +228,12 @@ PUBLIC i386_partial_barrier
   %ifdef GCLIB_LARGE_TABLE
     %error Optimized write barrier does not work with GCLIB_LARGE_TABLE yet
   %endif
-	add	GLOBALS, 4
-	cmp	dword [GLOBALS+G_GENV], 0	; Barrier is enabled
+	cmp	dword [GLOBALS+G_GENV+4], 0	; Barrier is enabled
 	jne	Lpb1				;   if generation map not 0
-	sub	GLOBALS, 4			; Otherwise
-	ret					;   return to scheme
-Lpb1:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
-	mov	[GLOBALS+G_REG1], REG1		;   working registers
-	mov	REG1, [GLOBALS+G_GENV]		; Map page -> generation
+	ret					; Otherwise return to scheme
+Lpb1:	mov	[GLOBALS+G_RESULT+4], RESULT	; Free up some
+	mov	[GLOBALS+G_REG1+4], REG1	;   working registers
+	mov	REG1, [GLOBALS+G_GENV+4]	; Map page -> generation
 	sub	RESULT, [EXTNAME(gclib_pagebase)]	; Load
 	shr	RESULT, 12			;   generation number
 	shl	RESULT, 2			;     (using byte offset)
@@ -244,26 +246,24 @@ Lpb1:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
 	jg	Lpb3				;   if gen(lhs) > gen(rhs)
 Lpb2:	xor	RESULT, RESULT			; Clean
 	xor	SECOND, SECOND			;   state
-	mov	REG1, [GLOBALS+G_REG1]		;     and
-	sub	GLOBALS, 4			;       return
-	ret					;         to Scheme
+	mov	REG1, [GLOBALS+G_REG1+4]	;     and
+	ret					;       return to Scheme
 Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
-	mov	REG1, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
-	mov	SECOND, [GLOBALS+G_RESULT]	; The value to store (lhs)
+	mov	REG1, [GLOBALS+G_SSBTOPV+4]	; Array of ptrs into SSBs
+	mov	SECOND, [GLOBALS+G_RESULT+4]	; The value to store (lhs)
 	mov	REG1, [REG1+RESULT]		; The correct SSB ptr
 	mov	[REG1], SECOND			; Store lhs
-	mov	SECOND, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
+	mov	SECOND, [GLOBALS+G_SSBTOPV+4]	; Array of ptrs into SSBs
 	add	REG1, 4				; Move SSB ptr
 	mov	[SECOND+RESULT], REG1		; Store moved ptr
-	mov	SECOND, [GLOBALS+G_SSBLIMV]	; Array of SSB limit ptrs
+	mov	SECOND, [GLOBALS+G_SSBLIMV+4]	; Array of SSB limit ptrs
 	mov	SECOND, [SECOND+RESULT]		; The correct limit ptr
 	cmp	REG1, SECOND			; If ptr!=limit
 	jne	Lpb2				;   then no overflow, so done
 	xor	RESULT, RESULT			; Clean
 	xor	SECOND, SECOND			;   state
-	mov	REG1, [GLOBALS+G_REG1]		;     and
-	sub	GLOBALS, 4			;       handle
-	MCg	mc_compact_ssbs			;         overflow
+	mov	REG1, [GLOBALS+G_REG1+4]	;     and
+	MCg	mc_compact_ssbs			;       handle overflow
 %else  ; OPTIMIZE_MILLICODE
 	MC2g	mc_partial_barrier
 %endif ; OPTIMIZE_MILLICODE
@@ -383,51 +383,44 @@ PUBLIC i386_inexactp
 	MCg	mc_inexactp
 	
 PUBLIC i386_exception				; Exn encoded in instr stream
-	add	esp, 4				; Fixup GLOBALS
-	mov	[GLOBALS+G_SECOND], SECOND
-	mov	SECOND, [GLOBALS-4]		; Exn code address
+	mov	[GLOBALS+G_SECOND+4], SECOND
+	mov	SECOND, [GLOBALS]		; Exn code address
 	mov	ax, [SECOND]			; Exn code
 	and	eax, 0xFFFF			;   is 16 bits
 	shl	eax, 2				;     encoded as fixnum
-	jmp	i386_signal_exception
+	jmp	i386_signal_exception_intrsafe
 	
 PUBLIC i386_global_exception			; RESULT holds the global cell
-	add	esp, 4				; Fixup GLOBALS
-	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
+	mov	dword [GLOBALS+G_SECOND+4], FALSE_CONST
 	mov	SECOND, fixnum(EX_UNDEF_GLOBAL)
-	jmp	i386_signal_exception
+	jmp	i386_signal_exception_intrsafe
 	
 PUBLIC i386_invoke_exception			; RESULT holds defined value
-	add	esp, 4				; Fixup GLOBALS
-	cmp	dword [GLOBALS+G_TIMER], 0
+	cmp	dword [GLOBALS+G_TIMER+4], 0
 	jnz	Linv1
-	sub	esp, 4
 	jmp	EXTNAME(i386_timer_exception)
-Linv1:	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
+Linv1:	mov	dword [GLOBALS+G_SECOND+4], FALSE_CONST
 	mov	SECOND, fixnum(EX_NONPROC)
-	jmp	i386_signal_exception
+	jmp	i386_signal_exception_intrsafe
 	
 PUBLIC i386_global_invoke_exception		; RESULT holds the global cell
-	add	esp, 4				; Fixup GLOBALS
-	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
-	cmp	dword [GLOBALS+G_TIMER], 0
+	mov	dword [GLOBALS+G_SECOND+4], FALSE_CONST
+	cmp	dword [GLOBALS+G_TIMER+4], 0
 	jnz	Lginv1
-	sub	esp, 4
 	jmp	EXTNAME(i386_timer_exception)
 Lginv1:	cmp	dword [RESULT-PAIR_TAG], UNDEFINED_CONST
 	jnz	Lginv2
 	mov	SECOND, fixnum(EX_UNDEF_GLOBAL)
-	jmp	i386_signal_exception	
+	jmp	i386_signal_exception_intrsafe
 Lginv2:	mov	RESULT, [RESULT-PAIR_TAG]
 	mov	SECOND, fixnum(EX_NONPROC)
-	jmp	i386_signal_exception
+	jmp	i386_signal_exception_intrsafe
 	
 PUBLIC i386_argc_exception			; RESULT holds actual arg cnt
-	add	esp, 4				; Fixup GLOBALS
-        mov     SECOND, [GLOBALS+G_REG0]
-	mov	dword [GLOBALS+G_THIRD], SECOND
+        mov     SECOND, [GLOBALS+G_REG0+4]
+	mov	dword [GLOBALS+G_THIRD+4], SECOND
 	mov	SECOND, fixnum(EX_ARGC)
-	jmp	i386_signal_exception
+	jmp	i386_signal_exception_intrsafe
 	
 PUBLIC i386_petit_patch_boot_code
 	MCg	mc_petit_patch_boot_code
@@ -483,6 +476,21 @@ i386_signal_exception:
 	shr	SECOND, 2			; fixnum -> native
 	mov	[tmp_exception_code], SECOND    ; SECOND=eax
 	SAVE_RETURN_ADDRESS			; compute G_RETADDR
+	SAVE_STATE saved_globals_pointer	; forces RESULT into GLOBALS
+	mov	ebx, GLOBALS
+	mov	esp, [ebx+G_SAVED_ESP]
+	push	dword [tmp_exception_code]	; exception code
+	push	ebx				; globals
+	call	EXTNAME(mc_exception)
+	add	esp, 8
+	RESTORE_STATE saved_globals_pointer
+	jmp	[GLOBALS + G_RETADDR]
+
+	;; On entry, GLOBALS pointer is off by 4	
+i386_signal_exception_intrsafe:
+	shr	SECOND, 2			; fixnum -> native
+	mov	[tmp_exception_code], SECOND    ; SECOND=eax
+	SAVE_RETURN_ADDRESS_INTRSAFE		; compute G_RETADDR, fixup globals
 	SAVE_STATE saved_globals_pointer	; forces RESULT into GLOBALS
 	mov	ebx, GLOBALS
 	mov	esp, [ebx+G_SAVED_ESP]
