@@ -217,7 +217,7 @@ static void fpehandler( int sig )
 #elif defined(XOPEN_SIGNALS)
   void *ctx = context;
   int code = siginfo->si_code;
-#elif defined(PETIT_LARCENY) || defined(X86_NASM)
+#elif defined(PETIT_LARCENY) || defined(X86_NASM) || defined(X86_SASSY)
   void *ctx = (void*)0;
   int code = 0;
 #else

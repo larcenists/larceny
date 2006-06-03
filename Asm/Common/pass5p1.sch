@@ -25,13 +25,15 @@
 ; the instruction using the operations defined below.
 ;
 ; The table and target can be changed by redefining the following 
-; five procedures.
+; six procedures.
 
 (define (assembly-table) (error "No assembly table defined."))
 (define (assembly-start as) #t)
 (define (assembly-end as segment) segment)
 (define (assembly-user-data) #f)
+(define (assembly-user-local) #f)
 (define (assembly-declarations user-data) '())
+(define (assembly-postpass-segment as segment) segment)
 
 ; The main entry point.
 
@@ -41,7 +43,8 @@
     (assembly-start as)
     (assemble1 as
 	       (lambda (as)
-		 (let ((segment (assemble-pasteup as)))
+		 (let ((segment (assembly-postpass-segment 
+                                 as (assemble-pasteup as))))
 		   (assemble-finalize! as)
 		   (assembly-end as segment)))
 	       #f)))
@@ -70,7 +73,8 @@
 			   (assemble1 nested-as 
 				      (lambda (nested-as)
 					(let ((segment
-					       (assemble-pasteup nested-as)))
+                                               (assembly-postpass-segment
+                                                nested-as (assemble-pasteup nested-as))))
 					  (assemble-finalize! nested-as)
 					  (k nested-as segment)))
 				      doc))
@@ -291,6 +295,7 @@
 ;    parent         (an assembly structure or #f)
 ;    retry          (a thunk or #f)
 ;    user-data      (anything)
+;    user-local     (anything)
 ;
 ; In fixups, labels are of the form (<L>) to distinguish them from fixnums.
 
@@ -309,7 +314,8 @@
 	  '()
 	  #f
 	  #f
-	  user-data))
+	  user-data
+          (assembly-user-local)))
 
 (define (as-reset! as source)
   (as-source! as source)
@@ -334,6 +340,7 @@
 (define (as-parent as)    (vector-ref as 9))
 (define (as-retry as)     (vector-ref as 10))
 (define (as-user as)      (vector-ref as 11))
+(define (as-user-local as)(vector-ref as 12))
 
 (define (as-source! as x)    (vector-set! as 1 x))
 (define (as-lc! as x)        (vector-set! as 2 x))
@@ -346,6 +353,7 @@
 (define (as-parent! as x)    (vector-set! as 9 x))
 (define (as-retry! as x)     (vector-set! as 10 x))
 (define (as-user! as x)      (vector-set! as 11 x))
+(define (as-user-local! as x)(vector-set! as 12 x))
 
 ; The guts of the assembler.
 
@@ -572,7 +580,9 @@
 (define (test-asm emit)
   (let ((as (make-assembly-structure #f #f #f)))
     (emit as)
-    (let ((segment (assemble-pasteup as)))
+    (let ((segment 
+           (assembly-postpass-segment
+            as (assemble-pasteup as))))
       (assemble-finalize! as)
       (disassemble segment))))
 

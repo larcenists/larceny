@@ -431,7 +431,7 @@
             target
             "; try one of unix, macosx, macos, win32."))))
 
-(define (make-petit-heap-project heap-dumper)
+(define (make-petit-heap-project heap-name heap-dumper)
   (make:project "petit.heap"
     `(rules
       (".lop" ".mal" ,make-assemble)
@@ -439,10 +439,10 @@
       (".lap" ".sch" ,make-compile)
       (".sch" ".sh"  ,make-copy))
     `(targets
-      ("petit.heap" ,heap-dumper))
+      (,heap-name ,heap-dumper))
     `(dependencies                    ; Order matters [why??!]
-      ("petit.heap" ,petit-heap-files)
-      ("petit.heap" ,petit-eval-files)
+      (,heap-name ,petit-heap-files)
+      (,heap-name ,petit-eval-files)
       (,(common-relative "ecodes.sch")
         ,(nbuild-files 'build '("except.sh")))
       (,(common-relative "globals.sch")
@@ -452,10 +452,19 @@
   (if (null? petit-heap-files)
       (petit-select-target (nbuild-parameter 'target-os)))
   (let ((petit-heap-project
-         (make-petit-heap-project make-dumpheap)))
+         (make-petit-heap-project "petit.heap" make-dumpheap)))
     (make:pretend (not (null? rest)))
     (parameterize ((integrate-procedures 'larceny))
       (make:make petit-heap-project "petit.heap"))))
+
+(define (make-sasstrap-heap . rest)
+  (if (null? petit-heap-files)
+      (petit-select-target (nbuild-parameter 'target-os)))
+  (let ((petit-heap-project
+         (make-petit-heap-project "sasstrap.heap" make-dumpheap)))
+    (make:pretend (not (null? rest)))
+    (parameterize ((integrate-procedures 'larceny))
+      (make:make petit-heap-project "sasstrap.heap"))))
 
 (define (make-petit-libclean)
   (let ((files (append petit-heap-files petit-eval-files)))

@@ -101,6 +101,27 @@
                            (else          (error '*nbuild:petitasm-files* "Unknown value for nbuild-parameter 'host-os"))))))
       '()))
 
+(define *nbuild:x86-sass-files*
+  (if (eq? 'x86-sass (nbuild-parameter 'target-machine))
+      (append
+       (nbuild-files 'common-asm
+                     '("external-assembler.sch"))
+       (nbuild-files 'x86-sass-asm
+                     `("sassy-machine.sch"
+		       "sassy-instr.sch"
+                       "sassy-invoke.sch"
+		       "pass5p2-sassy.sch"
+                       "peepopt.sch"
+		       ;;,@(case (nbuild-parameter 'host-os)
+                       ;;    ((unix cygwin linux-el)  '("dumpheap-unix.sch"))
+                       ;;    ((win32) '("dumpheap-win32.sch"))
+                       ;;    (else    '()))
+		       "asm-switches.sch"
+                       ;;"petit-init-proc.sch"
+                       ;;"md5.sch"
+		       )))
+      '()))
+		    
 (define *nbuild:x86-nasm-files*
   (if (eq? 'x86-nasm (nbuild-parameter 'target-machine))
       (append
@@ -167,6 +188,7 @@
 	  (case (nbuild-parameter 'target-machine)
 	    ((SPARC)      *nbuild:sparc/twobit-files*)
 	    ((standard-c) *nbuild:petit/twobit-files*)
+	    ((x86-sass)   *nbuild:petit/twobit-files*)  ; for now
 	    ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
             ((dotnet)     *nbuild:dotnet/twobit-files*) ; FIXME
 	    (else (error "nbuild:twobit-files: bad architecture.")))
@@ -185,6 +207,7 @@
     ((SPARC)      *nbuild:sparcasm-files*)
     ((standard-c) *nbuild:petitasm-files*)
     ((x86-nasm)   *nbuild:x86-nasm-files*)
+    ((x86-sass)   *nbuild:x86-sass-files*)
     ((dotnet)     *nbuild:dotnetasm-files*) ; FIXME
     (else (error "nbuild:machine-asm-files: bad architecture."))))
 
@@ -192,6 +215,7 @@
   (case (nbuild-parameter 'target-machine)
     ((SPARC)      *nbuild:sparc-heap-dumper-files*)
     ((standard-c) *nbuild:petit-heap-dumper-files*)
+    ((x86-sass)   *nbuild:petit-heap-dumper-files*)
     ((x86-nasm)   *nbuild:petit-heap-dumper-files*)
     ((dotnet)     *nbuild:dotnet-heap-dumper-files*) ; FIXME
     (else (error "nbuild:heap-dumper-files: bad architecture."))))

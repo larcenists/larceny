@@ -107,6 +107,9 @@
                   features-petit-linux		; Debian GNU/Linux 3.0 (woody), x86
                   features-petit-cygwin		; Tested with cygwin 1.5.10 (May 2004)
                   features-x86-nasm-linux       ; Debian GNU/Linux 3.0 (woody), x86
+                  features-x86-sassy-linux
+		  features-x86-nasm-win32
+		  features-x86-sassy-win32
                   features-petit-linux-redhat5	; Very old, Redhat linux 5.1
                   features-sparc-linux-debian	; Very old, SPARC Debian v2(?)
                   features-petit-macos9-cw3     ; Very old (ca v0.48), CW Pro 3
@@ -117,7 +120,10 @@
   )
 
 (define (build-heap . args)
-  (let ((make-heap (case *heap-type* ((petit) make-petit-heap) ((sparc-native) make-sparc-heap)) ))
+  (let ((make-heap (case *heap-type* 
+		     ((petit) make-petit-heap) 
+		     ((sassy) make-sasstrap-heap)
+		     ((sparc-native) make-sparc-heap)) ))
     (apply make-heap args)))	     ; Defined in Lib/makefile.sch
 
 ;; adapted from petit-win32.sch
@@ -154,7 +160,12 @@
 			(case *host:os*
 			  ((win32) "libpetit.lib")
 			  (else    "libpetit.a")))
-                       ((sparc-native) "larceny.bin"))))
+                       ((sparc-native) "larceny.bin")
+                       ((sassy-native) 
+			(case *host:os* 
+			  ((win32) "larceny.bin.exe")
+			  (else    "larceny.bin")))
+		       )))
     ;; petit-win32.sch actually doesn't pass an arg to make... should I do same?
     (execute-in-directory "Rts" (string-append (make-command) " " make-target))))
 
@@ -164,18 +175,23 @@
   (case *runtime-type*
     ((petit)        (build-application *petit-executable-name* '())
                     (copy-script "petit"))
-    ((sparc-native) (if (file-exists? "Rts/larceny.bin")
-                        (begin
-			  (copy-file/regexp "Rts" "larceny.bin" ".")
-                          (copy-script "larceny"))
-                        (error "You need to build-runtime [in order to generate Rts/larceny.bin]")
-                        ))))
+    ((sparc-native sassy-native) 
+     (let* ((name (case *host:os*
+		    ((win32) "larceny.bin.exe")
+		    (else "larceny.bin")))
+	    (rts/name (string-append "Rts/" name)))
+       (if (file-exists? rts/name)
+	   (begin
+	     (copy-file/regexp "Rts" name ".")
+	     (copy-script "larceny"))
+	   (error "You need to build-runtime [in order to generate Rts/larceny.bin]")
+	   )))))
 
 (define (build-development-environment)
   (case *heap-type*
     ((petit)
      (make-petit-development-environment))
-    ((sparc-native)
+    ((sparc-native sassy)
      (make-development-environment))
     (else (error 'build-development-environment "Unknown heap type"))))
 
@@ -284,6 +300,8 @@
     (delete-file/regexp "Rts" "vc*.pdb") ; from petit-win32.sch
     (delete-file/regexp (pathname-append "Rts" "Sys") *.o)
     (delete-file/regexp (pathname-append "Rts" "Standard-C") *.o)
+    (delete-file/regexp (pathname-append "Rts" "IAssassin") *.o)
+    (delete-file/regexp (pathname-append "Rts" "Intel") *.o)
     (delete-file/regexp (pathname-append "Rts" "Build") *.o)
     #t))
 

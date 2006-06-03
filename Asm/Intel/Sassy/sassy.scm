@@ -30,7 +30,7 @@
 ; *****************************************
 
 ; LARCENY
-(load "inits/larceny.scm")
+; (load "inits/larceny.scm")
 
 ; MZSCHEME 299.400
 ; (load "inits/mzscheme-299.400.scm")

@@ -96,7 +96,7 @@
        (set! asm-table-generator sparc-table)
        (set! asm-comment-template "! ~a")
        (set! asm-define-template  "#define ~a ~a~%"))
-      ((x86-nasm)
+      ((x86-nasm x86-sass)
        (set! asm-table-generator x86-nasm-table)
        (set! asm-comment-template "; ~a")
        (set! asm-define-template  "%define ~a ~a~%"))

@@ -109,6 +109,8 @@
                      (flag always-source)
                      (flag help)
                      (flag native)
+		     (flag nasm)
+		     (flag sassy)
 		     (flag code-cov)
 		     (flag rebuild-code-cov))
   (define (displn arg) (display arg) (newline))
@@ -124,7 +126,7 @@
                            ((linux86) 'linux-el) ;; [[ Felix feels "linux86" a more immediate mnemonic, so alias the two ]]
                            (else host:)))
                 (target: (if target: target: host:)))
-           (setup-real! scheme: host: target: c-compiler: native code-cov rebuild-code-cov always-source)))))
+           (setup-real! scheme: host: target: c-compiler: (or native sassy nasm) code-cov rebuild-code-cov always-source sassy)))))
 
 ;; Can't use parameters for *host-dir* and such, because we have not
 ;; loaded the compatibility files yet at the time we get here.
@@ -132,7 +134,9 @@
 ;; 
 ;; setup-real! : Symbol ... -> Void
 ;; Sets global variables (based on Scheme impl. running on and Target OS), then calls UNIX-INITIALIZE
-(define (setup-real! host-scheme host-arch target-arch c-compiler-choice native code-cov rebuild-code-cov always-source)
+(define (setup-real! host-scheme host-arch target-arch 
+		     c-compiler-choice native code-cov rebuild-code-cov 
+		     always-source sassy)
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris) 'big)
@@ -179,9 +183,14 @@
         (case target-arch
           ((macosx)       'features-petit-macosx)
           ((solaris)      (if native 'features-sparc-solaris 'features-petit-solaris))
-          ((linux-el)     (if native 'features-x86-nasm-linux 'features-petit-linux))
+          ((linux-el)     (cond (sassy  'features-x86-sassy-linux)
+                                (nasm   'features-x86-nasm-linux 
+                                (else   'features-petit-linux))))
 	  ((cygwin)       'features-petit-cygwin)
-	  ((win32)        (if native 'features-x86-nasm-win32 'features-petit-win32))
+	  ((win32)        (cond (sassy  'features-x86-sassy-win32)
+				(nasm   'features-x86-nasm-win32)
+				(native 'features-x86-nasm-win32)
+				(else   'features-petit-win32)))
           ((unix)         *change-feature-set*) ;; if client says we're using unix, then just use value set by features.sch
 	  (else       (error 'petit-setup.sch "Must add support for target-arch"))
           ))
@@ -201,7 +210,22 @@
   (set! *host:endianness* (platform->endianness host-arch))
   (set! *target:endianness* (platform->endianness target-arch))
   
-  (cond (native
+  (cond (sassy
+         (case target-arch
+	   ((win32)
+            (set! *target:machine* 'x86-sass)
+            (set! *target:machine-source* "Assassin")
+            (set! *makefile-configuration* 'x86-win32-static-visualc)
+            (set! *heap-type* 'sassy)
+            (set! *runtime-type* 'sassy-native))
+           ((linux-el)
+            (set! *target:machine* 'x86-sass)
+            (set! *target:machine-source* "Assassin")
+            (set! *makefile-configuration* 'sassy-unix-static-gcc-nasm)
+            (set! *heap-type* 'sassy)
+            (set! *runtime-type* 'sassy-native))))
+
+	(native
          (case target-arch
            ((solaris)
             (set! *target:machine* 'SPARC)
@@ -242,15 +266,16 @@
 	
   ;; [usually #f; user may override with e.g. 'mwcc aka CodeWarrior]
   (set! *host:c-compiler* (or c-compiler-choice
-			      (and native 
+			      (and native (not sassy)
 				   (eq? target-arch 'win32)
 				   'nasm+msvc)
-                              (and native
+                              (and native (not sassy)
                                    (eq? target-arch 'linux-el)
                                    'nasm+gcc)
 			      #f))
   
-  (if (eq? *target:machine* 'x86-nasm)
+  (if (or (eq? *target:machine* 'x86-nasm)
+	  (eq? *target:machine* 'x86-sass))
       (set! *globals-table* "globals-nasm.cfg"))
  
   (set! *always-source* always-source)

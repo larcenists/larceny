@@ -21,6 +21,7 @@
  ; Architectures.  You need one of these.
 
  "SPARC" 			; Native: SPARC v8 or later
+ "X86_SASSY"			; Native: Intel 486 using Sassy assembler
  "X86_NASM"                     ; Native: Intel 386 using NASM macro assembler
  "PPC_GAS"                      ; Native: PowerPC using GNU 'as'
  "PETIT_LARCENY"		; Portable: Hardware is irrelevant
@@ -443,8 +444,41 @@
     "DEBIAN_STRDUP_WEIRDNESS"
     ))
 
+(define features-x86-sassy-linux		; Debian GNU/Linux 3.0 (woody), x86
+  '("X86_SASSY"
+    "BITS_32"
+    "ENDIAN_LITTLE"
+    "LINUX"
+    "HAVE_RINT"
+    "HAVE_STRNCASECMP"
+    "HAVE_STRDUP"
+    "HAVE_POLL"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "DEBIAN_STRDUP_WEIRDNESS"
+    ))
+
 (define features-x86-nasm-win32		; Windows, x86
   '("X86_NASM"
+    "BITS_32"
+    "ENDIAN_LITTLE"
+    "WIN32"
+    "HAVE_STRDUP"
+    "HAVE_POLL"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "USE_GENERIC_IO"
+    "USE_GENERIC_FILESYSTEM"
+    "USE_STDIO"
+    "NO_SYNCHRONOUS_SIGNALS"
+    "HAVE_STAT"
+    ))
+
+(define features-x86-sassy-win32	; Windows, x86
+  '("X86_SASSY"
     "BITS_32"
     "ENDIAN_LITTLE"
     "WIN32"
@@ -592,6 +626,8 @@
   (let ((format-string (cond ((member "SPARC" fs)
 			      "#define ~a 1~%")
 			     ((member "X86_NASM" fs)
+			      "%define ~a 1~%")
+			     ((member "X86_SASSY" fs)
 			      "%define ~a 1~%")
 			     (else 
 			      "define(`~a',1)~%"))))

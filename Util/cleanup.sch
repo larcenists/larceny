@@ -37,6 +37,7 @@
     ("Lib" "Standard-C")
     ("Lib" "Sparc")
     ("Lib" "IL")
+    ("Lib" "Assassin")
     ("Interpreter")
     ("Repl")
     ("Auxlib")

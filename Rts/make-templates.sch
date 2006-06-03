@@ -113,10 +113,18 @@
      . ,(lambda ()
 	  (values make-template-petit-win32-visualc
 		  make-template-target-nasm-x86-win32-static)))
+    (x86-win32-static-visualc 
+     . ,(lambda ()
+	  (values make-template-sassy-win32-visualc
+		  make-template-target-sassy-win32)))
     (x86-unix-static-gcc-nasm
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc
-		  make-template-target-nasm-x86-unix-static)))))
+		  make-template-target-nasm-x86-unix-static)))
+    (sassy-unix-static-gcc-nasm
+     . ,(lambda () 
+	  (values make-template-sassy-unix-gcc
+		  make-template-target-sassy-unix-static)))))
 
 ; Petit Larceny: Unix: gcc
 ; Petit Larceny: Win32: gcc under cygwin or mingw
@@ -130,6 +138,17 @@ OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 CFLAGS=-c -falign-functions=4 -ISys -IBuild -IStandard-C $(DEBUGINFO) $(OPTIMIZE)
 AS=nasm
 ASFLAGS=-f elf -IIntel/ -IBuild/ -DLINUX")
+
+; Native Larceny with Sassy back-end: Unix: NASM macro assembler for Rts
+(define make-template-sassy-unix-gcc
+"O=o
+CC=gcc
+DEBUGINFO=-g -gstabs+
+OPTIMIZE=#-O3 -DNDEBUG2 # -DNDEBUG
+CFLAGS=-c -falign-functions=4 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
+LIBS=-ldl -lm
+AS=nasm
+ASFLAGS=-f elf -g -IIAssassin/ -IBuild/ -DLINUX")
 
 ; Petit Larceny: MacOS X: gcc (building a shared library)
 (define make-template-petit-macosx-gcc-shared
@@ -218,6 +237,21 @@ ASFLAGS=-P -ISparc -IBuild
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o")
 
+; X86-WIN32
+(define make-template-sassy-win32-visualc
+"O=obj
+CC=cl
+.asm.obj: 
+	nasmw -f win32 -DWIN32 -ISys/ -IIAssassin/ -IBuild/ -o $*.obj $<
+.c.obj:
+	cl /c /Zp4 /O2 /Zi /ISys /IIAssassin /IBuild /DSTDC_SOURCE /Fo$*.obj $<
+")
+(define make-template-target-sassy-win32
+"larceny.bin.exe: $(X86_SASSY_LARCENY_OBJECTS) Util/ffi-dummy.o
+	$(CC) $(PROFILE) $(TCOV) -o larceny.bin.exe $(X86_SASSY_LARCENY_OBJECTS) \\
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
+	del Sys\\version.$(O)")
+
 ; SPARC-SOLARIS with Boehm collector
 (define make-template-target-sparc-solaris-bdw
 "bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
@@ -278,6 +312,12 @@ ASFLAGS=-P -ISparc -IBuild
 	ar -r libpetit.a $(X86_NASM_LARCENY_OBJECTS)
 	ranlib libpetit.a")
 
+(define make-template-target-sassy-unix-static
+"larceny.bin: $(X86_SASSY_LARCENY_OBJECTS) Util/ffi-dummy.o
+	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(X86_SASSY_LARCENY_OBJECTS) \\
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
+	rm Sys/version.$(O)")
+
 ; Big bags of files
 (define make-template-file-sets
 "COMMON_RTS_OBJECTS=\\
@@ -315,12 +355,24 @@ SPARC_PRECISE_GC_OBJECTS=\\
 
 PETIT_OBJECTS=\\
 	Standard-C/arithmetic.$(O) Standard-C/millicode.$(O) \\
-	Standard-C/multiply.$(O) Standard-C/syscall2.$(O) Build/c-table.$(O)
+	Standard-C/multiply.$(O) Build/c-table.$(O)
 
 X86_NASM_OBJECTS=\\
 	Standard-C/arithmetic.$(O) Standard-C/millicode.$(O) \\
 	Intel/i386-driver.$(O) Intel/i386-millicode.$(O) \\
 	Standard-C/multiply.$(O) Standard-C/syscall2.$(O) Build/nasm-table.$(O)
+
+X86_SASSY_OBJECTS=\\
+	IAssassin/arithmetic.$(O) IAssassin/millicode.$(O) \\
+	IAssassin/i386-driver.$(O) IAssassin/i386-millicode.$(O) \\
+	IAssassin/multiply.$(O) IAssassin/syscall2.$(O) Build/nasm-table.$(O)
+
+X86_SASSY_LARCENY_OBJECTS=\\
+	Sys/larceny.$(O)\\
+	IAssassin/config.$(O)\\
+	$(COMMON_RTS_OBJECTS)\\
+	$(PRECISE_GC_OBJECTS)\\
+	$(X86_SASSY_OBJECTS)	
 
 # SPARC only
 LARCENY_OBJECTS=\\
@@ -383,7 +435,7 @@ Util/hsplit.o: Util/hsplit.c
 	$(CC) -g -o Util/hsplit.o -IBuild -ISys -c Util/hsplit.c
 
 clean:
-	rm -f larceny.bin hsplit bdwlarceny.bin petit-larceny core \\
+	rm -f larceny.bin larceny.bin.exe hsplit bdwlarceny.bin petit-larceny core \\
 	   Build/*.$(O) Intel/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \\
 	   Sys/*.$(O) Util/*.$(O) \\
 	   libpetit.lib libpetit.so libpetit.dylib libpetit.a libpetit.dll \\

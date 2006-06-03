@@ -120,5 +120,10 @@
     (establish! fxrshl   rshl)
     (establish! fxrsha   rsha)
     ))
-  
+
+;; for Sassy
+(parameterize ((current-require-path 
+                (cons "Asm/Intel/Sassy" 
+                      (current-require-path))))
+  (require 'sassy))
 ; eof

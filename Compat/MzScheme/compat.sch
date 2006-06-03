@@ -16,8 +16,21 @@
       (lambda (bytenum . rest)
         (let ((port (if (null? rest)
                         (current-output-port)
-                        (car rest))))
-          (write-char (integer->char bytenum) port)))))
+                        (car rest)))
+              (byte (if (< bytenum 0)
+                        (+ 256 bytenum)
+                        bytenum)))
+          (write-char (integer->char byte) port)))))
+
+(define (rename-file old new)
+  (case (nbuild-parameter 'host-os)
+    ((win32 cygwin)
+     (system (string-append "del " new))
+     (system (string-append "rename " old " " new)))
+    ((unix macosx linux-el) ; we need to come up with hierarchical enum's...
+     (system (string-append "mv " old " " new)))
+    (else
+     (error "RENAME-FILE not defined for this OS."))))
 
 ;; Initialization
 
@@ -306,3 +319,8 @@
 (set! copy-file mz:copy-file)
 
 (require (lib "pretty.ss"))
+
+;; for Sassy
+(parameterize ((current-directory "Asm/Intel/Sassy/"))
+  (load "inits/mzscheme-299.400.scm")
+  (load "sassy.scm"))

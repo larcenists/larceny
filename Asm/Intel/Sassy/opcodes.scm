@@ -192,12 +192,12 @@
 	 (symb #f)  (disp   #f) (type 'abs)
 	 (comp-mod
 	  (lambda () (if (or disp symb)
-			 (cond ((and (u/s-byte disp) (not symb)) (set! mod 64))
+			 (cond ((and (s-byte disp) (not symb)) (set! mod 64))
 			       ((or (u/s-dword disp) symb) (set! mod 128))
 			       (else (bad-mem))))))
 	 (fix-disp
 	  (lambda () (if (or disp symb)
-			 (cond ((and (u/s-byte disp) (not symb))
+			 (cond ((and (s-byte disp) (not symb))
 				(set! disp `(byte ,disp)))
 			       ((or (u/s-dword disp) symb)
 				(set! disp (if disp `(dword ,disp) '(dword 0))))
@@ -417,11 +417,11 @@
 			       rm/r-op-dw i-op-b i-op-dw reg-field)
 		(meta-lambda
 		 (or
-		  (and 'eax (or (and i8 (lambda (y)
+		  (and 'eax (or (and s-byte (lambda (y)
 					  (r/m-i8 4 131 0 reg-field y)))
 				(and i32 (lambda (y) (just-i 4 i-op-dw y)))))
 		  (and r32 (or (and r32 (lambda (x y) (r/m-r 4 rm-op-dw x y)))
-			       (and i8 (lambda (x y)
+			       (and s-byte (lambda (x y)
 					 (r/m-i8 4 131 x reg-field y)))
 			       (and i32 (lambda (x y)
 					  (r/m-i 4 129 x reg-field y)))
@@ -435,7 +435,7 @@
 		  (and 'ax  i16 (lambda (y) (just-i 2 i-op-dw y)))
 		  (and r16 (or (and r16 (lambda (x y)
 					  (r/m-r 2 rm-op-dw x y)))
-			       (and i8 (lambda (x y)
+			       (and s-byte (lambda (x y)
 					 (r/m-i8 2 131 x reg-field y)))
 			       (and i16 (lambda (x y)
 					  (r/m-i 2 129 x reg-field y)))
@@ -445,16 +445,16 @@
 		  (and m16 r16 (lambda (x y) (r/m-r 2 rm-op-dw x y)))
 		  (and m8  r8  (lambda (x y) (r/m-r 1 rm-op-b x y)))
 		  (and em8 i8 (lambda (x y) (r/m-i  1 #x80 x reg-field y)))
-		  (and em32 (or (and i8  (lambda (x y)
+		  (and em32 (or (and s-byte  (lambda (x y)
 					   (r/m-i8 4 #x83 x reg-field y)))
 				(and i32 (lambda (x y)
 					   (r/m-i  4 #x81 x reg-field y)))))
-		  (and em16 (or (and i8 (lambda (x y)
+		  (and em16 (or (and s-byte (lambda (x y)
 					  (r/m-i8 2 #x83 x reg-field y)))
 				(and i16 (lambda (x y)
 					   (r/m-i  2 #x81 x reg-field y)))))
 		  (and um32
-		       (or (and i8 (lambda (x y)
+		       (or (and s-byte (lambda (x y)
 				     (if (= 16 (sassy-bits r))
 					 (r/m-i8 2 #x83 x reg-field y)
 					 (r/m-i8 4 #x83 x reg-field y))))
@@ -812,6 +812,11 @@
 				  (outc code))))))))
 	  (alist->hash-table
 	   `(
+             (lit-dword . ,(meta-lambda 
+                            (and number? 
+                                 (lambda (n)
+                                   (outc-maybe-quoted-list 
+                                    (integer->byte-list n 2))))))
 	     (rep   . ,(gen-prefix rep-able #xf3))
 	     (repe  . ,(gen-prefix rep-e-able #xf3))
 	     (repz  . ,(gen-prefix rep-e-able #xf3))
