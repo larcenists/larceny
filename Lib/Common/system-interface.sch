@@ -111,6 +111,7 @@
          ((0) "SPARC")
          ((1) "Standard-C")
 	 ((2) "X86-NASM")
+         ((3) "IAssassin")
          (else "Unknown"))))
     ((endian)
      (let ((end (get-feature feature$endianness)))
