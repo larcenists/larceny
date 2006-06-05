@@ -122,8 +122,9 @@
     ))
 
 ;; for Sassy
-(parameterize ((current-require-path 
-                (cons "Asm/Intel/Sassy" 
-                      (current-require-path))))
-  (require 'sassy))
+(define (compat:load-sassy)
+  (parameterize ((current-require-path 
+                  (cons "Asm/Intel/Sassy" 
+                        (current-require-path))))
+    (require 'sassy)))
 ; eof

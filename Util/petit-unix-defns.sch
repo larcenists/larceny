@@ -40,6 +40,8 @@
   (newline)
   (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
   (compat:initialize)
+  (cond ((eq? *target:machine* 'x86-sass)
+         (compat:load-sassy)))
   (recognize-keywords? #f) ;; don't treat :NONE as (QUOTE NONE)
   (load (string-append (nbuild-parameter 'util) "expander.sch"))
   (load (string-append (nbuild-parameter 'util) "config.sch"))

@@ -321,6 +321,7 @@
 (require (lib "pretty.ss"))
 
 ;; for Sassy
-(parameterize ((current-directory "Asm/Intel/Sassy/"))
-  (load "inits/mzscheme-299.400.scm")
-  (load "sassy.scm"))
+(define (compat:load-sassy)
+  (parameterize ((current-directory "Asm/Intel/Sassy/"))
+    (load "inits/mzscheme-299.400.scm")
+    (load "sassy.scm")))
