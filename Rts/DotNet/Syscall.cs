@@ -520,6 +520,8 @@ namespace Scheme.RT {
           p.Dispose();
         }
 
+        // These numbers are supposed to stay in sync 
+        // with those in Lib/Common/system-interface.sch
         private static void sys_feature()
         {
           SObject[] v = ((SVL) Reg.Register2).elements;
@@ -554,10 +556,10 @@ namespace Scheme.RT {
               v[0] = Factory.False;
               break;
           case 6: // arch-name
-              v[0] = Factory.makeFixnum (3);
+              v[0] = Factory.makeFixnum (4);
               break;
           case 7: // os-name
-              v[0] = Factory.makeFixnum (3); // win32
+              v[0] = Factory.makeFixnum (3); // win32 // FIXME
               break;
           case 8: // endianness
 #if BIG_ENDIAN
