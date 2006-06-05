@@ -119,7 +119,7 @@
   ;; This expression should have no side-effects on Larceny, but
   ;; should fail spectacularly on almost any other imaginable Scheme.
   (cond ((eq? scheme: 'larceny)
-         (environment-get (interaction-environment) 'current-larceny-root)))
+         ((environment-get (interaction-environment) 'current-larceny-root))))
                         
   ;; If on Larceny, allow more leeway for omitted options.  Need to
   ;; add arch: to keys above (w/ reasonable implication logic).
