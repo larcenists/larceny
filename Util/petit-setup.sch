@@ -102,7 +102,7 @@
 
 ;; setup : oneof ['help] -> Void {'scheme: Symbol, 'host: Symbol, ['target: Symbol]} -> Void
 ;; Main entry to set up the build for Petit compiler and runtime.
-(define-keyed (setup (with-default #f scheme:)
+(define-keyed (setup (with-default 'larceny scheme:)
                      (with-default #f host:)
                      (with-default #f target:)
                      (with-default #f c-compiler:)
@@ -115,6 +115,31 @@
 		     (flag rebuild-code-cov))
   (define (displn arg) (display arg) (newline))
 
+  ;; If on Larceny, allow more leeway for omitted options.  Need to
+  ;; add arch: to keys above (w/ reasonable implication logic).
+  (cond ((and (eq? scheme: 'larceny)
+              (not host:))
+         (let ((os-name (cdr (assq 'os-name (system-features))))
+               (arch-name (cdr (assq 'arch-name (system-features))))
+               (arch-endianness (cdr (assq 'arch-endianness (system-features)))))
+           (cond 
+
+            ((and (equal? os-name "Linux") (eq? arch-endianness 'little)) 
+             (set! host: 'linux-el))
+            
+            ((and (equal? os-name "Linux") (eq? arch-endianness 'big)) 
+             (set! host: 'linux-be))
+            
+            ;; Fill in other host: clauses here
+            
+            ))))
+  
+  ;; Fail fast in case user didn't know 'scheme: defaults to 'larceny
+  ;; This expression should have no side-effects on Larceny, but
+  ;; should fail spectacularly on almost any other imaginable Scheme.
+  (cond ((eq? scheme: 'larceny)
+         (environment-get (interaction-environment) 'current-larceny-root)))
+                        
   (cond ((or help (not scheme:) (not host:))
          (displn "To setup Larceny, call (setup 'scheme: HOST-SCHEME 'host: PLATFORM ['target: PLATFORM])")
          (displn "e.g., (setup 'scheme: 'larceny 'host: 'macosx)")
