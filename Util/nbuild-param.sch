@@ -68,7 +68,7 @@
     (apply-parameter-value 'common-asm (pathname-append dir "Asm" "Common"))
     (apply-parameter-value 'sparc-asm (pathname-append dir "Asm" "Sparc"))
     (apply-parameter-value 'x86-nasm-asm (pathname-append dir "Asm" "Intel"))
-    (apply-parameter-value 'x86-sass-asm (pathname-append dir "Asm" "Assassin"))
+    (apply-parameter-value 'x86-sass-asm (pathname-append dir "Asm" "IAssassin"))
     (apply-parameter-value 'standard-C-asm (pathname-append dir "Asm" "Standard-C"))
     (apply-parameter-value 'compatibility (pathname-append dir "Compat" "Larceny"))
     (apply-parameter-value 'auxiliary (pathname-append dir "Auxlib"))
