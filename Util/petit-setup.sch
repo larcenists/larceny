@@ -115,6 +115,12 @@
 		     (flag rebuild-code-cov))
   (define (displn arg) (display arg) (newline))
 
+  ;; Fail fast in case user didn't know 'scheme: defaults to 'larceny
+  ;; This expression should have no side-effects on Larceny, but
+  ;; should fail spectacularly on almost any other imaginable Scheme.
+  (cond ((eq? scheme: 'larceny)
+         (environment-get (interaction-environment) 'current-larceny-root)))
+                        
   ;; If on Larceny, allow more leeway for omitted options.  Need to
   ;; add arch: to keys above (w/ reasonable implication logic).
   (cond ((and (eq? scheme: 'larceny)
@@ -134,12 +140,6 @@
             
             ))))
   
-  ;; Fail fast in case user didn't know 'scheme: defaults to 'larceny
-  ;; This expression should have no side-effects on Larceny, but
-  ;; should fail spectacularly on almost any other imaginable Scheme.
-  (cond ((eq? scheme: 'larceny)
-         (environment-get (interaction-environment) 'current-larceny-root)))
-                        
   (cond ((or help (not scheme:) (not host:))
          (displn "To setup Larceny, call (setup 'scheme: HOST-SCHEME 'host: PLATFORM ['target: PLATFORM])")
          (displn "e.g., (setup 'scheme: 'larceny 'host: 'macosx)")
