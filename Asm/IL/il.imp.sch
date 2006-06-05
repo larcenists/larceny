@@ -337,7 +337,7 @@
 
   (append
   `(
-    (break            0 break            #f             1 ,ak:dead     ,ak:all  #f)
+    (larceny-break    0 break            #f             1 ,ak:dead     ,ak:all  #f)
     (creg             0 creg             #f           106 ,ak:dead     ,ak:all  #f)
     (enable-interrupts 1 enable-interrupts #f           6 ,ak:dead     ,ak:all  #t)
     (disable-interrupts 0 disable-interrupts #f         7 ,ak:dead     ,ak:all  #t)

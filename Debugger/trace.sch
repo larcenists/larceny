@@ -10,7 +10,7 @@
 ; (untrace <proc> ...)          Disable tracing for <procs>
 ; (untrace)                     Disable tracing for all traced <procs>
 ;
-; (break)                       Break at this point (a primitive)
+; (larceny-break)               Break at this point (a primitive)
 ; (break-entry <proc>)          Break on entry to <proc>
 ; (unbreak <proc> ...)          Disable breaking for <procs>
 ; (unbreak)                     Disable breaking for all broken <procs>

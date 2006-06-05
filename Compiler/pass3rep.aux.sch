@@ -639,7 +639,7 @@
                 ((call? E2)
                  (if init
                      (begin (display "Compiler bug in cs-intersect")
-                            (break))
+                            (larceny-break))
                      (loop cs c rep Krep)))
                 (else
                  (error "Compiler bug in cs-intersect"))))))

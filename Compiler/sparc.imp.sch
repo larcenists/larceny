@@ -290,7 +290,7 @@
 ;                                                          effect
 
  (append
-  `((break            0 break            #f             3 ,:dead     ,:all)
+  `((larceny-break    0 break            #f             3 ,:dead     ,:all)
     (creg             0 creg             #f             7 ,:dead     ,:all)
     (enable-interrupts 1 enable-interrupts #f          -1 ,:dead     ,:all)
     (disable-interrupts 0 disable-interrupts #f        -1 ,:dead     ,:all)

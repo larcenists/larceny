@@ -599,7 +599,7 @@
 
   (environment-set! larc 'current-continuation-structure
                     current-continuation-structure)
-  (environment-set! larc 'break break)
+  (environment-set! larc 'larceny-break larceny-break)
 
   ;; property lists
 
