@@ -292,7 +292,7 @@
 ; Miscellaneous
 
 (define symbol? (lambda (x) (symbol? x)))
-(define break (lambda () (break)))
+(define larceny-break (lambda () (larceny-break)))
 (define creg (lambda () (creg)))
 (define creg-set! (lambda (x) (creg-set! x)))
 (define undefined (lambda () (undefined)))
