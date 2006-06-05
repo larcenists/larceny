@@ -355,7 +355,7 @@ SPARC_PRECISE_GC_OBJECTS=\\
 
 PETIT_OBJECTS=\\
 	Standard-C/arithmetic.$(O) Standard-C/millicode.$(O) \\
-	Standard-C/multiply.$(O) Build/c-table.$(O)
+	Standard-C/multiply.$(O) Standard-C/syscall2.$(O) Build/c-table.$(O)
 
 X86_NASM_OBJECTS=\\
 	Standard-C/arithmetic.$(O) Standard-C/millicode.$(O) \\
