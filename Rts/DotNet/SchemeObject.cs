@@ -124,6 +124,7 @@ namespace Scheme.Rep {
         public SObject op_make_cell() { return Factory.makePair(this, Factory.False); }
         public virtual SObject op_cell_ref() { Exn.fault(Constants.EX_CAR, null, this); return Factory.Impossible; }
         public virtual SObject op_cell_set(SObject arg2) { Exn.fault(Constants.EX_SETCAR, null, this, arg2); return Factory.Impossible; }
+        public virtual SObject op_cell_set_nwb(SObject arg2) { Exn.fault(Constants.EX_SETCAR, null, this, arg2); return Factory.Impossible; }
 
         // Pair Operations
         public SObject op_cons(SObject arg2) { return Factory.makePair(this, arg2); }
@@ -154,6 +155,7 @@ namespace Scheme.Rep {
         public virtual SObject op_vector_ref_trusted(SObject arg2) { Exn.fault(Constants.EX_VECTOR_REF, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_vector_ref_trusted(SVL arg1) { Exn.fault(Constants.EX_VECTOR_REF, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_vector_set(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_vector_set(SVL arg1, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3); return Factory.Impossible; }
         public virtual SObject op_vector_set_trusted(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_vector_set_trusted(SVL arg1, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3); return Factory.Impossible; }
+        public virtual SObject op_vector_set_trusted_nwb(SObject arg2, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, this, arg2, arg3); return Factory.Impossible; } public virtual SObject op_reversed_vector_set_trusted_nwb(SVL arg1, SObject arg3) { Exn.fault(Constants.EX_VECTOR_SET, null, arg1, this, arg3); return Factory.Impossible; }
 
         // Procedure Operations
         public virtual SObject op_procedure_length() { Exn.fault(Constants.EX_PROCEDURE_LENGTH, null, this); return Factory.Impossible; }
@@ -216,7 +218,9 @@ namespace Scheme.Rep {
         public virtual SObject op_imag_part() { Exn.fault(Constants.EX_IMAGPART, null, this); return Factory.Impossible; }
 
         public virtual SObject op_plus_idx_idx(SObject arg2) { Exn.fault(Constants.EX_ADD, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_plus_idx_idx(SFixnum arg1) { Exn.fault(Constants.EX_ADD, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_plus_fix_fix(SObject arg2) { Exn.fault(Constants.EX_ADD, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_plus_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_ADD, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_minus_idx_idx(SObject arg2) { Exn.fault(Constants.EX_SUB, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_minus_idx_idx(SFixnum arg1) { Exn.fault(Constants.EX_SUB, null, arg1, this); return Factory.Impossible; }
+        public virtual SObject op_minus_fix_fix(SObject arg2) { Exn.fault(Constants.EX_SUB, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_minus_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_SUB, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_equal_fix_fix(SObject arg2) { Exn.fault(Constants.EX_EQUALP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_equal_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_EQUALP, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_less_fix_fix(SObject arg2) { Exn.fault(Constants.EX_LESSP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_less_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_LESSP, null, arg1, this); return Factory.Impossible; }
         public virtual SObject op_lessequal_fix_fix(SObject arg2) { Exn.fault(Constants.EX_LESSEQP, null, this, arg2); return Factory.Impossible; } public virtual SObject op_reversed_lessequal_fix_fix(SFixnum arg1) { Exn.fault(Constants.EX_LESSEQP, null, arg1, this); return Factory.Impossible; }
@@ -389,7 +393,7 @@ namespace Scheme.Rep {
      *     - flonum  = SByteVL/flonum
      *     - ratnum  = SVL/ratnum
      *     - rectnum = SVL/rectnum
-     *     - compnum = SVL/compnum
+     *     - compnum = SByteVL/compnum
      */
 
     // -------------------------------------------
@@ -686,7 +690,7 @@ namespace Scheme.Rep {
         }
         public override SObject op_fxnegative() {
             int a = - this.value;
-            if (!inFixnumRange(-a)) {
+            if (!inFixnumRange(a)) {
                 Exn.fault(Constants.EX_FXNEG, "result not a fixnum", this);
                 return Factory.Impossible;
             }
@@ -780,7 +784,8 @@ namespace Scheme.Rep {
             return makeFixnum (r);
         }
         public override SObject op_reversed_fxrshl(SFixnum arg1) {
-            uint a = (uint)arg1.value << 2;
+            uint a_preshift = unchecked((uint)arg1.value);
+            uint a = a_preshift << 2;
             int b = this.value;
             int r = (int)(a >> b) >> 2;
             return Factory.makeNumber ((int)r);
@@ -794,7 +799,9 @@ namespace Scheme.Rep {
         }
 
         public override SObject op_plus_idx_idx(SObject arg2) { return arg2.op_reversed_plus_idx_idx(this); }
+        public override SObject op_plus_fix_fix(SObject arg2) { return arg2.op_reversed_plus_fix_fix(this); }
         public override SObject op_minus_idx_idx(SObject arg2) { return arg2.op_reversed_minus_idx_idx(this); }
+        public override SObject op_minus_fix_fix(SObject arg2) { return arg2.op_reversed_minus_fix_fix(this); }
         public override SObject op_equal_fix_fix(SObject arg2) { return arg2.op_reversed_equal_fix_fix(this); }
         public override SObject op_less_fix_fix(SObject arg2) { return arg2.op_reversed_less_fix_fix(this); }
         public override SObject op_lessequal_fix_fix(SObject arg2) { return arg2.op_reversed_lessequal_fix_fix(this); }
@@ -804,7 +811,13 @@ namespace Scheme.Rep {
         public override SObject op_reversed_plus_idx_idx(SFixnum arg1) {
             return Factory.makeNumber (arg1.value + this.value);
         }
+        public override SObject op_reversed_plus_fix_fix(SFixnum arg1) {
+            return Factory.makeNumber (arg1.value + this.value);
+        }
         public override SObject op_reversed_minus_idx_idx(SFixnum arg1) {
+            return Factory.makeNumber (arg1.value - this.value);
+        }
+        public override SObject op_reversed_minus_fix_fix(SFixnum arg1) {
             return Factory.makeNumber (arg1.value - this.value);
         }
         public override SObject op_reversed_equal_fix_fix(SFixnum arg1) {
@@ -1049,6 +1062,7 @@ namespace Scheme.Rep {
         public override SObject op_rectnump() { return (this.tag == Tags.RectnumTag) ? Factory.True : Factory.False; } public override bool isRectnum() { return (this.tag == Tags.RectnumTag); }
         public override SObject op_complexp() { return (this.isRatnum() || this.isRectnum()) ? Factory.True : Factory.False; } public override bool isComplex() { return (this.isRatnum() || this.isRectnum()); }
         public override SObject op_realp() { return (this.isRatnum()) ? Factory.True : Factory.False; } public override bool isReal() { return (this.isRatnum()); }
+        public override SObject op_rationalp() { return (this.isRatnum()) ? Factory.True : Factory.False; } public override bool isRational() { return (this.isRatnum()); }
 
         // FIXME!!!! exact?, inexact? should throw errors on non-numbers
         public override bool isExact() { return (this.isRatnum() || this.isRectnum()); }
@@ -1138,12 +1152,12 @@ namespace Scheme.Rep {
 
         // Rectnums
         public override void op_reversed_rectnum_eqvp_not_eq(SVL arg1) { if (this.tag == Tags.RectnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_EQUAL, arg1, this); } else { base.op_reversed_rectnum_eqvp_not_eq(arg1); } }
-        public override void op_reversed_rectnum_numeric_equals(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_EQUAL, arg1, this); } else { base.op_reversed_rectnum_numeric_equals(arg1); } }
+        public override void op_reversed_rectnum_numeric_equals(SVL arg1) { if (this.tag == Tags.RectnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_EQUAL, arg1, this); } else { base.op_reversed_rectnum_numeric_equals(arg1); } }
 
-        public override void op_reversed_rectnum_plus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_ADD, arg1, this); } else { base.op_reversed_rectnum_plus(arg1); } }
-        public override void op_reversed_rectnum_minus(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_SUB, arg1, this); } else { base.op_reversed_rectnum_minus(arg1); } }
-        public override void op_reversed_rectnum_multiply(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_MUL, arg1, this); } else { base.op_reversed_rectnum_multiply(arg1); } }
-        public override void op_reversed_rectnum_divide(SVL arg1) { if (this.tag == Tags.RatnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_DIV, arg1, this); } else { base.op_reversed_rectnum_divide(arg1); } }
+        public override void op_reversed_rectnum_plus(SVL arg1) { if (this.tag == Tags.RectnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_ADD, arg1, this); } else { base.op_reversed_rectnum_plus(arg1); } }
+        public override void op_reversed_rectnum_minus(SVL arg1) { if (this.tag == Tags.RectnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_SUB, arg1, this); } else { base.op_reversed_rectnum_minus(arg1); } }
+        public override void op_reversed_rectnum_multiply(SVL arg1) { if (this.tag == Tags.RectnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_MUL, arg1, this); } else { base.op_reversed_rectnum_multiply(arg1); } }
+        public override void op_reversed_rectnum_divide(SVL arg1) { if (this.tag == Tags.RectnumTag) { Call.callMillicodeSupport2(Constants.MS_RECTNUM_DIV, arg1, this); } else { base.op_reversed_rectnum_divide(arg1); } }
 
         public override void op_truncate() {
             if (this.tag == Tags.RatnumTag) {
@@ -1175,6 +1189,24 @@ namespace Scheme.Rep {
                 Reg.Result = this;
             } else {
                 base.op_truncate();
+            }
+        }
+        public override SObject op_real_part() {
+            if (this.tag == Tags.RatnumTag) {
+                return this;
+            } else if (this.tag == Tags.RectnumTag) {
+                return elements[0];
+            } else {
+                return base.op_real_part();
+            }
+        }
+        public override SObject op_imag_part() {
+            if (this.tag == Tags.RatnumTag) {
+                return Factory.makeFixnum(0);
+            } else if (this.tag == Tags.RectnumTag) {
+                return elements[1];
+            } else {
+                return base.op_imag_part();
             }
         }
     }
@@ -1567,6 +1599,28 @@ namespace Scheme.Rep {
                 base.op_inexact2exact();
             }
         }
+        public override SObject op_real_part() {
+            if (this.tag == Tags.BignumTag) {
+                return this;
+            } else if (this.tag == Tags.FlonumTag) {
+                return this;
+            } else if (this.tag == Tags.CompnumTag) {
+                return Factory.makeFlonum(this.unsafeAsDouble(0));
+            } else {
+                return base.op_real_part();
+            }
+        }
+        public override SObject op_imag_part() {
+            if (this.tag == Tags.BignumTag) {
+                return Factory.makeFixnum(0);
+            } else if (this.tag == Tags.FlonumTag) {
+                return Factory.makeFixnum(0);
+            } else if (this.tag == Tags.CompnumTag) {
+                return Factory.makeFlonum(this.unsafeAsDouble(1));
+            } else {
+                return base.op_imag_part();
+            }
+        }
     }
 
     // -------------------------------------------
@@ -1625,6 +1679,10 @@ namespace Scheme.Rep {
         public override SObject op_pairp() { return Factory.True; } public override bool isPair() { return true; }
         public override SObject op_cell_ref() { return this.first; }
         public override SObject op_cell_set(SObject arg2) {
+            this.first = arg2;
+            return Factory.Unspecified;
+        }
+        public override SObject op_cell_set_nwb(SObject arg2) {
             this.first = arg2;
             return Factory.Unspecified;
         }
