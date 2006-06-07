@@ -624,6 +624,8 @@
   (environment-set! larc 'bytevector-equal? bytevector-equal?)
   (environment-set! larc 'bytevector-fill! bytevector-fill!)
   (environment-set! larc 'bytevector-copy bytevector-copy)
+  (environment-set! larc 'list->bytevector list->bytevector)
+  (environment-set! larc 'bytevector->list bytevector->list)
 
   (environment-set! larc 'bytevector-like? bytevector-like?)
   (environment-set! larc 'bytevector-like-length bytevector-like-length)
