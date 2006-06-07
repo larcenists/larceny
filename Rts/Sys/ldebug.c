@@ -24,7 +24,7 @@ static void dumpglob( void );
 static void dumpcodevec( void );
 static void dump_top_frame( void );
 static int getreg( char ** );
-static int getuint( char ** );
+static unsigned int getuint( char **, int* );
 
 void localdebugger( void )
 {
@@ -247,9 +247,10 @@ static void examine( char *cmdl )
 
   while (isspace(*cmdl)) cmdl++;
   if (isdigit( *cmdl )) {
-    int i;
-    i = getuint( &cmdl );
-    if (i == -1) {
+    int success = 0;
+    unsigned int i; 
+    i = getuint( &cmdl , &success);
+    if (success == -1) {
       confused( cmdl );
       return;
     }
@@ -264,8 +265,9 @@ static void examine( char *cmdl )
     loc = globals[ regno ];
   }
   if (type != 'o') {
-    count = getuint( &cmdl );
-    if (count == -1) {
+    int success = 0;
+    count = getuint( &cmdl, &success ); 
+    if (success == -1) {
       confused( cmdl );
       return;
     }
@@ -342,7 +344,7 @@ static void examine( char *cmdl )
 
 static int getreg( char **cmdl )
 {
-  int regno;
+  unsigned int regno;
   char *p = *cmdl;
   while (isspace(*p)) p++;
   if (strncmp( p, "RESULT", 6 ) == 0) {
@@ -372,9 +374,10 @@ static int getreg( char **cmdl )
   }
 #endif
   else if (*p == 'R') {
+    int success = 0;
     p++;
-    regno = getuint( &p );
-    if (regno == -1 || regno > 31) return -1;
+    regno = getuint( &p, &success );
+    if (success == -1 || regno > 31) return -1;
     regno += G_REG0;
   }
   else
@@ -386,7 +389,7 @@ static int getreg( char **cmdl )
   return -1;
 }
 
-static int getuint( char **cmdl )
+static unsigned int getuint( char **cmdl, int* success )
 {
   char *p = *cmdl, *q;
   char buf[ 40 ];
@@ -399,21 +402,18 @@ static int getuint( char **cmdl )
   if (isspace(*p) || *p == 0) {
     strncpy( buf, q, p-q );
     buf[p-q] = 0;
-    /* FIXME: sscanf( buf, "%i", &n ) [[ on Linux ]]
-     *           puts 0x7fffffff in n when buf is e.g. "0xb7d482d7" 
-     * 1. use "%u" for the format string, (but then get an unsigned
-     *    int instead of a signed one, which violates return type).
-     * 2. We really should be passing back an unsigned int in some
-     *    manner, and handle failure in a different way.
-     * 3. "Xo 0xb7d482d7" segfaulting because of sscanf's insane
-     *    result for n.  Need to handle sscanf robustly.  (Perhaps
-     *    verify with sprintf that we had a proper conversion?) 
-     */
-    if (sscanf( buf, "%i", &n ) == 1) {
+    if (sscanf( buf, "0x%x", &n ) == 1) {
+      *cmdl = p;
+      return n;
+    } else if (sscanf( buf, "0X%x", &n ) == 1) {
+      *cmdl = p;
+      return n;
+    } else if (sscanf( buf, "%i", &n ) == 1) {
       *cmdl = p;
       return n;
     }
   }
+  *success = -1;
   return -1;
 }
 
