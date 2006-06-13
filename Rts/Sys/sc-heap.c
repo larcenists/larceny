@@ -182,6 +182,15 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   timer2 = stats_start_timer( TIMER_CPU );
 
   assert( request_bytes >= 0 );
+  
+  /* [pnkfelix] Tue Jun  6 01:04:55 EDT 2006
+   * Ticket #92: If bytes == 0, then we're asking for more core in
+   * general, not a particular amount.  Therefore we should grab a
+   * hefty chunk.  (All of D might be too hefty though?) */
+  if (request_bytes == 0) {
+    request_bytes = GC_LARGE_OBJECT_LIMIT;
+  }
+
   request_bytes = roundup_balign( request_bytes );
 
   /* The total number of bytes is stack + frame + object, although
