@@ -391,7 +391,7 @@ dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
 {
   word w, *p;
   int i, data_count;
-
+  int bytes_written;
   data_count = (a.top - a.bot);
   p = a.bot;
   if (a.is_large) {
@@ -416,7 +416,10 @@ dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
       }
     }
   }
-  pad( a.bytes, fp );
+  /* data_count is usually 0, but when negative, we've written a bit
+   * further and the padding must account for that. */
+  bytes_written = a.bytes - data_count*sizeof(word);
+  pad( bytes_written, fp );
 }
 
 int hio_load_bootstrap( heapio_t *h, word *text_base, word *data_base,
