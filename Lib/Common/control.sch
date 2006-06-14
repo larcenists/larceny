@@ -182,9 +182,10 @@
 
 
 ; Returns the current continuation structure (as chain of vectors).
+; FIXME: .creg is not a legal identifier.
 
 (define (current-continuation-structure)
-  (creg))
+  (.creg))
 
 
 ; From: William D Clinger <will@ccs.neu.edu>

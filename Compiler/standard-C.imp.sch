@@ -418,7 +418,7 @@
   (append
   `(
     (larceny-break    0 break            #f             1 ,:dead     ,:all  #f)
-    (creg             0 creg             #f           106 ,:dead     ,:all  #f)
+    (.creg            0 creg             #f           106 ,:dead     ,:all  #f)
     (enable-interrupts 1 enable-interrupts #f           6 ,:dead     ,:all  #t)
     (disable-interrupts 0 disable-interrupts #f         7 ,:dead     ,:all  #t)
     (typetag          1 typetag          #f             8 ,:dead     ,:none #f)
@@ -434,7 +434,7 @@
     (make-bytevector  1 make-bytevector  #f            46 ,:dead     ,:none #f)
     (procedure-length 1 procedure-length #f            48 ,:dead     ,:none #f)
     (make-procedure   1 make-procedure   #f            49 ,:dead     ,:none #f)
-    (creg-set!        1 creg-set!        #f           107 ,:dead     ,:none #f)
+    (.creg-set!       1 creg-set!        #f           107 ,:dead     ,:none #f)
     (typetag-set!     2 typetag-set! ,valid-typetag?   55 ,:dead     ,:all #f)
     (fxlogand         2 fxlogand         #f            71 ,:immortal ,:none #f)
     (fxlogior         2 fxlogior         #f            72 ,:immortal ,:none #f)
