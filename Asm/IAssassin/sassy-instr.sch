@@ -167,7 +167,7 @@
 	
 (define-sassy-instr (ia86.loadr targetreg regno)
   (cond ((is_hwreg regno)
-         `(mov ,targetreg (REG ,regno)))
+         `(mov ,targetreg ,(REG regno)))
         (else 
          `(mov ,targetreg (& GLOBALS ,(G_REG regno))))))
 
@@ -177,7 +177,7 @@
 
 (define-sassy-instr (ia86.storer regno sourcereg)
   (cond ((is_hwreg regno)
-         `(mov	(REG ,regno) ,sourcereg))
+         `(mov	,(REG regno) ,sourcereg))
         (else
          `(mov  (& GLOBALS ,(G_REG regno)) ,sourcereg))))
 
@@ -204,23 +204,23 @@
     (let ((L0 (fresh-label)))
       (cond ((and (not (= r2 -1))
                   (is_hwreg r2))
-             `(test	(REG ,r2) 1)
+             `(test	,(REG r2) 1)
              `(jz short ,L0)
-             `(mov	SECOND (REG ,r2)))
+             `(mov	SECOND ,(REG r2)))
             (else
              (cond ((not (= r2 -1))
-                    `(mov	SECOND (REG ,r2))))
+                    `(mov	SECOND ,(REG r2))))
              `(test	SECOND 1)
              `(jz short ,L0)))
       (cond ((not (= r1 -1))
-             `(mov	RESULT (REG ,r1))))
+             `(mov	RESULT ,(REG r1))))
       (ia86.mcall $m.partial-barrier 'partial-barrier)
       `(label ,L0)))
    (else 
     (cond ((not (= r1 -1))
-           `(mov RESULT (REG ,r1))))
+           `(mov RESULT ,(REG r1))))
     (cond ((not (= r2 -1))
-           `(mov SECOND (REG ,r2))))
+           `(mov SECOND ,(REG r2))))
     (ia86.mcall $m.full-barrier 'full-barrier))))
 	
 ;;; timer_check
@@ -353,7 +353,7 @@
 
 (define-sassy-instr (ia86.T_CONST_SETREG_IMM x r)
   (cond ((is_hwreg r)
-         `(mov (REG ,r) ,x))
+         `(mov ,(REG r) ,x))
         (else
          `(mov TEMP ,x)
 	 (ia86.storer r 'TEMP))))
@@ -406,14 +406,14 @@
 
 (define-sassy-instr (ia86.T_LOAD r slot)
   (cond ((is_hwreg r)
-         `(mov (REG ,r) ,(stkslot slot)))
+         `(mov ,(REG r) ,(stkslot slot)))
         (else
          `(mov TEMP ,(stkslot slot))
          (ia86.storer r 'TEMP))))
 
 (define-sassy-instr (ia86.T_STORE r slot)
   (cond ((is_hwreg r)
-         `(mov	,(stkslot slot) (REG ,r)))
+         `(mov	,(stkslot slot) ,(REG r)))
         (else
 	 (ia86.loadr	'TEMP r)
 	 `(mov	,(stkslot slot) TEMP))))
@@ -462,7 +462,7 @@
           (append
            (if (is_hwreg regno)
                `((mov (& RESULT ,(+ PROC_REG0 (words2bytes regno))) 
-                      (REG ,regno)))
+                      ,(REG regno)))
                `(,@(ia86.loadr 'TEMP regno)
                  (mov (& RESULT ,(+ PROC_REG0 (words2bytes regno))) TEMP)))
            (rep (- regno 1))))
@@ -746,7 +746,7 @@
           (else
            ;; test	REG,reg, fixtag_mask
            ;; Above is 6 bytes, below is 4 bytes.  Performance?
-           `(mov	TEMP (REG ,reg))
+           `(mov	TEMP ,(REG reg))
            `(test	TEMP_LOW fixtag_mask))))
         (else
          `(test	(byte (& GLOBALS ,(G_REG reg))) fixtag_mask))))
@@ -837,7 +837,7 @@
            `(label ,L1 ))))
   (cond
    ((is_hwreg x)
-    `(cmp	RESULT (REG ,x)))
+    `(cmp	RESULT ,(REG x)))
    (else
     `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
   (ia86.setcc y))
@@ -928,7 +928,7 @@
            `(jne short ,L1)
            `(cmp	RESULT SECOND)))
         ((is_hwreg x)
-         `(cmp	RESULT (REG ,x)))
+         `(cmp	RESULT ,(REG x)))
         (else
          `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
   (ia86.setcc	y))
@@ -1023,7 +1023,7 @@
            (cond (byte?
                   `(shl	TEMP 2)))	; Length is now a fixnum
            (cond ((is_hwreg x)
-                  `(cmp	TEMP (REG ,x)))
+                  `(cmp	TEMP ,(REG x)))
                  (else
                   `(cmp	TEMP (& GLOBALS ,(G_REG x)))))
            `(jbe short ,L1)
@@ -1070,7 +1070,7 @@
          `(mov	RESULT_LOW (& RESULT TEMP ,(+ (- y) wordsize)))
          `(and	RESULT #xFF))
         ((is_hwreg x)
-         `(mov	RESULT (& RESULT (REG ,x) ,(+ (- y) wordsize))))
+         `(mov	RESULT (& RESULT ,(REG x) ,(+ (- y) wordsize))))
         (else
          (ia86.loadr	'TEMP x)
          `(mov	RESULT (& RESULT TEMP ,(+ (- y) wordsize))))))
@@ -1158,15 +1158,15 @@
 
 (define-sassy-instr (ia86.do_indexed_structure_set_word x y z)
   (cond ((and (is_hwreg y) (is_hwreg x))
-         `(mov	(& RESULT (REG ,x) ,(+ (- z) wordsize)) (REG ,y))
+         `(mov	(& RESULT ,(REG x) ,(+ (- z) wordsize)) ,(REG y))
          (ia86.write_barrier -1 y))
         ((is_hwreg y)
          (ia86.loadr	'TEMP x)
-         `(mov	(& RESULT TEMP ,(+ (- z) wordsize)) (REG ,y))
+         `(mov	(& RESULT TEMP ,(+ (- z) wordsize)) ,(REG y))
          (ia86.write_barrier -1 y))
         ((is_hwreg x)
          (ia86.loadr	'SECOND y)
-         `(mov	(& RESULT (REG ,x) ,(+ (- z) wordsize)) SECOND)
+         `(mov	(& RESULT ,(REG x) ,(+ (- z) wordsize)) SECOND)
          (ia86.write_barrier -1 -1))
         (else
          `(mov	(& GLOBALS G_STKP) CONT)
