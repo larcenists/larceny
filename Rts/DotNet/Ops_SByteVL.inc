@@ -127,8 +127,11 @@
         SPECIALOP2_OVERRIDE_REV_MS(divide, bignum, SByteVL, BignumTag, MS_BIGNUM_DIV)
 
         // Flonums
-        SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, flonum, SByteVL, FlonumTag) {
-          Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
+        SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, flonum, SByteVL, FlonumTag) 
+        {
+            double a = arg1.unsafeAsDouble(0);
+            double t = this.unsafeAsDouble(0);
+            Reg.Result = (a == t || (System.Double.IsNaN(a) && System.Double.IsNaN(t))) ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(numeric_equals, flonum, SByteVL, FlonumTag) {
             Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
