@@ -169,7 +169,7 @@
   (cond ((is_hwreg regno)
          `(mov ,targetreg (REG ,regno)))
         (else 
-         `(mov ,targetreg (& GLOBALS (G_REG ,regno))))))
+         `(mov ,targetreg (& GLOBALS ,(G_REG regno))))))
 
 ;;; storer regno, sourcereg
 ;;;     store VM register regno from HW register sourcereg
@@ -179,7 +179,7 @@
   (cond ((is_hwreg regno)
          `(mov	(REG ,regno) ,sourcereg))
         (else
-         `(mov  (& GLOBALS (G_REG ,regno)) ,sourcereg))))
+         `(mov  (& GLOBALS ,(G_REG regno)) ,sourcereg))))
 
 ;;; loadc hwreg, slot
 ;;;	Load constant vector element 'slot' into hwreg
@@ -595,7 +595,7 @@
              (append (if (is_hwreg slotno)
                          `((mov ,(reg slotno) (dword ,(stkslot slotno))))
                          `((mov TEMP (dword ,(stkslot slotno)))
-                           (mov (& GLOBALS (G_REG ,slotno)) TEMP)))
+                           (mov (& GLOBALS ,(G_REG slotno)) TEMP)))
                      (rep (+ slotno 1))))
             (else
              '())))))
@@ -749,7 +749,7 @@
            `(mov	TEMP (REG ,reg))
            `(test	TEMP_LOW fixtag_mask))))
         (else
-         `(test	(byte (& GLOBALS (G_REG ,reg))) fixtag_mask))))
+         `(test	(byte (& GLOBALS ,(G_REG reg))) fixtag_mask))))
 
 ;;; single_tag_test ptrtag
 ;;;	Leave zero flag set if RESULT contains a value with the given
@@ -810,14 +810,14 @@
          ;; This looks totally bogus -- should use ,y? XXX TODO BUG HERE
          `(add	RESULT ,(REG x)))
         (else
-         `(add	RESULT (& GLOBALS (G_REG ,x))))))
+         `(add	RESULT (& GLOBALS ,(G_REG x))))))
 	
 ;;; trusted_fixnum_compare r, cc
 (define-sassy-instr (ia86.trusted_fixnum_compare x y)
   (cond ((is_hwreg x)
          `(cmp	RESULT ,(REG x)))
         (else
-         `(cmp	RESULT (& GLOBALS (G_REG ,x)))))
+         `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
   (ia86.setcc	y))
 
 ;;; fixnum_compare reg, cc, ex
@@ -839,7 +839,7 @@
    ((is_hwreg x)
     `(cmp	RESULT (REG ,x)))
    (else
-    `(cmp	RESULT (& GLOBALS (G_REG ,x)))))
+    `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
   (ia86.setcc y))
 
 ;;; fixnum_shift r2, operation, ex
@@ -930,7 +930,7 @@
         ((is_hwreg x)
          `(cmp	RESULT (REG ,x)))
         (else
-         `(cmp	RESULT (& GLOBALS (G_REG ,x)))))
+         `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
   (ia86.setcc	y))
 	
 ;;; generic_imm_compare imm, cc, millicode
@@ -1025,7 +1025,7 @@
            (cond ((is_hwreg x)
                   `(cmp	TEMP (REG ,x)))
                  (else
-                  `(cmp	TEMP (& GLOBALS (G_REG ,x)))))
+                  `(cmp	TEMP (& GLOBALS ,(G_REG x)))))
            `(jbe short ,L1)
            (test_reg_value	y L1)))))
 
@@ -1556,7 +1556,7 @@
   (cond ((is_hwreg x)
          `(cmp	RESULT ,(REG x)))
         (else
-         `(cmp	RESULT (& GLOBALS (G_REG ,x)))))
+         `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
   (ia86.setcc	'z))
 
 (define-sassy-instr (ia86.T_OP2_57 x)		; eqv?
@@ -1665,7 +1665,7 @@
         ((is_hwreg x)
          `(and	RESULT ,(REG x)))
         (else
-         `(and	RESULT (& GLOBALS (G_REG ,x))))))
+         `(and	RESULT (& GLOBALS ,(G_REG x))))))
 
 (define-sassy-instr (ia86.T_OP2_72 x)		; fxlogior
   (cond ((not (unsafe-code))
@@ -1683,7 +1683,7 @@
         ((is_hwreg x)
          `(or	RESULT ,(REG x)))
         (else
-         `(or	RESULT (& GLOBALS (G_REG ,x))))))
+         `(or	RESULT (& GLOBALS ,(G_REG x))))))
 
 (define-sassy-instr (ia86.T_OP2_73 x)		; fxlogxor
   (cond ((not (unsafe-code))
@@ -1701,7 +1701,7 @@
         ((is_hwreg x)
          `(xor	RESULT ,(REG x)))
         (else
-         `(xor	RESULT (& GLOBALS (G_REG ,x))))))
+         `(xor	RESULT (& GLOBALS ,(G_REG x))))))
 
 (define-sassy-instr (ia86.T_OP2_74 x)		; lsh
   (ia86.fixnum_shift x 'shl  $ex.lsh))
@@ -1966,7 +1966,7 @@
          `(imul	RESULT ,(REG x)))
         (else
          `(shr	RESULT)
-         `(imul	RESULT (& GLOBALS (G_REG ,x))))))
+         `(imul	RESULT (& GLOBALS ,(G_REG x))))))
 
 (define-sassy-instr (ia86.T_OP2_206 x)		; fx=
   (ia86.fixnum_compare x 'e  $ex.fx=))
@@ -2148,7 +2148,7 @@
   (cond ((is_hwreg x)
          `(add	RESULT ,(REG x)))
         (else
-         `(add	RESULT (& GLOBALS (G_REG ,x))))))
+         `(add	RESULT (& GLOBALS ,(G_REG x))))))
 
 (define-sassy-instr (ia86.T_OP2_501 x)		; +:fix:fix
   (let ((L1 (fresh-label)))
@@ -2163,7 +2163,7 @@
   (cond ((is_hwreg x)
          `(sub	RESULT ,(REG x)))
         (else
-         `(sub	RESULT (& GLOBALS (G_REG ,x))))))
+         `(sub	RESULT (& GLOBALS ,(G_REG x))))))
 
 (define-sassy-instr (ia86.T_OP2_503 x)		; -:fix:fix
   (let ((L1 (fresh-label)))
