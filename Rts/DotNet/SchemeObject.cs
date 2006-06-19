@@ -1471,9 +1471,7 @@ namespace Scheme.Rep {
         // Flonums
         public override void op_reversed_flonum_eqvp_not_eq(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_eqvp_not_eq(arg1); } else { base.op_reversed_flonum_eqvp_not_eq(arg1); } } private void op_reversed_flonum_FlonumTag_eqvp_not_eq(SByteVL arg1)
         {
-            double a = arg1.unsafeAsDouble(0);
-            double t = this.unsafeAsDouble(0);
-            Reg.Result = (a == t || (System.Double.IsNaN(a) && System.Double.IsNaN(t))) ? Factory.True : Factory.False;
+            Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
         }
         public override void op_reversed_flonum_numeric_equals(SByteVL arg1) { if (this.tag == Tags.FlonumTag) { this.op_reversed_flonum_FlonumTag_numeric_equals(arg1); } else { base.op_reversed_flonum_numeric_equals(arg1); } } private void op_reversed_flonum_FlonumTag_numeric_equals(SByteVL arg1) {
             Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
