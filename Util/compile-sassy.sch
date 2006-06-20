@@ -11,6 +11,7 @@
                (current-require-path (cons "Asm/Intel/Sassy" 
                                            (current-require-path))))
   (let ((c (lambda (f . reqs) 
+             (begin (display `(compiling ,f)) (newline))
              (compile-file/requiring f (append '(extras meta-lambda) reqs)))))
     (c "push-stacks.scm")
     (c "api.scm" 'srfi-9)
@@ -19,7 +20,9 @@
     (c "numbers.scm")
     (c "operands.scm")
     (c "text-block.scm" 'srfi-9)
-    (c "opcodes.scm")
+    (parameterize ((global-optimization #f))
+      ;; Pass3 is slow compiling this file...
+      (c "opcodes.scm"))
     (c "text.scm")
     (c "parse.scm")
     (c "main.scm")
