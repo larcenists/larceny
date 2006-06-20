@@ -439,14 +439,38 @@
   (lambda (as)
     (if (not (unsafe-code))
 	(emit-assert-char! as $ex.char2int #f))
-    (sparc.srli as $r.result 14 $r.result)))
+    (sparc.srli as $r.result 6 $r.result)))
 
 (define-primop 'integer->char
   (lambda (as)
     (if (not (unsafe-code))
-	(emit-assert-fixnum! as $r.result $ex.int2char))
-    (sparc.andi as $r.result #x3FF $r.result)
-    (sparc.slli as $r.result 14 $r.result)
+        (let ((L0 (new-label))
+              (L1 (new-label))
+              (FAULT (new-label)))
+          (sparc.label   as L0)
+          ; Argument must be fixnum.
+          (sparc.btsti   as $r.result 3)
+          (sparc.bne     as FAULT)
+          ; Argument cannot be a surrogate (#x0000d800 - #x0000dfff).
+          (sparc.srai    as $r.result 13 $r.tmp0)
+          (sparc.cmpi    as $r.tmp0 #b11011)
+          (sparc.be      as FAULT)
+          ; Argument must be non-negative and less than #x00110000.
+          (sparc.cmpi    as $r.tmp0 544)
+          (sparc.bleu.a  as L1)
+          (sparc.slli    as $r.result 6 $r.result)
+          (sparc.label   as FAULT)
+          (sparc.set     as (thefixnum $ex.int2char) $r.tmp0)
+          (millicode-call/ret as $m.exception L0)
+          (sparc.label   as L1)
+          (sparc.ori     as $r.result $imm.character $r.result))
+        (begin
+          (sparc.slli as $r.result 6 $r.result)
+          (sparc.ori  as $r.result $imm.character $r.result)))))
+
+(define-primop 'integer->char:trusted
+  (lambda (as)
+    (sparc.slli as $r.result 6 $r.result)
     (sparc.ori  as $r.result $imm.character $r.result)))
 
 (define-primop 'not
@@ -594,7 +618,7 @@
 				  (+ $imm.bytevector-header
 				     $tag.string-typetag)
 				  $r.argreg3)
-	(sparc.srai   as rs2 16 $r.tmp1)
+	(sparc.srai   as rs2 8 $r.tmp1)
 	(sparc.addi   as $r.result 4 $r.result)
 	(sparc.srai   as $r.argreg3 2 $r.tmp0)
 	(emit-bytevector-fill as $r.tmp0 $r.result $r.tmp1)
@@ -809,7 +833,7 @@
       (sparc.ldbr as $r.tmp0 $r.tmp2 $r.tmp2)	    ; get byte from string
       (sparc.addi as $r.tmp1 4 $r.tmp1)		    ; bump rd-ptr
       (sparc.sti as $r.tmp1 (+ 1 32) $r.RESULT)	    ; store rd-ptr in port
-      (sparc.slli as $r.tmp2 16 $r.tmp2)	    ; convert to char #1
+      (sparc.slli as $r.tmp2 8 $r.tmp2)             ; convert to char #1
       (sparc.b as Lend)
       (sparc.ori as $r.tmp2 $imm.character $r.RESULT) ; [slot] convert to char
       (sparc.label as Lfinish)

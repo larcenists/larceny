@@ -232,7 +232,7 @@
     (sparc.ldbr as $r.tmp0 $r.tmp1 $r.tmp0)
     (if (not charize?)
         (sparc.slli as $r.tmp0 2 rd)
-        (begin (sparc.slli as $r.tmp0 16 rd)
+        (begin (sparc.slli as $r.tmp0 8 rd)
                (sparc.ori  as rd $imm.character rd)))))
 
 ; As above, but RS2 is replaced by an immediate, IMM.
@@ -263,7 +263,7 @@
           (sparc.ldbr as $r.tmp0 imm $r.tmp0)))
     (if (not charize?)
         (sparc.slli as $r.tmp0 2 rd)
-        (begin (sparc.slli as $r.tmp0 16 rd)
+        (begin (sparc.slli as $r.tmp0 8 rd)
                (sparc.ori  as rd $imm.character rd)))))
 
 (define (emit-bytevector-like-ref-trusted! as rs1 rs2 rd charize?)
@@ -275,7 +275,7 @@
     (sparc.ldbr as $r.tmp0 $r.tmp1 $r.tmp0)
     (if (not charize?)
         (sparc.slli as $r.tmp0 2 rd)
-        (begin (sparc.slli as $r.tmp0 16 rd)
+        (begin (sparc.slli as $r.tmp0 8 rd)
                (sparc.ori  as rd $imm.character rd)))))
 
 ; BYTEVECTOR-SET!, BYTEVECTOR-LIKE-SET!
@@ -357,7 +357,7 @@
     ; rs3/argreg3 has character.
     ; tmp0 is garbage.
     (sparc.subi as $r.tmp1 (- $tag.bytevector-tag 4) $r.tmp1)
-    (sparc.srli as rs3 16 $r.tmp0)
+    (sparc.srli as rs3 8 $r.tmp0)
     (sparc.stbr as $r.tmp0 rs1 $r.tmp1)))
 
 (define (emit-string-set-trusted! as rs1 rs2 rs3)
@@ -369,7 +369,7 @@
     ; rs3/argreg3 has character.
     ; tmp0 is garbage.
     (sparc.subi as $r.tmp1 (- $tag.bytevector-tag 4) $r.tmp1)
-    (sparc.srli as rs3 16 $r.tmp0)
+    (sparc.srli as rs3 8 $r.tmp0)
     (sparc.stbr as $r.tmp0 rs1 $r.tmp1)))
 
 ; VECTORS and PROCEDURES

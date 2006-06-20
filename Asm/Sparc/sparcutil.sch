@@ -70,7 +70,7 @@
 ; Return a bit representation of a character constant.
 
 (define (char->immediate c)
-  (+ (* (char->integer c) 65536) $imm.character))
+  (+ (* (char->integer c) 256) $imm.character))
 
 ; Convert an integer to a fixnum.
 

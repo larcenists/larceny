@@ -149,11 +149,29 @@
             ((char? obj) 
              (if display?
                  (out (make-string 1 obj) col)
-                 (out (case obj
-                        ((#\space)   "space")
-                        ((#\newline) "newline")
-                        ((#\tab)     "tab")
-                        (else        (make-string 1 obj)))
+                 (out (let ((k (char->integer obj)))
+                        (cond ((<= k 32)
+                               (if (char=? obj #\newline)
+                                   "newline"
+                                   (case k
+                                     ((0) "nul")
+                                     ((7) "alarm")
+                                     ((8) "backspace")
+                                     ((9) "tab")
+                                     ((10) "linefeed")
+                                     ((11) "vtab")
+                                     ((12) "page")
+                                     ((13) "return")
+                                     ((27) "esc")
+                                     ((32) "space")
+                                     (else
+                                      (string-append
+                                       "x" (number->string k 16))))))
+                              ((< k 127)
+                               (make-string 1 obj))
+                              ((= k 127) "delete")
+                              (else
+                               (string-append "x" (number->string k 16)))))
                       (out "#\\" col))))
             ((input-port? obj)
              (out ">"

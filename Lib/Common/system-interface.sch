@@ -281,14 +281,22 @@
       (syscall syscall:poke-bytes addr bv count)
       (error "poke-bytes: invalid arguments " addr ", " bv ", " count)))
 
+; Unicode character values, used in both reader.sch and print.sch.
+
+(define **nul** 0)
+(define **alarm** 7)
+(define **backspace** 8)
+(define **tab** 9)
+(define **linefeed** 10)
+(define **vtab** 11)
+(define **page** 12)
+(define **return** 13)
+(define **esc** 27)
+(define **space** 32)
+(define **delete** 127)
+
 ; System-dependent character values.
 
 (define **newline** osdep/newline)
-(define **space** 32)
-(define **tab** 9)
-(define **carriage-return** 13)
-(define **linefeed** 10)
-(define **form-feed** 12)
-(define **backspace** 8)
 
 ; eof

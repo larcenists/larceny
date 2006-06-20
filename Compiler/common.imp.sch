@@ -301,6 +301,17 @@
    ((,name:CALL r5rs ?proc ?exp)
     (,name:CALL larceny ?proc ?exp))
 
+   ; FIXME
+   ; Commented out by the quote.
+
+   ((_ quote integer->char (integer->char k0))
+    (let ((k k0))
+      (.check! (.fixnum? k) ,$ex.int2char k)
+      (.check! (.<:fix:fix k #x110000) ,$ex.int2char k)
+      (.check! (.>=:fix:fix k 0) ,$ex.int2char k)
+      (.check! (not (.=:fix:fix #x0000d800 (logand #x00fff800 k))))
+      (.integer->char:trusted k)))
+   
    ((_ larceny car (car x0))
     (let ((x x0))
       (.check! (pair? x) ,$ex.car x)

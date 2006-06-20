@@ -454,7 +454,7 @@
                  op2
                  excode))
 
-; We check the tags of both by xoring them and seeing if the low byte is 0.
+; We check the tags of both to make sure they are characters.
 ; If so, then we can subtract one from the other (tag and all) and check the
 ; condition codes.  
 ;
@@ -475,7 +475,7 @@
              (cond ((char? op2)
                     (sparc.xori  as op1 $imm.character $r.tmp0)
                     (sparc.btsti as $r.tmp0 #xFF)
-                    (sparc.srli  as op1 16 $r.tmp0)
+                    (sparc.srli  as op1 8 $r.tmp0)
                     (sparc.be.a  as L1)
                     (sparc.cmpi  as $r.tmp0 (char->integer op2)))
                    (else
@@ -500,9 +500,12 @@
              (sparc.label as L1)))
           ((not (char? op2))
            (sparc.cmpr as op1 op2))
+          ((sparc-imm? (char->integer op2))
+           (sparc.srli as op1 8 $r.tmp0)
+           (sparc.cmpi as $r.tmp0 (char->integer op2)))
           (else
-           (sparc.srli as op1 16 $r.tmp0)
-           (sparc.cmpi as $r.tmp0 (char->integer op2))))
+           (emit-immediate->register! as (char->immediate op2) $r.argreg2)
+           (sparc.cmpi as op1 $r.argreg2)))
     (tail)))
 
 ; eof

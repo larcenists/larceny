@@ -417,7 +417,7 @@
        ((= code $ex.char2int)
         (error "char->integer: " arg1 " is not a character."))
        ((= code $ex.int2char)
-        (error "integer->char: " arg1 " is not an exact nonnegative integer."))
+        (error "integer->char: " arg1 " is not a Unicode scalar value."))
        ((= code $ex.char<?)
         (charpred "char<?" arg1 arg2))
        ((= code $ex.char<=?)

@@ -109,6 +109,8 @@
            (patom x p slashify level)
            (write-char (string-ref ")" 0) p))))
 
+  (define (printsym s p) (printstr s p))
+
   (define (printstr s p)
 
     (define (loop x p i n)
@@ -146,7 +148,7 @@
     (cond ((eq? x '())              (printstr "()" p))
 	  ((not x)                  (printstr "#f" p))
 	  ((eq? x #t)               (printstr "#t" p))
-	  ((symbol? x)              (printstr (symbol->string x) p))
+	  ((symbol? x)              (printsym (symbol->string x) p))
 	  ((number? x)              (printnumber x p slashify))
 	  ((char? x)
 	   (if slashify
@@ -197,14 +199,26 @@
     (write-char #\# p)
     (write-char #\\ p)
     (let ((k (char->integer c)))
-      (cond ((= k **space**)  (printstr "space" p))
-	    ((= k **newline**) (printstr "newline" p))
-	    ((= k **tab**) (printstr "tab" p))
-	    ((= k **carriage-return**) (printstr "return" p))
-	    ((= k **linefeed**) (printstr "linefeed" p))
-	    ((= k **form-feed**) (printstr "page" p))
-	    ((= k **backspace**) (printstr "backspace" p))
-	    (else (write-char c p)))))
+      (cond ((<= k **space**)
+             (cond ((= k **space**)  (printstr "space" p))
+                   ((= k **newline**) (printstr "newline" p))
+                   ((= k **linefeed**) (printstr "linefeed" p))
+                   ((= k **return**) (printstr "return" p))
+                   ((= k **tab**) (printstr "tab" p))
+                   ((= k **nul**) (printstr "nul" p))
+                   ((= k **alarm**) (printstr "alarm" p))
+                   ((= k **backspace**) (printstr "backspace" p))
+                   ((= k **vtab**) (printstr "vtab" p))
+                   ((= k **page**) (printstr "page" p))
+                   ((= k **esc**) (printstr "esc" p))
+                   (else
+                    (printstr "x" p)
+                    (printstr (number->string k 16) p))))
+            ((< k **delete**) (write-char c p))
+            ((= k **delete**) (printstr "delete" p))
+            (else
+             (printstr "x" p)
+             (printstr (number->string k 16) p)))))
 
   (define (printcodeobject x p slashify)
     ((code-object-printer) x p slashify))

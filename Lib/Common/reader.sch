@@ -69,22 +69,22 @@
        ; be defined inside this letrec.
 
        (whitespace?
-	(lambda (x)
-	  (not (zero? (fxlogand 1 (bytevector-ref 
-				 character-syntax-table
-				 (char->integer x)))))))
+        (lambda (x)
+          (not (zero? (fxlogand 1 (bytevector-ref 
+                                 character-syntax-table
+                                 (char->integer x)))))))
 
        (separator?
-	(lambda (x)
-	  (not (zero? (fxlogand 2 (bytevector-ref
-				 character-syntax-table
-				 (char->integer x)))))))
+        (lambda (x)
+          (not (zero? (fxlogand 2 (bytevector-ref
+                                 character-syntax-table
+                                 (char->integer x)))))))
 
        (digit?
-	(lambda (x)
-	  (not (zero? (fxlogand 4 (bytevector-ref
-				 character-syntax-table
-				 (char->integer x)))))))
+        (lambda (x)
+          (not (zero? (fxlogand 4 (bytevector-ref
+                                 character-syntax-table
+                                 (char->integer x)))))))
  
        ;****************************************************************
  
@@ -100,7 +100,7 @@
                 ((eof-object? c) (read-eof p))
                 (else
                  (error "read: Error on input port " p)
-		 #t))))
+                 #t))))
  
        ; Reads rest of list.
        ; c has already been consumed from the input file.
@@ -113,7 +113,7 @@
                  (read-unexpected-eof p))
                 (else
                  (error "read: Error on input port " p)
-		 #t))))
+                 #t))))
  
        ; Read a list element and then read the rest of the list.
        ; c, the first character of the list element, has been consumed.
@@ -149,7 +149,7 @@
        (dotted-pair-error
         (lambda (p)
           (error "Malformed dotted pair on input port " p)
-	  #t))
+          #t))
  
        ; Opening double quote has been consumed.
        ; When first called, c is the first character of the string and has been
@@ -161,20 +161,20 @@
        (read-string
          (lambda (c p l)
            (cond ((not (char? c))
-		  (read-unexpected-eof p))
+                  (read-unexpected-eof p))
                  ((char=? c #\")
-		  (list->string (reverse l)))
+                  (list->string (reverse l)))
                  ((char=? c #\\)
-		  (let ((c (tyi p)))
-		    (cond ((eq? c #\n) 
-			   (read-string (tyi p) p (cons #\newline l)))
-			  ((eq? c #\t)
-			   (read-string (tyi p) p (cons #\tab l)))
-			  ((char? c)
-			   (read-string (tyi p) p (cons c l)))
-			  (else
-			   (error "Unexpected end-of-file.")
-			   #t))))
+                  (let ((c (tyi p)))
+                    (cond ((eq? c #\n) 
+                           (read-string (tyi p) p (cons #\newline l)))
+                          ((eq? c #\t)
+                           (read-string (tyi p) p (cons #\tab l)))
+                          ((char? c)
+                           (read-string (tyi p) p (cons c l)))
+                          (else
+                           (error "Unexpected end-of-file.")
+                           #t))))
                  (else
                   (read-string (tyi p) p (cons c l))))))
 
@@ -294,9 +294,9 @@
                 (if (number? x)
                     x
                     (begin (error "Illegal number syntax "
-				  (list->string (reverse l)))
-			   #t)))
-	      (parse-number-loop (tyinext p) p (cons c l)))))
+                                  (list->string (reverse l)))
+                           #t)))
+              (parse-number-loop (tyinext p) p (cons c l)))))
  
        (peculiar-identifier?
         (lambda (x)
@@ -318,24 +318,24 @@
          (lambda (p)
            (let ((c (tyi p)))
              (if (char? c)                                ; EOF
-		 (let ((c (char->integer c)))
-		   (cond ((eq? c 13) #f)                  ; CR
-			 ((eq? c 10) #f)                  ; LF
-			 (else (flush-comment p))))))))
+                 (let ((c (char->integer c)))
+                   (cond ((eq? c 13) #f)                  ; CR
+                         ((eq? c 10) #f)                  ; LF
+                         (else (flush-comment p))))))))
  
        (flush-comment-and-read
         (lambda (p)
 
-	  (define (cont)
-	    (read-dispatch (tyi p) p))
-	    
+          (define (cont)
+            (read-dispatch (tyi p) p))
+            
           (let ((c (tyi p)))
-	    (if (not (char? c))                             ; EOF
-		(cont)
-		(let ((c (char->integer c)))
-		  (cond ((eq? c 13) (cont))                 ; CR
-			((eq? c 10) (cont))                 ; LF
-			(else (flush-comment-and-read p))))))))
+            (if (not (char? c))                             ; EOF
+                (cont)
+                (let ((c (char->integer c)))
+                  (cond ((eq? c 13) (cont))                 ; CR
+                        ((eq? c 10) (cont))                 ; LF
+                        (else (flush-comment-and-read p))))))))
  
        (flush-comment-and-read-list
          (lambda (match p)
@@ -362,7 +362,7 @@
        (read-unexpected-eof
          (lambda (p)
            (error "Unexpected end of file encountered during read on port " p)
-	   #t))
+           #t))
  
        ; Miscellaneous help functions.
  
@@ -416,9 +416,9 @@
         (lambda (x p)
           (let ((c (tyi p)))
             (cond ((eq? x c)
-		   (read-dispatch-whitespace x p))
-		  ((char? c)
-		   ((vector-ref read-dispatch-vec (char->integer c)) c p))
+                   (read-dispatch-whitespace x p))
+                  ((char? c)
+                   ((vector-ref read-dispatch-vec (char->integer c)) c p))
                   ((eof-object? c)
                    (read-eof p))
                   (else 
@@ -450,7 +450,7 @@
          (lambda (c p)
            (error "Reserved delimiter found in input"
                   c)
-	   #t))
+           #t))
  
        ; See comments preceding read-dispatch-whitespace (above).
 
@@ -464,7 +464,7 @@
                   ((eof-object? c)
                    (read-unexpected-eof p))
                   (else
-                   (read-list match c p))))))       ; let read-list handle the error
+                   (read-list match c p)))))) ; let read-list handle the error
 
        (read-list-dot
          (lambda (match c p)
@@ -498,37 +498,64 @@
                   ((char=? c #\\)
                    (let ((c (tyipeek p)))
                      (cond ((not (char? c))
-			    (read-unexpected-eof p))
+                            (read-unexpected-eof p))
                            ((char-alphabetic? c)
-			    ;; This is horrifically expensive.
+                            ; This is horribly expensive.
                             (let ((x (read-symbol c p '())))
-                              (cond ((eq? x 'space)
-				     (integer->char **space**))
-				    ((eq? x 'newline)
-				     (integer->char **newline**))
-				    ((eq? x 'tab)
-				     (integer->char **tab**))
-				    ((eq? x 'return)
-				     (integer->char **carriage-return**))
-				    ((eq? x 'linefeed)
-				     (integer->char **linefeed**))
-				    ((eq? x 'page)
-				     (integer->char **form-feed**))
-				    ((eq? x 'backspace)
-				     (integer->char **backspace**))
-				    ((= (string-length (symbol->string x)) 1)
-				     c)
-                                    ;; MzScheme convention:  #\uXX is unicode char where XX is hex code point.
-                                    ((and (>= (string-length (symbol->string x)) 1)
-                                          (char=? (string-ref (symbol->string x) 0) #\u))
-                                     (let ((string (symbol->string x)))
-                                       (integer->char (string->number (substring string 1 (string-length string)) 16))))
-				    (else
-				     (error "Malformed #\\ syntax: " x)
-				     #t))))
+                              (case x
+                               ((space)
+                                (integer->char **space**))
+                               ; R5RS, but may disappear in R6RS.
+                               ((newline)
+                                (integer->char **newline**))
+                               ((tab)
+                                (integer->char **tab**))
+                               ((return)
+                                (integer->char **return**))
+                               ((linefeed)
+                                (integer->char **linefeed**))
+                               ((page)
+                                (integer->char **page**))
+                               ((backspace)
+                                (integer->char **backspace**))
+                               ((alarm)
+                                (integer->char **alarm**))
+                               ((null)
+                                (integer->char **nul**))
+                               ((vtab)
+                                (integer->char **vtab**))
+                               ((esc)
+                                (integer->char **esc**))
+                               ((delete)
+                                (integer->char **delete**))
+                               (else
+                                (cond ((= (string-length (symbol->string x)) 1)
+                                       c)
+                                      ;; Proposed R6RS convention:
+                                      ;; #\x... is unicode char
+                                      ;; where ... is hex code point.
+                                      ;; MzScheme randomness:
+                                      ;; #\uXX is unicode char
+                                      ;; where XX is hex code point.
+                                      ((and (<= 1
+                                                (string-length
+                                                 (symbol->string x)))
+                                            (let ((x0 (string-ref
+                                                       (symbol->string x) 0)))
+                                              (or (char=? x0 #\x)
+                                                  (char=? x0 #\u))))
+                                       (let ((string (symbol->string x)))
+                                         (integer->char
+                                          (string->number
+                                           (substring string 1
+                                            (string-length string))
+                                           16))))
+                                      (else
+                                       (error "Malformed #\\ syntax: " x)
+                                       #t))))))
                            (else
                             (begin (tyi p) c)))))
-                  ;; MzScheme randomness
+                  ;; MzScheme randomness.
                   ((char=? c #\%)
                    (read-symbol (tyipeek p) p (cons #\# (cons c '()))))
                   ((char=? c #\')
@@ -564,15 +591,15 @@
                        ((false) #f)
                        ((true)  #t)
                        ((unspecified) (unspecified))
-		       ((undefined) (undefined))
+                       ((undefined) (undefined))
                        ; ((fasl) **fasl**)
                        (else  
-			(error "Malformed #! syntax" x)
-			#t))))
+                        (error "Malformed #! syntax" x)
+                        #t))))
                   ((char=? c #\()
                    (list->vector (read-list #\) (tyi p) p)))
                   ;; Control-B is used for bytevectors by compile-file.
-		  ;; The syntax is #^B"..."
+                  ;; The syntax is #^B"..."
                   ((char=? c (integer->char 2))
                    (tyi p) ; consume double quote
                    (let ((s (read-string (tyi p) p '())))
@@ -622,8 +649,8 @@
                   ((char=? c #\b)
                    (parse-prefixed-number p #\b))
                   (else 
-		   (error "Malformed # syntax" c)
-		   #t)))))
+                   (error "Malformed # syntax" c)
+                   #t)))))
  
        (read-list-reserved read-dispatch-reserved)
  
@@ -638,19 +665,19 @@
  
       (do ((i 255 (- i 1)))
           ((< i 0) '())
-	(bytevector-set! character-syntax-table i 0))
+        (bytevector-set! character-syntax-table i 0))
 
       (for-each (lambda (c)
-		  (bytevector-set! 
-		   character-syntax-table
-		   c
-		   (fxlogior 3 (bytevector-ref character-syntax-table c))))
+                  (bytevector-set! 
+                   character-syntax-table
+                   c
+                   (fxlogior 3 (bytevector-ref character-syntax-table c))))
        '(32      ;space
-	 13      ;carriage return
-	 10      ;line feed
-	 9      ;tab
-	 12      ;form feed
-	 ))
+         13      ;carriage return
+         10      ;line feed
+         9      ;tab
+         12      ;form feed
+         ))
 
 
       ; Illegal characters are separators so they will be caught when the next
@@ -658,25 +685,25 @@
  
       (do ((c 0 (+ 1 c)))
           ((> c 31) '())
-	(bytevector-set!
-	 character-syntax-table
-	 c
-	 (fxlogior 2 (bytevector-ref character-syntax-table c))))
+        (bytevector-set!
+         character-syntax-table
+         c
+         (fxlogior 2 (bytevector-ref character-syntax-table c))))
 
       (for-each (lambda (c)
-		  (bytevector-set!
-		   character-syntax-table
-		   (char->integer c)
-		   (fxlogior 2 (bytevector-ref character-syntax-table 
-					     (char->integer c)))))
-		(list #\( #\) #\[ #\] #\{ #\} #\; #\\))
+                  (bytevector-set!
+                   character-syntax-table
+                   (char->integer c)
+                   (fxlogior 2 (bytevector-ref character-syntax-table 
+                                             (char->integer c)))))
+                (list #\( #\) #\[ #\] #\{ #\} #\; #\\))
 
       (for-each (lambda (c)
               (bytevector-set!
                 character-syntax-table
                 (char->integer c)
                 (fxlogior 4 (bytevector-ref character-syntax-table
-					  (char->integer c)))))
+                                          (char->integer c)))))
             (list #\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
 
       ;****************************************************************
@@ -691,24 +718,24 @@
       ; Whitespace handlers.
  
       (for-each (lambda (c)
-		  (vector-set! read-dispatch-vec c read-dispatch-whitespace))
-		'(32      ;space
-		  13      ;carriage return
-		  10      ;line feed
-		  9      ;tab
-		  12      ;form feed
-		  ))
+                  (vector-set! read-dispatch-vec c read-dispatch-whitespace))
+                '(32      ;space
+                  13      ;carriage return
+                  10      ;line feed
+                  9      ;tab
+                  12      ;form feed
+                  ))
  
       ; Symbol starters.
       
       (do ((c 128 (+ 1 c)))
           ((= c 256))
-	(vector-set! read-dispatch-vec c read-dispatch-symbol-starter))
+        (vector-set! read-dispatch-vec c read-dispatch-symbol-starter))
  
       (do ((i 0 (+ i 1)))
-	  ((= i 256))
-	(if (char-alphabetic? (integer->char i))
-	    (vector-set! read-dispatch-vec i read-dispatch-symbol-starter)))
+          ((= i 256))
+        (if (char-alphabetic? (integer->char i))
+            (vector-set! read-dispatch-vec i read-dispatch-symbol-starter)))
  
       (for-each (lambda (c)
               (vector-set! read-dispatch-vec
@@ -736,7 +763,7 @@
  
       (for-each (lambda (c)
               (vector-set! read-dispatch-vec (char->integer c)
-			   read-dispatch-parse))
+                           read-dispatch-parse))
             (list #\+
                   #\-
                   #\.
@@ -834,7 +861,7 @@
       ; Whitespace handlers.
  
       (for-each (lambda (c)
-		  (vector-set! read-list-vec c read-list-whitespace))
+                  (vector-set! read-list-vec c read-list-whitespace))
             '(32      ;space
               13      ;carriage return
               10      ;line feed
@@ -846,16 +873,16 @@
       
       (do ((c 128 (+ 1 c)))
           ((= c 255))
-	(vector-set! read-list-vec c read-list-element))
+        (vector-set! read-list-vec c read-list-element))
  
       (do ((i 0 (+ i 1)))
-	  ((= i 256))
-	(if (char-alphabetic? (integer->char i))
-	    (vector-set! read-list-vec i read-list-element)))
+          ((= i 256))
+        (if (char-alphabetic? (integer->char i))
+            (vector-set! read-list-vec i read-list-element)))
 
       (for-each (lambda (c)
-		  (vector-set! read-list-vec (char->integer c)
-			       read-list-element))
+                  (vector-set! read-list-vec (char->integer c)
+                               read-list-element))
             (list #\!
                   #\$
                   #\%
@@ -877,8 +904,8 @@
       ; Possible symbol starters that require further parsing.
  
       (for-each (lambda (c)
-		  (vector-set! read-list-vec (char->integer c)
-			       read-list-element))
+                  (vector-set! read-list-vec (char->integer c)
+                               read-list-element))
             (list #\+
                   #\-
                   #\0
