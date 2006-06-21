@@ -293,8 +293,8 @@
 
 (define symbol? (lambda (x) (symbol? x)))
 (define larceny-break (lambda () (larceny-break)))
-(define creg (lambda () (creg)))
-(define creg-set! (lambda (x) (creg-set! x)))
+(define .creg (lambda () (.creg)))
+(define .creg-set! (lambda (x) (.creg-set! x)))
 (define undefined (lambda () (undefined)))
 (define unspecified (lambda () (unspecified)))
 (define enable-interrupts (lambda (n) (enable-interrupts n)))
