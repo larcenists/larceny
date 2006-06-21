@@ -210,7 +210,7 @@
     ((petit) 
      (compile-and-assemble313 "Auxlib/pp.sch")
      (build-application "petit-r5rs.bin" '("Auxlib/pp.lop")))
-    ((sparc-native)
+    ((sparc-native sassy)
      (compile-file "Auxlib/pp.sch")
      (copy-script "larceny-r5rs"))
     (else (error 'build-r5rs-files "Unknown heap type"))))
@@ -222,7 +222,7 @@
     ((petit)
      (build-application "petit-larceny.bin"
                         (petit-development-environment-lop-files)))
-    ((sparc-native)
+    ((sparc-native sassy)
      'done)
     (else (error 'build-larceny-files "Unknown heap type"))))
      
