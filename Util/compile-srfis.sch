@@ -10,11 +10,13 @@
 
 (parameterize ((current-directory (string-append (current-larceny-root)
                                                  "/Lib/SRFI")))
-  (let ((c compile-file/requiring))
+  (let ((c (lambda (f . reqs) 
+             (begin (display `(compiling ,f)) (newline))
+             (compile-file/requiring f reqs))))
 
-    (c "srfi-1.sch"  '(srfi-0 srfi-8))
-    (c "srfi-56.sch" '())
-    (c "srfi-60.sch" '())
-    (c "srfi-69.sch" '(srfi-9))
+    (c "srfi-1.sch"  'srfi-0 'srfi-8)
+    (c "srfi-56.sch" )
+    (c "srfi-60.sch" )
+    (c "srfi-69.sch" 'srfi-9)
 
     ))
