@@ -249,8 +249,15 @@
 
 ;; il:ldstr : string -> ilpackage
 ;; IL code to load a System.String onto the stack
-(define (il:ldstr string)
-  (il 'ldstr (twobit-format #f "~s" string)))
+(define (il:ldstr str0)
+  (let* ((str1 (twobit-format #f "~s" str0))
+         (strs (map (lambda (c)
+                      (if (char=? c #\newline)
+                          "\\n"
+                          (string c)))
+                    (string->list str1)))
+         (str2 (apply string-append strs)))
+    (il 'ldstr str2)))
 
 ;; il:ldfld : iltype ilclass string -> ilpackage
 ;; IL code to load from (instance) field
