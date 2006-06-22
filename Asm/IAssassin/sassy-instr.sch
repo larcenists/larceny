@@ -54,24 +54,6 @@
 
 (define sassy-instr-directives '())
 
-(define-syntax define-sassy-constant
-  (syntax-rules ()
-    ((_ NAME VAL)
-     (begin 
-       (define NAME VAL)
-       (set! sassy-instr-directives
-             (cons '(macro NAME (! VAL))
-                   sassy-instr-directives))))))
-  
-(define-syntax define-sassy-macro
-  (syntax-rules ()
-    ((_ (NAME ARGS ...) BODY)
-     (begin 
-       (define (NAME ARGS ...) BODY)
-       (set! sassy-instr-directives
-             (cons '(macro NAME (lambda (ARGS ...) BODY))
-                   sassy-instr-directives))))))
-
 (define-syntax define-sassy-instr
   (syntax-rules ()
     ((_ (NAME ARGS ...) BODY ...)
@@ -108,7 +90,7 @@
 ;; ;; NAME : Operand ... -> [Listof SassyInstr]
 ;; (define-sassy-instr (NAME ARGS ...) BODY)
 
-(define-sassy-macro (G_REG n) 
+(define (G_REG n) 
   (case n 
     ((0) $g.reg0) ((1) $g.reg1) ((2) $g.reg2) ((3) $g.reg3)
     ((4) $g.reg4) ((5) $g.reg5) ((6) $g.reg6) ((7) $g.reg7)
@@ -122,13 +104,13 @@
     ((28) $r.reg28) ((29) $r.reg29) ((30) $r.reg30) ((31) $r.reg31)
     (else (error 'G_REG (string-append " unknown register "
                                        (number->string n))))))
-(define-sassy-macro (REG n) 
+(define (REG n) 
   (case n           
     ((1) 'REG1) ((2) 'REG2) ((3) 'REG3) ((4) 'REG4)
     (else (error 'REG (string-append " unknown register "
                                      (number->string n))))))
 
-(define-sassy-macro (REG_LOW n)
+(define (REG_LOW n)
   (case n
     ((1) 'REG1_LOW) ((2) 'REG2_LOW)
     (else (error 'REG (string-append " unknown register "
@@ -139,20 +121,14 @@
 ;;; Handy macros for this and that.  More fundamental stuff is
 ;;; defined in i386-machine.ah
 
-(define-sassy-constant fixtag_mask	    3)
-(define-sassy-constant tag_mask             7)
-(define-sassy-constant hdr_shift            8)
-(define-sassy-constant char_shift	    16)
-
-(define-sassy-macro (is_hwreg n)         (<= FIRST_HWREG n LAST_HWREG))
-(define-sassy-macro (fixnum n)           (arithmetic-shift n 2))
-(define-sassy-macro (roundup4 x)         (logand (+ x 3) (lognot 3)))
-(define-sassy-macro (roundup8 x)         (logand (+ x 7) (lognot 7)))
-(define-sassy-macro (words2bytes n)      (* n 4))
-(define-sassy-macro (stkslot n)          `(& CONT ,(+ STK_REG0 (words2bytes n))))
-(define-sassy-macro (framesize n)        (roundup8 (+ wordsize STK_OVERHEAD (words2bytes n))))
-(define-sassy-macro (recordedsize n)     (+ STK_OVERHEAD (words2bytes n)))
-(define-sassy-macro (t_label s)          (string->symbol s))
+(define (is_hwreg n)         (<= 1 n 4))
+(define (fixnum n)           (arithmetic-shift n 2))
+(define (roundup8 x)         (logand (+ x 7) (lognot 7)))
+(define (words2bytes n)      (* n 4))
+(define (stkslot n)          `(& CONT ,(+ STK_REG0 (words2bytes n))))
+(define (framesize n)        (roundup8 (+ wordsize STK_OVERHEAD (words2bytes n))))
+(define (recordedsize n)     (+ STK_OVERHEAD (words2bytes n)))
+(define (t_label s)          (string->symbol s))
 			
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
@@ -228,7 +204,7 @@
 
 (define-sassy-instr (ia86.timer_check)
   (let ((L1 (fresh-label)))
-    `(dec (dword (& GLOBALS G_TIMER)))
+    `(dec (dword (& GLOBALS ,$g.timer)))
     `(jnz short ,L1)
     (ia86.mcall	$m.timer-exception 'timer-exception)
     `(label ,L1)))
@@ -290,7 +266,7 @@
          (let ((L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L1)
-	   `(mov TEMP (& GLOBALS G_ETOP))
+	   `(mov TEMP (& GLOBALS ,$g.etop))
 	   `(add TEMP RESULT) ; allocate
 	   `(add TEMP 4)      ;  and
 	   `(and TEMP -8)     ;   round up to 8-byte boundary
@@ -299,8 +275,8 @@
 	   (ia86.mcall $m.morecore 'morecore)
 	   `(jmp short ,L1)
            `(label ,L2)
-           `(mov RESULT (& GLOBALS G_ETOP))
-	   `(mov (& GLOBALS G_ETOP) TEMP)))
+           `(mov RESULT (& GLOBALS ,$g.etop))
+	   `(mov (& GLOBALS ,$g.etop) TEMP)))
         (else
          (ia86.mcall $m.alloc 'alloc))))
 
@@ -338,7 +314,7 @@
   
 	
 (define-sassy-instr (ia86.T_LABEL n)
-  `(label (t_label ,n)))
+  `(label ,(t_label n)))
 
 ;;; CONST is broken up into two instructions depending on the
 ;;; type of the constant.  The argument to T_CONST_IMM is a bitpattern
@@ -442,8 +418,8 @@
         (L1 (fresh-label)))
     (cond 
      ((> r *lastreg*)
-      `(mov (& GLOBALS G_STKP) CONT)     ; Need a working register!
-      `(mov (& GLOBALS G_RESULT) RESULT) ; Save for later
+      `(mov (& GLOBALS ,$g.stkp) CONT)     ; Need a working register!
+      `(mov (& GLOBALS ,$g.result) RESULT) ; Save for later
       `(add RESULT ,(+ PROC_REG0 (words2bytes LASTREG)))
       (ia86.loadr 'CONT 31)
       `(label ,L1)
@@ -453,8 +429,8 @@
       `(mov CONT (& CONT ,(+ (- $tag.pair-tag) wordsize)))
       `(cmp CONT ,$imm.null)
       `(jne short ,L1)
-      `(mov CONT (& GLOBALS G_STKP))
-      `(mov RESULT (& GLOBALS G_RESULT))))
+      `(mov CONT (& GLOBALS ,$g.stkp))
+      `(mov RESULT (& GLOBALS ,$g.result))))
     (begin
       (let rep ((regno regno))
         (cond 
@@ -479,9 +455,9 @@
                                                8)
                              $hdr.procedure))
   (ia86.loadc   'TEMP codevec)
-  `(mov	(dword (& RESULT PROC_CODEVECTOR_NATIVE)) TEMP)
+  `(mov	(dword (& RESULT ,PROC_CODEVECTOR_NATIVE)) TEMP)
   (ia86.loadc	'TEMP constvec)
-  `(mov	(& RESULT PROC_CONSTVECTOR) TEMP)
+  `(mov	(& RESULT ,PROC_CONSTVECTOR) TEMP)
   (ia86.init_closure n))
 
 (define-sassy-instr (ia86.T_LEXES n)
@@ -494,10 +470,10 @@
                              $hdr.procedure))
   (ia86.loadr	'TEMP 0)
   `(mov	TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-  `(mov	(dword (& RESULT PROC_CODEVECTOR_NATIVE)) TEMP)
+  `(mov	(dword (& RESULT ,PROC_CODEVECTOR_NATIVE)) TEMP)
   (ia86.loadr	'TEMP 0)
   `(mov	TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
-  `(mov	(dword (& RESULT PROC_CONSTVECTOR)) TEMP)
+  `(mov	(dword (& RESULT ,PROC_CONSTVECTOR)) TEMP)
   (ia86.init_closure n))
 
 (define-sassy-instr (ia86.T_ARGSEQ n)
@@ -505,7 +481,7 @@
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           `(cmp	RESULT (fixnum ,n))
+           `(cmp	RESULT ,(fixnum n))
            `(je short ,L1)
            (ia86.mcall	$m.argc-ex 'argc-ex)
            `(jmp	,L0)
@@ -537,18 +513,18 @@
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
     `(label ,L0)
-    `(sub CONT (framesize ,n))
-    `(cmp CONT (& GLOBALS G_ETOP))
+    `(sub CONT ,(framesize n))
+    `(cmp CONT (& GLOBALS ,$g.etop))
     `(jge short ,L1)
-    `(add CONT (framesize ,n))
+    `(add CONT ,(framesize n))
     (ia86.mcall $m.stkoflow 'stkoflow)
     `(jmp ,L0)
     `(label ,L1)
-    `(mov (dword (& CONT)) (recordedsize ,n))
+    `(mov (dword (& CONT)) ,(recordedsize n))
     ;; Not necessary to store reg0 here, this is handled
     ;; explicitly by the generated code.
     `(xor	RESULT RESULT)
-    `(mov	(dword (& CONT STK_RETADDR)) RESULT)
+    `(mov	(dword (& CONT ,STK_RETADDR)) RESULT)
     (cond ((= (- (framesize n) (recordedsize n)) 8)
            ;; We have a pad word at the end -- clear it
            `(mov (dword ,(stkslot (+ n 1))) RESULT)))))
@@ -579,13 +555,13 @@
   ;;; Ryan points out that we could grab the base address 
   ;;; of the codevector via R0 instead of doing the call below.
   (let ((L1 (fresh-label)))
-    ;; `(mov	(dword (& CONT STK_RETADDR)) (t_label ,lbl))
+    ;; `(mov	(dword (& CONT ,STK_RETADDR)) (t_label ,lbl))
     `(call $eip) ;; puts $eip into first element of GLOBALS.
     `(label ,L1) ;; absolute name for $eip
     `(pop TEMP)  ;; stash return address in TEMP
     `(sub TEMP (reloc rel ,L1)) ;; adjust to point to base of segment
-    `(add TEMP (reloc rel (t_label ,lbl)))  ;; adjust to point to lbl
-    `(mov (& CONT STK_RETADDR) TEMP)   ;; save in ret addr slot
+    `(add TEMP (reloc rel ,(t_label lbl)))  ;; adjust to point to lbl
+    `(mov (& CONT ,STK_RETADDR) TEMP)   ;; save in ret addr slot
     ))
 
 (define-sassy-instr (ia86.T_RESTORE n)
@@ -601,13 +577,13 @@
              '())))))
   
 (define-sassy-instr (ia86.T_POP n)
-  `(add	CONT (framesize ,n)))
+  `(add	CONT ,(framesize n)))
 	
 (define-sassy-instr (ia86.T_POPSTK)
   (error 'T_POPSTK "not implemented -- students only"))
 
 (define-sassy-instr (ia86.T_RETURN)
-  `(jmp (& CONT STK_RETADDR)))
+  `(jmp (& CONT ,STK_RETADDR)))
 
 ;;; (See sassy-invoke.sch for the T_APPLY definition that used to be here.)
 	
@@ -642,7 +618,7 @@
     ;; address as start of codevector plus offset from above.
     (cond (offset
            `(lea TEMP (& TEMP ,(- $tag.procedure-tag)))
-           `(mov TEMP (& TEMP PROC_CODEVECTOR_NATIVE))
+           `(mov TEMP (& TEMP ,PROC_CODEVECTOR_NATIVE))
            `(lea TEMP (& TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES offset)))
            `(jmp TEMP -- ,(t_label name)))
           (else
@@ -658,26 +634,26 @@
 ;;; as appropriate to avoid timer checks.
 
 (define-sassy-instr (ia86.T_SKIP lbl)
-  `(jmp	(t_label ,lbl)))
+  `(jmp	,(t_label lbl)))
 
 (define-sassy-instr (ia86.T_SKIPF lbl)
   `(cmp	RESULT_LOW ,$imm.false)
-  `(je	(t_label ,lbl)))
+  `(je	,(t_label lbl)))
 
 (define-sassy-instr (ia86.T_BRANCH lbl)
-  `(dec	(dword (& GLOBALS G_TIMER)))
-  `(jnz	(t_label ,lbl))
+  `(dec	(dword (& GLOBALS ,$g.timer)))
+  `(jnz	,(t_label lbl))
   (ia86.mcall	$m.timer-exception 'timer-exception)
-  `(jmp	(t_label ,lbl)))
+  `(jmp	,(t_label lbl)))
 
 (define-sassy-instr (ia86.T_BRANCHF lbl)
   (ia86.timer_check)
   `(cmp	RESULT_LOW ,$imm.false)
-  `(je	(t_label ,lbl)))
+  `(je	,(t_label lbl)))
 
 (define-sassy-instr (ia86.T_CHECK w x y z)
   `(cmp	RESULT_LOW ,$imm.false)
-  `(je	(t_label ,z)))
+  `(je	,(t_label z)))
 
 ;; Call handler for noncontinuable exception with RESULT,
 ;; SECOND, and THIRD defined.
@@ -738,18 +714,18 @@
 ;;;	Test reg for fixnum-ness and clear zero flag if fixnum.  OK to
 ;;;	destroy TEMP.
 	
-(define-sassy-instr (ia86.fixnum_test_temp_is_free reg)
-  (cond ((is_hwreg reg) 
+(define-sassy-instr (ia86.fixnum_test_temp_is_free regno)
+  (cond ((is_hwreg regno) 
          (cond 
-          ((hwreg_has_low reg)
-           `(test	,(REG_LOW reg) fixtag_mask))
+          ((hwreg_has_low regno)
+           `(test	,(REG_LOW regno) fixtag_mask))
           (else
            ;; test	REG,reg, fixtag_mask
            ;; Above is 6 bytes, below is 4 bytes.  Performance?
-           `(mov	TEMP ,(REG reg))
+           `(mov	TEMP ,(REG regno))
            `(test	TEMP_LOW fixtag_mask))))
         (else
-         `(test	(byte (& GLOBALS ,(G_REG reg))) fixtag_mask))))
+         `(test	(byte (& GLOBALS ,(G_REG regno))) fixtag_mask))))
 
 ;;; single_tag_test ptrtag
 ;;;	Leave zero flag set if RESULT contains a value with the given
@@ -861,15 +837,15 @@
            `(label ,L1)
            (ia86.exception_continuable z L0)
            `(label ,L2)
-           `(cmp	TEMP (fixnum 32))	; SECOND is TEMP
+           `(cmp	TEMP ,(fixnum 32))	; SECOND is TEMP
            `(jge short ,L1)))
         (else
          (ia86.loadr	'TEMP x)))
   `(shr	TEMP 2)
-  `(mov	(& GLOBALS G_REGALIAS_ECX) ecx)
+  `(mov	(& GLOBALS ,G_REGALIAS_ECX) ecx)
   `(mov	cl al)			; Code knows TEMP is EAX
   `(,y	RESULT cl)
-  `(mov	ecx (& GLOBALS G_REGALIAS_ECX))
+  `(mov	ecx (& GLOBALS ,G_REGALIAS_ECX))
   (cond ((not (eq? y 'shl))
          ;; Right shifts: mask out low bits
          ;; OPTIMIZEME: if RESULT were eax, masking RESULT_LOW with a byte
@@ -1135,22 +1111,22 @@
 
 (define-sassy-instr (ia86.indexed_structure_set_char x y z hdrtag ex)
   (ia86.indexed_structure_test x y z hdrtag ex #t ia86.check_char)
-  `(mov	(& GLOBALS G_STKP) CONT)
+  `(mov	(& GLOBALS ,$g.stkp) CONT)
   (ia86.loadr	CONT x)
   `(shr	TEMP 16)
   `(shr	CONT 2)
   `(mov	(& RESULT CONT ,(+ (- z) wordsize)) TEMP_LOW)
-  `(mov	CONT (& GLOBALS G_STKP)))
+  `(mov	CONT (& GLOBALS ,$g.stkp)))
 
 (define-sassy-instr (ia86.indexed_structure_set_byte x y z hdrtag ex)
   (ia86.indexed_structure_test x y z hdrtag ex #t ia86.check_fixnum)
-  `(mov	(& GLOBALS G_STKP) CONT)
+  `(mov	(& GLOBALS ,$g.stkp) CONT)
   (ia86.loadr	'CONT x)
   `(shr	CONT 2)
   (ia86.loadr	'TEMP y)
   `(shr	TEMP 2)
   `(mov	(& RESULT CONT ,(+ (- z) wordsize)) TEMP_LOW)
-  `(mov	CONT (& GLOBALS G_STKP)))
+  `(mov	CONT (& GLOBALS ,$g.stkp)))
 
 (define-sassy-instr (ia86.indexed_structure_set_word x y z hdrtag ex)
   (ia86.indexed_structure_test x y z hdrtag ex #f ia86.check_nothing)
@@ -1169,11 +1145,11 @@
          `(mov	(& RESULT ,(REG x) ,(+ (- z) wordsize)) SECOND)
          (ia86.write_barrier -1 -1))
         (else
-         `(mov	(& GLOBALS G_STKP) CONT)
+         `(mov	(& GLOBALS ,$g.stkp) CONT)
          (ia86.loadr	CONT x)
          (ia86.loadr	SECOND y)
          `(mov	(& RESULT CONT ,(+ (- z) wordsize)) SECOND)
-         `(mov	CONT (& GLOBALS G_STKP))
+         `(mov	CONT (& GLOBALS ,$g.stkp))
          (ia86.write_barrier -1 -1))))
 
 ;;; make_indexed_structure_word regno ptrtag hdrtag ex
@@ -1190,14 +1166,14 @@
            `(jz short ,L1)
            (ia86.exception_continuable ex L0)
            `(label ,L1))))
-  `(mov	(& GLOBALS G_ALLOCTMP) RESULT)
+  `(mov	(& GLOBALS ,$g.alloctmp) RESULT)
   `(add	RESULT wordsize)
   (cond ((= x -1)
          `(mov	SECOND ,$imm.unspecified))
         (else
          (ia86.loadr	SECOND x)))
   (ia86.mcall	$m.alloci 'alloci)
-  `(mov	TEMP (& GLOBALS G_ALLOCTMP))
+  `(mov	TEMP (& GLOBALS ,$g.alloctmp))
   `(shl	TEMP 8)
   `(or	TEMP ,z)
   `(mov	(& RESULT) ,TEMP)
@@ -1231,22 +1207,22 @@
            (cond ((not (= regno -1))
                   `(cmp	SECOND_LOW ,$imm.character)
                   `(jne	,L1)))))
-    `(mov	(& GLOBALS G_ALLOCTMP) RESULT)
-    `(add	RESULT (fixnum wordsize))
+    `(mov	(& GLOBALS ,$g.alloctmp) RESULT)
+    `(add	RESULT ,(fixnum wordsize))
     (ia86.mcall	$m.alloc-bv 'alloc-bv)
     (cond ((not (= regno -1))
            (ia86.loadr	'eax regno)		; Code knows that eax is TEMP/SECOND
-           `(mov	(& GLOBALS G_REGALIAS_ECX) ecx)
-           `(mov	(& GLOBALS G_REGALIAS_EDI) edi)
+           `(mov	(& GLOBALS ,G_REGALIAS_ECX) ecx)
+           `(mov	(& GLOBALS ,G_REGALIAS_EDI) edi)
            `(shr	eax char_shift)	; byte value
-           `(mov	ecx (& GLOBALS G_ALLOCTMP))
+           `(mov	ecx (& GLOBALS ,$g.alloctmp))
            `(shr	ecx 2)		; byte count
            `(lea	edi (& RESULT 4))	; destination ptr
            `(cld)
            `(rep (stosb))		; byte fill
-           `(mov	ecx (& GLOBALS G_REGALIAS_ECX))
-           `(mov	edi (& GLOBALS G_REGALIAS_EDI))))
-    `(mov	TEMP (& GLOBALS G_ALLOCTMP))
+           `(mov	ecx (& GLOBALS ,G_REGALIAS_ECX))
+           `(mov	edi (& GLOBALS ,G_REGALIAS_EDI))))
+    `(mov	TEMP (& GLOBALS ,$g.alloctmp))
     `(shl	TEMP 6)
     `(or	TEMP ,hdrtag)
     `(mov	(& RESULT)  TEMP)
@@ -1568,14 +1544,14 @@
          (let ((L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L1)
-           `(mov	TEMP (& GLOBALS G_ETOP))
+           `(mov	TEMP (& GLOBALS ,$g.etop))
            `(add	TEMP 8)
            `(cmp	TEMP CONT)
            `(jle short ,L2)
            (ia86.mcall	$m.morecore 'morecore)
            `(jmp short ,L1)
            `(label ,L2)
-           `(mov	(& GLOBALS G_ETOP) TEMP)
+           `(mov	(& GLOBALS ,$g.etop) TEMP)
            `(mov	(& TEMP -8)  RESULT)
            `(lea	RESULT (& TEMP ,(+ -8 $tag.pair-tag)))
            (cond ((is_hwreg x)
@@ -1821,7 +1797,7 @@
   (ia86.mcall	$m.creg-set! 'creg-set!))
 
 (define-sassy-instr (ia86.T_OP1_108)		; gc-counter
-  `(mov	RESULT (& GLOBALS G_GC_CNT)))
+  `(mov	RESULT (& GLOBALS ,$g.gccnt)))
 
 (define-sassy-instr (ia86.T_OP2_109 x)		; make-string
   ;; exception code wrong, matches Sparc
@@ -2210,11 +2186,11 @@
     `(jz short ,L1)
     (ia86.mcall	$m.zerop 'zerop)
     `(cmp	RESULT_LOW ,$imm.false)
-    `(je	(t_label ,x))
+    `(je	,(t_label x))
     `(jmp short ,L2)
     `(label ,L1)
     `(cmp	RESULT 0)
-    `(jne	(t_label ,x))
+    `(jne	,(t_label x))
     `(label ,L2)))
 
 (define-sassy-instr (ia86.OP2IMM_BRANCHF_lessthan x y)
@@ -2225,11 +2201,11 @@
     (ia86.const2regf SECOND x)
     (ia86.mcall	$m.numlt 'numlt)
     `(cmp	RESULT_LOW ,$imm.false)
-    `(je	(t_label ,y))
+    `(je	,(t_label y))
     `(jmp short ,L2)
     `(label ,L1)
     `(cmp	RESULT ,x)
-    `(jge	(t_label ,y))
+    `(jge	,(t_label y))
     `(label ,L2)))
 	
 ;;; eof

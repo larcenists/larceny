@@ -56,7 +56,7 @@
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
-           `(dec (dword (& GLOBALS G_TIMER)))
+           `(dec (dword (& GLOBALS ,$g.timer)))
            `(jnz short ,L1)
            `(label ,L0)
 	   (ia86.mcall $m.invoke-ex 'invoke-ex)
@@ -64,7 +64,7 @@
 	   `(lea TEMP (& RESULT ,(- $tag.procedure-tag)))
 	   `(test TEMP_LOW tag_mask)
 	   `(jnz short ,L0)
-           `(mov TEMP (& TEMP PROC_CODEVECTOR_NATIVE))
+           `(mov TEMP (& TEMP ,PROC_CODEVECTOR_NATIVE))
            (ia86.storer 0 'RESULT)
            (ia86.const2regf 'RESULT (fixnum n))
            `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
@@ -97,8 +97,7 @@
 	   (ia86.mcall $m.global-invoke-ex 'global-invoke-ex) ; RESULT has global cell (always)
 	   `(jmp short ,L2)		; Since TEMP is dead following timer interrupt
            `(label ,L0)
-	   `(dec (dword                  ; timer
-                  (& GLOBALS G_TIMER)))
+	   `(dec (dword (& GLOBALS ,$g.timer))) ; timer
 	   `(jz short ,L1)                ;   test
 	   `(dec TEMP)                   ; undo ptr adjustment
 	   (ia86.storer 0 'TEMP)              ; save proc ptr

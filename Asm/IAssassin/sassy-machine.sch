@@ -32,26 +32,36 @@
 (define sassy-machine-directives '())
 
 (define-syntax define-sassy-constant
-  (syntax-rules ()
+  (syntax-rules (quote)
+    ((_ NAME (quote VAL))
+     (begin
+       (define NAME (quote VAL))
+       (set! sassy-machine-directives
+             (begin 
+               (if (not (symbol? (quote VAL)))
+                   (error 'define-sassy-constant
+                          "Only define symbols or numbers!"))
+               (cons '(macro NAME VAL)
+                     sassy-machine-directives)))))
     ((_ NAME VAL)
      (begin
        (define NAME VAL)
        (set! sassy-machine-directives
-             (cons '(macro NAME (! VAL))
-                   sassy-machine-directives))))))
-
-(define-syntax define-sassy-macro
-  (syntax-rules ()
-    ((_ (NAME ARGS ...) BODY)
-     (begin
-       (define (NAME ARGS ...) BODY)
-       (set! sassy-machine-directives
-             (cons '(macro NAME (lambda (ARGS ...) BODY))
-                   sassy-machine-directives))))))
+             (begin 
+               (if (not (number? VAL))
+                   (error 'define-sassy-constant 
+                          "Only define symbols or numbers!"))
+               (cons '(macro NAME VAL)
+                     sassy-machine-directives)))))))
 
 (define-sassy-constant wordsize        4)
 (define-sassy-constant object_align    8)
 (define-sassy-constant code_align      4)
+
+(define-sassy-constant fixtag_mask	    3)
+(define-sassy-constant tag_mask             7)
+(define-sassy-constant hdr_shift            8)
+(define-sassy-constant char_shift	    16)
 
 (define-sassy-constant TEMP    	'eax)	; always same as SECOND
 (define-sassy-constant SECOND  	'eax)	; always same as TEMP
@@ -65,20 +75,10 @@
 (define-sassy-constant GLOBALS 	'esp)
 (define-sassy-constant CONT    	'ebp)
 
-(define-sassy-constant BVEC_HEADER_BYTES 4)
+(define BVEC_HEADER_BYTES 4)
 
-(define-sassy-constant G_REGALIAS_ECX	$g.reg1)	; used by rep stos constructions
-(define-sassy-constant G_REGALIAS_EDI	$g.reg3)	; ditto
-
-(define-sassy-constant G_STKP           $g.stkp)
-(define-sassy-constant G_TIMER          $g.timer)
-(define-sassy-constant G_RESULT         $g.result)
-(define-sassy-constant G_ETOP           $g.etop)
-(define-sassy-constant G_ALLOCTMP       $g.alloctmp)
-(define-sassy-constant G_GC_CNT         $g.gccnt)
-
-(define-sassy-constant FIRST_HWREG	1)
-(define-sassy-constant LAST_HWREG	4)
+(define G_REGALIAS_ECX	$g.reg1)	; used by rep stos constructions
+(define G_REGALIAS_EDI	$g.reg3)	; ditto
 
 (define-sassy-constant TEMP_LOW	        'al)
 (define-sassy-constant RESULT_LOW	'bl)
@@ -86,7 +86,7 @@
 (define-sassy-constant REG1_LOW	        'cl)
 (define-sassy-constant REG2_LOW	        'dl)
 
-(define-sassy-macro (hwreg_has_low r) (or (= r 1) (= r 2)))
+(define (hwreg_has_low r) (or (= r 1) (= r 2)))
 
 ;; corresponds to settings in features.sch
 ;; %include "config.ah" 
@@ -94,52 +94,16 @@
 ;; corresponds to constants defined by Rts/Build/*.sh
 ;; %include "asmdefs.h" 
 
+(define STK_OVERHEAD 12)
+(define STK_RETADDR 4)
+(define STK_REG0 12)
 
-(define-sassy-macro (EXTNAME x) 
-  (if (eq? (nbuild-parameter 'target-os) 'win32) 
-      ;; above approach might not actually work
-      (string->symbol (string-append "_" (symbol->string x)))
-      x))
+(define LASTREG 31)
 
-(define-sassy-constant STK_OVERHEAD 12)
-(define-sassy-constant STK_RETADDR 4)
-(define-sassy-constant STK_REG0 12)
+(define PROC_HEADER_WORDS           1)
+(define PROC_OVERHEAD_WORDS         2)             ; code and constants
+(define PROC_CONSTVECTOR            8)   ; byte offset
+(define PROC_CODEVECTOR_NATIVE      4)    ; byte offset
+(define PROC_REG0                   12)            ; byte offset
 
-(define-sassy-constant LASTREG 31)
-
-(define-sassy-constant TRUE_CONST $imm.true)
-
-(define-sassy-constant M_VARARGS  $m.varargs)
-(define-sassy-constant M_MORECORE $m.morecore)
-
-(define-sassy-constant PROC_HDR $imm.procedure-header)
-(define-sassy-constant PROC_HEADER_WORDS           1)
-(define-sassy-constant PROC_OVERHEAD_WORDS         2)             ; code and constants
-(define-sassy-constant PROC_CONSTVECTOR            8)   ; byte offset
-(define-sassy-constant PROC_CODEVECTOR_NATIVE      4)    ; byte offset
-(define-sassy-constant PROC_REG0                   12)            ; byte offset
-
-(define-sassy-constant EX_PROCEDURE_REF	            'EX_PREF)
-(define-sassy-constant EX_MAKE_BYTEVECTOR	    'EX_MKBVL)	  ; FIXME
-(define-sassy-constant EX_BYTEVECTOR_LENGTH	    'EX_BVLEN)
-(define-sassy-constant EX_BYTEVECTOR_LIKE_LENGTH    'EX_BVLLEN)
-(define-sassy-constant EX_BYTEVECTOR_LIKE_REF	    'EX_BVLREF)
-(define-sassy-constant EX_BYTEVECTOR_LIKE_SET	    'EX_BVLSET)
-(define-sassy-constant EX_MAKE_STRING		    'EX_MKBVL)	  ; FIXME
-(define-sassy-constant EX_STRING_LENGTH	            'EX_SLEN)
-(define-sassy-constant EX_STRING_REF		    'EX_SREF)
-(define-sassy-constant EX_STRING_SET		    'EX_SSET)
-(define-sassy-constant EX_MAKE_VECTOR		    'EX_MKVL)       ; FIXME
-(define-sassy-constant EX_VECTOR_LENGTH	            'EX_VLEN)
-(define-sassy-constant EX_VECTOR_REF		    'EX_VREF)
-(define-sassy-constant EX_VECTOR_SET		    'EX_VSET)
-(define-sassy-constant EX_VECTOR_LIKE_LENGTH	    'EX_VLLEN)
-(define-sassy-constant EX_VECTOR_LIKE_REF	    'EX_VLREF)
-(define-sassy-constant EX_VECTOR_LIKE_SET	    'EX_VLSET)
-(define-sassy-constant EX_BYTEVECTOR_REF	    'EX_BVREF)
-(define-sassy-constant EX_BYTEVECTOR_SET	    'EX_BVSET)
-(define-sassy-constant EX_MAKE_PROCEDURE	    'EX_MKVL)	  ; FIXME
-(define-sassy-constant EX_PROCEDURE_LENGTH	    'EX_PLEN)
-(define-sassy-constant EX_PROCEDURE_REF	            'EX_PREF)
-(define-sassy-constant EX_PROCEDURE_SET	            'EX_PSET)
 
