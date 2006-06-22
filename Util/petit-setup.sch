@@ -136,6 +136,9 @@
             ((and (equal? os-name "Linux") (eq? arch-endianness 'big)) 
              (set! host: 'linux-be))
             
+            ((and (equal? os-name "SunOS") (eq? arch-endianness 'big))
+             (set! host: 'solaris))
+             
             ;; Fill in other host: clauses here
             
             ))))
