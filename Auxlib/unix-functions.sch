@@ -43,14 +43,15 @@
 ; as filled-in by unix:time (above), and returns a fresh string with the
 ; formatted time.  For the form of formats, see cftime(3).
 
-(define unix:cftime
+;; FSK: is cftime a Sun-ism or a Unix-ism?  It doesn't seem to be avail on Linux?
+'(define unix:cftime
   (let ((_cftime (foreign-procedure "cftime" '(boxed string boxed) 'int)))
     (lambda (format clock)
       (let ((buf (make-bytevector 128)))
 	(_cftime buf format clock)
 	(ffi/asciiz->string buf)))))
 
-(define (unix:current-timestamp)
+'(define (unix:current-timestamp)
   (unix:cftime #f (let ((x (make-bytevector 4))) (unix:time x) x)))
 
 ; eof
