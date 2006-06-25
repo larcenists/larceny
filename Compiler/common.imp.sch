@@ -63,6 +63,14 @@
 (define name:CHAR->INTEGER '.char->integer:chr)
 (define name:VECTOR-REF    '.vector-ref:trusted)
 
+; If (INTEGRATE-PROCEDURES) is anything but null, then special optimization
+; recognizes calls to these procedures and also creates calls to them.
+
+(define name:VALUES 'values)
+(define name:CALL-WITH-VALUES 'call-with-values)
+(define op:UNSPECIFIED 'unspecified)
+(define op:FIXNUM? 'fixnum?)
+
 
 ; Constant folding.
 ; Prototype, will probably change in the future.

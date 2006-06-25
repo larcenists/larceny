@@ -436,10 +436,12 @@
        ;; and the procedure being called is in ARGREG3.
 
        ((= code $ex.argc)
-        (error "Wrong number of arguments to procedure " arg3))
+        (error "Wrong number of arguments to procedure " arg3 #\, #\newline
+               "    which expected " arg2 " but got " arg1))
        
        ((= code $ex.vargc)
-        (error "Wrong number of arguments to procedure " arg3))
+        (error "Wrong number of arguments to procedure " arg3 #\, #\newline
+               "    which expected at least " arg2 " but got " arg1))
 
        ((= code $ex.apply)
         (cond ((not (procedure? arg1))

@@ -302,6 +302,9 @@
     (undefined        0 undefined        #f             8 ,:dead     ,:none)
     (--               1 --               #f          #x2d ,:immortal ,:none)
 
+;   (values          -1 values           #f            -1 ,:dead     ,:none)
+;   (call-with-values -1 call-with-values #f           -1 ,:dead     ,:all)
+
     (typetag          1 typetag          #f          #x11 ,:dead     ,:none)
     (structure?       1 structure?       #f            -1 ,:dead     ,:none)
     (fixnum?          1 fixnum?          #f          #x23 ,:immortal ,:none)

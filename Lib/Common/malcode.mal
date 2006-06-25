@@ -23,6 +23,125 @@
   (,$return))
 
 
+; values
+;
+; The number of return values is passed in register 0,
+; unless a single value is being returned, in which case
+; register 0 holds the procedure that is returning 0 values.
+; The first return value is returned in the result register,
+; and the remaining values in registers 2 through whatever.
+; When 0 values are returned, the unspecified value is passed
+; in the result register so a normal continuation will think
+; a single unspecified value is being returned.
+;
+; Nothing should depend on the first register being duplicated
+; in register 1, even though this code happens to do that.
+;
+; Handles the 0-argument case specially.
+; Otherwise it just puts the argument count into register 0,
+; puts the first return value into the return register, and
+; returns normally.
+;
+; Once the number of values being returned has been stored
+; into register 0:
+;
+;     no instruction may refer to any variable
+;     no instruction may refer to any non-immediate constant
+;     no instruction may allocate storage
+;     no instruction may fault
+
+`((,$lambda ((,$.proc)
+             (,$setreg 0)      ; argument count now in reg0
+             (,$reg 0)
+             (,$op2imm eq? 0)
+             (,$branchf 1001)
+             (,$op1 unspecified)
+             (,$setreg 1)
+             (,$reg 1)
+             (,$return)
+             (,$.label 1001)   ; at least one argument
+             (,$reg 1)
+             (,$return))
+            0
+            #f)
+  (,$setglbl values)
+  (,$const values)
+  (,$return))
+
+; call-with-values
+;
+; Bummed to avoid using apply when fewer than 5 values are returned.
+
+`((,$lambda ((,$.proc)
+             (,$args= 2)
+             (,$save 2)
+             (,$store 0 0)
+             (,$store 2 2)     ; stack slot 2 = receiver
+             (,$setrtn 1000)
+             (,$reg 1)
+             (,$invoke 0)
+             (,$.align 4)
+             (,$.label 1000)
+             (,$.cont)
+             (,$movereg 0 1)   ; argument count
+             (,$load 0 0)
+             (,$setstk 1)      ; stack slot 1 = first return value
+             (,$reg 1)
+             (,$op1 fixnum?)
+             (,$branchf 1001)
+             (,$reg 1)         ; argument count
+             (,$op2imm <:fix:fix 5)
+             (,$branchf 1005)
+             (,$reg 1)
+             (,$op2imm <:fix:fix 2)
+             (,$branchf 1002)
+             (,$reg 1)
+             (,$op2imm <:fix:fix 1)
+             (,$branchf 1001)
+             (,$stack 2)
+             (,$pop 2)
+             (,$invoke 0)      ; no return values
+             (,$.label 1001)
+             (,$load 1 1)
+             (,$stack 2)
+             (,$pop 2)
+             (,$invoke 1)      ; 1 return value
+             (,$.label 1002)
+             (,$reg 1)
+             (,$op2imm <:fix:fix 3)
+             (,$branchf 1003)
+             (,$load 1 1)
+             (,$stack 2)
+             (,$pop 2)
+             (,$invoke 2)      ; 2 return values
+             (,$.label 1003)
+             (,$reg 1)
+             (,$op2imm <:fix:fix 4)
+             (,$branchf 1004)
+             (,$load 1 1)
+             (,$stack 2)
+             (,$pop 2)
+             (,$invoke 3)      ; 3 return values
+             (,$.label 1004)
+             (,$load 1 1)
+             (,$stack 2)
+             (,$pop 2)
+             (,$invoke 4)      ; 4 return values
+             (,$.label 1005)   ; 5 or more return values
+             (,$reg 1)
+             (,$load 1 1)
+             (,$args>= 0)
+             (,$movereg 1 2)
+             (,$load 1 2)
+             (,$global apply)
+             (,$pop 2)
+             (,$invoke 2))
+            0
+            #f)
+  (,$setglbl call-with-values)
+  (,$const call-with-values)
+  (,$return))
+
 ; trampoline-template
 ;
 ; An environment-less procedure that accepts any number of arguments 

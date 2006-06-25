@@ -188,81 +188,30 @@
   (.creg))
 
 
-; From: William D Clinger <will@ccs.neu.edu>
-; Newsgroups: comp.lang.scheme
-; Subject: Re: call-with-values: what's all about?
-; Date: Tue, 11 Nov 1997 15:29:31 -0500
+; values and call-with-values are now defined in malcode.mal
 
-; This is correct for correct programs.
+; values-list
 ;
-; Returning multiple values to a continuation that does not expect them
-; (an error) will not be detected.
+; (values-list vals) = (apply values vals)
 ;
-; We need to replace these definitions when Larceny gets compiler
-; support for them.
+; but does less redundant consing.
+;
+; Common subexpression elimination pays off for things like this.
 
-; Note that dynamic-wind (defined below) depends on the ability to
-; to pass multiple values through by simple not looking at them.
-
-(define *multiple-values* (list '*multiple-values*))
-(define *values0* (list *multiple-values*))
-
-(define values
-  (lambda vals
-    (cond ((pair? vals) (if (null? (cdr vals))
-                            (car vals)
-                            (cons *multiple-values* vals)))
-          ((null? vals) *values0*)
-          ;; presumably impossible
-          (else (error "values: Improper list " vals)
-                #t))))
-
-;; (value-list elements) = (apply values elements)
-;; Avoids redundant consing, though.
 (define (values-list vals)
-  (cond ((pair? vals) (if (null? (cdr vals))
-                          (car vals)
-                          (cons *multiple-values* vals)))
-        ((null? vals) *values0*)
-        (else (error "values-list: Improper list " vals)
-              #t)))
-
-(define call-with-values
-  (lambda (producer consumer)
-    (let ((vals (producer)))
-      ;; Handle most common case of up to four values
-      (if (and (pair? vals)
-               (eq? (car vals) *multiple-values*))
-          (let ((tail0 (cdr vals)))
-            (cond ((pair? tail0)
-                   (let ((val0  (car tail0))
-                         (tail1 (cdr tail0)))
-                     (if (pair? tail1)
-                         (let ((val1  (car tail1))
-                               (tail2 (cdr tail1)))
-                           (cond ((pair? tail2)
-                                  (let ((val2  (car tail2))
-                                        (tail3 (cdr tail2)))
-                                    (cond ((pair? tail3)
-                                           (let ((val3  (car tail3))
-                                                 (tail4 (cdr tail3)))
-                                             (if (null? tail4)
-                                                 (consumer val0 val1 val2 val3)
-                                                 (apply consumer tail0))))
-                                          ((null? tail3) (consumer val0 val1 val2))
-                                          (else (error
-                                                 "call-with-values: bad values "
-                                                 tail0)
-                                                #t))))
-                                 ((null? tail2) (consumer val0 val1))
-                                 (else (error "call-with-values: bad values " tail0)
-                                       #t)))
-                         ;; single value shouldn't have values tag.
-                         (error "call-with-values: bad values " tail0))))
-                  ((null? tail0) (consumer))
-                  (else (error "call-with-values: bad values " tail0)
-                        #t)))
-          (consumer vals)))))
+  (cond ((null? vals)
+         (values))
+        ((null? (cdr vals))
+         (values (car vals)))
+        ((null? (cddr vals))
+         (values (car vals) (cadr vals)))
+        ((null? (cdddr vals))
+         (values (car vals) (cadr vals) (caddr vals)))
+        ((null? (cddddr vals))
+         (values (car vals) (cadr vals) (caddr vals) (cadddr vals)))
+        (else
+         (apply values vals))))
+              
 
 
 ; dynamic-wind
@@ -298,13 +247,11 @@
   (let ((here *here*))
     (reroot! (cons (cons before after) here))
     ;; Don't listify and respread the values.
-    ;; (call-with-values during
-    ;;  (lambda results
-    ;;    (reroot! here)
-    ;;    (values-list results)))
-    (let ((result (during)))
-      (reroot! here)
-      result)))
+    (call-with-values
+     during
+     (lambda results
+       (reroot! here)
+       (values-list results)))))
 
 (define (reroot! there)
 

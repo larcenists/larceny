@@ -7,36 +7,48 @@
 ; Procedure calls.
 
 (define (cg-call output exp target regs frame env tail?)
+  (cg-call/cont output exp target regs frame env tail? #f))
+
+; Given a procedure call exp, and some encoding of its
+; continuation, generates code for the call and for its
+; return point.
+
+(define (cg-call/cont output exp target regs frame env tail? cont)
+  (define (assert-normal-continuation!)
+    (if cont
+        (error "Compiler bug: cg-call/cont" cont)))
   (let ((proc (call.proc exp)))
     (cond ((and (lambda? proc)
                 (list? (lambda.args proc)))
+           (assert-normal-continuation!)
            (cg-let output exp target regs frame env tail?))
           ((not (variable? proc))
-           (cg-unknown-call output exp target regs frame env tail?))
+           (cg-unknown-call output exp target regs frame env tail? cont))
           (else (let ((entry
                        (var-lookup (variable.name proc) regs frame env)))
                   (case (entry.kind entry)
                     ((global lexical frame register)
                      (cg-unknown-call output
                                       exp
-                                      target regs frame env tail?))
+                                      target regs frame env tail? cont))
                     ((integrable)
+                     (assert-normal-continuation!)
                      (cg-integrable-call output
                                          exp
                                          target regs frame env tail?))
                     ((procedure)
                      (cg-known-call output
                                     exp
-                                    target regs frame env tail?))
+                                    target regs frame env tail? cont))
                     (else (error "Bug in cg-call" exp))))))))
 
-(define (cg-unknown-call output exp target regs frame env tail?)
+(define (cg-unknown-call output exp target regs frame env tail? cont)
   (let* ((proc (call.proc exp))
          (args (call.args exp))
          (n (length args))
          (L (make-label)))
     (cond ((>= (+ n 1) *lastreg*)
-           (cg-big-call output exp target regs frame env tail?))
+           (cg-big-call output exp target regs frame env tail? cont))
           (else
            (let ((r0 (cgreg-lookup-reg regs 0)))
              (if (variable? proc)
@@ -72,18 +84,15 @@
                  'result
                  (begin (gen! output $.align 4)
                         (gen! output $.label L)
-                        (gen! output $.cont)
-                        (cgreg-clear! regs)
-                        (cgreg-bind! regs 0 r0)
-                        (gen-load! output frame 0 r0)
+                        (cg-return-point output cont regs frame r0)
                         (cg-move output frame regs 'result target))))))))
 
-(define (cg-known-call output exp target regs frame env tail?)
+(define (cg-known-call output exp target regs frame env tail? cont)
   (let* ((args (call.args exp))
          (n (length args))
          (L (make-label)))
     (cond ((>= (+ n 1) *lastreg*)
-           (cg-big-call output exp target regs frame env tail?))
+           (cg-big-call output exp target regs frame env tail? cont))
           (else
            (let ((r0 (cgreg-lookup-reg regs 0)))
              (cg-arguments output (iota1 n) args regs frame env)
@@ -101,10 +110,7 @@
                  'result
                  (begin (gen! output $.align 4)
                         (gen! output $.label L)
-                        (gen! output $.cont)
-                        (cgreg-clear! regs)
-                        (cgreg-bind! regs 0 r0)
-                        (gen-load! output frame 0 r0)
+                        (cg-return-point output cont regs frame r0)
                         (cg-move output frame regs 'result target))))))))
 
 ; Any call can be compiled as follows, even if there are no free registers.
@@ -135,7 +141,7 @@
 ;     stack   T0
 ;     invoke  n
 
-(define (cg-big-call output exp target regs frame env tail?)
+(define (cg-big-call output exp target regs frame env tail? cont)
   (let* ((proc (call.proc exp))
          (args (call.args exp))
          (n (length args))
@@ -189,10 +195,7 @@
         'result
         (begin (gen! output $.align 4)
                (gen! output $.label L)
-               (gen! output $.cont)
-               (cgreg-clear! regs) ; redundant, see above
-               (cgreg-bind! regs 0 r0)
-               (gen-load! output frame 0 r0)
+               (cg-return-point output cont regs frame r0)
                (cg-move output frame regs 'result target)))))
 
 (define (cg-integrable-call output exp target regs frame env tail?)
@@ -628,15 +631,8 @@
         ((not (pair? exp)) '())
         ((constant? exp) '())
         ((lambda? exp)
-                                        ; Once upon a time this had to be computed.
-                                        ;(let ((env (append (make-null-terminated (cadr exp))
-                                        ;                   env)))
-                                        ;  (apply-union
-                                        ;   (map (lambda (x) (freevars2 x env))
-                                        ;        (cddr exp)))))
          (difference (lambda.F exp)
                      (make-null-terminated (lambda.args exp))))
-
         ((conditional? exp) (apply-union
                              (list (freevars2 (if.test exp) env)
                                    (freevars2 (if.then exp) env)

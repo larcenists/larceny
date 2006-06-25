@@ -103,6 +103,9 @@
           ((not (memq v free))
            (cg0 output arg #f regs frame env #f)
            (finish))
+          ((and (lambda? arg)
+                (cg-let1-call-with-values? exp regs frame env))
+           (cg-let1-call-with-values output exp target regs frame env tail?))
           (live
            (cg0 output arg 'result regs frame env #f)
            (release-registers!)

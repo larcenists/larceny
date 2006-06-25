@@ -301,10 +301,14 @@ EXTNAME(mem_stkuflow):
 	ld	[ %STKP ], %TMP0
 	sra	%TMP0, 8, %TMP0
 	st	%TMP0, [ %STKP ]
+	/* save register 0, which may contain number of return values */
+	mov     %REG0, %TMP2
 	/* convert return address */
 	ld	[ %STKP+4 ], %TMP0		/* return offset */
 	call	internal_fixnum2retaddr
 	ld	[ %STKP+12 ], %REG0		/* procedure */
+	/* restore register 0 */
+	mov     %TMP2, %REG0
 #if STACK_UNDERFLOW_COUNTING
 	ld	[ %GLOBALS+G_STKUFLOW ], %TMP1
 	add	%TMP1, 1, %TMP1

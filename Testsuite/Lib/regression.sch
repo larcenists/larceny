@@ -200,6 +200,17 @@
    (test "Ticket #33 (5)"               ; Bug in Larceny through 0.90
          (flonum? (/ (hide 4.5+3i) (hide 4.5+3i)))
          #t)
+   ; Long-time latent bug in Larceny through 0.91,
+   ; discovered during reimplementation of multiple values for 0.92.
+   (test "dynamic-wind and values"
+         (let ((f (lambda () (values 17 42 666))))
+           (call-with-values
+            (lambda ()
+              (dynamic-wind (lambda () (hide 37))
+                            (lambda () ((hide f)))
+                            (lambda () (values 1 2 3))))
+            list))
+         '(17 42 666))                
    ))
 
 (define (bug-105-test1)

@@ -68,6 +68,7 @@
     
     (bytevector-set! forward-table $invoke  forward:ends-block)
     (bytevector-set! forward-table $return  forward:ends-block)
+    (bytevector-set! forward-table $mvrtn   forward:ends-block)
     (bytevector-set! forward-table $skip    forward:ends-block)
     (bytevector-set! forward-table $branch  forward:ends-block)
     (bytevector-set! forward-table $branchf forward:ends-block)
@@ -96,6 +97,8 @@
   
     (bytevector-set! backward-table $invoke  backward:ends-block)
     (bytevector-set! backward-table $return  backward:ends-block)
+    (bytevector-set! backward-table $mvrtn   (fxlogior backward:ends-block
+                                                       backward:uses-many))
     (bytevector-set! backward-table $skip    backward:ends-block)
     (bytevector-set! backward-table $branch  backward:ends-block)
     (bytevector-set! backward-table $branchf backward:ends-block)
@@ -412,6 +415,11 @@
                       ((eqv? mnemonic $return)
                        (vector-fill! registers #f)
                        (vector-set! registers 0 #t)
+                       (backwards (cdr instructions)
+                                  (cons instruction filtered)))
+                      ; just like $return except registers are live
+                      ((eqv? mnemonic $mvrtn)
+                       (vector-fill! registers #t)
                        (backwards (cdr instructions)
                                   (cons instruction filtered)))
                       ; all but the argument registers are dead at an $invoke

@@ -302,6 +302,11 @@
                               (regname (operand1 instruction))
                               (regname (operand2 instruction)))))
 
+(define-instruction $mvrtn ; same as $return, but registers are live
+  (lambda (instruction as)
+    (list-instruction "mvrtn" instruction)
+    (emit-return! as)))
+
 (define-instruction $return
   (lambda (instruction as)
     (list-instruction "return" instruction)
