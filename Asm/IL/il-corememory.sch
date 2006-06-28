@@ -1,6 +1,12 @@
 ;; This file uses javadot notation and only works when run atop a
 ;; Common Larceny runtime.
-(enable-dotnet!)
+;; FSK: this is changing, so take out the expensive call.
+'(enable-dotnet!)
+;; FSK: Howvever, since I am developing, lets turn on debugging...
+(load "Debugger/debug.sch")
+(load "Debugger/inspect-cont.sch")
+(load "Debugger/trace.sch")
+(install-debugger)
 
 (define (default-assembly-basename)
   "larsembly")
@@ -75,6 +81,247 @@
    ""
    thunk))
 
+(define clr-type-handle/system-reflection-assemblyname
+  (clr/%get-type "System.Reflection.AssemblyName"))
+(define clr-type-handle/system-threading-thread
+  (clr/%get-type "System.Threading.Thread"))
+(define clr-type-handle/system-reflection-emit-assemblybuilder
+  (clr/%get-type "System.Reflection.Emit.AssemblyBuilder"))
+(define clr-type-handle/system-reflection-emit-assemblybuilderaccess
+  (clr/%get-type "System.Reflection.Emit.AssemblyBuilderAccess"))
+(define clr-type-handle/system-reflection-emit-modulebuilder
+  (clr/%get-type "System.Reflection.Emit.ModuleBuilder"))
+(define clr-type-handle/system-reflection-typeattributes
+  (clr/%get-type "System.Reflection.TypeAttributes"))
+(define clr-type-handle/system-reflection-emit-ilgenerator
+  (clr/%get-type "System.Reflection.Emit.ILGenerator"))
+(define clr-type-handle/system-reflection-emit-opcode
+  (clr/%get-type "System.Reflection.Emit.OpCode"))
+(define clr-type-handle/system-reflection-emit-label
+  (clr/%get-type "System.Reflection.Emit.Label"))
+(define clr-type-handle/system-reflection-fieldinfo
+  (clr/%get-type "System.Reflection.FieldInfo"))
+(define clr-type-handle/system-reflection-emit-localbuilder
+  (clr/%get-type "System.Reflection.Emit.LocalBuilder"))
+(define clr-type-handle/system-type-array
+  (clr/%get-type "System.Type[]"))
+(define clr-type-handle/system-reflection-emit-label
+  (clr/%get-type "System.Reflection.Emit.Label"))
+(define clr-type-handle/system-reflection-emit-label-array
+  (clr/%get-type "System.Reflection.Emit.Label[]"))
+(define clr-type-handle/system-reflection-constructorinfo
+  (clr/%get-type "System.Reflection.ConstructorInfo"))
+(define clr-type-handle/system-reflection-methodinfo
+  (clr/%get-type "System.Reflection.MethodInfo"))
+(define clr-type-handle/system-reflection-emit-typebuilder
+  (clr/%get-type "System.Reflection.Emit.TypeBuilder"))
+(define clr-type-handle/system-reflection-fieldattributes
+  (clr/%get-type "System.Reflection.FieldAttributes"))
+(define clr-type-handle/system-reflection-methodattributes
+  (clr/%get-type "System.Reflection.MethodAttributes"))
+(define clr-type-handle/system-reflection-callingconventions
+  (clr/%get-type "System.Reflection.CallingConventions"))
+(define clr-type-handle/scheme-rt-load
+  (clr/%get-type "Scheme.RT.Load"))
+
+(define-syntax define-traced
+  (syntax-rules ()
+    ((define-traced (NAME ARGS ...) BODY ...)
+     (define (NAME ARGS ...)
+       (begin (write (quasiquote (NAME (unquote ARGS) ...))) 
+              (newline))
+       (let ((ret-val (begin BODY ...)))
+         (begin (write (quasiquote (end NAME (unquote ARGS) ...))) 
+                (newline))
+         ret-val)))))
+
+(define-traced (ilc/%make-assembly-name)
+  (let* ((type-recv clr-type-handle/system-reflection-assemblyname)
+         (ctor (clr/%get-constructor type-recv '#())))
+    (clr/%invoke-constructor ctor '#())))
+
+(define-traced (ilc/%thread-get-domain)
+  (let* ((type-recv clr-type-handle/system-threading-thread)
+         (meth (clr/%get-method type-recv "GetDomain" '#())))
+    (clr/%invoke meth #f '#())))
+
+(define-traced (ilc/%define-dynamic-assembly dom asm-name perms)
+  (let* ((type-recv clr-type-handle/system-appdomain)
+         (type-arg1 clr-type-handle/system-reflection-assemblyname)
+         (type-arg2 clr-type-handle/system-reflection-emit-assemblybuilderaccess)
+         (meth (clr/%get-method type-recv "DefineDynamicAssembly" 
+                                (vector type-arg1 type-arg2))))
+    (clr/%invoke meth dom (vector asm-name perms))))
+
+(define-traced (ilc/%define-dynamic-assembly/storage dom asm-name perms storage-dir)
+  (let* ((type-recv clr-type-handle/system-appdomain)
+         (type-arg1 clr-type-handle/system-reflection-assemblyname)
+         (type-arg2 clr-type-handle/system-reflection-emit-assemblybuilderaccess)
+         (type-arg3 clr-type-handle/system-string)
+         (meth (clr/%get-method type-recv "DefineDynamicAssembly" 
+                                (vector type-arg1 type-arg2 type-arg3))))
+    (clr/%invoke meth dom (vector asm-name perms storage-dir))))
+
+(define-traced (ilc/%define-dynamic-module asm-bldr mod-name dll-name)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilder)
+         (type-arg1 clr-type-handle/system-string)
+         (type-arg2 clr-type-handle/system-string)
+         (meth (clr/%get-method type-recv "DefineDynamicModule" 
+                                (vector type-arg1 type-arg2))))
+    (clr/%invoke meth asm-bldr (vector mod-name dll-name))))
+
+(define-traced (ilc/%run-and-save-permissions)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilderaccess)
+         (info (clr/%get-field type-recv "RunAndSave")))
+    (clr/%field-ref info)))
+
+(define-traced (ilc/%set-assembly-name-name! asm-name string)
+  (let* ((type-recv clr-type-handle/system-reflection-assemblyname)
+         (prop-info (clr/%get-property type-recv "Name" '#())))
+    (clr/%property-set! prop-info asm-name (clr/%string->foreign string) '#())))
+
+(define-traced (ilc/%define-type! mod-bldr name type-attributes parent)
+  (begin (display `(ilc/%define-type! ,mod-bldr ,name ,type-attributes ,parent))
+         (newline))
+  (let* ((type-recv clr-type-handle/system-reflection-emit-modulebuilder)
+         (type-arg1 clr-type-handle/system-string)
+         (type-arg2 clr-type-handle/system-reflection-typeattributes)
+         (type-arg3 clr-type-handle/system-type)
+         (meth (clr/%get-method type-recv "DefineType"
+                                (vector type-arg1 type-arg2 type-arg3))))
+    (begin (display `(clr/%invoke ,meth ,mod-bldr #(,name ,type-attributes ,parent)))
+           (newline))
+    (clr/%invoke meth mod-bldr (vector name type-attributes parent))))
+
+(define-traced (ilc/%define-label! ilgen)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
+         (meth (clr/%get-method type-recv "DefineLabel" (vector))))
+    (clr/%invoke meth ilgen (vector))))
+
+(define-traced (ilc/%set-entry-point! asm-name meth-bldr)
+  (let* ((type-recv clr-type-handle/system-reflection-assemblyname)
+         (type-arg1 clr-type-handle/system-reflection-emit-methodbuilder)
+         (meth (clr/%get-method type-recv "SetEntryPoint" (vector type-arg1))))
+    (clr/%invoke meth asm-name (vector meth-bldr))))
+
+(define-traced (ilc/%declare-local! ilgen type)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
+         (type-arg1 clr-type-handle/system-type)
+         (meth (clr/%get-method type-recv "DeclareLocal" (vector type-arg1))))
+    (clr/%invoke meth ilgen (vector type))))
+
+(define-syntax define-emit-form 
+  (syntax-rules ()
+    ((define-emit-form NAME (ARG-ID ARG-TYPE) ...)
+     (define NAME
+       (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
+              (type-arg1 clr-type-handle/system-reflection-emit-opcode) 
+              (meth (clr/%get-method type-recv "Emit" (vector type-arg1 ARG-TYPE ...))))
+         (define-traced (NAME ilgen opc ARG-ID ...)
+           (clr/%invoke meth ilgen (vector opc ARG-ID ...)))
+         NAME)))))
+
+(define-emit-form ilc/%emit)
+(define-emit-form ilc/%emit/label 
+  (label clr-type-handle/system-reflection-emit-label))
+(define-emit-form ilc/%emit/short
+  (short clr-type-handle/system-uint16))
+(define-emit-form ilc/%emit/int
+  (int clr-type-handle/system-int32))
+(define-emit-form ilc/%emit/long
+  (long clr-type-handle/system-int64))
+(define-emit-form ilc/%emit/double
+  (double clr-type-handle/system-double))
+(define-emit-form ilc/%emit/field-info
+  (field-info clr-type-handle/system-reflection-fieldinfo))
+(define-emit-form ilc/%emit/local-builder
+  (local-bldr clr-type-handle/system-reflection-emit-localbuilder))
+(define-emit-form ilc/%emit/string
+  (string clr-type-handle/system-string))
+(define-emit-form ilc/%emit/type
+  (type clr-type-handle/system-type))
+(define-emit-form ilc/%emit/label-array
+  (labels clr-type-handle/system-reflection-emit-label-array))
+(define-emit-form ilc/%emit/constructor-info
+  (ctor-info clr-type-handle/system-reflection-constructorinfo))
+(define-emit-form ilc/%emit/method-info
+  (meth-info clr-type-handle/system-reflection-methodinfo))
+(define-emit-form ilc/%emit/method-info-type-array
+  (meth-info clr-type-handle/system-reflection-methodinfo)
+  (types     clr-type-handle/system-type-array))
+
+(define-traced (ilc/%mark-label ilgen label)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
+         (type-arg1 clr-type-handle/system-reflection-emit-label)
+         (meth (clr/%get-method type-recv "MarkLabel" (vector type-arg1))))
+    (clr/%invoke meth ilgen (vector label))))
+
+(define-traced (ilc/%define-field type-bldr name cls field-attrs)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
+         (type-arg1 clr-type-handle/system-string)
+         (type-arg2 clr-type-handle/system-type)
+         (type-arg3 clr-type-handle/system-reflection-fieldattributes)
+         (meth (clr/%get-method type-recv "DefineField" 
+                                (vector type-arg1 type-arg2 type-arg3))))
+    (clr/%invoke meth type-bldr (vector name cls field-attrs))))
+
+(define-traced (ilc/%define-constructor type-bldr meth-attrs calling-conv arg-infos)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
+         (type-arg1 clr-type-handle/system-reflection-methodattributes)
+         (type-arg2 clr-type-handle/system-reflection-callingconventions)
+         (type-arg3 clr-type-handle/system-type-array)
+         (meth (clr/%get-method type-recv "DefineConstructor" 
+                                (vector type-arg1 type-arg2 type-arg3))))
+    (clr/%invoke meth type-bldr (vector meth-attrs calling-conv arg-infos))))
+
+(define-traced (ilc/%standard-calling-conventions)
+  (clr/%field-ref (clr/%get-field 
+                   clr-type-handle/system-reflection-callingconventions
+                   "Standard")
+                  #f))
+
+(define-traced (ilc/%define-type-initializer type-bldr)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
+         (meth (clr/%get-method type-recv "DefineTypeInitializer" '#())))
+    (clr/%invoke meth type-bldr '#())))
+
+(define-traced (ilc/%define-method type-bldr name meth-attrs ret-type arg-types)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
+         (type-arg1 clr-type-handle/system-string)
+         (type-arg2 clr-type-handle/system-reflection-methodattributes)
+         (type-arg3 clr-type-handle/system-type)
+         (type-arg4 clr-type-handle/system-type-array)
+         (meth (clr/%get-method type-recv "DefineMethod" 
+                                (vector type-arg1 type-arg2 
+                                        type-arg3 type-arg4))))
+    (clr/%invoke meth type-bldr (vector name meth-attrs ret-type arg-types))))
+
+(define-traced (ilc/%create-type type-bldr)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
+         (meth (clr/%get-method type-recv "CreateType" '#())))
+    (clr/%invoke meth type-bldr '#())))
+
+(define-traced (ilc/%get-ilgenerator meth-bldr)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-methodbuilder)
+         (meth (clr/%get-method type-recv "GetILGenerator" '#())))
+    (clr/%invoke meth meth-bldr '#())))
+
+(define-traced (ilc/%find-code-in-assembly asm-bldr il-ns segnum)
+  ;; static method!
+  (let* ((type-recv clr-type-handle/scheme-rt-load)
+         (type-arg0 clr-type-handle/system-reflection-emit-assemblybuilder)
+         (type-arg1 clr-type-handle/system-string)
+         (type-arg2 clr-type-handle/system-int32)
+         (meth (clr/%get-method type-recv "findCodeInAssembly" 
+                                (vector type-arg0 type-arg1 type-arg2))))
+    (clr/%invoke meth #f (vector asm-bldr il-ns segnum))))
+
+(define-traced (ilc/%save asm-bldr dll-name)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilder)
+         (type-arg1 clr-type-handle/system-string)
+         (meth (clr/%get-method "Save" type-recv (vector type-arg1))))
+    (clr/%invoke meth asm-bldr (vector dll-name))))
+
 ;; with-fresh-dynamic-assembly-setup : String String String String (-> X) -> X
 ;; Sets up assembly-name, domain, asm-builder, and module.
 ;; Does *not* set up type-builder.
@@ -82,26 +329,28 @@
 					   module-name dll-file-name 
 					   storage-directory
 					   thunk)
-  (let ((my-asm-name (System.Reflection.AssemblyName.)))
+  (let ((my-asm-name (ilc/%make-assembly-name))) 
     (if assembly-name 
-	(set-.name$! my-asm-name assembly-name))
+        (ilc/%set-assembly-name-name! my-asm-name assembly-name))
     (parameterize ((current-assembly-name my-asm-name))
-      (parameterize ((current-domain (System.Threading.Thread.GetDomain)))
+      (parameterize ((current-domain (ilc/%thread-get-domain)))
 	(display (current-assembly-name)) (newline)
 	(parameterize ((current-assembly-builder 
-			(apply .DefineDynamicAssembly 
-			 (current-domain) (current-assembly-name)
+			((lambda (dom anm perms dir)
+                           (if (string=? "" dir)
+                               (ilc/%define-dynamic-assembly dom anm perms)
+                               (ilc/%define-dynamic-assembly/storage dom anm perms dir)))
+			 (current-domain) 
+                         (current-assembly-name)
 			 ;; below permissions are liberal; might allow
 			 ;; developer to select Run or Save alone
-			 (System.Reflection.Emit.AssemblyBuilderAccess.RunAndSave$)
-			 ;; This expression conspires with apply above
-			 ;; to pass storage-directory iff not ""
-			 (if (string=? "" storage-directory)
-			     (list)
-			     (list storage-directory)))))
+			 (ilc/%run-and-save-permissions)
+                         storage-directory)))
 	  (parameterize ((current-module-builder
-			  (.DefineDynamicModule 
-			   (current-assembly-builder) module-name dll-file-name)))
+			  (ilc/%define-dynamic-module
+			   (current-assembly-builder) 
+                           (clr/%string->foreign module-name)
+                           (clr/%string->foreign dll-file-name))))
 	    (parameterize ((current-registered-class-table '())
 			   (current-registered-superclass-table '())
 			   (current-registered-field-table '())
@@ -115,18 +364,22 @@
 ;; but more convenient at times.
 (define (fresh-dynamic-assembly-setup! 
 	 assembly-name module-name dll-file-name)
-  (let ((my-asm-name (System.Reflection.AssemblyName.)))
+  (let ((my-asm-name (ilc/%make-assembly-name)))
+
     (if assembly-name 
-	(set-.name$! my-asm-name assembly-name))
+        (ilc/%set-assembly-name-name! my-asm-name assembly-name))
     (current-assembly-name my-asm-name)
-    (current-domain (System.Threading.Thread.GetDomain))
+    (current-domain (ilc/%thread-get-domain))
     (current-assembly-builder 
-     (.DefineDynamicAssembly (current-domain) (current-assembly-name)
+     (ilc/%define-dynamic-assembly 
+                             (current-domain) (current-assembly-name)
 			     ;; below permissions are liberal; might allow
 			     ;; developer to select Run or Save alone
-			     (System.Reflection.Emit.AssemblyBuilderAccess.RunAndSave$)))
-    (current-module-builder (.DefineDynamicModule 
-			     (current-assembly-builder) module-name dll-file-name))
+			     (ilc/%run-and-save-permissions)))
+    (current-module-builder (ilc/%define-dynamic-module
+			     (current-assembly-builder) 
+                             (clr/%string->foreign module-name)
+                             (clr/%string->foreign dll-file-name)))
     (reset-valueless-parameters!)
     ))
 
@@ -139,10 +392,11 @@
    (string-append basename ".dll")))
 
 (define (fresh-type-setup! name)
-  (current-type-builder (.DefineType (current-module-builder)
-				     name
-				     '()
-				     System.Object.class)))
+  (current-type-builder (ilc/%define-type!
+                         (current-module-builder)
+                         (clr/%string->foreign name)
+                         (clr/int->foreign 0)
+                         clr-type-handle/system-object)))
 
 ;; Members of TypeAttributes enumeration:
 ;; AnsiClass AutoClass UnicodeClass
@@ -171,7 +425,7 @@
 		il:code->opcode)
   (letrec-syntax 
       ;; maps each list elem to its canonical rep.
-      ;; (canon-case 'y ((a b c) (x y z))) ==> x
+      ;; (canon-case 'exp-context 'y ((a b c) (x y z))) ==> x
       ((canon-case 
 	(syntax-rules ()
 	  ((_ CTXT X (TAG REST ...) ...)
@@ -180,31 +434,36 @@
 	       ((TAG REST ...) (quote TAG)) ...
 	       (else (error CTXT
 			    (twobit-format #f "Unmatched ~a" obj))))))))
+       ;; TODO: clr/find-static-field-getter is from dotnet.sch;
+       ;; replace with appropriate calls to clr/%get-field
+       ;; and clr/%field-ref
        (lookup/adding-prefix 
 	(syntax-rules ()
 	  ((_ CTXT SYM PREFIX-STR CANON-CASES ...)
-	   ((clr/find-static-field-getter
-	     #t (string->symbol
-		 (string-downcase ;; odd!  (see Lib/MzScheme/dotnet.sch)
-		  (string-append 
-		   PREFIX-STR
-		   (symbol->string
-		    (canon-case CTXT SYM CANON-CASES ...)))))))))))
+	   ((lambda (class-str field-str)
+              (clr/%field-ref (clr/%get-field (clr/%get-type class-str) field-str) #f))
+            (let ((chomp (lambda (s) (substring s 0 (- (string-length s) 1)))))
+              (chomp PREFIX-STR))
+            (canon-case CTXT SYM CANON-CASES ...))))))
     (define (option->type-attribute x)
       (lookup/adding-prefix 
        'option->type-attribute
        x "System.Reflection.TypeAttributes."
-       (ansiclass ansi) (autoclass) (unicodeclass)
-       (abstract) (autolayout auto) (beforefieldinit)
-       (class) (classsemanticsmask) (explicitlayout) 
-       (hassecurity) (import) (interface) (layoutmask)
-       (nestedassembly) (nestedfamorassem) 
-       (nestedprivate) (nestedpublic)
-       (notpublic private) (public)
-       (reservedmask) (rtspecialname)
-       (sealed) (sequentiallayout) (serializable) 
-       (specialname) (stringformatmask)
-       (unicodeclass) (visibilitymask)))
+       ("AnsiClass" ansiclass ansi) ("AutoClass" autoclass) 
+       ("Abstract" abstract) ("AutoLayout" autolayout auto) 
+       ("BeforeFieldInit" beforefieldinit)
+       ("Class" class) ("ClassSemanticsMask" classsemanticsmask) 
+       ("ExplicitLayout" explicitlayout) 
+       ("HasSecurity" hassecurity) ("Import" import) 
+       ("Interface" interface) ("LayoutMask" layoutmask)
+       ("NestedAssembly" nestedassembly) ("NestedFamORAssem" nestedfamorassem) 
+       ("NestedPrivate" nestedprivate) ("NestedPublic" nestedpublic)
+       ("NotPublic" notpublic private) ("Public" public)
+       ("ReservedMask" reservedmask) ("RTSpecialName" rtspecialname)
+       ("Sealed" sealed) ("SequentialLayout" sequentiallayout) 
+       ("Serializable" serializable) 
+       ("SpecialName" specialname) ("StringFormatMask" stringformatmask)
+       ("UnicodeClass" unicodeclass) ("VisibiltyMask" visibilitymask)))
     
     (define (option->method-attribute x)
       (case x 
@@ -213,38 +472,204 @@
 	 (lookup/adding-prefix 
 	  'option->method-attribute
 	  x "System.Reflection.MethodAttributes."
-	  (abstract) (assembly) (checkaccessonoverride) 
-	  (famandassem) (family) (famorassem) (final) 
-	  (hassecurity) (hidebysig) (memberaccessmask)
-	  (newslot) (pinvokeimpl) (private) (privatescope)
-	  (public) (requiresecobject) (reservedmask)
-	  (reuseslot) (rtspecialname) (specialname) (static)
-	  (unmanagedexport) (virtual) (vtablelayoutmask)))))
+	  ("Abstract" abstract) ("Assembly" assembly) 
+          ("CheckAccessOnOverride" checkaccessonoverride) 
+	  ("FamANDAssem" famandassem) ("Family" family) 
+          ("FamORAssem" famorassem) ("Final" final) 
+	  ("HasSecurity" hassecurity) ("HideBySig" hidebysig) 
+          ("MemberAccessMask" memberaccessmask)
+	  ("NewSlot" newslot) ("PinvokeImpl" pinvokeimpl) 
+          ("Private" private) ("PrivateScope" privatescope)
+	  ("Public" public) ("RequireSecObject" requiresecobject) 
+          ("ReservedMask" reservedmask)
+	  ("ReuseSlot" reuseslot) ("RTSpecialName" rtspecialname) 
+          ("SpecialName" specialname) ("Static" static)
+	  ("UnmanagedExport" unmanagedexport) ("Virtual" virtual) 
+          ("VtableLayoutMask" vtablelayoutmask)))))
     
     (define (option->field-attribute x)
       (lookup/adding-prefix 
        'option->field-attribute
        x "System.Reflection.FieldAttributes."
-       (assembly) (famandassem) (family) (famorassem) 
-       (fieldaccessmask) 
-       (hasdefault) (hasfieldmarshal) (hasfieldrva) (initonly)
-       (literal) (notserialized) (pinvokeimpl) (private)
-       (privatescope) (public) (reservedmask) (rtspecialname)
-       (specialname) (static)))
+       ("Assembly" assembly) ("FamANDAssem" famandassem) 
+       ("Family" family) ("FamORAssem" famorassem) 
+       ("FieldAccessMask" fieldaccessmask) 
+       ("HasDefault" hasdefault) 
+       ("HasFieldMarshal" hasfieldmarshal) ("HasFieldRVA" hasfieldrva) 
+       ("InitOnly" initonly)
+       ("Literal" literal) 
+       ("NotSerialized" notserialized) ("PinvokeImpl" pinvokeimpl) 
+       ("Private" private)
+       ("PrivateScope" privatescope) ("Public" public) 
+       ("ReservedMask" reservedmask) ("RTSpecialName" rtspecialname)
+       ("SpecialName" specialname) ("Static" static)))
     
     (define (il:code->opcode x)
       (lookup/adding-prefix 
        'il:code->opcode 
        x "System.Reflection.Emit.OpCodes."
-       (beq) (beq_s beq.s) (bne_un_s bne.un.s) (br) (brfalse)
-       (brfalse_s brfalse.s) (brtrue) (brtrue_s brtrue.s)
-       (call) (callvirt) (castclass) (ceq) (comment) 
-       (directive) (dup) (isinst) (label) (ldarg)
-       (ldc_i4 ldc.i4) (ldc_i8 ldc.i8) (ldc_r8 ldc.r8)
-       (ldelem_ref ldelem.ref) (ldfld) (ldloc) (ldsfld) (ldstr)
-       (newarr) (newobj) (pop) (ret)
-       (stelem_i2 stelem.i2) (stelem_ref stelem.ref)
-       (stfld) (stloc) (stsfld) (sub) (switch) (tailcall tail.)))
+       ("Add" add) ("Add_Ovf" add_ovf) ("Add_Ovf_Un" add_ovf_un)
+       ("And" and) ("Arglist" arglist)
+       ("Beq" beq) ("Beq_S" beq_s beq.s) 
+       ("Bge" bge) ("Bge_S" bge_s)
+       ("Bge_Un" bge_un) ("Bge_Un_S" bge_un_s)
+       ("Bgt" bgt) ("Bgt_S" bgt_s) 
+       ("Bgt_Un" bgt_un) ("Bgt_Un_S" bgt_un_s)
+       ("Ble" ble) ("Ble_S" ble_s)
+       ("Ble_Un" ble_un) ("Ble_Un_S" ble_un_s)
+       ("Blt" blt) ("Blt_S" blt_s)
+       ("Blt_Un" blt_un) ("Blt_Un_S" blt_un_s)
+       ("Bne_Un" bne_un) ("Bne_Un_S" bne_un_s bne.un.s) 
+       ("Box" box)
+       ("Br" br) ("Br_S" br_s)
+       ("Break" break)
+       ("Brfalse" brfalse) ("Brfalse_S" brfalse_s brfalse.s) 
+       ("Brtrue" brtrue) ("Brtrue_S" brtrue_s brtrue.s)
+       ("Call" call) ("Calli" calli) ("Callvirt" callvirt) 
+       ("Castclass" castclass) ("Ceq" ceq) 
+       ("Cgt" cgt) ("Cgt_Un" cgt_un) ("Ckfinite" ckfinite)
+       ("Clt" clt) ("Clt_Un" clt_un) ("Constrained" constrained)
+       ("Conv_I" conv_i) ("Conv_I1" conv_i1) ("Conv_I2" conv_i2)
+       ("Conv_I4" conv_i4) ("Conv_I8" conv_i8)
+       ("Conv_Ovf_I" conv_ovf_i)   ("Conv_Ovf_I_Un" conv_ovf_i_un)
+       ("Conv_Ovf_I1" conv_ovf_i1) ("Conv_Ovf_I1_Un" conv_ovf_i1_un)       
+       ("Conv_Ovf_I2" conv_ovf_i2) ("Conv_Ovf_I2_Un" conv_ovf_i2_un)       
+       ("Conv_Ovf_I4" conv_ovf_i4) ("Conv_Ovf_I4_Un" conv_ovf_i4_un)       
+       ("Conv_Ovf_I8" conv_ovf_i8) ("Conv_Ovf_I8_Un" conv_ovf_i8_un)       
+       ("Conv_Ovf_U" conv_ovf_u)   ("Conv_Ovf_U_Un" conv_ovf_u_un)
+       ("Conv_Ovf_U1" conv_ovf_u1) ("Conv_Ovf_U1_Un" conv_ovf_u1_un)
+       ("Conv_Ovf_U2" conv_ovf_u2) ("Conv_Ovf_U2_Un" conv_ovf_u2_un)
+       ("Conv_Ovf_U4" conv_ovf_u4) ("Conv_Ovf_U4_Un" conv_ovf_u4_un)
+       ("Conv_Ovf_U8" conv_ovf_u8) ("Conv_Ovf_U8_Un" conv_ovf_u8_un)
+       ("Conv_R_Un" conv_r_un) ("Conv_R4" conv_r4) ("Conv_R8" conv_r8)
+       ("Conv_U" conv_u) 
+       ("Conv_U1" conv_u1) ("Conv_U2" conv_u2) 
+       ("Conv_U4" conv_u4) ("Conv_U8" conv_u8) 
+       (comment) 
+       ("Cpblk" cpblk) ("Cpobj" cpobj)
+       (directive) 
+       ("Div" div) ("Div_Un" div_un)
+       ("Dup" dup) 
+       ("Endfilter" endfilter) ("Endfinally" endfinally)
+       ("Initblk" initblk) ("Initobj" initobj)
+       ("Isinst" isinst) ("Jmp" jmp)
+       (label) 
+       ("Ldarg" ldarg)
+       ("Ldarg_0" ldarg_0)       ("Ldarg_1" ldarg_1)
+       ("Ldarg_2" ldarg_2)       ("Ldarg_3" ldarg_3)
+       ("Ldarg_S" ldarg_S)       ("Ldarg_S" ldarg_S)
+       ("Ldc_I4" ldc_i4 ldc.i4) 
+       ("Ldc_I4_0" ldc_i4_0 ldc.i4_0) 
+       ("Ldc_I4_1" ldc_i4_1 ldc.i4_1) 
+       ("Ldc_I4_2" ldc_i4_2 ldc.i4_2) 
+       ("Ldc_I4_3" ldc_i4_3 ldc.i4_3) 
+       ("Ldc_I4_4" ldc_i4_4 ldc.i4_4) 
+       ("Ldc_I4_5" ldc_i4_5 ldc.i4_5) 
+       ("Ldc_I4_6" ldc_i4_6 ldc.i4_6) 
+       ("Ldc_I4_7" ldc_i4_7 ldc.i4_7) 
+       ("Ldc_I4_8" ldc_i4_8 ldc.i4_8) 
+       ("Ldc_I4_M1" ldc_i4_M1 ldc.i4_M1) 
+       ("Ldc_I4_S" ldc_i4_S ldc.i4_S)
+       ("Ldc_I8" ldc_i8 ldc.i8) 
+       ("Ldc_R4" ldc_r4 ldc.r4)
+       ("Ldc_R8" ldc_r8 ldc.r8)
+       ("Ldelem_I" ldelem_I ldelem.I) 
+       ("Ldelem_I1" ldelem_I1 ldelem.I1) 
+       ("Ldelem_I2" ldelem_I2 ldelem.I2) 
+       ("Ldelem_I4" ldelem_I4 ldelem.I4) 
+       ("Ldelem_I8" ldelem_I8 ldelem.I8) 
+       ("Ldelem_R4" ldelem_R4 ldelem.R4) 
+       ("Ldelem_R8" ldelem_R8 ldelem.R8) 
+       ("Ldelem_Ref" ldelem_ref ldelem.ref) 
+       ("Ldelem_U1" ldelem_u1 ldelem.u1) 
+       ("Ldelem_U2" ldelem_u2 ldelem.u2) 
+       ("Ldelem_U4" ldelem_u4 ldelem.u4) 
+       ("Ldelema" ldelema) 
+       ("Ldfld" ldfld)        
+       ("Ldflda" ldflda) 
+       ("Ldftn" ldftn) 
+       ("Ldind_I" ldind_i)        
+       ("Ldind_I1" ldind_i1)
+       ("Ldind_I2" ldind_i2)
+       ("Ldind_I4" ldind_i4)
+       ("Ldind_I8" ldind_i8)
+       ("Ldind_R4" ldind_r4)
+       ("Ldind_R8" ldind_r8)
+       ("Ldind_Ref" ldind_ref)
+       ("Ldind_U1" ldind_u1)
+       ("Ldind_U2" ldind_u2)
+       ("Ldind_U4" ldind_u4)
+       ("Ldlen" ldlen) 
+       ("Ldloc" ldloc) 
+       ("Ldloc_0" ldloc_0) 
+       ("Ldloc_1" ldloc_1) 
+       ("Ldloc_2" ldloc_2) 
+       ("Ldloc_3" ldloc_3) 
+       ("Ldloc_S" ldloc_s) 
+       ("Ldloca" ldloca) 
+       ("Ldloca_S" ldloca_s) 
+       ("Ldnull" ldnull)
+       ("Ldobj" ldobj)
+       ("Ldsfld" ldsfld) 
+       ("Ldsflda" ldsflda) 
+       ("Ldstr" ldstr)
+       ("Ldtoken" ldtoken)
+       ("Ldvirtftn" ldvirtftn)
+       ("Leave" leave)
+       ("Leave_S" leave_s)
+       ("Localloc" localloc)
+       ("Mkrefany" mkrefany)
+       ("Mul" mul)
+       ("Mul_Ovf" mul_ovf)
+       ("Mul_Ovf_Un" mul_ovf_un)
+       ("Neq" neq)
+       ("Newarr" newarr) ("Newobj" newobj) 
+       ("Nop" nop) ("Not" not) ("Or" or)
+       ("Pop" pop) ("Readonly" readonly)
+       ("Refanytype" refanytype)
+       ("Rem" rem) ("Rem_Un" rem_un)
+       ("Ret" ret) ("Rethrow" rethrow)
+       ("Shl" shl) ("Shr" shr) ("Shr_Un" shr_un)
+       ("Sizeof" sizeof) 
+       ("Starg" starg) ("Starg_S" starg_s)
+       ("Stelem" stelem) 
+       ("Stelem_I" stelem_i) 
+       ("Stelem_I1" stelem_i1) 
+       ("Stelem_I2" stelem_i2) 
+       ("Stelem_I4" stelem_i4) 
+       ("Stelem_I8" stelem_i8) 
+       ("Stelem_R4" stelem_r4)
+       ("Stelem_R8" stelem_r8)
+       ("Stelem_Ref" stelem_ref)
+       ("Stfld" stfld)
+       ("Stind_I" stind_i)
+       ("Stind_I1" stind_i1)
+       ("Stind_I2" stind_i2)
+       ("Stind_I4" stind_i4)
+       ("Stind_I8" stind_i8)
+       ("Stind_R4" stind_r4)
+       ("Stind_R8" stind_r8)
+       ("Stind_Ref" stind_ref)
+       ("Stloc" stloc) 
+       ("Stloc_0" stloc_0) 
+       ("Stloc_1" stloc_1) 
+       ("Stloc_2" stloc_2) 
+       ("Stloc_3" stloc_3) 
+       ("Stloc_S" stloc_S) 
+       ("Stobj" stobj)
+       ("Stsfld" stsfld)
+       ("Sub" sub)
+       ("Sub_Ovf" sub_ovf)
+       ("Sub_Ovf_Un" sub_ovf_un)
+       ("Switch" switch)
+       ("Tailcall" tailcall tail.)
+       ("Throw" throw)
+       ("Unaligned" unaligned)
+       ("Unbox" unbox)
+       ("Unbox_Any" unbox_any)
+       ("Volatile" volatile)
+       ("Xor" xor)
+       ))
     
     (values option->type-attribute
 	    option->method-attribute
@@ -271,7 +696,7 @@
       (cond ((assoc (il-label:key label) (current-label-intern-table)) 
 	     => cadr)
 	    (else 
-	     (let ((val (.DefineLabel (current-il-generator))))
+	     (let ((val (ilc/%define-label! (current-il-generator))))
 	       (current-label-intern-table
 		(cons (list (il-label:key label) val)
 		      (current-label-intern-table)))
@@ -282,7 +707,8 @@
     (define (codump-directive directive . args)
       (case directive 
 	((entrypoint) 
-	 (.SetEntryPoint (current-assembly-name) (current-method-builder)))
+	 (ilc/%set-entry-point! (current-assembly-name) 
+                                (current-method-builder)))
 	((maxstack)
 	 (cond 
 	  (#f
@@ -296,16 +722,16 @@
 	((local) 
 	 (for-each 
 	  (lambda (type)
-	    (.DeclareLocal (current-il-generator) (co-find-class type)))
+	    (ilc/%declare-local! (current-il-generator) (co-find-class type)))
 	  (car args)))
 	((assembly) 
 	 (let ((argument-name (car args))
 	       (my-asm-name (current-assembly-name)))
-	   (set-.name$! my-asm-name argument-name)
+           (ilc/%set-assembly-name-name!  my-asm-name argument-name)
 	   (for-each codump-il (cadr args))))))
 
     ;; codump-il : il -> void
-    (define (codump-il instr)
+    (define-traced (codump-il instr)
       (let* ((bytecode (il:code instr))
 	     (args     (il:args instr))
 	     (IL       (current-il-generator))
@@ -314,7 +740,8 @@
 	     (opc      (lambda () (il:code->opcode bytecode)))
 	     (emit     (lambda (il opc . args)
 			 ;; (display `(emit ,(il:code instr) ,@args)) (newline)
-			 (apply .Emit il opc args)))
+			 ;; (apply .Emit il opc args))) 
+                         (error 'emit "Can't use javadot emit anymore")))
 	     )
 	
 	(if (string? instr)
@@ -346,30 +773,30 @@
 	    sub
 	    tail.
 	    ) 
-	   (apply emit IL (opc) args))
+	   (apply ilc/%emit IL (opc) args))
 	  
 	  ;; ILGenerator.Emit(OpCode, Label) form
 	  ((beq beq.s bge bge.s bge.un bge.un.s
 	    bgt bgt.s bgt.un bgt.un.s ble ble.s ble.un ble.un.s
 	    blt blt.s blt.un blt.un.s bne.un bne.un.s 
 	    br brfalse brfalse.s brtrue brtrue.s br.s) 
-	   (emit IL (opc) (get-label-object (car args))))
+	   (ilc/%emit/label IL (opc) (get-label-object (car args))))
 	  
 	  ;; ILGenerator.Emit(OpCode, short) form
 	  ((ldarg)
-	   (apply emit IL (opc) args))
+	   (apply ilc/%emit/short IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, int) form
 	  ((ldc.i4)
-	   (apply emit IL (opc) args))
+	   (apply ilc/%emit/int IL (opc) (map clr/int->foreign args)))
 
 	  ;; ILGenerator.Emit(OpCode, long) form
 	  ((ldc.i8)
-	   (apply emit IL (opc) args))
+	   (apply ilc/%emit/long IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, double) form
 	  ((ldc.r8)
-	   (apply emit IL (opc) args))
+	   (apply ilc/%emit/double IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, FieldInfo) form
 	  ((ldfld ldsfld stfld stsfld)
@@ -377,31 +804,31 @@
 		  (type (il-field:type fld))
 		  (class (il-field:class fld))
 		  (name (il-field:name fld)))
-	     (emit IL (opc) (co-find-field (co-find-class class) name))))
+	     (ilc/%emit/field-info IL (opc) (co-find-field (co-find-class class) name))))
 
 	  ;; ILGenerator.Emit(OpCode, LocalBuilder) and
 	  ;; ILGenerator.Emit(OpCode, short) forms
 	  ((ldloc stloc)
-	   (apply emit IL (opc) args))
+	   (apply ilc/%emit/short IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, string) form
 	  ((ldstr)
-	   (apply emit IL (opc) args))
+	   (apply ilc/%emit/string IL (opc) args))
 	  
 	  ;; ILGenerator.Emit(OpCode, Type) form
 	  ((box castclass cpobj initobj isinst newarr)
-	   (apply emit IL (opc) (map co-find-class args)))
+	   (apply ilc/%emit/type IL (opc) (map co-find-class args)))
 
 	  ;; ILGenerator.Emit(OpCode, Label[]) form
 	  ((  switch)
 	   (let* ((labels (car args))
 		  (label-infos (list->vector 
 				(map get-label-object labels))))
-	     (emit IL (opc) label-infos)))
+	     (ilc/%emit/label-array IL (opc) label-infos)))
 
 	  ;; ILGenerator.Emit(OpCode, ConstructorInfo) form
 	  (();; (newobj)
-	   (apply emit IL (opc) args))
+	   (apply ilc/%emit/constructor-info IL (opc) args))
 
 	  ;; ILGenerator.Emit(OpCode, MethodInfo) form
 	  ((jmp)
@@ -427,11 +854,17 @@
 			  (twobit-format 
 			   #f "couldn't find method for ~a.~a ~a"
 			   class-info name args-info)))
-	       (emit IL (opc) method-info))))
+               (let ((emit (case (il:code instr)
+                             ((newobj) ilc/%emit/constructor-info)
+                             ((call callvirt) ilc/%emit/method-info)
+                             ;; FSK: um, did I forget the Type[] case?
+                             ;; Or does it simply not arise?
+                             )))
+                 (emit IL (opc) method-info)))))
 	  
 	  ((label)      
 	   (let ((label-obj (get-label-object (car args))))
-	     (.MarkLabel IL label-obj)))
+	     (ilc/%mark-label IL label-obj)))
 	  
 	  ((comment)    (if #f 'ignore-comments))
 	  ((directive)  (apply codump-directive args))
@@ -449,10 +882,10 @@
 	    (options (field-options field)))
 	(let ((cls (co-find-class type)))
 	  (let ((field-info 
-		 (.DefineField (current-type-builder) 
-			       name
-			       cls
-			       (options->field-attributes options))))
+		 (ilc/%define-field (current-type-builder) 
+                                    (clr/%string->foreign name)
+                                    cls
+                                    (clr/int->foreign (options->field-attributes options)))))
 	    (current-registered-field-table
 	     (cons (list (list (current-type-builder) name) field-info)
 		   (current-registered-field-table)))))))
@@ -466,11 +899,11 @@
 	    (options (clr-class-options class))
 	    (members (clr-class-members class)))
 	;; (display `(co-register-class ,(list namespace name))) (newline)
-	(let ((type-builder (.DefineType (current-module-builder)
-					 (namespace+name->full-name 
-					  namespace name)
-					 (options->type-attributes options)
-					 (co-find-class super))))
+	(let ((type-builder (ilc/%define-type! 
+                             (current-module-builder)
+                             (clr/%string->foreign (namespace+name->full-name namespace name))
+                             (clr/int->foreign (options->type-attributes options))
+                             (co-find-class super))))
 	  (current-registered-class-table
 	   (cons (list (list namespace name) type-builder)
 		 (current-registered-class-table)))
@@ -479,35 +912,59 @@
 		 (current-registered-superclass-table)))
 	)))
 
+    ;; [Listof %Type] -> [%Arrayof %Type]
+    (define (types->foreign-array types)
+      (let* ((len (length types))
+             (arr (allocate-clr-array clr-type-handle/system-type len)))
+        (let loop ((i 0)
+                   (l types))
+          (cond ((< i len)
+                 (clr/%foreign-aset arr i (car l))
+                 (loop (+ i 1) (cdr l)))))
+        arr))
+
     ;; co-register-method : IL-method -> void
     (define (co-register-method method)
+      (begin (display `(co-register-method ,method)) (newline))
       (let ((name     (clr-method-name method))
 	    (ret-type (clr-method-type method))
 	    (argtypes (clr-method-argtypes method))
 	    (options  (clr-method-options method))
 	    (instrs   (clr-method-instrs method)))
 	(let* ((type-info (current-type-builder))
-	       (arg-infos (list->vector (map co-find-class argtypes)))
+	       (arg-infos (map co-find-class argtypes))
+               (arg-infos/fgn (types->foreign-array arg-infos))
 	       (method-info 
 		(cond 
 		 ((equal? name ".ctor") 
-		  (.DefineConstructor 
+		  (begin (display `(ilc/%define-constructor
+                                    (current-type-builder)
+                                    ,(options->method-attributes options)
+                                    (ilc/%standard-calling-conventions)
+                                    ,arg-infos/fgn))
+                         (newline))
+                  (ilc/%define-constructor
 		   (current-type-builder)
-		   (options->method-attributes options)
-		   (System.Reflection.CallingConventions.Standard$)
-		   arg-infos))
+		   (clr/int->foreign (options->method-attributes options))
+                   (ilc/%standard-calling-conventions)
+		   arg-infos/fgn))
 
 		 ((equal? name ".cctor") 
-		  (.DefineTypeInitializer 
+		  (begin (display '(ilc/%define-type-initializer ...))
+                         (newline))
+		  (ilc/%define-type-initializer
 		   (current-type-builder)))
 
 		 (else 
-		  (.DefineMethod 
+		  (begin (display '(ilc/%define-method ...))
+                         (newline))
+		  (ilc/%define-method
 		   (current-type-builder)
-		   name
-		   (options->method-attributes options)
+		   (clr/string->foreign name)
+		   (clr/int->foreign (options->method-attributes options))
 		   (co-find-class ret-type)
-		   arg-infos)))))
+		   arg-infos/fgn)))))
+          (begin (display 'register-method!) (newline))
 	  (current-registered-method-table
 	   (cons (list (list type-info name arg-infos) method-info)
 		 (current-registered-method-table))))))
@@ -537,7 +994,10 @@
 	      (else #f))))
 
     ;; registered-method : Type String [Vectorof Type] -> [Maybe MethodBuilder]
-    (define (registered-method type name args)
+    (define-traced (registered-method type name args)
+      '(begin (write `(current-registered-method-table 
+                      ,(current-registered-method-table)))
+             (newline))
       (let ((key (list type name args)))
 	(cond ((assoc key (current-registered-method-table))
 	       => cadr)
@@ -554,12 +1014,16 @@
       (parameterize ((current-il-namespace (clr-class-il-namespace class)))
 	(codump-naked-class class)))
 
+    (define (foldior l) 
+      (if (null? l) 0 (fxlogior (car l) (foldior (cdr l)))))
+    (define (foldenums l)
+      (foldior (map (lambda (x) (clr/%foreign->int x)) l)))
     (define (options->type-attributes option-lst)
-      (apply append (map option->type-attribute option-lst)))
+      (foldenums (apply append (map option->type-attribute option-lst))))
     (define (options->method-attributes option-lst)
-      (apply append (map option->method-attribute option-lst)))
+      (foldenums (apply append (map option->method-attribute option-lst))))
     (define (options->field-attributes option-lst)
-      (apply append (map option->field-attribute option-lst)))
+      (foldenums (apply append (map option->field-attribute option-lst))))
 
     ;; A CanonNS is a [Listof String]
 
@@ -589,47 +1053,50 @@
 	     ;; try using its super type to get the field...
 	     => (lambda (entry)
 		  (co-find-field (cadr entry) name)))
-	    (else (.GetField type name))))
+	    (else (clr/%get-field type name))))
 
     ;; co-find-method : type string [Vectorof type] -> MethodBase
     ;; Note that type is the type of the method receiver, not the return type.
     (define (co-find-method type name args)
+      (begin (display `(co-find-method ,type ,name ,args)) (newline))
       (cond ((assoc (list type name args) (current-registered-method-table))
 	     => cadr)
             ((equal? name ".ctor")
-	     (.GetConstructor type args))
-	    (else (.GetMethod type name args))))
+	     (clr/%get-constructor type (types->foreign-array (vector->list args))))
+	    (else (clr/%get-method type name (types->foreign-array (vector->list args))))))
 
-    (define (co-find-class x)
+    (define-traced (co-find-class x)
       (cond ((symbol? x)
 	     ;; at some point, this may prepend the current
 	     ;; namespace to its argument
-	     (clr/find-class x))
+	     (clr/%get-type x))
 	    ((il-arraytype? x)
 	     (let ((base-type (co-find-class (il-arraytype:basetype x))))
 	       ;; YUCK!  Is there a clean way to directly construct
 	       ;; the reflected array type given reflected base type?
 	       ;; Note that this didn't work (not that its cleaner)
 	       ;; (.GetType (System.Array.CreateInstance base-type 1))
-	       (let* ((name (.FullName$ base-type))
+	       (let* ((name (clr-type/%full-name base-type))
 		      (array-name (string-append name "[]")))
-		 (System.Type.GetType array-name))
+		 (clr/%get-type array-name))
 	       ))
 	    ((il-classtype? x)
 	     (co-find-class (il-classtype:class x)))
 	    ((il-primtype? x)
 	     (co-find-class (il-primtype:class x)))
 	    ((il-class? x)
-	     (let ((assembly   (il-class:assembly x))
-		   (namespaces (canonicalize-namespacez
-				(il-class:namespaces x)))
-		   (name (il-class:name x)))
+	     (let* ((assembly   (il-class:assembly x))
+                    (namespaces (canonicalize-namespacez
+                                 (il-class:namespaces x)))
+                    (name (il-class:name x)))
 	       (cond 
-		((registered-class x))
+		((registered-class x)
+                 => (lambda (x)
+                      x))
 		(else 
-		 (clr/find-class (string->symbol
-				  (namespace+name->full-name
-				   (or namespaces '()) name)))))))
+                 (let ((fullname (namespace+name->full-name
+                                  (or namespaces '()) name)))
+                   (clr/%get-type fullname))))))
 	    (else (error 'co-find-class 
 			 (twobit-format
 			  #f "Unknown class desc format: ~a" x)))))
@@ -641,7 +1108,7 @@
       (let ((members (clr-class-members class)))
 	(parameterize ((current-type-builder (registered-class class)))
 	  (for-each codump-member (reverse members))
-	  (.CreateType (current-type-builder)))))
+	  (ilc/%create-type (current-type-builder)))))
     
     ;; codump-member : field | method -> void 
     (define (codump-member member)
@@ -660,11 +1127,13 @@
 	    (options (clr-method-options method))
 	    (instrs (clr-method-instrs method)))
 	(let* ((type-info (current-type-builder))
-	       (arg-infos (list->vector (map co-find-class argtypes)))
+	       (arg-infos (map co-find-class argtypes))
 	       (method-info (registered-method type-info name arg-infos)))
 	  (parameterize ((current-method-builder method-info))
+            (if (not method-info)
+                (error 'codump-method "Unable to find method builder"))
 	    (parameterize ((current-il-generator 
-			    (.GetILGenerator (current-method-builder)))
+			    (ilc/%get-ilgenerator (current-method-builder)))
 			   (current-label-intern-table '()))
 	      (for-each codump-il instrs))))))
     
@@ -691,6 +1160,7 @@
        (for-each 
 	(letrec ((handle-member 
 		  (lambda (tli)
+                    (begin (display tli) (newline))
 		    (cond ((field? tli)
 			   (co-register-field tli))
 			  ((clr-method? tli)
@@ -718,27 +1188,33 @@
 ;; Analogous to link-lop-segment, except that the lop-segment uses our
 ;; internal IL rep (rather than machine code) for codevectors).
 (define (link-lop-segment/clr lop-segment name environment)
-  (let ((with-potential-setup 
-	 ;; with-simple-fresh-dynamic-assembly-setup
-	 (lambda (name thunk) 
-	   (thunk))))
+  (let-syntax ((with-potential-setup
+                (syntax-rules ()
+                  ;((_ name thunk) (with-simple-fresh-dynamic-assembly-setup name thunk))
+                  ((_ name thunk) (thunk))
+                  ))
+               (d 
+                (syntax-rules ()
+                  ((d EXP)
+                   (begin (display 'EXP) (newline) EXP)))))
     (with-potential-setup
      name
      (lambda ()
-       (init-variables)
+       (d (init-variables))
        (let* ((entrypoint (dump-segment lop-segment))
 	      (pseudo-manifest (extract-manifest lop-segment name)))
 	 (set! *segment-number* (+ *segment-number* 1))
 	 (set! *loadables* (cons (list *seed* entrypoint) *loadables*))
 
-	 (co-create-type-builders!)
-	 (co-create-member-infos!)
-	 (co-emit-object-code!)
+	 (d (co-create-type-builders!))
+	 (d (co-create-member-infos!))
+	 (d (co-emit-object-code!))
 
 	 (current-saved-manifests (cons pseudo-manifest
 					(current-saved-manifests)))
 	 
-	 (patch-procedure/pseudo-manifest pseudo-manifest environment))))))
+	 (d (patch-procedure/pseudo-manifest pseudo-manifest environment))
+         )))))
 
 ;; eval/clr : sexp [environment] -> any
 (define (eval/clr x . rest)
@@ -809,7 +1285,7 @@
 	   ;; similar to operation of .common-patch-procedure, except
 	   ;; we don't use segment-code-address because that needs to
 	   ;; look for stuff in files.
-	   (find-code-in-assembly Scheme.RT.Load.findCodeInAssembly)
+	   (find-code-in-assembly ilc/%find-code-in-assembly)
 	   (asm-bld (current-assembly-builder))
 	   (code-vec (find-code-in-assembly asm-bld il-ns segnum))
 	   (ignore (begin (display code-vec) (newline)))
@@ -836,7 +1312,7 @@
 	   (for-each (lambda (pm)
 		       (dump-fasl/pmanifest base-name pm))
 		     (reverse (current-saved-manifests)))))
-       (.Save (current-assembly-builder) dll-filename)
+       (ilc/%save (current-assembly-builder) dll-filename)
        val))))
 
 (define (with-saving-assembly-to-dll base-name thunk)
