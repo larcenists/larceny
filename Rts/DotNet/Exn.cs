@@ -65,7 +65,7 @@ public class Exn {
    */
   public static CodeAddress fault (int excode, string message)
   {
-    Procedure p = Reg.Register0;
+    Procedure p = Reg.ProcRegister0;
     msg.WriteLine ("** exn {0}: {1}", excode, message);
     if (excode == -1) {
 	throw new Exception ("exn at " + p);
@@ -91,14 +91,14 @@ public class Exn {
 	}
     else {
 	Reg.timer = Reg.SMALL_TIME_SLICE;
-	Procedure p = Reg.Register0;
+	Procedure p = Reg.ProcRegister0;
 	throw new CodeVectorCallException (p.entrypoint, j);
 	}
   }
 
   public static CodeAddress faultGlobal (int global)
   {
-    Reg.Result = Reg.Register0.constants[global];
+    Reg.Result = Reg.ProcRegister0.constants[global];
     return fault (Constants.EX_UNDEF_GLOBAL);
   }
 
@@ -179,7 +179,7 @@ public class Exn {
   public static void dumpEnvironment()
   {
     msg.WriteLine ("Static link/Environment:");
-    Procedure p = Reg.Register0;
+    Procedure p = Reg.ProcRegister0;
     if (p.rib != null) {
 	for (int i = 0; i < p.rib.Length; ++i) {
 	    msg.WriteLine ("  lexical (0,{0}) = {1}", i, p.rib[i]);

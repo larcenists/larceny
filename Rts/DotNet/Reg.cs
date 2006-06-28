@@ -13,7 +13,7 @@ public sealed class Reg {
   public const int LASTREG = NREGS - 1;
 
   // General-Purpose Registers
-  public static Procedure r0;
+  public static SObject r0;
   public static SObject r1;
   public static SObject r2;
   public static SObject r3;
@@ -46,7 +46,10 @@ public sealed class Reg {
   public static SObject r30;
   public static SObject r31;
 
-  public static Procedure Register0 { get { return r0; } set { r0 = value; } }
+  // FIXME: Make a separate shadow field of the appropriate type
+  // and get rid of the cast in the accessor for ProcRegister0.
+  public static Procedure ProcRegister0 { get { return (Procedure) r0; } set { r0 = value; } }
+  public static SObject Register0 { get { return r0; } set { r0 = value; } }
   public static SObject Register1 { get { return r1; } set { r1 = value; } }
   public static SObject Register2 { get { return r2; } set { r2 = value; } }
   public static SObject Register3 { get { return r3; } set { r3 = value; } }
@@ -194,7 +197,7 @@ public sealed class Reg {
   public static void setRegister (int index, SObject value)
   {
     switch (index) {
-    case 0: r0 = (Procedure) value; break;
+    case 0: r0 = value; break;
     case 1: r1 = value; break;
     case 2: r2 = value; break;
     case 3: r3 = value; break;

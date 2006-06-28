@@ -530,7 +530,9 @@
              (il:call '()
                       (if (zero? register) iltype-procedure iltype-schemeobject)
                       il-reg
-                      (string-append "get_Register" (number->string register))
+                      (if (zero? register) 
+                          "get_ProcRegister0"
+                          (string-append "get_Register" (number->string register)))
                       '())
 
              (il:ldsfld (if (zero? register) iltype-procedure iltype-schemeobject)
@@ -560,7 +562,7 @@
                    (il:call '()
                             iltype-void
                             il-reg
-                            (string-append "set_Register" (number->string register))
+                            (if (zero? register) "set_ProcRegister0" (string-append "set_Register" (number->string register)))
                             (list (if (zero? register) iltype-procedure iltype-schemeobject))))
              (list ilpackage
                    (il:stsfld

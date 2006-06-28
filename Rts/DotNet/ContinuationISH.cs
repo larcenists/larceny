@@ -120,7 +120,7 @@ public sealed class Cont {
 	}
     cont = cont.after;
     cont.prepare (lastslot);
-    cont.Slot0 = Reg.Register0;
+    cont.Slot0 = Reg.ProcRegister0;
   }
 
   public static void save0 ()
@@ -131,7 +131,7 @@ public sealed class Cont {
 	}
     cont = cont.after;
     cont.prepare0 ();
-    cont.Slot0 = Reg.Register0;
+    cont.Slot0 = Reg.ProcRegister0;
   }
 
   // save that assumes that lastslot is < num slots.
@@ -143,7 +143,7 @@ public sealed class Cont {
 	}
     cont = cont.after;
     cont.prepare_small (lastslot);
-    cont.Slot0 = Reg.Register0;
+    cont.Slot0 = Reg.ProcRegister0;
   }
 
   /* pop
@@ -526,7 +526,7 @@ public class ContinuationFrame
 			   + ", got "
 			   + this.lastslot.ToString());
 
-    if (this.s0.entrypoint != Reg.Register0.entrypoint)
+    if (this.s0.entrypoint != Reg.ProcRegister0.entrypoint)
 	Exn.internalError ("pop: can't pop someone else's frame!");
 
     Cont.pop();

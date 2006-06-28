@@ -22,7 +22,7 @@ public sealed class Instructions
    */
   public static void global (int index, string name)
   {
-    Procedure thisProc = Reg.Register0;
+    Procedure thisProc = Reg.ProcRegister0;
     // This way of doing it does dynamic casting, which is very slow.
     //
     //        SPair cell = (SPair)thisProc.constants[index];
@@ -54,25 +54,25 @@ public sealed class Instructions
    */
   public static void setglbl (int index)
   {
-    Reg.Register0.constants[index].op_cell_set (Reg.Result);
+    Reg.ProcRegister0.constants[index].op_cell_set (Reg.Result);
   }
 
   /** constant
    */
   public static void constant (int constIndex)
   {
-    Reg.Result = Reg.Register0.constants[constIndex];
+    Reg.Result = Reg.ProcRegister0.constants[constIndex];
   }
 
   // These aren't worth it for speed, but they do make the code smaller.
-  public static void constant1 () { Reg.Result = Reg.Register0.constants [1]; }
-  public static void constant2 () { Reg.Result = Reg.Register0.constants [2]; }
-  public static void constant3 () { Reg.Result = Reg.Register0.constants [3]; }
-  public static void constant4 () { Reg.Result = Reg.Register0.constants [4]; }
-  public static void constant5 () { Reg.Result = Reg.Register0.constants [5]; }
-  public static void constant6 () { Reg.Result = Reg.Register0.constants [6]; }
-  public static void constant7 () { Reg.Result = Reg.Register0.constants [7]; }
-  public static void constant8 () { Reg.Result = Reg.Register0.constants [8]; }
+  public static void constant1 () { Reg.Result = Reg.ProcRegister0.constants [1]; }
+  public static void constant2 () { Reg.Result = Reg.ProcRegister0.constants [2]; }
+  public static void constant3 () { Reg.Result = Reg.ProcRegister0.constants [3]; }
+  public static void constant4 () { Reg.Result = Reg.ProcRegister0.constants [4]; }
+  public static void constant5 () { Reg.Result = Reg.ProcRegister0.constants [5]; }
+  public static void constant6 () { Reg.Result = Reg.ProcRegister0.constants [6]; }
+  public static void constant7 () { Reg.Result = Reg.ProcRegister0.constants [7]; }
+  public static void constant8 () { Reg.Result = Reg.ProcRegister0.constants [8]; }
 
   /** imm_constant
    * Loads Reg.Result with immediate constant
@@ -140,7 +140,7 @@ public sealed class Instructions
     Reg.setRegister (k, Reg.Result);
   }
 
-  public static void setreg0 ()  { Reg.Register0 = (Procedure) Reg.Result; }
+  public static void setreg0 ()  { Reg.Register0 = Reg.Result; }
   public static void setreg1 ()  { Reg.Register1 = Reg.Result; }
   public static void setreg2 ()  { Reg.Register2 = Reg.Result; }
   public static void setreg3 ()  { Reg.Register3 = Reg.Result; }
@@ -1207,7 +1207,7 @@ public sealed class Instructions
    */
   public static void lambda (CodeVector codevector, int constIndex, int numRegs)
   {
-    Procedure thisProc = Reg.Register0;
+    Procedure thisProc = Reg.ProcRegister0;
 
     if (numRegs < Reg.LASTREG) {
         Reg.Result = new Procedure (codevector,
@@ -1238,7 +1238,7 @@ public sealed class Instructions
    */
   public static void lexes(int numRegs)
   {
-    Procedure thisProc = Reg.Register0;
+    Procedure thisProc = Reg.ProcRegister0;
 
     if (numRegs < Reg.LASTREG) {
         Reg.Result = new Procedure (thisProc.entrypoint,
@@ -1270,7 +1270,7 @@ public sealed class Instructions
    */
   public static void lexical (int rib, int slot)
   {
-    Reg.Result = Reg.Register0.lookup (rib, slot);
+    Reg.Result = Reg.ProcRegister0.lookup (rib, slot);
   }
 
   /** setlex
@@ -1280,7 +1280,7 @@ public sealed class Instructions
    */
   public static void setlex (int rib, int slot)
   {
-    Reg.Register0.update (rib, slot, Reg.Result);
+    Reg.ProcRegister0.update (rib, slot, Reg.Result);
   }
 
   /** argseq
@@ -1364,7 +1364,7 @@ public sealed class Instructions
 
   public static void pop (int slots)
   {
-    Cont.cont.checkPop (slots, Reg.Register0);
+    Cont.cont.checkPop (slots, Reg.ProcRegister0);
     Cont.pop();
   }
 
@@ -1447,7 +1447,7 @@ public sealed class Instructions
   public static void load_30_0 () { Reg.Register30 = Cont.cont.Slot0; }
   public static void load_31_0 () { Reg.Register31 = Cont.cont.Slot0; }
 
-  public static void load_0_1 () { Reg.Register0 = (Procedure) Cont.cont.Slot1; }
+  public static void load_0_1 () { Reg.Register0 = Cont.cont.Slot1; }
   public static void load_1_1 () { Reg.Register1 = Cont.cont.Slot1; }
   public static void load_2_1 () { Reg.Register2 = Cont.cont.Slot1; }
   public static void load_3_1 () { Reg.Register3 = Cont.cont.Slot1; }
@@ -1479,7 +1479,7 @@ public sealed class Instructions
   public static void load_29_1 () { Reg.Register29 = Cont.cont.Slot1; }
   public static void load_30_1 () { Reg.Register30 = Cont.cont.Slot1; }
   public static void load_31_1 () { Reg.Register31 = Cont.cont.Slot1; }
-  public static void load_0_2 () { Reg.Register0 = (Procedure) Cont.cont.Slot2; }
+  public static void load_0_2 () { Reg.Register0 = Cont.cont.Slot2; }
   public static void load_1_2 () { Reg.Register1 = Cont.cont.Slot2; }
   public static void load_2_2 () { Reg.Register2 = Cont.cont.Slot2; }
   public static void load_3_2 () { Reg.Register3 = Cont.cont.Slot2; }
@@ -1511,7 +1511,7 @@ public sealed class Instructions
   public static void load_29_2 () { Reg.Register29 = Cont.cont.Slot2; }
   public static void load_30_2 () { Reg.Register30 = Cont.cont.Slot2; }
   public static void load_31_2 () { Reg.Register31 = Cont.cont.Slot2; }
-  public static void load_0_3 () { Reg.Register0 = (Procedure) Cont.cont.Slot3; }
+  public static void load_0_3 () { Reg.Register0 = Cont.cont.Slot3; }
   public static void load_1_3 () { Reg.Register1 = Cont.cont.Slot3; }
   public static void load_2_3 () { Reg.Register2 = Cont.cont.Slot3; }
   public static void load_3_3 () { Reg.Register3 = Cont.cont.Slot3; }
@@ -1543,7 +1543,7 @@ public sealed class Instructions
   public static void load_29_3 () { Reg.Register29 = Cont.cont.Slot3; }
   public static void load_30_3 () { Reg.Register30 = Cont.cont.Slot3; }
   public static void load_31_3 () { Reg.Register31 = Cont.cont.Slot3; }
-  public static void load_0_4 () { Reg.Register0 = (Procedure) Cont.cont.Slot4; }
+  public static void load_0_4 () { Reg.Register0 = Cont.cont.Slot4; }
   public static void load_1_4 () { Reg.Register1 = Cont.cont.Slot4; }
   public static void load_2_4 () { Reg.Register2 = Cont.cont.Slot4; }
   public static void load_3_4 () { Reg.Register3 = Cont.cont.Slot4; }
@@ -1575,7 +1575,7 @@ public sealed class Instructions
   public static void load_29_4 () { Reg.Register29 = Cont.cont.Slot4; }
   public static void load_30_4 () { Reg.Register30 = Cont.cont.Slot4; }
   public static void load_31_4 () { Reg.Register31 = Cont.cont.Slot4; }
-  public static void load_0_5 () { Reg.Register0 = (Procedure) Cont.cont.Slot5; }
+  public static void load_0_5 () { Reg.Register0 = Cont.cont.Slot5; }
   public static void load_1_5 () { Reg.Register1 = Cont.cont.Slot5; }
   public static void load_2_5 () { Reg.Register2 = Cont.cont.Slot5; }
   public static void load_3_5 () { Reg.Register3 = Cont.cont.Slot5; }
@@ -1607,7 +1607,7 @@ public sealed class Instructions
   public static void load_29_5 () { Reg.Register29 = Cont.cont.Slot5; }
   public static void load_30_5 () { Reg.Register30 = Cont.cont.Slot5; }
   public static void load_31_5 () { Reg.Register31 = Cont.cont.Slot5; }
-  public static void load_0_6 () { Reg.Register0 = (Procedure) Cont.cont.Slot6; }
+  public static void load_0_6 () { Reg.Register0 = Cont.cont.Slot6; }
   public static void load_1_6 () { Reg.Register1 = Cont.cont.Slot6; }
   public static void load_2_6 () { Reg.Register2 = Cont.cont.Slot6; }
   public static void load_3_6 () { Reg.Register3 = Cont.cont.Slot6; }
@@ -1639,7 +1639,7 @@ public sealed class Instructions
   public static void load_29_6 () { Reg.Register29 = Cont.cont.Slot6; }
   public static void load_30_6 () { Reg.Register30 = Cont.cont.Slot6; }
   public static void load_31_6 () { Reg.Register31 = Cont.cont.Slot6; }
-  public static void load_0_7 () { Reg.Register0 = (Procedure) Cont.cont.Slot7; }
+  public static void load_0_7 () { Reg.Register0 = Cont.cont.Slot7; }
   public static void load_1_7 () { Reg.Register1 = Cont.cont.Slot7; }
   public static void load_2_7 () { Reg.Register2 = Cont.cont.Slot7; }
   public static void load_3_7 () { Reg.Register3 = Cont.cont.Slot7; }
@@ -1677,7 +1677,7 @@ public sealed class Instructions
     Cont.cont.setSlot (slot, Reg.getRegister (k));
   }
 
-  public static void store_0_0 () { Cont.cont.Slot0 = Reg.Register0; }
+  public static void store_0_0 () { Cont.cont.Slot0 = (Procedure) Reg.Register0; }
 
   public static void store_0_1 () { Cont.cont.Slot1 = Reg.Register0; }
   public static void store_1_1 () { Cont.cont.Slot1 = Reg.Register1; }

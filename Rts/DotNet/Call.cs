@@ -418,7 +418,7 @@ namespace Scheme.RT {
           if (frame.getSlot (Reg.LASTREG + 3) == Factory.True) {
               Reg.Result = frame.getSlot (Reg.LASTREG + 2);
               }
-          Procedure p0 = Reg.Register0;
+          Procedure p0 = Reg.ProcRegister0;
           Cont.cont.checkPop (Reg.NREGS + 2, singletonProcedure);
           Cont.pop();
           return Call.call (p0.entrypoint, jumpIndex);
