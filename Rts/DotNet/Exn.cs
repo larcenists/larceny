@@ -127,13 +127,53 @@ public class Exn {
     return fault (Constants.EX_APPLY);
   }
 
+  private static System.ConsoleCancelEventHandler installed_handler = 
+    new System.ConsoleCancelEventHandler(myHandler);
+
+  static Exn() {
+    System.Console.CancelKeyPress += installed_handler;
+    try {
+      // System.Console.TreatControlCAsInput = true;
+    } catch (IOException) {
+      /* when you run under Emacs shell, you can't set the above
+       * without throwing an IO exception.  This is not a fatal
+       * situation for us, so ignore the exception. */
+      Console.WriteLine("NOTE: Could not TreatControlCAsInput");
+    }
+  }
+
   /** checkSignals
    * Check for keyboard interrupt or other signal
    */
   public static void checkSignals()
   {
-    // FIXME
-    // How do we check for signals?
+    // Console.WriteLine("Checking Signals, woo!");
+    bool mark_seen_it = saw_keyboard_interrupt;
+    saw_keyboard_interrupt = false;
+    if (mark_seen_it)
+      Call.callInterruptHandler (Constants.EX_KBDINTR);
+  }
+  private static bool saw_keyboard_interrupt = false;
+  private static void myHandler(object sender, 
+				System.ConsoleCancelEventArgs args) {
+// Announce that the event handler has been invoked.
+    Console.WriteLine("\nThe read operation has been interrupted.");
+
+// Announce which key combination was pressed.
+    Console.WriteLine("  Key pressed: {0}", args.SpecialKey);
+
+// Announce the initial value of the Cancel property.
+    Console.WriteLine("  Cancel property: {0}", args.Cancel);
+
+// Set the Cancel property to true to prevent the process from terminating.
+    Console.WriteLine("Setting the Cancel property to true...");
+    args.Cancel = true;
+
+// Announce the new value of the Cancel property.
+    Console.WriteLine("  Cancel property: {0}", args.Cancel);
+    Console.WriteLine("The read operation will resume...\n");
+
+    saw_keyboard_interrupt = true;
   }
 
   public static CodeAddress error (string msg)
