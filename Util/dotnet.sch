@@ -114,11 +114,15 @@
 		  (host-endianness . ,option:endian)
 		  (word-size      . 32)
 		  )))
-	   (lambda (key)
-	     (let ((probe (assq key parameters)))
-	       (if probe 
-		   (cdr probe)
-		   #f)))))))
+	   (lambda (key . rest)
+             (let ((probe (assq key parameters)))
+               (if (null? rest)
+                   (if probe 
+                       (cdr probe)
+                       #f)
+                   (let ((new-val (car rest)))
+                     (set! parameters (cons (cons key new-val) parameters))))
+               ))))))
      
   
   ;; set this so everybody can use it
@@ -218,7 +222,15 @@
   (run-csharp-config))
 
 ;; Load the compiler
-(define (load-compiler)
+(define (load-compiler . how)
+  (if (not (null? how))
+      (case (car how)
+        ((release)
+         (nbuild-parameter 'always-source? #f)
+         (nbuild-parameter 'verbose-load? #f)
+         (nbuild-parameter 'development? #f))
+        ((development)
+         (nbuild-parameter 'development? #t))))
   (load (make-filename *larceny-root* "Util" "nbuild.sch"))
   (for-each set-codegen-option! option:codegen-options))
 
