@@ -181,16 +181,12 @@
     (clr/%property-set! prop-info asm-name (clr/%string->foreign string) '#())))
 
 (define-traced (ilc/%define-type! mod-bldr name type-attributes parent)
-  (begin (display `(ilc/%define-type! ,mod-bldr ,name ,type-attributes ,parent))
-         (newline))
   (let* ((type-recv clr-type-handle/system-reflection-emit-modulebuilder)
          (type-arg1 clr-type-handle/system-string)
          (type-arg2 clr-type-handle/system-reflection-typeattributes)
          (type-arg3 clr-type-handle/system-type)
          (meth (clr/%get-method type-recv "DefineType"
                                 (vector type-arg1 type-arg2 type-arg3))))
-    (begin (display `(clr/%invoke ,meth ,mod-bldr #(,name ,type-attributes ,parent)))
-           (newline))
     (clr/%invoke meth mod-bldr (vector name type-attributes parent))))
 
 (define-traced (ilc/%define-label! ilgen)
@@ -301,10 +297,22 @@
          (meth (clr/%get-method type-recv "CreateType" '#())))
     (clr/%invoke meth type-bldr '#())))
 
-(define-traced (ilc/%get-ilgenerator meth-bldr)
+(define-traced (ilc/%get-ilgenerator/meth meth-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-emit-methodbuilder)
          (meth (clr/%get-method type-recv "GetILGenerator" '#())))
     (clr/%invoke meth meth-bldr '#())))
+
+(define-traced (ilc/%get-ilgenerator/ctor ctor-bldr)
+  (let* ((type-recv clr-type-handle/system-reflection-emit-constructorbuilder)
+         (meth (clr/%get-method type-recv "GetILGenerator" '#())))
+    (clr/%invoke meth ctor-bldr '#())))
+
+(define-traced (ilc/%get-ilgenerator bldr)
+  (cond ((clr/%isa? bldr clr-type-handle/system-reflection-emit-constructorbuilder)
+         (ilc/%get-ilgenerator/ctor bldr))
+        ((clr/%isa? bldr clr-type-handle/system-reflection-emit-methodbuilder)
+         (ilc/%get-ilgenerator/meth bldr))
+        (else (error 'ilc/%get-ilgenerator))))
 
 (define-traced (ilc/%find-code-in-assembly asm-bldr il-ns segnum)
   ;; static method!
@@ -467,7 +475,7 @@
     
     (define (option->method-attribute x)
       (case x 
-	((instance cil managed) '()) ;; special cases, yuck!
+	((instance cil managed) #f) ;; special cases, yuck!
 	(else 
 	 (lookup/adding-prefix 
 	  'option->method-attribute
@@ -640,7 +648,7 @@
        ("Stelem_I8" stelem_i8) 
        ("Stelem_R4" stelem_r4)
        ("Stelem_R8" stelem_r8)
-       ("Stelem_Ref" stelem_ref)
+       ("Stelem_Ref" stelem_ref stelem.ref)
        ("Stfld" stfld)
        ("Stind_I" stind_i)
        ("Stind_I1" stind_i1)
@@ -784,7 +792,7 @@
 	  
 	  ;; ILGenerator.Emit(OpCode, short) form
 	  ((ldarg)
-	   (apply ilc/%emit/short IL (opc) args))
+	   (apply ilc/%emit/short IL (opc) (map clr/int->foreign args)))
 
 	  ;; ILGenerator.Emit(OpCode, int) form
 	  ((ldc.i4)
@@ -813,7 +821,7 @@
 
 	  ;; ILGenerator.Emit(OpCode, string) form
 	  ((ldstr)
-	   (apply ilc/%emit/string IL (opc) args))
+	   (apply ilc/%emit/string IL (opc) (map clr/string->foreign args)))
 	  
 	  ;; ILGenerator.Emit(OpCode, Type) form
 	  ((box castclass cpobj initobj isinst newarr)
@@ -854,9 +862,15 @@
 			  (twobit-format 
 			   #f "couldn't find method for ~a.~a ~a"
 			   class-info name args-info)))
-               (let ((emit (case (il:code instr)
-                             ((newobj) ilc/%emit/constructor-info)
-                             ((call callvirt) ilc/%emit/method-info)
+               (begin (display "GOT HERE 17") (newline))
+               (let ((emit (cond ((clr/%isa? method-info 
+                                             clr-type-handle/system-reflection-methodinfo)
+                                  ilc/%emit/method-info)
+                                 ((clr/%isa? method-info 
+                                             clr-type-handle/system-reflection-constructorinfo)
+                                  ilc/%emit/constructor-info)
+                                 (else
+                                  (error 'codump-il))
                              ;; FSK: um, did I forget the Type[] case?
                              ;; Or does it simply not arise?
                              )))
@@ -887,7 +901,7 @@
                                     cls
                                     (clr/int->foreign (options->field-attributes options)))))
 	    (current-registered-field-table
-	     (cons (list (list (current-type-builder) name) field-info)
+	     (cons (list (make-field-table-key (current-type-builder) name) field-info)
 		   (current-registered-field-table)))))))
 
     ;; co-register-class : class -> void
@@ -905,10 +919,10 @@
                              (clr/int->foreign (options->type-attributes options))
                              (co-find-class super))))
 	  (current-registered-class-table
-	   (cons (list (list namespace name) type-builder)
+	   (cons (list (make-class-table-key namespace name) type-builder)
 		 (current-registered-class-table)))
 	  (current-registered-superclass-table
-	   (cons (list type-builder (co-find-class super))
+	   (cons (list (make-superclass-table-key type-builder) (co-find-class super))
 		 (current-registered-superclass-table)))
 	)))
 
@@ -923,9 +937,24 @@
                  (loop (+ i 1) (cdr l)))))
         arr))
 
+    ;; make-method-table-key : Type String [Vectorof Type] -> SchemeObject
+    (define (make-method-table-key type-info name arg-infos)
+      (list (clr/%to-string type-info)
+            name 
+            (map (lambda (x) (clr/%to-string x)) (vector->list arg-infos))))
+
+    ;; make-field-table-key : Type String -> SchemeObject
+    (define (make-field-table-key type-info name)
+      (list (clr/%to-string type-info) name))
+
+    (define (make-class-table-key namespace name)
+      (list namespace name))
+
+    (define (make-superclass-table-key type)
+      (list (clr/%to-string type)))
+
     ;; co-register-method : IL-method -> void
-    (define (co-register-method method)
-      (begin (display `(co-register-method ,method)) (newline))
+    (define-traced (co-register-method method)
       (let ((name     (clr-method-name method))
 	    (ret-type (clr-method-type method))
 	    (argtypes (clr-method-argtypes method))
@@ -937,12 +966,6 @@
 	       (method-info 
 		(cond 
 		 ((equal? name ".ctor") 
-		  (begin (display `(ilc/%define-constructor
-                                    (current-type-builder)
-                                    ,(options->method-attributes options)
-                                    (ilc/%standard-calling-conventions)
-                                    ,arg-infos/fgn))
-                         (newline))
                   (ilc/%define-constructor
 		   (current-type-builder)
 		   (clr/int->foreign (options->method-attributes options))
@@ -966,7 +989,8 @@
 		   arg-infos/fgn)))))
           (begin (display 'register-method!) (newline))
 	  (current-registered-method-table
-	   (cons (list (list type-info name arg-infos) method-info)
+	   (cons (list (make-method-table-key type-info name (list->vector arg-infos))
+                       method-info)
 		 (current-registered-method-table))))))
 
     ;; A ClassRef is one of:
@@ -989,7 +1013,8 @@
     ;; registered-class : ClassRef -> [Maybe TypeBuilder]
     (define (registered-class class-ref)
       (let ((namespace+name (class-ref->namespace+name class-ref)))
-	(cond ((assoc namespace+name (current-registered-class-table))
+	(cond ((assoc (apply make-class-table-key namespace+name) 
+                      (current-registered-class-table))
 	       => cadr)
 	      (else #f))))
 
@@ -998,14 +1023,14 @@
       '(begin (write `(current-registered-method-table 
                       ,(current-registered-method-table)))
              (newline))
-      (let ((key (list type name args)))
+      (let ((key (make-method-table-key type name args)))
 	(cond ((assoc key (current-registered-method-table))
 	       => cadr)
 	      (else #f))))
 
     ;; co-find-superclass : TypeBuilder -> [Maybe [Oneof Type TypeBuilder]]
     (define (co-find-superclass tb)
-      (cond ((assoc tb (current-registered-superclass-table))
+      (cond ((assoc (make-superclass-table-key tb) (current-registered-superclass-table))
 	     => cadr)
 	    (else #f)))
 
@@ -1018,12 +1043,14 @@
       (if (null? l) 0 (fxlogior (car l) (foldior (cdr l)))))
     (define (foldenums l)
       (foldior (map (lambda (x) (clr/%foreign->int x)) l)))
-    (define (options->type-attributes option-lst)
-      (foldenums (apply append (map option->type-attribute option-lst))))
-    (define (options->method-attributes option-lst)
-      (foldenums (apply append (map option->method-attribute option-lst))))
-    (define (options->field-attributes option-lst)
-      (foldenums (apply append (map option->field-attribute option-lst))))
+    (define-traced (options->type-attributes option-lst)
+      (foldenums (map option->type-attribute option-lst)))
+    (define-traced (options->method-attributes option-lst)
+      (foldenums (let ((poor-mans-filter 
+                        (lambda (l) (apply append (map (lambda (x) (if x (list x) '())) l)))))
+                   (poor-mans-filter (map option->method-attribute option-lst)))))
+    (define-traced (options->field-attributes option-lst)
+      (foldenums (map option->field-attribute option-lst)))
 
     ;; A CanonNS is a [Listof String]
 
@@ -1046,9 +1073,9 @@
       ;;; because fields are INHERITED, and so I need to be
       ;;; able to (e.g.) lookup the name "instance" of the 
       ;;; superclass of type: CodeVector_1_1
-      (cond ((assoc (list type name) (current-registered-field-table))
+      (cond ((assoc (make-field-table-key type name) (current-registered-field-table))
 	     => cadr)
-	    ((assoc type (current-registered-superclass-table))
+	    ((assoc (make-superclass-table-key type) (current-registered-superclass-table))
 	     ;; if type is one of our currently registered classes, 
 	     ;; try using its super type to get the field...
 	     => (lambda (entry)
@@ -1057,13 +1084,16 @@
 
     ;; co-find-method : type string [Vectorof type] -> MethodBase
     ;; Note that type is the type of the method receiver, not the return type.
-    (define (co-find-method type name args)
-      (begin (display `(co-find-method ,type ,name ,args)) (newline))
-      (cond ((assoc (list type name args) (current-registered-method-table))
+    (define-traced (co-find-method type name args)
+      (cond ((assoc (make-method-table-key type name args)
+                    (current-registered-method-table))
 	     => cadr)
             ((equal? name ".ctor")
-	     (clr/%get-constructor type (types->foreign-array (vector->list args))))
-	    (else (clr/%get-method type name (types->foreign-array (vector->list args))))))
+             (begin (display "GOT HERE 19") (newline))
+	     (clr/%get-constructor type args))
+	    (else 
+             (begin (display "GOT HERE 18") (newline))
+             (clr/%get-method type name args))))
 
     (define-traced (co-find-class x)
       (cond ((symbol? x)
@@ -1076,7 +1106,7 @@
 	       ;; the reflected array type given reflected base type?
 	       ;; Note that this didn't work (not that its cleaner)
 	       ;; (.GetType (System.Array.CreateInstance base-type 1))
-	       (let* ((name (clr-type/%full-name base-type))
+	       (let* ((name (clr/%to-string (clr-type/%full-name base-type)))
 		      (array-name (string-append name "[]")))
 		 (clr/%get-type array-name))
 	       ))
@@ -1128,7 +1158,7 @@
 	    (instrs (clr-method-instrs method)))
 	(let* ((type-info (current-type-builder))
 	       (arg-infos (map co-find-class argtypes))
-	       (method-info (registered-method type-info name arg-infos)))
+	       (method-info (registered-method type-info name (list->vector arg-infos))))
 	  (parameterize ((current-method-builder method-info))
             (if (not method-info)
                 (error 'codump-method "Unable to find method builder"))
@@ -1287,12 +1317,12 @@
 	   ;; look for stuff in files.
 	   (find-code-in-assembly ilc/%find-code-in-assembly)
 	   (asm-bld (current-assembly-builder))
-	   (code-vec (find-code-in-assembly asm-bld il-ns segnum))
-	   (ignore (begin (display code-vec) (newline)))
-	   (boxed-code-vec (clr-object/clr-handle code-vec))
-	   (ignore (begin (display boxed-code-vec) (newline)))
-	   (unwrapped-code-vec (clr/foreign->schemeobject boxed-code-vec))
-	   (ignore (begin (display unwrapped-code-vec) (newline)))
+	   (code-vec (find-code-in-assembly asm-bld (clr/string->foreign il-ns) (clr/int->foreign segnum)))
+	   (ignore (begin (display `(code-vec ,code-vec)) (newline)))
+	   ;(boxed-code-vec (clr-object/clr-handle code-vec))
+	   ;(ignore (begin (display `(boxed-code-vec ,boxed-code-vec)) (newline)))
+	   (unwrapped-code-vec (clr/foreign->schemeobject code-vec))
+	   (ignore (begin (display `(unwrapped-code-vec ,unwrapped-code-vec)) (newline)))
 	   (patched-procedure 
 	    (begin (procedure-set! p 0 unwrapped-code-vec) 
 		   p)))
