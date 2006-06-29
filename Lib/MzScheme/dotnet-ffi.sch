@@ -34,13 +34,23 @@
                   objects)
         (flush-output-port))))
 
+;; JRM's code has the common pattern of defining syntax
+;; and then injecting the same syntax into the
+;; usual-syntactic-environment.  This macro abstracts that.
+(define-syntax define-and-install-syntax 
+  (syntax-rules ()
+    ((define-and-install-syntax NAME XFORMER)
+     (begin
+       (define-syntax NAME XFORMER)
+       (twobit-expand '(define-syntax NAME XFORMER)
+                      usual-syntactic-environment)))))
+
 ;;; The syscalls that make this work.
 
 (define-syntax define-syscall
   (syntax-rules ()
     ((define-syscall name code ...)
-     (begin
-     (define-syntax name
+     (define-and-install-syntax name
 ;       ;; Very slow, thoroughly traced version.
 ;       (syntax-rules ()
 ;         ((name)
@@ -88,58 +98,7 @@
        (syntax-rules ()
          ((name . args)
           (syscall code ... . args)))
-       )
-     (twobit-expand
-      '(define-syntax name
-;       ;; Very slow, thoroughly traced version.
-;       (syntax-rules ()
-;         ((name)
-;          (begin
-;            (dotnet-message 5 "Syscall" 'name)
-;            (syscall code ...)))
-
-;         ((name arg1)
-;          (let ((value1 arg1))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1)))
-
-;         ((name arg1 arg2)
-;          (let ((value1 arg1)
-;                (value2 arg2))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1 value2)))
-
-;         ((name arg1 arg2 arg3)
-;          (let ((value1 arg1)
-;                (value2 arg2)
-;                (value3 arg3))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1 value2 value3)))
-
-;         ((name arg1 arg2 arg3 arg4)
-;          (let ((value1 arg1)
-;                (value2 arg2)
-;                (value3 arg3)
-;                (value4 arg4))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1 value2 value3 value4)))
-
-;         ((name arg1 arg2 arg3 arg4 arg5)
-;          (let ((value1 arg1)
-;                (value2 arg2)
-;                (value3 arg3)
-;                (value4 arg4)
-;                (value5 arg5))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1 value2 value3 value4 value5)))
-;         )
-
-       ;; Regular version.
-       (syntax-rules ()
-         ((name . args)
-          (syscall code ... . args)))
-       )
-      usual-syntactic-environment)))))
+       ))))
 
 (define-syscall clr/%clr-version        34  0)
 (define-syscall clr/%ffi-version        34  1)
@@ -254,17 +213,10 @@
 (define clr/null
   (clr/%field-ref (clr/%get-field clr-type-handle/scheme-rt-ffi "NULL") #f))
 
-(define-syntax clr/%null?
+(define-and-install-syntax clr/%null?
   (syntax-rules ()
     ((clr/%null? form)
      (clr/%eq? form clr/null))))
-
-(twobit-expand
- '(define-syntax clr/%null?
-    (syntax-rules ()
-      ((clr/%null? form)
-       (clr/%eq? form clr/null))))
- usual-syntactic-environment)
 
 (define (clr/null? object) (clr/%null? object))
 
@@ -291,15 +243,9 @@
 (define-syntax define-ffi-predicate
   (syntax-rules ()
     ((define-ffi-predicate name type-handle)
-     (begin
-     (define-syntax name
+     (define-and-install-syntax name
        (syntax-rules ()
-           ((name object) (clr/%isa? object type-handle))))
-       (twobit-expand
-         '(define-syntax name
-            (syntax-rules ()
-              ((name object) (clr/%isa? object type-handle))))
-         usual-syntactic-environment)))))
+           ((name object) (clr/%isa? object type-handle)))))))
 
 (define-ffi-predicate %clr-array?      clr-type-handle/system-array)
 (define-ffi-predicate %clr-double?     clr-type-handle/system-double)
