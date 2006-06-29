@@ -135,17 +135,23 @@
                 (newline))
          ret-val)))))
 
-(define (ilc/%make-assembly-name)
+(define-syntax define-ilc
+  (syntax-rules ()
+    ;((define-ilc ARGS ...) (define-traced ARGS ...))
+    ((define-ilc ARGS ...) (define ARGS ...))
+    ))
+
+(define-ilc (ilc/%make-assembly-name)
   (let* ((type-recv clr-type-handle/system-reflection-assemblyname)
          (ctor (clr/%get-constructor type-recv '#())))
     (clr/%invoke-constructor ctor '#())))
 
-(define (ilc/%thread-get-domain)
+(define-ilc (ilc/%thread-get-domain)
   (let* ((type-recv clr-type-handle/system-threading-thread)
          (meth (clr/%get-method type-recv "GetDomain" '#())))
     (clr/%invoke meth #f '#())))
 
-(define (ilc/%define-dynamic-assembly dom asm-name perms)
+(define-ilc (ilc/%define-dynamic-assembly dom asm-name perms)
   (let* ((type-recv clr-type-handle/system-appdomain)
          (type-arg1 clr-type-handle/system-reflection-assemblyname)
          (type-arg2 clr-type-handle/system-reflection-emit-assemblybuilderaccess)
@@ -153,7 +159,7 @@
                                 (vector type-arg1 type-arg2))))
     (clr/%invoke meth dom (vector asm-name perms))))
 
-(define (ilc/%define-dynamic-assembly/storage dom asm-name perms storage-dir)
+(define-ilc (ilc/%define-dynamic-assembly/storage dom asm-name perms storage-dir)
   (let* ((type-recv clr-type-handle/system-appdomain)
          (type-arg1 clr-type-handle/system-reflection-assemblyname)
          (type-arg2 clr-type-handle/system-reflection-emit-assemblybuilderaccess)
@@ -162,7 +168,7 @@
                                 (vector type-arg1 type-arg2 type-arg3))))
     (clr/%invoke meth dom (vector asm-name perms storage-dir))))
 
-(define (ilc/%define-dynamic-module asm-bldr mod-name dll-name)
+(define-ilc (ilc/%define-dynamic-module asm-bldr mod-name dll-name)
   (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilder)
          (type-arg1 clr-type-handle/system-string)
          (type-arg2 clr-type-handle/system-string)
@@ -170,17 +176,17 @@
                                 (vector type-arg1 type-arg2))))
     (clr/%invoke meth asm-bldr (vector mod-name dll-name))))
 
-(define (ilc/%run-and-save-permissions)
+(define-ilc (ilc/%run-and-save-permissions)
   (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilderaccess)
          (info (clr/%get-field type-recv "RunAndSave")))
     (clr/%field-ref info)))
 
-(define (ilc/%set-assembly-name-name! asm-name string)
+(define-ilc (ilc/%set-assembly-name-name! asm-name string)
   (let* ((type-recv clr-type-handle/system-reflection-assemblyname)
          (prop-info (clr/%get-property type-recv "Name" '#())))
     (clr/%property-set! prop-info asm-name (clr/%string->foreign string) '#())))
 
-(define (ilc/%define-type! mod-bldr name type-attributes parent)
+(define-ilc (ilc/%define-type! mod-bldr name type-attributes parent)
   (let* ((type-recv clr-type-handle/system-reflection-emit-modulebuilder)
          (type-arg1 clr-type-handle/system-string)
          (type-arg2 clr-type-handle/system-reflection-typeattributes)
@@ -189,18 +195,18 @@
                                 (vector type-arg1 type-arg2 type-arg3))))
     (clr/%invoke meth mod-bldr (vector name type-attributes parent))))
 
-(define (ilc/%define-label! ilgen)
+(define-ilc (ilc/%define-label! ilgen)
   (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
          (meth (clr/%get-method type-recv "DefineLabel" (vector))))
     (clr/%invoke meth ilgen (vector))))
 
-(define (ilc/%set-entry-point! asm-name meth-bldr)
+(define-ilc (ilc/%set-entry-point! asm-name meth-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-assemblyname)
          (type-arg1 clr-type-handle/system-reflection-emit-methodbuilder)
          (meth (clr/%get-method type-recv "SetEntryPoint" (vector type-arg1))))
     (clr/%invoke meth asm-name (vector meth-bldr))))
 
-(define (ilc/%declare-local! ilgen type)
+(define-ilc (ilc/%declare-local! ilgen type)
   (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
          (type-arg1 clr-type-handle/system-type)
          (meth (clr/%get-method type-recv "DeclareLocal" (vector type-arg1))))
@@ -213,7 +219,7 @@
        (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
               (type-arg1 clr-type-handle/system-reflection-emit-opcode) 
               (meth (clr/%get-method type-recv "Emit" (vector type-arg1 ARG-TYPE ...))))
-         (define (NAME ilgen opc ARG-ID ...)
+         (define-ilc (NAME ilgen opc ARG-ID ...)
            (clr/%invoke meth ilgen (vector opc ARG-ID ...)))
          NAME)))))
 
@@ -246,13 +252,13 @@
   (meth-info clr-type-handle/system-reflection-methodinfo)
   (types     clr-type-handle/system-type-array))
 
-(define (ilc/%mark-label ilgen label)
+(define-ilc (ilc/%mark-label ilgen label)
   (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
          (type-arg1 clr-type-handle/system-reflection-emit-label)
          (meth (clr/%get-method type-recv "MarkLabel" (vector type-arg1))))
     (clr/%invoke meth ilgen (vector label))))
 
-(define (ilc/%define-field type-bldr name cls field-attrs)
+(define-ilc (ilc/%define-field type-bldr name cls field-attrs)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (type-arg1 clr-type-handle/system-string)
          (type-arg2 clr-type-handle/system-type)
@@ -261,7 +267,7 @@
                                 (vector type-arg1 type-arg2 type-arg3))))
     (clr/%invoke meth type-bldr (vector name cls field-attrs))))
 
-(define (ilc/%define-constructor type-bldr meth-attrs calling-conv arg-infos)
+(define-ilc (ilc/%define-constructor type-bldr meth-attrs calling-conv arg-infos)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (type-arg1 clr-type-handle/system-reflection-methodattributes)
          (type-arg2 clr-type-handle/system-reflection-callingconventions)
@@ -270,18 +276,18 @@
                                 (vector type-arg1 type-arg2 type-arg3))))
     (clr/%invoke meth type-bldr (vector meth-attrs calling-conv arg-infos))))
 
-(define (ilc/%standard-calling-conventions)
+(define-ilc (ilc/%standard-calling-conventions)
   (clr/%field-ref (clr/%get-field 
                    clr-type-handle/system-reflection-callingconventions
                    "Standard")
                   #f))
 
-(define (ilc/%define-type-initializer type-bldr)
+(define-ilc (ilc/%define-type-initializer type-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (meth (clr/%get-method type-recv "DefineTypeInitializer" '#())))
     (clr/%invoke meth type-bldr '#())))
 
-(define (ilc/%define-method type-bldr name meth-attrs ret-type arg-types)
+(define-ilc (ilc/%define-method type-bldr name meth-attrs ret-type arg-types)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (type-arg1 clr-type-handle/system-string)
          (type-arg2 clr-type-handle/system-reflection-methodattributes)
@@ -292,29 +298,29 @@
                                         type-arg3 type-arg4))))
     (clr/%invoke meth type-bldr (vector name meth-attrs ret-type arg-types))))
 
-(define (ilc/%create-type type-bldr)
+(define-ilc (ilc/%create-type type-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (meth (clr/%get-method type-recv "CreateType" '#())))
     (clr/%invoke meth type-bldr '#())))
 
-(define (ilc/%get-ilgenerator/meth meth-bldr)
+(define-ilc (ilc/%get-ilgenerator/meth meth-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-emit-methodbuilder)
          (meth (clr/%get-method type-recv "GetILGenerator" '#())))
     (clr/%invoke meth meth-bldr '#())))
 
-(define (ilc/%get-ilgenerator/ctor ctor-bldr)
+(define-ilc (ilc/%get-ilgenerator/ctor ctor-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-emit-constructorbuilder)
          (meth (clr/%get-method type-recv "GetILGenerator" '#())))
     (clr/%invoke meth ctor-bldr '#())))
 
-(define (ilc/%get-ilgenerator bldr)
+(define-ilc (ilc/%get-ilgenerator bldr)
   (cond ((clr/%isa? bldr clr-type-handle/system-reflection-emit-constructorbuilder)
          (ilc/%get-ilgenerator/ctor bldr))
         ((clr/%isa? bldr clr-type-handle/system-reflection-emit-methodbuilder)
          (ilc/%get-ilgenerator/meth bldr))
         (else (error 'ilc/%get-ilgenerator))))
 
-(define (ilc/%find-code-in-assembly asm-bldr il-ns segnum)
+(define-ilc (ilc/%find-code-in-assembly asm-bldr il-ns segnum)
   ;; static method!
   (let* ((type-recv clr-type-handle/scheme-rt-load)
          (type-arg0 clr-type-handle/system-reflection-emit-assemblybuilder)
@@ -324,7 +330,7 @@
                                 (vector type-arg0 type-arg1 type-arg2))))
     (clr/%invoke meth #f (vector asm-bldr il-ns segnum))))
 
-(define (ilc/%save asm-bldr dll-name)
+(define-ilc (ilc/%save asm-bldr dll-name)
   (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilder)
          (type-arg1 clr-type-handle/system-string)
          (meth (clr/%get-method "Save" type-recv (vector type-arg1))))
@@ -829,10 +835,10 @@
 	  ;; ILGenerator.Emit(OpCode, Label[]) form
 	  ((  switch)
 	   (let* ((labels (car args))
-		  (label-infos (list->vector 
+		  (label-infos (labels->foreign-array
 				(map get-label-object labels))))
 	     (ilc/%emit/label-array IL (opc) label-infos)))
-
+          
 	  ;; ILGenerator.Emit(OpCode, ConstructorInfo) form
 	  (();; (newobj)
 	   (apply ilc/%emit/constructor-info IL (opc) args))
@@ -924,16 +930,25 @@
 		 (current-registered-superclass-table)))
 	)))
 
-    ;; [Listof %Type] -> [%Arrayof %Type]
-    (define (types->foreign-array types)
-      (let* ((len (length types))
-             (arr (allocate-clr-array clr-type-handle/system-type len)))
+    ;; (X:%Type) [Listof X] -> [%Arrayof X]
+    (define (objects->foreign-array base-type objects)
+      (let* ((len (length objects))
+             (arr (allocate-clr-array base-type len)))
         (let loop ((i 0)
-                   (l types))
+                   (l objects))
           (cond ((< i len)
                  (clr/%foreign-aset arr i (car l))
                  (loop (+ i 1) (cdr l)))))
         arr))
+      
+
+    ;; [Listof %Type] -> [%Arrayof %Type]
+    (define (types->foreign-array types)
+      (objects->foreign-array clr-type-handle/system-type types))
+
+    ;; [Listof %Label] -> [%Arrayof %Label]
+    (define (labels->foreign-array labels)
+      (objects->foreign-array clr-type-handle/system-reflection-emit-label labels))
 
     ;; make-method-table-key : Type String [Vectorof Type] -> SchemeObject
     (define (make-method-table-key type-info name arg-infos)
