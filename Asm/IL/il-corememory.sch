@@ -135,17 +135,17 @@
                 (newline))
          ret-val)))))
 
-(define-traced (ilc/%make-assembly-name)
+(define (ilc/%make-assembly-name)
   (let* ((type-recv clr-type-handle/system-reflection-assemblyname)
          (ctor (clr/%get-constructor type-recv '#())))
     (clr/%invoke-constructor ctor '#())))
 
-(define-traced (ilc/%thread-get-domain)
+(define (ilc/%thread-get-domain)
   (let* ((type-recv clr-type-handle/system-threading-thread)
          (meth (clr/%get-method type-recv "GetDomain" '#())))
     (clr/%invoke meth #f '#())))
 
-(define-traced (ilc/%define-dynamic-assembly dom asm-name perms)
+(define (ilc/%define-dynamic-assembly dom asm-name perms)
   (let* ((type-recv clr-type-handle/system-appdomain)
          (type-arg1 clr-type-handle/system-reflection-assemblyname)
          (type-arg2 clr-type-handle/system-reflection-emit-assemblybuilderaccess)
@@ -153,7 +153,7 @@
                                 (vector type-arg1 type-arg2))))
     (clr/%invoke meth dom (vector asm-name perms))))
 
-(define-traced (ilc/%define-dynamic-assembly/storage dom asm-name perms storage-dir)
+(define (ilc/%define-dynamic-assembly/storage dom asm-name perms storage-dir)
   (let* ((type-recv clr-type-handle/system-appdomain)
          (type-arg1 clr-type-handle/system-reflection-assemblyname)
          (type-arg2 clr-type-handle/system-reflection-emit-assemblybuilderaccess)
@@ -162,7 +162,7 @@
                                 (vector type-arg1 type-arg2 type-arg3))))
     (clr/%invoke meth dom (vector asm-name perms storage-dir))))
 
-(define-traced (ilc/%define-dynamic-module asm-bldr mod-name dll-name)
+(define (ilc/%define-dynamic-module asm-bldr mod-name dll-name)
   (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilder)
          (type-arg1 clr-type-handle/system-string)
          (type-arg2 clr-type-handle/system-string)
@@ -170,17 +170,17 @@
                                 (vector type-arg1 type-arg2))))
     (clr/%invoke meth asm-bldr (vector mod-name dll-name))))
 
-(define-traced (ilc/%run-and-save-permissions)
+(define (ilc/%run-and-save-permissions)
   (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilderaccess)
          (info (clr/%get-field type-recv "RunAndSave")))
     (clr/%field-ref info)))
 
-(define-traced (ilc/%set-assembly-name-name! asm-name string)
+(define (ilc/%set-assembly-name-name! asm-name string)
   (let* ((type-recv clr-type-handle/system-reflection-assemblyname)
          (prop-info (clr/%get-property type-recv "Name" '#())))
     (clr/%property-set! prop-info asm-name (clr/%string->foreign string) '#())))
 
-(define-traced (ilc/%define-type! mod-bldr name type-attributes parent)
+(define (ilc/%define-type! mod-bldr name type-attributes parent)
   (let* ((type-recv clr-type-handle/system-reflection-emit-modulebuilder)
          (type-arg1 clr-type-handle/system-string)
          (type-arg2 clr-type-handle/system-reflection-typeattributes)
@@ -189,18 +189,18 @@
                                 (vector type-arg1 type-arg2 type-arg3))))
     (clr/%invoke meth mod-bldr (vector name type-attributes parent))))
 
-(define-traced (ilc/%define-label! ilgen)
+(define (ilc/%define-label! ilgen)
   (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
          (meth (clr/%get-method type-recv "DefineLabel" (vector))))
     (clr/%invoke meth ilgen (vector))))
 
-(define-traced (ilc/%set-entry-point! asm-name meth-bldr)
+(define (ilc/%set-entry-point! asm-name meth-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-assemblyname)
          (type-arg1 clr-type-handle/system-reflection-emit-methodbuilder)
          (meth (clr/%get-method type-recv "SetEntryPoint" (vector type-arg1))))
     (clr/%invoke meth asm-name (vector meth-bldr))))
 
-(define-traced (ilc/%declare-local! ilgen type)
+(define (ilc/%declare-local! ilgen type)
   (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
          (type-arg1 clr-type-handle/system-type)
          (meth (clr/%get-method type-recv "DeclareLocal" (vector type-arg1))))
@@ -213,7 +213,7 @@
        (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
               (type-arg1 clr-type-handle/system-reflection-emit-opcode) 
               (meth (clr/%get-method type-recv "Emit" (vector type-arg1 ARG-TYPE ...))))
-         (define-traced (NAME ilgen opc ARG-ID ...)
+         (define (NAME ilgen opc ARG-ID ...)
            (clr/%invoke meth ilgen (vector opc ARG-ID ...)))
          NAME)))))
 
@@ -246,13 +246,13 @@
   (meth-info clr-type-handle/system-reflection-methodinfo)
   (types     clr-type-handle/system-type-array))
 
-(define-traced (ilc/%mark-label ilgen label)
+(define (ilc/%mark-label ilgen label)
   (let* ((type-recv clr-type-handle/system-reflection-emit-ilgenerator)
          (type-arg1 clr-type-handle/system-reflection-emit-label)
          (meth (clr/%get-method type-recv "MarkLabel" (vector type-arg1))))
     (clr/%invoke meth ilgen (vector label))))
 
-(define-traced (ilc/%define-field type-bldr name cls field-attrs)
+(define (ilc/%define-field type-bldr name cls field-attrs)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (type-arg1 clr-type-handle/system-string)
          (type-arg2 clr-type-handle/system-type)
@@ -261,7 +261,7 @@
                                 (vector type-arg1 type-arg2 type-arg3))))
     (clr/%invoke meth type-bldr (vector name cls field-attrs))))
 
-(define-traced (ilc/%define-constructor type-bldr meth-attrs calling-conv arg-infos)
+(define (ilc/%define-constructor type-bldr meth-attrs calling-conv arg-infos)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (type-arg1 clr-type-handle/system-reflection-methodattributes)
          (type-arg2 clr-type-handle/system-reflection-callingconventions)
@@ -270,18 +270,18 @@
                                 (vector type-arg1 type-arg2 type-arg3))))
     (clr/%invoke meth type-bldr (vector meth-attrs calling-conv arg-infos))))
 
-(define-traced (ilc/%standard-calling-conventions)
+(define (ilc/%standard-calling-conventions)
   (clr/%field-ref (clr/%get-field 
                    clr-type-handle/system-reflection-callingconventions
                    "Standard")
                   #f))
 
-(define-traced (ilc/%define-type-initializer type-bldr)
+(define (ilc/%define-type-initializer type-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (meth (clr/%get-method type-recv "DefineTypeInitializer" '#())))
     (clr/%invoke meth type-bldr '#())))
 
-(define-traced (ilc/%define-method type-bldr name meth-attrs ret-type arg-types)
+(define (ilc/%define-method type-bldr name meth-attrs ret-type arg-types)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (type-arg1 clr-type-handle/system-string)
          (type-arg2 clr-type-handle/system-reflection-methodattributes)
@@ -292,29 +292,29 @@
                                         type-arg3 type-arg4))))
     (clr/%invoke meth type-bldr (vector name meth-attrs ret-type arg-types))))
 
-(define-traced (ilc/%create-type type-bldr)
+(define (ilc/%create-type type-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-emit-typebuilder)
          (meth (clr/%get-method type-recv "CreateType" '#())))
     (clr/%invoke meth type-bldr '#())))
 
-(define-traced (ilc/%get-ilgenerator/meth meth-bldr)
+(define (ilc/%get-ilgenerator/meth meth-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-emit-methodbuilder)
          (meth (clr/%get-method type-recv "GetILGenerator" '#())))
     (clr/%invoke meth meth-bldr '#())))
 
-(define-traced (ilc/%get-ilgenerator/ctor ctor-bldr)
+(define (ilc/%get-ilgenerator/ctor ctor-bldr)
   (let* ((type-recv clr-type-handle/system-reflection-emit-constructorbuilder)
          (meth (clr/%get-method type-recv "GetILGenerator" '#())))
     (clr/%invoke meth ctor-bldr '#())))
 
-(define-traced (ilc/%get-ilgenerator bldr)
+(define (ilc/%get-ilgenerator bldr)
   (cond ((clr/%isa? bldr clr-type-handle/system-reflection-emit-constructorbuilder)
          (ilc/%get-ilgenerator/ctor bldr))
         ((clr/%isa? bldr clr-type-handle/system-reflection-emit-methodbuilder)
          (ilc/%get-ilgenerator/meth bldr))
         (else (error 'ilc/%get-ilgenerator))))
 
-(define-traced (ilc/%find-code-in-assembly asm-bldr il-ns segnum)
+(define (ilc/%find-code-in-assembly asm-bldr il-ns segnum)
   ;; static method!
   (let* ((type-recv clr-type-handle/scheme-rt-load)
          (type-arg0 clr-type-handle/system-reflection-emit-assemblybuilder)
@@ -324,7 +324,7 @@
                                 (vector type-arg0 type-arg1 type-arg2))))
     (clr/%invoke meth #f (vector asm-bldr il-ns segnum))))
 
-(define-traced (ilc/%save asm-bldr dll-name)
+(define (ilc/%save asm-bldr dll-name)
   (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilder)
          (type-arg1 clr-type-handle/system-string)
          (meth (clr/%get-method "Save" type-recv (vector type-arg1))))
@@ -342,7 +342,6 @@
         (ilc/%set-assembly-name-name! my-asm-name assembly-name))
     (parameterize ((current-assembly-name my-asm-name))
       (parameterize ((current-domain (ilc/%thread-get-domain)))
-	(display (current-assembly-name)) (newline)
 	(parameterize ((current-assembly-builder 
 			((lambda (dom anm perms dir)
                            (if (string=? "" dir)
@@ -739,7 +738,7 @@
 	   (for-each codump-il (cadr args))))))
 
     ;; codump-il : il -> void
-    (define-traced (codump-il instr)
+    (define (codump-il instr)
       (let* ((bytecode (il:code instr))
 	     (args     (il:args instr))
 	     (IL       (current-il-generator))
@@ -862,7 +861,6 @@
 			  (twobit-format 
 			   #f "couldn't find method for ~a.~a ~a"
 			   class-info name args-info)))
-               (begin (display "GOT HERE 17") (newline))
                (let ((emit (cond ((clr/%isa? method-info 
                                              clr-type-handle/system-reflection-methodinfo)
                                   ilc/%emit/method-info)
@@ -954,7 +952,7 @@
       (list (clr/%to-string type)))
 
     ;; co-register-method : IL-method -> void
-    (define-traced (co-register-method method)
+    (define (co-register-method method)
       (let ((name     (clr-method-name method))
 	    (ret-type (clr-method-type method))
 	    (argtypes (clr-method-argtypes method))
@@ -973,21 +971,16 @@
 		   arg-infos/fgn))
 
 		 ((equal? name ".cctor") 
-		  (begin (display '(ilc/%define-type-initializer ...))
-                         (newline))
 		  (ilc/%define-type-initializer
 		   (current-type-builder)))
 
 		 (else 
-		  (begin (display '(ilc/%define-method ...))
-                         (newline))
 		  (ilc/%define-method
 		   (current-type-builder)
 		   (clr/string->foreign name)
 		   (clr/int->foreign (options->method-attributes options))
 		   (co-find-class ret-type)
 		   arg-infos/fgn)))))
-          (begin (display 'register-method!) (newline))
 	  (current-registered-method-table
 	   (cons (list (make-method-table-key type-info name (list->vector arg-infos))
                        method-info)
@@ -1019,7 +1012,7 @@
 	      (else #f))))
 
     ;; registered-method : Type String [Vectorof Type] -> [Maybe MethodBuilder]
-    (define-traced (registered-method type name args)
+    (define (registered-method type name args)
       '(begin (write `(current-registered-method-table 
                       ,(current-registered-method-table)))
              (newline))
@@ -1043,13 +1036,13 @@
       (if (null? l) 0 (fxlogior (car l) (foldior (cdr l)))))
     (define (foldenums l)
       (foldior (map (lambda (x) (clr/%foreign->int x)) l)))
-    (define-traced (options->type-attributes option-lst)
+    (define (options->type-attributes option-lst)
       (foldenums (map option->type-attribute option-lst)))
-    (define-traced (options->method-attributes option-lst)
+    (define (options->method-attributes option-lst)
       (foldenums (let ((poor-mans-filter 
                         (lambda (l) (apply append (map (lambda (x) (if x (list x) '())) l)))))
                    (poor-mans-filter (map option->method-attribute option-lst)))))
-    (define-traced (options->field-attributes option-lst)
+    (define (options->field-attributes option-lst)
       (foldenums (map option->field-attribute option-lst)))
 
     ;; A CanonNS is a [Listof String]
@@ -1084,18 +1077,16 @@
 
     ;; co-find-method : type string [Vectorof type] -> MethodBase
     ;; Note that type is the type of the method receiver, not the return type.
-    (define-traced (co-find-method type name args)
+    (define (co-find-method type name args)
       (cond ((assoc (make-method-table-key type name args)
                     (current-registered-method-table))
 	     => cadr)
             ((equal? name ".ctor")
-             (begin (display "GOT HERE 19") (newline))
 	     (clr/%get-constructor type args))
 	    (else 
-             (begin (display "GOT HERE 18") (newline))
              (clr/%get-method type name args))))
 
-    (define-traced (co-find-class x)
+    (define (co-find-class x)
       (cond ((symbol? x)
 	     ;; at some point, this may prepend the current
 	     ;; namespace to its argument
@@ -1190,7 +1181,6 @@
        (for-each 
 	(letrec ((handle-member 
 		  (lambda (tli)
-                    (begin (display tli) (newline))
 		    (cond ((field? tli)
 			   (co-register-field tli))
 			  ((clr-method? tli)
@@ -1230,20 +1220,20 @@
     (with-potential-setup
      name
      (lambda ()
-       (d (init-variables))
+       (init-variables)
        (let* ((entrypoint (dump-segment lop-segment))
 	      (pseudo-manifest (extract-manifest lop-segment name)))
 	 (set! *segment-number* (+ *segment-number* 1))
 	 (set! *loadables* (cons (list *seed* entrypoint) *loadables*))
 
-	 (d (co-create-type-builders!))
-	 (d (co-create-member-infos!))
-	 (d (co-emit-object-code!))
+	 (co-create-type-builders!)
+	 (co-create-member-infos!)
+	 (co-emit-object-code!)
 
 	 (current-saved-manifests (cons pseudo-manifest
 					(current-saved-manifests)))
 	 
-	 (d (patch-procedure/pseudo-manifest pseudo-manifest environment))
+	 (patch-procedure/pseudo-manifest pseudo-manifest environment)
          )))))
 
 ;; eval/clr : sexp [environment] -> any
@@ -1318,11 +1308,9 @@
 	   (find-code-in-assembly ilc/%find-code-in-assembly)
 	   (asm-bld (current-assembly-builder))
 	   (code-vec (find-code-in-assembly asm-bld (clr/string->foreign il-ns) (clr/int->foreign segnum)))
-	   (ignore (begin (display `(code-vec ,code-vec)) (newline)))
-	   ;(boxed-code-vec (clr-object/clr-handle code-vec))
-	   ;(ignore (begin (display `(boxed-code-vec ,boxed-code-vec)) (newline)))
+	   ;(ignore (begin (display `(code-vec ,code-vec)) (newline)))
 	   (unwrapped-code-vec (clr/foreign->schemeobject code-vec))
-	   (ignore (begin (display `(unwrapped-code-vec ,unwrapped-code-vec)) (newline)))
+	   ;(ignore (begin (display `(unwrapped-code-vec ,unwrapped-code-vec)) (newline)))
 	   (patched-procedure 
 	    (begin (procedure-set! p 0 unwrapped-code-vec) 
 		   p)))
