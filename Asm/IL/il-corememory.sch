@@ -805,11 +805,13 @@
 
 	  ;; ILGenerator.Emit(OpCode, long) form
 	  ((ldc.i8)
-	   (apply ilc/%emit/long IL (opc) args))
+           (error 'emit 
+                  "Marshalling numbers to int64 not yet part of dotnet-ffi"))
 
 	  ;; ILGenerator.Emit(OpCode, double) form
 	  ((ldc.r8)
-	   (apply ilc/%emit/double IL (opc) args))
+	   (apply ilc/%emit/double IL (opc) 
+                  (map clr/flonum->foreign-double args)))
 
 	  ;; ILGenerator.Emit(OpCode, FieldInfo) form
 	  ((ldfld ldsfld stfld stsfld)
@@ -822,7 +824,9 @@
 	  ;; ILGenerator.Emit(OpCode, LocalBuilder) and
 	  ;; ILGenerator.Emit(OpCode, short) forms
 	  ((ldloc stloc)
-	   (apply ilc/%emit/short IL (opc) args))
+	   (apply ilc/%emit/short IL (opc) 
+                  (map (lambda (x) (clr/%number->foreign-int16 x)) 
+                       args)))
 
 	  ;; ILGenerator.Emit(OpCode, string) form
 	  ((ldstr)
@@ -875,8 +879,6 @@
                                   ilc/%emit/constructor-info)
                                  (else
                                   (error 'codump-il))
-                             ;; FSK: um, did I forget the Type[] case?
-                             ;; Or does it simply not arise?
                              )))
                  (emit IL (opc) method-info)))))
 	  
