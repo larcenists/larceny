@@ -3,6 +3,7 @@
 (load (let ((arch (assq 'arch-name (system-features))))
         (case (string->symbol (string-downcase (cdr arch)))
           ((sparc) "Lib/Sparc/toplevel-target.sch")
+          ((clr)   "Lib/IL/toplevel-target.sch")
           (else 
            (error 'seal-twobit "Add case for " arch)))))
 
