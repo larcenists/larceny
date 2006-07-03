@@ -1,6 +1,11 @@
-;(load-compiler 'release)
-;(load "Asm/Common/link-lop.sch")
-;(load "Lib/Common/toplevel.sch")
+(load-compiler 'release)
+(load "Lib/Common/toplevel.sch")
+(load (let ((arch (assq 'arch-name (system-features))))
+        (case (string->symbol (string-downcase (cdr arch)))
+          ((sparc) "Lib/Sparc/toplevel-target.sch")
+          (else 
+           (error 'seal-twobit "Add case for " arch)))))
+
 ; plus some (platform-specific) toplevel-target file
 
 (define toplevel-macro-expand #f)       ; A hack for the benefit of 
@@ -13,14 +18,8 @@
   ;; Install twobit's macro expander as the interpreter's ditto
   ;; FSK: I'm not too thrilled about this either.
   (macro-expander (lambda (form environment)
-		    (let ((switches (compiler-switches 'get)))
-		      (dynamic-wind
-			  (lambda ()
-			    (compiler-switches 'standard))
-			  (lambda ()
-			    (twobit-expand form (environment-syntax-environment environment)))
-			  (lambda ()
-			    (compiler-switches 'set! switches))))))
+                    (twobit-expand form 
+                                   (environment-syntax-environment environment))))
   
   (let ((e (interaction-environment)))
     (letrec ((install-procedures
