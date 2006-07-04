@@ -281,6 +281,10 @@
 
 ; Returns a value in the range 0 .. 2^16-1 (a fixnum in Larceny).
 
+; FIXME:  This code must be kept in sync with the definition of
+; twobit-symbol-hash in Compiler/pass2if.sch.
+; Any change to this code must be made there also, and vice versa.
+
 (define (string-hash string)
 
   (define (string-hash-step code byte)

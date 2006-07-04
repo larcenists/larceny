@@ -59,17 +59,24 @@
 (define name:CHAR?         '.char?)
 (define name:SYMBOL?       '.symbol?)
 (define name:FX<           '.<:fix:fix)
+(define name:FX+           '.+:idx:idx)
 (define name:FX-           '.-:idx:idx)
 (define name:CHAR->INTEGER '.char->integer:chr)
 (define name:VECTOR-REF    '.vector-ref:trusted)
 
+; FIXME: should be fixnum-and:trusted, but that isn't implemented yet
+(define name:FIXNUM-AND    'fxlogand)
+
+; FIXME: should be fixnum-arithmetic-shift-left:trusted
+(define name:FIXNUM-ARITHMETIC-SHIFT-LEFT 'fxlsh)
+
 ; If (INTEGRATE-PROCEDURES) is anything but null, then special optimization
 ; recognizes calls to these procedures and also creates calls to them.
 
-(define name:VALUES 'values)
+(define name:VALUES           'values)
 (define name:CALL-WITH-VALUES 'call-with-values)
-(define op:UNSPECIFIED 'unspecified)
-(define op:FIXNUM? 'fixnum?)
+(define op:UNSPECIFIED        'unspecified)
+(define op:FIXNUM?            'fixnum?)
 
 
 ; Constant folding.

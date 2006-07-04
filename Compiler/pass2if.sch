@@ -200,12 +200,7 @@
 ; The constants will almost always be of these types.
 ;
 ; The first step is to remove duplicated constants and to
-; collect all the case clauses, sorting them into the following
-; categories based on their simplified list of constants:
-;     constants are fixnums
-;     constants are characters
-;     constants are symbols
-;     constants are of mixed or other type
+; collect all the case clauses.
 ; After duplicated constants have been removed, the predicates
 ; for these clauses can be tested in any order.
 
@@ -213,7 +208,7 @@
 ; has not yet been simplified or can safely be simplified again,
 ; and a notepad, returns the expression after simplification.
 ; If the expression is equivalent to a case expression that dispatches
-; on the given variable, then case-optimization will be applied.
+; on the given variable, then case optimization will be applied.
 ;
 ; These optimizations could generate many new references to the variable,
 ; which would violate the referencing invariants for Twobit pass 2.
@@ -224,16 +219,15 @@
   
   (define notepad2 (make-notepad (notepad.parent notepad)))
   
-  (define (collect-clauses E fix chr sym other constants)
+  (define (collect-clauses E clauses constants)
     (if (not (conditional? E))
-        (analyze (simplify E notepad2)
-                 fix chr sym other constants)
+        (analyze (simplify E notepad2) clauses constants)
         (let ((test (simplify (if.test E) notepad2))
               (code (simplify (if.then E) notepad2)))
           (if.test-set! E test)
           (if.then-set! E code)
           (if (not (call? test))
-              (finish E fix chr sym other constants)
+              (finish E clauses constants)
               (let ((proc (call.proc test))
                     (args (call.args test)))
                 (if (not (and (variable? proc)
@@ -248,7 +242,7 @@
                               (eq? (variable.name (car args))
                                    (variable.name ref0))
                               (constant? (cadr args))))
-                    (finish E fix chr sym other constants)
+                    (finish E clauses constants)
                     (let ((pred (variable.name proc))
                           (datum (constant.value (cadr args))))
                       ; FIXME
@@ -261,7 +255,7 @@
                                    (not (every? (lambda (datum)
                                                   (eqv-is-ok? datum))
                                                 datum))))
-                          (finish E fix chr sym other constants)
+                          (finish E clauses constants)
                           (call-with-values
                            (lambda ()
                              (remove-duplicates (if (or (eq? pred name:EQV?)
@@ -272,34 +266,9 @@
                            (lambda (data constants)
                              (let ((clause (list data code))
                                    (E2 (if.else E)))
-                               (cond ((every? smallint? data)
-                                      (collect-clauses E2
-                                                       (cons clause fix)
-                                                       chr
-                                                       sym
-                                                       other
-                                                       constants))
-                                     ((every? char? data)
-                                      (collect-clauses E2
-                                                       fix
-                                                       (cons clause chr)
-                                                       sym
-                                                       other
-                                                       constants))
-                                     ((every? symbol? data)
-                                      (collect-clauses E2
-                                                       fix
-                                                       chr
-                                                       (cons clause sym)
-                                                       other
-                                                       constants))
-                                     (else
-                                      (collect-clauses E2
-                                                       fix
-                                                       chr
-                                                       sym
-                                                       (cons clause other)
-                                                       constants))))))))))))))
+                               (collect-clauses E2
+                                                (cons clause clauses)
+                                                constants))))))))))))
   
   (define (remove-duplicates data set)
     (let loop ((originals data)
@@ -313,11 +282,11 @@
                 (loop originals data set)
                 (loop originals (cons x data) (cons x set)))))))
   
-  (define (finish E fix chr sym other constants)
+  (define (finish E clauses constants)
     (if.else-set! E (simplify (if.else E) notepad2))
-    (analyze E fix chr sym other constants))
+    (analyze E clauses constants))
   
-  (define (analyze default fix chr sym other constants)
+  (define (analyze default clauses constants)
     (notepad-var-add! notepad2 (variable.name ref0))
     (for-each (lambda (L)
                 (notepad-lambda-add! notepad L))
@@ -333,18 +302,17 @@
                             name:FX<
                             name:FX-
                             name:CHAR->INTEGER
-                            name:VECTOR-REF)
+                            name:VECTOR-REF
+                            name:FIXNUM-AND
+                            name:FIXNUM-ARITHMETIC-SHIFT-LEFT)
                       (notepad.vars notepad2)))
     (analyze-clauses (notepad.vars notepad2)
                      ref0
                      default
-                     (reverse fix)
-                     (reverse chr)
-                     (reverse sym)
-                     (reverse other)
+                     (reverse clauses)
                      constants))
   
-  (collect-clauses E '() '() '() '() '()))
+  (collect-clauses E '() '()))
 
 ; Returns true if EQ? and EQV? behave the same on x.
 
@@ -359,36 +327,38 @@
 (define (eq-is-ok? x)
   (eqv-is-ok? x))
 
+(define (analyze-clauses F ref0 default clauses constants)
+  (cond ((< (length constants) *sequential-threshold*)
+         (implement-clauses-by-sequential-search ref0
+                                                 default
+                                                 clauses))
+        (else
+         (implement-clauses F ref0 default clauses constants))))
+
 ; Any case expression that dispatches on a variable var0 and whose
 ; constants are disjoint can be compiled as
 ;
-; (let ((n (cond ((eq? var0 'K1) ...)   ; miscellaneous constants
-;                ...
-;                ((fixnum? var0)
-;                 <dispatch-on-fixnum>)
-;                ((char? var0)
+; (let ((n (cond ((char? var0)
 ;                 <dispatch-on-char>)
 ;                ((symbol? var0)
 ;                 <dispatch-on-symbols>)
+;                ; miscellaneous constants
+;                ((eq? var0 'K1) ...)
+;                ...
+;                ; must come after miscellaneous, because some
+;                ; cross-compilers might classify some fixnums
+;                ; as miscellaneous
+;                ((fixnum? var0)
+;                 <dispatch-on-fixnum>)
 ;                (else 0))))
 ;   <dispatch-on-case-number>)
 ;
 ; where the <dispatch-on-case-number> uses binary search within
 ; the interval [0, p+1), where p is the number of non-default cases.
 
-(define (analyze-clauses F ref0 default fix chr sym other constants)
-  (cond ((or (and (null? fix)
-                  (null? chr))
-             (< (length constants) *sequential-threshold*))
-         (implement-clauses-by-sequential-search ref0
-                                                 default
-                                                 (append fix chr sym other)))
-        (else
-         (implement-clauses F ref0 default fix chr sym other constants))))
-
 ; Implements the general technique described above.
 
-(define (implement-clauses F ref0 default fix chr sym other constants)
+(define (implement-clauses F ref0 default clauses constants)
   (let* ((name:n ((make-rename-procedure) 'n))
          (ref1 (make-variable name:n))
          (entry (make-R-entry name:n (list ref1) '() '()))
@@ -404,17 +374,10 @@
              (implement-case-dispatch
               ref1
               (cons default
-                    (map cadr
-                         ; The order here must match the order
-                         ; used by IMPLEMENT-DISPATCH.
-                         (append other fix chr sym)))))))
+                    (map cadr clauses))))))
     (make-call L
-               (list (implement-dispatch 0
-                                         ref0
-                                         (map car other)
-                                         (map car fix)
-                                         (map car chr)
-                                         (map car sym))))))
+               (list (implement-dispatch ref0
+                                         (map car clauses))))))
 
 (define (implement-case-dispatch ref0 exprs)
   (implement-intervals ref0
@@ -423,76 +386,113 @@
                             (iota (length exprs))
                             exprs)))
 
-; Given the number of prior clauses,
-; the variable on which to dispatch,
-; a list of constant lists for mixed or miscellaneous clauses,
-; a list of constant lists for the fixnum clauses,
-; a list of constant lists for the character clauses, and
-; a list of constant lists for the symbol clauses,
+; Given the variable on which to dispatch and
+; a list of constant lists for the clauses,
 ; returns code that computes the index of the selected clause.
 ; The mixed/miscellaneous clauses must be tested first because
 ; Twobit's SMALLINT? predicate might not be true of all fixnums
 ; on the target machine, which means that Twobit might classify
 ; some fixnums as miscellaneous.
 
-(define (implement-dispatch prior ref0 other fix chr sym)
-  (cond ((not (null? other))
-         (implement-dispatch-other
-          (implement-dispatch (+ prior (length other))
-                              ref0 fix chr sym '())
-          prior ref0 other))
-        ((not (null? fix))
-         (make-conditional (make-call (make-variable name:FIXNUM?)
-                                      (list ref0))
-                           (implement-dispatch-fixnum prior ref0 fix)
-                           (implement-dispatch (+ prior (length fix))
-                                               ref0 '() chr sym other)))
-        ((not (null? chr))
-         (make-conditional (make-call (make-variable name:CHAR?)
-                                      (list ref0))
-                           (implement-dispatch-char prior ref0 chr)
-                           (implement-dispatch (+ prior (length chr))
-                                               ref0 fix '() sym other)))
-        ((not (null? sym))
-         (make-conditional (make-call (make-variable name:SYMBOL?)
-                                      (list ref0))
-                           (implement-dispatch-symbol prior ref0 sym)
-                           (implement-dispatch (+ prior (length sym))
-                                               ref0 fix chr '() other)))
-        (else
-         (make-constant 0))))
+(define (implement-dispatch ref0 selectors)
+
+  (let* ((selectors:chr (map (lambda (x) (filter char? x))
+                             selectors))
+         (selectors:sym (map (lambda (x) (filter symbol? x))
+                             selectors))
+         (selectors:fix (map (lambda (x) (filter smallint? x))
+                             selectors))
+         (selectors:other (map (lambda (x)
+                                 (filter (lambda (y)
+                                            (and (not (char? y))
+                                                 (not (symbol? y))
+                                                 (not (smallint? y))))
+                                         x))
+                               selectors))
+         (clause-indexes (cdr (iota (+ 1 (length selectors)))))
+         (chr (filter (lambda (x) (not (null? (car x))))
+                      (map list selectors:chr clause-indexes)))
+         (sym (filter (lambda (x) (not (null? (car x))))
+                      (map list selectors:sym clause-indexes)))
+         (fix (filter (lambda (x) (not (null? (car x))))
+                      (map list selectors:fix clause-indexes)))
+         (other (filter (lambda (x) (not (null? (car x))))
+                        (map list selectors:other clause-indexes)))
+         (exp (make-constant 0))
+         (exp (if (null? fix)
+                  exp
+                  (make-conditional (make-call (make-variable name:FIXNUM?)
+                                               (list ref0))
+                                    (implement-dispatch-fixnum ref0 fix)
+                                    exp)))
+         (exp (if (null? other)
+                  exp
+                  (implement-dispatch-other ref0 other exp)))
+         (exp (if (null? sym)
+                  exp
+                  (make-conditional (make-call (make-variable name:SYMBOL?)
+                                               (list ref0))
+                                    (implement-dispatch-symbol ref0 sym)
+                                    exp)))
+         (exp (if (null? chr)
+                  exp
+                  (make-conditional (make-call (make-variable name:CHAR?)
+                                               (list ref0))
+                                    (implement-dispatch-char ref0 chr)
+                                    exp))))
+    exp))
 
 ; The value of ref0 will be known to be a fixnum.
+; Each of the clauses is a list
+; whose car is a list of fixnums and
+; whose cadr is the fixnum index of a clause.
+;
 ; Can use table lookup, binary search, or sequential search.
 ; FIXME: Never uses sequential search, which is best when
 ; there are only a few constants, with gaps between them.
 
-(define (implement-dispatch-fixnum prior ref0 lists)
+(define (implement-dispatch-fixnum ref0 clauses)
+
+  ; Given a list of clauses (each represented by a list of fixnum
+  ; constants and the index of a clause they select), returns an
+  ; equivalent sorted list of half-open intervals represented as
+  ; (<lo> <hi> <exp>), where <exp> is an expression that
+  ; evaluates to the index of a clause.
   
-  (define (calculate-intervals n lists)
-    (define (loop n lists intervals)
-      (if (null? lists)
-          (twobit-sort (lambda (interval1 interval2)
-                         (< (car interval1) (car interval2)))
-                       intervals)
-          (let ((constants (twobit-sort < (car lists))))
-            (loop (+ n 1)
-                  (cdr lists)
-                  (append (extract-intervals n constants)
-                          intervals)))))
-    (loop n lists '()))
+  (define (calculate-intervals clauses)
+    (do ((clauses clauses (cdr clauses))
+         (intervals '()
+                    (let* ((clause (car clauses))
+                           (constants (twobit-sort < (car clause)))
+                           (index (cadr clause)))
+                      (extract-intervals constants index intervals))))
+        ((null? clauses)
+         (sort-intervals intervals))))
   
-  (define (extract-intervals n constants)
+  (define (extract-intervals constants index intervals)
     (if (null? constants)
-        '()
+        intervals
         (let ((k0 (car constants)))
           (do ((constants (cdr constants) (cdr constants))
                (k1 (+ k0 1) (+ k1 1)))
               ((or (null? constants)
                    (not (= k1 (car constants))))
-               (cons (list k0 k1 (make-constant n))
-                     (extract-intervals n constants)))))))
+               (extract-intervals constants
+                                  index
+                                  (cons (list k0 k1 (make-constant index))
+                                        intervals)))))))
   
+  ; Given a list of disjoint intervals represented as above,
+  ; sorts them into increasing order.
+
+  (define (sort-intervals intervals)
+    (twobit-sort (lambda (interval1 interval2)
+                   (< (car interval1) (car interval2)))
+                 intervals))
+
+  ; Given a sorted list of disjoint intervals as above,
+  ; completes them by inserting intervals for the default.
+
   (define (complete-intervals intervals)
     (cond ((null? intervals)
            intervals)
@@ -511,7 +511,7 @@
                              intervals)))))))
   
   (let* ((intervals (complete-intervals
-                     (calculate-intervals (+ prior 1) lists)))
+                     (calculate-intervals clauses)))
          (lo (car (car intervals)))
          (hi (cadr (car (reverse intervals))))
          (p (length intervals)))
@@ -528,14 +528,15 @@
       ; The static cost of binary search is about 5 SPARC instructions
       ; per interval.
       (if (< (- hi lo) (* 5 p))
-          (implement-table-lookup ref0 (+ prior 1) lists lo hi)
+          (implement-table-lookup ref0 intervals lo hi)
           (implement-intervals ref0 intervals))
       (make-constant 0)))))
 
-(define (implement-dispatch-char prior ref0 lists)
-  (let* ((lists (map (lambda (constants)
-                       (map compat:char->integer constants))
-                     lists))
+(define (implement-dispatch-char ref0 clauses)
+  (let* ((clauses (map (lambda (clause)
+                         (cons (map compat:char->integer (car clause))
+                               (cdr clause)))
+                       clauses))
          (name:n ((make-rename-procedure) 'n))
          (ref1 (make-variable name:n))
          (entry (make-R-entry name:n (list ref1) '() '()))
@@ -548,24 +549,128 @@
              '()
              '()
              #f
-             (implement-dispatch-fixnum prior ref1 lists))))
+             (implement-dispatch-fixnum ref1 clauses))))
     (make-call L
                (list
                 (make-call (make-variable name:CHAR->INTEGER)
                            (list ref0))))))
 
-(define (implement-dispatch-symbol prior ref0 lists)
-  (implement-dispatch-other (make-constant 0) prior ref0 lists))
+; The symbol dispatch cannot be reduced to the fixnum dispatch,
+; because distinct symbols may hash to the same fixnum.
+;
+; The symbol dispatch is always implemented by hash lookup:
+;
+; ((lambda (symtable valtable i)
+;    (if (eq? <ref0> (vector-ref symtable i))
+;        (vector-ref valtable i)
+;        (if (eq? <ref0> (vector-ref <symtable> (+ i 1)))
+;            (vector-ref valtable (+ i 1))
+;            ; this pattern above is repeated as many times as necessary
+;            0)))
+;  <symtable> <valtable> (fixnum-and <mask> (symbol-hash <ref0>)))
 
-(define (implement-dispatch-other default prior ref0 lists)
-  (if (null? lists)
+(define (implement-dispatch-symbol ref0 clauses)
+  (let* ((n (length (apply append (map car clauses))))
+         (bits (inexact->exact
+                (floor (+ 1.3 (/ (log (+ n 1)) (log 2.0))))))
+         (m (expt 2 bits))
+         (mask (- m 1))
+         (vec0 (make-vector (* 2 m) #f))
+         (vec1 (make-vector (* 2 m) 0))
+         ; the maximum distance between the hash index
+         ; and the actual location of a symbol
+         (maxdistance 0))
+
+    ; vec0 and vec1 are larger than necessary,
+    ; and combining them should improve cache performance.
+
+    (define (combined-and-trimmed-vector)
+      (do ((m (vector-length vec0) (- m 1))
+           (v0 '#() (if (and (zero? (vector-length v0))
+                             (vector-ref vec0 (- m 1)))
+                        (make-vector (* 2 (+ m maxdistance)) #f)
+                        v0)))
+          ((negative? m)
+           v0)
+        (if (< (+ m m) (vector-length v0))
+            (begin (vector-set! v0 (+ m m) (vector-ref vec0 m))
+                   (vector-set! v0 (+ m m 1) (vector-ref vec1 m))))))
+
+    (define (make-fetch symtable i d)
+      (if (> d maxdistance)
+          (make-constant 0)
+          (let* ((index (if (zero? d)
+                            i
+                            (make-call (make-variable name:FX+)
+                                       (list i (make-constant (+ d d))))))
+                 (index+1 (make-call (make-variable name:FX+)
+                                     (list i (make-constant (+ d d 1)))))
+                 (exp (make-call (make-variable name:VECTOR-REF)
+                                 (list symtable index)))
+                 (exp (make-call (make-variable name:EQ?)
+                                 (list ref0 exp))))
+            (make-conditional exp
+                              (make-call (make-variable name:VECTOR-REF)
+                                         (list symtable index+1))
+                              (make-fetch symtable i (+ d 1))))))
+
+    (for-each (lambda (clause)
+                (let ((syms (car clause))
+                      (index (cadr clause)))
+                  (for-each (lambda (sym)
+                              (let loop ((h (fxlogand
+                                             mask
+                                             (twobit-symbol-hash sym)))
+                                         (d 0))
+                                (if (vector-ref vec0 h)
+                                    (loop (+ h 1) (+ d 1))
+                                    (begin
+                                     (if (> d maxdistance)
+                                         (set! maxdistance d))
+                                     (vector-set! vec0 h sym)
+                                     (vector-set! vec1 h index)))))
+                            syms)))
+              clauses)
+
+    (let* ((rename (make-rename-procedure))
+           (name:symtable (rename 'symtable))
+           (name:i (rename 'i))
+           (ref:symtable (make-variable name:symtable))
+           (ref:i (make-variable name:i))
+           (entry:st (make-R-entry name:symtable (list ref:symtable) '() '()))
+           (entry:i (make-R-entry name:i (list ref:i) '() '()))
+           (F (list name:symtable name:i
+                    name:EQ? name:VECTOR-REF name:FX+))
+           (L (make-lambda
+               (list name:symtable name:i)
+               '()
+               (list entry:st entry:i)
+               F
+               '()
+               '()
+               #f
+               (make-fetch ref:symtable ref:i 0)))
+           ; FIXME: (symbol-hash x) = (.vector-ref:trusted x 1)
+           (exp (make-call (make-variable name:VECTOR-REF)
+                           (list ref0 (make-constant 1))))
+           (exp (make-call (make-variable name:FIXNUM-AND)
+                           (list (make-constant mask) exp)))
+           (exp (make-call (make-variable name:FIXNUM-ARITHMETIC-SHIFT-LEFT)
+                           (list exp (make-constant 1))))
+           (vec (combined-and-trimmed-vector)))
+
+      (make-call L (list (make-constant vec) exp)))))
+
+(define (implement-dispatch-other ref0 clauses default)
+  (if (null? clauses)
       default
-      (let* ((constants (car lists))
-             (lists (cdr lists))
-             (n (+ prior 1)))
+      (let* ((clause (car clauses))
+             (clauses (cdr clauses))
+             (constants (car clause))
+             (index (cadr clause)))
       (make-conditional (make-call-to-memv ref0 constants)
-                        (make-constant n)
-                        (implement-dispatch-other default n ref0 lists)))))
+                        (make-constant index)
+                        (implement-dispatch-other ref0 clauses default)))))
 
 (define (make-call-to-memv ref0 constants)
   (cond ((null? constants)
@@ -586,19 +691,21 @@
                    (make-constant constant))))
 
 ; Given a variable whose value is known to be a fixnum,
-; the clause index for the first fixnum clause,
-; an ordered list of lists of constants for fixnum-only clauses,
-; and the least and greatest constants in those lists,
+; a sorted list of intervals of the form (<lo> <high> '<index>),
+; where <index> is the index of the selected clause,
+; and the least and greatest constants in those intervals,
 ; returns code for a table lookup.
 
-(define (implement-table-lookup ref0 index lists lo hi)
+(define (implement-table-lookup ref0 intervals lo hi)
   (let ((v (make-vector (+ 1 (- hi lo)) 0)))
-    (do ((index index (+ index 1))
-         (lists lists (cdr lists)))
-        ((null? lists))
-        (for-each (lambda (k)
-                    (vector-set! v (- k lo) index))
-                  (car lists)))
+    (for-each (lambda (interval)
+                (let ((k0 (car interval))
+                      (k1 (cadr interval))
+                      (index (constant.value (caddr interval))))
+                  (do ((i k0 (+ i 1)))
+                      ((= i k1))
+                    (vector-set! v (- i lo) index))))
+              intervals)
     (make-call (make-variable name:VECTOR-REF)
                (list (make-constant v)
                      (make-call (make-variable name:FX-)
@@ -651,3 +758,41 @@
                           code1
                           (implement-clauses-by-sequential-search
                            ref0 default clauses)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Ugly things.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; FIXME:  This code must be kept in sync with the definition of
+; string-hash in Lib/Common/string.sch.
+; Any change to this code must be made there also, and vice versa.
+
+(define (twobit-string-hash string)
+
+  (define (string-hash-step code byte)
+    (fxlogxor code
+            ;; Avoid consing fixnums
+            (let ((l (fxlsh (fxlogand code #x01FF) 5))
+                  ;; R must be less than (+ (fxrshl #x01FF 2) 256)
+                  (r (+ (fxrshl code 2) byte)))
+              (if (> (- 16383 l) (- r 1))
+                  (+ l r)
+                  (+ (- l (- 16384 128)) (- r 128))))))
+
+  (define (string-hash-loop string limit i code)
+    (if (= i limit)
+        code
+        (string-hash-loop
+         string limit (+ i 1)
+         (string-hash-step code (bytevector-like-ref string i)))))
+
+  (let ((n (string-length string)))
+    (string-hash-loop string n 0 (fxlogxor n #x1aa5))))
+
+; FIXME: This procedure must compute the same hash value
+; as the symbol-hash procedure used at runtime.
+
+(define (twobit-symbol-hash sym)
+  (twobit-string-hash (symbol->string sym)))

@@ -372,6 +372,11 @@
               ((fx>=)    'internal:branchf-fx>=)
               ((fx<)     'internal:branchf-fx<)
               ((fx<=)    'internal:branchf-fx<=)
+              ((=:fix:fix)     'internal:branchf-=:fix:fix)
+              ((>:fix:fix)     'internal:branchf->:fix:fix)
+              ((>=:fix:fix)    'internal:branchf->=:fix:fix)
+              ((<:fix:fix)     'internal:branchf-<:fix:fix)
+              ((<=:fix:fix)    'internal:branchf-<=:fix:fix)
               (else #f))))
     (if op
         (as-source! as
@@ -410,6 +415,11 @@
               ((fx>=)    'internal:branchf-fx>=/imm)
               ((fx<)     'internal:branchf-fx</imm)
               ((fx<=)    'internal:branchf-fx<=/imm)
+              ((=:fix:fix)     'internal:branchf-=:fix:fix/imm)
+              ((>:fix:fix)     'internal:branchf->:fix:fix/imm)
+              ((>=:fix:fix)    'internal:branchf->=:fix:fix/imm)
+              ((<:fix:fix)     'internal:branchf-<:fix:fix/imm)
+              ((<=:fix:fix)    'internal:branchf-<=:fix:fix/imm)
               (else #f))))
     (if op
         (as-source! as
