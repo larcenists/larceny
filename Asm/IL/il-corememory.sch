@@ -1359,7 +1359,7 @@
    (string-append base-name ".fasl")
    thunk))
 
-(define (compile-file infilename . rest)
+(define (compile-file/clr infilename . rest)
   (let ((outfilename 
 	 (if (not (null? rest))
 	     (car rest)
