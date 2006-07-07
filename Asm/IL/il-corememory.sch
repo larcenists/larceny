@@ -333,7 +333,7 @@
 (define-ilc (ilc/%save asm-bldr dll-name)
   (let* ((type-recv clr-type-handle/system-reflection-emit-assemblybuilder)
          (type-arg1 clr-type-handle/system-string)
-         (meth (clr/%get-method "Save" type-recv (vector type-arg1))))
+         (meth (clr/%get-method type-recv "Save" (vector type-arg1))))
     (clr/%invoke meth asm-bldr (vector dll-name))))
 
 ;; with-fresh-dynamic-assembly-setup : String String String String (-> X) -> X
@@ -1347,7 +1347,8 @@
 	   (for-each (lambda (pm)
 		       (dump-fasl/pmanifest base-name pm))
 		     (reverse (current-saved-manifests)))))
-       (ilc/%save (current-assembly-builder) dll-filename)
+       (ilc/%save (current-assembly-builder) 
+                  (clr/%string->foreign dll-filename))
        val))))
 
 (define (with-saving-assembly-to-dll base-name thunk)
@@ -1376,11 +1377,6 @@
 		    (make-filename (current-directory) 
 				   (string-append dir basename))
 		    (string-append dir basename))))
-	  (display `(compile-file ,infilename 
-				  to ,outfilename
-				  ,fully-qualified-basename
-				  (escape-assembly-illegal-chars basename)
-				  dir)) (newline)
 	  (with-saving-assembly-to-dll/full-control
 	   fully-qualified-basename
 	   (string-append (escape-assembly-illegal-chars basename) "-assem")
