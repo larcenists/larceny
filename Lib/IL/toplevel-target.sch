@@ -23,7 +23,7 @@
   ;; Load extensions
   (for-each (lambda (p) (p larc))
             *larceny-environment-extensions*)
-  (set! *larceny-environment-extensions* (undefined))
+  ;(set! *larceny-environment-extensions* (undefined))
   
   larc)
 
