@@ -3,6 +3,12 @@
 (load "Util/seal-twobit.sch")
 (load "Asm/IL/il-load-coremem.sch")
 
+(compiler-switches 'standard) ;; This may stop the compiler from
+			      ;; introducing .car:pair and such
+                              ;; (the introduction of such identifiers
+                              ;;  has been a problem e.g. when 
+                              ;;  installing the debugger)
+
 (seal-twobit 
  (append '(link-lop-segment/clr 
            eval/clr 
