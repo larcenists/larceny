@@ -225,8 +225,7 @@
                     (loop (+ 1 index) (cdr items))))))
           (rep:make-vector)))
         (else
-         (twobit-format (current-error-port)
-                        "cannot emit IL to load constant: ~s~%" datum)
+         (error "cannot emit IL to load constant: ~s~%" datum)
          (il:comment "WARNING: Placeholder for ~s" datum)
          (il:load-constant #f))))
 
