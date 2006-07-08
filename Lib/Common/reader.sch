@@ -520,7 +520,7 @@
                                 (integer->char **backspace**))
                                ((alarm)
                                 (integer->char **alarm**))
-                               ((null)
+                               ((nul)
                                 (integer->char **nul**))
                                ((vtab)
                                 (integer->char **vtab**))
