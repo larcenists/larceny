@@ -211,6 +211,18 @@ namespace Scheme.Rep {
         public static SVL makeVector(int size, SObject fill) {
             return new SVL(Tags.VectorTag, size, fill);
         }
+
+        // ===================
+        //  Procedures
+        // ===================
+
+        public static Procedure makeProcedure(CodeVector code, 
+                                              SObject constvec,
+                                              SObject[] rib) {
+            return new Procedure(code,
+                                 constvec,
+                                 rib);
+        }
         
         // ===================
         //  Symbols

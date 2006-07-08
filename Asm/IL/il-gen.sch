@@ -224,6 +224,34 @@
                     (il 'stelem.ref)
                     (loop (+ 1 index) (cdr items))))))
           (rep:make-vector)))
+        ((procedure? datum)
+         (let ((code   (procedure-ref datum 0))
+               (consts (procedure-ref datum 1))
+               (env    (let loop ((i (- (procedure-length datum) 1))
+                                  (l '()))
+                         (cond ((< i 0) l)
+                               (else
+                                (loop (- i 1)
+                                      (cons (procedure-ref datum i)
+                                            l)))))))
+           (list
+            ;; first, create the vector for the rib
+            (il 'ldc.i4 (length env))
+            (il 'newarr iltype-schemeobject)
+            (let loop ((index 0) (items env))
+              (cond ((null? items) '())
+                    ((pair? items)
+                     (list
+                      (il 'dup)
+                      (il 'ldc.i4 index)
+                      (il:load-constant (car items))
+                      (il 'stelem.ref)
+                      (loop (+ 1 index) (cdr items))))))
+            ;; next, create the constant vector
+            (il:load-constant consts)
+            ;; finally the code vector (usually #f, but who knows?)
+            (il:load-constant code)
+            (rep:make-procedure))))
         (else
          (error "cannot emit IL to load constant: ~s~%" datum)
          (il:comment "WARNING: Placeholder for ~s" datum)
