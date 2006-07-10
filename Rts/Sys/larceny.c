@@ -307,6 +307,7 @@ void annoyingmsg( const char *fmt, ... )
   if (!quiet) {
     vfprintf( stderr, fmt, args );
     fprintf( stderr, "\n" );
+    fflush( stderr );
   }
   va_end( args );
 }
@@ -321,6 +322,7 @@ void supremely_annoyingmsg( const char *fmt, ... )
   if (!quiet) {
     vfprintf( stderr, fmt, args );
     fprintf( stderr, "\n" );
+    fflush( stderr );
   }
   va_end( args );
 }
