@@ -405,7 +405,9 @@ void EXPORT mc_morecore( word *globals )
 
 void EXPORT mc_stack_overflow( word *globals )
 {
+  internal_retaddr_to_fixnum(globals);
   gc_stack_overflow( the_gc( globals ) );
+  internal_fixnum_to_retaddr(globals);
 }
 
 void EXPORT mc_capture_continuation( word *globals )
@@ -749,7 +751,9 @@ void wb_lowlevel_disable_barrier( word *globals )
 
 void EXPORT mc_compact_ssbs( word *globals ) /* Used by inline barrier */
 {
+    internal_retaddr_to_fixnum(globals);
     gc_compact_all_ssbs( the_gc(globals) );
+    internal_fixnum_to_retaddr(globals);
 }
 
 void EXPORT mc_partial_barrier( word *globals )
@@ -1020,8 +1024,9 @@ cont_t restore_context( word *globals )
   if (stkp[ 5+NREGS+1 ] == TRUE_CONST)
     globals[ G_RESULT ] = stkp[ 5+NREGS ];
   globals[ G_STKP ] = (word)(stkp + S2S_REALFRAMESIZE);
-  if (globals[ G_STKP ] == globals[ G_STKBOT ])
+  if (globals[ G_STKP ] == globals[ G_STKBOT ]) {
     gc_stack_underflow( the_gc( globals ) );
+  }
   return k;
 }
 
