@@ -325,6 +325,21 @@ void EXPORT mc_alloc_bv( word *globals )
 #endif
 }
 
+/* The two procedures below perhaps would be better off as assembly in
+ * i386-millicode.asm; see Rts/Sparc/glue.c as a model for this. */
+
+/* Converts RETADDR from an address in the current codevector to an
+ * offset into it, to allow migration during collection. */
+static void internal_retaddr_to_fixnum(word* globals) {
+  globals[G_RETADDR] -= *(word*)(globals[G_REG0]-PROC_TAG+(4*PROC_CODEPTR));
+}
+
+/* Converts RETADDR from an offset into the current codevector to an
+ * address in it, to allow migration during collection. */
+static void internal_fixnum_to_retaddr(word* globals) {
+  globals[G_RETADDR] += *(word*)(globals[G_REG0]-PROC_TAG+(4*PROC_CODEPTR));
+}
+
 void EXPORT mc_alloc( word *globals )
 {
 #if defined( BDW_GC )
@@ -355,8 +370,10 @@ void EXPORT mc_alloc( word *globals )
     globals[ G_RESULT ] = (word)p;
   }
   else {
+    internal_retaddr_to_fixnum(globals);
     globals[ G_RESULT ] =
       (word)gc_allocate( the_gc( globals ), nwords*sizeof( word ), 0, 0 );
+    internal_fixnum_to_retaddr(globals);
   }
 #if !GCLIB_LARGE_TABLE
   assert2( globals[ G_RESULT ] >= (word)gclib_pagebase );
@@ -381,7 +398,9 @@ void EXPORT mc_alloci( word *globals )
 
 void EXPORT mc_morecore( word *globals )
 {
+  internal_retaddr_to_fixnum(globals);
   gc_collect(the_gc(globals), 0, 0, GCTYPE_COLLECT);
+  internal_fixnum_to_retaddr(globals);
 }
 
 void EXPORT mc_stack_overflow( word *globals )
