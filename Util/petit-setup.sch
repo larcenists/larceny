@@ -138,6 +138,9 @@
             
             ((and (equal? os-name "SunOS") (eq? arch-endianness 'big))
              (set! host: 'solaris))
+
+            ((and (equal? os-name "Win32") (eq? arch-endianness 'little)) 
+             (set! host: 'win32))
              
             ;; Fill in other host: clauses here
             
