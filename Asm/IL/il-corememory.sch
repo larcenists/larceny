@@ -2,11 +2,6 @@
 ;; Common Larceny runtime.
 ;; FSK: this is changing, so take out the expensive call.
 '(enable-dotnet!)
-;; FSK: Howvever, since I am developing, lets turn on debugging...
-(load "Debugger/debug.sch")
-(load "Debugger/inspect-cont.sch")
-(load "Debugger/trace.sch")
-(install-debugger)
 
 (define (default-assembly-basename)
   "larsembly")
