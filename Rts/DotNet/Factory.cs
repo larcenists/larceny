@@ -216,10 +216,9 @@ namespace Scheme.Rep {
         //  Procedures
         // ===================
 
-        public static Procedure makeProcedure(CodeVector code, 
-                                              SObject constvec,
-                                              SObject[] rib) {
-            return new Procedure(code,
+        public static Procedure makeProcedureTemplate(SObject constvec,
+	                                              SObject[] rib) {
+	            return new Procedure(CodeVector.NoCode,
                                  constvec,
                                  rib);
         }

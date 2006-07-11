@@ -137,10 +137,9 @@
 (define (rep:make-vector)
   (il:call '() iltype-svl il-schemefactory "makeVector" 
            (list iltype-schemeobject-array)))
-(define (rep:make-procedure)
-  (il:call '() iltype-procedure il-schemefactory "makeProcedure" 
-           (list iltype-codevector
-                 iltype-schemeobject
+(define (rep:make-procedure-template)
+  (il:call '() iltype-procedure il-schemefactory "makeProcedureTemplate" 
+           (list iltype-schemeobject
                  iltype-schemeobject-array)))
 (define (rep:make-constantvector)
   (il:call '(new instance) iltype-void il-constantvector ".ctor" 

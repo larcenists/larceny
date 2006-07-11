@@ -224,9 +224,10 @@
                     (il 'stelem.ref)
                     (loop (+ 1 index) (cdr items))))))
           (rep:make-vector)))
-        ((procedure? datum)
-         (let ((code   (procedure-ref datum 0))
-               (consts (procedure-ref datum 1))
+        ((and (procedure? datum)
+              ;; check that code pointer is #f
+              (not (procedure-ref datum 0)))
+         (let ((consts (procedure-ref datum 1))
                (env    (let loop ((i (- (procedure-length datum) 1))
                                   (l '()))
                          (cond ((< i 0) l)
@@ -249,9 +250,8 @@
                       (loop (+ 1 index) (cdr items))))))
             ;; next, create the constant vector
             (il:load-constant consts)
-            ;; finally the code vector (usually #f, but who knows?)
-            (il:load-constant code)
-            (rep:make-procedure))))
+            ;; the code vector must be #f, so no arg there.
+            (rep:make-procedure-template))))
         (else
          (error "cannot emit IL to load constant: ~s~%" datum)
          (il:comment "WARNING: Placeholder for ~s" datum)
