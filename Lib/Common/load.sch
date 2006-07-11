@@ -22,6 +22,10 @@
                        (lambda ()
                          (interaction-environment env))
                        (lambda ()
+                         ;; Filters out procedure literals in input of
+                         ;; the form (#^P(...) arg-literals ...)
+                         ;; For loading .fasl files when eval compiles
+                         ;; rather than interprets.
                          (if (and (pair? expr)
                                   (procedure? (car expr)))
                              (apply (car expr) (cdr expr))
