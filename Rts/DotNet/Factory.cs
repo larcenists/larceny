@@ -213,17 +213,6 @@ namespace Scheme.Rep {
         }
 
         // ===================
-        //  Procedures
-        // ===================
-
-        public static Procedure makeProcedureTemplate(SObject constvec,
-	                                              SObject[] rib) {
-	            return new Procedure(CodeVector.NoCode,
-                                 constvec,
-                                 rib);
-        }
-        
-        // ===================
         //  Symbols
         // ===================
 
