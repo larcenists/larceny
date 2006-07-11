@@ -23,8 +23,14 @@
   ;; Install twobit's macro expander as the interpreter's ditto
   ;; FSK: I'm not too thrilled about this either.
   (macro-expander (lambda (form environment)
-                    (twobit-expand form 
-                                   (environment-syntax-environment environment))))
+                    (let ((switches (compiler-switches 'get)))
+		      (dynamic-wind
+			  (lambda ()
+			    (compiler-switches 'standard))
+			  (lambda ()
+			    (twobit-expand form (environment-syntax-environment environment)))
+			  (lambda ()
+			    (compiler-switches 'set! switches))))))
   
   (let ((e (interaction-environment)))
     (letrec ((install-procedures
