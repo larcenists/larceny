@@ -28,6 +28,21 @@
       (not (runtime-safety-checking))
       (runtime-safety-checking (not (car args)))))
 
+(define (assembler-all-flags)
+  (let ((r.s.c (runtime-safety-checking))
+        (c.u.g (catch-undefined-globals))
+        (i.al  (inline-allocation))
+        (i.as  (inline-assignment))
+        (p.o   (peephole-optimization))
+        (s.s   (single-stepping)))
+    (lambda ()
+      (runtime-safety-checking r.s.c)
+      (catch-undefined-globals c.u.g)
+      (inline-allocation i.al)
+      (inline-assignment i.as)
+      (peephole-optimization p.o)
+      (single-stepping s.s))))
+
 (define (display-assembler-flags which)
   (case which
     ((debugging) #t)
