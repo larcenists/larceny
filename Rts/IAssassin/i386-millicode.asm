@@ -427,7 +427,24 @@ PUBLIC i386_petit_patch_boot_code
 	MCg	mc_petit_patch_boot_code
 %endif
 
+%macro INTERNAL_FIXNUM_TO_RETADDR 0
+	mov	[saved_temp_reg], eax
+	mov	eax, dword [GLOBALS + G_REG0]
+	mov	eax, dword [eax - PROC_TAG + PROC_CODEVECTOR_NATIVE]
+	add	dword [GLOBALS + G_RETADDR], eax
+	mov	eax, [saved_temp_reg]
+%endmacro
+
+%macro INTERNAL_RETADDR_TO_FIXNUM 0
+	mov	[saved_temp_reg], eax
+	mov	eax, dword [GLOBALS + G_REG0]
+	mov	eax, dword [eax - PROC_TAG + PROC_CODEVECTOR_NATIVE]
+	sub	dword [GLOBALS + G_RETADDR], eax
+	mov	eax, [saved_temp_reg]
+%endmacro
+
 %macro SAVE_STATE 1
+	INTERNAL_RETADDR_TO_FIXNUM
 	mov	[%1], GLOBALS
 	mov	[GLOBALS + G_STKP], CONT
 	mov	[GLOBALS + G_RESULT], RESULT
@@ -445,6 +462,7 @@ PUBLIC i386_petit_patch_boot_code
 	mov	REG2, [GLOBALS + G_REG2]
 	mov	REG3, [GLOBALS + G_REG3]
 	mov	REG4, [GLOBALS + G_REG4]
+	INTERNAL_FIXNUM_TO_RETADDR
 %endmacro
 
 %macro CALLOUT_TO_C 1
@@ -527,6 +545,8 @@ callout_to_Ck:
 
 	section	.data
 
+saved_temp_reg:
+	dd	0
 saved_globals_pointer:
 	dd	0
 tmp_exception_code:
