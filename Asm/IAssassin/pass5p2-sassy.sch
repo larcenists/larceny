@@ -82,20 +82,6 @@
         (lambda () (apply assemble source rest))
         (lambda () (set! assembly-postpass-segment old-postpass)))))
       
-(define (assembly-declarations user-data)
-  (append (if (not (runtime-safety-checking))
-	      '("%define UNSAFE_CODE")
-	      '())
-	  (if (not (catch-undefined-globals))
-	      '("%define UNSAFE_GLOBALS")
-	      '())
-	  (if (inline-allocation)
-	      '("%define INLINE_ALLOCATION")
-	      '())
-	  (if (inline-assignment)
-	      '("%define INLINE_ASSIGNMENT")
-	      '())))
-
 ; User-data structure has three fields:
 ;  toplevel-counter     Different for each compiled segment
 ;  proc-counter         A serial number for labels
