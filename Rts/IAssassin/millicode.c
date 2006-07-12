@@ -473,6 +473,13 @@ void EXPORT mc_cont_exception( word *globals, word exception, cont_t k )
 
 void EXPORT mc_apply( word *globals )
 {
+  /* NOTE: This is called from Scheme mode via
+   * callout_to_C_retaddr_is_absolute, which means that the return
+   * address has not been converted to an offset from the codevector
+   * in r0 (because mc_apply is about to clobber r0).  Thus, you are
+   * not allowed to make calls into the garbage collector within this
+   * code.
+   */
   word args = globals[ G_SECOND ];
   int i;
 
@@ -994,7 +1001,13 @@ cont_t restore_context( word *globals )
 #if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
   k = (cont_t)nativeint(stkp[ 4 ]);
 #else
-  k = (cont_t)stkp[ 4 ];
+  if (stkp[ 5 ]) { /* [pnkfelix] the saved R0 is sometimes 0 (?) */
+    k = (cont_t)stkp[ 4 ] + *(word*)(stkp[ 5 ] - PROC_TAG + 4*PROC_CODEPTR);
+  } else {
+    printf("restore_context with zero r0!"
+	   "  Tell pnkfelix@ccs.neu.edu!\n");
+    k = (cont_t)stkp[ 4 ];
+  }
 #endif
   for ( i=0 ; i < NREGS ; i++ )
     globals[ G_REG0+i ] = stkp[ 5+i ];

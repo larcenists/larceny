@@ -52,6 +52,12 @@ EXTNAME(i386_stack_underflow):
 ;;; millicode points to i386_return_from_scheme; all we do is call 
 ;;; the C function that escapes to the dispatch loop to restore state
 ;;; and continue execution
+;;; [pnkfelix] : this isn't so simple anymore.  In IAssassin,
+;;; we have migrating code, so the return address is saved as
+;;; an offset from r0.  We have to change it back to an
+;;; absolute address before we can jump to it.  This work
+;;; could be done here, or we could try doing it within
+;;; return_from_scheme or restore_context (I'm trying the third).
 	
 	align	code_align
 EXTNAME(i386_return_from_scheme):
@@ -280,8 +286,12 @@ PUBLIC i386_enable_interrupts
 PUBLIC i386_disable_interrupts
 	MCgk	mc_disable_interrupts
 	
+;;; Can't convert retaddr to a relative offset from
+;;; the codevector for r0 here, because mc_apply
+;;; overwrites r0 and so we would not be able to
+;;; recover the original address.
 PUBLIC i386_apply
-	MC2g	mc_apply
+	MILLICODE_STUB 1, mc_apply, callout_to_C_retaddr_is_absolute
 	
 PUBLIC i386_restargs
 	MC2g	mc_restargs
@@ -443,8 +453,29 @@ PUBLIC i386_petit_patch_boot_code
 	mov	eax, [saved_temp_reg]
 %endmacro
 
-%macro SAVE_STATE 1
+%macro SAVE_STATE_RTF 1
 	INTERNAL_RETADDR_TO_FIXNUM
+	mov	[%1], GLOBALS
+	mov	[GLOBALS + G_STKP], CONT
+	mov	[GLOBALS + G_RESULT], RESULT
+	mov	[GLOBALS + G_REG1], REG1
+	mov	[GLOBALS + G_REG2], REG2
+	mov	[GLOBALS + G_REG3], REG3
+	mov	[GLOBALS + G_REG4], REG4
+%endmacro
+
+%macro RESTORE_STATE_FTR 1
+	mov	GLOBALS, [%1]
+	mov	CONT, [GLOBALS + G_STKP]
+	mov	RESULT, [GLOBALS + G_RESULT]
+	mov	REG1, [GLOBALS + G_REG1]
+	mov	REG2, [GLOBALS + G_REG2]
+	mov	REG3, [GLOBALS + G_REG3]
+	mov	REG4, [GLOBALS + G_REG4]
+	INTERNAL_FIXNUM_TO_RETADDR
+%endmacro
+
+%macro SAVE_STATE 1
 	mov	[%1], GLOBALS
 	mov	[GLOBALS + G_STKP], CONT
 	mov	[GLOBALS + G_RESULT], RESULT
@@ -462,7 +493,6 @@ PUBLIC i386_petit_patch_boot_code
 	mov	REG2, [GLOBALS + G_REG2]
 	mov	REG3, [GLOBALS + G_REG3]
 	mov	REG4, [GLOBALS + G_REG4]
-	INTERNAL_FIXNUM_TO_RETADDR
 %endmacro
 
 %macro CALLOUT_TO_C 1
@@ -496,14 +526,14 @@ i386_signal_exception:
 	shr	SECOND, 2			; fixnum -> native
 	mov	[tmp_exception_code], SECOND    ; SECOND=eax
 	SAVE_RETURN_ADDRESS			; compute G_RETADDR
-	SAVE_STATE saved_globals_pointer	; forces RESULT into GLOBALS
+	SAVE_STATE_RTF saved_globals_pointer	; forces RESULT into GLOBALS
 	mov	ebx, GLOBALS
 	mov	esp, [ebx+G_SAVED_ESP]
 	push	dword [tmp_exception_code]	; exception code
 	push	ebx				; globals
 	call	EXTNAME(mc_exception)
 	add	esp, 8
-	RESTORE_STATE saved_globals_pointer
+	RESTORE_STATE_FTR saved_globals_pointer
 	jmp	[GLOBALS + G_RETADDR]
 
 	;; On entry, GLOBALS pointer is off by 4	
@@ -511,14 +541,14 @@ i386_signal_exception_intrsafe:
 	shr	SECOND, 2			; fixnum -> native
 	mov	[tmp_exception_code], SECOND    ; SECOND=eax
 	SAVE_RETURN_ADDRESS_INTRSAFE		; compute G_RETADDR, fixup globals
-	SAVE_STATE saved_globals_pointer	; forces RESULT into GLOBALS
+	SAVE_STATE_RTF saved_globals_pointer	; forces RESULT into GLOBALS
 	mov	ebx, GLOBALS
 	mov	esp, [ebx+G_SAVED_ESP]
 	push	dword [tmp_exception_code]	; exception code
 	push	ebx				; globals
 	call	EXTNAME(mc_exception)
 	add	esp, 8
-	RESTORE_STATE saved_globals_pointer
+	RESTORE_STATE_FTR saved_globals_pointer
 	jmp	[GLOBALS + G_RETADDR]
 
 ;;; callout_to_C
@@ -531,15 +561,21 @@ i386_signal_exception_intrsafe:
 ;;;	in G_RETADDR.
 
 callout_to_C:
+	SAVE_STATE_RTF saved_globals_pointer
+	CALLOUT_TO_C 0
+	RESTORE_STATE_FTR saved_globals_pointer
+	jmp	[GLOBALS + G_RETADDR]
+
+callout_to_C_retaddr_is_absolute:
 	SAVE_STATE saved_globals_pointer
 	CALLOUT_TO_C 0
 	RESTORE_STATE saved_globals_pointer
 	jmp	[GLOBALS + G_RETADDR]
 
 callout_to_Ck:
-	SAVE_STATE saved_globals_pointer
+	SAVE_STATE_RTF saved_globals_pointer
 	CALLOUT_TO_C 1
-	RESTORE_STATE saved_globals_pointer
+	RESTORE_STATE_FTR saved_globals_pointer
 	jmp	[GLOBALS + G_RETADDR]
 	
 
