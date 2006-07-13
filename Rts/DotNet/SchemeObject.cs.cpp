@@ -969,7 +969,7 @@ namespace Scheme.Rep {
     public /* abstract */ class CodeVector : SObject
     {
       // Maximum number of labels to which jump index may refer.
-      public const int CONTROL_POINT_LIMIT = 512;
+      public const int CONTROL_POINT_LIMIT = 1024;
 
       public static readonly CodeVector NoCode = new DataCodeVector (Factory.False);
 
@@ -978,7 +978,7 @@ namespace Scheme.Rep {
       public CodeVector (int controlPointCount)
       {
 	if (controlPointCount > CONTROL_POINT_LIMIT)
-	    throw new Exception ("Maximum number of control points exceeded.");
+	    throw new Exception ("Maximum number of control points exceeded: "+controlPointCount);
 
         this.controlPoints = new CodeAddress [controlPointCount];
         for (int i = 0; i < controlPointCount; ++i)
