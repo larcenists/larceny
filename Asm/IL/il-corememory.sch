@@ -76,6 +76,62 @@
    ""
    thunk))
 
+;; HACK!  UGH!  
+;; Putting this here because I want to be able to compile this file.
+(define-syntax define-syscall
+  (syntax-rules ()
+    ((define-syscall name code ...)
+     (define-syntax name
+       (syntax-rules ()
+         ((name . args)
+          (syscall code ... . args)))       ))))
+
+(define-syscall clr/%clr-version        34  0)
+(define-syscall clr/%ffi-version        34  1)
+(define-syscall %foreign?               34  2)
+(define-syscall clr/%to-string          34  3)
+(define-syscall clr/%object-type        34  4)
+(define-syscall clr/%isa?               34  5)
+(define-syscall clr/%eq?                34  6)
+
+(define-syscall clr/%get-type           34  7)
+(define-syscall clr/%get-field          34  8)
+(define-syscall clr/%get-constructor    34  9)
+(define-syscall clr/%get-method         34 10)
+(define-syscall clr/%get-property       34 11)
+
+(define-syscall clr/%field-ref          34 12)
+(define-syscall clr/%field-set!         34 13)
+(define-syscall clr/%invoke-constructor 34 14)
+(define-syscall clr/%invoke             34 15)
+(define-syscall clr/%property-ref       34 16)
+(define-syscall clr/%property-set!      34 17)
+(define-syscall clr/%foreign-aref       34 18)
+
+(define-syscall clr/%foreign-box            34 19 0)
+(define-syscall clr/%string->foreign        34 19 1)
+(define-syscall clr/%number->foreign-byte   34 19 2)
+(define-syscall clr/%number->foreign-uint16 34 19 3)
+(define-syscall clr/%number->foreign-uint32 34 19 4)
+(define-syscall clr/%number->foreign-sbyte  34 19 5)
+(define-syscall clr/%number->foreign-int16  34 19 6)
+(define-syscall clr/%number->foreign-int32  34 19 7)
+(define-syscall clr/%procedure->message-filter 34 19 8)
+;(define-syscall clr/%void->foreign         34 19 9)
+(define-syscall clr/%flonum->foreign-single 34 19 10)
+(define-syscall clr/%flonum->foreign-double 34 19 11)
+
+(define-syscall clr/%foreign->object        34 20 0)
+(define-syscall clr/%foreign->schemeobject  34 20 1)
+(define-syscall clr/%foreign->string        34 20 2)
+;(define-syscall clr/%foreign->symbol       34 20 3)
+(define-syscall clr/%foreign->bytes         34 20 4)
+(define-syscall clr/%foreign->int           34 20 5)
+(define-syscall clr/%foreign-single->flonum 34 20 6)
+(define-syscall clr/%foreign-double->flonum 34 20 7)
+(define-syscall clr/%foreign->void          34 20 8)
+;; END HACK
+
 (define clr-type-handle/system-reflection-assemblyname
   (clr/%get-type "System.Reflection.AssemblyName"))
 (define clr-type-handle/system-threading-thread
