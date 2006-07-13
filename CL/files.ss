@@ -54,6 +54,8 @@
    "Scheme.dll"
    "Twobit.fasl"
    "Twobit.exe"
+   "Larceny.fasl"
+   "Larceny.exe"
 
    "Asm\\Common\\asmutil.sch"
    "Asm\\Common\\asmutil32-test.sch"

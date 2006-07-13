@@ -61,6 +61,8 @@
 <$Files "Scheme.dll"				DestDir="CL_INSTALLDIR">
 <$Files "Twobit.fasl"				DestDir="CL_INSTALLDIR">
 <$Files "Twobit.exe"				DestDir="CL_INSTALLDIR">
+<$Files "Larceny.fasl"				DestDir="CL_INSTALLDIR">
+<$Files "Larceny.exe"				DestDir="CL_INSTALLDIR">
 
 <$Files "Asm\Common\asmutil.sch"		DestDir="CL_ASMCMDIR">
 <$Files "Asm\Common\asmutil32-test.sch"		DestDir="CL_ASMCMDIR">
