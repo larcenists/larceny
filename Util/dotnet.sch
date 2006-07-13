@@ -297,7 +297,7 @@
     (write-crock 2 p body-crock-2)
     (close-output-port p)))
   
-(define (build-twobit)
+(define (build-twobit-base app-name additional-files)
   (define crock-file-1 "Rts/Build/dotnet-twobit-1.sch")
   (define crock-file-2 "Rts/Build/dotnet-twobit-2.sch")  
 
@@ -308,7 +308,7 @@
   (write-crock-two crock-file-2)
 
   (compile-application 
-   "Twobit" 
+   app-name
    (append (list "Util/dotnet.sch") 
 	   ;; Next bunch is the result of breaking down larceny-setup
 	   ;; into seperate components seperated by its calls to load
@@ -331,8 +331,27 @@
 	   (nbuild:machine-asm-files)
 	   (nbuild:utility-files)
 	   (list "Rts/make-templates.sch" "Util/cleanup.sch")
-	   (list "Util/dotnet-compile-file.sch")
+
+           additional-files
 	   )))
+
+(define (build-twobit)
+  (build-twobit-base "Twobit" 
+                     '("Util/dotnet-compile-file.sch")))
+
+(define (build-larceny)
+  (build-twobit-base "Larceny" 
+                     '("Compiler/driver-larceny.sch"
+                       "Util/seal-twobit.sch"
+                       "Util/dotnet-compile-file.sch"
+                       "Asm/IL/il-jdot-aliases.sch"
+                       "Asm/IL/il-corememory.sch"
+
+                       "Debugger/debug.sch"
+                       "Debugger/inspect-cont.sch"
+                       "Debugger/trace.sch"
+                       
+                       "Util/dotnet-larceny.sch")))
 
 ;; Convenience
 (define (load-debugger)
