@@ -107,6 +107,10 @@
    "Auxlib\\unix-functions.sch"
    "Auxlib\\vector.sch"
 
+   "Auxlib\\comment.sch"
+   "Auxlib\\common-syntax.sch"
+   "Auxlib\\shivers-syntax.sch"
+
 ;;   "bin\\Debug\\Scheme.dll"
 ;;   "bin\\Debug\\Scheme.pdb"
 ;;   "bin\\Release\\Scheme.dll"
