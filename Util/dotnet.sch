@@ -344,6 +344,8 @@
                      '("Compiler/driver-larceny.sch"
                        "Util/seal-twobit.sch"
                        "Util/dotnet-compile-file.sch"
+                       
+                       "Asm/Common/link-lop.sch"
                        "Asm/IL/il-jdot-aliases.sch"
                        "Asm/IL/il-corememory.sch"
 
