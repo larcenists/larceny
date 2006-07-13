@@ -29,7 +29,7 @@
         (thunk path))))
 
 (define *preserve-temporary-directories*
-  (make-parameter #t))
+  (make-parameter #t (lambda (x) x)))
 
 (define (call-with-temporary-directory thunk)
   (call-with-temporary-directory-name
