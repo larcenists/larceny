@@ -45,7 +45,7 @@
                        (apply (eval '.common-patch-procedure env)
                               (cdar expr))))
                   (proc))
-                (eval expr env)))
+                (eval/clr expr env)))
           (lambda ()
             (if (eq? (interaction-environment) env)
                 (interaction-environment old-env)))))))
