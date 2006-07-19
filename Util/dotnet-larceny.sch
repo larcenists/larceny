@@ -19,6 +19,9 @@
   ;; From Debugger/debug.sch
   '(install-debugger)
 
+  ;; From Lib/MzScheme/dotnet.sch
+  '(enable-dotnet!)
+
   standard-proc-names))
 
 (install-debugger)
