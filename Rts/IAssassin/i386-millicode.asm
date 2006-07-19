@@ -45,19 +45,13 @@
 	align	code_align
 EXTNAME(i386_stack_underflow):
 	mov	eax, EXTNAME(mem_stkuflow)
-	jmp	callout_to_C
+	jmp	callout_to_C_leave_retaddr_absolute ; Should this leave retaddr absol ?
 
 	
 ;;; The return address of a frame created by a callout from Scheme to
 ;;; millicode points to i386_return_from_scheme; all we do is call 
 ;;; the C function that escapes to the dispatch loop to restore state
 ;;; and continue execution
-;;; [pnkfelix] : this isn't so simple anymore.  In IAssassin,
-;;; we have migrating code, so the return address is saved as
-;;; an offset from r0.  We have to change it back to an
-;;; absolute address before we can jump to it.  This work
-;;; could be done here, or we could try doing it within
-;;; return_from_scheme or restore_context (I'm trying the third).
 	
 	align	code_align
 EXTNAME(i386_return_from_scheme):
@@ -289,9 +283,9 @@ PUBLIC i386_disable_interrupts
 ;;; Can't convert retaddr to a relative offset from
 ;;; the codevector for r0 here, because mc_apply
 ;;; overwrites r0 and so we would not be able to
-;;; recover the original address.
+;;; recover the original address.		
 PUBLIC i386_apply
-	MILLICODE_STUB 1, mc_apply, callout_to_C_retaddr_is_absolute
+	MILLICODE_STUB 1, mc_apply, callout_to_C_leave_retaddr_absolute
 	
 PUBLIC i386_restargs
 	MC2g	mc_restargs
@@ -441,6 +435,7 @@ PUBLIC i386_petit_patch_boot_code
 	mov	[saved_temp_reg], eax
 	mov	eax, dword [GLOBALS + G_REG0]
 	mov	eax, dword [eax - PROC_TAG + PROC_CODEVECTOR_NATIVE]
+	add	eax, BVEC_HEADER_BYTES - BVEC_TAG
 	add	dword [GLOBALS + G_RETADDR], eax
 	mov	eax, [saved_temp_reg]
 %endmacro
@@ -449,29 +444,18 @@ PUBLIC i386_petit_patch_boot_code
 	mov	[saved_temp_reg], eax
 	mov	eax, dword [GLOBALS + G_REG0]
 	mov	eax, dword [eax - PROC_TAG + PROC_CODEVECTOR_NATIVE]
+	add	eax, BVEC_HEADER_BYTES - BVEC_TAG
 	sub	dword [GLOBALS + G_RETADDR], eax
 	mov	eax, [saved_temp_reg]
 %endmacro
 
 %macro SAVE_STATE_RTF 1
 	INTERNAL_RETADDR_TO_FIXNUM
-	mov	[%1], GLOBALS
-	mov	[GLOBALS + G_STKP], CONT
-	mov	[GLOBALS + G_RESULT], RESULT
-	mov	[GLOBALS + G_REG1], REG1
-	mov	[GLOBALS + G_REG2], REG2
-	mov	[GLOBALS + G_REG3], REG3
-	mov	[GLOBALS + G_REG4], REG4
+	SAVE_STATE %1
 %endmacro
 
 %macro RESTORE_STATE_FTR 1
-	mov	GLOBALS, [%1]
-	mov	CONT, [GLOBALS + G_STKP]
-	mov	RESULT, [GLOBALS + G_RESULT]
-	mov	REG1, [GLOBALS + G_REG1]
-	mov	REG2, [GLOBALS + G_REG2]
-	mov	REG3, [GLOBALS + G_REG3]
-	mov	REG4, [GLOBALS + G_REG4]
+	RESTORE_STATE %1
 	INTERNAL_FIXNUM_TO_RETADDR
 %endmacro
 
@@ -566,7 +550,7 @@ callout_to_C:
 	RESTORE_STATE_FTR saved_globals_pointer
 	jmp	[GLOBALS + G_RETADDR]
 
-callout_to_C_retaddr_is_absolute:
+callout_to_C_leave_retaddr_absolute:
 	SAVE_STATE saved_globals_pointer
 	CALLOUT_TO_C 0
 	RESTORE_STATE saved_globals_pointer

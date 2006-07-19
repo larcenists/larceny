@@ -532,8 +532,8 @@
   (lambda (instruction as)
     (list-instruction "branch" instruction)
     (emit-sassy as
-	       (if (memq (operand1 instruction) 
-			 (user-data.labels (as-user as)))
+	       (if (assq (operand1 instruction) 
+			 (as-labels as))
 		   ia86.T_BRANCH
 		   ia86.T_SKIP)
 	       (compiled-procedure as (operand1 instruction)))))
@@ -542,8 +542,8 @@
   (lambda (instruction as)
     (list-instruction "branchf" instruction)
     (emit-sassy as 
-	       (if (memq (operand1 instruction)
-			 (user-data.labels (as-user as)))
+	       (if (assq (operand1 instruction)
+			 (as-labels as))
 		   ia86.T_BRANCHF 
 		   ia86.T_SKIPF)
 	       (compiled-procedure as (operand1 instruction)))))

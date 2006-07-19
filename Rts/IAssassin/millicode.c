@@ -38,268 +38,9 @@ RTYPE return_from_scheme( CONT_PARAMS );
 extern void i386_return_from_scheme();
 #endif
 
-#ifdef PETIT_LARCENY
-int twobit_cache_state = 0;     /* For petit-instr.h debug code */
-# if USE_LONGJUMP || USE_RETURN_WITHOUT_VALUE
-cont_t twobit_cont_label = 0;   /* Label to jump to */
-# endif
-static int valid_datum( word x );
-# if USE_GOTOS_LOCALLY
-static word *make_system_procedure( gc_t *gc, codeptr_t f );
-static word *dispatch_loop_return_procedure;
-static word *return_from_scheme_procedure;
-static word *stack_underflow_procedure;
-# endif
-#endif /* PETIT_LARCENY */
-
 /* These could go in the globals vector, too */
 jmp_buf dispatch_jump_buffer;
 int already_running = 0;
-
-#ifdef PETIT_LARCENY
-void scheme_init( word *globals )
-{
-# if USE_GOTOS_LOCALLY
-  gc_t *gc = the_gc( globals );
-# endif /* USE_GOTOS_LOCALLY */
-  
-  initialize_generic_arithmetic();
-
-# if USE_GOTOS_LOCALLY
-  /* Create some system procedures used for control flow. */
-  dispatch_loop_return_procedure = 
-    make_system_procedure( gc, dispatch_loop_return );
-  return_from_scheme_procedure = 
-    make_system_procedure( gc, return_from_scheme );
-  stack_underflow_procedure = 
-    make_system_procedure( gc, mem_stkuflow );
-# endif /* USE_GOTOS_LOCALLY */
-}
-
-# if USE_GOTOS_LOCALLY
-static word *make_system_procedure( gc_t *gc, codeptr_t f )
-{
-  word *p;
-
-  p = alloc_from_heap( sizeof(word)*(PROC_HEADER_WORDS+3) );
-  p[0] = mkheader( sizeof(word)*3, PROC_HDR );
-  p[PROC_HEADER_WORDS+IDX_PROC_CODE] = ENCODE_CODEPTR(f);
-  p[PROC_HEADER_WORDS+IDX_PROC_CONST] = FALSE_CONST;
-  p[PROC_HEADER_WORDS+IDX_PROC_REG0] = 0;
-
-  return gc_make_handle( gc, tagptr( p, PROC_TAG ) );
-}
-# endif /* USE_GOTOS_LOCALLY */
-
-void scheme_start( word *globals )
-{
-  cont_t f = 0;
-  word *stkp = (word*)globals[ G_STKP ];
-  int x;
-
-  if (already_running)
-    panic_abort( "Recursive call to petit_larceny_start (FFI?)" );
-  already_running = 1;
-
-#if 0
-  /* Patch in bootstrap code if necessary */
-  if (procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ) == FALSE_CONST)
-    procedure_set(globals[G_REG0],IDX_PROC_CODE,ENCODE_CODEPTR(twobit_start));
-#endif 
-
-  /* Return address for bottom-most frame */
-# if USE_GOTOS_LOCALLY
-  stkp[ STK_RETADDR ] = 0;
-  stkp[ STK_REG0 ] = *dispatch_loop_return_procedure;
-# else
-  stkp[ STK_RETADDR ] = (word)dispatch_loop_return;
-  stkp[ STK_REG0 ] = 0;
-# endif
-
-# if USE_LONGJUMP
-  globals[ G_TIMER ] = TIMER_STEP;
-# endif
-
-  /* The dispatch loop is a doubly-nested quasi-loop.  
-
-     The outer loop uses setjmp/longjmp for control and is entered but 
-     rarely; most of the time is spent in the inner loop.  The job of
-     the outer loop is to provide the inner loop with the address of
-     the first block to execute.
-
-     The structure of the inner loop depends on the jump discipline.  
-     When the jump discipline is anything but USE_LONGJUMP, the inner 
-     loop is a _while_ loop that performs control transfer to the next
-     block, the address of which is returned from the previously executed 
-     block either as a return value or through a global variable.  When 
-     the jump discipline is USE_LONGJUMP, then the inner loop simply 
-     consists of a call to a block, and the transfer to the next block 
-     is done in the block itself by means of a tail call.  Occasionally,
-     the C stack must be pruned, and the block signals a timer interrupt
-     (longjump with DISPATCH_TIMER).
-     */
-
-  /* Outer loop */
-  switch (x = setjmp( dispatch_jump_buffer )) {
-  case 0 :
-  case DISPATCH_CALL_R0 :
-# if USE_GOTOS_LOCALLY
-    f = 0;
-# else
-    f = DECODE_CODEPTR(procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ));
-# endif
-    break;
-  case DISPATCH_CALL_AGAIN :
-# if USE_LONGJUMP
-    /* A longjump has pruned the stack; now continue. */
-    f = twobit_cont_label;
-    break;
-# else
-    panic_exit( "Unexpected entry to DISPATCH_CALL_AGAIN in scheme_start()" );
-# endif
-  case DISPATCH_EXIT:
-    already_running = 0;
-    return;
-  case DISPATCH_RETURN_FROM_S2S_CALL :
-    f = restore_context( globals );
-    break;
-  case DISPATCH_STKUFLOW :
-    f = refill_stack_cache( globals );
-    break;
-  case DISPATCH_SIGFPE :
-    handle_sigfpe( globals );
-    panic_exit( "handle_sigfpe() returned." );
-  case DISPATCH_TIMER :
-# if USE_LONGJUMP
-    /* The first-level timer expired.  The longjmp has pruned the stack; now
-       handle the timer expiration (and re-setup the timer).  The call to 
-       timer_exception returns unless TIMER2==0 or an interrupt is pending.
-       */
-    timer_exception( globals, twobit_cont_label );
-    f = twobit_cont_label;
-    break;
-# else
-    panic_exit( "Unexpected entry to DISPATCH_TIMER in scheme_start()" );
-# endif
-  default :
-    panic_exit( "Unexpected value %d from setjmp in scheme_start()", x );
-  }
-
-  /* Inner loop */
-# if USE_GOTOS_LOCALLY
-   /* INVARIANT: f is an entry point within the code of the procedure 
-      in REG0. */
-#  if USE_RETURN_WITH_VALUE
-   while (1)
-   {
-     codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
-     f = p( globals, f );
-   }
-#  elif USE_RETURN_WITHOUT_VALUE
-   twobit_cont_label = f;
-   while (1) {
-     codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
-     p( globals, twobit_cont_label );
-   }
-#  elif USE_LONGJUMP
-   {
-     codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
-     p( globals, f );
-   }
-#  endif
-# else /* USE_GOTOS_LOCALLY */
-#  if USE_RETURN_WITH_VALUE
-   while (1)
-     f = ((codeptr_t)f)( globals );
-#  elif USE_RETURN_WITHOUT_VALUE
-   twobit_cont_label = f;
-   while (1)
-     ((codeptr_t)twobit_cont_label)( globals );
-#  elif USE_LONGJUMP
-   ((codeptr_t)f)( globals );
-#  endif
-# endif /* USE_GOTOS_LOCALLY */
-   panic_exit( "Unexpected return from procedure in scheme_start()" );
-}
-
-void twobit_integrity_check( word *globals, const char *name )
-{
-  int i;
-  word *stkp, *etop, *elim, *ebot, *stkbot, *frame;
-
-  /* Check that roots contain only valid values */
-  /* Fixme: should check handles too */
-  for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ )
-    if (!valid_datum( globals[i] ))
-      panic_abort( "Invalid value 0x%08x found in global %d\n", 
-                  globals[i], i );
-
-  stkp = (word*)globals[ G_STKP ];
-  etop = (word*)globals[ G_ETOP ];
-  ebot = (word*)globals[ G_EBOT ];
-  elim = (word*)globals[ G_ELIM ];
-  stkbot = (word*)globals[ G_STKBOT ];
-
-  /* Check heap and stack pointers */
-  if (stkp < etop)
-    panic_abort( "Stack pointer points below heap top!\n"
-                 "stkp=0x%08x, etop=0x%08x\n", (word)stkp, (word)etop );
-  if (stkp > stkbot)
-    panic_abort( "Stack pointer points above stack bottom!\n"
-                 "stkp=0x%08x, stkbot=0x%08x\n", (word)stkp, (word)stkbot );
-  if (etop < ebot || etop > elim)
-    panic_abort( "Heap pointers are not ordered correctly!\n"
-                "ebot=0x%08x, etop=0x%08x, elim=0x%08x",
-                (word)ebot, (word)etop, (word)elim );
-                 
-  /* Check that all stack frames look OK
-       - Size field must be fixnum and >= 12
-       - Return address must be fixnum
-       - All slots accounted for by size field must have data values
-     */
-  frame = stkp;
-  while (frame < stkbot) {
-    word size = frame[ STK_FRAMESIZE ];
-    word retaddr = frame[ STK_RETADDR ];
-    if (!is_fixnum(size) || (s_word)size < 12)
-      panic_abort( "Invalid stack frame size %u\n", size );
-    if (!is_fixnum(retaddr))
-      panic_abort( "Invalid return address 0x%08x\n", retaddr );
-    for ( i=STK_REG0 ; i <= nativeint(size) ; i++ )
-      if (!valid_datum( frame[i] ))
-        panic_abort( "Invalid datum in stack frame: 0x%08x\n", frame[i] );
-    frame = frame + roundup_walign( size/4+1 );
-  }
-
-  /* Obviously one can also test the heap, SSBs, remembered sets, and
-     so on.
-     */
-}
-
-static int valid_datum( word x )
-{
-  return (isptr( x ) && (caddr_t)x >= gclib_pagebase) ||
-         is_fixnum( x ) || 
-         is_char( x ) ||
-         x == UNSPECIFIED_CONST ||
-         x == UNDEFINED_CONST ||
-         x == NIL_CONST ||
-         x == TRUE_CONST || 
-         x == FALSE_CONST ||
-         x == EOF_CONST;
-}
-
-void stk_initialize_underflow_frame( word *stkp )
-{
-# if USE_GOTOS_LOCALLY
-  stkp[ STK_RETADDR ] = 0;
-  stkp[ STK_REG0 ] = *stack_underflow_procedure;
-# else
-  stkp[ STK_RETADDR ] = ENCODE_RETURN_ADDRESS(mem_stkuflow,0);
-  stkp[ STK_REG0 ] = 0;
-# endif
-}
-#endif /* PETIT_LARCENY */
 
 RTYPE EXPORT mem_stkuflow( CONT_PARAMS )
 {
@@ -407,12 +148,7 @@ void EXPORT mc_break( word *globals )
 
 void EXPORT mc_timer_exception( word *globals, cont_t k )
 {
-#if defined PETIT_LARCENY && USE_LONGJUMP
-  twobit_cont_label = k;
-  longjmp( dispatch_jump_buffer, DISPATCH_TIMER );
-#else
   timer_exception( globals, k );
-#endif
 }
 
 static void timer_exception( word *globals, cont_t k )
@@ -443,11 +179,6 @@ void EXPORT mc_enable_interrupts( word *globals, cont_t k )
   else
     signal_exception( globals, EX_EINTR, 0, 0 ); /* Never returns */
   check_signals( globals, k );                   /* Thus, redundant */
-#if defined PETIT_LARCENY && USE_LONGJUMP
-  /* For now: prune the stack */
-  twobit_cont_label = k;
-  longjmp( dispatch_jump_buffer, DISPATCH_CALL_AGAIN );
-#endif
 }
 
 void EXPORT mc_disable_interrupts( word *globals, cont_t k )
@@ -778,9 +509,6 @@ cont_t refill_stack_cache( word *globals )
 
   gc_stack_underflow( the_gc( globals ) );
   stkp = (word*)globals[ G_STKP ];
-#if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
-  globals[ G_REG0 ] = stkp[ STK_REG0 ];
-#endif
   return DECODE_RETURN_ADDRESS(stkp[ STK_RETADDR ]);
 }
 
@@ -865,6 +593,21 @@ static void check_signals( word *globals, cont_t k )
   }
 }
 
+static cont_t internal_fixnum_to_retaddr( word *globals, word off ) {
+  cont_t k;
+  if (globals[ G_REG0 ]) {
+    assert(tagof(globals[ G_REG0 ]) == PROC_TAG);
+    assert(tagof(procedure_ref( globals[ G_REG0 ], 0)) == BVEC_TAG);
+    k = off
+      + (procedure_ref( globals[ G_REG0 ], 0)
+	 - BVEC_TAG
+	 + BVEC_HEADER_BYTES);
+    return k;
+  } else {
+    return off;
+  }
+}
+
 /* Call Scheme when the VM is in Scheme mode already. The problem here is
    that when Scheme code calls a millicode procedure, it is not required to
    save any of its registers.  Thus, when the millicode must call out to 
@@ -942,23 +685,9 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   /* Initialize frame */
   stkp[ STK_CONTSIZE ] = (word)S2S_FRAMESIZE;
   stkp[ STK_DYNLINK ] = 0;
-#if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
-  stkp[ STK_RETADDR ] = 0;
-  stkp[ STK_REG0 ] = *return_from_scheme_procedure;
-  stkp[ 4 ] = fixnum((word)k);
-#elif defined X86_NASM
   stkp[ STK_RETADDR ] = (word)i386_return_from_scheme;
   stkp[ STK_REG0 ] = 0;
   stkp[ 4 ] = (word)k;
-#elif defined X86_SASSY
-  stkp[ STK_RETADDR ] = (word)i386_return_from_scheme;
-  stkp[ STK_REG0 ] = 0;
-  stkp[ 4 ] = (word)k;
-#else /* PETIT_LARCENY && !USE_GOTOS_LOCALLY */
-  stkp[ STK_RETADDR ] = ENCODE_RETURN_ADDRESS(0,return_from_scheme);
-  stkp[ STK_REG0 ] = 0;
-  stkp[ 4 ] = (word)k;
-#endif
   for ( i=0 ; i < NREGS ; i++ )
     stkp[ 5+i ] = globals[ G_REG0+i ];
   stkp[ 5+NREGS ] = globals[ G_RESULT ];
@@ -998,19 +727,12 @@ cont_t restore_context( word *globals )
   int i;
 
   stkp = (word*)globals[ G_STKP ];
-#if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
-  k = (cont_t)nativeint(stkp[ 4 ]);
-#else
-  if (stkp[ 5 ]) { /* [pnkfelix] the saved R0 is sometimes 0 (?) */
-    k = (cont_t)stkp[ 4 ] + *(word*)(stkp[ 5 ] - PROC_TAG + 4*PROC_CODEPTR);
-  } else {
-    printf("restore_context with zero r0!"
-	   "  Tell pnkfelix@ccs.neu.edu!\n");
-    k = (cont_t)stkp[ 4 ];
-  }
-#endif
+  
   for ( i=0 ; i < NREGS ; i++ )
     globals[ G_REG0+i ] = stkp[ 5+i ];
+  
+  k = internal_fixnum_to_retaddr( globals, stkp[ 4 ]);
+
   if (stkp[ 5+NREGS+1 ] == TRUE_CONST)
     globals[ G_RESULT ] = stkp[ 5+NREGS ];
   globals[ G_STKP ] = (word)(stkp + S2S_REALFRAMESIZE);
