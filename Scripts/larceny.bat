@@ -19,10 +19,13 @@ if %~n0 == petit (
     call :check "%LARCENY_ROOT%\petit.bin.exe" -heap "%LARCENY_ROOT%\petit.heap" %*
 ) else if %~n0 == twobit (
     call :check "%LARCENY_ROOT%\twobit.bin.exe" -heap "%LARCENY_ROOT%\twobit.heap" %*
+) else if %~n0 == larceny (
+    call :check "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\larceny.heap" %*
 ) else (
     echo Usage:
     echo     petit LARCENYOPTIONS
     echo     twobit LARCENYOPTIONS
+    echo     larceny LARCENYOPTIONS
     goto :EOF
 )
 
