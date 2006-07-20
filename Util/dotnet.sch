@@ -301,9 +301,6 @@
   (define crock-file-1 "Rts/Build/dotnet-twobit-1.sch")
   (define crock-file-2 "Rts/Build/dotnet-twobit-2.sch")  
 
-  (cond ((file-exists? "Twobit.fasl")
-	 (delete-file "Twobit.fasl")))
-  
   (write-crock-one crock-file-1)
   (write-crock-two crock-file-2)
 
@@ -336,10 +333,14 @@
 	   )))
 
 (define (build-twobit)
+  (cond ((file-exists? "Twobit.fasl")
+	 (delete-file "Twobit.fasl")))
   (build-twobit-base "Twobit" 
                      '("Util/dotnet-compile-file.sch")))
 
 (define (build-larceny)
+  (cond ((file-exists? "Larceny.fasl")
+	 (delete-file "Larceny.fasl")))
   (build-twobit-base "Larceny" 
                      '("Compiler/driver-larceny.sch"
                        "Util/seal-twobit.sch"
