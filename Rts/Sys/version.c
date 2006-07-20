@@ -52,8 +52,8 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 91;
-char *larceny_version_qualifier = " \"Children's Ice Cream\"";
+int  larceny_minor_version = 92;
+char *larceny_version_qualifier = "d for development";
 
 char *date = DATE " " TIME;
 char *user = USER;
