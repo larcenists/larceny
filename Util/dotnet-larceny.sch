@@ -19,10 +19,26 @@
   ;; From Debugger/debug.sch
   '(install-debugger)
 
-  ;; From Lib/MzScheme/dotnet.sch
-  '(enable-dotnet!)
+  ;; From Lib/MzScheme/dotnet.sch and Lib/MzScheme/init.sch
+  ;; Javadot support.  Need the procedure to enable it,
+  ;; as well as the supporting syntax definition for
+  ;; (.javadot FORM); see eval expression below.
+  '(enable-dotnet!
+    dot-javadot-syntax-definition
+    clr/find-instance-field-getter
+    clr/find-instance-field-setter
+    clr/find-generic
+    clr/find-constructor
+    clr/find-static-field-setter
+    clr/find-static-field-getter
+    clr/find-class
+    ;; clr/find-parameterized-class
+    clr/find-static-method
+    )
 
   standard-proc-names))
+
+(eval dot-javadot-syntax-definition)
 
 (install-debugger)
 

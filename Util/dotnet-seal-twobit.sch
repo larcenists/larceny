@@ -2,7 +2,8 @@
 (load "Compiler/driver-larceny.sch")
 (load "Util/seal-twobit.sch")
 (load "Util/dotnet-compile-file.sch")
-(load "Asm/IL/il-load-coremem.sch")
+(load "Asm/IL/il-jdot-aliases.sch")
+(load "Asm/IL/il-corememory.sch")
 
 (seal-twobit 
  (append 
@@ -15,7 +16,25 @@
     with-saving-assembly-to-dll 
     compile-file/clr) 
   
+  ;; Javadot support.  Need the procedure to enable it,
+  ;; as well as the supporting syntax definition for
+  ;; (.javadot FORM); see eval expression below.
+  '(enable-dotnet!
+    dot-javadot-syntax-definition
+    clr/find-instance-field-getter
+    clr/find-instance-field-setter
+    clr/find-generic
+    clr/find-constructor
+    clr/find-static-field-setter
+    clr/find-static-field-getter
+    clr/find-class
+    ;; clr/find-parameterized-class
+    clr/find-static-method
+    )
+
   standard-proc-names))
+
+(eval dot-javadot-syntax-definition)
 
 (begin
   (load "Debugger/debug.sch")

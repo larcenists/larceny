@@ -712,7 +712,7 @@
       (cons begin-exports *larceny-environment-extensions*))
 
 
-(export-syntax
+(define dot-javadot-syntax-definition
  '(define-syntax .javadot
     (transformer
      ((lambda ()
@@ -977,3 +977,6 @@
                   (else (error "Bad javadot identifier?" exp)))))
 
         transform)))))
+
+(export dot-javadot-syntax-definition)
+(export-syntax dot-javadot-syntax-definition)
