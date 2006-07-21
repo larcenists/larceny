@@ -18,16 +18,26 @@ To compile files, the development tools (e.g. ilasm) must be in your
 search path.  Also, for now you must have Twobit.fasl and Twobit.exe
 in the current directory when you start the compiler.
 
+To run with auto-compilation of loaded files, for now you must have
+Larceny.fasl and Larceny.exe in the current directory when you start
+the runtime.  Note that the compiler itself has not been optimized,
+and so there is a noticeable delay when loading source in this mode.
+
 QUICK START
 
 CommonLarceny (Win32):
- - If you want to use the compiler, run
+ - If you want to run with auto-compilation of Scheme source loaded
+   with the load procedure, run
+   > CommonLarceny -- Larceny.fasl
+
+ - If you want to use the compiler under the interpreter, run
    > CommonLarceny -- Twobit.fasl
 
  - If you're content to use only the interpreter, run
    > CommonLarceny
 
 Do not run Twobit.exe; it is not a standalone application.
+Do not run Larceny.exe; it is not a standalone application.
 
 COMPILING SCHEME SOURCE WITH LARCENY
 
