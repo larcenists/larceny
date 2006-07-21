@@ -22,7 +22,7 @@ Run your host Scheme (either another Larceny or MzScheme 209), and
 change to the root directory of the Larceny tree.
 
     > (load "Util/petit-setup.sch")
-    > (setup 'scheme: ${SCHEME} 'host: ${HOST} ['native])
+    > (setup 'scheme: ${SCHEME} 'host: ${HOST} ['native] ['sassy])
     > (setup-directory-structure)       ; The first time only
     > (build-config-files)              ; [2]
     > (load-compiler)
