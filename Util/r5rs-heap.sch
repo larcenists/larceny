@@ -17,7 +17,13 @@
        (pretty-print x port))))
 
 (dump-interactive-heap "r5rs.heap")
-(system "./larceny.bin -reorganize-and-dump -heap r5rs.heap")
-(system "/bin/mv r5rs.heap.split r5rs.heap")
+(cond
+ ((equal? (cdr (assq 'os-name (system-features)))
+	  "Win32")
+  (system "larceny.bin -reorganize-and-dump -heap r5rs.heap")
+  (system "move r5rs.heap.split r5rs.heap"))
+ (else
+  (system "./larceny.bin -reorganize-and-dump -heap r5rs.heap")
+  (system "/bin/mv r5rs.heap.split r5rs.heap")))
 
 ; eof
