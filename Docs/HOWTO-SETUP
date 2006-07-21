@@ -30,7 +30,7 @@ change to the root directory of the Larceny tree.
 The call to setup (above) has several options that determine which
 version of Larceny you build:
 
-        SCHEME ::= 'mzscheme | 'larceny | 'petite | 'chez       [1]
+        SCHEME ::= 'mzscheme | 'larceny | 'petite | 'chez       [3]
         HOST   ::= 'macosx | 'solaris | 'linux86 | 'win32
 
 Additionally, the optional 'native flag will build Native Larceny
