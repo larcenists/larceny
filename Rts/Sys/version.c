@@ -15,7 +15,7 @@
  *  Dear John                   0.53
  *  Operation Drop-Kick         0.90
  *  Children's Ice Cream        0.91
- *  Definite Missile Track
+ *  Definite Missile Track      0.92
  *  Deviated Prevert
  *  Doomsday Device
  *  First Safety
@@ -53,7 +53,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 92;
-char *larceny_version_qualifier = "d for development";
+char *larceny_version_qualifier = " \"Definite Missile Track\"";
 
 char *date = DATE " " TIME;
 char *user = USER;
