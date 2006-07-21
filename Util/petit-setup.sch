@@ -157,7 +157,7 @@
                            ((linux86) 'linux-el) ;; [[ Felix feels "linux86" a more immediate mnemonic, so alias the two ]]
                            (else host:)))
                 (target: (if target: target: host:)))
-           (setup-real! scheme: host: target: c-compiler: (or native sassy nasm) code-cov rebuild-code-cov always-source sassy)))))
+           (setup-real! scheme: host: target: c-compiler: (or native sassy nasm) code-cov rebuild-code-cov always-source sassy nasm)))))
 
 ;; Can't use parameters for *host-dir* and such, because we have not
 ;; loaded the compatibility files yet at the time we get here.
@@ -167,7 +167,7 @@
 ;; Sets global variables (based on Scheme impl. running on and Target OS), then calls UNIX-INITIALIZE
 (define (setup-real! host-scheme host-arch target-arch 
 		     c-compiler-choice native code-cov rebuild-code-cov 
-		     always-source sassy)
+		     always-source sassy nasm)
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris) 'big)
