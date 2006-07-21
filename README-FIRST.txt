@@ -3,16 +3,16 @@ SYSTEM REQUIREMENTS
 Currently, this software is distributed for:
  - Solaris on SPARC machines (native SPARC and C backends)
  - Mac OS X (>= 10.2) on PPC machines (C backend)
- - Linux on Intel x86 machines (NASM and C backends)
- - Windows on Intel x86 machines (NASM backend)
+ - Linux on Intel x86 machines (IA32, NASM and C backends)
+ - Windows on Intel x86 machines (IA32 and NASM backends)
 
 "Petit Larceny" is used throughout this documentation to refer to all
-versions other than the SPARC native backend [1].
+versions other than the SPARC and IA32 native backends [1].
 
 
 WHAT YOU NEED
 
-Native (SPARC): everything should work out of the box.
+Native (SPARC, IA32): everything should work out of the box.
 
 Petit/C (SPARC, Linux, Mac OS X): ensure that the GNU C Compiler (GCC)
     is in your search path [2].
@@ -30,7 +30,7 @@ OS X:     Use Apple's Developer Tools, http://developer.apple.com/
 
 QUICK START
 
-Native (SPARC):
+Native (SPARC, IA32):
  - If you want to use the compiler, run
    % ./larceny
 
