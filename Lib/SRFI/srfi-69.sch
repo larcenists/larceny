@@ -1,31 +1,53 @@
+;;; Copyright © Panu Kalliokoski (2005). All Rights Reserved.
+;;; (with Larceny specific updates by Felix Klock (2006))
+;;; 
+;;; Permission is hereby granted, free of charge, to any person
+;;; obtaining a copy of this software and associated documentation
+;;; files (the Software), to deal in the Software without restriction,
+;;; including without limitation the rights to use, copy, modify,
+;;; merge, publish, distribute, sublicense, and/or sell copies of the
+;;; Software, and to permit persons to whom the Software is furnished
+;;; to do so, subject to the following conditions:
+;;; 
+;;; The above copyright notice and this permission notice shall be
+;;; included in all copies or substantial portions of the Software.
+;;; 
+;;; THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND,
+;;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;;; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+;;; HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+;;; WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+;;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+;;; DEALINGS IN THE SOFTWARE.
+(require 'srfi-9)
+
 (define *default-bound* (- (expt 2 29) 3))
 
-(define (%string-hash s ch-conv bound)
-  (let ((hash 31)
-	(len (string-length s)))
-    (do ((index 0 (+ index 1)))
-      ((>= index len) (modulo hash bound))
-      (set! hash (modulo (+ (* 37 hash)
-			    (char->integer (ch-conv (string-ref s index))))
-			 *default-bound*)))))
+;; Hack to allow use of Larceny's built-in string-hash implementation
+;; and to keep it in the face of multiple loads of this srfi.
+(define %%string-hash 
+  (if (environment-variable? (interaction-environment) '%%string-hash)
+      %%string-hash
+      string-hash))
 
 (define (string-hash s . maybe-bound)
   (let ((bound (if (null? maybe-bound) *default-bound* (car maybe-bound))))
-    (%string-hash s (lambda (x) x) bound)))
+    (modulo (%%string-hash s) bound)))
 
 (define (string-ci-hash s . maybe-bound)
   (let ((bound (if (null? maybe-bound) *default-bound* (car maybe-bound))))
-    (%string-hash s char-downcase bound)))
+    (modulo (%%string-hash (string-downcase s)) bound)))
 
-(define (symbol-hash s . maybe-bound)
+(define (srfi-69-symbol-hash s . maybe-bound)
   (let ((bound (if (null? maybe-bound) *default-bound* (car maybe-bound))))
-    (%string-hash (symbol->string s) (lambda (x) x) bound)))
+    (modulo (symbol-hash s) bound)))
 
 (define (hash obj . maybe-bound)
   (let ((bound (if (null? maybe-bound) *default-bound* (car maybe-bound))))
     (cond ((integer? obj) (modulo obj bound))
 	  ((string? obj) (string-hash obj bound))
-	  ((symbol? obj) (symbol-hash obj bound))
+	  ((symbol? obj) (srfi-69-symbol-hash obj bound))
 	  ((real? obj) (modulo (+ (numerator obj) (denominator obj)) bound))
 	  ((number? obj)
 	   (modulo (+ (hash (real-part obj)) (* 3 (hash (imag-part obj))))
@@ -94,14 +116,6 @@
 
 (define (make-hash-table-maker comp hash)
   (lambda args (apply make-hash-table (cons comp (cons hash args)))))
-(define make-symbol-hash-table
-  (make-hash-table-maker eq? symbol-hash))
-(define make-string-hash-table
-  (make-hash-table-maker string=? string-hash))
-(define make-string-ci-hash-table
-  (make-hash-table-maker string-ci=? string-ci-hash))
-(define make-integer-hash-table
-  (make-hash-table-maker = modulo))
 
 (define (%hash-table-hash hash-table key)
   ((hash-table-hash-function hash-table)
