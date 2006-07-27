@@ -216,6 +216,7 @@
           ((solaris)      (if native 'features-sparc-solaris 'features-petit-solaris))
           ((linux-el)     (cond (sassy  'features-x86-sassy-linux)
                                 (nasm   'features-x86-nasm-linux)
+                                (native 'features-x86-nasm-linux)
                                 (else   'features-petit-linux)))
 	  ((cygwin)       'features-petit-cygwin)
 	  ((win32)        (cond (sassy  'features-x86-sassy-win32)
