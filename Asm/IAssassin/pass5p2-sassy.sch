@@ -64,7 +64,8 @@
 (set! assembly-postpass-segment
       (make-sassy-postpass 
        (lambda (as seg sassy-output)
-         (cons (list->bytevector (sassy-text-list sassy-output))
+         (cons (list->bytevector (map (lambda (n) (if (< n 0) (+ n 256) n))
+       	       	                      (sassy-text-list sassy-output)))
                (cdr seg)))))
 
 (define (assemble-read source . rest)
