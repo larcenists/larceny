@@ -79,7 +79,7 @@
 ;;; exception handler figures out the rest.
 
 (define-sassy-instr (ia86.T_GLOBAL_INVOKE g n)
-  (cond ((or #t (unsafe-globals)) ;; pnkfelix doesn't want to hack the other clause yet
+  (cond ((unsafe-globals)
          (ia86.T_GLOBAL g)
          (ia86.T_INVOKE n))
         (else
@@ -103,7 +103,9 @@
 	   (ia86.storer 0 'TEMP)              ; save proc ptr
 	   (ia86.const2regf 'RESULT           ; argument count
                             (fixnum n))
-	   `(jmp	(& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))))))
+	   `(mov TEMP	(& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+           `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+           `(jmp TEMP)))))
 
 (define-sassy-instr (ia86.T_APPLY x y)
   (ia86.timer_check)
