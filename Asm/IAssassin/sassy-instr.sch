@@ -554,8 +554,8 @@
             (else 
              '())))))
 
-(define-sassy-instr (ia86.T_SETRTN lbl)
-  ;;; This has not been optimized.  
+'(define-sassy-instr (ia86.T_SETRTN lbl)
+  ;;; This has not been optimized.  (19 bytes)
   ;;; Ryan points out that we could grab the base address 
   ;;; of the codevector via R0 instead of doing the call below.
   (let ((L1 (fresh-label)))
@@ -567,6 +567,18 @@
     `(add TEMP (reloc rel ,(t_label lbl)))  ;; adjust to point to lbl
     `(mov (& CONT ,STK_RETADDR) TEMP)   ;; save in ret addr slot
     ))
+
+;; Alternate version (18 bytes).  
+;; (But SETRTN/INVOKE may be inspired by prior approach...)
+(define-sassy-instr (ia86.T_SETRTN lbl)
+  (ia86.loadr 'TEMP 0)
+  `(mov TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+  `(add TEMP (reloc rel 
+                    ,(t_label lbl)))
+  ;; FIXME: merge this add with preceding instruction (3 bytes less!)
+  `(add TEMP
+                    ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+  `(mov (& CONT ,STK_RETADDR) TEMP))
 
 (define-sassy-instr (ia86.T_RESTORE n)
   (begin
