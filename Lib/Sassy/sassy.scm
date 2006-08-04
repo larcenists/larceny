@@ -31,7 +31,7 @@
 
 ; PETIT LARCENY 0.92
 ; Ensure LARCENY_ROOT is set to your larceny-0.92-src directory.
-(load "inits/petit-0.92.scm")
+; (load "inits/petit-0.92.scm")
 
 ; MZSCHEME 301
 ; (load "inits/mzscheme-301.scm")

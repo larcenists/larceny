@@ -7,16 +7,16 @@
 (load (string-append (current-larceny-root) "/Util/compile-tools.sch"))
 
 (parameterize ((current-directory (string-append (current-larceny-root)
-                                                 "/Asm/Intel/Sassy"))
-               (current-require-path (cons "Asm/Intel/Sassy" 
+                                                 "/Lib/Sassy"))
+               (current-require-path (cons "Lib/Sassy" 
                                            (current-require-path))))
   (let ((c (lambda (f . reqs) 
              (begin (display `(compiling ,f)) (newline))
-             (compile-file/requiring f (append '(extras meta-lambda) reqs)))))
+             (compile-file/requiring f (append '(extras) reqs)))))
     (c "push-stacks.scm")
     (c "api.scm" 'srfi-9)
     (c "intern.scm")
-    (c "macros.scm")
+    (c "macros.scm" 'srfi-9)
     (c "numbers.scm")
     (c "operands.scm")
     (c "text-block.scm" 'srfi-9)

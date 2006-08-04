@@ -322,6 +322,6 @@
 
 ;; for Sassy
 (define (compat:load-sassy)
-  (parameterize ((current-directory "Asm/Intel/Sassy/"))
+  (parameterize ((current-directory "Lib/Sassy/"))
     (load "inits/mzscheme-299.400.scm")
     (load "sassy.scm")))

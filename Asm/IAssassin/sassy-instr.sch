@@ -52,7 +52,8 @@
 (define (unsafe-globals)
   (unsafe-code))
 
-(define sassy-instr-directives '())
+(define sassy-instr-directives
+  '((macro comment (lambda x '(begin)))))
 
 (define-syntax define-sassy-instr
   (syntax-rules ()
@@ -135,7 +136,8 @@
 ;;; Utility macros for MAL instruction definitions
 
 (define-sassy-instr (ia86.mcall fcn name)
-  `(call	(& GLOBALS ,fcn) -- ,name)
+  `(comment -- ,name)
+  `(call	(& GLOBALS ,fcn))
   `(align code_align))
 
 ;;; loadr targetreg, regno
@@ -214,8 +216,9 @@
 ;;;	any registers; exception is noncontinuable
 	
 (define-sassy-instr (ia86.exception_noncontinuable excode)
-  `(call	(& GLOBALS ,$m.exception) -- exception ,excode)
-  `(lit-dword	,excode))
+  `(comment -- exception ,excode)
+  `(call	(& GLOBALS ,$m.exception))
+  `(dwords	,excode))
 		
 ;;; exception_continuable excode restart
 ;;;	Jump to exception handler with code without destroying
@@ -233,8 +236,9 @@
 ;;;	globals, to save 3 bytes!  (It can be a negative offset.)
 
 (define-sassy-instr (ia86.exception_continuable excode restart)
-  `(call	(& GLOBALS ,$m.exception) -- exception ,excode)
-  `(lit-dword	,excode)
+  `(comment -- exception ,excode)
+  `(call	(& GLOBALS ,$m.exception))
+  `(dwords	,excode)
   `(align	code_align)
   `(jmp	,restart))
 
@@ -598,17 +602,12 @@
 (define-sassy-instr (ia86.T_JUMP levels label name)
   (ia86.timer_check)
   (let ((offset
-         (let* ((as-at-level (begin 
-                               (let loop ((l levels)
-                                          (obj (current-sassy-assembly-structure)))
-                                 (cond ((zero? l) obj)
-                                       (else (loop (- l 1) (as-parent obj)))))))
-                (sassy-out (user-local.sassy-output (as-user-local as-at-level)))
-                (sym-table (sassy-symbol-table sassy-out))
-                (entry (find-label (current-sassy-assembly-structure)
-                                   label)))
-           (and entry ;; have we seen this label and ...
-                (cdr entry))))) ;; has it been given an offset yet?
+	 (let loop ((obj (current-sassy-assembly-structure)))
+	   (cond ((not obj) ;; Didn't find our label by following
+		  ;; chain of structures; must be in current one
+		  #f)
+		 ((find-label obj label) => (lambda (entry) (cdr entry)))
+		 (else (loop (as-parent obj)))))))
     (cond ((> levels 0) 
            (ia86.loadr 'TEMP 0)		; We know R0 is not a HWREG
            `(times ,levels 
@@ -620,7 +619,8 @@
            `(lea TEMP (& TEMP ,(- $tag.procedure-tag)))
            `(mov TEMP (& TEMP ,PROC_CODEVECTOR_NATIVE))
            `(lea TEMP (& TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES offset)))
-           `(jmp TEMP -- ,(t_label name)))
+	   `(comment  -- ,(t_label name))
+           `(jmp TEMP))
           (else
            ;; If offset is false, then this must be a label in the
            ;; code vector we are currently attempting to construct.
