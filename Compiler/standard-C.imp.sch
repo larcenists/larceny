@@ -31,7 +31,7 @@
 ; registers.
 
 ;(define *nhwregs* 32)
-(define *nhwregs* 16)       ; Helps the NASM assembler generate smaller code
+(define *nhwregs* 5)       ; Helps the NASM assembler generate smaller code
 
 ; Variable names that indicate register targets.
 
