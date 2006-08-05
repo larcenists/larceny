@@ -568,16 +568,14 @@
     `(mov (& CONT ,STK_RETADDR) TEMP)   ;; save in ret addr slot
     ))
 
-;; Alternate version (18 bytes).  
+;; Alternate version (15 bytes).  
 ;; (But SETRTN/INVOKE may be inspired by prior approach...)
 (define-sassy-instr (ia86.T_SETRTN lbl)
   (ia86.loadr 'TEMP 0)
   `(mov TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-  `(add TEMP (reloc rel 
-                    ,(t_label lbl)))
-  ;; FIXME: merge this add with preceding instruction (3 bytes less!)
-  `(add TEMP
-                    ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+  `(add TEMP (reloc abs 
+                    ,(t_label lbl)
+                    ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES)))
   `(mov (& CONT ,STK_RETADDR) TEMP))
 
 (define-sassy-instr (ia86.T_RESTORE n)
