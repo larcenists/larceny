@@ -23,7 +23,13 @@
        (pretty-print x port))))
 
 (dump-interactive-heap "twobit.heap")
-(system "./larceny.bin -reorganize-and-dump -heap twobit.heap")
-(system "/bin/mv twobit.heap.split twobit.heap")
+(cond
+ ((equal? (cdr (assq 'os-name (system-features)))
+	  "Win32")
+  (system "larceny.bin -reorganize-and-dump -heap twobit.heap")
+  (system "move twobit.heap.split twobit.heap"))
+ (else
+  (system "./larceny.bin -reorganize-and-dump -heap twobit.heap")
+  (system "/bin/mv twobit.heap.split twobit.heap")))
 
 ; eof
