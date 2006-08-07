@@ -599,6 +599,8 @@
   (make-mnemonic 'reg/op2/check))
 (define $reg/op2imm/check                 ; reg/op2imm/check   prim,k1,x,k2,k3,k4,exn
   (make-mnemonic 'reg/op2imm/check))
+(define $setrtn/invoke                    ; setrtn/invoke      n
+  (make-mnemonic 'setrtn/invoke))
 (define $global/invoke                    ; global/invoke      global,n
   (make-mnemonic 'global/invoke))
 

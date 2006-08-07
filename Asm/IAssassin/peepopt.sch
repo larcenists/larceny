@@ -56,6 +56,16 @@
 	   (as-source! as (cons (list $global/invoke (cadr i1) (cadr i2))
 				t2))))))
 
+(define-peephole $setrtn
+  (lambda (as i1 i2 i3 t1 t2 t3)
+    (cond ((= (car i2) $invoke)
+           (cond ((= (car i3) $.align)
+                  (if (not (null? t3))
+                      (let ((i4 (car t3))
+                            (t4 (cdr t3)))
+                        (cond ((= (car i4) $.label)
+                               (setrtn-invoke as i1 i2 i3 i4 t4)))))))))))
+
 (define-peephole $branch
   (lambda (as i1 i2 i3 t1 t2 t3)
     (cond ((= (car i2) $.align)
@@ -104,3 +114,13 @@
     (if (= branch-label label)
         (as-source! as (cons i:align (cons i:label tail))))))
 
+(define (setrtn-invoke as i:setrtn i:invoke i:align i:label tail)
+  (let ((return-label (operand1 i:setrtn))
+        (invoke-ops   (operand1 i:invoke))
+        (label        (operand1 i:label)))
+    (if (and ;; Very experimental; leaving spot to ease disabling
+             (= return-label label))
+        (as-source! as (cons (list $setrtn/invoke invoke-ops)
+                             (cons i:align
+                                   (cons i:label
+                                         tail)))))))

@@ -44,7 +44,7 @@
 ;;; exception as well, and must check the timer first.
 
 (define-sassy-instr (ia86.T_INVOKE n)
-  (cond ((unsafe-code)
+  (cond ((unsafe-code) ;; 35 bytes
          (ia86.timer_check)
          (ia86.storer 0 'RESULT)
          `(mov TEMP RESULT)
@@ -52,7 +52,7 @@
          `(mov TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
          `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
 	 `(jmp TEMP))
-        (else
+        (else ;; 40 bytes
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
@@ -106,6 +106,48 @@
 	   `(mov TEMP	(& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
            `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
            `(jmp TEMP)))))
+
+(define-sassy-instr (ia86.T_SETRTN_INVOKE n)
+  (let ((ign (if (not (memv n *did-emit-setrtn-invoke*))
+                 (set! *did-emit-setrtn-invoke* 
+                       (cons n *did-emit-setrtn-invoke*)))))
+    (cond ((unsafe-code)
+           (error 'T_SETRTN_INVOKE "Not implemented unsafely yet"))
+          (else 
+           ;; For SETRTN, see patch-code below
+           ;; INVOKE
+           (let ((L0 (fresh-label))
+                 (L1 (fresh-label)))
+             `(dec (dword (& GLOBALS ,$g.timer)))
+             `(jnz short ,L1)
+             `(label ,L0)
+             (ia86.mcall $m.invoke-ex 'invoke-ex)
+             `(label ,L1)
+             `(lea TEMP (& RESULT ,(- $tag.procedure-tag)))
+             `(test TEMP_LOW tag_mask)
+             `(jnz short ,L0)
+             `(mov TEMP (& TEMP ,PROC_CODEVECTOR_NATIVE))
+             (ia86.storer 0 'RESULT)
+             ;; n stored in RESULT via patch-code
+             `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+             `(call ,(setrtn-invoke-patch-code-label n))
+             )))))
+
+(define (setrtn-invoke-patch-code-label n)
+  (string->symbol (string-append "setrtn-invoke-patch-code-label" 
+                                 (number->string n))))
+
+(define (emit-setrtn-invoke-patch-code as n)
+  (define (emit x) (apply emit-sassy as x))
+  (emit `(label ,(setrtn-invoke-patch-code-label n)))
+  ; (emit `(int3))
+  (emit `(pop RESULT))            ;; return address
+  (emit `(add RESULT 3))          ;;  rounded up
+  (emit `(and RESULT #xFFFFFFFC)) ;;   to 4-byte boundary
+  (emit `(mov (& CONT ,STK_RETADDR) RESULT))
+  (for-each emit (ia86.const2regf 'RESULT (fixnum n)))
+  (emit `(jmp TEMP)))
+         
 
 (define-sassy-instr (ia86.T_APPLY x y)
   (ia86.timer_check)

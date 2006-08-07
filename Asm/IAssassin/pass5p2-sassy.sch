@@ -204,11 +204,14 @@
       (emit-string! as (apply twobit-format #f fmt operands))
       (emit-string! as linebreak))))
 
+(define *did-emit-setrtn-invoke* '())
+
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label)))
     ;(emit-text as "begin_codevector ~a" name)
     (emit-sassy as 'align 'code_align)
     (add-function as name #t entrypoint?)
+    (set! *did-emit-setrtn-invoke* '())
     (set! code-indentation (string #\tab))
     (set! code-name name)))
 
@@ -219,6 +222,8 @@
 
 (define (end-compiled-scheme-function as)
   (set! code-indentation "")
+  (for-each (lambda (n) (emit-setrtn-invoke-patch-code as n))
+            *did-emit-setrtn-invoke*)
   ;(emit-text as "end_codevector ~a" code-name)
   ;(emit-text as "")
   )
@@ -585,6 +590,10 @@
                 (emit-global as (operand1 instruction))
                 (operand2 instruction))))
 
+(define-instruction $setrtn/invoke
+  (lambda (instruction as)
+    (list-instruction "setrtn/invoke" instruction)
+    (emit-sassy as ia86.T_SETRTN_INVOKE (operand1 instruction))))
 
 ;    Note, for the _check_ optimizations there is a hack in place.  Rather
 ;    than using register numbers in the instructions the assembler emits
