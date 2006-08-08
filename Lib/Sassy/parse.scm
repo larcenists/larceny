@@ -184,7 +184,7 @@
 	    (sassy-symbol-set!
 	     output label
 	     `(size ,(handle-text-block `(begin ,@opcodes-or-prims)
-					output (t-make) level)))))
+					(t-make output) level)))))
 
 	 ((not (pair? itm)) (error "sassy: bad text item" itm))
 	 (else
@@ -192,7 +192,7 @@
 	    ((text) (for-each text-item (cdr itm)))
 	    ((data) (process-data (cdr itm) output (+ level 1)))
 	    ((heap) (process-heap (cdr itm) output (+ level 1)))
-	    (else (handle-text-block itm output (t-make) level))))))
+	    (else (handle-text-block itm (t-make output) level))))))
 
       (if (>= level 2)
 	  (error "sassy: too many nested switches into a text directive"
@@ -201,7 +201,7 @@
 	    (if (not (null? rst))
 		(call-with-values
 		    (lambda ()
-		      (span (lambda (x) (and (pair? x) (opcode? (car x))))
+		      (span (lambda (x) (and (pair? x) (opcode? (car x)) #t))
 			    rst))
 		  (lambda (block rest)
 		    (cond

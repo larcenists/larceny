@@ -1,6 +1,15 @@
 TODO - RELEASE 0.2.1
 ====================
 
+* Flesh out docs for reloc, especially rel - re convo's with Felix Aug
+  4-6. (no values in rel, and using rel as immediate operand, and more
+  examples about how they work
+
+* Add test for (mov ...) to and from tr3-7.
+
+* Elucidate usages of (reloc ...) in docs (re: recent problems Felix
+  was having).
+
 * Add documentation for new option 'dont-expand (patch 13)
 
 * Add documentation for raw bytes in text section (patch 11)

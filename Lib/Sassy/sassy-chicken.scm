@@ -50,8 +50,6 @@
 (include "flat-bin.scm")
 (include "elf.scm")
 
-sassy
-
 ;========================;
 ; 			 ;
 ; The test suite	 ;

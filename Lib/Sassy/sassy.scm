@@ -41,6 +41,7 @@
 ; or go grap the EGG! and ignore this file, with:
 ; chicken-setup sassy
 
+; gauche.parameter
 ; GAUCHE-0.8.5
 ; (load "inits/gosh-0.8.5.scm")
 ; start gosh with "gosh -I."

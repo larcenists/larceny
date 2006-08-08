@@ -2,6 +2,98 @@
 # arch-tag: automatic-ChangeLog--jak76@columbia.edu--scheme/sassy--mainline--0.2.1
 #
 
+2006-08-08 02:32:56 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-20
+
+    Summary:
+      fix for chicken
+    Revision:
+      sassy--mainline--0.2.1--patch-20
+
+    wrong file name sassy-chicken.scm
+
+    modified files:
+     sassy-chicken.scm
+
+
+2006-08-08 02:30:19 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-19
+
+    Summary:
+      Re-org of opcodes.scm, bug fixes, rel reloc clarification
+    Revision:
+      sassy--mainline--0.2.1--patch-19
+
+    Opcodes.scm re-organized:
+      - Got rid of all assignment in this file, which was the main
+        show-stopper in terms of making sassy safely re-entrant (not totally
+        there yet though).
+    
+      - Re-organized things a bit to help this mess load/compile faster.
+    
+    You can now use operands you would normally only use in repe, in rep as
+    well, since they are the same prefix.
+    
+    The shift.scm test wasn't being completely generated and tested. Fixed.
+    
+    Properly throw an exception when (reloc rel <target> <value>) happens - rel relocs aren't allowed to have a <value>.
+    
+    Rel relocs, when used as operands to instructions which don't automatically perform a relative calculation (like jmp), where defaulting too, and being processed as an abl reloc. Fixed.
+    
+    Add moves to and from the test registers (trX), and corrected a couple
+    operand sizes (cmpxchg8b).
+
+    modified files:
+     TODO opcodes.scm operands.scm sassy.scm
+     tests/generate-nasm.scm tests/shift tests/shift.asm
+     tests/shift.scm tests/shift16 tests/shift16.asm
+
+
+2006-08-03 18:52:51 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-18
+
+    Summary:
+      Chicken build, Fixed bug in raw bytes in text
+    Revision:
+      sassy--mainline--0.2.1--patch-18
+
+    Fixed up the chicken build files to reflect latest changes.
+    
+    Fixed a bug in opcodes.scm when parsing "raw-bytes"
+    
+
+    modified files:
+     inits/petit-0.92.scm opcodes.scm sassy-chicken.scm sassy.scm
+
+
+2006-08-01 06:10:08 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-17
+
+    Summary:
+      Basics in place for thread safety/re-entrancy
+    Revision:
+      sassy--mainline--0.2.1--patch-17
+
+    Put the basics in place for making Sassy thread safe and the procedure "sassy" safely re-entrant. Big re-organization of opcodes.scm to do this.
+    
+    Still to do: parameterize sassy-current and sassy-expand, and this
+    task will be done.
+    
+
+    modified files:
+     opcodes.scm parse.scm sassy.scm text-block.scm text.scm
+
+
+2006-07-31 23:12:06 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-16
+
+    Summary:
+      Refectoring of opcodes
+    Revision:
+      sassy--mainline--0.2.1--patch-16
+
+    Starting to try and refactor some stuff in opcodes.scm for clarity and thread-safeness.
+    
+
+    modified files:
+     opcodes.scm sassy.scm
+
+
 2006-07-30 16:18:19 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-15
 
     Summary:

@@ -31,7 +31,11 @@
 ; export all
 
 
-(define (handle-text-block text-item outp textb level)
+(define (handle-text-block text-item textb level)
+
+  (define outp (t-outp textb))
+
+  (let ()
 
   (define rel-adjust (if (= 16 (sassy-bits outp))
 			 3
@@ -43,8 +47,9 @@
      (lambda (label-pair)
        (case (cadr label-pair)
 	 ((local import export)
-	  (sassy-symbol-set! outp (car label-pair)
-			     `(offset ,(- new-text-size (caddr label-pair)))))))
+	  (sassy-symbol-set!
+	   outp (car label-pair)
+	   `(offset ,(- new-text-size (caddr label-pair)))))))
      list-of-label-pairs))
 
   (define (fix-block-labels! new-text-size list-of-label-pairs env)
@@ -178,6 +183,13 @@
 	(gen-short-jmp amount)
 	(gen-near-jmp  amount)))
 
+
+  (define (emit-direct itm win lose)
+    (t-win-set!  textb win)
+    (t-lose-set! textb lose)
+    (emit-direct2 (car itm) (opcode? (car itm)) (cdr itm) textb))
+  
+
   ; Eeek!! Optimize cc-branches for size. May have to rework to work
   ; nicely with P4 static branch prediction.
   (define (gen-opt-jcc cc win lose)
@@ -203,48 +215,42 @@
 			    cc (- (push-stack-size (t-text textb)) win))))))
 	    ((and (or (symbol win) (number? win))
 		  (or (symbol lose) (number? lose)))
-	     (cond ((equal? win lose) (emit-direct `(jmp ,win)
-						   win lose textb outp))
+	     (cond ((equal? win lose) (emit-direct `(jmp ,win) win lose))
 		   ((and (symbol win) (symbol lose))
-		    (emit-direct `(jmp ,lose) win lose textb outp)
-		    (emit-direct `(,(get-assert-name cc) ,win)
-				 win lose textb outp))
+		    (emit-direct `(jmp ,lose) win lose)
+		    (emit-direct `(,(get-assert-name cc) ,win) win lose))
 		   ((and (symbol win) (= lose current))
-		    (emit-direct `(,(get-assert-name cc) ,win)
-				 win lose textb outp))
+		    (emit-direct `(,(get-assert-name cc) ,win) win lose))
 		   ((symbol win)
-		    (emit-direct `(jmp ,win) win lose textb outp)
+		    (emit-direct `(jmp ,win) win lose)
 		    (gen-assert (flip cc) (+ (- current lose) rel-adjust)))
 		   ((and (symbol lose) (= win current))
 		    (emit-direct `(,(get-assert-name (flip cc)) ,lose)
-				 win lose textb outp))
-		   (else (emit-direct `(jmp ,lose) win lose textb outp)
+				 win lose))
+
+		   (else (emit-direct `(jmp ,lose) win lose)
 			 (gen-assert cc (+ (- current win) rel-adjust)))))
 	    ((number? win)
-	     (emit-direct lose win lose textb outp)
+	     (emit-direct lose win lose)
 	     (gen-assert cc (- (push-stack-size (t-text textb)) win)))
 	    ((number? lose)
-	     (emit-direct win win lose textb outp)
+	     (emit-direct win win lose)
 	     (gen-assert (flip cc) (- (push-stack-size (t-text textb)) lose)))
 	    ((symbol win)
-	     (emit-direct lose win lose textb outp)
-	     (emit-direct `(,(get-assert-name cc) ,win)
-			  win lose textb outp))
+	     (emit-direct lose win lose)
+	     (emit-direct `(,(get-assert-name cc) ,win) win lose))
 	    ((symbol lose)
-	     (emit-direct win win lose textb outp)
-	     (emit-direct `(,(get-assert-name (flip cc)) ,lose)
-			  win lose textb outp))
-	    ((equal? win lose) (emit-direct win win lose textb outp))
-	    (else (emit-direct lose win lose textb outp)
+	     (emit-direct win win lose)
+	     (emit-direct `(,(get-assert-name (flip cc)) ,lose) win lose))
+	    ((equal? win lose) (emit-direct win win lose))
+	    (else (emit-direct lose win lose)
 		  (let ((new-lose (push-stack-size (t-text textb))))
-		    (emit-direct win win lose textb outp)
+		    (emit-direct win win lose)
 		    (gen-assert (flip cc) (- (push-stack-size (t-text textb))
 					    new-lose)))))))
 	    
   (define (gen-opt-jmp to win lose)
-    (cond ((symbol to) => (lambda (x)
-			    (emit-direct2 'jmp (opcode? 'jmp) (list x)
-					 win lose textb outp)))
+    (cond ((symbol to) => (lambda x (emit-direct (cons 'jmp x) win lose)))
 	  (else (let ((current (push-stack-size (t-text textb))))
 		  (if (= to current)
 		      current
@@ -303,7 +309,7 @@
       (if (and (pair? e)
 	       (or (eqv? (car e) 'jmp)
 		   (eqv? (car e) 'ret)))
-	  (emit-direct e win lose textb outp)
+	  (emit-direct e win lose)
 	  (really-compile e)))
 
 
@@ -390,8 +396,15 @@
 	       (if (or (symbol win)
 		       (not (= win (push-stack-size (t-text textb)))))
 		   (gen-opt-jmp win win lose))
-	       (emit-direct2 (car exp) opcode (cdr itm)
-			     win lose textb outp)))
+	       (t-win-set!  textb win)
+	       (t-lose-set! textb lose)
+	       (emit-direct2 (car itm) opcode (cdr itm) textb)))
+
+	    ((and (pair? itm) (eq? 'begin (car itm)))
+	     (cond ((null? (cdr itm)) win)
+		   ((null? (cddr itm)) (really-compile (cadr itm)))
+		   (else (let ((w (really-compile (cons 'begin (cddr itm)))))
+			   (compile (cadr itm) w w)))))
 
 	    ((sassy-label-form? itm)
 	     (let ((label (cadr itm))
@@ -430,13 +443,6 @@
 				   (really-compile (cons 'seq (cddr itm)))
 				   lose))))
 
-
-	       ((begin) (cond ((null? (cdr itm)) win)
-			      ((null? (cddr itm)) (really-compile (cadr itm)))
-			      (else (let ((w (really-compile
-					      (cons 'begin (cddr itm)))))
-				      (compile (cadr itm) w w)))))
-
 	       ((inv) (if (and (not (null? (cdr itm))) (null? (cddr itm)))
 			  (compile (cadr itm) lose win)
 			  (text-error itm)))
@@ -466,8 +472,7 @@
 				 (body (caddr itm)))
 			     (really-compile body)
 			     (for-each (lambda (escape)
-					 (emit-direct
-					  escape win lose textb outp))
+					 (emit-direct escape win lose))
 				       (reverse list-of-escapes))
 			     (push-stack-size (t-text textb)))
 			   (text-error itm)))
@@ -510,4 +515,4 @@
       (fix-body-labels! new-text-size (t-label textb))
       (fix-block-labels! new-text-size (t-label textb) (t-env textb))
       (push-stack-append! (sassy-text-stack outp) (t-text textb))
-      (push-stack-size (t-text textb)))))
+      (push-stack-size (t-text textb))))))

@@ -40,8 +40,11 @@
 (define creg #f)
 (define dreg #f)
 (define sreg #f)
+(define treg #f)
 (define (r32-not-esp x) (and (not (eq? x 'esp)) (r32 x)))
 (define (sreg-not-cs x) (and (not (eq? x 'cs))  (sreg x)))
+
+
 
 (define symbol #f)
 (let
@@ -62,10 +65,16 @@
 	 (xmm6 . (128 . 6)) (xmm7 . (128 . 7))
 	 (es . (1 . 0)) (cs . (1 . 1)) (ss . (1 . 2))
 	 (ds . (1 . 3)) (fs . (1 . 4)) (gs . (1 . 5))
+	 
 	 (cr0 . (2 . 0)) (cr2 . (2 . 2)) (cr3 . (2 . 3)) (cr4 . (2 . 4))
+	 
 	 (dr0 . (3 . 0)) (dr1 . (3 . 1)) (dr2 . (3 . 2))
 	 (dr3 . (3 . 3)) (dr6 . (3 . 6)) (dr7 . (3 . 7))
+
+	 (tr3 . (4 . 3)) (tr4 . (4 . 4)) (tr5 . (4 . 5))
+	 (tr6 . (4 . 6)) (tr7 . (4. 7))
 	 )))) ;sreg type-code = 1      creg type-code = 2    dreg type-code = 3
+              ;treg type-code = 4
   (let ((reg-x (lambda (reg-type-code)
 		 (memoize
 		  (lambda (x)
@@ -82,6 +91,7 @@
     (set! creg (reg-x 2))
     (set! dreg (reg-x 3))
     (set! sreg (reg-x 1))
+    (set! treg (reg-x 4))
     (set! symbol (memoize
 		  (lambda (x)
 		    (or (and (symbol? x)
@@ -151,9 +161,9 @@
     (let ((target (let ((t (car x)))
 		    (or (and (symbol? t) t)
 			(u-dword t)))))
-      (if target
+      (if (and target (null? (cdr x)))
 	  (list 'reloc 'rel target 0)
-	  (error "sassy: bad rel reloc" itm))))
+	  (error "sassy: bad rel reloc - only targets permitted" itm))))
 
   (define (cr3b x type)
     (let ((target (let ((t (car x)))

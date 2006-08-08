@@ -5,6 +5,9 @@
 
 ; ,open c-system-function
 
+; compat s48->mzscheme
+
+
 (define (andmap p lst)
   (call-with-current-continuation
    (lambda (lose)
@@ -218,6 +221,7 @@
     (and (file-exists? nasm-out) (delete-file nasm-out))
     (sassy->nasm nasm-asm the-codes (if bits32? "BITS 32" "BITS 16"))
     (system nasm-com)))
+
 
 ; (for-each (lambda (x) (gen-file x #t)) opcode-files)
 ; (for-each (lambda (x) (gen-file x #f)) opcode16-files)

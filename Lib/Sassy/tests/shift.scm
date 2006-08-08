@@ -1,10 +1,10 @@
 (
-(rcl ebp 1)  
-(rcr (dword (& eax 1000)) 1))
+(rcl ebp 1)
+(rcr (dword (& eax 1000)) 1)
 (rol ebp cl)
 (ror (dword (& eax 1000)) cl)
 (sal ebp 9)
-(sar (dword (& eax 1000)) (byte 9)))
+(sar (dword (& eax 1000)) (byte 9))
 (shl dh  1)
 (shr (byte (& ecx ebx))  1)
 (rcl dh  cl)
