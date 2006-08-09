@@ -495,6 +495,11 @@
 	  ((_ CTXT X (TAG REST ...) ...)
 	   (let ((obj X))
 	     (case obj
+               ;; FIXME: TAG should not be included in match, because
+               ;; (most of the time) TAG is a String and therefore is
+               ;; not a correct thing to use in case literals list.
+               ;; Unfortunately this is a non-local fix (because there
+               ;; are clauses below where TAG is not a String.)
 	       ((TAG REST ...) (quote TAG)) ...
 	       (else (error CTXT
 			    (twobit-format #f "Unmatched ~a" obj))))))))
