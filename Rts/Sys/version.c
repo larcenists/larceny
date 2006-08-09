@@ -27,9 +27,9 @@
  *  Hi There!
  *  Horsing Around
  *  'King' Kong
- *  Mein Fuhrer
  *  Mineshaft Gap
  *  Missile Complex at Laputa
+ *  Nuclear Combat
  *  Ominous Rumors
  *  Peace is our Profession
  *  People's Central Air Defense
@@ -38,6 +38,7 @@
  *  Precious Bodily Fluids
  *  Premier Kissoff
  *  President Muffley
+ *  Purity of Essence
  *  Recall Code
  *  Ridiculous Camera
  *  Sleigh Bells
@@ -47,6 +48,7 @@
  *  War Room
  *  World Targets in MegaDeaths
  *  Zhokhov Islands
+ *  Mein Fuhrer...I Can Walk!
  */
 
 #include "config.h"
