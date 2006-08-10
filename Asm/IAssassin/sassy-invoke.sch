@@ -44,7 +44,7 @@
 ;;; exception as well, and must check the timer first.
 
 (define-sassy-instr (ia86.T_INVOKE n)
-  (cond ((unsafe-code) ;; 35 bytes
+  (cond ((unsafe-code) ;; 32 bytes for n=0, 35 bytes o/w
          (ia86.timer_check)
          (ia86.storer 0 'RESULT)
          `(mov TEMP RESULT)
@@ -52,7 +52,7 @@
          `(mov TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
          `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
 	 `(jmp TEMP))
-        (else ;; 40 bytes
+        (else ;; 37 bytes for n=0, 40 bytes o/w
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
