@@ -30,6 +30,7 @@
   (current-sassy-assembly-structure as))
 
 (define (sassy-assemble as code)
+  '(begin (display code) (newline))
   (sassy `(,@sassy-machine-directives 
            ,@sassy-instr-directives 
            ,@(map (lambda (l) `(export ,(string->symbol (exported-procedure as l))))
@@ -205,25 +206,27 @@
       (emit-string! as linebreak))))
 
 (define *did-emit-setrtn-invoke* '())
+(define *did-emit-setrtn-branch* '())
+(define *did-emit-setrtn-jump* #f)
 
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label)))
     ;(emit-text as "begin_codevector ~a" name)
     (emit-sassy as 'align 'code_align)
-    (add-function as name #t entrypoint?)
     (set! *did-emit-setrtn-invoke* '())
+    (set! *did-emit-setrtn-branch* '())
+    (set! *did-emit-setrtn-jump* #f)
     (set! code-indentation (string #\tab))
     (set! code-name name)))
-
-(define (add-compiled-scheme-function as label entrypoint? start?)
-  (let ((name (compiled-procedure as label)))
-    (if (not (assoc name (lookup-functions as)))
-        (add-function as name #t entrypoint?))))
 
 (define (end-compiled-scheme-function as)
   (set! code-indentation "")
   (for-each (lambda (n) (emit-setrtn-invoke-patch-code as n))
             *did-emit-setrtn-invoke*)
+  (for-each (lambda (n) (emit-setrtn-branch-patch-code as n))
+            *did-emit-setrtn-branch*)
+  (if *did-emit-setrtn-jump*
+      (emit-setrtn-jump-patch-code as))
   ;(emit-text as "end_codevector ~a" code-name)
   ;(emit-text as "")
   )
@@ -231,14 +234,6 @@
 (define code-indentation "")
 (define code-name "")
 
-(define (lookup-functions as)
-  (or (assembler-value as 'functions) '()))
-
-(define (add-function as name definite? entrypoint?)
-  (assembler-value! as 'functions (cons (list name definite? entrypoint?)
-					(lookup-functions as)))
-  name)
-    
 ; Pseudo-instructions.
 
 (define-instruction $.align
@@ -267,7 +262,6 @@
 (define-instruction $.label
   (lambda (instruction as)
     (list-label instruction)
-    (add-compiled-scheme-function as (operand1 instruction) #f #f)
     (let ((u (as-user as)))
       (user-data.labels! u (cons (operand1 instruction) (user-data.labels u))))
     (make-asm-label as (operand1 instruction))
@@ -302,27 +296,27 @@
   (lambda (instruction as)
     (list-instruction "op1" instruction)
     (emit-sassy as ia86.T_OP1
-	       (op1-primcode (operand1 instruction)))))
+	       (operand1 instruction))))
 
 (define-instruction $op2
   (lambda (instruction as)
     (list-instruction "op2" instruction)
     (emit-sassy as ia86.T_OP2
-                (op2-primcode (operand1 instruction))
+                (operand1 instruction)
                 (operand2 instruction))))
 
 (define-instruction $op2imm
   (lambda (instruction as)
     (list-instruction "op2imm" instruction)
     (emit-sassy as ia86.T_OP2IMM
-                (op2imm-primcode (operand1 instruction))
+                (operand1 instruction)
                 (constant-value (operand2 instruction)))))
 
 (define-instruction $op3
   (lambda (instruction as)
     (list-instruction "op3" instruction)
     (emit-sassy as ia86.T_OP3
-                (op3-primcode (operand1 instruction))
+                (operand1 instruction)
                 (operand2 instruction)
                 (operand3 instruction))))
 
@@ -361,9 +355,6 @@
 	     (operand1 instruction))
        (operand3 instruction)
        (lambda (nested-as segment)
-	 (assembler-value! as 'functions
-			   (append (lookup-functions as)
-				   (lookup-functions nested-as)))
 	 (set-constant! as code-offset (car segment))
 	 (set-constant! as const-offset (cdr segment)))
        (as-user as))
@@ -590,63 +581,66 @@
                 (emit-global as (operand1 instruction))
                 (operand2 instruction))))
 
+(define-instruction $global/setreg
+  (lambda (instruction as)
+    (list-instruction "global/setreg" instruction)
+    (emit-sassy as ia86.T_GLOBAL_SETREG
+                (emit-global as (operand1 instruction))
+                (operand2 instruction))))
+
 (define-instruction $setrtn/invoke
   (lambda (instruction as)
     (list-instruction "setrtn/invoke" instruction)
     (emit-sassy as ia86.T_SETRTN_INVOKE (operand1 instruction))))
 
-;    Note, for the _check_ optimizations there is a hack in place.  Rather
-;    than using register numbers in the instructions the assembler emits
-;    reg(k) expressions when appropriate.  The reason it does this is so
-;    that it can also emit RESULT when it needs to, since RESULT can
-;    appear as a register name in these instructions.
-;
-;    This is a hack, but it beats having two versions of every macro.
-
-; FIXME: not right -- REGn only works for HW registers!
-
-'(define-instruction $reg/op1/check
+(define-instruction $setrtn/jump
   (lambda (instruction as)
-    (list-instruction "reg/op1/check" instruction)
-    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
-		  "RESULT"
-		  (twobit-format #f "REG~a" (operand2 instruction)))))
-      (emit-text as "T_REG_OP1_CHECK_~a ~a,~a   ; ~a with ~a"
-		 (op-primcode (operand1 instruction))
-		 rn
-		 (operand3 instruction)
-		 (operand1 instruction)
-		 (operand4 instruction)))))
+    (list-instruction "setrtn/jump" instruction)
+    (emit-sassy as ia86.T_SETRTN_JUMP 
+                (operand1 instruction) 
+                (operand2 instruction))))
 
-'(define-instruction $reg/op2/check
+(define-instruction $setrtn/branch
   (lambda (instruction as)
-    (list-instruction "reg/op2/check" instruction)
-    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
-		  "RESULT"
-		  (twobit-format #f "REG~a" (operand2 instruction)))))
-      (emit-text as "twobit_reg_op2_check_~a(~a,reg(~a),~a,~a); /* ~a with ~a */"
-		 (op2-primcode (operand1 instruction))
-		 rn
-		 (operand3 instruction)
-		 (operand4 instruction)
-		 (compiled-procedure as (operand4 instruction))
-		 (operand1 instruction)
-		 (operand5 instruction)))))
+    (list-instruction "setrtn/branch" instruction)
+    (emit-sassy as 	      
+                (if (assq (operand1 instruction) 
+                          (as-labels as))
+                    ia86.T_SETRTN_BRANCH
+                    ia86.T_SETRTN_SKIP)
+                (compiled-procedure as (operand1 instruction)))))
 
-'(define-instruction $reg/op2imm/check
+(define-instruction $reg/setglbl
   (lambda (instruction as)
-    (list-instruction "reg/op2imm/check" instruction)
-    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
-		  "RESULT"
-		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
-      (emit-text as "twobit_reg_op2imm_check_~a(~a,~a,~a,~a); /* ~a with ~a */"
-		 (op2-primcode (operand1 instruction)) ; Note, not op2imm-primcode
-		 rn
-		 (constant-value (operand3 instruction))
-		 (operand4 instruction)
-		 (compiled-procedure as (operand4 instruction))
-		 (operand1 instruction)
-		 (operand5 instruction)))))
+    (list-instruction "reg/setglbl" instruction)
+    (emit-sassy as ia86.T_REG_SETGLBL 
+                (operand1 instruction) 
+                (emit-global as (operand2 instruction)))))
+
+(define-instruction $reg/op1/branchf
+  (lambda (instruction as)
+    (list-instruction "reg/op1/branchf" instruction)
+    (emit-sassy as ia86.T_REG_OP1_BRANCHF
+                (operand1 instruction)
+                (operand2 instruction)
+                (compiled-procedure as (operand3 instruction)))))
+
+(define-instruction $reg/op1/setreg
+  (lambda (instruction as)
+    (list-instruction "reg/op1/setreg" instruction)
+    (emit-sassy as ia86.T_OP1* 
+                (operand1 instruction)
+                (operand2 instruction)
+                (operand3 instruction))))
+
+(define-instruction $reg/op2/setreg
+  (lambda (instruction as)
+    (list-instruction "reg/op2/setreg" instruction)
+    (emit-sassy as ia86.T_OP2* 
+                (operand1 instruction)
+                (operand2 instruction)
+                (operand3 instruction)
+                (operand4 instruction))))
 
 ; Helper procedures.
 
@@ -694,8 +688,5 @@
 	 (x (user-data.proc-counter u)))
     (user-data.proc-counter! u (+ 1 x))
     x))
-
-(define (op-primcode name)
-  (prim-primcode (prim-entry-by-opcodename name)))
 
 ; eof

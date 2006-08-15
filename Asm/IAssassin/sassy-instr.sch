@@ -106,16 +106,31 @@
     (else (error 'G_REG (string-append " unknown register "
                                        (number->string n))))))
 (define (REG n) 
-  (case n           
+  (case n   
+    ((RESULT) 'RESULT) ;; hack to allow 'RESULT to be passed in  op1/op2 peeps
     ((1) 'REG1) ((2) 'REG2) ((3) 'REG3) ((4) 'REG4)
     (else (error 'REG (string-append " unknown register "
                                      (number->string n))))))
 
 (define (REG_LOW n)
   (case n
+    ((RESULT) 'RESULT_LOW) ;; hack... (see note in REG impl)
     ((1) 'REG1_LOW) ((2) 'REG2_LOW)
     (else (error 'REG (string-append " unknown register "
                                      (number->string n))))))
+
+;; *tries* to produce the low variant of hwreg
+(define (try-low hwreg)
+  (case hwreg
+    ((RESULT) 'RESULT_LOW)
+    ((TEMP)   'TEMP_LOW)
+    ((SECOND) 'SECOND_LOW)
+    ((REG1)   'REG1_LOW)
+    ((REG2)   'REG2_LOW)
+    ((REG3)   'REG3)
+    ((REG4)   'REG4)
+    (else (error 'try-low hwreg " is not a symbolic hwreg..."))))
+ 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
@@ -331,33 +346,37 @@
 (define-sassy-instr (ia86.T_CONST_CONSTVECTOR x)
   (ia86.loadc	'RESULT x))
 
-(define-sassy-instr (ia86.T_CONST_SETREG_IMM x r)
-  (cond ((is_hwreg r)
-         `(mov ,(REG r) ,x))
+(define-sassy-instr (ia86.T_CONST_SETREG_IMM x regno)
+  (cond ((is_hwreg regno)
+         `(mov ,(REG regno) ,x))
         (else
+         ;; FSK: why are we going through TEMP here?
          `(mov TEMP ,x)
-	 (ia86.storer r 'TEMP))))
+	 (ia86.storer regno 'TEMP))))
 
-(define-sassy-instr (ia86.T_CONST_SETREG_CONSTVECTOR x r)
-  (cond ((is_hwreg r)
-         (ia86.loadc (reg r) x))
+(define-sassy-instr (ia86.T_CONST_SETREG_CONSTVECTOR x regno)
+  (cond ((is_hwreg regno)
+         (ia86.loadc (REG regno) x))
         (else
 	 (ia86.loadc 'TEMP x)
-	 (ia86.storer r 'TEMP))))
+	 (ia86.storer regno 'TEMP))))
 
 ;;; OPTIMIZEME:	if #!undefined fit in a byte, then we could do a byte
 ;;; compare here, at least.  (Why does it not fit in a byte?)
 
 (define-sassy-instr (ia86.T_GLOBAL x)
+  (ia86.T_GLOBAL_SETREG x 'RESULT))
+
+(define-sassy-instr (ia86.T_GLOBAL_SETREG x hwreg)
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
     `(label ,L0)
     (ia86.loadc 'TEMP x)
-    `(mov RESULT (& TEMP ,(- $tag.pair-tag)))
+    `(mov ,hwreg (& TEMP ,(- $tag.pair-tag)))
     (cond ((not (unsafe-globals))
-           `(cmp RESULT ,$imm.undefined)
+           `(cmp ,hwreg ,$imm.undefined)
            `(jne short ,L1)
-           `(mov RESULT TEMP)
+           `(mov ,hwreg TEMP)
            (ia86.mcall $m.global-ex 'global-ex)
            `(jmp short ,L0)
            `(label ,L1)))))
@@ -367,6 +386,11 @@
   (ia86.loadc	'RESULT x)
   `(mov	(& RESULT ,(- $tag.pair-tag)) SECOND)
   (ia86.write_barrier -1 -1))
+
+(define-sassy-instr (ia86.T_REG_SETGLBL regno x)
+  (ia86.loadc	'RESULT x)
+  `(mov	(& RESULT ,(- $tag.pair-tag)) ,(REG regno))
+  (ia86.write_barrier -1 regno))
 
 (define-sassy-instr (ia86.T_LEXICAL rib off)
   (ia86.loadr	'TEMP 0)		; We know R0 is not a HWREG
@@ -384,35 +408,35 @@
 (define-sassy-instr (ia86.T_SETSTK slot)
   `(mov	,(stkslot slot) RESULT))
 
-(define-sassy-instr (ia86.T_LOAD r slot)
-  (cond ((is_hwreg r)
-         `(mov ,(REG r) ,(stkslot slot)))
+(define-sassy-instr (ia86.T_LOAD regno slot)
+  (cond ((is_hwreg regno)
+         `(mov ,(REG regno) ,(stkslot slot)))
         (else
          `(mov TEMP ,(stkslot slot))
-         (ia86.storer r 'TEMP))))
+         (ia86.storer regno 'TEMP))))
 
-(define-sassy-instr (ia86.T_STORE r slot)
-  (cond ((is_hwreg r)
-         `(mov	,(stkslot slot) ,(REG r)))
+(define-sassy-instr (ia86.T_STORE regno slot)
+  (cond ((is_hwreg regno)
+         `(mov	,(stkslot slot) ,(REG regno)))
         (else
-	 (ia86.loadr	'TEMP r)
+	 (ia86.loadr	'TEMP regno)
 	 `(mov	,(stkslot slot) TEMP))))
 
-(define-sassy-instr (ia86.T_REG r)
-  (ia86.loadr 'RESULT r))
+(define-sassy-instr (ia86.T_REG regno)
+  (ia86.loadr 'RESULT regno))
 	
 ;;; Does not destroy RESULT.  The peephole optimizer uses that fact.
-(define-sassy-instr (ia86.T_SETREG r)
-  (ia86.storer	r 'RESULT))
+(define-sassy-instr (ia86.T_SETREG regno)
+  (ia86.storer	regno 'RESULT))
 
-(define-sassy-instr (ia86.T_MOVEREG r1 r2)
-  (cond ((is_hwreg r1)
-	 (ia86.storer r2 (reg r1)))
-	((is_hwreg r2)
-	 (ia86.loadr (reg r2) r1))
+(define-sassy-instr (ia86.T_MOVEREG regno1 regno2)
+  (cond ((is_hwreg regno1)
+	 (ia86.storer regno2 (REG regno1)))
+	((is_hwreg regno2)
+	 (ia86.loadr (REG regno2) regno1))
 	(else
-         (ia86.loadr 'TEMP r1)
-         (ia86.storer r2 'TEMP))))
+         (ia86.loadr 'TEMP regno1)
+         (ia86.storer regno2 'TEMP))))
 
 (define-sassy-instr (ia86.init_closure r)
   (let ((regno (cond ((> r *lastreg*)
@@ -596,8 +620,15 @@
 (define-sassy-instr (ia86.T_POPSTK)
   (error 'T_POPSTK "not implemented -- students only"))
 
-(define-sassy-instr (ia86.T_RETURN)
+'(define-sassy-instr (ia86.T_RETURN)
   `(jmp (& CONT ,STK_RETADDR)))
+
+;; one extra byte, but... if matched with the call's in setrtn/invoke,
+;; *much* faster than the above... 
+;; [[ if not matched, then we end up slower... ugh]]
+(define-sassy-instr (ia86.T_RETURN)
+  `(push (& CONT ,STK_RETADDR))
+  `(ret))
 
 ;;; (See sassy-invoke.sch for the T_APPLY definition that used to be here.)
 	
@@ -610,6 +641,19 @@
 ;;; after we have a complete Sassy backend).
 
 (define-sassy-instr (ia86.T_JUMP levels label name)
+  (ia86.T_JUMP* levels label #f))
+
+(define-sassy-instr (ia86.T_SETRTN_JUMP levels label)
+  (let ((ign (set! *did-emit-setrtn-jump* #t)))
+    (ia86.T_JUMP* levels label #t)))
+
+(define (emit-setrtn-jump-patch-code as)
+  (define (emit x) (apply emit-sassy as x))
+  (emit `(label setrtn-jump-patch-code-label))
+  (emit `(pop (& CONT ,STK_RETADDR)))  ;; pre-aligned return address
+  (emit `(jmp TEMP)))
+  
+(define-sassy-instr (ia86.T_JUMP* levels label setrtn?)
   (ia86.timer_check)
   (let ((offset
 	 (let loop ((obj (current-sassy-assembly-structure)))
@@ -629,16 +673,35 @@
            `(lea TEMP (& TEMP ,(- $tag.procedure-tag)))
            `(mov TEMP (& TEMP ,PROC_CODEVECTOR_NATIVE))
            `(lea TEMP (& TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES offset)))
-	   `(comment  -- ,(t_label name))
-           `(jmp TEMP))
+           (cond (setrtn?
+                  `(align ,code_align -1)
+                  `(call setrtn-jump-patch-code-label))
+                 (else
+                  `(jmp TEMP))))
           (else
            ;; If offset is false, then this must be a label in the
            ;; code vector we are currently attempting to construct.
            ;; At least, that's Felix's impression has after a
            ;; discussion with Will on the semantics of MacScheme's
            ;; JUMP.  Therefore emit a jmp and let Sassy handle it.
-           `(jmp ,(t_label (compiled-procedure (current-sassy-assembly-structure) 
-                                               label)))))))
+           (cond (setrtn?
+                  (let ((ign '(begin (display "UGH!!!  MUST BE A BETTER WAY!")
+                                    (newline))))
+                    ;; We just clobbered reg0 above, but the reasoning above
+                    ;; implies that this is the same codevector, so its okay.
+                    (ia86.loadr 'TEMP 0)
+                    `(mov TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+                    `(add TEMP (reloc abs 
+                                      ,(t_label (compiled-procedure 
+                                                 (current-sassy-assembly-structure) 
+                                                 label))
+                                      ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))))
+                  `(align ,code_align -1)
+                  `(call setrtn-jump-patch-code-label))
+                 (else
+                  `(jmp ,(t_label (compiled-procedure 
+                                   (current-sassy-assembly-structure) 
+                                   label)))))))))
 
 ;;; The MAL assembler translates BRANCH and BRANCHF to SKIP and SKIPF
 ;;; as appropriate to avoid timer checks.
@@ -703,12 +766,12 @@
 
 ;;; TRUE=6
 ;;; FALSE=2
-(define-sassy-instr (ia86.setcc cc)				; 10 bytes, jump
+(define-sassy-instr (ia86.setcc hwreg cc)				; 10 bytes, jump
   (let ((L1 (fresh-label))
         (jcc (string->symbol (string-append "j" (symbol->string cc)))))
-    (ia86.const2reg 'RESULT $imm.true)	; 5 bytes
+    (ia86.const2reg hwreg $imm.true)	; 5 bytes
     `(,jcc short ,L1)			; 2 bytes
-    `(sub	RESULT_LOW 4)		; 3 bytes (would be 2 if RESULT=eax)
+    `(sub	,(try-low hwreg) 4)	; 3 bytes (would be 2 if RESULT=eax)
     `(label ,L1)))
 
 ;;; double_tag_predicate ptrtag, hdr
@@ -718,7 +781,7 @@
 
 (define-sassy-instr (ia86.double_tag_predicate ptrtag hdr)
   (ia86.double_tag_test ptrtag hdr)
-  (ia86.setcc 'z))
+  (ia86.setcc 'RESULT 'z))
 
 ;;; fixnum_test_temp_is_free reg
 ;;;	Test reg for fixnum-ness and clear zero flag if fixnum.  OK to
@@ -741,21 +804,21 @@
 ;;;	Leave zero flag set if RESULT contains a value with the given
 ;;;     3-bit tag.
 
-(define-sassy-instr (ia86.single_tag_test x)
-  `(lea	TEMP (& RESULT ,(- 8 x)))
+(define-sassy-instr (ia86.single_tag_test hwreg x)
+  `(lea	TEMP (& ,hwreg ,(- 8 x)))
   `(test	TEMP_LOW 7))
 	
 ;;; single_tag_test_ex ptrtag, exception_code
 ;;;	Unless in unsafe mode, test the pointer in RESULT for the
 ;;;	tag and signal an exception if it does not match.
 
-(define-sassy-instr (ia86.single_tag_test_ex x y)
+(define-sassy-instr (ia86.single_tag_test_ex hwreg x y)
   (cond 
    ((not (unsafe-code))
     (let ((L0 (fresh-label))
           (L1 (fresh-label)))
       `(label ,L0)
-      (ia86.single_tag_test x)
+      (ia86.single_tag_test hwreg x)
       `(jz short ,L1)
       (ia86.exception_continuable y L0)
       `(label ,L1)))))
@@ -767,7 +830,7 @@
 
 (define-sassy-instr (ia86.double_tag_test x y)
   (let ((L1 (fresh-label)))
-    (ia86.single_tag_test x)
+    (ia86.single_tag_test 'RESULT x)
     `(jnz short ,L1)
     `(mov	TEMP (& RESULT ,(- x)))
     `(cmp	TEMP_LOW ,y)
@@ -775,58 +838,58 @@
 	
 ;;; fixnum_arithmetic regno, operation, undo-operation, ex
 	
-(define-sassy-instr (ia86.fixnum_arithmetic x y z ex)
+(define-sassy-instr (ia86.fixnum_arithmetic regno y z ex)
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	'TEMP x)
+           (ia86.loadr	'TEMP regno)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jnz short ,L1)
-           (ia86.loadr	'TEMP x)
+           (ia86.loadr	'TEMP regno)
            `(,y	RESULT TEMP)
            `(jno short ,L2)
            `(,z	RESULT TEMP)
            `(label ,L1)
            (ia86.exception_continuable ex L0)	; second is tmp so 2nd arg is in place
            `(label ,L2)))
-        ((is_hwreg x)
+        ((is_hwreg regno)
          ;; This looks totally bogus -- should use ,y? XXX TODO BUG HERE
-         `(add	RESULT ,(REG x)))
+         `(add	RESULT ,(REG regnox)))
         (else
-         `(add	RESULT (& GLOBALS ,(G_REG x))))))
+         `(add	RESULT (& GLOBALS ,(G_REG regno))))))
 	
 ;;; trusted_fixnum_compare r, cc
-(define-sassy-instr (ia86.trusted_fixnum_compare x y)
-  (cond ((is_hwreg x)
-         `(cmp	RESULT ,(REG x)))
+(define-sassy-instr (ia86.trusted_fixnum_compare regno y)
+  (cond ((is_hwreg regno)
+         `(cmp	RESULT ,(REG regno)))
         (else
-         `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
-  (ia86.setcc	y))
+         `(cmp	RESULT (& GLOBALS ,(G_REG regno)))))
+  (ia86.setcc	'RESULT y))
 
 ;;; fixnum_compare reg, cc, ex
 ;;; OPTIMIZEME for whenever ,x is a hwreg
 
-(define-sassy-instr (ia86.fixnum_compare x y z)
+(define-sassy-instr (ia86.fixnum_compare regno y z)
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	'TEMP x)
+           (ia86.loadr	'TEMP regno)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jz short ,L1)
-           (ia86.loadr	SECOND x)
+           (ia86.loadr	SECOND regno)
            (ia86.exception_continuable z L0)         ; second is tmp so 2nd arg is in place
            `(label ,L1 ))))
   (cond
-   ((is_hwreg x)
-    `(cmp	RESULT ,(REG x)))
+   ((is_hwreg regno)
+    `(cmp	RESULT ,(REG regno)))
    (else
-    `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
-  (ia86.setcc y))
+    `(cmp	RESULT (& GLOBALS ,(G_REG regno)))))
+  (ia86.setcc 'RESULT y))
 
 ;;; fixnum_shift r2, operation, ex
 ;;; 
@@ -864,13 +927,13 @@
 	
 ;;; generic_arithmetic regno, operation, undo-operation, millicode
 	
-(define-sassy-instr (ia86.generic_arithmetic x y z millicode)
+(define-sassy-instr (ia86.generic_arithmetic regno y z millicode)
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
-    (ia86.loadr	'TEMP x)
+    (ia86.loadr	'TEMP regno)
     `(or	TEMP RESULT)
     `(test	TEMP_LOW fixtag_mask)
-    (ia86.loadr	'TEMP x)
+    (ia86.loadr	'TEMP regno)
     `(jnz short ,L1)
     `(,y	RESULT TEMP)
     `(jno short ,L2)
@@ -881,30 +944,30 @@
 
 ;;; generic_compare reg, condition, millicode
 
-(define-sassy-instr (ia86.generic_compare x y z)
+(define-sassy-instr (ia86.generic_compare regno y z)
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
-    (ia86.loadr	'TEMP x)
+    (ia86.loadr	'TEMP regno)
     `(or	TEMP RESULT)
     `(test	TEMP_LOW fixtag_mask)
-    (ia86.loadr	'SECOND x)
+    (ia86.loadr	'SECOND regno)
     `(jz short ,L1)
     (ia86.mcall	z y)
     `(jmp short ,L2	)
     `(label ,L1)
     `(cmp	RESULT SECOND)
-    (ia86.setcc	y)
+    (ia86.setcc	'RESULT y)
     `(label ,L2 )))
 
 ;;; generic_char_compare reg, cc, ex
 
-(define-sassy-instr (ia86.generic_char_compare x y z)
+(define-sassy-instr (ia86.generic_char_compare regno y z)
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	SECOND x)
+           (ia86.loadr	SECOND regno)
            `(cmp	SECOND_LOW ,$imm.character)
            `(jz	short ,L2)
            `(label ,L1)
@@ -913,11 +976,11 @@
            `(cmp	RESULT_LOW ,$imm.character)
            `(jne short ,L1)
            `(cmp	RESULT SECOND)))
-        ((is_hwreg x)
-         `(cmp	RESULT ,(REG x)))
+        ((is_hwreg regno)
+         `(cmp	RESULT ,(REG regno)))
         (else
-         `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
-  (ia86.setcc	y))
+         `(cmp	RESULT (& GLOBALS ,(G_REG regno)))))
+  (ia86.setcc	'RESULT y))
 	
 ;;; generic_imm_compare imm, cc, millicode
 
@@ -931,7 +994,7 @@
     `(jmp short ,L2)
     `(label ,L1)
     `(cmp	RESULT ,x)
-    (ia86.setcc	y)
+    (ia86.setcc	'RESULT y)
     `(label ,L2)))
 	
 ;;; generic_char_imm_compare imm, cc, ex
@@ -947,7 +1010,7 @@
            (ia86.exception_continuable z L0)))
     `(label ,L1)
     `(cmp	RESULT ,x)
-    (ia86.setcc	y)))
+    (ia86.setcc	'RESULT y)))
 
 ;;; indexed_structure_length ptrtag, hdrtag, ex, byte?
 
@@ -971,7 +1034,7 @@
 ;;; indexed_structure_length ptrtag, ex, byte?
 	
 (define-sassy-instr (ia86.indexed_structure_length ptrtag ex byte?)
-  (ia86.single_tag_test_ex ptrtag ex)
+  (ia86.single_tag_test_ex 'RESULT ptrtag ex)
   `(mov	RESULT (& RESULT ,(- ptrtag)))
   `(shr	RESULT 8)
   (cond (byte?
@@ -983,23 +1046,23 @@
 ;;;     and that reg_index is a fixnum in the range of the structure.
 ;;;	If hdrtag is zero then do not check it.
 
-(define-sassy-instr (ia86.indexed_structure_test x y z hdrtag ex byte? test_reg_value)
+(define-sassy-instr (ia86.indexed_structure_test regno y z hdrtag ex byte? test_reg_value)
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label))
                (L3 (fresh-label)))
            `(label ,L0)
-           (ia86.fixnum_test_temp_is_free x)
+           (ia86.fixnum_test_temp_is_free regno)
            `(jnz short ,L1)
            (cond ((not (= hdrtag 0))
                   (ia86.double_tag_test z hdrtag)
                   `(jz short ,L2))
                  (else
-                  (ia86.single_tag_test z)
+                  (ia86.single_tag_test 'RESULT z)
                   `(jz short ,L3)))
            `(label ,L1)
-           (ia86.loadr	SECOND x)
+           (ia86.loadr	SECOND regno)
            (ia86.exception_continuable ex L0)
            (cond ((= hdrtag 0)
                   `(label ,L3)
@@ -1008,10 +1071,10 @@
            `(shr	TEMP 8)
            (cond (byte?
                   `(shl	TEMP 2)))	; Length is now a fixnum
-           (cond ((is_hwreg x)
-                  `(cmp	TEMP ,(REG x)))
+           (cond ((is_hwreg regno)
+                  `(cmp	TEMP ,(REG regno)))
                  (else
-                  `(cmp	TEMP (& GLOBALS ,(G_REG x)))))
+                  `(cmp	TEMP (& GLOBALS ,(G_REG regno)))))
            `(jbe short ,L1)
            (test_reg_value	y L1)))))
 
@@ -1032,7 +1095,7 @@
              (ia86.double_tag_test y hdrtag)
              `(jz short ,L2))
             (else
-             (ia86.single_tag_test y)
+             (ia86.single_tag_test 'RESULT y)
              `(jz short ,L3)))
       `(label ,L1)
       `(mov	SECOND ,x)
@@ -1049,16 +1112,16 @@
 
 ;;; load_from_indexed_structure index_reg, ptrtag, byte?
 	
-(define-sassy-instr (ia86.load_from_indexed_structure x y byte?)
+(define-sassy-instr (ia86.load_from_indexed_structure regno y byte?)
   (cond (byte?
-         (ia86.loadr	'TEMP x)
+         (ia86.loadr	'TEMP regno)
          `(shr	TEMP 2)
          `(mov	RESULT_LOW (& RESULT TEMP ,(+ (- y) wordsize)))
          `(and	RESULT #xFF))
-        ((is_hwreg x)
-         `(mov	RESULT (& RESULT ,(REG x) ,(+ (- y) wordsize))))
+        ((is_hwreg regno)
+         `(mov	RESULT (& RESULT ,(REG regno) ,(+ (- y) wordsize))))
         (else
-         (ia86.loadr	'TEMP x)
+         (ia86.loadr	'TEMP regno)
          `(mov	RESULT (& RESULT TEMP ,(+ (- y) wordsize))))))
 
 (define-sassy-instr (ia86.load_from_indexed_structure_imm x y byte?)
@@ -1096,14 +1159,14 @@
 ;;; check_nothing regno, label
 ;;;	Just a placeholder.
 
-(define-sassy-instr (ia86.check_nothing x y)
+(define-sassy-instr (ia86.check_nothing regno y)
   )
 	
 ;;; check_fixnum regno, label
 ;;;	Branch to label if regno does not hold a fixnum
 
-(define-sassy-instr (ia86.check_fixnum x y)
-  (ia86.fixnum_test_temp_is_free x)
+(define-sassy-instr (ia86.check_fixnum regno y)
+  (ia86.fixnum_test_temp_is_free regno)
   `(jnz short ,y))
 	
 ;;; check_char regno, label
@@ -1111,53 +1174,53 @@
 ;;;	Leaves char in TEMP (even if it is in hwreg, the value must
 ;;;	be shifted anyway).
 
-(define-sassy-instr (ia86.check_char x y)
-  (ia86.loadr	'TEMP x)
+(define-sassy-instr (ia86.check_char regno y)
+  (ia86.loadr	'TEMP regno)
   `(cmp	TEMP_LOW ,$imm.character)
   `(jnz short ,y))
 
 ;;; indexed_structure_set_* reg_idx, reg_value, ptrtag, hdrtag, ex
 ;;;	If hdrtag is 0 then do not check it.
 
-(define-sassy-instr (ia86.indexed_structure_set_char x y z hdrtag ex)
-  (ia86.indexed_structure_test x y z hdrtag ex #t ia86.check_char)
+(define-sassy-instr (ia86.indexed_structure_set_char regno y z hdrtag ex)
+  (ia86.indexed_structure_test regno y z hdrtag ex #t ia86.check_char)
   `(mov	(& GLOBALS ,$g.stkp) CONT)
-  (ia86.loadr	CONT x)
+  (ia86.loadr	CONT regno)
   `(shr	TEMP 16)
   `(shr	CONT 2)
   `(mov	(& RESULT CONT ,(+ (- z) wordsize)) TEMP_LOW)
   `(mov	CONT (& GLOBALS ,$g.stkp)))
 
-(define-sassy-instr (ia86.indexed_structure_set_byte x y z hdrtag ex)
-  (ia86.indexed_structure_test x y z hdrtag ex #t ia86.check_fixnum)
+(define-sassy-instr (ia86.indexed_structure_set_byte regno1 regno2 z hdrtag ex)
+  (ia86.indexed_structure_test regno1 regno2 z hdrtag ex #t ia86.check_fixnum)
   `(mov	(& GLOBALS ,$g.stkp) CONT)
-  (ia86.loadr	'CONT x)
+  (ia86.loadr	'CONT regno1)
   `(shr	CONT 2)
-  (ia86.loadr	'TEMP y)
+  (ia86.loadr	'TEMP regno2)
   `(shr	TEMP 2)
   `(mov	(& RESULT CONT ,(+ (- z) wordsize)) TEMP_LOW)
   `(mov	CONT (& GLOBALS ,$g.stkp)))
 
-(define-sassy-instr (ia86.indexed_structure_set_word x y z hdrtag ex)
-  (ia86.indexed_structure_test x y z hdrtag ex #f ia86.check_nothing)
-  (ia86.do_indexed_structure_set_word x y z))
+(define-sassy-instr (ia86.indexed_structure_set_word regno1 regno2 z hdrtag ex)
+  (ia86.indexed_structure_test regno1 regno2 z hdrtag ex #f ia86.check_nothing)
+  (ia86.do_indexed_structure_set_word regno1 regno2 z))
 
-(define-sassy-instr (ia86.do_indexed_structure_set_word x y z)
-  (cond ((and (is_hwreg y) (is_hwreg x))
-         `(mov	(& RESULT ,(REG x) ,(+ (- z) wordsize)) ,(REG y))
-         (ia86.write_barrier -1 y))
-        ((is_hwreg y)
-         (ia86.loadr	'TEMP x)
-         `(mov	(& RESULT TEMP ,(+ (- z) wordsize)) ,(REG y))
-         (ia86.write_barrier -1 y))
-        ((is_hwreg x)
-         (ia86.loadr	'SECOND y)
-         `(mov	(& RESULT ,(REG x) ,(+ (- z) wordsize)) SECOND)
+(define-sassy-instr (ia86.do_indexed_structure_set_word regno1 regno2 z)
+  (cond ((and (is_hwreg regno2) (is_hwreg regno1))
+         `(mov	(& RESULT ,(REG regno1) ,(+ (- z) wordsize)) ,(REG regno2))
+         (ia86.write_barrier -1 regno2))
+        ((is_hwreg regno2)
+         (ia86.loadr	'TEMP regno1)
+         `(mov	(& RESULT TEMP ,(+ (- z) wordsize)) ,(REG regno2))
+         (ia86.write_barrier -1 regno2))
+        ((is_hwreg regno1)
+         (ia86.loadr	'SECOND regno2)
+         `(mov	(& RESULT ,(REG regno1) ,(+ (- z) wordsize)) SECOND)
          (ia86.write_barrier -1 -1))
         (else
          `(mov	(& GLOBALS ,$g.stkp) CONT)
-         (ia86.loadr	CONT x)
-         (ia86.loadr	SECOND y)
+         (ia86.loadr	CONT regno1)
+         (ia86.loadr	SECOND regno2)
          `(mov	(& RESULT CONT ,(+ (- z) wordsize)) SECOND)
          `(mov	CONT (& GLOBALS ,$g.stkp))
          (ia86.write_barrier -1 -1))))
@@ -1167,7 +1230,7 @@
 ;;;	(fixnum number of entries).  If ,x is not -1, then initialize 
 ;;;	it with the contents of (REG ,x), otherwise with #!unspecified.
 	
-(define-sassy-instr (ia86.make_indexed_structure_word x y z ex)
+(define-sassy-instr (ia86.make_indexed_structure_word regno y z ex)
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
@@ -1178,10 +1241,10 @@
            `(label ,L1))))
   `(mov	(& GLOBALS ,$g.alloctmp) RESULT)
   `(add	RESULT wordsize)
-  (cond ((= x -1)
+  (cond ((= regno -1)
          `(mov	SECOND ,$imm.unspecified))
         (else
-         (ia86.loadr	SECOND x)))
+         (ia86.loadr	SECOND regno)))
   (ia86.mcall	$m.alloci 'alloci)
   `(mov	TEMP (& GLOBALS ,$g.alloctmp))
   `(shl	TEMP 8)
@@ -1247,86 +1310,267 @@
 
 (define-sassy-instr (ia86.T_OP1 x)   ;; YUCK eval!
   (let ((f (case x
-             ((1) ia86.T_OP1_1) ((3) ia86.T_OP1_3) ((4) ia86.T_OP1_4) ((5) ia86.T_OP1_5)
-             ((6) ia86.T_OP1_6) ((7) ia86.T_OP1_7) ((8) ia86.T_OP1_8) ((9) ia86.T_OP1_9)
-             ((10) ia86.T_OP1_10) ((11) ia86.T_OP1_11) ((12) ia86.T_OP1_12) ((13) ia86.T_OP1_13) ((14) ia86.T_OP1_14)
-             ((15) ia86.T_OP1_15) ((16) ia86.T_OP1_16) ((17) ia86.T_OP1_17) ((18) ia86.T_OP1_18)
-             ((20) ia86.T_OP1_20) ((21) ia86.T_OP1_21) ((22) ia86.T_OP1_22) ((23) ia86.T_OP1_23) ((24) ia86.T_OP1_24)
-             ((25) ia86.T_OP1_25) ((26) ia86.T_OP1_26) ((27) ia86.T_OP1_27) ((28) ia86.T_OP1_28) ((29) ia86.T_OP1_29)
-             ((30) ia86.T_OP1_30) ((31) ia86.T_OP1_31) ((32) ia86.T_OP1_32) ((33) ia86.T_OP1_33) ((34) ia86.T_OP1_34)
-             ((35) ia86.T_OP1_35) ((36) ia86.T_OP1_36) ((37) ia86.T_OP1_37) ((38) ia86.T_OP1_38) ((39) ia86.T_OP1_39)
-             ((40) ia86.T_OP1_40) ((41) ia86.T_OP1_41) ((42) ia86.T_OP1_42) ((43) ia86.T_OP1_43) ((44) ia86.T_OP1_44)
-             ((46) ia86.T_OP1_46) ((47) ia86.T_OP1_47) ((48) ia86.T_OP1_48) ((49) ia86.T_OP1_49)
-             ((52) ia86.T_OP1_52) ((54) ia86.T_OP1_54)
-             ((94) ia86.T_OP1_94)
-             ((95) ia86.T_OP1_95)
-             ((101) ia86.T_OP1_101) ((102) ia86.T_OP1_102) ((104) ia86.T_OP1_104)
-             ((105) ia86.T_OP1_105) ((106) ia86.T_OP1_106) ((107) ia86.T_OP1_107) ((108) ia86.T_OP1_108)
-             ((200) ia86.T_OP1_200) ((201) ia86.T_OP1_201) ((204) ia86.T_OP1_204)
-             ((211) ia86.T_OP1_211) ((212) ia86.T_OP1_212) ((213) ia86.T_OP1_213)
-             ((401) ia86.T_OP1_401) ((404) ia86.T_OP1_404)
-             ((405) ia86.T_OP1_405)
-             ((612) ia86.T_OP1_612)
+             ((1 break) ia86.T_OP1_1) 
+             ((3 unspecified) ia86.T_OP1_3) 
+             ((4 undefined) ia86.T_OP1_4) 
+             ((5 eof-object) ia86.T_OP1_5)
+             ((6 enable-interrupts) ia86.T_OP1_6) 
+             ((7 disable-interrupts) ia86.T_OP1_7) 
+             ((8 typetag) ia86.T_OP1_8) 
+             ((9 not) ia86.T_OP1_9)
+             ((10 null?) ia86.T_OP1_10) 
+             ((11 pair?) ia86.T_OP1_11) 
+             ((12 eof-object?) ia86.T_OP1_12) 
+             ((13 port?) ia86.T_OP1_13) 
+             ((14 structure?) ia86.T_OP1_14)
+             ((15 car) ia86.T_OP1_15) 
+             ((16 cdr) ia86.T_OP1_16) 
+             ((17 symbol?) ia86.T_OP1_17) 
+             ((18 complex?) ia86.T_OP1_18) 
+             ((20 rational?) ia86.T_OP1_20) 
+             ((21 compnum?) ia86.T_OP1_21) 
+             ((22 integer?) ia86.T_OP1_22) 
+             ((23 fixnum?) ia86.T_OP1_23) 
+             ((24 flonum?) ia86.T_OP1_24)
+             ((25 exact?) ia86.T_OP1_25) 
+             ((26 inexact?) ia86.T_OP1_26) 
+             ((27 exact->inexact) ia86.T_OP1_27) 
+             ((28 inexact->exact) ia86.T_OP1_28) 
+             ((29 round) ia86.T_OP1_29)
+             ((30 truncate) ia86.T_OP1_30) 
+             ((31 zero?) ia86.T_OP1_31) 
+             ((32 --) ia86.T_OP1_32) 
+             ((33 fxlognot) ia86.T_OP1_33) 
+             ((34 real-part) ia86.T_OP1_34)
+             ((35 imag-part) ia86.T_OP1_35) 
+             ((36 char?) ia86.T_OP1_36) 
+             ((37 char->integer) ia86.T_OP1_37) 
+             ((38 integer->char) ia86.T_OP1_38) 
+             ((39 string?) ia86.T_OP1_39)
+             ((40 string-length string-length:str) ia86.T_OP1_40) 
+             ((41 vector?) ia86.T_OP1_41) 
+             ((42 vector-length) ia86.T_OP1_42) 
+             ((43 bytevector?) ia86.T_OP1_43) 
+             ((44 bytevector-length) ia86.T_OP1_44)
+             ((46 make-bytevector) ia86.T_OP1_46) 
+             ((47 procedure?) ia86.T_OP1_47) 
+             ((48 procedure-length) ia86.T_OP1_48) 
+             ((49 make-procedure) ia86.T_OP1_49)
+             ((52 make-cell) ia86.T_OP1_52) 
+             ((54 cell-ref) ia86.T_OP1_54)
+             ((94 bytevector-like?) ia86.T_OP1_94)
+             ((95 vector-like?) ia86.T_OP1_95)
+             ((101 vector-like-length) ia86.T_OP1_101) 
+             ((102 bytevector-like-length) ia86.T_OP1_102) 
+             ;((104 petit-patch-boot-code) ia86.T_OP1_104)
+             ((105 syscall) ia86.T_OP1_105)
+             ((106 creg) ia86.T_OP1_106) 
+             ((107 creg-set!) ia86.T_OP1_107) 
+             ((108 gc-counter) ia86.T_OP1_108)
+             ((200 most-positive-fixnum) ia86.T_OP1_200) 
+             ((201 most-negative-fixnum) ia86.T_OP1_201) 
+             ((204 fx--) ia86.T_OP1_204)
+             ((211 fxzero?) ia86.T_OP1_211) 
+             ((212 fxpositive?) ia86.T_OP1_212) 
+             ((213 fxnegative?) ia86.T_OP1_213)
+             ((401 vector-length:vec) ia86.T_OP1_401) 
+             ((404 car:pair) ia86.T_OP1_404)
+             ((405 cdr:pair) ia86.T_OP1_405)
+             ((612 internal:branchf-zero?) ia86.T_OP1_612)
+             (else (error 'ia86.T_OP1 x))
              )))
     (f)))
+
+;; T_OP1* handles $reg/op1/setreg
+(define-sassy-instr (ia86.T_OP1* op rs rd)
+  (let ((f (case op
+             ((3 unspecified) ia86.T_OP1_3*)
+             ((4 undefined) ia86.T_OP1_4*)
+             ((5 eof-object) ia86.T_OP1_5*)
+             ((9 not) ia86.T_OP1_9*)
+             ((10 null?) ia86.T_OP1_10*)
+             ((11 pair?) ia86.T_OP1_11*)
+             ((12 eof-object?) ia86.T_OP1_12*)
+             ((15 car) ia86.T_OP1_15*)
+             ((16 cdr) ia86.T_OP1_16*)
+             ((47 procedure?) ia86.T_OP1_47*)
+             ((94 bytevector-like?) ia86.T_OP1_94*)
+             ((95 vector-like?) ia86.T_OP1_95*)
+             ((404 car:pair) ia86.T_OP1_404*)
+             ((405 cdr:pair) ia86.T_OP1_405*)
+             (else (error 'ia86.T_OP1* op))
+             )))
+    (f rs rd)))
+
 (define-sassy-instr (ia86.T_OP2 x y) ;; YUCK eval!
   (let ((f (case x
-             ((45) ia86.T_OP2_45)
-             ((55) ia86.T_OP2_55) ((56) ia86.T_OP2_56) ((57) ia86.T_OP2_57) ((58) ia86.T_OP2_58) ((59) ia86.T_OP2_59)
-             ((60) ia86.T_OP2_60) ((61) ia86.T_OP2_61) ((62) ia86.T_OP2_62) ((63) ia86.T_OP2_63) ((64) ia86.T_OP2_64)
-             ((65) ia86.T_OP2_65) ((66) ia86.T_OP2_66) ((67) ia86.T_OP2_67) ((68) ia86.T_OP2_68) ((69) ia86.T_OP2_69)
-             ((70) ia86.T_OP2_70) ((71) ia86.T_OP2_71) ((72) ia86.T_OP2_72) ((73) ia86.T_OP2_73) ((74) ia86.T_OP2_74)
-             ((75) ia86.T_OP2_75) ((76) ia86.T_OP2_76) ((77) ia86.T_OP2_77) ((78) ia86.T_OP2_78) ((79) ia86.T_OP2_79)
-             ((80) ia86.T_OP2_80) ((81) ia86.T_OP2_81) ((82) ia86.T_OP2_82) ((83) ia86.T_OP2_83) ((84) ia86.T_OP2_84)
-             ((85) ia86.T_OP2_85) ((86) ia86.T_OP2_86) ((87) ia86.T_OP2_87) ((88) ia86.T_OP2_88) ((89) ia86.T_OP2_89)
-             ((90) ia86.T_OP2_90)
-             ((96) ia86.T_OP2_96) ((98) ia86.T_OP2_98) ((99) ia86.T_OP2_99)
-             ((103) ia86.T_OP2_103) 
-             ((109) ia86.T_OP2_109)
-             ((202) ia86.T_OP2_202) ((203) ia86.T_OP2_203)
-             ((205) ia86.T_OP2_205) ((206) ia86.T_OP2_206) ((207) ia86.T_OP2_207) ((208) ia86.T_OP2_208) ((209) ia86.T_OP2_209)
-             ((210) ia86.T_OP2_210)
-             ((402) ia86.T_OP2_402) 
-             ((406) ia86.T_OP2_406) ((407) ia86.T_OP2_407) ((408) ia86.T_OP2_408) ((409) ia86.T_OP2_409)
-             ((410) ia86.T_OP2_410)
-             ((500) ia86.T_OP2_500) ((501) ia86.T_OP2_501) ((502) ia86.T_OP2_502) ((503) ia86.T_OP2_503)
+             ((45 bytevector-fill!) ia86.T_OP2_45)
+             ((55 typetag-set!) ia86.T_OP2_55) 
+             ((56 eq?) ia86.T_OP2_56) 
+             ((57 eqv?) ia86.T_OP2_57) 
+             ((58 cons) ia86.T_OP2_58) 
+             ((59 set-car!) ia86.T_OP2_59)
+             ((60 set-cdr!) ia86.T_OP2_60) 
+             ((61 +) ia86.T_OP2_61) 
+             ((62 -) ia86.T_OP2_62) 
+             ((63 *) ia86.T_OP2_63) 
+             ((64 /) ia86.T_OP2_64)
+             ((65 quotient) ia86.T_OP2_65) 
+             ((66 <) ia86.T_OP2_66) 
+             ((67 <=) ia86.T_OP2_67) 
+             ((68 =) ia86.T_OP2_68) 
+             ((69 >) ia86.T_OP2_69)
+             ((70 >=) ia86.T_OP2_70) 
+             ((71 fxlogand) ia86.T_OP2_71) 
+             ((72 fxlogior) ia86.T_OP2_72) 
+             ((73 fxlogxor) ia86.T_OP2_73) 
+             ((74 fxlsh) ia86.T_OP2_74)
+             ((75 fxrsha) ia86.T_OP2_75) 
+             ((76 fxrshl) ia86.T_OP2_76) 
+             ((77 rot) ia86.T_OP2_77) 
+             ((78 string-ref string-ref:trusted) ia86.T_OP2_78) 
+             ((79 string-set!) ia86.T_OP2_79)
+             ((80 make-vector) ia86.T_OP2_80) 
+             ((81 vector-ref) ia86.T_OP2_81) 
+             ((82 bytevector-ref) ia86.T_OP2_82) 
+             ((83 procedure-ref) ia86.T_OP2_83) 
+             ((84 cell-set! cell-set!:nwb) ia86.T_OP2_84)
+             ((85 char<?) ia86.T_OP2_85) 
+             ((86 char<=?) ia86.T_OP2_86) 
+             ((87 char=?) ia86.T_OP2_87) 
+             ((88 char>?) ia86.T_OP2_88) 
+             ((89 char>=?) ia86.T_OP2_89)
+             ((90 sys$partial-list->vector) ia86.T_OP2_90)
+             ((96 bytevector-like-ref) ia86.T_OP2_96) 
+             ((98 sys$bvlcmp) ia86.T_OP2_98) 
+             ((99 vector-like-ref) ia86.T_OP2_99)
+             ((103 remainder) ia86.T_OP2_103) 
+             ((109 make-string) ia86.T_OP2_109)
+             ((202 fx+) ia86.T_OP2_202) 
+             ((203 fx-) ia86.T_OP2_203)
+             ((205 fx*) ia86.T_OP2_205) 
+             ((206 fx=) ia86.T_OP2_206) 
+             ((207 fx<) ia86.T_OP2_207) 
+             ((208 fx<=) ia86.T_OP2_208) 
+             ((209 fx>) ia86.T_OP2_209)
+             ((210 fx>=) ia86.T_OP2_210)
+             ((402 vector-ref:trusted) ia86.T_OP2_402) 
+             ((406 =:fix:fix) ia86.T_OP2_406) 
+             ((407 <:fix:fix) ia86.T_OP2_407) 
+             ((408 <=:fix:fix) ia86.T_OP2_408) 
+             ((409 >=:fix:fix) ia86.T_OP2_409)
+             ((410 >:fix:fix) ia86.T_OP2_410)
+             ((500 +:idx:idx) ia86.T_OP2_500) 
+             ((501 +:fix:fix) ia86.T_OP2_501) 
+             ((502 -:idx:idx) ia86.T_OP2_502) 
+             ((503 -:fix:fix) ia86.T_OP2_503)
+             (else (error 'ia86.T_OP2 x))
              )))
     (f y)))
+
+;; T_OP2* handles $reg/op2/setreg
+
+(define-sassy-instr (ia86.T_OP2* op rs1 rs2 rd)
+  (let ((f (case op
+             ((56 eq?) ia86.T_OP2_56*)
+             ((58 cons) ia86.T_OP2_58*)
+             ((59 set-car!) ia86.T_OP2_59*)
+             ((60 set-cdr!) ia86.T_OP2_60*)
+             (else (error 'ia86.T_OP2* op)))))
+    ;; odd order of args is because of the odd define-sassy-instr/peep
+    ;; interface (rs1 and rd are often 'RESULT)
+    (f rs1 rd rs2)))
+
 (define-sassy-instr (ia86.T_OP2IMM x y) ;; YUCK eval!
   (let ((f (case x
-             ((128) ia86.T_OP2IMM_128) ((129) ia86.T_OP2IMM_129)
-             ((130) ia86.T_OP2IMM_130) ((131) ia86.T_OP2IMM_131) ((132) ia86.T_OP2IMM_132) ((133) ia86.T_OP2IMM_133) ((134) ia86.T_OP2IMM_134)
-             ((135) ia86.T_OP2IMM_135) ((136) ia86.T_OP2IMM_136) ((137) ia86.T_OP2IMM_137) ((138) ia86.T_OP2IMM_138) ((139) ia86.T_OP2IMM_139)
-             ((140) ia86.T_OP2IMM_140) ((141) ia86.T_OP2IMM_141) ((142) ia86.T_OP2IMM_142) ((143) ia86.T_OP2IMM_143) ((144) ia86.T_OP2IMM_144)
-             ((145) ia86.T_OP2IMM_145) ((146) ia86.T_OP2IMM_146)
-             ((250) ia86.T_OP2IMM_250) ((251) ia86.T_OP2IMM_251) ((253) ia86.T_OP2IMM_253) ((254) ia86.T_OP2IMM_254)
-             ((255) ia86.T_OP2IMM_255) ((256) ia86.T_OP2IMM_256) ((257) ia86.T_OP2IMM_257)
-             ((450) ia86.T_OP2IMM_450) ((451) ia86.T_OP2IMM_451) ((452) ia86.T_OP2IMM_452) ((453) ia86.T_OP2IMM_453) ((454) ia86.T_OP2IMM_454)
-             ((455) ia86.T_OP2IMM_455)
-             ((520) ia86.T_OP2IMM_520) ((521) ia86.T_OP2IMM_521) ((522) ia86.T_OP2IMM_522) ((523) ia86.T_OP2IMM_523)
+             ((128 typetag-set!) ia86.T_OP2IMM_128) 
+             ((129 eq?) ia86.T_OP2IMM_129)
+             ((130 +) ia86.T_OP2IMM_130) 
+             ((131 -) ia86.T_OP2IMM_131) 
+             ((132 <) ia86.T_OP2IMM_132) 
+             ((133 <=) ia86.T_OP2IMM_133) 
+             ((134 =) ia86.T_OP2IMM_134)
+             ((135 >) ia86.T_OP2IMM_135) 
+             ((136 >=) ia86.T_OP2IMM_136) 
+             ((137 char<?) ia86.T_OP2IMM_137) 
+             ((138 char<=?) ia86.T_OP2IMM_138) 
+             ((139 char=?) ia86.T_OP2IMM_139)
+             ((140 char>?) ia86.T_OP2IMM_140) 
+             ((141 char>=?) ia86.T_OP2IMM_141) 
+             ((142 string-ref) ia86.T_OP2IMM_142) 
+             ((143 vector-ref) ia86.T_OP2IMM_143) 
+             ((144 bytevector-ref) ia86.T_OP2IMM_144)
+             ((145 bytevector-like-ref) ia86.T_OP2IMM_145)
+             ((146 vector-like-ref) ia86.T_OP2IMM_146)
+             ((250 fx+) ia86.T_OP2IMM_250) 
+             ((251 fx-) ia86.T_OP2IMM_251) 
+             ((253 fx=) ia86.T_OP2IMM_253) 
+             ((254 fx<) ia86.T_OP2IMM_254)
+             ((255 fx<=) ia86.T_OP2IMM_255) 
+             ((256 fx>) ia86.T_OP2IMM_256) 
+             ((257 fx>=) ia86.T_OP2IMM_257)
+             ((450 vector-ref:trusted) ia86.T_OP2IMM_450) 
+             ((451 =:fix:fix) ia86.T_OP2IMM_451) 
+             ((452 <:fix:fix) ia86.T_OP2IMM_452) 
+             ((453 <=:fix:fix) ia86.T_OP2IMM_453) 
+             ((454 >:fix:fix) ia86.T_OP2IMM_454)
+             ((455 >=:fix:fix) ia86.T_OP2IMM_455)
+             ((520 +:idx:idx) ia86.T_OP2IMM_520) 
+             ((521 +:fix:fix) ia86.T_OP2IMM_521) 
+             ((522 -:idx:idx) ia86.T_OP2IMM_522) 
+             ((523 -:fix:fix) ia86.T_OP2IMM_523)
+             (else (error 'ia86.T_OP2IMM x))
              )))
     (f y)))
 (define-sassy-instr (ia86.T_OP3 x y z) ;; YUCK eval!
   (let ((f (case x
-             ((79) ia86.T_OP3_79)
-             ((91) ia86.T_OP3_91) ((92) ia86.T_OP3_92) ((93) ia86.T_OP3_93) ((94) ia86.T_OP3_94)
-             ((97) ia86.T_OP3_97)
-             ((100) ia86.T_OP3_100)
-             ((403) ia86.T_OP3_403)
+             ((79 string-set! string-set!:trusted) ia86.T_OP3_79)
+             ((91 vector-set!) ia86.T_OP3_91) 
+             ((92 bytevector-set!) ia86.T_OP3_92) 
+             ((93 procedure-set!) ia86.T_OP3_93) 
+             ((97 bytevector-like-set!) ia86.T_OP3_97)
+             ((100 vector-like-set!) ia86.T_OP3_100)
+             ((403 vector-set!:trusted vector-set!:trusted:nwb) ia86.T_OP3_403)
+             (else (error 'ia86.T_OP3 x))
              )))
     (f y z)))
+
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF op rs L)
+  (let ((f (case op
+             ((internal:branchf-null?) ia86.T_REG_OP1_BRANCHF_NULL?)
+             ((internal:branchf-eof-object?) ia86.T_REG_OP1_BRANCHF_EOF_OBJECT?)
+             ((internal:branchf-pair?) ia86.T_REG_OP1_BRANCHF_PAIR?)
+             (else (error 'ia86.T_REG_OP1_BRANCHF op)))))
+    (f rs L)))
+
+(define-syntax define-sassy-instr/peep 
+  (syntax-rules (or)
+    ((_ (or (IA86.T_OPk_n* RS RD args-fst ...)
+            (IA86.T_OPk_n  args ...))
+        BODY ...)
+     (begin
+       (if (not (equal? '(args-fst ...) '(args ...)))
+           ;; (safe guard against my own wee brain)
+           (error 'define-sassy-instr/peep " ill-formed-args"))
+       (define-sassy-instr (IA86.T_OPk_n args ...)
+         (IA86.T_OPk_n* 'RESULT 'RESULT args ...))
+       (define-sassy-instr (IA86.T_OPk_n* RS RD args ...)
+         BODY ...)))))
 
 (define-sassy-instr (ia86.T_OP1_1)		; break
   (ia86.mcall	$m.break 'break))
 
-(define-sassy-instr (ia86.T_OP1_3)		; unspecified
-  (ia86.const2regf 'RESULT $imm.unspecified))
+(define-sassy-instr/peep (or (ia86.T_OP1_3* rs rd)	; unspecified
+                             (ia86.T_OP1_3))
+  (ia86.const2regf rd $imm.unspecified))
 
-(define-sassy-instr (ia86.T_OP1_4)		; undefined
-  (ia86.const2regf 'RESULT $imm.undefined))
+(define-sassy-instr/peep (or (ia86.T_OP1_4* rs rd)	; undefined
+                             (ia86.T_OP1_4))
+  (ia86.const2regf rd $imm.undefined))
 
-(define-sassy-instr (ia86.T_OP1_5)		; eof-object
-  (ia86.const2regf 'RESULT $imm.eof))
+(define-sassy-instr/peep (or (ia86.T_OP1_5* rs rd)	; eof-object
+                             (ia86.T_OP1_5))
+  (ia86.const2regf rd $imm.eof))
 
 (define-sassy-instr (ia86.T_OP1_6)		; enable-interrupts
   (ia86.mcall	$m.enable-interrupts 'enable-interrupts))
@@ -1337,21 +1581,25 @@
 (define-sassy-instr (ia86.T_OP1_8)		; typetag
   (ia86.mcall	$m.typetag 'typetag))
 
-(define-sassy-instr (ia86.T_OP1_9)		; not
-  `(cmp	RESULT_LOW ,$imm.false)
-  (ia86.setcc	'z))
+(define-sassy-instr/peep (or (ia86.T_OP1_9* rs rd)		; not
+                             (ia86.T_OP1_9))
+  `(cmp	,(try-low rs) ,$imm.false)
+  (ia86.setcc	rd 'z))
 
-(define-sassy-instr (ia86.T_OP1_10)		; null?
-  `(cmp	RESULT_LOW ,$imm.null)
-  (ia86.setcc	'z))
+(define-sassy-instr/peep (or (ia86.T_OP1_10* rs rd)		; null?
+                             (ia86.T_OP1_10))
+  `(cmp	,(try-low rs) ,$imm.null)
+  (ia86.setcc	rd 'z))
 
-(define-sassy-instr (ia86.T_OP1_11)		; pair?
-  (ia86.single_tag_test $tag.pair-tag)
-  (ia86.setcc	'z))
+(define-sassy-instr/peep (or (ia86.T_OP1_11* rs rd)
+                             (ia86.T_OP1_11))		; pair?
+  (ia86.single_tag_test rs $tag.pair-tag)
+  (ia86.setcc	rd 'z))
 	
-(define-sassy-instr (ia86.T_OP1_12)		; eof-object?
-  `(cmp	RESULT ,$imm.eof)
-  (ia86.setcc	'z))
+(define-sassy-instr/peep (or (ia86.T_OP1_12* rs rd)	; eof-object?
+                             (ia86.T_OP1_12))
+  `(cmp	,rs ,$imm.eof)
+  (ia86.setcc	rd 'z))
 
 (define-sassy-instr (ia86.T_OP1_13)		; port?
   (ia86.double_tag_predicate $tag.vector-tag $hdr.port))
@@ -1359,13 +1607,15 @@
 (define-sassy-instr (ia86.T_OP1_14)		; structure?
   (ia86.double_tag_predicate $tag.vector-tag $hdr.struct))
 
-(define-sassy-instr (ia86.T_OP1_15)		; car
-  (ia86.single_tag_test_ex $tag.pair-tag $ex.car)
-  `(mov	RESULT (& RESULT ,(- $tag.pair-tag))))
+(define-sassy-instr/peep (or (ia86.T_OP1_15* rs rd)		; car
+                             (ia86.T_OP1_15))
+  (ia86.single_tag_test_ex rs $tag.pair-tag $ex.car)
+  `(mov	,rd (& ,rs ,(- $tag.pair-tag))))
 
-(define-sassy-instr (ia86.T_OP1_16)		; cdr
-  (ia86.single_tag_test_ex $tag.pair-tag $ex.cdr)
-  `(mov	RESULT (& RESULT ,(+ (- $tag.pair-tag) wordsize))))
+(define-sassy-instr/peep (or (ia86.T_OP1_16* rs rd)		; cdr
+                             (ia86.T_OP1_16))
+  (ia86.single_tag_test_ex rs $tag.pair-tag $ex.cdr)
+  `(mov	,rd (& ,rs ,(+ (- $tag.pair-tag) wordsize))))
 
 (define-sassy-instr (ia86.T_OP1_17)		; symbol?
   (ia86.double_tag_predicate $tag.vector-tag $hdr.symbol))
@@ -1392,7 +1642,7 @@
 
 (define-sassy-instr (ia86.T_OP1_23)		; fixnum?
   `(test	RESULT_LOW fixtag_mask)
-  (ia86.setcc	'z))
+  (ia86.setcc	'RESULT 'z))
 	
 (define-sassy-instr (ia86.T_OP1_24)		; flonum?
   (ia86.double_tag_predicate $tag.bytevector-tag $hdr.flonum))
@@ -1424,7 +1674,7 @@
     `(jmp short ,L2)
     `(label ,L1)
     `(and	RESULT RESULT)
-    (ia86.setcc	'z)
+    (ia86.setcc	'RESULT 'z)
     `(label ,L2)))
 
 (define-sassy-instr (ia86.T_OP1_32)		; --
@@ -1450,7 +1700,7 @@
 
 (define-sassy-instr (ia86.T_OP1_36)		; char?
   `(cmp	RESULT_LOW ,$imm.character)
-  (ia86.setcc	'z))
+  (ia86.setcc	'RESULT 'z))
 
 (define-sassy-instr (ia86.T_OP1_37)		; char->integer
   (let ((L0 (fresh-label))
@@ -1501,7 +1751,7 @@
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.single_tag_test $tag.bytevector-tag)
+           (ia86.single_tag_test 'RESULT $tag.bytevector-tag)
            `(jz short ,L2)
            `(label ,L1)
            (ia86.exception_continuable $ex.bvfill L0)
@@ -1516,9 +1766,10 @@
 (define-sassy-instr (ia86.T_OP1_46)		; make-bytevector
   (ia86.make_indexed_structure_byte -1 $hdr.bytevector  $ex.mkbvl))
 
-(define-sassy-instr (ia86.T_OP1_47)		; procedure?
-  (ia86.single_tag_test $tag.procedure-tag)
-  (ia86.setcc	'z))
+(define-sassy-instr/peep (or (ia86.T_OP1_47* rs rd)		; procedure?
+                             (ia86.T_OP1_47))
+  (ia86.single_tag_test rs $tag.procedure-tag)
+  (ia86.setcc	rd 'z))
 
 (define-sassy-instr (ia86.T_OP1_48)		; procedure-length
   (ia86.indexed_structure_length $tag.procedure-tag $ex.plen  #f))
@@ -1538,18 +1789,20 @@
   (ia86.loadr	SECOND x)
   (ia86.mcall	$m.typetag-set 'typetag-set))
 
-(define-sassy-instr (ia86.T_OP2_56 x)		; eq?
-  (cond ((is_hwreg x)
-         `(cmp	RESULT ,(REG x)))
+(define-sassy-instr/peep (or (ia86.T_OP2_56* rs1 rd rs2)       	; eq?
+                             (ia86.T_OP2_56 rs2))
+  (cond ((is_hwreg rs2)
+         `(cmp	,(REG rs1) ,(REG rs2)))
         (else
-         `(cmp	RESULT (& GLOBALS ,(G_REG x)))))
-  (ia86.setcc	'z))
+         `(cmp	,(REG rs1) (& GLOBALS ,(G_REG rs2)))))
+  (ia86.setcc	(REG rd) 'z))
 
-(define-sassy-instr (ia86.T_OP2_57 x)		; eqv?
-  (ia86.loadr	SECOND x)
+(define-sassy-instr (ia86.T_OP2_57 regno)		; eqv?
+  (ia86.loadr	SECOND regno)
   (ia86.mcall	$m.eqv 'eqv))
 				
-(define-sassy-instr (ia86.T_OP2_58 x)		; cons
+(define-sassy-instr/peep (or (ia86.T_OP2_58* rs1 rd rs2)       	; cons
+                             (ia86.T_OP2_58 rs2))
   (cond ((inline-allocation)
          (let ((L1 (fresh-label))
                (L2 (fresh-label)))
@@ -1562,227 +1815,241 @@
            `(jmp short ,L1)
            `(label ,L2)
            `(mov	(& GLOBALS ,$g.etop) TEMP)
-           `(mov	(& TEMP -8)  RESULT)
-           `(lea	RESULT (& TEMP ,(+ -8 $tag.pair-tag)))
-           (cond ((is_hwreg x)
-                  `(mov	(& RESULT ,(+ (- $tag.pair-tag) 4)) ,(REG x)))
+           `(mov	(& TEMP -8) ,(REG rs1))
+           (cond ((is_hwreg rs2)
+                  `(mov (& TEMP -4) ,(REG rs2))
+                  `(lea	,(REG rd) (& TEMP ,(+ -8 $tag.pair-tag))))
                  (else
-                  (ia86.loadr	'TEMP x)
-                  `(mov	(& RESULT ,(+ (- $tag.pair-tag) 4)) TEMP)))))
+                  `(lea	RESULT (& TEMP ,(+ -8 $tag.pair-tag)))
+                  (ia86.loadr	'TEMP rs2)
+                  `(mov	(& RESULT ,(+ (- $tag.pair-tag) 4)) TEMP)
+                  (cond ((not (eq? rd 'RESULT))
+                         `(mov ,(REG rd) RESULT)))))
+           ))
         (else
-         `(mov	(& GLOBALS ,$g.alloctmp) RESULT)
+         `(mov	(& GLOBALS ,$g.alloctmp) ,(REG rs1))
          `(mov	RESULT 8)
          (ia86.mcall	$m.alloc 'alloc)
          `(mov	TEMP (& GLOBALS ,$g.alloctmp))
          `(mov	(& RESULT)  ,TEMP)
-         (cond ((is_hwreg x)
-                `(mov	(& RESULT 4) ,(REG x)))
+         (cond ((is_hwreg rs2)
+                `(mov	(& RESULT 4) ,(REG rs2)))
                (else
-                (ia86.loadr	'TEMP x)
+                (ia86.loadr	'TEMP rs2)
                 `(mov	(& RESULT 4) TEMP)))
-        `(add	RESULT ,$tag.pair-tag))))
+         `(add	RESULT ,$tag.pair-tag)
+         (cond ((not (eq? rd 'RESULT))
+                `(mov ,(REG rd) RESULT)))
+         )))
+
+(define (reg/result->num r)
+  (if (eq? r 'RESULT) -1 r))
 	
-(define-sassy-instr (ia86.T_OP2_59 x)		; set-car!
-  (ia86.single_tag_test_ex $tag.pair-tag $ex.setcar)
-  (cond ((is_hwreg x)
-         `(mov	(& RESULT ,(- $tag.pair-tag)) ,(REG x))
-         (ia86.write_barrier -1 x))
+(define-sassy-instr/peep (or (ia86.T_OP2_59* rs1 rd rs2)	; set-car!
+                             (ia86.T_OP2_59 rs2))
+  (ia86.single_tag_test_ex (REG rs1) $tag.pair-tag $ex.setcar)
+  (cond ((is_hwreg rs2)
+         `(mov	(& ,(REG rs1) ,(- $tag.pair-tag)) ,(REG rs2))
+         (ia86.write_barrier (reg/result->num rs1) rs2))
         (else
-         (ia86.loadr	SECOND x)
-         `(mov	(& RESULT ,(- $tag.pair-tag)) SECOND)
-         (ia86.write_barrier -1 -1))))
+         (ia86.loadr	SECOND rs2)
+         `(mov	(& ,(REG rs1) ,(- $tag.pair-tag)) SECOND)
+         (ia86.write_barrier (reg/result->num rs1) -1))))
 
-(define-sassy-instr (ia86.T_OP2_60 x)		; set-cdr!
-  (ia86.single_tag_test_ex $tag.pair-tag $ex.setcdr)
-  (cond ((is_hwreg x)
-         `(mov	(& RESULT ,(+ (- $tag.pair-tag) wordsize)) ,(REG x))
-         (ia86.write_barrier -1 x))
+(define-sassy-instr/peep (or (ia86.T_OP2_60* rs1 rd rs2)	; set-cdr!
+                             (ia86.T_OP2_60 rs2))
+  (ia86.single_tag_test_ex (REG rs1) $tag.pair-tag $ex.setcdr)
+  (cond ((is_hwreg rs2)
+         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) wordsize)) ,(REG rs2))
+         (ia86.write_barrier (reg/result->num rs1) rs2))
         (else
-         (ia86.loadr	SECOND x)
-         `(mov	(& RESULT ,(+ (- $tag.pair-tag) wordsize)) SECOND)
-         (ia86.write_barrier -1 -1))))
+         (ia86.loadr	SECOND rs2)
+         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) wordsize)) SECOND)
+         (ia86.write_barrier (reg/result->num rs1) -1))))
 
-(define-sassy-instr (ia86.T_OP2_61 x)		; +
-  (ia86.generic_arithmetic x 'add  'sub  $m.add))
+(define-sassy-instr (ia86.T_OP2_61 regno)	; +
+  (ia86.generic_arithmetic regno 'add  'sub  $m.add))
 
-(define-sassy-instr (ia86.T_OP2_62 x)		; -
-  (ia86.generic_arithmetic x 'sub  'add  $m.subtract))
+(define-sassy-instr (ia86.T_OP2_62 regno)	; -
+  (ia86.generic_arithmetic regno 'sub  'add  $m.subtract))
 
-(define-sassy-instr (ia86.T_OP2_63 x)		; *
-  (ia86.loadr	SECOND x)
+(define-sassy-instr (ia86.T_OP2_63 regno)	; *
+  (ia86.loadr	SECOND regno)
   (ia86.mcall	$m.multiply 'multiply))
 	
-(define-sassy-instr (ia86.T_OP2_64 x)		; /
-  (ia86.loadr	SECOND x)
+(define-sassy-instr (ia86.T_OP2_64 regno)	; /
+  (ia86.loadr	SECOND regno)
   (ia86.mcall	$m.divide 'divide))
 
-(define-sassy-instr (ia86.T_OP2_65 x)		; quotient
-  (ia86.loadr	SECOND x)
+(define-sassy-instr (ia86.T_OP2_65 regno)	; quotient
+  (ia86.loadr	SECOND regno)
   (ia86.mcall	$m.quotient 'quotient))
 
-(define-sassy-instr (ia86.T_OP2_66 x)		; <
-  (ia86.generic_compare x 'l  $m.numlt))
+(define-sassy-instr (ia86.T_OP2_66 regno)	; <
+  (ia86.generic_compare regno 'l  $m.numlt))
 	
-(define-sassy-instr (ia86.T_OP2_67 x)		; <=
-  (ia86.generic_compare x 'le  $m.numle))
+(define-sassy-instr (ia86.T_OP2_67 regno)	; <=
+  (ia86.generic_compare regno 'le  $m.numle))
 
-(define-sassy-instr (ia86.T_OP2_68 x)		; =
-  (ia86.generic_compare x 'e  $m.numeq))
+(define-sassy-instr (ia86.T_OP2_68 regno)	; =
+  (ia86.generic_compare regno 'e  $m.numeq))
 
-(define-sassy-instr (ia86.T_OP2_69 x)		; >
-  (ia86.generic_compare x 'g  $m.numgt))
+(define-sassy-instr (ia86.T_OP2_69 regno)	; >
+  (ia86.generic_compare regno 'g  $m.numgt))
 
-(define-sassy-instr (ia86.T_OP2_70 x)		; >=
-  (ia86.generic_compare x 'ge $m.numge))
+(define-sassy-instr (ia86.T_OP2_70 regno)	; >=
+  (ia86.generic_compare regno 'ge $m.numge))
 
-(define-sassy-instr (ia86.T_OP2_71 x)		; fxlogand
+(define-sassy-instr (ia86.T_OP2_71 regno)	; fxlogand
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	'TEMP x)
+           (ia86.loadr	'TEMP regno)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
-           (ia86.loadr	'SECOND x)
+           (ia86.loadr	'SECOND regno)
            `(jz short ,L1)
            (ia86.exception_continuable $ex.logand L0)
            `(label ,L1)
            `(and	RESULT SECOND)))
-        ((is_hwreg x)
-         `(and	RESULT ,(REG x)))
+        ((is_hwreg regno)
+         `(and	RESULT ,(REG regno)))
         (else
-         `(and	RESULT (& GLOBALS ,(G_REG x))))))
+         `(and	RESULT (& GLOBALS ,(G_REG regno))))))
 
-(define-sassy-instr (ia86.T_OP2_72 x)		; fxlogior
+(define-sassy-instr (ia86.T_OP2_72 regno)	; fxlogior
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	'TEMP x)
+           (ia86.loadr	'TEMP regno)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jz short ,L1)
-           (ia86.loadr	'SECOND x)
+           (ia86.loadr	'SECOND regno)
            (ia86.exception_continuable $ex.logior L0)
            `(label ,L1)
            `(mov	RESULT TEMP)))
-        ((is_hwreg x)
-         `(or	RESULT ,(REG x)))
+        ((is_hwreg regno)
+         `(or	RESULT ,(REG regno)))
         (else
-         `(or	RESULT (& GLOBALS ,(G_REG x))))))
+         `(or	RESULT (& GLOBALS ,(G_REG regno))))))
 
-(define-sassy-instr (ia86.T_OP2_73 x)		; fxlogxor
+(define-sassy-instr (ia86.T_OP2_73 regno)	; fxlogxor
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	'TEMP x)
+           (ia86.loadr	'TEMP regno)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
-           (ia86.loadr	'SECOND x)
+           (ia86.loadr	'SECOND regno)
            `(jz short ,L1)
            (ia86.exception_continuable $ex.logxor L0)
            `(label ,L1)	
            `(xor	RESULT SECOND)))
-        ((is_hwreg x)
-         `(xor	RESULT ,(REG x)))
+        ((is_hwreg regno)
+         `(xor	RESULT ,(REG regno)))
         (else
-         `(xor	RESULT (& GLOBALS ,(G_REG x))))))
+         `(xor	RESULT (& GLOBALS ,(G_REG regno))))))
 
-(define-sassy-instr (ia86.T_OP2_74 x)		; lsh
-  (ia86.fixnum_shift x 'shl  $ex.lsh))
+(define-sassy-instr (ia86.T_OP2_74 regno)		; lsh
+  (ia86.fixnum_shift regno 'shl  $ex.lsh))
 	
-(define-sassy-instr (ia86.T_OP2_75 x)		; rsha
-  (ia86.fixnum_shift x 'sar  $ex.rsha))
+(define-sassy-instr (ia86.T_OP2_75 regno)		; rsha
+  (ia86.fixnum_shift regno 'sar  $ex.rsha))
 
-(define-sassy-instr (ia86.T_OP2_76 x)		; rshl
-  (ia86.fixnum_shift x 'shr  $ex.rshl))
+(define-sassy-instr (ia86.T_OP2_76 regno)		; rshl
+  (ia86.fixnum_shift regno 'shr  $ex.rshl))
 	
-(define-sassy-instr (ia86.T_OP2_77 x)		; rot
+(define-sassy-instr (ia86.T_OP2_77 regno)		; rot
   (error 'T_OP2_rot "not implemented"))
 
-(define-sassy-instr (ia86.T_OP2_78 x)		; string-ref
-  (ia86.indexed_structure_ref/hdr x $tag.bytevector-tag  $hdr.string  $ex.sref #t)
+(define-sassy-instr (ia86.T_OP2_78 regno)		; string-ref
+  (ia86.indexed_structure_ref/hdr regno $tag.bytevector-tag  $hdr.string  $ex.sref #t)
   `(shl	RESULT char_shift)
   `(or	RESULT_LOW ,$imm.character))
 
-(define-sassy-instr (ia86.T_OP3_79 x y)		; string-set!
-  (ia86.indexed_structure_set_char x y  $tag.bytevector-tag  $hdr.string  $ex.sset))
+(define-sassy-instr (ia86.T_OP3_79 regno y)		; string-set!
+  (ia86.indexed_structure_set_char regno y  $tag.bytevector-tag  $hdr.string  $ex.sset))
 
-(define-sassy-instr (ia86.T_OP2_80 x)		; make-vector
-  (ia86.make_indexed_structure_word x $tag.vector-tag  $hdr.vector  $ex.mkvl))
+(define-sassy-instr (ia86.T_OP2_80 regno)		; make-vector
+  (ia86.make_indexed_structure_word regno $tag.vector-tag  $hdr.vector  $ex.mkvl))
 
-(define-sassy-instr (ia86.T_OP2_81 x)		; vector-ref
-  (ia86.indexed_structure_ref/hdr x $tag.vector-tag  $hdr.vector  $ex.vref #f))
+(define-sassy-instr (ia86.T_OP2_81 regno)		; vector-ref
+  (ia86.indexed_structure_ref/hdr regno $tag.vector-tag  $hdr.vector  $ex.vref #f))
 
-(define-sassy-instr (ia86.T_OP2_82 x)		; bytevector-ref
-  (ia86.indexed_structure_ref/hdr x $tag.bytevector-tag  $hdr.bytevector  $ex.bvref #t)
+(define-sassy-instr (ia86.T_OP2_82 regno)		; bytevector-ref
+  (ia86.indexed_structure_ref/hdr regno $tag.bytevector-tag  $hdr.bytevector  $ex.bvref #t)
   `(shl	RESULT 2))
 
-(define-sassy-instr (ia86.T_OP2_83 x)		; procedure-ref
-  (ia86.indexed_structure_ref x $tag.procedure-tag  $ex.pref #f))
+(define-sassy-instr (ia86.T_OP2_83 regno)		; procedure-ref
+  (ia86.indexed_structure_ref regno $tag.procedure-tag  $ex.pref #f))
 
-(define-sassy-instr (ia86.T_OP2_84 x)		; cell-set!
-  (cond ((is_hwreg x)
-         `(mov	(& RESULT ,(- $tag.pair-tag)) ,(REG x))
-         (ia86.write_barrier -1 x))
+(define-sassy-instr (ia86.T_OP2_84 regno)		; cell-set!
+  (cond ((is_hwreg regno)
+         `(mov	(& RESULT ,(- $tag.pair-tag)) ,(REG regno))
+         (ia86.write_barrier -1 regno))
         (else
-         (ia86.loadr	SECOND x)
+         (ia86.loadr	SECOND regno)
          `(mov	(& RESULT ,(- $tag.pair-tag)) ,SECOND)
          (ia86.write_barrier -1 -1))))
 
-(define-sassy-instr (ia86.T_OP2_85 x)		; char<?
-  (ia86.generic_char_compare x 'l  $ex.char<?))
+(define-sassy-instr (ia86.T_OP2_85 regno)		; char<?
+  (ia86.generic_char_compare regno 'l  $ex.char<?))
 
-(define-sassy-instr (ia86.T_OP2_86 x)		; char<=?
-  (ia86.generic_char_compare x 'le  $ex.char<=?))
+(define-sassy-instr (ia86.T_OP2_86 regno)		; char<=?
+  (ia86.generic_char_compare regno 'le  $ex.char<=?))
 
-(define-sassy-instr (ia86.T_OP2_87 x)		; char=?
-  (ia86.generic_char_compare x 'e  $ex.char=?))
+(define-sassy-instr (ia86.T_OP2_87 regno)		; char=?
+  (ia86.generic_char_compare regno 'e  $ex.char=?))
 
-(define-sassy-instr (ia86.T_OP2_88 x)		; char>?
-  (ia86.generic_char_compare x 'g  $ex.char>?))
+(define-sassy-instr (ia86.T_OP2_88 regno)		; char>?
+  (ia86.generic_char_compare regno 'g  $ex.char>?))
 
-(define-sassy-instr (ia86.T_OP2_89 x)		; char>=?
-  (ia86.generic_char_compare x 'ge  $ex.char>=?))
+(define-sassy-instr (ia86.T_OP2_89 regno)		; char>=?
+  (ia86.generic_char_compare regno 'ge  $ex.char>=?))
 
-(define-sassy-instr (ia86.T_OP2_90 x)		; sys$partial-list->vector
-  (ia86.loadr	SECOND x)
+(define-sassy-instr (ia86.T_OP2_90 regno)		; sys$partial-list->vector
+  (ia86.loadr	SECOND regno)
   (ia86.mcall	$m.partial-list->vector 'partial-list->vector))
 
-(define-sassy-instr (ia86.T_OP3_91 x y)		; vector-set!
-  (ia86.indexed_structure_set_word x y  $tag.vector-tag  $hdr.vector  $ex.vset))
+(define-sassy-instr (ia86.T_OP3_91 regno y)		; vector-set!
+  (ia86.indexed_structure_set_word regno y  $tag.vector-tag  $hdr.vector  $ex.vset))
 
-(define-sassy-instr (ia86.T_OP3_92 x y)		; bytevector-set!
-  (ia86.indexed_structure_set_byte x y  $tag.bytevector-tag  $hdr.bytevector  $ex.bvset))
+(define-sassy-instr (ia86.T_OP3_92 regno y)		; bytevector-set!
+  (ia86.indexed_structure_set_byte regno y  $tag.bytevector-tag  $hdr.bytevector  $ex.bvset))
 
-(define-sassy-instr (ia86.T_OP3_93 x y)		; procedure-set!
-  (ia86.indexed_structure_set_word x y  $tag.procedure-tag  0  $ex.pset))
+(define-sassy-instr (ia86.T_OP3_93 regno y)		; procedure-set!
+  (ia86.indexed_structure_set_word regno y  $tag.procedure-tag  0  $ex.pset))
 
-(define-sassy-instr (ia86.T_OP1_94)		; bytevector-like?
-  (ia86.single_tag_test $tag.bytevector-tag)
-  (ia86.setcc	'z))
+(define-sassy-instr/peep (or (ia86.T_OP1_94* rs rd)		; bytevector-like?
+                             (ia86.T_OP1_94))
+  (ia86.single_tag_test rs $tag.bytevector-tag)
+  (ia86.setcc	rd 'z))
 
-(define-sassy-instr (ia86.T_OP1_95)		; vector-like?
-  (ia86.single_tag_test $tag.vector-tag)
-  (ia86.setcc	'z))
+(define-sassy-instr/peep (or (ia86.T_OP1_95* rs rd)		; vector-like?
+                             (ia86.T_OP1_95))
+  (ia86.single_tag_test rs $tag.vector-tag)
+  (ia86.setcc	rd 'z))
 
-(define-sassy-instr (ia86.T_OP2_96 x)		; bytevector-like-ref
-  (ia86.indexed_structure_ref x $tag.bytevector-tag  $ex.bvlref #t)
+(define-sassy-instr (ia86.T_OP2_96 regno)		; bytevector-like-ref
+  (ia86.indexed_structure_ref regno $tag.bytevector-tag  $ex.bvlref #t)
   `(shl	RESULT 2))
 
-(define-sassy-instr (ia86.T_OP3_97 x y)		; bytevector-like-set!
-  (ia86.indexed_structure_set_byte x y  $tag.bytevector-tag  0  $ex.bvlset))
+(define-sassy-instr (ia86.T_OP3_97 regno y)		; bytevector-like-set!
+  (ia86.indexed_structure_set_byte regno y  $tag.bytevector-tag  0  $ex.bvlset))
 
-(define-sassy-instr (ia86.T_OP2_98 x)		; sys$bvlcmp
-  (ia86.loadr	SECOND x)
+(define-sassy-instr (ia86.T_OP2_98 regno)		; sys$bvlcmp
+  (ia86.loadr	SECOND regno)
   (ia86.mcall	$m.bvlcmp 'bvlcmp))
 
-(define-sassy-instr (ia86.T_OP2_99 x)		; vector-like-ref
-  (ia86.indexed_structure_ref x $tag.vector-tag  $ex.vlref  #f))
+(define-sassy-instr (ia86.T_OP2_99 regno)		; vector-like-ref
+  (ia86.indexed_structure_ref regno $tag.vector-tag  $ex.vlref  #f))
 
-(define-sassy-instr (ia86.T_OP3_100 x y)		; vector-like-set!
-  (ia86.indexed_structure_set_word x y  $tag.vector-tag  0  $ex.vlset))
+(define-sassy-instr (ia86.T_OP3_100 regno y)		; vector-like-set!
+  (ia86.indexed_structure_set_word regno y  $tag.vector-tag  0  $ex.vlset))
 
 (define-sassy-instr (ia86.T_OP1_101)		; vector-like-length
   (ia86.indexed_structure_length $tag.vector-tag $ex.vllen #f))
@@ -1790,8 +2057,8 @@
 (define-sassy-instr (ia86.T_OP1_102)		; bytevector-like-length
   (ia86.indexed_structure_length $tag.bytevector-tag $ex.bvllen #t))
 
-(define-sassy-instr (ia86.T_OP2_103 x)		; remainder
-  (ia86.loadr	SECOND x)
+(define-sassy-instr (ia86.T_OP2_103 regno)		; remainder
+  (ia86.loadr	SECOND regno)
   (ia86.mcall	$m.remainder 'remainder))
 
 (define-sassy-instr (ia86.T_OP1_104)		; petit-patch-boot-code
@@ -1809,95 +2076,95 @@
 (define-sassy-instr (ia86.T_OP1_108)		; gc-counter
   `(mov	RESULT (& GLOBALS ,$g.gccnt)))
 
-(define-sassy-instr (ia86.T_OP2_109 x)		; make-string
+(define-sassy-instr (ia86.T_OP2_109 regno)		; make-string
   ;; exception code wrong, matches Sparc
-  (ia86.make_indexed_structure_byte x $hdr.string  $ex.mkbvl))
+  (ia86.make_indexed_structure_byte regno $hdr.string  $ex.mkbvl))
 
-(define-sassy-instr (ia86.T_OP2IMM_128 x)		; typetag-set!
-  (ia86.const2regf SECOND x)
+(define-sassy-instr (ia86.T_OP2IMM_128 regno)		; typetag-set!
+  (ia86.const2regf SECOND regno)
   (ia86.mcall	$m.typetag-set 'typetag-set))
 
-(define-sassy-instr (ia86.T_OP2IMM_129 x)		; eq?
-  `(cmp	RESULT ,x)
-  (ia86.setcc	'z))
+(define-sassy-instr (ia86.T_OP2IMM_129 regno)		; eq?
+  `(cmp	RESULT ,regno)
+  (ia86.setcc	'RESULT 'z))
 
-(define-sassy-instr (ia86.T_OP2IMM_130 x)		; +
+(define-sassy-instr (ia86.T_OP2IMM_130 regno)		; +
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
     `(test	RESULT_LOW fixtag_mask)
     `(jnz short ,L1)
-    `(add	RESULT ,x)
+    `(add	RESULT ,regno)
     `(jno short ,L2)
-    `(sub	RESULT ,x)
+    `(sub	RESULT ,regno)
     `(label ,L1)
-    `(mov	SECOND ,x)
+    `(mov	SECOND ,regno)
     (ia86.mcall	$m.add 'add)
     `(label ,L2)))
 
 
-(define-sassy-instr (ia86.T_OP2IMM_131 x)		; -
+(define-sassy-instr (ia86.T_OP2IMM_131 regno)		; -
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
     `(test	RESULT_LOW fixtag_mask)
     `(jnz short ,L1)
-    `(sub	RESULT ,x)
+    `(sub	RESULT ,regno)
     `(jno short ,L2)
-    `(add	RESULT ,x)
+    `(add	RESULT ,regno)
     `(label ,L1)
-    `(mov	SECOND ,x)
+    `(mov	SECOND ,regno)
     (ia86.mcall	$m.subtract 'subtract)
     `(label ,L2)))
 
-(define-sassy-instr (ia86.T_OP2IMM_132 x)		; <
-  (ia86.generic_imm_compare x 'l  $m.numlt))
+(define-sassy-instr (ia86.T_OP2IMM_132 regno)		; <
+  (ia86.generic_imm_compare regno 'l  $m.numlt))
 
-(define-sassy-instr (ia86.T_OP2IMM_133 x)		; <=
-  (ia86.generic_imm_compare x 'le  $m.numle))
+(define-sassy-instr (ia86.T_OP2IMM_133 regno)		; <=
+  (ia86.generic_imm_compare regno 'le  $m.numle))
 
-(define-sassy-instr (ia86.T_OP2IMM_134 x)		; =
-  (ia86.generic_imm_compare x 'e  $m.numeq))
+(define-sassy-instr (ia86.T_OP2IMM_134 regno)		; =
+  (ia86.generic_imm_compare regno 'e  $m.numeq))
 
-(define-sassy-instr (ia86.T_OP2IMM_135 x)		; >
-  (ia86.generic_imm_compare x 'g  $m.numgt))
+(define-sassy-instr (ia86.T_OP2IMM_135 regno)		; >
+  (ia86.generic_imm_compare regno 'g  $m.numgt))
 
-(define-sassy-instr (ia86.T_OP2IMM_136 x)		; >=
-  (ia86.generic_imm_compare x 'ge  $m.numge))
+(define-sassy-instr (ia86.T_OP2IMM_136 regno)		; >=
+  (ia86.generic_imm_compare regno 'ge  $m.numge))
 
-(define-sassy-instr (ia86.T_OP2IMM_137 x)		; char<?
-  (ia86.generic_char_imm_compare x 'l  $ex.char<?))
+(define-sassy-instr (ia86.T_OP2IMM_137 regno)		; char<?
+  (ia86.generic_char_imm_compare regno 'l  $ex.char<?))
 
-(define-sassy-instr (ia86.T_OP2IMM_138 x)		; char<=?
-  (ia86.generic_char_imm_compare x 'le  $ex.char<=?))
+(define-sassy-instr (ia86.T_OP2IMM_138 regno)		; char<=?
+  (ia86.generic_char_imm_compare regno 'le  $ex.char<=?))
 
-(define-sassy-instr (ia86.T_OP2IMM_139 x)		; char=?
-  (ia86.generic_char_imm_compare x 'e  $ex.char=?))
+(define-sassy-instr (ia86.T_OP2IMM_139 regno)		; char=?
+  (ia86.generic_char_imm_compare regno 'e  $ex.char=?))
 
-(define-sassy-instr (ia86.T_OP2IMM_140 x)		; char>?
-  (ia86.generic_char_imm_compare x 'g  $ex.char>?))
+(define-sassy-instr (ia86.T_OP2IMM_140 regno)		; char>?
+  (ia86.generic_char_imm_compare regno 'g  $ex.char>?))
 
-(define-sassy-instr (ia86.T_OP2IMM_141 x)		; char>=?
-  (ia86.generic_char_imm_compare x 'ge  $ex.char>=?))
+(define-sassy-instr (ia86.T_OP2IMM_141 regno)		; char>=?
+  (ia86.generic_char_imm_compare regno 'ge  $ex.char>=?))
 
 ;;; The following five are probably a waste of effort.
 
-(define-sassy-instr (ia86.T_OP2IMM_142 x)		; string-ref
-  (ia86.indexed_structure_ref_imm/hdr x $tag.bytevector-tag  $hdr.string  $ex.sref  #t)
+(define-sassy-instr (ia86.T_OP2IMM_142 regno)		; string-ref
+  (ia86.indexed_structure_ref_imm/hdr regno $tag.bytevector-tag  $hdr.string  $ex.sref  #t)
   `(shl	RESULT char_shift)
   `(or	RESULT_LOW ,$imm.character))
 
-(define-sassy-instr (ia86.T_OP2IMM_143 x)		; vector-ref
-  (ia86.indexed_structure_ref_imm/hdr x $tag.vector-tag  $hdr.vector  $ex.vref  #f))
+(define-sassy-instr (ia86.T_OP2IMM_143 regno)		; vector-ref
+  (ia86.indexed_structure_ref_imm/hdr regno $tag.vector-tag  $hdr.vector  $ex.vref  #f))
 
-(define-sassy-instr (ia86.T_OP2IMM_144 x)		; bytevector-ref
-  (ia86.indexed_structure_ref_imm/hdr x $tag.bytevector-tag  $hdr.bytevector  $ex.bvref  #t)
+(define-sassy-instr (ia86.T_OP2IMM_144 regno)		; bytevector-ref
+  (ia86.indexed_structure_ref_imm/hdr regno $tag.bytevector-tag  $hdr.bytevector  $ex.bvref  #t)
   `(shl	RESULT 2))
 	
-(define-sassy-instr (ia86.T_OP2IMM_145 x)		; bytevector-like-ref
-  (ia86.indexed_structure_ref_imm x $tag.bytevector-tag  $ex.bvlref  #t)
+(define-sassy-instr (ia86.T_OP2IMM_145 regno)		; bytevector-like-ref
+  (ia86.indexed_structure_ref_imm regno $tag.bytevector-tag  $ex.bvlref  #t)
   `(shl	RESULT 2))
 
-(define-sassy-instr (ia86.T_OP2IMM_146 x)		; vector-like-ref
-  (ia86.indexed_structure_ref_imm x $tag.vector-tag  $ex.vlref  #f))
+(define-sassy-instr (ia86.T_OP2IMM_146 regno)		; vector-like-ref
+  (ia86.indexed_structure_ref_imm regno $tag.vector-tag  $ex.vlref  #f))
 
 (define-sassy-instr (ia86.T_OP1_200)		; most-positive-fixnum
   (ia86.const2regf 'RESULT #x7FFFFFFC))
@@ -1905,11 +2172,11 @@
 (define-sassy-instr (ia86.T_OP1_201)		; most-negative-fixnum
   (ia86.const2regf 'RESULT #x80000000))
 
-(define-sassy-instr (ia86.T_OP2_202 x)		; fx+
-  (ia86.fixnum_arithmetic x 'add  'sub  $ex.fx+))
+(define-sassy-instr (ia86.T_OP2_202 regno)		; fx+
+  (ia86.fixnum_arithmetic regno 'add  'sub  $ex.fx+))
 
-(define-sassy-instr (ia86.T_OP2_203 x)		; fx-
-  (ia86.fixnum_arithmetic x 'sub  'add  $ex.fx-))
+(define-sassy-instr (ia86.T_OP2_203 regno)		; fx-
+  (ia86.fixnum_arithmetic regno 'sub  'add  $ex.fx-))
 
 (define-sassy-instr (ia86.T_OP1_204)		; fx--
   (cond ((not (unsafe-code))
@@ -1928,46 +2195,46 @@
         (else
          `(neg	RESULT))))
 
-(define-sassy-instr (ia86.T_OP2_205 x)              ; fx*
+(define-sassy-instr (ia86.T_OP2_205 regno)              ; fx*
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.loadr	'TEMP x)
+           (ia86.loadr	'TEMP regno)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jnz short ,L1)
-           (ia86.loadr	'TEMP x)
+           (ia86.loadr	'TEMP regno)
            `(sar	TEMP 2)
            `(imul	TEMP RESULT)
            `(jno short ,L2)
            `(label ,L1)
-           (ia86.loadr	'TEMP x)
+           (ia86.loadr	'TEMP regno)
            (ia86.exception_continuable $ex.fx* L0)
            `(label ,L2)
            `(mov	RESULT TEMP)))
-        ((is_hwreg x)
+        ((is_hwreg regno)
          `(shr	RESULT)
-         `(imul	RESULT ,(REG x)))
+         `(imul	RESULT ,(REG regno)))
         (else
          `(shr	RESULT)
-         `(imul	RESULT (& GLOBALS ,(G_REG x))))))
+         `(imul	RESULT (& GLOBALS ,(G_REG regno))))))
 
-(define-sassy-instr (ia86.T_OP2_206 x)		; fx=
-  (ia86.fixnum_compare x 'e  $ex.fx=))
+(define-sassy-instr (ia86.T_OP2_206 regno)		; fx=
+  (ia86.fixnum_compare regno 'e  $ex.fx=))
 
-(define-sassy-instr (ia86.T_OP2_207 x)		; fx<
-  (ia86.fixnum_compare x 'l  $ex.fx<))
+(define-sassy-instr (ia86.T_OP2_207 regno)		; fx<
+  (ia86.fixnum_compare regno 'l  $ex.fx<))
 
-(define-sassy-instr (ia86.T_OP2_208 x)		; fx<=
-  (ia86.fixnum_compare x 'le  $ex.fx<=))
+(define-sassy-instr (ia86.T_OP2_208 regno)		; fx<=
+  (ia86.fixnum_compare regno 'le  $ex.fx<=))
 
-(define-sassy-instr (ia86.T_OP2_209 x)		; fx>
-  (ia86.fixnum_compare x 'g  $ex.fx>))
+(define-sassy-instr (ia86.T_OP2_209 regno)		; fx>
+  (ia86.fixnum_compare regno 'g  $ex.fx>))
 
-(define-sassy-instr (ia86.T_OP2_210 x)		; fx>=
-  (ia86.fixnum_compare x 'ge  $ex.fx>=))
+(define-sassy-instr (ia86.T_OP2_210 regno)		; fx>=
+  (ia86.fixnum_compare regno 'ge  $ex.fx>=))
 
 ; Changed T_OP2_2{11,12,13} to OP1.
 ; Do we refer to these as OP2 anywhere?
@@ -1981,7 +2248,7 @@
            (ia86.exception_continuable $ex.fxzero? L0)
            `(label ,L1))))
   `(test	RESULT RESULT)
-  (ia86.setcc	'z))
+  (ia86.setcc	'RESULT 'z))
 
 (define-sassy-instr (ia86.T_OP1_212)		; fxpositive?
   (cond ((not (unsafe-code))
@@ -1993,7 +2260,7 @@
            (ia86.exception_continuable $ex.fxpositive? L0)
            `(label ,L1))))
   `(cmp	RESULT 0)
-  (ia86.setcc	'g))
+  (ia86.setcc	'RESULT 'g))
 
 (define-sassy-instr (ia86.T_OP1_213)		; fxnegative?
   (cond ((not (unsafe-code))
@@ -2005,19 +2272,19 @@
            (ia86.exception_continuable $ex.fxnegative? L0)
            `(label ,L1))))
   `(cmp	RESULT 0)
-  (ia86.setcc        'l))
+  (ia86.setcc 'RESULT 'l))
 
-(define-sassy-instr (ia86.fixnum_imm_arithmetic x y z ex)
+(define-sassy-instr (ia86.fixnum_imm_arithmetic regno y z ex)
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.const2regf 'TEMP x)
+           (ia86.const2regf 'TEMP regno)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jnz short ,L1)
-           (ia86.const2regf 'TEMP x)
+           (ia86.const2regf 'TEMP regno)
            `(,y	RESULT TEMP)
            `(jno short ,L2)
            `(,z	RESULT TEMP)
@@ -2025,46 +2292,46 @@
            (ia86.exception_continuable ex L0)	; second is tmp so 2nd arg is in place
            `(label ,L2)))
         (else
-         (ia86.const2regf 'TEMP x)
+         (ia86.const2regf 'TEMP regno)
          `(,y	RESULT TEMP))))
 	
-(define-sassy-instr (ia86.T_OP2IMM_250 x)           ; fx+
-  (ia86.fixnum_imm_arithmetic x 'add  'sub  $ex.fx+))
+(define-sassy-instr (ia86.T_OP2IMM_250 regno)           ; fx+
+  (ia86.fixnum_imm_arithmetic regno 'add  'sub  $ex.fx+))
 
-(define-sassy-instr (ia86.T_OP2IMM_251 x)           ; fx-
-  (ia86.fixnum_imm_arithmetic x 'sub  'add  $ex.fx-))
+(define-sassy-instr (ia86.T_OP2IMM_251 regno)           ; fx-
+  (ia86.fixnum_imm_arithmetic regno 'sub  'add  $ex.fx-))
 
 ;;; fixnum_imm_compare const, cc, ex
-(define-sassy-instr (ia86.fixnum_imm_compare x y z)
+(define-sassy-instr (ia86.fixnum_imm_compare regno y z)
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
     (cond ((not (unsafe-code))
            `(label ,L0)
-           (ia86.const2regf 'TEMP x)
+           (ia86.const2regf 'TEMP regno)
            `(or	TEMP RESULT)
            `(test	TEMP_LOW fixtag_mask)
            `(jz short ,L1)
-           (ia86.const2regf 'TEMP x)
+           (ia86.const2regf 'TEMP regno)
            (ia86.exception_continuable z L0)	; second is tmp so 2nd arg is in place
            `(label ,L1)))
-    (ia86.const2regf 'TEMP x)
+    (ia86.const2regf 'TEMP regno)
     `(cmp	RESULT 	TEMP)
-    (ia86.setcc y)))
+    (ia86.setcc 'RESULT y)))
 
-(define-sassy-instr (ia86.T_OP2IMM_253 x)		; fx=
-  (ia86.fixnum_imm_compare x 'e  $ex.fx=))
+(define-sassy-instr (ia86.T_OP2IMM_253 regno)		; fx=
+  (ia86.fixnum_imm_compare regno 'e  $ex.fx=))
 
-(define-sassy-instr (ia86.T_OP2IMM_254 x)		; fx<
-  (ia86.fixnum_imm_compare x 'l  $ex.fx<))
+(define-sassy-instr (ia86.T_OP2IMM_254 regno)		; fx<
+  (ia86.fixnum_imm_compare regno 'l  $ex.fx<))
 
-(define-sassy-instr (ia86.T_OP2IMM_255 x)		; fx<=
-  (ia86.fixnum_imm_compare  x 'le  $ex.fx<=))
+(define-sassy-instr (ia86.T_OP2IMM_255 regno)		; fx<=
+  (ia86.fixnum_imm_compare  regno 'le  $ex.fx<=))
 
-(define-sassy-instr (ia86.T_OP2IMM_256 x)		; fx>
-  (ia86.fixnum_imm_compare  x 'g  $ex.fx>))
+(define-sassy-instr (ia86.T_OP2IMM_256 regno)		; fx>
+  (ia86.fixnum_imm_compare  regno 'g  $ex.fx>))
 
-(define-sassy-instr (ia86.T_OP2IMM_257 x)		; fx>=
-  (ia86.fixnum_imm_compare  x 'ge  $ex.fx>=))
+(define-sassy-instr (ia86.T_OP2IMM_257 regno)		; fx>=
+  (ia86.fixnum_imm_compare  regno 'ge  $ex.fx>=))
 
 ;;; Unsafe/trusted primitives
 
@@ -2072,118 +2339,140 @@
   `(mov	RESULT (& RESULT ,(- $tag.vector-tag)))
   `(shr	RESULT 8))
 
-(define-sassy-instr (ia86.T_OP2_402 x)		; vector-ref:trusted
+(define-sassy-instr (ia86.T_OP2_402 regno)		; vector-ref:trusted
   `(add	RESULT ,(- wordsize $tag.vector-tag))
-  (cond ((is_hwreg x)
-         `(mov	RESULT (& RESULT ,(REG x))))
+  (cond ((is_hwreg regno)
+         `(mov	RESULT (& RESULT ,(REG regno))))
         (else
-         (ia86.loadr	'TEMP x)
+         (ia86.loadr	'TEMP regno)
          `(mov	RESULT (& RESULT TEMP)))))
 
-(define-sassy-instr (ia86.T_OP3_403 x y)		; vector-set!:trusted
-  (ia86.do_indexed_structure_set_word x y $tag.vector-tag))
+(define-sassy-instr (ia86.T_OP3_403 regno y)		; vector-set!:trusted
+  (ia86.do_indexed_structure_set_word regno y $tag.vector-tag))
 
-(define-sassy-instr (ia86.T_OP1_404)		; car:pair
-  `(mov	RESULT (& RESULT ,(- $tag.pair-tag))))
+(define-sassy-instr/peep (or (ia86.T_OP1_404* rs rd)		; car:pair
+                             (ia86.T_OP1_404))
+  `(mov	,rd (& ,rs ,(- $tag.pair-tag))))
 
-(define-sassy-instr (ia86.T_OP1_405)		; cdr:pair
-  `(mov	RESULT (& RESULT ,(+ (- $tag.pair-tag) wordsize))))
+(define-sassy-instr/peep (or (ia86.T_OP1_405* rs rd)		; cdr:pair
+                             (ia86.T_OP1_405))
+  `(mov	,rd (& ,rs ,(+ (- $tag.pair-tag) wordsize))))
 
-(define-sassy-instr (ia86.T_OP2_406 x)		; =:fix:fix
-  (ia86.trusted_fixnum_compare x 'e))
+(define-sassy-instr (ia86.T_OP2_406 regno)		; =:fix:fix
+  (ia86.trusted_fixnum_compare regno 'e))
 
-(define-sassy-instr (ia86.T_OP2_407 x)		; <:fix:fix
-  (ia86.trusted_fixnum_compare x 'l))
+(define-sassy-instr (ia86.T_OP2_407 regno)		; <:fix:fix
+  (ia86.trusted_fixnum_compare regno 'l))
 
 
-(define-sassy-instr (ia86.T_OP2_408 x)		; <=:fix:fix
-  (ia86.trusted_fixnum_compare x 'le))
+(define-sassy-instr (ia86.T_OP2_408 regno)		; <=:fix:fix
+  (ia86.trusted_fixnum_compare regno 'le))
 
-(define-sassy-instr (ia86.T_OP2_409 x)		; >=:fix:fix
-  (ia86.trusted_fixnum_compare x 'ge))
+(define-sassy-instr (ia86.T_OP2_409 regno)		; >=:fix:fix
+  (ia86.trusted_fixnum_compare regno 'ge))
 
-(define-sassy-instr (ia86.T_OP2_410 x)		; >:fix:fix
-  (ia86.trusted_fixnum_compare x 'g))
+(define-sassy-instr (ia86.T_OP2_410 regno)		; >:fix:fix
+  (ia86.trusted_fixnum_compare regno 'g))
 
-(define-sassy-instr (ia86.T_OP2IMM_450 x)		; vector-ref:trusted
-  `(mov	RESULT (& RESULT ,x ,(- wordsize $tag.vector-tag))))
+(define-sassy-instr (ia86.T_OP2IMM_450 regno)		; vector-ref:trusted
+  `(mov	RESULT (& RESULT ,regno ,(- wordsize $tag.vector-tag))))
 
-(define-sassy-instr (ia86.T_OP2IMM_451 x)		; =:fix:fix
-  `(cmp	RESULT ,x)
-  (ia86.setcc	'e))
+(define-sassy-instr (ia86.T_OP2IMM_451 regno)		; =:fix:fix
+  `(cmp	RESULT ,regno)
+  (ia86.setcc	'RESULT 'e))
 
-(define-sassy-instr (ia86.T_OP2IMM_452 x)		; <:fix:fix
-  `(cmp	RESULT ,x)
-  (ia86.setcc	'l))
+(define-sassy-instr (ia86.T_OP2IMM_452 regno)		; <:fix:fix
+  `(cmp	RESULT ,regno)
+  (ia86.setcc	'RESULT 'l))
 
-(define-sassy-instr (ia86.T_OP2IMM_453 x)		; <=:fix:fix
-  `(cmp	RESULT ,x)
-  (ia86.setcc	'le))
+(define-sassy-instr (ia86.T_OP2IMM_453 regno)		; <=:fix:fix
+  `(cmp	RESULT ,regno)
+  (ia86.setcc	'RESULT 'le))
 
-(define-sassy-instr (ia86.T_OP2IMM_454 x)		; >:fix:fix
-  `(cmp	RESULT ,x)
-  (ia86.setcc	'g))
+(define-sassy-instr (ia86.T_OP2IMM_454 regno)		; >:fix:fix
+  `(cmp	RESULT ,regno)
+  (ia86.setcc	'RESULT 'g))
 
-(define-sassy-instr (ia86.T_OP2IMM_455 x)		; >=:fix:fix
-  `(cmp	RESULT ,x)
-  (ia86.setcc	'ge))
+(define-sassy-instr (ia86.T_OP2IMM_455 regno)		; >=:fix:fix
+  `(cmp	RESULT ,regno)
+  (ia86.setcc	'RESULT 'ge))
 
 ;;; Introduced by representation inference.  Trusted.
 
-(define-sassy-instr (ia86.T_OP2_500 x)		; +:idx:idx
-  (cond ((is_hwreg x)
-         `(add	RESULT ,(REG x)))
+(define-sassy-instr (ia86.T_OP2_500 regno)		; +:idx:idx
+  (cond ((is_hwreg regno)
+         `(add	RESULT ,(REG regno)))
         (else
-         `(add	RESULT (& GLOBALS ,(G_REG x))))))
+         `(add	RESULT (& GLOBALS ,(G_REG regno))))))
 
-(define-sassy-instr (ia86.T_OP2_501 x)		; +:fix:fix
+(define-sassy-instr (ia86.T_OP2_501 regno)		; +:fix:fix
   (let ((L1 (fresh-label)))
-    (ia86.loadr	'TEMP x)
+    (ia86.loadr	'TEMP regno)
     `(add	RESULT TEMP)
     `(jno short ,L1)
     `(sub	RESULT TEMP)
     (ia86.mcall	$m.add 'add)                          ; second is temp so 2nd arg is in place
     `(label ,L1)))
 
-(define-sassy-instr (ia86.T_OP2_502 x)		; -:idx:idx
-  (cond ((is_hwreg x)
-         `(sub	RESULT ,(REG x)))
+(define-sassy-instr (ia86.T_OP2_502 regno)		; -:idx:idx
+  (cond ((is_hwreg regno)
+         `(sub	RESULT ,(REG regno)))
         (else
-         `(sub	RESULT (& GLOBALS ,(G_REG x))))))
+         `(sub	RESULT (& GLOBALS ,(G_REG regno))))))
 
-(define-sassy-instr (ia86.T_OP2_503 x)		; -:fix:fix
+(define-sassy-instr (ia86.T_OP2_503 regno)		; -:fix:fix
   (let ((L1 (fresh-label)))
-    (ia86.loadr	'TEMP x)
+    (ia86.loadr	'TEMP regno)
     `(sub	RESULT TEMP)
     `(jno short ,L1)
     `(add	RESULT TEMP)
     (ia86.mcall	$m.subtract 'subtract)	; second is temp so 2nd arg is in place
     `(label ,L1)))
 
-(define-sassy-instr (ia86.T_OP2IMM_520 x)		; +:idx:idx
-  `(add	RESULT ,x))
+(define-sassy-instr (ia86.T_OP2IMM_520 regno)		; +:idx:idx
+  `(add	RESULT ,regno))
 
-(define-sassy-instr (ia86.T_OP2IMM_521 x)		; +:fix:fix
+(define-sassy-instr (ia86.T_OP2IMM_521 regno)		; +:fix:fix
   (let ((L1 (fresh-label)))
-    `(add	RESULT ,x)
+    `(add	RESULT ,regno)
     `(jno short ,L1)
-    `(sub	RESULT ,x)
-    `(mov	SECOND ,x)
+    `(sub	RESULT ,regno)
+    `(mov	SECOND ,regno)
     (ia86.mcall	$m.add 'add)
     `(label ,L1)))
 
-(define-sassy-instr (ia86.T_OP2IMM_522 x)		; -:idx:idx
-  `(sub	RESULT ,x))
+(define-sassy-instr (ia86.T_OP2IMM_522 regno)		; -:idx:idx
+  `(sub	RESULT ,regno))
 
-(define-sassy-instr (ia86.T_OP2IMM_523 x)		; -:fix:fix
+(define-sassy-instr (ia86.T_OP2IMM_523 regno)		; -:fix:fix
   (let ((L1 (fresh-label)))
-    `(sub	RESULT ,x)
+    `(sub	RESULT ,regno)
     `(jno short ,L1)
-    `(add	RESULT ,x)
-    `(mov	SECOND ,x)
+    `(add	RESULT ,regno)
+    `(mov	SECOND ,regno)
     (ia86.mcall	$m.subtract 'subtract)
     `(label ,L1)))
 
+(define-sassy-instr (ia86.reg_generic_compare_lowimm_branchf imm rs L)
+  (ia86.timer_check)
+  `(cmp	,(try-low (REG rs)) ,imm)
+  `(jne ,(t_label L)))
+
+(define-sassy-instr (ia86.reg_generic_compare_imm_branchf imm rs L)
+  (ia86.timer_check)
+  `(cmp	,(REG rs) ,imm)
+  `(jne ,(t_label L)))
+
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_NULL? rs L)
+  (ia86.reg_generic_compare_lowimm_branchf $imm.null rs L))
+
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_EOF_OBJECT? rs L)
+  (ia86.reg_generic_compare_imm_branchf $imm.eof rs L))
+
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_PAIR? rs L)
+  (ia86.timer_check)
+  (ia86.single_tag_test (REG rs) $tag.pair-tag)
+  `(jnz ,(t_label L)))
 
 ;;; Experimental stuff below this line, we need more than this to support
 ;;; peephole optimization well.

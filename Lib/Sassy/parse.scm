@@ -96,11 +96,14 @@
     (define (aligner itm)
       (and (eq? 'align (car itm))
 	   (not (null? (cdr itm)))
-	   (null? (cddr itm))
-	   (let ((x (cadr itm)))
-	     (and (integer? x) (positive? x)
-		  (zero? (logand x (- x 1)))
-		  x))))
+	   (cond ((or (null? (cddr itm))
+                      (null? (cdddr itm)))
+                  (let ((x (cadr itm))
+                        (offset (if (null? (cddr itm)) 0 (- (caddr itm)))))
+                    (and (integer? x) (positive? x)
+                         (zero? (logand x (- x 1)))
+                         (list x offset))))
+                 (else #f))))
 
 
     (define (heap-items-err x)
@@ -123,8 +126,11 @@
       (define (heap-item itm)
 	(cond
 	 ((aligner itm) =>
-	  (lambda (align)
-	    (let ((size (sassy-heap-size output)))
+	  (lambda (align+offset)
+	    (let ((align (car align+offset))
+                  (offset (if (not (zero? (cadr align+offset)))
+                              (error 'heap-item "bad align directive")))
+                  (size (sassy-heap-size output)))
 	      (sassy-heap-size-set!
 	       output (+ size (align-to size align)))
 	      (when (> align (sassy-heap-align output))
@@ -168,11 +174,13 @@
 
 	(cond
 	 ((aligner itm) =>
-	  (lambda (align)
-	    (push-stack-align (sassy-text-stack output) align #x90
-			      (sassy-text-org output))
-	    (if (> align (sassy-text-align output))
-		(sassy-text-align-set! output align))))
+	  (lambda (align+offset)
+            (let ((align (car align+offset))
+                  (offset (cadr align+offset)))
+              (push-stack-align (sassy-text-stack output) align #x90
+                                (+ offset (sassy-text-org output)))
+              (if (> align (sassy-text-align output))
+                  (sassy-text-align-set! output align)))))
 
 	 ((sassy-label-form? itm)
 	  (let ((label (cadr itm))
@@ -290,10 +298,12 @@
 
 	(cond
 	 ((aligner itm) =>
-	  (lambda (align)
-	    (push-stack-align (sassy-data-stack output) align 0)
-	    (if (> align (sassy-data-align output))
-		(sassy-data-align-set! output align))))
+	  (lambda (align+offset)
+            (let ((align (car align+offset))
+                  (offset (cadr align+offset)))
+              (push-stack-align (sassy-data-stack output) align offset)
+              (if (> align (sassy-data-align output))
+                  (sassy-data-align-set! output align)))))
 
 	 ((sassy-label-form? itm)
 	  (let ((label (cadr itm))

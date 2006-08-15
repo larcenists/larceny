@@ -57,9 +57,7 @@
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(dec (dword (& GLOBALS ,$g.timer)))
-           `(jnz short ,L1)
-           `(label ,L0)
-	   (ia86.mcall $m.invoke-ex 'invoke-ex)
+           `(jz short ,L0)
            `(label ,L1)
 	   `(lea TEMP (& RESULT ,(- $tag.procedure-tag)))
 	   `(test TEMP_LOW tag_mask)
@@ -69,6 +67,9 @@
            (ia86.const2regf 'RESULT (fixnum n))
            `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
            `(jmp TEMP)
+           `(label ,L0)
+	   (ia86.mcall $m.invoke-ex 'invoke-ex)
+           `(jmp short ,L1)
            ))))
 
 ;;; Introduced by peephole optimization.
@@ -83,8 +84,7 @@
          (ia86.T_GLOBAL g)
          (ia86.T_INVOKE n))
         (else
-         (let ((L0 (fresh-label))
-               (L1 (fresh-label))
+         (let ((L1 (fresh-label))
                (L2 (fresh-label)))
            (ia86.loadc	'RESULT g)		; global cell
            `(label ,L2)
@@ -92,11 +92,7 @@
                  (& RESULT ,(- $tag.pair-tag)))
 	   `(inc TEMP)			; really TEMP += PROC_TAG-8
 	   `(test TEMP_LOW tag_mask)	; tag test
-	   `(jz short ,L0)
-           `(label ,L1)
-	   (ia86.mcall $m.global-invoke-ex 'global-invoke-ex) ; RESULT has global cell (always)
-	   `(jmp short ,L2)		; Since TEMP is dead following timer interrupt
-           `(label ,L0)
+	   `(jnz short ,L1)
 	   `(dec (dword (& GLOBALS ,$g.timer))) ; timer
 	   `(jz short ,L1)                ;   test
 	   `(dec TEMP)                   ; undo ptr adjustment
@@ -105,7 +101,11 @@
                             (fixnum n))
 	   `(mov TEMP	(& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
            `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
-           `(jmp TEMP)))))
+           `(jmp TEMP)
+           `(label ,L1)
+	   (ia86.mcall $m.global-invoke-ex 'global-invoke-ex) ; RESULT has global cell (always)
+	   `(jmp short ,L2)		; Since TEMP is dead following timer interrupt
+           ))))
 
 (define-sassy-instr (ia86.T_SETRTN_INVOKE n)
   (let ((ign (if (not (memv n *did-emit-setrtn-invoke*))
@@ -129,25 +129,50 @@
              `(mov TEMP (& TEMP ,PROC_CODEVECTOR_NATIVE))
              (ia86.storer 0 'RESULT)
              ;; n stored in RESULT via patch-code
+             ;; aligning the code here allows us to eliminate 
+             ;; the add&and from the patch code (saving 9 bytes).
+             `(align code_align)
+             ;;   3 bytes
              `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+             ;; + 5 bytes = 8 bytes; retaddr is aligned!
              `(call ,(setrtn-invoke-patch-code-label n))
              )))))
+
+(define-sassy-instr (ia86.T_SETRTN_BRANCH Ly)
+  (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
+                 (set! *did-emit-setrtn-branch* 
+                       (cons Ly *did-emit-setrtn-branch*)))))
+    (ia86.timer_check)
+    `(align ,code_align -1)
+    `(call ,(setrtn-branch-patch-code-label Ly))))
+
+(define-sassy-instr (ia86.T_SETRTN_SKIP Ly)
+  (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
+                 (set! *did-emit-setrtn-branch* 
+                       (cons Ly *did-emit-setrtn-branch*)))))
+    `(align ,code_align -1)
+    `(call ,(setrtn-branch-patch-code-label Ly))))
 
 (define (setrtn-invoke-patch-code-label n)
   (string->symbol (string-append "setrtn-invoke-patch-code-label" 
                                  (number->string n))))
 
+(define (setrtn-branch-patch-code-label l)
+  (string->symbol (string-append "setrtn-branch-patch-code-label" 
+                                 l)))
+
 (define (emit-setrtn-invoke-patch-code as n)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label ,(setrtn-invoke-patch-code-label n)))
-  ; (emit `(int3))
-  (emit `(pop RESULT))            ;; return address
-  (emit `(add RESULT 3))          ;;  rounded up
-  (emit `(and RESULT #xFFFFFFFC)) ;;   to 4-byte boundary
-  (emit `(mov (& CONT ,STK_RETADDR) RESULT))
+  (emit `(pop (& CONT ,STK_RETADDR)))  ;; pre-aligned return address
   (for-each emit (ia86.const2regf 'RESULT (fixnum n)))
   (emit `(jmp TEMP)))
          
+(define (emit-setrtn-branch-patch-code as l)
+  (define (emit x) (apply emit-sassy as x))
+  (emit `(label ,(setrtn-branch-patch-code-label l)))
+  (emit `(pop (& CONT ,STK_RETADDR)))  ;; pre-aligned return address 
+  (emit `(jmp ,(t_label l))))
 
 (define-sassy-instr (ia86.T_APPLY x y)
   (ia86.timer_check)

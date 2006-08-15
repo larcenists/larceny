@@ -593,16 +593,30 @@
   (make-mnemonic 'op2/branchf))
 (define $op2imm/branchf                   ; op2imm/branchf     prim,x,L
   (make-mnemonic 'op2imm/branchf))
+(define $reg/op1/branchf                  ; reg/op1/branchf    prim,k,L
+  (make-mnemonic 'reg/op1/branchf))
 (define $reg/op1/check                    ; reg/op1/check      prim,k1,k2,k3,k4,exn
   (make-mnemonic 'reg/op1/check))
 (define $reg/op2/check                    ; reg/op2/check      prim,k1,k2,k3,k4,k5,exn
   (make-mnemonic 'reg/op2/check))
 (define $reg/op2imm/check                 ; reg/op2imm/check   prim,k1,x,k2,k3,k4,exn
   (make-mnemonic 'reg/op2imm/check))
+(define $reg/op1/setreg                   ; reg/op1/setreg     prim,k1,kr
+  (make-mnemonic 'reg/op1/setreg))
+(define $reg/op2/setreg                   ; reg/op2/setreg     prim,k1,k2,kr
+  (make-mnemonic 'reg/op2/setreg))
 (define $setrtn/invoke                    ; setrtn/invoke      n
   (make-mnemonic 'setrtn/invoke))
+(define $setrtn/branch                    ; setrtn/invoke      L,doc
+  (make-mnemonic 'setrtn/branch))
+(define $setrtn/jump                    ; setrtn/invoke      m,o
+  (make-mnemonic 'setrtn/jump))
 (define $global/invoke                    ; global/invoke      global,n
   (make-mnemonic 'global/invoke))
+(define $global/setreg                    ; global/setreg      global,k
+  (make-mnemonic 'global/setreg))
+(define $reg/setglbl                      ; reg/setglbl        k,global
+  (make-mnemonic 'reg/setglbl))
 
 ; misc
 
