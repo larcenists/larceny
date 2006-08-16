@@ -47,6 +47,7 @@
 # define CDECL 
 #endif
 
+extern word *twobit_effective_regzero;
 #if USE_RETURN_WITHOUT_VALUE || USE_LONGJUMP
 extern cont_t twobit_cont_label;
 #endif
@@ -499,8 +500,7 @@ extern cont_t twobit_cont_label;
 
 #if USE_GOTOS_LOCALLY
 # define twobit_return() \
-   reg(0) = (word)stack( STK_REG0 ); \
-   nonlocal_control_transfer( DECODE_RETURN_ADDRESS(stack( STK_RETURN )) )
+   nonlocal_control_transfer( (word)stack( STK_REG0 ), DECODE_RETURN_ADDRESS(stack( STK_RETURN )) )
 #else
 # define twobit_return() \
    twobit_skip( -1, DECODE_RETURN_ADDRESS(stack( STK_RETURN )) )
@@ -517,7 +517,7 @@ extern cont_t twobit_cont_label;
         if (!--TIMER) \
           WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)0 ) );	\
         integrity_check( "invoke" ); \
-        nonlocal_control_transfer( 0 ); \
+        nonlocal_control_transfer( reg(0), 0 ); \
    } while(0)
 #else 
 # define twobit_invoke( n ) \
@@ -538,7 +538,7 @@ extern cont_t twobit_cont_label;
    do { SECOND=reg(k); THIRD=reg(l); \
         WITH_SAVED_STATE( mc_apply( globals ) ); /* Sets up REG0 */ \
         integrity_check( "apply" ); \
-        nonlocal_control_transfer( 0 ); \
+        nonlocal_control_transfer( reg(0), 0 ); \
    } while (0)
 #else
 # define twobit_apply( k, l ) \
@@ -556,7 +556,7 @@ extern cont_t twobit_cont_label;
         for ( i=n ; i > 0 ; i-- ) p=*proc_addr( p, IDX_PROC_REG0 );\
         reg(0) = p; \
         integrity_check( "jump" ); \
-        nonlocal_control_transfer( L_numeric ); \
+        nonlocal_control_transfer( reg(0), L_numeric ); \
    } while(0)
 #else
 # define twobit_jump( n, L_numeric, L_symbolic ) \
@@ -570,18 +570,21 @@ extern cont_t twobit_cont_label;
 
 #if USE_GOTOS_LOCALLY
 #  if USE_LONGJUMP
-#    define nonlocal_control_transfer( L ) \
+#    define nonlocal_control_transfer( REGZERO, L ) \
        do { \
          if (--TIMER == 0) \
            WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L ) ); \
-         (DECODE_CODEPTR(procedure_ref(reg(0),IDX_PROC_CODE)))( globals, L ); \
+         twobit_effective_regzero = (word*)REGZERO; \
+         (DECODE_CODEPTR(procedure_ref(REGZERO,IDX_PROC_CODE)))( globals, L ); \
        } while(0)
 #  elif USE_RETURN_WITH_VALUE
-#    define nonlocal_control_transfer( L ) \
-       do { SAVE_STATE(); return (cont_t)L; } while(0)
+#    define nonlocal_control_transfer( REGZERO, L ) \
+       do { twobit_effective_regzero = (word*)REGZERO; \
+            SAVE_STATE(); return (cont_t)L; } while(0)
 #  elif USE_RETURN_WITHOUT_VALUE
-#    define nonlocal_control_transfer( L ) \
-       do { twobit_cont_label = (cont_t)L; SAVE_STATE(); return; } while(0)
+#    define nonlocal_control_transfer( REGZERO, L ) \
+       do { twobit_effective_regzero = (word*)REGZERO; \
+            twobit_cont_label = (cont_t)L; SAVE_STATE(); return; } while(0)
 #  endif
 #endif
 

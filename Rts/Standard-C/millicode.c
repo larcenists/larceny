@@ -40,6 +40,7 @@ extern void i386_return_from_scheme();
 
 #ifdef PETIT_LARCENY
 int twobit_cache_state = 0;     /* For petit-instr.h debug code */
+word *twobit_effective_regzero = 0;
 # if USE_LONGJUMP || USE_RETURN_WITHOUT_VALUE
 cont_t twobit_cont_label = 0;   /* Label to jump to */
 # endif
@@ -188,18 +189,21 @@ void scheme_start( word *globals )
    /* INVARIANT: f is an entry point within the code of the procedure 
       in REG0. */
 #  if USE_RETURN_WITH_VALUE
+   twobit_effective_regzero = globals[G_REG0];
    while (1)
    {
-     codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
+     codeptr_t p=DECODE_CODEPTR(procedure_ref(twobit_effective_regzero,IDX_PROC_CODE));
      f = p( globals, f );
    }
 #  elif USE_RETURN_WITHOUT_VALUE
+#  error must update to use twobit_effective_regzero
    twobit_cont_label = f;
    while (1) {
      codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
      p( globals, twobit_cont_label );
    }
 #  elif USE_LONGJUMP
+#  error must update to use twobit_effective_regzero
    {
      codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
      p( globals, f );
