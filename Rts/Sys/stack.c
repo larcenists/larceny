@@ -90,6 +90,8 @@ void stk_flush( word *globals )
   word retaddr, codeaddr, codeptr, proc, size;
   unsigned framecount;
 
+  assert2( tagof( globals[ G_REG0 ]) == PROC_TAG );
+
   stktop = (word*)globals[ G_STKP ];
   stkbot = (word*)globals[ G_STKBOT ];
 
@@ -106,6 +108,7 @@ void stk_flush( word *globals )
     /* convert return address */
     proc = *(stktop+STK_REG0);
     if (proc != 0) {
+      assert2( tagof( proc ) == PROC_TAG );
       retaddr = *(stktop+STK_RETADDR);
       codeptr = *(ptrof( proc )+PROC_CODEPTR);
       if (tagof( codeptr ) == BVEC_TAG) {
