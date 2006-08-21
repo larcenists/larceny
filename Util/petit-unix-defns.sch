@@ -16,7 +16,7 @@
 
 (define (unix-&-win32-initialize)
   (load (case *host:os*
-	  ((unix macosx solaris linux-el) "Util/sysdep-unix.sch")
+	  ((unix macosx macosx-el solaris linux-el) "Util/sysdep-unix.sch")
 	  ((cygwin win32)      "Util/sysdep-win32.sch")
           (else (error 'unix-&-win32-initialize "Must add support for host:os"))
 	  ))
@@ -105,10 +105,12 @@
     (feature-case features-sparc-solaris        ; solaris 2.5 or later
                   features-petit-solaris	; solaris 2.5 or later
                   features-petit-macosx		; gcc and GNU libc
+                  features-petit-macosx-el	; gcc and GNU libc
                   features-petit-win32		; works for Mingw; believed to work
                   features-petit-linux		; Debian GNU/Linux 3.0 (woody), x86
                   features-petit-cygwin		; Tested with cygwin 1.5.10 (May 2004)
                   features-x86-nasm-linux       ; Debian GNU/Linux 3.0 (woody), x86
+                  features-x86-sassy-macosx
                   features-x86-sassy-linux
 		  features-x86-nasm-win32
 		  features-x86-sassy-win32

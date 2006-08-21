@@ -141,6 +141,12 @@
 
             ((and (equal? os-name "Win32") (eq? arch-endianness 'little)) 
              (set! host: 'win32))
+
+            ((and (equal? os-name "MacOS X") (eq? arch-endianness 'little)) 
+             (set! host: 'macosx-el))
+
+            ((and (equal? os-name "MacOS X") (eq? arch-endianness 'big)) 
+             (set! host: 'macosx))
              
             ;; Fill in other host: clauses here
             
@@ -155,6 +161,7 @@
         (else
          (let* ((host:   (case host: 
                            ((linux86) 'linux-el) ;; [[ Felix feels "linux86" a more immediate mnemonic, so alias the two ]]
+                           ((macosx86) 'macosx-el)
                            (else host:)))
                 (target: (if target: target: host:)))
            (setup-real! scheme: host: target: c-compiler: (or native sassy nasm) code-cov rebuild-code-cov always-source sassy nasm)))))
@@ -171,7 +178,7 @@
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris) 'big)
-      ((linux-el cygwin win32)       'little)
+      ((macosx-el linux-el cygwin win32)       'little)
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
@@ -212,8 +219,11 @@
 
   (set! *change-feature-set*
         (case target-arch
+          ((macosx-el)    (cond (sassy 'features-x86-sassy-macosx)
+                                (else 'features-petit-macosx-el)))
           ((macosx)       'features-petit-macosx)
-          ((solaris)      (if native 'features-sparc-solaris 'features-petit-solaris))
+          ((solaris)      (cond (native 'features-sparc-solaris)
+                                (else 'features-petit-solaris)))
           ((linux-el)     (cond (sassy  'features-x86-sassy-linux)
                                 (nasm   'features-x86-nasm-linux)
                                 (native 'features-x86-nasm-linux)
@@ -234,7 +244,8 @@
 
   (set! *make:larceny-target*
         (case target-arch
-          ((macosx) "petitmacosx")
+          ((macosx
+            macosx-el) "petitmacosx")
           ((solaris) "petitsparcsolaris")
 	  ((cygwin)  "petitcygwinmswindows")
           ((linux-el) "petitdebianlinux")))
@@ -248,6 +259,12 @@
             (set! *target:machine* 'x86-sass)
             (set! *target:machine-source* "IAssassin")
             (set! *makefile-configuration* 'x86-win32-static-visualc)
+            (set! *heap-type* 'sassy)
+            (set! *runtime-type* 'sassy-native))
+	   ((macosx-el)
+            (set! *target:machine* 'x86-sass)
+            (set! *target:machine-source* "IAssassin")
+            (set! *makefile-configuration* 'sassy-macosx-static-gcc-nasm)
             (set! *heap-type* 'sassy)
             (set! *runtime-type* 'sassy-native))
            ((linux-el)

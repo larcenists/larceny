@@ -96,7 +96,7 @@
                        "petit-init-proc.sch"
                        "md5.sch"
                        ,@(case (nbuild-parameter 'host-os)
-                           ((macosx unix cygwin solaris linux-el) '("dumpheap-unix.sch"))
+                           ((macosx macosx-el unix cygwin solaris linux-el) '("dumpheap-unix.sch"))
                            ((win32)       '("dumpheap-win32.sch"))
                            (else          (error '*nbuild:petitasm-files* "Unknown value for nbuild-parameter 'host-os"))))))
       '()))
