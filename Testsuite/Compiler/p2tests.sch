@@ -567,4 +567,25 @@
         (map foo '(10 15 20 25 18 12 6 0 -6 3)))
       '(even odd big big even even even even negative prime))
 
+(test "case-3"
+      (let ()
+        (define (y x)
+          (case x
+            ((quote)  'var-quote)
+            ((lambda) 'var-lambda)
+            ((if)     'var-if)
+            ((set!)   'var-set!)
+            ((begin)  'var-begin)
+            ((cond)   'var-cond)
+            ((case)   'var-case)
+            ((and)    'var-and)
+            ((or)     'var-or)
+            ((let)    'var-let)
+            ((let*)   'var-let*)
+            ((letrec) 'var-letrec)
+            ((do)     'var-do)
+            ((quasiquote) 'var-quasiquote)
+            (else     'var-else)))
+        (y (identity 'char=?)))
+      'var-else)
 
