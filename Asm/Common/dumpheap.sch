@@ -671,14 +671,14 @@
     (lambda (out)
       (call-with-binary-input-file "HEAPDUMP.TEMP"
         (lambda (in)
-          (do ((c (read-char in) (read-char in)))
+          (do ((c (read-byte in) (read-byte in)))
               ((eof-object? c))
-            (write-char c out))))
+            (write-byte c out))))
       (call-with-binary-input-file file-to-append
         (lambda (in)
-          (do ((c (read-char in) (read-char in)))
+          (do ((c (read-byte in) (read-byte in)))
               ((eof-object? c))
-            (write-char c out))))))
+            (write-byte c out))))))
   (delete-file "HEAPDUMP.TEMP")
   #t)
 
