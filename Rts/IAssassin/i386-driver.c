@@ -52,6 +52,7 @@ void scheme_start( word *globals )
   switch (x = setjmp( dispatch_jump_buffer )) {
   case 0 :
   case DISPATCH_CALL_R0 :
+    assert2( tagof( globals[ G_REG0 ]) == PROC_TAG );
     f = procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE );
     f = (byte*)(ptrof(f)+1); /* skip over bytevector header */
     break;
@@ -60,6 +61,7 @@ void scheme_start( word *globals )
     return;
   case DISPATCH_RETURN_FROM_S2S_CALL :
     f = restore_context( globals );
+    assert2( tagof( globals[ G_REG0 ]) == PROC_TAG );
     break;
   case DISPATCH_STKUFLOW :
     f = refill_stack_cache( globals );
@@ -79,6 +81,9 @@ extern void i386_stack_underflow();
 
 void stk_initialize_underflow_frame( word *stkp )
 {
+  /* Double check that the function is aligned to 4-byte boundary, so
+   * that it will be treated as a tagged-fixnum. */
+  assert( (((int)i386_stack_underflow) & 3) == 0);
   stkp[ STK_RETADDR ] = (word)i386_stack_underflow;
   stkp[ STK_REG0 ] = 0;
 }
