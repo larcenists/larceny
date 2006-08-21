@@ -39,7 +39,6 @@
     ("Lib" "IL")
     ("Lib" "IAssassin")
     ("Lib" "SRFI")
-    ("Lib" "Auxlib")
     ("Lib" "Sassy")
     ("Interpreter")
     ("Repl")
