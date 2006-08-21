@@ -377,6 +377,23 @@
     "USE_CACHED_STATE"
     ))
 
+(define features-petit-macosx-el		; gcc and GNU libc
+  '("PETIT_LARCENY"
+    "BITS_32"
+    "ENDIAN_LITTLE"
+    "MACOS_X"
+    "BSD_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRDUP"
+    "HAVE_STRNCASECMP"
+    "HAVE_SELECT"
+    "HAVE_DLFCN"                        ; only if you have installed the dlcompat package
+    "DYNAMIC_LOADING"                   ; only makes a difference if HAVE_DLFCN is defined
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"		; some weirdness with mmap
+    "USE_CACHED_STATE"
+    ))
+
 (define features-petit-win32		; works for Mingw; believed to work
                                         ; for CodeWarrior 6, and probably
                                         ; for Microsoft Visual C/C++ 6
@@ -457,6 +474,23 @@
     "DYNAMIC_LOADING"
     "STACK_UNDERFLOW_COUNTING"
     "DEBIAN_STRDUP_WEIRDNESS"
+    ))
+
+(define features-x86-sassy-macosx
+  '("X86_SASSY"
+    "BITS_32"
+    "ENDIAN_LITTLE"
+    "MACOS_X"
+    "BSD_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRNCASECMP"
+    "HAVE_STRDUP"
+    "HAVE_SELECT"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"		; some weirdness with mmap
+    "USE_CACHED_STATE"
     ))
 
 (define features-x86-nasm-win32		; Windows, x86
