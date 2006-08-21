@@ -10,6 +10,15 @@
 
 (define version-299? (> (string->number (version)) 299))
 
+(define read-byte
+  (if version-299?
+      read-byte
+      (lambda (in) 
+        (let ((x (read-char in)))
+          (if (eof-object? x)
+              x
+              (char->integer x))))))
+
 (define write-byte 
   (if version-299?
       (let ((write-byte-orig write-byte))
