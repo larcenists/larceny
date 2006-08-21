@@ -585,16 +585,13 @@
     ; and combining them should improve cache performance.
 
     (define (combined-and-trimmed-vector)
-      (do ((m (vector-length vec0) (- m 1))
-           (v0 '#() (if (and (zero? (vector-length v0))
-                             (vector-ref vec0 (- m 1)))
-                        (make-vector (* 2 (+ m maxdistance)) #f)
-                        v0)))
-          ((negative? m)
-           v0)
-        (if (< (+ m m) (vector-length v0))
-            (begin (vector-set! v0 (+ m m) (vector-ref vec0 m))
-                   (vector-set! v0 (+ m m 1) (vector-ref vec1 m))))))
+      (let* ((v0length/2 (+ m maxdistance 1))
+             (v0 (make-vector (* 2 v0length/2) #f)))
+        (do ((i 0 (+ i 1)))
+            ((= i v0length/2)
+             v0)
+          (vector-set! v0 (+ i i) (vector-ref vec0 i))
+          (vector-set! v0 (+ i i 1) (vector-ref vec1 i)))))
 
     (define (make-fetch symtable i d)
       (if (> d maxdistance)
