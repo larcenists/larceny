@@ -482,6 +482,7 @@
 	  (let* ((n (operand1 instruction))
 		 (v (make-vector (+ n 1) #t)))
 	    (emit-sassy as ia86.T_SAVE0 n)
+            ;; FIXME: shouldn't this xform be in peepopt.sch?
 	    (if (peephole-optimization)
 		(let loop ((instruction (next-instruction as)))
 		  (if (eqv? $store (operand0 instruction))
