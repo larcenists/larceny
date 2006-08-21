@@ -12,7 +12,12 @@
 
 (define write-byte 
   (if version-299?
-      write-byte
+      (let ((write-byte-orig write-byte))
+        (lambda (bytenum . rest)
+          (let ((byte (if (< bytenum 0)
+                          (+ 256 bytenum)
+                          bytenum)))
+            (apply write-byte-orig byte rest))))
       (lambda (bytenum . rest)
         (let ((port (if (null? rest)
                         (current-output-port)
@@ -27,7 +32,7 @@
     ((win32 cygwin)
      (system (string-append "del " new))
      (system (string-append "rename " old " " new)))
-    ((unix macosx linux-el) ; we need to come up with hierarchical enum's...
+    ((unix macosx macosx-el linux-el) ; we need to come up with hierarchical enum's...
      (system (string-append "mv " old " " new)))
     (else
      (error "RENAME-FILE not defined for this OS."))))
