@@ -37,7 +37,21 @@
 	extern	EXTNAME(dispatch_loop_return)
 	extern	EXTNAME(gclib_pagebase)
 	extern	EXTNAME(mc_exception)
-	
+
+;;; This is an assertion (which requires eax to be free)
+;;; that REG0 points to a procedure object.
+;;; XXX turn off before release.
+%macro CHECKZEROREG 2
+	mov	eax, dword [GLOBALS + G_REG0 + %1]
+	lea	eax, [eax+(8 - PROC_TAG)]
+	test	al, 7
+	jz	%%L1
+	mov	eax, dword [GLOBALS + G_REG0 + %1]	
+	int3
+	add	eax, %2
+%%L1:	
+%endmacro	
+		
 ;;; The return address of the bottommost frame in the stack cache points
 ;;; to i386_stack_underflow; all we do is call the C function that
 ;;; escapes to the dispatch loop to restore a frame and continue execution.
@@ -55,6 +69,7 @@ EXTNAME(i386_stack_underflow):
 	
 	align	code_align
 EXTNAME(i386_return_from_scheme):
+	CHECKZEROREG 0, 3
 	mov	eax, EXTNAME(return_from_scheme)
 	jmp	callout_to_C
 
@@ -65,6 +80,7 @@ EXTNAME(i386_return_from_scheme):
 	
 	align	code_align
 EXTNAME(i386_dispatch_loop_return):
+	CHECKZEROREG 0, 4
 	mov	eax, EXTNAME(dispatch_loop_return)
 	jmp	callout_to_C
 
@@ -433,6 +449,7 @@ PUBLIC i386_petit_patch_boot_code
 
 %macro INTERNAL_FIXNUM_TO_RETADDR 0
 	mov	[saved_temp_reg], eax
+	CHECKZEROREG 0, 1
 	mov	eax, dword [GLOBALS + G_REG0]
 	mov	eax, dword [eax - PROC_TAG + PROC_CODEVECTOR_NATIVE]
 	add	eax, BVEC_HEADER_BYTES - BVEC_TAG
@@ -442,6 +459,7 @@ PUBLIC i386_petit_patch_boot_code
 
 %macro INTERNAL_RETADDR_TO_FIXNUM 0
 	mov	[saved_temp_reg], eax
+	CHECKZEROREG 0, 2
 	mov	eax, dword [GLOBALS + G_REG0]
 	mov	eax, dword [eax - PROC_TAG + PROC_CODEVECTOR_NATIVE]
 	add	eax, BVEC_HEADER_BYTES - BVEC_TAG
