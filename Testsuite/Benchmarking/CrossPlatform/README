@@ -1,0 +1,34 @@
+This directory contains a crude infrastructure for running benchmarks.
+It is an extensively hacked-up version of an infrastructure written by
+Marc Feeley.
+
+Files and directories:
+
+    bench           ; a shell script that runs benchmarks
+    summarize.sch   ; Scheme code for summarizing results
+    src             ; source code of benchmarks
+    prefix          ; implementation-specific prefix files
+    suffix          ; implementation-specific suffix files
+    results.*       ; outputs of the bench script
+    Results         ; a place to move results.* files
+
+With no arguments, the bench script will explain its usage.
+
+To summarize results:
+
+    % larceny
+    > (load "summarize.sch")
+    > ((summarize larceny-results) "results.Larceny")
+    > ((summarize mzscheme-results) "results.MzScheme")
+
+An output file can be specified as an optional argument.
+
+Known bugs:
+
+The benchmarks and numbers of iterations need to be rescaled
+for current hardware.
+
+The *-results procedures in summarize.sch are not complete.
+
+MIT Scheme and Scheme 48 need more work.  Some of the others
+may also need work.

@@ -1,0 +1,835 @@
+#!/bin/sh
+
+# "bench", a shell script to benchmark Scheme implementations
+#
+# Please report any errors or extensions to the author:
+#
+#   Marc Feeley (feeley@iro.umontreal.ca)
+#
+# The following have contributed to this benchmark suite:
+#
+#   Harvey Stein (abel@netvision.net.il)
+#
+# This script has been modified by Will Clinger (will@ccs.neu.edu).
+# Clinger hacked it again in 2006.
+# 
+# The benchmarks must be contained within a src subdirectory
+# of the directory in which this script is run.
+
+APPS="/proj/will/Apps"
+
+HOME="`( pwd )`"
+SRC="${HOME}/src"
+PREFIX="${HOME}/prefix"
+SUFFIX="${HOME}/suffix"
+
+TEMP="/tmp/larcenous"
+
+BIGLOO="${APPS}/bin/bigloo"
+CHICKEN="${APPS}/Chicken/bin/csc"
+CHICKEN_INT="${APPS}/Chicken/bin/csi"
+GSC="${APPS}/Gambit/bin/gsc"
+GSI="${APPS}/Gambit/bin/gsi"
+LARCENY="/proj/will/LarcenyDev/larceny"
+TWOBIT="/proj/will/LarcenyDev/twobit"
+MIT="${APPS}/bin/mitscheme"
+MZSCHEME="mzscheme"
+SCHEME48="${APPS}/Scheme48/scheme48-1.3/go"
+
+# -----------------------------------------------------------------------------
+
+error ()
+{
+  echo $1
+  echo '
+Usage:  bench [<options>] <systems> <benchmarks>
+
+<options> include
+
+  -r <runs>        where <runs> is the number of times to run each benchmark
+                   (default is 1).
+
+  -c <clean>       where <clean>=true or <clean>=false and says whether
+                   to clean out the build directory.
+                   Useful for testing or inspection.
+
+  -i <iterfile>    where <iterfile> is the file which specifies the number
+                   of iterations in each benchmark.  If not supplied, we use
+                   num-iters.scm for compilers and num-iters-int.scm for
+                   interpreters.  For testing, you might want to use
+                   one-iter.scm, which runs each test once.
+
+  -u               says to generate unsafe code (may be ignored).
+
+  -a               says to use fixnum arithmetic (may be ignored).
+
+  -s               says to generate safe code (the default).
+
+  -g               says to use generic arithmetic (the default).
+
+  -f               says to use a fast custom allocator
+                   (this option makes sense only for some C benchmarks).
+
+<systems> is the abbreviated name of one or more implementations to use, i.e.:
+
+  bigloo           for Bigloo.
+  bigloo-int       for Bigloo (interpreted).
+  chez             for Chez Scheme.
+  chicken          for Chicken.
+  chicken-int      for Chicken (interpreted).
+* elk              for Elk.
+  gambit           for Gambit-C.
+  gambit-int       for Gambit-C (interpreted).
+* guile            for Guile.
+* hobbit           for '"SCM's"' hobbit compiler.
+* larceny1a1       for Larceny circa 1999.
+  larceny          for Larceny.
+  larceny-int      for Larceny (interpreted).
+  mit              for MIT-Scheme.
+  mit-int          for MIT-Scheme (interpreted).
+  mzscheme         for MzScheme.
+  mzscheme-int     for MzScheme (interpreted).
+* psi              for PSI.
+* scheme2c         for scheme2c.
+* scheme48         for Scheme 48.
+* scm              for SCM.
+* scsh             for scsh.
+* stalin           for Stalin.
+* stk              for stk (actually, snow = STk No Windows).
+* rs               for rscheme.
+* rs-int           for rscheme (interpreted).
+* umb-scheme       for umb-scheme.
+  all              for all of the above (except starred)
+  all-interpreters for the above interpreters (except starred).
+  all-compilers    for the above compilers (except starred).
+
+  gcc              for the gcc C compiler.
+  smlnj            for Standard ML of New Jersey.
+
+<benchmarks> is the name of one or more benchmarks
+to use, i.e.:
+
+  all         for all the benchmarks
+  normal      for all but the baseline benchmarks
+  some        for a less time-consuming selection of benchmarks
+  fib         for the fib benchmark
+  "fib boyer" for fib & boyer.
+'
+  exit
+}
+
+# -----------------------------------------------------------------------------
+
+cleanup ()
+{
+  if [ "$clean" = "true" ] ; then
+     # It's true that technically speaking, we should be in the build
+     # directory when this fcn is called.  Thus, we should be able to
+     # just do rm *.  However, that's kind of dangerous, so instead,
+     # we delete files newer than the mark file that evaluate () makes.
+
+#     for x in * ; do
+#        if [ $x -nt clean_newer_than_me ] ; then
+#          rm $x
+#        fi
+#     done
+#  fi
+#  rm clean_newer_than_me
+
+       rm ${TEMP}/$system/*
+       rmdir ${TEMP}/$system
+       rmdir ${TEMP}
+   fi
+}
+
+evaluate ()
+{
+  echo > clean_newer_than_me
+  sleep 1
+  {
+  echo
+  echo Testing $1 under $NAME
+  echo Compiling...
+  make_src_code $1
+  $COMP $1
+  i=0
+  while [ "$i" -lt "$NB_RUNS" ]
+  do
+    echo Running...
+    $EXEC $1
+    i=`expr $i + 1`
+  done
+# cleanup
+  } 2>&1 | tee -a ${HOME}/results.${NAME}
+
+}
+
+make_src_code ()
+{
+  rm -f spheres.pgm z*.scm z*.tex
+  if [ "$safe" = "true" ] ; then
+    if [ "$garith" = "true" ] ; then
+      make_src_code_safe_generic $1
+    else
+      make_src_code_safe $1
+    fi
+  else
+    if [ "$garith" = "true" ] ; then
+      make_src_code_unsafe_generic $1
+    else
+      make_src_code_unsafe $1
+    fi
+  fi
+}
+
+make_src_code_unsafe ()
+{
+  if [ -n "$iterfile" ]; then
+    cat ${PREFIX}/prefix-${system}.scm ${SRC}/${iterfile} ${SRC}/$1.scm ${SUFFIX}/suffix-${system}.scm > $1.scm
+  else
+    if [ "$system" = "smlnj" ] ; then
+      make_src_code_safe $1
+    else
+      if [ "$system" = "java" ] ; then
+        make_src_code_safe $1
+      else
+        cat ${SRC}/$1.c > $1.c
+      fi
+    fi
+  fi
+}
+
+make_src_code_unsafe_generic ()
+{
+  if [ -n "$iterfile" ]; then
+    cat ${PREFIX}/prefix-${system}-generic.scm ${SRC}/${iterfile} ${SRC}/$1.scm ${SUFFIX}/suffix-${system}.scm > $1.scm
+  else
+    cat ${SRC}/$1.c > $1.c
+  fi
+}
+
+make_src_code_safe ()
+{
+  if [ -n "$iterfile" ]; then
+    cat ${PREFIX}/prefix-${system}-safe.scm ${SRC}/${iterfile} ${SRC}/$1.scm ${SUFFIX}/suffix-${system}.scm > $1.scm
+  else
+    if [ "$system" = "smlnj" ] ; then
+      cat ${PREFIX}/prefix-smlnj.sml ${SRC}/num-iters.sml ${SRC}/$1.sml ${SUFFIX}/suffix-smlnj.sml > $1.sml
+    else
+      if [ "$system" = "java" ] ; then
+        cat ${PREFIX}/prefix-java.java ${SRC}/num-iters.java ${SRC}/$1.java ${SUFFIX}/suffix-java.java > $1.java
+      else
+        cat ${SRC}/$1.c > $1.c
+      fi
+    fi
+  fi
+}
+
+make_src_code_safe_generic ()
+{
+  if [ -n "$iterfile" ]; then
+    cat ${PREFIX}/prefix-${system}-safe-generic.scm ${SRC}/${iterfile} ${SRC}/$1.scm ${SUFFIX}/suffix-${system}.scm > $1.scm
+  else
+    cat ${SRC}/$1.c > $1.c
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Gambit-C compiler
+
+gambit_comp ()
+{
+#  DIR=`pwd`
+#  cp $1.scm ${APPS}/Gambit/gambc30/gsc/temp.scm
+#  cd ${APPS}/Gambit/gambc30/gsc
+  {
+# echo LD_LIBRARY_PATH=../../../lib GAMBCDIR=../../../lib ../../../gsc/gsc $1.scm
+# echo gcc -I../../../lib -L../../../lib -O1 -D___SINGLE_HOST -o $1 $1.c $1_.c -lgambc -lm -ldl
+#    echo LD_LIBRARY_PATH=../lib GAMBCDIR=../lib ./gsc temp.scm
+#    echo gcc -I../lib -L../lib -O1 -D___SINGLE_HOST -o temp temp.c temp_.c ../lib/libgambc.so.1.1 -lm -ldl
+#  ${GSC} -prelude "(declare (extended-bindings))" -cc-options "-O2" -dynamic $1.scm
+   ${GSC} -cc-options "-O2" -dynamic $1.scm
+  } | time sh
+#  rm temp.scm temp.c temp_.c
+#  cd $DIR
+}
+
+gambit_exec ()
+{
+#  DIR=`pwd`
+#  cd ${APPS}/Gambit/gambc30/gsc
+#   LD_LIBRARY_PATH=../../../../lib time ./$1
+#   LD_LIBRARY_PATH=../lib time temp
+#  cd $DIR
+  time ${GSI} -:d- -e "(load \"$1\")"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Gambit-C interpreter
+
+gambit_int_comp ()
+{
+  :
+}
+
+gambit_int_exec ()
+{
+  time ${GSI} -:d- -e "(load \"$1\")"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Chez-Scheme
+
+chez_comp ()
+{
+  :
+}
+
+chez_exec ()
+{
+  echo "(load \"$1.scm\")" | time scheme
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Larceny
+
+larceny_comp34 ()
+{
+  cp $1.scm /proj/will/will/Larceny34/temp.sch
+  DIR=`pwd`
+  cd /proj/will/will/Larceny34
+  echo "(begin (load \"/proj/will/Temp/bench/src/prefix0-larceny.scm\") (compile-file \"temp.sch\") (exit))" | nbuild -l
+  cd $DIR
+  cp /proj/will/will/Larceny34/temp.fasl $1.fasl
+}
+
+larceny_comp ()
+{
+  if [ "$safe" = "true" ] ; then
+    echo "(begin (load \"${PREFIX}/prefix0-larceny-safe.scm\") (compile-file \"$1.scm\" \"$1.fasl\") (exit))" | time ${LARCENY}
+  else
+    echo "(begin (load \"${PREFIX}/prefix0-larceny.scm\") (compile-file \"$1.scm\" \"$1.fasl\") (exit))" | time ${LARCENY}
+  fi
+}
+
+larceny_exec ()
+{
+  echo "(load \"$1.fasl\")" | time ${LARCENY}
+}
+
+larceny_int_comp ()
+{
+  :
+}
+
+larceny_int_exec ()
+{
+  echo "(load \"$1.scm\")" | time ${TWOBIT}
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to bigloo compiler
+
+bigloo_comp ()
+{
+  case $1 in
+     ctak|maze|puzzle) usecc="-call/cc" ;;
+     *)                usecc=""         ;;
+  esac
+  case $safe in
+     true)             unsafeatrsv=""             ;;
+     *)                unsafeatrsv="-unsafeatrsv" ;;
+  esac
+  case $garith in
+     true)             farithmetic=""             ;;
+     *)                farithmetic="-farithmetic" ;;
+  esac
+  time ${BIGLOO} -O6 $farithmetic $unsafeatrsv $usecc -copt -O2 $1.scm -o $1
+  ls -l $1
+}
+
+bigloo_exec ()
+{
+  time ./$1
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to bigloo interpreter
+
+bigloo_int_comp ()
+{
+  :
+}
+
+bigloo_int_exec ()
+{
+  echo "(load \"$1.scm\")" | time ${BIGLOO}
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to chicken compiler
+
+chicken_comp ()
+{
+  time ${CHICKEN} $1.scm -syntax -no-trace -optimize-level 2 -block -lambda-lift
+  ls -l $1
+}
+
+chicken_exec ()
+{
+  time ./$1
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to chicken interpreter
+
+chicken_int_comp ()
+{
+  :
+}
+
+chicken_int_exec ()
+{
+  echo "(load \"$1.scm\")" | time ${CHICKEN_INT} -syntax
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to the MIT Scheme compiler
+
+#FIXME
+
+mit_comp ()
+{
+  {
+   ${MIT} -cc-options "-O2" -dynamic $1.scm
+  } | time sh
+}
+
+mit_exec ()
+{
+  echo "(load \"$1\")" | time ${MIT}
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to MIT Scheme interpreter
+
+mit_int_comp ()
+{
+  :
+}
+
+mit_int_exec ()
+{
+  echo "(load \"$1\")" | time ${MIT}
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to the MzScheme compiler
+
+mzscheme_comp ()
+{
+  :
+}
+
+mzscheme_exec ()
+{
+  time ${MZSCHEME} -G -e "(load \"$1.scm\")"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to the MzScheme interpreter
+
+mzscheme_int_comp ()
+{
+  :
+}
+
+mzscheme_int_exec ()
+{
+  time ${MZSCHEME} -G -e "(load \"$1.scm\")" --no-jit
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to the Scheme 48 interpreter
+
+scheme48_comp ()
+{
+  :
+}
+
+scheme48_exec ()
+{
+  echo "(load \"$1.scm\")" | time ${SCHEME48} -h 10000000
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to stalin
+
+stalin_comp ()
+{
+  mv $1.scm $1.sc
+  time stalin -copt -O2 -Ob -Om -On -Or -Ot -s $1
+}
+
+stalin_exec ()
+{
+  time ./$1
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to scm
+
+scm_comp ()
+{
+  :
+}
+
+scm_exec ()
+{
+  time scm -f $1.scm
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to STk
+
+stk_comp ()
+{
+  :
+}
+
+stk_exec ()
+{
+  ### Need to send in /dev/null so that it doesn't hang when there's
+  ### an error...
+  time snow -f $1.scm < /dev/null
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to SML/NJ
+
+smlnj_comp ()
+{
+  :
+}
+
+smlnj_exec ()
+{
+  cat $1.sml | ${APPS}/bin/smlnj
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to java
+
+java_comp ()
+{
+  {
+     echo /usr/java1.2/bin/javac -O $1.java
+  } | time sh
+}
+
+java_exec ()
+{
+  time /usr/java1.2/bin/java -mx60000000 $1
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to CC
+
+cc_comp ()
+{
+  {
+     echo cc -O2 -o $1 $1.c -lm
+  } | time sh
+  ls -l $1
+}
+
+cc_exec ()
+{
+   time ./$1
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to GCC
+
+gcc_comp ()
+{
+  if [ "$falloc" = "true" ] ; then
+    {
+       echo gcc -O2 -DFAST_ALLOCATOR -o $1 $1.c -lm
+    } | time sh
+  else
+    {
+       echo gcc -O2 -o $1 $1.c -lm
+    } | time sh
+  fi
+  ls -l $1
+}
+
+gcc_exec ()
+{
+   time ./$1
+}
+
+# -----------------------------------------------------------------------------
+
+# Sorted as follows:
+#     baseline benchmarks
+#     micro-benchmarks: floating point arithmetic
+#     micro-benchmarks: calls, closures, continuations
+#     synthetic benchmarks: lists
+#     synthetic benchmarks: other
+#     larger benchmarks: floating point
+#     larger benchmarks: array
+#     larger benchmarks: lists
+#     larger benchmarks: garbage collection
+
+BASELINE_BENCHMARKS="succeed fail crash"
+MICRO_BENCHMARKS="sumfp fibfp sum fib tak cpstak ctak takl ntakl dderiv deriv destruc diviter divrec browse"
+FP_BENCHMARKS="fft mbrot nucleic pnpoly ray simplex"
+ARRAY_BENCHMARKS="puzzle triangl"
+MISC_BENCHMARKS="dynamic earley graphs lattice maze mazefun parsing peval scheme slatex"
+GC_BENCHMARKS="nboyer sboyer gcbench gcold perm9"
+
+SOME_BENCHMARKS="fib mbrot puzzle dynamic parsing slatex nboyer sboyer"
+
+NORMAL_BENCHMARKS="${MICRO_BENCHMARKS} ${FP_BENCHMARKS} ${ARRAY_BENCHMARKS} ${MISC_BENCHMARKS} ${GC_BENCHMARKS}"
+
+ALL_BENCHMARKS="${BASELINE_BENCHMARKS} ${NORMAL_BENCHMARKS}"
+
+# The quicksort benchmark requires generic arithmetic, and defines RANDOM
+# which is sacred to Chez Scheme.
+# quicksort
+# The trav1 benchmark contains a non-portable use of quasiquote.
+# trav1 trav2 
+# The boyer and smlboyer benchmarks are obsolete.
+
+ALL_INTERPRETERS='bigloo-int gambit-int larceny-int mit-int mzscheme-int'
+# ALL_COMPILERS='bigloo chez chicken gambit larceny mit mzscheme'
+ALL_COMPILERS='bigloo chez gambit larceny mzscheme chicken'
+ALL_SYSTEMS="$ALL_COMPILERS $ALL_INTERPRETERS"
+
+## Arg processing...
+if [ "$#" -lt 2 ]; then
+  error '>>> At least two command line arguments are needed'
+fi
+
+
+cmdline="$0"
+flagsdone=0
+
+NB_RUNS=1
+clean=true
+safe=true
+garith=true
+falloc=false
+
+while [ $# -gt 2 ] ; do
+   arg="$1"
+   shift
+   case $arg in
+      -r) NB_RUNS=$1    ; shift ;;
+      -c) clean=$1      ; shift ;;
+      -i) forceiters=$1 ; shift ;;
+      -u) safe=false            ;;
+      -a) garith=false          ;;
+      -s) safe=true             ;;
+      -g) garith=true           ;;
+      -f) falloc=true           ;;
+       *) error ">>> Unknown argument of $arg given." ;;
+   esac
+done
+
+if [ "$#" -ne 2 ]; then
+  error '>>> Last two arguments must be <systems> and <benchmarks>'
+fi
+
+case "$1" in
+   all)              systems="$ALL_SYSTEMS" ;;
+   all-interpreters) systems="$ALL_INTERPRETERS" ;;
+   all-compilers)    systems="$ALL_COMPILERS" ;;
+   *)                systems="$1" ;;
+esac
+
+case "$2" in
+   all) benchmarks="$ALL_BENCHMARKS" ;;
+normal) benchmarks="$NORMAL_BENCHMARKS" ;;
+  some) benchmarks="$SOME_BENCHMARKS" ;;
+   *)   benchmarks="$2" ;;
+esac
+
+## Run each benchmark under each system...
+for system in $systems ; do
+
+   case "$system" in
+
+    bigloo) NAME='Bigloo'
+            COMP=bigloo_comp
+            EXEC=bigloo_exec
+            iterfile=num-iters.scm
+            ;;
+
+bigloo-int) NAME='Bigloo-int'
+            COMP=bigloo_int_comp
+            EXEC=bigloo_int_exec
+            iterfile=num-iters-int.scm
+            ;;
+
+      chez) NAME='Chez-Scheme'
+            COMP=chez_comp
+            EXEC=chez_exec
+            iterfile=num-iters.scm
+            ;;
+
+   chicken) NAME='Chicken'
+            COMP=chicken_comp
+            EXEC=chicken_exec
+            iterfile=num-iters.scm
+            ;;
+
+chicken-int) NAME='Chicken-int'
+            COMP=chicken_int_comp
+            EXEC=chicken_int_exec
+            iterfile=num-iters-int.scm
+            ;;
+
+    gambit) NAME='Gambit-C'
+            COMP=gambit_comp
+            EXEC=gambit_exec
+            iterfile=num-iters.scm
+            ;;
+
+gambit-int) NAME='Gambit-C-int'
+            COMP=gambit_int_comp
+            EXEC=gambit_int_exec
+            iterfile=num-iters-int.scm
+            ;;
+
+      java) NAME='Java'
+            COMP=java_comp
+            EXEC=java_exec
+            iterfile=
+            ;;
+
+larceny1a1) NAME='Larceny1.0a1'
+            COMP=larceny_comp1a1
+            EXEC=larceny_exec1a1
+            iterfile=num-iters.scm
+            ;;
+
+   larceny) NAME='Larceny'
+            COMP=larceny_comp
+            EXEC=larceny_exec
+            iterfile=num-iters.scm
+            ;;
+
+larceny-int) NAME='Larceny-int'
+            COMP=larceny_int_comp
+            EXEC=larceny_int_exec
+            iterfile=num-iters-int.scm
+            ;;
+
+       mit) NAME='MIT-Scheme'
+            COMP=mit_comp
+            EXEC=mit_exec
+            iterfile=num-iters.scm
+            ;;
+
+   mit-int) NAME='MIT-Scheme-int'
+            COMP=mit_int_comp
+            EXEC=mit_int_exec
+            iterfile=num-iters-int.scm
+            ;;
+
+  mzscheme) NAME='MzScheme'
+            COMP=mzscheme_comp
+            EXEC=mzscheme_exec
+            iterfile=num-iters.scm
+            ;;
+
+mzscheme-int) NAME='MzScheme-int'
+            COMP=mzscheme_int_comp
+            EXEC=mzscheme_int_exec
+            iterfile=num-iters-int.scm
+            ;;
+
+  scheme48) NAME='Scheme48'
+            COMP=scheme48_comp
+            EXEC=scheme48_exec
+            iterfile=num-iters-int.scm
+            ;;
+
+       scm) NAME='SCM'
+            COMP=scm_comp
+            EXEC=scm_exec
+            iterfile=num-iters-int.scm
+            ;;
+
+     smlnj) NAME='SMLNJ'
+            COMP=smlnj_comp
+            EXEC=smlnj_exec
+            iterfile=
+            ;;
+
+    stalin) NAME='Stalin'
+            COMP=stalin_comp
+            EXEC=stalin_exec
+            iterfile=num-iters.scm
+            ;;
+
+       stk) NAME='STk'
+            COMP=stk_comp
+            EXEC=stk_exec
+            iterfile=num-iters-int.scm
+            ;;
+
+        cc) NAME='CC'
+            COMP=cc_comp
+            EXEC=cc_exec
+            iterfile=
+            ;;
+
+       gcc) NAME='GCC'
+            COMP=gcc_comp
+            EXEC=gcc_exec
+            iterfile=
+            ;;
+
+         *) error '>>> Unknown system'
+            ;;
+   esac
+
+   if [ -n "$forceiters" ] ; then iterfile="$forceiters" ; fi
+
+   rmdir ${TEMP}
+   mkdir ${TEMP}
+   mkdir ${TEMP}/$system
+   cd ${TEMP}/$system
+
+# FIXME: input files for certain benchmarks
+
+   cp ${SRC}/test.tex .
+   cp ${SRC}/slatex.sty .
+   cp ${SRC}/nboyer.sch .
+
+   if [ $? != 0 ] ; then
+      echo "ERROR: Can't change to directory ${TEMP}/$system."
+      exit 1
+   fi
+
+   {
+      echo
+      echo '****************************'
+      echo Benchmarking $NAME on `date`
+      echo under `uname -a`
+   } >> ${HOME}/results.${NAME}
+
+   for program in $benchmarks ; do
+      evaluate $program
+   done
+   cd ${HOME}
+   if [ $? != 0 ] ; then
+      echo "ERROR: Can't change back to benchmark directory."
+      exit 1
+   fi
+   cleanup
+done
