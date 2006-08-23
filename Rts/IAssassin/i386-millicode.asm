@@ -69,6 +69,8 @@ EXTNAME(i386_stack_underflow):
 	
 	align	code_align
 EXTNAME(i386_return_from_scheme):
+	mov	eax, dword [ CONT + 5*4 ]
+	mov	[GLOBALS + G_REG0], eax
 	CHECKZEROREG 0, 3
 	mov	eax, EXTNAME(return_from_scheme)
 	jmp	callout_to_C
