@@ -67,7 +67,11 @@
 %ifdef WIN32
 %define EXTNAME(x) _ %+ x
 %else
+%ifdef MACOS_X
+%define EXTNAME(x) _ %+ x
+%else
 %define EXTNAME(x) x
+%endif
 %endif
 
 %define STK_OVERHEAD 12

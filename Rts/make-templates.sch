@@ -121,6 +121,10 @@
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc
 		  make-template-target-nasm-x86-unix-static)))
+    (sassy-macosx-static-gcc-nasm
+     . ,(lambda () 
+	  (values make-template-sassy-macosx-gcc
+		  make-template-target-sassy-unix-static)))
     (sassy-unix-static-gcc-nasm
      . ,(lambda () 
 	  (values make-template-sassy-unix-gcc
@@ -149,6 +153,17 @@ CFLAGS=-c -falign-functions=4 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
 LIBS=-ldl -lm
 AS=nasm
 ASFLAGS=-f elf -g -IIAssassin/ -IBuild/ -DLINUX")
+
+(define make-template-sassy-macosx-gcc
+"O=o
+CC=gcc
+DEBUGINFO=-g -gstabs+
+OPTIMIZE=#-O3 -DNDEBUG2 # -DNDEBUG
+CFLAGS=-c -falign-functions=4 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
+LIBS=-ldl -lm
+AS=nasm
+ASFLAGS=-f macho -g -IIAssassin/ -IBuild/ -DMACOSX")
+
 
 ; Petit Larceny: MacOS X: gcc (building a shared library)
 (define make-template-petit-macosx-gcc-shared
