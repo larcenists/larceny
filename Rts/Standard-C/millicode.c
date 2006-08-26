@@ -20,7 +20,6 @@
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 static void timer_exception( word *globals, cont_t k );
 static void signal_exception( word *globals, word exception, cont_t k, 
