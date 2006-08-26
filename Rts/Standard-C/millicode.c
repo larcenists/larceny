@@ -20,6 +20,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 static void timer_exception( word *globals, cont_t k );
 static void signal_exception( word *globals, word exception, cont_t k, 
@@ -147,11 +148,13 @@ void scheme_start( word *globals )
 # else
     f = DECODE_CODEPTR(procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ));
 # endif
+    twobit_effective_regzero = globals[G_REG0];
     break;
   case DISPATCH_CALL_AGAIN :
 # if USE_LONGJUMP
     /* A longjump has pruned the stack; now continue. */
     f = twobit_cont_label;
+    twobit_effective_regzero = globals[G_REG0];
     break;
 # else
     panic_exit( "Unexpected entry to DISPATCH_CALL_AGAIN in scheme_start()" );
@@ -161,9 +164,11 @@ void scheme_start( word *globals )
     return;
   case DISPATCH_RETURN_FROM_S2S_CALL :
     f = restore_context( globals );
+    twobit_effective_regzero = globals[G_REG0];
     break;
   case DISPATCH_STKUFLOW :
     f = refill_stack_cache( globals );
+    /* twobit_effective_regzero set by refill_stack_cache */
     break;
   case DISPATCH_SIGFPE :
     handle_sigfpe( globals );
@@ -176,6 +181,7 @@ void scheme_start( word *globals )
        */
     timer_exception( globals, twobit_cont_label );
     f = twobit_cont_label;
+    twobit_effective_regzero = globals[G_REG0];
     break;
 # else
     panic_exit( "Unexpected entry to DISPATCH_TIMER in scheme_start()" );
@@ -187,9 +193,13 @@ void scheme_start( word *globals )
   /* Inner loop */
 # if USE_GOTOS_LOCALLY
    /* INVARIANT: f is an entry point within the code of the procedure 
-      in REG0. */
+    * in twobit_effective_regzero. 
+    * We use twobit_effective_regzero instead of REG0, because the
+    * VALUES code may put something else into REG0. This fix cannot be
+    * localized to the inner loop, because a stack underflow will
+    * cause a jump to the outer loop, and REG0 must be preserved
+    * across the jump.*/
 #  if USE_RETURN_WITH_VALUE
-   twobit_effective_regzero = globals[G_REG0];
    while (1)
    {
      codeptr_t p=DECODE_CODEPTR(procedure_ref(twobit_effective_regzero,IDX_PROC_CODE));
@@ -772,7 +782,7 @@ cont_t refill_stack_cache( word *globals )
   gc_stack_underflow( the_gc( globals ) );
   stkp = (word*)globals[ G_STKP ];
 #if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
-  globals[ G_REG0 ] = stkp[ STK_REG0 ];
+  twobit_effective_regzero = stkp[ STK_REG0 ];
 #endif
   return DECODE_RETURN_ADDRESS(stkp[ STK_RETADDR ]);
 }
