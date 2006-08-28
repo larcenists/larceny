@@ -1,0 +1,77 @@
+#!/arch/gnu/bin/gawk -f
+
+function clearvars () {
+  test       = "";
+  user       = "";
+  sys        = "";
+  failed     = 0;
+  crashed    = 0;
+  runtime    = 0;
+  pagefaults = "";
+  swaps      = "";
+}
+
+function output () {
+  if (test != "") {
+
+    failure = "";
+     
+    if ((crashed != 0) && (failed == 0)) {
+       failure = "*** crashed ***";
+    }
+    else if  ((crashed == 0) && (failed != 0)) {
+      failure = "*** failed ***";
+    }
+    else if  ((crashed != 0) && (failed != 0)) {
+      failure = "*** crashed and failed (shouldn't happen!) ***";
+    }
+    
+    if (failure == "") {
+      printf "%-10s   %11s   %9s   %-32s   %6s\n", test, user, sys, pagefaults, swaps;
+    }
+    else {
+      printf "%-10s   %10s\n", test, failure;
+    }
+  }
+  clearvars();
+}
+
+BEGIN {
+  clearvars();
+}
+
+/^Testing/ {
+  output();
+  test=$2;
+}
+
+/^Running/ {
+  runtime = 1;
+}
+
+runtime == 1 && $0 == "*** wrong result ***" {
+  failed = 1;
+}
+
+runtime == 1 && /^Command .* with non-zero/ {
+  crashed = 1;
+}
+
+runtime == 1 && /^Command terminated by signal/ {
+  crashed = 1;
+}
+
+runtime == 1 && /ERROR/ && $0 !~ /^FATAL-ERROR$/ && $0 !~ /^SCHEME-ERROR$/ && $0 !~ /^SLATEX-ERROR$/ {
+  crashed = 1;
+}
+
+/[0-9. ]*user [0-9. ]*system/ {
+  user = $1;
+  sys  = $2;
+}
+/[0-9. ]*major\+[0-9. ]*minor/ {
+  pagefaults = $2;
+  swaps      = $3;
+}
+
+END { output() }

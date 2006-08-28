@@ -1,0 +1,20 @@
+The current enable-interrupts/disable-interrupts definitions are the
+wrong thing.  This is evident when you consider patterns like
+
+    (without-interrupts ... (block (current-task)))
+
+When the task is again run, its (new) timeslice will be replaced by
+whatever value was saved by without-interrupts.  Instead, the latter
+should use the current number of ticks.  But that value is not
+available, as interrupts are disabled (and disable-interrupts, which
+returns the number of ticks or #f, returns #f).  A better approach is
+needed, that decouples enable/disable and getting/setting the current
+ticks.
+
+
+NOTE: It is legal to YIELD or BLOCK inside a critical section, and 
+when the process is resumed, it is still in the critical section.
+
+FIXME: Call/cc is legal only relative to the thread that created the
+continuation, but to check that we need to modify call/cc on a deep level
+so that every captured continuation is marked.

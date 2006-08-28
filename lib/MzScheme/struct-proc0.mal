@@ -1,0 +1,53 @@
+
+;; This code is based on Experimental/applyhook0.mal
+
+;; make-struct-method : procedure * object -> procedure
+;; If p = (make-struct-method/raw f x), then
+;; (p a1 a2 ...) results in a call to (f p a1 a2 ...)
+
+;; Here is the approximate meaning of the MAL code:
+; (define (make-struct-method/raw proc struct-instance)
+;   (letrec ((method (lambda args
+;                      (apply proc (cons method args)))))
+;     method))
+
+;; The MAL code guarantees that the inner lambda's environment rib
+;; contains 'proc' and 'struct-instance' in easily accessible
+;; positions.
+
+`((,$lambda ((,$args= 2)
+             (,$lambda ((,$args>= 0)    ;; Cons arg list into reg1
+                        (,$reg 0)       ;; Result = self
+                        (,$op2 cons 1)  ;; Result = arg list
+                        (,$setreg 2)    ;; reg2 = new arg list
+                        (,$lexical 0 1) ;; Result = *real* procedure
+                        (,$setreg 1)    ;; reg1 = *real* procedure
+                        (,$global apply)
+                        (,$invoke 2))   ;; Defer to apply
+                       2    ;; make sure inner lambda closes over
+                            ;; 'proc' and 'struct-instance'
+                       #(make-struct-method/raw #f 0.0 #f #f))
+             (,$return))
+            0
+            #f)
+  (,$setglbl make-struct-method/raw)
+  (,$const   make-struct-method/raw)
+  (,$return))
+
+;; make-struct-proc/raw : procedure * object -> procedure
+;;
+`((,$lambda ((,$args= 2)
+             (,$lambda ((,$args>= 0)    ;; reg1 <- arg list
+                        (,$movereg 1 2) ;; reg2 <- reg1
+                        (,$lexical 0 1) ;; Result <- the procedure
+                        (,$setreg 1)    ;; reg1 <- Result
+                        (,$global apply);; Result <- apply
+                        (,$invoke 2))   ;; (apply reg1 reg2)
+                       2 ;; close over the proc and the struct-instance
+                       #(make-struct-proc/raw #f 0.0 #f #f))
+             (,$return))
+            0
+            #f)
+  (,$setglbl make-struct-proc/raw)
+  (,$const   make-struct-proc/raw)
+  (,$return))

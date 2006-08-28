@@ -1,0 +1,112 @@
+* new: doing math on addresses (and see if real implementation with
+       all backpatching done at once is possible)
+
+* docs: doing math on addresses - add note to custom relocations about
+        this, and if the previous item is implemented, docs on that.
+
+pete's ideas
+============
+
+* multiple isa support
+
+I've also been thinking about (bits 16/32/64) a lot. I have a mind that
+each opcode should be associated with some meta information and stuck into
+a table.
+
+;; wild idea
+(put table 'mov 
+
+	;; meta information about this specific instruction
+	'(metainfo
+		(valid-arches x86 x86_64)
+		(valid-bits 16 32 64))
+		
+	;; the implementation
+	,(meta-lambda
+		... the big description ...))
+
+Then later, you can (filter ...) all of the instructions you need from the
+table like this:
+
+(filter-opcodes table '(arch x86) '(bits 32)) And it will query the
+meta info and select instructions which fall under the specification,
+like an SQL SELECT call.
+
+This way, it becomes easy to know that certain instructions are 16 bit
+only and certain instructions are 64 bit only, and if people use them
+in the language that is sassy, you can emit nice errors about thier
+mistake. In effect the valid opcode table changes according to things
+they set in the sassy language.
+
+And, I suspect that multiple puts into the same instruction name result
+into a list for all implementations of that instruction. So multiple
+architectures can have a mov instruction, but the filter grabs out the
+right ones depending on your query, which then produces the opcode table
+you need.
+
+I should probably get around to ...
+=================================
+
+* There might be a possible bug in push-stack-append! - the 2 stacks
+  should assimilate each other's complete "previous" lists.
+
+* adding some char and string testers in instructions to test suite,
+  including for mov (though everything seems to be working). 
+
+* neatening up opcodes.scm a little
+
+if needed/stuff to think about...
+=================================
+
+* writing a c-like struct macro
+
+* the (reloc ...) form - something to think about (a language design
+  issue): this is based on cf NASM's '.wrt' and is used when referencing
+  a label. But if all references to a particular label all use the same
+  (reloc ...), why not declare in (export ...) or (import ...) the
+  specific relocation information once. Then the code the user writes
+  would be cleaner, shorter, and less error prone... TBD.
+
+* Now that lexical scoping is in play, it might be nice if you could intermingle text and data in a scope. something like:
+ (text (locals (foo bar)
+         (data (label foo ...))
+         (mov (& foo) eax)))
+
+* some more reflexive queries, cf. to get at the size of data items of the
+  current position in a section
+
+* flags to control (iter ...) etc. optimizations (meaning a flag to ensure
+  these are processed in one pass, instead of multi-pass
+
+* a function for ieee-754 extended precision (80 bit)
+
+other stuff that would be neat someday...
+=========================================
+* a disassembler (ideally this would go along with the re-factoring
+  for other ISA support, so the ISA is some huge table that both sassy
+  and sassy-dis can read and generate code from
+
+* other output-modules/file-formats (microsoft? bsd? os-x? (since it's coming)
+
+* 64 bit support?
+
+* 16-bit mode addressing
+
+* an idea for implementing generalized math on addresses (kinda tricky):
+  during eval of "!":
+
+  if no offset
+  return a promise
+  that when forced will do the require computation
+
+  the number parsers will recognize (name . promises) and add a
+  size. the emitters, when they encounter them, will emit size in 0's,
+  save the patch, and install in name's unres a procedure of one
+  argument that activates the promise and applies the patch to the
+  result.
+
+  the promise will not refer to the original record, due to scoping issues
+
+  (lambda (x)
+    (eval <stuff with ,x> (interaction-environment)))
+

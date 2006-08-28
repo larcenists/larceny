@@ -1,0 +1,36 @@
+New in Version 0.2
+==================
+
+* 16 bit support using 32-bit addressing syntax
+
+* New form: Local labels support/declarations
+  (locals (<label-name> ...) <item> ...)
+
+* Syntax change: all label definitions are now written
+  (label <name> <item> ...)
+
+* Syntax change: For consistency, the "direcs" directive has been
+  replaced by "begin". "begin" is now usable in data and heap
+  directives.
+
+* Support for Guile 1.8
+
+* Support for Scheme48 module interfaces
+
+* sassy-mode minor Emacs mode (sassy.el)
+
+* Segment Override prefixes and branch hinting prefixes
+
+* Better handling of default operand sizes, optimizing generated code
+  sequences for size.
+
+* New version of sassy-make-bin (includes a data section now)
+
+* Fixes for with-win with-lose with-win-lose, so that writing assembly
+  in a, umm, "natural" cps style is possible.
+
+* Numerous bug fixes, clean-ups, and more error checks.
+  See files ChangeLog and CHANGES-old for details.
+
+
+

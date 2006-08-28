@@ -1,0 +1,44 @@
+Testsuite/Lib/README
+5 May 1998
+
+Larceny Test Suite
+
+Overview
+--------
+The files in this directory implement a test suite for Larceny.  The
+files and their contents are enumerated below.
+
+To load the test suite, compile it first (using make-regression-test in
+the development environment) and then load "load-all-tests.sch" into a
+clean system.  Then evaluate (run-all-tests) to run the tests.
+
+The test suite is not even nearly comprehensive; I'm working on this.
+Also, some parts were not written very carefully and may be "defeated"
+by compiler optimizations; I'm working on fixing this also.
+
+Using it
+--------
+Some assumptions are made about a correctly working run-time system, in
+particular, the code assumes that CAR, CDR, DISPLAY, EQUAL?, NEWLINE,
+NOT, and NULL? (all of which are used by `test.sch') work.  This should
+not be a problem; the typical use of this test suite is to check out new
+versions of the compiler and assembler after a working system has
+already been created and is stable.  (In the bootstrapping phase you
+should rely on other techniques to get the RTS up to a point where it
+can run the test suite.)  
+
+At a minimum, I would suggest compiling `test.sch' with an already
+working compiler and assembler and only compile the test program with
+the compiler being tested.  In any event, the heap image used as a basis
+for testing should have been compiled with a stable compiler.
+
+The files
+---------
+load-all-tests.sch	Driver code
+test.sch		Scaffolding code
+fib.sch			Fibonacci program
+ctak.sch		Tak program
+number.sch		Numeric operations 
+char.sch		Character operations
+bool.sch		Booleans; equality
+env.sch			Top-level environments

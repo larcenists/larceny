@@ -1,0 +1,2312 @@
+\input tex2page
+\documentclass[11pt]{book}
+
+\cssblock 
+.scheme             {color: black} /* background punctuation */ 
+.scheme  .variable  {color: black}
+.scheme  .selfeval  {color: black}
+.scheme  .builtin {color: orange; font-weight: bold}
+.scheme  .keyword {color: blue; font-weight: bold}
+\endcssblock 
+
+\def\defn#1#2#3{\index{#2}
+---#1: {\bf #2} {\it #3}\\*}
+
+\def\defnb#1#2#3#4{\index{#2}
+---#1: {\bf #2} {\it #3}
+\smallskip
+\begin{quote}
+#4
+\end{quote}
+}
+
+\def\defnbdef#1#2#3#4#5{\index{#2}
+---#1: {\bf #2} {\it #3}
+\smallskip
+\begin{quote}
+\underline{default}: #4
+\\*#5
+\end{quote}
+}
+
+\def\var#1{{\it #1}}
+
+\scmkeyword{heap data text import export include begin entry org bits ! macro void align bytes words dwords qwords byte word dword qword tword dqword reloc $win $lose $eip $here label locals}
+
+\scmbuiltin{seq inv if iter while esc mark leap with-win with-lose with-win-lose alt & * o! no! b! c! nae! nb! nc! ae! e! z! ne! nz! be! na! nbe! a! s! ns! p! pe! np! po! l! nge! nl! ge! le! ng! g! nle! times until unless case else}
+
+\scmvariable{=> set! define define-syntax syntax-rules or}
+
+\def\chapterl#1{
+\chapter{#1}
+\label{#1}
+\index{#1}
+}
+
+\def\sectionl#1{
+\section{#1}
+\label{#1}
+\index{#1}
+
+}
+\def\subsectionl#1{
+\subsection{#1}
+\label{#1}
+\index{#1}
+}
+
+\verbescapechar\@
+
+%% *****
+%% end prelim stuff
+%% *****
+\begin{document}
+
+\title{Sassy - 0.2}
+\author{Jonathan Kraut}
+\maketitle
+
+\centerline{Sassy is a portable assembler for x86 processors written in R5RS Scheme with the addition of a few SRFIs.}
+
+\centerline{{\bf Get Sassy!}}
+\centerline{\urlh{http://home.earthlink.net/~krautj/sassy/files/sassy-0.2.tar.gz}{sassy-0.2.tar.gz}}
+\centerline{\urlh {http://home.earthlink.net/~krautj/sassy/files/sassy-0.2.zip} {sassy-0.2.zip}}
+
+\centerline{\urlh{http://home.earthlink.net/~krautj/sassy/files/} {All released versions}}
+
+\centerline{Please send comments, questions and bug reports to}
+\centerline{\urlh{mailto:jak76@columbia.edu}{Jonathan Kraut}}
+
+\pagebreak
+
+Copyright \copyright 2005, 2006 Jonathan Kraut
+\\*Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.2 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.  A
+copy of the license is included in the section entitled ``GNU Free
+Documentation License''.
+
+\tableofcontents
+
+
+\chapterl{Overview}
+
+First things first! We absolutely must say ``Hello World!'' in the
+following manner!
+
+\scm{
+(sassy
+ '((text
+    (mov eax 1)
+    (mov ecx 5)
+    (while (> ecx 0)
+	   (begin (mul ecx)
+		  (sub ecx 1))))))
+}
+
+Sassy is a portable assembler for the x86 processor which fully supports
+32-bit or ``protected-mode'' programming and partially supports 16
+bit programming using 32-bit mode addressing.
+
+Sassy is based
+on Henry Baker's COMFY-65 compiler, which he wrote in PDP-10
+Maclisp, subsequently ported to GNU Emacs Elisp, and which targeted the
+MOS 6502 processor.\numfootnote{Baker's papers:
+\begin{itemize}
+\item \urlh{http://home.pipeline.com/~hbaker1/sigplannotices/COMFY.TXT}{Comfy paper}
+\item \urlh{http://home.pipeline.com/~hbaker1/sigplannotices/column04.tex.gz}{\TeX} version of COMFY-65 paper. Some \TeX macros are missing, but the text itself is readable.
+\item \urlh{http://portal.acm.org/citation.cfm?id=270947&coll=Portal&dl=ACM&CFID=59234996&CFTOKEN=30061940}{printed} version of COMFY-65 paper. You'll need access to an ACM membership to get this.
+\item \urlh{http://home.pipeline.com/~hbaker1/sigplannotices/CFYCMP1.LSP}{Elisp implementation} of COMFY-65
+\end{itemize}
+}
+
+One of the primary selling points of COMFY-65 (besides its small size
+and the fact that it employed a syntax based on s-expressions) was its
+``comfortable set of control primitives'', such as \verb{seq},
+\verb{while}, and \verb{if}. When the assembly programmer/compiler
+writer used the structure inherent in these constructs, they didn't
+have to code up a nest of obscure local labels in order to control the
+flow of computation. By taking advantage of Lisp's recursive nature,
+COMFY-65 managed this in one pass.
+
+Sassy works the same way. Its syntax consists of s-expressions and it
+features the same set of control primitives, and is a (mostly)
+one-pass assembler written in about 3,000 lines of Scheme. At the same
+time, Sassy is similar to traditional assemblers for the x86, with
+directives for separate heap, data, and text sections, the ability to
+annotate linker-specific relocation types, and support for labels,
+locally nested or not (something COMFY-65 lacked; Baker recommended
+using jump-tables. Sassy uses back-patching). Sassy has a simple macro
+system, or programmers may write ``escapes'' to Scheme in order to
+take advantage of Scheme's meta-programming facilities. Sassy is a
+complete 32-bit assembler for the x86 line and recognizes the full
+32-bit instruction set, up to and including the SSE3 extensions.
+
+Sassy is also target- and linker-neutral. Sassy generates a record of
+objects and information, representing, for instance, the text section,
+or the alignment requirements of the data section. The programmer may
+pass the record to an output module that in turn creates the final
+output suitable for linking or loading. Sassy comes with an output
+module that creates ELF object files for GNU/Linux with dynamic shared
+library support, or programmers may use Sassy's API to create their
+own output modules.
+
+
+\chapterl{Installation}
+
+
+\sectionl{Supported Schemes}
+
+Sassy ships with support for the following Scheme interpreters (with the indicated minimal version number):
+\begin{itemize}
+\item \urlh{http://www.plt-scheme.org/software/mzscheme/}{PLT Scheme}: mzscheme (>= v299.400)
+\item \urlh{http://www.call-with-current-continuation.org/}{Chicken}: csi (>= v2.2 with libffi support, and syntax-case and numbers eggs installed)
+\item \urlh{http://www.shiro.dreamhost.com/scheme/gauche/}{Gauche}: gosh (>= v0.8.5)
+\item \urlh{http://s48.org/}{Scheme48}: scheme48 (v1.3)
+\item \urlh{http://swiss.csail.mit.edu/~jaffer/SCM.html}{SCM}: scm (v5e1 with SLIB v3a2)
+\item \urlh{http://www.gnu.org/software/guile/guile.html}{Guile}: guile (>= v1.7.91)
+\end{itemize}
+
+Sassy was developed on GNU/Linux, though since Sassy is embedded in Scheme, Sassy should (theoretically) run everywhere Scheme does. If you are running Scheme on a non *nix box, (Windows, for instance), you may want to grab the .zip archive instead of the .tar.gz.
+
+\sectionl{Installing}
+
+(\verb{$} means a shell prompt, \verb{>} means a Scheme prompt.)
+
+
+\subsectionl{Chicken}
+
+Sassy is available as an egg, so the easiest way to install (and compile) Sassy is to do:
+
+\verb{
+$ chicken-setup sassy
+}
+
+If you don't want to compile Sassy (it can take a while), see below.
+
+\subsectionl{Scheme48}
+
+Starting with version 0.2, Sassy now includes module definitions for Scheme48's module system.
+
+First unpack the archive, change directories, and load scheme48 with a fairly large heap:
+
+\verb{
+$ tar xfz sassy-0.2.tar.gz; cd sassy-0.2
+$ scheme48 -h 6000000
+}
+
+Then:
+
+\verb{
+> ,config ,load sassy-48.scm
+> ,open sassy
+}
+
+\subsectionl{Other Schemes}
+
+To start up Sassy, unpack Sassy's distribution directory and enter it:
+
+\verb{
+$ tar xfz sassy-0.2.tar.gz
+$ cd sassy-0.2
+}
+
+Now you have to edit one line in the file \verb{sassy.scm}. At the top
+of the file, un-comment the line that loads the initialization file
+for the Scheme interpreter you want to use, and comment out the
+others. Then quit your editor and start the Scheme interpreter. Gauche
+users should start gosh with \verb{gosh -I.} in order to add the
+current directory to gosh's load-path.
+
+Then:
+
+\verb{
+> (load "sassy.scm")
+}
+
+Loading all the source files may take a few seconds. When your Scheme
+prompt returns, Sassy is loaded and ready to go.
+
+If you want to run the test-suite:
+
+\verb{
+> (load "tests/run-tests.scm")
+> (sassy-run-tests 'all)
+}
+
+\subsectionl{Caveats}
+
+\begin{itemize}
+\item The Scheme48 init file sets \verb{char->integer} and \verb{integer->char} to \verb{char->ascii} and \verb{ascii->char}.
+\item The SCM init file sets \verb{eval} to something that looks more like R5RS \verb{eval}, but isn't actually compliant. It also changes the number of arguments to \verb{make-hash-table}.
+\end{itemize}
+
+\index{Emacs}
+\sectionl{Sassy and GNU Emacs}
+A minor mode with some syntax highlighting exists for editing sassy files under GNU Emacs. See the file \verb{sassy.el} in the top level of Sassy's distribution directory.
+
+\sectionl{Porting Sassy}
+
+Sassy is written in \urlh{http://schemers.org/Documents/Standards/R5RS/HTML/}{R5RS Scheme} with the addition of the following:
+
+\begin{itemize}
+\item \urlh {http://srfi.schemers.org/srfi-1/}{SRFI 1}: List Library (make-list filter)
+\item \urlh {http://srfi.schemers.org/srfi-9/}{SRFI 9}: Defining Record Types (define-record-type)
+\item \urlh {http://srfi.schemers.org/srfi-23/}{SRFI 23}: Error reporting mechanism (error)
+\item \urlh {http://srfi.schemers.org/srfi-56/}{SRFI 56}: Binary I/O (this SRFI was withdrawn by its author. However Sassy's output modules and test-suite make use of write-byte and read-byte)
+\item \urlh {http://srfi.schemers.org/srfi-60/}{SRFI 60}: Integers as Bits  (logand logior lognot ash bit-field logcount)
+\item \urlh {http://srfi.schemers.org/srfi-69/}{SRFI 69}: Basic hash tables (make-hash-table hash-table? hash-table-ref hash-table-set! alist->hash-table hash-table-values)
+\end{itemize}
+
+Sassy makes use of bignum and floating-point arithmetic (when you write floating-point data) and the optional \verb{(interaction-environment)} to perform macro-expansion.
+
+The included output modules also need:
+
+\defn{procedure}{file-exists?}{file -> boolean}
+\defn{procedure}{delete-file}{file}
+
+Most (good) Scheme implementations provide a version of the underlying
+functionality if they don't provide the SRFI itself. You only need to
+write wrappers that implement the specified interfaces for just the
+functions or syntax listed above.
+
+
+\chapterl{Usage}
+
+Programming in the language Sassy usually consists of calling the procedure
+\verb{sassy}, and then either passing the returned result to an
+\ref{output module} or manipulating the result directly with the
+procedures from \ref{output api}.
+
+\index{sassy}
+\defnb {procedure}{sassy}{input -> sassy-output}
+{\verb{sassy} assembles the contents of \var{input} and returns a
+record of type \var{sassy-ouput} that contains the results. The
+\var{input} should be either a file composed wholly of Sassy's
+\ref{directives} at its ``top level'', or a list of directives.}
+
+\scm{
+(sassy-make-elf
+ "sysexit.o"
+ (sassy '((entry _start)
+	  (text
+	   (label _start 
+             (begin (mov eax 1)
+		    (mov ebx 0)
+		    (int #x80)))))))
+
+(sassy-text-list
+ (sassy '((entry _start)
+	  (text
+	   (label _start 
+             (begin (mov eax 1)
+		    (mov ebx 0)
+		    (int #x80)))))))
+
+==> '(184 1 0 0 0 187 0 0 0 0 205 128)
+}
+
+
+
+
+\sectionl{Basic Syntax}
+
+Since Sassy is embedded in Scheme, write numbers, characters, and
+strings just as you would in Scheme. Normally, to write an assembly
+label (denoting an address, and annotated as \verb{<label-name>} in the
+grammars), you write a Scheme symbol. Write s-expressions for
+everything else.
+
+The only caveat concerning the use of Scheme symbols for labels is
+that in \urlh{http://schemers.org/Documents/Standards/R5RS/HTML/}{the
+current Scheme standard} ``case is insignificant,'' and thus writing
+symbols with uppercase letters may be problematic. As well, symbols
+may not begin with a period. There are two solutions: either use a
+Scheme implementation with a reader that accepts the Scheme symbols
+you want to write, or use Sassy's \ref{special-escape} to call, for
+instance, \verb{string->symbol}. You may also define the result of
+this call to be a constant using Sassy's internal macro system.
+
+\scm{
+(sassy
+ '((macro dot-dot-weird (! (string->symbol "..WEirD"))) 
+   (text (label dot-dot-weird
+           (begin ...)))))
+}
+
+The resulting label will be '\verb{..WEirD}'.
+
+
+\tag{special-escape}{special escape form}
+\tag{escapes}{Escapes}
+\tag{escapes2}{escapes}
+\index{"!@"!}
+\sectionl{Escaping to Scheme}
+
+\scm{
+(! <scheme-expression>)
+}
+
+Use this special ``escape'' form to tell \verb{sassy} to suspend itself momentarily and request that the host Scheme evaluate \verb{<scheme-expression>}. This way, you can take advantage of Scheme's more advanced macro systems or perform conditional compilation, for instance. 
+
+An escape, which is not a \ref{directive}, can occur {\bf in any position} in a Sassy program. Normally the result returned by the evaluation of the \verb{<scheme-expression>} must be a syntactically correct form that \verb{sassy} can directly substitute in place for the escape. The exception occurs when \verb{sassy} is looking for a directive (i.e. at the top level) and instead encounters an escape. In this case if the escape returns \verb{'void}, then \verb{sassy} ignores the \verb{'void} and continues processing.
+
+\scm{
+(define (foo x) (+ x 4))
+
+(define-syntax get-dogs
+  (syntax-rules ()
+    ((_) '(export lucky toto spot))))
+
+(sassy '((! (get-dogs))
+
+         (! (if (file-exists? "sassy-libs/cats")
+                '(include "sassy-libs/cats"))
+                'void)
+                
+         (text (mov eax (& spot (! (foo 4)))))))
+}
+
+\verb{sassy} processes the special escape forms and substitutes the return values in place of the escapes during macro expansion. \verb{sassy} calls \verb{eval} in the following manner:
+
+\scm{
+(eval <scheme-expression> (interaction-environment))
+}
+
+
+\chapterl{Directives}
+\tag{directive}{directive}
+\tag{directives}{directives}
+
+\verb{sassy} processes a series of ``directives'' that describe various 
+aspects of the object that \verb{sassy} is assembling. Some, none, or
+all of the directives described here may be present, and they usually
+may occur in any order (there are some exceptions; see
+below). Directives may occur multiple times; \verb{sassy} either
+appends the results of the later usages to the results of the earlier
+usages, or simply updates the object it is assembling with the new
+information from the later usages.
+
+\verb{sassy} processes the directives in the order that you wrote them. 
+It's possible to \scm{include} \ref{add-sources} of input. In this
+case, \verb{sassy} does not continue with the current source until it
+has completely processed the directives of each additional source
+specified by \scm{include}, in order.
+
+\sectionl{Label Definitions and Lexical Scoping}
+
+\index{\scm{label}}
+\subsectionl{Defining Labels}
+To ``define'' a label or symbol, meaning to assign an actual location or address to a label so that you can reference that address by using the label, write the following in a \scm{heap}, \scm{data}, or \scm{text} directive:
+\scm{
+(label <label-name> <item> ...)
+}
+As mentioned above, \verb{<label>} is a Scheme symbol, and \verb{<item>} is the appropriate syntax for the item in the enclosing directive. In a \scm{text} directive, if there are more than one \verb{<item>}, all the \verb{<items>} are wrapped in an implicit \scm{begin}, for the purposes of continuations. See below.
+
+Sassy also records, for each label definition, the total size of all the \verb{<items>} that it encloses, for use by \ref{output api}.
+
+You may also omit the \verb{<items>} in a label definition. In that case, the label is defined at that point, but \verb{sassy} records its size as zero, and processing continues. Thus you may define multiple labels to be the same address:
+
+\scm{
+(text (label foo)
+      (label bar)
+      (label wizo)
+      (nop))
+}
+
+No label may be defined (assigned an address) more than once in any given lexical scope. No label may be both defined in the top-level scope and imported. The top-level scope consists of every label not shadowed by any \scm{locals} declaration.
+
+\index{\scm{locals}}
+\index{locals, declaring}
+\subsectionl{Lexical Scoping}
+
+Sassy has a mechanism to allow you to write lexically scoped blocks of arbitrary depth so that you can re-use names of labels without fear of referring to the wrong address. This mechanism is usuable in the \scm{text} and \scm{data} directives.
+
+To open up a new scope, you write:
+
+\scm{
+(locals (<label-name> ...) <item> ...)
+}
+
+The \scm{locals} form declares that for all references to the \verb{<label-names>} in the \verb{<items>} in the current scope level, the addresses that they refer to are the addresses of the accompanying label definitions of those names in the \verb{<items>}.
+
+\scm{
+(text
+  (label loop        ; the outer 'loop'
+    
+    (locals (loop)   ; open up a new scope and declare 'loop' to be shadowed
+      (push loop)    ; push the address of the inner 'loop' defined later in this scope
+      (nop)
+      (label loop    ; the definition of the inner 'loop'
+	(jmp loop))  ; jmp to the inner 'loop'
+      (nop))
+    
+    (push loop)))    ; this is outside the previously declared scope,
+                     ; and so refers to the outer 'loop'
+}
+
+
+Or in a data section:
+
+\scm{
+(data
+  (label foo (dwords bar))    ; The outer 'foo' contains the address of the outer 'bar'
+
+  (locals (foo bar)           ; Declare a new scope 
+    (label foo (dwords bar))  ; The inner 'foo' contains the address of the inner 'bar'
+    (label bar (dwords foo))) ; The inner 'bar' contains the address of the inner 'foo'
+  
+  (label bar (dwords foo)))   ; The outer 'bar' contains the address of the outer 'foo'
+}
+
+Please keep in mind:
+
+\begin{itemize}
+\item Any definitions of, or references to, labels whose name does not appear in an immediately enclosing \scm{locals} form ``fall-up'', recursively, to the next higher scope, until the top level is reached.
+
+\item It is an error to declare a local label and then to fail to define it somewhere in the body of the \scm{locals} form.
+
+\item Sassy {\bf does not} rename local labels. The final symbol-table consists only of labels defined in the top-level scope. Thus you cannot break lexical scoping by using a label name (but this is assembly, so you can always break it by figuring out a local label's actual address).
+
+\item Sassy {\bf does} record ``anonymous'' relocations for all local labels, meaning the value returned by \verb{sassy-reloc-name} is \verb{#f}, but all the other relocation information will be filled in. Please refer to \ref{output api}.
+\end{itemize}
+
+\index{\scm{align}}
+\sectionl{The {\scm{align}} special form}
+
+You may insert an \scm{align} special form in a  \scm{heap}, \scm{data}, or \scm{text} directive: 
+
+\scm{
+(align <amount>)
+}
+
+In a \scm{text} directive, any uses of \scm{align} must occur at the \scm{text} directive's top level.
+
+The \scm{align} special form tells \verb{sassy} to place the next item in the section at the next available address (counting up from the current address in the section) such that
+
+\scm{
+(zero? (modulo <the-new-address> <amount>))
+}
+
+is true. 
+
+The \verb{<amount>} must be a positive power of two. If you use \scm{align} within a \scm{data} directive, \verb{sassy} pads the data section with the byte \verb{0}. If you use it within a \scm{text} directive, \verb{sassy} pads the text section with the \scm{(nop)} instruction.
+
+\sectionl{Descriptions of directives}
+
+\subsectionl{\scm{heap}}
+\scm{
+(heap <heap-item> ...)
+
+heap-item      = (label <label-name>)                 ; "empty" label definition
+               | (label <label-name> <heap-item> ...) ; label definition
+               | <heap-sizer>                         ; anonymous heap "space"
+               | (align <amount>)
+               | (begin <heap-item> ...)              ; useful for macro defs.
+
+heap-sizer     = (bytes  <integer>)
+               | (words  <integer>)
+               | (dwords <integer>)
+               | (qwords <integer>)
+}
+
+Use the \scm{heap} directive to reserve uninitialized storage space. \verb{sassy} computes the number of bytes to reserve by multiplying the \verb{<integer>} by \verb{1}, \verb{2}, \verb{4}, or \verb{8}, depending on whether you wrote \scm{bytes}, \scm{words}, \scm{dwords}, or \scm{qwords}, respectively, in the \verb{<heap-sizer>}. The \verb{<integer>} may not be negative.
+
+\scm{
+(heap (bytes 7)           ; reserve 7 bytes
+      (align 32)          ; align the next item to 32
+      (label foo (dwords 100))) ; reserve 400 bytes and call it "foo"
+}
+
+
+\subsectionl{\scm{data}}
+\scm{
+(data <data-item> ...)
+
+data-item      = (label <label>)                             ; "empty" label definition
+               | (label <label> <data-item> ...)             ; label definition
+               | (locals (<label-name> ...) <data-item> ...) ; local labels declaration
+               | <data-contents>                             ; anonymous data
+               | (align <amount>)
+               | (begin <data-item> ...)                     ; useful for macro defs.
+
+data-contents  = (bytes  <any-data> ...)
+               | (words  <any-data> ...)
+               | (dwords <any-data> ...)
+               | (qwords <any-data> ...)
+               | (asciiz <any-data>)
+
+any-data       = <integer>
+               | <character>
+               | <string>
+               | <label-name>        ; data-contents size must match current bits setting
+               | <custom-relocation> ; ditto
+               | <float>             ; data contents size must be dwords or qwords
+}
+
+With the \scm{data} directive you may specify initialized data
+consisting of numbers, byte-sized characters, or strings of bytes, and
+in some cases addresses. \verb{sassy} writes the data into the
+assembled object's data section in a series of fields of specific
+widths. You specify the width of the fields to be 1, 2, 4, or 8 bytes
+with the \scm{bytes}, \scm{words}, \scm{dwords}, and \scm{qwords}
+forms of \verb{<data-contents>}, respectively.
+
+\verb{sassy} places integers into the field in little-endian order. Integers may be unsigned, or signed, in which case \verb{sassy} uses the two's-complement representation. In either case the number must be able to fit in the specified field size.
+
+If you write a float, it should be in the context of a \scm{dwords} or
+\scm{qwords} field, and produces the little-endian IEEE-754
+single-precision or double-precision representation. (Sassy currently has no
+mechanism for specifying double-extended-precision, meaning 80-bit,
+floats).
+
+\verb{sassy} places characters at the low address of the field and
+pads the rest of the unused field (if any) with the byte \verb{0}. If
+you write a string, \verb{sassy} places each character into a byte,
+and pads any unused bytes of the last field with the byte
+\verb{0}. If you specify a field size of \scm{bytes}, however, no zero
+padding occurs at the end.
+
+\index{asciiz}
+
+The included \verb{(asciiz <any-data>)} macro places characters at the low
+address towards higher addresses and then places a 0 at the end. It
+is equivalent to \scm{(bytes <any-data> 0)}.
+
+If you want to use the address of a \verb{<label>} or a \ref{gram-cust-reloc} as data, you have to place it in a field whose size matches the current setting of the \scm{bits} directive, e.g. either in a \scm{dwords} field under (the default) of \scm{(bits 32)}, or in a \scm{words} field under \scm{(bits 16)}.
+
+\scm{
+(data (label foo (dwords "abcde"))   ; #x61 62 63 64  65 00 00 00
+      (align 16)                     ; #x00 00 00 00  00 00 00 00
+      (dwords -3242.52 1000)         ; #x52 a8 4a c5  e8 03 00 00
+      (qwords -84930284902.48392048) ; #xe2 7b 66 4d  3d c6 33 c2
+      (label quux (dwords #\a #\b))  ; #x61 00 00 00  62 00 00 00
+      (bytes #\a #\b #\c #\d #\e)    ; #x61 62 63 64  65
+      (align 4)                      ;                   00 00 00
+      (dwords foo quux))             ; #x00 00 00 00  20 00 00 00
+}
+
+
+
+\subsectionl{\scm{text}}
+
+\scm{
+(text <top-level-text> ...)
+
+top-level-text = (label <label>)                             ; "empty" label definition
+               | (label <label> <text-item> ...)             ; label definition
+               | (locals (<label-name> ...) <text-item> ...) ; local labels declaration
+               | <text-item>                                 ; anonymous text
+               | (align <amount>)
+
+text-item      = (label <label>)
+               | (label <label> <text-item> ...)
+               | (locals (<label-name> ...) <text-item> ...)
+               | <instruction>
+               | <assertion>
+               | <control-primitive>
+               
+}
+
+The above is the basic grammar for the \scm{text} directive. For a full explanation, please refer to \ref{instruct1} and \ref{the-text-section}.
+
+\tag{add-sources}{additional sources}
+\subsectionl{\scm{include}}
+
+\scm{
+(include <input> ...)
+}
+
+\scm{include} lets you specify (by name) additional input sources, such as libraries of code, to add to the object \verb{sassy} is assembling. Each \verb{<input>} should be either a symbol that is bound to a list of Sassy's directives in the host Scheme's ``interaction-environment'', or a file of directives. \verb{sassy} processes each additional \verb{<input>} in its entirety before proceeding to the next \verb{<input>}, or the directive following \scm{include}. An \verb{<input>} may in turn use \scm{include}, and thus \verb{sassy} processes all of the sources in depth-first order. This means that if you want to \scm{include} a file of Sassy macros, for instance, you must \scm{include} that file before using any of the macros in it.
+
+
+\subsectionl{\scm{import}}
+
+\scm{
+(import <label> ...)
+}
+
+Use \scm{import} to declare that each \verb{<label>} is not defined in the current object \verb{sassy} is assembling, and that the output module or linker should link references in the current object to their definitions in other objects. This is similar to, for instance, \urlh{http://nasm.sourceforge.net/}{NASM's} ``.extern'' directive.
+
+
+\subsectionl{\scm{export}}
+\scm{
+(export <label> ...)
+}
+
+The \scm{export} directive declares that each \verb{<label>} should be made available to other assembled objects for linking, similar to, for instance \urlh{http://nasm.sourceforge.net/}{NASM's} ``.global'' directive.
+
+
+\subsectionl{\scm{entry}}
+\scm{
+(entry <label>)
+}
+
+The \scm{entry} directive declares the \verb{<label>} as the main entry point for the assembled object. The \verb{<label>} will also become \scm{export}ed.
+
+\subsectionl{\scm{org}}
+\scm{
+(org <integer>)
+}
+The \scm{org} directive must appear before any \scm{text} directives, and tells \verb{sassy} to assemble the contents of all the \scm{text} directives such that the resulting text section will be loaded at the ``absolute'' address given by \verb{<integer>}. The \verb{<integer>} may not be negative.
+
+\subsection{\scm{bits}}
+\scm{
+(bits <16|32>))
+}
+The \scm{bits} directive alters the assembly of the following \scm{text} 
+directives to follow either 16-bit or 32-bit programming. 32-bit programming
+is fully supported, but 16-bit programming currently uses 32-bit addressing.
+If \scm{bits} is not defined, it defaults to 32-bit.
+
+\subsectionl{\scm{macro}}
+\scm{
+(macro <name> <transformer>)
+
+transformer = <constant-like>
+            | <lambda-expression>
+}
+
+Sassy has a simple internal macro system so that you may write macros
+with names that would otherwise re-define or be confused with Scheme
+bindings, syntactic or otherwise. Sassy comes with a few such macros
+installed internally. Please refer to \ref{appendix-a} for their
+expansions. Since the procedure \verb{sassy} accepts lists as input,
+it's always possible to use quasiquotation. As well, you may write
+\ref{escapes2} in order to use the host Scheme's macro system(s).
+
+In the above \verb{<name>} should be a Scheme symbol, and it should be
+different from any labels that you plan to use. You may bind a macro
+\verb{<name>} to a constant, such as a number, string, or character,
+or for instance, an expression or a piece of an expression to be
+inserted wholesale. To use such a macro just write the \verb{<name>},
+without parantheses.
+
+\scm{
+(sassy
+ '((macro true "TRUE")
+   (macro set! mov)
+   (macro return-true (set! eax true))
+   (text (seq (= eax 3)
+              return-true))))
+}
+
+Or you may bind a \verb{name} to a \verb{<lambda-expression>} that composes a piece of valid syntax from its arguments. To use the macro you ``call'' it in the normal way.
+
+\scm{
+(sassy
+ '((macro push-some (lambda regs
+		      `(begin ,@(map (lambda (reg)
+				       `(push ,reg))
+				     regs))))
+   (text (push-some eax ebx ecx))))
+}
+
+Please be aware of the following:
+\begin{itemize}
+\item You must define any macros before you use them.
+\item \verb{sassy} does not expand the right-hand sides of macro definitions; it simply records the definition. If the definition is a \verb{<lambda-expression>}, it is evaluated in the ``interaction-environment'' immediately.
+\item \verb{sassy} {\bf does} continuously expand the result returned by a macro usage until it contains no more macros.
+\item If \verb{sassy} finds a usage of a \verb{<lambda-expression>}, it expands all the arguments first, applies the macro, and expands the result.
+\item User macro definitions all go into a single flat syntactic environment that shadows the environment containing Sassy's pre-defined macros.
+\item \ref{escapes} are handled during macro expansion.
+\item Macros may return macro definitions.
+\item Crude hygiene: If the expander encounters a \scm{label} or \scm{locals} form, then if and only if the item(s) in the position \verb{<label>} or \verb{<label-name>} are actually symbols, the expander returns them literally without checking to see if they are bound to macros.
+\end{itemize}
+
+The expander is available to the user for debugging purposes:
+
+\index{sassy-expand}
+\defnb{procedure}{sassy-expand}{hash-table or something to expand}
+{If the argument is a \var{hash-table}, \verb{sassy-expand} installs the hash-table as its current user syntactic environment. See the file \verb{macros.scm} for an example of such a hash-table. If the argument is \var{something to expand}, \verb{sassy-expand} returns the expansion within the context of its current user syntactic environment. All user macros are lost in between invocations of \verb{sassy}, since every invocation of \verb{sassy} calls \verb{sassy-expand} with an empty hash-table. However, after calling \verb{sassy} you may call \verb{sassy-expand} to see how something was expanded.
+
+\scm{
+(sassy '((macro my-register 3)
+         (macro foo (lambda (x) `(mov ,x eax)))
+         (text (foo my-register)))) 
+=> an error is signalled
+
+(sassy-expand '(text (foo my-register))) 
+=> (text (mov 3 eax))
+}
+}
+
+
+\subsectionl{\scm{begin}}
+
+\scm{
+(begin <item or directive> ...)
+}
+
+Sometimes you may want to write a macro that returns a sequence of several directives, or a sequence of several items in a \scm{heap} or \scm{data} directive. Using \scm{begin} in these contexts allows you to do this. This form is also usable in a \scm{text} directive, where it has certain \ref{begin text} regarding continuations.
+
+\scm{
+(sassy
+ '((macro define-cell
+	  (lambda (name init)
+	    `(begin (macro cell-tag "CELL")
+		     (data (label ,name (dwords cell-tag ,init)))
+		     (macro ,(string->symbol
+			      (string-append (symbol->string name) "-ref"))
+			    (& ,name 4)))))
+   (define-cell foo 100)
+
+   (text (mov ebx foo-ref))))
+}
+
+
+
+\chapterl{The Text Section}
+\tag{the-text-section}{The Text Section}
+\tag{text section here}{here}
+
+This chapter describes Sassy's instruction syntax and its facilities
+for controlling the flow of computation. If you only want to write
+traditional-looking assembly programs with Sassy, consisting of just
+labels and instructions, then Sassy can handle that just fine.
+
+\scm{
+(text <text-top-level> ...)
+
+text-top-level = (label <label>)                             ; "empty" label definition
+               | (label <label> <text-item> ...)             ; label definition
+               | (locals (<label-name> ...) <text-item> ...) ; locals declaration
+               | <text-item>                                 ; anonymous text
+               | (align <amount>)
+
+text-item      = (label <label>)
+               | (label <label> <text-item> ...)
+               | (locals (<label-name> ...) <text-item> ...)
+               | <instruction>
+               | <assertion>
+               | <control-primitive>
+               
+}
+
+Note: in the text section, the \scm{align} special form may only appear at a \scm{text} directive's top level.
+
+\sectionl{Instructions}
+\tag{instruct1}{Instructions}
+
+Sassy's instruction syntax is based on Intel's, except that each instruction looks like a Scheme function call. Thus there are no commas. Sassy uses the same instruction and register names and recognizes the same operands as those listed in the \urlh{http://intel.com/design/pentium4/manuals/index_new.htm#sdm_vol2a}{Intel manuals}. The order of the operands is also identical, and so, like the \verb{set!} idiom of Scheme, the destination comes first, the source second.
+
+\verb{
+intel: add eax, 4
+intel: mov cx, 3
+
+sassy: (add eax 4)
+sassy: (mov cx 3)
+}
+
+\subsectionl{Immediates}
+
+Immediates are usually integers of the appropriate size. If an operand is a dword-sized operand and you write a float, \verb{sassy} converts it to its little-endian IEEE-754 single-precision representation.
+
+You may also write characters and strings. \verb{sassy} places the byte value of the character in the lowest order byte and places \verb{0} in the rest. A string can have no more characters than the size in bytes of the operand; \verb{sassy} pads the remainder with \verb{0}.
+
+\scm{
+(mov eax (dword #\a))   => (mov eax #x61)
+(mov eax (dword "abc")) => (mov eax #x61626300)
+}
+
+
+\subsectionl{Addressing}
+
+Sassy currently only understands 32-bit addressing syntax, regardless of the current setting of the \scm{bits} directive. In 16-bit mode, sassy emits an extra prefix byte (#x67) to signal to the processor that the following instruction is using 32-bit addressing syntax. 
+
+Write effective addresses using the following form:
+
+\scm{
+(& <items> ...)
+}
+
+The <items> should be at least one, but not more than one of each, of the following in any order. The effective address is the implied sum of all the items.
+
+\index{index}
+\index{scale}
+\begin{itemize}
+\item Any number of integers (displacements)
+\item Zero or one 32-bit general purpose registers (base)
+\item Zero or one labels or custom relocations (displacements)
+\item Zero or one indexes and scales, written as follows, where \verb{<scale>} is \verb{1}, \verb{2}, \verb{4}, \verb{8}.
+\scm{
+(* <32-bit-reg> <scale>)
+(* <scale> <32-bit-reg>)
+}
+\end{itemize}
+
+Some examples:
+
+\scm{
+(add ecx (& edx))
+(mov edx (& (* 8 ecx)))
+(add eax (& #x64))
+(mov eax (& foo (* ebx 4) edx 1000))
+(add eax (& -1 2 -3 4 ebx -5 6 -7 8))
+}
+
+Sassy understands these idioms as well:
+
+\scm{
+(& edx ebx)   => (& edx (* ebx 1)) ; If two registers are supplied, 
+                                   ; the second is assembled as an index with
+                                   ; a scale of 1
+(& (* eax 2)) => (& eax (* eax 1)) ; If only a scale and index are given,
+                                   ; it is assembled as a base+index*scale/2
+}
+
+\index{segment override prefixes}
+\index{cs}
+\index{ds}
+\index{ss}
+\index{es}
+\index{fs}
+\index{gs}
+
+Finally, if you want to tell Sassy to emit a segment override prefix
+for a particular memory operand, use one of the following syntaxes for
+the addressing operand (If you are trying to generate branch taken/branch not taken prefixes, which are the same prefix byte as  \verb{cs} and \verb{ds}, please \ref{branch-prefix}):
+
+\scm{
+(cs (& edx))
+(ds (& (* 8 ecx)))
+(ss (& #x64))
+(es (& edx))
+(fs (& (* 8 ecx)))
+(gs (& #x64))
+}
+
+\index{cs:}
+\index{ds:}
+\index{ss:}
+\index{es:}
+\index{fs:}
+\index{gs:}
+Sassy also includes some macros that translate into the above:
+
+\scm{
+(cs: edx)       => (cs (& edx))
+(ds: (* 8 ecs)) => (ds (& (* 8 ecs)))
+(ss: #x64)      => (ss (& #x64))
+(es: edx)       => (es (& edx))
+(fs: (* 8 ecs)) => (fs (& (* 8 ecs)))
+(gs: #x64)      => (gs (& #x64))
+}
+
+\subsectionl{Operand Sizes}
+
+Because many of the x86's instructions are overloaded, meaning the same instruction can sometimes accept different operands of various sizes in various orders, and will output different opcode sequences, Sassy has to try and infer the operand size from the context in which the operand appears. Sassy uses the opcode of the instruction itself, the other operands in the instruction, and the current setting of the \scm{bits} directive (the default is 32), to do so.
+
+If instead you would like to be explicit, you may use the supplied hinting mechansim to specify an operand size for immediates and memory addresses (registers always have an implied size):
+
+\index{byte}
+\index{word}
+\index{dword}
+\index{qword}
+\index{dqword}
+\index{tword}
+\index{dqword}
+\scm{
+(byte   <operand>) => 8-bit
+(word   <operand>) => 16-bit
+(dword  <operand>) => 32-bit
+(qword  <operand>) => 64-bit
+(tword  <operand>) => 80-bit
+(dqword <operand>) => 128-bit
+}
+
+If you don't use the hinting mechanism, Sassy tries, with one exception (see below), to match an ambiguous operand size to the size of another operand in the instruction. Any hint you supply to one operand will be used to infer the size of the other:
+
+\scm{
+(mov ebx 4)      => (mov ebx (dword 4))
+(mov cx (& foo)) => (mov cx (word (& foo)))
+(mov al 100)     => (mov al (byte 100))
+(mov (& foo) (byte 100)) => (mov (byte (& foo)) (byte 100))
+}
+
+If that's not possible, Sassy examines the current \scm{bits} setting and uses that size for the operands:
+
+\scm{
+(bits 32)
+(mov (& foo) 10) => (mov (dword (& foo)) (dword 10))
+
+(bits 16)
+(mov (& foo) 10) => (mov (word (& foo)) (word 10))
+}
+
+The exception to the above is the case where certain instructions can generate shorter opcode sequences when their source operand is an immediate and a byte, instead of a word or dword. In those cases, Sassy uses the shorter form when the source operand is in fact a byte. This applies to the following instructions: \verb{adc add and cmp or sbb sub xor push imul}.
+
+For example:
+
+\scm{
+(add ecx 4)         => Sassy assumes the default of (add ecx (byte 4))
+(add ecx (dword 4)) => Sassy uses the long form
+}
+
+Finally, for any floating-point, mmx, or sse instruction that can accept memory operands of different sizes, the default is always a dword-sized operand. In these cases, other operand sizes of memory addresses must be explicitly specified:
+
+\scm{
+(fst (& foo))         => Sassy assumes the default of (fst (dword (& foo)))
+(fst (qword (& foo))) => Explicit qword memory operand
+}
+
+
+\index{jumps}
+\index{calls}
+\subsectionl{Jumps and Calls}
+
+The normal syntax for writing direct branches or conditional branches is \verb{(jmp foo)} or \verb{(jnz bar)}. For these direct branches that you write, \verb{sassy} assumes that they are near branches, and thus generates 2-byte or 4-byte relative address depending on the current setting of the \scm{bits} directive. You always write the branch target you want (not the relative distance - \verb{sassy} computes that).
+
+Some special forms exists for designating explicit short, near, and far versions of \verb{jmp}, \verb{call}, and the \verb{jcc}-family of instructions. For branches that you write (not Sassy's internally generated branches --- see below), if you write a ``short'' branch, \verb{sassy} assembles a short branch provided the branch target is within range. Otherwise an ``out of range'' error will be signalled. 
+
+\index{short}
+\index{near}
+\scm{
+(jnz short foo)
+(jnz near  foo)
+
+(jmp short foo)
+(jmp near  foo)
+}
+
+\index{far}
+\index{far jumps}
+\index{far calls}
+
+For far jumps and calls to other segments, if you want to write a direct call, you specify a far pointer with two operands:
+
+\scm{
+(jmp  <imm16>  <imm32>) ; jmp #x1234:12345678
+(jmp  <imm16>  <imm16>) ; jmp #x1234:1234
+(call <imm16>  <imm32>) ; call #x1234:12345678
+(call <imm16>  <imm16>) ; call #x1234:1234
+}
+
+The first operand specifies the segment, and the second the offset into that segment. For either operand, you can specify an operand size of \scm{word} or \scm{dword}, to be explicit.
+
+To write an indirect far call, where the segment and offset are specified at a memory address, you use the keyword \verb{far} in the instruction:
+
+\scm{
+(jmp far <mem32>)
+(jmp far (word <mem32))
+(call far <mem32>)
+(call far (word <mem32))
+}
+
+\tag{branch-prefix}{see below}
+\subsectionl{Prefixes}
+
+Sassy knows the prefixes \verb{lock}, \verb{rep}, \verb{repe}, \verb{repne}, \verb{repz}, and \verb{repnz}. Write them in the following manner:
+
+\scm{
+(<prefix> <instruction>)
+e.g.
+(lock (inc (& my-guard)))
+}
+
+\index{brt}
+\index{brnt}
+Sassy also knows about the branch hint prefixes used to control the processor's default branch-prediction behavior. Sassy uses \verb{brt} to generate a ``branch taken'' prefix, and \verb{brnt} to generate a ``branch not taken'' prefix. Use these prefixes with a \verb{jcc} instruction, as above:
+
+\scm{
+(brt  (jnz foo))
+(brnt (jz foo))
+}
+
+
+\sectionl{Assertions}
+
+You can control the flow of computation by using ``assertions'' and
+``control primitives''.
+
+Assertions check whether or not particular flags are set in x86's ``eflags'' register, and alter the flow of computation accordingly by inserting conditional and unconditional branches. Exactly how the flow of computation is altered depends on their contextual use within a particular control primitive.
+
+You write the assertions by writing the cc-code for the jcc-family of instructions followed by an exclamation point.
+
+\scm{
+o!               => assert overflow
+no!              => assert not overflow
+b!  / c!  / nae! => assert carry
+ae! / nb! / nc!  => assert not carry
+e!  / z!         => assert zero
+ne! / nz!        => assert not zero
+be! / na!        => assert either carry or zero
+a!  / nbe!       => assert neither carry or zero
+s!               => assert sign
+ns!              => assert not sign
+p!  / pe!        => assert parity
+np! / po!        => assert not parity
+l!  / nge!       => assert less than
+ge! / nl!        => assert greater than or equal to
+le! / ng!        => assert less than or equal to
+g!  / nle!       => assert greater than
+}
+
+Since assertions may succeed or fail, there are always two possible paths to take, called the ``win'' and ``lose'' continuations. In addition, control primitives themselves may also ``win'' or ``lose'' depending upon whether they succeed or fail, but instructions always succeed or ``win''. By saying ``something wins'' I mean that the computation immediately proceeds with the ``win'' continuation, possibly via a branch, and when ``something loses'', computation immediately proceeds with the ``lose'' continuation, also possibly by branching.
+
+\sectionl{Control Primitives}
+
+In the following, \var{item} and refers to a \verb{<text-item>}. For illustrative examples (and the code they compile down to), please have a look at the Scheme files in the \verb{tests/prims} directory in Sassy's distribution directory.
+
+\subsectionl{The COMFY core}
+
+The following implement \urlh{http://home.pipeline.com/~hbaker1/sigplannotices/column04.tex.gz}{Baker's semantics}:
+
+\index{\scm{seq}}
+\scm{(seq item ...)} tries to execute each \var{item} in order. As soon as any of them fail, then the whole \scm{seq} immediately loses. If they all succeed, then the \scm{seq} wins.
+
+\index{\scm{inv}}
+\scm{(inv item)} is equivalent to Baker's ``not''. This exchanges the win and lose continuations of the \var{item}. That is, if it would normally win, it loses, and vice-versa.
+
+\index{\scm{if}}
+\scm{(if test conseq altern)} Each of the arguments to \scm{if} is a \verb{<text-item>}. This form executes \var{test} with a win of \var{conseq} and a lose of \var{altern}. The whole \scm{if} {\bf always wins}.
+
+\index{\scm{alt}}
+\scm{(alt item ...)} tries to execute each \var{item} in order. As soon as one of them succeeds, the whole \scm{alt} wins. If an item fails, the next \var{item} is tried.
+
+\index{\scm{times}}
+\scm{(times amount item)} ``unrolls loops''. That is, the \var{item} will be executed (and compiled) a number of times equal to \var{amount}. The copies are wrapped in a \scm{begin}.
+
+\index{\scm{iter}}
+\scm{(iter item)} is equivalent to Baker's ``loop''. The \var{item} is executed {\it ad infinitum}, meaning \scm{iter} {\bf can never win}. However, if the \var{item} fails then the whole \scm{iter} loses.
+
+\index{\scm{while}}
+\scm{(while test body)} is another looping construct. Each time through the loop, \var{test} is tried. If it succeeds, the \var{body} is executed. If it fails, then the whole \scm{while} wins. On the other hand, if the \var{body} fails, then the whole \scm{while} loses.
+
+
+\subsectionl{Sassy Extensions}
+
+\tag{begin text}{additional semantics}
+
+\index{\scm{begin}}
+\scm{(begin item ... tail)} executes each \var{item} with both a win and lose continuation of {\bf the next \var{item}}. The exception is the \var{tail}, which is executed with the win and lose continuations of the whole \scm{begin}. So if \var{tail} succeeds, the \scm{begin} wins. Otherwise it loses. 
+
+At the top level of \scm{text} directive, (and indeed, in between \scm{text} directives) \verb{sassy} implicitly wraps all of the \verb{<text-items>} in a \scm{begin}. As well, following a \verb{<label>} declaration, all of the \verb{<text-items>} at the label's top level are explicitly wrapped in a \scm{begin}.
+
+\index{\scm{until}}
+\scm{(until test body)} is like \scm{while}, except that the \var{test} is subjected to a \scm{inv}. So each time through the loop, if \var{test} fails, the \var{body} is executed, but if it succeeds, then the whole \scm{until} wins. Like \scm{while}, if the \var{body} fails, the whole \scm{until} loses.
+
+The following are provided to provide some means of ``capturing'' and over-riding the continuations.
+
+\hrule
+\index{\scm{with-win}}
+\index{\scm{with-lose}}
+\index{\scm{with-win-lose}}
+\scm{
+(with-win k-win [item])
+(with-lose k-lose [item])
+(with-win-lose k-win k-lose [item])
+}
+
+(The square brackets around \var{item} are meant to indicate that it is optional. See below)
+
+Each of these compiles \var{item} with an explicit win or lose continuation (or both) of \var{k-win} or \var{k-lose}, effectively overriding the particular default or implicit continuation Sassy would normally supply to the \var{item}. The continuation may be a \scm{text-item} or one of the specials symbols \scm{$win} or \scm{$lose}. Thus it is possible to express the semantics of many of Sassy's primitives in an explicit continuation-passing style. Examples of this are \ref{cps-macros}.
+
+\scm{
+(with-win bar
+ (if (seq (cmp eax 3)
+          e!)
+     (push eax)   ; after the push jmp to bar
+     (push ebx))) ; after the push jmp to bar
+}
+
+\scm{
+(with-win-lose (jmp 1000) (call foo)
+  (seq
+   (push eax)
+   (= ecx 4))) ; if eax is 4, then (jmp 1000), else (call foo)
+}
+
+\scm{
+(label and-some-blocks
+  (with-win (begin (push eax)
+                   (push ebx))
+    (with-win (zero? ebx)
+      (zero? eax))))
+
+==
+
+(label and-some-blocks
+  (seq (zero? eax)
+       (zero? ebx)
+       (begin (push eax)
+              (push ebx))))
+}
+
+\verb{sassy} places the win or lose continuations after the items. If you use \scm{with-win-lose}, the lose continuation occurs last, the win continuation second, and the item first.
+
+If an explicit continuation is either an unconditional branch \scm{(jmp ...)} or the instruction \scm{(ret)}, \verb{sassy} does not emit an extra branch to the contextual continuation of the ``jmp'' or ``ret'', since these imply that the actual continuation of the thread of computation is the target of these branches.
+
+\index{\scm{seq}}
+\index{\scm{begin}}
+In addition, sometimes you may want \verb{sassy} to emit a ``single instruction'' as a continuation, but nothing else. This might occur in the succeed or fail arm of an \scm{if}, for instance. In this case you can write either \scm{(seq)} or \scm{(begin)} (an ``empty'' sequence or block) for the \var{item}. This triggers the continuation generators without emitting anything else into the instruction stream. (The empty sequence and block are actually valid syntax anywhere.) Or you may simply elide the item, and the compiler will insert the extra \scm{(seq)} automatically.
+
+\scm{
+(text (mov eax 10)
+
+      (label foo 
+        (if (= eax 3)
+	    (with-win (ret))          ; if eax is 3, just (ret)
+            (with-win foo             ; otherwise loop to foo
+              (sub eax 1)))))
+}
+
+\hrule
+\index{\scm{$win}}
+\index{\scm{$lose}}
+
+\scm{$win} and \scm{$lose} are two special symbols that Sassy reserves for itself so that you may explicitly refer to the values (the addresses) of the current win and lose continuations. They always refer to the exact win or lose continuation in effect at the point of their usage, including explicit continuations given by \scm{with-win} etc. (Sassy records relocations for every usage of these).
+
+\scm{
+(seq (add eax 1)
+     (push $win)  ; pushes the address of (add ebx 2)
+     (add ebx 2)
+     (push $lose) ; pushes the address of the 
+                  ; lose continuation of the enclosing seq
+     (add ecx 3))
+}
+
+\hrule
+\index{\scm{$eip}}
+
+\scm{$eip} is a special symbol that Sassy reserves for itself to allow you to refer to the address of the next instruction. It {\bf always} refers to the next instruction.
+
+\hrule
+\index{\scm{esc}}
+\scm{(esc (instruction ...) item)} ``turns off'' Sassy's continuation tracking for a moment so that you may explicitly store the value of a continuation (which is just an address). Sassy compiles \var{item} in the normal way, but it places each \var{instruction} in order just before the \var{item}, and each \var{instruction} is compiled with the \var{item's} win and lose continuations. Thus, if any of the \var{instructions} utilize the special symbols \scm{$win} and \scm{$lose}, they will represent the win and lose addresses of the \var{item}. 
+
+This is useful, for instance, in the following ``multiple-dispatch'' situation, where the calling convention consists of pushing the return address first, and the arguments second. Assume the functions ``foo'' and ``bar'' pop their arguments, do their thing, and end with a \verb{(ret)} (or a pop and a branch).
+
+\scm{
+(esc ((push $win))
+     (if (seq (cmp eax 10)
+              z!)
+         (with-win foo (push ebx))
+         (with-win bar (push ecx))))
+}
+
+The functions ``foo'' and ``bar'' will both return to the win continuation of the \scm{if}, rather than into an arm of the \scm{if} itself, from which they would immediately branch out of (``branch tensioning'', in other words).
+
+\hrule
+\index{\scm{mark}}
+\index{\scm{leap}}
+\scm{
+(leap item-with-mark)
+(mark item)
+}
+
+These two forms work together to allow you to write a branch into the middle of an otherwise nested structure. At the desired entry point to the structure use \scm{mark}, and wrap the whole thing in a \scm{leap}. If \scm{leap} can't find a \scm{mark} it does nothing. This is useful, for instance, for entering a loop at an arbitrary point. 
+
+\scm{
+(leap (iter (seq (add esp 8)
+                 (mark (pop ecx))
+                 (= ecx 3))))
+}
+
+\subsectionl{A Note on Branch Optimization}
+
+Sassy currently optimizes {\bf all} of its internally generated branches for size, so whenever it can assemble the ``short'' form of an internally generated conditional or unconditonal branch, it does so (provided the branch is not to an explicit continuation that is a label), regardless of the branch's direction. This comes at a small cost, because this means \verb{sassy} has to make at least two passes, and possibly several more, over its looping forms (\scm{iter}, \scm{while}, and \scm{until}). Though this is the only time Sassy makes more than one pass, in the future, if this cost becomes unbearable, I may provide a compiler option for strict one-pass assembly of these forms, using \urlh{http://home.pipeline.com/~hbaker1/Prag-Parse.html}{Baker's techniques (see section D.4)}.
+
+% and finish writing it
+\chapterl{Custom Relocations}
+\tag{custom-reloc}{Custom Relocations}
+\tag{gram-cust-reloc}{\verb{<custom-relocation>}}
+
+Sometimes you'll want to use or write an output module that needs more information about a particular label reference. Usually this is because it will need to communicate to the linker that the relocation the label reference generates is special, and that the linker should handle it differently.
+
+The custom relocation is supplied just for this reason. You can use it anywhere you would normally use a label reference.
+
+\scm{
+(reloc type)
+(reloc type target)
+(reloc type target value)
+}
+
+The \var{type} is a symbol, and should be the particular symbol the output module needs in order to designate the relocation as a particular type. The \var{target}, if supplied, should be an actual label. If \var{value} is supplied as well, which should be an integer, the \var{value} will be added to the value Sassy would normally place in the relocation field. When using a custom relocation within a memory reference \scm{(& ...)}, the \var{value} will be added to the offset.
+
+See \ref{sas-reloc} for information on how this information is stored in the relocation record.
+
+
+\chapterl{Output}
+\tag{output api}{Sassy's output API}
+
+The annotation ``\underline{default}:'' indicates the default value
+the function returns if nothing in the object that
+\verb{sassy} assembled affected that particular value. For example, if no \scm{align} forms were given in any \scm{data} directives, \verb{(sassy-data-align <sassy-output>)} returns the default value \verb{4}.
+
+\sectionl{Record-types}
+
+The names of the interfaces for the following data types are conventional. That is, for each of the following types, {\it name} is the indicated name of the type (the name in the heading), {\it getter} is any getter procedure listed, and
+\begin{itemize}
+\item the constructor procedure is \verb{make-}{\it name}
+\item the predicate procedure is {\it name}\verb{?}
+\item the setter procedures are {\it getter}\verb{-set!}
+\end{itemsize}
+
+
+\subsectionl{\var{sassy-output}}
+
+\defnbdef {procedure} {sassy-symbol-table}{sassy-output -> hash-table}
+{an empty \var{hash-table}}
+{The \var{hash-table} contains one entry for each of the symbols present in the object that \verb{sassy} assembled. The keys of the \var{hash-table} are Scheme \var{symbols}. The values are records of type \var{sassy-symbol}.}
+
+\defnbdef {procedure} {sassy-reloc-list}{sassy-output -> list}
+{\verb{'()}}
+{The \var{list} contains all the relocations that \verb{sassy} recorded. Each relocation is a record of type \var{sassy-reloc}.}
+
+\defnbdef {procedure} {sassy-entry-point}{sassy-output -> symbol}
+{\verb{#f}}
+{The \var{symbol} indicates the main entry point of the program.}
+
+\defn {procedure} {sassy-data-stack}{sassy-output -> pushdown-stack}
+\defnbdef {procedure} {sassy-text-stack}{sassy-output -> pushdown-stack}
+{an empty \var{pushdown-stack}}
+{The \var{pushdown-stacks} contain the contents (bytes, represented as positive integers) of their respective sections. Wherever appropriate, byte-representations of numerical arguments and data are in little-endian order.}
+
+\defnbdef {procedure} {sassy-heap-size}{sassy-output -> integer}
+{\verb{0}}
+{The \var{integer} is the total size of the heap, in bytes.}
+
+\defnbdef {procedure} {sassy-text-org}{sassy-output -> integer}
+{\verb{0}}
+{The \var{integer} is the absolute address at which the text section
+should be loaded.}
+
+For the following, if no \scm{align} forms were designated for the
+appropriate section, or no alignments greater than the default value
+were designated, the default value is present. Otherwise the largest
+value that was specified for the appropriate section is present. In
+all cases, the \var{integers} present will be a positive power of 2,
+and indicate the alignment requirements, in bytes, of the particular
+section.
+
+\defn {procedure} {sassy-heap-align}{sassy-output -> integer}
+\defnbdef {procedure} {sassy-data-align}{sassy-output -> integer}
+{\verb{4}}
+{}
+
+\defnbdef {procedure} {sassy-text-align}{sassy-output -> integer}
+{\verb{16}}
+{}
+
+\subsectionl{\var{sassy-symbol}}
+
+\defnbdef {procedure} {sassy-symbol-name} {sassy-symbol -> symbol}
+{\var{symbol}}
+{The \var{symbol} is the name of the symbol or label.}
+
+\defnbdef {procedure} {sassy-symbol-scope} {sassy-symbol -> scope}
+{\verb{'local}}
+{The \var{scope} is either \verb{'local}, \verb{'import}, or
+\verb{'export}. (In the following, ``object'' means object-file, module, unit of
+compilation, etc.) 
+\begin{itemize}
+\item A \var{scope} of \verb{'local} is meant to denote a symbol declared in the current object that other objects will not link to. 
+\item A \var{scope} of \verb{'import} is meant to denote a symbol declared in another object that the current object will link to. (Other assemblers use a term like ``extern'' for these.) 
+\item A \var{scope} of \verb{'export} is meant to denote a symbol declared in the current object that other objects will link to. (Other assemblers refer to these as, for instance ``global''.)
+\end{itemize}
+ The meaning of ``declared'' in regards to these can be fuzzy. For instance, when writing ELF shared objects, one exports the symbol \verb{_GLOBAL_OFFSET_TABLE_}, even though that symbol is never assigned a location in the Sassy program itself. Instead the linker \verb{ld} ``fully declares'' it.}
+
+\defn {procedure} {sassy-symbol-section} {sassy-symbol -> section}
+\defn {procedure} {sassy-symbol-offset} {sassy-symbol -> integer}
+\defnbdef {procedure} {sassy-symbol-size} {sassy-symbol -> integer}
+{\verb{#f}}
+{If any of these are \verb{#f}, then they all are \verb{#f}. This means that the symbol was never declared (assigned a location) in the object. This happens, for instance, when you \scm{import} a symbol.
+\begin{itemize}
+\item The \var{section} is either \verb{'text}, \verb{'data}, or
+\verb{'heap}, and indicates the section in which the symbol was defined.
+\item The \var{offset} indicates the offset in bytes from the base of the symbol's section to the symbol's definition.
+\item The \var{size} indicates the size in bytes of the items encapsulated by the symbol's definition.
+\end{itemize}}
+
+\defnbdef {procedure} {sassy-symbol-unres} {sassy-symbol -> list}
+{\verb{'()}}
+{The \var{list} is a list of functions used internally by Sassy to perform backpatching. You may safely ignore (the contents of) this field.}
+
+\subsectionl{\var{sassy-reloc}}
+
+\tag{sas-reloc}{here}
+
+\defnbdef  {procedure} {sassy-reloc-name} {sassy-reloc -> symbol}
+{\verb{#f}}
+{This returns the name of the label, or ``target'' that this relocation refers to. If this value is \verb{#f}, the relocation is ``anonymous''. Usages of \scm{$win}, \scm{$lose}, \scm{$eip}, and \scm{locals} may cause this. As well, the second argument in a custom relocation affects this value.}
+
+\defnbdef  {procedure} {sassy-reloc-section} {sassy-reloc -> section}
+{the section}
+{This is the section in which to apply the relocation (\verb{'text} or \verb{'data}).}
+
+\defnbdef {procedure} {sassy-reloc-offset} {sassy-reloc -> integer)}
+{\verb{0}}
+{This is the offset from the base of the section, in bytes, of the relocation's field (i.e. the address at which to apply the relocation).}
+
+\defnbdef {procedure} {sassy-reloc-type} {sassy-reloc -> symbol}
+{all relocations have a type}
+{The type of a relocation is a symbol that should be used to instruct the output module how to compute the final value in the relocation's field. By default, Sassy utilizes two types:
+\begin{itemize}
+\item \verb{'abs} relocations are meant to denote those whose final value in their field should be:
+
+\verb{
+(+ <the load address of the target's section> 
+   <the target's offset into it's section>)
+}
+
+\item \verb{'rel} relocations are meant to denote those whose final value in their field is some relative offset from the address of the relocation's field. Sassy generates these for normal usages of branch instructions, and the value present is the distance to the target from the address immediately following the relocation's field.
+\end{itemize}
+
+Or the type may be one specified by a usage of a custom relocation, and will be output module-specific.  For instance, when targeting the included ELF output module, one can write \scm{(reloc plt foo)}, which means that the type of the relocation will be \verb{'plt}, and that the ELF output module should make an entry in the object-file's relocation table of type \verb{R_386_PLT32}.
+}
+
+\defnbdef  {procedure} {sassy-reloc-patcher} {sassy-reloc -> procedure}
+{always present}
+{The procedure is a procedure of one argument, an \var{integer}. When applied, the procedure does two things - it changes the value of the relocation's field in the appropriate \var{push-stack} (or its list) to be the little-endian byte representation of the \var{integer}, and it updates the \var{reloc-value} field of the relocation's record with the \var{integer}.}
+
+\defnbdef  {procedure} {sassy-reloc-value} {sassy-reloc -> integer}
+{\verb{0}}
+{The value is the integer representation of the field's current value. It is automatically updated by the application of the relocation's patcher function. The third argument in a custom relocation is added to the value otherwise present.}
+
+\defnbdef  {procedure} {sassy-reloc-width} {sassy-reloc -> integer}
+{\verb{4}}
+{The width is the width, in bytes, of the relocation field. Currently, since Sassy only records dword-sized relocations, this value is always 4}.
+
+\sectionl{Additional procedures for \var{sassy-output}}
+
+The following are extra procedures for accessing \var{sassy-output}. They are external to the record-type definition of \var{sassy-output}.
+
+\defn {procedure} {sassy-data-list} {sassy-output -> list-of-bytes}
+\defnbdef {procedure} {sassy-text-list} {sassy-output -> list-of-bytes}
+{\verb{'()}}
+{Returns the actual \var{list-of-bytes} that comprise the exact contents of the text or data sections. The bytes are expressed as positive integers, and wherever appropriate, numerical arguments and data are in little-endian order.}
+
+\defn {procedure} {sassy-text-size} {sassy-output -> integer}
+\defnbdef {procedure} {sassy-data-size} {sassy-output -> integer}
+{\verb{0}}
+{The \var{integer} indicates the total size in bytes of the contents of the text or data sections.}
+
+\defnb {procedure} {sassy-symbol-exists?} {sassy-output symbol -> varies}
+{If \var{symbol} is present in \var{sassy-output}, its record (of type \var{sassy-symbol}) in the symbol table is returned. Otherwise \verb{#f} is returned.}
+
+
+\sectionl{\var{push-stacks}}
+
+Push-stacks are wrappers around Scheme lists that create stack-like
+objects that normally can only grow. They can not be popped (but their
+state may be saved and restored). Push-stacks are built for speed
+but BEWARE! Pushing a list onto a push-stack calls set-cdr! either
+on the stack or the list, so don't push quoted (literal) lists onto a
+push-stack or infinite loops may eventually occur!\footnote{I mention this
+because some Schemes are apparently lax about the mutation of parts
+of literal lists.}
+
+As well, mutating a list after it has been pushed on to a push-stack
+will mutate the stack as well. This is on purpose, since pushing onto
+a push-stack returns the pointer to the pushed item in the stack. By
+saving that pointer (a list) you can mutate the contents of a
+push-stack as fast as you can mutate a vector, even if the push-stack
+gets appended! to another.
+
+Sassy uses push-stacks for its sequence-type accumulators (the data section and text section) because they provide:
+
+\begin{itemize}
+\item linear time accumulation of items (like a vector)
+\item constant time access to the contents for mutation (like a vector)
+\item dynamic growth in size with basically zero overhead (unlike a vector)
+\item constant time splicing of sequences together (unlike a vector)
+\end{itemize}
+
+\defn {procedure} {make-pushdown-stack} {-> push-stack}
+\defnb {procedure} {make-pushup-stack} {-> push-stack}
+{These return an empty \var{push-stack}. \verb{Make-pushdown-stack}
+returns a \var{push-stack} that grows upwards. New items are added to
+its last tail. \verb{Make-pushup-stack} returns a \var{push-stack} that
+grows downwards. New items are added to its head.}
+
+\defn {procedure} {push-stack-empty?} {push-stack -> boolean}
+
+\defnb {procedure} {push-stack-push} {push-stack object -> pointer}
+{Pushes \var{object} on to the \var{push-stack}. The \var{object} may be
+anything except an improper list. If the \var{object} is a proper list,
+the list is spliced to the \var{push-stack's} head or last tail,
+depending on the growth direction of the \var{push-stack}. If the
+\var{object} is the empty-list, nothing is pushed. The \var{pointer}
+returned is the pair that contains the first item of \var{object} in the
+\var{push-stack}.}
+
+\defnb {procedure} {push-stack-pointer} {push-stack -> pointer}
+{The \var{pointer} is the pair that is the head or last tail of the
+\var{push-stack}, depending on the \var{push-stack's} direction.}
+
+\defnb {procedure} {push-stack-items} {push-stack -> list}
+{Returns the \var{list} of items in the \var{push-stack}.}
+
+\defnb {procedure} {push-stack-patch} {push-stack pointer object}
+{Replaces items in \var{push-stack} starting at \var{pointer} with
+\var{object}, which may be anything except an improper list. If
+\var{object} is a proper list, as many items are replaced as the number
+of items in the list, with items in the list. Otherwise, the
+\var{object} replaces one item.}
+
+\defnb {procedure} {push-stack-push->patcher} {push-stack object -> procedure}
+{Pushes \var{object} on to the \var{push-stack} and returns a
+\var{procedure} of one argument, that when applied, replaces the
+\var{object} in the \var{push-stack} with its argument. That is:
+\verb{
+(let ((ptr (push-stack-push push-stack object)))
+  (lambda (new-object)
+    (push-stack-patch push-stack ptr new-object)))
+}}
+
+\defnb {procedure} {push-stack-save} {push-stack -> thunk}
+{Encapsulates the state of \var{push-stack} in \var{thunk}. Applying
+\var{thunk} restores the \var{push-stack} to the saved state. After
+\var{thunk} is applied any pointers to objects pushed after a save and
+before the restore will no longer point in to the \var{push-stack}.}
+
+\defnb {procedure} {push-stack-direction} {push-stack -> direction}
+{Returns a symbol indicating the direction of growth of the
+\var{push-stack}. If \var{push-stack} was created by
+\verb{make-pushdown-stack}, then \verb{'up} is returned. Otherwise
+\verb{'down} is returned.}
+
+\defnb {procedure} {push-stack-size} {push-stack -> integer}
+{Returns the number of single items in \var{push-stack}.}
+
+\defnb {procedure} {push-stack-append!} {push-stack1 push-stack2}
+{Effectively appends! the contents of \var{push-stack2} to the last
+tail of \var{push-stack1}, regardless of the growth direction of each
+\var{push-stack}. It is an error to append! the same \var{push-stacks}
+more than once, in any order.}
+
+\defnb {procedure} {push-stack-align} {push-stack align fill [offset]}
+{Pushes \var{fill}, which may be anything except a pair, on to
+\var{push-stack} as many times as necessary such that the following is
+true:
+\verb{
+(zero? (modulo (push-stack-size push-stack) align))
+}
+If the optional \var{offset} is provided, than instead the following
+formula is used:
+\verb{
+(zero? (modulo (+ offset (push-stack-size push-stack)) align))
+}
+}
+
+
+\sectionl{Utilities}
+
+The following are useful for displaying information.
+
+\defnb {procedure} {sassy-hexdump} {list-of-bytes}
+{Displays the \var{list-of-bytes} in the ``canonical'' format, just as if
+using \verb{hexdump -C} on Unix. Useful for viewing the results
+returned by the procedures \verb{sassy-text-list} or \verb{sassy-data-list}.}
+
+\defn {procedure} {sassy-print-symbols} {sassy-output}
+\defnb{procedure} {sassy-print-relocs} {sassy-output}
+{These procedures display formatted listings of all the information for
+each symbol or relocation in \var{sassy-output}. If the value in a field
+is \verb{#f}, these procedures display the string \verb{``#<undefined>''}.}
+
+
+\chapterl{Output Modules}
+\tag{output module}{output module}
+
+This chapter describes the output modules included with Sassy.
+
+
+\sectionl{Flat Binaries}
+
+\defnb{procedure}{sassy-make-bin}{file sassy-output . opts}
+{Dumps the raw contents of the text section of \var{sassy-output}
+to \var{file} followed by the data section, if any. If there is no
+text section and only a data section, then the data section will be
+dumped.  If the \var{file} exists, it will be overwritten.
+\var{opts} is a set of zero, one or more of the following quoted
+symbols: 
+\begin{itemize}
+	\item \verb{'boot} 
+		Creates a flat binary with the text section first,
+		then the data section, then zero bytes until byte
+		510 at which \verb{aa55} is written. The resultant
+		size of the assembled binary will be exactly 512
+		bytes--the common size of a boot sector.
+
+	\item \verb{'stats}
+		Emits to stdout the size of the text segment in bytes,
+		the size of the data section in bytes, and the number
+		of bytes consumed by alignment requirements.
+\end{itemize}
+}
+
+\sectionl{ELF Output}
+
+\defnb{procedure}{sassy-make-elf}{file sassy-output}
+{Constructs a GNU/Linux x86 ELF object-file based on the contents
+of the \var{sassy-output} and writes it to \var{file}. If the \var{file} exists it will be overwritten.
+
+If you are creating an executable, you'll need to \scm{export} the symbol \verb{_start}, or use \scm{entry}.
+
+If you are writing shared libraries:
+\begin{itemize}
+\item You must write \scm{(export _global_offset_table_)}
+\item \scm{import} any labels in other libraries you want to use.
+\item To call or branch to a procedure in another library, instead of writing the label ``foo'', you write.
+\scm{
+(call (plt foo))
+(jmp (plt foo))
+}
+\item To access local data in your library, you use the following sequence to get the address of the data into a register via \scm{(lea ...)}. (in this example the address of foo is loaded into eax).:
+\scm{
+(begin get-got
+       (lea eax (& ebx (got-offset foo))))
+}
+The important thing is to load the global offset table into ebx via the \verb{get-got} macro, and use the \verb{(got-offset ...)} macro to load the data.
+
+\item To access data in another library, you do something slightly different to obtain its address. You load the GOT with \verb{get-got}, but instead you use the \verb{(got ...)} macro.
+\scm{
+(begin get-got
+       (mov eax (& ebx (got foo))))
+}
+\end{itemize}}
+
+\appendix
+\chapterl{Macro Expansions}
+\tag{appendix-a}{Appendix A}
+\subsectionl{Comparisons}
+
+\scm{
+(<  a b)  => (seq (cmp a b) l!)
+(<= a b)  => (seq (cmp a b) le!)
+(>  a b)  => (seq (cmp a b) g!)
+(>= a b)  => (seq (cmp a b) ge!)
+(=  a b)  => (seq (cmp a b) e!)
+(!= a b)  => (seq (cmp a b) ne!)
+(zero? a) => (seq (test a a) z!)
+}
+
+\subsectionl{More Control Primitives}
+
+Though these are described in \ref{the-text-section} as control ``primitives,'' they are actually macros.
+
+\scm{
+(alt a b ...) => (inv (seq (inv a)
+                           (inv b)
+                           ...))
+
+(times n e)   => (begin e e ...) ; There will be n e's
+
+(until test body) => (while (inv test) body)
+
+}
+
+\subsectionl{ELF helpers}
+
+\scm{
+_global_offset_table => _GLOBAL_OFFSET_TABLE_ ; an uppercase symbol
+
+get-got => (seq (call $eip)
+                (pop ebx)
+                (add ebx (reloc gotpc the-got 3))
+
+(got-offset symbol values ...) => (reloc gotoff symbol (! (+ 0 values ...)))
+(got symbol) => (reloc got32 symbol)
+(plt symbol) => (reloc plt32 symbol)
+(sym symbol) => (reloc sym32 symbol)
+}
+
+\tag{cps-macros}{here}
+\subsectionl{Explicit Continuation Versions}
+
+The following macros use only explicit continuations to express the
+semantics of the primitives \scm{seq}, \scm{if}, \scm{inv}, and
+\scm{begin}. They are included in the documentation for elucidation,
+but are not part of Sassy's core set of macros:
+
+\scm{
+(macro seq-k (lambda tests
+	       (cond ((null? tests) '$win)
+		     ((null? (cdr tests)) (car tests))
+		     (else `(with-win (seq-k ,@(cdr tests))
+			      ,(car tests))))))
+
+(macro inv-k (lambda (itm)
+	       `(with-win-lose $lose $win
+		  ,itm)))
+
+(macro if-k (lambda (test conseq altern)
+	      `(with-win-lose ,conseq ,altern
+		 ,test)))
+
+(macro begin-k (lambda body-tail
+		 (if (null? (cdr body-tail))
+		     (car body-tail)
+		     `(with-win (begin-k ,@(cdr body-tail))
+			(with-lose $win
+			  ,(car body-tail))))))
+}
+
+\chapter{GNU Free Documentation License}
+%\label{label_fdl}
+
+ \begin{center}
+
+       Version 1.2, November 2002
+
+
+ Copyright \copyright 2000,2001,2002  Free Software Foundation, Inc.
+ 
+ \bigskip
+ 
+     51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+  
+ \bigskip
+ 
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+\end{center}
+
+
+\begin{center}
+{\bf\large Preamble}
+\end{center}
+
+The purpose of this License is to make a manual, textbook, or other
+functional and useful document "free" in the sense of freedom: to
+assure everyone the effective freedom to copy and redistribute it,
+with or without modifying it, either commercially or noncommercially.
+Secondarily, this License preserves for the author and publisher a way
+to get credit for their work, while not being considered responsible
+for modifications made by others.
+
+This License is a kind of "copyleft", which means that derivative
+works of the document must themselves be free in the same sense.  It
+complements the GNU General Public License, which is a copyleft
+license designed for free software.
+
+We have designed this License in order to use it for manuals for free
+software, because free software needs free documentation: a free
+program should come with manuals providing the same freedoms that the
+software does.  But this License is not limited to software manuals;
+it can be used for any textual work, regardless of subject matter or
+whether it is published as a printed book.  We recommend this License
+principally for works whose purpose is instruction or reference.
+
+
+\begin{center}
+{\Large\bf 1. APPLICABILITY AND DEFINITIONS}
+\addcontentsline{toc}{section}{1. APPLICABILITY AND DEFINITIONS}
+\end{center}
+
+This License applies to any manual or other work, in any medium, that
+contains a notice placed by the copyright holder saying it can be
+distributed under the terms of this License.  Such a notice grants a
+world-wide, royalty-free license, unlimited in duration, to use that
+work under the conditions stated herein.  The \textbf{"Document"}, below,
+refers to any such manual or work.  Any member of the public is a
+licensee, and is addressed as \textbf{"you"}.  You accept the license if you
+copy, modify or distribute the work in a way requiring permission
+under copyright law.
+
+A \textbf{"Modified Version"} of the Document means any work containing the
+Document or a portion of it, either copied verbatim, or with
+modifications and/or translated into another language.
+
+A \textbf{"Secondary Section"} is a named appendix or a front-matter section of
+the Document that deals exclusively with the relationship of the
+publishers or authors of the Document to the Document's overall subject
+(or to related matters) and contains nothing that could fall directly
+within that overall subject.  (Thus, if the Document is in part a
+textbook of mathematics, a Secondary Section may not explain any
+mathematics.)  The relationship could be a matter of historical
+connection with the subject or with related matters, or of legal,
+commercial, philosophical, ethical or political position regarding
+them.
+
+The \textbf{"Invariant Sections"} are certain Secondary Sections whose titles
+are designated, as being those of Invariant Sections, in the notice
+that says that the Document is released under this License.  If a
+section does not fit the above definition of Secondary then it is not
+allowed to be designated as Invariant.  The Document may contain zero
+Invariant Sections.  If the Document does not identify any Invariant
+Sections then there are none.
+
+The \textbf{"Cover Texts"} are certain short passages of text that are listed,
+as Front-Cover Texts or Back-Cover Texts, in the notice that says that
+the Document is released under this License.  A Front-Cover Text may
+be at most 5 words, and a Back-Cover Text may be at most 25 words.
+
+A \textbf{"Transparent"} copy of the Document means a machine-readable copy,
+represented in a format whose specification is available to the
+general public, that is suitable for revising the document
+straightforwardly with generic text editors or (for images composed of
+pixels) generic paint programs or (for drawings) some widely available
+drawing editor, and that is suitable for input to text formatters or
+for automatic translation to a variety of formats suitable for input
+to text formatters.  A copy made in an otherwise Transparent file
+format whose markup, or absence of markup, has been arranged to thwart
+or discourage subsequent modification by readers is not Transparent.
+An image format is not Transparent if used for any substantial amount
+of text.  A copy that is not "Transparent" is called \textbf{"Opaque"}.
+
+Examples of suitable formats for Transparent copies include plain
+ASCII without markup, Texinfo input format, LaTeX input format, SGML
+or XML using a publicly available DTD, and standard-conforming simple
+HTML, PostScript or PDF designed for human modification.  Examples of
+transparent image formats include PNG, XCF and JPG.  Opaque formats
+include proprietary formats that can be read and edited only by
+proprietary word processors, SGML or XML for which the DTD and/or
+processing tools are not generally available, and the
+machine-generated HTML, PostScript or PDF produced by some word
+processors for output purposes only.
+
+The \textbf{"Title Page"} means, for a printed book, the title page itself,
+plus such following pages as are needed to hold, legibly, the material
+this License requires to appear in the title page.  For works in
+formats which do not have any title page as such, "Title Page" means
+the text near the most prominent appearance of the work's title,
+preceding the beginning of the body of the text.
+
+A section \textbf{"Entitled XYZ"} means a named subunit of the Document whose
+title either is precisely XYZ or contains XYZ in parentheses following
+text that translates XYZ in another language.  (Here XYZ stands for a
+specific section name mentioned below, such as \textbf{"Acknowledgements"},
+\textbf{"Dedications"}, \textbf{"Endorsements"}, or \textbf{"History"}.)  
+To \textbf{"Preserve the Title"}
+of such a section when you modify the Document means that it remains a
+section "Entitled XYZ" according to this definition.
+
+The Document may include Warranty Disclaimers next to the notice which
+states that this License applies to the Document.  These Warranty
+Disclaimers are considered to be included by reference in this
+License, but only as regards disclaiming warranties: any other
+implication that these Warranty Disclaimers may have is void and has
+no effect on the meaning of this License.
+
+
+\begin{center}
+{\Large\bf 2. VERBATIM COPYING}
+\addcontentsline{toc}{section}{2. VERBATIM COPYING}
+\end{center}
+
+You may copy and distribute the Document in any medium, either
+commercially or noncommercially, provided that this License, the
+copyright notices, and the license notice saying this License applies
+to the Document are reproduced in all copies, and that you add no other
+conditions whatsoever to those of this License.  You may not use
+technical measures to obstruct or control the reading or further
+copying of the copies you make or distribute.  However, you may accept
+compensation in exchange for copies.  If you distribute a large enough
+number of copies you must also follow the conditions in section 3.
+
+You may also lend copies, under the same conditions stated above, and
+you may publicly display copies.
+
+
+\begin{center}
+{\Large\bf 3. COPYING IN QUANTITY}
+\addcontentsline{toc}{section}{3. COPYING IN QUANTITY}
+\end{center}
+
+
+If you publish printed copies (or copies in media that commonly have
+printed covers) of the Document, numbering more than 100, and the
+Document's license notice requires Cover Texts, you must enclose the
+copies in covers that carry, clearly and legibly, all these Cover
+Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on
+the back cover.  Both covers must also clearly and legibly identify
+you as the publisher of these copies.  The front cover must present
+the full title with all words of the title equally prominent and
+visible.  You may add other material on the covers in addition.
+Copying with changes limited to the covers, as long as they preserve
+the title of the Document and satisfy these conditions, can be treated
+as verbatim copying in other respects.
+
+If the required texts for either cover are too voluminous to fit
+legibly, you should put the first ones listed (as many as fit
+reasonably) on the actual cover, and continue the rest onto adjacent
+pages.
+
+If you publish or distribute Opaque copies of the Document numbering
+more than 100, you must either include a machine-readable Transparent
+copy along with each Opaque copy, or state in or with each Opaque copy
+a computer-network location from which the general network-using
+public has access to download using public-standard network protocols
+a complete Transparent copy of the Document, free of added material.
+If you use the latter option, you must take reasonably prudent steps,
+when you begin distribution of Opaque copies in quantity, to ensure
+that this Transparent copy will remain thus accessible at the stated
+location until at least one year after the last time you distribute an
+Opaque copy (directly or through your agents or retailers) of that
+edition to the public.
+
+It is requested, but not required, that you contact the authors of the
+Document well before redistributing any large number of copies, to give
+them a chance to provide you with an updated version of the Document.
+
+
+\begin{center}
+{\Large\bf 4. MODIFICATIONS}
+\addcontentsline{toc}{section}{4. MODIFICATIONS}
+\end{center}
+
+You may copy and distribute a Modified Version of the Document under
+the conditions of sections 2 and 3 above, provided that you release
+the Modified Version under precisely this License, with the Modified
+Version filling the role of the Document, thus licensing distribution
+and modification of the Modified Version to whoever possesses a copy
+of it.  In addition, you must do these things in the Modified Version:
+
+\begin{itemize}
+\item[A.] 
+   Use in the Title Page (and on the covers, if any) a title distinct
+   from that of the Document, and from those of previous versions
+   (which should, if there were any, be listed in the History section
+   of the Document).  You may use the same title as a previous version
+   if the original publisher of that version gives permission.
+   
+\item[B.]
+   List on the Title Page, as authors, one or more persons or entities
+   responsible for authorship of the modifications in the Modified
+   Version, together with at least five of the principal authors of the
+   Document (all of its principal authors, if it has fewer than five),
+   unless they release you from this requirement.
+   
+\item[C.]
+   State on the Title page the name of the publisher of the
+   Modified Version, as the publisher.
+   
+\item[D.]
+   Preserve all the copyright notices of the Document.
+   
+\item[E.]
+   Add an appropriate copyright notice for your modifications
+   adjacent to the other copyright notices.
+   
+\item[F.]
+   Include, immediately after the copyright notices, a license notice
+   giving the public permission to use the Modified Version under the
+   terms of this License, in the form shown in the Addendum below.
+   
+\item[G.]
+   Preserve in that license notice the full lists of Invariant Sections
+   and required Cover Texts given in the Document's license notice.
+   
+\item[H.]
+   Include an unaltered copy of this License.
+   
+\item[I.]
+   Preserve the section Entitled "History", Preserve its Title, and add
+   to it an item stating at least the title, year, new authors, and
+   publisher of the Modified Version as given on the Title Page.  If
+   there is no section Entitled "History" in the Document, create one
+   stating the title, year, authors, and publisher of the Document as
+   given on its Title Page, then add an item describing the Modified
+   Version as stated in the previous sentence.
+   
+\item[J.]
+   Preserve the network location, if any, given in the Document for
+   public access to a Transparent copy of the Document, and likewise
+   the network locations given in the Document for previous versions
+   it was based on.  These may be placed in the "History" section.
+   You may omit a network location for a work that was published at
+   least four years before the Document itself, or if the original
+   publisher of the version it refers to gives permission.
+   
+\item[K.]
+   For any section Entitled "Acknowledgements" or "Dedications",
+   Preserve the Title of the section, and preserve in the section all
+   the substance and tone of each of the contributor acknowledgements
+   and/or dedications given therein.
+   
+\item[L.]
+   Preserve all the Invariant Sections of the Document,
+   unaltered in their text and in their titles.  Section numbers
+   or the equivalent are not considered part of the section titles.
+   
+\item[M.]
+   Delete any section Entitled "Endorsements".  Such a section
+   may not be included in the Modified Version.
+   
+\item[N.]
+   Do not retitle any existing section to be Entitled "Endorsements"
+   or to conflict in title with any Invariant Section.
+   
+\item[O.]
+   Preserve any Warranty Disclaimers.
+\end{itemize}
+
+If the Modified Version includes new front-matter sections or
+appendices that qualify as Secondary Sections and contain no material
+copied from the Document, you may at your option designate some or all
+of these sections as invariant.  To do this, add their titles to the
+list of Invariant Sections in the Modified Version's license notice.
+These titles must be distinct from any other section titles.
+
+You may add a section Entitled "Endorsements", provided it contains
+nothing but endorsements of your Modified Version by various
+parties--for example, statements of peer review or that the text has
+been approved by an organization as the authoritative definition of a
+standard.
+
+You may add a passage of up to five words as a Front-Cover Text, and a
+passage of up to 25 words as a Back-Cover Text, to the end of the list
+of Cover Texts in the Modified Version.  Only one passage of
+Front-Cover Text and one of Back-Cover Text may be added by (or
+through arrangements made by) any one entity.  If the Document already
+includes a cover text for the same cover, previously added by you or
+by arrangement made by the same entity you are acting on behalf of,
+you may not add another; but you may replace the old one, on explicit
+permission from the previous publisher that added the old one.
+
+The author(s) and publisher(s) of the Document do not by this License
+give permission to use their names for publicity for or to assert or
+imply endorsement of any Modified Version.
+
+
+\begin{center}
+{\Large\bf 5. COMBINING DOCUMENTS}
+\addcontentsline{toc}{section}{5. COMBINING DOCUMENTS}
+\end{center}
+
+
+You may combine the Document with other documents released under this
+License, under the terms defined in section 4 above for modified
+versions, provided that you include in the combination all of the
+Invariant Sections of all of the original documents, unmodified, and
+list them all as Invariant Sections of your combined work in its
+license notice, and that you preserve all their Warranty Disclaimers.
+
+The combined work need only contain one copy of this License, and
+multiple identical Invariant Sections may be replaced with a single
+copy.  If there are multiple Invariant Sections with the same name but
+different contents, make the title of each such section unique by
+adding at the end of it, in parentheses, the name of the original
+author or publisher of that section if known, or else a unique number.
+Make the same adjustment to the section titles in the list of
+Invariant Sections in the license notice of the combined work.
+
+In the combination, you must combine any sections Entitled "History"
+in the various original documents, forming one section Entitled
+"History"; likewise combine any sections Entitled "Acknowledgements",
+and any sections Entitled "Dedications".  You must delete all sections
+Entitled "Endorsements".
+
+\begin{center}
+{\Large\bf 6. COLLECTIONS OF DOCUMENTS}
+\addcontentsline{toc}{section}{6. COLLECTIONS OF DOCUMENTS}
+\end{center}
+
+You may make a collection consisting of the Document and other documents
+released under this License, and replace the individual copies of this
+License in the various documents with a single copy that is included in
+the collection, provided that you follow the rules of this License for
+verbatim copying of each of the documents in all other respects.
+
+You may extract a single document from such a collection, and distribute
+it individually under this License, provided you insert a copy of this
+License into the extracted document, and follow this License in all
+other respects regarding verbatim copying of that document.
+
+
+\begin{center}
+{\Large\bf 7. AGGREGATION WITH INDEPENDENT WORKS}
+\addcontentsline{toc}{section}{7. AGGREGATION WITH INDEPENDENT WORKS}
+\end{center}
+
+
+A compilation of the Document or its derivatives with other separate
+and independent documents or works, in or on a volume of a storage or
+distribution medium, is called an "aggregate" if the copyright
+resulting from the compilation is not used to limit the legal rights
+of the compilation's users beyond what the individual works permit.
+When the Document is included in an aggregate, this License does not
+apply to the other works in the aggregate which are not themselves
+derivative works of the Document.
+
+If the Cover Text requirement of section 3 is applicable to these
+copies of the Document, then if the Document is less than one half of
+the entire aggregate, the Document's Cover Texts may be placed on
+covers that bracket the Document within the aggregate, or the
+electronic equivalent of covers if the Document is in electronic form.
+Otherwise they must appear on printed covers that bracket the whole
+aggregate.
+
+
+\begin{center}
+{\Large\bf 8. TRANSLATION}
+\addcontentsline{toc}{section}{8. TRANSLATION}
+\end{center}
+
+
+Translation is considered a kind of modification, so you may
+distribute translations of the Document under the terms of section 4.
+Replacing Invariant Sections with translations requires special
+permission from their copyright holders, but you may include
+translations of some or all Invariant Sections in addition to the
+original versions of these Invariant Sections.  You may include a
+translation of this License, and all the license notices in the
+Document, and any Warranty Disclaimers, provided that you also include
+the original English version of this License and the original versions
+of those notices and disclaimers.  In case of a disagreement between
+the translation and the original version of this License or a notice
+or disclaimer, the original version will prevail.
+
+If a section in the Document is Entitled "Acknowledgements",
+"Dedications", or "History", the requirement (section 4) to Preserve
+its Title (section 1) will typically require changing the actual
+title.
+
+
+\begin{center}
+{\Large\bf 9. TERMINATION}
+\addcontentsline{toc}{section}{9. TERMINATION}
+\end{center}
+
+
+You may not copy, modify, sublicense, or distribute the Document except
+as expressly provided for under this License.  Any other attempt to
+copy, modify, sublicense or distribute the Document is void, and will
+automatically terminate your rights under this License.  However,
+parties who have received copies, or rights, from you under this
+License will not have their licenses terminated so long as such
+parties remain in full compliance.
+
+
+\begin{center}
+{\Large\bf 10. FUTURE REVISIONS OF THIS LICENSE}
+\addcontentsline{toc}{section}{10. FUTURE REVISIONS OF THIS LICENSE}
+\end{center}
+
+
+The Free Software Foundation may publish new, revised versions
+of the GNU Free Documentation License from time to time.  Such new
+versions will be similar in spirit to the present version, but may
+differ in detail to address new problems or concerns.  See
+http://www.gnu.org/copyleft/.
+
+Each version of the License is given a distinguishing version number.
+If the Document specifies that a particular numbered version of this
+License "or any later version" applies to it, you have the option of
+following the terms and conditions either of that specified version or
+of any later version that has been published (not as a draft) by the
+Free Software Foundation.  If the Document does not specify a version
+number of this License, you may choose any version ever published (not
+as a draft) by the Free Software Foundation.
+
+\chapter{Extended Sassy Examples}
+
+\begin{center}
+{\Large\bf 16-bit x86 boot sector}
+\addcontentsline{toc}{section}{1. 16-bit x86 boot sector}
+\end{center}
+
+This very simple assembly file is placed as the boot sector of a hard disk
+and chainloads the next two sectors off the disk to a special location and
+jumps there. This code could be in a file named \verb{stage1.sassy}.
+
+\scm{
+
+;; stage1        ;; the boot sector chainloader codebase
+;; Written by Peter Keller (psilord@cs.wisc.edu) 03/06/2006
+;; Usual BSD license text...
+
+;; Simply chainload the next few sectors and jump to 0000:0800.
+
+;; I'm assembling it for address 0000:0600, but the bios loads it into
+;; 0000:7c00. However, after the mov of the code to the right place, 
+;; the string addresses and jmp relations will be correct.
+
+;; All addresses in 16 bit mode will be in relation to segment 0.
+(macro STACK_LOC #xffbf)    ;; THe stack we set up for ourselves
+(macro BIOS_LOAD #x7c00)    ;; Location bootloader loads first sector of disk
+(macro CRAWL_SPACE #x0600)    ;; where we move ourselves when chainloading
+(macro CHAINLOAD_ADDR #x0800) ;; where we load the real OS boot sector and jmp
+(macro SECTOR_LOAD_RETRY #x5) ;; how many times we attempt to load the OS.
+
+(org CRAWL_SPACE) ;; notice this is NOT the BIOS_LOAD addr, we move ourselves...
+
+(bits 16) 
+
+(data
+    (label err_load_msg     
+        (asciiz "Error chainloading bootloader...Halting!\n\r")))
+
+(text
+    ;; DX contains booting drive via BIOS (hopefully)
+
+    (cli)                ;; no interrupts!
+    (cld)                ;; increment string operations
+
+    (xor ax ax)            ;; set up segments for 0000
+    (mov ss ax)
+    (mov es ax)
+    (mov ds ax)
+
+    (mov sp STACK_LOC)        ;; set stack
+
+    (mov si BIOS_LOAD)        ;; copy myself
+    (mov cx #x100)            ;; all 512 bytes (in 16-bit word chunks)
+    (mov di CRAWL_SPACE)    ;; to 0000:0600
+    (rep (movsw))            ;; right now...
+
+    (jmp #x0 moved_location)        ;; ...and jump there 
+    (nop)
+
+(label moved_location)
+    (xor ax ax)
+    (mov es ax)
+    (mov ds ax)
+    (mov fs ax)
+    (mov gs ax)
+
+    ;; load the next few sectors into 0000:0800 and jmp there
+    ;; XXX How many 512 byte sectors? Let's say two...
+
+    ;; DX is set to the booting drive, and we haven't touched it yet.
+
+    ;; try and chainload the bootloader program
+
+    (mov di SECTOR_LOAD_RETRY)    ;; try loading sectors 5 times only
+
+(label retry_chainload)
+    (mov bx CHAINLOAD_ADDR)    ;; write disk info to (es)0000:0800
+
+    (mov ch #x0)            ;; start at track 0
+    (mov cl #x2)            ;; start at sector 2 (instead of sector 1)
+                            ;; note the first sector on a disk is sector 1
+                            ;; not sector zero as one would assume....
+
+    (mov ah #x02)            ;; bios read function
+    (mov al #x02)            ;; number of sectors to read  (1024 bytes)
+
+    (push di)
+    (int #x13)                ;; read some disk sectors specified in al
+    (pop di)
+
+    (jnc chainloaded)        ;; loaded the sectors, so done
+
+    (xor ax ax)                ;; reset disk, DX is still the same
+    (int #x13)
+
+    (dec di)                ;; try again
+    (jnz retry_chainload)
+
+(label disk_error)
+    (mov si err_load_msg)    ;; spew failure message.
+    (call msg_loop)
+
+    ;; End game if we failed.
+(label halt)
+    (jmp halt)
+
+(label chainloaded)
+    ;; sanity check the loaded stage2 to see if valid?
+    ;; XXX implement later.
+
+(label chain_trampoline)
+    ;; make the registers look like how they did for me at 0x7c00 for the
+    ;; bootloader program.
+    (xor ax ax)
+    (mov es ax)
+    (mov ds ax)
+    (mov fs ax)
+    (mov gs ax)
+    (mov cx ax)
+    (mov bx ax)
+    (mov si ax)
+    (mov sp ax)
+    (mov di ax)
+    ;; leave dx alone as that contains the booting drive
+    (jmp #x0 CHAINLOAD_ADDR)        ;; jump to loaded code    
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; utility functions
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ;;;;;;
+    ;; BIOS utility routine to print out a message in ds:si
+    ;;;;;;
+(label msg_loop)
+    (push bx)
+    (push ax)
+    (push di)
+(label another_char)
+    (lodsb)            ;; gets a char from ds:si and puts into al
+    (or al al)        ;; if nul, then done
+    (jz return)
+    (mov ah #x0e)    ;; write 'char' teletype mode
+    (mov bx #x0007)    ;; page 0 in bh, attribute 07 in bl
+    (int #x10)        ;; emit character
+    (jmp another_char)
+(label return)
+    (pop di)
+    (pop ax)
+    (pop bx)
+    (ret))
+}
+
+Once the above file is in \verb{stage1.sassy}, you need to have some scheme
+code to assemble it using sassy. Such code could look live in a file called
+\verb{boot.scm} and look like this:
+
+\scm{
+(define (assemble)
+
+    (display "------------------------\n")
+    (display "| Boot Sector (stage1) |\n")
+    (display "------------------------\n")
+    (sassy-make-bin
+        "stage1"
+        (sassy "stage1.sassy")
+        'boot 'stats))
+}
+
+\chapter{News}
+
+\verb{
+New in Version 0.2
+==================
+
+* 16 bit support using 32-bit addressing syntax
+
+* New form: Local labels support/declarations
+  (locals (<label-name> ...) <item> ...)
+
+* Syntax change: all label definitions are now written
+  (label <name> <item> ...)
+
+* Syntax change: For consistency, the "direcs" directive has been
+  replaced by "begin". "begin" is now usable in data and heap
+  directives.
+
+* Support for Guile 1.8
+
+* Support for Scheme48 module interfaces
+
+* sassy-mode minor Emacs mode (sassy.el)
+
+* Segment Override prefixes and branch hinting prefixes
+
+* Better handling of default operand sizes, optimizing generated code
+  sequences for size.
+
+* New version of sassy-make-bin (includes a data section now)
+
+* Fixes for with-win with-lose with-win-lose, so that writing assembly
+  in a, umm, "natural" cps style is possible.
+
+* Numerous bug fixes, clean-ups, and more error checks.
+  See files ChangeLog and CHANGES-old for details.
+}
+
+
+
+
+\printindex
+
+
+\end{document}
+
+
+
+

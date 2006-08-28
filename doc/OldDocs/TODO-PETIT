@@ -1,0 +1,148 @@
+$Id$
+
+TODO / IN PROGRESS
+28 July 2003 / lth
+
+Petit Larceny on Sparc/Solaris and other big-endian Unix:
+ - have defined Util/unix-be.sch and Util/nbuild-param-C-be-unix.sch
+ - can load compiler
+ - can compile heap image
+ - can compile and link RTS
+ - RTS loads and runs in heap image
+ - above process is portable (enough)
+ - can rebuild itself in the interpreter
+ - Must fix: Rts/Makefile is a mess because it has too many things 
+   in it that need configuring by hand; it is not nearly portable.  
+   Much can be done by requiring some non-basic Make system 
+   (GNU Make, say) but then Win32 may suffer?  Am working on using
+   Larceny for this, see Rts/makefile.sch.
+ - Must do: build and test twobit
+ - Must do: can we fix dynamic loading of compiled twobit?
+
+Petit Larceny on x86 Linux:
+ - Must test this (little endian)
+
+Compatibility packages:
+  Must add call-with-binary-input-file and call-with-binary-output-file
+  to the compatibility packages?  These are now used by the twobit
+  drivers and the heap dumper.  (Do we even care about building under
+  other systems any more?)
+
+  Must clean up dumpheap-unix.sch so that it is usable; the rest of the
+  system may have diverged (again).  (Works OK on MacOS X and Solaris!)
+
+Primitives:
+  - Some primitives (in the 500 series) must be implemented
+
+Peephole optimization:
+  - Optimizations have been implemented, not enabled by default
+  - Must test the peephole optimizations.  Almost all have been tested already,
+    see testpeep.sch in this directory.
+  - Must recompile everything with peephole optimization enabled
+  - Some test cases it should get right but does not:
+       (lambda (v) (vector-ref v 10))
+       (lambda (v n) (vector-ref v n))
+    In the first case it does not generate code that the peephole optimizer
+    is able to match on (because the peephole optimizer does not match well
+    on constant indices, because the optimizer removes half of the pattern).
+    In the second case the optimizer matches but there are still five
+    instructions generated, and a lot of access to the register file, which
+    is not all that good, certainly not on RISC systems where all operands
+    could be loaded once.
+  - Another case it should get right:
+        op2         <:fix:fix,3
+        branchf     1005,5
+    It's sort of stupid to optimize the comparison and then have to generate
+    and test a boolean.
+
+Loading compiled code:
+  Dynamic loading of objects so that we can compile to FASL without
+  having to rebuild the executable:
+
+	> (compile-files '("fib.sch") "fib.fasl") ; in Util/win32.sch
+	> (load "fib.fasl")                       ; loads the dll too!
+	> (fib 10)
+	55
+
+  The basic architecture is to compile a *group* of files into FASL, but
+  their code will be dumped into a single shared object.
+
+  The code basically works -- the DLL can be loaded, the code can be run.
+
+  To fix:
+  - Must try to build the development environment as FASL.
+
+    This sort of works now, except that:
+     - The resulting .c file is 6MB and compilation with optimization
+       enabled never completes (CodeWarrior)
+     - Incremental recompilation is not possible because of the *one*
+       .c file; there is nothing to be incremental about
+     - Compiling without optimization works but linking to a dll fails
+       on Win32 because the code is missing _memset and __stack_alloc; 
+       the former is obvious but the latter may be some sort of MWC rts thing?
+
+    A better solution is to generate separate .c and .obj files but then
+    link them all into a dll.  This should not be a problem.
+
+  - Compile-files must probably always recompile all files, not check
+    if the obj or c file exists, as it does now
+  - Debug info: I'm working on getting debug info into the dll (experimenting
+    with -g to mwcc and mwld, have not tested.)
+
+Other performance:
+  - Inline allocation for CONS and peepholed MAKE-VECTOR, at least.
+  - Consider further peephole optimizations
+      
+Cleanup:
+  - *Maybe* move compile-files into standard driver code?
+  - Compile-file should be an alias for compile-files with just one
+    input file
+  - Compile-files could default the output name to the first name
+    in the input list
+
+
+Bugs to fix:
+  - One bug report about heap loader from Brown U?
+
+Test cases to add to test suite:
+  - Bignum bug: This would result in a division by zero error:
+     (/ 0 4217293152016490)
+  - Bignum bug: This used to return an illegal ratnum (both numerator
+    and denominator were negative):
+       (/ -123234566789000009 -1234512345000)
+  - Bignum bug: This would return the wrong sign (should be positive):
+      (remainder 3303030303030 -12345566789012)
+  - Number bug: expt 0 anything returns 1, but should not, here are tests
+    and desired results:
+      (expt 0 0) => 1
+      (expt 0 2) => 0
+  - Petit arithmetic bug:
+      (+ (sqrt -3.9) 2) => 2.0+1.9748417658131499i
+    but would previously return 2.0 only
+  - This signals a compiler error in some cases:
+(compile 
+  '(define (read-sharp-thingie port)
+    ;; ASSERT: peek-char is #\#
+    (consume-char port)
+    (let ( (next (peek-char port)) )
+      (case next
+        (( #\t #\f #\T #\F ) (make-boolean port))
+        (( #\e #\i #\o #\b #\d #\x #\E #\I #\O #\B #\D #\X )
+         (read-number-loop '(#\#) port))
+        (( #\\ ) (read-character port))
+        (( #\( ) (read-vector    port))
+        (( #\' ) (read-sharp-sym port))
+        (else (error "Unknown sharp syntax" next)))
+  ) )
+)
+
+
+PORTABILITY TODO
+
+Apparently the MacOS X system header files define BIG_ENDIAN, so we
+might use a different name for Larceny for this macro.
+
+
+PERFORMANCE TODO
+
+Can use first-class labels under Gnu C, this should be a big win.

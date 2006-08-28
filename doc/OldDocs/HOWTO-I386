@@ -1,0 +1,427 @@
+Information about native Larceny on Intel 386-class systems
+12 December 2004 / lth
+
+
+INTRODUCTION.
+
+There is a version Petit Larceny that generates output for the x86
+macro-assembler "NASM".  It represents a middle point between Petit
+Larceny and native Larceny -- native code generation, with all its
+advantages, but using the host operating system's loader and a lot of
+the Petit Larceny infrastructure.
+
+Obviously you need to have NASM installed on your system.  It is free
+and can be downloaded from http://sourceforge.net/projects/nasm.
+
+At the present time the system appears to work and the system is as
+functional as Petit Larceny, but it feels brittle -- it is easy to run
+into bugs.
+
+Notably, dynamic loading of compiled code works, and though I've not
+tested on Win32, dynamic loading should work there as well because
+alignment is taken care of in the assembler.
+
+
+HOW TO BUILD AND USE.
+
+See HOWTO-BUILD and HOWTO-PETIT for general information about how to
+use the build system.  Rather than loading Util/petit-whatever.sch you
+load one of these base files:
+
+    Util/nasm-unix.sch
+    Util/nasm-win32.sch     (does not yet exist :-)
+
+The system works like Petit Larceny except that it generates source
+files in assembly language (to be processed by the NASM assembler)
+rather than source files in C.
+
+There is no technical documentation for this port, but the source files
+are in Asm/Intel/ and Rts/Intel/.
+
+
+BUGS.
+
+ * There is a bug in i386-instr.asm: the inline allocation code calls
+   MORECORE, but MORECORE does not reserve any particular amount of
+   space, and if the collector does not reclaim any memory then the
+   system gets into a steady state and we loop forever.  The inline
+   allocation code must instead call ALLOC, never MORECORE.
+
+ * A crash during GC was seen some time following a ^C, which could
+   indicate that kbd interrupts are not handled properly, but this has
+   not been reproduced since.
+
+
+TODO.
+
+ - fix bugs
+ - more extensive peephole optimization (many more)
+ - minor issues with performance, code size
+ - test, test, test
+ - Would be nice to reuse as much of Asm/Standard-C/dumpheap-* as
+   possible, there is substantial overlap both for -unix and -overrides.
+
+
+OTHER NOTES AND IDEAS.
+
+ - NASM can generate .bin format files, ie, raw code.  We can use this
+   to create a system with on-line compilation: just dump the code to
+   an asm file in /tmp, assemble it to a .bin, and slurp the object
+   code into a code vector in the heap.  There should be very little
+   extra work involved in getting this done, once the rest works.  
+
+   There is a subtle snag with this approach: code vectors in the heap
+   are bytevector pointers but code vectors in the executable look
+   like fixnums.  Different calling sequences are used for the two.
+   Thus it is unlikely that we can build a system containing both
+   kinds of code.
+
+ - The GNU assembler (gas) cannot create a .bin directly, but ld can
+   (using --oformat=binary), so the same trick applies there.
+
+
+PERFORMANCE.
+
+Five aspects:
+
+  - Configuring Twobit to fit the x86.  I've done this a little by
+    setting the number of hardware registers to 16 (means most generic
+    code will use short instructions to fetch "hardware" registers
+    located in the sw register file); unclear if much more can be
+    done.
+
+  - Configuring the RTS.  I've rearranged the globals array some to
+    allow many references to use short instructions.
+
+  - Peephole optimization, notably of boolean evaluation for control
+    and the CHECK operations: need to port the optimizations from the
+    other back-ends.
+
+  - Code quality in the primitives.  See section below.
+
+  - Millicode calls.  See section below.
+
+Should compile with profiling, to see if much time is being spent in
+the RTS/millicode, and if so where.
+
+Should change the assembler to emit debug info that the profiler can
+use, at which point we can profile the entire system!  (NASM loses
+here -- it can't handle debug information.)
+
+One ad-hoc benchmark is the time it takes to load the compiler from
+the interpreter (this should not vary much):
+
+Petit Larceny 0.51
+  Elapsed time...: 14616 ms (User: 14420 ms; System: 40 ms)
+
+Larceny 0.53, with all millicode in C
+  Elapsed time...: 10158 ms (User: 9970 ms; System: 30 ms)
+
+Larceny 0.53, with a fast pointer check in assembler
+  Elapsed time...: 9920 ms (User: 9690 ms; System: 60 ms)
+
+Larceny 0.53, with pointer check and faster code for alloc (but not alloci)
+  Elapsed time...: 9821 ms (User: 9630 ms; System: 50 ms)
+
+Larceny 0.53, as above but with alloci optimized too
+  Elapsed time...: 9805 ms (User: 9590 ms; System: 30 ms)
+
+Larceny 0.53, as above but with the entire barrier in assembler
+  Elapsed time...: 9619 ms (User: 9350 ms; System: 50 ms)
+
+Larceny 0.53, as above but with a lot of bumming the code for size
+  Elapsed time...: 9429 ms (User: 8520 ms; System: 0 ms)
+
+
+CODE QUALITY.
+
+I've spent a fair amount of time bumming the code for size (see
+section below both for what's been done and remaining ideas); this
+seems to improve performance too.
+
+The Intel manuals stress the importance of being nice to the CPU by
+generating straight-line code and getting static branch prediction
+right.  (Eg, backward branch is predicted as taken, forward predicted
+as not taken, many details.  The current code does it the other way
+around, with a lot of skipping over error handlers or skipping
+backward to error handlers.  This minimizes code size, which is why it
+is the way it is.)  Also, several short instructions may be preferable
+to one long one, for the sake of the decoder.
+
+May also be able to use the conditional move instruction on 586-class
+systems (even better if it were introduced on 486, I haven't checked)
+to reduce branches, but it requires some reworking, and with proper
+peephole optimization the issue is less important.
+
+Look for OPTIMIZEMEs in Rts/Intel/i386-instr.asm.
+
+
+MILLICODE CALLS.
+
+Programs that do a lot of traps to millicode will likely be slower
+than they used to be, because there is more state to save and a more
+costly call protocol (one indirect and one direct jump, rather than
+just one direct jump).  The operations most likely to suffer adversely
+are allocation, the write barrier, and generic arithmetic.  Of these,
+the interpreter heavily relies on allocation and assignment; these
+have been fixed by creating fast paths in the assembler millicode, and
+it helps a little, see below.
+
+
+
+CODE SIZE.
+
+Information about static instruction frequency in Lib/Common is
+attached to the end of this file.
+
+There are a number of OPTIMIZEMEs in the instruction macros, to
+be handled.
+
+Peephole optimization must be more generally implemented.
+
+Here are some further ideas:
+
+ - Bumming: NASM does *not* optimize short forward conditional
+   branches properly; insert a 'short' qualifier when the target is
+   known to be short, and weep when it is not.  I've covered all the
+   macros, but generated branches suffer.  (If we use -O2 it optimizes
+   them just fine on small examples, but NASM falls to pieces on
+   larger files: optimizing memstats.asm at -O2 generates bogus
+   errors.)
+
+ - Bumming: Put most-used millicode procs at negative offsets from
+   GLOBALS, so that short offsets are generated in calling them!
+   Right now the millicode call to do generic arithmetic is 7 bytes,
+   but it need only be 4.  Certainly common exception offsets must be
+   near, and the barrier.  As many as possible!
+
+ - Bumming: Rather than generating short constants with MOV it may be
+   smaller to generate them with either "clear; load low" or "load
+   low; extend".  I've done a little (the const2regf macro) but more
+   would be nice.  Further improvement will only be possible space if
+   the target register is EAX.  We probably need to have RESULT=EAX
+   for it to pay off much.
+
+ - Bumming: CMP r, 0 could be made into AND r,r in some cases, mostly
+   in the fixnum primitives.  This saves one byte.
+
+ - Bumming: It is possible that mapping GLOBALS to ESP is wrong
+   because all loading via GLOBALS will generate an instruction of the
+   form
+       MOV R/M SIB offs
+   ie 4 bytes loading from short offsets and 7 loading from longer
+   offsets.  This is a problem with ESP, using any other register
+   would reduce the instruction size to 3 and 6 (the SIB goes away).
+
+   It *may* make sense to make millicode calls larger instead.  We
+   can measure the tradeoff.  If we map CONT to ESP then we'd have
+               mov [GLOBALS+CONT], CONT
+               mov CONT, GLOBALS
+               call [CONT+X]
+   where millicode would need to clean up CONT and not return by
+   means of RET but by jumping to the correct address.  
+
+   For this to pay off, access to globals would need to be much more
+   frequent on the average than millicode calls.  This is dubious.
+
+
+SIZE OPTIMIZATIONS IMPLEMENTED.
+
+ - Bumming: The code in the instruction macros has been bummed
+   substantially, bringing the generated size down from about 1700000
+   to about 1525000.
+
+ - Tuning: set *nhwregs* to 16 rather than 32 to reduce the number of
+   accesses to REG31, which is outside the 'short offset' range for a
+   MOV instruction.  Saved 50KB, getting us to 1475000.
+
+ - Peephole-optimize SAVE+STORE into SAVE0+SAVE1+STORE, saved 12KB, down
+   to 1463500, and appears to give a nice performance boost (0.2s) on
+   the load test.
+
+ - Peephole-optimize GLOBAL+INVOKE saves 7.5KB, down to 1456000 and
+   gives another 0.2s on the load test.  (Some of this may later have been
+   lost because a bug fix introduced another instruction into that code.)
+
+ - Bumming T_INVOKE to have only one trap (shared for tag test and timer
+   expiration) saves 38KB, down to 1418500.  Bumming it to avoid recomputing
+   some pointers speeds it up substantially (0.4s on the load test!) and
+   brings the size down another 16KB, to 1402500.
+
+ - Peephole-optimize jump-to-next-instruction and REG/SETREG brings it
+   down to 1386500 -- another 16KB.
+
+ - Peephole optimize 
+        SETREG k; REG k
+   and  SETREG k; STORE k, n
+   and put G_TIMER should be at a short offset -- another 25KB (but down
+   to 1374212, I lost about 13KB somewhere in April/May).
+
+ - RTS trimming: the RTS can now be configured without the ROF and DOF
+   collectors, saving 54KB (including help text), down to 1320408.
+
+
+; 2003-11-24
+;
+; Static instruction frequencies in Lib/Common, with all arguments
+; ignored, entries above 100 hand-sorted.  This is with the following
+; settings:
+;
+;   *nregs*    32
+;   *lastreg*  31
+;   *fullregs* 16
+;   *nhwregs*  32
+
+((t_setreg . 9927)
+ (t_reg . 6667)
+ (t_load . 6053)
+ (t_global . 3779)
+ (t_store . 3076)
+ (t_invoke . 3056)
+ (t_const_constvector . 2864)
+ (t_setrtn . 2817)
+ (t_const_imm . 2587)
+ (t_return . 2289)
+ (t_pop . 1274)
+ (t_check . 1255)
+ (t_setglbl . 1208)
+ (t_stack . 1171)
+ (t_branch . 1038)
+ (t_skipf . 1018)
+ (t_save . 896)
+ (t_lambda . 874)
+ (t_argseq . 805)
+ (t_skip . 634)
+ (t_branchf . 596)
+ (t_trap . 578)
+ (t_lexical . 574)
+ (t_op1_11 . 433)         ; pair?
+ (t_op3_403 . 404)        ; vector-set!:trusted
+ (t_op1_404 . 360)        ; car:pair
+ (t_op1_405 . 353)	  ; cdr:pair
+ (t_op2_407 . 313)        ; <:fix:fix
+ (t_op1_54 . 305)         ; cell-ref
+ (t_op1_3 . 289)          ; unspecified
+ (t_op2_58 . 277)         ; cons
+ (t_movereg . 237)
+ (t_op1_10 . 216)         ; null?
+ (t_op1_401 . 214)        ; vector-length:vec
+ (t_op1_23 . 196)         ; fixnum?
+ (t_op2_68 . 179)         ; =
+ (t_op1_41 . 178)         ; vector?
+ (t_op2_56 . 164)         ; eq?
+ (t_op2_61 . 161)         ; +
+ (t_op2imm_455 . 158)     ; >=:fix:fix
+ (t_op2_84 . 155)         ; cell-set!
+ (t_op2_63 . 137)         ; *
+ (t_op2imm_130 . 135)     ; +
+ (t_op1_52 . 129)         ; make-cell
+ (t_op2imm_450 . 116)     ; vector-ref:trusted
+ (t_jump . 106)
+ (t_op2imm_131 . 104)     ; -
+ (t_op2_62 . 104)         ; -
+ (t_op2_402 . 100)        ; vector-ref:trusted
+ (t_op2imm_132 . 94)
+ (t_op1_39 . 79)
+ (t_op1_31 . 74)
+ (t_op1_40 . 56)
+ (t_op1_27 . 53)
+ (t_op1_37 . 44)
+ (t_op1_4 . 40)
+ (t_argsge . 66)
+ (t_op1_9 . 34)
+ (t_op2_99 . 52)
+ (t_op1_22 . 31)
+ (t_op2_64 . 44)
+ (t_op1_35 . 27)
+ (t_op1_34 . 27)
+ (t_op1_24 . 24)
+ (t_op1_32 . 23)
+ (t_op1_28 . 23)
+ (t_op2_80 . 55)
+ (t_op2_71 . 29)
+ (t_op1_36 . 21)
+ (t_op2_65 . 36)
+ (t_op1_21 . 19)
+ (t_op1_20 . 19)
+ (t_op2_66 . 60)
+ (t_op2_82 . 20)
+ (t_op1_38 . 15)
+ (t_op1_25 . 15)
+ (t_op1_18 . 15)
+ (t_op2_67 . 31)
+ (t_op2_103 . 25)
+ (t_op1_8 . 13)
+ (t_op1_17 . 13)
+ (t_const_setreg_imm . 55)
+ (t_op2imm_134 . 35)
+ (t_op1_46 . 12)
+ (t_op1_43 . 12)
+ (t_op1_13 . 12)
+ (t_op2imm_135 . 15)
+ (t_op2imm_129 . 78)
+ (t_op1_94 . 11)
+ (t_op1_30 . 11)
+ (t_op3_92 . 36)
+ (t_op3_100 . 30)
+ (t_op2_78 . 25)
+ (t_op2_55 . 17)
+ (t_op1_47 . 10)
+ (t_op3_97 . 16)
+ (t_op2_60 . 22)
+ (t_op2imm_139 . 63)
+ (t_op2imm_136 . 9)
+ (t_op1_102 . 7)
+ (t_op2_69 . 20)
+ (t_op1_26 . 6)
+ (t_op1_12 . 6)
+ (t_op2_76 . 9)
+ (t_op2_74 . 6)
+ (t_op2_70 . 12)
+ (t_op2imm_146 . 17)
+ (t_op2imm_145 . 25)
+ (t_op1_5 . 5)
+ (t_op1_44 . 5)
+ (t_op2_96 . 10)
+ (t_op2_72 . 10)
+ (t_op2imm_138 . 5)
+ (t_op2imm_133 . 14)
+ (t_op1_14 . 4)
+ (t_op2_86 . 4)
+ (t_op2_75 . 7)
+ (t_op2_57 . 6)
+ (t_op2_109 . 7)
+ (t_op2imm_454 . 11)
+ (t_op2imm_141 . 3)
+ (t_op1_95 . 3)
+ (t_op1_101 . 3)
+ (t_const_setreg_constvector . 8)
+ (t_op3_79 . 7)
+ (t_op2_83 . 5)
+ (t_op2_59 . 6)
+ (t_op2_45 . 3)
+ (t_op2imm_452 . 3)
+ (t_op1_7 . 2)
+ (t_op1_6 . 2)
+ (t_op1_49 . 2)
+ (t_op1_106 . 2)
+ (t_op3_93 . 3)
+ (t_op2_90 . 1)
+ (t_op2_89 . 1)
+ (t_op2_88 . 1)
+ (t_op2_87 . 2)
+ (t_op2_85 . 1)
+ (t_op2_408 . 1)
+ (t_op2_406 . 2)
+ (t_op2imm_453 . 2)
+ (t_op1_48 . 1)
+ (t_op1_33 . 1)
+ (t_op1_29 . 1)
+ (t_op1_107 . 1)
+ (t_op1_105 . 1)
+ (t_apply . 1))
+
+--- Local Variables:
+--- mode: text
+--- indent-tabs-mode: nil
+--- End:

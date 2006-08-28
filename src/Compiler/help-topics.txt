@@ -1,0 +1,195 @@
+; Copyright 1998 Lars T Hansen.
+;
+; $Id$
+;
+; Help topics for development environment's help system
+; Entry format: 
+;   <entry> ::= (<tag> <descriptor> <text> ...)
+;   <tag> ::= <symbol>
+;   <descriptor> ::= <string>
+;   <text> ::= ((<selector> ...) <string>)
+;   <selector> ::= brief | full | native | petit
+
+(compiling 
+"  compiling          Compiling and assembling Scheme programs."
+((brief full native)
+"(compile-file <schemefile>)
+(compile-file <schemefile> <outputfile>)
+  Compile the Scheme source file and produce a .fasl file.
+
+(assemble-file <asm-file>)
+(assemble-file <asm-file> <outputfile>)
+  Assemble the .lap or .mal source file and produce a .fasl file.
+")
+((brief full petit)
+"(compile-files (<schemefile> ...) <outputfile>)
+  Compile the Scheme source files and produce a .fasl file referencing
+  a native shared object; when the .fasl file is loaded, the shared
+  object is dynamically linked into Larceny.
+")
+((full native petit)
+"
+(compile313 <schemefile> &opt <outputfile>)
+  Compile the Scheme source file and produce a .lap file.
+
+(assemble313 <lapfile> &opt <outputfile>)
+  Assemble a .lap or .mal source file and produce a .lop file.
+")
+
+((full native)
+"
+(make-fasl <lopfile> &opt <outputfile>)
+  Create a fast-load file (.fasl) from the object file.
+"))
+
+(compiler-switches
+"  compiler-switches  Info about a slew of compiler switches."
+((brief full)
+"
+The command (compiler-switches) lists the current settings of all compiler
+and assembler switches.  These switches are:
+
+Debugging:
+  issue-warnings             Display warning messages.
+  include-procedure-names    Compiled code will contain the procedure name.
+  include-variable-names     Compiled code will contain variable names.
+  include-source-code        Compiled code will contain source code.
+  single-stepping            Insert singlestepping support code.
+
+Safety:
+  avoid-space-leaks          Generate code to clear stale registers.
+  write-barrier              Generate code for generational GC.
+  runtime-safety-checking    Check for illegal arguments and other errors.
+    catch-undefined-globals  Check references to global variables.
+
+Speed:
+  integrate-usual-procedures Generate in-line code for primitive procedures.
+  control-optimization       Improve code for IF, AND, OR, COND, CASE.
+  parallel-assignment-optimization    Choose a good order of evaluation.
+  lambda-optimization        Improve code for known local procedures.
+  benchmark-mode             Assume that self-recursive global procedures
+                             will not be redefined.
+  benchmark-block-mode       Assume that variables will not be assigned
+                             outside of the file in which they are defined.
+  global-optimization        Perform a flow analysis to support:
+    interprocedural-inlining                of small known local procedures.
+    interprocedural-constant-propagation    and constant folding.
+    common-subexpression-elimination        of redundant expressions.
+    representation-inference                to suppress redundant checking.
+  local-optimization         Eliminate branches to branches and locally
+                             redundant machine instructions.
+  peephole-optimization      Improve common sequences of machine code.
+  fill-delay-slots           Fill SPARC branch delay slots.
+  inline-allocation          Generate in-line code for CONS, et cetera.
+")
+((full)
+"
+Internal (development) switches:
+  listify?                   Produce listing of MAL code.  (NOTE: a variable)
+")
+((brief full petit native)
+"
+The command (compiler-switches <flag>) sets groups of switches depending
+on the value of the symbol <flag>.  The flags are:
+  slow          Turn off all optimizations.
+  standard      Enable all semantics-preserving optimizations.
+  fast-safe     Enable all optimizations (except benchmark-block-mode)
+                but generate code to perform all run-time type and range
+                checks that are needed for safety.
+  fast-unsafe   Enable all optimizations (except benchmark-block-mode)
+                and disable type and range checking.
+  default       Set switches to their default (factory) settings.
+
+All switches can be set to #t to enable the effect explained above, or to
+#f to disable the effect.  If the switch is a variable, its value can be 
+set by an assignment.  If the switch is a procedure, it can be set by
+passing an argument as in (benchmark-mode #f).
+"))
+
+(disassembling
+"  disassembling      Disassembling compiled code."
+((brief full native)
+"(disassemble <procedure>)
+  Disassemble the code vector of the procedure, printing the instructions
+  to the current output port.
+
+(disassemble-file <inputfile>)
+(disassemble-file <inputfile> <outputfile>)
+  Disassemble all code and constant vectors of the <inputfile>, which
+  must be a .fasl or .lop format file, and print the disassembly listing
+  on the current output port or to the given <outputfile>.
+")
+((brief full petit)
+"There are no disassembly operations in Petit Larceny.
+"))
+
+  
+(general
+"  general            General information about file types etc."
+((brief full petit native)
+"Scheme source files have extension .sch or .scm; these extensions
+are treated specially by the compiler. You may compile source files
+with extensions other than these, but the compiler will not replace
+them with an object file extension, only append the object file
+extension to the file name.
+
+Compiled files in tokenized form have extension .lap, for \"Lisp
+Assembly Program\".
+
+MacScheme assembly language files in symbolic form have extension
+.mal (for \"MacScheme Assembly Language\").
+
+Assembled files containing machine code segments have extension
+.lop (for \"Lisp Object Program\").
+
+Fast-load files containing machine code (or references to machine
+code in external object files or inside the executable) have
+extension .fasl, for \"Fast-Load\". These files contains special
+syntax which allow them to be read by Larceny's reader like any
+other file; there is nothing magic about the extension.
+
+Heap files usually have the extension .heap.
+"))
+
+(heaps
+"  heaps              Dumping heap images."
+((full native)
+"A bootstrap heap image is created with the dump-heap procedure:
+
+  (build-heap-image <heapname> <object-file-list>)
+
+This creates a bootstrap heap image containing all the given objects.
+However, it is not usually called directly; the following procedure
+is typically more convenient:
+
+  (make-sparc-heap)
+    Create a bootstrap heap image for generational collectors,
+    using the default makefile. The heap is named \"sparc.heap\".
+
+Beware that neither of these commands cleans up .lop files compiled
+for a different collector type; you should first 'make lopclean' from
+the Unix shell if you are building a heap of a kind different from the
+one you built last.  And if you have changed compiler switches, you
+should 'make libclean' from the Unix shell to remove both LAP and LOP
+files.
+
+For details, see the file Lib/makefile.sch.
+")
+((full petit)
+"A bootstrap heap image is created with the BUILD-HEAP procedure:
+
+  (build-heap)
+
+This creates \"libpetit.a\" (or a similar library) in the current
+directory as well as the heap file, called \"petit.heap\".  The
+library must then be linked into an application using the
+BUILD-RUNTIME and BUILD-PETIT procedures:
+
+  (build-runtime)
+  (build-petit)
+
+resulting in an executable file called \"petit\" which is able to run
+the heap image in petit.heap.
+" ))
+
+; eof

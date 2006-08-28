@@ -1,0 +1,54 @@
+Microsoft Visual Studio Solution File, Format Version 7.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scheme", "..\..\..\Rts\DotNet\Scheme.csproj", "{8A0E5AAE-E7A5-4E48-AEC8-E8DDE113D7CB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Preprocess", "Preprocess\Preprocess.vcproj", "{57710DF1-A0C6-45B6-A0C8-8FB6A04CE926}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Heap", "Heap\Heap.vcproj", "{7FA63D79-41CD-450B-8A14-51532B8D9144}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Configure", "Configure\Configure.vcproj", "{2676DC54-6C59-4BE9-9D65-544F5181808A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Bundle", "Bundle\Bundle.vcproj", "{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}"
+EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "SetupCommonLarceny", "Msi\WindowsInstall.vdproj", "{71A4D49D-817E-418A-B1C8-FAB66BEDCAFB}"
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		ConfigName.0 = Debug
+		ConfigName.1 = Release
+	EndGlobalSection
+	GlobalSection(ProjectDependencies) = postSolution
+		{8A0E5AAE-E7A5-4E48-AEC8-E8DDE113D7CB}.0 = {57710DF1-A0C6-45B6-A0C8-8FB6A04CE926}
+		{8A0E5AAE-E7A5-4E48-AEC8-E8DDE113D7CB}.1 = {2676DC54-6C59-4BE9-9D65-544F5181808A}
+		{7FA63D79-41CD-450B-8A14-51532B8D9144}.0 = {2676DC54-6C59-4BE9-9D65-544F5181808A}
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{8A0E5AAE-E7A5-4E48-AEC8-E8DDE113D7CB}.Debug.ActiveCfg = Debug|.NET
+		{8A0E5AAE-E7A5-4E48-AEC8-E8DDE113D7CB}.Debug.Build.0 = Debug|.NET
+		{8A0E5AAE-E7A5-4E48-AEC8-E8DDE113D7CB}.Release.ActiveCfg = Release|.NET
+		{8A0E5AAE-E7A5-4E48-AEC8-E8DDE113D7CB}.Release.Build.0 = Release|.NET
+		{57710DF1-A0C6-45B6-A0C8-8FB6A04CE926}.Debug.ActiveCfg = Debug|Win32
+		{57710DF1-A0C6-45B6-A0C8-8FB6A04CE926}.Debug.Build.0 = Debug|Win32
+		{57710DF1-A0C6-45B6-A0C8-8FB6A04CE926}.Release.ActiveCfg = Release|Win32
+		{57710DF1-A0C6-45B6-A0C8-8FB6A04CE926}.Release.Build.0 = Release|Win32
+		{7FA63D79-41CD-450B-8A14-51532B8D9144}.Debug.ActiveCfg = Debug|Win32
+		{7FA63D79-41CD-450B-8A14-51532B8D9144}.Debug.Build.0 = Debug|Win32
+		{7FA63D79-41CD-450B-8A14-51532B8D9144}.Release.ActiveCfg = Release|Win32
+		{7FA63D79-41CD-450B-8A14-51532B8D9144}.Release.Build.0 = Release|Win32
+		{2676DC54-6C59-4BE9-9D65-544F5181808A}.Debug.ActiveCfg = Debug|Win32
+		{2676DC54-6C59-4BE9-9D65-544F5181808A}.Debug.Build.0 = Debug|Win32
+		{2676DC54-6C59-4BE9-9D65-544F5181808A}.Release.ActiveCfg = Release|Win32
+		{2676DC54-6C59-4BE9-9D65-544F5181808A}.Release.Build.0 = Release|Win32
+		{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}.Debug.ActiveCfg = Debug|Win32
+		{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}.Debug.Build.0 = Debug|Win32
+		{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}.Release.ActiveCfg = Release|Win32
+		{E65F4B08-9B77-47EA-B595-C8CFF108B3D7}.Release.Build.0 = Release|Win32
+		{71A4D49D-817E-418A-B1C8-FAB66BEDCAFB}.Debug.ActiveCfg = Debug
+		{71A4D49D-817E-418A-B1C8-FAB66BEDCAFB}.Debug.Build.0 = Debug
+		{71A4D49D-817E-418A-B1C8-FAB66BEDCAFB}.Release.ActiveCfg = Release
+		{71A4D49D-817E-418A-B1C8-FAB66BEDCAFB}.Release.Build.0 = Release
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

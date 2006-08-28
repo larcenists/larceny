@@ -1,0 +1,3 @@
+Compiler and assembler regression tests.  Load run-tests.sch, then call
+(run-compiler-tests) and go to lunch.  If no errors are printed, you are
+OK.

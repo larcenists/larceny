@@ -1,0 +1,124 @@
+Building and using Larceny.NET aka DotNet Larceny
+17 May 2004
+
+HOW TO BUILD DOTNET LARCENY
+
+DotNet Larceny is written using most of the same build infrastructure as
+Petit Larceny. Most of this infrastructure consists of tools written in
+Scheme, so you need a working host Scheme system; a version of Petit
+Larceny with just the interpreter is sufficient.
+
+First things first:
+
+  * You will probably need to edit Rts/DotNet/makefile to make it fit
+    your system -- "make" or "nmake" is used to build the run-time
+    system.
+
+  * You must have the ILAsm assembler "ilasm" in your path when you
+    start the host Scheme system. This is not true by default on Windows
+    unless you are using the "Visual Studio .NET Command Prompt." If you
+    have only the .NET SDK, look for ilasm.exe in
+    \windows\microsoft.net\framework\v?.?.?\ilasm.exe.
+
+    Alternatively, if you have Visual Studio installed, you can run:
+    \Program Files\Microsoft Visual Studio 8\SDK\v2.0\Bin\sdkvars.bat
+
+Then start your host Scheme system, change your working directory to
+be the Larceny source directory if necessary, and load the configuration 
+file for Larceny.NET:
+
+    Util/dotnet.sch
+
+Then you must inform the build tool of the specifics of the host
+environment. Invoke larceny-setup with three arguments:
+
+   (larceny-setup <host-scheme> <os> <endianness>)
+
+where 
+   - <host-scheme> is a string corresponding to your Scheme system; it
+     must match one of the subdirectories of Compat, eg "Petite",
+    "MzScheme", "Larceny"
+   - <os> is a symbol, one of 'win32, 'unix, 'macosx
+   - <endianness> is a symbol, one of 'little, 'big
+
+The following build programs sometimes invoke external programs and
+may place additional demands on your host system.  Currently all systems
+need some version of "make" to be able to build the run-time system, and
+will need access to a command interepreter.
+
+The first time you run the build environment you will want to evaluate:
+
+    > (setup-directory-structure)
+
+Whenever you have altered any of the Rts/*.cfg, or the first time you
+run the build environment, you will want to evaluate:
+
+    > (build-config-files)
+
+It is safe to ignore the warning "Unknown command (include ...)".
+
+Most of the time you will just load Twobit (you can't load Twobit
+until after you have created the directory structure and config files,
+which is why it is a separate step):
+
+    > (load-compiler)
+
+and then build the heap image and the runtime system:
+
+    > (make-dotnet-heap)
+    > (build-runtime-system)
+
+Exit the Scheme system, copy Rts/DotNet/Scheme.dll into the current
+directory, and execute dotnet.heap.exe. You should have a working
+Larceny.NET interpreter running.
+
+Other useful commands in the build environment are:
+
+    > (remove-dotnet-heap-objects)
+    > (remove-rts-objects)
+
+COMPILING CODE TO RUN WITHIN DOTNET LARCENY
+
+The compiler can also be used to compile code for loading into the
+Larceny.NET interpreter. This allows you to run programs at compiled
+speeds without building the code into the larceny executable.
+
+Load the compiler using the same steps as above:
+    > (load "Util/dotnet.sch")
+    > (larceny-setup <host-scheme> <os> <endianness>)
+    > (load-compiler)
+
+The compiler is now loaded, and you can use the following procedures:
+
+    ;; build-application : string (listof string) -> void
+    ;; Given an application name and a list of LOP files, creates
+    ;; an EXE file and a FASL file (each LOP file must have a
+    ;; corresponding MANIFEST file).
+
+    ;; compile-application : string (listof string) -> void
+    ;; Given an application name and a list of scheme source files,
+    ;; creates an EXE file and a FASL file.
+
+For example: 
+
+    (compile-application "EvenAndOdd" (list "even.sch" "odd.sch"))
+    (load "EvenAndOdd.fasl")
+
+or
+    (compile313 "even.sch")
+    (compile313 "odd.sch")
+    (assemble313 "even.lap")
+    (assemble313 "odd.lap")
+    (build-application "EvenAndOdd" (list "even.lop" "odd.lop"))
+
+Note that the first string you supply to build-application or
+create-application should have no file extension, and you only load the
+resulting FASL file, which must be in the current directory*.
+
+Any Scheme system which can run the compiler can be used to compile the
+applications, but of course the resulting FASL files must be loaded
+by the Larceny.NET interpreter.
+
+* This restriction should go away, but it's difficult to fix without
+changes to the way load works. Cf mzscheme's load/use-compiled and
+current-load-relative-directory parameter.

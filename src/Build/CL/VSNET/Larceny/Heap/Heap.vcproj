@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding = "Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="7.00"
+	Name="Heap"
+	ProjectGUID="{7FA63D79-41CD-450B-8A14-51532B8D9144}"
+	Keyword="Win32Proj">
+	<Platforms>
+		<Platform
+			Name="Win32"/>
+	</Platforms>
+	<Configurations>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory="Debug"
+			IntermediateDirectory="Debug"
+			ConfigurationType="10"
+			CharacterSet="2">
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCMIDLTool"/>
+			<Tool
+				Name="VCPostBuildEventTool"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="Release"
+			IntermediateDirectory="Release"
+			ConfigurationType="10"
+			CharacterSet="2">
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCMIDLTool"/>
+			<Tool
+				Name="VCPostBuildEventTool"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+		</Configuration>
+	</Configurations>
+	<Files>
+		<File
+			RelativePath="Rebuild.ss">
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCustomBuildTool"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -C &quot;$(InputPath)&quot; debug
+
+"
+					Outputs="..\..\..\..\dotnet.heap.exe;..\..\..\..\dotnet.heap.pdb;..\..\..\..\bin\Debug\CommonLarceny.exe;..\..\..\..\bin\Debug\CommonLarceny.pdb"/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCustomBuildTool"
+					CommandLine="mzscheme -C ..\..\..\mzscheme-runner.ss -C &quot;$(InputPath)&quot;
+"
+					Outputs="..\..\..\..\dotnet.heap.exe;..\..\..\..\bin\Release\CommonLarceny.exe"/>
+			</FileConfiguration>
+		</File>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>

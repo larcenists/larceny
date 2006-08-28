@@ -1,0 +1,107 @@
+Welcome to Common Larceny
+
+This directory contains the necessary scripts, workspaces, programs,
+etc. that are used to build and distribute Common Larceny.
+
+----------------------------------
+
+Distributing Common Larceny
+
+
+Common Larceny is currently distributed in four formats:  a gzipped tar
+file, a Microsoft Windows Installer file (msi), a Windows zip file,
+and a PLT file.  All four formats have the same content, but some
+formats offer extra functionality (for example, the MSI file can
+install shortcuts).  These files are published by placing them on the
+web server.
+
+The four files are named LarcenySDK, but the file extensions differ.
+The LarcenySDK contains all the files needed to rebuild CommonLarceny
+from the sources via cross-compilation from MzScheme.  It also
+contains a pre-built image.
+
+The process of creating a CommonLarceny release will be describe here
+in a dependency-oriented fashion.  The rationale for each step should
+therefore be obvious, but the order of steps may not be.  A review of
+the steps will be presented with a suggested order in which to take
+them.
+
+The `distribution' subdirectory of the CommonLarceny directory will
+be where the various SDK bundles will be created.  This directory will
+be created if necessary, but it may already exist because of prior
+bundling.  In addition to the distribution bundles, there will be some
+auxiliary files in the distribution directory:  a non-gzipped TAR file
+and some windows installer bootstrap files may be there.  These files
+are not placed on the web server.
+
+Some bundling tools work by creating a snapshot of some directory
+structure.  The directory structure will be replicated exactly at the
+user's site.  Using the development directory structure for this
+purpose may be a problem because it contains files that do not belong
+in the distribution and certain files need to be renamed or moved in
+order to create the distribution.  Therefore, the bundling process
+works on a temporary copy of the directory structure.
+
+Once a temporary copy of the Common Larceny distribution is created,
+an archiving program such as WinZip or tar is used to create the
+distribution bundle.  The current source code uses the 7-Zip utility
+to provide this functionality.  The files
+
+    CL\VSNET\Larceny\Bundle\bundleplt.ss
+    CL\VSNET\Larceny\Bundle\bundletar.ss
+    CL\VSNET\Larceny\Bundle\bundlezip.ss
+
+contain Scheme code that performs the archiving.  Unfortunately, the
+absolute path to the archiving program is `hard wired' in to the
+Scheme code because I couldn't figure out a reasonable way to
+parameterize the code.
+
+All three of these programs load the file
+  CL\files.ss
+
+which contains definitions of two functions:
+
+  larceny-distribution-directories
+  A function of no arguments that returns a list of strings that
+  represent the relative paths of the subdirectories to be archived.
+
+  larceny-distribution-files
+  A function of no arguments that returns a list of string that
+  represent the relative paths of the files to be archived.
+
+These two functions are currently implemented by simple literal
+enumeration of the directories and files, but a more automated way of
+determining what goes into the release should be written at some
+point.  The archiving scripts create a temporary directory, create the
+subdirectories returned by larceny-distribution-directories, copy the
+files returned by larceny-distribution-files, and call the appropriate
+archiver on the copied directory structure.  The directory structure
+is not afterwards deleted, so occasional manual cleaning is needed.
+
+There is one bit of trickiness that should be pointed out.  The build
+process creates an executable named `dotnet.heap.exe', but the
+distribution process renames this to `CommonLarceny.exe'.  This
+renaming is done by the archiving scripts when the file is copied.
+
+Creating the MSI file involves using Visual Studio.  In theory, the
+full Visual Studio IDE need not be used and it ought to be runnable
+from the command line.  The CL\VSNET\Larceny subdirectory contains the
+Visual Studio `solution' file (for Visual Studio version 7.0).  The
+file
+
+   CL\VSNET\Larceny\Msi\WindowsInstall.vdproj
+
+contains the information about what goes into the MSI file.
+
+In order to simplify the process of distribution, the various scripts
+that build the tgz, plt, and zip archives have been associated with a
+`Bundle' `project' in the `Larceny solution'.  Furthermore, the
+scripts necessary to cross-compile Larceny and to compile the C#
+runtime have *also* been placed in appropriate `projects', so it is
+possible to build and disribute Common Larceny in all its formats by
+building the `solution'.
+
+
+
+
+

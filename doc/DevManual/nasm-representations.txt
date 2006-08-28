@@ -1,0 +1,95 @@
+Representations and register assignments for i386
+2002-11-06
+
+
+WARNING!!  Not presently maintained, look in i386-machine.ah for
+up-to-date information.
+
+
+EAX is used as a temp for generated code, and to pass SECOND on calls
+to millicode.  It is never a root for garbage collection, so SECOND
+must be flushed to memory by millicode.
+
+   SECOND  eax
+   RESULT  ebx
+   REG1    ecx
+   REG2    edx
+   REG3    edi
+   REG4    esi
+   CONT    ebp
+   GLOBALS esp
+
+There is a particular reason GLOBALS is mapped to esp.  The first slot
+of globals is empty.  Thus, to call millicode one can always execute a
+CALL instruction, the return address will be pushed into the first
+element of GLOBALS.  Millicode must pop the value to adjust GLOBALS
+and save the address.
+
+This trick allows CONT to grow and meet the heap pointer without any
+buffer between them, and makes millicode calls compact.
+
+This assumes that the operating system's interrupt handlers do not
+push values onto the user stack; if they do, we must have plenty of
+space available at the beginning of GLOBALS or must not use esp at
+all.
+
+;;;
+;;; Note that since a CALL is used, there must be room on the processor
+;;; stack for one word of return address.  The trick we use is for
+;;; ESP to point to GLOBALS, not CONT, so GLOBALS is not right on entry
+;;; to stubs here until the return value has been popped.  On the other hand,
+;;; we don't have to worry about space between the heap and the stack.
+
+;;; The jump vector contains addresses of millicode procedures; a call
+;;; to a millicode procedure is an indirect call:
+;;;	CALL [GLOBALS+M_...]
+
+
+Todo list.
+
+ - globals needs a dummy element at the beginning
+ - the .ah files should be generated in the correct format by the
+   config scripts, this is a matter of changing syntax only
+ - more millicode procs should be implemented (look at globals.ah)
+ - need to work out how millicode is going to work -- it's in C
+   and probably assumes Petit Larceny calling conventions.  If we
+   are to keep it in C then some integration of the Petit Larceny
+   engine with the native code must be accomplished!  If not, we
+   need to rewrite the millicode to fit native conventions, but
+   this seems painful at this time.
+
+If a C function calls a Scheme procedure it meets code that does this:
+
+   save C state
+   switch to Scheme mode
+   push a continuation on the Scheme stack that switches back 
+      to C mode and returns
+   continue executing
+
+If a Scheme function calls a C procedure it meets code that does this:
+
+   save Scheme state
+   switch to C mode
+   push a continuation on the C stack that switches back to
+      Scheme mode and returns
+   continue executing
+
+Millicode is probably messier still, or should they all be considered
+cross-language calls?  Then calling millicode will cost more!
+Probably not necessary; when millicode calls Scheme it longjumps out,
+throwing away the C continuation; only the Scheme continuation
+remains, and it is properly constructed.  (It is a C frame that will
+return to Scheme, ... maybe??  What if it was Scheme code compiled to
+C that performed the original call?)
+
+;; The code with globals assigned to esp and cont to ebp is
+;; slightly slower on fib(35) than with the assignments reversed.
+;; No doubt this is CPU specific.
+
+;; Also it seems that the CPU prefers to work with data in eax and
+;; ebx: introducing some peephole optimization so that it worked on
+;; data in ecx slowed evenodd down quite a bit.  Peephole
+;; optimizations that have not paid off are REG_OP2IMM_zerop and
+;; REG_OP2IMM_SETREG_subtract, both programs were slower than the
+;; equivalent sequence of more primitive ops.
+

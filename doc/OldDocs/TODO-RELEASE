@@ -1,0 +1,139 @@
+$Id$
+
+Release 2 todo and check lists
+
+Things That Must Be Done (tm) aka Significant Usability Bugs (r)
+
+ * Test Win32 pointer transformation for other jump disciplines.
+   Works for USE_GOTOS_LOCALLY+RETURN_WITH_VALUE.
+ 
+ * petit-std-heap:
+
+    * There is much code that could be loaded that is not, right now.
+
+ * Go over all docs to make sure they are at least mostly relevant
+
+ * Examine subversion archives for any hacks that apply right away
+
+ * SPARC dynamic linking issues
+
+
+----
+
+ * Import Aubrey Jaffer's updated R4RS test suite
+   http://swiss.csail.mit.edu/ftpdir/scm/r4rstest.scm
+
+ * Document
+      (compiler-switches 'get) => obj
+      (compiler-switches 'set obj)
+   for getting and restoring compiler switches.
+
+ * Better dynamic loading of compiled code: as it is, a given file
+   can only be loaded once, so if foo.fasl points to foo.so and
+   foo.so is regenerated, then (a) if the old version is overwritten
+   we crash, and (b) even if we don't crash the loader will refuse to
+   load a file with the same name again.  So either (a) give the
+   object files consecutive names (.1.so, .2.so, ...) or (b) store
+   the object code in the FASL file (in a bytevector) and dump it 
+   into /tmp and load it from there when loading the FASL.  Gambit
+   does the former, it requires being able to inspect the directory.
+   The latter solves the silly LD_LIBRARY_PATH problem and makes
+   FASL files easily moveable.
+
+ * Quality: REMOVE-HEAP-OBJECTS and REMOVE-RUNTIME-OBJECTS might somehow
+   be based on code in Util/cleanup.sch, rather than duplicating it
+   everywhere.
+
+ * Quality: Instances of OPTIMIZEME in Rts/Standard-C/petit-instr.h.  
+
+ * Quality: Get rid of Auxlib/ altogether.  Stuff that must be available
+   for twobit goes into Lib; the rest moves to the external library.
+   Note, this affects std-heap.sch, especially.
+
+ * SRFI: The most important non-supported SRFIs are the exception
+   and condition SRFIs.  It would be very nice to have these.
+
+ * SRFI: I am using COND-EXPAND to load SRFIs but this is sort
+   of bogus, cf recent discussion on SRFI-0 list.  Should probably
+   fix this both in SRFI code as well as in test code.
+
+ * FFI: Test well on Win32 -- does it work according to the docs?
+   (Could look like copy-qword is broken, it does not update esi
+   the way copy-dword does?)
+
+ * FFI: Test well on Linux -- does it work according to the docs?
+
+ * FFI: Does the docs reflect how it works?  (I observe that the
+   README in the Ffi/ directory does not know about the 386
+   implementation.)
+
+ * Cleanup: Probably get rid of support for compiling Larceny from
+   other Scheme systems.
+
+ * MacOS X TO-DO items: see section at the end of HOWTO-MACOSX.
+
+ * Win32 TO-DO items: see section at the end of HOWTO-WIN32.
+
+ * Win32: Is the Open Watcom compiler viable?  MIT Scheme supposedly
+   uses it.
+
+ * LIB: The require system must play nice with heap dumping: the
+   database must not be unconditionally reinitialized even if .larceny
+   reloads the REQUIRE package.  (Implemented, not yet tested.)
+
+ * Quality: Honor defines like INLINE_ALLOCATION more generally in the
+   code generation macros.  (Implemented in x86-nasm, not in Standard-C.)
+
+ * Quality: the HOWTO documentation needs to be HTML, it is becoming
+   increasingly cross-referenced.
+
+ * Performance: It may be important for truly good code generation to
+   generate completely dense switches for dispatch in a procedure --
+   no gap between the start label 0 and normal label, and no dead
+   labels.)
+
+
+Release candidate 1 -> Release candidate 2
+
+  Building and running
+
+  - testbuild petit / win32 / CodeWarrior
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+  - testbuild petit / x86-linux / gcc
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+  - testbuild petit / MacOSX / gcc
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+  - testbuild petit / Solaris / gcc
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+  - testbuild native / Solaris / gcc 
+    - build instructions
+    - build twobit
+    - rebuild with self
+    - run test suite compiled
+    - run test suite interpreted
+
+  Test heap dumping everywhere?
+
+  Package libraries and scripts so that it is convenient to
+  build apps without having a source tree available?
+
+--- Local Variables: ---
+--- mode: text ---
+--- indent-tabs-mode: nil ---
+--- End: ---

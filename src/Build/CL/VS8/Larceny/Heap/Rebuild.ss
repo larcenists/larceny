@@ -1,0 +1,10 @@
+(current-directory "..\\..\\..\\..")
+(load "util\\dotnet.sch")
+(larceny-setup "MzScheme" 'win32 'little)
+(load-compiler)
+(remove-dotnet-heap-objects)
+(set! integrate-procedures (make-parameter "Integrate Procedures" 'larceny))
+(set! call-with-error-control (lambda (t1 t2) (t1)))
+(make-dotnet-heap)
+(exit)
+

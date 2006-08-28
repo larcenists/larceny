@@ -1,0 +1,32 @@
+Copyright 1991, 1994, 1998 William D Clinger
+Copyright 1998             Lars T Hansen
+Copyright 1984 - 1993      Lightship Software, Incorporated
+
+Permission to copy this software, in whole or in part, to use this
+software for any lawful purpose, and to redistribute this software
+is granted subject to the following restriction:  Any publication
+or redistribution of this software, whether on its own or
+incorporated into other software, must bear the above copyright
+notices and the following legend:
+
+    The Twobit compiler and the Larceny runtime system were
+    developed by William Clinger and Lars Hansen with the
+    assistance of Lightship Software and the College of Computer
+    Science of Northeastern University.  This acknowledges that
+    Clinger et al remain the sole copyright holders to Twobit
+    and Larceny and that no rights pursuant to that status are
+    waived or conveyed.
+
+Twobit and Larceny are provided as is.  The user specifically
+acknowledges that Northeastern University, William Clinger, Lars
+Hansen, and Lightship Software have not made any representations
+or warranty with regard to performance of Twobit and Larceny,
+their merchantability, or fitness for a particular purpose.  Users
+further acknowledge that they have had the opportunity to inspect
+Twobit and Larceny and will hold harmless Northeastern University,
+William Clinger, Lars Hansen, and Lightship Software from any cost,
+liability, or expense arising from, or in any way related to the
+use of this software.
+
+Bug reports, comments, and suggestions can be sent to the authors
+of Twobit and Larceny at larceny@ccs.neu.edu.
