@@ -1,4 +1,4 @@
-/* FIBFP -- Computes fib(25) using floating point */
+/* FIBFP -- Computes fib(30) using floating point */
 
 #include <stdio.h>
 
@@ -21,9 +21,9 @@ char *argv[];
   FLOAT result;
 
   for (i=0; i<50; i++)
-    result = fib (25.);
+    result = fib (30.);
 
-  if (result != 75025.)
+  if (result != 832040.)
     printf ("*** wrong result ***\n");
 
   return 0;

@@ -1,4 +1,4 @@
-/* FIBFP -- Computes fib(25) using floating point */
+/* FIBFP -- Computes fib(30) using floating point */
 
 class fibfp {
 
@@ -16,9 +16,9 @@ class fibfp {
       double result = 0.0;
 
       for (i=0; i<50; i++)
-        result = fib (25.0);
+        result = fib (30.0);
 
-      if (result != 75025.0)
+      if (result != 832040.0)
         System.out.println ("*** wrong result ***");
     }
 

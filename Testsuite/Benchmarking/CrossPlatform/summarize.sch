@@ -1,5 +1,28 @@
 ; Extraction of benchmark results.
 
+(define (summarize-usual-suspects)
+  ((summarize bigloo-results) "results.Bigloo" "summary.Bigloo")
+  ((summarize chez-results) "results.Chez-Scheme" "summary.Chez")
+  ((summarize chicken-results) "results.Chicken" "summary.Chicken")
+  ((summarize gambit-results) "results.Gambit-C" "summary.Gambit")
+  ((summarize larceny-results) "results.Larceny" "summary.Larceny")
+  ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme"))
+
+(define (decode-usual-suspects)
+  (map decode-summary
+       '("summary.Larceny"
+         "summary.Bigloo"
+         "summary.Chez"
+         "summary.Chicken"
+         "summary.Gambit"
+         "summary.MzScheme")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Help procedures.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (define (readline port)
   (do ((c (read-char port) (read-char port))
        (chars '() (cons c chars)))
@@ -57,6 +80,34 @@
       (if (< m n)
           (display (string-append s (make-string (- n m) #\space)) port)
           (display (substring s 0 n) port)))))
+
+; Given a string that contains a timing in hours:minutes:seconds,
+; returns the timing in milliseconds.
+
+(define (string->msec s)
+  (let* ((s0 (list->string
+              (filter (lambda (c) (not (char=? c #\space)))
+                        (string->list s))))
+         (n1 (substring? ":" s0))
+         (s1 (if n1 (substring s0 0 n1) "0"))
+         (s0 (if n1 (substring s0 (+ n1 1) (string-length s0)) s0))
+         (n2 (substring? ":" s0))
+         (s2 (if n2 (substring s0 0 n2) "0"))
+         (s0 (if n2 (substring s0 (+ n2 1) (string-length s0)) s0))
+         (hours   (if (and n1 n2) (string->number s1) 0))
+         (minutes (cond ((and n1 n2) (string->number s2))
+                        (n1 (string->number s1))
+                        (else 0)))
+         (seconds (string->number s0))
+         (seconds (+ (* 3600 hours) (* 60 minutes) seconds)))
+    (inexact->exact (round (* 1000.0 seconds)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Summarizing the results.* files that are created by the bench
+; script.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (summarize f)
   (define (summarize in . rest)
@@ -129,7 +180,8 @@
                      (let ((x (substring line
                                          (+ n-gc-key (substring? gc-key line))
                                          (substring? ms-key line))))
-                       (right-justify x timing-width out)))
+                       (right-justify x timing-width out)
+                       (newline out)))
                     ((substring? cpu-key line)
                      (let ((x (substring line
                                          n-space-key
@@ -197,7 +249,8 @@
                      (let ((x (substring line
                                          n-space-key
                                          (substring? real-key line))))
-                       (right-justify x timing-width out)))
+                       (right-justify x timing-width out)
+                       (newline out)))
                     ((substring=? error-key line 0 n-error-key)
                      (display line out)
                      (newline out)
@@ -318,8 +371,7 @@
                             (s1 (list->string
                                  (filter (lambda (c) (not (char=? c #\space)))
                                          (string->list s))))
-                            (seconds (string->number s1))
-                            (x  (inexact->exact (round (* 1000.0 seconds)))))
+                            (x  (string->msec s1)))
                        (right-justify x timing-width out)
                        (right-justify x timing-width out)))
                     ((substring? gc-key line)
@@ -328,9 +380,9 @@
                             (s1 (list->string
                                  (filter (lambda (c) (not (char=? c #\space)))
                                          (string->list s))))
-                            (seconds (string->number s1))
-                            (x  (inexact->exact (round (* 1000.0 seconds)))))
-                       (right-justify x timing-width out)))
+                            (x  (string->msec s1)))
+                       (right-justify x timing-width out)
+                       (newline out)))
                     ((substring=? error-key line 0 n-error-key)
                      (display line out)
                      (newline out)
@@ -394,7 +446,8 @@
                                           (string-length line))))
                        (right-justify x timing-width out)
                        (right-justify y timing-width out)
-                       (right-justify z timing-width out)))
+                       (right-justify z timing-width out)
+                       (newline out)))
                     ((substring=? error-key line 0 n-error-key)
                      (display line out)
                      (newline out)
@@ -408,12 +461,6 @@
 ; Bigloo
 
 (define (bigloo-results lines out)
-  (define (string->msec s)
-    (let* ((s1 (list->string
-                (filter (lambda (c) (not (char=? c #\space)))
-                        (string->list s))))
-           (seconds (string->number s1)))
-      (inexact->exact (round (* 1000.0 seconds)))))
   (let ((system-key "Benchmarking ")
         (test-key "Testing ")
         (test-key-tail " under Bigloo")
@@ -466,7 +513,8 @@
                                            n-cpu-key
                                            (string-length line2)))))
                        (right-justify x timing-width out)
-                       (right-justify y timing-width out)))
+                       (right-justify y timing-width out)
+                       (newline out)))
                     ((substring=? error-key line 0 n-error-key)
                      (display line out)
                      (newline out)
@@ -477,10 +525,74 @@
                      (display (make-string name-width #\space) out)))
               (loop (cdr lines))))))))
 
-(define (summarize-usual-suspects)
-  ((summarize bigloo-results) "results.Bigloo" "summary.Bigloo")
-  ((summarize chez-results) "results.Chez-Scheme" "summary.Chez")
-  ((summarize chicken-results) "results.Chicken" "summary.Chicken")
-  ((summarize gambit-results) "results.Gambit-C" "summary.Gambit")
-  ((summarize larceny-results) "results.Larceny" "summary.Larceny")
-  ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme"))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Conversion of the summaries into Scheme-readable data.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Given a file name or input port containing a summary
+; produced by the summarize procedure above,
+; returns a decoded summary of the form
+;
+; (<system>                   ; a string, e.g. "Larceny"
+;  (<hostname> <date> ...)    ; strings
+;  ((<benchmark>              ; a symbol, e.g. fib
+;    <cputime>                ; a number, in milliseconds
+;    <realtime>               ; a number, in milliseconds
+;    <gctime>)                ; a number, in milliseconds
+;   ...))
+
+(define (decode-summary in)
+  (define (bad-arguments)
+    (error "Bad arguments to summarize-results" in))
+  (cond ((string? in)
+         (call-with-input-file
+          in
+          (lambda (in) (decode-summary in))))
+        ((input-port? in)
+         (decode-lines (readlines in)))
+        (else
+         (bad-arguments))))
+
+; Given the summary as a list of lines,
+; returns the decoded summary as for decode-summary.
+
+(define (decode-lines lines)
+  (let ((system-key "Benchmarking ")
+        (date-key " on ")
+        (header-key "benchmark"))
+    (let ((n-system-key (string-length system-key))
+          (n-date-key (string-length date-key))
+          (n-header-key (string-length header-key)))
+      (and (not (null? lines))
+           (substring=? system-key (car lines) 0 n-system-key))
+           (let* ((line0 (car lines))
+                  (n0 (string-length line0))
+                  (n1 (substring? date-key line0))
+                  (system (substring line0 n-system-key n1))
+                  (hostname "unknown")
+                  (date (substring line0 (+ n1 n-date-key) n0))
+                  (benchmarks
+                   (map (lambda (line)
+                          (let* ((padding " #f #f #f #f")
+                                 (in (open-input-string
+                                      (string-append line padding)))
+                                 (name (read in))
+                                 (cpu (read in))
+                                 (real (read in))
+                                 (gc (read in)))
+                            (list name cpu real gc)))
+                        (cdr lines)))
+                  (benchmarks
+                   (filter (lambda (x)
+                             (and (car x)
+                                  (symbol? (car x))
+                                  (not (eq? (car x) 'benchmark))
+                                  (number? (cadr x))
+                                  (number? (caddr x))
+                                  (positive? (caddr x))))
+                           benchmarks)))
+             (list system
+                   (list hostname date)
+                   benchmarks)))))

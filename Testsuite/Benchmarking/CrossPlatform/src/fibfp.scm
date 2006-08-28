@@ -1,4 +1,4 @@
-;;; FIBFP -- Computes fib(25) using floating point
+;;; FIBFP -- Computes fib(30) using floating point
 
 (define (fibfp n)
   (if (FLOAT< n 2.)
@@ -10,5 +10,5 @@
   (run-benchmark
     "fibfp"
     fibfp-iters
-    (lambda () (fibfp 25.))
-    (lambda (result) (equal? result 75025.))))
+    (lambda () (fibfp 30.))
+    (lambda (result) (equal? result 832040.))))

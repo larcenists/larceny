@@ -1,4 +1,4 @@
-/* FIB -- A classic benchmark, computes fib(25) inefficiently. */
+/* FIB -- A classic benchmark, computes fib(30) inefficiently. */
 
 class fib {
 
@@ -16,9 +16,9 @@ class fib {
       int result = 0;
 
       for (i=0; i<50; i++)
-        result = fib (25);
+        result = fib (30);
 
-      if (result != 75025)
+      if (result != 832040)
         System.out.println ("*** wrong result ***");
     }
 

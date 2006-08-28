@@ -22,6 +22,7 @@
 (define pnpoly-iters    10000)
 (define puzzle-iters      100)
 (define ray-iters          10)
+(define reading-iters    1000)
 (define scheme-iters     3000)
 (define simplex-iters   60000)
 (define slatex-iters       20)

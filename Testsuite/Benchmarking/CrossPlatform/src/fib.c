@@ -1,4 +1,4 @@
-/* FIB -- A classic benchmark, computes fib(25) inefficiently. */
+/* FIB -- A classic benchmark, computes fib(30) inefficiently. */
 
 #include <stdio.h>
 
@@ -19,9 +19,9 @@ char *argv[];
   int result;
 
   for (i=0; i<50; i++)
-    result = fib (25);
+    result = fib (30);
 
-  if (result != 75025)
+  if (result != 832040)
     printf ("*** wrong result ***\n");
 
   return 0;
