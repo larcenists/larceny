@@ -1,4 +1,0 @@
-(
-(lmsw sp)
-(smsw (& esp))
-)

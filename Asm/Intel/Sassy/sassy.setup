@@ -1,3 +1,0 @@
-(print "compiling sassy - this will take a while ...")
-(compile sassy-chicken.scm -o sassy.so -s -O2 -d1)
-(install-extension 'sassy '("sassy.html" "sassy.so") '((version "0.2.0") (documentation "sassy.html")))

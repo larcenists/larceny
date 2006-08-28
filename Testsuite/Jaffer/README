@@ -1,5 +1,0 @@
-Aubrey Jaffer's conformance test for R4RS.  Just load the file into
-Larceny, it provides its own instructions.  Expect 6 errors in the
-handling of imaginary number syntax: Larceny is more permissive than the
-standard allows.
-
