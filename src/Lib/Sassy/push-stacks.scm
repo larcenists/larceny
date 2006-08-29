@@ -149,6 +149,8 @@
 (define (push-stack-push stk itm) (stk 'push itm))
 (define (push-stack-pointer stk) (stk 'pointer))
 (define (push-stack-items stk) (stk 'items))
+(define (push-stack-items/bytes stk) 
+  (list->u8vector (push-stack-items stk)))
 (define (push-stack-patch stk pnt itm) (stk 'patch pnt itm))
 (define (push-stack-push->patcher stk itm) (stk 'push-proc itm))
 (define (push-stack-save stk) (stk 'save))

@@ -70,6 +70,8 @@
   (push-stack-items (sassy-data-stack sassy-output)))
 (define (sassy-text-list sassy-output)
   (push-stack-items (sassy-text-stack sassy-output)))
+(define (sassy-text-bytevector sassy-output)
+  (push-stack-items/bytes (sassy-text-stack sassy-output)))
 
 (define (sassy-text-size sassy-output)
   (push-stack-size (sassy-text-stack sassy-output)))
