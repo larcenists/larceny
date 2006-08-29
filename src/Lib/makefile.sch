@@ -500,6 +500,7 @@
       '(("srfi-1" "srfi-0" "srfi-8")
         ("srfi-56")
         ("srfi-60")
+        ("srfi-66")
         ("srfi-69" "srfi-9"))))
   (make:project "sassy.date"
     `(rules

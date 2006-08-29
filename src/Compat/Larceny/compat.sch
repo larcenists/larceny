@@ -128,7 +128,7 @@
     '(srfi-0 srfi-1 srfi-9 
 	     srfi-23 
 	     srfi-56 ;; We may not need 56 (just provide a stub that errors?)
-	     srfi-60 srfi-69))
+	     srfi-60 srfi-66 srfi-69))
 
   (for-each (lambda (x)
 	      (compat:load (param-filename 'source "Sassy" x)))
