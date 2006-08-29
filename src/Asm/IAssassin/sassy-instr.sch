@@ -607,7 +607,7 @@
     (let rep ((slotno 0))
       (cond ((<= slotno n)
              (append (if (is_hwreg slotno)
-                         `((mov ,(reg slotno) (dword ,(stkslot slotno))))
+                         `((mov ,(REG slotno) (dword ,(stkslot slotno))))
                          `((mov TEMP (dword ,(stkslot slotno)))
                            (mov (& GLOBALS ,(G_REG slotno)) TEMP)))
                      (rep (+ slotno 1))))
