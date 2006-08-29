@@ -9,6 +9,7 @@
 (define host-system 'mzscheme)
 
 (define version-299? (> (string->number (version)) 299))
+(define version-301? (>= (string->number (version)) 301))
 
 (define read-byte
   (if version-299?
@@ -337,5 +338,7 @@
 ;; for Sassy
 (define (compat:load-sassy)
   (parameterize ((current-directory "src/Lib/Sassy/"))
-    (load "inits/mzscheme-299.400.scm")
+    (load (if version-301?
+              "inits/mzscheme-301.scm"
+              "inits/mzscheme-299.400.scm"))
     (load "sassy.scm")))
