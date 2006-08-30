@@ -40,8 +40,6 @@
   (newline)
   (load (param-filename 'compatibility "compat.sch"))
   (compat:initialize)
-  (cond ((eq? *target:machine* 'x86-sass)
-         (compat:load-sassy)))
   (recognize-keywords? #f) ;; don't treat :NONE as (QUOTE NONE)
   (compat:load (param-filename 'util "expander.sch"))
   (compat:load (param-filename 'util "config.sch"))
@@ -260,6 +258,10 @@
                         (set! loaded-files (cons filename loaded-files))
                         val))))
         ))
+
+  (cond ((eq? *target:machine* 'x86-sass)
+         (compat:load-sassy)))
+
   (compat:load (param-filename 'util "nbuild.sch"))
   (set! load old-load)
   (cond (do-etags 
