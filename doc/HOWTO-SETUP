@@ -21,9 +21,8 @@ Building Larceny has three major steps:
 Run your host Scheme (either another Larceny or MzScheme 209), and
 change to the root directory of the Larceny tree.
 
-    > (load "Util/petit-setup.sch")
-    > (setup 'scheme: ${SCHEME} 'host: ${HOST} ['native] ['sassy])
-    > (setup-directory-structure)       ; The first time only
+    > (load "setup.sch")
+    > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'nasm | 'sassy ])
     > (build-config-files)              ; [2]
     > (load-compiler)
 
@@ -34,16 +33,17 @@ version of Larceny you build:
         HOST   ::= 'macosx | 'solaris | 'linux86 | 'win32
 
 Additionally, the optional 'native flag will build Native Larceny
-(SPARC) on Solaris, or will use the NASM backend on x86.  The 'native
-flag is necessary to use dynamic loading on Win32, and is thus strongly
-recommended in that case.  There are several other optional flags that
-change the compiler's behavior [3].
+(SPARC) on Solaris; 'nasm will use the NASM backend on x86; 'sassy will
+use the Sassy backend on x86.  The 'nasm or 'sassy flag is necessary to
+use dynamic loading on Win32, and is thus strongly recommended in that
+case.  There are several other optional flags that change the compiler's
+behavior [3].
 
 Some useful examples which are known to work:
 
     > (setup 'scheme: 'larceny  'host: 'solaris 'native)
-    > (setup 'scheme: 'mzscheme 'host: 'win32 'native)
-    > (setup 'scheme: 'larceny  'host: 'linux86 'native)
+    > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy)
+    > (setup 'scheme: 'larceny  'host: 'linux86 'nasm)
     > (setup 'scheme: 'mzscheme 'host: 'linux86)
     > (setup 'scheme: 'larceny  'host: 'solaris)
     > (setup 'scheme: 'mzscheme 'host: 'macosx)
@@ -60,42 +60,55 @@ system:
 
 You will now have a working Larceny interpreter and minimal heap image.
 
-To build the Twobit compiler (you want this):
+To build a complete Larceny user system, including the Twobit compiler:
+
+    > (build-larceny-files)
+
+On Petit, you may want to build the Twobit compiler development
+environment:
 
     > (build-twobit)
 
-On Native Larceny (SPARC), you should also run:
-
-    > (build-larceny-files)
-    > (build-r5rs-files)
 
 
 3. Create heap images
 
-Step 2 above creates a bootstrap heap (petit.heap on Petit and
-sparc.heap on Native (SPARC)).
+Step 2 above creates a bootstrap heap (petit.heap, sparc.heap, or
+sasstrap.heap).  To create the user and development heap images, exit
+the host Scheme back to your command shell.
 
-To use the compiler on Petit Larceny, you need to then create the
-twobit.heap image.  Starting in the shell, once you've run
-(build-twobit) above:
+On Native Larceny (SPARC):
 
-    % ./twobit.bin -stopcopy -- Util/petit-twobit-heap.sch
-    > (dump ${HOST} ['native])
+    % ./larceny.bin -stopcopy -- src/Build/sparc-larceny-heap.sch
+    > (exit)
 
-You can now run ./twobit (or twobit.bat on Windows).
+    % ./larceny.bin -stopcopy -- src/Build/sparc-twobit-heap.sch
+    > (exit)
+    % cp larceny twobit
 
+On IAssassin Larceny (Intel) [4]:
 
-If you are using Native Larceny (SPARC), you should dump heaps
-corresponding to (build-twobit), (build-larceny-files), and
-(build-r5rs-files) above:
+    % "./larceny.bin" -stopcopy -- src/Build/iasn-larceny-heap.sch
+    > (exit)
 
-    % ./larceny.bin -stopcopy -- Util/twobit-heap.sch
+    % "./larceny.bin" -stopcopy -- src/Build/iasn-twobit-heap.sch
+    > (exit)
+    % cp larceny twobit
 
-    % ./larceny.bin -stopcopy -- Util/larceny-heap.sch
+On Petit Larceny:
 
-    % ./larceny.bin -stopcopy -- Util/r5rs-heap.sch
+    % ./petit-larceny.bin -stopcopy
+    > (load "setup.sch")
+    > (setup [ 'nasm ])
+    > (load-compiler)
+    > (load "src/Build/petit-larceny-heap.sch")
+    > (exit)
 
-You can now run ./twobit, ./larceny, and ./larceny-r5rs.
+    % ./twobit.bin -stopcopy -- src/Build/petit-twobit-heap.sch
+    > (dump [ 'nasm ])
+    > (exit)
+
+You can now run ./twobit, ./larceny, or ./petit-larceny.
 
 
 NOTES
@@ -123,3 +136,6 @@ the call to setup:
         environment under Larceny.  This is useful under Petit Larceny
         if the executable gets out of sync with the fasl files.
 
+[4] The quotation marks around "./larceny.bin" are a uniform syntax that
+works on both Microsoft Windows and UNIX-like shells.  The reason is
+left as an exercise for the reader.
