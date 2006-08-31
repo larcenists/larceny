@@ -89,7 +89,7 @@
 	 (define append-gs
 	   (if (eqv? 'up direc)
 	       (lambda (stk2)
-		 (if (memq stk2 previous)
+		 (if (and #f (memq stk2 previous))
 		     (error "tried to append! the same stacks twice" stk2)
 		     (begin (set! previous (cons stk2 previous))
 			    (set! size (+ size (stk2 'size)))
@@ -103,7 +103,7 @@
 				       (not (null? p)))
 				  (set! pointer p))))))
 	       (lambda (stk2)
-		 (if (memq stk2 previous)
+		 (if (and #f (memq stk2 previous))
 		     (error "tried to append! the same stacks twice" stk2)
 		     (begin (set! previous (cons stk2 previous))
 			    (set! size (+ size (stk2 'size)))
