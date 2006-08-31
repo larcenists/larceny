@@ -34,17 +34,18 @@
     (case x
       ((eax ebx ecx edx edi esi esp ebp
          al  bl  cl  dl
-         & align mov push ret label short
+         & align reloc abs
+         mov push ret label short
          lea add sub cmp test neg 
          imul 
          and or xor shl shr sar not
          stosb rep cld
          call 
-         jmp jz je jnz jne jg jng jge jl jnl jle jno 
+         jmp jz je jnz jne jg jng jge jl jnl jle jno jbe
          bl 
          pop
          inc dec 
-         dword dwords) #t)
+         dword byte dwords) #t)
       (else #f)))
          
   (let ((need-labels  '())

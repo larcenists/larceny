@@ -2059,12 +2059,12 @@
 (define-sassy-instr/peep (or (ia86.T_OP1_94* rs rd)		; bytevector-like?
                              (ia86.T_OP1_94))
   (ia86.single_tag_test (REG rs) $tag.bytevector-tag)
-  (ia86.setcc	rd 'z))
+  (ia86.setcc	(REG rd) 'z))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_95* rs rd)		; vector-like?
                              (ia86.T_OP1_95))
   (ia86.single_tag_test (REG rs) $tag.vector-tag)
-  (ia86.setcc	rd 'z))
+  (ia86.setcc	(REG rd) 'z))
 
 (define-sassy-instr (ia86.T_OP2_96 regno)		; bytevector-like-ref
   (ia86.indexed_structure_ref regno $tag.bytevector-tag  $ex.bvlref #t)
