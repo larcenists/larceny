@@ -47,26 +47,26 @@
   (cond ((unsafe-code) ;; 32 bytes for n=0, 35 bytes o/w
          (ia86.timer_check)
          (ia86.storer 0 'RESULT)
-         `(mov TEMP RESULT)
+         `(mov ,TEMP ,RESULT)
          (ia86.const2regf 'RESULT (fixnum n))
-         `(mov TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-         `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
-	 `(jmp TEMP))
+         `(mov ,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+         `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+	 `(jmp ,TEMP))
         (else ;; 37 bytes for n=0, 40 bytes o/w
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
-           `(dec (dword (& GLOBALS ,$g.timer)))
+           `(dec (dword (& ,GLOBALS ,$g.timer)))
            `(jz short ,L0)
            `(label ,L1)
-	   `(lea TEMP (& RESULT ,(- $tag.procedure-tag)))
-	   `(test TEMP_LOW tag_mask)
+	   `(lea ,TEMP (& ,RESULT ,(- $tag.procedure-tag)))
+	   `(test ,TEMP_LOW tag_mask)
 	   `(jnz short ,L0)
-           `(mov TEMP (& TEMP ,PROC_CODEVECTOR_NATIVE))
+           `(mov ,TEMP (& ,TEMP ,PROC_CODEVECTOR_NATIVE))
            (ia86.storer 0 'RESULT)
            (ia86.const2regf 'RESULT (fixnum n))
-           `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
-           `(jmp TEMP)
+           `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+           `(jmp ,TEMP)
            `(label ,L0)
 	   (ia86.mcall $m.invoke-ex 'invoke-ex)
            `(jmp short ,L1)
@@ -88,23 +88,23 @@
                (L2 (fresh-label)))
            (ia86.loadc	'RESULT g)		; global cell
            `(label ,L2)
-	   `(mov TEMP                    ;   dereference
+	   `(mov ,TEMP                    ;   dereference
                  (& RESULT ,(- $tag.pair-tag)))
-	   `(inc TEMP)			; really TEMP += PROC_TAG-8
-	   `(test TEMP_LOW tag_mask)	; tag test
+	   `(inc ,TEMP)			; really ,TEMP += PROC_TAG-8
+	   `(test ,TEMP_LOW tag_mask)	; tag test
 	   `(jnz short ,L1)
-	   `(dec (dword (& GLOBALS ,$g.timer))) ; timer
+	   `(dec (dword (& ,GLOBALS ,$g.timer))) ; timer
 	   `(jz short ,L1)                ;   test
-	   `(dec TEMP)                   ; undo ptr adjustment
+	   `(dec ,TEMP)                   ; undo ptr adjustment
 	   (ia86.storer 0 'TEMP)              ; save proc ptr
 	   (ia86.const2regf 'RESULT           ; argument count
                             (fixnum n))
-	   `(mov TEMP	(& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-           `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
-           `(jmp TEMP)
+	   `(mov ,TEMP	(& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+           `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+           `(jmp ,TEMP)
            `(label ,L1)
 	   (ia86.mcall $m.global-invoke-ex 'global-invoke-ex) ; RESULT has global cell (always)
-	   `(jmp short ,L2)		; Since TEMP is dead following timer interrupt
+	   `(jmp short ,L2)		; Since ,TEMP is dead following timer interrupt
            ))))
 
 (define-sassy-instr (ia86.T_SETRTN_INVOKE n)
@@ -118,22 +118,22 @@
            ;; INVOKE
            (let ((L0 (fresh-label))
                  (L1 (fresh-label)))
-             `(dec (dword (& GLOBALS ,$g.timer)))
+             `(dec (dword (& ,GLOBALS ,$g.timer)))
              `(jnz short ,L1)
              `(label ,L0)
              (ia86.mcall $m.invoke-ex 'invoke-ex)
              `(label ,L1)
-             `(lea TEMP (& RESULT ,(- $tag.procedure-tag)))
-             `(test TEMP_LOW tag_mask)
+             `(lea ,TEMP (& ,RESULT ,(- $tag.procedure-tag)))
+             `(test ,TEMP_LOW tag_mask)
              `(jnz short ,L0)
-             `(mov TEMP (& TEMP ,PROC_CODEVECTOR_NATIVE))
+             `(mov ,TEMP (& ,TEMP ,PROC_CODEVECTOR_NATIVE))
              (ia86.storer 0 'RESULT)
              ;; n stored in RESULT via patch-code
              ;; aligning the code here allows us to eliminate 
              ;; the add&and from the patch code (saving 9 bytes).
-             `(align code_align)
+             `(align ,code_align)
              ;;   3 bytes
-             `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+             `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
              ;; + 5 bytes = 8 bytes; retaddr is aligned!
              `(call ,(setrtn-invoke-patch-code-label n))
              )))))
@@ -166,7 +166,7 @@
   (emit `(label ,(setrtn-invoke-patch-code-label n)))
   (emit `(pop (& CONT ,STK_RETADDR)))  ;; pre-aligned return address
   (for-each emit (ia86.const2regf 'RESULT (fixnum n)))
-  (emit `(jmp TEMP)))
+  (emit `(jmp ,TEMP)))
          
 (define (emit-setrtn-branch-patch-code as l)
   (define (emit x) (apply emit-sassy as x))
@@ -177,11 +177,11 @@
 (define-sassy-instr (ia86.T_APPLY x y)
   (ia86.timer_check)
   (ia86.loadr	'TEMP y)
-  `(mov	(& GLOBALS ,$g.third) TEMP)
+  `(mov	(& ,GLOBALS ,$g.third) ,TEMP)
   (ia86.loadr	SECOND x)
   (ia86.mcall	$m.apply 'apply)
   (ia86.loadr	'TEMP 0)
-  `(mov	TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-  `(add TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
-  `(jmp	TEMP))
+  `(mov	,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+  `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+  `(jmp	,TEMP))
 
