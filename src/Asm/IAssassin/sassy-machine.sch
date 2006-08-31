@@ -55,36 +55,36 @@
                      sassy-machine-directives)))))))
 
 (define-sassy-constant wordsize        4)
-(define-sassy-constant object_align    8)
-(define-sassy-constant code_align      4)
+(define object_align    8)
+(define code_align      4)
 
-(define-sassy-constant fixtag_mask	    3)
-(define-sassy-constant tag_mask             7)
-(define-sassy-constant hdr_shift            8)
-(define-sassy-constant char_shift	    16)
+(define fixtag_mask	    3)
+(define tag_mask             7)
+(define hdr_shift            8)
+(define char_shift	    16)
 
-(define-sassy-constant TEMP    	'eax)	; always same as SECOND
-(define-sassy-constant SECOND  	'eax)	; always same as TEMP
-(define-sassy-constant RESULT  	'ebx)
-(define-sassy-constant REG1    	'ecx)	; ecx must map to a VM register
-(define-sassy-constant REG2    	'edx)
-(define-sassy-constant REG3    	'edi)	; edi must map to a VM register
-(define-sassy-constant REG4    	'esi)
-(define-sassy-constant REG1_LOW 'cl)	; ecx must map to a VM register
-(define-sassy-constant REG2_LOW 'dl)
-(define-sassy-constant GLOBALS 	'esp)
-(define-sassy-constant CONT    	'ebp)
+(define TEMP    	'eax)	; always same as SECOND
+(define SECOND  	'eax)	; always same as TEMP
+(define RESULT  	'ebx)
+(define REG1    	'ecx)	; ecx must map to a VM register
+(define REG2    	'edx)
+(define REG3    	'edi)	; edi must map to a VM register
+(define REG4    	'esi)
+(define REG1_LOW 'cl)	; ecx must map to a VM register
+(define REG2_LOW 'dl)
+(define GLOBALS 	'esp)
+(define CONT    	'ebp)
 
 (define BVEC_HEADER_BYTES 4)
 
 (define G_REGALIAS_ECX	$g.reg1)	; used by rep stos constructions
 (define G_REGALIAS_EDI	$g.reg3)	; ditto
 
-(define-sassy-constant TEMP_LOW	        'al)
-(define-sassy-constant RESULT_LOW	'bl)
-(define-sassy-constant SECOND_LOW	'al)
-(define-sassy-constant REG1_LOW	        'cl)
-(define-sassy-constant REG2_LOW	        'dl)
+(define TEMP_LOW	        'al)
+(define RESULT_LOW	'bl)
+(define SECOND_LOW	'al)
+(define REG1_LOW	        'cl)
+(define REG2_LOW	        'dl)
 
 (define (hwreg_has_low r) (or (= r 1) (= r 2)))
 
