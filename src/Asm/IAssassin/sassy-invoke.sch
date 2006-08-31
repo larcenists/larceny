@@ -164,14 +164,14 @@
 (define (emit-setrtn-invoke-patch-code as n)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label ,(setrtn-invoke-patch-code-label n)))
-  (emit `(pop (& CONT ,STK_RETADDR)))  ;; pre-aligned return address
+  (emit `(pop (& ,CONT ,STK_RETADDR)))  ;; pre-aligned return address
   (for-each emit (ia86.const2regf 'RESULT (fixnum n)))
   (emit `(jmp ,TEMP)))
          
 (define (emit-setrtn-branch-patch-code as l)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label ,(setrtn-branch-patch-code-label l)))
-  (emit `(pop (& CONT ,STK_RETADDR)))  ;; pre-aligned return address 
+  (emit `(pop (& ,CONT ,STK_RETADDR)))  ;; pre-aligned return address 
   (emit `(jmp ,(t_label l))))
 
 (define-sassy-instr (ia86.T_APPLY x y)
