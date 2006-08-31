@@ -457,7 +457,7 @@
       `(label ,L1)
       `(mov ,TEMP (& ,CONT ,(- $tag.pair-tag)))
       `(mov (& ,RESULT) ,TEMP)
-      `(add ,RESULT wordsize)
+      `(add ,RESULT ,wordsize)
       `(mov ,CONT (& ,CONT ,(+ (- $tag.pair-tag) wordsize)))
       `(cmp ,CONT ,$imm.null)
       `(jne short ,L1)
@@ -1245,7 +1245,7 @@
            (ia86.exception_continuable ex L0)
            `(label ,L1))))
   `(mov	(& ,GLOBALS ,$g.alloctmp) ,RESULT)
-  `(add	,RESULT wordsize)
+  `(add	,RESULT ,wordsize)
   (cond ((= regno -1)
          `(mov	,SECOND ,$imm.unspecified))
         (else
@@ -1292,7 +1292,7 @@
            (ia86.loadr	'eax regno)		; Code knows that eax is TEMP/SECOND
            `(mov	(& ,GLOBALS ,G_REGALIAS_ECX) ecx)
            `(mov	(& ,GLOBALS ,G_REGALIAS_EDI) edi)
-           `(shr	eax char_shift)	; byte value
+           `(shr	eax ,char_shift)	; byte value
            `(mov	ecx (& ,GLOBALS ,$g.alloctmp))
            `(shr	ecx 2)		; byte count
            `(lea	edi (& ,RESULT 4))	; destination ptr
@@ -1973,7 +1973,7 @@
 
 (define-sassy-instr (ia86.T_OP2_78 regno)		; string-ref
   (ia86.indexed_structure_ref/hdr regno $tag.bytevector-tag  $hdr.string  $ex.sref #t)
-  `(shl	,RESULT char_shift)
+  `(shl	,RESULT ,char_shift)
   `(or	,RESULT_LOW ,$imm.character))
 
 (define-sassy-instr (ia86.T_OP3_79 regno y)		; string-set!
@@ -2154,7 +2154,7 @@
 
 (define-sassy-instr (ia86.T_OP2IMM_142 regno)		; string-ref
   (ia86.indexed_structure_ref_imm/hdr regno $tag.bytevector-tag  $hdr.string  $ex.sref  #t)
-  `(shl	,RESULT char_shift)
+  `(shl	,RESULT ,char_shift)
   `(or	,RESULT_LOW ,$imm.character))
 
 (define-sassy-instr (ia86.T_OP2IMM_143 regno)		; vector-ref
