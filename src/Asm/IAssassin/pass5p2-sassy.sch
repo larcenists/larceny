@@ -29,13 +29,69 @@
     (as-source! as (cons (list $.entry e #t) (as-source as))))
   (current-sassy-assembly-structure as))
 
+(define (check-for-free-ids code)
+  (define (keyword? x)
+    (case x
+      ((eax ebx ecx edx edi esi esp ebp
+         al  bl  cl  dl
+         & align mov push ret label short
+         lea add sub cmp test neg 
+         imul 
+         and or xor shl shr sar not
+         stosb rep cld
+         call 
+         jmp jz je jnz jne jg jng jge jl jnl jle jno 
+         bl 
+         pop
+         inc dec 
+         dword dwords) #t)
+      (else #f)))
+         
+  (let ((need-labels  '())
+        (found-labels '()))
+    (define (sym x)
+      (cond ((and (not (keyword? x))
+                  (not (memq x found-labels))
+                  (not (memq x need-labels)))
+             (set! need-labels (cons x need-labels)))))
+
+    (define (found-label! l)
+      (if (memq l found-labels)
+          (error 'check-for-free-labels " duplicate label " l))
+      (set! found-labels 
+            (cons l found-labels))
+      (set! need-labels 
+            (filter (lambda (x) (not (eq? x l))) need-labels)))
+    
+    (let rec ((x code))
+      (cond
+       ((number? x) 'ignore)
+       ((null? x) 'ignore)
+       ((pair? x) 
+        (cond ((eq? (car x) 'label)
+               (found-label! (cadr x))))
+        (rec (car x)) 
+        (rec (cdr x)))
+       ((symbol? x)
+        (sym x))
+       (else (error 'check-for-free-ids " what is: " x))))
+    
+    (cond ((not (null? need-labels))
+           (pretty-print code)
+           (error 'check-for-free-ids " unbound: " need-labels)))))
+       
+
+    
+
 (define (sassy-assemble as code)
-  '(begin (display code) (newline))
+  ;(begin (display code) (newline))
+  (check-for-free-ids code)
   (sassy `(,@sassy-machine-directives 
            ,@sassy-instr-directives 
            ,@(map (lambda (l) `(export ,(string->symbol (exported-procedure as l))))
                   (user-data.labels (as-user as)))
-           (text ,@code))))
+           (text ,@code))
+         'dont-expand))
 
 (define (assembly-end as segment)
   segment)
