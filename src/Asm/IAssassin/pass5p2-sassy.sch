@@ -211,7 +211,7 @@
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label)))
     ;(emit-text as "begin_codevector ~a" name)
-    (emit-sassy as 'align 'code_align)
+    (emit-sassy as 'align code_align)
     (set! *did-emit-setrtn-invoke* '())
     (set! *did-emit-setrtn-branch* '())
     (set! *did-emit-setrtn-jump* #f)
