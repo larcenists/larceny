@@ -31,7 +31,28 @@
 ; export all
 
 
-(define (handle-text-block text-item textb level)
+(define handle-text-block 
+
+  (let ()
+
+  (define the-assertions
+    (alist->hash-table
+     '((o!  . 0)                        (no!  . 1)
+       (b!  . 2)  (c!   . 2) (nae! . 2) (nb!  . 3)  (nc!  . 3) (ae! . 3)
+       (e!  . 4)  (z!   . 4)            (ne!  . 5)  (nz!  . 5)
+       (be! . 6)  (na!  . 6)            (nbe! . 7)  (a!   . 7)
+       (s!  . 8)                        (ns!  . 9)
+       (p!  . 10) (pe!  . 10)           (np!  . 11) (po!  . 11)
+       (l!  . 12) (nge! . 12)           (nl!  . 13) (ge!  . 13)
+       (le! . 14) (ng!  . 14)           (g!   . 15) (nle! . 15))))
+
+  (define get-assert-name
+    (let ((the-names '#(jo jno jb jnb je jne jbe jnbe
+			   js jns jp jpo jl jnl jle jg)))
+      (lambda (cc)
+	(vector-ref the-names cc))))
+
+  (lambda (text-item textb level)
 
   (define outp (t-outp textb))
 
@@ -123,17 +144,6 @@
 						(cadr unres-list))))))))
      list-of-unres-lists))
 
-  (define the-assertions
-    (alist->hash-table
-     '((o!  . 0)                        (no!  . 1)
-       (b!  . 2)  (c!   . 2) (nae! . 2) (nb!  . 3)  (nc!  . 3) (ae! . 3)
-       (e!  . 4)  (z!   . 4)            (ne!  . 5)  (nz!  . 5)
-       (be! . 6)  (na!  . 6)            (nbe! . 7)  (a!   . 7)
-       (s!  . 8)                        (ns!  . 9)
-       (p!  . 10) (pe!  . 10)           (np!  . 11) (po!  . 11)
-       (l!  . 12) (nge! . 12)           (nl!  . 13) (ge!  . 13)
-       (le! . 14) (ng!  . 14)           (g!   . 15) (nle! . 15))))
-
   (define (assertion? x)
     (if (pair? x)
 	#f
@@ -141,12 +151,6 @@
 
   (define (flip x) ; flip an assertion cc-code
     (if (even? x) (+ x 1) (- x 1)))
-
-  (define get-assert-name
-    (let ((the-names '#(jo jno jb jnb je jne jbe jnbe
-			   js jns jp jpo jl jnl jle jg)))
-      (lambda (cc)
-	(vector-ref the-names cc))))
 
   (define (gen-short-assert cc amount)
     (let ((stack (t-text textb)))
@@ -515,4 +519,4 @@
       (fix-body-labels! new-text-size (t-label textb))
       (fix-block-labels! new-text-size (t-label textb) (t-env textb))
       (push-stack-append! (sassy-text-stack outp) (t-text textb))
-      (push-stack-size (t-text textb))))))
+      (push-stack-size (t-text textb))))))))
