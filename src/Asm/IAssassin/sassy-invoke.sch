@@ -46,9 +46,9 @@
 (define-sassy-instr (ia86.T_INVOKE n)
   (cond ((unsafe-code) ;; 32 bytes for n=0, 35 bytes o/w
          (ia86.timer_check)
-         (ia86.storer 0 'RESULT)
+         (ia86.storer 0 RESULT)
          `(mov ,TEMP ,RESULT)
-         (ia86.const2regf 'RESULT (fixnum n))
+         (ia86.const2regf RESULT (fixnum n))
          `(mov ,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
          `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
 	 `(jmp ,TEMP))
@@ -63,8 +63,8 @@
 	   `(test ,TEMP_LOW ,tag_mask)
 	   `(jnz short ,L0)
            `(mov ,TEMP (& ,TEMP ,PROC_CODEVECTOR_NATIVE))
-           (ia86.storer 0 'RESULT)
-           (ia86.const2regf 'RESULT (fixnum n))
+           (ia86.storer 0 RESULT)
+           (ia86.const2regf RESULT (fixnum n))
            `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
            `(jmp ,TEMP)
            `(label ,L0)
@@ -86,18 +86,18 @@
         (else
          (let ((L1 (fresh-label))
                (L2 (fresh-label)))
-           (ia86.loadc	'RESULT g)		; global cell
+           (ia86.loadc	RESULT g)		; global cell
            `(label ,L2)
 	   `(mov ,TEMP                    ;   dereference
-                 (& RESULT ,(- $tag.pair-tag)))
+                 (& ,RESULT ,(- $tag.pair-tag)))
 	   `(inc ,TEMP)			; really ,TEMP += PROC_TAG-8
 	   `(test ,TEMP_LOW ,tag_mask)	; tag test
 	   `(jnz short ,L1)
 	   `(dec (dword (& ,GLOBALS ,$g.timer))) ; timer
 	   `(jz short ,L1)                ;   test
 	   `(dec ,TEMP)                   ; undo ptr adjustment
-	   (ia86.storer 0 'TEMP)              ; save proc ptr
-	   (ia86.const2regf 'RESULT           ; argument count
+	   (ia86.storer 0 TEMP)              ; save proc ptr
+	   (ia86.const2regf RESULT           ; argument count
                             (fixnum n))
 	   `(mov ,TEMP	(& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
            `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
@@ -127,7 +127,7 @@
              `(test ,TEMP_LOW ,tag_mask)
              `(jnz short ,L0)
              `(mov ,TEMP (& ,TEMP ,PROC_CODEVECTOR_NATIVE))
-             (ia86.storer 0 'RESULT)
+             (ia86.storer 0 RESULT)
              ;; n stored in RESULT via patch-code
              ;; aligning the code here allows us to eliminate 
              ;; the add&and from the patch code (saving 9 bytes).
@@ -165,7 +165,7 @@
   (define (emit x) (apply emit-sassy as x))
   (emit `(label ,(setrtn-invoke-patch-code-label n)))
   (emit `(pop (& ,CONT ,STK_RETADDR)))  ;; pre-aligned return address
-  (for-each emit (ia86.const2regf 'RESULT (fixnum n)))
+  (for-each emit (ia86.const2regf RESULT (fixnum n)))
   (emit `(jmp ,TEMP)))
          
 (define (emit-setrtn-branch-patch-code as l)
@@ -176,11 +176,11 @@
 
 (define-sassy-instr (ia86.T_APPLY x y)
   (ia86.timer_check)
-  (ia86.loadr	'TEMP y)
+  (ia86.loadr	TEMP y)
   `(mov	(& ,GLOBALS ,$g.third) ,TEMP)
   (ia86.loadr	SECOND x)
   (ia86.mcall	$m.apply 'apply)
-  (ia86.loadr	'TEMP 0)
+  (ia86.loadr	TEMP 0)
   `(mov	,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
   `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
   `(jmp	,TEMP))

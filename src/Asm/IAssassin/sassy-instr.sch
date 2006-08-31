@@ -52,8 +52,8 @@
 (define (unsafe-globals)
   (unsafe-code))
 
-(define sassy-instr-directives
-  '((macro comment (lambda x '(begin)))))
+(define sassy-instr-directives '())
+  ;;'((macro comment (lambda x '(begin)))))
 
 (define-syntax define-sassy-instr
   (syntax-rules ()
@@ -103,10 +103,11 @@
     ((20) $r.reg20) ((21) $r.reg21) ((22) $r.reg22) ((23) $r.reg23)
     ((24) $r.reg24) ((25) $r.reg25) ((26) $r.reg26) ((27) $r.reg27)
     ((28) $r.reg28) ((29) $r.reg29) ((30) $r.reg30) ((31) $r.reg31)
-    (else (error 'G_REG (string-append " unknown register "
+    (else (error 'G_REG (string-append " unknown sw register "
                                        (number->string n))))))
 (define (REG n) 
   (case n   
+    ((eax ebx ecx edx edi esi esp ebp) n)
     ((RESULT) RESULT) ;; hack to allow 'RESULT to be passed in  op1/op2 peeps
     ((1) REG1) ((2) REG2) ((3) REG3) ((4) REG4)
     (else (error 'REG (string-append " unknown register "
@@ -116,7 +117,7 @@
   (case n
     ((RESULT) RESULT_LOW) ;; hack... (see note in REG impl)
     ((1) REG1_LOW) ((2) REG2_LOW)
-    (else (error 'REG (string-append " unknown register "
+    (else (error 'REG (string-append " unknown low register "
                                      (number->string n))))))
 
 ;; *tries* to produce the low variant of hwreg
@@ -126,6 +127,10 @@
     ((ebx)    'bl)
     ((ecx)    'cl)
     ((edx)    'dl)
+    ((edi)    'edi)
+    ((esi)    'esi)
+    ((esp)    'esp)
+    ((ebp)    'ebp)
     ((RESULT) RESULT_LOW)
     ((TEMP)   TEMP_LOW)
     ((SECOND) SECOND_LOW)
@@ -155,7 +160,7 @@
 ;;; Utility macros for MAL instruction definitions
 
 (define-sassy-instr (ia86.mcall fcn name)
-  `(comment -- ,name)
+  ;; `(comment -- ,name)
   `(call	(& ,GLOBALS ,fcn))
   `(align ,code_align))
 
@@ -180,8 +185,16 @@
 
 ;;; loadc hwreg, slot
 ;;;	Load constant vector element 'slot' into hwreg
+
+(define (intel-reg? r)
+  (memq r '(eax ebx ecx edx edi esi esp ebp al  bl  cl  dl)))
+
+(define (assert-intel-reg hwreg)
+  (if (not (intel-reg? hwreg))
+      (error 'assert-intel-reg hwreg)))
 	
 (define-sassy-instr (ia86.loadc hwreg slot)
+  (assert-intel-reg hwreg)
   (ia86.loadr	hwreg 0)
   `(mov	,hwreg (& ,hwreg ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
   `(mov	,hwreg (& ,hwreg ,(+ (- $tag.vector-tag) (words2bytes (+ slot 1))))))
@@ -235,7 +248,7 @@
 ;;;	any registers; exception is noncontinuable
 	
 (define-sassy-instr (ia86.exception_noncontinuable excode)
-  `(comment -- exception ,excode)
+  ;; `(comment -- exception ,excode)
   `(call	(& ,GLOBALS ,$m.exception))
   `(dwords	,excode))
 		
@@ -255,7 +268,7 @@
 ;;;	globals, to save 3 bytes!  (It can be a negative offset.)
 
 (define-sassy-instr (ia86.exception_continuable excode restart)
-  `(comment -- exception ,excode)
+  ;; `(comment -- exception ,excode)
   `(call	(& ,GLOBALS ,$m.exception))
   `(dwords	,excode)
   `(align	,code_align)
@@ -307,6 +320,7 @@
 ;;; Move a constant to a register *without changing the flags*
 
 (define-sassy-instr (ia86.const2reg hwreg const)
+  (assert-intel-reg hwreg)
   `(mov ,hwreg ,const))         ; 5 bytes
 
 ;;; const2regf hwreg const
@@ -314,6 +328,7 @@
 ;;; Makes for smaller code size.
 
 (define-sassy-instr (ia86.const2regf hwreg const)
+  (assert-intel-reg hwreg)
   (cond ((= const 0)
 	 `(xor ,hwreg ,hwreg))  ; 2 bytes
 	((= const 1)
@@ -372,6 +387,7 @@
   (ia86.T_GLOBAL_SETREG x RESULT))
 
 (define-sassy-instr (ia86.T_GLOBAL_SETREG x hwreg)
+  (assert-intel-reg hwreg)
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
     `(label ,L0)
@@ -381,7 +397,7 @@
            `(cmp ,hwreg ,$imm.undefined)
            `(jne short ,L1)
            `(mov ,hwreg ,TEMP)
-           (ia86.mcall $m.global-ex global-ex)
+           (ia86.mcall $m.global-ex 'global-ex)
            `(jmp short ,L0)
            `(label ,L1)))))
 
@@ -396,14 +412,19 @@
   `(mov	(& ,RESULT ,(- $tag.pair-tag)) ,(REG regno))
   (ia86.write_barrier -1 regno))
 
+(define (repeat-times n form)
+  (if (zero? n)
+      '()
+      (cons form (repeat-times (- n 1) form))))
+
 (define-sassy-instr (ia86.T_LEXICAL rib off)
   (ia86.loadr	TEMP 0)		; We know R0 is not a HWREG
-  `(times ,rib (mov ,TEMP (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
+  (repeat-times rib `(mov ,TEMP (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
   `(mov ,RESULT (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off)))))
 
 (define-sassy-instr (ia86.T_SETLEX rib off)
   (ia86.loadr	TEMP 0)		; We know R0 is not a HWREG
-  `(times ,rib (mov ,TEMP (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
+  (repeat-times rib `(mov ,TEMP (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
   `(mov (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off))) ,RESULT))
 	
 (define-sassy-instr (ia86.T_STACK slot)
@@ -472,7 +493,7 @@
                `((mov (& ,RESULT ,(+ PROC_REG0 (words2bytes regno))) 
                       ,(REG regno)))
                `(,@(ia86.loadr TEMP regno)
-                 (mov (& ,RESULT ,(+ PROC_REG0 (words2bytes regno))) TEMP)))
+                 (mov (& ,RESULT ,(+ PROC_REG0 (words2bytes regno))) ,TEMP)))
            (rep (- regno 1))))
          (else 
           '()))))
@@ -613,7 +634,7 @@
              (append (if (is_hwreg slotno)
                          `((mov ,(REG slotno) (dword ,(stkslot slotno))))
                          `((mov ,TEMP (dword ,(stkslot slotno)))
-                           (mov (& GLOBALS ,(G_REG slotno)) TEMP)))
+                           (mov (& ,GLOBALS ,(G_REG slotno)) ,TEMP)))
                      (rep (+ slotno 1))))
             (else
              '())))))
@@ -669,8 +690,8 @@
 		 (else (loop (as-parent obj)))))))
     (cond ((> levels 0) 
            (ia86.loadr TEMP 0)		; We know R0 is not a HWREG
-           `(times ,levels 
-                   (mov TEMP (& TEMP ,(+ (- $tag.procedure-tag) PROC_REG0))))
+           (repeat-times levels 
+                         `(mov ,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_REG0))))
            (ia86.storer 0 TEMP)))
     ;; Now TEMP holds the closure we're jumping into; calculate the
     ;; address as start of codevector plus offset from above.
@@ -772,6 +793,7 @@
 ;;; TRUE=6
 ;;; FALSE=2
 (define-sassy-instr (ia86.setcc hwreg cc)				; 10 bytes, jump
+  (assert-intel-reg hwreg)
   (let ((L1 (fresh-label))
         (jcc (string->symbol (string-append "j" (symbol->string cc)))))
     (ia86.const2reg hwreg $imm.true)	; 5 bytes
@@ -810,6 +832,7 @@
 ;;;     3-bit tag.
 
 (define-sassy-instr (ia86.single_tag_test hwreg x)
+  (assert-intel-reg hwreg)
   `(lea	,TEMP (& ,hwreg ,(- 8 x)))
   `(test	,TEMP_LOW 7))
 	
@@ -818,6 +841,7 @@
 ;;;	tag and signal an exception if it does not match.
 
 (define-sassy-instr (ia86.single_tag_test_ex hwreg x y)
+  (assert-intel-reg hwreg)
   (cond 
    ((not (unsafe-code))
     (let ((L0 (fresh-label))
@@ -1567,15 +1591,15 @@
 
 (define-sassy-instr/peep (or (ia86.T_OP1_3* rs rd)	; unspecified
                              (ia86.T_OP1_3))
-  (ia86.const2regf rd $imm.unspecified))
+  (ia86.const2regf (REG rd) $imm.unspecified))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_4* rs rd)	; undefined
                              (ia86.T_OP1_4))
-  (ia86.const2regf rd $imm.undefined))
+  (ia86.const2regf (REG rd) $imm.undefined))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_5* rs rd)	; eof-object
                              (ia86.T_OP1_5))
-  (ia86.const2regf rd $imm.eof))
+  (ia86.const2regf (REG rd) $imm.eof))
 
 (define-sassy-instr (ia86.T_OP1_6)		; enable-interrupts
   (ia86.mcall	$m.enable-interrupts 'enable-interrupts))
@@ -1589,22 +1613,22 @@
 (define-sassy-instr/peep (or (ia86.T_OP1_9* rs rd)		; not
                              (ia86.T_OP1_9))
   `(cmp	,(try-low rs) ,$imm.false)
-  (ia86.setcc	rd 'z))
+  (ia86.setcc	(REG rd) 'z))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_10* rs rd)		; null?
                              (ia86.T_OP1_10))
   `(cmp	,(try-low rs) ,$imm.null)
-  (ia86.setcc	rd 'z))
+  (ia86.setcc	(REG rd) 'z))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_11* rs rd)
                              (ia86.T_OP1_11))		; pair?
-  (ia86.single_tag_test rs $tag.pair-tag)
-  (ia86.setcc	rd 'z))
+  (ia86.single_tag_test (REG rs) $tag.pair-tag)
+  (ia86.setcc	(REG rd) 'z))
 	
 (define-sassy-instr/peep (or (ia86.T_OP1_12* rs rd)	; eof-object?
                              (ia86.T_OP1_12))
-  `(cmp	,rs ,$imm.eof)
-  (ia86.setcc	rd 'z))
+  `(cmp	,(REG rs) ,$imm.eof)
+  (ia86.setcc	(REG rd) 'z))
 
 (define-sassy-instr (ia86.T_OP1_13)		; port?
   (ia86.double_tag_predicate $tag.vector-tag $hdr.port))
@@ -1615,12 +1639,12 @@
 (define-sassy-instr/peep (or (ia86.T_OP1_15* rs rd)		; car
                              (ia86.T_OP1_15))
   (ia86.single_tag_test_ex rs $tag.pair-tag $ex.car)
-  `(mov	,rd (& ,rs ,(- $tag.pair-tag))))
+  `(mov	,(REG rd) (& ,(REG rs) ,(- $tag.pair-tag))))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_16* rs rd)		; cdr
                              (ia86.T_OP1_16))
   (ia86.single_tag_test_ex rs $tag.pair-tag $ex.cdr)
-  `(mov	,rd (& ,rs ,(+ (- $tag.pair-tag) wordsize))))
+  `(mov	,(REG rd) (& ,(REG rs) ,(+ (- $tag.pair-tag) wordsize))))
 
 (define-sassy-instr (ia86.T_OP1_17)		; symbol?
   (ia86.double_tag_predicate $tag.vector-tag $hdr.symbol))
@@ -1773,8 +1797,8 @@
 
 (define-sassy-instr/peep (or (ia86.T_OP1_47* rs rd)		; procedure?
                              (ia86.T_OP1_47))
-  (ia86.single_tag_test rs $tag.procedure-tag)
-  (ia86.setcc	rd 'z))
+  (ia86.single_tag_test (REG rs) $tag.procedure-tag)
+  (ia86.setcc	(REG rd) 'z))
 
 (define-sassy-instr (ia86.T_OP1_48)		; procedure-length
   (ia86.indexed_structure_length $tag.procedure-tag $ex.plen  #f))
@@ -1785,7 +1809,7 @@
 		
 (define-sassy-instr (ia86.T_OP1_52)		; make-cell just maps to cons, for now
   (ia86.T_OP2_58 1)		; OPTIMIZEME: remove next instr by specializing
-  `(mov	(& ,RESULT ,(- 4 $tag.pair-tag)) (dword $imm.unspecified)))
+  `(mov	(& ,RESULT ,(- 4 $tag.pair-tag)) (dword ,$imm.unspecified)))
 
 (define-sassy-instr (ia86.T_OP1_54)		; cell-ref
   `(mov	,RESULT (& ,RESULT ,(- $tag.pair-tag))))
@@ -1848,7 +1872,10 @@
          )))
 
 (define (reg/result->num r)
-  (if (eq? r 'RESULT) -1 r))
+  (cond ((eq? r 'RESULT) -1)
+        ((eq? r RESULT)  -1)
+        ((number? r) r)
+        (else (error 'reg/result->num r))))
 	
 (define-sassy-instr/peep (or (ia86.T_OP2_59* rs1 rd rs2)	; set-car!
                              (ia86.T_OP2_59 rs2))
@@ -2031,12 +2058,12 @@
 
 (define-sassy-instr/peep (or (ia86.T_OP1_94* rs rd)		; bytevector-like?
                              (ia86.T_OP1_94))
-  (ia86.single_tag_test rs $tag.bytevector-tag)
+  (ia86.single_tag_test (REG rs) $tag.bytevector-tag)
   (ia86.setcc	rd 'z))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_95* rs rd)		; vector-like?
                              (ia86.T_OP1_95))
-  (ia86.single_tag_test rs $tag.vector-tag)
+  (ia86.single_tag_test (REG rs) $tag.vector-tag)
   (ia86.setcc	rd 'z))
 
 (define-sassy-instr (ia86.T_OP2_96 regno)		; bytevector-like-ref
@@ -2357,11 +2384,11 @@
 
 (define-sassy-instr/peep (or (ia86.T_OP1_404* rs rd)		; car:pair
                              (ia86.T_OP1_404))
-  `(mov	,rd (& ,rs ,(- $tag.pair-tag))))
+  `(mov	,(REG rd) (& ,(REG rs) ,(- $tag.pair-tag))))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_405* rs rd)		; cdr:pair
                              (ia86.T_OP1_405))
-  `(mov	,rd (& ,rs ,(+ (- $tag.pair-tag) wordsize))))
+  `(mov	,(REG rd) (& ,(REG rs) ,(+ (- $tag.pair-tag) wordsize))))
 
 (define-sassy-instr (ia86.T_OP2_406 regno)		; =:fix:fix
   (ia86.trusted_fixnum_compare regno 'e))

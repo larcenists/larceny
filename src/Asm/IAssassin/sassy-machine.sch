@@ -54,7 +54,7 @@
                (cons '(macro NAME VAL)
                      sassy-machine-directives)))))))
 
-(define-sassy-constant wordsize        4)
+(define wordsize        4)
 (define object_align    8)
 (define code_align      4)
 
