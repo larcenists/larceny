@@ -236,14 +236,23 @@
 
 (define emit-sassy 
   (lambda (as . x)
+    (define (handle-added-code! as added-code)
+      (cond ((null? (as-code as))
+             (as-code! as (cons added-code (last-pair added-code))))
+            (else
+             (let* ((beg*end (as-code as))
+                    (beg (car beg*end))
+                    (end (cdr beg*end))
+                    (new-end (last-pair added-code)))
+               (set-cdr! end added-code)
+               (as-code! as (cons beg new-end))))))
     (cond 
      ((procedure? (car x))
       (parameterize ((current-sassy-assembly-structure as))
-        ;;; HACK HACK HACK!
-        (as-code! as (append (reverse (apply (car x) (cdr x)))
-                             (as-code as)))))
+        (let* ((added-code (apply (car x) (cdr x))))
+          (handle-added-code! as added-code))))
      (else
-      (as-code! as (cons x (as-code as)))))
+      (handle-added-code! as (list x))))
     (as-lc! as (+ (as-lc as) 1)))) ; FSK: perhaps incrementing by 1 won't work, but what the hell.
 
 (define emit-text-noindent

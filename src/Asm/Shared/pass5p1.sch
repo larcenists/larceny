@@ -447,10 +447,10 @@
       (cons code constants)))
   
   (define (pasteup-sexps)
-    (let ((code (as-code as))
-          (constants (list->vector (as-constants as))))
-      ;; maybe reverse, maybe flatten, but for now just let it be.
-      (cons (reverse code) constants)))
+    (let* ((beg*end (as-code as))
+           (code (car beg*end))
+           (constants (list->vector (as-constants as))))
+      (cons code constants)))
 
   (cond ((bytevector? (car (as-code as)))
          (pasteup-code))
