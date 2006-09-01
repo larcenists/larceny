@@ -40,7 +40,6 @@ extern void i386_return_from_scheme();
 
 #ifdef PETIT_LARCENY
 int twobit_cache_state = 0;     /* For petit-instr.h debug code */
-word *twobit_effective_regzero = 0;
 # if USE_LONGJUMP || USE_RETURN_WITHOUT_VALUE
 cont_t twobit_cont_label = 0;   /* Label to jump to */
 # endif
@@ -147,13 +146,13 @@ void scheme_start( word *globals )
 # else
     f = DECODE_CODEPTR(procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ));
 # endif
-    twobit_effective_regzero = globals[G_REG0];
+    globals[ G_EFFECTIVE_REG0 ] = globals[G_REG0];
     break;
   case DISPATCH_CALL_AGAIN :
 # if USE_LONGJUMP
     /* A longjump has pruned the stack; now continue. */
     f = twobit_cont_label;
-    twobit_effective_regzero = globals[G_REG0];
+    globals[ G_EFFECTIVE_REG0 ] = globals[G_REG0];
     break;
 # else
     panic_exit( "Unexpected entry to DISPATCH_CALL_AGAIN in scheme_start()" );
@@ -163,11 +162,11 @@ void scheme_start( word *globals )
     return;
   case DISPATCH_RETURN_FROM_S2S_CALL :
     f = restore_context( globals );
-    twobit_effective_regzero = globals[G_REG0];
+    globals[ G_EFFECTIVE_REG0 ] = globals[G_REG0];
     break;
   case DISPATCH_STKUFLOW :
     f = refill_stack_cache( globals );
-    /* twobit_effective_regzero set by refill_stack_cache */
+    /* G_EFFECTIVE_REG0 set by refill_stack_cache */
     break;
   case DISPATCH_SIGFPE :
     handle_sigfpe( globals );
@@ -180,7 +179,7 @@ void scheme_start( word *globals )
        */
     timer_exception( globals, twobit_cont_label );
     f = twobit_cont_label;
-    twobit_effective_regzero = globals[G_REG0];
+    globals[ G_EFFECTIVE_REG0 ] = globals[G_REG0];
     break;
 # else
     panic_exit( "Unexpected entry to DISPATCH_TIMER in scheme_start()" );
@@ -192,8 +191,8 @@ void scheme_start( word *globals )
   /* Inner loop */
 # if USE_GOTOS_LOCALLY
    /* INVARIANT: f is an entry point within the code of the procedure 
-    * in twobit_effective_regzero. 
-    * We use twobit_effective_regzero instead of REG0, because the
+    * in G_EFFECTIVE_REG0. 
+    * We use G_EFFECTIVE_REG0 instead of REG0, because the
     * VALUES code may put something else into REG0. This fix cannot be
     * localized to the inner loop, because a stack underflow will
     * cause a jump to the outer loop, and REG0 must be preserved
@@ -201,18 +200,19 @@ void scheme_start( word *globals )
 #  if USE_RETURN_WITH_VALUE
    while (1)
    {
-     codeptr_t p=DECODE_CODEPTR(procedure_ref(twobit_effective_regzero,IDX_PROC_CODE));
+     codeptr_t p=DECODE_CODEPTR(procedure_ref((word *)globals[ G_EFFECTIVE_REG0 ],
+                                              IDX_PROC_CODE));
      f = p( globals, f );
    }
 #  elif USE_RETURN_WITHOUT_VALUE
-#  error must update to use twobit_effective_regzero
+#  error must update to use G_EFFECTIVE_REG0
    twobit_cont_label = f;
    while (1) {
      codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
      p( globals, twobit_cont_label );
    }
 #  elif USE_LONGJUMP
-#  error must update to use twobit_effective_regzero
+#  error must update to use G_EFFECTIVE_REG0
    {
      codeptr_t p=DECODE_CODEPTR(procedure_ref(globals[G_REG0],IDX_PROC_CODE));
      p( globals, f );
@@ -781,7 +781,7 @@ cont_t refill_stack_cache( word *globals )
   gc_stack_underflow( the_gc( globals ) );
   stkp = (word*)globals[ G_STKP ];
 #if defined PETIT_LARCENY && USE_GOTOS_LOCALLY
-  twobit_effective_regzero = stkp[ STK_REG0 ];
+  globals[ G_EFFECTIVE_REG0 ] = stkp[ STK_REG0 ];
 #endif
   return DECODE_RETURN_ADDRESS(stkp[ STK_RETADDR ]);
 }

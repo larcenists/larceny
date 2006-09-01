@@ -47,7 +47,6 @@
 # define CDECL 
 #endif
 
-extern word *twobit_effective_regzero;
 #if USE_RETURN_WITHOUT_VALUE || USE_LONGJUMP
 extern cont_t twobit_cont_label;
 #endif
@@ -574,16 +573,16 @@ extern cont_t twobit_cont_label;
        do { \
          if (--TIMER == 0) \
            WITH_SAVED_STATE( mc_timer_exception( globals, (cont_t)L ) ); \
-         twobit_effective_regzero = (word*)REGZERO; \
+         globals[ G_EFFECTIVE_REG0 ] = REGZERO; \
          (DECODE_CODEPTR(procedure_ref(REGZERO,IDX_PROC_CODE)))( globals, L ); \
        } while(0)
 #  elif USE_RETURN_WITH_VALUE
 #    define nonlocal_control_transfer( REGZERO, L ) \
-       do { twobit_effective_regzero = (word*)REGZERO; \
+       do { globals[ G_EFFECTIVE_REG0 ] = REGZERO; \
             SAVE_STATE(); return (cont_t)L; } while(0)
 #  elif USE_RETURN_WITHOUT_VALUE
 #    define nonlocal_control_transfer( REGZERO, L ) \
-       do { twobit_effective_regzero = (word*)REGZERO; \
+       do { globals[ G_EFFECTIVE_REG0 ] = REGZERO; \
             twobit_cont_label = (cont_t)L; SAVE_STATE(); return; } while(0)
 #  endif
 #endif
