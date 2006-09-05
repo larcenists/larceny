@@ -640,12 +640,13 @@
 (define (test)
   (let ((p (make-parser '( (s (a) (s s)) )
                         (lambda (l) (map (lambda (x) (list x x)) l)))))
-    (let ((x (p '(a a a a a a a a a))))
-      (length (parse->trees x 's 0 9)))))
+    (let ((x (p '(a a a a a a a a a a))))
+      (length (parse->trees x 's 0 10)))))
 
 (define (main . args)
   (run-benchmark
     "earley"
     earley-iters
     (lambda () (test))
-    (lambda (result) (equal? result 1430))))
+    ; For 9, the correct result would be 1430
+    (lambda (result) (equal? result 4862))))

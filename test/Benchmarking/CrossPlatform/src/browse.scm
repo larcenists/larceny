@@ -150,7 +150,8 @@
                                                        (cons
                                                         (cons (car pat) l)
                                                         alist)))
-                                          (if (null? e) #f #t)))))))))
+                                          (if (null? e) #f #t)))))))
+			   (else #f)))
                     (else (and
                            (pair? (car dat))
                            (match (car pat)

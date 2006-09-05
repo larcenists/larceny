@@ -587,7 +587,7 @@ BASELINE_BENCHMARKS="succeed fail crash"
 MICRO_BENCHMARKS="sumfp fibfp sum fib tak cpstak ctak takl ntakl dderiv deriv destruc diviter divrec browse"
 FP_BENCHMARKS="fft mbrot nucleic pnpoly ray simplex"
 ARRAY_BENCHMARKS="puzzle triangl"
-MISC_BENCHMARKS="dynamic earley graphs lattice maze mazefun parsing peval scheme slatex"
+MISC_BENCHMARKS="dynamic earley graphs lattice conform maze mazefun parsing peval scheme slatex"
 GC_BENCHMARKS="nboyer sboyer gcbench gcold perm9"
 
 SOME_BENCHMARKS="fib mbrot puzzle dynamic parsing slatex nboyer sboyer"

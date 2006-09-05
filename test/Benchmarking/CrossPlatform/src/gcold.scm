@@ -25,7 +25,7 @@
                         (+ (* 16384 r) (random14 16384))
                         n)))))
     (lambda (n)
-      (if (and (fixnum? n) (< n 16384))
+      (if (and (exact? n) (integer? n) (< n 16384))
           (random14 n)
           (loop n (random14 16384) n)))))
 

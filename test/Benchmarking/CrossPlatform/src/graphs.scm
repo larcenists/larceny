@@ -15,11 +15,12 @@
 
 (define (main . args)
   (run-benchmark
-    "graphs6"
+    "graphs7"
     graphs-iters
-    (lambda () (fold-over-rdg 6 2 cons '()))
+    (lambda () (fold-over-rdg 7 2 cons '()))
     (lambda (result)
-      (= (length result) 10275))))
+      ; For 6 instead of 7, the result would be 10275
+      (= (length result) 213829))))
 
 
 ; End of new code.
