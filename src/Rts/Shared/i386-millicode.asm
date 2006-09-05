@@ -21,7 +21,7 @@
 	
 %define OPTIMIZE_MILLICODE
 
-	section	.text
+	section	.text align=4
 	
 	global  EXTNAME(i386_scheme_jump)
 	global	EXTNAME(i386_stack_underflow)
@@ -507,17 +507,12 @@ PUBLIC i386_petit_patch_boot_code
 %macro CALLOUT_TO_C 1
 	mov	ebx, GLOBALS
 	mov	esp, [ebx+G_SAVED_ESP]
-%if %1
 	mov	ecx, [ebx+G_RETADDR]	
+	push	0		; stack on OS X must be 16-byte aligned
 	push	ecx
-%endif
 	push	ebx		; globals
 	call	eax
-%if %1
-	add	esp, 8
-%else
-	add	esp, 4
-%endif
+	add	esp, 12
 %endmacro
 
 ;;; i386_signal_exception
@@ -538,10 +533,11 @@ i386_signal_exception:
 	SAVE_STATE saved_globals_pointer	; forces RESULT into GLOBALS
 	mov	ebx, GLOBALS
 	mov	esp, [ebx+G_SAVED_ESP]
+	push	0		; stack on OS X must be 16-byte aligned
 	push	dword [tmp_exception_code]	; exception code
 	push	ebx				; globals
 	call	EXTNAME(mc_exception)
-	add	esp, 8
+	add	esp, 12
 	RESTORE_STATE saved_globals_pointer
 	jmp	[GLOBALS + G_RETADDR]
 
@@ -553,10 +549,11 @@ i386_signal_exception_intrsafe:
 	SAVE_STATE saved_globals_pointer	; forces RESULT into GLOBALS
 	mov	ebx, GLOBALS
 	mov	esp, [ebx+G_SAVED_ESP]
+	push	0		; stack on OS X must be 16-byte aligned
 	push	dword [tmp_exception_code]	; exception code
 	push	ebx				; globals
 	call	EXTNAME(mc_exception)
-	add	esp, 8
+	add	esp, 12
 	RESTORE_STATE saved_globals_pointer
 	jmp	[GLOBALS + G_RETADDR]
 
