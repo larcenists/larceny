@@ -311,11 +311,12 @@
   (define (save-result! args registers rr rs temps)
     (let ((r (car registers)))
       (gen! output $setreg r)
+      (cgreg-bind! regs r #t)
       (loop args
             (cdr registers)
             r
             rs
-            temps)))
+            (cons r temps))))
   
   (loop (cdr args)
         (choose-registers regs frame (length args))
