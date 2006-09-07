@@ -89,7 +89,7 @@
   (check-for-free-ids code)
   (sassy `(,@sassy-machine-directives 
            ,@sassy-instr-directives 
-           ,@(map (lambda (l) `(export ,(string->symbol (exported-procedure as l))))
+           ,@(map (lambda (l) `(export ,(string->symbol (compiled-procedure as l))))
                   (user-data.labels (as-user as)))
            (text ,@code))
          'dont-expand))
@@ -113,7 +113,7 @@
                   (let* ((sym-table (sassy-symbol-table code))
                          (sassy-sym (hash-table-ref 
                                      sym-table 
-                                     (t_label (exported-procedure as (car entry)))))
+                                     (t_label (compiled-procedure as (car entry)))))
                          (offset (sassy-symbol-offset sassy-sym)))
                     (set-cdr! entry offset)))
                 (as-labels as))
@@ -330,11 +330,6 @@
     (let ((u (as-user as)))
       (user-data.labels! u (cons (operand1 instruction) (user-data.labels u))))
     (make-asm-label as (operand1 instruction))
-    ;; (Sassy might have a) Bug where we can't jump to exported labels 
-    ;; To work around this, output two labels in the same spot; one that 
-    ;; we export, and the other that we branch to.
-    (emit-sassy as ia86.T_LABEL
-                (exported-procedure as (operand1 instruction)))
     (emit-sassy as ia86.T_LABEL
                 (compiled-procedure as (operand1 instruction)))))
 
@@ -582,7 +577,7 @@
     (emit-sassy as ia86.T_JUMP
                (operand1 instruction)
                (operand2 instruction)
-	       (exported-procedure as (operand2 instruction)))))
+	       (compiled-procedure as (operand2 instruction)))))
 
 (define-instruction $skip
   (lambda (instruction as)
@@ -712,11 +707,6 @@
 
 (define (compiled-procedure as label)
   (twobit-format #f "compiled_start_~a_~a" 
-		 (user-data.toplevel-counter (as-user as))
-		 label))
-
-(define (exported-procedure as label)
-  (twobit-format #f "exported_start_~a_~a" 
 		 (user-data.toplevel-counter (as-user as))
 		 label))
 

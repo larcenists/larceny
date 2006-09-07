@@ -337,10 +337,6 @@
 (define-sassy-instr (ia86.T_ALIGN x)
   `(align	,x))
 
-(define-sassy-instr (ia86.T_CONT)
-  )
-  
-	
 (define-sassy-instr (ia86.T_LABEL n)
   `(label ,(t_label n)))
 
