@@ -60,6 +60,12 @@
     ((_ (NAME ARGS ...) BODY ...)
      (define (NAME ARGS ...) (seqlist BODY ...))))) ; do this for now...
 
+;; Apply f to args and pull out the resulting list.
+;; (Seems trivial now; but idea is to move all the dependencies on the
+;;  list structure into this function.)
+(define (do-sassy-instr f . args)
+  (apply f args))
+
 ;; Has to be a macro since order of eval is undef'd in Scheme
 (define-syntax seqlist 
   (syntax-rules (cond let quasiquote)
