@@ -19,7 +19,7 @@
     ((seqlist) 
      (list))
     ((_ (cond (Q A ...) ...) EXPS ...)
-     (append (mcond (Q (seqlist A ...)) ...) 
+     (append (mcond '() (Q (seqlist A ...)) ...) 
              (seqlist EXPS ...)))
     ((_ (let ((I E) ...) BODY ...) EXPS ...)
      (append (let ((I E) ...) (seqlist BODY ...)) 
@@ -33,9 +33,9 @@
 
 (define-syntax mcond
   (syntax-rules (else)
-    ((_) '())
-    ((_ (else A)) A)
-    ((_ (Q A) C ...) (if Q A (mcond C ...)))))
+    ((_ end) end)
+    ((_ end (else A)) A)
+    ((_ end (Q A) C ...) (if Q A (mcond end C ...)))))
 
 ;;; Note the millicode for M_INVOKE_EX is used to check for timer
 ;;; exception as well, and must check the timer first.
