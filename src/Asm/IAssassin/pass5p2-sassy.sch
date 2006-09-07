@@ -249,7 +249,7 @@
     (cond 
      ((procedure? (car x))
       (parameterize ((current-sassy-assembly-structure as))
-        (let* ((added-code (do-sassy-instr (car x) (cdr x))))
+        (let* ((added-code (apply do-sassy-instr (car x) (cdr x))))
           (handle-added-code! as added-code))))
      (else
       (handle-added-code! as (list x))))
