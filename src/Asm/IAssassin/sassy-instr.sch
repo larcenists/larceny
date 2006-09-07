@@ -68,9 +68,11 @@
 
 ;; Has to be a macro since order of eval is undef'd in Scheme
 (define-syntax seqlist 
-  (syntax-rules (cond let quasiquote)
+  (syntax-rules (cond let quasiquote repeat-times)
     ((seqlist) 
      (list))
+    ((seqlist (repeat-times n EXP) EXPS ...)
+     (seqlist (let loop ((i n)) (cond ((not (zero? i)) EXP (loop (- i 1))))) EXPS ...))
     ((_ (cond (Q A ...) ...) EXPS ...)
      (append (mcond '() (Q (seqlist A ...)) ...) 
              (seqlist EXPS ...)))
@@ -399,11 +401,6 @@
   (ia86.loadc	RESULT x)
   `(mov	(& ,RESULT ,(- $tag.pair-tag)) ,(REG regno))
   (ia86.write_barrier -1 regno))
-
-(define (repeat-times n form)
-  (if (zero? n)
-      '()
-      (cons form (repeat-times (- n 1) form))))
 
 (define-sassy-instr (ia86.T_LEXICAL rib off)
   (ia86.loadr	TEMP 0)		; We know R0 is not a HWREG
