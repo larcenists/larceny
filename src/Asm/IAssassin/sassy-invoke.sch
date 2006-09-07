@@ -15,12 +15,9 @@
 
 ;; Has to be a macro since order of eval is undef'd in Scheme
 (define-syntax seqlist 
-  (syntax-rules (begin cond let quasiquote)
+  (syntax-rules (cond let quasiquote)
     ((seqlist) 
      (list))
-    ((_ (begin EXP ...) EXPS ...)
-     (append (begin EXP ...) 
-             (seqlist EXPS ...)))
     ((_ (cond (Q A ...) ...) EXPS ...)
      (append (mcond (Q (seqlist A ...)) ...) 
              (seqlist EXPS ...)))

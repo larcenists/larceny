@@ -62,17 +62,17 @@
 
 ;; Has to be a macro since order of eval is undef'd in Scheme
 (define-syntax seqlist 
-  (syntax-rules (begin cond let quasiquote)
+  (syntax-rules (cond let quasiquote)
     ((seqlist) 
      (list))
-    ((_ (begin EXP ...) EXPS ...)
-     (append (begin EXP ...) 
-             (seqlist EXPS ...)))
     ((_ (cond (Q A ...) ...) EXPS ...)
      (append (mcond (Q (seqlist A ...)) ...) 
              (seqlist EXPS ...)))
     ((_ (let ((I E) ...) BODY ...) EXPS ...)
      (append (let ((I E) ...) (seqlist BODY ...)) 
+             (seqlist EXPS ...)))
+    ((_ (let LOOP-ID ((I E) ...) BODY ...) EXPS ...)
+     (append (let LOOP-ID ((I E) ...) (seqlist BODY) ...)
              (seqlist EXPS ...)))
     ;; Note in below two clauses, first uses CONS, second uses APPEND
     ((_ (quasiquote EXP1) EXPS ...)
@@ -274,24 +274,6 @@
   `(align	,code_align)
   `(jmp	,restart))
 
-;;; FSK: umm.  these probably can't work this way in Sassy
-
-;;; begin_codevector name
-;;; 	Define a code vector, just raw code
-	
-;;(define-sassy-macro (ia86.begin_codevector name)
-;;  (section	.text
-;;	align	,code_align
-;;,name:
-
-
-;;; end_codevector name
-;;;	Terminate a codevector started by begin_codevector
-
-;;(define-sassy-macro (ia86.end_codevector name)
-;;end_codevector_,name:
-
-
 ;;; alloc
 ;;;	Given fixnum number of words in RESULT, allocate
 ;;;	a structure of that many bytes and leave a raw pointer
@@ -484,19 +466,18 @@
       `(jne short ,L1)
       `(mov ,CONT (& ,GLOBALS ,$g.stkp))
       `(mov ,RESULT (& ,GLOBALS ,$g.result))))
-    (begin
-      (let rep ((regno regno))
-        (cond 
-         ((>= regno 0)
-          (append
-           (if (is_hwreg regno)
-               `((mov (& ,RESULT ,(+ PROC_REG0 (words2bytes regno))) 
-                      ,(REG regno)))
-               `(,@(ia86.loadr TEMP regno)
-                 (mov (& ,RESULT ,(+ PROC_REG0 (words2bytes regno))) ,TEMP)))
-           (rep (- regno 1))))
-         (else 
-          '()))))
+    
+    (let rep ((regno regno))
+      (cond 
+       ((>= regno 0)
+        (cond ((is_hwreg regno)
+               `(mov (& ,RESULT ,(+ PROC_REG0 (words2bytes regno)))
+                     ,(REG regno)))
+              (else
+               (ia86.loadr TEMP regno)
+               `(mov (& ,RESULT ,(+ PROC_REG0 (words2bytes regno))) ,TEMP)))
+        (rep (- regno 1)))))
+
     `(add ,RESULT_LOW ,$tag.procedure-tag)))
 
 (define-sassy-instr (ia86.T_LAMBDA codevec constvec n)
@@ -595,13 +576,10 @@
 
 (define-sassy-instr (ia86.T_SAVE n)
   `(T_SAVE0 ,n)
-  (begin
-    (let rep ((slotno 1))
-      (cond ((<= slotno n)
-             (cons `(T_SAVE1 ,slotno)
-                   (rep (+ slotno 1))))
-            (else 
-             '())))))
+  (let rep ((slotno 1))
+    (cond ((<= slotno n)
+           `(T_SAVE1 ,slotno)
+           (rep (+ slotno 1))))))
 
 '(define-sassy-instr (ia86.T_SETRTN lbl)
   ;;; This has not been optimized.  (19 bytes)
@@ -628,17 +606,14 @@
   `(mov (& ,CONT ,STK_RETADDR) ,TEMP))
 
 (define-sassy-instr (ia86.T_RESTORE n)
-  (begin
-    (let rep ((slotno 0))
-      (cond ((<= slotno n)
-             (append (if (is_hwreg slotno)
-                         `((mov ,(REG slotno) (dword ,(stkslot slotno))))
-                         `((mov ,TEMP (dword ,(stkslot slotno)))
-                           (mov (& ,GLOBALS ,(G_REG slotno)) ,TEMP)))
-                     (rep (+ slotno 1))))
-            (else
-             '())))))
-  
+  (let rep ((slotno 0))
+    (cond ((<= slotno n)
+           (cond ((is_hwreg slotno)
+                  `((mov ,(REG slotno) (dword ,(stkslot slotno)))))
+                 (else
+                  `((mov ,TEMP (dword ,(stkslot slotno)))
+                    (mov (& ,GLOBALS ,(G_REG slotno)) ,TEMP))))
+           (rep (+ slotno 1))))))
 
 (define-sassy-instr (ia86.T_POP n)
   `(add	,CONT ,(framesize n)))
