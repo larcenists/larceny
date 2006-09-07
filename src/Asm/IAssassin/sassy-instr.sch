@@ -78,7 +78,7 @@
      (append (let ((I E) ...) (seqlist BODY ...)) 
              (seqlist EXPS ...)))
     ((_ (let LOOP-ID ((I E) ...) BODY ...) EXPS ...)
-     (append (let LOOP-ID ((I E) ...) (seqlist BODY) ...)
+     (append (let LOOP-ID ((I E) ...) (seqlist BODY ...))
              (seqlist EXPS ...)))
     ;; Note in below two clauses, first uses CONS, second uses APPEND
     ((_ (quasiquote EXP1) EXPS ...)
