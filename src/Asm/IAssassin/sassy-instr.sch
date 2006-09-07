@@ -189,9 +189,9 @@
 (define (intel-reg? r)
   (memq r '(eax ebx ecx edx edi esi esp ebp al  bl  cl  dl)))
 
-(define (assert-intel-reg hwreg)
-  (if (not (intel-reg? hwreg))
-      (error 'assert-intel-reg hwreg)))
+(define-sassy-instr (assert-intel-reg hwreg)
+  (cond ((not (intel-reg? hwreg))
+         (error 'assert-intel-reg hwreg))))
 	
 (define-sassy-instr (ia86.loadc hwreg slot)
   (assert-intel-reg hwreg)
