@@ -115,6 +115,7 @@
 ; (c 'type)
 ; (c 'class)
 ; (c 'expression)
+; (c 'procedure)
 
 (define (make-code-inspector p ret-addr)
 
