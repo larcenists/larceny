@@ -25,6 +25,7 @@
   (let ((u (as-user as)))
     (user-data.proc-counter! u 0)
     (user-data.toplevel-counter! u (+ 1 (user-data.toplevel-counter u))))
+  (reset-symbolic-label-cache!)
   (let ((e (new-proc-id as)))
     (as-source! as (cons (list $.entry e #t) (as-source as))))
   (current-sassy-assembly-structure as))
@@ -705,10 +706,38 @@
 
 ; Helper procedures.
 
+(define symbolic-label-cache #f)
+(define (reset-symbolic-label-cache!)
+  (set! symbolic-label-cache 
+        (make-vector 2048 #f)))
+(define (grow-symbolic-label-cache label)
+  (let ((target-length (do ((n (* 2 (vector-length symbolic-label-cache))
+                               (* 2 n)))
+                           ((> n label) n))))
+    (let ((new-cache (make-vector target-length #f)))
+      (do ((i 0 (+ i 1)))
+          ((>= i (vector-length symbolic-label-cache)))
+        (vector-set! new-cache i
+                     (vector-ref symbolic-label-cache i)))
+      (set! symbolic-label-cache new-cache))))
+(define (symbolic-label-cache-get label fail-thunk)
+  (cond ((>= label (vector-length symbolic-label-cache))
+         (grow-symbolic-label-cache label)))
+  (cond ((vector-ref symbolic-label-cache label))
+        (else
+         (let ((val (fail-thunk)))
+           (vector-set! symbolic-label-cache label val)
+           val))))
+
 (define (compiled-procedure as label)
-  (twobit-format #f "compiled_start_~a_~a" 
-		 (user-data.toplevel-counter (as-user as))
-		 label))
+  (symbolic-label-cache-get 
+   label
+   (lambda ()
+     '(begin (display `(compiled-procedure as ,label))
+             (newline))
+     (twobit-format #f "compiled_start_~a_~a" 
+                    (user-data.toplevel-counter (as-user as))
+                    label))))
 
 (define (immediate-constant? x)
   (or (fixnum? x)
