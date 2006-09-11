@@ -1,4 +1,4 @@
-;; This code requires inspect-cont.sch to be loaded first.
+(require 'inspect-cont)
 
 (define (install-profiler! . args)
   (if (not (null? args))
