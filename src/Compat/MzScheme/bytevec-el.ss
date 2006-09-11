@@ -26,6 +26,9 @@
 (define (list->bytevector l)
   (list->vector (cons *bv-key* l)))
 
+;; for Sassy (SRFI-66 pseudo-compatibility)
+(define list->u8vector list->bytevector)
+
 (define bytevector-tag-set! (lambda (x y) '()))
 
 (define (write-bytevector-like bv . rest)
