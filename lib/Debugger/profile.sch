@@ -30,7 +30,8 @@
 ;; the user to set their own grain.
 (define (set-timer-granularity! grain)
   (timer-interrupt-handler
-   (lambda () (enable-interrupts grain))))
+   (lambda () (enable-interrupts grain)))
+  (enable-interrupts grain))
 
 (define (render-cont i)
   (define (show val cnt)
