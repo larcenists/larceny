@@ -17,7 +17,7 @@
 ;promotional, or sales literature without prior written consent in
 ;each case.
 
-(define logical:base   (expt 2 29))
+(define logical:base   (expt 2 28))
 
 (define (logical:ash-4 x)
   (cond ((fixnum? x)
@@ -27,9 +27,9 @@
         (else
          (quotient x 16))))
 
-(define (logical:ash-29 x)
+(define (logical:ash-28 x)
   (cond ((fixnum? x)
-         (fxrsha x 29))
+         (fxrsha x 28))
         ((negative? x)
          (+ -1 (quotient (+ 1 x) logical:base)))
         (else
@@ -49,8 +49,8 @@
           (cond ((= n1 n2) (+ acc (* scl n1)))
                 ((zero? n2) acc)
                 ((zero? n1) acc)
-                (else (lgand (logical:ash-29 n2)
-                             (logical:ash-29 n1)
+                (else (lgand (logical:ash-28 n2)
+                             (logical:ash-28 n1)
                              (* logical:base scl)
                              (+ (* (fxlogand (modulo n1 logical:base)
                                              (modulo n2 logical:base))
@@ -65,8 +65,8 @@
           (cond ((= n1 n2) (+ acc (* scl n1)))
                 ((zero? n2) (+ acc (* scl n1)))
                 ((zero? n1) (+ acc (* scl n2)))
-                (else (lgior (logical:ash-29 n2)
-                             (logical:ash-29 n1)
+                (else (lgior (logical:ash-28 n2)
+                             (logical:ash-28 n1)
                              (* logical:base scl)
                              (+ (* (fxlogior (modulo n1 logical:base)
                                              (modulo n2 logical:base))
@@ -81,8 +81,8 @@
           (cond ((= n1 n2) acc)
                 ((zero? n2) (+ acc (* scl n1)))
                 ((zero? n1) (+ acc (* scl n2)))
-                (else (lgxor (logical:ash-29 n2)
-                             (logical:ash-29 n1)
+                (else (lgxor (logical:ash-28 n2)
+                             (logical:ash-28 n1)
                              (* logical:base scl)
                              (+ (* (fxlogxor (modulo n1 logical:base)
                                              (modulo n2 logical:base))
