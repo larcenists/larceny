@@ -20,14 +20,20 @@
 (define logical:base   (expt 2 29))
 
 (define (logical:ash-4 x)
-  (if (negative? x)
-      (+ -1 (quotient (+ 1 x) 16))
-      (quotient x 16)))
+  (cond ((negative? x)
+         (+ -1 (quotient (+ 1 x) 16)))
+        ((fixnum? x)
+         (fxrsha x 4))
+        (else
+         (quotient x 16))))
 
 (define (logical:ash-29 x)
-  (if (negative? x)
-      (+ -1 (quotient (+ 1 x) logical:base))
-      (quotient x logical:base)))
+  (cond ((negative? x)
+         (+ -1 (quotient (+ 1 x) logical:base)))
+        ((fixnum? x)
+         (fxrsha x 29))
+        (else
+         (quotient x logical:base))))
 
 (define (logical:reduce op4 ident)
   (lambda args
