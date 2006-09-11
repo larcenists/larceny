@@ -4,14 +4,26 @@
   (if (not (null? args))
       (set-timer-granularity! (car args)))
   (timer-interrupt-handler 
-   (let ((old-tih (timer-interrupt-handler)))
-     (lambda l (let* ((el (memstats-elapsed-time (memstats)))
-                      (cc (current-continuation-structure)) 
-                      (i (make-continuation-inspector cc))
-                      (rendered-cont (render-cont i)))
-                 (display `(time: ,el cont: ,rendered-cont))
-                 (newline)
-                 (apply old-tih l))))))
+   (let ((old-tih (timer-interrupt-handler))
+         (last-el 0)
+         (min-delta (if (and (not (null? args))
+                             (not (null? (cdr args))))
+                        (cadr args)
+                        1)))
+     (lambda l 
+       (let ((el (memstats-elapsed-time (memstats))))
+         ;; Compenstate for irregular interrupt measurement;
+         ;; if we haven't seen the system clock tick, then 
+         ;; we should let the system make more progress.
+         (cond ((>= (- el last-el) min-delta)
+                (let* ((cc (current-continuation-structure))
+                       (i (make-continuation-inspector cc))
+                       (rendered-cont (render-cont i))
+                       (el (memstats-elapsed-time (memstats))))
+                  (display `(time: ,el cont: ,rendered-cont))
+                  (newline)
+                  (set! last-el el))))
+         (apply old-tih l))))))
 
 ;; The standard timer-interrupt-handler just turns interrupts back on
 ;; with (standard-timeslice) as the argument; this procedure allows
