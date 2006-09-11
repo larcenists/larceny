@@ -1612,12 +1612,12 @@
 
 (define-sassy-instr/peep (or (ia86.T_OP1_15* rs rd)		; car
                              (ia86.T_OP1_15))
-  (ia86.single_tag_test_ex rs $tag.pair-tag $ex.car)
+  (ia86.single_tag_test_ex (REG rs) $tag.pair-tag $ex.car)
   `(mov	,(REG rd) (& ,(REG rs) ,(- $tag.pair-tag))))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_16* rs rd)		; cdr
                              (ia86.T_OP1_16))
-  (ia86.single_tag_test_ex rs $tag.pair-tag $ex.cdr)
+  (ia86.single_tag_test_ex (REG rs) $tag.pair-tag $ex.cdr)
   `(mov	,(REG rd) (& ,(REG rs) ,(+ (- $tag.pair-tag) wordsize))))
 
 (define-sassy-instr (ia86.T_OP1_17)		; symbol?
