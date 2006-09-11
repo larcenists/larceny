@@ -608,10 +608,10 @@
   (let rep ((slotno 0))
     (cond ((<= slotno n)
            (cond ((is_hwreg slotno)
-                  `((mov ,(REG slotno) (dword ,(stkslot slotno)))))
+                  `(mov ,(REG slotno) (dword ,(stkslot slotno))))
                  (else
-                  `((mov ,TEMP (dword ,(stkslot slotno)))
-                    (mov (& ,GLOBALS ,(G_REG slotno)) ,TEMP))))
+                  `(mov ,TEMP (dword ,(stkslot slotno)))
+                  `(mov (& ,GLOBALS ,(G_REG slotno)) ,TEMP)))
            (rep (+ slotno 1))))))
 
 (define-sassy-instr (ia86.T_POP n)
