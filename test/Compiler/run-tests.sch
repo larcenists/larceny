@@ -55,6 +55,12 @@
   catch-undefined-globals
   )
 
+(define all-switches
+  (append sanity-switches
+          basic-switches
+          optimization-switches
+          backend-switches))
+
 (define files
   '("p2tests" "p4tests" "primtests"))
 
@@ -83,6 +89,43 @@
   (define (faslify base i)
     (string-append base "-" (number->string i) ".fasl"))
 
+  (define (compile+load base->faslname)
+    (for-each (lambda (fn)
+                (display ">> Compiling ") (display fn) (newline)
+                (flush-output-port)
+                (compile-file (string-append fn ".sch")
+                              (base->faslname fn))
+                (flush-output-port))
+              files)
+    (for-each (lambda (fn)
+                (display ">> Loading ") (display fn) (newline)
+                (flush-output-port)
+                (load (base->faslname fn))
+                (flush-output-port))
+              files))
+
+  ;; Sanity check: run the compiler on *all* switches toggled on/off
+  (do ((i 0 (+ i 1))
+       (l all-switches (cdr l)))
+      ((null? l))
+    (let* ((switch (car l))
+           (switch-name (symbol->string (car switch)))
+           (switch-proc (cdr switch))
+           (switch-orig (switch-proc)))
+      (display (string-append ">>> " switch-name " on")) (newline)
+      (switch-proc #t)
+      (compile+load 
+       (lambda (base) 
+         (string-append base "-switch-" switch-name "-on.fasl")))
+      (display (string-append ">>> " switch-name " off")) (newline)
+      (switch-proc #f)
+      (compile+load 
+       (lambda (base) 
+           (string-append base "-switch-" switch-name "-off.fasl")))
+      (switch-proc switch-orig)))
+
+  ;; Real labor of the script: exhaustive search of the switches
+
   ;;; What does this next line do?  AFAICT, nothing.
   ;(test-reporter (lambda (id answer correct)
                    ;(compiler-switches)))
@@ -92,19 +135,7 @@
       (display ">>>> Starting test ") (display i) (newline)
       (flush-output-port)
       (set-switches! i)
-      (for-each (lambda (fn)
-                  (display ">> Compiling ") (display fn) (newline)
-                  (flush-output-port)
-                  (compile-file (string-append fn ".sch")
-                                (faslify fn i))
-                  (flush-output-port))
-                files)
-      (for-each (lambda (fn)
-                  (display ">> Loading ") (display fn) (newline)
-                  (flush-output-port)
-                  (load (faslify fn i))
-                  (flush-output-port))
-                files)))
+      (compile+load (lambda (fn) (faslify fn i)))))
   (newline))
 
 ; Warnings are too annoying with this test.
