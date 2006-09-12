@@ -1049,7 +1049,7 @@
 ;;;     and that reg_index is a fixnum in the range of the structure.
 ;;;	If hdrtag is zero then do not check it.
 
-(define-sassy-instr (ia86.indexed_structure_test regno y z hdrtag ex byte? test_reg_value)
+(define-sassy-instr (ia86.indexed_structure_test regno reg-value ptrtag hdrtag ex byte? test_reg_value)
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
@@ -1059,17 +1059,17 @@
            (ia86.fixnum_test_temp_is_free regno)
            `(jnz short ,L1)
            (cond ((not (= hdrtag 0))
-                  (ia86.double_tag_test z hdrtag)
+                  (ia86.double_tag_test ptrtag hdrtag)
                   `(jz short ,L2))
                  (else
-                  (ia86.single_tag_test RESULT z)
+                  (ia86.single_tag_test RESULT ptrtag)
                   `(jz short ,L3)))
            `(label ,L1)
            (ia86.loadr	SECOND regno)
            (ia86.exception_continuable ex L0)
            (cond ((= hdrtag 0)
                   `(label ,L3)
-                  `(mov	,TEMP (& ,RESULT ,(- z)))))
+                  `(mov	,TEMP (& ,RESULT ,(- ptrtag)))))
            `(label ,L2)
            `(shr	,TEMP 8)
            (cond (byte?
@@ -1079,7 +1079,7 @@
                  (else
                   `(cmp	,TEMP (& ,GLOBALS ,(G_REG regno)))))
            `(jbe short ,L1)
-           (test_reg_value	y L1)))))
+           (test_reg_value	reg-value L1)))))
 
 ;;; indexed_structure_test_imm index, ptrtag, hdrtag, ex, byte?
 ;;;	Check that RESULT is a pointer tagged as appropriate,
@@ -1185,13 +1185,19 @@
 ;;; indexed_structure_set_* reg_idx, reg_value, ptrtag, hdrtag, ex
 ;;;	If hdrtag is 0 then do not check it.
 
-(define-sassy-instr (ia86.indexed_structure_set_char regno y z hdrtag ex)
-  (ia86.indexed_structure_test regno y z hdrtag ex #t ia86.check_char)
+(define-sassy-instr (ia86.indexed_structure_set_char regno reg-value ptrtag hdrtag ex)
+  (cond 
+   ((unsafe-code) 
+    ;; ia86.check_char has this effect, but is not called by
+    ;; ia86.indexed_structure_test in unsafe mode
+    (ia86.loadr TEMP reg-value))
+   (else
+    (ia86.indexed_structure_test regno reg-value ptrtag hdrtag ex #t ia86.check_char)))
   `(mov	(& ,GLOBALS ,$g.stkp) ,CONT)
   (ia86.loadr	CONT regno)
   `(shr	,TEMP 16)
   `(shr	,CONT 2)
-  `(mov	(& ,RESULT ,CONT ,(+ (- z) wordsize)) ,TEMP_LOW)
+  `(mov	(& ,RESULT ,CONT ,(+ (- ptrtag) wordsize)) ,TEMP_LOW)
   `(mov	,CONT (& ,GLOBALS ,$g.stkp)))
 
 (define-sassy-instr (ia86.indexed_structure_set_byte regno1 regno2 z hdrtag ex)
