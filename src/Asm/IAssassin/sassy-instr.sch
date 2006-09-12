@@ -161,7 +161,7 @@
 (define (stkslot n)          `(& ,CONT ,(+ STK_REG0 (words2bytes n))))
 (define (framesize n)        (roundup8 (+ wordsize STK_OVERHEAD (words2bytes n))))
 (define (recordedsize n)     (+ STK_OVERHEAD (words2bytes n)))
-(define (t_label s)          (string->symbol s))
+(define (t_label s)          s)
 			
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
@@ -337,8 +337,8 @@
 (define-sassy-instr (ia86.T_ALIGN x)
   `(align	,x))
 
-(define-sassy-instr (ia86.T_LABEL n)
-  `(label ,(t_label n)))
+(define-sassy-instr (ia86.T_LABEL x)
+  `(label ,(t_label x)))
 
 ;;; CONST is broken up into two instructions depending on the
 ;;; type of the constant.  The argument to T_CONST_IMM is a bitpattern
@@ -724,9 +724,9 @@
   `(cmp	,RESULT_LOW ,$imm.false)
   `(je	,(t_label lbl)))
 
-(define-sassy-instr (ia86.T_CHECK w x y z)
+(define-sassy-instr (ia86.T_CHECK w x y lbl)
   `(cmp	,RESULT_LOW ,$imm.false)
-  `(je	,(t_label z)))
+  `(je	,(t_label lbl)))
 
 ;; Call handler for noncontinuable exception with RESULT,
 ;; SECOND, and THIRD defined.

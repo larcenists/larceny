@@ -90,7 +90,7 @@
   (check-for-free-ids code)
   (sassy `(,@sassy-machine-directives 
            ,@sassy-instr-directives 
-           ,@(map (lambda (l) `(export ,(string->symbol (compiled-procedure as l))))
+           ,@(map (lambda (l) `(export ,(t_label (compiled-procedure as l))))
                   (user-data.labels (as-user as)))
            (text ,@code))
          'dont-expand))
@@ -735,9 +735,10 @@
    (lambda ()
      '(begin (display `(compiled-procedure as ,label))
              (newline))
-     (twobit-format #f "compiled_start_~a_~a" 
-                    (user-data.toplevel-counter (as-user as))
-                    label))))
+     (string->symbol 
+      (twobit-format #f "compiled_start_~a_~a" 
+                     (user-data.toplevel-counter (as-user as))
+                     label)))))
 
 (define (immediate-constant? x)
   (or (fixnum? x)

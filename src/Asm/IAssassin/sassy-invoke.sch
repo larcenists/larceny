@@ -156,7 +156,7 @@
 
 (define (setrtn-branch-patch-code-label l)
   (string->symbol (string-append "setrtn-branch-patch-code-label" 
-                                 l)))
+                                 (symbol->string l))))
 
 (define (emit-setrtn-invoke-patch-code as n)
   (define (emit x) (apply emit-sassy as x))
@@ -167,7 +167,7 @@
          
 (define (emit-setrtn-branch-patch-code as l)
   (define (emit x) (apply emit-sassy as x))
-  (emit `(label ,(setrtn-branch-patch-code-label l)))
+  (emit `(label ,(setrtn-branch-patch-code-label (t_label l))))
   (emit `(pop (& ,CONT ,STK_RETADDR)))  ;; pre-aligned return address 
   (emit `(jmp ,(t_label l))))
 
