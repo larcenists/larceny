@@ -37,6 +37,7 @@
          al  bl  cl  dl
          & align reloc abs
          mov push ret label short
+         nop
          lea add sub cmp test neg 
          imul 
          and or xor shl shr sar not
@@ -238,7 +239,9 @@
 (define emit-sassy 
   (lambda (as . x)
     (define (handle-added-code! as added-code)
-      (cond ((null? (as-code as))
+      (cond ((null? added-code)
+             (unspecified))
+            ((null? (as-code as))
              (as-code! as (cons added-code (last-pair added-code))))
             (else
              (let* ((beg*end (as-code as))

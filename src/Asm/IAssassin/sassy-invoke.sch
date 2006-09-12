@@ -108,8 +108,13 @@
   (let ((ign (if (not (memv n *did-emit-setrtn-invoke*))
                  (set! *did-emit-setrtn-invoke* 
                        (cons n *did-emit-setrtn-invoke*)))))
-    (cond ((unsafe-code)
-           (error 'T_SETRTN_INVOKE "Not implemented unsafely yet"))
+    (cond ((unsafe-code) ;; (see notes in unsafe version)
+           (ia86.timer_check)
+           (ia86.storer 0 RESULT)
+           `(mov ,TEMP (& ,RESULT ,(+ (- $tag.procedure-tag)PROC_CODEVECTOR_NATIVE)))
+           `(align ,code_align)
+           `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+           `(call ,(setrtn-invoke-patch-code-label n)))
           (else 
            ;; For SETRTN, see patch-code below
            ;; INVOKE
