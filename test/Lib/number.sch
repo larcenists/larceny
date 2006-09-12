@@ -762,7 +762,7 @@
    (test "(sqrt -4)" (sqrt -4) 0.0+2.0i)
    (test "(sqrt -16.0)" (sqrt -16.0) 0.0+4.0i)
    (test "(sqrt two^32)" (sqrt two^32) inexact-two^16)
-
+   (test "(sqrt 0.9...)" (sqrt 0.9999999999999999) 0.9999999999999999)
    (test "(gcd 33495 1085)" (gcd 33495 1085) 35)
    (test "(gcd 1085 33495)" (gcd 1085 33495) 35)
    (test "(gcd 33495 96577)" (gcd 33495 96577) 1)
