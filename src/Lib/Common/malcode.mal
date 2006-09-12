@@ -77,8 +77,8 @@
              (,$save 2)
              (,$store 0 0)
              (,$store 2 2)     ; stack slot 2 = receiver
-             (,$setrtn 1000)
              (,$reg 1)
+             (,$setrtn 1000)
              (,$invoke 0)
              (,$.align 4)
              (,$.label 1000)
@@ -421,13 +421,14 @@
               (,$op2 cons 5)    ;; Result = (list (cons key mark))
               (,$op2 cons 4)    ;; Result = (cons (list (cons key mark)) *cms*)
               (,$setglbl *cms*) ;; *cms* := (cons (list (cons key mark)) *cms*)
-              (,$setrtn 1001)     
               (,$reg 3)
+              (,$setrtn 1001)     
               (,$invoke 0)      ;; Invoke the thunk... mark frame remains!
               
               ;; Now remove mark frame
-              (,$.cont)
+              (,$.align 4)
               (,$.label 1001)
+              (,$.cont)
               (,$load 0 0)        ;; Required invariant
               (,$setreg 1)        ;; Reg 1 = (thunk) result
               (,$global *cms*)    ;; Result = *cms*
