@@ -49,13 +49,34 @@
                   (reg-op1-setreg as i1 i2 i3 t2 t3))
                  ((= (car i3) $branchf)
                   (reg-op1-branchf as i1 i2 i3 t3))
+                 ((= (car i3) $check)
+                  (reg-op1-check as i1 i2 i3 t3))
                  (else
                   (reg-op1 as i1 i2 t2))))
           ((= (car i2) $op2)
            (cond ((= (car i3) $setreg)
                   (reg-op2-setreg as i1 i2 i3 t2 t3))
+                 ((= (car i3) $branchf)
+                  (reg-op2-branchf as i1 i2 i3 t3))
+                 ((= (car i3) $check)
+                  (reg-op2-check as i1 i2 i3 t3))
                  (else 
                   (reg-op2 as i1 i2 t2))))
+          ((= (car i2) $op2imm)
+           (cond ((= (car i3) $setreg)
+                  (reg-op2imm-setreg as i1 i2 i3 t2 t3))
+                 ((= (car i3) $branchf)
+                  (reg-op2imm-branchf as i1 i2 i3 t3))
+                 ((= (car i3) $check)
+                  (reg-op2imm-check as i1 i2 i3 t3))
+                 (else 
+                  (reg-op2imm as i1 i2 t2))))
+          ((= (car i2) $op3)
+           (reg-op3 as i1 i2 t2))
+          ((= (car i2) $branchf)
+           (reg-branchf as i1 i2 t2))
+          ((= (car i2) $check)
+           (reg-check as i1 i2 t2))
           )))
 
 (define-peephole $op1
@@ -66,6 +87,8 @@
                   (op1-setreg as i1 i2 t2))))
           ((= (car i2) $branchf)
            (op1-branchf as i1 i2 t2))
+          ((= (car i2) $check)
+           (op1-check as i1 i2 t2))
           )))
 
 (define-peephole $op2
@@ -73,7 +96,22 @@
     (cond ((= (car i2) $setreg)
            (cond ((not (= (car i3) $store))
                   ;; avoid interference w/ setreg-store optimization
-                  (op2-setreg as i1 i2 t2)))))))
+                  (op2-setreg as i1 i2 t2))))
+          ((= (car i2) $branchf)
+           (op2-branchf as i1 i2 t2))
+          ((= (car i2) $check)
+           (op2-check as i1 i2 t2))
+          )))
+
+(define-peephole $op2imm
+  (lambda (as i1 i2 i3 t1 t2 t3)
+    (cond ((= (car i2) $setreg)
+           (op2imm-setreg as i1 i2 t2))
+          ((= (car i2) $branchf)
+           (op2imm-branchf as i1 i2 t2))
+          ((= (car i2) $check)
+           (op2imm-check as i1 i2 t2))
+          )))
 
 (define-peephole $setreg
   (lambda (as i1 i2 i3 t1 t2 t3)
@@ -94,6 +132,8 @@
   (lambda (as i1 i2 i3 t1 t2 t3)
     (cond ((= (car i2) $setreg)
            (const-setreg as i1 i2 t2))
+          ((= (car i2) $setglbl)
+           (const-setglbl as i1 i2 t2))
           )))
 
 (define-peephole $setrtn
@@ -150,6 +190,21 @@
     (cond
      ((is_hwreg rs)
       (peep-reg/op1/setreg as (operand1 i:op1) rs 'RESULT tail)))))
+
+(define (reg-branchf as i:reg i:branchf tail)
+  (let ((rs (operand1 i:reg))
+        (L  (operand1 i:branchf)))
+    (if (is_hwreg rs)
+        (as-source! as (cons (list $reg/branchf rs L) tail)))))
+
+(define (reg-check as i:reg i:check tail)
+  (let ((rs (operand1 i:reg))
+        (L  (operand4 i:check))
+        (liveregs (list (operand1 i:check)
+                        (operand2 i:check)
+                        (operand3 i:check))))
+    (if (is_hwreg rs)
+        (as-source! as (cons (list $reg/check rs L liveregs) tail)))))
 
 ; Optimize
 ;   setreg n
@@ -227,8 +282,6 @@
         (peep-reg/op1/setreg as op 'RESULT rd tail))))
 
 (define (peep-reg/op1/setreg as op rs rd tail)
-  (define (the-reg n)
-    (if (eq? n 'RESULT) 'RESULT (REG n)))
   (let ((op (case op
               ((unspecified 
                 undefined
@@ -242,14 +295,15 @@
                 not
                 null?
                 procedure?
-                set-car!
-                set-cdr!
                 bytevector-like?
-                vector-like?) op)
+                vector-like?
+                vector-length:vec
+                make-cell
+                cell-ref
+                ) op)
               (else #f))))
     (cond (op
-           (as-source! as (cons (list $reg/op1/setreg op 
-                                      (the-reg rs) (the-reg rd)) tail))))))
+           (as-source! as (cons (list $reg/op1/setreg op rs rd) tail))))))
 
 (define (global-setreg as i:global i:setreg tail)
   (let ((global (operand1 i:global))
@@ -273,12 +327,29 @@
             (peep-reg/op2/setreg as op rs1 rs2 rd tail)
             (peep-reg/op2/setreg as op rs1 rs2 'RESULT tail-1)))))
 
+(define (reg-op2imm-setreg as i:reg i:op2 i:setreg tail-1 tail)
+  (let ((rs1 (operand1 i:reg))
+        (rs2 (operand2 i:op2))
+        (op (operand1 i:op2))
+       (rd (operand1 i:setreg)))
+    (if (is_hwreg rs1)
+        (if (is_hwreg rd)
+            (peep-reg/op2imm/setreg as op rs1 rs2 rd tail)
+            (peep-reg/op2imm/setreg as op rs1 rs2 'RESULT tail-1)))))
+
 (define (reg-op2 as i:reg i:op2 tail)
   (let ((rs1 (operand1 i:reg))
         (rs2 (operand2 i:op2))
         (op  (operand1 i:op2)))
     (if (is_hwreg rs1)
         (peep-reg/op2/setreg as op rs1 rs2 'RESULT tail))))
+
+(define (reg-op2imm as i:reg i:op2 tail)
+  (let ((rs1 (operand1 i:reg))
+        (rs2 (operand2 i:op2))
+        (op  (operand1 i:op2)))
+    (if (is_hwreg rs1)
+        (peep-reg/op2imm/setreg as op rs1 rs2 'RESULT tail))))
 
 (define (op2-setreg as i:op2 i:setreg tail)
   (let ((op  (operand1 i:op2))
@@ -287,16 +358,73 @@
     (if (is_hwreg rd)
         (peep-reg/op2/setreg as op 'RESULT rs2 rd tail))))
 
+(define (op2imm-setreg as i:op2 i:setreg tail)
+  (let ((op  (operand1 i:op2))
+        (rs2 (operand2 i:op2))
+        (rd  (operand1 i:setreg)))
+    (if (is_hwreg rd)
+        (peep-reg/op2imm/setreg as op 'RESULT rs2 rd tail))))
+
 (define (peep-reg/op2/setreg as op rs1 rs2 rd tail)
   (let ((op (case op
               ((eq? 
                 set-car! 
                 set-cdr!
                 cons
+                +
+                -
+                =:fix:fix
+                <:fix:fix
+                <=:fix:fix
+                >=:fix:fix
+                >:fix:fix
+                vector-ref:trusted
+                ; cell-set!
                 ) op)
               (else #f))))
     (cond (op
            (as-source! as (cons (list $reg/op2/setreg op rs1 rs2 rd) tail))))))
+
+(define (peep-reg/op2imm/setreg as op rs1 rs2 rd tail)
+  (let ((op (case op
+              ((eq? 
+                +:idx:idx
+                -:idx:idx
+                +:fix:fix
+                -:fix:fix
+                +
+                -
+                =:fix:fix
+                <:fix:fix
+                <=:fix:fix
+                >=:fix:fix
+                >:fix:fix
+                ;fx+
+                ;fx-
+                ;fx=
+                ;fx< 
+                ;fx<=
+                ;fx>
+                ;fx>=
+                ;vector-ref
+                ;string-ref
+                vector-ref:trusted
+                ) op)
+              (else #f))))
+    (cond (op
+           (as-source! as (cons (list $reg/op2imm/setreg op rs1 rs2 rd) tail))))))
+
+(define (reg-op3 as i:reg i:op3 tail)
+  (let ((rs1 (operand1 i:reg))
+        (rs2 (operand2 i:op3))
+        (rs3 (operand3 i:op3))
+        (op  (operand1 i:op3)))
+    (if (is_hwreg rs1)
+        (let ((op (case op
+                    ((vector-set!:trusted) 'internal:vector-set!:trusted)
+                    (else #f))))
+          (if op
+              (as-source! as (cons (list $reg/op3 op rs1 rs2 rs3) tail)))))))
 
 (define (reg-op1-branchf as i:reg i:op1 i:branchf tail)
   (let ((rs (operand1 i:reg))
@@ -310,12 +438,177 @@
         (L  (operand1 i:branchf)))
     (peep-reg/op1/branchf as op 'RESULT L tail)))
 
+(define (reg-op2-branchf as i:reg i:op2 i:branchf tail)
+  (let ((rs1 (operand1 i:reg))
+        (rs2 (operand2 i:op2))
+       (op  (operand1 i:op2))
+        (L   (operand1 i:branchf)))
+    (if (is_hwreg rs1)
+       (peep-reg/op2/branchf as op rs1 rs2 L tail))))
+
+(define (op2-branchf as i:op2 i:branchf tail)
+  (let ((op  (operand1 i:op2))
+       (rs2 (operand2 i:op2))
+        (L   (operand1 i:branchf)))
+    (peep-reg/op2/branchf as op 'RESULT rs2 L tail)))
+
+(define (peep-reg/op2/branchf as op rs1 rs2 L tail)
+  (let ((op (case op
+              ((eq?)     'internal:branchf-eq?)
+              ((<)       'internal:branchf-<)
+              ((<=)      'internal:branchf-<=)
+              ((=)       'internal:branchf-=)
+              ((>)       'internal:branchf->)
+              ((>=)      'internal:branchf->=)
+              ((<:fix:fix)       'internal:branchf-<:fix:fix)
+              ((<=:fix:fix)      'internal:branchf-<=:fix:fix)
+              ((=:fix:fix)       'internal:branchf-=:fix:fix)
+              ((>:fix:fix)       'internal:branchf->:fix:fix)
+              ((>=:fix:fix)      'internal:branchf->=:fix:fix)
+              (else #f))))
+    (if op
+        (as-source! as
+                    (cons (list $reg/op2/branchf op rs1 rs2 L)
+                          tail)))))
+
+(define (reg-op2imm-branchf as i:reg i:op2imm i:branchf tail)
+  (let ((rs  (operand1 i:reg))
+        (imm (operand2 i:op2imm))
+        (op  (operand1 i:op2imm))
+        (L   (operand1 i:branchf)))
+    (if (is_hwreg rs)
+        (peep-reg/op2imm/branchf as op rs imm L tail))))
+
+(define (op2imm-branchf as i:op2imm i:branchf tail)
+  (let ((op  (operand1 i:op2imm))
+        (imm (operand2 i:op2imm))
+        (L   (operand1 i:branchf)))
+    (peep-reg/op2imm/branchf as op 'RESULT imm L tail)))
+
+(define (peep-reg/op2imm/branchf as op rs imm L tail)
+  (let ((op (case op
+              ((eq?)     'internal:branchf-eq?/imm)
+              ((<)       'internal:branchf-</imm)
+              ((<=)      'internal:branchf-<=/imm)
+              ((=)       'internal:branchf-=/imm)
+              ((>)       'internal:branchf->/imm)
+              ((>=)      'internal:branchf->=/imm)
+              ((<:fix:fix)  'internal:branchf-<:fix:fix/imm)
+              ((<=:fix:fix) 'internal:branchf-<=:fix:fix/imm)
+              ((=:fix:fix)  'internal:branchf-=:fix:fix/imm)
+              ((>:fix:fix)  'internal:branchf->:fix:fix/imm)
+              ((>=:fix:fix) 'internal:branchf->=:fix:fix/imm)
+              (else #f))))
+    (if op
+        (as-source! as
+                    (cons (list $reg/op2imm/branchf op rs imm L)
+                          tail)))))
+
+(define (reg-op1-check as i:reg i:op1 i:check tail)
+  (let ((rs (operand1 i:reg))
+        (op (operand1 i:op1))
+        (L  (operand4 i:check)))
+    (if (is_hwreg rs)
+        (peep-reg/op1/check as op rs L
+                            (list (operand1 i:check)
+                                  (operand2 i:check)
+                                  (operand3 i:check))
+                            tail))))
+
+(define (op1-check as i:op1 i:check tail)
+  (let ((op (operand1 i:op1))
+        (L  (operand4 i:check)))
+    (peep-reg/op1/check as op 'RESULT L
+                        (list (operand1 i:check)
+                              (operand2 i:check)
+                              (operand3 i:check))
+                        tail)))
+
+(define (peep-reg/op1/check as op rs L1 liveregs tail)
+  (let ((op (case op
+              ((fixnum?)      'internal:check-fixnum?)
+              ((pair?)        'internal:check-pair?)
+              ((vector?)      'internal:check-vector?)
+              ((string?)      'internal:check-string?)
+              (else #f))))
+    (if op
+        (as-source! as
+                    (cons (list $reg/op1/check op rs L1 liveregs)
+                          tail)))))
+
+(define (reg-op2-check as i:reg i:op2 i:check tail)
+  (let ((rs1 (operand1 i:reg))
+        (rs2 (operand2 i:op2))
+        (op (operand1 i:op2)))
+    (if (is_hwreg rs1)
+        (peep-reg/op2/check as op rs1 rs2 (operand4 i:check)
+                            (list (operand1 i:check)
+                                  (operand2 i:check)
+                                  (operand3 i:check))
+                            tail))))
+
+(define (reg-op2imm-check as i:reg i:op2 i:check tail)
+  (let ((rs1 (operand1 i:reg))
+        (rs2 (operand2 i:op2))
+        (op (operand1 i:op2)))
+    (if (is_hwreg rs1)
+        (peep-reg/op2imm/check as op rs1 rs2 (operand4 i:check)
+                               (list (operand1 i:check)
+                                     (operand2 i:check)
+                                     (operand3 i:check))
+                               tail))))
+
+(define (op2-check as i:op2 i:check tail)
+  (let ((rs2 (operand2 i:op2))
+        (op (operand1 i:op2)))
+    (peep-reg/op2/check as op 'RESULT rs2 (operand4 i:check)
+                        (list (operand1 i:check)
+                              (operand2 i:check)
+                              (operand3 i:check))
+                        tail)))
+
+(define (op2imm-check as i:op2 i:check tail)
+  (let ((rs2 (operand2 i:op2))
+        (op (operand1 i:op2)))
+    (peep-reg/op2imm/check as op 'RESULT rs2 (operand4 i:check)
+                        (list (operand1 i:check)
+                              (operand2 i:check)
+                              (operand3 i:check))
+                        tail)))
+
+(define (peep-reg/op2/check as op rs1 rs2 L1 liveregs tail)
+  (let ((op (case op
+              ((=:fix:fix)   'internal:check-=:fix:fix)
+              ((<:fix:fix)   'internal:check-<:fix:fix)
+              ((<=:fix:fix)   'internal:check-<=:fix:fix)
+              ((>=:fix:fix)   'internal:check->=:fix:fix)
+              ((>:fix:fix)   'internal:check->:fix:fix)  
+              (else #f))))
+    (if op
+        (as-source! as
+                    (cons (list $reg/op2/check op rs1 rs2 L1 liveregs)
+                          tail)))))
+
+(define (peep-reg/op2imm/check as op rs1 rs2 L1 liveregs tail)
+  (let ((op (case op
+              ((=:fix:fix)   'internal:check-=:fix:fix)
+              ((<:fix:fix)   'internal:check-<:fix:fix)
+              ((<=:fix:fix)   'internal:check-<=:fix:fix)
+              ((>=:fix:fix)   'internal:check->=:fix:fix)
+              ((>:fix:fix)   'internal:check->:fix:fix)  
+              (else #f))))
+    (if op
+        (as-source! as
+                    (cons (list $reg/op2imm/check op rs1 rs2 L1 liveregs)
+                          tail)))))
+
 (define (peep-reg/op1/branchf as op rs L tail)
   (let ((op (case op
               ((null?)       'internal:branchf-null?)
               ((eof-object?) 'internal:branchf-eof-object?)
               ((pair?)       'internal:branchf-pair?)
-              ;;((fixnum?)     'internal:branchf-fixnum?)
+              ((zero?)       'internal:branchf-zero?)
+              ((fixnum?)     'internal:branchf-fixnum?)
               ;;((char?)       'internal:branchf-char?)
               ;;((fxzero?)     'internal:branchf-fxzero?)
               ;;((fxnegative?) 'internal:branchf-fxnegative?)
@@ -329,3 +622,8 @@
         (rd (operand1 i:setreg)))
     (if (is_hwreg rd)
         (as-source! as (cons (list $const/setreg c rd) tail)))))
+
+(define (const-setglbl as i:const i:setglbl tail)
+  (let ((c (operand1 i:const))
+        (g (operand1 i:setglbl)))
+    (as-source! as (cons (list $const/setglbl c g) tail))))

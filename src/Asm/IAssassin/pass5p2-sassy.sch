@@ -639,6 +639,17 @@
 		   (emit-datum as (operand1 instruction))
                    (operand2 instruction)))))
 
+(define-instruction $const/setglbl
+  (lambda (instruction as)
+    (list-instruction "const/setglbl" instruction)
+    (if (immediate-constant? (operand1 instruction))
+	(emit-sassy as ia86.T_CONST_SETGLBL_IMM 
+		   (constant-value (operand1 instruction))
+		   (emit-global as (operand2 instruction)))
+	(emit-sassy as ia86.T_CONST_SETGLBL_CONSTVECTOR
+		   (emit-datum as (operand1 instruction))
+                   (emit-global as (operand2 instruction))))))
+
 (define-instruction $global/invoke
   (lambda (instruction as)
     (list-instruction "global/invoke" instruction)
@@ -682,6 +693,20 @@
                 (operand1 instruction) 
                 (emit-global as (operand2 instruction)))))
 
+(define-instruction $reg/branchf
+  (lambda (instruction as)
+    (list-instruction "reg/branchf" instruction)
+    (emit-sassy as ia86.T_REG_BRANCHF
+                (operand1 instruction) 
+                (compiled-procedure as (operand2 instruction)))))
+
+(define-instruction $reg/check
+  (lambda (instruction as)
+    (list-instruction "reg/check" instruction)
+    (emit-sassy as ia86.T_REG_CHECK
+                (operand1 instruction) 
+                (compiled-procedure as (operand2 instruction)))))
+
 (define-instruction $reg/op1/branchf
   (lambda (instruction as)
     (list-instruction "reg/op1/branchf" instruction)
@@ -689,6 +714,24 @@
                 (operand1 instruction)
                 (operand2 instruction)
                 (compiled-procedure as (operand3 instruction)))))
+
+(define-instruction $reg/op2/branchf
+  (lambda (instruction as)
+    (list-instruction "reg/op2/branchf" instruction)
+    (emit-sassy as ia86.T_REG_OP2_BRANCHF
+                (operand1 instruction)
+                (operand2 instruction)
+                (operand3 instruction)
+                (compiled-procedure as (operand4 instruction)))))
+
+(define-instruction $reg/op2imm/branchf
+  (lambda (instruction as)
+    (list-instruction "reg/op2imm/branchf" instruction)
+    (emit-sassy as ia86.T_REG_OP2IMM_BRANCHF
+                (operand1 instruction)
+                (operand2 instruction)
+                (constant-value (operand3 instruction))
+                (compiled-procedure as (operand4 instruction)))))
 
 (define-instruction $reg/op1/setreg
   (lambda (instruction as)
@@ -702,6 +745,59 @@
   (lambda (instruction as)
     (list-instruction "reg/op2/setreg" instruction)
     (emit-sassy as ia86.T_OP2* 
+                (operand1 instruction)
+                (operand2 instruction)
+                (operand3 instruction)
+                (operand4 instruction))))
+
+(define-instruction $reg/op2imm/setreg
+  (lambda (instruction as)
+    (list-instruction "reg/op2imm/setreg" instruction)
+    (emit-sassy as ia86.T_OP2IMM* 
+                (operand1 instruction)
+                (operand2 instruction)
+                (constant-value (operand3 instruction))
+                (operand4 instruction))))
+
+(define-instruction $reg/op1/check
+  (lambda (instruction as)
+    (list-instruction "reg/op1/check" instruction)
+    (emit-sassy as ia86.T_REG_OP1_CHECK
+                (operand1 instruction)
+                (operand2 instruction)
+                (compiled-procedure as (operand3 instruction)))))
+
+(define-instruction $reg/op2/check
+  (lambda (instruction as)
+    (list-instruction "reg/op2/check" instruction)
+    (emit-sassy as ia86.T_REG_OP2_CHECK
+                (operand1 instruction)
+                (operand2 instruction)
+                (operand3 instruction)
+                (compiled-procedure as (operand4 instruction)))))
+
+(define-instruction $reg/op2imm/check
+  (lambda (instruction as)
+    (list-instruction "reg/op2imm/check" instruction)
+    (emit-sassy as ia86.T_REG_OP2IMM_CHECK
+                (operand1 instruction)
+                (operand2 instruction)
+                (constant-value (operand3 instruction))
+                (compiled-procedure as (operand4 instruction)))))
+
+(define-instruction $reg/op2imm/check
+  (lambda (instruction as)
+    (list-instruction "reg/op2imm/check" instruction)
+    (emit-sassy as ia86.T_REG_OP2IMM_CHECK
+                (operand1 instruction)
+                (operand2 instruction)
+                (constant-value (operand3 instruction))
+                (compiled-procedure as (operand4 instruction)))))
+
+(define-instruction $reg/op3
+  (lambda (instruction as)
+    (list-instruction "reg/op3" instruction)
+    (emit-sassy as ia86.T_REG_OP3
                 (operand1 instruction)
                 (operand2 instruction)
                 (operand3 instruction)
@@ -770,7 +866,10 @@
         ((equal? x (undefined))   $imm.undefined)
         ((null? x)                $imm.null)
         ((char? x)                (char x))
-	(else ???)))
+        ((not (immediate-constant? x)) 
+         (error 'constant-value 
+                "you can only pass immediate constants!"))	
+        (else ???)))
 
 (define (new-proc-id as)
   (let* ((u (as-user as))

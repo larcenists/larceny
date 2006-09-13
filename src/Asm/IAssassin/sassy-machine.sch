@@ -86,8 +86,6 @@
 (define REG1_LOW	        'cl)
 (define REG2_LOW	        'dl)
 
-(define (hwreg_has_low r) (or (= r 1) (= r 2)))
-
 ;; corresponds to settings in features.sch
 ;; %include "config.ah" 
 
