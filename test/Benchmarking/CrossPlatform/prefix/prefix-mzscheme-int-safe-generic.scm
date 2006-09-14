@@ -161,3 +161,12 @@
     ((FLOATinexact->exact x) (inexact->exact x))))
 
 
+;; hack; work around openness in R5RS by deleting 
+;; file before opening it.
+(define call-with-output-file
+  (let ((old-c/of call-with-output-file))
+    (lambda (name fcn)
+      (if (file-exists? name)
+          (delete-file name))
+      (old-c/of name fcn))))
+
