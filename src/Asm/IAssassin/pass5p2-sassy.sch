@@ -37,7 +37,7 @@
          al  bl  cl  dl
          & align reloc abs
          mov push ret label short
-         nop
+         nop int3
          lea add sub cmp test neg 
          imul 
          and or xor shl shr sar not
