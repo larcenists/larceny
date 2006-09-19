@@ -27,8 +27,18 @@
 ; (foreign-null-pointer? integer)  =>  boolean
 ;   Tests whether the argument is a foreign null pointer.
 ;
+; (foreign-variable name type)  =>  procedure
+;   name           a string: the name of the variable
+;   type           a symbol: the variables's type
+;
+;   Calling the procedure with no argument fetches the value and
+;   converts it to a suitable Scheme representation.  Calling it
+;   with a Scheme value stores a converted value in the variable.
+;   
 ; FIXME: the definitions of ffi/rename-type, foreign-null-pointer?, and
 ; foreign-null-pointer are compiler specific and should be cleaned up.
+;
+; FIXME: the implementation of foreign-variable is not complete!
 
 ;;; Initialization
 
@@ -181,6 +191,29 @@
 (define (foreign-procedure-pointer addr param-types ret-type)
   (stdffi/make-foreign-procedure addr param-types ret-type
                                  ffi/foreign-procedure-pointer))
+
+; FIXME, this is not completed!  Also, there should ABI support for
+; linking variables (different name mangling, perhaps).
+
+(define (foreign-variable name type)
+
+  (define (var peek poke)
+    (let ((addr (ffi/link-procedure *ffi-callout-abi* name)))
+      (lambda args
+	(if (null? args)
+	    (peek addr)
+	    (poke addr (car args))))))
+
+  (cond ((or (eq? type 'long) (eq? type 'int))
+	 (var %peek32 %poke32))
+	((or (eq? type 'ulong) (eq? type 'uint))
+	 (var %peek32u %poke32u))
+	((eq? type 'ushort)
+	 (var %peek16u %poke16u))
+	((eq? type 'short)
+	 (var %peek16 %poke16))
+	(else
+	 (error "foreign-variable needs support for type " type))))
 
 ; Name can be a string or an address.
 
@@ -343,24 +376,64 @@
 
 ; %get* and %set*: reading and writing multibyte values from bytevectors.
 
-(define (%get16u x offs)
-  (+ (* (bytevector-ref x offs) 256) (bytevector-ref x (+ offs 1))))
+(define %get16u)
+(define %set16u)
+(define %get32u)
+(define %set32u)
 
-(define (%set16u x offs val)
-  (bytevector-set! x offs (quotient val 256))
-  (bytevector-set! x (+ offs 1) (remainder val 256)))
+(if (eq? 'little (cdr (assq 'arch-endianness (system-features))))
+    (begin
+      (set! %get16u 
+	    (lambda (x offs)
+	      (+ (* (bytevector-ref x (+ offs 1)) 256)
+		 (bytevector-ref x offs))))
 
-(define (%get32u x offs)
-  (+ (* (bytevector-ref x offs) 16777216)
-     (* (bytevector-ref x (+ offs 1)) 65536)
-     (* (bytevector-ref x (+ offs 2)) 256)
-     (bytevector-ref x (+ offs 3))))
+      (set! %set16u 
+	    (lambda (x offs val)
+	      (bytevector-set! x (+ offs 1) (quotient val 256))
+	      (bytevector-set! x offs (remainder val 256))))
 
-(define (%set32u x offs val)
-  (bytevector-set! x offs (quotient val 16777216))
-  (bytevector-set! x (+ offs 1) (remainder (quotient val 65536) 256))
-  (bytevector-set! x (+ offs 2) (remainder (quotient val 256) 256))
-  (bytevector-set! x (+ offs 3) (remainder val 256)))
+      (set! %get32u
+	    (lambda (x offs)
+	      (+ (* (bytevector-ref x (+ offs 3)) 16777216)
+		 (* (bytevector-ref x (+ offs 2)) 65536)
+		 (* (bytevector-ref x (+ offs 1)) 256)
+		 (bytevector-ref x offs))))
+
+      (set! %set32u
+	    (lambda (x offs val)
+	      (bytevector-set! x (+ offs 3) (quotient val 16777216))
+	      (bytevector-set! x (+ offs 2) 
+			       (remainder (quotient val 65536) 256))
+	      (bytevector-set! x (+ offs 1)
+			       (remainder (quotient val 256) 256))
+	      (bytevector-set! x offs (remainder val 256)))))
+    (begin
+      (set! %get16u 
+	    (lambda (x offs)
+	      (+ (* (bytevector-ref x offs) 256)
+		 (bytevector-ref x (+ offs 1)))))
+
+      (set! %set16u 
+	    (lambda (x offs val)
+	      (bytevector-set! x offs (quotient val 256))
+	      (bytevector-set! x (+ offs 1) (remainder val 256))))
+
+      (set! %get32u
+	    (lambda (x offs)
+	      (+ (* (bytevector-ref x offs) 16777216)
+		 (* (bytevector-ref x (+ offs 1)) 65536)
+		 (* (bytevector-ref x (+ offs 2)) 256)
+		 (bytevector-ref x (+ offs 3)))))
+
+      (set! %set32u
+	    (lambda (x offs val)
+	      (bytevector-set! x offs (quotient val 16777216))
+	      (bytevector-set! x (+ offs 1) 
+			       (remainder (quotient val 65536) 256))
+	      (bytevector-set! x (+ offs 2)
+			       (remainder (quotient val 256) 256))
+	      (bytevector-set! x (+ offs 3) (remainder val 256))))))
 
 (define (%get16 x offs)
   (let ((v (%get16u x offs)))
