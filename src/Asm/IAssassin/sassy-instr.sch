@@ -209,8 +209,7 @@
 	
 (define-sassy-instr (ia86.loadc hwreg slot)
   (assert-intel-reg hwreg)
-  (ia86.loadr	hwreg 0)
-  `(mov	,hwreg (& ,hwreg ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
+  `(mov	,hwreg (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
   `(mov	,hwreg (& ,hwreg ,(+ (- $tag.vector-tag) (words2bytes (+ slot 1))))))
 
 ;;; write_barrier r1 r2
@@ -524,11 +523,9 @@
                              (arithmetic-shift (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
                                                8)
                              $hdr.procedure))
-  (ia86.loadr	TEMP 0)
-  `(mov	,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+  `(mov	,TEMP (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
   `(mov	(dword (& ,RESULT ,PROC_CODEVECTOR_NATIVE)) ,TEMP)
-  (ia86.loadr	TEMP 0)
-  `(mov	,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
+  `(mov	,TEMP (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
   `(mov	(dword (& ,RESULT ,PROC_CONSTVECTOR)) ,TEMP)
   (ia86.init_closure n))
 
