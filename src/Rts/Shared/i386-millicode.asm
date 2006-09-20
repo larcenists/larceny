@@ -42,11 +42,19 @@
 ;;; that REG0 points to a procedure object.
 ;;; XXX turn off before release.
 %macro CHECKZEROREG 2
+%ifdef REG0
+	mov	eax, REG0
+%else
 	mov	eax, dword [GLOBALS + G_REG0 + %1]
+%endif
 	lea	eax, [eax+(8 - PROC_TAG)]
 	test	al, 7
 	jz	%%L1
-	mov	eax, dword [GLOBALS + G_REG0 + %1]	
+%ifdef REG0
+	mov	eax, REG0
+%else
+	mov	eax, dword [GLOBALS + G_REG0 + %1]
+%endif
 	int3
 	add	eax, %2
 %%L1:	
@@ -69,8 +77,12 @@ EXTNAME(i386_stack_underflow):
 	
 	align	code_align
 EXTNAME(i386_return_from_scheme):
+%ifdef REG0
+	mov	REG0, dword [ CONT + 5*4 ]
+%else
 	mov	eax, dword [ CONT + 5*4 ]
 	mov	[GLOBALS + G_REG0], eax
+%endif
 	CHECKZEROREG 0, 3
 	mov	eax, EXTNAME(return_from_scheme)
 	jmp	callout_to_C
@@ -100,10 +112,15 @@ EXTNAME(i386_scheme_jump):
 	mov	[ebx+G_SAVED_ESP], esp
 	
 	mov	GLOBALS, ebx
+%ifdef REG0
+	mov	REG0, [GLOBALS+G_REG0]
+%endif
 	mov	REG1, [GLOBALS+G_REG1]
 	mov	REG2, [GLOBALS+G_REG2]
 	mov	REG3, [GLOBALS+G_REG3]
+%ifdef REG4
 	mov	REG4, [GLOBALS+G_REG4]
+%endif
 	mov	RESULT, [GLOBALS+G_RESULT]
 	mov	CONT, [GLOBALS+G_STKP]
 
@@ -440,8 +457,12 @@ Lginv2:	mov	RESULT, [RESULT-PAIR_TAG]
 	jmp	i386_signal_exception_intrsafe
 	
 PUBLIC i386_argc_exception			; RESULT holds actual arg cnt
+%ifdef REG0
+	mov	dword [GLOBALS+G_THIRD+4], REG0
+%else
         mov     SECOND, [GLOBALS+G_REG0+4]
 	mov	dword [GLOBALS+G_THIRD+4], SECOND
+%endif
 	mov	SECOND, fixnum(EX_ARGC)
 	jmp	i386_signal_exception_intrsafe
 	
@@ -455,8 +476,12 @@ PUBLIC i386_petit_patch_boot_code
 %macro INTERNAL_FIXNUM_TO_RETADDR 0
 	mov	[saved_temp_reg], eax
 	CHECKZEROREG 0, 1
+%ifdef REG0
+	mov	eax, dword [REG0 - PROC_TAG + PROC_CODEVECTOR_NATIVE]
+%else
 	mov	eax, dword [GLOBALS + G_REG0]
 	mov	eax, dword [eax - PROC_TAG + PROC_CODEVECTOR_NATIVE]
+%endif
 	add	eax, BVEC_HEADER_BYTES - BVEC_TAG
 	add	dword [GLOBALS + G_RETADDR], eax
 	mov	eax, [saved_temp_reg]
@@ -465,8 +490,12 @@ PUBLIC i386_petit_patch_boot_code
 %macro INTERNAL_RETADDR_TO_FIXNUM 0
 	mov	[saved_temp_reg], eax
 	CHECKZEROREG 0, 2
+%ifdef REG0
+	mov	eax, dword [REG0 - PROC_TAG + PROC_CODEVECTOR_NATIVE]
+%else
 	mov	eax, dword [GLOBALS + G_REG0]
 	mov	eax, dword [eax - PROC_TAG + PROC_CODEVECTOR_NATIVE]
+%endif
 	add	eax, BVEC_HEADER_BYTES - BVEC_TAG
 	sub	dword [GLOBALS + G_RETADDR], eax
 	mov	eax, [saved_temp_reg]
@@ -490,20 +519,30 @@ PUBLIC i386_petit_patch_boot_code
 	mov	[%1], GLOBALS
 	mov	[GLOBALS + G_STKP], CONT
 	mov	[GLOBALS + G_RESULT], RESULT
+%ifdef REG0
+	mov	[GLOBALS + G_REG0], REG0
+%endif
 	mov	[GLOBALS + G_REG1], REG1
 	mov	[GLOBALS + G_REG2], REG2
 	mov	[GLOBALS + G_REG3], REG3
+%ifdef REG4
 	mov	[GLOBALS + G_REG4], REG4
+%endif
 %endmacro
 
 %macro RESTORE_STATE_ABSOLUTE 1
 	mov	GLOBALS, [%1]
 	mov	CONT, [GLOBALS + G_STKP]
 	mov	RESULT, [GLOBALS + G_RESULT]
+%ifdef REG0
+	mov	REG0, [GLOBALS + G_REG0]
+%endif
 	mov	REG1, [GLOBALS + G_REG1]
 	mov	REG2, [GLOBALS + G_REG2]
 	mov	REG3, [GLOBALS + G_REG3]
+%ifdef REG4
 	mov	REG4, [GLOBALS + G_REG4]
+%endif
 %endmacro
 
 %macro CALLOUT_TO_C 1

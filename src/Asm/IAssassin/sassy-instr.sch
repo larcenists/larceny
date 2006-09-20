@@ -117,7 +117,7 @@
   (case n   
     ((eax ebx ecx edx edi esi esp ebp) n)
     ((RESULT) RESULT) ;; hack to allow 'RESULT to be passed in  op1/op2 peeps
-    ((1) REG1) ((2) REG2) ((3) REG3) ((4) REG4)
+    ((1) REG1) ((2) REG2) ((3) REG3) ((0) REG0)
     (else (error 'REG (string-append " unknown register "
                                      (number->string n))))))
 
@@ -149,7 +149,7 @@
     ((REG1)   REG1_LOW)
     ((REG2)   REG2_LOW)
     ((REG3)   REG3)
-    ((REG4)   REG4)
+    ((REG0)   REG0)
     (else (error 'try-low hwreg " is not a symbolic hwreg..."))))
  
 
@@ -160,7 +160,7 @@
 
 (define (result-reg? n)      (or (eq? n RESULT) (eq? n 'RESULT)))
 (define (hwreg_has_low r)    (or (result-reg? r) (= r 1) (= r 2)))
-(define (is_hwreg n)         (or (result-reg? n) (<= 1 n 4)))
+(define (is_hwreg n)         (or (result-reg? n) (<= 0 n 3)))
 (define (fixnum n)           (arithmetic-shift n 2))
 (define (roundup8 x)         (logand (+ x 7) (lognot 7)))
 (define (words2bytes n)      (* n 4))
@@ -209,8 +209,7 @@
 	
 (define-sassy-instr (ia86.loadc hwreg slot)
   (assert-intel-reg hwreg)
-  (ia86.loadr	hwreg 0)
-  `(mov	,hwreg (& ,hwreg ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
+  `(mov	,hwreg (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
   `(mov	,hwreg (& ,hwreg ,(+ (- $tag.vector-tag) (words2bytes (+ slot 1))))))
 
 ;;; write_barrier r1 r2
@@ -415,14 +414,21 @@
   (ia86.write_barrier -1 regno))
 
 (define-sassy-instr (ia86.T_LEXICAL rib off)
-  (ia86.loadr	TEMP 0)		; We know R0 is not a HWREG
-  (repeat-times rib `(mov ,TEMP (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
-  `(mov ,RESULT (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off)))))
+  (cond ((> rib 0)
+         `(mov ,TEMP (& ,REG0 ,(+ PROC_REG0 (- $tag.procedure-tag))))
+         (repeat-times (- rib 1) 
+                       `(mov ,TEMP (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
+         `(mov ,RESULT (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off)))))
+        (else
+         `(mov ,RESULT (& ,REG0 ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off)))))))
 
 (define-sassy-instr (ia86.T_SETLEX rib off)
-  (ia86.loadr	TEMP 0)		; We know R0 is not a HWREG
-  (repeat-times rib `(mov ,TEMP (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
-  `(mov (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off))) ,RESULT))
+  (cond ((> rib 0)
+         `(mov ,TEMP (& ,REG0 ,(+ PROC_REG0 (- $tag.procedure-tag))))
+         (repeat-times (- rib 1) `(mov ,TEMP (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag)))))
+         `(mov (& ,TEMP ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off))) ,RESULT))
+        (else
+         `(mov (& ,REG0 ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off))) ,RESULT))))
 	
 (define-sassy-instr (ia86.T_STACK slot)
   `(mov	,RESULT ,(stkslot slot)))
@@ -517,11 +523,9 @@
                              (arithmetic-shift (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
                                                8)
                              $hdr.procedure))
-  (ia86.loadr	TEMP 0)
-  `(mov	,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+  `(mov	,TEMP (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
   `(mov	(dword (& ,RESULT ,PROC_CODEVECTOR_NATIVE)) ,TEMP)
-  (ia86.loadr	TEMP 0)
-  `(mov	,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
+  `(mov	,TEMP (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
   `(mov	(dword (& ,RESULT ,PROC_CONSTVECTOR)) ,TEMP)
   (ia86.init_closure n))
 
@@ -613,8 +617,7 @@
 ;; Alternate version (15 bytes).  
 ;; (But SETRTN/INVOKE may be inspired by prior approach...)
 (define-sassy-instr (ia86.T_SETRTN lbl)
-  (ia86.loadr TEMP 0)
-  `(mov ,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+  `(mov ,TEMP (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
   `(add ,TEMP (reloc abs 
                     ,(t_label lbl)
                     ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES)))
@@ -678,15 +681,11 @@
 		  #f)
 		 ((find-label obj label) => (lambda (entry) (cdr entry)))
 		 (else (loop (as-parent obj)))))))
-    (cond ((> levels 0) 
-           (ia86.loadr TEMP 0)		; We know R0 is not a HWREG
-           (repeat-times levels 
-                         `(mov ,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_REG0))))
-           (ia86.storer 0 TEMP)))
-    ;; Now TEMP holds the closure we're jumping into; calculate the
+    (repeat-times levels `(mov ,REG0 (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_REG0))))
+    ;; Now REG0 holds the closure we're jumping into; calculate the
     ;; address as start of codevector plus offset from above.
     (cond (offset
-           `(lea ,TEMP (& ,TEMP ,(- $tag.procedure-tag)))
+           `(lea ,TEMP (& ,REG0 ,(- $tag.procedure-tag)))
            `(mov ,TEMP (& ,TEMP ,PROC_CODEVECTOR_NATIVE))
            `(lea ,TEMP (& ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES offset)))
            (cond (setrtn?
@@ -705,8 +704,7 @@
                                     (newline))))
                     ;; We just clobbered reg0 above, but the reasoning above
                     ;; implies that this is the same codevector, so its okay.
-                    (ia86.loadr TEMP 0)
-                    `(mov ,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+                    `(mov ,TEMP (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
                     `(add ,TEMP (reloc abs 
                                       ,(t_label (compiled-procedure 
                                                  (current-sassy-assembly-structure) 

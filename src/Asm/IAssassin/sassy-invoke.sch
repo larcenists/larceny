@@ -43,7 +43,7 @@
 (define-sassy-instr (ia86.T_INVOKE n)
   (cond ((unsafe-code) ;; 32 bytes for n=0, 35 bytes o/w
          (ia86.timer_check)
-         (ia86.storer 0 RESULT)
+         (ia86.storer 0 RESULT) ;; OPTIMIZEME
          `(mov ,TEMP ,RESULT)
          (ia86.const2regf RESULT (fixnum n))
          `(mov ,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
@@ -182,8 +182,7 @@
   `(mov	(& ,GLOBALS ,$g.third) ,TEMP)
   (ia86.loadr	SECOND x)
   (ia86.mcall	$m.apply 'apply)
-  (ia86.loadr	TEMP 0)
-  `(mov	,TEMP (& ,TEMP ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+  `(mov	,TEMP (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
   `(add ,TEMP ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
   `(jmp	,TEMP))
 

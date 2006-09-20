@@ -31,7 +31,10 @@
 ; registers.
 
 ;(define *nhwregs* 32)
-(define *nhwregs* 5)       ; Helps the NASM assembler generate smaller code
+(define *nhwregs* 
+  (case (nbuild-parameter 'target-machine)
+    ((x86-sass) 4)
+    (else       5))) ; Helps the NASM assembler generate smaller code
 
 ; Variable names that indicate register targets.
 
