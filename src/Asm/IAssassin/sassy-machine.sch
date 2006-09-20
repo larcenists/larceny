@@ -17,10 +17,6 @@
 ; be pushed into the first element of GLOBALS.  Millicode
 ; must pop the value to adjust GLOBALS and save the address.
 ;
-; REG0 is not mapped to a hardware reg because there are few hardware
-; regs available and computation is probably more important than access
-; to the procedure.  I don't have any data to back this up.
-;
 ; ECX and EDI must be mapped to VM registers to make it easy to write
 ; code that uses the REP STOS instructions without knowing too much
 ; about the register layout.
@@ -69,7 +65,7 @@
 (define REG1    	'ecx)	; ecx must map to a VM register
 (define REG2    	'edx)
 (define REG3    	'edi)	; edi must map to a VM register
-(define REG4    	'esi)
+(define REG0    	'esi)
 (define REG1_LOW 'cl)	; ecx must map to a VM register
 (define REG2_LOW 'dl)
 (define GLOBALS 	'esp)

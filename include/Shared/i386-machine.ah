@@ -37,13 +37,20 @@
 %define object_align    8
 %define code_align      4
 
+%include "config.ah"
+%include "asmdefs.h"
+
 %define TEMP    	eax	; always same as SECOND
 %define SECOND  	eax	; always same as TEMP
 %define RESULT  	ebx
 %define REG1    	ecx	; ecx must map to a VM register
 %define REG2    	edx
 %define REG3    	edi	; edi must map to a VM register
+%ifdef X86_SASSY
+%define REG0    	esi
+%else
 %define REG4    	esi
+%endif
 %define GLOBALS 	esp
 %define CONT    	ebp
 
@@ -60,9 +67,6 @@
 %define REG2_LOW	dl
 
 %define hwreg_has_low(r)  (r==1 || r==2)
-
-%include "config.ah"
-%include "asmdefs.h"
 
 %ifdef WIN32
 %define EXTNAME(x) _ %+ x
