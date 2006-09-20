@@ -1,0 +1,58 @@
+Structures
+~~~~~~~~~~
+
+_Structures_ are vector-like objects for which none of the standard
+Scheme type predicates test true. They are therefore suitable
+implementation vehicles for new and experimental data types.
+
+There are no structure-length, structure-ref, or structure-set!
+procedures. Instead, use the vector-like-length, vector-like-ref, and
+vector-like-set procedures.
+
+_Procedure make-structure_
+
+
+++ (make-structure _length_) => _structure_++
+
+    
+
+Returns a structure of the specified _length_.
+
+_Procedure structure?_
+
+
+++ (structure? _object_) => _boolean_++
+
+    
+
+Returns #t if _object_ is a structure, and #f otherwise.
+
+_Parameter structure-comparator_     
+
+The value of this parameter is a procedure of two arguments: the
+structures to be compared. The default behavior is to compare the
+structures element-by-element using equal? and return #t if they agree
+at all fields.
+
+The structure comparator may be called by equal? to compare two
+structures for equality.
+
+_Parameter structure-printer_     
+
+The value of this parameter is a procedure of three arguments: a
+structure, an output port, and a boolean which is #t if the printer
+must quote its output, as for write.
+
+A typical use of structure-printer is to retrieve the current
+structure printer procedure and install a new procedure that checks
+its argument to see if it's a structure of a particular type; if it
+is, then a custom printer is invoked, otherwise the old printer is
+invoked. For example:
+    
+    
+         (define (install-structure-printer mystruct? printer)
+           (let ((old (structure-printer)))
+             (structure-printer (lambda (obj port quote?)
+                                  (if (mystruct? obj)
+                                      (printer obj port quote?)
+                                      (old obj port quote?))))))

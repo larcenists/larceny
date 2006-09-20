@@ -1,0 +1,199 @@
+Fixnum primitives
+~~~~~~~~~~~~~~~~~
+
+Fixnums are small exact integers that can be represented without heap
+allocation (see <<LarcenyNoteRepr,this note>> for more
+information). Larceny never represents a number that can be
+represented as a fixnum any other way, so programs that can use
+fixnums will do so automatically. However, operations that work only
+on fixnums can sometimes be substantially faster than generic
+operations, and the following primitives are provided for use in those
+programs that need especially good performance.
+
+All arguments to the following procedures must be fixnums.
+
+_Procedure fixnum?_
+
+++ (fixnum? _obj_) => _boolean_++
+
+Returns #t if its argument is a fixnum, and #f otherwise.
+
+_Procedure fx+_
+
+++ (fx+ _fix1 fix2_) => _fixnum_++
+
+Returns the fixnum sum of its arguments. If the result is not
+representable as a fixnum, then an error is signalled (unless error
+checking has been disabled).
+
+_Procedure fx-_
+
+++ (fx- _fix1 fix2_) => _fixnum_++
+
+Returns the fixnum difference of its arguments. If the result is not
+representable as a fixnum, then an error is signalled.
+
+_Procedure fx--_
+
+++ (fx-- _fix1_) => _fixnum_++
+
+Returns the fixnum negative of its argument. If the result is not
+representable as a fixnum, then an error is signalled.
+
+_Procedure fx*_
+
+++ (fx* _fix1 fix2_) => _fixnum_++
+
+Returns the fixnum product of its arguments. If the result is not
+representable as a fixnum, then an error is signalled.
+
+_Procedure fx=_
+
+++ (fx= _fix1 fix2_) => _boolean_++
+
+
+    
+
+Returns #t if its arguments are equal, and #f otherwise.
+
+_Procedure fx<_
+
+++ (fx< _fix1 fix2_) => _boolean_++
+
+Returns #t if _fix1_ is less than _fix2_, and #f otherwise.
+
+_Procedure fx<=_
+
+++ (fx<= _fix1 fix2_) => _boolean_++
+
+Returns #t if _fix1_ is less than or equal to _fix2_, and #f
+otherwise.
+
+_Procedure fx>_
+
+++ (fx> _fix1 fix2_) => _boolean_++
+
+Returns #t if _fix1_ is greater than _fix2_, and #f otherwise.
+
+_Procedure fx>=_
+
+++ (fx>= _fix1 fix2_) => _boolean_++
+
+Returns #t if _fix1_ is greater than or equal to _fix2_, and #f
+otherwise.
+
+_Procedure fxnegative?_
+
+++ (fxnegative? _fix_) => _boolean_++
+
+
+    
+
+Returns #t if its argument is less than zero, and #f otherwise.
+
+_Procedure fxpositive?_
+
+++ (fxpositive? _fix_) => _boolean_++
+
+
+    
+
+Returns #t if its argument is greater than zero, and #f otherwise.
+
+_Procedure fxzero?_
+
+++ (fxzero? _fix_) => _boolean_++
+
+
+    
+
+Returns #t if its argument is zero, and #f otherwise.
+
+_Procedure logand_
+
+++ (logand _fix1 fix2_) => _fixnum_++
+
+
+    
+
+Returns the bitwise _and_ of its arguments.
+
+_Procedure logior_
+
+++ (logior _fix1 fix2_) => _fixnum_++
+
+
+    
+
+Returns the bitwise _inclusive or_ of its arguments.
+
+_Procedure lognot_
+
+++ (lognot _fix_) => _fixnum_++
+
+
+    
+
+Returns the bitwise _not_ of its argument.
+
+_Procedure logxor_
+
+++ (logxor _fix1 fix2_) => _fixnum_++
+
+
+    
+
+Returns the bitwise _exclusive or_ of its arguments.
+
+_Procedure lsh_
+
+++ (lsh _fix1 fix2_) => _fixnum_++
+
+Returns _fix1_ shifted left _fix2_ places, shifting in zero bits at
+the low end. If the shift count exceeds the number of bits in the
+machine's word size, then the results are machine-dependent.
+
+_Procedure most-positive-fixnum_
+
+++ (most-positive-fixnum) => _fixnum_++
+
+
+    
+
+Returns the largest representable positive fixnum.
+
+_Procedure most-negative-fixnum_
+
+++ (most-negative-fixnum) => _fixnum_++
+
+
+    
+
+Returns the smallest representable negative fixnum.
+
+_Procedure rsha_
+
+++ (rsha _fix1 fix2_) => _fixnum_++
+
+
+    
+
+Returns _fix1_ shifted right _fix2_ places, shifting in a copy of the
+sign bit at the left end. If the shift count exceeds the number of
+bits in the machine's word size, then the results are
+machine-dependent.
+
+_Procedure rshl_
+
+++ (rshl _fix1 fix2_) => _fixnum_++
+
+
+    
+
+Returns _fix1_ shifted right _fix2_ places, shifting in zero bits at
+the high end. If the shift count exceeds the number of bits in the
+machine's word size, then the results are machine-dependent.
+
+
+
+

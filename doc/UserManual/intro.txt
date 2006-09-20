@@ -1,0 +1,185 @@
+Introductory material
+---------------------
+
+Installing and Running Twobit and Larceny
+
+=== Installing the programs
+
+Twobit and Larceny are distributed in two forms: as a precompiled
+binary and a set of heap images (the file
+larceny-X.Y-sunosZ-bin.tar.gz where X.Y is a version number and Z is 4
+or 5), and as a source tree (the file larceny-X.Y-src.tar.gz). If you
+are not going to be changing Larceny's source code, you do not need to
+download the source tree. Additionally there is an archive for
+documentation (the file larceny-X.Y-doc.tar.gz).
+
+You unpack the distribution files using the commands 
+    
+    
+        gunzip < larceny-X.Y-sunosZ-bin.tar.gz | tar xf -
+        gunzip < larceny-X.Y-src.tar.gz | tar xf -
+        gunzip < larceny-X.Y-doc.tar.gz | tar xf -
+    
+
+which create a directory called "larceny" in your current working
+directory. In that directory you will find the following files:
+    
+    
+        larceny.bin         Run-time system
+        larceny.heap        Heap image with all libraries, FFI, and compiler
+        twobit.heap         Heap image with some libraries and compiler
+        r5rs.heap           Heap image with R5RS libraries and an interpreter
+        Scripts/larceny     Shell script that runs larceny.heap
+        Scripts/twobit      Shell script that runs twobit.heap
+    
+
+If you unpacked the source code there will be many other files and
+directories as well.
+
+The scripts and heap images are discussed in the following section. 
+
+You should decide where you want to install Twobit and Larceny; say
+you want to install them in /usr/local/bin and
+/usr/local/lib/larceny. Copy the files Scripts/larceny and
+Scripts/twobit to /usr/local/bin and edit the definition of the
+variable LARCENY_PATH at the head of each file to point to the correct
+directory:
+    
+    
+        LARCENY_PATH=/usr/local/lib/larceny
+    
+
+Then, move or copy larceny.bin, larceny.heap, twobit.heap, and
+r5rs.heap to /usr/local/lib/larceny.
+
+You should now be able to run Larceny by typing "`larceny`" at the
+Unix prompt, and similarly you should be able to run the Twobit
+compiler by typing "`twobit`". You can also bring up just the
+interpreter with the command "`larceny -small`".
+
+=== Larceny or Twobit?
+
+Unless you are doing compiler development, you should probably use the
+"`larceny`" script instead of the "`twobit`" script. The difference
+between these two scripts is that `larceny` runs the heap image named
+"larceny.heap" while `twobit` runs the heap image named "twobit.heap".
+
+Both of these heap images contain the Twobit compiler and the
+`compile-file` procedure that is used to compile files of Scheme code,
+but they differ in other ways.
+
+In "larceny.heap", every expression is compiled before it is
+evaluated, but the internals of the Twobit compiler are hidden (except
+for compilation switches).
+
+In "twobit.heap", some of the libraries that are present in
+"larceny.heap" are missing, and the internals of Twobit are exposed:
+every top-level name in Twobit is bound in the interaction environment
+and may be changed interactively, with immediate effect. Since
+compiler development can be a risky business, "twobit.heap" uses the
+interpreter for evaluation -- the interpreter is unaffected by changes
+to Twobit.
+
+Running "twobit.heap" is probably not useful unless you are doing
+compiler development, in which case you will need the source code as
+well as the binaries.
+
+=== Using Larceny
+
+==== Interactive work
+
+When you start Larceny you will be presented with a signon message and
+the read-eval-print loop's prompt:
+
+------------------------------------------------------------
+Larceny vX.Y (precise:SunOS5:split) (lth DD-MMM-YY HH:MM:SS)
+        
+>
+------------------------------------------------------------
+    
+
+You can enter a Scheme expression at the prompt; it will be evaluated
+and its results printed as soon as it has been read.
+
+==== Dealing with errors
+
+Larceny has a crude debugger. If your program crashes, the point of
+error will be saved, and back at the prompt you can start the
+debugger:
+    
+    
+        (debug)
+    
+
+There is some help available on-line in the debugger. (The debugger is
+pretty much a prototype; you don't need to tell us how bad it is.)
+
+==== Performance
+
+By default, the Twobit compiler assumes that Scheme's standard
+procedures will not be redefined, which allows the compiler to
+generate inline code for many calls to standard procedures. If you
+want to be able to redefine standard procedures, then you should
+evaluate the expression
+    
+    
+        (standard-code)    ; this name will change in a future version
+    
+
+After this expression has been evaluated, the compiler will generate
+slower code.
+
+To make the compiler generate faster code, you can promise not to
+redefine standard procedures _and_ not to redefine any top-level
+procedure while it is running. To make this promise, evaluate
+    
+    
+        (fast-safe-code)   ; this name will change in a future version
+    
+
+To make `compile-file` generate faster code, you can promise that none
+of the top-level variables that are defined within a file of Scheme
+code are redefined or assigned outside of that file unless they are
+redefined or assigned within the file. To make this promise, evaluate
+    
+    
+        (benchmark-block-mode #t)
+    
+
+For more information about compiler switches, see the
+<<DevelopingSwitches,developer documentation>>.
+
+=== Troubleshooting
+
+==== Error messages when starting Larceny
+
+Larceny was built for SunOS4 on a machine running SunOS 4.1.4, and for
+SunOS5 on a machine running SunOS 5.6. The executable program
+"larceny.bin" may be incompatible with other versions of SunOS. If
+this appears to be the case, you can recompile the executable for your
+operating system by installing the source tree and executing the
+following two commands in the top level directory:
+    
+    
+        make setup
+        make larceny.bin
+    
+
+(If you do this repeatedly, you only need to run "make setup" once.)
+Now replace the distributed version of larceny.bin with the
+newly-compiled file.
+
+Larceny has been tested on SunOS 4.1.4 and SunOS 5.6. At times in the
+past, Larceny was compiled on both SunOS 5.3 and SunOS 5.5. It should
+still compile without trouble on SunOS 5.5, but there are some
+incompatibilities between 5.3 and 5.5/5.6, and we don't know if
+Larceny will still compile on SunOS 5.3. Please report both problems
+and success stories.
+
+==== Crashes
+
+Please report all crashes with as much information is possible; a
+backtrace from a debugger or a core dump is ideal (please do not mail
+the core dump without contacting us first). Larceny's run-time system
+is compiled with full debugging information by default and a debugger
+like GDB should be able to provide at least some clues.

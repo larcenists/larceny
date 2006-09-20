@@ -1,0 +1,468 @@
+Index of Library Procedures
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+///////////////////////////////////////////////////////////////////////
+We should be able to create the contents of this automatically, right?
+///////////////////////////////////////////////////////////////////////
+
+This index lists the procedures that are documented in this Manual. Procedures that are described in the Revised Reports or in the IEEE Standard but not listed here may be assumed to behave according to their specifications in the standards documents. A discrepancy between defined and implemented behavior constitutes a bug, [which you should report][1]. 
+    
+    
+    [add-exit-procedure!][2]
+    [add-init-procedure!][3]
+    [append!][4]
+    
+    [bignum?][5]
+    [break][6]
+    [break-entry][7]
+    [break-handler][8]
+    [bytevector?][9]
+    [bytevector-copy][10]
+    [bytevector-equal?][11]
+    [bytevector-fill!][12]
+    [bytevector-length][13]
+    [bytevector-like?][14]
+    [bytevector-like-copy][15]
+    [bytevector-like-equal?][16]
+    [bytevector-like-length][17]
+    [bytevector-like-ref][18]
+    [bytevector-like-set!][19]
+    [bytevector-ref][20]
+    [bytevector-set!][21]
+    
+    [call-without-interrupts][22]
+    [close-open-files][23]
+    [collect][24]
+    [command-line-arguments][25]
+    [compnum?][26]
+    [console-input-port][27]
+    [console-input-port-factory][28]
+    [console-output-port][29]
+    [console-output-port-factory][30]
+    [current-continuation-structure][31]
+    [current-input-port][32]
+    [current-output-port][33]
+    
+    [decode-error][34]
+    [delete-file][35]
+    [disable-interrupts][36]
+    [display-memstats][37]
+    [dump-heap][38]
+    [dump-interactive-heap][39]
+    
+    [enable-interrupts][40]
+    [environment?][41]
+    [environment-copy][42]
+    [environment-get][43]
+    [environment-get-cell][44]
+    [environment-get-macro][45]
+    [environment-macro?][46]
+    [environment-macros][47]
+    [environment-name][48]
+    [environment-set!][49]
+    [environment-set-macro!][50]
+    [environment-syntax-environment][51]
+    [environment-variable?][52]
+    [environment-variables][53]
+    [eof-object][54]
+    [equal-hash][55]
+    [error][56]
+    [error-handler][57]
+    [eval][58]
+    [evaluator][59]
+    [every?][60]
+    [exit][61]
+    
+    [file-exists?][62]
+    [file-modification-time][63]
+    [fixnum?][64]
+    [flonum?][65]
+    [flush-output-port][66]
+    [foreign-file][67]
+    [foreign-procedure][68]
+    [foreign-null-pointer][69]
+    [foreign-null-pointer?][70]
+    [fx+][71]
+    [fx-][72]
+    [fx--][73]
+    [fx*][74]
+    [fx=][75]
+    [<">fx<][76]
+    [<=">fx<=][77]
+    [">fx>][78]
+    [=">fx>=][79]
+    [fxnegative?][80]
+    [fxpositive?][81]
+    [fxzero?][82]
+    
+    [gc-counter][83]
+    [gcctl][84]
+    [gensym][85]
+    [getenv][86]
+    [get-output-string][87]
+    [getprop][88]
+    
+    [hashtable-contains?][89]
+    [hashtable-clear!][90]
+    [hashtable-copy][91]
+    [hashtable-fetch][92]
+    [hashtable-for-each][93]
+    [hashtable-get][94]
+    [hashtable-map][95]
+    [hashtable-put!][96]
+    [hashtable-remove!][97]
+    [hashtable-size][98]
+    [herald][99]
+    
+    [keyboard-interrupt-handler][100]
+    [interaction-environment][101]
+    
+    [last-pair][102]
+    [list-copy][103]
+    [load-evaluator][104]
+    [logand][105]
+    [logior][106]
+    [lognot][107]
+    [logxor][108]
+    [lsh][109]
+    
+    [make-bytevector][110]
+    [make-environment][111]
+    [make-hashtable][112]
+    [make-parameter][113]
+    [make-procedure][114]
+    [make-record-type][115]
+    [make-structure][116]
+    [make-trampoline][117]
+    [memstats][118]
+    [most-positive-fixnum][119]
+    [most-negative-fixnum][120]
+    
+    [null-environment][121]
+    
+    [object-hash][122]
+    [oblist][123]
+    [oblist-set!][124]
+    [open-input-string][125]
+    [open-output-string][126]
+    
+    [parameterize][127]
+    [peek-bytes][128]
+    [poke-bytes][129]
+    [port?][130]
+    [port-name][131]
+    [port-position][132]
+    [procedure-arity][133]
+    [procedure-copy][134]
+    [procedure-documentation-string][135]
+    [procedure-environment][136]
+    [procedure-expression][137]
+    [procedure-length][138]
+    [procedure-name][139]
+    [procedure-ref][140]
+    [procedure-set!][141]
+    [procedure-source-file][142]
+    [procedure-source-position][143]
+    [putprop][144]
+    
+    [quit][145]
+    [quit-handler][146]
+    
+    [random][147]
+    [ratnum?][148]
+    [record?][149]
+    [record-accessor][150]
+    [record-constructor][151]
+    [record-predicate][152]
+    [record-type-descriptor][153]
+    [record-type-extends?][154]
+    [record-type-field-names][155]
+    [record-type-name][156]
+    [record-type-parent][157]
+    [record-updater][158]
+    [rectnum?][159]
+    [remove][160]
+    [remove!][161]
+    [remprop][162]
+    [remq][160]
+    [remq!][161]
+    [remv][160]
+    [remv!][161]
+    [rename-file][163]
+    [repl-level][164]
+    [repl-printer][165]
+    [repl-evaluator][166]
+    [repl-prompt][167]
+    [reset][168]
+    [reset-handler][169]
+    [reset-output-string][170]
+    [reverse!][171]
+    [rsha][172]
+    [rshl][173]
+    [run-benchmark][174]
+    [run-with-stats][175]
+    
+    [scheme-report-environment][176]
+    [some?][177]
+    [sort][178]
+    [sort!][178]
+    [srfi0-add-key!][179]
+    [srfi0-keys][180]
+    [sro][181]
+    [standard-timeslice][182]
+    [stats-dump-off][183]
+    [stats-dump-on][184]
+    [string-downcase][185]
+    [string-downcase!][186]
+    [string-hash][187]
+    [string-upcase][188]
+    [string-upcase!][189]
+    [structure?][190]
+    [structure-comparator][191]
+    [structure-printer][192]
+    [substring-fill!][193]
+    [system][194]
+    [symbol-hash][195]
+    [syscall][196]
+    [system-features][197]
+    
+    [trace][198]
+    [trace-entry][199]
+    [trace-exit][200]
+    [timer-interrupt-handler][201]
+    [typetag][202]
+    [typetag-set!][203]
+    
+    [unbreak][204]
+    [untrace][205]
+    
+    [vector-copy][206]
+    [vector-like?][207]
+    [vector-like-length][208]
+    [vector-like-ref][209]
+    [vector-like-set][210]
+    
+    [with-input-from-port][211]
+    [with-output-to-port][212]
+    
+    
+
+* * *
+
+_$Id: procidx.html 1526 2000-09-22 21:27:03Z lth $_  
+[larceny@ccs.neu.edu][1]  
+
+
+   [1]: mailto:larceny@ccs.neu.edu
+   [2]: control.html#proc:add-exit-procedure!
+   [3]: control.html#proc:add-init-procedure!
+   [4]: pairs_lists.html#proc:append!
+   [5]: numbers.html#proc:bignum-p
+   [6]: debugging.html#proc:break
+   [7]: debugging.html#proc:break-entry
+   [8]: debugging.html#proc:break-handler
+   [9]: bytevectors.html#proc:bytevector-p
+   [10]: bytevectors.html#proc:bytevector-copy
+   [11]: bytevectors.html#proc:bytevector-equal-p
+   [12]: bytevectors.html#proc:bytevector-fill!
+   [13]: bytevectors.html#proc:bytevector-length
+   [14]: bytevectors.html#proc:bytevector-like-p
+   [15]: bytevectors.html#proc:bytevector-like-copy
+   [16]: bytevectors.html#proc:bytevector-like-equal-p
+   [17]: bytevectors.html#proc:bytevector-like-length
+   [18]: bytevectors.html#proc:bytevector-like-ref
+   [19]: bytevectors.html#proc:bytevector-like-set!
+   [20]: bytevectors.html#proc:bytevector-ref
+   [21]: bytevectors.html#proc:bytevector-set!
+   [22]: control.html#proc:call-without-interrupts
+   [23]: io.html#proc:close-open-files
+   [24]: syscontrol.html#proc:collect
+   [25]: os.html#proc:command-line-arguments
+   [26]: numbers.html#proc:compnum-p
+   [27]: io.html#proc:console-input-port
+   [28]: io.html#proc:console-input-port-factory
+   [29]: io.html#proc:console-output-port
+   [30]: io.html#proc:console-output-port-factory
+   [31]: lowlevel.html#proc:current-continuation-structure
+   [32]: io.html#proc:current-input-port
+   [33]: io.html#proc:current-output-port
+   [34]: control.html#proc:decode-error
+   [35]: io.html#proc:delete-file
+   [36]: control.html#proc:disable-interrupts
+   [37]: syscontrol.html#proc:display-memstats
+   [38]: os.html#proc:dump-heap
+   [39]: os.html#proc:dump-interactive-heap
+   [40]: control.html#proc:enable-interrupts
+   [41]: environ.html#proc:environment-p
+   [42]: environ.html#proc:environment-copy
+   [43]: environ.html#proc:environment-get
+   [44]: environ.html#proc:environment-get-cell
+   [45]: environ.html#proc:environment-get-macro
+   [46]: environ.html#proc:environment-macro-p
+   [47]: environ.html#proc:environment-macros
+   [48]: environ.html#proc:environment-name
+   [49]: environ.html#proc:environment-set!
+   [50]: environ.html#proc:environment-set-macro!
+   [51]: environ.html#proc:environment-syntax-environment
+   [52]: environ.html#proc:environment-variable?
+   [53]: environ.html#proc:environment-variables
+   [54]: io.html#proc:eof-object
+   [55]: hashtable.html#proc:equal-hash
+   [56]: control.html#proc:error
+   [57]: control.html#proc:error-handler
+   [58]: control.html#proc:eval
+   [59]: control.html#proc:evaluator
+   [60]: pairs_lists.html#proc:every-p
+   [61]: control.html#proc:exit
+   [62]: io.html#proc:file-exists-p
+   [63]: io.html#proc:file-modification-time
+   [64]: fixnums.html#proc:fixnum-p
+   [65]: numbers.html#proc:flonum-p
+   [66]: io.html#proc:flush-output-port
+   [67]: ffi.html#proc:foreign-file
+   [68]: ffi.html#proc:foreign-procedure
+   [69]: ffi.html#proc:foreign-null-pointer
+   [70]: ffi.html#proc:foreign-null-pointer-p
+   [71]: fixnums.html#proc:fx+
+   [72]: fixnums.html#proc:fx-
+   [73]: fixnums.html#proc:fx--
+   [74]: fixnums.html#proc:fx*
+   [75]: fixnums.html#proc:fx=
+   [76]: fixnums.html#proc:fx<
+   [77]: fixnums.html#proc:fx<=
+   [78]: fixnums.html#proc:fx>
+   [79]: fixnums.html#proc:fx>=
+   [80]: fixnums.html#proc:fxnegative-p
+   [81]: fixnums.html#proc:fxpositive-p
+   [82]: fixnums.html#proc:fxzero-p
+   [83]: syscontrol.html#proc:gc-counter
+   [84]: syscontrol.html#proc:gcctl
+   [85]: symbols.html#proc:gensym
+   [86]: os.html#proc:getenv
+   [87]: io.html#proc:get-output-string
+   [88]: proplist.html#proc:getprop
+   [89]: hashtable.html#proc:hashtable-contains-p
+   [90]: hashtable.html#proc:hashtable-clear!
+   [91]: hashtable.html#proc:hashtable-copy
+   [92]: hashtable.html#proc:hashtable-fetch
+   [93]: hashtable.html#proc:hashtable-for-each
+   [94]: hashtable.html#proc:hashtable-get
+   [95]: hashtable.html#proc:hashtable-map
+   [96]: hashtable.html#proc:hashtable-put!
+   [97]: hashtable.html#proc:hashtable-remove!
+   [98]: hashtable.html#proc:hashtable-size
+   [99]: repl.html#proc:herald
+   [100]: control.html#proc:keyboard-interrupt-handler
+   [101]: environ.html#proc:interaction-environment
+   [102]: pairs_lists.html#proc:last-pair
+   [103]: pairs_lists.html#proc:list-copy
+   [104]: control.html#proc:load-evaluator
+   [105]: fixnums.html#proc:logand
+   [106]: fixnums.html#proc:logior
+   [107]: fixnums.html#proc:lognot
+   [108]: fixnums.html#proc:logxor
+   [109]: fixnums.html#proc:lsh
+   [110]: bytevectors.html#proc:make-bytevector
+   [111]: environ.html#proc:make-environment
+   [112]: hashtable.html#proc:make-hashtable
+   [113]: parameters.html#proc:make-parameter
+   [114]: procedures.html#proc:make-procedure
+   [115]: records.html#proc:make-record-type
+   [116]: structures.html#proc:make-structure
+   [117]: lowlevel.html#proc:make-trampoline
+   [118]: syscontrol.html#proc:memstats
+   [119]: fixnums.html#proc:most-positive-fixnum
+   [120]: fixnums.html#proc:most-negative-fixnum
+   [121]: environ.html#proc:null-environment
+   [122]: hashtable.html#proc:object-hash
+   [123]: symbols.html#proc:oblist
+   [124]: symbols.html#proc:oblist-set!
+   [125]: io.html#proc:open-input-string
+   [126]: io.html#proc:open-output-string
+   [127]: parameters.html#syntax:parameterize
+   [128]: ffi.html#proc:peek-bytes
+   [129]: ffi.html#proc:poke-bytes
+   [130]: io.html#proc:port-p
+   [131]: io.html#proc:port-name
+   [132]: io.html#proc:port-position
+   [133]: procedures.html#proc:procedure-arity
+   [134]: procedures.html#proc:procedure-copy
+   [135]: procedures.html#proc:procedure-documentation-string
+   [136]: procedures.html#proc:procedure-environment
+   [137]: procedures.html#proc:procedure-expression
+   [138]: procedures.html#proc:procedure-length
+   [139]: procedures.html#proc:procedure-name
+   [140]: procedures.html#proc:procedure-ref
+   [141]: procedures.html#proc:procedure-set!
+   [142]: procedures.html#proc:procedure-source-file
+   [143]: procedures.html#proc:procedure-source-position
+   [144]: proplist.html#proc:putprop
+   [145]: control.html#proc:quit
+   [146]: control.html#proc:quit-handler
+   [147]: numbers.html#proc:random
+   [148]: numbers.html#proc:ratnum-p
+   [149]: records.html#proc:record-p
+   [150]: records.html#proc:record-accessor
+   [151]: records.html#proc:record-constructor
+   [152]: records.html#proc:record-predicate
+   [153]: records.html#proc:record-type-descriptor
+   [154]: records.html#proc:record-type-extends?
+   [155]: records.html#proc:record-type-field-names
+   [156]: records.html#proc:record-type-name
+   [157]: records.html#proc:record-type-parent
+   [158]: records.html#proc:record-updater
+   [159]: numbers.html#proc:rectnum-p
+   [160]: pairs_lists.html#proc:remove
+   [161]: pairs_lists.html#proc:remove!
+   [162]: proplist.html#proc:remprop
+   [163]: io.html#proc:rename-file
+   [164]: repl.html#proc:repl-level
+   [165]: repl.html#proc:repl-printer
+   [166]: repl.html#proc:repl-evaluator
+   [167]: repl.html#proc:repl-prompt
+   [168]: control.html#proc:reset
+   [169]: control.html#proc:reset-handler
+   [170]: io.html#proc:reset-output-string
+   [171]: pairs_lists.html#proc:reverse!
+   [172]: fixnums.html#proc:rsha
+   [173]: fixnums.html#proc:rshl
+   [174]: syscontrol.html#proc:run-benchmark
+   [175]: syscontrol.html#proc:run-with-stats
+   [176]: environ.html#proc:scheme-report-environment
+   [177]: pairs_lists.html#proc:some-p
+   [178]: sorting.html#proc:sort
+   [179]: srfi.html#proc:srfi0-add-key!
+   [180]: srfi.html#proc:srfi0-keys
+   [181]: syscontrol.html#proc:sro
+   [182]: control.html#proc:standard-timeslice
+   [183]: syscontrol.html#proc:stats-dump-off
+   [184]: syscontrol.html#proc:stats-dump-on
+   [185]: strings.html#proc:string-downcase
+   [186]: strings.html#proc:string-downcase!
+   [187]: hashtable.html#proc:string-hash
+   [188]: strings.html#proc:string-upcase
+   [189]: strings.html#proc:string-upcase!
+   [190]: structures.html#proc:structure-p
+   [191]: structures.html#proc:structure-comparator
+   [192]: structures.html#proc:structure-printer
+   [193]: strings.html#proc:substring-fill!
+   [194]: os.html#proc:system
+   [195]: hashtable.html#proc:symbol-hash
+   [196]: lowlevel.html#proc:syscall
+   [197]: syscontrol.html#proc:system-features
+   [198]: debugging.html#proc:trace
+   [199]: debugging.html#proc:trace-entry
+   [200]: debugging.html#proc:trace-exit
+   [201]: control.html#proc:timer-interrupt-handler
+   [202]: control.html#proc:typetag
+   [203]: control.html#proc:typetag-set!
+   [204]: debugging.html#proc:unbreak
+   [205]: debugging.html#proc:untrace
+   [206]: vectors.html#proc:vector-copy
+   [207]: vectors.html#proc:vector-like-p
+   [208]: vectors.html#proc:vector-like-length
+   [209]: vectors.html#proc:vector-like-ref
+   [210]: vectors.html#proc:vector-like-set!
+   [211]: io.html#proc:with-input-from-port
+   [212]: io.html#proc:with-output-to-port
+

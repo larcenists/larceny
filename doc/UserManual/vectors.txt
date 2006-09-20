@@ -1,0 +1,31 @@
+Vectors
+~~~~~~~
+
+_Procedure vector-copy_
+
+
+++ (vector-copy _vector_) => _vector_++
+
+     Returns a shallow copy of its argument. 
+
+_Operations on vector-like structures_
+
+
+++ (vector-like? _object_) => _boolean_  ++
+
+++ (vector-like-length _vector-like_) => _fixnum_  ++
+
+++ (vector-like-ref _vector-like k_) => _object_  ++
+
+++ (vector-like-set! _vector-like k object_) => _unspecified_++
+
+A vector-like structure is a low-level representation on which data
+that are indexable like vectors are built, e.g., vectors, structures,
+symbols, and ports.
+
+There is no way of constructing a "generic" vector-like structure; use
+the constructors for the data types mapped onto vector-like structures
+instead, like make-vector.
+
+The vector-like operations operate on all vector-like structures. All
+the procedures are integrable.

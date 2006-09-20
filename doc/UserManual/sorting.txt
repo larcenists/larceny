@@ -1,0 +1,19 @@
+Sorting
+~~~~~~~
+
+_Procedures sort and sort!_
+
+++ (sort _list less?_) => _list_ ++
+
+++ (sort _vector less?_) => _vector_ ++
+
+++ (sort! _list less?_) => _list_ ++
+
+++ (sort! _vector less?_) => _vector_++
+
+These procedures sort their argument (a list or a vector) according to
+the predicate _less?_, which must implement a total order on the
+elements in the data structures that are sorted.
+
+Sort returns a fresh data structure containing the sorted data; sort!
+sorts the data structure in-place.

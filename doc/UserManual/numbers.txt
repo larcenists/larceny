@@ -1,0 +1,35 @@
+Numbers
+~~~~~~~
+
+Larceny has six representations for numbers: _fixnums_ are small,
+exact integers; _bignums_ are unlimited-precision exact integers;
+_ratnums_ are exact rationals; _flonums_ are inexact rationals;
+_rectnums_ are exact complexes; and _compnums_ are inexact complexes.
+
+You can read more about the number representations
+<<LarcenyNoteRepr,here>>.
+
+_Number-representation predicates_
+
+++ (fixnum? _obj_) => _boolean_  ++
+
+++ (bignum? _obj_) => _boolean_  ++
+
+++ (ratnum? _obj_) => _boolean_  ++
+
+++ (flonum? _obj_) => _boolean_  ++
+
+++ (rectnum? _obj_) => _boolean_  ++
+
+++ (compnum? _obj_) => _boolean_  ++
+
+These predicates test whether an object is a number of a particular
+representation and return #t if so, #f if not.
+
+_Procedure random_
+
+
+++ (random _limit_) => _exact integer_++
+
+Returns a pseudorandom nonnegative exact integer in the range 0
+through _limit_-1.

@@ -1,0 +1,168 @@
+Records
+~~~~~~~
+
+[NOTE]
+======================================================================
+The following is based on a proposal posted by Pavel Curtis to
+rrrs-authors on 10 Sep 1989, and later re-posted by Norman Adams to
+comp.lang.scheme on 5 Feb 1992. The authorship and copyright status of
+the original text are unknown to me.
+
+This document differs from the original proposal in that its record
+types are extensible, and that it specifies the type of record-type
+descriptors.
+======================================================================
+
+==== Specification
+
+_Procedure make-record-type_
+
+
+++ (make-record-type _type-name field-names [parent-rtd]_)++
+
+    
+
+Returns a "record-type descriptor", a value representing a new data
+type, disjoint from all others. The _type-name_ argument must be a
+string, but is only used for debugging purposes (such as the printed
+representation of a record of the new type). The _field-names_
+argument is a list of symbols naming the "fields" of a record of the
+new type. It is an error if the list contains any duplicates.
+
+If the _parent-rtd_ argument is provided, then the new type will be a
+subtype of the type represented by _parent-rtd_, and the field names
+of the new type will include all the field names of the parent
+type. It is an error if the complete list of field names contains any
+duplicates.
+
+Record-type descriptors are themselves records. In particular,
+record-type descriptors have a field printer that is either #f or a
+procedure. If the value of the field is a procedure, then the
+procedure will be called to print records of the type represented by
+the record-type descriptor. The procedure must accept two arguments:
+the record object to be printed and an output port.
+
+_Procedure record-constructor_
+
+
+++ (record-constructor _rtd [field-names]_)++
+
+    
+
+Returns a procedure for constructing new members of the type
+represented by _rtd._ The returned procedure accepts exactly as many
+arguments as there are symbols in the given list, _field-names_; these
+are used, in order, as the initial values of those fields in a new
+record, which is returned by the constructor procedure. The values of
+any fields not named in that list are unspecified. The field-names
+argument defaults to the list of field-names in the call to
+make-record-type that created the type represented by _rtd_; if the
+_field-names_ argument is provided, it is an error if it contains any
+duplicates or any symbols not in the default list.
+
+_Procedure record-predicate_
+
+
+++ (record-predicate _rtd_)++
+
+Returns a procedure for testing membership in the type represented by
+_rtd._ The returned procedure accepts exactly one argument and returns
+a true value if the argument is a member of the indicated record type
+or one of its subtypes; it returns a false value otherwise.
+
+_Procedure record-accessor_
+
+++ (record-accessor _rtd field-name_)++
+
+Returns a procedure for reading the value of a particular field of a
+member of the type represented by _rtd._ The returned procedure
+accepts exactly one argument which must be a record of the appropriate
+type; it returns the current value of the field named by the symbol
+_field-name_ in that record. The symbol field-name must be a member of
+the list of field-names in the call to make-record-type that created
+the type represented by _rtd_, or a member of the field-names of the
+parent type of the type represented by _rtd._
+
+_Procedure record-updater_
+
+
+++ (record-updater _rtd field-name_)++
+
+Returns a procedure for writing the value of a particular field of a
+member of the type represented by _rtd._ The returned procedure
+accepts exactly two arguments: first, a record of the appropriate
+type, and second, an arbitrary Scheme value; it modifies the field
+named by the symbol _field-name_ in that record to contain the given
+value. The returned value of the updater procedure is unspecified. The
+symbol _field-name_ must be a member of the list of field-names in the
+call to make-record-type that created the type represented by _rtd_,
+or a member of the field-names of the parent type of the type
+represented by _rtd._
+
+_Procedure record?_
+
+
+++ (record? _obj_)++
+
+Returns a true value if obj is a record of any type and a false value
+otherwise. Note that record? may be true of any Scheme value; of
+course, if it returns true for some particular value, then
+record-type-descriptor is applicable to that value and returns an
+appropriate descriptor.
+
+_Procedure record-type-descriptor_
+
+
+++ (record-type-descriptor _record_)++
+
+Returns a record-type descriptor representing the type of the given
+record. That is, for example, if the returned descriptor were passed
+to record-predicate, the resulting predicate would return a true value
+when passed the given record. Note that it is not necessarily the case
+that the returned descriptor is the one that was passed to
+record-constructor in the call that created the constructor procedure
+that created the given record.
+
+_Procedure record-type-name_
+
+
+++ (record-type-name _rtd_)++
+
+Returns the type-name associated with the type represented by _rtd._
+The returned value is eqv? to the type-name argument given in the call
+to make-record-type that created the type represented by rtd.
+
+_Procedure record-type-field-names_
+
+
+++ (record-type-field-names _rtd_)++
+
+Returns a list of the symbols naming the fields in members of the type
+represented by _rtd._
+
+_Procedure record-type-parent_
+
+
+++ (record-type-parent _rtd_)++
+
+Returns a record-type descriptor for the parent type of the type
+represented by _rtd_, if that type has a parent type, or a false value
+otherwise. The type represented by _rtd_ has a parent type if the call
+to make-record-type that created _rtd_ provided the _parent-rtd_
+argument.
+
+_Procedure record-type-extends?_
+
+
+++ (record-type-extends? _rtd1 rtd2_)++
+
+Returns a true value if the type represented by _rtd1_ is a subtype of
+the type represented by _rtd2_ and a false value otherwise. A type _s_
+is a subtype of a type _t_ if _s=t_ or if the parent type of _s_, if
+it exists, is a subtype of _t._
+
+==== Implementation
+
+Records are implemented on top of Larceny's
+<<SectionStructures,structure>> data type: a record is a structure
+whose first slot contains a record-type-descriptor object.

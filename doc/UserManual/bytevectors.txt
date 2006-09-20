@@ -1,0 +1,52 @@
+Bytevectors
+~~~~~~~~~~~
+
+A _bytevector_ is a data structure that stores bytes -- exact 8-bit unsigned integers. Bytevectors are useful in constructing system interfaces and other low-level programming. In Larceny, many bytevector-like structures -- strings, bignums, and even bytevectors themselves -- are implemented in terms of a lower-level _bytevector-like_ data type. The operations on generic bytevector-like structures are particularly fast but useful largely in code that manipulates Larceny's data representations. 
+
+_Integrable procedure make-bytevector_
+
+++ (make-bytevector _length_) => _bytevector_ ++
+
+    
+
+Returns a bytevector of the desired length. The bytevector has not been initialized and most likely contains garbage. To initialize the bytevector uniformly, use bytevector-fill! (below); there is no optional initalization value. 
+
+_Operations on bytevector structures_
+
+++ (bytevector? _obj_) => _boolean_ ++
+
+++ (bytevector-length _bytevector_) => _integer_ ++
+
+++ (bytevector-ref _bytevector_ _offset_) => _byte_  ++
+
+++ (bytevector-set! _bytevector_ _offset_ _byte_) => _unspecified_  ++
+
+++ (bytevector-equal? _bytevector1_ _bytevector2_) => _boolean_  ++
+
+++ (bytevector-fill! _bytevector_ _byte_) => _unspecified_  ++
+
+++ (bytevector-copy _bytevector_) => _bytevector_  ++
+
+These procedures do what you expect. All procedures are integrable, except bytevector-equal? and bytevector-copy. 
+
+_Operations on bytevector-like structures_
+
+++ (bytevector-like? _bytevector_) => _boolean_  ++
+
+++ (bytevector-like-length _bytevector_) => _integer_  ++
+
+++ (bytevector-like-ref _bytevector_ _offset_) => _byte_  ++
+
+++ (bytevector-like-set! _bytevector_ _offset_ _byte_) => _unspecified_  ++
+
+++ (bytevector-like-equal? _bytevector1_ _bytevector2_) => _boolean_  ++
+
+++ (bytevector-like-copy _bytevector_) => _bytevector_  ++
+    
+
+A bytevector-like structure is a low-level representation on which data that are indexable like bytevectors are built, e.g., bytevectors, strings, bignums, and flonums.
+
+There is no way of constructing a "generic" bytevector-like structure; use the constructors for the data mapped onto bytevector-like structures instead, like make-string or make-bytevector.
+
+The bytevector-like operations operate on all bytevector-like structures. All the procedures are integrable, except bytevector-like-equal? and bytevector-like-copy.
+

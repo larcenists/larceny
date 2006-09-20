@@ -1,0 +1,110 @@
+Debugging
+~~~~~~~~~
+
+Larceny's debugging functionality is implemented in Scheme, using some
+of Larceny's extensions for catching exceptions and inspecting the
+continuation structure.
+
+==== Entering the debugger
+
+When Larceny detects an error or a keyboard interrupt, or when it hits
+a breakpoint, it signals the condition by printing a message on the
+console. Larceny then enters the debugger, which signals its presence
+with a short banner and the debugger prompt:
+    
+    
+        Entering debugger; type "?" for help.
+        debug>
+    
+
+You can also re-enter the debugger by evaluating (debug).
+
+==== Debugger commands
+
+The debugger is still in an immature state. The following commands are available (commands can be typed in upper or lower case): 
+
+**B**     Print backtrace of continuation. **C**     Print source code of procedure, if available. **D**     Move down to previous (earlier) activation record. **E _n expr_**      _Expr_ is evaluated in the current interaction environment and must evaluate to a procedure. It is passed the contents of slot _n_ from the current activation record, and the result, if not unspecified, is printed. **E _(n1 ... nk) expr_**      _Expr_ is evaluated in the current interaction environment and must evaluate to a procedure. It is passed the contents of slots _n1_ through _nk_ from the current activation record, and the result, if not unspecified, is printed. **I _n_**      Inspect the procedure in slot _n_ of the current activation record. **I @_**      Inspect the active procedure. **Q**      Quit the debugger and abort the computation. **R**      Return from the debugger and continue the computation. **S**      Summarize the contents of the current activation record. **U**      Up to the next (later) activation record. **X**      Examine the contents of the current activation record. 
+
+The **B**, **D**, and **U** commands can be prefixed with a count, for example, 5 U moves up five activation records, and 10 B displays the next 10 activation records. The default for **B** is to display all the activations; the default count for **D** and **U** is 1. 
+
+==== Breakpoints
+
+You can set breakpoints either in program text with the break primitive or interactively at the start of a procedure with the break-entry procedure. When Larceny reaches a breakpoint during execution, the program is suspended and the debugger is entered to allow you to inspect the program. 
+
+_Procedure break_
+
+++ (break)++
+
+
+    
+
+Invokes the breakpoint handler.
+
+_Procedure break-entry_
+
+++ (break-entry _procedure_)++
+
+
+    
+
+Set a breakpoint at the start of the _procedure_.
+
+_Procedure unbreak_
+
+++ (unbreak _procedure_ ...)  ++
+
+++ (unbreak) ++
+
+
+    
+
+In the first form, remove any breakpoint set by break-entry at the start of the _procedure_s. In the second form, remove all breakpoints set by _break-entry_.
+
+==== Tracing
+
+_Procedure trace-entry_
+
+++ (trace-entry _procedure_)++
+
+
+    
+
+Set a trace point on entry to the _procedure_, removing any other trace points on the procedure. When the _procedure_ is entered, information about the call is printed on the console: the name of the procedure and the actual arguments.
+
+_Procedure trace-exit_
+
+++ (trace-exit _procedure_)++
+
+
+    
+
+Set a trace point on exit from the _procedure_, removing any other trace points on the procedure. When the _procedure_ returns, information about the return is printed on the console: the name of the procedure and the returned values.
+
+Note that trace-exit destroys the tail recursion properties of the instrumented procedure. Where the _procedure_ would normally "return" by tail-calling another procedure, the instrumented procedure will call the other procedure by a non-tail call and then return, at which point the procedure name and return values will be printed. Thus use of trace-exit may destroy the space properties of the program.
+
+_Procedure trace_
+
+++ (trace _procedure_)++
+
+
+    
+
+Set trace points on _procedure_ both at entry and exit.
+
+_Procedure untrace_
+
+++ (untrace _procedure_ ...)  ++
+
+++ (untrace) ++
+
+
+    
+
+The first form removes any trace points from the _procedure_s. The second form removes all untrace points.
+
+==== Other functionality
+
+_Parameter break-handler_     
+
+The value of break-handler is a procedure that is called when a breakpoint or tracepoint is encountered. The procedure takes two arguments: the procedure in which the breakpoint was set, and the byte offset within the procedure's code vector of the breakpoint.
+

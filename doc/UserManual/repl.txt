@@ -1,0 +1,49 @@
+The Read-Eval-Print Loop ("REPL")
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+_Parameter repl-level_
+
+The value of this parameter is a nonnegative exact integer that is the
+current nesting level of read-eval-print loops.
+
+_Parameter repl-evaluator_
+
+The value of repl-evaluator is a procedure of two arguments, an
+expression and an environment. The procedure should evaluate the
+expression in the environment and return the result(s).
+
+_Parameter repl-printer_
+
+The value of repl-printer is a procedure of two arguments, a value to
+print and a port.
+
+If the value to print is not #!unspecified, the procedure should print
+it on the current output port. The default printer is write in
+r5rs.heap and pretty-print in larceny.heap and twobit.heap.
+
+_Parameter repl-prompt_
+
+The value of repl-prompt is a procedure that takes two arguments, a
+level and an output port, and that prints a prompt corresponding to
+that level on the port.
+
+_Parameter herald_
+
+The value of herald is a string or #f. If a string, the
+read-eval-print loop prints the string when Larceny first starts up.
+
+* * *
+
+[IMPORTANT]
+================================================================================
+FIXME: 
+    
+    existence of repl
+    
+    repl behavior in general, notably 
+      - its control of current input and output and how you can't interactively
+        change current input and output.
+      - its control of the error handler, reset handler, quit handler, and 
+        sundry interrupt handlers
+
+================================================================================    

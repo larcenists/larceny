@@ -1,0 +1,15 @@
+The IEEE Standard for Scheme
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+From the Scheme FAQ: 
+
+IEEE P1178 is IEEE Standard 1178-1990, "IEEE Standard for the Scheme Programming Language", published by IEEE in 1991. ISBN 1-55937-125-0. It is now also an ANSI standard. It may be ordered from IEEE by calling 1-800-678-IEEE or 908-981-1393 or writing IEEE Service Center, 445 Hoes Lane, P.O. Box 1331, Piscataway, NJ 08855-1331, and using order number SH14209 ($28 for IEEE members, $40 others). 
+
+* * *
+
+_$Id: ieee-std.html 189 1998-12-08 20:39:01Z lth $_  
+[larceny@ccs.neu.edu][1]  
+
+
+   [1]: mailto:larceny@ccs.neu.edu
+

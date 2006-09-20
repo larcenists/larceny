@@ -1,0 +1,52 @@
+Parameters
+~~~~~~~~~~
+
+Parameters are procedures that serve as containers for values; parts
+of the system that do not operate in the same namespace can still
+share parameters and thereby read and write shared state.
+
+A parameter takes zero or one arguments. If called with no arguments,
+it returns the current value of the parameter. If called with one
+argument, it sets the parameter's value to that of the argument and
+returns the new value.
+
+The following list of parameters does not yet include the compiler
+switches, which are also parameters.
+
+link:debugging.html#proc:break-handler[Parameter ++break-handler++]
+link:io.html#proc:console-input-port-factory[Parameter ++console-input-port-factory++]
+link:io.html#proc:console-output-port-factory[Parameter ++console-output-port-factory++]
+link:io.html#proc:current-input-port[Parameter ++current-input-port++]
+link:io.html#proc:current-output-port[Parameter ++current-output-port++]
+link:control.html#proc:error-handler[Parameter ++error-handler++]
+link:control.html#proc:evaluator[Parameter ++evaluator++]
+link:repl.html#proc:herald[Parameter ++herald++]
+link:environ.html#proc:interaction-environment[Parameter ++interaction-environment++]
+link:control.html#proc:keyboard-interrupt-handler[Parameter ++keyboard-interrupt-handler++]
+link:control.html#proc:load-evaluator[Parameter ++load-evaluator++]
+link:control.html#proc:quit-handler[Parameter ++quit-handler++]
+link:repl.html#proc:repl-level[Parameter ++repl-level++]
+link:repl.html#proc:repl-evaluator[Parameter ++repl-evaluator++]
+link:repl.html#proc:repl-printer[Parameter ++repl-printer++]
+link:control.html#proc:reset-handler[Parameter ++reset-handler++]
+link:control.html#proc:standard-timeslice[Parameter ++standard-timeslice++]
+link:structures.html#proc:structure-comparator[Parameter ++structure-comparator++]
+link:structures.html#proc:structure-printer[Parameter ++structure-printer++]
+link:control.html#proc:timer-interrupt-handler[Parameter ++timer-interrupt-handler++]
+
+_Procedure make-parameter_
+
+++ (make-parameter _name value [predicate]_) => _procedure_++
+
+Create a parameter with name _name,_ initial value _value,_ and
+optional setter predicate _predicate._ When the parameter is set the
+new value is first passed to _predicate,_, and if it returns #F then
+an error is signalled. _Name_ can be a symbol or a string.
+
+_Syntax parameterize_
+
+
+++ (parameterize ((parameter0 value0) ...) expr0 expr1 ...)++
+
+Parameterize overrides the values of a set of parameters in a dynamic
+scope -- it is like fluid-let for parameters.

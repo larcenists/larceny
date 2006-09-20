@@ -1,0 +1,187 @@
+Input, Output, and Files
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+_Procedure close-open-files_
+
+++ (close-open-files) => _unspecified_++
+
+Closes all open files.
+
+_Procedure console-input-port_
+
+++ (console-input-port) => _input-port_++
+
+Returns a character input port s.t. no read from the port has
+signalled an error or returned the end-of-file object.
+
+_Rationale:_ console-input-port and console-output-port are artifacts
+of Unix interactive I/O conventions, where an interactive end-of-file
+does not mean "quit" but rather "done here". Under these conventions
+the console port should be reset following an end-of-file. Resetting
+conflicts with the semantics of ports in Scheme, so console-input-port
+and console-output-port return a new port if the current port is
+already at end-of-file.
+
+Since it is convenient to handle errors in the same manner as
+end-of-file, these procedures also return a new port if an error has
+been signalled during an I/O operation on the port.
+
+Console-input-port and console-output-port simply call the port
+generators installed in the parameters console-input-port-factory and
+console-output-port-factory, which allow user programs to install
+their own console port generators.
+
+_Procedure console-output-port_
+
+
+++ (console-output-port) => _output-port_++
+
+Returns a character output port s.t. no write to the port has
+signalled an error.
+
+See console-input-port for a full explanation.
+
+_Parameter console-input-port-factory_     
+
+The value of this parameter is a procedure that returns a character
+input port s.t. no read from the port has signalled an error or
+returned the end-of-file object.
+
+See console-input-port for a full explanation.
+
+_Parameter console-output-port-factory_     
+
+The value of this parameter is a procedure that returns a character
+output port s.t. no write the port has signalled an error.
+
+See console-input-port for a full explanation.
+
+_Parameter current-input-port_     
+
+The value of this parameter is a character input port.
+
+_Parameter current-output-port_     
+
+The value of this parameter is a character output port.
+
+_Procedure delete-file_
+
+
+++ (delete-file _filename_) => _unspecified_++
+
+Deletes the named file. No error is signalled if the file does not
+exist.
+
+_Procedure eof-object_
+
+
+++ (eof-object) => _end-of-file object_++
+
+_Eof-object_ returns an end-of-file object.
+
+_Procedure file-exists?_
+
+++ (file-exists? _filename_) => _boolean_++
+
+File-exists? returns #t if the named file exists at the time the
+procedure is called.
+
+_Procedure file-modification-time_
+
+++ (file-modification-time _filename_) => _vector_ | #f ++
+
+File-modification-time returns the time of last modification of the
+file as a vector, or #f if the file does not exist. The vector has six
+elements: year, month, day, hour, minute, second, all of which are
+exact nonnegative integers. The time returned is relative to the local
+timezone.
+
+++     (file-modification-time "larceny") => #(1997 2 6 12 51 13)++
+
+++     (file-modification-time "geekdom") => #f++
+    
+
+_Procedure flush-output-port_
+
+++ (flush-output-port) => _unspecified_  ++
+
+++ (flush-output-port _port_) => _unspecified_  ++
+
+
+Write any buffered data in the port to the underlying output medium.
+
+[[ProcGetOutputString]]
+_Procedure get-output-string_
+
+++ (get-output-string _string-output-port_) => _string_++
+
+Retrieve the output string from the given string output port.
+
+_Procedure open-input-string_
+
+++ (open-input-string _string_) => _input-port_++
+
+Creates an input port that reads from _string_. The string may be
+shared with the caller. A string input port does not need to be
+closed, although closing it will prevent further reads from it.
+
+_Procedure open-output-string_
+
+++ (open-output-string) => _output-port_++
+
+Creates an output port where any output is written to a string. The
+accumulated string can be retrieved with
+<<ProcGetOutputString,get-output-string>> at any time.
+
+_Procedure port?_
+
+++ (port? _object_) => _boolean_++
+
+Tests whether its argument is a port.
+
+_Procedure port-name_
+
+
+++ (port-name _port_) => _string_++
+
+Returns the name associated with the port; for file ports, this is the file name.
+
+_Procedure port-position_
+
+
+++ (port-position _port_) => _fixnum_++
+
+Returns the number of characters that have been read from or written to the port.
+
+_Procedure rename-file_
+
+
+++ (rename-file _from to_) => _unspecified_++
+
+Renames the file _from_ and gives it the name _to_. No error is
+signalled if _from_ does not exist or _to_ exists.
+
+_Procedure reset-output-string_
+
+
+++ (reset-output-string _port_) => _unspecified_++
+
+Given a _port_ created with _open-output-string_, deletes from the
+port all the characters that have been output so far.
+
+_Procedure with-input-from-port_
+
+
+++ (with-input-from-port _input-port thunk_) => _object_++
+
+Calls _thunk_ with current input bound to _input-port_ in the dynamic
+extent of _thunk_. Returns whatever value was returned from _thunk_.
+
+_Procedure with-output-to-port_
+
+
+++ (with-output-to-port _output-port thunk_) => _object_++
+
+Calls _thunk_ with current output bound to _output-port_ in the
+dynamic extent of _thunk_. Returns whatever value was returned from
+_thunk_.

@@ -1,0 +1,12 @@
+# Unprovided Procedures
+
+There are presently no procedures from the Revised^4 Report, Revised^5 Report, or IEEE Standard that are not provided by Larceny. 
+
+* * *
+
+_$Id: unprovided.html 192 1998-12-08 21:04:07Z lth $_  
+[larceny@ccs.neu.edu][1]  
+
+
+   [1]: mailto:larceny@ccs.neu.edu
+

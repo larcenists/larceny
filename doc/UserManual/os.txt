@@ -1,0 +1,54 @@
+Operating System Interface
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+_Procedure command-line-arguments_
+
+++ (command-line-arguments) => _vector_  ++
+
+Returns a vector of strings: the arguments supplied to the program by
+the user or the operating system.
+
+_Procedure dump-heap_
+
+
+++ (dump-heap _filename_ _procedure_) => _unspecified_++
+
+Dump a heap image to the named file that will start up with the
+supplied procedure. Before _procedure_ is called, command line
+arguments will be parsed and any init procedures registered with 
+<<ProcAddInitProcedureBang,add-init-procedure!>>  will be called.
+
+_Note: Currently, heap dumping is only available with the
+stop-and-copy collector (-stopcopy command line option), although the
+heap image can be used with all the other collectors._
+
+_Procedure dump-interactive-heap_
+
+++ (dump-interactive-heap _filename_) => _unspecified_++
+
+Dump a heap image to the named file that will start up with the
+standard read-eval-print loop. Before the read-eval-print loop is
+called, command line arguments will be parsed and any init procedures
+registered with <<ProcAddInitProcedureBang,add-init-procedure!>> 
+will be called.
+
+_Note: Currently, heap dumping is only available with the
+stop-and-copy collector (-stopcopy command line option), although the
+heap image can be used with all the other collectors._
+
+_Procedure getenv_
+
+++ (getenv _key_) => _string_ | #f++
+
+Returns the operating system environment mapping for the string _key_,
+or #f if there is no mapping for _key_.
+
+_Procedure system_
+
+++ (system _command_) => _status_++
+
+Send the _command_ to the operating system's command processor and
+return the command's exit status, if any. On Unix, _command_ is a
+string and _status_ is an exact integer.
+
+

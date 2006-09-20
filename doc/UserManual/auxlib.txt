@@ -1,0 +1,76 @@
+Auxiliary Library
+~~~~~~~~~~~~~~~~~
+
+Larceny's library is split into two parts: the basis library and the
+auxiliary library. The basis library is the library in the basis heap
+image ("larceny.heap"), which is produced by the development
+environment; this library consists of all standard procedures and
+macros and a number of Larceny-specific extensions. The auxiliary
+library consists of files in the Auxlib subdirectory and contains many
+generally useful Scheme procedures.
+
+The library is split because it reduces the turnaround time for a
+system build, a limiting factor during the development of Larceny. The
+auxiliary library is incorporated into the heap image by compiling it,
+loading it, and then dumping the heap.
+
+==== List procedures
+    
+    
+    aremq!
+    aremv!
+    aremove!
+    filter
+    find
+    least
+    greatest
+    mappend
+    make-list
+    reduce
+    reduce-right
+    fold-left
+    fold-right
+    iota
+    list-head
+    
+
+==== String Procedures
+    
+    
+    substring-match
+    substring-match-ci
+    ->string
+    string-insert!
+    
+
+==== Vector Procedures
+    
+    
+    vector-copy
+    
+
+==== I/O Procedures
+    
+    
+    pretty-print
+    pretty-line-length
+    read-line
+    read-substring
+    write-substring
+    file-modification-time
+    file-newer?
+    absolute-pathname?
+    relative-pathname?
+    make-pathname
+    
+
+==== Load
+    
+    
+    load-noisily [filename]
+    load-quietly [filename]
+    load
+    *load-print-filename*
+    *load-prefer-requested*
+    *load-path*
+    *load-extensions*

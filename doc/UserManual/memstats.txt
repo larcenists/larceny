@@ -1,0 +1,68 @@
+# Data Returned by Memstats
+
+The vector returned from memstats has the content as shown below, ordered by increasing index. Note that this vector is _not_ laid out in the same way as the data produced by [stats-dump-on][1]. 
+
+**THIS IS NO LONGER CORRECT. SEE Lib/Common/memstats.sch FOR THE LIST OF ACCESSOR FUNCTIONS TO MANIPULATE THE STRUCTURE RETURNED FROM MEMSTATS. THE DOCUMENTATION WILL BE UPDATED AT SOME POINT.**
+
+0. Number of words allocated (accumulated)  
+1. Number of words reclaimed (accumulated)  
+2. Number of words copied (accumulated)  
+3. Milliseconds spent in garbage collection (accumulated, including promotion). See also entry 28.  
+4. Words live (current)  
+5. Generation last collected (current)  
+6. Type of last collection: 0=collection, 1=promotion (current)  
+7. Generation information: a vector of vectors, one subvector for each generation, containing the following: 
+
+     7.0. Number of garbage collections in generation (accumulated)  
+7.1. Number of promotions into generation (accumulated)  
+7.2. Time spent in the generation's garbage collector for collections _and_ promotions (accumulated)  
+7.3. Words live in the generation (current)  
+7.4. Flag: this is a non-predictive 'young' generation (0 or 1)  
+7.5. Flag: this is a non-predictive 'old' generation (0 or 1)  
+7.6. If a non-predictive generation, the value 'j'  
+7.7. If a non-predictive generation, the value 'k'  
+7.8. Words allocated to the generation (current). Note that this is the sum of the allocations for both semispaces, if there are semispaces. Therefore, allocation can exceed target size.  
+7.9. The generation's target size, in words (current). Note that this is _per semispace_.  
+7.10. Time spent promoting into the generation (accumulated).   
+8. Remembered-set information: a vector of vectors, one subvector for each remembered set, containing the following: 
+
+     8.0. Words allocated to remembered set node pool (current)  
+8.1. Words used in remembered set node pool (current)  
+8.2. Words allocated to remembered set hash table (current)  
+8.3. Words used in remembered set hash table (current)  
+8.4. Number of objects recorded in hash table (accumulated)  
+8.5. Number of objects removed from hash table (accumulated)  
+8.6. Number of old-generation objects scanned from remembered set (accumulated)  
+8.7. Number of words of old-generation objects scanned from remembered set (accumulated)  
+8.8. Number of transactions recorded in the remembered set's sequential store buffer (SSB)  
+9. Number of stack frames flushed (accumulated)  
+10. Number of words of stack flushed (accumulated)  
+11. Number of stacks created (accumulated)  
+12. Number of stack frames restored (accumulated)  
+13. Number of words allocated to heaps (current)  
+14. Number of words allocated to remembered-sets (current)  
+15. Number of words allocated to RTS "other" (current)  
+16. Simulated write barrier: number of array assignments (accumulated)  
+17. Simulated write barrier: number of array assignments filtered because the LHS is young or already remembered (accumulated)  
+18. Simulated write barrier: number of array assignments filtered because the RHS is a non-pointer (accumulated)  
+19. Simulated write barrier: number of array assignments filtered because a cross-generation pointer was not created  
+20. Simulated write barrier: number of array assignments that resulted in the LHS being added to a remembered set  
+21. Elapsed time since startup.  
+22. System CPU time since startup.  
+23. User CPU time since startup.  
+24. Number of page faults that did not incur a physical read ("minor") (accumulated)  
+25. Number of page faults that did inclur a physical read ("major") (accumulated)  
+26. Remembered-set statistics for the extra remembered set for the non-predictive collector, or #f  
+27. Number of words of maximum heap occupancy so far during the run.  
+28. Milliseconds spent in promotion.  
+
+
+* * *
+
+_$Id: memstats.html 1365 2000-02-29 20:55:29Z lth $_  
+[larceny@ccs.neu.edu][2]  
+
+
+   [1]: syscontrol.html#proc:stats-dump-on
+   [2]: mailto:larceny@ccs.neu.edu
+

@@ -1,0 +1,230 @@
+System Control and Performance Measurement
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+_Procedure collect_
+
+
+++ (collect) => _unspecified_  ++
+
+++ (collect _generation_) => _unspecified_  ++
+
+++ (collect _generation_ _method_) => _unspecified_++
+
+Collect initiates a garbage collection. If the system has multiple
+generations, then the optional arguments are interpreted as
+follows. The _generation_ is the generation to collect, where 0 is the
+youngest generation. The _method_ determines how the collection is
+performed. If _method_ is the symbol collect, then a full collection
+is performed in that generation, whatever that means -- in a normal
+multi-generational copying collector, it means that all live objects
+in the generation's current semispace and all live objects from all
+younger generations are copied into the generation's other
+semispace. If _method_ is the symbol promote, then live objects are
+promoted from younger generations into the target generation -- in our
+example collector, that means that the objects are copied into the
+target generation's current semispace.
+
+The default value for _generation_ is 0, and the default value for
+_method_ is collect.
+
+Note that the collector's internal policy settings may cause it to
+perform a more major type of collection than the one requested; for
+example, an attempt to collect generation 2 could cause the collector
+to promote all live data into generation 3.
+
+_Procedure GC-counter_
+
+
+++ (gc-counter) => _fixnum_++
+
+_GC-counter_ returns the number of garbage collections performed since
+startup. On a 32-bit system, the counter wraps around every
+1,073,741,824 collections.
+
+_GC-counter_ is a primitive and compiles to a single load instruction
+on the SPARC.
+
+_Procedure gcctl_
+
+
+++ (gcctl _heap-number_ _operation_ _operand_) => _unspecified_++
+
+_[GCCTL is largely obsolete in the new garbage collector but may be
+resurrected in the future. It can still be used to control the
+non-predictive collector.]_
+
+gcctl controls garbage collection policy on a heap-wise basis. The
+_heap-number_ is the heap to operate on, like for the command line
+switches: heap 1 is the youngest. If the given heap number does not
+correspond to a heap, gcctl fails silently.
+
+The _operation_ is a symbol that selects the operation to perform, and
+the _operand_ is the operand to that operation, always a number. For
+the non-predictive garbage collector, the following operator/operand
+pairs are meaningful:
+
+  * j-fixed, _n_: after a collection, the collector parameter _j_ should be set to the value _n_, if possible. (Non-predictive heaps only.) 
+  * j-percent, _n_: after a collection, the collector parameter _j_ should be set to be _n_ percent of the number of free steps. (Non-predictive heaps only.) 
+  * incr-fixed, _n_: when growing the heap, the growing should be done in increments of _n_. In the non-predictive heap, _n_ is the number of steps. In other heaps, _n_ denotes kilobytes. 
+  * incr-percent, _n_: when growing the heap, the growing should be done in increments of _n_ percent. 
+
+**Example:** if the non-predictive heap is heap number 2, then the expressions 
+    
+    
+            (gcctl 2 'j-fixed 0)
+            (gcctl 2 'incr-fixed 1)
+    
+
+makes the non-predictive collector simulate a normal stop-and-copy
+collector (because _j_ is always set to 0), and grows the heap only
+one step at a time as necessary. This may be useful for certain kinds
+of experiments.
+
+**Example:** ditto, the expressions 
+    
+    
+            (gcctl 2 'j-percent 50)
+            (gcctl 2 'incr-percent 20)
+    
+
+selects the default policy settings.
+
+**Note**: The gcctl facility is experimental. A more developed
+  facility will allow controlling heap contraction policy, as well as
+  setting all the watermarks. Certainly one can envision other uses,
+  too. Finally, it needs to be possible to get current values.
+
+**Note**: Currently the non-predictive heap (np-sc-heap.c) and the
+  standard stop-and-copy "old" heap (old-heap.c) are supported, but
+  not the standard "young" heap (young-heap.c), nor the stop-and-copy
+  collector (sc-heap.c).
+
+_Procedure sro_
+
+
+++ (sro _pointer-tag type-tag limit_) => _vector_++
+
+SRO ("standing room only") is a system primitive that traverses the
+entire heap and returns a vector that contains all live objects in the
+heap that satisfy the constraints imposed by its parameters:
+
+  * If _pointer-tag_ is -1, then object type is unconstrained;
+    otherwise, the object type is constrained to have a pointer tag
+    that matches _pointer-tag_. You can read all about pointer tags
+    <<LarcenyNoteRepr,here>>, but the short story is that 1=pair, 3=vector-like,
+    5=bytevector-like, and 7=procedure-like.
+
+  * If _type-tag_ is -1, then object type is unconstrained by
+    type-tag; otherwise, only objects with a matching type-tag are
+    selected (after selection by pointer tag). Pairs don't have
+    type-tags, but other objects do. You can read all about type-tags
+    <<LarcenyNoteRepr,here>>.
+
+  * _Limit_ constrains the selected objects by the number of
+    references. If _limit_ is -1, then no constraints are imposed;
+    otherwise, only objects (selected by pointer-tag and type-tag)
+    with no more than _limit_ references to them are selected.
+
+For example, (sro -1 -1 -1) returns a vector that contains all live
+objects (not including the vector), and (sro 5 2 3) returns a vector
+containing all live flonums (bytevector-like, with typetag 2) that are
+referred to in no more than 3 places.
+
+[[ProcStatsDumpOn]]
+_Procedure stats-dump-on_
+
+
+++ (stats-dump-on _filename_) => _unspecified_++
+
+Stats-dump-on turns on garbage collection statistics dumping. After
+each collection, a complete RTS statistics dump is appended to the
+file named by _filename_.
+
+The file format and contents are documented in a banner written at the
+top of the output file. In addition, accessor procedures for the
+output structure are defined in the program Util/process-stats.sch.
+
+Stats-dump-on does not perform an initial dump when the file is first
+opened; only at the first collection is the first set of statistics
+dumped. The user might therefore want to initiate a minor collection
+just after turning on dumping in order to have a baseline set of data.
+
+_Procedure stats-dump-off_
+
+
+++ (stats-dump-off) => _unspecified_++
+
+Stats-dump-off turns off garbage collection statistics dumping (which
+was turned on with <<ProcStatsDumpOn,stats-dump-on>>). It does not dump a final set
+of statistics before closing the file; therefore, the user may wish to
+initiate a minor collection before calling this procedure.
+
+_Procedure system-features_
+
+
+++ (system-features) => _alist_++
+
+System-features returns an association lists of system features. Most
+entries are self-explanatory. The following are a more subtle:
+
+  * The value of architecture-name is Larceny's notion of the architecture for which it was compiled, not the architecture the program is currently running on. For example, the value of this feature is "Standard-C" if you're running Petit Larceny. 
+  * The value of heap-area-info is a vector of vectors, one subvector for each heap area in the running system. The subvector has four entries: the generation number, the area type, the current size, and additional information. 
+
+_Procedure display-memstats_
+
+
+++ (display-memstats _vector_) => _unspecified_  ++
+
+++ (display-memstats _vector_ 'minimal) => _unspecified_  ++
+
+++ (display-memstats _vector_ 'full) => _unspecified_  ++
+
+Display-memstats takes as its argument a vector as returned by
+<<ProcMemstats,memstats>> and displays the contents of the vector in
+human-readable form on the current output port. By default, not all of
+the values in the vector are displayed.
+
+If the symbol minimal is passed as the second argument, then only a
+small number of statistics generally relevant to running benchmarks
+are displayed.
+
+If the symbol full is passed as the second argument, then all
+statistics are displayed.
+
+[[ProcMemstats]]
+_Procedure memstats_
+
+
+++ (memstats) => _vector_++
+
+Memstats returns a freshly allocated vector containing run-time-system
+resource usage statistics. Many of these will make no sense whatsoever
+to you unless you also study the RTS sources. A listing of the
+contents of the vector is available <<SectionMemstats,here>>.
+
+_Procedure run-with-stats_
+
+
+++ (run-with-stats _thunk_) => _obj_++
+
+Run-with-stats evaluates _thunk_, then prints a short summary of
+run-time statistics, as with
+    
+       (display-memstats ... 'minimal),
+    
+and then returns the result of evaluating _thunk_.
+
+_Procedure run-benchmark_
+
+
+++ (run-benchmark _name k thunk ok?_) => _obj_  ++
+
+Run-benchmark prints a short banner (including the identifying _name_)
+to identify the benchmark, then runs _thunk_ _k_ times, and finally
+tests the value returned from the last call to _thunk_ by applying the
+predicate _ok?_ to it. If the predicate returns true, then
+run-benchmark prints summary statistics, as with
+    
+       ([display-memstats][5] ... 'minimal).
+    
+If the predicate returns false, an error is signalled.

@@ -1,0 +1,31 @@
+Property Lists
+~~~~~~~~~~~~~~
+
+The _property list_ of a symbol is an association list that is
+attached to that symbol. The association list maps _properties_, which
+are themselves symbols, to arbitrary values.
+
+_Procedure putprop_
+
+
+++ (putprop _symbol_ _property_ _obj_) => _unspecified_++
+
+If an association exists for _property_ on the property list of
+_symbol_, then its value is replaced by the new value
+_obj_. Otherwise, a new association is added to the property list of
+_symbol_ that associates _property_ with _obj_.
+
+_Procedure getprop_
+
+++ (getprop _symbol_ _property_) => _obj_++
+
+If an association exists for _property_ on the property list of
+_symbol_, then its value is returned. Otherwise, #f is returned.
+
+_Procedure remprop_
+
+++ (remprop _symbol_ _property_) => _unspecified_++
+
+If an association exists for _property_ on the property list of
+_symbol_, then that association is removed. Otherwise, this is a
+no-op.

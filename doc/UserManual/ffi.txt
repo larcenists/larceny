@@ -1,0 +1,350 @@
+Foreign-Function Interface to C
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Larceny provides a general foreign-function interface (FFI) substrate
+on which other FFIs can be built; see <<LarcenyNoteFfi,Larceny Note
+#7>>. The FFI described in this manual section is a simple example of
+a derived FFI. It is not yet fully evolved, but it is useful.
+
+[[FfiCompiliing, Creating loadable modules]]
+==== Creating loadable modules
+
+You must first compile your C code and create one or more loadable object modules. These object modules may then be loaded into Larceny, and Scheme foreign functions may link to specific functions in the loaded module. Defining foreign functions in Scheme is covered in a later section. 
+
+The method for creating a loadable object module varies from platform to platform. In the following, assume you have to C source files file1.c and file2.c that define functions that you want to make available as foreign functions in Larceny. 
+
+===== SunOS 4
+
+Compile your source files and create a shared library. Using GCC, the command line might look like this: 
+    
+    
+      gcc -fPIC -shared file1.c file2.c -o my-library.so
+    
+
+The command creates my-library.so in the current directory. This library can now be loaded into Larceny using foreign-file. Any other shared libraries used by your library files should also be loaded into Larceny using foreign-file before any procedures are linked using foreign-procedure. 
+
+By default, /lib/libc.so is made available to the dynamic linker and to the foreign function interface, so there is no need for you to load that library explicitly. 
+
+===== SunOS 5
+
+Compile your source files and create a shared library, linking with all the necessary libraries. Using GCC, the command line might look like this: 
+    
+    
+      gcc -fPIC -shared file1.c file2.c -lc -lm -lsocket -o my-library.so
+    
+
+Now you can use foreign-file to load my-library.so into Larceny. 
+
+By default, /lib/libc.so is made available to the foreign function interface, so there is no need for you to load that library explicitly. 
+
+[[FfiInterface, Loading and linking foreign functions]]
+==== The Interface
+
+===== Procedures
+
+_Procedure foreign-file_
+
+
+++ (foreign-file _filename_) => _unspecified_++
+
+     Foreign-file loads the named object file into Larceny and makes it available for dynamic linking. 
+
+Larceny uses the operating system provided dynamic linker to do dynamic linking. The operation of the dynamic linker varies from platform to platform: 
+
+  * On some versions of SunOS 4, if the linker is given a file that does not exist, it will terminate the process. (Most likely this is a bug.) This means you should never call foreign-file with the name of a file that does not exist. 
+  * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the LD_LIBRARY_PATH environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
+
+_Procedure foreign-procedure_
+
+++ (foreign-procedure _name_ (_arg-type_ ...) _return-type_) => _unspecified_ ++
+
+Returns a Scheme procedure _p_ that calls the foreign procedure whose
+name is _name_. When _p_ is called, it will convert its parameters to
+representations indicated by the __arg-type__s and invoke the foreign
+procedure, passing the converted values as parameters. When the
+foreign procedure returns, its return value is converted to a Scheme
+value according to _return-type_.
+
+Types are described below. 
+
+The address of the foreign procedure is obtained by searching for _name_ in the symbol tables of the foreign files that have been loaded with _foreign-file_. 
+
+_Procedure foreign-null-pointer_
+
+++ (foreign-null-pointer) => _integer_ ++
+
+Returns a foreign null pointer. 
+
+_Procedure foreign-null-pointer?_
+
+++ (foreign-null-pointer? _integer_) => _boolean_ ++
+
+Tests whether its argument is a foreign null pointer. 
+
+===== Types
+
+A _type_ is denoted by a symbol. The following is a list of the accepted types and their conversions at the call-out to the foreign procedure: 
+
+**int** Any exact integer value in the range [-2^31,2^31-1] is
+  acceptable and is converted to a C "int". **unsigned** Any exact
+  integer value in the range [0,2^32-1] is acceptable and is converted
+  to a C "unsigned". **short** Synonymous with **int** in the current
+  implementation. **ushort** Synonymous to **unsigned** in the current
+  implementation. **char** A character is acceptable. It is converted
+  to a C "int" type. **uchar** A character is acceptable. It is
+  converted to a C "unsigned" type. **long** Synonymous with **int**
+  in the current implementation. **ulong** Synonymous with
+  **unsigned** in the current implementation. **float** A flonum is
+  acceptable. It is converted to a C "float". **double** A flonum is
+  acceptable. It is converted to a C "double". **bool** Any object is
+  acceptable. It is converted to a C "int": #f is converted to 0, and
+  all other objects to 1. **boxed** Any heap-allocated data structure
+  (pair, bytevector-like, vector-like, procedure) is acceptable. It is
+  converted to a C "void*" to the first element of the structure. The
+  value #f is also acceptable. It is converted to a C "(void*)0"
+  value. **string** A string or #f is acceptable. A string is _copied_
+  into a NUL-terminated bytevector, and the resulting pointer is
+  passed. #f is converted to a C "(char*)0" value.
+
+Additionally, the types can be used as the return type, where conversions back to Scheme values take place: 
+
+**int** A C "int" is expected; it is converted to an exact
+  integer. **unsigned** A C "unsigned" is expected; it is converted to
+  an exact integer. **short** Synonymous with **int** in the current
+  implementation. **ushort** Synonymous with **unsigned** in the
+  current implementation. **char** A C "int" is expected; it is
+  converted to a character. **uchar** A C "unsigned" is expected; it
+  is converted to a character. **long** Synonymous with **int** in the
+  current implementation. **ulong** Synonymous with **unsigned** in
+  the current implementation. **float** A C "float" is expected. It is
+  converted to a flonum. **double** A C "double" is expected. It is
+  converted to a flonum. **bool** A C "int" is expected. 0 is
+  converted to #f, all other values to #t. **void** No return
+  value. **string** A C "char*" is expected. If it is non-null, it is
+  expected to point to a NUL-terminated string, which is copied into a
+  newly allocated Scheme string which is then returned. If the return
+  value is null, then #f is returned.
+
+[[FfiAccess, Foreign data access]]
+==== Foreign Data Access
+
+===== Raw memory access
+
+The two primitives _peek-bytes_ and _poke-bytes_ are provided for reading and writing memory at specific addresses. These procedures are typically used for copying data from foreign data structures into Scheme bytevectors for subsequent decoding. 
+
+(The use of _peek-bytes_ and _poke-bytes_ can often be avoided by keeping foreign data in a Scheme bytevector and passing the bytevector to a call-out using the **boxed** parameter type. However, this technique is inappropriate if the foreign code retains a pointer to the Scheme datum, which may be moved by the garbage collector.) 
+
+_Procedure peek-bytes_
+
+++ (peek-bytes _addr_ _bytevector_ _count_) => _unspecified_     ++
+
+_Addr_ must be an exact nonnegative integer. _Count_ must be a fixnum. The bytes in the range from _addr_ through _addr+count-1_ are copied into _bytevector_, which must be long enough to hold that many bytes. 
+
+If any address in the range is not an address accessible to the process, unpredictable things may happen. Typically, you'll get a segmentation fault. Larceny does not yet catch segmentation faults. 
+
+_Procedure poke-bytes_
+
+++ (poke-bytes _addr_ _bytevector_ _count_) => _unspecified_     ++
+
+_Addr_ must be an exact nonnegative integer. _Count_ must be a fixnum. The _count_ first bytes from _bytevector_ are copied into memory in the range from _addr_ through _addr+count-1_. 
+
+If any address in the range is not an address accessible to the process, unpredictable things may happen. Typically, you'll get a segmentation fault. Larceny does not yet catch segmentation faults. 
+
+Also, it's possible to corrupt memory with _poke-bytes_. Don't do that. 
+
+===== Foreign data sizes
+
+The following variables constants define the sizes of basic C data types: 
+
+  * **sizeof:short** The size of a "short int". 
+  * **sizeof:int** The size of an "int". 
+  * **sizeof:long** The size of a "long int". 
+  * **sizeof:pointer** The size of any pointer type. 
+
+===== Decoding foreign data
+
+Foreign data is visible to a Scheme program either as an object pointed to by a memory address (which is itself represented as an integer), or as a bytevector that contains the bytes of the foreign datum. 
+
+A number of utility procedures that make reading and writing data of common C primitive types have been written for both these kinds of foreign objects. 
+
+_Bytevector accessor procedures_
+
+++ (%get16 _bv_ _i_) => _integer_  ++
+
+++ (%get16u _bv_ _i_) => _integer_  ++
+
+++ (%get32 _bv_ _i_) => _integer_  ++
+
+++ (%get32u _bv_ _i_) => _integer_  ++
+
+
+
+++ (%get-int _bv_ _i_) => _integer_  ++
+
+++ (%get-unsigned _bv_ _i_) => _integer_  ++
+
+++ (%get-short _bv_ _i_) => _integer_  ++
+
+++ (%get-ushort _bv_ _i_) => _integer_  ++
+
+++ (%get-long _bv_ _i_) => _integer_  ++
+
+++ (%get-ulong _bv_ _i_) => _integer_  ++
+
+++ (%get-pointer _bv_ _i_) => _integer_  ++
+    
+
+These procedures decode bytevectors that contain the bytes of foreign objects. In each case, _bv_ is a bytevector and _i_ is the offset of the first byte of a field in that bytevector. The field is fetched and returned as an integer (signed or unsigned as appropriate). 
+
+_Bytevector updater procedures_
+
+
+++ (%set16 _bv_ _i_ _val_) => _unspecified_  ++
+
+++ (%set16u _bv_ _i_ _val_) => _unspecified_  ++
+
+++ (%set32 _bv_ _i_ _val_) => _unspecified_  ++
+
+++ (%set32u _bv_ _i_ _val_) => _unspecified_  ++
+
+
+
+++ (%set-int _bv_ _i_ _val_) => _unspecified_  ++
+
+++ (%set-unsigned _bv_ _i_ _val_) => _unspecified_  ++
+
+++ (%set-short _bv_ _i_ _val_) => _unspecified_  ++
+
+++ (%set-ushort _bv_ _i_ _val_) => _unspecified_  ++
+
+++ (%set-long _bv_ _i_ _val_) => _unspecified_  ++
+
+++ (%set-ulong _bv_ _i_ _val_) => _unspecified_  ++
+
+++ (%set-pointer _bv_ _i_ _val_) => _unspecified_  ++
+    
+
+These procedures update bytevectors that contain the bytes of foreign objects. In each case, _bv_ is a bytevector, _i_ is an offset of the first byte of a field in that bytevector, and _val_ is a value to be stored in that field. The values must be exact integers in a range implied by the data type. 
+
+_Foreign-pointer accessor procedures_
+
+
+++ (%peek8 _addr_) => _integer_  ++
+
+++ (%peek8u _addr_) => _integer_  ++
+
+++ (%peek16 _addr_) => _integer_  ++
+
+++ (%peek16u _addr_) => _integer_  ++
+
+++ (%peek32 _addr_) => _integer_  ++
+
+++ (%peek32u _addr_) => _integer_  ++
+
+
+
+++ (%peek-int _addr_) => _integer_  ++
+
+++ (%peek-long _addr_) => _integer_  ++
+
+++ (%peek-unsigned _addr_) => _integer_  ++
+
+++ (%peek-ulong _addr_) => _integer_  ++
+
+++ (%peek-short _addr_) => _integer_  ++
+
+++ (%peek-ushort _addr_) => _integer_  ++
+
+++ (%peek-pointer _addr_) => _integer_  ++
+
+
+
+++ (%peek-string _addr_) => _string_  ++
+    
+
+These procedures read raw memory. In each case, _addr_ is an address, and the value stored at that address (the size of which is indicated by the name of the procedure) is fetched and returned as an integer. 
+
+_%Peek-string_ expects to find a NUL-terminated string of 8-bit bytes at the given address. It is returned as a Scheme string. 
+
+_Foreign-pointer updater procedures_
+
+
+++ (%poke8 _addr_ _val_) => _unspecified_  ++
+
+++ (%poke8u _addr_ _val_) => _unspecified_  ++
+
+++ (%poke16 _addr_ _val_) => _unspecified_  ++
+
+++ (%poke16u _addr_ _val_) => _unspecified_  ++
+
+++ (%poke32 _addr_ _val_) => _unspecified_  ++
+
+++ (%poke32u _addr_ _val_) => _unspecified_  ++
+
+
+
+++ (%poke-int _addr_ _val_) => _unspecified_  ++
+
+++ (%poke-long _addr_ _val_) => _unspecified_  ++
+
+++ (%poke-unsigned _addr_ _val_) => _unspecified_  ++
+
+++ (%poke-ulong _addr_ _val_) => _unspecified_  ++
+
+++ (%poke-short _addr_ _val_) => _unspecified_  ++
+
+++ (%poke-ushort _addr_ _val_) => _unspecified_  ++
+
+++ (%poke-pointer _addr_ _val_) => _unspecified_  ++
+    
+
+These procedures update raw memory. In each case, _addr_ is an address, and _val_ is a value to be stored at that address. 
+
+[[FfiDumping, Heap dumping and the FFI]]
+==== Heap dumping and the FFI
+
+If foreign functions are linked into Larceny using the FFI, and a
+Larceny heap image is subsequently dumped (with
+<<os.html#proc:dump-interactive-heap,dump-interactive-heap>> or
+<<os.html#proc:dump-heap,dump-heap>>), then the foreign functions are not saved as
+part of the heap image. When the heap image is subsequently loaded
+into Larceny at startup, the FFI will attempt to re-link all the
+foreign functions in the heap image.
+
+During the relinking phase, foreign files will again be loaded into Larceny, and Larceny's FFI will use the file names _as they were originally given to the FFI_ when it tries to load the files. In particular, if relative pathnames were used, Larceny will not have converted them to absolute pathnames. 
+
+An error during relinking will result in Larceny aborting with an error message and returning to the operating system. This is considered a feature. 
+
+[[FfiExamples, Examples]]
+==== Examples
+
+===== Change directory
+
+This procedure uses the chdir() system call to set the process's current working directory. The string parameter type is used to pass a Scheme string to the C procedure. 
+    
+    
+    (define cd
+      (let ((chdir (foreign-procedure "chdir" '(string) 'int)))
+        (lambda (newdir)
+          (if (not (zero? (chdir newdir)))
+    	  (error "cd: " newdir " is not a valid directory name."))
+          (unspecified))))
+    
+
+===== Print Working Directory
+
+This procedure uses the getcwd() (get current working directory) system call to retrieve the name of the process's current working directory. A bytevector is created and passed in as a buffer in which to store the return value -- a 0-terminated ASCII string. Then the FFI utility function ffi/asciiz->string is called to convert the bytevector to a string. 
+    
+    
+    (define pwd
+      (let ((getcwd (foreign-procedure "getcwd" '(boxed int) 'int)))
+        (lambda ()
+          (let ((s (make-bytevector 1024)))
+    	(getcwd s 1024)
+    	(ffi/asciiz->string s)))))
+    
+
+===== Other examples
+
+The Experimental directory contains several examples of use of the FFI. See in particular the files unix.sch (Unix system calls) and socket.sch (procedures for communicating over sockets). 
+
