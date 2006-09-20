@@ -445,8 +445,10 @@ PUBLIC i386_argc_exception			; RESULT holds actual arg cnt
 	mov	SECOND, fixnum(EX_ARGC)
 	jmp	i386_signal_exception_intrsafe
 	
-%ifndef X86_SASSY
 PUBLIC i386_petit_patch_boot_code
+%ifdef X86_SASSY
+	int3
+%else
 	MCg	mc_petit_patch_boot_code
 %endif
 
