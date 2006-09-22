@@ -27,7 +27,7 @@ Then start your host Scheme system, change your working directory to
 be the Larceny source directory if necessary, and load the configuration 
 file for Larceny.NET:
 
-    Util/dotnet.sch
+    src/Build/dotnet.sch
 
 Then you must inform the build tool of the specifics of the host
 environment. Invoke larceny-setup with three arguments:
@@ -68,7 +68,7 @@ and then build the heap image and the runtime system:
     > (make-dotnet-heap)
     > (build-runtime-system)
 
-Exit the Scheme system, copy Rts/DotNet/Scheme.dll into the current
+Exit the Scheme system, copy src/Rts/DotNet/Scheme.dll into the current
 directory, and execute dotnet.heap.exe. You should have a working
 Larceny.NET interpreter running.
 

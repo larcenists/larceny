@@ -1,24 +1,33 @@
 /* Predicates
+
  * PREDICATE_VIRTUAL_FALSE defines a virtual predicate pair returning false/#f
+
  * PREDICATE_OVERRIDE_TRUE overrides a virtual predicate to return true/#t
+
  * PREDICATE_OVERRIDE_EXPR overrides a virtual predicate to return result of body.
+
  */
 /* OP1_VIRTUAL_EXN defines an operation of one argument which
+
  *   by default throws the given exception
+
  */
-
-
 
 
 
 
 /* OP1(method) declares an operation of one argument
+
  */
 /* OP2_VIRTUAL_EXN defines an operation of two arguments
+
  *   that by default throws the given exception
+
  */
 /* OP2_CHAIN overrides the operation to chain to 
+
  *   the reversed form of itself on arg2
+
  */
 /* Special Operations */
 /* ---- */
@@ -387,15 +396,22 @@ namespace Scheme.Rep {
     // The numeric representations
     // -------------------------------------------
     /*
-     * Numbers are represented in the following ways:
-     *     - fixnum  = SFixnum
-     *     - bignum  = SByteVL/bignum
-     *     - flonum  = SByteVL/flonum
-     *     - ratnum  = SVL/ratnum
-     *     - rectnum = SVL/rectnum
-     *     - compnum = SByteVL/compnum
-     */
 
+     * Numbers are represented in the following ways:
+
+     *     - fixnum  = SFixnum
+
+     *     - bignum  = SByteVL/bignum
+
+     *     - flonum  = SByteVL/flonum
+
+     *     - ratnum  = SVL/ratnum
+
+     *     - rectnum = SVL/rectnum
+
+     *     - compnum = SByteVL/compnum
+
+     */
     // -------------------------------------------
     // SFixnum
     // -------------------------------------------
@@ -1770,7 +1786,9 @@ namespace Scheme.Rep {
        }
 
         /** lookup
+
          * Look up (rib, slot) in lexical environment
+
          */
         public SObject lookup(int ri, int slot) {
    Procedure proc;
@@ -1782,7 +1800,9 @@ namespace Scheme.Rep {
         }
 
         /** update
+
          * Mutate a lexically bound variable at (rib, slot) to new_value
+
          */
         public void update (int ri, int slot, SObject newValue)
         {
@@ -1867,8 +1887,11 @@ namespace Scheme.Rep {
       }
 
         /** call
+
          * Given a jump index (0 for entry point, NOT the same as label number),
+
          * start executing at the label corresponding to that code.
+
          */
         // This should be abstract, but see above.
         // public abstract void call(int jump_index);
@@ -1922,7 +1945,9 @@ namespace Scheme.Rep {
     }
 
     /* ForeignBox
+
      * Holds foreign values; cooperates with ffi.
+
      */
     public class ForeignBox : SObject {
         public object value;

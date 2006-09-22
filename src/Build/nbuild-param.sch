@@ -102,6 +102,7 @@
          machine-source
          mzscheme-source
          common-asm
+         dotnet-asm
          sparc-asm
          x86-nasm-asm
          x86-sass-asm

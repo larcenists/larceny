@@ -17,10 +17,21 @@
 ;; this needs to be global... it floats all around the build-system.
 ;; it will be set to something meaningful by (larceny-setup ...).
 (define nbuild-parameter
-  (lambda x (display "!! nbuild-parameter not yet set! (Util/dotnet.sch)")))
+  (lambda x (display "!! nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
 
 (define make-nbuild-parameter
-  (lambda x (display "!! make-nbuild-parameter not yet set! (Util/dotnet.sch)")))
+  (lambda x (display "!! make-nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
+
+(define (param-filename param . components)
+  (let* ((reversed (reverse components))
+         (init-r   (cdr reversed))
+         (last     (car reversed))
+         (lead     (nbuild-parameter param)))
+   (define (one-file x)
+     (apply make-filename lead (reverse (cons x init-r))))
+   (cond
+    ((string? last)  (one-file last))
+    ((list? last)    (map one-file last)))))
 
 ;; These needs to be global for the definition of lib-files
 ;; They are set!'d by larceny-setup
@@ -66,68 +77,48 @@
   ;; FIXME:  might have to fudge more this for Cygwin
   ;; load code to work with pathnames
   (case option:os
-    ((win32) (load "Util\\sysdep-win32.sch"))
-    ((unix macosx) (load "Util/sysdep-unix.sch"))
+    ((win32) (load "src/Build/sysdep-win32.sch"))
+    ((unix macosx) (load "src/Build/sysdep-unix.sch"))
     (else
      (begin (display "Host = ") (display host)
             (error "unknown host!"))))
 
   ;; pnkfelix: Some global state is collected here.  We should probably
   ;; merge the *larceny-root* and *root-directory* global variables.
-  (load (make-filename "Util" "petit-unix-defns-globals.sch"))
+  (load (make-filename "src" "Build" "petit-unix-defns-globals.sch"))
   
   (begin-crock 2
     (set! *larceny-root* (make-filename ""))
- 
-    (let ((option:source? #f)
-          (option:verbose? #t)
-          (option:development? #t))
-      ;; set! burns my eyes!
-      (set!
-       make-nbuild-parameter
-       (lambda (dir hostdir hostname)
-	 (let ((parameters 
-		`((compiler       . ,(pathname-append dir "Compiler"))
-		  (util           . ,(pathname-append dir "Util"))
-		  (rts            . ,(pathname-append dir "Rts"))
-		  (build          . ,(pathname-append dir "Rts" "Build"))
-		  (source         . ,(pathname-append dir "Lib"))
-		  (common-source  . ,(pathname-append dir "Lib" "Common"))
-		  (repl-source    . ,(pathname-append dir "Repl"))
-		  (interp-source  . ,(pathname-append dir "Interpreter"))
-		  (machine-source . ,(pathname-append dir "Lib" "IL"))
-		  (mzscheme-source . ,(pathname-append dir "Lib" "MzScheme"))
-		  (common-asm     . ,(pathname-append dir "Asm" "Common"))
-		  (dotnet-asm     . ,(pathname-append dir "Asm" "IL"))
-		  (always-source? . ,option:source?)
-		  (verbose-load?  . ,option:verbose?)
-		  (development?   . ,option:development?)
-		  (compatibility  . ,(pathname-append dir "Compat" hostdir))
-		  (auxiliary      . ,(pathname-append dir "Auxlib"))
-		  (root           . ,dir)
-		  (host-system    . ,hostname)
-		  (target-machine . dotnet)
-		  (target-os      . ,option:os)
-		  (host-os        . ,option:os)
-		  (endianness     . ,option:endian)
-		  (target-endianness . ,option:endian)
-		  (host-endianness . ,option:endian)
-		  (word-size      . 32)
-		  )))
-	   (lambda (key . rest)
-             (let ((probe (assq key parameters)))
-               (if (null? rest)
-                   (if probe 
-                       (cdr probe)
-                       #f)
-                   (let ((new-val (car rest)))
-                     (set! parameters (cons (cons key new-val) parameters))))
-               ))))))
-     
-  
-  ;; set this so everybody can use it
-  (set! nbuild-parameter
-        (make-nbuild-parameter *larceny-root* host host)))
+
+    (load (make-filename "src" "Build" "nbuild-param.sch"))
+
+    ;; set this so everybody can use it
+    (set! nbuild-parameter
+      (let ((dir *larceny-root*)
+            (option:source? #f)
+            (option:verbose? #t)
+            (option:development? #t))
+        (make-nbuild-parameter
+          'root                  dir
+          'machine-source        (pathname-append dir "src" "Lib" "IL")
+          'mzscheme-source       (pathname-append dir "lib" "MzScheme")
+          'dotnet-asm            (pathname-append dir "src" "Asm" "IL")
+          'always-source?        option:source?
+          'verbose-load?         option:verbose?
+          'development?          option:development?
+          'compatibility         (pathname-append dir "src" "Compat" host)
+          'host-system           host
+          'target-machine        'dotnet
+          'target-os             option:os
+          'host-os               option:os
+          ; We should be careful to use host-endianness or
+          ; target-endianness, because "endianness" alone doesn't mean
+          ; anything.
+          ; 'endianness            option:endian
+          'target-endianness     option:endian
+          'host-endianness       option:endian
+          'word-size             32)))
+      )
 
   ;; Load the compatibility file, expander, and config system.
   (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
@@ -138,25 +129,7 @@
   )
 
 
-(define (setup-directory-structure)
-  (case option:os
-    ((unix macosx) (system "mkdir Rts/Build"))
-    ((win32) (system "mkdir Rts\\Build"))))
-
 (define (build-config-files)
-  ;; Generate the C# code for the constant definitions.
-  (define run-csharp-config
-    (let ((output-c#-file
-           (make-filename *larceny-root* "Rts" "DotNet" "Constants.cs"))
-          (rts-dir (make-filename *larceny-root* "Rts")))
-      (lambda ()
-        (csharp-config 
-         output-c#-file
-         `((,(make-filename rts-dir "layouts.cfg") int)
-           (,(make-filename rts-dir "except.cfg")  int)
-           (,(make-filename rts-dir "globals.cfg") int)
-           (,(make-filename rts-dir "mprocs.cfg")  int))))))
-      
   (define (catfiles input-files output-file)
     (with-output-to-file output-file
       (lambda ()
@@ -173,53 +146,27 @@
 
   (define cfg-names '("except" "globals" "layouts" "mprocs"))
 
-  (display " -- Copying config files to Build directory")(newline)
-  (for-each
-   (lambda (cfgfile)
-     (let ((src-file (make-filename *larceny-root* "Rts" cfgfile))
-           (target-file
-            (make-filename *larceny-root* "Rts" "Build" cfgfile)))
-       (if (not (file-exists? target-file))
-           (catfiles (list src-file) target-file))))
-   (map (lambda (f) (make-filename (string-append f ".cfg")))
-        cfg-names))
-  
-  ;; we don't need the C code
-  ;;(expand-file (build-path "Standard-C" "arithmetic.mac")
-  ;;             (build-path "Standard-C" "arithmetic.c"))
-  
-  ;(parameterize [(current-directory *root-directory*)]
-  (display " -- Running config ...")(newline)
-  (for-each config
-            (map (lambda (f) (make-filename *larceny-root*
-                                            "Rts"
-                                            (string-append f ".cfg")))
-                 cfg-names))
-  (if (not (file-exists? (make-filename *larceny-root* "Rts" "Build" "cdefs.h")))
-      (begin
-        (catfiles
-         (map (lambda (f) (make-filename *larceny-root*
-                                         "Rts"
-                                         "Build"
-                                         (string-append f ".ch")))
-              cfg-names)
-         (make-filename *larceny-root* "Rts" "Build" "cdefs.h"))))
+  (for-each (lambda (f)
+              (config (param-filename 'rts (string-append f ".cfg"))))
+            cfg-names)
 
-  (if (not (file-exists? (make-filename *larceny-root* "Rts" "Build" "schdefs.h")))
-      (begin
+  (let ((cdefs (param-filename 'include "cdefs.h")))
+    (if (not (file-exists? cdefs))
         (catfiles
-         (map (lambda (f) (make-filename *larceny-root*
-                                         "Rts"
-                                         "Build"
-                                         (string-append f ".sh")))
-              (remove "mprocs" cfg-names))
-         (make-filename *larceny-root* "Rts" "Build" "schdefs.h"))))
-  
-  (display " -- Running C# config...")(newline)
-  (let ((file (make-filename *larceny-root* "Rts" "DotNet" "Constants.cs")))
+          (map (lambda (f)
+                 (param-filename 'include (string-append f ".ch")))
+               cfg-names)
+          cdefs)))
+
+  (let ((file (param-filename 'rts "DotNet" "Constants.cs")))
     (if (file-exists? file)
-        (delete-file file)))
-  (run-csharp-config))
+        (delete-file file))
+    (csharp-config
+     file
+     (map (lambda (f)
+            (list (param-filename 'rts (string-append f ".cfg"))
+                  'int))
+          cfg-names))))
 
 ;; Load the compiler
 (define (load-compiler . how)
@@ -231,15 +178,15 @@
          (nbuild-parameter 'development? #f))
         ((development)
          (nbuild-parameter 'development? #t))))
-  (load (make-filename *larceny-root* "Util" "nbuild.sch"))
+  (load (param-filename 'util "nbuild.sch"))
   (for-each set-codegen-option! option:codegen-options))
 
 (define (build-runtime-system)
   (let ((cmd-string 
 	 (twobit-format 
 	  #f (case (nbuild-parameter 'host-os)
-	       ((win32)       "cd Rts\\DotNet && nmake.exe ~a DEBUG_OPT=\"~a\" DEFINES=\"~a\"")
-	       ((unix macosx) "cd Rts/DotNet;    make      ~a DEBUG_OPT='~a'   DEFINES='~a'")
+	       ((win32)       "cd src\\Rts\\DotNet && nmake.exe ~a DEBUG_OPT=\"~a\" DEFINES=\"~a\"")
+	       ((unix macosx) "cd src/Rts/DotNet;    make      ~a DEBUG_OPT='~a'   DEFINES='~a'")
 	       (else
 		(error "Unknown operating system: " (nbuild-parameter 'host-os))))
 	  (if (codegen-option 'mono)
@@ -249,7 +196,7 @@
 	      "/checked+ /warn:4 /debug:full /d:DEBUG "
 	      "/optimize+ ")
 	  (string-append 
-	   (if (eq? (nbuild-parameter 'endianness) 'big) 
+	   (if (eq? (nbuild-parameter 'target-endianness) 'big) 
 	       "/d:BIG_ENDIAN " "")
 	   (if (codegen-option 'mono) 
 	       "/d:USING_MONO " "")

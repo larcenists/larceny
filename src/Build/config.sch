@@ -95,7 +95,7 @@
 
   (define (select-target target)
     (case target
-      ((sparc standard-c)
+      ((sparc standard-c dotnet)
        (set! asm-table-generator sparc-table)
        (set! asm-comment-template "! ~a")
        (set! asm-define-template  "#define ~a ~a~%"))

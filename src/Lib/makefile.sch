@@ -301,9 +301,9 @@
                    ".manifest"
                    common-heap-files
                    `((primops
-                      . ,(make-filename "Lib" "IL" "primops.manifest"))
+                      . ,(param-filename 'source "Arch" "IL" "primops.manifest"))
                      (toplevel-target
-                      . ,(make-filename "Lib" "IL" "toplevel-target.manifest"))
+                      . ,(param-filename 'source "Arch" "IL" "toplevel-target.manifest"))
                      (flonum-endian
                       . ,(common-endian "flonums" ".manifest"))
                      (bignum-endian
@@ -311,7 +311,7 @@
                      (osdep
                       . ,(common-relative osdep-file))
                      (extra
-                      . ,(make-filename "Lib" "IL" "loadable.manifest")))))
+                      . ,(param-filename 'source "Arch" "IL" "loadable.manifest")))))
          (dotnet-eval-files
           (objects "" ".manifest" eval-files))
          (mzscheme-source-target/keywords
@@ -390,9 +390,7 @@
         (,common-larceny/release ,dotnet-heap-files)
         (,common-larceny/release ,dotnet-eval-files)
         (,common-larceny/release ,dotnet-mzscheme-files)
-
-        (,(common-relative "ecodes.sch") ,(param-filename 'include '("except.sh")))
-        (,(common-relative "globals.sch") ,(param-filename 'include '("globals.sh")))))))
+        ))))
 
 (define (make-dotnet-heap . rest)
   (make:pretend (not (null? rest)))
