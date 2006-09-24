@@ -75,6 +75,8 @@
 
 (define G_REGALIAS_ECX	$g.reg1)	; used by rep stos constructions
 (define G_REGALIAS_EDI	$g.reg3)	; ditto
+(define G_REGALIAS_EDX  $g.reg2)        ; used by rdrsc
+(define G_REGALIAS_EBX  $g.result)
 
 (define TEMP_LOW	        'al)
 (define RESULT_LOW	'bl)

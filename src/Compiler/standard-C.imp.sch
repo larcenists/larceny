@@ -522,6 +522,10 @@
     (unspecified      0 unspecified      #f             3 ,:dead     ,:none #f)
     (undefined        0 undefined        #f             4 ,:dead     ,:none #f)
 
+    ;; For Intel; read reflective registers (perhaps its time for iasn.imp.sch)
+    ;; These take a bytevector as argument and write the results into it.
+    (larceny-timestamp! 1 timestamp!     #f          1000 ,:dead     ,:all  #f)
+    (larceny-p-monitor! 1 p-monitor!     #f          1001 ,:dead     ,:all  #f)
     )
   $r5rs-integrable-procedures$)))
 

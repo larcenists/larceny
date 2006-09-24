@@ -1456,6 +1456,8 @@
              ((404 car:pair) ia86.T_OP1_404)
              ((405 cdr:pair) ia86.T_OP1_405)
              ((612 internal:branchf-zero?) ia86.T_OP1_612)
+             ((1000 timestamp!) ia86.T_OP1_1000)
+             ((1001 p-monitor!) ia86.T_OP1_1001)
              (else (error 'ia86.T_OP1 x))
              )))
     (f)))
@@ -2892,5 +2894,36 @@
 (define-sassy-instr (ia86.T_REG_OP1_CHECK_STRING? rs L)
   (ia86.double_tag_test (REG rs) $tag.bytevector-tag $hdr.string)
   `(jne ,(t_label L)))
+
+;; "Reflective ops"; processor level performance measurement.
+;; Very sketch!
+
+;; (Would it be worthwhile to provide two variants of this; one which
+;; produces a 30-bit fixnum and another that produces the 64-bit
+;; bignum?)
+(define-sassy-instr (ia86.T_OP1_1000)
+  (let ((L3 (fresh-label)))
+    (ia86.double_tag_test RESULT $tag.bytevector-tag $hdr.bytevector)
+    `(jnz short ,L3)
+    `(mov (& ,GLOBALS ,G_REGALIAS_EBX) ebx) ;; save RESULT
+    `(mov (& ,GLOBALS ,G_REGALIAS_ECX) ecx) ;;  and
+    `(mov (& ,GLOBALS ,G_REGALIAS_EDX) edx) ;;   others
+    `(cpuid)                                ;; serialize (writes eax, ebx, ecx, edx)
+    `(rdtsc)                                ;; writes 64 bit value into edx:eax
+    `(mov ebx (& ,GLOBALS ,G_REGALIAS_EBX)) ;; restore RESULT
+    `(mov (& ,RESULT ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES)) 
+          eax)                              ;; save timestamp low bits
+    `(mov (& ,RESULT ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES wordsize))
+          edx)                              ;; save timestamp high bits
+    `(cpuid)                                ;; serialize (writes eax, ebx, ecx, edx)
+    `(mov ebx (& ,GLOBALS ,G_REGALIAS_EBX)) ;; restore RESULT
+    `(mov ecx (& ,GLOBALS ,G_REGALIAS_ECX)) ;;  and
+    `(mov edx (& ,GLOBALS ,G_REGALIAS_EDX)) ;;   others
+    `(label ,L3)))
+
+(define-sassy-instr (ia86.T_OP1_1001)
+  `(rdpmc))
+
+
 	
 ;;; eof
