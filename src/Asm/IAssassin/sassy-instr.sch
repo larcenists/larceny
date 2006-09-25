@@ -883,10 +883,9 @@
            (ia86.exception_continuable ex L0)	; second is tmp so 2nd arg is in place
            `(label ,L2)))
         ((is_hwreg regno)
-         ;; This looks totally bogus -- should use ,y? XXX TODO BUG HERE
-         `(add	,RESULT ,(REG regnox)))
+         `(,y	,RESULT ,(REG regno)))
         (else
-         `(add	,RESULT (& ,GLOBALS ,(G_REG regno))))))
+         `(,y	,RESULT (& ,GLOBALS ,(G_REG regno))))))
 	
 (define-sassy-instr (ia86.trusted_fixnum_compare sregno dregno regno y)
   (cond ((is_hwreg regno)
@@ -2473,10 +2472,10 @@
            `(label ,L2)
            `(mov	,RESULT ,TEMP)))
         ((is_hwreg regno)
-         `(shr	,RESULT)
+         `(sar	,RESULT 2)
          `(imul	,RESULT ,(REG regno)))
         (else
-         `(shr	,RESULT)
+         `(sar	,RESULT 2)
          `(imul	,RESULT (& ,GLOBALS ,(G_REG regno))))))
 
 (define-sassy-instr (ia86.T_OP2_206 regno)		; fx=
@@ -2912,7 +2911,8 @@
 (define-sassy-instr (ia86.T_OP1_1000)           ; larceny-timestamp!
   (let ((L3 (fresh-label)))
     (ia86.double_tag_test RESULT $tag.bytevector-tag $hdr.bytevector)
-    `(jnz short ,L3)
+    ;; FIXME: should also check length >= 8
+    `(jnz short ,L3)                        ;; leave RESULT alone if arg bad
     `(mov (& ,GLOBALS ,G_REGALIAS_EBX) ebx) ;; save RESULT
     `(mov (& ,GLOBALS ,G_REGALIAS_ECX) ecx) ;;  and
     `(mov (& ,GLOBALS ,G_REGALIAS_EDX) edx) ;;   others
