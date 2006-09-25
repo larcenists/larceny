@@ -522,6 +522,8 @@
     (unspecified      0 unspecified      #f             3 ,:dead     ,:none #f)
     (undefined        0 undefined        #f             4 ,:dead     ,:none #f)
 
+    (bytevector-ref:trusted 2 bytevector-ref:trusted ,stdc-imm? 700 ,:immortal ,:none #f)
+
     ;; For Intel; read reflective registers (perhaps its time for iasn.imp.sch)
     ;; These take a bytevector as argument and write the results into it.
     (larceny-timestamp! 1 timestamp!     #f          1000 ,:dead     ,:all  #f)

@@ -1549,6 +1549,7 @@
              ((501 +:fix:fix) ia86.T_OP2_501) 
              ((502 -:idx:idx) ia86.T_OP2_502) 
              ((503 -:fix:fix) ia86.T_OP2_503)
+             ((700 bytevector-ref:trusted) ia86.T_OP2_700) 
              (else (error 'ia86.T_OP2 x))
              )))
     (f y)))
@@ -1612,6 +1613,7 @@
              ((521 +:fix:fix) ia86.T_OP2IMM_521) 
              ((522 -:idx:idx) ia86.T_OP2IMM_522) 
              ((523 -:fix:fix) ia86.T_OP2IMM_523)
+             ((700 bytevector-ref:trusted) ia86.T_OP2IMM_700) 
              (else (error 'ia86.T_OP2IMM x))
              )))
     (f y)))
@@ -1642,6 +1644,7 @@
              ((93 procedure-set!) ia86.T_OP3_93) 
              ((97 bytevector-like-set!) ia86.T_OP3_97)
              ((100 vector-like-set!) ia86.T_OP3_100)
+             ;; TODO: add support for :nwb
              ((403 vector-set!:trusted vector-set!:trusted:nwb) ia86.T_OP3_403)
              (else (error 'ia86.T_OP3 x))
              )))
@@ -2202,6 +2205,10 @@
   (ia86.indexed_structure_ref/hdr regno $tag.bytevector-tag  $hdr.bytevector  $ex.bvref #t)
   `(shl	,RESULT 2))
 
+(define-sassy-instr (ia86.T_OP2_700  rs2)	; bytevector-ref:trusted
+  (ia86.load_from_indexed_structure rs2 $tag.bytevector-tag #t)
+  `(shl ,RESULT 2))
+
 (define-sassy-instr (ia86.T_OP2_83 regno)		; procedure-ref
   (ia86.indexed_structure_ref regno $tag.procedure-tag  $ex.pref #f))
 
@@ -2686,6 +2693,10 @@
 (define-sassy-instr/peep (or (ia86.T_OP2IMM_450* rs1 rd imm)	; vector-ref:trusted
                              (ia86.T_OP2IMM_450 imm))
   `(mov	,(REG rd) (& ,(REG rs1) ,imm ,(- wordsize $tag.vector-tag))))
+
+(define-sassy-instr (ia86.T_OP2IMM_700  idx)	; bytevector-ref:trusted
+  (ia86.load_from_indexed_structure_imm idx $tag.bytevector-tag #t)
+  `(shl ,RESULT 2))
 
 (define-sassy-instr/peep (or (ia86.T_OP2IMM_451* rs1 rd imm)		; =:fix:fix
                              (ia86.T_OP2IMM_451 imm))
