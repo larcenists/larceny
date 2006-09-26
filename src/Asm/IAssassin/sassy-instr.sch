@@ -839,7 +839,7 @@
     `(lea ,hwreg                        ; 4 bytes
           (& (* 4 ,hwreg) ,TEMP 2))))
 
-(define-sassy-instr (ia86.setcc/jmp hwreg cc)	; ~10 bytes
+(define-sassy-instr (ia86.setcc/jmp hwreg cc)	; ~10 bytes, jumps
   (assert-intel-reg hwreg)
   (let ((L1 (fresh-label))
         (jcc (string->symbol (string-append "j" (symbol->string cc)))))
