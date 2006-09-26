@@ -49,6 +49,11 @@
 (define current-sassy-assembly-structure 
   (make-parameter "current-sassy-assembly-structure" #f))
 
+(define (fake-sassy-assembly-structure!)
+  (current-sassy-assembly-structure 
+   (make-assembly-structure '() (assembly-table) (make-user-data)))
+  (unspecified))
+
 (define (unsafe-globals)
   (unsafe-code))
 
@@ -158,8 +163,21 @@
 ;;; Handy macros for this and that.  More fundamental stuff is
 ;;; defined in i386-machine.ah
 
+(define (invert-cc cc)
+  (let-syntax ((cases (syntax-rules ()
+                        ((cases x (CC NCC) ...)
+                         (case x
+                           ((CC) 'NCC) ...
+                           ((NCC) 'CC) ...)))))
+    (cases cc (z nz) (e ne) (g ng) (l nl) (o no) (le g) (be a))))
+    
 (define (result-reg? n)      (or (eq? n RESULT) (eq? n 'RESULT)))
-(define (hwreg_has_low r)    (or (result-reg? r) (= r 1) (= r 2)))
+(define (hwreg_has_low r)    
+  (case r
+    ((eax ebx ecx edx) #t)
+    ((edi esi esp ebp) #f)
+    (else 
+     (or (result-reg? r) (= r 1) (= r 2)))))
 (define (is_hwreg n)         (or (result-reg? n) (<= 0 n 3)))
 (define (fixnum n)           (arithmetic-shift n 2))
 (define (roundup8 x)         (logand (+ x 7) (lognot 7)))
@@ -298,9 +316,8 @@
                (L2 (fresh-label)))
            `(label ,L1)
 	   `(mov ,TEMP (& ,GLOBALS ,$g.etop))
-	   `(add ,TEMP ,RESULT) ; allocate
-	   `(add ,TEMP 4)      ;  and
-	   `(and ,TEMP -8)     ;   round up to 8-byte boundary
+           `(lea ,TEMP (& ,TEMP ,RESULT 4)) ; allocate and round
+           `(and ,TEMP -8)                  ;  up to 8-byte boundary
 	   `(cmp ,TEMP ,CONT)
 	   `(jle short ,L2)
 	   (ia86.mcall $m.morecore 'morecore)
@@ -790,7 +807,39 @@
 
 ;;; TRUE=6
 ;;; FALSE=2
-(define-sassy-instr (ia86.setcc hwreg cc)				; 10 bytes, jump
+
+(define-sassy-instr (ia86.setcc/cmov hwreg cc) ; 11 bytes, kills TEMP
+  (assert-intel-reg hwreg) 
+  (let ((cmovcc  (string->symbol (string-append "cmov" (symbol->string cc)))))
+    `(mov ,hwreg ,$imm.false)           ; 5 bytes
+    `(lea ,TEMP  (& ,hwreg 4))          ; 3 bytes
+    `(,cmovcc ,hwreg ,TEMP)))           ; 3 bytes
+
+(define-sassy-instr (ia86.setcc/set hwreg cc)	; ~12 bytes
+  (assert-intel-reg hwreg) 
+  (let ((setcc  (string->symbol (string-append "set" (symbol->string cc)))))
+    `(,setcc ,(REG_LOW hwreg))          ; 3 bytes
+    `(and ,hwreg 1)                     ; 3 bytes
+    `(shl ,hwreg 2)                     ; 3 bytes
+    `(or ,(REG_LOW hwreg) ,$imm.false))); 3 bytes
+
+(define-sassy-instr (ia86.setcc/set-2 hwreg cc)	; 13 bytes
+  (assert-intel-reg hwreg) 
+  (let ((setcc  (string->symbol (string-append "set" (symbol->string cc)))))
+    `(,setcc ,(REG_LOW hwreg))          ; 3 bytes
+    `(and ,hwreg 1)                     ; 3 bytes
+    `(lea ,hwreg (& (* 4 ,hwreg) 2))))  ; 7 bytes
+
+(define-sassy-instr (ia86.setcc/set-3 hwreg cc)	; 12 bytes, kills TEMP
+  (assert-intel-reg hwreg) 
+  (let ((setcc  (string->symbol (string-append "set" (symbol->string cc)))))
+    `(,setcc ,(REG_LOW hwreg))          ; 3 bytes
+    `(xor ,TEMP ,TEMP)                  ; 2 bytes
+    `(and ,hwreg 1)                     ; 3 bytes
+    `(lea ,hwreg                        ; 4 bytes
+          (& (* 4 ,hwreg) ,TEMP 2))))
+
+(define-sassy-instr (ia86.setcc/jmp hwreg cc)	; ~10 bytes
   (assert-intel-reg hwreg)
   (let ((L1 (fresh-label))
         (jcc (string->symbol (string-append "j" (symbol->string cc)))))
@@ -798,6 +847,17 @@
     `(,jcc short ,L1)			; 2 bytes
     `(sub	,(try-low hwreg) 4)	; 3 bytes (would be 2 if RESULT=eax)
     `(label ,L1)))
+
+(define-sassy-instr (ia86.setcc hwreg cc)
+  (cond 
+   (#f
+    (ia86.setcc/cmov hwreg cc))
+   (#f ; (hwreg_has_low hwreg)
+    (ia86.setcc/set  hwreg cc))
+   (else
+    (ia86.setcc/jmp  hwreg cc))
+   ))
+
 
 ;;; double_tag_predicate ptrtag, hdr
 ;;;	Set RESULT to #t if RESULT has an object with tag ptrtag and
@@ -2797,9 +2857,7 @@
 
 (define-sassy-instr/peep (or (ia86.T_OP2IMM_520* rs1 rd imm)	; +:idx:idx
                              (ia86.T_OP2IMM_520 imm))
-  (cond ((not (equal? rs1 rd))
-         `(mov  ,(REG rd) ,(REG rs1))))
-  `(add  ,(REG rd) ,imm))
+  `(lea ,(REG rd) (& ,(REG rs1) ,imm)))
 
 (define-sassy-instr/peep (or (ia86.T_OP2IMM_521* rs1 rd imm)	; +:fix:fix
                              (ia86.T_OP2IMM_521 imm))
@@ -2819,9 +2877,7 @@
 
 (define-sassy-instr/peep (or (ia86.T_OP2IMM_522* rs1 rd imm)	; -:idx:idx
                              (ia86.T_OP2IMM_522 imm))
-  (cond ((not (equal? rs1 rd))
-         `(mov  ,(REG rd) ,(REG rs1))))
-  `(sub	,(REG rd) ,imm))
+  `(lea ,(REG rd) (& ,(REG rs1) ,(- imm))))
 
 (define-sassy-instr/peep (or (ia86.T_OP2IMM_523* rs1 rd imm)	; -:fix:fix
                              (ia86.T_OP2IMM_523 imm))

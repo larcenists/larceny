@@ -43,7 +43,13 @@
          and or xor shl shr sar not
          stosb rep cld
          call 
-         jmp jz je jnz jne jg jng jge jl jnl jle jno jbe
+         jmp   
+         jz     je    jnz    jne    jg    jng  
+         setz   sete  setnz  setne  setg  setng  
+         cmovz  cmove cmovnz cmovne cmovg cmovng 
+         jge    jl    jnl    jle    jno    jbe
+         setge  setl  setnl  setle  setno  setbe
+         cmovge cmovl cmovnl cmovle cmovno cmovbe
          bl 
          pop
          inc dec 
