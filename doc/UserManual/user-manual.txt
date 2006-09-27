@@ -83,6 +83,10 @@ include::developing.txt[]
 
 include::bdw.txt[]
 
+[[SectionMemstats]]
+
+include::memstats.txt[]
+
 Reference
 ---------
 
@@ -102,3 +106,4 @@ link:../notes/note2-repr.html[]
 
 [[LarcenyNoteFfi]]
 link:../notes/note7-ffi.html[]
+

@@ -305,8 +305,8 @@ These procedures update raw memory. In each case, _addr_ is an address, and _val
 
 If foreign functions are linked into Larceny using the FFI, and a
 Larceny heap image is subsequently dumped (with
-<<os.html#proc:dump-interactive-heap,dump-interactive-heap>> or
-<<os.html#proc:dump-heap,dump-heap>>), then the foreign functions are not saved as
+<<ProcDumpInteractiveHeap,dump-interactive-heap>> or
+<<ProcDumpHeap,dump-heap>>), then the foreign functions are not saved as
 part of the heap image. When the heap image is subsequently loaded
 into Larceny at startup, the FFI will attempt to re-link all the
 foreign functions in the heap image.

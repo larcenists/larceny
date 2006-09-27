@@ -8,6 +8,8 @@ _Procedure command-line-arguments_
 Returns a vector of strings: the arguments supplied to the program by
 the user or the operating system.
 
+[[ProcDumpHeap]]
+
 _Procedure dump-heap_
 
 
@@ -21,6 +23,8 @@ arguments will be parsed and any init procedures registered with
 _Note: Currently, heap dumping is only available with the
 stop-and-copy collector (-stopcopy command line option), although the
 heap image can be used with all the other collectors._
+
+[[ProcDumpInteractiveHeap]]
 
 _Procedure dump-interactive-heap_
 
