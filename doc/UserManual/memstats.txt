@@ -4,6 +4,7 @@ The vector returned from memstats has the content as shown below, ordered by inc
 
 **THIS IS NO LONGER CORRECT. SEE Lib/Common/memstats.sch FOR THE LIST OF ACCESSOR FUNCTIONS TO MANIPULATE THE STRUCTURE RETURNED FROM MEMSTATS. THE DOCUMENTATION WILL BE UPDATED AT SOME POINT.**
 
+................................................................................................................
 0. Number of words allocated (accumulated)  
 1. Number of words reclaimed (accumulated)  
 2. Number of words copied (accumulated)  
@@ -55,7 +56,7 @@ The vector returned from memstats has the content as shown below, ordered by inc
 26. Remembered-set statistics for the extra remembered set for the non-predictive collector, or #f  
 27. Number of words of maximum heap occupancy so far during the run.  
 28. Milliseconds spent in promotion.  
-
+................................................................................................................
 
 * * *
 
