@@ -728,6 +728,7 @@
                                  (not (caddr x2)))
                             #t
                             #f))
+                       ((arch-prefers-reg? r2 r1)           #f)
                        (else #t))))
              stufftosort)))
       ; FIXME: What was this for?

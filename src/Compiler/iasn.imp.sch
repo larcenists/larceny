@@ -36,6 +36,17 @@
     ((x86-sass) 4)
     (else       5))) ; Helps the NASM assembler generate smaller code
 
+(define (arch-prefers-reg? r1 r2)
+  (cond 
+   ((and (< 0 r1 *nhwregs*) (<= *nhwregs* r2)) 
+    ;; prefer hw reg over sw reg
+    #t)
+   ((and (< (G_REG r1) 128) (<= 128 (G_REG r2))) 
+    ;; prefer sw reg with byte index over sw reg with word index
+    #t)
+   (else
+    #f)))
+
 ; Variable names that indicate register targets.
 
 (define *regnames*

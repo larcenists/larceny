@@ -10,6 +10,10 @@
 (define twobit-sort
   (lambda (less? list) (compat:sort list less?)))
 
+;; A hook for backends to override if they have a register preference
+;; Produces #t only if r1 preferred over r2 (otherwise inconclusive).
+(define (arch-prefers-reg? r1 r2) #f)
+
 (define renaming-prefix ".")
 
 ; The prefix used for cells introduced by the compiler.
