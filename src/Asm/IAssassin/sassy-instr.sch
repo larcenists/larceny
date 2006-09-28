@@ -404,7 +404,7 @@
     (cond ((not (unsafe-globals))
            `(cmp ,hwreg ,$imm.undefined)
            `(jne short ,L1)
-           `(mov ,hwreg ,TEMP)
+           `(mov ,RESULT ,TEMP)
            (ia86.mcall $m.global-ex 'global-ex)
            `(jmp short ,L0)
            `(label ,L1)))))
