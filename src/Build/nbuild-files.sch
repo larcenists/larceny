@@ -30,6 +30,10 @@
        (param-filename 'dotnet-asm
                      '("il.imp.sch" "il.imp2.sch")))))
 
+(define *nbuild:iasn/twobit-files*
+  (param-filename 'compiler
+		'("common.imp.sch" "iasn.imp.sch" "iasn.imp2.sch")))
+
 (define *nbuild:twobit-files-2*
   (param-filename 'compiler
     `("pass2p1.sch" "pass2p2.sch" "pass2if.sch"
@@ -186,7 +190,7 @@
 	  (case (nbuild-parameter 'target-machine)
 	    ((SPARC)      *nbuild:sparc/twobit-files*)
 	    ((standard-c) *nbuild:petit/twobit-files*)
-	    ((x86-sass)   *nbuild:petit/twobit-files*)  ; for now
+	    ((x86-sass)   *nbuild:iasn/twobit-files*)
 	    ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
             ((dotnet)     *nbuild:dotnet/twobit-files*) ; FIXME
 	    (else (error "nbuild:twobit-files: bad architecture.")))
