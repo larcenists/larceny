@@ -2,7 +2,7 @@
 ;
 ; $Id$
 ;
-; Larceny -- target-specific information for Twobit's Standard-C backend.
+; Larceny -- target-specific information for Twobit's IAssassin (ia32+sassy) backend.
 
 ; 2002-11-17 / lth
 ;
@@ -30,12 +30,9 @@
 ; The number of argument registers that are represented by hardware
 ; registers.
 
-;(define *nhwregs* 32)
-(define *nhwregs* 
-  (case (nbuild-parameter 'target-machine)
-    ((x86-sass) 4)
-    (else       5))) ; Helps the NASM assembler generate smaller code
+(define *nhwregs* 4)
 
+;; Overrides hook defined in common.imp.sch
 (define (arch-prefers-reg? r1 r2)
   (cond 
    ((and (< 0 r1 *nhwregs*) (<= *nhwregs* r2)) 
