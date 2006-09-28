@@ -74,6 +74,7 @@
     (apply-parameter-value 'x86-nasm-asm (pathname-append dir "src" "Asm" "Nasm"))
     (apply-parameter-value 'x86-sass-asm (pathname-append dir "src" "Asm" "IAssassin"))
     (apply-parameter-value 'standard-C-asm (pathname-append dir "src" "Asm" "Standard-C"))
+    (apply-parameter-value 'dotnet-asm     (pathname-append dir "src" "Asm" "IL"))
     (apply-parameter-value 'compatibility (pathname-append dir "src" "Compat" "Larceny"))
     (apply-parameter-value 'srfi (pathname-append dir "lib" "SRFI"))
     (apply-parameter-value 'auxiliary (pathname-append dir "lib" "Base"))
