@@ -144,7 +144,6 @@
   (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
                  (set! *did-emit-setrtn-branch* 
                        (cons Ly *did-emit-setrtn-branch*)))))
-    (ia86.timer_check)
     `(align ,code_align -1)
     `(call ,(setrtn-branch-patch-code-label Ly))))
 
@@ -174,6 +173,10 @@
   (define (emit x) (apply emit-sassy as x))
   (emit `(label ,(setrtn-branch-patch-code-label (t_label l))))
   (emit `(pop (& ,CONT ,STK_RETADDR)))  ;; pre-aligned return address 
+  (emit `(dec (dword (& ,GLOBALS ,$g.timer))))
+  (emit `(jnz ,(t_label l)))
+  (emit `(call (& ,GLOBALS ,$m.timer-exception)))
+  (emit `(align ,code_align))
   (emit `(jmp ,(t_label l))))
 
 (define-sassy-instr (ia86.T_APPLY x y)
