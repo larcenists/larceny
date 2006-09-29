@@ -25,7 +25,7 @@ SUFFIX="${HOME}/suffix"
 
 TEMP="/tmp/larcenous"
 
-BIGLOO="${APPS}/bin/bigloo"
+BIGLOO=${BIGLOO:-"${APPS}/bin/bigloo"}
 CHICKEN="${APPS}/Chicken/bin/csc"
 CHICKEN_INT="${APPS}/Chicken/bin/csi"
 GSC="${APPS}/Gambit/bin/gsc"
