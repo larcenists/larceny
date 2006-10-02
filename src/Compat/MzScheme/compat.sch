@@ -1,3 +1,11 @@
+;; When *exit-on-error* is set, make our error handler die loudly
+(cond (*exit-on-error*
+	(current-exception-handler 
+	(lambda l 
+	  (display l)
+	  (newline)
+	  (exit 113)))))
+
 ;; Why not just require?
 ;; Well... that doesn't work on certain versions of DrScheme.
 (namespace-require/copy '(lib "list.ss"))

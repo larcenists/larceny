@@ -40,6 +40,8 @@
 ;; *runtime-type* : [Maybe [Oneof 'petit 'sparc-native]]
 (define *runtime-type* #f)
 
+(define *exit-on-error* #f)
+
 ;; This is the standard value defined by nbuild-param.sch
 ;; However, NASM needs to override it, so we expose it to petit-setup.sch
 (define *globals-table* "globals.cfg")

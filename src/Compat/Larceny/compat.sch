@@ -4,6 +4,14 @@
 ;
 ; Larceny -- compatibility library for Twobit running under Larceny.
 
+;; When *exit-on-error* is set, make our error handler die loudly
+(cond (*exit-on-error*
+       (error-handler 
+	(lambda l 
+	  (display l)
+	  (newline)
+	  (exit 114)))))
+
 (define ($$trace x) #t)
 
 (define host-system 'larceny)

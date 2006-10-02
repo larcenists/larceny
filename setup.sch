@@ -106,6 +106,7 @@
                      (with-default #f host:)
                      (with-default #f target:)
                      (with-default #f c-compiler:)
+		     (flag exit-on-error)
                      (flag always-source)
                      (flag help)
                      (flag native)
@@ -114,6 +115,8 @@
 		     (flag code-cov)
 		     (flag rebuild-code-cov))
   (define (displn arg) (display arg) (newline))
+
+  (set! *exit-on-error* exit-on-error)
 
   ;; Fail fast in case user didn't know 'scheme: defaults to 'larceny
   ;; This expression should have no side-effects on Larceny, but
