@@ -2591,17 +2591,17 @@
   `(cmp	,RESULT 0)
   (ia86.setcc RESULT 'l))
 
-(define-sassy-instr (ia86.fixnum_imm_arithmetic regno y z ex)
+(define-sassy-instr (ia86.fixnum_imm_arithmetic imm y z ex)
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
                (L1 (fresh-label))
                (L2 (fresh-label)))
            `(label ,L0)
-           (ia86.const2regf TEMP regno)
+           (ia86.const2regf TEMP imm)
            `(or	,TEMP ,RESULT)
            `(test	,TEMP_LOW ,fixtag_mask)
            `(jnz short ,L1)
-           (ia86.const2regf TEMP regno)
+           (ia86.const2regf TEMP imm)
            `(,y	,RESULT ,TEMP)
            `(jno short ,L2)
            `(,z	,RESULT ,TEMP)
@@ -2609,7 +2609,7 @@
            (ia86.exception_continuable ex L0)	; second is tmp so 2nd arg is in place
            `(label ,L2)))
         (else
-         (ia86.const2regf TEMP regno)
+         (ia86.const2regf TEMP imm)
          `(,y	,RESULT ,TEMP))))
 	
 (define-sassy-instr (ia86.T_OP2IMM_250 imm)           ; fx+
