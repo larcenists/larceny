@@ -46,8 +46,6 @@ mkdir -p ${DIR}
 pushd ${DIR}
 svn checkout http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src
 cd larceny_src
-# In case the source was already checked out, do an update (is this necessary?)
-svn up
 
 # Build the bootstrap heap 
 $SCHEME_PGM <<EOF
