@@ -50,18 +50,48 @@ cd larceny_src
 # Build the bootstrap heap 
 $SCHEME_PGM <<EOF
 (begin 
- (load "setup.sch")
- (setup ${SETUP_ARGS} )
- (build-config-files)
- (load-compiler)
- (build-heap)
- (build-runtime)
- (build-executable)
- (build-larceny-files))
+  (load "setup.sch")
+  (setup ${SETUP_ARGS} )
+  (build-config-files)
+  (load-compiler)
+  (build-heap)
+  (build-runtime)
+  (build-executable)
+  (build-larceny-files))
 EOF
 
 # Build the larceny heap
 echo | ./larceny.bin -stopcopy -- src/Build/iasn-larceny-heap.sch
+
+# Library tests
+pushd test/Lib
+../../larceny <<EOF
+(begin 
+  (load "load-all-tests.sch")
+  (run-all-tests))
+EOF
+popd
+
+# Compiler tests (sanity switches only)
+pushd test/Compiler
+../../larceny <<EOF
+(begin 
+  (load "run-tests.sch")
+  (run-compiler-tests sanity-switches))
+EOF
+popd
+
+# Benchmarks
+pushd test/Benchmarking/CrossPlatform
+LARCENY=`pwd`/../../../larceny ./bench larceny normal
+../../../larceny <<EOF
+(begin
+  (load "summarize.sch")
+  ((summarize larceny-results) "results.Larceny"))
+EOF
+cat results.Larceny >> Results/results.Larceny
+rm results.Larceny
+popd
 
 popd
 # rm -rf $DIR
