@@ -43,7 +43,7 @@ DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TODAY}
 
 # Checkout source tree
 mkdir -p ${DIR}
-pushd ${DIR}
+pushd ${DIR} > /dev/null
 svn checkout http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src
 cd larceny_src
 
@@ -64,25 +64,25 @@ EOF
 echo | ./larceny.bin -stopcopy -- src/Build/iasn-larceny-heap.sch
 
 # Library tests
-pushd test/Lib
+pushd test/Lib > /dev/null
 ../../larceny <<EOF
 (begin 
   (load "load-all-tests.sch")
   (run-all-tests))
 EOF
-popd
+popd > /dev/null
 
 # Compiler tests (sanity switches only)
-pushd test/Compiler
+pushd test/Compiler > /dev/null
 ../../larceny <<EOF
 (begin 
   (load "run-tests.sch")
   (run-compiler-tests sanity-switches))
 EOF
-popd
+popd > /dev/null
 
 # Benchmarks
-pushd test/Benchmarking/CrossPlatform
+pushd test/Benchmarking/CrossPlatform > /dev/null
 LARCENY=`pwd`/../../../larceny ./bench larceny normal
 ../../../larceny <<EOF
 (begin
@@ -91,7 +91,7 @@ LARCENY=`pwd`/../../../larceny ./bench larceny normal
 EOF
 cat results.Larceny >> Results/results.Larceny
 rm results.Larceny
-popd
+popd > /dev/null
 
-popd
+popd > /dev/null
 # rm -rf $DIR
