@@ -1,0 +1,69 @@
+# Setup options (based on script's name)
+case "`basename "$0"`" in
+    checkout-larceny-linux86-petit)
+	SCHEME_PGM=larceny
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny 'host: 'linux86"
+	DIRNAME=petit
+    ;;
+    checkout-mzscheme-linux86-petit)
+	SCHEME_PGM=mzscheme
+	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'linux86"
+	DIRNAME=petit
+    ;;
+    checkout-larceny-linux86-dotnet)
+	SCHEME_PGM=larceny
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny 'host: 'linux86 'dotnet"
+	DIRNAME=dotnet
+    ;;
+    checkout-mzscheme-linux86-dotnet)
+	SCHEME_PGM=mzscheme
+	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'linux86 'dotnet"
+	DIRNAME=dotnet
+    ;;
+    checkout-larceny-linux86-native)
+	SCHEME_PGM=larceny
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny 'host: 'linux86 'sassy"
+	DIRNAME=native
+    ;;
+    checkout-mzscheme-linux86-native)
+	SCHEME_PGM=mzscheme
+	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'linux86 'sassy"
+	DIRNAME=native
+    ;;
+    *)
+	echo "Setup arguments not specified; assuming linux86 native build."
+	SCHEME_PGM=larceny
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny 'host: 'linux86 'sassy"
+	DIRNAME=default
+    ;;
+esac
+
+TODAY=`date +%F`
+DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TODAY}
+
+# Checkout source tree
+mkdir -p ${DIR}
+pushd ${DIR}
+svn checkout http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src
+cd larceny_src
+# In case the source was already checked out, do an update (is this necessary?)
+svn up
+
+# Build the bootstrap heap 
+$SCHEME_PGM <<EOF
+(begin 
+ (load "setup.sch")
+ (setup ${SETUP_ARGS} )
+ (build-config-files)
+ (load-compiler)
+ (build-heap)
+ (build-runtime)
+ (build-executable)
+ (build-larceny-files))
+EOF
+
+# Build the larceny heap
+echo | ./larceny.bin -stopcopy -- src/Build/iasn-larceny-heap.sch
+
+popd
+# rm -rf $DIR
