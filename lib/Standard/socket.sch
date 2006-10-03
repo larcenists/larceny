@@ -67,6 +67,7 @@
 ;
 ; FIXME: error reporting?
 
+(require 'srfi-0)
 (require 'define-record)
 
 (cond-expand
@@ -75,8 +76,8 @@
   ; GET-HOST-BY-NAME and GET-SERVICE-BY-NAME are supplied by
   ; experimental/socket
 
-  (require 'experimental/socket)
-  (require 'experimental/unix-descriptor)
+  (require "Experimental/socket")
+  (require "Experimental/unix-descriptor")
 
   (define-record socket-representation (fd flags in out))
 

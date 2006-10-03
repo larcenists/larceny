@@ -9,8 +9,8 @@
 ; Linux support believed to be complete (even byte order issues)
 ; but not sure.  gethostbyname works, at least.
 
-(require 'ffi)
-(require 'experimental/unix)
+(require 'std-ffi)
+(require "Experimental/unix")
 (require 'common-syntax)
 
 (define (server-socket port)
@@ -85,7 +85,7 @@
     (if (foreign-null-pointer? ptr)
         (let ((h_errno (get-h-errno)))
 	  (display "gethostbyname: ")
-          (display (strerror h_errno))
+          (display (unix/strerror h_errno))
           (newline)
 	  (values #f #f #f))
 	(begin

@@ -10,9 +10,9 @@
 ; extensions that implement the scheduler compatible with nonblocking I/O.
 
 (require 'define-record)
-(require 'experimental/unix)
-(require 'experimental/poll)
-(require 'experimental/iosys)
+(require "Experimental/unix")
+(require "Experimental/poll")
+(require "Experimental/iosys")
 
 ; Flags are:
 ;   nonblocking -- use nonblocking input
