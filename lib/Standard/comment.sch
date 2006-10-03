@@ -37,7 +37,7 @@
 		     (let ((c (read-char p)))
 		       (if (eqv? c #\|)
 			   (loop (read-char p) (+ level 1))
-			   (loop c))))
+			   (loop c level))))
                     (else
                      (loop (read-char p) level)))))
           #f)))
