@@ -1,0 +1,46 @@
+apropos.sch     Search the environment for bindings
+array-util.sch	Utilities for Bawden's array package
+array.sch	Bawden's array package
+autoload.sch    (Possibly obsolete) autoloader package
+box.sch		Reader syntax and procedures for Chez/MzScheme 'box' data type
+brackets.sch	Reader syntax for Chez/MzScheme/... square brackets
+combinatory.sch Simple combinatory algorithms
+comment.sch     #|...|# and #;expr comment syntax
+common-syntax.sch  Many popular macros
+control.sch	Various control structures
+coroutine.sch	Coroutine control structure (Haynes/Friedman/Wand)
+defmacro.sch	SCM-compatible DEFMACRO syntax
+docextract.sch  Experimental documentation extraction system
+dotimes.sch     Simple iteration macro DOTIMES
+exec-comment.sch  #!...!# comment syntax allows larceny scripts on Unix
+file-system.sch File system manipulation
+file-utils.sch  Commands for processing (text) files
+fluid.sch       FLUID-LET (also in common-syntax.sch)
+format.sch	Simple 'format' procedure
+fortune.sch	'Fortune' program for the Lisp crowd
+fqueue.sch	Functional queue data structure
+generator.sch	Generator control structure
+infix-expr.sch  General infix expression parser and evaluator
+io.sch          Useful i/o procedures
+list-set.sch	Operations on sets represented as lists
+list.sch	List processing procedures
+match.sch,	Andrew Wright's MATCH syntax
+  match-syntax.sch
+number.sch	Number processing code
+queue.sch	Imperative queue data structure
+random.sch	Enhanced random number generator
+record.sch      The ever-popular records package
+regexp.sch	Dorai Sitaram's regular expression package
+require.sch	The REQUIRE system
+require0.sch    A stub to copy into your .larceny to bootstrap REQUIRE
+stats.sch       Statistical processing of data
+string.sch	String processing code
+symbol.sch      The popular |...| read syntax for symbols
+trie.sch        A trie data structure
+unify.sch	Generic unification package
+unix.sch        Unix interface
+uuencode.sch    uuencode and uudecode procedures
+
+in-progress/    Work in progress
+originals/      Original versions of some of the imported files
+test/           Test code for some of the functionality

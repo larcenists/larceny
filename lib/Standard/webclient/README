@@ -1,0 +1,28 @@
+Fun with HTTP and HTML.
+
+WGET is a simple http-get utility to slurp files from the net, it
+is a standalone example.
+
+HTML-PARSER is a hack that more or less parses HTML properly and
+delivers it as a tree of HTML elements.
+
+HTML-ENTITIES maps entity names to character strings and is used by
+the parser.
+
+HTML-FORMAT takes such a tree and lays it out on the page.
+
+DATASTORE manages a cache of documents and underlying network
+connections.
+
+Idea for the parser: right now it has a batch mode--it reads the
+entire input and returns a tree.  But it should also have an on-line
+mode where its purpose is to parse the input but deliver them to a
+consumer, one item at a time (tag+attrs, text string, end tag), in
+such a way that what it delivers describes a well-formed tree with
+start and end tags everywhere.  This will allow the consumer to render
+the page incrementally.  Using threads or coroutines both the parser
+and the consumer can be written in a straightforward style: the parser
+calls a consumer procedure when it has a token, and the parser reads
+from a produce procedure that blocks until data are available.
+
+

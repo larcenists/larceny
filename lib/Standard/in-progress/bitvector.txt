@@ -1,0 +1,57 @@
+Bitvectors are exact integers represented using two's complement notation.
+The length of a bitvector is the number of bits it takes to represent the
+magnitude, plus one.  However, bitvectors are logically infinite data
+structures, and the sign bit is propagated as far out as necessary.
+
+(Note, this means that though (most-negative-fixnum) can be
+represented in 32 bits, the positive magnitude requires 32 bits, so
+bitvector-length returns 33.  This strikes me as wrong. --lars)
+
+Indexing is zero-based with the least significant bit being bit zero.
+
+(bitvector? x)
+  Returns #T if x is an exact integer and #F otherwise.
+
+(bitvector-ref x n)
+  Returns bit n of x.
+
+(bitvector-set x n b)
+  Returns a copy of x with bit n set to b.  This is just a shorthand 
+  for (bitvector-replace x n (+ n 1) b).
+
+(bitvector-and x y)
+  Returns the bitwise AND of x and y.
+
+(bitvector-or x y)
+  Returns the bitwise inclusive OR of x and y.
+
+(bitvector-xor x y)
+  Returns the bitwise exclusive OR of x and y.
+
+(bitvector-not x)
+  Returns the bitwise complement of x.
+
+(bitvector-shift-left x n)
+  Shift x n places to the left, shifting in zeroes at the right end.
+  This is exactly equivalent to multiplying x by 2^n.
+
+(bitvector-shift-right x n)
+  Shift x n places to the right, shifting in copies of the sign bit at
+  the left end.  This is exactly equivalent to dividing x by 2^n and
+  discarding the remainder.
+
+(bitvector-length x)
+  Returns the number of significant bits in x.
+
+(bitvector-field x n1 n2)
+  Returns a bitvector containing the bits of x from position n1 up to but 
+  not including position n2.
+
+(bitvector-replace x n1 n2 b)
+  Returns a bitvector constructed from x but with the bits in positions
+  n1 up to but not including n2 replaced by the least significant bits
+  0..n2-n1 from the bitvector b.
+
+(bitvector-population-count x)
+  Returns the number of 1 bits in x.
+
