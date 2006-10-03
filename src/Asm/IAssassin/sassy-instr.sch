@@ -375,10 +375,10 @@
 
 (define-sassy-instr (ia86.T_CONST_SETREG_IMM x regno)
   (cond ((is_hwreg regno)
-         `(mov ,(REG regno) ,x))
+         (ia86.const2regf (REG regno) x))
         (else
-         ;; FSK: why are we going through TEMP here?
-         `(mov ,TEMP ,x)
+         (ia86.const2regf TEMP x) ; this could go through RESULT if we liked.
+         ;; (should we instead mov directly to the slot for the swreg?)
 	 (ia86.storer regno TEMP))))
 
 (define-sassy-instr (ia86.T_CONST_SETREG_CONSTVECTOR x regno)
