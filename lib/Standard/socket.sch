@@ -35,7 +35,7 @@
 ;      NONBLOCKING  -  do not block Larceny if I/O cannot be completed,
 ;                      requires that the tasking package is active
 ;
-; SOCKET-OUTPUT-PORT socket-representation => output-port
+; SOCKET-OUTPUT-PORT socket-representation [flag ...] => output-port
 ;
 ;   Return an output port for writing to the socket.  The type of
 ;   port is controlled by the FLAGS.  Flags are:
