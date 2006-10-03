@@ -60,6 +60,7 @@
 ;   SE, 25-Mar-2002: more descriptive output
 ;   SE, 04-Apr-2002: some quick timings; check up
 
+(cond-expand (srfi-27))
 
 ; (check expr)
 ;    evals expr and issues an error if it is not #t.
