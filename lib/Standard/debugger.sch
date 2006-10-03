@@ -5,7 +5,9 @@
 ; need to install the Larceny sources and you need to configure
 ; REQUIRE so that it knows where those sources are.
 
-(require 'debugger-internals)
+(require 'debug)
+(require 'inspect-cont)
+(require 'trace)
 (require 'pretty)
 
 (install-debugger)
