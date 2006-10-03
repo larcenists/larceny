@@ -10,7 +10,7 @@
       '(())
       (mappend (lambda (x)
 		 (map (lambda (y) (cons x y))
-		      (permutations (remove x xs))))
+		      (permutations (filter (lambda (y) (not (equal? x y))) xs))))
 	       xs)))
 
 (define (power-set xs)
