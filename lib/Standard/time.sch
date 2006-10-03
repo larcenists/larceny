@@ -11,7 +11,8 @@
 ;    of local time from UTC at that time expressed in seconds, with
 ;    positive offsets to the east of Greenwich.
 
-(require 'ffi)
+(require 'srfi-0)
+(require 'std-ffi)
 
 (cond-expand 
  ((and larceny unix)
