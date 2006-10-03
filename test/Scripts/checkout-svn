@@ -83,7 +83,7 @@ popd > /dev/null
 
 # Benchmarks
 pushd test/Benchmarking/CrossPlatform > /dev/null
-LARCENY=`pwd`/../../../larceny ./bench larceny normal
+LARCENY=`pwd`/../../../larceny ./bench -r 3 larceny normal
 ../../../larceny <<EOF
 (begin
   (load "summarize.sch")
