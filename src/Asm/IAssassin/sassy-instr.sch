@@ -755,8 +755,9 @@
   `(cmp	,RESULT_LOW ,$imm.false)
   `(je	,(t_label lbl)))
 
-(define-sassy-instr (ia86.T_REG_BRANCHF regno lbl)
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_BRANCHF regno lbl a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   `(cmp	,(try-low (REG regno)) ,$imm.false)
   `(je	,(t_label lbl)))
 
@@ -1034,8 +1035,9 @@
            `(mov ,(REG dregno) ,RESULT)))
     `(label ,L2 )))
 
-(define-sassy-instr (ia86.generic_compare_branchf hwreg regno jnc mcode L)
-  (ia86.timer_check)
+(define-sassy-instr (ia86.generic_compare_branchf hwreg regno jnc mcode L a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
     (ia86.loadr	TEMP regno)
@@ -1094,7 +1096,7 @@
         (else
          `(cmp	,RESULT (& ,GLOBALS ,(G_REG regno)))))
   (ia86.setcc	RESULT y))
-	
+
 (define-sassy-instr (ia86.generic_imm_compare_branchf hwregno imm jnc mcode L)
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
@@ -1709,7 +1711,7 @@
              )))
     (f y z)))
 
-(define-sassy-instr (ia86.T_REG_OP1_BRANCHF op rs L)
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF op rs L a-skip?)
   (let ((f (case op
              ((internal:branchf-null?) ia86.T_REG_OP1_BRANCHF_NULL?)
              ((internal:branchf-eof-object?) ia86.T_REG_OP1_BRANCHF_EOF_OBJECT?)
@@ -1717,7 +1719,7 @@
              ((internal:branchf-pair?) ia86.T_REG_OP1_BRANCHF_PAIR?)
              ((internal:branchf-zero?) ia86.T_REG_OP1_BRANCHF_ZERO?)
              (else (error 'ia86.T_REG_OP1_BRANCHF op)))))
-    (f rs L)))
+    (f rs L a-skip?)))
 
 (define-sassy-instr (ia86.T_REG_OP1_CHECK op rs L)
   (let ((f (case op
@@ -1728,7 +1730,7 @@
              (else (error 'ia86.T_REG_OP1_CHECK op)))))
     (f rs L)))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF op rs1 rs2 L)
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF op rs1 rs2 L a-skip?)
   (let ((f (case op
              ((internal:branchf-eq?) ia86.T_REG_OP2_BRANCHF_EQ?)
              ((internal:branchf-<)   ia86.T_REG_OP2_BRANCHF_66)
@@ -1742,9 +1744,9 @@
              ((internal:branchf->=:fix:fix)  ia86.T_REG_OP2_BRANCHF_409)
              ((internal:branchf->:fix:fix)   ia86.T_REG_OP2_BRANCHF_410)
              (else (error 'ia86.T_REG_OP2_BRANCHF op)))))
-    (f rs1 rs2 L)))
+    (f rs1 rs2 L a-skip?)))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF op rs1 imm L)
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF op rs1 imm L a-skip?)
   (let ((f (case op
              ((internal:branchf-eq?/imm) ia86.T_REG_OP2IMM_BRANCHF_EQ?)
              ((internal:branchf-</imm)   ia86.T_REG_OP2IMM_BRANCHF_132)
@@ -1758,7 +1760,7 @@
              ((internal:branchf->:fix:fix/imm)   ia86.T_REG_OP2IMM_BRANCHF_454)
              ((internal:branchf->=:fix:fix/imm)  ia86.T_REG_OP2IMM_BRANCHF_455)
              (else (error 'ia86.T_REG_OP2IMM_BRANCHF op)))))
-    (f rs1 imm L)))
+    (f rs1 imm L a-skip?)))
 
 ;; N.B. only rs1 is guaranteed to be a hwreg...
 (define-sassy-instr (ia86.T_REG_OP2_CHECK op rs1 rs2 L)
@@ -2046,14 +2048,16 @@
          `(cmp	,(REG rs1) (& ,GLOBALS ,(G_REG rs2)))))
   (ia86.setcc	(REG rd) 'z))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_EQ? rs1 rs2 L)
+;; XXX timer? XXX
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_EQ? rs1 rs2 L a-skip?)
   (cond ((is_hwreg rs2)
          `(cmp	,(REG rs1) ,(REG rs2)))
         (else
          `(cmp	,(REG rs1) (& ,GLOBALS ,(G_REG rs2)))))
   `(jne ,(t_label L)))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_EQ? rs1 imm L)
+;; XXX timer? XXX
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_EQ? rs1 imm L a-skip?)
   `(cmp	,(REG rs1) ,imm)
   `(jne ,(t_label L)))
 
@@ -2164,20 +2168,20 @@
 (define-sassy-instr (ia86.T_OP2_70 regno)	; >=
   (ia86.generic_compare regno 'ge $m.numge))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_66 rs1 rs2 L)	; <
-  (ia86.generic_compare_branchf (REG rs1) rs2 'jnl  $m.numlt L))
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_66 rs1 rs2 L a-skip?)	; <
+  (ia86.generic_compare_branchf (REG rs1) rs2 'jnl  $m.numlt L a-skip?))
 	
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_67 rs1 rs2 L)	; <=
-  (ia86.generic_compare_branchf (REG rs1) rs2 'jg  $m.numle L))
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_67 rs1 rs2 L a-skip?)	; <=
+  (ia86.generic_compare_branchf (REG rs1) rs2 'jg  $m.numle L a-skip?))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_68 rs1 rs2 L)	; =
-  (ia86.generic_compare_branchf (REG rs1) rs2 'jne  $m.numeq L))
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_68 rs1 rs2 L a-skip?)	; =
+  (ia86.generic_compare_branchf (REG rs1) rs2 'jne  $m.numeq L a-skip?))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_69 rs1 rs2 L)	; >
-  (ia86.generic_compare_branchf (REG rs1) rs2 'jng  $m.numgt L))
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_69 rs1 rs2 L a-skip?)	; >
+  (ia86.generic_compare_branchf (REG rs1) rs2 'jng  $m.numgt L a-skip?))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_70 rs1 rs2 L)	; >=
-  (ia86.generic_compare_branchf (REG rs1) rs2 'jl $m.numge L))
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_70 rs1 rs2 L a-skip?)	; >=
+  (ia86.generic_compare_branchf (REG rs1) rs2 'jl $m.numge L a-skip?))
 
 
 (define-sassy-instr (ia86.T_OP2_71 regno)	; fxlogand
@@ -2431,19 +2435,20 @@
 (define-sassy-instr (ia86.T_OP2IMM_136 imm)		; >=
   (ia86.generic_imm_compare imm 'ge  $m.numge))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_132 rs imm L)	; <
+;; XXX timer? XXX
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_132 rs imm L a-skip?)	; <
   (ia86.generic_imm_compare_branchf rs imm 'jnl $m.numlt L))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_133 rs imm L)	; <=
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_133 rs imm L a-skip?)	; <=
   (ia86.generic_imm_compare_branchf rs imm 'jg  $m.numle L))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_134 rs imm L)	; =
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_134 rs imm L a-skip?)	; =
   (ia86.generic_imm_compare_branchf rs imm 'jne $m.numeq L))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_135 rs imm L)	; >
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_135 rs imm L a-skip?)	; >
   (ia86.generic_imm_compare_branchf rs imm 'jng $m.numgt L))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_136 rs imm L)	; >=
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_136 rs imm L a-skip?)	; >=
   (ia86.generic_imm_compare_branchf rs imm 'jl  $m.numge L))
 
 
@@ -2728,24 +2733,29 @@
   (ia86.trusted_fixnum_compare_branch hwregno regno2 L 'jle))
 
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_406 hwregno regno2 L)	; =:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_406 hwregno regno2 L a-skip?)	; =:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_branch hwregno regno2 L 'jne))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_407 hwregno regno2 L)	; <:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_407 hwregno regno2 L a-skip?)	; <:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_branch hwregno regno2 L 'jge))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_408 hwregno regno2 L)	; <=:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_408 hwregno regno2 L a-skip?)	; <=:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_branch hwregno regno2 L 'jg))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_409 hwregno regno2 L)	; >=:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_409 hwregno regno2 L a-skip?)	; >=:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_branch hwregno regno2 L 'jl))
 
-(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_410 hwregno regno2 L)	; >:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2_BRANCHF_410 hwregno regno2 L a-skip?)	; >:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_branch hwregno regno2 L 'jle))
 
 
@@ -2802,24 +2812,29 @@
   (ia86.trusted_fixnum_compare_imm_branch hwregno imm L 'jl))
 
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_451 hwregno imm L) ; =:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_451 hwregno imm L a-skip?) ; =:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_imm_branch hwregno imm L 'jne))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_452 hwregno imm L) ; <:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_452 hwregno imm L a-skip?) ; <:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_imm_branch hwregno imm L 'jnl))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_453 hwregno imm L) ; <=:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_453 hwregno imm L a-skip?) ; <=:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_imm_branch hwregno imm L 'jg))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_454 hwregno imm L) ; >:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_454 hwregno imm L a-skip?) ; >:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_imm_branch hwregno imm L 'jng))
 
-(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_455 hwregno imm L) ; >=:fix:fix
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP2IMM_BRANCHF_455 hwregno imm L a-skip?) ; >=:fix:fix
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.trusted_fixnum_compare_imm_branch hwregno imm L 'jl))
 
 
@@ -2895,31 +2910,35 @@
            `(mov     ,(REG rd) ,RESULT)))
     `(label ,L1)))
 
-(define-sassy-instr (ia86.reg_generic_compare_lowimm_branchf imm rs L)
-  (ia86.timer_check)
+(define-sassy-instr (ia86.reg_generic_compare_lowimm_branchf imm rs L a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   `(cmp	,(try-low (REG rs)) ,imm)
   `(jne ,(t_label L)))
 
-(define-sassy-instr (ia86.reg_generic_compare_imm_branchf imm rs L)
-  (ia86.timer_check)
+(define-sassy-instr (ia86.reg_generic_compare_imm_branchf imm rs L a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   `(cmp	,(REG rs) ,imm)
   `(jne ,(t_label L)))
 
-(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_NULL? rs L)
-  (ia86.reg_generic_compare_lowimm_branchf $imm.null rs L))
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_NULL? rs L a-skip?)
+  (ia86.reg_generic_compare_lowimm_branchf $imm.null rs L a-skip?))
 
-(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_EOF_OBJECT? rs L)
-  (ia86.reg_generic_compare_imm_branchf $imm.eof rs L))
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_EOF_OBJECT? rs L a-skip?)
+  (ia86.reg_generic_compare_imm_branchf $imm.eof rs L a-skip?))
 
-(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_PAIR? rs L)
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_PAIR? rs L a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (ia86.single_tag_test (REG rs) $tag.pair-tag)
   `(jnz ,(t_label L)))
 
-(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_ZERO? rs L)
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_ZERO? rs L a-skip?)
   (let ((L1 (fresh-label))
         (L2 (fresh-label)))
-    (ia86.timer_check)
+    (cond ((not a-skip?)
+           (ia86.timer_check)))
     (ia86.fixnum_test_temp_is_free rs)
     `(jz short ,L1)
     `(mov ,RESULT ,(REG rs))
@@ -2932,8 +2951,9 @@
     `(jnz ,(t_label L))
     `(label ,L2)))
 
-(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_FIXNUM? rs L)
-  (ia86.timer_check)
+(define-sassy-instr (ia86.T_REG_OP1_BRANCHF_FIXNUM? rs L a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
   (cond ((hwreg_has_low rs)
          `(test ,(REG_LOW rs) ,fixtag_mask))
         (else

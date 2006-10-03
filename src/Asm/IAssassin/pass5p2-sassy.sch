@@ -704,7 +704,8 @@
     (list-instruction "reg/branchf" instruction)
     (emit-sassy as ia86.T_REG_BRANCHF
                 (operand1 instruction) 
-                (compiled-procedure as (operand2 instruction)))))
+                (compiled-procedure as (operand2 instruction))
+                (not (assq (operand2 instruction) (as-labels as))))))
 
 (define-instruction $reg/check
   (lambda (instruction as)
@@ -719,7 +720,8 @@
     (emit-sassy as ia86.T_REG_OP1_BRANCHF
                 (operand1 instruction)
                 (operand2 instruction)
-                (compiled-procedure as (operand3 instruction)))))
+                (compiled-procedure as (operand3 instruction))
+                (not (assq (operand3 instruction) (as-labels as))))))
 
 (define-instruction $reg/op2/branchf
   (lambda (instruction as)
@@ -728,7 +730,8 @@
                 (operand1 instruction)
                 (operand2 instruction)
                 (operand3 instruction)
-                (compiled-procedure as (operand4 instruction)))))
+                (compiled-procedure as (operand4 instruction))
+                (not (assq (operand4 instruction) (as-labels as))))))
 
 (define-instruction $reg/op2imm/branchf
   (lambda (instruction as)
@@ -737,7 +740,8 @@
                 (operand1 instruction)
                 (operand2 instruction)
                 (constant-value (operand3 instruction))
-                (compiled-procedure as (operand4 instruction)))))
+                (compiled-procedure as (operand4 instruction))
+                (not (assq (operand4 instruction) (as-labels as))))))
 
 (define-instruction $reg/op1/setreg
   (lambda (instruction as)
