@@ -244,22 +244,22 @@
 	    (error "current-directory: " path " is not a string."))
 	(syscall syscall:chdir path))))
 
-(define (sys$C-ffi-apply trampoline arg-encoding ret-encoding actuals)
-  (syscall syscall:C-ffi-apply trampoline arg-encoding ret-encoding actuals))
+(define (sys$c-ffi-apply trampoline arg-encoding ret-encoding actuals)
+  (syscall syscall:c-ffi-apply trampoline arg-encoding ret-encoding actuals))
 
-(define (sys$C-ffi-dlopen path)
+(define (sys$c-ffi-dlopen path)
   (cond ((not (bytevector? path))       ; 0-terminated bytevector
-         (error "sys$C-ffi-dlopen: bad path.") #t)
+         (error "sys$c-ffi-dlopen: bad path.") #t)
         (else
-         (syscall syscall:C-ffi-dlopen path))))
+         (syscall syscall:c-ffi-dlopen path))))
 
-(define (sys$C-ffi-dlsym handle sym)
+(define (sys$c-ffi-dlsym handle sym)
   (cond ((not (and (integer? handle) (exact? handle)))
-         (error "sys$C-ffi-dlsym: bad handle " handle) #t)
+         (error "sys$c-ffi-dlsym: bad handle " handle) #t)
         ((not (bytevector? sym))
-         (error "sys$C-ffi-dlsym: bad symbol " sym) #t)
+         (error "sys$c-ffi-dlsym: bad symbol " sym) #t)
         (else
-         (syscall syscall:C-ffi-dlsym handle sym))))
+         (syscall syscall:c-ffi-dlsym handle sym))))
 
 (define (peek-bytes addr bv count)
   (if (and (bytevector? bv)

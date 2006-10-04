@@ -38,9 +38,9 @@
 
   ;; system performance and interface
 
-  (environment-set! larc 'sys$C-ffi-apply sys$C-ffi-apply)
-  (environment-set! larc 'sys$C-ffi-dlopen sys$C-ffi-dlopen)
-  (environment-set! larc 'sys$C-ffi-dlsym sys$C-ffi-dlsym)
+  (environment-set! larc 'sys$c-ffi-apply sys$c-ffi-apply)
+  (environment-set! larc 'sys$c-ffi-dlopen sys$c-ffi-dlopen)
+  (environment-set! larc 'sys$c-ffi-dlsym sys$c-ffi-dlsym)
   (environment-set! larc 'peek-bytes peek-bytes)
   (environment-set! larc 'poke-bytes poke-bytes)
 

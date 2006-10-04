@@ -9,13 +9,13 @@
 ; as no translation is performed on this level.
 
 (define (ffi/dlopen name)
-  (let ((r (sys$C-ffi-dlopen (ffi/string->asciiz name))))
+  (let ((r (sys$c-ffi-dlopen (ffi/string->asciiz name))))
     (if (zero? r)
 	#f
 	r)))
 
 (define (ffi/dlsym handle sym)
-  (let ((r (sys$C-ffi-dlsym handle (ffi/string->asciiz sym))))
+  (let ((r (sys$c-ffi-dlsym handle (ffi/string->asciiz sym))))
     (if (zero? r)
 	#f
 	r)))
@@ -54,13 +54,13 @@
 	; be reentrant.  We can make it reentrant by passing a location
 	; to put the error info in.
 	(lambda ()
-	  (let ((r (sys$C-ffi-apply (tr-code trampoline)
+	  (let ((r (sys$c-ffi-apply (tr-code trampoline)
 				    arg-encoding
 				    ret-encoding
 				    actuals)))
 	    (if (eq? r (undefined))
 		(call-with-values 
-		 sys$C-ffi-error
+		 sys$c-ffi-error
 		 (lambda (code info)
 		   (case code
 		     ((0) (values #t 'conversion-error))
@@ -70,7 +70,7 @@
 		(values #f r)))))))
 
 ; FIXME
-(define (sys$C-ffi-error)
+(define (sys$c-ffi-error)
   (values 0 #f))
 
 ; eof

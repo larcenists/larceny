@@ -79,10 +79,10 @@
 
   (define (load-and-register filename)
     (let ((shared-object 
-	   (syscall syscall:C-ffi-dlopen (string->asciiz filename))))
+	   (syscall syscall:c-ffi-dlopen (string->asciiz filename))))
       (if (zero? shared-object)
 	  (error "Unable to open shared object " filename))
-      (let ((table (syscall syscall:C-ffi-dlsym
+      (let ((table (syscall syscall:c-ffi-dlsym
 			    shared-object
 			    (string->asciiz "twobit_load_table"))))
 	(if (zero? table)
