@@ -349,4 +349,8 @@
     (load (if version-301?
               "inits/mzscheme-301.scm"
               "inits/mzscheme-299.400.scm"))
-    (load "sassy.scm")))
+    (load "sassy.scm")
+    (set! sassy-text-bytevector
+          (lambda (sassy-output)
+            (list->bytevector (sassy-text-list sassy-output))))
+    ))
