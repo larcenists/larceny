@@ -17,8 +17,8 @@
 (require 'file-system)
 (require 'io)
 
-(define dat-file (in-vicinity (library-vicinity) "fortune.dat"))
-(define txt-file (in-vicinity (library-vicinity) "fortune.txt"))
+(define dat-file (string-append (current-larceny-root) "/lib/Standard/" "fortune.dat"))
+(define txt-file (string-append (current-larceny-root) "/lib/Standard/" "fortune.txt"))
 
 (define fortune
   (let ((random  #f)
