@@ -14,14 +14,14 @@
   (let* ((a 701)
          (c 743483)
          (m 524287)
-         (x (logand (if (null? rest)
+         (x (fxlogand (if (null? rest)
                         (quasi-random-seed)
                         (car rest))
                     m)))
     (letrec ((random14
               (lambda (n)
-                (set! x (logand (+ (* a x) c) m))
-                (remainder (rshl x 3) n)))
+                (set! x (fxlogand (+ (* a x) c) m))
+                (remainder (fxrshl x 3) n)))
              (loop
               (lambda (q r n)
                 (if (zero? q)
