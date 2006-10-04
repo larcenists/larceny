@@ -66,14 +66,15 @@
 (define-syntax memoize
   (syntax-rules ()
     ((_ proc)
-     (let ((the-proc proc))
-       (let ((last-in  (if #f #f))
-	     (last-out #f))
+     (let ((the-proc proc)
+	   (last-in  (if #f #f))
+	   (last-out #f))
 	 (lambda (arg2)
-	   (if (eq? arg2 last-in)
+	   (if (eqv? arg2 last-in)
 	       last-out
 	       (begin (set! last-in arg2)
-		      (set! last-out (the-proc arg2))
-		      last-out))))))))
+		      (let ((result (the-proc arg2)))
+			(set! last-out result)
+			last-out))))))))
 
 

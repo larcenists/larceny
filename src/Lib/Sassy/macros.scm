@@ -246,7 +246,10 @@
     (define (do-scheme-call scheme-call)
       (expand (eval scheme-call (interaction-environment))))
 
-    (define (symbol-or-expand  x) (if (pair? x) (expand x) x))
+    (define (symbol-or-expand  x)
+      (if (and (pair? x) (not (eq? 'quote (car x))))
+	  (expand x)
+	  x))
 
     (define (atom? x) (not (pair? x)))
 
@@ -289,6 +292,11 @@
 
     (define (expand itm)
       (cond
+
+       ((number? itm) itm)
+       
+       ((quoted-label itm) itm)
+       
        ((macro? itm) =>
 	(lambda (constant)
 	  (if (sassy-lazy-macro? constant)
@@ -297,8 +305,9 @@
        
        ((atom? itm) itm)
 
-       
-       ((sassy-label-form? itm)
+       ((and (pair? itm) ; dont use sassy-label-form here...
+	     (eq? 'label (car itm))
+	     (not (null? (cdr itm))))
 	(let ((label (symbol-or-expand (cadr itm)))
 	      (rest  (map-in-order expand (cddr itm))))
 	  `(label ,label ,@rest)))

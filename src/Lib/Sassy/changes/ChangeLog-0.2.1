@@ -2,6 +2,129 @@
 # arch-tag: automatic-ChangeLog--jak76@columbia.edu--scheme/sassy--mainline--0.2.1
 #
 
+2006-09-06 00:32:37 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-25
+
+    Summary:
+      Fix last bug fix
+    Revision:
+      sassy--mainline--0.2.1--patch-25
+
+    Fix for last bug fix - didn't handle 'void correctly. Also catch numbers early in the macro expander
+    
+
+    modified files:
+     macros.scm parse.scm
+
+
+2006-09-05 23:55:50 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-24
+
+    Summary:
+      Bug fix for parse
+    Revision:
+      sassy--mainline--0.2.1--patch-24
+
+    Stop re-invoking sassy-expand on top level (begin ...), courtesy of FSK.
+    
+
+    modified files:
+     parse.scm
+
+
+2006-09-05 18:22:00 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-23
+
+    Summary:
+      Added optional user-section to sassy-make-elf
+    Revision:
+      sassy--mainline--0.2.1--patch-23
+
+    Extended the interface to sassy-make-elf to allow for an optional user section.
+    
+    (sassy-make-elf <path> <sassy-output> [<user-name> <user-data>] )
+    
+    Both user-name and user-data must be given in order to use this mechanism.
+    User-name is a symbol, and user-data is a string.
+    
+    When these are present, sassy-make-elf adds a section to the elf-object with
+    section-type SHT_LOUSER.  In the section header table, the section
+    will be given user-name, and the contents of the section will be the
+    contents of the string.
+    
+    The intention is to allow the encoding of custom info a compiler might
+    need (for instance, type info of exported procedures, special linking
+    information etc) without resorting to separate header (.h) files or
+    needing the original source code.
+    
+    
+    
+
+    modified files:
+     elf.scm
+
+
+2006-09-03 04:32:49 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-22
+
+    Summary:
+      Added offset syntax to (align ...)
+    Revision:
+      sassy--mainline--0.2.1--patch-22
+
+    Applied FSK's patch for a local offset to an align special form with changes and cleanups.
+    
+    The syntax is:
+    
+    (align <aligner> <offset>? )
+    
+    If the the optional <offset> (an integer) is given, compute the actual
+    alignment based on <aligner>, and then add the offset to obtain the
+    final location in the section. If the offset is negative and this
+    would cause the new alignment to be less than the current size of the
+    section, throw an error.
+    
+    this is ok, and puts foo at 3:
+    
+    (text
+      (nop)
+      (nop)
+      (align 4 -1)
+      (label foo))
+    
+    this is an error, because foo would be at 1
+    
+    (text
+      (nop)
+      (nop)
+      (align 4 -3)
+      (label foo))
+
+    modified files:
+     parse.scm push-stacks.scm
+
+
+2006-09-03 03:19:07 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-21
+
+    Summary:
+      Added quoted labels, handle empty strings
+    Revision:
+      sassy--mainline--0.2.1--patch-21
+
+    Added facility for quoted labels, which the macro expander ignores.
+    Whenever you write 'foo or (quote foo), "foo" is interpreted as a label, not the binding of a macro, so you can write:
+    
+    (text
+      (label '> ...)
+      ...
+      (jmp '>))
+    
+    And all will be copacetic.
+    
+    
+    In a data section only, if a string is empty and used as data, push no bytes.
+
+    modified files:
+     intern.scm macros.scm operands.scm parse.scm sassy.scm
+     text.scm
+
+
 2006-08-08 02:32:56 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-20
 
     Summary:
@@ -41,6 +164,9 @@
     Add moves to and from the test registers (trX), and corrected a couple
     operand sizes (cmpxchg8b).
 
+    removed files:
+     inits/.arch-ids/mzscheme-209.scm.id inits/mzscheme-209.scm
+
     modified files:
      TODO opcodes.scm operands.scm sassy.scm
      tests/generate-nasm.scm tests/shift tests/shift.asm
@@ -50,7 +176,7 @@
 2006-08-03 18:52:51 GMT	Jonathan Kraut <jak76@columbia.edu>	patch-18
 
     Summary:
-      Chicken build, Fixed bug in raw bytes in text
+      Chicken build, Fixed bug in raw bytes in text, mz-scheme209
     Revision:
       sassy--mainline--0.2.1--patch-18
 
@@ -58,6 +184,12 @@
     
     Fixed a bug in opcodes.scm when parsing "raw-bytes"
     
+    Put back support for mzscheme-209
+    
+    
+
+    new files:
+     inits/.arch-ids/mzscheme-209.scm.id inits/mzscheme-209.scm
 
     modified files:
      inits/petit-0.92.scm opcodes.scm sassy-chicken.scm sassy.scm

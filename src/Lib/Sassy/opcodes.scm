@@ -123,7 +123,7 @@
     ((_ forms (x ...) (and pred rst ...))
      (let ((t (and (not (null? forms))
 		   (let ((g (pred (car forms))))
-		     (and g (if (equal? g #t)
+		     (and g (if (eq? g #t)
 				(car forms)
 				g))))))
        (if t
@@ -149,8 +149,7 @@
 (define-syntax outc-mq
   (syntax-rules ()
     ((_ t itm)
-     (push-stack-push (t-text t) (if (pair? itm) (apply list itm) itm)))))
-
+     (push-stack-push (t-text t) (if (pair? itm) (list-copy itm) itm)))))
 
 ; add appropriate address- and operand-size prefixes
 (define-syntax outc-cs
@@ -179,109 +178,105 @@
 ; everything eventually reaches to actually do the emitting
 
 
-; Handle a text symbol that will be an *absolute* relocation  
-(define (handle-text-symbol t sizer type target value)
-  (define k? #f)
-  (define (setup x)
-    (set! k? #t)
+
+(define (text-symbol-setup t type target value)
+
+  (define (setup-k x)
     (if (pair? x)
 	(if (opcode? (car x))
 	    (error "sassy: bad context for instruction as continuation" x)
-	    (begin (set! type   (cadr x))
-		   (set! target (caddr x))
-		   (set! value  (cadddr x))))
-	(set! target x)))
+	    (values #t (cadr x) (caddr x) (cadddr x)))
+	(values #t type x value)))
+  
   (case target
-    (($win)  (setup (t-win t)))
-    (($lose) (setup (t-lose t)))
-    (($eip)  (setup (push-stack-size (t-text t)))))
-  (let* ((t-text-t (t-text t))
-	 (r (t-outp t))
-	 (pnt   (push-stack-push->patcher
-		 t-text-t
-		 (number->byte-list value sizer)))
-	 (offs  (push-stack-size t-text-t))
-	 (t-val (cond ((sassy-symbol-exists-env? r target) =>
-		       (lambda (x) (sassy-symbol-offset x)))
-		      (else target)))
-	 (a-reloc (make-sassy-reloc
-		   (get-reloc-target target r)
-		   'text offs type #f value sizer
-		   (get-reloc-target-sect target r 'text)))
-	 (patcher (lambda (new)
-		    (pnt (number->byte-list new sizer))
-		    (sassy-reloc-value-set! a-reloc new))))
-    (sassy-reloc-patcher-set! a-reloc patcher)
-    (push-t-reloc! t a-reloc)
-    (if (not k?)
-	(if (number? t-val)
-	    (patcher (+ t-val value))
-	    (sassy-symbol-set!
-	     r target `(unres ,(lambda (n sect)
-				 (sassy-reloc-target-section-set!
-				  a-reloc sect)
-				 (patcher (+ n value))))))
-	(push-t-res!
-	 t (cons t-val (lambda (n) (patcher (+ n value))))))))
+    (($win)  (setup-k (t-win t)))
+    (($lose) (setup-k (t-lose t)))
+    (($eip)  (values #t type (push-stack-size (t-text t)) value))
+    (else (values #f type target value))))
+
+  
+; Handle a text symbol that will be an *absolute* relocation  
+(define (handle-text-symbol t sizer type target value)
+  (call-with-values
+      (lambda ()
+	(text-symbol-setup t type target value))
+    (lambda (k? type target value)
+      (let* ((t-text-t (t-text t))
+	     (r (t-outp t))
+	     (pnt   (push-stack-push->patcher
+		     t-text-t
+		     (integer->byte-list value sizer)))
+	     (offs  (push-stack-size t-text-t))
+	     (t-val (cond ((sassy-symbol-exists-env? r target)
+			   => sassy-symbol-offset)
+			  (else target)))
+	     (a-reloc (make-sassy-reloc
+		       (get-reloc-target target r)
+		       'text offs type #f value sizer
+		       (get-reloc-target-sect target r 'text)))
+	     (patcher (lambda (new)
+			(pnt (integer->byte-list new sizer))
+			(sassy-reloc-value-set! a-reloc new))))
+	(sassy-reloc-patcher-set! a-reloc patcher)
+	(push-t-reloc! t a-reloc)
+	(if (not k?)
+	    (if (number? t-val)
+		(patcher (+ t-val value))
+		(sassy-symbol-set-unres!
+		 r target (lambda (n sect)
+			    (sassy-reloc-target-section-set!
+			     a-reloc sect)
+			    (patcher (+ n value)))))
+	    (push-t-res!
+	     t (cons t-val (lambda (n) (patcher (+ n value))))))))))
 
 
 ; Handle a text symbol that will be a relative relocation  
 (define (handle-rel-symbol t sizer type target value)
-  (define k? #f)
-  (define (setup x)
-    (set! k? #t)
-    (if (pair? x)
-	(if (opcode? (car x))
-	    (error "sassy: bad context for instruction as continuation" x)
-	    (begin (set! type (cadr x))
-		   (set! target (caddr x))
-		   (set! value (cadddr x))))
-	(set! target x)))
-  (case target
-    (($win)  (setup (t-win t)))
-    (($lose) (setup (t-lose t)))
-    (($eip)  (setup (push-stack-size (t-text t)))))
-  (let* ((t-text-t (t-text t))
-	 (r (t-outp t))
-	 (offs  (push-stack-size t-text-t))
-	 (pnt   (push-stack-push->patcher t-text-t
-					  (number->byte-list value sizer)))
-	 (t-val (cond ((sassy-symbol-exists-env? r target)
-		       => sassy-symbol-offset)
-		      (else target)))
-	 (a-reloc (make-sassy-reloc
-		   (get-reloc-target target r)
-		   'text (+ offs sizer) type #f value sizer
-		   (get-reloc-target-sect target r 'text)))
-	 (patcher (lambda (new)
-		    (if (not ((case sizer
-				((1) s-byte)
-				((2) s-word)
-				((4) s-dword))
-			      new))
-			(error "sassy: out of range" (+ new sizer 1))
-			(begin (pnt (number->byte-list new sizer))
-			       (sassy-reloc-value-set! a-reloc new))))))
-    (when (= 4 sizer)
-	  (sassy-reloc-patcher-set! a-reloc patcher)
-	  (push-t-reloc! t a-reloc))
-    (when (and (= 2 sizer) (= 16 (sassy-bits r)))
-	  (sassy-reloc-patcher-set! a-reloc patcher)
-	  (push-t-reloc! t a-reloc))
-    (if (not k?)
-	(if (and (number? t-val) (eqv? 'rel type))
-	    (push-t-res!
-	     t (cons offs (lambda (n) (patcher (- t-val n)))))
-	    (push-t-unres!
-	     t (list target offs (lambda (from)
-				   (lambda (to sect)
-				     (sassy-reloc-target-section-set!
-				      a-reloc sect)
-				     (patcher (- to from))))
-		     (cond ((sassy-symbol-exists-env? r target) =>
-			    sassy-symbol-scope)
-			   (else #f)))))
-	(patcher (- offs t-val)))))
+  (call-with-values
+      (lambda () (text-symbol-setup t type target value))
+    (lambda (k? type target value)
+      (let* ((t-text-t (t-text t))
+	     (r (t-outp t))
+	     (offs  (push-stack-size t-text-t))
+	     (pnt   (push-stack-push->patcher
+		     t-text-t (integer->byte-list value sizer)))
+	     (t-val (cond ((sassy-symbol-exists-env? r target)
+			   => sassy-symbol-offset)
+			  (else target)))
+	     (a-reloc (make-sassy-reloc
+		       (get-reloc-target target r)
+		       'text (+ offs sizer) type #f value sizer
+		       (get-reloc-target-sect target r 'text)))
+	     (patcher (lambda (new)
+			(if (not ((case sizer
+				    ((1) s-byte)
+				    ((2) s-word)
+				    ((4) s-dword))
+				  new))
+			    (error "sassy: out of range" (+ new sizer 1))
+			    (begin (pnt (integer->byte-list new sizer))
+				   (sassy-reloc-value-set! a-reloc new))))))
+	(when (= 4 sizer)
+	      (sassy-reloc-patcher-set! a-reloc patcher)
+	      (push-t-reloc! t a-reloc))
+	(when (and (= 2 sizer) (= 16 (sassy-bits r)))
+	      (sassy-reloc-patcher-set! a-reloc patcher)
+	      (push-t-reloc! t a-reloc))
+	(if k?
+	    (patcher (- offs t-val))
+	    (if (and (number? t-val) (eqv? 'rel type))
+		(push-t-res!
+		 t (cons offs (lambda (n) (patcher (- t-val n)))))
+		(push-t-unres!
+		 t (list target offs (lambda (from)
+				       (lambda (to sect)
+					 (sassy-reloc-target-section-set!
+					  a-reloc sect)
+					 (patcher (- to from))))
+			 (cond ((sassy-symbol-exists-env? r target) =>
+				sassy-symbol-scope)
+			       (else #f))))))))))
 
 
 ; "imm" means "immediate"
@@ -291,12 +286,17 @@
 	((symbol? imm-value)
 	 (handle-text-symbol t sizer 'abs imm-value 0)); sizer))
 	((eq? (cadr imm-value) 'rel)
-	 (apply handle-rel-symbol
-		t (/ (sassy-bits (t-outp t)) 8) (cdr imm-value)))
-	(else (apply handle-text-symbol
+	 (handle-rel-symbol
+		t (/ (sassy-bits (t-outp t)) 8)
+		(cadr imm-value)
+		(caddr imm-value)
+		(cadddr imm-value)))
+	(else (handle-text-symbol
 		     t
 		     (/ (sassy-bits (t-outp t)) 8)
-		     (cdr imm-value)))))
+		     (cadr imm-value)
+		     (caddr imm-value)
+		     (cadddr imm-value)))))
 
 
 
@@ -343,6 +343,11 @@
 		    (iter (cdr rst) base (* 8 x) sk mod r/m symb disp type)))
 	       (else (bad-mem ref)))))
 
+	   ((integer? next)
+	    (if disp
+		(iter (cdr rst) base ix sk mod r/m symb (+ next disp) type)
+		(iter (cdr rst) base ix sk mod r/m symb next type)))
+
 	   ((symbol next) =>
 	    (lambda (x)
 	      (cond
@@ -355,11 +360,6 @@
 	       (else
 		(iter (cdr rst) base ix sk mod r/m (caddr x) (cadddr x)
 		      (cadr x))))))
-
-	   ((integer? next)
-	    (if disp
-		(iter (cdr rst) base ix sk mod r/m symb (+ next disp) type)
-		(iter (cdr rst) base ix sk mod r/m symb next type)))
 
 	   ((and (pair? next) (eq? '* (car next)) (null? (cdddr next)))
 	    (let ((sk2 (skale (cadr next))))
@@ -447,7 +447,7 @@
   (when symb
 	(handle-text-symbol t 4 type symb (or (and disp (cadr disp)) 0)))
   (when (and disp (not symb))
-	(outc t (number->byte-list (cadr disp) (case (car disp)
+	(outc t (integer->byte-list (cadr disp) (case (car disp)
 						 ((byte) 1)
 						 ((dword) 4)))))
   (when (= 16 (sassy-bits (t-outp t))) (t-addr-flag-set! t #t))
@@ -549,7 +549,10 @@
 (define (just-i-rel t sizer opcode rel-value)
   (cond ((or (symbol? rel-value) (number? rel-value))
 	 (handle-rel-symbol t sizer 'rel rel-value 0))
-	(else (apply handle-rel-symbol t (cons sizer (cdr rel-value)))))
+	(else (handle-rel-symbol t sizer
+				 (cadr rel-value)
+				 (caddr rel-value)
+				 (cadddr rel-value))))
   (just-c t sizer opcode))
 
 (define (just-m t sizer opcode dest reg-field)
@@ -719,38 +722,32 @@
 			  (else #f))))))))
 
 (define (gen-jcc cc-code)
-  (mini-meta
-   (or (and 'short (or rel32 rel16 rel8)
-	    (lambda (t x) (just-i-rel t 1 (+ #x70 cc-code) x)))
-       (and (?* 'near)
-	    (or (and erel32
-		     (lambda (t x)
-		       (just-i-rel t 4 `(#x0f ,(+ #x80 cc-code)) x)))
-		(and erel16
-		     (lambda (t x)
-		       (just-i-rel t 2 `(#x0f ,(+ #x80 cc-code)) x)))
-		(and urel32
-		     (lambda (t x)
-		       (if (and (urel16 x)
-				(= 16 (sassy-bits (t-outp t))))
-			   (just-i-rel t 2 `(#x0f ,(+ #x80 cc-code)) x)
-			   (just-i-rel
-			    t 4 `(#x0f ,(+ #x80 cc-code)) x)))))))))
+  (let* ((cc2 (+ #x70 cc-code))
+	 (cc4 (+ #x80 cc-code))
+	 (op4 (list #x0f cc4)))
+    (mini-meta
+     (or (and 'short (or rel32 rel16 rel8)
+	      (lambda (t x) (just-i-rel t 1 cc2 x)))
+	 (and (?* 'near)
+	      (or (and erel32 (lambda (t x) (just-i-rel t 4 op4 x)))
+		  (and erel16 (lambda (t x) (just-i-rel t 2 op4 x)))
+		  (and urel32 (lambda (t x)
+				(if (and (urel16 x)
+					 (= 16 (sassy-bits (t-outp t))))
+				    (just-i-rel t 2 op4 x)
+				    (just-i-rel t 4 op4 x))))))))))
 
 (define (gen-setcc cc-code)
-  (mini-meta
-   (and (or r8 m8) (lambda (t x)
-		     (r/m t 1 `(#x0f ,(+ #x90 cc-code)) x #b000)))))
+  (let ((op (list #x0f (+ #x90 cc-code))))
+    (mini-meta
+     (and (or r8 m8) (lambda (t x) (r/m t 1 op x #b000))))))
 
 
 (define (gen-cmovcc cc-code)
-  (mini-meta
-   (or (and r32 (or r32 m32)
-	    (lambda (t x y)
-	      (r-r/m t 4 `(#x0f ,(+ #x40 cc-code)) x y)))
-       (and r16 (or r16 m16)
-	    (lambda (t x y)
-	      (r-r/m t 2 `(#x0f ,(+ #x40 cc-code)) x y))))))
+  (let ((op (list #x0f (+ #x40 cc-code))))
+    (mini-meta
+     (or (and r32 (or r32 m32) (lambda (t x y) (r-r/m t 4 op x y)))
+	 (and r16 (or r16 m16) (lambda (t x y) (r-r/m t 2 op x y)))))))
 
 
 (define (gen-decinc partial-code reg-field)
@@ -783,13 +780,12 @@
 
 
 (define (gen-movx opcode1 opcode2)
-  (mini-meta
-   (or (and r32 (or (and (or r8 em8)
-			 (lambda (t x y) (r-r/m t 4 `(#x0f ,opcode1) x y)))
-		    (and (or r16 m16)
-			 (lambda (t x y) (r-r/m t 4 `(#x0f ,opcode2) x y)))))
-       (and r16 (or r8 m8)
-	    (lambda (t x y) (r-r/m t 2 `(#x0f ,opcode1) x y))))))
+  (let ((op1 (list #x0f opcode1))
+	(op2 (list #x0f opcode2)))
+    (mini-meta
+     (or (and r32 (or (and (or r8 em8)  (lambda (t x y) (r-r/m t 4 op1 x y)))
+		      (and (or r16 m16) (lambda (t x y) (r-r/m t 4 op2 x y)))))
+	 (and r16 (or r8 m8) (lambda (t x y) (r-r/m t 2 op1 x y)))))))
 
 
 (define (gen-r/rm opcodes)
@@ -798,12 +794,14 @@
        (and r16 (or r16 m16) (lambda (t x y) (r-r/m t 2 opcodes x y))))))
 
 (define (gen-rm opc reg-field)
-  (mini-meta
-   (and m32 (lambda (t x) (r/m t 1 `(#x0f ,opc) x reg-field)))))
+  (let ((op (list #x0f opc)))
+    (mini-meta
+     (and m32 (lambda (t x) (r/m t 1 op x reg-field))))))
 
 (define (gen-rm8 opc reg-field)
-  (mini-meta
-   (and m8 (lambda (t x) (r/m t 1 `(#x0f ,opc) x reg-field)))))
+  (let ((op (list #x0f opc)))
+    (mini-meta
+     (and m8 (lambda (t x) (r/m t 1 op x reg-field))))))
 
 
 (define (gen-rm2 opcodes reg-field)
@@ -824,28 +822,29 @@
 
 
 (define (gen-doub-shift code1 code2)
-  (mini-meta
-   (or (and (or r32 m32) r32
-	    (or (and i8 (lambda (t x y z) (r/m-r-i8 t 4 `(#x0f ,code1) x y z)))
-		(and 'cl (lambda (t x y) (r/m-r t 4 `(#x0f ,code2) x y)))))
-       (and (or r16 m16) r16
-	    (or (and i8 (lambda (t x y z) (r/m-r-i8 t 2 `(#x0f ,code1) x y z)))
-		(and 'cl (lambda (t x y) (r/m-r t 2 `(#x0f ,code2) x y))))))))
-
+  (let ((op1 (list #x0f code1))
+	(op2 (list #x0f code2)))
+    (mini-meta
+     (or (and (or r32 m32) r32
+	      (or (and i8 (lambda (t x y z) (r/m-r-i8 t 4 op1 x y z)))
+		  (and 'cl (lambda (t x y) (r/m-r t 4 op2 x y)))))
+	 (and (or r16 m16) r16
+	      (or (and i8 (lambda (t x y z) (r/m-r-i8 t 2 op1 x y z)))
+		  (and 'cl (lambda (t x y) (r/m-r t 2 op2 x y)))))))))
 
 	
 (define (gen-loop opcode)
-  (mini-meta
-   (and rel8 (or (lambda (t x) (just-i-rel t 1 opcode x))
-		 (and 'cx (lambda (t x)
-			(if (= 16 (sassy-bits (t-outp t)))
-			    (just-i-rel t 1 opcode x)
-			    (just-i-rel t 1 `(#x67 ,opcode) x))))
-		 (and 'ecx (lambda (t x)
-			(if (= 16 (sassy-bits (t-outp t)))
-			    (just-i-rel t 1 `(#x67 ,opcode) x)
-			    (just-i-rel t 1 opcode x))))))))
-
+  (let ((op (list #x67 opcode)))
+    (mini-meta
+     (and rel8 (or (lambda (t x) (just-i-rel t 1 opcode x))
+		   (and 'cx (lambda (t x)
+			      (if (= 16 (sassy-bits (t-outp t)))
+				  (just-i-rel t 1 opcode x)
+				  (just-i-rel t 1 op x))))
+		   (and 'ecx (lambda (t x)
+			       (if (= 16 (sassy-bits (t-outp t)))
+				   (just-i-rel t 1 op x)
+				   (just-i-rel t 1 opcode x)))))))))
 	
 (define (gen-cmpx opcode1 opcode2)
   (mini-meta
@@ -856,16 +855,17 @@
 
 (define (gen-fpmath-1 reg-field to-0-c from-0-c)
   (mini-meta
-   (or (and em64 (lambda (t x) (r/m t 1 #xdc x reg-field)))
-       (and m32 (lambda (t x) (r/m t 1 #xd8 x reg-field)))
+   (or (and em64    (lambda (t x) (r/m t 1 #xdc x reg-field)))
+       (and m32     (lambda (t x) (r/m t 1 #xd8 x reg-field)))
        (and 'st0 st (lambda (t x) (just-r2 t 1 #xd8 to-0-c x)))
        (and st 'st0 (lambda (t x) (just-r2 t 1 #xdc from-0-c x))))))
 
 
 (define (gen-fpmath-2 with w/o)
-  (mini-meta
-   (or (lambda (t) (just-c t 1 `(#xde ,w/o)))
-       (and st 'st0 (lambda (t x) (just-r2 t 1 #xde with x))))))
+  (let ((op (list #xde w/o)))
+    (mini-meta
+     (or (lambda (t) (just-c t 1 op))
+	 (and st 'st0 (lambda (t x) (just-r2 t 1 #xde with x)))))))
 
 
 (define (gen-fpmath-3 reg-field)
@@ -907,41 +907,44 @@
 
 
 (define (gen-fp-com pcode1 pcode2 reg-field)
-  (mini-meta
-   (or (lambda (t) (just-c t 1 `(#xd8 ,pcode2)))
-       (and em64 (lambda (t x) (r/m t 1 #xdc x reg-field)))
-       (and m32 (lambda (t x) (r/m t 1 #xd8 x reg-field)))
-       (and st  (lambda (t x) (just-r2 t 1 #xd8 pcode1 x))))))
+  (let ((op (list #xd8 pcode2)))
+    (mini-meta
+     (or (lambda (t) (just-c t 1 op))
+	 (and em64 (lambda (t x) (r/m t 1 #xdc x reg-field)))
+	 (and m32  (lambda (t x) (r/m t 1 #xd8 x reg-field)))
+	 (and st   (lambda (t x) (just-r2 t 1 #xd8 pcode1 x)))))))
 
 
 (define (gen-mmx-log opcode)
-  (mini-meta
-   (or (and mm (or mm m64) (lambda (t x y) (r-r/m t 1 `(#x0f ,opcode) x y)))
-       (and xmm (or xmm m128) (lambda (t x y)
-				(r-r/m t 1 `(#x66 #x0f ,opcode) x y))))))
+  (let ((op1 (list #x0f opcode))
+	(op2 (list #x66 #x0f opcode)))
+    (mini-meta
+     (or (and mm (or mm m64) (lambda (t x y) (r-r/m t 1 op1 x y)))
+	 (and xmm (or xmm m128) (lambda (t x y) (r-r/m t 1 op2 x y)))))))
 
 
 (define (gen-mmx-unplow opcode)
-  (mini-meta
-   (or (and mm (or mm m32) (lambda (t x y) (r-r/m t 1 `(#x0f ,opcode) x y)))
-       (and xmm (or xmm m128) (lambda (t x y)
-				(r-r/m t 1 `(#x66 #x0f ,opcode) x y))))))
+  (let ((op1 (list #x0f opcode))
+	(op2 (list #x66 #x0f opcode)))
+    (mini-meta
+     (or (and mm  (or mm m32) (lambda (t x y) (r-r/m t 1 op1 x y)))
+	 (and xmm (or xmm m128) (lambda (t x y) (r-r/m t 1 op2 x y)))))))
 
 
 (define (gen-mmx-shr opcode1 opcode2 reg-field)
-  (mini-meta
-   (or (and mm (or (and (or mm  m64)
-			(lambda (t x y) (r-r/m t 1 `(#x0f ,opcode1) x y)))
-		   (and i8
-			(lambda (t x y)
-			  (r/m-i8 t 1 `(#x0f ,opcode2) x reg-field y)))))
-       (and xmm (or (and (or xmm m128)
-			 (lambda (t x y)
-			   (r-r/m t 1 `(#x66 #x0f ,opcode1) x y)))
-		    (and i8
-			 (lambda (t x y)
-			   (r/m-i8 t 1
-				   `(#x66 #x0f ,opcode2) x reg-field y))))))))
+  (let* ((op1 (list #x0f opcode1))
+	 (op2 (list #x0f opcode2))
+	 (op3 (cons #x66 op1))
+	 (op4 (cons #x66 op2)))
+    (mini-meta
+     (or (and mm (or (and (or mm  m64) (lambda (t x y) (r-r/m t 1 op1 x y)))
+		     (and i8
+			  (lambda (t x y) (r/m-i8 t 1 op2 x reg-field y)))))
+	 (and xmm (or (and (or xmm m128)
+			   (lambda (t x y) (r-r/m t 1 op3 x y)))
+		      (and i8
+			   (lambda (t x y)
+			     (r/m-i8 t 1 op4 x reg-field y)))))))))
 
 
 (define (gen-sse1-mov opcode1 opcode2)
@@ -982,13 +985,15 @@
 
 
 (define (gen-sse1-ps2pi opc)
-  (mini-meta
-   (and mm (or xmm m64) (lambda (t x y) (r-r/m t 1 `(#x0f ,opc) x y)))))
+  (let ((op (list #x0f opc)))
+    (mini-meta
+     (and mm (or xmm m64) (lambda (t x y) (r-r/m t 1 op x y))))))
 
 
 (define (gen-sse1-ss2si opc)
-  (mini-meta
-   (and r32 (or xmm m32) (lambda (t x y) (r-r/m t 1 `(#xf3 #x0f ,opc) x y)))))
+  (let ((op (list #xf3 #x0f opc)))
+    (mini-meta
+     (and r32 (or xmm m32) (lambda (t x y) (r-r/m t 1 op x y))))))
 
 
 (define (gen-sse2-sd2si opcode)

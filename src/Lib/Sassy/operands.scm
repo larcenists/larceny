@@ -94,11 +94,12 @@
     (set! treg (reg-x 4))
     (set! symbol (memoize
 		  (lambda (x)
-		    (or (and (symbol? x)
-			     (not (hash-table-ref the-registers x
-						  (lambda () #f)))
-			     x)
-			(custom-reloc x)))))))
+		    (cond ((valid-label0 x) =>
+			   (lambda (x)
+			     (and (not (hash-table-ref the-registers x
+						       (lambda () #f)))
+				  x)))
+			  (else (custom-reloc x))))))))
 
 ; For the remainder of the following, every operand is either an e_ u_
 ; or general. The u-types are for unexplicit operand sizes. The
@@ -159,7 +160,7 @@
 
   (define (cr3a x)
     (let ((target (let ((t (car x)))
-		    (or (and (symbol? t) t)
+		    (or (valid-label0 t)
 			(u-dword t)))))
       (if (and target (null? (cdr x)))
 	  (list 'reloc 'rel target 0)
@@ -167,7 +168,7 @@
 
   (define (cr3b x type)
     (let ((target (let ((t (car x)))
-		    (or (and (symbol? t) t)
+		    (or (valid-label0 t)
 			(u-dword t)))))
       (if target
 	  (if (null? (cdr x))

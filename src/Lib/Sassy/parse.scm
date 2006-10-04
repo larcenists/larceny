@@ -59,10 +59,11 @@
 	  (error "sassy: bad org" text-base)))
     
     (define (process-entry entry-label output)
-      (if (symbol? entry-label)
-	  (begin (sassy-symbol-set! output entry-label '(scope export))
-		 (sassy-entry-point-set! output entry-label))
-	  (error "sassy: bad entry" entry-label)))
+      (cond ((valid-label0 entry-label) =>
+	     (lambda (entry-label)
+	       (sassy-symbol-set-scope! output entry-label 'export)
+	       (sassy-entry-point-set! output entry-label)))
+	    (else (error "sassy: bad entry" entry-label))))
 
     (define (process-include include-list output level expand?)
       (for-each
@@ -81,9 +82,10 @@
       (for-each (lambda (x)
 		  (if (eq? 'import scope)
 		      (sassy-symbol-def-error output x))
-		  (if (symbol? x)
-		      (sassy-symbol-set! output x `(scope ,scope))
-		      (error "sassy: bad scope" scope x)))
+		  (cond ((valid-label0 x) =>
+			 (lambda (x)
+			   (sassy-symbol-set-scope! output x scope)))
+			(else (error "sassy: bad scope" scope x))))
 		scope-list))
 
     (define (align-to count align)
@@ -92,14 +94,14 @@
 	    0
 	    (- align diff))))
     
-
+    
     (define (aligner itm)
       (and (eq? 'align (car itm))
 	   (not (null? (cdr itm)))
 	   (cond ((or (null? (cddr itm))
                       (null? (cdddr itm)))
                   (let ((x (cadr itm))
-                        (offset (if (null? (cddr itm)) 0 (- (caddr itm)))))
+                        (offset (if (null? (cddr itm)) 0 (caddr itm))))
                     (and (integer? x) (positive? x)
                          (zero? (logand x (- x 1)))
                          (list x offset))))
@@ -127,30 +129,33 @@
 	(cond
 	 ((aligner itm) =>
 	  (lambda (align+offset)
-	    (let ((align (car align+offset))
-                  (offset (if (not (zero? (cadr align+offset)))
-                              (error 'heap-item "bad align directive")))
-                  (size (sassy-heap-size output)))
-	      (sassy-heap-size-set!
-	       output (+ size (align-to size align)))
-	      (when (> align (sassy-heap-align output))
-		    (sassy-heap-align-set! output align)))))
+	    (let* ((align  (car align+offset))
+		   (offset (cadr align+offset))
+		   (size (sassy-heap-size output))
+		   (new-size (+ size (align-to size align) offset)))
+	      (if (< new-size size)
+		  (error
+		   "sassy: alignment offset illegally contracts heap" itm)
+		  (begin
+		    (sassy-heap-size-set! output new-size)
+		    (when (> align (sassy-heap-align output))
+			  (sassy-heap-align-set! output align)))))))
 
 	 ((heap-sizer itm) =>
 	  (lambda (sizer)
 	    (sassy-heap-size-set! output (+ sizer (sassy-heap-size output)))))
 
-	 ((sassy-label-form? itm)
-	  (let ((label (cadr itm))
+	 ((sassy-label-form? itm) =>
+	  (lambda (label)
+	  (let (;(label (cadr itm))
 		(rst   (cddr itm))
 		(current-size (sassy-heap-size output)))
 	    (sassy-symbol-def-error output label)
-	    (sassy-symbol-set! output label '(section heap)
-			       `(offset ,current-size) '(size 0))
+	    (sassy-symbol-set-sect-off! output label 'heap current-size)
 	    (for-each heap-item rst)
-	    (sassy-symbol-set! output label
-			       `(size ,(- (sassy-heap-size output)
-					  current-size)))))
+	    (sassy-symbol-set-size! output label
+				    (- (sassy-heap-size output)
+				       current-size)))))
 
 	 ((not (pair? itm)) (heap-items-err itm))
 
@@ -176,23 +181,25 @@
 	 ((aligner itm) =>
 	  (lambda (align+offset)
             (let ((align (car align+offset))
-                  (offset (cadr align+offset)))
+                  (local-offset (cadr align+offset)))
               (push-stack-align (sassy-text-stack output) align #x90
-                                (+ offset (sassy-text-org output)))
+                                (sassy-text-org output)
+				local-offset)
               (if (> align (sassy-text-align output))
                   (sassy-text-align-set! output align)))))
 
-	 ((sassy-label-form? itm)
-	  (let ((label (cadr itm))
+	 ((sassy-label-form? itm) =>
+	  (lambda (label)
+	  (let (;(label (cadr itm))
 		(opcodes-or-prims (cddr itm)))
 	    (sassy-symbol-def-error output label)
-	    (sassy-symbol-set! output label '(section text)
-			       `(offset ,(+ (sassy-text-org output)
-					    (sassy-text-size output))))
-	    (sassy-symbol-set!
+	    (sassy-symbol-set-sect-off!
+	     output label 'text (+ (sassy-text-org output)
+				   (sassy-text-size output)))
+	    (sassy-symbol-set-size!
 	     output label
-	     `(size ,(handle-text-block `(begin ,@opcodes-or-prims)
-					(t-make output) level)))))
+	     (handle-text-block `(begin ,@opcodes-or-prims)
+				(t-make output) level)))))
 
 	 ((not (pair? itm)) (error "sassy: bad text item" itm))
 	 (else
@@ -208,14 +215,23 @@
 	  (let iter ((rst text-list))
 	    (if (not (null? rst))
 		(call-with-values
-		    (lambda ()
-		      (span (lambda (x) (and (pair? x) (opcode? (car x)) #t))
-			    rst))
+		    (lambda () (span (lambda (x)
+				       (and (pair? x)
+					    (let ((c (car x)))
+					      (or (opcode? c)
+						  (eq? c 'label)))))
+				     rst))
 		  (lambda (block rest)
 		    (cond
 		     ((null? block)
 		      (text-item (car rest))
 		      (iter (cdr rest)))
+
+		     ((null? (cdr block))
+		      (text-item (car block))
+		      (when (not (null? rest))
+			    (text-item (car rest))
+			    (iter (cdr rest))))
 
 		     ((null? rest)
 		      (text-item (cons 'begin block)))
@@ -240,15 +256,17 @@
 		 (push-stack-push data-stack (char->integer item))
 		 (push-stack-align data-stack size 0))
 		((string? item)
-		 (push-stack-push data-stack (map char->integer
-						  (string->list item)))
+		 (if (not (zero? (string-length item)))
+		     (push-stack-push data-stack (map char->integer
+						      (string->list item))))
 		 (push-stack-align data-stack size 0))
 		((number? item)
 		 (push-stack-push data-stack (number->byte-list item size)))
-		((or (symbol? item) (custom-reloc item))
-		 (error "sassy: wrong size for label or custom reloc"
-			`(,(case size ((1) 'bytes) ((8) 'qwords) (else #f))
-			  ,item)))
+		((symbol item)  =>
+		 (lambda (item)
+		   (error "sassy: wrong size for label or custom reloc"
+			  `(,(case size ((1) 'bytes) ((8) 'qwords) (else #f))
+			    ,item))))
 		(else (error "sassy: bad data" item)))))
 
       (define (handle-data-symbol type target value)
@@ -266,32 +284,33 @@
 			 (get-reloc-target-sect target output 'data)))
 	       (patcher (let ((p (push-stack-push->patcher
 				  (sassy-data-stack output)
-				  (number->byte-list value
+				  (integer->byte-list value
 						     current-byte-size))))
 			  (lambda (new)
-			    (p (number->byte-list new current-byte-size))
+			    (p (integer->byte-list new current-byte-size))
 			    (sassy-reloc-value-set! a-reloc new)))))
 	  (sassy-reloc-patcher-set! a-reloc patcher)
 	  (sassy-reloc-list-set!
 	   output (cons a-reloc (sassy-reloc-list output)))
 	  (if (number? target-value)
 	      (patcher (+ target-value value))
-	      (sassy-symbol-set!
-	       output target
-	       `(unres ,(lambda (n sect)
-			  (sassy-reloc-target-section-set! a-reloc sect)
-			  (patcher (+ n value))))))))
+	      (sassy-symbol-set-unres!
+	       output target (lambda (n sect)
+			       (sassy-reloc-target-section-set! a-reloc sect)
+			       (patcher (+ n value)))))))
 
       (define (data itm size size-w)
-	(cond ((symbol? itm)
-	       (check-label-size size current-byte-size size-w itm)
-	       (handle-data-symbol 'abs itm 0))
+	(cond ((valid-label0 itm) =>
+	       (lambda (itm)
+		 (check-label-size size current-byte-size size-w itm)
+		 (handle-data-symbol 'abs itm 0)))
 
 	      ((custom-reloc itm) =>
 	       (lambda (a-reloc)
 		 (check-label-size size current-byte-size size-w a-reloc)
-		 (apply handle-data-symbol (cdr a-reloc))))
-
+		 (handle-data-symbol (cadr a-reloc)
+				     (caddr a-reloc)
+				     (cadddr a-reloc))))
 	      (else (char/str/num itm size))))
 
       (define (data-item itm)
@@ -299,25 +318,26 @@
 	(cond
 	 ((aligner itm) =>
 	  (lambda (align+offset)
-            (let ((align (car align+offset))
-                  (offset (cadr align+offset)))
-              (push-stack-align (sassy-data-stack output) align offset)
+            (let ((align  (car align+offset))
+                  (local-offset (cadr align+offset)))
+              (push-stack-align (sassy-data-stack output)
+				align 0 0 local-offset)
               (if (> align (sassy-data-align output))
                   (sassy-data-align-set! output align)))))
 
-	 ((sassy-label-form? itm)
-	  (let ((label (cadr itm))
+	 ((sassy-label-form? itm) =>
+	  (lambda (label)
+	  (let (;(label (cadr itm))
 		(things (cddr itm)))
 	    (sassy-symbol-def-error output label)
 	    (let ((offset (sassy-data-size output)))
-	      (sassy-symbol-set!
-	       output label '(section data) `(offset ,offset))
+	      (sassy-symbol-set-sect-off! output label 'data offset)
 	      (for-each data-item things)
-	      (sassy-symbol-set!
-	       output label `(size ,(- (sassy-data-size output) offset))))))
+	      (sassy-symbol-set-size!
+	       output label (- (sassy-data-size output) offset))))))
 
 	 ((sassy-locals-form? itm)
-	  (let* ((locals (cadr itm))
+	  (let* ((locals (map valid-label0 (cadr itm)))
 		 (reset! (setup-locals locals output #f)))
 	    (for-each data-item (cddr itm))
 	    (reset!)))
@@ -348,24 +368,26 @@
 	(error "sassy: bad directive" x))
 
       (define (parse itm)
-	(let ((next (if expand? (sassy-expand itm) itm)))
-	  (if (eq? next 'void)
-	      #t
-	      (case (car next)
-		((text)    (process-text (cdr next) output level))
-		((heap)    (process-heap (cdr next) output level))
-		((data)    (process-data (cdr next) output level))
-		((import)  (process-scopes  (cdr next) 'import output))
-		((export)  (process-scopes  (cdr next) 'export output))
-		((include) (process-include (cdr next) output level expand?))
-		((begin)   (for-each parse (cdr next)))
-		(else
-		 (if (or (null? (cdr next)) (not (null? (cddr next))))
-		     (bad-dir-err next)
-		     (case (car next)
-		       ((entry) (process-entry (cadr next) output))
-		       ((org)   (process-org (cadr next) output))
-		       ((bits)  (process-bits (cadr next) output))
-		       (else (bad-dir-err next)))))))))
+	(really-parse (if expand? (sassy-expand itm) itm)))
+
+      (define (really-parse next)
+	(if (eq? next 'void)
+	    #t
+	    (case (car next)
+	      ((text)    (process-text (cdr next) output level))
+	      ((heap)    (process-heap (cdr next) output level))
+	      ((data)    (process-data (cdr next) output level))
+	      ((import)  (process-scopes  (cdr next) 'import output))
+	      ((export)  (process-scopes  (cdr next) 'export output))
+	      ((include) (process-include (cdr next) output level expand?))
+	      ((begin)   (for-each really-parse (cdr next)))
+	      (else
+	       (if (or (null? (cdr next)) (not (null? (cddr next))))
+		   (bad-dir-err next)
+		   (case (car next)
+		     ((entry) (process-entry (cadr next) output))
+		     ((org)   (process-org   (cadr next) output))
+		     ((bits)  (process-bits  (cadr next) output))
+		     (else (bad-dir-err next))))))))
       
       (for-each parse directives-list))))

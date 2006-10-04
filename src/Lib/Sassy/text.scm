@@ -68,9 +68,8 @@
      (lambda (label-pair)
        (case (cadr label-pair)
 	 ((local import export)
-	  (sassy-symbol-set!
-	   outp (car label-pair)
-	   `(offset ,(- new-text-size (caddr label-pair)))))))
+	  (sassy-symbol-set-off!
+	   outp (car label-pair) (- new-text-size (caddr label-pair))))))
      list-of-label-pairs))
 
   (define (fix-block-labels! new-text-size list-of-label-pairs env)
@@ -96,8 +95,8 @@
   (define (fix-relocations! new-text-size list-of-new-relocs)
     (for-each
      (lambda (new-reloc)
-       (sassy-reloc-offset-set! new-reloc (- new-text-size
-					     (sassy-reloc-offset new-reloc)))
+       (sassy-reloc-offset-set!
+	new-reloc (- new-text-size (sassy-reloc-offset new-reloc)))
        (sassy-reloc-list-set! outp (cons new-reloc (sassy-reloc-list outp))))
      list-of-new-relocs))
 
@@ -123,8 +122,7 @@
 	 (when exists
 	       (sassy-symbol-unres-set!
 		exists
-		(cons ((caddr unres-list)
-		       (- new-text-size (cadr unres-list)))
+		(cons ((caddr unres-list) (- new-text-size (cadr unres-list)))
 		      (sassy-symbol-unres exists))))))
      list-of-unres-lists))
   
@@ -138,10 +136,9 @@
 		     ((import local export) #t)
 		     (else #f))
 		   (not (cadddr unres-list)))
-	       (sassy-symbol-set!
+	       (sassy-symbol-set-unres!
 		outp (car unres-list)
-		`(unres ,((caddr unres-list) (- new-text-size
-						(cadr unres-list))))))))
+		((caddr unres-list) (- new-text-size (cadr unres-list)))))))
      list-of-unres-lists))
 
   (define (assertion? x)
@@ -410,19 +407,22 @@
 		   (else (let ((w (really-compile (cons 'begin (cddr itm)))))
 			   (compile (cadr itm) w w)))))
 
-	    ((sassy-label-form? itm)
-	     (let ((label (cadr itm))
-		   (body  (cddr itm)))
+	    ((sassy-label-form? itm) =>
+	     (lambda (label)
+	     (let (;(label (cadr itm))
+		   (body  (cddr itm))
+		   (size  (push-stack-size (t-text textb))))
 	       (sassy-symbol-def-error outp label)
-	       (let ((scope (sassy-symbol-scope
-			     (sassy-symbol-set! outp label '(section text)))))
-		 (really-compile (cons 'begin body))
+	       (let* ((scope (sassy-symbol-scope
+			      (sassy-symbol-set-sect! outp label 'text)))
+		      (new-size (really-compile (cons 'begin body))))
+		 (sassy-symbol-set-size! outp label (- new-size size))
 		 (let ((pnt (push-stack-size (t-text textb))))
 		   (push-t-label! textb (list label scope pnt))
-		   pnt))))
+		   pnt)))))
 
 	    ((sassy-locals-form? itm)
-	     (let* ((locals (cadr itm))
+	     (let* ((locals (map valid-label0 (cadr itm)))
 		    (body   (cddr itm))
 		    (reset! (setup-locals locals outp
 					  (lambda (new-sym)

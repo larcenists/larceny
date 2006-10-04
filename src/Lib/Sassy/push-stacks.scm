@@ -160,18 +160,38 @@
   (stk2 'set-previous stk1)
   (stk1 'append stk2))
 (define (push-stack-empty? stk) (stk 'empty))
+
 (define push-stack-align
   (let ((align-to (lambda (count align)
 		    (let ((diff (modulo count align)))
 		      (if (zero? diff)
 			  0
 			  (- align diff))))))
-    (lambda (stk align fill . offset)
-      (let ((amount (align-to (+ (stk 'size)
-				 (if (null? offset) 0 (car offset)))
-			      align)))
-	(if (pair? fill)
-	    (error "can not fill a push-stack with a pair" fill)
-	    (when (not (zero? amount))
-		  (stk 'push (make-list amount fill))))))))
+    
+    (lambda (stk align fill . offsets)
+      (let* ((section-offset (if (null? offsets) 0 (car offsets)))
+	     (local-offset   (if (or (null? offsets)
+				     (null? (cdr offsets)))
+				 0
+				 (cadr offsets)))
+	     (size (stk 'size))
+	     (amount (+ (align-to (+ size section-offset) align)
+			local-offset)))
+
+	(cond
+	 ((pair? fill)
+	  (error
+	   "push-stack-align: can not fill a push-stack with a pair"
+	   fill))
+
+	 ((negative? amount)
+	  (if (<= (abs amount) align)
+	      (stk 'push (make-list (+ align amount) fill))
+	      (error
+	       "push-stack-align: alignment offset contracts push-stack"
+	       local-offset (push-stack-size stk))))
+
+	 (else
+	  (when (not (zero? amount))
+		(stk 'push (make-list amount fill)))))))))
 

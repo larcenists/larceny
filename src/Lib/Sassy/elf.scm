@@ -28,7 +28,7 @@
 ; import api push-stacks numbers
 ; export all
 
-(define (sassy-make-elf output-file sassy-output)
+(define (sassy-make-elf output-file sassy-output . user-section)
 
 ; the elf constants used
   (define sht-progbits  1)
@@ -36,6 +36,7 @@
   (define sht-strtab    3)
   (define sht-nobits    8)
   (define sht-rel       9)
+  (define sht-louser    #x80000000)
   (define shf-write     1)
   (define shf-alloc     2)
   (define shf-execinstr 4)
@@ -413,6 +414,31 @@
 				   4
 				   8)
 	      (push-stack-align image 16 0)))))
+
+; Handle the optional user section (sht_louser)
+
+    (if (not (null? user-section))
+	(let ((user-section-name (car user-section))
+	      (user-section-data (cadr user-section)))
+	  (section-header-set! user-section-name
+			       (string-table-set! sh-strtab user-section-name)
+			       sht-louser
+			       0
+			       0
+			       (push-stack-size image)
+			       (string-length user-section-data)
+			       0
+			       0
+			       1
+			       0)
+	  (let ((lng (string-length user-section-data)))
+	    (do ((i 0 (+ i 1)))
+		((= i lng))
+	      (push-stack-push
+	       image
+	       (char->integer (string-ref user-section-data i))))
+	    (push-stack-align image 16 0))))
+    
 
 ; Handle sh-strtab
 

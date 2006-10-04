@@ -70,6 +70,56 @@
      list-of-field-pairs)
     exists))
 
+(define (sassy-symbol-ensure sassy-output symbol-name)
+  (or (sassy-symbol-exists-env? sassy-output symbol-name)
+      (let ((new (make-sassy-symbol symbol-name 'local #f #f #f '() #f)))
+	(let iter ((t (sassy-symbol-table sassy-output)))
+	  (if (hash-table? (car t))
+	      (begin (hash-table-set! (car t) symbol-name new)
+		     new)
+	      (iter (cdr t)))))))
+
+; fast path cases used internally
+; instead blah-foo-set! these are all blah-set-foo!
+(define (sassy-symbol-set-scope! sassy-output name scope)
+  (let ((sym (sassy-symbol-ensure sassy-output name)))
+    (sassy-symbol-scope-set! sym scope)
+    sym))
+
+(define (sassy-symbol-set-sect-off! so name sect off)
+  (let ((sym (sassy-symbol-ensure so name)))
+    (sassy-symbol-section-set! sym sect)
+    (sassy-symbol-offset-set! sym off)
+    (for-each (lambda (back-patcher)
+		(back-patcher off (sassy-symbol-section sym)))
+	      (sassy-symbol-unres sym))
+    sym))
+
+(define (sassy-symbol-set-off! so name off)
+  (let ((sym (sassy-symbol-ensure so name)))
+    (sassy-symbol-offset-set! sym off)
+    (for-each (lambda (back-patcher)
+		(back-patcher off (sassy-symbol-section sym)))
+	      (sassy-symbol-unres sym))
+    sym))
+
+(define (sassy-symbol-set-size! so name size)
+  (let ((sym (sassy-symbol-ensure so name)))
+    (sassy-symbol-size-set! sym size)
+    sym))
+
+(define (sassy-symbol-set-unres! so name unres)
+  (let ((sym (sassy-symbol-ensure so name)))
+    (sassy-symbol-unres-set! sym (cons unres (sassy-symbol-unres sym)))
+    sym))
+
+(define (sassy-symbol-set-sect! so name sect)
+  (let ((sym (sassy-symbol-ensure so name)))
+    (sassy-symbol-section-set! sym sect)
+    sym))
+
+  
+
 (define sassy-symbol-exists-env? sassy-symbol-exists?)
 
 
@@ -118,14 +168,27 @@
 	     (cons new-sym (iter (cdr rest)))))))
     restore!))
 
-(define valid-label
+(define (quoted-label x)
+  (and (pair? x)
+       (eq? 'quote (car x))
+       (let ((x (cdr x)))
+	  (and (pair? x)
+	       (null? (cdr x))
+	       (let ((x (car x)))
+		 (and (symbol? x) x))))))
+
+(define valid-label0
   (let ((keywords '(seq begin inv if iter while with-win
 			with-lose with-win-lose esc
 			mark leap label)))
-    (lambda (x) (or (and (symbol? x)
-			 (not (member x keywords))
-			 x)
-		    (error "sassy: invalid label" x)))))
+    (lambda (x)
+      (cond ((and (symbol? x) (not (member x keywords))) x)
+	    ((quoted-label x))
+	    (else #f)))))
+
+(define (valid-label x)
+  (or (valid-label0 x)
+      (error "sassy: invalid label" x)))
 
 (define (get-reloc-target target outp)
   (if (symbol? target)
