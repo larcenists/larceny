@@ -38,7 +38,8 @@ case "`basename "$0"`" in
     ;;
 esac
 
-TODAY=`date +%F`
+# Perhaps add more to this, like the hour and minute?
+TODAY=`date +%Y-%m-%d` 
 DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TODAY}
 
 # Checkout source tree
