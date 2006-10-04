@@ -5,6 +5,8 @@
 ;
 ; $Id$
 
+; NB: pnkfelix says its buggy; (glob "[a]z" "ay") shouldn't be #t.
+
 ; This is the GLOB(7) algorithm as commonly used on Unix systems.
 ; The exact behavior of the algorithm is specified by a standard
 ; (namely, POSIX 1003.2, 3.13).  The following procedure implements
