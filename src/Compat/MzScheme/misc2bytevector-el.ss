@@ -120,7 +120,7 @@
 ; Big endian always.
 (define flonum-bits
   (if version-299?
-      (lambda (x) (bytes->list (real->floating-point-bytes x 8 #t)))
+      (lambda (x) (reverse (bytes->list (real->floating-point-bytes x 8 #t))))
       (lambda (x) (map char->integer
                        (string->list (real->floating-point-byte-string x 8))))))
       
