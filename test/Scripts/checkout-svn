@@ -1,8 +1,30 @@
 # Setup options (based on script's name)
 case "`basename "$0"`" in
+
+    checkout-larceny-solaris-native)
+	SCHEME_PGM=larceny
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'solaris 'native"
+	DIRNAME=native
+    ;;
+    checkout-mzscheme-solaris-native)
+	SCHEME_PGM=mzscheme
+	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'solaris 'native"
+	DIRNAME=native
+    ;;
+    checkout-larceny-solaris-petit)
+	SCHEME_PGM=larceny
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'solaris"
+	DIRNAME=native
+    ;;
+    checkout-mzscheme-solaris-petit)
+	SCHEME_PGM=mzscheme
+	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'solaris"
+	DIRNAME=native
+    ;;
+
     checkout-larceny-linux86-petit)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny 'host: 'linux86"
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'linux86"
 	DIRNAME=petit
     ;;
     checkout-mzscheme-linux86-petit)
@@ -12,7 +34,7 @@ case "`basename "$0"`" in
     ;;
     checkout-larceny-linux86-dotnet)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny 'host: 'linux86 'dotnet"
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'linux86 'dotnet"
 	DIRNAME=dotnet
     ;;
     checkout-mzscheme-linux86-dotnet)
@@ -22,7 +44,7 @@ case "`basename "$0"`" in
     ;;
     checkout-larceny-linux86-native)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny 'host: 'linux86 'sassy"
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'linux86 'sassy"
 	DIRNAME=native
     ;;
     checkout-mzscheme-linux86-native)
@@ -31,10 +53,20 @@ case "`basename "$0"`" in
 	DIRNAME=native
     ;;
     *)
+    case "`uname`" in
+	SunOS)
+	echo "Setup arguments not specified; assuming Solaris native build."
+	SCHEME_PGM=larceny
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'solaris 'native"
+	DIRNAME=default
+	;;
+	Linux)
 	echo "Setup arguments not specified; assuming linux86 native build."
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny 'host: 'linux86 'sassy"
+	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'linux86 'sassy"
 	DIRNAME=default
+	;;
+    esac
     ;;
 esac
 
