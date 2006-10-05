@@ -273,7 +273,7 @@
 
 ;(define-struct time (type nanosecond second) (make-inspector))
 
-(define-record-type time
+(define-record-type time-record
   (make-time type nanosecond second)
   time?
   (type time-type set-time-type!)
