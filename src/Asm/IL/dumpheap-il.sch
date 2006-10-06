@@ -68,7 +68,9 @@
 
 ;; il-finalize : output-port -> void
 (define (il-finalize oport)
-  (dump-top-level))
+  (dump-top-level)
+  (display "// ilasm can't handle empty files" oport)
+  (newline oport))
 
 (define (init-variables)
   (set! *segment-number* 0)

@@ -298,7 +298,8 @@
     (class-start "SchemeManifest" #f "[mscorlib]System.Object"
                  '(public auto ansi beforefieldinit))
     (dump-toplevels (apply append (map manifest-get-loaders manifests)))
-    (dump-debug-info (map manifest-get-namespace manifests))
+    (dump-debug-info (filter (lambda (x) x)
+                             (map manifest-get-namespace manifests)))
     (class-finish)
     
     (dump-main-function '() #f)
@@ -355,14 +356,16 @@
         (il:call '() iltype-void il-exn "registerNamespace"
                  (list iltype-string iltype-string))))
 
-;; manifest-get-namespace : string -> (string . string)
+;; manifest-get-namespace : string -> [Maybe (string . string)]
 (define (manifest-get-namespace fasl)
   (with-input-from-file fasl
     (lambda ()
-      (let* ((entry0 (read))
-             (file-base (car entry0))
-             (il-namespace (cadr entry0)))
-        (cons il-namespace file-base)))))
+      (let ((entry0 (read)))
+        (if (eof-object? entry0)
+          #f
+          (let ((file-base (car entry0))
+                (il-namespace (cadr entry0)))
+            (cons il-namespace file-base)))))))
 
 ;; dump-toplevels : (listof string) -> void
 (define (dump-toplevels loaders)
