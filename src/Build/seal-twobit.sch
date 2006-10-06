@@ -2,13 +2,15 @@
 ;; so that the heap will only provide a controlled interface to
 ;; the Twobit compiler.
 '(load-compiler 'release)
-(load "Lib/Common/toplevel.sch")
+(compat:load (param-filename 'common-source "toplevel.sch"))
 (let ((arch (assq 'arch-name (system-features))))
   (case (string->symbol (string-downcase (cdr arch)))
-    ((sparc) (load "Lib/Sparc/toplevel-target.sch"))
+    ((sparc) (compat:load (param-filename 'source "Arch" "Sparc"
+                                          "toplevel-target.sch")))
     ((clr)   
      ;(load "Lib/MzScheme/init.sch")
-     (load "Lib/IL/toplevel-target.sch"))
+     (compat:load (param-filename 'source "Arch" "IL"
+                                  "toplevel-target.sch")))
     (else 
      (error 'seal-twobit "Add case for " arch))))
 

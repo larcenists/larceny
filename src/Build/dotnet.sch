@@ -125,7 +125,7 @@
   (compat:initialize)
   (load (string-append (nbuild-parameter 'util) "expander.sch"))
   (load (string-append (nbuild-parameter 'util) "config.sch"))
-  (load (string-append (nbuild-parameter 'util) "csharp-config.scm"))
+  (load (string-append (nbuild-parameter 'util) "csharp-config.sch"))
   )
 
 
@@ -245,36 +245,37 @@
     (close-output-port p)))
   
 (define (build-twobit-base app-name additional-files)
-  (define crock-file-1 "Rts/Build/dotnet-twobit-1.sch")
-  (define crock-file-2 "Rts/Build/dotnet-twobit-2.sch")  
+  (define crock-file-1 (param-filename 'util "dotnet-twobit-1.sch"))
+  (define crock-file-2 (param-filename 'util "dotnet-twobit-2.sch"))
 
   (write-crock-one crock-file-1)
   (write-crock-two crock-file-2)
 
   (compile-application 
    app-name
-   (append (list "Util/dotnet.sch") 
+   (append (param-filename 'util '("dotnet.sch")) 
 	   ;; Next bunch is the result of breaking down larceny-setup
 	   ;; into seperate components seperated by its calls to load
 	   (list crock-file-1)
-	   (case option:os 
-	     ((win32) (list "Util\\sysdep-win32.sch"))
-	     ((unix macosx) (list "Util/sysdep-unix.sch")))
-	   (list "Util/petit-unix-defns-globals.sch")
+           (param-filename 'util
+                           (case option:os 
+                             ((win32) '("sysdep-win32.sch"))
+                             ((unix macosx) '("sysdep-unix.sch"))))
+	   (param-filename 'util '("petit-unix-defns-globals.sch"))
 	   (list crock-file-2)
-	   (list "Compat/Larceny/compat.sch" "Compat/Larceny/compat2.sch"
-		 "Auxlib/list.sch" "Auxlib/pp.sch")
-	   (list "Util/expander.sch" "Util/config.sch"
-		 "Util/csharp-config.scm")
+           (param-filename 'compatibility '("compat.sch" "compat2.sch"))
+           (param-filename 'auxiliary '("list.sch" "pp.sch"))
+           (param-filename 'util '("expander.sch" "config.sch"
+                                   "csharp-config.sch"))
 	   ;; Rest is from load-compiler
-	   (list "Util/nbuild-files.sch" "Util/nbuild-defns.sch"
+           (param-filename 'util '("nbuild-files.sch" "nbuild-defns.sch"))
 		 ;; "Util/nbuild.sch" ;; This does the loading that's inlined below
-		 )
 	   (nbuild:twobit-files)
 	   (nbuild:common-asm-files)
 	   (nbuild:machine-asm-files)
 	   (nbuild:utility-files)
-	   (list "Rts/make-templates.sch" "Util/cleanup.sch")
+           (param-filename 'rts '("make-templates.sch"))
+           (param-filename 'util '("cleanup.sch"))
 
            additional-files
 	   )))
@@ -283,29 +284,28 @@
   (cond ((file-exists? "Twobit.fasl")
 	 (delete-file "Twobit.fasl")))
   (build-twobit-base "Twobit" 
-                     '("Util/dotnet-compile-file.sch")))
+                     (param-filename 'auxiliary "dotnet-compile-file.sch")))
 
 (define (build-larceny)
   (cond ((file-exists? "Larceny.fasl")
 	 (delete-file "Larceny.fasl")))
-  (build-twobit-base "Larceny" 
-                     '("Compiler/driver-larceny.sch"
-                       "Util/seal-twobit.sch"
-                       "Util/dotnet-compile-file.sch"
-                       
-                       "Asm/Common/link-lop.sch"
-                       "Asm/IL/il-jdot-aliases.sch"
-                       "Asm/IL/il-corememory.sch"
-
-                       "Debugger/debug.sch"
-                       "Debugger/inspect-cont.sch"
-                       "Debugger/trace.sch"
-                       
-                       "Util/dotnet-larceny.sch")))
+  (build-twobit-base "Larceny"
+                     `(,@(param-filename 'compiler '("driver-larceny.sch"))
+                       ,@(param-filename 'util '("seal-twobit.sch"))
+                       ,@(param-filename 'auxiliary '("dotnet-compile-file.sch"))
+                       ,@(param-filename 'common-asm '("link-lop.sch"))
+                       ,@(param-filename 'dotnet-asm '("il-jdot-aliases.sch"
+                                                       "il-corememory.sch"))
+                       ,@(param-filename 'debugger '("debug.sch"
+                                                     "inspect-cont.sch"
+                                                     "trace.sch"))
+                       ,@(param-filename 'util '("dotnet-larceny.sch")))))
 
 ;; Convenience
-(define (load-debugger)
-  (load (make-filename *larceny-root* "Debugger" "trace.sch"))
-  (load (make-filename *larceny-root* "Debugger" "inspect-cont.sch"))
-  (load (make-filename *larceny-root* "Debugger" "debug.sch"))
-  (install-debugger))
+;(define (load-debugger)
+; (for-each load (param-filename 'debugger '("trace.sch"
+;                                            "inspect-cont.sch"
+;                                            "debug.sch")))
+; (install-debugger))
+
+
