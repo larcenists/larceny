@@ -88,9 +88,9 @@
 (compiler-switches 'fast-safe)
 (initialize-help (nbuild-parameter 'compiler) 
 		 'full
-		 (if (eq? 'SPARC (nbuild-parameter 'target-machine))
-		     'native
-		     'petit))
+                 (case (nbuild-parameter 'target-machine)
+                   ((SPARC x86-sass) 'native)
+                   (else 'petit)))
 
 ; Initialize assembler (Nothing yet -- must eventually adjust endianness.)
 
