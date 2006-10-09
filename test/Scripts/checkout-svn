@@ -1,64 +1,66 @@
+SETUP_ARGS="'exit-on-error 'quiet-load"
+
 # Setup options (based on script's name)
 case "`basename "$0"`" in
 
     checkout-larceny-solaris-native)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'solaris 'native"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=native
     ;;
     checkout-mzscheme-solaris-native)
 	SCHEME_PGM=mzscheme
-	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'solaris 'native"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris 'native"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=native
     ;;
     checkout-larceny-solaris-petit)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'solaris"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=native
     ;;
     checkout-mzscheme-solaris-petit)
 	SCHEME_PGM=mzscheme
-	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'solaris"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=native
     ;;
 
     checkout-larceny-linux86-petit)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'linux86"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=petit
     ;;
     checkout-mzscheme-linux86-petit)
 	SCHEME_PGM=mzscheme
-	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'linux86"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=petit
     ;;
     checkout-larceny-linux86-dotnet)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'linux86 'dotnet"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'dotnet"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=dotnet
     ;;
     checkout-mzscheme-linux86-dotnet)
 	SCHEME_PGM=mzscheme
-	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'linux86 'dotnet"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'dotnet"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=dotnet
     ;;
     checkout-larceny-linux86-native)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'linux86 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
     ;;
     checkout-mzscheme-linux86-native)
 	SCHEME_PGM=mzscheme
-	SETUP_ARGS="'exit-on-error 'scheme: 'mzscheme 'host: 'linux86 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'sassy"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
     ;;
@@ -67,14 +69,14 @@ case "`basename "$0"`" in
 	SunOS)
 	echo "Setup arguments not specified; assuming Solaris native build."
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'solaris 'native"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=default
 	;;
 	Linux)
 	echo "Setup arguments not specified; assuming linux86 native build."
 	SCHEME_PGM=larceny
-	SETUP_ARGS="'exit-on-error 'scheme: 'larceny  'host: 'linux86 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=default
 	;;
@@ -99,6 +101,7 @@ $SCHEME_PGM <<EOF
   (setup ${SETUP_ARGS} )
   (build-config-files)
   (load-compiler)
+  (set! *make-verbose* #f)
   (build-heap)
   (build-runtime)
   (build-executable)
