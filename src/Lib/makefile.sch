@@ -29,49 +29,53 @@
 ;
 ; Action procedures for the rules.
 
+(define *make-verbose* #t)
+(define (make-mesg . args)
+  (cond (*make-verbose* (for-each display args) (newline))))
+
 (define (make-compile target deps)
-  (display "Compiling ") (display target) (newline)
+  (make-mesg "Compiling " target)
   (compile313 (car deps) target))
 
 (define (make-assemble target deps)
-  (display "Assembling ") (display target) (newline)
+  (make-mesg "Assembling " target)
   (assemble313 (car deps) target))
 
 (define (make-compile-file target deps)
-  (display "Compiling File ") (display target) (newline)
+  (make-mesg "Compiling File " target)
   (compile-file (car deps)))
 
 (define (make-compile-file/with-syntax target deps)
-  (display "Compiling File (with Syntax) ") (display target) (newline)
+  (make-mesg "Compiling File (with Syntax) " target)
   (compile-file/with-syntax (car deps) (cdr deps) target))
 
 (define (make-compile-and-assemble target deps)
-  (display "Compiling and Assembling ") (display target) (newline)
+  (make-mesg "Compiling and Assembling " target)
   (compile-and-assemble313 (car deps) target))
 
 (define (make-compile-and-assemble/no-keywords target deps)
-  (display "Compiling and Assembling (no keywords) ") (display target) (newline)
+  (make-mesg "Compiling and Assembling (no keywords) " target)
   (parameterize ((recognize-keywords? #f))
     (compile-and-assemble313 (car deps) target)))
 
 (define (make-compile-and-assemble/keywords target deps)
-  (display "Compiling and Assembling (w/ keywords) ") (display target) (newline)
+  (make-mesg "Compiling and Assembling (w/ keywords) " target)
   (parameterize ((recognize-keywords? #t))
     (compile-and-assemble313 (car deps) target)))
 
 (define (make-assemble-file target deps)
-  (display "Assembling ") (display target) (newline)
+  (make-mesg "Assembling " target)
   (assemble-file (car deps)))
 
 (define (make-dumpheap target files)
-  (display "Dumping ") (display target) (newline)
+  (make-mesg "Dumping " target)
   (delete-file target)
   (build-heap-image target files))
 
 (define *extended-files* '())
 
 (define (make-copy target src)
-  (display "Copying ") (display target) (newline)
+  (make-mesg "Copying " target)
   (call-with-input-file (car src)
     (lambda (inp)
       (delete-file target)
