@@ -29,6 +29,7 @@
 
 (define *root-directory* "")
 (define *always-source* #f)
+(define *verbose-load* #t)
 
 (define *code-coverage* #f)
 (define *rebuild-code-coverage* #f)

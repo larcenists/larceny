@@ -22,7 +22,7 @@
 	  ))
   (load "src/Build/nbuild-param.sch")
   (set! nbuild-parameter (make-nbuild-parameter 'always-source?    *always-source*
-                                                'verbose-load?     #t
+                                                'verbose-load?     *verbose-load*
                                                 'development?      #t
                                                 'machine-source    (pathname-append "src" "Lib" "Arch" *target:machine-source*)
                                                 'mzscheme-source   (pathname-append "src" "Lib" "MzScheme")

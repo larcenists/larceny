@@ -106,7 +106,9 @@
                      (with-default #f host:)
                      (with-default #f target:)
                      (with-default #f c-compiler:)
-		     (flag exit-on-error)
+                     (flag exit-on-error)
+                     (flag quiet-load)
+                     (flag verbose-load)
                      (flag always-source)
                      (flag help)
                      (flag native)
@@ -123,6 +125,11 @@
   ;; should fail spectacularly on almost any other imaginable Scheme.
   (cond ((eq? scheme: 'larceny)
          ((environment-get (interaction-environment) 'current-larceny-root))))
+
+  (set! *always-source* always-source)
+
+  (cond (quiet-load   (set! *verbose-load* #f))
+        (verbose-load (set! *verbose-load* #t)))
                         
   ;; If on Larceny, allow more leeway for omitted options.  Need to
   ;; add arch: to keys above (w/ reasonable implication logic).
@@ -167,7 +174,7 @@
                            ((macosx86) 'macosx-el)
                            (else host:)))
                 (target: (if target: target: host:)))
-           (setup-real! scheme: host: target: c-compiler: (or native sassy nasm) code-cov rebuild-code-cov always-source sassy nasm)))))
+           (setup-real! scheme: host: target: c-compiler: (or native sassy nasm) code-cov rebuild-code-cov sassy nasm)))))
 
 ;; Can't use parameters for *host-dir* and such, because we have not
 ;; loaded the compatibility files yet at the time we get here.
@@ -177,7 +184,7 @@
 ;; Sets global variables (based on Scheme impl. running on and Target OS), then calls UNIX-INITIALIZE
 (define (setup-real! host-scheme host-arch target-arch 
 		     c-compiler-choice native code-cov rebuild-code-cov 
-		     always-source sassy nasm)
+		     sassy nasm)
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris) 'big)
@@ -330,6 +337,4 @@
 	  (eq? *target:machine* 'x86-sass))
       (set! *globals-table* "globals-nasm.cfg"))
  
-  (set! *always-source* always-source)
-
   (unix-&-win32-initialize))
