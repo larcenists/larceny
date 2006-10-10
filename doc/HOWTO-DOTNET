@@ -46,10 +46,6 @@ may place additional demands on your host system.  Currently all systems
 need some version of "make" to be able to build the run-time system, and
 will need access to a command interepreter.
 
-The first time you run the build environment you will want to evaluate:
-
-    > (setup-directory-structure)
-
 Whenever you have altered any of the Rts/*.cfg, or the first time you
 run the build environment, you will want to evaluate:
 
