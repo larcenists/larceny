@@ -75,7 +75,10 @@
     (apply-parameter-value 'x86-sass-asm (pathname-append dir "src" "Asm" "IAssassin"))
     (apply-parameter-value 'standard-C-asm (pathname-append dir "src" "Asm" "Standard-C"))
     (apply-parameter-value 'dotnet-asm     (pathname-append dir "src" "Asm" "IL"))
+    ;; 'compatibility varies with host scheme, but 'larceny-compatibility
+    ;; always points to src/Compat/Larceny
     (apply-parameter-value 'compatibility (pathname-append dir "src" "Compat" "Larceny"))
+    (apply-parameter-value 'larceny-compatibility (pathname-append dir "src" "Compat" "Larceny"))
     (apply-parameter-value 'srfi (pathname-append dir "lib" "SRFI"))
     (apply-parameter-value 'auxiliary (pathname-append dir "lib" "Base"))
     (apply-parameter-value 'debugger (pathname-append dir "lib" "Debugger"))
@@ -112,6 +115,7 @@
          verbose-load?
          development?
          compatibility
+         larceny-compatibility
          srfi
          auxiliary
          debugger

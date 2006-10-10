@@ -263,7 +263,7 @@
                              ((unix macosx) '("sysdep-unix.sch"))))
 	   (param-filename 'util '("petit-unix-defns-globals.sch"))
 	   (list crock-file-2)
-           (param-filename 'compatibility '("compat.sch" "compat2.sch"))
+           (param-filename 'larceny-compatibility '("compat.sch" "compat2.sch"))
            (param-filename 'auxiliary '("list.sch" "pp.sch"))
            (param-filename 'util '("expander.sch" "config.sch"
                                    "csharp-config.sch"))
