@@ -245,7 +245,7 @@ cat > ${TEMPSCM} <<EOF
                         (real (list-ref line 2))
                         (gc   (list-ref line 3))
                         (numt "numeric/integer"))
-                    (format #t "<Test><Name>.DynamicAnalysis.~s</Name>" name)
+                    (format #t "<Test><Name>.DynamicAnalysis.~s.~s</Name>" name name)
                     (newline)
                     (for-each (lambda (name type val)
                                 (format #t "<Measurement name=~s type=~s>~s</Measurement>" name type val))
