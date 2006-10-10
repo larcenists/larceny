@@ -80,6 +80,17 @@ case "`basename "$0"`" in
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=default
 	;;
+	Darwin)
+	echo "Setup arguments not specified; assuming macosx86 native build."	
+	SCHEME_PGM=larceny
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	DIRNAME=default
+	;;
+	*)
+	echo "Setup arguments not specified; unknown target architecture."
+	exit 1
+	;;
     esac
     ;;
 esac
