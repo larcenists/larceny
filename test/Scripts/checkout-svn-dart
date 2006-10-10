@@ -121,7 +121,12 @@ function eval_stage {
    dartlog '<Name>'.Build.Stage$1'</Name>'
    dartlog '<Measurement name="StageName" type="text/string">'$2'</Measurement>'
    dartlog '<Measurement name="StartDateTime" type="text/string">'`$CALCDATEDART`'</Measurement>'
+   SECS_BEGIN=`date +%s`
    eval $3 > ${TEMPLOG}
+   SECS_FINIS=`date +%s`
+   dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
+   dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+   dartlog '</Measurement>'
    dartlog '<Measurement name="EndDateTime"  type="text/string">'`$CALCDATEDART`'</Measurement>'
    dartlog '<Measurement name="BuildCommand" type="text/string">' $3    '</Measurement>'
 #   dartlog '<Measurement name="Log" type="text/xml">' 
@@ -177,7 +182,12 @@ function library_test {
   (run-$2-tests)
   (exit num-fails))
 EOF
+    SECS_BEGIN=`date +%s`
     ../../larceny -- ${TEMPSCM} > ${TEMPLOG} && STATUS="passed" || STATUS="failed"
+    SECS_FINIS=`date +%s`
+    dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
+    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+    dartlog '</Measurement>'
     dart_post_test
     dartlog '</Test>'
     popd > /dev/null
@@ -208,7 +218,12 @@ function compiler_tests {
   (run-compiler-tests $1)
   (exit num-fails))
 EOF
+    SECS_BEGIN=`date +%s`
     ../../larceny -- ${TEMPSCM} > ${TEMPLOG} && STATUS="passed" || STATUS="failed"
+    SECS_FINIS=`date +%s`
+    dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
+    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+    dartlog '</Measurement>'
     ## Once again, can't include TEMPLOG because dart/xmlrpc sucks at big literal logs
     # dart_post_test
     dartlog '<Status>'
