@@ -158,7 +158,7 @@ function dart_post_test {
     dartlog '<Status>'
     dartlog ${STATUS}
     dartlog '</Status>'
-    dartlog '<Measurement name="Output" type="text/html">' 
+    dartlog '<Measurement name="Output" type="text/text">'
     quotetextfile ${TEMPLOG}
     dartlog '</Measurement>'
 }
