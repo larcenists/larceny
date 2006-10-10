@@ -127,6 +127,9 @@ function eval_stage {
    dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
    dartlog '</Measurement>'
+   dartlog '<Measurement name="Execution Time" type="numeric/float">'
+   dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+   dartlog '</Measurement>'
    dartlog '<Measurement name="EndDateTime"  type="text/string">'`$CALCDATEDART`'</Measurement>'
    dartlog '<Measurement name="BuildCommand" type="text/string">' $3    '</Measurement>'
 #   dartlog '<Measurement name="Log" type="text/xml">' 
@@ -185,7 +188,7 @@ EOF
     SECS_BEGIN=`date +%s`
     ../../larceny -- ${TEMPSCM} > ${TEMPLOG} && STATUS="passed" || STATUS="failed"
     SECS_FINIS=`date +%s`
-    dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
+    dartlog '<Measurement name="Execution Time" type="numeric/float">'
     dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
     dartlog '</Measurement>'
     dart_post_test
@@ -221,7 +224,7 @@ EOF
     SECS_BEGIN=`date +%s`
     ../../larceny -- ${TEMPSCM} > ${TEMPLOG} && STATUS="passed" || STATUS="failed"
     SECS_FINIS=`date +%s`
-    dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
+    dartlog '<Measurement name="Execution Time" type="numeric/float">'
     dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
     dartlog '</Measurement>'
     ## Once again, can't include TEMPLOG because dart/xmlrpc sucks at big literal logs
@@ -253,7 +256,11 @@ cat > ${TEMPSCM} <<EOF
     (let* ((str (get-output-string os))
            (is (open-input-string str))
            (decoded (decode-summary is))
-           (lines (caddr decoded)))
+           (lines (caddr decoded))
+           (format-measurement (lambda (name type val)
+                                 (format #t "<Measurement name=~s type=~s>~s</Measurement>" 
+                                         name type val)
+                                 (newline))))
       (for-each (lambda (line)
                   (let ((name (list-ref line 0))
                         (cpu  (list-ref line 1))
@@ -262,12 +269,12 @@ cat > ${TEMPSCM} <<EOF
                         (numt "numeric/integer"))
                     (format #t "<Test><Name>.DynamicAnalysis.~s.~s</Name>" name name)
                     (newline)
-                    (for-each (lambda (name type val)
-                                (format #t "<Measurement name=~s type=~s>~s</Measurement>" name type val))
+                    (format-measurement "Execution Time" "numeric/float" 
+                                        (exact->inexact (/ real 60000)))
+                    (for-each format-measurement
                               (list "cpu time" "real time" "gc time")
                               (list numt       numt        numt)
                               (list cpu        real        gc))
-                    (newline)
                     (format #t "</Test>")
                     (newline)))
                 lines)))
