@@ -6,64 +6,105 @@ case "`basename "$0"`" in
     checkout-larceny-solaris-native)
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native"
+	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=native
     ;;
     checkout-mzscheme-solaris-native)
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris 'native"
+	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=native
     ;;
     checkout-larceny-solaris-petit)
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris"
-	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=native
     ;;
     checkout-mzscheme-solaris-petit)
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris"
-	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=native
     ;;
 
     checkout-larceny-linux86-petit)
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86"
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
     ;;
     checkout-mzscheme-linux86-petit)
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86"
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
     ;;
-    checkout-larceny-linux86-dotnet)
-	SCHEME_PGM=larceny
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'dotnet"
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
-	DIRNAME=dotnet
-    ;;
-    checkout-mzscheme-linux86-dotnet)
-	SCHEME_PGM=mzscheme
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'dotnet"
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
-	DIRNAME=dotnet
-    ;;
+#    checkout-larceny-linux86-dotnet)
+#	SCHEME_PGM=larceny
+#	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'dotnet"
+#	FINAL_LARCENY_BIN=dotnet.heap.exe
+#	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+#	DIRNAME=dotnet
+#    ;;
+#    checkout-mzscheme-linux86-dotnet)
+#	SCHEME_PGM=mzscheme
+#	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'dotnet"
+#	FINAL_LARCENY_BIN=dotnet.heap.exe
+#	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+#	DIRNAME=dotnet
+#    ;;
     checkout-larceny-linux86-native)
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
+	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
     ;;
     checkout-mzscheme-linux86-native)
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'sassy"
+	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
     ;;
+
+    checkout-larceny-macosx-petit)   # PPC!
+	SCHEME_PGM=larceny
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	DIRNAME=petit
+    ;;
+    checkout-mzscheme-macosx-petit)  # PPC!
+	SCHEME_PGM=mzscheme
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	DIRNAME=petit
+    ;;
+    checkout-larceny-macosx-native)  # IA32!
+	SCHEME_PGM=larceny
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy"
+	FINAL_LARCENY_BIN=larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	DIRNAME=native
+    ;;
+    checkout-mzscheme-macosx-native) # IA32!
+	SCHEME_PGM=mzscheme
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx-el 'sassy"
+	FINAL_LARCENY_BIN=larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	DIRNAME=native
+    ;;
+
+
     *)
     case "`uname`" in
 	SunOS)
@@ -171,7 +212,7 @@ eval_stage Executable  "4. larceny executable" "`host_scm_cmd '(build-executable
 
 eval_stage LarcenyFasl "5. larceny fasl files" "`host_scm_cmd '(build-larceny-files)'`"
 
-eval_stage LarcenyHeap "6. larceny heap"       "pushd ${DIR}/larceny_src; echo | ./larceny.bin -stopcopy -- ${HEAP_DUMP_SCRIPT}; popd"
+eval_stage LarcenyHeap "6. larceny heap"       "pushd ${DIR}/larceny_src; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${HEAP_DUMP_SCRIPT}; popd"
 
 function dart_post_test {
     dartlog '<Status>'
