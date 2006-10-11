@@ -229,7 +229,8 @@
   (case *heap-type*
     ((petit)
      (build-application "petit-larceny.bin"
-                        (petit-development-environment-lop-files)))
+                        (petit-development-environment-lop-files))
+     (copy-script "larceny"))
     ((sparc-native sassy)
      'done)
     (else (error 'build-larceny-files "Unknown heap type"))))
