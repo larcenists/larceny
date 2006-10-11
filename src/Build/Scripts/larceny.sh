@@ -33,9 +33,14 @@ case "`basename "$0"`" in
     ;;
 
     larceny)            #option
-        heap=larceny.heap
-        cmd=petit-larceny.bin
-        test -x $LARCENY_ROOT/$cmd || cmd=larceny.bin
+	cmd=petit-larceny.bin
+	heap=petit-larceny.heap
+        if test -x $LARCENY_ROOT/$cmd; then
+	    :
+	else
+	    cmd=larceny.bin
+	    heap=larceny.heap
+	fi
     ;;
 
     twobit)             #option
