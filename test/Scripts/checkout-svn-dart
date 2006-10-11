@@ -177,7 +177,7 @@ function eval_stage {
    dartlog '<Measurement name="StageName" type="text/string">'$2'</Measurement>'
    dartlog '<Measurement name="StartDateTime" type="text/string">'`$CALCDATEDART`'</Measurement>'
    SECS_BEGIN=`date +%s`
-   eval $3 > ${TEMPLOG}
+   eval $3 > ${TEMPLOG} && STATUS="passed" || STATUS="failed"
    SECS_FINIS=`date +%s`
    dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
@@ -185,6 +185,9 @@ function eval_stage {
    dartlog '<Measurement name="Execution Time" type="numeric/float">'
    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
    dartlog '</Measurement>'
+   dartlog '<Status>'
+   dartlog ${STATUS}
+   dartlog '</Status>'
    dartlog '<Measurement name="EndDateTime"  type="text/string">'`$CALCDATEDART`'</Measurement>'
    dartlog '<Measurement name="BuildCommand" type="text/string">' $3    '</Measurement>'
 #   dartlog '<Measurement name="Log" type="text/xml">' 
