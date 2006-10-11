@@ -8,10 +8,11 @@
 ; 1  Evaluate (BUILD-LARCENY-FILES) in the development environment
 ; 2  From the command line run
 ;        petit-larceny -stopcopy petit.heap
-; 3  Load the development environment:
-;        Load Util/petit-whatever.sch 
-;        (LOAD-COMPILER 'RELEASE)
-; 4  Load this script.  It will create petit-larceny.heap.
+; 3  Load this script.  It will create petit-larceny.heap.
+
+(load "setup.sch")
+(setup)
+(load-compiler 'release)
 
 (define ($$trace x) #f)                 ; Some code uses this
 
