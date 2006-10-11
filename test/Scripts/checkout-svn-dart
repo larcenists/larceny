@@ -1,3 +1,4 @@
+TRACK=${TRACK:-"Experimental"}
 SETUP_ARGS="'exit-on-error 'quiet-load"
 
 # Setup options (based on script's name)
@@ -167,7 +168,7 @@ function quotetextfile { # esc_html
 dartlog '<DartSubmission version="2.0" createdby="' $0 '">'
 dartlog '<Site>'`hostname`'</Site>'
 dartlog '<BuildName>'`uname` $DIRNAME'</BuildName>'
-dartlog '<Track>'Nightly'</Track>'
+dartlog '<Track>'${TRACK}'</Track>'
 dartlog '<DateTimeStamp>'`$CALCDATEDART`'</DateTimeStamp>'
 
 # args: DartStageName HumanStageName CmdString
