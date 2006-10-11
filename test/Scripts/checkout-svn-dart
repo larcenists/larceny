@@ -190,9 +190,9 @@ function eval_stage {
    dartlog '</Status>'
    dartlog '<Measurement name="EndDateTime"  type="text/string">'`$CALCDATEDART`'</Measurement>'
    dartlog '<Measurement name="BuildCommand" type="text/string">' $3    '</Measurement>'
-#   dartlog '<Measurement name="Log" type="text/xml">' 
-#   quotetextfile ${TEMPLOG}
-#   dartlog '</Measurement>'
+   dartlog '<Measurement name="Log" type="text/xml">' 
+   quotetextfile ${TEMPLOG}
+   dartlog '</Measurement>'
    dartlog '</Test>'
 }
 
@@ -285,8 +285,7 @@ EOF
     dartlog '<Measurement name="Execution Time" type="numeric/float">'
     dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
     dartlog '</Measurement>'
-    ## Once again, can't include TEMPLOG because dart/xmlrpc sucks at big literal logs
-    # dart_post_test
+    dart_post_test
     dartlog '<Status>'
     dartlog ${STATUS}
     dartlog '</Status>'
