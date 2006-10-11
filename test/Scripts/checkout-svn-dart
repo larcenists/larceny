@@ -111,6 +111,7 @@ case "`basename "$0"`" in
 	echo "Setup arguments not specified; assuming Solaris native build."
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native"
+	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=default
 	;;
@@ -118,6 +119,7 @@ case "`basename "$0"`" in
 	echo "Setup arguments not specified; assuming linux86 native build."
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
+	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=default
 	;;
@@ -125,6 +127,7 @@ case "`basename "$0"`" in
 	echo "Setup arguments not specified; assuming macosx86 native build."	
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy"
+	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=default
 	;;
