@@ -1,3 +1,4 @@
+#!/bin/bash
 TRACK=${TRACK:-"Experimental"}
 SETUP_ARGS="'exit-on-error 'quiet-load"
 
