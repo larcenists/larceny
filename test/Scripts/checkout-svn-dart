@@ -1,6 +1,17 @@
 #!/bin/bash
+set -o errexit
+
+# Override this variable to submit to other Dart tracks.
 TRACK=${TRACK:-"Experimental"}
-SETUP_ARGS="'exit-on-error 'quiet-load"
+
+# We should not have to do 'always-source here, but Larceny is
+# currently not smart enough to back off when encountering a fasl file
+# generated for a target that differs from the host.
+SETUP_ARGS="'exit-on-error 'quiet-load 'always-source"
+
+WARNINGNUM=1
+# SVNTRUNK="http://larceny.ccs.neu.edu/svn/trunk/larceny_src"
+SVNTRUNK="http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src"
 
 # Setup options (based on script's name)
 case "`basename "$0"`" in
@@ -152,9 +163,26 @@ CALCDATEDART="date +%Y-%m-%dT%H:%M:%S%z"
 # Initialize the Dart log
 echo '<?xml version="1.0" encoding="utf-8"?>'            >  $DARTLOG
 
+mkdir -p ${DIR}
+
 function dartlog {
    echo $@ >> $DARTLOG
 }
+
+function cmdsetstatus {
+    if eval "$1" ; then
+	STATUS="passed" 
+    else
+	STATUS="failed"
+    fi
+}
+
+##A trick for outputting stdout, stderr _and_ stdout&stderr to three separate files
+##with the appropriate ordering on messages.  Does not preserve the status code of
+##the argument command (given as i$1)
+#function cmdlog {
+#    ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3 | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
+#}
 
 function quotetextfile_cdata { # doesn't work for some reason...
    dartlog '<![CDATA['
@@ -172,15 +200,19 @@ dartlog '<BuildName>'`uname` $DIRNAME'</BuildName>'
 dartlog '<Track>'${TRACK}'</Track>'
 dartlog '<DateTimeStamp>'`$CALCDATEDART`'</DateTimeStamp>'
 
-# args: DartStageName HumanStageName CmdString
+# args: DartStageName HumanStageName WorkingDir CmdString
 function eval_stage {
    dartlog '<Test>'
    dartlog '<Name>'.Build.Stage$1'</Name>'
    dartlog '<Measurement name="StageName" type="text/string">'$2'</Measurement>'
    dartlog '<Measurement name="StartDateTime" type="text/string">'`$CALCDATEDART`'</Measurement>'
+
+   pushd "$3" > /dev/null
    SECS_BEGIN=`date +%s`
-   eval $3 > ${TEMPLOG} && STATUS="passed" || STATUS="failed"
+   cmdsetstatus "$4" > ${TEMPLOG} 2>&1
    SECS_FINIS=`date +%s`
+   popd     > /dev/null
+
    dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
    dartlog '</Measurement>'
@@ -191,36 +223,49 @@ function eval_stage {
    dartlog ${STATUS}
    dartlog '</Status>'
    dartlog '<Measurement name="EndDateTime"  type="text/string">'`$CALCDATEDART`'</Measurement>'
-   dartlog '<Measurement name="BuildCommand" type="text/string">' $3    '</Measurement>'
+   dartlog '<Measurement name="BuildStatus"  type="text/string">'${STATUS}'</Measurement>'
+   dartlog '<Measurement name="BuildCommand" type="text/string">'$4'</Measurement>'
    dartlog '<Measurement name="Log" type="text/xml">' 
    quotetextfile ${TEMPLOG}
    dartlog '</Measurement>'
+ 
+   # Warnings and such have to be _separate_ tests; if they appear as a 
+   # subtree within this <Test>, the Dart server will ignore it.  :(
    dartlog '</Test>'
-}
 
-SVNCHECKOUT="
-mkdir -p ${DIR};
-pushd ${DIR};
-svn checkout -q http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src;
-popd"
+   if grep -qi warning ${TEMPLOG} ; then
+      grep -i warning ${TEMPLOG} | while read WARNINGLINE ; do
+	  cat >> ${DARTLOG} <<EOF
+<Test>
+<Name>.Build.Stage${1}.Warning${WARNINGNUM}</Name>
+<Measurement name="Text" type="text/string">${WARNINGLINE}</Measurement>
+</Test>
+EOF
+          # Each Warning needs a unique id in the dart submission. :(
+	  let WARNINGNUM+=1
+      done
+   fi 
+}
 
 function host_scm_cmd {
-   echo "pushd ${DIR}/larceny_src;"
-   echo "echo \"(load \\\"setup.sch\\\")(setup ${SETUP_ARGS} )(build-config-files)(load-compiler)(set! *make-verbose* #f)\" \"$1\" | ${SCHEME_PGM};"
-   echo "popd;"
+   cat > ${TEMPSCM} <<EOF
+(load "setup.scm")
+(setup ${SETUP_ARGS} )
+(build-config-files)
+(load-compiler)
+;(set! *make-verbose* #f)
+$4
+(exit)
+EOF
+   eval_stage "$1" "$2" "$3" "${SCHEME_PGM} -- ${TEMPSCM}"
 }
 
-eval_stage SvnCheckout "1. svn checkout" "$SVNCHECKOUT"
-
-eval_stage BuildHeap   "2. bootstrap heap"     "`host_scm_cmd '(build-heap)'`"
-
-eval_stage Runtime     "3. larceny runtime"    "`host_scm_cmd '(build-runtime)'`"
-
-eval_stage Executable  "4. larceny executable" "`host_scm_cmd '(build-executable)'`"
-
-eval_stage LarcenyFasl "5. larceny fasl files" "`host_scm_cmd '(build-larceny-files)'`"
-
-eval_stage LarcenyHeap "6. larceny heap"       "pushd ${DIR}/larceny_src; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${HEAP_DUMP_SCRIPT}; popd"
+eval_stage   bSvnCheckout  "1. svn checkout"       ${DIR}             "svn checkout -q ${SVNTRUNK}"
+host_scm_cmd dBuildHeap    "2. bootstrap heap"     ${DIR}/larceny_src "(build-heap)"
+host_scm_cmd eRuntime      "3. larceny runtime"    ${DIR}/larceny_src "(build-runtime)"
+host_scm_cmd fExecutable   "4. larceny executable" ${DIR}/larceny_src "(build-executable)"
+host_scm_cmd gLarcenyFasl  "5. larceny fasl files" ${DIR}/larceny_src "(build-larceny-files)"
+eval_stage   hLarcenyHeap  "6. larceny heap"       ${DIR}/larceny_src "echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${HEAP_DUMP_SCRIPT}"
 
 function dart_post_test {
     dartlog '<Status>'
@@ -236,6 +281,7 @@ function library_test {
     dartlog '<Name>'.Test.Lib.$1.$2'</Name>'
     pushd ${DIR}/larceny_src/test/Lib > /dev/null
     cat > ${TEMPSCM} <<EOF
+(error-handler (lambda l (display l) (newline) (exit 115)))
 (compile-file "test.sch")
 (compile-file "$1.sch")
 (load "test.fasl")
@@ -246,7 +292,7 @@ function library_test {
   (exit num-fails))
 EOF
     SECS_BEGIN=`date +%s`
-    ../../larceny -- ${TEMPSCM} > ${TEMPLOG} && STATUS="passed" || STATUS="failed"
+    cmdsetstatus "../../larceny -- ${TEMPSCM}" > ${TEMPLOG} 2>&1
     SECS_FINIS=`date +%s`
     dartlog '<Measurement name="Execution Time" type="numeric/float">'
     dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
@@ -275,6 +321,7 @@ function compiler_tests {
     dartlog '<Name>'.Test.Compiler.$1'</Name>'
     pushd ${DIR}/larceny_src/test/Compiler > /dev/null
     cat > ${TEMPSCM} <<EOF
+(error-handler (lambda l (display l) (newline) (exit 116)))
 (load "run-tests.sch")
 (let ((num-fails 0))
   (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
@@ -282,7 +329,7 @@ function compiler_tests {
   (exit num-fails))
 EOF
     SECS_BEGIN=`date +%s`
-    ../../larceny -- ${TEMPSCM} > ${TEMPLOG} && STATUS="passed" || STATUS="failed"
+    cmdsetstatus "../../larceny -- ${TEMPSCM}" > ${TEMPLOG} 2>&1
     SECS_FINIS=`date +%s`
     dartlog '<Measurement name="Execution Time" type="numeric/float">'
     dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
@@ -304,19 +351,19 @@ compiler_tests sanity-switches
 
 # Benchmarks
 pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
-LARCENY=`pwd`/../../../larceny ./bench -r 3 larceny normal
+LARCENY=`pwd`/../../../larceny ./bench -r 3 larceny normal > ${TEMPLOG} 2>&1
 cat > ${TEMPSCM} <<EOF
-(begin
-  (load "summarize.sch")
-  (let ((os (open-output-string)))
+(error-handler (lambda l (display l) (newline) (exit 117)))
+(load "summarize.sch")
+(let ((os (open-output-string)))
     (with-output-to-port os
       (lambda () 
-        ((summarize larceny-results) "results.Larceny")))
+	((summarize larceny-results) "results.Larceny")))
     (let* ((str (get-output-string os))
-           (is (open-input-string str))
-           (decoded (decode-summary is))
-           (lines (caddr decoded))
-           (format-measurement (lambda (name type val)
+	   (is (open-input-string str))
+	   (decoded (decode-summary is))
+	   (lines (caddr decoded))
+	   (format-measurement (lambda (name type val)
                                  (format #t "<Measurement name=~s type=~s>~s</Measurement>" 
                                          name type val)
                                  (newline))))
@@ -337,7 +384,7 @@ cat > ${TEMPSCM} <<EOF
                     (format #t "</Test>")
                     (newline)))
                 lines)))
-  (exit))
+(exit)
 EOF
 # The "tail +2" is to cut off the Larceny header; we should really make 
 # omitting that a proper option...
