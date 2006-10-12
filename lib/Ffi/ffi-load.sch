@@ -18,6 +18,8 @@
 		(error "FFI: unsupported SunOS version " maj))))
 	    ((string=? os "Win32")
 	     'i386-win32)
+	    ((string=? os "MacOS X")
+	     'i386-macosx)
 	    ((and (string=? os "Linux")
 		  (zero?
 		   (system "test \"`uname -m | grep 'i.86'`x\" != \"x\"")))
@@ -46,6 +48,13 @@
      (values architecture
 	     ffi/SPARC-sunos5-C-callout-stdabi
 	     ffi/SPARC-sunos5-C-callback-stdabi))
+    ((i386-macosx)
+     (require "ffi-i386")
+     (require "ffi-macosx")
+     (ffi/libraries (list (ffi/x86-macosx-libc)))
+     (values architecture
+             ffi/i386-macosx-C-callout-cdecl
+             #f))
     ((i386-win32)
      (require "ffi-i386")
      (require "ffi-win32")
