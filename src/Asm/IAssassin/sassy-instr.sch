@@ -526,10 +526,13 @@
                              (arithmetic-shift (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
                                                8)
                              $hdr.procedure))
-  (ia86.loadc   TEMP codevec)
+  `(push ,REG0) ; REG0 temp ptr to constants (saves size + reload of TEMP)
+  `(mov	,REG0 (& ,REG0 ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
+  `(mov	,TEMP (& ,REG0 ,(+ (- $tag.vector-tag) (words2bytes (+ codevec 1)))))
   `(mov	(dword (& ,RESULT ,PROC_CODEVECTOR_NATIVE)) ,TEMP)
-  (ia86.loadc	TEMP constvec)
-  `(mov	(& ,RESULT ,PROC_CONSTVECTOR) ,TEMP)
+  `(mov	,TEMP (& ,REG0 ,(+ (- $tag.vector-tag) (words2bytes (+ constvec 1)))))
+  `(pop ,REG0)  ; restore REG0
+  `(mov	(dword (& ,RESULT ,PROC_CONSTVECTOR      )) ,TEMP)
   (ia86.init_closure n))
 
 (define-sassy-instr (ia86.T_LEXES n)
@@ -1994,6 +1997,7 @@
 (define-sassy-instr (ia86.T_OP1_44)		; bytevector-length
   (ia86.indexed_structure_length/hdr $tag.bytevector-tag $hdr.bytevector $ex.bvlen #t))
 
+;; OPTIMIZEME
 (define-sassy-instr (ia86.T_OP2_45 x)		; bytevector-fill!
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
@@ -2064,7 +2068,8 @@
 (define-sassy-instr (ia86.T_OP2_57 regno)		; eqv?
   (ia86.loadr	SECOND regno)
   (ia86.mcall	$m.eqv 'eqv))
-				
+
+;; OPTIMIZEME: 42-46 bytes; can we do better?
 (define-sassy-instr/peep (or (ia86.T_OP2_58* rs1 rd rs2)       	; cons
                              (ia86.T_OP2_58 rs2))
   (cond ((inline-allocation)
@@ -2517,6 +2522,7 @@
         (else
          `(neg	,RESULT))))
 
+;; OPTIMIZEME: Introduce OP2IMM form of fx* that uses LEA tricks
 (define-sassy-instr (ia86.T_OP2_205 regno)              ; fx*
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
