@@ -234,11 +234,14 @@ function eval_stage {
    dartlog '</Test>'
 
    if grep -qi warning ${TEMPLOG} ; then
-      grep -i warning ${TEMPLOG} | while read WARNINGLINE ; do
+      grep -n -i warning ${TEMPLOG} | while read WARNINGLINE ; do
+	  WARNINGLINENUM=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\1/'`
+	  WARNINGLINETXT=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\2/'`
 	  cat >> ${DARTLOG} <<EOF
 <Test>
 <Name>.Build.Stage${1}.Warning${WARNINGNUM}</Name>
-<Measurement name="Text" type="text/string">${WARNINGLINE}</Measurement>
+<Measurement name="BuildLogLine" type="text/string">${WARNINGLINENUM}</Measurement>
+<Measurement name="Text" type="text/string">${WARNINGLINETXT}</Measurement>
 </Test>
 EOF
           # Each Warning needs a unique id in the dart submission. :(
