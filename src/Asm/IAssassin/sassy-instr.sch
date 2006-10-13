@@ -1327,7 +1327,7 @@
     (ia86.indexed_structure_test regno reg-value ptrtag hdrtag ex #t ia86.check_char)))
   `(mov	(& ,GLOBALS ,$g.stkp) ,CONT)
   (ia86.loadr	CONT regno)
-  `(shr	,TEMP 16)
+  `(shr	,TEMP ,char_shift)
   `(shr	,CONT 2)
   `(mov	(& ,RESULT ,CONT ,(+ (- ptrtag) wordsize)) ,TEMP_LOW)
   `(mov	,CONT (& ,GLOBALS ,$g.stkp)))
@@ -1430,7 +1430,7 @@
            (ia86.loadr	TEMP regno)
            `(mov	(& ,GLOBALS ,G_REGALIAS_ECX) ecx)
            `(mov	(& ,GLOBALS ,G_REGALIAS_EDI) edi)
-           `(shr	,TEMP ,char_shift)	; byte value
+           `(shr	,TEMP ,char_shift)	; char value
            `(mov	ecx (& ,GLOBALS ,$g.alloctmp))
            `(shr	ecx 2)		; byte count
            `(lea	edi (& ,RESULT 4))	; destination ptr
@@ -1963,19 +1963,31 @@
            `(jz	short ,L1)
            (ia86.exception_continuable $ex.char2int L0)
            `(label ,L1)))
-    `(shr	,RESULT 14)))
+    `(shr	,RESULT 6)))
 
 (define-sassy-instr (ia86.T_OP1_38)		; integer->char
   (cond ((not (unsafe-code))
          (let ((L0 (fresh-label))
-               (L1 (fresh-label)))
+               (L1 (fresh-label))
+               (FAULT (fresh-label)))
            `(label ,L0)
-           `(test	,RESULT_LOW ,fixtag_mask)
-           `(jz short ,L1)
+           ;; Argument must be fixnum
+           `(test      ,RESULT_LOW ,fixtag_mask)
+           `(jnz short  ,FAULT)
+           ;; Argument cannot be a surrogate (#x0000d800 - #x0000dfff).
+           `(mov       ,TEMP ,RESULT)
+           `(sar       ,TEMP 13)
+           `(cmp       ,TEMP #b11011)
+           `(jz short  ,FAULT)
+           ;; Argument must be non-negative and less than #x00110000.
+           `(cmp       ,TEMP 544)
+           `(jge short ,FAULT)
+           `(cmp       ,TEMP 0)
+           `(jnl short ,L1)
+           `(label ,FAULT)
            (ia86.exception_continuable $ex.int2char L0)
 	   `(label ,L1))))
-  `(and	,RESULT 1023)
-  `(shl	,RESULT 14)
+  `(shl	,RESULT 6)
   `(or	,RESULT_LOW ,$imm.character))
 
 (define-sassy-instr (ia86.T_OP1_39)		; string?

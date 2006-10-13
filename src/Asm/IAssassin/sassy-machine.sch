@@ -57,7 +57,7 @@
 (define fixtag_mask	    3)
 (define tag_mask             7)
 (define hdr_shift            8)
-(define char_shift	    16)
+(define char_shift	     8)
 
 (define TEMP    	'eax)	; always same as SECOND
 (define SECOND  	'eax)	; always same as TEMP

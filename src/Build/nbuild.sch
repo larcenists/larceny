@@ -102,7 +102,8 @@
 
 ;FIXME: this patch should go away when all systems have converted.
 
-(if (eq? 'SPARC (nbuild-parameter 'target-machine))
+(if (or (eq? 'SPARC (nbuild-parameter 'target-machine))
+        (eq? 'x86-sass (nbuild-parameter 'target-machine)))
     (begin (set! dump-char!
                  (lambda (h c)
                    (+ (* (char->integer c) twofiftysix) $imm.character)))
