@@ -35,6 +35,8 @@
 ; Sanity check: normally we do not want always-source? to be true,
 ; so warn if it is.  This decreases the likelihood that a true value
 ; for this parameter escapes into a release.
+;; TODO: Move this check into the heap building script(s), which is
+;; where its really relevant and worth warning about.
 
 (if (nbuild-parameter 'always-source?)
     (begin
