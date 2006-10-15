@@ -194,5 +194,82 @@
 	   '(#\space #\newline #\tab #\return #\page))
    ))
 	     
+(define (basic-unicode-char-tests)
+
+  (define es-zed (integer->char #x00df))
+  (define final-sigma (integer->char #x03c2))
+  (define lower-sigma (integer->char #x03c3))
+  (define upper-sigma (integer->char #x03a3))
+  (define upper-chi (integer->char #x03a7))
+  (define upper-alpha (integer->char #x0391))
+  (define upper-omicron (integer->char #x039f))
+  (define lower-chi (integer->char #x03c7))
+  (define lower-alpha (integer->char #x03b1))
+  (define lower-omicron (integer->char #x03bf))
+  (define strasse (string #\S #\t #\r #\a es-zed #\e))
+  (define upper-chaos (string upper-chi upper-alpha upper-omicron upper-sigma))
+  (define final-chaos (string lower-chi lower-alpha lower-omicron final-sigma))
+  (define lower-chaos (string lower-chi lower-alpha lower-omicron lower-sigma))
+
+  (call-with-current-continuation
+   (lambda (exit)
+
+     (test "type1" (integer->char 32) #\space)
+     (test "type2" (char->integer (integer->char 5000)) 5000)
+    ;(test "type3" (integer->char #xd800) error)
+
+     (test "comp1" (char<? #\z es-zed) #t)
+     (test "comp2" (char<? #\z #\Z) #f)
+     (test "comp3" (char-ci<? #\z #\Z) #f)
+     (test "comp4" (char-ci=? #\z #\Z) #t)
+     (test "comp5" (char-ci=? final-sigma lower-sigma) #t)
+
+     (test "case1" (char-upcase #\i) #\I)
+     (test "case2" (char-downcase #\i) #\i)
+    ;(test "case3" (char-titlecase #\i) #\I)
+    ;(test "case4" (char-foldcase #\i) #\i)
+
+     (test "case5" (char-upcase es-zed) es-zed)
+     (test "case6" (char-downcase es-zed) es-zed)
+    ;(test "case7" (char-titlecase es-zed) es-zed)
+    ;(test "case8" (char-foldcase es-zed) es-zed)
+
+     (test "case9" (char-upcase upper-sigma) upper-sigma)
+     (test "case10" (char-downcase upper-sigma) lower-sigma)
+    ;(test "case11" (char-titlecase upper-sigma) upper-sigma)
+    ;(test "case12" (char-foldcase upper-sigma) lower-sigma)
+
+     (test "case13" (char-upcase final-sigma) upper-sigma)
+     (test "case14" (char-downcase final-sigma) final-sigma)
+    ;(test "case15" (char-titlecase final-sigma) upper-sigma)
+    ;(test "case16" (char-foldcase final-sigma) lower-sigma)
+
+    ;(test "cat1" (char-general-category #\a) 'Ll)
+    ;(test "cat2" (char-general-category #\space) 'Zs)
+    ;(test "cat3" (char-general-category (integer->char #x10FFFF)) 'Cn)
+
+     (test "alpha1" (char-alphabetic? #\a) #t)
+     (test "numer1" (char-numeric? #\1) #t)
+     (test "white1" (char-whitespace? #\space) #t)
+     (test "white2" (char-whitespace? (integer->char #x00A0)) #t)
+     (test "upper1" (char-upper-case? upper-sigma) #t)
+     (test "lower1" (char-lower-case? lower-sigma) #t)
+     (test "lower2" (char-lower-case? (integer->char #x00AA)) #t)
+    ;(test "title1" (char-title-case? #\I) #f)
+    ;(test "title2" (char-title-case? (integer->char #x01C5)) #t)
+
+    '(test "excluded"
+           (do ((i 128 (+ i 1))
+                (excluded '()
+                 (if (and (not (<= #xd800 i #xdfff))
+                          (memq (char-general-category (integer->char i))
+                                '(Ps Pe Pi Pf Zs Zp Zl Cc Cf)))
+                     (cons i excluded)
+                     excluded)))
+               ((= i #x110000)
+                (reverse excluded)))
+           excluded-code-points-above-127)
+
+)))
     
 ; eof
