@@ -38,6 +38,13 @@
 
 (define (graph-benchmark-to-port name summaries out)
 
+  (define (short-name system)
+    (let* ((rchars (reverse (string->list system)))
+           (probe (memv #\- rchars)))
+      (if probe
+          (short-name (list->string (reverse (cdr probe))))
+          system)))    
+
   (display (make-string (- width:total (string-length (symbol->string name)))
                         #\space)
            out)
@@ -49,6 +56,7 @@
   (newline out)
 
   (let* ((systems (map car summaries))
+         (systems (map short-name systems))
          (results (map caddr summaries))
          (timings (map (lambda (x) (assq name x))
                        results))
@@ -61,7 +69,10 @@
               systems
               timings)))
 
+(define graph-system:args '())
+
 (define (graph-system system timing best out)
+  (set! graph-system:args (list system timing best out))
   (if (and (number? timing)
            (positive? timing))
       (let* ((relative (/ best timing)))
@@ -73,6 +84,9 @@
                                    #\*)
                       width:bar
                       out)
+        (newline out))
+      (begin
+        (left-justify system width:system out)
         (newline out))))
 
 ; Given a timing in milliseconds,
@@ -88,4 +102,4 @@
                           "."
                           (substring s (- n 2) n)))
           (else
-           (string-append ".0" n)))))
+           (string-append ".0" s)))))

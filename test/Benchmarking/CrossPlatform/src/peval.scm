@@ -629,11 +629,11 @@
   (run-benchmark
     "peval"
     peval-iters
-    (lambda () (test))
     (lambda (result)
       (and (list? result)
            (= (length result) 10)
            (equal? (list-ref result 9)
                    '(lambda ()
                       (list 'z 'y 'x 'w 'v 'u 't 's 'r 'q 'p 'o 'n
-                            'm 'l 'k 'j 'i 'h 'g 'f 'e 'd 'c 'b 'a)))))))
+                            'm 'l 'k 'j 'i 'h 'g 'f 'e 'd 'c 'b 'a)))))
+    (lambda () (lambda () (test)))))

@@ -22,11 +22,13 @@
 (define (primes<= n)
   (sieve (interval-list 2 n)))
 
-(run-benchmark
-  "primes"
-  1000
-  (lambda () (primes<= 100))
-  (lambda (result)
-    (equal? result
-            '(2 3 5 7 11 13 17 19 23 29 31 37 41
-              43 47 53 59 61 67 71 73 79 83 89 97))))
+(define (main)
+  (run-benchmark
+   "primes"
+   primes-iters
+   (lambda (result)
+     (equal? result
+             '(2 3 5 7 11 13 17 19 23 29 31 37 41
+                 43 47 53 59 61 67 71 73 79 83 89 97)))
+   (lambda (n) (lambda () (primes<= n)))
+   100))

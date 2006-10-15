@@ -33,11 +33,11 @@
       (set! properties
         (cons (list key1 (cons key2 val)) properties)))))
 
-(define (+dderiv a)
+(define (my+dderiv a)
   (cons '+
         (map dderiv (cdr a))))
 
-(define (-dderiv a)
+(define (my-dderiv a)
   (cons '-
         (map dderiv (cdr a))))
 
@@ -59,8 +59,8 @@
                     (caddr a)
                     (dderiv (caddr a))))))
 
-(put '+ 'dderiv +dderiv)
-(put '- 'dderiv -dderiv)
+(put '+ 'dderiv my+dderiv)
+(put '- 'dderiv my-dderiv)
 (put '* 'dderiv *dderiv)
 (put '/ 'dderiv /dderiv)
 
@@ -72,17 +72,15 @@
         (f a)
         (fatal-error "No derivation method available")))))
 
-(define (run)
-  (dderiv '(+ (* 3 x x) (* a x x) (* b x) 5)))
-
 (define (main . args)
   (run-benchmark
     "dderiv"
     dderiv-iters
-    (lambda () (run))
     (lambda (result)
       (equal? result
               '(+ (* (* 3 x x) (+ (/ 0 3) (/ 1 x) (/ 1 x)))
                   (* (* a x x) (+ (/ 0 a) (/ 1 x) (/ 1 x)))
                   (* (* b x) (+ (/ 0 b) (/ 1 x)))
-                  0)))))
+                  0)))
+    (lambda (a) (lambda () (dderiv a)))
+    '(+ (* 3 x x) (* a x x) (* b x) 5)))

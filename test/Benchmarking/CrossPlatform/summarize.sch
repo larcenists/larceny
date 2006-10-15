@@ -1,21 +1,68 @@
 ; Extraction of benchmark results.
 
-(define (summarize-usual-suspects)
-  ((summarize bigloo-results) "results.Bigloo" "summary.Bigloo")
-  ((summarize chez-results) "results.Chez-Scheme" "summary.Chez")
-  ((summarize chicken-results) "results.Chicken" "summary.Chicken")
-  ((summarize gambit-results) "results.Gambit-C" "summary.Gambit")
-  ((summarize larceny-results) "results.Larceny" "summary.Larceny")
-  ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme"))
+(define (summarize-usual-suspects . rest)
+  (let* ((setting (if (null? rest) "-r6rs" (car rest)))
+         (summarize
+          (lambda (system-results)
+            (lambda (in out)
+              ((summarize system-results)
+               (string-append in setting)
+               (string-append out setting))))))
+           
+    ((summarize bigloo-results) "results.Bigloo" "summary.Bigloo")
+    ((summarize chez-results) "results.Chez-Scheme" "summary.Chez")
+    ((summarize chicken-results) "results.Chicken" "summary.Chicken")
+    ((summarize gambit-results) "results.Gambit-C" "summary.Gambit")
+    ((summarize larceny-results) "results.Larceny" "summary.Larceny")
+    ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme")
+    ((summarize scheme48-results) "results.Scheme48" "summary.Scheme48")))
 
-(define (decode-usual-suspects)
-  (map decode-summary
-       '("summary.Larceny"
-         "summary.Bigloo"
-         "summary.Chez"
-         "summary.Chicken"
-         "summary.Gambit"
-         "summary.MzScheme")))
+(define (decode-usual-suspects . rest)
+  (let* ((setting (if (null? rest) "-r6rs" (car rest)))
+         (decode-summary
+          (lambda (in)
+            (decode-summary (string-append in setting)))))
+    (map decode-summary
+         '("summary.Larceny"
+           "summary.Bigloo"
+           "summary.Chez"
+           "summary.Chicken"
+           "summary.Gambit"
+           "summary.MzScheme"
+           "summary.Scheme48"))))
+
+(define (summarize-usual-suspects-linux . rest)
+  (let* ((setting (if (null? rest) "-r6rs" (car rest)))
+         (summarize
+          (lambda (system-results)
+            (lambda (in out)
+              ((summarize system-results)
+               (string-append in setting)
+               (string-append out setting))))))
+           
+    ((summarize bigloo-results) "results.Bigloo" "summary.Bigloo")
+    ((summarize chicken-results) "results.Chicken" "summary.Chicken")
+    ((summarize gambit-results) "results.Gambit-C" "summary.Gambit")
+    ((summarize larceny-results) "results.Larceny" "summary.Larceny")
+    ((summarize mit-results) "results.MIT-Scheme" "summary.MIT")
+    ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme")
+    ((summarize petite-chez-results) "results.Petite-Chez-Scheme" "summary.Petite")
+    ((summarize scheme48-results) "results.Scheme48" "summary.Scheme48")))
+
+(define (decode-usual-suspects-linux . rest)
+  (let* ((setting (if (null? rest) "-r6rs" (car rest)))
+         (decode-summary
+          (lambda (in)
+            (decode-summary (string-append in setting)))))
+    (map decode-summary
+         '("summary.Larceny"
+           "summary.Bigloo"
+           "summary.Chicken"
+           "summary.Gambit"
+           "summary.MIT"
+           "summary.MzScheme"
+           "summary.Petite"
+           "summary.Scheme48"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -155,6 +202,88 @@
            (bad-arguments))))
   summarize)
 
+; For results that are displayed in the form of
+; cpu time: 57290 real time: 58218
+
+(define (generic-results sysname lines out)
+  (let ((system-key "Benchmarking ")
+        (test-key "Testing ")
+        (test-key-tail (string-append " under " sysname))
+        (cpu-key "cpu time: ")
+        (real-key " real time: ")
+        ;(gc-key " seconds in (major) GC")
+        ;(ms-key " ms")
+        (error-key "Error: ")
+        (wrong-key "*** wrong result ***"))
+    (let ((n-system-key (string-length system-key))
+          (n-test-key (string-length test-key))
+          (n-cpu-key (string-length cpu-key))
+          (n-real-key (string-length real-key))
+          ;(n-gc-key (string-length gc-key))
+          ;(n-ms-key (string-length ms-key))
+          (n-error-key (string-length error-key))
+          (n-wrong-key (string-length wrong-key))
+          (name-width 20)
+          (timing-width 10))
+      (let loop ((lines lines))
+        (if (null? lines)
+            (newline out)
+            (let ((line (car lines)))
+              (cond ((substring=? system-key line 0 n-system-key)
+                     (display line out)
+                     (newline out)
+                     (newline out)
+                     (display
+                      "benchmark                  cpu      real        gc"
+                      out)
+                     (newline out))
+                    ((substring=? test-key line 0 n-test-key)
+                     (newline out)
+                     (let ((name (substring line
+                                            n-test-key
+                                            (substring? test-key-tail line))))
+                       (left-justify name name-width out)))
+                    ((and (substring=? cpu-key line 0 n-cpu-key)
+                          (substring? real-key line))
+                     (let* ((n1 (substring? real-key line))
+                            (s  (substring line n-cpu-key n1))
+                            (s1 (list->string
+                                 (filter (lambda (c) (not (char=? c #\space)))
+                                         (string->list s))))
+                            (x  (string->number s1))
+                            (s  (substring line
+                                           (+ n1 n-real-key)
+                                           (string-length line)))
+                            (s2 (list->string
+                                 (filter (lambda (c) (not (char=? c #\space)))
+                                         (string->list s))))
+                            (y  (string->number s2)))
+                       (right-justify x timing-width out)
+                       (right-justify y timing-width out)))
+                    (#f ;(substring? gc-key line)
+                     (let* ((n1 (substring? gc-key line))
+                            (s  (substring line 0 n1))
+                            (s1 (list->string
+                                 (filter (lambda (c) (not (char=? c #\space)))
+                                         (string->list s))))
+                            (x  (string->msec s1)))
+                       (right-justify x timing-width out)
+                       (newline out)))
+                    ((substring=? error-key line 0 n-error-key)
+                     (display line out)
+                     (newline out)
+                     (display (make-string name-width #\space) out))
+                    ((substring=? wrong-key line 0 n-wrong-key)
+                     (display line out)
+                     (newline out)
+                     (display (make-string name-width #\space) out)))
+              (loop (cdr lines))))))))
+
+; Scheme 48
+
+(define (scheme48-results lines out)
+  (generic-results "Scheme48" lines out))
+
 ; Gambit-C
 
 (define (gambit-results lines out)
@@ -228,9 +357,15 @@
 ; Chez Scheme.
 
 (define (chez-results lines out)
+  (chez-results-proto "Chez-Scheme" lines out))
+
+(define (petite-chez-results lines out)
+  (chez-results-proto "Petite-Chez-Scheme" lines out))
+
+(define (chez-results-proto sysname lines out)
   (let ((system-key "Benchmarking ")
         (test-key "Testing ")
-        (test-key-tail " under Chez-Scheme")
+        (test-key-tail (string-append " under " sysname))
         (cpu-key " ms elapsed cpu time")
         (real-key " ms elapsed real time")
         (space-key "    ")
@@ -349,70 +484,7 @@
 ; Chicken
 
 (define (chicken-results lines out)
-  (let ((system-key "Benchmarking ")
-        (test-key "Testing ")
-        (test-key-tail " under Chicken")
-        (cpu-key "user ")
-        (real-key " seconds elapsed")
-        (gc-key " seconds in (major) GC")
-        (ms-key " ms")
-        (error-key "Error: ")
-        (wrong-key "*** wrong result ***"))
-    (let ((n-system-key (string-length system-key))
-          (n-test-key (string-length test-key))
-          (n-cpu-key (string-length cpu-key))
-          (n-real-key (string-length real-key))
-          (n-gc-key (string-length gc-key))
-          (n-ms-key (string-length ms-key))
-          (n-error-key (string-length error-key))
-          (n-wrong-key (string-length wrong-key))
-          (name-width 20)
-          (timing-width 10))
-      (let loop ((lines lines))
-        (if (null? lines)
-            (newline out)
-            (let ((line (car lines)))
-              (cond ((substring=? system-key line 0 n-system-key)
-                     (display line out)
-                     (newline out)
-                     (newline out)
-                     (display
-                      "benchmark                  cpu      real        gc"
-                      out)
-                     (newline out))
-                    ((substring=? test-key line 0 n-test-key)
-                     (newline out)
-                     (let ((name (substring line
-                                            n-test-key
-                                            (substring? test-key-tail line))))
-                       (left-justify name name-width out)))
-                    ((substring? real-key line)
-                     (let* ((n1 (substring? real-key line))
-                            (s  (substring line 0 n1))
-                            (s1 (list->string
-                                 (filter (lambda (c) (not (char=? c #\space)))
-                                         (string->list s))))
-                            (x  (string->msec s1)))
-                       (right-justify x timing-width out)
-                       (right-justify x timing-width out)))
-                    ((substring? gc-key line)
-                     (let* ((n1 (substring? gc-key line))
-                            (s  (substring line 0 n1))
-                            (s1 (list->string
-                                 (filter (lambda (c) (not (char=? c #\space)))
-                                         (string->list s))))
-                            (x  (string->msec s1)))
-                       (right-justify x timing-width out)
-                       (newline out)))
-                    ((substring=? error-key line 0 n-error-key)
-                     (display line out)
-                     (newline out)
-                     (display (make-string name-width #\space) out))
-                    ((substring=? wrong-key line 0 n-wrong-key)
-                     (display line out)
-                     (newline out)
-                     (display (make-string name-width #\space) out)))
-              (loop (cdr lines))))))))
+  (generic-results "Chicken" lines out))
 
 ; MzScheme
 
@@ -481,6 +553,12 @@
 
 ; Bigloo
 
+(define (bigloo-results lines out)
+  (generic-results "Bigloo" lines out))
+
+; The following is commented out.
+
+'
 (define (bigloo-results lines out)
   (let ((system-key "Benchmarking ")
         (test-key "Testing ")

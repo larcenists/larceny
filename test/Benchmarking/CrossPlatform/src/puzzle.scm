@@ -1,6 +1,6 @@
 ;;; PUZZLE -- Forest Baskett's Puzzle benchmark, originally written in Pascal.
 
-(define (iota n)
+(define (my-iota n)
   (do ((n n (- n 1))
        (list '() (cons (- n 1) list)))
       ((zero? n) list)))
@@ -134,11 +134,11 @@
       #f)))
 
 (for-each (lambda (i) (vector-set! *p* i (make-vector (+ size 1))))
-          (iota (+ typemax 1)))
+          (my-iota (+ typemax 1)))
 
 (define (main . args)
   (run-benchmark
     "puzzle"
     puzzle-iters
-    (lambda () (start))
-    (lambda (result) (equal? result 2005))))
+    (lambda (result) (equal? result 2005))
+    (lambda () (lambda () (start)))))

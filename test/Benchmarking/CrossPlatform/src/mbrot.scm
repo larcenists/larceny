@@ -31,20 +31,20 @@
             (loop2 (- x 1)))
           (loop1 (- y 1)))))))
 
-(define (test)
-  (let ((n 75))
-    (let ((matrix (make-vector n)))
-      (let loop ((i (- n 1)))
-        (if (>= i 0)
-          (begin
-            (vector-set! matrix i (make-vector n))
-            (loop (- i 1)))))
-      (mbrot matrix -1.0 -0.5 0.005 n)
-      (vector-ref (vector-ref matrix 0) 0))))
+(define (test n)
+  (let ((matrix (make-vector n)))
+    (let loop ((i (- n 1)))
+      (if (>= i 0)
+        (begin
+          (vector-set! matrix i (make-vector n))
+          (loop (- i 1)))))
+    (mbrot matrix -1.0 -0.5 0.005 n)
+    (vector-ref (vector-ref matrix 0) 0)))
 
 (define (main . args)
   (run-benchmark
     "mbrot"
     mbrot-iters
-    (lambda () (test))
-    (lambda (result) (equal? result 5))))
+    (lambda (result) (equal? result 5))
+    (lambda (n) (lambda () (test n)))
+    75))

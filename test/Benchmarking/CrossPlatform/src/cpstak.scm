@@ -26,5 +26,8 @@
   (run-benchmark
     "cpstak"
     cpstak-iters
-    (lambda () (cpstak 18 12 6))
-    (lambda (result) (equal? result 7))))
+    (lambda (result) (equal? result 7))
+    (lambda (x y z) (lambda () (cpstak x y z)))
+    18
+    12
+    6))

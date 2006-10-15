@@ -1,0 +1,3 @@
+rm -f results.*
+./bench -s r6rs-fixflo-unsafe -o "$2" gambit $1 > /dev/null
+./summarize results.*

@@ -11,5 +11,8 @@
   (run-benchmark
     "tak"
     tak-iters
-    (lambda () (tak 18 12 6))
-    (lambda (result) (equal? result 7))))
+    (lambda (result) (equal? result 7))
+    (lambda (x y z) (lambda () (tak x y z)))
+    18
+    12
+    6))

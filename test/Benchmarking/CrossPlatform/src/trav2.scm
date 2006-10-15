@@ -73,9 +73,7 @@
            (set-car! q x)
            q))
         ; the CL version had a useless set-car! in the next line (wc)
-        ; and (cdr (car q)) is circular, which is illegal in Scheme
-        ;(else (set-cdr! (car q) `(,a ,@(cdr (car q))))
-        (else (set-cdr! (car q) (cons a (cdr (car q))))
+        (else (set-cdr! (car q) `(,a ,@(cdr (car q))))
               q)))
  
 (define (create-structure n)
@@ -144,5 +142,5 @@
   (run-benchmark
     "trav2"
     trav2-iters
-    (lambda () (run-traverse))
-    (lambda (result) #t)))
+    (lambda (result) #t)
+    (lambda () (lambda () (run-traverse)))))

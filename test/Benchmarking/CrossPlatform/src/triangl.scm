@@ -45,14 +45,16 @@
          (vector-set! *board* (vector-ref *c* i) 0) #f)
         (else #f)))
  
-(define (test)
+(define (test i depth)
   (set! *answer* '())
-  (attempt 22 1)
+  (attempt i depth)
   (car *answer*))
  
 (define (main . args)
   (run-benchmark
     "triangl"
     triangl-iters
-    (lambda () (test))
-    (lambda (result) (equal? result '(22 34 31 15 7 1 20 17 25 6 5 13 32)))))
+    (lambda (result) (equal? result '(22 34 31 15 7 1 20 17 25 6 5 13 32)))
+    (lambda (i depth) (lambda () (test i depth)))
+    22
+    1))

@@ -88,28 +88,24 @@
                   ((null? y) sum))))
       ((null? x) sum)))
 
-(define *perms* '())
-
 (define (one..n n)
   (do ((n n (- n 1))
        (p '() (cons n p)))
       ((zero? n) p)))
    
 (define (main . args)
-  (let ((m perm9-iters)
-        (n 9))
+  (let ((n 9))
     (define (factorial n)
       (if (zero? n)
           1
           (* n (factorial (- n 1)))))
     (run-benchmark
-      (string-append (number->string m) "perm" (number->string n))
-      1
-      (lambda ()
-        (set! *perms* (permutations (one..n n)))
-        (do ((m m (- m 1)))
-            ((zero? m) *perms*)
-            (set! *perms* (permutations (car *perms*)))))
+      (string-append "perm" (number->string n))
+      perm9-iters
       (lambda (result)
         (= (sumlists result)
-           (quotient (* n (+ n 1) (factorial n)) 2))))))
+           (* (quotient (* n (+ n 1)) 2) (factorial n))))
+      (lambda (lst)
+        (lambda ()
+          (permutations lst)))
+      (one..n n))))

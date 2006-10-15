@@ -2,9 +2,9 @@
 
 ; Chez-Scheme compatibility stuff:
 
-(define (box x) (cons x '()))
-(define (unbox x) (car x))
-(define (set-box! x y) (set-car! x y))
+(define (chez-box x) (cons x '()))
+(define (chez-unbox x) (car x))
+(define (chez-set-box! x y) (set-car! x y))
 
 ; Test that a matrix with entries in {+1, -1} is maximal among the matricies
 ; obtainable by
@@ -81,7 +81,7 @@
 
 (define zebra
    (lambda (row-perm row->func+ row->func- mat number-of-cols)
-      (let -*-
+      (let _-*-
            ((row-perm
                row-perm)
             (mat
@@ -94,20 +94,20 @@
                       (row->func+ (row-perm 'now))
                       partitions
                       (lambda (new-partitions)
-                         (-*- (row-perm 'child)
+                         (_-*- (row-perm 'child)
                               (cdr mat)
                               new-partitions)))
                 (zulu (car mat)
                       (row->func- (row-perm 'now))
                       partitions
                       (lambda (new-partitions)
-                         (-*- (row-perm 'child)
+                         (_-*- (row-perm 'child)
                               (cdr mat)
                               new-partitions)))
                 (let ((new-row-perm
                          (row-perm 'brother)))
                    (or (not new-row-perm)
-                       (-*- new-row-perm
+                       (_-*- new-row-perm
                             mat
                             partitions))))))))
 
@@ -119,14 +119,14 @@
                    rhs
                    (cons lhs rhs)))))
       (lambda (old-row new-row-func partitions equal-cont)
-         (let -*-
+         (let _-*-
               ((p-in
                   partitions)
                (old-row
                   old-row)
                (rev-p-out
                   '()))
-            (let -split-
+            (let _-split-
                  ((partition
                      (car p-in))
                   (old-row
@@ -136,7 +136,7 @@
                   (minus
                      '()))
                (if (null? partition)
-                   (let -minus-
+                   (let _-minus-
                         ((old-row
                             old-row)
                          (m
@@ -152,37 +152,37 @@
                                    (cdr p-in)))
                              (if (null? p-in)
                                  (equal-cont (reverse rev-p-out))
-                                 (-*- p-in old-row rev-p-out)))
+                                 (_-*- p-in old-row rev-p-out)))
                           (or (= 1 (car old-row))
-                              (-minus- (cdr old-row)
+                              (_-minus- (cdr old-row)
                                        (cdr m)))))
                    (let ((next
                             (car partition)))
                       (case (new-row-func next)
                          ((1)
                             (and (= 1 (car old-row))
-                                 (-split- (cdr partition)
+                                 (_-split- (cdr partition)
                                           (cdr old-row)
                                           (cons next plus)
                                           minus)))
                          ((-1)
-                            (-split- (cdr partition)
+                            (_-split- (cdr partition)
                                      old-row
                                      plus
                                      (cons next minus)))))))))))
 
 (define all?
    (lambda (ok? lst)
-      (let -*-
+      (let _-*-
            ((lst
                lst))
          (or (null? lst)
              (and (ok? (car lst))
-                  (-*- (cdr lst)))))))
+                  (_-*- (cdr lst)))))))
 
 (define gen-perms
    (lambda (objects)
-      (let -*-
+      (let _-*-
            ((zulu-future
                objects)
             (past
@@ -194,7 +194,7 @@
                    ((now)
                       (car zulu-future))
                    ((brother)
-                      (-*- (cdr zulu-future)
+                      (_-*- (cdr zulu-future)
                            (cons (car zulu-future)
                                  past)))
                    ((child)
@@ -208,25 +208,25 @@
 
 (define fold
    (lambda (lst folder state)
-      (let -*-
+      (let _-*-
            ((lst
                lst)
             (state
                state))
          (if (null? lst)
              state
-             (-*- (cdr lst)
+             (_-*- (cdr lst)
                   (folder (car lst)
                           state))))))
 
 (define miota
    (lambda (len)
-      (let -*-
+      (let _-*-
            ((i 0))
          (if (= i len)
              '()
              (cons i
-                   (-*- (+ i 1)))))))
+                   (_-*- (+ i 1)))))))
 
 (define proc->vector
    (lambda (size proc)
@@ -297,7 +297,7 @@
                      (lambda (p-a p)
                         (n->sgn/abs b
                                     (lambda (q-b q)
-                                       (let -*-
+                                       (let _-*-
                                             ((p
                                                 p)
                                              (p-a
@@ -314,7 +314,7 @@
                                               (cont p p-a p-b)
                                               (let ((mult
                                                        (quotient p q)))
-                                                 (-*- q
+                                                 (_-*- q
                                                       q-a
                                                       q-b
                                                       (- p (* mult q))
@@ -339,13 +339,13 @@
 (define make-row-reduce
    (lambda (coef-zero coef-one coef-zero? coef-+ coef-negate coef-* coef-recip)
       (lambda (mat)
-         (let -*-
+         (let _-*-
               ((mat
                   mat))
             (if (or (null? mat)
                     (null? (car mat)))
                 '()
-                (let -**-
+                (let _-**-
                      ((in
                          mat)
                       (out
@@ -354,7 +354,7 @@
                        (map
                           (lambda (x)
                              (cons coef-zero x))
-                          (-*- out))
+                          (_-*- out))
                        (let* ((prow
                                  (car in))
                               (pivot
@@ -364,7 +364,7 @@
                               (in
                                  (cdr in)))
                           (if (coef-zero? pivot)
-                              (-**- in
+                              (_-**- in
                                     (cons prest out))
                               (let ((zap-row
                                        (map
@@ -377,7 +377,7 @@
                                        (map
                                           (lambda (x)
                                              (cons coef-zero x))
-                                          (-*-
+                                          (_-*-
                                              (fold in
                                                    (lambda (row mat)
                                                       (cons
@@ -425,7 +425,7 @@
             (let ((mat
                      (row-reduce mat)))
                (lambda (row)
-                  (let -*-
+                  (let _-*-
                        ((row
                            row)
                         (mat
@@ -437,7 +437,7 @@
                                (r-rest
                                   (cdr row)))
                             (cond ((coef-zero? r-first)
-                                     (-*- r-rest
+                                     (_-*- r-rest
                                           (map cdr
                                                (if (or (null? mat)
                                                        (coef-zero? (caar mat)))
@@ -456,7 +456,7 @@
                                                (cdr mat)))
                                         (if (coef-zero? z-first)
                                             #f
-                                            (-*-
+                                            (_-*-
                                                (map
                                                   (let ((mult
                                                            (coef-negate r-first)))
@@ -493,10 +493,10 @@
       (let* ((primes
                 (list 2))
              (last
-                (box primes))
+                (chez-box primes))
              (is-next-prime?
                 (lambda (trial)
-                   (let -*-
+                   (let _-*-
                         ((primes
                             primes))
                       (or (null? primes)
@@ -504,21 +504,21 @@
                                    (car primes)))
                              (or (< trial (* p p))
                                  (and (not (zero? (modulo trial p)))
-                                      (-*- (cdr primes))))))))))
+                                      (_-*- (cdr primes))))))))))
          (if (> 2 bound)
              2
-             (let -*-
+             (let _-*-
                   ((trial
                       3))
                 (if (is-next-prime? trial)
                     (let ((entry
                              (list trial)))
-                       (set-cdr! (unbox last) entry)
-                       (set-box! last entry)
+                       (set-cdr! (chez-unbox last) entry)
+                       (chez-set-box! last entry)
                        (if (> trial bound)
                            trial
-                           (-*- (+ trial 2))))
-                    (-*- (+ trial 2))))))))
+                           (_-*- (+ trial 2))))
+                    (_-*- (+ trial 2))))))))
 
 ; Given the size of a square matrix consisting only of +1's and -1's,
 ; return an upper bound on the determinant.
@@ -557,12 +557,12 @@
                                                              tests))
                                                        '()))))
                       (lambda (row)
-                         (let -*-
+                         (let _-*-
                               ((tests
                                   tests))
                             (and (not (null? tests))
                                  (or ((car tests) row)
-                                     (-*- (cdr tests)))))))))
+                                     (_-*- (cdr tests)))))))))
              (all-rows  ; all rows starting with +1 in decreasing order
                 (fold
                    (fold-over-rows (- number-of-cols 1)
@@ -572,7 +572,7 @@
                       (cons (cons 1 row)
                             rows))
                    '())))
-         (let -*-
+         (let _-*-
               ((number-of-rows
                   1)
                (rev-mat
@@ -591,7 +591,7 @@
                (if (null? zulu-future)
                    (folder (reverse rev-mat)
                            state)
-                   (let -**-
+                   (let _-**-
                         ((zulu-future
                             zulu-future)
                          (state
@@ -600,13 +600,13 @@
                           state
                           (let ((rest-of-future
                                    (cdr zulu-future)))
-                             (-**- rest-of-future
+                             (_-**- rest-of-future
                                    (let* ((first
                                              (car zulu-future))
                                           (new-rev-mat
                                              (cons first rev-mat)))
                                       (if (maximal? (reverse new-rev-mat))
-                                          (-*- (+ number-of-rows 1)
+                                          (_-*- (+ number-of-rows 1)
                                                new-rev-mat
                                                rest-of-future
                                                state)
@@ -628,12 +628,12 @@
                     (let ((blen
                              (+ blen 1)))
 ;                       (if
-;                          (let -*-
+;                          (let _-*-
 ;                               ((blen
 ;                                   blen))
 ;                             (or (< blen 10)
 ;                                 (and (zero? (remainder blen 10))
-;                                      (-*- (quotient blen 10)))))
+;                                      (_-*- (quotient blen 10)))))
 ;       
 ;                          (begin
 ;                             (display blen)
@@ -713,7 +713,7 @@
                (length universe)))
          (if (< usize size)
              state
-             (let -*-
+             (let _-*-
                   ((size
                       size)
                    (universe
@@ -733,11 +733,11 @@
                                   (car universe))
                                (rest-u
                                   (cdr universe)))
-                            (-*- size
+                            (_-*- size
                                  rest-u
                                  folder
                                  (- csize 1)
-                                 (-*- (- size 1)
+                                 (_-*- (- size 1)
                                       rest-u
                                       (lambda (tail state)
                                          (folder (cons first-u tail)
@@ -745,19 +745,22 @@
                                       csize
                                       state))))))))))
 
-(run-benchmark
-  "matrix"
-  5
-  (lambda () (really-go 5 5))
-  (lambda (result)
-    (equal? result
-            '(((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
-               (1 1 -1 -1 -1) (1 -1 1 -1 -1) (1 -1 -1 1 1))
-              ((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
-               (1 1 -1 1 -1) (1 -1 1 -1 -1) (1 -1 -1 1 1))
-              ((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
-               (1 1 -1 1 -1) (1 -1 1 -1 1) (1 -1 -1 1 1))
-              ((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
-               (1 1 -1 1 1) (1 -1 1 1 -1) (1 -1 -1 -1 1))
-              ((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
-               (1 1 -1 1 1) (1 -1 1 1 1) (1 -1 -1 -1 -1))))))
+(define (main)
+  (run-benchmark
+   "matrix"
+   matrix-iters
+   (lambda (result)
+     (equal? result
+             '(((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
+                (1 1 -1 -1 -1) (1 -1 1 -1 -1) (1 -1 -1 1 1))
+               ((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
+                (1 1 -1 1 -1) (1 -1 1 -1 -1) (1 -1 -1 1 1))
+               ((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
+                (1 1 -1 1 -1) (1 -1 1 -1 1) (1 -1 -1 1 1))
+               ((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
+                (1 1 -1 1 1) (1 -1 1 1 -1) (1 -1 -1 -1 1))
+               ((1 1 1 1 1) (1 1 1 1 -1) (1 1 1 -1 1)
+                (1 1 -1 1 1) (1 -1 1 1 1) (1 -1 -1 -1 -1)))))
+   (lambda (number-of-cols inv-size) (lambda () (really-go number-of-cols inv-size)))
+   5
+   5))

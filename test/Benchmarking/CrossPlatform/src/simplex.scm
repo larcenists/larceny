@@ -183,5 +183,5 @@
   (run-benchmark
     "simplex"
     simplex-iters
-    (lambda () (test))
-    (lambda (result) (equal? result '(#(4 1 3 2) #(0 5 7 6))))))
+    (lambda (result) (equal? result '(#(4 1 3 2) #(0 5 7 6))))
+    (lambda () (lambda () (test)))))

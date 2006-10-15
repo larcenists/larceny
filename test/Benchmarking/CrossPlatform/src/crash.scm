@@ -4,6 +4,7 @@
   (run-benchmark
    "crash"
    1
-   (lambda () (#f))
    (lambda (result)
-     #t)))
+     #t)
+   (lambda (f) (lambda () (f)))
+   #f))

@@ -4,7 +4,7 @@
 %(c) Dorai Sitaram, 1991, 1994
 %dorai@cs.rice.edu
 
-\documentstyle[slatex]{article}
+\documentstyle[../../src/slatex]{article}
 
 \slatexdisable{enableslatex}
 
@@ -233,7 +233,7 @@ style by:
   (syntax-rules ()
     [(setq x a)
      (begin (set! x a)
-            x)]))
+	    x)]))
 \end{schemedisplay}
 
 \end{document}
@@ -288,7 +288,7 @@ the latter style by:
   (syntax-rules ()
     [(setq x a)
      (begin (set! x a)
-            x)]))
+	    x)]))
 \end{schemedisplay}
 \wideline
 
@@ -341,7 +341,7 @@ style by:
   (syntax-rules ()
     [(setq x a)
      (begin (set! x a)
-            x)]))
+	    x)]))
 \endschemedisplay
 
 \bye
@@ -564,8 +564,8 @@ produces
 (define factorial
   (lambda (n)
     (if (= n 0) ; \scheme{(zero? n)} also possible
-        1
-        (* n (factorial (- n 1)))))) ; or \scheme{... (sub1 1)}
+	1
+	(* n (factorial (- n 1)))))) ; or \scheme{... (sub1 1)}
 \end{schemedisplay}
 \slatexdisable{enableslatex}
 
@@ -1071,7 +1071,7 @@ mathematical subformulas within Scheme code, e.g.,
 (define $\equiv$
   (lambda (a$_1$ a$_2$)
     ($\land$ ($\sqsubseteq$ a$_1$ a$_2$)
-             ($\sqsupseteq$ a$_1$ a$_2$))))
+	     ($\sqsupseteq$ a$_1$ a$_2$))))
 \end{schemedisplay}
 \end{verbatim}
 produces
@@ -1083,7 +1083,7 @@ produces
 (define $\equiv$
   (lambda (a$_1$ a$_2$)
     ($\land$ ($\sqsubseteq$ a$_1$ a$_2$)
-             ($\sqsupseteq$ a$_1$ a$_2$))))
+	     ($\sqsupseteq$ a$_1$ a$_2$))))
 \end{schemedisplay}
 \undefschememathescape{$}
 \slatexdisable{enableslatex}

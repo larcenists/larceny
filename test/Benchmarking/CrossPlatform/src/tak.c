@@ -19,9 +19,19 @@ char *argv[];
 {
   int i;
   int result;
+  int x = 18, y = 12, z = 6;
 
-  for (i=0; i<1000; i++)
-    result = tak (18, 12, 6);
+  if (argc > 1)
+    x = atoi (argv[1]);
+
+  if (argc > 2)
+    y = atoi (argv[2]);
+
+  if (argc > 3)
+    z = atoi (argv[3]);
+
+  for (i=0; i<2000; i++)
+    result = tak (x, y, z);
 
   if (result != 7)
     printf ("*** wrong result ***\n");

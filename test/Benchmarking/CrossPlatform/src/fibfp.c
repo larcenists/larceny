@@ -1,11 +1,10 @@
-/* FIBFP -- Computes fib(30) using floating point */
+/* FIBFP -- Computes fib(35) using floating point */
 
 #include <stdio.h>
 
 #define FLOAT double
 
-static FLOAT fib (n)
-FLOAT n;
+static FLOAT fib (FLOAT n)
 {
   if (n < 2.)
     return n;
@@ -13,17 +12,19 @@ FLOAT n;
     return fib (n-1.) + fib (n-2.);
 }
 
-int main (argc, argv)
-int argc;
-char *argv[];
+int main (int argc, char *argv[])
 {
   int i;
   FLOAT result;
+  int n = 35;
 
-  for (i=0; i<50; i++)
-    result = fib (30.);
+  if (argc > 1)
+    n = atoi (argv[1]);
 
-  if (result != 832040.)
+  for (i=0; i<2; i++)
+    result = fib (n);
+
+  if (result != 9227465.)
     printf ("*** wrong result ***\n");
 
   return 0;

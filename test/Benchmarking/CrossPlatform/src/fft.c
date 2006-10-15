@@ -9,9 +9,7 @@
 
 #define SWAP(a,b) { FLOAT temp = a; a = b; b = temp; }
 
-static void four1 (data, n)
-FLOAT *data;
-int n;
+static void four1 (FLOAT *data, int n)
 {
   int i, j, m, mmax;
 
@@ -79,9 +77,7 @@ static FLOAT test ()
   return data[0];
 }
 
-int main (argc, argv)
-int argc;
-char *argv[];
+int main (int argc, char *argv[])
 {
   int i;
   FLOAT result;

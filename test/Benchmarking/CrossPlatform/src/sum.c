@@ -2,28 +2,30 @@
 
 #include <stdio.h>
 
-static int run ()
+static int run (int n)
 {
-  int i = 10000, n = 0;
+  int i = n, sum = 0;
 
   while (i >= 0)
     {
-      n = n+i;
+      sum = sum+i;
       i = i-1;
     }
 
-  return n;
+  return sum;
 }
 
-int main (argc, argv)
-int argc;
-char *argv[];
+int main (int argc, char *argv[])
 {
   int i;
   int result;
+  int n = 10000;
 
-  for (i=0; i<10000; i++)
-    result = run ();
+  if (argc > 1)
+    n = atoi (argv[1]);
+
+  for (i=0; i<20000; i++)
+    result = run (n);
 
   if (result != 50005000)
     printf ("*** wrong result ***\n");

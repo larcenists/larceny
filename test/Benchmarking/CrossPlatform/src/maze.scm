@@ -670,16 +670,15 @@
 
 ;------------------------------------------------------------------------------
 
-(define (run)
+(define (run nrows ncols)
   (set! output '())
-  (pmaze 20 7)
+  (pmaze nrows ncols)
   (reverse output))
 
 (define (main . args)
   (run-benchmark
     "maze"
     maze-iters
-    (lambda () (run))
     (lambda (result)
       (equal? result '
 (#\  #\  #\  #\_ #\  #\  #\  #\_ #\  #\  #\  #\_ #\newline
@@ -723,4 +722,7 @@
  #\/ #\  #\\ #\  #\/ #\. #\  #\  #\/ #\  #\\ #\_ #\  #\. #\\ #\newline
  #\\ #\_ #\/ #\. #\  #\_ #\/ #\. #\\ #\_ #\/ #\. #\\ #\  #\/ #\newline
  #\/ #\  #\  #\_ #\  #\. #\\ #\_ #\  #\. #\  #\_ #\  #\. #\\ #\newline
- #\\ #\_ #\/ #\  #\\ #\  #\/ #\  #\\ #\_ #\/ #\  #\\ #\_ #\/ #\newline)))))
+ #\\ #\_ #\/ #\  #\\ #\  #\/ #\  #\\ #\_ #\/ #\  #\\ #\_ #\/ #\newline)))
+    (lambda (nrows ncols) (lambda () (run nrows ncols)))
+    20
+    7))

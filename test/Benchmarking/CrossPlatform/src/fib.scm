@@ -1,4 +1,4 @@
-;;; FIB -- A classic benchmark, computes fib(30) inefficiently.
+;;; FIB -- A classic benchmark, computes fib(35) inefficiently.
 
 (define (fib n)
   (if (< n 2)
@@ -10,5 +10,6 @@
   (run-benchmark
     "fib"
     fib-iters
-    (lambda () (fib 30))
-    (lambda (result) (equal? result 832040))))
+    (lambda (result) (equal? result 9227465))
+    (lambda (n) (lambda () (fib n)))
+    35))

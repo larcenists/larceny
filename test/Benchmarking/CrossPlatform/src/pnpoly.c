@@ -48,14 +48,12 @@ static int run ()
   return count;
 }
 
-int main (argc, argv)
-int argc;
-char *argv[];
+int main (int argc, char *argv[])
 {
   int i;
   int result;
 
-  for (i=0; i<10000; i++)
+  for (i=0; i<100000; i++)
     result = run ();
 
   if (result != 6)

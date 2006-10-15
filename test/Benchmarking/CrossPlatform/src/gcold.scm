@@ -356,11 +356,12 @@
 
     (run-benchmark "GCOld"
 		   1
+		   (lambda (result) #t)
 		   (lambda ()
-		     (do ((step 0 (+ step 1)))
-			 ((>= step steps))
-		       (doStep MEG)))
-		   (lambda (result) #t))
+                     (lambda ()
+                       (do ((step 0 (+ step 1)))
+                           ((>= step steps))
+                         (doStep MEG)))))
 
     (checkTrees)
 

@@ -1433,5 +1433,6 @@
   (run-benchmark
     "nbody"
     nbody-iters
-    (lambda () (go 2 5 128))
-    (lambda () #t)))
+    (lambda () #t)
+    (lambda (i j k) (go i j k))
+    2 5 128))

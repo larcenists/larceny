@@ -1,16 +1,6 @@
 ;;; MAZEFUN -- Constructs a maze in a purely functional way,
 ;;; written by Marc Feeley.
 
-(define iota
-  (lambda (n)
-    (iota-iter n '())))
-
-(define iota-iter
-  (lambda (n lst)
-    (if (= n 0)
-        lst
-        (iota-iter (- n 1) (cons n lst)))))
-
 (define foldr
   (lambda (f base lst)
 
@@ -72,8 +62,6 @@
         #f
         (or (member (car lst) (cdr lst))
             (duplicates? (cdr lst))))))
-
-; Manipulation de matrices.
 
 (define make-matrix
   (lambda (n m init)
@@ -197,10 +185,6 @@
                       (list (cons i (+ j 1)))
                       '())))))))
 
-(define run
-  (lambda ()
-    (make-maze 11 11)))
-
 (define expected-result
   '((_ * _ _ _ _ _ _ _ _ _)
     (_ * * * * * * * _ * *)
@@ -218,6 +202,8 @@
   (run-benchmark
     "mazefun"
     mazefun-iters
-    (lambda () (run))
     (lambda (result)
-      (equal? result expected-result))))
+      (equal? result expected-result))
+    (lambda (n m) (lambda () (make-maze n m)))
+    11
+    11))

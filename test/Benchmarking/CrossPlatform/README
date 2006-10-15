@@ -1,18 +1,15 @@
-This directory contains a crude infrastructure for running benchmarks.
-It is an extensively hacked-up version of an infrastructure written by
-Marc Feeley.
+This directory contains the Gambit benchmarks and benchmarking
+infrastructure, written by Marc Feeley.  Will Clinger has
+hacked it up to run benchmarks on the machines used by the
+Larceny project, and has added several benchmarks beyond
+those distributed with Gambit.
 
-Files and directories:
+Additional files and directories:
 
-    bench           ; a shell script that runs benchmarks
     summarize.sch   ; Scheme code for summarizing results
-    src             ; source code of benchmarks
-    prefix          ; implementation-specific prefix files
-    suffix          ; implementation-specific suffix files
+    summarize2.sch  ; Scheme code for generating HTML of results
     results.*       ; outputs of the bench script
     Results         ; a place to move results.* files
-
-With no arguments, the bench script will explain its usage.
 
 To summarize results:
 
@@ -23,12 +20,15 @@ To summarize results:
 
 An output file can be specified as an optional argument.
 
-Known bugs:
+To generate HTML bar graphs of summarized results:
 
-The benchmarks and numbers of iterations need to be rescaled
-for current hardware.
+    % larceny
+    > (load "summarize.sch")
+    > (load "summarize2.sch")
+    > (define summaries (decode-usual-suspects))
+    > (graph-benchmarks summaries "temp1")
 
-The *-results procedures in summarize.sch are not complete.
+See the definition of decode-usual-suspects in summarize.sch.
+There is also a decode-usual-suspects-linux.
 
-MIT Scheme and Scheme 48 need more work.  Some of the others
-may also need work.
+Will Clinger

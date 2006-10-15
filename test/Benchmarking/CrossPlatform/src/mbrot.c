@@ -9,9 +9,7 @@
 #define max_count 64
 #define radius2 16.0
 
-static int count (r, i, step, x, y)
-FLOAT r, i, step;
-int x, y;
+static int count (FLOAT r, FLOAT i, FLOAT step, int x, int y)
 {
   FLOAT cr = r + x*step;
   FLOAT ci = i + y*step;
@@ -36,10 +34,7 @@ int x, y;
   return c;
 }
 
-static void mbrot (matrix, r, i, step, n)
-int *matrix;
-FLOAT r, i, step;
-int n;
+static void mbrot (int *matrix, FLOAT r, FLOAT i, FLOAT step, int n)
 {
   int x, y;
 
@@ -57,14 +52,12 @@ static int test ()
   return matrix[0];
 }
 
-int main (argc, argv)
-int argc;
-char *argv[];
+int main (int argc, char *argv[])
 {
   int i;
   int result;
 
-  for (i=0; i<30; i++)
+  for (i=0; i<100; i++)
     result = test ();
 
   if (result != 5)

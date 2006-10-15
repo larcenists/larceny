@@ -3309,14 +3309,12 @@ FLOAT run()
   return most_distant_atom(solutions);
 }
 
-int main (argc, argv)
-int argc;
-char *argv[];
+int main (int argc, char *argv[])
 {
   int i;
   FLOAT result;
 
-  for (i=0; i<10; i++)
+  for (i=0; i<5; i++)
     result = run ();
 
   if ((result <=  33.797594890762724*0.999999) ||

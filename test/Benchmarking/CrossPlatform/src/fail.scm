@@ -4,6 +4,7 @@
   (run-benchmark
    "fail"
    1
-   (lambda () #f)
    (lambda (result)
-     (eq? result #t))))
+     (eq? result #t))
+   (lambda (f) (lambda () f))
+   #f))

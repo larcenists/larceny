@@ -454,7 +454,6 @@
   (run-benchmark
     "conform"
     conform-iters
-    (lambda () (test))
     (lambda (result)
       (equal? (map (lambda (s)
                      (list->string (map char-downcase (string->list s))))
@@ -489,4 +488,5 @@
                 "b"
                 "c"
                 "any"
-                "none")))))
+                "none")))
+    (lambda () (lambda () (test)))))

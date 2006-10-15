@@ -1,4 +1,4 @@
-;;; SCHEME -- A Scheme interpreter evaluating TAKL, written by Marc Feeley.
+;;; SCHEME -- A Scheme interpreter evaluating a sort, written by Marc Feeley.
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -861,8 +861,8 @@
 (def-proc 'eqv?                           eqv?)
 (def-proc 'eq?                            eq?)
 (def-proc 'equal?                         equal?)
-(def-proc 'pair?                          pair?)
-(def-proc 'cons                           cons)
+(def-proc 'pair?                          (lambda (obj) (pair? obj)))
+(def-proc 'cons                           (lambda (x y) (cons x y)))
 (def-proc 'car                            (lambda (x) (car x)))
 (def-proc 'cdr                            (lambda (x) (cdr x)))
 (def-proc 'set-car!                       set-car!)
@@ -957,12 +957,12 @@
 (def-proc 'atan                           atan)
 (def-proc 'sqrt                           sqrt)
 (def-proc 'expt                           expt)
-(def-proc 'make-rectangular               make-rectangular)
-(def-proc 'make-polar                     make-polar)
-(def-proc 'real-part                      real-part)
-(def-proc 'imag-part                      imag-part)
-(def-proc 'magnitude                      magnitude)
-(def-proc 'angle                          angle)
+;(def-proc 'make-rectangular               make-rectangular)
+;(def-proc 'make-polar                     make-polar)
+;(def-proc 'real-part                      real-part)
+;(def-proc 'imag-part                      imag-part)
+;(def-proc 'magnitude                      magnitude)
+;(def-proc 'angle                          angle)
 (def-proc 'exact->inexact                 exact->inexact)
 (def-proc 'inexact->exact                 inexact->exact)
 (def-proc 'number->string                 number->string)
@@ -1036,8 +1036,15 @@
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-(define (run)
-  (scheme-eval
+(define (main . args)
+  (run-benchmark
+    "scheme"
+    scheme-iters
+    (lambda (result)
+      (equal? result
+              '("eight" "eleven" "five" "four" "nine" "one"
+                "seven" "six" "ten" "three" "twelve" "two")))
+    (lambda (expr) (lambda () (scheme-eval expr)))
     '(let ()
 
        (define (sort-list obj pred)
@@ -1066,13 +1073,3 @@
        (sort-list '("one" "two" "three" "four" "five" "six"
                     "seven" "eight" "nine" "ten" "eleven" "twelve")
                   string<?))))
-
-(define (main . args)
-  (run-benchmark
-    "scheme"
-    scheme-iters
-    (lambda () (run))
-    (lambda (result)
-      (equal? result
-              '("eight" "eleven" "five" "four" "nine" "one"
-                "seven" "six" "ten" "three" "twelve" "two")))))

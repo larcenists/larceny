@@ -3471,8 +3471,8 @@
   (run-benchmark
     "nucleic"
     nucleic-iters
-    (lambda () (run))
     (lambda (result)
       (and (number? result)
            (let ((x (FLOAT/ result 33.797594890762724)))
-             (and (FLOAT> x 0.999999) (FLOAT< x 1.000001)))))))
+             (and (FLOAT> x 0.999999) (FLOAT< x 1.000001)))))
+    (lambda () (lambda () (run)))))

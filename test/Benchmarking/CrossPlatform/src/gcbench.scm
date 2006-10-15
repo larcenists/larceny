@@ -1,9 +1,9 @@
 ;  This is adapted from a benchmark written by John Ellis and Pete Kovac
 ;  of Post Communications.
 ;  It was modified by Hans Boehm of Silicon Graphics.
-;  It was translated into Scheme by William D Clinger of Northeastern Univ,
-;    and modified for compatibility with the Gambit benchmark suite.
-;  Last modified 1 July 1999.
+;  It was translated into Scheme by William D Clinger of Northeastern Univ;
+;    the Scheme version uses (RUN-BENCHMARK <string> <thunk>)
+;  Last modified 30 May 1997.
 ; 
 ;       This is no substitute for real applications.  No actual application
 ;       is likely to behave in exactly this way.  However, this benchmark was
@@ -32,6 +32,11 @@
 ; In the Java version, this routine prints the heap size and the amount
 ; of free memory.  There is no portable way to do this in Scheme; each
 ; implementation needs its own version.
+
+(define (run-benchmark2 name thunk)
+  (display name)
+  (newline)
+  (thunk))
 
 (define (PrintDiagnostics)
   (display " Total memory available= ???????? bytes")
@@ -65,16 +70,17 @@
     
     ; Elements 3 and 4 of the allocated vectors are useless.
     
-    (letrec ((make-node (lambda (l r)
-                          (let ((v (make-empty-node)))
-                            (vector-set! v 0 l)
-                            (vector-set! v 1 r)
-                            v)))
-             (make-empty-node (lambda () (make-vector 4 0)))
-             (node.left (lambda (node) (vector-ref node 0)))
-             (node.right (lambda (node) (vector-ref node 1)))
-             (node.left-set! (lambda (node x) (vector-set! node 0 x)))
-             (node.right-set! (lambda (node x) (vector-set! node 1 x))))
+    (let* ((make-empty-node (lambda () (make-vector 4 0)))
+           (make-node
+            (lambda (l r)
+              (let ((v (make-empty-node)))
+                (vector-set! v 0 l)
+                (vector-set! v 1 r)
+                v)))
+           (node.left (lambda (node) (vector-ref node 0)))
+           (node.right (lambda (node) (vector-ref node 1)))
+           (node.left-set! (lambda (node x) (vector-set! node 0 x)))
+           (node.right-set! (lambda (node x) (vector-set! node 1 x))))
       
       ;  Build tree top down, assigning to older objects.
       (define (Populate iDepth thisNode)
@@ -100,12 +106,18 @@
                                   " trees of depth "
                                   (number->string depth)))
           (newline)
-          (do ((i 0 (+ i 1)))
-              ((>= i iNumIters))
-              (Populate depth (make-empty-node)))
-          (do ((i 0 (+ i 1)))
-              ((>= i iNumIters))
-              (MakeTree depth))))
+          (run-benchmark2
+           "GCBench: Top down construction"
+           (lambda ()
+             (do ((i 0 (+ i 1)))
+                 ((>= i iNumIters))
+               (Populate depth (make-empty-node)))))
+          (run-benchmark2
+           "GCBench: Bottom up construction"
+           (lambda ()
+             (do ((i 0 (+ i 1)))
+                 ((>= i iNumIters))
+               (MakeTree depth))))))
       
       (define (main)
         (display "Garbage Collector Test")
@@ -115,51 +127,54 @@
                   (number->string kStretchTreeDepth)))
         (newline)
         (PrintDiagnostics)
-        ;  Stretch the memory space quickly
-        (MakeTree kStretchTreeDepth)
+        (run-benchmark2
+         "GCBench: Main"
+         (lambda ()
+           ;  Stretch the memory space quickly
+           (MakeTree kStretchTreeDepth)
                          
-        ;  Create a long lived object
-        (display (string-append
-                  " Creating a long-lived binary tree of depth "
-                  (number->string kLongLivedTreeDepth)))
-        (newline)
-        (let ((longLivedTree (make-empty-node)))
-          (Populate kLongLivedTreeDepth longLivedTree)
-          
-          ;  Create long-lived array, filling half of it
-          (display (string-append
-                    " Creating a long-lived array of "
-                     (number->string kArraySize)
-                    " inexact reals"))
-          (newline)
-          (let ((array (make-vector kArraySize 0.0)))
-            (do ((i 0 (+ i 1)))
-                ((>= i (quotient kArraySize 2)))
-                (vector-set! array i (FLOAT/ 1.0 (exact->inexact i))))
-            (PrintDiagnostics)
-            
-            (do ((d kMinTreeDepth (+ d 2)))
-                ((> d kMaxTreeDepth))
-                (TimeConstruction d))
-            
-            (if (or (eq? longLivedTree '())
-                    (let ((n (min 1000
-                                  (- (quotient (vector-length array)
-                                               2)
-                                     1))))
-                      (not (FLOAT= (vector-ref array n)
-                                   (FLOAT/ 1.0 (exact->inexact n))))))
-                (begin (display "Failed") (newline)))
-            ;  fake reference to LongLivedTree
-            ;  and array
-            ;  to keep them from being optimized away
-            ))
+           ;  Create a long lived object
+           (display (string-append
+                     " Creating a long-lived binary tree of depth "
+                     (number->string kLongLivedTreeDepth)))
+           (newline)
+           (let ((longLivedTree (make-empty-node)))
+             (Populate kLongLivedTreeDepth longLivedTree)
+                           
+             ;  Create long-lived array, filling half of it
+             (display (string-append
+                       " Creating a long-lived array of "
+                       (number->string kArraySize)
+                       " inexact reals"))
+             (newline)
+             (let ((array (make-vector kArraySize 0.0)))
+               (do ((i 0 (+ i 1)))
+                   ((>= i (quotient kArraySize 2)))
+                 (vector-set! array i (/ 1.0 (exact->inexact (+ i 1)))))
+               (PrintDiagnostics)
+                             
+               (do ((d kMinTreeDepth (+ d 2)))
+                   ((> d kMaxTreeDepth))
+                 (TimeConstruction d))
+                             
+               (if (or (eq? longLivedTree '())
+                       (let ((n (min 1000
+                                     (- (quotient (vector-length array)
+                                                  2)
+                                        1))))
+                         (not (FLOAT= (vector-ref array n)
+                                      (/ 1.0 (exact->inexact (+ n 1)))))))
+                   (begin (display "Failed") (newline)))
+               ;  fake reference to LongLivedTree
+               ;  and array
+               ;  to keep them from being optimized away
+               ))))
         (PrintDiagnostics))
       
       (main))))
 
-(define (main . args)
-  (let ((k (if (null? args) 18 (car args))))
+(define (main . rest)
+  (let ((k (if (null? rest) 18 (car rest))))
     (display "The garbage collector should touch about ")
     (display (expt 2 (- k 13)))
     (display " megabytes of heap storage.")
@@ -167,8 +182,8 @@
     (display "The use of more or less memory will skew the results.")
     (newline)
     (run-benchmark
-      "gcbench"
-      1
-      (lambda () (gcbench 18))
-      (lambda (result) #t))))
-
+      (string-append "GCBench" (number->string k))
+      gcbench-iters
+      (lambda (result) #t)
+      (lambda (k) (lambda () (gcbench k)))
+      k)))

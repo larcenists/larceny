@@ -45,7 +45,6 @@
   (run-benchmark
     "destruc"
     destruc-iters
-    (lambda () (destructive 600 50))
     (lambda (result)
       (equal? result
               '((1 1 2)
@@ -57,4 +56,7 @@
                 (1 1 1 1 2)
                 (1 1 1 1 2)
                 (1 1 1 1 2)
-                (1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 3))))))
+                (1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 3))))
+    (lambda (n m) (lambda () (destructive n m)))
+    600
+    50))

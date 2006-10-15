@@ -43,6 +43,6 @@
   (run-benchmark
     "pnpoly"
     pnpoly-iters
-    (lambda () (run))
     (lambda (result)
-      (and (number? result) (= result 6)))))
+      (and (number? result) (= result 6)))
+    (lambda () (lambda () (run)))))

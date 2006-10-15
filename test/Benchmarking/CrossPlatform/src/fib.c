@@ -1,4 +1,4 @@
-/* FIB -- A classic benchmark, computes fib(30) inefficiently. */
+/* FIB -- A classic benchmark, computes fib(35) inefficiently. */
 
 #include <stdio.h>
 
@@ -11,17 +11,19 @@ int n;
     return fib (n-1) + fib (n-2);
 }
 
-int main (argc, argv)
-int argc;
-char *argv[];
+int main (int argc, char *argv[])
 {
   int i;
   int result;
+  int n = 35;
 
-  for (i=0; i<50; i++)
-    result = fib (30);
+  if (argc > 1)
+    n = atoi (argv[1]);
 
-  if (result != 832040)
+  for (i=0; i<5; i++)
+    result = fib (n);
+
+  if (result != 9227465)
     printf ("*** wrong result ***\n");
 
   return 0;

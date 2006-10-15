@@ -22,5 +22,8 @@
   (run-benchmark
     "ctak"
     ctak-iters
-    (lambda () (ctak 18 12 6))
-    (lambda (result) (equal? result 7))))
+    (lambda (result) (equal? result 7))
+    (lambda (x y z) (lambda () (ctak x y z)))
+    18
+    12
+    6))

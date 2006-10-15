@@ -33,7 +33,6 @@
                   (FLOAT* -2.0 (FLOAT* x x))))
                (wpi
                 (FLOATsin theta)))
-(vector-length (vector));************ remove this!!!!!
           (let loop4 ((wr 1.0) (wi 0.0) (m 0))
             (if (< m mmax)
               (begin
@@ -67,7 +66,7 @@
 (define data
   (FLOATmake-vector 1024 0.0))
  
-(define (run)
+(define (run data)
   (four1 data)
   (FLOATvector-ref data 0))
 
@@ -75,5 +74,6 @@
   (run-benchmark
     "fft"
     fft-iters
-    (lambda () (run))
-    (lambda (result) (equal? result 0.0))))
+    (lambda (result) (equal? result 0.0))
+    (lambda (data) (lambda () (run data)))
+    data))

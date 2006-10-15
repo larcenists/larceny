@@ -39,7 +39,7 @@
 (define eye (make-point 0.0 0.0 200.0))
 
 (define (tracer pathname res)
-  (call-with-output-file
+  (call-with-output-file/truncate
    pathname
    (lambda (p)
      (let ((extent (* res 100)))
@@ -169,6 +169,6 @@
   (run-benchmark
     "ray"
     ray-iters
-    (lambda () (run))
     (lambda (result)
-      (equal? result 'ok))))
+      (equal? result 'ok))
+    (lambda () (lambda () (run)))))

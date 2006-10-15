@@ -1,6 +1,3 @@
-; Hacked to change error to fatal-error.
-; (One of the benchmarked systems has a problem with calls to error.)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; File:         nboyer.sch
 ; Description:  The Boyer benchmark
@@ -57,24 +54,41 @@
 ; The second phase creates the test problem, and tests to see
 ; whether it is implied by the lemmas.
 
-(define (nboyer-benchmark . args)
+(define (main . args)
   (let ((n (if (null? args) 0 (car args))))
     (setup-boyer)
-    (run-benchmark (string-append "nboyer"
-                                  (number->string n))
-                   1
-                   (lambda () (test-boyer n))
-                   (lambda (rewrites)
-                     (and (number? rewrites)
-                          (case n
-                           ((0)  (= rewrites 95024))
-                           ((1)  (= rewrites 591777))
-                           ((2)  (= rewrites 1813975))
-                           ((3)  (= rewrites 5375678))
-                           ((4)  (= rewrites 16445406))
-                           ((5)  (= rewrites 51507739))
-                           ; If it works for n <= 5, assume it works.
-                           (else #t)))))))
+    (run-benchmark
+     (string-append "nboyer"
+                    (number->string n))
+     nboyer-iters
+     (lambda (rewrites)
+       (and (number? rewrites)
+            (case n
+              ((0)  (= rewrites 95024))
+              ((1)  (= rewrites 591777))
+              ((2)  (= rewrites 1813975))
+              ((3)  (= rewrites 5375678))
+              ((4)  (= rewrites 16445406))
+              ((5)  (= rewrites 51507739))
+              ; If it works for n <= 5, assume it works.
+              (else #t))))
+     (lambda (alist term n) (lambda () (test-boyer alist term n)))
+     (quote ((x f (plus (plus a b)
+                        (plus c (zero))))
+             (y f (times (times a b)
+                         (plus c d)))
+             (z f (reverse (append (append a b)
+                                   (nil))))
+             (u equal (plus a b)
+                (difference x y))
+             (w lessp (remainder a b)
+                (member a (length b)))))
+     (quote (implies (and (implies x y)
+                          (and (implies y z)
+                               (and (implies z u)
+                                    (implies u w))))
+                     (implies x w)))
+     n)))
 
 (define (setup-boyer) #t) ; assigned below
 (define (test-boyer) #t)  ; assigned below
@@ -116,7 +130,7 @@
              (equal (even1 x)
                     (if (zerop x)
                         (t)
-                        (odd (1- x))))
+                        (odd (_1- x))))
              (equal (countps- l pred)
                     (countps-loop l pred (zero)))
              (equal (fact- i)
@@ -140,7 +154,7 @@
              (equal (prime x)
                     (and (not (zerop x))
                          (not (equal x (add1 (zero))))
-                         (prime1 x (1- x))))
+                         (prime1 x (_1- x))))
              (equal (and p q)
                     (if p (if q (t)
                                 (f))
@@ -374,9 +388,9 @@
                          (not (equal b (zero)))
                          (numberp a)
                          (numberp b)
-                         (equal (1- a)
+                         (equal (_1- a)
                                 (zero))
-                         (equal (1- b)
+                         (equal (_1- b)
                                 (zero))))
              (equal (lessp (length (delete x l))
                            (length l))
@@ -555,28 +569,12 @@
   ;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
-  (define (test n)
+  (define (test alist term n)
     (let ((term
            (apply-subst
-            (translate-alist
-             (quote ((x f (plus (plus a b)
-                                (plus c (zero))))
-                     (y f (times (times a b)
-                                 (plus c d)))
-                     (z f (reverse (append (append a b)
-                                           (nil))))
-                     (u equal (plus a b)
-                              (difference x y))
-                     (w lessp (remainder a b)
-                              (member a (length b))))))
+            (translate-alist alist)
             (translate-term
-             (do ((term
-                   (quote (implies (and (implies x y)
-                                        (and (implies y z)
-                                             (and (implies z u)
-                                                  (implies u w))))
-                                   (implies x w)))
-                   (list 'or term '(f)))
+             (do ((term term (list 'or term '(f)))
                   (n n (- n 1)))
                  ((zero? n) term))))))
     (tautp term)))
@@ -761,15 +759,12 @@
           (setup)))
   
   (set! test-boyer
-        (lambda (n)
+        (lambda (alist term n)
           (set! rewrite-count 0)
-          (let ((answer (test n)))
-            (write rewrite-count)
-            (display " rewrites")
-            (newline)
+          (let ((answer (test alist term n)))
+;            (write rewrite-count)
+;            (display " rewrites")
+;            (newline)
             (if answer
                 rewrite-count
                 #f)))))
-
-(define (main . args)
-  (nboyer-benchmark nboyer-iters))

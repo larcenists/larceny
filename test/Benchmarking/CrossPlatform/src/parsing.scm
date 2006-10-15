@@ -37,8 +37,10 @@
           (string-append "parsing:" input ":" (number->string n))))
     (run-benchmark benchmark-name
                    n
-                   (lambda () (parse-string input-string))
-                   (lambda (x) (equal? x answer)))))
+                   (lambda (x) (equal? x answer))
+                   (lambda (input-string)
+                     (lambda () (parse-string input-string)))
+                   input-string)))
 
 (define (read-from-string-port-benchmark . rest)
   (let* ((n (if (null? rest) 1000 (car rest)))
@@ -945,4 +947,4 @@
          y))))
 
 (define (main . args)
-  (parsing-benchmark parsing-iters))
+  (parsing-benchmark parsing-iters "../../src/test.sch"))

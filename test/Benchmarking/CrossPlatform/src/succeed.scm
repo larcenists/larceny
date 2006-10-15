@@ -4,6 +4,7 @@
   (run-benchmark
    "succeed"
    1
-   (lambda () #f)
    (lambda (result)
-     (equal? result #f))))
+     (equal? result #f))
+   (lambda (f) (lambda () f))
+   #f))

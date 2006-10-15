@@ -104,26 +104,26 @@
                     (set-cdr! x (cddr x))
                     x)))))))
 
-(define (match pat dat alist)
+(define (my-match pat dat alist)
   (cond ((null? pat)
          (null? dat))
         ((null? dat) '())
         ((or (eq? (car pat) '?)
              (eq? (car pat)
                   (car dat)))
-         (match (cdr pat) (cdr dat) alist))
+         (my-match (cdr pat) (cdr dat) alist))
         ((eq? (car pat) '*)
-         (or (match (cdr pat) dat alist)
-             (match (cdr pat) (cdr dat) alist)
-             (match pat (cdr dat) alist)))
+         (or (my-match (cdr pat) dat alist)
+             (my-match (cdr pat) (cdr dat) alist)
+             (my-match pat (cdr dat) alist)))
         (else (cond ((not (pair? (car pat)))
                      (cond ((eq? (string-ref (symbol->string (car pat)) 0)
                                  #\?)
                             (let ((val (assq (car pat) alist)))
-                              (cond (val (match (cons (cdr val)
+                              (cond (val (my-match (cons (cdr val)
                                                       (cdr pat))
                                                 dat alist))
-                                    (else (match (cdr pat)
+                                    (else (my-match (cdr pat)
                                                  (cdr dat)
                                                  (cons (cons (car pat)
                                                              (car dat))
@@ -131,7 +131,7 @@
                            ((eq? (string-ref (symbol->string (car pat)) 0)
                                  #\*)
                             (let ((val (assq (car pat) alist)))
-                              (cond (val (match (append (cdr val)
+                              (cond (val (my-match (append (cdr val)
                                                         (cdr pat))
                                                 dat alist))
                                     (else
@@ -145,18 +145,18 @@
                                           (e (cons '() dat) (cdr e))
                                           (d dat (if (null? d) '() (cdr d))))
                                          ((or (null? e)
-                                              (match (cdr pat)
+                                              (my-match (cdr pat)
                                                        d
                                                        (cons
                                                         (cons (car pat) l)
                                                         alist)))
                                           (if (null? e) #f #t)))))))
-			   (else #f)))
+                           (else #f))) ;;;; fix suggested by Manuel Serrano (cond did not have an else clause); this changes the run time quite a bit
                     (else (and
                            (pair? (car dat))
-                           (match (car pat)
+                           (my-match (car pat)
                                   (car dat) alist)
-                           (match (cdr pat)
+                           (my-match (cdr pat)
                                   (cdr dat) alist)))))))
 
 (define database
@@ -166,12 +166,10 @@
                                     (a a)(b b))
                      (a a a b (b a) b a b a)))))
 
-(define (browse)
+(define (browse pats)
   (investigate
     database
-    '((*a ?b *b ?b a *a a *b *a)
-      (*a *b *b *a (*a) (*b))
-      (? ? * (b a) * ? ?))))
+    pats))
 
 (define (investigate units pats)
   (do ((units units (cdr units)))
@@ -181,11 +179,14 @@
           (do ((p (get (car units) 'pattern)
                   (cdr p)))
               ((null? p))
-              (match (car pats) (car p) '())))))
+              (my-match (car pats) (car p) '())))))
 
 (define (main . args)
   (run-benchmark
     "browse"
     browse-iters
-    (lambda () (browse))
-    (lambda (result) #t)))
+    (lambda (result) #t)
+    (lambda (pats) (lambda () (browse pats)))
+    '((*a ?b *b ?b a *a a *b *a)
+      (*a *b *b *a (*a) (*b))
+      (? ? * (b a) * ? ?))))
