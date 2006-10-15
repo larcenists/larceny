@@ -457,7 +457,7 @@
           (sparc.be      as FAULT)
           ; Argument must be non-negative and less than #x00110000.
           (sparc.cmpi    as $r.tmp0 544)
-          (sparc.bleu.a  as L1)
+          (sparc.blu.a   as L1)
           (sparc.slli    as $r.result 6 $r.result)
           (sparc.label   as FAULT)
           (sparc.set     as (thefixnum $ex.int2char) $r.tmp0)
