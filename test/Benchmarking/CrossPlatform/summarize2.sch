@@ -20,8 +20,8 @@
          (bad-arguments))))
 
 (define (graph-benchmarks-to-port summaries out)
-  (let* ((results (map caddr summaries))
-         (benchmark-names (map car (car results))))
+  (let* ((results (map summary:timings summaries))
+         (benchmark-names (map timing:benchmark (car results))))
     (for-each (lambda (name)
                 (graph-benchmark-to-port name summaries out))
               benchmark-names)))
@@ -37,6 +37,8 @@
 (define anchor3 "</a>")
 
 (define (graph-benchmark-to-port name summaries out)
+
+  ; Strips -r6rs-fixflo and similar suffixes from system names.
 
   (define (short-name system)
     (let* ((rchars (reverse (string->list system)))
@@ -55,35 +57,61 @@
   (display anchor3 out)
   (newline out)
 
-  (let* ((systems (map car summaries))
+  (let* ((systems (map summary:system summaries))
          (systems (map short-name systems))
-         (results (map caddr summaries))
+         (results (map summary:timings summaries))
          (timings (map (lambda (x) (assq name x))
                        results))
          (best (apply min
-                      (map caddr           ; real time
+                      (map timing:real
                            (filter (lambda (x) x) timings)))))
     (for-each (lambda (system timing)
                 (if (list? timing)
-                    (graph-system system (caddr timing) best out)))
+                    (graph-system system (timing:real timing) best out)
+                    (graph-system system 0 best out)))
               systems
               timings)))
 
 (define graph-system:args '())
+(define graph-system:bar1 "<span style=\"background-color:#")
+(define graph-system:bar2 "\">")
+(define graph-system:bar3 "</span>")
+
+(define graph-system:colors
+  '(("Larceny"   "800000")
+    ("Bigloo"    "000080")
+    ("Chez"      "004040")
+    ("Chicken"   "a06000")
+    ("Gambit"    "400060")
+    ("MIT"       "2000c0")
+    ("MzScheme"  "008020")
+    ("Petite"    "004080")
+    ("Scheme48"  "600040")))
+
+; Returns a nice color for certain popular systems,
+; or returns black.
+
+(define (system-color system)
+  (let ((probe (assoc system graph-system:colors)))
+    (if probe (cadr probe) "000000")))
+    
 
 (define (graph-system system timing best out)
-  (set! graph-system:args (list system timing best out))
   (if (and (number? timing)
            (positive? timing))
-      (let* ((relative (/ best timing)))
+      (let* ((relative (/ best timing))
+             (color (system-color system)))
         (left-justify system width:system out)
         (right-justify (msec->seconds timing) width:timing out)
         (left-justify "" width:gap out)
-        (left-justify (make-string (inexact->exact
-                                    (round (* relative width:bar)))
-                                   #\*)
-                      width:bar
-                      out)
+        (display graph-system:bar1 out)
+        (display color out)
+        (display graph-system:bar2 out)
+        (display (make-string (inexact->exact
+                               (round (* relative width:bar)))
+                              #\space)
+                 out)
+        (display graph-system:bar3 out)
         (newline out))
       (begin
         (left-justify system width:system out)

@@ -43,6 +43,7 @@
     ((summarize bigloo-results) "results.Bigloo" "summary.Bigloo")
     ((summarize chicken-results) "results.Chicken" "summary.Chicken")
     ((summarize gambit-results) "results.Gambit-C" "summary.Gambit")
+    ((summarize henchman-results) "results.Henchman" "summary.Henchman")
     ((summarize larceny-results) "results.Larceny" "summary.Larceny")
     ((summarize mit-results) "results.MIT-Scheme" "summary.MIT")
     ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme")
@@ -55,7 +56,8 @@
           (lambda (in)
             (decode-summary (string-append in setting)))))
     (map decode-summary
-         '("summary.Larceny"
+         '("summary.Henchman"
+           "summary.Larceny"
            "summary.Bigloo"
            "summary.Chicken"
            "summary.Gambit"
@@ -421,9 +423,15 @@
 ; Larceny
 
 (define (larceny-results lines out)
+  (larceny-results-proto "Larceny" lines out))
+
+(define (henchman-results lines out)
+  (larceny-results-proto "Henchman" lines out))
+
+(define (larceny-results-proto sysname lines out)
   (let ((system-key "Benchmarking ")
         (test-key "Testing ")
-        (test-key-tail " under Larceny")
+        (test-key-tail (string-append " under " sysname))
         (cpu-key "User: ")
         (real-key "Elapsed time...: ")
         (gc-key "Elapsed GC time: ")
@@ -627,54 +635,7 @@
 ; MIT Scheme
 
 (define (mit-results lines out)
-  (let ((system-key "Benchmarking ")
-        (test-key "Testing ")
-        (test-key-tail " under MIT-Scheme")
-        (cpu-key "The benchmark took ")
-        (seconds-key " seconds (cpu time)")
-        (error-key "Error: ")
-        (wrong-key "*** wrong result ***"))
-    (let ((n-system-key (string-length system-key))
-          (n-test-key (string-length test-key))
-          (n-cpu-key (string-length cpu-key))
-          (n-seconds-key (string-length seconds-key))
-          (n-error-key (string-length error-key))
-          (n-wrong-key (string-length wrong-key))
-          (name-width 20)
-          (timing-width 10))
-      (let loop ((lines lines))
-        (if (null? lines)
-            (newline out)
-            (let ((line (car lines)))
-              (cond ((substring=? system-key line 0 n-system-key)
-                     (display line out)
-                     (newline out)
-                     (newline out)
-                     (display
-                      "benchmark                  cpu      real        gc"
-                      out)
-                     (newline out))
-                    ((substring=? test-key line 0 n-test-key)
-                     (newline out)
-                     (let ((name (substring line
-                                            n-test-key
-                                            (substring? test-key-tail line))))
-                       (left-justify name name-width out)))
-                    ((substring=? cpu-key line 0 n-cpu-key)
-                     (let* ((n1 (substring? seconds-key line))
-                            (s  (substring line n-cpu-key n1))
-                            (x (* 1000 (string->number s))))
-                       (right-justify x timing-width out)
-                       (right-justify x timing-width out)))
-                    ((substring=? error-key line 0 n-error-key)
-                     (display line out)
-                     (newline out)
-                     (display (make-string name-width #\space) out))
-                    ((substring=? wrong-key line 0 n-wrong-key)
-                     (display line out)
-                     (newline out)
-                     (display (make-string name-width #\space) out)))
-              (loop (cdr lines))))))))
+  (generic-results "MIT-Scheme" lines out))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -693,6 +654,14 @@
 ;    <realtime>               ; a number, in milliseconds
 ;    <gctime>)                ; a number, in milliseconds
 ;   ...))
+
+(define summary:system car)
+(define summary:hostetc cadr)
+(define summary:timings caddr)
+(define timing:benchmark car)
+(define timing:cpu cadr)
+(define timing:real caddr)
+(define timing:gc cadddr)
 
 (define (decode-summary in)
   (define (bad-arguments)
