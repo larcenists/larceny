@@ -354,7 +354,7 @@ compiler_tests sanity-switches
 
 # Benchmarks
 pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
-LARCENY=`pwd`/../../../larceny ./bench -r 3 larceny normal > ${TEMPLOG} 2>&1
+LARCENY=`pwd`/../../../larceny ./bench -r 3 larceny all > ${TEMPLOG} 2>&1
 cat > ${TEMPSCM} <<EOF
 (error-handler (lambda l (display l) (newline) (exit 117)))
 (load "summarize.sch")
