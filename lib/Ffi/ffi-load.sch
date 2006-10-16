@@ -8,6 +8,7 @@
 
   (define architecture
     (let* ((f   (system-features))
+	   (ar  (cdr (assq 'arch-name f)))
 	   (os  (cdr (assq 'os-name f)))
 	   (maj (cdr (assq 'os-major-version f))))
       (cond ((string=? os "SunOS")
@@ -18,7 +19,7 @@
 		(error "FFI: unsupported SunOS version " maj))))
 	    ((string=? os "Win32")
 	     'i386-win32)
-	    ((string=? os "MacOS X")
+	    ((and (string=? os "MacOS X") (string=? ar "IAssassin"))
 	     'i386-macosx)
 	    ((and (string=? os "Linux")
 		  (zero?
