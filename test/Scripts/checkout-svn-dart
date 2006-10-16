@@ -361,7 +361,7 @@ cat > ${TEMPSCM} <<EOF
 (let ((os (open-output-string)))
     (with-output-to-port os
       (lambda () 
-	((summarize larceny-results) "results.Larceny")))
+	((summarize larceny-results) "results.Larceny-r5rs")))
     (let* ((str (get-output-string os))
 	   (is (open-input-string str))
 	   (decoded (decode-summary is))
