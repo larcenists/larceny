@@ -61,15 +61,22 @@ namespace Scheme.Rep {
                 characters[i] = new SChar((char)i);
             }
         }
-        public static SChar makeChar(int c) {
-          try {
-              return characters[c];
-              }
-          catch (Exception) {
-              Exn.internalError("not a valid char");
-              return new SChar((char)c);
-              }
+
+        public static SChar makeChar(int c)
+        {
+            // Try to return an ASCII character first
+            if (c >= 0 && c < CHAR_COUNT)
+                return characters[c];
+
+            else if
+                ((c >= 0 && c < 0x00110000) &&          // c is below 1114112
+                 (c > 0x0000dfff || c < 0x0000d800))  // c is not a surrogate
+                return new SChar((char)c);
+
+            Exn.fault(Constants.EX_INT2CHAR, "Invalid character");
+            return new SChar((char)0);
         }
+
         public override void write(TextWriter w) {
             w.Write("#\\");
             w.Write(val);
