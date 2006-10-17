@@ -207,6 +207,9 @@
   (define lower-chi (integer->char #x03c7))
   (define lower-alpha (integer->char #x03b1))
   (define lower-omicron (integer->char #x03bf))
+
+  (let ()
+	
   (define strasse (string #\S #\t #\r #\a es-zed #\e))
   (define upper-chaos (string upper-chi upper-alpha upper-omicron upper-sigma))
   (define final-chaos (string lower-chi lower-alpha lower-omicron final-sigma))
@@ -271,6 +274,6 @@
                 (reverse excluded)))
            excluded-code-points-above-127)
 
-)))
+))))
     
 ; eof
