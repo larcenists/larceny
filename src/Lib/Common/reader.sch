@@ -598,6 +598,20 @@
                         #t))))
                   ((char=? c #\()
                    (list->vector (read-list #\) (tyi p) p)))
+                  ((char=? c #\v)
+                   (case (tyipeek p)
+                    ((#\u)
+                     (tyi p) ; consume the u
+                     (case (tyipeek p)
+                      ((#\8)
+                       (tyi p) ; consume the 8
+                       (case (tyipeek p)
+                        ((#\()
+                         (tyi p) ; consume the left parenthesis
+                         (list->bytevector (read-list #\) (tyi p) p)))
+                        (else (error "Malformed #vu8 syntax"))))
+                      (else (error "Malformed #vu syntax"))))
+                    (else (error "Malformed #v syntax"))))
                   ;; Control-B is used for bytevectors by compile-file.
                   ;; The syntax is #^B"..."
                   ((char=? c (integer->char 2))
