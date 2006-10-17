@@ -393,8 +393,8 @@ EOF
 # omitting that a proper option...
 ../../../larceny -- ${TEMPSCM} | tail +2 >> ${DARTLOG}
 
-cat results.Larceny >> Results/results.Larceny
-rm results.Larceny
+cat results.Larceny-r5rs >> Results/results.Larceny
+rm results.Larceny-r5rs
 popd > /dev/null
 
 dartlog '</DartSubmission>'
