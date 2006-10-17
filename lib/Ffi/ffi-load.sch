@@ -65,7 +65,7 @@
     ((i386-linux)
      (require "ffi-i386")
      (require "ffi-linux-x86")
-     (ffi/libraries (list (ffi/x86-linux-libc)))
+     ;(ffi/libraries (list (ffi/x86-linux-libc)))
      (values architecture
 	     ffi/i386-linux-C-callout-cdecl
 	     #f))

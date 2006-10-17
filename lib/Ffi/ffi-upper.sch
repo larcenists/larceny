@@ -54,7 +54,9 @@
 (define (ffi/link-procedure abi name)
   (let loop ((libs (ffi/load-libraries abi)))
     (cond ((null? libs)
-	   (error "ffi/find-procedure: procedure " name " can't be found."))
+           (cond (((abi 'link-proc) 0 name))
+                 (else 
+                  (error "ffi/find-procedure: procedure " name " can't be found."))))
 	  (((abi 'link-proc) (cdar libs) name))
 	  (else
 	   (loop (cdr libs))))))
