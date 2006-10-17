@@ -49,8 +49,8 @@ setup ()
 
         CHICKEN="${APPS}/Chicken/bin/csc"
         CHICKEN_INT="${APPS}/Chicken/bin/csi"
-        GSC="${APPS}/Gambit/bin/gsc"
-        GSI="${APPS}/Gambit/bin/gsi"
+        GSC="${APPS}/bin/gsc"
+        GSI="${APPS}/bin/gsi"
         TWOBIT="/proj/will/LarcenyDev/twobit"
         SCHEME48="${APPS}/Scheme48/scheme48-1.3/go"
         MIT="${APPS}/bin/mitscheme"

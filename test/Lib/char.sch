@@ -12,7 +12,8 @@
   (char-more-tests-for-control #\a)
   (char-yet-more-tests-for-control #\a #\b)
   (char-conversion-tests #\a)
-  (char-classification-tests))
+  (char-classification-tests)
+  (basic-unicode-char-tests))
 
 (define (char-predicate-test)
   (allof "char?"

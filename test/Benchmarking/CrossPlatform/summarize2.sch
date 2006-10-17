@@ -131,3 +131,50 @@
                           (substring s (- n 2) n)))
           (else
            (string-append ".0" s)))))
+
+; Given a summary and a list of summaries,
+; returns a list of relative performance (0.0 to 1.0)
+; for every benchmark in the summary.
+
+(define (relative-performance summary summaries)
+
+  (let* ((timings (summary:timings summary))
+         (timings (filter (lambda (t)
+                            (let ((realtime (timing:real t)))
+                              (and (number? realtime)
+                                   (positive? realtime))))
+                          timings))
+         (other-results (map summary:timings summaries)))
+    (map (lambda (t)
+           (let* ((name (timing:benchmark t))
+                  (timings (map (lambda (x) (assq name x))
+                                other-results))
+                  (best (apply min
+                               (map timing:real
+                                    (filter (lambda (x) x) timings)))))
+             (/ best (timing:real t))))
+         timings)))
+
+; Given a list of positive numbers,
+; returns its geometric mean.
+
+(define (geometric-mean xs)
+  (expt (apply * xs) (/ 1 (length xs))))
+
+; Given a list of summaries, returns a list of summaries
+; augmented by the geometric mean over all benchmarks.
+
+(define (summaries-with-geometric-means summaries)
+
+  (define name (string->symbol "geometricMean"))
+
+  (map (lambda (summary)
+         (define mean
+           (* 1000
+              (/ (geometric-mean (relative-performance summary summaries)))))
+         (make-summary (summary:system summary)
+                       (summary:hostetc summary)
+                       (cons
+                        (make-timing name mean mean 0)
+                        (summary:timings summary))))
+       summaries))

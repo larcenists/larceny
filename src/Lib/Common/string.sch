@@ -8,6 +8,10 @@
 
 ($$trace "string")
 
+; The character table that follows, and the procedures that use it,
+; are obsolete and will soon be replaced by Unicode tables and
+; procedures.
+
 ; The character set, collating order, and so on can be redefined by
 ; changing this table.
 ;
@@ -97,35 +101,56 @@
 
 (define char-alphabetic?
   (lambda (x)
-    (not (eq? 0 (fxlogand 3 (bytevector-ref *char-table* (char->integer x)))))))
+    (let ((sv (char->integer x)))
+      (if (< sv 256)
+          (not (eq? 0 (fxlogand 3 (bytevector-ref *char-table* sv))))
+          #f))))
 
 (define char-upper-case?
   (lambda (x)
-    (eq? 1 (bytevector-ref *char-table* (char->integer x)))))
+    (let ((sv (char->integer x)))
+      (if (< sv 256)
+          (eq? 1 (bytevector-ref *char-table* sv))
+          #f))))
 
 (define char-lower-case?
   (lambda (x)
-    (eq? 2 (bytevector-ref *char-table* (char->integer x)))))
+    (let ((sv (char->integer x)))
+      (if (< sv 256)
+          (eq? 2 (bytevector-ref *char-table* sv))
+          #f))))
 
 (define char-numeric?
   (lambda (x)
-    (eq? 4 (bytevector-ref *char-table* (char->integer x)))))
+    (let ((sv (char->integer x)))
+      (if (< sv 256)
+          (eq? 4 (bytevector-ref *char-table* sv))
+          #f))))
 
 (define char-whitespace?
   (lambda (x)
-    (eq? 8 (bytevector-ref *char-table* (char->integer x)))))
+    (let ((sv (char->integer x)))
+      (if (< sv 256)
+          (eq? 8 (bytevector-ref *char-table* sv))
+          #f))))
 
 (define char-upcase
   (lambda (x)
-    (if (char-lower-case? x)
-        (integer->char (- (char->integer x) 32))
-	x)))
+    (let ((sv (char->integer x)))
+      (if (< sv 256)
+          (if (char-lower-case? x)
+              (integer->char (- sv 32))
+              x)
+          x))))
 
 (define char-downcase
   (lambda (x)
-    (if (char-upper-case? x)
-        (integer->char (+ (char->integer x) 32))
-        x)))
+    (let ((sv (char->integer x)))
+      (if (< sv 256)
+          (if (char-upper-case? x)
+              (integer->char (+ sv 32))
+              x)
+          x))))
 
 (define (string-ci=? s1 s2)
 

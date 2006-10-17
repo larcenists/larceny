@@ -56,7 +56,7 @@
           (lambda (in)
             (decode-summary (string-append in setting)))))
     (map decode-summary
-         '("summary.Henchman"
+         '(;"summary.Henchman"
            "summary.Larceny"
            "summary.Bigloo"
            "summary.Chicken"
@@ -654,6 +654,9 @@
 ;    <realtime>               ; a number, in milliseconds
 ;    <gctime>)                ; a number, in milliseconds
 ;   ...))
+
+(define make-summary list)
+(define make-timing list)
 
 (define summary:system car)
 (define summary:hostetc cadr)
