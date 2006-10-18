@@ -99,7 +99,9 @@
 (define (float-unbiased-exponent f)
   (let ((e (fxlogior (fxlsh (fxlogand 127 (bytevector-like-ref f 11)) 4)
 		   (fxrshl (bytevector-like-ref f 10) 4))))
-    (- e 1023)))
+    (if (= e 0)
+        -1022
+        (- e 1023))))
 
 ; Return the sign of the flonum as 0 (positive) or 1 (negative).
 
