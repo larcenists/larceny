@@ -8,7 +8,7 @@ STD_A2X_OPTS=--asciidoc-opts="${STD_ASCIIDOC_OPTS}" --xsltproc-opts="${STD_XSLTP
 
 OTHERFILES=$(wildcard UserManual/*.txt)
 
-all: user-manual.pdf user-manual.html user-manual.chunked
+all: user-manual.pdf user-manual.html user-manual.chunked user-manual-alt.html
 
 user-manual.pdf: UserManual/user-manual.txt ${OTHERFILES}
 	${A2X} ${STD_A2X_OPTS}  --format=pdf UserManual/user-manual.txt 
