@@ -556,6 +556,7 @@
            `(label ,L0)
            `(cmp	,RESULT ,(fixnum n))
            `(je short ,L1)
+           `(mov (& ,GLOBALS ,$g.second) ,(fixnum n))
            (ia86.mcall	$m.argc-ex 'argc-ex)
            `(jmp short	,L0)
            `(label ,L1)))))
