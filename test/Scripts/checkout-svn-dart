@@ -194,9 +194,9 @@ function quotetextfile { # esc_html
   # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
   # On non CCIS Sun, we don't have native2ascii.
   if `which native2ascii`; then 
-   cat $1 | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' | native2ascii      >> ${DARTLOG}
+   cat $1 | native2ascii      | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${DARTLOG}
   else 
-   cat $1 | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' | iconv -t utf-8 -c >> ${DARTLOG}
+   cat $1 | iconv -t utf-8 -c | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${DARTLOG}
   fi
 }
 
