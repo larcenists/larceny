@@ -907,6 +907,7 @@
   (environment-set! larc 'current-require-path current-require-path)
   (environment-set! larc 'current-library-resolver current-library-resolver)
   (environment-set! larc 'require require)
+  (environment-set! larc 'clear-require-loaded-files! clear-require-loaded-files!)
 
   ;; miscellaneous extensions and hacks
 

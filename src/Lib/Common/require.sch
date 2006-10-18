@@ -52,6 +52,11 @@
 
 (define *require-loaded-files* '())
 
+;; clear-require-loaded-files! resets the "require database" so that
+;; subsequent invocations of require will load libraries afresh.
+(define (clear-require-loaded-files!)
+  (set! *require-loaded-files* '()))
+
 ;; require: String+Symbol -> Boolean
 (define (require name)
   (cond

@@ -205,16 +205,8 @@
 
   (unspecified))
 
-"Reset REQUIRE's loaded-files in the interaction environment." ;; (in a very UGLY fashion)
-(letrec ((qssa (lambda (l s)
-		 (cond ((null? l) #f)
-		       ((eq? s (cdr (car l)))
-			(car l))
-		       (else 
-			(qssa (cdr l) s))))))
-  (set-car! (qssa (vector->list (procedure-ref require 1)) 
-		  '*require-loaded-files*)
-	    '()))
+"Reset REQUIRE's loaded-files in the interaction environment."
+(clear-require-loaded-files!)
 
 "Redefine MACRO-EXPAND in the interaction environment."
 
