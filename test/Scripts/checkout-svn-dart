@@ -35,14 +35,14 @@ case "`basename "$0"`" in
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
-	DIRNAME=native
+	DIRNAME=petit
     ;;
     checkout-mzscheme-solaris-petit)
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
-	DIRNAME=native
+	DIRNAME=petit
     ;;
 
     checkout-larceny-linux86-petit)
