@@ -130,10 +130,10 @@
 #define global_cell_ref( cp )  (pair_car( cp ))
 #define global_cell_set( x, y ) (pair_car( x ) = (y))
 
-#define fixnum_to_char( x )     ((((x) & 1023) << 14) | IMM_CHAR)
-#define int_to_char( x )        ((((x) & 1023) << 16) | IMM_CHAR)
-#define charcode_as_fixnum( x ) ((x) >> 14)
-#define charcode( x )           ((x) >> 16)
+#define fixnum_to_char( x )     (((x) << 6) | IMM_CHAR)
+#define int_to_char( x )        (((x) << 8) | IMM_CHAR)
+#define charcode_as_fixnum( x ) ((x) >> 6)
+#define charcode( x )           ((x) >> 8)
 
 #endif
 

@@ -780,7 +780,12 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op1_38() /* integer->char */ \
    do { word a=RESULT; \
-        if (UNSAFE_TRUE(is_fixnum(a))) \
+        if (/* argument must be fixnum. */ \
+               UNSAFE_TRUE(is_fixnum(a))   \
+            /* argument cannot be a surrogate (#x0000d800 - #x0000dfff). */ \
+	    && ((a >> 2) < 0xd800 || (a >> 2) > 0xdfff) \
+            /* argument must be non-negative and less than #x00110000. */ \
+	    && (a >= 0     && (a >> 2) < 0x110000)) \
           RESULT = fixnum_to_char(a); \
         else { FAIL( EX_INT2CHAR ); } \
    } while(0)
