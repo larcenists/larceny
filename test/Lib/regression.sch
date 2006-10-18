@@ -210,7 +210,23 @@
                             (lambda () ((hide f)))
                             (lambda () (values 1 2 3))))
             list))
-         '(17 42 666))                
+         '(17 42 666))
+   (test "Ticket #151"                  ; Bug in Larceny through 0.92b
+         (let* ((x 1.1125369292536007e-308)
+                (y (* 2 x))
+                (rx (inexact->exact x))
+                (ry (inexact->exact y)))
+           (/ ry rx))
+         2)
+   (test "Ticket #87 (1)"               ; Bug in Larceny through 0.92b
+         (expt 0.0 -2.0)
+         +inf.0)
+   (test "Ticket #87 (2)"               ; Bug in Larceny through 0.92b
+         (expt 0.0 0.0)
+         1.0)
+   (test "Ticket #87 (3)"               ; Bug in Larceny through 0.92b
+         (expt 0.0 2.0)
+         0.0)
    ))
 
 (define (bug-105-test1)

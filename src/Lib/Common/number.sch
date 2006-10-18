@@ -123,6 +123,8 @@
 
 (define (expt x y)
 
+  ; x is nonzero, and y is an exact natural number.
+
   (define (e x y)
     (cond ((= y 0)
 	   1)
@@ -133,9 +135,12 @@
 	     (* v v)))))
 
   (cond ((zero? x)
-	 (if (zero? y)
-	     1
-	     0))
+         (let ((result (cond ((= y 0) 1)
+                             ((> y 0) 0)
+                             (else (/ 1.0 0.0)))))
+           (if (and (exact? x) (exact? y))
+               result
+               (exact->inexact result))))
 	((and (exact? y) (integer? y))
 	 (if (negative? y)
 	     (/ (expt x (abs y)))
