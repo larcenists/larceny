@@ -104,6 +104,7 @@
 
 (if (or (eq? 'SPARC (nbuild-parameter 'target-machine))
         (eq? 'x86-sass (nbuild-parameter 'target-machine))
+        (eq? 'x86-nasm (nbuild-parameter 'target-machine))
         (eq? 'standard-c (nbuild-parameter 'target-machine)))
     (begin (set! dump-char!
                  (lambda (h c)

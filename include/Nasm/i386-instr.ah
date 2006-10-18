@@ -74,7 +74,7 @@
 %define fixtag_mask	    3
 %define tag_mask            7
 %define hdr_shift           8
-%define char_shift	    16
+%define char_shift	    8
 %define is_hwreg(n)         ((n) >= FIRST_HWREG && (n) <= LAST_HWREG)
 %define fixnum(n)           ((n)<<2)
 %define char(n)	            (((n)<<char_shift)|IMM_CHAR)
@@ -1158,7 +1158,7 @@ t_label(%1):
 	indexed_structure_test %1, %2, %3, %4, %5, 1, check_char
 	mov	[GLOBALS+G_STKP], CONT
 	loadr	CONT, %1
-	shr	TEMP, 16
+	shr	TEMP, char_shift
 	shr	CONT, 2
 	mov	[RESULT-%3+wordsize+CONT], TEMP_LOW
 	mov	CONT, [GLOBALS+G_STKP]
@@ -1265,7 +1265,7 @@ t_label(%1):
 	loadr	eax, %1		; Code knows that eax is TEMP/SECOND
 	mov	[GLOBALS+G_REGALIAS_ECX], ecx
 	mov	[GLOBALS+G_REGALIAS_EDI], edi
-	shr	eax, char_shift	; byte value
+	shr	eax, char_shift	; char arg to byte value
 	mov	ecx, [GLOBALS+G_ALLOCTMP]
 	shr	ecx, 2		; byte count
 	lea	edi, [RESULT+4]	; destination ptr
@@ -1457,18 +1457,30 @@ t_label(%1):
 	exception_continuable EX_CHAR2INT, %%L0
 %%L1:	
 %endif
-	shr	RESULT, 14
+	shr	RESULT, 6
 %endmacro
 	
 %macro T_OP1_38 0		; integer->char
 %ifndef UNSAFE_CODE
-%%L0:	test	RESULT_LOW, fixtag_mask
-	jz short %%L1
+%%L0:	
+	;; Argument must be fixnum
+	test RESULT_LOW, fixtag_mask
+	jnz short %%FAULT
+	;; Argument cannot be a surrogate (#x0000d800 - #x0000dfff).
+	mov TEMP, RESULT
+	sar TEMP, 13
+	cmp TEMP, 27 ; 27 = #b11011
+	jz  short %%FAULT
+	;; Argument must be non-negative and less than #x00110000.
+	cmp TEMP, 544
+	jge short %%FAULT
+	cmp TEMP, 0
+	jnl short %%L1
+%%FAULT:
 	exception_continuable EX_INT2CHAR, %%L0
 %%L1:
 %endif
-	and	RESULT, 1023
-	shl	RESULT, 14
+	shl	RESULT, 6
 	or	RESULT_LOW, IMM_CHAR
 %endmacro
 

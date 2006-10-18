@@ -1431,7 +1431,7 @@
            (ia86.loadr	TEMP regno)
            `(mov	(& ,GLOBALS ,G_REGALIAS_ECX) ecx)
            `(mov	(& ,GLOBALS ,G_REGALIAS_EDI) edi)
-           `(shr	,TEMP ,char_shift)	; char value
+           `(shr	,TEMP ,char_shift)	; char arg to byte value
            `(mov	ecx (& ,GLOBALS ,$g.alloctmp))
            `(shr	ecx 2)		; byte count
            `(lea	edi (& ,RESULT 4))	; destination ptr
