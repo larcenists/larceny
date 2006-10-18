@@ -8,7 +8,7 @@ STD_A2X_OPTS=--asciidoc-opts="${STD_ASCIIDOC_OPTS}" --xsltproc-opts="${STD_XSLTP
 
 OTHERFILES=$(wildcard UserManual/*.txt)
 
-all: user-manual.pdf user-manual.html user-manual.chunked user-manual-alt.html
+all: user-manual.pdf user-manual.html user-manual.chunked/index.html user-manual-alt.html sourceindex.html
 
 user-manual.pdf: UserManual/user-manual.txt ${OTHERFILES}
 	${A2X} ${STD_A2X_OPTS}  --format=pdf UserManual/user-manual.txt 
@@ -19,5 +19,10 @@ user-manual.html: UserManual/user-manual.txt ${OTHERFILES}
 user-manual-alt.html: UserManual/user-manual.txt ${OTHERFILES}
 	${ASCIIDOC} ${STD_ASCIIDOC_OPTS}  --backend=xhtml11 --out-file=$@ UserManual/user-manual.txt
 
-user-manual.chunked: UserManual/user-manual.txt ${OTHERFILES}
+user-manual.chunked/index.html: UserManual/user-manual.txt ${OTHERFILES} UserManual/index.html
 	${A2X} ${STD_A2X_OPTS}  --format=chunked UserManual/user-manual.txt 
+
+sourceindex.html: ${OTHERFILES}
+	echo "<HTML><HEAD><TITLE>UserManual</TITLE><BODY><UL>"                     > sourceindex.html
+	echo $(foreach file,${OTHERFILES},"<LI><A HREF=$(file)>$(file)</A></LI>") >> sourceindex.html
+	echo "</UL></BODY></HEAD></HTML>"                                         >> sourceindex.html
