@@ -22,6 +22,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=native
+	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-solaris-native)
 	SCHEME_PGM=mzscheme
@@ -29,6 +30,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=native
+	MAKETEXTSAFE=native2ascii
     ;;
     checkout-larceny-solaris-petit)
 	SCHEME_PGM=larceny
@@ -36,6 +38,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
+	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-solaris-petit)
 	SCHEME_PGM=mzscheme
@@ -43,6 +46,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
+	MAKETEXTSAFE=native2ascii
     ;;
 
     checkout-larceny-linux86-petit)
@@ -51,6 +55,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
+	MAKETEXTSAFE=iconv -t utf8 -c
     ;;
     checkout-mzscheme-linux86-petit)
 	SCHEME_PGM=mzscheme
@@ -58,6 +63,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
+	MAKETEXTSAFE=iconv -t utf8 -c
     ;;
 #    checkout-larceny-linux86-dotnet)
 #	SCHEME_PGM=larceny
@@ -79,6 +85,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
+	MAKETEXTSAFE=iconv -t utf8 -c
     ;;
     checkout-mzscheme-linux86-native)
 	SCHEME_PGM=mzscheme
@@ -86,6 +93,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
+	MAKETEXTSAFE=iconv -t utf8 -c
     ;;
 
     checkout-larceny-macosx-petit)   # PPC!
@@ -94,6 +102,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
+	MAKETEXTSAFE=iconv -t utf8 -c
     ;;
     checkout-mzscheme-macosx-petit)  # PPC!
 	SCHEME_PGM=mzscheme
@@ -101,6 +110,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
+	MAKETEXTSAFE=iconv -t utf8 -c
     ;;
     checkout-larceny-macosx-native)  # IA32!
 	SCHEME_PGM=larceny
@@ -108,6 +118,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
+	MAKETEXTSAFE=iconv -t utf8 -c
     ;;
     checkout-mzscheme-macosx-native) # IA32!
 	SCHEME_PGM=mzscheme
@@ -115,6 +126,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
+	MAKETEXTSAFE=iconv -t utf8 -c
     ;;
 
 
@@ -127,6 +139,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
 	DIRNAME=default
+	MAKETEXTSAFE=native2ascii
 	;;
 	Linux)
 	echo "Setup arguments not specified; assuming linux86 native build."
@@ -135,6 +148,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=default
+	MAKETEXTSAFE=iconv -t utf8 -c
 	;;
 	Darwin)
 	echo "Setup arguments not specified; assuming macosx86 native build."	
@@ -143,6 +157,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=default
+	MAKETEXTSAFE=iconv -t utf8 -c
 	;;
 	*)
 	echo "Setup arguments not specified; unknown target architecture."
@@ -193,11 +208,7 @@ function quotetextfile_cdata { # doesn't work for some reason...
 function quotetextfile { # esc_html
   # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
   # On non CCIS Sun, we don't have native2ascii.
-  if `which native2ascii`; then 
-   cat $1 | native2ascii      | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${DARTLOG}
-  else 
-   cat $1 | iconv -t utf-8 -c | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${DARTLOG}
-  fi
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${DARTLOG}
 }
 
 dartlog '<DartSubmission version="2.0" createdby="' $0 '">'
