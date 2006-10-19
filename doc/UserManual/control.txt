@@ -4,12 +4,13 @@ Control Features
 For more information about the countdown timer and timer interrupts, see 
 link:LarcenyNotes/note1-timer.html[the note on timer interrupts].
 
+anchor:add-exit-procedure![]
 _Procedure add-exit-procedure!_
 
 ++ (add-exit-procedure! _thunk_) => _unspecified_++
 
 add-exit-procedure! adds _thunk_ to the list of procedures that are
-run when the Scheme process terminates (either by a call to [exit][2]
+run when the Scheme process terminates (either by a call to <<ProcExit,exit>>
 or when end-of-file is detected at the interactive prompt). The
 procedures are run in the opposite order of that in which they were
 added.
@@ -72,8 +73,9 @@ _Procedure error_
 
     
 
-The error procedure applies the currently installed error handler (see [error-handler][3]) to _arg ..._.
+The error procedure applies the currently installed error handler (see <<ProcErrorHandler,error-handler>>) to _arg ..._.
 
+anchor:error-handler[]
 _Parameter error-handler_     
 
 The value of the error-handler parameter is a procedure of one or more arguments. The first argument is a key that indicates where the error occurred. If the key is an exact integer, then the error occurred in a primitive or system subroutine, and the integer is the system error code; additional arguments are arguments to the primitive that failed. If the key is the empty list, then it should be ignored. Otherwise, it is part of an error message signalled with 'error' (which calls the installed error handler).
@@ -87,14 +89,16 @@ _Procedure eval_
 
     
 
-Eval conforms to the specification in the R5RS but additionally allows a [first-class environment][4] to be used in place of the environment-specifier. If no environment or environment-specifier is used, the current interaction environment is used.
+Eval conforms to the specification in the R5RS but additionally allows a <<ChapEnviron,first-class environment>> to be used in place of the environment-specifier. If no environment or environment-specifier is used, the current interaction environment is used.
 
-Eval just calls the current value of the [evaluator][5] parameter on its arguments.
+Eval just calls the current value of the <<evaluator>> parameter on its arguments.
 
+anchor:evaluator[]
 _Parameter evaluator_     
 
 The value of this parameter is a procedure of one or two arguments: an expression to be evaluated and optionally an environment. The eval procedure calls the value of evaluator.
 
+anchor:exit[]
 _Procedure exit_
 
 ++ (exit) => _never returns_  ++
@@ -105,7 +109,7 @@ _Procedure exit_
 
     
 
-exit runs any exit procedures installed by [add-exit-procedure!][6] and then terminates the Scheme process. The optional argument is the exit status to return to the parent process. The default exit status is 0.
+exit runs any exit procedures installed by <<add-exit-procedure!>> and then terminates the Scheme process. The optional argument is the exit status to return to the parent process. The default exit status is 0.
 
 _Parameter keyboard-interrupt-handler_     
 
@@ -124,11 +128,12 @@ _Procedure quit_
 
     
 
-Quit calls the currently installed quit handler (see [quit-handler][7]).
+Quit calls the currently installed quit handler (see <<quit-handler>>).
 
+anchor:quit-handler[]
 _Parameter quit-handler_     
 
-The value of this parameter is a procedure of no parameters. The initial value of quit-handler is exit, though the [read-eval-print loop][8] sets up its own quit handler.
+The value of this parameter is a procedure of no parameters. The initial value of quit-handler is exit, though the <<repl,read-eval-print loop>> sets up its own quit handler.
 
 _Procedure reset_
 
@@ -137,8 +142,9 @@ _Procedure reset_
 
     
 
-Reset calls the currently installed reset handler (see [reset-handler][9]).
+Reset calls the currently installed reset handler (see <<reset-handler>>).
 
+anchor:reset-handler[]
 _Parameter reset-handler_     
 
 The value of the reset-handler parameter is a procedure of an arbitrary number of arguments. The default reset handler terminates the program; the read-eval-print loop installs a new handler that instead returns control to the read-eval-print loop.
@@ -181,13 +187,6 @@ _$Id: control.html 1470 2000-09-12 02:46:47Z lth $_
 [larceny@ccs.neu.edu][11]  
 
 
-   [2]: #proc:exit
-   [3]: #proc:error-handler
-   [4]: environ.html
-   [5]: #proc:evaluator
-   [6]: #proc:add-exit-procedure!
-   [7]: #proc:quit-handler
-   [8]: repl.html#proc:repl
    [9]: #proc:reset-handler
    [11]: mailto:larceny@ccs.neu.edu
 
