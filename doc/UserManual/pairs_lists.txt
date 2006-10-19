@@ -1,19 +1,14 @@
 Pairs and Lists
 ~~~~~~~~~~~~~~~
 
-_procedure append!_
-
-++ (append! _list1_ _list2_ ... _obj_) => _object_++
+proc:append![args="list1 list2 ... obj",result="object"]
     
 Append! destructively appends its arguments, which must be lists, and
 returns the resulting list. The last argument can be any object. The
 argument lists are appended by changing the cdr of the last pair of
 each argument except the last to point to the next argument.
 
-_procedure every?_
-
-
-++ (every? _procedure list1 list2_ ...) => _object_++
+proc:every?[args="procedure list1 list2 ...",result="object"]
 
 every? applies _procedure_ to each element tuple of _list_s in
 first-to-last order, and returns #f as soon as _procedure_ returns
@@ -21,30 +16,18 @@ first-to-last order, and returns #f as soon as _procedure_ returns
 _list_s, then the value returned by _procedure_ for the last element
 tuple of _list_s is returned.
 
-_procedure last-pair_
-
-
-++ (last-pair _list-structure_) => _pair_++
+proc:last-pair[args="list-structure",result="pair"]
 
 last-pair returns the last pair of the _list structure_, which must be
 a sequence of pairs linked through the cdr fields.
 
-_procedure list-copy_
-
-
-++ (list-copy _list_) => _list_++
+proc:list-copy[args="list-copy",result="list"]
 
 list-copy makes a shallow copy of the _list_ and returns that copy.
 
-_procedures remove, remq, and remv_
-
-
-++ (remove _key_ _list_) => _list_  ++
-
-++ (remq _key_ _list_) => _list_  ++
-
-++ (remv _key_ _list_) => _list_  ++
-
+proc:remove[args="key list",result="list"]
+proc:remq[args="key list",result="list"]
+proc:remv[args="key list",result="list"]
 
 Each of these procedures returns a new list which contains all the
 elements of _list_ in the original order, except that those elements
@@ -52,30 +35,19 @@ of the original list that were equal to _key_ are not in the new
 list. Remove uses equal? as the equivalence predicate; remq uses eq?,
 and remv uses eqv?.
 
-_procedures remove!, remq!, and remv!_
-
-
-++ (remove! _key list_) => _list_  ++
-
-++ (remq! _key list_) => _list_  ++
-
-++ (remv! _key list_) => _list_  ++
+proc:remove![args="key list",result="list"]
+proc:remq![args="key list",result="list"]
+proc:remv![args="key list",result="list"]
 
 These procedures are like remove, remq, and remv, except that they
 modify _list_ instead of returning a fresh list.
 
-_procedure reverse!_
-
-
-++ (reverse! _list_) => _list_++
+proc:reverse![args="list",result="list"]
 
 Reverse! destructively reverses its argument and returns the reversed
 list.
 
-_procedure some?_
-
-
-++ (some? _procedure list1 list2_ ...) => _object_++
+proc:some?[args="procedure list1 list2 ...",result="object"]
 
 some? applies _procedure_ to each element tuple of _list_s in
 first-to-last order, and returns the first non-#f value returned by

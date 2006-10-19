@@ -1,18 +1,13 @@
 Low-level Functionality
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-_Procedure current-continuation-structure_
-
-
-++ (current-continuation-structure)++
+proc:current-continuation-structure[args="none"]
 
 Returns a transparent representation of the current continuation: a
 vector representing the innermost continuation frame. A field in the
 frame points to the parent frame, and so on.
 
-_Procedure make-trampoline_
-
-++ (make-trampoline _procedure_)++
+proc:make-trampoline[args="procedure"]
 
 Returns an environment-less procedure that takes any number of
 arguments and tail-calls _procedure_ with those arguments.
@@ -21,23 +16,21 @@ It is not possible to create a procedure with a shorter procedure
 structure than that of a trampoline. That fact may be relied on: a
 trampoline can be patched into any other procedure.
 
-_Procedure peek-bytes_
+// FIXME which is the canon, lowlevel.txt or ffi.txt ?
 
-++ (peek-bytes _address buffer k_)++
+proctempl:peek-bytes[args="address buffer k"]
 
 Read _k_ bytes from memory starting at address _address_ and placing
 them in the bytevector _buffer_ starting at index 0.
 
-_Procedure poke-bytes_
+// FIXME which is the canon, lowlevel.txt or ffi.txt ?
 
-++ (poke-bytes _address buffer k_)++
+proctempl:poke-bytes[args="address buffer k"]
 
 Write _k_ bytes from bytevector _buffer_ starting at index 0 to memory
 starting at address _address_.
 
-_Procedure syscall_
-
-++ (syscall _code obj1 ..._)++
+proc:syscall[args="code obj1 ..."]
 
 Make a call on the Larceny run-time system function identified by
 _code_ with arguments obj1 .... Returns what is returned by the system

@@ -43,10 +43,7 @@ By default, /lib/libc.so is made available to the foreign function interface, so
 
 ===== Procedures
 
-_Procedure foreign-file_
-
-
-++ (foreign-file _filename_) => _unspecified_++
+proc:foreign-file[args="filename",result="unspecified"]
 
      Foreign-file loads the named object file into Larceny and makes it available for dynamic linking. 
 
@@ -55,9 +52,7 @@ Larceny uses the operating system provided dynamic linker to do dynamic linking.
   * On some versions of SunOS 4, if the linker is given a file that does not exist, it will terminate the process. (Most likely this is a bug.) This means you should never call foreign-file with the name of a file that does not exist. 
   * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the LD_LIBRARY_PATH environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
 
-_Procedure foreign-procedure_
-
-++ (foreign-procedure _name_ (_arg-type_ ...) _return-type_) => _unspecified_ ++
+proc:foreign-procedure[args="name (arg-type ...) return-type",result="unspecified"]
 
 Returns a Scheme procedure _p_ that calls the foreign procedure whose
 name is _name_. When _p_ is called, it will convert its parameters to
@@ -70,15 +65,11 @@ Types are described below.
 
 The address of the foreign procedure is obtained by searching for _name_ in the symbol tables of the foreign files that have been loaded with _foreign-file_. 
 
-_Procedure foreign-null-pointer_
-
-++ (foreign-null-pointer) => _integer_ ++
+proc:foreign-null-pointer[args="none",result="integer"]
 
 Returns a foreign null pointer. 
 
-_Procedure foreign-null-pointer?_
-
-++ (foreign-null-pointer? _integer_) => _boolean_ ++
+proc:foreign-null-pointer?[args="integer",result="boolean"]
 
 Tests whether its argument is a foreign null pointer. 
 
@@ -135,17 +126,13 @@ The two primitives _peek-bytes_ and _poke-bytes_ are provided for reading and wr
 
 (The use of _peek-bytes_ and _poke-bytes_ can often be avoided by keeping foreign data in a Scheme bytevector and passing the bytevector to a call-out using the **boxed** parameter type. However, this technique is inappropriate if the foreign code retains a pointer to the Scheme datum, which may be moved by the garbage collector.) 
 
-_Procedure peek-bytes_
-
-++ (peek-bytes _addr_ _bytevector_ _count_) => _unspecified_     ++
+proc:peek-bytes[args="addr bytevector count",result="unspecified"]
 
 _Addr_ must be an exact nonnegative integer. _Count_ must be a fixnum. The bytes in the range from _addr_ through _addr+count-1_ are copied into _bytevector_, which must be long enough to hold that many bytes. 
 
 If any address in the range is not an address accessible to the process, unpredictable things may happen. Typically, you'll get a segmentation fault. Larceny does not yet catch segmentation faults. 
 
-_Procedure poke-bytes_
-
-++ (poke-bytes _addr_ _bytevector_ _count_) => _unspecified_     ++
+proc:poke-bytes[args="addr bytevector count",result="unspecified"]
 
 _Addr_ must be an exact nonnegative integer. _Count_ must be a fixnum. The _count_ first bytes from _bytevector_ are copied into memory in the range from _addr_ through _addr+count-1_. 
 
@@ -170,98 +157,53 @@ A number of utility procedures that make reading and writing data of common C pr
 
 _Bytevector accessor procedures_
 
-++ (%get16 _bv_ _i_) => _integer_  ++
-
-++ (%get16u _bv_ _i_) => _integer_  ++
-
-++ (%get32 _bv_ _i_) => _integer_  ++
-
-++ (%get32u _bv_ _i_) => _integer_  ++
-
-
-
-++ (%get-int _bv_ _i_) => _integer_  ++
-
-++ (%get-unsigned _bv_ _i_) => _integer_  ++
-
-++ (%get-short _bv_ _i_) => _integer_  ++
-
-++ (%get-ushort _bv_ _i_) => _integer_  ++
-
-++ (%get-long _bv_ _i_) => _integer_  ++
-
-++ (%get-ulong _bv_ _i_) => _integer_  ++
-
-++ (%get-pointer _bv_ _i_) => _integer_  ++
-    
+proctempl:%get16[args="bv i",result="integer"]
+proctempl:%get16u[args="bv i",result="integer"]
+proctempl:%get32[args="bv i",result="integer"]
+proctempl:%get32u[args="bv i",result="integer"]
+proctempl:%get-int[args="bv i",result="integer"]
+proctempl:%get-unsigned[args="bv i",result="integer"]
+proctempl:%get-short[args="bv i",result="integer"]
+proctempl:%get-ushort[args="bv i",result="integer"]
+proctempl:%get-long[args="bv i",result="integer"]
+proctempl:%get-ulong[args="bv i",result="integer"]
+proctempl:%get-pointer[args="bv i",result="integer"]
 
 These procedures decode bytevectors that contain the bytes of foreign objects. In each case, _bv_ is a bytevector and _i_ is the offset of the first byte of a field in that bytevector. The field is fetched and returned as an integer (signed or unsigned as appropriate). 
 
 _Bytevector updater procedures_
 
-
-++ (%set16 _bv_ _i_ _val_) => _unspecified_  ++
-
-++ (%set16u _bv_ _i_ _val_) => _unspecified_  ++
-
-++ (%set32 _bv_ _i_ _val_) => _unspecified_  ++
-
-++ (%set32u _bv_ _i_ _val_) => _unspecified_  ++
-
-
-
-++ (%set-int _bv_ _i_ _val_) => _unspecified_  ++
-
-++ (%set-unsigned _bv_ _i_ _val_) => _unspecified_  ++
-
-++ (%set-short _bv_ _i_ _val_) => _unspecified_  ++
-
-++ (%set-ushort _bv_ _i_ _val_) => _unspecified_  ++
-
-++ (%set-long _bv_ _i_ _val_) => _unspecified_  ++
-
-++ (%set-ulong _bv_ _i_ _val_) => _unspecified_  ++
-
-++ (%set-pointer _bv_ _i_ _val_) => _unspecified_  ++
-    
+proctempl:%set16[args="bv i val",result="unspecified"]
+proctempl:%set16u[args="bv i val",result="unspecified"]
+proctempl:%set32[args="bv i val",result="unspecified"]
+proctempl:%set32u[args="bv i val",result="unspecified"]
+proctempl:%set-int[args="bv i val",result="unspecified"]
+proctempl:%set-unsigned[args="bv i val",result="unspecified"]
+proctempl:%set-short[args="bv i val",result="unspecified"]
+proctempl:%set-ushort[args="bv i val",result="unspecified"]
+proctempl:%set-long[args="bv i val",result="unspecified"]
+proctempl:%set-ulong[args="bv i val",result="unspecified"]
+proctempl:%set-pointer[args="bv i val",result="unspecified"]
 
 These procedures update bytevectors that contain the bytes of foreign objects. In each case, _bv_ is a bytevector, _i_ is an offset of the first byte of a field in that bytevector, and _val_ is a value to be stored in that field. The values must be exact integers in a range implied by the data type. 
 
 _Foreign-pointer accessor procedures_
 
+proctempl:%peek8[args="addr",result="integer"]
+proctempl:%peek8u[args="addr",result="integer"]
+proctempl:%peek16[args="addr",result="integer"]
+proctempl:%peek16u[args="addr",result="integer"]
+proctempl:%peek32[args="addr",result="integer"]
+proctempl:%peek32u[args="addr",result="integer"]
 
-++ (%peek8 _addr_) => _integer_  ++
-
-++ (%peek8u _addr_) => _integer_  ++
-
-++ (%peek16 _addr_) => _integer_  ++
-
-++ (%peek16u _addr_) => _integer_  ++
-
-++ (%peek32 _addr_) => _integer_  ++
-
-++ (%peek32u _addr_) => _integer_  ++
-
-
-
-++ (%peek-int _addr_) => _integer_  ++
-
-++ (%peek-long _addr_) => _integer_  ++
-
-++ (%peek-unsigned _addr_) => _integer_  ++
-
-++ (%peek-ulong _addr_) => _integer_  ++
-
-++ (%peek-short _addr_) => _integer_  ++
-
-++ (%peek-ushort _addr_) => _integer_  ++
-
-++ (%peek-pointer _addr_) => _integer_  ++
-
-
-
-++ (%peek-string _addr_) => _string_  ++
-    
+proctempl:%peek-int[args="addr",result="integer"]
+proctempl:%peek-long[args="addr",result="integer"]
+proctempl:%peek-unsigned[args="addr",result="integer"]
+proctempl:%peek-ulong[args="addr",result="integer"]
+proctempl:%peek-short[args="addr",result="integer"]
+proctempl:%peek-ushort[args="addr",result="integer"]
+proctempl:%peek-pointer[args="addr",result="integer"]
+proctempl:%peek-string[args="addr",result="integer"]
 
 These procedures read raw memory. In each case, _addr_ is an address, and the value stored at that address (the size of which is indicated by the name of the procedure) is fetched and returned as an integer. 
 
@@ -269,34 +211,20 @@ _%Peek-string_ expects to find a NUL-terminated string of 8-bit bytes at the giv
 
 _Foreign-pointer updater procedures_
 
+proctempl:%poke8[args="addr val",result="unspecified"]
+proctempl:%poke8u[args="addr val",result="unspecified"]
+proctempl:%poke16[args="addr val",result="unspecified"]
+proctempl:%poke16u[args="addr val",result="unspecified"]
+proctempl:%poke32[args="addr val",result="unspecified"]
+proctempl:%poke32u[args="addr val",result="unspecified"]
 
-++ (%poke8 _addr_ _val_) => _unspecified_  ++
-
-++ (%poke8u _addr_ _val_) => _unspecified_  ++
-
-++ (%poke16 _addr_ _val_) => _unspecified_  ++
-
-++ (%poke16u _addr_ _val_) => _unspecified_  ++
-
-++ (%poke32 _addr_ _val_) => _unspecified_  ++
-
-++ (%poke32u _addr_ _val_) => _unspecified_  ++
-
-
-
-++ (%poke-int _addr_ _val_) => _unspecified_  ++
-
-++ (%poke-long _addr_ _val_) => _unspecified_  ++
-
-++ (%poke-unsigned _addr_ _val_) => _unspecified_  ++
-
-++ (%poke-ulong _addr_ _val_) => _unspecified_  ++
-
-++ (%poke-short _addr_ _val_) => _unspecified_  ++
-
-++ (%poke-ushort _addr_ _val_) => _unspecified_  ++
-
-++ (%poke-pointer _addr_ _val_) => _unspecified_  ++
+proctempl:%poke-int[args="addr val",result="unspecified"]
+proctempl:%poke-long[args="addr val",result="unspecified"]
+proctempl:%poke-unsigned[args="addr val",result="unspecified"]
+proctempl:%poke-ulong[args="addr val",result="unspecified"]
+proctempl:%poke-short[args="addr val",result="unspecified"]
+proctempl:%poke-ushort[args="addr val",result="unspecified"]
+proctempl:%poke-pointer[args="addr val",result="unspecified"]
     
 
 These procedures update raw memory. In each case, _addr_ is an address, and _val_ is a value to be stored at that address. 

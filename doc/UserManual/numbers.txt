@@ -11,25 +11,17 @@ You can read more about the number representations
 
 _Number-representation predicates_
 
-++ (fixnum? _obj_) => _boolean_  ++
-
-++ (bignum? _obj_) => _boolean_  ++
-
-++ (ratnum? _obj_) => _boolean_  ++
-
-++ (flonum? _obj_) => _boolean_  ++
-
-++ (rectnum? _obj_) => _boolean_  ++
-
-++ (compnum? _obj_) => _boolean_  ++
+proctempl:fixnum?[args="obj",result="boolean"]
+proctempl:bignum?[args="obj",result="boolean"]
+proctempl:ratnum?[args="obj",result="boolean"]
+proctempl:flonum?[args="obj",result="boolean"]
+proctempl:rectnum?[args="obj",result="boolean"]
+proctempl:compnum?[args="obj",result="boolean"]
 
 These predicates test whether an object is a number of a particular
 representation and return #t if so, #f if not.
 
-_Procedure random_
-
-
-++ (random _limit_) => _exact integer_++
+proc:random[args="limit",result="exact integer"]
 
 Returns a pseudorandom nonnegative exact integer in the range 0
 through _limit_-1.

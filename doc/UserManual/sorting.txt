@@ -3,13 +3,10 @@ Sorting
 
 _Procedures sort and sort!_
 
-++ (sort _list less?_) => _list_ ++
-
-++ (sort _vector less?_) => _vector_ ++
-
-++ (sort! _list less?_) => _list_ ++
-
-++ (sort! _vector less?_) => _vector_++
+proctempl:sort[args="list less?",result="list"]
+proctempl:sort[args="vector less?",result="vector"]
+proctempl:sort![args="list less?",result="list"]
+proctempl:sort![args="vector less?",result="vector"]
 
 These procedures sort their argument (a list or a vector) according to
 the predicate _less?_, which must implement a total order on the

@@ -5,130 +5,63 @@ Environments
 
 Larceny's top-level environments are implemented using first-class environment data structures. Environments can be created and manipulated by user code and are occasionally useful to isolate computations or provide restricted namespaces.
 
-_Procedure make-environment_
-
-++ (make-environment _name_) => _env_  ++
-
-
-
-    
+proc:make-environment[args="name",result="env"]
 
 Make-environment creates a new environment with the given _name,_ a string. 
 
-_Procedure environment?_
-
-++ (environment? _obj_) => _bool_++
-
-
-    
+proc:environment?[args="obj",result="bool"]
 
 Returns #T iff _obj_ is an environment.
 
-_Procedure environment-name_
-
-++ (environment-name _env_) => _name_++
-
-
-    
+proc:environment-name[args="env",result="name"]
 
 Returns the _name_ that was given to _make-environment._
 
-_Procedure environment-get-cell_
-
-++ (environment-get-cell _env id_) => _cell_++
-
-
-    
+proc:environment-get-cell[args="env id",result="cell"]
 
 Returns the cell for the variable _id_ in environment _env._ Signals an error if _id_ denotes a macro in _env._
 
-_Procedure environment-variables_
+proc:environment-variables[args="env",result="variables"]
 
-++ (environment-variables _env_) => _variables_++
+Returns a list of the names of variables that are bound in _env_.
 
-
-    
-
-Returns a list of the names of variables that are bound in _env._
-
-_Procedure environment-variable?_
-
-++ (environment-variable? _env id_) => _bool_++
-
-
-    
+proc:environment-variable?[args="env id",result="bool"]
 
 Returns #T if _id_ is a variable in _env._
 
-_Procedure environment-get_
-
-++ (environment-get _env id_) => _obj_++
-
-
-    
+proc:environment-get[args="env id",result="obj"]
 
 Returns the value of _id_ in _env._ Signals an error if _id_ does not denote a variable with a defined value in _env._
 
-_Procedure environment-set!_
-
-++ (environment-set! _env id obj_)++
-
-
-    
+proc:environment-set![args="env id obj"]
 
 Stores _obj_ in the location denoted by _id_ in the environment represented by _env_. If _id_ denotes a macro in _env_ then the macro definition is removed.
 
-_Procedure environment-macros_
+// FIXME below needs review on many points
 
-++ (environment-macros _env_) => _macros_++
-
-
-    
+proc:environment-macros[args="env",result="macros"]
 
 Returns a list of the names of macros defined in _env._
 
-_Procedure environment-macro?_
+// FIXME check result type
 
-++ (environment-macro? _env id_) => _macro_++
-
-
-    
+proc:environment-macro?[args="env id",result="macro"]
 
 Returns #T if _id_ is a macro in _env._
 
-_Procedure environment-get-macro_
-
-++ (environment-get-macro _env id_) => _macro_++
-
-
-    
+proc:environment-get-macro[args="env id",result="macro"]
 
 Returns the macro associated with _id_ in _env._ Signals an error if _id_ does not denote a macro in _env._
 
-_Procedure environment-set-macro!_
-
-++ (environment-set-macro! _env id macro_)++
-
-
-    
+proc:environment-set-macro![args="env id macro"]
 
 Changes the macro associated with _id_ in _env_ to be _macro_. If _id_ denotes a variable in _env_ then the variable is removed.
 
-_Procedure environment-copy_
-
-++ (environment-copy _env [name]_) => _env_++
-
-
-    
+proc:environment-copy[args="env",optarg="name",result="env"]
 
 Returns a copy of the environment _env,_ giving the new environment the name _name_ if it is specified. The new environment has the same macros and variables as _env,_ but the variables are all bound to new locations.
 
-_Procedure environment-syntax-environment_
-
-++ (environment-syntax-environment _env_) => _syntaxenv_++
-
-
-    
+proc:environment-syntax-environment[args="env",result="syntaxenv"]
 
 Returns the syntactic environment of _env._ Generally this is of no use unless you're working with the Twobit internals.
 
@@ -136,14 +69,11 @@ _Parameter interaction-environment_
 
 The value of this parameter is the current interaction environment, which is used to look up global variables and syntax definitions in the read-eval-print loop as well as in eval and load when those procedures are called without arguments.
 
-_Procedures null-environment and scheme-report-environment_
+// FIXME: does null environment really take a version?
 
-++ (null-environment _version_) => _env_  ++
+proc:null-environment[args="version",result="env"]
 
-++ (scheme-report-environment _version_) => _env_++
-
-
-    
+proc:scheme-report-environment[args="version",result="env"]
 
 These are specified as for the R5RS, and _version_ may be 4 or 5.
 

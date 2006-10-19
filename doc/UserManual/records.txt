@@ -15,12 +15,7 @@ descriptors.
 
 ==== Specification
 
-_Procedure make-record-type_
-
-
-++ (make-record-type _type-name field-names [parent-rtd]_)++
-
-    
+proc:make-record-type[args="type-name field-names",optargs="parent-rtd"]
 
 Returns a "record-type descriptor", a value representing a new data
 type, disjoint from all others. The _type-name_ argument must be a
@@ -42,12 +37,7 @@ procedure will be called to print records of the type represented by
 the record-type descriptor. The procedure must accept two arguments:
 the record object to be printed and an output port.
 
-_Procedure record-constructor_
-
-
-++ (record-constructor _rtd [field-names]_)++
-
-    
+proc:record-constructor[args="rtd",optargs="field-names"]
 
 Returns a procedure for constructing new members of the type
 represented by _rtd._ The returned procedure accepts exactly as many
@@ -60,19 +50,15 @@ make-record-type that created the type represented by _rtd_; if the
 _field-names_ argument is provided, it is an error if it contains any
 duplicates or any symbols not in the default list.
 
-_Procedure record-predicate_
 
-
-++ (record-predicate _rtd_)++
+proc:record-predicate[args="rtd"]
 
 Returns a procedure for testing membership in the type represented by
 _rtd._ The returned procedure accepts exactly one argument and returns
 a true value if the argument is a member of the indicated record type
 or one of its subtypes; it returns a false value otherwise.
 
-_Procedure record-accessor_
-
-++ (record-accessor _rtd field-name_)++
+proc:record-accessor[args="rtd field-name"]
 
 Returns a procedure for reading the value of a particular field of a
 member of the type represented by _rtd._ The returned procedure
@@ -83,10 +69,7 @@ the list of field-names in the call to make-record-type that created
 the type represented by _rtd_, or a member of the field-names of the
 parent type of the type represented by _rtd._
 
-_Procedure record-updater_
-
-
-++ (record-updater _rtd field-name_)++
+proc:record-updater[args="rtd field-name"]
 
 Returns a procedure for writing the value of a particular field of a
 member of the type represented by _rtd._ The returned procedure
@@ -99,10 +82,7 @@ call to make-record-type that created the type represented by _rtd_,
 or a member of the field-names of the parent type of the type
 represented by _rtd._
 
-_Procedure record?_
-
-
-++ (record? _obj_)++
+proc:record?[args="obj"]
 
 Returns a true value if obj is a record of any type and a false value
 otherwise. Note that record? may be true of any Scheme value; of
@@ -110,10 +90,7 @@ course, if it returns true for some particular value, then
 record-type-descriptor is applicable to that value and returns an
 appropriate descriptor.
 
-_Procedure record-type-descriptor_
-
-
-++ (record-type-descriptor _record_)++
+proc:record-type-descriptor[args="record"]
 
 Returns a record-type descriptor representing the type of the given
 record. That is, for example, if the returned descriptor were passed
@@ -123,27 +100,18 @@ that the returned descriptor is the one that was passed to
 record-constructor in the call that created the constructor procedure
 that created the given record.
 
-_Procedure record-type-name_
-
-
-++ (record-type-name _rtd_)++
+proc:record-type-name[args="rtd"]
 
 Returns the type-name associated with the type represented by _rtd._
 The returned value is eqv? to the type-name argument given in the call
 to make-record-type that created the type represented by rtd.
 
-_Procedure record-type-field-names_
-
-
-++ (record-type-field-names _rtd_)++
+proc:record-type-field-names[args="rtd"]
 
 Returns a list of the symbols naming the fields in members of the type
 represented by _rtd._
 
-_Procedure record-type-parent_
-
-
-++ (record-type-parent _rtd_)++
+proc:record-type-parent[args="rtd"]
 
 Returns a record-type descriptor for the parent type of the type
 represented by _rtd_, if that type has a parent type, or a false value
@@ -151,10 +119,7 @@ otherwise. The type represented by _rtd_ has a parent type if the call
 to make-record-type that created _rtd_ provided the _parent-rtd_
 argument.
 
-_Procedure record-type-extends?_
-
-
-++ (record-type-extends? _rtd1 rtd2_)++
+proc:record-type-extends?[args="rtd1 rtd2"]
 
 Returns a true value if the type represented by _rtd1_ is a subtype of
 the type represented by _rtd2_ and a false value otherwise. A type _s_

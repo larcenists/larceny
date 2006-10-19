@@ -38,17 +38,10 @@ Larceny 1.0a2 also provides the following nonstandard SRFI keys:
 
 The previous release of Larceny did not provide any SRFI support. 
 
-_Procedure srfi0-add-key!_
-
-
-++ (srfi0-add-key! _key_) => _unspecified_++
-
-    
+proc:srfi0-add-key![args="key",result="unspecified"]
 
 Add the symbol _key_ to the list of keys recognized by the SRFI-0 implementation.
 
-_Procedure srfi0-keys_
-
-++ (srfi0-keys) => _list_++
+proc:srfi0-keys[args="none",result="list"]
 
 Return a list of symbols naming the SRFIs that are currently supported.

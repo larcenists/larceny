@@ -6,9 +6,7 @@ constant time lookup.
 
 ==== Hash tables
 
-_Procedure make-hashtable_
-
-++ (make-hashtable _hash-function bucket-searcher size_) => _hashtable_++
+proc:make-hashtable[args="hash-function bucket-searcher size",result="hashtable"]
 
 Returns a newly allocated mutable hash table using _hash-function_ as
 the hash function and _bucket-searcher_, e.g. ASSQ, ASSV, ASSOC, to
@@ -16,86 +14,64 @@ search a bucket with _size_ buckets at first, expanding the number of
 buckets as needed. The _hash-function_ must accept a key and return a
 non-negative exact integer.
 
-++ (make-hashtable _hash-function bucket-searcher_) => _hashtable_++
+proctempl:make-hashtable[args="hash-function bucket-searcher",result="hashtable"]
 
 Equivalent to (make-hashtable _hash-function bucket-searcher n_) for
 some value of _n_ chosen by the implementation.
 
-++ (make-hashtable _hash-function_) => _hashtable_++
+proctempl:make-hashtable[args="hash-function",result="hashtable"]
 
 Equivalent to (make-hashtable _hash-function_ assv).
 
-++ (make-hashtable) => _hashtable_++
+proctempl:make-hashtable[args="none",result="hashtable"]
 
 Equivalent to (make-hashtable object-hash assv).
 
-_Procedure hashtable-contains_
-
-++ (hashtable-contains? _hashtable key_) => _bool_++
+proc:hashtable-contains?[args="hashtable key",result="bool"]
 
 Returns true iff the _hashtable_ contains an entry for _key_.
 
-_Procedure hashtable-fetch_
-
-++ (hashtable-fetch _hashtable key flag_) => _object_++
+proc:hashtable-fetch[args="hashtable key flag",result="object"]
 
 Returns the value associated with _key_ in the _hashtable_ if the
 _hashtable_ contains _key_; otherwise returns _flag_.
 
-_Procedure hashtable-get_
-
-++ (hashtable-get _hashtable key_) => _object_++
+proc:hashtable-get[args="hashtable key",result="object"]
 
 Equivalent to (hashtable-fetch  #f).
 
-_Procedure hashtable-put!_
-
-++ (hashtable-put! _hashtable key value_) => _unspecified_++
+proc:hashtable-put![args="hashtable key value",result="unspecified"]
 
 Changes the _hashtable_ to associate _key_ with _value_, replacing any
 existing association for _key_.
 
-_Procedure hashtable-remove!_
-
-++ (hashtable-remove! _hashtable key_) => _unspecified_++
+proc:hashtable-remove![args="hashtable key",result="unspecified"]
 
 Removes any association for _key_ within the _hashtable_. 
 
-_Procedure hashtable-clear!_
-
-++ (hashtable-clear! _hashtable_) => _unspecified_++
+proc:hashtable-clear![args="hashtable",result="unspecified"]
 
 Removes all associations from the _hashtable_.
 
-_Procedure hashtable-size_
-
-++ (hashtable-size _hashtable_) => _integer_++
+proc:hashtable-size[args="hashtable",result="integer"]
 
 Returns the number of keys contained within the _hashtable_.
 
-_Procedure hashtable-for-each_
-
-++ (hashtable-for-each _procedure hashtable_) => _unspecified_++
+proc:hashtable-for-each[args="procedure hashtable",result="unspecified"]
 
 The _procedure_ must accept two arguments, a key and the value
 associated with that key. Calls the _procedure_ once for each
 key-value association in _hashtable_. The order of these calls is
 indeterminate.
 
-_Procedure hashtable-map_
-
-++ (hashtable-map _procedure hashtable_) => _unspecified_++
+proc:hashtable-map[args="procedure hashtable",results="unspecified"]
 
 The _procedure_ must accept two arguments, a key and the value
 associated with that key. Calls the _procedure_ once for each
 key-value association in _hashtable_, and returns a list of the
 results. The order of the calls is indeterminate.
 
-_Procedure hashtable-copy_
-
-
-++ (hashtable-copy _hashtable_) => _hashtable_++
-    
+proc:hashtable-copy[args="hashtable",result="hashtable"]
 
 Returns a copy of the _hashtable_.
 
@@ -104,21 +80,11 @@ Returns a copy of the _hashtable_.
 The _hash values_ returned by these functions are nonnegative exact
 integer suitable as hash values for the hashtable functions.
 
-_Procedure equal-hash_
-
-
-++ (equal-hash _object_) => _integer_++
-
-    
+proc:equal-hash[args="object",result="integer"]
 
 Returns a hash value for _object_ based on its contents.
 
-_Procedure object-hash_
-
-
-++ (object-hash _object_) => _integer_++
-
-    
+proc:object-hash[args="object",result="integer"]
 
 Returns a hash value for _object_ based on its identity.
 

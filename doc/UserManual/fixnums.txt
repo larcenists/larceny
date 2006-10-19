@@ -12,183 +12,105 @@ programs that need especially good performance.
 
 All arguments to the following procedures must be fixnums.
 
-_Procedure fixnum?_
-
-++ (fixnum? _obj_) => _boolean_++
+proc:fixnum?[args="obj",result="boolean"]
 
 Returns #t if its argument is a fixnum, and #f otherwise.
 
-_Procedure fx+_
-
-++ (fx+ _fix1 fix2_) => _fixnum_++
+proc:fx+[args="fix1 fix2",result="fixnum"]
 
 Returns the fixnum sum of its arguments. If the result is not
 representable as a fixnum, then an error is signalled (unless error
 checking has been disabled).
 
-_Procedure fx-_
-
-++ (fx- _fix1 fix2_) => _fixnum_++
+proc:fx-[args="fix1 fix2,result="fixnum"]
 
 Returns the fixnum difference of its arguments. If the result is not
 representable as a fixnum, then an error is signalled.
 
-_Procedure fx--_
-
-++ (fx-- _fix1_) => _fixnum_++
+proc:fx--[args="fix1",result="fixnum"]
 
 Returns the fixnum negative of its argument. If the result is not
 representable as a fixnum, then an error is signalled.
 
-_Procedure fx*_
-
-++ (fx* _fix1 fix2_) => _fixnum_++
+proc:fx*[args="fix1 fix2",result="fixnum"]
 
 Returns the fixnum product of its arguments. If the result is not
 representable as a fixnum, then an error is signalled.
 
-_Procedure fx=_
-
-++ (fx= _fix1 fix2_) => _boolean_++
-
-
-    
+proc:fx=[args="fix1 fix2",result="boolean"]
 
 Returns #t if its arguments are equal, and #f otherwise.
 
-_Procedure fx<_
-
-++ (fx< _fix1 fix2_) => _boolean_++
+proc:fx<[args="fix1 fix2",result="boolean"]
 
 Returns #t if _fix1_ is less than _fix2_, and #f otherwise.
 
-_Procedure fx<=_
-
-++ (fx<= _fix1 fix2_) => _boolean_++
+proc:fx<=[args="fix1 fix2",result="boolean"]
 
 Returns #t if _fix1_ is less than or equal to _fix2_, and #f
 otherwise.
 
-_Procedure fx>_
-
-++ (fx> _fix1 fix2_) => _boolean_++
+proc:fx>[args="fix1 fix2",result="boolean"]
 
 Returns #t if _fix1_ is greater than _fix2_, and #f otherwise.
 
-_Procedure fx>=_
-
-++ (fx>= _fix1 fix2_) => _boolean_++
+proc:fx>=[args="fix1 fix2",result="boolean"]
 
 Returns #t if _fix1_ is greater than or equal to _fix2_, and #f
 otherwise.
 
-_Procedure fxnegative?_
-
-++ (fxnegative? _fix_) => _boolean_++
-
-
-    
+proc:fxnegative?[args="fix",result="boolean"]
 
 Returns #t if its argument is less than zero, and #f otherwise.
 
-_Procedure fxpositive?_
-
-++ (fxpositive? _fix_) => _boolean_++
-
-
-    
+proc:fxpositive?[args="fix",result="boolean"]
 
 Returns #t if its argument is greater than zero, and #f otherwise.
 
-_Procedure fxzero?_
-
-++ (fxzero? _fix_) => _boolean_++
-
-
-    
+proc:fxzero?[args="fix",result="boolean"]
 
 Returns #t if its argument is zero, and #f otherwise.
 
-_Procedure logand_
+// FIXME these names have changed
 
-++ (logand _fix1 fix2_) => _fixnum_++
-
-
-    
+proc:logand[args="fix1 fix2",result="fixnum"]
 
 Returns the bitwise _and_ of its arguments.
 
-_Procedure logior_
-
-++ (logior _fix1 fix2_) => _fixnum_++
-
-
-    
+proc:logior[args="fix1 fix2",result="fixnum"]
 
 Returns the bitwise _inclusive or_ of its arguments.
 
-_Procedure lognot_
-
-++ (lognot _fix_) => _fixnum_++
-
-
-    
+proc:lognot[args="fix",result="fixnum"]
 
 Returns the bitwise _not_ of its argument.
 
-_Procedure logxor_
-
-++ (logxor _fix1 fix2_) => _fixnum_++
-
-
-    
+proc:logxor[args="fix1 fix2",result="fixnum"]
 
 Returns the bitwise _exclusive or_ of its arguments.
 
-_Procedure lsh_
-
-++ (lsh _fix1 fix2_) => _fixnum_++
+proc:lsh[args="fix1 fix2",result="fixnum"]
 
 Returns _fix1_ shifted left _fix2_ places, shifting in zero bits at
 the low end. If the shift count exceeds the number of bits in the
 machine's word size, then the results are machine-dependent.
 
-_Procedure most-positive-fixnum_
-
-++ (most-positive-fixnum) => _fixnum_++
-
-
-    
+proc:most-positive-fixnum[args="none",result="fixnum"]
 
 Returns the largest representable positive fixnum.
 
-_Procedure most-negative-fixnum_
-
-++ (most-negative-fixnum) => _fixnum_++
-
-
-    
+proc:most-negative-fixnum[args="none",result="fixnum"]
 
 Returns the smallest representable negative fixnum.
 
-_Procedure rsha_
-
-++ (rsha _fix1 fix2_) => _fixnum_++
-
-
-    
+proc:rsha[args="fix1 fix2",result="fixnum"]
 
 Returns _fix1_ shifted right _fix2_ places, shifting in a copy of the
 sign bit at the left end. If the shift count exceeds the number of
 bits in the machine's word size, then the results are
 machine-dependent.
 
-_Procedure rshl_
-
-++ (rshl _fix1 fix2_) => _fixnum_++
-
-
-    
+proc:rshl[args="fix1 fix2",result="fixnum"]
 
 Returns _fix1_ shifted right _fix2_ places, shifting in zero bits at
 the high end. If the shift count exceeds the number of bits in the

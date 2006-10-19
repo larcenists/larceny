@@ -1,37 +1,28 @@
 Strings
 ~~~~~~~
 
-_Procedure string-downcase_
-
-++ (string-downcase _string_) => _string_++
+proc:string-downcase[args="string",result="string"]
 
 Returns a string that is the same as _string_ except that every letter
 is lower case.
 
-_Procedure string-downcase!_
-
-++ (string-downcase! _string_) => _string_++
+proc:string-downcase![args="string",result="string"]
 
 Converts every upper case letter in _string_ to lower case and returns
 _string_.
 
-_Procedure substring-fill!_
-
-++ (substring-fill! _string_ _start_ _end_ _char_) => _unspecified_++
+proc:substring-fill![args="string start end char",result="unspecified"]
 
 Fill _string_ with _char_ from location _start_ through location
 __end__-1.
 
-_Procedure string-upcase_
 
-++ (string-upcase _string_) => _string_++
+proc:string-upcase[args="string",result="string"]
 
 Returns a string that is the same as _string_ except that every letter
 is upper case.
 
-_Procedure string-upcase!_
-
-++ (string-upcase! _string_) => _string_++
+proc:string-upcase![args="string",result="string"]
 
 Converts every lower case letter in _string_ to upper case and returns
 _string_.

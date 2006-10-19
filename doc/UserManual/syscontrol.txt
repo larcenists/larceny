@@ -1,14 +1,9 @@
 System Control and Performance Measurement
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-_Procedure collect_
-
-
-++ (collect) => _unspecified_  ++
-
-++ (collect _generation_) => _unspecified_  ++
-
-++ (collect _generation_ _method_) => _unspecified_++
+proc:collect[args="none",result="unspecified"]
+proctempl:collect[args="generation",result="unspecified"]
+proctempl:collect[args="generation method",result="unspecified"]
 
 Collect initiates a garbage collection. If the system has multiple
 generations, then the optional arguments are interpreted as
@@ -32,10 +27,7 @@ perform a more major type of collection than the one requested; for
 example, an attempt to collect generation 2 could cause the collector
 to promote all live data into generation 3.
 
-_Procedure GC-counter_
-
-
-++ (gc-counter) => _fixnum_++
+proc:gc-counter[args="none",result="fixnum"]
 
 _GC-counter_ returns the number of garbage collections performed since
 startup. On a 32-bit system, the counter wraps around every
@@ -44,10 +36,7 @@ startup. On a 32-bit system, the counter wraps around every
 _GC-counter_ is a primitive and compiles to a single load instruction
 on the SPARC.
 
-_Procedure gcctl_
-
-
-++ (gcctl _heap-number_ _operation_ _operand_) => _unspecified_++
+proc:gcctl[args="heap-number operation operand",result="unspecified"]
 
 _[GCCTL is largely obsolete in the new garbage collector but may be
 resurrected in the future. It can still be used to control the
@@ -99,10 +88,7 @@ selects the default policy settings.
   not the standard "young" heap (young-heap.c), nor the stop-and-copy
   collector (sc-heap.c).
 
-_Procedure sro_
-
-
-++ (sro _pointer-tag type-tag limit_) => _vector_++
+proc:sro[args="pointer-tag type-tag limit",result="vector"]
 
 SRO ("standing room only") is a system primitive that traverses the
 entire heap and returns a vector that contains all live objects in the
@@ -145,20 +131,14 @@ opened; only at the first collection is the first set of statistics
 dumped. The user might therefore want to initiate a minor collection
 just after turning on dumping in order to have a baseline set of data.
 
-_Procedure stats-dump-off_
-
-
-++ (stats-dump-off) => _unspecified_++
+proc:stats-dump-off[args="none",result="unspecified"]
 
 Stats-dump-off turns off garbage collection statistics dumping (which
 was turned on with <<stats-dump-on>>). It does not dump a final set
 of statistics before closing the file; therefore, the user may wish to
 initiate a minor collection before calling this procedure.
 
-_Procedure system-features_
-
-
-++ (system-features) => _alist_++
+proc:system-features[args="none",result="alist"]
 
 System-features returns an association lists of system features. Most
 entries are self-explanatory. The following are a more subtle:
@@ -166,14 +146,9 @@ entries are self-explanatory. The following are a more subtle:
   * The value of architecture-name is Larceny's notion of the architecture for which it was compiled, not the architecture the program is currently running on. For example, the value of this feature is "Standard-C" if you're running Petit Larceny. 
   * The value of heap-area-info is a vector of vectors, one subvector for each heap area in the running system. The subvector has four entries: the generation number, the area type, the current size, and additional information. 
 
-_Procedure display-memstats_
-
-
-++ (display-memstats _vector_) => _unspecified_  ++
-
-++ (display-memstats _vector_ 'minimal) => _unspecified_  ++
-
-++ (display-memstats _vector_ 'full) => _unspecified_  ++
+proc:display-memstats[args="vector",result="unspecified"]
+proctempl:display-memstats[args="vector minimal",result="unspecified"]
+proctempl:display-memstats[args="vector minimal full",result="unspecified"]
 
 Display-memstats takes as its argument a vector as returned by
 <<memstats>> and displays the contents of the vector in
@@ -194,10 +169,7 @@ resource usage statistics. Many of these will make no sense whatsoever
 to you unless you also study the RTS sources. A listing of the
 contents of the vector is available <<SectionMemstats,here>>.
 
-_Procedure run-with-stats_
-
-
-++ (run-with-stats _thunk_) => _obj_++
+proc:run-with-stats[args="thunk",result="obj"]
 
 Run-with-stats evaluates _thunk_, then prints a short summary of
 run-time statistics, as with
@@ -206,10 +178,7 @@ run-time statistics, as with
     
 and then returns the result of evaluating _thunk_.
 
-_Procedure run-benchmark_
-
-
-++ (run-benchmark _name k thunk ok?_) => _obj_  ++
+proc:run-benchmark[args="name k thunk ok?",result="obj"]
 
 Run-benchmark prints a short banner (including the identifying _name_)
 to identify the benchmark, then runs _thunk_ _k_ times, and finally

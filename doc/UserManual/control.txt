@@ -18,18 +18,11 @@ add-init-procedure! adds _thunk_ to the list of procedures that are
 run when the Scheme process is restarted from a dumped heap image. The
 procedures are run in the order in which they were added.
 
-_Procedure call-without-interrupts_
-
-++ (call-without-interrupts _thunk_) => _object_++
+proc:call-without-interrupts[args="thunk",result="object"]
 
 Call _thunk_, disabling timer interrupts in its dynamic extent. Returns the value(s) returned by the call to _thunk_.
 
-_Procedure decode-error_
-
-++ (decode-error _error [port]_) => _unspecified_++
-
-
-    
+proc:decode-error[args="error",optarg="port",result="unspecified"]
 
 Prints a human-readable form of _error_ on the _port_, or on the current output port if _port_ is not supplied.
 
@@ -42,30 +35,15 @@ The _error_ is a list as obtained by the error handler, as in the following exam
            (reset)))
     
 
-_Procedure disable-interrupts_
-
-++ (disable-interrupts) => _ticks-remaining_ | #f++
-
-
-    
+proc:disable-interrupts[args="none",result="ticks-remaining or #f"]
 
 Disables timer interrupts and returns the number of ticks remaining on the clock before the next interrupt, or #f if interrupts were already disabled.
 
-_Procedure enable-interrupts_
-
-++ (enable-interrupts _timer-value_) => _unspecified_++
-
-
-    
+proc:enable-interrupts[args="timer-value",result="unspecified"]
 
 Enables timer interrupts and sets the countdown timer to _timer-value_, which must be a positive fixnum. 
 
-_Procedure error_
-
-++ (error _arg ..._) => _unspecified_++
-
-
-    
+proc:error[args="arg ...",result="unspecified"]    
 
 The error procedure applies the currently installed error handler (see <<error-handler>>) to _arg ..._.
 
@@ -76,12 +54,7 @@ The value of the error-handler parameter is a procedure of one or more arguments
 
 The default error handler prints an appropriate error message and then calls reset.
 
-_Procedure eval_
-
-++ (eval _datum [environment]_) => _value ..._++
-
-
-    
+proc:eval[args="datum",optarg="environment",result="value ..."]
 
 Eval conforms to the specification in the R5RS but additionally allows a <<environ,first-class environment>> to be used in place of the environment-specifier. If no environment or environment-specifier is used, the current interaction environment is used.
 
@@ -94,9 +67,8 @@ The value of this parameter is a procedure of one or two arguments: an expressio
 
 proc:ProcExit[var="exit"]
 
-++ (exit) => _never returns_  ++
-
-++ (exit _value_) => _never returns_  ++
+proctempl:exit[args="none",result="never returns"]
+proctempl:exit[args="value",result="never returns"]
 
 exit runs any exit procedures installed by <<add-exit-procedure!>> and then terminates the Scheme process. The optional argument is the exit status to return to the parent process. The default exit status is 0.
 
@@ -110,12 +82,7 @@ _Parameter load-evaluator_
 
 The value of the parameter load-evaluator is a procedure of two arguments. The procedure is called to evaluate an expression loaded from a source file.
 
-_Procedure quit_
-
-++ (quit) => _unspecified_++
-
-
-    
+proc:quit[args="none",result="unspecified"]
 
 Quit calls the currently installed quit handler (see <<quit-handler>>).
 
@@ -124,12 +91,7 @@ _Parameter quit-handler_
 
 The value of this parameter is a procedure of no parameters. The initial value of quit-handler is exit, though the <<repl,read-eval-print loop>> sets up its own quit handler.
 
-_Procedure reset_
-
-++ (reset) => _unspecified_++
-
-
-    
+proc:reset[args="none",result="unspecified"]
 
 Reset calls the currently installed reset handler (see <<reset-handler>>).
 
@@ -150,21 +112,13 @@ _Parameter timer-interrupt-handler_
 
 The value of this parameter is a procedure of no arguments. The procedure is called with interrupts disabled when a timer interrupt is received and the interrupt enable state is "enabled".
 
-_Procedure typetag_
-
-++ (typetag _object_) => _fixnum_++
-
-
-    
+proc:typetag[args="object",result="fixnum"]
 
 Returns the typetag of _object_ if _object_ is boxed, and signals an error if it is not boxed.
 
 Typetags are documented link:LarcenyNotes/note2-repr.html[elsewhere].
 
-_Procedure typetag-set!_
-
-++ (typetag-set! _object typetag_) => _unspecified_++
-    
+proc:typetag-set![args="object typetag",result="unspecified"]
 
 Sets the typetag of _object_ to _typetag_, if _object_ is boxed, and signals an error if it is not boxed.
 

@@ -31,74 +31,40 @@ The **B**, **D**, and **U** commands can be prefixed with a count, for example, 
 
 You can set breakpoints either in program text with the break primitive or interactively at the start of a procedure with the break-entry procedure. When Larceny reaches a breakpoint during execution, the program is suspended and the debugger is entered to allow you to inspect the program. 
 
-_Procedure break_
 
-++ (break)++
-
-
-    
+proc:break[args="none"]
 
 Invokes the breakpoint handler.
 
-_Procedure break-entry_
-
-++ (break-entry _procedure_)++
-
-
-    
+proc:break-entry[args="procedure"]
 
 Set a breakpoint at the start of the _procedure_.
 
-_Procedure unbreak_
+proc:unbreak[args="procedure ..."]
 
-++ (unbreak _procedure_ ...)  ++
-
-++ (unbreak) ++
-
-
-    
+proctempl:unbreak[args="none"]
 
 In the first form, remove any breakpoint set by break-entry at the start of the _procedure_s. In the second form, remove all breakpoints set by _break-entry_.
 
 ==== Tracing
 
-_Procedure trace-entry_
-
-++ (trace-entry _procedure_)++
-
-
-    
+proc:trace-entry[args="procedure"]
 
 Set a trace point on entry to the _procedure_, removing any other trace points on the procedure. When the _procedure_ is entered, information about the call is printed on the console: the name of the procedure and the actual arguments.
 
-_Procedure trace-exit_
-
-++ (trace-exit _procedure_)++
-
-
-    
+proc:trace-exit[args="procedure"]
 
 Set a trace point on exit from the _procedure_, removing any other trace points on the procedure. When the _procedure_ returns, information about the return is printed on the console: the name of the procedure and the returned values.
 
 Note that trace-exit destroys the tail recursion properties of the instrumented procedure. Where the _procedure_ would normally "return" by tail-calling another procedure, the instrumented procedure will call the other procedure by a non-tail call and then return, at which point the procedure name and return values will be printed. Thus use of trace-exit may destroy the space properties of the program.
 
-_Procedure trace_
-
-++ (trace _procedure_)++
-
-
-    
+proc:trace[args="procedure"]
 
 Set trace points on _procedure_ both at entry and exit.
 
-_Procedure untrace_
+proc:untrace[args="procedure ..."]
 
-++ (untrace _procedure_ ...)  ++
-
-++ (untrace) ++
-
-
-    
+proctempl:untrace[args="none"]
 
 The first form removes any trace points from the _procedure_s. The second form removes all untrace points.
 

@@ -3,20 +3,15 @@ Procedures
 
 _Operations on procedures_
 
-++ (make-procedure _length_) => _procedure_  ++
-
-++ (procedure-length _procedure_) => _fixnum_  ++
-
-++ (procedure-ref _procedure_ _offset_) => _object_  ++
-
-++ (procedure-set! _procedure_ _offset_ _object_) => _unspecified_  ++
+proctempl:make-procedure[args="length",result="procedure"]
+proctempl:procedure-length[args="procedure",result="fixnum"]
+proctempl:procedure-ref[args="procedure offset",result="object"]
+proctempl:procedure-set![args="procedure offset object",result="unspecified"]
 
 These procedures operate on the representations of procedures and
 allow user programs to construct, inspect, and alter procedures.
 
-_Procedure procedure-copy_
-
-++ (procedure-copy _procedure_) => _procedure_++
+proc:procedure-copy[args="procedure",result="procedure"]
 
 Returns a shallow copy of the procedure.
 
@@ -36,8 +31,7 @@ be interpreted as though no information were available from the
 procedure. Otherwise the result is to be interpreted as described
 below.
 
-
-++ (procedure-arity _proc_)     ++
+proc:procedure-arity[args="proc"]
 
 Returns information about the arity of _proc_. If the result is #F,
 then no information is available. If the result is an exact
@@ -48,15 +42,13 @@ it is a list of non-negative integers, each of which indicates a
 number of arguments that will be accepted by _proc_; the list is not
 necessarily exhaustive.
 
-
-++ (procedure-documentation-string _proc_)     ++
+proc:procedure-documentation-string[args="proc"]
 
 Returns general information about _proc_. If the result is #F, then no
 information is available. If the result is a string, then it is to be
 interpreted as a "documentation string" (see Common Lisp).
 
-
-++ (procedure-name _proc_)     ++
+proc:procedure-name[args="proc"]
 
 Returns information about the name of _proc_. If the result is #F,
 then no information is available. If the result is a symbol or string,
@@ -65,16 +57,14 @@ of symbols and/or strings representing a path of names; the first
 element represents an outer name and the last element represents an
 inner name.
 
-
-++ (procedure-source-file _proc_)     ++
+proc:procedure-source-file[args="proc"]
 
 Returns information about the name of a file that contains the source
 code for _proc_. If the result is #F, then no information is
 available. If the result is a string, then the string is the name of a
 file.
 
-
-++ (procedure-source-position _proc_)     ++
+proc:procedure-source-position[args="proc"]
 
 Returns information about the position of the source code for _proc_
 whithin the source file specified by procedure-source-file. If the
@@ -82,15 +72,13 @@ result is #F, then no information is available. If the result is an
 exact integer _k_, then _k_ characters precede the opening parenthesis
 of the source code for _proc_ within that source file.
 
-
-++ (procedure-expression _proc_)     ++
+proc:procedure-expression[args="proc"]
 
 Returns information about the source code for _proc_. If the result is
 #F, then no information is available. If the result is a pair, then it
 is a lambda expression in the traditional representation of a list.
 
-
-++ (procedure-environment _proc_)     ++
+proc:procedure-environment[args="proc"]
 
 Returns information about the environment of _proc_. If the result is
 #F, then no information is available. In any case the result may be

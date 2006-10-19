@@ -9,21 +9,11 @@ There are no structure-length, structure-ref, or structure-set!
 procedures. Instead, use the vector-like-length, vector-like-ref, and
 vector-like-set procedures.
 
-_Procedure make-structure_
-
-
-++ (make-structure _length_) => _structure_++
-
-    
+proc:make-structure[args="length",result="structure"]
 
 Returns a structure of the specified _length_.
 
-_Procedure structure?_
-
-
-++ (structure? _object_) => _boolean_++
-
-    
+proc:structure?[args="object",result="boolean"]
 
 Returns #t if _object_ is a structure, and #f otherwise.
 

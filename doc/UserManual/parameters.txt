@@ -34,9 +34,7 @@ link:structures.html#proc:structure-comparator[Parameter ++structure-comparator+
 link:structures.html#proc:structure-printer[Parameter ++structure-printer++]
 link:control.html#proc:timer-interrupt-handler[Parameter ++timer-interrupt-handler++]
 
-_Procedure make-parameter_
-
-++ (make-parameter _name value [predicate]_) => _procedure_++
+proc:make-parameter[args="name value",optarg="predicate",result="procedure"]
 
 Create a parameter with name _name,_ initial value _value,_ and
 optional setter predicate _predicate._ When the parameter is set the
@@ -44,7 +42,6 @@ new value is first passed to _predicate,_, and if it returns #F then
 an error is signalled. _Name_ can be a symbol or a string.
 
 _Syntax parameterize_
-
 
 ++ (parameterize ((parameter0 value0) ...) expr0 expr1 ...)++
 

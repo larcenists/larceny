@@ -1,9 +1,7 @@
 Operating System Interface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-_Procedure command-line-arguments_
-
-++ (command-line-arguments) => _vector_  ++
+proc:command-line-arguments[args="none",result="vector"]
 
 Returns a vector of strings: the arguments supplied to the program by
 the user or the operating system.
@@ -31,16 +29,12 @@ _Note: Currently, heap dumping is only available with the
 stop-and-copy collector (-stopcopy command line option), although the
 heap image can be used with all the other collectors._
 
-_Procedure getenv_
-
-++ (getenv _key_) => _string_ | #f++
+proc:getenv[args="key",result="string or #f"]
 
 Returns the operating system environment mapping for the string _key_,
 or #f if there is no mapping for _key_.
 
-_Procedure system_
-
-++ (system _command_) => _status_++
+proc:system[args="command",result="status"]
 
 Send the _command_ to the operating system's command processor and
 return the command's exit status, if any. On Unix, _command_ is a

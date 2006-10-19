@@ -1,26 +1,18 @@
 Symbols
 ~~~~~~~
 
-_Procedure gensym_
-
-++ (gensym _string_) => _symbol_++
+proc:gensym[args="string",result="symbol"]
 
 Gensym returns a new uninterned symbol, the name of which contains the
 given _string._
 
-_Procedure oblist_
-
-
-++ (oblist) => _list_++
+proc:objlist[args="none",result="list"]
 
 Oblist returns the list of interned symbols.
 
-_Procedure oblist-set!_
+proc:oblist-set![args="list",result="unspecified"]
+proctempl:oblist-set![args="list table-size",result="unspecified"]
 
-++ (oblist-set! _list_) => _unspecified_  ++
-
-++ (oblist-set! _list_ _table-size_) => _unspecified_++
-    
 Oblist-set! sets the list of interned symbols to those in the given
 _list_ by clearing the symbol hash table and storing the symbols in
 _list_ in the hash table. If the optional _table-size_ is given, it is

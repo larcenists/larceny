@@ -1,15 +1,11 @@
 Input, Output, and Files
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-_Procedure close-open-files_
-
-++ (close-open-files) => _unspecified_++
+proc:close-open-files[args="none",result="unspecified"]
 
 Closes all open files.
 
-_Procedure console-input-port_
-
-++ (console-input-port) => _input-port_++
+proc:console-input-port[args="none",result="input-port"]
 
 Returns a character input port s.t. no read from the port has
 signalled an error or returned the end-of-file object.
@@ -31,10 +27,7 @@ generators installed in the parameters console-input-port-factory and
 console-output-port-factory, which allow user programs to install
 their own console port generators.
 
-_Procedure console-output-port_
-
-
-++ (console-output-port) => _output-port_++
+proc:console-output-port[args="none",result="output-port"]
 
 Returns a character output port s.t. no write to the port has
 signalled an error.
@@ -64,31 +57,21 @@ _Parameter current-output-port_
 
 The value of this parameter is a character output port.
 
-_Procedure delete-file_
-
-
-++ (delete-file _filename_) => _unspecified_++
+proc:delete-file[args="filename",result="unspecified"]
 
 Deletes the named file. No error is signalled if the file does not
 exist.
 
-_Procedure eof-object_
-
-
-++ (eof-object) => _end-of-file object_++
+proc:eof-object[args="none",result="end-of-file object"]
 
 _Eof-object_ returns an end-of-file object.
 
-_Procedure file-exists?_
-
-++ (file-exists? _filename_) => _boolean_++
+proc:file-exists?[args="filename",result="boolean"]
 
 File-exists? returns #t if the named file exists at the time the
 procedure is called.
 
-_Procedure file-modification-time_
-
-++ (file-modification-time _filename_) => _vector_ | #f ++
+proc:file-modification-time[args="filename",result="vector or #f"]
 
 File-modification-time returns the time of last modification of the
 file as a vector, or #f if the file does not exist. The vector has six
@@ -96,17 +79,14 @@ elements: year, month, day, hour, minute, second, all of which are
 exact nonnegative integers. The time returned is relative to the local
 timezone.
 
+// FIXME maybe we should update this timestamp.  :)
+
 ++     (file-modification-time "larceny") => #(1997 2 6 12 51 13)++
 
 ++     (file-modification-time "geekdom") => #f++
     
-
-_Procedure flush-output-port_
-
-++ (flush-output-port) => _unspecified_  ++
-
-++ (flush-output-port _port_) => _unspecified_  ++
-
+proc:flush-output-port[args="none",result="unspecified"]
+proctempl:flush-output-port[args="port",result="unspecified"]
 
 Write any buffered data in the port to the underlying output medium.
 
@@ -114,70 +94,46 @@ proc:get-output-string[args="string-output-port",result="string"]
 
 Retrieve the output string from the given string output port.
 
-_Procedure open-input-string_
-
-++ (open-input-string _string_) => _input-port_++
+proc:open-input-string[args="string",result="input-port"]
 
 Creates an input port that reads from _string_. The string may be
 shared with the caller. A string input port does not need to be
 closed, although closing it will prevent further reads from it.
 
-_Procedure open-output-string_
-
-++ (open-output-string) => _output-port_++
+proc:open-output-string[args="none",result="output-port"]
 
 Creates an output port where any output is written to a string. The
 accumulated string can be retrieved with
 <<get-output-string>> at any time.
 
-_Procedure port?_
-
-++ (port? _object_) => _boolean_++
+proc:port?[args="object",result="boolean"]
 
 Tests whether its argument is a port.
 
-_Procedure port-name_
-
-
-++ (port-name _port_) => _string_++
+proc:port-name[args="port",result="string"]
 
 Returns the name associated with the port; for file ports, this is the file name.
 
-_Procedure port-position_
-
-
-++ (port-position _port_) => _fixnum_++
+proc:port-position[args="port",result="fixnum"]
 
 Returns the number of characters that have been read from or written to the port.
 
-_Procedure rename-file_
-
-
-++ (rename-file _from to_) => _unspecified_++
+proc:rename-file[args="from to",result="unspecified"]
 
 Renames the file _from_ and gives it the name _to_. No error is
 signalled if _from_ does not exist or _to_ exists.
 
-_Procedure reset-output-string_
-
-
-++ (reset-output-string _port_) => _unspecified_++
+proc:reset-output-string[args="port",result="unspecified"]
 
 Given a _port_ created with _open-output-string_, deletes from the
 port all the characters that have been output so far.
 
-_Procedure with-input-from-port_
-
-
-++ (with-input-from-port _input-port thunk_) => _object_++
+proc:with-input-from-port[args="input-port thunk",result="object"]
 
 Calls _thunk_ with current input bound to _input-port_ in the dynamic
 extent of _thunk_. Returns whatever value was returned from _thunk_.
 
-_Procedure with-output-to-port_
-
-
-++ (with-output-to-port _output-port thunk_) => _object_++
+proc:with-output-to-port[args="output-port thunk",result="object"]
 
 Calls _thunk_ with current output bound to _output-port_ in the
 dynamic extent of _thunk_. Returns whatever value was returned from
