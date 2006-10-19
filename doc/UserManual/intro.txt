@@ -137,8 +137,11 @@ procedure while it is running. To make this promise, evaluate
     
     
         (fast-safe-code)   ; this name will change in a future version
-    
 
+
+// benchmark-block-mode broken for a long time; commenting out below
+
+////////////////////////////////////////////////////////////////////////
 To make `compile-file` generate faster code, you can promise that none
 of the top-level variables that are defined within a file of Scheme
 code are redefined or assigned outside of that file unless they are
@@ -146,6 +149,7 @@ redefined or assigned within the file. To make this promise, evaluate
     
     
         (benchmark-block-mode #t)
+////////////////////////////////////////////////////////////////////////
     
 
 For more information about compiler switches, see the
