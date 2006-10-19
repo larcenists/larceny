@@ -1,0 +1,465 @@
+<html>
+<head>
+<title>Larceny Note #13: MacScheme Machine Instruction Set</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #13: MacScheme Machine Instruction Set
+</h2>
+Lars T Hansen / 21 January 1999
+</center>
+
+<pre>
+Copyright 1991, 1992 Lightship Software,  Incorporated.
+
+
+<b>The Machine</b>
+
+The MacScheme machine is an accumulator plus general-register machine.
+(It was designed to overcome the shortcomings of a similar intermediate
+language used in MacScheme.) Its instructions were designed for easy
+peephole optimization when generating code for real RISC machines.
+
+<em>Registers.</em>
+
+    RESULT    Accumulator and first millicode argument register
+    SECOND    Second millicode argument register
+    THIRD     Third millicode argument register
+    REG0      Procedure register / environment / static link
+    REGn      General registers 1, ..., r for machine-dependent r
+    CONT      Continuation register / dynamic link
+
+<em>Stack cache.</em>
+
+The machine uses a stack cache to hold the topmost stack frames.  The
+CONT register points to the topmost frame in the cache.
+
+<em>Environments.</em>
+
+REG0 always holds the currently executing procedure, providing access to
+its constants and free variables.
+
+
+<b>Assembly Language Syntax</b>
+
+An &lt;int&gt; is an exact integer.
+A &lt;symbol&gt; is a Scheme symbol.
+A &lt;doc&gt; is an arbitrary value.
+
+&lt;segment&gt; ::= (&lt;instruction&gt; ...)
+
+&lt;instruction&gt; ::= &lt;pseudo&gt;
+                | (&lt;op1&gt; &lt;prim1&gt;)
+                | (&lt;op2&gt; &lt;prim2&gt; &lt;register&gt;)
+                | (&lt;op3&gt; &lt;prim3&gt; &lt;register&gt;)
+                | (&lt;op2imm&gt; &lt;primimm&gt; &lt;imm&gt;)
+                | (&lt;const&gt; &lt;object&gt;)
+                | (&lt;global&gt; &lt;symbol&gt;)
+                | (&lt;setglbl&gt; &lt;symbol&gt;)
+                | (&lt;lexical&gt; &lt;int&gt; &lt;int&gt;)
+                | (&lt;lexical&gt; &lt;int&gt; &lt;int&gt; &lt;id&gt;)
+                | (&lt;setlex&gt; &lt;int&gt; &lt;int&gt;)
+                | (&lt;setlex&gt; &lt;int&gt; &lt;int&gt; &lt;id&gt;)
+                | (&lt;stack&gt; &lt;int&gt;)
+                | (&lt;setstk&gt; &lt;int&gt;)
+                | (&lt;load&gt; &lt;register&gt; &lt;int&gt;)
+                | (&lt;store&gt; &lt;register&gt; &lt;int&gt;)
+                | (&lt;reg&gt; &lt;register&gt;)
+                | (&lt;reg&gt; &lt;register&gt; &lt;id&gt;)
+                | (&lt;setreg&gt; &lt;register&gt; &lt;doc&gt;)
+                | (&lt;movereg&gt; &lt;register&gt; &lt;register&gt;)
+                | (&lt;lambda&gt; &lt;program&gt; &lt;int&gt; &lt;ribdoc&gt;)
+                | (&lt;lexes&gt; &lt;int&gt; &lt;ribdoc&gt;)
+                | (&lt;args=&gt; &lt;int&gt;)
+                | (&lt;args&gt;=&gt; &lt;int&gt;)
+                | (&lt;invoke&gt; &lt;int&gt;)
+                | (&lt;save&gt; &lt;int&gt;)
+                | (&lt;setrtn&gt; &lt;label&gt;)
+                | (&lt;restore&gt; &lt;int&gt;)
+                | (&lt;pop&gt; &lt;int&gt;)
+                | (&lt;return&gt;)
+                | (&lt;mvrtn&gt;)
+                | (&lt;apply&gt; &lt;register&gt; &lt;register&gt;)
+                | (&lt;nop&gt;)
+                | (&lt;jump&gt; &lt;int&gt; &lt;label&gt;)
+                | (&lt;jump&gt; &lt;int&gt; &lt;label&gt; &lt;live&gt;)
+                | (&lt;skip&gt; &lt;label&gt;)
+                | (&lt;skip&gt; &lt;label&gt; &lt;live&gt;)
+                | (&lt;branch&gt; &lt;label&gt;)
+                | (&lt;branch&gt; &lt;label&gt; &lt;live&gt;)
+                | (&lt;branchf&gt; &lt;label&gt;)
+                | (&lt;branchf&gt; &lt;label&gt; &lt;live&gt;)
+
+&lt;pseudo&gt; ::= (&lt;.label&gt; &lt;label&gt;)
+           | (&lt;.proc&gt;)
+           | (&lt;.cont&gt;)
+           | (&lt;.align&gt; &lt;int&gt;)
+
+&lt;register&gt; ::= &lt;int&gt;
+&lt;label&gt; ::= &lt;int&gt;
+&lt;prim1&gt; ::= &lt;primitives of 0 or 1 arguments, not specified here&gt;
+&lt;prim2&gt; ::= &lt;primitives of 2 arguments, not specified here&gt;
+&lt;prim3&gt; ::= &lt;primitives of 3 arguments, not specified here&gt;
+&lt;primimm&gt; ::= &lt;primitives of 2 arguments with immediate argument #2, not specified here&gt;
+
+A &lt;ribdoc&gt; is the constant #f or a vector of 0 or more elements of 
+specific types; the format is defined elsewhere.  
+
+The nonterminals &lt;.label&gt;, &lt;.proc&gt;, &lt;.cont&gt;, &lt;.align&gt;, 
+&lt;op1&gt;, etc., denote integer opcodes that are not specified here.
+
+An &lt;object&gt; is any Scheme object that can be read and written
+using Scheme's READ and WRITE procedures.
+
+An &lt;imm&gt; is a target-dependent immediate value; see the section
+<em>Implementation Notes</em>, below.
+
+
+<b>MacScheme machine instructions.</b>
+
+In the descriptions of these instructions, the following ranges and
+uses are implied.
+
+    doc is any Scheme object used as documentation.
+    x is any Scheme object.
+    z is an immediate operand, MINIMM <= z < MAXIMM.
+    m is a rib number, 0 <= m < MAXRIB.
+    n is an argument count, rib slot, or stack frame slot,
+       0 <= n < MAXSLOT.
+    k is a register, 0 <= k < R.
+    o is an offset from the beginning of a code segment,
+       0 <= o < MAXOFFSET.
+    L is an offset from the beginning of the next instruction,
+       MINOFFSET <= L < MAXOFFSET.
+
+
+<b>Implementation-specific parameters.</b>
+
+The highest numbered general register is REGr, where r = R-1.
+
+See the end of this file for implementation notes, notably the 
+values of R, MINOFFSET, MAXOFFSET, MINIMM, MAXIMM, MAXSLOT, and MAXRIB.
+
+
+<b>Summary of instructions.</b>
+
+<em>Data operations.</em>
+
+op1     prim
+op2     prim,k
+op3     prim,k2,k3
+op2imm  prim,z
+
+<em>Constants.</em>
+
+const   x
+
+<em>Variable references.</em>
+
+global  x
+setglbl x
+lexical m,n
+setlex  m,n
+stack   n
+setstk  n
+load    k,n
+store   k,n
+reg     k
+setreg  k
+movereg k1,k2
+
+<em>Lambda expressions.</em>
+
+lambda  x,n,doc
+lexes   n,doc
+
+<em>Procedure calls.</em>
+
+args=   n
+args>=  n
+invoke  n
+save    n
+setrtn  L
+restore n
+pop     n
+return
+mvrtn
+apply   k1,k2
+nop
+jump    m,o
+
+<em>Branches.</em>
+
+branch  L
+branchf L
+skip    L
+
+
+<b>Description of instructions.</b>
+
+op1     prim
+op2     prim,k1                 (k1 > 0)
+op3     prim,k1,k2              (k1, k2 > 0)
+
+        Loads RESULT with the result of the given primitive operation
+        with arguments taken from RESULT, REGk1, and REGk2.  May fault,
+        in which case the special registers SECOND and THIRD are loaded
+        with the values of REGk1 and REGk2 before the fault is taken.
+
+op2imm  prim,z
+
+        Loads RESULT with the result of the given primitive operation
+        with the first argument taken from RESULT and a second argument
+        z (which is always an immediate value).  May fault, in which case
+        the special register SECOND is loaded with z before the fault
+        is taken.
+
+lambda  x,n,doc
+
+        If n < r, loads RESULT with the procedure formed from the 
+        code x and the values of registers REG0-REGn.  If n >= r,
+        loads RESULT with the procedure formed from the values of
+        registers REG0-REG{r-1} and the first n-r+1 values taken
+        from the list in REGr.  The code x consists of a bytevector
+        of pure code and a vector of constants.  The documentation
+        is used only for debugging.
+
+lexes   n,doc
+
+        If n < r, loads RESULT with the procedure formed from the
+        currently executing code and the values of registers REG0-REGn.
+        If n >= r, loads RESULT with the procedure formed from the 
+        values of registers REG0-REG{r-1} and the first n-r+1 values
+        taken from the list in REGr.  The documentation is used only
+        for debugging.
+
+const   x
+
+        Loads RESULT with x.  Unless x is an immediate, it is fetched
+        from the current procedure's constant vector.
+
+global  x
+
+        Loads RESULT with the value contained in the value cell for the
+        global variable x.  May fault if the value is undefined.  The 
+        value cell is fetched from the current procedure's constant vector.
+
+setglbl x
+
+        Stores RESULT in the value cell for the global variable x.
+        The value cell is fetched from the current procedure's constant
+        vector.  Destroys RESULT.
+
+lexical m,n
+
+        Loads RESULT with the value of slot n of rib m in the current
+        environment (i.e. current procedure).  May fault if the value
+        is undefined.
+
+setlex  m,n
+
+        Stores RESULT in slot n of rib m in the current environment
+        (i.e. current procedure).  Destroys RESULT.
+
+stack   n
+
+        Loads RESULT with the value of slot n in the topmost frame of the
+        stack cache.
+
+setstk  n
+
+        Stores RESULT in slot n in the topmost frame of the stack cache.
+        Destroys RESULT.
+
+load    k,n                     (n >= 0)
+
+        Loads REGk with the value of slot n in the topmost frame of the
+        stack cache.
+
+store   k,n                     (n >= 0)
+
+        Stores REGk in slot n of the topmost frame of the stack cache.
+
+reg     k
+
+        Loads RESULT with the value of REGk.
+
+setreg  k
+
+        Stores RESULT in REGk.  Destroys RESULT.
+
+movereg k1,k2
+
+        Stores REGk1 in REGk2.
+
+args=   n
+
+        Faults if the value of RESULT is not n.
+
+args>=  n                       (n <= R-2)
+
+        Assumes that the value of RESULT is a fixnum j.  Faults unless
+        j >= n.
+
+        Case 0: n < R-2, j < r.  Loads REGn+1 with a newly allocated list
+            formed from REGn+1 through REGj.
+        Case 1: n < R-2, j >= r.  Loads REGn+1 with
+            (APPEND (LIST REGn+1 ... REG{r-1})
+                    (LIST-COPY REGr))
+        Case 2: n = R-2.  Loads REGr with (LIST (LIST-COPY REGr)).
+        Case 3: r <= n <= j.  Loads REGr with
+            (LET ((REGr (LIST-COPY REGr)))
+              (SET-CDR! (LIST-TAIL REGr (- n r))
+                        (LIST (LIST-TAIL REGr (- n (- r 1)))))
+              REGr)
+
+        Cases 1 through 3 must copy the list in REGr to avoid some
+        extremely obscure bugs with call-with-current-continuation.
+
+invoke  n
+
+        Faults if the value of TIMER is zero.  Faults if the value of
+        RESULT is not a procedure.  Decrements TIMER, loads SECOND with
+        the value of REG0, loads REG0 with the value of RESULT, stores n
+        in RESULT, and jumps to the entry point for the procedure in REG0.
+
+save    n
+
+        Pushes a new continuation frame onto the stack cache with n+1
+        data slots, and initializes slot 0 with the value of REG0.  
+        Faults on stack cache overflow.
+
+setrtn  L
+
+        Stores the return address L in the return address slot in the
+        topmost frame of the stack cache.
+
+restore k
+
+        Restores registers REG0-REGk from the topmost frame of the stack
+        cache.  This frame must have been created by "save n", where
+        k <= n.
+
+pop     n
+
+        Pops the topmost frame from the stack cache.  This frame must have
+        been created by "save n".  This instruction may empty the stack
+        cache.
+
+return
+
+        Jumps to the return address contained in the topmost frame of
+        the stack cache.  If the stack cache is empty, one frame is copied
+        into the stack cache prior to the return.
+
+mvrtn
+
+        Let n be the value in RESULT.  Returns n values.  If n < r, then
+        the return values are in REG1 through REGn.  If n >= r, then the
+        first R-2 return values are in REG1 through REG{R-2}, and REGr holds
+        a list of the remaining return values.
+
+apply   k1,k2
+
+        Faults if the value of TIMER is zero.  RESULT must contain a
+        PROCEDURE.  REGk1 must contain a list.  REGk2 must contain the
+        length of the list in REGk1.  Let n be the value of REGk2.  If n < r,
+        loads registers REG1-REGn with the elements of the list in REGk1.
+        If n >= r, loads registers REG1-REG{R-2} with the first R-2 elements
+        of the list in REGk1, and stores the tail of that list in REGr.  
+        Decrements TIMER, loads SECOND with the value of REG0, loads REG0 
+        with the value of RESULT, stores n in RESULT, and jumps to the 
+        entry point for the procedure in REG0.
+
+nop
+
+        Does nothing whatsoever.
+
+jump    m,o
+
+        Faults if the value of TIMER is zero.  Decrements timer, loads
+        REG0 with the procedure obtained by following m links of the 
+        static chain, and jumps to the code of that procedure at offset o.
+
+branch  L
+
+        If this is a backward branch, decrements TIMER and faults if
+        the new value is negative.  Jumps to L.  Destroys RESULT.
+
+branchf L
+
+        If RESULT contains a false value, then behaves as "branch L".
+        Destroys RESULT in any case.
+
+skip    L
+
+        Jumps to L.  Destroys RESULT.
+
+
+<b>Implementation notes.</b>
+
+<em>Minimal parameter values.</em>
+
+    R                  ?    (Certainly at least 3, or op3 won't work)
+    MINIMM             0
+    MAXIMM           256
+    MAXOFFSET      32767
+    MINOFFSET     -32768
+    MAXSLOT          256
+    MAXRIB           256
+
+<em>SPARC implementation.</em>
+
+    R                 32
+    MAXIMM          1023
+    MINIMM         -1024
+    MAXOFFSET   16777215
+    MINOFFSET  -16777216
+    MAXSLOT         1020
+    MAXRIB     unlimited
+
+    Additional immediate values can also be immediates in instructions. 
+    These include #t, #f, and the empty list, and in some instances,
+    characters.  See Compiler/sparc.imp.sch for details.
+
+    INVOKE and APPLY: the old value of REG0 is not preserved in
+    SECOND across the call.
+
+    BRANCHF: if RESULT contains a false value, then behaves as "skip L".
+
+    ARGS>=: Twobit guarantees that all fixed arguments are in registers,
+    so only cases 0 and 1 of this instruction are implemented.
+
+    For obscure reasons, SECOND is called ARGREG2 and THIRD is called 
+    ARGREG3.  (This needs to be fixed.)
+
+<em>Standard-C implementation.</em>
+
+    R                 32
+    MINIMM             0 (ought to be smaller)
+    MAXIMM           256 (ought to be larger)
+    MINOFFSET  unlimited
+    MAXOFFSET  unlimited
+    MAXSLOT    unlimited
+    MAXRIB     unlimited
+
+    MINOFFSET, MAXOFFSET, MAXSLOT, and MAXRIB are restricted only by the
+    C compiler; typically, they are restriced only by the virtual address 
+    range of the processor.
+
+    INVOKE and APPLY: the old value of REG0 is not preserved in
+    SECOND across the call.
+
+    ARGS>=: Twobit guarantees that all fixed arguments are in registers,
+    so only cases 0 and 1 of this instruction are implemented.
+
+    There is a fourth millicode argument register, FOURTH.
+</pre>
+<p><hr>
+<em>$Id: note13-malcode.html 469 1999-01-21 20:34:22Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

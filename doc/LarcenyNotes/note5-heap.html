@@ -1,0 +1,44 @@
+<html>
+<head>
+<title>Larceny Note #5: Dumped Heap Images</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #5: Dumped Heap Images
+</h2>
+Lars T Hansen / June 27, 1997
+</center>
+
+
+<h3>How to add a named root to a heap</h3>
+
+<ul>
+<li> Go to Rts/globals.cfg, and add the root to the roots section.
+<li> In the same file, change the heap version number ("heap-version",
+     near the top).
+<li> In Compiler/dumpheap.sch, add the root to the "roots" list 
+     the correct position.
+<li> In the same file, add code to build-heap-image that adds the global
+     (using heap.global!) to the roots list.
+<li> Nuke all .lop and .fasl files and rebuild all heap images.
+</ul>
+
+The global is now available from C and millicode under the name chosen
+in globals.cfg, and from Scheme under the name used in the call to 
+heap.global!.  For example, the call
+<pre>
+    (heap.global! heap 'signals (dump-global! heap 'pending-signals))
+</pre>
+associates the global cell known in Scheme as "pending-signals" with the
+globals slot with the roots name "signals", corresponding (although you
+can't see that here) to the global name "G_SIGNALS".
+
+
+<p><hr>
+<em>$Id: note5-heap.html 87 1998-11-25 14:38:41Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

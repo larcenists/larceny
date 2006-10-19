@@ -1,0 +1,68 @@
+<html>
+<head>
+<title>Petit Larceny</title>
+</head>
+
+<body>
+
+<center>
+<h1>
+Petit Larceny
+</h1>
+lth / 5 October 1998
+</center>
+
+
+<h2>Introduction</h2>
+
+This is the design document for Petit Larceny, a version of Larceny that
+compiles Scheme to portable C.  This is not a tutorial document.
+
+<h2>How to use it</h2>
+
+To load the compiler back-end for Petit Larceny, start the development
+environment with "nbuild -petit", or load the file
+"Util/load-twobit-C.sch" into a running Larceny (when in the Larceny
+build directory).
+
+
+<h2>Source files</h2>
+
+The directory Rts/Standard-C contains all the support files for Petit
+Larceny that it does not share with the rest of the system. Currently
+there are the following source files:
+
+<pre>
+        twobit.h        Macros for all MAL instructions and primops.
+        multiply.c      Portable 32x32->64 multiplication code.
+        millicode.h     Header file for portable millicode implementation.
+        millicode.c     Portable millicode implementation, including
+                        dispatch loop.
+        arithmetic.mac  Generic arithmetic macros.
+        arithmetic.c    Generic arithmetic implementation; auto-generated
+                        from arithmetic.mac.
+        expander.sch    Simple macro expander for generic arithmetic macros.
+</pre>
+
+There are two other files:
+
+<pre>
+        twobit.c.old    Experimental dispatch loop, etc (from Will).
+        twobit.h.old    Experimental instruction macros, etc (from Will).
+</pre>
+
+The directory Asm/Standard-C contains the assembler back-end for Petit
+Larceny.  There are the following source files:
+
+</pre>
+        pass5p2.sch     MAL code emitter procedures.
+        dumpheap-extra.sch      Overriding procedures for heap dumper.
+        switches.sch    Assembler switches.
+</pre>
+
+<p><hr>
+<em>$Id: noteX-petit.html 87 1998-11-25 14:38:41Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

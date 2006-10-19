@@ -1,0 +1,225 @@
+<HTML>
+<HEAD>
+<TITLE>Larceny Note #3: Generic arithmetic implementation</TITLE>
+</HEAD>
+
+<BODY>
+
+<center>
+<H2>Larceny Note #3: Generic Arithmetic Implementation</H2>
+<br>
+Lars T Hansen / November 23, 1998
+</center>
+
+<p>
+
+<a href="#strategy">1. Strategy</a><br>
+<a href="#implementation">2. Implementation</a><br>
+<a href="#mixed-representation">3. Mixed-representation arithmetic</a><br>
+<a href="#bignums">4. Bignum implementation</a><br>
+
+
+<a name="strategy">
+<h3>1. Strategy</h3>
+
+(It is assumed that the reader has a fair understanding of numbers and
+generic arithmetic in Scheme.)
+
+<p>
+
+Larceny has six <a href="note2-repr.html#numbers">representations</a> for
+numbers:
+<pre>
+fixnum     exact fixed-precision integer, 29 bits signed
+bignum     exact arbitrary-precision integer outside the fixnum range
+ratnum     exact rational, represented as two exact integers
+flonum     inexact rational, represented as an IEEE double-precision
+           floating-point number
+rectnum    exact complex number, represented as two exact rationals
+compnum    inexact complex number, represented as two IEEE double-precision
+           floating-point numbers
+</pre>
+
+From the outset it was decided that we should make certain kinds of
+generic arithmetic as fast as we could without having any type
+information.  It was further decided that remaining kinds of generic
+arithmetic should be as fast as it was convenient to make them.  The
+optimized cases were to be same-representation arithmetic on fixnums,
+flonums, and compnums (all operations that are not unary are binary; the
+compiler translates from e.g. <b>(+ a b c)</b> to <b>(+ (+ a b) c)</b>).
+The operations on these combinations of arguments that were to be
+optimized were primarily the common arithmetic operations.  In addition,
+certain efficiency concessions were to be made when operating on one flonum
+and one compnum whose imaginary part is 0.0.
+
+<P>
+
+The strategy taken was to generate in-line code for <b>+</b> and <b>-</b>,
+by far the most common operations.  The check that both operands are
+fixnums is performed, and if it succeeds, the operation is performed
+in-line.  If the operation overflows or the tag-check fails, a <!-- a
+href="rts.html#millicode"-->millicode<!-- /a--> call is made to a subroutine for
+the operation.
+
+<P>
+
+In addition, in-line code is generated for the arithmetic ordering
+predicates and for some other predicates, although the exact set of
+optimized primitive operations has been changing over time; there is
+also the question of what kinds of optimizations the compiler does.  For
+example, if the compiler replaces (abs x) with the equivalent of
+<pre>
+(let ((t x)) 
+  (if (< t 0)
+      (- t)
+      t)
+</pre>
+then writing code generator macros that generate in-line code for
+<b>abs</b> is pretty silly, since the back-end won't ever get to use them.
+
+<P>
+
+In the future, we may also generate in-line code for <b>*</b>,
+<b>quotient</b>, and <b>remainder</b>; when Larceny was first designed
+it was pointless to do so because current systems did not implement
+multiplication and division in hardware.
+
+<a name="implementation">
+<h3>2. Implementation</h3>
+
+On the SPARC, we use the architecture's tag bits for the fixnum tag, and
+we can therefore use the tagged arithmetic instructions as well.  Tagged
+adds and subtracts are therefore rather cheap:
+
+<pre>
+      taddcc   %REG1, %REG2, %RESULT
+      bvc,a    L1
+      nop
+      <i>overflow/non-fixnum code goes here</i>
+  L1:
+</pre>
+
+The branch delay slot is usually filled with the instruction at L1, so
+in practice, a tagged add or subtract costs only an extra branch,
+assuming <b>taddcc</b> is as efficiently implemented as <t>addcc</t>.
+The SPARC's tags are not very sophisticated but they are quite effective
+in cases like this.
+
+<P>
+
+When the millicode routine for an arithmetic operation is entered, the
+arguments are in the registers <b>RESULT</b> and <b>SECOND</b>.  The
+millicode routine must figure out the representations of its arguments
+as quickly as possible, and then perform the desired operation; this is
+a dispatch on the two tags of the arguments.  The dispatch is implemented
+as an open-coded decision tree:
+
+<pre>
+    (let ((tag1 (tag-of RESULT)))
+      (cond ((= tag1 bytevector-like-tag)
+             (let ((hdrtag1 (hdrtag-of RESULT)))
+               (cond ((= hdrtag1 flonum-hdrtag)
+                      (if (= (tag-of SECOND) bytevector-like-tag)
+                          (cond ((= (hdrtag-of SECOND) flonum-hdrtag)
+                                 <i>flonum operation, in-line</i>)
+                                ((and (= (hdrtag-of SECOND) compnum-hdrtag)
+                                      (= 0.0 (imag-part SECOND)))
+                                 <i>flonum operation, in-line</i>)
+                                (else
+                                 <i>slow case</i>))))
+                     ((= hdrtag1 compnum-hdrtag)
+                      (if (= (tag-of SECOND) bytevector-like-tag)
+                          (cond ((= (hdrtag-of SECOND) compnum-hdrtag)
+                                 <i>compnum operation, in-line</i>)
+                                ((and (= (hdrtag-of SECOND) flonum-hdrtag)
+                                      (= 0.0 (imag-part FIRST)))
+                                 <i>flonum operation, in-line</i>)
+                                (else
+                                 <i>slow case</i>))))
+                     ((= hdrtag1 bignum-hdrtag)
+                      (if (and (= (tag-of SECOND) bytevector-like-tag)
+                               (= (hdrtag-of SECOND) bignum-hdrtag))
+                          <i>bignum operation, out-of-line</i>
+                          <i>slow case</i>))
+                     (else
+                      <i>slow case</i>))))
+            ((= tag1 vector-like-tag)
+             <i>rectnum and ratnum cases as above, out-of-line</i>)
+            ((= tag1 fixnum-tag)
+             <i>fixnum case, in-line</i>)
+            (else
+             <i>slow case</i>)))
+</pre>
+
+In the above, the "slow case" makes a call to Scheme code that contains
+a dispatch procedure not unlike the one exibited here, but that also
+deals with non-numbers and <a
+href="#mixed-representation">mixed-representation arithmetic</a>.  Cases
+marked "out-of-line" above are implemented in Scheme; the dispatch
+procedure simply calls a known Scheme procedure via a vector installed
+in the run-time system at startup-time.  This is also true for bignum
+operations, which are explained in more detail <a
+href="#bignums">below</a>.
+
+<P>
+
+Note the code for mixed flonum/compnum arithmetic where the imaginary part
+of the compnum is 0.0.
+
+<P>
+
+By carefully hand-coding the dispatch code in assembly language and
+tuning it, the dispatch is reasonably efficient, and is not the
+dominating factor in adding two flonums, for example (the time there
+being spent loading data and allocating the resulting flonum on the
+heap).  For those <i>really</i> curious, <a
+href="generic-add.html">here</a> is the assembly code for generic add
+from Larceny v0.25.
+
+<a name="mixed-representation"> 
+<h3>3. Mixed-representation arithmetic</h3>
+
+Mixed-representation arithmetic is implemented in Scheme by first
+converting the operands to a common representation and then applying the
+original operator again.  The rules for representation conversion are
+mostly straightforward -- you convert to the representation that will
+allow both numbers to be represented, if necessary sacrificing exactness
+and precision by going to an inexact representation -- but are made
+complicated by the insistence of the IEEE standard and the R4RS that
+operations be transitive.  For this reason, bignum/flonum mixed
+arithmetic has to be handled specially: If the flonum represents an
+integer, then rather than converting the bignum to a flonum as most
+languages (including Common Lisp) would do, thereby losing some
+precision of the bignum, the flonum should be converted to a bignum, the
+operation should be performed on bignums, and the result (if a number)
+should then be converted to a flonum.  Otherwise, the bignum operand is
+converted to a flonum and the operation is performed using flonums,
+yielding a flonum result (if a number).
+
+<a name="bignums">
+<h3>4. Bignum implementation</h3>
+
+(FIXME: Needs to be finished.)
+
+Arithmetic on bignums (arbitrary-implementation exact integers) is
+implemented exclusively in Scheme.  The algorithms used in the
+implementation are the "Classical Algorithms" from Knuth Volume II
+(FIXME: need section reference), and the implementation is structured as
+suggested in the following paper:
+
+<ul>
+Jon L White, <em>Reconfigurable, Retargetable Bignums:
+A Case Study in Efficient, Portable Lisp System Building</em>,
+Proceedings of the ACM conference on Lisp & FP, 1986.
+</ul>
+
+(One extension to the system millicode was necessary in order to support
+a correct and workable implementation.)
+
+
+<P><HR>
+<em>$Id: note3-arithmetic.html 87 1998-11-25 14:38:41Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A>
+
+</BODY>
+</HTML>

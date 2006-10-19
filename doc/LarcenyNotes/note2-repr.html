@@ -1,0 +1,304 @@
+<HTML>
+<HEAD>
+<TITLE>Larceny Note #2: Data Representations</TITLE>
+<LINK REV="made" HREF="mailto:larceny@ccs.neu.edu">
+</HEAD>
+
+<BODY>
+
+<center><h2>
+Larceny Note #2: Data Representations
+</h2>
+Lars T Hansen / June 27, 1997
+</center>
+
+<p>
+
+<a href="#overview">1. Overview</a><br>
+<a href="#tagged-words">2. Tagged Words</a><br>
+<a href="#structures">3. Basic Structure Layouts</a><br>
+<a href="#numbers">4. Numbers</a><br>
+<a href="#procedures">5. Procedures, code, and constants</a><br>
+<a href="#extensions">6. Extensions</a><br>
+
+
+<h3>1. Overview</h3>
+
+Currently the implementation of Larceny is somewhat tied to a 32-bit
+representation, although extensions of the layouts here are reasonable
+also in a 64-bit setting.
+
+<P>
+Larceny bases all its data types on a few basic representations.  Type
+tags accessible to Scheme code distinguish between actual data types
+which are mapped onto the basic representations.
+
+<P>
+There are six basic representations: fixnums, immediates, and pointers
+to pairs, vector-like structures, bytevector-like structures, and procedures.
+Each representation consists of a <em>tagged word</em> and, in the case
+of pointer types, heap-allocated memory.  
+
+<a name="tagged-words">
+<H3>2. Tagged Words</H3>
+
+<P>
+A tagged word has a 2 or 3 bit type tag in the low order bits:
+<BR>
+<pre>
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx00   fixnum
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  xxxx xx10   immediate
+  pppp pppp  pppp pppp  pppp pppp  pppp p001   pointer to pair
+  pppp pppp  pppp pppp  pppp pppp  pppp p011   pointer to vector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p101   pointer to bytevector struct
+  pppp pppp  pppp pppp  pppp pppp  pppp p111   pointer to procedure struct
+</pre>
+
+<P>
+Immediates are further distinguished by more bits in the low-order byte;
+they are roughly divided into constants (booleans, empty list, characters,
+and miscellaneous system constants) and headers:
+<BR>
+<pre>
+  0000 0000  0000 0000  0000 0000  0000 0010   #f
+  0000 0000  0000 0000  0000 0000  0000 0110   #t
+  0000 0000  0000 0000  0000 0000  0000 1010   empty list
+  xxxx xxxx  xxxx xxxx  xxxx xxxx  0001 0110   miscellaneous
+  0000 0000  cccc cccc  0000 0000  0010 0110   character
+  0sss ssss  ssss ssss  ssss ssss  100x xx10   reserved header
+  0sss ssss  ssss ssss  ssss ssss  101x xx10   vector-like header
+  0sss ssss  ssss ssss  ssss ssss  110x xx10   bytevector-like header
+  0sss ssss  ssss ssss  ssss ssss  1111 1110   procedure header
+</pre>
+
+<P>
+
+The bits marked <code>xxx</code> in the low byte of a header are fields
+for type tags: they are used by Scheme code to distinguish between
+different data types mapped onto the basic structures.  The type tags
+can be manipulated with the <code>typetag</code> and
+<code>typetag-set!</code> primitives.
+
+<P>
+The bits marked <code>s</code> in a header contain the size of the data
+structure in bytes, not including the header word, and not including 
+any padding.  For vector-like structures and procedures, the two low
+bits of the length field will be 0.
+
+<P>
+Miscellaneous constants include <code>#!unspecified,</code>,
+<code>#!undefined</code>, and <code>#!eof</code>.
+
+
+<a name="structures">
+<H3>3. Basic Structure Layouts</H3>
+
+The structure layouts are listed below.  When it is stated that a
+pointer of a particular kind points to a particular location, the
+meaning is "the pointer with its tag stripped off".
+
+<UL>
+<LI>
+Pairs: A pair has two words, the car (low word) and the cdr (high word).
+The pair pointer points to the car of the pair.
+
+<LI>
+A vector-like structure has the header word in the low position,
+followed by tagged words in all locations of the vector. The vector
+pointer points to the header word.
+
+<LI>
+A bytevector-like structure has the header word in the low position,
+followed by untagged bytes in all locations of the vector. The bytevector
+pointer points to the header word.
+
+<LI>
+A procedure structure has the header word in the low position, followed
+by tagged words in all locations of the procedure structure. To the
+collector, and with the exception of the pointer and header tags, a
+procedure looks just like a vector-like structure. The interpretation of
+each word of the procedure structure is up to the mutator; the mutator's
+view of a procedure is documented below.  The procedure pointer points
+to the header word.
+
+</UL>
+
+A header word may under no circumstances be stored in the data area of a
+pair, vector-like structure, or procedure structure.
+
+<a name="numbers">
+<H3>4. Numbers</H3>
+
+Fixnums (small exact integers) are unboxed and kept in the high 30
+bits of a word, with the two low bits always 0 (figure 1).
+
+<pre>
+    +------------------------------+--+
+    |       fixnum                 |00|
+    +------------------------------+--+
+</pre>
+Figure 1: fixnum.
+
+<P>
+Bignums (large exact integers) are bytevector-like with the sign in
+the first two bytes (0 for positive, 1 for negative), followed by a
+digit count (two bytes) and then base-$2^{32}$ digits in the next
+words, with the least significant word first; each word is stored
+big-endian (figure 2).  While bignums cannot be 0 in user code, system
+code sometimes creates bignums of value 0 in an internal calculation.
+A bignum with value 0 is distinguished by a digitcount of 0; the sign
+is immaterial.
+
+<pre>
+    +------------------------+--------+
+    |       length           | hdrtag |
+    +------------------------+--------+
+    | sign          |   digitcount    |
+    +---------------------------------+
+    |              lsd                |
+    +---------------------------------+
+    ...
+</pre>
+Figure 2: Bignum with 32-bit bigits.
+
+<P>
+The rationale for keeping a digit count which is different from the vector
+length is that while (in particular) the multiplication routine must create
+a vector whose length is the sum of the digit counts, some of the leading
+digits may be 0, and hence we can have a lower digit count without having
+to reallocate memory or use a temporary buffer.
+
+<P>
+Bignums can also be considered with a different logical layout: Each
+32-bit digit can be interpreted as two 16-bit digits, also in
+big-endian fashion within the word; interpreted this way, the bignum
+gets a funny access pattern (figure 3).  The digit count is still the
+number of 32-bit digits used; see above discussion for sign and
+bignums of value 0.
+
+<pre>
+    +------------------------+--------+
+    |       length           | hdrtag |
+    +------------------------+--------+
+    | sign          |   digitcount    |
+    +---------------------------------+
+    |    nlsd       |      lsd        |
+    +---------------------------------+
+    ...
+</pre>
+Figure 3: Bignum with 16-bit bigits.
+
+<P>
+Ratnums (exact rationals), shown in figure 4, are vector-like, with
+the first word of the vector being the numerator as a Scheme object
+(fixnum or bignum), and the second word being the denominator (greater
+than 1), also a Scheme object.
+
+<pre>
+    +------------------------+--------+
+    |       vectorlength     | hdrtag |
+    +------------------------+--------+
+    |       numerator                 |
+    +---------------------------------+
+    |       denominator               |
+    +---------------------------------+
+</pre>
+Figure 4: ratnum.
+
+<P>
+Rectnums (exact complexes), shown in figure 5, look like ratnums,
+except that the first word is the real part (an integer or ratnum) and
+the second word is the imaginary part (ditto). Both parts are exact
+reals, and the imaginary part is nonzero.
+
+<pre>
+    +------------------------+--------+
+    |       vectorlength     | hdrtag |
+    +------------------------+--------+
+    |       real-part                 |
+    +---------------------------------+
+    |       imag-part                 |
+    +---------------------------------+
+</pre>
+Figure 5: Rectnum.
+
+<P>
+Flonums (inexact reals) are bytevector-like. The first word is unused,
+and the two next words contain the double in IEEE double precision
+format. The rationale for the unused word is this: since everything in
+the system is aligned on an 8-byte boundary, one word will be wasted
+anyway. By putting it before the number rather than after, the number
+becomes 8-byte aligned, and we can use a ``load double'' instruction
+to load it. (Figure 6.)
+
+<pre>
+    +------------------------+--------+
+    |      length            | hdrtag |
+    +------------------------+--------+
+    |      unused                     |
+    +---------------------------------+
+    |      IEEE double precision      |
+    |                                 |
+    +---------------------------------+
+</pre>
+Figure 6: Flonum.
+
+<P>
+Compnums (inexact complexes) are bytevector-like. The first word is
+unused (see the description of the flonum for a rationale).  The two
+next words contain the real part. The two last words contain the
+imaginary part. (Figure 7.) Both parts are IEEE double precision
+numbers.
+
+<pre>
+    +------------------------+--------+
+    |      length            | hdrtag |
+    +------------------------+--------+
+    |      unused                     |
+    +---------------------------------+
+    |      IEEE double precision      |
+    |      (real part)                |
+    +---------------------------------+
+    |      IEEE double precision      |
+    |      (imaginary part)           |
+    +---------------------------------+
+</pre>
+Figure 8: Compnum.
+
+
+<a name="procedures">
+<H3>5. Procedures, code, and constants</H3>
+
+As stated earlier, a procedure holds tagged words.  Larceny's
+procedures are very simple and serve a dual role as closures and ribs in
+the static environment.
+
+A procedure structure contains a bytevector pointer in slot 0 (it points
+to the code vector), a vector pointer in slot 1 (it points to the
+constant vector), a static link (procedure pointer) or #f in slot 2, and
+saved register values in slots 3 and up.
+
+A code vector is a plain byte vector; there is no way to distinguish the
+two without context.
+
+A constant vector is a plain vector.  Data held by a constant vector is
+immutable with one exception: a constant vector holds pointers to all
+global cells which are referenced by the procedure owning the constant
+vector.  These cells may be assigned to.  In the current implementation,
+global cells are pairs where the first element holds the value and the
+second element optionally holds some documentation about the variable
+(currently its name).
+
+
+<a name="extensions">
+<H3>6. Extensions</H3>
+
+Larceny provides one new data type.  A <em>bytevector</em> is vector
+that holds bytes: exact integers in the range 0..255.
+
+<P><HR>
+<em>$Id: note2-repr.html 87 1998-11-25 14:38:41Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</BODY>
+</HTML>

@@ -1,0 +1,89 @@
+<html>
+<head>
+<title>Larceny Note #9: The I/O system</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #9: The I/O system
+</h2>
+Lars T Hansen / November 14, 1997
+</center>
+
+<p>
+<em>This note is being written</em>
+
+<h2>The I/O architecture</h2>
+
+The I/O system is strongly influenced by the Modula-3 I/O system presented
+in Greg Nelson's book, <em>Systems Programming in Modula-3</em>.  The
+I/O system is designed with performance and user-extensibity in mind.
+
+<p>
+
+Needs to be documented.
+
+<p>
+
+See <tt>Lib/iosys.sch</tt>, <tt>Lib/fileio.sch</tt>, <tt>Lib/conio.sch</tt>,
+<tt>Lib/stdio.sch</tt>, and (for the low-level stuff) <tt>Lib/unix.sch</tt>.
+
+<h2>Thread-aware I/O</h2>
+
+To support thread-aware I/O, we need two things:
+<ul>
+<li> Mutual exclusion in access to the I/O structures.
+<li> Blocking I/O that is compatible with the threads system.
+</ul>
+
+Mutual exclusion is not hard; the procedures in <tt>Lib/stdio.sch</tt>
+can be wrapped in a <tt>without-interrupts</tt> form.  The lock should
+probably be a public part of the port structure so that it's possible 
+for (system) code to acquire it once and then call low-level primitives
+for better performance.
+
+<p>
+
+Since the threads system is (currently) written in Scheme on top of
+continuation, blocking system calls are no good.  Instead, I/O system
+calls that may block indefinitely must be avoided.
+
+<p>
+
+The right thing to do seems to consider two subtypes of I/O ports, along
+the lines of the Modula-3 I/O system.  A port is classified either as
+<em>intermittent</em> or not.  Intermittent ports may have to wait an
+unbounded amount of time before input is available or output is accepted.
+Currently, the only intermittent ports are console I/O ports, but when
+the extensible I/O system goes public, we'll have sockets pretty quickly.
+
+<p>
+
+Intermittent ports havs the following unique attribute: the underlying
+read and write methods return <tt>would-block</tt> if no work was
+accomplished (no input was ready or no output would be accepted).  If
+that token is returned to the fill or flush methods, then the operation
+on the port must block until the port is ready.  This blocking can be
+done either by polling or by interrupts.  If I/O interrupts are available,
+then the I/O system must enable them and set up an I/O event handler.
+If not, the I/O system must register an I/O poll procedure for the port
+as a periodic system task.  In either event, the I/O system will then
+block the thread on a condition variable that will be signalled by the
+ready handler, whichever method is used.
+
+<p>
+
+I think that the actual underlying mechanism chosen for unblocking
+threads can and should be independent of the Scheme I/O system.  This is
+possible if the I/O system supports an installable "ioblock" handler
+that it will call to wait for I/O on a port.  System code will then
+install the correct ioblock handler for the I/O event system chosen on
+the particular platform.
+
+<p><hr>
+<em>$Id: note9-iosys.html 87 1998-11-25 14:38:41Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

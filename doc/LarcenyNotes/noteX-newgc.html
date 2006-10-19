@@ -1,0 +1,335 @@
+<HTML>
+<HEAD>
+<TITLE>Larceny's new garbage collector: design notes</TITLE>
+</HEAD>
+
+<BODY>
+<H2>Larceny's new garbage collector</H2>
+
+<H3>Overview</H3>
+
+For some philosophy of design, click <a href="soapbox.html">here</a>.
+
+<P>
+
+Here's the overview of the main points in the new collector:
+<DL>
+
+<DT> <b>Multiple collectors in separate heaps</b>
+<DD> 
+
+Larceny will accomodate multiple garbage collectors, arranged in a total
+order (for now).  A garbage collector is an ADT.  These garbage
+collectors will manage separate heap areas, each of which may contain
+multiple generations, and will communicate in well-defined ways only
+(probably by calling interface functions).  The rationale for not
+integrating the collectors totally for maximal performance is that
+maximal performance is truly important only in the youngest generation.
+<P>
+
+<DT> <b>New write barrier</b>
+<DD>
+
+The new write barrier will be faster than the current barrier for
+assignments into vector-like structures, where the write barrier check
+will be combined with the range check in a clever way, allowing
+everything but a simple check to be bypassed for all but the first
+assignment into a structure after the generation the structure is in has
+been garbage collected.  There is a space cost of one word for each
+structure associated with this faster check.  Assignments into pairs
+will continue to use the current write barrier, as we do not want to
+make our pairs bigger.
+<P>
+
+<DT> <b>New remembered-set system</b>
+<DD>
+
+The remembered-set system will manage a number of remembered sets.
+There may be more remembered sets than there are heap areas managed by
+collectors; this allows a collector to manage multiple generations
+internally if desired.  Since adding a pointer to a remembered set is
+done no more than once per object per time the generation the object is
+in is garbage collected, the mechanism for adding a pointer to a
+remembered set can be comparatively expensive (although not <em>too</em>
+expensive).
+
+</DL>
+
+<H3>Policy</H3>
+
+To pull this off, we make some policy decisions:
+<UL>
+
+<LI> When a collection in heap X is performed, collections are performed
+     in younger heaps also, so there need not be old-to-young remembered
+     sets (this is important for the write barrier implementation).
+
+<LI> Object layout is fixed and there are no GC bits in objects.  Collectors
+     that need additional bits for objects they manage must keep these in
+     private memory.
+
+<LI> The write barrier mechanism is given: there will be one write barrier
+     mechanism and all collectors must deal with it.  The write barrier will
+     use a remembered-set mechanism without duplicates.
+
+<LI> Each generation in each heap has its own remembered set that will
+     remember objects in that heap that point to objects in "younger" 
+     generations (NB not heaps).
+
+<LI> The youngest heap is special: it must manage the stack also.
+
+<LI> Certain aspects of the stack implementation are given; certain can be
+     parameterized.  However, a collector and a compiler must settle on one
+     specific stack implementation policy, and no collector or compiler
+     need to be able to adapt dynamically.
+
+</UL>
+
+<h3>The youngest heap</h3>
+
+The youngest heap is special in several ways: new objects are created in
+the youngest heap, as are continuation frames.  Operations on this heap
+need to be quite fast and allow for important optimizations in terms of
+e.g. allocation performance, and the interactions between the collector
+and the run-time system (RTS) will be very low-level.
+
+<P>
+
+The interactions between the youngest heap and the rest of the RTS are
+therefore to be governed by a <em>contract</em> that goes beyond what
+one normally thinks of as an interface to an ADT: certain implementation
+aspects of the youngest heap are made visible and constrain both the RTS
+and the compiler in how interactions with the heap are done.  Different
+implementations of the youngest generation can support different
+contracts, and a single implementation can support multiple contracts by
+compile-time customization.  For example, a heap implementation can
+support a stack cache that lives in the young generation (thereby
+allowing the stack pointer and heap pointer to act as limits for each
+other, saving a register and giving very fast continuation capture) or
+not, or it can support heap allocation of continuation frames.
+
+<DL>
+<DT><b>Object allocation</b>
+<DD>
+
+The collector must provide the run-time system with a pointer into a
+linear memory region of some reasonable size, and a limit to that region
+as well.  This limit can be fixed, or it can be updated while the
+program is running (as when the stack pointer is located in the heap).
+The RTS and the collector must agree on this.
+
+<P>
+
+There are issues surrounding object creation that I will not go into at
+the moment, for example, how very large objects are allocated.  (The
+current collector does not deal well with this either; arguably, there
+needs to be a large-object space of some kind.)
+
+<DT><b>Continuation frame creation</b>
+<DD>
+
+Depending on the contract between the collector and the RTS/Compiler,
+the collector must provide a mechanism for stack allocation of frames.
+This will usually consist of a pointer into a linear region of memory
+and a limit for that region; again, the limit can be fixed or not
+depending on the contract.
+
+</DL>
+
+<h3>Older heaps</h3>
+
+Older heaps are characterized by less stringent performance requirements
+and higher-level interfaces.  These generations are collected (much)
+less often than the young generation and objects are allocated in them only
+when they are tenured from a younger generation.
+
+<h4>Interface A</h4>
+
+Here's how you promote objects from a heap A to the next older heap B.
+First go over the basic roots and promote A objects to B, using promote().
+Then, for each generation x in {C..}, call scan_remset_for_promotion( x, B ).
+Finally, call scan_for_promotion( B ).
+
+<DL>
+<DT><b> void promote( heap_t *heap, word *location )</b>
+<DD>
+Location is a root holding a pointer to an object in the younger
+heap, and heap is the heap the object is promoted into.  The object
+is copied and the root is updated with its new address; a forwarding
+pointer is left at the old object's address.
+<P>
+
+<DT><b>void scan_for_promotion( heap_t *heap )</b>
+<DD>
+The heap is the heap that has had objects promoted into it.  A scan
+is performed which will use the promoted objects and the remembered
+set as its roots.
+<P>
+
+<DT><b>void scan_remset_for_promotion( heap_t *heap, heap_t* dest )</b>
+<DD>
+Scans the remembered set of 'heap', promoting all objects younger than
+the heap 'dest' into 'dest', and updating the remembered set of 'heap'.
+<P>
+
+<DT><b>void clear_remembered_set( heap_t *heap )</b>
+<DD>
+Clears the heap's remembered set.
+<P>
+
+<DT><b>void collect( heap_t *heap )</b>
+<DD>
+Performs a garbage collection in the heap.
+<P>
+
+<DT><b>void scan_remset_for_gc( heap_t *heap )</b>
+<DD>
+Scan the objecst in the remembered set, looking for pointers to forwarded
+objects.
+<P>
+
+<DT><b>void scan_remset_for_forward( heap_t *heap, void(*f)(word*loc) )</b>
+<DD>
+This needs to be used during a collection in a younger heap:
+the older heap's remembered objects must be scanned for pointers
+to objects in younger heap(s?) and the latter must be forwarded in
+that heap.
+<P>
+It would be nice to batch things here to avoid function call overhead,
+but I want to see the stats first.  In particular, a big old array
+with lots of new flonums in it would be ugly.
+
+</dl>
+
+Here, a policy level takes care of tenuring younger objects, and then calls
+collect() if necessary.  The heap may be required to receive all objects (it
+must expand as needed, or kill the system).  The mechanism is nice because
+it allows tenuring without starting a collection.
+
+void update_remembered_set( heap_t *heap );
+
+which can be called on a generation.  It will scan remembered objects
+and update pointers to forwarded objects.
+
+This is a nice interface, because a collector does not really have to
+deal with younger or older heaps: it is handed objects and gets to
+manage them until some later time.  We need some policy query functions
+to figure out when to promote:
+
+bool are_you_ok( heap_t *heap );
+
+With the above spec, all objects have to be tenured at a time.
+Alternatively, it would be possible to scan new objects to look for
+(new) pointers to younger generations that would have to be added to the
+remembered set.  Same thing goes for tenuring something across an
+intermediate generation.  I'll probably address this question later, to
+see what the issues are.
+
+<h4>Interface B</h4>
+
+Alternatively, heaps can themselves make decisions about when to tenure their
+objects and so on.  One would have:
+
+void promote_from_younger( heap_t* h )
+  // Promotes schtuff from younger generations, indiscriminately
+
+void collect()
+
+Would also need some remset scanners!
+
+
+<pre>
+/* 'Older' heaps. */
+/* The exact arguments to initialize depends on the collector; each collector
+   may be set up differently.  The collector framework will need to be
+   customized for each collector in this respect.
+ */
+
+typedef struct heap_t heap_t;
+typedef struct heap_stat_t heap_stat_t;
+
+struct heap_t {
+  void (*initialize)( void *data );
+  void (*collect)( heap_t *self );
+  void (*promote_from_younger)( heap_t *self );
+  void (*enumerate_remset)( heap_t *self, void (*f)( word *loc ) );
+  void (*remember_object)( heap_t *self, word obj );
+  void (*status)( heap_t *self, heap_stat_t *result );
+};
+
+struct heap_stat_t {
+  word bytes_allocated;
+  word bytes_used;
+  word bytes_free;
+  int  percent_full;
+  int  number_of_collections;
+  /* and so on */
+};
+</pre>
+
+So to collect, we would do
+
+<pre>
+int collect( heap_t *self )
+{
+  self->promote_from_younger( self );
+  gc_scan_roots( self, closure( root_scanner, self ) );
+  gc_enumerate_older_heaps( self, closure( remset_scanner, self ) );
+  gc_scan_chunked( ... );
+}
+</pre>
+
+<h3>Coordinating the heaps</h3>
+
+In the current Larceny there is a "policy" level that sits above the
+garbage collector and decides what kind of garbage collection to perform,
+whether to expand heaps, and so on. 
+
+It would be possible to set it up so that a collector is not required
+to 
+
+<h3>descriptor table</h3>
+
+The collector framework will provide the services of a descriptor table
+that maps chunks of memory (4KB, say) to their attributes.  These attributes
+are not all settled yet, but they could be things like:
+<UL>
+<LI> foreign memory
+<LI> the generation number (nb, not heap number)
+<LI> a pointer to the write barrier (??)
+<LI> the owning heap
+<LI> large object
+<LI> heap-defined attributes meaningful to the heap only
+</UL>
+
+Some collectors will want to modify some attributes; the non-predictive
+collector will want to change the generation numbers after a collection,
+for example, because it has two or more generations internally that
+switch places after a collection, and the write barrier must take this
+into account.
+
+<h3>large objects</h3>
+
+If we have a large object policy, for example that large objects are allocated
+in consecutive chunks of memory and flagged as large objects, then these
+could be promoted and gc'd without copying, but just shuffling some bits
+
+<h3>allocation</h3>
+
+Asking malloc() for memory is not a good idea in general, Standard C
+notwithstanding.  A mechanism that allocates aligned chunks is needed.
+There should be a primitive RTS function that provides this service.
+
+<h3>common code</h3>
+
+If we carefully generalize the existing code for the copying gc, all copying
+collectors should be able to use the code.  The RTS would perhaps make
+the code available, or there would be a library of gc functions that
+could be linked in.
+
+
+<P><HR>
+Updated October 2, 1996, by Lars
+
+</BODY>
+</HTML>

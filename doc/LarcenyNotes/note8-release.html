@@ -1,0 +1,58 @@
+<html>
+<head>
+<title>Larceny Note #8: Larceny Release Procedures</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #8: Larceny Release Procedures
+</h2>
+Lars T Hansen / October 30, 1997
+</center>
+
+<p>
+PRELIMINARY!
+<p>
+
+<h2>Testing the library and the compiler</h2>
+
+<ul>
+<li> Create a distribution archive: <tt>make dist</tt>.
+<li> Move the archive to a test directory.
+<li> Install the distribution sources while following the install 
+     guidelines -- this
+     debugs the guidelines.
+<li> Build both larceny and bdwlarceny without optimization and with 
+     assertions enabled
+     (i.e., comment out -DNDEBUG -O3 in Rts/Makefile).
+<li> Build the heap image using the bootstrap system.
+<li> Compile the library test suite.
+<li> Run the library test suite both compiled and interpreted.
+<li> Do <tt>make libclean</tt>, start the development environment in
+     larceny, and rebuild the heap.  Exit.
+<li> Restart the development environment in larceny, and compile the
+     library test suite.
+<li> Exit, restart larceny, and run the self-compiled library test suite
+     both interpreted and compiled.
+<li> Exit, restart the development environment in larceny, and compile
+     the development environment.
+<li> Exit, make libclean, restart the development environment in larceny 
+     (this time compiled),
+     and rebuild the heap.  
+<li> Exit, restart.  From within larceny, do a make faslclean and
+     then rebuild the development environment.
+</ul>
+
+<h2>Testing the run-time system</h2>
+
+Compile the GC test sources, then run all according to the instructions in
+Testsuite/GC/README.  All runs should be done under the control of a debugger.
+
+
+<p><hr>
+<em>$Id: note8-release.html 87 1998-11-25 14:38:41Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

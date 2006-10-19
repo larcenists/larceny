@@ -1,0 +1,193 @@
+<html>
+<head>
+<title>Larceny Note #4: Exceptions and exception handling</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #4: Exceptions and exception handling
+</h2>
+Lars T Hansen / June 27, 1997
+<center>
+
+<h3>Challenge</h3>
+
+We want operations to be generally restartable.
+
+
+<h3>Classification</h3>
+
+The following is a rough classification of the types of exceptions we must
+handle, and some ways to deal with them:
+
+<ul>
+<li> 
+Type errors that are detected by type checks in in-line code. <p>
+
+To handle these errors, the compiler generates code that sets up the
+operation to be retried and then calls exception-handling millicode
+(m_exception) with all the operands of the operation in predefined
+locations.  The error is always detected before any registers are
+changed.  By returning from the exception handler, the operation will
+be retried.
+
+
+<li>
+Type errors that are detected by type checks in millicode. <p>
+
+Upon detecting the error, the millicode routine jumps to the
+exception-handling millicode routine.  This means that if the
+exception-handling code returns, then the operation will _not_ be
+retried, since the return point is that of a successful millicode
+operation.  No registers are changed, however, until the operation
+can commit, so in principle, it can be restarted.  <p>
+
+It would be useful if these operations, like those above, were
+restartable.  This can be done in at least two different ways:  
+<ul>
+<li> The caller can pass a "retry" address to the millicode routine,
+     which is set up as the return address prior to jumping to the
+     exception-handling code.
+<li> The exception-handling code can recognize that the error occurred
+     in a millicode call and set up the return address to be the entry 
+     point for the millicode procedure.  (Millicode would need to jump
+     to a custom exception handler for this to work, but it shouldn't be
+     too hard: the call to the handler code can include the restart 
+     address.)
+</ul>
+
+
+<li>
+Type errors that are detected by type checks in C. <p>
+
+There should be none of these at present, and it's desirable to
+avoid them completely.  However, if writing primitives in C is
+an issue (as when the FFI becomes available), then this must be
+dealt with somehow, possibly by aborting the callout or restarting it.
+
+
+<li> 
+Timer interrupts. <p>
+
+Timer interrupts are implemented using a software timer, occur only in
+compiled Scheme code, and are handled
+synchronously; when the timer expires, a call to m_timer_exception is
+made, which signals the interrupt to the installed handler.  When the
+handler returns, computation continues as before. <p>
+
+It might be desirable to handle the timer interrupts using the taddcctv
+instruction (see offline notes), since this might be faster.  If so,
+timer interrupts would have to be handled more like breakpoint or
+arithmetic exception traps.
+
+
+<li>
+Arithmetic exceptions (SIGFPE). <p>
+
+SIGFPE can occur in compiled Scheme code, in millicode, in C code, and in
+calls to operating system library routines (like .div and .rem).  SIGFPE
+is currently handled by aborting the program, which is not satisfactory.
+Arithmetic exceptions stem from integer division by zero or by some
+ floating-point errors (including floating division by zero); see
+sigfpe(3) and sigvec(2) for more information.  At this time, we are
+primarily concerned with the mechanism, and a decision about
+floating-point semantics belongs somewhere else. <p>
+
+When SIGFPE occurs in compiled code, then it must occur at the location
+of the faulting instruction (a divide instruction).  Given the faulting
+address, a handler can determine whether the operation occurred in 
+compiled code.  The faulting address may not always be available; however,
+if it is, we can setup the state to retry the operation if necessary. <p>
+
+If SIGFPE occurs in millicode, things are a little harder, but in
+principle, the same mechanism would work, given a map of the millicode
+routines.  A static map can be built by the linker that contains staring
+and ending addresses for each routine; given the faulting address, we
+can discover the retry address.  The map need only contain those procedures
+that may fault. <p>
+
+If SIGFPE occurs in C, it is harder to recover, but also less useful,
+since the state of the computation can't be inspected by any
+Larceny-resident debugger (we'd need to run the whole process under a C
+source-level debugger).  The best solution seems to be to prune the C
+stack down to the point of the call-out, then call an exception handler
+to say that the C code terminated with an exception ("signal received in
+callout").  The problem with that approach is the cost of setting up
+the jump buffer on every callout to cheap procedures, like sin().  <p>
+
+
+<li>
+Asynchronous system interrupts -- especially SIGINT, SIGHUP, SIGIO, 
+but generally all of the system-generated (asynchronous) signals. <p>
+
+Currently, SIGINT is caught and exits the program; the others have
+their default handlers.<p>
+
+These interrupts have straightforward semantics: the system must
+remember that they happened, but defer delivering them until the next
+safe point (clock tick).  This presupposes that interrupts are enabled
+and that timer expirations occur with reasonable frequency; if this is
+not the case, then we must somehow force the timer to expire faster.
+This is not easy, since the timer sometimes resides in a register and
+sometimes not. <p>
+
+One problem is that the system can be in a state where it might have to
+wait aribtrarily long before the next clock tick -- in read() say, or
+some other system call of unbounded duration.  Ideally, the system call
+should be interrupted, and the Scheme thread should receive an interrupt
+signal.  This problem should go away when we switch to preemptable I/O,
+but callouts to C are still a problem.  How do we want SIGINT (or its
+moral equivalents on other OS's) to behave?<p>
+
+This is not a problem if threading works even with C callouts, but will it?<p>
+
+Here is a possible solution: some callouts are interruptible, and some
+are not.  Interruptible callouts are explicitly flagged as interruptible
+by setting a flag and setting up a longjump buffer in
+<tt>C_syscall()</tt>.  If a signal is received in an interruptible call,
+then the call is aborted, and a longjump is performed to return to
+<tt>C_syscall()</tt>, which should signal an exception to the Scheme
+exception handler.  Enough information should be present to allow the
+call to be restarted (although this may not always make sense).  If a
+signal is received in a non-interruptible call, then a note of the
+signal must be made, and after the call has finished, the signal must
+be handled (again, by raising an exception).  No restart is required,
+as the call completed.<p>
+
+Note that we must explicitly check for such a signal.  It is possible to
+set the timer to 0 and have the thread system handle it (I think).
+
+
+<li>
+Breakpoint interrupts (SIGTRAP). <p>
+
+
+<li>
+System panic. <p>
+
+When a panic condition is detected, the run-time system kills the
+program.  This is a perfectly adequate solution, as it is generally
+impossible to recover from a panic situation in a better way: typically,
+system tables are corrupted or fundamental assertions failed, indicating
+logic errors in the system.
+
+</ul>
+
+
+<h3>Signalling exceptions</h3>
+
+Exceptions should be signalled in the following way: a call should be
+made to the installed exception handler.  If the operation is
+restartable, then a return from the exception handler should restart
+the operation.  If the operation is not restartable, then a return from
+the exception handler should result in a NON_RESTARTABLE exception being
+signalled.
+
+
+<p><hr>
+<em>$Id: note4-exceptions.html 87 1998-11-25 14:38:41Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

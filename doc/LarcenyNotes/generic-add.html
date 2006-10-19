@@ -1,0 +1,196 @@
+<html>
+<head>
+<title>Code for Generic Add</title>
+</head>
+
+<body>
+<pre>
+! Addition
+! The fixnum case is done in line, so if the operands are fixnums, we had
+! an overflow and must box the result in a bignum.
+
+EXTNAME(m_generic_add):
+	and	%RESULT, TAGMASK, %TMP0
+	and	%ARGREG2, TAGMASK, %TMP1
+	cmp	%TMP0, BVEC_TAG
+	be,a	Ladd_bvec
+	cmp	%TMP1, BVEC_TAG
+	or	%RESULT, %ARGREG2, %TMP2
+	andcc	%TMP2, 3, %g0
+	be,a	Ladd_fix
+	nop
+	cmp	%TMP0, VEC_TAG
+	be,a	Ladd_vec
+	cmp	%TMP1, VEC_TAG
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_bvec:
+	be,a	Ladd_bvec2
+	ldub	[ %RESULT + 3 - BVEC_TAG ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_bvec2:
+	ldub	[ %ARGREG2 + 3 - BVEC_TAG ], %TMP1
+	cmp	%TMP0, FLONUM_HDR
+	be,a	Ladd_flo
+	cmp	%TMP1, FLONUM_HDR
+	cmp	%TMP0, COMPNUM_HDR
+	be,a	Ladd_comp
+	cmp	%TMP1, COMPNUM_HDR
+	cmp	%TMP0, BIGNUM_HDR
+	be,a	Ladd_big
+	cmp	%TMP1, BIGNUM_HDR
+	b	Lnumeric_error
+	mov	EX_ADD, %TMP0
+Ladd_flo:
+	be,a	Ladd_flo2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	! Got a flonum and something; check for compnum with 0i.
+	cmp	%TMP1, COMPNUM_HDR
+	bne	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Ladd_flo2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_flo2:
+	ldd	[ %ARGREG2 + 8 - BVEC_TAG ], %f4
+	b	_box_flonum
+	faddd	%f2, %f4, %f2
+Ladd_comp:
+	be,a	Ladd_comp2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	! op1 is a compnum, but perhaps op2 is a flonum and op1 has 0i.
+	cmp	%TMP1, FLONUM_HDR
+	bne	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
+	fcmpd	%f0, %f2
+	nop
+	fbe,a	Ladd_flo2
+	ldd	[ %RESULT + 8 - BVEC_TAG ], %f2
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_comp2:
+	ldd	[ %ARGREG2 + 8 - BVEC_TAG ], %f4
+	ldd	[ %RESULT + 16 - BVEC_TAG ], %f6
+	faddd	%f2, %f4, %f2
+	ldd	[ %ARGREG2 + 16 - BVEC_TAG ], %f8
+	b	_box_compnum
+	faddd	%f6, %f8, %f4
+Ladd_big:
+	be,a	Ladd_big2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_big2:
+	b	internal_scheme_call
+	mov	MS_BIGNUM_ADD, %TMP2
+Ladd_vec:
+	be,a	Ladd_vec2
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_vec2:
+	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP1
+	cmp	%TMP0, RATNUM_HDR
+	be,a	Ladd_rat
+	cmp	%TMP1, RATNUM_HDR
+	cmp	%TMP0, RECTNUM_HDR
+	be,a	Ladd_rect
+	cmp	%TMP1, RECTNUM_HDR
+	b	Lnumeric_error
+	mov	EX_ADD, %TMP0
+Ladd_rat:
+	be,a	Ladd_rat2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_rat2:
+	b	internal_scheme_call
+	mov	MS_RATNUM_ADD, %TMP2
+Ladd_rect:
+	be,a	Ladd_rect2
+	mov	2, %TMP1
+	b	_contagion
+	mov	MS_GENERIC_ADD, %TMP2
+Ladd_rect2:
+	b	internal_scheme_call
+	mov	MS_RECTNUM_ADD, %TMP2
+Ladd_fix:
+	sra	%RESULT, 2, %TMP0
+	sra	%ARGREG2, 2, %TMP1
+	b	_box_single_bignum
+	add	%TMP0, %TMP1, %TMP0
+
+! ...
+
+! The following subroutines are common.
+!
+! Box the double in %f2/f3 as a flonum. Return tagged pointer in RESULT.
+! Scheme return address in %o7.
+
+_box_flonum:
+	st	%o7, [ %GLOBALS + G_RETADDR ]
+	call	EXTNAME(mem_internal_alloc)
+	mov	16, %RESULT
+	ld	[ %GLOBALS + G_RETADDR ], %o7
+	std	%f2, [ %RESULT + 8 ]
+	set	(12 << 8) | FLONUM_HDR, %TMP1
+	st	%TMP1, [ %RESULT ]
+	jmp	%o7 + 8
+	add	%RESULT, BVEC_TAG, %RESULT
+
+
+! Box the two doubles in %f2/%f3 and %f4/%f5 as a compnum.
+! Return tagged pointer in RESULT.
+! Scheme return address in %o7.
+
+_box_compnum:
+	st	%o7, [ %GLOBALS + G_RETADDR ]
+	call	EXTNAME(mem_internal_alloc)
+	mov	24, %RESULT
+	ld	[ %GLOBALS + G_RETADDR ], %o7
+	std	%f2, [ %RESULT + 8 ]
+	std	%f4, [ %RESULT + 16 ]
+	set	(20 << 8) | COMPNUM_HDR, %TMP0
+	st	%TMP0, [ %RESULT ]
+	jmp	%o7+8
+	add	%RESULT, BVEC_TAG, %RESULT
+
+! Box an integer in a bignum with one digit. The integer is passed in %TMP0.
+! %o7 has the Scheme return address.
+
+_box_single_bignum:
+	cmp	%TMP0, 0
+	bge,a	_box_single_positive_bignum
+	mov	0, %TMP2
+	mov	1, %TMP2
+	neg	%TMP0
+
+! Sign (0 or 1) is in %TMP2, untagged, positive number in %TMP0.
+
+_box_single_positive_bignum:
+	st	%TMP0, [ %GLOBALS + G_GENERIC_NRTMP1 ]
+	st	%TMP2, [ %GLOBALS + G_GENERIC_NRTMP2 ]
+	st	%o7, [ %GLOBALS + G_RETADDR ]
+	call	EXTNAME(mem_internal_alloc)
+	mov	12, %RESULT
+	ld	[ %GLOBALS + G_RETADDR ], %o7
+	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %TMP0
+	ld	[ %GLOBALS + G_GENERIC_NRTMP2 ], %TMP2
+	sll	%TMP2, 16, %TMP2
+	add	%TMP2, 1, %TMP1
+	st	%TMP1, [ %RESULT + 4 ]		! store sign, length
+	st	%TMP0, [ %RESULT + 8 ]		! store number
+	set	(8 << 8) | BIGNUM_HDR, %TMP0
+	st	%TMP0, [ %RESULT ]
+	jmp	%o7+8
+	or	%RESULT, BVEC_TAG, %RESULT
+
+</pre>
+</body>
+</html>

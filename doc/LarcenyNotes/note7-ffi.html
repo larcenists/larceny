@@ -1,0 +1,972 @@
+<html>
+<head>
+<title>Larceny Note #7: Foreign Function Interfaces</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #7: Foreign Function Interfaces
+</h2>
+Lars T. Hansen / INCOMPLETE DRAFT, 29 April 1999
+</center>
+
+
+(Information about the FFI implementation that has not been incorporated
+in this note is in the file README in the Ffi subdirectory.)
+
+
+<h1>Introduction</h1>
+
+Larceny's Foreign Function Interface (FFI) is a low-level interface and
+is not primarily intended for direct use by the programmer.  Instead, it
+is a suitable target for interface generator tools such as <a
+href="http://www.ccs.neu.edu/home/lth/ffigen">FFIGEN</a>, or as a
+substrate on which to build more user-friendly FFIs such as <a
+href="../manual/ffi.html">Larceny's "standard" FFI</a>.
+
+<p>
+
+The FFI has two levels, both accessible to the programmer.  The lower
+level provides direct access to operating-system and architecture
+specific functions for loading foreign code dynamically, for obtaining
+the addresses of foreign functions, for constructing trampolines and
+callbacks, and for invoking foreign functions.  The upper level provides
+operating-system and architecture independent abstractions on top of the
+lower level.  The lower level remains accessible to allow for finer
+control than that provided by the upper level.
+
+<p>
+
+This note is in part something of a position statement on FFIs.  The
+first part, which describes the lower level, starts with a discussion of
+the issues involved in creating an FFI and describes the principles and
+observations that led to the current design.  That discussion is
+followed by a presentation of the actual design.  Subsequent parts
+describe the upper level and some of the implementation details.
+
+<h1>Contents</h1>
+
+<em>(These need to be links.)</em>
+<ul>
+<li> The Lower Level
+     <ul>
+     <li> General Principles
+          <ul> 
+          <li> Terminology
+          <li> Breakdown of operations in the FFI
+          <li> Loading and Linking
+          <li> Data conversion
+               <ul>
+               <li>Primitive types
+               <li>To copy or not to copy
+               <li>Structured data
+               <li>Call by reference
+               <li>Null pointers
+               <li>Object identity
+               </ul>
+          <li> Invocation
+               <ul>
+               <li> Context switching
+               <li> Calling model
+               <li> The dirty bits
+               </ul>
+          <li> Error handling
+          <li> Garbage collection and memory allocation
+          </ul>
+     <li> The structure of the lowest-level interface
+          <ul>
+          <li> Common functions
+          <li> ...
+          </ul>
+     </ul>
+<li> The upper level
+<li> Implementation
+<li> References
+</ul>
+
+
+<h1>The Lower level</h1>
+
+<h2>General Principles</h2>
+
+<h3>Terminology</h3>
+
+A <em>foreign function interface</em> (FFI) is a facility in a
+programming language (called the <em>host language</em>) that allows
+programs written in that language to call functions written in another
+programming language (called the <em>foreign language</em>)and to
+manipulate foreign objects and variables, and that allows foreign
+functions to call functions written in the host language and to
+manipulate host objects and variables.
+
+<p>
+
+Sometimes, a foreign function interface provides only a subset of the
+listed operations.
+
+<p>
+
+A call from the host language to a foreign function is called a
+<em>call-out</em>, and a call from the foreign language to a host
+procedure is called a <em>call-back</em>.  More generally, a call from
+one language to a function in the other is called a <em>cross-language
+call</em>.
+
+
+<h3>Breakdown of operations in the FFI</h3>
+
+A foreign-function interface that provides only a call-out service to the
+foreign language must support the following operations:
+<ul>
+<li> <b>Loading</b>: the foreign function must be brought into the running 
+     program from a library or object file.
+
+<li> <b>Linking</b>: the foreign function must be brought into the host 
+     program as a host-language object.
+
+<li> <b>Data conversion</b>: on call-outs to the foreign function, host data 
+     must be converted as appropriate to foreign data, and on return from the
+     foreign function, the return value(s) must be converted back to
+     host-language data.
+
+<li> <b>Invocation</b>: the foreign function must be invoked with the converted
+     actual arguments in locations specified by the foreign function's
+     native ABI, and the return value from the foreign function must be 
+     fetched from a location also specified by the foreign function's native
+     ABI.
+
+<li> <b>Error handling</b>: it is necessary to provide a mechanisms whereby 
+     errors signalled in the foreign function can be caught by the 
+     foreign-function interface and returned to the caller.
+</ul>
+
+<p>
+
+In addition, if the foreign-function interface allows the addresses of
+host program data to escape to the foreign language, there are additional
+constraints on the garbage collector if:
+
+<ul>
+<li> the foreign function is allowed to retain a pointer to the host
+     datum after the foreign function returns; or
+
+<li> the foreign function is allowed to allocate host-language storage,
+     or invoke other operations on the host object that may trigger garbage
+     collection, such as storing a host pointer into another host object
+     in a system with a generational garbage collector and a write barrier,
+     if that barrier may allocate memory and hence need to invoke the 
+     collector.
+</ul>
+
+In either case, an arrangement must be made with the host language's
+garbage collector so that (a) any objects referenced from the foreign
+function's data and variables can be found by the collector, preventing
+reclamation of the object; (b) those object will not be moved by the
+collector, unless the foreign function is prepared to deal with this
+possibility; and (c) if the foreign function retains a pointer to the
+host datum after return, but later overwrites that pointer, then we'd
+like the host datum to be reclaimed by the garbage collector when
+appropriate.
+
+<p>
+
+In addition, if call-backs from the foreign function to the host program
+are allowed, the garbage collection constraints must be obeyed, and the
+functionality listed below is needed.  I am assuming that the foreign
+code is opaque in the sense that it cannot be changed to accommodate 
+a call-out to the host function, and that every object or procedure 
+seen by the foreign function must have foreign data formats.
+
+<ul>
+<li> <b>Linking</b>: host procedures must be made available to the 
+     foreign function, and they must obey the foreign language calling 
+     conventions.
+
+<li> <b>Data conversion</b>: foreign data must be converted to host data 
+     at the procedure call boundary.  This gets particularly interesting
+     if the foreign data object is really a placeholder for a host-language
+     object; we'd like the object to retain its identity inside the call-back.
+
+<li> <b>Invocation</b>: when the foreign function calls a host function, 
+     the host language virtual machine must be re-erected in a consistent 
+     state.
+
+<li> <b>Error handling</b>: it is necessary to provide a mechanisms whereby 
+     errors signalled in the callback can be caught by the host-function
+     interface, and if reasonable signalled to the foreign function.  (This
+     mechanism should probably be split in two: the host exception should
+     be caught on the host side, and a magic value denoting a <em>foreign</em>
+     exception should be returned to the call-out interface for signalling.)
+</ul>
+
+
+<h3>Loading and linking</h3>
+
+Foreign procedures are most conveniently loaded into a running system
+from a <em>dynamic library</em> (called a <em>shared object</em> under
+Unix and a <em>dynamic link library</em> (DLL) under Windows).  Usually,
+foreign procedures are loaded by loading the library in which they
+reside; this brings the symbol table of the library under the control of
+the dynamic linker.  Many operating systems have dynamic libaries.  On
+operating systems that don't, the host system must either implement its
+own loading facility, require the programmer to pre-load the foreign
+procedures into the host system (usually by linking them into the host
+system executable), or, in the worst case, set up a separate process
+that runs the foreign procedures, and communicate with this process
+using some form of IPC system.
+
+<p>
+
+Once the foreign procedures have been loaded, their address may be
+obtained through a linking process; again, this is usually supported
+directly by the operating system or system libraries, in the form of a
+dynamic linker.  The dynamic linker is presented with a reference to the
+library and the name of the procedure and returns the procedure's static
+address.  
+
+<p>
+
+The foreign function interface must present the correct procedure name
+to the linker.  This is easy for some languages and much harder for
+others.  For C, there are commonly two possibilities.  The names in an
+object file are case-sensitive, and either have an underscore prepended
+or not; the default depends on the operating system and sometimes on the
+calling convention selected.
+
+<p>
+
+For Fortran (certainly Fortran 77), names are usually uppercase but
+otherwise unaltered.
+
+<p>
+
+For C++, names are much harder.  C++ compilers perform <em>name
+mangling</em>, where the type of a function is encoded in the function's
+name.  This lets C++ compilers use linkers that don't support types and
+type checking, and still get type checking across module boundaries at
+link time.  Unfortunately, the exact name mangling scheme is compiler
+dependent, and the foreign function interface must therefore know the
+mangling scheme of the compiler that compiled the foreign code when it
+links to the foreign procedure.  In some cases, this scheme may be
+undocumented, and it may be illegal to reverse engineer it.  (See
+section 7.1.2c of Ellis and Stroustrup [ARM] for one example of a
+mangling scheme.)
+
+
+<h3>Data conversion</h3>
+
+At this level of discussion, we're dealing exclusively with data
+representations, not with data types per se.  The data conversion part
+of the FFI must convert host language representations to foreign
+language representations, or vice versa, or signal an error if this is
+not possible.
+
+<p>
+
+Most of the discussion in this section is a lengthy justification for
+the sparsity of Larceny's FFI's data conversion facilities.  The summary
+of the justification is that except for pretty trivial stuff, you can't
+invent a facility that will work in a lot of cases, so why bother.  It's
+better to get the basic ideas right.
+
+<p>
+<h4>Primitive types</h4><br>
+
+Some foreign-function interfaces have large sets of rules for data
+conversion at the call boundary.  Most of these rules could fairly
+easily be implemented on the Scheme level as a wrapper to the foreign
+function call, and in my opinion that's where they <em>should</em> be
+implemented.  The basic data conversions should be kept simple.
+
+<p>
+
+A typical data conversion problem is the following.  The host language
+is Scheme and the foreign language is C; the architecture's word size is
+32 bits.  We have a C function that takes an <tt>int</tt> parameter,
+i.e., a signed 31-bit integer.  The Scheme implementation has two
+representations for exact integers: fixnums, which are signed 29-bit
+exact integers; and bignums, which are arbitrary-sized exact integers
+Neither representation corresponds to the C representation, so
+conversion must take place at the language boundary.  The algorithm is
+simple: if the argument is a fixnum, then convert it; if the argument is
+a bignum and it's not too large to fit, then convert it; otherwise, it's
+an error.
+
+<p>
+
+The following table shows the fundamental conversion rules for a modern
+byte-addressable 32-bit architecture (i.e., essentially all 32-bit
+architectures of any interest).
+
+<pre>
+Conversion rule	    Call-out		  Return
+---------------     ------------------    -------------------
+signed32	    integer => int	  int => integer
+unsigned32	    integer => unsigned   unsigned => integer
+ieee32		    flonum => float	  float => flonum
+ieee64 		    flonum => double	  double => flonum
+pointer 	    boxed => pointer	  illegal
+pointer+ n	    boxed => pointer	  illegal
+object		    boxed => word	  word => boxed
+void		    illegal		  any => unspecified
+</pre>
+
+The <tt>pointer</tt> conversion takes a boxed Scheme object and passes
+it as a pointer to the first byte beyond the header of that object.  The
+<tt>pointer+</tt> conversion takes a boxed Scheme object and passes it
+as a pointer to the <em>nth</em> byte beyond the header of that object;
+<em>n</em> must be nonnegative.  The <tt>object</tt> conversion is an
+identity on Scheme objects.
+
+<p>
+<h4>To copy or not to copy</h4><br>
+
+Most Scheme and Lisp FFIs expend much energy on making it convenient and
+cheap to pass strings to C without having to copy them.  Commonly,
+native strings are represented with both a length field and a zero-byte
+terminator; passing the address of the first character of such a string
+to a C procedure has the effect of passing a C string
+("<tt>char*</tt>").  While such a hack would work well in the context of
+Larceny's FFI, a more principled approach is that (a) there are other
+foreign languages than C, (b) when Larceny has Unicode characters, the
+string hack will work less well, and (c) there are other data types that
+are more important than strings.  Therefore, strings must in general be
+copied or explicitly kept in a C-compatible format by the programmer.
+
+<p>
+
+There is a more general problem here: copying is not free, hence it is
+nice to avoid copying, and sometimes it is vital to avoid copying.
+Copy avoidance is difficult as long as different languages or even
+language implementations use different representations for the "same"
+data.  The string example above is benign; a much harder problem is that
+most Scheme systems represent vectors of floating-point numbers as
+vectors that contain pointers to boxed flonums on the heap, whereas C
+and Fortran represent them as plain vectors of floating-point numbers.
+No reasonable amount of hackery will save you from copying when converting
+one format to the other.
+
+<p>
+
+It is possible to avoid copying by choosing a data representation that
+optimizes for the common case; for example, if we have floating-point
+vectors that are largely manipulated by Fortran subroutines and only
+sometimes inspected by Scheme code, they can be stored in Fortran format
+(using Scheme bytevectors as the underlying representation is one
+possibility), and Scheme accessors can be written to access their elements.
+In the worst case, we may still need an occasional conversion, but since
+the common case is handled well, a conversion may be affordable.
+
+<p>
+
+Still, the "best representation" solution is only partial because it may
+break existing code in the host language: existing code won't know about
+the new representation, and it must therefore be rewritten, or at least
+altered to accomodate multiple representations.  In a strongly typed
+language, it is in principle possible to declare the representation of a
+data type to be compatible with some external entity, and in fact the
+Ada 95 Foreign Language Interface provides this capability.  In a
+latently typed language like Scheme, or in a less ambitious language
+than Ada, having multiple representations for a given datum typically
+has a non-negligible run-time cost.
+
+<p>
+<h4>Structured data</h4><br>
+
+By "structured data" I mean foreign records and structure types:
+non-atomic data with named fields.  Some of the discussion is relevant
+to array types also.
+
+<p>
+
+Many Common Lisp FFIs and some Scheme FFIs have elaborate mechanisms for
+defining foreign structured types; these mechanisms usually take the
+form of a structure definition language (a syntactic form) coupled with
+primitives for explicitly allocating and deallocating foreign
+structures.  In addition, there is a mechanism for accessing foreign
+structure fields from Scheme.  The mechanism must have knowledge of the
+representations used by the compiler of the foreign language; sometimes
+this is easy (Pascal, C), other times not (C++).
+
+<p>
+
+By treating the foreign structures as abstract data types and defining
+suitable operations on them, these systems manage to maintain the
+illusion that the structures look a lot like Scheme data, except that
+the structures are strongly typed and their basic types (like integers)
+have a limited range.  Internally, the structures are represented as a
+"foreign-pointer" object, an ADT that represents a foreign object by
+wrapping the address of the foreign object in a Lisp object.  Some
+systems, like MacScheme, abandon the wrapping and deal in raw pointers.
+
+<p>
+
+For Larceny's fundamental FFI I have decided to abandon this strategy.
+No primitives will be provided for allocating or deallocating foreign
+memory, nor for declaring foreign structures and their operations; nor
+will there be a built-in facility for representing a foreign pointer.
+Instead, the fundamental FFI provides basic data access operations in
+the form of memory access primitives: essentially, PEEK and POKE.  All
+the other facilities can and should be implemented on a higher level,
+for example in a system like FFIGEN or in a specialized
+structure-definition language that can be customized as appropriate for
+local conditions.  Section FIXME, below, describes the memory access
+primitives that will be provided.
+
+<h4>Call by reference</h4><br>
+
+Call-by-reference / call-by-value-return (maybe)
+
+<p>
+If the foreign procedure uses a call-by-reference calling convention for
+one or more of its arguments, then the data conversion layer may have to
+set this up.
+
+
+<h4>Null pointers</h4><br>
+
+
+<h4>Object identity</h4> 
+
+Object identity across call-out/call-back: does it matter?
+
+
+<h3>Invocation</h3>
+
+<h4>Context switching</h4><br>
+
+A cross-language call causes a <em>context switch</em>: the run-time
+context in the caller's language has to be saved, and a run-time context
+in the callee's language has to be created.  
+
+<p>
+
+For example, Larceny on the SPARC does not use the same stack or the
+same register conventions as C does.  Instead of using the C stack, it
+has its own, with stack frames that look very different from the C
+stack, and it has its own stack pointer.  It does not use the hardware
+register windows.  Therefore, when a call from Scheme to C takes place,
+the registers used in the Scheme context, including the stack pointer
+and heap pointer, must be saved in a designated save area.  Then, the C
+context must be entered, which in this case doesn't take any actual work,
+as the C stack pointer is already in a register (this is required by
+the hardware).  Once the process is in a C context, the call to the C
+function can take place.
+
+<p>
+
+More generally, a cross-language call temporarily violates the run-time
+invariants of both languages, once during the call and once during the
+return:
+
+<pre>
+          +------------+                    +----------+
+          |   Scheme   |     +--------+     |   C      |
+          |  run-time  |---->| Switch |---->| run-time |
+          |   context  |     +--------+     |  context |
+          +------------+                    +----------+
+</pre>
+
+It is convenient (and reasonable) to consider two other parts of the FFI
+part of the context switch box.  The lowest level of data conversion
+breaks abstraction barriers and operates with knowledge of both
+execution environments, and happens during the switch.  The code that
+sets up the parameters to the callee is also part of the switch, since
+it typically has to use extra-linguistic mechanisms to do this (see the
+section "The dirty bits", below).  In Larceny's FFI, the conversion
+code, the context switch code, and the parameter setup code are all
+separated, but they run in sequence during a call-out or call-back
+without any other code intervening, and it's therefore useful to
+consider them a unit.
+
+<h4>Calling model</h4><br>
+
+When one or both of the languages has first-class continuations, the
+effects of the use of those continuations in the context of call-outs
+and call-backs must be carefully stated.  More generally, we need to
+specify the <em>calling model</em> in effect at cross-language calls.
+Here are some calling models:
+
+<ul>
+<li> <b>Single stack</b>
+
+<p>
+
+A stack-like calling model is assumed where the stack is conceptually
+shared by the two languages.  Call-with-current-continuation would
+capture the entire continuation, both host and foreign parts, and
+invoking a continuation would prune the current continuation and
+reinstate both parts of the captured continuation.
+
+<p>
+
+The single-stack model <em>mostly</em> works with languages like C and
+C++: all programs have expected semantics as long as the host system is
+allowed to assume that a foreign continuation is only used at most once.
+However, to get good performance, the programmer must be careful.  If
+the C code stack-allocates an object and stores a pointer to that object
+in a global variable, then any access through that pointer requires that
+the object be in its original location (that is, on the stack) at the
+time of access.  Since the object is located in a stack frame, and the
+host system does not have any information about the object, the entire
+frame must be on the stack.  In practice, the entire foreign stack
+segment must be on the stack when foreign code is executing, so the
+single-stack model incurs some copying overhead because a full
+copy-out/copy-in must be effected on each continuation switch.
+Stack-allocating large objects across a call-back is potentially very
+expensive.
+
+<p>
+
+If the C code obeys certain rules, continuations can even be invoked
+multiple times.  These rules include disallowing stack-allocated objects
+and in addition impose severe restrictions on manual storage
+deallocation in any of the C procedures that are being returned through
+multiple times.
+
+<p>
+
+The reason for disallowing stack-allocated objects is that with multiple
+returns through a continuation, there may be multiple live copies
+of a C stack frame at the same time.  A change to any of them (the one
+that happens to be on the stack) will not be effected in the others.
+We may be required to have multiple frames because C compilers intermingle
+control information and stack-allocated data: we can't risk damaging
+the saved control information, and we can't copy a frame partly back to 
+the stack (or copy the object back out to the saved frames).
+
+<p>
+
+The reason for restricting the use of manual storage deallocation is
+pretty obvious: if you return through a frame twice and the last thing
+you do in the frame is to free some object, then you'll end up freeing
+it twice.
+
+<p>
+
+<li> <b>Coroutines</b>
+
+<p>
+
+A stack-like model is assumed where each language has its own
+continuation, and a call from one language to another is a
+<tt>cobegin</tt>, and a return is a <tt>resume</tt>.
+Call-with-current-continuation only captures the Scheme continuation,
+and the C continuation is left intact.  Primitives can be defined that
+allow the programmer to explicitly capture and reinstate the C
+continuation.
+
+<p>
+
+The coroutine model is very much a nuts-and-bolts level model (in fact,
+many Scheme systems use this model internally because they maintain
+separate C and Scheme stacks), and unless the primitives for dealing
+with the C continuation are available, it interacts very poorly with
+call-with-current-continuation.  In particular, Scheme programs that use
+continuations for error handling may no longer work as expected.
+
+<p>
+
+<li> <b>Threads</b>
+
+<p>
+
+In this model, a call-out from the host language to the foreign language
+is viewed as a thread creation in the foreign language, and a call-back
+to the host language is viewed as a thread creation in the host
+language.  A call-out waits for thread termination in the foreign
+language, and a call-back waits for thread termination in the host
+language.  
+
+<p>
+
+The thread model is only conceptual: the languages don't need to support
+threads to make it work.  The thread model is useful because it works
+also in environments where either language is in fact threaded,
+something that is not obviously true for the single-stack model or the
+coroutine model.
+
+<p>
+
+Additionally, the thread model makes it clear that
+call-with-current-continuation does not really make sense across a
+language boundary, and that proper error handling requires signalling
+the error across the language boundaries as appropriate, so that error
+handlers in both the host and foreign language have a chance to handle
+the error.  Finally, multiple returns across a language boundary does
+not make sense in the same way multiple terminations of the same thread
+does not make sense, and it does not make sense to talk about copies
+of the foreign stack (if any).
+
+<p>
+
+The thread model has complications of its own: the use of a threads
+model means that the effect of call-with-current-continuation is
+complicated, and we may need to switch to a more controlled notion of
+continuation, like the process continuations proposed by Hieb and Dybvig
+[PPoPP90], but I don't know yet.  Like the case was for the coroutine
+model, handling errors by invoking a continuation is no longer adequate;
+instead, the stack of cross-language calls must be properly unwound.
+
+<p>
+
+<li> <b>Remote Procedure Call</b>
+
+<p>
+
+The remote procedure call model is nearly identical to the threads model, 
+but it also implies copying of data across call boundaries.  
+
+</ul>
+
+<p>
+<h4>The dirty bits</h4><br>
+
+On the very lowest level, the FFI must construct a procedure call in the
+foreign language from a function address and a list of actual argument
+represented as foreign-language objects.  Most languages do not come
+with an "apply" primitive that makes this easy, so the FFI must supply
+its own apply function for the foreign language.  Since the foreign
+language's calling conventions are not typically expressible in either
+the host or the foreign language, we must get our hands dirty and create
+executable code that performs the call.  
+
+<p>
+
+If the foreign language's calling conventions are simple, we can write
+code in a high-level language that creates an image of the parameter
+area in a memory array, and then calls a simple assembly language
+subroutine that copies the arguments into their proper place and jumps to
+the foreign procedure.  For example, the calling conventions for C on
+the SPARC are simple: all arguments are passed in integer registers or
+on the stack, following simple rules.
+
+<p>
+
+If the foreign conventions are less simple, for example if multiple
+parameter areas are being used such as both integer register, floating
+point registers, and the stack, then it may be easier to just generate
+machine code that performs the necessary setup; our assembly language
+subroutine from the previous case would otherwise be pretty complicated.
+This sounds pretty ugly but is surprisingly simple in practice;
+Larceny's FFI uses this method.
+
+
+<h3>Error handling</h3>
+
+In this section, I will discuss error handling and signalling at the
+language boundaries, without going into a rant about the sorry state of
+error signalling and handling facilities in many programming languages.
+
+<p>
+
+If we assume that there is a method whereby an error is signalled in a
+particular language, and that there is a mechanism in the language that
+allows the program to catch any error and discover what the error was
+(the error is reified as an inspectable data object).  Then error
+handling at the language boundary can be implemented as a catch-all at
+the language boundary, and the error can be transformed into an object
+inspectable in the other language.  By this mechanism, an error can be
+reliably propagated across a language boundary, and error handlers can
+be in any language.
+
+<p>
+
+Sadly, many languages do not have error signalling and handling
+facilities at all: C programmers use longjmp and Scheme programmers use
+continuations, for example, both of which do not in themselves qualify
+as adequate signalling and handling mechanisms.  In addition, not all
+languages that do have decent exception facilities are able to set up
+this type of catch-all.  For example, both C++ and Modula-3 can set up a
+catch-all, but the error caught by a catch-all is not inspectable after
+the catch.
+
+<p>
+
+Error handling therefore becomes dependent not only on the foreign
+language, but also on the foreign library.  If the foreign library
+procedures returns error codes, then those can be handled easily.  If it
+uses exceptions, then we may have to write exception handling stubs and
+wrap calls to the library procedures in those stubs.  If it uses longjmp
+(it shouldn't), then major surgery may be needed to get error handling
+right.  In either case, it's not something we should try to solve
+completely in the low-level FFI.
+
+<p>
+
+A reasonable way to signal an error across the language boundary is by
+either returning a magic value to the caller, or by setting a flag in
+the callee that is checked by the caller.  The flag could be passed as
+a by-reference parameter, for example, or it could be global.
+
+
+<h3>Garbage collection and memory allocation</h3>
+
+Retention<br>
+Locking<br>
+Collection<br>
+Our options: conservative, nonmoving, or mostly-copying collectors.  Use of 
+dedicated non-moving areas.  Explicitly-managed memory.  Foreign data only.
+Hybrid (mostly-copying) or very hybrid (precise+conservative) collectors.
+
+
+<h2>The lowest-level interface</h2>
+
+<h3>Structure</h3>
+
+The loading and linking functions are specific to the operating system
+and probably to the foreign language; see each relevant section for
+details.
+
+<p>
+
+The actual context switching box looks like this:
+
+<pre>
+  +------------+                 +----------+
+  |   Scheme   |   +---------+   |   C      |
+  |  run-time  |-->| Syscall |-->| run-time |-->| Conversion |-->|  Param  |-->
+  |   context  |   +---------+   |  context |        (C)           (SPARC)
+  +------------+                 +----------+
+</pre>
+
+<p>
+
+The procedure <tt>ffi/apply</tt> performs lowest-level data conversion,
+and uses a <em>trampoline</em> created with <tt>ffi/make-trampoline</tt>
+to invoke the foreign function and capture the return value or
+exception.  On of the arguments to <tt>ffi/make-trampoline</tt> is an
+<em>ABI object</em> that procedurally defines the exact calling
+conventions for the platform, OS, language, and language implementation.
+The ABI object is used in constructing the trampoline.
+
+<p>
+
+The argument descriptor is a list of argument types.  The exact types
+allowed at the lowest level depends on the particular platform, OS, language,
+and language implementation.  As an example, on the ANSI C interface
+on the SPARC architecture, the following are the legal argument types:
+<pre>
+      argument type     host data allowed
+      -------------     -----------------
+      signed32          exact integers in the range -2^31..2^31-1
+      unsigned32        exact integers in the range 0..2^32-1
+      ieee32            flonums (IEEE single); will cast to double
+      ieee64            flonums (IEEE double)
+      pointer           vector-like, bytevector-like, or pair
+</pre>
+and the following are the legal return types:
+<pre>
+      return type     host data created
+      -----------     -----------------
+      signed32        exact integer in the range -2^31..2^31-1
+      unsigned32      exact integer in the range 0..2^32-1
+      ieee64          flonum
+      ieee32          flonum
+      void
+</pre>
+Note in particular that many common types (char, boolean, null, pointers to
+foreign data, pointers to host data created by the foreign function) are
+not represented.  The upper level of the FFI may support some of these types
+and is expected to convert them as appropriate before passing them to
+the lower-level procedures.  This division of labor allows more of the FFI
+to be written in Scheme, which is A Good Thing, especially in a fast
+implementation like Larceny.
+
+
+<h3>Common functions</h3>
+
+<dl>
+<dt><tt>
+(ffi/make-trampoline <em>abi-object addr arg-descriptor ret-descriptor</em>) 
+=> <em>trampoline</em>
+</tt>
+<p><dd> 
+<em>ABI-object</em> is an object that represents a calling convention
+for the foreign language; see above.  <em>Addr</em> is a foreign
+function address as returned from the operating-system specific linking
+procedure.  <em>Arg-descriptor</em> is a list of symbols denoting
+argument types, selected from the ABI-specific list of valid types.
+<em>Ret-descriptor</em> is a symbol denoting a return type, ditto.
+
+<p><dt><tt>
+(ffi/convert-arg-descriptor abi-object <em>arg-descriptor</em>) => 
+<em>arg-encoding</em>
+</tt>
+<p><dd>
+
+<p><dt><tt>
+(ffi/convert-ret-descriptor abi-object <em>ret-descriptor</em>) => 
+<em>ret-encoding</em>
+</tt>
+<p><dd>
+
+<p><dt>
+<tt>
+(ffi/apply <em>trampoline arg-encoding ret-encoding actuals</em>) =>
+<em>error-code object</em>
+</tt>
+<dd>
+
+<em>Trampoline</em> is a datum returned from <a
+href="#make-trampoline"><tt>ffi/make-trampoline</tt></a>.
+<em>Arg-encoding</em> and <em>ret-encoding</em> are suitable encodings
+of argument type and return type descriptors, as returned by <a
+href="#convert-arg-descriptor"><tt>ffi/convert-arg-descriptor</tt></a>
+and <a
+href="#convert-ret-descriptor"><tt>ffi/convert-ret-descriptor</tt></a>,
+respectively.  Finally, <em>actuals</em> is a list of the actual
+arguments to the foreign procedure.  The arguments are converted to
+foreign types as appropriate, the foreign function is called, and the
+value it returns, if any, is converted to a Scheme datum and returned as
+the second value from <tt>ffi/apply</tt>.
+
+<p>
+
+If no exception has been raised by the foreign function, then the
+<em>error-code</em> is <tt>#f</tt> and the second value,
+<em>object</em>, is the valid return value (or <tt>#!unspecified</tt> if
+the return type is <tt>void</tt>).  If an exception was raised, then
+<em>error-code</em> is <tt>#t</tt>, and <em>object</em> is a value that
+denotes the particular error; this value depends on the foreign language
+and its exception conventions.  The only exception to this rule is that
+if the <em>object</em> is the symbol <tt>conversion-error</tt>, then 
+a data conversion error occurred in the callout.  (<b>Note: it would be
+possible to do range/type checking before calling ffi/apply, simplifying
+the latter.</b>)
+
+</dl>
+
+
+<h2>FFI to ANSI C on SunOS 4</h2>
+
+<h3>Functions</h3>
+
+<dl>
+<dt>
+<tt>(ffi/dlopen <em>object-file-name</em>)  =>  <em>handle</em> | #f</tt>
+<dd>
+<tt>ffi/dlopen</tt> takes a string that represents the name of some 
+dynamically loadable object file (FIXME: is this just .so files or can we 
+use .o files and .a files too?) and invokes the SunOS <tt>dlopen</tt>
+procedure.  If <tt>dlopen</tt> returns 0, then <tt>ffi/dlopen</tt> returns
+#f; otherwise, <tt>dlopen</tt> returns a handle in the form of an
+address, and this address is returned by <tt>ffi/dlopen</tt> as an unsigned
+exact integer.
+
+<p><dt>
+<tt>(ffi/dlsym <em>handle name</em>)  =>  <em>address</em> | #f</tt>
+<dd>
+<tt>ffi/dlsym</tt> takes a <em>handle</em> as returned by
+<tt>ffi/dlopen</tt> and a string representing the name of the symbol to
+look up in the library denoted by <em>handle</em>, and returns either
+the address of the symbol or <tt>#f</tt> if the symbol was not found in
+the library.
+
+<p>
+
+As a special case, <em>handle</em> can be #f, which means that the
+symbol will be resolved in the symbol table of the running program.
+Using this feature is generally not advisable, as no promises are made
+about the names in the Larceny executable.
+
+<p><dt>
+<tt>(ffi/dlclose <em>handle</em>) => <em>unspecified</em></tt>
+
+</dl>
+
+
+<h3>Argument and return types</h3>
+
+<pre>
+      argument type     host data allowed
+      -------------     -----------------
+      signed32          exact integers in the range -2^31..2^31-1
+      unsigned32        exact integers in the range 0..2^32-1
+      ieee32            flonums (IEEE single); will cast to double
+      ieee64            flonums (IEEE double)
+      pointer           vector-like, bytevector-like, or pair
+
+
+      return type       host data created
+      -----------       -----------------
+      signed32          exact integer in the range -2^31..2^31-1
+      unsigned32        exact integer in the range 0..2^32-1
+      ieee32            flonum
+      ieee64            flonum
+      void              unspecified
+</pre>
+
+
+<h3>ABI objects</h3>
+
+The file <tt>ffi-sparc.sch</tt> defines two ABI objects:
+<tt>ffi/SPARC-C-callout-stdabi</tt> and
+<tt>ffi/SPARC-C-callback-stdabi</tt>.  These use calling conventions
+that are compatible with SPARC ABI spec as outlined in the SPARC V8
+manual.
+
+
+<h1>The upper level</h1>
+
+<h2>Heap dumping</h2>
+
+<p>    (1) the library handle list must be cleared
+       on dump or restore, and all the libraries and files must be reloaded.
+       This is hard because the files may no longer be present (!)
+       or any relative paths may have changed.  We can sidestep
+       this problem by simply stipulating that a non-found file will
+       result in a fatal error; the user can use absolute file names
+       as necessary.  (A better solution packages the object files with
+       the heap; this is possibly not too hard but will be bad space-wise
+       for large shared libraries.  An OS-dependent mechanism can be
+       used: if it's not writeable by the user, or in a standard place,
+       then leave it alone, otherwise save with the heap, and on load time
+       place in /tmp and link to it; another way: if it's an absolute path,
+       then leave alone, otherwise save with the heap.)
+       In any event, the code goes in ffi-upper.sch and just sets up
+       an init handler to clear the list and reload the files (the files
+       can also be reloaded lazily, but this may not work for part 2).
+
+
+<p>    (2) the functions will most likely have to be re-linked, because
+       function addresses may have changed.  To support this, it would
+       be OK to have a procedure (ffi/change-funtion-address tramp addr)
+       that would go in tramp.sch and would side-effect the trampoline
+       with the function code; since the trampoline is a shared datum, 
+       this would be sufficient to re-link the procedure.  Then, ffi-upper
+       would keep a weak table of functions that would need to be re-linked
+       at startup time.  It seems moderately hairy to get the side
+       effects right.  Lazy linking can be done if we're willing to
+       re-link all the functions to point to a built-in linker handler
+       either at startup (defeats the purpose) or at shutdown (brittle
+       but can be detected at startup if the static fn has "moved").
+       [The trampoline can encode the location(s) of the procedure address
+        in the bytevector in a machine-specific way; then it's not too
+        hard to do.]
+
+<p>    A related problem is that the trampoline code may have been
+       allocated in foreign memory!  In that case, it must be reconstructed.
+       (That does happen in the current system!)
+
+<h1>Implementation</h1>
+
+The foreign function interface is implemented almost entirely in Scheme,
+with a little support code in the run-time system written in C.
+
+
+<h1>References</h1>
+
+[ARM] Margaret A. Ellis and Bjarne Stroustrup.  The Annotated C++ Reference
+Manual.
+
+<p>
+[PPoPP90] Hieb and Dybvig.  Continuations and Concurrency.  In PPoPP 1990.
+
+<p><hr>
+<em>$Id: note7-ffi.html 1157 1999-11-10 22:04:50Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

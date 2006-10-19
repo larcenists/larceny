@@ -1,0 +1,54 @@
+<html>
+<head>
+<title>Larceny Note #11: Experiences with the Conservative Collector</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #11: Experiences with the Conservative Collector
+</h2>
+Lars T Hansen / November 23, 1998
+</center>
+
+
+<h2>Experiences with the conservative collector</h2>
+
+<h3>Incremental mode</h3>
+
+The conservative collector's incremental mode is not useful in Larceny
+(at least not under SunOS).  The header file says the following about
+incremental mode:
+
+<pre>
+Not advisable unless dirty bits are available or most heap objects are
+pointerfree (atomic) or immutable.
+</pre>
+
+This is evidently the case on the Sparc -- the system thrashes endlessly
+in memory signal handling during initialization; I have yet to even get
+to the REPL prompt.  I thought it might help to put the Scheme stack in
+the C stack (which the system would presumably not write protect) but a
+quick experiment did not give any observable improvement (it still
+hadn't made it to the REPL prompt by the time I got bored.)
+
+<p>
+
+It would be interesting to revisit this issue under other operating systems.
+
+<h3>Atomic and nonatomic objects</h3>
+
+Running some benchmarks I observed problems with excessive storage
+leakage.  This leakage was reduced to a reasonable level by making sure
+that all atomic (non-pointer containing) objects were allocated as such.
+It appeared to be particularly important for floating-point data.  There
+are now two allocation entry points in the system: <tt>mem_alloc</tt>
+and <tt>mem_alloc_bv</tt>, the latter allocates atomic data.
+
+
+<p><hr>
+<em>$Id: note11-bdw.html 83 1998-11-25 14:12:22Z lth $</em><br>
+<a href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</a>
+
+</body>
+</html>

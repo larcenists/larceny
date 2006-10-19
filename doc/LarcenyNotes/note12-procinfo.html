@@ -1,0 +1,90 @@
+<html>
+<head>
+<title>Larceny Note #12: Procedure Documentation</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #12: Procedure Documentation
+</h2>
+Lars T Hansen / 25 November 1998
+</center>
+
+<h3>Introduction</h3>
+
+Compiled and interpreted code contains procedure documentation to aid in
+debugging.  This note documents the layout and location of the procedure
+documentation.
+
+<h3>Documentation Layout</h3>
+
+A procedure documentation datum is a vector; vectors are nice because
+they are extensible.  The vector contains the following fields, in
+order.  Any field can have the value <tt>#f</tt>, meaning "no
+information available".
+
+<ul>
+<li>Procedure-name: a symbol.
+<li>Procedure-expression: a datum representing the source code.
+<li>Arity: a nonnegative integer.  If exact, then the procedure takes exactly
+    that many arguments.  If inexact, then the procedure takes at least
+    that many arguments.
+<li>File-name: a string denoting the originating file.
+<li>File-position: an exact integer denoting the position of the source
+    code for the procedure within the file.  If this field has the
+    value <em>k</em>, then <em>k</em> characters precede the opening 
+    parenthesis of the source code.
+</ul>
+
+<h3>Accessing the data</h3>
+
+Procedure documentation data are most conveniently accessed with the <a
+href="../manual/procedures.html">procedure information accessors</a>.
+
+<p>
+
+Additionally, the undocumented procedure
+<tt>procedure-documentation</tt> can be used to retrieve documentation
+from a procedure:
+
+<dl>
+<dt><tt>
+(procedure-documentation <em>proc</em>) => <em>doc</em><br>
+(procedure-documentation <em>proc offset</em>) => <em>doc</em>
+</tt><p><dd>
+Returns procedure documentation for the procedure <em>proc</em>.  If no
+documentation is available, returns <tt>#f</tt>.  The first form is
+equivalent to the second form with <em>offset</em>=0.
+<p>
+If <em>offset</em> is supplied, then it must specify a valid instruction
+address in the procedure's code vector, and the documentation structure 
+returned, if any, is the one appropriate for the given instruction.  
+</dl>
+
+
+<h3>Procedure Layout</h3>
+
+The documentation slot is always slot 0 in the constant vector of a
+procedure.  Three values are legal for the documentation slot.  If the
+value is #f, then no information is available.  If the value is a
+vector, then that vector is the procedure documentation.  If the value
+is a list, then it must be a list of pairs.  The pairs contain procedure
+information for instruction-address ranges.  The car of a pair is a
+nonnegative exact fixnum: it is the first address for which the
+documentation structure in the cdr is valid.  The list is sorted on the
+car of the pair.
+
+<p>
+
+The assembler sets up the procedure documentation structures from
+information supplied by the compiler.  The interface between the
+compiler and assembler is insufficiently documented.
+
+
+<p><hr>
+<em>$Id: note12-procinfo.html 89 1998-11-25 14:46:38Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

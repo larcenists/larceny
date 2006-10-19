@@ -7,6 +7,7 @@ STD_XSLTPROC_OPTS=--stringparam section.autolabel 1
 STD_A2X_OPTS=--asciidoc-opts="${STD_ASCIIDOC_OPTS}" --xsltproc-opts="${STD_XSLTPROC_OPTS}" --doctype=article --destination-dir=. 
 
 OTHERFILES=$(wildcard UserManual/*.txt)
+LNOTEFILES=$(wildcard LarcenyNotes/*.txt)
 
 all: docs sourceindex.html builddate.html
 
@@ -23,6 +24,23 @@ user-manual-alt.html: UserManual/user-manual.txt ${OTHERFILES}
 
 user-manual.chunked/index.html: UserManual/user-manual.txt ${OTHERFILES}
 	${A2X} ${STD_A2X_OPTS}  --format=chunked UserManual/user-manual.txt 
+
+
+larceny-notes.pdf: LarcenyNotes/larceny-notes.txt ${LNOTEFILES}
+	${A2X} ${STD_A2X_OPTS}  --format=pdf LarcenyNotes/larceny-notes.txt 
+
+larceny-notes.html: LarcenyNotes/larceny-notes.txt ${LNOTEFILES}
+	${A2X} ${STD_A2X_OPTS}  --format=xhtml LarcenyNotes/larceny-notes.txt 
+
+larceny-notes-alt.html: LarcenyNotes/larceny-notes.txt ${LNOTEFILES}
+	${ASCIIDOC} ${STD_ASCIIDOC_OPTS}  --backend=xhtml11 --out-file=$@ LarcenyNotes/larceny-notes.txt
+
+larceny-notes.chunked/index.html: LarcenyNotes/larceny-notes.txt ${LNOTEFILES}
+	${A2X} ${STD_A2X_OPTS}  --format=chunked LarcenyNotes/larceny-notes.txt 
+
+
+
+
 
 sourceindex.html: ${OTHERFILES}
 	echo "<HTML><HEAD><TITLE>UserManual</TITLE><BODY><UL>"                     > sourceindex.html

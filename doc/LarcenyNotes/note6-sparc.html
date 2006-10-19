@@ -1,0 +1,584 @@
+<html>
+<head>
+<title>Larceny Note #6: Larceny on the SPARC</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #6: Larceny on the SPARC
+</h2>
+Lars T Hansen / May 5, 1998
+</center>
+
+<h2>Contents</h2>
+
+<a href="#architecture">0. The SPARC architecture</a><br>
+<p>
+<a href="#assembler">1. The SPARC assembler</a><br>
+<a href="#structure">1.1. Structure of the SPARC assembler</a><br>
+<a href="#codegen">1.2. Native code generation</a><br>
+<a href="#nativeasm">1.3. The SPARC native assembler</a><br>
+<a href="#peephole">1.4. Peephole optimization</a><br>
+<p>
+<a href="#prog-model">2. The Programming model</a><br>
+<a href="#registers">2.1. Registers</a><br>
+<a href="#scheme-calling">2.2. Scheme-to-Scheme calling convention</a><br>
+<a href="#millicode-calling">2.3. Scheme-to-Millicode calling 
+        convention</a><br>
+<p>
+<a href="#icache">3. The Instruction Cache</a><br>
+<p>
+
+<a name="architecture">
+<h2>0. The SPARC architecture</h2>
+
+The SPARC architecture is a RISC architecture descended from the
+Berkeley RISC projects.  It distinguishes itself from most other RISC
+architectures in its use of register windows and its support for tagged
+arithmetic.  The primary programmer's reference for the SPARC is <em>The
+SPARC Architecture Manual</em>, published by Prentice-Hall.  The most
+recent edition covers Version 9; Larceny uses only instructions documented
+in the Version 8 manual.
+
+
+<a name="assembler">
+<h2>1. The SPARC assembler</h2>
+
+The compiler/assembler interface is parameterized by definitions in
+<tt>Compiler/sparc.imp.sch</tt>, as explained in the <a
+href="note10-primops.html">Larceny Note on adding primitives</a>.
+
+<a name="structure">
+<h3>1.1. Structure of the SPARC assembler</h3>
+
+The SPARC assembler has four parts:
+<ul>
+<li> Assembly table
+<li> Code generator
+<li> Native assembler
+<li> Peephole optimizer
+</ul>
+
+The assembly table is the target-dependent part of Twobit's pass 5
+(assembly).  The code for this part is in
+<tt>Asm/Sparc/pass5p2.sch</tt>; this file defines a table of assembler
+procedures which is then used by the target-independent part of pass 5
+to perform assembly.  Each assembler procedure in the table is called
+with an assembly structure and a MacScheme instruction.
+
+<p>The assembler procedure picks the instruction apart and calls
+procedures in the code generator to emit machine code.  Those
+procedures, found largely in <tt>Asm/Sparc/gen-msi.sch</tt> and
+<tt>Asm/Sparc/gen-prim.sch</tt>, decide on the instructions to generate,
+and call procedures in the native assembler.  The native assembler
+creates the machine code for each instruction and performs certain local
+optimizations on the instruction stream such as branch delay slot
+filling and instruction scheduling.
+
+<p>The peephole optimizer is invoked on the instruction stream by the
+target-independent part of pass5, and coalesces common patterns of
+MacScheme instructions into instructions specialized for the SPARC.
+
+<a name="codegen">
+<h3>1.2. The Code Generator</h3>
+
+<h4>Overview</h4>
+
+The file <tt>Asm/Sparc/gen-msi.sch</tt> contains procedures that
+generate code for all MacScheme instructions (msi = MacScheme
+Instructions) except the <em>op1</em>, <em>op2</em>, <em>op2imm</em>,
+and <em>op3</em> instructions.  Those instructions are handled in
+<tt>Asm/Sparc/gen-prim.sch</tt>, where one code generator procedure is
+defined for each primitive.
+
+<h4>Code generation idioms</h4>
+
+This section lists some common idioms that you will see in disassembled
+code or in millicode.
+
+<h5>Generic addition</h5>
+
+A tagged add of R1 and R2 into R1 or R2 can be accomplished with a
+two-instruction sequence and some cleanup code when the addition fails:
+
+<pre>
+      taddcc  %R1, %R2, %R1
+      bvc,a   L1
+      nop
+      sub     %R1, %R2, %R1
+      ... call millicode ...
+  L1:
+</pre>
+
+The instruction at L1 will usually be lifted into the branch delay slot.
+If the destination of the addition is neither R1 or R2, or if R1 and R2 are
+the same register, then a temporary must be used in order to recover,
+and three instructions are necessary (FIXME: this has been improved):
+
+<pre>
+      taddcc  %R1, %R2, %TMP0
+      bvc,a   L1
+      mov     %TMP0, %R3
+      ... call millicode ...
+  L1:
+</pre>
+
+Larceny never uses the trapping version of the tagged add instruction.
+
+<h5>Conditional move</h5>
+
+The following two instructions conditionally move the value VALUE into
+register R1; in this case, the condition is "less than".
+
+<pre>
+      ble,a   .+8
+      mov     VALUE, %R1
+</pre>
+
+To generate a boolean object, the following three-instruction sequence
+is used:
+
+<pre>
+      mov     FALSE_CONST, %R1
+      ble,a   .+8
+      mov     TRUE_CONST, %R1
+</pre>
+
+On SPARC version 9, a conditional move instruction can be used.  Larceny
+currently uses no SPARC-9 specific instructions.
+
+<h5>Generate address of instruction</h5>
+
+It is possible to compute the virtual address of any instruction with a
+call instruction that branches ahead two instructions:
+
+<pre>
+  L0: call    .+8
+      nop
+</pre>
+
+after which register o7 contains the address of L0.  The branch delay
+slot can be filled in the usual manner or it can be used to adjust
+the value of o7 if L0 is not at the call instruction.
+
+<p>It has been suggested that this kind of code may cause the processor
+to slow down, and an alternative way of computing the value of L0
+instruction using the following code (in generated code only; a
+different method could be used in code that won't move):
+
+<pre>
+  L0: ld     [ %REG0 + 3 ], %TMP0   ! get code vector
+      sub    %TMP0, 9, %TMP0        ! 1 for tag, 8 for address of _add_
+      add    %TMP0, L0, %o7
+</pre>
+
+This code depends on the assembler resolving L0 as the relative address
+within the code vector (which is a feature).  The memory reference is
+undesirable, but may be scheduled for earlier execution; the control
+dependence of the call instruction is gone.
+
+<h5>Millicode call</h5>
+
+See <a href="#millicode-calling">the section on millicode calling</a>, below.
+
+<h5>Generic comparison</h5>
+
+FIXME.
+
+
+<h4>Exception handling</h4>
+
+Exception handling in generated code is not done all that consistently,
+and needs to be cleaned up.
+
+
+<a name="nativeasm">
+<h3>1.3. The SPARC native assembler</h3>
+
+<h4>Overview</h4>
+
+The native assembler, like other assemblers, allows the rest of the
+assembler to deal only in symbolic machine instructions (in our case,
+they're more like "procedural machine instructions").  The native
+assembler provides one procedure for each SPARC instruction it knows how
+to assemble; for example, there are procedures called
+<tt>sparc.bl.a</tt> (branch if less with annul bit set),
+<tt>sparc.ornrcc</tt> (logical or with complement from register and set
+condition codes), and <tt>sparc.andi</tt> (logical and with immediate).
+The mnemonics chosen are close to the standard SPARC mnemonics; the only
+difference is that the assembly procedures require the specification of
+whether the (typically) second operand is a register or an immediate.
+
+<p>All the mnemonics are defined at the end of <tt>Asm/Sparc/sparcasm.sch</tt>.
+There are also some abstractions there; for example, on the SPARC a move
+is expressed as a logical or with <tt>%g0</tt>, but this low-level
+implementation obscures the meaning of the instruction; therefore, a
+<tt>sparc.move</tt> instruction is provided.
+
+<p>Additionally, there is a <tt>sparc.label</tt> pseudo-operation, used
+for definining branch targets, and a <tt>sparc.slot</tt> instruction,
+which can be used in the branch delay slot of annulled branches.
+
+
+<h4>Branch target resolution</h4>
+
+The target-independent part of pass5 provides an ad-hoc (and, as of
+v0.33, rather crufty) failure mechanism that allows the assembler to
+deal with span-dependent branches in a crude way.  Initially, the
+assembler assumes that all branches are "short", that is, the target is
+within +/-4KB from the branch instruction.  (The SPARC branch
+instructions have a 24-bit offset, but the <em>jmpl</em> instruction is
+limited to the +/-4KB range.  Since the <em>jmpl</em> instruction is
+used when generating code for the MacScheme <em>jump</em> instruction,
+some uses of <em>jmpl</em> occasionally need a larger offset than 4KB.)
+If, during target resolution, a too-large offset is discovered, then the
+failure mechanism is invoked.  Assembly is then retried with long
+offsets temporarily enabled.
+
+
+<h4>Optimizations</h4>
+
+<p>In addition to creating the machine code for instructions and
+resolving branch targets and other expressions, the native assembler
+performs a limited amount of optimization.  Currently, it fills branch
+delay slots using a simple algorithm: if the branch target is an
+instruction that can go in a delay slot, then insert the target
+instruction in the delay slot and increment the branch offset by 4.
+
+<p>A more sophisticated delay slot filling algorithm is desirable,
+because the above algorithm does not decrease code size -- it only makes
+a taken branch slightly faster.  A better algorithm would work at least
+on basic blocks and try to move instructions across branches, into the
+slot following the branch, whenever possible.  It would not be hard to
+implement this efficiently.
+
+<p>The native assembler could also perform instruction scheduling, but
+that is unlikely to pay off much until we get rid of most dynamic type
+checks.
+
+
+<a name="peephole">
+<h3>1.4. Peephole optimization</h3>
+
+The SPARC peephole optimizer (<tt>Asm/Sparc/peepopt.sch</tt>) folds
+sequences of MacScheme Machine instructions into faster forms that are
+known only to the SPARC assembler.  The optimizations currently
+performed are: copy avoidance, boolean evaluation for control,
+allocation optimization, and nontail-call optimization.
+
+<p>The peephole optimizer is currently a simple hand-coded decision tree.
+This is fast (certainly fast enough), but makes maintenance harder than
+it could be with a more pattern-based approach.  Clinger has written a
+generic pattern-based peephole optimizer and this should be adapted to
+be used with Larceny.
+
+<p>Furthermore, a number of the names introduced by the SPARC assembler
+are unintelligible for no good reason.  This should be cleaned up.
+
+
+<h4>Copy avoidance</h4>
+
+This class of optimizations seeks to avoid register-to-register moves
+that are present in the output from Twobit because the intermediate code
+(MacScheme Assembly Language) is a 2-address code, but that are not
+necessary on a 3-address machine such as the SPARC.  Most of the
+optimizations performed by the peeophole optimizer fall into this class.
+
+<p>For example, a sequence such as
+<pre>
+      reg     1
+      op2imm  +, 7
+      setreg  2
+</pre>
+that adds 7 to the value in R1 and stores it into R2 is peephole-optimized 
+into the single instruction (FIXME: new names now)
+<pre>
+      dresop2imm  +,1,7,2
+</pre>
+This optimization is possible because the semantics of <tt>setreg</tt> specify
+that it destroys RESULT; hence, the use of RESULT can be avoided altogether in
+many cases.
+
+<p>The peephole optimizer has a table of primitives that it applies this
+optimization to.  At the time of writing, these primitives are
+<em>car</em>, <em>cdr</em>, <em>CELL-REF</em>, <em>+</em>, <em>-</em>,
+<em>eq?</em>, and <em>cons</em>.  Others could easily be introduced.
+
+
+<h4>Boolean evaluation for control</h4>
+
+Twobit produces code like the following when a primitive that produces a
+boolean result is used in the test part of a conditional expression:
+
+<pre>
+      reg     1
+      op1     null?
+      branchf Ln
+</pre>
+
+Here, null? performs a test on the object in RESULT and sets RESULT to
+either #t or #f.  The branchf instruction then compares RESULT with #f
+to determine whether to branch or not.  The complete sequence of machine
+instructions looks something like this:
+
+<pre>
+      mov   %r1, %result
+      cmp   %result, 10      ! 10 = empty list
+      mov   2, %result       ! 2 = true
+      bne,a .+8
+      mov   6, %result       ! 6 = false
+      cmp   %result, 6
+      be    Ln
+      nop
+</pre>
+
+In this case, the creation of a boolean object can be avoided; instead,
+code can be generated that checks the condition bits directly.  The above
+sequence of MacScheme instructions is collapsed into
+<pre>
+      optbreg1 null?, 1, Ln
+</pre>
+for which the generated code is the much simpler
+<pre>
+      cmp   %r1, 10
+      bne   Ln
+      nop
+</pre>
+
+<p>Again, this optimization is possible because the semantics of branchf
+is to destroy RESULT.
+
+<p>The primitives for which this optimization is performed are currently
+<em>null?</em>, <em>pair?</em>, <em>zero?</em>, <em>eq?</em>,
+<em>&lt;</em>, <em>&lt;=</em>, <em>&gt;</em>, <em>&gt;=</em>,
+<em>=</em>, <em>char=?</em>, <em>char&lt;</em>, <em>char&lt;=</em>,
+<em>char&gt;</em>, and <em>char&gt;=</em>.  More should be added, notably
+many type primitives that are used by system code.
+
+
+<h4>Allocation optimization</h4>
+
+This optimization replaces generalized allocation 
+code by specialized code.  Consider a particular call to <tt>make-vector</tt>:
+<pre>
+      (make-vector 7 #f)
+</pre>
+In general <tt>make-vector</tt> can take any expression for the length and
+initialization arguments, and the above call is compiled as
+
+<pre>
+      const   #f
+      setreg  1
+      const   7
+      op2     make-vector, 1
+</pre>
+
+When the assembler translates the last instruction to native code, it
+doesn't know the value in RESULT, and must therefore translate it as a
+call to the generic <tt>make-vector</tt> millicode (actually,
+<tt>mem_alloci</tt>).  That code allocates memory and then initializes
+it in a loop.  For short vectors of known length it is possible to do
+much better, and the peephole optimizer translates the above pattern
+into
+
+<pre>
+      const   #f
+      setreg  1
+      op2     make-vector:7, 1
+</pre>
+
+The SPARC assembly code for the primitive now looks something like this:
+
+<pre>
+      set     6, %r1                         ! 6 = false
+      jmpl    [ %millicode + M_ALLOC ], %o7  ! allocate
+      set     32, %result                    !   8 words
+      set     0x1ca2, %g1
+      st      %g1, [ %result ]               ! header
+      st      %r1, [ %result+4 ]             ! initialize elt 0
+      st      %r1, [ %result+8 ]
+      st      %r1, [ %result+12 ]
+      st      %r1, [ %result+16 ]
+      st      %r1, [ %result+20 ]
+      st      %r1, [ %result+24 ]
+      st      %r1, [ %result+28 ]
+      add     3, %result                     ! insert tag
+</pre>
+
+Additionally, the allocation code can be in-lined.
+
+<p>The optimization is performed only for make-vector, and for all vectors
+of known length less than a cut-off point.  The current cut-off is 10,
+which is not completely arbitrary: there's a trade-off between fast
+initialization and blow-up in code size.  More sophisticated techniques
+are possible for longer vectors, for example specialized unrolled loops,
+but in those cases, generic code with an unrolled initialization loop is
+likely to do nearly as well.
+
+
+<h4>Nontail-call optimization</h4>
+
+Twobit generates code for a non-tail call that looks like this:
+
+<pre>
+      global   the-procedure
+      setrtn   Lx
+      invoke   3               ! 3 arguments
+      .align   4               ! ignored on the SPARC
+  Lx:
+</pre>
+
+Splitting the <tt>setrtn</tt> and the <tt>invoke</tt> is convenient for the
+compiler and reduces the size of the intermediate code instruction set.
+However, on the SPARC a <tt>setrtn</tt> requires some nontrivial machinery;
+in the above case it would look something like this:
+
+<pre>
+      call     .+8
+      add      %o7, k, %o7      ! k reflects the distance from 'call' to Lx
+      st       %o7, [ %stkp+4 ] ! store in the stack frame
+</pre>
+
+and the <tt>invoke</tt> ends with
+
+<pre>
+      jmpl     %tmp0 - 1, %g0   ! jump and discard return address
+      set      12, %result      ! setup argument count
+</pre>
+
+But since the return point immediately follows the call in this case,
+the return address thrown away in the <tt>invoke</tt> is the return
+address we want, so we can fold the above MacScheme instructions into
+
+<pre>
+      global   the-procedure
+      invoke-with-setrtn  3, Lx
+   Lx:
+</pre>
+
+where <tt>invoke-with-setrtn</tt> will end in the code sequence
+
+<pre>
+      set      12, %result      ! setup argument count
+      jmpl     %tmp0 - 1, %o7   ! jump and discard return address
+      st       %o7, [ %stkp+4 ] ! store return address
+</pre>
+
+<p>The same optimization applies to local non-tail calls, which use
+<tt>branch</tt> rather than <tt>invoke</tt>.  In that case, the SPARC's
+<tt>call</tt> instruction can be used as a PC-relative branch that saves
+the return address.
+
+<p>As it happens, this peephole optimization speeds up local non-tail
+calls but slows down non-local non-tail calls, on a SPARC Ultra 1.  The
+problem with the non-local calls is probably that a pipeline dependency
+or memory bottleneck is created between the jump instruction and the
+store instruction in its delay slot.  Certainly, in the case of a
+branch, the target is known to the processor well before the branch
+instruction is executed, hence the target instruction has probably been
+fetched already, and the memory system is available for the store.
+
+<p>The optimization has therefore been disabled for non-local calls.  Once
+the run-time system and assembler are rewritten to allow the return
+address to be kept in a register, the dependency will go away, and this
+optimization should pay off also for non-tail calls.
+
+
+<a name="prog-model">
+<h2>2. Programming model</h2>
+
+<p>Generated code must maintain a number of target-independent <a
+href="note10-primops.html#invariants">invariants</a>.  The target-dependent
+variants are explained in this section.
+
+<a name="registers">
+<h3>2.1. Registers</h3>
+
+<p>The mapping from logical to hardware registers is defined in
+<tt>Rts/regs.cfg</tt>.
+
+<p>The register GLOBALS points to a table of run-time system variables
+and values.  The globals table is generated automatically from
+<tt>Rts/globals.cfg</tt>.  Part of the GLOBALS table is a jump table
+into millicode routines (see below).
+
+<p>Larceny does not use the SPARC's register windows.  Instead,
+generated code uses a set of virtual machine registers that is kept
+partly in processor registers, partly in the GLOBALS table.  Virtual
+machine registers that are kept in hardware registers also have shadow
+locations in the GLOBALS table.
+
+<p>The predicate <tt>hardware-mapped?</tt>, defined in
+<tt>Asm/Sparc/sparcutil.sch</tt>, determines whether a virtual machine
+register is kept in a processor register.
+
+<p>The globals Scheme variable <tt>*nregs*</tt>, which is defined in
+<tt>Compiler/sparc.imp.sch</tt>, contains the number of general-purpose
+virtual registers.  Parts of the run-time system knows the value of this
+"variable", so changing it is non-trivial.
+
+<p>In addition to the general-purpose register, several other values are
+kept in registers:
+<ul>
+<li>TIMER holds a software timer.
+<li>RESULT is the accumulator and the first argument to millicode routines.
+<li>ARGREG2 is used for the second argument to millicode routines.
+<li>ARGREG3 is used for the third argument to millicode routines.
+<li>TMP0, TMP1, and TMP2 are temporary registers that are not inspected
+    by the garbage collector.
+<li>STKP points to the top of the stack cache.
+</ul>
+
+<a name="scheme-calling">
+<h3>2.2. Scheme-to-Scheme calling convention</h3>
+
+FIXME.  [Although, I can't think of anything out of the ordinary that goes
+here.]
+
+<a name="millicode-calling">
+<h3>2.3. Scheme-to-Millicode calling convention</h3>
+
+Millicode arguments are placed in RESULT, ARGREG2 and ARGREG3, and
+millicode is called indirectly with a single <em>jmpl</em> instruction
+through the GLOBALS register:
+<pre>
+      jmpl    [ %GLOBALS + offset ], %o7
+      nop
+</pre>
+where <em>offset</em> is the table offset for the millicode routine
+in question, as defined in <tt>Rts/globals.cfg</tt>.
+
+<p>The address passed in %o7 should be the address of the return point
+minus 8 (as per the normal SPARC conventions, in case you're puzzled), so
+if the millicode procedure should not return to the point following the 
+<em>nop</em> above, then the slot must be used to adjust the return
+address.  For example,
+<pre>
+      jmpl    [ %GLOBALS + offset ], %o7
+      add     %o7, L0 - (. - 4) - 8, %o7
+      ...
+L0:
+</pre>
+Above, (.-4) is the address of the <em>jmpl</em> instruction, which is
+also the address in o7, and L0 is the address of the return point, so
+L0-(.-4)-8 is the quantity to add to o7 to set up a return point at L0-8.
+
+<a name="icache">
+<h2>3. The Instruction Cache</h2>
+
+Generally, generated code does not need to worry about the processor's
+instruction cache, which the garbage collector will automatically flush
+as necessary, depending on the machine model.  However, be aware that
+most modern SPARC implementations do have separate instruction and data
+caches, and that a write to a location cached in the instruction cache
+(for example when overwriting a code vector with a breakpoint
+instruction) may need to be followed by the appropriate number of IFLUSH
+instructions.
+
+<p><hr>
+<em>$Id: note6-sparc.html 426 1998-12-21 14:29:31Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

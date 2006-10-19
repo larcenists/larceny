@@ -1,0 +1,162 @@
+<html>
+<head>
+<title>Larceny: Stop-and-copy heap: Design Notes</title>
+</head>
+
+<body>
+
+<h2>Stop-and-copy Heap: Design Notes</h2>
+
+<h3>Design constraints</h3>
+
+<ul>
+<li> There is a single, growable heap area for dynamic data.
+<li> The heap is collected by the Cheney algorithm.
+<li> The heap must accomodate a fixed-size static area (eventually
+     a growable static area).
+<li> It must be possible to run code that has been compiled with the write
+     barrier included (i.e., for the generational collectors).  The cost
+     of the write barrier to the mutator should be minimized.
+<li> The implementation cost should be low.
+</ul>
+
+
+<h3>Design summary</h3>
+
+<ul>
+<li> The static area is allocated at lower addresses (on systems where
+     this statement makes sense).
+<li> The dynamic area is implemented using the standard semispace ADT
+     and is allocated at higher addresses.
+<li> The static area is scanned but not copied during each GC in the
+     dynamic area (the so-called "mostly-generational" approach).  No
+     remembered set is allocated for the static area, and the write 
+     barrier never records any inter-generational pointers.
+</ul>
+
+<p> The rest of this document justifies the above design choices.
+
+<p> There are two primary problems in the implementation: how to deal
+with the write barrier tests and how to deal with the static area.  These
+are not at all independent.
+
+
+<h3>Detailed design</h3>
+
+<p> The current write barrier test on the Sparc (indeed, on any system
+where we can control relative addresses of separately allocated memory)
+has two parts.  The first part is often compiled in-line and performs a
+simple test to see if the LHS is at a higher address than the heap
+limit.  The if this test succeeds, a call to millicode is made to
+complete the write barrier.  The secondary write barrier loads the
+generation bits of the two addresses and compares them, triggering a
+store to the SSB if the generation of the LHS is greater than the
+generation of the RHS.
+
+<p> It would be really nice if we could put the write barrier to use for
+dealing with assignments into the static area (assignment to
+pre-existing globals, mostly, but not exclusively).  That way, the
+entire static area would not have to be scanned on every GC.  However,
+for this to work, the current write barrier and GC infrastructure
+requires that the static area be allocated at higher addresses than any
+part of the dynamic area.  Since the dynamic area is growable, it is not
+possible to accomplish such allocation unless we can map the static area
+to a (very) high address.  We can probably do this with <tt>mmap()</tt>,
+but at this time I want to stay away from that if I can, to reduce OS
+dependencies.  (This choice may be revisited.)
+
+<p> The upshot of this is that it is not practical to use the write
+barrier for dealing with the static area at this time, when code is
+compiled for the generational systems.  Therefore, we disable the
+barrier during mutator runs and scan the static area on each GC.  This
+is a nice solution because it allows code to be run that has been
+compiled without any write barrier checking enabled; we can then compare
+run times of code with and without the barrier, if desired.
+
+<p> The write barrier is "disabled" by making the static area have the
+same generation number as the dynamic area during mutator runs; even if
+the in-line write barrier makes a call to millicode, it will never
+trigger a store to the SSB.  A more sophisticated solution would be to
+patch the millicode jump table so that a call to millicode simply
+returns.
+
+
+<h3>Related thoughts</h3>
+
+The static area is currently quite primitive.  A better static area
+would be segmented into code and data parts.  This would be better
+because it would allow the GC scanner to skip all the code easily
+(reducing the number of pages that need to be touched by about half, in
+a typical heap image).  
+
+<p> It would also be possible to use the write barrier for the static
+area in the stop-and-copy system either by using mmap() as suggested
+above, or by generating different (slower) write barrier code when
+instructed to do so.  No-one <em>really</em> cares about this because
+no-one is going to use the stop-and-copy collector for anything
+important.
+
+<p> The impact of the planned, faster barrier on this design has not
+been considered.
+
+
+<p>
+<hr>
+
+<h3>Random rambling</h3>
+
+Notes below this point have not been edited.
+
+<p>
+
+The stop-and-copy area is not of fixed size, so there is generally
+no way to guarantee that all its memory are at lower addresses than
+the static area, so the fast barrier test cannot be used.  We could
+allocate the static area at lower addresses, but then we'd have to
+associate the remembered set with the s+c area, and that would really
+throw the collector for a loop (wouldn't work well).
+
+<p>
+
+Also, the static area constitutes an entirely different generation, so
+code that runs with the stop-and-copy system and a static area
+must in fact go through the write barrier!  This makes assignments
+more expensive than they ought to be.  A different static area would
+only have code and other non-pointer data in it.
+
+<p>
+
+The best way to deal with these issues at the present time seems
+to be the following:
+
+<ul>
+<li> The static data is allocated in a separate area from the s+c.
+<li> When the mutator runs, these areas are set to belong to the
+  same generation.
+<li> During gc, the static area is given a different generation and is
+  scanned as part of the root set.
+</ul>
+
+It's a hack, but it makes it possible to run the same code, and although
+it's worse than it could be, it's not totally dishonest.  It
+should be possible (in the future) to compile code differently and
+ask for a more intelligent behavior.
+
+<p>
+
+The GC infrastructure must manage all of this.
+
+<p>
+
+The s+c area is allocated in chunks, so the stack can't just
+"start at the high end".  In order to use the heap-top-is-stack-limit
+trick, we must have the stack in the same chunk that's currently being
+used for allocation, and when the chunk overflows, rather than
+collecting, we may have to move to a different chunk.
+
+<P><HR>
+<em>$Id: noteX-sc-heap.html 87 1998-11-25 14:38:41Z lth $</em>
+<a href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</a>
+
+</body>
+</html>

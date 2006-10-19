@@ -1,0 +1,268 @@
+<html>
+<head>
+<title>Larceny Note #10: Adding Primitives</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #10: Adding Primitives
+</h2>
+Lars T Hansen / 30 November 1998
+</center>
+
+<h2>Contents</h2>
+
+<a href="#adding-primitives">1. Adding Primitives</a><br>
+<a href="#arch-files">2. Architecture-specific Larceny Notes</a><br>
+<a href="#invariants">3. Invariants of compiled code</a><br>
+
+<a name="adding-primitives">
+<h2>1. Adding primitives</h2>
+
+<p>It's straightforward to add new primitives to Larceny, if you can
+stomach a little assembly language programming and don't mind grubbing
+around to figure out what the invariants of compiled code are.  I've
+tried to document the invariants <a href="#invariants">here</a> for the
+time being.
+
+<p>A primitive must be created separately for each target architecture 
+for which it is to be available.  Usually, different target architectures
+have different sets of primitives, and usually, there are good reasons
+for the differences.
+
+<p>Primitives come in several flavors.  Most primitives are visible to
+Scheme code, and the compiler must be made aware of their existence.
+Some primitives, however, are only available from code written directly
+in MacScheme assembly language ("MAL"), because they are rather
+special-purpose and the compiler can't be expected to generate correct
+code for them.  An example of the latter kind is the <em>syscall</em>
+primitive (which really ought to be an instruction and hence is not a
+good example).
+
+<p>Primitives are further subdivided into classes depending on how many
+arguments they take and whether those arguments are always in registers
+or whether they can be immediate values.  In the current version of
+Twobit, primitives have at most three arguments, which can sometimes
+be limiting.  Various tricks can be used to circumvent the limitation 
+(see the <em>syscall</em> primitive for an example of this), but it would
+be better to fix the compiler.
+
+<p>Primitives that take two arguments can take an immediate value as a
+second operand.  The definition of the primitive in Twobit's primitive
+table includes a predicate that screens operands for appropriateness.  A
+primitive that allows an immediate second operand must also exist in a
+form that does not use an immediate operand.
+
+<p>The steps for adding a primitive are:
+
+<dl>
+<p><dt><b>Step 1: Add the primitive definition to Twobit's target table</b>
+<dd>
+<p>The target tables are kept in files in the <tt>Compiler</tt>
+subdirectory and have names like <tt>sparc.imp.sch</tt> or
+<tt>standard-C.imp.sch</tt>.  The tables of interest are the association
+lists <tt>$usual-integrable-procedures$</tt> and
+<tt>$immediate-primops$</tt>.  
+
+<p>(In the best of all worlds these tables would be hidden completely
+behind the accessor procedures but currently <tt>pass4.aux.sch</tt>
+knows about the first table, and presumably relies on it being an
+association list.)
+
+<p><tt>$Usual-integrable-procedures$</tt> defines the names of the 
+primitives known to the compiler.  The exact contents of an entry
+varies from architecture to architecture, but the first four entries
+are common:
+<ul>
+<li>The primitive's name as it would appear in source code.
+<li>The number of arguments the primitive takes.
+<li>The primitive's name as it is known to the assembler.
+<li>If the primitive takes two operands and the second operand can
+be an immediate value, then this is a predicate that determines whether
+any given constant is a suitable immediate; otherwise this entry is #f.
+</ul>
+The remaining entries are documented in the file.
+
+<p><tt>$Immediate-primops$</tt> lists the names of primitives that can take
+an immediate second argument, and any additional information that the
+particular target architecture uses.
+
+
+<p><dt><b>Step 2: Add a procedure for the primitive to 
+<tt>Lib/primops.sch</tt></b>
+<dd>
+<p>[Once we get more target architectures, we'll need a different primitive
+file for each architecture].
+
+<p>For each primitive available to Scheme code, there should be a
+procedure defined in the <tt>primops.sch</tt> file that takes the same
+number of arguments as the primitive and that invokes the primitive on
+those arguments.  This serves the purpose of making the primitive
+available as a procedure that can be used in a first-class manner.  
+
+<p>The definition of the procedure for the primitive must have a particular 
+form, like in this definition of the <tt>vector-ref</tt> primitive:
+<pre>
+      (define vector-ref (lambda (v k) (vector-ref v k)))
+</pre>
+The preceding definition appears to be circular, but is not: it defines
+a global variable <tt>vector-ref</tt> that contains a procedure that
+invokes the primitive <tt>vector-ref</tt>.  If, in contrast, an
+MIT-style definition were used, and the file was compiled with 
+benchmark-mode turned on, then the definition would be truly circular.
+
+<p>The primitives file <em>must</em> be compiled with
+integrate-usual-procedures turned on.
+
+
+<p><dt><b>Step 3: Add the primitive definition to the assembler</b>
+<dd>
+The primitive definition goes in
+<tt>Asm/<em>architecture</em>/gen-prim.sch</tt>.  For example, the
+implementation of the primitive "--" (negation) on the Sparc looks like the
+following:
+
+<pre>
+(define-primop '--
+  (lambda (as)
+    (let ((L1 (new-label)))
+      (sparc.tsubrcc as $r.g0 $r.result $r.result)
+      (sparc.bvc.a   as L1)
+      (sparc.slot    as)
+      (sparc.subrcc  as $r.g0 $r.result $r.result)
+      (millicode-call/0arg as $m.negate)
+      (sparc.label   as L1))))
+</pre>
+
+<p>The primop is added to the assembler's table with
+<tt>define-primop</tt>, which takes two arguments: the name, and a
+lambda expression.  The lamdba expression takes an assembly structure
+and one additional argument for each register or immediate operands to
+the primitive in the <em>op</em>, <em>op2</em>, <em>op2imm</em>, or
+<em>op3</em> instructions; for example, the primitive definition for
+vector-set! takes two additional arguments.
+
+<p>The lambda expression must generate code for the primitive.  I
+suggest you look through <tt>gen-prim.sch</tt> for some clues, and also
+read <a href="#arch-files">the Larceny Note that deals with the target
+architecture in question</a>.
+
+<p><dt><b>Step 4: Implement non-inline support code</b>
+<dd>
+
+<p>Many primitives have support code that is not generated in-line but
+is available as fast-callable assembly-language routines.  These
+routines are called <em>millicode procedures</em>, and are called
+through a jump table that is always pointed to by the <tt>globals</tt>
+register.
+
+<p>Some of the reasons why you might want to put support code out-of-line
+rather than in-line are:
+<ul>
+<li>The support code is too large to generate in-line (e.g.,
+generic arithmetic) and it's either too difficult or too expensive to
+implement the primitive in C.
+
+<li>The primitive must be in non-moved memory (e.g., context-switching
+return code).
+
+<li>You think it's less gruesome to program in symbolic assembly language
+than in procedural assembly language.
+</ul>
+
+<p>To add a millicode procedure, modify the file <tt>Rts/globals.cfg</tt>,
+and add a millicode procedure <em>at the end</em>.  Do not add the
+procedures in the middle unless you're prepared to recompile the world.
+(I clean up this table now and then.)  A millicode procedure is added
+to the table with the expression
+
+<pre>
+      (define-mproc c-offset-name asm-offset-name scheme-offset-name asm-name)
+</pre>
+
+where <em>c-offset-name</em> is a name that will evaluate to the offset
+of the table slot in a C program; <em>asm-offset-name</em> is the
+corresponding name for assembly code; <em>scheme-offset-name</em> is the
+corresponding name for Scheme code (typically the assembler); and
+<em>asm-name</em> is the name of the millicode procedure itself.  For example,
+
+<pre>
+      (define-mproc "M_ALLOC" "M_ALLOC" "$m.alloc" "mem_alloc")
+</pre>
+
+<p>Then add the millicode procedure to the appropriate source file; the
+files are in <tt>Rts/<em>architecture</em></tt>.  For specific
+information about calling conventions and so on, read <a
+href="#arch-files">the Larceny Note that deals with the target
+architecture in question</a>.
+
+<p>[<tt>Rts/globals.cfg</tt> is also architecture dependent.  Fooey.]
+
+<p><dt><b>Step 5: Test your primitive</b>
+<dd>
+
+<p>Write a program.  Compile it.  Disassemble it.  If it looks plausible,
+run it.  Repeat until it doesn't crash.
+
+</dl>
+
+
+<a name="arch-files">
+<h2>2. Architecture-specific Larceny Notes</h2>
+
+<a href="note6-sparc.html">#6: Information about the SPARC</a>
+
+
+<a name="invariants">
+<h2>3. Invariants of Compiled Code</h2>
+
+This list is probably incomplete, but it's a start.
+
+<p><ul>
+<li>Virtual machine registers can contain only tagged values at points
+where there's a chance that they may be inspected.  "Inspected" is pretty
+broad -- any millicode routine that is not explicitly guaranteed
+not to call out to C code, other Scheme code, millicode storage allocators,
+and so on, or not guaranteed not to inspect the registers that have invalid
+values, cannot be called with invalid values.  
+
+<li>Virtual machine registers cannot contain data structure header
+words, even though these are logically tagged values.  The reason is
+that the registers may be saved in a stack frame, which may subsequently
+be flushed to the heap, where it will confuse the garbage collector,
+which expects header words to appear only at the beginning of
+structures.
+
+<li>At any point where virtual machine registers can be inspected, no
+live tagged values may be stored in non-virtual machine registers
+(e.g. the temporaries).
+
+<li>At any point where the garbage collector may be invoked (even
+indirectly), all heap-resident data structures that can contain pointers
+must be fully initialized with tagged values.
+
+<li>No primitive may run for an unbounded amount of time without
+decrementing and checking the software timer.  For example, if you were
+to implement <em>assq</em> as a primitive, then it would have to
+occasionally decrement and check the timer, since it could be handed a
+circular list argument and hence would run forever without allowing
+other tasks to run or interrupts to be checked.  In contrast, it's OK to
+implement e.g. <em>vector-fill!</em> without decrementing the timer,
+because the operation is guaranteed to terminate.
+
+<li>When the system is executing in Scheme mode (ie, when it is executing
+compiled code or millicode), floating-point registers f0/f1 hold the
+flonum value 0.0, and must not be used for other values.
+
+</ul>
+
+<p>There are also machine-dependent invariants; see the 
+<a href="#arch-files">architecture-specific Larceny Notes</a>.
+
+<p><hr>
+<em>$Id: note10-primops.html 426 1998-12-21 14:29:31Z lth $</em><br>
+<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

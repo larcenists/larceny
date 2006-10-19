@@ -1,0 +1,197 @@
+<html>
+<head>
+<title>Larceny Note #1: Timer Interrupts</title>
+</head>
+
+<body>
+
+<center><h2>
+Larceny Note #1: Timer Interrupts<br>
+</h2></center>
+<center>
+June 27, 1997 / Lars T Hansen
+</center>
+
+
+<a href="#overview">1. Overview</a><br>
+<a href="#operations">2. Operations</a><br>
+<a href="#examples">3. Examples</a><br>
+<a href="#caveats">4. Things to watch out for</a><br>
+<a href="#implementation">5. Implementation</a><br>
+
+<p>
+<em>Note: must describe the interaction of timer interrupts, signal handlers,
+and the two-level timer.</em>
+
+<a name="overview">
+<h3>1. Overview</h3>
+
+Larceny makes a primitive preemption facility in the form of timer
+interrupts available to the programmer.  These interrupts are currently
+based on a count-down software timer which is decremented and checked on
+every procedure call and backward branch.  When the timer reaches 0, 
+a user-installable handler procedure is called.
+
+<p>
+
+When Larceny is first started, timer interrupts are turned off, and the
+countdown timer is set to its maximum value.  It is not good to leave
+interrupts off permanently, since a timer interrupt in a critical
+section will cause the timer to be reset to some small value in order to
+allow the computation to make progress.  However, since the value is
+small, there will be another timer interrupt soon, so overall
+performance may be worse than usual from the interrupt handling
+overhead.  This is not a problem if interrupts will be enabled in the
+near future and handled properly, but it may cause performance problems
+if interrupts are permanently disabled.
+
+<p>
+
+Therefore, in an interactive system, the Larceny read-eval-print loop
+turns interrupts on, and changes the handler to one that resets the
+timer to the maximum value every time it expires.
+
+
+<a name="operations">
+<h3>2. Operations</h3>
+
+Timer interrupts
+are turned on, and the timer value (the number of "ticks") is set, 
+with the procedure 
+<tt>enable-interrupts</tt>:
+<pre>
+    (enable-interrupts <em>timer-value</em>)  =>  <em>unspecified</em>
+</pre>
+where <em>timer-value</em> must be a positive fixnum.  
+<tt>Enable-interrupts</tt> is an integrable procedure and this operation is 
+inexpensive in code compiled for speed.
+
+<p>
+
+Timer interrupts are turned off with the <tt>disable-interrupts</tt>
+procedure:
+<pre>
+    (disable-interrupts)  =>  <em>ticks-remaining</em>
+</pre>
+where <em>ticks-remaining</em> is the number of ticks remaining on the
+clock before the next interrupt, or <tt>#f</tt> if interrupts were
+already disabled.  <tt>Disable-interrupts</tt> is also an integrable
+procedure.
+
+<p>
+
+The procedure <tt>interrupt-handler</tt> can be used to get and
+set the currently installed interrupt handler:
+<pre>
+    (interrupt-handler)  =>  <em>handler</em>
+    (interrupt-handler <em>handler</em>)  => <em>old-handler</em>
+</pre>
+A <em>handler</em> is a procedure of one argument: a symbol that
+denotes the type of interrupt.  The symbol for the timer interrupt 
+is <tt>timer</tt>.
+
+<p>
+
+Finally, a predefined procedure <tt>call-without-interrupts</tt> runs
+a procedure with interrupts turned off, i.e., in a critical section:
+<pre>
+    (call-without-interrupts <em>thunk</em>)  => <em>object</em>
+</pre>
+where <em>object</em> is the value returned by <em>thunk</em>.  Calls
+to <tt>call-without-interrupts</tt> can be nested; only when the outermost
+call returns will interrupts be re-enabled.
+
+
+<a name="examples">
+<h3>3. Examples</h3>
+
+The following code sets up a service routine that will be run atomically 
+every <em>k</em> ticks:
+
+<pre>
+   (define (setup-service-routine thunk k)
+     (let ((old-handler (interrupt-handler)))
+       (interrupt-handler (lambda (type)
+                            (if (eq? type 'timer)
+                                (begin (thunk)
+                                       (enable-interrupts k))
+	                        (old-handler type))))
+       (enable-interrupts k)))
+</pre>
+
+Atomicity is guaranteed since interrupts are disabled when the handler is
+run, and are not enabled until the service routine has returned.
+
+<p>
+
+Notice how the new interrupt handler calls the old interrupt handler if
+the interrupt was not a timer interrupt; this is so that the new handler
+does not disable other system functionality (notably handling of
+keyboard interrups, which are also handled by the common interrupt
+handler).
+
+<p>
+
+If the service routine needs to access data that is used by the procedures
+in main thread of computation, then the latter procedures can use critical
+sections to guard against race conditions.  Consider the following program,
+which maintains a list of data, and a service routine that occasionally
+computes the length of the list.
+
+<pre>
+   (define l '())        ; shared global
+   (define n '())        ; used by service routine only
+
+   (define (main-thread input)
+     (setup-service-routine 
+       (lambda () 
+         (set! n (cons (length l) n)))
+       10000)
+     (loop input))
+
+   (define (loop input)
+     (do ((x (read input) (read input)))
+         ((= x 0))
+       (if (> x 0)
+	   (call-without-interrupts
+             (lambda ()
+               (set! l (cons x l))))
+           (call-without-interrupts
+             (lambda ()
+               (set! l (remove! x l)))))))
+</pre>
+
+
+<a name="caveats">
+<h3>4. Some things to watch out for</h3>
+
+In the current system, timer interrupts are not well-integrated with the
+rest of the library.  In particular, those parts of the system that
+side-effect data structures or global variables (the I/O system; the
+symbol table) are not protected by critical sections.  Furthermore, the
+I/O system calls are blocking.  These problems will be fixed over time,
+but are not on the critical path.
+
+
+<a name="implementation">
+<h3>5. Implementation</h3>
+
+At each procedure call (MAL instruction "Invoke") or backward branch
+(MAL instructions "Branchf" or "Branch", but not "Skip"), code will be
+generated that decrements the TIMER register and jumps to a millicode
+routine if the the register is 0.  That millicode routine is
+m_timer_exception in Rts/Sparc/mcode.s.  If interrupts are disabled, the
+TIMER is given a little to run on (currently 5 ticks), and the handler
+returns.  Otherwise, the timer is disabled, the TIMER register is set to
+a large value (currently 100,000) and a standard exception with type
+EX_TIMER is triggered.  That exception eventually ends up in the Scheme
+exception handler, which calls the interrupt handler for this type of
+exception (bypassing the user-installed error handler, if any).  The
+error handler can then do whatever it likes; the current continuation
+will return to the instruction following the timer exception.
+
+<p><hr> <em>$Id: note1-timer.html 87 1998-11-25 14:38:41Z lth $</em><br> <A
+href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+
+</body>
+</html>

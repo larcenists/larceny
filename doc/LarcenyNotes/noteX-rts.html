@@ -1,0 +1,165 @@
+<HTML>
+<HEAD>
+<TITLE>Larceny: Run-time System Overview</TITLE>
+<LINK REV="made" HREF="mailto:larceny@ccs.neu.edu">
+</HEAD>
+<BODY>
+
+<B>Very much under construction.</B>
+
+<H2>Larceny: Run-time System Overview</H2>
+
+For the purposes of this discussion, the "run-time system" is everything
+except the Twobit compiler and the target-specific assembler.  In
+particular, it includes memory management and garbage collection, the
+generic arithmetic implementation, the Scheme libraries, and a simple
+interpreter with which the user interacts with the system
+(read-eval-print loop, macro expander, and evaluator).
+
+<P>
+
+This page discusses the SPARC version of Larceny.  Some decisions will
+likely be revisited in the context of a planned port to the PowerPC
+architecture.
+
+<P>
+
+The SPARC version of Larceny is written in three languages: Scheme, C,
+and SPARC assembly language.  Additionally, there are some tens of lines
+of MacScheme Assembly Language.  As a general rule, as much code in the
+system as is practical is written in Scheme.  Of the remaining,
+everything that is not performance-critical is written in C, and
+performance-critical parts are written in assembly language.
+("Practical" and "performance-critical" are explained below.)  In version
+0.25, the line counts are:
+
+<pre>
+Scheme code 
+   Libraries          8200 lines
+   Evaluator/REPL     1600 lines
+
+C code                4500 lines
+
+SPARC assembly code   4200 lines
+</pre>
+
+These counts include comments, whitespace, and so on; there are about
+2800 assembly language instructions overall and we are working on
+reducing this to make the system easier to port.  More than 2/3 of the
+assembly language code is in the generic arithmetic implementation.
+
+<P>
+
+What is "practical" to write in Scheme is usually a trade-off between
+desired performance and implementational convenience.  For example,
+bignum arithmetic is written entirely in Scheme at this time, and is
+quite slow, which is acceptable because we know how to tune this over
+time, and that tuning will be portable (see the section on Generic
+Arithmetic, below).
+
+<P>
+
+What is "performance-critical" is mostly a statistical matter but also a
+policy decision: what kinds of programs will Larceny run?  Examples of
+performance-critical operations are storage allocation, certain kinds of
+generic arithmetic, tag checking, and procedure calls.  In many cases we
+generate in-line code, but call-outs to subroutines are required for
+non-trivial write-barrier checks, all arithmetic that does not operate
+on two fixnum operands and where the operation did not overflow, most
+storage allocation, and a host of other services.  These call-outs use
+calling conventions that are designed to be very fast.  If the operation
+itself is heavyweight (flushing the stack cache for
+call-with-current-continuation, say) then the call-out is little more
+than a trampoline into C code.  But lightweight tasks like storage
+allocation are coded in assembly language.
+
+<H1>Structure</H1>
+
+The system is started from the command line with an argument that names
+the heap image to use.  The heap image has three parts: contents of the
+"root" memory locations, an optional static area (currently used for
+compiled code), and a data area.  All pointers in the heap image are
+offset from base 0; after reading the heap image all pointers are
+adjusted relative to the actual base addresses of the memory areas.  The
+initial heap image is built by a specialized heap dumper; heaps can also
+be dumped from within Larceny.  Reorganization of the heap image --
+moving code into the static area -- is performed off-line.
+
+<P>
+
+Some of the roots point to Scheme procedures that are used by the
+run-time system.
+
+<H3>The Virtual Machine</H3>
+
+Scheme mode, C mode.  Stacks.  The drawing.
+Scheme callouts from Millicode.  Calling conventions.
+
+
+
+<H2>Some design choices</H2>
+
+<H3>Global variables</H3>
+
+Larceny does not keep global Scheme variables in a single place in the
+run-time system.  Instead, each global variable is represented by a cell
+in which its value is stored.  In an interactive system, the
+read-eval-print loop maintains an environment that maps names of globals
+to cells, but this environment is not present in a system that does not
+use the read-eval-print loop or the <b>eval</b> procedure.
+
+
+<H3>Run-time system variables</H3>
+
+Run-time system variables are kept in a global vector (called
+<b>globals</b>) that is pointed to by a dedicated register when the
+system is running in Scheme mode.  The table holds all roots for the
+garbage collector (and a number of non-roots, like heap limits and
+temporary storage for assembly-language subroutines), and is visible to
+the C code as well.
+
+<P>
+
+There are three advantages to having such a table.  First, getting a
+global variable at run-time is inexpensive: a
+register-plus-constant-offset load.  Second, all globals in the system
+are always available through this table, and the table has all the
+variables, so it's straightforward to know what global variables there
+are.  Third, since all roots are in the table, the garbage collector is
+made simpler, as it only needs to look for roots in one place.
+
+<P>
+
+The cost of using one register for the table is high on some
+register-poor systems (the ubiquitous Intel processors, for example) but
+is bearable on a RISC system.  The table has other uses, too; see the
+section on <A href="rts.html#millicode>millicode</A>.
+
+
+<H3>Millicode</H3>
+
+Run-time system subroutines that can be called from compiled Scheme code
+with the fast calling convention are collectively called
+<i>millicode</i>.  Millicode routines are available through the
+<b>globals</b> vector.  Rather than containing the addresses of the
+subroutines, the table holds the actual jump instructions; Scheme code
+calls millicode by jumping into the table.
+
+
+<P><HR><P>
+
+- general structure: heap image, globals, millicode, 
+  stack cache, 
+  generic arithmetic tradeoffs, data layout strategy, interrupts,
+  exceptions, what needs to be fast, what doesn't, no-pointers-out-of-heap,
+  ...
+
+<HR>
+<P>
+<ADDRESS>
+larceny@ccs.neu.edu<BR>
+September 24, 1996
+</ADDRESS>
+
+</BODY>
+</HTML>

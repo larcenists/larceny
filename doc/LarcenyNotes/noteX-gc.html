@@ -1,0 +1,113 @@
+<html>
+<head>
+<title>Larceny: Garbage Collection and Memory Management</title>
+</head>
+
+<body>
+<h2>Garbage Collection and Memory Management</h2>
+</center>
+
+We built Larceny in part so that we would have a modern, easily
+modifiable system that allows us to research garbage collection
+algorithms and implementation.  From early on, the memory management
+subsystem has been largely decoupled from the rest of the run-time
+system, allowing us to "plug in" various garbage collectors without
+altering the rest of the system.  Starting with version 0.26, there is a
+garbage collector framework in place that allows us to write new
+collectors with more ease than in previous versions.
+
+<p>
+
+This page describes the garbage collector framework, the existing
+collectors, and some possibilities the new framework gives us.  Finally,
+the write barrier is described.
+
+
+<h2>Garbage Collector Framework</h2>
+
+<h3>Overview</h3>
+
+The garbage collector is an object that manages some number of
+<em>heap</em> objects, each consisting of one or more
+<em>generations</em>.  At present, heaps are totally ordered with heap
+number 0 being the <em>young heap</em>.  The young heap may only contain
+a single generation.  The heaps that are not the young heap are known as
+<em>old heaps</em>.  There may optionally be a <em>static heap</em>, which
+holds objects that are not garbage collected -- typically, code and data 
+from the heap image.
+
+<p>
+
+All storage allocation takes place in the youngest generation (which is
+in the youngest heap), and the youngest heap also maintains the run-time
+stack.  Objects are allocated in an older generation only when promoted
+into this generation from a younger generation.
+
+<p>
+
+Write barriers are imposed on some of the generations in the old heaps,
+and for each of these generations the collector maintains a
+<em>remembered set</em> of objects in that generation that may contain
+pointers to objects in younger generations.  The write barrier itself is
+outside the scope of the memory manager, but there is a two-way
+interface that allow the two to interact.  This interface will be
+discussed below.
+
+<p>
+
+The collector framework maintains an <em>arena</em> of memory in an
+operating-system independent manner, and heaps allocate and free memory
+by interacting with the framework arena manager.
+
+<p>
+
+The garbage collectors are allowed to depend on the following aspects of
+the run-time system definition:
+
+<ul>
+<li> The <a href="repr.html">data representations</a>, which need to be
+     known so that the collector can manipulate and scan objects.
+<li> The offsets of certain slots in the <a href="rts.html#globals">globals
+     vector</a>, through which the collector publishes pointers into 
+     collector-internal data structures.
+<li> The obscure fact that code vectors are bytevectors with a header subtag
+     equal to 0, which allows the collector to avoid instruction-cache
+     flushing for other bytevectors, on architectures where instruction-cache
+     flushing is required.
+</ul>
+
+
+<h3>Young heaps</h3>
+
+<h3>Old heaps</h3>
+
+<h3>Stop-and-copy heap</h3>
+<a href="sc-heap.html">Design notes</a>
+
+<h3>Static heaps</h3>
+
+<h3>Pointers</h3>
+
+<h3>Functional interface</h3>
+
+<h3>Remembered Sets</h3>
+
+<h3>The Arena Manager</h3>
+
+
+<h2>Existing Garbage Collectors</h2>
+
+
+<h2>Future Uses of the Framework</h2>
+
+
+<h2>The Write Barrier</h2>
+
+(This may deserve a note of itself.)
+
+<P><HR>
+<em>$Id: noteX-gc.html 87 1998-11-25 14:38:41Z lth $</em>
+<a href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</a>
+
+</body>
+</html>
