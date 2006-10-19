@@ -51,8 +51,11 @@ sourceindex.html: ${OTHERFILES}
 	echo $(foreach file,${OTHERFILES},"<LI><A HREF=$(file)>$(file)</A></LI>") >> sourceindex.html
 	echo "</UL></BODY></HEAD></HTML>"                                         >> sourceindex.html
 
-builddate.html: 
+builddate.html: alwaysdo
 	echo "<HTML><HEAD><TITLE>UserManual</TITLE><BODY>"                         > builddate.html
 	echo "Built on "                                                          >> builddate.html
 	date                                                                      >> builddate.html
 	echo "</BODY></HEAD></HTML>"                                              >> builddate.html
+
+# Empty target so that things like builddate.html are always remade
+alwaysdo:
