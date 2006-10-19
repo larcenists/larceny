@@ -6,8 +6,8 @@ STD_ASCIIDOC_OPTS=--conf-file=larcenydoc.conf --section-numbers
 STD_XSLTPROC_OPTS=--stringparam section.autolabel 1
 STD_A2X_OPTS=--asciidoc-opts="${STD_ASCIIDOC_OPTS}" --xsltproc-opts="${STD_XSLTPROC_OPTS}" --doctype=article --destination-dir=. 
 
-OTHERFILES=$(wildcard UserManual/*.txt)
-LNOTEFILES=$(wildcard LarcenyNotes/*.txt)
+OTHERFILES=larcenydoc.conf $(wildcard UserManual/*.txt)
+LNOTEFILES=larcenydoc.conf $(wildcard LarcenyNotes/*.txt)
 
 all: docs notes sourceindex.html builddate.html
 
