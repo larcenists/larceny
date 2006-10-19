@@ -9,9 +9,11 @@ STD_A2X_OPTS=--asciidoc-opts="${STD_ASCIIDOC_OPTS}" --xsltproc-opts="${STD_XSLTP
 OTHERFILES=$(wildcard UserManual/*.txt)
 LNOTEFILES=$(wildcard LarcenyNotes/*.txt)
 
-all: docs sourceindex.html builddate.html
+all: docs notes sourceindex.html builddate.html
 
 docs:  user-manual.pdf user-manual.html user-manual.chunked/index.html user-manual-alt.html sourceindex.html
+
+notes: larceny-notes.html larceny-notes-alt.html
 
 user-manual.pdf: UserManual/user-manual.txt ${OTHERFILES}
 	${A2X} ${STD_A2X_OPTS}  --format=pdf UserManual/user-manual.txt 
@@ -25,7 +27,9 @@ user-manual-alt.html: UserManual/user-manual.txt ${OTHERFILES}
 user-manual.chunked/index.html: UserManual/user-manual.txt ${OTHERFILES}
 	${A2X} ${STD_A2X_OPTS}  --format=chunked UserManual/user-manual.txt 
 
-
+# Don't do this one unless we find a way to conditionally include on 
+# PDFs (would also need to shift the relative headings for each note
+# down to a chapter...
 larceny-notes.pdf: LarcenyNotes/larceny-notes.txt ${LNOTEFILES}
 	${A2X} ${STD_A2X_OPTS}  --format=pdf LarcenyNotes/larceny-notes.txt 
 
