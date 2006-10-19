@@ -130,11 +130,7 @@ objects (not including the vector), and (sro 5 2 3) returns a vector
 containing all live flonums (bytevector-like, with typetag 2) that are
 referred to in no more than 3 places.
 
-[[ProcStatsDumpOn]]
-_Procedure stats-dump-on_
-
-
-++ (stats-dump-on _filename_) => _unspecified_++
+proc:stats-dump-on[args="filename",result="unspecified"]
 
 Stats-dump-on turns on garbage collection statistics dumping. After
 each collection, a complete RTS statistics dump is appended to the
@@ -155,7 +151,7 @@ _Procedure stats-dump-off_
 ++ (stats-dump-off) => _unspecified_++
 
 Stats-dump-off turns off garbage collection statistics dumping (which
-was turned on with <<ProcStatsDumpOn,stats-dump-on>>). It does not dump a final set
+was turned on with <<stats-dump-on>>). It does not dump a final set
 of statistics before closing the file; therefore, the user may wish to
 initiate a minor collection before calling this procedure.
 
@@ -180,7 +176,7 @@ _Procedure display-memstats_
 ++ (display-memstats _vector_ 'full) => _unspecified_  ++
 
 Display-memstats takes as its argument a vector as returned by
-<<ProcMemstats,memstats>> and displays the contents of the vector in
+<<memstats>> and displays the contents of the vector in
 human-readable form on the current output port. By default, not all of
 the values in the vector are displayed.
 
@@ -191,11 +187,7 @@ are displayed.
 If the symbol full is passed as the second argument, then all
 statistics are displayed.
 
-[[ProcMemstats]]
-_Procedure memstats_
-
-
-++ (memstats) => _vector_++
+proc:memstats[args="none",result="vector"]
 
 Memstats returns a freshly allocated vector containing run-time-system
 resource usage statistics. Many of these will make no sense whatsoever

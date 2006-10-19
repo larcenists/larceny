@@ -4,10 +4,7 @@ Control Features
 For more information about the countdown timer and timer interrupts, see 
 link:LarcenyNotes/note1-timer.html[the note on timer interrupts].
 
-anchor:add-exit-procedure![]
-_Procedure add-exit-procedure!_
-
-++ (add-exit-procedure! _thunk_) => _unspecified_++
+proc:add-exit-procedure![args="thunk",result="unspecified"]
 
 add-exit-procedure! adds _thunk_ to the list of procedures that are
 run when the Scheme process terminates (either by a call to <<ProcExit,exit>>
@@ -15,10 +12,7 @@ or when end-of-file is detected at the interactive prompt). The
 procedures are run in the opposite order of that in which they were
 added.
 
-[[ProcAddInitProcedureBang]]
-_Procedure add-init-procedure!_
-
-++ (add-init-procedure! _thunk_) => _unspecified_++
+proc:add-init-procedure![args="thunk",result="unspecified"]
 
 add-init-procedure! adds _thunk_ to the list of procedures that are
 run when the Scheme process is restarted from a dumped heap image. The
@@ -73,7 +67,7 @@ _Procedure error_
 
     
 
-The error procedure applies the currently installed error handler (see <<ProcErrorHandler,error-handler>>) to _arg ..._.
+The error procedure applies the currently installed error handler (see <<error-handler>>) to _arg ..._.
 
 anchor:error-handler[]
 _Parameter error-handler_     
@@ -89,7 +83,7 @@ _Procedure eval_
 
     
 
-Eval conforms to the specification in the R5RS but additionally allows a <<ChapEnviron,first-class environment>> to be used in place of the environment-specifier. If no environment or environment-specifier is used, the current interaction environment is used.
+Eval conforms to the specification in the R5RS but additionally allows a <<environ,first-class environment>> to be used in place of the environment-specifier. If no environment or environment-specifier is used, the current interaction environment is used.
 
 Eval just calls the current value of the <<evaluator>> parameter on its arguments.
 
@@ -98,16 +92,11 @@ _Parameter evaluator_
 
 The value of this parameter is a procedure of one or two arguments: an expression to be evaluated and optionally an environment. The eval procedure calls the value of evaluator.
 
-anchor:exit[]
-_Procedure exit_
+proc:ProcExit[var="exit"]
 
 ++ (exit) => _never returns_  ++
 
 ++ (exit _value_) => _never returns_  ++
-
-
-
-    
 
 exit runs any exit procedures installed by <<add-exit-procedure!>> and then terminates the Scheme process. The optional argument is the exit status to return to the parent process. The default exit status is 0.
 

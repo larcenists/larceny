@@ -2,8 +2,9 @@ Foreign-Function Interface to C
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Larceny provides a general foreign-function interface (FFI) substrate
-on which other FFIs can be built; see <<LarcenyNoteFfi,Larceny Note
-#7>>. The FFI described in this manual section is a simple example of
+on which other FFIs can be built; see 
+link:LarcenyNotes/note7-ffi.html[Larceny Note #7]. 
+The FFI described in this manual section is a simple example of
 a derived FFI. It is not yet fully evolved, but it is useful.
 
 [[FfiCompiliing, Creating loadable modules]]
@@ -305,8 +306,8 @@ These procedures update raw memory. In each case, _addr_ is an address, and _val
 
 If foreign functions are linked into Larceny using the FFI, and a
 Larceny heap image is subsequently dumped (with
-<<ProcDumpInteractiveHeap,dump-interactive-heap>> or
-<<ProcDumpHeap,dump-heap>>), then the foreign functions are not saved as
+<<dump-interactive-heap>> or
+<<dump-heap>>), then the foreign functions are not saved as
 part of the heap image. When the heap image is subsequently loaded
 into Larceny at startup, the FFI will attempt to re-link all the
 foreign functions in the heap image.

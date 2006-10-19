@@ -110,10 +110,7 @@ _Procedure flush-output-port_
 
 Write any buffered data in the port to the underlying output medium.
 
-[[ProcGetOutputString]]
-_Procedure get-output-string_
-
-++ (get-output-string _string-output-port_) => _string_++
+proc:get-output-string[args="string-output-port",result="string"]
 
 Retrieve the output string from the given string output port.
 
@@ -131,7 +128,7 @@ _Procedure open-output-string_
 
 Creates an output port where any output is written to a string. The
 accumulated string can be retrieved with
-<<ProcGetOutputString,get-output-string>> at any time.
+<<get-output-string>> at any time.
 
 _Procedure port?_
 

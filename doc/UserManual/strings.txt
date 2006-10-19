@@ -36,4 +36,4 @@ _Procedure string-upcase!_
 Converts every lower case letter in _string_ to upper case and returns
 _string_.
 
-See also: <<ProcStringHash,string-hash>>.
+See also: <<string-hash>>.

@@ -122,17 +122,11 @@ _Procedure object-hash_
 
 Returns a hash value for _object_ based on its identity.
 
-[[ProcStringHash]]
-_Procedure string-hash_
-
-++ (string-hash _string_) => _fixnum_++
+proc:string-hash[args="string",result="fixnum"]
 
 Returns a hash value for _string_ based on its content.
 
-[[ProcSymbolHash]]
-_Procedure symbol-hash_
-
-++ (symbol-hash _symbol_) => _fixnum_++
+proc:symbol-hash[args="symbol",result="fixnum"]
 
 Returns a hash value for _symbol_ based on its print name. Symbol-hash
 is very fast, because the hash code is cached in the symbol data

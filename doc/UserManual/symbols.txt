@@ -26,4 +26,4 @@ _list_ by clearing the symbol hash table and storing the symbols in
 _list_ in the hash table. If the optional _table-size_ is given, it is
 taken to be the desired size of the new symbol table.
 
-See also: <<ProcSymbolHash,symbol-hash>>.
+See also: <<symbol-hash>>.
