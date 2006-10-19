@@ -1,7 +1,8 @@
 Control Features
 ~~~~~~~~~~~~~~~~
 
-For more information about the countdown timer and timer interrupts, see [the note on timer interrupts][1]. 
+For more information about the countdown timer and timer interrupts, see 
+link:LarcenyNotes/note1-timer.html[the note on timer interrupts].
 
 _Procedure add-exit-procedure!_
 
@@ -163,7 +164,7 @@ _Procedure typetag_
 
 Returns the typetag of _object_ if _object_ is boxed, and signals an error if it is not boxed.
 
-Typetags are documented [elsewhere][10].
+Typetags are documented link:LarcenyNotes/note2-repr.html[elsewhere].
 
 _Procedure typetag-set!_
 
@@ -180,7 +181,6 @@ _$Id: control.html 1470 2000-09-12 02:46:47Z lth $_
 [larceny@ccs.neu.edu][11]  
 
 
-   [1]: ../notes/note1-timer.html
    [2]: #proc:exit
    [3]: #proc:error-handler
    [4]: environ.html
@@ -189,6 +189,5 @@ _$Id: control.html 1470 2000-09-12 02:46:47Z lth $_
    [7]: #proc:quit-handler
    [8]: repl.html#proc:repl
    [9]: #proc:reset-handler
-   [10]: ../notes/note2-repr.html
    [11]: mailto:larceny@ccs.neu.edu
 

@@ -23,7 +23,7 @@ WARNING: Some of this section is wildly out of date.  But other parts are unchan
 
 Larceny can be started in two distinct ways. Those users who use
 Larceny only for Scheme programming will usually install it as
-described in [the introduction][12] and will run it via the standard
+described in <<TheIntroduction>> and will run it via the standard
 shell script by typing larceny at the shell prompt.
 
 Those users who change Twobit and Larceny, on the other hand, will
@@ -35,7 +35,7 @@ will be run directly, as described below.
 The command line options in this section apply to both the shell
 scripts and the binary program. However, a heap file name may not be
 supplied to the shell scripts, and the option -small (described in
-[the introduction][12]) is not accepted by the binary program or by
+<<TheIntroduction>>) is not accepted by the binary program or by
 the twobit script.
 
 ==== Summary (precise gc)
@@ -146,7 +146,8 @@ In practice this appears to work very well.
 
 ==== GC policy options (conservative GC)
 
-    -incremental      Enable the conservative collector's incremental, generational mode. **This switch is currently disabled**. I've had no luck whatever using incremental collection under SunOS; this probably has to do with the costly VM write protection under SunOS coupled with the very high frequency of writes. [Here][15] are some musings on the issue. 
+    -incremental      Enable the conservative collector's incremental, generational mode. **This switch is currently disabled**. I've had no luck whatever using incremental collection under SunOS; this probably has to do with the costly VM write protection under SunOS coupled with the very high frequency of writes. 
+link:LarcenyNotes/note11-bdw.html[Here] are some musings on the issue. 
 
 ==== General options
 
@@ -206,6 +207,5 @@ $Id: starting.html 434 1998-12-21 21:23:26Z will $
    [12]: intro.html
    [13]: #contents
    [14]: manual#proc:command-line-arguments
-   [15]: ../notes/note11-bdw.html
    [16]: mailto:larceny@ccs.neu.edu
 

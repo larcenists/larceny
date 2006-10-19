@@ -1,6 +1,8 @@
 Introductory material
 ---------------------
 
+anchor:TheIntroduction[the introduction]
+
 Installing and Running Twobit and Larceny
 
 === Installing the programs
