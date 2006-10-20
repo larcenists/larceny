@@ -346,17 +346,70 @@ PUBLIC i386_bytevector_like_fill
 	
 PUBLIC i386_bytevector_like_compare
 	MC2g	mc_bytevector_like_compare
+
+;;; generic_fp_op opcode
 	
+%macro generic_fp_op 1
+	mov	[GLOBALS+G_SECOND+4], SECOND
+	;mov	TEMP, [GLOBALS+G_SECOND+4] ; TEMP alias's SECOND
+	lea	TEMP, [SECOND + (8 - BVEC_TAG)]
+	test	TEMP_LOW, 7
+	lea	RESULT, [RESULT + (8 - BVEC_TAG)]
+	jnz	%%NOFLO
+	test	RESULT_LOW, 7
+	jnz 	%%NOFLO
+	mov	TEMP, [TEMP-8]
+	cmp	TEMP_LOW, FLONUM_HDR
+	jnz     %%NOFLO
+	xor	TEMP_LOW, [RESULT-8] ; (opt: if bits match, then xor is zero)
+	jnz     %%NOFLO
+	;; Got here, got two floats!
+	mov	TEMP, [GLOBALS+G_ETOP+4]
+	add	TEMP, 16	; try alloc 4 words (to preserve alignment of etop)
+	cmp	TEMP, CONT
+	jg	%%NOROOM
+	fld  qword [RESULT] 	; load the first fp arg
+	mov	RESULT, TEMP
+	mov	[GLOBALS+G_ETOP+4], TEMP ; commit the allocation
+	mov	TEMP, [GLOBALS+G_SECOND+4]
+	mov  dword  [RESULT-16], (12 << 8 | FLONUM_HDR)	; stash header bits
+	lea	TEMP, [TEMP + (8 - BVEC_TAG)]
+	%1   qword [TEMP]	; perform the fp computation
+	fstp qword [RESULT-8]	; store the computation result in flo object
+	lea	RESULT, [RESULT-16+BVEC_TAG] ; set the tag 
+	ret
+%%NOROOM:	
+	;; No room to allocate float; give up
+%%NOFLO:	
+	;; Not floating point inputs
+	;; Restore RESULT before invoking C support routine
+	lea	RESULT, [RESULT - (8 - BVEC_TAG)]
+	mov	SECOND, [GLOBALS+G_SECOND+4]
+%endmacro
+			
+	;; On entry, GLOBALS pointer is off by 4
 PUBLIC i386_add
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_op fadd
+%endif
 	MC2gk	mc_add
 	
 PUBLIC i386_sub
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_op fsub
+%endif
 	MC2gk	mc_sub
 	
 PUBLIC i386_mul
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_op fmul
+%endif
 	MC2gk	mc_mul
 	
 PUBLIC i386_div
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_op fdiv
+%endif
 	MC2gk	mc_div
 	
 PUBLIC i386_quo
