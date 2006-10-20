@@ -194,7 +194,8 @@
                ((structure-printer) obj temp #t)
                (out (get-output-string temp) col)))
             ((bytevector? obj)
-             (out "#<BYTEVECTOR>" col))
+             (let ((col (out "#vu8" col)))
+               (wr-lst (bytevector->list obj) col)))
             (else
              (out "#<WEIRD>" col))))
 
