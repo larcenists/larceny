@@ -102,7 +102,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
-	MAKETEXTSAFE="iconv -t utf8 -c"
+	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-macosx-petit)  # PPC!
 	SCHEME_PGM=mzscheme
@@ -110,7 +110,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
-	MAKETEXTSAFE="iconv -t utf8 -c"
+	MAKETEXTSAFE=native2ascii
     ;;
     checkout-larceny-macosx-native)  # IA32!
 	SCHEME_PGM=larceny
@@ -118,7 +118,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
-	MAKETEXTSAFE="iconv -t utf8 -c"
+	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-macosx-native) # IA32!
 	SCHEME_PGM=mzscheme
@@ -126,7 +126,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=native
-	MAKETEXTSAFE="iconv -t utf8 -c"
+	MAKETEXTSAFE=native2ascii
     ;;
 
 
@@ -157,7 +157,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin
 	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
 	DIRNAME=default
-	MAKETEXTSAFE="iconv -t utf8 -c"
+	MAKETEXTSAFE=native2ascii
 	;;
 	*)
 	echo "Setup arguments not specified; unknown target architecture."
