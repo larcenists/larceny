@@ -583,9 +583,12 @@
    (test "(imag-part 1+3i)" (imag-part 1+3i) 3)
    (test "(real-part 5.0e3+7.5i)" (real-part 5.0e3+7.5i) 5000.0)
    (test "(imag-part 5.0e3+7.5i)" (imag-part 5.0e3+7.5i) 7.5)
-   (test "(magnitude 1@3)" (magnitude 1@3) 0.9999999999999999)
-   (test "(angle 1@3)" (angle 1@3) 3.0)
-   )
+   (test "(magnitude 1@3)"
+         (<= 0.9999999999999999 (magnitude 1@3) 1.0000000000000001)
+         #t)
+   (test "(angle 1@3)"
+         (<= 2.9999999999999997 (angle 1@3)     3.0000000000000003)
+         #t))
   )
 
 

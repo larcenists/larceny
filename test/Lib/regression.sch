@@ -227,6 +227,8 @@
    (test "Ticket #87 (3)"               ; Bug in Larceny through 0.92b
          (expt 0.0 2.0)
          0.0)
+   (mustfail "Ticket #147"              ; Bug in Larceny through 0.92b
+         (lambda () (floor 0+1.0i)))
    ))
 
 (define (bug-105-test1)
