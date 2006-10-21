@@ -1,5 +1,8 @@
 ;INSERTCODE
 ;------------------------------------------------------------------------------
+(error-handler 
+ (lambda l 
+   (display "bench DIED!") (newline) (exit 118)))
 
 (define (run-bench name count ok? run)
   (let loop ((i 0) (result (list 'undefined)))
