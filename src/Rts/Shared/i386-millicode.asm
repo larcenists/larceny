@@ -347,7 +347,85 @@ PUBLIC i386_bytevector_like_fill
 PUBLIC i386_bytevector_like_compare
 	MC2g	mc_bytevector_like_compare
 
-;;; generic_fp_op opcode
+;;; generic_fp_unary opcode
+	
+%macro generic_fp_unary 1
+	lea	RESULT, [RESULT + (8 - BVEC_TAG)]
+	test	RESULT_LOW, 7
+	jnz 	%%NOFLO
+	mov	TEMP, [RESULT-8]
+	cmp	TEMP_LOW, FLONUM_HDR
+	jnz	%%NOFLO
+	;; Got here, got a float!
+	mov	TEMP, [GLOBALS+G_ETOP+4]
+	add	TEMP, 16	; try alloc flo object
+	cmp	TEMP, CONT
+	jg	%%NOROOM
+	fld qword [RESULT] 	; load fp arg
+	mov	RESULT, TEMP
+	mov	[GLOBALS+G_ETOP+4], TEMP ; commit allocation
+	mov dword [RESULT-16], (12 << 8 | FLONUM_HDR) ; stash hdr bits
+	%1					      ; perform fp comp
+	fstp qword [RESULT-8]	; store the computation result in flo object
+	lea	RESULT, [RESULT-16+BVEC_TAG] ; set the tag
+	ret
+%%NOROOM:
+	;; No room to allocate flo object; give up
+%%NOFLO:
+	;; Not floating point inputs
+	;; Restore RESULT before invoking C support routine
+	lea	RESULT, [RESULT - (8 - BVEC_TAG)]
+%endmacro
+
+;;; generic_fp_cmp eql-lit less-lit greater-lit indeterm-lit
+%macro generic_fp_cmp 4
+	mov	[GLOBALS+G_SECOND+4], SECOND
+	;mov	TEMP, [GLOBALS+G_SECOND+4] ; TEMP alias's SECOND
+	lea	TEMP, [SECOND + (8 - BVEC_TAG)]
+	test	TEMP_LOW, 7
+	lea	RESULT, [RESULT + (8 - BVEC_TAG)]
+	jnz	%%NOFLO
+	test	RESULT_LOW, 7
+	jnz 	%%NOFLO
+	mov	TEMP, [TEMP-8]
+	cmp	TEMP_LOW, FLONUM_HDR
+	jnz     %%NOFLO
+	xor	TEMP_LOW, [RESULT-8] ; (opt: if bits match, then xor is zero)
+	jnz     %%NOFLO
+	;; Got here, got two floats!
+	mov	TEMP, [GLOBALS+G_SECOND+4]
+	lea	TEMP, [TEMP + (8 - BVEC_TAG)]
+	fld qword [TEMP]
+	fld qword [RESULT]
+	fcompp			; compare and pop both ST(0) & ST(1)
+	fstsw ax		; retreive cmp result in ax
+	fwait
+	sahf			; transfer ax to cond codes
+	jpe 	%%INDETERM
+	ja	%%GREATER
+	jb	%%LESS
+	jz	%%EQL
+%%EQL:
+	mov	RESULT, %1
+	ret
+%%LESS:
+	mov	RESULT, %2
+	ret
+%%GREATER:
+	mov	RESULT, %3
+	ret
+%%INDETERM:
+	mov	RESULT, %4
+	ret
+%%NOFLO:
+	;; Not floating point inputs
+	;; Restore RESULT before invoking C support routine
+	lea	RESULT, [RESULT - (8 - BVEC_TAG)]
+	mov	SECOND, [GLOBALS+G_SECOND+4]
+%endmacro
+	
+	
+;;; generic_fp_op opcode (binary operations)
 	
 %macro generic_fp_op 1
 	mov	[GLOBALS+G_SECOND+4], SECOND
@@ -419,24 +497,45 @@ PUBLIC i386_rem
 	MC2gk	mc_rem
 	
 PUBLIC i386_neg
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_unary fchs
+%endif
 	MCgk	mc_neg
 	
 PUBLIC i386_abs
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_unary fabs
+%endif
 	MCgk	mc_abs
 	
 PUBLIC i386_equalp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_cmp TRUE_CONST, FALSE_CONST, FALSE_CONST, FALSE_CONST
+%endif
 	MC2gk	mc_equalp
 	
 PUBLIC i386_lessp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_cmp FALSE_CONST, TRUE_CONST, FALSE_CONST, FALSE_CONST
+%endif
 	MC2gk	mc_lessp
 	
 PUBLIC i386_less_or_equalp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_cmp TRUE_CONST, TRUE_CONST, FALSE_CONST, FALSE_CONST
+%endif
 	MC2gk	mc_less_or_equalp
 	
 PUBLIC i386_greaterp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_cmp FALSE_CONST, FALSE_CONST, TRUE_CONST, FALSE_CONST
+%endif
 	MC2gk	mc_greaterp
 	
 PUBLIC i386_greater_or_equalp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fp_cmp TRUE_CONST, FALSE_CONST, TRUE_CONST, FALSE_CONST
+%endif
 	MC2gk	mc_greater_or_equalp
 	
 PUBLIC i386_exact2inexact
