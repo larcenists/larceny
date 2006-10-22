@@ -76,7 +76,7 @@ setup ()
   # For both Solaris and Linux machines.
 
   BIGLOO=${BIGLOO:-"${APPS}/bin/bigloo"}
-  LARCENY=${LARCENY:-"/proj/will/LarcenyDev/larceny"}
+  LARCENY=${LARCENY:-"larceny"}
   MZSCHEME=${MZSCHEME:-"mzscheme"}
  
   CSC=$CHICKEN
@@ -359,7 +359,7 @@ larceny_comp ()
 
 larceny_exec ()
 {
-  printf "$REPLCOMMANDS" "$1" | larceny $COMPOPTS
+  printf "$REPLCOMMANDS" "$1" | ${LARCENY} $COMPOPTS
 }
 
 henchman_comp ()
