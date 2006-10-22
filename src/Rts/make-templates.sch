@@ -355,7 +355,7 @@ CC=cl
 	ranlib libpetit.a")
 
 (define make-template-target-sassy-unix-static
-"larceny.bin: $(X86_SASSY_LARCENY_OBJECTS) Util/ffi-dummy.o
+"larceny.bin: $(X86_SASSY_LARCENY_OBJECTS)
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(X86_SASSY_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	rm Sys/version.$(O)")

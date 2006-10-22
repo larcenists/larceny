@@ -113,7 +113,7 @@ static int identity = 0;
   /* Counter for assigning identity to remembered sets.
      */
 
-static int    log2( unsigned n );
+static int    ilog2( unsigned n );
 static pool_t *allocate_pool_segment( unsigned entries );
 static void   free_pool_segments( pool_t *first, unsigned entries );
 static void ssb_consistency_check( remset_t *rs );
@@ -154,7 +154,7 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
   remset_data_t *data;
   pool_t *p;
 
-  assert( tbl_entries >= 0 && (tbl_entries == 0 || log2( tbl_entries ) != -1));
+  assert( tbl_entries >= 0 && (tbl_entries == 0 || ilog2( tbl_entries ) != -1));
   assert( pool_entries >= 0 );
   assert( ssb_entries >= 0 );
 
@@ -678,7 +678,7 @@ static void free_pool_segments( pool_t *first, unsigned pool_entries )
 }
 
 /* If n is a power of 2, return log2(n). Otherwise return -1. */
-static int log2( unsigned n )
+static int ilog2( unsigned n )
 {
   int p;
 

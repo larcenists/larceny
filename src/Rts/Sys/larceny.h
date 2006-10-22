@@ -9,6 +9,7 @@
 #define INCLUDED_LARCENY_H
 
 #include <limits.h>
+#include <string.h> /* for memset */
 #include <stddef.h>
 #include "config.h"
 #include "larceny-types.h"

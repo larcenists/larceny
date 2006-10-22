@@ -54,7 +54,7 @@ void scheme_start( word *globals )
   case DISPATCH_CALL_R0 :
     assert2( tagof( globals[ G_REG0 ]) == PROC_TAG );
     f = procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE );
-    f = (byte*)(ptrof(f)+1); /* skip over bytevector header */
+    f = (cont_t)(ptrof(f)+1); /* skip over bytevector header */
     break;
   case DISPATCH_EXIT:
     already_running = 0;
