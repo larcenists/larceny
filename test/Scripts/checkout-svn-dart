@@ -57,6 +57,13 @@ case "`basename "$0"`" in
 	DIRNAME=petit
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
+    checkout-larceny-linux86-petit-nasm)
+	SCHEME_PGM=larceny
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'nasm"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	DIRNAME=petit
+    ;;
     checkout-mzscheme-linux86-petit)
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86"
@@ -64,6 +71,13 @@ case "`basename "$0"`" in
 	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
 	DIRNAME=petit
 	MAKETEXTSAFE="iconv -t utf8 -c"
+    ;;
+    checkout-mzscheme-linux86-petit-nasm)
+	SCHEME_PGM=mzscheme
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'nasm"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	DIRNAME=petit
     ;;
 #    checkout-larceny-linux86-dotnet)
 #	SCHEME_PGM=larceny
