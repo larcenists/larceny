@@ -814,7 +814,7 @@
                             (inexact->exact y)))
               (inexact->exact y)) epsilon)))))
 
-  (parameterize ((test-equivalence (fuzzy-eql?? 1e-17)))
+  (parameterize ((test-equivalence (fuzzy-eql?? 1e-15)))
     ;; (allof "exp, log, sin, cos, tan, asin, acos, atan, atan2" #t)
     ;; FIXME: did Lars really mean to include atan2 above?  We don't export that...
 
