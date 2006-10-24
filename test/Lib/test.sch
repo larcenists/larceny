@@ -8,8 +8,15 @@
 ; It requires that the answer and the expected answer are represented in
 ; a way which exercises only trusted procedures.
 
+(define test-equivalence
+  (let ((equiv? equal?))
+    (lambda l
+      (cond ((null? l) equiv?)
+            (else
+             (set! equiv? (car l)))))))
+
 (define (test id ans correct)
-  (if (not (equal? ans correct))
+  (if (not ((test-equivalence) ans correct))
       (begin (failure-message-failed id ans correct)
              (if (test-reporter) ((test-reporter) id ans correct))
 	     #f)
