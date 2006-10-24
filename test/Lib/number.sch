@@ -188,6 +188,7 @@
    (test "(q 1)" (q 1) '(#f #f #t))
    (test "(q -1)" (q -1) '(#f #t #f))
    (test "(= 0.0 -0.0)" (= 0.0 -0.0) #t)
+   (test "(= (/ 1.0 0.0) (/ 1.0 -0.0))" (= (/ 1.0 0.0) (/ 1.0 -0.0)) #f)
    ))
 
 ; Establishes correctness of eqv?/equal?.
@@ -788,10 +789,159 @@
 	  #t))
 
 
-; FIXME: implement
+; Based on glibc's tests
 (define (test-trancendental-functions)
-  (allof "exp, log, sin, cos, tan, asin, acos, atan, atan2"
-   #t
+  (define (flonum-nan? x) ;; should I be checking the real and the imaginary parts?
+    (not (= x x))) ;; (this is a trick pnkfelix copied out of src/Lib/Common/flonums.sch)
+
+  (define (eql? x y)
+    (or (and (not (zero? x)) (not (zero? y)) (= x y))
+        ;; Explicitly check sign of 0.0
+        (and (zero? x) (zero? y) (= (/ 1.0 x) (/ 1.0 y)))
+        (and (flonum-nan? x)
+             (flonum-nan? y))))
+  (define (fuzzy-eql?? epsilon)
+    (lambda (x y)
+      (cond 
+       ((and (flonum-nan? x) (flonum-nan? y))
+        #t)
+       ((or  (flonum-nan? x) (flonum-nan? y))
+        #f)
+       ((= x y) ;; this catches the infinities (can't take the difference of two inf's)
+        #t)
+       (else
+        (< (/ (magnitude (- (inexact->exact x) 
+                            (inexact->exact y)))
+              (inexact->exact y)) epsilon)))))
+
+  (parameterize ((test-equivalence (fuzzy-eql?? 1e-17)))
+    ;; (allof "exp, log, sin, cos, tan, asin, acos, atan, atan2" #t)
+    ;; FIXME: did Lars really mean to include atan2 above?  We don't export that...
+
+    (parameterize ((test-equivalence eql?))
+      (allof "exp 1"
+       (test "(exp  +0.0)"   (exp  +0.0)    1.0)
+       (test "(exp  -0.0)"   (exp  -0.0)    1.0)
+       (test "(exp  +inf.0)" (exp  +inf.0) +inf.0)
+       (test "(exp  -inf.0)" (exp  -inf.0)  0.0)
+       (test "(exp  +nan.0)" (exp  +nan.0) +nan.0)))
+    (allof "exp 2"
+     (test "(exp   1.0)"   (exp   1.0)   2.718281828459045)
+     (test "(exp   2.0)"   (exp   2.0)   7.38905609893065)
+     (test "(exp   3.0)"   (exp   3.0)  20.085536923187668)
+     (test "(exp   0.75)"  (exp   0.75)  2.117000016612675)
+     (test "(exp  50.0)"   (exp 50.0)    5.184705528587072e+21))
+
+    (allof "log"
+     ;(test "(log  +0.0)"   (log  +0.0)   -inf.0) ;; Larceny throws Domain
+     ;(test "(log  -0.0)"   (log  -0.0)   -inf.0) ;; Error exceptions on these
+     (test "(log   1.0)"   (log   1.0)    0.0)
+     (test "(log  -1.0)"   (log  -1.0)    0.0+3.141592653589793i)
+     (test "(log  +inf.0)" (log  +inf.0) +inf.0)
+     (test "(log   e)"     (log   2.718281828459045)    1.0)
+     (test "(log   1/e)"   (log   0.36787944117144233) -1.0)
+     (test "(log   2.0)"   (log   2.0)                  0.6931471805599453)
+     (test "(log  10.0)"   (log  10.0)                  2.302585092994046)
+     (test "(log   0.75)"  (log   0.75)                -0.2876820724517809)
+     )
+
+    (parameterize ((test-equivalence eql?))
+      (allof "sin 1"
+       (test "(sin  +0.0)"   (sin  +0.0)   +0.0)
+       (test "(sin  -0.0)"   (sin  -0.0)   -0.0)
+       (test "(sin  +inf.0)" (sin  +inf.0) +nan.0)
+       (test "(sin  -inf.0)" (sin  -inf.0) +nan.0)
+       (test "(sin  +nan.0)" (sin  +nan.0) +nan.0)))
+
+    (allof "sin 2"
+     (test "(sin   pi/6)"  (sin  0.5235987755982988)  0.49999999999999994)
+     (test "(sin  -pi/6)"  (sin -0.5235987755982988) -0.49999999999999994)
+     (test "(sin   pi/2)"  (sin  1.5707963267948966)  1.0)
+     (test "(sin   pi/2)"  (sin -1.5707963267948966) -1.0)
+     (test "(sin   0.75)"  (sin  0.75)                0.6816387600233341))
+
+    (parameterize ((test-equivalence eql?))
+      (allof "cos 1"
+       (test "(cos   0.0)"   (cos   0.0)    1.0)
+       (test "(cos  -0.0)"   (cos  -0.0)    1.0)
+       (test "(cos  +inf.0)" (cos  +inf.0) +nan.0)
+       (test "(cos  -inf.0)" (cos  -inf.0) +nan.0)))
+
+    (allof "cos 2"
+     (test "(cos  pi/3)"   (cos 1.0471975511965976)  0.5000000000000001)
+     (test "(cos  2pi/3)"  (cos 2.0943951023931953) -0.4999999999999998)
+     (test "(cos  2pi)"    (cos 6.283185307179586)   1.0)
+     (test "(cos  0.75)"   (cos 0.75)                0.7316888688738209))
+
+    (parameterize ((test-equivalence eql?))
+      (allof "tan 1"
+       (test "(tan   0.0)"   (tan   0.0)    0.0)
+       (test "(tan  -0.0)"   (tan  -0.0)   -0.0)
+       (test "(tan  +inf.0)" (tan  +inf.0) +nan.0)
+       (test "(tan  -inf.0)" (tan  -inf.0) +nan.0)
+       (test "(tan  +nan.0)" (tan  +nan.0) +nan.0)))
+
+    (allof "tan 2"
+     (test "(tan   pi/4)"  (tan   0.7853981633974483) 0.9999999999999999)
+     (test "(tan   0.75)"  (tan   0.75)   0.9315964599440725))
+
+    (parameterize ((test-equivalence eql?))
+      (allof "asin 1"
+       (test "(asin +inf.0)" (asin +inf.0) +nan.0)
+       (test "(asin -inf.0)" (asin -inf.0) +nan.0)
+       (test "(asin +nan.0)" (asin +nan.0) +nan.0)
+       ;;(asin +9/8) ;; this may be too fuzzy to test well?
+       ;;(asin -9/8) ;; this may be too fuzzy to test well?
+       (test "(asin +0.0)"   (asin +0.0)   +0.0)
+       (test "(asin -0.0)"   (asin -0.0)   -0.0)))
+
+    (allof "asin 2"
+     (test "(asin  0.5)"   (asin  0.5)    0.5235987755982989)
+     (test "(asin -0.5)"   (asin -0.5)   -0.5235987755982989)
+     (test "(asin  1.0)"   (asin  1.0)    1.5707963267948966)
+     (test "(asin  0.75)"  (asin  0.75)   0.848062078981481))
+    
+    (parameterize ((test-equivalence eql?))
+      (allof "acos 1"
+       (test "(acos +inf.0)" (acos +inf.0) +nan.0)
+       (test "(acos -inf.0)" (acos -inf.0) +nan.0)
+       (test "(acos +nan.0)" (acos +nan.0) +nan.0)))
+
+    (allof "acos 2"     
+     ;;(acos +9/8) ;; this may be too fuzzy to test well?
+     ;;(acos -9/8) ;; this may be too fuzzy to test well?
+     (test "(acos +0.0)"   (acos +0.0)   1.5707963267948966)
+     (test "(acos -0.0)"   (acos -0.0)   1.5707963267948966)
+     (test "(acos  1)"     (acos  1)     0.0)
+     (test "(acos -1)"     (acos -1)     3.141592653589793)
+     (test "(acos  0.5)"   (acos  0.5)   1.0471975511965979)
+     (test "(acos -0.5)"   (acos -0.5)   2.0943951023931957)
+     (test "(acos  0.75)"  (acos  0.75)  0.7227342478134157)
+     (test "(acos  2e-17)" (acos  2e-17) 1.5707963267948966)
+     (test "(acos  0.0625)"(acos  0.0625)1.5082555649984053) ; NB. glibc wants 1.50825556499840522843072005474337068L
+     )
+    
+    ;; pnkfelix doesn't trust glibc's tests here...
+    '(allof "acos complex"
+     (test "(acos +0.0+0.0i)" (acos +0.0+0.0i) 1.5707963267948966-0.0i)
+     (test "(acos -0.0+0.0i)" (acos -0.0+0.0i) 1.5707963267948966-0.0i)
+     (test "(acos -0.0-0.0i)" (acos -0.0-0.0i) 1.5707963267948966+0.0i)
+     (test "(acos +0.0-0.0i)" (acos +0.0-0.0i) 1.5707963267948966+0.0i)
+     ...)
+    
+    (parameterize ((test-equivalence eql?))
+      (allof "atan 1"
+       (test "(atan  0)"     (atan  0)     0.0)
+       (test "(atan +0.0)" (atan  0.0)    +0.0)
+       (test "(atan -0.0)" (atan -0.0)    -0.0)))
+    (allof "atan 2"
+     (test "(atan +inf.0)" (atan +inf.0) 1.5707963267948966)
+     (test "(atan -inf.0)" (atan -inf.0)-1.5707963267948966)
+     (test "(atan +nan.0)" (atan +nan.0) +nan.0)
+     (test "(atan  1.0)"   (atan  1.0)   0.7853981633974483)
+     (test "(atan -1.0)"   (atan -1.0)  -0.7853981633974483)
+     (test "(atan  0.75)"  (atan  0.75)  0.6435011087932844))
+
    ))
 
 ; eof
