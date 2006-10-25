@@ -191,8 +191,8 @@ Ltypetagset1:
  * Destroys:  RESULT, Temporaries
  *
  * This procedure is entered only if the two arguments are not eq?.
- * Note that fixnums and immediates are always eq? if they are eqv?, so we need
- * only concern ourselves with larger structures here.
+ * Note that fixnums and immediates are always eq? if they are eqv?,
+ * so we need only concern ourselves with larger structures here.
  */
 EXTNAME(m_eqv):
 	/* Do fixnums first to get them out of the way completely. */
@@ -210,7 +210,8 @@ Leqv_others:
 	mov	FALSE_CONST, %RESULT
 
 	/* Tags are equal, but addresses are not (they are not eq?). This
-	 * lets us get rid of all non-numeric types.
+	 * lets us get rid of all non-numeric types except empty vectors
+	 * and empty strings.
 	 */
 	and	%RESULT, TAGMASK, %TMP0
 	cmp	%TMP0, PAIR_TAG
@@ -238,29 +239,62 @@ Leqv_bvec:
 	be,a	Leqv_bvec2
 	mov	0, %TMP0
 	cmp	%TMP0, FLONUM_HDR
-	be,a	Leqv_bvec2
-	mov	1, %TMP0
+	be,a	Leqv_flonum2
+	nop
 	cmp	%TMP0, COMPNUM_HDR
-	be,a	Leqv_bvec2
-	mov	1,%TMP0
+	be,a	Leqv_compnum2
+	nop
+	cmp	%TMP0, STR_HDR
+	be,a	Leqv_string2
+	nop
 	b	Leqv_done
 	mov	FALSE_CONST, %RESULT
 Leqv_bvec2:
 	cmp	%TMP1, BIGNUM_HDR
 	be,a	Leqv_number
 	mov	0, %TMP1
-	cmp	%TMP1, FLONUM_HDR
-	be,a	Leqv_number
-	mov	1, %TMP1
-	cmp	%TMP1, COMPNUM_HDR
-	be,a	Leqv_number
-	mov	1, %TMP1
 	b	Leqv_done
 	mov	FALSE_CONST, %RESULT
+Leqv_flonum2:
+	/* %RESULT holds a flonum. */
+	cmp	%TMP1, FLONUM_HDR
+	bne,a	Leqv_done
+	mov	FALSE_CONST, %RESULT
+Leqv_realpart:
+	ld	[ %RESULT - BVEC_TAG + 8 ], %TMP0
+	ld	[ %ARGREG2 - BVEC_TAG + 8 ], %TMP1
+	cmp	%TMP0, %TMP1
+	bne,a	Leqv_done
+	mov	FALSE_CONST, %RESULT
+	ld	[ %RESULT - BVEC_TAG + 12 ], %TMP0
+	ld	[ %ARGREG2 - BVEC_TAG + 12 ], %TMP1
+	cmp	%TMP0, %TMP1
+	bne,a	Leqv_done
+	mov	FALSE_CONST, %RESULT
+	b	Leqv_done
+	mov	TRUE_CONST, %RESULT
+
+Leqv_compnum2:
+	/* %RESULT holds a compnum. */
+	cmp	%TMP1, COMPNUM_HDR
+	bne,a	Leqv_done
+	mov	FALSE_CONST, %RESULT
+	ld	[ %RESULT - BVEC_TAG + 16 ], %TMP0
+	ld	[ %ARGREG2 - BVEC_TAG + 16 ], %TMP1
+	cmp	%TMP0, %TMP1
+	bne,a	Leqv_done
+	mov	FALSE_CONST, %RESULT
+	ld	[ %RESULT - BVEC_TAG + 20 ], %TMP0
+	ld	[ %ARGREG2 - BVEC_TAG + 20 ], %TMP1
+	cmp	%TMP0, %TMP1
+	bne,a	Leqv_done
+	mov	FALSE_CONST, %RESULT
+	b	Leqv_realpart
+	nop
 
 Leqv_vec:
 	/* We know it has a vector tag here. The header tags must be the same,
-	 * and both must be either ratnum or rectnum.
+	 * and both must be ratnum, rectnum, or vector.
 	 */
 	ldub	[ %RESULT - VEC_TAG + 3 ], %TMP0
 	ldub	[ %ARGREG2 - VEC_TAG + 3 ], %TMP1
@@ -276,6 +310,9 @@ Leqv_vec:
 	cmp	%TMP0, RECTNUM_HDR
 	be,a	Leqv_number
 	mov	0, %TMP0
+	cmp	%TMP0, VECTOR_HDR
+	be,a	Leqv_vector
+	nop
 	b	Leqv_done
 	mov	FALSE_CONST, %RESULT
 
@@ -292,6 +329,40 @@ Leqv_number:
 
 	jmp	%MILLICODE + M_NUMEQ
 	nop
+
+Leqv_vector:
+	cmp	%TMP1, VECTOR_HDR
+	bne,a	Leqv_done
+	mov	FALSE_CONST, %RESULT
+	/* Both are vectors.  They are eqv iff their length is 0.
+	 */
+	ld	[ %RESULT - VEC_TAG ], %TMP0
+	ld	[ %ARGREG2 - VEC_TAG ], %TMP1
+	cmp	%TMP0, VECTOR_HDR
+	bne,a   Leqv_done
+	mov	FALSE_CONST, %RESULT
+	cmp	%TMP0, %TMP1
+	bne,a   Leqv_done
+	mov	FALSE_CONST, %RESULT
+	b	Leqv_done
+	mov	TRUE_CONST, %RESULT
+
+Leqv_string2:
+	cmp	%TMP1, STR_HDR
+	bne,a	Leqv_done
+	mov	FALSE_CONST, %RESULT
+	/* Both are strings.  They are eqv iff their length is 0.
+	 */
+	ld	[ %RESULT - BVEC_TAG ], %TMP0
+	ld	[ %ARGREG2 - BVEC_TAG ], %TMP1
+	cmp	%TMP0, STR_HDR
+	bne,a   Leqv_done
+	mov	FALSE_CONST, %RESULT
+	cmp	%TMP0, %TMP1
+	bne,a   Leqv_done
+	mov	FALSE_CONST, %RESULT
+	b	Leqv_done
+	mov	TRUE_CONST, %RESULT
 
 Leqv_done:
 	jmp	%o7+8
