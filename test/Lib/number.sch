@@ -346,7 +346,7 @@
    (test "(round 1.5)" (round 1.5) 2.0)
    (test "(round -1.5)" (round -1.5) -2.0)
    (test "(round 0.5)" (round 0.5) 0.0)
-   (test "(round -0.5)" (round -0.5) 0.0)
+   (test "(round -0.5)" (round -0.5) -0.0)
    (test "(round 2.5)" (round 2.5) 2.0)
    (test "(round 3.5)" (round 3.5) 4.0)
    (test "(round 4.5)" (round 4.5) 4.0)
