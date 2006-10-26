@@ -177,12 +177,10 @@
 (define (user-local.sassy-input! u x) (set-car! (cdr u) x))
 
 (define (fresh-label)
-  (let* ((local (user-data.local-counter 
-                (as-user (current-sassy-assembly-structure))))
+  (let* ((as (current-sassy-assembly-structure))
+         (local (user-data.local-counter (as-user as)))
          (new-local (- local 1)))
-    (user-data.local-counter! 
-     (as-user (current-sassy-assembly-structure))
-     new-local)
+    (user-data.local-counter! (as-user as) new-local)
     (string->symbol
      (string-append ".L" (number->string new-local)))))
 
