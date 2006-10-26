@@ -649,7 +649,9 @@
       (cond ((interpreted-procedure? proc)
              (interpreted-procedure-documentation proc))
             ((interpreted-expression? proc)
-             (cdr (interpreted-procedure-documentation proc)))
+             (cond 
+              ((interpreted-procedure-documentation proc) => cdr)
+              (else #f)))
             ((interpreted-primitive? proc)
              (let ((x (interpreted-procedure-documentation proc)))
                (vector (car x) #f (cadr x))))
