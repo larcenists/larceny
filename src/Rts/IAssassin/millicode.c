@@ -355,6 +355,15 @@ void EXPORT mc_typetag_set( word *globals )
   signal_exception( globals, EX_TYPETAGSET, 0, 0 );
 }
 
+#define compnum_real( x )  (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
+#define compnum_imag( x )  (*(double*)((word)x-BVEC_TAG+4*sizeof(word)))
+#define flonum_val( x )    (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
+
+/* returns true iff x and y are zeros with different sign bits. */
+static int diff_zeroes(double x, double y) {
+  return x == 0.0 && y == 0.0 && (1.0 / x != 1.0 / y);
+}
+
 void EXPORT mc_eqv( word *globals, cont_t k )
 {
   word x = globals[ G_RESULT ];
@@ -371,7 +380,17 @@ void EXPORT mc_eqv( word *globals, cont_t k )
       mc_equalp( globals, k );
     else if ((t1 == FLONUM_HDR || t1 == COMPNUM_HDR) &&
              (t2 == FLONUM_HDR || t2 == COMPNUM_HDR))
-      mc_equalp( globals, k );
+      /* zeros with different signs are not eqv */
+      if ( t1 == FLONUM_HDR && t2 == FLONUM_HDR && 
+	   diff_zeroes( flonum_val(x), flonum_val(y)) ) {
+        globals[ G_RESULT ] = FALSE_CONST;
+      } else if ( t1 == COMPNUM_HDR && t2 == COMPNUM_HDR &&
+		  ( diff_zeroes( compnum_real(x), compnum_real(y)) 
+		    || diff_zeroes( compnum_imag(x), compnum_imag(y)) )) {
+	globals[ G_RESULT ] = FALSE_CONST;
+      } else {
+        mc_equalp( globals, k );
+      }
     else
       globals[ G_RESULT ] = FALSE_CONST;
   }
