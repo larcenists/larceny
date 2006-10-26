@@ -391,6 +391,9 @@ void EXPORT mc_eqv( word *globals, cont_t k )
       } else {
         mc_equalp( globals, k );
       }
+    else if (t1 == STR_HDR && t2 == STR_HDR &&
+	     (string_length(x) == 0) && (string_length(y) == 0))
+      globals[ G_RESULT ] = TRUE_CONST; /* (eqv? "" "") */
     else
       globals[ G_RESULT ] = FALSE_CONST;
   }
@@ -401,6 +404,9 @@ void EXPORT mc_eqv( word *globals, cont_t k )
       mc_equalp( globals, k );
     else if (t1 == RECTNUM_HDR && t2 == RECTNUM_HDR)
       mc_equalp( globals, k );
+    else if (t1 == VEC_HDR && t2 == VEC_HDR &&
+	     vector_length(x) == 0 && vector_length(y) == 0)
+      globals[ G_RESULT ] = TRUE_CONST; /* (eqv? '#() '#()) */
     else
       globals[ G_RESULT ] = FALSE_CONST;
   }
