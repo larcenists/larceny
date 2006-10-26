@@ -1,3 +1,9 @@
+;;; This file is the entry point for building a copy of Larceny from
+;;; scratch.  It should be R5RS compatible Scheme; part of its job is
+;;; to load the implementation-specific extensions to Scheme based on
+;;; the host system (as indicated by the user in the 'scheme: keyword
+;;; argument to the setup procedure).
+
 (load "src/Build/petit-unix-defns.sch")
 
 ;; filter : (X -> Bool) [Listof X] -> [Listof X]
