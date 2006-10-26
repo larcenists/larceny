@@ -16,7 +16,7 @@
  *  Operation Drop-Kick         0.90
  *  Children's Ice Cream        0.91
  *  Definite Missile Track      0.92
- *  Deviated Prevert
+ *  Deviated Prevert            0.93
  *  Doomsday Device
  *  First Safety
  *  Fluoridation
@@ -54,8 +54,8 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 92;
-char *larceny_version_qualifier = " \"Definite Missile Track\"";
+int  larceny_minor_version = 93;
+char *larceny_version_qualifier = "alpha \"Deviated Prevert\"";
 
 char *date = DATE " " TIME;
 char *user = USER;
