@@ -105,6 +105,16 @@ EXTNAME(i386_dispatch_loop_return):
 ;;; jump to.  Does not return, so need to save ESP only.
 
 EXTNAME(i386_scheme_jump):
+	;; Set precision to 53 bit mantissa to comply w/ IEEE 754
+	fstcw	[saved_fpu_ctrl]
+	mov	eax, [saved_fpu_ctrl]
+	and	eax, 0xfcff	; clear precision control (PC)
+	or	eax, 0x0200	; set PC to REAL8 mode
+	push	eax
+	fldcw	[esp]
+	fwait
+	pop	eax
+	
 	;; Switch to Scheme mode
 	mov	eax, [esp+8]	; Address to jump to
 	mov	ebx, [esp+4]	; globals table
@@ -780,6 +790,8 @@ callout_to_Ck:
 
 	section	.data
 
+saved_fpu_ctrl:
+	dd	0
 saved_temp_reg:
 	dd	0
 saved_globals_pointer:
