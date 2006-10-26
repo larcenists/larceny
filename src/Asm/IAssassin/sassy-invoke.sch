@@ -147,7 +147,7 @@
     `(align ,code_align -1)
     `(call ,(setrtn-branch-patch-code-label Ly))))
 
-(define-sassy-instr (ia86.T_SETRTN_SKIP Ly)
+(define-sassy-instr (ia86.T_SETRTN_SKIP Ly) ;; FIXME: shouldn't decrement timer.
   (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
                  (set! *did-emit-setrtn-branch* 
                        (cons Ly *did-emit-setrtn-branch*)))))
