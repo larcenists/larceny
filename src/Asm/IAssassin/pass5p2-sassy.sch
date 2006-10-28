@@ -53,7 +53,7 @@
          bl 
          pop
          inc dec 
-         dword byte dwords) #t)
+         dword byte dwords words) #t)
       (else #f)))
          
   (let ((need-labels  '())
