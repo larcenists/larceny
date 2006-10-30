@@ -185,13 +185,16 @@
   (let ((cmd-string 
 	 (twobit-format 
 	  #f (case (nbuild-parameter 'host-os)
-	       ((win32)       "cd src\\Rts\\DotNet && nmake.exe ~a DEBUG_OPT=\"~a\" DEFINES=\"~a\"")
-	       ((unix macosx) "cd src/Rts/DotNet;    make      ~a DEBUG_OPT='~a'   DEFINES='~a'")
+	       ((win32)       "cd src\\Rts\\DotNet && nmake.exe ~a ~a DEBUG_OPT=\"~a\" DEFINES=\"~a\"")
+	       ((unix macosx) "cd src/Rts/DotNet;    make      ~a ~a DEBUG_OPT='~a'   DEFINES='~a'")
 	       (else
 		(error "Unknown operating system: " (nbuild-parameter 'host-os))))
 	  (if (codegen-option 'mono)
 	      "CSC=mcs "
 	      "CSC=csc ")
+          (if (eq? (nbuild-parameter 'host-os) 'win32)
+              "CPP=\"cl /C /EP\" "
+              "CPP=\"cpp -P -C -nostdinc\" ")
 	  (if (codegen-option 'debug)
 	      "/checked+ /warn:4 /debug:full /d:DEBUG "
 	      "/optimize+ ")
