@@ -6,19 +6,23 @@
 # by (build-runtime-system); see Util/dotnet.sch
 
 ## Win32 (.NET SDK)
-#CSC = csc
-#DEFINES = /d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS /d:HAS_SETENV_SUPPORT
+# CSC = csc
+# CPP = cl /C /EP
+# DEFINES = /d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS /d:HAS_SETENV_SUPPORT
 
 ## MacOS X (Rotor)
-#CSC = csc
-#DEFINES = /d:USING_ROTOR /d:BIG_ENDIAN
+# CSC = csc
+# CPP = cpp -P -C -nostdinc
+# DEFINES = /d:USING_ROTOR /d:BIG_ENDIAN
 
 ## Solaris & MacOS X (Mono)
-#CSC = mcs
-#DEFINES = /d:BIG_ENDIAN /d:USING_MONO /d:USING_UNIX
+# CSC = mcs
+# CPP = cpp -P -C -nostdinc
+# DEFINES = /d:BIG_ENDIAN /d:USING_MONO /d:USING_UNIX
 
 ## Linux (Mono)
 # CSC = mcs
+# CPP = cpp -P -C -nostdinc
 # DEFINES = /d:USING_MONO /d:USING_UNIX
 
 ##########################################
@@ -62,4 +66,4 @@ DynLoad.exe : DynLoad.cs
 	$(CSC) /target:winexe $(INLINE_OPT) $(DEBUG_OPT) $(DEFINES) /out:DynLoad.exe /r:Scheme.dll DynLoad.cs
 
 SchemeObject.cs : SchemeObject.cs.cpp Ops.h Ops_SObject.inc Ops_SImmediate.inc Ops_SFixnum.inc Ops_SChar.inc Ops_SVL.inc Ops_SByteVL.inc Ops_SPair.inc Ops_Procedure.inc
-	cpp -P -C -nostdinc SchemeObject.cs.cpp -o SchemeObject.cs
+	$(CPP) SchemeObject.cs.cpp > SchemeObject.cs
