@@ -511,7 +511,17 @@ namespace Scheme.RT {
           pi.FileName = "cmd";
           pi.Arguments = "/c " + command;
 #endif
+          // This is set to false because we are manually invoking
+          // the shell to run the command.
           pi.UseShellExecute = false;
+
+          // We want to run the process in the same window
+          // so we set this to false. This seems like it should
+          // be true because we _don't_ want to create a window.
+          // Setting it to true starts the process outside of
+          // the CommonLarceny window, and waits for it to stop,
+          // but this can never happen if it is spawned without 
+          // a window in which user interaction needs to occur.
           pi.CreateNoWindow = false;
 
           Process p = Process.Start (pi);
