@@ -1495,7 +1495,10 @@
              ((35 imag-part) ia86.T_OP1_35) 
              ((36 char?) ia86.T_OP1_36) 
              ((37 char->integer) ia86.T_OP1_37) 
+             ((char->integer:chr) ia86.T_OP1_char->integer:chr)
              ((38 integer->char) ia86.T_OP1_38) 
+             ((integer->char:fix) ia86.T_OP1_38) 
+             ((integer->char:trusted) ia86.T_OP1_integer->char:trusted)
              ((39 string?) ia86.T_OP1_39)
              ((40 string-length string-length:str) ia86.T_OP1_40) 
              ((41 vector?) ia86.T_OP1_41) 
@@ -1972,7 +1975,10 @@
            `(xor ,SECOND ,SECOND)
            (ia86.exception_continuable $ex.char2int L0)
            `(label ,L1)))
-    `(shr	,RESULT 6)))
+    (ia86.T_OP1_char->integer:chr)))
+
+(define-sassy-instr (ia86.T_OP1_char->integer:chr) ; char->integer:chr
+  `(shr	,RESULT 6))
 
 (define-sassy-instr (ia86.T_OP1_38)		; integer->char
   (cond ((not (unsafe-code))
@@ -1997,6 +2003,9 @@
            `(xor ,SECOND ,SECOND)
            (ia86.exception_continuable $ex.int2char L0)
 	   `(label ,L1))))
+  (ia86.T_OP1_integer->char:trusted))
+
+(define-sassy-instr (ia86.T_OP1_integer->char:trusted)	; integer->char:trusted
   `(shl	,RESULT 6)
   `(or	,RESULT_LOW ,$imm.character))
 
