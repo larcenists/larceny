@@ -354,12 +354,13 @@ scheme48_exec ()
 
 larceny_comp ()
 {
+  printf "$COMPCOMMANDS" "$1" | ${LARCENY} $COMPOPTS
   :
 }
 
 larceny_exec ()
 {
-  printf "$REPLCOMMANDS" "$1" | ${LARCENY} $COMPOPTS
+  printf "$EXECCOMMANDS" "$1" | ${LARCENY} $COMPOPTS
 }
 
 henchman_comp ()
@@ -1112,25 +1113,28 @@ chicken-int) NAME='Chicken-int'
             case "$setting" in
               r5rs)
                 INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
-                REPLCOMMANDS="(begin (compiler-switches 'standard) (load \"%s.scm\") (main))"
+                COMPSWITCHES="(compiler-switches 'standard)"
                 ;;
               r6rs)
                 INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
-                REPLCOMMANDS="(begin (compiler-switches 'fast-safe) (load \"%s.scm\") (main))"
+		COMPSWITCHES="(compiler-switches 'fast-safe)"
                 ;;
               r6rs-unsafe)
                 INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
-                REPLCOMMANDS="(begin (compiler-switches 'fast-unsafe) (load \"%s.scm\") (main))"
+		COMPSWITCHES="(compiler-switches 'fast-unsafe)"
                 ;;
               r6rs-fixflo)
                 INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) yes)))"
-                REPLCOMMANDS="(begin (compiler-switches 'fast-safe) (load \"%s.scm\") (main))"
+		COMPSWITCHES="(compiler-switches 'fast-safe)"
                 ;;
               r6rs-fixflo-unsafe)
                 INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) yes)))"
-                REPLCOMMANDS="(begin (compiler-switches 'fast-unsafe) (load \"%s.scm\") (main))"
+		COMPSWITCHES="(compiler-switches 'fast-unxsafe)"
                 ;;
             esac
+	    REPLCOMMANDS="(begin $COMPSWITCHES (load \"%s.scm\") (main))"
+	    COMPCOMMANDS="(begin $COMPSWITCHES (compile-file \"%s.scm\"))"
+	    EXECCOMMANDS="(begin (load \"%s.fasl\") (main))"
             ;;
 
   henchman) NAME='Henchman'
