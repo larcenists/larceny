@@ -19,7 +19,7 @@
 (define toplevel-macro-expand #f)       ; A hack for the benefit of 
                                         ; init-toplevel-environment
 
-;;; Need compile-file that can find Petit includes
+;;; Need compile-files to find Petit includes
 (require 'petit-compile-file)
 
 ;;; First load the compiler and seal its namespace.
@@ -66,7 +66,9 @@
       
       (install-procedures (interaction-environment)
                           '(; Compilation
-                            compile-file ; from petit-compile-file.sch
+			    *scheme-file-types*
+                            *fasl-file-type*
+			    rewrite-file-type
 			    compile-files
                             macro-expand-expression
                             ; On-line help
@@ -137,6 +139,18 @@
       (compile-files inputs output (environment-syntax-environment
 				    (interaction-environment))))))
 
+;;; Redefine COMPILE-FILE to use the above redefinition of COMPILE-FILES
+;;; (the one that we required from petit-compile-file was sealed off with
+;;;  the old compile-files definition)
+(define (compile-file infile . rest)
+  (let ((outfile
+          (if (null? rest)
+            (rewrite-file-type infile
+                               *scheme-file-types*
+                               *fasl-file-type*)
+            (car rest))))
+    (compile-files (list infile) outfile)))
+
 ;;; Helpful procedure for hiding irrelevant names
 
 (define (load-in-private-namespace files procs)
@@ -190,7 +204,7 @@
 ;;; Load a bunch of useful things.  
 ;;; FIXME: Some of these files could usefully be loaded in private namespaces.
 
-;(load "Auxlib/macros.sch")
+(load (param-filename 'auxiliary "macros.sch"))
 ;(load "Auxlib/record.sch")              ; Record package
 ;(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
 ;(load "Experimental/exception.sch")
