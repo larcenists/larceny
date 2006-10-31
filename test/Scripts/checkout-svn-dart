@@ -184,9 +184,9 @@ esac
 # Perhaps add more to this, like the hour and minute?
 TODAY=`date +%Y-%m-%d` 
 DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TODAY}
-DARTLOG=${HOME}/larcenytest/dart-sub.xml
-TEMPLOG=${HOME}/larcenytest/temp.log
-TEMPSCM=${HOME}/larcenytest/temp.scm
+DARTLOG=${DARTLOG:-"${HOME}/larcenytest/dart-sub.xml"}
+TEMPLOG=${TEMPLOG:-"${HOME}/larcenytest/temp.log"}
+TEMPSCM=${TEMPSCM:-"${HOME}/larcenytest/temp.scm"}
 CALCDATEDART="date +%Y-%m-%dT%H:%M:%S%z"
 
 # Initialize the Dart log
