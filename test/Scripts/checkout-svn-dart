@@ -283,7 +283,7 @@ EOF
 
 function host_scm_cmd {
    cat > ${TEMPSCM} <<EOF
-(load "setup.scm")
+(load "setup.sch")
 (setup ${SETUP_ARGS} )
 (build-config-files)
 (load-compiler)
