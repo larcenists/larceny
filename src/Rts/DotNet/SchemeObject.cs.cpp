@@ -6,6 +6,8 @@ using System.IO;
 using System.Text;
 using Scheme.RT;
 using Scheme.Rep;
+using System.Reflection;
+using System.Reflection.Emit;
 
 namespace Scheme.Rep {
 
@@ -549,6 +551,80 @@ namespace Scheme.Rep {
             w.Write(">");
         }
 
+		public Delegate makeEventHandler(EventInfo ei)
+		{
+			Type tDelegate = ei.EventHandlerType;
+            Type returnType = GetDelegateReturnType(tDelegate);
+
+            // event handlers must have return type of void
+            if (returnType != typeof(void))
+                throw new ApplicationException("Delegate has a return type.");
+
+            // create a dynamic method based on the return and 
+            // argument types of the event handler
+            DynamicMethod handler = new DynamicMethod(
+                "makeEventHandler",
+                null,
+                GetDelegateParameterTypes(tDelegate), 
+                this.GetType());                            
+
+            // now we will generate IL code for the dynamic method
+            ILGenerator ilgen = handler.GetILGenerator();
+
+            // need information for Call.call method
+            Type[] callbackParameters = new Type[] { typeof(Procedure), typeof(SObject), typeof(SObject) };
+            MethodInfo callMethod = typeof(Call).GetMethod("callback",
+                callbackParameters);
+
+            // need information for Factory.makeForeignBox method
+            MethodInfo makeForeignBoxMethod = typeof(Factory).GetMethod("makeForeignBox");
+            
+            ilgen.Emit(OpCodes.Ldarg_0); // this
+            ilgen.Emit(OpCodes.Ldarg_1); // (object sender)
+            ilgen.Emit(OpCodes.Call, makeForeignBoxMethod); // boxed sender
+            ilgen.Emit(OpCodes.Ldarg_2); // (EventArgs e)
+            ilgen.Emit(OpCodes.Call, makeForeignBoxMethod); // (boxed args)
+            ilgen.Emit(OpCodes.Call, callMethod); // Call.call(this, Factory.makeForeignBox(sender), Factory.makeForeignBox(e));
+            ilgen.Emit(OpCodes.Pop); // necessary... YES! not sure why, though.
+            ilgen.Emit(OpCodes.Ret); // return from method
+
+			return handler.CreateDelegate(tDelegate, this);
+		}
+
+		private Type[] GetDelegateParameterTypes(Type d)
+        {
+            if (d.BaseType != typeof(MulticastDelegate))
+                throw new ApplicationException("Not a delegate.");
+
+            MethodInfo invoke = d.GetMethod("Invoke");
+            if (invoke == null)
+                throw new ApplicationException("Not a delegate.");
+
+            ParameterInfo[] parameters = invoke.GetParameters();
+            Type[] typeParameters = new Type[parameters.Length + 1];
+
+            // first parameter is always "this" object.
+            typeParameters[0] = this.GetType();
+
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                typeParameters[i+1] = parameters[i].ParameterType;
+            }
+
+            return typeParameters;
+        }
+
+        private Type GetDelegateReturnType(Type d)
+        {
+            if (d.BaseType != typeof(MulticastDelegate))
+                throw new ApplicationException("Not a delegate.");
+
+            MethodInfo invoke = d.GetMethod("Invoke");
+            if (invoke == null)
+                throw new ApplicationException("Not a delegate.");
+
+            return invoke.ReturnType;
+        }
       //
       // This is ugly, but in order to create delegates of the correct
       // type, we have to match the signature exactly.  I expect that
@@ -556,11 +632,12 @@ namespace Scheme.Rep {
       // with this for now.
       //
 
+#if 0
         public void event_callback (Object sender, EventArgs e) {
             Call.callback (this, Factory.makeForeignBox (sender), Factory.makeForeignBox (e));
             }
 
-#if 0
+
         public void event_callback (Object sender, Microsoft.Win32.PowerModeChangedEventArgs e) {
             Call.callback (this, Factory.makeForeignBox (sender), Factory.makeForeignBox (e));
             }
