@@ -41,6 +41,13 @@
          (rgs args (cdr rgs)))
         ((null? rgs) res))))
 
+(define (twofixnums? l)
+  (and (not (null? l))
+       (not (null? (cdr l)))
+       (null? (cddr l))
+       (fixnum? (car l))
+       (fixnum? (cadr l))))
+
 ;@
 (define logand
   (letrec
@@ -56,8 +63,13 @@
                                              (modulo n2 logical:base))
                                    scl)
                                 acc)))))))
-    (logical:reduce lgand -1)))
-;@
+    (let ((logand (logical:reduce lgand -1)))
+      (lambda args
+        (cond ((twofixnums? args)
+               (fxlogand (car args) (cadr args)))
+              (else
+               (apply logand args)))))))
+                                        ;@
 (define logior
   (letrec
       ((lgior
@@ -72,7 +84,12 @@
                                              (modulo n2 logical:base))
                                    scl)
                                 acc)))))))
-    (logical:reduce lgior 0)))
+    (let ((logior (logical:reduce lgior 0)))
+      (lambda args
+        (cond ((twofixnums? args)
+               (fxlogior (car args) (cadr args)))
+              (else
+               (apply logior args)))))))
 ;@
 (define logxor
   (letrec
@@ -88,9 +105,17 @@
                                              (modulo n2 logical:base))
                                    scl)
                                 acc)))))))
-    (logical:reduce lgxor 0)))
+    (let ((logxor (logical:reduce lgxor 0)))
+      (lambda args
+        (cond ((twofixnums? args)
+               (fxlogxor (car args) (cadr args)))
+              (else
+               (apply logxor args)))))))
 ;@
-(define (lognot n) (- -1 n))
+(define (lognot n) 
+  (if (fixnum? n)
+      (fxlognot n)
+      (- -1 n)))
 ;@
 (define (logtest n1 n2)
   (not (zero? (logand n1 n2))))
