@@ -66,7 +66,7 @@ public class Exn {
   public static CodeAddress fault (int excode, string message)
   {
     Procedure p = Reg.ProcRegister0;
-    msg.WriteLine ("** exn {0}: {1}", excode, message);
+    //msg.WriteLine ("** exn {0}: {1}", excode, message);
     if (excode == -1) {
 	throw new Exception ("exn at " + p);
 	}
