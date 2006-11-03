@@ -151,6 +151,9 @@
 (define-syscall clr/%property-ref-window   34 23)
 (define-syscall clr/%property-ref-intptr-int 34 24)
 
+;; event handling
+(define-syscall clr/%add-event-handler 34 25)
+
 ;; Hook this asap to make it easy to debug this file.
 ;; Using the syscalls directly means that we can turn on
 ;; the debug printing above but not have it interfere here.

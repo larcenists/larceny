@@ -469,6 +469,7 @@
         clr-type/is-enum?
         clr-type/is-generic?
         clr-type/is-special-name?
+        clr/%add-event-handler
         clr/%clr-version
         clr/%eq?
         clr/%ffi-version
