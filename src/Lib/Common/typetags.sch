@@ -11,6 +11,7 @@
 (define sys$tag.flonum-typetag 2)
 (define sys$tag.compnum-typetag 3)
 (define sys$tag.bignum-typetag 4)
+(define sys$tag.ustring-typetag 5) ; FIXME: not added anywhere else
 
 ; Typetags for vector-like structures.
 

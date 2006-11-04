@@ -480,6 +480,21 @@
   (environment-set! larc 'most-positive-fixnum most-positive-fixnum)
   (environment-set! larc 'most-negative-fixnum most-negative-fixnum)
 
+  ;; Unicode characters
+
+  (environment-set! larc 'char-titlecase char-titlecase)
+  (environment-set! larc 'char-foldcase char-foldcase)
+  (environment-set! larc 'char-general-category char-general-category)
+  (environment-set! larc 'char-title-case? char-title-case?)
+
+  ;; Unicode strings in prototype form
+
+  (environment-set! larc 'ustring? ustring?)
+  (environment-set! larc 'make-ustring make-ustring)
+  (environment-set! larc 'ustring-length ustring-length)
+  (environment-set! larc 'ustring-ref ustring-ref)
+  (environment-set! larc 'ustring-set! ustring-set!)
+
   ;; strings
 
   (environment-set! larc 'string-hash string-hash)
