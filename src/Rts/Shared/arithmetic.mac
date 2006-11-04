@@ -303,7 +303,19 @@ double xr = compnum_real( x );
 double xi = compnum_imag( x );
 double yr = compnum_real( y );
 double yi = compnum_imag( y );
-ga_box_compnum( globals, (xr * yr)-(xi * yi), (xi * yr)+(xr * yi) );
+double zr;
+double zi;
+if (xi != 0.0 && yi != 0.0) {
+  zr = (xr * yr)-(xi * yi);
+  zi = (xi * yr)+(xr * yi);
+} else if (yi == 0.0) {
+  zr = xr * yr;
+  zi = xi * yr;
+} else if (xi == 0.0) {
+  zr = xr * yr;
+  zi = xr * yi;
+}
+ga_box_compnum( globals, zr, zi );
 ")
 
 
@@ -774,13 +786,22 @@ static void ga_box_compnum( word *globals, double r, double i )
 {
   word *p;
 
-  globals[ G_RESULT ] = fixnum(6*sizeof(word));
-  mc_alloc_bv( globals );
-  p = (word*)globals[ G_RESULT ];
-  *p = mkheader( 5*sizeof(word), COMPNUM_HDR );
-  *(double*)(p+2) = r;
-  *(double*)(p+4) = i;
-  globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
+  /* 
+   * For now, we return a flonum if the imaginary part is +0.0.
+   * This will probably have to change for R6RS, so leave it up
+   * front where it is conspicuously inefficient and easy to find.
+   */
+  if (i == 0.0 && (1.0/i == 1.0/0.0)) {
+    ga_box_flonum( globals, r );
+  } else {
+    globals[ G_RESULT ] = fixnum(6*sizeof(word));
+    mc_alloc_bv( globals );
+    p = (word*)globals[ G_RESULT ];
+    *p = mkheader( 5*sizeof(word), COMPNUM_HDR );
+    *(double*)(p+2) = r;
+    *(double*)(p+4) = i;
+    globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
+  }
 }
 
 "
