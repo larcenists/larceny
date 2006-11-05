@@ -184,6 +184,12 @@
     public override void op_##method(SObject arg2) { \
         arg2.op_reversed_fixnum_##method(this); \
     }
+
+#define SPECIALOP2_CHAIN_CHAR(method) \
+	public override void op_##method(SObject arg2) { \
+	    arg2.op_reversed_char_##method(this); \
+	}
+
 #define SPECIALOP2_CHAIN_SByteVL(method) \
     public override void op_##method(SObject arg2) { \
         if (this.tag == Tags.BignumTag) { \

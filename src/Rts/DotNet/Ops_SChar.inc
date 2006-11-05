@@ -32,6 +32,8 @@
         }
 
         // Special Operations
+        SPECIALOP2_CHAIN_CHAR(eqvp_not_eq)
+        
         SPECIALOP2_OVERRIDE_REVERSED_CASE(eqvp_not_eq, char, SChar) {
             Reg.Result = (arg1.val == this.val) ? Factory.True : Factory.False;
         }
