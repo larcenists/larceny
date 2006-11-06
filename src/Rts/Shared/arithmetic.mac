@@ -785,13 +785,15 @@ static void ga_box_flonum( word *globals, double d )
 static void ga_box_compnum( word *globals, double r, double i )
 {
   word *p;
-
+  double one = 1.0;
+  double zero = 0.0;
+  double posinf = one/zero; /* Microsoft has issues with 1.0/0.0 ... */
   /* 
    * For now, we return a flonum if the imaginary part is +0.0.
    * This will probably have to change for R6RS, so leave it up
    * front where it is conspicuously inefficient and easy to find.
    */
-  if (i == 0.0 && (1.0/i == 1.0/0.0)) {
+  if (i == 0.0 && (1.0/i == posinf)) {
     ga_box_flonum( globals, r );
   } else {
     globals[ G_RESULT ] = fixnum(6*sizeof(word));
