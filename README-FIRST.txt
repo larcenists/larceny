@@ -3,8 +3,8 @@ SYSTEM REQUIREMENTS
 Currently, this software is distributed for:
  - Solaris on SPARC machines (native SPARC and C backends)
  - Mac OS X (>= 10.2) on PPC machines (C backend)
- - Linux on Intel x86 machines (IA32, NASM and C backends)
- - Windows on Intel x86 machines (IA32 and NASM backends)
+ - Linux on Intel x86 machines (IA32 and C backends)
+ - Windows on Intel x86 machines (IA32 backend)
 
 "Petit Larceny" is used throughout this documentation to refer to all
 versions other than the SPARC and IA32 native backends [1].
@@ -15,15 +15,8 @@ WHAT YOU NEED
 Native (SPARC, IA32): everything should work out of the box.
 
 Petit/C (SPARC, Linux, Mac OS X): ensure that the GNU C Compiler (GCC)
-    is in your search path [2].
+    is in your search path [2].  (If you are building from source, see
 
-Petit/NASM (Linux): both the GNU C Compiler and NASM (The Netwide
-    Assembler) must be in your path.
-
-Petit/NASM (Win32): Microsoft's development tools and NASM must be in
-    your search path.
-
-NASM:     See http://sourceforge.net/projects/nasm
 MS Tools: See http://www.winprog.org/tutorial/msvc.html
 OS X:     Use Apple's Developer Tools, http://developer.apple.com/
 
@@ -69,15 +62,15 @@ COMPILING SCHEME SOURCE WITH LARCENY
 FURTHER READING
 
 If you want to install Larceny for other users on your system, see
-Docs/HOWTO-INSTALL.  To build your own Larceny, take a look at
-Docs/HOWTO-SETUP.
+doc/HOWTO-INSTALL.  To build your own Larceny, take a look at
+doc/HOWTO-SETUP.
 
 
 NOTES
 
-[1] You may be able to make Petit Larceny work on other platforms (e.g.
-Linux/PPC with the C backend, or Mac OS X/x86 with the NASM backend) but
-we do not yet provide support for those systems.
+[1] You may be able to make Petit Larceny work on other platforms
+(e.g. Linux/PPC or Solaris/IA32 with the C backend) but we do not
+yet offer support for those systems.
 
 [2] We currently support GCC version 3.3; other versions may work, but
 currently GCC 4.0 seems to have trouble with the code we generate.  GCC

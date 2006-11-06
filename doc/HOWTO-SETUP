@@ -1,15 +1,16 @@
 Building Larceny
-27 April 2006 / pnkfelix+samth+tov
+6 November 2006
 
 WHAT YOU NEED
 
-You will need a Scheme system to host the Larceny build process;
-currently this works with MzScheme 209 and Larceny [1].
+If you want to recompile the Scheme sources entirely from
+source, you will need a Scheme system to host the Larceny
+build process: either MzScheme 209 or Larceny itself [1].
+See README-FIRST.txt for more details.
 
-Additional requirements for building Petit Larceny are the same as the
-requirements for compiling Scheme sources using Larceny (see
-../README-FIRST.txt).  For Native Larceny (SPARC), you will need a C
-compiler (such as GCC).
+If you want to build Larceny or Petit Larceny entirely from
+source, you will also need a C compiler (such as gcc).  For
+x86-32 targets, you will also need the nasm assembler [2].
 
 
 WHAT TO DO
@@ -23,30 +24,37 @@ change to the root directory of the Larceny tree.
 
     > (load "setup.sch")
     > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'nasm | 'sassy ])
-    > (build-config-files)              ; [2]
+    > (build-config-files)              ; [3]
     > (load-compiler)
 
-The call to setup (above) has several options that determine which
-version of Larceny you build:
+The call to setup (above) has several options that let you
+declare which implementation of Scheme you want to use for
+the build process (SCHEME) and which OS you are using as
+both the host and target of the build (HOST):
 
-        SCHEME ::= 'mzscheme | 'larceny | 'petite | 'chez       [3]
+        SCHEME ::= 'mzscheme | 'larceny | 'petite | 'chez
         HOST   ::= 'macosx | 'solaris | 'linux86 | 'win32
 
-Additionally, the optional 'native flag will build Native Larceny
-(SPARC) on Solaris; 'nasm will use the NASM backend on x86; 'sassy will
-use the Sassy backend on x86.  The 'nasm or 'sassy flag is necessary to
-use dynamic loading on Win32, and is thus strongly recommended in that
-case.  There are several other optional flags that change the compiler's
-behavior [3].
+Additionally, the optional 'native flag will build native Larceny
+(SPARC) on Solaris; 'sassy will build native Larceny (x86-32) on
+Linux or Windows; and 'nasm will build the now-deprecated
+Petit/nasm Larceny (x86-32) using the NASM backend instead of
+Sassy.
+
+The 'sassy or 'nasm flag is necessary if you want to use dynamic
+loading on Win32, and is strongly recommended for that operating
+system.  There are several other optional flags that change the
+compiler's behavior [4].
 
 Some useful examples which are known to work:
-
-    > (setup 'scheme: 'larceny  'host: 'solaris 'native)
-    > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy)
-    > (setup 'scheme: 'larceny  'host: 'linux86 'nasm)
-    > (setup 'scheme: 'mzscheme 'host: 'linux86)
-    > (setup 'scheme: 'larceny  'host: 'solaris)
-    > (setup 'scheme: 'mzscheme 'host: 'macosx)
+                                                         ; to build:
+    > (setup 'scheme: 'larceny  'host: 'solaris 'native) ; native Larceny
+    > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy)    ; native Larceny
+    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy)  ; native Larceny
+    > (setup 'scheme: 'larceny  'host: 'linux86 'nasm)   ; deprecated
+    > (setup 'scheme: 'mzscheme 'host: 'linux86)         ; Petit Larceny
+    > (setup 'scheme: 'larceny  'host: 'solaris)         ; Petit Larceny
+    > (setup 'scheme: 'mzscheme 'host: 'macosx)          ; Petit Larceny
 
 
 2. Build Larceny components
@@ -86,7 +94,7 @@ On Native Larceny (SPARC):
     > (exit)
     % cp larceny twobit
 
-On IAssassin Larceny (Intel) [4]:
+On IAssassin Larceny (Intel) [5]:
 
     % "./larceny.bin" -stopcopy -- src/Build/iasn-larceny-heap.sch
     > (exit)
@@ -113,13 +121,22 @@ You can now run ./twobit, ./larceny, or ./petit-larceny.
 
 NOTES
 
-[1] Currently we support MzScheme 209; MzScheme 3xx will be supported in
-a later release.  Use (Petite) Chez at your own risk.
+[1] For the build process, we recommend using a prebuilt version
+of Larceny itself.  You can also use MzScheme 209; MzScheme 3xx
+will be supported in a later release.  Use (Petite) Chez at your
+own risk.  In the past, several other implementations of Scheme
+could be used for the build process, but they haven't been tested
+lately and aren't likely to work any more.
 
-[2] This is only strictly necessary the first time and when the options
+[2] http://sourceforge.net/projects/nasm
+
+For Petit/NASM (Win32), Microsoft's development tools and NASM must
+both be in your search path.
+
+[3] This is only strictly necessary the first time and when the options
 given to setup have changed, but it should be safe to do every time.
 
-[3] Some other potentially useful flags, given optionally at the end of
+[4] Some other potentially useful flags, given optionally at the end of
 the call to setup:
 
     'code-cov
@@ -136,6 +153,7 @@ the call to setup:
         environment under Larceny.  This is useful under Petit Larceny
         if the executable gets out of sync with the fasl files.
 
-[4] The quotation marks around "./larceny.bin" are a uniform syntax that
+[5] The quotation marks around "./larceny.bin" are a uniform syntax that
 works on both Microsoft Windows and UNIX-like shells.  The reason is
 left as an exercise for the reader.
+
