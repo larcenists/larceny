@@ -33,14 +33,24 @@
 	  (values (%get32 tv 0) (%get32 tv 4))))))
 
   (define timezone-offset
-    (let ((_localtime
-	   (foreign-procedure "localtime" '(boxed) 'uint))
-	  (_timezone
-	   (foreign-variable "timezone" 'long)))
+    (let ((_localtime 
+           (foreign-procedure "localtime" '(boxed) 'uint))
+          (_gmtime 
+           (foreign-procedure "gmtime"    '(boxed) 'uint))
+          (_mktime
+           ;; mktime takes a pointer to storage owned by the C runtime, aka a uint.
+           ;; (We need to fix our FFI interface to express this directly)
+           (foreign-procedure "mktime"    '(uint) 'uint))
+          (_difftime
+           (foreign-procedure "difftime"  '(uint uint) 'double)))
       (lambda (t)
 	(let ((tv (make-bytevector 4)))
-	  (%set32 tv 0 t)
-	  (_localtime tv)
-	  (- (_timezone))))))
+          (%set32 tv 0 t)
+          ;; A trick from the Apache Portable Runtime: mktime is inverse of localtime,
+          ;; so mktime(gmtime(now)) - mktime(localtime(now)) _should_ be offset from utc.
+          (let ((gmean-tm (_gmtime tv)))
+            ;; set tm->tm_isdst to 0; GMT does not have DST.
+            (%poke32 (+ gmean-tm 32) 0)
+            (inexact->exact (ceiling (_difftime t (_mktime gmean-tm)))))))))
 ))
 
