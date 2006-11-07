@@ -18,7 +18,11 @@ if not defined LARCENY_ROOT (
 if %~n0 == petit (
     call :check "%LARCENY_ROOT%\petit.bin.exe" -heap "%LARCENY_ROOT%\petit.heap" %*
 ) else if %~n0 == twobit (
-    call :check "%LARCENY_ROOT%\twobit.bin.exe" -heap "%LARCENY_ROOT%\twobit.heap" %*
+    if exist "%LARCENY_ROOT%\twobit.bin.exe" (
+        call :check "%LARCENY_ROOT%\twobit.bin.exe" -heap "%LARCENY_ROOT%\twobit.heap" %*
+    ) else (
+        call :check "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\twobit.heap" %*
+    )
 ) else if %~n0 == larceny (
     call :check "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\larceny.heap" %*
 ) else if %~n0 == larceny-r5rs (
