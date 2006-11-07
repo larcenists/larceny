@@ -13,6 +13,9 @@ WARNINGNUM=1
 # SVNTRUNK="http://larceny.ccs.neu.edu/svn/trunk/larceny_src"
 SVNTRUNK="http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src"
 
+FINAL_LARCENY_SCRIPT=larceny
+FIXPATH_CMD=echo
+
 # Setup options (based on script's name)
 case "`basename "$0"`" in
 
@@ -173,6 +176,19 @@ case "`basename "$0"`" in
 	DIRNAME=default
 	MAKETEXTSAFE=native2ascii
 	;;
+        CYGWIN*)
+	echo "Setup arguments not specified; assuming win32 native build."	
+	HOME="`pwd`"
+	SCHEME_PGM="`pwd`/HostLarceny/larceny.bat"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'win32 'sassy"
+	FINAL_LARCENY_BIN=larceny.bin.exe
+	FINAL_LARCENY_SCRIPT=larceny.bat
+	FIXPATH_CMD="cygpath -w"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	DIRNAME=default
+	### XXX This is bad:
+	MAKETEXTSAFE="cat"
+        ;;
 	*)
 	echo "Setup arguments not specified; unknown target architecture."
 	exit 1
@@ -187,6 +203,7 @@ DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TODAY}
 DARTLOG=${DARTLOG:-"${HOME}/larcenytest/dart-sub.xml"}
 TEMPLOG=${TEMPLOG:-"${HOME}/larcenytest/temp.log"}
 TEMPSCM=${TEMPSCM:-"${HOME}/larcenytest/temp.scm"}
+REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
 CALCDATEDART="date +%Y-%m-%dT%H:%M:%S%z"
 
 # Initialize the Dart log
@@ -240,7 +257,7 @@ function eval_stage {
 
    pushd "$3" > /dev/null
    SECS_BEGIN=`date +%s`
-   cmdsetstatus "$4" > ${TEMPLOG} 2>&1
+   cmdsetstatus "$4" 2>&1 | tee ${TEMPLOG}
    SECS_FINIS=`date +%s`
    popd     > /dev/null
 
@@ -291,7 +308,7 @@ function host_scm_cmd {
 $4
 (exit)
 EOF
-   eval_stage "$1" "$2" "$3" "${SCHEME_PGM} -- ${TEMPSCM}"
+   eval_stage "$1" "$2" "$3" "${SCHEME_PGM} -- ${REALSCM}"
 }
 
 eval_stage   bSvnCheckout  "1. svn checkout"       ${DIR}             "svn checkout -q ${SVNTRUNK}"
@@ -326,7 +343,7 @@ function library_test {
   (exit num-fails))
 EOF
     SECS_BEGIN=`date +%s`
-    cmdsetstatus "../../larceny -- ${TEMPSCM}" > ${TEMPLOG} 2>&1
+    cmdsetstatus "../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}" > ${TEMPLOG} 2>&1
     SECS_FINIS=`date +%s`
     dartlog '<Measurement name="Execution Time" type="numeric/float">'
     dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
@@ -363,7 +380,7 @@ function compiler_tests {
   (exit num-fails))
 EOF
     SECS_BEGIN=`date +%s`
-    cmdsetstatus "../../larceny -- ${TEMPSCM}" > ${TEMPLOG} 2>&1
+    cmdsetstatus "../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}" > ${TEMPLOG} 2>&1
     SECS_FINIS=`date +%s`
     dartlog '<Measurement name="Execution Time" type="numeric/float">'
     dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
@@ -385,7 +402,7 @@ compiler_tests sanity-switches
 
 # Benchmarks
 pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
-LARCENY=`pwd`/../../../larceny ./bench -r 3 larceny all > ${TEMPLOG} 2>&1
+LARCENY=`pwd`/../../../${FINAL_LARCENY_SCRIPT} ./bench -r 3 larceny all > ${TEMPLOG} 2>&1
 cat > ${TEMPSCM} <<EOF
 (error-handler (lambda l (display l) (newline) (exit 117)))
 (load "summarize.sch")
@@ -422,7 +439,7 @@ cat > ${TEMPSCM} <<EOF
 EOF
 # The "tail +2" is to cut off the Larceny header; we should really make 
 # omitting that a proper option...
-../../../larceny -- ${TEMPSCM} | tail +2 >> ${DARTLOG}
+../../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM} | tail +2 >> ${DARTLOG}
 
 cat results.Larceny-r5rs >> Results/results.Larceny
 rm results.Larceny-r5rs
