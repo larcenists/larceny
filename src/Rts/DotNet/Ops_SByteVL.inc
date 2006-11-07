@@ -129,7 +129,13 @@
         // Flonums
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, flonum, SByteVL, FlonumTag) 
         {
-            Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
+            double x = this.unsafeAsDouble(0);
+            double y = arg1.unsafeAsDouble(0);
+            if (x == 0.0 && y == 0.0) {
+              Reg.Result = (1.0/y == 1.0/x) ? Factory.True : Factory.False;
+            } else { 
+              Reg.Result = (y == x) ? Factory.True : Factory.False;
+            }
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(numeric_equals, flonum, SByteVL, FlonumTag) {
             Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
