@@ -26,15 +26,14 @@ Larceny is usually started by a script, which has two functions:
 
 Which scripts you have depends on what platform you are using:
 
- - Windows: Batch files "petit.bat" and "twobit.bat"
- - SPARC Native Larceny: Shell scripts "larceny" and "larceny-r5rs"
- - Petit Larceny: Shell scripts "petit" and "twobit"
+ - Windows: Batch files "larceny.bat" and "twobit.bat"
+ - Solaris, Linux, Mac OS X: Shell scripts "larceny" and "twobit"
 
 If you would like to move one of these scripts to another directory but
 not rename it, it is sufficient to hard-code the location of the Larceny
 tree in the script.  For example, to install Petit Larceny into
 /usr/local on Linux, untar the Larceny tree as /usr/local/lib/larceny.
-Then, copy the scripts "petit" and "twobit" to /usr/local/bin, and edit
+Then, copy the scripts "larceny" and "twobit" to /usr/local/bin, and edit
 each one by uncommenting the line that sets LARCENY_ROOT, and setting it
 to /usr/local/lib/larceny.
 

@@ -10,7 +10,7 @@ See README-FIRST.txt for more details.
 
 If you want to build Larceny or Petit Larceny entirely from
 source, you will also need a C compiler (such as gcc).  For
-x86-32 targets, you will also need the nasm assembler [2].
+x86-32 targets, you will also need the NASM assembler [2].
 
 
 WHAT TO DO
@@ -23,7 +23,7 @@ Run your host Scheme (either another Larceny or MzScheme 209), and
 change to the root directory of the Larceny tree.
 
     > (load "setup.sch")
-    > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'nasm | 'sassy ])
+    > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'sassy ])
     > (build-config-files)              ; [3]
     > (load-compiler)
 
@@ -33,25 +33,25 @@ the build process (SCHEME) and which OS you are using as
 both the host and target of the build (HOST):
 
         SCHEME ::= 'mzscheme | 'larceny | 'petite | 'chez
-        HOST   ::= 'macosx | 'solaris | 'linux86 | 'win32
+        HOST   ::= 'macosx | 'macosx-el | 'solaris | 'linux86 | 'win32
+
+The HOST option macosx-el is for Intel-based Macintosh computers.
 
 Additionally, the optional 'native flag will build native Larceny
 (SPARC) on Solaris; 'sassy will build native Larceny (x86-32) on
-Linux or Windows; and 'nasm will build the now-deprecated
-Petit/nasm Larceny (x86-32) using the NASM backend instead of
-Sassy.
+Linux, Windows, or Mac OS X.
 
-The 'sassy or 'nasm flag is necessary if you want to use dynamic
-loading on Win32, and is strongly recommended for that operating
-system.  There are several other optional flags that change the
-compiler's behavior [4].
+The 'sassy flag is necessary if you want to use dynamic loading
+on Win32, and is strongly recommended for that operating system.
+There are several other optional flags that change the compiler's
+behavior [4].
 
 Some useful examples which are known to work:
                                                          ; to build:
     > (setup 'scheme: 'larceny  'host: 'solaris 'native) ; native Larceny
     > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy)    ; native Larceny
     > (setup 'scheme: 'larceny  'host: 'linux86 'sassy)  ; native Larceny
-    > (setup 'scheme: 'larceny  'host: 'linux86 'nasm)   ; deprecated
+    > (setup 'scheme: 'mzscheme 'host: 'macosx-el 'sassy); native Larceny
     > (setup 'scheme: 'mzscheme 'host: 'linux86)         ; Petit Larceny
     > (setup 'scheme: 'larceny  'host: 'solaris)         ; Petit Larceny
     > (setup 'scheme: 'mzscheme 'host: 'macosx)          ; Petit Larceny
@@ -72,8 +72,8 @@ To build a complete Larceny user system, including the Twobit compiler:
 
     > (build-larceny-files)
 
-On Petit, you may want to build the Twobit compiler development
-environment:
+You may want the Twobit compiler development environment; on
+Petit, you must build it separately:
 
     > (build-twobit)
 
@@ -101,37 +101,42 @@ On IAssassin Larceny (Intel) [5]:
 
     % "./larceny.bin" -stopcopy -- src/Build/iasn-twobit-heap.sch
     > (exit)
+
+  On *NIX:
     % cp larceny twobit
+
+  On Windows:
+    > copy larceny.bat twobit.bat
 
 On Petit Larceny:
 
     % ./petit-larceny.bin -stopcopy
     > (load "setup.sch")
-    > (setup [ 'nasm ])
+    > (setup)
     > (load-compiler)
     > (load "src/Build/petit-larceny-heap.sch")
     > (exit)
 
     % ./twobit.bin -stopcopy -- src/Build/petit-twobit-heap.sch
-    > (dump [ 'nasm ])
+    > (dump)
     > (exit)
 
-You can now run ./twobit, ./larceny, or ./petit-larceny.
+You can now run "./larceny" or "./twobit".
 
 
 NOTES
 
-[1] For the build process, we recommend using a prebuilt version
-of Larceny itself.  You can also use MzScheme 209; MzScheme 3xx
-will be supported in a later release.  Use (Petite) Chez at your
-own risk.  In the past, several other implementations of Scheme
-could be used for the build process, but they haven't been tested
-lately and aren't likely to work any more.
+[1] For the build process, we recommend using a prebuilt version of
+Larceny itself.  You can also use MzScheme 209.  MzScheme 3xx will be
+fully supported in a later release; MzScheme 352.8 with the -G switch
+might work.  Use (Petite) Chez at your own risk.  In the past, several
+other implementations of Scheme could be used for the build process, but
+they haven't been tested lately and aren't likely to work any more.
 
 [2] http://sourceforge.net/projects/nasm
 
-For Petit/NASM (Win32), Microsoft's development tools and NASM must
-both be in your search path.
+For the 'sassy backend on 'win32, Microsoft's development tools
+and NASM must both be in your search path.
 
 [3] This is only strictly necessary the first time and when the options
 given to setup have changed, but it should be safe to do every time.
@@ -152,6 +157,11 @@ the call to setup:
         Don't load compiled fasl files when loading the development
         environment under Larceny.  This is useful under Petit Larceny
         if the executable gets out of sync with the fasl files.
+
+    'nasm
+        Build a Petit Larceny which targets the NASM assembler (IA32)
+        rather than Standard C.  This option is deprecated in favor of
+        the Sassy backend.
 
 [5] The quotation marks around "./larceny.bin" are a uniform syntax that
 works on both Microsoft Windows and UNIX-like shells.  The reason is
