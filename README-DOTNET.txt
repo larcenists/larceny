@@ -9,10 +9,10 @@ those systems.
 
 WHAT YOU NEED
 
-To run the interpreter, everything should work out of the box.  (For
-.NET before version 2.0, you may have to set the LARCENY_ROOT
-environment variable explicitly to the Larceny's path before running
-Common Larceny)
+To run the interpreter, you will first need to the LARCENY_ROOT
+environment variable explicitly to the Larceny's distribution's path 
+before running Common Larceny. Otherwise, everything else should
+work "out of the box".
 
 To compile files, the development tools (e.g. ilasm) must be in your
 search path.  Also, for now you must have Twobit.fasl and Twobit.exe
@@ -42,7 +42,6 @@ Do not run Larceny.exe; it is not a standalone application.
 COMPILING SCHEME SOURCE WITH LARCENY
 
  - (compile-file <SOURCE> [<TARGET>])
-
    (compile-file "source.sch")
      compiles "source.sch", leaving the compiled code in "source.fasl"
 
@@ -52,10 +51,13 @@ COMPILING SCHEME SOURCE WITH LARCENY
  - (load "target.fasl")
      loads the compiled code in "target.fasl"
 
-
 FURTHER READING
 
-To build your own Common Larceny, take a look at Docs/HOWTO-DOTNET.
+
+For more information, including detailed instructions on how to build
+Common Larceny, please see the Common Larceny User Manual under 
+doc/CommonLarceny.
+
 For a list of bugs that are known to persist in this release, see
 Docs/KNOWN-BUGS.
 
