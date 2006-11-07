@@ -287,7 +287,8 @@
   (cond ((file-exists? "Twobit.fasl")
 	 (delete-file "Twobit.fasl")))
   (build-twobit-base "Twobit" 
-                     (param-filename 'auxiliary "dotnet-compile-file.sch")))
+                     (list 
+                      (param-filename 'auxiliary "dotnet-compile-file.sch"))))
 
 (define (build-larceny)
   (cond ((file-exists? "Larceny.fasl")
