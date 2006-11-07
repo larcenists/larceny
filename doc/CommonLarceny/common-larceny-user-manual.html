@@ -298,6 +298,11 @@ bundle. Each bundle contains a Common Larceny executable file, and the
 libraries required by the executable. If you'd like to build from source, you
 can do that, too.</p>
 <h3>Requirements</h3>
+<p>Currently, this software is distributed for Windows on Intel x86 machines,
+Microsoft .NET Framework 2.0.</p>
+<p>You can make Common Larceny work on other platforms (e.g. Mac OS X
+with the Mono Framework 1.1) but we do not yet provide support for
+those systems.</p>
 <h4>Common Language Infrastructure</h4>
 <p>Before using Common Larceny, you must have some version of the Common Language
 Infrastructure on your system. It is recommended that you use the <em>Microsoft
@@ -526,10 +531,53 @@ machine using MzScheme.</p>
       (system "copy /Y src\\Rts\\DotNet\\Scheme.dll .")))
   (if make-fasl? (build-larceny)))</tt></pre>
 </div></div>
+<h3>Compiling Code to Run within Common Larceny</h3>
+<p>The compiler can also be used to compile code for loading into the
+Common Larceny interpreter. This allows you to run programs at compiled
+speeds without building the code into the larceny executable.</p>
+<p>Load the compiler using the same steps as above:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>&gt; (load "Util/dotnet.sch")
+&gt; (larceny-setup &lt;host-scheme&gt; &lt;os&gt; &lt;endianness&gt; &lt;codegen-options&gt;)
+&gt; (load-compiler)</tt></pre>
+</div></div>
+<p>The compiler is now loaded, and you can use the following procedures:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>;; build-application : string (listof string) -&gt; void
+;; Given an application name and a list of LOP files, creates
+;; an EXE file and a FASL file (each LOP file must have a
+;; corresponding MANIFEST file).</tt></pre>
+</div></div>
+<div class="literalblock">
+<div class="content">
+<pre><tt>;; compile-application : string (listof string) -&gt; void
+;; Given an application name and a list of scheme source files,
+;; creates an EXE file and a FASL file.</tt></pre>
+</div></div>
+<p>For example:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>&gt; (compile-application "EvenAndOdd" (list "even.sch" "odd.sch"))
+&gt; (load "EvenAndOdd.fasl")</tt></pre>
+</div></div>
+<p>or
+    &gt; (compile313 "even.sch")
+    &gt; (compile313 "odd.sch")
+    &gt; (assemble313 "even.lap")
+    &gt; (assemble313 "odd.lap")
+    &gt; (build-application "EvenAndOdd" (list "even.lop" "odd.lop"))</p>
+<p>Note that the first string you supply to build-application or
+create-application should have no file extension, and you only load the
+resulting FASL file, which must be in the current directory*.</p>
+<p>Any Scheme system which can run the compiler can be used to compile the
+applications, but of course the resulting FASL files must be loaded
+by the Common Larceny interpreter.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 07-Nov-2006 14:04:42 EDT
+Last updated 07-Nov-2006 14:54:26 EDT
 </div>
 </div>
 </body>
