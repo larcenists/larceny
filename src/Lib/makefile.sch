@@ -716,7 +716,7 @@
 
 (define auxlib-files
   '("misc" "list" "vector" "string" "pp" "io" "format" "load"
-    "osdep-unix" "record"))
+    "osdep-unix" "osdep-win32" "record"))
 
 (define experimental-files
   ; (param-filename 'root "Lib" "Experimental

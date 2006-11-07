@@ -233,9 +233,18 @@
 
 (load-in-private-namespace
  (map (lambda (fasl) (param-filename 'auxiliary fasl))
-      '("pp.fasl"     "misc.fasl"       "list.fasl"
-        "string.fasl" "vector.fasl"     "pp.fasl"
-        "io.fasl"     "osdep-unix.fasl" "load.fasl"))
+      `("pp.fasl"
+        "misc.fasl"
+        "list.fasl"
+        "string.fasl"
+        "vector.fasl"
+        "pp.fasl"
+        "io.fasl"
+        ,(if (string=? (cdr (assq 'os-name (system-features)))
+                       "Win32")
+           "osdep-win32.fasl"
+           "osdep-unix.fasl")
+        "load.fasl"))
  '(remq! remv! remove! aremq! aremv! aremove! filter find make-list 
    reduce reduce-right fold-left fold-right vector-copy read-line
    pretty-print pretty-line-length file-newer? read-line 
