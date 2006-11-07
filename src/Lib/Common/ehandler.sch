@@ -270,7 +270,7 @@
        ((= code $ex.lsh)
         (fix-binop "fxlsh" arg1 arg2))
        ((= code $ex.rsha)
-        (fix-binop "fxrsha" arg1 arg))
+        (fix-binop "fxrsha" arg1 arg2))
        ((= code $ex.rshl)
         (fix-binop "fxrshl" arg1 arg2))
        ((= code $ex.fx+)
