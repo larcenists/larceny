@@ -1,4 +1,5 @@
 #!/bin/bash
+# vim: tw=0
 set -o errexit
 
 # Override this variable to submit to other Dart tracks.
@@ -15,6 +16,8 @@ SVNTRUNK="http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src"
 
 FINAL_LARCENY_SCRIPT=larceny
 FIXPATH_CMD=echo
+FINAL_LARCENY_BIN=larceny.bin
+FINAL_TWOBIT_BIN=larceny.bin
 
 # Setup options (based on script's name)
 case "`basename "$0"`" in
@@ -22,16 +25,14 @@ case "`basename "$0"`" in
     checkout-larceny-solaris-native)
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native"
-	FINAL_LARCENY_BIN=larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-solaris-native)
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris 'native"
-	FINAL_LARCENY_BIN=larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
     ;;
@@ -39,7 +40,8 @@ case "`basename "$0"`" in
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris"
 	FINAL_LARCENY_BIN=petit-larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=petit
 	MAKETEXTSAFE=native2ascii
     ;;
@@ -47,7 +49,8 @@ case "`basename "$0"`" in
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris"
 	FINAL_LARCENY_BIN=petit-larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=petit
 	MAKETEXTSAFE=native2ascii
     ;;
@@ -56,7 +59,8 @@ case "`basename "$0"`" in
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86"
 	FINAL_LARCENY_BIN=petit-larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=petit
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
@@ -64,14 +68,16 @@ case "`basename "$0"`" in
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'nasm"
 	FINAL_LARCENY_BIN=petit-larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=petit
     ;;
     checkout-mzscheme-linux86-petit)
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86"
 	FINAL_LARCENY_BIN=petit-larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=petit
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
@@ -79,36 +85,35 @@ case "`basename "$0"`" in
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'nasm"
 	FINAL_LARCENY_BIN=petit-larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=petit
     ;;
 #    checkout-larceny-linux86-dotnet)
 #	SCHEME_PGM=larceny
 #	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'dotnet"
 #	FINAL_LARCENY_BIN=dotnet.heap.exe
-#	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+#	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 #	DIRNAME=dotnet
 #    ;;
 #    checkout-mzscheme-linux86-dotnet)
 #	SCHEME_PGM=mzscheme
 #	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'dotnet"
 #	FINAL_LARCENY_BIN=dotnet.heap.exe
-#	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+#	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 #	DIRNAME=dotnet
 #    ;;
     checkout-larceny-linux86-native)
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
-	FINAL_LARCENY_BIN=larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
     checkout-mzscheme-linux86-native)
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'sassy"
-	FINAL_LARCENY_BIN=larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
@@ -117,7 +122,8 @@ case "`basename "$0"`" in
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx"
 	FINAL_LARCENY_BIN=petit-larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=petit
 	MAKETEXTSAFE=native2ascii
     ;;
@@ -125,23 +131,22 @@ case "`basename "$0"`" in
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx"
 	FINAL_LARCENY_BIN=petit-larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-larceny-heap.sch
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=petit
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-larceny-macosx-native)  # IA32!
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy"
-	FINAL_LARCENY_BIN=larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-macosx-native) # IA32!
 	SCHEME_PGM=mzscheme
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx-el 'sassy"
-	FINAL_LARCENY_BIN=larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
     ;;
@@ -153,8 +158,7 @@ case "`basename "$0"`" in
 	echo "Setup arguments not specified; assuming Solaris native build."
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native"
-	FINAL_LARCENY_BIN=larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/sparc-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=default
 	MAKETEXTSAFE=native2ascii
 	;;
@@ -162,8 +166,7 @@ case "`basename "$0"`" in
 	echo "Setup arguments not specified; assuming linux86 native build."
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
-	FINAL_LARCENY_BIN=larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=default
 	MAKETEXTSAFE="iconv -t utf8 -c"
 	;;
@@ -171,8 +174,7 @@ case "`basename "$0"`" in
 	echo "Setup arguments not specified; assuming macosx86 native build."	
 	SCHEME_PGM=larceny
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy"
-	FINAL_LARCENY_BIN=larceny.bin
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=default
 	MAKETEXTSAFE=native2ascii
 	;;
@@ -182,9 +184,10 @@ case "`basename "$0"`" in
 	SCHEME_PGM="`pwd`/HostLarceny/larceny.bat"
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'win32 'sassy"
 	FINAL_LARCENY_BIN=larceny.bin.exe
+	FINAL_TWOBIT_BIN=larceny.bin.exe
 	FINAL_LARCENY_SCRIPT=larceny.bat
 	FIXPATH_CMD="cygpath -w"
-	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=default
 	### XXX This is bad:
 	MAKETEXTSAFE="cat"
@@ -205,6 +208,8 @@ TEMPLOG=${TEMPLOG:-"${HOME}/larcenytest/temp.log"}
 TEMPSCM=${TEMPSCM:-"${HOME}/larcenytest/temp.scm"}
 REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
 CALCDATEDART="date +%Y-%m-%dT%H:%M:%S%z"
+LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
+TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
 
 # Initialize the Dart log
 echo '<?xml version="1.0" encoding="utf-8"?>'            >  $DARTLOG
@@ -258,6 +263,7 @@ function eval_stage {
    pushd "$3" > /dev/null
    SECS_BEGIN=`date +%s`
    cmdsetstatus "$4" > ${TEMPLOG} 2>&1
+   # cmdsetstatus "$4" 2>&1 | tee ${TEMPLOG}
    SECS_FINIS=`date +%s`
    popd     > /dev/null
 
@@ -316,7 +322,9 @@ host_scm_cmd dBuildHeap    "2. bootstrap heap"     ${DIR}/larceny_src "(build-he
 host_scm_cmd eRuntime      "3. larceny runtime"    ${DIR}/larceny_src "(build-runtime)"
 host_scm_cmd fExecutable   "4. larceny executable" ${DIR}/larceny_src "(build-executable)"
 host_scm_cmd gLarcenyFasl  "5. larceny fasl files" ${DIR}/larceny_src "(build-larceny-files)"
-eval_stage   hLarcenyHeap  "6. larceny heap"       ${DIR}/larceny_src "echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${HEAP_DUMP_SCRIPT}"
+eval_stage   hLarcenyHeap  "6. larceny heap"       ${DIR}/larceny_src "echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}"
+host_scm_cmd iLarcenyFasl  "7. twobit fasl files"  ${DIR}/larceny_src "(build-twobit)"
+eval_stage   jTwobitHeap   "8. twobit heap"        ${DIR}/larceny_src "echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}"
 
 function dart_post_test {
     dartlog '<Status>'
