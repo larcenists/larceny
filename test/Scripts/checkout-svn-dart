@@ -257,7 +257,7 @@ function eval_stage {
 
    pushd "$3" > /dev/null
    SECS_BEGIN=`date +%s`
-   cmdsetstatus "$4" 2>&1 | tee ${TEMPLOG}
+   cmdsetstatus "$4" > ${TEMPLOG} 2>&1
    SECS_FINIS=`date +%s`
    popd     > /dev/null
 
