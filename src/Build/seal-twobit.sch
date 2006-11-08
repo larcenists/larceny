@@ -24,7 +24,13 @@
                                         ; of macro-expand below
 (define toplevel-macro-expand macro-expand)
 
-(define (seal-twobit proc-names)
+(define (seal-twobit proc-names . rest)
+  
+  (define macro-names 
+    (cond 
+     ((null? rest) '())
+     (else (car rest))))
+
   ;; Install twobit's macro expander as the interpreter's ditto
   ;; FSK: I'm not too thrilled about this either.
   (macro-expander (lambda (form environment)
@@ -41,13 +47,33 @@
     (letrec ((install-procedures
               (lambda (x procs)
                 (if (not (null? procs))
-                    (begin
-                      (environment-set! x
-                                        (car procs)
-                                        (environment-get e (car procs)))
-                      (install-procedures x (cdr procs)))))))
+                    (let ((is-var (environment-variable? e (car procs))))
+                      (cond 
+                       (is-var
+                        (environment-set! x
+                                          (car procs)
+                                          (environment-get e (car procs))))
+                       (else
+                        (display `(Whoops ,(car procs) is not a proc))
+                        (newline)))
+                      (install-procedures x (cdr procs))))))
+             (install-macros
+              (lambda (x macros)
+                (if (not (null? macros))
+                    (let ((bound-macro
+                           (environment-get-macro e (car macros))))
+                      (cond 
+                       (bound-macro
+                        (environment-set-macro! x
+                                                (car macros)
+                                                bound-macro))
+                       (else
+                        (display `(Whoops ,(car macros) is not a macro!))
+                        (newline)))
+                      (install-macros x (cdr macros)))))))
       (init-toplevel-environment)
-      (install-procedures (interaction-environment) proc-names)))
+      (install-procedures (interaction-environment) proc-names)
+      (install-macros (interaction-environment) macro-names)))
   (eval 
    '(define macro-expand 
       (lambda (expr . rest)
