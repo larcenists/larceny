@@ -5,9 +5,9 @@
 ; and debugger.  The easiest way to do that is to run 'build-twobit' in
 ; the standard development environment.
 
-(display "Thanks for dumping a Petit Twobit heap.  Now you need to say\n")
-(display "something like (dump) or (dump 'nasm)\n")
-(display "(N.B.: heap dumping only works with -stopcopy\n")
+;(display "Thanks for dumping a Petit Twobit heap.  Now you need to say\n")
+;(display "something like (dump) or (dump 'nasm)\n")
+;(display "(N.B.: heap dumping only works with -stopcopy\n")
 
 (define (dump . native)
   (load "setup.sch")
@@ -27,5 +27,7 @@
   (set! dump (undefined))
 
   (dump-interactive-heap "twobit.heap"))
+
+(dump)
 
 ; eof
