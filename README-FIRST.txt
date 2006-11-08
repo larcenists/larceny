@@ -3,8 +3,9 @@ SYSTEM REQUIREMENTS
 Currently, this software is distributed for:
  - Solaris on SPARC machines (native SPARC and C backends)
  - Mac OS X (>= 10.2) on PPC machines (C backend)
- - Linux on Intel x86 machines (IA32 and C backends)
- - Windows on Intel x86 machines (IA32 backend)
+ - Mac OS X (>= 10.4) on IA32 machines (native IA32 backend)
+ - Linux on Intel x86 machines (native IA32 and C backends)
+ - Windows on Intel x86 machines (native IA32 backend)
 
 "Petit Larceny" is used throughout this documentation to refer to all
 versions other than the SPARC and IA32 native backends [1].
@@ -14,35 +15,22 @@ WHAT YOU NEED
 
 Native (SPARC, IA32): everything should work out of the box.
 
-Petit/C (SPARC, Linux, Mac OS X): ensure that the GNU C Compiler (GCC)
+Petit/C (Solaris, Linux, Mac OS X): ensure that the GNU C Compiler (GCC)
     is in your search path [2].  (If you are building from source, see
+    doc/HOWTO-SETUP.)
 
-MS Tools: See http://www.winprog.org/tutorial/msvc.html
-OS X:     Use Apple's Developer Tools, http://developer.apple.com/
+    Mac OS X: Use Apple's Developer Tools, http://developer.apple.com/
 
 
 QUICK START
 
-Native (SPARC, IA32):
- - If you want to use the compiler, run
+Solaris, Linux, and Mac OS X:
+ - Run
    % ./larceny
 
- - If you're content to use only the interpreter, run
-   % ./larceny-r5rs
-
-Petit (Linux, SPARC, Mac OS X):
- - If you want to use the compiler, run
-   % ./twobit
-
- - If you're content to use only the interpreter, run
-   % ./petit
-
-Petit (Win32):
- - If you want to use the compiler, run
-   > twobit
-
- - If you're content to use only the interpreter, run
-   > petit
+Win32:
+ - Run
+   > larceny
 
 
 COMPILING SCHEME SOURCE WITH LARCENY
@@ -63,7 +51,7 @@ FURTHER READING
 
 If you want to install Larceny for other users on your system, see
 doc/HOWTO-INSTALL.  To build your own Larceny, take a look at
-doc/HOWTO-SETUP.
+doc/HOWTO-BUILD.
 
 
 NOTES

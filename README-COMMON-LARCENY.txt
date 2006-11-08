@@ -7,6 +7,7 @@ You can make Common Larceny work on other platforms (e.g. Mac OS X
 with the Mono Framework 1.1) but we do not yet provide support for
 those systems.
 
+
 WHAT YOU NEED
 
 To run the interpreter, you will first need to the LARCENY_ROOT
@@ -22,6 +23,7 @@ To run with auto-compilation of loaded files, for now you must have
 Larceny.fasl and Larceny.exe in the current directory when you start
 the runtime.  Note that the compiler itself has not been optimized,
 and so there is a noticeable delay when loading source in this mode.
+
 
 QUICK START
 
@@ -39,6 +41,7 @@ CommonLarceny (Win32):
 Do not run Twobit.exe; it is not a standalone application.
 Do not run Larceny.exe; it is not a standalone application.
 
+
 COMPILING SCHEME SOURCE WITH LARCENY
 
  - (compile-file <SOURCE> [<TARGET>])
@@ -51,8 +54,8 @@ COMPILING SCHEME SOURCE WITH LARCENY
  - (load "target.fasl")
      loads the compiled code in "target.fasl"
 
-FURTHER READING
 
+FURTHER READING
 
 For more information, including detailed instructions on how to build
 Common Larceny, please see the Common Larceny User Manual under 
@@ -60,5 +63,4 @@ doc/CommonLarceny.
 
 For a list of bugs that are known to persist in this release, see
 Docs/KNOWN-BUGS.
-
 
