@@ -192,7 +192,7 @@
 	  (if (codegen-option 'mono)
 	      "CSC=mcs "
 	      "CSC=csc ")
-          (if (eq? (nbuild-parameter 'host-os) 'win32)
+        (if (codegen-option 'use-cl)
               "CPP=\"cl /C /EP\" "
               "CPP=\"cpp -P -C -nostdinc\" ")
 	  (if (codegen-option 'debug)
