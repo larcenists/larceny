@@ -1329,9 +1329,10 @@
 
 ;; eval/clr : sexp [environment] -> any
 (define (eval/clr x . rest)
-  (let ((env (cond ((null? rest) (interaction-environment))
-		   (else (car rest)))))
-    ((link-lop-segment/clr (assemble (compile x)) 
+  (let* ((env (cond ((null? rest) (interaction-environment))
+                    (else (car rest))))
+         (stxenv (environment-syntax-environment env)))
+    ((link-lop-segment/clr (assemble (compile x stxenv))
 			   (default-assembly-basename)
 			   env))))
 
