@@ -32,7 +32,8 @@
 # Creates Scheme.dll (Scheme runtime) in the current directory
 # Creates DynLoad.exe (loader) in the current directory
 
-SRCS =	CodeAddress.cs \
+SRCS =	AssemblyInfo.cs \
+      CodeAddress.cs \
 	Call.cs \
 	Exn.cs \
 	Reg.cs \
