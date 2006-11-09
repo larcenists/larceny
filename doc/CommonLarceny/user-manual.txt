@@ -1,0 +1,280 @@
+= Common Larceny User Manual
+
+The most recent revision of this manual can always be found at
+http://www.ccs.neu.edu/home/will/Larceny/CommonLarceny/user-manual.html[].
+
+== Background
+
+=== What Is Common Larceny?
+
+Common Larceny is a variant of Larceny, a simple and efficient run-time system
+for Scheme. It is built to run on the ECMA Common Language Infrastructure 
+(CLI). In Common Larceny, Scheme code is compiled to Common Intermediate
+Language, and is then assembled into bytecode for execution by native 
+just-in-time (JIT) compilers.
+
+When used in conjunction with Microsoft's .NET Framework, which includes an 
+implementation of the CLI, the Common Language Runtime, Common Larceny provides
+an interface to the .NET Framework class library, allowing developers to take 
+full advantage of dozens of predefined classes designed to facilitate 
+application development.
+
+/////////////////////////////////////
+This section needs to be filled in
+
+=== Why Was Common Larceny Developed?
+
+???
+/////////////////////////////////////
+
+=== Who Developed Common Larceny?
+
+Common Larceny was initially developed between 2002 and 2004 by Ryan Culpepper,
+Joe Marshall, Dale Vaillancourt, and others under the direction of Will Clinger
+and Matthias Felleisen at Northeastern University. Felix Klock, Jesse Tov, and 
+Chris Burns have contributed to the latest development of Common Larceny.
+
+== Obtaining Common Larceny
+
+The easiest way to start using Common Larceny is to download a binary 
+distribution bundle. Each bundle contains a Common Larceny executable file, 
+and the libraries required by the executable. If you'd like to build from 
+source, you can do that, too. However, first you must ensure that your system 
+meets certain requirements.
+
+=== System Requirements
+
+Currently, this software is distributed for Windows on Intel x86 machines, 
+Microsoft .NET Framework 2.0.
+
+Common Larceny 'may' work on other platforms (e.g. Mac OS X
+with the Mono Framework 1.1) but we do not yet provide support for
+those systems.
+
+==== Common Language Infrastructure
+
+Common Larceny requires the 
+http://www.ecma-international.org/publications/standards/Ecma-335.htm[
+Common Language Infrastructure]. It is known to work with the 
+http://www.microsoft.com/net/[Microsoft .NET Framework] implementation, 
+but the v0.93 release does not work with 
+http://www.mono-project.com/downloads/[Mono]. It is doubtful whether the
+v0.93 release works with 
+http://www.dotgnu.org/pnet.html[DotGNU Portable.NET] or
+http://msdn.microsoft.com/net/sscli/[Microsoft Shared Source CLI (Rotor)],
+but it hasn't been tried.
+
+When using the Microsoft .NET Framework implementation of the CLI, you only 
+need the .NET redistributable package, but the .NET SDK contains a much richer 
+set of utilities and documentation.
+
+==== Environment Variables
+
+Common Larceny requires you to have the environment variable `LARCENY_ROOT`
+defined as the root directory of your larceny distribution, e.g. `C:\Larceny\`.
+
+For more information on managing environment variables in Windows XP, see 
+http://support.microsoft.com/kb/310519[Microsoft Knowledge Base Article 
+310519].
+
+=== Binary Distribution
+
+Choose one of these binary distribution bundles:
+
+ * http://www.ccs.neu.edu/home/will/Larceny/CommonLarceny/LarcenySDK.zip[
+   Larceny SDK (Zip bundle)]
+ * http://www.ccs.neu.edu/home/will/Larceny/CommonLarceny/LarcenySDK.tgz[
+   Larceny SDK (Gzipped TAR file)]
+
+The `CommonLarceny.exe` executable is a console program. When it is started, 
+it will print a number of diagnostic lines and then enter a `read-eval-print`
+loop.
+
+_Note:_ The distributed bundles also include the `Larceny.exe` and `Twobit.exe`
+executables. These are not standalone applications so no attempt should be 
+made to run them individually.
+
+=== Source Distribution
+
+If you would like to build Common Larceny from source, download the source 
+distribution
+(http://www.ccs.neu.edu/home/will/Larceny/LarcenyReleases/\
+larceny-0.93-src.tar.gz[Gzipped TAR File]). Once you have downloaded the 
+source distribution, the instructions below should enable you to build 
+Common Larceny yourself.
+
+== Building from Source
+
+=== Setup
+
+To build Larceny from source, you will need a working Scheme system. You can 
+build Common Larceny with another version of Larceny, or a different Scheme 
+system like PLT's MzScheme. 
+
+You will also need to have a couple of executable programs available in your 
+path. You may need to edit `src\Rts\DotNet\makefile` to use appropriate programs
+on your system.
+
+ * You will need a working version of `make` or `nmake`. 
+ * You will need the Intermediate Language Assembler (ILAsm). Usually, 
+   `ilasm.exe` is located under 
+   `\Windows\Microsoft.NET\Framework\v?.?.?\ilasm.exe`.
+ * You will need some version of a C preprocessor. Visual Studio comes with 
+   `cl.exe`, the Microsoft C/C++ Compiler, which has a command-line 
+   switch that enables it to preprocess files. Alternatively, you can use 
+   `cpp`. See options for `larceny-setup` below.
+
+Once you have ensured the above requirements are met, start your host Scheme
+system, and change to the root of the Larceny distribution, if necessary. The 
+`current-directory` procedure should do the trick. Then, load the 
+configuration file for Common Larceny: `(load "src/Build/dotnet.sch")`
+
+Next, you need to inform the build tool of the specifics of the host
+environment. Invoke `larceny-setup` with three or four arguments:
+
+  > (larceny-setup <host-scheme> <os> <endianness> <codegen-options>)
+
+where: 
+
+   - `<host-scheme>` is a string corresponding to your Scheme system; it
+     must match one of the subdirectories of Compat, eg `"Petite"`,
+    `"MzScheme"`, `"Larceny"`
+   - `<os>` is a symbol, one of `'win32`, `'unix`, `'macosx`
+   - `<endianness>` is a symbol, one of `'little`, `'big`
+   - `<codegen-options>` is an optional combination of the following symbols:
+     * `$$'mono$$` - to build Larceny using the 'Mono' implementation of the 
+       CLI,
+     * `$$'rotor$$` - to build Larceny using the 'Rotor' implementation of the 
+       CLI,
+     * `$$'debug$$` - to build a debugged version of the runtime-system, and
+     * `$$'use-cl$$` - to use the 'Miscrosoft C/C++ Compiler', cl.exe, to 
+       preprocess certain files needed to build the runtime-system. Without 
+       this flag, `cpp` will be used.
+
+For example, to build under MzScheme on a Windows machine, using Microsoft's 
+C/C++ Compiler, you would use:
+
+  > (larceny-setup "MzScheme" 'win32 'little 'use-cl)
+
+After setting up the environment for building Larceny, evaluate the following:
+
+  > (build-config-files)
+  > (load-compiler)
+
+The first procedure builds the config files (`Rts\\*.cfg`), and the second 
+loads the Twobit compiler. You can't load the compiler until after you have 
+run `larceny-setup` and `build-config-files`.
+
+=== The .NET Heap
+
+The next step involves building the .NET heap. After loading the compiler in 
+the previous step, simply evaluate: 
+
+  > (make-dotnet-heap)
+
+This procedure loads the Scheme files needed to build the .NET heap and 
+compiles and assembles their contained code to MSIL code in three stages. First
+it compiles Scheme code to MacScheme code (`.lap` files), then assembles the
+MacScheme code into s-expressions representing MSIL code, (`.lop` files), and 
+finally dumps these s-expressions as raw MSIL code (`.code-il` files).
+
+Evaluating `make-dotnet-heap` produces a file in the root of the Larceny 
+distribution, `dotnet.heap.exe`. This is the executable file that you will run
+to load Common Larceny. In bundled distributions, we rename this to 
+`CommonLarceny.exe`.
+
+=== The Runtime System
+
+Lastly, you will need to build the runtime system:
+
+  > (build-runtime-system)
+
+This procedure will create `Scheme.dll` in the `src\Rts\DotNet` directory. The
+`Scheme.dll` library contains the classes that make up the Common Larceny
+runtime. Copy `Scheme.dll` into the root directory of the Larceny Distribution.
+
+You should now have a working copy of Common Larceny in your `LARCENY_ROOT`
+directory. Rename `dotnet.heap.exe` to `CommonLarceny.exe` (not necessary but
+suggested) and run it to enter the interactive `read-eval-print` loop. 
+
+[[X1]]
+=== CompileOnLoad
+
+Running the `CommonLarceny.exe` executable alone loads Common Larceny as an
+interpreted Scheme system. It is also possible to load Common Larceny so that
+it compiles Scheme code upon load. This creates slightly longer load times, 
+but can improves execution times by quite a bit, so some find the 
+CompileOnLoad version of Common Larceny more useful in certain situations.
+
+You can build the fast-loading (`.fasl`) and `.exe` files used to invoke the 
+CompileOnLoad version of Common Larceny. To do this, after building
+the heap and the runtime-system, run:
+
+ > (build-larceny)
+
+This will create new files in the root of your Common Larceny distribution, 
+namely `Larceny.exe` and `Larceny.fasl`. These files are required to run the 
+CompileOnLoad version of Common Larceny.
+
+To use the CompileOnLoad version of Common Larceny, invoke the runtime with: 
+
+ %LARCENY_ROOT%\CommonLarceny.exe -- Larceny.fasl.
+
+Additionally, you can build a `.fasl` version of the compiler by running:
+
+ > (build-twobit)
+
+As with `(build-larceny)`, this procedure will create `Twobit.fasl` and 
+`Twobit.exe` in the root of your Common Larceny distribution.
+
+To load the compiled version of Twobit, invoke the runtime with:
+
+ %LARCENY_ROOT%\CommonLarceny.exe -- Twobit.fasl.
+
+== Using Common Larceny
+
+=== Compiling Code to Run within Common Larceny
+
+The compiler can also be used to compile code for loading into the
+Common Larceny interpreter. This allows you to run programs at compiled
+speeds without building the code into the larceny executable.
+
+Load the compiler using the same steps as above:
+
+    > (load "Util/dotnet.sch")
+    > (larceny-setup <host-scheme> <os> <endianness> <codegen-options>)
+    > (load-compiler)
+
+The compiler is now loaded, and you can use the following procedures:
+
+    ;; build-application : string (listof string) -> void
+    ;; Given an application name and a list of LOP files, creates
+    ;; an EXE file and a FASL file (each LOP file must have a
+    ;; corresponding MANIFEST file).
+
+    ;; compile-application : string (listof string) -> void
+    ;; Given an application name and a list of scheme source files,
+    ;; creates an EXE file and a FASL file.
+
+For example: 
+
+    > (compile-application "EvenAndOdd" (list "even.sch" "odd.sch"))
+    > (load "EvenAndOdd.fasl")
+
+or
+
+    > (compile313 "even.sch")
+    > (compile313 "odd.sch")
+    > (assemble313 "even.lap")
+    > (assemble313 "odd.lap")
+    > (build-application "EvenAndOdd" (list "even.lop" "odd.lop"))
+
+Note that the first string you supply to build-application or
+create-application should have no file extension, and you only load the
+resulting `.fasl` file (as in invoking the <<X1,CompileOnLoad>> feature of
+Common Larceny), which must be in the current directory.
+
+Any Scheme system which can run the compiler can be used to compile the
+applications, but of course the resulting FASL files must be loaded
+by the Common Larceny interpreter.
+
