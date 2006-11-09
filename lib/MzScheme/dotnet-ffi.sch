@@ -50,7 +50,6 @@
 (define-syntax define-syscall
   (syntax-rules ()
     ((define-syscall name code ...)
-     (define-and-install-syntax name
 ;       ;; Very slow, thoroughly traced version.
 ;       (syntax-rules ()
 ;         ((name)
@@ -95,10 +94,9 @@
 ;         )
 
        ;; Regular version.
-       (syntax-rules ()
-         ((name . args)
-          (syscall code ... . args)))
-       ))))
+     (define (name . args)
+       (apply syscall code ... args))
+       )))
 
 (define-syscall clr/%clr-version        34  0)
 (define-syscall clr/%ffi-version        34  1)
@@ -216,10 +214,8 @@
 (define clr/null
   (clr/%field-ref (clr/%get-field clr-type-handle/scheme-rt-ffi "NULL") #f))
 
-(define-and-install-syntax clr/%null?
-  (syntax-rules ()
-    ((clr/%null? form)
-     (clr/%eq? form clr/null))))
+(define (clr/%null? form)
+  (clr/%eq? form clr/null))
 
 (define (clr/null? object) (clr/%null? object))
 
@@ -246,9 +242,8 @@
 (define-syntax define-ffi-predicate
   (syntax-rules ()
     ((define-ffi-predicate name type-handle)
-     (define-and-install-syntax name
-       (syntax-rules ()
-           ((name object) (clr/%isa? object type-handle)))))))
+     (define (name object)
+       (clr/%isa? object type-handle)))))
 
 (define-ffi-predicate %clr-array?      clr-type-handle/system-array)
 (define-ffi-predicate %clr-double?     clr-type-handle/system-double)

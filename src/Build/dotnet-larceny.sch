@@ -195,13 +195,11 @@
         list-clr-classes
         return-marshaler
         wrap-clr-object
+        %foreign?
         )
-        
-        standard-proc-names))
 
-      (macro-names
-       ;; dotnet-ffi
-       '(
+
+        '(
         %clr-array?
         %clr-double?
         %clr-enum?
@@ -209,8 +207,6 @@
         %clr-single?
         %clr-string?
         %clr-type?
-        %foreign?
-
         clr/%add-event-handler
         clr/%clr-version
         clr/%eq?
@@ -254,11 +250,13 @@
         clr/%property-set!
         clr/%string->foreign
         clr/%to-string
-
-         )))
+        )
+        
+        standard-proc-names))
+      )
        
 
-  (seal-twobit proc-names macro-names))
+  (seal-twobit proc-names))
 
 (eval dot-javadot-syntax-definition)
 
