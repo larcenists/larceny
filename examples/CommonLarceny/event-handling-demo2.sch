@@ -31,7 +31,7 @@
   (update-label))
 
 (define (decrement-timer)
-  (set! time-remaining (sub1 time-remaining))
+  (set! time-remaining (- time-remaining 1))
   (update-label))
 
 (define (countdown-expire)
