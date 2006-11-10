@@ -1394,7 +1394,7 @@
 	(segnum (+ 1 (list-ref entry 3)))
 	(constant-vec (list-ref entry 4)))
     (let* ((p (link-lop-segment (cons #f constant-vec) env))
-	   ;; similar to operation of .common-patch-procedure, except
+	   ;; similar to operation of @common-patch-procedure, except
 	   ;; we don't use segment-code-address because that needs to
 	   ;; look for stuff in files.
 	   (find-code-in-assembly ilc/%find-code-in-assembly)

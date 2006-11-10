@@ -176,7 +176,7 @@
 ;(define (dump-fasl segment filename out)
 ;  (twobit-format 
 ;   out
-;   "((.common-patch-procedure ~s ~s ~s ~s "
+;   "((@common-patch-procedure ~s ~s ~s ~s "
 ;   (rewrite-file-type filename ".lop" "")
 ;   (cvclass-il-namespace (segment.code segment))
 ;   (length *loadables*)
@@ -204,7 +204,7 @@
 ;; dump-fasl/pmanifest : String PseudoManifest -> Void
 (define (dump-fasl/pmanifest base pmanifest)
   (twobit-format (current-output-port)
-		 "((.common-patch-procedure ~s ~s ~s ~s~%  "
+		 "((@common-patch-procedure ~s ~s ~s ~s~%  "
 		 base
 		 (list-ref pmanifest 1)  ;; il namespace
 		 (list-ref pmanifest 2)  ;; 0

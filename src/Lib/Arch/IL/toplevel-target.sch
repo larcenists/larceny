@@ -18,7 +18,7 @@
   ;; the code vectors already linked into the executable or present
   ;; in dynamically loaded object files.
 
-  (environment-set! larc '.common-patch-procedure .common-patch-procedure)
+  (environment-set! larc '@common-patch-procedure @common-patch-procedure)
 
   ;; Load extensions
   (for-each (lambda (p) (p larc))

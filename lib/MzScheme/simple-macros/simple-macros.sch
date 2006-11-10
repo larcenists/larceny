@@ -1176,7 +1176,7 @@
                          .cell-ref
                          .cell-set!
                          .check!
-                         .common-patch-procedure
+                         @common-patch-procedure ;;; FIXME XXX
                          .cons
                          .list
                          .list->vector

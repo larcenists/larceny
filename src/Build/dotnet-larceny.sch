@@ -278,10 +278,10 @@
             ;; Keep in sync w/ dump-fasl in Asm/IL/dumpheap-extra.sch
             (if (and (pair? expr) 
                      (pair? (car expr))
-                     (eq? '.common-patch-procedure (caar expr))
+                     (eq? '@common-patch-procedure (caar expr))
                      (every? literal? (cdar expr)))
                 (let ((proc
-                       (apply (eval '.common-patch-procedure env)
+                       (apply (eval '@common-patch-procedure env)
                               (cdar expr))))
                   (proc))
                 (eval/clr expr env)))
