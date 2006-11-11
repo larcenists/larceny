@@ -165,9 +165,9 @@
         <clr-method>
         <clr-static-field-getter>
         <clr-static-field-setter>
-        ,(string->symbol "System.Object")
-        ,(string->symbol "System.RuntimeType")
-        ,(string->symbol "System.Type")
+        System.Object
+        System.RuntimeType
+        System.Type
         argument-marshaler
         argument-specializer
         clr-arity-overload?
@@ -175,7 +175,7 @@
         clr-object->clr-instance
         clr-object/clr-handle
         clr-object/potential-types
-        ,(string->symbol "clr/StudlyName")
+        clr/StudlyName
         clr/default-marshal-in
         clr/default-marshal-out
         clr/find-class
