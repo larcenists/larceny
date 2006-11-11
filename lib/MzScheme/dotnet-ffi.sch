@@ -50,53 +50,9 @@
 (define-syntax define-syscall
   (syntax-rules ()
     ((define-syscall name code ...)
-;       ;; Very slow, thoroughly traced version.
-;       (syntax-rules ()
-;         ((name)
-;          (begin
-;            (dotnet-message 5 "Syscall" 'name)
-;            (syscall code ...)))
-
-;         ((name arg1)
-;          (let ((value1 arg1))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1)))
-
-;         ((name arg1 arg2)
-;          (let ((value1 arg1)
-;                (value2 arg2))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1 value2)))
-
-;         ((name arg1 arg2 arg3)
-;          (let ((value1 arg1)
-;                (value2 arg2)
-;                (value3 arg3))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1 value2 value3)))
-
-;         ((name arg1 arg2 arg3 arg4)
-;          (let ((value1 arg1)
-;                (value2 arg2)
-;                (value3 arg3)
-;                (value4 arg4))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1 value2 value3 value4)))
-
-;         ((name arg1 arg2 arg3 arg4 arg5)
-;          (let ((value1 arg1)
-;                (value2 arg2)
-;                (value3 arg3)
-;                (value4 arg4)
-;                (value5 arg5))
-;            (dotnet-message 5 "Syscall" 'name value1)
-;            (syscall code ... value1 value2 value3 value4 value5)))
-;         )
-
-       ;; Regular version.
      (define (name . args)
        (apply syscall code ... args))
-       )))
+     )))
 
 (define-syscall clr/%clr-version        34  0)
 (define-syscall clr/%ffi-version        34  1)
