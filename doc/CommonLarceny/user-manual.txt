@@ -90,9 +90,9 @@ The `CommonLarceny.exe` executable is a console program. When it is started,
 it will print a number of diagnostic lines and then enter a `read-eval-print`
 loop.
 
-_Note:_ The distributed bundles also include the `Larceny.exe` and `Twobit.exe`
-executables. These are not standalone applications so no attempt should be 
-made to run them individually.
+_Note:_ The distributed bundles also include the `Larceny.exe`
+executable. This is not a standalone application so no attempt should be 
+made to run the file on its own.
 
 === Source Distribution
 
@@ -219,17 +219,6 @@ CompileOnLoad version of Common Larceny.
 To use the CompileOnLoad version of Common Larceny, invoke the runtime with: 
 
  %LARCENY_ROOT%\CommonLarceny.exe -- Larceny.fasl.
-
-Additionally, you can build a `.fasl` version of the compiler by running:
-
- > (build-twobit)
-
-As with `(build-larceny)`, this procedure will create `Twobit.fasl` and 
-`Twobit.exe` in the root of your Common Larceny distribution.
-
-To load the compiled version of Twobit, invoke the runtime with:
-
- %LARCENY_ROOT%\CommonLarceny.exe -- Twobit.fasl.
 
 == Using Common Larceny
 

@@ -349,9 +349,9 @@ defined as the root directory of your larceny distribution, e.g. <tt>C:\Larceny\
 <p>The <tt>CommonLarceny.exe</tt> executable is a console program. When it is started,
 it will print a number of diagnostic lines and then enter a <tt>read-eval-print</tt>
 loop.</p>
-<p><em>Note:</em> The distributed bundles also include the <tt>Larceny.exe</tt> and <tt>Twobit.exe</tt>
-executables. These are not standalone applications so no attempt should be
-made to run them individually.</p>
+<p><em>Note:</em> The distributed bundles also include the <tt>Larceny.exe</tt>
+executable. This is not a standalone application so no attempt should be
+made to run the file on its own.</p>
 <h3>Source Distribution</h3>
 <p>If you would like to build Common Larceny from source, download the source
 distribution
@@ -515,18 +515,6 @@ CompileOnLoad version of Common Larceny.</p>
 <div class="content">
 <pre><tt>%LARCENY_ROOT%\CommonLarceny.exe -- Larceny.fasl.</tt></pre>
 </div></div>
-<p>Additionally, you can build a <tt>.fasl</tt> version of the compiler by running:</p>
-<div class="literalblock">
-<div class="content">
-<pre><tt>&gt; (build-twobit)</tt></pre>
-</div></div>
-<p>As with <tt>(build-larceny)</tt>, this procedure will create <tt>Twobit.fasl</tt> and
-<tt>Twobit.exe</tt> in the root of your Common Larceny distribution.</p>
-<p>To load the compiled version of Twobit, invoke the runtime with:</p>
-<div class="literalblock">
-<div class="content">
-<pre><tt>%LARCENY_ROOT%\CommonLarceny.exe -- Twobit.fasl.</tt></pre>
-</div></div>
 </div>
 <h2>Using Common Larceny</h2>
 <div class="sectionbody">
@@ -580,7 +568,7 @@ by the Common Larceny interpreter.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 08-Nov-2006 18:59:44 EDT
+Last updated 13-Nov-2006 13:47:54 EDT
 </div>
 </div>
 </body>
