@@ -3,16 +3,16 @@
 
 (enable-dotnet!)
 
-(write "Defining Button...")  
+(display "Defining Button...")  
 (define button1 (System.Windows.Forms.Button.))
 
-(write "Defining Label...")
+(display "Defining Label...")
 (define label1 (System.Windows.Forms.Label.))
 
-(write "Defining Form...")
+(display "Defining Form...")
 (define form1 (System.Windows.Forms.Form.))
 
-(write "Defining Timer...")
+(display "Defining Timer...")
 (define countdown-timer (System.Windows.Forms.Timer.))
 
 (define *initial-time-remaining* 10)
