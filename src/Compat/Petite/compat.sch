@@ -361,9 +361,12 @@
       (list (cons 'os-name (case *host:os*
                              ((macosx) "MacOS X")
                              ((windows) "Win32")
-                             ((solaris unix)
+                             ((solaris unix linux-el linux-be)
                               (let ((l (process "uname")))
-                                (read-line (car l)))))))))
+                                (read-line (car l))))
+                             (else
+                              (error 'system-features "Petite's os list needs extension.")
+                              ))))))
 
 ;;; let-values
 
