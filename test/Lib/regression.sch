@@ -129,8 +129,8 @@
               (let ((time1 (- (vector-ref t1 user) (vector-ref t0 user)))
                     (time2 (- (vector-ref t2 user) (vector-ref t1 user))))
                 (if (> time1 time2)
-                    (or (>= (/ time2 time1) 0.9) (/ time2 time1))
-                    (or (>= (/ time1 time2) 0.9) (/ time1 time2)))))))
+                    (or (>= (/ time2 time1) 0.7) (/ time2 time1))
+                    (or (>= (/ time1 time2) 0.7) (/ time1 time2)))))))
          '(#t . #t))
    (test "Error case #25"               ; Bug 107
          (let ((ans #t))
