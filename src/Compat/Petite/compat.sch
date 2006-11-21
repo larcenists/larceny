@@ -304,9 +304,18 @@
 ; Twobit is running on top of Larceny... b/c the reader needs to know
 ; about these too for them to be useful).
 
-(define recognize-javadot-symbols? (make-parameter #f boolean?))
-(define recognize-keywords? (make-parameter #f boolean?))
-(define case-sensitive? (make-parameter #f boolean?))
+(define (make-bool-retract proc-name)
+  (lambda (x)
+    (cond ((not (boolean? x))
+           (error proc-name "Non boolean argument")))
+    x))
+
+(define recognize-javadot-symbols? 
+  (make-parameter #f (make-bool-retract 'recognize-javadot-symbols?)))
+(define recognize-keywords? 
+  (make-parameter #f (make-bool-retract 'recognize-keywords?)))
+(define case-sensitive? 
+  (make-parameter #f (make-bool-retract 'case-sensitive?)))
 (define javadot-symbol? (lambda (x) #f))
 (define (javadot-symbol->symbol! x) x)
 (define (symbol->javadot-symbol! x) x)
