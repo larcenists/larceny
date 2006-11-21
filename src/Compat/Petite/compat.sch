@@ -397,4 +397,15 @@
          (let-values "bind" ?bindings (?tmp ... (?a x)) ?body))))))
 
 
+;; for Sassy
+(define (compat:load-sassy)
+  (parameterize ((current-directory "src/Lib/Sassy/"))
+    (error 'compat:load-sassy 
+           "Sassy does not yet support Chez Scheme.")
+    (load "sassy.scm")
+    (set! sassy-text-bytevector
+          (lambda (sassy-output)
+            (list->bytevector (sassy-text-list sassy-output))))
+    ))
+
 ; eof
