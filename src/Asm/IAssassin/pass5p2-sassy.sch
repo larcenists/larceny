@@ -35,25 +35,9 @@
     (case x
       ((eax ebx ecx edx edi esi esp ebp
          al  bl  cl  dl
-         & align reloc abs
-         mov push ret label short
-         nop int3 rdtsc cpuid
-         lea add sub cmp test neg 
-         imul 
-         and or xor shl shr sar not
-         stosb rep cld
-         call 
-         jmp   
-         jz     je    jnz    jne    jg    jng  
-         setz   sete  setnz  setne  setg  setng  
-         cmovz  cmove cmovnz cmovne cmovg cmovng 
-         jge    jl    jnl    jle    jno    jbe
-         setge  setl  setnl  setle  setno  setbe
-         cmovge cmovl cmovnl cmovle cmovno cmovbe
-         bl 
-         pop
-         inc dec 
-         dword byte dwords words) #t)
+         & align reloc
+         short
+         dword byte) #t)
       (else #f)))
          
   (let ((need-labels  '())
@@ -71,20 +55,31 @@
             (cons l found-labels))
       (set! need-labels 
             (filter (lambda (x) (not (eq? x l))) need-labels)))
-    
-    (let rec ((x code))
+
+    (define (arg! x)
       (cond
        ((number? x) 'ignore)
        ((null? x) 'ignore)
        ((pair? x) 
-        (cond ((eq? (car x) 'label)
-               (found-label! (cadr x))))
-        (rec (car x)) 
-        (rec (cdr x)))
+          (arg! (car x)) 
+          (arg! (cdr x)))
        ((symbol? x)
         (sym x))
        (else (error 'check-for-free-ids " what is: " x))))
-    
+
+    (define (instr! i)
+      (case (car i)
+        ((label) 
+         (found-label! (cadr i))
+         (for-each instr! (cddr i)))
+        ((rep) 
+         (for-each instr! (cdr i)))
+        (else 
+         ;; skip opcode
+         (for-each arg! (cdr i)))))
+
+    (for-each instr! code)
+  
     (cond ((not (null? need-labels))
            (pretty-print code)
            (error 'check-for-free-ids " unbound: " need-labels)))))
