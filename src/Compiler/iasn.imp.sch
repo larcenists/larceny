@@ -543,7 +543,7 @@
     ;; These take a bytevector as argument and write the results into it.
     (larceny-timestamp! 1 timestamp!     #f          1000 ,:dead     ,:all  #f)
     (larceny-p-monitor! 1 p-monitor!     #f          1001 ,:dead     ,:all  #f)
-    (larceny-inline-asm 2 inline-asm ,sassy-asm-seq? 2000 ,:dead     ,:all)
+    (larceny-inline-asm 2 inline-asm ,sassy-asm-seq? 2000 ,:dead     ,:all  #f)
     )
   $r5rs-integrable-procedures$)))
 
