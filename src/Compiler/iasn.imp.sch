@@ -142,6 +142,10 @@
   (and (fixnum? x)
        (<= 0 x 7)))
 
+; An approximation of a predicate for sassy assembly sequences.
+(define (sassy-asm-seq? x)
+  (and (list? x) (every? list? x)))
+
 ; The table of primitives has been extended with
 ; kill information used for commoning.
 
@@ -539,6 +543,7 @@
     ;; These take a bytevector as argument and write the results into it.
     (larceny-timestamp! 1 timestamp!     #f          1000 ,:dead     ,:all  #f)
     (larceny-p-monitor! 1 p-monitor!     #f          1001 ,:dead     ,:all  #f)
+    (larceny-inline-asm 2 inline-asm ,sassy-asm-seq? 2000 ,:dead     ,:all)
     )
   $r5rs-integrable-procedures$)))
 
