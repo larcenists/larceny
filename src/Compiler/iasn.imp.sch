@@ -652,6 +652,9 @@
 (define $reg/check                        ; reg/check        k,k1,k2,k3,exn
   (make-mnemonic 'reg/check))
 
+(define $inline-asm
+  (make-mnemonic 'inline-asm))
+
 ; misc
 
 (define $cons     'cons)

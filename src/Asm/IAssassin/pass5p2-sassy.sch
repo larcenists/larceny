@@ -811,6 +811,11 @@
                 (operand3 instruction)
                 (operand4 instruction))))
 
+(define-instruction $inline-asm
+  (lambda (instruction as)
+    (list-instruction "inline-asm" instruction)
+    (apply emit-sassy as (cadr instruction))))
+
 ; Helper procedures.
 
 (define symbolic-label-cache #f)
