@@ -814,7 +814,9 @@
 (define-instruction $inline-asm
   (lambda (instruction as)
     (list-instruction "inline-asm" instruction)
-    (apply emit-sassy as (cadr instruction))))
+    (for-each (lambda (asminst)
+                (apply emit-sassy as asminst))
+              (cdr instruction))))
 
 ; Helper procedures.
 
