@@ -76,7 +76,7 @@
   (config (in-rts "mprocs.cfg"))
   ;; config'ing regs.cfg breaks x86-nasm.
   (if (eq? *runtime-type* 'sparc-native)
-      (config (in-rts "regs.cfg")))
+      (config (in-rts "sparc-regs.cfg")))
   (catfiles (map in-include
                  '("globals.ch"
                    "except.ch"
