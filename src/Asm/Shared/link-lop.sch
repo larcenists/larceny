@@ -42,4 +42,7 @@
       (procedure-set! p 2 #f)
       p)))
 
+(define (make-assembly-procedure macscheme env)
+  (link-lop-segment (assemble macscheme) env))
+
 ; eof
