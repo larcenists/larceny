@@ -1688,7 +1688,6 @@
              ((522 -:idx:idx) ia86.T_OP2IMM_522) 
              ((523 -:fix:fix) ia86.T_OP2IMM_523)
              ((700 bytevector-ref:trusted) ia86.T_OP2IMM_700) 
-             ((inline-asm)    ia86.T_OP2IMM_INLINE_ASM)
              (else (error 'ia86.T_OP2IMM x))
              )))
     (f y)))
@@ -3051,7 +3050,4 @@
 (define-sassy-instr (ia86.T_OP1_1001)
   `(rdpmc))
 
-(define-sassy-instr (ia86.T_OP2IMM_INLINE_ASM asm)
-  asm)
-	
 ;;; eof

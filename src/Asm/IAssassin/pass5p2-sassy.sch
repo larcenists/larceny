@@ -371,10 +371,9 @@
 (define-instruction $op2imm
   (lambda (instruction as)
     (list-instruction "op2imm" instruction)
-    (let ((const (if (eq? 'inline-asm (operand1 instruction))
-                     (operand2 instruction)
-                     (constant-value (operand2 instruction)))))
-      (emit-sassy as ia86.T_OP2IMM (operand1 instruction) const))))
+    (emit-sassy as ia86.T_OP2IMM 
+                (operand1 instruction) 
+                (constant-value (operand2 instruction)))))
 
 (define-instruction $op3
   (lambda (instruction as)
