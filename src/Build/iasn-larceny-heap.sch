@@ -148,7 +148,8 @@
                             compile-file
                             assemble-file
                             compile-expression
-                            macro-expand-expression
+                            macro-expand-expression 
+                            make-assembly-procedure ;; from link-lop.sch
                             ; On-line help
                             help
                             ; Disassembler
