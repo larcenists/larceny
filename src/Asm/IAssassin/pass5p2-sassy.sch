@@ -35,7 +35,7 @@
     (case x
       ((eax ebx ecx edx edi esi esp ebp
          al  bl  cl  dl
-         & align reloc
+         & align reloc abs
          short
          dword byte) #t)
       (else #f)))
