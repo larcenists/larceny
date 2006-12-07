@@ -13,6 +13,17 @@
 	((link-proc) link-procedure)
 	(else (parent selector))))))
 
+(define ffi/i386-linux-C-callback-cdecl
+  (let ((parent ffi/i386-linux-C-callout-cdecl))
+    (define (callback-addr)
+      ((let ((a (ffi/getaddr 'convert-and-call)))
+         (if a a (error "callback-addr (linux x86): failed.")))))
+    
+    (lambda (selector)
+      (case selector
+        ((callback-addr)  callback-addr)
+        (else (parent selector))))))
+
 ; Search for a credible version number (one version digit only)
 
 (define (ffi/x86-linux-libc)

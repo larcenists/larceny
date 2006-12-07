@@ -142,11 +142,124 @@
 	  ((done-pasteup)        (lambda (tr) #t))
 	  (else 
 	   (error "i386-ffi: callout: bad selector " selector))))))
+  
+  ; Callback trampoline
+  ;
+  ; The trampoline uses the C calling conventions and implements the
+  ; following C procedure:
+  ;
+  ;  t0 __callback( t1 a1, t2 a2, ..., tn an )
+  ;  {
+  ;     static HANDLE(word) _proc = ...;        // the scheme procedure
+  ;     static HANDLE(byte*) _adesc = ...;      // the argtype descriptors
+  ;     void *_args[n];
+  ;     t0 _r;
+  ;
+  ;     _args[0] = (void*)&a1;
+  ;     _args[1] = (void*)&a2;
+  ;     ...
+  ;     _args[n-1] = (void*)&an;
+  ;     larceny_C_ffi_convert_and_call( _proc, _args, &_r, _adesc, TDESC(t0), n );
+  ;     return r;
+  ;  }
+  ;
+  ;
+  ; callback:                     
+  ;     pushl	%ebp
+  ;     movl	%esp, %ebp
+  ;     subl	$72, %esp
+                                  ; 0(ebp) is ebp_old, 4(ebp) is retaddr
+                                  ; 8(ebp) is first C invocation argument
+;;; FSK added:
+  ;     leal      8($ebp), $ecx
+  ;     leal    -4-SUMARGSIZE($ebp), $edx ; -4(ebp) is for _ret; rest is for _args
+  ;  FOREACH arg in 0 .. args
+  ;     movl    $ecx, ($edx)
+  ;     addl    $ecx, ARGSIZE(arg)
+  ;     addl    $edx, ARGSIZE(arg)
+  ;  ENDFOREACH 
+
+  ;     movl	$5, 20(%esp)      ; 6TH = argc;
+  ;     movl	$0, 16(%esp)      ; 5TH = TDESC(t0);
+  ;     movl	$709468, 12(%esp) ; 4TH = _adesc;
+  ;     leal	-4(%ebp), %eax    ; eaxtmp = &_r;
+  ;     movl	%eax, 8(%esp)     ; 3RD = &_r;   (eaxtmp)
+  ;     leal	-4-SUMARGSIZE(%ebp), %edx   ; edxtmp = _args;
+  ;     movl	%edx, 4(%esp)     ; 2ND = _args; (edxtmp)
+  ;     movl	$38668, (%esp)    ; 1ST = _proc;
+  ;     call	larceny_C_ffi_convert_and_call
+  ;     movl	-4(%ebp), %eax
+  ;     leave
+  ;     ret
 
   (define (make-callback-stdabi stdcall?)
-    (let ()
-      (lambda (selector)
-	(error "Callback abi not implemented."))))
+    (define (callback-arg-words tr word-count)
+      (tr-at-end 
+       tr
+       (list->bytevector
+        `(#x89 #xA                       ;; (mov (& edx) ecx)
+          #x83 #xC1 ,(* 4 word-count)    ;; (add ecx 4*word-count)
+          #x83 #xC2 ,(* 4 word-count)))) ;; (add edx 4*word-count)
+      (set-arg-length! tr (+ (arg-length tr) word-count)))
+    (define (callback-arg-word tr) 
+      (callback-arg-words tr 1))
+    (define (callback-arg-ieee64 tr) 
+      (callback-arg-words tr 2))
+    (define (callback-ret-type tr type code)
+      (set-return-type! tr type))
+    (define (callback-done tr argc) 
+      (if (eq? (return-type tr) 'ieee64)
+          (error "i386 callback: ieee64 return not implemented yet."))
+
+      (let ((arg-size-byte (fxlogand (- (+ 4 (* 4 (arg-length tr)))) #xff)))
+        (tr-at-beginning 
+         tr
+         (list->bytevector
+          `(#x55                         ;; (push ebp)
+            #x89 #xe5                    ;; (mov ebp esp)
+            #x83 #xec 72                 ;; (sub esp 72)
+            
+            #x8d #x4d 8                  ;; (lea ecx (& 8 ebp))
+            #x8d #x55 ,arg-size-byte     ;; (lea edx (& ,arg-size ebp))
+            )))
+
+        (tr-at-end
+         tr
+         (list->bytevector
+          `(#xc7 #x44 #x24 #x14 ,@(dword argc) ;; (mov (& 20 esp) ,argc)
+                                               ;; (mov (& 16 esp) ,TDESC(t0))
+            #xc7 #x44 #x24 #x10 ,@(dword (return-encoding tr))
+                                               ;; (mov (& 12 esp) ,_adesc)
+            #xc7 #x44 #x24 #x0c ,@(dword (arg-types tr))
+            #x8d #x45 #xfc                     ;; (lea eax (& -4 ebp)) ;; &_r
+            #x89 #x44 #x24 #x08                ;; (mov (& 8 esp) eax)
+            #x8d #x55 ,arg-size-byte           ;; (lea edx (& ,arg-size ebp))
+            #x89 #x54 #x24 #x04                ;; (mov (& 4 esp) edx)
+                                               ;; (mov (& esp) ,_proc)
+            #xc7 #x04 #x24 ,@(dword (proc-addr tr))
+
+            #xff #x15 ,@(dword (tr-fptr tr))   ;; (call (& ,fptr))
+            
+            #x8b #x45 #xfc                     ;; (mov eax (& -4 ebp))
+            #xc9                               ;; (leave)
+            #xc3                               ;; (ret)
+            )))))
+    (lambda (selector)
+      (cond 
+       (stdcall?
+        (error "Callback abi not implemented for stdcall."))
+       (else
+        (case selector
+          ((alloc)                 alloc-trampoline)
+          ((arg-word arg-ieee32)   callback-arg-word)
+          ((arg-ieee64)            callback-arg-ieee64)
+          ((proc-addr)             (lambda (tr addr) (set-proc-addr! tr addr)))
+          ((arg-types)             (lambda (tr bv) (set-arg-types! tr bv)))
+          ((ret-type)              callback-ret-type)
+          ((done)                  callback-done)
+          ((done-pasteup)          (lambda (tr) 'no-need-to-iflush-on-ia32))
+          (else
+           (error "i386 callback: bad selector " selector)))))))
 
   (set! ffi/i386-C-callout-stdcall (make-callout-stdabi #t))
   (set! ffi/i386-C-callback-stdcall (make-callback-stdabi #t))
