@@ -8,6 +8,7 @@
 ; mechanism than hand-coding!
 
 (require 'std-ffi)
+(require 'srfi-0)
 
 (cond-expand
  (linux

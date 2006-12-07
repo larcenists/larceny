@@ -7,10 +7,10 @@
 ; WITH-WORKING-DIRECTORY is less complex than it used to be and of
 ; less utility; CURRENT-DIRECTORY is available generally now.
 
-(require 'ffi)
+(require 'std-ffi)
 (require 'string)
-(require 'experimental/unix)
-(require 'experimental/unix-descriptor)
+(require "Experimental/unix")
+(require "Experimental/unix-descriptor")
 
 ; Does PATH denote a directory?
 
