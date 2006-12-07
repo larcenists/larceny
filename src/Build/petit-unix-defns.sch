@@ -74,9 +74,9 @@
   (config (in-rts "layouts.cfg"))
   (config (in-rts (nbuild-parameter 'globals-table)))
   (config (in-rts "mprocs.cfg"))
-  ;; config'ing regs.cfg breaks x86-nasm.
-  (if (eq? *runtime-type* 'sparc-native)
-      (config (in-rts "sparc-regs.cfg")))
+  (case *runtime-type* 
+    ((sparc-native) (config (in-rts "sparc-regs.cfg")))
+    ((sassy-native) (config (in-rts "iasn-regs.cfg"))))
   (catfiles (map in-include
                  '("globals.ch"
                    "except.ch"
@@ -89,9 +89,9 @@
                    "except.ah"
                    "layouts.ah"
                    "mprocs.ah"
-                   ,@(if (eq? *runtime-type* 'sparc-native)
-                       '("regs.ah")
-                       '())))
+                   ,@(case *runtime-type* 
+                       ((sparc-native sassy-native) '("regs.ah"))
+                       (else '()))))
             (in-include "asmdefs.h"))
   (compat:load (in-rts "features.sch"))
 

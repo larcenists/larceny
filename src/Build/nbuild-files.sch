@@ -64,9 +64,9 @@
                 `("globals.sch"
                   "ecodes.sch"
                   "layouts.sch"
-                  ,@(if (eq? *runtime-type* 'sparc-native)
-                      '("regs.sch")
-                      '()))))
+                  ,@(case *runtime-type* 
+                      ((sparc-native sassy-native) '("regs.sch"))
+                      (else '())))))
 
 (define *nbuild:sparcasm-files*
   (if (eq? 'SPARC (nbuild-parameter 'target-machine))
