@@ -172,8 +172,8 @@ ASFLAGS+=-f elf -g -DLINUX"))
   (template-common
 "O=o
 CC=gcc
-DEBUGINFO=-g -gstabs+
-OPTIMIZE=#-O3 -DNDEBUG2 # -DNDEBUG
+DEBUGINFO=#-g -gstabs+
+OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 CFLAGS+=-c -falign-functions=4 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
 LIBS=-ldl -lm
 AS=nasm
