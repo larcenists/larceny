@@ -271,7 +271,7 @@ PUBLIC i386_full_barrier
 PUBLIC i386_partial_barrier
 %ifdef OPTIMIZE_MILLICODE
   %ifdef GCLIB_LARGE_TABLE
-    %error Optimized write barrier does not work with GCLIB_LARGE_TABLE yet
+    %error Optimized write barrier does not work with "GCLIB_LARGE_TABLE" yet
   %endif
 	cmp	dword [GLOBALS+G_GENV+4], 0	; Barrier is enabled
 	jne	Lpb1				;   if generation map not 0
