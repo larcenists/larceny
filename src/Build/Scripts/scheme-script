@@ -1,0 +1,33 @@
+#!/bin/sh
+
+LARCENY=larceny
+
+if test -z "$1"; then
+    echo Usage: `basename $0` SCHEME-SCRIPT-FILE >&2
+    exit 1
+fi
+
+(
+    cat <<EOF
+        (begin
+          (let
+            ((old-repl-prompt (repl-prompt))
+             (old-error-handler (error-handler)))
+
+            (repl-prompt (lambda args (undefined)))
+
+            (error-handler (lambda args
+                             (repl-prompt old-repl-prompt)
+                             (apply old-error-handler args))))
+
+          (newline)
+          (display "---GO---")
+          (newline)
+EOF
+    tail +2 $1
+
+    cat <<EOF
+          (exit))
+EOF
+) | $LARCENY | sed '1,/^---GO---$/d'
+
