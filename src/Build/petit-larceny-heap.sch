@@ -205,7 +205,7 @@
 ;;; FIXME: Some of these files could usefully be loaded in private namespaces.
 
 (load (param-filename 'auxiliary "macros.sch"))
-;(load "Auxlib/record.sch")              ; Record package
+(load (param-filename 'auxiliary "record.sch"))        ; Record package
 ;(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
 ;(load "Experimental/exception.sch")
 ;(load "Auxlib/std-ffi.sch")
