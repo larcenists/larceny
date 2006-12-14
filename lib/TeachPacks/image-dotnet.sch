@@ -7,6 +7,12 @@
 ;; image->alpha-color-list
 ;; alpha-color-list->image
 
+;; KNOWN BUG: this file's implementation of add-line actually conforms
+;; to the specification of add-line in the world teachpack, i.e. it does
+;; not resize the image to be a larger size if the coordinates of the line
+;; extend beyond the boundaries of the image to which the lines is being
+;; added. This should be fixed.
+
 ;; require the image abstraction, and dotnet definitions files
 (define teachpack-dir "/lib/teachpacks/")
 (load (string-append (getenv "LARCENY_ROOT") teachpack-dir "image.sch"))
