@@ -109,18 +109,25 @@
 ;; setup : oneof ['help] -> Void {'scheme: Symbol, 'host: Symbol, ['target: Symbol]} -> Void
 ;; Main entry to set up the build for Petit compiler and runtime.
 (define-keyed (setup (with-default 'larceny scheme:)
-                     (with-default #f host:)
-                     (with-default #f target:)
-                     (with-default #f c-compiler:)
+                     (with-default #f host:)         ;; inferred for scheme: 'larceny
+                     (with-default #f target:)       ;; inherits host: if not given
+                     (with-default #f c-compiler:)   ;; usually safe to leave alone
+                     (flag help)
+                     ;; Options for generated runtime
+                     (with-default #t rof-collector:)
+                     (flag dof-collector)
+                     (flag gclib-large-table)
+                     ;; Build host options
                      (flag exit-on-error)
                      (flag quiet-load)
                      (flag verbose-load)
                      (flag always-source)
-                     (flag help)
+                     ;; Target variation options
                      (flag native)
 		     (flag nasm)
 		     (flag sassy)
-		     (flag code-cov)
+		     ;; Deprecated options
+                     (flag code-cov)
 		     (flag rebuild-code-cov))
   (define (displn arg) (display arg) (newline))
 
@@ -133,6 +140,12 @@
          ((environment-get (interaction-environment) 'current-larceny-root))))
 
   (set! *always-source* always-source)
+  (set! *runtime:additional-features* 
+        (append 
+         (if dof-collector     '("DOF_COLLECTOR") '())
+         (if rof-collector:    '("ROF_COLLECTOR") '())
+         (if gclib-large-table '("GCLIB_LARGE_TABLE") '())
+         *runtime:additional-features*))
 
   (cond (quiet-load   (set! *verbose-load* #f))
         (verbose-load (set! *verbose-load* #t)))

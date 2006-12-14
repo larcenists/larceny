@@ -120,6 +120,8 @@
                   features-petit-macos9-cw3     ; Very old (ca v0.48), CW Pro 3
                   features-petit-osf4-alpha     ; Very old, OSF/1 4.0 on DEC Alpha
                   ))
+  (set! selected-feature-set
+        (append *runtime:additional-features* selected-feature-set))
 
   (define-feature-set)
   )

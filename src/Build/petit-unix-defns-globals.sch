@@ -25,6 +25,8 @@
 (define *target:os*         'unix)
 (define *target:machine*    'standard-c)
 
+(define *runtime:additional-features* '())
+
 (define *target:machine-source* "Standard-C")
 
 (define *root-directory* "")
