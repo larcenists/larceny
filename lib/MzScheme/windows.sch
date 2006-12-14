@@ -907,8 +907,8 @@
 
 (let ((method
        (make <method>
-         :arity 1
-         :procedure (lambda (call-next-method hwnd)
+         ':arity 1
+         ':procedure (lambda (call-next-method hwnd)
                        (newline)
                        (display "Elvis has left the building. ")
                        (display *exit-count*)
