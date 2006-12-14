@@ -4,7 +4,7 @@
 ;; formats the string, uses ~a placeholders for the args
 (define (format-string str . args)
   (let ((out (open-output-string)))
-    (format out str args)
+    (apply format (list* out str args))
     (get-output-string out)))
 
 ;; check-arg : sym bool str str TST -> void

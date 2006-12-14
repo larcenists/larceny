@@ -60,7 +60,8 @@
 (require 'srfi-9)
 
 ;; require this for argument checking
-(load "misc.sch")
+(define teachpack-dir "/lib/teachpacks/")
+(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "misc.sch"))
 
 ;; argument-checking procedures
 (define (check name p? v desc arg-posn) 

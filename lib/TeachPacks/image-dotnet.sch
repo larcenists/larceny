@@ -8,8 +8,9 @@
 ;; alpha-color-list->image
 
 ;; require the image abstraction, and dotnet definitions files
-(load "image.sch")
-(load "dotnet-defs.sch")
+(define teachpack-dir "/lib/teachpacks/")
+(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "image.sch"))
+(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "dotnet-defs.sch"))
 
 ;; ANTIALIASING
 ;; right now this is a flag that if set as true, 

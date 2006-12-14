@@ -12,8 +12,9 @@
 ;; you are back into the GUI-REPL.
 ;; ... Of course, all of the above quirky behavior should be fixed.
 
-;; provide image functions
-(load "world-dotnet.sch")
+;; provide image/world functions
+(define teachpack-dir "/lib/teachpacks/")
+(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "world-dotnet.sch"))
 
 ;; methods
 (define (set-width! c w)

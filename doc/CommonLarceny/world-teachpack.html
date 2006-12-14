@@ -1,0 +1,385 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.0.0" />
+<style type="text/css">
+/* Debug borders */
+p, li, dt, dd, div, pre, h1, h2, h3, h4, h5, h6 {
+/*
+  border: 1px solid red;
+*/
+}
+
+body {
+  margin: 1em 5% 1em 5%;
+}
+
+a {
+  color: blue;
+  text-decoration: underline;
+}
+a:visited {
+  color: fuchsia;
+}
+
+em {
+  font-style: italic;
+}
+
+strong {
+  font-weight: bold;
+}
+
+tt {
+  color: navy;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #527bbd;
+  font-family: sans-serif;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+h1 {
+  border-bottom: 2px solid silver;
+}
+h2 {
+  border-bottom: 2px solid silver;
+  padding-top: 0.5em;
+}
+
+div.sectionbody {
+  font-family: serif;
+  margin-left: 0;
+}
+
+hr {
+  border: 1px solid silver;
+}
+
+p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+pre {
+  padding: 0;
+  margin: 0;
+}
+
+span#author {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+span#email {
+}
+span#revision {
+  font-family: sans-serif;
+}
+
+div#footer {
+  font-family: sans-serif;
+  font-size: small;
+  border-top: 2px solid silver;
+  padding-top: 0.5em;
+  margin-top: 4.0em;
+}
+div#footer-text {
+  float: left;
+  padding-bottom: 0.5em;
+}
+div#footer-badges {
+  float: right;
+  padding-bottom: 0.5em;
+}
+
+div#preamble,
+div.tableblock, div.imageblock, div.exampleblock, div.verseblock,
+div.quoteblock, div.literalblock, div.listingblock, div.sidebarblock,
+div.admonitionblock {
+  margin-right: 10%;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+div.admonitionblock {
+  margin-top: 2.5em;
+  margin-bottom: 2.5em;
+}
+
+div.content { /* Block element content. */
+  padding: 0;
+}
+
+/* Block element titles. */
+div.title, caption.title {
+  font-family: sans-serif;
+  font-weight: bold;
+  text-align: left;
+  margin-top: 1.0em;
+  margin-bottom: 0.5em;
+}
+div.title + * {
+  margin-top: 0;
+}
+
+td div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content + div.title {
+  margin-top: 0.0em;
+}
+
+div.sidebarblock > div.content {
+  background: #ffffee;
+  border: 1px solid silver;
+  padding: 0.5em;
+}
+
+div.listingblock {
+  margin-right: 0%;
+}
+div.listingblock > div.content {
+  border: 1px solid silver;
+  background: #f4f4f4;
+  padding: 0.5em;
+}
+
+div.quoteblock > div.content {
+  padding-left: 2.0em;
+}
+
+div.attribution {
+  text-align: right;
+}
+div.verseblock + div.attribution {
+  text-align: left;
+}
+
+div.admonitionblock .icon {
+  vertical-align: top;
+  font-size: 1.1em;
+  font-weight: bold;
+  text-decoration: underline;
+  color: #527bbd;
+  padding-right: 0.5em;
+}
+div.admonitionblock td.content {
+  padding-left: 0.5em;
+  border-left: 2px solid silver;
+}
+
+div.exampleblock > div.content {
+  border-left: 2px solid silver;
+  padding: 0.5em;
+}
+
+div.verseblock div.content {
+  white-space: pre;
+}
+
+div.imageblock div.content { padding-left: 0; }
+div.imageblock img { border: 1px solid silver; }
+span.image img { border-style: none; }
+
+dl {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+dt {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+  font-style: italic;
+}
+dd > *:first-child {
+  margin-top: 0;
+}
+
+ul, ol {
+    list-style-position: outside;
+}
+ol.olist2 {
+  list-style-type: lower-alpha;
+}
+
+div.tableblock > table {
+  border: 3px solid #527bbd;
+}
+thead {
+  font-family: sans-serif;
+  font-weight: bold;
+}
+tfoot {
+  font-weight: bold;
+}
+
+div.hlist {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+td.hlist1 {
+  vertical-align: top;
+  font-style: italic;
+  padding-right: 0.8em;
+}
+td.hlist2 {
+  vertical-align: top;
+}
+
+@media print {
+  div#footer-badges { display: none; }
+}
+/* Workarounds for IE6's broken and incomplete CSS2. */
+
+div.sidebar-content {
+  background: #ffffee;
+  border: 1px solid silver;
+  padding: 0.5em;
+}
+div.sidebar-title, div.image-title {
+  font-family: sans-serif;
+  font-weight: bold;
+  margin-top: 0.0em;
+  margin-bottom: 0.5em;
+}
+
+div.listingblock div.content {
+  border: 1px solid silver;
+  background: #f4f4f4;
+  padding: 0.5em;
+}
+
+div.quoteblock-content {
+  padding-left: 2.0em;
+}
+
+div.exampleblock-content {
+  border-left: 2px solid silver;
+  padding-left: 0.5em;
+}
+</style>
+<title>Common Larceny World Teachpack</title>
+</head>
+<body>
+<div id="header">
+<h1>Common Larceny World Teachpack</h1>
+</div>
+<div id="preamble">
+<div class="sectionbody">
+<p>The world teachpack provides two kinds of functions. Those of the first kind
+allow students to simulate a small world of animated drawings and games. Those
+of the second kind provide functionality for creating scenes, or composite
+images with their pinholes in their upper-left hand corner.</p>
+<p>This teachpack is based on the PLT world teachpack and provides the same methods
+as well as some new ones. Much of this documentation is borrowed from PLT.</p>
+</div>
+</div>
+<h2>Implementation</h2>
+<div class="sectionbody">
+<p>The world teachpack is designed so that it can be implemented on different
+systems. For example, the provided implementation runs, in conjunction with
+CommonLarceny, on the Microsoft .NET 2.0 Framework. Another implementation
+for a different scheme system or GUI framework could be developed, if one
+so desired.</p>
+</div>
+<h2>Use</h2>
+<div class="sectionbody">
+<p>To use the functions provided by the world teachpack, load the implementation-
+specific file, e.g. <tt>(load "lib/teachpacks/world-dotnet.sch)</tt>.</p>
+<h3>Background Knowledge</h3>
+<p>The following functions are provided by the world teachpack. For information on
+programming the world, please visit
+<a href="http://www.ccs.neu.edu/home/matthias/HtDP/Worldv300/">http://www.ccs.neu.edu/home/matthias/HtDP/Worldv300/</a> for a tutorial
+by Matthias Felleisen.</p>
+<h3>World Functions</h3>
+<p><tt>big-bang : Number Number Number World -&gt; true</tt></p>
+<p><tt>(big-bang width height n w)</tt> creates and shows a <tt>width</tt> x <tt>height</tt> canvas,
+starts the clock, makes it tick every <tt>n</tt> seconds, and makes <tt>w</tt> the first world.
+This function should always be evaluated last, because it actually creates the
+world. Therefore, the following functions should be evaluted first, to
+handle tick, keyboard, and mouse events in the world.</p>
+<p><tt>on-tick-event : (World -&gt; World) -&gt; true</tt></p>
+<p><tt>(on-tick-event tock)</tt> means that DrScheme must call <tt>tock</tt> on the current world
+every time the clock ticks; it uses the result as the next world</p>
+<p><tt>on-key-event : (World KeyEvent -&gt; World) -&gt; true</tt></p>
+<p><tt>(on-key-event change)</tt> means that DrScheme must call <tt>change</tt> on the current
+world and a (representation of the) keyevent for every keystroke the
+programmer (user of the computer) makes; it uses the result as the next
+world</p>
+<p>A <strong>KeyEvent</strong> is one of:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>-- Char (char?)
+-- Symbol (symbol?)</tt></pre>
+</div></div>
+<p>When the Keyevent is a char, the programmer (user of the computer) has hit an
+alphanumeric key. Symbols such as <tt>'left</tt>, <tt>'right</tt>, <tt>'up</tt>, <tt>'down</tt>, <tt>'release</tt>
+denote arrow keys or the events of releasing a key on the keypad.</p>
+<p><tt>on-mouse-event : (World Number Number MouseEvent -&gt; World) -&gt; true</tt></p>
+<p><tt>(on-mouse-event clack)</tt> means that DrScheme must call <tt>clack</tt> on the current
+world, the current <tt>x</tt> and <tt>y</tt> coordinates of the mouse, and and a
+(representation of the) mouse event for every action of the mouse the
+programmer (user of the computer) makes; it uses the result as the next world</p>
+<p>A <strong>MouseEvent</strong> is one of:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>-- 'button-down
+-- 'button-up
+-- 'drag
+-- 'move
+-- 'enter
+-- 'leave</tt></pre>
+</div></div>
+<p>The symbols denote the appropriate action with the mouse and (any of) its
+button(s).</p>
+<p><tt>on-redraw : (World -&gt; Scene) -&gt; true</tt></p>
+<p><tt>(on-redraw world-&gt;scene)</tt> means that DrScheme calls <tt>world-&gt;scene</tt> whenever the
+canvas must be redrawn (usually after a tick/keyboard/mouse event has occurred);
+the function consumes the current world and produces a scene, which is then
+displayed in the teachpack's canvas</p>
+<p><tt>end-of-time : String or Symbol -&gt; World</tt></p>
+<p>When DrScheme evaluates <tt>(end-of-time)</tt>, it stops the clock and displays the
+given string or symbol; no further tick events, key events, or redraw events
+take place until the world is created again.</p>
+<h3>Scene Functions</h3>
+<p>The rest are functions for creating scenes:</p>
+<p><tt>nw:rectangle : Number Number Mode Color -&gt; Image</tt></p>
+<p><tt>(nw:rectangle width height mode color)</tt> creates a <tt>width</tt> x <tt>height</tt> rectangle,
+  solid or outlined, with its anchor in the NW corner</p>
+<p><tt>empty-scene : Number Number -&gt; Scene</tt></p>
+<p><tt>(empty-scene width height)</tt> creates a <tt>width</tt> x <tt>height</tt> "scene" (frame with
+origin in NW)</p>
+<p><tt>place-image : Image Number Number Scence -&gt; Scene</tt></p>
+<p><tt>(place-image image x y scene)</tt> places <tt>image</tt> at <tt>(x,y)</tt> into scene; <tt>(x,y)</tt>
+are computer graphics coordinates (origin in the upper left hand corner)</p>
+<p><tt>add-line : Scene Number Number Number Number Color -&gt; Scene</tt></p>
+<p><tt>(add-line scene x0 y0 x1 y1 c)</tt> places a line of color <tt>c</tt> from <tt>(x0,y0)</tt> to
+<tt>(x1,y1)</tt> into <tt>scene</tt>; <tt>(x,y)</tt> are computer graphics coordinates; in contrast
+to the image teachpack's <tt>add-line</tt> function, this one cuts off those portions
+of the line that  go beyond the boundaries of the given scene.</p>
+<p><tt>run-movie : (Listof Image) -&gt; true</tt></p>
+<p><tt>(run-movie loi)</tt> shows the list of images in loi, time-delayed</p>
+<p>Finally, the teachpack provides all the functions that image teachpack provides
+except <tt>add-line</tt>, which has a slightly different functionality.</p>
+</div>
+<h2>Examples</h2>
+<div class="sectionbody">
+<p>The files in <tt>/lib/teachpacks/</tt> that begin with <tt>demo-</tt> show how to
+create worlds and simple animations. They are derived from Matthias's demo
+(see above).</p>
+</div>
+<div id="footer">
+<div id="footer-text">
+Last updated 14-Dec-2006 17:57:23 EDT
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,131 @@
+= Common Larceny World Teachpack
+
+The world teachpack provides two kinds of functions. Those of the first kind 
+allow students to simulate a small world of animated drawings and games. Those
+of the second kind provide functionality for creating scenes, or composite 
+images with their pinholes in their upper-left hand corner.
+
+This teachpack is based on the PLT world teachpack and provides the same methods 
+as well as some new ones. Much of this documentation is borrowed from PLT.
+
+== Implementation
+
+The world teachpack is designed so that it can be implemented on different 
+systems. For example, the provided implementation runs, in conjunction with
+CommonLarceny, on the Microsoft .NET 2.0 Framework. Another implementation
+for a different scheme system or GUI framework could be developed, if one
+so desired.
+
+== Use
+
+To use the functions provided by the world teachpack, load the implementation-
+specific file, e.g. `(load "lib/teachpacks/world-dotnet.sch)`.
+
+=== Background Knowledge
+
+The following functions are provided by the world teachpack. For information on
+programming the world, please visit 
+http://www.ccs.neu.edu/home/matthias/HtDP/Worldv300/[] for a tutorial 
+by Matthias Felleisen.
+
+=== World Functions
+
+`big-bang : Number Number Number World -> true`
+
+`(big-bang width height n w)` creates and shows a `width` x `height` canvas, 
+starts the clock, makes it tick every `n` seconds, and makes `w` the first world. 
+This function should always be evaluated last, because it actually creates the
+world. Therefore, the following functions should be evaluted first, to 
+handle tick, keyboard, and mouse events in the world.
+
+`on-tick-event : (World -> World) -> true`
+
+`(on-tick-event tock)` means that DrScheme must call `tock` on the current world 
+every time the clock ticks; it uses the result as the next world 
+
+`on-key-event : (World KeyEvent -> World) -> true`
+
+`(on-key-event change)` means that DrScheme must call `change` on the current 
+world and a (representation of the) keyevent for every keystroke the 
+programmer (user of the computer) makes; it uses the result as the next 
+world 
+
+A *KeyEvent* is one of: 
+
+  -- Char (char?)
+  -- Symbol (symbol?)
+
+When the Keyevent is a char, the programmer (user of the computer) has hit an
+alphanumeric key. Symbols such as `'left`, `'right`, `'up`, `'down`, `'release`
+denote arrow keys or the events of releasing a key on the keypad. 
+
+`on-mouse-event : (World Number Number MouseEvent -> World) -> true`
+
+`(on-mouse-event clack)` means that DrScheme must call `clack` on the current 
+world, the current `x` and `y` coordinates of the mouse, and and a 
+(representation of the) mouse event for every action of the mouse the 
+programmer (user of the computer) makes; it uses the result as the next world 
+
+A *MouseEvent* is one of:
+  
+  -- 'button-down
+  -- 'button-up
+  -- 'drag
+  -- 'move
+  -- 'enter
+  -- 'leave
+
+The symbols denote the appropriate action with the mouse and (any of) its 
+button(s).
+
+`on-redraw : (World -> Scene) -> true`
+
+`(on-redraw world->scene)` means that DrScheme calls `world->scene` whenever the
+canvas must be redrawn (usually after a tick/keyboard/mouse event has occurred);
+the function consumes the current world and produces a scene, which is then 
+displayed in the teachpack's canvas 
+
+`end-of-time : String or Symbol -> World`
+
+When DrScheme evaluates `(end-of-time)`, it stops the clock and displays the 
+given string or symbol; no further tick events, key events, or redraw events 
+take place until the world is created again. 
+
+=== Scene Functions
+
+The rest are functions for creating scenes: 
+
+`nw:rectangle : Number Number Mode Color -> Image`
+
+`(nw:rectangle width height mode color)` creates a `width` x `height` rectangle, 
+  solid or outlined, with its anchor in the NW corner 
+  
+`empty-scene : Number Number -> Scene`
+
+`(empty-scene width height)` creates a `width` x `height` "scene" (frame with 
+origin in NW) 
+
+`place-image : Image Number Number Scence -> Scene`
+
+`(place-image image x y scene)` places `image` at `(x,y)` into scene; `(x,y)`
+are computer graphics coordinates (origin in the upper left hand corner)
+
+`add-line : Scene Number Number Number Number Color -> Scene`
+
+`(add-line scene x0 y0 x1 y1 c)` places a line of color `c` from `(x0,y0)` to 
+`(x1,y1)` into `scene`; `(x,y)` are computer graphics coordinates; in contrast 
+to the image teachpack's `add-line` function, this one cuts off those portions 
+of the line that  go beyond the boundaries of the given scene. 
+
+`run-movie : (Listof Image) -> true`
+
+`(run-movie loi)` shows the list of images in loi, time-delayed 
+
+Finally, the teachpack provides all the functions that image teachpack provides 
+except `add-line`, which has a slightly different functionality.
+
+== Examples
+
+The files in `/lib/teachpacks/` that begin with `demo-` show how to 
+create worlds and simple animations. They are derived from Matthias's demo 
+(see above).

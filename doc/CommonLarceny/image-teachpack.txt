@@ -1,0 +1,261 @@
+= Common Larceny Image Teachpack
+
+This teachpack provides primitives for constructing and manipulating images. 
+Vector shapes are created as outlines or solid shapes. Bitmaps can be created
+from files or from lists of colors. Additional primitives 
+allow for the composition of images. This teachpacks is based on the PLT image 
+teachpack and provides the same methods as well as some new ones. Much of this 
+documentation is borrowed from PLT.
+
+== Implementation
+
+The image teachpack is designed so that it can be implemented on different 
+systems. For example, the provided implementation runs, in conjunction with
+CommonLarceny, on the Microsoft .NET 2.0 Framework. Another implementation
+for a different scheme system or GUI framework could be developed, if one
+so desired.
+
+== Use
+
+To use the functions provided by the image teachpack, load the implementation-
+specific file, e.g. `(load "lib/teachpacks/image-dotnet.sch)`.
+
+=== Background Knowledge
+
+Before diving into the list of functions provided by the teachpack, it is 
+important to understand some of the teachpack's data definitions.
+
+*Mode* is one of the following two symbols or strings: 
+
+  -- 'solid 
+  -- 'outline 
+  -- "solid"
+  -- "outline"
+
+'solid is used for creating solid basic shapes; 'outline is used for creating 
+outlines of basic shapes. Strings are used in an analogous manner. 
+
+A *CS* is a color structure: `(make-color N N N)` where `N` is between 0 and 255. 
+
+A *Color* is one of:
+
+  -- a color symbol, e.g., 'blue
+  -- a color string, e.g., "blue"
+  -- a CS, e.g., (make-color 0 0 255), which also denotes blue. 
+
+Color arguments are used to paint the shapes or their outlines. See below for 
+more information about colors. Additionally, the following predicate precisely 
+specifies what a valid image color is: 
+
+  image-color? : anything -> boolean`
+
+The image teachpack provides the following functions, which are also provided
+by the PLT image teachpack.
+
+=== Vector Shapes
+  
+`rectangle : Int Int Mode Color -> Image`
+
+Creates a rectangle using the given width, height, mode, and color 
+
+`circle : Int Mode Color -> Image`
+
+Creates a circle using the given radius, mode, and color 
+
+`ellipse : Int Int Mode Color -> Image`
+
+Creates an ellipse using the given width, height, and color
+
+`triangle : Int Mode Color -> Image`
+
+Creates an upward pointing equilateral triangle using the given edge size 
+and color 
+
+`star : Int[>=2] Int[>=1] Int[>=1] Mode Color -> Image`
+
+Creates a multi-pointed star; the first number specifies the number of 
+points, the second specifies the radius where the points begin and the third
+specifies the radius where they end. 
+
+`line : Int Int Color -> Image`
+
+Creates an image with a colored line from (0,0) to the point with the 
+given coordinates 
+
+`add-line : Image Int Int Int Int Color -> Image`
+
+Adds a line to an existing image, drawn between the two given points 
+
+`text : String Size Color -> Image`
+
+Creates an image of the text in the given string, with the point size, 
+and color specified by the last two arguments 
+
+=== Image Properties
+
+Images have many properties. To understand how functions manipulate and create
+images, we need to understand one of these properties immediately: *pinholes*. 
+Each image, including primitive shapes, come with a pinhole. Usually the 
+pinhole is in the center of the shape except for those created from line and 
+text, which have pinholes at the top left. When in doubt you can always find 
+out where the pinhole is and even place it somewhere else: 
+
+`pinhole-x : Image -> Int`
+
+Determines the x coordinate of the pinhole, measuring from the left of 
+the image 
+
+`pinhole-y : Image -> Int`
+
+Determines the y coordinate of the pinhole, measuring down from the top 
+of the image 
+
+`put-pinhole : Image Int Int -> Image`
+
+Puts the pinhole in the location specified by the arguments, counting 
+from the left and down from the top, respectively. 
+
+`move-pinhole : Image Int Int -> Image`
+
+Moves the pinhole down and to the right (by the specified amounts) of 
+its current location. Use negative numbers to move it up or to the left. 
+
+=== Composite Images
+
+The next group of functions build images from images: 
+
+`overlay : Image Image Image ... -> Image`
+
+Adds the pixels of the second Image onto the first image. The operation 
+lines up the images via their pinholes. 
+
+`overlay/xy : Image Int Int Image -> Image`
+
+Adds the pixels of the second image onto the first image. Instead of 
+lining up on the pinhole, the second image's pinhole is lined up with an
+offset from the first image's pinhole. The two coordinates specify how far 
+down and to the right the offset should be. The pinhole of the resulting 
+image is the same place as the pinhole in the first image. 
+
+`image-inside? : Image Image -> Boolean` 
+
+Determines whether the pixels of the second image appear in the first. 
+
+`find-image : Image Image -> Posn`
+
+Determines where the pixels of the second image appear in the first, with 
+respect to the pinhole of the first image. 
+
+Two more properties of images are useful for image manipulations: their 
+width and height. The two functions for extracting these properties are: 
+
+`image-width : Image -> Int`
+
+Obtains an Image's width in pixels 
+
+`image-height : Image -> Int`
+
+Obtains an image's height in pixels 
+
+=== Bitmap Images
+
+Bitmap images can be constructed from existing files or from lists of colors.
+
+A *List-of-color* is one of:
+
+  -- empty
+  -- (cons Color List-of-color)
+
+A List-of-color represents a sequence of colors. It is possible to extract an 
+image's colors and pixels and to create images from a list of colors.
+
+`image->color-list : Image -> List-of-color`
+Converts an image to a list of colors 
+
+color-list->image : List-of-color Nat Nat Nat Nat -> Image 
+
+Converts a list of colors to an image with the given width and height, 
+and pinhole coordinates (the pinhole coordinates are with respect to the 
+top-left of the image).  
+
+Additionally, images can be created from existing files.
+
+`image-from-file : string -> Image`
+
+Constructs a bitmap image from the given file path
+
+=== Image Manipulation
+
+The shrink functions trim an image by eliminating extraneous pixels. 
+
+`shrink-tl : Image Int Int -> Image `
+
+Shrinks the image, starting from the top-left corner. The two numbers 
+indicate how many pixels to save. The pinhole of the resulting image is 
+in the middle of the image. 
+
+`shrink-tr : Image Int Int -> Image`
+
+Shrinks the image, starting from the top-right corner. The two numbers 
+indicate how many pixels to save. The pinhole of the resulting image is in 
+the middle of the image. 
+
+`shrink-bl : Image Int Int -> Image`
+
+Shrinks the image, starting from the bottom-left corner. The two numbers 
+indicate how many pixels to save. The pinhole of the resulting image is in 
+the middle of the image. 
+
+`shrink-br : Image Int Int -> Image`
+
+Shrinks the image, starting from the bottom-right corner. The two numbers 
+indicate how many pixels to save. The pinhole of the resulting image is 
+in the middle of the image. 
+
+`shrink : Image Int Int Int Int -> Image`
+
+Shrinks an image around its pinhole. The numbers are the pixels to save to 
+left, above, to the right, and below the pinhole, respectively. The pixel 
+directly on the pinhole is always saved. 
+
+=== Transparency and Alpha Information
+
+The following functions extract the consitiuent colors from an image and 
+combine colors into an image, but the functions provide alpha-channel 
+information as well. Alpha channels are a measure of transparency; 0 
+indicates fully opaque and 255 indicates fully transparent. 
+
+`image->alpha-color-list : image -> list-of-alpha-color`
+
+Converts an image to a list of alpha colors 
+
+`alpha-color-list->image : list-of-alpha-color int int int int -> image`
+
+Converts a list of alpha colors to an image with the given width and 
+height, and pinhole coordinates (the pinhole coordinates are with respect to 
+the top-left of the image). 
+
+`make-alpha-color : int int int int -> color`
+
+Constructs an alpha color 
+
+`alpha-color? : anything -> boolean`
+
+Determines if its input is a color 
+
+`alpha-color-alpha : color -> int`
+
+Extracts the alpha value of a color 
+
+`alpha-color-red : color -> int`
+
+Extract the red component of a color 
+
+`alpha-color-green : color -> int`
+
+Extracts the green component of a color 
+
+`alpha-color-blue : color -> int`
+
+Extract the blue component of a color
+
