@@ -59,15 +59,6 @@
 (define hdr_shift            8)
 (define char_shift	     8)
 
-(define TEMP    	'eax)	; always same as SECOND
-(define SECOND  	'eax)	; always same as TEMP
-(define RESULT  	'ebx)
-(define REG1    	'ecx)	; ecx must map to a VM register
-(define REG2    	'edx)
-(define REG3    	'edi)	; edi must map to a VM register
-(define REG0    	'esi)
-(define REG1_LOW 'cl)	; ecx must map to a VM register
-(define REG2_LOW 'dl)
 (define GLOBALS 	'esp)
 (define CONT    	'ebp)
 
@@ -78,11 +69,6 @@
 (define G_REGALIAS_EDX  $g.reg2)        ; used by rdrsc
 (define G_REGALIAS_EBX  $g.result)
 
-(define TEMP_LOW	        'al)
-(define RESULT_LOW	'bl)
-(define SECOND_LOW	'al)
-(define REG1_LOW	        'cl)
-(define REG2_LOW	        'dl)
 
 ;; corresponds to settings in features.sch
 ;; %include "config.ah" 

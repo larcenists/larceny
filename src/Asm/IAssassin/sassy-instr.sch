@@ -121,7 +121,6 @@
 (define (REG n) 
   (case n   
     ((eax ebx ecx edx edi esi esp ebp) n)
-    ((RESULT) $r.result) ;; hack to allow 'RESULT to be passed in  op1/op2 peeps
     ((1) $r.reg1) ((2) $r.reg2) ((3) $r.reg3) ((0) $r.reg0)
     (else (error 'REG (string-append " unknown register "
                                      (number->string n))))))
@@ -132,7 +131,6 @@
     ((ebx) 'bl)
     ((ecx) 'cl)
     ((edx) 'dl)
-    ((RESULT) $r.result.low) ;; hack... (see note in REG impl)
     ((1) $r.reg1.low) ((2) $r.reg2.low)
     (else (error 'REG (string-append " unknown low register "
                                      (number->string n))))))
@@ -148,13 +146,6 @@
     ((esi)    'esi)
     ((esp)    'esp)
     ((ebp)    'ebp)
-    ((RESULT) $r.result.low)
-    ((TEMP)   $r.temp.low)
-    ((SECOND) $r.second.low)
-    ((REG1)   $r.reg1.low)
-    ((REG2)   $r.reg2.low)
-    ((REG3)   $r.reg3)
-    ((REG0)   $r.reg0)
     (else (error 'try-low hwreg " is not a symbolic hwreg..."))))
  
 
@@ -171,7 +162,7 @@
                            ((NCC) 'CC) ...)))))
     (cases cc (z nz) (e ne) (g ng) (l nl) (o no) (le g) (be a))))
     
-(define (result-reg? n)      (or (eq? n $r.result) (eq? n 'RESULT)))
+(define (result-reg? n)      (or (eq? n $r.result)))
 (define (hwreg_has_low r)    
   (case r
     ((eax ebx ecx edx) #t)
@@ -494,7 +485,7 @@
       `(mov (& ,$r.globals ,$g.stkp) ,$r.cont)     ; Need a working register!
       `(mov (& ,$r.globals ,$g.result) ,$r.result) ; Save for later
       `(add ,$r.result ,(+ PROC_REG0 (words2bytes LASTREG)))
-      (ia86.loadr $r.cont 31)
+      (ia86.loadr $r.cont LASTREG)
       `(label ,L1)
       `(mov ,$r.temp (& ,$r.cont ,(- $tag.pair-tag)))
       `(mov (& ,$r.result) ,$r.temp)

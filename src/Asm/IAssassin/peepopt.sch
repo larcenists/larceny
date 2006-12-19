@@ -189,7 +189,7 @@
   (let ((rs (operand1 i:reg)))
     (cond
      ((is_hwreg rs)
-      (peep-reg/op1/setreg as (operand1 i:op1) rs 'RESULT tail)))))
+      (peep-reg/op1/setreg as (operand1 i:op1) rs $r.result tail)))))
 
 (define (reg-branchf as i:reg i:branchf tail)
   (let ((rs (operand1 i:reg))
@@ -279,7 +279,7 @@
   (let ((op (operand1 i:op1))
         (rd (operand1 i:setreg)))
     (if (is_hwreg rd)
-        (peep-reg/op1/setreg as op 'RESULT rd tail))))
+        (peep-reg/op1/setreg as op $r.result rd tail))))
 
 (define (peep-reg/op1/setreg as op rs rd tail)
   (let ((op (case op
@@ -325,7 +325,7 @@
     (if (is_hwreg rs1)
         (if (is_hwreg rd)
             (peep-reg/op2/setreg as op rs1 rs2 rd tail)
-            (peep-reg/op2/setreg as op rs1 rs2 'RESULT tail-1)))))
+            (peep-reg/op2/setreg as op rs1 rs2 $r.result tail-1)))))
 
 (define (reg-op2imm-setreg as i:reg i:op2 i:setreg tail-1 tail)
   (let ((rs1 (operand1 i:reg))
@@ -335,35 +335,35 @@
     (if (is_hwreg rs1)
         (if (is_hwreg rd)
             (peep-reg/op2imm/setreg as op rs1 rs2 rd tail)
-            (peep-reg/op2imm/setreg as op rs1 rs2 'RESULT tail-1)))))
+            (peep-reg/op2imm/setreg as op rs1 rs2 $r.result tail-1)))))
 
 (define (reg-op2 as i:reg i:op2 tail)
   (let ((rs1 (operand1 i:reg))
         (rs2 (operand2 i:op2))
         (op  (operand1 i:op2)))
     (if (is_hwreg rs1)
-        (peep-reg/op2/setreg as op rs1 rs2 'RESULT tail))))
+        (peep-reg/op2/setreg as op rs1 rs2 $r.result tail))))
 
 (define (reg-op2imm as i:reg i:op2 tail)
   (let ((rs1 (operand1 i:reg))
         (rs2 (operand2 i:op2))
         (op  (operand1 i:op2)))
     (if (is_hwreg rs1)
-        (peep-reg/op2imm/setreg as op rs1 rs2 'RESULT tail))))
+        (peep-reg/op2imm/setreg as op rs1 rs2 $r.result tail))))
 
 (define (op2-setreg as i:op2 i:setreg tail)
   (let ((op  (operand1 i:op2))
         (rs2 (operand2 i:op2))
         (rd  (operand1 i:setreg)))
     (if (is_hwreg rd)
-        (peep-reg/op2/setreg as op 'RESULT rs2 rd tail))))
+        (peep-reg/op2/setreg as op $r.result rs2 rd tail))))
 
 (define (op2imm-setreg as i:op2 i:setreg tail)
   (let ((op  (operand1 i:op2))
         (rs2 (operand2 i:op2))
         (rd  (operand1 i:setreg)))
     (if (is_hwreg rd)
-        (peep-reg/op2imm/setreg as op 'RESULT rs2 rd tail))))
+        (peep-reg/op2imm/setreg as op $r.result rs2 rd tail))))
 
 (define (peep-reg/op2/setreg as op rs1 rs2 rd tail)
   (let ((op (case op
@@ -436,7 +436,7 @@
 (define (op1-branchf as i:op1 i:branchf tail)
   (let ((op (operand1 i:op1))
         (L  (operand1 i:branchf)))
-    (peep-reg/op1/branchf as op 'RESULT L tail)))
+    (peep-reg/op1/branchf as op $r.result L tail)))
 
 (define (reg-op2-branchf as i:reg i:op2 i:branchf tail)
   (let ((rs1 (operand1 i:reg))
@@ -450,7 +450,7 @@
   (let ((op  (operand1 i:op2))
        (rs2 (operand2 i:op2))
         (L   (operand1 i:branchf)))
-    (peep-reg/op2/branchf as op 'RESULT rs2 L tail)))
+    (peep-reg/op2/branchf as op $r.result rs2 L tail)))
 
 (define (peep-reg/op2/branchf as op rs1 rs2 L tail)
   (let ((op (case op
@@ -483,7 +483,7 @@
   (let ((op  (operand1 i:op2imm))
         (imm (operand2 i:op2imm))
         (L   (operand1 i:branchf)))
-    (peep-reg/op2imm/branchf as op 'RESULT imm L tail)))
+    (peep-reg/op2imm/branchf as op $r.result imm L tail)))
 
 (define (peep-reg/op2imm/branchf as op rs imm L tail)
   (let ((op (case op
@@ -518,7 +518,7 @@
 (define (op1-check as i:op1 i:check tail)
   (let ((op (operand1 i:op1))
         (L  (operand4 i:check)))
-    (peep-reg/op1/check as op 'RESULT L
+    (peep-reg/op1/check as op $r.result L
                         (list (operand1 i:check)
                               (operand2 i:check)
                               (operand3 i:check))
@@ -561,7 +561,7 @@
 (define (op2-check as i:op2 i:check tail)
   (let ((rs2 (operand2 i:op2))
         (op (operand1 i:op2)))
-    (peep-reg/op2/check as op 'RESULT rs2 (operand4 i:check)
+    (peep-reg/op2/check as op $r.result rs2 (operand4 i:check)
                         (list (operand1 i:check)
                               (operand2 i:check)
                               (operand3 i:check))
@@ -570,7 +570,7 @@
 (define (op2imm-check as i:op2 i:check tail)
   (let ((rs2 (operand2 i:op2))
         (op (operand1 i:op2)))
-    (peep-reg/op2imm/check as op 'RESULT rs2 (operand4 i:check)
+    (peep-reg/op2imm/check as op $r.result rs2 (operand4 i:check)
                         (list (operand1 i:check)
                               (operand2 i:check)
                               (operand3 i:check))
