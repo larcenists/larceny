@@ -726,7 +726,7 @@ static void ga_box_longint( word *globals, word hi, word lo )
     else
       ga_box_word( globals, lo, 0 );
   }
-  else if (hi == ~0) {
+  else if (hi == ~0 && lo != 0) {
     if ((lo & 0xe0000000) == 0xe0000000)
       globals[ G_RESULT ] = fixnum( lo );
     else
