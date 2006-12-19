@@ -1192,6 +1192,8 @@
                   (ia86.single_tag_test $r.result ptrtag)
                   `(jz short ,L3)))
            `(label ,L1)
+	   (ia86.loadr  $r.temp  reg-value)
+	   `(mov (& ,$r.globals ,$g.third) ,$r.temp)
            (ia86.loadr	$r.second regno)
            (ia86.exception_continuable ex L0)
            (cond ((= hdrtag 0)
