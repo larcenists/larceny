@@ -379,7 +379,6 @@
 	  (if (< f 0) (bignum-sign-set! b negative-sign))
 	  b))))
 
-
 ;-----------------------------------------------------------------------------
 ; Section 3.
 ;
@@ -486,6 +485,115 @@
   (let ((b (bignum-copy a)))
     (big-flip-sign! b)
     (big-normalize! b)))
+
+; logical operators
+
+(define integer-logand)
+(define integer-logior)
+(define integer-logxor)
+
+(let ()
+  ;; fxop : op for each bigit of a and b (w/ 2's complement semantics)
+  ;; sign : predetermined sign of the result value
+  (define (integer-logop fxop sign a b)
+    (define (safe-ref n i)
+      (cond ((< i (bignum-length n))
+	     (bignum-ref n i))
+	    (else
+	     0)))
+    (define (mask-ref n@i cn mn)
+      (fxlogand bigit-mask (+ cn (fxlogxor n@i mn))))
+    (define (next-carry n i previous-carry)
+      (if (and (= previous-carry 1)
+	       (= (bignum-ref n i) 0))
+	  1
+	  0))
+    (let* ((a (if (fixnum? a) (fixnum->bignum a) a))
+	   (b (if (fixnum? b) (fixnum->bignum b) b))
+	   (la (bignum-length a))
+	   (lb (bignum-length b))
+	   (d (bignum-alloc (+ 1 (max la lb))))
+	   (ma (if (negative? a) bigit-mask 0))
+	   (mb (if (negative? b) bigit-mask 0)))
+      (let loop ((i 0) 
+		 (ca (if (negative? a) 1 0)) 
+		 (cb (if (negative? b) 1 0))
+		 (cd (if (sign-negative? sign) 1 0)))
+	(cond 
+	 ((= i (+ 1 (max la lb)))
+	  (bignum-sign-set! d sign)
+	  (big-normalize! d))
+	 (else
+	  (let* ((a@i (safe-ref a i))
+		 (b@i (safe-ref b i))
+		 (a@i^m (mask-ref a@i ca ma))
+		 (b@i^m (mask-ref b@i cb mb))
+		 (r (fxop a@i^m b@i^m))
+		 (r2 (- r cd))
+		 (r3 (if (< r2 0) bigit-mask r2))
+		 (r4 (fxlogand bigit-mask (fxlognot r3))))
+	    (if (sign-negative? sign)
+		(bignum-set! d i r4)
+		(bignum-set! d i r))
+	    (loop (+ i 1) 
+		  (next-carry a i ca) 
+		  (next-carry b i cb)
+		  (if (< r2 0) 1 0))))))))
+
+  ;; An optimized version that assumes non-negative a, b, and result,
+  ;; which allows for a simpler implementation.  (unused for now)
+  (define (integer-logop/pos fxop a b)
+    (let* ((a (if (fixnum? a) (fixnum->bignum a) a))
+	   (b (if (fixnum? b) (fixnum->bignum b) b))
+	   (la (bignum-length a))
+	   (lb (bignum-length b))
+	   (d (bignum-alloc (max la lb))))
+      ;; 1. Common digits
+      (do ((i 0 (+ i 1)))
+	  ((= i (min la lb)))
+	(bignum-set! d i (fxop (bignum-ref a i) (bignum-ref b i))))
+      ;; 2. Remaining digits
+      (let ((ld (max la lb)))
+	(do ((i (min la lb) (+ i 1))
+	     (e (if (= la ld) a b)))
+	    ((= i ld))
+	  (bignum-set! d i (fxop (bignum-ref e i) 0))))
+      ;; 3. Normalize
+      (big-normalize! d)))
+  
+  (define (%integer-logand a b)
+    (cond 
+     ((= -1 a) b)
+     ((= -1 b) a)
+     (else
+      (let ((sign (if (and (negative? a) (negative? b))
+		      negative-sign
+		      positive-sign)))
+	(integer-logop fxlogand sign a b)))))
+
+  (define (%integer-logior a b)
+    (cond 
+     ((= 0 a) b)
+     ((= 0 b) a)
+     (else
+      (let ((sign (if (or (negative? a) (negative? b))
+		      negative-sign
+		      positive-sign)))
+	(integer-logop fxlogior sign a b)))))
+
+  (define (%integer-logxor a b)
+    (cond 
+     ((= 0 a) b)
+     ((= 0 b) a)
+     (else
+      (let ((sign (if (not (eqv? (negative? a) (negative? b)))
+		      negative-sign
+		      positive-sign)))
+	(integer-logop fxlogxor sign a b)))))
+
+  (set! integer-logand %integer-logand)
+  (set! integer-logior %integer-logior)
+  (set! integer-logxor %integer-logxor))
 
 ; relational operators
 
