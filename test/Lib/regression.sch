@@ -229,6 +229,9 @@
          0.0)
    (mustfail "Ticket #147"              ; Bug in Larceny through 0.92b
          (lambda () (floor 0+1.0i)))
+   (test "Ticket #390"
+         (* #x10000000 (- #x10))
+         (- #x100000000))
    ))
 
 (define (bug-105-test1)
