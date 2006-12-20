@@ -26,13 +26,17 @@
 (let ()
 
   (define base *trampoline-basis-size*)
-  (define field-count (+ *trampoline-basis-size* 2))
+  (define field-count (+ *trampoline-basis-size* 4))
 
   (define (return-type tr) (vector-ref tr base))
   (define (arg-length tr) (vector-ref tr (+ base 1)))
+  (define (proc-addr tr) (vector-ref tr (+ base 2)))
+  (define (arg-types tr) (vector-ref tr (+ base 3)))
 
   (define (set-return-type! tr val) (vector-set! tr base val))
   (define (set-arg-length! tr val) (vector-set! tr (+ base 1) val))
+  (define (set-proc-addr! tr val) (vector-set! tr (+ base 2) val))
+  (define (set-arg-types! tr val) (vector-set! tr (+ base 3) val))
 
   (define two^24 (expt 2 24))
   (define two^16 (expt 2 16))
