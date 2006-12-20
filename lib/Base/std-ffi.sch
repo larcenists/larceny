@@ -35,6 +35,16 @@
 ;   converts it to a suitable Scheme representation.  Calling it
 ;   with a Scheme value stores a converted value in the variable.
 ;   
+; (foreign-wrap-procedure procedure params type)  =>  trampoline
+;   procedure      a scheme procedure: trampoline will invoke this
+;   params         a list of symbols: the formal parameter types
+;   type           a symbol: the return type
+;   
+;   Returns a trampoline object suitable for passing as a tramp
+;   parameters to foreign procedures.  (We can't return the 
+;   integer address of the generated codevector; if we did, the
+;   codevector might be garbage collected.)
+; 
 ; FIXME: the definitions of ffi/rename-type, foreign-null-pointer?, and
 ; foreign-null-pointer are compiler specific and should be cleaned up.
 ;
@@ -46,13 +56,14 @@
 
 (define *ffi-architecture*)
 (define *ffi-callout-abi*)
+(define *ffi-callback-abi*)
 
 (call-with-values
  load-ffi
  (lambda (architecture callout-abi callback-abi)
    (set! *ffi-architecture* architecture)
    (set! *ffi-callout-abi* callout-abi)
-   #t))
+   (set! *ffi-callback-abi* callback-abi)))
 
 
 ;;; Support code that is really compiler specific.  These definitions are OK
@@ -107,8 +118,16 @@
 	    ((eq? x #f)
 	     (foreign-null-pointer))
 	    (else
-	     (error "Foreign-proceduer " name ": " x
+	     (error "Foreign-procedure " name ": " x
 		    "is not a valid value for a boxed-object type."))))
+    
+    (define (trampoline->pointer x name)
+      (cond ((trampoline? x)
+             (let ((address (ffi/handle->address (tr-code x))))
+               (+ 4 address))) ;; XXX should not hard code bv header length...
+            (else
+             (error "Foreign procedure " name ": " x
+                    "is not a valid value for a trampoline type."))))
 
     (define (id x name) x)
 
@@ -160,6 +179,7 @@
       (bool     signed32   ,object->bool            ,int->boolean)
       (void     void       ,#f                      ,id)
       (boxed    pointer    ,boxed->pointer          ,#f)
+      (tramp    unsigned32 ,trampoline->pointer     ,#f)
       (string   pointer    ,string->asciiz          ,asciiz->string))))
 
 (define (ffi/rename-arg-type t)
@@ -280,6 +300,10 @@
 (define (foreign-null-pointer)
   0)
 
+(define (foreign-wrap-procedure proc param-types ret-type)
+  (ffi/make-callback *ffi-callback-abi* proc 
+                     (map ffi/rename-arg-type param-types)
+                     (ffi/rename-ret-type ret-type)))
 
 ;;; Memory access utility functions.
 
