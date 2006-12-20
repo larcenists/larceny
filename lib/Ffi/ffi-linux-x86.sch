@@ -14,7 +14,7 @@
 	(else (parent selector))))))
 
 (define ffi/i386-linux-C-callback-cdecl
-  (let ((parent ffi/i386-linux-C-callout-cdecl))
+  (let ((parent ffi/i386-C-callback-cdecl))
     (define (callback-addr)
       (let ((a (ffi/getaddr 'convert-and-call)))
         (if a a (error "callback-addr (linux x86): failed."))))
