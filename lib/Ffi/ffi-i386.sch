@@ -254,7 +254,8 @@
                                                ;; (mov (& esp) ,_proc)
             #xc7 #x04 #x24 ,@(dword (proc-addr tr))
 
-            #xff #x15 ,@(dword (tr-fptr tr))   ;; (call (& ,fptr))
+            #xb8 ,@(dword (tr-fptr tr))        ;; (mov eax ,fptr)
+            #xff #xd0                          ;; (call eax)
             
             #x8b #x45 #xfc                     ;; (mov eax (& -4 ebp))
             #xc9                               ;; (leave)
