@@ -190,11 +190,14 @@
 	       (else
 		(error "Unknown operating system: " (nbuild-parameter 'host-os))))
 	  (if (codegen-option 'mono)
-	      "CSC=mcs "
+	      "CSC=gmcs "
 	      "CSC=csc ")
-        (if (codegen-option 'use-cl)
-              "CPP=\"cl /C /EP\" "
-              "CPP=\"cpp -P -C -nostdinc\" ")
+          (cond ((eq? (nbuild-parameter 'host-os) 'win32)
+                 "CPP=\"cl /C /EP\" ")
+                ((eq? (nbuild-parameter 'host-os) 'macosx)
+                 "CPP=\"gcc -E -P -C -nostdinc\" ")
+                (else
+                 "CPP=\"cpp -P -C -nostdinc\" "))
 	  (if (codegen-option 'debug)
 	      "/checked+ /warn:4 /debug:full /d:DEBUG "
 	      "/optimize+ ")
