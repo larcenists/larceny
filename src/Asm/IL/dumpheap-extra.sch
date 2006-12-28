@@ -445,11 +445,13 @@
 
                         ((codegen-option 'clr-2.0)
                          (cond ((codegen-option 'ilasm-debug)
-                                (if (codegen-option 'ilasm-opt)
+                                (if (and (codegen-option 'ilasm-opt)
+                                         (not (codegen-option 'mono)))
                                     "/debug=opt"
                                     "/debug"))
 
-                               ((codegen-option 'ilasm-opt)
+                               ((and (codegen-option 'ilasm-opt)
+                                     (not (codegen-option 'mono)))
                                 "/optimize /fold")
 
                                (else "")))
