@@ -48,6 +48,7 @@
     (let ((tr (make-vector field-count)))
       (tr-init-common tr)
       (set-return-type! tr 'unknown)
+      (set-return-encoding! tr 'unknown)
       (set-arg-length! tr 0)
       tr))
 
@@ -60,6 +61,8 @@
 	(bytevector-set! bv i (car l)))))
  
   (define (dword n)
+    (if (not (integer? n))
+        (error 'dword " non-numeric input: " n))
     (list (remainder n two^8)
 	  (remainder (quotient n two^8) two^8)
 	  (remainder (quotient n two^16) two^8)
@@ -212,10 +215,17 @@
     (define (callback-arg-ieee64 tr) 
       (callback-arg-words tr 2))
     (define (callback-ret-type tr type code)
-      (set-return-type! tr type))
+      (set-return-type! tr type)
+      (set-return-encoding! tr code))
     (define (callback-done tr argc) 
       (if (eq? (return-type tr) 'ieee64)
           (error "i386 callback: ieee64 return not implemented yet."))
+      (if (not (integer? argc))
+          (error "i386 callback: argc must be non-neg integer."))
+      (if (not (integer? (return-encoding tr)))
+          (error "i386 callback: return-encoding must be integer."))
+      (if (not (integer? (arg-types tr)))
+          (error "i386 callback: arg-types must be integer."))
 
       (let ((arg-size-byte (fxlogand (- (+ 4 (* 4 (arg-length tr)))) #xff)))
         (tr-at-beginning 
