@@ -165,6 +165,7 @@ void primitive_object_to_address( word w_obj )
 {
   /* Invariant: the pointer _must_ point to nonrelocatable memory,
    * or the result may be completely invalid.
+   * FIXME: can't we check that this invariant holds?
    */
   if (isptr(w_obj))
     globals[ G_RESULT ] = box_uint( (word)ptrof( w_obj ) );
