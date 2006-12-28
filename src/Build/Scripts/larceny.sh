@@ -8,6 +8,11 @@
 # You can specify a particular LARCENY_ROOT here:
 # LARCENY_ROOT=/usr/local/lib/larceny
 
+# gdb variable controls whether we attempt to invoke larceny under a
+# gdb debugger session.  (Set to true, or see gdb-larceny case below)
+gdb=false
+gdb_command_file=/tmp/gdb-larceny.gdb-commands
+
 if [ -z "$LARCENY_ROOT" ]; then
     # To guess LARCENY_ROOT, we start with the directory containing this
     # script.  If it's a relative path, we make it absolute.  Then, if it ends
@@ -54,6 +59,12 @@ case "`basename "$0"`" in
         cmd=larceny.bin
     ;;
 
+    gdb-larceny)        #option
+	heap=larceny.heap
+	cmd=larceny.bin
+	gdb=true
+    ;;
+
     *)
         exec 1>&2
         echo "Usage:"
@@ -76,5 +87,9 @@ elif [ ! -f "$heap" ]; then
     exit 1
 fi
 
-exec "$cmd" -heap "$heap" "$@"
-
+if $gdb ; then
+    echo "r -heap $heap $@" > $gdb_command_file
+    exec "gdb" "$cmd" -command "$gdb_command_file"
+else
+    exec "$cmd" -heap "$heap" "$@"
+fi
