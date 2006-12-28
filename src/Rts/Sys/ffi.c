@@ -341,6 +341,8 @@ larceny_C_ffi_convert_and_call( word *proc, word **args, void *result,
     case 3 : /* ieee64 */
       bytes += 16;
       break;
+    default: 
+      panic_abort( "Illegal descriptor: %d for argument #: %d", argp[i], i );
     }
   }
 
