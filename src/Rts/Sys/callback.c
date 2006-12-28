@@ -40,7 +40,7 @@ void larceny_call( word proc, int argc, word *argv, word *result )
   /* Setup arguments in registers -- this gcprotects them */
 
   globals[ G_REG0 ] = proc;
-  for ( i=0 ; i < argc ; i++ )
+  for ( i=0 ; i < argc ; i++ ) /* FIXME: guard against argc > #regs */
     globals[ G_REG1+i ] = argv[i];
   globals[ G_RESULT ] = fixnum(argc);
 
