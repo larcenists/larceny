@@ -214,7 +214,7 @@
        (list->bytevector
         `(#x89 #xA                       ;; (mov (& edx) ecx)
           #x83 #xC1 ,(* 4 word-count)    ;; (add ecx 4*word-count)
-          #x83 #xC2 ,(* 4 word-count)))) ;; (add edx 4*word-count)
+          #x83 #xC2 4)))                 ;; (add edx 4)
       (set-arg-length! tr (+ (arg-length tr) word-count)))
     (define (callback-arg-word tr) 
       (callback-arg-words tr 1))
@@ -251,8 +251,8 @@
           `(#xc7 #x44 #x24 #x14 ,@(dword argc) ;; (mov (& 20 esp) ,argc)
                                                ;; (mov (& 16 esp) ,TDESC(t0))
             #xc7 #x44 #x24 #x10 ,@(dword (return-encoding tr))
-                                               ;; (mov (& 12 esp) ,_adesc)
-            #xc7 #x44 #x24 #x0c ,@(dword (arg-types tr))
+            #xa1 ,@(dword (arg-types tr))      ;; (mov eax (& ,_adesc))
+            #x89 #x44 #x24 #x0c                ;; (mov (& 12 esp) eax)
             #x8d #x45 #xfc                     ;; (lea eax (& -4 ebp)) ;; &_r
             #x89 #x44 #x24 #x08                ;; (mov (& 8 esp) eax)
             #x8d #x55 ,arg-size-byte           ;; (lea edx (& ,arg-size ebp))
