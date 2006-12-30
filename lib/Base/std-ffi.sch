@@ -194,19 +194,39 @@
 ;; arrays and Scheme vectors (or maybe lists?  doesn't really
 ;; matter... the question is more whether the idea of creating such
 ;; arrays on the fly is actually sound.
+;; (Though the boxed descriptor might handle a lot of this, at least
+;;  for passing in.)
 (define (ffi-attribute-entry t)
   (cond
-   ((and (pair? t)
-         (eq? '-> (car t)))
-    (let ((param-types (cadr t))
-          (ret-type    (caddr t)))
-      `(,t unsigned32 
-           ,(lambda (proc name) ;; FIXME: space leak!
-              (trampoline->pointer 
-               (foreign-wrap-procedure proc param-types ret-type)
-               name))
-           ,(lambda (addr name)
-              (foreign-procedure-pointer addr param-types ret-type)))))
+   ((pair? t)
+    (cond
+     ((eq? '-> (car t))
+      (let ((param-types (cadr t))
+            (ret-type    (caddr t)))
+        `(,t unsigned32 
+             ,(lambda (proc name) ;; FIXME: space leak!
+                (trampoline->pointer 
+                 (foreign-wrap-procedure proc param-types ret-type)
+                 name))
+             ,(lambda (addr name)
+                (foreign-procedure-pointer addr param-types ret-type)))))
+     ((eq? 'maybe (car t))
+      (let* ((param-type (cadr t))
+             (entry (ffi-attribute-entry param-type))
+             (snd (cadr entry))
+             (thd (caddr entry))
+             (fth (cadddr entry)))
+        `(,t ,(cadr entry) 
+             ,(lambda (x name) 
+                (if x
+                    (thd x name)
+                    (foreign-null-pointer)))
+             ,(lambda (x name)
+                (if (foreign-null-pointer? x)
+                    #f
+                    (fth x name))))))
+     (else
+      (error "FFI: " t " is not a valid type constructor."))))
    (else
     (ffi-attribute-core-entry t))))
 
