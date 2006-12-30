@@ -55,7 +55,7 @@
      (ffi/libraries (list (ffi/x86-macosx-libc)))
      (values architecture
              ffi/i386-macosx-C-callout-cdecl
-             #f))
+             ffi/i386-macosx-C-callback-cdecl))
     ((i386-win32)
      (require "ffi-i386")
      (require "ffi-win32")
