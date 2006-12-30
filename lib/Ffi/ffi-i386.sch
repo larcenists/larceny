@@ -70,6 +70,7 @@
 
   ; Callout trampoline
   ;
+  ; (see also: larceny_C_ffi_apply in src/Rts/Sys/ffi.c)
   ; The callout uses the __stdcall C calling conventions and implements
   ; the following pseudo-procedure:
   ;
@@ -93,11 +94,15 @@
   (define (make-callout-stdabi stdcall?)
     (let ()
 
+      (define (make-filler tr opcode)
+        (vector->list (make-vector (modulo (+ 0 (- (arg-length tr))) 4)
+                                   opcode)))
       (define (callout-done tr)
 	(tr-at-beginning tr
 	  (list->bytevector
 	   `(#x55                                       ; PUSH EBP              standard prologue
 	     #x89 #xE5                                  ; MOV EBP, ESP
+             ,@(make-filler tr #x55) ; PUSH EBP (filler to 16-byte aligned)
 	     #x53                                       ; PUSH EBX
 	     #x56                                       ; PUSH ESI
 	     #x8B #x75 #x08                             ; MOV ESI, [EBP+8]      load argv
@@ -119,6 +124,7 @@
 		 (else ???))
 	     #x5E                                       ; POP ESI               standard epilogue
 	     #x5B                                       ; POP EBX
+             ,@(make-filler tr #x5D) ; POP EBP (filler to restore old esp)
 	     #x5D                                       ; POP EBP
 	     ,@(if stdcall?
 		   '(#xC2 #x08)                         ; RETURN 8              callee pops
