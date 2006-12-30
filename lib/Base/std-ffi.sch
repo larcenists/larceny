@@ -69,6 +69,14 @@
 ;;; Support code that is really compiler specific.  These definitions are OK
 ;;; for SunOS 4, SunOS 5 with the compilers I've tried.
 
+(define (trampoline->pointer x name)
+  (cond ((trampoline? x)
+         (let ((address (ffi/handle->address (tr-code x))))
+           (+ 4 address))) ;; XXX should not hard code bv header length...
+        (else
+         (error "Foreign procedure " name ": " x
+                "is not a valid value for a trampoline type."))))
+
 (define *ffi-attributes*
   (let ()
 
@@ -121,14 +129,6 @@
 	     (error "Foreign-procedure " name ": " x
 		    "is not a valid value for a boxed-object type."))))
     
-    (define (trampoline->pointer x name)
-      (cond ((trampoline? x)
-             (let ((address (ffi/handle->address (tr-code x))))
-               (+ 4 address))) ;; XXX should not hard code bv header length...
-            (else
-             (error "Foreign procedure " name ": " x
-                    "is not a valid value for a trampoline type."))))
-
     (define (id x name) x)
 
     (define (object->bool x name)
@@ -195,10 +195,11 @@
     (let ((param-types (cadr t))
           (ret-type    (caddr t)))
       `(,t unsigned32 
-           ,(lambda (proc) ;; FIXME: space leak!
+           ,(lambda (proc name) ;; FIXME: space leak!
               (trampoline->pointer 
-               (foreign-wrap-procedure proc param-types ret-type)))
-           ,(lambda (addr)
+               (foreign-wrap-procedure proc param-types ret-type)
+               name))
+           ,(lambda (addr name)
               (foreign-procedure-pointer addr param-types ret-type)))))
    (else
     (ffi-attribute-core-entry t))))
