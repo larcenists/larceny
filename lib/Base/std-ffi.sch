@@ -188,6 +188,12 @@
         probe
 	(error "FFI: " t " is not a valid core type name."))))
 
+;; This now handles the function type constructor -> to convert
+;; between C function pointers and Scheme closures.  It might be good
+;; to also add an array type constructor that converts between C
+;; arrays and Scheme vectors (or maybe lists?  doesn't really
+;; matter... the question is more whether the idea of creating such
+;; arrays on the fly is actually sound.
 (define (ffi-attribute-entry t)
   (cond
    ((and (pair? t)
