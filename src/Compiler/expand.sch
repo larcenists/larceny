@@ -496,7 +496,7 @@
 ;)
                   (m-application-args proc args env)))
             (m-application-args proc args env)))
-      (m-application-args proc args env)))
+      (m-error "Malformed application expression" exp)))
 
 ; The proc expression has already been twobit-expanded.
 
