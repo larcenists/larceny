@@ -182,11 +182,29 @@
       (tramp    unsigned32 ,trampoline->pointer     ,#f)
       (string   pointer    ,string->asciiz          ,asciiz->string))))
 
-(define (ffi/rename-arg-type t)
+(define (ffi-attribute-core-entry t)
   (let ((probe (assq t *ffi-attributes*)))
     (if probe
-	(cadr probe)
-	(error "FFI: " t " is not a valid type name."))))
+        probe
+	(error "FFI: " t " is not a valid core type name."))))
+
+(define (ffi-attribute-entry t)
+  (cond
+   ((and (pair? t)
+         (eq? '-> (car t)))
+    (let ((param-types (cadr t))
+          (ret-type    (caddr t)))
+      `(,t unsigned32 
+           ,(lambda (proc) ;; FIXME: space leak!
+              (trampoline->pointer 
+               (foreign-wrap-procedure proc param-types ret-type)))
+           ,(lambda (addr)
+              (foreign-procedure-pointer addr param-types ret-type)))))
+   (else
+    (ffi-attribute-core-entry t))))
+
+(define (ffi/rename-arg-type t)
+  (cadr (ffi-attribute-entry t)))
 
 (define (ffi/rename-ret-type t)
   (if (eq? t 'string)
@@ -194,10 +212,11 @@
       (ffi/rename-arg-type t)))
 
 (define (ffi/arg-converter t)
-  (caddr (assq t *ffi-attributes*)))
+  (caddr (ffi-attribute-entry t)))
 
 (define (ffi/ret-converter t)
-  (cadddr (assq t *ffi-attributes*)))
+  (cadddr (ffi-attribute-entry t)))
+   
 
 ;;; Interface
 
