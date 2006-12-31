@@ -36,7 +36,7 @@ typedef word cont_t;
 #define DISPATCH_TIMER                  6 /* Handle timer interrupt */
 #define DISPATCH_CALL_R0                7 /* Call proc in R0 */
 
-extern jmp_buf dispatch_jump_buffer;
+extern jmp_buf *dispatch_jump_buffer;
 extern int already_running;
 
 /* The following must be exported by compiled Scheme code. */

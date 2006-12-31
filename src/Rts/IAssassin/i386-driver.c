@@ -21,10 +21,14 @@ void scheme_start( word *globals )
   cont_t f = 0;
   word *stkp = (word*)globals[ G_STKP ];
   int x;
-
+  jmp_buf *old_jump_buffer = dispatch_jump_buffer;
   if (already_running)
-    panic_abort( "Recursive call to scheme_start (FFI?)" );
+    consolemsg( "Recursive call to scheme_start (FFI?)" );
   already_running = 1;
+
+  dispatch_jump_buffer = malloc(sizeof(jmp_buf));
+  if (dispatch_jump_buffer == NULL)
+    panic_abort("Couldn't allocate fresh jmp_buf");
 
 #if 0
   /* Patch in bootstrap code if necessary */
@@ -49,7 +53,7 @@ void scheme_start( word *globals )
      */
 
   /* Outer loop */
-  switch (x = setjmp( dispatch_jump_buffer )) {
+  switch (x = setjmp( *dispatch_jump_buffer )) {
   case 0 :
   case DISPATCH_CALL_R0 :
     assert2( tagof( globals[ G_REG0 ]) == PROC_TAG );
@@ -58,6 +62,8 @@ void scheme_start( word *globals )
     break;
   case DISPATCH_EXIT:
     already_running = 0;
+    free(dispatch_jump_buffer);
+    dispatch_jump_buffer = old_jump_buffer;
     return;
   case DISPATCH_RETURN_FROM_S2S_CALL :
     f = restore_context( globals );

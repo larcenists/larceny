@@ -39,12 +39,16 @@ extern void i386_return_from_scheme();
 #endif
 
 /* These could go in the globals vector, too */
-jmp_buf dispatch_jump_buffer;
+jmp_buf *dispatch_jump_buffer;
 int already_running = 0;
+
+void my_longjmp( jmp_buf *env, int val) {
+  longjmp(*env, val);
+}
 
 RTYPE EXPORT mem_stkuflow( CONT_PARAMS )
 {
-  longjmp( dispatch_jump_buffer, DISPATCH_STKUFLOW );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_STKUFLOW );
 }
 
 void EXPORT mc_alloc_bv( word *globals )
@@ -559,7 +563,7 @@ void mem_icache_flush( void *lo, void *limit )
 void execute_sigfpe_magic( void *context )
 {
   unblock_all_signals();        /* Reset signal mask, really. */
-  longjmp( dispatch_jump_buffer, DISPATCH_SIGFPE );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_SIGFPE );
 }
 
 void handle_sigfpe( word *globals )
@@ -731,14 +735,14 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   globals[ G_REG0 ] = vector_ref( callouts, index );
   globals[ G_RESULT ] = fixnum( argc );
 
-  longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
 }
 
 /* Return address for scheme-to-scheme call frame. 
    */
 RTYPE return_from_scheme( CONT_PARAMS )
 {
-  longjmp( dispatch_jump_buffer, DISPATCH_RETURN_FROM_S2S_CALL );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_RETURN_FROM_S2S_CALL );
 }
 
 /* Restore all registers.
@@ -769,7 +773,7 @@ cont_t restore_context( word *globals )
 
 RTYPE dispatch_loop_return( CONT_PARAMS )
 {
-  longjmp( dispatch_jump_buffer, DISPATCH_EXIT );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_EXIT );
 }
 
 /* eof */
