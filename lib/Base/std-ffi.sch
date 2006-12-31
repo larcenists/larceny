@@ -73,6 +73,8 @@
   (cond ((trampoline? x)
          (let ((address (ffi/handle->address (tr-code x))))
            (+ 4 address))) ;; XXX should not hard code bv header length...
+        ((integer? x)
+         x)
         (else
          (error "Foreign procedure " name ": " x
                 "is not a valid value for a trampoline type."))))
@@ -257,6 +259,9 @@
 (define (foreign-procedure-pointer addr param-types ret-type)
   (stdffi/make-foreign-procedure addr param-types ret-type
                                  ffi/foreign-procedure-pointer))
+
+(define (foreign-procedure-tramp name)
+  (ffi/link-procedure *ffi-callout-abi* name))
 
 ; FIXME, this is not completed!  Also, there should ABI support for
 ; linking variables (different name mangling, perhaps).
