@@ -114,7 +114,7 @@ int unbox_int( word w )
       return -(int)bignum_ref32( w, 0 );
   }
   else {
-    hardconsolemsg( "Illegal value in unbox_int; returning -1" );
+    hardconsolemsg( "Illegal value in unbox_int: 0x%08x; returning -1", w );
     return -1;
   }
 }
