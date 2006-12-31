@@ -352,7 +352,13 @@
   0)
 
 (define (foreign-wrap-procedure proc param-types ret-type)
-  (ffi/make-callback *ffi-callback-abi* proc 
+  (ffi/make-callback *ffi-callback-abi* 
+                     (lambda args
+                       (let ((v (apply proc args))
+                             (convert-ret-val (ffi/arg-converter ret-type)))
+                         (if convert-ret-val
+                             (convert-ret-val v ret-type)
+                             v)))
                      (map ffi/rename-arg-type param-types)
                      (ffi/rename-ret-type ret-type)))
 
