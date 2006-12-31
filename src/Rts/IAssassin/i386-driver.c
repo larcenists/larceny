@@ -23,7 +23,7 @@ void scheme_start( word *globals )
   int x;
 
   if (already_running)
-    consolemsg( "Recursive call to scheme_start (FFI?)" );
+    panic_abort( "Recursive call to scheme_start (FFI?)" );
   already_running = 1;
 
 #if 0
