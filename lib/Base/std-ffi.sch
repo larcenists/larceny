@@ -53,6 +53,7 @@
 ;;; Initialization
 
 (require 'ffi-load)
+(require 'record) ; for void* abstract record
 
 (define *ffi-architecture*)
 (define *ffi-callout-abi*)
@@ -78,6 +79,8 @@
         (else
          (error "Foreign procedure " name ": " x
                 "is not a valid value for a trampoline type."))))
+
+(define void*-rt (make-record-type "void*" '(ptr) #f))
 
 (define *ffi-attributes*
   (let ()
@@ -118,6 +121,11 @@
 	  x
 	  (error "Foreign-procedure " name ": " x
 		 " is not a floating-point number.")))
+
+    (define (void*->unsigned x name)
+      ((record-accessor void*-rt 'ptr) x))
+    (define (unsigned->void* x name)
+      ((record-constructor void*-rt) x))
 
     (define (boxed->pointer x name)
       (cond ((or (pair? x)
@@ -181,6 +189,7 @@
       (bool     signed32   ,object->bool            ,int->boolean)
       (void     void       ,#f                      ,id)
       (boxed    pointer    ,boxed->pointer          ,#f)
+      (void*    unsigned32 ,void*->unsigned          ,unsigned->void*)
       (tramp    unsigned32 ,trampoline->pointer     ,#f)
       (string   pointer    ,string->asciiz          ,asciiz->string))))
 
