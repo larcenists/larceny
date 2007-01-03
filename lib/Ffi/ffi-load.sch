@@ -68,7 +68,7 @@
      ;(ffi/libraries (list (ffi/x86-linux-libc)))
      (values architecture
 	     ffi/i386-linux-C-callout-cdecl
-	     #f))
+	     ffi/i386-linux-C-callback-cdecl))
     (else
      (error "Unknown FFI architecture " *ffi-architecture*))))
 
