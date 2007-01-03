@@ -2,6 +2,8 @@
 
 (let ((os (assq 'os-name (system-features))))
   (cond 
+   ((equal? os '(os-name . "Linux"))
+    (foreign-file "/usr/lib/libgtk-x11-2.0.so.0"))    
    ((equal? os '(os-name . "MacOS X"))
     (foreign-file "/sw/lib/libgtk-x11-2.0.dylib"))
    (else
