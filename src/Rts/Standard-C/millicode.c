@@ -53,7 +53,7 @@ static word *stack_underflow_procedure;
 #endif /* PETIT_LARCENY */
 
 /* These could go in the globals vector, too */
-jmp_buf dispatch_jump_buffer;
+jmp_buf *dispatch_jump_buffer;
 int already_running = 0;
 
 #ifdef PETIT_LARCENY
@@ -138,7 +138,7 @@ void scheme_start( word *globals )
      */
 
   /* Outer loop */
-  switch (x = setjmp( dispatch_jump_buffer )) {
+  switch (x = setjmp( *dispatch_jump_buffer )) {
   case 0 :
   case DISPATCH_CALL_R0 :
 # if USE_GOTOS_LOCALLY
@@ -312,9 +312,13 @@ void stk_initialize_underflow_frame( word *stkp )
 }
 #endif /* PETIT_LARCENY */
 
+void my_longjmp( jmp_buf *env, int val) {
+  longjmp(*env, val);
+}
+
 RTYPE EXPORT mem_stkuflow( CONT_PARAMS )
 {
-  longjmp( dispatch_jump_buffer, DISPATCH_STKUFLOW );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_STKUFLOW );
 }
 
 void EXPORT mc_alloc_bv( word *globals )
@@ -420,7 +424,7 @@ void EXPORT mc_timer_exception( word *globals, cont_t k )
 {
 #if defined PETIT_LARCENY && USE_LONGJUMP
   twobit_cont_label = k;
-  longjmp( dispatch_jump_buffer, DISPATCH_TIMER );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_TIMER );
 #else
   timer_exception( globals, k );
 #endif
@@ -457,7 +461,7 @@ void EXPORT mc_enable_interrupts( word *globals, cont_t k )
 #if defined PETIT_LARCENY && USE_LONGJUMP
   /* For now: prune the stack */
   twobit_cont_label = k;
-  longjmp( dispatch_jump_buffer, DISPATCH_CALL_AGAIN );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_CALL_AGAIN );
 #endif
 }
 
@@ -833,7 +837,7 @@ void mem_icache_flush( void *lo, void *limit )
 void execute_sigfpe_magic( void *context )
 {
   unblock_all_signals();        /* Reset signal mask, really. */
-  longjmp( dispatch_jump_buffer, DISPATCH_SIGFPE );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_SIGFPE );
 }
 
 void handle_sigfpe( word *globals )
@@ -995,14 +999,14 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   globals[ G_REG0 ] = vector_ref( callouts, index );
   globals[ G_RESULT ] = fixnum( argc );
 
-  longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
 }
 
 /* Return address for scheme-to-scheme call frame. 
    */
 RTYPE return_from_scheme( CONT_PARAMS )
 {
-  longjmp( dispatch_jump_buffer, DISPATCH_RETURN_FROM_S2S_CALL );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_RETURN_FROM_S2S_CALL );
 }
 
 /* Restore all registers.
@@ -1033,7 +1037,7 @@ cont_t restore_context( word *globals )
 
 RTYPE dispatch_loop_return( CONT_PARAMS )
 {
-  longjmp( dispatch_jump_buffer, DISPATCH_EXIT );
+  my_longjmp( dispatch_jump_buffer, DISPATCH_EXIT );
 }
 
 /* eof */
