@@ -101,6 +101,10 @@ void scheme_start( word *globals )
     panic_abort( "Recursive call to petit_larceny_start (FFI?)" );
   already_running = 1;
 
+  dispatch_jump_buffer = malloc(sizeof(jmp_buf));
+  if (dispatch_jump_buffer == NULL)
+    panic_abort("Couldn't allocate fresh jmp_buf");
+
   /* Patch in bootstrap code if necessary */
   if (procedure_ref( globals[ G_REG0 ], IDX_PROC_CODE ) == FALSE_CONST)
     procedure_set(globals[G_REG0],IDX_PROC_CODE,ENCODE_CODEPTR(twobit_start));
