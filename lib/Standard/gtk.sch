@@ -56,7 +56,11 @@
 (define-foreign (gtk-option-menu-new) void*)
 (define-foreign (gtk-menu-shell-append void* void*) void)
 (define-foreign (gtk-option-menu-set-menu void* void*) void)
-
+(define-foreign (gtk-frame-new string) void*)
+(define-foreign (gtk-label-set-justify void* int) void)
+(define-foreign (gtk-label-set-line-wrap void* bool) void)
+(define-foreign (gtk-label-set-pattern void* string) void)
+(define-foreign (gtk-widget-show-all void*) void)
 (define GTK-WINDOW-TOPLEVEL 0)
 
 (define GTK-EXPAND 1)
@@ -71,3 +75,8 @@
 (define GTK-POS-RIGHT 1)
 (define GTK-POS-TOP 2)
 (define GTK-POS-BOTTOM 3)
+
+(define GTK-JUSTIFY-LEFT 0)
+(define GTK-JUSTIFY-RIGHT 1)
+(define GTK-JUSTIFY-CENTER 2)
+(define GTK-JUSTIFY-FILL 3)
