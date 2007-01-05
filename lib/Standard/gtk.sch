@@ -61,6 +61,8 @@
 (define-foreign (gtk-label-set-line-wrap void* bool) void)
 (define-foreign (gtk-label-set-pattern void* string) void)
 (define-foreign (gtk-widget-show-all void*) void)
+(define-foreign (gtk-arrow-new int int) void*)
+
 (define GTK-WINDOW-TOPLEVEL 0)
 
 (define GTK-EXPAND 1)
@@ -80,3 +82,14 @@
 (define GTK-JUSTIFY-RIGHT 1)
 (define GTK-JUSTIFY-CENTER 2)
 (define GTK-JUSTIFY-FILL 3)
+
+(define GTK-ARROW-UP 0)
+(define GTK-ARROW-DOWN 1)
+(define GTK-ARROW-LEFT 2)
+(define GTK-ARROW-RIGHT 3)
+
+(define GTK-SHADOW-NONE 0)
+(define GTK-SHADOW-IN 1)
+(define GTK-SHADOW-OUT 2)
+(define GTK-SHADOW-ETCHED-IN 3)
+(define GTK-SHADOW-ETCHED-OUT 4)
