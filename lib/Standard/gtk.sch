@@ -41,6 +41,7 @@
   void*)
 (define-foreign (gtk-radio-button-get-group void*) void*)
 (define-foreign (gtk-toggle-button-set-active void* bool) void)
+(define-foreign (gtk-toggle-button-get-active void*) bool)
 (define-foreign (gtk-adjustment-new double double double double double double) void*)
 (define-foreign (gtk-vscale-new void*) void*)
 (define-foreign (gtk-hscale-new void*) void*)
