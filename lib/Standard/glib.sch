@@ -108,4 +108,5 @@
 (define (g-signal-connect-swapped source signal-name f d)
   (g-signal-connect-data source signal-name f d #f 2))
 
-
+(define-foreign (g-timeout-add uint (-> (void*) bool) (maybe void*)) uint)
+(define-foreign (g-source-remove uint) bool)

@@ -21,6 +21,7 @@
 (define-foreign (gtk-button-new-with-label string) void*)
 (define-foreign (gtk-container-add void* void*) void)
 (define-foreign (gtk-window-set-title! void* string) void)
+(define-foreign (gtk-window-set-resizable! void* bool) void)
 (define-foreign (gtk-hbox-new bool int) void*)
 (define-foreign (gtk-vbox-new bool int) void*)
 (define-foreign (gtk-label-new string) void*)
@@ -62,6 +63,21 @@
 (define-foreign (gtk-label-set-pattern void* string) void)
 (define-foreign (gtk-widget-show-all void*) void)
 (define-foreign (gtk-arrow-new int int) void*)
+(define-foreign (gtk-alignment-new float float float float) void*)
+(define-foreign (gtk-progress-bar-new) void*)
+(define-foreign (gtk-table-attach void* void* 
+                                  uint uint uint uint 
+                                  unsigned unsigned 
+                                  uint uint) 
+  void)
+(define-foreign (gtk-widget-destroy void*) void)
+(define-foreign (gtk-progress-bar-get-fraction void*) double)
+(define-foreign (gtk-progress-bar-set-fraction void* double) void)
+(define-foreign (gtk-progress-bar-get-text void*) string)
+(define-foreign (gtk-progress-bar-set-text void* string) void)
+(define-foreign (gtk-progress-bar-pulse void*) void)
+(define-foreign (gtk-progress-bar-get-orientation void*) unsigned)
+(define-foreign (gtk-progress-bar-set-orientation void* unsigned) void)
 
 (define GTK-WINDOW-TOPLEVEL 0)
 
@@ -93,3 +109,8 @@
 (define GTK-SHADOW-OUT 2)
 (define GTK-SHADOW-ETCHED-IN 3)
 (define GTK-SHADOW-ETCHED-OUT 4)
+
+(define GTK-PROGRESS-LEFT-TO-RIGHT 0)
+(define GTK-PROGRESS-RIGHT-TO-LEFT 1)
+(define GTK-PROGRESS-BOTTOM-TO-TOP 2)
+(define GTK-PROGRESS-TOP-TO-BOTTOM 3)
