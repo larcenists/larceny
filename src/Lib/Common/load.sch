@@ -67,10 +67,6 @@
             (write-string "; Loading " (current-output-port))
             (display filename (current-output-port))
             (flush-output-port (current-output-port))))
-     (parameterize ((reset-handler (let ((old-rh (reset-handler)))
-                                     (lambda args
-                                       (close-input-port p)
-                                       (apply old-rh args)))))
       (do ((expr (read p) (read p)))
           ((eof-object? expr))
         (call-with-values
@@ -82,7 +78,7 @@
                            (write-string ";    " (current-output-port))
                            (write value (current-output-port))
                            (flush-output-port (current-output-port)))
-                         values))))))
+                         values)))))
       (close-input-port p)
       (unspecified)))
 
