@@ -1,4 +1,6 @@
 (require 'std-ffi)
+(require 'foreign-sugar)
+(require 'glib) ;; convenience; who's going to use gtk without glib?
 
 (let ((os (assq 'os-name (system-features))))
   (cond 
@@ -9,38 +11,11 @@
    (else
     (error "Add case in gtk.sch for os: " os))))
 
-(define (foreign-name->string sym)
-  (let* ((str (symbol->string sym))
-         (lst (string->list str))
-         (lst (apply append
-                     (map (lambda (c) 
-                            (case c
-                              ((#\-) (list #\_))
-                              ((#\!) (list))
-                              (else  (list c))))
-                          lst)))
-         (str (list->string lst)))
-    str))
-    
-(define-syntax define-foreign
-  (syntax-rules ()
-    ((define-foreign (NAME ARG-TYPES ...) RESULT-TYPE)
-     (define NAME
-       (foreign-procedure (foreign-name->string 'NAME) '(ARG-TYPES ...) 'RESULT-TYPE)))))
-
 (define-foreign (gtk-init boxed boxed) void)
 (define-foreign (gtk-window-new int) void*)
 (define-foreign (gtk-widget-show void*) void)
 (define-foreign (gtk-main) void)
 (define-foreign (gtk-main-quit) void)
-(define-foreign (g-signal-connect-data 
-                 void* 
-                 string 
-                 (-> (void* void*) bool)
-                 (maybe void*)
-                 (maybe (-> (void* void*) void))
-                 unsigned)
-  void*)
 
 (define-foreign (gtk-container-set-border-width void* int) void)
 (define-foreign (gtk-button-new-with-label string) void*)
@@ -66,14 +41,32 @@
   void*)
 (define-foreign (gtk-radio-button-get-group void*) void*)
 (define-foreign (gtk-toggle-button-set-active void* bool) void)
-
-(define (g-signal-connect source signal-name f d)
-  (g-signal-connect-data source signal-name f d #f 0))
-(define (g-signal-connect-swapped source signal-name f d)
-  (g-signal-connect-data source signal-name f d #f 2))
+(define-foreign (gtk-adjustment-new double double double double double double) void*)
+(define-foreign (gtk-vscale-new void*) void*)
+(define-foreign (gtk-hscale-new void*) void*)
+(define-foreign (gtk-hscrollbar-new void*) void*)
+(define-foreign (gtk-check-button-new-with-label string) void*)
+(define-foreign (gtk-range-set-update-policy void* int) void)
+(define-foreign (gtk-scale-set-digits void* int) void)
+(define-foreign (gtk-scale-set-value-pos void* int) void)
+(define-foreign (gtk-scale-set-draw-value void* bool) void)
+(define-foreign (gtk-menu-item-new-with-label string) void*)
+(define-foreign (gtk-menu-new) void*)
+(define-foreign (gtk-option-menu-new) void*)
+(define-foreign (gtk-menu-shell-append void* void*) void)
+(define-foreign (gtk-option-menu-set-menu void* void*) void)
 
 (define GTK-WINDOW-TOPLEVEL 0)
 
 (define GTK-EXPAND 1)
 (define GTK-SHRINK 2)
 (define GTK-FILL   4)
+
+(define GTK-UPDATE-CONTINUOUS 0)
+(define GTK-UPDATE-DISCONTINUOUS 1)
+(define GTK-UPDATE-DELAYED 0)
+
+(define GTK-POS-LEFT 0)
+(define GTK-POS-RIGHT 1)
+(define GTK-POS-TOP 2)
+(define GTK-POS-BOTTOM 3)
