@@ -81,7 +81,33 @@
                 "is not a valid value for a trampoline type."))))
 
 (define void*-rt (make-record-type "void*" '(ptr) #f))
-
+;; 
+(define (void*-byte-ref x idx)
+  (%peek8  (+ ((record-accessor void*-rt 'ptr) x) idx)))
+(define (void*-word-ref x idx)
+  (%peek32 (+ ((record-accessor void*-rt 'ptr) x) idx)))
+(define (void*-void*-ref x idx)
+  ((record-constructor void*-rt) (void*-word-ref x idx)))
+(define (void*-double-ref x idx)
+  (let ((bv1 (make-bytevector 8))
+        (bv2 (make-bytevector 12))
+        (addr (+ ((record-accessor void*-rt 'ptr) x) idx)))
+    (peek-bytes addr bv1 8)
+    (begin (display `(peek-bytes ,addr ,bv1 ,8))
+           (newline))
+    ;; shift values down 4 bytes
+    (do ((i 11 (- i 1)))
+        ((= i 3) (typetag-set! bv2 (typetag 0.0)) bv2)
+      (bytevector-set! bv2 i (bytevector-ref bv1 (- i 4))))))
+(define (void*-double-set! x idx val)
+  (let ((bv (make-bytevector 8))
+        (addr (+ ((record-accessor void*-rt 'ptr) x) idx)))
+    ;; copy val into bv, shifting indices up by 4
+    (do ((i 0 (+ i 1)))
+        ((= i 8))
+      (bytevector-set! bv i (bytevector-ref val (+ i 4))))
+    (poke-bytes addr bv 8)))
+         
 (define *ffi-attributes*
   (let ()
 
