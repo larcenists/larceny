@@ -9,6 +9,8 @@
 ; (trace-exit <proc>)           Trace <proc> at exit
 ; (untrace <proc> ...)          Disable tracing for <procs>
 ; (untrace)                     Disable tracing for all traced <procs>
+; trace-entry-handler           Parameter (String Sexp [Listof Symbol] -> Unspecified)
+; trace-exit-handler            Parameter (String Sexp [Listof Symbol] [Listof Any] -> Unspecified)
 ;
 ; (larceny-break)               Break at this point (a primitive)
 ; (break-entry <proc>)          Break on entry to <proc>
@@ -41,6 +43,14 @@
 
 (define trace-level 
   (make-parameter "trace-level" 0))
+
+(define trace-entry-handler
+  (make-parameter "trace-entry-handler" (lambda (name expr args)
+					  (debug/default-trace-entry-handler name expr args))))
+
+(define trace-exit-handler
+  (make-parameter "trace-exit-handler" (lambda (name expr args results)
+					 (debug/default-trace-exit-handler name expr args results))))
 
 ; Invariant: a procedure is on each of these lists at most once.
 
@@ -188,6 +198,9 @@
   (debug/print-object x))
 
 (define (debug/trace-enter-msg name expr args)
+  ((trace-entry-handler) name expr args))
+
+(define (debug/default-trace-entry-handler name expr args)
   (debug/display (make-string (trace-level) #\space) "Enter " name)
   (debug/display-args (if expr (cadr expr) #f) args)
   (debug/displayln))
@@ -228,6 +241,9 @@
   (debug/display ")"))
 
 (define (debug/trace-exit-msg name exp args results)
+  ((trace-exit-handler) name exp args results))
+
+(define (debug/default-trace-exit-handler name exp args results)
   (debug/display (make-string (trace-level) #\space) "Leave " name)
   (debug/display-args (if exp (cadr exp) #f) args)
   (debug/display " => ")
