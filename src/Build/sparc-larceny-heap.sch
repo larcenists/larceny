@@ -188,6 +188,7 @@
      "inspect-cont.fasl"
      "trace.fasl"))
  '(debug trace trace-entry trace-exit untrace break-entry unbreak 
+   trace-entry-printer trace-exit-printer
    install-debugger))
 
 (install-debugger)
