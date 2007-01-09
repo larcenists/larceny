@@ -61,6 +61,16 @@
 	  (else
 	   (loop (cdr libs))))))
 
+(define (ffi/provides-procedure? abi name)
+  (let loop ((libs (ffi/load-libraries abi)))
+    (cond ((null? libs)
+           (cond (((abi 'link-proc) 0 name) #t)
+                 (else 
+                  #f)))
+	  (((abi 'link-proc) (cdar libs) name) #t)
+	  (else
+	   (loop (cdr libs))))))
+
 (define (ffi/foreign-procedure abi name args ret)
   (let* ((addr  (ffi/link-procedure abi name))
          (tramp (ffi/make-callout abi addr args ret))

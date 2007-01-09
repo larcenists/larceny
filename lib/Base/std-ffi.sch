@@ -287,6 +287,9 @@
 (define (foreign-file x)
   (ffi/libraries (cons x (ffi/libraries))))
 
+(define (foreign-procedure-provided? name)
+  (ffi/provides-procedure? *ffi-callout-abi* name))
+
 (define (foreign-procedure name param-types ret-type)
   (stdffi/make-foreign-procedure name param-types ret-type 
                                  ffi/foreign-procedure))
