@@ -49,7 +49,7 @@
 
 (define (hash-by-identity obj . maybe-bound)
   (let ((bound (if (null? maybe-bound) *default-bound* (car maybe-bound))))
-    (modulo (object-hash x) bound)))
+    (modulo (object-hash obj) bound)))
 
 (define %make-hash-node cons)
 (define %hash-node-set-value! set-cdr!)
