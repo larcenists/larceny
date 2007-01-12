@@ -61,7 +61,7 @@
      (require "ffi-win32")
      (values architecture
 	     ffi/i386-win32-C-callout-cdecl
-	     #f))
+	     ffi/i386-win32-C-callback-cdecl))
     ((i386-linux)
      (require "ffi-i386")
      (require "ffi-linux-x86")

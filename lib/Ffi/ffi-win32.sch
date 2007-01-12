@@ -13,3 +13,13 @@
 	((link-proc) link-procedure)
 	(else (parent selector))))))
 
+(define ffi/i386-win32-C-callback-cdecl
+  (let ((parent ffi/i386-C-callback-cdecl))
+    (define (callback-addr)
+      (let ((a (ffi/getaddr 'convert-and-call)))
+        (if a a (error "callback-addr (win32 x86): failed."))))
+    
+    (lambda (selector)
+      (case selector
+        ((callback-addr)  callback-addr)
+        (else (parent selector))))))
