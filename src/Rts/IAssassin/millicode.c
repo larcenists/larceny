@@ -65,6 +65,19 @@ void EXPORT mc_alloc_bv( word *globals )
   assert2( p != 0 );
   globals[ G_RESULT ] = (word)p;
 #else
+  word *etop = (word*)globals[ G_ETOP ];
+  word *elim = (word*)globals[ G_STKP ];
+  word *p;
+  if ((((word)etop & 0xF) == 0x8) && /* misaligned and ... */
+      (elim - etop) > 2) {           /* have room to realign */
+    *etop = 0;
+    etop++;
+    *etop = 0;
+    etop++;
+    globals[ G_ETOP ] = (word) etop;
+    assert( (globals[ G_ETOP ] & 0xF) == 0x0 );
+  }
+
   globals[ G_RESULT ] = roundup4( globals[ G_RESULT ] >> 2 );
   mc_alloc( globals );
 #endif
