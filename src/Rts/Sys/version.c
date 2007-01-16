@@ -55,7 +55,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 93;
-char *larceny_version_qualifier = " \"Deviated Prevert\"";
+char *larceny_version_qualifier = " \".1 (development)\"";
 
 char *date = DATE " " TIME;
 char *user = USER;
