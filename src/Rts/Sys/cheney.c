@@ -141,6 +141,7 @@
   else {                                                \
     word *TMPD;                                         \
     check_space(dest,lim,sizefield(TMP_W)+4,e);         \
+    check_space(dest,lim,sizefield(TMP_W)+4+8,e);       \
     TMPD = dest;                                        \
     *loc = forward( T_obj, &TMPD, e ); dest = TMPD;     \
   }
@@ -1061,6 +1062,20 @@ static word forward( word p, word **dest, cheney_env_t *e )
 
   tag = tagof( p ); 
   ptr = ptrof( p );
+
+  /* experimentally keeping bytevectors 4-word aligned;
+   * insert padding when dest is only 2-word aligned. */
+  if (tag == BVEC_TAG) {
+    if ((((word)*dest) & 0xF) == 0x8) {
+      p1 = *dest;
+      *p1 = 0;
+      p1++;
+      *p1 = 0;
+      p1++;
+      *dest = p1;
+    }
+    assert((((word)*dest) & 0xF) == 0x0);
+  }
 
   /* Copy the structure into newspace and pad if necessary. */
   p1 = *dest;
