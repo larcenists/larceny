@@ -62,5 +62,5 @@ Common Larceny, please see the Common Larceny User Manual under
 doc/CommonLarceny.
 
 For a list of bugs that are known to persist in this release, see
-Docs/KNOWN-BUGS.
+doc/KNOWN-BUGS.
 
