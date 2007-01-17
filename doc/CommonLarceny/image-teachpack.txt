@@ -17,8 +17,8 @@ so desired.
 
 == Use
 
-To use the functions provided by the image teachpack, load the implementation-
-specific file, e.g. `(load "lib/teachpacks/image-dotnet.sch)`.
+To use the functions provided by the image teachpack, use Common
+Larceny's require facility: `(require "TeachPacks/image")`.
 
 === Background Knowledge
 

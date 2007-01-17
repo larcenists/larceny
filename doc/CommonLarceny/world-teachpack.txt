@@ -18,8 +18,8 @@ so desired.
 
 == Use
 
-To use the functions provided by the world teachpack, load the implementation-
-specific file, e.g. `(load "lib/teachpacks/world-dotnet.sch)`.
+To use the functions provided by the world teachpack, use Common
+Larceny's require facility: `(require "TeachPacks/world")`.
 
 === Background Knowledge
 
@@ -126,6 +126,5 @@ except `add-line`, which has a slightly different functionality.
 
 == Examples
 
-The files in `/lib/teachpacks/` that begin with `demo-` show how to 
-create worlds and simple animations. They are derived from Matthias's demo 
-(see above).
+The files in `lib/TeachPacks/Demos` how to create worlds and simple
+animations. They are derived from Matthias's demo (see above).
