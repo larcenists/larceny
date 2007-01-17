@@ -50,13 +50,9 @@
 ;; exposed to the user, but the record-type's constructor and accessor 
 ;; methods should remain hidden.
 
-(require "TeachPacks/image-dotnet")
-
-;; this file requires the record-types of srfi-9
 (require 'srfi-9)
-
-;; require this for argument checking
-(require "TeachPacks/misc.sch")
+(require "TeachPacks/Support/image-dotnet")
+(require "TeachPacks/Support/misc")
 
 ;; argument-checking procedures
 (define (check name p? v desc arg-posn) 

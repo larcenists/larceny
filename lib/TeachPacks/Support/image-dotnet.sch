@@ -15,7 +15,7 @@
 
 ;; require the image abstraction, and dotnet definitions files
 
-(require "TeachPacks/dotnet-defs")
+(require "TeachPacks/Support/dotnet-defs")
 
 ;; ANTIALIASING
 ;; right now this is a flag that if set as true, 

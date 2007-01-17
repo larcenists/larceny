@@ -31,7 +31,7 @@
 (require 'srfi-9)
 
 (require "TeachPacks/image")
-(require "TeachPacks/world-dotnet")
+(require "TeachPacks/Support/world-dotnet")
 
 ;; timer
 (define-record-type :timer

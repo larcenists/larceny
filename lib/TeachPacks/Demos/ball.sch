@@ -1,10 +1,10 @@
 (require "TeachPacks/world")
 
-(define teachpack-dir
-  (string-append (current-larceny-root) "/lib/TeachPacks"))
+(define demos-dir
+  (string-append (current-larceny-root) "/lib/TeachPacks/Demos"))
 
 (define ball-file
-  (string-append teachpack-dir "/ball.png"))
+  (string-append demos-dir "/ball.png"))
 
 ;; World = Number 
 ;; interpretation: where is the ball (its current y coordinate)

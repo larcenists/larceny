@@ -1,11 +1,11 @@
 (require "TeachPacks/world")
 
 ;; load world definitions
-(define teachpack-dir
-  (string-append (current-larceny-root) "/lib/TeachPacks"))
+(define demos-dir
+  (string-append (current-larceny-root) "/lib/TeachPacks/Demos"))
 
 (define rocket-file
-  (string-append teachpack-dir "/rocket-s.jpg"))
+  (string-append demos-dir "/rocket-s.jpg"))
 
 ;; WORLD is one of: 
 ;; -- Number 
