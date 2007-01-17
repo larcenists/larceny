@@ -22,6 +22,37 @@
    (if (not (eq? x (unspecified)))
        (pretty-print x port))))
 
+(let ()
+  (define (file->char-list port)
+    (do ((c (read-char port) (read-char port))
+         (l '() (cons c l)))
+        ((eof-object? c) (reverse l))))
+  (define (trim-leading-spaces char-list)
+    (let loop ((l char-list))
+      (if (char-whitespace? (car l))
+          (loop (cdr l))
+          l)))
+  (define (trim-trailing-spaces char-list)
+    (reverse (trim-leading-spaces (reverse char-list))))
+  (define (trim-spaces char-list)
+    (trim-trailing-spaces
+     (trim-leading-spaces char-list)))
+  (define date-cmd
+    (if (equal? (cdr (assq 'os-name (system-features)))
+                "Win32")
+        "date /t "
+        "date    "))
+  (let ((herald-string
+         (begin
+           ;; A "temporary" file (we know it is about to get overwritten).
+           (system (string-append date-cmd "> twobit.heap"))
+           (call-with-input-file "twobit.heap"
+             (lambda (port)
+               (string-append 
+                "twobit.heap, built on " 
+                (list->string (trim-spaces (file->char-list port)))))))))
+    (herald herald-string)))
+
 (dump-interactive-heap "twobit.heap")
 (cond
  ((equal? (cdr (assq 'os-name (system-features)))

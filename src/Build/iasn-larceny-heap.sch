@@ -206,6 +206,38 @@
 
   (unspecified))
 
+"Install a herald that identifies the generated heap."
+(let ()
+  (define (file->char-list port)
+    (do ((c (read-char port) (read-char port))
+         (l '() (cons c l)))
+        ((eof-object? c) (reverse l))))
+  (define (trim-leading-spaces char-list)
+    (let loop ((l char-list))
+      (if (char-whitespace? (car l))
+          (loop (cdr l))
+          l)))
+  (define (trim-trailing-spaces char-list)
+    (reverse (trim-leading-spaces (reverse char-list))))
+  (define (trim-spaces char-list)
+    (trim-trailing-spaces
+     (trim-leading-spaces char-list)))
+  (define date-cmd
+    (if (equal? (cdr (assq 'os-name (system-features)))
+                "Win32")
+        "date /t "
+        "date    "))
+  (let ((herald-string
+         (begin
+           ;; A "temporary" file (we know it is about to get overwritten).
+           (system (string-append date-cmd "> larceny.heap"))
+           (call-with-input-file "larceny.heap"
+             (lambda (port)
+               (string-append 
+                "larceny.heap, built on " 
+                (list->string (trim-spaces (file->char-list port)))))))))
+    (herald herald-string)))
+
 "Reset REQUIRE's loaded-files in the interaction environment."
 (clear-require-loaded-files!)
 
