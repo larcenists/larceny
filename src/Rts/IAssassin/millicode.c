@@ -65,9 +65,13 @@ void EXPORT mc_alloc_bv( word *globals )
   assert2( p != 0 );
   globals[ G_RESULT ] = (word)p;
 #else
-  word *etop = (word*)globals[ G_ETOP ];
-  word *elim = (word*)globals[ G_STKP ];
+  word *etop; 
+  word *elim;
   word *p;
+  
+  etop = (word*)globals[ G_ETOP ];
+  elim = (word*)globals[ G_STKP ];
+
   if ((((word)etop & 0xF) == 0x8) && /* misaligned and ... */
       (elim - etop) > 2) {           /* have room to realign */
     *etop = 0;
