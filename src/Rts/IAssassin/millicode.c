@@ -53,6 +53,10 @@ RTYPE EXPORT mem_stkuflow( CONT_PARAMS )
 
 void EXPORT mc_alloc_bv( word *globals )
 {
+  word *etop; 
+  word *elim;
+  word *p;
+  
   assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
 
 #if defined( BDW_GC )
@@ -65,10 +69,6 @@ void EXPORT mc_alloc_bv( word *globals )
   assert2( p != 0 );
   globals[ G_RESULT ] = (word)p;
 #else
-  word *etop; 
-  word *elim;
-  word *p;
-  
   etop = (word*)globals[ G_ETOP ];
   elim = (word*)globals[ G_STKP ];
 
