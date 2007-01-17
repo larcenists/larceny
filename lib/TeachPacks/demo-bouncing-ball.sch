@@ -1,6 +1,4 @@
-;; load world definitions
-(define teachpack-dir "/lib/teachpacks/")
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "world-dotnet.sch"))
+(require "TeachPacks/world")
 
 ;; mzscheme compatibility
 (define symbol=? eq?)

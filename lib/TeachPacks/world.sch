@@ -30,6 +30,9 @@
 ;; this file requires the record-types of srfi-9
 (require 'srfi-9)
 
+(require "TeachPacks/image")
+(require "TeachPacks/world-dotnet")
+
 ;; timer
 (define-record-type :timer
   (timer rep)
@@ -66,25 +69,19 @@
 
 ;; timer-rep? : Any -> boolean
 (define timer-rep? (lambda (rep) (impl-timer-rep? rep)))
-(define (impl-timer-rep? rep) (error 'timer-rep? ": not implemented"))
 
 ;; timer-stert : timer ->
 (define timer-start (lambda (t) (impl-timer-start t)))
-(define (impl-timer-start t) (error 'timer-start ": not implemented"))
 
 ;; timer-stop : timer ->
 (define timer-stop (lambda (t) (impl-timer-stop t)))
-(define (impl-timer-stop t) (error 'timer-stop ": not implemented"))
 
 ;; set-timer-interval! timer int ->
 ;; sets the timer's interval in place
 (define set-timer-interval! (lambda (t i) (impl-set-timer-interval! t i)))
-(define (impl-set-timer-interval! t i) 
-  (error 'set-timer-interval! ": not implemented"))
  
 ;; frame-rep? : Any -> boolean
 (define frame-rep? (lambda (rep) (impl-frame-rep? rep)))
-(define (impl-frame-rep? rep) (error 'frame-rep? ": not implemented"))
 
 ;; new-frame : int int -> frame
 ;; creates a new w x h frame, and a timer associated with the frame. 
@@ -93,17 +90,14 @@
 ;; associated timer. Also, the frame should handle key events and pass 
 ;; key-codes along to on-char-proc (see World Procedures below).
 (define new-frame (lambda (w h) (impl-new-frame w h)))
-(define (impl-new-frame w h) (error 'new-frame ": not implemented"))
 
 ;; update-frame : frame image -> 
 ;; updates the frame to display the given image
 (define update-frame (lambda (f i) (impl-update-frame f i)))
-(define (impl-update-frame f i) (error 'update-frame ": not implemented"))
 
 ;; show-frame : frame ->
 ;; shows the given frame
 (define show-frame (lambda (f) (impl-show-frame f)))
-(define (impl-show-frame f) (error 'show-frame ": not implemented"))
 
 ;; -----------------------------------------------------------------------------
 ;; World Procedures

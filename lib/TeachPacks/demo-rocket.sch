@@ -1,6 +1,11 @@
+(require "TeachPacks/world")
+
 ;; load world definitions
-(define teachpack-dir "/lib/teachpacks/")
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "world-dotnet.sch"))
+(define teachpack-dir
+  (string-append (current-larceny-root) "/lib/TeachPacks"))
+
+(define rocket-file
+  (string-append teachpack-dir "/rocket-s.jpg"))
 
 ;; WORLD is one of: 
 ;; -- Number 
@@ -8,7 +13,7 @@
 ;; interpretation: how long since the rocket has been launched 
 ;;  the clock start ticking when the player presses any key 
 
-(define ROCKET (image-from-file "rocket-s.jpg"))
+(define ROCKET (image-from-file rocket-file))
 (define SIZE 300)
 (define WORLD0 (empty-scene SIZE SIZE))
 

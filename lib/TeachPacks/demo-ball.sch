@@ -1,12 +1,16 @@
-;; load world definitions
-(define teachpack-dir "/lib/teachpacks/")
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "world-dotnet.sch"))
+(require "TeachPacks/world")
+
+(define teachpack-dir
+  (string-append (current-larceny-root) "/lib/TeachPacks"))
+
+(define ball-file
+  (string-append teachpack-dir "/ball.png"))
 
 ;; World = Number 
 ;; interpretation: where is the ball (its current y coordinate)
 
 (define SIZE 300)
-(define BALL (image-from-file "ball.png"))
+(define BALL (image-from-file ball-file))
 (define WORLD0 (empty-scene SIZE SIZE))
 
 ;; drop the ball by 3 pixels, unless it has reached the bottom

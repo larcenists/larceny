@@ -1,9 +1,3 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; THIS FILE SHOULD NOT BE LOADED DIRECTLY
-;; INSTEAD, LOAD THE IMPLEMENTATION-SPECIFIC FILE
-;; e.g. image-dotnet.sch
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 ;; This is a port of the PLT HTDP images teachpack.
 ;; The methods that users are intended to "see" follow. All other methods 
 ;; should be left unexposed.
@@ -56,12 +50,13 @@
 ;; exposed to the user, but the record-type's constructor and accessor 
 ;; methods should remain hidden.
 
+(require "TeachPacks/image-dotnet")
+
 ;; this file requires the record-types of srfi-9
 (require 'srfi-9)
 
 ;; require this for argument checking
-(define teachpack-dir "/lib/teachpacks/")
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "misc.sch"))
+(require "TeachPacks/misc.sch")
 
 ;; argument-checking procedures
 (define (check name p? v desc arg-posn) 
@@ -310,18 +305,14 @@
 (define (image-color? c)
   (or (color? c) 
       (impl-image-color? c)))
-(define (impl-image-color? c) (error 'image-color? ": not implemented"))
 
 ;; bitmap-rep? Any -> boolean
 ;; determines if the given argument is a valid representation of a
 ;; bitmap according to the implementation
 (define (bitmap-rep? b) (impl-bitmap-rep? b))
-(define (impl-bitmap-rep? b) (error 'bitmap-rep? ": not implemented"))
 
 ;; image-from-file : string -> image
 (define (image-from-file path) (impl-image-from-file path))
-(define (impl-image-from-file path) 
-  (error 'image-from-file ": not implemented"))
 
 ;; rectangle : int int mode image-color -> image 
 ;; to create a rectangle using the given width, height, mode, and color 
@@ -331,8 +322,6 @@
   (check-mode 'rectangle mode "third")
   (check-image-color 'rectangle color "fourth")
   (impl-rectangle w h mode color))
-(define (impl-rectangle w h mode color) 
-  (error 'rectangle ": not implemented"))
 
 ;; circle : int mode image-color -> image 
 ;; to create a circle using the given radius, mode, and color 
@@ -341,8 +330,6 @@
   (check-mode 'circle mode "second")
   (check-image-color 'circle color "third")
   (impl-circle r mode color))
-(define (impl-circle r m c) 
-  (error 'circle ": not implemented"))
 
 ;; ellipse : int int mode image-color -> image 
 ;; to create an ellipse using the given width, height, and color 
@@ -352,8 +339,6 @@
   (check-mode 'ellipse mode "third")
   (check-image-color 'ellipse color "fourth")
   (impl-ellipse w h mode color))
-(define (impl-ellipse w h mode color) 
-  (error 'ellipse ": not implemented"))
 
 ;; triangle : int mode image-color -> image 
 ;; to create an upward pointing equilateral triangle 
@@ -367,8 +352,6 @@
   (check-mode 'triangle mode "second")
   (check-image-color 'triangle color "third")
   (impl-triangle size mode color))
-(define (impl-triangle size mode color) 
-  (error 'triangle ": not implemented"))
 
 ;; line : number number image-color -> image 
 ;; to create an image with a colored line from (0,0) 
@@ -379,8 +362,6 @@
   (check-image-color 'line color "third")
   (check-sizes 'line (+ x 1) (+ y 1))
   (impl-line x y color))
-(define (impl-line x y color) 
-  (error 'line ": not implemented"))
 
 ;; add-line : image number number number number image-color -> image 
 ;; to add a line to an existing image, drawn between the two given points 
@@ -393,9 +374,6 @@
   (check-image-color 'add-line c "sixth")
   (impl-add-line i x0 y0 x1 y1 c))
 
-(define (impl-add-line i x0 y0 x1 y1 c) 
-  (error 'add-line ": not implemented"))
-
 ;; text : string size image-color -> image 
 ;; to create an image of the text in the given string, 
 ;; with the point size, and color specified by the last two arguments 
@@ -405,8 +383,6 @@
          "integer between 1 and 255" "second")
   (check-image-color 'text color-in "third")
   (impl-text str size color))
-(define (impl-text str size color) 
-  (error 'text ": not implemented"))
 
 ;; overlay/xy : image int int image -> image
 ;; to add the pixels of the second image onto the first image. 
@@ -421,8 +397,6 @@
   (check-coordinate 'overlay/xy dy "third")
   (check-image 'overlay/xy b "fourth")
   (impl-overlay/xy a dx dy b))
-(define (impl-overlay/xy a dx dy b)
-  (error 'overlay/xy ": not implemented"))
 
 ;; shrink : image number number number number -> image 
 ;; to shrink an image around its pinhole. 
@@ -436,16 +410,12 @@
   (check-size/0 'shrink right "fourth")
   (check-coordinate 'shrink down "fifth")
   (impl-shrink img left up right down))
-(define (impl-shrink img left up right down)
-  (error 'shrink ": not implemented"))
 
 ;; image->color-list : image -> list-of-color 
 ;; to convert an image to a list of colors 
 (define (image->color-list i-raw)
   (check-image 'image->color-list i-raw "first")
   (impl-image->color-list i-raw))
-(define (impl-image->color-list i-raw) 
-  (error 'image->color-list ": not implemented"))
 
 ;; color-list->image : list-of-color int int int int -> image 
 ;; to convert a list of colors to an image with the given width and height, and 
@@ -465,8 +435,6 @@
                                            " ~a items")
                             (* w h) (length cl))))
   (impl-color-list->image cl w h px py))
-(define (impl-color-list->image cl w h px py) 
-  (error 'color-list->image ": not implemented"))
 
 ;; star : Int[>=2] Int[>=1] Int[>=1] Mode Color -> Image
 ;; to create a multi-pointed star; 
@@ -485,27 +453,20 @@
   (check-image-color 'star color "fifth")
   (impl-star points inner-radius outer-radius mode color))
 
-(define (impl-star points inner-radius outer-radius mode color)
-  (error 'star ": not implemented"))
-
 ;; image-inside? : Image Image -> Boolean 
 ;; to determine whether the pixels of the second image appear in the first. 
 (define (image-inside? i a) (impl-image-inside? i a))
-(define (impl-image-inside? i a) (error 'image-inside? ": not implemented"))
 
 ;; find-image : Image Image -> Posn 
 ;; to determine where the pixels of the second image appear in the first, 
 ;; with respect to the pinhole of the first image. 
 (define (find-image i a) (impl-find-image i a))
-(define (impl-find-image i a) (error 'find-image ": not implemented"))
 
 ;; image->alpha-color-list : image -> list-of-alpha-color 
 ;; to convert an image to a list of alpha colors 
 (define (image->alpha-color-list i)
   (check-image 'image->alpha-color-list i "first")
   (impl-image->alpha-color-list i))
-(define (impl-image->alpha-color-list i)
-  (error 'image->alpha-color-list ": not implemented"))
 
 ;; alpha-color-list->image : list-of-alpha-color int int int int -> image 
 ;; to convert a list of alpha colors to an image with the given width and
@@ -528,5 +489,3 @@
                                          "has ~a items")
                           (* w h) (length cl))))
   (impl-alpha-color-list->image cl w h px py))
-(define (impl-alpha-color-list->image cl w h px py)
-  (error 'alpha-color-list->image ": not implemented"))

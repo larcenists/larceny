@@ -12,9 +12,7 @@
 ;; you are back into the GUI-REPL.
 ;; ... Of course, all of the above quirky behavior should be fixed.
 
-;; provide image/world functions
-(define teachpack-dir "/lib/teachpacks/")
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "world-dotnet.sch"))
+(require "TeachPacks/world")
 
 ;; methods
 (define (set-width! c w)
@@ -85,3 +83,5 @@
 (clr/%add-event-handler the-button "Click" (clr/%foreign-box click-handler))
 
 (define (gui-repl) (show-form the-form))
+
+(gui-repl)

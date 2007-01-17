@@ -1,6 +1,13 @@
-;; load world definitions
-(define teachpack-dir "/lib/teachpacks/")
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "world-dotnet.sch"))
+(require "TeachPacks/world")
+
+(define teachpack-dir
+  (string-append (current-larceny-root) "/lib/TeachPacks"))
+
+(define rocket-file
+  (string-append teachpack-dir "/rocket-s.jpg"))
+
+(define satellite-file
+  (string-append teachpack-dir "/satellite.png"))
 
 ;; DATA
 ;; 
@@ -21,8 +28,8 @@
 
 (define WORLD0 (empty-scene WIDTH HEIGHT))
 
-(define SATELLITE (image-from-file "satellite.png"))
-(define ROCKET (image-from-file "rocket-s.jpg"))
+(define SATELLITE (image-from-file satellite-file))
+(define ROCKET (image-from-file rocket-file))
 
 ;; where the satellite starts, where the rocket starts 
 (define X0 (quotient WIDTH 2))
@@ -84,3 +91,4 @@
 (on-redraw image)
 (on-key-event launch)
 (big-bang WIDTH HEIGHT .1 0)
+

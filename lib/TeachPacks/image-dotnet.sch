@@ -14,9 +14,8 @@
 ;; added. This should be fixed.
 
 ;; require the image abstraction, and dotnet definitions files
-(define teachpack-dir "/lib/teachpacks/")
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "image.sch"))
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "dotnet-defs.sch"))
+
+(require "TeachPacks/dotnet-defs")
 
 ;; ANTIALIASING
 ;; right now this is a flag that if set as true, 

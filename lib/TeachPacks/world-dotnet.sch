@@ -4,9 +4,6 @@
 ;; srfi-9, dotnet-defs, image-dotnet, world
 
 (require 'srfi-9)
-(define teachpack-dir "/lib/teachpacks/")
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "image-dotnet.sch"))
-(load (string-append (getenv "LARCENY_ROOT") teachpack-dir "world.sch"))
 
 ;; -----------------------------------------------------------------------------
 ;; Helper Functions
