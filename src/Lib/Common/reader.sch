@@ -710,7 +710,7 @@
                    (char->integer c)
                    (fxlogior 2 (bytevector-ref character-syntax-table 
                                              (char->integer c)))))
-                (list #\( #\) #\[ #\] #\{ #\} #\; #\\))
+                (list #\" #\( #\) #\[ #\] #\{ #\} #\; #\\))
 
       (for-each (lambda (c)
               (bytevector-set!
