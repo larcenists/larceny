@@ -82,7 +82,7 @@
          (fund-desc (make-params-fundamental param-desc))
          (callback-arity (procedure-arity callback))
          (core-proc
-          (foreign-procedure (foreign-name->string 'g-signal-connect-data)
+          (foreign-procedure "g_signal_connect_data"
                              `(void* string 
                                      ,fund-desc ;; this is context dependant
                                      (maybe void*)

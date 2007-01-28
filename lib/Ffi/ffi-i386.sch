@@ -26,19 +26,21 @@
 (let ()
 
   (define base *trampoline-basis-size*)
-  (define field-count (+ *trampoline-basis-size* 5))
+  (define field-count (+ *trampoline-basis-size* 6))
 
   (define (return-type tr) (vector-ref tr base))
   (define (arg-length tr) (vector-ref tr (+ base 1)))
   (define (return-encoding tr) (vector-ref tr (+ base 2)))
   (define (proc-addr tr) (vector-ref tr (+ base 3)))
   (define (arg-types tr) (vector-ref tr (+ base 4)))
+  (define (fptr-updater tr) (vector-ref tr (+ base 5)))
 
   (define (set-return-type! tr val) (vector-set! tr base val))
   (define (set-arg-length! tr val) (vector-set! tr (+ base 1) val))
   (define (set-return-encoding! tr val) (vector-set! tr (+ base 2) val))
   (define (set-proc-addr! tr val) (vector-set! tr (+ base 3) val))
   (define (set-arg-types! tr val) (vector-set! tr (+ base 4) val))
+  (define (set-fptr-updater! tr val) (vector-set! tr (+ base 5) val))
 
   (define two^24 (expt 2 24))
   (define two^16 (expt 2 16))
@@ -110,7 +112,15 @@
 	     #x8B #xFC                                  ; MOV EDI, ESP          copy pointer
 	     #xFC)))                                    ; CLD                   copy upward
 
-	(tr-at-end tr
+	((lambda (bv) 
+           ;;; to support change-fptr, register a callback that
+           ;;; mutates the bytevector below with the new fptr.
+           (set-fptr-updater! tr (lambda ()
+                                   (for-each (lambda (idx byte) 
+                                               (bytevector-set! bv idx byte))
+                                             '(1 2 3 4)
+                                             (dword (tr-fptr tr)))))
+           (tr-at-end tr bv))
 	  (list->bytevector
 	   `(#xB8 ,@(dword (tr-fptr tr))                ; MOV EAX, <loc>        call the
 	     #xFF #xD0                                  ; CALL EAX                procedure
@@ -142,6 +152,9 @@
 	  (list->bytevector
 	   `(#xA5			                ; MOVS  DWORD PTR [ESI], DWORD PTR [EDI]
 	     #xA5))))			                ; MOVS  DWORD PTR [ESI], DWORD PTR [EDI]
+      
+      (define (change-fptr tr)
+        ((fptr-updater tr)))
 
       (lambda (selector)
 	(case selector
@@ -152,7 +165,7 @@
 	  ((ret-ieee64)          (lambda (tr) (set-return-type! tr 'ieee64)))
 	  ((ret-ieee32)          (lambda (tr) (set-return-type! tr 'ieee32)))
 	  ((ret-void)            (lambda (tr) (set-return-type! tr 'void)))
-	  ((change-fptr)         (lambda (tr) (error "i386-ffi: callout: change-fptr unsupported.")))
+	  ((change-fptr)         change-fptr)
 	  ((done)                callout-done)
 	  ((done-pasteup)        (lambda (tr) #t))
 	  (else 
