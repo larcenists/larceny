@@ -363,6 +363,19 @@ larceny_exec ()
   printf "$EXECCOMMANDS" "$1" | ${LARCENY} $COMPOPTS
 }
 
+lardump_comp ()
+{
+  printf "$COMPCOMMANDS" "$1" "$1" "$1" | ${LARCENY} -stopcopy $COMPOPTS
+  pwd
+  ${LARCENY} -stopcopy -reorganize-and-dump -heap $1.heap
+  cp $1.heap.split $1.heap
+}
+
+lardump_exec () 
+{
+  printf "$EXECCOMMANDS" | ${LARCENY} -heap $1.heap
+}
+
 henchman_comp ()
 {
   :
@@ -1135,6 +1148,41 @@ chicken-int) NAME='Chicken-int'
 	    REPLCOMMANDS="(begin $COMPSWITCHES (load \"%s.scm\") (main))"
 	    COMPCOMMANDS="(begin $COMPSWITCHES (compile-file \"%s.scm\"))"
 	    EXECCOMMANDS="(begin (load \"%s.fasl\") (main))"
+            ;;
+
+   lardump) NAME='Lardump'
+            COMP=lardump_comp
+            COMPOPTS=""
+            EXEC=lardump_exec
+            iterfile=num-iters.scm
+            extension=".scm"
+            PREFIXCODE="; %s %s"
+            SUFFIXCODE="; %s %s"
+            case "$setting" in
+              r5rs)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
+                COMPSWITCHES="(compiler-switches 'standard)"
+                ;;
+              r6rs)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
+		COMPSWITCHES="(compiler-switches 'fast-safe)"
+                ;;
+              r6rs-unsafe)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
+		COMPSWITCHES="(compiler-switches 'fast-unsafe)"
+                ;;
+              r6rs-fixflo)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) yes)))"
+		COMPSWITCHES="(compiler-switches 'fast-safe)"
+                ;;
+              r6rs-fixflo-unsafe)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) yes)))"
+		COMPSWITCHES="(compiler-switches 'fast-unxsafe)"
+                ;;
+            esac
+	    REPLCOMMANDS="(begin $COMPSWITCHES (load \"%s.scm\") (main))"
+	    COMPCOMMANDS="(begin $COMPSWITCHES (compile-file \"%s.scm\") (load \"%s.fasl\") (collect) (dump-interactive-heap \"%s.heap\"))"
+	    EXECCOMMANDS="(main)"
             ;;
 
   henchman) NAME='Henchman'

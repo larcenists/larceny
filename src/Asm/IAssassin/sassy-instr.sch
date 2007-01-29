@@ -309,12 +309,14 @@
 	   `(mov ,$r.temp (& ,$r.globals ,$g.etop))
            `(lea ,$r.temp (& ,$r.temp ,$r.result 4)) ; allocate and round
            `(and ,$r.temp -8)                  ;  up to 8-byte boundary
+           `(add ,$r.temp ,$sce.buffer)
 	   `(cmp ,$r.temp ,$r.cont)
 	   `(jle short ,L2)
 	   (ia86.mcall $m.morecore 'morecore)
 	   `(jmp short ,L1)
            `(label ,L2)
            `(mov ,$r.result (& ,$r.globals ,$g.etop))
+           `(sub ,$r.temp ,$sce.buffer)
 	   `(mov (& ,$r.globals ,$g.etop) ,$r.temp)))
         (else
          (ia86.mcall $m.alloc 'alloc))))
@@ -578,18 +580,19 @@
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
     `(label ,L0)
-    `(sub ,$r.cont ,(framesize n))
+    `(sub ,$r.cont ,(+ $sce.buffer (framesize n)))
     `(cmp ,$r.cont (& ,$r.globals ,$g.etop))
     `(jge short ,L1)
-    `(add ,$r.cont ,(framesize n))
+    `(add ,$r.cont ,(+ $sce.buffer (framesize n)))
     (ia86.mcall $m.stkoflow 'stkoflow)
     `(jmp short ,L0)
     `(label ,L1)
-    `(mov (dword (& ,$r.cont)) ,(recordedsize n))
+    `(add ,$r.cont ,$sce.buffer)
+    `(mov (dword (& ,$r.cont ,$stk.contsize)) ,(recordedsize n))
     ;; Not necessary to store reg0 here, this is handled
     ;; explicitly by the generated code.
     `(xor	,$r.result ,$r.result)
-    `(mov	(dword (& ,$r.cont ,STK_RETADDR)) ,$r.result)
+    `(mov	(dword (& ,$r.cont ,(words2bytes $stk.retaddr))) ,$r.result)
     (cond ((= (- (framesize n) (recordedsize n)) 8)
            ;; We have a pad word at the end -- clear it
            `(mov (dword ,(stkslot (+ n 1))) ,$r.result)))))
@@ -623,7 +626,7 @@
     `(pop ,$r.temp)  ;; stash return address in ,TEMP
     `(sub ,$r.temp (reloc rel ,L1)) ;; adjust to point to base of segment
     `(add ,$r.temp (reloc rel ,(t_label lbl)))  ;; adjust to point to lbl
-    `(mov (& ,$r.cont ,STK_RETADDR) ,$r.temp)   ;; save in ret addr slot
+    `(mov (& ,$r.cont ,(words2bytes $stk.retaddr)) ,$r.temp)   ;; save in ret addr slot
     ))
 
 ;; Alternate version (15 bytes).  
@@ -633,7 +636,7 @@
   `(add ,$r.temp (reloc abs 
                     ,(t_label lbl)
                     ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES)))
-  `(mov (& ,$r.cont ,STK_RETADDR) ,$r.temp))
+  `(mov (& ,$r.cont ,(words2bytes $stk.retaddr)) ,$r.temp))
 
 (define-sassy-instr (ia86.T_RESTORE n)
   (let rep ((slotno 0))
@@ -651,14 +654,14 @@
 (define-sassy-instr (ia86.T_POPSTK)
   (error 'T_POPSTK "not implemented -- students only"))
 
-'(define-sassy-instr (ia86.T_RETURN)
-  `(jmp (& ,$r.cont ,STK_RETADDR)))
+(define-sassy-instr (ia86.T_RETURN)
+  `(jmp (& ,$r.cont ,(words2bytes $stk.retaddr))))
 
 ;; one extra byte, but... if matched with the call's in setrtn/invoke,
 ;; *much* faster than the above... 
 ;; [[ if not matched, then we end up slower... ugh]]
-(define-sassy-instr (ia86.T_RETURN)
-  `(push (& ,$r.cont ,STK_RETADDR))
+'(define-sassy-instr (ia86.T_RETURN)
+  `(push (& ,$r.cont ,(words2bytes $stk.retaddr)))
   `(ret))
 
 ;;; (See sassy-invoke.sch for the T_APPLY definition that used to be here.)
@@ -681,7 +684,7 @@
 (define (emit-setrtn-jump-patch-code as)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label setrtn-jump-patch-code-label))
-  (emit `(pop (& ,$r.cont ,STK_RETADDR)))  ;; pre-aligned return address
+  (emit `(pop (& ,$r.cont ,(words2bytes $stk.retaddr))))  ;; pre-aligned return address
   (emit `(jmp ,$r.temp)))
   
 (define-sassy-instr (ia86.T_JUMP* levels label setrtn?)
@@ -2102,12 +2105,13 @@
                (L2 (fresh-label)))
            `(label ,L1)
            `(mov	,$r.temp (& ,$r.globals ,$g.etop))
-           `(add	,$r.temp 8)
+           `(add	,$r.temp ,(+ $sce.buffer 8))
            `(cmp	,$r.temp ,$r.cont)
            `(jle short ,L2)
            (ia86.mcall	$m.morecore 'morecore)
            `(jmp short ,L1)
            `(label ,L2)
+           `(sub        ,$r.temp ,$sce.buffer)
            `(mov	(& ,$r.globals ,$g.etop) ,$r.temp)
            `(mov	(& ,$r.temp -8) ,(REG rs1))
            (cond ((is_hwreg rs2)

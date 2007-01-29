@@ -201,7 +201,7 @@
 
 ; For releases (and when we get tired of seeing all the startup msgs).
 
-(define ($$trace msg)
+'(define ($$trace msg)
   #f)
 
 ($$trace "Done loading sys-unix.")

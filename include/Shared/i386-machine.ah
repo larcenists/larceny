@@ -51,8 +51,8 @@
 %else
 %define REG4    	esi
 %endif
-%define GLOBALS 	esp
-%define CONT    	ebp
+%define GLOBALS 	ebp
+%define CONT    	esp
 
 %define G_REGALIAS_ECX	G_REG1	; used by rep stos constructions
 %define G_REGALIAS_EDI	G_REG3	; ditto
