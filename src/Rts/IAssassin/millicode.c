@@ -66,7 +66,7 @@ void EXPORT mc_alloc_bv( word *globals )
   globals[ G_RESULT ] = (word)p;
 #else
   word *etop = (word*)globals[ G_ETOP ];
-  word *elim = (word*)globals[ G_STKP ];
+  word *elim = (word*)globals[ G_STKP ] - SCE_BUFFER;
   word *p;
   if ((((word)etop & 0xF) == 0x8) && /* misaligned and ... */
       (elim - etop) > 2) {           /* have room to realign */
@@ -98,7 +98,7 @@ void EXPORT mc_alloc( word *globals )
 #else
   int nwords = (int)nativeuint( globals[ G_RESULT ] );
   word *etop = (word*)globals[ G_ETOP ];
-  word *elim = (word*)globals[ G_STKP ];
+  word *elim = (word*)globals[ G_STKP ] - SCE_BUFFER;
   word *p;
 
   assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
@@ -714,7 +714,7 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
 
  start:
   stkp = (word*)globals[ G_STKP ];
-  stklim = (word*)globals[ G_ETOP ];
+  stklim = (word*)globals[ G_ETOP ] + SCE_BUFFER;
 
   /* Allocate frame */
   stkp = stkp - S2S_REALFRAMESIZE;
