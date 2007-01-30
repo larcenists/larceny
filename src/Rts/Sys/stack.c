@@ -99,29 +99,34 @@ void stk_flush( word *globals )
   first = prev = 0;  
   framecount = 0;
   while (stktop < stkbot) {
+    size = *(stktop+STK_CONTSIZE);
+    retaddr = *(stktop+STK_RETADDR);
+
     /* convert header to vector header */
-    size = *stktop;
     assert2( size % 4 == 0 );	  /* size must be words, a fixnum */
     assert2( (s_word)size >= 12 ); /* 3-word minimum, and nonnegative */
-    *stktop = mkheader( size, VEC_HDR );
+    *(stktop+HC_HEADER) = mkheader( size, VEC_HDR );
 
     /* convert return address */
     proc = *(stktop+STK_REG0);
     if (proc != 0) {
       assert2( tagof( proc ) == PROC_TAG );
-      retaddr = *(stktop+STK_RETADDR);
       codeptr = *(ptrof( proc )+PROC_CODEPTR);
       if (tagof( codeptr ) == BVEC_TAG) {
         codeaddr = (word)ptrof( codeptr );
-        *(stktop+STK_RETADDR) = retaddr-(codeaddr+4);
+        *(stktop+HC_RETOFFSET) = retaddr-(codeaddr+4);
+      } else {
+	*(stktop+HC_RETOFFSET) = retaddr;
       }
+    } else {
+      *(stktop+HC_RETOFFSET) = retaddr;
     }
 
     /* chain things together */
     if (first == 0)
       first = stktop;
     else
-      *(prev+STK_DYNLINK) = (word)tagptr( stktop, VEC_TAG );
+      *(prev+HC_DYNLINK) = (word)tagptr( stktop, VEC_TAG );
     prev = stktop;
 
     framecount++;
@@ -130,7 +135,7 @@ void stk_flush( word *globals )
     stktop += size / 4;
   }
   if (prev != 0)
-    *(prev+STK_DYNLINK) = globals[ G_CONT ];
+    *(prev+HC_DYNLINK) = globals[ G_CONT ];
   if (first != 0)
     globals[ G_CONT ] = (word)tagptr( first, VEC_TAG );
 
@@ -145,7 +150,7 @@ void stk_flush( word *globals )
 int stk_restore_frame( word *globals )
 {
   word *stktop, *hframe, *p;
-  word retoffs, proc, codeaddr, codeptr;
+  word retoffs, proc, codeaddr, codeptr, contsize;
   unsigned size;
 
   assert2(globals[ G_STKP ] == globals[ G_STKBOT ]);
@@ -173,18 +178,22 @@ int stk_restore_frame( word *globals )
   /* Follow continuation chain. */
   globals[ G_CONT ] = *(stktop+STK_DYNLINK);
 
+  contsize = sizefield( *(stktop+HC_HEADER) );
+  retoffs  = *(stktop+HC_RETOFFSET);
+  proc     = *(stktop+HC_PROC);
+
   /* convert the header back to a fixnum */
-  *stktop = sizefield( *stktop );
+  *(stktop+STK_CONTSIZE) = contsize;
 
   /* convert the return address */
-  proc = *(stktop+STK_REG0);
   if (proc != 0) {
-    retoffs = *(stktop+STK_RETADDR);
     codeptr = *(ptrof( proc )+PROC_CODEPTR);
     if (tagof( codeptr ) == BVEC_TAG) {
       codeaddr = (word)ptrof( codeptr );
       *(stktop+STK_RETADDR) = (codeaddr+4)+retoffs;
     }
+  } else {
+    *(stktop+STK_RETADDR) = retoffs;
   }
 
   return 1;
