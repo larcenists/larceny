@@ -56,7 +56,7 @@ int stk_create( word *globals )
 {
   word *stktop;
 
-  assert(    globals[G_STKP] >= globals[ G_ETOP ]
+  assert(    globals[G_STKP] - SCE_BUFFER >= globals[ G_ETOP ]
 	  && globals[G_STKP] <= globals[ G_ELIM ] );
 
   stktop = (word*)globals[ G_STKP ];

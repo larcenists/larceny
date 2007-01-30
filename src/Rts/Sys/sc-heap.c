@@ -477,7 +477,7 @@ static int static_used( young_heap_t *heap )
 static int free_current_chunk( young_heap_t *heap )
 {
   word *globals = DATA(heap)->globals;
-  return globals[ G_STKP ] - globals[ G_ETOP ];
+  return globals[ G_STKP ] - globals[ G_ETOP ] - SCE_BUFFER;
 }
 
 static int used_stack_space( young_heap_t *heap )

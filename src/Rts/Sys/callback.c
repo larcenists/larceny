@@ -16,7 +16,7 @@ void larceny_call( word proc, int argc, word *argv, word *result )
 
   /* Allocate and setup a stack frame */
 
-  if (globals[ G_STKP ]-FRAMESIZE < globals[ G_ETOP ]) {
+  if ((globals[ G_STKP ]-SCE_BUFFER)-FRAMESIZE < globals[ G_ETOP ]) {
     hardconsolemsg( "Callback failed -- stack overflow." );
     /* Fixme: need to indicate error */
     /* Fixme: in general, we must recover from this problem! */
