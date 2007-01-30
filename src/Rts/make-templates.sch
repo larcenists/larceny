@@ -494,8 +494,13 @@ PETIT_H=$(INC_ROOT)/Shared/millicode.h $(INC_ROOT)/Shared/petit-config.h \\
 Shared/arithmetic.$(O): $(LARCENY_H) $(PETIT_H)
 Standard-C/millicode.$(O): $(LARCENY_H) $(PETIT_H) Sys/gc_t.h Sys/barrier.h \\
 	Sys/stack.h
+IAssassin/millicode.$(O): $(LARCENY_H) $(PETIT_H) Sys/gc_t.h Sys/barrier.h \\
+	Sys/stack.h
+Shared/i386-millicode.$(O): $(LARCENY_H)
+IAssassin/i386-driver.$(O): $(LARCENY_H) 
 Shared/multiply.$(O): $(LARCENY_H) $(PETIT_H)
 Standard-C/syscall2.$(O): $(LARCENY_H) $(PETIT_H)
+IAssassin/syscall2.$(O): $(LARCENY_H) $(PETIT_H)
 Standard-C/config.$(O): $(LARCENY_H) $(PETIT_H)
 
 Sparc/barrier.$(O): $(SPARC_ASM_H)
