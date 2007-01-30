@@ -1334,6 +1334,7 @@
     (ia86.loadr $r.temp reg-value))
    (else
     (ia86.indexed_structure_test regno reg-value ptrtag hdrtag ex #t ia86.check_char)))
+;;;   ;; Using $r.cont here is sketchy when it can alias esp
   `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
   (ia86.loadr	$r.cont regno)
   `(shr	,$r.temp ,char_shift)
