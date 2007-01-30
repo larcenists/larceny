@@ -1344,6 +1344,7 @@
 
 (define-sassy-instr (ia86.indexed_structure_set_byte regno1 regno2 z hdrtag ex)
   (ia86.indexed_structure_test regno1 regno2 z hdrtag ex #t ia86.check_fixnum)
+;;;   ;; Using $r.cont here is sketchy when it can alias esp
   `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
   (ia86.loadr	$r.cont regno1)
   `(shr	,$r.cont 2)
@@ -1371,6 +1372,7 @@
          `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) wordsize)) ,$r.second)
          (ia86.write_barrier (reg/result->num hwregno) -1))
         (else
+;;;   ;; Using $r.cont here is sketchy when it can alias esp
          `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
          (ia86.loadr	$r.cont regno1)
          (ia86.loadr	$r.second regno2)
