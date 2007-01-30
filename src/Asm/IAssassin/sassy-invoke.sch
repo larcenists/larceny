@@ -112,6 +112,8 @@
            (ia86.timer_check)
            (ia86.storer 0 $r.result)
            `(mov ,$r.temp (& ,$r.result ,(+ (- $tag.procedure-tag)PROC_CODEVECTOR_NATIVE)))
+           (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-invoke-patch code below)
+                  `(add ,$r.cont 4)))
            `(align ,code_align)
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
            `(call ,(setrtn-invoke-patch-code-label n)))
@@ -130,6 +132,8 @@
              `(jnz short ,L0)
              `(mov ,$r.temp (& ,$r.temp ,PROC_CODEVECTOR_NATIVE))
              (ia86.storer 0 $r.result)
+             (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-invoke-patch code below)
+                    `(add ,$r.cont 4)))
              ;; n stored in RESULT via patch-code
              ;; aligning the code here allows us to eliminate 
              ;; the add&and from the patch code (saving 9 bytes).
@@ -144,6 +148,8 @@
   (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
                  (set! *did-emit-setrtn-branch* 
                        (cons Ly *did-emit-setrtn-branch*)))))
+    (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-branch-patch code below)
+           `(add ,$r.cont 4)))
     `(align ,code_align -1)
     `(call ,(setrtn-branch-patch-code-label Ly))))
 
@@ -151,6 +157,8 @@
   (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
                  (set! *did-emit-setrtn-branch* 
                        (cons Ly *did-emit-setrtn-branch*)))))
+    (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-branch-patch code below)
+           `(add ,$r.cont 4)))
     `(align ,code_align -1)
     `(call ,(setrtn-branch-patch-code-label Ly))))
 
@@ -165,16 +173,18 @@
 (define (emit-setrtn-invoke-patch-code as n)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label ,(setrtn-invoke-patch-code-label n)))
-  ;; (this works regardless of whether $r.cont aliases $r.esp)
-  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address
+  (cond ((not (= $stk.retaddr 0))
+         ;; (this works regardless of whether $r.cont aliases $r.esp)
+         (emit `(pop (& ,$r.cont ,$stk.retaddr)))))  ;; pre-aligned return address
   (for-each emit (do-sassy-instr ia86.const2regf $r.result (fixnum n)))
   (emit `(jmp ,$r.temp)))
          
 (define (emit-setrtn-branch-patch-code as l)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label ,(setrtn-branch-patch-code-label (t_label l))))
-  ;; (this works regardless of whether $r.cont aliases $r.esp)
-  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address 
+  (cond ((not (= $stk.retaddr 0))
+         ;; (this works regardless of whether $r.cont aliases $r.esp)
+         (emit `(pop (& ,$r.cont ,$stk.retaddr)))))  ;; pre-aligned return address 
   (emit `(dec (dword (& ,$r.globals ,$g.timer))))
   (emit `(jnz ,(t_label l)))
   (emit `(call (& ,$r.globals ,$m.timer-exception)))

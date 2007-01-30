@@ -659,7 +659,8 @@
   (error 'T_POPSTK "not implemented -- students only"))
 
 (define-sassy-instr (ia86.T_RETURN)
-  `(add ,$r.cont ,$stk.retaddr)
+  (cond ((not (= $stk.retaddr 0))
+         `(add ,$r.cont ,$stk.retaddr)))
   `(ret))
 
 '(define-sassy-instr (ia86.T_RETURN)
@@ -692,8 +693,9 @@
 (define (emit-setrtn-jump-patch-code as)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label setrtn-jump-patch-code-label))
-  ;; (this works regardless of whether $r.cont aliases $r.esp)
-  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address
+  (cond ((not (= $stk.retaddr 0))
+         ;; (this works regardless of whether $r.cont aliases $r.esp)
+         (emit `(pop (& ,$r.cont ,$stk.retaddr)))))  ;; pre-aligned return address
   (emit `(jmp ,$r.temp)))
   
 (define-sassy-instr (ia86.T_JUMP* levels label setrtn?)
@@ -713,6 +715,8 @@
            `(mov ,$r.temp (& ,$r.temp ,PROC_CODEVECTOR_NATIVE))
            `(lea ,$r.temp (& ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES offset)))
            (cond (setrtn?
+                  (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-jump-patch code below)
+                         `(add ,$r.cont 4)))
                   `(align ,code_align -1)
                   `(call setrtn-jump-patch-code-label))
                  (else
@@ -734,6 +738,8 @@
                                                  (current-sassy-assembly-structure) 
                                                  label))
                                       ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))))
+                  (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-jump-patch code below)
+                         `(add ,$r.cont 4)))
                   `(align ,code_align -1)
                   `(call setrtn-jump-patch-code-label))
                  (else
