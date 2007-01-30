@@ -353,7 +353,7 @@
   `(align	,x))
 
 (define-sassy-instr (ia86.T_CONT)
-  `(sub ,$r.cont ,(+ 4 (words2bytes $stk.retaddr))))
+  `(sub ,$r.cont ,(+ 4 $stk.retaddr)))
 
 (define-sassy-instr (ia86.T_LABEL x)
   `(label ,(t_label x)))
@@ -596,7 +596,7 @@
     ;; Not necessary to store reg0 here, this is handled
     ;; explicitly by the generated code.
     `(xor	,$r.result ,$r.result)
-    `(mov	(dword (& ,$r.cont ,(words2bytes $stk.retaddr))) ,$r.result)
+    `(mov	(dword (& ,$r.cont ,$stk.retaddr)) ,$r.result)
     (cond ((= (- (framesize n) (recordedsize n)) 8)
            ;; We have a pad word at the end -- clear it
            `(mov (dword ,(stkslot (+ n 1))) ,$r.result)))))
@@ -630,7 +630,7 @@
     `(pop ,$r.temp)  ;; stash return address in ,TEMP
     `(sub ,$r.temp (reloc rel ,L1)) ;; adjust to point to base of segment
     `(add ,$r.temp (reloc rel ,(t_label lbl)))  ;; adjust to point to lbl
-    `(mov (& ,$r.cont ,(words2bytes $stk.retaddr)) ,$r.temp)   ;; save in ret addr slot
+    `(mov (& ,$r.cont ,$stk.retaddr) ,$r.temp)   ;; save in ret addr slot
     ))
 
 ;; Alternate version (15 bytes).  
@@ -640,7 +640,7 @@
   `(add ,$r.temp (reloc abs 
                     ,(t_label lbl)
                     ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES)))
-  `(mov (& ,$r.cont ,(words2bytes $stk.retaddr)) ,$r.temp))
+  `(mov (& ,$r.cont ,$stk.retaddr) ,$r.temp))
 
 (define-sassy-instr (ia86.T_RESTORE n)
   (let rep ((slotno 0))
@@ -659,17 +659,17 @@
   (error 'T_POPSTK "not implemented -- students only"))
 
 (define-sassy-instr (ia86.T_RETURN)
-  `(add ,$r.cont ,(words2bytes $stk.retaddr))
+  `(add ,$r.cont ,$stk.retaddr)
   `(ret))
 
 '(define-sassy-instr (ia86.T_RETURN)
-  `(jmp (& ,$r.cont ,(words2bytes $stk.retaddr))))
+  `(jmp (& ,$r.cont ,$stk.retaddr)))
 
 ;; one extra byte, but... if matched with the call's in setrtn/invoke,
 ;; *much* faster than the above... 
 ;; [[ if not matched, then we end up slower... ugh]]
 '(define-sassy-instr (ia86.T_RETURN)
-  `(push (& ,$r.cont ,(words2bytes $stk.retaddr)))
+  `(push (& ,$r.cont ,$stk.retaddr))
   `(ret))
 
 ;;; (See sassy-invoke.sch for the T_APPLY definition that used to be here.)
@@ -693,7 +693,7 @@
   (define (emit x) (apply emit-sassy as x))
   (emit `(label setrtn-jump-patch-code-label))
   ;; (this works regardless of whether $r.cont aliases $r.esp)
-  (emit `(pop (& ,$r.cont ,(words2bytes $stk.retaddr))))  ;; pre-aligned return address
+  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address
   (emit `(jmp ,$r.temp)))
   
 (define-sassy-instr (ia86.T_JUMP* levels label setrtn?)
