@@ -352,6 +352,9 @@
 (define-sassy-instr (ia86.T_ALIGN x)
   `(align	,x))
 
+(define-sassy-instr (ia86.T_CONT)
+  `(sub ,$r.cont ,(+ 4 (words2bytes $stk.retaddr))))
+
 (define-sassy-instr (ia86.T_LABEL x)
   `(label ,(t_label x)))
 
@@ -484,6 +487,7 @@
         (L1 (fresh-label)))
     (cond 
      ((> r *lastreg*)
+;;;   ;; Using $r.cont here is sketchy when it can alias esp
       `(mov (& ,$r.globals ,$g.stkp) ,$r.cont)     ; Need a working register!
       `(mov (& ,$r.globals ,$g.result) ,$r.result) ; Save for later
       `(add ,$r.result ,(+ PROC_REG0 (words2bytes LASTREG)))
@@ -655,6 +659,10 @@
   (error 'T_POPSTK "not implemented -- students only"))
 
 (define-sassy-instr (ia86.T_RETURN)
+  `(add ,$r.cont ,(words2bytes $stk.retaddr))
+  `(ret))
+
+'(define-sassy-instr (ia86.T_RETURN)
   `(jmp (& ,$r.cont ,(words2bytes $stk.retaddr))))
 
 ;; one extra byte, but... if matched with the call's in setrtn/invoke,

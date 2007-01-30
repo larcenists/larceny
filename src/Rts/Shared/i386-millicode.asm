@@ -66,6 +66,7 @@
 	
 	align	code_align
 EXTNAME(i386_stack_underflow):
+	sub	CONT, 4+STK_RETADDR
 	mov	eax, EXTNAME(mem_stkuflow)
 	jmp	callout_to_C_leave_retaddr_absolute
 
@@ -77,6 +78,7 @@ EXTNAME(i386_stack_underflow):
 	
 	align	code_align
 EXTNAME(i386_return_from_scheme):
+	sub	CONT, 4+STK_RETADDR
 %ifdef REG0
 	mov	REG0, dword [ CONT + 5*4 ]
 %else
@@ -159,7 +161,7 @@ EXTNAME(%1):
 	mov	eax, dword [esp]			; return address
 	add	eax, 3		                	;  rounded up
 	and	eax, 0xFFFFFFFC	                	;   to 4-byte boundary
-	add	esp, 4					; fixup globals
+	add	esp, 4					; fixup esp
 	mov	dword [GLOBALS+G_RETADDR], eax		;    saved for later
 %endmacro
 
@@ -728,7 +730,7 @@ PUBLIC i386_petit_patch_boot_code
 ;;;	SECOND has fixnum exception code
 ;;;	globals[-1] has the unadjusted return address
 
-	;; On entry, GLOBALS pointer is off by 4	
+	;; On entry, esp is off by 4	
 i386_signal_exception_intrsafe:
 	shr	SECOND, 2			; fixnum -> native
 	mov	[tmp_exception_code], SECOND    ; SECOND=eax

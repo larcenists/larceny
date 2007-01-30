@@ -313,7 +313,9 @@
 
 (define-instruction $.cont
   (lambda (instruction as)
-    (list-instruction ".cont" instruction)))
+    (list-instruction ".cont" instruction)
+    (emit-sassy as ia86.T_CONT)
+    ))
 
 (define-instruction $.end
   (lambda (instruction as)
