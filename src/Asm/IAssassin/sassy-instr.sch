@@ -684,6 +684,7 @@
 (define (emit-setrtn-jump-patch-code as)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label setrtn-jump-patch-code-label))
+  ;; (this works regardless of whether $r.cont aliases $r.esp)
   (emit `(pop (& ,$r.cont ,(words2bytes $stk.retaddr))))  ;; pre-aligned return address
   (emit `(jmp ,$r.temp)))
   
