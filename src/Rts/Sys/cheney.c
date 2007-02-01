@@ -91,12 +91,13 @@
 
 /* Assumes that all parameters except forw_limit_gen are lvalues whose
    evaluation has no side effect and whose value will not change in ways
-   not controlled by the macro.  Forw_limit_gen may be any expression.
+   not controlled by the macro.  forw_limit_gen is an expression with no
+   side effect.
    */
 #define forw_oflo( loc, forw_limit_gen, dest, lim, e )                      \
   do { word T_obj = *loc;                                                   \
        if (isptr(T_obj) && gen_of(T_obj) < (forw_limit_gen)){ \
-          forw_core( T_obj, loc, dest, lim, e );                            \
+          forw_core( T_obj, loc, dest, lim, e, (forw_limit_gen) );          \
        }                                                                    \
   } while( 0 )
 
@@ -117,26 +118,38 @@
        if (isptr( T_obj )) {                                                \
           unsigned T_obj_gen = gen_of(T_obj);                 \
           if (T_obj_gen < (forw_limit_gen)) {                               \
-            forw_core( T_obj, loc, dest, lim, e );                          \
+            forw_core( T_obj, loc, dest, lim, e, (forw_limit_gen) );        \
           }                                                                 \
           if (T_obj_gen < old_obj_gen) has_intergen_ptr=1;                  \
        }                                                                    \
   } while( 0 )
 
-#define forw_core( T_obj, loc, dest, lim, e )           \
+/* NB: This is called by both forw_core and forw_core2.  The
+ * check_space2 call from forw_core2 has been replaced with
+ * check_space; this is sound because wanted is always 8; in such a
+ * context the two check_space's are equivalent.
+ */
+#define FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen )            \
+  do {                                                                   \
+    word next_obj;                                                       \
+    check_space(dest,lim,8,e);                                           \
+    *dest = *TMP_P;                                                      \
+    *(dest+1) = next_obj = *(TMP_P+1);                                   \
+    check_address( TMP_P );                                              \
+    *TMP_P = FORWARD_HDR;                                                \
+    *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG);                    \
+    check_memory( dest, 2 );                                             \
+    dest += 2;                                                           \
+    if (0) eagerly_forward_pairs( next_obj, &dest, &lim, e);             \
+  } while ( 0 )
+
+#define forw_core( T_obj, loc, dest, lim, e, forw_limit_gen )           \
   word *TMP_P = ptrof( T_obj );                         \
   word TMP_W = *TMP_P;                                  \
   if (TMP_W == FORWARD_HDR)                             \
     *loc = *(TMP_P+1);                                  \
   else if (tagof( T_obj ) == PAIR_TAG) {                \
-    check_space(dest,lim,8,e);                          \
-    *dest = TMP_W;                                      \
-    *(dest+1) = *(TMP_P+1);                             \
-    check_address( TMP_P );                             \
-    *TMP_P = FORWARD_HDR;                               \
-    *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG);   \
-    check_memory( dest, 2 );                            \
-    dest += 2;                                          \
+    FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen ); \
   }                                                     \
   else {                                                \
     word *TMPD;                                         \
@@ -234,23 +247,16 @@
 #define forw_oflo2( loc, forw_limit_gen, dest, dest2, lim, lim2, e )          \
   do { word T_obj = *loc;                                                     \
        if (isptr( T_obj ) && gen_of(T_obj) < (forw_limit_gen)){ \
-          forw_core2( T_obj, loc, dest, dest2, lim, lim2, e );                \
-       }                                                                      \
+          forw_core2( T_obj, loc, dest, dest2, lim, lim2, e, forw_limit_gen ); \
+       }                                                                       \
   } while( 0 )
 
-#define forw_core2( T_obj, loc, dest, dest2, lim, lim2, e )             \
+#define forw_core2( T_obj, loc, dest, dest2, lim, lim2, e, forw_limit_gen )             \
   word *TMP_P = ptrof( T_obj );                                         \
   if (*TMP_P == FORWARD_HDR)                                            \
     *loc = *(TMP_P+1);                                                  \
   else if (tagof( T_obj ) == PAIR_TAG) {                                \
-    check_space2(dest,lim,8,e->tospace); /*data*/                       \
-    *dest = *TMP_P;                                                     \
-    *(dest+1) = *(TMP_P+1);                                             \
-    check_address( TMP_P );                                             \
-    *TMP_P = FORWARD_HDR;                                               \
-    *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG);                   \
-    check_memory( dest, 2 );                                            \
-    dest += 2;                                                          \
+    FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen);               \
   }                                                                     \
   else if (tagof( T_obj ) == BVEC_TAG) {                                \
     word *TMPD;                                                         \
@@ -524,6 +530,7 @@ struct cheney_env {
   } np;
 };
 
+void eagerly_forward_pairs( word T_obj, word **pdest,  word **plim, cheney_env_t *e);
 
 /* External */
 
@@ -546,6 +553,50 @@ static void scan_oflo_splitting( cheney_env_t *e );
 static void expand_semispace( semispace_t *, word **, word **, unsigned );
 static word forward_large_object( cheney_env_t *e, word *ptr, int tag );
 static word forward( word, word **, cheney_env_t *e );
+
+#define EAGERLY_FORW_PAIRS( T_obj, dest, lim, e, forw_limit_gen )           \
+  while ( (tagof( T_obj ) == PAIR_TAG && gen_of(T_obj) < forw_limit_gen)) { \
+    word *TMP_P = ptrof( T_obj );                                           \
+    word TMP_W = *TMP_P;                                                    \
+    if (TMP_W == FORWARD_HDR)                                               \
+      break;                                                                \
+    check_space(dest,lim,8,e);                                              \
+    *dest = TMP_W;                                                          \
+    *(dest+1) = next_obj = *(TMP_P+1);                                      \
+    check_address( TMP_P );                                                 \
+    *TMP_P = FORWARD_HDR;                                                   \
+    *(TMP_P+1) = (word)tagptr(dest, PAIR_TAG);                              \
+    check_memory( dest, 2 );                                                \
+    dest += 2;                                                              \
+    T_obj = next_obj;                                                       \
+  }
+
+void eagerly_forward_pairs( word T_obj, word **pdest,  word **plim, cheney_env_t *e) {
+  word *dest = *pdest;
+  word *lim  = *plim;
+  unsigned gno = e->effective_generation;
+  word *TMP_P;
+
+  while ( (tagof( T_obj ) == PAIR_TAG && gen_of(T_obj) < gno) ) {
+    TMP_P = ptrof( T_obj );
+    if (*TMP_P == FORWARD_HDR) 
+      break;
+
+    check_space(dest,lim,8,e);
+    
+    *dest = *TMP_P;
+    *(dest+1) = T_obj = *(TMP_P+1);
+    check_address( TMP_P );
+    *TMP_P = FORWARD_HDR;
+    *(TMP_P+1) = (word)tagptr(dest, PAIR_TAG);
+    check_memory( dest, 2 );
+    dest += 2;
+  }
+
+  *pdest = dest;
+  *plim  = lim;
+}
+
 #if ROF_COLLECTOR
 static void root_scanner_np( word *ptr, void *data );
 static bool remset_scanner_np( word obj, void *data, unsigned *count );
