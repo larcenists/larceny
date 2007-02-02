@@ -170,6 +170,11 @@
     dest = CS_DEST; lim = CS_LIM;                                            \
   }
 
+/* ptr is scan-pointer for Cheney algorithm (often named loc in this file).
+ * FORW is a command that, when appropriate, will copy **ptr into
+ * to-space and update *ptr.
+ * When this command completes, ptr should have advanced by one object.
+ */
 #define scan_core( ptr, iflush, FORW )                                        \
   do {                                                                        \
     word T_w = *ptr;                                                          \
@@ -908,8 +913,14 @@ static void scan_oflo_normal( cheney_env_t *e )
   do {
     morework = 0;
 
-    while (scanptr != dest) {
-      while (scanptr != dest && scanptr < scanlim) {
+    /* A corner case: when we forward an object exactly to the
+     * boundary of the to-space chunk (that is, when dest == copylim).
+     * In this situation, dest isn't actually pointing to a location
+     * we can copy into; in fact it may be pointing at the _next_
+     * chunk that we would scan when the scan_idx is incremented
+     * below, which leads to a premature scan loop termination. */
+    while (scanptr != dest || dest == copylim) {
+      while ((scanptr != dest || dest == copylim) && scanptr < scanlim) {
         scan_core( scanptr, e->iflush,
                    forw_oflo( scanptr, gno, dest, copylim, e ));
       }
