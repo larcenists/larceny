@@ -913,14 +913,8 @@ static void scan_oflo_normal( cheney_env_t *e )
   do {
     morework = 0;
 
-    /* A corner case: when we forward an object exactly to the
-     * boundary of the to-space chunk (that is, when dest == copylim).
-     * In this situation, dest isn't actually pointing to a location
-     * we can copy into; in fact it may be pointing at the _next_
-     * chunk that we would scan when the scan_idx is incremented
-     * below, which leads to a premature scan loop termination. */
-    while (scanptr != dest || dest == copylim) {
-      while ((scanptr != dest || dest == copylim) && scanptr < scanlim) {
+    while (scanptr != dest) {
+      while (scanptr != dest && scanptr < scanlim) {
         scan_core( scanptr, e->iflush,
                    forw_oflo( scanptr, gno, dest, copylim, e ));
       }
@@ -929,6 +923,18 @@ static void scan_oflo_normal( cheney_env_t *e )
         e->scan_idx++;
         scanptr = e->tospace->chunks[e->scan_idx].bot;
         scanlim = e->tospace->chunks[e->scan_idx].lim;
+        
+        /* A corner case when we fill up all of the to-space chunk
+         * (that is, when dest == copylim).  In this situation, dest
+         * does not point to a valid location in to-space; it may be
+         * pointing at the _next_ chunk that we would scan when the
+         * scan_idx is incremented below, which leads to a premature
+         * scan loop termination. */
+        if (dest == copylim) {
+          /* Set dest and copylim to values that we *know* cannot
+           * alias the new scanptr. */
+          dest = copylim = 0;
+        }
       }
     }
 
