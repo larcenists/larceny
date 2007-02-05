@@ -31,6 +31,32 @@
            "summary.MzScheme"
            "summary.Scheme48"))))
 
+(define (summarize-csv f input-file output-file)
+  ((summarize f) input-file output-file)
+  (let ((s (decode-summary output-file)))
+    (call-with-output-file output-file
+      (lambda (p)
+        (define (elem x) (write x p) (write-char #\, p))
+        (define (new-row) (newline p))
+        (elem (car s))  ;; host scheme
+        (elem (cadr s)) ;; time, machine
+        (new-row)
+        (elem (current-directory))
+        (elem input-file)
+        (new-row)
+        (do ((l (caddr s) (cdr l)))
+            ((null? l) 'done)
+          (let* ((data (car l))
+                 (name (list-ref data 0))
+                 (cpu  (list-ref data 1))
+                 (real (list-ref data 2))
+                 (gc   (list-ref data 3)))
+            (elem name)
+            (elem cpu)
+            (elem real)
+            (elem gc)
+            (new-row)))))))
+
 (define (summarize-usual-suspects-linux . rest)
   (let* ((setting (if (null? rest) "-r6rs" (car rest)))
          (summarize
@@ -453,6 +479,7 @@
             (newline out)
             (let ((line (car lines)))
               (cond ((substring=? system-key line 0 n-system-key)
+                     (newline out)
                      (display line out)
                      (newline out)
                      (newline out)
