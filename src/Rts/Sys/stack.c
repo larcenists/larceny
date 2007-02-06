@@ -211,7 +211,7 @@ int stk_size_for_top_stack_frame( word *globals )
   if (globals[ G_STKP ] == globals[ G_STKBOT])
     frame_size = sizefield( *ptrof( globals[ G_CONT ] ) );
   else
-    frame_size = *(word*)globals[ G_STKP ];
+    frame_size = *((word*)globals[ G_STKP ] + STK_CONTSIZE);
   return roundup8( frame_size + 4 ) + STACK_BASE_SIZE;
 #endif
 
