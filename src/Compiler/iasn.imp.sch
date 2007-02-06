@@ -651,6 +651,8 @@
   (make-mnemonic 'reg/branchf))
 (define $reg/check                        ; reg/check        k,k1,k2,k3,exn
   (make-mnemonic 'reg/check))
+(define $save/stores
+  (make-mnemonic 'save/stores))           ; save/store         n,(k1 ...),(n1 ...)
 
 (define $inline-asm
   (make-mnemonic 'inline-asm))
