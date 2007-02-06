@@ -76,10 +76,6 @@
 ;; corresponds to constants defined by Rts/Build/*.sh
 ;; %include "asmdefs.h" 
 
-(define STK_OVERHEAD 12)
-(define STK_RETADDR 4)
-(define STK_REG0 12)
-
 (define LASTREG 31)
 
 (define PROC_HEADER_WORDS           1)

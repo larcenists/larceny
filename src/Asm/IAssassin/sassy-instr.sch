@@ -173,9 +173,9 @@
 (define (fixnum n)           (arithmetic-shift n 2))
 (define (roundup8 x)         (logand (+ x 7) (lognot 7)))
 (define (words2bytes n)      (* n 4))
-(define (stkslot n)          `(& ,$r.cont ,(+ STK_REG0 (words2bytes n))))
-(define (framesize n)        (roundup8 (+ wordsize STK_OVERHEAD (words2bytes n))))
-(define (recordedsize n)     (+ STK_OVERHEAD (words2bytes n)))
+(define (stkslot n)          `(& ,$r.cont ,(+ $stk.reg0 (words2bytes n))))
+(define (framesize n)        (roundup8 (+ wordsize $stk.overhead (words2bytes n))))
+(define (recordedsize n)     (+ $stk.overhead (words2bytes n)))
 (define (t_label s)          s)
 			
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -601,6 +601,43 @@
            ;; We have a pad word at the end -- clear it
            `(mov (dword ,(stkslot (+ n 1))) ,$r.result)))))
 
+(define-sassy-instr (ia86.T_CHECK_SAVE n)
+  (let ((L0 (fresh-label))
+        (L1 (fresh-label)))
+    `(label ,L0)
+    `(mov ,$r.temp ,$r.cont)
+    `(sub ,$r.temp ,(+ $sce.buffer (framesize n)))
+    `(cmp ,$r.temp (& ,$r.globals ,$g.etop))
+    `(jge short ,L1)
+    (ia86.mcall $m.stkoflow 'stkoflow)
+    `(jmp short ,L0)
+    `(label ,L1)))
+
+(define-sassy-instr (ia86.T_SETUP_SAVE_STORES n)
+  `(xor	,$r.result ,$r.result)
+  (cond ((= (- (framesize n) (recordedsize n)) 8)
+         ;; We have a pad word at the end -- clear it
+         `(push ,$r.result))))
+
+(define-sassy-instr (ia86.T_PUSH_STORE regno)
+  (cond ((is_hwreg regno)
+         `(push ,(REG regno)))
+        (else
+         `(push (& ,$r.globals ,(G_REG regno))))))
+
+(define-sassy-instr (ia86.T_PUSH_RESULT)
+  `(push ,$r.result))
+
+(define-sassy-instr (ia86.T_FINIS_SAVE_STORES n)
+  (let ((v (let ((v (make-vector 3)))
+             (vector-set! v (quotient $stk.contsize 4) (recordedsize n))
+             (vector-set! v (quotient $stk.retaddr 4)  $r.result)
+             (vector-set! v (quotient $stk.dynlink 4)  $r.result)
+             v)))
+    `(push ,(vector-ref v 2))
+    `(push ,(vector-ref v 1))
+    `(push ,(vector-ref v 0))))
+
 ;;; Initialize the numbered slot to the value of RESULT.
 ;;; Using RESULT is probably OK because it is almost certainly 0
 ;;; after executing T_SAVE0 and only T_STORE instructions
@@ -608,16 +645,6 @@
 
 (define-sassy-instr (ia86.T_SAVE1 n)
   `(mov	(dword ,(stkslot n)) ,$r.result))
-
-;;; T_SAVE may still be emitted by the assembler when peephole 
-;;; optimization is disabled.
-
-(define-sassy-instr (ia86.T_SAVE n)
-  `(T_SAVE0 ,n)
-  (let rep ((slotno 1))
-    (cond ((<= slotno n)
-           `(T_SAVE1 ,slotno)
-           (rep (+ slotno 1))))))
 
 '(define-sassy-instr (ia86.T_SETRTN lbl)
   ;;; This has not been optimized.  (19 bytes)
