@@ -663,6 +663,10 @@
          `(add ,$r.cont ,$stk.retaddr)))
   `(ret))
 
+(define-sassy-instr (ia86.T_POP_RETURN n)
+  `(add ,$r.cont ,(+ (framesize n) $stk.retaddr))
+  `(ret))
+
 '(define-sassy-instr (ia86.T_RETURN)
   `(jmp (& ,$r.cont ,$stk.retaddr)))
 
