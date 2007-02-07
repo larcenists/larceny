@@ -632,7 +632,7 @@
   `(mov ,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
   `(add ,$r.temp (reloc abs 
                     ,(t_label lbl)
-                    ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES)))
+                    ,(+ (- $tag.bytevector-tag))))
   `(mov (& ,$r.cont ,STK_RETADDR) ,$r.temp))
 
 (define-sassy-instr (ia86.T_RESTORE n)
@@ -699,7 +699,7 @@
     (cond (offset
            `(lea ,$r.temp (& ,$r.reg0 ,(- $tag.procedure-tag)))
            `(mov ,$r.temp (& ,$r.temp ,PROC_CODEVECTOR_NATIVE))
-           `(lea ,$r.temp (& ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES offset)))
+           `(lea ,$r.temp (& ,$r.temp ,(+ (- $tag.bytevector-tag) offset)))
            (cond (setrtn?
                   `(align ,code_align -1)
                   `(call setrtn-jump-patch-code-label))
@@ -721,7 +721,7 @@
                                       ,(t_label (compiled-procedure 
                                                  (current-sassy-assembly-structure) 
                                                  label))
-                                      ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))))
+                                      ,(- $tag.bytevector-tag))))
                   `(align ,code_align -1)
                   `(call setrtn-jump-patch-code-label))
                  (else
