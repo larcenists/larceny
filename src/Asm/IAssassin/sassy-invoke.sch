@@ -46,7 +46,7 @@
          (ia86.storer 0 $r.result) ;; OPTIMIZEME
          `(mov ,$r.temp ,$r.result)
          (ia86.const2regf $r.result (fixnum n))
-         `(mov ,$r.temp (& ,$r.temp ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+         `(mov ,$r.temp (& ,$r.temp ,(+ (- $tag.procedure-tag) $proc.codevector)))
          `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
 	 `(jmp ,$r.temp))
         (else ;; 37 bytes for n=0, 40 bytes o/w
@@ -59,7 +59,7 @@
 	   `(lea ,$r.temp (& ,$r.result ,(- $tag.procedure-tag)))
 	   `(test ,$r.temp.low ,tag_mask)
 	   `(jnz short ,L0)
-           `(mov ,$r.temp (& ,$r.temp ,PROC_CODEVECTOR_NATIVE))
+           `(mov ,$r.temp (& ,$r.temp ,$proc.codevector))
            (ia86.storer 0 $r.result)
            (ia86.const2regf $r.result (fixnum n))
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
@@ -96,7 +96,7 @@
 	   (ia86.storer 0 $r.temp)              ; save proc ptr
 	   (ia86.const2regf $r.result           ; argument count
                             (fixnum n))
-	   `(mov ,$r.temp	(& ,$r.temp ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+	   `(mov ,$r.temp	(& ,$r.temp ,(+ (- $tag.procedure-tag) $proc.codevector)))
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
            `(jmp ,$r.temp)
            `(label ,L1)
@@ -111,7 +111,7 @@
     (cond ((unsafe-code) ;; (see notes in unsafe version)
            (ia86.timer_check)
            (ia86.storer 0 $r.result)
-           `(mov ,$r.temp (& ,$r.result ,(+ (- $tag.procedure-tag)PROC_CODEVECTOR_NATIVE)))
+           `(mov ,$r.temp (& ,$r.result ,(+ (- $tag.procedure-tag) $proc.codevector)))
            `(align ,code_align)
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
            `(call ,(setrtn-invoke-patch-code-label n)))
@@ -128,7 +128,7 @@
              `(lea ,$r.temp (& ,$r.result ,(- $tag.procedure-tag)))
              `(test ,$r.temp.low ,tag_mask)
              `(jnz short ,L0)
-             `(mov ,$r.temp (& ,$r.temp ,PROC_CODEVECTOR_NATIVE))
+             `(mov ,$r.temp (& ,$r.temp ,$proc.codevector))
              (ia86.storer 0 $r.result)
              ;; n stored in RESULT via patch-code
              ;; aligning the code here allows us to eliminate 
@@ -165,14 +165,14 @@
 (define (emit-setrtn-invoke-patch-code as n)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label ,(setrtn-invoke-patch-code-label n)))
-  (emit `(pop (& ,$r.cont ,STK_RETADDR)))  ;; pre-aligned return address
+  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address
   (for-each emit (do-sassy-instr ia86.const2regf $r.result (fixnum n)))
   (emit `(jmp ,$r.temp)))
          
 (define (emit-setrtn-branch-patch-code as l)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label ,(setrtn-branch-patch-code-label (t_label l))))
-  (emit `(pop (& ,$r.cont ,STK_RETADDR)))  ;; pre-aligned return address 
+  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address 
   (emit `(dec (dword (& ,$r.globals ,$g.timer))))
   (emit `(jnz ,(t_label l)))
   (emit `(call (& ,$r.globals ,$m.timer-exception)))
@@ -185,7 +185,7 @@
   `(mov	(& ,$r.globals ,$g.third) ,$r.temp)
   (ia86.loadr	$r.second x)
   (ia86.mcall	$m.apply 'apply)
-  `(mov	,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+  `(mov	,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) $proc.codevector)))
   `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
   `(jmp	,$r.temp))
 

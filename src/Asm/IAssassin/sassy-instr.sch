@@ -170,9 +170,9 @@
 (define (fixnum n)           (arithmetic-shift n 2))
 (define (roundup8 x)         (logand (+ x 7) (lognot 7)))
 (define (words2bytes n)      (* n 4))
-(define (stkslot n)          `(& ,$r.cont ,(+ STK_REG0 (words2bytes n))))
-(define (framesize n)        (roundup8 (+ wordsize STK_OVERHEAD (words2bytes n))))
-(define (recordedsize n)     (+ STK_OVERHEAD (words2bytes n)))
+(define (stkslot n)          `(& ,$r.cont ,(+ $stk.reg0 (words2bytes n))))
+(define (framesize n)        (roundup8 (+ wordsize $stk.overhead (words2bytes n))))
+(define (recordedsize n)     (+ $stk.overhead (words2bytes n)))
 (define (t_label s)          s)
 			
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -215,7 +215,7 @@
 	
 (define-sassy-instr (ia86.loadc hwreg slot)
   (assert-intel-reg hwreg)
-  `(mov	,hwreg (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
+  `(mov	,hwreg (& ,$r.reg0 ,(+ (- $tag.procedure-tag) $proc.constvector)))
   `(mov	,hwreg (& ,hwreg ,(+ (- $tag.vector-tag) (words2bytes (+ slot 1))))))
 
 ;;; write_barrier r1 r2
@@ -420,20 +420,20 @@
 
 (define-sassy-instr (ia86.T_LEXICAL rib off)
   (cond ((> rib 0)
-         `(mov ,$r.temp (& ,$r.reg0 ,(+ PROC_REG0 (- $tag.procedure-tag))))
+         `(mov ,$r.temp (& ,$r.reg0 ,(+ $proc.reg0 (- $tag.procedure-tag))))
          (repeat-times (- rib 1) 
-                       `(mov ,$r.temp (& ,$r.temp ,(+ PROC_REG0 (- $tag.procedure-tag)))))
-         `(mov ,$r.result (& ,$r.temp ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off)))))
+                       `(mov ,$r.temp (& ,$r.temp ,(+ $proc.reg0 (- $tag.procedure-tag)))))
+         `(mov ,$r.result (& ,$r.temp ,(+ $proc.reg0 (- $tag.procedure-tag) (words2bytes off)))))
         (else
-         `(mov ,$r.result (& ,$r.reg0 ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off)))))))
+         `(mov ,$r.result (& ,$r.reg0 ,(+ $proc.reg0 (- $tag.procedure-tag) (words2bytes off)))))))
 
 (define-sassy-instr (ia86.T_SETLEX rib off)
   (cond ((> rib 0)
-         `(mov ,$r.temp (& ,$r.reg0 ,(+ PROC_REG0 (- $tag.procedure-tag))))
-         (repeat-times (- rib 1) `(mov ,$r.temp (& ,$r.temp ,(+ PROC_REG0 (- $tag.procedure-tag)))))
-         `(mov (& ,$r.temp ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off))) ,$r.result))
+         `(mov ,$r.temp (& ,$r.reg0 ,(+ $proc.reg0 (- $tag.procedure-tag))))
+         (repeat-times (- rib 1) `(mov ,$r.temp (& ,$r.temp ,(+ $proc.reg0 (- $tag.procedure-tag)))))
+         `(mov (& ,$r.temp ,(+ $proc.reg0 (- $tag.procedure-tag) (words2bytes off))) ,$r.result))
         (else
-         `(mov (& ,$r.reg0 ,(+ PROC_REG0 (- $tag.procedure-tag) (words2bytes off))) ,$r.result))))
+         `(mov (& ,$r.reg0 ,(+ $proc.reg0 (- $tag.procedure-tag) (words2bytes off))) ,$r.result))))
 	
 (define-sassy-instr (ia86.T_STACK slot)
   `(mov	,$r.result ,(stkslot slot)))
@@ -481,7 +481,7 @@
      ((> r *lastreg*)
       `(mov (& ,$r.globals ,$g.stkp) ,$r.cont)     ; Need a working register!
       `(mov (& ,$r.globals ,$g.result) ,$r.result) ; Save for later
-      `(add ,$r.result ,(+ PROC_REG0 (words2bytes LASTREG)))
+      `(add ,$r.result ,(+ $proc.reg0 (words2bytes LASTREG)))
       (ia86.loadr $r.cont LASTREG)
       `(label ,L1)
       `(mov ,$r.temp (& ,$r.cont ,(- $tag.pair-tag)))
@@ -497,44 +497,44 @@
       (cond 
        ((>= regno 0)
         (cond ((is_hwreg regno)
-               `(mov (& ,$r.result ,(+ PROC_REG0 (words2bytes regno)))
+               `(mov (& ,$r.result ,(+ $proc.reg0 (words2bytes regno)))
                      ,(REG regno)))
               (else
                (ia86.loadr $r.temp regno)
-               `(mov (& ,$r.result ,(+ PROC_REG0 (words2bytes regno))) ,$r.temp)))
+               `(mov (& ,$r.result ,(+ $proc.reg0 (words2bytes regno))) ,$r.temp)))
         (rep (- regno 1)))))
 
     `(add ,$r.result.low ,$tag.procedure-tag)))
 
 (define-sassy-instr (ia86.T_LAMBDA codevec constvec n)
   ;; arguments are codevector offset, constant vector offset, and n
-  (ia86.const2regf $r.result (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
+  (ia86.const2regf $r.result (fixnum (+ $proc.header-words $proc.overhead-words n 1)))
   (ia86.alloc)
   `(mov (dword (& ,$r.result)) ,(logior
-                             (arithmetic-shift (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
+                             (arithmetic-shift (words2bytes (+ $proc.overhead-words n 1))
                                                8)
                              $hdr.procedure))
   `(push ,$r.reg0) ; REG0 temp ptr to constants (saves size + reload of TEMP)
-  `(mov	,$r.reg0 (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
+  `(mov	,$r.reg0 (& ,$r.reg0 ,(+ (- $tag.procedure-tag) $proc.constvector)))
   `(mov	,$r.temp (& ,$r.reg0 ,(+ (- $tag.vector-tag) (words2bytes (+ codevec 1)))))
-  `(mov	(dword (& ,$r.result ,PROC_CODEVECTOR_NATIVE)) ,$r.temp)
+  `(mov	(dword (& ,$r.result ,$proc.codevector)) ,$r.temp)
   `(mov	,$r.temp (& ,$r.reg0 ,(+ (- $tag.vector-tag) (words2bytes (+ constvec 1)))))
   `(pop ,$r.reg0)  ; restore REG0
-  `(mov	(dword (& ,$r.result ,PROC_CONSTVECTOR      )) ,$r.temp)
+  `(mov	(dword (& ,$r.result ,$proc.constvector      )) ,$r.temp)
   (ia86.init_closure n))
 
 (define-sassy-instr (ia86.T_LEXES n)
   ;; argument is n
-  (ia86.const2regf $r.result (fixnum (+ PROC_HEADER_WORDS PROC_OVERHEAD_WORDS n 1)))
+  (ia86.const2regf $r.result (fixnum (+ $proc.header-words $proc.overhead-words n 1)))
   (ia86.alloc)
   `(mov	(dword (& ,$r.result)) ,(logior
-                             (arithmetic-shift (words2bytes (+ PROC_OVERHEAD_WORDS n 1))
+                             (arithmetic-shift (words2bytes (+ $proc.overhead-words n 1))
                                                8)
                              $hdr.procedure))
-  `(mov	,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-  `(mov	(dword (& ,$r.result ,PROC_CODEVECTOR_NATIVE)) ,$r.temp)
-  `(mov	,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_CONSTVECTOR)))
-  `(mov	(dword (& ,$r.result ,PROC_CONSTVECTOR)) ,$r.temp)
+  `(mov	,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) $proc.codevector)))
+  `(mov	(dword (& ,$r.result ,$proc.codevector)) ,$r.temp)
+  `(mov	,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) $proc.constvector)))
+  `(mov	(dword (& ,$r.result ,$proc.constvector)) ,$r.temp)
   (ia86.init_closure n))
 
 (define-sassy-instr (ia86.T_ARGSEQ n)
@@ -586,7 +586,7 @@
     ;; Not necessary to store reg0 here, this is handled
     ;; explicitly by the generated code.
     `(xor	,$r.result ,$r.result)
-    `(mov	(dword (& ,$r.cont ,STK_RETADDR)) ,$r.result)
+    `(mov	(dword (& ,$r.cont ,$stk.retaddr)) ,$r.result)
     (cond ((= (- (framesize n) (recordedsize n)) 8)
            ;; We have a pad word at the end -- clear it
            `(mov (dword ,(stkslot (+ n 1))) ,$r.result)))))
@@ -614,23 +614,22 @@
   ;;; Ryan points out that we could grab the base address 
   ;;; of the codevector via R0 instead of doing the call below.
   (let ((L1 (fresh-label)))
-    ;; `(mov	(dword (& CONT ,STK_RETADDR)) (t_label ,lbl))
     `(call $eip) ;; puts $eip into first element of GLOBALS.
     `(label ,L1) ;; absolute name for $eip
     `(pop ,$r.temp)  ;; stash return address in ,TEMP
     `(sub ,$r.temp (reloc rel ,L1)) ;; adjust to point to base of segment
     `(add ,$r.temp (reloc rel ,(t_label lbl)))  ;; adjust to point to lbl
-    `(mov (& ,$r.cont ,STK_RETADDR) ,$r.temp)   ;; save in ret addr slot
+    `(mov (& ,$r.cont ,$stk.retaddr) ,$r.temp)   ;; save in ret addr slot
     ))
 
 ;; Alternate version (15 bytes).  
 ;; (But SETRTN/INVOKE may be inspired by prior approach...)
 (define-sassy-instr (ia86.T_SETRTN lbl)
-  `(mov ,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+  `(mov ,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) $proc.codevector)))
   `(add ,$r.temp (reloc abs 
                     ,(t_label lbl)
                     ,(+ (- $tag.bytevector-tag))))
-  `(mov (& ,$r.cont ,STK_RETADDR) ,$r.temp))
+  `(mov (& ,$r.cont ,$stk.retaddr) ,$r.temp))
 
 (define-sassy-instr (ia86.T_RESTORE n)
   (let rep ((slotno 0))
@@ -649,13 +648,13 @@
   (error 'T_POPSTK "not implemented -- students only"))
 
 '(define-sassy-instr (ia86.T_RETURN)
-  `(jmp (& ,$r.cont ,STK_RETADDR)))
+  `(jmp (& ,$r.cont ,$stk.retaddr)))
 
 ;; one extra byte, but... if matched with the call's in setrtn/invoke,
 ;; *much* faster than the above... 
 ;; [[ if not matched, then we end up slower... ugh]]
 (define-sassy-instr (ia86.T_RETURN)
-  `(push (& ,$r.cont ,STK_RETADDR))
+  `(push (& ,$r.cont ,$stk.retaddr))
   `(ret))
 
 ;;; (See sassy-invoke.sch for the T_APPLY definition that used to be here.)
@@ -678,7 +677,7 @@
 (define (emit-setrtn-jump-patch-code as)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label setrtn-jump-patch-code-label))
-  (emit `(pop (& ,$r.cont ,STK_RETADDR)))  ;; pre-aligned return address
+  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address
   (emit `(jmp ,$r.temp)))
   
 (define-sassy-instr (ia86.T_JUMP* levels label setrtn?)
@@ -690,12 +689,12 @@
 		  #f)
 		 ((find-label obj label) => (lambda (entry) (cdr entry)))
 		 (else (loop (as-parent obj)))))))
-    (repeat-times levels `(mov ,$r.reg0 (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_REG0))))
+    (repeat-times levels `(mov ,$r.reg0 (& ,$r.reg0 ,(+ (- $tag.procedure-tag) $proc.reg0))))
     ;; Now REG0 holds the closure we're jumping into; calculate the
     ;; address as start of codevector plus offset from above.
     (cond (offset
            `(lea ,$r.temp (& ,$r.reg0 ,(- $tag.procedure-tag)))
-           `(mov ,$r.temp (& ,$r.temp ,PROC_CODEVECTOR_NATIVE))
+           `(mov ,$r.temp (& ,$r.temp ,$proc.codevector))
            `(lea ,$r.temp (& ,$r.temp ,(+ (- $tag.bytevector-tag) offset)))
            (cond (setrtn?
                   `(align ,code_align -1)
@@ -713,7 +712,7 @@
                                     (newline))))
                     ;; We just clobbered reg0 above, but the reasoning above
                     ;; implies that this is the same codevector, so its okay.
-                    `(mov ,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
+                    `(mov ,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) $proc.codevector)))
                     `(add ,$r.temp (reloc abs 
                                       ,(t_label (compiled-procedure 
                                                  (current-sassy-assembly-structure) 
