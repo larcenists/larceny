@@ -481,8 +481,8 @@
      ((> r *lastreg*)
       `(mov (& ,$r.globals ,$g.stkp) ,$r.cont)     ; Need a working register!
       `(mov (& ,$r.globals ,$g.result) ,$r.result) ; Save for later
-      `(add ,$r.result ,(+ $proc.reg0 (words2bytes LASTREG)))
-      (ia86.loadr $r.cont LASTREG)
+      `(add ,$r.result ,(+ $proc.reg0 (words2bytes *lastreg*)))
+      (ia86.loadr $r.cont *lastreg*)
       `(label ,L1)
       `(mov ,$r.temp (& ,$r.cont ,(- $tag.pair-tag)))
       `(mov (& ,$r.result) ,$r.temp)

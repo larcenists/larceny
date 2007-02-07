@@ -46,4 +46,3 @@
 ;; corresponds to constants defined by Rts/Build/*.sh
 ;; %include "asmdefs.h" 
 
-(define LASTREG 31)
