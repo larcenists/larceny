@@ -92,9 +92,7 @@
 (define (sassy-assemble as code)
   ;(begin (display code) (newline))
   (check-for-free-ids code)
-  (sassy `(,@sassy-machine-directives 
-           ,@sassy-instr-directives 
-           ,@(map (lambda (l) `(export ,(t_label (compiled-procedure as l))))
+  (sassy `(,@(map (lambda (l) `(export ,(t_label (compiled-procedure as l))))
                   (user-data.labels (as-user as)))
            (org  ,$bytevector.header-bytes)
            (text ,@code))

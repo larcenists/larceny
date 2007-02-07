@@ -57,9 +57,6 @@
 (define (unsafe-globals)
   (unsafe-code))
 
-(define sassy-instr-directives '())
-  ;;'((macro comment (lambda x '(begin)))))
-
 (define-syntax define-sassy-instr
   (syntax-rules ()
     ((_ (NAME ARGS ...) BODY ...)

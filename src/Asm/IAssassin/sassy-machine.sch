@@ -25,31 +25,6 @@
 ; The instruction macros know that RESULT and TEMP have a low byte
 ; register, but otherwise rely on hwreg_has_low() to test the mapping.
 
-(define sassy-machine-directives '())
-
-(define-syntax define-sassy-constant
-  (syntax-rules (quote)
-    ((_ NAME (quote VAL))
-     (begin
-       (define NAME (quote VAL))
-       (set! sassy-machine-directives
-             (begin 
-               (if (not (symbol? (quote VAL)))
-                   (error 'define-sassy-constant
-                          "Only define symbols or numbers!"))
-               (cons '(macro NAME VAL)
-                     sassy-machine-directives)))))
-    ((_ NAME VAL)
-     (begin
-       (define NAME VAL)
-       (set! sassy-machine-directives
-             (begin 
-               (if (not (number? VAL))
-                   (error 'define-sassy-constant 
-                          "Only define symbols or numbers!"))
-               (cons '(macro NAME VAL)
-                     sassy-machine-directives)))))))
-
 (define wordsize        4)
 (define object_align    8)
 (define code_align      4)
