@@ -159,6 +159,7 @@
                            ((NCC) 'CC) ...)))))
     (cases cc (z nz) (e ne) (g ng) (l nl) (o no) (le g) (be a))))
     
+(define wordsize        4)
 (define (result-reg? n)      (or (eq? n $r.result)))
 (define (hwreg_has_low r)    
   (case r
