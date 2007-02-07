@@ -5,19 +5,20 @@
 ; $Id: i386-machine.ah 2543 2005-07-20 21:54:03Z pnkfelix $
 ;
 ; Notes on the representations.
+; The official register assignments are defined in iasn-regs.cfg
 ;
 ; EAX is used as a temp for generated code, and to pass SECOND on
 ; calls to millicode.  EAX is never a root for garbage collection, so
 ; SECOND must be flushed to memory by millicode.
 ;
-; GLOBALS must be mapped mapped to ESP to make millicode calls
-; compact.  The GLOBALS pointer points to element 1 of the globals
-; vector; element 0 is normally unused.  To call millicode one
-; executes an indirect CALL instruction; the return address will
-; be pushed into the first element of GLOBALS.  Millicode
+; ESP is used as the pointer to the GLOBALS array.  
+; To make millicode calls compact, ESP needs to point to storage with
+; (at least) one word free for modification above it.  To call
+; millicode one executes an indirect CALL instruction; the return
+; address will be pushed into the first element of GLOBALS.  Millicode
 ; must pop the value to adjust GLOBALS and save the address.
 ;
-; ECX and EDI must be mapped to VM registers to make it easy to write
+; ECX and EDI must have free saving locations available to enable
 ; code that uses the REP STOS instructions without knowing too much
 ; about the register layout.
 ;
