@@ -34,11 +34,3 @@
 (define G_REGALIAS_EDI	$g.reg3)	; ditto
 (define G_REGALIAS_EDX  $g.reg2)        ; used by rdrsc
 (define G_REGALIAS_EBX  $g.result)
-
-
-;; corresponds to settings in features.sch
-;; %include "config.ah" 
-
-;; corresponds to constants defined by Rts/Build/*.sh
-;; %include "asmdefs.h" 
-
