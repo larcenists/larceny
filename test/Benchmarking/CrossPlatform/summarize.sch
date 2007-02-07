@@ -479,7 +479,6 @@
             (newline out)
             (let ((line (car lines)))
               (cond ((substring=? system-key line 0 n-system-key)
-                     (newline out)
                      (display line out)
                      (newline out)
                      (newline out)
