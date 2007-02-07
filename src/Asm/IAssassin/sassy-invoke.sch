@@ -57,7 +57,7 @@
            `(jz short ,L0)
            `(label ,L1)
 	   `(lea ,$r.temp (& ,$r.result ,(- $tag.procedure-tag)))
-	   `(test ,$r.temp.low ,tag_mask)
+	   `(test ,$r.temp.low ,$tag.tagmask)
 	   `(jnz short ,L0)
            `(mov ,$r.temp (& ,$r.temp ,$proc.codevector))
            (ia86.storer 0 $r.result)
@@ -88,7 +88,7 @@
 	   `(mov ,$r.temp                    ;   dereference
                  (& ,$r.result ,(- $tag.pair-tag)))
 	   `(inc ,$r.temp)			; really ,TEMP += PROC_TAG-8
-	   `(test ,$r.temp.low ,tag_mask)	; tag test
+	   `(test ,$r.temp.low ,$tag.tagmask)	; tag test
 	   `(jnz short ,L1)
 	   `(dec (dword (& ,$r.globals ,$g.timer))) ; timer
 	   `(jz short ,L1)                ;   test
@@ -126,7 +126,7 @@
              (ia86.mcall $m.invoke-ex 'invoke-ex)
              `(label ,L1)
              `(lea ,$r.temp (& ,$r.result ,(- $tag.procedure-tag)))
-             `(test ,$r.temp.low ,tag_mask)
+             `(test ,$r.temp.low ,$tag.tagmask)
              `(jnz short ,L0)
              `(mov ,$r.temp (& ,$r.temp ,$proc.codevector))
              (ia86.storer 0 $r.result)

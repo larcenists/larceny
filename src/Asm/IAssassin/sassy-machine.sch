@@ -29,8 +29,6 @@
 (define object_align    8)
 (define code_align      4)
 
-(define fixtag_mask	    3)
-(define tag_mask             7)
 (define hdr_shift            8)
 (define char_shift	     8)
 
