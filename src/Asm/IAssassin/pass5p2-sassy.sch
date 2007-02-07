@@ -96,7 +96,7 @@
            ,@sassy-instr-directives 
            ,@(map (lambda (l) `(export ,(t_label (compiled-procedure as l))))
                   (user-data.labels (as-user as)))
-           (org  ,BVEC_HEADER_BYTES)
+           (org  ,$bytevector.header-bytes)
            (text ,@code))
          'dont-expand))
 

@@ -47,7 +47,7 @@
          `(mov ,$r.temp ,$r.result)
          (ia86.const2regf $r.result (fixnum n))
          `(mov ,$r.temp (& ,$r.temp ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-         `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+         `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
 	 `(jmp ,$r.temp))
         (else ;; 37 bytes for n=0, 40 bytes o/w
          (let ((L0 (fresh-label))
@@ -62,7 +62,7 @@
            `(mov ,$r.temp (& ,$r.temp ,PROC_CODEVECTOR_NATIVE))
            (ia86.storer 0 $r.result)
            (ia86.const2regf $r.result (fixnum n))
-           `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+           `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
            `(jmp ,$r.temp)
            `(label ,L0)
 	   (ia86.mcall $m.invoke-ex 'invoke-ex)
@@ -97,7 +97,7 @@
 	   (ia86.const2regf $r.result           ; argument count
                             (fixnum n))
 	   `(mov ,$r.temp	(& ,$r.temp ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-           `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+           `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
            `(jmp ,$r.temp)
            `(label ,L1)
 	   (ia86.mcall $m.global-invoke-ex 'global-invoke-ex) ; $r.result has global cell (always)
@@ -113,7 +113,7 @@
            (ia86.storer 0 $r.result)
            `(mov ,$r.temp (& ,$r.result ,(+ (- $tag.procedure-tag)PROC_CODEVECTOR_NATIVE)))
            `(align ,code_align)
-           `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+           `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
            `(call ,(setrtn-invoke-patch-code-label n)))
           (else 
            ;; For SETRTN, see patch-code below
@@ -135,7 +135,7 @@
              ;; the add&and from the patch code (saving 9 bytes).
              `(align ,code_align)
              ;;   3 bytes
-             `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+             `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
              ;; + 5 bytes = 8 bytes; retaddr is aligned!
              `(call ,(setrtn-invoke-patch-code-label n))
              )))))
@@ -186,6 +186,6 @@
   (ia86.loadr	$r.second x)
   (ia86.mcall	$m.apply 'apply)
   `(mov	,$r.temp (& ,$r.reg0 ,(+ (- $tag.procedure-tag) PROC_CODEVECTOR_NATIVE)))
-  `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
+  `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
   `(jmp	,$r.temp))
 

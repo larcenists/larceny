@@ -59,11 +59,6 @@
 (define hdr_shift            8)
 (define char_shift	     8)
 
-(define GLOBALS 	'esp)
-(define CONT    	'ebp)
-
-(define BVEC_HEADER_BYTES 4)
-
 (define G_REGALIAS_ECX	$g.reg1)	; used by rep stos constructions
 (define G_REGALIAS_EDI	$g.reg3)	; ditto
 (define G_REGALIAS_EDX  $g.reg2)        ; used by rdrsc
