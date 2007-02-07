@@ -3030,9 +3030,9 @@
     ;; `(cpuid)                                ;; serialize (writes eax, ebx, ecx, edx)
     `(rdtsc)                                ;; writes 64 bit value into edx:eax
     `(mov ebx (& ,$r.globals ,G_REGALIAS_EBX)) ;; restore RESULT
-    `(mov (& ,$r.result ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES)) 
+    `(mov (& ,$r.result ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes)) 
           eax)                              ;; save timestamp low bits
-    `(mov (& ,$r.result ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES wordsize))
+    `(mov (& ,$r.result ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes wordsize))
           edx)                              ;; save timestamp high bits
     ;; `(cpuid)                                ;; serialize (writes eax, ebx, ecx, edx)
     `(mov ebx (& ,$r.globals ,G_REGALIAS_EBX)) ;; restore RESULT
