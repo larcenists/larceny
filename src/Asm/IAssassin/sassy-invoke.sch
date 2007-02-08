@@ -112,11 +112,11 @@
            (ia86.timer_check)
            (ia86.storer 0 $r.result)
            `(mov ,$r.temp (& ,$r.result ,(+ (- $tag.procedure-tag)PROC_CODEVECTOR_NATIVE)))
-           (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-invoke-patch code below)
-                  `(add ,$r.cont 4)))
-           `(align ,code_align)
+           `(add ,$r.cont 4)
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
-           `(call ,(setrtn-invoke-patch-code-label n)))
+           (ia86.const2regf $r.result (fixnum n))
+           `(align ,code_align -1)
+           `(call ,$r.temp))
           (else 
            ;; For SETRTN, see patch-code below
            ;; INVOKE
