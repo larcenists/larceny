@@ -718,7 +718,7 @@
   (ia86.T_JUMP* levels label #f))
 
 (define-sassy-instr (ia86.T_SETRTN_JUMP levels label)
-  (let ()
+  (let ((ign (set! *did-emit-setrtn-jump* #t)))
     (ia86.T_JUMP* levels label #t)))
 
 (define (emit-setrtn-jump-patch-code as)
@@ -749,7 +749,7 @@
                   (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-jump-patch code below)
                          `(add ,$r.cont 4)))
                   `(align ,code_align -1)
-                  `(call ,$r.temp))
+                  `(call setrtn-jump-patch-code-label))
                  (else
                   `(jmp ,$r.temp))))
           (else
@@ -772,7 +772,7 @@
                   (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-jump-patch code below)
                          `(add ,$r.cont 4)))
                   `(align ,code_align -1)
-                  `(call ,$r.temp))
+                  `(call setrtn-jump-patch-code-label))
                  (else
                   `(jmp ,(t_label (compiled-procedure 
                                    (current-sassy-assembly-structure) 
