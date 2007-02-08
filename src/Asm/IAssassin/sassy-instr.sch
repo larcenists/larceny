@@ -646,20 +646,6 @@
 (define-sassy-instr (ia86.T_SAVE1 n)
   `(mov	(dword ,(stkslot n)) ,$r.result))
 
-'(define-sassy-instr (ia86.T_SETRTN lbl)
-  ;;; This has not been optimized.  (19 bytes)
-  ;;; Ryan points out that we could grab the base address 
-  ;;; of the codevector via R0 instead of doing the call below.
-  (let ((L1 (fresh-label)))
-    ;; `(mov	(dword (& CONT ,STK_RETADDR)) (t_label ,lbl))
-    `(call $eip) ;; puts $eip into first element of GLOBALS.
-    `(label ,L1) ;; absolute name for $eip
-    `(pop ,$r.temp)  ;; stash return address in ,TEMP
-    `(sub ,$r.temp (reloc rel ,L1)) ;; adjust to point to base of segment
-    `(add ,$r.temp (reloc rel ,(t_label lbl)))  ;; adjust to point to lbl
-    `(mov (& ,$r.cont ,$stk.retaddr) ,$r.temp)   ;; save in ret addr slot
-    ))
-
 ;; Alternate version (15 bytes).  
 ;; (But SETRTN/INVOKE may be inspired by prior approach...)
 (define-sassy-instr (ia86.T_SETRTN lbl)
@@ -686,22 +672,6 @@
   (error 'T_POPSTK "not implemented -- students only"))
 
 (define-sassy-instr (ia86.T_RETURN)
-  (cond ((not (= $stk.retaddr 0))
-         `(add ,$r.cont ,$stk.retaddr)))
-  `(ret))
-
-(define-sassy-instr (ia86.T_POP_RETURN n)
-  `(add ,$r.cont ,(+ (framesize n) $stk.retaddr))
-  `(ret))
-
-'(define-sassy-instr (ia86.T_RETURN)
-  `(jmp (& ,$r.cont ,$stk.retaddr)))
-
-;; one extra byte, but... if matched with the call's in setrtn/invoke,
-;; *much* faster than the above... 
-;; [[ if not matched, then we end up slower... ugh]]
-'(define-sassy-instr (ia86.T_RETURN)
-  `(push (& ,$r.cont ,$stk.retaddr))
   `(ret))
 
 ;;; (See sassy-invoke.sch for the T_APPLY definition that used to be here.)
@@ -724,9 +694,6 @@
 (define (emit-setrtn-jump-patch-code as)
   (define (emit x) (apply emit-sassy as x))
   (emit `(label setrtn-jump-patch-code-label))
-  (cond ((not (= $stk.retaddr 0))
-         ;; (this works regardless of whether $r.cont aliases $r.esp)
-         (emit `(pop (& ,$r.cont ,$stk.retaddr)))))  ;; pre-aligned return address
   (emit `(jmp ,$r.temp)))
   
 (define-sassy-instr (ia86.T_JUMP* levels label setrtn?)
@@ -746,8 +713,7 @@
            `(mov ,$r.temp (& ,$r.temp ,PROC_CODEVECTOR_NATIVE))
            `(lea ,$r.temp (& ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES offset)))
            (cond (setrtn?
-                  (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-jump-patch code below)
-                         `(add ,$r.cont 4)))
+                  `(add ,$r.cont 4)
                   `(align ,code_align -1)
                   `(call setrtn-jump-patch-code-label))
                  (else
@@ -769,8 +735,7 @@
                                                  (current-sassy-assembly-structure) 
                                                  label))
                                       ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))))
-                  (cond ((= $stk.retaddr 0) ;; (removes pop from setrtn-jump-patch code below)
-                         `(add ,$r.cont 4)))
+                  `(add ,$r.cont 4)
                   `(align ,code_align -1)
                   `(call setrtn-jump-patch-code-label))
                  (else
