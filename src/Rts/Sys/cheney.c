@@ -140,7 +140,7 @@
     *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG);                    \
     check_memory( dest, 2 );                                             \
     dest += 2;                                                           \
-    if (0) eagerly_forward_pairs( next_obj, &dest, &lim, e);             \
+    if (0 && e->eager_copy) eagerly_forward_pairs( next_obj, &dest, &lim, e); \
   } while ( 0 )
 
 #define forw_core( T_obj, loc, dest, lim, e, forw_limit_gen )           \
@@ -489,6 +489,11 @@ struct cheney_env {
        address of codevectors.
        */
 
+  bool eager_copy;
+    /* TRUE if the forward operation should eagerly copy pairs
+   .   (and perhaps other objects) rather than waiting for 
+       the scanner to do it. */
+
   void (*scan_from_globals)( word *loc, void *data );
     /* Scanner function for forwarding from globals[]
        */
@@ -582,7 +587,13 @@ void eagerly_forward_pairs( word T_obj, word **pdest,  word **plim, cheney_env_t
   unsigned gno = e->effective_generation;
   word *TMP_P;
 
-  while ( (tagof( T_obj ) == PAIR_TAG && gen_of(T_obj) < gno) ) {
+  word *orig_dest = dest;
+  word *orig_lim  = lim;
+  word *page_lim  = roundup_page((char*)dest);
+  int depth = ((char*)min(page_lim,lim) - (char*)dest) / 8;
+
+  while ( depth && (tagof( T_obj ) == PAIR_TAG && gen_of(T_obj) < gno) ) {
+    depth--;
     TMP_P = ptrof( T_obj );
     if (*TMP_P == FORWARD_HDR) 
       break;
@@ -762,6 +773,7 @@ static void init_env( cheney_env_t *e,
   e->enumerate_np_remset = attributes & ENUMERATE_NP_REMSET;
   e->splitting = attributes & SPLITTING_GC;
   e->iflush = gc_iflush( gc );
+  e->eager_copy = effective_generation > 1;
   e->tospace = tospace;
   e->tospace2 = tospace2;
   e->dest = tospace->chunks[tospace->current].top;
