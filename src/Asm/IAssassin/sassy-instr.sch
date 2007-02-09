@@ -679,6 +679,16 @@
 (define-sassy-instr (ia86.T_NOP)
   `(nop)) ;; The interface doesn't actually support empty lists, I think...
 
+;; A nasty trick to force code alignment *after* a particular instruction
+;; without human intervention.
+;; First assemble instr to figure out how large it is, and then feed that 
+;; to an alignment directive.
+;; QUESTION: Is sassy RE-ENTRANT?  I'll avoid using this until I find out.
+(define-sassy-instr (ia86.align_after instr)
+  (let ((instr-len (length (sassy-text-list (sassy `((text ,instr)))))))
+    `(align ,code_align ,(- (modulo instr-len)))
+    `(,@instr)))
+
 ;;; JUMP: Arguments are levels, label, and name of the code vector
 ;;; into which we are jumping (an artifact of the labelling system
 ;;; of the Petit implementation; we can almost certainly remove it
@@ -688,14 +698,8 @@
   (ia86.T_JUMP* levels label #f))
 
 (define-sassy-instr (ia86.T_SETRTN_JUMP levels label)
-  (let ((ign (set! *did-emit-setrtn-jump* #t)))
-    (ia86.T_JUMP* levels label #t)))
+  (ia86.T_JUMP* levels label #t))
 
-(define (emit-setrtn-jump-patch-code as)
-  (define (emit x) (apply emit-sassy as x))
-  (emit `(label setrtn-jump-patch-code-label))
-  (emit `(jmp ,$r.temp)))
-  
 (define-sassy-instr (ia86.T_JUMP* levels label setrtn?)
   (ia86.timer_check)
   (let ((offset
@@ -714,8 +718,8 @@
            `(lea ,$r.temp (& ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES offset)))
            (cond (setrtn?
                   `(add ,$r.cont 4)
-                  `(align ,code_align -1)
-                  `(call setrtn-jump-patch-code-label))
+                  `(align ,code_align -2)
+                  `(call ,$r.temp))
                  (else
                   `(jmp ,$r.temp))))
           (else
@@ -736,8 +740,8 @@
                                                  label))
                                       ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))))
                   `(add ,$r.cont 4)
-                  `(align ,code_align -1)
-                  `(call setrtn-jump-patch-code-label))
+                  `(align ,code_align -2)
+                  `(call ,$r.temp))
                  (else
                   `(jmp ,(t_label (compiled-procedure 
                                    (current-sassy-assembly-structure) 

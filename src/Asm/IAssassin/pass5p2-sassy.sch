@@ -274,14 +274,12 @@
       (emit-string! as linebreak))))
 
 (define *did-emit-setrtn-invoke* '())
-(define *did-emit-setrtn-jump* #f)
 
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label)))
     ;(emit-text as "begin_codevector ~a" name)
     (emit-sassy as 'align code_align)
     (set! *did-emit-setrtn-invoke* '())
-    (set! *did-emit-setrtn-jump* #f)
     (set! code-indentation (string #\tab))
     (set! code-name name)))
 
@@ -289,8 +287,6 @@
   (set! code-indentation "")
   (for-each (lambda (n) (emit-setrtn-invoke-patch-code as n))
             *did-emit-setrtn-invoke*)
-  (if *did-emit-setrtn-jump*
-      (emit-setrtn-jump-patch-code as))
   ;(emit-text as "end_codevector ~a" code-name)
   ;(emit-text as "")
   )
