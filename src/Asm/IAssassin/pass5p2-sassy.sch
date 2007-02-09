@@ -274,7 +274,6 @@
       (emit-string! as linebreak))))
 
 (define *did-emit-setrtn-invoke* '())
-(define *did-emit-setrtn-branch* '())
 (define *did-emit-setrtn-jump* #f)
 
 (define (begin-compiled-scheme-function as label entrypoint? start?)
@@ -282,7 +281,6 @@
     ;(emit-text as "begin_codevector ~a" name)
     (emit-sassy as 'align code_align)
     (set! *did-emit-setrtn-invoke* '())
-    (set! *did-emit-setrtn-branch* '())
     (set! *did-emit-setrtn-jump* #f)
     (set! code-indentation (string #\tab))
     (set! code-name name)))
@@ -291,8 +289,6 @@
   (set! code-indentation "")
   (for-each (lambda (n) (emit-setrtn-invoke-patch-code as n))
             *did-emit-setrtn-invoke*)
-  (for-each (lambda (n) (emit-setrtn-branch-patch-code as n))
-            *did-emit-setrtn-branch*)
   (if *did-emit-setrtn-jump*
       (emit-setrtn-jump-patch-code as))
   ;(emit-text as "end_codevector ~a" code-name)

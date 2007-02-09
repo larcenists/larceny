@@ -143,28 +143,21 @@
              )))))
 
 (define-sassy-instr (ia86.T_SETRTN_BRANCH Ly)
-  (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
-                 (set! *did-emit-setrtn-branch* 
-                       (cons Ly *did-emit-setrtn-branch*)))))
+  (let ()
+    (ia86.timer_check)
     `(add ,$r.cont 4)
     `(align ,code_align -1)
-    `(call ,(setrtn-branch-patch-code-label Ly))))
+    `(call ,(t_label Ly))))
 
-(define-sassy-instr (ia86.T_SETRTN_SKIP Ly) ;; FIXME: shouldn't decrement timer.
-  (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
-                 (set! *did-emit-setrtn-branch* 
-                       (cons Ly *did-emit-setrtn-branch*)))))
+(define-sassy-instr (ia86.T_SETRTN_SKIP Ly)
+  (let ()
     `(add ,$r.cont 4)
     `(align ,code_align -1)
-    `(call ,(setrtn-branch-patch-code-label Ly))))
+    `(call ,(t_label Ly))))
 
 (define (setrtn-invoke-patch-code-label n)
   (string->symbol (string-append "setrtn-invoke-patch-code-label" 
                                  (number->string n))))
-
-(define (setrtn-branch-patch-code-label l)
-  (string->symbol (string-append "setrtn-branch-patch-code-label" 
-                                 (symbol->string l))))
 
 (define (emit-setrtn-invoke-patch-code as n)
   (define (emit x) (apply emit-sassy as x))
@@ -172,15 +165,6 @@
   (for-each emit (do-sassy-instr ia86.const2regf $r.result (fixnum n)))
   (emit `(jmp ,$r.temp)))
          
-(define (emit-setrtn-branch-patch-code as l)
-  (define (emit x) (apply emit-sassy as x))
-  (emit `(label ,(setrtn-branch-patch-code-label (t_label l))))
-  (emit `(dec (dword (& ,$r.globals ,$g.timer))))
-  (emit `(jnz ,(t_label l)))
-  (emit `(call (& ,$r.globals ,$m.timer-exception)))
-  (emit `(align ,code_align))
-  (emit `(jmp ,(t_label l))))
-
 (define-sassy-instr (ia86.T_APPLY x y)
   (ia86.timer_check)
   (ia86.loadr	$r.temp y)
