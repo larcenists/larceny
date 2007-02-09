@@ -105,20 +105,17 @@
            ))))
 
 (define-sassy-instr (ia86.T_SETRTN_INVOKE n)
-  (let ((ign (if (not (memv n *did-emit-setrtn-invoke*))
-                 (set! *did-emit-setrtn-invoke* 
-                       (cons n *did-emit-setrtn-invoke*)))))
+  (let ()
     (cond ((unsafe-code) ;; (see notes in unsafe version)
            (ia86.timer_check)
            (ia86.storer 0 $r.result)
            `(mov ,$r.temp (& ,$r.result ,(+ (- $tag.procedure-tag)PROC_CODEVECTOR_NATIVE)))
            `(add ,$r.cont 4)
-           `(align ,code_align)
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
-           `(call ,(setrtn-invoke-patch-code-label n)))
+           (ia86.const2regf $r.result (fixnum n))
+           `(align ,code_align -2)
+           `(call ,$r.temp))
           (else 
-           ;; For SETRTN, see patch-code below
-           ;; INVOKE
            (let ((L0 (fresh-label))
                  (L1 (fresh-label)))
              `(dec (dword (& ,$r.globals ,$g.timer)))
@@ -132,14 +129,10 @@
              `(mov ,$r.temp (& ,$r.temp ,PROC_CODEVECTOR_NATIVE))
              (ia86.storer 0 $r.result)
              `(add ,$r.cont 4)
-             ;; n stored in RESULT via patch-code
-             ;; aligning the code here allows us to eliminate 
-             ;; the add&and from the patch code (saving 9 bytes).
-             `(align ,code_align)
-             ;;   3 bytes
+             (ia86.const2regf $r.result (fixnum n))
              `(add ,$r.temp ,(+ (- $tag.bytevector-tag) BVEC_HEADER_BYTES))
-             ;; + 5 bytes = 8 bytes; retaddr is aligned!
-             `(call ,(setrtn-invoke-patch-code-label n))
+             `(align ,code_align -2)
+             `(call ,$r.temp)
              )))))
 
 (define-sassy-instr (ia86.T_SETRTN_BRANCH Ly)
@@ -155,16 +148,6 @@
     `(align ,code_align -1)
     `(call ,(t_label Ly))))
 
-(define (setrtn-invoke-patch-code-label n)
-  (string->symbol (string-append "setrtn-invoke-patch-code-label" 
-                                 (number->string n))))
-
-(define (emit-setrtn-invoke-patch-code as n)
-  (define (emit x) (apply emit-sassy as x))
-  (emit `(label ,(setrtn-invoke-patch-code-label n)))
-  (for-each emit (do-sassy-instr ia86.const2regf $r.result (fixnum n)))
-  (emit `(jmp ,$r.temp)))
-         
 (define-sassy-instr (ia86.T_APPLY x y)
   (ia86.timer_check)
   (ia86.loadr	$r.temp y)

@@ -273,20 +273,15 @@
       (emit-string! as (apply twobit-format #f fmt operands))
       (emit-string! as linebreak))))
 
-(define *did-emit-setrtn-invoke* '())
-
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label)))
     ;(emit-text as "begin_codevector ~a" name)
     (emit-sassy as 'align code_align)
-    (set! *did-emit-setrtn-invoke* '())
     (set! code-indentation (string #\tab))
     (set! code-name name)))
 
 (define (end-compiled-scheme-function as)
   (set! code-indentation "")
-  (for-each (lambda (n) (emit-setrtn-invoke-patch-code as n))
-            *did-emit-setrtn-invoke*)
   ;(emit-text as "end_codevector ~a" code-name)
   ;(emit-text as "")
   )
