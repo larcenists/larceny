@@ -431,6 +431,9 @@
     }                                                                         \
   } while (0)
 
+#define scan_and_forward( loc, iflush, gno, dest, lim, e ) \
+  scan_core( loc, iflush, forw_oflo( loc, gno, dest, lim, e) )
+
 #define remember_vec( w, e )                    \
  do {  word *X = *e->np.ssbtop;                 \
        *X = w; X += 1; *e->np.ssbtop = X;       \
@@ -844,7 +847,7 @@ static void scan_static_area( cheney_env_t *e )
     loc = s_data->chunks[i].bot;
     limit = s_data->chunks[i].top;
     while ( loc < limit )
-      scan_core( loc, e->iflush, forw_oflo(loc, forw_limit_gen, dest, lim, e));
+      scan_and_forward( loc, e->iflush, forw_limit_gen, dest, lim, e );
   }
 
   e->dest = dest;
@@ -927,8 +930,7 @@ static void scan_oflo_normal( cheney_env_t *e )
 
     while (scanptr != dest) {
       while (scanptr != dest && scanptr < scanlim) {
-        scan_core( scanptr, e->iflush,
-                   forw_oflo( scanptr, gno, dest, copylim, e ));
+        scan_and_forward( scanptr, e->iflush, gno, dest, copylim, e );
       }
 
       if (scanptr != dest) {
@@ -954,7 +956,7 @@ static void scan_oflo_normal( cheney_env_t *e )
       los_p = p;
       morework = 1;
       assert2( ishdr( *p ) );
-      scan_core( p, e->iflush, forw_oflo( p, gno, dest, copylim, e ));
+      scan_and_forward( p, e->iflush, gno, dest, copylim, e );
     }
   } while (morework);
 
