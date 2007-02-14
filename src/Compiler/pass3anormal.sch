@@ -133,6 +133,8 @@
 
 (define A-normal-form-declaration (list 'anf))
 
+(define *anf-complication* 100)
+
 (define (A-normal-form E . rest)
   
   (define (A-normal-form E)
@@ -530,7 +532,7 @@
   
   (define (complicated? exp)
     ; Let's not spend all day on this.
-    (let ((budget 10))
+    (let ((budget *anf-complication*))
       (define (complicated? exp)
         (set! budget (- budget 1))
         (if (zero? budget)
@@ -546,8 +548,11 @@
               ((begin? exp) (some? complicated?
                                      (begin.exprs exp)))
               ((call? exp) (let ((proc (call.proc exp)))
-                             (if (and (variable? proc)
-                                      (prim-entry (variable.name proc)))
+                             (if (cond ((variable? proc)
+                                        (prim-entry (variable.name proc)))
+                                       ((lambda? proc)
+                                        (not (complicated? (lambda.body proc))))
+                                       (else #f))
                                  (some? complicated?
                                         (call.args exp))
                                  #t)))
