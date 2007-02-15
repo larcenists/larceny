@@ -237,7 +237,7 @@ static int free_space( young_heap_t *heap )
 {
   word *globals = DATA(heap)->globals;
 
-  return globals[ G_STKP ] - globals[ G_ETOP ];
+  return (globals[ G_STKP ]-SCE_BUFFER) - globals[ G_ETOP ];
 }
 
 static void stats( young_heap_t *heap )
@@ -268,7 +268,7 @@ static word *data_load_area( young_heap_t *heap, int nbytes )
 {
   young_data_t *data = DATA(heap);
 
-  if (data->globals[G_STKP]-data->globals[G_ETOP] >= nbytes) {
+  if ((data->globals[G_STKP]-SCE_BUFFER)-data->globals[G_ETOP] >= nbytes) {
     word *p = (word*)(data->globals[G_ETOP]);
     data->globals[G_ETOP] += nbytes;
     return p;

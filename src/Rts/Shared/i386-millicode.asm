@@ -66,6 +66,7 @@
 	
 	align	code_align
 EXTNAME(i386_stack_underflow):
+	sub	CONT, 4+STK_RETADDR
 	mov	eax, EXTNAME(mem_stkuflow)
 	jmp	callout_to_C_leave_retaddr_absolute
 
@@ -77,6 +78,7 @@ EXTNAME(i386_stack_underflow):
 	
 	align	code_align
 EXTNAME(i386_return_from_scheme):
+	sub	CONT, 4+STK_RETADDR
 %ifdef REG0
 	mov	REG0, dword [ CONT + 5*4 ]
 %else
@@ -154,20 +156,13 @@ EXTNAME(%1):
 ;;;
 ;;; Destroys: EAX
 
-%macro SAVE_RETURN_ADDRESS 0
-	mov	eax, dword [GLOBALS-4]          ; return address
-	add	eax, 3		                ;  rounded up
-	and	eax, 0xFFFFFFFC	                ;   to 4-byte boundary
-	mov	dword [GLOBALS+G_RETADDR], eax  ;    saved for later
-%endmacro
-
-	;; On entry, GLOBALS pointer is off by 4
+	;; On entry, esp is off by 4
 %macro SAVE_RETURN_ADDRESS_INTRSAFE 0
-	mov	eax, dword [GLOBALS]			; return address
+	mov	eax, dword [esp]			; return address
 	add	eax, 3		                	;  rounded up
 	and	eax, 0xFFFFFFFC	                	;   to 4-byte boundary
-	mov	dword [GLOBALS+G_RETADDR+4], eax	;    saved for later
-	add	GLOBALS, 4				; fixup globals
+	add	esp, 4					; fixup esp
+	mov	dword [GLOBALS+G_RETADDR], eax		;    saved for later
 %endmacro
 
 ;;; Arguments: second? c-name callout-method
@@ -175,7 +170,7 @@ EXTNAME(%1):
 %macro MILLICODE_STUB 3
 	extern	EXTNAME(%2)
 %if %1
-	mov	[GLOBALS+G_SECOND+4], eax
+	mov	[GLOBALS+G_SECOND], eax
 %endif
 	SAVE_RETURN_ADDRESS_INTRSAFE
 	mov	eax, EXTNAME(%2)
@@ -198,52 +193,56 @@ EXTNAME(%1):
 	MILLICODE_STUB 1, %1, callout_to_Ck
 %endmacro
 
-	;; On entry, GLOBALS pointer is off by 4
+	;; On entry, esp is off by 4
 PUBLIC i386_alloc_bv
 	MCg	mc_alloc_bv
 PUBLIC i386_alloc
 %ifdef OPTIMIZE_MILLICODE
-	mov	TEMP, [GLOBALS+G_ETOP+4]
+	mov	TEMP, [GLOBALS+G_ETOP]
 	add	RESULT, 7
 	and	RESULT, 0xfffffff8
 	add	TEMP, RESULT
+	add	TEMP, SCE_BUFFER
 	cmp	TEMP, CONT
 	jg	L1
-	mov	RESULT, [GLOBALS+G_ETOP+4]
-	mov	[GLOBALS+G_ETOP+4], TEMP
+	mov	RESULT, [GLOBALS+G_ETOP]
+	sub	TEMP, SCE_BUFFER
+	mov	[GLOBALS+G_ETOP], TEMP
 	xor	TEMP, TEMP
 	ret
 L1:	xor	TEMP, TEMP
 %endif ; OPTIMIZE_MILLICODE
 	MCg	mc_alloc
 
-	;; On entry, GLOBALS pointer is off by 4
+	;; On entry, esp is off by 4
 PUBLIC i386_alloci
 %ifdef OPTIMIZE_MILLICODE
-	mov	[GLOBALS+G_SECOND+4], SECOND
-	mov	[GLOBALS+G_REGALIAS_ECX+4], ecx
-	mov	[GLOBALS+G_REGALIAS_EDI+4], edi
+	mov	[GLOBALS+G_SECOND], SECOND
+	mov	[GLOBALS+G_REGALIAS_ECX], ecx
+	mov	[GLOBALS+G_REGALIAS_EDI], edi
 	add	RESULT, 7
 	and	RESULT, 0xfffffff8
 	mov	ecx, RESULT		; Byte count for initialization
 	shr	ecx, 2			;   really want words
-	mov	TEMP, [GLOBALS+G_ETOP+4]
+	mov	TEMP, [GLOBALS+G_ETOP]
 	add	TEMP, RESULT
+	add	TEMP, SCE_BUFFER
 	cmp	TEMP, CONT
 	jg	L2
-	mov	RESULT, [GLOBALS+G_ETOP+4]
-	mov	[GLOBALS+G_ETOP+4], TEMP
-	mov	eax, [ GLOBALS+G_SECOND+4 ]
+	mov	RESULT, [GLOBALS+G_ETOP]
+	sub	TEMP, SCE_BUFFER
+	mov	[GLOBALS+G_ETOP], TEMP
+	mov	eax, [ GLOBALS+G_SECOND ]
 	mov	edi, RESULT
 	cld
 	rep stosd
-	mov	REG1, [GLOBALS+G_REG1+4]
-	mov	REG3, [GLOBALS+G_REG3+4]
+	mov	REG1, [GLOBALS+G_REG1]
+	mov	REG3, [GLOBALS+G_REG3]
 	xor	SECOND, SECOND
 	ret
-L2:	mov	SECOND, [GLOBALS+G_SECOND+4]
-	mov	ecx, [GLOBALS+G_REGALIAS_ECX+4]
-	mov	edi, [GLOBALS+G_REGALIAS_EDI+4]
+L2:	mov	SECOND, [GLOBALS+G_SECOND]
+	mov	ecx, [GLOBALS+G_REGALIAS_ECX]
+	mov	edi, [GLOBALS+G_REGALIAS_EDI]
 %endif ; OPTIMIZE_MILLICODE
 	MC2g	mc_alloci
 	
@@ -273,12 +272,12 @@ PUBLIC i386_partial_barrier
   %ifdef GCLIB_LARGE_TABLE
     %error Optimized write barrier does not work with "GCLIB_LARGE_TABLE" yet
   %endif
-	cmp	dword [GLOBALS+G_GENV+4], 0	; Barrier is enabled
+	cmp	dword [GLOBALS+G_GENV], 0	; Barrier is enabled
 	jne	Lpb1				;   if generation map not 0
 	ret					; Otherwise return to scheme
-Lpb1:	mov	[GLOBALS+G_RESULT+4], RESULT	; Free up some
-	mov	[GLOBALS+G_REG1+4], REG1	;   working registers
-	mov	REG1, [GLOBALS+G_GENV+4]	; Map page -> generation
+Lpb1:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
+	mov	[GLOBALS+G_REG1], REG1	;   working registers
+	mov	REG1, [GLOBALS+G_GENV]	; Map page -> generation
 	sub	RESULT, [EXTNAME(gclib_pagebase)]	; Load
 	shr	RESULT, 12			;   generation number
 	shl	RESULT, 2			;     (using byte offset)
@@ -291,23 +290,23 @@ Lpb1:	mov	[GLOBALS+G_RESULT+4], RESULT	; Free up some
 	jg	Lpb3				;   if gen(lhs) > gen(rhs)
 Lpb2:	xor	RESULT, RESULT			; Clean
 	xor	SECOND, SECOND			;   state
-	mov	REG1, [GLOBALS+G_REG1+4]	;     and
+	mov	REG1, [GLOBALS+G_REG1]		;     and
 	ret					;       return to Scheme
 Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
-	mov	REG1, [GLOBALS+G_SSBTOPV+4]	; Array of ptrs into SSBs
-	mov	SECOND, [GLOBALS+G_RESULT+4]	; The value to store (lhs)
+	mov	REG1, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
+	mov	SECOND, [GLOBALS+G_RESULT]	; The value to store (lhs)
 	mov	REG1, [REG1+RESULT]		; The correct SSB ptr
 	mov	[REG1], SECOND			; Store lhs
-	mov	SECOND, [GLOBALS+G_SSBTOPV+4]	; Array of ptrs into SSBs
+	mov	SECOND, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
 	add	REG1, 4				; Move SSB ptr
 	mov	[SECOND+RESULT], REG1		; Store moved ptr
-	mov	SECOND, [GLOBALS+G_SSBLIMV+4]	; Array of SSB limit ptrs
+	mov	SECOND, [GLOBALS+G_SSBLIMV]	; Array of SSB limit ptrs
 	mov	SECOND, [SECOND+RESULT]		; The correct limit ptr
 	cmp	REG1, SECOND			; If ptr!=limit
 	jne	Lpb2				;   then no overflow, so done
 	xor	RESULT, RESULT			; Clean
 	xor	SECOND, SECOND			;   state
-	mov	REG1, [GLOBALS+G_REG1+4]	;     and
+	mov	REG1, [GLOBALS+G_REG1]		;     and
 	MCg	mc_compact_ssbs			;       handle overflow
 %else  ; OPTIMIZE_MILLICODE
 	MC2g	mc_partial_barrier
@@ -367,13 +366,14 @@ PUBLIC i386_bytevector_like_compare
 	cmp	TEMP_LOW, FLONUM_HDR
 	jnz	%%NOFLO
 	;; Got here, got a float!
-	mov	TEMP, [GLOBALS+G_ETOP+4]
-	add	TEMP, 16	; try alloc flo object
+	mov	TEMP, [GLOBALS+G_ETOP]
+	add	TEMP, 16+SCE_BUFFER	; try alloc flo object
 	cmp	TEMP, CONT
 	jg	%%NOROOM
+	sub	TEMP, SCE_BUFFER
 	fld qword [RESULT] 	; load fp arg
 	mov	RESULT, TEMP
-	mov	[GLOBALS+G_ETOP+4], TEMP ; commit allocation
+	mov	[GLOBALS+G_ETOP], TEMP ; commit allocation
 	mov dword [RESULT-16], (12 << 8 | FLONUM_HDR) ; stash hdr bits
 	%1					      ; perform fp comp
 	fstp qword [RESULT-8]	; store the computation result in flo object
@@ -389,7 +389,7 @@ PUBLIC i386_bytevector_like_compare
 
 ;;; generic_fp_cmp eql-lit less-lit greater-lit indeterm-lit
 %macro generic_fp_cmp 4
-	mov	[GLOBALS+G_SECOND+4], SECOND
+	mov	[GLOBALS+G_SECOND], SECOND
 	;mov	TEMP, [GLOBALS+G_SECOND+4] ; TEMP alias's SECOND
 	lea	TEMP, [SECOND + (8 - BVEC_TAG)]
 	test	TEMP_LOW, 7
@@ -403,7 +403,7 @@ PUBLIC i386_bytevector_like_compare
 	xor	TEMP_LOW, [RESULT-8] ; (opt: if bits match, then xor is zero)
 	jnz     %%NOFLO
 	;; Got here, got two floats!
-	mov	TEMP, [GLOBALS+G_SECOND+4]
+	mov	TEMP, [GLOBALS+G_SECOND]
 	lea	TEMP, [TEMP + (8 - BVEC_TAG)]
 	fld qword [TEMP]
 	fld qword [RESULT]
@@ -431,14 +431,14 @@ PUBLIC i386_bytevector_like_compare
 	;; Not floating point inputs
 	;; Restore RESULT before invoking C support routine
 	lea	RESULT, [RESULT - (8 - BVEC_TAG)]
-	mov	SECOND, [GLOBALS+G_SECOND+4]
+	mov	SECOND, [GLOBALS+G_SECOND]
 %endmacro
 	
 	
 ;;; generic_fp_op opcode (binary operations)
 	
 %macro generic_fp_op 1
-	mov	[GLOBALS+G_SECOND+4], SECOND
+	mov	[GLOBALS+G_SECOND], SECOND
 	;mov	TEMP, [GLOBALS+G_SECOND+4] ; TEMP alias's SECOND
 	lea	TEMP, [SECOND + (8 - BVEC_TAG)]
 	test	TEMP_LOW, 7
@@ -452,14 +452,15 @@ PUBLIC i386_bytevector_like_compare
 	xor	TEMP_LOW, [RESULT-8] ; (opt: if bits match, then xor is zero)
 	jnz     %%NOFLO
 	;; Got here, got two floats!
-	mov	TEMP, [GLOBALS+G_ETOP+4]
-	add	TEMP, 16	; try alloc 4 words (to preserve alignment of etop)
+	mov	TEMP, [GLOBALS+G_ETOP]
+	add	TEMP, 16+SCE_BUFFER	; try alloc 4 words (to preserve alignment of etop)
 	cmp	TEMP, CONT
 	jg	%%NOROOM
 	fld  qword [RESULT] 	; load the first fp arg
+	sub	TEMP, SCE_BUFFER
 	mov	RESULT, TEMP
-	mov	[GLOBALS+G_ETOP+4], TEMP ; commit the allocation
-	mov	TEMP, [GLOBALS+G_SECOND+4]
+	mov	[GLOBALS+G_ETOP], TEMP ; commit the allocation
+	mov	TEMP, [GLOBALS+G_SECOND]
 	mov  dword  [RESULT-16], (12 << 8 | FLONUM_HDR)	; stash header bits
 	lea	TEMP, [TEMP + (8 - BVEC_TAG)]
 	%1   qword [TEMP]	; perform the fp computation
@@ -472,7 +473,7 @@ PUBLIC i386_bytevector_like_compare
 	;; Not floating point inputs
 	;; Restore RESULT before invoking C support routine
 	lea	RESULT, [RESULT - (8 - BVEC_TAG)]
-	mov	SECOND, [GLOBALS+G_SECOND+4]
+	mov	SECOND, [GLOBALS+G_SECOND]
 %endmacro
 			
 	;; On entry, GLOBALS pointer is off by 4
@@ -585,29 +586,29 @@ PUBLIC i386_inexactp
 	MCg	mc_inexactp
 	
 PUBLIC i386_exception				; Exn encoded in instr stream
-	mov	[GLOBALS+G_SECOND+4], SECOND
-	mov	SECOND, [GLOBALS]		; Exn code address
+	mov	[GLOBALS+G_SECOND], SECOND
+	mov	SECOND, [esp]			; Exn code address
 	mov	ax, [SECOND]			; Exn code
 	and	eax, 0xFFFF			;   is 16 bits
 	shl	eax, 2				;     encoded as fixnum
 	jmp	i386_signal_exception_intrsafe
 	
 PUBLIC i386_global_exception			; RESULT holds the global cell
-	mov	dword [GLOBALS+G_SECOND+4], FALSE_CONST
+	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
 	mov	SECOND, fixnum(EX_UNDEF_GLOBAL)
 	jmp	i386_signal_exception_intrsafe
 	
 PUBLIC i386_invoke_exception			; RESULT holds defined value
-	cmp	dword [GLOBALS+G_TIMER+4], 0
+	cmp	dword [GLOBALS+G_TIMER], 0
 	jnz	Linv1
 	jmp	EXTNAME(i386_timer_exception)
-Linv1:	mov	dword [GLOBALS+G_SECOND+4], FALSE_CONST
+Linv1:	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
 	mov	SECOND, fixnum(EX_NONPROC)
 	jmp	i386_signal_exception_intrsafe
 	
 PUBLIC i386_global_invoke_exception		; RESULT holds the global cell
-	mov	dword [GLOBALS+G_SECOND+4], FALSE_CONST
-	cmp	dword [GLOBALS+G_TIMER+4], 0
+	mov	dword [GLOBALS+G_SECOND], FALSE_CONST
+	cmp	dword [GLOBALS+G_TIMER], 0
 	jnz	Lginv1
 	jmp	EXTNAME(i386_timer_exception)
 Lginv1:	cmp	dword [RESULT-PAIR_TAG], UNDEFINED_CONST
@@ -620,10 +621,10 @@ Lginv2:	mov	RESULT, [RESULT-PAIR_TAG]
 	
 PUBLIC i386_argc_exception			; RESULT holds actual arg cnt
 %ifdef REG0
-	mov	dword [GLOBALS+G_THIRD+4], REG0
+	mov	dword [GLOBALS+G_THIRD], REG0
 %else
-        mov     SECOND, [GLOBALS+G_REG0+4]
-	mov	dword [GLOBALS+G_THIRD+4], SECOND
+        mov     SECOND, [GLOBALS+G_REG0]
+	mov	dword [GLOBALS+G_THIRD], SECOND
 %endif
 	mov	SECOND, fixnum(EX_ARGC)
 	jmp	i386_signal_exception_intrsafe
@@ -729,22 +730,7 @@ PUBLIC i386_petit_patch_boot_code
 ;;;	SECOND has fixnum exception code
 ;;;	globals[-1] has the unadjusted return address
 
-i386_signal_exception:
-	shr	SECOND, 2			; fixnum -> native
-	mov	[tmp_exception_code], SECOND    ; SECOND=eax
-	SAVE_RETURN_ADDRESS			; compute G_RETADDR
-	SAVE_STATE saved_globals_pointer	; forces RESULT into GLOBALS
-	mov	ebx, GLOBALS
-	mov	esp, [ebx+G_SAVED_ESP]
-	push	0		; stack on OS X must be 16-byte aligned
-	push	dword [tmp_exception_code]	; exception code
-	push	ebx				; globals
-	call	EXTNAME(mc_exception)
-	add	esp, 12
-	RESTORE_STATE saved_globals_pointer
-	jmp	[GLOBALS + G_RETADDR]
-
-	;; On entry, GLOBALS pointer is off by 4	
+	;; On entry, esp is off by 4	
 i386_signal_exception_intrsafe:
 	shr	SECOND, 2			; fixnum -> native
 	mov	[tmp_exception_code], SECOND    ; SECOND=eax

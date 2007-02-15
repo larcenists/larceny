@@ -16,7 +16,7 @@ void larceny_call( word proc, int argc, word *argv, word *result )
 
   /* Allocate and setup a stack frame */
 
-  if (globals[ G_STKP ]-FRAMESIZE < globals[ G_ETOP ]) {
+  if ((globals[ G_STKP ]-SCE_BUFFER)-FRAMESIZE < globals[ G_ETOP ]) {
     hardconsolemsg( "Callback failed -- stack overflow." );
     /* Fixme: need to indicate error */
     /* Fixme: in general, we must recover from this problem! */
@@ -26,13 +26,13 @@ void larceny_call( word proc, int argc, word *argv, word *result )
   fresh_stack = globals[ G_STKP ] == globals[ G_STKBOT ];
   globals[ G_STKP ] -= FRAMESIZE;
   p = (word*)globals[ G_STKP ];
-  p[0] = 5*sizeof(word);       /* size in bytes */
-  p[1] = 0;                    /* return address -- set by scheme_start() */
+  p[STK_CONTSIZE] = 5*sizeof(word);       /* size in bytes */
+  p[STK_RETADDR] = 0;                    /* return address -- set by scheme_start() */
   if (fresh_stack)
-    p[2] = globals[ G_CONT ];  /* dynamic link */
+    p[STK_DYNLINK] = globals[ G_CONT ];  /* dynamic link */
   else
-    p[2] = 0;                  /* random */
-  p[3] = 0;                    /* procedure pointer (fixed) */
+    p[STK_DYNLINK] = 0;                  /* random */
+  p[STK_PROC] = 0;                    /* procedure pointer (fixed) */
   p[4] = globals[ G_REG0 ];
   p[5] = globals[ G_RETADDR ];
 

@@ -56,7 +56,7 @@ int stk_create( word *globals )
 {
   word *stktop;
 
-  assert(    globals[G_STKP] >= globals[ G_ETOP ]
+  assert(    globals[G_STKP] - SCE_BUFFER >= globals[ G_ETOP ]
 	  && globals[G_STKP] <= globals[ G_ELIM ] );
 
   stktop = (word*)globals[ G_STKP ];
@@ -66,10 +66,10 @@ int stk_create( word *globals )
     return 0;
   }
   
-  *(stktop+0) = fixnum(3);                      /* header/size field */
-  *(stktop+1) = 0xDEADBEEF;                     /* retaddr: uflow handler */
-  *(stktop+2) = 0xDEADBEEF;                     /* dynamic link field */
-  *(stktop+3) = 0xDEADBEEF;                     /* saved procedure */
+  *(stktop+STK_CONTSIZE) = fixnum(3);           /* header/size field */
+  *(stktop+STK_RETADDR)  = 0xDEADBEEF;          /* retaddr: uflow handler */
+  *(stktop+STK_DYNLINK) = 0xDEADBEEF;           /* dynamic link field */
+  *(stktop+STK_PROC) = 0xDEADBEEF;              /* saved procedure */
   stk_initialize_underflow_frame( stktop );     /* In client space */
 
   globals[ G_STKP ] = (word)stktop;
@@ -99,29 +99,34 @@ void stk_flush( word *globals )
   first = prev = 0;  
   framecount = 0;
   while (stktop < stkbot) {
+    size = *(stktop+STK_CONTSIZE);
+    retaddr = *(stktop+STK_RETADDR);
+
     /* convert header to vector header */
-    size = *stktop;
     assert2( size % 4 == 0 );	  /* size must be words, a fixnum */
     assert2( (s_word)size >= 12 ); /* 3-word minimum, and nonnegative */
-    *stktop = mkheader( size, VEC_HDR );
+    *(stktop+HC_HEADER) = mkheader( size, VEC_HDR );
 
     /* convert return address */
     proc = *(stktop+STK_REG0);
     if (proc != 0) {
       assert2( tagof( proc ) == PROC_TAG );
-      retaddr = *(stktop+STK_RETADDR);
       codeptr = *(ptrof( proc )+PROC_CODEPTR);
       if (tagof( codeptr ) == BVEC_TAG) {
         codeaddr = (word)ptrof( codeptr );
-        *(stktop+STK_RETADDR) = retaddr-(codeaddr+4);
+        *(stktop+HC_RETOFFSET) = retaddr-(codeaddr+4);
+      } else {
+	*(stktop+HC_RETOFFSET) = retaddr;
       }
+    } else {
+      *(stktop+HC_RETOFFSET) = retaddr;
     }
 
     /* chain things together */
     if (first == 0)
       first = stktop;
     else
-      *(prev+STK_DYNLINK) = (word)tagptr( stktop, VEC_TAG );
+      *(prev+HC_DYNLINK) = (word)tagptr( stktop, VEC_TAG );
     prev = stktop;
 
     framecount++;
@@ -130,7 +135,7 @@ void stk_flush( word *globals )
     stktop += size / 4;
   }
   if (prev != 0)
-    *(prev+STK_DYNLINK) = globals[ G_CONT ];
+    *(prev+HC_DYNLINK) = globals[ G_CONT ];
   if (first != 0)
     globals[ G_CONT ] = (word)tagptr( first, VEC_TAG );
 
@@ -145,7 +150,7 @@ void stk_flush( word *globals )
 int stk_restore_frame( word *globals )
 {
   word *stktop, *hframe, *p;
-  word retoffs, proc, codeaddr, codeptr;
+  word retoffs, proc, codeaddr, codeptr, header;
   unsigned size;
 
   assert2(globals[ G_STKP ] == globals[ G_STKBOT ]);
@@ -173,18 +178,24 @@ int stk_restore_frame( word *globals )
   /* Follow continuation chain. */
   globals[ G_CONT ] = *(stktop+STK_DYNLINK);
 
+  header  = *(stktop+HC_HEADER);
+  retoffs = *(stktop+HC_RETOFFSET);
+  proc    = *(stktop+HC_PROC);
+
   /* convert the header back to a fixnum */
-  *stktop = sizefield( *stktop );
+  *(stktop+STK_CONTSIZE) = sizefield(header);
 
   /* convert the return address */
-  proc = *(stktop+STK_REG0);
   if (proc != 0) {
-    retoffs = *(stktop+STK_RETADDR);
     codeptr = *(ptrof( proc )+PROC_CODEPTR);
     if (tagof( codeptr ) == BVEC_TAG) {
       codeaddr = (word)ptrof( codeptr );
       *(stktop+STK_RETADDR) = (codeaddr+4)+retoffs;
+    } else {
+      *(stktop+STK_RETADDR) = retoffs;
     }
+  } else {
+    *(stktop+STK_RETADDR) = retoffs;
   }
 
   return 1;
@@ -200,7 +211,7 @@ int stk_size_for_top_stack_frame( word *globals )
   if (globals[ G_STKP ] == globals[ G_STKBOT])
     frame_size = sizefield( *ptrof( globals[ G_CONT ] ) );
   else
-    frame_size = *(word*)globals[ G_STKP ];
+    frame_size = *((word*)globals[ G_STKP ] + STK_CONTSIZE);
   return roundup8( frame_size + 4 ) + STACK_BASE_SIZE;
 #endif
 

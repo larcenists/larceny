@@ -274,28 +274,15 @@
       (emit-string! as (apply twobit-format #f fmt operands))
       (emit-string! as linebreak))))
 
-(define *did-emit-setrtn-invoke* '())
-(define *did-emit-setrtn-branch* '())
-(define *did-emit-setrtn-jump* #f)
-
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label)))
     ;(emit-text as "begin_codevector ~a" name)
     (emit-sassy as 'align code_align)
-    (set! *did-emit-setrtn-invoke* '())
-    (set! *did-emit-setrtn-branch* '())
-    (set! *did-emit-setrtn-jump* #f)
     (set! code-indentation (string #\tab))
     (set! code-name name)))
 
 (define (end-compiled-scheme-function as)
   (set! code-indentation "")
-  (for-each (lambda (n) (emit-setrtn-invoke-patch-code as n))
-            *did-emit-setrtn-invoke*)
-  (for-each (lambda (n) (emit-setrtn-branch-patch-code as n))
-            *did-emit-setrtn-branch*)
-  (if *did-emit-setrtn-jump*
-      (emit-setrtn-jump-patch-code as))
   ;(emit-text as "end_codevector ~a" code-name)
   ;(emit-text as "")
   )
@@ -314,7 +301,9 @@
 
 (define-instruction $.cont
   (lambda (instruction as)
-    (list-instruction ".cont" instruction)))
+    (list-instruction ".cont" instruction)
+    (emit-sassy as ia86.T_CONT)
+    ))
 
 (define-instruction $.end
   (lambda (instruction as)
@@ -543,24 +532,35 @@
     (if (not (negative? (operand1 instruction)))
         (begin
 	  (list-instruction "save" instruction)
-	  (let* ((n (operand1 instruction))
-		 (v (make-vector (+ n 1) #t)))
+	  (let* ((n (operand1 instruction)))
 	    (emit-sassy as ia86.T_SAVE0 n)
-            ;; FIXME: shouldn't this xform be in peepopt.sch?
-	    (if (peephole-optimization)
-		(let loop ((instruction (next-instruction as)))
-		  (if (eqv? $store (operand0 instruction))
-		      (begin (list-instruction "store" instruction)
-			     (emit-sassy as ia86.T_STORE 
-					(operand1 instruction)
-					(operand2 instruction))
-			     (consume-next-instruction! as)
-			     (vector-set! v (operand2 instruction) #f)
-			     (loop (next-instruction as))))))
 	    (do ((i 0 (+ i 1)))
-		((= i (vector-length v)))
-	      (if (vector-ref v i)
-		  (emit-sassy as ia86.T_SAVE1 i))))))))
+		((= i (+ n 1)))
+              (emit-sassy as ia86.T_SAVE1 i)))))))
+
+(define-instruction $save/stores
+  (lambda (instruction as)
+    (list-instruction "save/stores" instruction)
+    (let* ((n (operand1 instruction))
+           (ks (operand2 instruction))
+           (ns (operand3 instruction))
+           (v (make-vector (+ n 1) 
+                           (lambda ()
+                             (emit-sassy as ia86.T_PUSH_RESULT)))))
+      (emit-sassy as ia86.T_CHECK_SAVE n)
+      ;; setup zeroed register; push PADWORD (sometimes)
+      (emit-sassy as ia86.T_SETUP_SAVE_STORES n)
+      ;; push REGs
+      (for-each (lambda (k n) 
+                  (vector-set! v n (lambda ()
+                                     (emit-sassy as ia86.T_PUSH_STORE k))))
+                ks ns)
+      (do ((i (- (vector-length v) 1) (- i 1)))
+          ((= i -1))
+        ((vector-ref v i)))
+      ;; push CONTSIZE, RETADDR, DYNLINK
+      (emit-sassy as ia86.T_FINIS_SAVE_STORES n)
+      )))
 
 (define-instruction $setrtn
   (lambda (instruction as)

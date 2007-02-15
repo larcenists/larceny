@@ -166,6 +166,17 @@
            (cond ((= (car i3) $.label)
                   (branch-and-label as i1 i2 i3 t3)))))))
 
+(define-peephole $save
+  (lambda (as i1 i2 i3 t1 t2 t3)
+    (let loop ((instrs t1)
+               (rev-stores '()))
+      (if (eqv? $store (operand0 (car instrs)))
+          (loop (cdr instrs) 
+                (cons (car instrs) rev-stores))
+          (if (not (null? rev-stores))
+              (save-and-stores as i1 (reverse rev-stores) instrs))))))
+               
+
 ; Reg-setreg is not restricted to hardware registers, as $movereg is 
 ; a standard instruction.
 
@@ -627,3 +638,9 @@
   (let ((c (operand1 i:const))
         (g (operand1 i:setglbl)))
     (as-source! as (cons (list $const/setglbl c g) tail))))
+
+(define (save-and-stores as i:save il:stores tail)
+  (let ((save-n (operand1 i:save))
+        (store-ks (map operand1 il:stores))
+        (store-ns (map operand2 il:stores)))
+    (as-source! as (cons (list $save/stores save-n store-ks store-ns) tail))))

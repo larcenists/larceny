@@ -71,6 +71,7 @@ void scheme_start( word *globals )
     break;
   case DISPATCH_STKUFLOW :
     f = refill_stack_cache( globals );
+    globals[ G_STKP ] += 4+4*STK_RETADDR; /* The '4*' compensates for layouts.cfg oversight */
     break;
   case DISPATCH_SIGFPE :
     handle_sigfpe( globals );

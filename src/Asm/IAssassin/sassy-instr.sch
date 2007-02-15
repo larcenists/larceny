@@ -307,12 +307,14 @@
 	   `(mov ,$r.temp (& ,$r.globals ,$g.etop))
            `(lea ,$r.temp (& ,$r.temp ,$r.result 4)) ; allocate and round
            `(and ,$r.temp -8)                  ;  up to 8-byte boundary
+           `(add ,$r.temp ,$sce.buffer)
 	   `(cmp ,$r.temp ,$r.cont)
 	   `(jle short ,L2)
 	   (ia86.mcall $m.morecore 'morecore)
 	   `(jmp short ,L1)
            `(label ,L2)
            `(mov ,$r.result (& ,$r.globals ,$g.etop))
+           `(sub ,$r.temp ,$sce.buffer)
 	   `(mov (& ,$r.globals ,$g.etop) ,$r.temp)))
         (else
          (ia86.mcall $m.alloc 'alloc))))
@@ -347,6 +349,9 @@
 
 (define-sassy-instr (ia86.T_ALIGN x)
   `(align	,x))
+
+(define-sassy-instr (ia86.T_CONT)
+  `(sub ,$r.cont ,(+ 4 $stk.retaddr)))
 
 (define-sassy-instr (ia86.T_LABEL x)
   `(label ,(t_label x)))
@@ -480,6 +485,7 @@
         (L1 (fresh-label)))
     (cond 
      ((> r *lastreg*)
+;;;   ;; Using $r.cont here is sketchy when it can alias esp
       `(mov (& ,$r.globals ,$g.stkp) ,$r.cont)     ; Need a working register!
       `(mov (& ,$r.globals ,$g.result) ,$r.result) ; Save for later
       `(add ,$r.result ,(+ $proc.reg0 (words2bytes *lastreg*)))
@@ -576,14 +582,15 @@
   (let ((L0 (fresh-label))
         (L1 (fresh-label)))
     `(label ,L0)
-    `(sub ,$r.cont ,(framesize n))
+    `(sub ,$r.cont ,(+ $sce.buffer (framesize n)))
     `(cmp ,$r.cont (& ,$r.globals ,$g.etop))
     `(jge short ,L1)
-    `(add ,$r.cont ,(framesize n))
+    `(add ,$r.cont ,(+ $sce.buffer (framesize n)))
     (ia86.mcall $m.stkoflow 'stkoflow)
     `(jmp short ,L0)
     `(label ,L1)
-    `(mov (dword (& ,$r.cont)) ,(recordedsize n))
+    `(add ,$r.cont ,$sce.buffer)
+    `(mov (dword (& ,$r.cont ,$stk.contsize)) ,(recordedsize n))
     ;; Not necessary to store reg0 here, this is handled
     ;; explicitly by the generated code.
     `(xor	,$r.result ,$r.result)
@@ -591,6 +598,43 @@
     (cond ((= (- (framesize n) (recordedsize n)) 8)
            ;; We have a pad word at the end -- clear it
            `(mov (dword ,(stkslot (+ n 1))) ,$r.result)))))
+
+(define-sassy-instr (ia86.T_CHECK_SAVE n)
+  (let ((L0 (fresh-label))
+        (L1 (fresh-label)))
+    `(label ,L0)
+    `(mov ,$r.temp ,$r.cont)
+    `(sub ,$r.temp ,(+ $sce.buffer (framesize n)))
+    `(cmp ,$r.temp (& ,$r.globals ,$g.etop))
+    `(jge short ,L1)
+    (ia86.mcall $m.stkoflow 'stkoflow)
+    `(jmp short ,L0)
+    `(label ,L1)))
+
+(define-sassy-instr (ia86.T_SETUP_SAVE_STORES n)
+  `(xor	,$r.result ,$r.result)
+  (cond ((= (- (framesize n) (recordedsize n)) 8)
+         ;; We have a pad word at the end -- clear it
+         `(push ,$r.result))))
+
+(define-sassy-instr (ia86.T_PUSH_STORE regno)
+  (cond ((is_hwreg regno)
+         `(push ,(REG regno)))
+        (else
+         `(push (& ,$r.globals ,(G_REG regno))))))
+
+(define-sassy-instr (ia86.T_PUSH_RESULT)
+  `(push ,$r.result))
+
+(define-sassy-instr (ia86.T_FINIS_SAVE_STORES n)
+  (let ((v (let ((v (make-vector 3)))
+             (vector-set! v (quotient $stk.contsize 4) (recordedsize n))
+             (vector-set! v (quotient $stk.retaddr 4)  $r.result)
+             (vector-set! v (quotient $stk.dynlink 4)  $r.result)
+             v)))
+    `(push ,(vector-ref v 2))
+    `(push ,(vector-ref v 1))
+    `(push ,(vector-ref v 0))))
 
 ;;; Initialize the numbered slot to the value of RESULT.
 ;;; Using RESULT is probably OK because it is almost certainly 0
@@ -648,20 +692,23 @@
 (define-sassy-instr (ia86.T_POPSTK)
   (error 'T_POPSTK "not implemented -- students only"))
 
-'(define-sassy-instr (ia86.T_RETURN)
-  `(jmp (& ,$r.cont ,$stk.retaddr)))
-
-;; one extra byte, but... if matched with the call's in setrtn/invoke,
-;; *much* faster than the above... 
-;; [[ if not matched, then we end up slower... ugh]]
 (define-sassy-instr (ia86.T_RETURN)
-  `(push (& ,$r.cont ,$stk.retaddr))
   `(ret))
 
 ;;; (See sassy-invoke.sch for the T_APPLY definition that used to be here.)
 	
 (define-sassy-instr (ia86.T_NOP)
   `(nop)) ;; The interface doesn't actually support empty lists, I think...
+
+;; A nasty trick to force code alignment *after* a particular instruction
+;; without human intervention.
+;; First assemble instr to figure out how large it is, and then feed that 
+;; to an alignment directive.
+;; QUESTION: Is sassy RE-ENTRANT?  I'll avoid using this until I find out.
+(define-sassy-instr (ia86.align_after instr)
+  (let ((instr-len (length (sassy-text-list (sassy `((text ,instr)))))))
+    `(align ,code_align ,(- (modulo instr-len)))
+    `(,@instr)))
 
 ;;; JUMP: Arguments are levels, label, and name of the code vector
 ;;; into which we are jumping (an artifact of the labelling system
@@ -672,15 +719,8 @@
   (ia86.T_JUMP* levels label #f))
 
 (define-sassy-instr (ia86.T_SETRTN_JUMP levels label)
-  (let ((ign (set! *did-emit-setrtn-jump* #t)))
-    (ia86.T_JUMP* levels label #t)))
+  (ia86.T_JUMP* levels label #t))
 
-(define (emit-setrtn-jump-patch-code as)
-  (define (emit x) (apply emit-sassy as x))
-  (emit `(label setrtn-jump-patch-code-label))
-  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address
-  (emit `(jmp ,$r.temp)))
-  
 (define-sassy-instr (ia86.T_JUMP* levels label setrtn?)
   (ia86.timer_check)
   (let ((offset
@@ -698,8 +738,9 @@
            `(mov ,$r.temp (& ,$r.temp ,$proc.codevector))
            `(lea ,$r.temp (& ,$r.temp ,(+ (- $tag.bytevector-tag) offset)))
            (cond (setrtn?
-                  `(align ,code_align -1)
-                  `(call setrtn-jump-patch-code-label))
+                  `(add ,$r.cont 4)
+                  `(align ,code_align -2)
+                  `(call ,$r.temp))
                  (else
                   `(jmp ,$r.temp))))
           (else
@@ -719,8 +760,9 @@
                                                  (current-sassy-assembly-structure) 
                                                  label))
                                       ,(- $tag.bytevector-tag))))
-                  `(align ,code_align -1)
-                  `(call setrtn-jump-patch-code-label))
+                  `(add ,$r.cont 4)
+                  `(align ,code_align -2)
+                  `(call ,$r.temp))
                  (else
                   `(jmp ,(t_label (compiled-procedure 
                                    (current-sassy-assembly-structure) 
@@ -1319,6 +1361,7 @@
     (ia86.loadr $r.temp reg-value))
    (else
     (ia86.indexed_structure_test regno reg-value ptrtag hdrtag ex #t ia86.check_char)))
+;;;   ;; Using $r.cont here is sketchy when it can alias esp
   `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
   (ia86.loadr	$r.cont regno)
   `(shr	,$r.temp ,char_shift)
@@ -1328,6 +1371,7 @@
 
 (define-sassy-instr (ia86.indexed_structure_set_byte regno1 regno2 z hdrtag ex)
   (ia86.indexed_structure_test regno1 regno2 z hdrtag ex #t ia86.check_fixnum)
+;;;   ;; Using $r.cont here is sketchy when it can alias esp
   `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
   (ia86.loadr	$r.cont regno1)
   `(shr	,$r.cont 2)
@@ -1355,6 +1399,7 @@
          `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) wordsize)) ,$r.second)
          (ia86.write_barrier (reg/result->num hwregno) -1))
         (else
+;;;   ;; Using $r.cont here is sketchy when it can alias esp
          `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
          (ia86.loadr	$r.cont regno1)
          (ia86.loadr	$r.second regno2)
@@ -2099,12 +2144,13 @@
                (L2 (fresh-label)))
            `(label ,L1)
            `(mov	,$r.temp (& ,$r.globals ,$g.etop))
-           `(add	,$r.temp 8)
+           `(add	,$r.temp ,(+ $sce.buffer 8))
            `(cmp	,$r.temp ,$r.cont)
            `(jle short ,L2)
            (ia86.mcall	$m.morecore 'morecore)
            `(jmp short ,L1)
            `(label ,L2)
+           `(sub        ,$r.temp ,$sce.buffer)
            `(mov	(& ,$r.globals ,$g.etop) ,$r.temp)
            `(mov	(& ,$r.temp -8) ,(REG rs1))
            (cond ((is_hwreg rs2)

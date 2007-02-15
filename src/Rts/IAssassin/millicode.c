@@ -62,7 +62,6 @@ void EXPORT mc_alloc_bv( word *globals )
 #if defined( BDW_GC )
 #error "This must be changed because RESULT is size in bytes"
   int nwords = (int)nativeuint( globals[ G_RESULT ] );
-  word *p;
 
   nwords = roundup_walign( nwords );
   p = GC_malloc_atomic( nwords*sizeof(word) );
@@ -70,7 +69,7 @@ void EXPORT mc_alloc_bv( word *globals )
   globals[ G_RESULT ] = (word)p;
 #else
   etop = (word*)globals[ G_ETOP ];
-  elim = (word*)globals[ G_STKP ];
+  elim = (word*)globals[ G_STKP ] - SCE_BUFFER;
 
   if ((((word)etop & 0xF) == 0x8) && /* misaligned and ... */
       (elim - etop) > 2) {           /* have room to realign */
@@ -102,7 +101,7 @@ void EXPORT mc_alloc( word *globals )
 #else
   int nwords = (int)nativeuint( globals[ G_RESULT ] );
   word *etop = (word*)globals[ G_ETOP ];
-  word *elim = (word*)globals[ G_STKP ];
+  word *elim = (word*)globals[ G_STKP ] - SCE_BUFFER;
   word *p;
 
   assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
@@ -718,7 +717,7 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
 
  start:
   stkp = (word*)globals[ G_STKP ];
-  stklim = (word*)globals[ G_ETOP ];
+  stklim = (word*)globals[ G_ETOP ] + SCE_BUFFER;
 
   /* Allocate frame */
   stkp = stkp - S2S_REALFRAMESIZE;

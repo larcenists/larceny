@@ -105,19 +105,17 @@
            ))))
 
 (define-sassy-instr (ia86.T_SETRTN_INVOKE n)
-  (let ((ign (if (not (memv n *did-emit-setrtn-invoke*))
-                 (set! *did-emit-setrtn-invoke* 
-                       (cons n *did-emit-setrtn-invoke*)))))
+  (let ()
     (cond ((unsafe-code) ;; (see notes in unsafe version)
            (ia86.timer_check)
            (ia86.storer 0 $r.result)
            `(mov ,$r.temp (& ,$r.result ,(+ (- $tag.procedure-tag) $proc.codevector)))
-           `(align ,code_align)
+           `(add ,$r.cont 4)
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
-           `(call ,(setrtn-invoke-patch-code-label n)))
+           (ia86.const2regf $r.result (fixnum n))
+           `(align ,code_align -2)
+           `(call ,$r.temp))
           (else 
-           ;; For SETRTN, see patch-code below
-           ;; INVOKE
            (let ((L0 (fresh-label))
                  (L1 (fresh-label)))
              `(dec (dword (& ,$r.globals ,$g.timer)))
@@ -130,54 +128,25 @@
              `(jnz short ,L0)
              `(mov ,$r.temp (& ,$r.temp ,$proc.codevector))
              (ia86.storer 0 $r.result)
-             ;; n stored in RESULT via patch-code
-             ;; aligning the code here allows us to eliminate 
-             ;; the add&and from the patch code (saving 9 bytes).
-             `(align ,code_align)
-             ;;   3 bytes
+             `(add ,$r.cont 4)
+             (ia86.const2regf $r.result (fixnum n))
              `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
-             ;; + 5 bytes = 8 bytes; retaddr is aligned!
-             `(call ,(setrtn-invoke-patch-code-label n))
+             `(align ,code_align -2)
+             `(call ,$r.temp)
              )))))
 
 (define-sassy-instr (ia86.T_SETRTN_BRANCH Ly)
-  (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
-                 (set! *did-emit-setrtn-branch* 
-                       (cons Ly *did-emit-setrtn-branch*)))))
+  (let ()
+    (ia86.timer_check)
+    `(add ,$r.cont 4)
     `(align ,code_align -1)
-    `(call ,(setrtn-branch-patch-code-label Ly))))
+    `(call ,(t_label Ly))))
 
-(define-sassy-instr (ia86.T_SETRTN_SKIP Ly) ;; FIXME: shouldn't decrement timer.
-  (let ((ign (if (not (member Ly *did-emit-setrtn-branch*))
-                 (set! *did-emit-setrtn-branch* 
-                       (cons Ly *did-emit-setrtn-branch*)))))
+(define-sassy-instr (ia86.T_SETRTN_SKIP Ly)
+  (let ()
+    `(add ,$r.cont 4)
     `(align ,code_align -1)
-    `(call ,(setrtn-branch-patch-code-label Ly))))
-
-(define (setrtn-invoke-patch-code-label n)
-  (string->symbol (string-append "setrtn-invoke-patch-code-label" 
-                                 (number->string n))))
-
-(define (setrtn-branch-patch-code-label l)
-  (string->symbol (string-append "setrtn-branch-patch-code-label" 
-                                 (symbol->string l))))
-
-(define (emit-setrtn-invoke-patch-code as n)
-  (define (emit x) (apply emit-sassy as x))
-  (emit `(label ,(setrtn-invoke-patch-code-label n)))
-  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address
-  (for-each emit (do-sassy-instr ia86.const2regf $r.result (fixnum n)))
-  (emit `(jmp ,$r.temp)))
-         
-(define (emit-setrtn-branch-patch-code as l)
-  (define (emit x) (apply emit-sassy as x))
-  (emit `(label ,(setrtn-branch-patch-code-label (t_label l))))
-  (emit `(pop (& ,$r.cont ,$stk.retaddr)))  ;; pre-aligned return address 
-  (emit `(dec (dword (& ,$r.globals ,$g.timer))))
-  (emit `(jnz ,(t_label l)))
-  (emit `(call (& ,$r.globals ,$m.timer-exception)))
-  (emit `(align ,code_align))
-  (emit `(jmp ,(t_label l))))
+    `(call ,(t_label Ly))))
 
 (define-sassy-instr (ia86.T_APPLY x y)
   (ia86.timer_check)
