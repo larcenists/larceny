@@ -257,18 +257,18 @@ EXTNAME(mem_stkuflow):
 	/* Restore that temp */
 	ld	[ %GLOBALS + G_RESULT ], %RESULT
 	/* follow continuation chain */
-	ld	[ %STKP + 8 ], %TMP0
+	ld	[ %STKP + STK_DYNLINK ], %TMP0
 	st	%TMP0, [ %GLOBALS + G_CONT ]
 	/* convert size field in frame */
-	ld	[ %STKP ], %TMP0
+	ld	[ %STKP+STK_CONTSIZE ], %TMP0
 	sra	%TMP0, 8, %TMP0
-	st	%TMP0, [ %STKP ]
+	st	%TMP0, [ %STKP+HC_HEADER ]
 	/* save register 0, which may contain number of return values */
 	mov     %REG0, %TMP2
 	/* convert return address */
-	ld	[ %STKP+4 ], %TMP0		/* return offset */
+	ld	[ %STKP+STK_RETADDR ], %TMP0	/* return offset */
 	call	internal_fixnum2retaddr
-	ld	[ %STKP+12 ], %REG0		/* procedure */
+	ld	[ %STKP+STK_PROC ], %REG0	/* procedure */
 	/* restore register 0 */
 	mov     %TMP2, %REG0
 #if STACK_UNDERFLOW_COUNTING
@@ -277,7 +277,7 @@ EXTNAME(mem_stkuflow):
 	st	%TMP1, [ %GLOBALS + G_STKUFLOW ]
 #endif
 	jmp	%TMP0+8
-	st	%TMP0, [ %STKP+4 ]		/* to be on the safe side */
+	st	%TMP0, [ %STKP+HC_RETOFFSET ]		/* to be on the safe side */
 
 	/* If we get to this point, the heap overflowed, so just call */
 	/* the C version and let it deal with it. */
@@ -286,7 +286,7 @@ EXTNAME(mem_stkuflow):
 	set	EXTNAME(C_restore_frame), %TMP0
 	call	internal_callout_to_C
 	nop
-	ld	[ %STKP+4 ], %o7
+	ld	[ %STKP+STK_RETADDR ], %o7
 	jmp	%o7+8
 	nop
 	/* This code goes away when the compiler is fixed. */

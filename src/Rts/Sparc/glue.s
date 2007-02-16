@@ -67,7 +67,7 @@ EXTNAME(scheme_start):
 	clr	[ %l0 + G_RETADDR ]		/* Return offset 0 for sanity */
 
 	set	L1-8, %TMP0			/* Store the return */
-	st	%TMP0, [ %STKP+4 ]		/*   address in the frame */
+	st	%TMP0, [ %STKP+STK_RETADDR ]	/*   address in the frame */
 
 	ld	[ %REG0 - PROC_TAG + CODEVECTOR ], %TMP0
 	jmp	%TMP0 - BVEC_TAG + CODEOFFSET	/* Call Scheme procedure */
@@ -173,13 +173,13 @@ Ls2s2:	sub	%STKP, S2S_REALFRAMESIZE, %STKP		/* try to allocate */
 	/* Initialize stack frame header */
 
 Ls2s3:	set	S2S_FRAMESIZE, %TMP0			/* store */
-	st	%TMP0, [ %STKP ]			/*   frame size */
+	st	%TMP0, [ %STKP+STK_CONTSIZE ]		/*   frame size */
 	set	internal_scheme_return, %TMP0		/* store */
-	st	%TMP0, [ %STKP+4 ]			/*   retaddr */
-	st	%g0, [ %STKP+8 ]			/* dynlink */
-	st	%g0, [ %STKP+12 ]			/* proc (fixed) */
+	st	%TMP0, [ %STKP+STK_RETADDR ]		/*   retaddr */
+	st	%g0, [ %STKP+STK_DYNLINK ]		/* dynlink */
+	st	%g0, [ %STKP+STK_PROC ]			/* proc (fixed) */
 	ld	[ %GLOBALS + G_SCHCALL_RETADDR ], %TMP0	/* get return address */
-	st	%TMP0, [ %STKP+16 ]			/*   and store it */
+	st	%TMP0, [ %STKP+STK_SAVED+4 ]		/*   and store it */
 
 	/* Save registers in frame -- this can be made faster. */
 
@@ -303,7 +303,7 @@ internal_scheme_return:
 	/* Get and compute the return address. */
 
 	call	internal_fixnum2retaddr
-	ld	[ %STKP + 16 ], %TMP0
+	ld	[ %STKP + STK_SAVED+4 ], %TMP0
 	mov	%TMP0, %o7
 
 	/* Pop the frame. */
