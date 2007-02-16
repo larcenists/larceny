@@ -169,7 +169,7 @@
     (cond (setrtn?
            (sparc.set          as (thefixnum n) $r.result)
            (sparc.jmpli        as $r.tmp0 $p.codeoffset $r.o7)
-           (sparc.sti          as $r.o7 4 $r.stkp))
+           (sparc.sti          as $r.o7 $stk.retaddr $r.stkp))
           (else
            (sparc.jmpli        as $r.tmp0 $p.codeoffset $r.g0)
            (sparc.set          as (thefixnum n) $r.result)))))
@@ -196,8 +196,8 @@
     (millicode-call/ret as $m.stkoflow L0)
     (sparc.label  as L1)
     ; initialize size and return fields of stack frame
-    (sparc.sti    as $r.tmp0 0 $r.stkp)
-    (sparc.sti    as $r.g0 4 $r.stkp)))
+    (sparc.sti    as $r.tmp0 $stk.contsize $r.stkp)
+    (sparc.sti    as $r.g0 $stk.retaddr $r.stkp)))
 
 ; Given a vector v of booleans, initializes slot i of the stack frame
 ; if and only if (vector-ref v i).
@@ -253,7 +253,7 @@
 
 (define (emit-setrtn! as label)
   (emit-return-address! as label)
-  (sparc.sti as $r.o7 4 $r.stkp))
+  (sparc.sti as $r.o7 $stk.retaddr $r.stkp))
 
 
 ; APPLY
@@ -276,8 +276,8 @@
 
 (define (emit-load! as slot dest-reg)
   (if (hardware-mapped? dest-reg)
-      (sparc.ldi as $r.stkp (+ 12 (* slot 4)) dest-reg)
-      (begin (sparc.ldi as $r.stkp (+ 12 (* slot 4)) $r.tmp0)
+      (sparc.ldi as $r.stkp (+ $stk.overhead (* slot 4)) dest-reg)
+      (begin (sparc.ldi as $r.stkp (+ $stk.overhead (* slot 4)) $r.tmp0)
 	     (emit-store-reg! as $r.tmp0 dest-reg))))
 
 
@@ -285,9 +285,9 @@
 
 (define (emit-store! as k n)
   (if (hardware-mapped? k)
-      (sparc.sti as k (+ 12 (* n 4)) $r.stkp)
+      (sparc.sti as k (+ $stk.overhead (* n 4)) $r.stkp)
       (begin (emit-load-reg! as k $r.tmp0)
-	     (sparc.sti as $r.tmp0 (+ 12 (* n 4)) $r.stkp))))
+	     (sparc.sti as $r.tmp0 (+ $stk.overhead (* n 4)) $r.stkp))))
 
 
 ; LEXICAL
@@ -332,7 +332,7 @@
 ; RETURN
 
 (define (emit-return! as)
-  (sparc.ldi   as $r.stkp 4 $r.o7)
+  (sparc.ldi   as $r.stkp $stk.retaddr $r.o7)
   (sparc.jmpli as $r.o7 8 $r.g0)
   (sparc.nop   as))
 
@@ -340,7 +340,7 @@
 ; RETURN-REG k
 
 (define (emit-return-reg! as r)
-  (sparc.ldi   as $r.stkp 4 $r.o7)
+  (sparc.ldi   as $r.stkp $stk.retaddr $r.o7)
   (sparc.jmpli as $r.o7 8 $r.g0)
   (sparc.move  as r $r.result))
 
@@ -350,7 +350,7 @@
 ; The constant c must be synthesizable in a single instruction.
 
 (define (emit-return-const! as c)
-  (sparc.ldi   as $r.stkp 4 $r.o7)
+  (sparc.ldi   as $r.stkp $stk.retaddr $r.o7)
   (sparc.jmpli as $r.o7 8 $r.g0)
   (emit-constant->register as c $r.result))
 
@@ -464,7 +464,7 @@
 (define (emit-branch-with-setrtn! as label)
   (check-timer0 as)
   (sparc.call   as label)
-  (sparc.sti    as $r.o7 4 $r.stkp))
+  (sparc.sti    as $r.o7 $stk.retaddr $r.stkp))
 
 ; JUMP
 ;
@@ -496,7 +496,7 @@
 
 (define (emit-singlestep-instr! as funky? funkyloc cvlabel)
   (if funky?
-      (sparc.ldi as $r.stkp (+ (thefixnum funkyloc) 12) $r.reg0))
+      (sparc.ldi as $r.stkp (+ (thefixnum funkyloc) $stk.overhead) $r.reg0))
   (millicode-call/numarg-in-reg as $m.singlestep
 				   (thefixnum cvlabel)
 				   $r.argreg2))
