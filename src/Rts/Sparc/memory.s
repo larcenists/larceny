@@ -283,9 +283,25 @@ EXTNAME(mem_stkuflow):
 	/* the C version and let it deal with it. */
 1:
 #endif
+	/* save register 0, which may contain number of return values */
+	mov	%REG0, %TMP0
+	call	internal_push
+	nop
+	and	%TMP0, fixtag_mask, %TMP1
+	tst	%TMP1
+	bne	4f
+	nop
+	mov	0, %REG0
+4:
 	set	EXTNAME(C_restore_frame), %TMP0
 	call	internal_callout_to_C
 	nop
+	/* restore register 0 */
+	mov	%TMP0, %TMP1
+	call	internal_pop
+	nop
+	mov	%TMP0, %REG0
+	mov	%TMP1, %TMP0
 	ld	[ %STKP+STK_RETADDR ], %o7
 	jmp	%o7+8
 	nop
