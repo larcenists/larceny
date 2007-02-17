@@ -207,7 +207,7 @@ EXTNAME(mem_stkuflow):
 EXTNAME(mem_stkuflow_retpoint):
 	/* This is where it starts when returned into; must be 8 bytes from */
 	/* the label _mem_stkuflow. */
-#if 0
+#if 1
 	/* The code in the #if ... #endif is a transcription of
 	 * the code in the C procedure restore_frame() in stack.c.
 	 * By moving it in-line we save two context switches, a very
@@ -261,13 +261,13 @@ EXTNAME(mem_stkuflow_retpoint):
 	ld	[ %STKP + STK_DYNLINK ], %TMP0
 	st	%TMP0, [ %GLOBALS + G_CONT ]
 	/* convert size field in frame */
-	ld	[ %STKP+STK_CONTSIZE ], %TMP0
-	sra	%TMP0, 8, %TMP0
-	st	%TMP0, [ %STKP+HC_HEADER ]
+	ld	[ %STKP+HC_HEADER ], %TMP1
+	sra	%TMP1, 8, %TMP1
+	ld	[ %STKP+HC_RETOFFSET ], %TMP0	/* return offset */
+	st	%TMP1, [ %STKP+STK_CONTSIZE ]
 	/* save register 0, which may contain number of return values */
 	mov     %REG0, %TMP2
 	/* convert return address */
-	ld	[ %STKP+STK_RETADDR ], %TMP0	/* return offset */
 	call	internal_fixnum2retaddr
 	ld	[ %STKP+STK_PROC ], %REG0	/* procedure */
 	/* restore register 0 */
@@ -278,7 +278,7 @@ EXTNAME(mem_stkuflow_retpoint):
 	st	%TMP1, [ %GLOBALS + G_STKUFLOW ]
 #endif
 	jmp	%TMP0+8
-	st	%TMP0, [ %STKP+HC_RETOFFSET ]		/* to be on the safe side */
+	st	%TMP0, [ %STKP+STK_RETADDR ]		/* to be on the safe side */
 
 	/* If we get to this point, the heap overflowed, so just call */
 	/* the C version and let it deal with it. */
