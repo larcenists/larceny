@@ -204,6 +204,7 @@ EXTNAME(mem_stkuflow):
 	/* This is where it starts when called */
 	b	Lstkuflow1
 	nop
+EXTNAME(mem_stkuflow_retpoint):
 	/* This is where it starts when returned into; must be 8 bytes from */
 	/* the label _mem_stkuflow. */
 #if 1
@@ -285,14 +286,19 @@ EXTNAME(mem_stkuflow):
 #endif
 	/* save register 0, which may contain number of return values */
 	mov	%REG0, %TMP0
-	call	internal_push
-	nop
 	and	%TMP0, fixtag_mask, %TMP1
 	tst	%TMP1
 	bne	4f
 	nop
 	mov	0, %REG0
+	call	internal_push
+	nop
+	b	5f
 4:
+	mov	0, %TMP0
+	call	internal_push
+	nop
+5:
 	set	EXTNAME(C_restore_frame), %TMP0
 	call	internal_callout_to_C
 	nop
@@ -300,7 +306,7 @@ EXTNAME(mem_stkuflow):
 	mov	%TMP0, %TMP1
 	call	internal_pop
 	nop
-	mov	%TMP0, %REG0
+	add	%TMP0, %REG0, %REG0
 	mov	%TMP1, %TMP0
 	ld	[ %STKP+STK_RETADDR ], %o7
 	jmp	%o7+8
