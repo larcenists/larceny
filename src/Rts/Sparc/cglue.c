@@ -34,10 +34,10 @@ void stk_initialize_underflow_frame( word *stktop )
 {
   extern void mem_stkuflow();
 
-  *(stktop+0) = fixnum(3);                      /* header/size field */
-  *(stktop+1) = (word)mem_stkuflow;             /* retaddr: uflow handler */
-  *(stktop+2) = 0xDEADBEEF;                     /* dynamic link field */
-  *(stktop+3) = 0;                              /* saved procedure */
+  *(stktop+STK_CONTSIZE) = fixnum(3);                      /* header/size field */
+  *(stktop+STK_RETADDR)  = (word)mem_stkuflow;             /* retaddr: uflow handler */
+  *(stktop+STK_DYNLINK)  = 0xDEADBEEF;                     /* dynamic link field */
+  *(stktop+STK_PROC)     = 0;                              /* saved procedure */
 }
 
 /* C_allocate: allocate heap memory */
