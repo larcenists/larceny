@@ -207,7 +207,7 @@ EXTNAME(mem_stkuflow):
 EXTNAME(mem_stkuflow_retpoint):
 	/* This is where it starts when returned into; must be 8 bytes from */
 	/* the label _mem_stkuflow. */
-#if 1
+#if 0
 	/* The code in the #if ... #endif is a transcription of
 	 * the code in the C procedure restore_frame() in stack.c.
 	 * By moving it in-line we save two context switches, a very
