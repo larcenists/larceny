@@ -241,7 +241,7 @@
   (let* ((framesize (+ 8 (* (+ n 1) 4)))
 	 (realsize  (roundup8 (+ framesize 4))))
     (if returning?
-        (begin (sparc.ldi   as $r.stkp (+ realsize 4) $r.o7)
+        (begin (sparc.ldi   as $r.stkp (+ realsize $stk.retaddr) $r.o7)
 	       (sparc.jmpli as $r.o7 8 $r.g0)
 	       (sparc.addi  as $r.stkp realsize $r.stkp))
         (sparc.addi as $r.stkp realsize $r.stkp))))
