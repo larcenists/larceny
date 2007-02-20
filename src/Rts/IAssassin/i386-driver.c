@@ -26,7 +26,7 @@ void scheme_start( word *globals )
     consolemsg( "Recursive call to scheme_start (FFI?)" );
   already_running = 1;
 
-  dispatch_jump_buffer = malloc(sizeof(jmp_buf));
+  dispatch_jump_buffer = gclib_alloc_rts(sizeof(jmp_buf), 0);
   if (dispatch_jump_buffer == NULL)
     panic_abort("Couldn't allocate fresh jmp_buf");
 
@@ -62,7 +62,7 @@ void scheme_start( word *globals )
     break;
   case DISPATCH_EXIT:
     already_running = 0;
-    free(dispatch_jump_buffer);
+    gclib_free(dispatch_jump_buffer, sizeof(jmp_buf));
     dispatch_jump_buffer = old_jump_buffer;
     globals[ G_STKP ] -= 4; /* adjust stkp (the .cont action) */
     return;
