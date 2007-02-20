@@ -23,7 +23,7 @@ void scheme_start( word *globals )
   int x;
   jmp_buf *old_jump_buffer = dispatch_jump_buffer;
   if (already_running)
-    consolemsg( "Recursive call to scheme_start (FFI?)" );
+    annoyingmsg( "Recursive call to scheme_start (FFI?)" );
   already_running = 1;
 
   dispatch_jump_buffer = gclib_alloc_rts(sizeof(jmp_buf), 0);
