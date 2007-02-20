@@ -96,6 +96,7 @@ EXTNAME(i386_return_from_scheme):
 	
 	align	code_align
 EXTNAME(i386_dispatch_loop_return):
+	sub	esp, 4 		; Adjust stkp (the .cont action)
 	CHECKZEROREG 0, 4
 	mov	eax, EXTNAME(dispatch_loop_return)
 	jmp	callout_to_C

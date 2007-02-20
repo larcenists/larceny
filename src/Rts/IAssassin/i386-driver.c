@@ -64,7 +64,6 @@ void scheme_start( word *globals )
     already_running = 0;
     gclib_free(dispatch_jump_buffer, sizeof(jmp_buf));
     dispatch_jump_buffer = old_jump_buffer;
-    globals[ G_STKP ] -= 4; /* adjust stkp (the .cont action) */
     return;
   case DISPATCH_RETURN_FROM_S2S_CALL :
     f = restore_context( globals );
