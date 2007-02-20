@@ -104,7 +104,7 @@ unsigned unbox_uint( word w )
 int unbox_int( word w )
 {
   if ((w & 3) == 0)
-    return nativeuint(w);
+    return nativeint(w);
   else if (tagof(w) == BVEC_TAG
 	   && typetag(*ptrof( w )) == BIG_SUBTAG
 	   && bignum_length( w ) == 1) {
