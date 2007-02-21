@@ -238,9 +238,6 @@
                 (list->string (trim-spaces (file->char-list port)))))))))
     (herald herald-string)))
 
-"Reset REQUIRE's loaded-files in the interaction environment."
-(clear-require-loaded-files!)
-
 "Redefine MACRO-EXPAND in the interaction environment."
 
 (define macro-expand
