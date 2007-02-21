@@ -560,9 +560,15 @@
 	  (bignum-set! d i (fxop (bignum-ref e i) 0))))
       ;; 3. Normalize
       (big-normalize! d)))
+
+  (define (exact-integers? a b)
+    (and (exact? a) (integer? b) 
+         (exact? b) (integer? b)))
   
   (define (%integer-logand a b)
     (cond 
+     ((not (exact-integers? a b)) 
+      (error 'integer-logand ": Arguments must be exact integers"))
      ((= -1 a) b)
      ((= -1 b) a)
      (else
@@ -573,6 +579,8 @@
 
   (define (%integer-logior a b)
     (cond 
+     ((not (exact-integers? a b)) 
+      (error 'integer-logior ": Arguments must be exact integers"))
      ((= 0 a) b)
      ((= 0 b) a)
      (else
@@ -583,6 +591,8 @@
 
   (define (%integer-logxor a b)
     (cond 
+     ((not (exact-integers? a b)) 
+      (error 'integer-logxor ": Arguments must be exact integers"))
      ((= 0 a) b)
      ((= 0 b) a)
      (else
