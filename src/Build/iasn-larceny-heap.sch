@@ -7,7 +7,7 @@
 ;
 ; 1  Evaluate (BUILD-LARCENY-FILES) in the development environment
 ; 2  From the command line run
-;        larceny.bin -stopcopy sasstrap.heap
+;        larceny.bin -stopcopy -heap sasstrap.heap
 ; 3  Load this script.  It will create larceny.heap.
 ;
 ; BUGS:
