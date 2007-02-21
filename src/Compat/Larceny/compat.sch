@@ -131,6 +131,10 @@
 
 ;; for Sassy
 (define (compat:load-sassy)
+  (define old-env (interaction-environment))
+  (define new-env #f)
+  (set! new-env (environment-copy old-env))
+  (interaction-environment new-env)
   (for-each 
     require
     '(srfi-0 srfi-1 srfi-9 
@@ -154,5 +158,17 @@
      "parse.scm"
      "main.scm"
      "flat-bin.scm"
-     "elf.scm")))
+     "elf.scm"))
+  (let ((export (lambda (var-sym) 
+                  (environment-link-variables! 
+                   old-env var-sym new-env var-sym))))
+    (for-each 
+     export 
+     '(sassy 
+       sassy-text-bytevector sassy-symbol-table sassy-symbol-offset
+       read-byte ;; (for append-file-shell-command-portable)
+       logand logior lognot hash-table-ref arithmetic-shift)))
+  (clear-require-loaded-files!)
+  (interaction-environment old-env))
+
 ; eof
