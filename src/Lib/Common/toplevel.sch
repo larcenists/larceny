@@ -473,6 +473,7 @@
   (environment-set! larc 'integer-logand integer-logand)
   (environment-set! larc 'integer-logior integer-logior)
   (environment-set! larc 'integer-logxor integer-logxor)
+  (environment-set! larc 'integer-lognot integer-lognot)
   (environment-set! larc 'fxlogand fxlogand)
   (environment-set! larc 'fxlogior fxlogior)
   (environment-set! larc 'fxlogxor fxlogxor)

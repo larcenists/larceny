@@ -605,6 +605,11 @@
   (set! integer-logior %integer-logior)
   (set! integer-logxor %integer-logxor))
 
+(define (integer-lognot n)
+  (if (fixnum? n)
+      (fxlognot n)
+      (- -1 n)))
+
 ; relational operators
 
 (define (bignum=? a b)
