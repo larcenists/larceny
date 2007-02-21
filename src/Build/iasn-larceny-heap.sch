@@ -38,15 +38,11 @@
         (macro-expand-expression macro-expand-expression))
 
     (define twobit
-      (let ((old-evaluator (evaluator)))
-        (lambda (expr . rest)
-          (let* ((env (if (null? rest)
-                         (interaction-environment)
-                         (car rest)))
-                 (compiled (parameterize ((evaluator old-evaluator))
-                             (compile-expression expr env)))
-                 (linked   (link-lop-segment compiled env)))
-            (linked)))))
+      (lambda (expr . rest)
+        (let* ((env (if (null? rest)
+                        (interaction-environment)
+                        (car rest))))
+          ((link-lop-segment (compile-expression expr env) env)))))
 
     (evaluator twobit))
 
