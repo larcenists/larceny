@@ -39,9 +39,9 @@
 
     (define twobit
       (lambda (expr . rest)
-        (let* ((env (if (null? rest)
-                        (interaction-environment)
-                        (car rest))))
+        (let ((env (if (null? rest)
+                       (interaction-environment)
+                       (car rest))))
           ((link-lop-segment (compile-expression expr env) env)))))
 
     (evaluator twobit))
