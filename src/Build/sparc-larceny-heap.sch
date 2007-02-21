@@ -88,6 +88,7 @@
                             assemble-file
                             compile-expression
                             macro-expand-expression
+                            make-assembly-procedure
                             ; On-line help
                             help
                             ; Disassembler
