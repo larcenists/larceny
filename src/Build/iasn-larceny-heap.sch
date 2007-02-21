@@ -26,9 +26,6 @@
 
 (let ()
     
-  (define basedir "")
-  (define verbose #t)
-
   (load "setup.sch")
   (setup 'sassy)
   (load-compiler 'release)
