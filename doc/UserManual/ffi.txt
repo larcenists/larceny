@@ -80,38 +80,50 @@ A _type_ is denoted by a symbol. The following is a list of the accepted types a
 **int** Any exact integer value in the range [-2^31,2^31-1] is
   acceptable and is converted to a C "int". **unsigned** Any exact
   integer value in the range [0,2^32-1] is acceptable and is converted
-  to a C "unsigned". **short** Synonymous with **int** in the current
-  implementation. **ushort** Synonymous to **unsigned** in the current
-  implementation. **char** A character is acceptable. It is converted
-  to a C "int" type. **uchar** A character is acceptable. It is
-  converted to a C "unsigned" type. **long** Synonymous with **int**
-  in the current implementation. **ulong** Synonymous with
-  **unsigned** in the current implementation. **float** A flonum is
-  acceptable. It is converted to a C "float". **double** A flonum is
-  acceptable. It is converted to a C "double". **bool** Any object is
-  acceptable. It is converted to a C "int": #f is converted to 0, and
-  all other objects to 1. **boxed** Any heap-allocated data structure
-  (pair, bytevector-like, vector-like, procedure) is acceptable. It is
+  to a C "unsigned". 
+**short** Synonymous with **int** in the curren implementation. 
+**ushort** Synonymous to **unsigned** in the current implementation. 
+**char** A character is acceptable. It is converted to a C "int" type. 
+**uchar** A character is acceptable. It is converted to a C "unsigned" type. 
+**long** Synonymous with **int** in the current implementation. 
+**ulong** Synonymous with **unsigned** in the current implementation. 
+**float** A flonum is acceptable. It is converted to a C "float". 
+**double** A flonum is acceptable. It is converted to a C "double". 
+**bool** Any object is acceptable. It is converted to a C "int": #f is converted to 0, and
+  all other objects to 1. 
+**boxed** Any heap-allocated data structure (pair, bytevector-like, vector-like, procedure) is acceptable. It is
   converted to a C "void*" to the first element of the structure. The
   value #f is also acceptable. It is converted to a C "(void*)0"
-  value. **string** A string or #f is acceptable. A string is _copied_
+  value. 
+**string** A string or #f is acceptable. A string is _copied_
   into a NUL-terminated bytevector, and the resulting pointer is
   passed. #f is converted to a C "(char*)0" value.
 
 Additionally, the types can be used as the return type, where conversions back to Scheme values take place: 
 
 **int** A C "int" is expected; it is converted to an exact
-  integer. **unsigned** A C "unsigned" is expected; it is converted to
-  an exact integer. **short** Synonymous with **int** in the current
-  implementation. **ushort** Synonymous with **unsigned** in the
-  current implementation. **char** A C "int" is expected; it is
-  converted to a character. **uchar** A C "unsigned" is expected; it
-  is converted to a character. **long** Synonymous with **int** in the
-  current implementation. **ulong** Synonymous with **unsigned** in
-  the current implementation. **float** A C "float" is expected. It is
-  converted to a flonum. **double** A C "double" is expected. It is
-  converted to a flonum. **bool** A C "int" is expected. 0 is
-  converted to #f, all other values to #t. **void** No return
+  integer. 
+**unsigned** A C "unsigned" is expected; it is converted to
+  an exact integer. 
+**short** Synonymous with **int** in the current
+  implementation. 
+**ushort** Synonymous with **unsigned** in the
+  current implementation. 
+**char** A C "int" is expected; it is
+  converted to a character. 
+**uchar** A C "unsigned" is expected; it
+  is converted to a character. 
+**long** Synonymous with **int** in the
+  current implementation. 
+**ulong** Synonymous with **unsigned** in
+  the current implementation. 
+**float** A C "float" is expected. It is
+  converted to a flonum. 
+**double** A C "double" is expected. It is
+  converted to a flonum. 
+**bool** A C "int" is expected. 0 is
+  converted to #f, all other values to #t.
+**void** No return
   value. **string** A C "char*" is expected. If it is non-null, it is
   expected to point to a NUL-terminated string, which is copied into a
   newly allocated Scheme string which is then returned. If the return
@@ -272,6 +284,31 @@ This procedure uses the getcwd() (get current working directory) system call to 
     	(getcwd s 1024)
     	(ffi/asciiz->string s)))))
     
+===== Quicksort
+
+This demonstrates how to use a callback such as the comparator argument to qsort.
+It is specified in the type signature using -> as a type constructor.
+(Note that one should probably use the built-in sort routines rather than call out
+ like this; this example is for demonstrating callbacks, not how to sort.)
+
+    (define qsort!
+      (foreign-procedure "qsort" '(boxed ushort ushort (-> (void* void*) int)) 'void))
+
+    (let ((bv (list->vector '(40 10 30 20 1 2 3 4)))) 
+      (qsort! bv 8 4 
+              (lambda (x y) 
+                (let ((x (/ (void*-word-ref x 0) 4)) 
+                      (y (/ (void*-word-ref y 0) 4))) 
+                  (- x y))))
+      bv)
+
+    (let ((bv (list->bytevector '(40 10 30 20 1 2 3 4)))) 
+      (qsort! bv 8 1 
+              (lambda (x y) 
+                (let ((x (void*-byte-ref x 0)) 
+                      (y (void*-byte-ref y 0))) 
+                  (- x y)))) 
+      bv)
 
 ===== Other examples
 
