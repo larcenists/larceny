@@ -29,51 +29,6 @@
   (define basedir "")
   (define verbose #t)
 
-  (define (file-newer? f1 f2)
-    (let ((t1 (file-modification-time f1))
-	  (t2 (file-modification-time f2)))
-      (let loop ((i 0))
-	(cond ((= i (vector-length t1)) #f)
-	      ((= (vector-ref t1 i) (vector-ref t2 i))
-	       (loop (+ i 1)))
-	      (else
-	       (> (vector-ref t1 i) (vector-ref t2 i)))))))
-
-  (define (rewrite-file-type fn)
-    (let* ((j   (string-length fn))
-	   (ext ".sch")
-	   (new ".fasl")
-	   (l   (string-length ext)))
-      (if (file-type=? fn ext)
-	  (string-append (substring fn 0 (- j l)) new)
-	  fn)))
-
-  (define (file-type=? file-name type-name)
-    (let ((fl (string-length file-name))
-	  (tl (string-length type-name)))
-      (and (>= fl tl)
-	   (string-ci=? type-name
-			(substring file-name (- fl tl) fl)))))
-
-  (define (prefer-fasl fn)
-    (let ((fasl (rewrite-file-type fn)))
-      (if (or (and (not (file-exists? fn))
-		   (file-exists? fasl))
-	      (and (file-exists? fn)
-		   (file-exists? fasl)
-		   (file-newer? fasl fn)))
-	  fasl
-	  fn)))
-
-  (define (loadf files)
-    (for-each (lambda (fn)
-		(let ((fn (prefer-fasl (string-append basedir fn))))
-		  (if verbose
-		      (begin (display fn)
-			     (newline)))
-		  (load fn)))
-	      files))
-
   (load "setup.sch")
   (setup 'sassy)
   (load-compiler 'release)
@@ -88,7 +43,6 @@
     (define twobit
       (let ((old-evaluator (evaluator)))
         (lambda (expr . rest)
-          '(begin (display `(twobiting ,expr)) (newline))
           (let* ((env (if (null? rest)
                          (interaction-environment)
                          (car rest)))
@@ -306,11 +260,8 @@
 (compat:load (param-filename 'auxiliary "record.sch")) ; Record package
 ;(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
 ;(load "Experimental/exception.sch")
-
-;; IAssassin doesn't support the FFI at the moment...
-;(load "Auxlib/std-ffi.sch")
-;(load "Auxlib/unix-functions.sch")
-
+(compat:load (param-filename 'auxiliary "std-ffi.sch"))
+(compat:load (param-filename 'auxiliary "unix-functions.sch"))
 (compat:load "lib/Experimental/system-stuff.sch")
 ;(load "Experimental/applyhook0.fasl")
 ;(load "Experimental/applyhook.fasl")
