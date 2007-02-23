@@ -254,7 +254,7 @@
 ;(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
 ;(load "Experimental/exception.sch")
 (compat:load (param-filename 'auxiliary "std-ffi.sch"))
-(compat:load (param-filename 'auxiliary "unix-functions.sch"))
+;(compat:load (param-filename 'auxiliary "unix-functions.sch"))
 (compat:load "lib/Experimental/system-stuff.sch")
 ;(load "Experimental/applyhook0.fasl")
 ;(load "Experimental/applyhook.fasl")
