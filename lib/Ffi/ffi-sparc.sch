@@ -110,6 +110,7 @@
   (define (jmpli rs imm rd)  (aluop 2 56 rs imm rd 1))
   (define (ori rs imm rd)    (aluop 2 2 rs imm rd 1))
   (define (nop)              (ori (%g 0) 0 (%g 0)))
+  (define (ta imm)           (let ((rd 8) (rs 0)) (aluop 2 58 rs imm rd 1)))
 
   (define (bv4 i)
     (let ((bv (make-bytevector 4)))
@@ -310,6 +311,7 @@
 	  (at-end tr (addi %sp (* 23 4) (%o 1)))  ; _args
 	  (at-end tr (subi %fp retaddr (%o 2)))   ; return slot
 	  (set-reg tr (%o 3) (arg-types tr))      ; _adesc
+          (at-end tr (ldi (%o 3) 0 (%o 3)))
 	  (at-end tr (ori (%g 0)                  ; TDESC(t0)
 			  (return-encoding tr)
 			  (%o 4)))
