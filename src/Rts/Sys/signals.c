@@ -106,6 +106,15 @@ int          syscall_synch_error = 0;
 
 void setup_signal_handlers( void )
 {
+  stack_t sigstk;
+  
+  if ((sigstk.ss_sp = malloc(SIGSTKSZ)) == NULL)
+    panic_abort("Failed to allocate memory for sigaltstack.");
+  sigstk.ss_size = SIGSTKSZ;
+  sigstk.ss_flags = 0;
+  if (sigaltstack(&sigstk, (stack_t *)0) < 0)
+    panic_abort("Invocation of sigaltstack failed.");
+
 #if defined(BSD_SIGNALS)
   signal( SIGINT, inthandler );	/* FIXME: Should use sigvec */
   signal( SIGFPE, fpehandler );	/* FIXME: Should use sigvec */
@@ -116,7 +125,7 @@ void setup_signal_handlers( void )
   struct sigaction act;
 
   act.sa_handler = 0;
-  act.sa_flags = SA_SIGINFO | SA_RESTART;
+  act.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
   sigfillset( &act.sa_mask );
 
   act.sa_sigaction = inthandler;
@@ -133,7 +142,7 @@ void setup_signal_handlers( void )
   struct sigaction act;
 
   act.sa_handler = 0;
-  act.sa_flags = SA_RESTART;
+  act.sa_flags = SA_RESTART | SA_ONSTACK;
   sigfillset( &act.sa_mask );
 
   act.sa_handler = inthandler;
