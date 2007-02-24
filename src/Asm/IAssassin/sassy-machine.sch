@@ -26,11 +26,3 @@
 ; The instruction macros know that RESULT and TEMP have a low byte
 ; register, but otherwise rely on hwreg_has_low() to test the mapping.
 
-(define code_align      4)
-
-(define char_shift	     8)
-
-(define G_REGALIAS_ECX	$g.reg1)	; used by rep stos constructions
-(define G_REGALIAS_EDI	$g.reg3)	; ditto
-(define G_REGALIAS_EDX  $g.reg2)        ; used by rdrsc
-(define G_REGALIAS_EBX  $g.result)

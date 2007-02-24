@@ -159,7 +159,6 @@
                            ((NCC) 'CC) ...)))))
     (cases cc (z nz) (e ne) (g ng) (l nl) (o no) (le g) (be a))))
     
-(define wordsize        4)
 (define (result-reg? n)      (or (eq? n $r.result)))
 (define (hwreg_has_low r)    
   (case r
@@ -170,9 +169,9 @@
 (define (is_hwreg n)         (or (result-reg? n) (<= 0 n 3)))
 (define (fixnum n)           (arithmetic-shift n 2))
 (define (roundup8 x)         (logand (+ x 7) (lognot 7)))
-(define (words2bytes n)      (* n 4))
+(define (words2bytes n)      (* n $bytewidth.wordsize))
 (define (stkslot n)          `(& ,$r.cont ,(+ $stk.reg0 (words2bytes n))))
-(define (framesize n)        (roundup8 (+ wordsize $stk.overhead (words2bytes n))))
+(define (framesize n)        (roundup8 (+ $bytewidth.wordsize $stk.overhead (words2bytes n))))
 (define (recordedsize n)     (+ $stk.overhead (words2bytes n)))
 (define (t_label s)          s)
 			
@@ -183,7 +182,7 @@
 (define-sassy-instr (ia86.mcall fcn name)
   ;; `(comment -- ,name)
   `(call	(& ,$r.globals ,fcn))
-  `(align ,code_align))
+  `(align ,$bytewidth.code-align))
 
 ;;; loadr targetreg, regno
 ;;; 	load HW register targetreg from VM register regno
@@ -291,7 +290,7 @@
   ;; `(comment -- exception ,excode)
   `(call	(& ,$r.globals ,$m.exception))
   `(dwords	,excode)
-  `(align	,code_align)
+  `(align	,$bytewidth.code-align)
   `(jmp	,restart))
 
 ;;; alloc
@@ -493,8 +492,8 @@
       `(label ,L1)
       `(mov ,$r.temp (& ,$r.cont ,(- $tag.pair-tag)))
       `(mov (& ,$r.result) ,$r.temp)
-      `(add ,$r.result ,wordsize)
-      `(mov ,$r.cont (& ,$r.cont ,(+ (- $tag.pair-tag) wordsize)))
+      `(add ,$r.result ,$bytewidth.wordsize)
+      `(mov ,$r.cont (& ,$r.cont ,(+ (- $tag.pair-tag) $bytewidth.wordsize)))
       `(cmp ,$r.cont ,$imm.null)
       `(jne short ,L1)
       `(mov ,$r.cont (& ,$r.globals ,$g.stkp))
@@ -707,7 +706,7 @@
 ;; QUESTION: Is sassy RE-ENTRANT?  I'll avoid using this until I find out.
 (define-sassy-instr (ia86.align_after instr)
   (let ((instr-len (length (sassy-text-list (sassy `((text ,instr)))))))
-    `(align ,code_align ,(- (modulo instr-len)))
+    `(align ,$bytewidth.code-align ,(- (modulo instr-len)))
     `(,@instr)))
 
 ;;; JUMP: Arguments are levels, label, and name of the code vector
@@ -739,7 +738,7 @@
            `(lea ,$r.temp (& ,$r.temp ,(+ (- $tag.bytevector-tag) offset)))
            (cond (setrtn?
                   `(add ,$r.cont 4)
-                  `(align ,code_align -2)
+                  `(align ,$bytewidth.code-align -2)
                   `(call ,$r.temp))
                  (else
                   `(jmp ,$r.temp))))
@@ -761,7 +760,7 @@
                                                  label))
                                       ,(- $tag.bytevector-tag))))
                   `(add ,$r.cont 4)
-                  `(align ,code_align -2)
+                  `(align ,$bytewidth.code-align -2)
                   `(call ,$r.temp))
                  (else
                   `(jmp ,(t_label (compiled-procedure 
@@ -1037,10 +1036,10 @@
         (else
          (ia86.loadr	$r.temp x)))
   `(shr	,$r.temp 2)
-  `(mov	(& ,$r.globals ,G_REGALIAS_ECX) ecx)
+  `(mov	(& ,$r.globals ,$g.regalias-ecx) ecx)
   `(mov	cl ,$r.temp.low)
   `(,y	,$r.result cl)
-  `(mov	ecx (& ,$r.globals ,G_REGALIAS_ECX))
+  `(mov	ecx (& ,$r.globals ,$g.regalias-ecx))
   (cond ((not (eq? y 'shl))
          ;; Right shifts: mask out low bits
          ;; OPTIMIZEME: if RESULT were eax, masking RESULT_LOW with a byte
@@ -1287,20 +1286,20 @@
   (cond (byte?
          (ia86.loadr	$r.temp regno)
          `(shr	,$r.temp 2)
-         `(mov	,$r.result.low (& ,$r.result ,$r.temp ,(+ (- y) wordsize)))
+         `(mov	,$r.result.low (& ,$r.result ,$r.temp ,(+ (- y) $bytewidth.wordsize)))
          `(and	,$r.result #xFF))
         ((is_hwreg regno)
-         `(mov	,$r.result (& ,$r.result ,(REG regno) ,(+ (- y) wordsize))))
+         `(mov	,$r.result (& ,$r.result ,(REG regno) ,(+ (- y) $bytewidth.wordsize))))
         (else
          (ia86.loadr	$r.temp regno)
-         `(mov	,$r.result (& ,$r.result ,$r.temp ,(+ (- y) wordsize))))))
+         `(mov	,$r.result (& ,$r.result ,$r.temp ,(+ (- y) $bytewidth.wordsize))))))
 
 (define-sassy-instr (ia86.load_from_indexed_structure_imm x y byte?)
   (cond (byte?
-         `(mov	,$r.result.low (& ,$r.result ,(+ (- y) wordsize (quotient x 4))))
+         `(mov	,$r.result.low (& ,$r.result ,(+ (- y) $bytewidth.wordsize (quotient x 4))))
          `(and	,$r.result #xFF))
         (else
-         `(mov	,$r.result (& ,$r.result ,(+ (- y) wordsize x))))))
+         `(mov	,$r.result (& ,$r.result ,(+ (- y) $bytewidth.wordsize x))))))
 				
 ;;; indexed_structure_ref reg, ptrtag, hdrtag, ex, byte?
 ;;;	Leave the raw value in ,RESULT.
@@ -1364,9 +1363,9 @@
 ;;;   ;; Using $r.cont here is sketchy when it can alias esp
   `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
   (ia86.loadr	$r.cont regno)
-  `(shr	,$r.temp ,char_shift)
+  `(shr	,$r.temp ,$bitwidth.char-shift)
   `(shr	,$r.cont 2)
-  `(mov	(& ,$r.result ,$r.cont ,(+ (- ptrtag) wordsize)) ,$r.temp.low)
+  `(mov	(& ,$r.result ,$r.cont ,(+ (- ptrtag) $bytewidth.wordsize)) ,$r.temp.low)
   `(mov	,$r.cont (& ,$r.globals ,$g.stkp)))
 
 (define-sassy-instr (ia86.indexed_structure_set_byte regno1 regno2 z hdrtag ex)
@@ -1377,7 +1376,7 @@
   `(shr	,$r.cont 2)
   (ia86.loadr	$r.temp regno2)
   `(shr	,$r.temp 2)
-  `(mov	(& ,$r.result ,$r.cont ,(+ (- z) wordsize)) ,$r.temp.low)
+  `(mov	(& ,$r.result ,$r.cont ,(+ (- z) $bytewidth.wordsize)) ,$r.temp.low)
   `(mov	,$r.cont (& ,$r.globals ,$g.stkp)))
 
 (define-sassy-instr (ia86.indexed_structure_set_word regno1 regno2 z hdrtag ex)
@@ -1388,22 +1387,22 @@
 ;; FIXME: we should consistently use symbols or numbers for regs
 (define-sassy-instr (ia86.do_indexed_structure_set_word hwregno regno1 regno2 z)
   (cond ((and (is_hwreg regno2) (is_hwreg regno1))
-         `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) wordsize)) ,(REG regno2))
+         `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) $bytewidth.wordsize)) ,(REG regno2))
          (ia86.write_barrier (reg/result->num hwregno) regno2))
         ((is_hwreg regno2)
          (ia86.loadr	$r.temp regno1)
-         `(mov	(& ,(REG hwregno) ,$r.temp ,(+ (- z) wordsize)) ,(REG regno2))
+         `(mov	(& ,(REG hwregno) ,$r.temp ,(+ (- z) $bytewidth.wordsize)) ,(REG regno2))
          (ia86.write_barrier (reg/result->num hwregno) regno2))
         ((is_hwreg regno1)
          (ia86.loadr	$r.second regno2)
-         `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) wordsize)) ,$r.second)
+         `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) $bytewidth.wordsize)) ,$r.second)
          (ia86.write_barrier (reg/result->num hwregno) -1))
         (else
 ;;;   ;; Using $r.cont here is sketchy when it can alias esp
          `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
          (ia86.loadr	$r.cont regno1)
          (ia86.loadr	$r.second regno2)
-         `(mov	(& ,(REG hwregno) ,$r.cont ,(+ (- z) wordsize)) ,$r.second)
+         `(mov	(& ,(REG hwregno) ,$r.cont ,(+ (- z) $bytewidth.wordsize)) ,$r.second)
          `(mov	,$r.cont (& ,$r.globals ,$g.stkp))
          (ia86.write_barrier (reg/result->num hwregno) -1))))
 
@@ -1423,7 +1422,7 @@
            (ia86.exception_continuable ex L0)
            `(label ,L1))))
   `(mov	(& ,$r.globals ,$g.alloctmp) ,$r.result)
-  `(add	,$r.result ,wordsize)
+  `(add	,$r.result ,$bytewidth.wordsize)
   (cond ((= regno -1)
          `(mov	,$r.second ,$imm.unspecified))
         (else
@@ -1466,20 +1465,20 @@
                   `(cmp	,$r.second.low ,$imm.character)
                   `(jne	short ,L1)))))
     `(mov	(& ,$r.globals ,$g.alloctmp) ,$r.result)
-    `(add	,$r.result ,(fixnum wordsize))
+    `(add	,$r.result ,(fixnum $bytewidth.wordsize))
     (ia86.mcall	$m.alloc-bv 'alloc-bv)
     (cond ((not (= regno -1))
            (ia86.loadr	$r.temp regno)
-           `(mov	(& ,$r.globals ,G_REGALIAS_ECX) ecx)
-           `(mov	(& ,$r.globals ,G_REGALIAS_EDI) edi)
-           `(shr	,$r.temp ,char_shift)	; char arg to byte value
+           `(mov	(& ,$r.globals ,$g.regalias-ecx) ecx)
+           `(mov	(& ,$r.globals ,$g.regalias-edi) edi)
+           `(shr	,$r.temp ,$bitwidth.char-shift)	; char arg to byte value
            `(mov	ecx (& ,$r.globals ,$g.alloctmp))
            `(shr	ecx 2)		; byte count
            `(lea	edi (& ,$r.result 4))	; destination ptr
            `(cld)
            `(rep (stosb))		; byte fill
-           `(mov	ecx (& ,$r.globals ,G_REGALIAS_ECX))
-           `(mov	edi (& ,$r.globals ,G_REGALIAS_EDI))))
+           `(mov	ecx (& ,$r.globals ,$g.regalias-ecx))
+           `(mov	edi (& ,$r.globals ,$g.regalias-edi))))
     `(mov	,$r.temp (& ,$r.globals ,$g.alloctmp))
     `(shl	,$r.temp 6)
     `(or	,$r.temp ,hdrtag)
@@ -1911,7 +1910,7 @@
 (define-sassy-instr/peep (or (ia86.T_OP1_16* rs rd)		; cdr
                              (ia86.T_OP1_16))
   (ia86.single_tag_test_ex (REG rs) $tag.pair-tag $ex.cdr)
-  `(mov	,(REG rd) (& ,(REG rs) ,(+ (- $tag.pair-tag) wordsize))))
+  `(mov	,(REG rd) (& ,(REG rs) ,(+ (- $tag.pair-tag) $bytewidth.wordsize))))
 
 (define-sassy-instr (ia86.T_OP1_17)		; symbol?
   (ia86.double_tag_predicate $tag.vector-tag $hdr.symbol))
@@ -2199,11 +2198,11 @@
                              (ia86.T_OP2_60 rs2))
   (ia86.single_tag_test_ex (REG rs1) $tag.pair-tag $ex.setcdr)
   (cond ((is_hwreg rs2)
-         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) wordsize)) ,(REG rs2))
+         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) $bytewidth.wordsize)) ,(REG rs2))
          (ia86.write_barrier (reg/result->num rs1) rs2))
         (else
          (ia86.loadr	$r.second rs2)
-         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) wordsize)) ,$r.second)
+         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) $bytewidth.wordsize)) ,$r.second)
          (ia86.write_barrier (reg/result->num rs1) -1))))
 
 (define-sassy-instr/peep (or (ia86.T_OP2_61* rs1 rd rs2) ; +
@@ -2325,7 +2324,7 @@
 
 (define-sassy-instr (ia86.T_OP2_78 regno)		; string-ref
   (ia86.indexed_structure_ref/hdr regno $tag.bytevector-tag  $hdr.string  $ex.sref #t)
-  `(shl	,$r.result ,char_shift)
+  `(shl	,$r.result ,$bitwidth.char-shift)
   `(or	,$r.result.low ,$imm.character))
 
 (define-sassy-instr (ia86.T_OP3_79 regno y)		; string-set!
@@ -2544,7 +2543,7 @@
 
 (define-sassy-instr (ia86.T_OP2IMM_142 imm)		; string-ref
   (ia86.indexed_structure_ref_imm/hdr imm $tag.bytevector-tag  $hdr.string  $ex.sref  #t)
-  `(shl	,$r.result ,char_shift)
+  `(shl	,$r.result ,$bitwidth.char-shift)
   `(or	,$r.result.low ,$imm.character))
 
 (define-sassy-instr (ia86.T_OP2IMM_143 imm)		; vector-ref
@@ -2745,12 +2744,12 @@
   (cond ((is_hwreg rs2)
          `(mov	,(REG rd) (& ,(REG rs1) 
                              ,(REG rs2)
-                             ,(- wordsize $tag.vector-tag))))
+                             ,(- $bytewidth.wordsize $tag.vector-tag))))
         (else
          (ia86.loadr	$r.temp rs2)
          `(mov	,(REG rd) (& ,(REG rs1) 
                              ,$r.temp 
-                             ,(- wordsize $tag.vector-tag))))))
+                             ,(- $bytewidth.wordsize $tag.vector-tag))))))
 
 (define-sassy-instr (ia86.T_OP3_403 regno y)		; vector-set!:trusted
   (ia86.do_indexed_structure_set_word $r.result regno y $tag.vector-tag))
@@ -2764,7 +2763,7 @@
 
 (define-sassy-instr/peep (or (ia86.T_OP1_405* rs rd)		; cdr:pair
                              (ia86.T_OP1_405))
-  `(mov	,(REG rd) (& ,(REG rs) ,(+ (- $tag.pair-tag) wordsize))))
+  `(mov	,(REG rd) (& ,(REG rs) ,(+ (- $tag.pair-tag) $bytewidth.wordsize))))
 
 (define-sassy-instr/peep (or (ia86.T_OP2_406* rs1 rd rs2)		; =:fix:fix
                              (ia86.T_OP2_406 rs2))
@@ -2839,7 +2838,7 @@
 
 (define-sassy-instr/peep (or (ia86.T_OP2IMM_450* rs1 rd imm)	; vector-ref:trusted
                              (ia86.T_OP2IMM_450 imm))
-  `(mov	,(REG rd) (& ,(REG rs1) ,imm ,(- wordsize $tag.vector-tag))))
+  `(mov	,(REG rd) (& ,(REG rs1) ,imm ,(- $bytewidth.wordsize $tag.vector-tag))))
 
 (define-sassy-instr (ia86.T_OP2IMM_700  idx)	; bytevector-ref:trusted
   (ia86.load_from_indexed_structure_imm idx $tag.bytevector-tag #t)
@@ -3067,20 +3066,20 @@
     (ia86.double_tag_test $r.result $tag.bytevector-tag $hdr.bytevector)
     ;; FIXME: should also check length >= 8
     `(jnz short ,L3)                        ;; leave RESULT alone if arg bad
-    `(mov (& ,$r.globals ,G_REGALIAS_EBX) ebx) ;; save RESULT
-    `(mov (& ,$r.globals ,G_REGALIAS_ECX) ecx) ;;  and
-    `(mov (& ,$r.globals ,G_REGALIAS_EDX) edx) ;;   others
+    `(mov (& ,$r.globals ,$g.regalias-ebx) ebx) ;; save RESULT
+    `(mov (& ,$r.globals ,$g.regalias-ecx) ecx) ;;  and
+    `(mov (& ,$r.globals ,$g.regalias-edx) edx) ;;   others
     ;; `(cpuid)                                ;; serialize (writes eax, ebx, ecx, edx)
     `(rdtsc)                                ;; writes 64 bit value into edx:eax
-    `(mov ebx (& ,$r.globals ,G_REGALIAS_EBX)) ;; restore RESULT
+    `(mov ebx (& ,$r.globals ,$g.regalias-ebx)) ;; restore RESULT
     `(mov (& ,$r.result ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes)) 
           eax)                              ;; save timestamp low bits
-    `(mov (& ,$r.result ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes wordsize))
+    `(mov (& ,$r.result ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes $bytewidth.wordsize))
           edx)                              ;; save timestamp high bits
     ;; `(cpuid)                                ;; serialize (writes eax, ebx, ecx, edx)
-    `(mov ebx (& ,$r.globals ,G_REGALIAS_EBX)) ;; restore RESULT
-    `(mov ecx (& ,$r.globals ,G_REGALIAS_ECX)) ;;  and
-    `(mov edx (& ,$r.globals ,G_REGALIAS_EDX)) ;;   others
+    `(mov ebx (& ,$r.globals ,$g.regalias-ebx)) ;; restore RESULT
+    `(mov ecx (& ,$r.globals ,$g.regalias-ecx)) ;;  and
+    `(mov edx (& ,$r.globals ,$g.regalias-edx)) ;;   others
     `(label ,L3)))
 
 (define-sassy-instr (ia86.T_OP1_1001)

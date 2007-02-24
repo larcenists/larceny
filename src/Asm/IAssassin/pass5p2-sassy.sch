@@ -277,7 +277,7 @@
 (define (begin-compiled-scheme-function as label entrypoint? start?)
   (let ((name (compiled-procedure as label)))
     ;(emit-text as "begin_codevector ~a" name)
-    (emit-sassy as 'align code_align)
+    (emit-sassy as 'align $bytewidth.code-align)
     (set! code-indentation (string #\tab))
     (set! code-name name)))
 
@@ -861,7 +861,7 @@
 
 (define (constant-value x)
   (define (char n)
-    (fxlogior (fxlsh (char->integer n) char_shift) $imm.character))
+    (fxlogior (fxlsh (char->integer n) $bitwidth.char-shift) $imm.character))
 
   (define (exact-int->fixnum x)
     (* x 4))

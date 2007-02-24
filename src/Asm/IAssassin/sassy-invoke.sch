@@ -113,7 +113,7 @@
            `(add ,$r.cont 4)
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
            (ia86.const2regf $r.result (fixnum n))
-           `(align ,code_align -2)
+           `(align ,$bytewidth.code-align -2)
            `(call ,$r.temp))
           (else 
            (let ((L0 (fresh-label))
@@ -131,7 +131,7 @@
              `(add ,$r.cont 4)
              (ia86.const2regf $r.result (fixnum n))
              `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
-             `(align ,code_align -2)
+             `(align ,$bytewidth.code-align -2)
              `(call ,$r.temp)
              )))))
 
@@ -139,13 +139,13 @@
   (let ()
     (ia86.timer_check)
     `(add ,$r.cont 4)
-    `(align ,code_align -1)
+    `(align ,$bytewidth.code-align -1)
     `(call ,(t_label Ly))))
 
 (define-sassy-instr (ia86.T_SETRTN_SKIP Ly)
   (let ()
     `(add ,$r.cont 4)
-    `(align ,code_align -1)
+    `(align ,$bytewidth.code-align -1)
     `(call ,(t_label Ly))))
 
 (define-sassy-instr (ia86.T_APPLY x y)
