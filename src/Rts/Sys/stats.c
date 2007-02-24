@@ -280,6 +280,8 @@ stats_id_t stats_start_timer( stats_timer_t type )
     default :
       assert(0);
   }
+  assert( stats_state.timers[i].timer != 0 );
+
   return i;
 }
 
