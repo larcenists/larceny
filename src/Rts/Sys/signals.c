@@ -106,6 +106,7 @@ int          syscall_synch_error = 0;
 
 void setup_signal_handlers( void )
 {
+#if defined(BSD_SIGNALS) || defined(XOPEN_SIGNALS) || defined(POSIX_SIGNALS)
   stack_t sigstk;
   
   if ((sigstk.ss_sp = malloc(SIGSTKSZ)) == NULL)
@@ -114,6 +115,7 @@ void setup_signal_handlers( void )
   sigstk.ss_flags = 0;
   if (sigaltstack(&sigstk, (stack_t *)0) < 0)
     panic_abort("Invocation of sigaltstack failed.");
+#endif
 
 #if defined(BSD_SIGNALS)
   signal( SIGINT, inthandler );	/* FIXME: Should use sigvec */
