@@ -221,7 +221,7 @@
 ;;; write_barrier r1 r2
 ;;;	Move values from hardware registers r1 and r2 to RESULT 
 ;;; 	and SECOND and perform a write barrier.  r1 and r2 may 
-;;; 	be -1, in which case the value must already be in RESULT 
+;;; 	be #f, in which case the value must already be in RESULT 
 ;;; 	and SECOND.
 ;;;
 ;;;     For INLINE_ASSIGNMENT, test the r2 value and skip the barrier
@@ -231,24 +231,24 @@
   (cond
    ((inline-assignment)
     (let ((L0 (fresh-label)))
-      (cond ((and (not (= r2 -1))
+      (cond ((and r2
                   (is_hwreg r2))
              `(test	,(REG r2) 1)
              `(jz short ,L0)
              `(mov	,$r.second ,(REG r2)))
             (else
-             (cond ((not (= r2 -1))
+             (cond (r2
                     `(mov	,$r.second ,(REG r2))))
              `(test	,$r.second 1)
              `(jz short ,L0)))
-      (cond ((not (= r1 -1))
+      (cond (r1
              `(mov	,$r.result ,(REG r1))))
       (ia86.mcall $m.partial-barrier 'partial-barrier)
       `(label ,L0)))
    (else 
-    (cond ((not (= r1 -1))
+    (cond (r1
            `(mov ,$r.result ,(REG r1))))
-    (cond ((not (= r2 -1))
+    (cond (r2
            `(mov ,$r.second ,(REG r2))))
     (ia86.mcall $m.full-barrier 'full-barrier))))
 	
@@ -406,13 +406,13 @@
   `(mov	,$r.second ,$r.result)
   (ia86.loadc	$r.result x)
   `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,$r.second)
-  (ia86.write_barrier -1 -1))
+  (ia86.write_barrier #f #f))
 
 (define-sassy-instr (ia86.T_CONST_SETGLBL_IMM x glbl)
   (ia86.const2regf $r.second x)
   (ia86.loadc	$r.result glbl)
   `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,$r.second)
-  (ia86.write_barrier -1 -1))
+  (ia86.write_barrier #f #f))
 
 (define-sassy-instr (ia86.T_CONST_SETGLBL_CONSTVECTOR x glbl)
   (ia86.T_CONST_CONSTVECTOR x)
@@ -421,7 +421,7 @@
 (define-sassy-instr (ia86.T_REG_SETGLBL regno x)
   (ia86.loadc	$r.result x)
   `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,(REG regno))
-  (ia86.write_barrier -1 regno))
+  (ia86.write_barrier #f regno))
 
 (define-sassy-instr (ia86.T_LEXICAL rib off)
   (cond ((> rib 0)
@@ -1396,7 +1396,7 @@
         ((is_hwreg regno1)
          (ia86.loadr	$r.second regno2)
          `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) $bytewidth.wordsize)) ,$r.second)
-         (ia86.write_barrier (reg/result->num hwregno) -1))
+         (ia86.write_barrier (reg/result->num hwregno) #f))
         (else
 ;;;   ;; Using $r.cont here is sketchy when it can alias esp
          `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
@@ -1404,11 +1404,11 @@
          (ia86.loadr	$r.second regno2)
          `(mov	(& ,(REG hwregno) ,$r.cont ,(+ (- z) $bytewidth.wordsize)) ,$r.second)
          `(mov	,$r.cont (& ,$r.globals ,$g.stkp))
-         (ia86.write_barrier (reg/result->num hwregno) -1))))
+         (ia86.write_barrier (reg/result->num hwregno) #f))))
 
 ;;; make_indexed_structure_word regno ptrtag hdrtag ex
 ;;;	Allocate a word structure with the length specified in RESULT
-;;;	(fixnum number of entries).  If ,x is not -1, then initialize 
+;;;	(fixnum number of entries).  If ,x is not #f, then initialize 
 ;;;	it with the contents of (REG ,x), otherwise with #!unspecified.
 	
 (define-sassy-instr (ia86.make_indexed_structure_word regno y z ex)
@@ -1423,7 +1423,7 @@
            `(label ,L1))))
   `(mov	(& ,$r.globals ,$g.alloctmp) ,$r.result)
   `(add	,$r.result ,$bytewidth.wordsize)
-  (cond ((= regno -1)
+  (cond ((eqv? regno #f)
          `(mov	,$r.second ,$imm.unspecified))
         (else
          (ia86.loadr	$r.second regno)))
@@ -1436,9 +1436,9 @@
 
 ;;; make_indexed_structure_byte regno hdrtag ex
 ;;;	Allocate a byte structure with the length specified in RESULT
-;;;     (fixnum number of bytes).  If ,x is not -1, then (REG ,x) must
+;;;     (fixnum number of bytes).  If regno is not #f, then (REG ,x) must
 ;;;     hold a char value to be used for initialization (a check is
-;;;     performed that is a char).  If ,x is -1, no initialization 
+;;;     performed that is a char).  If regno is #f, no initialization 
 ;;; 	is performed.
 
 (define-sassy-instr (ia86.make_indexed_structure_byte regno hdrtag ex)
@@ -1452,7 +1452,7 @@
            ;; instruction is probably best moved into millicode)
            ;; OPTIMIZEME (speed): Both branches are mispredicted here.
            `(label ,L0)
-           (cond ((not (= regno -1))
+           (cond (regno
                   (ia86.loadr	$r.second regno))
                  (else 
                   `(xor ,$r.second ,$r.second)))
@@ -1461,13 +1461,13 @@
            `(label ,L1)
            (ia86.exception_continuable ex L0)
            `(label ,L2 )
-           (cond ((not (= regno -1))
+           (cond (regno
                   `(cmp	,$r.second.low ,$imm.character)
                   `(jne	short ,L1)))))
     `(mov	(& ,$r.globals ,$g.alloctmp) ,$r.result)
     `(add	,$r.result ,(fixnum $bytewidth.wordsize))
     (ia86.mcall	$m.alloc-bv 'alloc-bv)
-    (cond ((not (= regno -1))
+    (cond (regno
            (ia86.loadr	$r.temp regno)
            `(mov	(& ,$r.globals ,$g.regalias-ecx) ecx)
            `(mov	(& ,$r.globals ,$g.regalias-edi) edi)
@@ -2083,7 +2083,7 @@
   (ia86.mcall	$m.bytevector-like-fill 'bytevector-like-fill))
 
 (define-sassy-instr (ia86.T_OP1_46)		; make-bytevector
-  (ia86.make_indexed_structure_byte -1 $hdr.bytevector  $ex.mkbvl))
+  (ia86.make_indexed_structure_byte #f $hdr.bytevector  $ex.mkbvl))
 
 (define-sassy-instr/peep (or (ia86.T_OP1_47* rs rd)		; procedure?
                              (ia86.T_OP1_47))
@@ -2095,7 +2095,7 @@
 
 (define-sassy-instr (ia86.T_OP1_49)		; make-procedure
   ;; exception code wrong, matches Sparc
-  (ia86.make_indexed_structure_word -1 $tag.procedure-tag  $hdr.procedure  $ex.mkvl))
+  (ia86.make_indexed_structure_word #f $tag.procedure-tag  $hdr.procedure  $ex.mkvl))
 		
 (define-sassy-instr/peep (or (ia86.T_OP1_52* rs rd)	; make-cell just maps to cons, for now
                              (ia86.T_OP1_52))
@@ -2179,7 +2179,7 @@
          )))
 
 (define (reg/result->num r)
-  (cond ((result-reg? r) -1)
+  (cond ((result-reg? r) #f)
         ((number? r) r)
         (else (error 'reg/result->num r))))
 	
@@ -2192,7 +2192,7 @@
         (else
          (ia86.loadr	$r.second rs2)
          `(mov	(& ,(REG rs1) ,(- $tag.pair-tag)) ,$r.second)
-         (ia86.write_barrier (reg/result->num rs1) -1))))
+         (ia86.write_barrier (reg/result->num rs1) #f))))
 
 (define-sassy-instr/peep (or (ia86.T_OP2_60* rs1 rd rs2)	; set-cdr!
                              (ia86.T_OP2_60 rs2))
@@ -2203,7 +2203,7 @@
         (else
          (ia86.loadr	$r.second rs2)
          `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) $bytewidth.wordsize)) ,$r.second)
-         (ia86.write_barrier (reg/result->num rs1) -1))))
+         (ia86.write_barrier (reg/result->num rs1) #f))))
 
 (define-sassy-instr/peep (or (ia86.T_OP2_61* rs1 rd rs2) ; +
                              (ia86.T_OP2_61 rs2))
@@ -2350,11 +2350,11 @@
 (define-sassy-instr (ia86.T_OP2_84 regno)		; cell-set!
   (cond ((is_hwreg regno)
          `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,(REG regno))
-         (ia86.write_barrier -1 regno))
+         (ia86.write_barrier #f regno))
         (else
          (ia86.loadr	$r.second regno)
          `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,$r.second)
-         (ia86.write_barrier -1 -1))))
+         (ia86.write_barrier #f #f))))
 
 (define-sassy-instr (ia86.T_OP2_85 regno)		; char<?
   (ia86.generic_char_compare regno 'l  $ex.char<?))
