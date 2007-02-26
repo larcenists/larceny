@@ -700,10 +700,12 @@
 ;; without human intervention.
 ;; First assemble instr to figure out how large it is, and then feed that 
 ;; to an alignment directive.
-;; QUESTION: Is sassy RE-ENTRANT?  I'll avoid using this until I find out.
-(define-sassy-instr (ia86.align_after instr)
-  (let ((instr-len (length (sassy-text-list (sassy `((text ,instr)))))))
-    `(align ,$bytewidth.code-align ,(- (modulo instr-len)))
+;; We do not hand off expressions to sassy until after we've finished building the 
+;; entire input, so we do not need to worry about whether sassy is re-entrant to
+;; do this trick.
+(define-sassy-instr (ia86.align-after instr)
+  (let ((instr-len (bytevector-length (sassy-text-bytevector (sassy `((text ,instr)))))))
+    `(align ,$bytewidth.code-align ,(- (modulo instr-len $bytewidth.wordsize)))
     `(,@instr)))
 
 ;;; JUMP: Arguments are levels, label, and name of the code vector
@@ -735,8 +737,8 @@
            `(lea ,$r.temp (& ,$r.temp ,(+ (- $tag.bytevector-tag) offset)))
            (cond (setrtn?
                   `(add ,$r.cont 4)
-                  `(align ,$bytewidth.code-align -2)
-                  `(call ,$r.temp))
+                  (ia86.align-after 
+                   `(call ,$r.temp)))
                  (else
                   `(jmp ,$r.temp))))
           (else
@@ -757,8 +759,8 @@
                                                  label))
                                       ,(- $tag.bytevector-tag))))
                   `(add ,$r.cont 4)
-                  `(align ,$bytewidth.code-align -2)
-                  `(call ,$r.temp))
+                  (ia86.align-after 
+                   `(call ,$r.temp)))
                  (else
                   `(jmp ,(t_label (compiled-procedure 
                                    (current-sassy-assembly-structure) 
