@@ -231,14 +231,11 @@
   (cond
    ((inline-assignment)
     (let ((L0 (fresh-label)))
-      (cond ((and r2
-                  (is_hwreg r2))
+      (cond (r2
              `(test	,(REG r2) 1)
              `(jz short ,L0)
              `(mov	,$r.second ,(REG r2)))
             (else
-             (cond (r2
-                    `(mov	,$r.second ,(REG r2))))
              `(test	,$r.second 1)
              `(jz short ,L0)))
       (cond (r1
