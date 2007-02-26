@@ -3064,8 +3064,12 @@
 (define-sassy-instr (ia86.T_OP1_1000)           ; larceny-timestamp!
   (let ((L3 (fresh-label)))
     (ia86.double_tag_test $r.result $tag.bytevector-tag $hdr.bytevector)
-    ;; FIXME: should also check length >= 8
     `(jnz short ,L3)                        ;; leave RESULT alone if arg bad
+    (cond ((not (unsafe-code))
+           `(mov ,$r.temp (& ,$r.result ,(- $tag.bytevector-tag)))
+           `(shr ,$r.temp 8)
+           `(cmp ,$r.temp 8) ;; (at least 2 words)
+           `(jl short ,L3)))                    ;; leave RESULT alone if arg bad
     `(mov (& ,$r.globals ,$g.regalias-ebx) ebx) ;; save RESULT
     `(mov (& ,$r.globals ,$g.regalias-ecx) ecx) ;;  and
     `(mov (& ,$r.globals ,$g.regalias-edx) edx) ;;   others
