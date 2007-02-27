@@ -277,6 +277,7 @@ PUBLIC i386_partial_barrier
 	jne	Lpb1				;   if generation map not 0
 	ret					; Otherwise return to scheme
 Lpb1:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
+	mov	[GLOBALS+G_SECOND], SECOND
 	mov	[GLOBALS+G_REG1], REG1	;   working registers
 	mov	REG1, [GLOBALS+G_GENV]	; Map page -> generation
 	sub	RESULT, [EXTNAME(gclib_pagebase)]	; Load
@@ -305,8 +306,8 @@ Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
 	mov	SECOND, [SECOND+RESULT]		; The correct limit ptr
 	cmp	REG1, SECOND			; If ptr!=limit
 	jne	Lpb2				;   then no overflow, so done
-	xor	RESULT, RESULT			; Clean
-	xor	SECOND, SECOND			;   state
+	mov	RESULT, [GLOBALS+G_RESULT]	; Restore
+	mov	SECOND, [GLOBALS+G_SECOND]	;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	MCg	mc_compact_ssbs			;       handle overflow
 %else  ; OPTIMIZE_MILLICODE
