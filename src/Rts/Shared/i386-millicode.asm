@@ -265,7 +265,11 @@ PUBLIC i386_full_barrier
 	jnz	EXTNAME(i386_partial_barrier)	;   enter the barrier
 	ret					; Otherwise return
 %else  ; OPTIMIZE_MILLICODE
+	mov	[GLOBALS+G_WBDEST], RESULT
+	mov	[GLOBALS+G_WBVALUE], SECOND
 	MC2g	mc_full_barrier
+	mov	RESULT, [GLOBALS+G_WBDEST]
+	mov	SECOND, [GLOBALS+G_WBVALUE]
 %endif ; OPTIMIZE_MILLICODE
 	
 PUBLIC i386_partial_barrier
@@ -276,10 +280,10 @@ PUBLIC i386_partial_barrier
 	cmp	dword [GLOBALS+G_GENV], 0	; Barrier is enabled
 	jne	Lpb1				;   if generation map not 0
 	ret					; Otherwise return to scheme
-Lpb1:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
-	mov	[GLOBALS+G_SECOND], SECOND
-	mov	[GLOBALS+G_REG1], REG1	;   working registers
-	mov	REG1, [GLOBALS+G_GENV]	; Map page -> generation
+Lpb1:	mov	[GLOBALS+G_WBDEST], RESULT	; Save state and
+	mov	[GLOBALS+G_WBVALUE], SECOND	;   free up some
+	mov	[GLOBALS+G_REG1], REG1		;     working registers
+	mov	REG1, [GLOBALS+G_GENV]		; Map page -> generation
 	sub	RESULT, [EXTNAME(gclib_pagebase)]	; Load
 	shr	RESULT, 12			;   generation number
 	shl	RESULT, 2			;     (using byte offset)
@@ -290,13 +294,13 @@ Lpb1:	mov	[GLOBALS+G_RESULT], RESULT	; Free up some
 	mov	SECOND, [REG1+SECOND]		;       for rhs
 	cmp	RESULT, SECOND			; Only store lhs in SSB
 	jg	Lpb3				;   if gen(lhs) > gen(rhs)
-Lpb2:	xor	RESULT, RESULT			; Clean
-	xor	SECOND, SECOND			;   state
+Lpb2:	mov	RESULT, [GLOBALS+G_WBDEST]	; Restore
+	mov	SECOND, [GLOBALS+G_WBVALUE]	;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	ret					;       return to Scheme
 Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
 	mov	REG1, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
-	mov	SECOND, [GLOBALS+G_RESULT]	; The value to store (lhs)
+	mov	SECOND, [GLOBALS+G_WBDEST]	; The value to store (lhs)
 	mov	REG1, [REG1+RESULT]		; The correct SSB ptr
 	mov	[REG1], SECOND			; Store lhs
 	mov	SECOND, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
@@ -306,12 +310,18 @@ Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
 	mov	SECOND, [SECOND+RESULT]		; The correct limit ptr
 	cmp	REG1, SECOND			; If ptr!=limit
 	jne	Lpb2				;   then no overflow, so done
-	mov	RESULT, [GLOBALS+G_RESULT]	; Restore
-	mov	SECOND, [GLOBALS+G_SECOND]	;   state
+	xor	RESULT, RESULT			; Clear
+	xor	SECOND, SECOND			;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	MCg	mc_compact_ssbs			;       handle overflow
+	mov	RESULT, [GLOBALS+G_WBDEST]	; Restore
+	mov	SECOND, [GLOBALS+G_WBVALUE]	;   state
 %else  ; OPTIMIZE_MILLICODE
+	mov	[GLOBALS+G_WBDEST], RESULT	; Save 
+	mov	[GLOBALS+G_WBVALUE], SECOND	;   state
 	MC2g	mc_partial_barrier
+	mov	RESULT, [GLOBALS+G_WBDEST]	; Restore
+	mov	SECOND, [GLOBALS+G_WBVALUE]	;   state
 %endif ; OPTIMIZE_MILLICODE
 	
 PUBLIC i386_break
