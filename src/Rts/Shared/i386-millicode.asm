@@ -177,6 +177,10 @@ EXTNAME(%1):
 	mov	eax, EXTNAME(%2)
 	jmp	%3
 %endmacro
+
+%macro MCg_wb 1
+	MILLICODE_STUB 0, %1, callout_to_C_wb
+%endmacro
 	
 %macro MCg 1
 	MILLICODE_STUB 0, %1, callout_to_C
@@ -188,6 +192,10 @@ EXTNAME(%1):
 
 %macro MC2g 1
 	MILLICODE_STUB 1, %1, callout_to_C
+%endmacro
+
+%macro MC2g_wb 1
+	MILLICODE_STUB 1, %1, callout_to_C_wb
 %endmacro
 
 %macro MC2gk 1
@@ -267,9 +275,7 @@ PUBLIC i386_full_barrier
 %else  ; OPTIMIZE_MILLICODE
 	mov	[GLOBALS+G_WBDEST], RESULT
 	mov	[GLOBALS+G_WBVALUE], SECOND
-	MC2g	mc_full_barrier
-	mov	RESULT, [GLOBALS+G_WBDEST]
-	mov	SECOND, [GLOBALS+G_WBVALUE]
+	MC2g_wb	mc_full_barrier
 %endif ; OPTIMIZE_MILLICODE
 	
 PUBLIC i386_partial_barrier
@@ -313,15 +319,11 @@ Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
 	xor	RESULT, RESULT			; Clear
 	xor	SECOND, SECOND			;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
-	MCg	mc_compact_ssbs			;       handle overflow
-	mov	RESULT, [GLOBALS+G_WBDEST]	; Restore
-	mov	SECOND, [GLOBALS+G_WBVALUE]	;   state
+	MCg_wb	mc_compact_ssbs			;       handle overflow
 %else  ; OPTIMIZE_MILLICODE
 	mov	[GLOBALS+G_WBDEST], RESULT	; Save 
 	mov	[GLOBALS+G_WBVALUE], SECOND	;   state
-	MC2g	mc_partial_barrier
-	mov	RESULT, [GLOBALS+G_WBDEST]	; Restore
-	mov	SECOND, [GLOBALS+G_WBVALUE]	;   state
+	MC2g_wb	mc_partial_barrier
 %endif ; OPTIMIZE_MILLICODE
 	
 PUBLIC i386_break
@@ -771,6 +773,14 @@ callout_to_C:
 	SAVE_STATE saved_globals_pointer
 	CALLOUT_TO_C 0
 	RESTORE_STATE saved_globals_pointer
+	jmp	[GLOBALS + G_RETADDR]
+
+callout_to_C_wb:
+	SAVE_STATE saved_globals_pointer
+	CALLOUT_TO_C 0
+	RESTORE_STATE saved_globals_pointer
+	mov	RESULT, [GLOBALS+G_WBDEST]	; Restore
+	mov	SECOND, [GLOBALS+G_WBVALUE]	;   state
 	jmp	[GLOBALS + G_RETADDR]
 
 callout_to_C_leave_retaddr_absolute:
