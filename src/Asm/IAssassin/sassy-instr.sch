@@ -402,14 +402,14 @@
 (define-sassy-instr (ia86.T_SETGLBL x)
   `(mov	,$r.second ,$r.result)
   (ia86.loadc	$r.result x)
-  `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,$r.second)
-  (ia86.write_barrier #f #f))
+  (ia86.write_barrier #f #f)
+  `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,$r.second))
 
 (define-sassy-instr (ia86.T_CONST_SETGLBL_IMM x glbl)
   (ia86.const2regf $r.second x)
   (ia86.loadc	$r.result glbl)
-  `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,$r.second)
-  (ia86.write_barrier #f #f))
+  (ia86.write_barrier #f #f)
+  `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,$r.second))
 
 (define-sassy-instr (ia86.T_CONST_SETGLBL_CONSTVECTOR x glbl)
   (ia86.T_CONST_CONSTVECTOR x)
@@ -417,8 +417,8 @@
 
 (define-sassy-instr (ia86.T_REG_SETGLBL regno x)
   (ia86.loadc	$r.result x)
-  `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,(REG regno))
-  (ia86.write_barrier #f regno))
+  (ia86.write_barrier #f regno)
+  `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,(REG regno)))
 
 (define-sassy-instr (ia86.T_LEXICAL rib off)
   (cond ((> rib 0)
@@ -1386,24 +1386,24 @@
 ;; FIXME: we should consistently use symbols or numbers for regs
 (define-sassy-instr (ia86.do_indexed_structure_set_word hwregno regno1 regno2 z)
   (cond ((and (is_hwreg regno2) (is_hwreg regno1))
-         `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) $bytewidth.wordsize)) ,(REG regno2))
-         (ia86.write_barrier (reg/result->num hwregno) regno2))
+         (ia86.write_barrier (reg/result->num hwregno) regno2)
+         `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) $bytewidth.wordsize)) ,(REG regno2)))
         ((is_hwreg regno2)
+         (ia86.write_barrier (reg/result->num hwregno) regno2)
          (ia86.loadr	$r.temp regno1)
-         `(mov	(& ,(REG hwregno) ,$r.temp ,(+ (- z) $bytewidth.wordsize)) ,(REG regno2))
-         (ia86.write_barrier (reg/result->num hwregno) regno2))
+         `(mov	(& ,(REG hwregno) ,$r.temp ,(+ (- z) $bytewidth.wordsize)) ,(REG regno2)))
         ((is_hwreg regno1)
          (ia86.loadr	$r.second regno2)
-         `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) $bytewidth.wordsize)) ,$r.second)
-         (ia86.write_barrier (reg/result->num hwregno) #f))
+         (ia86.write_barrier (reg/result->num hwregno) #f)
+         `(mov	(& ,(REG hwregno) ,(REG regno1) ,(+ (- z) $bytewidth.wordsize)) ,$r.second))
         (else
+         (ia86.loadr	$r.second regno2)
+         (ia86.write_barrier (reg/result->num hwregno) #f)
 ;;;   ;; Using $r.cont here is sketchy when it can alias esp
          `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
          (ia86.loadr	$r.cont regno1)
-         (ia86.loadr	$r.second regno2)
          `(mov	(& ,(REG hwregno) ,$r.cont ,(+ (- z) $bytewidth.wordsize)) ,$r.second)
-         `(mov	,$r.cont (& ,$r.globals ,$g.stkp))
-         (ia86.write_barrier (reg/result->num hwregno) #f))))
+         `(mov	,$r.cont (& ,$r.globals ,$g.stkp)))))
 
 ;;; make_indexed_structure_word regno ptrtag hdrtag ex
 ;;;	Allocate a word structure with the length specified in RESULT
@@ -2186,23 +2186,23 @@
                              (ia86.T_OP2_59 rs2))
   (ia86.single_tag_test_ex (REG rs1) $tag.pair-tag $ex.setcar)
   (cond ((is_hwreg rs2)
-         `(mov	(& ,(REG rs1) ,(- $tag.pair-tag)) ,(REG rs2))
-         (ia86.write_barrier (reg/result->num rs1) rs2))
+         (ia86.write_barrier (reg/result->num rs1) rs2)
+         `(mov	(& ,(REG rs1) ,(- $tag.pair-tag)) ,(REG rs2)))
         (else
          (ia86.loadr	$r.second rs2)
-         `(mov	(& ,(REG rs1) ,(- $tag.pair-tag)) ,$r.second)
-         (ia86.write_barrier (reg/result->num rs1) #f))))
+         (ia86.write_barrier (reg/result->num rs1) #f)
+         `(mov	(& ,(REG rs1) ,(- $tag.pair-tag)) ,$r.second))))
 
 (define-sassy-instr/peep (or (ia86.T_OP2_60* rs1 rd rs2)	; set-cdr!
                              (ia86.T_OP2_60 rs2))
   (ia86.single_tag_test_ex (REG rs1) $tag.pair-tag $ex.setcdr)
   (cond ((is_hwreg rs2)
-         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) $bytewidth.wordsize)) ,(REG rs2))
-         (ia86.write_barrier (reg/result->num rs1) rs2))
+         (ia86.write_barrier (reg/result->num rs1) rs2)
+         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) $bytewidth.wordsize)) ,(REG rs2)))
         (else
          (ia86.loadr	$r.second rs2)
-         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) $bytewidth.wordsize)) ,$r.second)
-         (ia86.write_barrier (reg/result->num rs1) #f))))
+         (ia86.write_barrier (reg/result->num rs1) #f)
+         `(mov	(& ,(REG rs1) ,(+ (- $tag.pair-tag) $bytewidth.wordsize)) ,$r.second))))
 
 (define-sassy-instr/peep (or (ia86.T_OP2_61* rs1 rd rs2) ; +
                              (ia86.T_OP2_61 rs2))
@@ -2348,12 +2348,12 @@
 
 (define-sassy-instr (ia86.T_OP2_84 regno)		; cell-set!
   (cond ((is_hwreg regno)
-         `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,(REG regno))
-         (ia86.write_barrier #f regno))
+         (ia86.write_barrier #f regno)
+         `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,(REG regno)))
         (else
          (ia86.loadr	$r.second regno)
-         `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,$r.second)
-         (ia86.write_barrier #f #f))))
+         (ia86.write_barrier #f #f)
+         `(mov	(& ,$r.result ,(- $tag.pair-tag)) ,$r.second))))
 
 (define-sassy-instr (ia86.T_OP2_85 regno)		; char<?
   (ia86.generic_char_compare regno 'l  $ex.char<?))
