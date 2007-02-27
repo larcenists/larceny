@@ -283,12 +283,12 @@
 ;;;	Important that M_EXCEPTION is at short offset from
 ;;;	globals, to save 3 bytes!  (It can be a negative offset.)
 
-(define-sassy-instr (ia86.exception_continuable excode restart)
+(define-sassy-instr (ia86.exception_continuable excode short? restart)
   ;; `(comment -- exception ,excode)
   `(call	(& ,$r.globals ,$m.exception))
   `(dwords	,excode)
   `(align	,$bytewidth.code-align)
-  `(jmp	,restart))
+  `(jmp	,@(if short? '(short) '()) ,restart))
 
 ;;; alloc
 ;;;	Given fixnum number of words in RESULT, allocate
@@ -942,7 +942,7 @@
       `(label ,L0)
       (ia86.single_tag_test hwreg x)
       `(jz short ,L1)
-      (ia86.exception_continuable y L0)
+      (ia86.exception_continuable y 'short L0)
       `(label ,L1)))))
 
 ;;; double_tag_test ptrtag, hdr
@@ -975,7 +975,7 @@
            `(jno short ,L2)
            `(,z	,$r.result ,$r.temp)
            `(label ,L1)
-           (ia86.exception_continuable ex L0)	; second is tmp so 2nd arg is in place
+           (ia86.exception_continuable ex 'short L0)	; second is tmp so 2nd arg is in place
            `(label ,L2)))
         ((is_hwreg regno)
          `(,y	,$r.result ,(REG regno)))
@@ -1002,7 +1002,7 @@
            `(test	,$r.temp.low ,$tag.fixtagmask)
            `(jz short ,L1)
            (ia86.loadr	$r.second regno)
-           (ia86.exception_continuable z L0)         ; second is tmp so 2nd arg is in place
+           (ia86.exception_continuable z 'short L0)         ; second is tmp so 2nd arg is in place
            `(label ,L1 ))))
   (cond
    ((is_hwreg regno)
@@ -1028,7 +1028,7 @@
            (ia86.loadr	$r.second x)
            `(jz short ,L2)
            `(label ,L1)
-           (ia86.exception_continuable z L0)
+           (ia86.exception_continuable z 'short L0)
            `(label ,L2)
            `(cmp	,$r.temp ,(fixnum 32))	; SECOND is ,TEMP
            `(jge short ,L1)))
@@ -1120,7 +1120,7 @@
            `(cmp	,$r.second.low ,$imm.character)
            `(jz	short ,L2)
            `(label ,L1)
-           (ia86.exception_continuable z L0)
+           (ia86.exception_continuable z 'short L0)
            `(label ,L2)
            `(cmp	,$r.result.low ,$imm.character)
            `(jne short ,L1)
@@ -1173,7 +1173,7 @@
            `(cmp	,$r.result.low ,$imm.character)
            `(jz	short ,L1)
            (ia86.const2regf $r.second x)
-           (ia86.exception_continuable z L0)))
+           (ia86.exception_continuable z 'short L0)))
     `(label ,L1)
     `(cmp	,$r.result ,x)
     (ia86.setcc	$r.result y)))
@@ -1188,7 +1188,7 @@
            (ia86.double_tag_test $r.result ptrtag hdrtag)
            `(jz short ,L1)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable ex L0)
+           (ia86.exception_continuable ex 'short L0)
            `(label ,L1)
            `(mov	,$r.result ,$r.temp)))
         (else
@@ -1232,7 +1232,7 @@
 	   (ia86.loadr  $r.temp  reg-value)
 	   `(mov (& ,$r.globals ,$g.third) ,$r.temp)
            (ia86.loadr	$r.second regno)
-           (ia86.exception_continuable ex L0)
+           (ia86.exception_continuable ex 'short L0)
            (cond ((= hdrtag 0)
                   `(label ,L3)
                   `(mov	,$r.temp (& ,$r.result ,(- ptrtag)))))
@@ -1268,7 +1268,7 @@
              `(jz short ,L3)))
       `(label ,L1)
       `(mov	,$r.second ,x)
-      (ia86.exception_continuable ex L0)
+      (ia86.exception_continuable ex 'short L0)
       (cond ((= hdrtag 0)
              `(label ,L3)
              `(mov	,$r.temp (& ,$r.result ,(- y)))))
@@ -1418,7 +1418,7 @@
            `(test	,$r.result ,(logior $tag.fixtagmask #x80000000))
            `(jz short ,L1)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable ex L0)
+           (ia86.exception_continuable ex 'short L0)
            `(label ,L1))))
   `(mov	(& ,$r.globals ,$g.alloctmp) ,$r.result)
   `(add	,$r.result ,$bytewidth.wordsize)
@@ -1458,7 +1458,7 @@
            `(test	,$r.result ,(logior $tag.fixtagmask #x80000000))
            `(jz short ,L2)
            `(label ,L1)
-           (ia86.exception_continuable ex L0)
+           (ia86.exception_continuable ex 'short L0)
            `(label ,L2 )
            (cond (regno
                   `(cmp	,$r.second.low ,$imm.character)
@@ -1983,7 +1983,7 @@
            `(test	,$r.result.low ,$tag.fixtagmask)
            `(jz short ,L1)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable $ex.lognot L0)
+           (ia86.exception_continuable $ex.lognot 'short L0)
            `(label ,L1)))
     `(lea	,$r.result (& ,$r.result ,$tag.fixtagmask))
     `(not	,$r.result)))
@@ -2006,7 +2006,7 @@
            `(cmp	,$r.result.low ,$imm.character)
            `(jz	short ,L1)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable $ex.char2int L0)
+           (ia86.exception_continuable $ex.char2int 'short L0)
            `(label ,L1)))
     (ia86.T_OP1_char->integer:chr)))
 
@@ -2034,7 +2034,7 @@
            `(jnl short ,L1)
            `(label ,FAULT)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable $ex.int2char L0)
+           (ia86.exception_continuable $ex.int2char 'short L0)
 	   `(label ,L1))))
   (ia86.T_OP1_integer->char:trusted))
 
@@ -2072,7 +2072,7 @@
            `(jz short ,L2)
            `(label ,L1)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable $ex.bvfill L0)
+           (ia86.exception_continuable $ex.bvfill 'short L0)
            `(label ,L2)
            (ia86.loadr	$r.second x)
            `(test	,$r.second.low ,$tag.fixtagmask)
@@ -2265,7 +2265,7 @@
            `(test	,$r.temp.low ,$tag.fixtagmask)
            (ia86.loadr	$r.second regno)
            `(jz short ,L1)
-           (ia86.exception_continuable $ex.logand L0)
+           (ia86.exception_continuable $ex.logand 'short L0)
            `(label ,L1)
            `(and	,$r.result ,$r.second)))
         ((is_hwreg regno)
@@ -2283,7 +2283,7 @@
            `(test	,$r.temp.low ,$tag.fixtagmask)
            `(jz short ,L1)
            (ia86.loadr	$r.second regno)
-           (ia86.exception_continuable $ex.logior L0)
+           (ia86.exception_continuable $ex.logior 'short L0)
            `(label ,L1)
            `(mov	,$r.result ,$r.temp)))
         ((is_hwreg regno)
@@ -2301,7 +2301,7 @@
            `(test	,$r.temp.low ,$tag.fixtagmask)
            (ia86.loadr	$r.second regno)
            `(jz short ,L1)
-           (ia86.exception_continuable $ex.logxor L0)
+           (ia86.exception_continuable $ex.logxor 'short L0)
            `(label ,L1)	
            `(xor	,$r.result ,$r.second)))
         ((is_hwreg regno)
@@ -2584,7 +2584,7 @@
            ;; No need to undo: RESULT is unchanged
            `(label ,L1)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable $ex.fx-- L0)
+           (ia86.exception_continuable $ex.fx-- 'short L0)
            `(label ,L2)))
         (else
          `(neg	,$r.result))))
@@ -2606,7 +2606,7 @@
            `(jno short ,L2)
            `(label ,L1)
            (ia86.loadr	$r.temp regno)
-           (ia86.exception_continuable $ex.fx* L0)
+           (ia86.exception_continuable $ex.fx* 'short L0)
            `(label ,L2)
            `(mov	,$r.result ,$r.temp)))
         ((is_hwreg regno)
@@ -2641,7 +2641,7 @@
            `(test	,$r.result.low ,$tag.fixtagmask)
            `(jz short ,L1)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable $ex.fxzero? L0)
+           (ia86.exception_continuable $ex.fxzero? 'short L0)
            `(label ,L1))))
   `(test	,$r.result ,$r.result)
   (ia86.setcc	$r.result 'z))
@@ -2654,7 +2654,7 @@
            `(test	,$r.result.low ,$tag.fixtagmask)
            `(jz short ,L1)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable $ex.fxpositive? L0)
+           (ia86.exception_continuable $ex.fxpositive? 'short L0)
            `(label ,L1))))
   `(cmp	,$r.result 0)
   (ia86.setcc	$r.result 'g))
@@ -2667,7 +2667,7 @@
            `(test	,$r.result.low ,$tag.fixtagmask)
            `(jz short ,L1)
            `(xor ,$r.second ,$r.second)
-           (ia86.exception_continuable $ex.fxnegative? L0)
+           (ia86.exception_continuable $ex.fxnegative? 'short L0)
            `(label ,L1))))
   `(cmp	,$r.result 0)
   (ia86.setcc $r.result 'l))
@@ -2687,7 +2687,7 @@
            `(jno short ,L2)
            `(,z	,$r.result ,$r.temp)
            `(label ,L1)
-           (ia86.exception_continuable ex L0)	; second is tmp so 2nd arg is in place
+           (ia86.exception_continuable ex 'short L0)	; second is tmp so 2nd arg is in place
            `(label ,L2)))
         (else
          (ia86.const2regf $r.temp imm)
@@ -2710,7 +2710,7 @@
            `(test	,$r.temp.low ,$tag.fixtagmask)
            `(jz short ,L1)
            (ia86.const2regf $r.temp imm)
-           (ia86.exception_continuable z L0)	; second is tmp so 2nd arg is in place
+           (ia86.exception_continuable z 'short L0)	; second is tmp so 2nd arg is in place
            `(label ,L1)))
     (ia86.const2regf $r.temp imm)
     `(cmp	,$r.result 	,$r.temp)
