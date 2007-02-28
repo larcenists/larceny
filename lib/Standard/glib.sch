@@ -51,7 +51,7 @@
             ((= i n-params) `(-> ,(cons 'gpointer l) ,(type->symbol return-type))))))))
 
 (define (make-params-fundamental param-desc)
-  (begin (display `(make-params-fundamental ,param-desc)))
+  '(begin (display `(make-params-fundamental ,param-desc)))
 
   (let ((val (let rec ((x param-desc))
                (cond ((symbol? x)
@@ -70,10 +70,6 @@
                         (else '(maybe void*))))
                      (else
                       (map rec x))))))
-    (begin
-      (display '==>) 
-      (display val)
-      (newline))
     val))
 
 (define (g-signal-connect-data obj signal-name callback data notify flags)
@@ -85,7 +81,11 @@
           (foreign-procedure "g_signal_connect_data"
                              `(void* string 
                                      ,fund-desc ;; this is context dependant
-                                     (maybe void*)
+                                     ,(cond ((string? data) 'string)
+                                            ((void*? data)  'void*)
+                                            ((eqv? data #f) '(maybe void*))
+                                            (else (error 'g-signal-connect-data
+                                                         " Unknown data argument " data)))
                                      (maybe (-> (void* void*) void))
                                      unsigned)
                              'void*)))
@@ -99,7 +99,7 @@
                " signal " signal-name 
                " expects a callback of type " param-desc
                " but given a callback of arity " callback-arity))
-    (begin (display `(g-signal-connect-data ,arg-desc ,(procedure-arity callback)))
+    '(begin (display `(g-signal-connect-data ,arg-desc ,(procedure-arity callback)))
            (newline))
     (core-proc obj signal-name callback data notify flags)))
 
