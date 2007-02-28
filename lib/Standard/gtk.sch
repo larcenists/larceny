@@ -8,6 +8,8 @@
   (cond 
    ((equal? os '(os-name . "Linux"))
     (foreign-file "/usr/lib/libgtk-x11-2.0.so.0"))    
+   ((equal? os '(os-name . "SunOS"))
+    (foreign-file "/usr/lib/libgtk-x11-2.0.so"))
    ((equal? os '(os-name . "MacOS X"))
     (foreign-file "/sw/lib/libgtk-x11-2.0.dylib"))
    (else
@@ -169,8 +171,6 @@
 (define-foreign (gtk-check-menu-item-toggled gtkcheckmenuitem*) void)
 (define-foreign (gtk-check-menu-item-set-inconsistent gtkcheckmenuitem* bool) void)
 (define-foreign (gtk-check-menu-item-get-inconsistent gtkcheckmenuitem*) bool)
-(define-foreign (gtk-check-menu-item-set-draw-as-radio gtkcheckmenuitem* bool) void)
-(define-foreign (gtk-check-menu-item-get-draw-as-radio gtkcheckmenuitem*) bool)
 
 (define-foreign (gtk-radio-menu-item-new (maybe void*)) gtkradiomenuitem*)
 (define-foreign (gtk-radio-menu-item-new-with-label (maybe void*) string) gtkradiomenuitem*)
@@ -180,12 +180,6 @@
 
 (define-foreign (gtk-toolbar-get-type) uint)
 (define-foreign (gtk-toolbar-new) gtktoolbar*)
-(define-foreign (gtk-toolbar-insert gtktoolbar* gtktoolitem* int) void)
-(define-foreign (gtk-toolbar-get-item-index gtktoolbar* gtktoolitem*) int)
-(define-foreign (gtk-toolbar-get-n-items gtktoolbar*) int)
-(define-foreign (gtk-toolbar-get-nth-item gtktoolbar* int) gtktoolitem*)
-(define-foreign (gtk-toolbar-get-show-arrow gtktoolbar*) bool)
-(define-foreign (gtk-toolbar-set-show-arrow gtktoolbar* bool) void)
 (define-foreign (gtk-toolbar-get-orientation gtktoolbar*) int)
 (define-foreign (gtk-toolbar-set-orientation gtktoolbar* int) void)
 (define-foreign (gtk-toolbar-get-tooltips gtktoolbar*) bool)
@@ -224,17 +218,8 @@
 (define-foreign (gtk-combo-set-use-arrows-always gtkcombo* bool) void)
 (define-foreign (gtk-combo-set-case-sensitive gtkcombo* bool) void)
 (define-foreign (gtk-combo-set-item-string gtkcombo* gtkitem* string) void)
-(define-foreign (gtk-combo-set-popdown-strings gtkcombo* void*) void)
+(define-foreign (gtk-combo-set-popdown-strings gtkcombo* glist*) void)
 (define-foreign (gtk-combo-disable-activate gtkcombo*) void)
-
-(define-foreign (gtk-combo-box-new) gtkcombobox*)
-(define-foreign (gtk-combo-box-new-text) gtkcombobox*)
-(define-foreign (gtk-combo-box-append-text gtkcombobox* string) void)
-(define-foreign (gtk-combo-box-insert-text gtkcombobox* int string) void)
-(define-foreign (gtk-combo-box-prepend-text gtkcombobox* string) void)
-(define-foreign (gtk-combo-box-remove-text gtkcombobox* int) void)
-(define-foreign (gtk-combo-box-get-active gtkcombobox*) void)
-(define-foreign (gtk-combo-box-set-active gtkcombobox* int) void)
 
 (define GTK-WINDOW-TOPLEVEL 0)
 
