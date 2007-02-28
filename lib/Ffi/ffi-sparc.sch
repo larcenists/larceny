@@ -330,7 +330,7 @@
 	(set-return-encoding! tr code))
 
       (lambda (selector)
-	(display selector) (newline)
+	;(display selector) (newline)
 	(case selector
 	  ((alloc)               alloc-trampoline)
 	  ((arg-word arg-ieee32) callback-arg-word)
