@@ -132,6 +132,18 @@
               (void*-word-set! array (* 4 i) word)
               )))))))
 
+;; wordvector->words : PI [Rtd] . [Vectorof Int] -> Rtd
+(define (wordvector->words rtd)
+  (let ((malloc (stdlib/malloc rtd)))
+    (lambda (vect)
+      (let* ((len (vector-length vect))
+             (array (malloc (* 4 (+ 1 len)))))
+        (do ((i 0 (+ i 1)))
+            ((= i len) (void*-word-set! array (* 4 len) 0) array)
+          (void*-word-set! array (* 4 i) (vector-ref vect i)))))))
+
+        
+
 ;; A Char** is a Void* that points to an array of C strings.
 (define char**-rt (ffi-install-void*-subtype 'char**))
 
@@ -147,6 +159,34 @@
              (array (delayed-free! (vector->array vec)))
              (val (func array)))
         (for-each stdlib/free objs-to-free)
+        val))))
+
+;; A Int* is a Void* that points to an array of integers
+(define int*-rt (ffi-install-void*-subtype 'int*))
+
+;; call-with-int* : [Vectorof Int32] (Int* -> T) -> T
+;; (automatically allcates and frees the marshalled vector; therefore func 
+;;  must not retain a reference any portion of its argument after it returns...)
+(define call-with-int*
+  (let ((vector->array (wordvector->words int*-rt)))
+    (lambda (vec func)
+      (let* ((array (vector->array vec))
+             (val (func array)))
+        (stdlib/free array)
+        val))))
+
+;; call-with-boxed : Void* -> Rtd
+;; call-with-boxed : Int -> Rtd
+;; (automatically allocates and frees the box, but *not* its contents)
+(define call-with-boxed
+  (lambda (val func)
+    (let* ((malloc (stdlib/malloc void*-rt))
+           (box (malloc 4)))
+      (cond ((void*? val)  (void*-void*-set! box 0 val))
+            ((fixnum? val) (void*-word-set! box 0 val))
+            (else (error 'call-with-boxed ": cannot box " val)))
+      (let ((val (func box)))
+        (stdlib/free box)
         val))))
 
 ;;; void* box (aka void**) code
