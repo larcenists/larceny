@@ -351,11 +351,22 @@
 ; continuation-mark-set?: Any -> Boolean
 (define continuation-mark-set?)
 
+; continuation-marks: cont -> CMS
+(define continuation-marks)
+
 ; current-continuation-marks: -> CMS
 (define current-continuation-marks)
 
 ; continuation-mark-set->list: CMS x key -> (list-of mark)
 (define continuation-mark-set->list)
+
+; continuation-mark-set->list*: CMS x (list-of key) [x A]
+;    -> (list-of (vector-of mark+A))
+(define continuation-mark-set->list*)
+
+; continuation-mark-set-first: CMS+#f x key -> mark+#f
+(define continuation-mark-set-first)
+
 
 (begin
   ;; A CMS (continuation mark set) should be opaque.  Sadly, records aren't
@@ -377,6 +388,22 @@
            (= 2 (vector-like-length cms))
            (eq? cms-tag (vector-like-ref cms 0)))))
 
+  ;; This code depends on one redefinition/rewrapping of the
+  ;; primitive malcode call-with-current-continuation.  In particular,
+  ;; the primitive call/cc stores the continuation's saved *cms* in
+  ;; lexical slot 3 (which is procedure slot 5).  However, when we
+  ;; define dynamic-wind, we redefine call/cc so that the continuation
+  ;; procedure gets wrapped with re-rooting code; thus we have to dig
+  ;; into _that_ procedure the find the actual continuation that has
+  ;; *cms* in one of its slots.  THUS, if anything changes, this
+  ;; probably breaks.
+  (set! continuation-marks
+    (lambda (k)
+      (cms-box
+        (procedure-ref
+          (procedure-ref k 3)
+          5))))
+
   (set! current-continuation-marks
     (lambda ()
       (cms-box *cms*)))
@@ -392,10 +419,50 @@
                             (cons (cdr p0) (process (cdr alists)))
                             (loop (cdr alist)))))
                        ((null? alist)
-                        (cons '... (process (cdr alists)))))))
+                        (process (cdr alists))))))
+                        ;; Do we really want the dots?
+                        ;; (cons '... (process (cdr alists)))))))
               ((null? alists)
                '())))
-      (process (cms-unbox cms)))))
+      (process (cms-unbox cms))))
+
+  (set! continuation-mark-set->list*
+    (let ()
+      (define (cms->l* cms key-list none-v)
+        (define vlen (length key-list))
+        (define (process alists)
+          (cond ((pair? alists)
+                 (let ((new-v (make-vector vlen none-v))
+                       (alist (car alists)))
+                   (let loop ((keys key-list)
+                              (index 0))
+                     (cond
+                       ((pair? keys)
+                        (cond
+                          ((assq (car keys) alist)
+                           => (lambda (pair)
+                                (vector-set! new-v index (cdr pair)))))
+                        (loop (cdr keys) (+ 1 index)))
+                       (else
+                         (cons new-v (process (cdr alists))))))))
+                ((null? alists)
+                 '())))
+        (process (cms-unbox cms)))
+      (case-lambda
+        ((cms key-list)
+         (cms->l* cms key-list #f))
+        ((cms key-list none-v)
+         (cms->l* cms key-list none-v)))))
+
+  (set! continuation-mark-set-first
+    (lambda (optional-cms key-v)
+      (let loop
+        ((alists (cond (optional-cms => cms-unbox)
+                      (else *cms*))))
+        (and (pair? alists)
+             (cond
+               ((assq key-v (car alists)) => cdr)
+               (else (loop (cdr alists)))))))))
 
 ;; Print them nicely, so they can pretend to be opaque:
 (let ((old-structure-printer (structure-printer)))

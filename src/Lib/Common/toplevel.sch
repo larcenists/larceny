@@ -915,11 +915,16 @@
 			  (usual-syntax 'with-continuation-mark))
   (environment-set! larc 'call-with-continuation-mark
 		    call-with-continuation-mark)
+  (environment-set! larc 'continuation-marks continuation-marks)
   (environment-set! larc 'current-continuation-marks
 		    current-continuation-marks)
   (environment-set! larc 'continuation-mark-set->list
 		    continuation-mark-set->list)
   (environment-set! larc 'continuation-mark-set? continuation-mark-set?)
+  (environment-set! larc 'continuation-mark-set->list*
+                    continuation-mark-set->list*)
+  (environment-set! larc 'continuation-mark-set-first
+                    continuation-mark-set-first)
 
   ;; require (library system)
   (environment-set! larc 'current-larceny-root current-larceny-root)
