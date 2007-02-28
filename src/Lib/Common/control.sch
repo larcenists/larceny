@@ -367,8 +367,10 @@
 ; continuation-mark-set-first: CMS+#f x key -> mark+#f
 (define continuation-mark-set-first)
 
+; call-if-continuation-mark-replace : key x (-> A) x (-> B) -> A+B
+(define call-if-continuation-mark-replace)
 
-(begin
+(let ()
   ;; A CMS (continuation mark set) should be opaque.  Sadly, records aren't
   ;; available everywhere, so we'll make do with structures:
   (define cms-tag (list 'cms-tag))
@@ -420,8 +422,6 @@
                             (loop (cdr alist)))))
                        ((null? alist)
                         (process (cdr alists))))))
-                        ;; Do we really want the dots?
-                        ;; (cons '... (process (cdr alists)))))))
               ((null? alists)
                '())))
       (process (cms-unbox cms))))
@@ -467,7 +467,16 @@
         (and (pair? alists)
              (cond
                ((assq key-v (car alists)) => cdr)
-               (else (loop (cdr alists)))))))))
+               (else (loop (cdr alists))))))))
+
+  (set! call-if-continuation-mark-replace
+    (lambda (key then else)
+      (call-if-continuation-mark-frame
+        (lambda ()
+          (if (and (pair? *cms*) (assq key (car *cms*)))
+            (then)
+            (else)))
+        else))))
 
 ;; Print them nicely, so they can pretend to be opaque:
 (let ((old-structure-printer (structure-printer)))

@@ -925,6 +925,10 @@
                     continuation-mark-set->list*)
   (environment-set! larc 'continuation-mark-set-first
                     continuation-mark-set-first)
+  (environment-set! larc 'call-if-continuation-mark-frame
+                    call-if-continuation-mark-frame)
+  (environment-set! larc 'call-if-continuation-mark-replace
+                    call-if-continuation-mark-replace)
 
   ;; require (library system)
   (environment-set! larc 'current-larceny-root current-larceny-root)

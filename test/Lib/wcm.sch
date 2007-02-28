@@ -4,6 +4,18 @@
     ((wcm key mark expr)
      (call-with-continuation-mark key mark (lambda () expr)))))
 
+(define-syntax if-mf
+  (syntax-rules ()
+    ((if-mf then else)
+     (call-if-continuation-mark-frame (lambda () then)
+                                      (lambda () else)))))
+(define-syntax if-rep
+  (syntax-rules ()
+    ((if-rep key then else)
+     (call-if-continuation-mark-replace key
+                                        (lambda () then)
+                                        (lambda () else)))))
+
 (define (ccm key)
   (continuation-mark-set->list (current-continuation-marks) key))
 
@@ -122,5 +134,130 @@
                    (wcm 'a 3
                      (ccm* '(a b))))))))
          '(#(3 2) #(1 #f)))
+    )
+
+  (allof "call-if-continuation-mark-frame"
+    (test "if-mf 1 (simple no)"
+          (values
+            (if-mf 1 2))
+          2)
+    (test "if-mf 2 (simple yes)"
+          (values
+            (wcm 'a 'b
+              (if-mf 1 2)))
+          1)
+    (test "if-mf 3 (shielded no)"
+          (values
+            (wcm 'a 'b
+              (values
+                (if-mf 1 2))))
+          2)
+    (test "if-mf 4 (doesn't mask)"
+          (values
+            (wcm 'a 'b
+              (if-mf
+                (wcm 'a 'c
+                  (ccm 'a))
+                'wrong)))
+          '(c))
+    (test "if-mf 5 (doesn't unmask)"
+          (values
+            (wcm 'a 'b
+              (values
+                (if-mf
+                  'wrong
+                  (wcm 'a 'c
+                    (ccm 'a))))))
+          '(c b))
+    (test "if-mf 6 (repeated, yes)"
+          (values
+            (wcm 'a 'b
+              (if-mf
+                (if-mf
+                  1
+                  2)
+                3)))
+          1)
+    (test "if-mf 7 (repeated, no)"
+          (values
+            (wcm 'a 'b
+              (values
+                (if-mf
+                  1
+                  (if-mf
+                    2
+                    3)))))
+          3)
+    )
+
+  (allof "call-if-continuation-mark-replace"
+    (test "if-rep 1 (simple no)"
+          (values
+            (if-rep 'a 1 2))
+          2)
+    (test "if-rep 2 (simple yes)"
+          (values
+            (wcm 'a 'b
+              (if-rep 'a 1 2)))
+          1)
+    (test "if-rep 3 (shielded no)"
+          (values
+            (wcm 'a 'b
+              (values
+                (if-rep 'a 1 2))))
+          2)
+    (test "if-rep 4 (doesn't mask)"
+          (values
+            (wcm 'a 'b
+              (if-rep 'a
+                (wcm 'a 'c
+                  (ccm 'a))
+                'wrong)))
+          '(c))
+    (test "if-rep 5 (doesn't unmask)"
+          (values
+            (wcm 'a 'b
+              (values
+                (if-rep 'a
+                  'wrong
+                  (wcm 'a 'c
+                    (ccm 'a))))))
+          '(c b))
+    (test "if-rep 6 (repeated, yes)"
+          (values
+            (wcm 'a 'b
+              (if-rep 'a
+                (if-rep 'a
+                  1
+                  2)
+                3)))
+          1)
+    (test "if-rep 7 (repeated, no)"
+          (values
+            (wcm 'a 'b
+              (values
+                (if-rep 'a
+                  1
+                  (if-rep 'a
+                    2
+                    3)))))
+          3)
+    (test "if-rep 8 (distinguishes)"
+          (values
+            (wcm 'a 'b
+              (values
+                (wcm 'c 'd
+                  (if-rep 'a
+                    1
+                    2)))))
+          2)
+    (test "if-rep 9 (doesn't misdistinguish)"
+          (values
+            (wcm 'a 'b
+              (wcm 'c 'd
+                (if-rep 'a
+                  1
+                  2))))
+          1)
     )
   )

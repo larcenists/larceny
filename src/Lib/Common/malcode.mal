@@ -1,4 +1,5 @@
 ; Copyright Lightship Software, Incorporated.    -*- scheme -*-
+; vim: ft=scheme :
 ;
 ; $Id$
 ;
@@ -442,5 +443,35 @@
    (,$setglbl call-with-continuation-mark)
    (,$const   call-with-continuation-mark)
    (,$return))
+
+; call-if-continuation-mark-frame : (-> A) x (-> B) -> A+B
+; (call-if-continuation-mark-frame THEN ELSE) tail calls THEN
+; if this is a mark frame, and tail calls ELSE if not.
+`((,$lambda ((,$.proc)
+             (,$args= 2)
+             
+             ;; Is the *current frame* a mark frame?
+             ;; It's a mark frame iff it's ENV slot is CALL/CM, 
+             ;; that is, the currently executing procedure.
+             (,$load 3 0)      ;; Get the current frame's ENV slot => reg3
+             (,$global call-with-continuation-mark) ;; Load call/cm to Result
+             (,$op2 eq? 3)     ;; Compare
+             (,$branchf 1002)  ;; If different, not a cm frame.
+                               ;; If mark frame, fall though.
+
+             ;; then:
+             (,$reg 1)
+             (,$invoke 0)
+             
+             ;; else:
+             (,$.label 1002)
+             (,$reg 2)
+             (,$invoke 0))
+            0
+            #f)
+  (,$setglbl call-if-continuation-mark-frame)
+  (,$const   call-if-continuation-mark-frame)
+  (,$return))
+
 
 ; eof
