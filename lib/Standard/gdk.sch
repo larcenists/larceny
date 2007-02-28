@@ -6,6 +6,8 @@
   (cond 
    ((equal? os '(os-name . "MacOS X"))
     (foreign-file "/sw/lib/libgdk-x11-2.0.dylib"))
+   ((equal? os '(os-name . "Linux"))
+    (foreign-file "/usr/lib/libgdk-x11-2.0.so"))
    (else
     (error "Add case in gdk.sch for os: " os))))
 
