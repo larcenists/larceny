@@ -5,6 +5,8 @@
   (cond 
    ((equal? os '(os-name . "Linux"))
     (foreign-file "/usr/lib/libgtk-x11-2.0.so.0"))    
+   ((equal? os '(os-name . "SunOS"))
+    (foreign-file "/usr/lib/libglib-2.0.so"))
    ((equal? os '(os-name . "MacOS X"))
     (foreign-file "/sw/lib/libgtk-x11-2.0.dylib"))
    (else
@@ -110,3 +112,17 @@
 
 (define-foreign (g-timeout-add uint (-> (void*) bool) (maybe void*)) uint)
 (define-foreign (g-source-remove uint) bool)
+
+(ffi-install-void*-subtype 'glist*)
+
+(define-foreign (g-list-alloc) glist*)
+(define-foreign (g-list-free glist*) void)
+(define-foreign (g-list-free-1 glist*) void)
+(define-foreign (g-list-append glist* void*) glist*)
+(define-foreign (g-list-prepend glist* void*) glist*)
+(define-foreign (g-list-insert glist* void* int) glist*)
+
+(define (list->glist* l)
+  (cond ((null? l) (g-list-alloc))
+        (else (g-list-prepend (list->glist* (cdr l))
+                              (car l)))))
