@@ -81,11 +81,28 @@
                 "is not a valid value for a trampoline type."))))
 
 (define void*-rt (make-record-type "void*" '(ptr) #f))
-;; 
+(define a-void*-printer 
+  (lambda (obj port)
+    (display "#<" port)
+    (display (record-type-name (record-type-descriptor obj)) port)
+    (display " 0x" port)
+    (display (number->string ((record-accessor void*-rt 'ptr) obj) 16) port)
+    (display ">" port)))
+((record-updater (record-type-descriptor void*-rt) 'printer)
+ void*-rt
+ a-void*-printer)
+
+(define void*? (record-predicate void*-rt))
+(define (void*->address x)
+  ((record-accessor void*-rt 'ptr) x))
 (define (void*-byte-ref x idx)
   (%peek8  (+ ((record-accessor void*-rt 'ptr) x) idx)))
+(define (void*-byte-set! x idx val)
+  (%poke8  (+ ((record-accessor void*-rt 'ptr) x) idx) val))
 (define (void*-word-ref x idx)
   (%peek32 (+ ((record-accessor void*-rt 'ptr) x) idx)))
+(define (void*-word-set! x idx val)
+  (%poke32 (+ ((record-accessor void*-rt 'ptr) x) idx) val))
 (define (void*-void*-ref x idx)
   ((record-constructor void*-rt) (void*-word-ref x idx)))
 (define (void*-double-ref x idx)
@@ -151,8 +168,9 @@
     (define (void*->unsigned x name)
       ((record-accessor void*-rt 'ptr) x))
     (define (unsigned->void* x name)
-      ((record-constructor void*-rt) x))
-
+      (if (foreign-null-pointer? x)
+          #f
+          ((record-constructor void*-rt) x)))
     (define (boxed->pointer x name)
       (cond ((or (pair? x)
 		 (vector-like? x)
@@ -224,6 +242,12 @@
     (if probe
         probe
 	(error "FFI: " t " is not a valid core type name."))))
+
+(define (ffi-add-attribute-core-entry! high-level-name low-level-name high->low low->high)
+  (set! *ffi-attributes*
+        (cons
+         (list high-level-name low-level-name high->low low->high)
+         *ffi-attributes*)))
 
 ;; This now handles the function type constructor -> to convert
 ;; between C function pointers and Scheme closures.  It might be good
@@ -448,7 +472,7 @@
 
 (define (%poke8 addr val)
   (let ((x (make-bytevector 1)))
-    (if (< x 0)
+    (if (< val 0)
 	(bytevector-set! x 0 (+ 256 val))
 	(bytevector-set! x 0 val))
     (poke-bytes addr x 1)))
