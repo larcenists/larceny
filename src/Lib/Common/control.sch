@@ -435,16 +435,21 @@
                  (let ((new-v (make-vector vlen none-v))
                        (alist (car alists)))
                    (let loop ((keys key-list)
-                              (index 0))
+                              (index 0)
+                              (found #f))
                      (cond
                        ((pair? keys)
                         (cond
                           ((assq (car keys) alist)
                            => (lambda (pair)
-                                (vector-set! new-v index (cdr pair)))))
-                        (loop (cdr keys) (+ 1 index)))
+                                (vector-set! new-v index (cdr pair))
+                                (loop (cdr keys) (+ 1 index) #t)))
+                          (else
+                            (loop (cdr keys) (+ 1 index) found))))
+                       (found
+                         (cons new-v (process (cdr alists))))
                        (else
-                         (cons new-v (process (cdr alists))))))))
+                         (process (cdr alists)))))))
                 ((null? alists)
                  '())))
         (process (cms-unbox cms)))
