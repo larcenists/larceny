@@ -1,5 +1,6 @@
 (require 'std-ffi)
 (require 'foreign-sugar)
+(require 'foreign-stdlib)
 
 (let ((os (assq 'os-name (system-features))))
   (cond 
@@ -113,7 +114,7 @@
 (define-foreign (g-timeout-add uint (-> (void*) bool) (maybe void*)) uint)
 (define-foreign (g-source-remove uint) bool)
 
-(ffi-install-void*-subtype 'glist*)
+(define glist*-rt (ffi-install-void*-subtype 'glist*))
 
 (define-foreign (g-list-alloc) glist*)
 (define-foreign (g-list-free glist*) void)
@@ -121,8 +122,12 @@
 (define-foreign (g-list-append glist* void*) glist*)
 (define-foreign (g-list-prepend glist* void*) glist*)
 (define-foreign (g-list-insert glist* void* int) glist*)
+(define-foreign (g-list-length glist*) uint)
+(define-foreign (g-list-nth-data glist* uint) void*)
 
-(define (list->glist* l)
-  (cond ((null? l) (g-list-alloc))
-        (else (g-list-prepend (list->glist* (cdr l))
-                              (car l)))))
+(define list->glist* 
+  (let ((empty-glist ((record-constructor glist*-rt) 0)))
+    (lambda (l)
+      (cond ((null? l) empty-glist)
+            (else (g-list-prepend (list->glist* (cdr l))
+                                  (car l)))))))
