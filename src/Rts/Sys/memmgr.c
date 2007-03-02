@@ -724,6 +724,11 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
   word *p;
   heapio_t *heap;
 
+  /* Felix believes this is intended to perform the collection
+   * required by the heap dumping system (this requirement is
+   * documented as being due to the assumption in the heap dumper that
+   * pad words are not garbage).
+   */
   if (compact)
     compact_all_areas( gc );
 
