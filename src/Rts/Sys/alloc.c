@@ -57,6 +57,12 @@
 
 #define GC_INTERNAL
 
+/* Set this to 1 to set every word produced by the low level allocator
+ * to the bit pattern 0x01010101, which will look to the runtime like
+ * a pointer to a (probably) non-existant pair
+ */
+#define DEMONIC_PREINIT 0
+
 #include <stdlib.h>
 #include <string.h>
 #include "larceny.h"
@@ -499,6 +505,7 @@ static byte *alloc_aligned( unsigned bytes )
   assert( bytes % PAGESIZE == 0 );
 
   p = (byte*)osdep_alloc_aligned( bytes );
+  if (DEMONIC_PREINIT) { int i; for(i=0; i<bytes; i++) p[i] = 1; }
   data.wastage_bytes = osdep_fragmentation();
   data.max_wastage_bytes = max( data.max_wastage_bytes, data.wastage_bytes );
   return p;
