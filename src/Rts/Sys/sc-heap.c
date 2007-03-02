@@ -415,6 +415,15 @@ static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok )
       roundup_page( max( min( GC_CHUNK_SIZE, budget ), nbytes+extra ) );
 
     mode_globals_to_ss( heap );
+    
+    /* Seal the chunk */
+    word *top = ss->chunks[ss->current].top;
+    word *lim = ss->chunks[ss->current].lim;
+    if (top < lim) {
+      word len = (lim - top)*sizeof(word);
+      *top = mkheader(len-sizeof(word),STR_HDR);
+      *(top+1) = 0xABCDABCD;
+    }
     ss->chunks[ss->current].top = ss->chunks[ss->current].lim;  /* FULL */
     ss_expand( ss, bytes_to_alloc );
     mode_ss_to_globals( heap );
