@@ -179,8 +179,14 @@ void ss_shrinkwrap( semispace_t *ss )
       free_chunk_memory( ss, i );
 
   if (ss->current >= 0) {
+    word *newtop;
     c = &ss->chunks[ss->current];
-    c->lim = c->top = (word*)roundup_page( (unsigned)c->top );
+    newtop = (word*)roundup_page( (unsigned)c->top );
+    while(c->top < newtop) {
+      *c->top = 0;
+      c->top++;
+    }
+    c->lim = c->top = newtop;
     newbytes = (c->top - c->bot)*sizeof( word );
     gclib_shrink_block( c->bot, c->bytes, newbytes );
     ss->allocated -= c->bytes - newbytes;
