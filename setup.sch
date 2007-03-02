@@ -357,3 +357,12 @@
       (set! *globals-table* "globals-nasm.cfg"))
  
   (unix-&-win32-initialize))
+
+(define (setup-load-build . args) 
+  (apply setup args)
+  (build-config-files)
+  (load-compiler)
+  (build-heap) 
+  (build-runtime)
+  (build-executable)
+  (build-larceny-files))
