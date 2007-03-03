@@ -418,11 +418,11 @@ static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok )
     
     /* Seal the chunk */
     word *top = ss->chunks[ss->current].top;
-    word *lim = ss->chunks[ss->current].lim;
-    if (top < lim) {
-      word len = (lim - top)*sizeof(word);
+    word *stklim = (word*) globals[G_STKP];
+    if (top < stklim) {
+      word len = (stklim - top)*sizeof(word);
       *top = mkheader(len-sizeof(word),STR_HDR);
-      *(top+1) = 0xABCDABCD;
+      if (top+1 < stklim) *(top+1) = 0xABCDABCD;
     }
     ss->chunks[ss->current].top = ss->chunks[ss->current].lim;  /* FULL */
     ss_expand( ss, bytes_to_alloc );
