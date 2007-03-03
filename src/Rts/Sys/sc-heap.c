@@ -404,6 +404,7 @@ static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok )
   word *globals = data->globals;
   semispace_t *ss = data->current_space;
   int extra = 0, bytes_to_alloc, budget;
+  word *top, *stklim;
 
   if (free_current_chunk( heap ) < nbytes) {
     if (stack_ok) {
@@ -417,8 +418,8 @@ static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok )
     mode_globals_to_ss( heap );
     
     /* Seal the chunk */
-    word *top = ss->chunks[ss->current].top;
-    word *stklim = (word*) globals[G_STKP];
+    top = ss->chunks[ss->current].top;
+    stklim = (word*) globals[G_STKP];
     if (top < stklim) {
       word len = (stklim - top)*sizeof(word);
       *top = mkheader(len-sizeof(word),STR_HDR);
