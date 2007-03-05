@@ -1,6 +1,8 @@
 (require 'std-ffi)
 (require 'foreign-stdlib)
 (require 'foreign-sugar)
+(require 'foreign-ctools)
+(require 'srfi-0)
 (require 'glib) ;; convenience; who's going to use gtk without glib?
 (require 'gdk)
 
@@ -82,6 +84,15 @@
 (define-foreign (gtk-widget-set-parent gtkwidget* gtkwidget*) void)
 (define-foreign (gtk-widget-get-parent-window gtkwidget*) gdkwindow*)
 (define-foreign (gtk-widget-set-parent-window gtkwidget* gdkwindow*) void)
+(define-foreign (gtk-widget-grab-default gtkwidget*) void)
+(define-foreign (gtk-grab-add gtkwidget*) void)
+(define-foreign (gtk-grab-get-current) gtkwidget*)
+(define-foreign (gtk-grab-remove gtkwidget*) void)
+(define (gtk-widget-set-flags widget flags)
+  (void*-word-set! widget gtkobject-flags-offset 
+                   (fxlogior 
+                    (void*-word-ref widget gtkobject-flags-offset)
+                    flags)))
 
 (define-foreign (gtk-main) void)
 (define-foreign (gtk-main-quit) void)
@@ -98,6 +109,7 @@
 (define-foreign (gtk-box-pack-start gtkbox* gtkwidget* bool bool int) void)
 (define-foreign (gtk-box-pack-end   gtkbox* gtkwidget* bool bool int) void)
 (define-foreign (gtk-misc-set-alignment gtkmisc* int int) void)
+(define-foreign (gtk-misc-set-padding gtkmisc* int int) void)
 (define-foreign (gtk-widget-set-size-request gtkwidget* int int) void)
 (define-foreign (gtk-table-new int int bool) gtkwidget*)
 (define-foreign (gtk-table-attach-defaults gtktable* gtkwidget* int int int int)
@@ -229,6 +241,37 @@
 (define-foreign (gtk-combo-set-popdown-strings gtkcombo* glist*) void)
 (define-foreign (gtk-combo-disable-activate gtkcombo*) void)
 
+(define-foreign (gtk-dialog-new) gtkdialog*)
+(define-syntax define-cstruct-offsets/target-dep-paths
+  (syntax-rules ()
+    ((_ HEADERS FORMS ...)
+     (cond-expand
+      (macosx 
+       (define-cstruct-offsets
+         ("/sw/include/glib-2.0" "/sw/lib/glib-2.0/include"
+          "/sw/lib/gtk-2.0/include" "/sw/include/pango-1.0"
+          "/sw/include/atk-1.0" "/sw/include/gtk-2.0")
+         HEADERS FORMS ...))
+      (unix
+       (define-cstruct-offsets
+         ("/usr/include/glib-2.0" "/usr/lib/glib-2.0/include"
+          "/usr/lib/gtk-2.0/include" "/usr/include/pango-1.0"
+           "/usr/include/atk-1.0" "/usr/include/gtk-2.0")
+         HEADERS FORMS ...))
+      (else
+       (error 'define-cstruct-offsets ": no support for your target..."))))))
+
+(define-cstruct-offsets/target-dep-paths ("\"gtk/gtk.h\"") 
+  (gtkobject-flags-offset "GtkObject" "flags")
+  (gtkdialog-vbox-offset "GtkDialog" "vbox")
+  (gtkdialog-action-area-offset "GtkDialog" "action_area")
+  )
+
+(define (gtk-dialog-vbox dialog)
+  (void*-void*-ref dialog gtkdialog-vbox-offset))
+(define (gtk-dialog-action-area dialog)
+  (void*-void*-ref dialog gtkdialog-action-area-offset))
+
 (define GTK-WINDOW-TOPLEVEL 0)
 
 (define GTK-EXPAND 1)
@@ -276,6 +319,26 @@
 (define GTK-TOOLBAR-TEXT  1)
 (define GTK-TOOLBAR-BOTH  2)
 (define GTK-TOOLBAR-BOTH-HORIZ 3)
+
+(define GTK-TOPLEVEL    (fxlsh 1 4))
+(define GTK-NO-WINDOW   (fxlsh 1 5))
+(define GTK-REALIZED    (fxlsh 1 6))
+(define GTK-MAPPED      (fxlsh 1 7))
+(define GTK-VISIBLE     (fxlsh 1 8))
+(define GTK-SENSITIVE   (fxlsh 1 9))
+(define GTK-PARENT-SENSITIVE (fxlsh 1 10))
+(define GTK-CAN-FOCUS   (fxlsh 1 11))
+(define GTK-HAS-FOCUS   (fxlsh 1 12))
+(define GTK-CAN-DEFAULT (fxlsh 1 13))
+(define GTK-HAS-DEFAULT (fxlsh 1 14))
+(define GTK-HAS-GRAB    (fxlsh 1 15))
+(define GTK-RC-STYLE    (fxlsh 1 16))
+(define GTK-COMPOSITE-CHILD (fxlsh 1 17))
+(define GTK-NO-REPARENT (fxlsh 1 18))
+(define GTK-APP-PAINTABLE (fxlsh 1 19))
+(define GTK-RECEIVES_DEFAULT (fxlsh 1 20))
+(define GTK-DOUBLE-BUFFERED (fxlsh 1 21))
+(define GTK-NO-SHOW-ALL     (fxlsh 1 22))
 
 ;; BELOW ARE DEPRECATED ACCORDING TO GTK+ HEADER FILES...
 (define GTK-TOOLBAR-CHILD-SPACE 0)
