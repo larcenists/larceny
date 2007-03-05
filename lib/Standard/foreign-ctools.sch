@@ -21,6 +21,9 @@
                    (equal? os-name '(os-name . "MacOS X")))
                (lambda (c-src-path exe-path)
                  (string-append "gcc -o " exe-path " " c-src-path)))
+              ((equal? os-name '(os-name . "SunOS"))
+               (lambda (c-src-path exe-path)
+                 (string-append "cc -o " exe-path " " c-src-path)))
               (else 
                (error 'c-compiler-cmd ": add case for " os-name)))))
 
