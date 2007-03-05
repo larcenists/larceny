@@ -11,7 +11,7 @@
 ;;; * make code more robust by checking that input strings do not
 ;;;   inject malicious code
 
-;; (define-cstruct-offsets (header-str ...) (offset-id struct field) ...)
+;; (define-cstruct-offsets (include-path ...) (header-str ...) (offset-id struct field) ...)
 (define-syntax define-cstruct-offsets
   (transformer 
    (let* ((c-compiler-cmd 
@@ -19,14 +19,30 @@
              (cond 
               ((or (equal? os-name '(os-name . "Linux"))
                    (equal? os-name '(os-name . "MacOS X")))
-               (lambda (c-src-path exe-path)
-                 (string-append "gcc -o " exe-path " " c-src-path)))
+               (lambda (include-paths c-src-path exe-path)
+                 (let ((include-directives 
+                        (apply string-append 
+                               (map (lambda (path) 
+                                      (string-append "-I" path " "))
+                                    include-paths))))
+                   (string-append "gcc " 
+                                  include-directives
+                                  " -o " exe-path 
+                                  " "  c-src-path))))
               ((equal? os-name '(os-name . "SunOS"))
-               (lambda (c-src-path exe-path)
-                 (string-append "cc -o " exe-path " " c-src-path)))
+               (lambda (include-paths c-src-path exe-path)
+                 (let ((include-directives 
+                        (apply string-append 
+                               (map (lambda (path) 
+                                      (string-append "-I" path " "))
+                                    include-paths))))
+                   (string-append "cc "
+                                  include-directives
+                                  " -o " exe-path 
+                                  " " c-src-path))))
               (else 
                (error 'c-compiler-cmd ": add case for " os-name)))))
-
+          
           (temp-c-file "/tmp/cstructs.c")
           (temp-c-exec "/tmp/cstruct")
           (temp-c-outp "/tmp/cstruct-output")
@@ -57,8 +73,8 @@
                                              (display str out)
                                              (newline out))
                                            c-contents)))))
-          (compile-c-code (lambda () 
-                            (system (c-compiler-cmd temp-c-file temp-c-exec))))
+          (compile-c-code (lambda (include-paths) 
+                            (system (c-compiler-cmd include-paths temp-c-file temp-c-exec))))
           (run-c-program  (lambda ()
                             (system (string-append temp-c-exec " > " temp-c-outp))))
           (read-output    (lambda () 
@@ -66,12 +82,13 @@
 
      
      (lambda (exp ren cmp)
-       (let* ((header-names (cadr exp))
-              (offset-forms (cddr exp))
+       (let* ((include-paths (cadr exp))
+              (header-names (caddr exp))
+              (offset-forms (cdddr exp))
               (c-contents (make-c-contents header-names offset-forms)))
 
          (generate-c-code c-contents)
-         (compile-c-code)
+         (compile-c-code include-paths)
          (run-c-program)
          
          (let ((offsets (read-output))
