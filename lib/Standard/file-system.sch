@@ -26,6 +26,8 @@
 	     (> (vector-ref t1 i) (vector-ref t2 i)))))))
 
 
+;;; XXX not thread-safe!  Consider using the _r variants where appropriate.
+;;; (but at the moment define-cstruct-offset is even less robust than this is...)
 (define list-directory
    (let ()
      (define-cstruct-offsets ("<dirent.h>") (*d_name_offset* "struct dirent" "d_name"))
