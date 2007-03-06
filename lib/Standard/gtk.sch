@@ -65,7 +65,7 @@
   (let ()
     (define-foreign (gtk-init void* void*) void)
     (lambda arg-strings
-      (let ((string-vec (list->vector arg-strings)))
+      (let ((string-vec (list->vector (cons "larceny" arg-strings))))
         (call-with-char** string-vec
                           (lambda (argv)
                             (call-with-boxed 
