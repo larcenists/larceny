@@ -80,7 +80,7 @@
 (define +
   (letrec ((loop (lambda (sum args)
 		   (if (null? args)
-		       sum
+		       (+ sum 0)
 		       (loop (+ sum (car args)) (cdr args))))))
     (lambda args
       (if (null? args)
@@ -100,7 +100,7 @@
 (define * 
   (letrec ((loop (lambda (prod args)
 		   (if (null? args)
-		       prod
+		       (* prod 1)
 		       (loop (* prod (car args)) (cdr args))))))
     (lambda args
       (if (null? args)
