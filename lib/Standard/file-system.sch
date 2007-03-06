@@ -49,6 +49,10 @@
      ;; list-directory : String -> [Listof String]
      (define (list-directory path)
        (let* ((dir (opendir path))
+              (ignore
+               (if (zero? dir)
+                   (error 'list-directory 
+                          ": error opening directory " path)))
               (files (let loop ((ent (readdir dir)))
                        (if (zero? ent)
                            '()
