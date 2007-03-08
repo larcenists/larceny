@@ -16,17 +16,17 @@ if not defined LARCENY_ROOT (
 )
 
 if %~n0 == petit (
-    call :check "%LARCENY_ROOT%\petit.bin.exe" -heap "%LARCENY_ROOT%\petit.heap" %*
+    call :finish "%LARCENY_ROOT%\petit.bin.exe" -heap "%LARCENY_ROOT%\petit.heap" %*
 ) else if %~n0 == twobit (
     if exist "%LARCENY_ROOT%\twobit.bin.exe" (
-        call :check "%LARCENY_ROOT%\twobit.bin.exe" -heap "%LARCENY_ROOT%\twobit.heap" %*
+        call :finish "%LARCENY_ROOT%\twobit.bin.exe" -heap "%LARCENY_ROOT%\twobit.heap" %*
     ) else (
-        call :check "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\twobit.heap" %*
+        call :finish "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\twobit.heap" %*
     )
 ) else if %~n0 == larceny (
-    call :check "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\larceny.heap" %*
+    call :finish "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\larceny.heap" %*
 ) else if %~n0 == larceny-r5rs (
-    call :check "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\r5rs.heap" %*
+    call :finish "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\r5rs.heap" %*
 ) else (
     echo Usage:
     echo     petit LARCENYOPTIONS
@@ -37,15 +37,7 @@ if %~n0 == petit (
 
 goto :EOF
 
-:check
-
-if not exist %1 (
-    echo Not found: %1 >&2
-    goto :EOF
-) else if not exist %3 (
-    echo Not found: %3 >&2
-    goto :EOF
-)
+:finish
 
 %*
 

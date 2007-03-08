@@ -76,20 +76,10 @@ esac
 cmd="$LARCENY_ROOT/$cmd"
 heap="$LARCENY_ROOT/$heap"
 
-if [ ! -f "$cmd" ]; then
-    echo "Not found: $cmd" >&2
-    exit 1
-elif [ ! -x "$cmd" ]; then
-    echo "Not executable: $cmd" >&2
-    exit 1
-elif [ ! -f "$heap" ]; then
-    echo "Not found: $heap" >&2
-    exit 1
-fi
-
 if $gdb ; then
     echo "r -heap $heap $@" > $gdb_command_file
     exec "gdb" "$cmd" -command "$gdb_command_file"
 else
     exec "$cmd" -heap "$heap" "$@"
 fi
+
