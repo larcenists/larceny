@@ -639,7 +639,10 @@
 
 (define-sassy-instr (ia86.T_FINIS_SAVE_STORES n)
   (let ((v (let ((v (make-vector 3)))
-             (vector-set! v (quotient $stk.contsize 4) (recordedsize n))
+             (vector-set! v (quotient $stk.contsize 4) 
+                          (let ((r (recordedsize n)))
+                            ;; (push byte) sign-extends its argument
+                            (if (>= r 128) `(dword ,r) `(byte ,r))))
              (vector-set! v (quotient $stk.retaddr 4)  $r.result)
              (vector-set! v (quotient $stk.dynlink 4)  $r.result)
              v)))
