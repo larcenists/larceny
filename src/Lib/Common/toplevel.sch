@@ -576,11 +576,16 @@
   (environment-set! larc 'port-name port-name)
   (environment-set! larc 'port-position port-position)
   (environment-set! larc 'port? port?)
+  (environment-set! larc 'io/make-port io/make-port) ; XXX
   (environment-set! larc 'print-length print-length)
   (environment-set! larc 'print-level print-level)
   (environment-set! larc 'procedure-printer procedure-printer)
   (environment-set! larc 'readtable-ref readtable-ref)
   (environment-set! larc 'readtable-set! readtable-set!)
+  ;(environment-set! larc 'datum->source-location datum->source-location)
+  ;(environment-set! larc 'datum-source-locations? datum-source-locations?)
+  ;(environment-set! larc 'datum-source-locations-clear!
+                    ;datum-source-locations-clear!)
   (environment-set! larc 'rename-file rename-file)
   (environment-set! larc 'reset-output-string reset-output-string)
   (environment-set! larc 'weird-printer weird-printer)

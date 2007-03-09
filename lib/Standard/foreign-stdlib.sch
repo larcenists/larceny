@@ -104,6 +104,26 @@
             ((= i len) (void*-byte-set! char* len 0) char*)
           (void*-byte-set! char* i (char->integer (string-ref str i))))))))
 
+;; char*-strlen : Char* -> Integer
+;; The length of an asciiz string.
+(define (char*-strlen char*)
+  (do ((i 0 (+ i 1)))
+    ((= 0 (void*-byte-ref char* i)) i)))
+
+;; char*->string : Char* x Integer -> String
+;; Marshalls an ascii string of the given length
+;; char*->string : Char* -> String
+;; Marshalls an asciiz string.
+(define char*->string
+  (case-lambda
+    ((char* size)
+     (let ((result (make-string size)))
+       (do ((i 0 (+ i 1)))
+         ((= i size) result)
+         (string-set! result i (integer->char (void*-byte-ref char* i))))))
+    ((char*)
+     (char*->string char* (char*-strlen char*)))))
+
 ;; call-with-char* : String (Char* -> T) -> T
 ;; (automatically allcates and frees the marshalled string; therefore func 
 ;;  must not retain a reference to its argument after it returns...)

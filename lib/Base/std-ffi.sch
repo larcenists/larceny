@@ -11,6 +11,10 @@
 ; (foreign-file filename)  =>  unspecified
 ;   Adds a foreign file to the list of files to load procedures from.
 ;
+; (find-foreign-file string+(list of string) ...)  =>  unspecified
+;   Searches product spaces of path components until a file is found,
+;   then adds it to the list of files.
+;
 ; (foreign-procedure name params type)  =>  procedure
 ;   name           a string: the foreign procedure's name
 ;   param-types    a list of symbols: the formal parameter types
@@ -332,6 +336,39 @@
 
 (define (foreign-procedure-tramp name)
   (ffi/link-procedure *ffi-callout-abi* name))
+
+(define (find-foreign-file . rest)
+  (define (product rest)
+    (cond
+      ((null? rest) '(()))
+      ((pair? (car rest))
+       (apply append
+       (map
+         (lambda (head)
+           (map
+             (lambda (tail)
+               (cons head tail))
+             (product (cdr rest))))
+         (car rest))))
+      (else
+        (product (cons (list (car rest)) (cdr rest))))))
+
+  (define (find-file . rest)
+    (call-with-current-continuation
+      (lambda (done)
+        (for-each
+          (lambda (possibility)
+            (let ((file (apply string-append possibility)))
+              (if (file-exists? file)
+                (done file))))
+          (product rest))
+        #f)))
+
+  (cond
+    ((apply find-file rest) => foreign-file)
+    (else
+      (apply error 'find-foreign-file ": Can't find " rest))))
+
 
 ; FIXME, this is not completed!  Also, there should ABI support for
 ; linking variables (different name mangling, perhaps).
