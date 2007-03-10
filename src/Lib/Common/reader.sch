@@ -11,6 +11,8 @@
 ;       read
 ;       readtable-ref
 ;       readtable-set!
+;       datum->source-location
+;       datum-source-locations-clear!
 ;
 ; The read procedure takes one argument, a port, and returns an
 ; object read from that port. On end of file the reader returns the
@@ -24,6 +26,17 @@
 ; The readtable-set! procedure takes two arguments, a character and a list
 ; such as is returned by the readtable-ref procedure, and changes the
 ; character's character class and dispatch procedures.
+;
+; If the parameter datum-source-locations? is set, then the reader
+; associates a source location (a pair of a port name and port byte
+; offset) with each list item read, hashing on the cons cell of which
+; that item is the car.  For example, reading (x y z) will associate the
+; list (x y z) with source location of x, the list (y z) with the
+; location of y, and the list (z) with the location of z.  The
+; datum->source-location procedure looks up the source location
+; associated with a datam, returning #f if there is none.  The
+; datum-source-locations-clear! procedures removes all source/datum
+; associations.
 
 ($$trace "reader")
 
@@ -34,10 +47,16 @@
 (define case-sensitive? (make-parameter "case-sensitive?" #f boolean?))
 (define read-square-bracket-as-paren (make-parameter "read-square-bracket-as-paren" #f boolean?))
 
+;; If #t, the reader keeps track of source locations.
+(define datum-source-locations?
+  (make-parameter "datum-source-locations?" #f boolean?))
+
 (define install-reader
   (lambda ()
     (letrec
       (
+       (locations (make-hashtable))
+
        (tyipeek io/peek-char)
        (tyinext io/peek-next-char)  ; == (begin (tyi p) (tyipeek p))
        (tyi     io/read-char)
@@ -120,8 +139,15 @@
  
        (read-list-element
          (lambda (match c p)
-           (let ((first (read-dispatch c p)))
-             (cons first (read-list match (tyi p) p)))))
+           (if (datum-source-locations?)
+             (let* ((here  (cons (io/port-name p) (io/port-position p)))
+                    (first (read-dispatch c p))
+                    (res   (cons first (read-list match (tyi p) p))))
+               (hashtable-put! locations res here)
+               res)
+             (let ((first (read-dispatch c p)))
+               (cons first (read-list match (tyi p) p))))))
+
 
        ; The dot has been consumed.
  
@@ -1029,6 +1055,12 @@
                 (vector-set! read-dispatch-vec char (cadr l))
                 (vector-set! read-list-vec char (caddr l))
                 #t)))
+
+      (set! datum->source-location
+        (lambda (obj) (hashtable-get locations obj)))
+
+      (set! datum-source-locations-clear!
+        (lambda () (hashtable-clear! locations)))
  
       #t
  

@@ -582,10 +582,10 @@
   (environment-set! larc 'procedure-printer procedure-printer)
   (environment-set! larc 'readtable-ref readtable-ref)
   (environment-set! larc 'readtable-set! readtable-set!)
-  ;(environment-set! larc 'datum->source-location datum->source-location)
-  ;(environment-set! larc 'datum-source-locations? datum-source-locations?)
-  ;(environment-set! larc 'datum-source-locations-clear!
-                    ;datum-source-locations-clear!)
+  (environment-set! larc 'datum->source-location datum->source-location)
+  (environment-set! larc 'datum-source-locations? datum-source-locations?)
+  (environment-set! larc 'datum-source-locations-clear!
+                    datum-source-locations-clear!)
   (environment-set! larc 'rename-file rename-file)
   (environment-set! larc 'reset-output-string reset-output-string)
   (environment-set! larc 'weird-printer weird-printer)
