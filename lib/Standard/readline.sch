@@ -22,7 +22,7 @@
 (require 'foreign-stdlib)
 
 (find-foreign-file
-  '("/usr/local/lib/" "/usr/lib/" "/lib/")
+  '("/usr/local/lib/" "/usr/lib/" "/lib/" "/opt/lib/" "/opt/sfw/lib/")
   "libreadline."
   '("so" "dylib")
   '("" ".5" ".4" ".3"))
