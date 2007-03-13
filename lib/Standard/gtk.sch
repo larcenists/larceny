@@ -29,7 +29,7 @@
  '(gobject* (gtkobject* 
              (gtkwidget* (gtkcontainer* 
                           (gtkbin* (gtkalignment*)
-                                   (gtkwindow* (gtkdialog*))
+                                   (gtkwindow* (gtkdialog* (gtkfileselection*)))
                                    (gtkbutton* (gtktogglebutton*
                                                 (gtkcheckbutton*
                                                  (gtkradiobutton*)))
@@ -286,12 +286,38 @@
   (gtkobject-flags-offset "GtkObject" "flags")
   (gtkdialog-vbox-offset "GtkDialog" "vbox")
   (gtkdialog-action-area-offset "GtkDialog" "action_area")
+  (gtkfilesel-dir-list-offset "GtkFileSelection" "dir_list")
+  (gtkfilesel-file-list-offset "GtkFileSelection" "file_list")
+  (gtkfilesel-selection-entry-offset "GtkFileSelection" "selection_entry")
+  (gtkfilesel-selection-text-offset "GtkFileSelection" "selection_text")
+  (gtkfilesel-main-vbox-offset "GtkFileSelection" "main_vbox")
+  (gtkfilesel-ok-button-offset "GtkFileSelection" "ok_button")
+  (gtkfilesel-cancel-button-offset "GtkFileSelection" "cancel_button")
+  (gtkfilesel-help-button-offset "GtkFileSelection" "help_button")
+  (gtkfilesel-history-pulldown-offset "GtkFileSelection" "history_pulldown")
+  (gtkfilesel-history-menu-offset "GtkFileSelection" "history_menu")
+  (gtkfilesel-history-list-offset "GtkFileSelection" "history_list")
   )
 
 (define (gtk-dialog-vbox dialog)
   (void*-void*-ref dialog gtkdialog-vbox-offset))
 (define (gtk-dialog-action-area dialog)
   (void*-void*-ref dialog gtkdialog-action-area-offset))
+
+(define-foreign (gtk-file-selection-new string) gtkfileselection*)
+(define-foreign (gtk-file-selection-set-filename gtkfileselection* string) void)
+(define-foreign (gtk-file-selection-get-filename gtkfileselection*) string)
+(define-foreign (gtk-file-selection-complete gtkfileselection* string) void)
+(define-foreign (gtk-file-selection-show-fileop-buttons gtkfileselection*) void)
+(define-foreign (gtk-file-selection-hide-fileop-buttons gtkfileselection*) void)
+;; XXX add support for gtk_file_selection_get_selections
+(define-foreign (gtk-file-selection-set-select-multiple gtkfileselection* bool) void)
+(define-foreign (gtk-file-selection-get-select-multiple gtkfileselection*) bool)
+
+(define (gtk-file-selection-ok-button filesel)
+  (void*-void*-ref filesel gtkfilesel-ok-button-offset))
+(define (gtk-file-selection-cancel-button filesel)
+  (void*-void*-ref filesel gtkfilesel-cancel-button-offset))
 
 (define GTK-WINDOW-TOPLEVEL 0)
 
