@@ -96,7 +96,14 @@
                     flags)))
 
 (define-foreign (gtk-main) void)
+(define-foreign (gtk-main-level) uint)
 (define-foreign (gtk-main-quit) void)
+(define-foreign (gtk-main-iteration) bool)
+(define-foreign (gtk-main-iteration-do bool) bool)
+(define-foreign (gtk-timeout-add uint (-> (void*) bool) (maybe void*)) uint)
+(define-foreign (gtk-timeout-remove uint) void)
+(define-foreign (gtk-events-pending) bool)
+
 
 (define-foreign (gtk-container-set-border-width! gtkcontainer* int) void)
 (define-foreign (gtk-button-new-with-label string) gtkbutton*)
@@ -160,6 +167,7 @@
 (define-foreign (gtk-arrow-new int int) gtkwidget*)
 (define-foreign (gtk-alignment-new float float float float) gtkalignment*)
 (define-foreign (gtk-progress-bar-new) gtkprogressbar*)
+(define-foreign (gtk-progress-bar-new-with-adjustment gtkadjustment*) gtkprogressbar*)
 (define-foreign (gtk-table-attach gtktable* gtkwidget* 
                                   uint uint uint uint 
                                   unsigned unsigned 
