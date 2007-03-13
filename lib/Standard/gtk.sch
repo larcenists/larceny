@@ -149,6 +149,10 @@
 (define-foreign (gtk-menu-shell-append gtkmenushell* gtkwidget*) void)
 (define-foreign (gtk-option-menu-set-menu gtkoptionmenu* gtkwidget*) void)
 (define-foreign (gtk-frame-new string) gtkframe*)
+(define-foreign (gtk-frame-set-shadow-type gtkframe* uint) void) ;; XXX should have abstract enum for GtkShadowType
+(define-foreign (gtk-frame-get-shadow-type gtkframe*) uint)      ;; XXX see above...
+(define-foreign (gtk-frame-set-label-align gtkframe* float float) void)
+;; XXX need boxed floats to do get-frame-get-label-align...
 (define-foreign (gtk-label-set-justify gtklabel* int) void)
 (define-foreign (gtk-label-set-line-wrap gtklabel* bool) void)
 (define-foreign (gtk-label-set-pattern gtklabel* string) void)
