@@ -56,7 +56,8 @@
                                    (gtkpixmap*))
                          (gtkrange* (gtkscale*)
                                     (gtkscrollbar*))
-                         (gtkprogress* (gtkprogressbar*)))
+                         (gtkprogress* (gtkprogressbar*))
+                         (gtktext*))
              (gtktooltips*)
              (gtkadjustment*))
             (gtkaccelgroup*)))
@@ -240,6 +241,21 @@
 (define-foreign (gtk-combo-set-item-string gtkcombo* gtkitem* string) void)
 (define-foreign (gtk-combo-set-popdown-strings gtkcombo* glist*) void)
 (define-foreign (gtk-combo-disable-activate gtkcombo*) void)
+
+(define-foreign (gtk-text-new (maybe gtkadjustment*) (maybe gtkadjustment*)) gtktext*)
+(define-foreign (gtk-text-set-editable  gtktext* bool) void)
+(define-foreign (gtk-text-set-word-wrap gtktext* bool) void)
+(define-foreign (gtk-text-set-line-wrap gtktext* bool) void)
+(define-foreign (gtk-text-set-adjustments gtktext* gtkadjustment* gtkadjustment*) void)
+(define-foreign (gtk-text-set-point gtktext* uint) void)
+(define-foreign (gtk-text-get-point gtktext*) uint)
+(define-foreign (gtk-text-get-length gtktext*) uint)
+(define-foreign (gtk-text-freeze gtktext*) void)
+(define-foreign (gtk-text-thaw gtktext*) void)
+(define-foreign (gtk-text-insert gtktext* gdkfont* gdkcolor* gdkcolor* string int) void)
+(define-foreign (gtk-text-backward-delete gtktext* uint) bool)
+(define-foreign (gtk-text-forward-delete gtktext* uint) bool)
+
 
 (define-foreign (gtk-dialog-new) gtkdialog*)
 (define-syntax define-cstruct-offsets/target-dep-paths

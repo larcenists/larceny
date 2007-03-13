@@ -16,6 +16,8 @@
 (establish-void*-subhierarchy! '(gdkwindow*))
 (establish-void*-subhierarchy! '(gdkpixmap*))
 (establish-void*-subhierarchy! '(gdkbitmap*))
+(establish-void*-subhierarchy! '(gdkfont*))
+(establish-void*-subhierarchy! '(gdkcolor*))
 
 (define-foreign (gdk-pixmap-new void* int int int) gdkpixmap*)
 ;;; XXX how the hell am I going to handle mutable data?
