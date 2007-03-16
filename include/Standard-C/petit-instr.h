@@ -1873,6 +1873,40 @@ extern cont_t twobit_cont_label;
        y2 = fixnum(string_length(x1));					\
   } while(0)
 
+#define twobit_op1_800()         /* ustring?       */ \
+   double_tag_predicate( RESULT, BVEC_TAG, BV_HDR+USTR_SUBTAG )
+
+#define twobit_op1_801()         /* ustring-length */                          \
+   do { word h, a=RESULT;                                                      \
+      if (UNSAFE_TRUE2(double_tag_test( a, BVEC_TAG, BV_HDR+USTR_SUBTAG, h ),  \
+                       h = the_header( a, BVEC_TAG )))                         \
+        RESULT = sizefield(h);                                                 \
+      else { FAIL( EX_STRING_LENGTH ); }                                       \
+      integrity_check( "string-length" );                                      \
+   } while ( 0 )
+ 
+#define twobit_op2_802( y )      /* ustring-ref    */                            \
+   do { word a=RESULT, b=reg(y), c, h;                                           \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, BV_HDR+USTR_SUBTAG, h ) && \
+                        is_fixnum(b) &&                                          \
+                        b < (h >> 8))) {                                         \
+         c = *word_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b);                     \
+         RESULT = int_to_char( c );                                              \
+        } else { SECOND=b;                                                       \
+               FAIL( EX_STRING_REF ); }                                          \
+   } while (0)
+
+#define twobit_op3_803( y, z )   /* ustring-set!   */                            \
+   do { word a=RESULT, b=reg(y), c=reg(z), h;                                    \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, BV_HDR+USTR_SUBTAG, h ) && \
+                       is_fixnum(b) &&                                           \
+                       b < (h >> 8) &&                                           \
+                       is_char( c ))) {                                          \
+           *word_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b ) = charcode(c);        \
+        } else { SECOND=b; THIRD=c;                                              \
+               FAIL( EX_STRING_SET ); }                                          \
+   } while (0)
+
 #endif /* TWOBIT_H */
 
 /* eof */

@@ -424,6 +424,14 @@
     (.creg            0 creg             #f           106 ,:dead     ,:all  #f)
     (enable-interrupts 1 enable-interrupts #f           6 ,:dead     ,:all  #t)
     (disable-interrupts 0 disable-interrupts #f         7 ,:dead     ,:all  #t)
+
+    ; FIXME: these will eventually replace the string operations
+
+    (ustring?         1 ustring?         #f           800 ,:immortal ,:none    #f)
+    (ustring-length   1 ustring-length   #f           801 ,:immortal ,:none    #f)
+    (ustring-ref      2 ustring-ref      ,stdc-imm?   802 ,:string   ,:none    #f)
+    (ustring-set!     3 ustring-set!     #f           803 ,:dead     ,:string  #f)
+
     (typetag          1 typetag          #f             8 ,:dead     ,:none #f)
     (port?            1 port?            #f            13 ,:dead     ,:none #f)
     (structure?       1 structure?       #f            14 ,:dead     ,:none #f)
