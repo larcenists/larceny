@@ -1385,6 +1385,21 @@
   `(mov	(& ,$r.result ,$r.cont ,(+ (- ptrtag) $bytewidth.wordsize)) ,$r.temp.low)
   `(mov	,$r.cont (& ,$r.globals ,$g.stkp)))
 
+(define-sassy-instr (ia86.indexed_structure_set_uchar regno reg-value ptrtag hdrtag ex)
+  (cond 
+   ((unsafe-code) 
+    ;; ia86.check_char has this effect, but is not called by
+    ;; ia86.indexed_structure_test in unsafe mode
+    (ia86.loadr $r.temp reg-value))
+   (else
+    (ia86.indexed_structure_test regno reg-value ptrtag hdrtag ex #t ia86.check_char)))
+;;;   ;; Using $r.cont here is sketchy when it can alias esp
+  `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
+  (ia86.loadr	$r.cont regno)
+  `(shr	,$r.temp ,$bitwidth.char-shift)
+  `(mov	(& ,$r.result ,$r.cont ,(+ (- ptrtag) $bytewidth.wordsize)) ,$r.temp)
+  `(mov	,$r.cont (& ,$r.globals ,$g.stkp)))
+
 (define-sassy-instr (ia86.indexed_structure_set_byte regno1 regno2 z hdrtag ex)
   (ia86.indexed_structure_test regno1 regno2 z hdrtag ex #t ia86.check_fixnum)
 ;;;   ;; Using $r.cont here is sketchy when it can alias esp
@@ -1550,6 +1565,8 @@
              ((integer->char:trusted) ia86.T_OP1_integer->char:trusted)
              ((39 string?) ia86.T_OP1_39)
              ((40 string-length string-length:str) ia86.T_OP1_40) 
+             ((   ustring?)       ia86.T_OP1_ustring?)
+             ((   ustring-length) ia86.T_OP1_ustring-length)
              ((41 vector?) ia86.T_OP1_41) 
              ((42 vector-length) ia86.T_OP1_42) 
              ((43 bytevector?) ia86.T_OP1_43) 
@@ -1638,6 +1655,7 @@
              ((77 rot) ia86.T_OP2_77) 
              ((78 string-ref string-ref:trusted) ia86.T_OP2_78) 
              ((79 string-set!) ia86.T_OP2_79)
+             ((   ustring-ref) ia86.T_OP2_ustring-ref)
              ((80 make-vector) ia86.T_OP2_80) 
              ((81 vector-ref) ia86.T_OP2_81) 
              ((82 bytevector-ref) ia86.T_OP2_82) 
@@ -1715,6 +1733,7 @@
              ((140 char>?) ia86.T_OP2IMM_140) 
              ((141 char>=?) ia86.T_OP2IMM_141) 
              ((142 string-ref) ia86.T_OP2IMM_142) 
+             ((    ustring-ref) ia86.T_OP2IMM_ustring-ref)
              ((143 vector-ref) ia86.T_OP2IMM_143) 
              ((144 bytevector-ref) ia86.T_OP2IMM_144)
              ((145 bytevector-like-ref) ia86.T_OP2IMM_145)
@@ -1762,6 +1781,7 @@
 (define-sassy-instr (ia86.T_OP3 x y z) ;; YUCK eval!
   (let ((f (case x
              ((79 string-set! string-set!:trusted) ia86.T_OP3_79)
+             ((   ustring-set!) ia86.T_OP3_ustring-set!)
              ((91 vector-set!) ia86.T_OP3_91) 
              ((92 bytevector-set!) ia86.T_OP3_92) 
              ((93 procedure-set!) ia86.T_OP3_93) 
@@ -2063,6 +2083,13 @@
 
 (define-sassy-instr (ia86.T_OP1_40)		; string-length
   (ia86.indexed_structure_length/hdr $tag.bytevector-tag $hdr.string $ex.slen #t))
+
+(define-sassy-instr (ia86.T_OP1_ustring?)       ; ustring?
+  (ia86.double_tag_predicate $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag)))
+
+(define-sassy-instr (ia86.T_OP1_ustring-length) ; ustring-length
+  (ia86.indexed_structure_length/hdr $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag) $ex.slen #t)
+  `(shr ,$r.result 2)) ;; XXX would it work just to pass #f above?
 		
 (define-sassy-instr (ia86.T_OP1_41)		; vector?
   (ia86.double_tag_predicate $tag.vector-tag $hdr.vector))
@@ -2341,6 +2368,18 @@
 (define-sassy-instr (ia86.T_OP3_79 regno y)		; string-set!
   (ia86.indexed_structure_set_char regno y  $tag.bytevector-tag  $hdr.string  $ex.sset))
 
+(define-sassy-instr (ia86.T_OP2_ustring-ref regno)      ; ustring-ref
+  (ia86.indexed_structure_ref/hdr regno $tag.bytevector-tag  
+                                  (+ $imm.bytevector-header $tag.ustring-typetag) 
+                                  $ex.sref #f)
+  `(shl	,$r.result ,$bitwidth.char-shift)
+  `(or	,$r.result.low ,$imm.character))
+
+(define-sassy-instr (ia86.T_OP3_ustring-set! regno y)   ; ustring-set!
+  (ia86.indexed_structure_set_uchar regno y  $tag.bytevector-tag  
+                                    (+ $imm.bytevector-header $tag.ustring-typetag)
+                                    $ex.sset))
+
 (define-sassy-instr (ia86.T_OP2_80 regno)		; make-vector
   (ia86.make_indexed_structure_word regno $tag.vector-tag  $hdr.vector  $ex.mkvl))
 
@@ -2554,6 +2593,14 @@
   (ia86.indexed_structure_ref_imm/hdr imm $tag.bytevector-tag  $hdr.string  $ex.sref  #t)
   `(shl	,$r.result ,$bitwidth.char-shift)
   `(or	,$r.result.low ,$imm.character))
+
+(define-sassy-instr (ia86.T_OP2IMM_ustring-ref imm)     ; ustring-ref
+  (ia86.indexed_structure_ref_imm/hdr imm $tag.bytevector-tag  
+                                      (+ $imm.bytevector-header $tag.ustring-typetag)
+                                      $ex.sref
+                                      #f)
+  `(shl ,$r.result ,$bitwidth.char-shift)
+  `(or  ,$r.result.low ,$imm.character))
 
 (define-sassy-instr (ia86.T_OP2IMM_143 imm)		; vector-ref
   (ia86.indexed_structure_ref_imm/hdr imm $tag.vector-tag  $hdr.vector  $ex.vref  #f))

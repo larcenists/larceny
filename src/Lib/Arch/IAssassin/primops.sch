@@ -217,6 +217,18 @@
 (define string-ref (lambda (x y) (string-ref x y)))
 (define string-set! (lambda (x y z) (string-set! x y z)))
 
+; Ustrings (temporary)
+
+;(define make-ustring
+;  (lambda (x . rest)
+;    (if (null? rest)
+;	(make-ustring x #\space)         ; fixme
+;	(make-ustring x (car rest)))))
+(define ustring? (lambda (x) (ustring? x)))
+(define ustring-length (lambda (x) (ustring-length x)))
+(define ustring-ref (lambda (x y) (ustring-ref x y)))
+(define ustring-set! (lambda (x y z) (ustring-set! x y z)))
+
 ; Vectors
 
 (define make-vector
