@@ -372,6 +372,46 @@
     (sparc.srli as rs3 8 $r.tmp0)
     (sparc.stbr as $r.tmp0 rs1 $r.tmp1)))
 
+; USTRING-SET!
+
+(define (emit-ustring-set! as rs1 rs2 rs3)
+  (let* ((rs2 (force-hwreg! as rs2 $r.argreg2))
+         (rs3 (force-hwreg! as rs3 $r.argreg3))
+         (FAULT (if (not (unsafe-code))
+                    (double-tagcheck-assert 
+                     as 
+                     $tag.bytevector-tag
+                     (+ $imm.bytevector-header $tag.ustring-typetag)
+                     rs1 rs2 rs3
+                     $ex.sset
+                     #f))))
+    ; Header is in TMP0; TMP1 and TMP2 are free.
+    (if (not (unsafe-code))
+        (begin
+          ; RS2 must be a fixnum.
+          (sparc.btsti  as rs2 3)
+          (sparc.bne    as FAULT)
+          ; Index (in RS2) must be valid; header is in tmp0.
+          (sparc.srli   as $r.tmp0 8 $r.tmp0) ; limit
+          (sparc.cmpr   as rs2 $r.tmp0)
+          (sparc.bgeu   as FAULT)
+          ; RS3 must be a character.
+          (sparc.andi   as rs3 #xFF $r.tmp0)
+          (sparc.cmpi   as $r.tmp0 $imm.character)
+          (sparc.bne    as FAULT)
+          ; No NOP -- the SUBI below goes in the slot
+          ))
+    ; rs3/argreg3 has character.
+    (emit-ustring-set-trusted! as rs1 rs2 rs3)))
+
+(define (emit-ustring-set-trusted! as rs1 rs2 rs3)
+  (let* ((rs2 (force-hwreg! as rs2 $r.argreg2))
+         (rs3 (force-hwreg! as rs3 $r.argreg3)))
+    ; rs3/argreg3 has character.
+    ; tmp0 is garbage.
+    (sparc.subi as rs2 (- $tag.bytevector-tag 4) $r.tmp0)
+    (sparc.str  as rs3 rs1 $r.tmp0)))
+
 ; VECTORS and PROCEDURES
 
 ; Allocate short vectors of known length; faster than the general case.

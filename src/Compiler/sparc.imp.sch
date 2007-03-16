@@ -302,6 +302,13 @@
     (undefined        0 undefined        #f             8 ,:dead     ,:none)
     (--               1 --               #f          #x2d ,:immortal ,:none)
 
+    ; FIXME: these will eventually replace the string operations
+
+    (ustring?         1 ustring?         #f          #x50 ,:immortal ,:none)
+    (ustring-length   1 ustring-length   #f          #x51 ,:immortal ,:none)
+    (ustring-ref      2 ustring-ref      ,sparc-imm? #xd1 ,:string   ,:none)
+    (ustring-set!     3 ustring-set!     #f            -1 ,:dead     ,:string)
+
 ;   (values          -1 values           #f            -1 ,:dead     ,:none)
 ;   (call-with-values -1 call-with-values #f           -1 ,:dead     ,:all)
 

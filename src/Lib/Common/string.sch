@@ -440,10 +440,10 @@
 ; the representation used here.  These operations will become a
 ; lot faster when the back ends generate native code for them.
 
-(define (ustring? x)
-  (or (string? x) ; FIXME: should go away
-      (and (bytevector-like? x)
-           (eq? (typetag x) sys$tag.ustring-typetag))))
+;(define (ustring? x)
+;  (or (string? x) ; FIXME: should go away
+;      (and (bytevector-like? x)
+;           (eq? (typetag x) sys$tag.ustring-typetag))))
 
 (define (make-ustring n . rest)
   (let ((fill (if (null? rest) #\space (car rest))))
@@ -463,46 +463,46 @@
         (bytevector-set! s (+ i 2) b2)
         (bytevector-set! s (+ i 3) b3)))))
 
-(define (ustring-length s)
-  (cond ((string? s)
-         (string-length s))
-        ((ustring? s)
-         (fxrsha (bytevector-like-length s) 2))
-        (else
-         (error "Bad argument to string-length: " s))))
+;(define (ustring-length s)
+;  (cond ((string? s)
+;         (string-length s))
+;        ((ustring? s)
+;         (fxrsha (bytevector-like-length s) 2))
+;        (else
+;         (error "Bad argument to string-length: " s))))
 
-(define (ustring-ref s i)
-  (cond ((string? s)
-         (string-ref s i))
-        ((ustring? s)
-         (let* ((n (fxlsh i 2))
-                (b0 (bytevector-like-ref s n))
-                (b1 (bytevector-like-ref s (+ n 1)))
-                (b2 (bytevector-like-ref s (+ n 2)))
-                (b3 (bytevector-like-ref s (+ n 3))))
-           (if (not (eq? b3 $imm.character))
-               (error "Bug in ustring operations: " b3))
-           (integer->char
-            (fxlogior (fxlogior (fxlsh b0 16) (fxlsh b1 8)) b2))))
-        (else
-         (error "Bad argument to string-ref: " s))))
+;(define (ustring-ref s i)
+;  (cond ((string? s)
+;         (string-ref s i))
+;        ((ustring? s)
+;         (let* ((n (fxlsh i 2))
+;                (b0 (bytevector-like-ref s n))
+;                (b1 (bytevector-like-ref s (+ n 1)))
+;                (b2 (bytevector-like-ref s (+ n 2)))
+;                (b3 (bytevector-like-ref s (+ n 3))))
+;           (if (not (eq? b3 $imm.character))
+;               (error "Bug in ustring operations: " b3))
+;           (integer->char
+;            (fxlogior (fxlogior (fxlsh b0 16) (fxlsh b1 8)) b2))))
+;        (else
+;         (error "Bad argument to string-ref: " s))))
 
-(define (ustring-set! s i c)
-  (cond ((string? s)
-         (error "Immutable string passed to string-set!: " s))
-        ((ustring? s)
-         (let* ((n (fxlsh i 2))
-                (sv (char->integer c))
-                (b0 (fxrshl sv 16))
-                (b1 (fxlogand (fxrshl sv 8) 255))
-                (b2 (fxlogand sv 255))
-                (b3 $imm.character))
-           (bytevector-like-set! s n b0)
-           (bytevector-like-set! s (+ n 1) b1)
-           (bytevector-like-set! s (+ n 2) b2)
-           (bytevector-like-set! s (+ n 3) $imm.character)))
-        (else
-         (error "Bad argument to string-set!: " s))))
+;(define (ustring-set! s i c)
+;  (cond ((string? s)
+;         (error "Immutable string passed to string-set!: " s))
+;        ((ustring? s)
+;         (let* ((n (fxlsh i 2))
+;                (sv (char->integer c))
+;                (b0 (fxrshl sv 16))
+;                (b1 (fxlogand (fxrshl sv 8) 255))
+;                (b2 (fxlogand sv 255))
+;                (b3 $imm.character))
+;           (bytevector-like-set! s n b0)
+;           (bytevector-like-set! s (+ n 1) b1)
+;           (bytevector-like-set! s (+ n 2) b2)
+;           (bytevector-like-set! s (+ n 3) $imm.character)))
+;        (else
+;         (error "Bad argument to string-set!: " s))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -130,7 +130,8 @@
 		      rs1 
 		      imm
 		      $ex.vref))))
-      (emit-vector-like-ref/imm! as rs1 imm rd fault $tag.vector-tag #t))))
+      (emit-vector-like-ref/imm! as rs1 imm rd fault $tag.vector-tag
+                                 (not (unsafe-code))))))
 
 (define-primop 'internal:vector-set!
   (lambda (as rs1 rs2 rs3)
@@ -210,6 +211,66 @@
   (lambda (as rs1 rs2 rs3)
     (internal-primop-invariant1 'internal:string-set! rs1)
       (emit-string-set! as rs1 rs2 rs3)))
+
+; Ustrings.
+
+(define-primop 'internal:ustring-length
+  (lambda (as rs rd)
+    (internal-primop-invariant2 'internal:ustring-length rs rd)
+    (emit-get-length! as
+		      $tag.bytevector-tag
+		      (+ $imm.bytevector-header $tag.ustring-typetag)
+		      $ex.slen
+		      rs
+		      rd)
+    (sparc.srai       as rd 2 rd)))
+
+(define-primop 'internal:ustring-length:str
+  (lambda (as rs rd)
+    (internal-primop-invariant2 'internal:ustring-length:str rs rd)
+    (emit-get-length-trusted! as $tag.bytevector-tag rs rd)
+    (sparc.srai               as rd 2 rd)))
+
+(define-primop 'internal:ustring-ref
+  (lambda (as rs1 rs2 rd)
+    (internal-primop-invariant2 'internal:ustring-ref rs1 rd)
+    (let ((fault (if (not (unsafe-code))
+		     (emit-double-tagcheck-assert-reg/reg!
+		      as
+		      $tag.bytevector-tag
+		      (+ $imm.bytevector-header $tag.ustring-typetag)
+		      rs1 
+		      rs2
+		      $ex.sref))))
+      (emit-vector-like-ref-trusted! as rs1 rs2 rd $tag.bytevector-tag))))
+
+(define-primop 'internal:ustring-ref:trusted
+  (lambda (as rs1 rs2 rd)
+    (internal-primop-invariant2 'internal:ustring-ref:trusted rs1 rd)
+    (emit-vector-like-ref-trusted! as rs1 rs2 rd $tag.bytevector-tag)))
+
+; FIXME: got to here.  The next two primops aren't done yet.
+
+(define-primop 'internal:ustring-ref/imm
+  (lambda (as rs1 imm rd)
+    (internal-primop-invariant2 'internal:ustring-ref/imm rs1 rd)
+    (let ((fault (if (not (unsafe-code))
+		     (emit-double-tagcheck-assert-reg/imm!
+		      as
+		      $tag.bytevector-tag
+		      (+ $imm.bytevector-header $tag.ustring-typetag)
+		      rs1 
+		      imm
+		      $ex.sref))))
+      (emit-vector-like-ref/imm! as rs1 imm rd fault $tag.bytevector-tag
+                                 (not (unsafe-code))))))
+
+(define-primop 'internal:ustring-set!
+  (lambda (as rs1 rs2 rs3)
+    (internal-primop-invariant1 'internal:ustring-set! rs1)
+      (emit-ustring-set! as rs1 rs2 rs3)))
+
+;
 
 (define-primop 'internal:+
   (lambda (as src1 src2 dest)
