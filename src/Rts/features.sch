@@ -585,7 +585,7 @@
 
 ; ------ END USER DEFINITION SECTION ------
 
-(define feature-set-C-file-name (param-filename 'include "config.h"))
+(define feature-set-c-file-name (param-filename 'include "config.h"))
 (define feature-set-asm-file-name (param-filename 'include "config.ah"))
 
 (define features-boilerplate-start 
@@ -622,9 +622,9 @@
 ")
 
 (define (read-existing-feature-set)
-  (if (and (file-exists? feature-set-C-file-name)
+  (if (and (file-exists? feature-set-c-file-name)
 	   (file-exists? feature-set-asm-file-name))
-      (call-with-input-file feature-set-C-file-name
+      (call-with-input-file feature-set-c-file-name
 	(lambda (in)
 	  (let loop ((fs '()))
 	    (let ((l (read-line in)))
@@ -644,8 +644,8 @@
       '()))
 
 (define (write-feature-set fs)
-  (delete-file feature-set-C-file-name)
-  (call-with-output-file feature-set-C-file-name
+  (delete-file feature-set-c-file-name)
+  (call-with-output-file feature-set-c-file-name
     (lambda (out)
       (display features-boilerplate-start out)
       (for-each (lambda (f)
