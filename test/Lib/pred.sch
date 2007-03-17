@@ -19,7 +19,8 @@
 
 (define (run-predicate-tests)
   (display "Predicate") (newline)
-  (test-equality-primitives-helper 0 1 1 2 'a 'b))
+  (test-equality-primitives-helper 0 1 1 2 'a 'b)
+  (predicate-test-0))
 
 (define (test-equality-primitives-helper zero one xone two a b)
   (allof
@@ -48,6 +49,8 @@
 	(b (lambda (x) x)))
     (allof
      (test "(e '() '())" (e '() '()) '(#t #t))
+     (test "(e (vector) (vector))" (e (vector) (vector)) '(#f #t))
+     (test "(e (string) (string))" (e (string) (string)) '(#f #t))
      (test "(e #t #f)" (e #t #f) '(#f #f))
      (test "(e a a)" (e a a) '(#t #t))
      (test "(e b b)" (e b b) '(#t #t))
