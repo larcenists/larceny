@@ -59,7 +59,7 @@
 	  (cons 'char-bits              char-bits)
 	  (cons 'char-representation    char-repr)
 	  (cons 'flonum-bits            64)
-	  (cons 'flonum-representation  'IEEE)
+	  (cons 'flonum-representation  'ieee)
 	  (cons 'gc-technology          (car gc-info))
 	  (cons 'heap-area-info         (cdr gc-info)))))
 

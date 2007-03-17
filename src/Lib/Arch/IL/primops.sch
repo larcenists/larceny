@@ -12,7 +12,7 @@
 
 (define .check!
   (let ((check (lambda (x y z exn)
-                 (error 'Check 'exception: exn x y z)))) ;; FIXME
+                 (error 'check 'exception: exn x y z)))) ;; FIXME
     (lambda (x . rest)
       (if (null? rest)
           (check #f #f #f x)
