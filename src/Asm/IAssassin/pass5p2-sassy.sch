@@ -295,14 +295,14 @@
 (define-instruction $.align
   (lambda (instruction as)
     (list-instruction ".align" instruction)
-    (emit-sassy as ia86.T_ALIGN
+    (emit-sassy as ia86.t_align
                 (operand1 instruction))
     ))
 
 (define-instruction $.cont
   (lambda (instruction as)
     (list-instruction ".cont" instruction)
-    (emit-sassy as ia86.T_CONT)
+    (emit-sassy as ia86.t_cont)
     ))
 
 (define-instruction $.end
@@ -323,7 +323,7 @@
     (let ((u (as-user as)))
       (user-data.labels! u (cons (operand1 instruction) (user-data.labels u))))
     (make-asm-label as (operand1 instruction))
-    (emit-sassy as ia86.T_LABEL
+    (emit-sassy as ia86.t_label
                 (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $.proc
@@ -348,27 +348,27 @@
 (define-instruction $op1
   (lambda (instruction as)
     (list-instruction "op1" instruction)
-    (emit-sassy as ia86.T_OP1
+    (emit-sassy as ia86.t_op1
 	       (operand1 instruction))))
 
 (define-instruction $op2
   (lambda (instruction as)
     (list-instruction "op2" instruction)
-    (emit-sassy as ia86.T_OP2
+    (emit-sassy as ia86.t_op2
                 (operand1 instruction)
                 (operand2 instruction))))
 
 (define-instruction $op2imm
   (lambda (instruction as)
     (list-instruction "op2imm" instruction)
-    (emit-sassy as ia86.T_OP2IMM 
+    (emit-sassy as ia86.t_op2imm 
                 (operand1 instruction) 
                 (constant-value (operand2 instruction)))))
 
 (define-instruction $op3
   (lambda (instruction as)
     (list-instruction "op3" instruction)
-    (emit-sassy as ia86.T_OP3
+    (emit-sassy as ia86.t_op3
                 (operand1 instruction)
                 (operand2 instruction)
                 (operand3 instruction))))
@@ -378,22 +378,22 @@
   (lambda (instruction as)
     (list-instruction "const" instruction)
     (if (immediate-constant? (operand1 instruction))
-	(emit-sassy as ia86.T_CONST_IMM
+	(emit-sassy as ia86.t_const_imm
                     (constant-value (operand1 instruction)))
-	(emit-sassy as ia86.T_CONST_CONSTVECTOR
+	(emit-sassy as ia86.t_const_constvector
                     (emit-datum as (operand1 instruction))))))
 
 
 (define-instruction $global
   (lambda (instruction as)
     (list-instruction "global" instruction)
-    (emit-sassy as ia86.T_GLOBAL
+    (emit-sassy as ia86.t_global
                 (emit-global as (operand1 instruction)))))
 
 (define-instruction $setglbl
   (lambda (instruction as)
     (list-instruction "setglbl" instruction)
-    (emit-sassy as ia86.T_SETGLBL
+    (emit-sassy as ia86.t_setglbl
 	       (emit-global as (operand1 instruction)))))
 
 (define-instruction $lambda
@@ -414,7 +414,7 @@
       (list-lambda-end)
       (set! code-offset (emit-codevector as 0))
       (set! const-offset (emit-constantvector as 0))
-      (emit-sassy as ia86.T_LAMBDA
+      (emit-sassy as ia86.t_lambda
                  code-offset 
 		 const-offset
 		 (operand2 instruction)))))
@@ -422,29 +422,29 @@
 (define-instruction $lexes
   (lambda (instruction as)
     (list-instruction "lexes" instruction)
-    (emit-sassy as ia86.T_LEXES (operand1 instruction))))
+    (emit-sassy as ia86.t_lexes (operand1 instruction))))
 
 (define-instruction $args=
   (lambda (instruction as)
     (list-instruction "args=" instruction)
-    (emit-sassy as ia86.T_ARGSEQ (operand1 instruction))))
+    (emit-sassy as ia86.t_argseq (operand1 instruction))))
 
 (define-instruction $args>=
   (lambda (instruction as)
     (list-instruction "args>=" instruction)
-    (emit-sassy as ia86.T_ARGSGE (operand1 instruction))))
+    (emit-sassy as ia86.t_argsge (operand1 instruction))))
 
 (define-instruction $invoke
   (lambda (instruction as)
     (list-instruction "invoke" instruction)
-    (emit-sassy as ia86.T_INVOKE (operand1 instruction))))
+    (emit-sassy as ia86.t_invoke (operand1 instruction))))
 
 (define-instruction $restore
   (lambda (instruction as)
     (if (not (negative? (operand1 instruction)))
 	(begin
 	  (list-instruction "restore" instruction)
-	  (emit-sassy as ia86.T_RESTORE
+	  (emit-sassy as ia86.t_restore
 		     (min (operand1 instruction) (- *nregs* 1)))))))
 
 (define-instruction $pop
@@ -452,7 +452,7 @@
     (if (not (negative? (operand1 instruction)))
 	(begin
 	  (list-instruction "pop" instruction)
-	  (emit-sassy as ia86.T_POP (operand1 instruction))))))
+	  (emit-sassy as ia86.t_pop (operand1 instruction))))))
 
 (define-instruction $popstk
   (lambda (instruction as)
@@ -461,71 +461,71 @@
 (define-instruction $stack
   (lambda (instruction as)
     (list-instruction "stack" instruction)
-    (emit-sassy as ia86.T_STACK (operand1 instruction))))
+    (emit-sassy as ia86.t_stack (operand1 instruction))))
 
 (define-instruction $setstk
   (lambda (instruction as)
     (list-instruction "setstk" instruction)
-    (emit-sassy as ia86.T_SETSTK (operand1 instruction))))
+    (emit-sassy as ia86.t_setstk (operand1 instruction))))
 
 (define-instruction $load
   (lambda (instruction as)
     (list-instruction "load" instruction)
-    (emit-sassy as ia86.T_LOAD
+    (emit-sassy as ia86.t_load
 	       (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $store
   (lambda (instruction as)
     (list-instruction "store" instruction)
-    (emit-sassy as ia86.T_STORE
+    (emit-sassy as ia86.t_store
 	       (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $lexical
   (lambda (instruction as)
     (list-instruction "lexical" instruction)
-    (emit-sassy as ia86.T_LEXICAL
+    (emit-sassy as ia86.t_lexical
 	       (operand1 instruction)
 	       (operand2 instruction))))
 
 (define-instruction $setlex
   (lambda (instruction as)
     (list-instruction "setlex" instruction)
-    (emit-sassy as ia86.T_SETLEX
+    (emit-sassy as ia86.t_setlex
 	       (operand1 instruction)
 	       (operand2 instruction))))
 
 (define-instruction $reg
   (lambda (instruction as)
     (list-instruction "reg" instruction)
-    (emit-sassy as ia86.T_REG (operand1 instruction))))
+    (emit-sassy as ia86.t_reg (operand1 instruction))))
 
 (define-instruction $setreg
   (lambda (instruction as)
     (list-instruction "setreg" instruction)
-    (emit-sassy as ia86.T_SETREG (operand1 instruction))))
+    (emit-sassy as ia86.t_setreg (operand1 instruction))))
 
 (define-instruction $movereg
   (lambda (instruction as)
     (list-instruction "movereg" instruction)
-    (emit-sassy as ia86.T_MOVEREG
+    (emit-sassy as ia86.t_movereg
 	       (operand1 instruction) (operand2 instruction))))
 
 (define-instruction $return
   (lambda (instruction as)
     (list-instruction "return" instruction)
-    (emit-sassy as ia86.T_RETURN)))
+    (emit-sassy as ia86.t_return)))
 
 (define-instruction $nop
   (lambda (instruction as)
     (list-instruction "nop" instruction)
-    (emit-sassy as ia86.T_NOP)))
+    (emit-sassy as ia86.t_nop)))
 
 ; (define-instruction $save
 ;   (lambda (instruction as)
 ;     (if (not (negative? (operand1 instruction)))
 ;         (begin
 ;          (list-instruction "save" instruction)
-; 	 (emit-sassy as 'T_SAVE (operand1 instruction))))))
+; 	 (emit-sassy as 't_save (operand1 instruction))))))
 
 (define-instruction $save
   (lambda (instruction as)
@@ -533,10 +533,10 @@
         (begin
 	  (list-instruction "save" instruction)
 	  (let* ((n (operand1 instruction)))
-	    (emit-sassy as ia86.T_SAVE0 n)
+	    (emit-sassy as ia86.t_save0 n)
 	    (do ((i 0 (+ i 1)))
 		((= i (+ n 1)))
-              (emit-sassy as ia86.T_SAVE1 i)))))))
+              (emit-sassy as ia86.t_save1 i)))))))
 
 (define-instruction $save/stores
   (lambda (instruction as)
@@ -546,39 +546,39 @@
            (ns (operand3 instruction))
            (v (make-vector (+ n 1) 
                            (lambda ()
-                             (emit-sassy as ia86.T_PUSH_RESULT)))))
-      (emit-sassy as ia86.T_CHECK_SAVE n)
+                             (emit-sassy as ia86.t_push_result)))))
+      (emit-sassy as ia86.t_check_save n)
       ;; setup zeroed register; push PADWORD (sometimes)
-      (emit-sassy as ia86.T_SETUP_SAVE_STORES n)
+      (emit-sassy as ia86.t_setup_save_stores n)
       ;; push REGs
       (for-each (lambda (k n) 
                   (vector-set! v n (lambda ()
-                                     (emit-sassy as ia86.T_PUSH_STORE k))))
+                                     (emit-sassy as ia86.t_push_store k))))
                 ks ns)
       (do ((i (- (vector-length v) 1) (- i 1)))
           ((= i -1))
         ((vector-ref v i)))
       ;; push CONTSIZE, RETADDR, DYNLINK
-      (emit-sassy as ia86.T_FINIS_SAVE_STORES n)
+      (emit-sassy as ia86.t_finis_save_stores n)
       )))
 
 (define-instruction $setrtn
   (lambda (instruction as)
     (list-instruction "setrtn" instruction)
-    (emit-sassy as ia86.T_SETRTN 
+    (emit-sassy as ia86.t_setrtn 
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $apply
   (lambda (instruction as)
     (list-instruction "apply" instruction)
-    (emit-sassy as ia86.T_APPLY
+    (emit-sassy as ia86.t_apply
 	       (operand1 instruction)
 	       (operand2 instruction))))
 
 (define-instruction $jump
   (lambda (instruction as)
     (list-instruction "jump" instruction)
-    (emit-sassy as ia86.T_JUMP
+    (emit-sassy as ia86.t_jump
                (operand1 instruction)
                (operand2 instruction)
 	       (compiled-procedure as (operand2 instruction)))))
@@ -587,7 +587,7 @@
   (lambda (instruction as)
     (list-instruction "skip" instruction)
     (emit-sassy as
-                ia86.T_SKIP
+                ia86.t_skip
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $branch
@@ -596,8 +596,8 @@
     (emit-sassy as
 	       (if (assq (operand1 instruction) 
 			 (as-labels as))
-		   ia86.T_BRANCH
-		   ia86.T_SKIP)
+		   ia86.t_branch
+		   ia86.t_skip)
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $branchf
@@ -606,14 +606,14 @@
     (emit-sassy as 
 	       (if (assq (operand1 instruction)
 			 (as-labels as))
-		   ia86.T_BRANCHF 
-		   ia86.T_SKIPF)
+		   ia86.t_branchf 
+		   ia86.t_skipf)
 	       (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $check
   (lambda (instruction as)
     (list-instruction "check" instruction)
-    (emit-sassy as ia86.T_CHECK
+    (emit-sassy as ia86.t_check
                (operand1 instruction)
                (operand2 instruction)
                (operand3 instruction)
@@ -622,7 +622,7 @@
 (define-instruction $trap
   (lambda (instruction as)
     (list-instruction "trap" instruction)
-    (emit-sassy as ia86.T_TRAP
+    (emit-sassy as ia86.t_trap
                (operand1 instruction)
                (operand2 instruction)
                (operand3 instruction)
@@ -632,10 +632,10 @@
   (lambda (instruction as)
     (list-instruction "const/setreg" instruction)
     (if (immediate-constant? (operand1 instruction))
-	(emit-sassy as ia86.T_CONST_SETREG_IMM 
+	(emit-sassy as ia86.t_const_setreg_imm 
 		   (constant-value (operand1 instruction))
 		   (operand2 instruction))
-	(emit-sassy as ia86.T_CONST_SETREG_CONSTVECTOR
+	(emit-sassy as ia86.t_const_setreg_constvector
 		   (emit-datum as (operand1 instruction))
                    (operand2 instruction)))))
 
@@ -643,36 +643,36 @@
   (lambda (instruction as)
     (list-instruction "const/setglbl" instruction)
     (if (immediate-constant? (operand1 instruction))
-	(emit-sassy as ia86.T_CONST_SETGLBL_IMM 
+	(emit-sassy as ia86.t_const_setglbl_imm 
 		   (constant-value (operand1 instruction))
 		   (emit-global as (operand2 instruction)))
-	(emit-sassy as ia86.T_CONST_SETGLBL_CONSTVECTOR
+	(emit-sassy as ia86.t_const_setglbl_constvector
 		   (emit-datum as (operand1 instruction))
                    (emit-global as (operand2 instruction))))))
 
 (define-instruction $global/invoke
   (lambda (instruction as)
     (list-instruction "global/invoke" instruction)
-    (emit-sassy as ia86.T_GLOBAL_INVOKE
+    (emit-sassy as ia86.t_global_invoke
                 (emit-global as (operand1 instruction))
                 (operand2 instruction))))
 
 (define-instruction $global/setreg
   (lambda (instruction as)
     (list-instruction "global/setreg" instruction)
-    (emit-sassy as ia86.T_GLOBAL_SETREG
+    (emit-sassy as ia86.t_global_setreg
                 (emit-global as (operand1 instruction))
                 (operand2 instruction))))
 
 (define-instruction $setrtn/invoke
   (lambda (instruction as)
     (list-instruction "setrtn/invoke" instruction)
-    (emit-sassy as ia86.T_SETRTN_INVOKE (operand1 instruction))))
+    (emit-sassy as ia86.t_setrtn_invoke (operand1 instruction))))
 
 (define-instruction $setrtn/jump
   (lambda (instruction as)
     (list-instruction "setrtn/jump" instruction)
-    (emit-sassy as ia86.T_SETRTN_JUMP 
+    (emit-sassy as ia86.t_setrtn_jump 
                 (operand1 instruction) 
                 (operand2 instruction))))
 
@@ -682,21 +682,21 @@
     (emit-sassy as 	      
                 (if (assq (operand1 instruction) 
                           (as-labels as))
-                    ia86.T_SETRTN_BRANCH
-                    ia86.T_SETRTN_SKIP)
+                    ia86.t_setrtn_branch
+                    ia86.t_setrtn_skip)
                 (compiled-procedure as (operand1 instruction)))))
 
 (define-instruction $reg/setglbl
   (lambda (instruction as)
     (list-instruction "reg/setglbl" instruction)
-    (emit-sassy as ia86.T_REG_SETGLBL 
+    (emit-sassy as ia86.t_reg_setglbl 
                 (operand1 instruction) 
                 (emit-global as (operand2 instruction)))))
 
 (define-instruction $reg/branchf
   (lambda (instruction as)
     (list-instruction "reg/branchf" instruction)
-    (emit-sassy as ia86.T_REG_BRANCHF
+    (emit-sassy as ia86.t_reg_branchf
                 (operand1 instruction) 
                 (compiled-procedure as (operand2 instruction))
                 (not (assq (operand2 instruction) (as-labels as))))))
@@ -704,14 +704,14 @@
 (define-instruction $reg/check
   (lambda (instruction as)
     (list-instruction "reg/check" instruction)
-    (emit-sassy as ia86.T_REG_CHECK
+    (emit-sassy as ia86.t_reg_check
                 (operand1 instruction) 
                 (compiled-procedure as (operand2 instruction)))))
 
 (define-instruction $reg/op1/branchf
   (lambda (instruction as)
     (list-instruction "reg/op1/branchf" instruction)
-    (emit-sassy as ia86.T_REG_OP1_BRANCHF
+    (emit-sassy as ia86.t_reg_op1_branchf
                 (operand1 instruction)
                 (operand2 instruction)
                 (compiled-procedure as (operand3 instruction))
@@ -720,7 +720,7 @@
 (define-instruction $reg/op2/branchf
   (lambda (instruction as)
     (list-instruction "reg/op2/branchf" instruction)
-    (emit-sassy as ia86.T_REG_OP2_BRANCHF
+    (emit-sassy as ia86.t_reg_op2_branchf
                 (operand1 instruction)
                 (operand2 instruction)
                 (operand3 instruction)
@@ -730,7 +730,7 @@
 (define-instruction $reg/op2imm/branchf
   (lambda (instruction as)
     (list-instruction "reg/op2imm/branchf" instruction)
-    (emit-sassy as ia86.T_REG_OP2IMM_BRANCHF
+    (emit-sassy as ia86.t_reg_op2imm_branchf
                 (operand1 instruction)
                 (operand2 instruction)
                 (constant-value (operand3 instruction))
@@ -740,7 +740,7 @@
 (define-instruction $reg/op1/setreg
   (lambda (instruction as)
     (list-instruction "reg/op1/setreg" instruction)
-    (emit-sassy as ia86.T_OP1* 
+    (emit-sassy as ia86.t_op1* 
                 (operand1 instruction)
                 (operand2 instruction)
                 (operand3 instruction))))
@@ -748,7 +748,7 @@
 (define-instruction $reg/op2/setreg
   (lambda (instruction as)
     (list-instruction "reg/op2/setreg" instruction)
-    (emit-sassy as ia86.T_OP2* 
+    (emit-sassy as ia86.t_op2* 
                 (operand1 instruction)
                 (operand2 instruction)
                 (operand3 instruction)
@@ -757,7 +757,7 @@
 (define-instruction $reg/op2imm/setreg
   (lambda (instruction as)
     (list-instruction "reg/op2imm/setreg" instruction)
-    (emit-sassy as ia86.T_OP2IMM* 
+    (emit-sassy as ia86.t_op2imm* 
                 (operand1 instruction)
                 (operand2 instruction)
                 (constant-value (operand3 instruction))
@@ -766,7 +766,7 @@
 (define-instruction $reg/op1/check
   (lambda (instruction as)
     (list-instruction "reg/op1/check" instruction)
-    (emit-sassy as ia86.T_REG_OP1_CHECK
+    (emit-sassy as ia86.t_reg_op1_check
                 (operand1 instruction)
                 (operand2 instruction)
                 (compiled-procedure as (operand3 instruction)))))
@@ -774,7 +774,7 @@
 (define-instruction $reg/op2/check
   (lambda (instruction as)
     (list-instruction "reg/op2/check" instruction)
-    (emit-sassy as ia86.T_REG_OP2_CHECK
+    (emit-sassy as ia86.t_reg_op2_check
                 (operand1 instruction)
                 (operand2 instruction)
                 (operand3 instruction)
@@ -783,7 +783,7 @@
 (define-instruction $reg/op2imm/check
   (lambda (instruction as)
     (list-instruction "reg/op2imm/check" instruction)
-    (emit-sassy as ia86.T_REG_OP2IMM_CHECK
+    (emit-sassy as ia86.t_reg_op2imm_check
                 (operand1 instruction)
                 (operand2 instruction)
                 (constant-value (operand3 instruction))
@@ -792,7 +792,7 @@
 (define-instruction $reg/op2imm/check
   (lambda (instruction as)
     (list-instruction "reg/op2imm/check" instruction)
-    (emit-sassy as ia86.T_REG_OP2IMM_CHECK
+    (emit-sassy as ia86.t_reg_op2imm_check
                 (operand1 instruction)
                 (operand2 instruction)
                 (constant-value (operand3 instruction))
@@ -801,7 +801,7 @@
 (define-instruction $reg/op3
   (lambda (instruction as)
     (list-instruction "reg/op3" instruction)
-    (emit-sassy as ia86.T_REG_OP3
+    (emit-sassy as ia86.t_reg_op3
                 (operand1 instruction)
                 (operand2 instruction)
                 (operand3 instruction)

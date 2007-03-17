@@ -40,7 +40,7 @@
 ;;; Note the millicode for M_INVOKE_EX is used to check for timer
 ;;; exception as well, and must check the timer first.
 
-(define-sassy-instr (ia86.T_INVOKE n)
+(define-sassy-instr (ia86.t_invoke n)
   (cond ((unsafe-code) ;; 32 bytes for n=0, 35 bytes o/w
          (ia86.timer_check)
          (ia86.storer 0 $r.result) ;; OPTIMIZEME
@@ -50,23 +50,23 @@
          `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
 	 `(jmp ,$r.temp))
         (else ;; 37 bytes for n=0, 40 bytes o/w
-         (let ((L0 (fresh-label))
-               (L1 (fresh-label))
-               (L2 (fresh-label)))
+         (let ((l0 (fresh-label))
+               (l1 (fresh-label))
+               (l2 (fresh-label)))
            `(dec (dword (& ,$r.globals ,$g.timer)))
-           `(jz short ,L0)
-           `(label ,L1)
+           `(jz short ,l0)
+           `(label ,l1)
 	   `(lea ,$r.temp (& ,$r.result ,(- $tag.procedure-tag)))
 	   `(test ,$r.temp.low ,$tag.tagmask)
-	   `(jnz short ,L0)
+	   `(jnz short ,l0)
            `(mov ,$r.temp (& ,$r.temp ,$proc.codevector))
            (ia86.storer 0 $r.result)
            (ia86.const2regf $r.result (fixnum n))
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
            `(jmp ,$r.temp)
-           `(label ,L0)
+           `(label ,l0)
 	   (ia86.mcall $m.invoke-ex 'invoke-ex)
-           `(jmp short ,L1)
+           `(jmp short ,l1)
            ))))
 
 ;;; Introduced by peephole optimization.
@@ -76,22 +76,22 @@
 ;;; if the global has an undefined value, specifically.  The
 ;;; exception handler figures out the rest.
 
-(define-sassy-instr (ia86.T_GLOBAL_INVOKE g n)
+(define-sassy-instr (ia86.t_global_invoke g n)
   (cond ((unsafe-globals)
-         (ia86.T_GLOBAL g)
-         (ia86.T_INVOKE n))
+         (ia86.t_global g)
+         (ia86.t_invoke n))
         (else
-         (let ((L1 (fresh-label))
-               (L2 (fresh-label)))
+         (let ((l1 (fresh-label))
+               (l2 (fresh-label)))
            (ia86.loadc	$r.result g)		; global cell
-           `(label ,L2)
+           `(label ,l2)
 	   `(mov ,$r.temp                    ;   dereference
                  (& ,$r.result ,(- $tag.pair-tag)))
 	   `(inc ,$r.temp)			; really ,TEMP += PROC_TAG-8
 	   `(test ,$r.temp.low ,$tag.tagmask)	; tag test
-	   `(jnz short ,L1)
+	   `(jnz short ,l1)
 	   `(dec (dword (& ,$r.globals ,$g.timer))) ; timer
-	   `(jz short ,L1)                ;   test
+	   `(jz short ,l1)                ;   test
 	   `(dec ,$r.temp)                   ; undo ptr adjustment
 	   (ia86.storer 0 $r.temp)              ; save proc ptr
 	   (ia86.const2regf $r.result           ; argument count
@@ -99,12 +99,12 @@
 	   `(mov ,$r.temp	(& ,$r.temp ,(+ (- $tag.procedure-tag) $proc.codevector)))
            `(add ,$r.temp ,(+ (- $tag.bytevector-tag) $bytevector.header-bytes))
            `(jmp ,$r.temp)
-           `(label ,L1)
+           `(label ,l1)
 	   (ia86.mcall $m.global-invoke-ex 'global-invoke-ex) ; $r.result has global cell (always)
-	   `(jmp short ,L2)		; Since ,TEMP is dead following timer interrupt
+	   `(jmp short ,l2)		; Since ,TEMP is dead following timer interrupt
            ))))
 
-(define-sassy-instr (ia86.T_SETRTN_INVOKE n)
+(define-sassy-instr (ia86.t_setrtn_invoke n)
   (let ()
     (cond ((unsafe-code) ;; (see notes in unsafe version)
            (ia86.timer_check)
@@ -116,16 +116,16 @@
            (ia86.align-after 
             `(call ,$r.temp)))
           (else 
-           (let ((L0 (fresh-label))
-                 (L1 (fresh-label)))
+           (let ((l0 (fresh-label))
+                 (l1 (fresh-label)))
              `(dec (dword (& ,$r.globals ,$g.timer)))
-             `(jnz short ,L1)
-             `(label ,L0)
+             `(jnz short ,l1)
+             `(label ,l0)
              (ia86.mcall $m.invoke-ex 'invoke-ex)
-             `(label ,L1)
+             `(label ,l1)
              `(lea ,$r.temp (& ,$r.result ,(- $tag.procedure-tag)))
              `(test ,$r.temp.low ,$tag.tagmask)
-             `(jnz short ,L0)
+             `(jnz short ,l0)
              `(mov ,$r.temp (& ,$r.temp ,$proc.codevector))
              (ia86.storer 0 $r.result)
              `(add ,$r.cont 4)
@@ -135,20 +135,20 @@
               `(call ,$r.temp))
              )))))
 
-(define-sassy-instr (ia86.T_SETRTN_BRANCH Ly)
+(define-sassy-instr (ia86.t_setrtn_branch ly)
   (let ()
     (ia86.timer_check)
     `(add ,$r.cont 4)
     (ia86.align-after
-     `(call ,(t_label Ly)))))
+     `(call ,(t_label ly)))))
 
-(define-sassy-instr (ia86.T_SETRTN_SKIP Ly)
+(define-sassy-instr (ia86.t_setrtn_skip ly)
   (let ()
     `(add ,$r.cont 4)
     (ia86.align-after
-     `(call ,(t_label Ly)))))
+     `(call ,(t_label ly)))))
 
-(define-sassy-instr (ia86.T_APPLY x y)
+(define-sassy-instr (ia86.t_apply x y)
   (ia86.timer_check)
   (ia86.loadr	$r.temp y)
   `(mov	(& ,$r.globals ,$g.third) ,$r.temp)

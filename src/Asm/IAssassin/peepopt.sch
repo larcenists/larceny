@@ -204,23 +204,23 @@
 
 (define (reg-branchf as i:reg i:branchf tail)
   (let ((rs (operand1 i:reg))
-        (L  (operand1 i:branchf)))
+        (l  (operand1 i:branchf)))
     (if (is_hwreg rs)
-        (as-source! as (cons (list $reg/branchf rs L) tail)))))
+        (as-source! as (cons (list $reg/branchf rs l) tail)))))
 
 (define (reg-check as i:reg i:check tail)
   (let ((rs (operand1 i:reg))
-        (L  (operand4 i:check))
+        (l  (operand4 i:check))
         (liveregs (list (operand1 i:check)
                         (operand2 i:check)
                         (operand3 i:check))))
     (if (is_hwreg rs)
-        (as-source! as (cons (list $reg/check rs L liveregs) tail)))))
+        (as-source! as (cons (list $reg/check rs l liveregs) tail)))))
 
 ; Optimize
 ;   setreg n
 ;   reg n
-; on the assumption that setreg does not destroy RESULT
+; on the assumption that setreg does not destroy RESUlT
 
 (define (setreg-reg as i:setreg i:reg tail)
   (if (= (operand1 i:setreg) (operand1 i:reg))
@@ -237,11 +237,11 @@
 				 tail)))))
 
 ; Gets rid of spurious branch-to-next-instruction
-;    (branch Lx k)
+;    (branch lx k)
 ;    (.align y)
-;    (.label Lx)
+;    (.label lx)
 ; => (.align y)
-;    (.label Lx)
+;    (.label lx)
 
 (define (branch-and-label as i:branch i:align i:label tail)
   (let ((branch-label (operand1 i:branch))
@@ -261,12 +261,12 @@
                                          tail)))))))
 
 ; This allows the use of hardware 'call' instructions.
-;    (setrtn Lx)
-;    (branch Ly k)
+;    (setrtn lx)
+;    (branch ly k)
 ;    (.align k)            Note alignment enforced by setrtn/branch
-;    (.label Lx)
-; => (setrtn/branch Ly k)
-;    (.label Lx)
+;    (.label lx)
+; => (setrtn/branch ly k)
+;    (.label lx)
 
 (define (setrtn-branch as i:setrtn i:branch i:align i:label tail)
   (let ((return-label (operand1 i:setrtn))
@@ -320,7 +320,7 @@
   (let ((global (operand1 i:global))
         (rd     (operand1 i:setreg)))
     (cond ((is_hwreg rd)
-           (as-source! as (cons (list $global/setreg global (REG rd)) tail))))))
+           (as-source! as (cons (list $global/setreg global (reg rd)) tail))))))
 
 (define (reg-setglbl as i:reg i:setglbl tail)
   (let ((rs     (operand1 i:reg))
@@ -440,30 +440,30 @@
 (define (reg-op1-branchf as i:reg i:op1 i:branchf tail)
   (let ((rs (operand1 i:reg))
         (op (operand1 i:op1))
-        (L  (operand1 i:branchf)))
+        (l  (operand1 i:branchf)))
     (if (is_hwreg rs)
-        (peep-reg/op1/branchf as op rs L tail))))
+        (peep-reg/op1/branchf as op rs l tail))))
 
 (define (op1-branchf as i:op1 i:branchf tail)
   (let ((op (operand1 i:op1))
-        (L  (operand1 i:branchf)))
-    (peep-reg/op1/branchf as op $r.result L tail)))
+        (l  (operand1 i:branchf)))
+    (peep-reg/op1/branchf as op $r.result l tail)))
 
 (define (reg-op2-branchf as i:reg i:op2 i:branchf tail)
   (let ((rs1 (operand1 i:reg))
         (rs2 (operand2 i:op2))
        (op  (operand1 i:op2))
-        (L   (operand1 i:branchf)))
+        (l   (operand1 i:branchf)))
     (if (is_hwreg rs1)
-       (peep-reg/op2/branchf as op rs1 rs2 L tail))))
+       (peep-reg/op2/branchf as op rs1 rs2 l tail))))
 
 (define (op2-branchf as i:op2 i:branchf tail)
   (let ((op  (operand1 i:op2))
        (rs2 (operand2 i:op2))
-        (L   (operand1 i:branchf)))
-    (peep-reg/op2/branchf as op $r.result rs2 L tail)))
+        (l   (operand1 i:branchf)))
+    (peep-reg/op2/branchf as op $r.result rs2 l tail)))
 
-(define (peep-reg/op2/branchf as op rs1 rs2 L tail)
+(define (peep-reg/op2/branchf as op rs1 rs2 l tail)
   (let ((op (case op
               ((eq?)     'internal:branchf-eq?)
               ((<)       'internal:branchf-<)
@@ -479,24 +479,24 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op2/branchf op rs1 rs2 L)
+                    (cons (list $reg/op2/branchf op rs1 rs2 l)
                           tail)))))
 
 (define (reg-op2imm-branchf as i:reg i:op2imm i:branchf tail)
   (let ((rs  (operand1 i:reg))
         (imm (operand2 i:op2imm))
         (op  (operand1 i:op2imm))
-        (L   (operand1 i:branchf)))
+        (l   (operand1 i:branchf)))
     (if (is_hwreg rs)
-        (peep-reg/op2imm/branchf as op rs imm L tail))))
+        (peep-reg/op2imm/branchf as op rs imm l tail))))
 
 (define (op2imm-branchf as i:op2imm i:branchf tail)
   (let ((op  (operand1 i:op2imm))
         (imm (operand2 i:op2imm))
-        (L   (operand1 i:branchf)))
-    (peep-reg/op2imm/branchf as op $r.result imm L tail)))
+        (l   (operand1 i:branchf)))
+    (peep-reg/op2imm/branchf as op $r.result imm l tail)))
 
-(define (peep-reg/op2imm/branchf as op rs imm L tail)
+(define (peep-reg/op2imm/branchf as op rs imm l tail)
   (let ((op (case op
               ((eq?)     'internal:branchf-eq?/imm)
               ((<)       'internal:branchf-</imm)
@@ -512,15 +512,15 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op2imm/branchf op rs imm L)
+                    (cons (list $reg/op2imm/branchf op rs imm l)
                           tail)))))
 
 (define (reg-op1-check as i:reg i:op1 i:check tail)
   (let ((rs (operand1 i:reg))
         (op (operand1 i:op1))
-        (L  (operand4 i:check)))
+        (l  (operand4 i:check)))
     (if (is_hwreg rs)
-        (peep-reg/op1/check as op rs L
+        (peep-reg/op1/check as op rs l
                             (list (operand1 i:check)
                                   (operand2 i:check)
                                   (operand3 i:check))
@@ -528,14 +528,14 @@
 
 (define (op1-check as i:op1 i:check tail)
   (let ((op (operand1 i:op1))
-        (L  (operand4 i:check)))
-    (peep-reg/op1/check as op $r.result L
+        (l  (operand4 i:check)))
+    (peep-reg/op1/check as op $r.result l
                         (list (operand1 i:check)
                               (operand2 i:check)
                               (operand3 i:check))
                         tail)))
 
-(define (peep-reg/op1/check as op rs L1 liveregs tail)
+(define (peep-reg/op1/check as op rs l1 liveregs tail)
   (let ((op (case op
               ((fixnum?)      'internal:check-fixnum?)
               ((pair?)        'internal:check-pair?)
@@ -544,7 +544,7 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op1/check op rs L1 liveregs)
+                    (cons (list $reg/op1/check op rs l1 liveregs)
                           tail)))))
 
 (define (reg-op2-check as i:reg i:op2 i:check tail)
@@ -587,7 +587,7 @@
                               (operand3 i:check))
                         tail)))
 
-(define (peep-reg/op2/check as op rs1 rs2 L1 liveregs tail)
+(define (peep-reg/op2/check as op rs1 rs2 l1 liveregs tail)
   (let ((op (case op
               ((=:fix:fix)   'internal:check-=:fix:fix)
               ((<:fix:fix)   'internal:check-<:fix:fix)
@@ -597,10 +597,10 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op2/check op rs1 rs2 L1 liveregs)
+                    (cons (list $reg/op2/check op rs1 rs2 l1 liveregs)
                           tail)))))
 
-(define (peep-reg/op2imm/check as op rs1 rs2 L1 liveregs tail)
+(define (peep-reg/op2imm/check as op rs1 rs2 l1 liveregs tail)
   (let ((op (case op
               ((=:fix:fix)   'internal:check-=:fix:fix)
               ((<:fix:fix)   'internal:check-<:fix:fix)
@@ -610,10 +610,10 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op2imm/check op rs1 rs2 L1 liveregs)
+                    (cons (list $reg/op2imm/check op rs1 rs2 l1 liveregs)
                           tail)))))
 
-(define (peep-reg/op1/branchf as op rs L tail)
+(define (peep-reg/op1/branchf as op rs l tail)
   (let ((op (case op
               ((null?)       'internal:branchf-null?)
               ((eof-object?) 'internal:branchf-eof-object?)
@@ -626,7 +626,7 @@
               ;;((fxpositive?) 'internal:branchf-fxpositive?)
               (else #f))))
     (cond (op
-           (as-source! as (cons (list $reg/op1/branchf op rs L) tail))))))
+           (as-source! as (cons (list $reg/op1/branchf op rs l) tail))))))
 
 (define (const-setreg as i:const i:setreg tail)
   (let ((c  (operand1 i:const))
