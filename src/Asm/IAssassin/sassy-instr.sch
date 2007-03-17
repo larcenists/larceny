@@ -2596,8 +2596,7 @@
   (ia86.indexed_structure_ref_imm/hdr imm $tag.bytevector-tag  
                                       (+ $imm.bytevector-header $tag.ustring-typetag)
                                       $ex.sref
-                                      #f)
-  `(or  ,$r.result.low ,$imm.character))
+                                      #f))
 
 (define-sassy-instr (ia86.T_OP2IMM_143 imm)		; vector-ref
   (ia86.indexed_structure_ref_imm/hdr imm $tag.vector-tag  $hdr.vector  $ex.vref  #f))
