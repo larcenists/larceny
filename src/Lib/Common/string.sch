@@ -455,13 +455,24 @@
            (b0 (fxrshl sv 16))
            (b1 (fxlogand (fxrshl sv 8) 255))
            (b2 (fxlogand sv 255))
-           (b3 $imm.character))
+           (b3 $imm.character)
+           (offsets (case (cdr (assq 'arch-endianness (system-features)))
+                      ((big)    (list 0 1 2 3))
+                      ((little) (list 3 2 1 0))))
+           (i0 (list-ref offsets 0))
+           (i1 (list-ref offsets 1))
+           (i2 (list-ref offsets 2))
+           (i3 (list-ref offsets 3)))
       (do ((i 0 (+ i 4)))
           ((= i n) (typetag-set! s sys$tag.ustring-typetag))
-        (bytevector-set! s i b0)
-        (bytevector-set! s (+ i 1) b1)
-        (bytevector-set! s (+ i 2) b2)
-        (bytevector-set! s (+ i 3) b3)))))
+        (bytevector-set! s (+ i i0) b0)
+        (bytevector-set! s (+ i i1) b1)
+        (bytevector-set! s (+ i i2) b2)
+        (bytevector-set! s (+ i i3) b3)))))
+
+;; NB the implementations below assume a big-endian architecture, 
+;; while the make-ustring implementation above is
+;; endianness-dependent.
 
 ;(define (ustring-length s)
 ;  (cond ((string? s)
