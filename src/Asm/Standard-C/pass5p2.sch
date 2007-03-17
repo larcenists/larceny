@@ -26,7 +26,7 @@
 ;
 ; Overrides the procedures of the same name in Asm/Common/pass5p1.sch.
 
-(define (assembly-table) $standard-C-assembly-table$)
+(define (assembly-table) $standard-c-assembly-table$)
 
 (define (assembly-start as)
   (let ((u (as-user as)))
@@ -72,14 +72,14 @@
 
 (define listify? #f)
 
-(define $standard-C-assembly-table$
+(define $standard-c-assembly-table$
   (make-vector
    *number-of-mnemonics*
    (lambda (instruction as)
      (asm-error "Unrecognized mnemonic " instruction))))
 
 (define (define-instruction i proc)
-  (vector-set! $standard-C-assembly-table$ i proc)
+  (vector-set! $standard-c-assembly-table$ i proc)
   #t)
 
 (define (list-instruction name instruction)
@@ -596,7 +596,7 @@
     (if (op1-implicit-continuation? (operand1 instruction))
 	(error "Assembler invariant violated: implicit continuation in REG/OP1/CHECK for " 
 	       (operand1 instruction)))
-    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
+    (let ((rn (if (eq? (operand2 instruction) 'result)
 		  "RESULT"
 		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
       (emit-text as "twobit_reg_op1_check_~a(~a,~a,~a); /* ~a with ~a */"
@@ -613,7 +613,7 @@
     (if (op2-implicit-continuation? (operand1 instruction))
 	(error "Assembler invariant violated: implicit continuation in REG/OP2/CHECK for " 
 	       (operand1 instruction)))
-    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
+    (let ((rn (if (eq? (operand2 instruction) 'result)
 		  "RESULT"
 		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
       (emit-text as "twobit_reg_op2_check_~a(~a,reg(~a),~a,~a); /* ~a with ~a */"
@@ -631,7 +631,7 @@
     (if (op2-implicit-continuation? (operand1 instruction))  ; Note, not op2imm-implicit-continuation?
 	(error "Assembler invariant violated: implicit continuation in REG/OP2IMM/CHECK for " 
 	       (operand1 instruction)))
-    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
+    (let ((rn (if (eq? (operand2 instruction) 'result)
 		  "RESULT"
 		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
       (emit-text as "twobit_reg_op2imm_check_~a(~a,~a,~a,~a); /* ~a with ~a */"
