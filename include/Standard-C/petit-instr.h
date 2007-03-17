@@ -1886,12 +1886,11 @@ extern cont_t twobit_cont_label;
    } while ( 0 )
  
 #define twobit_op2_802( y )      /* ustring-ref    */                            \
-   do { word a=RESULT, b=reg(y), c, h;                                           \
+   do { word a=RESULT, b=reg(y), h;                                           \
         if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, BV_HDR+USTR_SUBTAG, h ) && \
                         is_fixnum(b) &&                                          \
                         b < (h >> 8))) {                                         \
-         c = *word_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b);                     \
-         RESULT = int_to_char( c );                                              \
+         RESULT = *word_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b);                \
         } else { SECOND=b;                                                       \
                FAIL( EX_STRING_REF ); }                                          \
    } while (0)
@@ -1902,7 +1901,7 @@ extern cont_t twobit_cont_label;
                        is_fixnum(b) &&                                           \
                        b < (h >> 8) &&                                           \
                        is_char( c ))) {                                          \
-           *word_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b ) = charcode(c);        \
+           *word_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b ) = c;                  \
         } else { SECOND=b; THIRD=c;                                              \
                FAIL( EX_STRING_SET ); }                                          \
    } while (0)
