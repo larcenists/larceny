@@ -1396,7 +1396,6 @@
 ;;;   ;; Using $r.cont here is sketchy when it can alias esp
   `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
   (ia86.loadr	$r.cont regno)
-  `(shr	,$r.temp ,$bitwidth.char-shift)
   `(mov	(& ,$r.result ,$r.cont ,(+ (- ptrtag) $bytewidth.wordsize)) ,$r.temp)
   `(mov	,$r.cont (& ,$r.globals ,$g.stkp)))
 
@@ -2372,7 +2371,6 @@
   (ia86.indexed_structure_ref/hdr regno $tag.bytevector-tag  
                                   (+ $imm.bytevector-header $tag.ustring-typetag) 
                                   $ex.sref #f)
-  `(shl	,$r.result ,$bitwidth.char-shift)
   `(or	,$r.result.low ,$imm.character))
 
 (define-sassy-instr (ia86.T_OP3_ustring-set! regno y)   ; ustring-set!
@@ -2599,7 +2597,6 @@
                                       (+ $imm.bytevector-header $tag.ustring-typetag)
                                       $ex.sref
                                       #f)
-  `(shl ,$r.result ,$bitwidth.char-shift)
   `(or  ,$r.result.low ,$imm.character))
 
 (define-sassy-instr (ia86.T_OP2IMM_143 imm)		; vector-ref
