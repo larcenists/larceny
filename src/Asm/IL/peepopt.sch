@@ -112,7 +112,7 @@
 
 (define (op1-branchf as i:op1 i:branchf tail)
   (let* ((op (operand1 i:op1))
-	 (L  (operand1 i:branchf))
+	 (l  (operand1 i:branchf))
 	 (op (case op
 	       ((null?)       'internal:branchf-null?)
 	       ((pair?)       'internal:branchf-pair?)
@@ -125,12 +125,12 @@
 ;	       ((fxpositive?) 'internal:branchf-fxpositive?)
 	       (else #f))))
     (if op
-        (as-source! as (cons (list $op1/branchf op L) tail)))))
+        (as-source! as (cons (list $op1/branchf op l) tail)))))
 
 (define (op2-branchf as i:op2 i:branchf tail)
   (let* ((op  (operand1 i:op2))
 	 (rs2 (operand2 i:op2))
-	 (L   (operand1 i:branchf))
+	 (l   (operand1 i:branchf))
 	 (op  (case op
 ;		((<)       'internal:branchf-<)
 ;		((>)       'internal:branchf->)
@@ -151,13 +151,13 @@
 		(else #f))))
     (if op
         (as-source! as
-                    (cons (list $op2/branchf op rs2 L)
+                    (cons (list $op2/branchf op rs2 l)
                           tail)))))
 
 (define (op2imm-branchf as i:op2imm i:branchf tail)
   (let* ((op  (operand1 i:op2imm))
 	 (imm (operand2 i:op2imm))
-	 (L   (operand1 i:branchf))
+	 (l   (operand1 i:branchf))
 	 (op  (case op
 ;		((<)       'internal:branchf-</imm)
 ;		((>)       'internal:branchf->/imm)
@@ -178,7 +178,7 @@
 		(else #f))))
     (if op
         (as-source! as
-                    (cons (list $op2imm/branchf op imm L)
+                    (cons (list $op2imm/branchf op imm l)
                           tail)))))
 
 ; Check optimization.
@@ -199,14 +199,14 @@
   (let ((op (operand1 i:op1)))
     (peep-reg/op1/check as
                         op
-                        'RESULT
+                        'result
                         (operand4 i:check)
                         (list (operand1 i:check)
                               (operand2 i:check)
                               (operand3 i:check))
                         tail)))
 
-(define (peep-reg/op1/check as op rs L1 liveregs tail)
+(define (peep-reg/op1/check as op rs l1 liveregs tail)
   (let ((op (case op
               ((fixnum?)      'internal:check-fixnum?)
               ((pair?)        'internal:check-pair?)
@@ -215,7 +215,7 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op1/check op rs L1 liveregs)
+                    (cons (list $reg/op1/check op rs l1 liveregs)
                           tail)))))
 
 (define (reg-op2-check as i:reg i:op2 i:check tail)
@@ -237,7 +237,7 @@
         (op (operand1 i:op2)))
     (peep-reg/op2/check as
                         op
-                        'RESULT
+                        'result
                         rs2
                         (operand4 i:check)
                         (list (operand1 i:check)
@@ -245,7 +245,7 @@
                               (operand3 i:check))
                         tail)))
 
-(define (peep-reg/op2/check as op rs1 rs2 L1 liveregs tail)
+(define (peep-reg/op2/check as op rs1 rs2 l1 liveregs tail)
   (let ((op (case op
 ;              ((<:fix:fix)   'internal:check-<:fix:fix)
 ;              ((<=:fix:fix)  'internal:check-<=:fix:fix)
@@ -253,7 +253,7 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op2/check op rs1 rs2 L1 liveregs)
+                    (cons (list $reg/op2/check op rs1 rs2 l1 liveregs)
                           tail)))))
 
 (define (reg-op2imm-check as i:reg i:op2imm i:check tail)
@@ -275,7 +275,7 @@
         (imm (operand2 i:op2imm)))
     (peep-reg/op2imm/check as
                            op
-                           'RESULT
+                           'result
                            imm
                            (operand4 i:check)
                            (list (operand1 i:check)
@@ -283,7 +283,7 @@
                                  (operand3 i:check))
                            tail)))
 
-(define (peep-reg/op2imm/check as op rs1 imm L1 liveregs tail)
+(define (peep-reg/op2imm/check as op rs1 imm l1 liveregs tail)
   (let ((op (case op
 ;              ((<:fix:fix)   'internal:check-<:fix:fix/imm)
 ;              ((<=:fix:fix)  'internal:check-<=:fix:fix/imm)
@@ -291,7 +291,7 @@
               (else #f))))
     (if op
         (as-source! as
-                    (cons (list $reg/op2imm/check op rs1 imm L1 liveregs)
+                    (cons (list $reg/op2imm/check op rs1 imm l1 liveregs)
                           tail)))))
 
 (define (reg/op1/check-reg-op1-setreg as i:ro1check i:reg i:op1 i:setreg tail)
@@ -338,20 +338,20 @@
   (let ((o1   (operand1 i:ro2check))
         (rs1  (operand2 i:ro2check))
         (rs2  (operand3 i:ro2check))
-        (L1   (operand4 i:ro2check))
+        (l1   (operand4 i:ro2check))
         (live (operand5 i:ro2check))
         (rs3  (operand1 i:reg))
         (o2   (operand1 i:op2imm))
         (x    (operand2 i:op2imm))
-        (L2   (operand4 i:check)))
+        (l2   (operand4 i:check)))
 ;    (if (and (eq? o1 'internal:check-<:fix:fix)
 ;             (eq? o2 '>=:fix:fix)
 ;             (eq? rs1 rs3)
 ;             (eq? x 0)
-;             (eq? L1 L2))
+;             (eq? l1 l2))
 ;        (as-source! as
 ;                    (cons (list $reg/op2/check 'internal:check-range
-;                                                rs1 rs2 L1 live)
+;                                                rs1 rs2 l1 live)
 ;                          tail)))
     (unspecified)))
 

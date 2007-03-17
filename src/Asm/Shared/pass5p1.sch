@@ -143,8 +143,8 @@
 
 ; Defines the given label using the current location counter.
 
-(define (emit-label! as L)
-  (set-cdr! L (as-lc as)))
+(define (emit-label! as l)
+  (set-cdr! l (as-lc as)))
 
 ; Adds the integer n to the size code bytes beginning at the
 ; given byte offset from the current value of the location counter.
@@ -156,8 +156,8 @@
 ; Adds the value of the label L to the size code bytes beginning
 ; at the given byte offset from the current location counter.
 
-(define (emit-fixup-label! as offset size L)
-  (as-fixups! as (cons (list (+ offset (as-lc as)) size (list L))
+(define (emit-fixup-label! as offset size l)
+  (as-fixups! as (cons (list (+ offset (as-lc as)) size (list l))
 		       (as-fixups as))))
 
 ; Allows the procedure proc of two arguments (code vector and current
@@ -185,7 +185,7 @@
 
 ; This can use hashed lookup.
 
-(define (find-label as L)
+(define (find-label as l)
 
   (define (lookup-label-loop x labels parent)
     (let ((entry (assq x labels)))
@@ -194,7 +194,7 @@
 	    (else 
 	     (lookup-label-loop x (as-labels parent) (as-parent parent))))))
     
-  (lookup-label-loop L (as-labels as) (as-parent as)))
+  (lookup-label-loop l (as-labels as) (as-parent as)))
 
 ; Create a new assembler label, distinguishable from a MAL label.
 
@@ -206,7 +206,7 @@
 
 ; Given a value name (a number), return the label value or #f.
 
-(define (label-value as L) (cdr L))
+(define (label-value as l) (cdr l))
 
 ; For peephole optimization.
 
@@ -482,9 +482,9 @@
               (else ???))
             (apply-fixups! (cdr fixups)))))
 
-    (define (lookup-label L)
-      (or (label-value as (label.ident L))
-	  (asm-error "Assembler error -- undefined label " L)))
+    (define (lookup-label l)
+      (or (label-value as (label.ident l))
+	  (asm-error "Assembler error -- undefined label " l)))
 
     (apply-fixups! (reverse! (as-fixups as)))
 

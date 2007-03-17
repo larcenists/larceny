@@ -547,7 +547,7 @@
 '(define-instruction $reg/op1/check
   (lambda (instruction as)
     (list-instruction "reg/op1/check" instruction)
-    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
+    (let ((rn (if (eq? (operand2 instruction) 'result)
 		  "RESULT"
 		  (twobit-format #f "REG~a" (operand2 instruction)))))
       (emit-text as "T_REG_OP1_CHECK_~a ~a,~a   ; ~a with ~a"
@@ -560,7 +560,7 @@
 '(define-instruction $reg/op2/check
   (lambda (instruction as)
     (list-instruction "reg/op2/check" instruction)
-    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
+    (let ((rn (if (eq? (operand2 instruction) 'result)
 		  "RESULT"
 		  (twobit-format #f "REG~a" (operand2 instruction)))))
       (emit-text as "twobit_reg_op2_check_~a(~a,reg(~a),~a,~a); /* ~a with ~a */"
@@ -575,7 +575,7 @@
 '(define-instruction $reg/op2imm/check
   (lambda (instruction as)
     (list-instruction "reg/op2imm/check" instruction)
-    (let ((rn (if (eq? (operand2 instruction) 'RESULT)
+    (let ((rn (if (eq? (operand2 instruction) 'result)
 		  "RESULT"
 		  (twobit-format #f "reg(~a)" (operand2 instruction)))))
       (emit-text as "twobit_reg_op2imm_check_~a(~a,~a,~a,~a); /* ~a with ~a */"
