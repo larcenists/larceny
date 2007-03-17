@@ -264,7 +264,7 @@
     (let ((c-name (cadr item))
 	  (asm-name (caddr item)))
       (if c-name
-	  (open-table-output c-name standard-C-table (car comments)))
+	  (open-table-output c-name standard-c-table (car comments)))
       (if asm-name
 	  (open-table-output asm-name asm-table-generator (cadr comments)))
       (table-heading)
@@ -488,7 +488,7 @@
 
   ;; Standard-C table
 
-  (define (standard-C-table output op)
+  (define (standard-c-table output op)
 
     (define (show data)
       (for-each (lambda (x)

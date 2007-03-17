@@ -54,7 +54,7 @@
                                           (car procs)
                                           (environment-get e (car procs))))
                        (else
-                        (display `(Whoops ,(car procs) is not a proc))
+                        (display `(whoops ,(car procs) is not a proc))
                         (newline)))
                       (install-procedures x (cdr procs))))))
              (install-macros
@@ -68,7 +68,7 @@
                                                 (car macros)
                                                 bound-macro))
                        (else
-                        (display `(Whoops ,(car macros) is not a macro!))
+                        (display `(whoops ,(car macros) is not a macro!))
                         (newline)))
                       (install-macros x (cdr macros)))))))
       (init-toplevel-environment)

@@ -18,16 +18,16 @@
 ;   compatibility   the directory for the compatibility code
 ;   host-system     the name of the host system
 ;   target-machine  a symbol that specifies the target architecture
-;                      SPARC           Sparc v8  (32-bit, big endian)
+;                      sparc           Sparc v8  (32-bit, big endian)
 ;                      standard-c      ANSI C
 ;                      dotnet          Microsoft Common Language Runtime
 ;                      x86-nasm        Intel 80x86, NASM assembler
 ;   endianness      endianness of target, either 'big' or 'little'.
 ;
-; If target-machine = SPARC:
+; If target-machine = sparc:
 ;   sparc-asm       the directory the SPARC assembler
 ;
-; If target-machine = Standard-C
+; If target-machine = standard-c
 ;   standard-C-asm  the directory for the standard-C assembler
 ;
 ; There might be other keys used by the compatibility packages.
@@ -91,7 +91,7 @@
 (initialize-help (nbuild-parameter 'compiler) 
 		 'full
                  (case (nbuild-parameter 'target-machine)
-                   ((SPARC x86-sass) 'native)
+                   ((sparc x86-sass) 'native)
                    (else 'petit)))
 
 ; Initialize assembler (Nothing yet -- must eventually adjust endianness.)
@@ -102,7 +102,7 @@
 
 ;FIXME: this patch should go away when all systems have converted.
 
-(if (or (eq? 'SPARC (nbuild-parameter 'target-machine))
+(if (or (eq? 'sparc (nbuild-parameter 'target-machine))
         (eq? 'x86-sass (nbuild-parameter 'target-machine))
         (eq? 'x86-nasm (nbuild-parameter 'target-machine))
         (eq? 'standard-c (nbuild-parameter 'target-machine)))

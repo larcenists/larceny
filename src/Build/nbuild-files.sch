@@ -69,7 +69,7 @@
                       (else '())))))
 
 (define *nbuild:sparcasm-files*
-  (if (eq? 'SPARC (nbuild-parameter 'target-machine))
+  (if (eq? 'sparc (nbuild-parameter 'target-machine))
       (param-filename 'sparc-asm
                     '("pass5p2.sch" 
                       "peepopt.sch"
@@ -90,7 +90,7 @@
       (append
        (param-filename 'common-asm
                      '("external-assembler.sch"))
-       (param-filename 'standard-C-asm
+       (param-filename 'standard-c-asm
                      `("pass5p2.sch" 
                        "peepopt.sch" 
                        "asm-switches.sch" 
@@ -137,7 +137,7 @@
                            ((unix cygwin linux-el)  '("dumpheap-unix.sch"))
                            ((win32) '("dumpheap-win32.sch"))
                            (else    '()))))
-       (param-filename 'standard-C-asm
+       (param-filename 'standard-c-asm
                      '("asm-switches.sch"
                        "petit-init-proc.sch"
                        "md5.sch")))
@@ -176,7 +176,7 @@
 
 (define *nbuild:petit-heap-dumper-files*
   (if (eq? 'standard-c (nbuild-parameter 'target-machine))
-      (param-filename 'standard-C-asm '())
+      (param-filename 'standard-c-asm '())
       '()))
 
 (define *nbuild:dotnet-heap-dumper-files*
@@ -188,7 +188,7 @@
           ; The target-specific tables may need these constants.
           *nbuild:build-files*
 	  (case (nbuild-parameter 'target-machine)
-	    ((SPARC)      *nbuild:sparc/twobit-files*)
+	    ((sparc)      *nbuild:sparc/twobit-files*)
 	    ((standard-c) *nbuild:petit/twobit-files*)
 	    ((x86-sass)   *nbuild:iasn/twobit-files*)
 	    ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
@@ -206,7 +206,7 @@
 
 (define (nbuild:machine-asm-files)
   (case (nbuild-parameter 'target-machine)
-    ((SPARC)      *nbuild:sparcasm-files*)
+    ((sparc)      *nbuild:sparcasm-files*)
     ((standard-c) *nbuild:petitasm-files*)
     ((x86-nasm)   *nbuild:x86-nasm-files*)
     ((x86-sass)   *nbuild:x86-sass-files*)
@@ -215,7 +215,7 @@
 
 (define (nbuild:heap-dumper-files)
   (case (nbuild-parameter 'target-machine)
-    ((SPARC)      *nbuild:sparc-heap-dumper-files*)
+    ((sparc)      *nbuild:sparc-heap-dumper-files*)
     ((standard-c) *nbuild:petit-heap-dumper-files*)
     ((x86-sass)   *nbuild:petit-heap-dumper-files*)
     ((x86-nasm)   *nbuild:petit-heap-dumper-files*)

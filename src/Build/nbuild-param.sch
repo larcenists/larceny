@@ -73,7 +73,7 @@
     (apply-parameter-value 'sparc-asm (pathname-append dir "src" "Asm" "Sparc"))
     (apply-parameter-value 'x86-nasm-asm (pathname-append dir "src" "Asm" "Nasm"))
     (apply-parameter-value 'x86-sass-asm (pathname-append dir "src" "Asm" "IAssassin"))
-    (apply-parameter-value 'standard-C-asm (pathname-append dir "src" "Asm" "Standard-C"))
+    (apply-parameter-value 'standard-c-asm (pathname-append dir "src" "Asm" "Standard-C"))
     (apply-parameter-value 'dotnet-asm     (pathname-append dir "src" "Asm" "IL"))
     ;; 'compatibility varies with host scheme, but 'larceny-compatibility
     ;; always points to src/Compat/Larceny
@@ -110,7 +110,7 @@
          sparc-asm
          x86-nasm-asm
          x86-sass-asm
-         standard-C-asm
+         standard-c-asm
          always-source?
          verbose-load?
          development?
