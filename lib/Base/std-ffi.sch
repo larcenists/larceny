@@ -508,7 +508,7 @@
 (define (%peek16u addr)
   (let ((x (make-bytevector 2)))
     (peek-bytes addr x 2)
-    (bytevector-ref x 0)))
+    (%get16u x 0)))
 
 (define (%peek32u addr)
   (let ((x (make-bytevector 4)))
