@@ -38,7 +38,7 @@
    ((and (< 0 r1 *nhwregs*) (<= *nhwregs* r2)) 
     ;; prefer hw reg over sw reg
     #t)
-   ((and (< (G_REG r1) 128) (<= 128 (G_REG r2))) 
+   ((and (< (g-reg r1) 128) (<= 128 (g-reg r2))) 
     ;; prefer sw reg with byte index over sw reg with word index
     #t)
    (else
