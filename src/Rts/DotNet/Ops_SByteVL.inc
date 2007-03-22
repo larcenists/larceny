@@ -33,6 +33,7 @@
         PREDICATE_OVERRIDE_TRUE(isByteVectorLike, bytevector_likep)
         PREDICATE_OVERRIDE_EXPR(isByteVector, bytevectorp, this.tag == Tags.ByteVectorTag)
         PREDICATE_OVERRIDE_EXPR(isString, stringp, this.tag == Tags.StringTag)
+        PREDICATE_OVERRIDE_EXPR(isUString, ustringp, this.tag == Tags.UStringTag)
         // ----------------------
 
         OP1_OVERRIDE(string_length) {
@@ -40,7 +41,7 @@
             return Factory.makeNumber (this.elements.Length);
         }
         OP1_OVERRIDE(string_length_str) {
-            // check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
+            check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
             return Factory.makeNumber (this.elements.Length);
         }
 
@@ -48,6 +49,14 @@
         OP3_CHAIN_CHECK_TAG(string_set, Tags.StringTag, EX_STRING_SET)
         OP2_CHAIN(string_ref_trusted)
         OP3_CHAIN(string_set_trusted)
+
+        OP1_OVERRIDE(ustring_length) {
+            check_typetag(Tags.UStringTag, this, Constants.EX_USTRING_LENGTH);
+            return Factory.makeNumber (this.elements.Length >> 2);
+        }
+
+        OP2_CHAIN_CHECK_TAG(ustring_ref, Tags.UStringTag, EX_USTRING_REF)
+        OP3_CHAIN_CHECK_TAG(ustring_set, Tags.UStringTag, EX_USTRING_SET)
 
         OP1_OVERRIDE_CHECK_TAG(bytevector_length, Tags.ByteVectorTag, EX_BYTEVECTOR_LENGTH) {
             return Factory.makeNumber (this.elements.Length);

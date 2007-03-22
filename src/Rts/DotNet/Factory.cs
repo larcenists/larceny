@@ -20,6 +20,7 @@ namespace Scheme.Rep {
 
         public const int ByteVectorTag = Constants.BVEC_SUBTAG >>2;
         public const int StringTag = Constants.STR_SUBTAG >>2;
+        public const int UStringTag = Constants.USTR_SUBTAG >>2;
         public const int CompnumTag = Constants.COMP_SUBTAG >>2;
         public const int BignumTag = Constants.BIG_SUBTAG >>2;
         public const int FlonumTag = Constants.FLO_SUBTAG >>2;
