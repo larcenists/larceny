@@ -431,44 +431,58 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; FIXME: I have no idea why the auto-generated definitions in
-; layouts.sch aren't visible to this file.
-
-(define $imm.character 38)
 
 ; Although these definitions are temporary, we will probably keep
 ; the representation used here.  These operations will become a
 ; lot faster when the back ends generate native code for them.
-
-;(define (ustring? x)
-;  (or (string? x) ; FIXME: should go away
-;      (and (bytevector-like? x)
-;           (eq? (typetag x) sys$tag.ustring-typetag))))
+;
+; UPDATE: make-ustring is now representation-agnostic, and all the
+; other procedures are primops.
 
 (define (make-ustring n . rest)
   (let ((fill (if (null? rest) #\space (car rest))))
     (if (not (char? fill))
         (error "Bad fill argument to make-string: " fill))
-    (let* ((n (* 4 n))
-           (s (make-bytevector n))
-           (sv (char->integer fill))
-           (b0 (fxrshl sv 16))
-           (b1 (fxlogand (fxrshl sv 8) 255))
-           (b2 (fxlogand sv 255))
-           (b3 $imm.character)
-           (offsets (case (cdr (assq 'arch-endianness (system-features)))
-                      ((big)    (list 0 1 2 3))
-                      ((little) (list 3 2 1 0))))
-           (i0 (list-ref offsets 0))
-           (i1 (list-ref offsets 1))
-           (i2 (list-ref offsets 2))
-           (i3 (list-ref offsets 3)))
-      (do ((i 0 (+ i 4)))
-          ((= i n) (typetag-set! s sys$tag.ustring-typetag))
-        (bytevector-set! s (+ i i0) b0)
-        (bytevector-set! s (+ i i1) b1)
-        (bytevector-set! s (+ i i2) b2)
-        (bytevector-set! s (+ i i3) b3)))))
+    (let* ((s (make-bytevector (* 4 n))))
+      (typetag-set! s sys$tag.ustring-typetag)
+      (do ((i 0 (+ i 1)))
+          ((= i n) s)
+        (ustring-set! s i fill)))))
+
+; FIXME: I have no idea why the auto-generated definitions in
+; layouts.sch aren't visible to this file.
+;
+;(define $imm.character 38)
+;
+;(define (ustring? x)
+;  (or (string? x) ; FIXME: should go away
+;      (and (bytevector-like? x)
+;           (eq? (typetag x) sys$tag.ustring-typetag))))
+;
+; (define (make-ustring n . rest)
+;   (let ((fill (if (null? rest) #\space (car rest))))
+;     (if (not (char? fill))
+;         (error "Bad fill argument to make-string: " fill))
+;     (let* ((n (* 4 n))
+;            (s (make-bytevector n))
+;            (sv (char->integer fill))
+;            (b0 (fxrshl sv 16))
+;            (b1 (fxlogand (fxrshl sv 8) 255))
+;            (b2 (fxlogand sv 255))
+;            (b3 $imm.character)
+;            (offsets (case (cdr (assq 'arch-endianness (system-features)))
+;                       ((big)    (list 0 1 2 3))
+;                       ((little) (list 3 2 1 0))))
+;            (i0 (list-ref offsets 0))
+;            (i1 (list-ref offsets 1))
+;            (i2 (list-ref offsets 2))
+;            (i3 (list-ref offsets 3)))
+;       (do ((i 0 (+ i 4)))
+;           ((= i n) (typetag-set! s sys$tag.ustring-typetag) s)
+;         (bytevector-set! s (+ i i0) b0)
+;         (bytevector-set! s (+ i i1) b1)
+;         (bytevector-set! s (+ i i2) b2)
+;         (bytevector-set! s (+ i i3) b3)))))
 
 ;; NB the implementations below assume a big-endian architecture, 
 ;; while the make-ustring implementation above is
