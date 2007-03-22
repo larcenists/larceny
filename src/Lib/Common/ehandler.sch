@@ -373,6 +373,11 @@
                  char? arg3))
        ((= code $ex.slen)
         (error "string-length: " arg1 " is not a string"))
+       ((or (= code $ex.usref) (= code $ex.usset))
+        (dstruct code $ex.usref "ustring" ustring? ustring-length arg1 arg2
+                 char? arg3))
+       ((= code $ex.uslen)
+        (error "ustring-length: " arg1 " is not a ustring"))
 
        ;; Bytevectors
 
