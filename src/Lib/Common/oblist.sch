@@ -115,7 +115,8 @@
 	     #t)
       (call-without-interrupts
 	(lambda ()
-	  (symbol.proplist! sym (remq name (symbol.proplist sym)))))))
+	  (symbol.proplist! sym (remf (lambda (pair) (eq? name (car pair)))
+                                      (symbol.proplist sym)))))))
 
 
 ; Private procedures.
