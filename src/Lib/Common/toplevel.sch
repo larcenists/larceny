@@ -406,6 +406,8 @@
   (environment-set! larc 'remq! remq!)
   (environment-set! larc 'remv remv)
   (environment-set! larc 'remv! remv!)
+  (environment-set! larc 'remf remf)
+  (environment-set! larc 'remf! remf!)
   (environment-set! larc 'revappend revappend)
   (environment-set! larc 'revappend! revappend!)
   (environment-set! larc 'reverse! reverse!)

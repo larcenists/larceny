@@ -615,6 +615,10 @@
 	((eq? x (car l)) (remq x (cdr l)))
 	(else (cons (car l) (remq x (cdr l))))))
 
+(define (remf pred? l)
+  (cond ((not (pair? l)) l)
+        ((pred? (car l)) (remf pred? (cdr l)))
+        (else (cons (car l) (remf pred? (cdr l))))))
 
 (define (remq! key list)
   (cond ((null? list) list)
@@ -624,6 +628,13 @@
 	 (set-cdr! list (remq! key (cdr list)))
 	 list)))
 
+(define (remf! pred? list)
+  (cond ((null? list) list)
+	((pred? (car list))
+	 (remf! pred? (cdr list)))
+	(else
+	 (set-cdr! list (remf! pred? (cdr list)))
+	 list)))
 
 (define (remv! key list)
   (cond ((null? list) list)
