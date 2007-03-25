@@ -303,6 +303,10 @@ Leqv_vec:
 	bne,a	Leqv_done
 	mov	FALSE_CONST, %RESULT
 
+	cmp	%TMP0, VECTOR_HDR
+	be,a	Leqv_vector
+	nop
+	
 	mov	0, %TMP1
 	cmp	%TMP0, RATNUM_HDR
 	be,a	Leqv_number
@@ -310,9 +314,6 @@ Leqv_vec:
 	cmp	%TMP0, RECTNUM_HDR
 	be,a	Leqv_number
 	mov	0, %TMP0
-	cmp	%TMP0, VECTOR_HDR
-	be,a	Leqv_vector
-	nop
 	b	Leqv_done
 	mov	FALSE_CONST, %RESULT
 
