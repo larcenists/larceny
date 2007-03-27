@@ -13,24 +13,61 @@
 ;   * Single inheritance (type extensions)
 ;   * Record-type-descriptors are records
 ;   * There are installable record printers
+;
+; This implementation has been modified and extended to conform
+; to the procedural record layer (r6rs records procedural) that
+; is described in the 5.92 draft R6RS.  The R6RS extension is
+; at the bottom of this file.
+;
+; There are now two kinds of records, old-style and R6RS.
+; The R6RS procedures have been extended to accept old-style
+; records; this does not affect R6RS conformance because it
+; will be impossible to create old-style records in
+; R6RS-conforming mode.  Note that record-type-field-names
+; returns a list when given an old-style record, but returns
+; a vector when given an R6RS record.
+;
+; FIXME:
+;     all records are generative
+;     not checking sealed?
+;     not checking opaque?
+;     not checking mutability
+;     make-record-constructor-descriptor should check its arguments
+;         and should create sealed and immutable records
+;     record-constructor isn't fully general
+;         (because the draft R6RS is incomprehensible on this)
+;     the rtd-rtd should probably be sealed and opaque
 
 (define make-record-type)
 (define record-type-descriptor?)
-(define record-type-field-names)
-(define record-type-name)
+(define record-type-field-names)         ; overloaded for R6RS
+(define record-type-name)                ; overloaded for R6RS
 (define record-type-extends?)
 (define record-type-parent)
 
 (define record?)
-(define record-constructor)
+(define record-constructor)              ; overloaded for R6RS
 (define record-predicate)
-(define record-accessor)
+(define record-accessor)                 ; overloaded for R6RS
 (define record-updater)
 (define record-type-descriptor)
 
 ;; Added these to support MzScheme structure interface
 (define record-indexer)
 (define record-mutator)
+
+; New for R6RS.
+
+(define make-record-type-descriptor)
+(define record-type-uid)
+(define record-type-generative?)
+(define record-type-sealed?)
+(define record-type-opaque?)
+(define record-field-mutable?)
+
+(define (record-rtd rec) (record-type-descriptor rec))
+
+(define make-record-constructor-descriptor)
 
 (let ((interface
 
@@ -96,6 +133,7 @@
                           (vector-like-set! r c-offset c)
                           r))))
                (else
+                ; FIXME: poor error message for wrong number of args
                 (lambda values
                   (let ((r (make-the-record)))
                     (do ((indices indices (cdr indices))
@@ -139,9 +177,10 @@
                      ((<= 0 index (- num-fields 1))
                       (vector-like-ref obj (+ index
                                               record-overhead)))
-                     (else (error "slot index must be in [0, " (- num-fields 1) "]") )))))
+                     (else (error "slot index must be in [0, "
+                                  (- num-fields 1) "]") )))))
 
-         (define (record-mutator rtd)
+         (define (old-style-record-mutator rtd)
            (assert-rtd rtd)
            (let ((num-fields (length (record-type-field-names rtd))))
              (lambda (obj index new-val)
@@ -160,6 +199,16 @@
          ;       record-size         fixnum
          ;       hierarchy-vector    vector of rtds
          ;       hierarchy-depth     fixnum
+         ;
+         ;       new for R6RS
+         ;
+         ;       r6rs?               boolean
+         ;       uid                 symbol or #f
+         ;       sealed?             boolean
+         ;       opaque?             boolean
+         ;       field-names         vector of symbols (excluding parent's)
+         ;       mutabilities        vector of booleans (for field-names)
+         ;       favored-cd          record constructor descriptor
          ;       )))
          
          ; Magic definiton of *rtd-type*, predicate, and accessors because
@@ -172,7 +221,16 @@
                      (printer . ,(+ record-overhead 2))
                      (record-size . ,(+ record-overhead 3))
                      (hierarchy-vector . ,(+ record-overhead 4))
-                     (hierarchy-depth . ,(+ record-overhead 5))))
+                     (hierarchy-depth . ,(+ record-overhead 5))
+                     ;
+                     (r6rs? . ,(+ record-overhead 6))
+                     (uid . ,(+ record-overhead 7))
+                     (sealed? . ,(+ record-overhead 8))
+                     (opaque? . ,(+ record-overhead 9))
+                     (field-names . ,(+ record-overhead 10))
+                     (mutabilities . ,(+ record-overhead 11))
+                     (favored-cd . ,(+ record-overhead 12))))
+
                   (x 
                    (make-structure (+ record-overhead (length slot-offsets))))
                   (name
@@ -184,6 +242,14 @@
              (vector-like-set! x 4 (vector-like-length x))
              (vector-like-set! x 5 (vector x))
              (vector-like-set! x 6 0)
+             ;
+             (vector-like-set! x 7 #f)
+             (vector-like-set! x 8 #f)
+             (vector-like-set! x 9 #f)
+             (vector-like-set! x 10 #f)
+             (vector-like-set! x 11 #f)
+             (vector-like-set! x 12 #f)
+             (vector-like-set! x 13 #f)
              x))
 
          ; Hairy because record type descriptors are themselves record
@@ -223,6 +289,29 @@
          (define (rtd-field-names rtd)
            (map car (rtd-slot-offsets rtd)))
 
+         ; Magic for R6RS extensions
+
+         (define (rtd-r6rs? rtd)
+           (vector-like-ref rtd (+ record-overhead 6)))
+
+         (define (rtd-uid rtd)
+           (vector-like-ref rtd (+ record-overhead 7)))
+
+         (define (rtd-sealed? rtd)
+           (vector-like-ref rtd (+ record-overhead 8)))
+
+         (define (rtd-opaque? rtd)
+           (vector-like-ref rtd (+ record-overhead 9)))
+
+         (define (rtd-field-names-r6rs rtd)
+           (vector-like-ref rtd (+ record-overhead 10)))
+
+         (define (rtd-mutabilities rtd)
+           (vector-like-ref rtd (+ record-overhead 11)))
+
+         (define (rtd-favored-cd rtd)
+           (vector-like-ref rtd (+ record-overhead 12)))
+
          ; End magic
 
          ; r1 extends r2 
@@ -260,13 +349,16 @@
                          #f
                          (+ (length field-names) record-overhead)
                          hierarchy-vector
-                         hierarchy-depth)))
+                         hierarchy-depth
+                         #f #f #f #f #f #f #f)))
                (vector-set! hierarchy-vector hierarchy-depth rtd)
                rtd)))
 
          (define (record-type-field-names rtd)
            (assert-rtd rtd)
-           (rtd-field-names rtd))
+           (if (rtd-r6rs? rtd)
+               (list->vector (rtd-field-names-r6rs rtd))
+               (rtd-field-names rtd)))
 
          (define (record-type-extends? rtd1 rtd2)
            (assert-rtd rtd1)
@@ -275,7 +367,9 @@
 
          (define (record-type-name rtd)
            (assert-rtd rtd)
-           (rtd-name rtd))
+           (if (rtd-r6rs? rtd)
+               (string->symbol (rtd-name rtd))
+               (rtd-name rtd)))
 
          (define (record-type-parent rtd)
            (assert-rtd rtd)
@@ -283,6 +377,177 @@
                (vector-ref (rtd-hierarchy-vector rtd)
                            (- (rtd-hierarchy-depth rtd) 1))
                #f))
+
+         ; R6RS extensions
+
+         (define (record-type-uid rtd)
+           (assert-rtd rtd)
+           (rtd-uid rtd))
+
+         (define (record-type-generative? rtd)
+           (assert-rtd rtd)
+           (not (rtd-uid rtd)))
+
+         (define (record-type-sealed? rtd)
+           (assert-rtd rtd)
+           (rtd-sealed? rtd))
+
+         (define (record-type-opaque? rtd)
+           (assert-rtd rtd)
+           (rtd-opaque? rtd))
+
+         (define (record-field-mutable? rtd k)
+           (assert-rtd rtd)
+           (if (rtd-r6rs? rtd)
+               (let ((mutabilities (rtd-mutabilities rtd)))
+                 (assert-index k)
+                 (if (< k (length mutabilities))
+                     (list-ref mutabilities k)
+                     (error "Field index out of range: " rtd k)))
+               (let ((field-names (rtd-field-names rtd)))
+                 (if (and (symbol? k) (memq k field-names))
+                     #t
+                     (error "Illegal record field name: " k)))))
+
+         (define (make-record-type-descriptor
+                  name parent uid sealed? opaque? fields)
+           (if (and (symbol? name)
+                    (or (eq? parent #f)
+                        (and (record-type-descriptor? parent)
+                             (rtd-r6rs? parent)
+                             (if (rtd-sealed? parent)
+                                 (error "Parent type is sealed: " parent)
+                                 #t)))
+                    (or (symbol? uid) (eq? uid #f))
+                    (boolean? sealed?)
+                    (boolean? opaque?)
+                    (vector? fields))
+               (do ((fields (reverse (vector->list fields)) (cdr fields))
+                    (names '() (cons (cadar fields) names))
+                    (mutabilities '()
+                                  (cons (eq? (caar fields) 'mutable)
+                                        mutabilities)))
+                   ((null? fields)
+         
+                    (let* ((field-names
+                            (if parent
+                                (append (rtd-field-names parent)
+                                        names)
+                                names))
+                           (hierarchy-depth
+                            (if parent
+                                (+ 1 (rtd-hierarchy-depth parent))
+                                0))
+                           (hierarchy-vector
+                            (let ((v (make-vector (+ hierarchy-depth 1))))
+                              (if parent
+                                  (let ((pv (rtd-hierarchy-vector parent)))
+                                    (do ((i 0 (+ i 1)))
+                                        ((= i hierarchy-depth))
+                                      (vector-set! v i (vector-ref pv i)))))
+                              v))
+                           (rtd ((record-constructor *rtd-type* #f)
+                                 (symbol->string name) ; FIXME
+                                 (compute-slot-offsets field-names)
+                                 #f
+                                 (+ (length field-names) record-overhead)
+                                 hierarchy-vector
+                                 hierarchy-depth
+                                 #t uid sealed? opaque?
+                                 names mutabilities #f)))
+
+                      (vector-set! hierarchy-vector hierarchy-depth rtd)
+                      rtd))
+
+                 (if (let ((field (car fields)))
+                       (or (not (list? field))
+                           (not (= 2 (length field)))
+                           (not (or (eq? (car field) 'immutable)
+                                    (eq? (car field) 'mutable)))
+                           (not (symbol? (cadr field)))))
+                     (error "Bad field passed to make-record-type-descriptor: "
+                            (car fields))))
+               (error "Bad arguments to make-record-type-descriptor: "
+                            (list name parent
+                                  uid sealed? opaque? fields))))
+
+         (define (r6rs-record-constructor cd)
+           (define wna
+             "Wrong number of values supplied when constructing record: ")
+           (if (r6rs-record-constructor-descriptor? cd)
+               (let ((rtd (r6rs-record-constructor-descriptor-rtd cd))
+                     (parent-cd
+                      (r6rs-record-constructor-descriptor-parent-cd cd))
+                     (protocol
+                      (r6rs-record-constructor-descriptor-protocol cd)))
+                 (if (and (record-type-descriptor? rtd)
+                          (rtd-r6rs? rtd)
+                          (or (eq? #f parent-cd)
+                              (and (r6rs-constructor-descriptor? parent-cd)
+                                   (< 0 (rtd-hierarchy-depth rtd))))
+                          (or (eq? #f protocol)
+                              (procedure? protocol)))
+                     (cond ((and (eq? #f parent-cd) (eq? #f protocol))
+                            (record-constructor rtd #f))
+                           ((= 0 (rtd-hierarchy-depth rtd))
+                            (protocol (record-constructor rtd #f)))
+                           ((eq? #f parent-cd)
+                            ; FIXME: I don't understand what the
+                            ; draft R6RS says about this case.
+                            ; What follows is my best guess.
+                            (let* ((parent (record-type-parent rtd))
+                                   (parent-fields (rtd-field-names parent))
+                                   (all-fields (rtd-field-names rtd))
+                                   (nparent (length parent-fields))
+                                   (nthis (- (length all-fields) nparent))
+                                   (maker (record-constructor rtd #f)))
+                              (protocol
+                               (lambda parent-values
+                                 (if (= nparent (length parent-values))
+                                     (lambda this-values
+                                       (if (= nthis (length this-values))
+                                           (maker (append parent-values
+                                                          this-values))
+                                           (error wna
+                                                  (rtd-name rtd)
+                                                  nthis this-values)))
+                                     (error wna
+                                            (rtd-name parent)
+                                            nparent parent-values))))))
+                           (else
+                            (error "Not implemented yet: record-constructor")))
+                     (error
+                      "Illegal arguments to record-constructor: "
+                      rtd parent-cd protocol)))
+               (error "Illegal argument to constructor-descriptor: " cd)))
+
+         (define (r6rs-record-accessor rtd k)
+           (assert-rtd rtd)
+           (assert-index k)
+           (let* ((all-field-names (rtd-field-names rtd))
+                  (field-names (rtd-field-names-r6rs rtd))
+                  (n (rtd-record-size rtd))
+                  (i (+ k (- n (length field-names)))))
+             (if (< i n)
+               (lambda (obj)
+                 (assert-record-of-type obj rtd)
+                 (vector-like-ref obj i))
+               (error "Record index out of range: " rtd k))))
+
+         ; FIXME: check mutability
+
+         (define (r6rs-record-mutator rtd k)
+           (assert-rtd rtd)
+           (assert-index k)
+           (let* ((all-field-names (rtd-field-names rtd))
+                  (field-names (rtd-field-names-r6rs rtd))
+                  (n (rtd-record-size rtd))
+                  (i (+ k (- n (length field-names)))))
+             (if (< i n)
+               (lambda (obj val)
+                 (assert-record-of-type obj rtd)
+                 (vector-like-set! obj i val))
+               (error "Record index out of range: " rtd k))))
 
          ; Helper functions.
 
@@ -296,6 +561,11 @@
            (if (not (record-type-descriptor? obj))
                (error "Not a record type descriptor: " obj)))
 
+         (define (assert-r6rs-rtd obj)
+           (if (or (not (record-type-descriptor? obj))
+                   (not (rtd-r6rs? obj)))
+               (error "Not an R6RS record type descriptor: " obj)))
+
          (define (assert-record obj)
            (if (not (record? obj))
                (error "Not a record: " obj)))
@@ -305,8 +575,12 @@
                (error "Object is not record of type: " (rtd-name rtd) 
                       ": " obj)))
 
+         (define (assert-index obj)
+           (if (or (not (fixnum? obj)) (negative? obj))
+               (error "Not an index: " obj)))
+
          (list 
-          (lambda (name field-names . rest) 
+          (lambda (name field-names . rest)
             (make-record-type name field-names (if (null? rest) 
                                                    #f 
                                                    (car rest))))
@@ -316,16 +590,38 @@
           (lambda (rtd1 rtd2) (record-type-extends? rtd1 rtd2))
           (lambda (rtd) (record-type-parent rtd))
           (lambda (x) (record? x))
-          (lambda (rtd . rest) 
-            (record-constructor rtd (if (null? rest)
-                                        #f
-                                        (car rest))))
+          (lambda (rtd . rest)
+            (if (record-type-descriptor? rtd)
+                (record-constructor rtd (if (null? rest)
+                                            #f
+                                            (car rest)))
+                (apply r6rs-record-constructor rtd rest)))
           (lambda (rtd) (record-predicate rtd))
-          (lambda (rtd field-name) (record-accessor rtd field-name))
-          (lambda (rtd field-name) (record-updater rtd field-name))
+          (lambda (rtd field-name)
+            (if (symbol? field-name)
+                (record-accessor rtd field-name)
+                (r6rs-record-accessor rtd field-name)))
+          (lambda (rtd . rest)
+            (if (null? rest)
+                (old-style-record-mutator rtd)
+                (let ((field-name (car rest)))
+                  (if (symbol? field-name)
+                      (record-updater rtd field-name)
+                      (r6rs-record-mutator rtd field-name)))))
           (lambda (x) (record-type-descriptor x))
           (lambda (rtd) (record-indexer rtd))
-          (lambda (rtd) (record-mutator rtd))))))
+
+          ; R6RS extensions
+
+          (lambda (rtd) (record-type-uid rtd))
+          (lambda (rtd) (record-type-generative? rtd))
+          (lambda (rtd) (record-type-sealed? rtd))
+          (lambda (rtd) (record-type-opaque? rtd))
+          (lambda (rtd k) (record-field-mutable? rtd k))
+          (lambda (name parent uid sealed? opaque? fields)
+            (make-record-type-descriptor
+             name parent uid sealed? opaque? fields))
+))))
 
   (set! make-record-type (list-ref interface 0))
   (set! record-type-descriptor? (list-ref interface 1))
@@ -338,10 +634,40 @@
   (set! record-predicate (list-ref interface 8))
   (set! record-accessor (list-ref interface 9))
   (set! record-updater (list-ref interface 10))
+  (set! record-mutator (list-ref interface 10))
   (set! record-type-descriptor (list-ref interface 11))
   (set! record-indexer (list-ref interface 12))
-  (set! record-mutator (list-ref interface 13))
+  ;
+  (set! record-type-uid (list-ref interface 13))
+  (set! record-type-generative? (list-ref interface 14))
+  (set! record-type-sealed? (list-ref interface 15))
+  (set! record-type-opaque? (list-ref interface 16))
+  (set! record-field-mutable? (list-ref interface 17))
+  (set! make-record-type-descriptor (list-ref interface 18))
   'records)
+
+; R6RS constructor descriptors.  Ugh.
+
+(define r6rs-constructor-descriptor-type
+  (make-record-type "r6rs-constructor-descriptor-type"
+                    '(rtd parent-cd protocol)))
+
+(define make-record-constructor-descriptor
+  (record-constructor r6rs-constructor-descriptor-type))
+
+(define r6rs-record-constructor-descriptor?
+  (record-predicate r6rs-constructor-descriptor-type))
+
+(define r6rs-record-constructor-descriptor-rtd
+  (record-accessor r6rs-constructor-descriptor-type 'rtd))
+
+(define r6rs-record-constructor-descriptor-parent-cd
+  (record-accessor r6rs-constructor-descriptor-type 'parent-cd))
+
+(define r6rs-record-constructor-descriptor-protocol
+  (record-accessor r6rs-constructor-descriptor-type 'protocol))
+
+
 
 
 ; Install printers.
@@ -376,6 +702,7 @@
              (else
               (previous-printer obj port quote?))))))
   'records-printers)
+
 
 ; eof
 
