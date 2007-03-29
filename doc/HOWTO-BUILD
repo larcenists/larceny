@@ -118,7 +118,6 @@ On Petit Larceny:
     > (exit)
 
     % ./twobit.bin -stopcopy -- src/Build/petit-twobit-heap.sch
-    > (dump)
     > (exit)
 
 You can now run "./larceny" or "./twobit".

@@ -427,10 +427,11 @@
 
     ; FIXME: these will eventually replace the string operations
 
-    (ustring?         1 ustring?         #f           800 ,:immortal ,:none    #f)
-    (ustring-length   1 ustring-length   #f           801 ,:immortal ,:none    #f)
-    (ustring-ref      2 ustring-ref      ,stdc-imm?   802 ,:string   ,:none    #f)
-    (ustring-set!     3 ustring-set!     #f           803 ,:dead     ,:string  #f)
+    (ustring?         1 ustring?         #f           800 ,:immortal ,:none #f)
+    (.ustring-length:str 1 ustring-length:str #f      801 ,:immortal ,:none #f)
+   ;(.ustring-ref:trusted 2 ustring-ref:trusted ,stdc-imm? 802 ,:string ,:none #f)
+    (.ustring-ref:trusted 2 ustring-ref:trusted #f    802 ,:string   ,:none #f)
+    (.ustring-set!:trusted 3 ustring-set!:trusted #f  803 ,:dead   ,:string #f)
 
     (typetag          1 typetag          #f             8 ,:dead     ,:none #f)
     (port?            1 port?            #f            13 ,:dead     ,:none #f)
