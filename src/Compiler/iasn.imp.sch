@@ -439,9 +439,13 @@
     ; FIXME: these will eventually replace the string operations
 
     (ustring?         1 ustring?         #f            39 ,:immortal ,:none)
-    (ustring-length   1 ustring-length   #f            40 ,:immortal ,:none)
-    (ustring-ref      2 ustring-ref      ,stdc-imm?    78 ,:string   ,:none)
-    (ustring-set!     3 ustring-set!     #f            -1 ,:dead     ,:string)
+   ;(ustring-length   1 ustring-length   #f            40 ,:immortal ,:none)
+   ;(ustring-ref      2 ustring-ref      ,stdc-imm?    78 ,:string   ,:none)
+   ;(ustring-set!     3 ustring-set!     #f            -1 ,:dead     ,:string)
+    (.ustring-length:str 1 ustring-length:str #f       -1 ,:immortal ,:none)
+    (.ustring-ref:trusted 2 ustring-ref:trusted #f     -1 ,:string   ,:none)
+    (.ustring-set!:trusted 3 ustring-set!:trusted #f   -1 ,:dead     ,:string)
+
     
     (typetag          1 typetag          #f             8 ,:dead     ,:none #f)
     (port?            1 port?            #f            13 ,:dead     ,:none #f)
