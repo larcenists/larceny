@@ -306,6 +306,7 @@
                  car cdr
                  vector-length vector-ref vector-set!
                  string-length string-ref string-set!
+                 ustring-length ustring-ref ustring-set!
                  list vector
                  cadddr cddddr cdddr caddr cddr cdar cadr caar
                  make-vector make-string
@@ -388,6 +389,31 @@
       (.check! (.<:fix:fix i (.string-length:str v)) ,$ex.sset v i x)
       (.check! (.>=:fix:fix i 0) ,$ex.sset v i x)
       (.string-set!:trusted v i x)))
+   
+   ((_ larceny ustring-length (ustring-length v0))
+    (let ((v v0))
+      (.check! (ustring? v) ,$ex.slen v)
+      (.ustring-length:str v)))
+   
+   ((_ larceny ustring-ref (ustring-ref v0 i0))
+    (let ((v v0)
+          (i i0))
+      (.check! (.fixnum? i) ,$ex.sref v i)
+      (.check! (ustring? v) ,$ex.sref v i)
+      (.check! (.<:fix:fix i (.ustring-length:str v)) ,$ex.sref v i)
+      (.check! (.>=:fix:fix i 0) ,$ex.sref  v i)
+      (.ustring-ref:trusted v i)))
+   
+   ((_ larceny ustring-set! (ustring-set! v0 i0 x0))
+    (let ((v v0)
+          (i i0)
+          (x x0))
+      (.check! (.fixnum? i) ,$ex.sset v i x)
+      (.check! (ustring? v) ,$ex.sset v i x)
+      (.check! (.<:fix:fix i (.ustring-length:str v)) ,$ex.sset v i x)
+      (.check! (.>=:fix:fix i 0) ,$ex.sset v i x)
+      (.check! (char? x) ,$ex.sset v i x)
+      (.ustring-set!:trusted v i x)))
    
 ; This transformation must make sure the entire list is freshly
 ; allocated when an argument to LIST returns more than once.

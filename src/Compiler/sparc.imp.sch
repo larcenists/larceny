@@ -308,6 +308,10 @@
     (ustring-length   1 ustring-length   #f          #x51 ,:immortal ,:none)
     (ustring-ref      2 ustring-ref      ,sparc-imm? #xd1 ,:string   ,:none)
     (ustring-set!     3 ustring-set!     #f            -1 ,:dead     ,:string)
+    (.ustring-length:str 1 ustring-length:str #f       -1 ,:immortal ,:none)
+   ;(.ustring-ref:trusted 2 ustring-ref:trusted ,sparc-imm? -1 ,:string ,:none #f)
+    (.ustring-ref:trusted 2 ustring-ref:trusted #f     -1 ,:string   ,:none)
+    (.ustring-set!:trusted 3 ustring-set!:trusted #f   -1 ,:dead   ,:string)
 
 ;   (values          -1 values           #f            -1 ,:dead     ,:none)
 ;   (call-with-values -1 call-with-values #f           -1 ,:dead     ,:all)

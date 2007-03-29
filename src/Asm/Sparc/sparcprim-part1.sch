@@ -664,26 +664,27 @@
 ; RESULT must have nonnegative fixnum.
 ; RS2 must have character.
 
-(define-primop 'ustring-length
-  (lambda (as)
-    (emit-primop.3arg! as 'internal:ustring-length $r.result $r.result)))
+;(define-primop 'ustring-length
+;  (lambda (as)
+;    (emit-primop.3arg! as 'internal:ustring-length $r.result $r.result)))
 
 (define-primop 'ustring-length:str
   (lambda (as)
     (emit-get-length-trusted! as $tag.bytevector-tag $r.result $r.result)
     (sparc.srai               as $r.result 2 $r.result)))
 
-(define-primop 'ustring-ref
-  (lambda (as r)
-    (emit-primop.4arg! as 'internal:ustring-ref $r.result r $r.result)))
+;(define-primop 'ustring-ref
+;  (lambda (as r)
+;    (emit-primop.4arg! as 'internal:ustring-ref $r.result r $r.result)))
 
 (define-primop 'ustring-ref:trusted
   (lambda (as rs2)
-    (emit-ustring-ref-trusted! as $r.result rs2 $r.result #t)))
+    (emit-primop.4arg! as 'internal:ustring-ref:trusted
+                          $r.result rs2 $r.result)))
 
-(define-primop 'ustring-set!
-  (lambda (as r1 r2)
-    (emit-ustring-set! as $r.result r1 r2)))
+;(define-primop 'ustring-set!
+;  (lambda (as r1 r2)
+;    (emit-ustring-set! as $r.result r1 r2)))
 
 (define-primop 'ustring-set!:trusted
   (lambda (as rs2 rs3)

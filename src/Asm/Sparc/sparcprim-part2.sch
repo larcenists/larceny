@@ -214,16 +214,16 @@
 
 ; Ustrings.
 
-(define-primop 'internal:ustring-length
-  (lambda (as rs rd)
-    (internal-primop-invariant2 'internal:ustring-length rs rd)
-    (emit-get-length! as
-		      $tag.bytevector-tag
-		      (+ $imm.bytevector-header $tag.ustring-typetag)
-		      $ex.slen
-		      rs
-		      rd)
-    (sparc.srai       as rd 2 rd)))
+;(define-primop 'internal:ustring-length
+;  (lambda (as rs rd)
+;    (internal-primop-invariant2 'internal:ustring-length rs rd)
+;    (emit-get-length! as
+;                      $tag.bytevector-tag
+;                      (+ $imm.bytevector-header $tag.ustring-typetag)
+;                      $ex.slen
+;                      rs
+;                      rd)
+;    (sparc.srai       as rd 2 rd)))
 
 (define-primop 'internal:ustring-length:str
   (lambda (as rs rd)
@@ -231,25 +231,25 @@
     (emit-get-length-trusted! as $tag.bytevector-tag rs rd)
     (sparc.srai               as rd 2 rd)))
 
-(define-primop 'internal:ustring-ref
-  (lambda (as rs1 rs2 rd)
-    (internal-primop-invariant2 'internal:ustring-ref rs1 rd)
-    (let ((fault (if (not (unsafe-code))
-		     (emit-double-tagcheck-assert-reg/reg!
-		      as
-		      $tag.bytevector-tag
-		      (+ $imm.bytevector-header $tag.ustring-typetag)
-		      rs1 
-		      rs2
-		      $ex.sref))))
-      (emit-vector-like-ref-trusted! as rs1 rs2 rd $tag.bytevector-tag))))
+;(define-primop 'internal:ustring-ref
+;  (lambda (as rs1 rs2 rd)
+;    (internal-primop-invariant2 'internal:ustring-ref rs1 rd)
+;    (let ((fault (if (and #f (not (unsafe-code)))
+;                     (emit-double-tagcheck-assert-reg/reg!
+;                      as
+;                      $tag.bytevector-tag
+;                      (+ $imm.bytevector-header $tag.ustring-typetag)
+;                      rs1 
+;                      rs2
+;                      $ex.sref))))
+;      (emit-vector-like-ref-trusted! as rs1 rs2 rd $tag.bytevector-tag))))
 
 (define-primop 'internal:ustring-ref:trusted
   (lambda (as rs1 rs2 rd)
     (internal-primop-invariant2 'internal:ustring-ref:trusted rs1 rd)
     (emit-vector-like-ref-trusted! as rs1 rs2 rd $tag.bytevector-tag)))
 
-; FIXME: got to here.  The next two primops aren't done yet.
+; FIXME: not trusted yet.
 
 (define-primop 'internal:ustring-ref/imm
   (lambda (as rs1 imm rd)
@@ -265,7 +265,7 @@
       (emit-vector-like-ref/imm! as rs1 imm rd fault $tag.bytevector-tag
                                  (not (unsafe-code))))))
 
-(define-primop 'internal:ustring-set!
+(define-primop 'internal:ustring-set!:trusted
   (lambda (as rs1 rs2 rs3)
     (internal-primop-invariant1 'internal:ustring-set! rs1)
       (emit-ustring-set! as rs1 rs2 rs3)))
