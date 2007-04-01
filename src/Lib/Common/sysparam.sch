@@ -36,7 +36,13 @@
   (let* ((wordsize
 	  (if (fixnum? (expt 2 32)) 64 32))
 	 (char-bits
-	  (* (bytevector-like-length (string #\a #\b #\c #\d)) 2))
+          (let ((c21 (integer->char #x100000))
+                (c16 (integer->char #xffff)))
+            (cond ((char=? c21 (string-ref (make-string 1 c21) 0))
+                   32)
+                  ((char=? c16 (string-ref (make-string 1 c16) 0))
+                   16)
+                  (else 8))))
 	 (char-repr
 	  (case char-bits
 	    ((8)  'iso-latin-1)		; iso 8859/1

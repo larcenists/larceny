@@ -444,6 +444,13 @@
     (if (not (char? fill))
         (error "Bad fill argument to make-string: " fill))
     (let* ((s (make-bytevector (* 4 n))))
+      ; FIXME: it's inefficient to make two passes,
+      ; but we have to preserve the ustring invariant that
+      ; every element of the string is a boxed immediate.
+      (do ((n (* 4 n))
+           (i 0 (+ i 1)))
+          ((= i n) s)
+        (bytevector-set! s i 0))      
       (typetag-set! s sys$tag.ustring-typetag)
       (do ((i 0 (+ i 1)))
           ((= i n) s)
