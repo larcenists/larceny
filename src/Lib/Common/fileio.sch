@@ -56,7 +56,7 @@
   (cdr datum))
 
 (define (file-io/read-bytes fd buffer)
-  (let ((r (osdep/read-file fd buffer (string-length buffer))))
+  (let ((r (osdep/read-file fd buffer (bytevector-like-length buffer))))
     (cond ((< r 0) 'error)
           ((= r 0) 'eof)
           (else r))))

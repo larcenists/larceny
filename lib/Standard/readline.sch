@@ -67,6 +67,7 @@
 ;; The port returned is always ready for input, but if multiple ports
 ;; are returned, they all _share_ their data, which seems to be
 ;; necessary for properly reading multiple data from one line.
+
 (define make-readline-console-factory #f)
 (letrec
   ((readline.s 1)  ;; Internal buffer
@@ -102,13 +103,16 @@
                (else
                  (vector-set! data readline.c #t)
                  'eof)))
-           (let ((n (min (string-length buffer) (- (string-length s) i))))
+           (let ((n (min (bytevector-like-length buffer)
+                         (- (string-length s) i))))
              (do ((j 0 (+ j 1))
                   (k i (+ k 1)))
                ((= j n)
                 (vector-set! data readline.i (+ i n))
                 n)
-               (string-set! buffer j (string-ref s k))))))))
+               (bytevector-like-set! buffer
+                                     j
+                                     (char->integer (string-ref s k)))))))))
 
    (*make-readline-console-factory*
      (case-lambda

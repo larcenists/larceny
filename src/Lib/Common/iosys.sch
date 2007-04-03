@@ -220,9 +220,10 @@
       (begin (error "write-char: not an output port: " p)
              #t)))
 
-; This is _not_ clean, but other parts of the I/O system may currently
-; depend on a string (rather than bytevector-like) buffer.  This should
-; be checked, and fixed.  FIXME.
+; In v0.93, other parts of the I/O system depended upon a string
+; (rather than bytevector-like) buffer.  That should be fixed now,
+; but the commented lines remain so they can be un-commented if
+; we still need to work around that kind of bug.
 ;
 ; Also, for short strings, it might be more effective to copy rather than
 ; flush.  This procedure is really most useful for long strings, and was
@@ -235,9 +236,9 @@
         (io/flush-buffer p)
         (vector-like-set! p port.buffer bvl)
         (vector-like-set! p port.wr-ptr (bytevector-like-length bvl))
-        (typetag-set! bvl sys$tag.string-typetag)
+       ;(typetag-set! bvl sys$tag.string-typetag)
         (io/flush-buffer p)
-        (typetag-set! bvl tt)
+       ;(typetag-set! bvl tt)
         (vector-like-set! p port.buffer buf)
         (vector-like-set! p port.wr-ptr 0)
         (unspecified))

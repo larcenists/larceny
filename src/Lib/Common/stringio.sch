@@ -3,6 +3,8 @@
 ; $Id$
 ;
 ; MacScheme-compatible string I/O ports.
+;
+; FIXME: inefficient representation for output strings
 
 ; Offsets in the string port data structure.
 
@@ -53,7 +55,7 @@
 (define (string-io/fill-buffer data buffer)
   (let ((s (vector-ref data string-io.s))
 	(i (vector-ref data string-io.i)))
-    (let ((n (min (string-length buffer) (- (string-length s) i))))
+    (let ((n (min (bytevector-like-length buffer) (- (string-length s) i))))
       (if (= n 0)
 	  'eof
 	  (do ((j 0 (+ j 1))
@@ -61,12 +63,19 @@
 	      ((= j n) 
 	       (vector-set! data string-io.i (+ i n))
 	       n)
-	    (string-set! buffer j (string-ref s k)))))))
+	    (bytevector-like-set! buffer
+                                  j
+                                  (char->integer (string-ref s k))))))))
 
 (define (string-io/flush-buffer data buffer count)
-  (vector-set! data string-io.s
-	       (append! (vector-ref data string-io.s)
-			(list (substring buffer 0 count))))
+  (let ((s (do ((chars '()
+                       (cons (integer->char
+                              (bytevector-like-ref buffer i))
+                             chars))
+                (i (- count 1) (- i 1)))
+                ((< i 0) (list->string chars)))))
+    (vector-set! data string-io.s
+                 (append! (vector-ref data string-io.s) (list s))))
   'ok)
 
 (define (string-output-port? port)
