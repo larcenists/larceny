@@ -16,7 +16,7 @@
 (define port.output?    1) ; boolean: an open output port
 (define port.iodata     2) ; port-specific data
 (define port.ioproc     3) ; port*symbol -> void
-(define port.buffer     4) ; a string or #f: i/o buffer
+(define port.buffer     4) ; a bytevector or #f: i/o buffer
 (define port.error?     5) ; boolean: #t after error
 
 ; input ports
@@ -115,7 +115,7 @@
                    #t)))
     (vector-set! v port.ioproc ioproc)
     (vector-set! v port.iodata iodata)
-    (vector-set! v port.buffer (make-string port.buffer-size))
+    (vector-set! v port.buffer (make-bytevector port.buffer-size))
     (vector-set! v port.rd-lim 0)
     (vector-set! v port.rd-ptr 0)
     (vector-set! v port.wr-ptr 0)
@@ -145,7 +145,7 @@
             (lim (vector-like-ref p 7))              ; 7 = port.rd-lim
             (buf (vector-like-ref p 4)))             ; 4 = port.buffer
         (cond ((< ptr lim)
-               (let ((c (string-ref buf ptr)))
+               (let ((c (integer->char (bytevector-like-ref buf ptr))))
                  (vector-like-set! p 8 (+ ptr 1))    ; 8 = port.rd-ptr
                  c))
               ((vector-like-ref p 6)                 ; 6 = port.rd-eof?
@@ -162,7 +162,7 @@
             (lim (vector-like-ref p port.rd-lim))
             (buf (vector-like-ref p port.buffer)))
         (cond ((< ptr lim)
-               (string-ref buf ptr))
+               (integer->char (bytevector-like-ref buf ptr)))
               ((vector-like-ref p port.rd-eof?)
                (eof-object))
               (else
@@ -183,7 +183,7 @@
                (let ((ptr (+ ptr 1)))
                  (vector-like-set! p port.rd-ptr ptr)
                  (if (< ptr lim)
-                     (string-ref buf ptr)
+                     (integer->char (bytevector-like-ref buf ptr))
                      (io/peek-char p))))
               ((vector-like-ref p port.rd-eof?)
                (eof-object))
@@ -210,8 +210,8 @@
   (if (and (port? p) (vector-like-ref p port.output?))
       (let ((buf (vector-like-ref p port.buffer))
             (ptr (vector-like-ref p port.wr-ptr)))
-        (cond ((< ptr (string-length buf))
-               (string-set! buf ptr c)
+        (cond ((< ptr (bytevector-like-length buf))
+               (bytevector-like-set! buf ptr (char->integer c))
                (vector-like-set! p port.wr-ptr (+ ptr 1))
                (unspecified))
               (else
