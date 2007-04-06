@@ -40,35 +40,49 @@
 	 (BACKSLASH   (char->integer #\\))
 	 (len         1024))
 
-    (define buffer (make-string len #\&))
+    (define buffer (make-bytevector len))
     (define ptr 0)
 
     (define (flush)
       (if (< ptr len)
-	  (write-bytevector-like (substring buffer 0 ptr) outp)
+	  (write-bytevector-like (sub-bytevector buffer 0 ptr) outp)
 	  (write-bytevector-like buffer outp))
       (set! ptr 0))
 
+    ; Returns a newly allocated bytevector
+    ; containing bytes [i,j) of the given bytevector.
+
+    (define (sub-bytevector bv i j)
+      (let ((bv2 (make-bytevector (- j i))))
+        (do ((i i (+ i 1))
+             (k 0 (+ k 1)))
+            ((= i j) bv2)
+          (bytevector-set! bv2 k (bytevector-ref bv i)))))
+
+    ; Outputs the encoding of an Ascii character.
+
     (define (putc c)
       (if (= ptr len) (flush))
-      (string-set! buffer ptr c)
+      (bytevector-set! buffer ptr (char->integer c))
       (set! ptr (+ ptr 1)))
 
     (define (putb b)
       (if (= ptr len) (flush))
-      (string-set! buffer ptr (integer->char b))
+      (bytevector-set! buffer ptr b)
       (set! ptr (+ ptr 1)))
+
+    ; Outputs the encoding of an Ascii string.
 
     (define (puts s)
       (let ((ls (string-length s)))
 	(if (>= (+ ptr ls) len)
 	    (begin (flush)
-		   (write-bytevector-like s outp))
+		   (write-string s outp))
 	    (do ((i (- ls 1) (- i 1))
 		 (p (+ ptr ls -1) (- p 1)))
 		((< i 0)
 		 (set! ptr (+ ptr ls)))
-	      (string-set! buffer p (string-ref s i))))))
+	      (bytevector-set! buffer p (char->integer (string-ref s i)))))))
 
     (define (putd d)
       (flush)

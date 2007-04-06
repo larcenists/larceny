@@ -7,6 +7,33 @@
 
 ($$trace "system-interface")
 
+; FIXME: temporary infrastructure for Unicode conversion
+
+(define (sys$string->cstring s)
+  (cond ((bytevector? s) s)
+        ((string? s)
+         (let* ((n (string-length s))
+                (bv (make-bytevector n)))
+           (do ((i 0 (+ i 1)))
+               ((= i n) bv)
+             (bytevector-set! bv i (char->integer (string-ref s i))))))
+        (else "sys$string->cstring: bad string " s)))
+
+(define **syscall-magic-cookie** (make-vector 50 #f))
+
+(define (syscall id . args)
+  (if (eq? id '**syscall-magic-cookie**)
+      **syscall-magic-cookie**
+      (let* ((converter
+              (lambda (x)
+                (if (string? x)
+                    (begin
+                     (vector-set! **syscall-magic-cookie** id id)
+                     (sys$string->cstring x))
+                    x)))
+             (args (map converter args)))
+        (apply %syscall id args))))
+
 (define (sys$get-resource-usage)
   (syscall syscall:get-resource-usage (make-stats-structure)))
 

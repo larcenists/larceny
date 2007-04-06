@@ -245,6 +245,47 @@
       (begin (error "io/write-bytevector-like: not an output port: " p)
              #t)))
   
+; When writing the contents of an entire string,
+; we can do the error checking just once.
+; FIXME:  This outputs Ascii characters only.
+
+(define (io/write-string s p)
+  (if #t                                                 ; FIXME
+      (io/write-substring s 0 (string-length s) p)
+      (do ((n (string-length s))
+           (i 0 (+ i 1)))
+          ((= i n) (unspecified))
+        (io/write-char (string-ref s i) p))))
+
+(define (io/write-substring s i j p)
+  (if (and (string? s)
+           (fixnum? i)
+           (fixnum? j)
+           (<= 0 i j (string-length s))
+           (port? p)
+           (vector-like-ref p port.output?))
+      (let loop ((i i))
+        (if (< i j)
+            (let* ((buf (vector-like-ref p port.buffer))
+                   (len (bytevector-like-length buf))
+                   (ptr (vector-like-ref p port.wr-ptr)))
+              (let ((count (min (- j i) (- len ptr))))
+                (if (< 0 count)
+                    (begin
+                     (vector-like-set! p port.wr-ptr (+ ptr count))
+                     (do ((k (+ i count))
+                          (i i (+ i 1))
+                          (ptr ptr (+ ptr 1)))
+                         ((= i k)
+                          (loop i))
+                       (let ((c (string-ref s i)))
+                         (bytevector-like-set! buf ptr (char->integer c)))))
+                    (begin (io/flush-buffer p)
+                           (loop i)))))
+            (unspecified)))
+      (begin (error "io/write-substring: not an output port: " p)
+             #t)))
+
 (define (io/discretionary-flush p)
   (if (and (port? p) (vector-like-ref p port.output?))
       (if (vector-like-ref p port.wr-flush?)

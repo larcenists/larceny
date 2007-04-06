@@ -81,10 +81,10 @@
 (define (write-string string . rest)
   (if (pair? rest)
       (if (null? (cdr rest))
-          (io/write-bytevector-like string (car rest))
+          (io/write-string string (car rest))
           (begin (error "write-string: too many arguments.")
                  #t))
-      (io/write-bytevector-like string (current-output-port))))
+      (io/write-string string (current-output-port))))
 
 (define (input-port? p)
   (io/input-port? p))
