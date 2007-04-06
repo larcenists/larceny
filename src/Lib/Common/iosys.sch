@@ -230,6 +230,9 @@
 ; written to speed up fasl file writing.
 
 (define (io/write-bytevector-like bvl p)
+  (if (not (bytevector? bvl))                                         ;FIXME
+      (begin (display "***** WARNING ***** from io/write-bytevector")
+             (newline)))
   (if (and (port? p) (vector-like-ref p port.output?))
       (let ((buf (vector-like-ref p port.buffer))
             (tt  (typetag bvl)))

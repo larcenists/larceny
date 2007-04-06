@@ -2112,11 +2112,6 @@
 (define-sassy-instr (ia86.t_op1_ustring?)       ; ustring?
   (ia86.double_tag_predicate $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag)))
 
-(define-sassy-instr/peep (or (ia86.t_op1_401* rs rd)		; vector-length:vec
-                             (ia86.t_op1_401))
-  `(mov	,(reg rd) (& ,(reg rs) ,(- $tag.vector-tag)))
-  `(shr	,(reg rd) 8))
-
 (define-sassy-instr (ia86.t_op1_ustring-length:str) ; ustring-length:str
   `(mov	,$r.result (& ,$r.result ,(- $tag.bytevector-tag)))
   `(shr	,$r.result 8))
