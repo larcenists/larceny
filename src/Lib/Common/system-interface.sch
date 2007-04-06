@@ -19,6 +19,15 @@
              (bytevector-set! bv i (char->integer (string-ref s i))))))
         (else (error "sys$string->cstring: bad string " s))))
 
+(define (sys$cstring->string bvl)
+  (cond ((bytevector-like? bvl)
+         (let* ((n (bytevector-like-length bvl))
+                (s (make-string n)))
+           (do ((i 0 (+ i 1)))
+               ((= i n) s)
+             (string-set! s i (integer->char (bytevector-like-ref bvl i))))))
+        (else (error "sys$cstring->string: bad cstring " bvl))))
+
 (define **syscall-magic-cookie** (make-vector 50 #f))
 
 (define (syscall id . args)
@@ -230,7 +239,11 @@
                #t)))
 
 (define (getenv name)
-  (syscall syscall:getenv (sys$check-env-var 'getenv name)))
+  (let ((result
+         (syscall syscall:getenv (sys$check-env-var 'getenv name))))
+    (if (bytevector-like? result)
+        (sys$cstring->string result)
+        result)))
 
 (define (setenv name value)
   (if (string? value)
@@ -268,11 +281,14 @@
 
 (define (current-directory . rest)
   (if (null? rest)
-      (syscall syscall:cwd)
+      (let ((result (syscall syscall:cwd)))
+        (if (bytevector-like? result)
+            (sys$cstring->string result)
+            result))
       (let ((path (car rest)))
 	(if (not (string? path))
 	    (error "current-directory: " path " is not a string."))
-	(syscall syscall:chdir path))))
+	(syscall syscall:chdir (sys$string->cstring path)))))
 
 (define (sys$c-ffi-apply trampoline arg-encoding ret-encoding actuals)
   (syscall syscall:c-ffi-apply trampoline arg-encoding ret-encoding actuals))

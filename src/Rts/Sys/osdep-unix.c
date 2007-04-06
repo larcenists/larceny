@@ -234,6 +234,8 @@ void osdep_chdir( word w_cmd )
   globals[ G_RESULT ] = fixnum(chdir(path));
 }
 
+/* FIXME: should return UTF-8 or something */
+
 void osdep_cwd( void )
 {
   char buf[FILENAME_MAX+1];
@@ -245,7 +247,7 @@ void osdep_cwd( void )
     int k = strlen( buf );
     int nwords = roundup4(k)/4;
     word *p = alloc_from_heap( (nwords+1)*sizeof(word) );
-    *p = mkheader( k, STR_HDR );
+    *p = mkheader( k, BV_HDR );
     memcpy( p+1, buf, k );
     globals[G_RESULT] = tagptr(p,BVEC_TAG);
   }

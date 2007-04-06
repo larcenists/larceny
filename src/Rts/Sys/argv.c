@@ -14,8 +14,10 @@
 #include "larceny.h"
 #include "gc_t.h"
 
-/* Return a vector of length argc containing strings which represent
+/* Return a vector of length argc containing bytevectors that represent
  * the command line arguments passed after the -args argument.
+ *
+ * FIXME: the bytevectors should be in UTF-8
  */
 word allocate_argument_vector( gc_t *gc, int argc, char **argv )
 {
@@ -33,7 +35,7 @@ word allocate_argument_vector( gc_t *gc, int argc, char **argv )
   for ( i=0 ; i < argc ; i++ ) {
     l = strlen( argv[i] );
     p = alloc_from_heap( l + BVEC_HEADER_BYTES );
-    *p = mkheader( l, STR_HDR );
+    *p = mkheader( l, BV_HDR );
     memcpy( p + BVEC_HEADER_WORDS, argv[i], l );
     ptrof(*argvec)[ i+VEC_HEADER_WORDS ] = (word)tagptr( p, BVEC_TAG );
   }

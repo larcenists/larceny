@@ -422,7 +422,7 @@ static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok )
     stklim = (word*) globals[G_STKP];
     if (top < stklim) {
       word len = (stklim - top)*sizeof(word);
-      *top = mkheader(len-sizeof(word),STR_HDR);
+      *top = mkheader(len-sizeof(word),BIGNUM_HDR);
       if (top+1 < stklim) *(top+1) = 0xABCDABCD;
     }
     ss->chunks[ss->current].top = ss->chunks[ss->current].lim;  /* FULL */

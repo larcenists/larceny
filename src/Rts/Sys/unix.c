@@ -170,6 +170,8 @@ word w_fd;
     globals[ G_RESULT ] = fixnum( r );
 }
 
+/* FIXME: should return UTF-8 */
+
 void UNIX_getenv( w_envvar )
 word w_envvar;
 {
@@ -184,7 +186,7 @@ word w_envvar;
   }
   l = strlen( p );
   q = (word*)alloc_bv_from_heap( 4 + l );
-  *q = mkheader( l, (BV_HDR | STR_SUBTAG) );
+  *q = mkheader( l, BV_HDR );
   memcpy( string_data( q ), p, l );
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }

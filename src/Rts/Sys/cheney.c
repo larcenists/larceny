@@ -1259,14 +1259,14 @@ static word forward( word p, word **dest, cheney_env_t *e )
 
 
 /* Expand the semispace by switching to a new chunk.  To make things
-   simple for the scanning code, a string header is put into the
+   simple for the scanning code, a bignum header is put into the
    heap at the current location (unless we're at the end of the chunk)
    with a length field that covers the rest of the chunk.  The scanning
-   code will simply skip the data.  The string's first four bytes
+   code will simply skip the data.  The bignum's first four bytes
    are initialized with a recognizable but unlikely pattern, in the event
    any code needs to grovel over the heap and count padding.
 
-   A string header is used rather than a generic bytevector header since
+   A bignum header is used rather than a generic bytevector header since
    the latter value would cause the scanner to flush the icache for the
    garbage area.
    */
@@ -1274,7 +1274,7 @@ static void seal_chunk( semispace_t *ss, word *lim, word *dest )
 {
   if (dest < lim) {
     word len = (lim - dest)*sizeof(word);
-    *dest = mkheader(len-sizeof(word),STR_HDR);
+    *dest = mkheader(len-sizeof(word),BIGNUM_HDR);
     *(dest+1) = 0xABCDABCD;
   }
   ss->chunks[ ss->current ].top = dest;

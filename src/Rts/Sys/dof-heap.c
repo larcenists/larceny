@@ -3289,7 +3289,7 @@ static void seal_chunk( semispace_t *ss, word *lim, word *dest )
 {
   if (dest < lim) {
     word len = words2bytes(lim - dest);
-    *dest = mkheader(len-sizeof(word),STR_HDR);
+    *dest = mkheader(len-sizeof(word),BIGNUM_HDR);
     *(dest+1) = 0xABCDABCD;
   }
   ss->chunks[ ss->current ].top = dest;
