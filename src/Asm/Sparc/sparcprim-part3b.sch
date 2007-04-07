@@ -147,6 +147,9 @@
 
 ; Allocate a bytevector, leave untagged pointer in RESULT.
 ;
+; The preserved-result is #f or a register that contains
+; a copy of the fixnum byte count passed in RESULT.
+;
 ; FIXME: The overflow checking code could be merged with tag
 ;        checking, moved into millicode, or moved into the RTS
 ;        to get it off the fast path?
@@ -194,6 +197,21 @@
     (sparc.deccc  as r-bytecount)
     (sparc.bge.a  as L2)
     (sparc.stbr   as r-value r-bytecount r-pointer)
+    (sparc.label  as L1)))
+
+
+; Given a nativeint count, a pointer to the first element of a 
+; bytevector-like structure, and a 4-byte value, fill the bytevector
+; with the 4-byte value.
+; (Used by make-ustring.)
+
+(define (emit-bytevector-fill4 as r-bytecount r-pointer r-value)
+  (let ((L2 (new-label))
+        (L1 (new-label)))
+    (sparc.label  as L2)
+    (sparc.subicc as r-bytecount 4 r-bytecount)
+    (sparc.bge.a  as L2)
+    (sparc.str    as r-value r-bytecount r-pointer)
     (sparc.label  as L1)))
 
 

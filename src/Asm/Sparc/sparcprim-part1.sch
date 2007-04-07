@@ -659,10 +659,46 @@
 
 ; make-ustring might be a primop eventually,
 ; but first we need a more complete set of operations on bytevectors.
-; 
-; When make-ustring becomes a primop:
+
 ; RESULT must have nonnegative fixnum.
 ; RS2 must have character.
+
+(define-primop 'make-ustring
+  (lambda (as rs2)
+    (let ((FAULT (new-label))
+	  (START (new-label)))
+      (sparc.label as START)
+      (let ((rs2 (force-hwreg! as rs2 $r.argreg2)))
+	(if (not (unsafe-code))
+	    (let ((L1 (new-label))
+		  (L2 (new-label)))
+	      (sparc.tsubrcc as $r.result $r.g0 $r.g0)
+	      (sparc.bvc.a   as L1)
+	      (sparc.andi    as rs2 255 $r.tmp0)
+	      (sparc.label   as FAULT)
+	      (if (not (= rs2 $r.argreg2))
+		  (sparc.move as rs2 $r.argreg2))
+	      (sparc.set     as (thefixnum $ex.mkbvl) $r.tmp0) ; Wrong code.
+	      (millicode-call/ret as $m.exception START)
+	      (sparc.label   as L1)
+	      (sparc.bl      as FAULT)
+	      (sparc.cmpi    as $r.tmp0 $imm.character)
+	      (sparc.bne     as FAULT)
+	      (sparc.move as $r.result $r.argreg3)))
+        ; FIXME: should be able to do this faster
+        (sparc.taddrcc as $r.result $r.result $r.result)
+        (sparc.bvs     as FAULT)
+        (sparc.taddrcc as $r.result $r.result $r.result)
+        (sparc.bvs     as FAULT)
+        (sparc.move    as $r.result $r.argreg3)
+	(emit-allocate-bytevector as
+				  (+ $imm.bytevector-header
+				     $tag.ustring-typetag)
+				  $r.argreg3)
+	(sparc.addi   as $r.result 4 $r.result)
+	(sparc.srai   as $r.argreg3 2 $r.tmp0)
+        (emit-bytevector-fill as $r.tmp0 $r.result rs2)
+	(sparc.addi as $r.result (- $tag.bytevector-tag 4) $r.result)))))
 
 ;(define-primop 'ustring-length
 ;  (lambda (as)

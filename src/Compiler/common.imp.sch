@@ -306,7 +306,7 @@
                  car cdr
                  vector-length vector-ref vector-set!
                  string-length string-ref string-set!
-                 ustring-length ustring-ref ustring-set!
+                 make-ustring ustring-length ustring-ref ustring-set!
                  list vector
                  cadddr cddddr cdddr caddr cddr cdar cadr caar
                  make-vector make-string
@@ -390,6 +390,9 @@
       (.check! (.>=:fix:fix i 0) ,$ex.sset v i x)
       (.string-set!:trusted v i x)))
    
+   ((_ larceny make-ustring (make-ustring ?n))
+    (make-ustring ?n #\space))
+
    ((_ larceny ustring-length (ustring-length v0))
     (let ((v v0))
       (.check! (ustring? v) ,$ex.slen v)
