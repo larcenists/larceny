@@ -438,6 +438,7 @@
 
     ; FIXME: these will eventually replace the string operations
 
+    (make-ustring     2 make-ustring     #f            -1 ,:dead     ,:none)
     (ustring?         1 ustring?         #f            39 ,:immortal ,:none)
    ;(ustring-length   1 ustring-length   #f            40 ,:immortal ,:none)
    ;(ustring-ref      2 ustring-ref      ,stdc-imm?    78 ,:string   ,:none)

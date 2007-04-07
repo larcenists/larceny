@@ -1680,6 +1680,7 @@
              ((77 rot) ia86.t_op2_77) 
              ((78 string-ref string-ref:trusted) ia86.t_op2_78) 
              ((79 string-set!) ia86.t_op2_79)
+             ((   make-ustring)   ia86.t_op2_make-ustring)
              ((   ustring-ref:trusted) ia86.t_op2_ustring-ref:trusted)
              ((80 make-vector) ia86.t_op2_80) 
              ((81 vector-ref) ia86.t_op2_81) 
@@ -2108,6 +2109,13 @@
 
 (define-sassy-instr (ia86.t_op1_40)		; string-length
   (ia86.indexed_structure_length/hdr $tag.bytevector-tag $hdr.string $ex.slen #t))
+
+(define-sassy-instr (ia86.t_op2_make-ustring regno)	; make-ustring
+  ;; FIXME: exception code wrong, but matches Sparc
+  (ia86.make_indexed_structure_word
+       regno $tag.bytevector-tag
+       (+ $imm.bytevector-header $tag.ustring-typetag)
+       $ex.mkbvl))
 
 (define-sassy-instr (ia86.t_op1_ustring?)       ; ustring?
   (ia86.double_tag_predicate $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag)))

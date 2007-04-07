@@ -657,9 +657,6 @@
 
 ; Ustrings (temporary; will replace strings)
 
-; make-ustring might be a primop eventually,
-; but first we need a more complete set of operations on bytevectors.
-
 ; RESULT must have nonnegative fixnum.
 ; RS2 must have character.
 
