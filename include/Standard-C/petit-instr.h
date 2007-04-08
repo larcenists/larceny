@@ -1873,6 +1873,23 @@ extern cont_t twobit_cont_label;
        y2 = fixnum(string_length(x1));					\
   } while(0)
 
+#define twobit_op2_799( y ) /* make-ustring */ \
+   do { word a=RESULT, b=reg(y), *p; \
+        if (UNSAFE_TRUE(is_nonnegative_fixnum(a) && is_char(b))) { \
+          word size = a; \
+          long n = a >> 2; \
+          ALLOCATE_BV( 4*a + fixnum(BVEC_HEADER_WORDS*sizeof( word )) ); \
+          p =(word*)RESULT; \
+          *p = mkheader( size, BV_HDR+USTR_SUBTAG ); \
+          while (n > 0) { \
+              *(p+n) = b; \
+              n = n - 1; \
+          } \
+	  RESULT = tagptr( p, BVEC_TAG ); \
+        } else { FAIL( EX_MAKE_STRING ); } \
+        integrity_check( "make-string" ); \
+   } while(0)
+  
 #define twobit_op1_800()         /* ustring?       */ \
    double_tag_predicate( RESULT, BVEC_TAG, BV_HDR+USTR_SUBTAG )
 
