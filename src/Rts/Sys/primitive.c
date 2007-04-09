@@ -5,6 +5,7 @@
  * Operating system independent syscall primitives.
  */
 
+#include <errno.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -301,6 +302,17 @@ char *string2asciiz( word w_str )
   strncpy( fnbuf, string_data( w_str ), l );
   fnbuf[ l ] = 0;
   return fnbuf;
+}
+
+void primitive_errno( void )
+{
+  globals[ G_RESULT ]= fixnum( errno );
+}
+
+void primitive_seterrno( errcode )
+word errcode;
+{
+  errno = nativeint( errcode );
 }
 
 /* eof */

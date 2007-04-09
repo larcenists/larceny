@@ -121,6 +121,8 @@ extern void primitive_object_to_address( word );
 extern void primitive_sysfeature( word v );
 extern void primitive_sro( word ptrtag, word hdrtag, word limit );
 extern void primitive_exit( word );
+extern void primitive_errno( void );
+extern void primitive_seterrno( word );
 #endif
 
 

@@ -63,6 +63,8 @@ static struct {
 		      { (fptr)osdep_chdir, 1, 0 },
 		      { (fptr)osdep_cwd, 0, 0 },
 		      { (fptr)primitive_setenv, 2, 0 },
+		      { (fptr)primitive_errno, 0, 0 },
+		      { (fptr)primitive_seterrno, 1, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )
