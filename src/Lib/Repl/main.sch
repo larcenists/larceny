@@ -26,7 +26,7 @@
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
   (failsafe-load-init-files)
-  (failsafe-load-file-arguments)
+  (failsafe-process-arguments)
   (if (herald)
       (writeln (herald)))
   (writeln)
@@ -80,13 +80,55 @@
 (define (failsafe-load-init-files)
   (map failsafe-load-file (osdep/find-init-files)))
 
-(define (failsafe-load-file-arguments)
+(define (failsafe-process-arguments)
   (let ((argv (command-line-arguments)))
-    (do ((i 0 (+ i 1)))
-	((= i (vector-length argv)))
-      (if (file-exists? (vector-ref argv i))
-          (failsafe-load-file (vector-ref argv i))))))
+    (let loop ((i 0))
+      (cond 
+       ((>= i (vector-length argv)) #t)
+       (else
+        (let ((arg (vector-ref argv i)))
+          (cond 
+           ((or (string=? arg "-e")
+                (string=? arg "--eval"))
+            (failsafe-eval-thunk 
+             (lambda () 
+               (retract-eof 
+                (read (open-input-string (vector-ref argv (+ i 1))))))
+             (list "Error parsing argument " (+ i 1)))
+            (loop (+ i 2)))
+           (else
+            (if (file-exists? arg)
+                (failsafe-load-file arg))
+            (loop (+ i 1))))))))))
 
+;; retract-eof : Any -> Any
+(define (retract-eof x)
+  (cond ((eof-object? x) (error "Encountered EOF"))
+        (else x)))
+  
+;; failsafe-eval-thunk : (-> S-exp) [Listof Any] -> Any
+(define (failsafe-eval-thunk arg-thunk error-mesgs)
+  (call-with-current-continuation
+   (lambda (k)
+     (call-with-reset-handler 
+      (lambda ()
+        (apply writeln error-mesgs)
+        (k #f))
+      (lambda ()
+        (failsafe-eval (arg-thunk)))))))
+
+;; failsafe-eval-string : S-exp -> Any
+(define (failsafe-eval arg-exp)
+  (call-with-current-continuation
+   (lambda (k)
+     (call-with-reset-handler
+      (lambda ()
+        (writeln "Error while evaluating " arg-exp)
+        (k #f))
+      (lambda ()
+        (eval arg-exp))))))
+
+;; failsafe-load-file : String -> Any
 (define (failsafe-load-file filename)
   (call-with-current-continuation
    (lambda (k)
