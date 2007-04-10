@@ -309,10 +309,10 @@ void primitive_errno( void )
   globals[ G_RESULT ]= fixnum( errno );
 }
 
-void primitive_seterrno( errcode )
-word errcode;
+void primitive_seterrno( w_errcode )
+word w_errcode;
 {
-  errno = nativeint( errcode );
+  errno = nativeint( w_errcode );
 }
 
 /* eof */
