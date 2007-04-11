@@ -96,6 +96,10 @@
                 (read (open-input-string (vector-ref argv (+ i 1))))))
              (list "Error parsing argument " (+ i 1)))
             (loop (+ i 2)))
+           ((and (> (string-length arg) 0)
+                 (char=? (string-ref arg 0) #\-))
+            (writeln "Error unrecognized option " arg)
+            (loop (+ i 1)))
            (else
             (if (file-exists? arg)
                 (failsafe-load-file arg))
