@@ -69,6 +69,28 @@ static bool supremely_annoying = 0;
   /* 'supremely_annoying' controls supremely_annoyingmsg()
      */
 
+static void print_banner() {
+#ifndef PETIT_LARCENY
+  consolemsg( "%s v%d.%d%s (%s, %s:%s:%s)",
+              larceny_system_name,
+              larceny_major_version, 
+              larceny_minor_version,
+              larceny_version_qualifier,
+              date,
+              larceny_gc_technology,
+              osname, 
+              (globals[ G_CACHE_FLUSH ] ? "split" : "unified") );
+#else
+  consolemsg( "%s v%d.%d%s (%s:%s)",
+              larceny_system_name,
+              larceny_major_version, 
+              larceny_minor_version,
+              larceny_version_qualifier,
+              larceny_gc_technology,
+              osname );
+#endif
+}
+
 #if defined PETIT_LARCENY || defined X86_NASM
 int larceny_main( int argc, char **os_argv )
 #else
@@ -113,25 +135,7 @@ int main( int argc, char **os_argv )
   o.gc_info.is_conservative_system = 1;
 #endif
 
-#ifndef PETIT_LARCENY
-  consolemsg( "%s v%d.%d%s (%s, %s:%s:%s)",
-              larceny_system_name,
-              larceny_major_version, 
-              larceny_minor_version,
-              larceny_version_qualifier,
-              date,
-              larceny_gc_technology,
-              osname, 
-              (globals[ G_CACHE_FLUSH ] ? "split" : "unified") );
-#else
-  consolemsg( "%s v%d.%d%s (%s:%s)",
-              larceny_system_name,
-              larceny_major_version, 
-              larceny_minor_version,
-              larceny_version_qualifier,
-              larceny_gc_technology,
-              osname );
-#endif
+  print_banner();
 
   /* FIXME: This should all be factored out as osdep_get_program_options()
      or something like that.  That requires factoring out the type of 'o'
