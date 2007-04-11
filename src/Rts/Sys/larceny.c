@@ -45,6 +45,7 @@ struct opt {
   bool       flush;                     /* force icache flushing */
   bool       noflush;                   /* disable icache flushing */
   bool       reorganize_and_dump;       /* split text and data and dump */
+  bool       nobanner;                  /* disable printing of (secondary) banner. */
   int        restc;                     /* number of extra arguments */
   char       **restv;                   /* vector of extra arguments */
 };
@@ -134,8 +135,19 @@ int main( int argc, char **os_argv )
 #if defined( BDW_GC )
   o.gc_info.is_conservative_system = 1;
 #endif
+  o.nobanner = 0;
 
-  print_banner();
+  if (larceny_version_qualifier[0] == '.') {
+    /* If we our version qualifier starts with a period, then the
+     * version prints out as M.NN.XXX (a development version number).
+     * On development versions, we always print the banner with
+     * information about the build date, host system, and gc
+     * technology. */
+    print_banner();
+    /* since we printed the banner here, there's no reason to print it
+     * again below. */
+    o.nobanner = 1;
+  }
 
   /* FIXME: This should all be factored out as osdep_get_program_options()
      or something like that.  That requires factoring out the type of 'o'
@@ -166,6 +178,9 @@ int main( int argc, char **os_argv )
 #else
   parse_options( argc, argv, &o );
 #endif
+
+  if (!o.nobanner)
+    print_banner();
 
   osdep_poll_startup_events();
 
@@ -543,6 +558,8 @@ parse_options( int argc, char **argv, opt_t *o )
       --argc;
       o->heapfile = *argv;
     }
+    else if (hstrcmp( *argv, "-nobanner" ) == 0)
+      o->nobanner = 1;
     else if (hstrcmp( *argv, "-args" ) == 0 ||
                strcmp( *argv, "--" ) == 0) {
       o->restc = argc-1;
@@ -1048,6 +1065,8 @@ static char *helptext[] = {
 #endif
   "  -quiet",
   "     Suppress nonessential messages.",
+  "  -nobanner",
+  "     Suppress runtime startup banner.",
   "  -help",
   "     Print this message.",
   "  -wizard",
