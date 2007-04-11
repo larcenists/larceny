@@ -29,7 +29,6 @@
   (failsafe-process-arguments)
   (if (herald)
       (writeln (herald)))
-  (writeln)
   (start-repl)
   (exit 0))
 
