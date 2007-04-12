@@ -92,7 +92,7 @@
 	  (peek-bytes ptr buf (bytevector-length buf))
 	  (values (hostent.h_addrtype buf)
 		  (hostent.h_aliases buf)
-		  (map reverse (hostent.h_addr_list buf)))))))
+		  (hostent.h_addr_list buf))))))
 
 (define (get-service-by-name name . rest)
   (let ((ptr (unix/getservbyname name (if (null? rest) #f (car rest))))
@@ -246,8 +246,11 @@
   (%peek-pointer-array (%get-pointer x 4) %peek-string))
 (define (hostent.h_addrtype x) (%get-int x 8))
 (define (hostent.h_addr_list x)
-  (map parse-ip-addr
-       (%peek-pointer-array (%get-pointer x 16) %peek-pointer)))
+  (%peek-pointer-array (%get-pointer x 16) 
+                       (lambda (addr)
+                         (let ((x (make-bytevector 4)))
+                           (peek-bytes addr x 4)
+                           (bytevector->list x)))))
 
 ; From <netdb.h>
 
