@@ -81,7 +81,7 @@
   (cadr (assq 'size (stat-alist filename))))
 
 ;;; XXX not thread-safe!  Consider using the _r variants where appropriate.
-;;; (but at the moment define-cstruct-offset is even less robust than this is...)
+;;; (but at the moment define-c-info is even less robust than this is...)
 (define list-directory
    (let ()
      (define-c-info (include<> "dirent.h")
