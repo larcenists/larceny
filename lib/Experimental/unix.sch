@@ -140,10 +140,10 @@
   (const unix/POLLIN     int "POLLIN")
   (const unix/POLLPRI    int "POLLPRI")
   (const unix/POLLOUT    int "POLLOUT")
-  (const unix/POLLRDNORM int "POLLRDNORM")
-  (const unix/POLLWRNORM int "POLLWRNORM")
-  (const unix/POLLRDBAND int "POLLRDBAND")
-  (const unix/POLLWRBAND int "POLLWRBAND")
+  (const unix/POLLRDNORM int "\n#ifdef POLLRDNORM\nPOLLRDNORM\n#else\n0\n#endif\n")
+  (const unix/POLLWRNORM int "\n#ifdef POLLWRNORM\nPOLLWRNORM\n#else\n0\n#endif\n")
+  (const unix/POLLRDBAND int "\n#ifdef POLLRDBAND\nPOLLRDBAND\n#else\n0\n#endif\n")
+  (const unix/POLLWRBAND int "\n#ifdef POLLWRBAND\nPOLLWRBAND\n#else\n0\n#endif\n")
   (const unix/POLLERR    int "POLLERR")
   (const unix/POLLNVAL   int "POLLNVAL"))
 
@@ -169,7 +169,7 @@
 ; stat(2)
 ; int stat( const char *path, struct stat *buf );
 
-'(cond-expand
+(cond-expand
  (linux
 
   (define unix/stat 
@@ -177,13 +177,10 @@
       (lambda (name buf)
 	(_stat 0 name buf)))) )
 
- (solaris
+ ((or solaris macosx)
 
   (define unix/stat
     (foreign-procedure "stat" '(string boxed) 'int)) ))
-
-(define unix/stat
-  (foreign-procedure "stat" '(string boxed) 'int))
 
 ; Symbolic constants from sys/stat.h on Solaris 2.6; they are the
 ; same on Linux 2.4 (but there written in octal :-)

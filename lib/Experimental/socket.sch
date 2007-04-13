@@ -177,7 +177,7 @@
   (const unix/SO_ERROR     int "SO_ERROR")
   (const unix/SO_DONTROUTE int "SO_DONTROUTE") ; just use interface addresses
   (const unix/SO_BROADCAST int "SO_BROADCAST") ; permit sending of broadcast msgs
-  (const unix/SO_USELOOPBACK int "SO_USELOOPBACK") ; bypass hardware when possible
+  ;(const unix/SO_USELOOPBACK int "SO_USELOOPBACK") ; bypass hardware when possible
   (const unix/SO_SNDBUF    int "SO_SNDBUF")    ; send buffer size
   (const unix/SO_RCVBUF    int "SO_SNDBUF")    ; receive buffer size
   (const unix/SO_KEEPALIVE int "SO_KEEPALIVE") ; keep connections alive
