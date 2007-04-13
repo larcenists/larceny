@@ -10,7 +10,11 @@
 (require 'std-ffi)
 (require 'srfi-0)
 
+(require 'foreign-ctools)
+
 (cond-expand
+ (macosx
+  (foreign-file "/usr/lib/libresolv.dylib"))
  (linux
   (foreign-file "/usr/lib/libresolv.so"))
  (solaris
@@ -99,14 +103,13 @@
 
 ; Flags for oflag parameter.
 
-(define unix/O_RDONLY  0)
-(define unix/O_WRONLY  1)
-(define unix/O_RDWR    2)
-(define unix/O_APPEND  8)
-(define unix/O_CREAT   (cond-expand (linux   #o0100)
-				    (solaris #x0100)))
-(define unix/O_TRUNC   (cond-expand (linux   #o1000)
-				    (solaris #x0400)))
+(define-c-info (include<> "fcntl.h")
+  (const unix/O_RDONLY int "O_RDONLY")
+  (const unix/O_WRONLY int "O_WRONLY")
+  (const unix/O_RDWR   int "O_RDWR")
+  (const unix/O_APPEND int "O_APPEND")
+  (const unix/O_CREAT  int "O_CREAT")
+  (const unix/O_TRUNC  int "O_TRUNC"))
 
 
 ; perror(3c)
@@ -133,19 +136,16 @@
 
 (define unix/poll (foreign-procedure "poll" '(boxed ulong int) 'int))
 
-(define unix/POLLIN     #x0001)
-(define unix/POLLPRI    #x0002)
-(define unix/POLLOUT    #x0004)
-(define unix/POLLRDNORM #x0040)
-(define unix/POLLWRNORM (cond-expand (linux   #x0100)
-				     (solaris unix/POLLOUT)))
-(define unix/POLLRDBAND #x0080)
-(define unix/POLLWRBAND (cond-expand (linux   #x0200)
-				     (solaris #x0100)))
-(define unix/POLLERR    #x0008)
-(define unix/POLLHUP    #x0010)
-(define unix/POLLNVAL   #x0020)
-
+(define-c-info (include<> "poll.h")
+  (const unix/POLLIN     int "POLLIN")
+  (const unix/POLLPRI    int "POLLPRI")
+  (const unix/POLLOUT    int "POLLOUT")
+  (const unix/POLLRDNORM int "POLLRDNORM")
+  (const unix/POLLWRNORM int "POLLWRNORM")
+  (const unix/POLLRDBAND int "POLLRDBAND")
+  (const unix/POLLWRBAND int "POLLWRBAND")
+  (const unix/POLLERR    int "POLLERR")
+  (const unix/POLLNVAL   int "POLLNVAL"))
 
 ; read(2)
 ; int read( int fd, void *buf, int n )
@@ -169,7 +169,7 @@
 ; stat(2)
 ; int stat( const char *path, struct stat *buf );
 
-(cond-expand
+'(cond-expand
  (linux
 
   (define unix/stat 
@@ -182,16 +182,18 @@
   (define unix/stat
     (foreign-procedure "stat" '(string boxed) 'int)) ))
 
+(define unix/stat
+  (foreign-procedure "stat" '(string boxed) 'int))
 
 ; Symbolic constants from sys/stat.h on Solaris 2.6; they are the
 ; same on Linux 2.4 (but there written in octal :-)
 
-(define unix/S_IFIFO #x1000)            ; fifo
-(define unix/S_IFCHR #x2000)            ; character special
-(define unix/S_IFDIR #x4000)            ; directory
-(define unix/S_IFBLK #x6000)            ; block special
-(define unix/S_IFREG #x8000)            ; regular
-
+(define-c-info (include<> "sys/stat.h")
+  (const unix/S_IFIFO    int "S_IFIFO")  ; fifo
+  (const unix/S_IFCHR    int "S_IFCHR")  ; character special
+  (const unix/S_IFDIR    int "S_IFDIR")  ; directory
+  (const unix/S_IFBLK    int "S_IFBLK")  ; block special
+  (const unix/S_IFREG    int "S_IFREG")) ; regular
 
 ; strerror(3c)
 ; char *strerror( int )
@@ -230,15 +232,11 @@
 ; Flags to pass as options to waitpid()
 ; sys/wait.h & bits/waitflags.h
 
-(define unix/WNOHANG    (cond-expand (linux   1)
-				     (solaris #o100)))
-(define unix/WUNTRACED  (cond-expand (linux   2)
-				     (solaris #o004)))
-(cond-expand
- (linux)
- (solaris
-  (define unix/WCONTINUED #o010)
-  (define unix/WNOWAIT    #o200)))
+(define-c-info (include<> "sys/wait.h")
+  (const unix/WNOHANG    int "WNOHANG")
+  (const unix/WUNTRACED  int "WUNTRACED")
+  (const unix/WCONTINUED int "WCONTINUED")
+  (const unix/WNOWAIT    int "WNOWAIT"))
 
 ; Macros to process the exit status of wait, waitpid
 ; sys/wait.h & bits/waitflags.h
@@ -253,7 +251,7 @@
   (fxlogand (fxrsha stat 8) #xFF))
 
 (cond-expand 
- (linux  
+ (linux
   (define (unix/WIFEXITED stat)
     (zero? stat))
 
@@ -263,6 +261,20 @@
 
   (define (unix/WIFSTOPPED stat)
     (= #x7F (fxlogand stat #xFF))) )
+
+ (macosx
+  (define (unix/WIFEXITED stat)
+    (zero? (fxlogand stat #o177)))
+
+  (define (unix/WIFSIGNALED stat)
+    (and (not (= (fxlogand stat #o177) #o177))
+	 (not (= (fxlogand stat #o177) 0))))
+
+  (define (unix/WIFSTOPPED stat)
+    (= (fxlogand stat #o177) #o177))
+
+  (define (unix/WIFCONTINUED stat)
+    (= stat #x13)))
 
  (solaris
   (define (unix/WIFEXITED stat) 

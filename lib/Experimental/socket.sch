@@ -161,53 +161,40 @@
 
 ; From <sys/socket.h> and <bits/socket.h> and <asm/socket.h>
 
-(define unix/AF_UNIX         1)
-(define unix/AF_INET         2)
+;(define-c-inf (include<> "bits/socket.h") (include<> "asm/socket.h"))
 
-(define unix/PF_UNIX         1)		; Local
-(define unix/PF_INET         2)		; TCP and UDP
+(define-c-info (include<> "sys/socket.h")
+  (const unix/AF_UNIX      int "AF_UNIX")
+  (const unix/AF_INET      int "AF_INET")
+  (const unix/PF_UNIX      int "PF_UNIX") ; Local
+  (const unix/PF_INET      int "PF_INET") ; TCP and UDP
+  (const unix/SOCK_STREAM  int "SOCK_STREAM") ; Stream socket
+  (const unix/SOCK_DGRAM   int "SOCK_DGRAM")  ; Datagram socket
+  (const unix/SOL_SOCKET   int "SOL_SOCKET")  ; options for socket level
+  (const unix/SO_DEBUG     int "SO_DEBUG") ; turn on debugging info recording
+  (const unix/SO_REUSEADDR int "SO_REUSEADDR") ; keep connections alive
+  (const unix/SO_TYPE      int "SO_TYPE")
+  (const unix/SO_ERROR     int "SO_ERROR")
+  (const unix/SO_DONTROUTE int "SO_DONTROUTE") ; just use interface addresses
+  (const unix/SO_BROADCAST int "SO_BROADCAST") ; permit sending of broadcast msgs
+  (const unix/SO_USELOOPBACK int "SO_USELOOPBACK") ; bypass hardware when possible
+  (const unix/SO_SNDBUF    int "SO_SNDBUF")    ; send buffer size
+  (const unix/SO_RCVBUF    int "SO_SNDBUF")    ; receive buffer size
+  (const unix/SO_KEEPALIVE int "SO_KEEPALIVE") ; keep connections alive
+  ;(const unix/OOBINLINE    int "SS_OOBINLINE") ; leave received OOB data in line
 
-(cond-expand
- (linux
-  (define unix/SOCK_STREAM     1)
-  (define unix/SOCK_DGRAM      2)
+  ;(define unix/SO_NO_CHECK     11)
+  ;(define unix/SO_PRIORITY     12)
+  
+  (const unix/SO_LINGER    int "SO_LINGER") ; linger on close if data present (in seconds)
+  
+  ;(define unix/SO_BSDCOMPAT    14) 
 
-  (define unix/SOL_SOCKET      1)
-  (define unix/SO_DEBUG        1)	; turn on debugging info recording
-  (define unix/SO_REUSEADDR    2)	; keep connections alive
-  (define unix/SO_TYPE         3)
-  (define unix/SO_ERROR        4)
-  (define unix/SO_DONTROUTE    5)
-  (define unix/SO_BROADCAST    6)
-  (define unix/SO_SNDBUF       7)
-  (define unix/SO_RCVBUF       8)
-  (define unix/SO_KEEPALIVE    9)
-  (define unix/OOBINLINE       10)
-  (define unix/SO_NO_CHECK     11)
-  (define unix/SO_PRIORITY     12)
-  (define unix/SO_LINGER       13)
-  (define unix/SO_BSDCOMPAT    14) )
+  )
 
- (solaris
-  (define unix/SOCK_DGRAM      1)	; Datagram socket
-  (define unix/SOCK_STREAM     2)	; Stream socket
-
-  (define unix/SO_DEBUG        #x0001)	; turn on debugging info recording
-  (define unix/SO_REUSEADDR    #x0004)	; keep connections alive
-  (define unix/SO_KEEPALIVE    #x0008)	; keep connections alive
-  (define unix/SO_DONTROUTE    #x0010)	; just use interface addresses
-  (define unix/SO_BROADCAST    #x0020)	; permit sending of broadcast msgs
-  (define unix/SO_USELOOPBACK  #x0040)	; bypass hardware when possible
-  (define unix/SO_LINGER       #x0080)	; linger on close if data present
-  (define unix/SO_OOBINLINE    #x0100)	; leave received OOB data in line
-  (define unix/SO_DGRAM_ERRIND #x0200)	; Application wants delayed error
-
-  (define unix/SOL_SOCKET      #xffff) )) ; options for socket level
-
-; From <netinet/in.h>
-
-(define unix/IPPROTO_TCP 6)		; TCP
-(define unix/IPPROTO_UDP 17)		; UDP
+(define-c-info (include<> "netinet/in.h")
+  (const unix/IPPROTO_TCP int "IPPROTO_TCP")
+  (const unix/IPPROTO_UDP int "IPPROTO_UDP"))
 
 ;;; Socket support code
 
