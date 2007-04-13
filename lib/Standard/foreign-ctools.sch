@@ -23,6 +23,7 @@
         (string-append
           cc " "
           include-directives
+          " -D_XOPEN_SOURCE=500 "
           " -o " exe-path
           " "  c-src-path)))))
 
