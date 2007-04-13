@@ -635,6 +635,12 @@
   (let ((v (%get32u x offs)))
     (if (>= v 2147483648) (- (- 4294967296 v)) v)))
 
+;; XXX this probably has to be parameterized as well...
+(define (%get64 x offs)
+  (let ((lo (%get32u x (+ offs 0)))
+        (hi (%get32 x  (+ offs 32))))
+    (+ (* hi (expt 2 32)) lo)))
+
 (define (%set16 x offs v)
   (let ((v (if (< v 0) (+ 65536 v) v)))
     (%set16u x offs v)))
