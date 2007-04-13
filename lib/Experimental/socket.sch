@@ -166,7 +166,7 @@
 (define-c-info (include<> "sys/socket.h")
   (const unix/AF_UNIX      int "AF_UNIX")
   (const unix/AF_INET      int "AF_INET")
-  (const unix/PF_UNIX      int "PF_UNIX") ; Local
+  ;(const unix/PF_UNIX      int "PF_UNIX") ; Local
   (const unix/PF_INET      int "PF_INET") ; TCP and UDP
   (const unix/SOCK_STREAM  int "SOCK_STREAM") ; Stream socket
   (const unix/SOCK_DGRAM   int "SOCK_DGRAM")  ; Datagram socket
