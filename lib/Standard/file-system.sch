@@ -8,6 +8,7 @@
 
 (require 'foreign-ctools)
 (require 'std-ffi)
+(require 'srfi-0) ; for conditional compilation below
 
 (define file-modification-time
   (let ((file-modification-time file-modification-time))
@@ -43,7 +44,13 @@
               (*st_atime_offs* "st_atime") (*st_mtime_offs*   "st_mtime")
               (*st_ctime_offs* "st_ctime") (*st_blksize_offs* "st_blksize")
               (*st_blocks*     "st_blocks")))
-    (define stat (foreign-procedure "stat" '(string boxed) 'int))
+    (define stat ;; XXX consider grabbing the impl from unix.sch
+      (cond-expand 
+       (linux 
+        (let ((xstat (foreign-procedure "__xstat" '(int string boxed) 'int)))
+          (lambda (name buf) (xstat 0 name buf))))
+       (else 
+        (foreign-procedure "stat" '(string boxed) 'int))))
     (let* ((names 
             '(dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks))
            (offsets
