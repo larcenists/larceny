@@ -68,7 +68,7 @@
                  (map (lambda (name get offset) (list name (get stat-results offset)))
                       names getters offsets))
                 (else
-                 (error 'stat-alist ": something went wrong ~a" errcode))))))))
+                 (error 'stat-alist ": something went wrong: "  errcode))))))))
 
 (define (file-length filename)
   (cadr (assq 'size (stat-alist filename))))
