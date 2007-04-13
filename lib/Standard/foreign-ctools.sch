@@ -11,41 +11,6 @@
 ;;; * make code more robust by checking that input strings do not
 ;;;   inject malicious code
 
-(define (cc-compile exe-path c-src-path . includes)
-  (let ((cc (or (getenv "CC") "cc"))
-        (include-directives
-            (apply string-append
-                   (map (lambda (path)
-                          (string-append "-I" path " "))
-                        includes))))
-    (zero?
-      (system
-        (string-append
-          cc " "
-          include-directives
-          " -D_XOPEN_SOURCE=500 "
-          " -o " exe-path
-          " "  c-src-path)))))
-
-(define (cl-compile exe-path c-src-path . includes)
-  (let ((include-directives
-            (apply string-append
-                   (map (lambda (path)
-                          (string-append "/I" path " "))
-                        includes)))
-        (obj-path (string-append c-src-path ".obj")))
-    (let ((result (zero?
-                    (system
-                      (string-append
-                        "cl /nologo "
-                        include-directives
-                        " /Fo" obj-path
-                        " /Fe" exe-path
-                        " "  c-src-path
-                        "> nul:")))))
-      (if result (delete-file obj-path))
-      result)))
-
 ;; (define-c-info
 ;;    <decl> ...
 ;;    <defn> ...)
@@ -183,37 +148,6 @@
            ,(reverse prologue)
            ,@(reverse body))))))
 
-
-;; (define-cstruct-offsets [ c-compiler-spec ]
-;;                         (include-path ...)
-;;                         (header-name ...)
-;;                         (offset-id struct field) ...)
-;;
-;; This is deprecated in favor of define-c-info.
-;;
-(define-syntax define-cstruct-offsets
-  (transformer
-     (lambda (exp ren cmp)
-       (let* ((cc-spec/rest (if (symbol? (cadr exp))
-                              (cons (list (cadr exp)) (cddr exp))
-                              (cons '() (cdr exp))))
-              (include-paths (cadr cc-spec/rest))
-              (header-names (caddr cc-spec/rest))
-              (offset-forms (cdddr cc-spec/rest)))
-         `(define-c-values
-            ,@(car cc-spec/rest)
-            ,include-paths
-            ,(map (lambda (name)
-                    (string-append "#include " name))
-                  header-names)
-            ,@(map (lambda (offset)
-                     `(,(car offset)
-                       "%d"
-                       ,(string-append "(char *)&s." (caddr offset)
-                                       " - (char *)&s")
-                       ,(string-append (cadr offset) " s;")))
-                   offset-forms))))))
-
 ;; (define-c-values
 ;;    [ cc | cl ]
 ;;    (<include-path> ...)
@@ -241,9 +175,45 @@
                          "./larceny-c-info"))
           (temp-c-outp "larceny-c-info-output")
 
-          (c-compile (case os-type
-                       ((unix)    cc-compile)
-                       ((windows) cl-compile)))
+          (c-compile (let ()
+                       (define (cc-compile exe-path c-src-path . includes)
+                         (let ((cc (or (getenv "CC") "cc"))
+                               (include-directives
+                                (apply string-append
+                                       (map (lambda (path)
+                                              (string-append "-I" path " "))
+                                            includes))))
+                           (zero?
+                            (system
+                             (string-append
+                              cc " "
+                              include-directives
+                              " -D_XOPEN_SOURCE=500 "
+                              " -o " exe-path
+                              " "  c-src-path)))))
+                       
+                       (define (cl-compile exe-path c-src-path . includes)
+                         (let ((include-directives
+                                (apply string-append
+                                       (map (lambda (path)
+                                              (string-append "/I" path " "))
+                                            includes)))
+                               (obj-path (string-append c-src-path ".obj")))
+                           (let ((result (zero?
+                                          (system
+                                           (string-append
+                                            "cl /nologo "
+                                            include-directives
+                                            " /Fo" obj-path
+                                            " /Fe" exe-path
+                                            " "  c-src-path
+                                            "> nul:")))))
+                             (if result (delete-file obj-path))
+                             result)))
+                       
+                       (case os-type
+                         ((unix)    cc-compile)
+                         ((windows) cl-compile))))
 
           (make-c-contents
            (lambda (c-prologue c-forms)
