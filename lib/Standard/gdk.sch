@@ -57,27 +57,35 @@
 (define GDK-RELEASE-MASK  #b1000000000000000000000000000000)
 (define GDK-MODIFIER-MASK (integer-logior GDK-RELEASE-MASK #x1fff))
 
-(define-syntax define-cstruct-offsets/target-dep-paths
+(define-syntax define-cfields-offsets/target-dep-paths
   (syntax-rules ()
-    ((_ HEADERS FORMS ...)
+    ((_ (HEADERS ...) FORMS ...)
      (cond-expand
       (macosx 
-       (define-cstruct-offsets
-         ("/sw/include/glib-2.0" "/sw/lib/glib-2.0/include"
-          "/sw/lib/gtk-2.0/include" "/sw/include/pango-1.0"
-          "/sw/include/atk-1.0" "/sw/include/gtk-2.0")
-         HEADERS FORMS ...))
+       (define-c-info 
+         (path "/sw/include/glib-2.0")
+         (path "/sw/lib/glib-2.0/include")
+         (path "/sw/libf/gtk-2.0/include") 
+         (path "/sw/include/pango-1.0")
+         (path "/sw/include/atk-1.0")
+         (path "/sw/include/gtk-2.0")
+         (include HEADERS) ...
+         FORMS ...))
       (unix
-       (define-cstruct-offsets
-         ("/usr/include/glib-2.0" "/usr/lib/glib-2.0/include"
-          "/usr/lib/gtk-2.0/include" "/usr/include/pango-1.0"
-          "/usr/include/cairo"
-           "/usr/include/atk-1.0" "/usr/include/gtk-2.0")
-         HEADERS FORMS ...))
+       (define-c-info
+         (path "/usr/include/glib-2.0")
+         (path "/usr/lib/glib-2.0/include")
+         (path "/usr/lib/gtk-2.0/include") 
+         (path "/usr/include/pango-1.0")
+         (path "/usr/include/cairo")
+         (path "/usr/include/atk-1.0") 
+         (path "/usr/include/gtk-2.0")
+         (include HEADERS) ...
+         FORMS ...))
       (else
-       (error 'define-cstruct-offsets ": no support for your target..."))))))
+       (error 'define-cfields-offsets ": no support for your target..."))))))
 
-(define-cstruct-offsets/target-dep-paths ("\"gdk/gdk.h\"") 
-  (gdkeventkey-keyval-offset "GdkEventKey" "keyval"))
+(define-cfields-offsets/target-dep-paths ("\"gdk/gdk.h\"")
+  (fields "GdkEventKey" (gdkeventkey-keyval-offset "keyval")))
 (define (gdk-event-keyval e)
   (integer->char (void*-word-ref e gdkeventkey-keyval-offset)))

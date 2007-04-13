@@ -279,41 +279,49 @@
 
 
 (define-foreign (gtk-dialog-new) gtkdialog*)
-(define-syntax define-cstruct-offsets/target-dep-paths
+(define-syntax define-cfields-offsets/target-dep-paths
   (syntax-rules ()
-    ((_ HEADERS FORMS ...)
+    ((_ (HEADERS ...) FORMS ...)
      (cond-expand
       (macosx 
-       (define-cstruct-offsets
-         ("/sw/include/glib-2.0" "/sw/lib/glib-2.0/include"
-          "/sw/lib/gtk-2.0/include" "/sw/include/pango-1.0"
-          "/sw/include/atk-1.0" "/sw/include/gtk-2.0")
-         HEADERS FORMS ...))
+       (define-c-info
+         (path "/sw/include/glib-2.0") 
+         (path "/sw/lib/glib-2.0/include")
+         (path "/sw/lib/gtk-2.0/include")
+         (path "/sw/include/pango-1.0")
+         (path "/sw/include/atk-1.0")
+         (path "/sw/include/gtk-2.0")
+         (include HEADERS) ... FORMS ...))
       (unix
-       (define-cstruct-offsets
-         ("/usr/include/glib-2.0" "/usr/lib/glib-2.0/include"
-          "/usr/lib/gtk-2.0/include" "/usr/include/pango-1.0"
-          "/usr/include/cairo"
-           "/usr/include/atk-1.0" "/usr/include/gtk-2.0")
-         HEADERS FORMS ...))
+       (define-c-info
+         (path "/usr/include/glib-2.0") 
+         (path "/usr/lib/glib-2.0/include")
+         (path "/usr/lib/gtk-2.0/include") 
+         (path "/usr/include/pango-1.0")
+         (path "/usr/include/cairo")
+         (path "/usr/include/atk-1.0") 
+         (path "/usr/include/gtk-2.0")
+         (include HEADERS) ... FORMS ...))
       (else
-       (error 'define-cstruct-offsets ": no support for your target..."))))))
+       (error 'define-cfields-offsets ": no support for your target..."))))))
 
-(define-cstruct-offsets/target-dep-paths ("\"gtk/gtk.h\"") 
-  (gtkobject-flags-offset "GtkObject" "flags")
-  (gtkdialog-vbox-offset "GtkDialog" "vbox")
-  (gtkdialog-action-area-offset "GtkDialog" "action_area")
-  (gtkfilesel-dir-list-offset "GtkFileSelection" "dir_list")
-  (gtkfilesel-file-list-offset "GtkFileSelection" "file_list")
-  (gtkfilesel-selection-entry-offset "GtkFileSelection" "selection_entry")
-  (gtkfilesel-selection-text-offset "GtkFileSelection" "selection_text")
-  (gtkfilesel-main-vbox-offset "GtkFileSelection" "main_vbox")
-  (gtkfilesel-ok-button-offset "GtkFileSelection" "ok_button")
-  (gtkfilesel-cancel-button-offset "GtkFileSelection" "cancel_button")
-  (gtkfilesel-help-button-offset "GtkFileSelection" "help_button")
-  (gtkfilesel-history-pulldown-offset "GtkFileSelection" "history_pulldown")
-  (gtkfilesel-history-menu-offset "GtkFileSelection" "history_menu")
-  (gtkfilesel-history-list-offset "GtkFileSelection" "history_list")
+(define-cfields-offsets/target-dep-paths ("\"gtk/gtk.h\"") 
+  (fields "GtkObject" (gtkobject-flags-offset "flags"))
+  (fields "GtkDialog" 
+          (gtkdialog-vbox-offset "vbox")
+          (gtkdialog-action-area-offset "action_area"))
+  (fields "GtkFileSelection" 
+          (gtkfilesel-dir-list-offset "dir_list")
+          (gtkfilesel-file-list-offset "file_list")
+          (gtkfilesel-selection-entry-offset "selection_entry")
+          (gtkfilesel-selection-text-offset "selection_text")
+          (gtkfilesel-main-vbox-offset "main_vbox")
+          (gtkfilesel-ok-button-offset "ok_button")
+          (gtkfilesel-cancel-button-offset "cancel_button")
+          (gtkfilesel-help-button-offset "help_button")
+          (gtkfilesel-history-pulldown-offset "history_pulldown")
+          (gtkfilesel-history-menu-offset "history_menu")
+          (gtkfilesel-history-list-offset "history_list"))
   )
 
 (define (gtk-dialog-vbox dialog)
