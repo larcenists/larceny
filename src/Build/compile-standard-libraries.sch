@@ -94,3 +94,21 @@
     ("unix-descriptor.sch" define-record))) 
 
 (compile-libraries-in-dir "lib/Experimental/" experimental-lib-files-to-compile)
+
+(define ffi-lib-files-to-compile
+  '(
+    "ffi-i386.sch"
+    "ffi-linux-x86.sch"
+    "ffi-load.sch"
+    "ffi-lower.sch"
+    "ffi-macosx.sch"
+    "ffi-sparc.sch"
+    "ffi-sunos4.sch"
+    "ffi-sunos5.sch"
+    "ffi-upper.sch"
+    "ffi-util.sch"
+    "ffi-win32.sch"
+    "memory.sch"
+    "tramp.sch"))
+
+(compile-libraries-in-dir "lib/Ffi/" ffi-lib-files-to-compile)
