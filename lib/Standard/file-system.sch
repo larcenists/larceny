@@ -84,7 +84,8 @@
 ;;; (but at the moment define-cstruct-offset is even less robust than this is...)
 (define list-directory
    (let ()
-     (define-cstruct-offsets () ("<dirent.h>") (*d_name_offset* "struct dirent" "d_name"))
+     (define-c-info (include<> "dirent.h")
+       (struct "dirent" (*d_name_offset* "d_name")))
      (define readdir  (foreign-procedure "readdir"  '(unsigned)  
 'unsigned))
      (define opendir  (foreign-procedure "opendir"  '(string)    
