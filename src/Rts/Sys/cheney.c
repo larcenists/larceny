@@ -832,6 +832,8 @@ static void oldspace_copy( cheney_env_t *e )
   e->tospace->chunks[e->tospace->current].top = e->dest;
   if (e->tospace2)
     e->tospace2->chunks[e->tospace2->current].top = e->dest2;
+  assert2( e->tospace->chunks[e->tospace->current].bot
+           <= e->tospace->chunks[e->tospace->current].top );
 }
 
 static void scan_static_area( cheney_env_t *e )
@@ -1277,7 +1279,14 @@ static void seal_chunk( semispace_t *ss, word *lim, word *dest )
     *dest = mkheader(len-sizeof(word),BIGNUM_HDR);
     *(dest+1) = 0xABCDABCD;
   }
-  ss->chunks[ ss->current ].top = dest;
+  if (dest == NULL) {
+    /* A NULL dest indicates that we exhausted the chunk; only happens
+     * in scan_oflo_normal corner case where set dest = copylim = 0 */
+    ss->chunks[ ss->current ].top = ss->chunks[ ss->current ].lim;
+  } else {
+    ss->chunks[ ss->current ].top = dest;
+  }
+  assert2( ss->chunks[ss->current].bot <= ss->chunks[ss->current].top );
 }
 
 static void
