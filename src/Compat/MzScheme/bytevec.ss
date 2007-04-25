@@ -59,9 +59,11 @@
 	       (port  (if (null? rest) (current-output-port) (car rest))))
 	   (do ((i 1 (+ i 1)))
 	       ((= i limit))
-	     (write-char (integer->char (vector-ref bv i)) port))))
+	     (write-byte (vector-ref bv i) port))))
 	((string? bv)
-	 (apply display bv rest))
+	 (for-each (lambda (c)
+                     (apply write-byte (char->integer c) rest))
+                   (string->list bv)))
 	(else
 	 ???)))
 
