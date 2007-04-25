@@ -130,8 +130,15 @@
                      (flag code-cov)
 		     (flag rebuild-code-cov))
   (define (displn arg) (display arg) (newline))
+  (define (help-text) 
+    (displn "To setup Larceny, call (setup 'scheme: HOST-SCHEME 'host: PLATFORM ['target: PLATFORM])")
+    (displn "e.g., (setup 'scheme: 'larceny 'host: 'macosx)")
+    (displn "Example host schemes:   'larceny 'mzscheme")
+    (displn "Example platforms: 'macosx 'solaris"))
 
   (set! *exit-on-error* exit-on-error)
+
+  (cond (help (help-text)))
 
   ;; Fail fast in case user didn't know 'scheme: defaults to 'larceny
   ;; This expression should have no side-effects on Larceny, but
@@ -181,12 +188,8 @@
             
             ))))
   
-  (cond ((or help (not scheme:) (not host:))
-         (displn "To setup Larceny, call (setup 'scheme: HOST-SCHEME 'host: PLATFORM ['target: PLATFORM])")
-         (displn "e.g., (setup 'scheme: 'larceny 'host: 'macosx)")
-         (displn "Example host schemes:   'larceny 'mzscheme")
-         (displn "Example platforms: 'macosx 'solaris")
-         )
+  (cond ((and (not help) (or (not scheme:) (not host:)))
+         (help-text))
         (else
          (let* ((host:   (case host: 
                            ((linux86) 'linux-el) ;; [[ Felix feels "linux86" a more immediate mnemonic, so alias the two ]]
