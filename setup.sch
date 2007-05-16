@@ -112,6 +112,9 @@
                      (with-default #f host:)         ;; inferred for scheme: 'larceny
                      (with-default #f target:)       ;; inherits host: if not given
                      (with-default #f c-compiler:)   ;; usually safe to leave alone
+                     ;; current choices are: flat1, flat4
+                     ;; future choices include: record1, record2
+                     (with-default 'flat1 string-rep:)
                      (flag help)
                      ;; Options for generated runtime
                      (with-default #t rof-collector:)
@@ -196,7 +199,8 @@
                            ((macosx86) 'macosx-el)
                            (else host:)))
                 (target: (if target: target: host:)))
-           (setup-real! scheme: host: target: c-compiler: (or native sassy nasm) code-cov rebuild-code-cov sassy nasm)))))
+           (setup-real! scheme: host: target: c-compiler: string-rep:
+            (or native sassy nasm) code-cov rebuild-code-cov sassy nasm)))))
 
 ;; Can't use parameters for *host-dir* and such, because we have not
 ;; loaded the compatibility files yet at the time we get here.
@@ -205,7 +209,8 @@
 ;; setup-real! : Symbol ... -> Void
 ;; Sets global variables (based on Scheme impl. running on and Target OS), then calls UNIX-INITIALIZE
 (define (setup-real! host-scheme host-arch target-arch 
-		     c-compiler-choice native code-cov rebuild-code-cov 
+		     c-compiler-choice string-rep-choice
+                     native code-cov rebuild-code-cov 
 		     sassy nasm)
   (define (platform->endianness sym)
     (case sym 
@@ -354,6 +359,8 @@
                                    (eq? target-arch 'linux-el)
                                    'nasm+gcc)
 			      #f))
+
+  (set! *target:string-rep* string-rep-choice)
   
   (if (or (eq? *target:machine* 'x86-nasm)
 	  (eq? *target:machine* 'x86-sass))
