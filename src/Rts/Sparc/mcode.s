@@ -244,7 +244,7 @@ Leqv_bvec:
 	cmp	%TMP0, COMPNUM_HDR
 	be,a	Leqv_compnum2
 	nop
-	cmp	%TMP0, STR_HDR
+	cmp	%TMP0, USTR_HDR      /* FIXME: temporary */
 	be,a	Leqv_string2
 	nop
 	b	Leqv_done
@@ -349,14 +349,14 @@ Leqv_vector:
 	mov	TRUE_CONST, %RESULT
 
 Leqv_string2:
-	cmp	%TMP1, STR_HDR
+	cmp	%TMP1, USTR_HDR    /* FIXME: temporary */
 	bne,a	Leqv_done
 	mov	FALSE_CONST, %RESULT
 	/* Both are strings.  They are eqv iff their length is 0.
 	 */
 	ld	[ %RESULT - BVEC_TAG ], %TMP0
 	ld	[ %ARGREG2 - BVEC_TAG ], %TMP1
-	cmp	%TMP0, STR_HDR
+	cmp	%TMP0, USTR_HDR   /* FIXME: temporary */
 	bne,a   Leqv_done
 	mov	FALSE_CONST, %RESULT
 	cmp	%TMP0, %TMP1
