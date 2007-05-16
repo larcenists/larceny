@@ -24,14 +24,14 @@ case "`basename "$0"`" in
 
     checkout-larceny-solaris-native)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-solaris-native)
 	SCHEME_PGM=mzscheme
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris 'native"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris 'native 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
@@ -157,7 +157,7 @@ case "`basename "$0"`" in
 	SunOS)
 	echo "Setup arguments not specified; assuming Solaris native build."
 	SCHEME_PGM=larceny
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=default
 	MAKETEXTSAFE=native2ascii
