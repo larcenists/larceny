@@ -109,9 +109,12 @@
 ;; setup : oneof ['help] -> Void {'scheme: Symbol, 'host: Symbol, ['target: Symbol]} -> Void
 ;; Main entry to set up the build for Petit compiler and runtime.
 (define-keyed (setup (with-default 'larceny scheme:)
-                     (with-default #f host:)         ;; inferred for scheme: 'larceny
-                     (with-default #f target:)       ;; inherits host: if not given
-                     (with-default #f c-compiler:)   ;; usually safe to leave alone
+                     ;; inferred for scheme: 'larceny
+                     (with-default #f host:)
+                     ;; inherits host: if not given
+                     (with-default #f target:)
+                     ;; usually safe to leave alone
+                     (with-default #f c-compiler:)
                      ;; current choices are: flat1, flat4
                      ;; future choices include: record1, record2
                      (with-default 'flat1 string-rep:)
