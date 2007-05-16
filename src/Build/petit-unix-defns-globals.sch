@@ -21,6 +21,7 @@
 (define *host:os*         'unix)
 (define *host:c-compiler*   #f)
 
+(define *target:string-rep* 'flat1)
 (define *target:endianness* 'big)
 (define *target:os*         'unix)
 (define *target:machine*    'standard-c)

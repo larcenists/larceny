@@ -193,9 +193,20 @@
 ; to print the error and never to signal an error.
 
 (define ($$debugmsg msg)
-  (let ((nl (make-string 1 #\newline)))   ; make-string is primitive.
-    (osdep/write-file4 1 msg (string-length msg) 0)
-    (osdep/write-file4 1 nl 1 0)))
+  (let* ((n (string-length msg))          ; string-length is primitive
+         (n7 (+ n 7))                     ; + (on fixnums) is primitive
+         (bv (make-bytevector n7)))       ; make-bytevector is primitive
+    (do ((i 0 (+ i 1)))
+        ((= i n))
+      (bytevector-set! bv (+ i 6) (char->integer (string-ref msg i))))
+    (bytevector-set! bv 0 (char->integer #\e))
+    (bytevector-set! bv 1 (char->integer #\c))
+    (bytevector-set! bv 2 (char->integer #\h))
+    (bytevector-set! bv 3 (char->integer #\o))
+    (bytevector-set! bv 4 (char->integer #\space))
+    (bytevector-set! bv 5 (char->integer #\'))
+    (bytevector-set! bv (- n7 1) (char->integer #\'))
+    (%syscall 31 bv)))
 
 (define $$trace $$debugmsg)
 

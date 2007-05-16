@@ -393,7 +393,23 @@
                 $tag.rectnum-typetag))
 
 (define (dump-string! h s)
-  (dump-bytevector! h (string->bytevector s) $tag.string-typetag))
+  (let ((rep (nbuild-parameter 'target-string-rep)))
+    (case rep
+     ((flat1)
+      (dump-bytevector! h (string->bytevector s) $tag.string-typetag))
+     ((flat4)
+      (let* ((n (string-length s))
+             (bv (make-bytevector (* 4 n))))
+        (do ((i 0 (+ i 1))
+             (j 0 (+ j 4)))
+            ((= i n)
+             (dump-bytevector! h bv $tag.ustring-typetag))
+          (bytevector-set! bv j 0)
+          (bytevector-set! bv (+ j 1) 0)
+          (bytevector-set! bv (+ j 2) (char->integer (string-ref s i)))
+          (bytevector-set! bv (+ j 3) $imm.character))))
+     (else
+      (error 'dump-string! "Unknown string representation: " rep)))))
 
 (define (dump-pair! h p)
   (let ((the-car (dump-datum! h (car p)))

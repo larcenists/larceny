@@ -642,10 +642,14 @@
                   ;; The syntax is #^B"..."
                   ((char=? c (integer->char 2))
                    (tyi p) ; consume double quote
-                   (let ((s (read-string (tyi p) p '())))
-                     (typetag-set! s sys$tag.bytevector-typetag)
-                     (sys$codevector-iflush s)
-                     s))
+                   (let* ((s (read-string (tyi p) p '()))
+                          (n (string-length s))
+                          (bv (make-bytevector n)))
+                     (do ((i 0 (+ i 1)))
+                         ((= i n))
+                       (bytevector-set! bv i (char->integer (string-ref s i))))
+                     (sys$codevector-iflush bv)
+                     bv))
                   ;; Control-C is used for compnum constants by compile-file.
                   ;; The syntax is #^Cxxxxxxxxxxxxxxxx where each x is a byte
                   ;; value. The native byte ordering is used.

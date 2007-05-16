@@ -114,16 +114,23 @@
   (lambda (x y)
     (not (string-ci<? x y))))
 
-(define (alloc-string length)
-  (let ((result (make-bytevector length)))
-    (typetag-set! result sys$tag.string-typetag)
-    result))
+; Copies (substring x i j) into y starting at k.
+; Used only within this file.
+; Performs no checking.
+; Assumes x and y are distinct strings.
+
+(define string-copy-into!
+  (lambda (x i j y k)
+    (do ((i i (+ i 1))
+         (k k (+ k 1)))
+        ((>= i j))
+      (string-set! y k (string-ref x i)))))
 
 (define string-copy
   (lambda (x)
     (let* ((length (string-length x))
-           (y (alloc-string length)))
-      (bytevector-like-copy-into! x 0 length y 0)
+           (y (make-string length)))
+      (string-copy-into! x 0 length y 0)
       y)))
 
 (define string
@@ -135,43 +142,33 @@
     (cond ((pair? tail)
            (let* ((this-string  (car tail))
                   (length (string-length this-string))
-                  (result-string (concatenate-strings1 (+ position length) (cdr tail))))
-             (bytevector-like-copy-into! this-string 0 length
-                                         result-string position)
+                  (result-string
+                   (concatenate-strings1 (+ position length) (cdr tail))))
+             (string-copy-into! this-string 0 length
+                                result-string position)
              result-string))
-          ((null? tail) (alloc-string position))
+          ((null? tail) (make-string position))
           (else (error "concatenate-strings: improper list") #t)))
   (concatenate-strings1 0 string-list))
 
 (define (string-append . args)
-  (concatenate-strings args)
-;  (define (lengths args n)
-;    (if (null? args)
-;       n
-;       (lengths (cdr args) (+ n (string-length (car args))))))
-
-;  (let* ((n (lengths args 0))
-;        (s (make-bytevector n)))
-;    (typetag-set! s sys$tag.string-typetag)
-;    (do ((l args (cdr l))
-;        (i 0    (+ i (string-length (car l)))))
-;       ((null? l) s)
-;      (bytevector-like-copy-into! (car l) 0 (string-length (car l))
-;                                 s i)))
-  )
+  (concatenate-strings args))
 
 (define (substring s m n)
-  (let ((y (alloc-string (- n m))))
-    (bytevector-like-copy-into! s m n y 0)
-    y))
-
+  (let ((length (string-length s)))
+    (if (and (fixnum? m)
+             (fixnum? n)
+             (fx<= 0 m)
+             (fx<= m n)
+             (fx<= n length))
+        (let ((y (make-string (- n m))))
+          (string-copy-into! s m n y 0)
+          y)
+        (error "substring: bad operands: " s " " m " " n))))
 
 (define string-fill!
   (lambda (s c)
-    (if (and (string? s) (char? c))
-	(bytevector-fill! s (char->integer c))
-	(begin (error "string-fill!: bad operands: " s " " c)
-	       #t))))
+    (substring-fill! s 0 (string-length s) c)))
 
 (define substring-fill!
   (lambda (s start end c)
@@ -251,7 +248,9 @@
         code
         (string-hash-loop
          string limit (+ i 1)
-         (string-hash-step code (bytevector-like-ref string i)))))
+         (string-hash-step code
+                           (fxlogand #x00FF
+                                     (char->integer (string-ref string i)))))))
 
   (let ((n (string-length string)))
     (string-hash-loop string n 0 (fxlogxor n #x1aa5))))

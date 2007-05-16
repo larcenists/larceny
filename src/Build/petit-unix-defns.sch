@@ -28,6 +28,7 @@
                                                 'mzscheme-source   (pathname-append "src" "Lib" "MzScheme")
                                                 'host-os           *host:os*
                                                 'host-endianness   *host:endianness*
+                                                'target-string-rep *target:string-rep*
                                                 'target-machine    *target:machine*
                                                 'target-os         *target:os*
                                                 'target-endianness *target:endianness*

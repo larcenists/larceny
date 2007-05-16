@@ -123,6 +123,7 @@
          host-system
          host-os
          host-endianness
+         target-string-rep
          target-machine
          target-os
          target-endianness

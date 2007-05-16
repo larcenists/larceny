@@ -784,8 +784,9 @@
         (string-hash-loop
          string limit (+ i 1)
          (string-hash-step code
-                           (compat:char->integer
-                            (string-ref string i))))))
+                           (fxlogand #x00FF
+                                     (compat:char->integer
+                                      (string-ref string i)))))))
 
   (let ((n (string-length string)))
     (string-hash-loop string n 0 (fxlogxor n #x1aa5))))

@@ -694,7 +694,7 @@
 				  $r.argreg3)
 	(sparc.addi   as $r.result 4 $r.result)
 	(sparc.srai   as $r.argreg3 2 $r.tmp0)
-        (emit-bytevector-fill as $r.tmp0 $r.result rs2)
+        (emit-bytevector-fill4 as $r.tmp0 $r.result rs2)
 	(sparc.addi as $r.result (- $tag.bytevector-tag 4) $r.result)))))
 
 ;(define-primop 'ustring-length
