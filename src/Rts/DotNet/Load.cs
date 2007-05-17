@@ -247,8 +247,8 @@ public class Load {
   {
     SObject[] argv = new SObject[args.Length];
     for (int i = 0; i < args.Length; ++i) {
-	argv[i] = Factory.makeString (args[i]);
-	}
+        argv[i] = Factory.makeAsciiByteVector (args[i]);
+    }
     return Factory.makeVector (argv);
   }
 

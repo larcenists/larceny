@@ -310,6 +310,13 @@ namespace Scheme.Rep {
             return new SByteVL
                 (Tags.ByteVectorTag, size, (byte)fill);
         }
+        public static SByteVL makeAsciiByteVector(string s) {
+            byte[] chars = new byte[s.Length];
+            for (int i = 0; i < chars.Length; i++) {
+                 chars[i] = (byte)s[i];
+            }
+            return new SByteVL(Tags.ByteVectorTag, chars);
+        }
 
         // ============
         //   Lists

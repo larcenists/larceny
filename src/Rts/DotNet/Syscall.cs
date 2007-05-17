@@ -385,7 +385,7 @@ namespace Scheme.RT {
 
             Reg.Result = (result == null)
               ? (SObject) Factory.False
-              : (SObject) Factory.makeString (result);
+              : (SObject) Factory.makeAsciiByteVector (result);
         }
 
         private static void setenv() {
@@ -612,7 +612,7 @@ namespace Scheme.RT {
 
       private static void cwd()
       {
-        Reg.Result = Factory.makeString (Directory.GetCurrentDirectory());
+        Reg.Result = Factory.makeAsciiByteVector (Directory.GetCurrentDirectory());
       }
     }
 }
