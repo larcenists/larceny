@@ -105,14 +105,14 @@ case "`basename "$0"`" in
 #    ;;
     checkout-larceny-linux86-native)
 	SCHEME_PGM=larceny
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
     checkout-mzscheme-linux86-native)
 	SCHEME_PGM=mzscheme
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE="iconv -t utf8 -c"
@@ -138,14 +138,14 @@ case "`basename "$0"`" in
     ;;
     checkout-larceny-macosx-native)  # IA32!
 	SCHEME_PGM=larceny
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-macosx-native) # IA32!
 	SCHEME_PGM=mzscheme
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx-el 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx-el 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
