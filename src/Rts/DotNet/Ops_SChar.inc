@@ -31,6 +31,10 @@
             return Factory.makeString(arg1.value, this.val);
         }
 
+        OP2_OVERRIDE_REVERSED(make_ustring, SFixnum) {
+            return Factory.makeUString(arg1.value, this.val);
+        }
+
         // Special Operations
         SPECIALOP2_CHAIN_CHAR(eqvp_not_eq)
         

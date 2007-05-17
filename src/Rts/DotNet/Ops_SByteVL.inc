@@ -41,6 +41,7 @@
             return Factory.makeNumber (this.elements.Length);
         }
         OP1_OVERRIDE(string_length_str) {
+            // FIX ME (shouldn't check?)
             check_typetag(Tags.StringTag, this, Constants.EX_STRING_LENGTH);
             return Factory.makeNumber (this.elements.Length);
         }
@@ -54,9 +55,14 @@
             check_typetag(Tags.UStringTag, this, Constants.EX_USTRING_LENGTH);
             return Factory.makeNumber (this.elements.Length >> 2);
         }
+        OP1_OVERRIDE(ustring_length_str) {
+            return Factory.makeNumber (this.elements.Length >> 2);
+        }
 
         OP2_CHAIN_CHECK_TAG(ustring_ref, Tags.UStringTag, EX_USTRING_REF)
         OP3_CHAIN_CHECK_TAG(ustring_set, Tags.UStringTag, EX_USTRING_SET)
+        OP2_CHAIN(ustring_ref_trusted)
+        OP3_CHAIN(ustring_set_trusted)
 
         OP1_OVERRIDE_CHECK_TAG(bytevector_length, Tags.ByteVectorTag, EX_BYTEVECTOR_LENGTH) {
             return Factory.makeNumber (this.elements.Length);

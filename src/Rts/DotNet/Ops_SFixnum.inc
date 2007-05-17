@@ -152,6 +152,7 @@
                     return Factory.Unspecified;
                 }
           catch (Exception) {
+            // FIXME: Should this instead throw a string-set exception?
             Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
             return Factory.Impossible;
           }
@@ -161,6 +162,7 @@
             return Factory.Unspecified;
         }
 
+        OP2_CHAIN(make_ustring)
         OP2_OVERRIDE_REVERSED(ustring_ref, SByteVL) {
           try {
             return Factory.makeChar
@@ -173,6 +175,13 @@
             Exn.fault(Constants.EX_USTRING_REF, null, arg1, this);
             return Factory.Impossible;
           }
+        }
+        OP2_OVERRIDE_REVERSED(ustring_ref_trusted, SByteVL) {
+          return Factory.makeChar
+            (  (arg1.elements)[(this.value << 2)    ] << 24
+             | (arg1.elements)[(this.value << 2) + 1] << 16
+             | (arg1.elements)[(this.value << 2) + 2] << 8
+             | (arg1.elements)[(this.value << 2) + 3]);
         }
 
         OP3_OVERRIDE_REVERSED(ustring_set, SByteVL) {
@@ -187,9 +196,20 @@
             return Factory.Unspecified;
           }
           catch (Exception) {
+            // FIXME: Should this instead throw a ustring-set exception?
             Exn.fault(Constants.EX_USTRING_REF, null, arg1, this);
             return Factory.Impossible;
           }
+        }
+        OP3_OVERRIDE_REVERSED(ustring_set_trusted, SByteVL) {
+          char val = ((SChar)arg3).val;
+
+          arg1.elements[(this.value << 2)]     = (byte)(val >> 24 & 0xFF);
+          arg1.elements[(this.value << 2) + 1] = (byte)(val >> 16 & 0xFF);
+          arg1.elements[(this.value << 2) + 2] = (byte)(val >> 8 & 0xFF);
+          arg1.elements[(this.value << 2) + 3] = (byte)(val & 0xFF);
+
+          return Factory.Unspecified;
         }
 
         OP1_OVERRIDE(make_bytevector) {

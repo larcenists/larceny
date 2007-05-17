@@ -278,9 +278,9 @@ namespace Scheme.Rep {
             return syms;
         }
 
-        // ===================
-        //   Strings, ByteVL
-        // ===================
+        // ===========================
+        //   Strings, UStrings, ByteVL
+        // ===========================
 
         public static SByteVL makeString(int length, char fill) {
             return new SByteVL(Tags.StringTag, length, (byte)fill);
@@ -297,6 +297,14 @@ namespace Scheme.Rep {
         }
         public static SByteVL makeString(byte[] elements) {
             return new SByteVL(Tags.StringTag, elements);
+        }
+        public static SByteVL makeUString(int length, char fill) {
+            SByteVL ustring = new SByteVL(Tags.UStringTag, length * 4, 0);
+            SChar c = makeChar(fill);
+            for (int i = 0; i < length; ++i) {
+                makeFixnum(i).op_reversed_ustring_set(ustring, c);
+            }
+            return ustring;
         }
         public static SByteVL makeByteVector(int size, int fill) {
             return new SByteVL
