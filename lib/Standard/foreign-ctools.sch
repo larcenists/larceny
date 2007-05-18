@@ -54,12 +54,12 @@
             (else            (error 'define-c-info ": Can't stringify"))))
 
         (define (types type-spec)
-          (case type-spec
-            ((int)    (values "%d"  "int"))
-            ((uint)   (values "%u"  "unsigned int"))
-            ((long)   (values "%ld" "long"))
-            ((ulong)  (values "%lu" "unsigned long"))
-            (else     (values "%od" "long"))))
+          (cond 
+           ((cmp type-spec 'int)   (values "%d"  "int"))
+           ((cmp type-spec 'uint)  (values "%u"  "unsigned int"))
+           ((cmp type-spec 'long)  (values "%ld" "long"))
+           ((cmp type-spec 'ulong) (values "%lu" "unsigned long"))
+           (else     (values "%od" "long"))))
 
         (define (gen-const name type-spec expr . decls)
           (set! body
@@ -95,51 +95,51 @@
 
         (for-each
           (lambda (form)
-            (case (car form)
-              ((compiler)
-               (set! cc-spec (list (cadr form))))
+            (cond
+             ((cmp (car form) 'compiler)
+              (set! cc-spec (list (cadr form))))
 
-              ((path)
-               (set! paths (cons (cadr form) paths)))
+             ((cmp (car form) 'path)
+              (set! paths (cons (cadr form) paths)))
 
-              ((include)
-               (gen-include
-                 (string-append "\"" (stringify (cadr form)) "\"")))
+             ((cmp (car form) 'include)
+              (gen-include
+               (string-append "\"" (stringify (cadr form)) "\"")))
 
-              ((include<>)
-               (gen-include
-                 (string-append "<" (stringify (cadr form)) ">")))
+             ((cmp (car form) 'include<>)
+              (gen-include
+               (string-append "<" (stringify (cadr form)) ">")))
 
-              ((const)
-               (gen-const
-                 (cadr form)
-                 (caddr form)
-                 (stringify (cadddr form))))
+             ((cmp (car form) 'const)
+              (gen-const
+               (cadr form)
+               (caddr form)
+               (stringify (cadddr form))))
 
-              ((sizeof)
-               (gen-const
-                 (cadr form)
-                 'ulong
-                 (string-append
-                   "sizeof(" (stringify (caddr form)) ")")))
+             ((cmp (car form) 'sizeof)
+              (gen-const
+               (cadr form)
+               'ulong
+               (string-append
+                "sizeof(" (stringify (caddr form)) ")")))
 
-              ((fields)
-               (gen-fields (stringify (cadr form))
-                           (cddr form)))
+             ((cmp (car form) 'fields)
+              (gen-fields (stringify (cadr form))
+                          (cddr form)))
 
-              ((struct)
-               (gen-fields (string-append
-                             "struct " (stringify (cadr form)))
-                           (cddr form)))
+             ((cmp (car form) 'struct)
+              (gen-fields (string-append
+                           "struct " (stringify (cadr form)))
+                          (cddr form)))
 
-              ((raw)
-               (set! body (cons (cdr form) body)))
+             ((cmp (car form) 'raw)
+              (set! body (cons (cdr form) body)))
 
-              (else
-                (error 'define-c-info
-                       (string-append
-                         ": Unknown c-info spec: "
-                         (stringify (car form)))))))
+             (else
+              (error 'define-c-info
+                     (string-append
+                      ": Unknown c-info spec: "
+                      (stringify (car form)))))))
           (cdr exp))
 
         `(define-c-values
@@ -269,7 +269,8 @@
               (c-contents   (make-c-contents c-prologue c-forms)))
 
          (generate-c-code c-contents)
-         (compile-c-code c-compile include-paths)
+         (if (not (compile-c-code c-compile include-paths))
+             (error 'define-c-value ": compiler error."))
          (run-c-program)
 
          (let ((c-values     (read-output))
