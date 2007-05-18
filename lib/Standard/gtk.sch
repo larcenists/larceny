@@ -285,13 +285,14 @@
      (cond-expand
       (macosx 
        (define-c-info
+         (path "/sw/include/gtk-2.0")
          (path "/sw/include/glib-2.0") 
          (path "/sw/lib/glib-2.0/include")
          (path "/sw/lib/gtk-2.0/include")
          (path "/sw/include/pango-1.0")
          (path "/sw/include/atk-1.0")
          (path "/sw/include/gtk-2.0")
-         (include HEADERS) ... FORMS ...))
+         (include<> HEADERS) ... FORMS ...))
       (unix
        (define-c-info
          (path "/usr/include/glib-2.0") 
@@ -305,7 +306,7 @@
       (else
        (error 'define-cfields-offsets ": no support for your target..."))))))
 
-(define-cfields-offsets/target-dep-paths ("\"gtk/gtk.h\"") 
+(define-cfields-offsets/target-dep-paths ("gtk/gtk.h") 
   (fields "GtkObject" (gtkobject-flags-offset "flags"))
   (fields "GtkDialog" 
           (gtkdialog-vbox-offset "vbox")
