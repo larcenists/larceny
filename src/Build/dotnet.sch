@@ -108,6 +108,7 @@
           'development?          option:development?
           'compatibility         (pathname-append dir "src" "Compat" host)
           'host-system           host
+          'target-string-rep     'flat4  ; FIXME
           'target-machine        'dotnet
           'target-os             option:os
           'host-os               option:os

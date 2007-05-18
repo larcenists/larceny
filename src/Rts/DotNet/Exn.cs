@@ -179,16 +179,16 @@ public class Exn {
   public static CodeAddress error (string msg)
   {
     debug.WriteLine ("** called Exn.error (string) " + msg);
-    SObject string0 = Factory.makeString ("");
+    SObject string0 = Factory.makeUString ("");
     return Call.callExceptionHandler
-	(new SObject[] {Factory.makeString (msg), string0, string0, Factory.Null});
+	(new SObject[] {Factory.makeUString (msg), string0, string0, Factory.Null});
   }
 
   public static CodeAddress error (string msg, SObject value)
   {
     debug.WriteLine ("** called Exn.error (string) " + msg);
     return Call.callExceptionHandler
-	(new SObject[] {Factory.makeString (msg), value, Factory.False, Factory.Null});
+	(new SObject[] {Factory.makeUString (msg), value, Factory.False, Factory.Null});
   }
 
   // =================================================

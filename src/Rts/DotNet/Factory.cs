@@ -242,7 +242,7 @@ namespace Scheme.Rep {
         }
 
         public static SVL makeSymbolUninterned(string str) {
-            SObject name = makeString(str);
+            SObject name = makeUString(str);
             // No need to hash here because the runtime will redo it.
             // SObject hash = makeNumber(stringHash(str));
             return new SVL(Tags.SymbolTag, new SObject[]{name, makeFixnum(0), Factory.Null});
@@ -298,6 +298,14 @@ namespace Scheme.Rep {
         public static SByteVL makeString(byte[] elements) {
             return new SByteVL(Tags.StringTag, elements);
         }
+
+        public static SByteVL makeUString(string s) {
+            SByteVL ustring = new SByteVL(Tags.UStringTag, s.Length * 4, 0);
+            for (int i = 0; i < s.Length; ++i) {
+                makeFixnum(i).op_reversed_ustring_set(ustring, makeChar(s[i]));
+            }
+            return ustring;
+        }
         public static SByteVL makeUString(int length, char fill) {
             SByteVL ustring = new SByteVL(Tags.UStringTag, length * 4, 0);
             SChar c = makeChar(fill);
@@ -306,6 +314,16 @@ namespace Scheme.Rep {
             }
             return ustring;
         }
+        public static SByteVL makeUString(byte[] bytes) {
+            SByteVL ustring = new SByteVL(Tags.UStringTag,
+                                          bytes.Length * 4, 0);
+            for (int i = 0; i < bytes.Length; ++i) {
+                makeFixnum(i).op_reversed_ustring_set(ustring,
+                                                      makeChar((char)bytes[i]));
+            }
+            return ustring;
+        }
+
         public static SByteVL makeByteVector(int size, int fill) {
             return new SByteVL
                 (Tags.ByteVectorTag, size, (byte)fill);
@@ -376,7 +394,7 @@ namespace Scheme.Rep {
             return makeNumber(n);
         }
         public static SObject wrap(string s) {
-            return makeString(s);
+            return makeUString(s);
         }
         public static SObject wrap(double d) {
             return makeFlonum(d);

@@ -109,7 +109,7 @@ namespace Scheme.RT
                     {
                         SObject arg1 = Reg.Register3;
                         object val = ((ForeignBox)arg1).value;
-                        Reg.Result = Factory.makeString((val == null) ? "null" : val.ToString());
+                        Reg.Result = Factory.makeUString((val == null) ? "null" : val.ToString());
                         return;
                     }
 
@@ -812,7 +812,7 @@ namespace Scheme.RT
                     { // string
                         if (value is string)
                         {
-                            return Factory.makeString((string)value);
+                            return Factory.makeUString((string)value);
                         }
                         else
                         {
@@ -829,7 +829,7 @@ namespace Scheme.RT
                     { // bytes
                         if (value is byte[])
                         {
-                            return Factory.makeString((byte[])value);
+                            return Factory.makeUString((byte[])value);
                         }
                         else
                         {

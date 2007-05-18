@@ -271,6 +271,10 @@ namespace Scheme.RT {
             Reg.setRegister (2, second);
             Reg.setRegister (3, third);
             Reg.setRegister (4, Factory.makeNumber (excode));
+            /*
+            Console.WriteLine("{0} {1} {2} {3}", result, second,
+                                                 third, excode);
+            */
             return call1 (getSupportProcedure (Constants.MS_EXCEPTION_HANDLER), 4);
         }
 

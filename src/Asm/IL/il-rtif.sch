@@ -120,7 +120,7 @@
   (il:call '() iltype-sbytevl il-schemefactory "makeCompnum"
            (list iltype-double iltype-double)))
 (define (rep:make-string)
-  (il:call '() iltype-sbytevl il-schemefactory "makeString" 
+  (il:call '() iltype-sbytevl il-schemefactory "makeUString" 
            (list iltype-string)))
 (define (rep:make-char)
   (il:call '() iltype-schemechar il-schemechar "makeChar" 
