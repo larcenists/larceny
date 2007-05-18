@@ -65,11 +65,11 @@
        (define-c-info 
          (path "/sw/include/glib-2.0")
          (path "/sw/lib/glib-2.0/include")
-         (path "/sw/libf/gtk-2.0/include") 
+         (path "/sw/lib/gtk-2.0/include") 
          (path "/sw/include/pango-1.0")
          (path "/sw/include/atk-1.0")
          (path "/sw/include/gtk-2.0")
-         (include HEADERS) ...
+         (include<> HEADERS) ...
          FORMS ...))
       (unix
        (define-c-info
@@ -85,7 +85,7 @@
       (else
        (error 'define-cfields-offsets ": no support for your target..."))))))
 
-(define-cfields-offsets/target-dep-paths ("\"gdk/gdk.h\"")
+(define-cfields-offsets/target-dep-paths ("gdk/gdk.h")
   (fields "GdkEventKey" (gdkeventkey-keyval-offset "keyval")))
 (define (gdk-event-keyval e)
   (integer->char (void*-word-ref e gdkeventkey-keyval-offset)))
