@@ -68,9 +68,15 @@
                         ((gulong)   'ulong)
                         ((gfloat)   'float)
                         ((gdouble)  'double)
-                        ((void)     'void)
+                        ((void |v   |)   'void)
+                        ((gpointer) '(maybe void*))
                         ((->)       '->)
-                        (else '(maybe void*))))
+                        (else 
+                         (begin (display "Unknown param type: |")
+                                (write x)
+                                (display "|; treating as void*")
+                                (newline))
+                         '(maybe void*))))
                      (else
                       (map rec x))))))
     val))
@@ -83,7 +89,7 @@
          (core-proc
           (foreign-procedure "g_signal_connect_data"
                              `(void* string 
-                                     ,fund-desc ;; this is context dependant
+                                     ,fund-desc ;; this is context dependent
                                      ,(cond ((string? data) 'string)
                                             ((void*? data)  'void*)
                                             ((eqv? data #f) '(maybe void*))
