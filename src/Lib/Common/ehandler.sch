@@ -378,6 +378,12 @@
                  char? arg3))
        ((= code $ex.uslen)
         (error "ustring-length: " arg1 " is not a ustring"))
+       ((= code $ex.mkstr)
+        (if (char? arg2)
+            (error "make-string: "
+                   arg1 " is not an exact nonnegative integer.")
+            (error "make-string: "
+                   arg2 " is not a character.")))
 
        ;; Bytevectors
 

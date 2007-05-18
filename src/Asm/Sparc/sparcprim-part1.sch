@@ -675,19 +675,24 @@
 	      (sparc.label   as FAULT)
 	      (if (not (= rs2 $r.argreg2))
 		  (sparc.move as rs2 $r.argreg2))
-	      (sparc.set     as (thefixnum $ex.mkbvl) $r.tmp0) ; Wrong code.
+	      (sparc.set     as (thefixnum $ex.mkstr) $r.tmp0)
 	      (millicode-call/ret as $m.exception START)
 	      (sparc.label   as L1)
 	      (sparc.bl      as FAULT)
 	      (sparc.cmpi    as $r.tmp0 $imm.character)
 	      (sparc.bne     as FAULT)
-	      (sparc.move as $r.result $r.argreg3)))
-        ; FIXME: should be able to do this faster
-        (sparc.taddrcc as $r.result $r.result $r.result)
-        (sparc.bvs     as FAULT)
-        (sparc.taddrcc as $r.result $r.result $r.result)
-        (sparc.bvs     as FAULT)
-        (sparc.move    as $r.result $r.argreg3)
+	      (sparc.move as $r.result $r.argreg3)
+              ; FIXME: should be able to do this faster
+              (sparc.taddrcc as $r.result $r.result $r.result)
+              (sparc.bvs     as FAULT)
+              (sparc.taddrcc as $r.result $r.result $r.result)
+              (sparc.bvs     as FAULT)
+              (sparc.move    as $r.result $r.argreg3))
+            (begin
+             ; FIXME: should be able to do this faster
+             (sparc.addr     as $r.result $r.result $r.result)
+             (sparc.addr     as $r.result $r.result $r.result)
+             (sparc.move     as $r.result $r.argreg3)))
 	(emit-allocate-bytevector as
 				  (+ $imm.bytevector-header
 				     $tag.ustring-typetag)
