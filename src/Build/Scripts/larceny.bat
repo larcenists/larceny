@@ -40,4 +40,4 @@ goto :EOF
 :finish
 
 %*
-
+exit %ERRORLEVEL%
