@@ -178,6 +178,8 @@
 		 " is not a floating-point number.")))
 
     (define (void*->unsigned x name)
+      (cond ((not (void*? x))
+             (error 'void*->unsigned ": received object " x " not of void* type")))
       ((record-accessor void*-rt 'ptr) x))
     (define (unsigned->void* x name)
       (if (foreign-null-pointer? x)
@@ -677,10 +679,12 @@
 	       ((zero? (%peek8 p)) l)))))
     (lambda (ptr)
       (let* ((l (_strlen ptr))
-	     (s (make-bytevector l)))
-	(peek-bytes ptr s l)
-	(typetag-set! s (typetag ""))
-	s))))
+	     (s (make-string l))
+             (bv (make-bytevector l)))
+	(peek-bytes ptr bv l)
+        (do ((i 0 (+ i 1)))
+            ((= i l) s)
+          (string-set! s i (integer->char (bytevector-ref bv i))))))))
 
 ; Steps through a pointer array terminated by a 0 pointer
 ; and gets each pointed-to element.
