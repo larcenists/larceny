@@ -165,7 +165,7 @@ case "`basename "$0"`" in
 	Linux)
 	echo "Setup arguments not specified; assuming linux86 native build."
 	SCHEME_PGM=larceny
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=default
 	MAKETEXTSAFE="iconv -t utf8 -c"
@@ -173,7 +173,7 @@ case "`basename "$0"`" in
 	Darwin)
 	echo "Setup arguments not specified; assuming macosx86 native build."	
 	SCHEME_PGM=larceny
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=default
 	MAKETEXTSAFE=native2ascii
@@ -182,7 +182,7 @@ case "`basename "$0"`" in
 	echo "Setup arguments not specified; assuming win32 native build."	
 	HOME="`pwd`"
 	SCHEME_PGM="`pwd`/HostLarceny/larceny.bat"
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'win32 'sassy"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'win32 'sassy 'string-rep: 'flat4"
 	FINAL_LARCENY_BIN=larceny.bin.exe
 	FINAL_TWOBIT_BIN=larceny.bin.exe
 	FINAL_LARCENY_SCRIPT=larceny.bat
