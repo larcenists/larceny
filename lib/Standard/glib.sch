@@ -68,7 +68,7 @@
                         ((gulong)   'ulong)
                         ((gfloat)   'float)
                         ((gdouble)  'double)
-                        ((void |v   |)   'void)
+                        ((void)     'void)
                         ((gpointer) '(maybe void*))
                         ((->)       '->)
                         (else 
