@@ -1,6 +1,7 @@
 (require 'std-ffi)
 (require 'foreign-stdlib)
 (require 'foreign-sugar)
+(require 'foreign-ctools)
 
 (let ((os (assq 'os-name (system-features))))
   (cond 
