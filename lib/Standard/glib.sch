@@ -74,7 +74,7 @@
                         (else 
                          (begin (display "Unknown param type: |")
                                 (write x)
-                                (display "|; treating as void*")
+                                (display "|; treating as (maybe void*)")
                                 (newline))
                          '(maybe void*))))
                      (else
