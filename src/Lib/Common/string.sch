@@ -314,11 +314,11 @@
 (define (%string-downcase! src dest)
   (do ((i (- (string-length src) 1) (- i 1)))
       ((< i 0) dest)
-    (let ((x (bytevector-like-ref src i)))
-      (bytevector-like-set! dest i
-                            (if (= 1 (bytevector-ref *char-table* x))
-                                (+ x 32)
-                                x)))))
+    (let ((x (char->integer (string-ref src i))))
+      (string-set! dest i (integer->char
+                           (if (= 1 (bytevector-ref *char-table* x))
+                               (+ x 32)
+                               x))))))
 
 (define (string-downcase! string)
   (%string-downcase! string string))
@@ -329,11 +329,11 @@
 (define (%string-upcase! src dest)
   (do ((i (- (string-length src) 1) (- i 1)))
       ((< i 0) dest)
-    (let ((x (bytevector-like-ref src i)))
-      (bytevector-like-set! dest i
-                            (if (= 2 (bytevector-ref *char-table* x))
-                                (- x 32)
-                                x)))))
+    (let ((x (char->integer (string-ref src i))))
+      (string-set! dest i (integer->char 
+                           (if (= 2 (bytevector-ref *char-table* x))
+                               (- x 32)
+                               x))))))
 
 (define (string-upcase! string)
   (%string-upcase! string string))
