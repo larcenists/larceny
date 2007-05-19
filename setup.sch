@@ -117,7 +117,7 @@
                      (with-default #f c-compiler:)
                      ;; current choices are: flat1, flat4
                      ;; future choices include: record1, record2
-                     (with-default 'flat1 string-rep:)
+                     (with-default #f string-rep:)
                      (flag help)
                      ;; Options for generated runtime
                      (with-default #t rof-collector:)
@@ -363,7 +363,11 @@
                                    'nasm+gcc)
 			      #f))
 
-  (set! *target:string-rep* string-rep-choice)
+  (set! *target:string-rep* 
+        (or string-rep-choice
+            (and native (eq? target-arch 'solaris) 'flat4)
+            (and sassy 'flat4)
+            'flat1))
   
   (if (or (eq? *target:machine* 'x86-nasm)
 	  (eq? *target:machine* 'x86-sass))
