@@ -62,14 +62,33 @@
 (define *ffi-architecture*)
 (define *ffi-callout-abi*)
 (define *ffi-callback-abi*)
+(define *ffi-stdcall-callout-abi*)
+(define *ffi-stdcall-callback-abi*)
 
 (call-with-values
  load-ffi
- (lambda (architecture callout-abi callback-abi)
+ (lambda (architecture callout-abi callback-abi
+          stdcall-callout-abi stdcall-callback-abi)
    (set! *ffi-architecture* architecture)
    (set! *ffi-callout-abi* callout-abi)
-   (set! *ffi-callback-abi* callback-abi)))
+   (set! *ffi-callback-abi* callback-abi)
+   (set! *ffi-stdcall-callout-abi* stdcall-callout-abi)
+   (set! *ffi-stdcall-callback-abi* stdcall-callback-abi)))
 
+;; ffi-get-abi: (callout | callback) x (Maybe (cdecl | stdcall | ...)) -> Abi
+;; Given a calling direction and optional convention, find an abi.
+(define ffi-get-abi
+  (let ((abi-table `(((callout  cdecl)   ,*ffi-callout-abi*)
+                     ((callback cdecl)   ,*ffi-callback-abi*)
+                     ((callout  stdcall) ,*ffi-stdcall-callout-abi*)
+                     ((callback stdcall) ,*ffi-stdcall-callback-abi*))))
+    (lambda (direction maybe-conv)
+      (let* ((convention (if (null? maybe-conv) 'cdecl (car maybe-conv)))
+             (key        (list direction convention)))
+        (cond
+          ((assoc key abi-table)
+             => cadr)
+          (else (error 'ffi-get-abi ": Unknown ABI: " key)))))))
 
 ;;; Support code that is really compiler specific.  These definitions are OK
 ;;; for SunOS 4, SunOS 5 with the compilers I've tried.
@@ -325,19 +344,19 @@
 (define (foreign-file x)
   (ffi/libraries (cons x (ffi/libraries))))
 
-(define (foreign-procedure-provided? name)
-  (ffi/provides-procedure? *ffi-callout-abi* name))
+(define (foreign-procedure-provided? name . rest)
+  (ffi/provides-procedure? (ffi-get-abi 'callout rest) name))
 
-(define (foreign-procedure name param-types ret-type)
-  (stdffi/make-foreign-procedure name param-types ret-type 
-                                 ffi/foreign-procedure))
+(define (foreign-procedure name param-types ret-type . rest)
+  (apply stdffi/make-foreign-procedure name param-types ret-type 
+                                       ffi/foreign-procedure rest))
 
-(define (foreign-procedure-pointer addr param-types ret-type)
-  (stdffi/make-foreign-procedure addr param-types ret-type
-                                 ffi/foreign-procedure-pointer))
+(define (foreign-procedure-pointer addr param-types ret-type . rest)
+  (apply stdffi/make-foreign-procedure addr param-types ret-type
+                                       ffi/foreign-procedure-pointer rest))
 
-(define (foreign-procedure-tramp name)
-  (ffi/link-procedure *ffi-callout-abi* name))
+(define (foreign-procedure-tramp name . rest)
+  (ffi/link-procedure (ffi-get-abi 'callout rest) name))
 
 (define (find-foreign-file . rest)
   (define (product rest)
@@ -375,10 +394,10 @@
 ; FIXME, this is not completed!  Also, there should ABI support for
 ; linking variables (different name mangling, perhaps).
 
-(define (foreign-variable name type)
+(define (foreign-variable name type . rest)
 
   (define (var peek poke)
-    (let ((addr (ffi/link-procedure *ffi-callout-abi* name)))
+    (let ((addr (ffi/link-procedure (ffi-get-abi 'callout rest) name)))
       (lambda args
 	(if (null? args)
 	    (peek addr)
@@ -397,7 +416,7 @@
 
 ; Name can be a string or an address.
 
-(define (stdffi/make-foreign-procedure name param-types ret-type maker)
+(define (stdffi/make-foreign-procedure name param-types ret-type maker . rest)
 
   (define (call0 p r)
     (lambda ()
@@ -449,7 +468,7 @@
 	 (error "FFI: \"boxed\" is not a valid return type."))
 	(else
 	 (param-conversion 
-	  (maker *ffi-callout-abi* 
+	  (maker (ffi-get-abi 'callout rest) 
                  name
                  (map ffi/rename-arg-type param-types)
                  (ffi/rename-ret-type ret-type))))))
@@ -460,8 +479,8 @@
 (define (foreign-null-pointer)
   0)
 
-(define (foreign-wrap-procedure proc param-types ret-type)
-  (ffi/make-callback *ffi-callback-abi* 
+(define (foreign-wrap-procedure proc param-types ret-type . rest)
+  (ffi/make-callback (ffi-get-abi 'callback rest) 
                      (lambda args
                        (let ((v (apply proc 
                                        (map (lambda (t v)

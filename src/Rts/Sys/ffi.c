@@ -227,7 +227,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
     ((tramp_float_t)(ptrof(trampoline_bytevector)+1))( args, &f_result );
     globals[ G_RESULT ] = box_double( (double)f_result );
     return;
-  case 4 :  /* void */
+  case 4 :  /* void */ /* FIXME: Is this broken? For stdcall? */
     ((tramp_void_t)(ptrof(trampoline_bytevector)+1))( args );
     globals[ G_RESULT ] = UNSPECIFIED_CONST;
     return;

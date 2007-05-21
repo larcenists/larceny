@@ -23,3 +23,21 @@
       (case selector
         ((callback-addr)  callback-addr)
         (else (parent selector))))))
+
+(define ffi/i386-win32-C-callout-stdcall
+  (let ((parent ffi/i386-C-callout-stdcall))
+
+    (define (load-library name)
+      (ffi/dlopen name))
+
+    (define (link-procedure library name)
+      (ffi/dlsym library name))
+
+    (lambda (selector)
+      (case selector
+	((load-lib) load-library)
+	((link-proc) link-procedure)
+	(else (parent selector))))))
+
+(define (ffi/x86-win32-libs)
+  (list "kernel32" "msvcrt"))

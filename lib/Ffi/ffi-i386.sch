@@ -100,6 +100,7 @@
         (vector->list (make-vector (modulo (+ 0 (- (arg-length tr))) 4)
                                    opcode)))
       (define (callout-done tr)
+        (define args-size (dword (* 4 (arg-length tr))))
 	(tr-at-beginning tr
 	  (list->bytevector
 	   `(#x55                                       ; PUSH EBP              standard prologue
@@ -108,7 +109,7 @@
 	     #x53                                       ; PUSH EBX
 	     #x56                                       ; PUSH ESI
 	     #x8B #x75 #x08                             ; MOV ESI, [EBP+8]      load argv
-	     #x81 #xEC ,@(dword (* 4 (arg-length tr)))  ; SUB ESP, 4*argc       allocate space for args
+	     #x81 #xEC ,@args-size                      ; SUB ESP, 4*argc       allocate space for args
 	     #x8B #xFC                                  ; MOV EDI, ESP          copy pointer
 	     #xFC)))                                    ; CLD                   copy upward
 
@@ -124,7 +125,9 @@
 	  (list->bytevector
 	   `(#xB8 ,@(dword (tr-fptr tr))                ; MOV EAX, <loc>        call the
 	     #xFF #xD0                                  ; CALL EAX                procedure
-	     #x81 #xC4 ,@(dword (* 4 (arg-length tr)))  ; ADD ESP, 4*argc       pop args
+             ,@(if stdcall?
+                 `()                                       ; for stdcall, callee pops
+                 `(#x81 #xC4 ,@args-size))                 ; ADD ESP, 4*argc       pop args
 	     #x8B #x5D #x0C                             ; MOV EBX, [EBP+12]     get return pointer
 	     ,@(case (return-type tr)
 		 ((word)   '(#x89 #x03))                ; MOV [EBX], EAX
@@ -136,9 +139,11 @@
 	     #x5B                                       ; POP EBX
              ,@(make-filler tr #x5D) ; POP EBP (filler to restore old esp)
 	     #x5D                                       ; POP EBP
-	     ,@(if stdcall?
-		   '(#xC2 #x08)                         ; RETURN 8              callee pops
-		   '(#xC3)))))                          ; RETURN                caller pops
+             #xC3                                       ; RETURN                caller pops
+;;	     ,@(if stdcall?
+;;		   '(#xC2 #x08)                         ; RETURN 8              callee pops
+;;		   '(#xC3))                             ; RETURN                caller pops
+            )))
 	#t)
 
       (define (copy-dword tr)

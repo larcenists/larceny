@@ -41,34 +41,45 @@
      (ffi/libraries (list (ffi/sun4-sunos4-libc)))
      (values architecture
 	     ffi/SPARC-sunos4-C-callout-stdabi
-	     ffi/SPARC-sunos4-C-callback-stdabi))
+	     ffi/SPARC-sunos4-C-callback-stdabi
+             #f
+             #f))
     ((sun4-sunos5)
      (require "ffi-sparc")
      (require "ffi-sunos5")
      (ffi/libraries (list (ffi/sun4-sunos5-libc)))
      (values architecture
 	     ffi/SPARC-sunos5-C-callout-stdabi
-	     ffi/SPARC-sunos5-C-callback-stdabi))
+	     ffi/SPARC-sunos5-C-callback-stdabi
+             #f
+             #f))
     ((i386-macosx)
      (require "ffi-i386")
      (require "ffi-macosx")
      (ffi/libraries (list (ffi/x86-macosx-libc)))
      (values architecture
              ffi/i386-macosx-C-callout-cdecl
-             ffi/i386-macosx-C-callback-cdecl))
+             ffi/i386-macosx-C-callback-cdecl
+             #f
+             #f))
     ((i386-win32)
      (require "ffi-i386")
      (require "ffi-win32")
+     (ffi/libraries (ffi/x86-win32-libs))
      (values architecture
 	     ffi/i386-win32-C-callout-cdecl
-	     ffi/i386-win32-C-callback-cdecl))
+	     ffi/i386-win32-C-callback-cdecl
+             ffi/i386-win32-C-callout-stdcall
+             #f))
     ((i386-linux)
      (require "ffi-i386")
      (require "ffi-linux-x86")
      ;(ffi/libraries (list (ffi/x86-linux-libc)))
      (values architecture
 	     ffi/i386-linux-C-callout-cdecl
-	     ffi/i386-linux-C-callback-cdecl))
+	     ffi/i386-linux-C-callback-cdecl
+             #f
+             #f))
     (else
      (error "Unknown FFI architecture " *ffi-architecture*))))
 
