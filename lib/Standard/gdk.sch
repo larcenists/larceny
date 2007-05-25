@@ -22,6 +22,7 @@
 (establish-void*-subhierarchy! '(gdkfont*))
 (establish-void*-subhierarchy! '(gdkcolor*))
 (establish-void*-subhierarchy! '(gdkrectangle*))
+(establish-void*-subhierarchy! '(gdkatom*))
 
 (define-foreign (gdk-pixmap-new void* int int int) gdkpixmap*)
 ;;; XXX how the hell am I going to handle mutable data?
@@ -93,3 +94,6 @@
   (fields "GdkEventKey" (gdkeventkey-keyval-offset "keyval")))
 (define (gdk-event-keyval e)
   (integer->char (void*-word-ref e gdkeventkey-keyval-offset)))
+
+(define-foreign (gdk-atom-intern string bool) gdkatom*)
+(define-foreign (gdk-atom-name gdkatom*) string)
