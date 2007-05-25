@@ -137,3 +137,22 @@
       (cond ((null? l) empty-glist)
             (else (g-list-prepend (list->glist* (cdr l))
                                   (car l)))))))
+
+(define gslist*-rt (ffi-install-void*-subtype 'gslist*))
+
+(define-foreign (g-slist-alloc) gslist*)
+(define-foreign (g-slist-free glist*) void)
+(define-foreign (g-slist-free-1 glist*) void)
+(define-foreign (g-slist-append glist* void*) gslist*)
+(define-foreign (g-slist-prepend glist* void*) gslist*)
+(define-foreign (g-slist-insert glist* void*) gslist*)
+(define-foreign (g-slist-concat glist* gslist*) gslist*)
+(define-foreign (g-slist-length glist*) uint)
+(define-foreign (g-slist-nth-data glist* uint) void*)
+
+(define list->gslist*
+  (let ((empty-gslist ((record-constructor gslist*-rt) 0)))
+    (lambda (l)
+      (cond ((null? l) empty-gslist)
+            (else (g-slist-prepend (list->gslist* (cdr l))
+                                   (car l)))))))
