@@ -1,3 +1,4 @@
+(require 'srfi-0)
 (require 'std-ffi)
 (require 'foreign-stdlib)
 (require 'foreign-sugar)
@@ -16,9 +17,11 @@
 
 (establish-void*-subhierarchy! '(gdkwindow*))
 (establish-void*-subhierarchy! '(gdkpixmap*))
+(establish-void*-subhierarchy! '(gdkpixbuf*))
 (establish-void*-subhierarchy! '(gdkbitmap*))
 (establish-void*-subhierarchy! '(gdkfont*))
 (establish-void*-subhierarchy! '(gdkcolor*))
+(establish-void*-subhierarchy! '(gdkrectangle*))
 
 (define-foreign (gdk-pixmap-new void* int int int) gdkpixmap*)
 ;;; XXX how the hell am I going to handle mutable data?
