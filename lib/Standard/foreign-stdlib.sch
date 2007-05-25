@@ -162,6 +162,18 @@
             ((= i len) (void*-word-set! array (* 4 len) 0) array)
           (void*-word-set! array (* 4 i) (vector-ref vect i)))))))
 
+;; numvector->doubles : PI [Rtd] . [Vectorof Number] -> Rtd
+(define (numvector->doubles rtd)
+  (let ((malloc (stdlib/malloc rtd)))
+    (lambda (vect)
+      (let* ((len (vector-length vect))
+             (array (malloc (* 8 (+ 1 len)))))
+        (do ((i 0 (+ i 1)))
+            ((= i len) (void*-word-set! array (* 8 len) 0) array)
+          (void*-double-set! array (* 8 i) (exact->inexact 
+                                            (vector-ref vect i))))))))
+
+
         
 
 ;; A Char** is a Void* that points to an array of C strings.
@@ -185,8 +197,8 @@
 (define int*-rt (ffi-install-void*-subtype 'int*))
 
 ;; call-with-int* : [Vectorof Int32] (Int* -> T) -> T
-;; (automatically allcates and frees the marshalled vector; therefore func 
-;;  must not retain a reference any portion of its argument after it returns...)
+;; (automatically allocates and frees the marshalled vector; therefore func 
+;;  must not retain a reference to any portion of its argument after it returns...)
 (define call-with-int*
   (let ((vector->array (wordvector->words int*-rt)))
     (lambda (vec func)
@@ -194,6 +206,33 @@
              (val (func array)))
         (stdlib/free array)
         val))))
+
+;; A Short* is a Void* that points to an array of shorts
+(define short*-rt (ffi-install-void*-subtype 'short*))
+
+;; call-with-short* : [Vectorof Int32] (Int* -> T) -> T
+;; (automatically allocates and frees the marshalled vector; therefore func 
+;;  must not retain a reference to any portion of its argument after it returns...)
+(define call-with-short*
+  (let ((vector->array (wordvector->words short*-rt)))
+    (lambda (vec func)
+      (let* ((array (vector->array vec))
+             (val (func array)))
+        (stdlib/free array)
+        val))))
+
+;; A Double* is a Void* that points to an array of doubles
+(define double*-rt (ffi-install-void*-subtype 'double*))
+
+;; call-with-double* : [Vectorof Number] (Double* -> T) -> T
+(define call-with-double*
+  (let ((vector->array (wordvector->words double*-rt)))
+    (lambda (vec func)
+      (let* ((array (numvector->doubles vec))
+             (val (func array)))
+        (stdlib/free array)
+        val))))
+
 
 ;; call-with-boxed : Void* -> Rtd
 ;; call-with-boxed : Int -> Rtd
