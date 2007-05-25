@@ -1,33 +1,57 @@
-(define (foreign-name->strings sym)
-  (define (foo-bar-baz->foo_bar_baz lst)
-    (apply append
-           (map (lambda (c) 
-                  (case c
-                    ((#\-) (list #\_))
-                    ((#\!) (list))
-                    (else  (list c))))
-                lst)))
-  (define (foo-bar-baz->fooBarBaz lst)
-    (call-with-current-continuation 
-     (lambda (exit)
-       (let loop ((lst lst))
-         (cond 
-          ((null? lst) '())
-          (else
-           (case (car lst)
-             ((#\-) (if (null? (cdr lst))
-                        (exit #f)
-                        (cons (char-upcase (cadr lst))
-                              (loop (cddr lst)))))
-             ((#\!) (loop (cdr lst)))
-             (else
-              (cons (car lst) (loop (cdr lst)))))))))))
+;; : [Listof ([Listof Char] -> [Maybe [Listof Char]])]
+(define foreign-name-generators '())
+(define permanent-foreign-name-generators '())
+
+;; push-foreign-name-generator! :
+;;   ([Listof Char] -> [Maybe [Listof Char]]) -> unspecified
+(define (install-foreign-name-generator! proc)
+  (set! permanent-foreign-name-generators
+        (cons proc permanent-foreign-name-generators)))
+
+;; push-foreign-name-generator! :
+;;   ([Listof Char] -> [Maybe [Listof Char]]) -> unspecified
+(define (push-foreign-name-generator! proc)
+  (set! foreign-name-generators 
+        (cons proc foreign-name-generators)))
+
+(define (pop-foreign-name-generator!)
+  (set! foreign-name-generators (cdr foreign-name-generators)))
+
+(define (foo-bar-baz->foo_bar_baz lst)
+  (apply append
+         (map (lambda (c) 
+                (case c
+                  ((#\-) (list #\_))
+                  ((#\!) (list))
+                  (else  (list c))))
+              lst)))
+
+(install-foreign-name-generator! foo-bar-baz->foo_bar_baz)
+
+(define (foo-bar-baz->fooBarBaz lst)
+  (call-with-current-continuation 
+   (lambda (exit)
+     (let loop ((lst lst))
+       (cond 
+        ((null? lst) '())
+        (else
+         (case (car lst)
+           ((#\-) (if (null? (cdr lst))
+                      (exit #f)
+                      (cons (char-upcase (cadr lst))
+                            (loop (cddr lst)))))
+           ((#\!) (loop (cdr lst)))
+           (else
+            (cons (car lst) (loop (cdr lst)))))))))))
+
+(install-foreign-name-generator! foo-bar-baz->fooBarBaz)
   
+(define (foreign-name->strings sym)
   (let* ((str (symbol->string sym))
          (lst (string->list str))  
-         (lsts (map (lambda (f) (f lst)) (list foo-bar-baz->foo_bar_baz
-                                               foo-bar-baz->fooBarBaz
-                                               )))
+         (lsts (map (lambda (f) (f lst)) 
+                    (append foreign-name-generators
+                            permanent-foreign-name-generators)))
          (lsts (let filter ((lsts lsts))
                  (cond ((null? lsts) '())
                        ((car lsts) (cons (car lsts) (filter (cdr lsts))))
@@ -72,7 +96,7 @@
     ((generate-ids (INPUTS ...) OTHER FINISH)
      (generate-ids (INPUTS ...) () () OTHER FINISH))
     ((generate-ids (INPUT INPUTS ...) (COPIES ...) (IDS ...) OTHER FINISH)
-     (generate-ids (INPUTS ...) (INPUT COPIES ...) (fresh IDS ...) OTHER FINISH))
+     (generate-ids (INPUTS ...) (COPIES ... INPUT) (fresh IDS ...) OTHER FINISH))
     ((generate-ids () (COPIES ...) (IDS ...) OTHER FINISH)
      (FINISH (COPIES ...) (IDS ...) OTHER))))
 
