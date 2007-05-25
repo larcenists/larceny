@@ -363,7 +363,7 @@
 (define-foreign (gtk-text-view-set-pixels-inside-wrap gtktextview* int) void)
 (define-foreign (gtk-text-view-get-pixels-inside-wrap gtktextview*) int)
 
-(define-foreign (gtk-text-buffer-new gtktexttagtable*) gtktextbuffer*)
+(define-foreign (gtk-text-buffer-new (maybe gtktexttagtable*)) gtktextbuffer*)
 (define-foreign (gtk-text-buffer-get-line-count gtktextbuffer*) int)
 (define-foreign (gtk-text-buffer-get-char-count gtktextbuffer*) int)
 (define-foreign (gtk-text-buffer-get-tag-table gtktextbuffer*) gtktexttagtable*)
@@ -385,10 +385,10 @@
 (define-foreign (gtk-text-buffer-insert-pixbuf gtktextbuffer* gtktextiter* gdkpixbuf*) void)
 (define-foreign (gtk-text-buffer-insert-child-anchor gtktextbuffer* gtktextiter* gtktextchildanchor*) void)
 (define-foreign (gtk-text-buffer-create-child-anchor gtktextbuffer* gtktextiter*) gtktextchildanchor*)
-(define-foreign (gtk-text-buffer-create-mark gtktextbuffer* string gtktextiter* bool) gtktextmark*)
+(define-foreign (gtk-text-buffer-create-mark gtktextbuffer* (maybe string) gtktextiter* bool) gtktextmark*)
 (define-foreign (gtk-text-buffer-move-mark gtktextbuffer* gtktextmark* gtktextiter*) void)
 (define-foreign (gtk-text-buffer-delete-mark gtktextbuffer* gtktextmark*) void)
-(define-foreign (gtk-text-buffer-get-mark gtktextbuffer* string) gtktextmark*)
+(define-foreign (gtk-text-buffer-get-mark gtktextbuffer* string) (maybe gtktextmark*))
 (define-foreign (gtk-text-buffer-move-mark-by-name gtktextbuffer* string gtktextiter*) void)
 (define-foreign (gtk-text-buffer-delete-mark-by-name gtktextbuffer* string) void)
 (define-foreign (gtk-text-buffer-get-insert gtktextbuffer*) gtktextmark*)
@@ -418,7 +418,7 @@
 (define-foreign (gtk-text-buffer-remove-selection-clipboard gtktextbuffer* gtkclipboard*) void)
 (define-foreign (gtk-text-buffer-cut-clipboard gtktextbuffer* gtkclipboard* bool) void)
 (define-foreign (gtk-text-buffer-copy-clipboard gtktextbuffer* gtkclipboard*) void)
-(define-foreign (gtk-text-buffer-paste-clipboard gtktextbuffer* gtkclipboard* gtktextiter* bool) void)
+(define-foreign (gtk-text-buffer-paste-clipboard gtktextbuffer* gtkclipboard* (maybe gtktextiter*) bool) void)
 (define-foreign (gtk-text-buffer-get-selection-bounds gtktextbuffer* gtktextiter* gtktextiter*) bool)
 (define-foreign (gtk-text-buffer-delete-selection gtktextbuffer* bool bool) bool)
 (define-foreign (gtk-text-buffer-begin-user-action gtktextbuffer*) void)
@@ -508,6 +508,13 @@
 (define-foreign (gtk-text-iter-compare gtktextiter* gtktextiter*) bool)
 (define-foreign (gtk-text-iter-in-range gtktextiter* gtktextiter* gtktextiter*) bool)
 (define-foreign (gtk-text-iter-order gtktextiter* gtktextiter*) void)
+
+(define-foreign (gtk-clipboard-get gdkatom*) gtkclipboard*)
+; FSK is too lazy to add gdkdisplay* now
+;(define-foreign (gtk-clipboard-get-for-display gdkdisplay* gdkatom*) gtkclipboard*)
+;(define-foreign (gtk-clipboard-get-display gtkclipboard*) gdkdisplay*)
+(define-foreign (gtk-clipboard-set-text gtkclipboard* string int) void)
+(define-foreign (gtk-clipboard-set-image gtkclipboard* gdkpixbuf*) void)
 
 (define-foreign (gtk-dialog-new) gtkdialog*)
 (define-syntax define-cfields-offsets/target-dep-paths
