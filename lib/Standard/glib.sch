@@ -71,6 +71,7 @@
                         ((void)     'void)
                         ((gpointer) '(maybe void*))
                         ((->)       '->)
+                        ((gchararray) 'string)
                         (else 
                          (begin (display "Unknown param type: |")
                                 (write x)
@@ -112,8 +113,29 @@
            (newline))
     (core-proc obj signal-name callback data notify flags)))
 
-(define (g-signal-connect source signal-name f d)
-  (g-signal-connect-data source signal-name f d #f 0))
+;; Since we have closures, we don't *have* to use data-passing-style.
+;; Allow user the option of selecting which they want.
+(define (g-signal-connect source signal-name f . rest)
+  (cond ((not (null? rest))
+         (let ((d (car rest)))
+           (g-signal-connect-data source signal-name f d #f 0)))
+        (else
+         (g-signal-connect-data 
+          source signal-name 
+          (let ((arity (procedure-arity f)))
+            (cond ((and (exact? arity) (= arity 1)) (lambda (arg0 fake) (f arg0)))
+                  ((and (exact? arity) (= arity 2)) (lambda (arg0 arg1 fake) (f arg0 arg1)))
+                  ((and (exact? arity) (= arity 3)) (lambda (arg0 arg1 arg2 fake) (f arg0 arg1 arg2)))
+                  ((and (exact? arity) (= arity 4)) (lambda (arg0 arg1 arg2 arg3 fake) (f arg0 arg1 arg2 arg3)))                  
+                  ((and (exact? arity) (= arity 5)) (lambda (arg0 arg1 arg2 arg3 arg4 fake) (f arg0 arg1 arg2 arg3 arg4)))
+                  (else
+                   (lambda args
+                     (let ((new-args (reverse (cdr (reverse args)))))
+                       (apply f new-args))))))
+          "fake-data-argument" ;; this is actually bad since it will marshall the string on every call; #f would be faster
+          #f
+          0))))
+
 (define (g-signal-connect-swapped source signal-name f d)
   (g-signal-connect-data source signal-name f d #f 2))
 
