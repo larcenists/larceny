@@ -509,12 +509,13 @@
      (begin
        (define <name> #f) 
        ...
-       (call-with-values
-        (lambda () <body> ...)
-        (lambda (<temp> ...)
-          (set! <name> <temp> ) 
-          ...
-          ))
+       (define <ignored>
+         (call-with-values
+          (lambda () <body> ...)
+          (lambda (<temp> ...)
+            (set! <name> <temp> ) 
+            ...
+            )))
        ))
     ((define-values helper (<var1> <var2> ...) <temp>s
        (<name> ...) <body> ...)

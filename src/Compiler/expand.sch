@@ -372,28 +372,31 @@
             (car body)
             (make-begin body)))
       (let ()
+        ; implements letrec* semantics for internal definitions
+        ; FIXME: does not enforce letrec* restriction
+        ; FIXME: could do better if we knew which variables are never assigned
         (define (sort-defs defs)
-          (let* ((augmented
-                  (map (lambda (def)
-                         (let ((rhs (cadr def)))
-                           (if (not (pair? rhs))
-                               (cons 'trivial def)
-                               (let ((denotation
-                                      (syntactic-lookup env (car rhs))))
-                                 (cond ((eq? denotation
-                                             denotation-of-lambda)
-                                        (cons 'procedure def))
-                                       ((eq? denotation
-                                             denotation-of-quote)
-                                        (cons 'trivial def))
-                                       (else
-                                        (cons 'miscellaneous def)))))))
-                       defs))
-                 (sorted (twobit-sort (lambda (x y)
-                                        (or (eq? (car x) 'procedure)
-                                            (eq? (car y) 'miscellaneous)))
-                                      augmented)))
-            (map cdr sorted)))
+          (define (loop defs procs trivs others)
+            (if (null? defs)
+                (append (reverse procs)
+                        (reverse trivs)
+                        (reverse others))
+                (let* ((def (car defs))
+                       (defs (cdr defs))
+                       (rhs (cadr def)))
+                  (if (not (pair? rhs))
+                      (if (symbol? rhs)
+                          (loop defs procs trivs (cons def others))
+                          (loop defs procs (cons def trivs) others))
+                      (let ((denotation
+                             (syntactic-lookup env (car rhs))))
+                        (cond ((eq? denotation denotation-of-lambda)
+                               (loop defs (cons def procs) trivs others))
+                              ((eq? denotation denotation-of-quote)
+                               (loop defs procs (cons def trivs) others))
+                              (else
+                               (loop defs procs trivs (cons def others)))))))))
+            (loop defs '() '() '()))
         (define (desugar-definition def)
           (if (> (safe-length def) 2)
               (cond ((pair? (cadr def))
@@ -408,7 +411,7 @@
                      (cdr def))
                     (else (m-error "Malformed definition" def)))
               (m-error "Malformed definition" def)))
-        (define (expand-letrec bindings body)
+        (define (expand-letrec* bindings body)
           (make-call
            (m-expand
             `(,lambda0 ,(map car bindings)
@@ -419,9 +422,9 @@
                          ,@body)
             env)
            (map (lambda (binding) (make-unspecified)) bindings)))
-        (expand-letrec (sort-defs (map desugar-definition
+        (expand-letrec* (sort-defs (map desugar-definition
                                        (reverse defs)))
-                       body))))
+                        body))))
 
 (define (m-if exp env)
   (let ((n (safe-length exp)))
