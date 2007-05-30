@@ -47,6 +47,7 @@
     (set!          . (special set!))
     (begin         . (special begin))
     (define        . (special define))
+    (define-values . (special define-values))
     (define-inline . (special define-inline))
     (define-syntax . (special define-syntax))
     (let-syntax    . (special let-syntax))
@@ -249,6 +250,9 @@
 
 (define denotation-of-define
   (syntactic-lookup standard-syntactic-environment 'define))
+
+(define denotation-of-define-values
+  (syntactic-lookup standard-syntactic-environment 'define-values))
 
 (define denotation-of-define-inline
   (syntactic-lookup standard-syntactic-environment 'define-inline))
