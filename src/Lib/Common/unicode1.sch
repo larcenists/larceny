@@ -976,7 +976,8 @@
 ; This table contains 1782 elements.
 
 (define simple-upcase-chars-16bit
-  '#vu8(
+  ;'#vu8(
+  (list->bytevector '(
         #x0 #x61 #x0 #x62 #x0 #x63 #x0 #x64 
         #x0 #x65 #x0 #x66 #x0 #x67 #x0 #x68 
         #x0 #x69 #x0 #x6a #x0 #x6b #x0 #x6c 
@@ -1200,6 +1201,7 @@
         #xff #x50 #xff #x51 #xff #x52 #xff #x53 
         #xff #x54 #xff #x55 #xff #x56 #xff #x57 
         #xff #x58 #xff #x59 #xff #x5a ))
+)
 
 ; This vector contains all other code points,
 ; in increasing order, that have a simple
@@ -1222,7 +1224,8 @@
 ; This table contains 1764 elements.
 
 (define simple-downcase-chars-16bit
-  '#vu8(
+  ;'#vu8(
+  (list->bytevector '(
         #x0 #x41 #x0 #x42 #x0 #x43 #x0 #x44 
         #x0 #x45 #x0 #x46 #x0 #x47 #x0 #x48 
         #x0 #x49 #x0 #x4a #x0 #x4b #x0 #x4c 
@@ -1444,6 +1447,7 @@
         #xff #x31 #xff #x32 #xff #x33 #xff #x34 
         #xff #x35 #xff #x36 #xff #x37 #xff #x38 
         #xff #x39 #xff #x3a ))
+)
 
 ; This vector contains all other code points,
 ; in increasing order, that have a simple
@@ -1467,7 +1471,8 @@
 ; This table contains 931 elements.
 
 (define simple-upcase-adjustments
-  '#vu8(
+  ;'#vu8(
+  (list->bytevector '(
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
@@ -1585,6 +1590,7 @@
         #x21 #x21 #x21 #x21 #x21 #x21 #x21 #x21 
         #x21 #x21 #x21 #x21 #x21 #x21 #x21 #x21 
         #x21 #x21 #x21 ))
+)
 
 ; The bytes of this bytevector are indexes into
 ; the simple-case-adjustments vector, and correspond
@@ -1594,7 +1600,8 @@
 ; This table contains 922 elements.
 
 (define simple-downcase-adjustments
-  '#vu8(
+  ;'#vu8(
+  (list->bytevector '(
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
@@ -1711,15 +1718,6 @@
         #x21 #x21 #x21 #x21 #x21 #x21 #x21 #x21 
         #x21 #x21 #x21 #x21 #x21 #x21 #x21 #x21 
         #x21 #x21 ))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; The following tables were generated from PropList.txt.
-; Use parseUCDpart2.sch to regenerate these tables.
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define other-alphabetic
-  (make-vector 0))
+)
 
 ;)

@@ -408,7 +408,8 @@
 ; This table contains 210 elements.
 
 (define special-case-chars
-  '#vu8(
+  ;'#vu8(
+  (list->bytevector '(
         #x0 #xdf #x1 #x30 #x1 #x49 #x1 #xf0 
         #x3 #x90 #x3 #xa3 #x3 #xb0 #x3 #xc3 
         #x5 #x87 #x1e #x96 #x1e #x97 #x1e #x98 
@@ -436,6 +437,7 @@
         #xfb #x3 #xfb #x4 #xfb #x5 #xfb #x6 
         #xfb #x13 #xfb #x14 #xfb #x15 #xfb #x16 
         #xfb #x17 ))
+)
 
 ; Each code point in special-case-chars maps to the
 ; character or string contained in the following tables.

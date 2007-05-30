@@ -568,7 +568,8 @@
 ; This table contains 418 elements.
 
 (define combining-class-values
-  '#vu8(
+  ;'#vu8(
+  (list->bytevector '(
         230 230 230 230 230 230 230 230 
         230 230 230 230 230 230 230 230 
         230 230 230 230 230 232 220 220 
@@ -622,6 +623,7 @@
         220 220 220 220 230 230 230 230 
         230 220 220 230 230 230 230 230 
         230 230 ))
+)
 
 ; This bytevector uses two bytes per code point
 ; to list 16-bit code points, in increasing order,
@@ -630,7 +632,8 @@
 ; This table contains 7702 elements.
 
 (define decomposition-chars-16bit
-  '#vu8(
+  ;'#vu8(
+  (list->bytevector '(
         #x0 #xa0 #x0 #xa8 #x0 #xaa #x0 #xaf 
         #x0 #xb2 #x0 #xb3 #x0 #xb4 #x0 #xb5 
         #x0 #xb8 #x0 #xb9 #x0 #xba #x0 #xbc 
@@ -1594,6 +1597,7 @@
         #xff #xe3 #xff #xe4 #xff #xe5 #xff #xe6 
         #xff #xe8 #xff #xe9 #xff #xea #xff #xeb 
         #xff #xec #xff #xed #xff #xee ))
+)
 
 ; This vector contains all other code points,
 ; in increasing order, that have a canonical
@@ -1809,7 +1813,8 @@
 ; This table contains 10806 elements.
 
 (define decomposition-indexes
-  '#vu8(
+  ;'#vu8(
+  (list->bytevector '(
         #x80 #x0 #x80 #x1 #x80 #x3 #x80 #x4 
         #x80 #x6 #x80 #x7 #x80 #x8 #x80 #xa 
         #x80 #xb #x80 #xd #x80 #xe #x80 #xf 
@@ -3161,6 +3166,7 @@
         #x1f #x8d #x1f #x8e #x1f #x8f #x1f #x90 
         #x1f #x91 #x1f #x92 #x1f #x93 #x1f #x94 
         #x1f #x95 #x1f #x96 #x1f #x97))
+)
 
 ; This vector contains sequences of code points
 ; for canonical and compatibility decompositions.
@@ -4189,7 +4195,8 @@
 ; This table contains 114 elements.
 
 (define composition-modifiers
-  '#vu8(
+  ;'#vu8(
+  (list->bytevector '(
         #x3 #x0 #x3 #x1 #x3 #x2 #x3 #x3 
         #x3 #x4 #x3 #x6 #x3 #x7 #x3 #x8 
         #x3 #x9 #x3 #xa #x3 #xb #x3 #xc 
@@ -4205,6 +4212,7 @@
         #xd #xcf #xd #xdf #xf #x72 #xf #x74 
         #xf #x80 #x10 #x2e #x1b #x35 #x30 #x99 
         #x30 #x9a ))
+)
 
 ; This vector encodes all canonical compositions.
 ; Each element corresponds to the corresponding
@@ -4219,8 +4227,8 @@
 ; The bytevectors within it contain 3728 elements.
 
 (define canonical-compositions
-  '#(
-     (#vu8(
+  `#(
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x45 #x0 #x49 #x0 #x4e 
            #x0 #x4f #x0 #x55 #x0 #x57 #x0 #x59 
            #x0 #x61 #x0 #x65 #x0 #x69 #x0 #x6e 
@@ -4241,8 +4249,8 @@
            #x1f #x31 #x1f #x38 #x1f #x39 #x1f #x40 
            #x1f #x41 #x1f #x48 #x1f #x49 #x1f #x50 
            #x1f #x51 #x1f #x59 #x1f #x60 #x1f #x61 
-           #x1f #x68 #x1f #x69 #x1f #xbf #x1f #xfe )
-      #vu8(
+           #x1f #x68 #x1f #x69 #x1f #xbf #x1f #xfe ))
+      ,(list->bytevector '(
            #x0 #xc0 #x0 #xc8 #x0 #xcc #x1 #xf8 
            #x0 #xd2 #x0 #xd9 #x1e #x80 #x1e #xf2 
            #x0 #xe0 #x0 #xe8 #x0 #xec #x1 #xf9 
@@ -4263,8 +4271,8 @@
            #x1f #x33 #x1f #x3a #x1f #x3b #x1f #x42 
            #x1f #x43 #x1f #x4a #x1f #x4b #x1f #x52 
            #x1f #x53 #x1f #x5b #x1f #x62 #x1f #x63 
-           #x1f #x6a #x1f #x6b #x1f #xcd #x1f #xdd ))
-     (#vu8(
+           #x1f #x6a #x1f #x6b #x1f #xcd #x1f #xdd )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x43 #x0 #x45 #x0 #x47 
            #x0 #x49 #x0 #x4b #x0 #x4c #x0 #x4d 
            #x0 #x4e #x0 #x4f #x0 #x50 #x0 #x52 
@@ -4294,8 +4302,8 @@
            #x1f #x39 #x1f #x40 #x1f #x41 #x1f #x48 
            #x1f #x49 #x1f #x50 #x1f #x51 #x1f #x59 
            #x1f #x60 #x1f #x61 #x1f #x68 #x1f #x69 
-           #x1f #xbf #x1f #xfe )
-      #vu8(
+           #x1f #xbf #x1f #xfe ))
+      ,(list->bytevector '(
            #x0 #xc1 #x1 #x6 #x0 #xc9 #x1 #xf4 
            #x0 #xcd #x1e #x30 #x1 #x39 #x1e #x3e 
            #x1 #x43 #x0 #xd3 #x1e #x54 #x1 #x54 
@@ -4325,8 +4333,8 @@
            #x1f #x3d #x1f #x44 #x1f #x45 #x1f #x4c 
            #x1f #x4d #x1f #x54 #x1f #x55 #x1f #x5d 
            #x1f #x64 #x1f #x65 #x1f #x6c #x1f #x6d 
-           #x1f #xce #x1f #xde ))
-     (#vu8(
+           #x1f #xce #x1f #xde )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x43 #x0 #x45 #x0 #x47 
            #x0 #x48 #x0 #x49 #x0 #x4a #x0 #x4f 
            #x0 #x53 #x0 #x55 #x0 #x57 #x0 #x59 
@@ -4334,8 +4342,8 @@
            #x0 #x67 #x0 #x68 #x0 #x69 #x0 #x6a 
            #x0 #x6f #x0 #x73 #x0 #x75 #x0 #x77 
            #x0 #x79 #x0 #x7a #x1e #xa0 #x1e #xa1 
-           #x1e #xb8 #x1e #xb9 #x1e #xcc #x1e #xcd )
-      #vu8(
+           #x1e #xb8 #x1e #xb9 #x1e #xcc #x1e #xcd ))
+      ,(list->bytevector '(
            #x0 #xc2 #x1 #x8 #x0 #xca #x1 #x1c 
            #x1 #x24 #x0 #xce #x1 #x34 #x0 #xd4 
            #x1 #x5c #x0 #xdb #x1 #x74 #x1 #x76 
@@ -4343,24 +4351,24 @@
            #x1 #x1d #x1 #x25 #x0 #xee #x1 #x35 
            #x0 #xf4 #x1 #x5d #x0 #xfb #x1 #x75 
            #x1 #x77 #x1e #x91 #x1e #xac #x1e #xad 
-           #x1e #xc6 #x1e #xc7 #x1e #xd8 #x1e #xd9 ))
-     (#vu8(
+           #x1e #xc6 #x1e #xc7 #x1e #xd8 #x1e #xd9 )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x45 #x0 #x49 #x0 #x4e 
            #x0 #x4f #x0 #x55 #x0 #x56 #x0 #x59 
            #x0 #x61 #x0 #x65 #x0 #x69 #x0 #x6e 
            #x0 #x6f #x0 #x75 #x0 #x76 #x0 #x79 
            #x0 #xc2 #x0 #xca #x0 #xd4 #x0 #xe2 
            #x0 #xea #x0 #xf4 #x1 #x2 #x1 #x3 
-           #x1 #xa0 #x1 #xa1 #x1 #xaf #x1 #xb0 )
-      #vu8(
+           #x1 #xa0 #x1 #xa1 #x1 #xaf #x1 #xb0 ))
+      ,(list->bytevector '(
            #x0 #xc3 #x1e #xbc #x1 #x28 #x0 #xd1 
            #x0 #xd5 #x1 #x68 #x1e #x7c #x1e #xf8 
            #x0 #xe3 #x1e #xbd #x1 #x29 #x0 #xf1 
            #x0 #xf5 #x1 #x69 #x1e #x7d #x1e #xf9 
            #x1e #xaa #x1e #xc4 #x1e #xd6 #x1e #xab 
            #x1e #xc5 #x1e #xd7 #x1e #xb4 #x1e #xb5 
-           #x1e #xe0 #x1e #xe1 #x1e #xee #x1e #xef ))
-     (#vu8(
+           #x1e #xe0 #x1e #xe1 #x1e #xee #x1e #xef )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x45 #x0 #x47 #x0 #x49 
            #x0 #x4f #x0 #x55 #x0 #x59 #x0 #x61 
            #x0 #x65 #x0 #x67 #x0 #x69 #x0 #x6f 
@@ -4371,8 +4379,8 @@
            #x2 #x2e #x2 #x2f #x3 #x91 #x3 #x99 
            #x3 #xa5 #x3 #xb1 #x3 #xb9 #x3 #xc5 
            #x4 #x18 #x4 #x23 #x4 #x38 #x4 #x43 
-           #x1e #x36 #x1e #x37 #x1e #x5a #x1e #x5b )
-      #vu8(
+           #x1e #x36 #x1e #x37 #x1e #x5a #x1e #x5b ))
+      ,(list->bytevector '(
            #x1 #x0 #x1 #x12 #x1e #x20 #x1 #x2a 
            #x1 #x4c #x1 #x6a #x2 #x32 #x1 #x1 
            #x1 #x13 #x1e #x21 #x1 #x2b #x1 #x4d 
@@ -4383,8 +4391,8 @@
            #x2 #x30 #x2 #x31 #x1f #xb9 #x1f #xd9 
            #x1f #xe9 #x1f #xb1 #x1f #xd1 #x1f #xe1 
            #x4 #xe2 #x4 #xee #x4 #xe3 #x4 #xef 
-           #x1e #x38 #x1e #x39 #x1e #x5c #x1e #x5d ))
-     (#vu8(
+           #x1e #x38 #x1e #x39 #x1e #x5c #x1e #x5d )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x45 #x0 #x47 #x0 #x49 
            #x0 #x4f #x0 #x55 #x0 #x61 #x0 #x65 
            #x0 #x67 #x0 #x69 #x0 #x6f #x0 #x75 
@@ -4392,8 +4400,8 @@
            #x3 #xa5 #x3 #xb1 #x3 #xb9 #x3 #xc5 
            #x4 #x10 #x4 #x15 #x4 #x16 #x4 #x18 
            #x4 #x23 #x4 #x30 #x4 #x35 #x4 #x36 
-           #x4 #x38 #x4 #x43 #x1e #xa0 #x1e #xa1 )
-      #vu8(
+           #x4 #x38 #x4 #x43 #x1e #xa0 #x1e #xa1 ))
+      ,(list->bytevector '(
            #x1 #x2 #x1 #x14 #x1 #x1e #x1 #x2c 
            #x1 #x4e #x1 #x6c #x1 #x3 #x1 #x15 
            #x1 #x1f #x1 #x2d #x1 #x4f #x1 #x6d 
@@ -4401,8 +4409,8 @@
            #x1f #xe8 #x1f #xb0 #x1f #xd0 #x1f #xe0 
            #x4 #xd0 #x4 #xd6 #x4 #xc1 #x4 #x19 
            #x4 #xe #x4 #xd1 #x4 #xd7 #x4 #xc2 
-           #x4 #x39 #x4 #x5e #x1e #xb6 #x1e #xb7 ))
-     (#vu8(
+           #x4 #x39 #x4 #x5e #x1e #xb6 #x1e #xb7 )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x42 #x0 #x43 #x0 #x44 
            #x0 #x45 #x0 #x46 #x0 #x47 #x0 #x48 
            #x0 #x49 #x0 #x4d #x0 #x4e #x0 #x4f 
@@ -4414,8 +4422,8 @@
            #x0 #x72 #x0 #x73 #x0 #x74 #x0 #x77 
            #x0 #x78 #x0 #x79 #x0 #x7a #x1 #x5a 
            #x1 #x5b #x1 #x60 #x1 #x61 #x1 #x7f 
-           #x1e #x62 #x1e #x63 )
-      #vu8(
+           #x1e #x62 #x1e #x63 ))
+      ,(list->bytevector '(
            #x2 #x26 #x1e #x2 #x1 #xa #x1e #xa 
            #x1 #x16 #x1e #x1e #x1 #x20 #x1e #x22 
            #x1 #x30 #x1e #x40 #x1e #x44 #x2 #x2e 
@@ -4427,8 +4435,8 @@
            #x1e #x59 #x1e #x61 #x1e #x6b #x1e #x87 
            #x1e #x8b #x1e #x8f #x1 #x7c #x1e #x64 
            #x1e #x65 #x1e #x66 #x1e #x67 #x1e #x9b 
-           #x1e #x68 #x1e #x69 ))
-     (#vu8(
+           #x1e #x68 #x1e #x69 )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x45 #x0 #x48 #x0 #x49 
            #x0 #x4f #x0 #x55 #x0 #x57 #x0 #x58 
            #x0 #x59 #x0 #x61 #x0 #x65 #x0 #x68 
@@ -4442,8 +4450,8 @@
            #x4 #x35 #x4 #x36 #x4 #x37 #x4 #x38 
            #x4 #x3e #x4 #x43 #x4 #x47 #x4 #x4b 
            #x4 #x4d #x4 #x56 #x4 #xd8 #x4 #xd9 
-           #x4 #xe8 #x4 #xe9 )
-      #vu8(
+           #x4 #xe8 #x4 #xe9 ))
+      ,(list->bytevector '(
            #x0 #xc4 #x0 #xcb #x1e #x26 #x0 #xcf 
            #x0 #xd6 #x0 #xdc #x1e #x84 #x1e #x8c 
            #x1 #x78 #x0 #xe4 #x0 #xeb #x1e #x27 
@@ -4457,34 +4465,34 @@
            #x4 #x51 #x4 #xdd #x4 #xdf #x4 #xe5 
            #x4 #xe7 #x4 #xf1 #x4 #xf5 #x4 #xf9 
            #x4 #xed #x4 #x57 #x4 #xda #x4 #xdb 
-           #x4 #xea #x4 #xeb ))
-     (#vu8(
+           #x4 #xea #x4 #xeb )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x45 #x0 #x49 #x0 #x4f 
            #x0 #x55 #x0 #x59 #x0 #x61 #x0 #x65 
            #x0 #x69 #x0 #x6f #x0 #x75 #x0 #x79 
            #x0 #xc2 #x0 #xca #x0 #xd4 #x0 #xe2 
            #x0 #xea #x0 #xf4 #x1 #x2 #x1 #x3 
-           #x1 #xa0 #x1 #xa1 #x1 #xaf #x1 #xb0 )
-      #vu8(
+           #x1 #xa0 #x1 #xa1 #x1 #xaf #x1 #xb0 ))
+      ,(list->bytevector '(
            #x1e #xa2 #x1e #xba #x1e #xc8 #x1e #xce 
            #x1e #xe6 #x1e #xf6 #x1e #xa3 #x1e #xbb 
            #x1e #xc9 #x1e #xcf #x1e #xe7 #x1e #xf7 
            #x1e #xa8 #x1e #xc2 #x1e #xd4 #x1e #xa9 
            #x1e #xc3 #x1e #xd5 #x1e #xb2 #x1e #xb3 
-           #x1e #xde #x1e #xdf #x1e #xec #x1e #xed ))
-     (#vu8(
+           #x1e #xde #x1e #xdf #x1e #xec #x1e #xed )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x55 #x0 #x61 #x0 #x75 
-           #x0 #x77 #x0 #x79 )
-      #vu8(
+           #x0 #x77 #x0 #x79 ))
+      ,(list->bytevector '(
            #x0 #xc5 #x1 #x6e #x0 #xe5 #x1 #x6f 
-           #x1e #x98 #x1e #x99 ))
-     (#vu8(
+           #x1e #x98 #x1e #x99 )))
+     (,(list->bytevector '(
            #x0 #x4f #x0 #x55 #x0 #x6f #x0 #x75 
-           #x4 #x23 #x4 #x43 )
-      #vu8(
+           #x4 #x23 #x4 #x43 ))
+      ,(list->bytevector '(
            #x1 #x50 #x1 #x70 #x1 #x51 #x1 #x71 
-           #x4 #xf2 #x4 #xf3 ))
-     (#vu8(
+           #x4 #xf2 #x4 #xf3 )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x43 #x0 #x44 #x0 #x45 
            #x0 #x47 #x0 #x48 #x0 #x49 #x0 #x4b 
            #x0 #x4c #x0 #x4e #x0 #x4f #x0 #x52 
@@ -4494,8 +4502,8 @@
            #x0 #x6b #x0 #x6c #x0 #x6e #x0 #x6f 
            #x0 #x72 #x0 #x73 #x0 #x74 #x0 #x75 
            #x0 #x7a #x0 #xdc #x0 #xfc #x1 #xb7 
-           #x2 #x92 )
-      #vu8(
+           #x2 #x92 ))
+      ,(list->bytevector '(
            #x1 #xcd #x1 #xc #x1 #xe #x1 #x1a 
            #x1 #xe6 #x2 #x1e #x1 #xcf #x1 #xe8 
            #x1 #x3d #x1 #x47 #x1 #xd1 #x1 #x58 
@@ -4505,50 +4513,50 @@
            #x1 #xe9 #x1 #x3e #x1 #x48 #x1 #xd2 
            #x1 #x59 #x1 #x61 #x1 #x65 #x1 #xd4 
            #x1 #x7e #x1 #xd9 #x1 #xda #x1 #xee 
-           #x1 #xef ))
-     (#vu8(
+           #x1 #xef )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x45 #x0 #x49 #x0 #x4f 
            #x0 #x52 #x0 #x55 #x0 #x61 #x0 #x65 
            #x0 #x69 #x0 #x6f #x0 #x72 #x0 #x75 
-           #x4 #x74 #x4 #x75 )
-      #vu8(
+           #x4 #x74 #x4 #x75 ))
+      ,(list->bytevector '(
            #x2 #x0 #x2 #x4 #x2 #x8 #x2 #xc 
            #x2 #x10 #x2 #x14 #x2 #x1 #x2 #x5 
            #x2 #x9 #x2 #xd #x2 #x11 #x2 #x15 
-           #x4 #x76 #x4 #x77 ))
-     (#vu8(
+           #x4 #x76 #x4 #x77 )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x45 #x0 #x49 #x0 #x4f 
            #x0 #x52 #x0 #x55 #x0 #x61 #x0 #x65 
-           #x0 #x69 #x0 #x6f #x0 #x72 #x0 #x75 )
-      #vu8(
+           #x0 #x69 #x0 #x6f #x0 #x72 #x0 #x75 ))
+      ,(list->bytevector '(
            #x2 #x2 #x2 #x6 #x2 #xa #x2 #xe 
            #x2 #x12 #x2 #x16 #x2 #x3 #x2 #x7 
-           #x2 #xb #x2 #xf #x2 #x13 #x2 #x17 ))
-     (#vu8(
+           #x2 #xb #x2 #xf #x2 #x13 #x2 #x17 )))
+     (,(list->bytevector '(
            #x3 #x91 #x3 #x95 #x3 #x97 #x3 #x99 
            #x3 #x9f #x3 #xa9 #x3 #xb1 #x3 #xb5 
            #x3 #xb7 #x3 #xb9 #x3 #xbf #x3 #xc1 
-           #x3 #xc5 #x3 #xc9 )
-      #vu8(
+           #x3 #xc5 #x3 #xc9 ))
+      ,(list->bytevector '(
            #x1f #x8 #x1f #x18 #x1f #x28 #x1f #x38 
            #x1f #x48 #x1f #x68 #x1f #x0 #x1f #x10 
            #x1f #x20 #x1f #x30 #x1f #x40 #x1f #xe4 
-           #x1f #x50 #x1f #x60 ))
-     (#vu8(
+           #x1f #x50 #x1f #x60 )))
+     (,(list->bytevector '(
            #x3 #x91 #x3 #x95 #x3 #x97 #x3 #x99 
            #x3 #x9f #x3 #xa1 #x3 #xa5 #x3 #xa9 
            #x3 #xb1 #x3 #xb5 #x3 #xb7 #x3 #xb9 
-           #x3 #xbf #x3 #xc1 #x3 #xc5 #x3 #xc9 )
-      #vu8(
+           #x3 #xbf #x3 #xc1 #x3 #xc5 #x3 #xc9 ))
+      ,(list->bytevector '(
            #x1f #x9 #x1f #x19 #x1f #x29 #x1f #x39 
            #x1f #x49 #x1f #xec #x1f #x59 #x1f #x69 
            #x1f #x1 #x1f #x11 #x1f #x21 #x1f #x31 
-           #x1f #x41 #x1f #xe5 #x1f #x51 #x1f #x61 ))
-     (#vu8(
-           #x0 #x4f #x0 #x55 #x0 #x6f #x0 #x75 )
-      #vu8(
-           #x1 #xa0 #x1 #xaf #x1 #xa1 #x1 #xb0 ))
-     (#vu8(
+           #x1f #x41 #x1f #xe5 #x1f #x51 #x1f #x61 )))
+     (,(list->bytevector '(
+           #x0 #x4f #x0 #x55 #x0 #x6f #x0 #x75 ))
+      ,(list->bytevector '(
+           #x1 #xa0 #x1 #xaf #x1 #xa1 #x1 #xb0 )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x42 #x0 #x44 #x0 #x45 
            #x0 #x48 #x0 #x49 #x0 #x4b #x0 #x4c 
            #x0 #x4d #x0 #x4e #x0 #x4f #x0 #x52 
@@ -4559,8 +4567,8 @@
            #x0 #x6e #x0 #x6f #x0 #x72 #x0 #x73 
            #x0 #x74 #x0 #x75 #x0 #x76 #x0 #x77 
            #x0 #x79 #x0 #x7a #x1 #xa0 #x1 #xa1 
-           #x1 #xaf #x1 #xb0 )
-      #vu8(
+           #x1 #xaf #x1 #xb0 ))
+      ,(list->bytevector '(
            #x1e #xa0 #x1e #x4 #x1e #xc #x1e #xb8 
            #x1e #x24 #x1e #xca #x1e #x32 #x1e #x36 
            #x1e #x42 #x1e #x46 #x1e #xcc #x1e #x5a 
@@ -4571,72 +4579,72 @@
            #x1e #x47 #x1e #xcd #x1e #x5b #x1e #x63 
            #x1e #x6d #x1e #xe5 #x1e #x7f #x1e #x89 
            #x1e #xf5 #x1e #x93 #x1e #xe2 #x1e #xe3 
-           #x1e #xf0 #x1e #xf1 ))
-     (#vu8(
-           #x0 #x55 #x0 #x75 )
-      #vu8(
-           #x1e #x72 #x1e #x73 ))
-     (#vu8(
-           #x0 #x41 #x0 #x61 )
-      #vu8(
-           #x1e #x0 #x1e #x1 ))
-     (#vu8(
-           #x0 #x53 #x0 #x54 #x0 #x73 #x0 #x74 )
-      #vu8(
-           #x2 #x18 #x2 #x1a #x2 #x19 #x2 #x1b ))
-     (#vu8(
+           #x1e #xf0 #x1e #xf1 )))
+     (,(list->bytevector '(
+           #x0 #x55 #x0 #x75 ))
+      ,(list->bytevector '(
+           #x1e #x72 #x1e #x73 )))
+     (,(list->bytevector '(
+           #x0 #x41 #x0 #x61 ))
+      ,(list->bytevector '(
+           #x1e #x0 #x1e #x1 )))
+     (,(list->bytevector '(
+           #x0 #x53 #x0 #x54 #x0 #x73 #x0 #x74 ))
+      ,(list->bytevector '(
+           #x2 #x18 #x2 #x1a #x2 #x19 #x2 #x1b )))
+     (,(list->bytevector '(
            #x0 #x43 #x0 #x44 #x0 #x45 #x0 #x47 
            #x0 #x48 #x0 #x4b #x0 #x4c #x0 #x4e 
            #x0 #x52 #x0 #x53 #x0 #x54 #x0 #x63 
            #x0 #x64 #x0 #x65 #x0 #x67 #x0 #x68 
            #x0 #x6b #x0 #x6c #x0 #x6e #x0 #x72 
-           #x0 #x73 #x0 #x74 )
-      #vu8(
+           #x0 #x73 #x0 #x74 ))
+      ,(list->bytevector '(
            #x0 #xc7 #x1e #x10 #x2 #x28 #x1 #x22 
            #x1e #x28 #x1 #x36 #x1 #x3b #x1 #x45 
            #x1 #x56 #x1 #x5e #x1 #x62 #x0 #xe7 
            #x1e #x11 #x2 #x29 #x1 #x23 #x1e #x29 
            #x1 #x37 #x1 #x3c #x1 #x46 #x1 #x57 
-           #x1 #x5f #x1 #x63 ))
-     (#vu8(
+           #x1 #x5f #x1 #x63 )))
+     (,(list->bytevector '(
            #x0 #x41 #x0 #x45 #x0 #x49 #x0 #x4f 
            #x0 #x55 #x0 #x61 #x0 #x65 #x0 #x69 
-           #x0 #x6f #x0 #x75 )
-      #vu8(
+           #x0 #x6f #x0 #x75 ))
+      ,(list->bytevector '(
            #x1 #x4 #x1 #x18 #x1 #x2e #x1 #xea 
            #x1 #x72 #x1 #x5 #x1 #x19 #x1 #x2f 
-           #x1 #xeb #x1 #x73 ))
-     (#vu8(
+           #x1 #xeb #x1 #x73 )))
+     (,(list->bytevector '(
            #x0 #x44 #x0 #x45 #x0 #x4c #x0 #x4e 
            #x0 #x54 #x0 #x55 #x0 #x64 #x0 #x65 
-           #x0 #x6c #x0 #x6e #x0 #x74 #x0 #x75 )
-      #vu8(
+           #x0 #x6c #x0 #x6e #x0 #x74 #x0 #x75 ))
+      ,(list->bytevector '(
            #x1e #x12 #x1e #x18 #x1e #x3c #x1e #x4a 
            #x1e #x70 #x1e #x76 #x1e #x13 #x1e #x19 
-           #x1e #x3d #x1e #x4b #x1e #x71 #x1e #x77 ))
-     (#vu8(
-           #x0 #x48 #x0 #x68 )
-      #vu8(
-           #x1e #x2a #x1e #x2b ))
-     (#vu8(
+           #x1e #x3d #x1e #x4b #x1e #x71 #x1e #x77 )))
+     (,(list->bytevector '(
+           #x0 #x48 #x0 #x68 ))
+      ,(list->bytevector '(
+           #x1e #x2a #x1e #x2b )))
+     (,(list->bytevector '(
            #x0 #x45 #x0 #x49 #x0 #x55 #x0 #x65 
-           #x0 #x69 #x0 #x75 )
-      #vu8(
+           #x0 #x69 #x0 #x75 ))
+      ,(list->bytevector '(
            #x1e #x1a #x1e #x2c #x1e #x74 #x1e #x1b 
-           #x1e #x2d #x1e #x75 ))
-     (#vu8(
+           #x1e #x2d #x1e #x75 )))
+     (,(list->bytevector '(
            #x0 #x42 #x0 #x44 #x0 #x4b #x0 #x4c 
            #x0 #x4e #x0 #x52 #x0 #x54 #x0 #x5a 
            #x0 #x62 #x0 #x64 #x0 #x68 #x0 #x6b 
            #x0 #x6c #x0 #x6e #x0 #x72 #x0 #x74 
-           #x0 #x7a )
-      #vu8(
+           #x0 #x7a ))
+      ,(list->bytevector '(
            #x1e #x6 #x1e #xe #x1e #x34 #x1e #x3a 
            #x1e #x48 #x1e #x5e #x1e #x6e #x1e #x94 
            #x1e #x7 #x1e #xf #x1e #x96 #x1e #x35 
            #x1e #x3b #x1e #x49 #x1e #x5f #x1e #x6f 
-           #x1e #x95 ))
-     (#vu8(
+           #x1e #x95 )))
+     (,(list->bytevector '(
            #x0 #x3c #x0 #x3d #x0 #x3e #x21 #x90 
            #x21 #x92 #x21 #x94 #x21 #xd0 #x21 #xd2 
            #x21 #xd4 #x22 #x3 #x22 #x8 #x22 #xb 
@@ -4647,8 +4655,8 @@
            #x22 #x7c #x22 #x7d #x22 #x82 #x22 #x83 
            #x22 #x86 #x22 #x87 #x22 #x91 #x22 #x92 
            #x22 #xa2 #x22 #xa8 #x22 #xa9 #x22 #xab 
-           #x22 #xb2 #x22 #xb3 #x22 #xb4 #x22 #xb5 )
-      #vu8(
+           #x22 #xb2 #x22 #xb3 #x22 #xb4 #x22 #xb5 ))
+      ,(list->bytevector '(
            #x22 #x6e #x22 #x60 #x22 #x6f #x21 #x9a 
            #x21 #x9b #x21 #xae #x21 #xcd #x21 #xcf 
            #x21 #xce #x22 #x4 #x22 #x9 #x22 #xc 
@@ -4659,8 +4667,8 @@
            #x22 #xe0 #x22 #xe1 #x22 #x84 #x22 #x85 
            #x22 #x88 #x22 #x89 #x22 #xe2 #x22 #xe3 
            #x22 #xac #x22 #xad #x22 #xae #x22 #xaf 
-           #x22 #xea #x22 #xeb #x22 #xec #x22 #xed ))
-     (#vu8(
+           #x22 #xea #x22 #xeb #x22 #xec #x22 #xed )))
+     (,(list->bytevector '(
            #x0 #xa8 #x3 #xb1 #x3 #xb7 #x3 #xb9 
            #x3 #xc5 #x3 #xc9 #x3 #xca #x3 #xcb 
            #x1f #x0 #x1f #x1 #x1f #x8 #x1f #x9 
@@ -4668,8 +4676,8 @@
            #x1f #x30 #x1f #x31 #x1f #x38 #x1f #x39 
            #x1f #x50 #x1f #x51 #x1f #x59 #x1f #x60 
            #x1f #x61 #x1f #x68 #x1f #x69 #x1f #xbf 
-           #x1f #xfe )
-      #vu8(
+           #x1f #xfe ))
+      ,(list->bytevector '(
            #x1f #xc1 #x1f #xb6 #x1f #xc6 #x1f #xd6 
            #x1f #xe6 #x1f #xf6 #x1f #xd7 #x1f #xe7 
            #x1f #x6 #x1f #x7 #x1f #xe #x1f #xf 
@@ -4677,8 +4685,8 @@
            #x1f #x36 #x1f #x37 #x1f #x3e #x1f #x3f 
            #x1f #x56 #x1f #x57 #x1f #x5f #x1f #x66 
            #x1f #x67 #x1f #x6e #x1f #x6f #x1f #xcf 
-           #x1f #xdf ))
-     (#vu8(
+           #x1f #xdf )))
+     (,(list->bytevector '(
            #x3 #x91 #x3 #x97 #x3 #xa9 #x3 #xac 
            #x3 #xae #x3 #xb1 #x3 #xb7 #x3 #xc9 
            #x3 #xce #x1f #x0 #x1f #x1 #x1f #x2 
@@ -4694,8 +4702,8 @@
            #x1f #x67 #x1f #x68 #x1f #x69 #x1f #x6a 
            #x1f #x6b #x1f #x6c #x1f #x6d #x1f #x6e 
            #x1f #x6f #x1f #x70 #x1f #x74 #x1f #x7c 
-           #x1f #xb6 #x1f #xc6 #x1f #xf6 )
-      #vu8(
+           #x1f #xb6 #x1f #xc6 #x1f #xf6 ))
+      ,(list->bytevector '(
            #x1f #xbc #x1f #xcc #x1f #xfc #x1f #xb4 
            #x1f #xc4 #x1f #xb3 #x1f #xc3 #x1f #xf3 
            #x1f #xf4 #x1f #x80 #x1f #x81 #x1f #x82 
@@ -4711,114 +4719,114 @@
            #x1f #xa7 #x1f #xa8 #x1f #xa9 #x1f #xaa 
            #x1f #xab #x1f #xac #x1f #xad #x1f #xae 
            #x1f #xaf #x1f #xb2 #x1f #xc2 #x1f #xf2 
-           #x1f #xb7 #x1f #xc7 #x1f #xf7 ))
-     (#vu8(
-           #x6 #x27 )
-      #vu8(
-           #x6 #x22 ))
-     (#vu8(
+           #x1f #xb7 #x1f #xc7 #x1f #xf7 )))
+     (,(list->bytevector '(
+           #x6 #x27 ))
+      ,(list->bytevector '(
+           #x6 #x22 )))
+     (,(list->bytevector '(
            #x6 #x27 #x6 #x48 #x6 #x4a #x6 #xc1 
-           #x6 #xd2 #x6 #xd5 )
-      #vu8(
+           #x6 #xd2 #x6 #xd5 ))
+      ,(list->bytevector '(
            #x6 #x23 #x6 #x24 #x6 #x26 #x6 #xc2 
-           #x6 #xd3 #x6 #xc0 ))
-     (#vu8(
-           #x6 #x27 )
-      #vu8(
-           #x6 #x25 ))
-     (#vu8(
-           #x9 #x28 #x9 #x30 #x9 #x33 )
-      #vu8(
-           #x9 #x29 #x9 #x31 #x9 #x34 ))
-     (#vu8(
-           #x9 #xc7 )
-      #vu8(
-           #x9 #xcb ))
-     (#vu8(
-           #x9 #xc7 )
-      #vu8(
-           #x9 #xcc ))
-     (#vu8(
-           #xb #x47 )
-      #vu8(
-           #xb #x4b ))
-     (#vu8(
-           #xb #x47 )
-      #vu8(
-           #xb #x48 ))
-     (#vu8(
-           #xb #x47 )
-      #vu8(
-           #xb #x4c ))
-     (#vu8(
-           #xb #xc6 #xb #xc7 )
-      #vu8(
-           #xb #xca #xb #xcb ))
-     (#vu8(
-           #xb #x92 #xb #xc6 )
-      #vu8(
-           #xb #x94 #xb #xcc ))
-     (#vu8(
-           #xc #x46 )
-      #vu8(
-           #xc #x48 ))
-     (#vu8(
-           #xc #xc6 )
-      #vu8(
-           #xc #xca ))
-     (#vu8(
-           #xc #xbf #xc #xc6 #xc #xca )
-      #vu8(
-           #xc #xc0 #xc #xc7 #xc #xcb ))
-     (#vu8(
-           #xc #xc6 )
-      #vu8(
-           #xc #xc8 ))
-     (#vu8(
-           #xd #x46 #xd #x47 )
-      #vu8(
-           #xd #x4a #xd #x4b ))
-     (#vu8(
-           #xd #x46 )
-      #vu8(
-           #xd #x4c ))
-     (#vu8(
-           #xd #xd9 #xd #xdc )
-      #vu8(
-           #xd #xda #xd #xdd ))
-     (#vu8(
-           #xd #xd9 )
-      #vu8(
-           #xd #xdc ))
-     (#vu8(
-           #xd #xd9 )
-      #vu8(
-           #xd #xde ))
-     (#vu8(
-           #xf #x71 )
-      #vu8(
-           #xf #x73 ))
-     (#vu8(
-           #xf #x71 )
-      #vu8(
-           #xf #x75 ))
-     (#vu8(
-           #xf #x71 )
-      #vu8(
-           #xf #x81 ))
-     (#vu8(
-           #x10 #x25 )
-      #vu8(
-           #x10 #x26 ))
-     (#vu8(
+           #x6 #xd3 #x6 #xc0 )))
+     (,(list->bytevector '(
+           #x6 #x27 ))
+      ,(list->bytevector '(
+           #x6 #x25 )))
+     (,(list->bytevector '(
+           #x9 #x28 #x9 #x30 #x9 #x33 ))
+      ,(list->bytevector '(
+           #x9 #x29 #x9 #x31 #x9 #x34 )))
+     (,(list->bytevector '(
+           #x9 #xc7 ))
+      ,(list->bytevector '(
+           #x9 #xcb )))
+     (,(list->bytevector '(
+           #x9 #xc7 ))
+      ,(list->bytevector '(
+           #x9 #xcc )))
+     (,(list->bytevector '(
+           #xb #x47 ))
+      ,(list->bytevector '(
+           #xb #x4b )))
+     (,(list->bytevector '(
+           #xb #x47 ))
+      ,(list->bytevector '(
+           #xb #x48 )))
+     (,(list->bytevector '(
+           #xb #x47 ))
+      ,(list->bytevector '(
+           #xb #x4c )))
+     (,(list->bytevector '(
+           #xb #xc6 #xb #xc7 ))
+      ,(list->bytevector '(
+           #xb #xca #xb #xcb )))
+     (,(list->bytevector '(
+           #xb #x92 #xb #xc6 ))
+      ,(list->bytevector '(
+           #xb #x94 #xb #xcc )))
+     (,(list->bytevector '(
+           #xc #x46 ))
+      ,(list->bytevector '(
+           #xc #x48 )))
+     (,(list->bytevector '(
+           #xc #xc6 ))
+      ,(list->bytevector '(
+           #xc #xca )))
+     (,(list->bytevector '(
+           #xc #xbf #xc #xc6 #xc #xca ))
+      ,(list->bytevector '(
+           #xc #xc0 #xc #xc7 #xc #xcb )))
+     (,(list->bytevector '(
+           #xc #xc6 ))
+      ,(list->bytevector '(
+           #xc #xc8 )))
+     (,(list->bytevector '(
+           #xd #x46 #xd #x47 ))
+      ,(list->bytevector '(
+           #xd #x4a #xd #x4b )))
+     (,(list->bytevector '(
+           #xd #x46 ))
+      ,(list->bytevector '(
+           #xd #x4c )))
+     (,(list->bytevector '(
+           #xd #xd9 #xd #xdc ))
+      ,(list->bytevector '(
+           #xd #xda #xd #xdd )))
+     (,(list->bytevector '(
+           #xd #xd9 ))
+      ,(list->bytevector '(
+           #xd #xdc )))
+     (,(list->bytevector '(
+           #xd #xd9 ))
+      ,(list->bytevector '(
+           #xd #xde )))
+     (,(list->bytevector '(
+           #xf #x71 ))
+      ,(list->bytevector '(
+           #xf #x73 )))
+     (,(list->bytevector '(
+           #xf #x71 ))
+      ,(list->bytevector '(
+           #xf #x75 )))
+     (,(list->bytevector '(
+           #xf #x71 ))
+      ,(list->bytevector '(
+           #xf #x81 )))
+     (,(list->bytevector '(
+           #x10 #x25 ))
+      ,(list->bytevector '(
+           #x10 #x26 )))
+     (,(list->bytevector '(
            #x1b #x5 #x1b #x7 #x1b #x9 #x1b #xb 
            #x1b #xd #x1b #x11 #x1b #x3a #x1b #x3c 
-           #x1b #x3e #x1b #x3f #x1b #x42 )
-      #vu8(
+           #x1b #x3e #x1b #x3f #x1b #x42 ))
+      ,(list->bytevector '(
            #x1b #x6 #x1b #x8 #x1b #xa #x1b #xc 
            #x1b #xe #x1b #x12 #x1b #x3b #x1b #x3d 
-           #x1b #x40 #x1b #x41 #x1b #x43 ))
-     (#vu8(
+           #x1b #x40 #x1b #x41 #x1b #x43 )))
+     (,(list->bytevector '(
            #x30 #x46 #x30 #x4b #x30 #x4d #x30 #x4f 
            #x30 #x51 #x30 #x53 #x30 #x55 #x30 #x57 
            #x30 #x59 #x30 #x5b #x30 #x5d #x30 #x5f 
@@ -4830,8 +4838,8 @@
            #x30 #xbd #x30 #xbf #x30 #xc1 #x30 #xc4 
            #x30 #xc6 #x30 #xc8 #x30 #xcf #x30 #xd2 
            #x30 #xd5 #x30 #xd8 #x30 #xdb #x30 #xef 
-           #x30 #xf0 #x30 #xf1 #x30 #xf2 #x30 #xfd )
-      #vu8(
+           #x30 #xf0 #x30 #xf1 #x30 #xf2 #x30 #xfd ))
+      ,(list->bytevector '(
            #x30 #x94 #x30 #x4c #x30 #x4e #x30 #x50 
            #x30 #x52 #x30 #x54 #x30 #x56 #x30 #x58 
            #x30 #x5a #x30 #x5c #x30 #x5e #x30 #x60 
@@ -4843,15 +4851,15 @@
            #x30 #xbe #x30 #xc0 #x30 #xc2 #x30 #xc5 
            #x30 #xc7 #x30 #xc9 #x30 #xd0 #x30 #xd3 
            #x30 #xd6 #x30 #xd9 #x30 #xdc #x30 #xf7 
-           #x30 #xf8 #x30 #xf9 #x30 #xfa #x30 #xfe ))
-     (#vu8(
+           #x30 #xf8 #x30 #xf9 #x30 #xfa #x30 #xfe )))
+     (,(list->bytevector '(
            #x30 #x6f #x30 #x72 #x30 #x75 #x30 #x78 
            #x30 #x7b #x30 #xcf #x30 #xd2 #x30 #xd5 
-           #x30 #xd8 #x30 #xdb )
-      #vu8(
+           #x30 #xd8 #x30 #xdb ))
+      ,(list->bytevector '(
            #x30 #x71 #x30 #x74 #x30 #x77 #x30 #x7a 
            #x30 #x7d #x30 #xd1 #x30 #xd4 #x30 #xd7 
-           #x30 #xda #x30 #xdd ))
+           #x30 #xda #x30 #xdd )))
 ))
 
 ;)
