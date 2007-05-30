@@ -36,9 +36,17 @@ The files
 ---------
 load-all-tests.sch	Driver code
 test.sch		Scaffolding code
-fib.sch			Fibonacci program
-ctak.sch		Tak program
-number.sch		Numeric operations 
-char.sch		Character operations
 bool.sch		Booleans; equality
-env.sch			Top-level environments
+char.sch		Character operations
+string.sch              String operations (except normalization)
+normalization.sch       String normalization
+ctak.sch		call/cc
+dynamic-wind.sch        dynamic-wind
+env.sch			Top-level environments (not currently tested)
+fact.sch                Factorial, big and small
+fib.sch			Fibonacci function
+fixnums.sch             Fixnum operations
+number.sch		Numeric operations
+pred.sch                Predicates
+regression.sch          Past error cases
+wcm.sch                 Continuation marks

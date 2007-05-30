@@ -2,13 +2,8 @@
 ;
 ; $Id$
 ;
-; These are ustring tests for now, but will become
-; string tests after we have completed the switch
-; to Unicode.
-;
-; These tests are woefully incomplete, testing only
-; the primops.  More tests will be added after the
-; (r6rs unicode) library has been added to Larceny.
+; These tests are incomplete, but are a lot better
+; than nothing.
 
 (define (run-string-tests)
   (display "String") (newline)
@@ -46,16 +41,6 @@
   
 (define (basic-unicode-string-tests)
 
-  ; FIXME: This goes away when strings replace strings.
-
-  (define (string . chars)
-    (let* ((n (length chars))
-           (s (make-string n)))
-      (do ((i 0 (+ i 1))
-           (chars chars (cdr chars)))
-          ((= i n) s)
-        (string-set! s i (car chars)))))
-
   (define es-zed (integer->char #x00df))
   (define final-sigma (integer->char #x03c2))
   (define lower-sigma (integer->char #x03c3))
@@ -76,6 +61,8 @@
   (define upper-chaos (string upper-chi upper-alpha upper-omicron upper-sigma))
   (define final-chaos (string lower-chi lower-alpha lower-omicron final-sigma))
   (define lower-chaos (string lower-chi lower-alpha lower-omicron lower-sigma))
+  (define mutable-lower-chaos
+    (string lower-chi lower-alpha lower-omicron lower-sigma))
 
   (test "(string-length (make-string 0))"
         (string-length (make-string 0)) 0)
@@ -97,19 +84,75 @@
   (test "(string-ref final-chaos 3)" (string-ref final-chaos 3) final-sigma)
   (test "(string-ref lower-chaos 3)" (string-ref lower-chaos 3) lower-sigma)
 
-  (test "(string-set! lower-chaos 0 #\nul)"
-        (begin (string-set! lower-chaos 0 null)
-               (string-ref lower-chaos 0))
+  (test "(string-set! mutable-lower-chaos 0 #\nul)"
+        (begin (string-set! mutable-lower-chaos 0 null)
+               (string-ref mutable-lower-chaos 0))
         null)
-  (test "(string-set! lower-chaos 3 biggy)"
-        (begin (string-set! lower-chaos 3 biggy)
-               (string-ref lower-chaos 3))
+  (test "(string-set! mutable-lower-chaos 3 biggy)"
+        (begin (string-set! mutable-lower-chaos 3 biggy)
+               (string-ref mutable-lower-chaos 3))
         biggy)
-  (test "(string->list lower-chaos)"
-        (list (string-ref lower-chaos 0)
-              (string-ref lower-chaos 1)
-              (string-ref lower-chaos 2)
-              (string-ref lower-chaos 3))
-        (list #\x0 lower-alpha lower-omicron biggy))))
+  (test "(string->list mutable-lower-chaos)"
+        (list (string-ref mutable-lower-chaos 0)
+              (string-ref mutable-lower-chaos 1)
+              (string-ref mutable-lower-chaos 2)
+              (string-ref mutable-lower-chaos 3))
+        (list #\x0 lower-alpha lower-omicron biggy))
+
+  (test "scomp1" (string<? "z" (string es-zed)) #t)
+  (test "scomp2" (string<? "z" "zz") #t)
+  (test "scomp3" (string<? "z" "Z") #f)
+  (test "scomp4" (string=? strasse "Strasse") #f)
+
+  (test "sup1" (string-upcase "Hi") "HI")
+  (test "sdown1" (string-downcase "Hi") "hi")
+  (test "sfold1" (string-foldcase "Hi") "hi")
+
+  (test "sup2"  (string-upcase strasse) "STRASSE")
+  (test "sdown2" (string-downcase strasse)
+                 (string-append "s" (substring strasse 1 6)))
+  (test "sfold2" (string-foldcase strasse) "strasse")
+  (test "sdown3" (string-downcase "STRASSE")  "strasse")
+
+  (test "chaos1" (string-upcase upper-chaos) upper-chaos)
+  (test "chaos2" (string-downcase (string upper-sigma))
+                 (string lower-sigma))
+  (test "chaos3" (string-downcase upper-chaos) final-chaos)
+  (test "chaos4" (string-downcase (string-append upper-chaos
+                                                 (string upper-sigma)))
+                 (string-append (substring lower-chaos 0 3)
+                                (string lower-sigma final-sigma)))
+  (test "chaos5" (string-downcase (string-append upper-chaos
+                                                 (string #\space
+                                                         upper-sigma)))
+                 (string-append final-chaos
+                                (string #\space lower-sigma)))
+  (test "chaos6" (string-foldcase (string-append upper-chaos
+                                                 (string upper-sigma)))
+                 (string-append lower-chaos
+                                (string final-sigma)))
+  (test "chaos7" (string-upcase final-chaos) upper-chaos)
+  (test "chaos8" (string-upcase lower-chaos) upper-chaos)
+
+  (test "stitle1" (string-titlecase "kNock KNoCK") "Knock Knock")
+  (test "stitle2" (string-titlecase "who's there?") "Who's There?")
+  (test "stitle3" (string-titlecase "r6rs") "R6Rs")
+  (test "stitle4" (string-titlecase "R6RS") "R6Rs")
+
+  (test "norm1" (string-normalize-nfd (string #\xE9))
+                (string #\x65 #\x301))
+  (test "norm2" (string-normalize-nfc (string #\xE9))
+                (string #\xE9))
+  (test "norm3" (string-normalize-nfd (string #\x65 #\x301))
+                (string #\x65 #\x301))
+  (test "norm4" (string-normalize-nfc (string #\x65 #\x301))
+                (string #\xE9))
+
+  (test "sci1" (string-ci<? "z" "Z") #f)
+  (test "sci2" (string-ci=? "z" "Z") #t)
+  (test "sci3" (string-ci=? strasse "Strasse") #t)
+  (test "sci4" (string-ci=? strasse "STRASSE") #t)
+  (test "sci5" (string-ci=? upper-chaos lower-chaos) #t)
+))
     
 ; eof

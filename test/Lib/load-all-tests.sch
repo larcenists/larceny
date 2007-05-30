@@ -7,6 +7,8 @@
 
 (compile-file "bool.sch")
 (compile-file "char.sch")
+(compile-file "string.sch")
+(compile-file "normalization.sch")
 ;(compile-file "complex.sch")
 (compile-file "ctak.sch")
 (compile-file "dynamic-wind.sch")
@@ -23,6 +25,8 @@
 
 (load "bool.fasl")			; Booleans
 (load "char.fasl")			; Characters
+(load "string.fasl")			; Strings
+(load "normalization.fasl")		; String normalization
 ;(load "complex.fasl")                   ; Complex numbers
 (load "ctak.fasl")			; Call/cc test
 (load "dynamic-wind.fasl")              ; Dynamic-wind test
@@ -38,6 +42,8 @@
 (define (run-all-tests)
   (run-boolean-tests)
   (run-char-tests)
+  (run-string-tests)
+  (run-normalization-tests)
   (run-predicate-tests)
   (run-number-tests)
   (run-fact-tests)
