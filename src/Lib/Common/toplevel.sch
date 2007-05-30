@@ -507,8 +507,16 @@
   (environment-set! larc 'substring-fill! substring-fill!)
   (environment-set! larc 'string-downcase! string-downcase!)
   (environment-set! larc 'string-upcase! string-upcase!)
-  (environment-set! larc 'string-downcase string-downcase)
+
   (environment-set! larc 'string-upcase string-upcase)
+  (environment-set! larc 'string-downcase string-downcase)
+  (environment-set! larc 'string-foldcase string-foldcase)
+  (environment-set! larc 'string-titlecase string-titlecase)
+
+  (environment-set! larc 'string-normalize-nfd string-normalize-nfd)
+  (environment-set! larc 'string-normalize-nfkd string-normalize-nfkd)
+  (environment-set! larc 'string-normalize-nfc string-normalize-nfc)
+  (environment-set! larc 'string-normalize-nfkc string-normalize-nfkc)
 
   ;; vectors
 

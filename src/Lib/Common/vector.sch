@@ -18,7 +18,13 @@
 
 (define list->vector
   (lambda (l)
-    (sys$partial-list->vector l (length l))))
+;   (sys$partial-list->vector l (length l))
+    (let* ((n (length l))
+           (v (make-vector n)))
+      (do ((i 0 (+ i 1))
+           (l l (cdr l)))
+          ((= i n) v)
+        (vector-set! v i (car l))))))
 
 (define vector->list
   (letrec ((loop

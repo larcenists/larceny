@@ -159,6 +159,7 @@
     "command-line"      ; command line arguments
     "list"              ; list procedures
     "vector"            ; vector procedures
+    "bytevector"        ; bytevector procedures
     "string"            ; string and bytevector procs
     "control"           ; control procedures
     "hash"              ; hash functions
@@ -174,6 +175,11 @@
     "exit"              ; exit procedure; exit/init hooks
     "dump"              ; dump-heap procedure
     "secret"            ; some "hidden" top-level names
+    "unicode0"          ; general utility procedures for binary search
+    "unicode1"          ; char-* procedures
+    "unicode2"          ; the word-breaking algorithm defined by UAX #29
+    "unicode3"          ; string-* procedures (casing, -ci comparisons)
+    "unicode4"          ; four string-normalize-* procedures
     "require"           ; rudimentary library system
 
     ; New I/O subsystem
