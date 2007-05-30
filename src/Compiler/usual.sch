@@ -499,6 +499,29 @@
            (?ar ?t1))
        ?e1 ...))))
 
+(define-syntax define-values
+  (syntax-rules ()
+    ((define-values (<name> ...) <body> ...)
+     ; =>
+     (define-values helper (<name> ...) () (<name> ...) <body> ...))
+    ((define-values helper () (<temp> ...) (<name> ...) <body> ...)
+     ; =>
+     (begin
+       (define <name> #f) 
+       ...
+       (call-with-values
+        (lambda () <body> ...)
+        (lambda (<temp> ...)
+          (set! <name> <temp> ) 
+          ...
+          ))
+       ))
+    ((define-values helper (<var1> <var2> ...) <temp>s
+       (<name> ...) <body> ...)
+     ; =>
+     (define-values helper (<var2> ...) (<temp> . <temp>s)
+       (<name> ...) <body> ...))))
+
 (define-syntax with-continuation-mark
   (syntax-rules ()
     ((with-continuation-mark key mark expr)

@@ -83,19 +83,6 @@
                ((and (pair? exp)
                      (symbol? (car exp))
                      (eq? (syntactic-lookup env (car exp))
-                          denotation-of-define-values))
-                (let ((exp (desugar-define-values exp env)))
-                  (cond ((and (null? first) (null? rest))
-                         exp)
-                        ((null? rest)
-                         (make-begin (reverse (cons exp first))))
-                        (else (define-loop (car rest)
-                                (cdr rest)
-                                (cons exp first)
-                                env)))))
-               ((and (pair? exp)
-                     (symbol? (car exp))
-                     (eq? (syntactic-lookup env (car exp))
                           denotation-of-define-syntax))
                 (if (pair? (cdr exp))
                     (redefinition (cadr exp)))
@@ -183,27 +170,7 @@
                        (make-identifier-denotation id))))
                  (make-toplevel-definition (variable.name (m-atom id env))
                                            (m-expand (caddr exp) env)))))))
-     (desugar-define-values
-      (lambda (exp env)
-        (cond
-         ((null? (cdr exp)) (m-error "Malformed definition" exp))
-         ; (define-values (foo)) is an error [unlike (define foo) given above]
-         ((null? (cddr exp)) (m-error "Malformed definition" exp))
-         ((> (length exp) 3) (m-error "Malformed definition" exp))
-         (else 
-          (let* ((ids (cadr exp))
-                 (locals (map cdr (rename-vars ids)))
-                 (toplevel-definitions 
-                  (map (lambda (local export)
-                         (make-toplevel-definition (variable.name (m-atom export env))
-                                                   (make-variable local)))
-                       locals
-                       ids))
-                 (call-expr (make-call 
-                             (make-variable 'call-with-values)
-                             (list `(,lambda0 () ,(caddr exp))
-                                   `(,lambda0 ,locals ,@toplevel-definitions)))))
-            (m-expand call-expr env))))))
+
      (redefinition
       (lambda (id)
         (if (symbol? id)
@@ -245,7 +212,6 @@
                ((eq? keyword denotation-of-letrec-syntax)
 		(m-letrec-syntax exp env))
                ((or (eq? keyword denotation-of-define)
-                    (eq? keyword denotation-of-define-values)
                     (eq? keyword denotation-of-define-syntax)
                     (eq? keyword denotation-of-define-inline))
                 (m-error "Definition out of context" exp))
@@ -382,8 +348,7 @@
               ((special)
                (cond ((eq? denotation denotation-of-begin)
                       (loop (append (cdr exp) (cdr body)) env defs))
-                     ((or (eq? denotation denotation-of-define)
-                          (eq? denotation denotation-of-define-values))
+                     ((eq? denotation denotation-of-define)
                       (loop (cdr body) env (cons exp defs)))
                      (else (finalize-body body env defs))))
               ((macro)
@@ -431,8 +396,7 @@
             (map cdr sorted)))
         (define (desugar-definition def)
           (if (> (safe-length def) 2)
-              (cond ((and (eq? (syntactic-lookup env (car def)) denotation-of-define)
-                          (pair? (cadr def)))
+              (cond ((pair? (cadr def))
                      (desugar-definition
                       `(,(car def)
                         ,(car (cadr def))
@@ -440,43 +404,21 @@
                           ,(cdr (cadr def))
                           ,@(cddr def)))))
                     ((and (= (length def) 3)
-                          (eq? (syntactic-lookup env (car def)) denotation-of-define)
                           (symbol? (cadr def)))
-                     (cdr def))
-                    ((and (= (length def) 3)
-                          (eq? (syntactic-lookup env (car def)) denotation-of-define-values)
-                          (pair? (cadr def)))
                      (cdr def))
                     (else (m-error "Malformed definition" def)))
               (m-error "Malformed definition" def)))
         (define (expand-letrec bindings body)
-          (let* ((all-ids (do ((ids '() (if (pair? (car (car bindings)))
-                                            (append (car (car bindings)) ids)
-                                            (cons (car (car bindings)) ids)))
-                               (bindings bindings (cdr bindings)))
-                             ((null? bindings) ids)))
-                 (lambda-expression 
-                  `(,lambda0 ,all-ids
-                             ,@(map (lambda (binding)
-                                      (cond 
-                                       ((pair? (car binding))
-                                        (make-call
-                                         (make-variable 'call-with-values)
-                                         (list `(,lambda0 () ,(cadr binding))
-                                               (let ((locals (map cdr (rename-vars (car binding)))))
-                                                 `(,lambda0 ,locals
-                                                            ,@(map (lambda (local export)
-                                                                     `(,set!0 ,export ,local))
-                                                                   locals
-                                                                   (car binding)))))))
-                                       (else
-                                        `(,set!0 ,(car binding)
-                                                 ,(cadr binding)))))
-                                    bindings)
-                             ,@body)))
-            (make-call 
-             (m-expand lambda-expression env)
-             (map (lambda (ignored) (make-unspecified)) all-ids))))
+          (make-call
+           (m-expand
+            `(,lambda0 ,(map car bindings)
+                       ,@(map (lambda (binding)
+                                `(,set!0 ,(car binding)
+                                         ,(cadr binding)))
+                              bindings)
+                         ,@body)
+            env)
+           (map (lambda (binding) (make-unspecified)) bindings)))
         (expand-letrec (sort-defs (map desugar-definition
                                        (reverse defs)))
                        body))))
