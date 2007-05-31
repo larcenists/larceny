@@ -23,21 +23,21 @@ FINAL_TWOBIT_BIN=larceny.bin
 case "`basename "$0"`" in
 
     checkout-larceny-solaris-native)
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-solaris-native)
-	SCHEME_PGM=mzscheme
+	SCHEME_PGM="mzscheme -f "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris 'native 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
-	DIRNAME=native
+	DIRNAME=mznative
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-larceny-solaris-petit)
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	FINAL_TWOBIT_BIN=twobit.bin
@@ -46,17 +46,17 @@ case "`basename "$0"`" in
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-solaris-petit)
-	SCHEME_PGM=mzscheme
+	SCHEME_PGM="mzscheme -f "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	FINAL_TWOBIT_BIN=twobit.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=petit
+	DIRNAME=mzpetit
 	MAKETEXTSAFE=native2ascii
     ;;
 
     checkout-larceny-linux86-petit)
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	FINAL_TWOBIT_BIN=twobit.bin
@@ -65,7 +65,7 @@ case "`basename "$0"`" in
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
     checkout-larceny-linux86-petit-nasm)
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'nasm"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	FINAL_TWOBIT_BIN=twobit.bin
@@ -73,21 +73,21 @@ case "`basename "$0"`" in
 	DIRNAME=petit
     ;;
     checkout-mzscheme-linux86-petit)
-	SCHEME_PGM=mzscheme
+	SCHEME_PGM="mzscheme -f "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	FINAL_TWOBIT_BIN=twobit.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=petit
+	DIRNAME=mzpetit
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
     checkout-mzscheme-linux86-petit-nasm)
-	SCHEME_PGM=mzscheme
+	SCHEME_PGM="mzscheme -f "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'nasm"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	FINAL_TWOBIT_BIN=twobit.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=petit
+	DIRNAME=mzpetit
     ;;
 #    checkout-larceny-linux86-dotnet)
 #	SCHEME_PGM=larceny
@@ -101,25 +101,25 @@ case "`basename "$0"`" in
 #	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'dotnet"
 #	FINAL_LARCENY_BIN=dotnet.heap.exe
 #	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
-#	DIRNAME=dotnet
+#	DIRNAME=mzdotnet
 #    ;;
     checkout-larceny-linux86-native)
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
     checkout-mzscheme-linux86-native)
-	SCHEME_PGM=mzscheme
+	SCHEME_PGM="mzscheme -f "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
-	DIRNAME=native
+	DIRNAME=mznative
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
 
     checkout-larceny-macosx-petit)   # PPC!
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	FINAL_TWOBIT_BIN=twobit.bin
@@ -128,26 +128,26 @@ case "`basename "$0"`" in
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-macosx-petit)  # PPC!
-	SCHEME_PGM=mzscheme
+	SCHEME_PGM="mzscheme -f "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx"
 	FINAL_LARCENY_BIN=petit-larceny.bin
 	FINAL_TWOBIT_BIN=twobit.bin
 	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=petit
+	DIRNAME=mzpetit
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-larceny-macosx-native)  # IA32!
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
     ;;
     checkout-mzscheme-macosx-native) # IA32!
-	SCHEME_PGM=mzscheme
+	SCHEME_PGM="mzscheme -f "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx-el 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
-	DIRNAME=native
+	DIRNAME=mznative
 	MAKETEXTSAFE=native2ascii
     ;;
 
@@ -156,7 +156,7 @@ case "`basename "$0"`" in
     case "`uname`" in
 	SunOS)
 	echo "Setup arguments not specified; assuming Solaris native build."
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=default
@@ -164,7 +164,7 @@ case "`basename "$0"`" in
 	;;
 	Linux)
 	echo "Setup arguments not specified; assuming linux86 native build."
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=default
@@ -172,7 +172,7 @@ case "`basename "$0"`" in
 	;;
 	Darwin)
 	echo "Setup arguments not specified; assuming macosx86 native build."	
-	SCHEME_PGM=larceny
+	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=default
@@ -181,7 +181,7 @@ case "`basename "$0"`" in
         CYGWIN*)
 	echo "Setup arguments not specified; assuming win32 native build."	
 	HOME="`pwd`"
-	SCHEME_PGM="`pwd`/HostLarceny/larceny.bat"
+	SCHEME_PGM="`pwd`/HostLarceny/larceny.bat --"
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'win32 'sassy 'string-rep: 'flat4"
 	FINAL_LARCENY_BIN=larceny.bin.exe
 	FINAL_TWOBIT_BIN=larceny.bin.exe
@@ -314,7 +314,7 @@ function host_scm_cmd {
 $4
 (exit)
 EOF
-   eval_stage "$1" "$2" "$3" "${SCHEME_PGM} -- ${REALSCM}"
+   eval_stage "$1" "$2" "$3" "${SCHEME_PGM} ${REALSCM}"
 }
 
 eval_stage   bSvnCheckout  "1. svn checkout"       ${DIR}             "svn checkout -q ${SVNTRUNK}"
