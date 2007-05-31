@@ -110,10 +110,10 @@ On IAssassin Larceny (Intel) [5]:
 
 On Petit Larceny:
 
-    % ./petit-larceny.bin -stopcopy -- src/Build/petit-larceny-heap.fasl
+    % ./petit-larceny.bin -stopcopy -- src/Build/petit-larceny-heap.sch
     > (exit)
 
-    % ./twobit.bin -stopcopy -- src/Build/petit-twobit-heap.fasl
+    % ./twobit.bin -stopcopy -- src/Build/petit-twobit-heap.sch
     > (exit)
 
 You can now run "./larceny" or "./twobit".
