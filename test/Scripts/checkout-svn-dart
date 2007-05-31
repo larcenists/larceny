@@ -2,6 +2,25 @@
 # vim: tw=0
 set -o errexit
 
+########################################################################
+##
+## This script is meant to be first symlinked to under a file name
+## indicating the host scheme and architecture, and then invoked in a
+## context with the following environment variables set: TRACK DARTLOG
+##
+## Here is a sample simple wrapper script meant to demonstrate how 
+## to first invoke this script, and then send the resulting dart log
+## to the dart server (uighur.ccs.neu.edu in this case)
+# 
+# LOGFILE=/home/henchman/build.`date +%F`.log
+# export TRACK="Nightly"
+# export DARTLOG="/home/henchman/larcenytest/dart-mznative-sub.xml"
+# /home/henchman/bin/checkout-larceny-linux86-native >> $LOGFILE 2>&1
+# java -jar /home/henchman/jars/DartClient.jar -s uighur.ccs.neu.edu dart $DARTLOG >> $LOGFILE 2>&1
+# cat $LOGFILE | mail -s "Nightly build log" pnkfelix@pnkfx.org
+#
+########################################################################
+
 # Override this variable to submit to other Dart tracks.
 TRACK=${TRACK:-"Experimental"}
 
