@@ -258,7 +258,7 @@
     (if (null? rest)
 	(make-bytevector x)
         (let ((bv (make-bytevector x)))
-          (bytevector-fill! x (car rest))
+          (bytevector-fill! bv (car rest))
           bv))))
 (define bytevector-ref (lambda (x y) (bytevector-ref x y)))
 (define bytevector-set! (lambda (x y z) (bytevector-set! x y z)))

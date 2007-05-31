@@ -1,5 +1,5 @@
 Building Larceny
-6 November 2006
+31 May 2007
 
 WHAT YOU NEED
 
@@ -19,11 +19,12 @@ Building Larceny has three major steps:
 
 1. Get the Larceny development environment working.
 
-Run your host Scheme (either another Larceny or MzScheme 209), and
+Run your host Scheme (either another Larceny or MzScheme 3xx), and
 change to the root directory of the Larceny tree.
 
     > (load "setup.sch")
-    > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'sassy ])
+    > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'sassy ]
+             'string-rep: ${STREP})
     > (build-config-files)              ; [3]
     > (load-compiler)
 
@@ -32,13 +33,19 @@ declare which implementation of Scheme you want to use for
 the build process (SCHEME) and which OS you are using as
 both the host and target of the build (HOST):
 
-        SCHEME ::= 'mzscheme | 'larceny | 'petite | 'chez
-        HOST   ::= 'macosx | 'macosx-el | 'solaris | 'linux86 | 'win32
+        SCHEME      ::= 'mzscheme | 'larceny | 'petite | 'chez
+        HOST        ::= 'macosx | 'macosx-el | 'solaris | 'linux86 | 'win32
+        STRING-REP  ::= 'flat4
 
 The HOST option macosx-el is for Intel-based Macintosh computers.
 
-Additionally, the optional 'native flag will build native Larceny
-(SPARC) on Solaris; 'sassy will build native Larceny (x86-32) on
+The STRING-REP option determines the representation used
+for strings.  The flat4 representation is the only one that
+works at the moment, but at least one other representation
+will be supported in the future.
+
+The optional 'native flag will build native Larceny (SPARC)
+on Solaris; 'sassy will build native Larceny (x86-32) on
 Linux, Windows, or Mac OS X.
 
 The 'sassy flag is necessary if you want to use dynamic loading
@@ -47,14 +54,17 @@ There are several other optional flags that change the compiler's
 behavior [4].
 
 Some useful examples which are known to work:
-                                                         ; to build:
-    > (setup 'scheme: 'larceny  'host: 'solaris 'native) ; native Larceny
-    > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy)    ; native Larceny
-    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy)  ; native Larceny
-    > (setup 'scheme: 'mzscheme 'host: 'macosx-el 'sassy); native Larceny
-    > (setup 'scheme: 'mzscheme 'host: 'linux86)         ; Petit Larceny
-    > (setup 'scheme: 'larceny  'host: 'solaris)         ; Petit Larceny
-    > (setup 'scheme: 'mzscheme 'host: 'macosx)          ; Petit Larceny
+
+To build native Larceny:
+    > (setup 'scheme: 'larceny  'host: 'solaris 'native 'string-rep 'flat4)
+    > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy 'string-rep 'flat4)
+    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep 'flat4)
+    > (setup 'scheme: 'mzscheme 'host: 'macosx-el 'sassy 'string-rep 'flat4)
+
+To build Petit Larceny:
+    > (setup 'scheme: 'mzscheme 'host: 'linux86 'string-rep 'flat4)
+    > (setup 'scheme: 'larceny  'host: 'solaris 'string-rep 'flat4)
+    > (setup 'scheme: 'mzscheme 'host: 'macosx 'string-rep 'flat4)
 
 
 2. Build Larceny components

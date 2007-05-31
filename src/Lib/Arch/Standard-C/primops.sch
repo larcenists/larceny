@@ -255,7 +255,13 @@
 
 (define bytevector? (lambda (x) (bytevector? x)))
 (define bytevector-length (lambda (x) (bytevector-length x)))
-(define make-bytevector (lambda (x) (make-bytevector x)))
+(define make-bytevector
+  (lambda (x . rest) 
+    (if (null? rest)
+	(make-bytevector x)
+        (let ((bv (make-bytevector x)))
+          (bytevector-fill! bv (car rest))
+          bv))))
 (define bytevector-ref (lambda (x y) (bytevector-ref x y)))
 (define bytevector-set! (lambda (x y z) (bytevector-set! x y z)))
 (define bytevector-fill! (lambda (x y) (bytevector-fill! x y)))
