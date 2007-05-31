@@ -55,5 +55,7 @@
 (define syscall:chdir 44)
 (define syscall:cwd 45)
 (define syscall:setenv 46)
+(define syscall:errno 47)
+(define syscall:seterrno 48)
 
 ; eof
