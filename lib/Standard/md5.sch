@@ -236,7 +236,12 @@
   ;; step1 : (list byte) -> (list byte)
 
   (define (step1 message)
-    (let ((zero-bits-to-append (modulo (- 448 (* 8 (length message))) 512)))
+    (let* ((zero-bits-to-append (modulo (- 448 (* 8 (length message))) 512))
+           ;; According to rfc1321, we're supposed to always pad the one bit,
+           ;; (even when the input is already congruent).
+           (zero-bits-to-append (if (= 0 zero-bits-to-append)
+                                    512
+                                    zero-bits-to-append)))
       (append message 
 	      (cons #x80		; The byte containing the 1 bit => one less 
 					; 0 byte to append 
