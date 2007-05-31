@@ -87,19 +87,19 @@ the host Scheme back to your command shell.
 
 On Native Larceny (SPARC):
 
-    % ./larceny.bin -stopcopy -- src/Build/sparc-larceny-heap.sch
+    % ./larceny.bin -stopcopy -- src/Build/sparc-larceny-heap.fasl
     > (exit)
 
-    % ./larceny.bin -stopcopy -- src/Build/sparc-twobit-heap.sch
+    % ./larceny.bin -stopcopy -- src/Build/sparc-twobit-heap.fasl
     > (exit)
     % cp larceny twobit
 
 On IAssassin Larceny (Intel) [5]:
 
-    % "./larceny.bin" -stopcopy -- src/Build/iasn-larceny-heap.sch
+    % "./larceny.bin" -stopcopy -- src/Build/iasn-larceny-heap.fasl
     > (exit)
 
-    % "./larceny.bin" -stopcopy -- src/Build/iasn-twobit-heap.sch
+    % "./larceny.bin" -stopcopy -- src/Build/iasn-twobit-heap.fasl
     > (exit)
 
   On *NIX:
@@ -110,14 +110,10 @@ On IAssassin Larceny (Intel) [5]:
 
 On Petit Larceny:
 
-    % ./petit-larceny.bin -stopcopy
-    > (load "setup.sch")
-    > (setup)
-    > (load-compiler)
-    > (load "src/Build/petit-larceny-heap.sch")
+    % ./petit-larceny.bin -stopcopy -- src/Build/petit-larceny-heap.fasl
     > (exit)
 
-    % ./twobit.bin -stopcopy -- src/Build/petit-twobit-heap.sch
+    % ./twobit.bin -stopcopy -- src/Build/petit-twobit-heap.fasl
     > (exit)
 
 You can now run "./larceny" or "./twobit".
