@@ -5,7 +5,7 @@ WHAT YOU NEED
 
 If you want to recompile the Scheme sources entirely from
 source, you will need a Scheme system to host the Larceny
-build process: either MzScheme 209 or Larceny itself [1].
+build process: either MzScheme 3xx or Larceny itself [1].
 See README-FIRST.txt for more details.
 
 If you want to build Larceny or Petit Larceny entirely from
@@ -126,10 +126,9 @@ You can now run "./larceny" or "./twobit".
 NOTES
 
 [1] For the build process, we recommend using a prebuilt version of
-Larceny itself.  You can also use MzScheme 209.  MzScheme 3xx will be
-fully supported in a later release; MzScheme 352.8 with the -G switch
-might work.  Use (Petite) Chez at your own risk.  In the past, several
-other implementations of Scheme could be used for the build process, but
+Larceny itself.  You can also use MzScheme (version 360 recommended).
+Use (Petite) Chez at your own risk.  In the past, several other
+implementations of Scheme could be used for the build process, but
 they haven't been tested lately and aren't likely to work any more.
 
 [2] http://sourceforge.net/projects/nasm
