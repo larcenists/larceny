@@ -83,7 +83,8 @@
                (errcode (stat filename stat-results)))
           (cond ((zero? errcode)
                  stat-results)
-                (error 'stat ": something went wrong: " errcode))))
+                (else
+                 (error 'stat ": something went wrong: " errcode)))))
       (define (stat-alist filename)
         (let ((stat-results (stat-bytes filename)))
           (map (lambda (name get offset) (list name (get stat-results offset)))
