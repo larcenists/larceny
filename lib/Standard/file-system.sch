@@ -26,7 +26,7 @@
 	    (else
 	     (> (vector-ref t1 i) (vector-ref t2 i)))))))
 
-(define stat-alist
+(define-values (stat-alist file-directory? file-length)
   (let ()
     (define-c-info 
       (include<> "sys/stat.h") 
@@ -43,12 +43,21 @@
               (*st_rdev_offs*  "st_rdev")  (*st_size_offs*    "st_size")
               (*st_atime_offs* "st_atime") (*st_mtime_offs*   "st_mtime")
               (*st_ctime_offs* "st_ctime") (*st_blksize_offs* "st_blksize")
-              (*st_blocks*     "st_blocks")))
+              (*st_blocks*     "st_blocks"))
+      (const s_ifmt  uint "S_IFMT")
+      (const s_ifblk uint "S_IFBLK")
+      (const s_ifchr uint "S_IFCHR")
+      (const s_ififo uint "S_IFIFO")
+      (const s_ifreg uint "S_IFREG")
+      (const s_ifdir uint "S_IFDIR")
+      (const s_iflnk uint "S_IFLNK"))
     (define stat ;; XXX consider grabbing the impl from unix.sch
       (cond-expand 
        (linux 
         (let ((xstat (foreign-procedure "__xstat" '(int string boxed) 'int)))
-          (lambda (name buf) (xstat 0 name buf))))
+          (define-c-info (include<> "sys/stat.h") 
+            (const stat_ver int "_STAT_VER"))
+          (lambda (name buf) (xstat stat_ver name buf))))
        (else 
         (foreign-procedure "stat" '(string boxed) 'int))))
     (let* ((names 
@@ -63,22 +72,31 @@
                   uid-t-sz         gid-t-sz         dev-t-sz         off-t-sz
                   time-t-sz        time-t-sz        time-t-sz        blksize-t-sz
                   blkcnt-t-sz))
-           (getters (map (lambda (n) 
+           (size->getter (lambda (n) 
                            (case n 
                              ((1) %get8) ((2) %get16) ((4) %get32) ((8) %get64)
-                             (else (error 'stat-alist-definition "Unhandled size for getters"))))
-                         sizes)))
-      (lambda (filename)
+                             (else (error 'stat-alist-definition 
+                                          "Unhandled size for getters")))))
+           (getters (map size->getter sizes)))
+      (define (stat-bytes filename)
         (let* ((stat-results (make-bytevector struct-stat-sz))
                (errcode (stat filename stat-results)))
           (cond ((zero? errcode)
-                 (map (lambda (name get offset) (list name (get stat-results offset)))
-                      names getters offsets))
-                (else
-                 (error 'stat-alist ": something went wrong: "  errcode))))))))
-
-(define (file-length filename)
-  (cadr (assq 'size (stat-alist filename))))
+                 stat-results)
+                (error 'stat ": something went wrong: " errcode))))
+      (define (stat-alist filename)
+        (let ((stat-results (stat-bytes filename)))
+          (map (lambda (name get offset) (list name (get stat-results offset)))
+               names getters offsets)))
+      (define (file-directory? filename)
+        (let* ((stat-results (stat-bytes filename))
+               (mode ((size->getter mode-t-sz)
+                      stat-results *st_mode_offs*)))
+          (not (zero? (fxlogand mode s_ifdir)))))
+      (define (file-length filename)
+        (let* ((stat-results (stat-bytes filename)))
+          ((size->getter off-t-sz) stat-results *st_size_offs*)))
+      (values stat-alist file-directory? file-length))))
 
 ;;; XXX not thread-safe!  Consider using the _r variants where appropriate.
 ;;; (but at the moment define-c-info is even less robust than this is...)
