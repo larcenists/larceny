@@ -147,9 +147,52 @@
     (at-end tr (jmpli (%i 7) 8 (%g 0)))
     (at-end tr (restore)))
 
-  (define (iflush code)
-    (sys$codevector-iflush code))
+  (define iflush-machine-code
+    ;; Copied from src/Rts/Sparc/memory.s (and objdump -d of its object code)
+    '#vu8(
+     #x90 #x2a #x20 #x07 ;;	andn	%o0, 0x07, %o0		/* round start down to 8-boundary */
+     #x10 #x80 #x00 #x1a ;;	b	1f
+     #x92 #x2a #x60 #x07 ;;	andn	%o1, 0x07, %o1		/* ditto for end */
+     #x81 #xda #x20 #x08 ;; 0:	iflush	%o0+8
+     #x81 #xda #x20 #x10 ;;	iflush	%o0+16
+     #x81 #xda #x20 #x18 ;;	iflush	%o0+24
+     #x81 #xda #x20 #x20 ;;	iflush	%o0+32
+     #x81 #xda #x20 #x28 ;;	iflush	%o0+40
+     #x81 #xda #x20 #x30 ;;	iflush  %o0+48
+     #x81 #xda #x20 #x38 ;;	iflush	%o0+56
+     #x81 #xda #x20 #x40 ;;	iflush	%o0+64
+     #x81 #xda #x20 #x48 ;;	iflush	%o0+72
+     #x81 #xda #x20 #x50 ;;	iflush	%o0+80
+     #x81 #xda #x20 #x58 ;;	iflush	%o0+88
+     #x81 #xda #x20 #x60 ;;	iflush	%o0+96
+     #x81 #xda #x20 #x68 ;;	iflush	%o0+104
+     #x81 #xda #x20 #x70 ;;	iflush	%o0+112
+     #x81 #xda #x20 #x78 ;;	iflush	%o0+120
+     #x81 #xda #x20 #x80 ;;	iflush	%o0+128
+     #x81 #xda #x20 #x88 ;;	iflush	%o0+136
+     #x81 #xda #x20 #x90 ;;	iflush	%o0+144
+     #x81 #xda #x20 #x98 ;;	iflush	%o0+152
+     #x81 #xda #x20 #xa0 ;;	iflush	%o0+160
+     #x81 #xda #x20 #xa8 ;;	iflush	%o0+168
+     #x81 #xda #x20 #xb0 ;;	iflush	%o0+176
+     #x81 #xda #x20 #xb8 ;;	iflush	%o0+184
+     #x90 #x02 #x20 #xc0 ;;	add	%o0, 192, %o0
+     #x80 #xa2 #x00 #x09 ;; 1:	cmp	%o0, %o1
+     #x06 #xbf #xff #xe7 ;;	blt	0b			/* no annull! */
+     #x81 #xda #x20 #x00 ;;	iflush	%o0+0			/* must be in slot */
+     #x81 #xc3 #xe0 #x08 ;;	retl
+     #x01 #x00 #x00 #x00 ;;	nop
+     ))
 
+  (define (iflush code)
+    (define abi ffi/SPARC-C-callback-stdabi)
+    (let* ((%o0 (+ 4 (syscall syscall:object->address code)))
+           (%o1 (+ %o0 (* (quotient (+ 3 (bytevector-length code)) 4) 4))))
+      (sys$c-ffi-apply iflush-machine-code
+                       (ffi/convert-arg-descriptor abi '(unsigned32 unsigned32))
+                       (ffi/convert-ret-descriptor abi 'void)
+                       (list %o0 %o1))))
+  
   ; Callout trampoline
   ;
   ; The callout uses the C calling conventions and implements the following
