@@ -14,7 +14,7 @@ set -o errexit
 # 
 # LOGFILE=/home/henchman/build.`date +%F`.log
 # export TRACK="Nightly"
-# export DARTLOG="/home/henchman/larcenytest/dart-mznative-sub.xml"
+# export DARTLOG="/home/henchman/larcenytest/dart-native-sub.xml"
 # /home/henchman/bin/checkout-larceny-linux86-native >> $LOGFILE 2>&1
 # java -jar /home/henchman/jars/DartClient.jar -s uighur.ccs.neu.edu dart $DARTLOG >> $LOGFILE 2>&1
 # cat $LOGFILE | mail -s "Nightly build log" pnkfelix@pnkfx.org
