@@ -191,18 +191,56 @@
                  ((char=? c #\")
                   (list->string (reverse l)))
                  ((char=? c #\\)
-                  (let ((c (tyi p)))
-                    (cond ((eq? c #\n) 
-                           (read-string (tyi p) p (cons #\newline l)))
-                          ((eq? c #\t)
-                           (read-string (tyi p) p (cons #\tab l)))
-                          ((char? c)
-                           (read-string (tyi p) p (cons c l)))
-                          (else
-                           (error "Unexpected end-of-file.")
-                           #t))))
+                  (let* ((c (tyi p))
+                         (c (case c
+                             ((#\a) (integer->char 7))
+                             ((#\b) (integer->char 8))
+                             ((#\t) (integer->char 9))
+                             ((#\n) (integer->char 10))
+                             ((#\v) (integer->char 11))
+                             ((#\f) (integer->char 12))
+                             ((#\r) (integer->char 13))
+                             ((#\" #\\ #\space) c)
+                            ;((#\newline) ???)        ; FIXME
+                             ((#\x)
+                              (read-hex-semicolon p))
+                             (else c))))
+                    (if (char? c)
+                        (read-string (tyi p) p (cons c l))
+                        (error "Unexpected end-of-file."))))
                  (else
                   (read-string (tyi p) p (cons c l))))))
+
+       ; Reads and consumes a nonempty sequence of hexadecimal digits,
+       ; terminated by a semicolon.  Returns the numerical value of
+       ; the hex digits.
+
+       (read-hex-semicolon
+         (lambda (p)
+           (define (loop result okay?)
+             (let ((c (tyi p)))
+               (case c
+                ((#\;)
+                 (if okay?
+                     (integer->char result)
+                     (error "Illegal \\x; in string or symbol.")))
+                ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+                 (loop (+ (* 16 result)
+                          (- (char->integer c) (char->integer #\0)))
+                       #t))
+                ((#\a #\b #\c #\d #\e #\f)
+                 (loop (+ (* 16 result)
+                          (- (char->integer c) (char->integer #\a))
+                          10)
+                       #t))
+                ((#\A #\B #\C #\D #\E #\F)
+                 (loop (+ (* 16 result)
+                          (- (char->integer c) (char->integer #\A))
+                          10)
+                       #t))
+                (else
+                 (error "Illegal \\x...; syntax in string or symbol.")))))
+           (loop 0 #f)))
 
        ; Opening vertical bar has been consumed.
        ; When first called, c is the first character of the symbol and has been

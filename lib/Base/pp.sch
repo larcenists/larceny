@@ -135,15 +135,44 @@
                  (out obj col)
                  (let loop ((i 0) (j 0) (col (out "\"" col)))
                    (if (and col (< j (string-length obj)))
-                       (let ((c (string-ref obj j)))
-                         (if (or (char=? c #\\)
-                                 (char=? c #\"))
-                             (loop j
-                                   (+ j 1)
-                                   (out "\\"
-                                        (out (substring obj i j)
-                                             col)))
-                             (loop i (+ j 1) col)))
+                       (let* ((c (string-ref obj j))
+                              (k (char->integer c)))
+                         (cond ((or (char=? c #\\)
+                                    (char=? c #\"))
+                                (loop j
+                                      (+ j 1)
+                                      (out "\\"
+                                           (out (substring obj i j)
+                                                col))))
+                               ((< k 32)
+                                (let ((col (out (substring obj i j) col))
+                                      (j+1 (+ j 1)))
+                                  (case k
+                                   ((7) (loop j+1 j+1 (out "\\a" col)))
+                                   ((8) (loop j+1 j+1 (out "\\b" col)))
+                                   ((9) (loop j+1 j+1 (out "\\t" col)))
+                                   ((10) (loop j+1 j+1 (out "\\n" col)))
+                                   ((11) (loop j+1 j+1 (out "\\v" col)))
+                                   ((12) (loop j+1 j+1 (out "\\f" col)))
+                                   ((13) (loop j+1 j+1 (out "\\r" col)))
+                                   (else
+                                    (let ((s (number->string k 16)))
+                                      (loop j+1
+                                            j+1
+                                            (out ";"
+                                                 (out s
+                                                      (out "\\x" col)))))))))
+                               ((< k 127)
+                                (loop i (+ j 1) col))
+                               (else
+                                (let ((col (out (substring obj i j) col))
+                                      (j+1 (+ j 1))
+                                      (s (number->string k 16)))
+                                  (loop j+1
+                                        j+1
+                                        (out ";"
+                                             (out s
+                                                  (out "\\x" col))))))))
                        (out "\""
                             (out (substring obj i j) col))))))
             ((char? obj) 

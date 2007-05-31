@@ -309,7 +309,7 @@
                  make-ustring ustring-length ustring-ref ustring-set!
                  list vector
                  cadddr cddddr cdddr caddr cddr cdar cadr caar
-                 make-vector make-string
+                 make-vector make-bytevector make-string
                  = < > <= >= + * - /
                  abs negative? positive?
                  eqv? memv assv memq
@@ -487,6 +487,11 @@
 
    ((_ larceny make-vector (make-vector ?n))
     (make-vector ?n '()))
+
+   ((_ larceny make-bytevector (make-bytevector ?n ?fill))
+    (let ((bv (make-bytevector ?n)))
+      (bytevector-fill! bv ?fill)
+      bv))
 
    ((_ larceny make-string (make-string ?n))
     (make-string ?n #\space))

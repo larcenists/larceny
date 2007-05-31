@@ -63,7 +63,9 @@
 			   (unquote . ",")
 			   (unquote-splicing . ",@")))
 
-  (define funny-characters (list #\" #\\ #\;))
+ ;FIXME: R6RS won't allow a backslash before semicolon
+ ;(define funny-characters (list #\" #\\ #\;))
+  (define funny-characters (list #\" #\\))
 
   (define ctrl-B (integer->char 2))
   (define ctrl-C (integer->char 3))
@@ -124,11 +126,29 @@
 
     (define (loop x p i n)
       (if (< i n)
-	  (let ((c (string-ref x i)))
-	    (if (memq c funny-characters)
-		(write-char #\\ p))
-	    (write-char c p)
-	    (loop x p (+ 1 i) n))))
+          (let* ((c (string-ref s i))
+                 (sv (char->integer c)))
+            (cond ((<= 32 sv 126)
+                   (if (or (char=? c #\\)
+                           (char=? c #\"))
+                       (write-char #\\ p))
+                   (write-char c p))
+                  (else
+                   (write-char #\\ p)
+                   (case sv
+                    ((7) (write-char #\a p))
+                    ((8) (write-char #\b p))
+                    ((9) (write-char #\t p))
+                    ((10) (write-char #\n p))
+                    ((11) (write-char #\v p))
+                    ((12) (write-char #\f p))
+                    ((13) (write-char #\r p))
+                    (else
+                     (let ((hexstring (number->string sv 16)))
+                       (write-char #\x p)
+                       (print-slashed-string hexstring p)
+                       (write-char #\; p))))))
+            (loop x p (+ i 1) n))))
 
     (loop s p 0 (string-length s)))
 
