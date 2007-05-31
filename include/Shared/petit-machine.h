@@ -63,7 +63,6 @@
 #define EX_VECTOR_LIKE_SET        EX_VLSET
 #define EX_VECTOR_LIKE_LENGTH     EX_VLLEN
 #define EX_MAKE_PROCEDURE         EX_MKVL
-#define EX_MAKE_STRING            EX_MKBVL   /* Hack, FIXME */
 
 /* End exception codes */
 
