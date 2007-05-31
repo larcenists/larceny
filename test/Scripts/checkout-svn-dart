@@ -383,6 +383,8 @@ EOF
 ## Library tests
 library_test bool       boolean
 library_test char       char
+library_test string     string
+library_test normalization normalization
 ## library_test complex
 library_test pred       predicate
 library_test number     number
@@ -390,6 +392,7 @@ library_test fact       fact
 library_test fib        fib
 library_test ctak       ctak
 ## library_test env       env
+library_test dynamic-wind dynamic-wind
 library_test regression regression
 library_test fixnums    fixnum
 library_test wcm        wcm
