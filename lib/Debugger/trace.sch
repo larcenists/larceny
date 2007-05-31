@@ -9,8 +9,8 @@
 ; (trace-exit <proc>)           Trace <proc> at exit
 ; (untrace <proc> ...)          Disable tracing for <procs>
 ; (untrace)                     Disable tracing for all traced <procs>
-; trace-entry-printer           Parameter (String Sexp [Listof Symbol] -> Unspecified)
-; trace-exit-printer            Parameter (String Sexp [Listof Symbol] [Listof Any] -> Unspecified)
+; trace-entry-printer           Parameter (String Sexp [Listof Any] -> Unspecified)
+; trace-exit-printer            Parameter (String Sexp [Listof Any] [Listof Any] -> Unspecified)
 ;
 ; (larceny-break)               Break at this point (a primitive)
 ; (break-entry <proc>)          Break on entry to <proc>
