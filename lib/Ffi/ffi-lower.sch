@@ -54,6 +54,9 @@
 	; be reentrant.  We can make it reentrant by passing a location
 	; to put the error info in.
 	(lambda ()
+          ;; XXX on Solaris/StdC, we really should be checking if
+          ;; tr-code's address has changed (e.g. due to GC) since the
+          ;; last time we flushed it, and if so, flush the code again.
 	  (let ((r (sys$c-ffi-apply (tr-code trampoline)
 				    arg-encoding
 				    ret-encoding
