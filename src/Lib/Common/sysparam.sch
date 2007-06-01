@@ -49,6 +49,16 @@
 	    ((16) 'ucs2)		; 2-byte unicode
 	    ((32) 'ucs4)		; 4-byte unicode
 	    (else 'unknown)))
+         (string-repr
+          (let ((s (make-string 1 #\space)))
+            (cond ((bytevector-like? s)
+                   (case (bytevector-like-length s)
+                    ((1) 'flat1)
+                    ((4) 'flat4)
+                    (else 'unknown)))
+                  ((vector-like? s)
+                   'unknown)
+                  (else 'unknown))))
 	 (gc-info
 	  (sys$system-feature 'gc-tech)))
     (list (cons 'larceny-major-version  (sys$system-feature 'larceny-major))
@@ -64,6 +74,7 @@
 	  (cons 'codevector-representation (sys$system-feature 'codevec))
 	  (cons 'char-bits              char-bits)
 	  (cons 'char-representation    char-repr)
+          (cons 'string-representation  string-repr)
 	  (cons 'flonum-bits            64)
 	  (cons 'flonum-representation  'ieee)
 	  (cons 'gc-technology          (car gc-info))

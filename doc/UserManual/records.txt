@@ -13,6 +13,20 @@ types are extensible, and that it specifies the type of record-type
 descriptors.
 ======================================================================
 
+[NOTE]
+======================================================================
+Larceny's records have been extended to implement all R6RS procedures
+from
+
+    (r6rs records procedural)
+    (r6rs records inspection)
+
+There are now two kinds of records: old-style and R6RS.  Old-style
+records cannot be created in R6RS-conforming mode, so our extension
+of R6RS procedures to accept old-style records does not affect R6RS
+conformance.
+======================================================================
+
 ==== Specification
 
 proc:make-record-type[args="type-name field-names",optargs="parent-rtd"]

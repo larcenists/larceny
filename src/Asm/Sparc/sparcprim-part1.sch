@@ -311,14 +311,14 @@
     (sparc.cmpi as $r.tmp0 $imm.character)
     (emit-set-boolean! as)))
 
-(define-primop 'string?
+(define flat1:string?
   (lambda (as)
     (emit-double-tagcheck->bool! as
 				 $tag.bytevector-tag
 				 (+ $imm.bytevector-header
 				    $tag.string-typetag))))
 
-(define-primop 'ustring?
+(define flat4:string?
   (lambda (as)
     (emit-double-tagcheck->bool! as
 				 $tag.bytevector-tag
@@ -597,7 +597,7 @@
 ; RESULT must have nonnegative fixnum.
 ; RS2 must have character.
 
-(define-primop 'make-string
+(define flat1:make-string
   (lambda (as rs2)
     (let ((FAULT (new-label))
 	  (START (new-label)))
@@ -631,27 +631,27 @@
 	(emit-bytevector-fill as $r.tmp0 $r.result $r.tmp1)
 	(sparc.addi as $r.result (- $tag.bytevector-tag 4) $r.result)))))
 
-(define-primop 'string-length
+(define flat1:string-length
   (lambda (as)
     (emit-primop.3arg! as 'internal:string-length $r.result $r.result)))
 
-(define-primop 'string-length:str
+(define flat1:string-length:str
   (lambda (as)
     (emit-get-length-trusted! as $tag.bytevector-tag $r.result $r.result)))
 
-(define-primop 'string-ref
+(define flat1:string-ref
   (lambda (as r)
     (emit-primop.4arg! as 'internal:string-ref $r.result r $r.result)))
 
-(define-primop 'string-ref:trusted
+(define flat1:string-ref:trusted
   (lambda (as rs2)
     (emit-bytevector-like-ref-trusted! as $r.result rs2 $r.result #t)))
 
-(define-primop 'string-set!
+(define flat1:string-set!
   (lambda (as r1 r2)
     (emit-string-set! as $r.result r1 r2)))
 
-(define-primop 'string-set!:trusted
+(define flat1:string-set!:trusted
   (lambda (as rs2 rs3)
     (emit-string-set-trusted! as $r.result rs2 rs3)))
 
@@ -660,7 +660,7 @@
 ; RESULT must have nonnegative fixnum.
 ; RS2 must have character.
 
-(define-primop 'make-ustring
+(define flat4:make-string
   (lambda (as rs2)
     (let ((FAULT (new-label))
 	  (START (new-label)))
@@ -706,7 +706,7 @@
 ;  (lambda (as)
 ;    (emit-primop.3arg! as 'internal:ustring-length $r.result $r.result)))
 
-(define-primop 'ustring-length:str
+(define flat4:string-length:str
   (lambda (as)
     (emit-get-length-trusted! as $tag.bytevector-tag $r.result $r.result)
     (sparc.srai               as $r.result 2 $r.result)))
@@ -715,7 +715,7 @@
 ;  (lambda (as r)
 ;    (emit-primop.4arg! as 'internal:ustring-ref $r.result r $r.result)))
 
-(define-primop 'ustring-ref:trusted
+(define flat4:string-ref:trusted
   (lambda (as rs2)
     (emit-primop.4arg! as 'internal:ustring-ref:trusted
                           $r.result rs2 $r.result)))
@@ -724,9 +724,36 @@
 ;  (lambda (as r1 r2)
 ;    (emit-ustring-set! as $r.result r1 r2)))
 
-(define-primop 'ustring-set!:trusted
+(define flat4:string-set!:trusted
   (lambda (as rs2 rs3)
     (emit-ustring-set-trusted! as $r.result rs2 rs3)))
+
+(let ((rep (nbuild-parameter 'target-string-rep)))
+  (case rep
+   ((flat1)
+    (define-primop 'string?              flat1:string?)
+    (define-primop 'make-string          flat1:make-string)
+    (define-primop 'string-length:str    flat1:string-length:str)
+    (define-primop 'string-ref:trusted   flat1:string-ref:trusted)
+    (define-primop 'string-set!:trusted  flat1:string-set!:trusted)
+    (define-primop 'ustring?             flat1:string?)
+    (define-primop 'make-ustring         flat1:make-string)
+    (define-primop 'ustring-length:str   flat1:string-length:str)
+    (define-primop 'ustring-ref:trusted  flat1:string-ref:trusted)
+    (define-primop 'ustring-set!:trusted flat1:string-set!:trusted))
+   ((flat4)
+    (define-primop 'string?              flat4:string?)
+    (define-primop 'make-string          flat4:make-string)
+    (define-primop 'string-length:str    flat4:string-length:str)
+    (define-primop 'string-ref:trusted   flat4:string-ref:trusted)
+    (define-primop 'string-set!:trusted  flat4:string-set!:trusted)
+    (define-primop 'ustring?             flat4:string?)
+    (define-primop 'make-ustring         flat4:make-string)
+    (define-primop 'ustring-length:str   flat4:string-length:str)
+    (define-primop 'ustring-ref:trusted  flat4:string-ref:trusted)
+    (define-primop 'ustring-set!:trusted flat4:string-set!:trusted))
+   (else
+    (error "Unrecognized string representation: " rep))))
 
 ;
 

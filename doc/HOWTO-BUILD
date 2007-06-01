@@ -1,5 +1,5 @@
 Building Larceny
-31 May 2007
+1 June 2007
 
 WHAT YOU NEED
 
@@ -35,14 +35,22 @@ both the host and target of the build (HOST):
 
         SCHEME      ::= 'mzscheme | 'larceny | 'petite | 'chez
         HOST        ::= 'macosx | 'macosx-el | 'solaris | 'linux86 | 'win32
-        STRING-REP  ::= 'flat4
+        STRING-REP  ::= 'flat4  |  'flat1
 
 The HOST option macosx-el is for Intel-based Macintosh computers.
 
 The STRING-REP option determines the representation used
-for strings.  The flat4 representation is the only one that
-works at the moment, but at least one other representation
-will be supported in the future.
+for strings.  The flat4 representation uses 4 bytes per
+character, is the default on all versions of Larceny, and
+is the only representation that can be used when building
+Common Larceny or Petit Larceny.  The flat1 representation
+of strings uses 1 byte per character, which limits it to
+strings of Latin-1 characters.  Native Larceny (SPARC or
+x86-32) can be built to use either the flat4 or flat1
+representations; be sure to perform a full build when
+switching from one representation to the other.  (In the
+future, we expect to support yet another representation
+of Unicode strings.)
 
 The optional 'native flag will build native Larceny (SPARC)
 on Solaris; 'sassy will build native Larceny (x86-32) on
@@ -56,15 +64,17 @@ behavior [4].
 Some useful examples which are known to work:
 
 To build native Larceny:
-    > (setup 'scheme: 'larceny  'host: 'solaris 'native 'string-rep 'flat4)
-    > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy 'string-rep 'flat4)
-    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep 'flat4)
-    > (setup 'scheme: 'mzscheme 'host: 'macosx-el 'sassy 'string-rep 'flat4)
+    > (setup 'scheme: 'larceny  'host: 'solaris 'native)
+    > (setup 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat1)
+    > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy)
+    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy)
+    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat1)
+    > (setup 'scheme: 'mzscheme 'host: 'macosx-el 'sassy)
 
 To build Petit Larceny:
-    > (setup 'scheme: 'mzscheme 'host: 'linux86 'string-rep 'flat4)
-    > (setup 'scheme: 'larceny  'host: 'solaris 'string-rep 'flat4)
-    > (setup 'scheme: 'mzscheme 'host: 'macosx 'string-rep 'flat4)
+    > (setup 'scheme: 'mzscheme 'host: 'linux86)
+    > (setup 'scheme: 'larceny  'host: 'solaris)
+    > (setup 'scheme: 'mzscheme 'host: 'macosx)
 
 
 2. Build Larceny components
@@ -165,7 +175,9 @@ the call to setup:
     'nasm
         Build a Petit Larceny which targets the NASM assembler (IA32)
         rather than Standard C.  This option is deprecated in favor of
-        the Sassy backend.
+        the Sassy backend; indeed, we suspect that it no longer builds
+        correctly now that we have added the string-rep: parameter to
+        setup.
 
 [5] The quotation marks around "./larceny.bin" are a uniform syntax that
 works on both Microsoft Windows and UNIX-like shells.  The reason is

@@ -363,11 +363,16 @@
                                    'nasm+gcc)
 			      #f))
 
-  (set! *target:string-rep* 
-        (or string-rep-choice
-            (and native (eq? target-arch 'solaris) 'flat4)
-            (and sassy 'flat4)
-            'flat1))
+  (set! *target:string-rep*
+        (case string-rep-choice
+         ((flat4 #f) 'flat4)
+         ((flat1) (if (or (and native (eq? target-arch 'solaris))
+                          sassy)
+                      'flat1
+                      (error "Unsuported architecture for flat1 string-rep: "
+                             target-arch)))
+         (else (error "Unsuported string representation: "
+                      string-rep-choice))))
   
   (if (or (eq? *target:machine* 'x86-nasm)
 	  (eq? *target:machine* 'x86-sass))
