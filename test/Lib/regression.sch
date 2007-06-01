@@ -232,6 +232,9 @@
    (test "Ticket #390"
          (* #x10000000 (- #x10))
          (- #x100000000))
+   (test "Ticket #424"                  ; Bug in IA32 Larceny 0.93
+         (bug-424-plus 4294967293)
+         (+ 1 4294967293))
    ))
 
 (define (bug-105-test1)
@@ -247,5 +250,8 @@
 
 (define (bug-107-datum)
   '(foobar))
+
+(define (bug-424-plus n)
+  (+ n 1))
 
 ; eof
