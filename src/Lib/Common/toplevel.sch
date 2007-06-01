@@ -397,8 +397,10 @@
   (environment-set! larc 'list-head list-head)
   (environment-set! larc 'list-set! list-set!)
   (environment-set! larc 'longer? longer?)
-  (environment-set! larc 'memf memf)
-  (environment-set! larc 'memf-not memf-not)
+  (environment-set! larc 'memp memp)
+  (environment-set! larc 'memp-not memp-not)
+  (environment-set! larc 'memf memp)            ; deprecated alias
+  (environment-set! larc 'memf-not memp-not)    ; deprecated alias
   (environment-set! larc 'position-of position-of)
   (environment-set! larc 'remove remove)
   (environment-set! larc 'remove! remove!)
@@ -406,8 +408,8 @@
   (environment-set! larc 'remq! remq!)
   (environment-set! larc 'remv remv)
   (environment-set! larc 'remv! remv!)
-  (environment-set! larc 'remf remf)
-  (environment-set! larc 'remf! remf!)
+  (environment-set! larc 'remp remp)
+  (environment-set! larc 'remp! remp!)
   (environment-set! larc 'revappend revappend)
   (environment-set! larc 'revappend! revappend!)
   (environment-set! larc 'reverse! reverse!)

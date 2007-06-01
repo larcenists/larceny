@@ -515,28 +515,28 @@
         ((null? list) #f)
         (else (error "memq: Improper list " list))))
 
-(define (memf pred list)
+(define (memp pred list)
   (cond ((pair? list) (if (pred (car list))
                           list
-                          (memf pred (cdr list))))
+                          (memp pred (cdr list))))
         ((null? list) #f)
-        (else (error "memf: Improper list " list))))
+        (else (error "memp: Improper list " list))))
 
-(define (memf-not pred list)
+(define (memp-not pred list)
   (cond ((pair? list) (if (pred (car list))
-                          (memf pred (cdr list))
+                          (memp pred (cdr list))
                           list))
         ((null? list) #f)
-        (else (error "memf-not: Improper list " list))))
+        (else (error "memp-not: Improper list " list))))
 
 (define (find-if pred list)
-  (let ((tail (memf pred list)))
+  (let ((tail (memp pred list)))
     (if (pair? tail)
         (car tail)
         #f)))
 
 (define (find-if-not pred list)
-  (let ((tail (memf-not pred list)))
+  (let ((tail (memp-not pred list)))
     (if (pair? tail)
         (car tail)
         #f)))
@@ -615,10 +615,10 @@
 	((eq? x (car l)) (remq x (cdr l)))
 	(else (cons (car l) (remq x (cdr l))))))
 
-(define (remf pred? l)
+(define (remp pred? l)
   (cond ((not (pair? l)) l)
-        ((pred? (car l)) (remf pred? (cdr l)))
-        (else (cons (car l) (remf pred? (cdr l))))))
+        ((pred? (car l)) (remp pred? (cdr l)))
+        (else (cons (car l) (remp pred? (cdr l))))))
 
 (define (remq! key list)
   (cond ((null? list) list)
@@ -628,12 +628,12 @@
 	 (set-cdr! list (remq! key (cdr list)))
 	 list)))
 
-(define (remf! pred? list)
+(define (remp! pred? list)
   (cond ((null? list) list)
 	((pred? (car list))
-	 (remf! pred? (cdr list)))
+	 (remp! pred? (cdr list)))
 	(else
-	 (set-cdr! list (remf! pred? (cdr list)))
+	 (set-cdr! list (remp! pred? (cdr list)))
 	 list)))
 
 (define (remv! key list)

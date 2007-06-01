@@ -1121,7 +1121,7 @@
                    ;; Remove the duplicates from the less specific classes
                    (foldl
                     (lambda (initarg initlist)
-                      (if (memf (lambda (already-seen)
+                      (if (memp (lambda (already-seen)
                                   (eq? (car initarg) (car already-seen)))
                                 initlist)
                           initlist

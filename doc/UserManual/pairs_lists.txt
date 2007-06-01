@@ -28,7 +28,7 @@ list-copy makes a shallow copy of the _list_ and returns that copy.
 proc:remove[args="key list",result="list"]
 proc:remq[args="key list",result="list"]
 proc:remv[args="key list",result="list"]
-proc:remf[args="pred? list",result="list"]
+proc:remp[args="pred? list",result="list"]
 
 Each of these procedures returns a new list which contains all the
 elements of _list_ in the original order, except that those elements of
@@ -39,9 +39,9 @@ remq uses eq?, and remv uses eqv?.
 proc:remove![args="key list",result="list"]
 proc:remq![args="key list",result="list"]
 proc:remv![args="key list",result="list"]
-proc:remf![args="pred? list",result="list"]
+proc:remp![args="pred? list",result="list"]
 
-These procedures are like remove, remq, remv, and remf, except that they
+These procedures are like remove, remq, remv, and remp, except that they
 modify _list_ instead of returning a fresh list.
 
 proc:reverse![args="list",result="list"]

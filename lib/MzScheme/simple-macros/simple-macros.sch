@@ -1903,8 +1903,8 @@
                          map-in-order
                          max
                          member
-                         memf
-                         memf-not
+                         memp
+                         memp-not
                          memq
                          memstats
                          memstats-acc-assimilate-gc

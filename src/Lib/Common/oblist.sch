@@ -115,7 +115,7 @@
 	     #t)
       (call-without-interrupts
 	(lambda ()
-	  (symbol.proplist! sym (remf (lambda (pair) (eq? name (car pair)))
+	  (symbol.proplist! sym (remp (lambda (pair) (eq? name (car pair)))
                                       (symbol.proplist sym)))))))
 
 
