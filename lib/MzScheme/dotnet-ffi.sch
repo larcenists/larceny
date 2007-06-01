@@ -88,6 +88,7 @@
 ;(define-syscall clr/%void->foreign         34 19 9)
 (define-syscall clr/%flonum->foreign-single 34 19 10)
 (define-syscall clr/%flonum->foreign-double 34 19 11)
+(define-syscall clr/%char->foreign          34 19 12)
 
 (define-syscall clr/%foreign->object        34 20 0)
 (define-syscall clr/%foreign->schemeobject  34 20 1)
@@ -178,6 +179,7 @@
 (define (clr/bool->foreign   obj) (if obj clr/true clr/false))
 (define (clr/flonum->foreign-double obj) (clr/%flonum->foreign-double obj))
 (define (clr/flonum->foreign-single obj) (clr/%flonum->foreign-single obj))
+(define (clr/char->foreign   obj) (clr/%char->foreign obj))
 (define (clr/int->foreign    obj) (clr/%number->foreign-int32 obj))
 (define (clr/string->foreign obj) (clr/%string->foreign obj))
 (define (clr/symbol->foreign obj) (clr/%string->foreign (symbol->string obj)))
@@ -204,6 +206,7 @@
 (define-ffi-predicate %clr-array?      clr-type-handle/system-array)
 (define-ffi-predicate %clr-double?     clr-type-handle/system-double)
 (define-ffi-predicate %clr-enum?       clr-type-handle/system-enum)
+(define-ffi-predicate %clr-char?       clr-type-handle/system-char)
 (define-ffi-predicate %clr-int32?      clr-type-handle/system-int32)
 (define-ffi-predicate %clr-single?     clr-type-handle/system-single)
 (define-ffi-predicate %clr-string?     clr-type-handle/system-string)

@@ -143,6 +143,7 @@
         clr/foreign-double->flonum
         clr/foreign-single->flonum
         clr/int->foreign
+        clr/char->foreign
         clr/null
         clr/null?
         clr/parse-enum
@@ -203,6 +204,7 @@
         %clr-array?
         %clr-double?
         %clr-enum?
+        %clr-char?
         %clr-int32?
         %clr-single?
         %clr-string?

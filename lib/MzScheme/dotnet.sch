@@ -624,6 +624,7 @@
          (list->vector (map-clr-array clr/default-marshal-in object)))
         ((%clr-double? object) (clr/%foreign-double->flonum object))
         ((%clr-enum? object) (clr/%foreign->int object))
+        ((%clr-char? object) (clr/foreign->char object))
         ((%clr-int32? object) (clr/%foreign->int object))
         ((%clr-single? object) (clr/%foreign-single->flonum object))
         ((%clr-string? object) (clr/foreign->string object))
@@ -825,6 +826,14 @@
                   <flonum>
                   <exact-integer>
                   <string>))
+
+  (let ((char-class (clr-object->class clr-type-handle/system-char)))
+    (slot-set! char-class 'argument-marshaler clr/char->foreign)
+    (slot-set! char-class 'return-marshaler
+               (lambda (thing)
+                 (if (clr/%null? thing)
+                     #f
+                     (clr/foreign->char thing)))))
 
   (let ((int-class (clr-object->class clr-type-handle/system-int32)))
     (slot-set! int-class 'argument-marshaler clr/int->foreign)

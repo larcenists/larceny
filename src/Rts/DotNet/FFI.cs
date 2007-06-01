@@ -677,6 +677,11 @@ namespace Scheme.RT
                         return Factory.makeForeignBox((double)((SByteVL)obj).unsafeAsDouble(0));
                     }
 
+                case 12:
+                    {
+                        return Factory.makeForeignBox((Char)((SChar)obj).val);
+                    }
+
 #if NEVER
 
                 case 0: // object
