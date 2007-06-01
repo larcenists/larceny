@@ -540,7 +540,8 @@
               ((fixnum?)      'internal:check-fixnum?)
               ((pair?)        'internal:check-pair?)
               ((vector?)      'internal:check-vector?)
-;FIXME        ((string?)      'internal:check-string?)
+              ((string?)      'internal:check-string?)    ;FIXME
+              ((ustring?)     'internal:check-ustring?)   ;FIXME
               (else #f))))
     (if op
         (as-source! as

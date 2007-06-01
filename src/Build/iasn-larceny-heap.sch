@@ -27,7 +27,8 @@
 (let ()
     
   (load "setup.sch")
-  (setup 'sassy)
+  (setup 'sassy
+         'string-rep: (cdr (assq 'string-representation (system-features))))
   (load-compiler 'release)
   (compat:load (param-filename 'common-asm "link-lop.fasl"))
 

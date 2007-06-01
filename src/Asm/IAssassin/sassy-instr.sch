@@ -1759,7 +1759,8 @@
              ((140 char>?) ia86.t_op2imm_140) 
              ((141 char>=?) ia86.t_op2imm_141) 
              ((142 string-ref) ia86.t_op2imm_142) 
-             ((    ustring-ref:trusted) ia86.t_op2imm_ustring-ref:trusted)
+            ; FIXME: should recognize immediate operands
+            ;((    ustring-ref:trusted) ia86.t_op2imm_ustring-ref:trusted)
              ((143 vector-ref) ia86.t_op2imm_143) 
              ((144 bytevector-ref) ia86.t_op2imm_144)
              ((145 bytevector-like-ref) ia86.t_op2imm_145)
@@ -1835,6 +1836,7 @@
              ((internal:check-pair?)   ia86.t_reg_op1_check_pair?)
              ((internal:check-vector?) ia86.t_reg_op1_check_vector?)
              ((internal:check-string?) ia86.t_reg_op1_check_string?)
+             ((internal:check-ustring?) ia86.t_reg_op1_check_ustring?)
              (else (error 'ia86.t_reg_op1_check op)))))
     (f rs l)))
 
@@ -2104,25 +2106,112 @@
   `(shl	,$r.result 6)
   `(or	,$r.result.low ,$imm.character))
 
-(define-sassy-instr (ia86.t_op1_39)		; string?
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; The machine code to be generated for string primops
+;;; depends on the representation of strings.
+;;; The representations currently supported are flat4 and flat1.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-sassy-instr (flat1:string?)
   (ia86.double_tag_predicate $tag.bytevector-tag $hdr.string))
 
-(define-sassy-instr (ia86.t_op1_40)		; string-length
-  (ia86.indexed_structure_length/hdr $tag.bytevector-tag $hdr.string $ex.slen #t))
+(define-sassy-instr (flat1:make-string regno)
+  ;; exception code wrong, matches Sparc
+  (ia86.make_indexed_structure_byte regno $hdr.string  $ex.mkbvl))
 
-(define-sassy-instr (ia86.t_op2_make-ustring regno)	; make-ustring
+(define-sassy-instr (flat1:string-length:str)
+  (ia86.indexed_structure_length/hdr
+   $tag.bytevector-tag $hdr.string $ex.slen #t))
+
+(define-sassy-instr (flat1:string-ref:trusted regno)
+  (ia86.indexed_structure_ref/hdr
+   regno $tag.bytevector-tag  $hdr.string  $ex.sref #t)
+  `(shl	,$r.result ,$bitwidth.char-shift)
+  `(or	,$r.result.low ,$imm.character))
+
+(define-sassy-instr (flat1:string-set!:trusted regno y)
+  (ia86.indexed_structure_set_char
+   regno y  $tag.bytevector-tag  $hdr.string  $ex.sset))
+
+(define-sassy-instr (flat1:reg_op1_check_string? rs l)
+  (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.string)
+  `(jne ,(t_label l)))
+
+(define-sassy-instr (flat4:string?)
+  (ia86.double_tag_predicate
+   $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag)))
+
+(define-sassy-instr (flat4:make-string regno)
   ;; FIXME: exception code wrong, but matches Sparc
   (ia86.make_indexed_structure_word
        regno $tag.bytevector-tag
        (+ $imm.bytevector-header $tag.ustring-typetag)
        $ex.mkbvl))
 
-(define-sassy-instr (ia86.t_op1_ustring?)       ; ustring?
-  (ia86.double_tag_predicate $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag)))
-
-(define-sassy-instr (ia86.t_op1_ustring-length:str) ; ustring-length:str
+(define-sassy-instr (flat4:string-length:str)
   `(mov	,$r.result (& ,$r.result ,(- $tag.bytevector-tag)))
   `(shr	,$r.result 8))
+
+(define-sassy-instr (flat4:string-ref:trusted regno)
+  (ia86.load_from_indexed_structure regno $tag.bytevector-tag #f))
+
+(define-sassy-instr (flat4:string-set!:trusted regno y)
+  (ia86.do_indexed_structure_set_word:nwb $r.result
+                                          regno y $tag.bytevector-tag))
+
+(define-sassy-instr (flat4:reg_op1_check_string? rs l)
+  (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.ustring)
+  `(jne ,(t_label l)))
+
+(define ia86.t_op1_39                   flat1:string?)
+(define ia86.t_op2_109                  flat1:make-string)
+(define ia86.t_op1_40                   flat1:string-length:str)
+(define ia86.t_op2_78                   flat1:string-ref:trusted)
+(define ia86.t_op3_79                   flat1:string-set!:trusted)
+(define ia86.t_reg_op1_check_string?    flat1:reg_op1_check_string?)
+(define ia86.t_op1_ustring?             flat1:string?)
+(define ia86.t_op2_make-ustring         flat1:make-string)
+(define ia86.t_op1_ustring-length:str   flat1:string-length:str)
+(define ia86.t_op2_ustring-ref:trusted  flat1:string-ref:trusted)
+(define ia86.t_op3_ustring-set!:trusted flat1:string-set!:trusted)
+(define ia86.t_reg_op1_check_ustring?   flat1:reg_op1_check_string?)
+
+(let ((rep (nbuild-parameter 'target-string-rep)))
+  (case rep
+   ((flat1)
+    (set! ia86.t_op1_39                   flat1:string?)
+    (set! ia86.t_op2_109                  flat1:make-string)
+    (set! ia86.t_op1_40                   flat1:string-length:str)
+    (set! ia86.t_op2_78                   flat1:string-ref:trusted)
+    (set! ia86.t_op3_79                   flat1:string-set!:trusted)
+    (set! ia86.t_op1_ustring?             flat1:string?)
+    (set! ia86.t_op2_make-ustring         flat1:make-string)
+    (set! ia86.t_op1_ustring-length:str   flat1:string-length:str)
+    (set! ia86.t_op2_ustring-ref:trusted  flat1:string-ref:trusted)
+    (set! ia86.t_op3_ustring-set!:trusted flat1:string-set!:trusted)
+    (set! ia86.t_reg_op1_check_ustring?   flat1:reg_op1_check_string?))
+   ((flat4)
+    (set! ia86.t_op1_39                   flat4:string?)
+    (set! ia86.t_op2_109                  flat4:make-string)
+    (set! ia86.t_op1_40                   flat4:string-length:str)
+    (set! ia86.t_op2_78                   flat4:string-ref:trusted)
+    (set! ia86.t_op3_79                   flat4:string-set!:trusted)
+    (set! ia86.t_op1_ustring?             flat4:string?)
+    (set! ia86.t_op2_make-ustring         flat4:make-string)
+    (set! ia86.t_op1_ustring-length:str   flat4:string-length:str)
+    (set! ia86.t_op2_ustring-ref:trusted  flat4:string-ref:trusted)
+    (set! ia86.t_op3_ustring-set!:trusted flat4:string-set!:trusted)
+    (set! ia86.t_reg_op1_check_ustring?   flat4:reg_op1_check_string?))
+   (else
+    (error "Unrecognized string representation: " rep))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; End of string primops.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-sassy-instr (ia86.t_op1_41)		; vector?
   (ia86.double_tag_predicate $tag.vector-tag $hdr.vector))
@@ -2393,22 +2482,6 @@
 (define-sassy-instr (ia86.t_op2_77 regno)		; rot
   (error 't_op2_rot "not implemented"))
 
-(define-sassy-instr (ia86.t_op2_78 regno)		; string-ref
-  (ia86.indexed_structure_ref/hdr regno $tag.bytevector-tag  $hdr.string  $ex.sref #t)
-  `(shl	,$r.result ,$bitwidth.char-shift)
-  `(or	,$r.result.low ,$imm.character))
-
-(define-sassy-instr (ia86.t_op3_79 regno y)		; string-set!
-  (ia86.indexed_structure_set_char regno y  $tag.bytevector-tag  $hdr.string  $ex.sset))
-
-(define-sassy-instr (ia86.t_op2_ustring-ref:trusted regno) ; ustring-ref:trusted
-  (ia86.load_from_indexed_structure regno $tag.bytevector-tag #f))
-
-(define-sassy-instr (ia86.t_op3_ustring-set!:trusted regno y)
-                                                        ; ustring-set!:trusted
-  (ia86.do_indexed_structure_set_word:nwb $r.result
-                                          regno y $tag.bytevector-tag))
-
 (define-sassy-instr (ia86.t_op2_80 regno)		; make-vector
   (ia86.make_indexed_structure_word regno $tag.vector-tag  $hdr.vector  $ex.mkvl))
 
@@ -2512,10 +2585,6 @@
 
 (define-sassy-instr (ia86.t_op1_108)		; gc-counter
   `(mov	,$r.result (& ,$r.globals ,$g.gccnt)))
-
-(define-sassy-instr (ia86.t_op2_109 regno)		; make-string
-  ;; exception code wrong, matches Sparc
-  (ia86.make_indexed_structure_byte regno $hdr.string  $ex.mkbvl))
 
 (define-sassy-instr (ia86.t_op2imm_128 imm)		; typetag-set!
   (ia86.const2regf $r.second imm)
@@ -3132,10 +3201,6 @@
 
 (define-sassy-instr (ia86.t_reg_op1_check_vector? rs l)
   (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.vector)
-  `(jne ,(t_label l)))
-
-(define-sassy-instr (ia86.t_reg_op1_check_string? rs l)
-  (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.string)
   `(jne ,(t_label l)))
 
 ;; "Reflective ops"; processor level performance measurement.

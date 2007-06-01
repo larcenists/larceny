@@ -10,7 +10,8 @@
 ; the standard development environment.
 
 (load "setup.sch")
-(setup 'native)
+(setup 'native
+       'string-rep: (cdr (assq 'string-representation (system-features))))
 (load-compiler)
 
 (compat:load (param-filename 'debugger "debug.sch"))

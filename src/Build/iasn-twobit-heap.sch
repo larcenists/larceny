@@ -9,7 +9,8 @@
 ; the standard development environment.
 
 (load "setup.sch")
-(setup 'sassy)
+(setup 'sassy
+       'string-rep: (cdr (assq 'string-representation (system-features))))
 (load-compiler)
 
 (compat:load (param-filename 'debugger "debug.fasl"))
