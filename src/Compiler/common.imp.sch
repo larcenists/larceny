@@ -388,6 +388,7 @@
       (.check! (string? v) ,$ex.sset v i x)
       (.check! (.<:fix:fix i (.string-length:str v)) ,$ex.sset v i x)
       (.check! (.>=:fix:fix i 0) ,$ex.sset v i x)
+      (.check! (.char? x) ,$ex.sset v i x)
       (.string-set!:trusted v i x)))
    
    ((_ larceny make-ustring (make-ustring ?n))
@@ -415,7 +416,7 @@
       (.check! (ustring? v) ,$ex.sset v i x)
       (.check! (.<:fix:fix i (.ustring-length:str v)) ,$ex.sset v i x)
       (.check! (.>=:fix:fix i 0) ,$ex.sset v i x)
-      (.check! (char? x) ,$ex.sset v i x)
+      (.check! (.char? x) ,$ex.sset v i x)
       (.ustring-set!:trusted v i x)))
    
 ; This transformation must make sure the entire list is freshly
