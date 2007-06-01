@@ -172,7 +172,7 @@
                | (arg1.elements)[(this.value << 2) + 3]);
           }
           catch (Exception) {
-            Exn.fault(Constants.EX_USTRING_REF, null, arg1, this);
+            Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
             return Factory.Impossible;
           }
         }
@@ -197,7 +197,7 @@
           }
           catch (Exception) {
             // FIXME: Should this instead throw a ustring-set exception?
-            Exn.fault(Constants.EX_USTRING_REF, null, arg1, this);
+            Exn.fault(Constants.EX_STRING_REF, null, arg1, this);
             return Factory.Impossible;
           }
         }

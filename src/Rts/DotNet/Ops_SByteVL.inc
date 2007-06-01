@@ -52,15 +52,15 @@
         OP3_CHAIN(string_set_trusted)
 
         OP1_OVERRIDE(ustring_length) {
-            check_typetag(Tags.UStringTag, this, Constants.EX_USTRING_LENGTH);
+            check_typetag(Tags.UStringTag, this, Constants.EX_STRING_LENGTH);
             return Factory.makeNumber (this.elements.Length >> 2);
         }
         OP1_OVERRIDE(ustring_length_str) {
             return Factory.makeNumber (this.elements.Length >> 2);
         }
 
-        OP2_CHAIN_CHECK_TAG(ustring_ref, Tags.UStringTag, EX_USTRING_REF)
-        OP3_CHAIN_CHECK_TAG(ustring_set, Tags.UStringTag, EX_USTRING_SET)
+        OP2_CHAIN_CHECK_TAG(ustring_ref, Tags.UStringTag, EX_STRING_REF)
+        OP3_CHAIN_CHECK_TAG(ustring_set, Tags.UStringTag, EX_STRING_SET)
         OP2_CHAIN(ustring_ref_trusted)
         OP3_CHAIN(ustring_set_trusted)
 

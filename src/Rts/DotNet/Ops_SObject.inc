@@ -124,12 +124,12 @@
 
         // UString Operations
         OP2_VIRTUAL_EXN_PAIR(make_ustring, EX_MKBVL, SFixnum)
-        OP1_VIRTUAL_EXN(ustring_length, EX_USTRING_LENGTH)
-        OP1_VIRTUAL_EXN(ustring_length_str, EX_USTRING_LENGTH)
-        OP2_VIRTUAL_EXN_PAIR(ustring_ref, EX_USTRING_REF, SByteVL)
-        OP2_VIRTUAL_EXN_PAIR(ustring_ref_trusted, EX_USTRING_REF, SByteVL)
-        OP3_VIRTUAL_EXN_PAIR(ustring_set, EX_USTRING_SET, SByteVL)
-        OP3_VIRTUAL_EXN_PAIR(ustring_set_trusted, EX_USTRING_SET, SByteVL)
+        OP1_VIRTUAL_EXN(ustring_length, EX_STRING_LENGTH)
+        OP1_VIRTUAL_EXN(ustring_length_str, EX_STRING_LENGTH)
+        OP2_VIRTUAL_EXN_PAIR(ustring_ref, EX_STRING_REF, SByteVL)
+        OP2_VIRTUAL_EXN_PAIR(ustring_ref_trusted, EX_STRING_REF, SByteVL)
+        OP3_VIRTUAL_EXN_PAIR(ustring_set, EX_STRING_SET, SByteVL)
+        OP3_VIRTUAL_EXN_PAIR(ustring_set_trusted, EX_STRING_SET, SByteVL)
 
         // Bytevector Operations
         OP1_VIRTUAL_EXN(make_bytevector, EX_MKBVL)
