@@ -462,16 +462,33 @@
       (else (calln p (map ffi/arg-converter param-types)
 		   (ffi/ret-converter ret-type)))))
 
-  (cond ((memq 'void param-types)
-	 (error "FFI: \"void\" is not a valid parameter type."))
-	((eq? 'boxed ret-type)
-	 (error "FFI: \"boxed\" is not a valid return type."))
-	(else
-	 (param-conversion 
-	  (maker (ffi-get-abi 'callout rest) 
-                 name
-                 (map ffi/rename-arg-type param-types)
-                 (ffi/rename-ret-type ret-type))))))
+  (define (check-for-obvious-type-problems param-types ret-type)
+    (cond ((memq 'void param-types)
+           (error "FFI: \"void\" is not a valid parameter type."))
+          ((eq? 'boxed ret-type)
+           (error "FFI: \"boxed\" is not a valid return type.")))
+    (let ((pointer-objects
+           (filter (lambda (x) (or (eq? x 'boxed) (eq? x 'string)))
+                   param-types))
+          (callbacks
+           (filter (lambda (x) (and (pair? x) (eq? '-> (car x))))
+                   param-types)))
+      (cond ((and (not (null? pointer-objects))
+                  (not (null? callbacks)))
+             (for-each 
+              display
+              (list "FFI warning: boxed objects"
+                    ", e.g. " pointer-objects ", can "
+                    "become unstable when callbacks"
+                    ", e.g. " callbacks ", are invoked."))
+             (newline)))))
+
+  (check-for-obvious-type-problems param-types ret-type)
+  (param-conversion 
+   (maker (ffi-get-abi 'callout rest) 
+          name
+          (map ffi/rename-arg-type param-types)
+          (ffi/rename-ret-type ret-type))))
 
 (define (foreign-null-pointer? x)
   (eq? x 0))
