@@ -34,7 +34,16 @@
 
 (define write-fasl-datum lowlevel-write)
 
-(define string->bytevector)
+; Used only when dumping a heap with the flat1 representation
+; for strings.
+
+(define (string->bytevector s)
+  (let* ((n (string-length s))
+         (bv (make-bytevector n)))
+    (do ((i 0 (+ i 1)))
+        ((= i n) bv)
+      (bytevector-set! bv i (char->integer (string-ref s i))))))
+
 (define bignum->bytevector)
 (define flonum->bytevector)
 (define compnum->bytevector)
@@ -53,7 +62,6 @@
 		(bytevector-like-set! bv 2 0)
 		(bytevector-like-set! bv 3 0)
 		bv)))
-	 (set! string->bytevector misc->bytevector)
 	 (set! bignum->bytevector misc->bytevector)
 	 (set! flonum->bytevector
 	       (lambda (x)
