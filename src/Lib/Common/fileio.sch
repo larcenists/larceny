@@ -57,13 +57,15 @@
 
 (define (file-io/read-bytes fd buffer)
   (let ((r (osdep/read-file fd buffer (bytevector-like-length buffer))))
-    (cond ((< r 0) 'error)
+    (cond ((not (fixnum? r)) 'error)
+          ((< r 0) 'error)
           ((= r 0) 'eof)
           (else r))))
 
 (define (file-io/write-bytes fd buffer n offset)
   (let ((k (osdep/write-file4 fd buffer n offset)))
-    (cond ((<= k 0) 'error)
+    (cond ((not (fixnum? r) 'error))
+          ((<= k 0) 'error)
           ((= k n)  'ok)
           (else (file-io/write-bytes fd buffer (- n k) (+ offset k))))))
 
