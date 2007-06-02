@@ -283,28 +283,40 @@
 			      (eq? 'binary (cadr outfilename)))
 			 call-with-binary-output-file
 			 call-with-output-file)))
+    (define (attempt-compilation)
+      (outfilefn outfilename
+                 (lambda (outport)
+                   (for-each (lambda (decl)
+                               (write decl outport)
+                               (newline outport))
+                             decls)
+                   (for-each
+                    (lambda (infilename)
+                      (let ((infilename  (if (pair? infilename) 
+                                             (car infilename) 
+                                             infilename))
+                            (infilefn    (if (and (pair? infilename)
+                                                  (eq? 'binary (cadr infilename)))
+                                             call-with-binary-input-file
+                                             call-with-input-file)))
+                        (infilefn infilename
+                                  (lambda (inport)
+                                    (do ((x (read inport) (read inport)))
+                                        ((eof-object? x))
+                                      (writer (processer x) outport))))))
+                    infilenames))))
+    
     (delete-file outfilename)
-    (outfilefn outfilename
-      (lambda (outport)
-	(for-each (lambda (decl)
-		    (write decl outport)
-		    (newline outport))
-		  decls)
-	(for-each
-	 (lambda (infilename)
-	   (let ((infilename  (if (pair? infilename) 
-				  (car infilename) 
-				  infilename))
-		 (infilefn    (if (and (pair? infilename)
-				       (eq? 'binary (cadr infilename)))
-				  call-with-binary-input-file
-				  call-with-input-file)))
-	     (infilefn infilename
-		       (lambda (inport)
-			 (do ((x (read inport) (read inport)))
-			     ((eof-object? x))
-			   (writer (processer x) outport))))))
-	 infilenames)))))
+    (let ((compilation-complete #f))
+      (dynamic-wind
+          (lambda () 
+            (cond (compilation-complete
+                   (error "Attempted to resume an abandoned compilation."))))
+          (lambda () (attempt-compilation) (set! compilation-complete #t))
+          (lambda () 
+            (cond ((not compilation-complete)
+                   (delete-file outfilename)
+                   (set! compilation-complete #t))))))))
 
 ; Same as above, but passes a list of the entire file's contents
 ; to the processer.  Note, processes one input file at a time, though
