@@ -345,6 +345,8 @@ eval_stage   hLarcenyHeap  "6. larceny heap"       ${DIR}/larceny_src "echo | ./
 host_scm_cmd iLarcenyFasl  "7. twobit fasl files"  ${DIR}/larceny_src "(build-twobit)"
 eval_stage   jTwobitHeap   "8. twobit heap"        ${DIR}/larceny_src "echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}"
 
+BUILD_STATUS=${STATUS}
+
 function dart_post_test {
     dartlog '<Status>'
     dartlog ${STATUS}
@@ -477,3 +479,6 @@ popd > /dev/null
 
 dartlog '</DartSubmission>'
 
+if [ $BUILD_STATUS == "failed" ] 
+then exit 1
+fi
