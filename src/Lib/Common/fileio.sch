@@ -64,7 +64,7 @@
 
 (define (file-io/write-bytes fd buffer n offset)
   (let ((k (osdep/write-file4 fd buffer n offset)))
-    (cond ((not (fixnum? r) 'error))
+    (cond ((not (fixnum? k)) 'error)
           ((<= k 0) 'error)
           ((= k n)  'ok)
           (else (file-io/write-bytes fd buffer (- n k) (+ offset k))))))
