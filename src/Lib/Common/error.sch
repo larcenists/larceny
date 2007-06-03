@@ -6,11 +6,41 @@
 
 ($$trace "error")
 
+; Heuristically recognizes both R6RS-style and Larceny's old-style
+; arguments.
+
 (define (error . args)
-  (apply (error-handler) '() args))
+  (if (and (pair? args) (pair? (cdr args)))
+      (let ((who (car args))
+            (msg (cadr args))
+            (irritants (cddr args))
+            (handler (error-handler)))
+        (define (separated irritants)
+          (if (null? irritants)
+              '()
+              (cons " "
+                    (cons (car irritants) (separated (cdr irritants))))))
+        (if (string? msg)
+            (cond ((or (symbol? who) (string? who))
+                   (apply handler who msg (separated irritants)))
+                  ((eq? who #f)
+                   (apply handler msg (separated irritants)))
+                  (else
+                   ; old-style, not R6RS
+                   (apply handler '() args)))
+            (apply handler '() args)))
+      (apply (error-handler) '() args)))
+
+(define (assertion-violation who msg . irritants)
+  (apply (error-handler) who msg irritants))
 
 (define (reset)
   ((reset-handler)))
+
+; assertion-failure is called only by the assert syntax.
+
+(define (assertion-failure expression)
+  (error "Assertion failed: " expression))
 
 ; To be replaced by exception system.
 (define (call-without-errors thunk . rest)

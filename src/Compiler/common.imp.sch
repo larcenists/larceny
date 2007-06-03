@@ -310,6 +310,8 @@
                  list vector
                  cadddr cddddr cdddr caddr cddr cdar cadr caar
                  make-vector make-bytevector make-string
+                 endianness big little
+                 bytevector-u8-ref bytevector-u8-set!
                  = < > <= >= + * - /
                  abs negative? positive?
                  eqv? memv assv memq
@@ -496,6 +498,18 @@
 
    ((_ larceny make-string (make-string ?n))
     (make-string ?n #\space))
+
+   ((_ larceny endianness (endianness big))
+    (endianness 'big))
+
+   ((_ larceny endianness (endianness little))
+    (endianness 'little))
+
+   ((_ larceny bytevector-u8-ref (bytevector-u8-ref x y))
+    (bytevector-ref x y))
+
+   ((_ larceny bytevector-u8-set! (bytevector-u8-set! x y z))
+    (bytevector-set! x y z))
 
    ((_ larceny = (= ?e1 ?e2 ?e3 ?e4 ...))
     (let ((t ?e2))

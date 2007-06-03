@@ -529,6 +529,12 @@
      ; =>
      (call-with-continuation-mark key mark (lambda () expr)))))
 
+(define-syntax assert
+  (syntax-rules ()
+   ((_ x)
+    (if (not x)
+        (assertion-failure 'x)))))
+
 ))  ; end of (for-each (lambda (x) (twobit-expand ...)) ...)
 
 (define-syntax-scope 'letrec)
