@@ -13,7 +13,14 @@
   (char-yet-more-tests-for-control #\a #\b)
   (char-conversion-tests #\a)
   (char-classification-tests)
-  (basic-unicode-char-tests))
+
+  ; There is little point to testing Unicode characters
+  ; if they aren't supported in the system we're testing.
+
+  (let* ((char-rep (cdr (assq 'char-representation (system-features))))
+         (unicode? (eq? char-rep 'unicode)))
+    (if unicode?
+        (basic-unicode-char-tests))))
 
 (define (char-predicate-test)
   (allof "char?"

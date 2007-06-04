@@ -32,15 +32,10 @@
       (apply (error-handler) '() args)))
 
 (define (assertion-violation who msg . irritants)
-  (apply (error-handler) who msg irritants))
+  (apply error who msg irritants))
 
 (define (reset)
   ((reset-handler)))
-
-; assertion-failure is called only by the assert syntax.
-
-(define (assertion-failure expression)
-  (error "Assertion failed: " expression))
 
 ; To be replaced by exception system.
 (define (call-without-errors thunk . rest)

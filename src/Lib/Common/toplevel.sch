@@ -353,6 +353,8 @@
   (environment-set-macro! larc 'define-values (usual-syntax 'define-values))
   (environment-set-macro! larc 'case-lambda (usual-syntax 'case-lambda))
 
+  (environment-set-macro! larc 'assert (usual-syntax 'assert))
+
   ;; JavaDot and case-sensitivity
   ;;(environment-set-macro! larc '.javadot (usual-syntax '.javadot))
 
@@ -694,6 +696,7 @@
 
   ;; common and less common extensions to R4RS
 
+  (environment-set! larc 'assertion-violation assertion-violation)
   (environment-set! larc 'error error)
   (environment-set! larc 'error-handler error-handler)
   (environment-set! larc 'decode-error decode-error)

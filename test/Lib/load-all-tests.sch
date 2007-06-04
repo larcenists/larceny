@@ -9,6 +9,7 @@
 (compile-file "char.sch")
 (compile-file "string.sch")
 (compile-file "normalization.sch")
+(compile-file "bytevector.sch")
 ;(compile-file "complex.sch")
 (compile-file "ctak.sch")
 (compile-file "dynamic-wind.sch")
@@ -27,6 +28,7 @@
 (load "char.fasl")			; Characters
 (load "string.fasl")			; Strings
 (load "normalization.fasl")		; String normalization
+(load "bytevector.fasl")
 ;(load "complex.fasl")                   ; Complex numbers
 (load "ctak.fasl")			; Call/cc test
 (load "dynamic-wind.fasl")              ; Dynamic-wind test
@@ -43,7 +45,15 @@
   (run-boolean-tests)
   (run-char-tests)
   (run-string-tests)
-  (run-normalization-tests)
+
+  ; Why run 350000+ tests you know will fail?
+
+  (let ((string-rep (cdr (assq 'string-representation (system-features)))))
+
+    (if (not (eq? string-rep 'flat1))
+        (run-normalization-tests)))
+
+  (run-bytevector-tests)
   (run-predicate-tests)
   (run-number-tests)
   (run-fact-tests)

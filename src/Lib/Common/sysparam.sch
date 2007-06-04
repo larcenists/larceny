@@ -46,8 +46,8 @@
 	 (char-repr
 	  (case char-bits
 	    ((8)  'iso-latin-1)		; iso 8859/1
-	    ((16) 'ucs2)		; 2-byte unicode
-	    ((32) 'ucs4)		; 4-byte unicode
+	    ((16) 'ucs2)		; 2-byte unicode (not supported)
+	    ((32) 'unicode)		; all Unicode characters
 	    (else 'unknown)))
          (string-repr
           (let ((s (make-string 1 #\space)))
