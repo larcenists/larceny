@@ -388,6 +388,7 @@ library_test char       char
 library_test string     string
 library_test normalization normalization
 ## library_test complex
+library_test bytevector bytevector
 library_test pred       predicate
 library_test number     number
 library_test fact       fact 
