@@ -531,15 +531,15 @@
   (bytevector-set! bytevector (+ k 7) (bytevector-like-ref x 11)))
 
 (define (bytevector-ieee-single-native-ref bytevector k)
-  (let* ((b0 (bytevector-u8-ref bytevector k))
-         (b1 (bytevector-u8-ref bytevector (+ k 1)))
-         (b2 (bytevector-u8-ref bytevector (+ k 2)))
-         (b3 (bytevector-u8-ref bytevector (+ k 3)))
+  (let* ((origb0 (bytevector-u8-ref bytevector k))
+         (origb1 (bytevector-u8-ref bytevector (+ k 1)))
+         (origb2 (bytevector-u8-ref bytevector (+ k 2)))
+         (origb3 (bytevector-u8-ref bytevector (+ k 3)))
          (swap? (not (eq? 'big (native-endianness))))
-         (b0 (if swap? b3 b0))
-         (b1 (if swap? b2 b1))
-         (b2 (if swap? b1 b2))
-         (b3 (if swap? b0 b3)))
+         (b0 (if swap? origb3 origb0))
+         (b1 (if swap? origb2 origb1))
+         (b2 (if swap? origb1 origb2))
+         (b3 (if swap? origb0 origb3)))
     (let ((sign (bytevector:div b0 128))
           (exponent (+ (* 2 (bytevector:mod b0 128))
                        (bytevector:div b1 128)))
@@ -638,34 +638,6 @@
         (bytevector-u8-set! b 6 (bytevector-u8-ref bytevector (+ k 1)))
         (bytevector-u8-set! b 7 (bytevector-u8-ref bytevector k))
         (bytevector-ieee-double-native-ref b 0))))
-
-(define (bytevector-ieee-double-native-set! bytevector k x)
-  (call-with-values
-   (lambda ()
-     (bytevector:ieee-parts x bytevector:double-bias
-                            bytevector:double-hidden-bit))
-   (lambda (sign biased-exponent frac)
-     (define (store! sign biased-exponent frac)
-       (bytevector-u8-set! bytevector k
-                            (+ (* 128 sign)
-                               (bytevector:div biased-exponent 16)))
-       (bytevector-u8-set! bytevector (+ k 1)
-                            (+ (* 16 (bytevector:mod biased-exponent 16))
-                               (bytevector:div frac (* 65536 65536 65536))))
-       (bytevector-u16-native-set! bytevector (+ k 2)
-                                   (bytevector:div
-                                    (bytevector:mod frac (* 65536 65536 65536))
-                                                    (* 65536 65536)))
-       (bytevector-u32-native-set! bytevector (+ k 4)
-                              (bytevector:mod frac (* 65536 65536)))
-       (unspecified))
-     (cond ((= biased-exponent bytevector:double-maxexponent)
-            (store! sign biased-exponent frac))
-           ((< frac bytevector:double-hidden-bit)
-            (store! sign 0 frac))
-           (else
-            (store! sign biased-exponent
-                    (- frac bytevector:double-hidden-bit)))))))
 
 (define (bytevector-ieee-single-set! bytevector k x endianness)
   (if (eq? endianness (native-endianness))
