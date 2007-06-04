@@ -254,7 +254,7 @@
 (define-foreign (gtk-toolbar-set-tooltips gtktoolbar* bool) void)
 (define-foreign (gtk-toolbar-get-style gtktoolbar*) int)
 (define-foreign (gtk-toolbar-set-style gtktoolbar* int) void)
-(define-foreign (gtk-toolbar-append-item 
+'(define-foreign (gtk-toolbar-append-item 
                  gtktoolbar* string string string gtkwidget* 
                  (-> (gtkwidget* void*) void) (maybe void*))
   void)
@@ -262,17 +262,17 @@
 (define-foreign (gtk-toolbar-append-widget gtktoolbar* gtkwidget* string string) void)
 (define-foreign (gtk-toolbar-prepend-widget gtktoolbar* gtkwidget* string string) void)
 (define-foreign (gtk-toolbar-insert-widget gtktoolbar* gtkwidget* string string int) void)
-(define-foreign (gtk-toolbar-append-element 
+'(define-foreign (gtk-toolbar-append-element 
                  gtktoolbar* uint (maybe gtkwidget*) 
                  (maybe string) string (maybe string) 
                  gtkwidget* (-> (gtkwidget* void*) void) (maybe void*)) 
   gtkwidget*)
-(define-foreign (gtk-toolbar-prepend-element 
+'(define-foreign (gtk-toolbar-prepend-element 
                  gtktoolbar* uint (maybe gtkwidget*) 
                  (maybe string) string (maybe string) 
                  gtkwidget* (-> (gtkwidget* void*) void) (maybe void*)) 
   void*)
-(define-foreign (gtk-toolbar-prepend-element 
+'(define-foreign (gtk-toolbar-prepend-element 
                  gtktoolbar* uint (maybe gtkwidget*)
                  (maybe string) string (maybe string) 
                  gtkwidget* (-> (gtkwidget* void*) void) (maybe void*) int) 
