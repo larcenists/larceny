@@ -285,7 +285,7 @@
   (lambda (instruction as)
     (list-instruction "const" instruction)
     (if (immediate-constant? (operand1 instruction))
-	(emit-text as "twobit_imm_const( ~a ); /* ~a */"
+	(emit-text as "twobit_imm_const( ~a ); /* ~s */"
 		   (constant-value (operand1 instruction))
                    (operand1 instruction))
 	(emit-text as "twobit_const( ~a );"
