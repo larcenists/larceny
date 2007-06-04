@@ -221,79 +221,153 @@
           (car (begin.exprs exp))
           exp))))
 
-; SIMPLIFY-CALL performs this transformation:
-;
-;    (... (begin ... E) ...)
-; -> (begin ... (... E ...))
-;
-; It also takes care of LET transformations.
+; SIMPLIFY-CALL simplifies subexpressions
+; and calls SIMPLIFY-LET to take care of LET transformations.
+; It also performs constant folding (mainly to improve inlining,
+; since pass 3 does a better job of constant folding).
 
 (define (simplify-call exp notepad)
-  (define (loop args newargs exprs)
-    (cond ((null? args)
-           (finish newargs exprs))
-          ((begin? (car args))
-           (let ((newexprs (reverse (begin.exprs (car args)))))
-             (loop (cdr args)
-                   (cons (car newexprs) newargs)
-                   (append (cdr newexprs) exprs))))
-          (else (loop (cdr args) (cons (car args) newargs) exprs))))
-  (define (finish newargs exprs)
-    (call.args-set! exp (reverse newargs))
-    (let* ((newexp
-            (if (lambda? (call.proc exp))
-                (simplify-let exp notepad)
-                (begin
-                 (call.proc-set! exp
-                                 (simplify (call.proc exp) notepad))
-                 exp)))
-           (newexp
-            (if (and (call? newexp)
-                     (variable? (call.proc newexp)))
-                (let* ((procname (variable.name (call.proc newexp)))
-                       (args (call.args newexp))
-                       (entry
-                        (and (not (null? args))
-                             (constant? (car args))
-                             (every? constant? args)
-                             (let ((entry (constant-folding-entry procname)))
-                               (and entry
-                                    (let ((predicates
-                                           (constant-folding-predicates entry)))
-                                      (and (= (length args)
-                                              (length predicates))
-                                           (let loop ((args args)
-                                                      (predicates predicates))
-                                             (cond ((null? args) entry)
-                                                   (((car predicates)
-                                                     (constant.value
-                                                      (car args)))
-                                                    (loop (cdr args)
-                                                          (cdr predicates)))
-                                                   (else #f))))))))))
-                  (if entry
-                      (make-constant (apply (constant-folding-folder entry)
-                                            (map constant.value args)))
-                      newexp))
-                newexp)))
-      (cond ((and (call? newexp)
-                  (begin? (call.proc newexp)))
-             (let ((exprs0 (reverse (begin.exprs (call.proc newexp)))))
-               (call.proc-set! newexp (car exprs0))
-               (post-simplify-begin
-                (make-begin (reverse
-                             (cons newexp
-                                   (append (cdr exprs0) exprs))))
-                notepad)))
-            ((null? exprs)
-             newexp)
-            (else
-             (post-simplify-begin
-              (make-begin (reverse (cons newexp exprs)))
-              notepad)))))
   (call.args-set! exp (map (lambda (arg) (simplify arg notepad))
                            (call.args exp)))
-  (loop (call.args exp) '() '()))
+  (if (lambda? (call.proc exp))
+      (let ((exp (simplify-let exp notepad)))
+        (if (call? exp)
+            (post-simplify-call exp notepad)
+            exp))
+      (begin (call.proc-set! exp
+                             (simplify (call.proc exp) notepad))
+             (post-simplify-call exp notepad))))
+
+; Performs this transformation:
+;
+;    ((begin ... L) E ...)
+; -> (begin ... (L E ...))
+;
+; Also performs constant folding, mainly to improve inlining,
+; since pass 3 does a better job of constant folding.
+
+(define (post-simplify-call exp notepad)
+  (let ((proc (call.proc exp)))
+    (cond ((lambda? proc)
+           (post-simplify-let exp notepad))
+          ((begin? proc)
+           (let* ((revexprs (reverse (begin.exprs proc)))
+                  (exp2 (car revexprs)))
+             (if (lambda? exp2)
+                 (let ((exp2
+                        (post-simplify-let (make-call exp2 (call.args exp))
+                                           notepad)))
+                   (begin.exprs-set! proc (reverse (cons exp2 (cdr revexprs))))
+                   (post-simplify-begin proc notepad))
+                 exp)))
+          ((variable? proc)
+           (let* ((procname (variable.name proc))
+                  (args (call.args exp))
+                  (entry
+                   (and (not (null? args))
+                        (constant? (car args))
+                        (every? constant? args)
+                        (let ((entry (constant-folding-entry procname)))
+                          (and entry
+                               (let ((predicates
+                                      (constant-folding-predicates entry)))
+                                 (and (= (length args)
+                                         (length predicates))
+                                      (let loop ((args args)
+                                                 (predicates predicates))
+                                        (cond ((null? args) entry)
+                                              (((car predicates)
+                                                (constant.value
+                                                 (car args)))
+                                               (loop (cdr args)
+                                                     (cdr predicates)))
+                                              (else #f))))))))))
+             (if entry
+                 (make-constant (apply (constant-folding-folder entry)
+                                       (map constant.value args)))
+                 exp)))
+          (else exp))))
+
+; Cleans up the output of let optimization by performing
+; these transformations:
+;
+;    ((lambda (I_1 ... I_k . I_rest) ---) E1 ... Ek Ek+1 ...)
+; -> ((lambda (I_1 ... I_k I_rest) ---) E1 ... Ek (LIST Ek+1 ...))
+;
+;    ((lambda () (begin) (quote ...) E))
+; -> E
+;
+;    ((lambda (I1)
+;       (begin)
+;       (quote ((I1 ((begin I1)) () ())))
+;       (begin I1))
+;     E1)
+;
+; -> E1
+;
+;    ((lambda (IGNORED I2 ...) ---) E1 E2 ...)
+; -> (begin E1 ((lambda (I2 ...) ---) E2 ...))
+;
+; Note that these transformations do not change the body
+; of the lambda expression, nor do they depend upon the
+; referencing information (which may be out of date after
+; simplification).
+
+(define (post-simplify-let exp notepad)
+  (define proc (call.proc exp))
+
+  ; Look for ignored or rest arguments or wrong number of arguments.
+
+  (define (loop1 formals actuals rev-formals rev-actuals rev-for-effect)
+    (cond ((null? formals)
+           (if (not (null? actuals))
+               (pass2-error p2error:wna (make-readable exp #f)))
+           (return1 rev-formals rev-actuals rev-for-effect))
+          ((symbol? formals)
+           (return1 (cons formals rev-formals)
+                    (cons (make-call-to-LIST actuals) rev-actuals)
+                    rev-for-effect))
+          ((null? actuals)
+           (pass2-error p2error:wna (make-readable exp #f))
+           (return1 rev-formals rev-actuals rev-for-effect))
+          ((ignored? (car formals))
+           (loop1 (cdr formals)
+                  (cdr actuals)
+                  rev-formals
+                  rev-actuals
+                  (cons (car actuals) rev-for-effect)))
+          (else (loop1 (cdr formals)
+                       (cdr actuals)
+                       (cons (car formals) rev-formals)
+                       (cons (car actuals) rev-actuals)
+                       rev-for-effect))))
+
+  (define (return1 rev-formals rev-actuals rev-for-effect)
+    (let ((formals (reverse rev-formals))
+          (actuals (reverse rev-actuals))
+          (for-effect (reverse rev-for-effect)))
+      (lambda.args-set! proc formals)
+      (call.args-set! exp actuals)
+      (cond ((and (null? formals)
+                  (null? actuals)
+                  (null? (lambda.defs proc)))
+             (return2 (lambda.body proc) for-effect))
+            ((and (not (null? formals))
+                  (null? (cdr formals))
+                  (variable? (lambda.body proc))
+                  (eq? (car formals) (variable.name (lambda.body proc)))
+                  (null? (lambda.defs proc)))
+             (return2 (car actuals) for-effect))
+            (else
+             (return2 exp for-effect)))))
+
+  (define (return2 exp for-effect)
+      (if (null? for-effect)
+          exp
+          (post-simplify-begin (make-begin (append for-effect (list exp)))
+                               notepad)))
+
+  (loop1 (lambda.args proc) (call.args exp) '() '() '()))
 
 ; SIMPLIFY-LET performs these transformations:
 ;
@@ -321,7 +395,7 @@
 ;
 ; -> (if E1 E2 E3)
 ;
-; (Together with SIMPLIFY-CONDITIONAL, this cleans up the output of the OR
+; (Together with SIMPLIFY-CASE, this cleans up the output of the OR
 ; macro and enables certain control optimizations.)
 ;
 ;    ((lambda (I1 I2 ...)
@@ -348,6 +422,9 @@
 ; (Single assignment analysis, performed by the simplifier for lambda
 ; expressions, detects unused arguments and replaces them in the argument
 ; list by the special identifier IGNORED.)
+;
+; The exp argument is a call whose arguments have already been simplified
+; and whose proc is a lambda expression that hasn't been simplified.
 
 (define (simplify-let exp notepad)
   (define proc (call.proc exp))
@@ -411,9 +488,7 @@
                         (cdr actuals)
                         (cons (car formals) processed-formals)
                         (cons (car actuals) processed-actuals)))))
-          (else (if (null? actuals)
-                    (pass2-error p2error:wna (make-readable exp #t)))
-                (loop1 (cdr formals)
+          (else (loop1 (cdr formals)
                        (cdr actuals)
                        (cons (car formals) processed-formals)
                        (cons (car actuals) processed-actuals)))))
@@ -429,17 +504,24 @@
                       (refs (references R x)))
                  (and (= 1 (length refs))
                       (null? (assignments R x)))))
+          ; exactly one formal, which is referenced exactly once in body
+          ; the actual has already been simplified, but the lambda hasn't
           (let ((x (car formals))
                 (body (lambda.body proc)))
             (cond ((and (variable? body)
                         (eq? x (variable.name body)))
-                   (simplify (car actuals) notepad))
+                   (car actuals))
                   ((and (conditional? body)
                         (let ((B0 (if.test body)))
                           (variable? B0)
                           (eq? x (variable.name B0))))
                    (if.test-set! body (car actuals))
-                   (simplify body notepad))
+                   (if (control-optimization)
+                       (simplify-case body notepad)
+                       (let ((e1 (simplify (if.then body) notepad))
+                             (e2 (simplify (if.else body) notepad)))
+                         (if.then-set! body e1)
+                         (if.else-set! body e2))))
                   (else
                    (return1-finish formals actuals))))
           (return1-finish formals actuals))))
