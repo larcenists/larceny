@@ -274,9 +274,12 @@
      (test "case15" (char-titlecase final-sigma) upper-sigma)
      (test "case16" (char-foldcase final-sigma) lower-sigma)
 
-     (test "cat1" (char-general-category #\a) 'Ll)
-     (test "cat2" (char-general-category #\space) 'Zs)
-     (test "cat3" (char-general-category (integer->char #x10FFFF)) 'Cn)
+     (test "cat1" (char-general-category #\a) 
+           (string->symbol "Ll"))
+     (test "cat2" (char-general-category #\space) 
+           (string->symbol "Zs"))
+     (test "cat3" (char-general-category (integer->char #x10FFFF)) 
+           (string->symbol "Cn"))
 
      (test "alpha1" (char-alphabetic? #\a) #t)
      (test "numer1" (char-numeric? #\1) #t)
@@ -293,7 +296,9 @@
                 (excluded '()
                  (if (and (not (<= #xd800 i #xdfff))
                           (memq (char-general-category (integer->char i))
-                                '(Ps Pe Pi Pf Zs Zp Zl Cc Cf)))
+                                (map string->symbol 
+                                     '("Ps" "Pe" "Pi" "Pf" "Zs" 
+                                       "Zp" "Zl" "Cc" "Cf"))))
                      (cons i excluded)
                      excluded)))
                ((= i #x110000)
