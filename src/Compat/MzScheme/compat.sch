@@ -354,3 +354,6 @@
           (lambda (sassy-output)
             (list->bytevector (sassy-text-list sassy-output))))
     ))
+
+;; Parameter to control reader behavior
+(define compat:read-case-sensitive? read-case-sensitive?)

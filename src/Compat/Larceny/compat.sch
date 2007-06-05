@@ -171,4 +171,7 @@
   (clear-require-loaded-files!)
   (interaction-environment old-env))
 
+;; Parameter to control reader behavior
+(define compat:read-case-sensitive? case-sensitive?)
+
 ; eof

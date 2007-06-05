@@ -63,6 +63,11 @@
   (parameterize ((recognize-keywords? #t))
     (compile-and-assemble313 (car deps) target)))
 
+(define (make-compile-and-assemble/case-sensitive target deps)
+  (make-mesg "Compiling and Assembling (case sensitive) " target)
+  (parameterize ((compat:read-case-sensitive? #t))
+    (compile-and-assemble313 (car deps) target)))
+
 (define (make-assemble-file target deps)
   (make-mesg "Assembling " target)
   (assemble-file (car deps)))
@@ -291,7 +296,8 @@
 
 (define (make-sparc-heap . rest)
   (make:pretend (not (null? rest)))
-  (parameterize ((integrate-procedures 'larceny))
+  (parameterize ((integrate-procedures 'larceny)
+                 (compat:read-case-sensitive? #t))
     (make:make sparc-heap-project "sparc.heap")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -404,7 +410,8 @@
 
 (define (make-dotnet-heap . rest)
   (make:pretend (not (null? rest)))
-  (parameterize ((integrate-procedures 'larceny))
+  (parameterize ((integrate-procedures 'larceny)
+                 (compat:read-case-sensitive? #t))
     (make:make dotnet-heap-project "dotnet.heap")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -460,7 +467,8 @@
   (let ((petit-heap-project
          (make-petit-heap-project "petit.heap" make-dumpheap)))
     (make:pretend (not (null? rest)))
-    (parameterize ((integrate-procedures 'larceny))
+    (parameterize ((integrate-procedures 'larceny)
+                   (compat:read-case-sensitive? #t))
       (make:make petit-heap-project "petit.heap"))))
 
 (define (make-sasstrap-heap . rest)
@@ -469,7 +477,8 @@
   (let ((petit-heap-project
          (make-petit-heap-project "sasstrap.heap" make-dumpheap)))
     (make:pretend (not (null? rest)))
-    (parameterize ((integrate-procedures 'larceny))
+    (parameterize ((integrate-procedures 'larceny)
+                   (compat:read-case-sensitive? #t))
       (make:make petit-heap-project "sasstrap.heap"))))
 
 (define (make-sassy-project . rest)
