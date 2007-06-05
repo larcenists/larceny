@@ -63,11 +63,6 @@
   (parameterize ((recognize-keywords? #t))
     (compile-and-assemble313 (car deps) target)))
 
-(define (make-compile-and-assemble/case-sensitive target deps)
-  (make-mesg "Compiling and Assembling (case sensitive) " target)
-  (parameterize ((compat:read-case-sensitive? #t))
-    (compile-and-assemble313 (car deps) target)))
-
 (define (make-assemble-file target deps)
   (make-mesg "Assembling " target)
   (assemble-file (car deps)))
