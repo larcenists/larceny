@@ -77,8 +77,15 @@
 
   ; FIXME: this is not efficient.
 
+  (define (subbytevector bv start-incl end-excl)
+    (let ((ret (make-bytevector (- end-excl start-incl))))
+      (do ((i start-incl (+ i 1))
+           (j 0 (+ j 1)))
+          ((= i end-excl) ret)
+        (bytevector-like-set! ret j (bytevector-like-ref bv i)))))
+
   (define (write-some idx count)
-    (unix/write (descio-fd data) (substring buf idx (+ idx count)) count))
+    (unix/write (descio-fd data) (subbytevector buf idx (+ idx count)) count))
 
   (define (loop idx count)
     (cond ((zero? count) 'ok)
