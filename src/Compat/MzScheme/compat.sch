@@ -356,4 +356,4 @@
     ))
 
 ;; Parameter to control reader behavior
-(define compat:read-case-sensitive? read-case-sensitive?)
+(define compat:read-case-sensitive? read-case-sensitive)
