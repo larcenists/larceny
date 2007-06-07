@@ -22,7 +22,7 @@ Compile your source files and create a shared library. Using GCC, the command li
       gcc -fPIC -shared file1.c file2.c -o my-library.so
     
 
-The command creates my-library.so in the current directory. This library can now be loaded into Larceny using foreign-file. Any other shared libraries used by your library files should also be loaded into Larceny using foreign-file before any procedures are linked using foreign-procedure. 
+The command creates my-library.so in the current directory. This library can now be loaded into Larceny using <<foreign-file>>. Any other shared libraries used by your library files should also be loaded into Larceny using <<foreign-file>> before any procedures are linked using <<foreign-procedure>>. 
 
 By default, /lib/libc.so is made available to the dynamic linker and to the foreign function interface, so there is no need for you to load that library explicitly. 
 
@@ -53,6 +53,11 @@ Larceny uses the operating system provided dynamic linker to do dynamic linking.
   * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the LD_LIBRARY_PATH environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
 
 proc:foreign-procedure[args="name (arg-type ...) return-type",result="unspecified"]
+
+FIXME: The interface to this function has been extended to support
+hooking into Windows procedures that use the Pascal calling convention
+instead of the C one.  The way to select which convention to use
+should be documented.
 
 Returns a Scheme procedure _p_ that calls the foreign procedure whose
 name is _name_. When _p_ is called, it will convert its parameters to
@@ -99,6 +104,7 @@ A _type_ is denoted by a symbol. The following is a list of the accepted types a
   into a NUL-terminated bytevector, and the resulting pointer is
   passed. #f is converted to a C "(char*)0" value.
 
+
 Additionally, the types can be used as the return type, where conversions back to Scheme values take place: 
 
 **int** A C "int" is expected; it is converted to an exact
@@ -128,6 +134,34 @@ Additionally, the types can be used as the return type, where conversions back t
   expected to point to a NUL-terminated string, which is copied into a
   newly allocated Scheme string which is then returned. If the return
   value is null, then #f is returned.
+
+FIXME: add documentation for the ** tramp ** type, which marsalls
+a callback trampoline.
+
+FIXME: add documentation for the ** -> ** and ** maybe ** type
+constructors.  Make sure to note that ** -> ** currently has a space
+leak on _every_ marshalling (because I believe it generates a fresh
+trampoline on every invocation).  We could at least tighten the leak
+here if we kept a cache of generated trampolines and reused them, but
+currently do not do so.
+
+FIXME: add documentation for the ** void* ** type, the
+corresponding _void*-rt_ record type descriptor, and the
+procedures
+void*->address
+void*-byte-ref
+void*-byte-set!
+void*-word-ref
+void*-word-set!
+void*-void*-ref
+void*-void*-set!
+void*-double-ref
+void*-double-set!
+
+Also document
+ffi-add-attribute-core-entry! 
+(and perhaps ffi-attribute-core-entry ?)
+
 
 [[FfiAccess, Foreign data access]]
 ==== Foreign Data Access
@@ -286,6 +320,11 @@ This procedure uses the getcwd() (get current working directory) system call to 
     
 ===== Quicksort
 
+WARNING: this example is bogus.  It is not safe to pass a collectable
+object into a C procedure when the callback invocation might cause a
+garbage collection, thus moving the object and invalidating the
+address stored in the C machine context.
+
 This demonstrates how to use a callback such as the comparator argument to qsort.
 It is specified in the type signature using -> as a type constructor.
 (Note that one should probably use the built-in sort routines rather than call out
@@ -313,4 +352,122 @@ It is specified in the type signature using -> as a type constructor.
 ===== Other examples
 
 The Experimental directory contains several examples of use of the FFI. See in particular the files unix.sch (Unix system calls) and socket.sch (procedures for communicating over sockets). 
+
+==== Higher level layers
+
+The general foreign-function interface functionality described above
+is powerful but awkward to use in practice.  A user might be tempted
+to hard code values of offsets or constants that are compiler
+dependent.  Also, the FFI will marshall some low-level values such
+as strings or integers, but other values such as enumerations
+which could be naturally mapped to sets of symbols are not marshalled
+since the host environment does not provide the necessary type
+information to the FFI.
+
+This section documents a collection of libraries to mitigate these and
+other problems.
+
+===== foreign-ctools
+
+Foreign data access is performed by peeking at manually calculated
+addresses, but in practice one often needs to inspect fields of C
+structures, whose offsets are dependant on the application binary
+interface (ABI) of the host environment.  Similarly, C programs often
+use refer to values via constant macro definitions; since the values
+of such names are not provided by the object code and Scheme programs
+do not have a C preprocessor run on them prior to execution, it is
+difficult to refer to the same value without encoding "magic numbers"
+into the Scheme source code.
+
+The foreign-ctools library is meant to mitigate problems like the two
+described above.  It provides special forms for introducing global
+definitions of values typically available at compile-time for a C
+program.  The library assumes the presence of a C compiler (such as
+_cc_ on Unix systems or _cl.exe_ on Windows systems).  The special
+forms work by dynamically generating, compiling, and running C code at
+expansion time to determine the desired values of structure offsets or
+macro constants.
+
+_Syntax define-c-values_
+
+++ (define-c-values <cc-spec> (<include-path> ...) (<c-prologue> ...) (<scheme-name> <printf-fmt> <c-expr> <c-decls> ...))++
+
+
+_Syntax define-c-info_
+
+++ (define-c-info <decl> ... <defn> ...)++
+where  ++<decl> ::= (compiler <cc-spec>) | (path <include-path>) | (include <header>) | (include<> <header>)++
+and ++<cc-spec> ::= cc | cl++
+and ++<defn>    ::= (const <scheme-name> <type> <c-expr>) | (sizeof <scheme-name> <c-type>) | (struct <c-name> (<scheme-name> <c-field>) ...) | (fields <c-name> (<scheme-name> <c-field>) ...)++
+and ++<type>    ::= int | uint | long | ulong++
+
+===== foreign-sugar
+
+The <<foreign-procedure>> function is sufficient to link in
+dynamically loaded C procedures, but it can be annoying to 
+use when there are many procedures to define that all follow
+a regular pattern where one could infer a mapping between
+Scheme identifiers and C function names.  
+
+For example, some libraries follow a naming convention where a words
+within a name are separated by underscores; such functions could be
+immediately mapped to Scheme names where the underscores have been
+replaced by dashes.
+
+The foreign-sugar library provides a special form, ++define-foreign++,
+which gives the user a syntax for defining foreign functions using
+a syntax where one provides only the Scheme name, the argument types,
+and the return type.  The ++define-foreign++ form then attempts to
+infer what C function the name was meant to refer to.
+
+_Syntax define-foreign_
+
+++ (define-foreign (name arg-type ...) result-type)++
+
+NOTE: There is other functionality provided allowing the user to
+introduce new rules for inferring C function names, but they are
+undocumented because they will probably have to change when we switch
+to an R6RS macro expander.
+
+===== foreign-stdlib
+
+proc:stdlib/malloc[args="rtd",optarg="ctor",result="procedure"]
+
+Given a record extension of _void*-rt_, returns an allocator that uses
+the C ++malloc++ procedure to allocate instances of such an object.
+Note that the client is responsible for eventually freeing such
+objects with <<stdlib/free>>.
+
+proc:stdlib/free[args="void*-obj"]
+
+Frees objects produced by allocators returned from <<stdlib/malloc>>.
+
+proc:ffi-install-void*-subtype[var="ffi-install-void*-subtype"]
+proctempl:ffi-install-void*-subtype[args="rtd",result="rtd"]
+proctempl:ffi-install-void*-subtype[args="string",optarg="parent-rtd",result="rtd"]
+proctempl:ffi-install-void*-subtype[args="symbol",optarg="parent-rtd",result="rtd"]
+
+proc:establish-void*-subhierarchy![args="symbol-tree",result="unspecified"]
+
+_Type char*_ extends _void*_
+proc:string->char*[args="string",result="char*"]
+proc:char*-strlen[args="char*",result="fixnum"]
+proc:char*->string[args="char*",result="string"]
+proctempl:char*->string[args="char* len",result="string"]
+proc:CallWithCharStar[var="call-with-char*",args="string string-function",result="value"]
+_Type char\*\*_ extends _void*_
+proc:CallWithCharStarStar[var="call-with-char\*\*",args="string-vector function",result="value"]
+_Type int*_ extends _void*_
+proc:CallWithIntStar[var="call-with-int*",args="fixnum-vector function",result="value"]
+_Type short*_ extends _void*_
+proc:CallWithShortStar[var="call-with-short*",args="fixnum-vector function",result="value"]
+_Type double*_ extends _void*_
+proc:CallWithDoubleStar[var="call-with-double*",args="num-vector function",result="value"]
+
+(There are other functions, but I want to test and document the ones
+above first...)
+
+===== foreign-cenums
+
+Provides the special form ++define-c-enum++
 
