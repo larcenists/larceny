@@ -464,10 +464,12 @@ proc:CallWithShortStar[var="call-with-short*",args="fixnum-vector function",resu
 _Type double*_ extends _void*_
 proc:CallWithDoubleStar[var="call-with-double*",args="num-vector function",result="value"]
 
-(There are other functions, but I want to test and document the ones
-above first...)
+FIXME: (There are other functions, but I want to test and document the
+ones above first...)
 
 ===== foreign-cenums
 
 Provides the special form ++define-c-enum++
+
+FIXME: add the doc
 
