@@ -19,12 +19,12 @@
               (length (string-length string)))
 
          (define (leading? char)
-      ;; Return #t if the symbol begins with CHAR.
+         ;; Return #t if the symbol begins with CHAR.
            (and (>= length 1)
                 (char=? (string-ref string 0) char)))
 
          (define (trailing? char)
-  ;; Return #t if the symbol ends with CHAR.
+         ;; Return #t if the symbol ends with CHAR.
            (and (>= length 1)
                 (char=? (string-ref string (- length 1)) char)))
 
@@ -48,7 +48,8 @@
 
          (define (dot-dollar?) (and (leading-dot?) (trailing-dollar?)))
 
-         (define (dot-dollar-sharp?) (and (leading-dot?) (trailing-dollar-sharp?)))
+         (define (dot-dollar-sharp?)
+           (and (leading-dot?) (trailing-dollar-sharp?)))
 
          (define (set-dollar-excl?)
            ;; Return #T if the symbol begins with SET-  ends
@@ -78,17 +79,17 @@
                 (char=? (string-ref string (- length 1)) #\!)))
 
          (define (set-dot-dollar-excl?)
-  ;; Return #T if the symbol begins with SET-.  and ends
-  ;; with $!
+           ;; Return #T if the symbol begins with SET-.  and ends
+           ;; with $!
            ;; These symbols are created by the SETF! macro.
-  ;; Kinda gross.
-    (and (> length 7)
-         (char=? (string-ref string 0) #\s)
-         (char=? (string-ref string 1) #\e)
-         (char=? (string-ref string 2) #\t)
-         (char=? (string-ref string 3) #\-)
-         (char=? (string-ref string 4) #\.)
-         (char=? (string-ref string (- length 2)) #\$)
+           ;; Kinda gross.
+           (and (> length 7)
+                (char=? (string-ref string 0) #\s)
+                (char=? (string-ref string 1) #\e)
+                (char=? (string-ref string 2) #\t)
+                (char=? (string-ref string 3) #\-)
+                (char=? (string-ref string 4) #\.)
+                (char=? (string-ref string (- length 2)) #\$)
                 (char=? (string-ref string (- length 1)) #\!)))
 
          (define (set-dot-dollar-sharp-excl?)
@@ -113,8 +114,10 @@
                   (let loop ((suffix-scan 0)
                              (other-scan (- other-length suffix-length)))
                     (cond ((= suffix-scan suffix-length) #t)
-                          ((char=? (char-downcase (string-ref suffix suffix-scan))
-                                   (char-downcase (string-ref other other-scan)))
+                          ((char=? (char-downcase
+                                    (string-ref suffix suffix-scan))
+                                   (char-downcase
+                                    (string-ref other other-scan)))
                            (loop (+ suffix-scan 1) (+ other-scan 1)))
                           (else #f))))))
 
@@ -125,14 +128,14 @@
           (trailing-suffix? (javadot-generic-suffix) string))
 
          (define (embedded-dot?)
-  ;; return #T if the `symbol' has embedded dots
-  ;; leading and trailing dots are not allowed, however.
-    (and (> length 2)
-         (not (char=? (string-ref string 0) #\.))
-         (not (char=? (string-ref string (- length 1)) #\.))
-         (let loop ((scan 1))
-           (cond ((>= scan length) #f)
-                 ((char=? (string-ref string scan) #\.) #t)
+           ;; return #T if the `symbol' has embedded dots
+           ;; leading and trailing dots are not allowed, however.
+           (and (> length 2)
+                (not (char=? (string-ref string 0) #\.))
+                (not (char=? (string-ref string (- length 1)) #\.))
+                (let loop ((scan 1))
+                  (cond ((>= scan length) #f)
+                        ((char=? (string-ref string scan) #\.) #t)
                         (else (loop (+ scan 1)))))))
 
          (or ;(dot-dollar?)
