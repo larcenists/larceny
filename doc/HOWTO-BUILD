@@ -22,8 +22,7 @@ Building Larceny has three major steps:
 1. Get the Larceny development environment working.
 
 Run your host Scheme (either another Larceny or MzScheme), and change to
-the root directory of the Larceny tree.  (MzScheme 3xx must be started
-with the -G switch to disable case sensitivity.)
+the root directory of the Larceny tree.
 
     > (load "setup.sch")
     > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'sassy ]
@@ -145,10 +144,8 @@ You can now run "./larceny" or "./twobit".
 NOTES
 
 [1] For the build process, we recommend using a prebuilt version of
-Larceny itself.  MzScheme 3xx will be fully supported in a later
-release, but for now, MzScheme 360 and later seem to work with the -G
-switch.  You can also use MzScheme 209.  Use (Petite) Chez at your own
-risk.  In the past, several other implementations of Scheme could be
+Larceny itself.  MzScheme 36x seems to work.  Use (Petite) Chez at your
+own risk.  In the past, several other implementations of Scheme could be
 used for the build process, but they haven't been tested lately and
 aren't likely to work any more.
 
