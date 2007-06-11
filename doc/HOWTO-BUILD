@@ -3,15 +3,17 @@ Building Larceny
 
 WHAT YOU NEED
 
-If you want to recompile the Scheme sources entirely from
-source, you will need a Scheme system to host the Larceny
-build process: either MzScheme 3xx or Larceny itself [1].
-See README-FIRST.txt for more details.
+If you want to recompile the Scheme sources entirely from source, you
+will need a Scheme system to host the Larceny build process: MzScheme
+3xx, MzScheme 209, or Larceny itself [1].  See README-FIRST.txt for
+more details.
 
-If you want to build Larceny or Petit Larceny entirely from
-source, you will also need a C compiler (such as gcc).  For
-x86-32 targets, you will also need the NASM assembler [2].
+If you want to build Larceny or Petit Larceny entirely from source,
+you will also need a C compiler (such as gcc).  For x86-32 targets,
+you will also need the NASM assembler [2].
 
+To build Common Larceny, see the Common Larceny documentation in
+doc/CommonLarceny/user-manual.txt.
 
 WHAT TO DO
 
@@ -19,8 +21,9 @@ Building Larceny has three major steps:
 
 1. Get the Larceny development environment working.
 
-Run your host Scheme (either another Larceny or MzScheme 3xx), and
-change to the root directory of the Larceny tree.
+Run your host Scheme (either another Larceny or MzScheme), and change to
+the root directory of the Larceny tree.  (MzScheme 3xx must be started
+with the -G switch to disable case sensitivity.)
 
     > (load "setup.sch")
     > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'sassy ]
@@ -142,10 +145,12 @@ You can now run "./larceny" or "./twobit".
 NOTES
 
 [1] For the build process, we recommend using a prebuilt version of
-Larceny itself.  You can also use MzScheme (version 360 recommended).
-Use (Petite) Chez at your own risk.  In the past, several other
-implementations of Scheme could be used for the build process, but
-they haven't been tested lately and aren't likely to work any more.
+Larceny itself.  MzScheme 3xx will be fully supported in a later
+release, but for now, MzScheme 360 and later seem to work with the -G
+switch.  You can also use MzScheme 209.  Use (Petite) Chez at your own
+risk.  In the past, several other implementations of Scheme could be
+used for the build process, but they haven't been tested lately and
+aren't likely to work any more.
 
 [2] http://sourceforge.net/projects/nasm
 

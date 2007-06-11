@@ -51,7 +51,8 @@ FURTHER READING
 
 If you want to install Larceny for other users on your system, see
 doc/HOWTO-INSTALL.  To build your own Larceny, take a look at
-doc/HOWTO-BUILD.
+doc/HOWTO-BUILD.  To build Common Larceny, see the Common Larceny
+documentation in doc/CommonLarceny/user-manual.txt.
 
 
 NOTES
