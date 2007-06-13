@@ -35,6 +35,27 @@
 (define *lop-file-type*     ".lop")
 (define *fasl-file-type*    ".fasl")
 
+
+; Write the token #!fasl at the top of a fasl file.
+
+(define (write-fasl-token outport)
+  ;;; FIXME: change this to #!fasl
+  (for-each (lambda (char)
+              (write-char char outport))
+            (string->list "'fasl"))
+  (newline outport))
+
+; Write a declaration to an output port
+
+(define (process-decl outport)
+  (lambda (decl)
+    (cond
+      ((procedure? decl)
+       (decl outport))
+      (else
+       (write decl outport)
+       (newline outport)))))
+
 ; Assemble a MAL or LAP file and produce a FASL file.
 
 (define (assemble-file infilename . rest)
@@ -51,7 +72,8 @@
            (assembly-user-data)))
       (process-file infilename
                     `(,outfilename binary)
-		    (assembly-declarations user)
+		    (cons write-fasl-token
+                          (assembly-declarations user))
                     dump-fasl-segment-to-port
                     (lambda (x) (assemble (if malfile? (eval x) x) user)))
       (unspecified)))
@@ -286,10 +308,7 @@
     (define (attempt-compilation)
       (outfilefn outfilename
                  (lambda (outport)
-                   (for-each (lambda (decl)
-                               (write decl outport)
-                               (newline outport))
-                             decls)
+                   (for-each (process-decl outport) decls)
                    (for-each
                     (lambda (infilename)
                       (let ((infilename  (if (pair? infilename) 
@@ -338,10 +357,7 @@
     (delete-file outfilename)
     (outfilefn outfilename
       (lambda (outport)
-	(for-each (lambda (decl)
-		    (write decl outport)
-		    (newline outport))
-		  decls)
+	(for-each (process-decl outport) decls)
 	(for-each
 	 (lambda (infilename)
 	   (let ((infilename  (if (pair? infilename) 

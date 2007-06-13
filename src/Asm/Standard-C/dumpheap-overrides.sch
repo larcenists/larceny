@@ -123,6 +123,7 @@
 			    (string-append ".petit-bootstrap-id-" *unique-id*))))
       (call-with-output-file fasl-file
 	(lambda (out)
+          (write-fasl-token out)
 	  (if so-name
 	      (begin (display "(define " out)
 		     (display bootstrap-id out)
@@ -186,6 +187,7 @@
 (define (add-to-shared-object fasl-name segments)
 
   (define (dump-prologue file-unique-id out)
+    (write-fasl-token out)
     (display `(define ,file-unique-id 
 		(.petit-shared-object ,*shared-object-so-expression*)) 
 	     out)

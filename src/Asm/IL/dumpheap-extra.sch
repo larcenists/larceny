@@ -189,6 +189,7 @@
 (define (dump-fasl base exe manifests)
   (with-output-to-file (string-append base ".fasl")
     (lambda ()
+      (write-fasl-token (current-output-port))
       (for-each (lambda (manifest)
                   (dump-fasl/manifest base manifest))
                 manifests))))
