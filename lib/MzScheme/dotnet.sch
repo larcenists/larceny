@@ -150,6 +150,11 @@
               :procedure (lambda (call-next-method string)
                            (clr/%string->foreign string)))
 
+    :method (make-method
+              :arity 1
+              :specializers (list <bytevector>)
+              :procedure (lambda (call-next-method bv)
+                           (clr/%bytes->foreign bv)))
     ))
 
 ;;;; .NET Class hierarchy
@@ -620,6 +625,8 @@
 
 (define (clr/default-marshal-in object)
   (cond ((eq? object (unspecified)) object)
+        ;; byte array must come before array, or array will catch it.
+        ((%clr-byte-array? object) (clr/%foreign->bytes object))
         ((%clr-array? object)
          (list->vector (map-clr-array clr/default-marshal-in object)))
         ((%clr-double? object) (clr/%foreign-double->flonum object))
@@ -820,12 +827,14 @@
                   clr-type-handle/system-char
                   clr-type-handle/system-double
                   clr-type-handle/system-int32
-                  clr-type-handle/system-string)
+                  clr-type-handle/system-string
+                  clr-type-handle/system-byte-array)
             (list <boolean>
                   <char>
                   <flonum>
                   <exact-integer>
-                  <string>))
+                  <string>
+                  <bytevector>))
 
   (let ((char-class (clr-object->class clr-type-handle/system-char)))
     (slot-set! char-class 'argument-marshaler clr/char->foreign)
@@ -870,6 +879,14 @@
                  (if (clr/%null? thing)
                      #f
                      (clr/foreign->string thing)))))
+
+  (let ((bytes-class (clr-object->class clr-type-handle/system-byte-array)))
+    (slot-set! bytes-class 'argument-marshaler clr/bytes->foreign)
+    (slot-set! bytes-class 'return-marshaler
+               (lambda (thing)
+                 (if (clr/%null? thing)
+                     #f
+                     (clr/foreign->bytes thing)))))
 
   (let ((system-type-class (clr-object->class clr-type-handle/system-type)))
     (slot-set! system-type-class 'return-marshaler

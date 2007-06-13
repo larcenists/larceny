@@ -328,6 +328,9 @@ namespace Scheme.Rep {
             return new SByteVL
                 (Tags.ByteVectorTag, size, (byte)fill);
         }
+        public static SByteVL makeByteVector(byte[] bytes) {
+            return new SByteVL(Tags.ByteVectorTag, bytes);
+        }
         public static SByteVL makeAsciiByteVector(string s) {
             byte[] chars = new byte[s.Length];
             for (int i = 0; i < chars.Length; i++) {

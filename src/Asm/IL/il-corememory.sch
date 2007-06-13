@@ -120,6 +120,8 @@
 ;(define-syscall clr/%void->foreign         34 19 9)
 (define-syscall clr/%flonum->foreign-single 34 19 10)
 (define-syscall clr/%flonum->foreign-double 34 19 11)
+(define-syscall clr/%char->foreign          34 19 12)
+(define-syscall clr/%bytes->foreign         34 19 13)
 
 (define-syscall clr/%foreign->object        34 20 0)
 (define-syscall clr/%foreign->schemeobject  34 20 1)

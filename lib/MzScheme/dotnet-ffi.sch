@@ -89,6 +89,7 @@
 (define-syscall clr/%flonum->foreign-single 34 19 10)
 (define-syscall clr/%flonum->foreign-double 34 19 11)
 (define-syscall clr/%char->foreign          34 19 12)
+(define-syscall clr/%bytes->foreign         34 19 13)
 
 (define-syscall clr/%foreign->object        34 20 0)
 (define-syscall clr/%foreign->schemeobject  34 20 1)
@@ -158,6 +159,7 @@
 (define clr-type-handle/system-sbyte                    (clr/%get-type "System.SByte"))
 (define clr-type-handle/system-single                   (clr/%get-type "System.Single"))
 (define clr-type-handle/system-string                   (clr/%get-type "System.String"))
+(define clr-type-handle/system-byte-array               (clr/%get-type "System.Byte[]"))
 (define clr-type-handle/system-type                     (clr/%get-type "System.Type"))
 (define clr-type-handle/system-uint16                   (clr/%get-type "System.UInt16"))
 (define clr-type-handle/system-uint32                   (clr/%get-type "System.UInt32"))
@@ -182,6 +184,7 @@
 (define (clr/char->foreign   obj) (clr/%char->foreign obj))
 (define (clr/int->foreign    obj) (clr/%number->foreign-int32 obj))
 (define (clr/string->foreign obj) (clr/%string->foreign obj))
+(define (clr/bytes->foreign obj)  (clr/%bytes->foreign obj))
 (define (clr/symbol->foreign obj) (clr/%string->foreign (symbol->string obj)))
 
 (define (clr/foreign->bool   obj) (not (clr/%eq? obj clr/false)))
@@ -189,6 +192,7 @@
 (define (clr/foreign->int    obj) (clr/%foreign->int obj))
 (define (clr/foreign->schemeobject obj) (clr/%foreign->schemeobject obj))
 (define (clr/foreign->string obj) (clr/%foreign->string obj))
+(define (clr/foreign->bytes obj)  (clr/%foreign->bytes obj))
 (define (clr/foreign->symbol obj) (string->symbol (clr/%foreign->string obj)))
 (define (clr/foreign-double->flonum obj) (clr/%foreign-double->flonum obj))
 (define (clr/foreign-single->flonum obj) (clr/%foreign-single->flonum obj))
@@ -210,6 +214,7 @@
 (define-ffi-predicate %clr-int32?      clr-type-handle/system-int32)
 (define-ffi-predicate %clr-single?     clr-type-handle/system-single)
 (define-ffi-predicate %clr-string?     clr-type-handle/system-string)
+(define-ffi-predicate %clr-byte-array? clr-type-handle/system-byte-array)
 (define-ffi-predicate %clr-type?       clr-type-handle/system-type)
 
 (define-syntax define-clr-property

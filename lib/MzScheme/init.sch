@@ -427,6 +427,7 @@
         clr-type-handle/system-array
         clr-type-handle/system-boolean
         clr-type-handle/system-byte
+        clr-type-handle/system-byte-array
         clr-type-handle/system-char
         clr-type-handle/system-convert
         clr-type-handle/system-double
@@ -513,6 +514,7 @@
         clr/%property-ref-window
         clr/%property-set!
         clr/%string->foreign
+        clr/%bytes->foreign
         clr/%to-string
         clr/%type-as-string
         clr/bool->foreign

@@ -677,9 +677,15 @@ namespace Scheme.RT
                         return Factory.makeForeignBox((double)((SByteVL)obj).unsafeAsDouble(0));
                     }
 
-                case 12:
+                case 12: // character
                     {
                         return Factory.makeForeignBox((Char)((SChar)obj).val);
+                    }
+
+                case 13: // bytevector-like
+                    {
+                        object copy = ((SByteVL)obj).elements.Clone();
+                        return Factory.makeForeignBox((byte[])copy);
                     }
 
 #if NEVER
@@ -834,7 +840,8 @@ namespace Scheme.RT
                     { // bytes
                         if (value is byte[])
                         {
-                            return Factory.makeUString((byte[])value);
+                            return Factory.makeByteVector
+                              ((byte[])((byte[])value).Clone());
                         }
                         else
                         {
