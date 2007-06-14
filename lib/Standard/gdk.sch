@@ -16,6 +16,7 @@
     (error "Add case in gdk.sch for os: " os))))
 
 (establish-void*-subhierarchy! '(gdkwindow*))
+(establish-void*-subhierarchy! '(gdkscreen*))
 (establish-void*-subhierarchy! '(gdkpixmap*))
 (establish-void*-subhierarchy! '(gdkpixbuf*))
 (establish-void*-subhierarchy! '(gdkbitmap*))
@@ -23,6 +24,9 @@
 (establish-void*-subhierarchy! '(gdkcolor*))
 (establish-void*-subhierarchy! '(gdkrectangle*))
 (establish-void*-subhierarchy! '(gdkatom*))
+(establish-void*-subhierarchy! '(gdkgeometry*))
+(establish-void*-subhierarchy! '(gdkeventkey*))
+(establish-void*-subhierarchy! '(gdkimage*))
 
 (define-foreign (gdk-pixmap-new void* int int int) gdkpixmap*)
 ;;; XXX how the hell am I going to handle mutable data?
