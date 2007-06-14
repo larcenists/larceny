@@ -1,3 +1,5 @@
+(require 'foreign-stdlib)
+
 ;; : [Listof ([Listof Char] -> [Maybe [Listof Char]])]
 (define foreign-name-generators '())
 (define permanent-foreign-name-generators '())
@@ -70,11 +72,70 @@
           (else
            (loop (cdr names))))))
 
+;; This layer strips off occurrences of output parameter form (ret X)
+;; in the signature and does the necessary boxing and marshalling to
+;; return the output parameters via multiple value return.
+(define-syntax define-foreign 
+  (transformer 
+   (lambda (exp ren cmp) ;; exp ::= (define-foreign (NM ARG-TYPE ...) RET-TYPE)
+     
+     (define (process-args arg-types) 
+       (let loop ((i 0) 
+                  (l arg-types) 
+                  (rets '())
+                  (high-args '()) 
+                  (types '())
+                  (low-args '()))
+         (cond ((null? l)
+                (values (reverse rets)
+                        (reverse high-args)
+                        (reverse types)
+                        (reverse low-args)))
+               (else 
+                (if (and (pair? (car l))
+                         (cmp (car (car l)) 'ret))
+                    (let ((r (gensym "r")))
+                      (loop (+ i 1) 
+                            (cdr l) 
+                            (cons (list (cadar l) r i) rets) 
+                            high-args
+                            (cons 'void* types)
+                            (cons r low-args)))
+                    (let ((a (gensym "a")))
+                      (loop (+ i 1) (cdr l) 
+                            rets
+                            (cons (list (car l) a i) high-args)
+                            (cons (car l) types)
+                            (cons a low-args)
+                            )))))))
+
+     (let ((nm        (car (cadr exp)))
+           (arg-types (cdr (cadr exp)))
+           (ret-type  (caddr exp)))
+       (call-with-values (lambda () (process-args arg-types))
+         (lambda (rets high-args lowlevel-types low-args)
+           `(define ,nm
+              (let ((malloc (stdlib/malloc void*-rt)))
+                (define-foreign-lowlevel (,nm ,@lowlevel-types) ,ret-type)
+                (lambda ,(map cadr high-args)
+                  (let (,@(map (lambda (ret) (list (cadr ret) `(malloc 8)))
+                               rets))
+                    (let ((ret (,nm ,@low-args)))
+                      (let (,@(map (lambda (ret) 
+                                     (let ((r (cadr ret))
+                                           (t (car ret)))
+                                       (list r 
+                                             `((list-ref (ffi-attribute-entry ',t) 3)
+                                               (void*-word-ref ,r 0) ',nm
+                                               ))))
+                                   rets))
+                        (values ret ,@(map cadr rets))))))))))))))
+
 ;; The simplest way to write this macro involves var-args and apply,
 ;; but why pay for that overhead when we have an arg count handed to
 ;; us?  Instead I use expansion-passing-style to generate a set of
 ;; fresh identifiers to use as placeholder argument names.
-(define-syntax define-foreign
+(define-syntax define-foreign-lowlevel
   (syntax-rules ()
     ((define-foreign (NAME ARG-TYPES ...) RESULT-TYPE)
      (generate-ids (ARG-TYPES ...) (NAME RESULT-TYPE) 
