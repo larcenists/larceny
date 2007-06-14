@@ -757,7 +757,9 @@
   (environment-set! larc 'make-custom-textual-input-port
                     make-custom-textual-input-port)
 
+  (environment-set! larc 'lookahead-u8 lookahead-u8)
   (environment-set! larc 'get-u8 get-u8)
+  (environment-set! larc 'lookahead-char lookahead-char)
   (environment-set! larc 'get-char get-char)
 
   ;; common and less common extensions to R4RS
