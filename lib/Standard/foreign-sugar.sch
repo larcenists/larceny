@@ -129,7 +129,10 @@
                                                (void*-word-ref ,r 0) ',nm
                                                ))))
                                    rets))
-                        (values ret ,@(map cadr rets))))))))))))))
+
+                        ,(if (eq? ret-type 'void)
+                             `(values ,@(map cadr rets))
+                             `(values ret ,@(map cadr rets)))))))))))))))
 
 ;; The simplest way to write this macro involves var-args and apply,
 ;; but why pay for that overhead when we have an arg count handed to
