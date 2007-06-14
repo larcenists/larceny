@@ -126,7 +126,11 @@
                                            (t (car ret)))
                                        (list r 
                                              `((list-ref (ffi-attribute-entry ',t) 3)
-                                               (void*-word-ref ,r 0) ',nm
+                                               (,(case t
+                                                   ((double) 'void*-double-ref)
+                                                   ((float)  'void*-float-ref)
+                                                   (else     'void*-word-ref))
+                                                ,r 0) ',nm
                                                ))))
                                    rets))
 
