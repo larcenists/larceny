@@ -54,22 +54,28 @@
 
 (define port.auxbuf    17) ; bytevector: 4 bytes that straddle buffer boundary
 (define port.auxlim    18) ; number of ready bytes in auxbuf
+(define port.auxneeded 19) ; number of bytes needed to complete the char
 
-(define port.transcoder 19); fixnum: 0 for binary ports
-                           ; for textual, see comment at make-transcoder
+(define port.transcoder 20)          ; fixnum: see comment at make-transcoder
 
-(define port.structure-size 20)      ; size of port structure
-(define port.buffer-size    1024)    ; length of default I/O buffer
-(define port.charbuf-size   3100)    ; length of default char buffer
-                                     ; (must be at least two greater
-                                     ; than the length of the longest
-                                     ; UTF-8 encoding of any string that
-                                     ; can be encoded in port.buffer-size
-                                     ; bytes by a supported encoding;
-                                     ; worst case is when a single byte
-                                     ; turns into the 3-byte encoding
-                                     ; of the replacement character)
-(define port.sentinel 255)           ; not a legal code unit of UTF-8
+(define port.structure-size 21)      ; size of port structure
+
+; Lengths of default i/o buffers.
+;
+; The char buffer must be at least two greater than
+; the length of the longest UTF-8 encoding of any string
+; that can be encoded within the byte buffer.  For the
+; standard encodings, the worst case occurs when each
+; byte turns into the 3-byte encoding of the replacement
+; character.
+
+(define port.buffer-size    1024)
+(define port.charbuf-size   3100)
+
+; Textual input uses a sentinel byte;
+; It can be any value in 128..255 that is not a legal code unit of UTF-8.
+
+(define port.sentinel 255)
 
 ;;; Private procedures
 
@@ -97,8 +103,11 @@
   ; FIXME
   (if (and #f
            (eq? 1 (fxlogand 1 (vector-like-ref p port.type)))
-           (= 0 (vector-like-ref p port.charlim)))
-      (io/transcode-port! p)))
+          ;(= 0 (vector-like-ref p port.charlim))   ; FIXME
+           )
+      (begin (vector-like-set! p port.charptr 0)
+             (vector-like-set! p port.charlim 0)
+             (io/transcode-port! p))))
 
 (define (io/flush-buffer p)
   (let ((wr-ptr (vector-like-ref p port.wr-ptr)))
@@ -167,14 +176,15 @@
     (vector-set! v port.type
                    (fxlogior (fxlogior (if input? 2 0) (if output? 4 0))
                              (if binary? 0 1)))
-    (vector-set! v
-                 port.charbuf
-                 (make-bytevector port.charbuf-size))
+    (let ((charbuf (make-bytevector port.charbuf-size)))
+      (vector-set! v port.charbuf charbuf)
+      (bytevector-set! charbuf 0 port.sentinel))
     (vector-set! v port.charptr 0)
     (vector-set! v port.charlim 0)
     (vector-set! v port.charpos 0)
     (vector-set! v port.auxbuf (make-bytevector 4))
     (vector-set! v port.auxlim 0)
+    (vector-set! v port.auxneeded 0)
     (vector-set! v port.transcoder
                    (if binary?
                        0
@@ -536,7 +546,7 @@
     (let ((bytebuf (vector-like-ref p port.buffer)))
       (assert bytebuf)
       (vector-set! newport port.charbuf (make-bytevector port.charbuf-size)))
-    (bytevector-set! (vector-ref newport port.charbuf) 0 port.sentinel)
+    (bytevector-set! (vector-like-ref newport port.charbuf) 0 port.sentinel)
     (vector-set! newport port.charptr 0)
     (vector-set! newport port.charlim 0)
     (vector-set! newport port.charpos 0)
@@ -770,8 +780,9 @@
           (else
            (vector-like-set! p port.charptr 0)
            (vector-like-set! p port.charlim 0)
+           (bytevector-set! buf 0 port.sentinel)
            (io/fill-buffer p)
-           (io/transcode-port! p)
+           (io/transcode-port! p)        ; FIXME: belongs in io/fill-buffer
            (io/get-char p)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -842,6 +853,7 @@
                      (loop (+ i 1) (+ j 2))))))))
 
     (assert (= 0 (vector-like-ref p port.auxlim)))
+    (assert (= 0 (vector-like-ref p port.auxneeded)))
     (assert (= 0 eol-style)) ; FIXME
     (let ((n (loop byteptr 0)))
       (vector-like-set! p port.rd-ptr 0)
@@ -851,7 +863,9 @@
       (vector-like-set! p port.charlim n)
       (bytevector-set! charbuf n port.sentinel))))
 
-; FIXME:  This implementation makes two passes over the char buffer.
+; Transcoding UTF-8 to UTF-8 is surprisingly painful,
+; mainly because of error handling and incomplete
+; encodings at the end of the binary buffer.
 
 (define (io/transcode-input-port-utf-8! p eol-style err-mode)
 
@@ -861,6 +875,7 @@
          (bytepos    (vector-like-ref p port.position))
          (auxbuf     (vector-like-ref p port.auxbuf))
          (auxlim     (vector-like-ref p port.auxlim))
+         (auxneeded  (vector-like-ref p port.auxneeded))
          (charbuf    (vector-like-ref p port.charbuf))
          (charptr    (vector-like-ref p port.charptr))
          (charlim    (vector-like-ref p port.charlim))
@@ -909,7 +924,8 @@
       (cond ((= 0 count)
              (loop k j))
             ((= k bytelim)
-             (leftover i j (- k i)))
+             (let* ((copied (- k i)))
+               (leftover i (- j copied) copied count)))
             (else
              (let ((unit (bytevector-ref bytebuf (+ i 1))))
                (bytevector-set! charbuf j unit)
@@ -920,15 +936,14 @@
     ; Copies the extra bytes into auxbuf.
     ; Calculates and returns the new value for charlim.
 
-    (define (leftover i j extra)
-      (let ((i (- i extra))
-            (j (- j extra)))
-        (do ((i i (+ i 1))
-             (k 0 (+ k 1)))
-            ((= k extra))
-          (bytevector-set! auxbuf k (bytevector-ref bytebuf i)))
-        (vector-like-set! p port.auxlim extra)
-        j))
+    (define (leftover i j extra needed)
+      (do ((i i (+ i 1))
+           (k 0 (+ k 1)))
+          ((= k extra))
+        (bytevector-set! auxbuf k (bytevector-ref bytebuf i)))
+      (vector-like-set! p port.auxlim extra)
+      (vector-like-set! p port.auxneeded needed)
+      j)
 
     ; i points to the beginning of an illegal encoding in bytebuf
     ; j points to the next char in charbuf
@@ -951,18 +966,12 @@
 
     ; Copies continuation bytes from bytebuf to auxbuf,
     ; converts to UTF-8, copies to charbuf, and calls main loop.
-    ;
-    ; FIXME:  This isn't working yet.  It also has a second bug:
-    ; it doesn't allow for auxbuf to be incomplete even after
-    ; a new byte is added.
 
-    (define (auxloop i j)
-      (cond ((and (< i bytelim)
-                  (< j 4)
-                  (<= #x80 (bytevector-ref bytebuf i) #xbf))
-             (bytevector-set! auxbuf j (bytevector-ref bytebuf i))
-             (auxloop (+ i 1) (+ j 1)))
-            (else
+    (define (auxloop i j needed)
+      (cond ((= 0 needed)
+             (vector-like-set! p port.rd-ptr i)
+             (vector-like-set! p port.auxlim 0)
+             (vector-like-set! p port.auxneeded 0)
              (if (<= j 1)
                  (bytevector-set! auxbuf 1 0))
              (if (<= j 2)
@@ -972,11 +981,28 @@
              (let* ((s (utf8->string auxbuf))
                     (bv (string->utf8 (substring s 0 1)))
                     (n (bytevector-length bv)))
-               (do ((i 0 (+ i 1)))
-                   ((= i n))
-                 (bytevector-set! charbuf 0 (bytevector-ref auxbuf i)))
-               (mainloop i 1)))))
-
+               ; FIXME: error handling might be needed here
+               (bytevector-copy! bv 0 charbuf 0 n)
+               (mainloop i n)))
+            ((and (< i bytelim)
+                  (< j 4)
+                  (<= #x80 (bytevector-ref bytebuf i) #xbf))
+             (bytevector-set! auxbuf j (bytevector-ref bytebuf i))
+             (auxloop (+ i 1) (+ j 1) (- needed 1)))
+            ((and (= i bytelim) (< auxlim j))
+             ; not enough bytes available to complete the character
+             ; so skip main loop
+             (vector-like-set! p port.rd-ptr i)
+             (vector-like-set! p port.auxlim j)
+             (vector-like-set! p port.auxneeded needed))
+            (else
+             ; next byte is wrong, or we made no progress
+             (vector-like-set! p port.rd-ptr i)
+             (vector-like-set! p port.auxlim 0)
+             (vector-like-set! p port.auxneeded 0)
+             ; FIXME:  Depends on illegal ignoring its first argument.
+             (illegal i j i))))
+            
     (define (mainloop i j)
       (let ((n (loop i j)))
         (vector-like-set! p port.rd-ptr 0)
@@ -990,7 +1016,7 @@
     (assert (= 2 err-mode)) ; FIXME
 
     (if (< 0 auxlim)
-        (auxloop byteptr auxlim)
+        (auxloop byteptr auxlim auxneeded)
         (mainloop byteptr 0))))
 
 ; eof
