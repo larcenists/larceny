@@ -533,7 +533,8 @@
   (syntax-rules ()
    ((_ x)
     (if (not x)
-        (assertion-violation #f "assertion failure" 'x)))))
+        (begin (assertion-violation #f "assertion failure" 'x)
+               (unspecified))))))
 
 ))  ; end of (for-each (lambda (x) (twobit-expand ...)) ...)
 

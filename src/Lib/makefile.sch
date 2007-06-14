@@ -187,6 +187,7 @@
     "iosys"             ; basic system
     "fileio"            ; file ports
     "conio"             ; console ports, i.e., terminal
+    "bytevectorio"      ; bytevector ports
     "stringio"          ; string ports
 ;    "transio"           ; transcript ports
     "stdio"             ; user-level procedures

@@ -995,7 +995,7 @@
           (q0 0 0))
       s)))
 
-; (utf-32-codec) might write a byte order mark,
+; (utf-16-codec) might write a byte order mark,
 ; so it's better not to use textual i/o for this.
 
 (define (string->utf16 string . rest)
@@ -1203,7 +1203,7 @@
                            ((eq? (car rest) 'big) 'big)
                            ((eq? (car rest) 'little) 'little)
                            (else (endianness-violation
-                                  'string->utf32
+                                  'utf32->string
                                   (car rest)))))
 
          (i0 (if begins-with-bom? 4 0))

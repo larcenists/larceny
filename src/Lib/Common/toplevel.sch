@@ -359,8 +359,10 @@
   ;;(environment-set-macro! larc '.javadot (usual-syntax '.javadot))
 
   (environment-set! larc 'case-sensitive? case-sensitive?)
-  (environment-set! larc 'read-square-bracket-as-paren read-square-bracket-as-paren)
-  (environment-set! larc 'recognize-javadot-symbols? recognize-javadot-symbols?)
+  (environment-set! larc 'read-square-bracket-as-paren
+                    read-square-bracket-as-paren)
+  (environment-set! larc 'recognize-javadot-symbols?
+                    recognize-javadot-symbols?)
   (environment-set! larc 'javadot-type-suffix javadot-type-suffix)
   (environment-set! larc 'javadot-generic-suffix javadot-generic-suffix)
   (environment-set! larc 'recognize-keywords? recognize-keywords?)
@@ -456,11 +458,14 @@
   (environment-set! larc 'environment-get environment-get)
   (environment-set! larc 'environment-get-cell environment-get-cell)
   (environment-set! larc 'environment-set! environment-set!)
-  (environment-set! larc 'environment-link-variables! environment-link-variables!)
+  (environment-set! larc 'environment-link-variables!
+                    environment-link-variables!)
   (environment-set! larc 'environment-syntax-environment
                     environment-syntax-environment)
-  (environment-set! larc 'environment-auxiliary-info environment-auxiliary-info)
-  (environment-set! larc 'environment-set-auxiliary-info! environment-set-auxiliary-info!)
+  (environment-set! larc 'environment-auxiliary-info
+                    environment-auxiliary-info)
+  (environment-set! larc 'environment-set-auxiliary-info!
+                    environment-set-auxiliary-info!)
   (environment-set! larc 'environment-copy environment-copy)
   (environment-set! larc 'environment-macros environment-macros)
   (environment-set! larc 'environment-get-macro environment-get-macro)
@@ -534,33 +539,47 @@
   (environment-set! larc 'bytevector-s16-set! bytevector-s16-set!)
   (environment-set! larc 'bytevector-u16-native-ref bytevector-u16-native-ref)
   (environment-set! larc 'bytevector-s16-native-ref bytevector-s16-native-ref)
-  (environment-set! larc 'bytevector-u16-native-set! bytevector-u16-native-set!)
-  (environment-set! larc 'bytevector-s16-native-set! bytevector-s16-native-set!)
+  (environment-set! larc 'bytevector-u16-native-set!
+                    bytevector-u16-native-set!)
+  (environment-set! larc 'bytevector-s16-native-set!
+                    bytevector-s16-native-set!)
   (environment-set! larc 'bytevector-u32-ref bytevector-u32-ref)
   (environment-set! larc 'bytevector-s32-ref bytevector-s32-ref)
   (environment-set! larc 'bytevector-u32-set! bytevector-u32-set!)
   (environment-set! larc 'bytevector-s32-set! bytevector-s32-set!)
   (environment-set! larc 'bytevector-u32-native-ref bytevector-u32-native-ref)
   (environment-set! larc 'bytevector-s32-native-ref bytevector-s32-native-ref)
-  (environment-set! larc 'bytevector-u32-native-set! bytevector-u32-native-set!)
-  (environment-set! larc 'bytevector-s32-native-set! bytevector-s32-native-set!)
+  (environment-set! larc 'bytevector-u32-native-set!
+                    bytevector-u32-native-set!)
+  (environment-set! larc 'bytevector-s32-native-set!
+                    bytevector-s32-native-set!)
   (environment-set! larc 'bytevector-u64-ref bytevector-u64-ref)
   (environment-set! larc 'bytevector-s64-ref bytevector-s64-ref)
   (environment-set! larc 'bytevector-u64-set! bytevector-u64-set!)
   (environment-set! larc 'bytevector-s64-set! bytevector-s64-set!)
   (environment-set! larc 'bytevector-u64-native-ref bytevector-u64-native-ref)
   (environment-set! larc 'bytevector-s64-native-ref bytevector-s64-native-ref)
-  (environment-set! larc 'bytevector-u64-native-set! bytevector-u64-native-set!)
-  (environment-set! larc 'bytevector-s64-native-set! bytevector-s64-native-set!)
+  (environment-set! larc 'bytevector-u64-native-set!
+                    bytevector-u64-native-set!)
+  (environment-set! larc 'bytevector-s64-native-set!
+                    bytevector-s64-native-set!)
   (environment-set! larc 'bytevector=? bytevector=?)
-  (environment-set! larc 'bytevector-ieee-single-native-ref bytevector-ieee-single-native-ref)
-  (environment-set! larc 'bytevector-ieee-single-ref bytevector-ieee-single-ref)
-  (environment-set! larc 'bytevector-ieee-double-native-ref bytevector-ieee-double-native-ref)
-  (environment-set! larc 'bytevector-ieee-double-ref bytevector-ieee-double-ref)
-  (environment-set! larc 'bytevector-ieee-single-native-set! bytevector-ieee-single-native-set!)
-  (environment-set! larc 'bytevector-ieee-single-set! bytevector-ieee-single-set!)
-  (environment-set! larc 'bytevector-ieee-double-native-set! bytevector-ieee-double-native-set!)
-  (environment-set! larc 'bytevector-ieee-double-set! bytevector-ieee-double-set!)
+  (environment-set! larc 'bytevector-ieee-single-native-ref
+                    bytevector-ieee-single-native-ref)
+  (environment-set! larc 'bytevector-ieee-single-ref
+                    bytevector-ieee-single-ref)
+  (environment-set! larc 'bytevector-ieee-double-native-ref
+                    bytevector-ieee-double-native-ref)
+  (environment-set! larc 'bytevector-ieee-double-ref
+                    bytevector-ieee-double-ref)
+  (environment-set! larc 'bytevector-ieee-single-native-set!
+                    bytevector-ieee-single-native-set!)
+  (environment-set! larc 'bytevector-ieee-single-set!
+                    bytevector-ieee-single-set!)
+  (environment-set! larc 'bytevector-ieee-double-native-set!
+                    bytevector-ieee-double-native-set!)
+  (environment-set! larc 'bytevector-ieee-double-set!
+                    bytevector-ieee-double-set!)
   (environment-set! larc 'bytevector-copy! bytevector-copy!)
   (environment-set! larc 'bytevector-copy bytevector-copy)
   (environment-set! larc 'bytevector->u8-list bytevector->u8-list)
@@ -640,14 +659,19 @@
   ;; io
 
   (environment-set! larc 'call-with-text-input-file call-with-text-input-file)
-  (environment-set! larc 'call-with-text-output-file call-with-text-output-file)
-  (environment-set! larc 'call-with-binary-input-file call-with-binary-input-file)
-  (environment-set! larc 'call-with-binary-output-file call-with-binary-output-file)
+  (environment-set! larc 'call-with-text-output-file
+                    call-with-text-output-file)
+  (environment-set! larc 'call-with-binary-input-file
+                    call-with-binary-input-file)
+  (environment-set! larc 'call-with-binary-output-file
+                    call-with-binary-output-file)
   (environment-set! larc 'close-open-files close-open-files)
   (environment-set! larc 'console-input-port console-input-port)
-  (environment-set! larc 'console-input-port-factory console-input-port-factory)
+  (environment-set! larc 'console-input-port-factory
+                    console-input-port-factory)
   (environment-set! larc 'console-output-port console-output-port)
-  (environment-set! larc 'console-output-port-factory console-output-port-factory)
+  (environment-set! larc 'console-output-port-factory
+                    console-output-port-factory)
   (environment-set! larc 'delete-file delete-file)
   (environment-set! larc 'environment-printer environment-printer)
   (environment-set! larc 'eof-object eof-object)
@@ -668,8 +692,6 @@
   (environment-set! larc 'open-input-string open-input-string)
   (environment-set! larc 'open-output-string open-output-string)
   (environment-set! larc 'port-name port-name)
-  (environment-set! larc 'port-position port-position)
-  (environment-set! larc 'port? port?)
   (environment-set! larc 'io/make-port io/make-port) ; XXX
   (environment-set! larc 'print-length print-length)
   (environment-set! larc 'print-level print-level)
@@ -683,9 +705,11 @@
   (environment-set! larc 'rename-file rename-file)
   (environment-set! larc 'reset-output-string reset-output-string)
   (environment-set! larc 'weird-printer weird-printer)
-  (environment-set! larc 'with-input-from-binary-file with-input-from-binary-file)
+  (environment-set! larc 'with-input-from-binary-file
+                    with-input-from-binary-file)
   (environment-set! larc 'with-input-from-port with-input-from-port)
-  (environment-set! larc 'with-output-to-binary-file with-output-to-binary-file)
+  (environment-set! larc 'with-output-to-binary-file
+                    with-output-to-binary-file)
   (environment-set! larc 'with-output-to-port with-output-to-port)
   (environment-set! larc 'call-with-input-string call-with-input-string)
   (environment-set! larc 'call-with-output-string call-with-output-string)
@@ -693,6 +717,48 @@
   (environment-set! larc 'with-output-to-string with-output-to-string)
   (environment-set! larc 'write-bytevector-like write-bytevector-like)
   (environment-set! larc 'write-string write-string)
+
+  ;; i/o procedures proposed for R6RS, etc
+
+  (environment-set! larc 'latin-1-codec latin-1-codec)
+  (environment-set! larc 'utf-8-codec utf-8-codec)
+  (environment-set! larc 'utf-16-codec utf-16-codec)
+  (environment-set! larc 'native-eol-style native-eol-style)
+  (environment-set! larc 'make-transcoder make-transcoder)
+  (environment-set! larc 'native-transcoder native-transcoder)
+  (environment-set! larc 'transcoder-codec transcoder-codec)
+  (environment-set! larc 'transcoder-eol-style transcoder-eol-style)
+  (environment-set! larc 'transcoder-error-handling-mode
+                    transcoder-error-handling-mode)
+
+  (environment-set! larc 'port? port?)
+  (environment-set! larc 'port-transcoder port-transcoder)
+  (environment-set! larc 'textual-port? textual-port?)
+  (environment-set! larc 'binary-port? binary-port?)
+  (environment-set! larc 'transcoded-port transcoded-port)
+  (environment-set! larc 'port-has-port-position? port-has-port-position?)
+  (environment-set! larc 'port-position port-position)
+  (environment-set! larc 'port-has-set-port-position!?
+                    port-has-set-port-position!?)
+  (environment-set! larc 'set-port-position! set-port-position!)
+  (environment-set! larc 'close-port close-port)
+  (environment-set! larc 'call-with-port call-with-port)
+
+  ; input-port? and current-input-port were part of R4RS
+
+  (environment-set! larc 'port-eof? port-eof?)
+  (environment-set! larc 'open-file-input-port open-file-input-port)
+  (environment-set! larc 'open-bytevector-input-port
+                    open-bytevector-input-port)
+  (environment-set! larc 'open-string-input-port open-string-input-port)
+  (environment-set! larc 'standard-input-port standard-input-port)
+  (environment-set! larc 'make-custom-binary-input-port
+                    make-custom-binary-input-port)
+  (environment-set! larc 'make-custom-textual-input-port
+                    make-custom-textual-input-port)
+
+  (environment-set! larc 'get-u8 get-u8)
+  (environment-set! larc 'get-char get-char)
 
   ;; common and less common extensions to R4RS
 
@@ -988,7 +1054,8 @@
   (environment-set! larc 'interpreted-procedure?  interpreted-procedure?)
   (environment-set! larc 'interpreted-expression? interpreted-expression?)
   (environment-set! larc 'interpreted-primitive?  interpreted-primitive?)
-  (environment-set! larc 'interpreted-expression-source interpreted-expression-source)
+  (environment-set! larc 'interpreted-expression-source
+                    interpreted-expression-source)
 
   ;; Continuation marks
   (environment-set-macro! larc 'with-continuation-mark
@@ -1015,7 +1082,8 @@
   (environment-set! larc 'current-require-path current-require-path)
   (environment-set! larc 'current-library-resolver current-library-resolver)
   (environment-set! larc 'require require)
-  (environment-set! larc 'clear-require-loaded-files! clear-require-loaded-files!)
+  (environment-set! larc 'clear-require-loaded-files!
+                    clear-require-loaded-files!)
 
   ;; miscellaneous extensions and hacks
 
@@ -1043,12 +1111,16 @@
   larc)
 
 ;; *larceny-environment-extensions* : (listof (environment -> void))
+;;
 ;; A list of procedures which accept an environment. The procedures are 
 ;; expected to extend the environment with new bindings.
+
 (define *larceny-environment-extensions* '())
 
 ;; *interactive-eval-list* : (listof s-expr)
+;;
 ;; A list of forms to be evaluated when the interpreter starts.
+
 (define *interactive-eval-list* '())
 
 ; eof
