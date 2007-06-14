@@ -129,6 +129,8 @@
         clr-type/is-enum?
         clr-type/is-generic?
         clr-type/is-special-name?
+        clr-type/is-generic-parameter?
+        clr-type/is-generic-type?
 
         clr/%type-as-string
         clr/bool->foreign

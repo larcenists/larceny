@@ -333,6 +333,10 @@
   clr-type-handle/system-type "IsGenericTypeDefinition" #t)
 (define-boolean-clr-property clr-type/is-special-name?
   clr-type-handle/system-type "IsSpecialName")
+(define-boolean-clr-property clr-type/is-generic-parameter?
+  clr-type-handle/system-type "IsGenericParameter")
+(define-boolean-clr-property clr-type/is-generic-type?
+  clr-type-handle/system-type "IsGenericType")
 
 (define (clr-array->list handle)
   (if (%clr-array? handle)
@@ -550,13 +554,20 @@
                                       clr-binding-flags/non-public)))))
     (lambda (type static? public?)
       ;; (dotnet-message 5 "clr-type/%get-members" static? public?)
-      (clr/%invoke method type (if static?
-                                   (if public?
-                                       arglist-static-public
-                                       arglist-static-non-public)
-                                   (if public?
-                                       arglist-instance-public
-                                       arglist-instance-non-public))))))
+      (clr/%invoke method
+                   ;; This check is a workaround for a bug in Mono -- it
+                   ;; crashes if you try to get the members of a generic
+                   ;; type parameter.
+                   (if (clr-type/is-generic-parameter? type)
+                     clr-type-handle/system-object
+                     type)
+                   (if static?
+                     (if public?
+                       arglist-static-public
+                       arglist-static-non-public)
+                     (if public?
+                       arglist-instance-public
+                       arglist-instance-non-public))))))
 
 (define (clr/type-not-found canonical-name)
   (error "Couldn't find-clr-type " canonical-name))
