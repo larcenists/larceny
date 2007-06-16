@@ -949,7 +949,7 @@
              (let* ((copied (- k i)))
                (leftover i (- j copied) copied count)))
             (else
-             (let ((unit (bytevector-ref bytebuf (+ i 1))))
+             (let ((unit (bytevector-ref bytebuf k)))
                (bytevector-set! charbuf j unit)
                (if (<= lower unit upper)
                    (multibyte i (+ j 1) (+ k 1) #x80 #xbf (- count 1))
