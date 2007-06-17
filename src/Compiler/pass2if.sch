@@ -513,7 +513,7 @@
   (let* ((intervals (complete-intervals
                      (calculate-intervals clauses)))
          (lo (car (car intervals)))
-         (hi (cadr (car (reverse intervals))))
+         (hi (cadr (car (reverse intervals))))          ; exclusive upper bound
          (p (length intervals)))
     (make-conditional
      (make-call (make-variable name:FX<)
@@ -523,7 +523,7 @@
      (make-conditional
       (make-call (make-variable name:FX<)
                  (list ref0
-                       (make-constant (+ hi 1))))
+                       (make-constant hi)))
       ; The static cost of table lookup is about hi - lo words.
       ; The static cost of binary search is about 5 SPARC instructions
       ; per interval.

@@ -589,3 +589,17 @@
         (y (identity 'char=?)))
       'var-else)
 
+; This was a bug in v0.93.
+
+(test "case-last-comparison"
+      (let ((c (integer->char (identity 127))))
+        (cond ((and (char<=? #\0 c) (char<=? c #\9))
+               'digit)
+              ((memv c '(#\! #\$ #\% #\& #\* #\/ #\:
+                         #\< #\= #\> #\? #\^ #\_ #\~
+                         #\+ #\-))
+               'initial)
+              (else 'default)))
+      'default)
+
+
