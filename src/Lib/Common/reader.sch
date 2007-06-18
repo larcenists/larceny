@@ -198,8 +198,9 @@
          (errIllegalNamedChar 4)                 ; illegal #\...
          (errIllegalString 5)                   ; illegal string
          (errIllegalSymbol 6)                   ; illegal symbol
-         (errBug 7)            ; bug in reader, shouldn't happen
-         (errLexGenBug 8)                         ; can't happen
+         (errNoDelimiter 7)      ; missing delimiter after token
+         (errBug 8)            ; bug in reader, shouldn't happen
+         (errLexGenBug 9)                         ; can't happen
 
          ; State for one-token buffering in lexical analyzer.
 
@@ -8322,9 +8323,6 @@
     ;
     ; Lexical analyzer.
     ;
-    ; This code is adapted from the quirk23 lexical analyzer written
-    ; by Will Clinger for a compiler course.
-    ;
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
     ; next-token and consume-token! are called by the parser.
@@ -8358,6 +8356,8 @@
                "Illegal string syntax")
               ((= msg errIllegalSymbol)
                "Illegal symbol syntax")
+              ((= msg errNoDelimiter)
+               "Missing delimiter")
               ((= msg errLexGenBug)
                "Bug in lexical analyzer (generated)")
               (else "Bug in lexical analyzer")))
@@ -8384,26 +8384,36 @@
   
     (define (accept t)
       (case t
-       ((id boolean number character string miscflag)
-        (set! tokenValue
-              (substring string_accumulator
-                         0 string_accumulator_length))))
-      (case t
+
        ((comment)
         ; The token is #|, which starts a nested comment.
         (scan-nested-comment)
         (next-token))
+
        ((commentdatum)
         ; The token is #; so parse and ignore the next datum.
         (parse-datum)
         (next-token))
-       ((miscflag)
-        (cond ((string=? tokenValue "#!r6rs")
-               (set-mode! 'r6rs) (next-token))
-              (else
+
+       ((id boolean number character string miscflag period)
+
+        (set! tokenValue
+              (substring string_accumulator
+                         0 string_accumulator_length))
+
+        (cond ((and (eq? t 'miscflag)
+                    (string=? tokenValue "#!r6rs"))
+               (set-mode! 'r6rs)
+               (next-token))
+
+              ((delimiter? (scanChar))
                (set! kindOfNextToken t)
                (set! nextTokenIsReady #t)
-               t)))
+               t)
+
+              (else
+               (scannerError errNoDelimiter))))
+
        (else
         (set! kindOfNextToken t)
         (set! nextTokenIsReady #t)
@@ -8528,6 +8538,16 @@
     ; Miscellaneous utility routines.
     ;
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ; Determines whether its argument is a <delimiter>.
+
+    (define (delimiter? c)
+      (case c
+       ((#\( #\) #\[ #\] #\" #\;)
+        #t)
+       (else
+        (or (not (char? c))
+            (char-whitespace? c)))))         
 
     ; Given the integer parsed from a hex escape,
     ; returns the corresponding Unicode character.
