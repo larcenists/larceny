@@ -192,7 +192,7 @@
          (/ (hide 4.5+3i) (hide 4.5+3i))
          1.0)
    (test "Ticket #33 (3)"               ; Bug in Larceny through 0.90
-         (number->string (hide (/ (hide 3.0i) (hide 3.0i))))
+         (number->string (hide (/ (hide +3.0i) (hide +3.0i))))
          "1.0")
    (test "Ticket #33 (4)"               ; Bug in Larceny through 0.90
          (flonum? (/ (hide 3+4.5i) (hide 3+4.5i)))

@@ -51,10 +51,10 @@
 ; Given an exact integer, can it be represented as a fixnum?
 
 (define fixnum-range?
-  (let ((-two^29  (- (expt 2 29)))
+  (let (($-two^29  (- (expt 2 29)))
         (two^29-1 (- (expt 2 29) 1)))
     (lambda (x)
-      (<= -two^29 x two^29-1))))
+      (<= $-two^29 x two^29-1))))
 
 ; Does the integer x fit in the immediate field of an instruction?
 

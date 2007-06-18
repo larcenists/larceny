@@ -152,10 +152,10 @@
                          n)))
       (if (negative? e)
           (loop3 1 (expt 10 (- e)) 0)
-          (let ((10^e (expt 10 e)))
-            (cond ((>= 10^e two^p)
-                   (loop1 10^e 0 0))
-                  (else (loop2 10^e 0))))))
+          (let ((ten^e (expt 10 e)))
+            (cond ((>= ten^e two^p)
+                   (loop1 ten^e 0 0))
+                  (else (loop2 ten^e 0))))))
     
     ; Extended precision floating point, implemented entirely
     ; in Scheme for portability and ease of maintenance.

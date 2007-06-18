@@ -226,9 +226,9 @@
     (list (+ x y) (- x y) (* x y)))
 
   (let* ((a 12345)
-	 (-a (- a))
+	 ($-a (- a))
 	 (b 3145)
-	 (-b (- b))
+	 ($-b (- b))
 	 (q (lambda (x) (- x)))
 	 (two^28 268435456)
 	 (two^29 536870912)
@@ -237,8 +237,8 @@
 	 (two^32-1 4294967295))
 
     (allof "basic arithmetic"
-     (test "(- a)" (- a) -a)
-     (test "(- -a)" (- -a) a)
+     (test "(- a)" (- a) $-a)
+     (test "(- $-a)" (- $-a) a)
 
      ; these multiply fixnums, producing fixnums
 
@@ -251,9 +251,9 @@
      (test "(quotient a b)" (quotient a b) 3)
      (test "(quotient b a)" (quotient b a) 0)
      (test "(quotient a a)" (quotient a a) 1)
-     (test "(quotient a -a)" (quotient a -a) -1)
-     (test "(quotient -a a)" (quotient -a a) -1)
-     (test "(quotient -a -a)" (quotient -a -a) 1)
+     (test "(quotient a $-a)" (quotient a $-a) -1)
+     (test "(quotient $-a a)" (quotient $-a a) -1)
+     (test "(quotient $-a $-a)" (quotient $-a $-a) 1)
      (test "(quotient 63888 65536)" (quotient 63888 65536) 0)
 
      ; simple remainders
@@ -261,10 +261,10 @@
      (test "(remainder a b)" (remainder a b) 2910)
      (test "(remainder b a)" (remainder b a) b)
      (test "(remainder a a)" (remainder a a) 0)
-     (test "(remainder b -a)" (remainder b -a) b)
-     (test "(remainder -b a)" (remainder -b a) -b)
-     (test "(remainder a -b)" (remainder a -b) 2910)
-     (test "(remainder -a b)" (remainder -a b) -2910)
+     (test "(remainder b $-a)" (remainder b $-a) b)
+     (test "(remainder $-b a)" (remainder $-b a) $-b)
+     (test "(remainder a $-b)" (remainder a $-b) 2910)
+     (test "(remainder $-a b)" (remainder $-a b) -2910)
      (test "(remainder 63888 65536)" (remainder 63888 65536) 63888)
 
      ; these generate 1-word bignums from fixnums

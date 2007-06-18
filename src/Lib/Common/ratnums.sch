@@ -109,22 +109,22 @@
 
 ; From Knuth.  I believe that this routine will always return
 ;  a simplified ratnum, but this must be confirmed.  (Seems to work.)
-;
-(define (ratnum-add-or-sub a b +/-)
+
+(define (ratnum-add-or-sub a b add/subtract)
   (let ((gcd1 (gcd (denominator a) (denominator b))))
     (remove-1-from-denominator
      (if (= gcd1 1)
-	 (make-ratnum (+/- (* (numerator a) (denominator b))
-			   (* (numerator b) (denominator a)))
-		      (* (denominator a) (denominator b)))
-	 (let* ((t (+/- (* (numerator a)
-			   (/ (denominator b) gcd1))
-			(* (numerator b)
-			   (/ (denominator a) gcd1))))
-		(gcd2 (gcd t gcd1)))
-	   (make-ratnum (/ t gcd2)
-			(* (/ (denominator a) gcd1)
-			   (/ (denominator b) gcd2))))))))
+         (make-ratnum (add/subtract (* (numerator a) (denominator b))
+                                    (* (numerator b) (denominator a)))
+                      (* (denominator a) (denominator b)))
+         (let* ((t (add/subtract (* (numerator a)
+                                    (/ (denominator b) gcd1))
+                                 (* (numerator b)
+                                    (/ (denominator a) gcd1))))
+                (gcd2 (gcd t gcd1)))
+           (make-ratnum (/ t gcd2)
+                        (* (/ (denominator a) gcd1)
+                           (/ (denominator b) gcd2))))))))
 
 (define (ratnum-add a b)
   (ratnum-add-or-sub a b +))
