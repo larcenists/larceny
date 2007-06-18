@@ -370,6 +370,11 @@
   (environment-set! larc 'javadot-symbol->symbol! javadot-symbol->symbol!)
   (environment-set! larc 'symbol->javadot-symbol! symbol->javadot-symbol!)
 
+  (environment-set! larc 'read-r6rs-flags? read-r6rs-flags?)
+  (environment-set! larc 'read-larceny-weirdness? read-larceny-weirdness?)
+  (environment-set! larc 'read-traditional-weirdness?
+                    read-traditional-weirdness?)
+  (environment-set! larc 'read-mzscheme-weirdness? read-mzscheme-weirdness?)
 
   ;; pairs and lists
 
@@ -761,6 +766,7 @@
   (environment-set! larc 'get-u8 get-u8)
   (environment-set! larc 'lookahead-char lookahead-char)
   (environment-set! larc 'get-char get-char)
+  (environment-set! larc 'get-datum get-datum)
 
   ;; common and less common extensions to R4RS
 

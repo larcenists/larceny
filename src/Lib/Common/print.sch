@@ -122,9 +122,49 @@
 
     (loop s p 0 (string-length s)))
 
+  (define (print-slashed-symbol x p)
+
+    (let* ((s (symbol->string x))
+           (n (string-length s)))
+
+      (define (loop i)
+        (if (< i n)
+            (let ((c (string-ref s i)))
+              (cond ((or (and (char<=? #\a c) (char<=? c #\z))
+                         (and (char<=? #\A c) (char<=? c #\Z))
+                         (case c
+                          ((#\! #\$ #\% #\& #\* #\/ #\: 
+                            #\< #\= #\> #\? #\^ #\_ #\~)
+                           ; special initial
+                           #t)
+                          ((#\0 #\1 #\2 #\3 #\4
+                            #\5 #\6 #\7 #\8 #\9
+                            #\@)
+                           ; special subsequent
+                           (< 0 i))
+                          ((#\+ #\- #\.)
+                           ; check for peculiar identifiers
+                           (or (< 0 i)
+                               (memq x '(+ - ...))
+                               (and (char=? c #\-)
+                                    (< (+ i 1) n)
+                                    (char=? (string-ref s (+ i 1)) #\>))))
+                          (else #f)))
+                     (write-char c p)
+                     (loop (+ i 1)))
+                    (else
+                     (let ((hexstring (number->string (char->integer c) 16)))
+                       (write-char #\\ p)
+                       (write-char #\x p)
+                       (print-slashed-string hexstring p)
+                       (write-char #\; p)
+                       (loop (+ i 1))))))))
+
+      (loop 0)))
+
   (define (print-slashed-string s p)
 
-    (define (loop x p i n)
+    (define (loop i n)
       (if (< i n)
           (let* ((c (string-ref s i))
                  (sv (char->integer c)))
@@ -148,9 +188,9 @@
                        (write-char #\x p)
                        (print-slashed-string hexstring p)
                        (write-char #\; p))))))
-            (loop x p (+ i 1) n))))
+            (loop (+ i 1) n))))
 
-    (loop s p 0 (string-length s)))
+    (loop 0 (string-length s)))
 
   (define (print-slashed-bytevector s p)
 
@@ -168,7 +208,10 @@
     (cond ((eq? x '())              (printstr "()" p))
 	  ((not x)                  (printstr "#f" p))
 	  ((eq? x #t)               (printstr "#t" p))
-	  ((symbol? x)              (printsym (symbol->string x) p))
+	  ((symbol? x)
+           (if slashify
+               (print-slashed-symbol x p)
+               (printsym (symbol->string x) p)))
 	  ((number? x)              (printnumber x p slashify))
 	  ((char? x)
 	   (if slashify

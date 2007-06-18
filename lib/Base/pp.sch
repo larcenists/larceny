@@ -122,14 +122,44 @@
             ((number? obj)
              (out (number->string obj) col))
             ((symbol? obj)
-             (out (symbol->string obj) col))
-            ((procedure? obj)
-             (let ((n (procedure-name obj)))
-               (if n
-                   (out ">"
-                        (out (symbol->string n)
-                             (out "#<PROCEDURE " col)))
-                   (out "#<PROCEDURE>" col))))
+             (let* ((s (symbol->string obj))
+                    (n (string-length s)))
+               (if display?
+                   (out s col)
+                   (let loop ((i 0) (j 0) (col col))
+                     (if (and col (< j n))
+                         (let* ((c (string-ref s j)))
+                           (cond ((or (and (char<=? #\a c) (char<=? c #\z))
+                                      (and (char<=? #\A c) (char<=? c #\Z))
+                                      (case c
+                                       ((#\! #\$ #\% #\& #\* #\/ #\: 
+                                         #\< #\= #\> #\? #\^ #\_ #\~)
+                                        ; special initial
+                                        #t)
+                                       ((#\0 #\1 #\2 #\3 #\4
+                                         #\5 #\6 #\7 #\8 #\9
+                                         #\@)
+                                        ; special subsequent
+                                        (< 0 j))
+                                       ((#\+ #\- #\.)
+                                        (or (< 0 j)
+                                            (memq obj '(+ - ...))
+                                            (and (char=? c #\-)
+                                                 (< 1 n)
+                                                 (char=? (string-ref s 1)
+                                                         #\>))))
+                                       (else #f)))
+                                  (loop i (+ j 1) col))
+                                 (else
+                                  (let* ((col (out (substring s i j) col))
+                                         (ssv (number->string
+                                               (char->integer c) 16))
+                                         (col (out "\\x" col))
+                                         (col (out ssv col))
+                                         (col (out ";" col))
+                                         (j+1 (+ j 1)))
+                                    (loop j+1 j+1 col)))))
+                         (out (substring s i j) col))))))
             ((string? obj)      
              (if display?
                  (out obj col)
@@ -202,6 +232,13 @@
                               (else
                                (string-append "x" (number->string k 16)))))
                       (out "#\\" col))))
+            ((procedure? obj)
+             (let ((n (procedure-name obj)))
+               (if n
+                   (out ">"
+                        (out (symbol->string n)
+                             (out "#<PROCEDURE " col)))
+                   (out "#<PROCEDURE>" col))))
             ((input-port? obj)
              (out ">"
                   (out (port-name obj)
