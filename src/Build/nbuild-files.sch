@@ -13,26 +13,32 @@
       "copy.sch" "pass3commoning.aux.sch" "pass3rep.aux.sch")))
 
 (define *nbuild:sparc/twobit-files*
-  (param-filename 'compiler
-		'("common.imp.sch" "sparc.imp.sch" "sparc.imp2.sch")))
+  (param-filename
+   'compiler
+   '("common.imp.sch" "sparc.imp.sch" "sparc.imp2.sch")))
 
 (define *nbuild:petit/twobit-files*
-  (param-filename 'compiler
-		'("common.imp.sch" "standard-C.imp.sch" "standard-C.imp2.sch")))
+  (param-filename
+   'compiler
+   '("common.imp.sch" "standard-C.imp.sch" "standard-C.imp2.sch")))
 
 (define *nbuild:dotnet/twobit-files*
   (if (eq? 'dotnet (nbuild-parameter 'target-machine))
       (append 
        (param-filename 'compiler
                      '("common.imp.sch"))
-   ;;; FIXME:  Compiler is going to need to know about
-   ;;;         Lib/Common/javadot-syntax.sch to implement .javadot macro
+
+       ;; FIXME:  Compiler is going to need to know about
+       ;;         Lib/Common/javadot-syntax.sch to implement .javadot macro
+       ;; The macro expander handles that, not the compiler proper.
+
        (param-filename 'dotnet-asm
-                     '("il.imp.sch" "il.imp2.sch")))))
+                       '("il.imp.sch" "il.imp2.sch")))))
 
 (define *nbuild:iasn/twobit-files*
-  (param-filename 'compiler
-		'("common.imp.sch" "iasn.imp.sch" "iasn.imp2.sch")))
+  (param-filename
+   'compiler
+   '("common.imp.sch" "iasn.imp.sch" "iasn.imp2.sch")))
 
 (define *nbuild:twobit-files-2*
   (param-filename 'compiler
@@ -50,117 +56,125 @@
       "printlap.sch")))
 
 (define *nbuild:common-asm-be*
-  (param-filename 'common-asm
-		'("pass5p1.sch" "asmutil.sch" "asmutil32be.sch" "asmutil32.sch"
-		  "makefasl.sch" "dumpheap.sch")))
+  (param-filename
+   'common-asm
+   '("pass5p1.sch" "asmutil.sch" "asmutil32be.sch" "asmutil32.sch"
+     "makefasl.sch" "dumpheap.sch")))
 
 (define *nbuild:common-asm-el*
-  (param-filename 'common-asm
-		'("pass5p1.sch" "asmutil.sch" "asmutil32el.sch" "asmutil32.sch"
-                  "makefasl.sch" "dumpheap.sch")))
+  (param-filename
+   'common-asm
+   '("pass5p1.sch" "asmutil.sch" "asmutil32el.sch" "asmutil32.sch"
+     "makefasl.sch" "dumpheap.sch")))
 
 (define *nbuild:build-files*
-  (param-filename 'common-source
-                `("globals.sch"
-                  "ecodes.sch"
-                  "layouts.sch"
-                  ,@(case *runtime-type* 
-                      ((sparc-native sassy-native) '("regs.sch"))
-                      (else '())))))
+  (param-filename
+   'common-source
+   `("globals.sch"
+     "ecodes.sch"
+     "layouts.sch"
+     ,@(case *runtime-type* 
+        ((sparc-native sassy-native) '("regs.sch"))
+        (else '())))))
 
 (define *nbuild:sparcasm-files*
   (if (eq? 'sparc (nbuild-parameter 'target-machine))
       (param-filename 'sparc-asm
-                    '("pass5p2.sch" 
-                      "peepopt.sch"
-                      "sparcutil.sch"
-                      "sparcasm.sch"
-                      "sparcasm2.sch"
-                      "gen-msi.sch"
-                      "sparcprim-part1.sch"
-                      "sparcprim-part2.sch"
-                      "sparcprim-part3a.sch"
-                      "sparcprim-part3b.sch"
-                      "sparcprim-part4.sch"
-                      "switches.sch"
-                      "sparcdis.sch"))))
+                      '("pass5p2.sch" 
+                        "peepopt.sch"
+                        "sparcutil.sch"
+                        "sparcasm.sch"
+                        "sparcasm2.sch"
+                        "gen-msi.sch"
+                        "sparcprim-part1.sch"
+                        "sparcprim-part2.sch"
+                        "sparcprim-part3a.sch"
+                        "sparcprim-part3b.sch"
+                        "sparcprim-part4.sch"
+                        "switches.sch"
+                        "sparcdis.sch"))))
 
 (define *nbuild:petitasm-files*
   (if (eq? 'standard-c (nbuild-parameter 'target-machine))
       (append
        (param-filename 'common-asm
-                     '("external-assembler.sch"))
-       (param-filename 'standard-c-asm
-                     `("pass5p2.sch" 
-                       "peepopt.sch" 
-                       "asm-switches.sch" 
-                       "dumpheap-overrides.sch" 
-                       "petit-init-proc.sch"
-                       "md5.sch"
-                       ,@(case (nbuild-parameter 'host-os)
-                           ((macosx macosx-el unix cygwin solaris linux-el) '("dumpheap-unix.sch"))
-                           ((win32)       '("dumpheap-win32.sch"))
-                           (else          (error '*nbuild:petitasm-files* "Unknown value for nbuild-parameter 'host-os"))))))
+                       '("external-assembler.sch"))
+       (param-filename
+        'standard-c-asm
+        `("pass5p2.sch" 
+          "peepopt.sch" 
+          "asm-switches.sch" 
+          "dumpheap-overrides.sch" 
+          "petit-init-proc.sch"
+          "md5.sch"
+          ,@(case (nbuild-parameter 'host-os)
+             ((macosx macosx-el unix cygwin solaris linux-el)
+              '("dumpheap-unix.sch"))
+             ((win32)
+              '("dumpheap-win32.sch"))
+             (else
+              (error '*nbuild:petitasm-files*
+                     "Unknown value for nbuild-parameter 'host-os"))))))
       '()))
 
 (define *nbuild:x86-sass-files*
   (if (eq? 'x86-sass (nbuild-parameter 'target-machine))
       (append
        (param-filename 'common-asm
-                     '("external-assembler.sch"))
+                       '("external-assembler.sch"))
        (param-filename 'x86-sass-asm
-                     `("sassy-machine.sch"
-		       "sassy-instr.sch"
-                       "sassy-invoke.sch"
-		       "pass5p2-sassy.sch"
-                       "peepopt.sch"
-		       ;;,@(case (nbuild-parameter 'host-os)
-                       ;;    ((unix cygwin linux-el)  '("dumpheap-unix.sch"))
-                       ;;    ((win32) '("dumpheap-win32.sch"))
-                       ;;    (else    '()))
-		       "asm-switches.sch"
-                       ;;"petit-init-proc.sch"
-                       ;;"md5.sch"
-		       )))
+                       `("sassy-machine.sch"
+                         "sassy-instr.sch"
+                         "sassy-invoke.sch"
+                         "pass5p2-sassy.sch"
+                         "peepopt.sch"
+                         ;;,@(case (nbuild-parameter 'host-os)
+                         ;;    ((unix cygwin linux-el)  '("dumpheap-unix.sch"))
+                         ;;    ((win32) '("dumpheap-win32.sch"))
+                         ;;    (else    '()))
+                         "asm-switches.sch"
+                         ;;"petit-init-proc.sch"
+                         ;;"md5.sch"
+                         )))
       '()))
 		    
 (define *nbuild:x86-nasm-files*
   (if (eq? 'x86-nasm (nbuild-parameter 'target-machine))
       (append
        (param-filename 'common-asm
-                     '("external-assembler.sch"))
+                       '("external-assembler.sch"))
        (param-filename 'x86-nasm-asm
-                     `("pass5p2-nasm.sch"
-                       "peepopt.sch"
-                       "dumpheap-overrides.sch" 
-                       ,@(case (nbuild-parameter 'host-os)
-                           ((unix cygwin linux-el)  '("dumpheap-unix.sch"))
-                           ((win32) '("dumpheap-win32.sch"))
-                           (else    '()))))
+                       `("pass5p2-nasm.sch"
+                         "peepopt.sch"
+                         "dumpheap-overrides.sch" 
+                         ,@(case (nbuild-parameter 'host-os)
+                            ((unix cygwin linux-el) '("dumpheap-unix.sch"))
+                            ((win32)                '("dumpheap-win32.sch"))
+                            (else                   '()))))
        (param-filename 'standard-c-asm
-                     '("asm-switches.sch"
-                       "petit-init-proc.sch"
-                       "md5.sch")))
+                      '("asm-switches.sch"
+                        "petit-init-proc.sch"
+                        "md5.sch")))
       '()))
 
 (define *nbuild:dotnetasm-files* 
   (if (eq? 'dotnet (nbuild-parameter 'target-machine))
       (param-filename 'dotnet-asm
-                    '("asm-switches.sch"
-                      "config.sch"
-		      "util-structs.sch"
-                      "util.sch"
-                      "il-gen.sch"
-                      "il-rtif.sch"
-                      "pass5p2.sch"
-                      "pass5p2-instructions.sch"
-                      "pass5p2-ops.sch"
-                      "pass5p2-listify.sch"
-                      "peepopt.sch"
-                      "il-src2string.sch"
-                      "il-sourcefile.sch"
-                      "dumpheap-il.sch"
-                      "dumpheap-extra.sch"))))
+                      '("asm-switches.sch"
+                        "config.sch"
+                        "util-structs.sch"
+                        "util.sch"
+                        "il-gen.sch"
+                        "il-rtif.sch"
+                        "pass5p2.sch"
+                        "pass5p2-instructions.sch"
+                        "pass5p2-ops.sch"
+                        "pass5p2-listify.sch"
+                        "peepopt.sch"
+                        "il-src2string.sch"
+                        "il-sourcefile.sch"
+                        "dumpheap-il.sch"
+                        "dumpheap-extra.sch"))))
 
 (define *nbuild:make-files*
   `(,@(param-filename 'util '("make.sch" "compile-tools.sch"))
