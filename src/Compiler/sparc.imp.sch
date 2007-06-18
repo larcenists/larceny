@@ -306,7 +306,7 @@
 
     ; FIXME: these will eventually replace the string operations
 
-    (make-ustring     2 make-ustring     #f           -1f ,:dead     ,:none)
+    (make-ustring     2 make-ustring     #f            -1 ,:dead     ,:none)
     (ustring?         1 ustring?         #f          #x50 ,:immortal ,:none)
    ;(ustring-length   1 ustring-length   #f          #x51 ,:immortal ,:none)
    ;(ustring-ref      2 ustring-ref      ,sparc-imm? #xd1 ,:string   ,:none)
