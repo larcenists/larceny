@@ -109,8 +109,37 @@
                              ; or written, not counting what's in the current
                              ; buffer.
 
-  (define port.structure-size 12)      ; size of port structure
+  ;; FIXME: Added by Felix to match changeset:4554
+
+  (define port.type      12) ; fixnum: the inclusive or of
+                             ; binary/textual:
+                             ;     0 means binary
+                             ;     1 means textual
+                             ; direction:
+                             ;     2 means input
+                             ;     4 means output
+                             ;     6 means input/output
+
+  (define port.charbuf   13) ; bytevector: verified UTF-8 followed by sentinel
+  (define port.charptr   14) ; nonnegative fixnum: next loc in charbuf
+  (define port.charlim   15) ; nonnegative fixnum: sentinel in charbuf
+  (define port.charpos   16) ; fixnum: character position - charptr
+  
+  (define port.auxbuf    17) ; bytevector: 4 bytes that straddle buffer boundary
+  (define port.auxlim    18) ; number of ready bytes in auxbuf
+  (define port.auxneeded 19) ; number of bytes needed to complete the char
+  
+  (define port.transcoder 20)          ; fixnum: see comment at make-transcoder
+  
+  (define port.structure-size 21)      ; size of port structure
+  
   (define port.buffer-size    1024)    ; length of default I/O buffer
+  (define port.charbuf-size   3100)
+  
+  ; Textual input uses a sentinel byte;
+  ; It can be any value in 128..255 that is not a legal code unit of UTF-8.
+
+  (define port.sentinel 255)
 
   (define (port-getter n name)
     (lambda (p)
@@ -249,22 +278,46 @@
   ; Copied from Lib/Common/iosys.sch (edited slightly)
 
   (define (io/make-port ioproc iodata . rest)
-    (let ((v (make-vector port.structure-size #f)))
+    (let ((v (make-vector port.structure-size #f))
+        (input? #f)
+        (output? #f)
+        (binary? #f)
+        (textual? #f))
       (do ((l rest (cdr l)))
           ((null? l))
         (case (car l)
-          ((input)   (vector-set! v port.input? #t))
-          ((output)  (vector-set! v port.output? #t))
+          ((input)   (set! input? #t) (vector-set! v port.input? #t))
+          ((output)  (set! output? #t) (vector-set! v port.output? #t))
+          ((text)    (set! textual? #t))
+          ((binary)  (set! binary? #t))
           ((flush)   (vector-set! v port.wr-flush? #t))
           (else      (error "make-port: bad attribute: " (car l))
                      #t)))
       (vector-set! v port.ioproc ioproc)
       (vector-set! v port.iodata iodata)
-      (vector-set! v port.buffer (make-string port.buffer-size))
+      (vector-set! v port.buffer (make-bytevector port.buffer-size))
       (vector-set! v port.rd-lim 0)
       (vector-set! v port.rd-ptr 0)
       (vector-set! v port.wr-ptr 0)
       (vector-set! v port.position 0)
+      ; FIXME: added by Felix to match changeset:4554
+      ; Note: io/make-port defaults to textual (for backward compatibility)
+      (vector-set! v port.type
+                     (fxlogior (fxlogior (if input? 2 0) (if output? 4 0))
+                               (if binary? 0 1)))
+      (let ((charbuf (make-bytevector port.charbuf-size)))
+        (vector-set! v port.charbuf charbuf)
+        (bytevector-set! charbuf 0 port.sentinel))
+      (vector-set! v port.charptr 0)
+      (vector-set! v port.charlim 0)
+      (vector-set! v port.charpos 0)
+      (vector-set! v port.auxbuf (make-bytevector 4))
+      (vector-set! v port.auxlim 0)
+      (vector-set! v port.auxneeded 0)
+      (vector-set! v port.transcoder
+                   (if binary?
+                       0
+                       (native-transcoder)))
       (typetag-set! v sys$tag.port-typetag)
       v))
 
