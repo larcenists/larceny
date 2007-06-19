@@ -68,7 +68,7 @@
   (if (and (descio-nonblocking? data)
            (not (descio/ready-input? data)))
       (input-not-ready-handler (descio-fd data)))
-  (let ((result (unix/read (descio-fd data) buf (string-length buf))))
+  (let ((result (unix/read (descio-fd data) buf (bytevector-like-length buf))))
     (cond ((< result 0) 'error)
           ((= result 0) 'eof)
           (else result))))
