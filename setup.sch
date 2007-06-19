@@ -162,7 +162,7 @@
 		     (flag rebuild-code-cov))
   (define (displn arg) (display arg) (newline))
   (define (help-text) 
-    (displn "To setup Larceny, call "
+    (displn "To setup Larceny, call ")
     (displn "(setup 'scheme: HOST-SCHEME 'host: PLATFORM ['target: PLATFORM])")
     (displn "e.g., (setup 'scheme: 'larceny 'host: 'macosx)")
     (displn "Example host schemes:   'larceny 'mzscheme")
@@ -175,6 +175,7 @@
   ;; Fail fast in case user didn't know 'scheme: defaults to 'larceny
   ;; This expression should have no side-effects on Larceny, but
   ;; should fail spectacularly on almost any other imaginable Scheme.
+
   (cond ((eq? scheme: 'larceny)
          ((environment-get (interaction-environment) 'current-larceny-root))))
 
@@ -191,6 +192,7 @@
                         
   ;; If on Larceny, allow more leeway for omitted options.  Need to
   ;; add arch: to keys above (w/ reasonable implication logic).
+
   (cond ((and (eq? scheme: 'larceny)
               (not host:))
          (let ((os-name (cdr (assq 'os-name (system-features))))
@@ -358,13 +360,14 @@
 	(native
          (case target-arch
            ((solaris)
-            (set! *target:machine* 'SPARC)
+            (set! *target:machine* 'sparc)
             (set! *target:machine-source* "Sparc")
             (set! *makefile-configuration* 'sparc-solaris-static-gcc)
             (set! *heap-type* 'sparc-native)
             (set! *runtime-type* 'sparc-native))
 
 	   ;; Win32 native is just Petit with extasm of NASM rather than C
+
 	   ((win32)
             (set! *target:machine* 'x86-nasm)
             (set! *target:machine-source* "Standard-C")
