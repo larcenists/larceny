@@ -830,20 +830,22 @@
 ; Compile to FASL
 
 (define (make-development-environment . rest)
-  (apply make-auxlib rest)
-  (apply make-compiler rest)
-  (apply make-sparcasm rest)
-  (apply make-compat rest)
-  (compile-file (param-filename 'source "makefile.sch")))
+  (parameterize ((compat:read-case-sensitive? #t))
+    (apply make-auxlib rest)
+    (apply make-compiler rest)
+    (apply make-sparcasm rest)
+    (apply make-compat rest)
+    (compile-file (param-filename 'source "makefile.sch"))))
 
 ; Compile to LOP
 
 (define (make-petit-development-environment . rest)
-  (apply make-petit-auxlib rest)
-  (apply make-petit-compiler rest)
-  (apply make-petit-petitasm rest)
-  (apply make-petit-compat rest)
-  (compile-and-assemble313 (param-filename 'source "makefile.sch")))
+  (parameterize ((compat:read-case-sensitive? #t))
+    (apply make-petit-auxlib rest)
+    (apply make-petit-compiler rest)
+    (apply make-petit-petitasm rest)
+    (apply make-petit-compat rest)
+    (compile-and-assemble313 (param-filename 'source "makefile.sch"))))
 
 (define (petit-development-environment-lop-files)
 
@@ -861,10 +863,11 @@
           (fix (nbuild:utility-files))))
 
 (define (make-dotnet-development-environment . rest)
-  (apply make-auxlib rest)
-  (apply make-compiler rest)
-  (apply make-dotnetasm rest)
-  (apply make-compat rest)
-  (compile-file (param-filename 'source "makefile.sch")))
+  (parameterize ((compat:read-case-sensitive? #t))
+    (apply make-auxlib rest)
+    (apply make-compiler rest)
+    (apply make-dotnetasm rest)
+    (apply make-compat rest)
+    (compile-file (param-filename 'source "makefile.sch"))))
 
 ; eof

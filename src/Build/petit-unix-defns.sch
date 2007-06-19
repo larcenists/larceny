@@ -239,8 +239,9 @@
 (define (build-twobit)
   (build-development-environment)
   (if (eq? 'petit *runtime-type*)
-      (build-application *twobit-executable-name*
-                         (petit-development-environment-lop-files)))
+      (parameterize ((compat:read-case-sensitive? #t))
+        (build-application *twobit-executable-name*
+                           (petit-development-environment-lop-files))))
   (copy-script "twobit"))
 
 ; Set up for loading src/Build/petit-r5rs-heap.sch
@@ -262,8 +263,9 @@
   (build-development-environment)
   (case *heap-type*
     ((petit)
-     (build-application "petit-larceny.bin"
-                        (petit-development-environment-lop-files))
+     (parameterize ((compat:read-case-sensitive? #t))
+       (build-application "petit-larceny.bin"
+                          (petit-development-environment-lop-files)))
      (copy-script "larceny"))
     ((sparc-native sassy)
      'done)
