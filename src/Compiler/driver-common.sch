@@ -39,10 +39,9 @@
 ; Write the token #!fasl at the top of a fasl file.
 
 (define (write-fasl-token outport)
-  ;;; FIXME: change this to #!fasl
   (for-each (lambda (char)
               (write-char char outport))
-            (string->list "'fasl"))
+            (string->list "#!fasl"))
   (newline outport))
 
 ; Write a declaration to an output port

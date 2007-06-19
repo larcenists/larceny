@@ -18,6 +18,12 @@
 (require 'trace)
 (install-debugger)
 
+;;; Set parameters to their defaults.
+
+(compat:load (param-filename 'auxiliary "defaults.sch"))
+(set-parameter-defaults-for-a-standard-heap!)
+(set! set-parameter-defaults-for-a-standard-heap! (undefined))
+
 (dump-interactive-heap "twobit.heap")
 
 ; eof

@@ -54,6 +54,12 @@
                 (list->string (trim-spaces (file->char-list port)))))))))
     (herald herald-string)))
 
+;;; Set parameters to their defaults.
+
+(compat:load (param-filename 'auxiliary "defaults.sch"))
+(set-parameter-defaults-for-a-standard-heap!)
+(set! set-parameter-defaults-for-a-standard-heap! (undefined))
+
 (dump-interactive-heap "twobit.heap")
 (cond
  ((equal? (cdr (assq 'os-name (system-features)))

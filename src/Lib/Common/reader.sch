@@ -1,5 +1,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; $Id$
+;
 ; Prototype parser for R6RS syntax with Larceny extensions.
 ;
 ; The scanner's state machine and the recursive descent parser
@@ -114,7 +116,7 @@
 (define case-sensitive? (make-parameter "case-sensitive?" #f boolean?))
 
 (define read-square-bracket-as-paren
-  (make-parameter "read-square-bracket-as-paren" #f boolean?))
+  (make-parameter "read-square-bracket-as-paren" #t boolean?))
 
 ;; If #t, the reader keeps track of source locations.
 
@@ -197,8 +199,9 @@
          (errIllegalString 5)                   ; illegal string
          (errIllegalSymbol 6)                   ; illegal symbol
          (errNoDelimiter 7)      ; missing delimiter after token
-         (errBug 8)            ; bug in reader, shouldn't happen
-         (errLexGenBug 9)                         ; can't happen
+         (errSquareBracket 8)     ; square bracket when disabled
+         (errBug 9)            ; bug in reader, shouldn't happen
+         (errLexGenBug 10)                         ; can't happen
 
          ; Named characters that MzScheme doesn't yet recognize.
 
@@ -8007,6 +8010,8 @@
                "Illegal symbol syntax")
               ((= msg errNoDelimiter)
                "Missing delimiter")
+              ((= msg errSquareBracket)
+               "Square brackets are disabled")
               ((= msg errLexGenBug)
                "Bug in lexical analyzer (generated)")
               (else "Bug in lexical analyzer")))
@@ -8062,6 +8067,14 @@
               (else
                (scannerError errNoDelimiter))))
 
+       ; FIXME: Do we really need to disable square brackets?
+
+       ((lbracket)
+        (if (read-square-bracket-as-paren)
+            (scannerError errSquareBracket)
+            (begin (set! kindOfNextToken t)
+                   (set! nextTokenIsReady #t)
+                   t)))
        (else
         (set! kindOfNextToken t)
         (set! nextTokenIsReady #t)
@@ -8357,18 +8370,22 @@
       ; Note that the #!r6rs flag is a comment, handled by accept,
       ; so that flag will never be seen here.
 
-      (let* ((n (string-length tokenValue))
-             (flag (string->symbol (substring tokenValue 2 n))))
-        (case flag
-         ((fold-case no-fold-case r5rs larceny fasl slow fast safe unsafe)
-          (set-mode! flag)
-          (unspecified))
-         ((unspecified) (unspecified))
-         ((undefined)   (undefined))
-         ((null)        '())
-         ((false)       #f)
-         ((true)        #t)
-         (else (parse-error '<miscflag> '(miscflag))))))
+      (if (read-r6rs-flags?)
+
+          (let* ((n (string-length tokenValue))
+                 (flag (string->symbol (substring tokenValue 2 n))))
+            (case flag
+             ((fold-case no-fold-case r5rs larceny fasl slow fast safe unsafe)
+              (set-mode! flag)
+              (unspecified))
+             ((unspecified) (unspecified))
+             ((undefined)   (undefined))
+             ((null)        '())
+             ((false)       #f)
+             ((true)        #t)
+             (else (parse-error '<miscflag> '(miscflag)))))
+
+          (parse-error '<miscflag> '(miscflag))))
   
     ; #^Fxxxxxxxx
     ; Coding bits as characters is inherently evil.
@@ -8662,7 +8679,7 @@
       (if (and #f (eq? 'eofobj (next-token))) ;FIXME
           (eof-object)
           (let ((msg (string-append
-                      "Syntax error in line while parsing a "
+                      "Syntax error while parsing a "
                       (symbol->string nonterminal)
                       (string #\newline)
                       "  Encountered "
@@ -8675,7 +8692,7 @@
                                     (string-append " "
                                                    (symbol->string terminal)))
                                   expected-terminals)))))
-            (error 'get-datum msg))))
+            (error 'get-datum msg input-port))))
 
     ; The list of tokens that can start a datum in R6RS mode.
 

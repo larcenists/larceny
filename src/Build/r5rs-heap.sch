@@ -16,6 +16,12 @@
    (if (not (eq? x (unspecified)))
        (pretty-print x port))))
 
+;;; Set parameters to their defaults.
+
+(compat:load (param-filename 'auxiliary "defaults.sch"))
+(set-parameter-defaults-for-a-standard-heap!)
+(set! set-parameter-defaults-for-a-standard-heap! (undefined))
+
 (dump-interactive-heap "r5rs.heap")
 (cond
  ((equal? (cdr (assq 'os-name (system-features)))

@@ -226,6 +226,12 @@
         (caddr e)
         #f)))
 
+;;; Set parameters to their defaults.
+
+(compat:load (param-filename 'auxiliary "defaults.sch"))
+(set-parameter-defaults-for-a-standard-heap!)
+(set! set-parameter-defaults-for-a-standard-heap! (undefined))
+
 "Remove the functions that we only exported to assist on this script"
 (set! param-filename (undefined))
 (set! compat:load (undefined))

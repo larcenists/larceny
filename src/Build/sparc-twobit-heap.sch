@@ -24,6 +24,12 @@
    (if (not (eq? x (unspecified)))
        (pretty-print x port))))
 
+;;; Set parameters to their defaults.
+
+(compat:load (param-filename 'auxiliary "defaults.sch"))
+(set-parameter-defaults-for-a-standard-heap!)
+(set! set-parameter-defaults-for-a-standard-heap! (undefined))
+
 (dump-interactive-heap "twobit.heap")
 (system "./larceny.bin -reorganize-and-dump -heap twobit.heap")
 (system "/bin/mv twobit.heap.split twobit.heap")
