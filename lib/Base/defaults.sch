@@ -18,9 +18,11 @@
 (define (set-parameter-defaults-for-a-standard-heap!)
 
   ; compiler switches
+  ;
+  ; FIXME: bound? isn't available in all heaps
 
-  (if (bound? compiler-switches)
-      (compiler-switches 'fast-safe))
+  ;(if (bound? compiler-switches)
+  ;    (compiler-switches 'fast-safe))
 
   ; reader mode
 
