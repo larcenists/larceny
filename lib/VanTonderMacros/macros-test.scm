@@ -10,7 +10,7 @@
 ;;; 
 ;;;=====================================================================
  
-(load "macros-core.scm")   
+(load "macros-core")   
 
 ($repl
  '( 
@@ -1597,13 +1597,13 @@
    
    (let-syntax ((test
                  (lambda (_) 
-                   (quasisyntax '(a (unquote 1 2) b)))))
+                   (quasisyntax '(a (unsyntax 1 2) b)))))
      (test))
    ;==> (a 1 2 b)
     
    (let-syntax ((test
                  (lambda (_)
-                   (quasisyntax '(a (unquote-splicing '(1 2) '(3 4)) b)))))
+                   (quasisyntax '(a (unsyntax-splicing '(1 2) '(3 4)) b)))))
      (test))
    ;==> (a 1 2 3 4 b) 
    
