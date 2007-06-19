@@ -10,6 +10,22 @@
 ;;;
 ;;;===============================================================================
 
+(require 'define-record)
+(require 'time)
+(define (larcenyenv-getstarttime)
+  (call-with-values current-utc-time
+    (lambda (secs msecs)
+      (+ (* secs 1000) msecs))))
+(define larcenyenv-getpid
+  (foreign-procedure "getpid" '() 'int))
+(define larcenyenv-gethostname
+  (lambda () 
+    (cond ((getenv "HOST"))
+          (else (error 'larcenyenv-gethostname 
+                       "Set HOST env variable!")))))
+                   
+(read-square-bracket-as-paren #t)
+
 ;; Direct exports: 
 
 (define $make-variable-transformer #f)
@@ -24,6 +40,8 @@
 
 ;; System exports:
 
+(define $r6rs-expand-toplevel-expressions #f)
+(define $r6rs-expand-file          #f)
 (define $r6rs-load                 #f)
 (define $r6rs-load-program         #f)
 (define $repl                      #f)
@@ -76,7 +94,12 @@
 
 ;; Start of expander:
 
-(let ()
+(let-syntax ((define-struct (syntax-rules () ((_ ARGS ...) (define-record ARGS ...))))
+             (define (syntax-rules (make-parameter) 
+                       ((_ ID (make-parameter ARG))
+                        (define ID (make-parameter 'ID ARG)))
+                       ((_ ARGS ...)
+                        (define ARGS ...)))))
   
   ;;;===============================================================================
   ;;;
@@ -98,13 +121,16 @@
   ;; for incremental expansion or separate compilation.
   
   (define generate-guid
-    (let ((ticks 0))       
+    (let ((timestring (number->string (larcenyenv-getstarttime)))
+          (pidstring  (number->string (larcenyenv-getpid)))
+          (hostname   (larcenyenv-gethostname)))
       (lambda (symbol)
-        (set! ticks (+ ticks 1))
-        (string->symbol
+        (gensym
          (string-append (symbol->string symbol)
-                        ";"
-                        (number->string ticks))))))
+                        "@start" timestring
+                        "@host"  hostname
+                        "@pid"   pidstring
+                        )))))
   
   ;; Used to generate user program toplevel and
   ;; library names.
@@ -2037,6 +2063,9 @@
   
   (define (expand-toplevel-sequence forms)
     (reset-toplevel!)
+    (expand-toplevel-sequence-more forms))
+    
+  (define (expand-toplevel-sequence-more forms)
     (scan-sequence 'toplevel
                    (*toplevel-env*)        
                    (*macro-toplevel-env*)  
@@ -2100,9 +2129,12 @@
   (set! $dotted-length             dotted-length)
   (set! $dotted-butlast            dotted-butlast)
   (set! $dotted-last               dotted-last)
+  (set! $r6rs-expand-file          expand-file)
   (set! $r6rs-load                 r6rs-load)  
   (set! $r6rs-load-program         r6rs-load-program)
   (set! $repl                      repl)
+  (set! $r6rs-expand-toplevel-expressions expand-toplevel-sequence)
+  (set! $r6rs-expand-more-toplevel-expressions expand-toplevel-sequence-more)
   
   ) ; Expander
 
@@ -2118,6 +2150,28 @@
 ;; This should only be done after generate-guid above has been
 ;; suitably redefined so as to allow separate compilation.  
 
-($r6rs-load "macros-derived.scm")
+(define-syntax include-derived-defns
+  (transformer 
+   (lambda (exp ren cmp)
+     (cons (ren 'begin)
+           ($r6rs-expand-file (cadr exp))))))
+;(define macros-derived-expanded ($r6rs-expand-file "macros-derived.scm"))
+;(include-derived-defns "macros-derived-alt.scm")
+(include-derived-defns "macros-derived.scm")
+;($r6rs-load "macros-derived.scm")
 
     
+(define (r6rs-repl)
+  (parameterize 
+    ((repl-evaluator 
+      (let ((init-call #t)) 
+        (lambda (expr env) 
+          (let ((expand-init 
+                 (lambda () 
+                   (set! init-call #f)
+                   ($r6rs-expand-toplevel-expressions (list expr))))
+                (expand-more
+                 (lambda () 
+                   ($r6rs-expand-more-toplevel-expressions (list expr)))))
+            (eval (car ((if init-call expand-init expand-more)))))))))
+    (repl)))
