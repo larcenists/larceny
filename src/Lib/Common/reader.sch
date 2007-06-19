@@ -8123,15 +8123,16 @@
 
          ; FIXME: these compiler switches might not be defined in all heaps.
 
-         ((slow)
-          (set-switches compiler-switches 'slow))
-         ((fast)
-          (set-switches compiler-switches 'fast-safe))
-         ((safe)
-          (set-switches runtime-safety-checking #t
-                        catch-undefined-globals #t))
-         ((unsafe)
-          (set-switches compiler-switches 'fast-unsafe))
+         ;((slow)
+         ; (set-switches compiler-switches 'slow))
+         ;((fast)
+         ; (set-switches compiler-switches 'fast-safe))
+         ;((safe)
+         ; (set-switches runtime-safety-checking #t
+         ;               catch-undefined-globals #t))
+         ;((unsafe)
+         ; (set-switches compiler-switches 'fast-unsafe))
+
          (else #t))))
 
     ; This looks weird but saves code space.
@@ -8552,7 +8553,7 @@
                                                   chars)
                                             fold-case?))))
                              ((and (< (+ i 1) n)
-                                   (read-traditional-weirdness?))
+                                   (read-larceny-weirdness?))
                               (slow-loop (+ i 2)
                                          (cons (string-ref tokenValue (+ i 1))
                                                chars)
