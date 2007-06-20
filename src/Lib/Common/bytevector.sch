@@ -1,6 +1,6 @@
 ; Copyright Lightship Software, Incorporated.
 ;
-; $$
+; $Id$
 ;
 ; Larceny library --  bytevectors.
 

@@ -221,9 +221,8 @@
 
          (tokenValue "")  ; string associated with current token
 
-         ; FIXME:  This should be resized as necessary.
-
          ; A string buffer for the characters of the current token.
+         ; Resized as necessary.
 
          (string_accumulator (make-string initial_accumulator_length))
 
@@ -8030,8 +8029,9 @@
   
     ; Accepts a token of the given kind, returning that kind.
     ;
-    ; For some kinds of tokens, a value for the token must also be
-    ; recorded in tokenValue.
+    ; For some kinds of tokens, a value for the token must also
+    ; be recorded in tokenValue.  Most of those tokens must be
+    ; followed by a delimiter.
     ;
     ; Some magical tokens require special processing.
   
@@ -8059,7 +8059,8 @@
                (set-mode! 'r6rs)
                (next-token))
 
-              ((delimiter? (scanChar))
+              ((or (delimiter? (scanChar))
+                   (eq? t 'string))
                (set! kindOfNextToken t)
                (set! nextTokenIsReady #t)
                t)
@@ -8528,7 +8529,6 @@
     ;         (note: they disable *all* case folding)
     ;     MzScheme randomness
     ;     several peculiar identifiers
-    ; FIXME: not done yet
 
     (define (makeSym)
       (let ((n (string-length tokenValue)))
@@ -8676,23 +8676,21 @@
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
     (define (parse-error nonterminal expected-terminals)
-      (if (and #f (eq? 'eofobj (next-token))) ;FIXME
-          (eof-object)
-          (let ((msg (string-append
-                      "Syntax error while parsing a "
-                      (symbol->string nonterminal)
-                      (string #\newline)
-                      "  Encountered "
-                      (symbol->string (next-token))
-                      " while expecting something in"
-                      (string #\newline)
-                      "  "
-                      (apply string-append
-                             (map (lambda (terminal)
-                                    (string-append " "
-                                                   (symbol->string terminal)))
-                                  expected-terminals)))))
-            (error 'get-datum msg input-port))))
+      (let ((msg (string-append
+                  "Syntax error while parsing a "
+                  (symbol->string nonterminal)
+                  (string #\newline)
+                  "  Encountered "
+                  (symbol->string (next-token))
+                  " while expecting something in"
+                  (string #\newline)
+                  "  "
+                  (apply string-append
+                         (map (lambda (terminal)
+                                (string-append " "
+                                               (symbol->string terminal)))
+                              expected-terminals)))))
+        (error 'get-datum msg input-port)))
 
     ; The list of tokens that can start a datum in R6RS mode.
 
