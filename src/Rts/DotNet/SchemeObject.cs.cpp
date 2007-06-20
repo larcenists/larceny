@@ -1053,7 +1053,7 @@ namespace Scheme.Rep {
     public /* abstract */ class CodeVector : SObject
     {
       // Maximum number of labels to which jump index may refer.
-      public const int CONTROL_POINT_LIMIT = 1024;
+      public const int CONTROL_POINT_LIMIT = 16384;
 
       public static readonly CodeVector NoCode = new DataCodeVector (Factory.False);
 
