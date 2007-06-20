@@ -215,7 +215,7 @@
     (if (not (= reg $r.result))
         (sparc.move as reg $r.result))
     (sparc.set     as (thefixnum excode) $r.tmp0)
-    (millicode-call/ret as $m.exception l2)
+    (millicode-call/ret as $m.exception L2)
     (sparc.label   as L1)
     (sparc.bl      as L3)
     (sparc.nop     as)
