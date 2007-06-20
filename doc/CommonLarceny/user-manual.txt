@@ -218,7 +218,7 @@ CompileOnLoad version of Common Larceny.
 
 To use the CompileOnLoad version of Common Larceny, invoke the runtime with: 
 
- %LARCENY_ROOT%\CommonLarceny.exe -- Larceny.fasl.
+ %LARCENY_ROOT%\CommonLarceny.exe Larceny.fasl.
 
 == Using Common Larceny
 
@@ -230,7 +230,7 @@ speeds without building the code into the larceny executable.
 
 Load the compiler using the same steps as above:
 
-    > (load "Util/dotnet.sch")
+    > (load "src/Build/dotnet.sch")
     > (larceny-setup <host-scheme> <os> <endianness> <codegen-options>)
     > (load-compiler)
 
