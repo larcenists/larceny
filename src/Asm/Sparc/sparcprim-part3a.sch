@@ -434,7 +434,7 @@
 
 (define (emit-char-cmp as r btrue.a excode)
   (emit-charcmp! as (lambda ()
-                      (let ((l2 (new-label)))
+                      (let ((L2 (new-label)))
                         (sparc.set   as $imm.false $r.result)
                         (btrue.a     as L2)
                         (sparc.set   as $imm.true $r.result)
