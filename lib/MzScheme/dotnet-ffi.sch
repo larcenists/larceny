@@ -225,7 +225,7 @@
          (if handle
              (lambda (foreign-object)
                (clr/%property-ref handle foreign-object '#()))
-             (error (string-append "Property "property-name" not found."))))))))
+             (error (string-append "Property " property-name" not found."))))))))
 
 (define-syntax define-boolean-clr-property
   (syntax-rules ()
@@ -261,7 +261,7 @@
          (if handle
              (lambda (foreign-object)
                (clr/%property-ref-int handle foreign-object '#()))
-             (error (string-append "Integer property "property-name" not found."))))))))
+             (error (string-append "Integer property " property-name" not found."))))))))
 
 (define-clr-property         clr-app-domain/%current-domain
   clr-type-handle/system-appdomain "CurrentDomain")
@@ -427,7 +427,7 @@
              (lambda (object)
                (dotnet-message 5 "Invoke method" method-name)
                (clr/%invoke method-handle object '#()))
-             (error (string-append "Method "method-name" not found."))))))))
+             (error (string-append "Method " method-name " not found."))))))))
 
 (define-clr-method (clr-app-domain/%get-assemblies)
   clr-type-handle/system-appdomain "GetAssemblies")
