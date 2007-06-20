@@ -501,7 +501,7 @@
     (#f               2 internal:check-<=:fix:fix #f   656 _          _ #f)
     (#f               2 internal:check->=:fix:fix #f   657 _          _ #f)
     (#f               2 internal:check-<:fix:fix/imm #f 658 _         _ #f)
-    (#f               2 internal:check-<=:fix:fix/imm #f 659_         _ #f)
+    (#f               2 internal:check-<=:fix:fix/imm #f 659 _        _ #f)
     (#f               2 internal:check->=:fix:fix/imm #f 660 _        _ #f)
     (#f               2 internal:check-range #f        661 _          _ #f)
     (#f               2 internal:check-vector?/vector-length:vec #f 662 _ _ #f)
