@@ -290,24 +290,27 @@
 (define (build-twobit)
   (cond ((file-exists? "Twobit.fasl")
 	 (delete-file "Twobit.fasl")))
-  (build-twobit-base "Twobit" 
-                     (list 
-                      (param-filename 'auxiliary "dotnet-compile-file.sch"))))
+  (parameterize ((compat:read-case-sensitive? #t))
+     (build-twobit-base
+       "Twobit"
+       (list (param-filename 'auxiliary "dotnet-compile-file.sch")))))
 
 (define (build-larceny)
   (cond ((file-exists? "Larceny.fasl")
-	 (delete-file "Larceny.fasl")))
-  (build-twobit-base "Larceny"
-                     `(,@(param-filename 'compiler '("driver-larceny.sch"))
-                       ,@(param-filename 'util '("seal-twobit.sch"))
-                       ,@(param-filename 'auxiliary '("dotnet-compile-file.sch"))
-                       ,@(param-filename 'common-asm '("link-lop.sch"))
-                       ,@(param-filename 'dotnet-asm '("il-jdot-aliases.sch"
-                                                       "il-corememory.sch"))
-                       ,@(param-filename 'debugger '("debug.sch"
-                                                     "inspect-cont.sch"
-                                                     "trace.sch"))
-                       ,@(param-filename 'util '("dotnet-larceny.sch")))))
+         (delete-file "Larceny.fasl")))
+  (parameterize ((compat:read-case-sensitive? #t))
+    (build-twobit-base
+      "Larceny"
+      `(,@(param-filename 'compiler '("driver-larceny.sch"))
+        ,@(param-filename 'util '("seal-twobit.sch"))
+        ,@(param-filename 'auxiliary '("dotnet-compile-file.sch"))
+        ,@(param-filename 'common-asm '("link-lop.sch"))
+        ,@(param-filename 'dotnet-asm '("il-jdot-aliases.sch"
+                                        "il-corememory.sch"))
+        ,@(param-filename 'debugger '("debug.sch"
+                                      "inspect-cont.sch"
+                                      "trace.sch"))
+        ,@(param-filename 'util '("dotnet-larceny.sch"))))))
 
 ;; Convenience
 ;(define (load-debugger)

@@ -423,15 +423,16 @@
 (define ilasm-executable "ilasm")
 
 (define (create-application app src-manifests fasl?)
-  (let* ((app-exe (string-append app ".exe"))
-         (assembly-il 
-          (create-assembly app-exe src-manifests))
-         (ordered-il-files
-          (map (lambda (f) (rewrite-file-type f ".manifest" ".code-il"))
-               src-manifests)))
-    (if fasl? (dump-fasl app app-exe src-manifests))
-    (ilasm app-exe (cons assembly-il ordered-il-files))
-    app-exe))
+  (parameterize ((compat:read-case-sensitive? #t))
+    (let* ((app-exe (string-append app ".exe"))
+           (assembly-il 
+            (create-assembly app-exe src-manifests))
+           (ordered-il-files
+            (map (lambda (f) (rewrite-file-type f ".manifest" ".code-il"))
+                 src-manifests)))
+      (if fasl? (dump-fasl app app-exe src-manifests))
+      (ilasm app-exe (cons assembly-il ordered-il-files))
+      app-exe)))
 
 ;; build-heap-image : string (listof string) -> void
 ;; Input files: ?.manifest ?.code-il -> base.exe base.fasl
@@ -553,9 +554,10 @@
   (lambda (filename)
     (let ((lap-name (rewrite-file-type filename *scheme-file-types* *lap-file-type*)))
       (compile313 filename)
-      (twobit-format (current-output-port) "  compiled  -> ~s~%" lap-name)
-      (flush-output-port (current-output-port))
-      (mal->X-proc lap-name))))
+      (parameterize ((compat:read-case-sensitive? #t))
+        (twobit-format (current-output-port) "  compiled  -> ~s~%" lap-name)
+        (flush-output-port (current-output-port))
+        (mal->X-proc lap-name)))))
 
 ;; For cheesy, but effective debugging
 (define (wash-filename filename)
