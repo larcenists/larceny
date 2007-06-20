@@ -44,8 +44,9 @@
 
   ; Replace and populate the top-level environment
   
-  (compat:load (param-filename 'common-source "toplevel.sch"))
-  (compat:load (param-filename 'source "Arch" "Standard-C" "toplevel-target.sch"))
+  (parameterize ((case-sensitive? #t))
+    (compat:load (param-filename 'common-source "toplevel.sch"))
+    (compat:load (param-filename 'source "Arch" "Standard-C" "toplevel-target.sch")))
 
   (let ((e (interaction-environment)))
     (letrec ((install-procedures 
