@@ -662,7 +662,16 @@
         )
 
 ;; MzScheme magic
-(export #%app #%datum #%top)
+; (export #%app #%datum #%top)
+;(set! *larceny-environment-extensions*
+;  (let ((mzscheme-weirdness (map string->symbol
+;                                 '("#%app #%datum #%top"))))
+;    (cons (lambda (env)
+;            (for-each
+;              (lambda (name)
+;                (export-name name env (lambda () (eval name))))
+;              mzscheme-weirdness))
+;          *larceny-environment-extensions*)))
 
 ;; inspectors
 (export make-inspector

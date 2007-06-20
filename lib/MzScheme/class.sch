@@ -79,7 +79,7 @@
       (field-initializers)              ; (proc ...)
       (getters-n-setters)               ; ((slot-name getter setter updater) ...)
       (initializers)                    ; (proc ...)
-      (name :initarg :name :initvalue -anonymous-)             ; a symbol
+      (name :initarg :name :initvalue *-anonymous-*)             ; a symbol
       (nfields)                         ; an integer
       (slots)                           ; ((name . options) ...)
       (direct-additional-initargs :initarg :direct-additional-initargs :initvalue ())
@@ -138,7 +138,7 @@
                     (daddinitargs (getarg initargs :direct-additional-initargs '()))
                     (dslots    (getarg initargs :direct-slots '()))
                     (dsupers   (getarg initargs :direct-supers '()))
-                    (name      (getarg initargs :name '-anonymous-))
+                    (name      (getarg initargs :name '*-anonymous-*))
                     (cpl     (let loop ((sups dsupers) (so-far (list new)))
                                (if (pair? sups)
                                    (loop (append (cdr sups)
@@ -194,7 +194,7 @@
                  (if arity
                      (%set-generic-arity! new arity)
                      (error "Required initarg :arity omitted when constructing a generic function.")))
-               (%set-generic-name!        new (getarg initargs :name '-anonymous-generic-))
+               (%set-generic-name!        new (getarg initargs :name '*-anonymous-generic-*))
                (%set-generic-combination! new (getarg initargs :combination #f))
                new))
             ((eq? class <method>)
@@ -202,7 +202,7 @@
                (%set-method-specializers! new (trim-method-specializers (getarg initargs :specializers '())))
                (%set-method-procedure!    new (getarg initargs :procedure #f))
                (%set-method-qualifier!    new (getarg initargs :qualifier :primary))
-               (%set-method-name!         new (getarg initargs :name '-anonymous-method-))
+               (%set-method-name!         new (getarg initargs :name '*-anonymous-method-*))
                (%set-method-arity!        new (getarg initargs :arity *unbound-slot-value*))
                (%set-instance/procedure!  new (method:compute-apply-method #f new))
                new))))))
@@ -763,7 +763,7 @@
     :direct-slots  '((methods)
                       (arity :initarg :arity) ;; required initarg
                       (name  :initarg :name
-                             :initvalue -anonymous-generic-)
+                             :initvalue *-anonymous-generic-*)
                       (combination :initarg :combination
                                    :initvalue #f)
                       (app-cache)
@@ -790,7 +790,7 @@
                      (qualifier    :initarg :qualifier
                                    :initvalue :primary)
                      (name         :initarg :name
-                                   :initvalue -anonymous-method-)
+                                   :initvalue *-anonymous-method-*)
                      (arity        :initarg :arity))
     :name          '<method>))
 

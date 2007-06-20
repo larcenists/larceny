@@ -979,7 +979,7 @@
                   (%set-class-cpl!   class (compute-cpl   class))
                   (%set-class-slots! class (compute-slots class))
                   (%set-class-default-initargs! class (compute-default-initargs class))
-                  (%set-class-name!  class (getarg initargs :name '-anonymous-))
+                  (%set-class-name!  class (getarg initargs :name '*-anonymous-*))
                   (let* ((nfields (%instance-overhead))
                          (field-initializers '())
                          ;; allocator: give me an initializer function, get a slot number
@@ -1027,7 +1027,8 @@
                     (if arity
                         (%set-generic-arity!       generic arity)
                         (error "Required initarg :arity omitted when constructing a generic function.")))
-                  (%set-generic-name!        generic (getarg initargs :name '-anonymous-generic-))
+                  (%set-generic-name!        generic (getarg initargs
+                                                             :name '*-anonymous-generic-*))
                   (%set-generic-combination! generic (getarg initargs :combination #f))
                   (%set-instance/procedure!  generic
                                              (lambda (generic args)
@@ -1415,7 +1416,7 @@
 
           ;; set a name for the method if none (when attached to a generic)
           (let ((n (%method-name method)))
-            (if (not (and n (not (eq? n '-anonymous-method-))))
+            (if (not (and n (not (eq? n '*-anonymous-method-*))))
                 (%set-method-name!
                  method
                  (let* ((psym (procedure-name (%method-procedure method)))

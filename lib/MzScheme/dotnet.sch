@@ -985,8 +985,9 @@
       :procedure (lambda (call-next-method type)
                    (cond ((subclass? type array-class) (nullable <vector>))
                          ((and (subclass? type enum-class)
-                               (memq '|System.FlagsAttribute| (clr-type/get-custom-attributes
-                                                               (clr-object/clr-handle type))))
+                               (memq (string->symbol "System.FlagsAttribute")
+                                     (clr-type/get-custom-attributes
+                                       (clr-object/clr-handle type))))
                           <list>)
                          (else (nullable type)))))
 
@@ -1092,7 +1093,8 @@
 (define (initialize-enum-class enum-class)
   (dotnet-message 3 "Initialize enum class" enum-class)
   (let* ((handle     (clr-object/clr-handle enum-class))
-         (flag?      (memq '|System.FlagsAttribute| (clr-type/get-custom-attributes handle)))
+         (flag?      (memq (string->symbol "System.FlagsAttribute")
+                           (clr-type/get-custom-attributes handle)))
          (names      (clr-enum/get-names handle))
          (vals       (clr-enum/get-values handle)))
 
