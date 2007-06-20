@@ -13,7 +13,7 @@
 ;        occurred, not past the system-continuation/enter-debugger
 ;        thing.
 ;
-; FIXME: The E command must change: it should take an expression to be
+; FIXME: The e command must change: it should take an expression to be
 ;        evaluated in the environment of the current frame, and print
 ;        the results.
 ;
@@ -361,32 +361,32 @@
     ))
 
 (define *inspector-help* "
-  A           Abort (exit from Larceny).
-  B           Print backtrace of continuation.
-  C           Print source code (if available).
-  D           Down to previous activation record.
-  E n expr    Expr is evaluated in the current interaction environment 
+  a           Abort (exit from Larceny).
+  b           Print backtrace of continuation.
+  c           Print source code (if available).
+  d           Down to previous activation record.
+  e n expr    Expr is evaluated in the current interaction environment 
               and must evaluate to a procedure.   It is passed the contents
               of slot n from the current activation record, and the result, 
               if not unspecified, is printed.
-  E (n1 ... nk) expr
+  e (n1 ... nk) expr
               Expr is evaluated in the current interaction environment and
               must evaluate to a procedure.   It is passed the contents of
               slots n1 through nk from the current activation record, and 
               the result, if not unspecified, is printed.
-  I n         Inspect the procedure in slot n of the current activation record.
-  I @         Inspect the active procedure.
-  N           Enter a nested REPL.
-  Q           Quit the debugger and abort the computation.
-  R           Return from the debugger and continue the computation.
-  S           Summarize the contents of the current activation record.
-  U           Up to the next activation record.
-  X           Examine the contents of the current activation record.
+  i n         Inspect the procedure in slot n of the current activation record.
+  i @         Inspect the active procedure.
+  n           Enter a nested REPL.
+  q           Quit the debugger and abort the computation.
+  r           Return from the debugger and continue the computation.
+  s           Summarize the contents of the current activation record.
+  u           Up to the next activation record.
+  x           Examine the contents of the current activation record.
 
-The B, D, and U commands can be prefixed with a count, for example, 
-`5 U' moves up five activation records, and `10 B' displays the next 
-10 activation records.  The default for B is to display all the 
-activations; the default count for D and U is 1.
+The b, d, and u commands can be prefixed with a count, for example, 
+`5 u' moves up five activation records, and `10 b' displays the next 
+10 activation records.  The default for b is to display all the 
+activations; the default count for d and u is 1.
 
 ")
 
