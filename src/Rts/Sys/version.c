@@ -17,16 +17,20 @@
  *  Children's Ice Cream        0.91
  *  Definite Missile Track      0.92
  *  Deviated Prevert            0.93
- *  Doomsday Device
+ *  Doomsday Device             0.94
  *  First Safety
  *  Fluoridation
+ *  Funny in the Head
  *  General Ripper 
  *  Goldie
  *  Grain Alcohol and Rainwater
  *  Group Commander Mandrake
  *  Hi There!
  *  Horsing Around
+ *  Ignorant Peons
+ *  Important Promotions
  *  'King' Kong
+ *  Loss of Essence
  *  Mineshaft Gap
  *  Missile Complex at Laputa
  *  Nuclear Combat
@@ -34,16 +38,21 @@
  *  Peace is our Profession
  *  People's Central Air Defense
  *  Personal Feelings
+ *  Picnic and a Rodeo
  *  Plan R
  *  Precious Bodily Fluids
  *  Premier Kissoff
  *  President Muffley
+ *  Primary Target
  *  Purity of Essence
  *  Recall Code
  *  Ridiculous Camera
+ *  A Silly Thing
+ *  A Single Slip-up
  *  Sleigh Bells
  *  Some Sunny Day
  *  Dr Strangelove
+ *  Strategic Thought
  *  Vegas
  *  War Room
  *  World Targets in MegaDeaths
