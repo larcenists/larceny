@@ -380,6 +380,50 @@
                   (else (loop (+ i 1)))))))
     (loop 0)))
 
+; Added for R6RS.
+
+(define (string-for-each f s . rest)
+
+  (define (for-each1 i n)
+    (if (< i n)
+	(begin (f (string-ref s i))
+	       (for-each1 (+ i 1) n))
+	(unspecified)))
+
+  (define (for-each2 s2 i n)
+    (if (< i n)
+	(begin (f (string-ref s i) (string-ref s2 i))
+	       (for-each2 s2 (+ i 1) n))
+	(unspecified)))
+
+  (define (for-each-n revstrings i n)
+    (if (< i n)
+        (do ((rev revstrings (cdr rev))
+             (chars '() (cons (string-ref (car rev) i) chars)))
+            ((null? rev)
+             (apply f chars)
+             (for-each-n revstrings (+ i 1) n)))
+	(unspecified)))
+
+  (let ((n (string-length s)))
+    (cond ((null? rest)
+           (for-each1 0 n))
+          ((and (null? (cdr rest))
+                (string? (car rest))
+                (= n (string-length (car rest))))
+           (for-each2 (car rest) 0 n))
+          (else
+           (let ((args (cons s rest)))
+             (do ((ss rest (cdr ss)))
+                 ((null? ss)
+                  (for-each-n (reverse args) 0 n))
+               (let ((x (car ss)))
+                 (if (or (not (string? x))
+                         (not (= n (string-length x))))
+                     (assertion-violation 'string-for-each
+                                          "illegal-arguments"
+                                          (cons f args))))))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Unicode.

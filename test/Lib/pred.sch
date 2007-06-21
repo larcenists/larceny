@@ -20,7 +20,8 @@
 (define (run-predicate-tests)
   (display "Predicate") (newline)
   (test-equality-primitives-helper 0 1 1 2 'a 'b)
-  (predicate-test-0))
+  (predicate-test-0)
+  (symbol-predicate-test))
 
 (define (test-equality-primitives-helper zero one xone two a b)
   (allof
@@ -56,5 +57,18 @@
      (test "(e b b)" (e b b) '(#t #t))
      (test "(e 'foo 'foo)" (e 'foo 'foo) '(#t #t))
      )))
+
+; Tests symbol=?
+
+(define (symbol-predicate-test)
+
+  (allof
+   (test "(symbol=? 'a 'a)" (symbol=? 'a 'a) #t)
+   (test "(symbol=? 'a 'a 'a)" (symbol=? 'a 'a 'a) #t)
+   (test "(symbol=? 'a 'a 'b)" (symbol=? 'a 'a 'b) #f)
+   (test "(symbol=? 'a 'b)" (symbol=? 'a 'b) #f)
+   (test "(symbol=? 'a 'b 'a)" (symbol=? 'a 'b 'a) #f)
+   (test "(symbol=? 'a 'b 'b)" (symbol=? 'a 'b 'b) #f)
+   ))
 
 ; eof

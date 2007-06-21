@@ -37,6 +37,13 @@
 	 (test "(boolean? #t)" (boolean? #t) #t)
 	 (test "(boolean? #f)" (boolean? #f) #t)
 	 (test "(boolean? '()" (boolean? '()) #f)
-	 (test "(boolean? \"foo\")" (boolean? "foo") #f)))
+	 (test "(boolean? \"foo\")" (boolean? "foo") #f)
+
+         (test "(boolean=? #f #f)" (boolean=? #f #f) #t)
+         (test "(boolean=? #f #t)" (boolean=? #f #t) #f)
+         (test "(boolean=? #t #f)" (boolean=? #t #f) #f)
+         (test "(boolean=? #t #t)" (boolean=? #t #t) #t)
+         (test "(boolean=? #t #t #f)" (boolean=? #t #t #f) #f)
+         (test "(boolean=? #t #t #t)" (boolean=? #t #t #t) #t)))
 
 ; eof

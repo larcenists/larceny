@@ -315,6 +315,95 @@
      (test "(quotient 2^30 10)" (quotient two^30 10) 107374182)
      (test "(quotient 2^31 10)" (quotient two^31 10) 214748364)
      (test "(quotient 2^32-1 10)" (quotient two^32-1 10) 429496729)
+
+     ; tests added for R6RS
+
+     (test "(div 123 10)" (div 123 10) 12)
+     (test "(mod 123 10)" (mod 123 10) 3)
+     (test "(div 123 -10)" (div 123 -10) -12)
+     (test "(mod 123 -10)" (mod 123 -10) 3)
+     (test "(div -123 10)" (div -123 10) -13)
+     (test "(mod -123 10)" (mod -123 10) 7)
+     (test "(div -123 -10)" (div -123 -10) 13)
+     (test "(mod -123 -10)" (mod -123 -10) 7)
+
+     (test "(div 123.5 10)" (div 123.5 10) 12.0)
+     (test "(mod 123.5 10)" (mod 123.5 10) 3.5)
+     (test "(div 123.5 -10)" (div 123.5 -10) -12.0)
+     (test "(mod 123.5 -10)" (mod 123.5 -10) 3.5)
+     (test "(div -123.5 10)" (div -123.5 10) -13.0)
+     (test "(mod -123.5 10)" (mod -123.5 10) 6.5)
+     (test "(div -123.5 -10)" (div -123.5 -10) 13.0)
+     (test "(mod -123.5 -10)" (mod -123.5 -10) 6.5)
+
+     (test "(div 123.5 2.5)" (div 123.5 2.5) 49.0)
+     (test "(mod 123.5 2.5)" (mod 123.5 2.5) 1.0)
+     (test "(div 123.5 -2.5)" (div 123.5 -2.5) -49.0)
+     (test "(mod 123.5 -2.5)" (mod 123.5 -2.5) 1.0)
+     (test "(div -123.5 2.5)" (div -123.5 2.5) -50.0)
+     (test "(mod -123.5 2.5)" (mod -123.5 2.5) 1.5)
+     (test "(div -123.5 -2.5)" (div -123.5 -2.5) 50.0)
+     (test "(mod -123.5 -2.5)" (mod -123.5 -2.5) 1.5)
+
+     (test "(div-and-mod 123 10)"
+           (call-with-values (lambda () (div-and-mod 123 10)) list)
+           '(12 3))
+
+     (test "(div-and-mod 123 -10)"
+           (call-with-values (lambda () (div-and-mod 123 -10)) list)
+           '(-12 3))
+
+     (test "(div-and-mod -123 10)"
+           (call-with-values (lambda () (div-and-mod -123 10)) list)
+           '(-13 7))
+
+     (test "(div-and-mod -123 -10)"
+           (call-with-values (lambda () (div-and-mod -123 -10)) list)
+           '(13 7))
+
+     (test "(div0 123 10)" (div0 123 10) 12)
+     (test "(mod0 123 10)" (mod0 123 10) 3)
+     (test "(div0 123 -10)" (div0 123 -10) -12)
+     (test "(mod0 123 -10)" (mod0 123 -10) 3)
+     (test "(div0 -123 10)" (div0 -123 10) -12)
+     (test "(mod0 -123 10)" (mod0 -123 10) -3)
+     (test "(div0 -123 -10)" (div0 -123 -10) 12)
+     (test "(mod0 -123 -10)" (mod0 -123 -10) -3)
+
+     (test "(div0 123.5 10)" (div0 123.5 10) 12.0)
+     (test "(mod0 123.5 10)" (mod0 123.5 10) 3.5)
+     (test "(div0 123.5 -10)" (div0 123.5 -10) -12.0)
+     (test "(mod0 123.5 -10)" (mod0 123.5 -10) 3.5)
+     (test "(div0 -123.5 10)" (div0 -123.5 10) -12.0)
+     (test "(mod0 -123.5 10)" (mod0 -123.5 10) -3.5)
+     (test "(div0 -123.5 -10)" (div0 -123.5 -10) 12.0)
+     (test "(mod0 -123.5 -10)" (mod0 -123.5 -10) -3.5)
+
+     (test "(div0 123.5 2.5)" (div0 123.5 2.5) 49.0)
+     (test "(mod0 123.5 2.5)" (mod0 123.5 2.5) 1.0)
+     (test "(div0 123.5 -2.5)" (div0 123.5 -2.5) -49.0)
+     (test "(mod0 123.5 -2.5)" (mod0 123.5 -2.5) 1.0)
+     (test "(div0 -123.5 2.5)" (div0 -123.5 2.5) -49.0)
+     (test "(mod0 -123.5 2.5)" (mod0 -123.5 2.5) -1.0)
+     (test "(div0 -123.5 -2.5)" (div0 -123.5 -2.5) 49.0)
+     (test "(mod0 -123.5 -2.5)" (mod0 -123.5 -2.5) -1.0)
+
+     (test "(div0-and-mod0 123 10)"
+           (call-with-values (lambda () (div0-and-mod0 123 10)) list)
+           '(12 3))
+
+     (test "(div0-and-mod0 123 -10)"
+           (call-with-values (lambda () (div0-and-mod0 123 -10)) list)
+           '(-12 3))
+
+     (test "(div0-and-mod0 -123 10)"
+           (call-with-values (lambda () (div0-and-mod0 -123 10)) list)
+           '(-12 -3))
+
+     (test "(div0-and-mod0 -123 -10)"
+           (call-with-values (lambda () (div0-and-mod0 -123 -10)) list)
+           '(12 -3))
+
      )))
 
 (define (test-round-truncate-floor-ceiling)
@@ -546,6 +635,20 @@
    (test "(eqv? 1/2 (inexact->exact 0.5))" (eqv? 1/2 (inexact->exact 0.5)) #t)
    (test "(exact->inexact 14285714285714285714285)"
 	 (exact->inexact 14285714285714285714285)
+	 1.4285714285714286e22)
+
+   (test "(eqv? 0.0 (inexact 0))" (eqv? 0.0 (inexact 0)) #t)
+   (test "(eqv? 1.0 (inexact 1))" (eqv? 1.0 (inexact 1)) #t)
+   (test "(eqv? 0 (exact 0.0))" (eqv? 0 (exact 0.0)) #t)
+   (test "(eqv? 1 (exact 1.0))" (eqv? 1 (exact 1.0)) #t)
+   (test "(eqv? 1.0+1.0i (inexact 1+1i))" 
+	 (eqv? 1.0+1.0i (inexact 1+1i)) #t)
+   (test "(eqv? 1+1i (exact 1.0+1.0i))"
+	 (eqv? 1+1i (exact 1.0+1.0i)) #t)
+   (test "(eqv? 0.5 (inexact 1/2))" (eqv? 0.5 (inexact 1/2)) #t)
+   (test "(eqv? 1/2 (exact 0.5))" (eqv? 1/2 (exact 0.5)) #t)
+   (test "(inexact 14285714285714285714285)"
+	 (inexact 14285714285714285714285)
 	 1.4285714285714286e22)
    ))
 
@@ -780,6 +883,97 @@
    ; FIXME: modulo
    ; FIXME: all complex arithmetic!
 
+   (test "(expt 5 3)" (expt 5 3) 125)
+   (test "(expt 5 -3)" (expt 5 -3) 1/125)
+   (test "(expt 5 0)" (expt 5 0) 1)
+   (test "(expt 0 5)" (expt 0 5) 0)
+
+   ;; FIXME:  The following test blows up in pcontagion.  See ticket #147.
+
+   ;;(test "(expt 0 5+.0000312i)" (expt 0 5+.0000312i) 0)
+
+   (test "(expt 0 0)" (expt 0 0) 1)
+   (test "(expt 0.0 0.0)" (expt 0.0 0.0) 1.0)
+
+   (test "(real-valued? 'x)" (real-valued? 'x) #f)
+   (test "(real-valued? +nan.0)" (real-valued? +nan.0) #t)
+   (test "(real-valued? +nan.0+0i)" (real-valued? +nan.0+0i) #t)
+   (test "(real-valued? -inf.0)" (real-valued? -inf.0) #t)
+   (test "(real-valued? 3)" (real-valued? 3) #t)
+   (test "(real-valued? -2.5+0.5i)" (real-valued? -2.5+0.5i) #f)
+   (test "(real-valued? -2+5i)" (real-valued? -2+5i) #f)
+   (test "(real-valued? -2.5+0.0i)" (real-valued? -2.5+0.0i) #t)
+   (test "(real-valued? -2.5+0i)" (real-valued? -2.5+0i) #t)
+   (test "(real-valued? -2.5)" (real-valued? -2.5) #t)
+   (test "(real-valued? #e1e10)" (real-valued? #e1e10) #t)
+
+   (test "(rational-valued? #\\x)" (rational-valued? #\x) #f)
+   (test "(rational-valued? +nan.0)" (rational-valued? +nan.0) #f)
+   (test "(rational-valued? +nan.0+0i)" (rational-valued? +nan.0+0i) #f)
+   (test "(rational-valued? -inf.0)" (rational-valued? -inf.0) #f)
+   (test "(rational-valued? 3)" (rational-valued? 3) #t)
+   (test "(rational-valued? -2.5+0.5i)" (rational-valued? -2.5+0.5i) #f)
+   (test "(rational-valued? -2+5i)" (rational-valued? -2+5i) #f)
+   (test "(rational-valued? -2.5+0.0i)" (rational-valued? -2.5+0.0i) #t)
+   (test "(rational-valued? -2.5+0i)" (rational-valued? -2.5+0i) #t)
+   (test "(rational-valued? -2.5)" (rational-valued? -2.5) #t)
+   (test "(rational-valued? #e1e10)" (rational-valued? #e1e10) #t)
+   (test "(rational-valued? 6/10)" (rational-valued? 6/10) #t)
+   (test "(rational-valued? 6/10+0.0i)" (rational-valued? 6/10+0.0i) #t)
+   (test "(rational-valued? 6/10+0i)" (rational-valued? 6/10+0i) #t)
+   (test "(rational-valued? 6/3)" (rational-valued? 6/3) #t)
+
+   (test "(integer-valued? #\\x)" (integer-valued? #\x) #f)
+   (test "(integer-valued? +nan.0)" (integer-valued? +nan.0) #f)
+   (test "(integer-valued? +nan.0+0i)" (integer-valued? +nan.0+0i) #f)
+   (test "(integer-valued? -inf.0)" (integer-valued? -inf.0) #f)
+   (test "(integer-valued? 3)" (integer-valued? 3) #t)
+   (test "(integer-valued? -2.5+0.5i)" (integer-valued? -2.5+0.5i) #f)
+   (test "(integer-valued? -2+5i)" (integer-valued? -2+5i) #f)
+   (test "(integer-valued? -2.5+0.0i)" (integer-valued? -2.5+0.0i) #f)
+   (test "(integer-valued? -2.5+0i)" (integer-valued? -2.5+0i) #f)
+   (test "(integer-valued? -2.5)" (integer-valued? -2.5) #f)
+   (test "(integer-valued? -2.0)" (integer-valued? -2.0) #t)
+   (test "(integer-valued? #e1e10)" (integer-valued? #e1e10) #t)
+   (test "(integer-valued? 6/10)" (integer-valued? 6/10) #f)
+   (test "(integer-valued? 6/3+0.0i)" (integer-valued? 6/3+0.0i) #t)
+   (test "(integer-valued? 6/10+0i)" (integer-valued? 6/10+0i) #f)
+   (test "(integer-valued? 6/3)" (integer-valued? 6/3) #t)
+
+   (test "(finite? +inf.0)" (finite? +inf.0) #f)
+   (test "(finite? +nan.0)" (finite? +nan.0) #f)
+   (test "(finite? 5.4)" (finite? 5.4) #t)
+   (test "(finite? #e1e10)" (finite? #e1e10) #t)
+   (test "(finite? 1234123/102410561203)" (finite? 1234123/102410561203) #t)
+   (test "(finite? 5)" (finite? 5) #t)
+
+   (test "(infinite? +inf.0)" (infinite? +inf.0) #t)
+   (test "(infinite? +nan.0)" (infinite? +nan.0) #f)
+   (test "(infinite? 5.4)" (infinite? 5.4) #f)
+   (test "(infinite? #e1e10)" (infinite? #e1e10) #f)
+   (test "(infinite? 1234123/102410561203)"
+         (infinite? 1234123/102410561203) #f)
+   (test "(infinite? 5)" (infinite? 5) #f)
+
+   (test "(nan? +inf.0)" (nan? +inf.0) #f)
+   (test "(nan? +nan.0)" (nan? +nan.0) #t)
+   (test "(nan? 5.4)" (nan? 5.4) #f)
+   (test "(nan? #e1e10)" (nan? #e1e10) #f)
+   (test "(nan? 1234123/102410561203)" (nan? 1234123/102410561203) #f)
+   (test "(nan? 5)" (nan? 5) #f)
+
+   (let ((f (lambda (n)
+              (call-with-values (lambda () (exact-integer-sqrt n)) list))))
+     (test "(exact-integer-sqrt 0)" (f 0) '(0 0))
+     (test "(exact-integer-sqrt 1)" (f 1) '(1 0))
+     (test "(exact-integer-sqrt 3)" (f 3) '(1 2))
+     (test "(exact-integer-sqrt 99)" (f 99) '(9 18))
+     (test "(exact-integer-sqrt 100)" (f 100) '(10 0))
+     (test "(exact-integer-sqrt 101)" (f 101) '(10 1))
+     (test "(exact-integer-sqrt #e1e20)" (f #e1e20) '(#e1e10 0))
+     (test "(exact-integer-sqrt #e1e21)"
+           (f #e1e21)
+           '(31622776601 43246886799)))
    ))
 
 ; FIXME: implement more
@@ -791,15 +985,24 @@
 
 ; Based on glibc's tests
 (define (test-trancendental-functions)
-  (define (flonum-nan? x) ;; should I be checking the real and the imaginary parts?
-    (not (= x x))) ;; (this is a trick pnkfelix copied out of src/Lib/Common/flonums.sch)
+
+  ;; should I be checking the real and the imaginary parts?
+
+  (define (flonum-nan? x)
+
+    ;; (this is a trick pnkfelix copied out of src/Lib/Common/flonums.sch)
+
+    (not (= x x)))
 
   (define (eql? x y)
     (or (and (not (zero? x)) (not (zero? y)) (= x y))
+
         ;; Explicitly check sign of 0.0
+
         (and (zero? x) (zero? y) (= (/ 1.0 x) (/ 1.0 y)))
         (and (flonum-nan? x)
              (flonum-nan? y))))
+
   (define (fuzzy-eql?? epsilon)
     (lambda (x y)
       (cond 
@@ -807,7 +1010,10 @@
         #t)
        ((or  (flonum-nan? x) (flonum-nan? y))
         #f)
-       ((= x y) ;; this catches the infinities (can't take the difference of two inf's)
+
+       ;; this catches the infinities (can't take the difference of two inf's)
+
+       ((= x y)
         #t)
        (else
         (< (/ (magnitude (- (inexact->exact x) 
@@ -815,8 +1021,9 @@
               (inexact->exact y)) epsilon)))))
 
   (parameterize ((test-equivalence (fuzzy-eql?? 1e-15)))
+
     ;; (allof "exp, log, sin, cos, tan, asin, acos, atan, atan2" #t)
-    ;; FIXME: did Lars really mean to include atan2 above?  We don't export that...
+    ;; Must test atan2, even though we don't export it.
 
     (parameterize ((test-equivalence eql?))
       (allof "exp 1"

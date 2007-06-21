@@ -440,4 +440,115 @@
 	(else
 	 (construct-rectnum a b))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Copyright 2007 William D Clinger
+;
+; Procedures added for R6RS
+;
+; FIXME:  Some of these should be integrable.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (real-valued? obj)
+  (and (number? obj)
+       (zero? (imag-part obj))))
+
+(define (rational-valued? obj)
+  (and (number? obj)
+       (zero? (imag-part obj))
+       (finite? obj)))
+
+(define (integer-valued? obj)
+  (and (number? obj)
+       (zero? (imag-part obj))
+       (finite? (real-part obj))
+       (= 1 (denominator (real-part obj)))))
+
+(define (exact z) (inexact->exact z))
+(define (inexact z) (exact->inexact z))
+
+(define (finite? x)
+  (and (not (infinite? x))
+       (not (nan? x))))
+
+(define (infinite? x)
+  (or (= x 1e500) (= x -1e500)))
+
+(define (nan? x)
+  (not (= x x)))
+
+(define (div-and-mod x y)
+  (cond ((and (fixnum? x) (fixnum? y))
+         (cond ((= y 0)
+                (assertion-violation 'div "zero divisor" x y))
+               ((>= x 0)
+                (values (quotient x y) (remainder x y)))
+               ((< y 0)
+                ; x < 0, y < 0
+                (let* ((q (quotient x y))
+                       (r (- x (* q y))))
+                  (if (= r 0)
+                      (values q 0)
+                      (values (+ q 1) (- r y)))))
+               (else
+                ; x < 0, y > 0
+                (let* ((q (quotient x y))
+                       (r (- x (* q y))))
+                  (if (= r 0)
+                      (values q 0)
+                      (values (- q 1) (+ r y)))))))
+        ((or (not (real? x))
+             (not (real? y))
+             (infinite? x)
+             (nan? x)
+             (= y 0))
+         (assertion-violation 'div "illegal arguments" x y))
+        ((< 0 y)
+         (let* ((q (floor (/ x y)))
+                (r (- x (* q y))))
+           (values q r)))
+        (else
+         (let* ((q (floor (/ x (- y))))
+                (r (+ x (* q y))))
+           (values (- q) r)))))
+
+(define (div x y)
+  (call-with-values
+   (lambda () (div-and-mod x y))
+   (lambda (q r) q)))
+
+(define (mod x y)
+  (call-with-values
+   (lambda () (div-and-mod x y))
+   (lambda (q r) r)))
+
+(define (div0-and-mod0 x y)
+  (call-with-values
+   (lambda () (div-and-mod x y))
+   (lambda (q r)
+     (cond ((< r (abs (/ y 2)))
+            (values q r))
+           ((> y 0)
+            (values (+ q 1) (- x (* (+ q 1) y))))
+           (else
+            (values (- q 1) (- x (* (- q 1) y))))))))
+
+(define (div0 x y)
+  (call-with-values
+   (lambda () (div0-and-mod0 x y))
+   (lambda (q r) q)))
+
+(define (mod0 x y)
+  (call-with-values
+   (lambda () (div0-and-mod0 x y))
+   (lambda (q r) r)))
+
+(define (exact-integer-sqrt k)
+  (if (and (exact? k) (integer? k) (<= 0 k))
+      (do ((s 1 (quotient (+ s (quotient k s)) 2)))
+          ((<= (* s s) k (* s (+ s 2)))
+           (values s (- k (* s s)))))
+      (assertion-violation 'exact-integer-sqrt "illegal argument" k)))
+
 ; eof

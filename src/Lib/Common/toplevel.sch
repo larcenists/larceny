@@ -353,6 +353,7 @@
   (environment-set-macro! larc 'define-values (usual-syntax 'define-values))
   (environment-set-macro! larc 'case-lambda (usual-syntax 'case-lambda))
 
+  (environment-set-macro! larc 'letrec* (usual-syntax 'letrec*))
   (environment-set-macro! larc 'assert (usual-syntax 'assert))
 
   ;; JavaDot and case-sensitivity
@@ -453,6 +454,12 @@
   (environment-set! larc 'oblist oblist)
   (environment-set! larc 'oblist-set! oblist-set!)
 
+  (environment-set! larc 'symbol=? symbol=?)
+
+  ;; booleans
+
+  (environment-set! larc 'boolean=? boolean=?)
+
   ;; environments
 
   (environment-set! larc 'make-environment make-environment)
@@ -499,6 +506,22 @@
   (environment-set! larc 'fxlsh fxlsh)
   (environment-set! larc 'most-positive-fixnum most-positive-fixnum)
   (environment-set! larc 'most-negative-fixnum most-negative-fixnum)
+
+  (environment-set! larc 'real-valued? real-valued?)
+  (environment-set! larc 'rational-valued? rational-valued?)
+  (environment-set! larc 'integer-valued? integer-valued?)
+  (environment-set! larc 'exact exact)
+  (environment-set! larc 'inexact inexact)
+  (environment-set! larc 'finite? finite?)
+  (environment-set! larc 'infinite? infinite?)
+  (environment-set! larc 'nan? nan?)
+  (environment-set! larc 'div div)
+  (environment-set! larc 'mod mod)
+  (environment-set! larc 'div-and-mod div-and-mod)
+  (environment-set! larc 'div0 div0)
+  (environment-set! larc 'mod0 mod0)
+  (environment-set! larc 'div0-and-mod0 div0-and-mod0)
+  (environment-set! larc 'exact-integer-sqrt exact-integer-sqrt)
 
   ;; Unicode characters
 
@@ -611,6 +634,8 @@
 
   ;; strings
 
+  (environment-set! larc 'string-for-each string-for-each)
+
   (environment-set! larc 'string-hash string-hash)
   (environment-set! larc 'substring-fill! substring-fill!)
   (environment-set! larc 'string-downcase! string-downcase!)
@@ -627,6 +652,9 @@
   (environment-set! larc 'string-normalize-nfkc string-normalize-nfkc)
 
   ;; vectors
+
+  (environment-set! larc 'vector-map vector-map)
+  (environment-set! larc 'vector-for-each vector-for-each)
 
   (environment-set! larc 'vector-copy vector-copy)
 
@@ -660,6 +688,7 @@
   (environment-set! larc 'procedure-expression procedure-expression)
   (environment-set! larc 'procedure-environment procedure-environment)
 
+  (environment-set! larc 'call/cc call/cc)
 
   ;; io
 

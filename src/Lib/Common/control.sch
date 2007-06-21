@@ -243,6 +243,8 @@
                        (cont (car results))
                        (apply cont results))))))))))
 
+(define call/cc call-with-current-continuation)
+
 (define (dynamic-wind before during after)
   (let ((here *here*))
     (reroot! (cons (cons before after) here))

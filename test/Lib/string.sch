@@ -8,6 +8,8 @@
 (define (run-string-tests)
   (display "String") (newline)
   (string-predicate-test)
+  (string-for-each-test)
+  (vector-for-each-test)            ; FIXME: belongs in some other file
   ;(string-simple-comparisons)
   ;(string-more-simple-comparisons #\a)
   ;(string-tests-for-control)
@@ -39,6 +41,68 @@
    (test "(string? (undefined))" (string? (undefined)) #f)
    ))
   
+(define (string-for-each-test)
+
+  (let ((x '()))
+
+    (define (run . args)
+      (set! x '())
+      (apply string-for-each collect args)
+      (reverse x))
+
+    (define (collect . chars) (set! x (cons chars x)))
+
+    (allof "string-for-each"
+     (test "(string-for-each f \"\")" (run "") '())
+     (test "(string-for-each f \"\" \"\")" (run "" "") '())
+     (test "(string-for-each f \"\" \"\" \"\")" (run "" "" "") '())
+     (test "(string-for-each f \"abc\")" (run "abc") '((#\a) (#\b) (#\c)))
+     (test "(string-for-each f \"abc\" \"def\")"
+           (run "abc" "def")
+           '((#\a #\d) (#\b #\e) (#\c #\f)))
+     (test "(string-for-each f \"abc\" \"def\" \"ghi\")"
+           (run "abc" "def" "ghi")
+           '((#\a #\d #\g) (#\b #\e #\h) (#\c #\f #\i))))))
+
+; FIXME:  This is the wrong file for this.
+
+(define (vector-for-each-test)
+
+  (let ((x '()))
+
+    (define (run . args)
+      (set! x '())
+      (apply vector-for-each collect args)
+      (reverse x))
+
+    (define (collect . chars) (set! x (cons chars x)))
+
+    (allof "vector-for-each"
+     (test "(vector-for-each f '#())" (run '#()) '())
+     (test "(vector-for-each f '#() '#())" (run '#() '#()) '())
+     (test "(vector-for-each f '#() '#() '#())" (run '#() '#() '#()) '())
+     (test "(vector-for-each f '#(a b c))" (run '#(a b c)) '((a) (b) (c)))
+     (test "(vector-for-each f '#(a b c) '#(d e f))"
+           (run '#(a b c) '#(d e f))
+           '((a d) (b e) (c f)))
+     (test "(vector-for-each f '#(a b c) '#(d e f) '#(g h i))"
+           (run '#(a b c) '#(d e f) '#(g h i))
+           '((a d g) (b e h) (c f i))))
+
+    (allof "vector-map"
+     (test "(vector-map list '#())" (vector-map list '#()) '#())
+     (test "(vector-map list '#() '#())" (vector-map list '#() '#()) '#())
+     (test "(vector-map list '#() '#() '#())"
+           (vector-map list '#() '#() '#()) '#())
+     (test "(vector-map list '#(a b c))"
+           (vector-map list '#(a b c)) '#((a) (b) (c)))
+'     (test "(vector-map list '#(a b c) '#(d e f))"
+           (vector-map list '#(a b c) '#(d e f))
+           '#((a d) (b e) (c f)))
+'     (test "(vector-map list '#(a b c) '#(d e f) '#(g h i))"
+           (vector-map list '#(a b c) '#(d e f) '#(g h i))
+           '#((a d g) (b e h) (c f i))))))
+
 (define (basic-unicode-string-tests)
 
   (define es-zed (integer->char #x00df))

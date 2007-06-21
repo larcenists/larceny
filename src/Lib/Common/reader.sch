@@ -8075,10 +8075,10 @@
 
        ((lbracket)
         (if (read-square-bracket-as-paren)
-            (scannerError errSquareBracket)
             (begin (set! kindOfNextToken t)
                    (set! nextTokenIsReady #t)
-                   t)))
+                   t)
+            (scannerError errSquareBracket)))
        (else
         (set! kindOfNextToken t)
         (set! nextTokenIsReady #t)

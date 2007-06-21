@@ -39,8 +39,19 @@
 
 ; Internal definitions have to be handled specially anyway,
 ; so we might as well rely on them here.
+;
+; FIXME: Internal definitions now have letrec* semantics,
+; so the following macro degrades both error checking and
+; performance.
 
 (define-syntax letrec
+  (syntax-rules (lambda quote)
+   ((letrec ((?name ?val) ...) ?body ?body2 ...)
+    ((lambda ()
+       (define ?name ?val) ...
+       ?body ?body2 ...)))))
+
+(define-syntax letrec*
   (syntax-rules (lambda quote)
    ((letrec ((?name ?val) ...) ?body ?body2 ...)
     ((lambda ()

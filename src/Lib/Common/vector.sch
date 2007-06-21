@@ -69,5 +69,97 @@
         ((= i l) p)
       (procedure-set! p i (procedure-ref proc i)))))
   
+; Added for R6RS.
+
+(define (vector-map f v . rest)
+
+  ; The results are in reverse order.
+
+  (define (return n results)
+    (do ((v (make-vector n))
+         (results results (cdr results))
+         (i (- n 1) (- i 1)))
+        ((< i 0) v)
+      (vector-set! v i (car results))))
+
+  (define (map1 i n results)
+    (if (< i n)
+	(map1 (+ i 1) n (cons (f (vector-ref v i)) results))
+	(return n results)))
+
+  (define (map2 v2 i n results)
+    (if (< i n)
+        (map2 v2 (+ i 1) n
+              (cons (f (vector-ref v i) (vector-ref v2 i)) results))
+	(return n results)))
+
+  (define (map-n rvecs i n results)
+    (if (< i n)
+        (do ((rev rvecs (cdr rev))
+             (things '() (cons (vector-ref (car rev) i) things)))
+            ((null? rev)
+             (map-n rvecs (+ i 1) n (cons (apply f things) results))))
+	(return n results)))
+
+  (let ((n (vector-length v)))
+    (cond ((null? rest)
+           (map1 0 n '()))
+          ((and (null? (cdr rest))
+                (vector? (car rest))
+                (= n (vector-length (car rest))))
+           (map2 (car rest) 0 n '()))
+          (else
+           (let ((args (cons v rest)))
+             (do ((vs rest (cdr vs)))
+                 ((null? vs)
+                  (map-n (reverse args) 0 n '()))
+               (let ((x (car vs)))
+                 (if (or (not (vector? x))
+                         (not (= n (vector-length x))))
+                     (assertion-violation 'vector-map
+                                          "illegal-arguments"
+                                          (cons f args))))))))))
+
+(define (vector-for-each f v . rest)
+
+  (define (for-each1 i n)
+    (if (< i n)
+	(begin (f (vector-ref v i))
+	       (for-each1 (+ i 1) n))
+	(unspecified)))
+
+  (define (for-each2 v2 i n)
+    (if (< i n)
+	(begin (f (vector-ref v i) (vector-ref v2 i))
+	       (for-each2 v2 (+ i 1) n))
+	(unspecified)))
+
+  (define (for-each-n rvecs i n)
+    (if (< i n)
+        (do ((rev rvecs (cdr rev))
+             (things '() (cons (vector-ref (car rev) i) things)))
+            ((null? rev)
+             (apply f things)
+             (for-each-n rvecs (+ i 1) n)))
+	(unspecified)))
+
+  (let ((n (vector-length v)))
+    (cond ((null? rest)
+           (for-each1 0 n))
+          ((and (null? (cdr rest))
+                (vector? (car rest))
+                (= n (vector-length (car rest))))
+           (for-each2 (car rest) 0 n))
+          (else
+           (let ((args (cons v rest)))
+             (do ((vs rest (cdr vs)))
+                 ((null? vs)
+                  (for-each-n (reverse args) 0 n))
+               (let ((x (car vs)))
+                 (if (or (not (vector? x))
+                         (not (= n (vector-length x))))
+                     (assertion-violation 'vector-for-each
+                                          "illegal-arguments"
+                                          (cons f args))))))))))
 
 ; eof
