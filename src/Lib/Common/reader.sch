@@ -9,6 +9,9 @@
 ; parser can be extended or customized by regenerating those
 ; parts.
 ;
+; LexGen and ParseGen are available at
+; http://www.ccs.neu.edu/home/will/Research/SW2006/*.tar.gz
+;
 ; FIXME: some things are not yet implemented:
 ;
 ;     #!...!#    (unimportant)

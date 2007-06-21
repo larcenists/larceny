@@ -1,0 +1,120 @@
+Copyright 2007 William D Clinger
+
+$Id$
+
+ParseGen grammar for R5.94RS Scheme with Larceny extensions.
+Used with larcenyTokens.sch.
+
+The parser never sees whitespace or comments.
+#| ... |# and Larceny's #! ... #! comments are handled
+by magic in the scanner.
+#!r6rs comments are similar to #| ... |# comments.
+#; <datum> comments are handled by having the scanner
+call the parser.
+Similar magic takes care of xfaslb, xfaslc, xfaslf, xbox.
+
+*terminals
+
+eofobj
+miscflag
+id
+boolean
+number
+character
+string
+lparen
+rparen
+lbracket
+rbracket
+vecstart
+bvecstart
+quote
+backquote
+comma
+splicing
+period
+syntax
+quasisyntax
+unsyntax
+unsyntaxsplicing
+
+xfaslb
+xfaslc
+xfaslf
+xfaslg
+xfaslp
+xsharpdot
+xbox
+xstring
+
+*productions
+
+<outermost-datum> ::=  eofobj                                   #makeEOF
+                  ::=  boolean                                  #makeBool
+                  ::=  number                                   #makeNum
+                  ::=  xfaslc                                   #makeCompnum
+                  ::=  xfaslf                                   #makeFlonum
+                  ::=  character                                #makeChar
+                  ::=  string                                   #makeString
+                  ::=  xstring                                  #makeXString
+                  ::=  id                                       #makeSym
+                  ::=  miscflag                                 #makeFlag
+                  ::=  <list>                                   #identity
+                  ::=  <vector>                                 #identity
+                  ::=  <bytevector>                             #identity
+                  ::=  xfaslg <symbol>                          #sym2global
+                  ::=  xfaslp <datum>                           #list2proc
+                  ::=  xsharpdot <datum>                        #sharpDot
+<datum>           ::=  boolean                                  #makeBool
+                  ::=  number                                   #makeNum
+                  ::=  xfaslc                                   #makeCompnum
+                  ::=  xfaslf                                   #makeFlonum
+                  ::=  character                                #makeChar
+                  ::=  string                                   #makeString
+                  ::=  xstring                                  #makeXString
+                  ::=  id                                       #makeSym
+                  ::=  miscflag                                 #makeFlag
+                  ::=  <list>                                   #identity
+                  ::=  <vector>                                 #identity
+                  ::=  <bytevector>                             #identity
+                  ::=  xfaslg <symbol>                          #sym2global
+                  ::=  xfaslp <datum>                           #list2proc
+                  ::=  xsharpdot <datum>                        #sharpDot
+<string>          ::=  string                                   #makeString
+                  ::=  xstring                                  #makeXString
+<symbol>          ::=  id                                       #makeSym
+<list>            ::=  lparen <list2>                           #identity
+                  ::=  lbracket <blst2>                         #identity
+                  ::=  <abbreviation>                           #identity
+<list2>           ::=  rparen                                   #emptyList
+                  ::=  <datum> <list3>                          #cons
+<list3>           ::=  <data> <list4>                           #pseudoAppend
+<list4>           ::=  rparen                                   #emptyList
+                  ::=  period <datum> rparen                    #identity
+<blst2>           ::=  rbracket                                 #emptyList
+                  ::=  <datum> <blst3>                          #cons
+<blst3>           ::=  <data> <blst4>                           #pseudoAppend
+<blst4>           ::=  rbracket                                 #emptyList
+                  ::=  period <datum> rbracket                  #identity
+
+<abbreviation>    ::=  <abbrev-prefix> <datum>            #list
+<abbrev-prefix>   ::=  quote                              #symQuote
+                  ::=  backquote                          #symBackquote
+                  ::=  comma                              #symUnquote
+                  ::=  splicing                           #symSplicing
+                  ::=  syntax                             #symSyntax
+                  ::=  quasisyntax                        #symQuasisyntax
+                  ::=  unsyntax                           #symUnsyntax
+                  ::=  unsyntaxsplicing                   #symUnsyntax-splicing
+                  ::=  xbox                               #symBox
+<vector>          ::=  vecstart <data> rparen             #list2vector
+<bytevector>      ::=  bvecstart <octets> rparen          #list2bytevector
+                  ::=  xfaslb                             #makeCodevector
+
+<data>            ::=                                           #emptyList
+                  ::=  <datum> <data>                           #cons
+<octets>          ::=                                           #emptyList
+                  ::=  <octet> <octets>                         #cons
+<octet>           ::=  number                                   #makeOctet
+
+*end
