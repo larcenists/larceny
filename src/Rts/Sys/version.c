@@ -64,7 +64,8 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 94;
-char *larceny_version_qualifier = " \"Doomsday Device\"";
+char *larceny_version_qualifier = "alpha2 \"(development)\""; 
+/* FIXME: char *larceny_version_qualifier = " \"Doomsday Device\""; */
 
 char *date = DATE " " TIME;
 char *user = USER;

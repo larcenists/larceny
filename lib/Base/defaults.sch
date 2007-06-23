@@ -26,7 +26,7 @@
 
   ; reader mode
 
-  (case-sensitive? #f)
+  (case-sensitive? #t)
   (read-r6rs-flags? #t)
   (read-larceny-weirdness? #t)
   (read-traditional-weirdness? #f)
