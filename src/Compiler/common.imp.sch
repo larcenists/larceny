@@ -315,7 +315,9 @@
                  = < > <= >= + * - /
                  abs negative? positive?
                  eqv? memv assv memq
-                 map for-each)
+                 map for-each
+                 lookahead-char get-char    ; FIXME
+                 )
 
    ((,name:CALL r4rs ?proc ?exp)
     (,name:CALL r5rs ?proc ?exp))
@@ -661,6 +663,43 @@
                    (?f (car ?y1) (car ?y2) ...)))))))
       
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
+
+   ; FIXME
+   ; The fast path for lookahead-char.
+
+   ((_ larceny lookahead-char (lookahead-char p0))
+    (let ((p p0))
+      (.check! (port? p) 198 p)                    ; FIXME
+      (let ((type (.vector-ref:trusted p 0))       ; 0 = port.type
+            (buf  (.vector-ref:trusted p 1))       ; 1 = port.mainbuf
+            (ptr  (.vector-ref:trusted p 2)))      ; 2 = port.mainptr
+        (let ((unit (if (eq? type 3)               ; 3 = input, textual
+                        (bytevector-ref buf ptr)   ; FIXME
+                        255)))
+          (if (and (not (eq? unit 13))             ; 13 = #\return
+                   (fx< unit 128))
+              (.integer->char:trusted unit)
+              (peek-char p))))))
+
+   ; FIXME
+   ; The fast path for get-char.
+
+   ((_ larceny get-char (get-char p0))
+    (let ((p p0))
+      (.check! (port? p) 198 p)                    ; FIXME
+      (let ((type (.vector-ref:trusted p 0))       ; 0 = port.type
+            (buf  (.vector-ref:trusted p 1))       ; 1 = port.mainbuf
+            (ptr  (.vector-ref:trusted p 2)))      ; 2 = port.mainptr
+        (let ((unit (if (eq? type 3)               ; 3 = input, textual
+                        (bytevector-ref buf ptr)   ; FIXME
+                        255)))
+          (if (and (not (eq? unit 13))             ; 13 = #\return
+                   (fx< unit 128))
+              (begin
+               (.vector-set!:trusted:nwb
+                p 2 (.+:idx:idx ptr 1))            ; 2 = port.mainptr
+               (.integer->char:trusted unit))
+              (read-char p))))))
 
    ; Default case: expand into the original expression.
 

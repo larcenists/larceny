@@ -96,10 +96,10 @@
            (vector-map list '#() '#() '#()) '#())
      (test "(vector-map list '#(a b c))"
            (vector-map list '#(a b c)) '#((a) (b) (c)))
-'     (test "(vector-map list '#(a b c) '#(d e f))"
+     (test "(vector-map list '#(a b c) '#(d e f))"
            (vector-map list '#(a b c) '#(d e f))
            '#((a d) (b e) (c f)))
-'     (test "(vector-map list '#(a b c) '#(d e f) '#(g h i))"
+     (test "(vector-map list '#(a b c) '#(d e f) '#(g h i))"
            (vector-map list '#(a b c) '#(d e f) '#(g h i))
            '#((a d g) (b e h) (c f i))))))
 

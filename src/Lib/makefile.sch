@@ -190,6 +190,7 @@
     "bytevectorio"      ; bytevector ports
     "stringio"          ; string ports
 ;    "transio"           ; transcript ports
+    "portio"            ; user-level procedures for R6RS
     "stdio"             ; user-level procedures
     "print"             ; write/display
     "ioboot"            ; one-time initialization

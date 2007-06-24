@@ -17,8 +17,13 @@
 (define (bytevector-io/open-input-bytevector bv)
   (if (not (bytevector? bv))
       (assertion-violation 'open-bytevector-input-port "illegal argument" bv))
+  (bytevector-io/open-input-bytevector-no-copy (bytevector-copy bv)))
+
+(define (bytevector-io/open-input-bytevector-no-copy bv)
+  (if (not (bytevector? bv))
+      (assertion-violation 'open-bytevector-input-port "illegal argument" bv))
   (io/make-port bytevector-io/ioproc
-                (vector 'bytevector-input-port (bytevector-copy bv) 0)
+                (vector 'bytevector-input-port bv 0)
                 'input 'binary))
 
 (define (bytevector-io/open-output-bytevector)
