@@ -13,15 +13,15 @@
 ;
 ; Port data structure and invariants.
 ;
-; For standard transcoders, transcoding is done on the fly.
-; Nonstandard transcoders are implemented only by custom textual
-; ports, which translate to standard transcoders, so nonstandard
-; transcoders are never seen by this level of abstraction.
+; Latin-1 and UTF-8 transcoding is done on the fly.  UTF-16 and
+; nonstandard transcoders are implemented only by custom ports,
+; which translate to UTF-8, so UTF-16 and nonstandard transcoders
+; are never seen by this level of abstraction.
 ;
 ; Every port has:
 ;
 ;     type            { binary, textual } x { input, output, input/output }
-;     transcoder      { Latin-1, UTF-8, UTF-16 }
+;     transcoder      { Latin-1, UTF-8 }
 ;                   x { none, lf, cr, crlf, nel, crnel, ls }
 ;                   x { raise, replace, ignore }
 ;     mainbuf
@@ -41,7 +41,6 @@
 ;
 ;     Latin-1     mainbuf contains Latin-1 followed by sentinel
 ;     UTF-8       mainbuf contains UTF-8 followed by sentinel
-;     UTF-16      mainbuf contains sentinel followed by UTF-16
 ;
 ; The auxbuf contains bytes that follow the bytes in the mainbuf,
 ; with one exception:
@@ -61,7 +60,8 @@
 
 ; NOTE that you can *not* change the offsets without also changing
 ; them in Compiler/common.imp.sch, where they are likely to be
-; inlined.
+; inlined.  These offsets are also used (at present) in portio.sch.
+; They should not be used elsewhere.
 
 ; The port type is a fixnum that encodes the binary/textual
 ; and input/output distinctions.  It is the inclusive or of
@@ -72,44 +72,49 @@
 ;         2 means input
 ;         4 means output
 ;         6 means input/output
+;
+; The output and input/output directions are not yet implemented.
+; The input direction has not yet been converted to on-the-fly
+; transcoding.
 
 (define port.type       0) ; fixnum: see above for encoding
 (define port.mainbuf    1) ; bytevector: verified UTF-8 followed by sentinel
 (define port.mainptr    2) ; nonnegative fixnum: next loc in mainbuf
 (define port.mainlim    3) ; nonnegative fixnum: sentinel in mainbuf
-(define port.mainpos    4) ; fixnum: character position - mainptr
+(define port.mainpos    4) ; fixnum: byte or character position - mainptr
 (define port.transcoder 5) ; fixnum: see comment at make-transcoder
-
-; input ports
-
-(define port.rd-eof?    6) ; boolean: input port at EOF
-(define port.bytelim     7) ; nonnegative fixnum: index beyond last char
-(define port.byteptr     8) ; nonnegative fixnum: next loc for input
-
-; output ports
-
-(define port.wr-flush?  9) ; boolean: discretionary output flushing
-(define port.wr-ptr    10) ; nonnegative fixnum: next loc for output
 
 ; common data
 
-(define port.position  11) ; nonnegative fixnum: number of characters read
-                           ; or written, not counting what's in the current
-                           ; bytebuf.
+(define port.iodata     6) ; port-specific data
+(define port.ioproc     7) ; port*symbol -> void
+(define port.error?     8) ; boolean: #t after error
 
-(define port.input?    12) ; boolean: an open input port
-(define port.output?   13) ; boolean: an open output port
-(define port.iodata    14) ; port-specific data
-(define port.ioproc    15) ; port*symbol -> void
-(define port.bytebuf   16) ; a bytevector or #f: i/o buffer
-(define port.error?    17) ; boolean: #t after error
+; input ports
+
+(define port.rd-eof?    9) ; boolean: input port at EOF
+
+; output ports
+
+(define port.wr-flush? 10) ; boolean: discretionary output flushing
 
 ; FIXME: Added by Will for the new R6RS-compatible i/o system.
 
-(define port.auxbuf    18) ; bytevector: 4 bytes that straddle bytebuf boundary
-(define port.auxlim    19) ; number of ready bytes in auxbuf
-(define port.auxneeded 20) ; number of bytes needed to complete the char
+(define port.auxbuf    11) ; bytevector: 4 bytes that straddle bytebuf boundary
+(define port.auxlim    12) ; number of ready bytes in auxbuf
+(define port.auxneeded 13) ; number of bytes needed to complete the char
 
+; FIXME: These should go away soon.
+
+(define port.bytelim   14) ; nonnegative fixnum: index beyond last char
+(define port.byteptr   15) ; nonnegative fixnum: next loc for input
+(define port.wr-ptr    16) ; nonnegative fixnum: next loc for output
+(define port.position  17) ; nonnegative fixnum: number of bytes or
+                           ; characters read or written, not counting
+                           ; what's in the current mainbuf.
+(define port.input?    18) ; boolean: an open input port
+(define port.output?   19) ; boolean: an open output port
+(define port.bytebuf   20) ; a bytevector or #f: i/o buffer
 
 (define port.structure-size 21)      ; size of port structure
 

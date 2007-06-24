@@ -101,8 +101,17 @@
 (define (open-text-output-file filename)
   (file-io/open-file filename 'output 'text))
 
+; For backwards compatibility, Larceny's old-style binary files
+; are represented by R6RS-style textual file ports with Latin-1
+; transcoding and no end-of-line conversion.
+
+; FIXME: fakes file options
+
 (define (open-binary-input-file filename)
-  (file-io/open-file filename 'input 'binary))
+  (open-file-input-port filename
+                        '()             ; FIXME: fake file options
+                        'block
+                        (make-transcoder (latin-1-codec) 'none 'ignore)))
 
 (define (open-binary-output-file filename)
   (file-io/open-file filename 'output 'binary))
