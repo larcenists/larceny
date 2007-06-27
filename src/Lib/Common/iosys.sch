@@ -892,7 +892,7 @@
        ((auxstart)
         (assert (eq? buf auxbuf))
         (assert (fx= 0 auxptr))
-        (assert (fx< n 3))
+        (assert (fx< n 4))
         (if (fx>= m 2)
             (begin
 
