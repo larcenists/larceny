@@ -118,8 +118,6 @@
 ; FIXME:
 ; The port.mainpos field is not always updated correctly.
 ; The output and input/output directions are not yet implemented.
-; The input direction has not yet been converted to on-the-fly
-; transcoding.
 
 (define port.type       0) ; fixnum: see above for encoding
 (define port.mainbuf    1) ; bytevector: verified UTF-8 followed by sentinel
@@ -179,119 +177,6 @@
 ; Note that 255 is not a legal code unit of UTF-8.
 
 (define port.sentinel 255)
-
-;;; Private procedures (called only from code within this file)
-
-; Works only on input ports.
-; The main invariants may not hold here.
-; In particular, the port may be in the textual state
-; but have a nonempty auxbuf.
-
-(define (io/fill-buffer! p)
-  (vector-like-set! p port.mainpos
-                    (+ (vector-like-ref p port.mainpos)
-                       (vector-like-ref p port.mainptr)))
-  (let ((r (((vector-like-ref p port.ioproc) 'read)
-            (vector-like-ref p port.iodata)
-            (vector-like-ref p port.mainbuf))))
-    (cond ((eq? r 'eof)
-           (io/set-eof-state! p))
-          ((eq? r 'error)
-           ; FIXME: should retry before giving up
-           (io/set-error-state! p)
-           (error "Read error on port " p)
-           #t)
-          ((and (fixnum? r) (>= r 0))
-           (vector-like-set! p port.mainptr 0)
-           (vector-like-set! p port.mainlim r))
-          (else
-           (io/set-error-state! p)
-           (error "io/fill-buffer!: bad value " r " on " p)))
-    (io/transcode-port! p)))
-
-; The main buffer has just been filled, but the state has not been changed.
-; If the port was in the textual state, it should enter the auxstart state.
-; If the port was in the auxstart state, it should remain in that state.
-; If the port was in the auxend state, it should enter the auxstart state.
-; So the main job here is to convert the port to the auxstart state.
-
-(define (io/transcode-port! p)
-  (let* ((type       (vector-like-ref p port.type))
-         (state      (vector-like-ref p port.state))
-         (mainbuf    (vector-like-ref p port.mainbuf))
-         (mainptr    (vector-like-ref p port.mainptr))
-         (mainlim    (vector-like-ref p port.mainlim))
-         (auxbuf     (vector-like-ref p port.auxbuf))
-         (auxptr     (vector-like-ref p port.auxptr))
-         (auxlim     (vector-like-ref p port.auxlim)))
-    (assert (fx= mainptr 0))
-    (cond ((fx= type type:binary-input) #t)
-          ((fx= type type:textual-input)
-           (case state
-            ((closed error eof)
-             (io/reset-buffers! p))
-            ((textual auxstart auxend)
-             (assert (< auxlim (bytevector-length auxbuf)))
-             (bytevector-set! auxbuf auxlim (bytevector-ref mainbuf 0))
-             (vector-like-set! p port.auxlim (+ auxlim 1))
-             (bytevector-set! mainbuf 0 port.sentinel)
-             (vector-like-set! p port.state 'auxstart))
-            (else
-             (error 'io/transcode-port! "internal error" p))))
-          (else
-           (error 'io/transcode-port! "internal error" p)))))
-
-; Works only on output ports.
-
-(define (io/flush-buffer p)
-  (let ((wr-ptr (vector-like-ref p port.wr-ptr)))
-    (if (> wr-ptr 0)
-        (let ((r (((vector-like-ref p port.ioproc) 'write)
-                  (vector-like-ref p port.iodata)
-                  (vector-like-ref p port.bytebuf)
-                  wr-ptr)))
-          (vector-like-set! p port.position
-                            (+ (vector-like-ref p port.position) wr-ptr))
-          (cond ((eq? r 'ok)
-                 (vector-like-set! p port.wr-ptr 0))
-                ((eq? r 'error)
-                 (io/set-error-state! p)
-                 (error "Write error on port " p)
-                 #t)
-                (else
-                 (io/set-error-state! p)
-                 (error "io/flush-buffer: bad value " r " on " p)
-                 #t))))))
-
-; Converts port to a clean error state.
-
-(define (io/set-error-state! p)
-  (vector-like-set! p port.state 'error)
-  (io/reset-buffers! p))
-
-; Converts port to a clean eof state.
-
-(define (io/set-eof-state! p)
-  (vector-like-set! p port.state 'eof)
-  (io/reset-buffers! p))
-
-; Converts port to a clean closed state.
-; FIXME:  Should this reduce the size of mainbuf?
-
-(define (io/set-closed-state! p)
-  (vector-like-set! p port.type  type:closed)
-  (vector-like-set! p port.state 'closed)
-  (io/reset-buffers! p))
-
-; Resets buffers to an empty state.
-
-(define (io/reset-buffers! p)
-  (vector-like-set! p port.mainptr 0)
-  (vector-like-set! p port.mainlim 0)
-  (vector-like-set! p port.auxptr 0)
-  (vector-like-set! p port.auxlim 0)
-  (bytevector-set! (vector-like-ref p port.mainbuf) 0 port.sentinel))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -739,12 +624,9 @@
            (io/fill-buffer! p)
            (io/get-u8 p lookahead?)))))
 
-; FIXME: transcoding-on-fly not implemented yet (incomplete characters?)
 ; The general case for get-char and lookahead-char.
 ; The transcoder will be for Latin-1 or UTF-8.
 ; FIXME: does not handle end-of-line conversions.
-; FIXME: does not detect decoding errors.
-; (That shouldn't matter right now since we're using Latin-1 or good UTF-8.)
 
 (define (io/get-char p lookahead?)
   (assert (port? p))
@@ -818,6 +700,128 @@
            (io/fill-buffer! p)
            (io/get-char p lookahead?)))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Private procedures (called only from code within this file)
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Works only on input ports.
+; The main invariants may not hold here.
+; In particular, the port may be in the textual state
+; but have a nonempty auxbuf.
+
+(define (io/fill-buffer! p)
+  (vector-like-set! p port.mainpos
+                    (+ (vector-like-ref p port.mainpos)
+                       (vector-like-ref p port.mainptr)))
+  (let ((r (((vector-like-ref p port.ioproc) 'read)
+            (vector-like-ref p port.iodata)
+            (vector-like-ref p port.mainbuf))))
+    (cond ((eq? r 'eof)
+           (io/set-eof-state! p))
+          ((eq? r 'error)
+           ; FIXME: should retry before giving up
+           (io/set-error-state! p)
+           (error "Read error on port " p)
+           #t)
+          ((and (fixnum? r) (>= r 0))
+           (vector-like-set! p port.mainptr 0)
+           (vector-like-set! p port.mainlim r))
+          (else
+           (io/set-error-state! p)
+           (error "io/fill-buffer!: bad value " r " on " p)))
+    (io/transcode-port! p)))
+
+; The main buffer has just been filled, but the state has not been changed.
+; If the port was in the textual state, it should enter the auxstart state.
+; If the port was in the auxstart state, it should remain in that state.
+; If the port was in the auxend state, it should enter the auxstart state.
+; So the main job here is to convert the port to the auxstart state.
+
+(define (io/transcode-port! p)
+  (let* ((type       (vector-like-ref p port.type))
+         (state      (vector-like-ref p port.state))
+         (mainbuf    (vector-like-ref p port.mainbuf))
+         (mainptr    (vector-like-ref p port.mainptr))
+         (mainlim    (vector-like-ref p port.mainlim))
+         (auxbuf     (vector-like-ref p port.auxbuf))
+         (auxptr     (vector-like-ref p port.auxptr))
+         (auxlim     (vector-like-ref p port.auxlim)))
+    (assert (fx= mainptr 0))
+    (cond ((fx= type type:binary-input) #t)
+          ((fx= type type:textual-input)
+           (case state
+            ((closed error eof)
+             (io/reset-buffers! p))
+            ((textual auxstart auxend)
+             (assert (< auxlim (bytevector-length auxbuf)))
+             (bytevector-set! auxbuf auxlim (bytevector-ref mainbuf 0))
+             (vector-like-set! p port.auxlim (+ auxlim 1))
+             (bytevector-set! mainbuf 0 port.sentinel)
+             (vector-like-set! p port.state 'auxstart))
+            (else
+             (error 'io/transcode-port! "internal error" p))))
+          (else
+           (error 'io/transcode-port! "internal error" p)))))
+
+; Works only on output ports.
+
+(define (io/flush-buffer p)
+  (let ((wr-ptr (vector-like-ref p port.wr-ptr)))
+    (if (> wr-ptr 0)
+        (let ((r (((vector-like-ref p port.ioproc) 'write)
+                  (vector-like-ref p port.iodata)
+                  (vector-like-ref p port.bytebuf)
+                  wr-ptr)))
+          (vector-like-set! p port.position
+                            (+ (vector-like-ref p port.position) wr-ptr))
+          (cond ((eq? r 'ok)
+                 (vector-like-set! p port.wr-ptr 0))
+                ((eq? r 'error)
+                 (io/set-error-state! p)
+                 (error "Write error on port " p)
+                 #t)
+                (else
+                 (io/set-error-state! p)
+                 (error "io/flush-buffer: bad value " r " on " p)
+                 #t))))))
+
+; Converts port to a clean error state.
+
+(define (io/set-error-state! p)
+  (vector-like-set! p port.state 'error)
+  (io/reset-buffers! p))
+
+; Converts port to a clean eof state.
+
+(define (io/set-eof-state! p)
+  (vector-like-set! p port.state 'eof)
+  (io/reset-buffers! p))
+
+; Converts port to a clean closed state.
+; FIXME:  Should this reduce the size of mainbuf?
+
+(define (io/set-closed-state! p)
+  (vector-like-set! p port.type  type:closed)
+  (vector-like-set! p port.state 'closed)
+  (io/reset-buffers! p))
+
+; Resets buffers to an empty state.
+
+(define (io/reset-buffers! p)
+  (vector-like-set! p port.mainptr 0)
+  (vector-like-set! p port.mainlim 0)
+  (vector-like-set! p port.auxptr 0)
+  (vector-like-set! p port.auxlim 0)
+  (bytevector-set! (vector-like-ref p port.mainbuf) 0 port.sentinel))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; On-the-fly transcoding of UTF-8.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; On-the-fly transcoding of a non-Ascii UTF-8 character.
 ; The first argument is known to be a textual input port
 ; whose transcoder uses the UTF-8 codec.
@@ -831,8 +835,6 @@
 ; the port must be forced into the auxstart state, and bytes
 ; must be transferred from mainbuf to auxbuf until the auxbuf
 ; contains a complete character.
-;
-; FIXME:  This routine is not yet implemented.
 
 (define (io/get-char-utf-8 p lookahead? unit buf ptr lim)
 
@@ -977,8 +979,6 @@
 
   (define n (- lim ptr))
 
-' (error 'io/get-char-utf-8 "not yet implemented" p) ;FIXME
-
   (cond ((< n 2)
          (read-more-bytes))
         ((<= unit #xc1)
@@ -1000,7 +1000,6 @@
 ; that's in the auxstart state, where it reads from auxbuf instead
 ; of mainbuf.
 ; The port is known to be a textual input port in the auxstart state.
-; FIXME:  For Latin-1 this is pretty easy, but it's a mess for UTF-8.
 
 (define (io/get-char-auxstart p lookahead?)
 
@@ -1027,7 +1026,7 @@
                     (if (not lookahead?)
                         (io/consume-byte-from-auxbuf! p))
                     (integer->char unit))
-                   (else  ; FIXME
+                   (else
                     (io/get-char-utf-8 p lookahead? unit buf ptr lim)))))
           (else
            ; In the auxstart state, auxbuf should always be nonempty.
