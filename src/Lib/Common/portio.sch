@@ -90,17 +90,11 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (port-transcoder p)
-  (assert (port? p))
-  (vector-like-ref p port.transcoder))
+(define (port-transcoder p) (io/port-transcoder p))
 
-(define (textual-port? p)
-  (assert (port? p))
-  (not (zero? (fxlogand 1 (vector-like-ref p port.type)))))
+(define (textual-port? p) (io/textual-port? p))
 
-(define (binary-port? p)
-  (assert (port? p))
-  (zero? (fxlogand 1 (vector-like-ref p port.type))))
+(define (binary-port? p) (io/binary-port? p))
 
 (define (transcoded-port p t)
   (if (and (binary-port? p)
@@ -116,16 +110,7 @@
 (define (port-has-port-position? p)
   (or (binary-port? p) (textual-port? p)))
 
-; FIXME:  This depends on the representation of ports.
-
-(define (port-position p)
-  (if (binary-port? p)
-      (+ (vector-like-ref p port.position)
-         (if (input-port? p)
-             (vector-like-ref p port.byteptr)      ; FIXME
-             (vector-like-ref p port.wr-lim)))     ; FIXME
-      (+ (vector-like-ref p port.mainpos)          ; FIXME
-         (vector-like-ref p port.mainptr))))       ; FIXME
+(define (port-position p) (io/port-position p))
 
 ; FIXME:  For now, no ports support set-port-position!.
 
@@ -216,149 +201,10 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; FIXME:  The next three definitions are broken.
-
-; The fast path for lookahead-u8.
-
-(define (lookahead-u8 p)
-  (assert (port? p))
-  (let ((type (vector-like-ref p port.type))        ; FIXME: should be trusted
-        (buf  (vector-like-ref p port.mainbuf))
-        (ptr  (vector-like-ref p port.mainptr))
-        (lim  (vector-like-ref p port.mainlim)))
-    (if (and (eq? type 2)                           ; 2 = input, binary
-             (fx< ptr lim))
-        (bytevector-ref buf ptr)                    ; FIXME
-        (io/get-u8 p #t))))
-
-; The fast path for get-u8.
-
-(define (get-u8 p)
-  (assert (port? p))
-  (let ((type (vector-like-ref p port.type))        ; FIXME: should be trusted
-        (buf  (vector-like-ref p port.mainbuf))
-        (ptr  (vector-like-ref p port.mainptr))
-        (lim  (vector-like-ref p port.mainlim)))
-    (if (and (eq? type 2)                           ; 2 = input, binary
-             (fx< ptr lim))
-        (begin (vector-like-set! p port.mainptr (+ ptr 1))
-               (bytevector-ref buf ptr))            ; FIXME
-        (io/get-u8 p #f))))
-
-; The general case for get-u8 and lookahead-u8.
-
-(define (io/get-u8 p lookahead?)
-  (assert (port? p))
-  (let ((type (vector-like-ref p port.type))
-        (buf  (vector-like-ref p port.mainbuf))
-        (ptr  (vector-like-ref p port.mainptr))
-        (lim  (vector-like-ref p port.mainlim)))
-    (cond ((not (eq? type 2))
-           (assertion-violation 'get-u8 "argument not a binary input port" p))
-          ((fx< ptr lim)
-           (let ((byte (bytevector-ref buf ptr)))
-             (if (not lookahead?)
-                 (vector-like-set! p port.mainptr (+ ptr 1)))
-             byte))
-          ((vector-like-ref p port.rd-eof?)
-           (eof-object))
-          (else
-           (io/fill-buffer p)
-           (io/get-u8 p lookahead?)))))
-
-; The fast path for lookahead-char.
-
-(define (lookahead-char p)
-  (assert (port? p))                           ; FIXME
-  (let ((type (vector-like-ref p port.type))
-        (buf  (vector-like-ref p port.mainbuf))
-        (ptr  (vector-like-ref p port.mainptr)))
-    (let ((unit (if (eq? type 3)               ; 3 = input, textual
-                    (bytevector-ref buf ptr)   ; FIXME
-                    255)))
-      (if (and (not (eq? unit 13))             ; 13 = #\return
-               (fx< unit 128))
-          (integer->char unit)
-          (i/get-char p #t)))))
-
-; The fast path for get-char.
-
-(define (get-char p)
-  (assert (port? p))                           ; FIXME
-  (let ((type (vector-like-ref p port.type))
-        (buf  (vector-like-ref p port.mainbuf))
-        (ptr  (vector-like-ref p port.mainptr)))
-    (let ((unit (if (eq? type 3)               ; 3 = input, textual
-                    (bytevector-ref buf ptr)   ; FIXME
-                    255)))
-      (if (and (not (eq? unit 13))             ; 13 = #\return
-               (fx< unit 128))
-          (begin
-           (vector-set! p port.mainptr (fx+ ptr 1))
-           (integer->char unit))
-          (read-char p)))))
-
-; FIXME: transcoding-on-fly not implemented yet (incomplete characters?)
-; FIXME: io/fill-buffer doesn't switch buffers yet
-; The general case for get-char and lookahead-char.
-
-(define (io/get-char p lookahead?)
-  (assert (port? p))
-  (let ((type (vector-like-ref p port.type))
-        (buf  (vector-like-ref p port.mainbuf))
-        (ptr  (vector-like-ref p port.mainptr))
-        (lim  (vector-like-ref p port.mainlim)))
-    (cond ((not (eq? type 3))
-           (assertion-violation 'get-char
-                                "argument not a textual input port" p))
-          ((fx< ptr lim)
-           (let ((unit (bytevector-ref buf ptr)))
-             (cond ((<= unit #x7f)
-                    (if (not lookahead?)
-                        (vector-like-set! p port.mainptr (+ ptr 1)))
-                    (integer->char unit))
-                   ((<= unit #xdf)
-                    (if (not lookahead?)
-                        (vector-like-set! p port.mainptr (+ ptr 2)))
-                    (integer->char
-                     (fxlogior
-                      (fxlsh (fxlogand #b00011111 unit) 6)
-                      (fxlogand #b00111111 (bytevector-ref buf (+ ptr 1))))))
-                   ((<= unit #xef)
-                    (if (not lookahead?)
-                        (vector-like-set! p port.mainptr (+ ptr 3)))
-                    (integer->char
-                     (fxlogior
-                      (fxlsh (fxlogand #b00001111 unit) 12)
-                      (fxlogior
-                       (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 1)))
-                              6)
-                       (fxlogand #x3f (bytevector-ref buf (+ ptr 2)))))))
-                   (else
-                    (if (not lookahead?)
-                        (vector-like-set! p port.mainptr (+ ptr 4)))
-                    (integer->char
-                     (fxlogior
-                      (fxlogior
-                       (fxlsh (fxlogand #b00000111 unit) 18)
-                       (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 1)))
-                              12))
-                      (fxlogior
-                       (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 2)))
-                              6)
-                       (fxlogand #x3f (bytevector-ref buf (+ ptr 3))))))))))
-          ((vector-like-ref p port.rd-eof?)
-           (vector-like-set! p port.mainptr 0)
-           (vector-like-set! p port.mainlim 0)
-           (bytevector-set! buf 0 port.sentinel)
-           (eof-object))
-          (else
-           (vector-like-set! p port.mainptr 0)
-           (vector-like-set! p port.mainlim 0)
-           (bytevector-set! buf 0 port.sentinel)
-           (io/fill-buffer p)
-           (io/transcode-port! p)
-           (io/get-char p lookahead?)))))
+(define (lookahead-u8 p)   (io/get-u8 p #t))
+(define (get-u8 p)         (io/get-u8 p #f))
+(define (lookahead-char p) (io/get-char p #t))
+(define (get-char p)       (io/get-char p #f))
 
 ; FIXME: not yet implemented
 ;     get-bytevector-n

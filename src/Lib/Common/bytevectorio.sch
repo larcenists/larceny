@@ -48,7 +48,7 @@
                  bvec)
           (let* ((buf (car bufs))
                  (n (bytevector-length buf)))
-            (bytevector-copy! buf 0 n bvec i n)
+            (bytevector-copy! buf 0 bvec i n)
             (loop2 bvec (+ i n) (cdr bufs)))))
     (let ((result (loop1 bufs 0 '())))
       (vector-set! data bytevector-io.bv (list result))
