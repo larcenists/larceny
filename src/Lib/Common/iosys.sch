@@ -393,14 +393,11 @@
 (define (io/open-port? p)
   (or (io/input-port? p) (io/output-port? p)))
 
-; Moving the constants in-line improves performance because the global
-; variable references are heavyweight -- several loads, and a check for
-; definedness.
-;
-; FIXME:  But they aren't inlined right now.
-;
 ; FIXME:  For v0.94 only, read-char and peek-char can read
 ; from binary ports, treating them as Latin-1.
+;
+; FIXME:  After v0.94, io/read-char and io/peek-char should
+; just delegate to io/get-char.
 
 (define (io/read-char p)
   (if (port? p)
@@ -424,7 +421,7 @@
       (begin (error "read-char: not an input port: " p)
              #t)))
 
-; FIXME:  This should call io/get-char.
+; FIXME:  See comments for io/read-char above.
 
 (define (io/peek-char p)
   (if (port? p)
@@ -745,6 +742,7 @@
 ; FIXME: transcoding-on-fly not implemented yet (incomplete characters?)
 ; The general case for get-char and lookahead-char.
 ; The transcoder will be for Latin-1 or UTF-8.
+; FIXME: does not handle end-of-line conversions.
 ; FIXME: does not detect decoding errors.
 ; (That shouldn't matter right now since we're using Latin-1 or good UTF-8.)
 
@@ -838,37 +836,36 @@
 
 (define (io/get-char-utf-8 p lookahead? unit buf ptr lim)
   (error 'io/get-char-utf-8 "not yet implemented" p)
-  (cond
-                   ((<= unit #xdf)
-                    (if (not lookahead?)
-                        (vector-like-set! p port.mainptr (+ ptr 2)))
-                    (integer->char
-                     (fxlogior
-                      (fxlsh (fxlogand #b00011111 unit) 6)
-                      (fxlogand #b00111111 (bytevector-ref buf (+ ptr 1))))))
-                   ((<= unit #xef)
-                    (if (not lookahead?)
-                        (vector-like-set! p port.mainptr (+ ptr 3)))
-                    (integer->char
-                     (fxlogior
-                      (fxlsh (fxlogand #b00001111 unit) 12)
-                      (fxlogior
-                       (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 1)))
-                              6)
-                       (fxlogand #x3f (bytevector-ref buf (+ ptr 2)))))))
-                   (else
-                    (if (not lookahead?)
-                        (vector-like-set! p port.mainptr (+ ptr 4)))
-                    (integer->char
-                     (fxlogior
-                      (fxlogior
-                       (fxlsh (fxlogand #b00000111 unit) 18)
-                       (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 1)))
-                              12))
-                      (fxlogior
-                       (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 2)))
-                              6)
-                       (fxlogand #x3f (bytevector-ref buf (+ ptr 3)))))))))
+  (cond ((<= unit #xdf)
+         (if (not lookahead?)
+             (vector-like-set! p port.mainptr (+ ptr 2)))
+         (integer->char
+          (fxlogior
+           (fxlsh (fxlogand #b00011111 unit) 6)
+           (fxlogand #b00111111 (bytevector-ref buf (+ ptr 1))))))
+        ((<= unit #xef)
+         (if (not lookahead?)
+             (vector-like-set! p port.mainptr (+ ptr 3)))
+         (integer->char
+          (fxlogior
+           (fxlsh (fxlogand #b00001111 unit) 12)
+           (fxlogior
+            (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 1)))
+                   6)
+            (fxlogand #x3f (bytevector-ref buf (+ ptr 2)))))))
+        (else
+         (if (not lookahead?)
+             (vector-like-set! p port.mainptr (+ ptr 4)))
+         (integer->char
+          (fxlogior
+           (fxlogior
+            (fxlsh (fxlogand #b00000111 unit) 18)
+            (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 1)))
+                   12))
+           (fxlogior
+            (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 2)))
+                   6)
+            (fxlogand #x3f (bytevector-ref buf (+ ptr 3)))))))))
 
 ; The special case of get-char and lookahead-char on a textual port
 ; that's in the auxstart state, where it reads from auxbuf instead
@@ -877,58 +874,12 @@
 ; FIXME:  For Latin-1 this is pretty easy, but it's a mess for UTF-8.
 
 (define (io/get-char-auxstart p lookahead?)
+
   (assert (eq? 'auxstart (vector-like-ref p port.state)))
+
   (let ((buf  (vector-like-ref p port.auxbuf))
         (ptr  (vector-like-ref p port.auxptr))
         (lim  (vector-like-ref p port.auxlim)))
-
-    (define (consume-byte-from-auxbuf!)
-      (let ((ptr+1 (+ ptr 1)))
-        (cond ((fx= ptr+1 lim)
-               (vector-like-set! p port.auxptr 0)
-               (vector-like-set! p port.auxlim 0)
-               (leave-auxstart-state!))
-              (else
-               (vector-like-set! p port.auxptr ptr+1)))))
-
-    (define (leave-auxstart-state!)
-      (let ((mainbuf (vector-like-ref p port.mainbuf))
-            (mainptr (vector-like-ref p port.mainptr))
-            (mainlim (vector-like-ref p port.mainlim)))
-        (assert (fx= 0 mainptr))
-        (assert (fx< 0 mainlim))
-        (vector-like-set! p port.mainptr 1)
-        (if (fx< mainlim (bytevector-length mainbuf))
-            (begin (bytevector-set! mainbuf mainlim port.sentinel)
-                   (vector-like-set! p port.state 'textual))
-            (begin (bytevector-set! buf
-                                    0
-                                    (bytevector-ref mainbuf (- mainlim 1)))
-                   (bytevector-set! mainbuf (- mainlim 1) port.sentinel)
-                   (vector-like-set! p port.mainlim (- mainlim 1))
-                   (vector-like-set! p port.auxptr 0)
-                   (vector-like-set! p port.auxlim 1)
-                   (vector-like-set! p port.state 'auxend)))))
-
-    ; FIXME: for debugging this mess
-
-'   (begin
-    (write (list 'io/get-char-auxstart buf ptr lim)) (newline) ; FIXME
-    (let ((mainbuf (vector-like-ref p port.mainbuf))
-          (mainptr (vector-like-ref p port.mainptr))
-          (mainlim (vector-like-ref p port.mainlim)))
-      (write (list 'mainbuf:
-                   (bytevector-ref mainbuf 0)
-                   (bytevector-ref mainbuf 1)
-                   (bytevector-ref mainbuf 2)
-                   (bytevector-ref mainbuf 3)
-                   (bytevector-ref mainbuf 4)
-                   (bytevector-ref mainbuf 5)
-                   '...
-                   mainptr
-                   mainlim)))
-    (newline)
-    )
 
     (cond ((fx< ptr lim)
            (let ((unit (bytevector-ref buf ptr)))
@@ -937,32 +888,59 @@
                            ???)
                           (else
                            (if (not lookahead?)
-                               (consume-byte-from-auxbuf!))
+                               (io/consume-byte-from-auxbuf! p))
                            (integer->char unit))))
                    ((let ((codec (fxlogand
                                   transcoder-mask:codec
                                   (vector-like-ref p port.transcoder))))
                       (fx= codec codec:latin-1))
                     ; Latin-1
-                    (let ((ptr+1 (+ ptr 1)))
-                      (if (not lookahead?)
-                          (consume-byte-from-auxbuf!)))
+                    (if (not lookahead?)
+                        (io/consume-byte-from-auxbuf! p))
                     (integer->char unit))
-                   (#f   ; FIXME
+                   (else  ; FIXME
                     (error 'io/get-char "UTF-8 not implemented yet." p)
                     (eof-object)))))
-          ((let ((codec (fxlogand
-                         transcoder-mask:codec
-                         (vector-like-ref p port.transcoder))))
-             (fx= codec codec:latin-1))
-           ; Latin-1, with nothing left in auxbuf
-           ; FIXME: This should not happen!
-           (assertion-violation 'io/get-char-auxstart "internal error" p)
-           (vector-like-set! p port.state 'textual)
-           (vector-like-set! p port.mainptr 1)
-           (integer->char 255))
           (else
-           (error 'io/get-char "UTF-8 not implemented yet." p)
+           ; In the auxstart state, auxbuf should always be nonempty.
+           (error 'io/get-char-auxstart "internal error" p)
            (eof-object)))))
+
+; Given a port in the auxstart state, consumes a byte from its auxbuf.
+; If that empties auxbuf, then the port enters a textual or auxend state.
+
+(define (io/consume-byte-from-auxbuf! p)
+
+  (define (leave-auxstart-state!)
+    (let ((mainbuf (vector-like-ref p port.mainbuf))
+          (mainptr (vector-like-ref p port.mainptr))
+          (mainlim (vector-like-ref p port.mainlim)))
+      (assert (fx= 0 mainptr))
+      (assert (fx< 0 mainlim))
+      (vector-like-set! p port.mainptr 1)
+      (if (fx< mainlim (bytevector-length mainbuf))
+          (begin (bytevector-set! mainbuf mainlim port.sentinel)
+                 (vector-like-set! p port.state 'textual))
+          (begin (bytevector-set! (vector-like-ref p port.auxbuf)
+                                  0
+                                  (bytevector-ref mainbuf (- mainlim 1)))
+                 (bytevector-set! mainbuf (- mainlim 1) port.sentinel)
+                 (vector-like-set! p port.mainlim (- mainlim 1))
+                 (vector-like-set! p port.auxptr 0)
+                 (vector-like-set! p port.auxlim 1)
+                 (vector-like-set! p port.state 'auxend)))))
+
+  (assert (eq? 'auxstart (vector-like-ref p port.state)))
+
+  (let* ((ptr (vector-like-ref p port.auxptr))
+         (lim (vector-like-ref p port.auxlim))
+         (ptr+1 (+ ptr 1)))
+
+    (cond ((fx= ptr+1 lim)
+           (vector-like-set! p port.auxptr 0)
+           (vector-like-set! p port.auxlim 0)
+           (leave-auxstart-state!))
+          (else
+           (vector-like-set! p port.auxptr ptr+1)))))
 
 ; eof
