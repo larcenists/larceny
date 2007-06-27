@@ -116,6 +116,7 @@
 (define type:textual-input/output 7)
 
 ; FIXME:
+; The port.mainpos field is not always updated correctly.
 ; The output and input/output directions are not yet implemented.
 ; The input direction has not yet been converted to on-the-fly
 ; transcoding.
@@ -182,6 +183,9 @@
 ;;; Private procedures (called only from code within this file)
 
 ; Works only on input ports.
+; The main invariants may not hold here.
+; In particular, the port may be in the textual state
+; but have a nonempty auxbuf.
 
 (define (io/fill-buffer! p)
   (vector-like-set! p port.mainpos
@@ -203,8 +207,7 @@
           (else
            (io/set-error-state! p)
            (error "io/fill-buffer!: bad value " r " on " p)))
-    (if (not (fx= (vector-like-ref p port.type) type:binary-input))
-        (io/transcode-port! p))))
+    (io/transcode-port! p)))
 
 ; The main buffer has just been filled, but the state has not been changed.
 ; If the port was in the textual state, it should enter the auxstart state.
@@ -237,9 +240,6 @@
              (error 'io/transcode-port! "internal error" p))))
           (else
            (error 'io/transcode-port! "internal error" p)))))
-
-; FIXME: end-of-buffer transition is tricky.
-; FIXME: haven't gotten any farther than this.
 
 ; Works only on output ports.
 
@@ -637,9 +637,9 @@
 (define eolstyle:crlf  #b10100)
 (define eolstyle:crnel #b11000)
 
-(define errmode:raise   0)
-(define errmode:replace 1)
-(define errmode:ignore  2)
+(define errmode:replace 0)
+(define errmode:ignore  1)
+(define errmode:raise   2)
 
 (define (io/make-transcoder codec eol-style handling-mode)
   (define (local-error msg irritant)
@@ -835,37 +835,166 @@
 ; FIXME:  This routine is not yet implemented.
 
 (define (io/get-char-utf-8 p lookahead? unit buf ptr lim)
-  (error 'io/get-char-utf-8 "not yet implemented" p)
-  (cond ((<= unit #xdf)
-         (if (not lookahead?)
-             (vector-like-set! p port.mainptr (+ ptr 2)))
-         (integer->char
-          (fxlogior
-           (fxlsh (fxlogand #b00011111 unit) 6)
-           (fxlogand #b00111111 (bytevector-ref buf (+ ptr 1))))))
+
+  (define (decoding-error units)
+    (for-each (lambda (x) (io/consume-byte! p)) units)
+    (let* ((transcoder (vector-like-ref p port.transcoder))
+           (errmode (fxlogand transcoder-mask:errmode transcoder)))
+      (cond ((fx= errmode errmode:replace)
+             (integer->char #xfffd))
+            ((fx= errmode errmode:ignore)
+             (io/get-char p lookahead?))
+            (else
+             (error 'get-char "utf-8 decoding error" units)))))
+
+  ; Forces at least one more byte into the active buffer,
+  ; and retries.
+
+  (define (read-more-bytes)
+    (let* ((state (vector-like-ref p port.state))
+           (mainbuf (vector-like-ref p port.mainbuf))
+           (mainptr (vector-like-ref p port.mainptr))
+           (mainlim (vector-like-ref p port.mainlim))
+           (auxbuf (vector-like-ref p port.auxbuf))
+           (auxptr (vector-like-ref p port.auxptr))
+           (auxlim (vector-like-ref p port.auxlim))
+           (m (- mainlim mainptr))
+           (n (- auxlim auxptr)))
+      (case state
+
+       ((auxend)
+        (assert (eq? buf mainbuf))
+        (assert (fx< 0 n))
+        (bytevector-copy! mainbuf mainptr mainbuf 0 m)
+        (bytevector-copy! auxbuf auxptr mainbuf m n)
+        (bytevector-set! mainbuf (+ m n) port.sentinel)
+        (vector-like-set! p port.mainptr 0)
+        (vector-like-set! p port.mainlim (+ m n))
+        (vector-like-set! p port.auxptr 0)
+        (vector-like-set! p port.auxlim 0)
+        (vector-like-set! p port.state 'textual)
+        (io/get-char p lookahead?))
+
+       ((textual)
+        (assert (eq? buf mainbuf))
+        (assert (fx= 0 auxlim))
+        (assert (< m 4))
+        (bytevector-copy! mainbuf mainptr auxbuf 0 m)
+        (vector-like-set! p port.mainptr 0)
+        (vector-like-set! p port.mainlim 0)
+        (vector-like-set! p port.auxptr 0)
+        (vector-like-set! p port.auxlim m)
+        (io/fill-buffer! p)
+        (io/get-char p lookahead?))
+
+       ((auxstart)
+        (assert (eq? buf auxbuf))
+        (assert (fx= 0 auxptr))
+        (assert (fx< n 3))
+        (if (fx>= m 2)
+            (begin
+
+             ; Copy one byte from mainbuf to auxbuf,
+             ; and move mainbuf down by 1.
+             ; FIXME:  This is grossly inefficient, but works for now.
+
+             (bytevector-set! auxbuf auxlim (bytevector-ref mainbuf 1))
+             (bytevector-copy! mainbuf 2 mainbuf 1 (- m 2))
+             (vector-like-set! p port.mainlim (- mainlim 1))
+             (vector-like-set! p port.auxlim (+ auxlim 1))
+             (io/get-char p lookahead?))
+
+            (begin
+             (io/fill-buffer! p)
+             (io/get-char p lookahead?))))
+
+       (else
+        ; state is closed, error, eof, or binary
+        (error 'io/get-char-utf-8 "internal error" state)))))
+
+  (define (finish k sv)
+    (if (not lookahead?)
+        (let ((mainbuf (vector-like-ref p port.mainbuf)))
+          (if (eq? mainbuf buf)
+              (vector-like-set! p
+                                port.mainptr
+                                (+ k (vector-like-ref p port.mainptr)))
+              (begin (io/consume-byte-from-auxbuf! p)
+                     (io/consume-byte-from-auxbuf! p)
+                     (if (> k 2) (io/consume-byte-from-auxbuf! p))
+                     (if (> k 3) (io/consume-byte-from-auxbuf! p))))))
+    (integer->char sv))
+
+  (define (decode2) ; decodes 2 bytes
+    (let ((unit2 (bytevector-ref buf (+ ptr 1))))
+      (if (<= #x80 unit2 #xbf)
+          (finish 2
+                  (fxlogior
+                   (fxlsh (fxlogand #b00011111 unit) 6)
+                   (fxlogand #b00111111 (bytevector-ref buf (+ ptr 1)))))
+          (decoding-error (list unit unit2)))))
+
+  (define (decode3) ; decodes 3 bytes
+    (let ((unit2 (bytevector-ref buf (+ ptr 1)))
+          (unit3 (bytevector-ref buf (+ ptr 2))))
+      (cond ((or (and (fx= unit #xe0)
+                      (fx< unit2 #xa0))
+                 (not (<= #x80 unit2 #xbf)))
+             (decoding-error (list unit unit2)))
+            ((not (<= #x80 unit3 #xbf))
+             (decoding-error (list unit unit2 unit3)))
+            (else
+             (finish 3
+                     (fxlogior
+                      (fxlsh (fxlogand #b00001111 unit) 12)
+                      (fxlogior
+                       (fxlsh (fxlogand #x3f unit2) 6)
+                       (fxlogand #x3f unit3))))))))
+
+  (define (decode4) ; decodes 4 bytes
+    (let ((unit2 (bytevector-ref buf (+ ptr 1)))
+          (unit3 (bytevector-ref buf (+ ptr 2)))
+          (unit4 (bytevector-ref buf (+ ptr 3))))
+      (cond ((or (and (fx= unit #xf0)
+                      (fx< unit2 #x90))
+                 (and (fx= unit #xf4)
+                      (fx> unit2 #x8f))
+                 (not (<= #x80 unit2 #xbf)))
+             (decoding-error (list unit unit2)))
+            ((not (<= #x80 unit3 #xbf))
+             (decoding-error (list unit unit2 unit3)))
+            ((not (<= #x80 unit4 #xbf))
+             (decoding-error (list unit unit2 unit3 unit4)))
+            (else
+             (finish 4
+                     (fxlogior
+                      (fxlogior
+                       (fxlsh (fxlogand #b00000111 unit) 18)
+                       (fxlsh (fxlogand #x3f unit2) 12))
+                      (fxlogior
+                       (fxlsh (fxlogand #x3f unit3) 6)
+                       (fxlogand #x3f unit4))))))))
+
+  (define n (- lim ptr))
+
+' (error 'io/get-char-utf-8 "not yet implemented" p) ;FIXME
+
+  (cond ((< n 2)
+         (read-more-bytes))
+        ((<= unit #xc1)
+         (decoding-error (list unit)))
+        ((<= unit #xdf)
+         (decode2))
+        ((< n 3)
+         (read-more-bytes))
         ((<= unit #xef)
-         (if (not lookahead?)
-             (vector-like-set! p port.mainptr (+ ptr 3)))
-         (integer->char
-          (fxlogior
-           (fxlsh (fxlogand #b00001111 unit) 12)
-           (fxlogior
-            (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 1)))
-                   6)
-            (fxlogand #x3f (bytevector-ref buf (+ ptr 2)))))))
+         (decode3))
+        ((< n 4)
+         (read-more-bytes))
+        ((<= unit #xf4)
+         (decode4))
         (else
-         (if (not lookahead?)
-             (vector-like-set! p port.mainptr (+ ptr 4)))
-         (integer->char
-          (fxlogior
-           (fxlogior
-            (fxlsh (fxlogand #b00000111 unit) 18)
-            (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 1)))
-                   12))
-           (fxlogior
-            (fxlsh (fxlogand #x3f (bytevector-ref buf (+ ptr 2)))
-                   6)
-            (fxlogand #x3f (bytevector-ref buf (+ ptr 3)))))))))
+         (decoding-error (list unit)))))
 
 ; The special case of get-char and lookahead-char on a textual port
 ; that's in the auxstart state, where it reads from auxbuf instead
@@ -899,14 +1028,13 @@
                         (io/consume-byte-from-auxbuf! p))
                     (integer->char unit))
                    (else  ; FIXME
-                    (error 'io/get-char "UTF-8 not implemented yet." p)
-                    (eof-object)))))
+                    (io/get-char-utf-8 p lookahead? unit buf ptr lim)))))
           (else
            ; In the auxstart state, auxbuf should always be nonempty.
            (error 'io/get-char-auxstart "internal error" p)
            (eof-object)))))
 
-; Given a port in the auxstart state, consumes a byte from its auxbuf.
+; Given an input port in auxstart state, consumes a byte from its auxbuf.
 ; If that empties auxbuf, then the port enters a textual or auxend state.
 
 (define (io/consume-byte-from-auxbuf! p)
@@ -942,5 +1070,39 @@
            (leave-auxstart-state!))
           (else
            (vector-like-set! p port.auxptr ptr+1)))))
+
+; Given an input textual port, consumes a byte from its buffers.
+; This may cause a change of state.
+; This procedure is called only during error handling, so it can be slow.
+
+(define (io/consume-byte! p)
+  (let ((state (vector-like-ref p port.state))
+        (mainbuf (vector-like-ref p port.mainbuf))
+        (mainptr (vector-like-ref p port.mainptr))
+        (mainlim (vector-like-ref p port.mainlim))
+        (auxbuf (vector-like-ref p port.auxbuf))
+        (auxptr (vector-like-ref p port.auxptr))
+        (auxlim (vector-like-ref p port.auxlim)))
+    (case state
+     ((auxstart)
+      (io/consume-byte-from-auxbuf! p))
+     ((textual auxend)
+      (cond ((fx< mainptr mainlim)
+             (vector-like-set! p mainptr (+ mainptr 1)))
+            ((eq? state 'auxend)
+             (assert (fx< auxptr auxlim))
+             (bytevector-copy! auxbuf auxptr mainbuf 0 (- auxlim auxptr))
+             (bytevector-set! mainbuf (- auxlim auxptr) port.sentinel)
+             (vector-like-set! p port.mainptr 0)
+             (vector-like-set! p port.mainlim (- auxlim auxptr))
+             (vector-like-set! p port.auxptr 0)
+             (vector-like-set! p port.auxlim 0)
+             (vector-like-set! p port.state 'textual)
+             (io/consume-byte! p))
+            (else
+             (io/reset-buffers! p))))
+     (else
+      ; must be closed, error, eof
+      (unspecified)))))
 
 ; eof
