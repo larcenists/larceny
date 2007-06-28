@@ -143,33 +143,10 @@
 (define port.auxptr    11) ; index of next byte in auxbuf
 (define port.auxlim    12) ; 1 + index of last byte in auxbuf
 
-; FIXME: These should go away soon.
+(define port.structure-size 13)      ; size of port structure
 
-; input ports
+; Default length of i/o buffer.
 
-(define port.auxneeded 13) ; number of bytes needed to complete the char
-(define port.bytelim   14) ; nonnegative fixnum: index beyond last char
-(define port.byteptr   15) ; nonnegative fixnum: next loc for input
-(define port.wr-ptr    16) ; nonnegative fixnum: next loc for output
-(define port.position  17) ; nonnegative fixnum: number of bytes or
-                           ; characters read or written, not counting
-                           ; what's in the current mainbuf.
-(define port.input?    18) ; boolean: an open input port
-(define port.output?   19) ; boolean: an open output port
-(define port.bytebuf   20) ; a bytevector or #f: i/o buffer
-
-(define port.structure-size 21)      ; size of port structure
-
-; Lengths of default i/o bytebufs.
-;
-; The char buffer must be at least two greater than
-; the length of the longest UTF-8 encoding of any string
-; that can be encoded within the byte buffer.  For the
-; standard encodings, the worst case occurs when each
-; byte turns into the 3-byte encoding of the replacement
-; character.
-
-(define port.bytebuf-size    1024)
 (define port.mainbuf-size    1024)
 
 ; Textual input uses 255 as a sentinel byte to force
@@ -210,8 +187,8 @@
     (do ((l rest (cdr l)))
         ((null? l))
       (case (car l)
-        ((input)   (set! input? #t)  (vector-set! v port.input? #t))
-        ((output)  (set! output? #t) (vector-set! v port.output? #t))
+        ((input)   (set! input? #t))
+        ((output)  (set! output? #t))
         ((text)    (set! textual? #t))
         ((binary)  (set! binary? #t))
         ((flush)   (vector-set! v port.wr-flush? #t))
@@ -244,17 +221,6 @@
     (vector-set! v port.ioproc ioproc)
     (vector-set! v port.auxbuf (make-bytevector 4))
     (vector-set! v port.auxlim 0)
-
-    ; These should go away soon.
-
-    (vector-set! v port.auxneeded 0)
-    (vector-set! v port.bytebuf (make-bytevector port.bytebuf-size))
-    (vector-set! v port.bytelim 0)
-    (vector-set! v port.byteptr 0)
-    (vector-set! v port.wr-ptr 0)
-    (vector-set! v port.position 0)
-    (vector-set! v port.input? input?)
-    (vector-set! v port.output? output?)
 
     (typetag-set! v sys$tag.port-typetag)
     (io/reset-buffers! v)                     ; inserts sentinel
@@ -330,53 +296,66 @@
              #t)))
 
 (define (io/write-char c p)
-  (if (and (port? p) (vector-like-ref p port.output?))
-      (let ((buf (vector-like-ref p port.bytebuf))
-            (ptr (vector-like-ref p port.wr-ptr)))
-        (cond ((< ptr (bytevector-like-length buf))
-               (bytevector-like-set! buf ptr (char->integer c))
-               (vector-like-set! p port.wr-ptr (+ ptr 1))
-               (unspecified))
+  (if (port? p)
+      (let ((type (vector-like-ref p port.type))
+            (buf (vector-like-ref p port.mainbuf))
+            (ptr (vector-like-ref p port.mainlim)))
+        (cond ((eq? type type:binary-output)
+               (cond ((< ptr (bytevector-like-length buf))
+                      (bytevector-like-set! buf ptr (char->integer c))
+                      (vector-like-set! p port.mainlim (+ ptr 1))
+                      (unspecified))
+                     (else
+                      (io/flush-buffer p)
+                      (io/write-char c p))))
+              ((eq? type type:textual-output)
+               ; FIXME: same as binary, for the moment
+               (cond ((< ptr (bytevector-like-length buf))
+                      (bytevector-like-set! buf ptr (char->integer c))
+                      (vector-like-set! p port.mainlim (+ ptr 1))
+                      (unspecified))
+                     (else
+                      (io/flush-buffer p)
+                      (io/write-char c p))))
               (else
-               (io/flush-buffer p)
-               (io/write-char c p))))
+               (error 'write-char "not an output port" p)
+               #t)))
       (begin (error "write-char: not an output port: " p)
              #t)))
 
-; In v0.93, other parts of the I/O system depended upon a string
-; (rather than bytevector-like) buffer.  That should be fixed now,
-; but the commented lines remain so they can be un-commented if
-; we still need to work around that kind of bug.
+; FIXME:  The name is misleading, since it now requires a bytevector.
+; FIXME:  Asm/Shared/makefasl.sch uses this procedure, mainly
+; to write codevectors.
 ;
-; Also, for short strings, it might be more effective to copy rather than
-; flush.  This procedure is really most useful for long strings, and was
-; written to speed up fasl file writing.
+; For short bytevectors, it might be more effective to copy rather than
+; flush.  This procedure is really most useful for long bytevectors, and
+; was written to speed up fasl file writing.
+;
+; With the advent of transcoded i/o in v0.94, this procedure
+; is useful only for writing fasl files, which are either
+; binary or Latin-1 with no end-of-line translation.
 
 (define (io/write-bytevector-like bvl p)
-  (if (not (bytevector? bvl))                                         ;FIXME
-      (begin (display "***** WARNING ***** from io/write-bytevector")
-             (newline)))
-  (if (and (port? p) (vector-like-ref p port.output?))
-      (let ((buf (vector-like-ref p port.bytebuf))
-            (tt  (typetag bvl)))
-        (io/flush-buffer p)
-        (vector-like-set! p port.bytebuf bvl)
-        (vector-like-set! p port.wr-ptr (bytevector-like-length bvl))
-       ;(typetag-set! bvl sys$tag.string-typetag)
-        (io/flush-buffer p)
-       ;(typetag-set! bvl tt)
-        (vector-like-set! p port.bytebuf buf)
-        (vector-like-set! p port.wr-ptr 0)
-        (unspecified))
-      (begin (error "io/write-bytevector-like: not an output port: " p)
-             #t)))
+  (assert (port? p))
+  (assert (bytevector? bvl))
+  (assert (let ((t (vector-like-ref p port.transcoder)))
+            (or (eq? t codec:binary) (eq? t codec:latin-1))))
+  (let ((buf (vector-like-ref p port.mainbuf))
+        (tt  (typetag bvl)))
+    (io/flush-buffer p)
+    (vector-like-set! p port.mainbuf bvl)
+    (vector-like-set! p port.mainlim (bytevector-like-length bvl))
+    (io/flush-buffer p)
+    (vector-like-set! p port.mainbuf buf)
+    (vector-like-set! p port.mainlim 0)
+    (unspecified)))
   
 ; When writing the contents of an entire string,
 ; we can do the error checking just once.
 ; FIXME:  This outputs Ascii characters only.
 
 (define (io/write-string s p)
-  (if #t                                                 ; FIXME
+  (if #f                                                 ; FIXME
       (io/write-substring s 0 (string-length s) p)
       (do ((n (string-length s))
            (i 0 (+ i 1)))
@@ -389,16 +368,16 @@
            (fixnum? j)
            (<= 0 i j (string-length s))
            (port? p)
-           (vector-like-ref p port.output?))
+           (io/output-port? p))
       (let loop ((i i))
         (if (< i j)
-            (let* ((buf (vector-like-ref p port.bytebuf))
+            (let* ((buf (vector-like-ref p port.mainbuf))
                    (len (bytevector-like-length buf))
-                   (ptr (vector-like-ref p port.wr-ptr)))
+                   (ptr (vector-like-ref p port.mainlim)))
               (let ((count (min (- j i) (- len ptr))))
                 (if (< 0 count)
                     (begin
-                     (vector-like-set! p port.wr-ptr (+ ptr count))
+                     (vector-like-set! p port.mainlim (+ ptr count))
                      (do ((k (+ i count))
                           (i i (+ i 1))
                           (ptr ptr (+ ptr 1)))
@@ -413,14 +392,14 @@
              #t)))
 
 (define (io/discretionary-flush p)
-  (if (and (port? p) (vector-like-ref p port.output?))
+  (if (and (port? p) (io/output-port? p))
       (if (vector-like-ref p port.wr-flush?)
           (io/flush-buffer p))
       (begin (error "io/discretionary-flush: not an output port: " p)
              #t)))
 
 (define (io/flush p)
-  (if (and (port? p) (vector-like-ref p port.output?))
+  (if (and (port? p) (io/output-port? p))
       (io/flush-buffer p)
       (begin (error "io/flush: not an output port: " p)
              #t)))
@@ -498,9 +477,9 @@
 ;     110 means crnel
 ;
 ; error handling mode (2 bits):
-;     00 means raise
+;     00 means ignore
 ;     01 means replace
-;     10 means ignore
+;     10 means raise
 ;
 ; FIXME:  The external world should see a more self-explanatory
 ; representation.  Transcoders etc probably ought to be a new
@@ -522,8 +501,8 @@
 (define eolstyle:crlf  #b10100)
 (define eolstyle:crnel #b11000)
 
-(define errmode:replace 0)
-(define errmode:ignore  1)
+(define errmode:ignore  0)
+(define errmode:replace 1)
 (define errmode:raise   2)
 
 (define (io/make-transcoder codec eol-style handling-mode)
@@ -768,16 +747,16 @@
 ; Works only on output ports.
 
 (define (io/flush-buffer p)
-  (let ((wr-ptr (vector-like-ref p port.wr-ptr)))
+  (let ((wr-ptr (vector-like-ref p port.mainlim)))
     (if (> wr-ptr 0)
         (let ((r (((vector-like-ref p port.ioproc) 'write)
                   (vector-like-ref p port.iodata)
-                  (vector-like-ref p port.bytebuf)
+                  (vector-like-ref p port.mainbuf)
                   wr-ptr)))
-          (vector-like-set! p port.position
-                            (+ (vector-like-ref p port.position) wr-ptr))
+          (vector-like-set! p port.mainpos
+                            (+ (vector-like-ref p port.mainpos) wr-ptr))
           (cond ((eq? r 'ok)
-                 (vector-like-set! p port.wr-ptr 0))
+                 (vector-like-set! p port.mainlim 0))
                 ((eq? r 'error)
                  (io/set-error-state! p)
                  (error "Write error on port " p)
