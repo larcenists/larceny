@@ -295,32 +295,131 @@
       (begin (error "peek-char: not an input port: " p)
              #t)))
 
+; FIXME:  For v0.94 only, io/write-char can write to binary
+; ports, treating them as Latin-1.
+;
+; FIXME:  After v0.94, io/write-char should just delegate
+; to io/put-char.
+
 (define (io/write-char c p)
+($$trace (string-append "io/write-char " (number->string (char->integer c))))
   (if (port? p)
-      (let ((type (vector-like-ref p port.type))
-            (buf (vector-like-ref p port.mainbuf))
-            (ptr (vector-like-ref p port.mainlim)))
+      (let ((type (vector-like-ref p port.type)))
         (cond ((eq? type type:binary-output)
-               (cond ((< ptr (bytevector-like-length buf))
-                      (bytevector-like-set! buf ptr (char->integer c))
-                      (vector-like-set! p port.mainlim (+ ptr 1))
-                      (unspecified))
-                     (else
-                      (io/flush-buffer p)
-                      (io/write-char c p))))
+               (let ((sv (char->integer c)))
+                 (if (fx< sv 256)
+                     (io/put-u8 p sv)
+                     (error 'write-char
+                            "non-latin-1 character to binary port"
+                            c p))))
               ((eq? type type:textual-output)
-               ; FIXME: same as binary, for the moment
-               (cond ((< ptr (bytevector-like-length buf))
-                      (bytevector-like-set! buf ptr (char->integer c))
-                      (vector-like-set! p port.mainlim (+ ptr 1))
-                      (unspecified))
-                     (else
-                      (io/flush-buffer p)
-                      (io/write-char c p))))
+               (io/put-char p c))
               (else
                (error 'write-char "not an output port" p)
                #t)))
       (begin (error "write-char: not an output port: " p)
+             #t)))
+
+(define (io/put-u8 p byte)
+  (assert (port? p))
+  (let ((type (vector-like-ref p port.type))
+        (buf (vector-like-ref p port.mainbuf))
+        (lim (vector-like-ref p port.mainlim)))
+    (cond ((eq? type type:binary-output)
+           (cond ((< lim (bytevector-like-length buf))
+                  (bytevector-like-set! buf lim byte)
+                  (vector-like-set! p port.mainlim (+ lim 1))
+                  (unspecified))
+                 (else
+                  (io/flush-buffer p)
+                  (io/put-u8 p byte))))
+          (else
+           (error 'put-u8 "not a binary output port" p)
+           #t))))
+
+(define (io/put-char p c)
+  (if (port? p)
+      (let ((type (vector-like-ref p port.type))
+            (buf (vector-like-ref p port.mainbuf))
+            (lim (vector-like-ref p port.mainlim)))
+        (cond ((eq? type type:textual-output)
+               (let ((sv (char->integer c))
+                     (n  (bytevector-length buf)))
+                 (cond ((fx>= lim n)
+                        (io/flush-buffer p)
+                        (io/put-char p c))
+                       ((and #f (fx<= sv 13)) ;FIXME
+                        ...)
+                       ((fx<= sv #x7f)
+                        (bytevector-set! buf lim sv)
+                        (vector-like-set! p port.mainlim (+ lim 1))
+                        (unspecified))
+                       ((and (fx<= sv #xff)
+                             (fx= codec:latin-1
+                                  (fxlogand
+                                   transcoder-mask:codec
+                                   (vector-like-ref p port.transcoder))))
+                        (bytevector-set! buf lim sv)
+                        (vector-like-set! p port.mainlim (+ lim 1))
+                        (unspecified))
+                       ((not (fx= codec:utf-8
+                                  (fxlogand
+                                   transcoder-mask:codec
+                                   (vector-like-ref p port.transcoder))))
+                        (let* ((t (vector-like-ref p port.transcoder))
+                               (mode (fxlogand transcoder-mask:errmode t)))
+                          (cond ((fx= mode errmode:ignore)
+                                 (unspecified))
+                                ((fx= mode errmode:replace)
+                                 (io/put-char p #\?))
+                                ((fx= mode errmode:raise)
+                                 (error 'put-char "encoding error" p c))
+                                (else
+                                 (assertion-violation 'put-char
+                                                      "internal error" p c)))))
+                       ((fx>= lim (- n 4))
+                        (io/flush-buffer p)
+                        (io/put-char p c))
+                       ((<= sv #x07ff)
+                        (let ((u0 (fxlogior #b11000000
+                                            (fxrshl sv 6)))
+                              (u1 (fxlogior #b10000000
+                                            (fxlogand sv #b00111111))))
+                          (bytevector-set! buf lim u0)
+                          (bytevector-set! buf (+ lim 1) u1)
+                          (vector-like-set! p port.mainlim (+ lim 2))))
+                       ((<= sv #xffff)
+                        (let ((u0 (fxlogior #b11100000
+                                            (fxrshl sv 12)))
+                              (u1 (fxlogior #b10000000
+                                            (fxlogand (fxrshl sv 6)
+                                                      #b00111111)))
+                              (u2 (fxlogior #b10000000
+                                            (fxlogand sv #b00111111))))
+                          (bytevector-set! buf lim u0)
+                          (bytevector-set! buf (+ lim 1) u1)
+                          (bytevector-set! buf (+ lim 2) u2)
+                          (vector-like-set! p port.mainlim (+ lim 3))))
+                       (else
+                        (let ((u0 (fxlogior #b11110000
+                                            (fxrshl sv 18)))
+                              (u1 (fxlogior #b10000000
+                                            (fxlogand (fxrshl sv 12)
+                                                      #b00111111)))
+                              (u2 (fxlogior #b10000000
+                                            (fxlogand (fxrshl sv 6)
+                                                      #b00111111)))
+                              (u3 (fxlogior #b10000000
+                                            (fxlogand sv #b00111111))))
+                          (bytevector-set! buf lim u0)
+                          (bytevector-set! buf (+ lim 1) u1)
+                          (bytevector-set! buf (+ lim 2) u2)
+                          (bytevector-set! buf (+ lim 3) u3)
+                          (vector-like-set! p port.mainlim (+ lim 4)))))))
+              (else
+               (error 'put-char "not an output port" p)
+               #t)))
+      (begin (error "put-char: not an output port: " p)
              #t)))
 
 ; FIXME:  The name is misleading, since it now requires a bytevector.
@@ -730,10 +829,6 @@
            (io/reset-buffers! p)
            (io/fill-buffer! p)
            (io/get-char p lookahead?)))))
-
-; FIXME: temporary hack so I can build a system
-
-(define (io/put-char p c) (io/write-char c p))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
