@@ -540,6 +540,9 @@
      ; =>
      (call-with-continuation-mark key mark (lambda () expr)))))
 
+; FIXME:  #f should become a description of the source location.
+; FIXME:  The check mechanism would be a lot better for this.
+
 (define-syntax assert
   (syntax-rules ()
    ((_ x)

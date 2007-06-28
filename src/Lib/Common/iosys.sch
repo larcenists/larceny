@@ -546,6 +546,41 @@
                          errmode:replace))))
     (+ bits:codec bits:eol bits:ehm)))
 
+; Programmers should never see a transcoder with binary codec.
+
+(define (io/transcoder-codec t)
+  (let ((codec (fxlogand t transcoder-mask:codec)))
+
+    (cond ((fx= codec codec:binary)  'binary)
+          ((fx= codec codec:latin-1) 'latin-1)
+          ((fx= codec codec:utf-8)   'utf-8)
+          ((fx= codec codec:utf-16)  'utf-16)
+          (else
+           (assertion-violation 'transcoder-codec
+                                "weird transcoder" t)))))
+
+(define (io/transcoder-eol-style t)
+  (let ((style (fxlogand t transcoder-mask:eolstyle)))
+    (cond ((fx= style eolstyle:none)  'none)
+          ((fx= style eolstyle:lf)    'lf)
+          ((fx= style eolstyle:nel)   'nel)
+          ((fx= style eolstyle:ls)    'ls)
+          ((fx= style eolstyle:cr)    'cr)
+          ((fx= style eolstyle:crlf)  'crlf)
+          ((fx= style eolstyle:crnel) 'crnel)
+          (else
+           (assertion-violation 'transcoder-eol-style
+                                "weird transcoder" t)))))
+
+(define (io/transcoder-error-handling-mode t)
+  (let ((mode (fxlogand t transcoder-mask:errmode)))
+    (cond ((fx= mode errmode:ignore)  'ignore)
+          ((fx= mode errmode:replace) 'replace)
+          ((fx= mode errmode:raise)   'raise)
+          (else
+           (assertion-violation 'transcoder-error-handling-mode
+                                "weird transcoder" t)))))
+
 ; Like transcoded-port, but performs less error checking.
 
 (define (io/transcoded-port p t)
@@ -695,6 +730,10 @@
            (io/reset-buffers! p)
            (io/fill-buffer! p)
            (io/get-char p lookahead?)))))
+
+; FIXME: temporary hack so I can build a system
+
+(define (io/put-char p c) (io/write-char c p))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;

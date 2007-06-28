@@ -658,42 +658,43 @@
       
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
 
-   ; FIXME
    ; The fast path for lookahead-char.
+   ; FIXME:  This can be bummed further.
 
    ((_ larceny lookahead-char (lookahead-char p0))
     (let ((p p0))
-      (.check! (port? p) 198 p)                    ; FIXME
+      (.check! (port? p) ,$ex.get-char p)
       (let ((type (.vector-ref:trusted p 0))       ; 0 = port.type
             (buf  (.vector-ref:trusted p 1))       ; 1 = port.mainbuf
             (ptr  (.vector-ref:trusted p 2)))      ; 2 = port.mainptr
         (let ((unit (if (eq? type 3)               ; 3 = input, textual
-                        (bytevector-ref buf ptr)   ; FIXME
+                        (bytevector-ref buf ptr)   ; FIXME: should be trusted
                         255)))
-          (if (and (not (eq? unit 13))             ; 13 = #\return
+          (if (and (fx< 13 unit)                   ; 13 = #\return
                    (fx< unit 128))
               (.integer->char:trusted unit)
-              (peek-char p))))))
+              (io/get-char p #t))))))
 
-   ; FIXME
    ; The fast path for get-char.
+   ; FIXME:  This can be bummed further.
 
    ((_ larceny get-char (get-char p0))
     (let ((p p0))
-      (.check! (port? p) 198 p)                    ; FIXME
+      (.check! (port? p) ,$ex.get-char p)
       (let ((type (.vector-ref:trusted p 0))       ; 0 = port.type
             (buf  (.vector-ref:trusted p 1))       ; 1 = port.mainbuf
             (ptr  (.vector-ref:trusted p 2)))      ; 2 = port.mainptr
         (let ((unit (if (eq? type 3)               ; 3 = input, textual
-                        (bytevector-ref buf ptr)   ; FIXME
+                        (bytevector-ref buf ptr)   ; FIXME: should be trusted
                         255)))
-          (if (and (not (eq? unit 13))             ; 13 = #\return
-                   (fx< unit 128))
-              (begin
-               (.vector-set!:trusted:nwb
-                p 2 (.+:idx:idx ptr 1))            ; 2 = port.mainptr
-               (.integer->char:trusted unit))
-              (read-char p))))))
+
+          (if (and (fx< 13 unit)                   ; 13 = #\return
+                   (fx< unit 128))                 ; 2 = port.mainptr
+
+              (begin (.vector-set!:trusted:nwb p 2 (.+:idx:idx ptr 1))
+                     (.integer->char:trusted unit))
+
+              (io/get-char p #f))))))
 
    ; Default case: expand into the original expression.
 

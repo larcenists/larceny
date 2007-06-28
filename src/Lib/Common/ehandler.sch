@@ -210,6 +210,9 @@
   (define (charpred name arg1 arg2)
     (error name ": " (if (char? arg1) arg2 arg1) " is not a character."))
 
+  (define (not-a-port name obj)
+    (error name ": " obj " is not a port."))
+
   (define (byte? x)
     (and (integer? x) (exact? x) (<= 0 x 255)))
 
@@ -435,7 +438,27 @@
        ((= code $ex.char>=?)
         (charpred "char>=?" arg1 arg2))
 
+       ;; I/O
+
+       ((= code $ex.get-u8)
+        (not-a-port "get-u8" arg1))
+       ((= code $ex.put-u8)
+        (not-a-port "put-u8" arg1))
+       ((= code $ex.get-char)
+        (not-a-port "get-char" arg1))
+       ((= code $ex.put-char)
+        (not-a-port "put-char" arg1))
+
        ;; Others
+
+       ;; For assertions, the first argument is the expression that
+       ;; evaluated to false, and the second argument is #f or some
+       ;; description of the source code location.
+
+       ((= code $ex.assert)
+        (if arg2
+            (error "Assertion failed: " arg1 #\space arg2)
+            (error "Assertion failed: " arg1)))
 
        ;; for argument count exception, the supplied args are in RESULT,
        ;; the expected args (or the fixed args, for vargc) are in ARGREG2,

@@ -734,6 +734,8 @@
   (environment-set! larc 'open-output-string open-output-string)
   (environment-set! larc 'port-name port-name)
   (environment-set! larc 'io/make-port io/make-port) ; XXX
+  (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
+  (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
   (environment-set! larc 'print-length print-length)
   (environment-set! larc 'print-level print-level)
   (environment-set! larc 'procedure-printer procedure-printer)

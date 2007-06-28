@@ -54,32 +54,13 @@
   (make-transcoder (latin-1-codec) 'none 'ignore))
 
 (define (transcoder-codec t)
-  (case (fxrshl t 5)
-   ((1) 'latin-1)
-   ((2) 'utf-8)
-   ((3) 'utf-16)
-   (else (assertion-violation 'transcoder-codec
-                              "weird transcoder" t))))
+  (io/transcoder-codec t))
 
 (define (transcoder-eol-style t)
-  (case (fxlogand (fxrshl t 2) 7)
-   ((0) 'none)
-   ((1) 'lf)
-   ((2) 'nel)
-   ((3) 'ls)
-   ((4) 'cr)
-   ((5) 'crlf)
-   ((6) 'crnel)
-   (else (assertion-violation 'transcoder-eol-style
-                              "weird transcoder" t))))
+  (io/transcoder-eol-style t))
 
 (define (transcoder-error-handling-mode t)
-  (case (fxlogand t 3)
-   ((0) 'raise)
-   ((1) 'replace)
-   ((2) 'ignore)
-   (else (assertion-violation 'transcoder-error-handling-mode
-                              "weird transcoder" t))))
+  (io/transcoder-error-handling-mode t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -88,7 +69,11 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (port-transcoder p) (io/port-transcoder p))
+(define (port-transcoder p)
+  (let ((t (io/port-transcoder p)))
+    (if (eq? (io/transcoder-codec t) 'binary)
+        #f
+        t)))
 
 (define (textual-port? p) (io/textual-port? p))
 
