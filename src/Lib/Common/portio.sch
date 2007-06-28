@@ -28,17 +28,15 @@
 (define (utf-8-codec) 'utf-8)
 (define (utf-16-codec) 'utf-16)
 
-; FIXME: not yet implemented, because I hope it goes away
-;     eol-style
+; eol-style is implemented in Compiler/usual.sch
 
 (define (native-eol-style) 'none)   ; FIXME: for backward compatibility
 
 ; FIXME:  &i/o-decoding, &i/o-encoding, and their associated
-; operations aren't yet implemented because the raise mode
-; no longer makes sense.  A formal comment has been submitted.
+; operations aren't yet implemented because conditions aren't
+; implemented yet.
 
-; FIXME: not yet implemented, because I hope it goes away
-;     error-handling-mode
+; error-handling-mode is implemented in Compiler/usual.sch
 
 (define (make-transcoder codec . rest)
   (cond ((null? rest)

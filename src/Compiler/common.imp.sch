@@ -501,12 +501,6 @@
    ((_ larceny make-string (make-string ?n))
     (make-string ?n #\space))
 
-   ((_ larceny endianness (endianness big))
-    (endianness 'big))
-
-   ((_ larceny endianness (endianness little))
-    (endianness 'little))
-
    ((_ larceny bytevector-u8-ref (bytevector-u8-ref x y))
     (bytevector-ref x y))
 

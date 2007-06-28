@@ -355,6 +355,14 @@
 
   (environment-set-macro! larc 'letrec* (usual-syntax 'letrec*))
   (environment-set-macro! larc 'assert (usual-syntax 'assert))
+  (environment-set-macro! larc 'endianness (usual-syntax 'endianness))
+  (environment-set-macro! larc 'file-options (usual-syntax 'file-options))
+  (environment-set-macro! larc 'buffer-mode (usual-syntax 'buffer-mode))
+  (environment-set-macro! larc 'eol-style (usual-syntax 'eol-style))
+  (environment-set-macro! larc 'error-handling-mode
+                          (usual-syntax 'error-handling-mode))
+  (environment-set-macro! larc 'r6rs-syntax-silliness
+                          (usual-syntax 'r6rs-syntax-silliness))
 
   ;; JavaDot and case-sensitivity
   ;;(environment-set-macro! larc '.javadot (usual-syntax '.javadot))
@@ -548,7 +556,6 @@
   (environment-set! larc 'bytevector->list bytevector->list)
 
 
-  (environment-set! larc 'endianness endianness)
   (environment-set! larc 'native-endianness native-endianness)
   (environment-set! larc 'bytevector? bytevector?)
   (environment-set! larc 'make-bytevector make-bytevector)

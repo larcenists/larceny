@@ -151,6 +151,15 @@
 ;
 ; Exported procedures (and, alas, syntax).
 ;
+; In Larceny, *any* symbol names a supported endianness.
+; The symbols big and little have their expected meanings.
+; All other symbols mean (native-endianness) with respect
+; to integer operations, but mean the opposite of
+; (native-endianness) with respect to IEEE-754 operations.
+; For string operations, the endianness must be big or little.
+;
+; The extension described above is allowed by the current draft R6RS.
+;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;  (export endianness native-endianness
@@ -184,14 +193,7 @@
 ;          utf8->string utf16->string utf32->string
 ;          string->utf8 string->utf16 string->utf32)
 
-; This is proposed as syntax for the R6RS,
-; but we'll make it a procedure in Larceny.
-; See Compiler/common.imp.sch for the syntax bit.
-
-(define (endianness sym)
-  (case sym
-   ((big little) sym)
-   (else (error "Unrecognized endianness: " sym))))
+; The endianness syntax is now in usual.sch.
 
 (define *native-endianness* #f)
 
@@ -237,7 +239,7 @@
         ((< i 0)
          result)))
    (else
-    (error 'bytevector-uint-ref "Invalid endianness: " endness))))
+    (bytevector-uint-ref bytevector index (native-endianness) size))))
 
 (define (bytevector-sint-ref bytevector index endness size)
   (let* ((high-byte (bytevector-u8-ref bytevector
@@ -266,7 +268,7 @@
          (unspecified))
       (bytevector-u8-set! bytevector (+ index i) (bytevector:mod val 256))))
    (else
-    (error 'bytevector-uint-set! "Invalid endianness: " endness))))
+    (bytevector-uint-set! bytevector index val (native-endianness) size))))
 
 (define (bytevector-sint-set! bytevector index val endness size)
   (let ((uval (if (< val 0)
@@ -389,14 +391,9 @@
 ; infinite? and nan? procedures aren't yet in a system's
 ; preliminary version of (r6rs base).
 
-(define (bytevector:nan? x)
-  (and (real? x)
-       (not (= x x))))
+(define (bytevector:nan? x) (nan? x))
 
-(define (bytevector:infinite? x)
-  (and (real? x)
-       (not (bytevector:nan? x))
-       (bytevector:nan? (- x x))))
+(define (bytevector:infinite? x) (infinite? x))
 
 ; Magic numbers for IEEE-754 single and double precision:
 ;     the exponent bias (127 or 1023)

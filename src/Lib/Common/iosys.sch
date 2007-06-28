@@ -482,8 +482,9 @@
 ;     10 means raise
 ;
 ; FIXME:  The external world should see a more self-explanatory
-; representation.  Transcoders etc probably ought to be a new
-; category of miscellaneous objects.
+; representation of transcoders, and the three accessors for
+; transcoders should return the original symbols instead of
+; their canonical equivalents.
 
 (define transcoder-mask:codec    #b11100000)
 (define transcoder-mask:eolstyle #b00011100)
@@ -505,30 +506,45 @@
 (define errmode:replace 1)
 (define errmode:raise   2)
 
+; In Larceny, *every* symbol names an end-of-line style,
+; and *every* symbol names an error handling mode.
+
 (define (io/make-transcoder codec eol-style handling-mode)
   (define (local-error msg irritant)
-    (assertion-violation 'make-transcoder msg irritant))
-  (let ((xxx (case codec
-              ((latin-1) 1)
-              ((utf-8)   2)
-              ((utf-16)  3)
-              (else (local-error "unrecognized codec" codec))))
-        (yyy (case eol-style
-              ((none)  0)
-              ((lf)    1)
-              ((nel)   2)
-              ((ls)    3)
-              ((cr)    4)
-              ((crlf)  5)
-              ((crnel) 6)
-              (else (local-error "unrecognized eol style" eol-style))))
-        (zz (case handling-mode
-             ((raise) 0)
-             ((replace) 1)
-             ((ignore) 2)
-             (else (local-error "unrecognized error handling mode"
-                                handling-mode)))))
-    (fxlogior (fxlsh xxx 5) (fxlogior (fxlsh yyy 2) zz))))
+    (display "Warning: ")
+    (display msg)
+    (display ": ")
+    (write irritant)
+    (newline)
+    (display "Using Larceny-specific interpretation.")
+    (newline))
+  (let ((bits:codec (case codec
+                     ((latin-1) codec:latin-1)
+                     ((utf-8)   codec:utf-8)
+                     ((utf-16)
+                      (assertion-violation 'make-transcoder
+                                           "unimplemented (until v0.95) codec"
+                                           codec))
+                     (else (local-error "unimplemented codec" codec)
+                           codec:latin-1)))
+        (bits:eol (case eol-style
+                   ((none)  eolstyle:none)
+                   ((lf)    eolstyle:lf)
+                   ((nel)   eolstyle:nel)
+                   ((ls)    eolstyle:ls)
+                   ((cr)    eolstyle:cr)
+                   ((crlf)  eolstyle:crlf)
+                   ((crnel) eolstyle:crnel)
+                   (else (local-error "nonstandard eol style" eol-style)
+                         eolstyle:none)))
+        (bits:ehm (case handling-mode
+                   ((ignore)  errmode:ignore)
+                   ((replace) errmode:replace)
+                   ((raise)   errmode:raise)
+                   (else (local-error "nonstandard error handling mode"
+                                      handling-mode)
+                         errmode:replace))))
+    (+ bits:codec bits:eol bits:ehm)))
 
 ; Like transcoded-port, but performs less error checking.
 
@@ -649,7 +665,8 @@
                                  (io/get-char-utf-8
                                   p lookahead? unit buf ptr lim))
                                 (else
-                                 (error 'io/get-char "unimplemented codec" p)
+                                 (error 'io/get-char
+                                        "unimplemented codec" codec p)
                                  (eof-object)))))
                        (else
                         (error 'io/get-char "internal error" state p))))))))
