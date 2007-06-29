@@ -1,0 +1,294 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+########################################################################
+##
+## This script is meant to be invoked in a context with the following
+## environment variables set: TRACK DARTLOG
+##
+########################################################################
+
+# Override this variable to submit to other Dart tracks.
+TRACK=${TRACK:-"Experimental"}
+
+WARNINGNUM=1
+# SVNTRUNK="http://larceny.ccs.neu.edu/svn/trunk/larceny_src"
+SVNTRUNK="http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src"
+
+FINAL_LARCENY_EXE=dotnet.heap.exe
+
+HOME="`pwd`"
+SCHEME_PGM="`pwd`/HostLarceny/larceny.bat --"
+FIXPATH_CMD="cygpath -w"
+DIRNAME=dotnet
+### XXX This is bad:
+MAKETEXTSAFE="cat"
+
+# Perhaps add more to this, like the hour and minute?
+TODAY=`date +%Y-%m-%d` 
+DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TODAY}
+DARTLOG=${DARTLOG:-"${HOME}/larcenytest/dart-sub.xml"}
+TEMPLOG=${TEMPLOG:-"${HOME}/larcenytest/temp.log"}
+TEMPSCM=${TEMPSCM:-"${HOME}/larcenytest/temp.scm"}
+REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
+CALCDATEDART="date +%Y-%m-%dT%H:%M:%S%z"
+
+# Initialize the Dart log
+echo '<?xml version="1.0" encoding="utf-8"?>'            >  $DARTLOG
+
+mkdir -p ${DIR}
+
+function dartlog {
+   echo $@ >> $DARTLOG
+}
+
+function cmdsetstatus {
+    if eval "$1" ; then
+	STATUS="passed" 
+    else
+	STATUS="failed"
+    fi
+}
+
+##A trick for outputting stdout, stderr _and_ stdout&stderr to three separate files
+##with the appropriate ordering on messages.  Does not preserve the status code of
+##the argument command (given as i$1)
+#function cmdlog {
+#    ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3 | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
+#}
+
+function quotetextfile_cdata { # doesn't work for some reason...
+   dartlog '<![CDATA['
+   cat $1 >> ${DARTLOG}
+   dartlog ']]>'
+}
+
+function quotetextfile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${DARTLOG}
+}
+
+dartlog '<DartSubmission version="2.0" createdby="' $0 '">'
+dartlog '<Site>'`hostname`'</Site>'
+dartlog '<BuildName>'`uname` $DIRNAME'</BuildName>'
+dartlog '<Track>'${TRACK}'</Track>'
+dartlog '<DateTimeStamp>'`$CALCDATEDART`'</DateTimeStamp>'
+
+# args: DartStageName HumanStageName WorkingDir CmdString
+function eval_stage {
+   dartlog '<Test>'
+   dartlog '<Name>'.Build.Stage$1'</Name>'
+   dartlog '<Measurement name="StageName" type="text/string">'$2'</Measurement>'
+   dartlog '<Measurement name="StartDateTime" type="text/string">'`$CALCDATEDART`'</Measurement>'
+
+   pushd "$3" > /dev/null
+   SECS_BEGIN=`date +%s`
+   cmdsetstatus "$4" > ${TEMPLOG} 2>&1
+   # cmdsetstatus "$4" 2>&1 | tee ${TEMPLOG}
+   SECS_FINIS=`date +%s`
+   popd     > /dev/null
+
+   dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
+   dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+   dartlog '</Measurement>'
+   dartlog '<Measurement name="Execution Time" type="numeric/float">'
+   dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+   dartlog '</Measurement>'
+   dartlog '<Status>'
+   dartlog ${STATUS}
+   dartlog '</Status>'
+   dartlog '<Measurement name="EndDateTime"  type="text/string">'`$CALCDATEDART`'</Measurement>'
+   dartlog '<Measurement name="BuildStatus"  type="text/string">'${STATUS}'</Measurement>'
+   dartlog '<Measurement name="BuildCommand" type="text/string">'$4'</Measurement>'
+   dartlog '<Measurement name="Log" type="text/xml">' 
+   quotetextfile ${TEMPLOG}
+   dartlog '</Measurement>'
+ 
+   # Warnings and such have to be _separate_ tests; if they appear as a 
+   # subtree within this <Test>, the Dart server will ignore it.  :(
+   dartlog '</Test>'
+
+   if grep -qi warning ${TEMPLOG} ; then
+      grep -n -i warning ${TEMPLOG} | while read WARNINGLINE ; do
+	  WARNINGLINENUM=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\1/'`
+	  WARNINGLINETXT=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\2/'`
+	  cat >> ${DARTLOG} <<EOF
+<Test>
+<Name>.Build.Stage${1}.Warning${WARNINGNUM}</Name>
+<Measurement name="BuildLogLine" type="text/string">${WARNINGLINENUM}</Measurement>
+<Measurement name="Text" type="text/string">${WARNINGLINETXT}</Measurement>
+</Test>
+EOF
+          # Each Warning needs a unique id in the dart submission. :(
+	  let WARNINGNUM+=1
+      done
+   fi 
+}
+
+function host_scm_cmd {
+   cat > ${TEMPSCM} <<EOF
+(load "src/Build/dotnet.sch")
+(larceny-setup "Larceny" 'win32 'little)
+(set! *exit-on-error* #t)
+(nbuild-parameter 'verbose-load? #f)
+(build-config-files)
+(load-compiler)
+$4
+(exit)
+EOF
+   eval_stage "$1" "$2" "$3" "${SCHEME_PGM} ${REALSCM}"
+}
+
+eval_stage   aSvnCheckout  "1. svn checkout"       ${DIR}             "svn checkout -q ${SVNTRUNK}"
+host_scm_cmd bBuildHeap    "2. bootstrap heap"     ${DIR}/larceny_src "(make-dotnet-heap)"
+host_scm_cmd cRuntime      "3. larceny runtime"    ${DIR}/larceny_src "(build-runtime-system)"
+eval_stage   dCopyRuntime  "4. copy runtime"       ${DIR}/larceny_src "cp src/Rts/DotNet/Scheme.dll ."
+host_scm_cmd eLarcenyFasl  "5. larceny fasl file"  ${DIR}/larceny_src "(build-larceny)"
+host_scm_cmd fTwobitFasl   "6. twobit fasl file"   ${DIR}/larceny_src "(build-twobit)"
+
+BUILD_STATUS=${STATUS}
+
+function dart_post_test {
+    dartlog '<Status>'
+    dartlog ${STATUS}
+    dartlog '</Status>'
+    dartlog '<Measurement name="Output" type="text/text">'
+    quotetextfile ${TEMPLOG}
+    dartlog '</Measurement>'
+}
+
+function library_test {
+    dartlog '<Test>'
+    dartlog '<Name>'.Test.Lib.$1.$2'</Name>'
+    pushd ${DIR}/larceny_src > /dev/null
+    cat > ${TEMPSCM} <<EOF
+(load "Larceny.fasl")
+(error-handler (lambda l (display l) (newline) (exit 115)))
+(current-directory "test/Lib")
+(if (not (file-newer? "test.fasl" "test.sch"))
+  (compile-file "test.sch"))
+(compile-file "$1.sch")
+(load "test.fasl")
+(load "$1.fasl")
+(let ((num-fails 0))
+  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
+  (run-$2-tests)
+  (exit num-fails))
+EOF
+    SECS_BEGIN=`date +%s`
+    cmdsetstatus "${FINAL_LARCENY_EXE} ${REALSCM}" > ${TEMPLOG} 2>&1
+    SECS_FINIS=`date +%s`
+    dartlog '<Measurement name="Execution Time" type="numeric/float">'
+    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+    dartlog '</Measurement>'
+    dart_post_test
+    dartlog '</Test>'
+    popd > /dev/null
+}
+
+## Library tests
+library_test bool       boolean
+library_test char       char
+library_test string     string
+library_test normalization normalization
+## library_test complex
+library_test bytevector bytevector
+library_test pred       predicate
+library_test number     number
+library_test fact       fact 
+library_test fib        fib
+library_test ctak       ctak
+## library_test env       env
+library_test dynamic-wind dynamic-wind
+library_test regression regression
+library_test fixnums    fixnum
+library_test wcm        wcm
+
+function compiler_tests {
+    dartlog '<Test>'
+    dartlog '<Name>'.Test.Compiler.$1'</Name>'
+    pushd ${DIR}/larceny_src > /dev/null
+    cat > ${TEMPSCM} <<EOF
+(load "Larceny.fasl")
+(error-handler (lambda l (display l) (newline) (exit 116)))
+(current-directory "test/Compiler")
+(load "run-tests.sch")
+(let ((num-fails 0))
+  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
+  (run-compiler-tests $1)
+  (exit num-fails))
+EOF
+    SECS_BEGIN=`date +%s`
+    cmdsetstatus "${FINAL_LARCENY_EXE} ${REALSCM}" > ${TEMPLOG} 2>&1
+    SECS_FINIS=`date +%s`
+    dartlog '<Measurement name="Execution Time" type="numeric/float">'
+    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+    dartlog '</Measurement>'
+    dart_post_test
+    dartlog '<Status>'
+    dartlog ${STATUS}
+    dartlog '</Status>'
+
+    dartlog '</Test>'
+    popd > /dev/null
+}
+
+## Compiler tests (sanity switches only, but we could add extra passes...)
+compiler_tests sanity-switches
+## compiler_tests basic-switches
+## compiler_tests optimization-switches
+## compiler_tests backend-switches
+
+#### disabling benchmarks for now (--tov)
+# Benchmarks
+## pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
+## LARCENY=`pwd`/../../../${FINAL_LARCENY_SCRIPT} ./bench -r 3 larceny all > ${TEMPLOG} 2>&1
+## cat > ${TEMPSCM} <<EOF
+## (error-handler (lambda l (display l) (newline) (exit 117)))
+## (load "summarize.sch")
+## (let ((os (open-output-string)))
+##     (with-output-to-port os
+##       (lambda () 
+## 	((summarize larceny-results) "results.Larceny-r5rs")))
+##     (let* ((str (get-output-string os))
+## 	   (is (open-input-string str))
+## 	   (decoded (decode-summary is))
+## 	   (lines (caddr decoded))
+## 	   (format-measurement (lambda (name type val)
+##                                  (format #t "<Measurement name=~s type=~s>~s</Measurement>" 
+##                                          name type val)
+##                                  (newline))))
+##       (for-each (lambda (line)
+##                   (let ((name (list-ref line 0))
+##                         (cpu  (list-ref line 1))
+##                         (real (list-ref line 2))
+##                         (gc   (list-ref line 3))
+##                         (numt "numeric/integer"))
+##                     (format #t "<Test><Name>.DynamicAnalysis.~s.~s</Name>" name name)
+##                     (newline)
+##                     (format-measurement "Execution Time" "numeric/float" 
+##                                         (exact->inexact (/ real 60000)))
+##                     (for-each format-measurement
+##                               (list "cpu time" "real time" "gc time")
+##                               (list numt       numt        numt)
+##                               (list cpu        real        gc))
+##                     (format #t "</Test>")
+##                     (newline)))
+##                 lines)))
+## (exit)
+## EOF
+## # The "tail +2" is to cut off the Larceny header; we should really make 
+## # omitting that a proper option...
+## ../../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM} | tail +2 >> ${DARTLOG}
+## 
+## cat results.Larceny-r5rs >> Results/results.Larceny
+## rm results.Larceny-r5rs
+## popd > /dev/null
+
+dartlog '</DartSubmission>'
+
+if [ $BUILD_STATUS == "failed" ] 
+then exit 1
+fi
