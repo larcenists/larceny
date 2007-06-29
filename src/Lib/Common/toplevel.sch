@@ -763,6 +763,7 @@
 
   ;; i/o procedures proposed for R6RS, etc
 
+  (environment-set! larc 'buffer-mode? buffer-mode?)
   (environment-set! larc 'latin-1-codec latin-1-codec)
   (environment-set! larc 'utf-8-codec utf-8-codec)
   (environment-set! larc 'utf-16-codec utf-16-codec)
@@ -817,14 +818,37 @@
   (environment-set! larc 'make-custom-textual-output-port
                     make-custom-textual-output-port)
 
+  (environment-set! larc 'make-custom-binary-input-port
+                    make-custom-binary-input-port)
+  (environment-set! larc 'make-custom-binary-output-port
+                    make-custom-binary-output-port)
+  (environment-set! larc 'make-custom-binary-input/output-port
+                    make-custom-binary-input/output-port)
+  (environment-set! larc 'make-custom-textual-input-port
+                    make-custom-textual-input-port)
+  (environment-set! larc 'make-custom-textual-output-port
+                    make-custom-textual-output-port)
+  (environment-set! larc 'make-custom-textual-input/output-port
+                    make-custom-textual-input/output-port)
+
   (environment-set! larc 'lookahead-u8 lookahead-u8)
   (environment-set! larc 'get-u8 get-u8)
+  (environment-set! larc 'get-bytevector-n    get-bytevector-n)
+  (environment-set! larc 'get-bytevector-n!   get-bytevector-n!)
+  (environment-set! larc 'get-bytevector-some get-bytevector-some)
+  (environment-set! larc 'get-bytevector-all  get-bytevector-all)
+
   (environment-set! larc 'lookahead-char lookahead-char)
   (environment-set! larc 'get-char get-char)
+  (environment-set! larc 'get-string-n    get-string-n)
+  (environment-set! larc 'get-string-n!   get-string-n!)
+  (environment-set! larc 'get-string-all  get-string-all)
+  (environment-set! larc 'get-line        get-line)
   (environment-set! larc 'get-datum get-datum)
 
   (environment-set! larc 'put-u8 put-u8)
   (environment-set! larc 'put-bytevector put-bytevector)
+
   (environment-set! larc 'put-char put-char)
   (environment-set! larc 'put-string put-string)
   (environment-set! larc 'put-datum put-datum)

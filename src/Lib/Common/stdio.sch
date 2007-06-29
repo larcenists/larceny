@@ -49,6 +49,8 @@
          (error "peek-char: too many arguments.")
          #t)))
 
+; FIXME:  This no longer works!
+
 (define (char-ready? . rest)
   (cond ((null? rest)
          (io/char-ready? (current-input-port)))

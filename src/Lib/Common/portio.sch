@@ -4,17 +4,11 @@
 ;
 ; Larceny -- R6RS-compatible I/O system.
 
-; FIXME:  These are supposed to be syntax,
-; but I'm hoping they go away before the R6RS is ratified.
-
-(define (file-options . args) '())    ; FIXME
-
-; FIXME: not yet implemented, because I hope it goes away
-;     buffer-mode
+; The buffer-mode syntax is in Compiler/usual.sch
 
 (define (buffer-mode? mode)
   (case mode
-   ((none line block) #t)
+   ((none line datum block) #t)
    (else #f)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -166,18 +160,6 @@
 
 ; FIXME: current-input-port is implemented elsewhere
 
-; FIXME: not implemented yet
-
-(define (make-custom-binary-input-port
-         id read! get-position set-position! close)
-  (assertion-violation 'make-custom-binary-input-port "not yet implemented"))
-
-; FIXME: not implemented yet
-
-(define (make-custom-textual-input-port
-         id read! get-position set-position! close)
-  (assertion-violation 'make-custom-textual-input-port "not yet implemented"))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Output ports.
@@ -211,11 +193,16 @@
                               (cons filename rest)))))
 
 (define (open-bytevector-output-port . rest)
-  (let ((transcoder (if (null? rest) #f (car rest)))
-        (port (bytevector-io/open-output-bytevector)))
-    (if transcoder
-        (transcoded-port port transcoder)
-        port)))
+  (let* ((transcoder (if (null? rest) #f (car rest)))
+         (port (bytevector-io/open-output-bytevector))
+         (port (if transcoder
+                   (transcoded-port port transcoder)
+                   port)))
+    (values port
+            (lambda ()
+              (let ((bv (bytevector-io/get-output-bytevector port)))
+                (bytevector-io/reset-output-bytevector port)
+                bv)))))
 
 ; FIXME:  Doesn't check legitimacy of the transcoder.
 
@@ -223,11 +210,13 @@
   (if (and (procedure? f)
            (or (null? rest)
                (null? (cdr rest))))
-      (let* ((transcoder (if (null? rest) #f (car rest)))
-             (p (open-bytevector-output-port transcoder)))
-        (dynamic-wind (lambda () #t)
-                      (lambda () (f p))
-                      (lambda () (close-output-port p))))
+      (let ((transcoder (if (null? rest) #f (car rest))))
+        (call-with-values
+         (lambda () (open-bytevector-output-port transcoder))
+         (lambda (p get-bvec)
+           (dynamic-wind (lambda () #t)
+                         (lambda () (f p) (get-bvec))
+                         (lambda () (close-output-port p))))))
       (assertion-violation 'call-with-bytevector-output-port
                            "illegal argument(s)" f)))
 
@@ -244,10 +233,12 @@
 
 (define (call-with-string-output-port f)
   (if (procedure? f)
-      (let ((p (open-string-output-port)))
-        (dynamic-wind (lambda () #t)
-                      (lambda () (f p))
-                      (lambda () (close-output-port p))))
+      (call-with-values
+       (lambda () (open-string-output-port))
+       (lambda (p get-string)
+         (dynamic-wind (lambda () #t)
+                       (lambda () (f p) (get-string))
+                       (lambda () (close-output-port p)))))
       (assertion-violation 'call-with-string-output-port
                            "illegal argument" f)))
 
@@ -266,17 +257,43 @@
 (define (current-error-port)
   (assertion-violation 'current-error-port "not yet implemented"))
 
-; FIXME: not implemented yet
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Custom ports.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (make-custom-binary-input-port
+         id read! get-position set-position! close)
+  (customio/make-binary-input-port
+   id read! get-position set-position! close))
 
 (define (make-custom-binary-output-port
-         id read! get-position set-position! close)
-  (assertion-violation 'make-custom-binary-output-port "not yet implemented"))
+         id write! get-position set-position! close)
+  (customio/make-binary-output-port
+   id write! get-position set-position! close))
 
-; FIXME: not implemented yet
+(define (make-custom-binary-input/output-port
+         id read! write! get-position set-position! close)
+  (customio/make-binary-input/output-port
+   id read! write! get-position set-position! close))
+
+; FIXME:  These aren't implemented yet.
+
+(define (make-custom-textual-input-port
+         id read! get-position set-position! close)
+  (customio/make-textual-input-port
+   id read! get-position set-position! close))
 
 (define (make-custom-textual-output-port
-         id read! get-position set-position! close)
-  (assertion-violation 'make-custom-textual-output-port "not yet implemented"))
+         id write! get-position set-position! close)
+  (customio/make-textual-output-port
+   id write! get-position set-position! close))
+
+(define (make-custom-textual-input/output-port
+         id read! write! get-position set-position! close)
+  (customio/make-textual-input/output-port
+   id read! write! get-position set-position! close))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -299,6 +316,117 @@
 ;     get-string-all
 ;     get-line
 
+(define (get-bytevector-n p count)
+  (if (and (input-port? p)
+           (binary-port? p)
+           (fixnum? count)
+           (fx<= 0 count))
+      (call-with-bytevector-output-port
+       (lambda (out)
+         (do ((count count (fx- count 1)))
+             ((or (port-eof? p) (fx= count 0)))
+           (put-u8 out (get-u8 p)))))
+      (portio/illegal-arguments 'get-bytevector-n p count)))
+
+(define (get-bytevector-n! p bv start count)
+  (if (and (input-port? p)
+           (binary-port? p)
+           (bytevector? bv)
+           (fixnum? start)
+           (fx<= 0 start)
+           (fixnum? count)
+           (fx<= 0 count)
+           (fx< (fx+ start count) (bytevector-length bv)))
+      (do ((n    (fx+ start count))
+           (i    start      (fx+ i 1)))
+          ((or (port-eof? p) (fx= i n))
+           (- i start))
+        (bytevector-set! bv i (get-u8 p)))
+      (portio/illegal-arguments 'get-bytevector-n! p bv start count)))
+
+; FIXME:  This is extremely inefficient.
+
+(define (get-bytevector-some p)
+  (if (and (input-port? p)
+           (binary-port? p))
+      (let ((byte (get-u8 p)))
+        (if (eof-object? byte)
+            byte
+            (make-bytevector 1 byte)))
+      (portio/illegal-arguments 'get-bytevector-some p)))
+
+(define (get-bytevector-all p)
+  (if (and (input-port? p)
+           (binary-port? p))
+      (let ((bv (call-with-bytevector-output-port
+                  (lambda (out)
+                    (do ((byte (get-u8 p) (get-u8 p)))
+                        ((eof-object? byte))
+                      (put-u8 out byte))))))
+        (if (fx= 0 (bytevector-length bv))
+            (eof-object)
+            bv))
+      (portio/illegal-arguments 'get-bytevector-all p)))
+
+(define (get-string-n p count)
+  (if (and (input-port? p)
+           (textual-port? p)
+           (fixnum? count)
+           (fx<= 0 count))
+      (call-with-string-output-port
+       (lambda (out)
+         (do ((count count (fx- count 1))
+              (char (get-char p) (get-char p)))
+             ((or (eof-object? char) (fx< count 0)))
+           (put-char out char))))
+      (portio/illegal-arguments 'get-string-n p count)))
+
+(define (get-string-n! p s start count)
+  (if (and (input-port? p)
+           (textual-port? p)
+           (string? s)
+           (fixnum? start)
+           (fx<= 0 start)
+           (fixnum? count)
+           (fx<= 0 count)
+           (fx< (fx+ start count) (string-length s)))
+      (do ((n    (fx+ start count))
+           (i    start      (fx+ i 1))
+           (char (get-char p) (get-char p)))
+          ((or (eof-object? char) (fx= i n))
+           (- i start))
+        (string-set! s i char))
+      (portio/illegal-arguments 'get-string-n! p s start count)))
+
+(define (get-string-all p)
+  (if (and (input-port? p)
+           (textual-port? p))
+      (let ((s (call-with-string-output-port
+                 (lambda (out)
+                   (do ((char (get-char p) (get-char p)))
+                       ((eof-object? char))
+                     (put-char out char))))))
+        (if (fx= 0 (string-length s))
+            (eof-object)
+            s))
+      (portio/illegal-arguments 'get-string-all p)))
+
+(define (get-line p)
+  (if (and (input-port? p)
+           (textual-port? p))
+      (let ((s (call-with-string-output-port
+                 (lambda (out)
+                   (do ((char (get-char p) (get-char p)))
+                       ((or (eof-object? char) (char=? char #\linefeed)))
+                     (put-char out char))))))
+        (if (fx= 0 (string-length s))
+            (eof-object)
+            s))
+      (portio/illegal-arguments 'get-string-all p)))
+
+(define (portio/illegal-arguments who . irritants)
+  (apply assertion-violation who "illegal argument(s)" irritants))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Basic output (way incomplete)
@@ -310,8 +438,7 @@
 
 (define (put-bytevector p bv . rest)
   (define (put-bytevector p bv start count)
-    (if (and (null? (cddr rest))
-             (binary-port? p)
+    (if (and (binary-port? p)
              (output-port? p)
              (bytevector? bv)
              (fixnum? start)

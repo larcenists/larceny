@@ -189,6 +189,7 @@
     "conio"             ; console ports, i.e., terminal
     "bytevectorio"      ; bytevector ports
     "stringio"          ; string ports
+    "customio"          ; custom ports
 ;    "transio"           ; transcript ports
     "portio"            ; user-level procedures for R6RS
     "stdio"             ; user-level procedures
