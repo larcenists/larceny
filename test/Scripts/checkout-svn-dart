@@ -470,9 +470,7 @@ cat > ${TEMPSCM} <<EOF
                 lines)))
 (exit)
 EOF
-# The "tail +2" is to cut off the Larceny header; we should really make 
-# omitting that a proper option...
-../../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM} | tail +2 >> ${DARTLOG}
+../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${DARTLOG}
 
 cat results.Larceny-r5rs >> Results/results.Larceny
 rm results.Larceny-r5rs
