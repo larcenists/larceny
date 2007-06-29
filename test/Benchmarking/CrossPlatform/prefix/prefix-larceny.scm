@@ -2,6 +2,7 @@
 ;------------------------------------------------------------------------------
 (error-handler 
  (lambda l 
+   (decode-error l)
    (display "bench DIED!") (newline) (exit 118)))
 
 (define (run-bench name count ok? run)
