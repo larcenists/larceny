@@ -207,8 +207,9 @@ public class Load {
 	keepRunning = false;
 	errorOccurred = false;
 	if (see.returnCode != 0) {
-	    Exn.msg.WriteLine ("Machine exited with error code " + see.returnCode);
+	    // Exn.msg.WriteLine ("Machine exited with error code " + see.returnCode);
 	    Exn.fullCoreDump();
+	    Environment.Exit(see.returnCode);
 	    }
 	}
     finally {
