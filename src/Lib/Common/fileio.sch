@@ -81,6 +81,42 @@
         (begin (error "Unable to open file " filename " for " io-mode)
                #t))))
 
+; FIXME: ignores file options and buffer mode.
+
+(define (file-io/open-file-input-port filename options bufmode transcoder)
+  (let* ((fd      (osdep/open-file filename 'input 'binary)))
+    (if (>= fd 0)
+        (let* ((data (file-io/data fd filename))
+               (p    (io/make-port file-io/ioproc data 'input 'binary))
+               (p    (if (and transcoder (not (zero? transcoder)))
+                         (io/transcoded-port p transcoder)
+                         p)))
+          (file-io/remember-file data p)
+          p)
+        (begin (error 'open-file-input-port "unable to open file" filename)
+               #t))))
+
+; FIXME: ignores file options and buffer mode.
+
+(define (file-io/open-file-output-port filename options bufmode transcoder)
+  (let* ((bufmode (case bufmode
+                   ((none) 'none)
+                   ((line) 'line)
+                   ((datum flush) 'datum)
+                   (else 'block)))
+         (fd      (osdep/open-file filename 'output 'binary)))
+    (if (>= fd 0)
+        (let* ((data (file-io/data fd filename))
+               (p    (io/make-port file-io/ioproc data
+                                   'output 'binary bufmode))
+               (p    (if (and transcoder (not (zero? transcoder)))
+                         (io/transcoded-port p transcoder)
+                         p)))
+          (file-io/remember-file data p)
+          p)
+        (begin (error 'open-file-output-port "unable to open file" filename)
+               #t))))
+
 (define (file-io/close-file data)
   (let ((r (osdep/close-file (file-io/fd data))))
     (file-io/forget-file data)

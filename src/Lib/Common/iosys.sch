@@ -4,8 +4,10 @@
 ;
 ; Larceny -- I/O system.
 ;
-; Design: the system is designed so that in the common case, very few
-; procedure calls are executed.
+; Design: the system is designed so that in the common case
+; of an Ascii character being read from or written to a port
+; whose buffer is neither empty nor full, very few procedure
+; calls are executed.
 
 ($$trace "iosys")
 
@@ -30,7 +32,6 @@
 ;     auxbuf          4-byte bytevector
 ;
 ; An input port p can be in one of these states.
-; FIXME: output ports still use old-style i/o system.
 ;
 ; closed          type = 0 & state = 'closed
 ;
@@ -80,16 +81,9 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Fields and offsets of a port structure.
-; The most frequently accessed fields are at the beginning
-; of the port structure, in hope of improving cache performance.
-
-; NOTE that you can *not* change the offsets without also changing
-; them in Compiler/common.imp.sch, where they are likely to be
-; inlined.  They should not be used in any other files.
-
 ; The port type is a fixnum that encodes the binary/textual
 ; and input/output distinctions.  It is the inclusive or of
+;
 ;     binary/textual:
 ;         0 means binary
 ;         1 means textual
@@ -115,14 +109,26 @@
 (define type:binary-input/output  6)
 (define type:textual-input/output 7)
 
-; FIXME:
-; The port.mainpos field is not always updated correctly.
-; The output and input/output directions are not yet implemented.
+; FIXME:  The port.mainpos field is not being updated correctly.
+; FIXME:  End-of-line processing is not being performed.
+; FIXME:  The output and input/output directions are not yet implemented.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Fields and offsets of a port structure.
+; The most frequently accessed fields are at the beginning
+; of the port structure, in hope of improving cache performance.
+;
+; NOTE that you can *not* change the offsets without also changing
+; them in Compiler/common.imp.sch, where they are likely to be
+; inlined.  They should not be used in any other files.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define port.type       0) ; fixnum: see above for encoding
-(define port.mainbuf    1) ; bytevector: verified UTF-8 followed by sentinel
-(define port.mainptr    2) ; nonnegative fixnum: next loc in mainbuf
-(define port.mainlim    3) ; nonnegative fixnum: sentinel in mainbuf
+(define port.mainbuf    1) ; bytevector: Latin-1 or UTF-8 encodings
+(define port.mainptr    2) ; nonnegative fixnum: next loc in mainbuf (input)
+(define port.mainlim    3) ; nonnegative fixnum: sentinel in mainbuf (input)
 (define port.mainpos    4) ; fixnum: byte or character position - mainptr
 (define port.transcoder 5) ; fixnum: see comment at make-transcoder
 
@@ -135,15 +141,22 @@
 
 ; output ports
 
-(define port.wr-flush?  9) ; boolean: discretionary output flushing
+(define port.bufmode    9) ; symbol: none, line, datum, block
+(define port.wr-flush? 10) ; boolean: true iff bufmode is datum
 
 ; FIXME: Added by Will for the new R6RS-compatible i/o system.
 
-(define port.auxbuf    10) ; bytevector: 4 bytes before or after mainbuf
-(define port.auxptr    11) ; index of next byte in auxbuf
-(define port.auxlim    12) ; 1 + index of last byte in auxbuf
+(define port.auxbuf    11) ; bytevector: 4 bytes before or after mainbuf
+(define port.auxptr    12) ; index of next byte in auxbuf
+(define port.auxlim    13) ; 1 + index of last byte in auxbuf
 
-(define port.structure-size 13)      ; size of port structure
+(define port.structure-size 14)      ; size of port structure
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Miscellaneous constants.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Default length of i/o buffer.
 
@@ -184,30 +197,43 @@
         (output? #f)
         (binary? #f)
         (textual? #f))
-    (do ((l rest (cdr l)))
-        ((null? l))
-      (case (car l)
-        ((input)   (set! input? #t))
-        ((output)  (set! output? #t))
-        ((text)    (set! textual? #t))
-        ((binary)  (set! binary? #t))
-        ((flush)   (vector-set! v port.wr-flush? #t))
-        (else      (error "make-port: bad attribute: " (car l))
-                   #t)))
+
+    (vector-set! v port.bufmode 'block) ; default buffer mode is block
+
+    ; Parse keyword arguments.
+
+    (for-each
+     (lambda (keyword)
+       (case keyword
+        ((input)       (set! input? #t))
+        ((output)      (set! output? #t))
+        ((text)        (set! textual? #t))
+        ((binary)      (set! binary? #t))
+        ((none)        (vector-set! v port.bufmode 'none))
+        ((line)        (vector-set! v port.bufmode 'line))
+        ((datum flush) (vector-set! v port.bufmode 'datum)
+                       (vector-set! v port.wr-flush? #t))
+        ((block)       (vector-set! v port.bufmode 'block))
+        (else
+         (assertion-violation 'io/make-port "bad attribute" (car l))
+         #t)))
+     rest)
+
     (if (and binary? textual?)
-        (error "make-port: binary incompatible with textual"))
+        (assertion-violation 'io/make-port "binary incompatible with textual"))
     (vector-set! v
                  port.type
                  (cond ((and binary? input?)   type:binary-input)
                        ((and binary? output?)  type:binary-output)
                        ((and textual? input?)  type:textual-input)
                        ((and textual? output?) type:textual-output)
+                       ; FIXME: no input/output ports yet
                        (input?                 type:textual-input)
                        (output?                type:textual-output)
-                       ; FIXME: no input/output ports yet
                        (else
                         (error
                          'io/make-port "neither input nor output" rest))))
+
     (vector-set! v port.mainbuf (make-bytevector port.mainbuf-size))
     (vector-set! v port.mainptr 0)
     (vector-set! v port.mainlim 0)
@@ -243,6 +269,10 @@
 
 (define (io/open-port? p)
   (or (io/input-port? p) (io/output-port? p)))
+
+(define (io/buffer-mode p)
+  (assert (port? p))
+  (vector-like-ref p port.bufmode))
 
 ; FIXME:  For v0.94 only, read-char and peek-char can read
 ; from binary ports, treating them as Latin-1.
@@ -718,11 +748,6 @@
     (if (io/input-port? newport)
         (io/transcode-port! newport))
     newport))
-
-; FIXME: ignores file options, buffer mode, and mostly ignores transcoder.
-
-(define (io/open-file-input-port filename options bufmode transcoder)
-  (file-io/open-file filename 'input (if transcoder 'text 'binary)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

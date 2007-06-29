@@ -800,11 +800,34 @@
   (environment-set! larc 'make-custom-textual-input-port
                     make-custom-textual-input-port)
 
+  (environment-set! larc 'output-port-buffer-mode output-port-buffer-mode)
+  (environment-set! larc 'open-file-output-port open-file-output-port)
+  (environment-set! larc 'open-bytevector-output-port
+                    open-bytevector-output-port)
+  (environment-set! larc 'call-with-bytevector-output-port
+                    call-with-bytevector-output-port)
+  (environment-set! larc 'open-string-output-port open-string-output-port)
+  (environment-set! larc 'call-with-string-output-port
+                    call-with-string-output-port)
+  (environment-set! larc 'standard-output-port standard-output-port)
+  (environment-set! larc 'standard-error-port standard-error-port)
+  (environment-set! larc 'current-error-port current-error-port)
+  (environment-set! larc 'make-custom-binary-output-port
+                    make-custom-binary-output-port)
+  (environment-set! larc 'make-custom-textual-output-port
+                    make-custom-textual-output-port)
+
   (environment-set! larc 'lookahead-u8 lookahead-u8)
   (environment-set! larc 'get-u8 get-u8)
   (environment-set! larc 'lookahead-char lookahead-char)
   (environment-set! larc 'get-char get-char)
   (environment-set! larc 'get-datum get-datum)
+
+  (environment-set! larc 'put-u8 put-u8)
+  (environment-set! larc 'put-bytevector put-bytevector)
+  (environment-set! larc 'put-char put-char)
+  (environment-set! larc 'put-string put-string)
+  (environment-set! larc 'put-datum put-datum)
 
   ;; common and less common extensions to R4RS
 

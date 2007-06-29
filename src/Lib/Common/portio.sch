@@ -134,13 +134,13 @@
 
 (define (open-file-input-port filename . rest)
   (cond ((null? rest)
-         (io/open-file-input-port filename '() 'block #f))
+         (file-io/open-file-input-port filename '() 'block #f))
         ((null? (cdr rest))
-         (io/open-file-input-port filename (car rest) 'block #f))
+         (file-io/open-file-input-port filename (car rest) 'block #f))
         ((null? (cddr rest))
-         (io/open-file-input-port filename (car rest) (cadr rest) #f))
+         (file-io/open-file-input-port filename (car rest) (cadr rest) #f))
         ((null? (cdddr rest))
-         (io/open-file-input-port filename
+         (file-io/open-file-input-port filename
                                   (car rest) (cadr rest) (caddr rest)))
         (else
          (assertion-violation 'open-file-input-port
@@ -180,6 +180,106 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; Output ports.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; FIXME: output-port? is defined in stdio.sch
+
+; FIXME: flush-output-port is defined in stdio.sch
+
+(define (output-port-buffer-mode p)
+  (if (output-port? p)
+      (io/buffer-mode p)
+      (assertion-violatoin 'output-port-buffer-mode "not an output port" p)))
+
+; FIXME: fakes file options
+
+(define (open-file-output-port filename . rest)
+  (cond ((null? rest)
+         (file-io/open-file-output-port filename '() 'block #f))
+        ((null? (cdr rest))
+         (file-io/open-file-output-port filename (car rest) 'block #f))
+        ((null? (cddr rest))
+         (file-io/open-file-output-port filename (car rest) (cadr rest) #f))
+        ((null? (cdddr rest))
+         (file-io/open-file-output-port filename
+                                  (car rest) (cadr rest) (caddr rest)))
+        (else
+         (assertion-violation 'open-file-output-port
+                              "wrong number of arguments"
+                              (cons filename rest)))))
+
+(define (open-bytevector-output-port . rest)
+  (let ((transcoder (if (null? rest) #f (car rest)))
+        (port (bytevector-io/open-output-bytevector)))
+    (if transcoder
+        (transcoded-port port transcoder)
+        port)))
+
+; FIXME:  Doesn't check legitimacy of the transcoder.
+
+(define (call-with-bytevector-output-port f . rest)
+  (if (and (procedure? f)
+           (or (null? rest)
+               (null? (cdr rest))))
+      (let* ((transcoder (if (null? rest) #f (car rest)))
+             (p (open-bytevector-output-port transcoder)))
+        (dynamic-wind (lambda () #t)
+                      (lambda () (f p))
+                      (lambda () (close-output-port p))))
+      (assertion-violation 'call-with-bytevector-output-port
+                           "illegal argument(s)" f)))
+
+(define (open-string-output-port)
+  (let* ((transcoder (make-transcoder (utf-8-codec) 'none 'ignore))
+         (port (bytevector-io/open-output-bytevector))
+         (port (transcoded-port port transcoder))
+         (f (lambda ()
+              (let ((s (utf8->string
+                        (bytevector-io/get-output-bytevector port))))
+                (bytevector-io/reset-output-bytevector port)
+                s))))
+    (values port f)))
+
+(define (call-with-string-output-port f)
+  (if (procedure? f)
+      (let ((p (open-string-output-port)))
+        (dynamic-wind (lambda () #t)
+                      (lambda () (f p))
+                      (lambda () (close-output-port p))))
+      (assertion-violation 'call-with-string-output-port
+                           "illegal argument" f)))
+
+; FIXME: not implemented yet
+
+(define (standard-output-port)
+  (assertion-violation 'standard-output-port "not yet implemented"))
+
+; FIXME: not implemented yet
+
+(define (standard-error-port)
+  (assertion-violation 'standard-error-port "not yet implemented"))
+
+; FIXME: not implemented yet
+
+(define (current-error-port)
+  (assertion-violation 'current-error-port "not yet implemented"))
+
+; FIXME: not implemented yet
+
+(define (make-custom-binary-output-port
+         id read! get-position set-position! close)
+  (assertion-violation 'make-custom-binary-output-port "not yet implemented"))
+
+; FIXME: not implemented yet
+
+(define (make-custom-textual-output-port
+         id read! get-position set-position! close)
+  (assertion-violation 'make-custom-textual-output-port "not yet implemented"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Basic input (way incomplete)
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -198,3 +298,68 @@
 ;     get-string-n!
 ;     get-string-all
 ;     get-line
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Basic output (way incomplete)
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (put-u8 p k)   (io/put-u8 p k))
+(define (put-char p c) (io/put-char p c))
+
+(define (put-bytevector p bv . rest)
+  (define (put-bytevector p bv start count)
+    (if (and (null? (cddr rest))
+             (binary-port? p)
+             (output-port? p)
+             (bytevector? bv)
+             (fixnum? start)
+             (fixnum? count)
+             (fx<= 0 start)
+             (fx<= 0 count)
+             (fx<= (fx+ start count) (bytevector-length bv)))
+        (let ((n (fx+ start count)))
+          (do ((i start (+ i 1)))
+              ((fx= i n))
+            (put-u8 p (bytevector-ref bv i))))
+        (assertion-violation 'put-bytevector
+                             "illegal argument(s)" p bv start count)))
+  (cond ((null? rest)
+         (put-bytevector p bv 0 (bytevector-length bv)))
+        ((null? (cdr rest))
+         (put-bytevector p bv (car rest) (- (bytevector-length bv) (car rest)))
+        ((null? (cddr rest))
+         (put-bytevector p bv (car rest) (cadr rest)))
+        (else
+         (assertion-violation 'put-bytevector
+                              "too many arguments" (cons p (cons bv rest)))))))
+
+(define (put-string p s . rest)
+  (define (put-string p s start count)
+    (if (and (textual-port? p)
+             (output-port? p)
+             (string? s)
+             (fixnum? start)
+             (fixnum? count)
+             (fx<= 0 start)
+             (fx<= 0 count)
+             (fx<= (fx+ start count) (string-length s)))
+        (let ((n (fx+ start count)))
+          (do ((i start (+ i 1)))
+              ((fx= i n))
+            (put-char p (string-ref s i))))
+        (assertion-violation 'put-string
+                             "illegal argument(s)" p s start count)))
+  (cond ((null? rest)
+         (put-string p s 0 (string-length s)))
+        ((null? (cdr rest))
+         (put-string p s (car rest) (- (string-length s) (car rest)))
+        ((null? (cddr rest))
+         (put-string p s (car rest) (cadr rest)))
+        (else
+         (assertion-violation 'put-string
+                              "too many arguments" (cons p (cons s rest)))))))
+
+(define (put-datum p x)
+  (write x p))
