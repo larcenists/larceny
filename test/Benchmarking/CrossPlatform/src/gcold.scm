@@ -381,4 +381,4 @@
     (+ mutatorSum (vector-length aexport))))
 
 (define (main . args)
-  (gcold 25 0 10 10 gcold-iters))
+  (GCOld 25 0 10 10 gcold-iters))
