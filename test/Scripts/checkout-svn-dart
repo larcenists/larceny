@@ -451,13 +451,26 @@ cat > ${TEMPSCM} <<EOF
                                  (format #t "<Measurement name=~s type=~s>~s</Measurement>" 
                                          name type val)
                                  (newline))))
-      (for-each (lambda (line)
+      (for-each 
+       (lambda (line)
+         (cond ((eq? (list-ref line 1) 'Error:)
+                (let ((name (list-ref line 0)))
+                  (format #t "<Test><Name>.DynamicAnalysis.~s.~s</Name>" name name)
+                  (format #t "<Status>failed</Status>")
+                  (newline)
+                  (format #t "<Measurement name=\"Output\" type=\"text/text\">~a ~a</Measurement>"
+                          (list-ref line 1)
+                          (list-ref line 2))
+                  (format #t "</Test>")
+                  (newline)))
+               (else
                   (let ((name (list-ref line 0))
                         (cpu  (list-ref line 1))
                         (real (list-ref line 2))
                         (gc   (list-ref line 3))
                         (numt "numeric/integer"))
                     (format #t "<Test><Name>.DynamicAnalysis.~s.~s</Name>" name name)
+                    (format #t "<Status>passed</Status>")
                     (newline)
                     (format-measurement "Execution Time" "numeric/float" 
                                         (exact->inexact (/ real 60000)))
@@ -466,8 +479,8 @@ cat > ${TEMPSCM} <<EOF
                               (list numt       numt        numt)
                               (list cpu        real        gc))
                     (format #t "</Test>")
-                    (newline)))
-                lines)))
+                    (newline)))))
+       lines)))
 (exit)
 EOF
 ../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${DARTLOG}
