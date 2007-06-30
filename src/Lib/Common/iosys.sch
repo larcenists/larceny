@@ -414,9 +414,11 @@
                         (let ((u0 (fxlogior #b11000000
                                             (fxrshl sv 6)))
                               (u1 (fxlogior #b10000000
-                                            (fxlogand sv #b00111111))))
+                                            (fxlogand sv #b00111111)))
+                              (pos (vector-like-ref p port.mainpos)))
                           (bytevector-set! buf lim u0)
                           (bytevector-set! buf (+ lim 1) u1)
+                          (vector-like-set! p port.mainpos (- pos 1))
                           (vector-like-set! p port.mainlim (+ lim 2))))
                        ((<= sv #xffff)
                         (let ((u0 (fxlogior #b11100000
@@ -425,10 +427,12 @@
                                             (fxlogand (fxrshl sv 6)
                                                       #b00111111)))
                               (u2 (fxlogior #b10000000
-                                            (fxlogand sv #b00111111))))
+                                            (fxlogand sv #b00111111)))
+                              (pos (vector-like-ref p port.mainpos)))
                           (bytevector-set! buf lim u0)
                           (bytevector-set! buf (+ lim 1) u1)
                           (bytevector-set! buf (+ lim 2) u2)
+                          (vector-like-set! p port.mainpos (- pos 2))
                           (vector-like-set! p port.mainlim (+ lim 3))))
                        (else
                         (let ((u0 (fxlogior #b11110000
@@ -440,11 +444,13 @@
                                             (fxlogand (fxrshl sv 6)
                                                       #b00111111)))
                               (u3 (fxlogior #b10000000
-                                            (fxlogand sv #b00111111))))
+                                            (fxlogand sv #b00111111)))
+                              (pos (vector-like-ref p port.mainpos)))
                           (bytevector-set! buf lim u0)
                           (bytevector-set! buf (+ lim 1) u1)
                           (bytevector-set! buf (+ lim 2) u2)
                           (bytevector-set! buf (+ lim 3) u3)
+                          (vector-like-set! p port.mainpos (- pos 3))
                           (vector-like-set! p port.mainlim (+ lim 4)))))))
               (else
                (error 'put-char "not an output port" p)
@@ -557,9 +563,12 @@
   (and (port? p) (eq? (vector-like-ref p port.state) 'eof)))
 
 (define (io/port-position p)
-  (cond ((or (io/input-port? p) (io/output-port? p))
+  (cond ((io/input-port? p)
          (+ (vector-like-ref p port.mainpos)
             (vector-like-ref p port.mainptr)))
+        ((io/output-port? p)
+         (+ (vector-like-ref p port.mainpos)
+            (vector-like-ref p port.mainlim)))
         (else
          (error "io/port-position: " p " is not an open port.")
          #t)))
@@ -737,6 +746,10 @@
            (mainlim1 (vector-like-ref p port.mainlim))
            (mainbuf2 (make-bytevector (bytevector-length mainbuf1))))
 
+      ; FIXME:  Unclear what port-position should do.
+
+      (vector-like-set! newport port.mainpos 0)
+
       (bytevector-copy! mainbuf1 mainptr1 mainbuf2 0 (fx- mainlim1 mainptr1))
       (vector-like-set! newport port.mainbuf mainbuf2))
 
@@ -844,6 +857,9 @@
              (assert (fx< auxptr auxlim))
              (bytevector-copy! auxbuf auxptr mainbuf 0 n)
              (bytevector-set! mainbuf n port.sentinel)
+             (vector-like-set! p
+                               port.mainpos
+                               (+ (vector-like-ref p port.mainpos) ptr))
              (vector-like-set! p port.mainptr 0)
              (vector-like-set! p port.mainlim n)
              (vector-like-set! p port.auxptr 0)
@@ -867,9 +883,6 @@
 ; but have a nonempty auxbuf.
 
 (define (io/fill-buffer! p)
-  (vector-like-set! p port.mainpos
-                    (+ (vector-like-ref p port.mainpos)
-                       (vector-like-ref p port.mainptr)))
   (let ((r (((vector-like-ref p port.ioproc) 'read)
             (vector-like-ref p port.iodata)
             (vector-like-ref p port.mainbuf))))
@@ -881,6 +894,9 @@
            (error "Read error on port " p)
            #t)
           ((and (fixnum? r) (>= r 0))
+           (vector-like-set! p port.mainpos
+                             (+ (vector-like-ref p port.mainpos)
+                                (vector-like-ref p port.mainptr)))
            (vector-like-set! p port.mainptr 0)
            (vector-like-set! p port.mainlim r))
           (else
@@ -929,9 +945,9 @@
                   (vector-like-ref p port.iodata)
                   (vector-like-ref p port.mainbuf)
                   wr-ptr)))
-          (vector-like-set! p port.mainpos
-                            (+ (vector-like-ref p port.mainpos) wr-ptr))
           (cond ((eq? r 'ok)
+                 (vector-like-set! p port.mainpos
+                                   (+ (vector-like-ref p port.mainpos) wr-ptr))
                  (vector-like-set! p port.mainlim 0))
                 ((eq? r 'error)
                  (io/set-error-state! p)
@@ -965,6 +981,10 @@
 ; Resets buffers to an empty state.
 
 (define (io/reset-buffers! p)
+  (vector-like-set! p
+                    port.mainpos
+                    (+ (vector-like-ref p port.mainpos)
+                       (vector-like-ref p port.mainptr)))
   (vector-like-set! p port.mainptr 0)
   (vector-like-set! p port.mainlim 0)
   (vector-like-set! p port.auxptr 0)
@@ -1025,6 +1045,10 @@
         (bytevector-copy! mainbuf mainptr mainbuf 0 m)
         (bytevector-copy! auxbuf auxptr mainbuf m n)
         (bytevector-set! mainbuf (+ m n) port.sentinel)
+
+        (vector-like-set! p
+                          port.mainpos
+                          (+ (vector-like-ref p port.mainpos) mainptr))
         (vector-like-set! p port.mainptr 0)
         (vector-like-set! p port.mainlim (+ m n))
         (vector-like-set! p port.auxptr 0)
@@ -1037,6 +1061,9 @@
         (assert (fx= 0 auxlim))
         (assert (< m 4))
         (bytevector-copy! mainbuf mainptr auxbuf 0 m)
+        (vector-like-set! p
+                          port.mainpos
+                          (+ (vector-like-ref p port.mainpos) mainptr))
         (vector-like-set! p port.mainptr 0)
         (vector-like-set! p port.mainlim 0)
         (vector-like-set! p port.auxptr 0)
@@ -1071,12 +1098,14 @@
 
   (define (finish k sv)
     (if (not lookahead?)
-        (let ((mainbuf (vector-like-ref p port.mainbuf)))
+        (let ((mainbuf (vector-like-ref p port.mainbuf))
+              (mainptr (vector-like-ref p port.mainptr))
+              (mainpos (vector-like-ref p port.mainpos)))
           (if (eq? mainbuf buf)
-              (vector-like-set! p
-                                port.mainptr
-                                (+ k (vector-like-ref p port.mainptr)))
-              (begin (io/consume-byte-from-auxbuf! p)
+              (begin (vector-like-set! p port.mainpos (+ mainpos (- 1 k)))
+                     (vector-like-set! p port.mainptr (+ k mainptr)))
+              (begin (vector-like-set! p port.mainpos (+ mainpos 1))
+                     (io/consume-byte-from-auxbuf! p)
                      (io/consume-byte-from-auxbuf! p)
                      (if (> k 2) (io/consume-byte-from-auxbuf! p))
                      (if (> k 3) (io/consume-byte-from-auxbuf! p))))))
@@ -1171,7 +1200,9 @@
                            ???)
                           (else
                            (if (not lookahead?)
-                               (io/consume-byte-from-auxbuf! p))
+                               (let ((pos  (vector-like-ref p port.mainpos)))
+                                 (vector-like-set! p port.mainpos (+ pos 1))
+                                 (io/consume-byte-from-auxbuf! p)))
                            (integer->char unit))))
                    ((let ((codec (fxlogand
                                   transcoder-mask:codec
@@ -1179,7 +1210,9 @@
                       (fx= codec codec:latin-1))
                     ; Latin-1
                     (if (not lookahead?)
-                        (io/consume-byte-from-auxbuf! p))
+                        (let ((pos  (vector-like-ref p port.mainpos)))
+                          (vector-like-set! p port.mainpos (+ pos 1))
+                          (io/consume-byte-from-auxbuf! p)))
                     (integer->char unit))
                    (else
                     (io/get-char-utf-8 p lookahead? unit buf ptr lim)))))
@@ -1196,9 +1229,11 @@
   (define (leave-auxstart-state!)
     (let ((mainbuf (vector-like-ref p port.mainbuf))
           (mainptr (vector-like-ref p port.mainptr))
-          (mainlim (vector-like-ref p port.mainlim)))
+          (mainlim (vector-like-ref p port.mainlim))
+          (mainpos (vector-like-ref p port.mainpos)))
       (assert (fx= 0 mainptr))
       (assert (fx< 0 mainlim))
+      (vector-like-set! p port.mainpos (- mainpos 1))
       (vector-like-set! p port.mainptr 1)
       (if (fx< mainlim (bytevector-length mainbuf))
           (begin (bytevector-set! mainbuf mainlim port.sentinel)
@@ -1247,6 +1282,9 @@
              (assert (fx< auxptr auxlim))
              (bytevector-copy! auxbuf auxptr mainbuf 0 (- auxlim auxptr))
              (bytevector-set! mainbuf (- auxlim auxptr) port.sentinel)
+             (vector-like-set! p
+                               port.mainpos
+                               (+ (vector-like-ref p port.mainpos) mainptr))
              (vector-like-set! p port.mainptr 0)
              (vector-like-set! p port.mainlim (- auxlim auxptr))
              (vector-like-set! p port.auxptr 0)
