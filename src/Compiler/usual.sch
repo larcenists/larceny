@@ -550,6 +550,18 @@
         (begin (assertion-violation #f "assertion failure" 'x)
                (unspecified))))))
 
+; Syntax defined within various R6RS libraries.
+
+(define-syntax when
+  (syntax-rules ()
+   ((_ exp0 exp1 ...)
+    (if exp0 (begin exp1 ...)))))
+
+(define-syntax unless
+  (syntax-rules ()
+   ((_ exp0 exp1 ...)
+    (if (not exp0) (begin exp1 ...)))))
+
 ; FIXME:  file-options doesn't do anything yet because v0.94
 ; doesn't support the misnamed enum library.
 
@@ -558,7 +570,7 @@
    ((_ opt ...)
     '())))
 
-; Now for some truly silliness, brought to you by the R6RS.
+; Now for some true silliness, brought to you by the R6RS.
 ;
 ; (r6rs-syntax-silliness <symbol> <name-of-silliness>)
 
@@ -569,16 +581,19 @@
           (silliness silliness0))
       (assert (symbol? sym))
       (assert (string? silliness))
-      (display "Warning: using deprecated syntax: ")
-      (display silliness)
-      (newline)
-      (display "    This syntax is *extremely* inefficient.")
-      (newline)
-      (display "    Using quote would be *much* faster.")
-      (newline)
-      (do ((x '(1000000) (list (- (car x) 1))))
-          ((zero? (car x))
-           sym))))))
+      (if (issue-warnings)
+          (begin
+           (display "Warning: using deprecated syntax: ")
+           (display silliness)
+           (newline)
+           (display "    This syntax is *extremely* inefficient.")
+           (newline)
+           (display "    Using quote would be *much* faster.")
+           (newline)
+           (do ((x '(1000000) (list (- (car x) 1))))
+               ((zero? (car x))
+                sym)))
+          sym)))))
 
 ; Believe it or not, the following definitions conform to the
 ; current draft R6RS.
