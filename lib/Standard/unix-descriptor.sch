@@ -11,6 +11,27 @@
 
 (require "Experimental/unix")
 
+;; Sockets will open the same descriptor multiple times.  We do not
+;; want to actually close the "file" until the last one.  Solving
+;; this problem by tracking open file descriptors in a bag.
+;; FIXME O(n) yucko
+(define-values (add-fd-ref! rem-fd-ref!)
+  (let ()
+    (define bag '(sentinel)) ;; sentinel simplifies set! logic below
+    (define (add-ref! fd)
+      (set-cdr! bag (cons fd (cdr bag))))
+    (define (rem-ref! fd) ;; returns #t if fd not in result bag.  O/w #f.
+      (let loop ((l bag))
+        (cond ((null? (cdr l)) 
+               (error 'rem-ref! ": no references left!"))
+              ((eqv? fd (cadr l))
+               (set-cdr! l (cddr l)))
+              (else 
+               (loop (cdr l)))))
+      (not (memv fd (cdr bag))))
+    (values add-ref! rem-ref!)))
+  
+
 (define (open-input-descriptor fd)
   (define id (string-append "input descriptor port " (number->string fd)))
   (define (read! buf start count)
@@ -27,11 +48,12 @@
                (bytevector-like-set! buf j (bytevector-like-ref bv i)))
              ret))))
   (define (close)
-    (let ((res (unix/close fd)))
-      (cond ((< res 0)
-             (error 'close ": error " res 
-                    " closing input descriptor port " fd)))))
-
+    (cond ((rem-fd-ref! fd)
+           (let ((res (unix/close fd)))
+             (cond ((< res 0)
+                    (error 'close ": error " res 
+                           " closing input descriptor port " fd)))))))
+  (add-fd-ref! fd)
   (make-custom-binary-input-port id read! #f #f close))
 
 (define (open-output-descriptor fd)
@@ -61,11 +83,12 @@
                           "descriptor port " fd)
                    (loop (+ idx written) (- count written))))))))
   (define (close) 
-    (let ((res (unix/close fd)))
-      (cond ((not (zero? res))
-             (error 'close ": error " res " closing custom output "
-                    "descriptor port " fd)))))
-  
+    (cond ((rem-fd-ref! fd)
+           (let ((res (unix/close fd)))
+             (cond ((not (zero? res))
+                    (error 'close ": error " res " closing custom output "
+                           "descriptor port " fd)))))))
+  (add-fd-ref! fd)
   (make-custom-binary-output-port id write! #f #f close))
 
 ; eof
