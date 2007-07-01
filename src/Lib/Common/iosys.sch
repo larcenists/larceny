@@ -39,22 +39,40 @@
 ;
 ; eof             type > 0 & state = 'eof
 ;
-; binary          type > 0 & state = 'binary
+; binary          type = <binary,_> & state = 'binary
 ;
-; textual         type > 0 & state = 'textual
+; textual         (type = <textual,input> & state = 'textual
 ;                 & mainbuf[mainlim] = 255
-;                 & auxptr = auxlim = 0
+;                 & auxptr = auxlim = 0)
+;              or (type = <textual,output> & state = 'textual
+;                 & mainptr = 0)
 ;
-; auxstart        type > 0 & state = 'auxstart
+; auxstart        type = <textual,input> & state = 'auxstart
 ;                 & 0 = mainptr < mainlim & mainbuf[0] = 255
 ;                 & 0 <= auxptr < auxlim
 ;
-; auxend          type > 0 & state = 'auxend
+; auxend          type = <textual,input> & state = 'auxend
 ;                 & mainbuf[mainlim] = 255
 ;                 & 0 <= auxptr < auxlim
 ;
+; input/output    type = <_,input/output> & state = 'input/output
+;                 & mainptr = 0 & mainbuf[0] = 255
+;                 & mainlim = (bytevector-length mainbuf);                
+;
 ; In the auxstart state, the contents of auxbuf precede mainbuf.
 ; In the auxend state, the contents of auxbuf follow mainbuf.
+;
+; In the textual state, the buffered bytes lie between mainptr
+; and mainlim.
+;
+; In the input/output state, the sole purpose of the invariant
+; is to force all inlined read and write operations to perform
+; a closed call to the main read and write routines defined in
+; this file.
+;
+; FIXME:  For textual output ports, keeping the buffered bytes
+; between 0 and mainptr *might* be better.  This might affect
+; combined input/output ports, which aren't implemented yet.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -109,9 +127,7 @@
 (define type:binary-input/output  6)
 (define type:textual-input/output 7)
 
-; FIXME:  The port.mainpos field is not being updated correctly.
-; FIXME:  End-of-line processing is not being performed.
-; FIXME:  The output and input/output directions are not yet implemented.
+; FIXME:  The input/output direction is not yet implemented.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -129,13 +145,25 @@
 (define port.mainbuf    1) ; bytevector: Latin-1 or UTF-8 encodings
 (define port.mainptr    2) ; nonnegative fixnum: next loc in mainbuf (input)
 (define port.mainlim    3) ; nonnegative fixnum: sentinel in mainbuf (input)
-(define port.mainpos    4) ; fixnum: byte or character position - mainptr
+
+; For input ports, port.mainpos holds the current byte
+; or character position minus the current value of the
+; port.mainptr field.
+;
+; For input ports, port.mainpos holds the current byte
+; or character position minus the current value of the
+; port.mainlim field.
+
+(define port.mainpos    4) ; integer: byte/char position - (mainptr or mainlim)
 (define port.transcoder 5) ; fixnum: see comment at make-transcoder
 
-; common data
+; The state is always one of the following symbols:
+;     closed error eof
+;     binary
+;     textual auxstart auxend
+;     input/output
 
-(define port.state      6) ; symbol: closed, error, eof, binary, textual,
-                           ;     auxstart, auxend
+(define port.state      6) ; symbol: see above
 (define port.iodata     7) ; port-specific data
 (define port.ioproc     8) ; port*symbol -> varies-with-symbol
 
@@ -144,13 +172,16 @@
 (define port.bufmode    9) ; symbol: none, line, datum, block
 (define port.wr-flush? 10) ; boolean: true iff bufmode is datum
 
-; FIXME: Added by Will for the new R6RS-compatible i/o system.
+; textual input ports
 
 (define port.auxbuf    11) ; bytevector: 4 bytes before or after mainbuf
-(define port.auxptr    12) ; index of next byte in auxbuf
-(define port.auxlim    13) ; 1 + index of last byte in auxbuf
+(define port.auxptr    12) ; fixnum: index of next byte in auxbuf
+(define port.auxlim    13) ; fixnum: 1 + index of last byte in auxbuf
+(define port.linesread 14) ; integer: number of line endings read so far
+(define port.linestart 15) ; integer: character position after last line ending
+(define port.wasreturn 16) ; boolean: last line ending was #\return
 
-(define port.structure-size 14)      ; size of port structure
+(define port.structure-size 17)      ; size of port structure
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -247,6 +278,9 @@
     (vector-set! v port.ioproc ioproc)
     (vector-set! v port.auxbuf (make-bytevector 4))
     (vector-set! v port.auxlim 0)
+    (vector-set! v port.linesread 0)
+    (vector-set! v port.linestart 0)
+    (vector-set! v port.wasreturn #f)
 
     (typetag-set! v sys$tag.port-typetag)
     (io/reset-buffers! v)                     ; inserts sentinel
@@ -332,7 +366,6 @@
 ; to io/put-char.
 
 (define (io/write-char c p)
-($$trace (string-append "io/write-char " (number->string (char->integer c))))
   (if (port? p)
       (let ((type (vector-like-ref p port.type)))
         (cond ((eq? type type:binary-output)
@@ -486,45 +519,14 @@
     (unspecified)))
   
 ; When writing the contents of an entire string,
-; we can do the error checking just once.
-; FIXME:  This outputs Ascii characters only.
+; we could do the error checking just once, but
+; this should be fast enough for now.
 
 (define (io/write-string s p)
-  (if #f                                                 ; FIXME
-      (io/write-substring s 0 (string-length s) p)
-      (do ((n (string-length s))
-           (i 0 (+ i 1)))
-          ((= i n) (unspecified))
-        (io/write-char (string-ref s i) p))))
-
-(define (io/write-substring s i j p)
-  (if (and (string? s)
-           (fixnum? i)
-           (fixnum? j)
-           (<= 0 i j (string-length s))
-           (port? p)
-           (io/output-port? p))
-      (let loop ((i i))
-        (if (< i j)
-            (let* ((buf (vector-like-ref p port.mainbuf))
-                   (len (bytevector-like-length buf))
-                   (ptr (vector-like-ref p port.mainlim)))
-              (let ((count (min (- j i) (- len ptr))))
-                (if (< 0 count)
-                    (begin
-                     (vector-like-set! p port.mainlim (+ ptr count))
-                     (do ((k (+ i count))
-                          (i i (+ i 1))
-                          (ptr ptr (+ ptr 1)))
-                         ((= i k)
-                          (loop i))
-                       (let ((c (string-ref s i)))
-                         (bytevector-like-set! buf ptr (char->integer c)))))
-                    (begin (io/flush-buffer p)
-                           (loop i)))))
-            (unspecified)))
-      (begin (error "io/write-substring: not an output port: " p)
-             #t)))
+  (do ((n (string-length s))
+       (i 0 (+ i 1)))
+      ((= i n) (unspecified))
+    (io/write-char (string-ref s i) p)))
 
 (define (io/discretionary-flush p)
   (if (and (port? p) (io/output-port? p))
@@ -571,6 +573,20 @@
             (vector-like-ref p port.mainlim)))
         (else
          (error "io/port-position: " p " is not an open port.")
+         #t)))
+
+(define (io/port-lines-read p)
+  (cond ((io/input-port? p)
+         (vector-like-ref p port.linesread))
+        (else
+         (error 'io/port-lines-read "not a textual input port" p)
+         #t)))
+
+(define (io/port-line-start p)
+  (cond ((io/input-port? p)
+         (vector-like-ref p port.linestart))
+        (else
+         (error 'io/port-line-start "not a textual input port" p)
          #t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -807,8 +823,31 @@
           ((fx< ptr lim)
            (let ((unit (bytevector-ref buf ptr)))
              (cond ((<= unit #x7f)
-                    (cond ((and #f (fx= unit 13))             ; FIXME
-                           ???)
+                    (cond ((fx> unit 13)
+                           ; not #\linefeed, #\return, #\nel, or #\x2028
+                           (if (not lookahead?)
+                               (vector-like-set! p port.mainptr (+ ptr 1)))
+                           (integer->char unit))
+                          ((fx= unit 10)                           ; #\linefeed
+                           (cond ((vector-like-ref p port.wasreturn)
+                                  (io/get-char-following-return p lookahead?))
+                                 ((not lookahead?)
+                                  (let ((pos
+                                         (vector-like-ref p port.mainpos))
+                                        (line
+                                         (vector-like-ref p port.linesread)))
+                                    (vector-like-set! p port.mainptr (+ ptr 1))
+                                    (vector-like-set! p
+                                                      port.linesread
+                                                      (+ line 1))
+                                    (vector-like-set! p
+                                                      port.linestart
+                                                      (+ pos ptr 1)))
+                                  (integer->char unit))
+                                 (else
+                                  (integer->char unit))))
+                          ((and #t (fx= unit 13))                    ; #\return
+                           (io/get-char-at-return p lookahead?))
                           (else
                            (if (not lookahead?)
                                (vector-like-set! p port.mainptr (+ ptr 1)))
@@ -990,6 +1029,78 @@
   (vector-like-set! p port.auxptr 0)
   (vector-like-set! p port.auxlim 0)
   (bytevector-set! (vector-like-ref p port.mainbuf) 0 port.sentinel))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; End-of-line processing.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Unless the eolstyle is none, a #\linefeed or #\x85 following
+; a #\return should be ignored.
+;
+; When a #\return is consumed, the port.wasreturn field is set
+; true and the port.linestart field is set to the character
+; position following the #\return.
+
+(define (io/get-char-at-return p lookahead?)
+  (let* ((transcoder (vector-like-ref p port.transcoder))
+         (eolstyle (fxlogand transcoder transcoder-mask:eolstyle)))
+    (cond (lookahead?
+           (if (fx= eolstyle eolstyle:none)
+               #\return
+               #\linefeed))
+          ((fx= eolstyle eolstyle:none)
+           (io/consume-byte! p)
+           (let* ((mainpos (vector-like-ref p port.mainpos)))
+             (vector-like-set! p port.mainpos (+ mainpos 1)))
+           #\return)
+          (else
+           (io/consume-byte! p)
+           (let* ((mainptr (vector-like-ref p port.mainptr))
+                  (mainpos (vector-like-ref p port.mainpos))
+                  (pos (+ mainpos mainptr))
+                  (linesread (vector-like-ref p port.linesread))
+                  (linestart (vector-like-ref p port.linestart)))
+             (vector-like-set! p port.mainpos (+ mainpos 1))
+             (vector-like-set! p port.linesread (+ linesread 1))
+             (vector-like-set! p port.linestart (+ pos 1))
+             (vector-like-set! p port.wasreturn #t))
+           #\linefeed))))
+
+; When get-char encounters a #\linefeed or #\x85, it must check
+; the port.wasreturn field.  If that field is true, then get-char
+; must call this routine, which figures out what to do about it.
+;
+; It is safe to call this routine whenever the port.wasreturn
+; field is true.
+
+(define (io/get-char-following-return p lookahead?)
+  (assert (vector-like-ref p port.wasreturn))
+  (vector-like-set! p port.wasreturn #f)
+  (let* ((pos (+ (vector-like-ref p port.mainpos)
+                 (vector-like-ref p port.mainptr)))
+         (linesread (vector-like-ref p port.linesread))
+         (linestart (vector-like-ref p port.linestart))
+         (transcoder (vector-like-ref p port.transcoder))
+         (eolstyle (fxlogand transcoder transcoder-mask:eolstyle)))
+    (if (and (= pos linestart)
+             (not (eq? eolstyle eolstyle:none)))
+        (let ((c (io/get-char p #t)))
+          (cond ((not (char? c))
+                 (io/get-char p lookahead?))
+                ((or (char=? c #\linefeed)
+                     (fx= (char->integer c) #x85)
+                     (fx= (char->integer c) #x2028))
+                 ; ignore the character and retry the get-char operation
+                 (io/get-char p #f)
+                 (vector-like-set! p port.mainpos pos)
+                 (vector-like-set! p port.linesread linesread)
+                 (vector-like-set! p port.linestart linestart)
+                 (io/get-char p lookahead?))
+                (else
+                 (io/get-char p lookahead?))))
+        (io/get-char p lookahead?))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -1196,8 +1307,37 @@
     (cond ((fx< ptr lim)
            (let ((unit (bytevector-ref buf ptr)))
              (cond ((<= unit #x7f)
-                    (cond ((and #f (fx= unit 13))             ; FIXME
-                           ???)
+                    (cond ((fx> unit 13)
+                           ; not #\linefeed, #\return, #\nel, or #\x2028
+                           (if (not lookahead?)
+                               (let ((pos  (vector-like-ref p port.mainpos)))
+                                 (vector-like-set! p port.mainpos (+ pos 1))
+                                 (io/consume-byte-from-auxbuf! p)))
+                           (integer->char unit))
+                          ((fx= unit 10)                           ; #\linefeed
+                           (let ((pos (vector-like-ref p port.mainpos))
+                                 (line (vector-like-ref p port.linesread)))
+                             (cond ((vector-like-ref p port.wasreturn)
+                                    (io/get-char-following-return
+                                     p lookahead?))
+                                   ((not lookahead?)
+                                    (vector-like-set! p port.mainpos (+ pos 1))
+                                    (io/consume-byte-from-auxbuf! p)
+                                    (vector-like-set! p
+                                                      port.linesread
+                                                      (+ line 1))
+                                    ; mainpos may have changed
+                                    (let* ((mainpos
+                                            (vector-like-ref p port.mainpos))
+                                           (mainptr
+                                            (vector-like-ref p port.mainptr))
+                                           (k (+ mainpos mainptr)))
+                                      (vector-like-set! p port.linestart k))
+                                    (integer->char unit))
+                                   (else
+                                    (integer->char unit)))))
+                          ((and #t (fx= unit 13))                    ; #\return
+                           (io/get-char-at-return p lookahead?))
                           (else
                            (if (not lookahead?)
                                (let ((pos  (vector-like-ref p port.mainpos)))
@@ -1262,7 +1402,8 @@
 
 ; Given an input textual port, consumes a byte from its buffers.
 ; This may cause a change of state.
-; This procedure is called only during error handling, so it can be slow.
+; This procedure is called only during error handling
+; and #\return handling, so it can be fairly slow.
 
 (define (io/consume-byte! p)
   (let ((state (vector-like-ref p port.state))
@@ -1277,7 +1418,9 @@
       (io/consume-byte-from-auxbuf! p))
      ((textual auxend)
       (cond ((fx< mainptr mainlim)
-             (vector-like-set! p mainptr (+ mainptr 1)))
+             (vector-like-set! p port.mainpos
+                               (- (vector-like-ref p port.mainpos) 1))
+             (vector-like-set! p port.mainptr (+ mainptr 1)))
             ((eq? state 'auxend)
              (assert (fx< auxptr auxlim))
              (bytevector-copy! auxbuf auxptr mainbuf 0 (- auxlim auxptr))

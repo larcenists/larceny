@@ -782,6 +782,8 @@
   (environment-set! larc 'transcoded-port transcoded-port)
   (environment-set! larc 'port-has-port-position? port-has-port-position?)
   (environment-set! larc 'port-position port-position)
+  (environment-set! larc 'port-lines-read port-lines-read) ;FIXME
+  (environment-set! larc 'port-line-start port-line-start) ;FIXME
   (environment-set! larc 'port-has-set-port-position!?
                     port-has-set-port-position!?)
   (environment-set! larc 'set-port-position! set-port-position!)

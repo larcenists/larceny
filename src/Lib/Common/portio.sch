@@ -76,8 +76,8 @@
 (define (transcoded-port p t)
   (if (and (binary-port? p)
            (memq (transcoder-codec t) '(latin-1 utf-8))
-           (eq? (transcoder-eol-style t) 'none)
-           (eq? (transcoder-error-handling-mode t) 'ignore))
+           (memq (transcoder-eol-style t) '(none lf cr crlf nel crnel ls))
+           (memq (transcoder-error-handling-mode t) '(ignore replace raise)))
       (io/transcoded-port p t)
       (assertion-violation 'transcoded-port
                            "bad port or unsupported transcoder" p t)))
@@ -88,6 +88,11 @@
   (or (binary-port? p) (textual-port? p)))
 
 (define (port-position p) (io/port-position p))
+
+; FIXME:  Do these extensions to R6RS i/o belong in this file?
+
+(define (port-lines-read p) (io/port-lines-read p))
+(define (port-line-start p) (io/port-line-start p))
 
 ; FIXME:  For now, no ports support set-port-position!.
 
@@ -306,16 +311,6 @@
 (define (lookahead-char p) (io/get-char p #t))
 (define (get-char p)       (io/get-char p #f))
 
-; FIXME: not yet implemented
-;     get-bytevector-n
-;     get-bytevector-n!
-;     get-bytevector-some
-;     get-bytevector-all
-;     get-string-n
-;     get-string-n!
-;     get-string-all
-;     get-line
-
 (define (get-bytevector-n p count)
   (if (and (input-port? p)
            (binary-port? p)
@@ -414,12 +409,14 @@
 (define (get-line p)
   (if (and (input-port? p)
            (textual-port? p))
-      (let ((s (call-with-string-output-port
+      (let* ((eof? #f)
+             (s (call-with-string-output-port
                  (lambda (out)
                    (do ((char (get-char p) (get-char p)))
-                       ((or (eof-object? char) (char=? char #\linefeed)))
+                       ((or (eof-object? char) (char=? char #\linefeed))
+                        (if (eof-object? char) (set! eof? #t)))
                      (put-char out char))))))
-        (if (fx= 0 (string-length s))
+        (if (and eof? (fx= 0 (string-length s)))
             (eof-object)
             s))
       (portio/illegal-arguments 'get-string-all p)))
