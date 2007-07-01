@@ -107,11 +107,10 @@
 	  (socket-representation-in-set! s p)
 	  p)))
 
-  (define (socket-output-port s . flags)
+  (define (socket-output-port s)
     (or (socket-representation-out s)
-	(let ((p (apply open-output-descriptor 
-			(socket-representation-fd s)
-			flags)))
+	(let ((p (open-output-descriptor 
+                  (socket-representation-fd s))))
 	  (socket-representation-out-set! s p)
 	  p)))
   ))
