@@ -66,22 +66,10 @@
         (bytevector-like-set! ret j (bytevector-like-ref bv i)))))
   ;; FIXME wouldn't it be nice to avoid copying here; look into
   ;; revising unix.sch accordingly
-  (define (write-some buf idx count) 
+  ;; FIXME R6RS says count of 0 should have effect of passing EOF to
+  ;; byte sink.  What does that mean in this context?
+  (define (write! buf idx count) 
     (unix/write fd (subbytevector buf idx (+ idx count)) count))
-  (define (write! source-bv start count-orig)
-    ;; FIXME R6RS says count of 0 should have effect of passing EOF to
-    ;; byte sink.  What does that mean in this context?
-    ;; FIXME after Will fixes custom ports to support writing < count,
-    ;; get rid of loop here
-    (let loop ((idx start) (count count-orig))
-      (cond ((zero? count) count-orig)
-            (else 
-             (let ((written (write-some source-bv idx count)))
-               (if (< written 0)
-                   (error 'write! 
-                          ": error writing to custom output "
-                          "descriptor port " fd)
-                   (loop (+ idx written) (- count written))))))))
   (define (close) 
     (cond ((rem-fd-ref! fd)
            (let ((res (unix/close fd)))
