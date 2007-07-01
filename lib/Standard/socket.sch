@@ -77,7 +77,7 @@
   ; experimental/socket
 
   (require "Experimental/socket")
-  (require "Experimental/unix-descriptor")
+  (require 'unix-descriptor)
 
   (define-record socket-representation (fd flags in out))
 
@@ -91,7 +91,7 @@
 			 (socket-representation-fd s)
 			 (if (memq 'nonblocking 
 				   (socket-representation-flags s))
-			     '(nonblocking)
+			     (error 'server-socket-accept ": nonblocking ports support disabled.")
 			     '()))))
 	(values (make-socket-representation ns '() #f #f) 
 		(parse-ip-addr (ntohl (sockaddr_in.sin_addr addr))))))
@@ -100,11 +100,10 @@
     (let ((fd (client-socket host port)))
       (make-socket-representation fd flags #f #f)))
 
-  (define (socket-input-port s . flags) 
+  (define (socket-input-port s) 
     (or (socket-representation-in s)
-	(let ((p (apply open-input-descriptor 
-			(socket-representation-fd s)
-			flags)))
+	(let ((p (open-input-descriptor 
+                  (socket-representation-fd s))))
 	  (socket-representation-in-set! s p)
 	  p)))
 
