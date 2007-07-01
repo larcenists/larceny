@@ -67,10 +67,15 @@
              (this '*)
              (write-method
               (lambda (data buffer count)
-                (let ((n (write! buffer 0 count)))
-                  (cond ((not (fixnum? n)) 'error)
-                        ((fx= n count) 'ok)
-                        (else 'error))))))
+                (let loop ((start 0)
+                           (count count))
+                  (let ((n (write! buffer start count)))
+                    (cond ((not (fixnum? n)) 'error)
+                          ((fx= n count) 'ok)
+                          ((fx= n 0) 'error)        ; no progress, or bogus eof
+                          ((fx< n count)
+                           (loop (+ start n) (- count n)))
+                          (else 'error)))))))
         (define (customio/ioproc op)
           (case op
            ((write)  write-method)
