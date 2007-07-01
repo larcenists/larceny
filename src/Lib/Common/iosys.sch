@@ -809,7 +809,6 @@
 
 ; The general case for get-char and lookahead-char.
 ; The transcoder will be for Latin-1 or UTF-8.
-; FIXME: does not handle end-of-line conversions.
 
 (define (io/get-char p lookahead?)
   (assert (port? p))
@@ -828,26 +827,11 @@
                            (if (not lookahead?)
                                (vector-like-set! p port.mainptr (+ ptr 1)))
                            (integer->char unit))
-                          ((fx= unit 10)                           ; #\linefeed
-                           (cond ((vector-like-ref p port.wasreturn)
-                                  (io/get-char-following-return p lookahead?))
-                                 ((not lookahead?)
-                                  (let ((pos
-                                         (vector-like-ref p port.mainpos))
-                                        (line
-                                         (vector-like-ref p port.linesread)))
-                                    (vector-like-set! p port.mainptr (+ ptr 1))
-                                    (vector-like-set! p
-                                                      port.linesread
-                                                      (+ line 1))
-                                    (vector-like-set! p
-                                                      port.linestart
-                                                      (+ pos ptr 1)))
-                                  (integer->char unit))
-                                 (else
-                                  (integer->char unit))))
-                          ((and #t (fx= unit 13))                    ; #\return
-                           (io/get-char-at-return p lookahead?))
+                          ((or (fx= unit 10)                       ; #\linefeed
+                               (fx= unit 13))                        ; #\return
+                           (if (not lookahead?)
+                               (vector-like-set! p port.mainptr (+ ptr 1)))
+                           (io/return-eol p lookahead? unit))
                           (else
                            (if (not lookahead?)
                                (vector-like-set! p port.mainptr (+ ptr 1)))
@@ -871,7 +855,9 @@
                                  (if (not lookahead?)
                                      (vector-like-set!
                                       p port.mainptr (+ ptr 1)))
-                                 (integer->char unit))
+                                 (if (fx= unit #x85)
+                                     (io/return-eol p lookahead? unit)
+                                     (integer->char unit)))
                                 ((fx= codec codec:utf-8)
                                  (io/get-char-utf-8
                                   p lookahead? unit buf ptr lim))
@@ -1036,6 +1022,42 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Whenever io/get-char is about to return one of the four
+; end-of-line characters (#\linefeed, #\return, #\x85, #x2028),
+; it should perform a tail call to this procedure instead, with
+; the scalar value of the specific end-of-line character as the
+; last argument.
+;
+; That call should occur *after* the port's state has been
+; updated to consume the character (unless lookahead?
+; is true), but before the linesread, linestart, and wasreturn
+; fields have been updated.  Updating those fields is the
+; responsibility of these procedures.
+
+(define (io/return-eol p lookahead? sv)
+  (case sv
+   ((13)
+    (io/return-cr p lookahead?))
+   ((10 #x85 #x2028)
+    (if (vector-like-ref p port.wasreturn)
+        (begin (vector-like-set! p port.wasreturn #f)
+               (io/return-char-following-cr p lookahead? sv))
+        (let* ((pos (vector-like-ref p port.mainpos))
+               (ptr (vector-like-ref p port.mainptr))
+               (line (vector-like-ref p port.linesread))
+               (transcoder (vector-like-ref p port.transcoder))
+               (eolstyle (fxlogand transcoder transcoder-mask:eolstyle)))
+          (cond ((or (fx= sv 10)
+                     (not (fx= eolstyle eolstyle:none)))
+                 (if (not lookahead?)
+                     (begin (vector-like-set! p port.linesread (+ line 1))
+                            (vector-like-set! p port.linestart (+ pos ptr))))
+                 #\newline)
+                (else
+                 (integer->char sv))))))
+   (else
+    (assertion-violation 'io/return-eol "internal error" p lookahead? sv))))
+
 ; Unless the eolstyle is none, a #\linefeed or #\x85 following
 ; a #\return should be ignored.
 ;
@@ -1043,7 +1065,7 @@
 ; true and the port.linestart field is set to the character
 ; position following the #\return.
 
-(define (io/get-char-at-return p lookahead?)
+(define (io/return-cr p lookahead?)
   (let* ((transcoder (vector-like-ref p port.transcoder))
          (eolstyle (fxlogand transcoder transcoder-mask:eolstyle)))
     (cond (lookahead?
@@ -1051,56 +1073,46 @@
                #\return
                #\linefeed))
           ((fx= eolstyle eolstyle:none)
-           (io/consume-byte! p)
-           (let* ((mainpos (vector-like-ref p port.mainpos)))
-             (vector-like-set! p port.mainpos (+ mainpos 1)))
            #\return)
           (else
-           (io/consume-byte! p)
            (let* ((mainptr (vector-like-ref p port.mainptr))
                   (mainpos (vector-like-ref p port.mainpos))
                   (pos (+ mainpos mainptr))
-                  (linesread (vector-like-ref p port.linesread))
-                  (linestart (vector-like-ref p port.linestart)))
-             (vector-like-set! p port.mainpos (+ mainpos 1))
+                  (linesread (vector-like-ref p port.linesread)))
              (vector-like-set! p port.linesread (+ linesread 1))
-             (vector-like-set! p port.linestart (+ pos 1))
+             (vector-like-set! p port.linestart pos)
              (vector-like-set! p port.wasreturn #t))
            #\linefeed))))
 
-; When get-char encounters a #\linefeed or #\x85, it must check
-; the port.wasreturn field.  If that field is true, then get-char
-; must call this routine, which figures out what to do about it.
-;
-; It is safe to call this routine whenever the port.wasreturn
-; field is true.
-
-(define (io/get-char-following-return p lookahead?)
-  (assert (vector-like-ref p port.wasreturn))
-  (vector-like-set! p port.wasreturn #f)
-  (let* ((pos (+ (vector-like-ref p port.mainpos)
+(define (io/return-char-following-cr p lookahead? sv)
+  (assert (not (vector-like-ref p port.wasreturn)))
+  (let* ((c (integer->char sv))
+         (pos (+ (vector-like-ref p port.mainpos)
                  (vector-like-ref p port.mainptr)))
          (linesread (vector-like-ref p port.linesread))
          (linestart (vector-like-ref p port.linestart))
          (transcoder (vector-like-ref p port.transcoder))
          (eolstyle (fxlogand transcoder transcoder-mask:eolstyle)))
-    (if (and (= pos linestart)
-             (not (eq? eolstyle eolstyle:none)))
-        (let ((c (io/get-char p #t)))
-          (cond ((not (char? c))
-                 (io/get-char p lookahead?))
-                ((or (char=? c #\linefeed)
-                     (fx= (char->integer c) #x85)
-                     (fx= (char->integer c) #x2028))
-                 ; ignore the character and retry the get-char operation
-                 (io/get-char p #f)
-                 (vector-like-set! p port.mainpos pos)
-                 (vector-like-set! p port.linesread linesread)
-                 (vector-like-set! p port.linestart linestart)
-                 (io/get-char p lookahead?))
-                (else
-                 (io/get-char p lookahead?))))
-        (io/get-char p lookahead?))))
+    (cond ((or (fx= sv 10)
+               (fx= sv #x85))
+           (if (and (= pos (if lookahead? linestart (+ linestart 1)))
+                    (not (eq? eolstyle eolstyle:none)))
+               ; consume the character while preserving position
+               ; and retry the get-char operation
+               (begin (if lookahead? (io/get-char p #f))
+                      (let ((mainpos (vector-like-ref p port.mainpos)))
+                        (vector-like-set! p port.mainpos (- mainpos 1)))
+                      (vector-like-set! p port.linesread linesread)
+                      (vector-like-set! p port.linestart linestart)
+                      (io/get-char p lookahead?))
+               ; treat the character as a normal linefeed
+               (io/return-eol p lookahead? 10)))
+          ((char=? c #\return)
+           (io/return-cr p lookahead?))
+          ((fx= sv #x2028)
+           (io/return-eol p lookahead? sv))
+          (else
+           c))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -1220,7 +1232,11 @@
                      (io/consume-byte-from-auxbuf! p)
                      (if (> k 2) (io/consume-byte-from-auxbuf! p))
                      (if (> k 3) (io/consume-byte-from-auxbuf! p))))))
-    (integer->char sv))
+    (case sv
+     ((#x85 #x2028)
+      (io/return-eol p lookahead? sv))
+     (else
+      (integer->char sv))))
 
   (define (decode2) ; decodes 2 bytes
     (let ((unit2 (bytevector-ref buf (+ ptr 1))))
@@ -1314,30 +1330,14 @@
                                  (vector-like-set! p port.mainpos (+ pos 1))
                                  (io/consume-byte-from-auxbuf! p)))
                            (integer->char unit))
-                          ((fx= unit 10)                           ; #\linefeed
-                           (let ((pos (vector-like-ref p port.mainpos))
-                                 (line (vector-like-ref p port.linesread)))
-                             (cond ((vector-like-ref p port.wasreturn)
-                                    (io/get-char-following-return
-                                     p lookahead?))
-                                   ((not lookahead?)
-                                    (vector-like-set! p port.mainpos (+ pos 1))
-                                    (io/consume-byte-from-auxbuf! p)
-                                    (vector-like-set! p
-                                                      port.linesread
-                                                      (+ line 1))
-                                    ; mainpos may have changed
-                                    (let* ((mainpos
-                                            (vector-like-ref p port.mainpos))
-                                           (mainptr
-                                            (vector-like-ref p port.mainptr))
-                                           (k (+ mainpos mainptr)))
-                                      (vector-like-set! p port.linestart k))
-                                    (integer->char unit))
-                                   (else
-                                    (integer->char unit)))))
-                          ((and #t (fx= unit 13))                    ; #\return
-                           (io/get-char-at-return p lookahead?))
+                          ((or (fx= unit 10)                       ; #\linefeed
+                               (fx= unit 13))                        ; #\return
+                           (let ((pos (vector-like-ref p port.mainpos)))
+                             (if (not lookahead?)
+                                 (begin
+                                  (vector-like-set! p port.mainpos (+ pos 1))
+                                  (io/consume-byte-from-auxbuf! p)))
+                             (io/return-eol p lookahead? unit)))
                           (else
                            (if (not lookahead?)
                                (let ((pos  (vector-like-ref p port.mainpos)))
@@ -1353,7 +1353,9 @@
                         (let ((pos  (vector-like-ref p port.mainpos)))
                           (vector-like-set! p port.mainpos (+ pos 1))
                           (io/consume-byte-from-auxbuf! p)))
-                    (integer->char unit))
+                    (if (fx= unit #x85)
+                        (io/return-eol p lookahead? unit)
+                        (integer->char unit)))
                    (else
                     (io/get-char-utf-8 p lookahead? unit buf ptr lim)))))
           (else
