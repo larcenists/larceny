@@ -1,3 +1,4 @@
+[[FixnumPrimitives]]
 Fixnum primitives
 ~~~~~~~~~~~~~~~~~
 
@@ -73,23 +74,23 @@ Returns #t if its argument is zero, and #f otherwise.
 
 // FIXME these names have changed
 
-proc:logand[args="fix1 fix2",result="fixnum"]
+proc:fxlogand[args="fix1 fix2",result="fixnum"]
 
 Returns the bitwise _and_ of its arguments.
 
-proc:logior[args="fix1 fix2",result="fixnum"]
+proc:fxlogior[args="fix1 fix2",result="fixnum"]
 
 Returns the bitwise _inclusive or_ of its arguments.
 
-proc:lognot[args="fix",result="fixnum"]
+proc:fxlognot[args="fix",result="fixnum"]
 
 Returns the bitwise _not_ of its argument.
 
-proc:logxor[args="fix1 fix2",result="fixnum"]
+proc:fxlogxor[args="fix1 fix2",result="fixnum"]
 
 Returns the bitwise _exclusive or_ of its arguments.
 
-proc:lsh[args="fix1 fix2",result="fixnum"]
+proc:fxlsh[args="fix1 fix2",result="fixnum"]
 
 Returns _fix1_ shifted left _fix2_ places, shifting in zero bits at
 the low end. If the shift count exceeds the number of bits in the
@@ -103,14 +104,14 @@ proc:most-negative-fixnum[args="none",result="fixnum"]
 
 Returns the smallest representable negative fixnum.
 
-proc:rsha[args="fix1 fix2",result="fixnum"]
+proc:fxrsha[args="fix1 fix2",result="fixnum"]
 
 Returns _fix1_ shifted right _fix2_ places, shifting in a copy of the
 sign bit at the left end. If the shift count exceeds the number of
 bits in the machine's word size, then the results are
 machine-dependent.
 
-proc:rshl[args="fix1 fix2",result="fixnum"]
+proc:fxrshl[args="fix1 fix2",result="fixnum"]
 
 Returns _fix1_ shifted right _fix2_ places, shifting in zero bits at
 the high end. If the shift count exceeds the number of bits in the

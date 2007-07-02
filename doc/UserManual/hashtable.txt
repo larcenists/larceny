@@ -4,6 +4,9 @@ Hash tables and hash functions
 Hash tables are key/value mapping structures that provide expected
 constant time lookup.
 
+NOTE:  The R6RS hashtables library will be a big improvement
+over Larceny's traditional hash tables.
+
 ==== Hash tables
 
 proc:make-hashtable[args="hash-function bucket-searcher size",result="hashtable"]

@@ -23,7 +23,37 @@ You can also re-enter the debugger by evaluating (debug).
 
 The debugger is still in an immature state. The following commands are available (commands can be typed in upper or lower case): 
 
-**B**     Print backtrace of continuation. **C**     Print source code of procedure, if available. **D**     Move down to previous (earlier) activation record. **E _n expr_**      _Expr_ is evaluated in the current interaction environment and must evaluate to a procedure. It is passed the contents of slot _n_ from the current activation record, and the result, if not unspecified, is printed. **E _(n1 ... nk) expr_**      _Expr_ is evaluated in the current interaction environment and must evaluate to a procedure. It is passed the contents of slots _n1_ through _nk_ from the current activation record, and the result, if not unspecified, is printed. **I _n_**      Inspect the procedure in slot _n_ of the current activation record. **I @_**      Inspect the active procedure. **Q**      Quit the debugger and abort the computation. **R**      Return from the debugger and continue the computation. **S**      Summarize the contents of the current activation record. **U**      Up to the next (later) activation record. **X**      Examine the contents of the current activation record. 
+**B**     Print backtrace of continuation.
+
+**C**     Print source code of procedure, if available.
+
+**D**     Move down to previous (earlier) activation record.
+
+**E _n expr_**      _Expr_ is evaluated in the current
+interaction environment and must evaluate to a procedure.
+It is passed the contents of slot _n_ from the current
+activation record, and the result, if not unspecified,
+is printed.
+
+**E _(n1 ... nk) expr_**      _Expr_ is evaluated in the current
+interaction environment and must evaluate to a procedure. It is
+passed the contents of slots _n1_ through _nk_ from the current
+activation record, and the result, if not unspecified, is printed.
+
+**I _n_**      Inspect the procedure in slot _n_ of the current
+activation record.
+
+**I @_**      Inspect the active procedure.
+
+**Q**      Quit the debugger and abort the computation.
+
+**R**      Return from the debugger and continue the computation.
+
+**S**      Summarize the contents of the current activation record.
+
+**U**      Up to the next (later) activation record.
+
+**X**      Examine the contents of the current activation record. 
 
 The **B**, **D**, and **U** commands can be prefixed with a count, for example, 5 U moves up five activation records, and 10 B displays the next 10 activation records. The default for **B** is to display all the activations; the default count for **D** and **U** is 1. 
 
@@ -32,7 +62,7 @@ The **B**, **D**, and **U** commands can be prefixed with a count, for example, 
 You can set breakpoints either in program text with the break primitive or interactively at the start of a procedure with the break-entry procedure. When Larceny reaches a breakpoint during execution, the program is suspended and the debugger is entered to allow you to inspect the program. 
 
 
-proc:break[args="none"]
+proc:break[args=""]
 
 Invokes the breakpoint handler.
 
@@ -42,7 +72,7 @@ Set a breakpoint at the start of the _procedure_.
 
 proc:unbreak[args="procedure ..."]
 
-proctempl:unbreak[args="none"]
+proctempl:unbreak[args=""]
 
 In the first form, remove any breakpoint set by break-entry at the start of the _procedure_s. In the second form, remove all breakpoints set by _break-entry_.
 
@@ -64,7 +94,7 @@ Set trace points on _procedure_ both at entry and exit.
 
 proc:untrace[args="procedure ..."]
 
-proctempl:untrace[args="none"]
+proctempl:untrace[args=""]
 
 The first form removes any trace points from the _procedure_s. The second form removes all untrace points.
 

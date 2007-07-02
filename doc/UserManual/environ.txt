@@ -3,7 +3,17 @@ anchor:environ[]
 Environments
 ~~~~~~~~~~~~
 
-Larceny's top-level environments are implemented using first-class environment data structures. Environments can be created and manipulated by user code and are occasionally useful to isolate computations or provide restricted namespaces.
+Environments are a deprecated feature of Larceny.
+(During Larceny's conversion to R6RS, all programs
+that use environments are likely to break.
+If the documentation that follows were not needed
+by the Larceny developers themselves, it would have
+been removed from this user manual.)
+
+Larceny's top-level environments are implemented using
+first-class environment data structures. Environments can
+be created and manipulated by user code and are occasionally
+useful to isolate computations or provide restricted namespaces.
 
 proc:make-environment[args="name",result="env"]
 

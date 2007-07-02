@@ -8,42 +8,56 @@ Installing and Running Twobit and Larceny
 === Installing the programs
 
 Twobit and Larceny are distributed in two forms: as a precompiled
-binary and a set of heap images (the file
-larceny-X.Y-sunosZ-bin.tar.gz where X.Y is a version number and Z is 4
-or 5), and as a source tree (the file larceny-X.Y-src.tar.gz). If you
-are not going to be changing Larceny's source code, you do not need to
-download the source tree. Additionally there is an archive for
-documentation (the file larceny-X.Y-doc.tar.gz).
+binary such as larceny-X.Y-bin-native-ia32-win32.tar.gz
+(where X.Y is a version number, "bin" indicates a precompiled
+binary, "native" means it compiles incrementally to native code,
+"ia32" identifies the target processor, and "win32" identifies
+an operating system),
+or as a source tree (larceny-X.Y-src.tar.gz) that can be used
+to reconstruct any of the precompiled binary distributions.
+Unless you intend to change Larceny's source code, you do not
+need to download the source tree.
 
-You unpack the distribution files using the commands 
-    
-    
-        gunzip < larceny-X.Y-sunosZ-bin.tar.gz | tar xf -
-        gunzip < larceny-X.Y-src.tar.gz | tar xf -
-        gunzip < larceny-X.Y-doc.tar.gz | tar xf -
+Unpack the distribution files with an appropriate command such
+as one of the following:
+
+
+        tar -xzf larceny-X.Y-bin-native-sparc-solaris.tar.gz
+        tar -xzf larceny-X.Y-bin-native-ia32-macosx.tar.gz
+        tar -xzf larceny-X.Y-bin-native-ia32-linux86.tar.gz
+        tar -xzf larceny-X.Y-bin-native-ia32-win32.tar.gz
+        tar -xzf larceny-X.Y-bin-petit-stdc-macosx.tar.gz
+        tar -xzf larceny-X.Y-bin-common-cls-win32.tar.gz
+        tar -xzf larceny-X.Y-src.tar.gz
     
 
-which create a directory called "larceny" in your current working
-directory. In that directory you will find the following files:
+This will create a directory called "larceny" in your current working
+directory.  Assuming you have unpacked a binary distribution, that
+directory will contain the following files:
     
     
         larceny.bin         Run-time system
         larceny.heap        Heap image with all libraries, FFI, and compiler
         twobit.heap         Heap image with some libraries and compiler
-        r5rs.heap           Heap image with R5RS libraries and an interpreter
-        Scripts/larceny     Shell script that runs larceny.heap
-        Scripts/twobit      Shell script that runs twobit.heap
+        larceny             Shell script that runs larceny.heap
+        twobit              Shell script that runs twobit.heap
+        startup.sch         Pathnames for the require feature
     
 
 If you unpacked the source code there will be many other files and
-directories as well.
+directories, but "larceny.bin", "larceny.heap", and "twobit.heap"
+will not be present.  You can reconstruct those files from their
+source code, but that process requires a working version of Larceny
+or MzScheme; unless you're porting Larceny or Petit Larceny to a
+brand new target architecture, it's easier to obtain those three
+files from a binary distribution of Larceny.
 
 The scripts and heap images are discussed in the following section. 
 
 You should decide where you want to install Twobit and Larceny; say
 you want to install them in /usr/local/bin and
-/usr/local/lib/larceny. Copy the files Scripts/larceny and
-Scripts/twobit to /usr/local/bin and edit the definition of the
+/usr/local/lib/larceny. Copy the files larceny and
+twobit to /usr/local/bin and edit the definition of the
 variable LARCENY_PATH at the head of each file to point to the correct
 directory:
     
@@ -51,8 +65,8 @@ directory:
         LARCENY_PATH=/usr/local/lib/larceny
     
 
-Then, move or copy larceny.bin, larceny.heap, twobit.heap, and
-r5rs.heap to /usr/local/lib/larceny.
+Then, move or copy larceny.bin, larceny.heap, twobit.heap,
+startup.sch, and the lib directory to /usr/local/lib/larceny.
 
 You should now be able to run Larceny by typing "`larceny`" at the
 Unix prompt, and similarly you should be able to run the Twobit
@@ -84,7 +98,10 @@ to Twobit.
 
 Running "twobit.heap" is probably not useful unless you are doing
 compiler development, in which case you will need the source code as
-well as the binaries.
+well as the binaries, or using Petit Larceny.  (In Petit Larceny,
+the compiler may not be present in "larceny.heap".  Until this
+known bug is fixed, you will have to use "twobit.heap" when you
+want to compile files.)
 
 === Using Larceny
 
@@ -94,7 +111,7 @@ When you start Larceny you will be presented with a signon message and
 the read-eval-print loop's prompt:
 
 ------------------------------------------------------------
-Larceny vX.Y (precise:SunOS5:split) (lth DD-MMM-YY HH:MM:SS)
+Larceny vX.Y <version_name> (MMM DD YYYY HH:MM:SS, precise:SunOS5:split)
         
 >
 ------------------------------------------------------------
@@ -125,7 +142,7 @@ want to be able to redefine standard procedures, then you should
 evaluate the expression
     
     
-        (standard-code)    ; this name will change in a future version
+        (integrate-procedures #f)
     
 
 After this expression has been evaluated, the compiler will generate
@@ -136,8 +153,17 @@ redefine standard procedures _and_ not to redefine any top-level
 procedure while it is running. To make this promise, evaluate
     
     
-        (fast-safe-code)   ; this name will change in a future version
+        (compiler-switches 'fast-safe)
 
+To view the current settings of Twobit's numerous compiler switches,
+evaluate
+    
+    
+        (compiler-switches)
+
+All of Twobit's compiler switches are procedures whose setting
+can be changed by passing the new value of the switch as an
+argument.
 
 // benchmark-block-mode broken for a long time; commenting out below
 
@@ -152,40 +178,36 @@ redefined or assigned within the file. To make this promise, evaluate
 ////////////////////////////////////////////////////////////////////////
     
 
-For more information about compiler switches, see the
+For more information, evaluate
+    
+    
+        (help)
+
+Some of the help information that will be printed is out of
+date or may be irrelevant to the heap image you are using,
+but most of it is still true.
+For still more information about compiler switches, see the
 <<DevelopingSwitches,developer documentation>>.
 
 === Troubleshooting
 
 ==== Error messages when starting Larceny
 
-Larceny was built for SunOS4 on a machine running SunOS 4.1.4, and for
-SunOS5 on a machine running SunOS 5.6. The executable program
-"larceny.bin" may be incompatible with other versions of SunOS. If
-this appears to be the case, you can recompile the executable for your
-operating system by installing the source tree and executing the
-following two commands in the top level directory:
-    
-    
-        make setup
-        make larceny.bin
-    
-
-(If you do this repeatedly, you only need to run "make setup" once.)
-Now replace the distributed version of larceny.bin with the
-newly-compiled file.
-
-Larceny has been tested on SunOS 4.1.4 and SunOS 5.6. At times in the
-past, Larceny was compiled on both SunOS 5.3 and SunOS 5.5. It should
-still compile without trouble on SunOS 5.5, but there are some
-incompatibilities between 5.3 and 5.5/5.6, and we don't know if
-Larceny will still compile on SunOS 5.3. Please report both problems
-and success stories.
+The precompiled binary forms of Larceny should run on
+most machines with the appropriate processor and operating
+system, but the executable program "larceny.bin" may be
+incompatible with very old or with very new versions of
+the processor or operating system.  If that appears to be
+the case, you can use MzScheme to recompile larceny.bin
+from source.  First, though, you should report the problem
+to us (larceny@ccs.neu.edu).  Please report success stories
+as well.
 
 ==== Crashes
 
-Please report all crashes with as much information is possible; a
-backtrace from a debugger or a core dump is ideal (please do not mail
-the core dump without contacting us first). Larceny's run-time system
-is compiled with full debugging information by default and a debugger
-like GDB should be able to provide at least some clues.
+Please report all crashes with as much information is possible;
+a backtrace from a debugger or a core dump is ideal (but please
+do not mail the core dump without contacting us first).
+Larceny's run-time system is compiled with full debugging
+information by default and a debugger like GDB should be able
+to provide at least some clues.

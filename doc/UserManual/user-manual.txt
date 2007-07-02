@@ -2,16 +2,29 @@ Larceny User Manual
 ===================
 Larceny Developers <larceny@ccs.neu.edu>
 
-Larceny provides all of the required and optional parts of Scheme as described 
-in 
-the http://www.cs.indiana.edu/scheme-repository/R4RS/r4rs_toc.html[Revised^4^ Report],
+Larceny provides all of the required and most optional parts of Scheme
+as described in the
+http://www.cs.indiana.edu/scheme-repository/R4RS/r4rs_toc.html[Revised^4^ Report],
 the <<IeeeStd, IEEE Standard>>,
-and the http://www-swiss.ai.mit.edu/~jaffer/r5rs_toc.html[Revised^5^ Report].
+and the
+http://www-swiss.ai.mit.edu/~jaffer/r5rs_toc.html[Revised^5^ Report].
+
+Larceny also provides some of the features that have been proposed
+in drafts of the http://www.r6rs.org/[Revised^6^ Report].
+That report will become Larceny's primary documentation of these
+features.
 
 This manual describes those aspects of Larceny that are not described
 by the Revised Reports or by the IEEE standard.
+It also contains a temporary chapter that explains which features of the
+draft http://www.r6rs.org/[R6RS] are currently implemented by Larceny.
 
 include::intro.txt[]
+
+R6RS extensions
+---------------
+
+include::r6rs.txt[]
 
 The library
 -----------

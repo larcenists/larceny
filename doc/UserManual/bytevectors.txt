@@ -1,7 +1,19 @@
 Bytevectors
 ~~~~~~~~~~~
 
-A _bytevector_ is a data structure that stores bytes -- exact 8-bit unsigned integers. Bytevectors are useful in constructing system interfaces and other low-level programming. In Larceny, many bytevector-like structures -- strings, bignums, and even bytevectors themselves -- are implemented in terms of a lower-level _bytevector-like_ data type. The operations on generic bytevector-like structures are particularly fast but useful largely in code that manipulates Larceny's data representations. 
+A _bytevector_ is a data structure that stores bytes -- exact
+8-bit unsigned integers. Bytevectors are useful in constructing
+system interfaces and other low-level programming. In Larceny,
+many bytevector-like structures -- strings, bignums, and even
+bytevectors themselves -- are implemented in terms of a
+lower-level _bytevector-like_ data type. The operations on
+generic bytevector-like structures are particularly fast but
+useful largely in code that manipulates Larceny's data
+representations.
+
+The R6RS <<BytevectorsLibrary, bytevectors library>> now
+provides a large set of procedures that, in Larceny, are
+defined using the procedures described below.
 
 proc:make-bytevector[kind="Integrable procedure",args="length",result="bytevector"]
 
