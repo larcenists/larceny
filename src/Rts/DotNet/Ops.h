@@ -170,10 +170,13 @@
     SPECIALOP2_VIRTUAL_REVERSED_SET(method)
 
 #define SPECIALOP2_VIRTUAL_REVERSED_SET(method) \
+    SPECIALOP2_VIRTUAL_REVERSED_CASE(method, ustring, SByteVL) \
+    SPECIALOP2_VIRTUAL_REVERSED_CASE(method, string, SByteVL) \
     SPECIALOP2_VIRTUAL_REVERSED_CASE(method, fixnum, SFixnum) \
     SPECIALOP2_VIRTUAL_REVERSED_CASE(method, bignum, SByteVL) \
     SPECIALOP2_VIRTUAL_REVERSED_CASE(method, flonum, SByteVL) \
     SPECIALOP2_VIRTUAL_REVERSED_CASE(method, compnum, SByteVL) \
+    SPECIALOP2_VIRTUAL_REVERSED_CASE(method, vector, SVL) \
     SPECIALOP2_VIRTUAL_REVERSED_CASE(method, ratnum, SVL) \
     SPECIALOP2_VIRTUAL_REVERSED_CASE(method, rectnum, SVL)
 
@@ -192,7 +195,11 @@
 
 #define SPECIALOP2_CHAIN_SByteVL(method) \
     public override void op_##method(SObject arg2) { \
-        if (this.tag == Tags.BignumTag) { \
+        if (this.tag == Tags.UStringTag) { \
+            arg2.op_reversed_ustring_##method(this); \
+        } else if (this.tag == Tags.StringTag) { \
+            arg2.op_reversed_string_##method(this); \
+        } else if (this.tag == Tags.BignumTag) { \
             arg2.op_reversed_bignum_##method(this); \
         } else if (this.tag == Tags.FlonumTag) { \
             arg2.op_reversed_flonum_##method(this); \
@@ -204,7 +211,9 @@
     }
 #define SPECIALOP2_CHAIN_SVL(method) \
     public override void op_##method(SObject arg2) { \
-       if (this.tag == Tags.RatnumTag) { \
+       if (this.tag == Tags.VectorTag) { \
+           arg2.op_reversed_vector_##method(this); \
+       } else if (this.tag == Tags.RectnumTag) { \
            arg2.op_reversed_ratnum_##method(this); \
        } else if (this.tag == Tags.RectnumTag) { \
            arg2.op_reversed_rectnum_##method(this); \

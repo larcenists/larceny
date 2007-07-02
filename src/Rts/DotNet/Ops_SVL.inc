@@ -79,6 +79,14 @@
         SPECIALOP2_CHAIN_SVL(quotient)
         SPECIALOP2_CHAIN_SVL(remainder)
 
+        // Vectors
+        SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, vector, SVL,
+                                            VectorTag)
+        {
+            Reg.Result = (this.length() == 0 && arg1.length() == 0)
+                ? Factory.True : Factory.False;
+        }
+
         // Ratnums
         SPECIALOP2_OVERRIDE_REV_MS(eqvp_not_eq, ratnum, SVL, RatnumTag, MS_RATNUM_EQUAL)
         SPECIALOP2_OVERRIDE_REV_MS(numeric_equals, ratnum, SVL, RatnumTag, MS_RATNUM_EQUAL)

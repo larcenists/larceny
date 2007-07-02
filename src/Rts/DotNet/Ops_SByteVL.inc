@@ -122,6 +122,20 @@
         SPECIALOP2_CHAIN_SByteVL(quotient)
         SPECIALOP2_CHAIN_SByteVL(remainder)
 
+        // string and ustring
+        SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, ustring, SByteVL,
+                                            UStringTag) 
+        {
+            Reg.Result = (this.length() == 0 && arg1.length() == 0)
+                ? Factory.True : Factory.False;
+        }
+        SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, string, SByteVL,
+                                            StringTag) 
+        {
+            Reg.Result = (this.length() == 0 && arg1.length() == 0)
+                ? Factory.True : Factory.False;
+        }
+
         // Bignums
         SPECIALOP2_OVERRIDE_REV_MS(eqvp_not_eq, bignum, SByteVL, BignumTag, 
                                    MS_BIGNUM_EQUAL)
