@@ -28,7 +28,7 @@
         }
 
         OP2_OVERRIDE_REVERSED(make_string, SFixnum) {
-            return Factory.makeString(arg1.value, this.val);
+            return Factory.makeString(arg1.value, (byte)this.val);
         }
 
         OP2_OVERRIDE_REVERSED(make_ustring, SFixnum) {
@@ -37,7 +37,7 @@
 
         // Special Operations
         SPECIALOP2_CHAIN_CHAR(eqvp_not_eq)
-        
+
         SPECIALOP2_OVERRIDE_REVERSED_CASE(eqvp_not_eq, char, SChar) {
             Reg.Result = (arg1.val == this.val) ? Factory.True : Factory.False;
         }

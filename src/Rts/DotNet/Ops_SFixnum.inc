@@ -186,7 +186,7 @@
 
         OP3_OVERRIDE_REVERSED(ustring_set, SByteVL) {
           try {
-            char val = ((SChar)arg3).val;
+            int val = ((SChar)arg3).val;
 
             arg1.elements[(this.value << 2)]     = (byte)(val >> 24 & 0xFF);
             arg1.elements[(this.value << 2) + 1] = (byte)(val >> 16 & 0xFF);
@@ -202,7 +202,7 @@
           }
         }
         OP3_OVERRIDE_REVERSED(ustring_set_trusted, SByteVL) {
-          char val = ((SChar)arg3).val;
+          int val = ((SChar)arg3).val;
 
           arg1.elements[(this.value << 2)]     = (byte)(val >> 24 & 0xFF);
           arg1.elements[(this.value << 2) + 1] = (byte)(val >> 16 & 0xFF);

@@ -53,14 +53,17 @@ namespace Scheme.Rep {
         public static readonly SChar[] characters =
             new SChar[CHAR_COUNT];
 
-        public char val;
+        public int val;
         private SChar(char c) {
+            this.val = (int)c;
+        }
+        private SChar(int c) {
             this.val = c;
         }
         public static void Initialize ()
         {
             for (int i = 0; i < CHAR_COUNT; ++i) {
-                characters[i] = new SChar((char)i);
+                characters[i] = new SChar(i);
             }
         }
 
@@ -73,10 +76,10 @@ namespace Scheme.Rep {
             else if
                 ((c >= 0 && c < 0x00110000) &&          // c is below 1114112
                  (c > 0x0000dfff || c < 0x0000d800))  // c is not a surrogate
-                return new SChar((char)c);
+                return new SChar(c);
 
             Exn.fault(Constants.EX_INT2CHAR, "Invalid character");
-            return new SChar((char)0);
+            return new SChar(0);
         }
 
         public override void write(TextWriter w) {
