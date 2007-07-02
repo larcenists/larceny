@@ -29,6 +29,8 @@ if [ -e petit.bin ] || [ -e petit.bin.exe ]
 #    remove the .o files
 then find . -name '*.o' -type f | xargs rm
 #    remove the generated .c files
+     rm -f petit.bin.c petit-larceny.bin.c twobit.bin.c HEAPDATA.c
+#      (this loop detects Scheme->C generated files)
      for f in `find . -name '*.c' | sed -e 's/.c$//' ` ; do 
 	 if [ -e $f.sch ] ; then rm $f.c; fi; 
      done
