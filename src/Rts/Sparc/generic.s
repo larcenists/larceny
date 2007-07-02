@@ -399,9 +399,9 @@ Lmul_comp2:
 	/* both compnums w/o 0 imaginary part */
 	fmuld	%f2, %f6, %f14
 	fmuld	%f4, %f8, %f16
-	fsubd	%f14, %f16, %f2
 	fmuld	%f4, %f6, %f18
 	fmuld	%f2, %f8, %f20
+	fsubd	%f14, %f16, %f2
 	b	_box_compnum
 	faddd	%f18, %f20, %f4
 Lmul_comp_flo:
@@ -411,9 +411,9 @@ Lmul_comp_flo:
 	fmuld	%f4, %f6, %f4
 Lmul_flo_comp:
 	/* compnum w/ 0 imaginary part and compnum */
-	fmuld	%f2, %f6, %f2
-	b	_box_compnum
 	fmuld	%f2, %f8, %f4
+	b	_box_compnum
+	fmuld	%f2, %f6, %f2
 Lmul_big:
 	be,a	Lmul_big2
 	mov	2, %TMP1

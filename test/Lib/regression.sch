@@ -235,6 +235,9 @@
    (test "Ticket #424"                  ; Bug in IA32 Larceny 0.93
          (bug-424-plus 4294967293)
          (+ 1 4294967293))
+   (test "Ticket #457"                  ; Bug in Sparc Larceny 0.93
+         (* 2.0 (log -1.0))
+         0.0+6.283185307179586i)
    ))
 
 (define (bug-105-test1)
