@@ -411,8 +411,8 @@
                  (cond ((fx>= lim n)
                         (io/flush-buffer p)
                         (io/put-char p c))
-                       ((and #f (fx<= sv 13)) ;FIXME
-                        ...)
+                       ((fx= sv 10)
+                        (io/put-eol p))
                        ((fx<= sv #x7f)
                         (bytevector-set! buf lim sv)
                         (vector-like-set! p port.mainlim (+ lim 1))
@@ -1113,6 +1113,79 @@
            (io/return-eol p lookahead? sv))
           (else
            c))))
+
+; Whenever io/put-char is about to output a #\newline,
+; it should perform a tail call to this procedure instead.
+
+(define (io/put-eol p)
+  (let* ((buf        (vector-like-ref p port.mainbuf))
+         (mainlim    (vector-like-ref p port.mainlim))
+         (transcoder (vector-like-ref p port.transcoder))
+         (eolstyle (fxlogand transcoder transcoder-mask:eolstyle)))
+
+    (define (put-byte b)
+      (bytevector-set! buf mainlim b)
+      (let* ((mainpos (vector-like-ref p port.mainpos))
+             (linesread (vector-like-ref p port.linesread)))
+        (vector-like-set! p port.mainlim (+ mainlim 1))
+        (vector-like-set! p port.linesread (+ linesread 1))
+        (vector-like-set! p port.linestart (+ mainlim mainpos)))
+      (unspecified))
+
+    (define (put-bytes2 b0 b1)
+      (bytevector-set! buf mainlim b0)
+      (bytevector-set! buf (+ mainlim 1) b1)
+      (finish 2))
+    (define (put-bytes3 b0 b1 b2)
+      (bytevector-set! buf mainlim b0)
+      (bytevector-set! buf (+ mainlim 1) b1)
+      (bytevector-set! buf (+ mainlim 2) b2)
+      (finish 3))
+
+    (define (finish count)
+      (let* ((mainpos (vector-like-ref p port.mainpos))
+             (mainpos (+ mainpos (- count 1)))
+             (linesread (vector-like-ref p port.linesread)))
+        (vector-like-set! p port.mainlim (+ mainlim count))
+        (vector-like-set! p port.mainpos mainpos)
+        (vector-like-set! p port.linesread (+ linesread 1))
+        (vector-like-set! p port.linestart (+ mainlim mainpos)))
+      (unspecified))
+
+    (cond ((< (- (bytevector-length buf) mainlim) 4)
+           (io/flush-buffer p)
+           (io/put-eol p))
+
+          ((or (eq? eolstyle eolstyle:none)
+               (eq? eolstyle eolstyle:lf))
+           (put-byte 10))
+
+          ((eq? eolstyle eolstyle:cr)
+           (put-byte 13))
+
+          ((eq? eolstyle eolstyle:crlf)
+           (put-bytes2 13 10))
+
+          ((eq? codec:latin-1 (fxlogand transcoder transcoder-mask:codec))
+           (cond ((eq? eolstyle eolstyle:nel)
+                  (put-byte #x85))
+                 ((eq? eolstyle eolstyle:crnel)
+                  (put-bytes2 13 #x85))
+                 (else
+                  (assertion-violation 'put-char "internal error" p))))
+
+          ((eq? codec:utf-8 (fxlogand transcoder transcoder-mask:codec))
+           (cond ((eq? eolstyle eolstyle:nel)
+                  (put-bytes2 #xc2 #x85))
+                 ((eq? eolstyle eolstyle:crnel)
+                  (put-bytes3 13 #xc2 #x85))
+                 ((eq? eolstyle eolstyle:ls)
+                  (put-bytes3 #xe2 #x80 #xa8))
+                 (else
+                  (assertion-violation 'put-char "internal error" p))))
+
+          (else
+           (assertion-violation 'put-char "internal error" p)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
