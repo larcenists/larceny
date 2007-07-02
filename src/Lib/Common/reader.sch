@@ -138,7 +138,6 @@
   (make-parameter "read-r6rs-flags?" #t boolean?))
 
 ;; Enables:
-;; #\newline
 ;; #!null #!false #!true #!unspecified #!undefined
 ;; #!slow #!fast #!safe #!unsafe
 ;; embedded vertical bars within symbols
@@ -8207,7 +8206,7 @@
 
     (define (delimiter? c)
       (case c
-       ((#\( #\) #\[ #\] #\" #\;)
+       ((#\( #\) #\[ #\] #\" #\; #\#)
         #t)
        (else
         (or (not (char? c))
@@ -8295,7 +8294,8 @@
                   ((alarm)     char:alarm)
                   ((backspace) #\backspace)
                   ((tab)       #\tab)
-                  ((linefeed)  #\linefeed)
+                  ((linefeed newline)
+                               #\linefeed)
                   ((vtab)      #\vtab)
                   ((page)      #\page)
                   ((return)    #\return)
@@ -8303,11 +8303,7 @@
                   ((space)     #\space)
                   ((delete)    char:delete)
                   (else
-                   (if (read-larceny-weirdness?)
-                       (case sym
-                        ((newline) #\newline)
-                        (else (scannerError errIllegalNamedChar)))
-                       (scannerError errIllegalNamedChar)))))))))
+                   (scannerError errIllegalNamedChar))))))))
 
     ; #^B"..."
     ; Coding bytevectors as strings is inherently evil.
