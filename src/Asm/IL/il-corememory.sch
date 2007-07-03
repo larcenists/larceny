@@ -279,6 +279,8 @@
 (define-emit-form ilc/%emit)
 (define-emit-form ilc/%emit/label 
   (label clr-type-handle/system-reflection-emit-label))
+(define-emit-form ilc/%emit/byte
+  (byte clr-type-handle/system-byte))
 (define-emit-form ilc/%emit/short
   (short clr-type-handle/system-uint16))
 (define-emit-form ilc/%emit/int
@@ -870,7 +872,11 @@
 	    blt blt.s blt.un blt.un.s bne.un bne.un.s 
 	    br brfalse brfalse.s brtrue brtrue.s br.s) 
 	   (ilc/%emit/label IL (opc) (get-label-object (car args))))
-	  
+
+	  ;; ILGenerator.Emit(OpCode, byte) form
+	  ((ldc.i4.s)
+	   (apply ilc/%emit/byte IL (opc) (map clr/byte->foreign args)))
+
 	  ;; ILGenerator.Emit(OpCode, short) form
 	  ((ldarg)
 	   (apply ilc/%emit/short IL (opc) (map clr/int->foreign args)))

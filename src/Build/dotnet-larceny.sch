@@ -145,6 +145,7 @@
         clr/foreign->symbol
         clr/foreign-double->flonum
         clr/foreign-single->flonum
+        clr/byte->foreign
         clr/int->foreign
         clr/char->foreign
         clr/null

@@ -182,6 +182,7 @@
 (define (clr/flonum->foreign-double obj) (clr/%flonum->foreign-double obj))
 (define (clr/flonum->foreign-single obj) (clr/%flonum->foreign-single obj))
 (define (clr/char->foreign   obj) (clr/%char->foreign obj))
+(define (clr/byte->foreign   obj) (clr/%number->foreign-byte obj))
 (define (clr/int->foreign    obj) (clr/%number->foreign-int32 obj))
 (define (clr/string->foreign obj) (clr/%string->foreign obj))
 (define (clr/bytes->foreign obj)  (clr/%bytes->foreign obj))
