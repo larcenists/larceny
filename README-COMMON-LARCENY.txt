@@ -30,10 +30,10 @@ QUICK START
 CommonLarceny (Win32):
  - If you want to run with auto-compilation of Scheme source loaded
    with the load procedure, run
-   > CommonLarceny -- Larceny.fasl
+   > CommonLarceny Larceny.fasl
 
  - If you want to use the compiler under the interpreter, run
-   > CommonLarceny -- Twobit.fasl
+   > CommonLarceny Twobit.fasl
 
  - If you're content to use only the interpreter, run
    > CommonLarceny
