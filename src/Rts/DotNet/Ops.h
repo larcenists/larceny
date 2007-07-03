@@ -213,7 +213,7 @@
     public override void op_##method(SObject arg2) { \
        if (this.tag == Tags.VectorTag) { \
            arg2.op_reversed_vector_##method(this); \
-       } else if (this.tag == Tags.RectnumTag) { \
+       } else if (this.tag == Tags.RatnumTag) { \
            arg2.op_reversed_ratnum_##method(this); \
        } else if (this.tag == Tags.RectnumTag) { \
            arg2.op_reversed_rectnum_##method(this); \
