@@ -100,6 +100,9 @@
 (define (rep:make-flonum)
   (il:call '() iltype-sbytevl il-schemefactory "makeFlonum" 
            (list iltype-double)))
+(define (rep:make-bytevector)
+  (il:call '() iltype-sbytevl il-schemefactory "makeByteVector" 
+           (list iltype-byte-array)))
 ;(define (rep:make-flonum-from-int8)
 ;  (il:call '() iltype-sbytevl il-schemefactory "makeFlonum"
 ;           (list iltype-int64)))

@@ -224,8 +224,24 @@
                     (il 'stelem.ref)
                     (loop (+ 1 index) (cdr items))))))
           (rep:make-vector)))
+        ((bytevector? datum)
+         (let ((limit (bytevector-length datum)))
+           (list
+             (il 'ldc.i4 limit)
+             (il 'newarr iltype-byte)
+             (let loop ((index 0))
+               (cond
+                 ((= index limit) '())
+                 (else
+                   (list
+                     (il 'dup)
+                     (il 'ldc.i4 index)
+                     (il 'ldc.i4.s (bytevector-ref datum index))
+                     (il 'stelem.ref)
+                     (loop (+ 1 index))))))
+             (rep:make-bytevector))))
         (else
-         (error "cannot emit IL to load constant: ~s~%" datum)
+         (error "cannot emit IL to load constant: " datum)
          (il:comment "WARNING: Placeholder for ~s" datum)
          (il:load-constant #f))))
 
