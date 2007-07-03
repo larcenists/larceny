@@ -515,7 +515,8 @@
     (bytevector-set! x 9  (bytevector-ref bytevector (+ k 5)))
     (bytevector-set! x 10 (bytevector-ref bytevector (+ k 6)))
     (bytevector-set! x 11 (bytevector-ref bytevector (+ k 7)))
-    (typetag-set! x 2)))
+    (typetag-set! x 2)
+    x))
 
 (define (bytevector-ieee-double-native-set! bytevector k x)
   (bytevector-set! bytevector (+ k 0) (bytevector-like-ref x 4))
