@@ -119,7 +119,7 @@ ratified document, it would immediately become a
 deprecated misfeature of Larceny.
 
 WARNING:  The R6RS records syntactic layer is
-gratuitously incompatible with the procedural
+gratuitously inconsistent with the procedural
 layer.  As Andre van Tonder has noted in the
 r6rs-discuss mailing list, programmers would
 not be able to define records that inherit from
@@ -133,18 +133,18 @@ without breaking client code.
 WARNING:  Furthermore the rationales that have been
 offered for the design of R6RS records, in the R6RS
 rationale document and also in the library document
-itself, are technically incorrect.  In particular, the
-library document claims that "Use of the parent-rtd
-clause generally forces an implementation to delay
-the generation of constructor, accessor, and
-mutator code until the record-type definition is
-evaluated at run time, since the type of the parent
-is not generally known until then."  That is exactly
-like saying compilers can't generate code for lambda
-expressions until run time, since the values of their
-free variables are not generally known until then.
-In other words, the statement is flat-out false.
-Larceny would never have to wait until run time to
+itself, are incorrect.  Most egregiously, the library
+document claims that "Use of the parent-rtd clause
+generally forces an implementation to delay the
+generation of constructor, accessor, and mutator
+code until the record-type definition is evaluated
+at run time, since the type of the parent is not
+generally known until then."  That is exactly like
+saying compilers generally can't generate code for
+lambda expressions until run time, since the values
+of their free variables are not generally known until
+then.  In other words, the statement is flat-out
+false.  Larceny would never wait until run time to
 generate code.
 
 Larceny supports all procedures exported by the
