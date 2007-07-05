@@ -702,10 +702,6 @@
   (environment-set! larc 'call-with-text-input-file call-with-text-input-file)
   (environment-set! larc 'call-with-text-output-file
                     call-with-text-output-file)
-  (environment-set! larc 'call-with-binary-input-file
-                    call-with-binary-input-file)
-  (environment-set! larc 'call-with-binary-output-file
-                    call-with-binary-output-file)
   (environment-set! larc 'close-open-files close-open-files)
   (environment-set! larc 'console-input-port console-input-port)
   (environment-set! larc 'console-input-port-factory
@@ -728,12 +724,12 @@
   (environment-set! larc 'lowlevel-write lowlevel-write)
   (environment-set! larc 'open-text-input-file open-text-input-file)
   (environment-set! larc 'open-text-output-file open-text-output-file)
-  (environment-set! larc 'open-binary-input-file open-binary-input-file)
-  (environment-set! larc 'open-binary-output-file open-binary-output-file)
   (environment-set! larc 'open-input-string open-input-string)
   (environment-set! larc 'open-output-string open-output-string)
   (environment-set! larc 'port-name port-name)
   (environment-set! larc 'io/make-port io/make-port) ; XXX
+  (environment-set! larc 'io/get-u8 io/get-u8)       ; FIXME (common.imp.sch)
+  (environment-set! larc 'io/put-u8 io/put-u8)       ; FIXME (common.imp.sch)
   (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
   (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
   (environment-set! larc 'print-length print-length)
@@ -748,11 +744,7 @@
   (environment-set! larc 'rename-file rename-file)
   (environment-set! larc 'reset-output-string reset-output-string)
   (environment-set! larc 'weird-printer weird-printer)
-  (environment-set! larc 'with-input-from-binary-file
-                    with-input-from-binary-file)
   (environment-set! larc 'with-input-from-port with-input-from-port)
-  (environment-set! larc 'with-output-to-binary-file
-                    with-output-to-binary-file)
   (environment-set! larc 'with-output-to-port with-output-to-port)
   (environment-set! larc 'call-with-input-string call-with-input-string)
   (environment-set! larc 'call-with-output-string call-with-output-string)
@@ -798,10 +790,6 @@
                     open-bytevector-input-port)
   (environment-set! larc 'open-string-input-port open-string-input-port)
   (environment-set! larc 'standard-input-port standard-input-port)
-  (environment-set! larc 'make-custom-binary-input-port
-                    make-custom-binary-input-port)
-  (environment-set! larc 'make-custom-textual-input-port
-                    make-custom-textual-input-port)
 
   (environment-set! larc 'output-port-buffer-mode output-port-buffer-mode)
   (environment-set! larc 'open-file-output-port open-file-output-port)
@@ -815,10 +803,6 @@
   (environment-set! larc 'standard-output-port standard-output-port)
   (environment-set! larc 'standard-error-port standard-error-port)
   (environment-set! larc 'current-error-port current-error-port)
-  (environment-set! larc 'make-custom-binary-output-port
-                    make-custom-binary-output-port)
-  (environment-set! larc 'make-custom-textual-output-port
-                    make-custom-textual-output-port)
 
   (environment-set! larc 'make-custom-binary-input-port
                     make-custom-binary-input-port)
@@ -854,6 +838,32 @@
   (environment-set! larc 'put-char put-char)
   (environment-set! larc 'put-string put-string)
   (environment-set! larc 'put-datum put-datum)
+
+  ;; FIXME: deprecated procedures
+
+  (environment-set! larc 'call-with-binary-input-file
+                    call-with-binary-input-file)
+  (environment-set! larc 'call-with-binary-output-file
+                    call-with-binary-output-file)
+  (environment-set! larc 'open-binary-input-file open-binary-input-file)
+  (environment-set! larc 'open-binary-output-file open-binary-output-file)
+  (environment-set! larc 'with-input-from-binary-file
+                    with-input-from-binary-file)
+  (environment-set! larc 'with-output-to-binary-file
+                    with-output-to-binary-file)
+
+  (environment-set! larc 'call-with-raw-latin-1-input-file
+                    call-with-raw-latin-1-input-file)
+  (environment-set! larc 'call-with-raw-latin-1-output-file
+                    call-with-raw-latin-1-output-file)
+  (environment-set! larc 'open-raw-latin-1-input-file
+                    open-raw-latin-1-input-file)
+  (environment-set! larc 'open-raw-latin-1-output-file
+                    open-raw-latin-1-output-file)
+  (environment-set! larc 'with-input-from-raw-latin-1-file
+                    with-input-from-raw-latin-1-file)
+  (environment-set! larc 'with-output-to-raw-latin-1-file
+                    with-output-to-raw-latin-1-file)
 
   ;; common and less common extensions to R4RS
 

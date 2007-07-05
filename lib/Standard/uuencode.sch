@@ -3,6 +3,9 @@
 ; For spec see
 ;   http://www.opengroup.org/onlinepubs/007908799/xcu/uuencode.html
 
+; FIXME: This code has fallen victim to bit rot.
+; It needs conversion for both fixnum arithmetic and binary output.
+
 (require 'io)
 (require 'string)
 

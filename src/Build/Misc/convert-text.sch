@@ -1,5 +1,7 @@
 ; Text file format conversions
 ;
+; $Id$
+;
 ; 5 June 1999 / lth
 ;
 ; You should run an A->native conversion only on the platform you're converting
@@ -10,12 +12,15 @@
 ; from, because these procedures depend on CALL-WITH-INPUT-FILE and READ-CHAR
 ; doing the right thing with a text file.
 
+; FIXME:  A lot of this stuff should be rewritten
+; to use the new i/o system.
+
 ; Convert a MacOS text file to native format.
 ;
 ; Lines are terminated with CR and there is no explicit end-of-file marker.
 
 (define (macos->native infile outfile)
-  (call-with-binary-input-file infile
+  (call-with-raw-latin-1-input-file infile
     (lambda (in)
       (call-with-output-file outfile
         (lambda (out)
@@ -28,7 +33,7 @@
 (define (native->macos infile outfile)
   (call-with-input-file infile
     (lambda (in)
-      (call-with-binary-output-file outfile
+      (call-with-raw-latin-1-output-file outfile
         (lambda (out)
           (do ((c (read-char in) (read-char in)))
               ((eof-object? c))
@@ -42,7 +47,7 @@
 ; mark the end of file.
 
 (define (msdos->native infile outfile)
-  (call-with-binary-input-file infile
+  (call-with-raw-latin-1-input-file infile
     (lambda (in)
       (call-with-output-file outfile
         (lambda (out)
@@ -63,7 +68,7 @@
 (define (native->msdos infile outfile)
   (call-with-input-file infile
     (lambda (in)
-      (call-with-binary-output-file outfile
+      (call-with-raw-latin-1-output-file outfile
         (lambda (out)
           (do ((c (read-char in) (read-char in)))
               ((eof-object? c)
@@ -78,7 +83,7 @@
 ; Lines are terminated with LF, and there is no explicit end-of-file marker.
 
 (define (unix->native infile outfile)
-  (call-with-binary-input-file infile
+  (call-with-raw-latin-1-input-file infile
     (lambda (in)
       (call-with-output-file outfile
         (lambda (out)
@@ -91,7 +96,7 @@
 (define (native->unix infile outfile)
   (call-with-input-file infile
     (lambda (in)
-      (call-with-binary-output-file outfile
+      (call-with-raw-latin-1-output-file outfile
         (lambda (out)
           (do ((c (read-char in) (read-char in)))
               ((eof-object? c))

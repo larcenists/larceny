@@ -66,8 +66,11 @@
                (loop (cdr files)
                      (append inits (list (dump-file! heap filename)))))))))
 
+  ; FIXME:  Should use binary i/o here, but that must wait
+  ; for MzScheme to implement R6RS i/o.
+
   (delete-file tmp-file)
-  (let ((heap  (make-heap #f (open-binary-output-file tmp-file))))
+  (let ((heap  (make-heap #f (open-raw-latin-1-output-file tmp-file))))
     (before-all-files heap output-file input-files)
     (process-input-files heap)
     (heap.set-root! heap
@@ -262,7 +265,7 @@
 ; the order dumped.
 
 (define (dump-file! h filename)
-  (call-with-binary-input-file filename
+  (call-with-raw-latin-1-input-file filename
     (lambda (in)
       (let loop ((decls '()))
 	(let ((item (read in)))
@@ -628,9 +631,12 @@
            (loop (cdr symbols) res)))))
 
 
+; FIXME:  Should use binary i/o here, but that must wait
+; for MzScheme to implement R6RS i/o.
+
 (define (write-header h output-file)
   (delete-file output-file)
-  (call-with-binary-output-file output-file
+  (call-with-raw-latin-1-output-file output-file
     (lambda (out)
 
       (define (write-roots)
@@ -682,18 +688,20 @@
 			 
 ; Quasi-portable: use read-char and write-char.
 ; Needs to be read-byte and write-byte.
+; FIXME:  Should use binary i/o here, but that must wait
+; for MzScheme to implement R6RS i/o.
 
 (define (append-file-shell-command-portable file-to-append file-to-append-to)
   (rename-file file-to-append-to "HEAPDUMP.TEMP")
   (delete-file file-to-append-to)
-  (call-with-binary-output-file file-to-append-to
+  (call-with-raw-latin-1-output-file file-to-append-to
     (lambda (out)
-      (call-with-binary-input-file "HEAPDUMP.TEMP"
+      (call-with-raw-latin-1-input-file "HEAPDUMP.TEMP"
         (lambda (in)
           (do ((c (read-byte in) (read-byte in)))
               ((eof-object? c))
             (write-byte c out))))
-      (call-with-binary-input-file file-to-append
+      (call-with-raw-latin-1-input-file file-to-append
         (lambda (in)
           (do ((c (read-byte in) (read-byte in)))
               ((eof-object? c))

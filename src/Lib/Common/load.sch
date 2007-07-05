@@ -60,7 +60,7 @@
   ;; subsequent evaluations.
 
   (define (load-file)
-    (let ((p (open-binary-input-file filename)))
+    (let ((p (open-raw-latin-1-input-file filename)))
       (if (load-verbose)
           (begin
             (newline (current-output-port))

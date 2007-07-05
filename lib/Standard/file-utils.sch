@@ -9,6 +9,10 @@
 ;@doc FILE-UTILS file
 ;
 ; Procedures for processing files
+;
+; FIXME:  Some of the raw-latin-1 stuff should be binary,
+; and conversions of this kind should be done using the
+; R6RS i/o system anyway.
 
 (require 'io)
 
@@ -147,7 +151,7 @@
 ; current output port.
 
 (define (hexdump filename)
-  (call-with-binary-input-file filename
+  (call-with-raw-latin-1-input-file filename
     (lambda (in)
       (let ((chars (make-string 16)))
         (do ((i 0 (+ i 1))
@@ -185,7 +189,7 @@
 ; native format is.
 
 (define (translate-textfile-to-native in out)
-  (call-with-binary-input-file in
+  (call-with-raw-latin-1-input-file in
     (lambda (in)
       (delete-file out)
       (call-with-output-file out
@@ -239,10 +243,10 @@
 
 (define (cat-files input-files output-file)
   (delete-file output-file)
-  (call-with-binary-output-file output-file
+  (call-with-raw-latin-1-output-file output-file
     (lambda (out)
       (for-each (lambda (fn)
-                  (call-with-binary-input-file fn
+                  (call-with-raw-latin-1-input-file fn
                     (lambda (in)
                       (do ((c (read-char in) (read-char in)))
                           ((eof-object? c))

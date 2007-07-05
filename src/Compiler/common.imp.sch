@@ -316,7 +316,9 @@
                  abs negative? positive?
                  eqv? memv assv memq
                  map for-each
-                 lookahead-char get-char    ; FIXME
+                 lookahead-u8 get-u8
+                 lookahead-char get-char
+                 peek-char read-char
                  )
 
    ((,name:CALL r4rs ?proc ?exp)
@@ -658,6 +660,37 @@
       
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
 
+   ; The fast path for lookahead-u8 and get-u8.
+   ; FIXME:  This can be bummed further.
+
+   ((_ larceny lookahead-u8 (lookahead-u8 p0))
+    (let ((p p0))
+      (.check! (port? p) ,$ex.get-u8 p)
+      (let ((type (vector-like-ref p 0))           ; 0 = port.type
+            (buf  (vector-like-ref p 1))           ; 1 = port.mainbuf
+            (ptr  (vector-like-ref p 2))           ; 2 = port.mainptr
+            (lim  (vector-like-ref p 3)))          ; 3 = port.mainlim
+        (cond ((and (eq? type 2)
+                    (fx< ptr lim))
+               (bytevector-ref buf ptr))
+              (else
+               (io/get-u8 p #t))))))
+
+   ((_ larceny get-u8 (get-u8 p0))
+    (let ((p p0))
+      (.check! (port? p) ,$ex.get-u8 p)
+      (let ((type (vector-like-ref p 0))           ; 0 = port.type
+            (buf  (vector-like-ref p 1))           ; 1 = port.mainbuf
+            (ptr  (vector-like-ref p 2))           ; 2 = port.mainptr
+            (lim  (vector-like-ref p 3)))          ; 3 = port.mainlim
+        (cond ((and (eq? type 2)
+                    (fx< ptr lim))
+               (let ((byte (bytevector-ref buf ptr)))
+                 (vector-like-set! p 2 (fx+ ptr 1)); 2 = port.mainptr
+                 byte))
+              (else
+               (io/get-u8 p #f))))))
+
    ; The fast path for lookahead-char.
    ; FIXME:  This can be bummed further.
 
@@ -695,6 +728,20 @@
                      (.integer->char:trusted unit))
 
               (io/get-char p #f))))))
+
+   ; The fast path for peek-char and get-char.
+
+   ((_ larceny peek-char (peek-char))
+    (lookahead-char (current-input-port)))
+
+   ((_ larceny peek-char (peek-char p))
+    (lookahead-char p))
+
+   ((_ larceny read-char (read-char))
+    (get-char (current-input-port)))
+
+   ((_ larceny read-char (read-char p))
+    (get-char p))
 
    ; Default case: expand into the original expression.
 

@@ -302,7 +302,7 @@
   (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
 	(outfilefn   (if (and (pair? outfilename) 
 			      (eq? 'binary (cadr outfilename)))
-			 call-with-binary-output-file
+			 call-with-raw-latin-1-output-file
 			 call-with-output-file)))
     (define (attempt-compilation)
       (outfilefn outfilename
@@ -314,8 +314,9 @@
                                              (car infilename) 
                                              infilename))
                             (infilefn    (if (and (pair? infilename)
-                                                  (eq? 'binary (cadr infilename)))
-                                             call-with-binary-input-file
+                                                  (eq? 'binary
+                                                       (cadr infilename)))
+                                             call-with-raw-latin-1-input-file
                                              call-with-input-file)))
                         (infilefn infilename
                                   (lambda (inport)
@@ -351,7 +352,7 @@
   (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
 	(outfilefn   (if (and (pair? outfilename) 
 			      (eq? 'binary (cadr outfilename)))
-			 call-with-binary-output-file
+			 call-with-raw-latin-1-output-file
 			 call-with-output-file)))
     (delete-file outfilename)
     (outfilefn outfilename
@@ -364,7 +365,7 @@
 				  infilename))
 		 (infilefn    (if (and (pair? infilename)
 				       (eq? 'binary (cadr infilename)))
-				  call-with-binary-input-file
+				  call-with-raw-latin-1-input-file
 				  call-with-input-file)))
 	     (infilefn infilename
 		       (lambda (inport)

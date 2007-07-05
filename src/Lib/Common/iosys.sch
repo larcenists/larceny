@@ -314,6 +314,12 @@
 ; FIXME:  After v0.94, io/read-char and io/peek-char should
 ; just delegate to io/get-char.
 
+(define-syntax io/if
+  (syntax-rules ()
+   ((_ expr) #f)         ;FIXME: disabled for 0.95
+   ((_ expr) expr)
+   ))
+
 (define (io/read-char p)
   (if (port? p)
       (let ((type (vector-like-ref p port.type))
@@ -325,7 +331,7 @@
                      (begin (vector-like-set! p port.mainptr (+ ptr 1))
                             (integer->char unit))
                      (io/get-char p #f))))
-              ((eq? type type:binary-input)
+              ((io/if (eq? type type:binary-input))
                (let ((x (io/get-u8 p #f)))
                  (if (eof-object? x)
                      x
@@ -348,7 +354,7 @@
                  (if (< unit 128)
                      (integer->char unit)
                      (io/get-char p #t))))
-              ((eq? type type:binary-input)
+              ((io/if (eq? type type:binary-input))
                (let ((x (io/get-u8 p #t)))
                  (if (eof-object? x)
                      x
@@ -368,7 +374,7 @@
 (define (io/write-char c p)
   (if (port? p)
       (let ((type (vector-like-ref p port.type)))
-        (cond ((eq? type type:binary-output)
+        (cond ((io/if (eq? type type:binary-output))
                (let ((sv (char->integer c)))
                  (if (fx< sv 256)
                      (io/put-u8 p sv)

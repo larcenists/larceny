@@ -55,15 +55,14 @@
       (call-with-input-file fn-or-port slurp-port)
       (slurp-port fn-or-port)))
 
-; FIXME, ought to return bytevector.
-; FIXME, should accept a port too.
 (define (slurp-binary-file fn)
-  (call-with-binary-input-file fn
-    (lambda (in)
-      (do ((cs '()            (cons c cs))
-	   (c  (read-char in) (read-char in)))
-	  ((eof-object? c)
-	   (reverse cs))))))
+  (cond ((string? fn)
+         (call-with-port (open-file-input-port fn) slurp-binary-file))
+        ((and (input-port? fn)
+              (binary-port? fn))
+         (get-bytevector-all fn))
+        (else
+         (assertion-violation 'slurp-binary-file "illegal argument" fn))))
 
 (define (with-input-from-string s p)
   (with-input-from-port (open-input-string s) p))

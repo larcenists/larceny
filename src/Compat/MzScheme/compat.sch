@@ -241,13 +241,17 @@
 ;    (begin0 (proc out)
 ;            (close-output-port out))))
 
-(define open-binary-output-file open-output-file)
-(define open-binary-input-file open-input-file)
+(define open-raw-latin-1-output-file open-output-file)
+(define open-raw-latin-1-input-file open-input-file)
+(define call-with-raw-latin-1-output-file call-with-output-file)
+(define call-with-raw-latin-1-input-file call-with-input-file)
 
-(define call-with-binary-output-file call-with-output-file)
-(define call-with-binary-input-file call-with-input-file)
-(define with-binary-output-to-file with-output-to-file)
-(define with-binary-input-from-file with-input-from-file)
+; FIXME:  These names should go away as soon as possible.
+
+(define open-binary-input-file open-raw-latin-1-input-file)
+(define open-binary-output-file open-raw-latin-1-output-file)
+(define call-with-binary-input-file call-with-raw-latin-1-input-file)
+(define call-with-binary-output-file call-with-raw-latin-1-output-file)
 
 ;;;;;;;;;;;;;;;;
 ; JavaDot is now part of the larceny toplevel, and the compiler

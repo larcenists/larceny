@@ -29,6 +29,88 @@
   (close-open-files)
   (unspecified))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Deprecated procedures.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; For backwards compatibility, Larceny's old-style binary files
+; are represented by R6RS-style textual file ports with Latin-1
+; transcoding and no end-of-line conversion.
+
+; FIXME: fakes file options
+
+(define (open-raw-latin-1-input-file filename)
+  (open-file-input-port filename
+                        '()             ; FIXME: fake file options
+                        'block
+                        (make-transcoder (latin-1-codec) 'none 'ignore)))
+
+(define (open-raw-latin-1-output-file filename)
+  (open-file-output-port filename
+                         '()             ; FIXME: fake file options
+                         'block
+                         (make-transcoder (latin-1-codec) 'none 'ignore)))
+
+(define (call-with-raw-latin-1-input-file file proc)
+  (let ((port (open-raw-latin-1-input-file file)))
+    (let ((r (proc port)))
+      (close-input-port port)
+      r)))
+
+(define (call-with-raw-latin-1-output-file file proc)
+  (let ((port (open-raw-latin-1-output-file file)))
+    (let ((r (proc port)))
+      (close-output-port port)
+      r)))
+
+(define (with-input-from-raw-latin-1-file fn thunk)
+  (call-with-raw-latin-1-input-file fn
+    (lambda (p)
+      (with-input-from-port p thunk))))
+
+(define (with-output-to-raw-latin-1-file fn thunk)
+  (call-with-raw-latin-1-output-file fn
+    (lambda (p)
+      (with-output-to-port p thunk))))
+
+; FIXME:  These names should go away as soon as possible.
+
+(define open-binary-input-file open-raw-latin-1-input-file)
+(define open-binary-output-file open-raw-latin-1-output-file)
+(define call-with-binary-input-file call-with-raw-latin-1-input-file)
+(define call-with-binary-output-file call-with-raw-latin-1-output-file)
+(define with-input-from-binary-file with-input-from-raw-latin-1-file)
+(define with-output-to-binary-file with-output-to-raw-latin-1-file)
+
+; The main problem with these is that their names suggest
+; the presence of binary analogues.
+
+(define (open-text-input-file filename)
+  (file-io/open-file filename 'input 'text))
+
+(define (open-text-output-file filename)
+  (file-io/open-file filename 'output 'text))
+
+(define (call-with-text-input-file file proc)
+  (let ((port (open-text-input-file file)))
+    (let ((r (proc port)))
+      (close-input-port port)
+      r)))
+
+(define (call-with-text-output-file file proc)
+  (let ((port (open-text-output-file file)))
+    (let ((r (proc port)))
+      (close-output-port port)
+      r)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; End of deprecated procedures.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; Read-char has been re-coded in MAL for performance; see Lib/malcode.mal.
 ;
 ;(define (read-char . rest)
@@ -97,29 +179,17 @@
 (define (port-name p)
   (io/port-name p))
 
-(define (open-text-input-file filename)
-  (file-io/open-file filename 'input 'text))
-
-(define (open-text-output-file filename)
-  (file-io/open-file filename 'output 'text))
-
-; For backwards compatibility, Larceny's old-style binary files
-; are represented by R6RS-style textual file ports with Latin-1
-; transcoding and no end-of-line conversion.
-
-; FIXME: fakes file options
-
-(define (open-binary-input-file filename)
+(define (open-input-file filename)
   (open-file-input-port filename
                         '()             ; FIXME: fake file options
                         'block
-                        (make-transcoder (latin-1-codec) 'none 'ignore)))
+                        (native-transcoder)))
 
-(define (open-binary-output-file filename)
-  (file-io/open-file filename 'output 'binary))
-
-(define open-input-file open-binary-input-file)
-(define open-output-file open-binary-output-file)
+(define (open-output-file filename)
+  (open-file-output-port filename
+                         '()             ; FIXME: fake file options
+                         'block
+                         (native-transcoder)))
 
 (define (console-input-port)
   ((console-input-port-factory)))
@@ -176,32 +246,11 @@
          (error "flush-output-port: too many arguments.")
          #t)))
 
-(define (call-with-text-input-file file proc)
-  (let ((port (open-text-input-file file)))
-    (let ((r (proc port)))
-      (close-input-port port)
-      r)))
+(define (call-with-input-file file proc)
+  (call-with-port (open-input-file file) proc))
 
-(define (call-with-text-output-file file proc)
-  (let ((port (open-text-output-file file)))
-    (let ((r (proc port)))
-      (close-output-port port)
-      r)))
-
-(define (call-with-binary-input-file file proc)
-  (let ((port (open-binary-input-file file)))
-    (let ((r (proc port)))
-      (close-input-port port)
-      r)))
-
-(define (call-with-binary-output-file file proc)
-  (let ((port (open-binary-output-file file)))
-    (let ((r (proc port)))
-      (close-output-port port)
-      r)))
-
-(define call-with-input-file call-with-binary-input-file)
-(define call-with-output-file call-with-binary-output-file)
+(define (call-with-output-file file proc)
+  (call-with-port (open-output-file file) proc))
 
 (define (call-with-input-string str proc)
   (let ((port (open-input-string str)))
@@ -231,16 +280,6 @@
 
 (define (with-output-to-file fn thunk)
   (call-with-output-file fn
-    (lambda (p)
-      (with-output-to-port p thunk))))
-
-(define (with-input-from-binary-file fn thunk)
-  (call-with-binary-input-file fn
-    (lambda (p)
-      (with-input-from-port p thunk))))
-
-(define (with-output-to-binary-file fn thunk)
-  (call-with-binary-output-file fn
     (lambda (p)
       (with-output-to-port p thunk))))
 

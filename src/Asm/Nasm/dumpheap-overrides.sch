@@ -104,7 +104,7 @@
   (delete-file fasl-file)
   (let ((entrypoints '())
 	(bootstrap-id (or bootstrap-id (string-append ".petit-bootstrap-id-" *unique-id*))))
-    (call-with-binary-output-file fasl-file
+    (call-with-raw-latin-1-output-file fasl-file
       (lambda (out)
 	(if so-name
 	    (begin (display "(define " out)
@@ -215,7 +215,7 @@
 
   (let ((file-unique-id (string-append ".petit-bootstrap-id-" *unique-id*)))
     (delete-file fasl-name)
-    (call-with-binary-output-file fasl-name
+    (call-with-raw-latin-1-output-file fasl-name
       (lambda (out)
 	(dump-prologue file-unique-id out)
 	(do ((segments segments (cdr segments)))
