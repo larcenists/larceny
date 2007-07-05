@@ -243,25 +243,39 @@
     ;
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
+    ; Scanning for the start of a token.
+
     (define (scanner0)
       (define (loop c)
         (cond ((not (char? c))
                (accept 'eofobj))
-              ((char=? c #\()
-               (consumeChar)
-               (accept 'lparen))
-              ((char=? c #\))
-               (consumeChar)
-               (accept 'rparen))
               ((or (char=? c #\space)
-                   (char=? c #\newline)
-                   (char-whitespace? c))
-               (consumeChar)
-               (set! string_accumulator_length 0)
-               (loop (scanChar)))
+                   (char=? c #\newline))
+               (read-char input-port)
+               (loop (peek-char input-port)))
+#;            ((char=? c #\;)
+               (scanner1))
+#;            ((char=? c #\()
+               (read-char input-port)
+               (accept 'lparen))
+#;            ((char=? c #\))
+               (read-char input-port)
+               (accept 'rparen))
               (else
                (state0 c))))
-      (loop (scanChar)))
+      (loop (peek-char input-port)))
+
+    ; Consuming a semicolon comment.
+
+    (define (scanner1)
+      (define (loop c)
+        (cond ((not (char? c))
+               (accept 'eofobj))
+              ((char=? c #\newline)
+               (scanner0))
+              (else
+               (loop (read-char input-port)))))
+      (loop (read-char input-port)))
   
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
