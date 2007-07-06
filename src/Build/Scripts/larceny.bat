@@ -40,4 +40,8 @@ goto :EOF
 :finish
 
 %*
-exit %ERRORLEVEL%
+
+REM This causes the script to call exit in Cygwin, which passes the
+REM exit value back to the shell.  However, it will exit cmd.exe if
+REM called from cmd.exe and %SHELL% is set.
+if defined SHELL exit %ERRORLEVEL%
