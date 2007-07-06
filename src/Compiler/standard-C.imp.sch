@@ -187,6 +187,7 @@
     (.char?           1 char?            #f            36 ,:immortal ,:none #f)
     (.char->integer   1 char->integer    #f            37 ,:immortal ,:none #f)
     (.char->integer:chr 1 char->integer  #f            37 ,:immortal ,:none #f)
+    (.integer->char:trusted 1 integer->char #f         38 ,:immortal ,:none #f)
     (.--              1 --               #f            32 ,:immortal ,:none #t)
 
     ; FIXME: unspecified, undefined and -- should not be here with these 

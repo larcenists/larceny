@@ -1,11 +1,57 @@
 ; Copyright 1991 William Clinger
 ;
+; $Id$
+;
 ; Relatively target-independent information for Twobit's backend.
 ;
 ; 28 September 2000 / wdc
 ;
 ; Most of the definitions in this file can be extended or overridden by
 ; target-specific definitions.
+;
+; Twobit currently assumes the following hidden, specialized,
+; or trusted primops, which every target should support:
+;
+; .check!         (aka name:CHECK!)
+; .list           (aka name:LIST)
+; .cons           (aka name:CONS)
+; .car            (aka name:CAR)
+; .cdr            (aka name:CDR)
+; .make-cell      (aka name:MAKE-CELL)
+; .cell-ref       (aka name:CELL-REF)
+; .cell-set!      (aka name:CELL-SET!)
+; .fixnum?        (aka name:FIXNUM?)
+; .char?          (aka name:CHAR?)
+; .symbol?        (aka name:SYMBOL?)
+; 
+; .=:fix:fix
+; .<:fix:fix
+; .<=:fix:fix     (might not be necessary)
+; .>:fix:fix      (might not be necessary)
+; .>=:fix:fix
+; 
+; .--             (might not be necessary)
+; .+:idx:idx
+; .-:idx:idx
+; 
+; .integer->char:trusted
+; .char->integer:chr
+; 
+; .car:pair
+; .cdr:pair
+; 
+; .string-length:str
+; .string-ref:trusted
+; .string-set!:trusted
+; 
+; .ustring-length:str   (deprecated, might not be necessary)
+; .ustring-ref:trusted  (deprecated, might not be necessary)
+; .ustring-set!:trusted (deprecated, might not be necessary)
+; 
+; .vector-length:vec
+; .vector-ref:trusted
+; .vector-set!:trusted
+; .vector-set!:trusted:nwb
 
 (define twobit-sort
   (lambda (less? list) (compat:sort list less?)))
