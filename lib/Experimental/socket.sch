@@ -10,26 +10,79 @@
 ; but not sure.  gethostbyname works, at least.
 
 (require 'std-ffi)
-(require "Experimental/unix")
 (require 'common-syntax)
+(require 'srfi-0)
+
+(cond-expand
+  (unix
+    (require "Experimental/unix")
+    (define socket/sys/socket.h "sys/socket.h")
+    (define socket/netinet/in.h "netinet/in.h")
+    (define socket/netdb.h      "netdb.h")
+
+    (define (socket/invalid? s)
+      (= s -1))
+    (define (socket/error? s)
+      (= s -1))
+
+    (define socket/gethostbyname
+      (foreign-procedure "gethostbyname" '(string) 'unsigned))
+
+    (define socket/getservbyname
+      (foreign-procedure "getservbyname" '(string string) 'unsigned))
+
+    (define socket/accept      unix/accept)
+    (define socket/bind        unix/bind)
+    (define socket/connect     unix/connect)
+    (define socket/listen      unix/listen)
+    (define socket/setsockopt  unix/setsockopt)
+    (define socket/socket      unix/socket)
+    (define socket/perror      unix/perror)
+    )
+  (win32
+    (require "Experimental/winsock")
+    (define socket/sys/socket.h "Winsock2.h")
+    (define socket/netinet/in.h "Winsock2.h")
+    (define socket/netdb.h      "Winsock2.h")
+
+    (define (socket/invalid? s)
+      (= s winsock/INVALID_SOCKET))
+    (define (socket/error? s)
+      (= s winsock/SOCKET_ERROR))
+
+    (define socket/gethostbyname
+      (foreign-procedure "gethostbyname" '(string) 'unsigned 'stdcall))
+
+    (define socket/getservbyname
+      (foreign-procedure "getservbyname" '(string string) 'unsigned 'stdcall))
+
+    (define socket/accept      winsock/accept)
+    (define socket/bind        winsock/bind)
+    (define socket/connect     winsock/connect)
+    (define socket/listen      winsock/listen)
+    (define socket/setsockopt  winsock/setsockopt)
+    (define socket/socket      winsock/socket)
+    (define socket/perror      winsock/error)
+    ))
 
 (define (server-socket port)
   (call-with-current-continuation
    (lambda (return)
-     (let ((s (unix/socket unix/PF_INET unix/SOCK_STREAM unix/IPPROTO_TCP)))
-       (when (= s -1)
-         (unix/perror "socket")
+     (let ((s (socket/socket socket/PF_INET socket/SOCK_STREAM
+                              socket/IPPROTO_TCP)))
+       (when (socket/invalid? s)
+         (socket/perror "socket")
          (return #f))
        (let ((addr (make-sockaddr_in)))
-         (sockaddr_in.sin_family-set! addr unix/AF_INET)
+         (sockaddr_in.sin_family-set! addr socket/AF_INET)
          (sockaddr_in.sin_addr-set! addr (htonl (make-ip-addr 127 0 0 1)))
          (sockaddr_in.sin_port-set! addr (htons port))
          (set-socket-option:reuseaddr s)
-         (when (= -1 (unix/bind s addr (bytevector-length addr)))
-           (unix/perror "bind")
+         (when (socket/error? (socket/bind s addr (bytevector-length addr)))
+           (socket/perror "bind")
            (return #f))
-         (when (= -1 (unix/listen s 5))
-           (unix/perror "listen")
+         (when (socket/error? (socket/listen s 5))
+           (socket/perror "listen")
            (return #f))
          s)))))
 
@@ -37,20 +90,20 @@
   (let ((addr         (make-sockaddr_in))
 	(addrlen      (make-bytevector sizeof:int))
         (nonblocking? (memq 'nonblocking flags)))
-    (sockaddr_in.sin_family-set! addr unix/AF_INET)
+    (sockaddr_in.sin_family-set! addr socket/AF_INET)
     (%set-int addrlen 0 (bytevector-length addr))
     (if (and nonblocking?
              (null? (poll-descriptors (list s) '() #f)))
         (input-not-ready-handler s))
-    (let ((ns (unix/accept s addr addrlen)))
-      (if (= ns -1)
-	  (begin (unix/perror "accept")
+    (let ((ns (socket/accept s addr addrlen)))
+      (if (socket/invalid? ns)
+	  (begin (socket/perror "accept")
 		 (values #f #f))
 	  (values ns addr)))))
 
 ; FIXME: We can support asynchronous connect by setting O_NONBLOCK
 ; before the connect and then doing the POLL thing afterwards if connect
-; returns -1 and errno is EINPROGRESS, cf connect(3XN).
+; returns error and errno is EINPROGRESS, cf connect(3XN).
 
 (define (client-socket host port . flags)
   (let ((ip-number
@@ -65,28 +118,27 @@
 		   (if addresses
 		       (apply make-ip-addr (car addresses))
 		       (error "No such host: " host)))))))
-	(s (unix/socket unix/PF_INET unix/SOCK_STREAM unix/IPPROTO_TCP)))
-    (if (= s -1)
-	(begin (unix/perror "socket")
+	(s (socket/socket socket/PF_INET socket/SOCK_STREAM
+                           socket/IPPROTO_TCP)))
+    (if (socket/invalid? s)
+	(begin (socket/perror "socket")
 	       #f)
 	(let ((addr (make-sockaddr_in)))
-	  (sockaddr_in.sin_family-set! addr unix/AF_INET)
+	  (sockaddr_in.sin_family-set! addr socket/AF_INET)
 	  (sockaddr_in.sin_addr-set! addr (htonl ip-number))
 	  (sockaddr_in.sin_port-set! addr (htons port))
-	  (let ((r (unix/connect s addr (bytevector-length addr))))
-	    (if (= r -1)
-		(begin (unix/perror "connect")
+	  (let ((r (socket/connect s addr (bytevector-length addr))))
+	    (if (socket/error? r)
+		(begin (socket/perror "connect")
 		       #f)
 		s))))))
 
 (define (get-host-by-name hostname)
-  (let ((ptr (unix/gethostbyname hostname))
+  (let ((ptr (socket/gethostbyname hostname))
 	(buf (make-hostent)))
     (if (foreign-null-pointer? ptr)
-        (let ((h_errno (get-h-errno)))
-	  (display "gethostbyname: ")
-          (display (unix/strerror h_errno))
-          (newline)
+        (begin
+          (socket/perror "gethostbyname")
 	  (values #f #f #f))
 	(begin
 	  (peek-bytes ptr buf (bytevector-length buf))
@@ -95,14 +147,11 @@
 		  (hostent.h_addr_list buf))))))
 
 (define (get-service-by-name name . rest)
-  (let ((ptr (unix/getservbyname name (if (null? rest) #f (car rest))))
+  (let ((ptr (socket/getservbyname name (if (null? rest) #f (car rest))))
 	(buf (make-servent)))
     (if (foreign-null-pointer? ptr)
 	(begin 
-	  (display "get-service-by-name: ")
-	  (display name)
-	  (display " is not a known service.")
-	  (newline)
+          (socket/perror "getservicebyname")
 	  (values #f #f))
 	(begin
 	  (peek-bytes ptr buf (bytevector-length buf))
@@ -112,9 +161,9 @@
 (define (set-socket-option:reuseaddr socket)
   (let ((one (make-bytevector sizeof:int)))
     (%set-int one 0 1)
-    (let ((r (unix/setsockopt socket unix/SOL_SOCKET unix/SO_REUSEADDR one
-			      sizeof:int)))
-      (if (= r -1)
+    (let ((r (socket/setsockopt socket socket/SOL_SOCKET socket/SO_REUSEADDR
+                                one sizeof:int)))
+      (if (socket/error? r)
 	  (begin (perror "setsockopt")
 		 #f)
 	  #t))))
@@ -138,16 +187,6 @@
   (define (ntohl x) x)
   (define (ntohs x) x) ))
 
-;;; Libraries.
-
-; struct hostent *gethostbyname( const char *host )
-; struct servent *getservbyname( const char *service, const char *proto )
-
-(define unix/gethostbyname
-  (foreign-procedure "gethostbyname" '(string) 'unsigned))
-
-(define unix/getservbyname
-  (foreign-procedure "getservbyname" '(string string) 'unsigned))
 
 ;;; Constants
 
@@ -159,42 +198,39 @@
 (define inet.smtp/tcp 25)
 (define inet.finger/tcp 79)
 
-; From <sys/socket.h> and <bits/socket.h> and <asm/socket.h>
 
-;(define-c-inf (include<> "bits/socket.h") (include<> "asm/socket.h"))
+(define-c-info (include<> socket/sys/socket.h)
+  (const socket/AF_UNIX      int "AF_UNIX")
+  (const socket/AF_INET      int "AF_INET")
+  ;(const socket/PF_UNIX      int "PF_UNIX") ; Local
+  (const socket/PF_INET      int "PF_INET") ; TCP and UDP
+  (const socket/SOCK_STREAM  int "SOCK_STREAM") ; Stream socket
+  (const socket/SOCK_DGRAM   int "SOCK_DGRAM")  ; Datagram socket
+  (const socket/SOL_SOCKET   int "SOL_SOCKET")  ; options for socket level
+  (const socket/SO_DEBUG     int "SO_DEBUG") ; turn on debugging info recording
+  (const socket/SO_REUSEADDR int "SO_REUSEADDR") ; keep connections alive
+  (const socket/SO_TYPE      int "SO_TYPE")
+  (const socket/SO_ERROR     int "SO_ERROR")
+  (const socket/SO_DONTROUTE int "SO_DONTROUTE") ; just use interface addresses
+  (const socket/SO_BROADCAST int "SO_BROADCAST") ; permit sending of broadcast msgs
+  ;(const socket/SO_USELOOPBACK int "SO_USELOOPBACK") ; bypass hardware when possible
+  (const socket/SO_SNDBUF    int "SO_SNDBUF")    ; send buffer size
+  (const socket/SO_RCVBUF    int "SO_SNDBUF")    ; receive buffer size
+  (const socket/SO_KEEPALIVE int "SO_KEEPALIVE") ; keep connections alive
+  ;(const socket/OOBINLINE    int "SS_OOBINLINE") ; leave received OOB data in line
 
-(define-c-info (include<> "sys/socket.h")
-  (const unix/AF_UNIX      int "AF_UNIX")
-  (const unix/AF_INET      int "AF_INET")
-  ;(const unix/PF_UNIX      int "PF_UNIX") ; Local
-  (const unix/PF_INET      int "PF_INET") ; TCP and UDP
-  (const unix/SOCK_STREAM  int "SOCK_STREAM") ; Stream socket
-  (const unix/SOCK_DGRAM   int "SOCK_DGRAM")  ; Datagram socket
-  (const unix/SOL_SOCKET   int "SOL_SOCKET")  ; options for socket level
-  (const unix/SO_DEBUG     int "SO_DEBUG") ; turn on debugging info recording
-  (const unix/SO_REUSEADDR int "SO_REUSEADDR") ; keep connections alive
-  (const unix/SO_TYPE      int "SO_TYPE")
-  (const unix/SO_ERROR     int "SO_ERROR")
-  (const unix/SO_DONTROUTE int "SO_DONTROUTE") ; just use interface addresses
-  (const unix/SO_BROADCAST int "SO_BROADCAST") ; permit sending of broadcast msgs
-  ;(const unix/SO_USELOOPBACK int "SO_USELOOPBACK") ; bypass hardware when possible
-  (const unix/SO_SNDBUF    int "SO_SNDBUF")    ; send buffer size
-  (const unix/SO_RCVBUF    int "SO_SNDBUF")    ; receive buffer size
-  (const unix/SO_KEEPALIVE int "SO_KEEPALIVE") ; keep connections alive
-  ;(const unix/OOBINLINE    int "SS_OOBINLINE") ; leave received OOB data in line
-
-  ;(define unix/SO_NO_CHECK     11)
-  ;(define unix/SO_PRIORITY     12)
+  ;(define socket/SO_NO_CHECK     11)
+  ;(define socket/SO_PRIORITY     12)
   
-  (const unix/SO_LINGER    int "SO_LINGER") ; linger on close if data present (in seconds)
+  (const socket/SO_LINGER    int "SO_LINGER") ; linger on close if data present (in seconds)
   
-  ;(define unix/SO_BSDCOMPAT    14) 
+  ;(define socket/SO_BSDCOMPAT    14) 
 
   )
 
-(define-c-info (include<> "netinet/in.h")
-  (const unix/IPPROTO_TCP int "IPPROTO_TCP")
-  (const unix/IPPROTO_UDP int "IPPROTO_UDP"))
+(define-c-info (include<> socket/netinet/in.h)
+  (const socket/IPPROTO_TCP int "IPPROTO_TCP")
+  (const socket/IPPROTO_UDP int "IPPROTO_UDP"))
 
 ;;; Socket support code
 
@@ -210,44 +246,54 @@
 	(remainder (quotient n 256) 256)
 	(remainder n 256)))
 
-; From <netinet/in.h>
+(define (%get-string object offset)
+  (%peek-string (%get-pointer object offset)))
 
-(define (make-sockaddr_in)
-  (make-bytevector 16))
+(define-c-struct ("struct sockaddr_in" make-sockaddr_in
+                  (include<> socket/netinet/in.h))
+  ("sin_family"
+    (sockaddr_in.sin_family         %get-ushort)
+    (sockaddr_in.sin_family-set!    %set-ushort))
+  ("sin_port"
+    (sockaddr_in.sin_port           %get-ushort)
+    (sockaddr_in.sin_port-set!      %set-ushort))
+  ("sin_addr"
+    (sockaddr_in.sin_addr           %get-uint)
+    (sockaddr_in.sin_addr-set!      %set-uint)))
 
-(define (sockaddr_in.sin_family x) (%get-ushort x 0))
-(define (sockaddr_in.sin_port x)   (%get-ushort x 2))
-(define (sockaddr_in.sin_addr x)   (%get-uint x 4))
 
-(define (sockaddr_in.sin_family-set! x fam) (%set-ushort x 0 fam))
-(define (sockaddr_in.sin_port-set! x port)  (%set-ushort x 2 port))
-(define (sockaddr_in.sin_addr-set! x addr)  (%set-uint x 4 addr))
+(define-c-struct ("struct hostent" make-hostent
+                  (include<> socket/netdb.h))
+  ("h_name"
+    (hostent.h_name %get-string))
+  ("h_aliases"
+    (hostent.h_aliases
+      (lambda (x off)
+        (%peek-pointer-array (%get-pointer x off) %peek-string))))
+  ("h_addrtype"
+    (hostent.h_addrtype %get-int))
+  ("h_addr_list"
+    (hostent.h_addr_list
+      (lambda (x off)
+        (%peek-pointer-array (%get-pointer x off)
+                             (lambda (addr)
+                               ;; 4 is the size of an AF_INET address
+                               (let ((x (make-bytevector 4)))
+                                 (peek-bytes addr x 4)
+                                 (bytevector->list x))))))))
 
-; From <netdb.h>
 
-(define (make-hostent)
-  (make-bytevector 20))
-
-(define (hostent.h_name x) (%peek-string (%get-pointer x 0)))
-(define (hostent.h_aliases x)
-  (%peek-pointer-array (%get-pointer x 4) %peek-string))
-(define (hostent.h_addrtype x) (%get-int x 8))
-(define (hostent.h_addr_list x)
-  (%peek-pointer-array (%get-pointer x 16) 
-                       (lambda (addr)
-                         (let ((x (make-bytevector 4)))
-                           (peek-bytes addr x 4)
-                           (bytevector->list x)))))
-
-; From <netdb.h>
-
-(define (make-servent)
-  (make-bytevector 16))
-
-(define (servent.s_name x) (%peek-string (%get-pointer x 0)))
-(define (servent.s_aliases x)
-  (%peek-pointer-array (%get-pointer x 4) %peek-string))
-(define (servent.s_port x) (%get-int x 8))
-(define (servent.s_proto x) (%peek-string (%get-pointer x 12)))
+(define-c-struct ("struct servent" make-servent
+                  (include<> socket/netdb.h))
+  ("s_name"
+    (servent.s_name %get-string))
+  ("s_aliases"
+    (servent.s_aliases
+      (lambda (x off)
+        (%peek-pointer-array (%get-pointer x off) %peek-string))))
+  ("s_port"
+    (servent.s_port %get-int))
+  ("s_proto"
+    (servent.s_proto %get-string)))
 
 ; eof
