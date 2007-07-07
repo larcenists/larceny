@@ -69,48 +69,56 @@
 
 (require 'srfi-0)
 (require 'define-record)
+(require "Experimental/socket")
 
 (cond-expand
  (unix
-
   ; GET-HOST-BY-NAME and GET-SERVICE-BY-NAME are supplied by
   ; experimental/socket
-
-  (require "Experimental/socket")
   (require 'unix-descriptor)
 
-  (define-record socket-representation (fd flags in out))
+  (define open-input-socket  open-input-descriptor)
+  (define open-output-socket open-output-descriptor)
+  )
+ (win32
+  (require 'winsock-descriptor)
 
-  (define (make-server-socket port . flags)
-    (let ((fd (server-socket port)))
-      (make-socket-representation fd flags #f #f)))
-
-  (define (server-socket-accept s) 
-    (let-values (((ns addr)
-		  (apply wait-for-connection-on-server-socket 
-			 (socket-representation-fd s)
-			 (if (memq 'nonblocking 
-				   (socket-representation-flags s))
-			     (error 'server-socket-accept ": nonblocking ports support disabled.")
-			     '()))))
-	(values (make-socket-representation ns '() #f #f) 
-		(parse-ip-addr (ntohl (sockaddr_in.sin_addr addr))))))
-
-  (define (make-client-socket host port . flags)
-    (let ((fd (client-socket host port)))
-      (make-socket-representation fd flags #f #f)))
-
-  (define (socket-input-port s) 
-    (or (socket-representation-in s)
-	(let ((p (open-input-descriptor 
-                  (socket-representation-fd s))))
-	  (socket-representation-in-set! s p)
-	  p)))
-
-  (define (socket-output-port s)
-    (or (socket-representation-out s)
-	(let ((p (open-output-descriptor 
-                  (socket-representation-fd s))))
-	  (socket-representation-out-set! s p)
-	  p)))
+  (define open-input-socket  open-input-winsocket)
+  (define open-output-socket open-output-winsocket)
   ))
+
+(define-record socket-representation (sock flags in out))
+
+(define (make-server-socket port . flags)
+  (let ((sock (server-socket port)))
+    (make-socket-representation sock flags #f #f)))
+
+(define (server-socket-accept s) 
+  (let-values (((ns addr)
+                (apply wait-for-connection-on-server-socket 
+                       (socket-representation-sock s)
+                       (if (memq 'nonblocking 
+                                 (socket-representation-flags s))
+                           (error 'server-socket-accept
+                                  ": nonblocking ports support disabled.")
+                           '()))))
+      (values (make-socket-representation ns '() #f #f) 
+              (parse-ip-addr (ntohl (sockaddr_in.sin_addr addr))))))
+
+(define (make-client-socket host port . flags)
+  (let ((sock (client-socket host port)))
+    (make-socket-representation sock flags #f #f)))
+
+(define (socket-input-port s) 
+  (or (socket-representation-in s)
+      (let ((p (open-input-socket 
+                (socket-representation-sock s))))
+        (socket-representation-in-set! s p)
+        p)))
+
+(define (socket-output-port s)
+  (or (socket-representation-out s)
+      (let ((p (open-output-socket 
+                (socket-representation-sock s))))
+        (socket-representation-out-set! s p)
+        p)))
