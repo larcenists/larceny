@@ -15,9 +15,13 @@
   (foreign-file "Ws2_32.dll")))
 
 (define-c-info (include<> "Winsock2.h")
+  (sizeof winsock/size:WSADATA  int "WSADATA")
   (const winsock/INVALID_SOCKET int "INVALID_SOCKET")
-  (const winsock/SOCKET_ERROR int "SOCKET_ERROR")
-  (sizeof winsock/size:WSADATA int "WSADATA"))
+  (const winsock/SOCKET_ERROR   int "SOCKET_ERROR")
+  (const winsock/SD_RECEIVE     int "SD_RECEIVE")
+  (const winsock/SD_SEND        int "SD_SEND")
+  (const winsock/SD_BOTH        int "SD_BOTH")
+  )
 
 (define winsock/startup (foreign-procedure "WSAStartup" '(boxed boxed) 'int
                           'stdcall))
@@ -36,6 +40,15 @@
 
 (define winsock/connect (foreign-procedure "connect" '(int boxed int) 'int
                           'stdcall))
+
+(define winsock/recv    (foreign-procedure "recv" '(int boxed int int) 'int
+                          'stdcall))
+
+(define winsock/send    (foreign-procedure "send" '(int boxed int int) 'int
+                          'stdcall))
+
+(define winsock/shutdown
+  (foreign-procedure "shutdown" '(int int) 'int 'stdcall))
 
 (define winsock/closesocket
   (foreign-procedure "closesocket" '(int) 'int 'stdcall))

@@ -81,7 +81,7 @@
   (define open-output-socket open-output-descriptor)
   )
  (win32
-  (require 'winsock-descriptor)
+  (require "Experimental/winsock-descriptor")
 
   (define open-input-socket  open-input-winsocket)
   (define open-output-socket open-output-winsocket)
