@@ -193,7 +193,7 @@
 	(do ((i 0 (+ i 1)))
 	    ((>= i ntrees))
 	  (vector-set! trees i (makeTree treeHeight))
-	  (doYoungGenAlloc (* promoteRate ntrees treesize) words/dead))
+	  (doYoungGenAlloc (* promoteRate ntrees treeSize) words/dead))
 	(println "  (" nodes " nodes)")))
 
     ; Confirms that all trees are balanced and have the correct height.
