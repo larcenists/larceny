@@ -303,7 +303,7 @@
     (define (oldGenMut n)
       (do ((i 0 (+ i 1)))
 	  ((>= i (quotient n 2)))
-	(oldGenSwapSubTrees)))
+	(oldGenSwapSubtrees)))
 
     ; Does the amount of mutator work appropriate for n bytes of young-gen
     ; garbage allocation.
