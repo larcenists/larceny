@@ -16,8 +16,11 @@ provides a large set of procedures that, in Larceny, are
 defined using the procedures described below.
 
 proc:make-bytevector[kind="Integrable procedure",args="length",result="bytevector"]
+proc:make-bytevector[kind="Integrable procedure",args="length fill",result="bytevector"]
 
-Returns a bytevector of the desired length. The bytevector has not been initialized and most likely contains garbage. To initialize the bytevector uniformly, use bytevector-fill! (below); there is no optional initalization value. 
+Returns a bytevector of the desired length.
+If no second argument is given, then the bytevector has not
+been initialized and most likely contains garbage.
 
 _Operations on bytevector structures_
 

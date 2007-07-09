@@ -70,8 +70,7 @@ startup.sch, and the lib directory to /usr/local/lib/larceny.
 
 You should now be able to run Larceny by typing "`larceny`" at the
 Unix prompt, and similarly you should be able to run the Twobit
-compiler by typing "`twobit`". You can also bring up just the
-interpreter with the command "`larceny -small`".
+compiler by typing "`twobit`".
 
 === Larceny or Twobit?
 
@@ -98,17 +97,35 @@ to Twobit.
 
 Running "twobit.heap" is probably not useful unless you are doing
 compiler development, in which case you will need the source code as
-well as the binaries, or using Petit Larceny.  (In Petit Larceny,
+well as the binaries, or using Petit Larceny.
+
+WARNING: In Petit Larceny,
 the compiler may not be present in "larceny.heap".  Until this
 known bug is fixed, you will have to use "twobit.heap" when you
-want to compile files.)
+want to compile files.
 
 === Using Larceny
 
+==== Running Scheme files as scripts
+
+On Unix systems, the following command line will run the
+Scheme code in "myprogram.sch":
+
+    larceny -nobanner -- -e '(load "myprogram.sch")'
+
+To exit after normal termination of the program, change
+the Scheme expression above to
+
+
+    (begin (load "myprogram.sch") (exit))
+
+
+Pre-compiled programs will load faster.  See compile-file.
+
 ==== Interactive work
 
-When you start Larceny you will be presented with a signon message and
-the read-eval-print loop's prompt:
+When you start Larceny you will be presented with a banner
+message and the read-eval-print loop's prompt:
 
 ------------------------------------------------------------
 Larceny vX.Y <version_name> (MMM DD YYYY HH:MM:SS, precise:SunOS5:split)
@@ -117,8 +134,9 @@ Larceny vX.Y <version_name> (MMM DD YYYY HH:MM:SS, precise:SunOS5:split)
 ------------------------------------------------------------
     
 
-You can enter a Scheme expression at the prompt; it will be evaluated
-and its results printed as soon as it has been read.
+You can enter a Scheme expression at the prompt.
+After a complete expression has been read, it will
+be evaluated and its results printed.
 
 ==== Dealing with errors
 

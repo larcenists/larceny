@@ -17,8 +17,16 @@ Lexical syntax
 
 Larceny is now case-sensitive by default.
 This is controlled by Larceny's case-sensitive? parameter,
-which is affected by the #!r6rs, #!r5rs, #!larceny,
-#!fold-case, and #!no-fold-case flags.
+which is affected by the following flags:
+
+
+    #!r6rs
+    #!r5rs
+    #!larceny
+    #!fold-case
+    #!no-fold-case
+
+
 For the current semantics of these flags, please consult
 the Larceny developers' web page that describes
 http://larceny.ccs.neu.edu/larceny-trac/wiki/LexicalConversion[Larceny's
@@ -149,24 +157,19 @@ generate code.
 
 Larceny supports all procedures exported by the
 R6RS records procedural and R6RS records inspection
-libraries, but does not support inheritance for
-R6RS records.
+libraries.
 
-NOTE:  Larceny's representations would
-support inheritance just fine, but we were unable
-to make sense of make-record-constructor-descriptor
-as described by the R5.93RS draft.  Larceny's
-old-style records continue to support inheritance.
+Larceny's current implementation of the
+make-record-constructor-descriptor procedure
+requires the second argument to be #f.
 
-WARNING:  Larceny will continue to support old-style
-records so long as the R6RS record libraries are
-broken in such a fundamental way.  This can be
-confusing, since some of the Larceny's procedures
-have the same names as R6RS procedures, making it
-necessary to overload those procedures to work
-with both old-style and R6RS records.  We apologize
-for this mess, which was most definitely not of our
-making.
+WARNING:  Larceny continues to support its old-style
+records, which are almost but not quite compatible
+with R6RS records.  This can be confusing, since some
+of Larceny's procedures have the same names as R6RS
+procedures.  That made it necessary to overload those
+procedures to work with both old-style and R6RS records.
+We apologize for the mess.
 
 Input and output
 ~~~~~~~~~~~~~~~~
