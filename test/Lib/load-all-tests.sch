@@ -10,6 +10,7 @@
 (compile-file "string.sch")
 (compile-file "normalization.sch")
 (compile-file "bytevector.sch")
+(compile-file "io.sch")
 ;(compile-file "complex.sch")
 (compile-file "ctak.sch")
 (compile-file "dynamic-wind.sch")
@@ -29,6 +30,7 @@
 (load "string.fasl")			; Strings
 (load "normalization.fasl")		; String normalization
 (load "bytevector.fasl")
+(load "io.fasl")
 ;(load "complex.fasl")                   ; Complex numbers
 (load "ctak.fasl")			; Call/cc test
 (load "dynamic-wind.fasl")              ; Dynamic-wind test
@@ -54,6 +56,7 @@
         (run-normalization-tests)))
 
   (run-bytevector-tests)
+  (run-io-tests)
   (run-predicate-tests)
   (run-number-tests)
   (run-fact-tests)

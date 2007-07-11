@@ -34,9 +34,24 @@
 ;     not checking mutability
 ;     make-record-constructor-descriptor should check its arguments
 ;         and should create sealed and immutable records
-;     record-constructor isn't fully general
-;         (because the draft R6RS is incomprehensible on this)
+;     record-constructor may not be quite right
+;         (because the R5.97RS is still quite confusing)
 ;     the rtd-rtd should probably be sealed and opaque
+;
+; FIXME: the following representation would perform better:
+;     all structures are records
+;     slot 0 contains an extended inheritance hierarchy, a vector
+;     that vector always contains at least N elements
+;     element 0 of that vector holds the rtd
+;     element 1 holds the base rtd (which has no parent)
+;     element 2 holds an immediate child of the base rtd
+;     et cetera
+; Advantages:
+;     once you know r is a structure,
+;     you also know slot 0 is a vector with at least N elements
+;     so you can perform the type check by fetching and comparing
+;     provided the inheritance depth of the expected record type
+;     is no greater than N-1
 
 (define make-record-type)
 (define record-type-descriptor?)
@@ -145,6 +160,17 @@
                          r)
                       (vector-like-set! r (car indices) (car values)))))))))
 
+         ; Returns a thunk that creates an instance of rtd
+         ; with all of its fields initialized to unspecified values.
+
+         (define (record-constructor-raw rtd)
+           (assert-rtd rtd)
+           (let ((size (rtd-record-size rtd)))
+             (lambda ()
+               (let ((r (make-structure size)))
+                 (vector-like-set! r 0 rtd)
+                 r))))
+
          (define (record-predicate rtd)
            (assert-rtd rtd)
            (lambda (obj)
@@ -211,7 +237,7 @@
          ;       favored-cd          record constructor descriptor
          ;       )))
          
-         ; Magic definiton of *rtd-type*, predicate, and accessors because
+         ; Magic definition of *rtd-type*, predicate, and accessors because
          ; of circularity problems.
 
          (define *rtd-type*
@@ -483,15 +509,16 @@
                  (if (and (record-type-descriptor? rtd)
                           (rtd-r6rs? rtd)
                           (or (eq? #f parent-cd)
-                              (and (r6rs-constructor-descriptor? parent-cd)
+                              (and (r6rs-record-constructor-descriptor?
+                                    parent-cd)
                                    (< 0 (rtd-hierarchy-depth rtd))))
                           (or (eq? #f protocol)
                               (procedure? protocol)))
-                     (cond ((and (eq? #f parent-cd) (eq? #f protocol))
+                     (cond ((and #f (eq? #f parent-cd) (eq? #f protocol))
                             (record-constructor rtd #f))
-                           ((= 0 (rtd-hierarchy-depth rtd))
+                           ((and #f (= 0 (rtd-hierarchy-depth rtd)))
                             (protocol (record-constructor rtd #f)))
-                           ((eq? #f parent-cd)
+                           ((and #f (eq? #f parent-cd))
                             ; FIXME: I don't understand what the
                             ; draft R6RS says about this case.
                             ; What follows is my best guess.
@@ -515,11 +542,154 @@
                                             (rtd-name parent)
                                             nparent parent-values))))))
                            (else
-                            (error "Not implemented yet: record-constructor")))
+                            (r6rs-record-constructor-general-case rtd cd)))
                      (error
                       "Illegal arguments to record-constructor: "
                       rtd parent-cd protocol)))
                (error "Illegal argument to constructor-descriptor: " cd)))
+
+         ; Returns a procedure that constructs an instance of rtd
+         ; and initializes an initial segment of the fields
+         ; according to cd.
+
+         (define (r6rs-record-constructor-general-case rtd cd)
+           (define wna
+             "Wrong number of values supplied when constructing record: ")
+           (let* ((cd-rtd (r6rs-record-constructor-descriptor-rtd cd))
+                  (parent-cd
+                   (r6rs-record-constructor-descriptor-parent-cd cd))
+                  (protocol
+                   (or (r6rs-record-constructor-descriptor-protocol cd)
+                       (default-protocol rtd parent-cd cd-rtd)))) ; FIXME
+             (if (and (record-type-descriptor? cd-rtd)
+                      (rtd-r6rs? cd-rtd)
+                      (or (eq? #f parent-cd)
+                          (and (r6rs-record-constructor-descriptor?
+                                parent-cd)
+                               (< 0 (rtd-hierarchy-depth cd-rtd))))
+                      (or (eq? #f protocol)
+                          (procedure? protocol)))
+                 (cond ((and (eq? #f parent-cd) (eq? #f protocol))
+                        ; FIXME: can't happen because of default protocol
+                        (if (eq? rtd cd-rtd)
+                            (record-constructor rtd #f)
+                            (make-r6rs-constructor rtd cd-rtd)))
+                       ((= 0 (rtd-hierarchy-depth cd-rtd))
+                        ; parent-cd is #f
+                        (protocol
+                         (if (eq? rtd cd-rtd)
+                             (record-constructor rtd #f)
+                             (make-r6rs-constructor rtd cd-rtd))))
+                       ((eq? #f parent-cd)
+                        (let* ((parent (record-type-parent cd-rtd))
+                               (maker (make-r6rs-constructor rtd parent))
+                               (f (make-r6rs-initializer maker cd-rtd parent)))
+                          (protocol f)))
+                       (else
+                        (let* ((parent (record-type-parent cd-rtd))
+                               (maker (r6rs-record-constructor-general-case
+                                       rtd parent-cd))
+                               (f (make-r6rs-initializer maker cd-rtd parent)))
+                          (protocol f))))
+                 (error "Illegal argument to constructor-descriptor: " cd))))
+
+         ; Returns a default protocol for cd-rtd.
+         ; FIXME: the 5.97 draft specification contradicts itself
+         ; regarding whether a certain procedure takes one argument
+         ; for every field *including* parents or *excluding* parents.
+         ; What follows is my best guess.
+         ; FIXME: I have no idea.
+
+         (define (default-protocol rtd parent-cd cd-rtd)
+           (cond ((= 0 (rtd-hierarchy-depth cd-rtd))
+                  (lambda (x) x))
+                 ((and #f (not parent-cd))
+                  ; FIXME: I have no idea.
+                  (lambda (x) x))
+                 (else
+                  (let* ((parent (record-type-parent cd-rtd))
+                         (parent-fields (rtd-field-names parent))
+                         (cd-rtd-fields (rtd-field-names cd-rtd))
+                         (nparent (length parent-fields))
+                         (nthis (- (length cd-rtd-fields) nparent)))
+                    (lambda (n)
+                      (lambda args0
+                        (define (loop i args parent-args-reversed)
+                          (cond ((= i nparent)
+                                 (let* ((pargs (reverse parent-args-reversed))
+                                        (p (apply n pargs)))
+                                   (apply p args)))
+                                ((pair? args)
+                                 (loop (+ i 1)
+                                       (cdr args)
+                                       (cons (car args) parent-args-reversed)))
+                                (else
+                                 (assertion-violation
+                                  #f "too few arguments to record constructor"
+                                  args0))))
+                        (loop 0 args0 '())))))))
+
+         ; Returns a procedure that
+         ; takes one argument for each field of base-rtd,
+         ; creates an instance of derived-rtd,
+         ; initializes the instance's base-rtd fields to the arguments,
+         ; and returns the instance.
+
+         (define (make-r6rs-constructor derived-rtd base-rtd)
+           (let* ((base-fields (rtd-field-names base-rtd))
+                  (nargs (length base-fields))
+                  (nlimit (+ record-overhead nargs))
+                  (make-uninitialized-record
+                   (record-constructor-raw derived-rtd)))
+             (case nargs
+              (else
+               (lambda base-inits
+                 (let ((r (make-uninitialized-record)))
+                   (do ((inits base-inits (cdr inits))
+                        (offset record-overhead (+ offset 1)))
+                       ((= offset nlimit)
+                        (if (null? inits)
+                            r
+                            (error:constructor:wna derived-rtd base-inits)))
+                     (if (null? inits)
+                         (error:constructor:wna derived-rtd base-inits)
+                         (vector-like-set! r offset (car inits))))))))))
+
+         ; Given a partial constructor f for parent-rtd,
+         ; returns a partial constructor g for derived-rtd.
+         ;
+         ; The procedure g accepts any number of arguments
+         ; and returns a procedure h that
+         ; takes one argument for each field of derived-rtd
+         ; that is not a field of parent-rtd,
+         ; calls f on the arguments that were passed to g
+         ; to create a partially initialized record r,
+         ; initializes the appropriate fields of r
+         ; to the arguments that were passed to h,
+         ; and returns the instance r.
+
+         (define (make-r6rs-initializer f derived-rtd parent-rtd)
+           (let* ((parent-fields (rtd-field-names parent-rtd))
+                  (derived-fields (rtd-field-names derived-rtd))
+                  (nfields-parent (length parent-fields))
+                  (nfields-derived (length derived-fields))
+                  (nargs (- nfields-derived nfields-parent))
+                  (nstart (+ record-overhead nfields-parent))
+                  (nlimit (+ nstart nargs)))
+             (case nargs
+              (else
+               (lambda args
+                 (lambda derived-inits
+                   (let ((r (apply f args)))
+                     (do ((inits derived-inits (cdr inits))
+                          (offset nstart (+ offset 1)))
+                         ((= offset nlimit)
+                          (if (null? inits)
+                              r
+                              (error:constructor:wna rtd derived-inits)))
+                       (if (null? inits)
+                           (error:constructor:wna rtd derived-inits)
+                           (vector-like-set! r offset (car inits)))))))))))
 
          (define (r6rs-record-accessor rtd k)
            (assert-rtd rtd)
@@ -578,6 +748,12 @@
          (define (assert-index obj)
            (if (or (not (fixnum? obj)) (negative? obj))
                (error "Not an index: " obj)))
+
+         (define (error:constructor:wna rtd args)
+           (assertion-violation
+            #f
+            "wrong number of arguments to record constructor"
+            rtd args))
 
          (list 
           (lambda (name field-names . rest)
