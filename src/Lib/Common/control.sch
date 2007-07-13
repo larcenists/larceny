@@ -351,34 +351,53 @@
 ;; Library procedures
 
 ; continuation-mark-set?: Any -> Boolean
+
 (define continuation-mark-set?)
 
 ; continuation-marks: cont -> CMS
+
 (define continuation-marks)
 
 ; current-continuation-marks: -> CMS
+
 (define current-continuation-marks)
 
 ; continuation-mark-set->list: CMS x key -> (list-of mark)
+
 (define continuation-mark-set->list)
 
 ; continuation-mark-set->list*: CMS x (list-of key) [x A]
 ;    -> (list-of (vector-of mark+A))
+
 (define continuation-mark-set->list*)
 
 ; continuation-mark-set-first: CMS+#f x key -> mark+#f
+
 (define continuation-mark-set-first)
 
 ; call-if-continuation-mark-replace : key x (-> A) x (-> B) -> A+B
+
 (define call-if-continuation-mark-replace)
 
 (let ()
+
   ;; A CMS (continuation mark set) should be opaque.  Sadly, records aren't
   ;; available everywhere, so we'll make do with structures:
-  (define cms-tag (list 'cms-tag))
+  ;;
+  ;; Note that those structures must contain a fake record
+  ;; hierarchy in slot 0, to avoid breaking our new improved
+  ;; implementation of records.
+  ;;
+  ;; FIXME: the 15 should be large enough, but that depends
+  ;; on the record invariant.
+
+  (define cms-tag
+    (let ((fake-hierarchy (make-vector 15 #f)))
+      (vector-set! fake-hierarchy 0 (list 'cms-tag))
+      fake-hierarchy))
 
   (define (cms-box alists)
-    (let ((cms (make-structure 2)))
+    (let ((cms (make-structure 3)))
       (vector-like-set! cms 0 cms-tag)
       (vector-like-set! cms 1 alists)
       cms))
@@ -401,6 +420,7 @@
   ;; into _that_ procedure the find the actual continuation that has
   ;; *cms* in one of its slots.  THUS, if anything changes, this
   ;; probably breaks.
+
   (set! continuation-marks
     (lambda (k)
       (cms-box

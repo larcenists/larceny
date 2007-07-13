@@ -4,6 +4,15 @@
 ;
 ; Larceny library -- structures.
 
+; Beginning with v0.95, every structure must satisfy this invariant:
+;
+;     The size of the structure is at least 1,
+;     and element 0 of the structure is a vector
+;     with at least record:hierarchy:min elements,
+;     where record:hierarchy:min is defined in lib/Base/record.sch
+;
+; The purpose of this invariant is to make records faster.
+
 ($$trace "struct")
 
 (define (make-structure size)

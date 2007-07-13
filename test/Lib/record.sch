@@ -6,7 +6,8 @@
   (record-test-1)
   (record-test-r6rs-0)
   (record-test-r6rs-1)
-  (record-test-r6rs-2))
+  (record-test-r6rs-2)
+  (record-test-r6rs-3))
 
 (define (record-test-0)
   (let* ((pt2 (make-record-type "pt2" '(x y)))
@@ -548,3 +549,67 @@
 )
 
 ))
+
+
+(define (record-test-r6rs-3)
+
+  (let* ((rtd1
+          (make-record-type-descriptor
+           'rtd1 #f #f #f #f '#((immutable x1) (immutable x2))))
+
+         (rtd2
+          (make-record-type-descriptor
+           'rtd2 rtd1 #f #f #f '#((immutable x3) (immutable x4))))
+
+         (rtd3
+          (make-record-type-descriptor
+           'rtd3 rtd2 #f #f #f '#((immutable x5) (immutable x6))))
+
+         (protocol1
+          (lambda (p)
+            (lambda (a b c)
+              (p (+ a b) (+ b c)))))
+
+         (protocol2
+          (lambda (n)
+            (lambda (a b c d e f)
+              (let ((p (n a b c)))
+                (p (+ d e) (+ e f))))))
+
+         (protocol3
+          (lambda (n)
+            (lambda (a b c d e f g h i)
+              (let ((p (n a b c d e f)))
+                (p (+ g h) (+ h i))))))
+
+         (cd1
+          (make-record-constructor-descriptor rtd1 #f protocol1))
+
+         (cd2
+          (make-record-constructor-descriptor rtd2 cd1 protocol2))
+
+         (cd3
+          (make-record-constructor-descriptor rtd3 cd2 protocol3))
+
+         (make-rtd1 (record-constructor cd1))
+
+         (make-rtd2 (record-constructor cd2))
+
+         (make-rtd3 (record-constructor cd3))
+
+         (x1 (record-accessor rtd1 0))
+         (x2 (record-accessor rtd1 1))
+         (x3 (record-accessor rtd2 0))
+         (x4 (record-accessor rtd2 1))
+         (x5 (record-accessor rtd3 0))
+         (x6 (record-accessor rtd3 1))
+
+         (obj3 (make-rtd3 1 2 3 4 5 6 7 8 9)))
+
+    (allof
+     (test "(x1 obj3)" (x1 obj3) 3)
+     (test "(x2 obj3)" (x2 obj3) 5)
+     (test "(x3 obj3)" (x3 obj3) 9)
+     (test "(x4 obj3)" (x4 obj3) 11)
+     (test "(x5 obj3)" (x5 obj3) 15)
+     (test "(x6 obj3)" (x6 obj3) 17))))

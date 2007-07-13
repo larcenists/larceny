@@ -68,7 +68,17 @@
 ; behind the back of this interface, so we must check the macro env
 ; every time.
 
-(define *environment-key* (vector 'environment))
+; Note that those structures must contain a fake record
+; hierarchy in slot 0, to avoid breaking our new improved
+; implementation of records.
+;
+; FIXME: the 15 should be large enough, but that depends
+; on the record invariant.
+
+(define *environment-key*
+  (let ((fake-hierarchy (make-vector 15 #f)))
+    (vector-set! fake-hierarchy 0 (list 'environment))
+    fake-hierarchy))
 
 (define (make-environment name)
   (let ((env (make-structure 6)))

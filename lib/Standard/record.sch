@@ -14,6 +14,19 @@
 ;   * Record-type-descriptors are records
 ;   * There are installable record printers
 
+; FIXME:  This implementation of records is deprecated.
+; FIXME:  Indeed it is now broken.  It is incompatible
+; with the current implementation of records,
+; and violates a new system invariant for structures.
+;
+; I don't think this file is used by Larceny.
+; The following illegal syntax should detect any uses of this file
+; by breaking anything that attempts to read it.
+
+(begin (display "/lib/Standard/record.sch is deprecated")
+       (newline)
+       #\deprecated)
+
 (define make-record-type)
 (define record-type-descriptor?)
 (define record-type-field-names)

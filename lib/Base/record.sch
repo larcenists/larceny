@@ -53,6 +53,8 @@
 ;     provided the inheritance depth of the expected record type
 ;     is no greater than N-1
 
+(define record:hierarchy:min 7)
+
 (define make-record-type)
 (define record-type-descriptor?)
 (define record-type-field-names)         ; overloaded for R6RS
@@ -98,18 +100,31 @@
          ; Records
          
          ; RECORD-WITH-TYPE? assumes rtd is in fact an rtd.
+         ; FIXME: reliance on the invariant would make this much faster,
+         ; but we should check the invariant until this is debugged.
 
          (define (record-with-type? obj rtd)
            (and (structure? obj)
                 (> (vector-like-length obj) 0)
                 (let ((slot0 (vector-like-ref obj 0)))
-                  (or (eq? rtd slot0)
-                      (rtd-extends? slot0 rtd)))))
+                  (and (vector? slot0)
+                       (>= (vector-length slot0) record:hierarchy:min)
+                       (let ((obj-rtd (vector-ref slot0 0)))
+                         (or (eq? rtd obj-rtd)
+                             (rtd-extends? obj-rtd rtd)))))))
+
+         ; FIXME: reliance on the invariant would make this much faster,
+         ; but we should check the invariant until this is debugged.
 
          (define (record? obj)
            (and (structure? obj)
                 (> (vector-like-length obj) 0)
-                (record-type-descriptor? (vector-like-ref obj 0))))
+                (let ((slot0 (vector-like-ref obj 0)))
+                  (and (vector? slot0)
+                       (>= (vector-length slot0) record:hierarchy:min)
+                       (record-type-descriptor? (vector-ref slot0 0))))))
+
+         ; FIXME: constant offsets would save a few load instructions
 
          (define (record-constructor rtd fields)
            (assert-rtd rtd)
@@ -123,7 +138,7 @@
                   (make-the-record
                    (lambda ()
                      (let ((r (make-structure size)))
-                       (vector-like-set! r 0 rtd)
+                       (vector-like-set! r 0 (rtd-hierarchy-vector rtd))
                        r))))
              (case n
                ((1) (let ((a-offset (car indices)))
@@ -155,7 +170,8 @@
                          (values  values  (cdr values)))
                         ((null? indices)
                          (if (not (null? values))
-                             (error "Too many arguments to constructor for "
+                             (error #f
+                                    "too many arguments to record constructor"
                                     rtd))
                          r)
                       (vector-like-set! r (car indices) (car values)))))))))
@@ -168,7 +184,7 @@
            (let ((size (rtd-record-size rtd)))
              (lambda ()
                (let ((r (make-structure size)))
-                 (vector-like-set! r 0 rtd)
+                 (vector-like-set! r 0 (rtd-hierarchy-vector rtd))
                  r))))
 
          (define (record-predicate rtd)
@@ -192,7 +208,7 @@
 
          (define (record-type-descriptor rec)
            (assert-record rec)
-           (vector-like-ref rec 0))
+           (vector-ref (vector-like-ref rec 0) 0))
 
          (define (record-indexer rtd)
            (assert-rtd rtd)
@@ -259,14 +275,19 @@
 
                   (x 
                    (make-structure (+ record-overhead (length slot-offsets))))
+                  (x-hierarchy
+                   (let ((v (make-vector record:hierarchy:min #f)))
+                     (vector-set! v 0 x)
+                     (vector-set! v 1 x)
+                     v))
                   (name
                    "record-type-descriptor-type"))
-             (vector-like-set! x 0 x)
+             (vector-like-set! x 0 x-hierarchy)
              (vector-like-set! x 1 name)
              (vector-like-set! x 2 slot-offsets)
              (vector-like-set! x 3 #f)
              (vector-like-set! x 4 (vector-like-length x))
-             (vector-like-set! x 5 (vector x))
+             (vector-like-set! x 5 x-hierarchy)
              (vector-like-set! x 6 0)
              ;
              (vector-like-set! x 7 #f)
@@ -281,18 +302,25 @@
          ; Hairy because record type descriptors are themselves record
          ; types that can be extended.  The logic here is: if the object
          ; looks like a record type descriptor, and its slot 0 looks
-         ; like a record type descriptor, and slot 0 is a subtype of
+         ; like the hierarchy vector of a record type descriptor,
+         ; and element 0 of that hierarchy vector is a subtype of
          ; *rtd-type*, then the object is a record type descriptor.
+
+         ; FIXME: reliance on the invariant would make this much faster,
+         ; but we should check the invariant until this is debugged.
 
          (define (record-type-descriptor? obj)
            (and (structure? obj)
                 (> (vector-like-length obj) 0)
                 (let ((slot0 (vector-like-ref obj 0)))
-                  (and (structure? obj)
-                       (and (>= (vector-like-length slot0) 
-                                (vector-like-length *rtd-type*))
-                            (vector? (rtd-hierarchy-vector slot0))
-                            (rtd-extends? slot0 *rtd-type*))))))
+                  (and (vector? slot0)
+                       (>= (vector-length slot0) record:hierarchy:min)
+                       (let ((rtd (vector-ref slot0 0)))
+                         (and (structure? rtd)
+                              (>= (vector-like-length rtd) 
+                                  (vector-like-length *rtd-type*))
+                              (vector? (rtd-hierarchy-vector rtd))
+                              (rtd-extends? rtd *rtd-type*)))))))
 
          (define (rtd-name rtd)
            (vector-like-ref rtd (+ record-overhead 0)))
@@ -342,13 +370,13 @@
 
          ; r1 extends r2 
          ;    iff 
-         ; r1.type-hierarchy-vector[ r2.type-hierarchy.depth ] = r2
+         ; r1.type-hierarchy-vector[ r2.type-hierarchy.depth + 1 ] = r2
 
          (define (rtd-extends? r1 r2)
            (let ((r1-vector (rtd-hierarchy-vector r1))
                  (r2-depth  (rtd-hierarchy-depth r2)))
-             (and (< r2-depth (vector-length r1-vector))
-                  (eq? (vector-ref r1-vector r2-depth) r2))))
+             (and (< r2-depth (- (vector-length r1-vector) 1))
+                  (eq? (vector-ref r1-vector (+ r2-depth 1)) r2))))
 
          (define (make-record-type type-name field-names parent)
            (or (not parent) (assert-rtd parent))
@@ -362,11 +390,13 @@
                        (+ 1 (rtd-hierarchy-depth parent))
                        0))
                   (hierarchy-vector
-                   (let ((v (make-vector (+ hierarchy-depth 1))))
+                   (let ((v (make-vector (max record:hierarchy:min
+                                              (+ hierarchy-depth 2))
+                                         #f)))
                      (if parent
                          (let ((pv (rtd-hierarchy-vector parent)))
-                           (do ((i 0 (+ i 1)))
-                               ((= i hierarchy-depth))
+                           (do ((i 1 (+ i 1)))
+                               ((> i hierarchy-depth))
                              (vector-set! v i (vector-ref pv i)))))
                      v)))
              (let ((rtd ((record-constructor *rtd-type* #f)
@@ -377,7 +407,8 @@
                          hierarchy-vector
                          hierarchy-depth
                          #f #f #f #f #f #f #f)))
-               (vector-set! hierarchy-vector hierarchy-depth rtd)
+               (vector-set! hierarchy-vector 0 rtd)
+               (vector-set! hierarchy-vector (+ hierarchy-depth 1) rtd)
                rtd)))
 
          (define (record-type-field-names rtd)
@@ -401,7 +432,7 @@
            (assert-rtd rtd)
            (if (> (rtd-hierarchy-depth rtd) 0)
                (vector-ref (rtd-hierarchy-vector rtd)
-                           (- (rtd-hierarchy-depth rtd) 1))
+                           (rtd-hierarchy-depth rtd))
                #f))
 
          ; R6RS extensions
@@ -465,11 +496,13 @@
                                 (+ 1 (rtd-hierarchy-depth parent))
                                 0))
                            (hierarchy-vector
-                            (let ((v (make-vector (+ hierarchy-depth 1))))
+                            (let ((v (make-vector (max record:hierarchy:min
+                                                       (+ hierarchy-depth 2))
+                                                  #f)))
                               (if parent
                                   (let ((pv (rtd-hierarchy-vector parent)))
-                                    (do ((i 0 (+ i 1)))
-                                        ((= i hierarchy-depth))
+                                    (do ((i 1 (+ i 1)))
+                                        ((> i hierarchy-depth))
                                       (vector-set! v i (vector-ref pv i)))))
                               v))
                            (rtd ((record-constructor *rtd-type* #f)
@@ -482,7 +515,8 @@
                                  #t uid sealed? opaque?
                                  names mutabilities #f)))
 
-                      (vector-set! hierarchy-vector hierarchy-depth rtd)
+                      (vector-set! hierarchy-vector 0 rtd)
+                      (vector-set! hierarchy-vector (+ hierarchy-depth 1) rtd)
                       rtd))
 
                  (if (let ((field (car fields)))

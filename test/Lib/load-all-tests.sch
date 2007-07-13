@@ -22,6 +22,7 @@
 (compile-file "pred.sch")
 (compile-file "regression.sch")
 (compile-file "wcm.sch")
+(compile-file "record.sch")
 
 (load "test.fasl")			; Scaffolding
 
@@ -42,6 +43,7 @@
 (load "pred.fasl")                      ; Predicates
 (load "regression.fasl")		; Past error cases
 (load "wcm.fasl")                       ; Continuation marks
+(load "record.fasl")                    ; Records
 
 (define (run-all-tests)
   (run-boolean-tests)
@@ -67,6 +69,7 @@
   (run-regression-tests)
   (run-fixnum-tests)
   (run-wcm-tests)
+  (run-record-tests)
   )
 
 
