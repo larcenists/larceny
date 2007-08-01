@@ -33,7 +33,8 @@
 ;;;
 ;;;=================================================================================
 
-(load "compat-mzscheme.scm")
+(require "VanTonderMacros/compat-larceny.scm")
+;; (load "compat-mzscheme.scm")
 ;; (load "compat-larceny.scm")
 ;; (load "compat-chez.scm")
 
