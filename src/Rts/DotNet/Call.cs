@@ -350,7 +350,7 @@ namespace Scheme.RT {
                     return null;
                 }
             } else if (support == Factory.Undefined) {
-                Exn.internalError("millicode-support is not defined");
+                Exn.internalError("millicode-support is not defined (index: "+index+")");
                 return null;
             } else {
                 Exn.internalError("millicode-support is not a vector");

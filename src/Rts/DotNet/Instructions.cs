@@ -36,7 +36,9 @@ public sealed class Instructions
     //            Reg.Result = cell.first;
     //        }
 
+    // Console.WriteLine("global lookup: " + name + " " + index);    
     SObject value = thisProc.constants[index].op_cell_ref();
+    
     if (value == Factory.Undefined) {
 	Exn.fault (Constants.EX_UNDEF_GLOBAL,
 		   "reference to unbound global: " + name,

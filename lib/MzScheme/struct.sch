@@ -35,8 +35,11 @@
 (define struct-predicate-procedure?)
 (define struct-constructor-procedure?)
 
+($$trace "struct biglet")
+
 ;; define-record is nowhere to be found.
-(let* (
+(let* ((*record-type-type*
+        (record-rtd (make-record-type 'fake '())))
 
        ;; The struct-type-descriptor type is a subtype of the
        ;; record-type-descriptor type.  (Say that five times fast!)
@@ -230,6 +233,7 @@
            (lambda (n) (string->symbol
                         (string-append "field-" (number->string n))))))
       (lambda (name super init-field-k auto-field-k . rest)
+        ($$trace "make-struct-type* 001")
         ;; no opt-lambda, sorry...
         (let* ((defaults '(#f ;; auto-fill value
                            () ;; property value list
@@ -240,7 +244,7 @@
                (opts (append rest
                              (drop (length rest) defaults)))
                (opts (list->vector opts)))
-
+          ($$trace "make-struct-type* 005")
           (let ((auto-v (vector-ref opts 0))
                 (prop-values (vector-ref opts 1))
                 (inspector (vector-ref opts 2))
@@ -255,30 +259,42 @@
                           (offset->name (+ n offset))))
 
                       (nats-to (+ init-field-k auto-field-k)))))
-
+            ($$trace "make-struct-type* 020")
             ;; Make a record-type, and then use accessors to transfer
             ;; the data into a struct-type
             (let ((rtd (make-record-type name
                                          field-names
                                          super)))
+              ($$trace "make-struct-type* 030")
               (let ((hierarchy-vec (get-hier-vector rtd))
                     (hierarchy-depth (get-hier-depth rtd)))
-
-                (let ((st (make-stype
-                           (record-type-name rtd)
-                           (get-slots rtd)
-                           (get-printer rtd)
-                           (get-record-size rtd)
-                           hierarchy-vec
-                           hierarchy-depth
-                           ;;
-                           init-field-k
-                           auto-field-k
-                           auto-v
-                           prop-values
-                           inspector
-                           proc-spec
-                           immutable-k-list)))
+                ($$trace "make-struct-type* 040")
+                (let* ((rtn (record-type-name rtd))
+                       (ign ($$trace "make-struct-type* 042"))
+                       (slts (get-slots rtd))
+                       (ign ($$trace "make-struct-type* 043"))
+                       (pr   (get-printer rtd))
+                       (ign ($$trace "make-struct-type* 044"))
+                       (sz   (get-record-size rtd))
+                       (ign ($$trace "make-struct-type* 045"))
+                       (st (make-stype
+                            rtn
+                            slts
+                            pr
+                            sz
+                            hierarchy-vec
+                            hierarchy-depth
+                            #f #f #f #f 
+                            #f #f #f
+                            ;;
+                            init-field-k
+                            auto-field-k
+                            auto-v
+                            prop-values
+                            inspector
+                            proc-spec
+                            immutable-k-list)))
+                  ($$trace "make-struct-type* 050")
                   ;; Still need to invoke a bit of voodoo:
                   ;; make-record-type leaves the hierarchy-vector entry
                   ;; as a record-type-descriptor, but we want our
@@ -287,11 +303,12 @@
 
                   (let ((predicate (struct-predicate st))
                         (constructor (struct-constructor st)))
+                    ($$trace "make-struct-type* 060")
                     (let ((accessor
                            (struct-accessor st predicate))
                           (mutator
                            (struct-mutator st predicate)))
-
+                      ($$trace "make-struct-type* 070")
                       (values st
                               constructor
                               predicate
@@ -432,6 +449,11 @@
   (set! struct-predicate-procedure? struct-predicate-procedure?*)
   (set! struct-constructor-procedure? struct-constructor-procedure?*)
   )
+($$trace "struct past biglet")
+
+(make-struct-type 'tup0 #f 2 0)
+
+($$trace "struct past biglet 000")
 
 ;; Quick test cases from the MzScheme manual
 ;;; Test struct-type properties
@@ -441,11 +463,17 @@
 (define-values (struct:triple make-triple triple? triple-ref triple-set!)
   (make-struct-type 'triple struct:tup 1 0))
 
+($$trace "struct past biglet 003")
+
 (define-values (prop:p p? p-ref) (make-struct-type-property 'p))
+
+($$trace "struct past biglet 004")
 
 (define-values (struct:a make-a a? a-ref a-set!)
   (make-struct-type 'a #f 2 0 'uninitialized (list (cons prop:p 8))))
 
+
+($$trace "struct past biglet 005")
 
 (p? struct:a) ; => #t
 (p? 13) ; => #f
@@ -453,9 +481,15 @@
 (p? an-a) ; => #t
 (p-ref an-a) ; => 8
 
+
+($$trace "struct past biglet 010")
+
 (define-values (struct:b make-b b? b-ref b-set!)
   (make-struct-type 'b #f 0 0 #f))
 (p? struct:b) ; => #f
+
+
+($$trace "struct past biglet 020")
 
 ;;; Test struct-methods
 (define-values (struct:fish make-fish fish? fish-ref fish-set!)
@@ -464,11 +498,18 @@
 (define fish-weight (make-struct-field-accessor fish-ref 0))
 (define fish-color (make-struct-field-accessor fish-ref 1))
 (define wanda (make-fish 12 'red))
+
+($$trace "struct past biglet 030")
+
+
 (fish? wanda) ; => #t
 (procedure? wanda) ; => #t
 (fish-weight wanda) ; => 12
 (for-each wanda '(1 2 3))
 (fish-weight wanda) ; => 18
+
+
+($$trace "struct past biglet 040")
 
 ;;; Test struct-procs
 (define-values (struct:ap make-annotated-proc annotated-proc? ap-ref ap-set!)
@@ -477,6 +518,10 @@
 (define plus1 (make-annotated-proc
                 (lambda (x) (+ x 1))
                 "adds 1 to its argument"))
+
+
+($$trace "struct past biglet 050")
+
 (procedure? plus1) ; => #t
 (annotated-proc? plus1) ; => #t
 (plus1 10) ; => 11

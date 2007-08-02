@@ -220,7 +220,9 @@
                                      (print-unreadable-object object port))))))
                        method:print-object)))
 
-  (list <record> (let ((get-printer (record-accessor *record-type-type* 'printer)))
+  (list <record> (let ((get-printer (record-accessor 
+                                     (record-rtd (make-record-type 'fake '()))
+                                     'printer)))
                    (define (method:print-object call-next-method object port slashify)
                      (let* ((descriptor (record-type-descriptor object))
                             (printer (get-printer descriptor)))

@@ -252,7 +252,7 @@
   (param-filename 'mzscheme-source
                 '("init" "hash-compat"
                   "misc"
-                  "record" "inspector"
+                  "inspector"
                   "struct-proc0" "struct-proc" "struct" "struct-macros"
                   ;; N.B.: class, generic, gprint, and dotnet need (recognize-keywords?) on
                   ;; See targets clause in dotnet heap below.
@@ -395,6 +395,8 @@
         ,(mzscheme-source-dependency "identifier.manifest" "identifier.sch")
         ("dotnet.heap" ,dotnet-heap-files)
         ("dotnet.heap" ,dotnet-eval-files)
+        ("dotnet.heap" ,(objects "" ".manifest" 
+                                 (param-filename 'auxiliary '("record"))))
         ("dotnet.heap" ,dotnet-mzscheme-files)
 
         (,common-larceny/debug ,dotnet-heap-files)

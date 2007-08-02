@@ -680,8 +680,7 @@
         current-inspector)
 
 ;; records
-(export *record-type-type*
-        make-record-type
+(export make-record-type
         record-type-descriptor?
         record-type-field-names
         record-type-name
