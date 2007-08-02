@@ -127,12 +127,6 @@ public class Exn {
     return fault (Constants.EX_APPLY);
   }
 
-#if USING_MONO
-  /** checkSignals
-   * Check for keyboard interrupt or other signal
-   */
-  public static void checkSignals() { /* no-op on mono */ }
-#else
   private static System.ConsoleCancelEventHandler installed_handler = 
     new System.ConsoleCancelEventHandler(myHandler);
 
@@ -181,7 +175,6 @@ public class Exn {
 
     saw_keyboard_interrupt = true;
   }
-#endif
 
   public static CodeAddress error (string msg)
   {
