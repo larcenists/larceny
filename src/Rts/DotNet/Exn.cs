@@ -77,7 +77,7 @@ public class Exn {
    * Specialized fault for timer interrupt.
    * Called directly from IL.
    */
-  public static void faultTimer (int j)
+  public static CodeAddress faultTimer (int j)
   {
     checkSignals();
     Cont.clear();
@@ -86,8 +86,7 @@ public class Exn {
     if (Reg.interruptsEnabled) {
 	Reg.interruptsEnabled = false;
 	Reg.implicitContinuation = j;
-	Call.callInterruptHandler (Constants.EX_TIMER);
-	return;
+	return Call.callInterruptHandler (Constants.EX_TIMER);
 	}
     else {
 	Reg.timer = Reg.SMALL_TIME_SLICE;

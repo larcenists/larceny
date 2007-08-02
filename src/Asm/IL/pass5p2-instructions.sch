@@ -142,6 +142,7 @@
   (lambda (instruction as)
     ;; Marks beginning of basic block
     (list-label/line instruction as)
+    (make-asm-label as (operand1 instruction))
     (begin-basic-block as (operand1 instruction))))
 
 (define-instruction $.proc
@@ -625,7 +626,10 @@
 (define-instruction $branch
   (lambda (instruction as)
     (list-instruction/line "branch" instruction as)
-    (emit as (il:br/use-fuel (operand1 instruction)))
+    (emit as (if (assq (operand1 instruction)
+                       (as-labels as))
+                 (il:br/use-fuel (operand1 instruction))
+                 (il:branch 'br (operand1 instruction))))
     (assembler-value! as 'basic-block-closed #t)))
 
 (define-instruction $branchf
@@ -636,7 +640,10 @@
             (il:load-register 'result)
             (il:load-constant #f)
             (il:branch-s 'bne.un no-branch-label)
-            (il:br/use-fuel (operand1 instruction))
+            (if (assq (operand1 instruction)
+                      (as-labels as))
+                (il:br/use-fuel (operand1 instruction))
+                (il:branch 'br (operand1 instruction)))
             (il:label no-branch-label)))))
 
 (define-instruction $check

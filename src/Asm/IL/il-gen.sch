@@ -670,7 +670,7 @@
    (il:flush-result-cache)
    (il 'ldc.i4 jump-index)
    ;; No tail call! See above.
-   (il:call '() iltype-void il-exn "faultTimer" (list iltype-int32))
+   (il:call '() iltype-code-address il-exn "faultTimer" (list iltype-int32))
    (il 'ret)))
 
 (define (il:fault/invoke-nonproc argc)

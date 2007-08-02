@@ -296,14 +296,14 @@ namespace Scheme.RT {
           return call1 (getSupportProcedure (Constants.MS_EXCEPTION_HANDLER), values.Length);
         }
 
-        public static void callInterruptHandler(int excode)
+        public static CodeAddress callInterruptHandler(int excode)
         {
             saveContext(true);
             Reg.setRegister(1, Factory.False);
             Reg.setRegister(2, Factory.False);
             Reg.setRegister(3, Factory.False);
             Reg.setRegister(4, Factory.makeNumber (excode));
-            call1(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), 4);
+            return call1(getSupportProcedure(Constants.MS_EXCEPTION_HANDLER), 4);
         }
 
         public static void callMillicodeSupport3(int procIndex, SObject a,
