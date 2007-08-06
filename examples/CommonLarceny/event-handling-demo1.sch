@@ -1,3 +1,5 @@
+(clr/%load-assembly "System.Windows.Forms" "2.0.0.0" "" "b77a5c561934e089")
+
 (define form-type                (find-clr-type "System.Windows.Forms.Form"))
 (define form-controls-property   (clr/%get-property form-type "Controls" (vector)))
 (define control-type             (find-clr-type "System.Windows.Forms.Control"))
