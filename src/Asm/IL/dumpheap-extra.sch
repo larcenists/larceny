@@ -420,7 +420,12 @@
 ;; Helpers for building programs
 
 ;; ilasm-executable : string
-(define ilasm-executable "ilasm")
+(define (ilasm-executable)
+  (cond ((and (codegen-option 'clr-2.0)
+              (codegen-option 'mono))
+         "ilasm2")
+        (else
+         "ilasm")))
 
 (define (create-application app src-manifests fasl?)
   (parameterize ((compat:read-case-sensitive? #t))
@@ -462,7 +467,7 @@
 
 
          (command-line (twobit-format #f "~a ~a ~a /output:~a ~a"
-                           ilasm-executable
+                           (ilasm-executable)
                            (cond ((codegen-option 'mono)
 				  "")
 				 (else 
