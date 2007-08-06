@@ -39,6 +39,36 @@ public class Load {
 	}
   }
 
+  /* Convenience method so that Scheme code can get away with using
+     strings rather than Version objects and byte arrays and so on.
+     
+     Example usage:
+     LoadAssembly("System.Windows.Forms", "2.0.0.0", "", "b77a5c561934e089");
+     (you can find such info via the gacutil program)
+  */
+  public static void LoadAssembly(string name, 
+				  string version, // "maj.min.build.revision"
+				  string culture, 
+				  string publickey)
+  {
+    System.Reflection.AssemblyName n = new System.Reflection.AssemblyName();
+    n.Name = name;
+    n.Version = new System.Version(version);
+    n.CultureInfo = new System.Globalization.CultureInfo(culture);
+    n.SetPublicKeyToken( ToByteArray(publickey) );
+    // Console.WriteLine("Attempting to load: {0}", n.FullName);
+    System.Reflection.Assembly.Load(n);
+  }
+
+  private static byte[] ToByteArray(String HexString) {
+    int NumberChars = HexString.Length;
+    byte[] bytes = new byte[NumberChars / 2];
+    for (int i = 0; i < NumberChars; i += 2) {
+      bytes[i / 2] = Convert.ToByte(HexString.Substring(i, 2), 16);
+    }
+    return bytes;
+  }
+
   public static Assembly findAssembly (string basename)
   {
     string name = nameToAssemblyName (basename);
