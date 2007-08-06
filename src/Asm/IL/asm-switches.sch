@@ -59,14 +59,23 @@
 
 (define (set-assembler-flags! mode)
   (case mode
-    ((no-optimization standard fast-safe)
+    ((no-optimization)
+     (set-assembler-flags! 'standard)
+     (peephole-optimization #f))
+    ((standard)
      (inline-allocation #f)
      (inline-assignment #f)
      (runtime-safety-checking #t)
      (catch-undefined-globals #t)
-     (peephole-optimization #f))
+     (peephole-optimization #t))
+    ((fast-safe)
+     (set-assembler-flags! 'standard)
+;     (inline-allocation #t) ;; TODO
+;     (inline-assignment #t) ;; TODO
+     )
     ((fast-unsafe)
      (set-assembler-flags! 'standard)
+     (catch-undefined-globals #f)
      (runtime-safety-checking #f))
     (else 
      (error "set-assembler-flags!: unknown mode: " mode))))
