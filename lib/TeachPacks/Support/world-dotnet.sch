@@ -89,7 +89,7 @@
     (set-control-back-color! f 'white)
     
     ;; configure form to be double-buffered
-    (clr/%foreign-aset obj-array 0 (clr/int->foreign clr/double-buffer-bitmask))
+    (clr/%foreign-aset obj-array 0 clr/double-buffer-flagenum)
     (clr/%foreign-aset obj-array 1 (clr/bool->foreign #t))
     (clr/%invoke clr/method-info-invoke 
                  clr/control-set-style

@@ -89,9 +89,10 @@
   (clr/enum-value clr/binding-flags-type "NonPublic"))
 (define clr/binding-flags-instance
   (clr/enum-value clr/binding-flags-type "Instance"))
-(define clr/protected-method-bitmask
-  (fxlogior (clr/%foreign->int clr/binding-flags-nonpublic)
-            (clr/%foreign->int clr/binding-flags-instance)))
+(define clr/protected-method-flagenum
+  (clr-enum/to-object clr/binding-flags-type
+                      (fxlogior (clr/%foreign->int clr/binding-flags-nonpublic)
+                                (clr/%foreign->int clr/binding-flags-instance))))
 
 (define clr/control-styles-allpaintinginwmpaint
   (clr/enum-value clr/control-styles-type "AllPaintingInWmPaint"))
@@ -100,11 +101,13 @@
 (define clr/control-styles-optimizeddoublebuffer
   (clr/enum-value clr/control-styles-type "OptimizedDoubleBuffer"))
 
-(define clr/double-buffer-bitmask
-  (fxlogior
-   (fxlogior (clr/%foreign->int clr/control-styles-allpaintinginwmpaint)
-             (clr/%foreign->int clr/control-styles-userpaint))
-   (clr/%foreign->int clr/control-styles-optimizeddoublebuffer)))
+(define clr/double-buffer-flagenum
+  (clr-enum/to-object 
+   clr/control-styles-type 
+   (fxlogior
+    (fxlogior (clr/%foreign->int clr/control-styles-allpaintinginwmpaint)
+              (clr/%foreign->int clr/control-styles-userpaint))
+    (clr/%foreign->int clr/control-styles-optimizeddoublebuffer))))
 
 (define clr/bitmap-ctor 
   (clr/%get-constructor clr/bitmap-type (vector clr/int32-type
@@ -142,7 +145,7 @@
   (clr/%invoke clr/type-get-method
                    clr/control-type 
                    (vector (clr/string->foreign "SetStyle")
-                           (clr/int->foreign clr/protected-method-bitmask))))
+                           clr/protected-method-flagenum)))
 
 (define clr/textbox-ctor (clr/%get-constructor clr/textbox-type (vector)))  
 
