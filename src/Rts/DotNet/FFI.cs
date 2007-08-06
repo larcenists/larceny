@@ -572,6 +572,20 @@ namespace Scheme.RT
                         Reg.Result = Factory.True; 
                         return;
                     }
+                case 26: // load-assembly(name, version, culture, publickey)
+                    {
+                        SObject arg1 = Reg.Register3;
+                        SObject arg2 = Reg.Register4;
+                        SObject arg3 = Reg.Register5;
+                        SObject arg4 = Reg.Register6;
+                        string name =      ((SByteVL)arg1).asString();
+                        string version =   ((SByteVL)arg2).asString();
+                        string culture =   ((SByteVL)arg3).asString();
+                        string publickey = ((SByteVL)arg4).asString();
+                        Load.LoadAssembly(name, version, culture, publickey);
+                        Reg.Result = Factory.Unspecified;
+                        return;
+		    }
             }
 
             Exn.error("bad ffi syscall code");

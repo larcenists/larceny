@@ -110,6 +110,9 @@
 ;; event handling
 (define-syscall clr/%add-event-handler 34 25)
 
+;; assembly loading
+(define-syscall clr/%load-assembly 34 26)
+
 ;; Hook this asap to make it easy to debug this file.
 ;; Using the syscalls directly means that we can turn on
 ;; the debug printing above but not have it interfere here.

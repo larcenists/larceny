@@ -473,6 +473,7 @@
         clr-type/is-special-name?
         clr-type/is-generic-parameter?
         clr-type/is-generic-type?
+        clr/%load-assembly
         clr/%add-event-handler
         clr/%clr-version
         clr/%eq?
