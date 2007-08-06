@@ -94,7 +94,9 @@
 (define (peephole-operation)
   (lambda (instruction as)
     (cond ((lookup-peephole-operation (operand1 instruction))
-           => (lambda (h) (apply (cdr h) as (cddr instruction))))
+           => (lambda (h) 
+                (il:comment "operation ~s" (operand1 instruction))
+                (apply (cdr h) as (cddr instruction))))
           (else (error "Operation not supported: " instruction)))))
 
 ;; Instructions
