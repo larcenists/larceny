@@ -587,6 +587,10 @@
   (make-mnemonic 'reg/op2/check))
 (define $reg/op2imm/check                 ; reg/op2imm/check   prim,k1,x,k2,k3,k4,exn
   (make-mnemonic 'reg/op2imm/check))
+(define $save/storem-uniform              ; save/storem-uniform k
+  (make-mnemonic 'save/storem-uniform))
+(define $loadm-uniform                    ; loadm-uniform k
+  (make-mnemonic 'loadm-uniform))
 
 ; misc
 

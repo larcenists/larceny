@@ -1416,6 +1416,14 @@ public sealed class Instructions
     Reg.setRegister (k, Cont.cont.getSlot (slot));
   }
 
+  // (loadm-uniform k) is equiv to (load 1 1) (load 2 2) ... (load k k)
+  public static void loadm_uniform (int k) 
+  {
+    for(int i = 1; i <= k; i++) {
+      Reg.setRegister (i, Cont.cont.getSlot (i));
+    }
+  }
+
   public static void load_0_0 () { Reg.Register0 = Cont.cont.Slot0; }
   public static void load_1_0 () { Reg.Register1 = Cont.cont.Slot0; }
   public static void load_2_0 () { Reg.Register2 = Cont.cont.Slot0; }
@@ -1677,6 +1685,20 @@ public sealed class Instructions
   public static void store (int k, int slot)
   {
     Cont.cont.setSlot (slot, Reg.getRegister (k));
+  }
+
+  // (save/storem-uniform k) 
+  //    is equiv to (save k) (store 0 0) (store 1 1) ... (store k k)
+  public static void save_storem_uniform(int k) 
+  {
+    if (k < 8) {
+      Cont.save_small(k);
+    } else {
+      Cont.save(k);
+    }
+    for(int i=0; i <= k; i++) {
+      Cont.cont.setSlot (i, Reg.getRegister (i));
+    }
   }
 
   public static void store_0_0 () { Cont.cont.Slot0 = (Procedure) Reg.Register0; }

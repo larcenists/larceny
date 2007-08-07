@@ -108,6 +108,40 @@
                                (reg/op2/check-reg-op2imm-check
                                 as i1 i2 i3 i4 t4)))))))))))
 
+(define-peephole $save
+  (lambda (as i1 i2 i3 t1 t2 t3)
+    (let loop ((instrs t1)
+               (rev-stores '()))
+      (cond
+       ((and (not (null? rev-stores))
+             (= (operand1 (car rev-stores))
+                (operand1 i1)))
+        (begin 
+          (display `(replacing ,(readify-lap (cons i1 (reverse rev-stores)))
+                     with (save/storem ,(operand1 i1))))
+          (newline))
+        (save-storem-uniform as (operand1 i1) instrs))
+       ((and (eqv? $store (operand0 (car instrs)))
+             (= (operand1 (car instrs)) (operand2 (car instrs))))
+        (loop (cdr instrs) (cons (car instrs) rev-stores)))
+       ))))
+
+(define-peephole $load
+  (lambda (as i1 i2 i3 t1 t2 t3)
+    (if (= 1 (operand1 i1) (operand2 i1))
+        (let loop ((instrs t1)
+                   (k 1)
+                   (replaced (list i1)))
+          (cond ((and (eqv? $load (operand0 (car instrs)))
+                      (= (+ k 1) (operand1 (car instrs)) (operand2 (car instrs))))
+                 (loop (cdr instrs) (+ k 1) (cons (car instrs) replaced)))
+                ((> k 1) ; don't do the xform on just (load 1 1)
+                 (begin 
+                   (display `(replacing ,(readify-lap (reverse replaced))
+                              with (loadm ,k)))
+                   (newline))
+                 (loadm-uniform as k instrs)))))))
+
 ; Worker procedures.
 
 (define (op1-branchf as i:op1 i:branchf tail)
@@ -399,6 +433,26 @@
         (label        (operand1 i:label)))
     (if (= branch-label label)
         (as-source! as (cons i:align (cons i:label tail))))))
+
+; Compresses a common save+store sequence into single runtime call
+;    (save k)
+;    (store 0 0)
+;    (store 1 1)  ;; n.b. all indices must match 
+;    ...
+;    (store k k)
+; => (save/storem-uniform k)
+
+(define (save-storem-uniform as save-n tail)
+  (as-source! as (cons (list $save/storem-uniform save-n) tail)))
+
+; Compresses a common load sequence into a single runtime call
+;    (load 1 1)
+;    (load 2 2)
+;    ...
+;    (load k k)
+; => (loadm-uniform k)
+(define (loadm-uniform as k tail)
+  (as-source! as (cons (list $loadm-uniform k) tail)))
 
 ; Test code
 

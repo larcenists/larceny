@@ -390,6 +390,21 @@
                          '()))
           (default)))))
 
+(define-instruction $save/storem-uniform
+  (lambda (instruction as)
+    (list-instruction/line "save/storem-uniform" instruction as)
+    (emit as 
+          (il 'ldc.i4 (operand1 instruction))
+          (il:call '() iltype-void il-instructions
+                   "save_storem_uniform" (list iltype-int32)))))
+  
+(define-instruction $loadm-uniform
+  (lambda (instruction as)
+    (list-instruction/line "loadm-uniform" instruction as)
+    (emit as 
+          (il 'ldc.i4 (operand1 instruction))
+          (il:call '() iltype-void il-instructions
+                   "loadm_uniform" (list iltype-int32)))))
 ;; Not used
 (define-instruction $restore
   (instr-runtime-method 'restore 1))
