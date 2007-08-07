@@ -703,9 +703,21 @@
 ;; =========================================================
 ;; FUEL (BRANCH / CALL)
 
+;; il:use-fuel/call code is only emitted after the target of
+;; invocation is stored into ENV-REGISTER (reg0) in invocation seq;
+;; that is why it uses FIRST-JUMP-INDEX as point of continuation.
 (define (il:use-fuel/call)
   (if (codegen-option 'insert-use-fuel)
       (il:use-fuel FIRST-JUMP-INDEX #f)
+      '()))
+
+(define (il:use-fuel/direct)
+  (if (codegen-option 'insert-use-fuel)
+      (lambda (as)
+        (let ((call-label (allocate-label as)))
+          (emit as 
+                (il:br/use-fuel call-label) 
+                (il:label call-label))))
       '()))
 
 (define (il:br/use-fuel target)

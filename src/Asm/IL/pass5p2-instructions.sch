@@ -328,6 +328,7 @@
     (define (default)
       ((instr-runtime-method/ret 'invoke 1) instruction as))
 
+    (emit as (il:use-fuel/direct))
     (let ((count (operand1 instruction)))
       (if (and (codegen-option 'special-invoke-instructions)
                (< count SPECIAL-INSTRUCTION-LIMIT))
@@ -373,7 +374,9 @@
              (il 'ldc.i4 FIRST-JUMP-INDEX)
              (il:call-scheme))))
     (assembler-value! as 'basic-block-closed #t))
-  (instr-runtime-method/ret 'apply 2))
+  (lambda (instruction as)
+    (emit as (il:use-fuel/direct))
+    ((instr-runtime-method/ret 'apply 2) instruction as)))
 
 ;; Stack
 (define-instruction $save
