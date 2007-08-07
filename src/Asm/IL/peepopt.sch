@@ -116,10 +116,6 @@
        ((and (not (null? rev-stores))
              (= (operand1 (car rev-stores))
                 (operand1 i1)))
-        (begin 
-          (display `(replacing ,(readify-lap (cons i1 (reverse rev-stores)))
-                     with (save/storem ,(operand1 i1))))
-          (newline))
         (save-storem-uniform as (operand1 i1) instrs))
        ((and (eqv? $store (operand0 (car instrs)))
              (= (operand1 (car instrs)) (operand2 (car instrs))))
@@ -136,10 +132,6 @@
                       (= (+ k 1) (operand1 (car instrs)) (operand2 (car instrs))))
                  (loop (cdr instrs) (+ k 1) (cons (car instrs) replaced)))
                 ((> k 1) ; don't do the xform on just (load 1 1)
-                 (begin 
-                   (display `(replacing ,(readify-lap (reverse replaced))
-                              with (loadm ,k)))
-                   (newline))
                  (loadm-uniform as k instrs)))))))
 
 ; Worker procedures.
