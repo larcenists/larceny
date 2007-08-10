@@ -32,8 +32,8 @@
 ;; CLR Version
 ;;   Selects which version of the CLR that will be used for assembling
 ;;   the code.
-(set-codegen-option! 'clr-1.1)
-;(set-codegen-option! 'clr-2.0)
+;(set-codegen-option! 'clr-1.1)
+(set-codegen-option! 'clr-2.0)
 
 ;; Inlining of Instructions
 
@@ -148,7 +148,11 @@
 ;;   and procedure invocation
 ;; TURNED OFF:  No real point in polling because the runtime system
 ;; ensures safety at all times.
-;(set-codegen-option! 'insert-use-fuel)
+;; TURNED BACK ON: Felix is not sure what above comment is meant to
+;; imply.  Timer interrupts are meant to be standard in Larceny, so
+;; until someone (else) implements them via a concurrent thread, we
+;; will use our standard implementation strategy for them.
+(set-codegen-option! 'insert-use-fuel)
 
 ;; 'direct-tail-calls
 ;;   if set, uses tail calls for scheme-to-scheme calls; otherwise,
