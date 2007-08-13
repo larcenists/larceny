@@ -1,10 +1,19 @@
+(define version-299? (> (string->number (version)) 299))
+(define version-301? (>= (string->number (version)) 301))
+(define version-370? (>= (string->number (version)) 370))
+
 ;; When *exit-on-error* is set, make our error handler die loudly
 (cond (*exit-on-error*
-	(current-exception-handler 
-	(lambda l 
-	  (display l)
-	  (newline)
-	  (exit 113)))))
+       (cond (version-370?
+              (error-escape-handler
+               (lambda ()
+                 (exit 113))))
+             (else
+              (current-exception-handler 
+               (lambda l 
+                 (display l)
+                 (newline)
+                 (exit 113)))))))
 
 ;; Why not just require?
 ;; Well... that doesn't work on certain versions of DrScheme.
@@ -15,9 +24,6 @@
 
 (define ($$trace x) #t)
 (define host-system 'mzscheme)
-
-(define version-299? (> (string->number (version)) 299))
-(define version-301? (>= (string->number (version)) 301))
 
 (define read-byte
   (if version-299?
