@@ -157,16 +157,23 @@
                   (clr-type/get-custom-attributes t))
             `(enum-flags: ,@syms)
             `(enum-values: ,@syms))))))
-(define describe-type
-  (let* ((is-subclass-of-method (clr/%get-method type-type
+
+(define subclass? 
+  (let ((is-subclass-of-method (clr/%get-method type-type
                                                  "IsSubclassOf"
-                                                 (vector type-type)))
-         (enum-type (find-clr-type "System.Enum")))
+                                                 (vector type-type))))
+    (lambda (t s)
+      (clr/foreign->bool (clr/%invoke is-subclass-of-method t (vector s))))))
+
+(define enum-type? 
+  (let ((enum-type (find-clr-type "System.Enum")))
     (lambda (t)
-      (if (clr/foreign->bool 
-           (clr/%invoke is-subclass-of-method t (vector enum-type)))
-          (describe-enum-type t)
-          (describe-usual-type t)))))
+      (subclass? t enum-type))))
+
+(define (describe-type t)
+  (if (enum-type? t)
+      (describe-enum-type t)
+      (describe-usual-type t)))
 
 (define describe-type-extension
   (lambda (t)
