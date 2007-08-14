@@ -91,6 +91,7 @@
     (cond ((%foreign? x) x)
           ((and (number? x) (exact? x))   (clr/%number->foreign-int32 x))
           ((and (number? x) (inexact? x)) (clr/%flonum->foreign-double x))
+          ((boolean? x) (clr/bool->foreign x))
           ((string? x)  (clr/%string->foreign x))
           (else (error 'box ": unknown argument type to convert " x)))))
 (define (unbox foreign)
@@ -102,6 +103,8 @@
            (clr/%foreign->int x))
           ((or (clr/%isa? x clr-type-handle/system-string))
            (clr/%foreign->string x))
+          ((or (clr/%isa? x clr-type-handle/system-boolean))
+           (clr/foreign->bool x))
           (else 
            x))))
 
@@ -131,12 +134,17 @@
         
 (define int32-arg&convert
   (list clr-type-handle/system-int32 clr/%number->foreign-int32))
+(define string-arg&convert
+  (list clr-type-handle/system-string clr/string->foreign))
 
 (define make-static-method
-  (lambda (type method-name-string)
-    (let ((method (clr/%get-method type method-name-string '#())))
-      (lambda ()
-        (clr/%invoke method #f '#())))))
+  (lambda (type method-name-string . arg-types)
+    (let ((method (clr/%get-method type method-name-string (list->vector arg-types))))
+      (lambda argl
+        (cond ((not (= (length argl) (length arg-types)))
+               (error (string->symbol method-name-string) 
+                      ": argument count mismatch.")))
+        (clr/%invoke method #f (list->vector argl))))))
 (define make-unary-method
   (lambda (type method-name-string)
     (let ((method (clr/%get-method type method-name-string '#())))
@@ -161,7 +169,7 @@
 (define type->name
   (make-property-ref type-type "Name" 
                      (lambda (x) (string->symbol (clr/foreign->string x)))))
-(define enum-type->symbol-convert
+(define enum-type->symbol->foreign
   (lambda (enum-type)
     (let* ((names (clr-enum/get-names enum-type))
            (vals  (clr-enum/get-values enum-type))
@@ -185,6 +193,18 @@
              (foldr fxlogior 0 (map lookup args))))
           (lambda (arg) ;; (strict subrelation of above)
             (clr-enum/to-object enum-type (lookup arg)))))))
+(define enum-type->foreign->symbol
+  (let ((get-name-method 
+         (clr/%get-method clr-type-handle/system-enum "GetName" 
+                          (vector clr-type-handle/system-type
+                                  clr-type-handle/system-object))))
+    (lambda (enum-type)
+      (lambda (foreign-val)
+        (string->symbol 
+         (string-downcase 
+          (clr/foreign->string 
+           (clr/%invoke get-name-method
+                        #f (vector enum-type foreign-val)))))))))
   
 ;;; System.Windows.Forms.Control class, properties, and methods
 
@@ -208,16 +228,20 @@
 (define set-control-size!     (make-property-setter control-type "Size"))
 (define control-client-size      (make-property-ref control-type "ClientSize"))
 (define set-control-client-size! (make-property-setter control-type "ClientSize"))
+(define control-visible       (make-property-ref control-type "Visible"))
+(define set-control-visible!  (make-property-setter control-type "Visible"))
+(define control-font          (make-property-ref control-type "Font"))
+(define set-control-font!     (make-property-setter control-type "Font"))
 (define set-control-anchor! 
   (let* ((anchor-styles-type (find-forms-type "AnchorStyles"))
-         (convert (enum-type->symbol-convert anchor-styles-type))
+         (convert (enum-type->symbol->foreign anchor-styles-type))
          (setter (make-property-setter control-type "Anchor"
                                        (lambda (argl) (apply convert argl)))))
     (lambda (control . args)
       (setter control args))))
 (define set-control-dock!
   (let* ((dock-style-type (find-forms-type "DockStyle"))
-         (convert (enum-type->symbol-convert dock-style-type))
+         (convert (enum-type->symbol->foreign dock-style-type))
          (setter (make-property-setter control-type "Dock"
                                        (lambda (argl) (apply convert argl)))))
     (lambda (control . args)
@@ -234,6 +258,7 @@
                    (clr/%number->foreign y)
                    (clr/%number->foreign width)
                    (clr/%number->foreign height)))))
+(define control-dispose! (make-unary-method control-type "Dispose"))
 
 (define controls-collection-type (find-forms-type "Control+ControlCollection"))
 (define add-controls 
@@ -243,6 +268,7 @@
 
 (define form-type                (find-forms-type "Form"))
 (define make-form (type->nullary-constructor form-type))
+(define form?     (type->predicate form-type))
 
 (define panel-type               (find-forms-type "Panel"))
 (define make-panel (type->nullary-constructor panel-type))
@@ -329,6 +355,12 @@
                                                       (exact->inexact n))))
      (list font-style-type convert))))
 
+;;; System.Drawing.Bitmap and related classes
+(define bitmap-type (find-drawing-type "Bitmap"))
+(define make-bitmap (type*args&convert->constructor bitmap-type string-arg&convert))
+(define clipboard-set-data-object 
+  (make-static-method (find-forms-type "Clipboard") "SetDataObject" 
+                      clr-type-handle/system-object))
 (define combo-box-type (find-forms-type "ComboBox"))
 (define make-combo-box (type->nullary-constructor combo-box-type))
 (define combo-box-items (make-property-ref combo-box-type "Items"))
@@ -361,9 +393,8 @@
 (standard-timeslice 1000)
 (enable-interrupts (standard-timeslice))
 
-(define show           (make-unary-method form-type "Show"))
-(define show-dialog    (make-unary-method form-type "ShowDialog"))
-(define close          (make-unary-method form-type "Close"))
+(define show             (make-unary-method form-type "Show"))
+(define close            (make-unary-method form-type "Close"))
 
 (define menu-type      (find-forms-type "Menu"))
 (define main-menu-type (find-forms-type "MainMenu"))
@@ -387,8 +418,52 @@
     (menu-add-menu-item! parent-menu mi)
     mi))
 
-(define text-box-type  (find-forms-type "TextBox"))
-(define make-text-box  (type->nullary-constructor text-box-type))
+;; System.Windows.Forms.FileDialog and related classes
+(define common-dialog-type    (find-forms-type "CommonDialog"))
+(define file-dialog-type      (find-forms-type "FileDialog"))
+(define open-file-dialog-type (find-forms-type "OpenFileDialog"))
+(define save-file-dialog-type (find-forms-type "SaveFileDialog"))
+(define dialog-result-type    (find-forms-type "DialogResult"))
+(define make-open-file-dialog (type->nullary-constructor open-file-dialog-type))
+(define make-save-file-dialog (type->nullary-constructor save-file-dialog-type))
+(define dialog-show-dialog    (make-unary-method common-dialog-type "ShowDialog"))
+(define form-show-dialog      (make-unary-method form-type "ShowDialog"))
+(define common-dialog?        (type->predicate common-dialog-type))
+(define file-dialog-filename  (make-property-ref file-dialog-type "FileName"))
+(define show-dialog 
+  (let ((convert-ret (enum-type->foreign->symbol dialog-result-type)))
+    (lambda (x)
+      (let ((result (cond ((common-dialog? x)
+                           (dialog-show-dialog x))
+                          ((form? x)
+                           (form-show-dialog x))
+                          (else
+                           (error 'show-dialog ": unknown object" x)))))
+        (convert-ret result)))))
+
+;; System.Windows.Forms.TextBox and related classes
+(define text-box-base-type  (find-forms-type "TextBoxBase"))
+(define text-box-type       (find-forms-type "TextBox"))
+(define make-text-box       (type->nullary-constructor text-box-type))
+(define rich-text-box-type  (find-forms-type "RichTextBox"))
+(define make-rich-text-box  (type->nullary-constructor rich-text-box-type))
+(define auto-complete-mode-type   (find-forms-type "AutoCompleteMode"))
+(define auto-complete-source-type (find-forms-type "AutoCompleteSource"))
+(define text-box-auto-complete-source  
+  (make-property-ref text-box-type "AutoCompleteSource" 
+                     (enum-type->foreign->symbol auto-complete-source-type)))
+(define set-text-box-auto-complete-source!
+  (make-property-setter text-box-type "AutoCompleteSource" 
+                        (enum-type->symbol->foreign auto-complete-source-type)))
+(define text-box-auto-complete-mode
+  (make-property-ref text-box-type "AutoCompleteMode"
+                     (enum-type->foreign->symbol auto-complete-mode-type)))
+(define set-text-box-auto-complete-mode!
+  (make-property-setter text-box-type "AutoCompleteMode"
+                        (enum-type->symbol->foreign auto-complete-mode-type)))
+(define text-box-auto-complete-custom-source
+  (make-property-ref text-box-type "AutoCompleteCustomSource"))
+
 
 (define point-type     (find-drawing-type "Point"))
 (define make-point     (type*args&convert->constructor 
@@ -420,7 +495,7 @@
 (define orientation-type (find-forms-type "Orientation"))
 (define make-split-container (type->nullary-constructor split-container-type))
 (define set-split-container-orientation!
-  (let* ((convert (enum-type->symbol-convert orientation-type))
+  (let* ((convert (enum-type->symbol->foreign orientation-type))
          (prop-set! (make-property-setter split-container-type "Orientation"
                                           convert)))
     (lambda (sc o)
@@ -429,6 +504,16 @@
   (make-property-ref split-container-type "Panel1"))
 (define split-container-panel2 
   (make-property-ref split-container-type "Panel2"))
+(define split-container-panel1-collapsed (make-property-ref split-container-type "Panel1Collapsed"))
+(define split-container-panel2-collapsed (make-property-ref split-container-type "Panel2Collapsed"))
+(define set-split-container-panel1-collapsed!
+  (make-property-setter split-container-type "Panel1Collapsed" clr/bool->foreign))
+(define set-split-container-panel2-collapsed!
+  (make-property-setter split-container-type "Panel2Collapsed" clr/bool->foreign))
+
+(define flow-layout-panel-type (find-forms-type "FlowLayoutPanel"))
+(define flow-direction         (find-forms-type "FlowDirection"))
+
 
 (define text-box1 (make-text-box))
 (set-text! text-box1 "Welcome!")
@@ -476,6 +561,7 @@
 (define main-menu2 (make-main-menu))
 (define file-menu (add-child-menu-item! main-menu2 "File"))
 (define edit-menu (add-child-menu-item! main-menu2 "Edit"))
+(define view-menu (add-child-menu-item! main-menu2 "View"))
 
 (define file..open    (add-child-menu-item! file-menu "Open"))
 (define file..save    (add-child-menu-item! file-menu "Save"))
@@ -483,11 +569,50 @@
 (define edit..cut     (add-child-menu-item! edit-menu "Cut"))
 (define edit..copy    (add-child-menu-item! edit-menu "Copy"))
 (define edit..paste   (add-child-menu-item! edit-menu "Paste"))
-
+(define view..definitions  (add-child-menu-item! view-menu "Definitions"))
+(define view..interactions (add-child-menu-item! view-menu "Interactions"))
+                                                 
 (form-set-menu! form2 main-menu2)
 
 (define text-box2.1 (make-text-box))
+(define hidden-panel2.1 (make-panel))
+(define hidden-button2.1 (make-button))
+(set-control-text! hidden-button2.1 "Show 1")
+(set-control-visible! hidden-panel2.1 #f)
 (define text-box2.2 (make-text-box))
+(define hidden-panel2.2 (make-panel))
+(define hidden-button2.2 (make-button))
+(set-control-text! hidden-button2.2 "Show 2")
+(set-control-visible! hidden-panel2.2 #f)
+
+;; The Panel1Collapsed and Panel2Collapsed do not seem to behave as
+;; described in my book (at least under Mono)... so perhaps I should
+;; abandon experimenting with them...
+(add-event-handler 
+ view..definitions "Click" 
+ (lambda (sender args)
+   (cond ((split-container-panel1-collapsed split-container1)
+          (set-split-container-panel1-collapsed! split-container1 #f))
+         (else
+          (set-split-container-panel1-collapsed! split-container1 #t)))))
+(add-event-handler 
+ view..interactions "Click" 
+ (lambda (sender args)
+   (cond ((split-container-panel2-collapsed split-container1)
+          (set-split-container-panel2-collapsed! split-container1 #f))
+         (else
+          (set-split-container-panel2-collapsed! split-container1 #t)))))
+(define current-filename #f)
+(add-event-handler 
+ file..open "Click"
+ (lambda (sender args)
+   (let ((ofd (make-open-file-dialog)))
+     (case (show-dialog ofd)
+       ((ok) (let ((filename (file-dialog-filename ofd)))
+               (set! current-filename filename)
+               (begin (display `(opening file: ,filename))
+                      (newline))))))))
+
 ;(add-controls (control-controls form2) (list text-box2.1 text-box2.2))
 (define split-container1 (make-split-container))
 (add-controls (control-controls form2) (list split-container1))
@@ -498,13 +623,13 @@
               (list text-box2.2))
 
 (define set-text-box-multiline!
-  (make-property-setter text-box-type "Multiline" clr/bool->foreign))
+  (make-property-setter text-box-base-type "Multiline" clr/bool->foreign))
 (set-text-box-multiline! text-box2.1 #t)
 (set-text-box-multiline! text-box2.2 #t)
 
-(define (make-control-fill-available-space! control)
-  (set-control-anchor! control 'top 'bottom 'right 'left)
-  (set-control-size! control (control-client-size (control-parent control))))
+(set-control-dock! split-container1 'fill)
+(set-control-dock! text-box2.1 'fill)
+(set-control-dock! text-box2.2 'bottom)
 (make-control-fill-available-space! split-container1)
 (make-control-fill-available-space! text-box2.1)
 (make-control-fill-available-space! text-box2.2)
@@ -515,3 +640,16 @@
                        (make-size (size-width sz)
                                   (quotient (size-height sz) 2)))))
 '(set-control-dock! text-box2.2 'bottom)
+(define code-font (make-font (generic-font-family 'monospace) 10 'regular))
+(set-control-font! text-box2.1 code-font)
+(set-control-font! text-box2.2 code-font)
+
+(define (add-display-event-handler publisher event-name)
+  (add-event-handler publisher event-name
+                     (lambda (sender args)
+                       (display `(handling ,event-name ,sender ,args))
+                       (newline))))
+
+(add-display-event-handler text-box2.1 "KeyDown")
+(add-display-event-handler text-box2.1 "KeyPress")
+(add-display-event-handler text-box2.1 "KeyUp")
