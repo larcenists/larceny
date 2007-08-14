@@ -9,9 +9,6 @@
 ;;; type->events
 ;;; type->methods
 
-;;; make-enumerator : T:ForeignType get-enum-meth-name:String -> x:T -> [Listof Foreign]
-;;; enumerate : x : { GetEnumerator() } -> [Listof Foreign]
-
 ;;; prop-ref/name : Foreign String -> Foreign
 
 (define type-type                (find-clr-type "System.Type"))
@@ -170,26 +167,36 @@
            (clr/%invoke is-subclass-of-method t (vector enum-type)))
           (describe-enum-type t)
           (describe-usual-type t)))))
-(define make-enumerator
-  (let* ((enum-type (find-clr-type "System.Collections.IEnumerator"))
-         (move-next-method (clr/%get-method enum-type "MoveNext" '#()))
-         (current-prop (clr/%get-property enum-type "Current" '#())))
-    (lambda (type get-enumerator-methodname)
-      (let ((method (clr/%get-method type get-enumerator-methodname '#())))
-        (lambda (obj)
-          (let ((enumerator (clr/%invoke method obj '#())))
-            (let loop ((lst '()))
-              (cond ((clr/foreign->bool (clr/%invoke move-next-method enumerator '#()))
-                     (loop (cons (clr/%property-ref current-prop enumerator '#())
-                                 lst)))
-                    (else
-                     lst)))))))))
 
-(define enumerate
-  (lambda (obj)
-    (let* ((obj-type (clr/%object-type obj)))
-      (let ((rator (make-enumerator obj-type "GetEnumerator")))
-        (rator obj)))))
+(define describe-type-extension
+  (lambda (t)
+    (define (difference lst1 lst2)
+      (let loop ((l lst1))
+        (cond ((not l) '())
+              ((null? l) '())
+              ((member (car l) lst2) (loop (cdr l)))
+              (else (cons (car l) (loop (cdr l)))))))
+    (define (maybe name values)
+      (if (null? values) '() `((,name ,@values))))
+    (let* ((s (type->superclass t))
+           (super-type-name  (if s (list(type->full-name s))'()))
+           (t-field-names (map field-info->name    (type->fields t)))
+           (t-prop-names  (map property-info->name (type->properties t)))
+           (t-event-names (map event-info->name    (type->events t)))
+           (t-meth-names  (map method-info->name   (type->methods t)))
+           (s-field-names (map field-info->name    (type->fields s)))
+           (s-prop-names  (map property-info->name (type->properties s)))
+           (s-event-names (map event-info->name    (type->events s)))
+           (s-meth-names  (map method-info->name   (type->methods s)))
+           (d-field-names (difference t-field-names s-field-names))
+           (d-prop-names  (difference t-prop-names  s-prop-names))
+           (d-event-names (difference t-event-names s-event-names))
+           (d-meth-names  (difference t-meth-names  s-meth-names)))
+      `(,@(maybe 'superclass: super-type-name)
+        ,@(maybe 'field: d-field-names)
+        ,@(maybe 'properties: d-prop-names)
+        ,@(maybe 'events: d-event-names)
+        ,@(maybe 'methods: d-meth-names)))))
 
 (define (prop-ref/name obj propname)
   (let* ((type (clr/%object-type obj))
