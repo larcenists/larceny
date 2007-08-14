@@ -655,9 +655,6 @@
 (set-control-dock! split-container1 'fill)
 (set-control-dock! text-box2.1 'fill)
 (set-control-dock! text-box2.2 'bottom)
-(make-control-fill-available-space! split-container1)
-(make-control-fill-available-space! text-box2.1)
-(make-control-fill-available-space! text-box2.2)
 '(begin
   (set-control-anchor! text-box2.1 'top 'right 'left)
   (set-control-size! text-box2.1 
