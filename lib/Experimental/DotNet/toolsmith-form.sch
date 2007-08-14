@@ -266,6 +266,12 @@
     (lambda (collection controls)
       (for-each (lambda (c) (add! collection c)) controls))))
 
+(define scrollable-control-type (find-forms-type "ScrollableControl"))
+(define scrollable-control-autoscroll 
+  (make-property-ref scrollable-control-type "AutoScroll" clr/foreign->bool))
+(define set-scrollable-control-autoscroll!
+  (make-property-setter scrollable-control-type "AutoScroll" clr/bool->foreign))
+
 (define form-type                (find-forms-type "Form"))
 (define make-form (type->nullary-constructor form-type))
 (define form?     (type->predicate form-type))
@@ -362,15 +368,22 @@
   (make-static-method (find-forms-type "Clipboard") "SetDataObject" 
                       clr-type-handle/system-object))
 (define combo-box-type (find-forms-type "ComboBox"))
+(define combo-box-style-type (find-forms-type "ComboBoxStyle"))
 (define make-combo-box (type->nullary-constructor combo-box-type))
 (define combo-box-items (make-property-ref combo-box-type "Items"))
+(define combo-box-drop-down-style
+  (make-property-ref combo-box-type "DropDownStyle"
+                     (enum-type->foreign->symbol combo-box-style-type)))
+(define set-combo-box-drop-down-style! 
+  (make-property-setter combo-box-type "DropDownStyle"
+                        (enum-type->symbol->foreign combo-box-style-type)))
 (define combo-box-add-item! 
   (let* ((combo-box+object-collection (find-forms-type "ComboBox+ObjectCollection"))
          (add-item! 
           (make-binary-method combo-box+object-collection "Add" clr-type-handle/system-object)))
     (lambda (combo-box item)
       (let* ((items (combo-box-items combo-box))
-             (retval (add-item! items item)))
+             (retval (add-item! items (clr/string->foreign item))))
         (clr/foreign->int retval)))))
          
 (define (add-event-handler publisher event-name procedure) 
@@ -512,8 +525,20 @@
   (make-property-setter split-container-type "Panel2Collapsed" clr/bool->foreign))
 
 (define flow-layout-panel-type (find-forms-type "FlowLayoutPanel"))
-(define flow-direction         (find-forms-type "FlowDirection"))
-
+(define flow-direction-type    (find-forms-type "FlowDirection"))
+(define make-flow-layout-panel (type->nullary-constructor flow-layout-panel-type))
+(define flow-layout-panel-flow-direction 
+  (make-property-ref flow-layout-panel-type "FlowDirection" 
+                     (enum-type->foreign->symbol flow-direction-type)))
+(define set-flow-layout-panel-flow-direction!
+  (make-property-setter flow-layout-panel-type "FlowDirection"
+                        (enum-type->symbol->foreign flow-direction-type)))
+(define flow-layout-panel-wrap-contents 
+  (make-property-ref flow-layout-panel-type "WrapContents" clr/foreign->bool))
+(define set-flow-layout-panel-wrap-contents!
+  (make-property-setter flow-layout-panel-type "WrapContents" clr/bool->foreign))
+                     
+  
 
 (define text-box1 (make-text-box))
 (set-text! text-box1 "Welcome!")
@@ -551,7 +576,7 @@
 (define fonts-combo-box (make-combo-box))
 (for-each (lambda (fam)
             (combo-box-add-item! fonts-combo-box
-                                 (clr/string->foreign (font-family-name fam))))
+                                 (font-family-name fam)))
           (font-families))
 ;(add-controls form1-controls fonts-combo-box)
 (add-controls panel1-controls (list fonts-combo-box))
