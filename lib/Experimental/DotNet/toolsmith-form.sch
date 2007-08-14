@@ -228,6 +228,10 @@
 (define set-control-size!     (make-property-setter control-type "Size"))
 (define control-client-size      (make-property-ref control-type "ClientSize"))
 (define set-control-client-size! (make-property-setter control-type "ClientSize"))
+(define control-preferred-size      
+  (make-property-ref control-type "PreferredSize"))
+(define set-control-preferred-size! 
+  (make-property-setter control-type "PreferredSize"))
 (define control-visible       (make-property-ref control-type "Visible"))
 (define set-control-visible!  (make-property-setter control-type "Visible"))
 (define control-font          (make-property-ref control-type "Font"))
