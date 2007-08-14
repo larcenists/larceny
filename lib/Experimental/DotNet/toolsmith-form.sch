@@ -370,6 +370,22 @@
 (define menu-item-type (find-forms-type "MenuItem"))
 (define make-main-menu (type->nullary-constructor main-menu-type))
 (define make-menu-item (type->nullary-constructor menu-item-type))
+(define menu-add-menu-item!
+  (let* ((main+menu-item-collection-type 
+          (find-forms-type "Menu+MenuItemCollection"))
+         (add-menu-item!
+          (make-binary-method main+menu-item-collection-type
+                              "Add" menu-item-type))
+         (prop-ref (make-property-ref menu-type "MenuItems")))
+    (lambda (menu menu-item)
+      (let* ((menu-items (prop-ref menu))
+             (retval (add-menu-item! menu-items menu-item)))
+        (clr/foreign->int retval)))))
+(define (add-child-menu-item! parent-menu name)
+  (let ((mi (make-menu-item)))
+    (menu-item-set-text! mi name)
+    (menu-add-menu-item! parent-menu mi)
+    mi))
 
 (define text-box-type  (find-forms-type "TextBox"))
 (define make-text-box  (type->nullary-constructor text-box-type))
@@ -400,25 +416,6 @@
          (setter! (make-property-setter obj-type "Text")))
     (setter! obj new-text)))
 
-(define file-menu (make-menu-item))
-(menu-item-set-text! file-menu "File")
-(define edit-menu (make-menu-item))
-(menu-item-set-text! edit-menu "Edit")
-(define view-menu (make-menu-item))
-(menu-item-set-text! view-menu "View")
-
-(define menu-add-menu-item!
-  (let* ((main+menu-item-collection-type 
-          (find-forms-type "Menu+MenuItemCollection"))
-         (add-menu-item!
-          (make-binary-method main+menu-item-collection-type
-                              "Add" menu-item-type))
-         (prop-ref (make-property-ref menu-type "MenuItems")))
-    (lambda (menu menu-item)
-      (let* ((menu-items (prop-ref menu))
-             (retval (add-menu-item! menu-items menu-item)))
-        (clr/foreign->int retval)))))
-
 (define split-container-type (find-forms-type "SplitContainer"))
 (define orientation-type (find-forms-type "Orientation"))
 (define make-split-container (type->nullary-constructor split-container-type))
@@ -432,12 +429,6 @@
   (make-property-ref split-container-type "Panel1"))
 (define split-container-panel2 
   (make-property-ref split-container-type "Panel2"))
-
-(define main-menu1 (make-main-menu))
-(menu-add-menu-item! main-menu1 file-menu)
-(menu-add-menu-item! main-menu1 edit-menu)
-
-;(form-set-menu! form1 main-menu1)
 
 (define text-box1 (make-text-box))
 (set-text! text-box1 "Welcome!")
@@ -483,9 +474,18 @@
 
 (define form2 (make-form))
 (define main-menu2 (make-main-menu))
-(menu-add-menu-item! main-menu2 file-menu)
-(menu-add-menu-item! main-menu2 edit-menu)
+(define file-menu (add-child-menu-item! main-menu2 "File"))
+(define edit-menu (add-child-menu-item! main-menu2 "Edit"))
+
+(define file..open    (add-child-menu-item! file-menu "Open"))
+(define file..save    (add-child-menu-item! file-menu "Save"))
+(define file..save-as (add-child-menu-item! file-menu "Save As..."))
+(define edit..cut     (add-child-menu-item! edit-menu "Cut"))
+(define edit..copy    (add-child-menu-item! edit-menu "Copy"))
+(define edit..paste   (add-child-menu-item! edit-menu "Paste"))
+
 (form-set-menu! form2 main-menu2)
+
 (define text-box2.1 (make-text-box))
 (define text-box2.2 (make-text-box))
 ;(add-controls (control-controls form2) (list text-box2.1 text-box2.2))
