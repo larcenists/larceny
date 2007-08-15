@@ -4,7 +4,7 @@
 (define (type->value-box type)
   (define (names->fixed-combo-box names)
     (let ((cb (make-combo-box)))
-      (set-combo-box-drop-down-style! cb 'dropdownlist)
+      ;(set-combo-box-drop-down-style! cb 'dropdownlist)
       (for-each (lambda (name)
                   (combo-box-add-item! cb name))
                 names)
