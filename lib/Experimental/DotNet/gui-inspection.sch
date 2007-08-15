@@ -7,12 +7,12 @@
       (set-combo-box-drop-down-style! cb 'dropdownlist)
       (for-each (lambda (name)
                   (combo-box-add-item! cb name))
-                cb)
+                names)
       cb))
   (cond ((enum-type? type)
          (names->fixed-combo-box (clr-enum/get-names type)))
         ((subclass? type clr-type-handle/system-boolean)
-         (names->fixed-combo-box '("true" "false")))
+         (names->fixed-combo-box '("True" "False")))
         (else 
          (make-text-box))))
 
@@ -27,7 +27,7 @@
          (error 'object->property-form 
                 ": object " obj " is not a .NET object.")))
   (let* ((type (clr/%object-type obj))
-         (property-list (take (type->properties type) 50)))
+         (property-list (type->properties type)))
     (define iform (make-form))
     (define panel (make-panel))
     (define split-container (make-split-container))
