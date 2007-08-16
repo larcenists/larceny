@@ -463,7 +463,8 @@
   (current-type-builder (ilc/%define-type!
                          (current-module-builder)
                          (clr/%string->foreign name)
-                         (clr/int->foreign 0)
+                         (clr-enum/to-object 
+                          clr-type-handle/system-reflection-typeattributes 0)
                          clr-type-handle/system-object)))
 
 ;; Members of TypeAttributes enumeration:
@@ -879,7 +880,7 @@
 
 	  ;; ILGenerator.Emit(OpCode, short) form
 	  ((ldarg)
-	   (apply ilc/%emit/short IL (opc) (map clr/%number->foreign-int16 args)))
+	   (apply ilc/%emit/short IL (opc) (map (lambda (x) (clr/%number->foreign-int16 x)) args)))
 
 	  ;; ILGenerator.Emit(OpCode, int) form
 	  ((ldc.i4)
@@ -987,7 +988,9 @@
 		 (ilc/%define-field (current-type-builder) 
                                     (clr/%string->foreign name)
                                     cls
-                                    (clr/int->foreign (options->field-attributes options)))))
+                                    (clr-enum/to-object
+                                     clr-type-handle/system-reflection-fieldattributes
+                                     (options->field-attributes options)))))
 	    (current-registered-field-table
 	     (cons (list (make-field-table-key (current-type-builder) name) field-info)
 		   (current-registered-field-table)))))))
@@ -1004,7 +1007,9 @@
 	(let ((type-builder (ilc/%define-type! 
                              (current-module-builder)
                              (clr/%string->foreign (namespace+name->full-name namespace name))
-                             (clr/int->foreign (options->type-attributes options))
+                             (clr-enum/to-object
+                              clr-type-handle/system-reflection-typeattributes
+                              (options->type-attributes options))
                              (co-find-class super))))
 	  (current-registered-class-table
 	   (cons (list (make-class-table-key namespace name) type-builder)
@@ -1065,7 +1070,9 @@
 		 ((equal? name ".ctor") 
                   (ilc/%define-constructor
 		   (current-type-builder)
-		   (clr/int->foreign (options->method-attributes options))
+                   (clr-enum/to-object
+                    clr-type-handle/system-reflection-methodattributes
+		    (options->method-attributes options))
                    (ilc/%standard-calling-conventions)
 		   arg-infos/fgn))
 
@@ -1077,7 +1084,9 @@
 		  (ilc/%define-method
 		   (current-type-builder)
 		   (clr/string->foreign name)
-		   (clr/int->foreign (options->method-attributes options))
+                   (clr-enum/to-object
+                    clr-type-handle/system-reflection-methodattributes
+                    (options->method-attributes options))
 		   (co-find-class ret-type)
 		   arg-infos/fgn)))))
 	  (current-registered-method-table
