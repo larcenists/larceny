@@ -282,7 +282,7 @@
 (define-emit-form ilc/%emit/byte
   (byte clr-type-handle/system-byte))
 (define-emit-form ilc/%emit/short
-  (short clr-type-handle/system-uint16))
+  (short clr-type-handle/system-int16))
 (define-emit-form ilc/%emit/int
   (int clr-type-handle/system-int32))
 (define-emit-form ilc/%emit/long
@@ -879,7 +879,7 @@
 
 	  ;; ILGenerator.Emit(OpCode, short) form
 	  ((ldarg)
-	   (apply ilc/%emit/short IL (opc) (map clr/int->foreign args)))
+	   (apply ilc/%emit/short IL (opc) (map clr/%number->foreign-int16 args)))
 
 	  ;; ILGenerator.Emit(OpCode, int) form
 	  ((ldc.i4)
