@@ -1,3 +1,7 @@
+;;; Useful procedures defined below:
+
+;;; object->property-form
+
 (require "Experimental/DotNet/simple-inspection")
 (require "Experimental/DotNet/toolsmith-form")
 
