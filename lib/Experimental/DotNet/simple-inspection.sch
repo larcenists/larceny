@@ -161,9 +161,12 @@
 (define subclass? 
   (let ((is-subclass-of-method (clr/%get-method type-type
                                                  "IsSubclassOf"
-                                                 (vector type-type))))
+                                                 (vector type-type)))
+        (equals-method (clr/%get-method type-type "Equals" (vector type-type))))
     (lambda (t s)
-      (clr/foreign->bool (clr/%invoke is-subclass-of-method t (vector s))))))
+      (or 
+       (clr/foreign->bool (clr/%invoke equals-method t (vector s)))
+       (clr/foreign->bool (clr/%invoke is-subclass-of-method t (vector s)))))))
 
 (define enum-type? 
   (let ((enum-type (find-clr-type "System.Enum")))
