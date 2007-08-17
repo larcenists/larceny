@@ -1,3 +1,17 @@
+;;; Useful procedures defined below:
+
+;;; link-lop-segment/clr
+;;; eval/clr
+;;; compile-file/clr
+
+;;; See also these procedures (which had a purpose once but Felix is
+;;; no longer certain what the purpose was nor if they satisfied it).
+
+;;; with-fresh-dynamic-assembly-setup
+;;; fresh-dynamic-assembly-setup!
+;;; with-saving-assembly-to-dll/full-control
+;;; with-saving-assembly-to-dll
+
 ;; This file uses javadot notation and only works when run atop a
 ;; Common Larceny runtime.
 ;; FSK: this is changing, so take out the expensive call.
