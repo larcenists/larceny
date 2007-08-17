@@ -257,6 +257,7 @@
         clr/%string->foreign
         clr/%bytes->foreign
         clr/%to-string
+        clr/%load-assembly
         )
         
         standard-proc-names))
