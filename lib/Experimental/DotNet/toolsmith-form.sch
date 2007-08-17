@@ -22,16 +22,19 @@
 ;; ((object 'operations))
 ;; (make-menu title)
 ;; ((menu 'close))
-;; ((menu 'append) item action)
-;; ((menu 'append) item action enableproc)
+;; ((menu 'append) item action)            ; item : String, action : () -> ()
+;; ((menu 'append) item action enableproc) ; enableproc () -> Bool
+;;   Special chars in item: #\- #\/ #\< #\! #\^
 ;; ((menu 'addresources) rtype raction)
 ;; ((menu 'update))
+;;   enables and disables all its menuitems according to the enableproc's
 ;; ((menu 'selectitem) itemnumber)
 ;; (pushmenubar)
 ;; (popmenubar)
 ;; ((menu 'id))
 ;; ((menu 'menuhandle))
 ;; (make-window) (make-window 'make-agent make-window-agent 'text 'bounds left top right bottom 'title string nogoaway 'nosizebox)
+;;    (make-window 'text) is equivalent to (make-window 'make-agent make-editor)
 ;; ((window 'close))
 ;; ((window 'closed?))
 ;; ((window 'agent))
@@ -68,6 +71,8 @@
 ;; ((editor 'selstart))
 ;; ((editor 'selend))
 ;; ((editor 'set-selection) start end)
+;;   to set the insertion point, use equiv start and end.
+;;   (really?  why overload this way?)
 ;; ((editor 'line) n)
 ;; ((editor 'column) n)
 ;; ((scroller 'close))
@@ -79,7 +84,11 @@
 ;; ((scroller 'line) window editor control direction)
 ;; ((scroller 'page) window editor control direction)
 ;; ((scroller 'show) editor n)
+;;   scrolls text vertically so that a particular position in text is
+;;   visible
 ;; ((scroller 'set) editor)
+;;   sets scroll bar indicators so that they indicate correct position
+;;   of currently displayed text
 
 (define (find-forms-type name)
   (find-clr-type (string-append "System.Windows.Forms." name)))
@@ -679,3 +688,44 @@
 (add-display-event-handler text-box2.1 "KeyDown")
 (add-display-event-handler text-box2.1 "KeyPress")
 (add-display-event-handler text-box2.1 "KeyUp")
+
+;;; Control events: (map event-info->name (type->events control-type))
+; (AutoSizeChanged BackColorChanged BackgroundImageChanged BackgroundImageLayoutChanged
+;  BindingContextChanged CausesValidationChanged ChangeUICues Click ClientSizeChanged 
+;  ContextMenuChanged ContextMenuStripChanged ControlAdded ControlRemoved CursorChanged
+;  DockChanged DoubleClick DragDrop DragEnter DragLeave DragOver EnabledChanged Enter
+;  FontChanged ForeColorChanged GiveFeedback GotFocus HandleCreated HandleDestroyed
+;  HelpRequested ImeModeChanged Invalidated KeyDown KeyPress KeyUp Layout Leave
+;  LocationChanged LostFocus MarginChanged MouseCaptureChanged MouseClick MouseDoubleClick
+;  MouseDown MouseEnter MouseHover MouseLeave MouseMove MouseUp MouseWheel Move PaddingChanged
+;  Paint ParentChanged PreviewKeyDown QueryAccessibilityHelp QueryContinueDrag RegionChanged
+;  Resize RightToLeftChanged SizeChanged StyleChanged SystemColorsChanged TabIndexChanged
+;  TabStopChanged TextChanged Validated Validating VisibleChanged Disposed)
+
+(define-syntax msg-handler
+  (syntax-rules ()
+    ((msg-handler ((OP-NAME . ARGS) BODY ...) ...)
+     (lambda (op)
+       (case op
+         ((OP-NAME) (lambda ARGS BODY ...))
+         ...
+         ((operations) '(OP-NAME ...))
+         (else (error 'msg-handler 
+                      ": unhandled object message " op)))))))
+
+;; An agent can choose whether or not it handles the paint event (by
+;; including paint in its operations list).
+;; If it does handle paint, then the window will dynamically dispatch
+;; to the agent every time it needs to be painted.
+;; If it does not handle paint, then the window will keep image state
+;; to be rendered and the agent will imperatively modify that.
+
+(define simple-agent
+  (msg-handler
+   ;; perhasp add keydown and keyup for non characters and modifiers?
+   ((keypress char) (display `(keydown ,char)) (newline))
+   ((mousedown x y) (display `(mousedown ,x ,y)) (newline))
+   ((mouseup   x y) (display `(mouseup   ,x ,y)) (newline))))
+
+   
+   
