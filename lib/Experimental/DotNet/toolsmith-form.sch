@@ -8,6 +8,12 @@
 ;; :Basic:tasks interrupt & event based multi-tasker
 ;; :Standard:data&traps seems mostly mac specific, but it might be
 ;;    good to know what state it defines...
+;;    - *also*, at least some of the functions in here are directly
+;;      used by user agents (at least in WillsEditor;
+;;      e.g. invertrect), and therefore it might represent (a superset
+;;      of?) basic graphics functionality that all need to support.
+;;    - *also*, watch out for case [in]sensitivity issues; code may
+;;      reference TEInsert which is defined as teinsert.
 ;; :Standard:events standard event handlers -- worth looking over.
 ;; :Standard:objects routines used for Toolsmith's OOP; 
 ;;    I should take inspiration; but the code itself is useless
@@ -33,7 +39,7 @@
 ;; (popmenubar)
 ;; ((menu 'id))
 ;; ((menu 'menuhandle))
-;; (make-window) (make-window 'make-agent make-window-agent 'text 'bounds left top right bottom 'title string nogoaway 'nosizebox)
+;; (make-window) (make-window 'make-agent make-window-agent 'text 'bounds (left top right bottom) 'title string 'nogoaway 'nosizebox)
 ;;    (make-window 'text) is equivalent to (make-window 'make-agent make-editor)
 ;; ((window 'close))
 ;; ((window 'closed?))
@@ -143,6 +149,8 @@
         
 (define int32-arg&convert
   (list clr-type-handle/system-int32 clr/%number->foreign-int32))
+(define single-arg&convert
+  (list clr-type-handle/system-single clr/%flonum->foreign-single))
 (define string-arg&convert
   (list clr-type-handle/system-string clr/string->foreign))
 
@@ -176,7 +184,7 @@
     (lambda (obj)
       (clr/%isa? obj type))))
 (define type->name
-  (make-property-ref type-type "Name" 
+  (make-property-ref (find-clr-type "System.Type") "Name" 
                      (lambda (x) (string->symbol (clr/foreign->string x)))))
 (define enum-type->symbol->foreign
   (lambda (enum-type)
@@ -288,6 +296,7 @@
 (define form-type                (find-forms-type "Form"))
 (define make-form (type->nullary-constructor form-type))
 (define form?     (type->predicate form-type))
+(define form-close! (make-unary-method form-type "Close"))
 
 (define panel-type               (find-forms-type "Panel"))
 (define make-panel (type->nullary-constructor panel-type))
@@ -491,13 +500,27 @@
   (make-property-ref text-box-type "AutoCompleteCustomSource"))
 
 
-(define point-type     (find-drawing-type "Point"))
-(define make-point     (type*args&convert->constructor 
-                        point-type int32-arg&convert int32-arg&convert))
-(define point-x (make-property-ref point-type "X"))
-(define point-y (make-property-ref point-type "Y"))
-(define set-point-x! (make-property-setter point-type "X"))
-(define set-point-y! (make-property-setter point-type "Y"))
+(define pointi-type     (find-drawing-type "Point"))
+(define make-pointi     (type*args&convert->constructor 
+                        pointi-type int32-arg&convert int32-arg&convert))
+(define pointi-x (make-property-ref pointi-type "X"))
+(define pointi-y (make-property-ref pointi-type "Y"))
+(define set-pointi-x! (make-property-setter pointi-type "X"))
+(define set-pointi-y! (make-property-setter pointi-type "Y"))
+(define pointf-type     (find-drawing-type "PointF"))
+(define make-pointf     (type*args&convert->constructor 
+                        pointf-type single-arg&convert single-arg&convert))
+(define pointf-x (make-property-ref pointf-type "X"))
+(define pointf-y (make-property-ref pointf-type "Y"))
+(define set-pointf-x! (make-property-setter pointf-type "X"))
+(define set-pointf-y! (make-property-setter pointf-type "Y"))
+
+(define color-type     (find-drawing-type "Color"))
+(define color-alpha    (make-property-ref color-type "A"))
+(define color-red      (make-property-ref color-type "R"))
+(define color-green    (make-property-ref color-type "G"))
+(define color-blue     (make-property-ref color-type "B"))
+(define color-name     (make-property-ref color-type "Name"))
 
 (define size-type        (find-drawing-type "Size"))
 (define make-size        (type*args&convert->constructor
@@ -575,7 +598,7 @@
 
 (define panel1 (make-panel))
 
-(define panel1-controls (prop-ref/name panel1 "Controls"))
+(define panel1-controls (control-controls panel1))
 
 ;;; very strange; putting label1 *and* text-box1 on the same form
 ;;; leads to text-box1 not being rendered.
@@ -706,6 +729,7 @@
   (syntax-rules ()
     ((msg-handler ((OP-NAME . ARGS) BODY ...) ...)
      (lambda (op)
+       (display `(handling msg ,op)) (newline)
        (case op
          ((OP-NAME) (lambda ARGS BODY ...))
          ...
@@ -720,12 +744,374 @@
 ;; If it does not handle paint, then the window will keep image state
 ;; to be rendered and the agent will imperatively modify that.
 
-(define simple-agent
+;; AGENT: (make-noisy-agent) ;; client makes own agent ctors, perhaps via msg-handler special form
+;;  (on-close) 
+;;  (on-keypress char) (on-keydown int mods) (on-keyup int mods)
+;;  (on-mousedown x y) (on-mouseup x y) (on-mousemove x y) 
+;;  (on-mouseclick x y) (on-mousedoubleclick x y)
+;;  (on-mouseenter) (on-mouseleave)
+;;  (on-paint gfx x y w h) (dispose)
+;; FNT: (make-fnt name em-size) (available-fnts)
+;;  (clone ['italic] ['bold] ['underline] ['em-size r])
+;;  (name) (em-size) (italic?) (bold?) (underline?) (fontptr)
+;; GFX: ;; no public constructors (received via agent's on-paint op)
+;;  (measure-text txt-string font-obj) 
+;;  (draw-text txt-string font-obj x y color-obj) 
+;;  (draw-line color-obj x1 y1 x2 y2) (draw-image img-obj x y) 
+;;  (draw-rect color-obj x1 y1 x2 y2) (gfxptr)
+;; COL: (make-col alpha red green blue) (name->col name)
+;;  (name) (alpha) (red) (green) (blue) (colptr)
+;; WINDOW: (make-window ['make-agent agent-ctor] ['bounds (x y w h)])
+;;  (close) (dispose)
+(define (make-noisy-agent)
+  (define (displayln x) (display x) (newline))
   (msg-handler
-   ;; perhasp add keydown and keyup for non characters and modifiers?
-   ((keypress char) (display `(keydown ,char)) (newline))
-   ((mousedown x y) (display `(mousedown ,x ,y)) (newline))
-   ((mouseup   x y) (display `(mouseup   ,x ,y)) (newline))))
+   ((on-close)                (displayln `(on-close)))
+   ((on-keydown int mods)     (displayln `(on-keydown ,int ,mods)))
+   ((on-keyup int mods)       (displayln `(on-keyup ,int ,mods)))
+   ((on-keypress char)        (displayln `(on-keypress ,char)))
+   ((on-mousedown x y)        (displayln `(on-mousedown ,x ,y)))
+   ((on-mouseup   x y)        (displayln `(on-mouseup ,x ,y)))
+   ((on-mousemove x y)        (displayln `(on-mousemove ,x ,y)))
+   ((on-mouseclick x y)       (displayln `(on-mouseclick ,x ,y)))
+   ((on-mousedoubleclick x y) (displayln `(on-mousedoubleclick ,x ,y)))
+   ((on-mouseenter)           (displayln `(on-mouseenter)))
+   ((on-mouseleave)           (displayln `(on-mouseleave)))
+   ((on-paint g x y w h)      (displayln `(on-paint ,g ,x ,y ,w ,h)))
+   ((on-dispose)              (displayln `(on-dispose)))
+   ))
 
-   
-   
+(define (make-rectangle-drawing-agent)
+  (let* ((last-x #f)
+         (last-y #f)
+         (save! (lambda (x y) (set! last-x x) (set! last-y y)))
+         (forget! (lambda () (set! last-x #f) (set! last-y #f)))
+         (rect-list '()))
+    (msg-handler 
+     ((on-mousedown x y) (save! x y))
+     ((on-mouseup x y) 
+      (cond ((and last-x last-y)
+             (set! rect-list 
+                   (cons (list last-x last-y x y) rect-list)))))
+     ((on-mouseleave) (forget!))
+     ((on-paint g x y w h)
+      (for-each
+       (lambda (rect) (apply (g 'draw-rect) (name->col "Black") rect))
+       rect-list)))))
+
+(define key-event-args-type (find-forms-type "KeyEventArgs"))
+(define key-event-args-alt (make-property-ref key-event-args-type "Alt"))
+(define key-event-args-control (make-property-ref key-event-args-type "Control"))
+(define key-event-args-shift (make-property-ref key-event-args-type "Shift"))
+(define key-event-args-keycode (make-property-ref key-event-args-type "KeyCode"))
+(define key-event-args-keydata (make-property-ref key-event-args-type "KeyData"))
+(define key-event-args-keyvalue (make-property-ref key-event-args-type "KeyValue"))
+(define key-press-event-args-type (find-forms-type "KeyPressEventArgs"))
+(define key-press-event-args-keychar (make-property-ref key-press-event-args-type "KeyChar"))
+
+(define mouse-event-args-type (find-forms-type "MouseEventArgs"))
+(define mouse-event-args-button (make-property-ref mouse-event-args-type "Button"))
+(define mouse-event-args-clicks (make-property-ref mouse-event-args-type "Clicks"))
+(define mouse-event-args-delta (make-property-ref mouse-event-args-type "Delta"))
+(define mouse-event-args-x (make-property-ref mouse-event-args-type "X"))
+(define mouse-event-args-y (make-property-ref mouse-event-args-type "Y"))
+(define paint-event-args-type (find-forms-type "PaintEventArgs"))
+(define paint-event-args-cliprectangle (make-property-ref paint-event-args-type "ClipRectangle"))
+(define paint-event-args-graphics (make-property-ref paint-event-args-type "Graphics"))
+(define rectangle-type (find-drawing-type "Rectangle"))
+(define rectangle-height (make-property-ref rectangle-type "Height"))
+(define rectangle-width (make-property-ref rectangle-type "Width"))
+(define rectangle-x (make-property-ref rectangle-type "X"))
+(define rectangle-y (make-property-ref rectangle-type "Y"))
+
+(define graphics-type (find-drawing-type "Graphics"))
+(define pen-type      (find-drawing-type "Pen"))
+(define make-pen (clr/%get-constructor pen-type (vector color-type)))
+(define pen-dispose! (clr/%get-method pen-type "Dispose" '#()))
+(define image-type    (find-drawing-type "Image"))
+
+(define (available-fnts)
+  (map font-family-name (font-families)))
+(define make-fnt 
+  (let* ((clone-method (clr/%get-method font-type "Clone" '#()))
+         (make-bool-pset 
+          (lambda (pname)  
+            (make-property-setter font-type pname clr/bool->foreign)))
+         (get-name     (make-property-ref font-type "Name" '#()))
+         (get-size     (make-property-ref font-type "Size" '#()))
+         (get-italic   (make-property-ref font-type "Italic" '#()))
+         (get-bold     (make-property-ref font-type "Bold" '#()))
+         (get-uline    (make-property-ref font-type "Underline" '#()))
+         (set-italic   (make-bool-pset "Italic"))
+         (set-bold     (make-bool-pset "Bold"))
+        (set-uline    (make-bool-pset "Underline"))
+        (set-emsize   (make-property-setter font-type "Size" 
+                                            clr/%number->foreign-int32)))
+    (define (construct fontptr)
+      (msg-handler
+       ((clone . args) ;; should extend to allow turning OFF bold et al???
+        (let* ((is-italic (memq 'italic args))
+               (is-bold   (memq 'bold args))
+               (is-uline  (memq 'underline args))
+               (em-size   (cond ((memq 'em-size args) => cadr)
+                                (else #f)))
+               (newptr (clr/%invoke fontptr clone-method '#())))
+          (cond (is-italic (set-italic newptr #t)))
+          (cond (is-bold   (set-bold   newptr #t)))
+          (cond (is-uline  (set-uline  newptr #t)))
+          (cond (em-size   (set-emsize newptr em-size)))
+          (construct newptr)))
+       ((name)
+        (get-name fontptr))
+       ((em-size)
+        (get-size fontptr))
+       ((italic?)    (get-italic fontptr))
+       ((bold?)      (get-bold fontptr))
+       ((underline?) (get-underline fontptr))
+       ((fontptr)    fontptr)))
+    (lambda (name em-size)
+      (construct (make-font name em-size 'regular)))))
+(define (color->col colorptr)
+  (msg-handler 
+   ((name)     (color-name colorptr))
+   ((alpha)    (color-alpha colorptr))
+   ((red)      (color-red   colorptr))
+   ((green)    (color-green colorptr))
+   ((blue)     (color-green colorptr))
+   ((colptr)   colorptr)))
+(define make-col
+  (let ((from-argb-method
+         (clr/%get-method color-type "FromArgb"
+                          (vector clr-type-handle/system-int32
+                                  clr-type-handle/system-int32
+                                  clr-type-handle/system-int32
+                                  clr-type-handle/system-int32))))
+    (lambda (a r g b)
+      (color->col
+       (clr/%invoke from-argb-method 
+                    #f (vector (clr/%number->foreign-int32 a)
+                               (clr/%number->foreign-int32 r)
+                               (clr/%number->foreign-int32 g)
+                               (clr/%number->foreign-int32 b)))))))
+(define name->col
+  (let ((from-name-method
+         (clr/%get-method color-type "FromName"
+                          (vector clr-type-handle/system-string))))
+    (lambda (name)
+      (color->col
+       (clr/%invoke from-name-method
+                    #f (vector (clr/%string->foreign name)))))))
+      
+(define graphics->gfx 
+  (let* ((text-renderer-type (find-forms-type "TextRenderer"))
+         (draw-text-method (clr/%get-method 
+                            text-renderer-type 
+                            "DrawText"
+                            (vector (find-drawing-type "IDeviceContext")
+                                    clr-type-handle/system-string
+                                    font-type
+                                    pointi-type
+                                    color-type)))
+         (measure-text-method (clr/%get-method
+                               text-renderer-type
+                               "MeasureText"
+                               (vector clr-type-handle/system-string
+                                       font-type)))
+         (draw-line-method/inexact (clr/%get-method
+                                    graphics-type
+                                    "DrawLine"
+                                    (vector pen-type 
+                                            clr-type-handle/system-single
+                                            clr-type-handle/system-single
+                                            clr-type-handle/system-single
+                                            clr-type-handle/system-single)))
+         (draw-line-method/exact   (clr/%get-method
+                                    graphics-type
+                                    "DrawLine"
+                                    (vector pen-type
+                                            clr-type-handle/system-int32
+                                            clr-type-handle/system-int32
+                                            clr-type-handle/system-int32
+                                            clr-type-handle/system-int32)))
+         (draw-rect-method/exact   (clr/%get-method
+                                    graphics-type
+                                    "DrawRectangle"
+                                    (vector pen-type
+                                            clr-type-handle/system-int32
+                                            clr-type-handle/system-int32
+                                            clr-type-handle/system-int32
+                                            clr-type-handle/system-int32)))
+         (draw-rect-method/inexact (clr/%get-method
+                                    graphics-type
+                                    "DrawRectangle"
+                                    (vector pen-type
+                                            clr-type-handle/system-single
+                                            clr-type-handle/system-single
+                                            clr-type-handle/system-single
+                                            clr-type-handle/system-single)))
+         (draw-image-method (clr/%get-method 
+                             graphics-type
+                             "DrawImage"
+                             (vector image-type
+                                     clr-type-handle/system-int32
+                                     clr-type-handle/system-int32)))
+         )
+    (lambda (g)
+      (msg-handler 
+       ((measure-text txt-string font-obj) 
+        (let ((sz (clr/%invoke measure-text-method #f
+                               (vector (clr/%string->foreign txt-string) 
+                                       ((font-obj 'fontptr))))))
+          (values (size-width sz) (size-height sz))))
+       ((draw-text txt-string font-obj x y color-obj)
+        (clr/%invoke draw-text-method #f
+                     (vector ((g 'gfxptr))
+                             (clr/%string->foreign txt-string)
+                             ((font-obj 'fontptr))
+                             (make-pointi x y)
+                             ((color-obj 'colptr)))))
+       ((draw-line color-obj x1 y1 x2 y2) 
+        (let ((pen (make-pen ((color-obj 'colptr)))))
+          (clr/%invoke draw-line-method/exact (g 'gfxptr)
+                       (vector pen
+                               (clr/%number->foreign-int32 x1)
+                               (clr/%number->foreign-int32 y1)
+                               (clr/%number->foreign-int32 x2)
+                               (clr/%number->foreign-int32 y2)))
+          (pen-dispose! pen)))
+       ((draw-rect color-obj x1 y1 x2 y2) 
+        (let ((pen (make-pen ((color-obj 'colptr)))))
+          (clr/%invoke draw-rect-method/exact (g 'gfxptr)
+                       (vector pen
+                               (clr/%number->foreign-int32 x1)
+                               (clr/%number->foreign-int32 y1)
+                               (clr/%number->foreign-int32 x2)
+                               (clr/%number->foreign-int32 y2)))
+          (pen-dispose! pen)))
+                               
+       ((draw-image img x y) 
+        (clr/%invoke draw-image-method (g 'gfxptr)
+                     (vector (img 'imgptr) 
+                             (clr/%number->foreign-int32 x) 
+                             (clr/%number->foreign-int32 y))))
+       ((gfxptr) g)
+       ))))
+
+(define (make-window . args)
+  (let* ((agent-ctor
+          (cond ((memq 'make-agent args) => cadr)
+                (else default-agent-ctor))) ;; none yet!  yikes!
+         (bounds
+          (cond ((memq 'bounds args) => cadr)
+                (else (list 0 0 100 100))))
+         (agent (agent-ctor))
+         (agent-ops (agent 'operations))
+         (form (make-form))
+         (activate! (make-unary-method form-type "Activate"))
+         (unhandled (lambda (method-name)
+                      (lambda args
+                        (display "Unhandled method ")
+                        (display method-name)
+                        (newline))))
+         (default-impl (lambda (method-name)
+                         (cond ((memq method-name agent-ops)
+                                (lambda () (agent method-name)))
+                               (else
+                                (lambda () (unhandled method-name))))))
+         (is-closed #f)
+         )
+
+    (define (add-if-supported op-name event-name handler)
+      (cond ((memq op-name agent-ops)
+             (add-event-handler form event-name handler))
+            (else 
+             (display "No support for op ")
+             (display op-name)
+             (newline)
+             )))
+
+    (define (key-event-handler on-x)
+      (lambda (sender e)
+        (let ((alt (key-event-args-alt e))
+              (ctrl (key-event-args-control e))
+              (shift (key-event-args-shift e))
+              ;; code enum excludes modifiers
+              (code (key-event-args-keycode e))
+              ;; data enum includes modifiers
+              (data (key-event-args-keydata e))
+              ;; original bitset 
+              (value (key-event-args-keyvalue e)))
+          ((agent on-x)
+           (clr/foreign->int code) `(,@(if alt '(alt) '())
+                                     ,@(if ctrl '(ctrl) '())
+                                     ,@(if shift '(shift) '())))
+          )))
+    (define (mouse-event-handler on-x)
+      (lambda (sender e)
+        ((agent on-x)
+         (mouse-event-args-x e)
+         (mouse-event-args-y e))))
+    
+    (add-event-handler form "FormClosed"
+                       (lambda (sender e)
+                         (set! is-closed #t)
+                         (((default-impl 'on-close)))))
+    
+    (add-if-supported 'on-keydown "KeyDown"
+                      (key-event-handler 'on-keydown))
+    (add-if-supported 'on-keyup "KeyUp"
+                      (key-event-handler 'on-keyup))
+    (add-if-supported 'on-keypress "KeyPress"
+                      (lambda (sender e)
+                        ((agent 'on-keypress)
+                         ;; Felix believes integer->char is safe based
+                         ;; on Microsoft docs...
+                         (integer->char
+                          (clr/%foreign->int
+                           (key-press-event-args-keychar e))))))
+    (add-if-supported 'on-mousedown "MouseDown"
+                      (mouse-event-handler 'on-mousedown))
+    (add-if-supported 'on-mouseup "MouseUp"
+                      (mouse-event-handler 'on-mouseup))
+    (add-if-supported 'on-mousemove "MouseMove"
+                      (mouse-event-handler 'on-mousemove))
+    (add-if-supported 'on-mouseenter "MouseEnter"
+                      (lambda (sender e) ((agent 'on-mouseenter))))
+    (add-if-supported 'on-mouseleave "MouseLeave"
+                      (lambda (sender e) ((agent 'on-mouseleave))))
+    (add-if-supported 'on-mouseclick "MouseClick"
+                      (mouse-event-handler 'on-mouseclick))
+    (add-if-supported 'on-mousedoubleclick "MouseDoubleClick"
+                      (mouse-event-handler 'on-mousedoubleclick))
+    
+    (add-if-supported 'on-paint "Paint"
+                      (lambda (sender e)
+                        (let* ((r (paint-event-args-cliprectangle e))
+                               (x (rectangle-x r))
+                               (y (rectangle-y r))
+                               (h (rectangle-height r))
+                               (w (rectangle-width r))
+                               (g (paint-event-args-graphics e)))
+                          ((agent 'on-paint) (graphics->gfx g) x y w h))))
+                                         
+    (msg-handler
+     ((close)    (form-close! form))
+     ((closed?)  is-closed)
+     ((windowptr) form) ;; for debugging; not for client code (e.g. agents)
+     ((agent)    agent)
+     ((width)    (control-width form))
+     ((height)   (control-height form))
+     ((update)   (error 'make-window ": Felix does not know "
+                        "what update does at the moment..."))
+     ((activate) (activate! form))
+     ((show)     (show form))
+     
+     ((dispose)       (((default-impl 'dispose))) (control-dispose! form))
+
+     ;; Are these really necessary in this development model?  Perhaps
+     ;; for testing???  (But why not just extract the agent and call
+     ;; it manually?)
+     ((keydown char)  (((default-impl 'keydown)) char))
+     ((mousedown x y) (((default-impl 'mousedown)) x y))
+     
+     )))
