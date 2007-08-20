@@ -745,8 +745,8 @@
 ;; to be rendered and the agent will imperatively modify that.
 
 ;; AGENT: (make-noisy-agent) ;; client makes own agent ctors, perhaps via msg-handler special form
-;;  (on-close) 
-;;  (on-keypress char) (on-keydown int mods) (on-keyup int mods)
+;;  (on-close wnd) 
+;;  (on-keypress wnd char) (on-keydown wnd int mods) (on-keyup int mods)
 ;;  (on-mousedown x y) (on-mouseup x y) (on-mousemove x y) 
 ;;  (on-mouseclick x y) (on-mousedoubleclick x y)
 ;;  (on-mouseenter) (on-mouseleave)
@@ -761,24 +761,24 @@
 ;;  (draw-rect color-obj x1 y1 x2 y2) (gfxptr)
 ;; COL: (make-col alpha red green blue) (name->col name)
 ;;  (name) (alpha) (red) (green) (blue) (colptr)
-;; WINDOW: (make-window ['make-agent agent-ctor] ['bounds (x y w h)])
+;; WND: (make-wnd ['make-agent agent-ctor] ['bounds (x y w h)])
 ;;  (close) (dispose)
 (define (make-noisy-agent)
   (define (displayln x) (display x) (newline))
   (msg-handler
-   ((on-close)                (displayln `(on-close)))
-   ((on-keydown int mods)     (displayln `(on-keydown ,int ,mods)))
-   ((on-keyup int mods)       (displayln `(on-keyup ,int ,mods)))
-   ((on-keypress char)        (displayln `(on-keypress ,char)))
-   ((on-mousedown x y)        (displayln `(on-mousedown ,x ,y)))
-   ((on-mouseup   x y)        (displayln `(on-mouseup ,x ,y)))
-   ((on-mousemove x y)        (displayln `(on-mousemove ,x ,y)))
-   ((on-mouseclick x y)       (displayln `(on-mouseclick ,x ,y)))
-   ((on-mousedoubleclick x y) (displayln `(on-mousedoubleclick ,x ,y)))
-   ((on-mouseenter)           (displayln `(on-mouseenter)))
-   ((on-mouseleave)           (displayln `(on-mouseleave)))
-   ((on-paint g x y w h)      (displayln `(on-paint ,g ,x ,y ,w ,h)))
-   ((on-dispose)              (displayln `(on-dispose)))
+   ((on-close wnd)                (displayln `(on-close)))
+   ((on-keydown wnd int mods)     (displayln `(on-keydown ,int ,mods)))
+   ((on-keyup wnd int mods)       (displayln `(on-keyup ,int ,mods)))
+   ((on-keypress wnd char)        (displayln `(on-keypress ,char)))
+   ((on-mousedown wnd x y)        (displayln `(on-mousedown ,x ,y)))
+   ((on-mouseup   wnd x y)        (displayln `(on-mouseup ,x ,y)))
+   ((on-mousemove wnd x y)        (displayln `(on-mousemove ,x ,y)))
+   ((on-mouseclick wnd x y)       (displayln `(on-mouseclick ,x ,y)))
+   ((on-mousedoubleclick wnd x y) (displayln `(on-mousedoubleclick ,x ,y)))
+   ((on-mouseenter wnd)           (displayln `(on-mouseenter)))
+   ((on-mouseleave wnd)           (displayln `(on-mouseleave)))
+   ((on-paint wnd g x y w h)      (displayln `(on-paint ,g ,x ,y ,w ,h)))
+   ((on-dispose wnd)              (displayln `(on-dispose)))
    ))
 
 (define (make-rectangle-drawing-agent)
@@ -788,13 +788,15 @@
          (forget! (lambda () (set! last-x #f) (set! last-y #f)))
          (rect-list '()))
     (msg-handler 
-     ((on-mousedown x y) (save! x y))
-     ((on-mouseup x y) 
+     ((on-mousedown wnd x y) (save! x y))
+     ((on-mouseup wnd x y) 
       (cond ((and last-x last-y)
              (set! rect-list 
-                   (cons (list last-x last-y x y) rect-list)))))
-     ((on-mouseleave) (forget!))
-     ((on-paint g x y w h)
+                   (cons (list last-x last-y x y) rect-list))
+             ((wnd 'update))
+             )))
+     ((on-mouseleave wnd) (forget!))
+     ((on-paint wnd g x y w h)
       (for-each
        (lambda (rect) (apply (g 'draw-rect) (name->col "Black") rect))
        rect-list)))))
@@ -826,8 +828,15 @@
 
 (define graphics-type (find-drawing-type "Graphics"))
 (define pen-type      (find-drawing-type "Pen"))
-(define make-pen (clr/%get-constructor pen-type (vector color-type)))
-(define pen-dispose! (clr/%get-method pen-type "Dispose" '#()))
+(define make-pen 
+  (let ((pen-ctor (clr/%get-constructor pen-type (vector color-type))))
+    (lambda (color)
+      (clr/%invoke-constructor pen-ctor (vector color)))))
+(define pen-dispose! 
+  (let ((dispose-method (clr/%get-method pen-type "Dispose" '#())))
+    (lambda (pen)
+      (clr/%invoke dispose-method pen '#()))))
+
 (define image-type    (find-drawing-type "Image"))
 
 (define (available-fnts)
@@ -965,14 +974,14 @@
           (values (size-width sz) (size-height sz))))
        ((draw-text txt-string font-obj x y color-obj)
         (clr/%invoke draw-text-method #f
-                     (vector ((g 'gfxptr))
+                     (vector g
                              (clr/%string->foreign txt-string)
                              ((font-obj 'fontptr))
                              (make-pointi x y)
                              ((color-obj 'colptr)))))
        ((draw-line color-obj x1 y1 x2 y2) 
         (let ((pen (make-pen ((color-obj 'colptr)))))
-          (clr/%invoke draw-line-method/exact (g 'gfxptr)
+          (clr/%invoke draw-line-method/exact g
                        (vector pen
                                (clr/%number->foreign-int32 x1)
                                (clr/%number->foreign-int32 y1)
@@ -980,24 +989,28 @@
                                (clr/%number->foreign-int32 y2)))
           (pen-dispose! pen)))
        ((draw-rect color-obj x1 y1 x2 y2) 
-        (let ((pen (make-pen ((color-obj 'colptr)))))
-          (clr/%invoke draw-rect-method/exact (g 'gfxptr)
+        (let ((pen (make-pen ((color-obj 'colptr))))
+              (x (min x1 x2))
+              (y (min y1 y2))
+              (w (abs (- x2 x1)))
+              (h (abs (- y2 y1))))
+          (clr/%invoke draw-rect-method/exact g
                        (vector pen
-                               (clr/%number->foreign-int32 x1)
-                               (clr/%number->foreign-int32 y1)
-                               (clr/%number->foreign-int32 x2)
-                               (clr/%number->foreign-int32 y2)))
+                               (clr/%number->foreign-int32 x)
+                               (clr/%number->foreign-int32 y)
+                               (clr/%number->foreign-int32 w)
+                               (clr/%number->foreign-int32 h)))
           (pen-dispose! pen)))
                                
        ((draw-image img x y) 
-        (clr/%invoke draw-image-method (g 'gfxptr)
+        (clr/%invoke draw-image-method g
                      (vector (img 'imgptr) 
                              (clr/%number->foreign-int32 x) 
                              (clr/%number->foreign-int32 y))))
        ((gfxptr) g)
        ))))
 
-(define (make-window . args)
+(define (make-wnd . args)
   (let* ((agent-ctor
           (cond ((memq 'make-agent args) => cadr)
                 (else default-agent-ctor))) ;; none yet!  yikes!
@@ -1008,6 +1021,7 @@
          (agent-ops (agent 'operations))
          (form (make-form))
          (activate! (make-unary-method form-type "Activate"))
+         (invalidate! (make-unary-method form-type "Invalidate"))
          (unhandled (lambda (method-name)
                       (lambda args
                         (display "Unhandled method ")
@@ -1019,6 +1033,8 @@
                                (else
                                 (lambda () (unhandled method-name))))))
          (is-closed #f)
+         (wnd (undefined))
+         (return-wnd (lambda (obj) (set! wnd obj) obj))
          )
 
     (define (add-if-supported op-name event-name handler)
@@ -1042,6 +1058,7 @@
               ;; original bitset 
               (value (key-event-args-keyvalue e)))
           ((agent on-x)
+           wnd
            (clr/foreign->int code) `(,@(if alt '(alt) '())
                                      ,@(if ctrl '(ctrl) '())
                                      ,@(if shift '(shift) '())))
@@ -1049,13 +1066,14 @@
     (define (mouse-event-handler on-x)
       (lambda (sender e)
         ((agent on-x)
+         wnd ;; should I check that ((wnd 'wndptr)) is eq? with sender?
          (mouse-event-args-x e)
          (mouse-event-args-y e))))
     
     (add-event-handler form "FormClosed"
                        (lambda (sender e)
                          (set! is-closed #t)
-                         (((default-impl 'on-close)))))
+                         (((default-impl 'on-close)) wnd)))
     
     (add-if-supported 'on-keydown "KeyDown"
                       (key-event-handler 'on-keydown))
@@ -1066,6 +1084,7 @@
                         ((agent 'on-keypress)
                          ;; Felix believes integer->char is safe based
                          ;; on Microsoft docs...
+                         wnd
                          (integer->char
                           (clr/%foreign->int
                            (key-press-event-args-keychar e))))))
@@ -1076,9 +1095,9 @@
     (add-if-supported 'on-mousemove "MouseMove"
                       (mouse-event-handler 'on-mousemove))
     (add-if-supported 'on-mouseenter "MouseEnter"
-                      (lambda (sender e) ((agent 'on-mouseenter))))
+                      (lambda (sender e) ((agent 'on-mouseenter) wnd)))
     (add-if-supported 'on-mouseleave "MouseLeave"
-                      (lambda (sender e) ((agent 'on-mouseleave))))
+                      (lambda (sender e) ((agent 'on-mouseleave) wnd)))
     (add-if-supported 'on-mouseclick "MouseClick"
                       (mouse-event-handler 'on-mouseclick))
     (add-if-supported 'on-mousedoubleclick "MouseDoubleClick"
@@ -1092,26 +1111,33 @@
                                (h (rectangle-height r))
                                (w (rectangle-width r))
                                (g (paint-event-args-graphics e)))
-                          ((agent 'on-paint) (graphics->gfx g) x y w h))))
-                                         
-    (msg-handler
-     ((close)    (form-close! form))
-     ((closed?)  is-closed)
-     ((windowptr) form) ;; for debugging; not for client code (e.g. agents)
-     ((agent)    agent)
-     ((width)    (control-width form))
-     ((height)   (control-height form))
-     ((update)   (error 'make-window ": Felix does not know "
-                        "what update does at the moment..."))
-     ((activate) (activate! form))
-     ((show)     (show form))
-     
-     ((dispose)       (((default-impl 'dispose))) (control-dispose! form))
+                          ((agent 'on-paint) 
+                           wnd (graphics->gfx g) x y w h))))
+    
+    (return-wnd 
+     (msg-handler
+      ((close)    (form-close! form))
+      ((closed?)  is-closed)
+      ((wndptr) form) ;; for debugging; not for client code (e.g. agents)
+      ((agent)    agent)
+      ((width)    (control-width form))
+      ((height)   (control-height form))
+      ((update)
+       ;; Need to double-check this; for now this signals that a
+       ;; control needs to be repainted.
+       (invalidate! form))
+      ((activate) (activate! form))
+      ((show)     (show form))
+      
+      ((dispose)       
+       (((default-impl 'dispose)) wnd) 
+       (control-dispose! form))
+      
+      ;; Are these really necessary in this development model?  Perhaps
+      ;; for testing???  (But why not just extract the agent and call
+      ;; it manually?)
+      ((keydown char)  (((default-impl 'keydown)) wnd char))
+      ((mousedown x y) (((default-impl 'mousedown)) wnd x y))
+      
+      ))))
 
-     ;; Are these really necessary in this development model?  Perhaps
-     ;; for testing???  (But why not just extract the agent and call
-     ;; it manually?)
-     ((keydown char)  (((default-impl 'keydown)) char))
-     ((mousedown x y) (((default-impl 'mousedown)) x y))
-     
-     )))
