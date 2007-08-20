@@ -784,22 +784,34 @@
 (define (make-rectangle-drawing-agent)
   (let* ((last-x #f)
          (last-y #f)
+         (temp-rect #f)
          (save! (lambda (x y) (set! last-x x) (set! last-y y)))
-         (forget! (lambda () (set! last-x #f) (set! last-y #f)))
+         (temp! (lambda (x y) 
+                  (cond ((and last-x last-y)
+                         (set! temp-rect (list last-x last-y x y))))))
+         (forget! (lambda () 
+                    (set! last-x #f) (set! last-y #f) (set! temp-rect #f)))
          (rect-list '()))
     (msg-handler 
      ((on-mousedown wnd x y) (save! x y))
+     ((on-mousemove wnd x y) 
+      (cond ((and last-x last-y)
+             (temp! x y) ((wnd 'update)))))
      ((on-mouseup wnd x y) 
       (cond ((and last-x last-y)
              (set! rect-list 
                    (cons (list last-x last-y x y) rect-list))
+             (forget!)
              ((wnd 'update))
              )))
      ((on-mouseleave wnd) (forget!))
      ((on-paint wnd g x y w h)
       (for-each
        (lambda (rect) (apply (g 'draw-rect) (name->col "Black") rect))
-       rect-list)))))
+       rect-list)
+      (begin (display `(on-paint temp-rect: ,temp-rect)) (newline))
+      (cond (temp-rect (apply (g 'draw-rect) (name->col "Red") temp-rect)))
+      ))))
 
 (define key-event-args-type (find-forms-type "KeyEventArgs"))
 (define key-event-args-alt (make-property-ref key-event-args-type "Alt"))
@@ -1017,6 +1029,9 @@
          (bounds
           (cond ((memq 'bounds args) => cadr)
                 (else (list 0 0 100 100))))
+         (title
+          (cond ((memq 'title args) => cadr)
+                (else #f)))
          (agent (agent-ctor))
          (agent-ops (agent 'operations))
          (form (make-form))
@@ -1069,6 +1084,8 @@
          wnd ;; should I check that ((wnd 'wndptr)) is eq? with sender?
          (mouse-event-args-x e)
          (mouse-event-args-y e))))
+    
+    (cond (title (set-control-text! form title)))
     
     (add-event-handler form "FormClosed"
                        (lambda (sender e)
