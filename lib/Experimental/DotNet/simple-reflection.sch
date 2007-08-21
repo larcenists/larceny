@@ -26,7 +26,7 @@
           (clr/%get-method appdomain-type "DefineDynamicAssembly" 
                            (vector name-type access-type))))
     (lambda args
-      (let* ((name (list-ref/default args 0 ""))
+      (let* ((name (list-ref/default args 0 "FreshAssembly"))
              (asm-name (clr/%invoke-constructor name-ctor '#()))
              (domain (clr/%invoke get-domain-method #f '#()))
              (perms (clr/%field-ref run-and-save-permissions #f)))
