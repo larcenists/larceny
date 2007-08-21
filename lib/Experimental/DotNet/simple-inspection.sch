@@ -158,6 +158,43 @@
             `(enum-flags: ,@syms)
             `(enum-values: ,@syms))))))
 
+(define enum-type->symbol->foreign
+  (lambda (enum-type)
+    (let* ((names (clr-enum/get-names enum-type))
+           (vals  (clr-enum/get-values enum-type))
+           ;; handles both 'Right and 'right for an enum named "Right"
+           (lower-syms  (map string->symbol (map string-downcase names)))
+           (cased-syms  (map string->symbol names))
+           (lookup-table (append (map list cased-syms vals)
+                                 (map list lower-syms vals)))
+           (lookup (lambda (s) 
+                     (let ((entry (assq s lookup-table)))
+                       (if entry (cadr entry)
+                           (error 'convert "" (type->name enum-type)
+                                  "unknown name" s 
+                                  "for possible enums " names))))))
+      (if (memq (string->symbol "System.FlagsAttribute")
+                (clr-type/get-custom-attributes enum-type))
+          ;; If flags enum, then accept arbitrary # of args.
+          (lambda args
+            (clr-enum/to-object 
+             enum-type
+             (foldr fxlogior 0 (map lookup args))))
+          (lambda (arg) ;; (strict subrelation of above)
+            (clr-enum/to-object enum-type (lookup arg)))))))
+(define enum-type->foreign->symbol
+  (let ((get-name-method 
+         (clr/%get-method clr-type-handle/system-enum "GetName" 
+                          (vector clr-type-handle/system-type
+                                  clr-type-handle/system-object))))
+    (lambda (enum-type)
+      (lambda (foreign-val)
+        (string->symbol 
+         (string-downcase 
+          (clr/foreign->string 
+           (clr/%invoke get-name-method
+                        #f (vector enum-type foreign-val)))))))))
+
 (define subclass? 
   (let ((is-subclass-of-method (clr/%get-method type-type
                                                  "IsSubclassOf"
