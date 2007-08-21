@@ -1149,7 +1149,7 @@
        (invalidate! form))
       ((activate) (activate! form))
       ((show)     (show form))
-      
+      ((show-dialog) (form-show-dialog form))
       ((dispose)       
        (((default-impl 'dispose)) wnd) 
        (control-dispose! form))
