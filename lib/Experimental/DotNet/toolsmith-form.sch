@@ -20,6 +20,10 @@
                (clr/%isa? x clr-type-handle/system-int64)
                (clr/%isa? x clr-type-handle/system-uint64))
            (clr/%foreign->int x))
+          ((or (clr/%isa? x clr-type-handle/system-single))
+           (clr/%foreign-single->flonum x))
+          ((or (clr/%isa? x clr-type-handle/system-double))
+           (clr/%foreign-double->flonum x))
           ((or (clr/%isa? x clr-type-handle/system-string))
            (clr/%foreign->string x))
           ((or (clr/%isa? x clr-type-handle/system-boolean))
@@ -397,6 +401,13 @@
 (define set-size-width!  (make-property-setter size-type "Width"))
 (define size-height      (make-property-ref    size-type "Height"))
 (define set-size-height! (make-property-setter size-type "Height"))
+(define sizef-type        (find-drawing-type "SizeF"))
+(define make-sizef        (type*args&convert->constructor
+                           sizef-type single-arg&convert single-arg&convert))
+(define sizef-width       (make-property-ref    sizef-type "Width"))
+(define set-sizef-width!  (make-property-setter sizef-type "Width"))
+(define sizef-height      (make-property-ref    sizef-type "Height"))
+(define set-sizef-height! (make-property-setter sizef-type "Height"))
 
 (define form-set-menu! (make-property-setter form-type "Menu"))
 
@@ -629,6 +640,16 @@
   (let ((dispose-method (clr/%get-method pen-type "Dispose" '#())))
     (lambda (pen)
       (clr/%invoke dispose-method pen '#()))))
+(define brush-type    (find-drawing-type "Brush"))
+(define solid-brush-type    (find-drawing-type "SolidBrush"))
+(define make-solid-brush 
+  (let ((brush-ctor (clr/%get-constructor solid-brush-type (vector color-type))))
+    (lambda (color)
+      (clr/%invoke-constructor brush-ctor (vector color)))))
+(define brush-dispose! 
+  (let ((dispose-method (clr/%get-method brush-type "Dispose" '#())))
+    (lambda (b)
+      (clr/%invoke dispose-method b '#()))))
 
 (define image-type    (find-drawing-type "Image"))
 
@@ -713,20 +734,77 @@
       
 (define graphics->gfx 
   (let* ((text-renderer-type (find-forms-type "TextRenderer"))
-         (draw-text-method (clr/%get-method 
-                            text-renderer-type 
-                            "DrawText"
-                            (vector (find-drawing-type "IDeviceContext")
-                                    clr-type-handle/system-string
-                                    font-type
-                                    pointi-type
-                                    color-type)))
-         (measure-text-method (clr/%get-method
-                               text-renderer-type
-                               "MeasureText"
-                               (vector (find-drawing-type "IDeviceContext")
-                                       clr-type-handle/system-string
-                                       font-type)))
+         (measure-text/text-renderer
+          (let ((measure-text-method (clr/%get-method
+                                      text-renderer-type
+                                      "MeasureText"
+                                      (vector (find-drawing-type "IDeviceContext")
+                                              clr-type-handle/system-string
+                                              font-type))))
+            (lambda (g string fnt)
+              (let ((sz (clr/%invoke measure-text-method #f
+                                     (vector g
+                                             (clr/%string->foreign string) 
+                                             ((fnt 'fntptr))))))
+                (values (size-width sz) (size-height sz))))))
+         (draw-text/text-renderer
+          (let ((draw-text-method (clr/%get-method 
+                                   text-renderer-type 
+                                   "DrawText"
+                                   (vector (find-drawing-type "IDeviceContext")
+                                           clr-type-handle/system-string
+                                           font-type
+                                           pointi-type
+                                           color-type))))
+            (lambda (g string fnt x y col)
+              (clr/%invoke draw-text-method #f
+                           (vector g
+                                   (clr/%string->foreign string)
+                                   ((fnt 'fntptr))
+                                   (make-pointi x y)
+                                   ((col 'colptr)))))))
+
+         (string-format-type (find-drawing-type "StringFormat"))
+         (make-string-format (type->nullary-constructor string-format-type))
+         (string-format (make-string-format))
+         (measure-text/graphics
+          (let ((measure-text-method (clr/%get-method
+                                      graphics-type
+                                      "MeasureString"
+                                      (vector clr-type-handle/system-string
+                                              font-type
+                                              clr-type-handle/system-int32
+                                              string-format-type))))
+            
+            (lambda (g string fnt)
+              (let* ((string* (clr/%string->foreign string))
+                     (fntptr ((fnt 'fntptr)))
+                     (maxint30 (clr/%number->foreign-int32 (most-positive-fixnum)))
+                     (szf (clr/%invoke measure-text-method 
+                                       g (vector string* fntptr maxint30 string-format))))
+                (values (sizef-width szf) (sizef-height szf))))))
+         (draw-text/graphics 
+          (let ((draw-string-method (clr/%get-method
+                                     graphics-type
+                                     "DrawString"
+                                     (vector clr-type-handle/system-string
+                                             font-type
+                                             brush-type
+                                             clr-type-handle/system-single
+                                             clr-type-handle/system-single
+                                             string-format-type))))
+            (lambda (g string fnt x y col)
+              (let* ((string* (clr/%string->foreign string))
+                     (b (make-solid-brush ((col 'colptr))))
+                     (fntptr ((fnt 'fntptr)))
+                     (x* (clr/%flonum->foreign-single (exact->inexact x)))
+                     (y* (clr/%flonum->foreign-single (exact->inexact y)))
+                     (ign (begin (write `(draw-text ,string* ,b ,fntptr ,x* ,y*))
+                                 (newline))))
+                (clr/%invoke draw-string-method g
+                             (vector string* fntptr b x* y* string-format))
+                (begin (write `(finished draw-text)) (newline))))))
+
          (draw-line-method/inexact (clr/%get-method
                                     graphics-type
                                     "DrawLine"
@@ -765,30 +843,35 @@
                              (vector image-type
                                      clr-type-handle/system-int32
                                      clr-type-handle/system-int32)))
+         ;;(measure-text measure-text/text-renderer)
+         ;;(draw-text draw-text/text-renderer)
+         (measure-text measure-text/graphics)
+         (draw-text draw-text/graphics)
          )
     (lambda (g)
       (msg-handler 
-       ((measure-text txt-string fnt) 
-        (let ((sz (clr/%invoke measure-text-method #f
-                               (vector g
-                                       (clr/%string->foreign txt-string) 
-                                       ((fnt 'fntptr))))))
-          (values (size-width sz) (size-height sz))))
-       ((draw-text txt-string fnt x y col)
-        (clr/%invoke draw-text-method #f
-                     (vector g
-                             (clr/%string->foreign txt-string)
-                             ((fnt 'fntptr))
-                             (make-pointi x y)
-                             ((col 'colptr)))))
+       ((measure-text txt-string fnt)      (measure-text g txt-string fnt))
+       ((draw-text txt-string fnt x y col) (draw-text g txt-string fnt x y col))
        ((draw-line col x1 y1 x2 y2) 
         (let ((pen (make-pen ((col 'colptr)))))
-          (clr/%invoke draw-line-method/exact g
-                       (vector pen
-                               (clr/%number->foreign-int32 x1)
-                               (clr/%number->foreign-int32 y1)
-                               (clr/%number->foreign-int32 x2)
-                               (clr/%number->foreign-int32 y2)))
+          (cond ((and (fixnum? x1) (fixnum? y1) (fixnum? x2) (fixnum? y2))
+                 (begin (display `(draw-line/exact ,pen ,x1 ,y1 ,x2 ,y2)) (newline))
+          
+                 (clr/%invoke draw-line-method/exact g
+                              (vector pen
+                                      (clr/%number->foreign-int32 x1)
+                                      (clr/%number->foreign-int32 y1)
+                                      (clr/%number->foreign-int32 x2)
+                                      (clr/%number->foreign-int32 y2))))
+                (else
+                 (begin (display `(draw-line/inexact ,pen ,x1 ,y1 ,x2 ,y2)) (newline))
+                 (clr/%invoke draw-line-method/inexact g
+                              (vector pen 
+                                      (clr/%flonum->foreign-single (exact->inexact x1))
+                                      (clr/%flonum->foreign-single (exact->inexact y1))
+                                      (clr/%flonum->foreign-single (exact->inexact x2))
+                                      (clr/%flonum->foreign-single (exact->inexact y2))))))
+          (begin (display `(done draw-line)) (newline))
           (pen-dispose! pen)))
        ((draw-rect col x1 y1 x2 y2) 
         (let ((pen (make-pen ((col 'colptr))))
