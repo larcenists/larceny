@@ -134,7 +134,7 @@
 ;;                ['bounds (x y w h)] 
 ;;                ['double-buffered] 
 ;;                ['title string])
-;;  (close) (dispose)
+;;  (show) (show-dialog) (close) (dispose)
 (define (make-noisy-agent)
   (define (displayln x) (display x) (newline))
   (msg-handler
