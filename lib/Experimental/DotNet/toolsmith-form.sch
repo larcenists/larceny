@@ -632,8 +632,15 @@
 
 (define image-type    (find-drawing-type "Image"))
 
-(define (available-fnts)
+(define (available-fontnames)
   (map font-family-name (font-families)))
+(define (monospace-fontname)
+  (font-family-name (generic-font-family 'monospace)))
+(define (sans-serif-fontname)
+  (font-family-name (generic-font-family 'sans-serif)))
+(define (serif-fontname)
+  (font-family-name (generic-font-family 'serif)))
+
 (define make-fnt 
   (let* ((clone-method (clr/%get-method font-type "Clone" '#()))
          (make-bool-pset 
@@ -670,7 +677,7 @@
        ((italic?)    (get-italic fontptr))
        ((bold?)      (get-bold fontptr))
        ((underline?) (get-underline fontptr))
-       ((fontptr)    fontptr)))
+       ((fntptr)     fontptr)))
     (lambda (name em-size)
       (construct (make-font name em-size 'regular)))))
 (define (color->col colorptr)
@@ -760,16 +767,16 @@
          )
     (lambda (g)
       (msg-handler 
-       ((measure-text txt-string font-obj) 
+       ((measure-text txt-string fnt) 
         (let ((sz (clr/%invoke measure-text-method #f
                                (vector (clr/%string->foreign txt-string) 
-                                       ((font-obj 'fontptr))))))
+                                       ((fnt 'fntptr))))))
           (values (size-width sz) (size-height sz))))
-       ((draw-text txt-string font-obj x y col)
+       ((draw-text txt-string fnt x y col)
         (clr/%invoke draw-text-method #f
                      (vector g
                              (clr/%string->foreign txt-string)
-                             ((font-obj 'fontptr))
+                             ((fnt 'fntptr))
                              (make-pointi x y)
                              ((col 'colptr)))))
        ((draw-line col x1 y1 x2 y2) 
@@ -840,6 +847,9 @@
     (type->nullary-constructor double-buffered-form-type))
   )
 
+(define keys-type (find-forms-type "Keys"))
+(define keys-foreign->symbols (enum-type->foreign->symbol keys-type))
+
 (define (make-wnd . args)
   (let* ((agent-ctor
           (cond ((memq 'make-agent args) => cadr)
@@ -895,9 +905,10 @@
               (value (key-event-args-keyvalue e)))
           ((agent on-x)
            wnd
-           (clr/foreign->int code) `(,@(if alt '(alt) '())
-                                     ,@(if ctrl '(ctrl) '())
-                                     ,@(if shift '(shift) '())))
+           (keys-foreign->symbols code)
+           `(,@(if alt '(alt) '())
+             ,@(if ctrl '(ctrl) '())
+             ,@(if shift '(shift) '())))
           )))
     (define (mouse-event-handler on-x)
       (lambda (sender e)
@@ -954,6 +965,7 @@
     
     (return-wnd 
      (msg-handler
+      ((title)    title)
       ((close)    (form-close! form))
       ((closed?)  is-closed)
       ((wndptr) form) ;; for debugging; not for client code (e.g. agents)
