@@ -153,8 +153,7 @@
       (let* ((array (clr/%invoke get-names-method #f (vector t)))
              (names (map clr/foreign->string (clr-array->list array)))
              (syms  (map string->symbol names)))
-        (if (memq (string->symbol "System.FlagsAttribute")
-                  (clr-type/get-custom-attributes t))
+        (if (enum-flags-type? t)
             `(enum-flags: ,@syms)
             `(enum-values: ,@syms))))))
 
@@ -173,8 +172,7 @@
                            (error 'convert "" (type->name enum-type)
                                   "unknown name" s 
                                   "for possible enums " names))))))
-      (if (memq (string->symbol "System.FlagsAttribute")
-                (clr-type/get-custom-attributes enum-type))
+      (if (enum-flags-type? enum-type)
           ;; If flags enum, then accept arbitrary # of args.
           (lambda args
             (clr-enum/to-object 
@@ -186,15 +184,93 @@
   (let ((get-name-method 
          (clr/%get-method clr-type-handle/system-enum "GetName" 
                           (vector clr-type-handle/system-type
-                                  clr-type-handle/system-object))))
+                                  clr-type-handle/system-object)))
+        (get-names-method
+         (clr/%get-method clr-type-handle/system-enum "GetNames" 
+                          (vector clr-type-handle/system-type)))
+        (enum-parse-method
+         (clr/%get-method clr-type-handle/system-enum "Parse"
+                          (vector clr-type-handle/system-type 
+                                  clr-type-handle/system-string)))
+        (is-flag-val? ;; (powers of two)
+         (lambda (x)
+           (let loop ((i 1))
+             (cond ((= i x) #t)
+                   ((> i x) #f)
+                   (else (loop (* i 2))))))))
     (lambda (enum-type)
-      (lambda (foreign-val)
-        (string->symbol 
-         (string-downcase 
-          (clr/foreign->string 
-           (clr/%invoke get-name-method
-                        #f (vector enum-type foreign-val)))))))))
+      (if (enum-flags-type? enum-type)
 
+          ;; Just because something is a flagsenum does not mean that all of 
+          ;; its members are powers of two.  (See e.g. System.Windows.Forms.Keys)
+          ;;
+          ;; One (broken) strategy: 
+          ;;
+          ;; 1. Examine the type to find all of the flag values
+          ;; 2. Check for the flags first, mask each one out in turn
+          ;; 3. After masking out the flags, lookup residual value
+          ;;
+          ;; A problem with this is false positives on the flags in
+          ;; step 1 (e.g. 32 is space character).  To work around
+          ;; this, start at the largest power of two and count down
+          ;; until we do not see any.  There are pathological cases
+          ;; that this would also fail for, but hopefully they will
+          ;; not arise in practice.
+
+          (let* ((array (clr/%invoke get-names-method #f (vector enum-type)))
+                 (foreign-names (clr-array->list array))
+                 (name->value 
+                  (lambda (foreign-name)
+                    (clr/%invoke enum-parse-method #f (vector enum-type foreign-name))))
+                 (values*names (map (lambda (x) 
+                                      (let ((val (name->value x)))
+                                        (list (clr/%foreign->int val)
+                                              (string->symbol
+                                               (string-downcase
+                                                (clr/%foreign->string x)))
+                                              )))
+                                    foreign-names))
+                 (all-values (map car values*names))
+                 (max-value  (let ((v (apply max all-values))) 
+                               (assert (is-flag-val? v)) v))
+                 (flag-values*names
+                  (let loop ((i max-value) (l '()))
+                    (cond ((assv i values*names) =>
+                           (lambda (v*n)
+                             (loop (/ i 2) (cons v*n l))))
+                          (else l)))))
+            ;; (begin (display flag-values*names) (newline))
+            (lambda (foreign-val)
+              (let ((num (if (number? foreign-val) foreign-val
+                             (clr/%foreign->int foreign-val))))
+                ;; (display num) (newline)
+                (let* ((flags*residue 
+                        (let loop ((f flag-values*names) (flags '()) (num num))
+                          (cond ((null? f) (list flags num))
+                                ((not (zero? (fxlogand num (car (car f)))))
+                                 (loop (cdr f) 
+                                       (cons (cadr (car f)) flags) 
+                                       (fxlogand num (fxlognot (car (car f))))))
+                                (else
+                                 (loop (cdr f) flags num)))))
+                       (flags (car flags*residue))
+                       (residue (cadr flags*residue)))
+                  (cond 
+                   ((and (zero? residue) (not (null? flags)))
+                    (apply values flags))
+                   ((assv residue values*names)
+                    => (lambda (value*name)
+                         (apply values (cons (cadr value*name) flags))))
+                   (else
+                    (apply values flags)))))))
+          (let ()
+            (lambda (foreign-val)
+              (string->symbol 
+               (string-downcase 
+                (clr/foreign->string 
+                 (clr/%invoke get-name-method
+                              #f (vector enum-type foreign-val)))))))))))
+  
 (define subclass? 
   (let ((is-subclass-of-method (clr/%get-method type-type
                                                  "IsSubclassOf"
@@ -209,6 +285,12 @@
   (let ((enum-type (find-clr-type "System.Enum")))
     (lambda (t)
       (subclass? t enum-type))))
+(define enum-flags-type?
+  (let ((flags-attribute (string->symbol "System.FlagsAttribute")))
+    (lambda (t)
+      (and (enum-type? t)
+           (memq flags-attribute
+                 (clr-type/get-custom-attributes t))))))
 
 (define (describe-type t)
   (if (enum-type? t)
