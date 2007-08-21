@@ -724,7 +724,8 @@
          (measure-text-method (clr/%get-method
                                text-renderer-type
                                "MeasureText"
-                               (vector clr-type-handle/system-string
+                               (vector (find-drawing-type "IDeviceContext")
+                                       clr-type-handle/system-string
                                        font-type)))
          (draw-line-method/inexact (clr/%get-method
                                     graphics-type
@@ -769,7 +770,8 @@
       (msg-handler 
        ((measure-text txt-string fnt) 
         (let ((sz (clr/%invoke measure-text-method #f
-                               (vector (clr/%string->foreign txt-string) 
+                               (vector g
+                                       (clr/%string->foreign txt-string) 
                                        ((fnt 'fntptr))))))
           (values (size-width sz) (size-height sz))))
        ((draw-text txt-string fnt x y col)
