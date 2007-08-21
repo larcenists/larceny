@@ -207,14 +207,16 @@
                 (set! suffix (cons (car prefix) suffix))
                 (set! prefix (cdr prefix)))))
         ((right)
-         (cond ((null? prefix) ) ;; XXX bogus!
+         (cond ((null? suffix) ) ;; XXX bogus!
                (else
                 (set! prefix (cons (car suffix) prefix))
                 (set! suffix (cdr suffix))))))
       ((wnd 'update)))
      ((on-keypress wnd char) 
-      (set! prefix (cons char prefix))
-      ((wnd 'update)))
+      (cond ((or (char-alphabetic? char)
+                 (char-numeric? char))
+             (set! prefix (cons char prefix))
+             ((wnd 'update)))))
      ((on-paint wnd g x y w h)
       (let ((pre (list->string (reverse prefix)))
             (suf (list->string suffix)))
