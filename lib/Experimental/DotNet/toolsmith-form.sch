@@ -996,8 +996,23 @@
     (define-constructor double-buffered-form-type-builder))
   (define dbf-ilgen (constructor->ilgen dbf-ctor))
   (define dbf-emit! (ilgen->emitter dbf-ilgen))
+  (define binding-flags-type (find-reflection-type "BindingFlags"))
+  (define get-method/private-meth
+    (clr/%get-method type-type "GetMethod" 
+                     (vector clr-type-handle/system-string binding-flags-type)))
+  (define set-double-buffered-meth 
+    (let ((non-public-instance-flags
+           ((enum-type->symbol->foreign binding-flags-type) 
+            'nonpublic 'instance)))
+      (clr/%invoke get-method/private-meth
+                   control-type 
+                   (vector (clr/string->foreign "set_DoubleBuffered") 
+                           non-public-instance-flags))))
   (dbf-emit! 'ldarg.0)
   (dbf-emit! 'call (clr/%get-constructor form-type '#()))
+  (dbf-emit! 'ldarg.0)
+  (dbf-emit! 'ldc.i4.1)
+  (dbf-emit! 'call set-double-buffered-meth)
   (dbf-emit! 'ret)
   (define double-buffered-form-type 
     (let ((create-type-meth
@@ -1023,7 +1038,7 @@
          (form-ctor (cond ((memq 'double-buffered args) 
                            make-double-buffered-form)
                           (else make-form)))
-         (form (make-form))
+         (form (form-ctor))
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
          (unhandled (lambda (method-name)
