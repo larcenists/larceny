@@ -186,6 +186,10 @@
       ))))
 
 (define (make-code-editor-agent)
+  ;; XXX don't spend too much time writing code oriented around this
+  ;; representation of the text contents; we would be better off
+  ;; adopting something like Will's buffer abstraction (see text.sch
+  ;; in his editor code)
   (let* ((lines-before '())
          (lines-after  '())
          (prefix '())
@@ -215,8 +219,14 @@
      ((on-keypress wnd char) 
       (cond ((or (char-alphabetic? char)
                  (char-numeric? char))
-             (set! prefix (cons char prefix))
-             ((wnd 'update)))))
+             (set! prefix (cons char prefix)))
+            (else
+             (case char
+               ((#\backspace #\return #\esc #\tab) 'do-nothing)
+               (else
+                (write `(on-keypress wnd ,char)) (newline)
+                (set! prefix (cons char prefix))))))
+      ((wnd 'update)))
      ((on-paint wnd g x y w h)
       (let ((pre (list->string (reverse prefix)))
             (suf (list->string suffix)))
