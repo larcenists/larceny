@@ -129,9 +129,14 @@
   (let* ((opcodes-type (find-emit-type "OpCodes"))
          (operand-type (find-emit-type "OperandType"))
          (name-prop    (clr/%get-property opcode-type "Name" '#()))
-         (opcode-name  (make-property-ref opcode-type "Name"))
+         (opcode-name  
+          (lambda (opc) 
+            (clr/foreign->string (clr/%property-ref name-prop opc '#()))))
          (opcodes-fields (type->fields opcodes-type))
-         (is-static? (make-property-ref field-info-type "IsStatic"))
+         (is-static-prop (clr/%get-property field-info-type "IsStatic" '#()))
+         (is-static?
+          (lambda (fi)
+            (clr/foreign->bool (clr/%property-ref is-static-prop fi '#()))))
          (static-fields (filter is-static? opcodes-fields))
          (field-values (map (lambda (field-info)
                               (list (clr/%field-ref field-info #f)
@@ -168,7 +173,10 @@
                   (else (error 'opcode ": unknown opcode " opcode-sym))))))
     ))
 (define operandtype-type (find-emit-type "OperandType"))
-(define opcode-operandtype (make-property-ref opcode-type "OperandType"))
+(define opcode-operandtype
+  (let ((prop (clr/%get-property opcode-type "OperandType" '#())))
+    (lambda (x)
+      (clr/%property-ref prop x '#()))))
 (define operandtype-name (enum-type->foreign->symbol operandtype-type))
 
 (define ilgen->emitter
