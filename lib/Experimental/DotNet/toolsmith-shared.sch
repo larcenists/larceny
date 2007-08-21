@@ -115,14 +115,14 @@
 
 ;; AGENT: (make-noisy-agent) ;; client makes own agent ctors, perhaps via msg-handler special form
 ;;  (on-close wnd) 
-;;  (on-keypress wnd char) (on-keydown wnd int mods) (on-keyup int mods)
+;;  (on-keypress wnd char) (on-keydown wnd sym mods) (on-keyup sym mods)
 ;;  (on-mousedown x y) (on-mouseup x y) (on-mousemove x y) 
 ;;  (on-mouseclick x y) (on-mousedoubleclick x y)
 ;;  (on-mouseenter) (on-mouseleave)
 ;;  (on-paint gfx x y w h) (dispose)
-;; FNT: (make-fnt name em-size) (available-fnts)
+;; FNT: (make-fnt name em-size) (available-fontnames) (monospace-fontname) (sans-serif-fontname) (serif-fontname)
 ;;  (clone ['italic] ['bold] ['underline] ['em-size r])
-;;  (name) (em-size) (italic?) (bold?) (underline?) (fontptr)
+;;  (name) (em-size) (italic?) (bold?) (underline?) (fntptr)
 ;; GFX: ;; no public constructors (received via agent's on-paint op)
 ;;  (measure-text txt-string font-obj) 
 ;;  (draw-text txt-string font-obj x y col) 
@@ -184,3 +184,45 @@
       ;;(begin (display `(on-paint temp-rect: ,temp-rect)) (newline))
       (cond (temp-rect (apply (g 'draw-rect) (name->col "Red") temp-rect)))
       ))))
+
+(define (make-code-editor-agent)
+  (let* ((lines-before '())
+         (lines-after  '())
+         (prefix '())
+         (suffix '())
+         (index 0)
+         (fnt (make-fnt (monospace-fontname) 10))
+         (col (name->col "Black")))
+    (msg-handler
+     ((on-keydown wnd sym mods)
+      (begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline)))
+     ((on-keyup   wnd sym mods)
+      (begin (write `(keyup ,((wnd 'title)) ,sym ,mods)) (newline))
+      (case sym
+        ((back delete) (cond ((null? prefix) ) ;; XXX bogus!
+                             (else (set! prefix (cdr prefix)))))
+        ((left) 
+         (cond ((null? prefix) ) ;; XXX bogus!
+               (else
+                (set! suffix (cons (car prefix) suffix))
+                (set! prefix (cdr prefix)))))
+        ((right)
+         (cond ((null? prefix) ) ;; XXX bogus!
+               (else
+                (set! prefix (cons (car suffix) prefix))
+                (set! suffix (cdr suffix))))))
+      ((wnd 'update)))
+     ((on-keypress wnd char) 
+      (set! prefix (cons char prefix))
+      ((wnd 'update)))
+     ((on-paint wnd g x y w h)
+      (let ((pre (list->string (reverse prefix)))
+            (suf (list->string suffix)))
+        (call-with-values (lambda () ((g 'measure-text) pre fnt))
+          (lambda (w h) 
+            (display `(,pre ,w ,h)) (newline)
+            ((g 'draw-text) pre fnt 0 0 col)
+            ((g 'draw-line) col w 0 w h)
+            ((g 'draw-text) suf fnt w 0 col))))))))
+
+    
