@@ -693,7 +693,7 @@
   (syntax-rules ()
     ((msg-handler ((OP-NAME . ARGS) BODY ...) ...)
      (lambda (op)
-       (display `(handling msg ,op)) (newline)
+       ;; (display `(handling msg ,op)) (newline)
        (case op
          ((OP-NAME) (lambda ARGS BODY ...))
          ...
@@ -768,12 +768,12 @@
              (forget!)
              ((wnd 'update))
              )))
-     ((on-mouseleave wnd) (forget!))
+     ((on-mouseleave wnd) (forget!) ((wnd 'update)))
      ((on-paint wnd g x y w h)
       (for-each
        (lambda (rect) (apply (g 'draw-rect) (name->col "Black") rect))
        rect-list)
-      (begin (display `(on-paint temp-rect: ,temp-rect)) (newline))
+      ;;(begin (display `(on-paint temp-rect: ,temp-rect)) (newline))
       (cond (temp-rect (apply (g 'draw-rect) (name->col "Red") temp-rect)))
       ))))
 
