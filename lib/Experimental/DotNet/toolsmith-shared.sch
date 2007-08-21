@@ -199,9 +199,10 @@
          (col (name->col "Black")))
     (msg-handler
      ((on-keydown wnd sym mods)
-      (begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline)))
+      '(begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline))
+      )
      ((on-keyup   wnd sym mods)
-      (begin (write `(keyup ,((wnd 'title)) ,sym ,mods)) (newline))
+      '(begin (write `(keyup ,((wnd 'title)) ,sym ,mods)) (newline))
       (case sym
         ((back delete) (cond ((null? prefix) ) ;; XXX bogus!
                              (else (set! prefix (cdr prefix)))))
@@ -224,7 +225,7 @@
              (case char
                ((#\backspace #\return #\esc #\tab) 'do-nothing)
                (else
-                (write `(on-keypress wnd ,char)) (newline)
+                '(begin (write `(on-keypress wnd ,char)) (newline))
                 (set! prefix (cons char prefix))))))
       ((wnd 'update)))
      ((on-paint wnd g x y w h)
@@ -232,7 +233,6 @@
             (suf (list->string suffix)))
         (call-with-values (lambda () ((g 'measure-text) pre fnt))
           (lambda (w h) 
-            (display `(,pre ,w ,h)) (newline)
             ((g 'draw-text) pre fnt 0 0 col)
             ((g 'draw-line) col w 0 w h)
             ((g 'draw-text) suf fnt w 0 col))))))))

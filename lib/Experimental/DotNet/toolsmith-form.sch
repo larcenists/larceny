@@ -798,12 +798,10 @@
                      (b (make-solid-brush ((col 'colptr))))
                      (fntptr ((fnt 'fntptr)))
                      (x* (clr/%flonum->foreign-single (exact->inexact x)))
-                     (y* (clr/%flonum->foreign-single (exact->inexact y)))
-                     (ign (begin (write `(draw-text ,string* ,b ,fntptr ,x* ,y*))
-                                 (newline))))
+                     (y* (clr/%flonum->foreign-single (exact->inexact y))))
                 (clr/%invoke draw-string-method g
                              (vector string* fntptr b x* y* string-format))
-                (begin (write `(finished draw-text)) (newline))))))
+                ))))
 
          (draw-line-method/inexact (clr/%get-method
                                     graphics-type
@@ -855,8 +853,6 @@
        ((draw-line col x1 y1 x2 y2) 
         (let ((pen (make-pen ((col 'colptr)))))
           (cond ((and (fixnum? x1) (fixnum? y1) (fixnum? x2) (fixnum? y2))
-                 (begin (display `(draw-line/exact ,pen ,x1 ,y1 ,x2 ,y2)) (newline))
-          
                  (clr/%invoke draw-line-method/exact g
                               (vector pen
                                       (clr/%number->foreign-int32 x1)
@@ -864,14 +860,12 @@
                                       (clr/%number->foreign-int32 x2)
                                       (clr/%number->foreign-int32 y2))))
                 (else
-                 (begin (display `(draw-line/inexact ,pen ,x1 ,y1 ,x2 ,y2)) (newline))
                  (clr/%invoke draw-line-method/inexact g
                               (vector pen 
                                       (clr/%flonum->foreign-single (exact->inexact x1))
                                       (clr/%flonum->foreign-single (exact->inexact y1))
                                       (clr/%flonum->foreign-single (exact->inexact x2))
                                       (clr/%flonum->foreign-single (exact->inexact y2))))))
-          (begin (display `(done draw-line)) (newline))
           (pen-dispose! pen)))
        ((draw-rect col x1 y1 x2 y2) 
         (let ((pen (make-pen ((col 'colptr))))
