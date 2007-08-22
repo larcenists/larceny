@@ -135,11 +135,15 @@
 ;; COL: (make-col alpha red green blue) (name->col name) (available-colornames)
 ;;  (name) (alpha) (red) (green) (blue) (colptr)
 ;; WND: (make-wnd ['make-agent agent-ctor] 
-;;                ['menu mnu]
 ;;                ['bounds (x y w h)] 
 ;;                ['double-buffered] 
 ;;                ['title string])
 ;;  (show) (show-dialog) (title) (close) (dispose) (update)
+;;  (push-menus mnu ...) (pop-menus)
+;; MNU: (make-mnu name)
+;;  (append item action) ;; item is string or mnu; action is nullary procedure
+;;  (append item action enabled?) ;; enabled? is nullary predicate
+;;  (items) (mnuptr) (name)
 
 (define (make-noisy-agent)
   (define (displayln x) (display x) (newline))

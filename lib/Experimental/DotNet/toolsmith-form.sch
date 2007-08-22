@@ -31,6 +31,17 @@
           (else 
            x))))
 
+(define (name->string x)
+  (cond
+   ((symbol? x) (symbol->string x))
+   ((string? x) x)
+   (else (error 'name->string ": " x " is not a name."))))
+(define (name->symbol x)
+  (cond 
+   ((symbol? x) x)
+   ((string? x) (string->symbol x))
+   (else (error 'name->symbol ": " x " is not a name."))))
+
 (define type->nullary-constructor 
   (lambda (type)
     (let ((ctor (clr/%get-constructor type '#())))
@@ -412,6 +423,7 @@
 (define form-set-menu! (make-property-setter form-type "Menu"))
 
 (define menu-item-set-text! (make-property-setter menu-item-type "Text"))
+(define menu-item-text (make-property-ref menu-item-type "Text"))
 
 ;; (Generic and slow)
 (define (set-text! obj new-text)
@@ -692,7 +704,7 @@
           (cond (em-size   (set-emsize newptr em-size)))
           (construct newptr)))
        ((name)
-        (get-name fontptr))
+        (name->symbol (get-name fontptr)))
        ((em-size)
         (get-size fontptr))
        ((italic?)    (get-italic fontptr))
@@ -700,10 +712,10 @@
        ((underline?) (get-underline fontptr))
        ((fntptr)     fontptr)))
     (lambda (name em-size)
-      (construct (make-font name em-size 'regular)))))
+      (construct (make-font (name->string name) em-size 'regular)))))
 (define (color->col colorptr)
   (msg-handler 
-   ((name)     (string->symbol (color-name colorptr)))
+   ((name)     (name->symbol (color-name colorptr)))
    ((alpha)    (color-alpha colorptr))
    ((red)      (color-red   colorptr))
    ((green)    (color-green colorptr))
@@ -730,7 +742,7 @@
     (lambda (name)
       (color->col
        (clr/%invoke from-name-method
-                    #f (vector (clr/%string->foreign (symbol->string name))))))))
+                    #f (vector (clr/%string->foreign (name->string name))))))))
       
 (define available-colornames
   (let ((color-sym (string->symbol "Color")))
@@ -968,6 +980,22 @@
 (define keys-type (find-forms-type "Keys"))
 (define keys-foreign->symbols (enum-type->foreign->symbol keys-type))
 
+(define (make-mnu name)
+  (define (string->menu-item s)
+    (let ((mi (make-menu-item)))
+      (menu-item-set-text! mi (name->string s))
+      mi))
+  (let ((mi (string->menu-item name)))
+    (msg-handler
+     ((name) (name->symbol (menu-item-text mi)))
+     ((mnuptr) mi)
+     ((append item action) 
+      (let ((mi* (cond ((string? item) (string->menu-item item))
+                       (else ((item 'mnuptr))))))
+        (menu-add-menu-item! mi mi*)
+        (add-event-handler mi* "Click"
+                           (lambda (sender args) (action))))))))
+     
 (define (make-wnd . args)
   (let* ((agent-ctor
           (cond ((memq 'make-agent args) => cadr)
@@ -984,6 +1012,7 @@
                            make-double-buffered-form)
                           (else make-form)))
          (form (form-ctor))
+         (menu-stack '())
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
          (unhandled (lambda (method-name)
@@ -1100,6 +1129,18 @@
       ((dispose)       
        (((default-impl 'dispose)) wnd) 
        (control-dispose! form))
+
+      ((push-menus . mnus) 
+       (let ((main-menu (make-main-menu)))
+         (for-each (lambda (mnu) (menu-add-menu-item! main-menu ((mnu 'mnuptr)))) mnus)
+         (set! menu-stack (cons main-menu menu-stack))
+         (form-set-menu! form main-menu)))
+      ((pop-menus)
+       (set! menu-stack (cdr menu-stack))
+       (cond ((not (null? menu-stack))
+              (form-set-menu! form (car menu-stack)))
+             (else
+              (form-set-menu! form clr/null))))
       
       ;; Are these really necessary in this development model?  Perhaps
       ;; for testing???  (But why not just extract the agent and call
