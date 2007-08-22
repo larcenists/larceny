@@ -771,16 +771,28 @@
                                             (vector string-format-type))))
             (lambda (x)
               (clr/%invoke-constructor ctor (vector x)))))
-         (format-flag (enum-type->symbol->foreign string-format-flags-type))
+         (format-flags->foreign (enum-type->symbol->foreign string-format-flags-type))
+         (foreign->format-flags (enum-type->foreign->symbol string-format-flags-type))
          (generic-typographic-format-prop
           (clr/%get-property string-format-type "GenericTypographic" '#()))
          (generic-typographic-format 
           (clr/%property-ref generic-typographic-format-prop clr/null '#()))
-         (string-format (let ((format-flags-prop 
-                               (clr/%get-property string-format-type "FormatFlags" '#()))
-                              (fmt (make-string-format generic-typographic-format)))
-                          (clr/%property-set! format-flags-prop fmt 
-                                              (format-flag 'measuretrailingspaces) '#())
+         (string-format (let* ((format-flags-prop 
+                                (clr/%get-property 
+                                 string-format-type "FormatFlags" '#()))
+                               (fmt (make-string-format 
+                                     generic-typographic-format))
+                               (flags 
+                                (call-with-values 
+                                    (lambda ()
+                                      (foreign->format-flags
+                                       (clr/%property-ref 
+                                        format-flags-prop fmt '#())))
+                                  list)))
+                          (clr/%property-set! 
+                           format-flags-prop fmt 
+                           (apply format-flags->foreign
+                                  'measuretrailingspaces flags) '#())
                           (display fmt) (newline)
                           fmt))
          (measure-text/graphics
