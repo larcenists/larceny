@@ -805,12 +805,17 @@
                                               string-format-type))))
             
             (lambda (g string fnt)
-              (let* ((string* (clr/%string->foreign string))
+              ;; XXX when Mono releases a fix for their MeasureTrailingSpaces bug
+              ;; take this hack of appending "a" out.
+              (let* ((string* (clr/%string->foreign (string-append string "a")))
+                     (stringa (clr/%string->foreign "a"))
                      (fntptr ((fnt 'fntptr)))
                      (maxint30 (clr/%number->foreign-int32 (most-positive-fixnum)))
+                     (sza (clr/%invoke measure-text-method 
+                                       g (vector stringa fntptr maxint30 string-format)))
                      (szf (clr/%invoke measure-text-method 
                                        g (vector string* fntptr maxint30 string-format))))
-                (values (sizef-width szf) (sizef-height szf))))))
+                (values (- (sizef-width szf) (sizef-width sza)) (sizef-height szf))))))
          (draw-text/graphics 
           (let ((draw-string-method (clr/%get-method
                                      graphics-type
