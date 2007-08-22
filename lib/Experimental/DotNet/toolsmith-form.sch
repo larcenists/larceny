@@ -765,8 +765,24 @@
                                    ((col 'colptr)))))))
 
          (string-format-type (find-drawing-type "StringFormat"))
-         (make-string-format (type->nullary-constructor string-format-type))
-         (string-format (make-string-format))
+         (string-format-flags-type (find-drawing-type "StringFormatFlags"))
+         (make-string-format
+          (let ((ctor (clr/%get-constructor string-format-type 
+                                            (vector string-format-type))))
+            (lambda (x)
+              (clr/%invoke-constructor ctor (vector x)))))
+         (format-flag (enum-type->symbol->foreign string-format-flags-type))
+         (generic-typographic-format-prop
+          (clr/%get-property string-format-type "GenericTypographic" '#()))
+         (generic-typographic-format 
+          (clr/%property-ref generic-typographic-format-prop clr/null '#()))
+         (string-format (let ((format-flags-prop 
+                               (clr/%get-property string-format-type "FormatFlags" '#()))
+                              (fmt (make-string-format generic-typographic-format)))
+                          (clr/%property-set! format-flags-prop fmt 
+                                              (format-flag 'measuretrailingspaces) '#())
+                          (display fmt) (newline)
+                          fmt))
          (measure-text/graphics
           (let ((measure-text-method (clr/%get-method
                                       graphics-type
