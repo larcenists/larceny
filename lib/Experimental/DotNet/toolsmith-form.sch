@@ -811,7 +811,6 @@
                            format-flags-prop fmt 
                            (apply format-flags->foreign
                                   'measuretrailingspaces flags) '#())
-                          (display fmt) (newline)
                           fmt))
          (measure-text/graphics
           (let ((measure-text-method (clr/%get-method
