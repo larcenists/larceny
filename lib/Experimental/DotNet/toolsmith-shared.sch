@@ -190,13 +190,24 @@
   ;; representation of the text contents; we would be better off
   ;; adopting something like Will's buffer abstraction (see text.sch
   ;; in his editor code)
-  (let* ((lines-before '())
-         (lines-after  '())
+  (let* ((lines-before '("line B" "line A"))
+         (lines-after  '("line Y" "line Z"))
          (prefix '())
          (suffix '())
          (index 0)
          (fnt (make-fnt (monospace-fontname) 10))
          (col (name->col "Black")))
+
+    (define (take lst n)
+      (cond ((zero? n) '())
+            ((null? lst) '())
+            (else (cons (car lst) 
+                        (take (cdr lst) (- n 1))))))
+    (define (drop lst n)
+      (cond ((zero? n) lst)
+            ((null? lst) '())
+            (else (drop (cdr lst) (- n 1)))))
+
     (msg-handler
      ((on-keydown wnd sym mods)
       '(begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline))
@@ -204,8 +215,33 @@
      ((on-keyup   wnd sym mods)
       '(begin (write `(keyup ,((wnd 'title)) ,sym ,mods)) (newline))
       (case sym
+        ((text) 
+         (apply string-append
+                (append (reverse lines-before)
+                        (list (list->string (append (reverse prefix) suffix)))
+                        lines-after)))
         ((back delete) (cond ((null? prefix) ) ;; XXX bogus!
                              (else (set! prefix (cdr prefix)))))
+        ((up)
+         (cond ((null? lines-before) 'do-nothing)
+               (else
+                (let ((i (length prefix)))
+                  (set! lines-after
+                        (cons (list->string (append (reverse prefix) suffix)) 
+                              lines-after))
+                  (set! prefix (reverse (take (string->list (car lines-before)) i)))
+                  (set! suffix (drop (string->list (car lines-before)) i))
+                  (set! lines-before (cdr lines-before))))))
+        ((down)
+         (cond ((null? lines-after) 'do-nothing)
+               (else
+                (let ((i (length prefix)))
+                  (set! lines-before
+                        (cons (list->string (append (reverse prefix) suffix))
+                              lines-before))
+                  (set! prefix (reverse (take (string->list (car lines-after)) i)))
+                  (set! suffix (drop (string->list (car lines-after)) i))
+                  (set! lines-after (cdr lines-after))))))
         ((left) 
          (cond ((null? prefix) ) ;; XXX bogus!
                (else
@@ -215,7 +251,10 @@
          (cond ((null? suffix) ) ;; XXX bogus!
                (else
                 (set! prefix (cons (car suffix) prefix))
-                (set! suffix (cdr suffix))))))
+                (set! suffix (cdr suffix)))))
+        (else 
+         (begin (write `(keyup ,((wnd 'title)) ,sym ,mods)) (newline)))
+        )
       ((wnd 'update)))
      ((on-keypress wnd char) 
       (cond ((or (char-alphabetic? char)
@@ -229,12 +268,25 @@
                 (set! prefix (cons char prefix))))))
       ((wnd 'update)))
      ((on-paint wnd g x y w h)
-      (let ((pre (list->string (reverse prefix)))
-            (suf (list->string suffix)))
-        (call-with-values (lambda () ((g 'measure-text) pre fnt))
-          (lambda (w h) 
-            ((g 'draw-text) pre fnt 0 0 col)
-            ((g 'draw-line) col w 0 w h)
-            ((g 'draw-text) suf fnt w 0 col))))))))
+      '(begin (write `(on-paint wnd g ,x ,y ,w ,h))
+             (newline))
+      (let* ((measure-height
+              (lambda (s) (call-with-values (lambda () ((g 'measure-text) s fnt))
+                            (lambda (w h) h))))
+             (pre (list->string (reverse prefix)))
+             (suf (list->string suffix))
+             (h (call-with-values (lambda () ((g 'measure-text) pre fnt))
+                  (lambda (w h) 
+                    (begin (write `(pre ,pre has width ,w and height ,h))
+                           (newline))
+                    ((g 'draw-text) pre fnt 0 0 col)
+                    ((g 'draw-line) col w 0 w h)
+                    ((g 'draw-text) suf fnt w 0 col)
+                    h))))
+        (let loop ((h h) (lines lines-after))
+          (cond ((not (null? lines))
+                 ((g 'draw-text) (car lines) fnt 0 h col)
+                 (loop (+ h (measure-height (car lines))) (cdr lines)))))
+        )))))
 
     
