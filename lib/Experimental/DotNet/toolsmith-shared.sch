@@ -287,8 +287,6 @@
              (suf (list->string suffix))
              (h (call-with-values (lambda () ((g 'measure-text) pre fnt))
                   (lambda (w h) 
-                    (begin (write `(pre ,pre has width ,w and height ,h))
-                           (newline))
                     ((g 'draw-text) pre fnt 0 0 col)
                     ((g 'draw-line) col w 0 w h)
                     ((g 'draw-text) suf fnt w 0 col)
