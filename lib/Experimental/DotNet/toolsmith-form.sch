@@ -703,7 +703,7 @@
       (construct (make-font name em-size 'regular)))))
 (define (color->col colorptr)
   (msg-handler 
-   ((name)     (color-name colorptr))
+   ((name)     (string->symbol (color-name colorptr)))
    ((alpha)    (color-alpha colorptr))
    ((red)      (color-red   colorptr))
    ((green)    (color-green colorptr))
@@ -730,8 +730,14 @@
     (lambda (name)
       (color->col
        (clr/%invoke from-name-method
-                    #f (vector (clr/%string->foreign name)))))))
+                    #f (vector (clr/%string->foreign (symbol->string name))))))))
       
+(define available-colornames
+  (let ((color-sym (string->symbol "Color")))
+    (lambda () 
+      (map property-info->name 
+           (filter (lambda (x) (eq? color-sym (type->name (property-info->type x)))) 
+                   (type->properties color-type))))))
 (define graphics->gfx 
   (let* ((text-renderer-type (find-forms-type "TextRenderer"))
          (measure-text/text-renderer

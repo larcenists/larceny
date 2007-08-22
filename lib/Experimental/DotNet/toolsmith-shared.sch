@@ -120,6 +120,10 @@
 ;;  (on-mouseclick x y) (on-mousedoubleclick x y)
 ;;  (on-mouseenter) (on-mouseleave)
 ;;  (on-paint gfx x y w h) (dispose)
+
+;; Agents are client written entities; the objects below are provided
+;; by the runtime system.
+
 ;; FNT: (make-fnt name em-size) (available-fontnames) (monospace-fontname) (sans-serif-fontname) (serif-fontname)
 ;;  (clone ['italic] ['bold] ['underline] ['em-size r])
 ;;  (name) (em-size) (italic?) (bold?) (underline?) (fntptr)
@@ -128,13 +132,15 @@
 ;;  (draw-text txt-string font-obj x y col) 
 ;;  (draw-line col x1 y1 x2 y2) (draw-image img-obj x y) 
 ;;  (draw-rect col x1 y1 x2 y2) (gfxptr)
-;; COL: (make-col alpha red green blue) (name->col name)
+;; COL: (make-col alpha red green blue) (name->col name) (available-colornames)
 ;;  (name) (alpha) (red) (green) (blue) (colptr)
 ;; WND: (make-wnd ['make-agent agent-ctor] 
+;;                ['menu mnu]
 ;;                ['bounds (x y w h)] 
 ;;                ['double-buffered] 
 ;;                ['title string])
-;;  (show) (show-dialog) (close) (dispose) (update)
+;;  (show) (show-dialog) (title) (close) (dispose) (update)
+
 (define (make-noisy-agent)
   (define (displayln x) (display x) (newline))
   (msg-handler
@@ -196,7 +202,7 @@
          (suffix '())
          (index 0)
          (fnt (make-fnt (monospace-fontname) 10))
-         (col (name->col "Black")))
+         (col (name->col (string->symbol "Black"))))
 
     (define (take lst n)
       (cond ((zero? n) '())
