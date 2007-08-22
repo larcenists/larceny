@@ -1007,7 +1007,7 @@
           (cond ((memq 'title args) => cadr)
                 (else #f)))
          (agent (agent-ctor))
-         (agent-ops (agent 'operations))
+         (agent-ops ((agent 'operations)))
          (form-ctor (cond ((memq 'double-buffered args) 
                            make-double-buffered-form)
                           (else make-form)))

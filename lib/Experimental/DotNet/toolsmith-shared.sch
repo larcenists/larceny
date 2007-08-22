@@ -102,7 +102,7 @@
        (case op
          ((OP-NAME) (lambda ARGS BODY ...))
          ...
-         ((operations) '(OP-NAME ...))
+         ((operations) (lambda () '(OP-NAME ... operations)))
          (else (error 'msg-handler 
                       ": unhandled object message " op)))))))
 
