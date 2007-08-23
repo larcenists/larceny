@@ -326,7 +326,7 @@
         (fields ?name (?offset ?field) ...))
 
       (set! ?constructor
-         (lambda () (make-bytevector size)))
+         (lambda () (make-bytevector size 0)))
 
       (set! ?getter
          (lambda (x) (?low-getter x ?offset))) ...
@@ -345,7 +345,7 @@
         (fields ?name (?offset ?field) ...))
 
       (set! ?constructor
-         (lambda () (make-bytevector size)))
+         (lambda () (make-bytevector size 0)))
 
       (set! ?getter
          (lambda (x) (?low-getter x ?offset))) ...)))))
