@@ -147,6 +147,7 @@
 ;;                ['title string])
 ;;  (show) (show-dialog) (title) (close) (dispose) (update)
 ;;  (width) (height)
+;;  (measure-text txt-string font-obj) 
 ;;  (push-menus mnu ...) (pop-menus)
 ;; MNU: (make-mnu name)
 ;;  (append item action) ;; item is string or mnu; action is nullary procedure
