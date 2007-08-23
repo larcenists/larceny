@@ -173,6 +173,16 @@
           (void*-double-set! array (* 8 i) (exact->inexact 
                                             (vector-ref vect i))))))))
 
+;; numvector->floats : PI [Rtd] . [Vectorof Number] -> Rtd
+(define (numvector->floats rtd)
+  (let ((malloc (stdlib/malloc rtd)))
+    (lambda (vect)
+      (let* ((len (vector-length vect))
+             (array (malloc (* 4 (+ 1 len)))))
+        (do ((i 0 (+ i 1)))
+            ((= i len) (void*-word-set! array (* 4 len) 0) array)
+          (void*-float-set! array (* 4 i) (exact->inexact 
+                                            (vector-ref vect i))))))))
 
         
 
@@ -226,13 +236,24 @@
 
 ;; call-with-double* : [Vectorof Number] (Double* -> T) -> T
 (define call-with-double*
-  (let ((vector->array (wordvector->words double*-rt)))
+  (let ((vector->array (numvector->doubles double*-rt)))
     (lambda (vec func)
-      (let* ((array (numvector->doubles vec))
+      (let* ((array (vector->array vec))
              (val (func array)))
         (stdlib/free array)
         val))))
 
+;; A Float* is a Void* that points to an array of floats
+(define float*-rt (ffi-install-void*-subtype 'float*))
+
+;; call-with-float* : [Vectorof Number] (Float* -> T) -> T
+(define call-with-float*
+  (let ((vector->array (numvector->floats float*-rt)))
+    (lambda (vec func)
+      (let* ((array (vector->array vec))
+             (val (func array)))
+        (stdlib/free array)
+        val))))
 
 ;; call-with-boxed : Void* -> Rtd
 ;; call-with-boxed : Int -> Rtd
