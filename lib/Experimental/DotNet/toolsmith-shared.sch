@@ -123,9 +123,10 @@
 ;;  (on-mouseclick x y) (on-mousedoubleclick x y)
 ;;  (on-mouseenter) (on-mouseleave)
 ;;  (on-paint gfx x y w h) (dispose)
-;;  (vertical-scrollbar?) (horizontal-scrollbar?) ; controls scrollbar exposure
+;;  (vertical-scrollbar) (horizontal-scrollbar) ; scrollbar exposure+properties
 ;;  (on-vscroll old-int new-int event-type)
 ;;  (on-hscroll old-int new-int event-type)
+;;  (on-resize wnd)
 
 ;; Agents are client written entities; the objects below are provided
 ;; by the runtime system.
@@ -145,13 +146,14 @@
 ;;                ['double-buffered] 
 ;;                ['title string])
 ;;  (show) (show-dialog) (title) (close) (dispose) (update)
+;;  (width) (height)
 ;;  (push-menus mnu ...) (pop-menus)
 ;; MNU: (make-mnu name)
 ;;  (append item action) ;; item is string or mnu; action is nullary procedure
 ;;  (append item action enabled?) ;; enabled? is nullary predicate
 ;;  (items) (mnuptr) (name)
 
-(define (make-noisy-agent)
+(define (make-noisy-agent width height)
   (define (displayln x) (display x) (newline))
   (msg-handler
    ((on-close wnd)                (displayln `(on-close)))
@@ -169,7 +171,7 @@
    ((on-dispose wnd)              (displayln `(on-dispose)))
    ))
 
-(define (make-rectangle-drawing-agent)
+(define (make-rectangle-drawing-agent width height)
   (let* ((last-x #f)
          (last-y #f)
          (temp-rect #f)
@@ -201,17 +203,18 @@
       (cond (temp-rect (apply (g 'draw-rect) (name->col "Red") temp-rect)))
       ))))
 
-(define (make-code-editor-agent)
+(define (make-code-editor-agent width height)
   ;; XXX don't spend too much time writing code oriented around this
   ;; representation of the text contents; we would be better off
   ;; adopting something like Will's buffer abstraction (see text.sch
   ;; in his editor code)
-  (let* ((lines-before '("line B" "line A"))
+  (let* ((rlines-before-view '("line B" "line A"))
+         (rlines-before-cursor '("line D" "line C"))
          (lines-after  '("line Y" "line Z"))
          (prefix '())
          (suffix '())
-         (index 0)
-         (fnt (make-fnt (monospace-fontname) 10))
+         (em-size 10)
+         (fnt (make-fnt (monospace-fontname) em-size))
          (col (name->col (string->symbol "Black"))))
 
     (define (take lst n)
@@ -224,75 +227,135 @@
             ((null? lst) '())
             (else (drop (cdr lst) (- n 1)))))
 
+    (define (max-visible-lines)
+      (quotient height em-size))
+
+    (define (count-visible-lines)
+      (min (+ (length rlines-before-cursor)
+              1
+              (length lines-after))
+           (max-visible-lines)))
+
+    (define (count-lines)
+      (+ (length rlines-before-view)
+         (length rlines-before-cursor)
+         1
+         (length lines-after)))
+
+    (define (cursor-line)
+      (length rlines-before-cursor))
+
+
     (msg-handler
+     ((text) 
+      (apply string-append
+             (append (reverse rlines-before-view)
+                     (reverse rlines-before-cursor)
+                     (list (list->string (append (reverse prefix) suffix)))
+                     lines-after)))
      ((on-keydown wnd sym mods)
       '(begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline))
       )
      ((on-keyup   wnd sym mods)
       '(begin (write `(keyup ,((wnd 'title)) ,sym ,mods)) (newline))
       (case sym
-        ((text) 
-         (apply string-append
-                (append (reverse lines-before)
-                        (list (list->string (append (reverse prefix) suffix)))
-                        lines-after)))
-        ((back delete) (cond ((and (null? prefix) 
-                                   (null? lines-before)) 'do-nothing)
-                             ((null? prefix) 
-                              (set! prefix (reverse (string->list (car lines-before))))
-                              (set! lines-before (cdr lines-before)))
-                             (else (set! prefix (cdr prefix)))))
+        ((back delete) 
+         (cond ((not (null? prefix))
+                (set! prefix (cdr prefix)))
+               ((not (null? rlines-before-cursor))
+                (set! prefix (reverse (string->list 
+                                       (car rlines-before-cursor))))
+                (set! rlines-before-cursor (cdr rlines-before-cursor)))
+               ((null? rlines-before-view)
+                'do-nothing)
+               (else
+                ;; XXX should pull out k lines of text and measure
+                ;; their total height exactly.
+                ((wnd 'scroll) 'vertical (- em-size))
+                (assert (not (null? rlines-before-cursor)))
+                (set! prefix (reverse (string->list 
+                                       (car rlines-before-cursor))))
+                (set! rlines-before-cursor (cdr rlines-before-cursor)))))
         ((enter) 
-         (set! lines-before (cons (list->string (reverse prefix)) lines-before))
+         (set! rlines-before-cursor
+               (cons (list->string (reverse prefix)) rlines-before-cursor))
          (set! prefix '()))
         ((up)
-         (cond ((null? lines-before) 'do-nothing)
-               (else
-                (let ((i (length prefix)))
-                  (set! lines-after
-                        (cons (list->string (append (reverse prefix) suffix)) 
-                              lines-after))
-                  (set! prefix (reverse (take (string->list (car lines-before)) i)))
-                  (set! suffix (drop (string->list (car lines-before)) i))
-                  (set! lines-before (cdr lines-before))))))
+         (let ((move-up! 
+                (lambda ()
+                  (assert (not (null? rlines-before-cursor)))
+                  (let ((i (length prefix)))
+                    (set! lines-after 
+                          (cons (list->string (append (reverse prefix) suffix))
+                                lines-after))
+                    (set! prefix
+                          (reverse 
+                           (take (string->list (car rlines-before-cursor)) i)))
+                    (set! suffix 
+                          (drop (string->list (car rlines-before-cursor)) i))
+                    (set! rlines-before-cursor (cdr rlines-before-cursor))))))
+           (cond ((not (null? rlines-before-cursor)) 
+                  (move-up!))
+                 ((null? rlines-before-view)         
+                  'do-nothing)
+                 (else
+                  ((wnd 'scroll) 'vertical (- em-size))
+                  (move-up!)))))
         ((down)
          (cond ((null? lines-after) 'do-nothing)
                (else
                 (let ((i (length prefix)))
-                  (set! lines-before
+                  (set! rlines-before-cursor
                         (cons (list->string (append (reverse prefix) suffix))
-                              lines-before))
+                              rlines-before-cursor))
                   (set! prefix (reverse (take (string->list (car lines-after)) i)))
                   (set! suffix (drop (string->list (car lines-after)) i))
-                  (set! lines-after (cdr lines-after))))))
+                  (set! lines-after (cdr lines-after))
+                  (cond ((> (+ (length rlines-before-cursor) 1)
+                            (count-visible-lines))
+                         ((wnd 'scroll) 'vertical em-size)))))))
         ((left) 
-         (cond ((and (null? prefix)
-                     (null? lines-before)) 'do-nothing)
-               ((null? prefix) 
-                (set! lines-after (cons (list->string (append (reverse prefix) suffix))
-                                        lines-after))
-                (set! suffix '())
-                (set! prefix (reverse (string->list (car lines-before))))
-                (set! lines-before (cdr lines-before)))
-               (else
-                (set! suffix (cons (car prefix) suffix))
-                (set! prefix (cdr prefix)))))
+         (let ((move-left! 
+                (lambda ()
+                  (assert (not (null? rlines-before-cursor)))
+                  (set! lines-after
+                        (cons (list->string (append (reverse prefix) suffix))
+                              lines-after))
+                  (set! suffix '())
+                  (set! prefix (reverse (string->list
+                                         (car rlines-before-cursor))))
+                  (set! rlines-before-cursor (cdr rlines-before-cursor)))))
+           (cond ((not (null? prefix))
+                  (set! suffix (cons (car prefix) suffix))
+                  (set! prefix (cdr prefix)))
+                 ((not (null? rlines-before-cursor))
+                  (move-left!))
+                 ((not (null? rlines-before-view))
+                  ((wnd 'scroll) 'vertical em-size)
+                  (move-left!)))))
         ((right)
-         (cond ((and (null? suffix)
-                     (null? lines-after)) 'do-nothing)
-               ((null? suffix)
-                (set! lines-before (cons (list->string (append (reverse prefix) suffix))
-                                         lines-before))
+         (cond ((not (null? suffix))
+                (set! prefix (cons (car suffix) prefix))
+                (set! suffix (cdr suffix)))
+               ((not (null? lines-after))
+                (set! rlines-before-cursor
+                      (cons (list->string (append (reverse prefix) suffix))
+                            rlines-before-cursor))
                 (set! prefix '())
                 (set! suffix (string->list (car lines-after)))
-                (set! lines-after (cdr lines-after)))
+                (set! lines-after (cdr lines-after))
+                (cond ((> (+ (length rlines-before-cursor) 1)
+                          (count-visible-lines))
+                       ((wnd 'scroll) 'vertical em-size))))
                (else
-                (set! prefix (cons (car suffix) prefix))
-                (set! suffix (cdr suffix)))))
+                'do-nothing)))
         (else 
          (begin (write `(keyup ,((wnd 'title)) ,sym ,mods)) (newline)))
         )
       ((wnd 'update)))
+     ((on-resize wnd)
+      (set! width  ((wnd 'width)))
+      (set! height ((wnd 'height))))
      ((on-keypress wnd char) 
       (cond ((or (char-alphabetic? char)
                  (char-numeric? char))
@@ -304,26 +367,36 @@
                 '(begin (write `(on-keypress wnd ,char)) (newline))
                 (set! prefix (cons char prefix))))))
       ((wnd 'update)))
-     ((horizontal-scrollbar?) #f)
-     ((vertical-scrollbar?) #t)
-     ((on-paint wnd g x y w h)
-     '(begin (write `(on-paint wnd g ,x ,y ,w ,h))
-             (newline))
+     ((horizontal-scrollbar) #f)
+     ((vertical-scrollbar)
+      ;; my hope is that these do not have to be in pixels to be meaningful
+      `((min ,0) (max ,(count-lines)) (value ,(cursor-line))
+        (dsmall ,1)
+        (dlarge ,(quotient (max-visible-lines) 2))))
+     ((on-paint wnd g rx ry rw rh)
+      '(begin (write `(on-paint wnd g ,rx ,ry ,rw ,rh))
+              (newline))
       (let* ((measure-height
-              (lambda (s) (call-with-values (lambda () ((g 'measure-text) s fnt))
-                            (lambda (w h) h))))
+              (lambda (s) 
+                (call-with-values (lambda () ((g 'measure-text) s fnt))
+                  (lambda (w h) h))))
+             (h (let loop ((h 0) (lines (reverse rlines-before-cursor)))
+                  (cond ((not (null? lines))
+                         ((g 'draw-text) (car lines) fnt 0 h col)
+                         (loop (+ h (measure-height (car lines))) (cdr lines)))
+                        (else h))))
              (pre (list->string (reverse prefix)))
              (suf (list->string suffix))
              (h (call-with-values (lambda () ((g 'measure-text) pre fnt))
-                  (lambda (w h) 
-                    ((g 'draw-text) pre fnt 0 0 col)
-                    ((g 'draw-line) col w 0 w h)
-                    ((g 'draw-text) suf fnt w 0 col)
-                    h))))
+                  (lambda (pw ph) 
+                    ((g 'draw-text) pre fnt 0  h col)
+                    ((g 'draw-line) col     pw h pw (+ h ph))
+                    ((g 'draw-text) suf fnt pw h col)
+                    (+ h ph)))))
         (let loop ((h h) (lines lines-after))
           (cond ((not (null? lines))
                  ((g 'draw-text) (car lines) fnt 0 h col)
-                 (loop (+ h (measure-height (car lines))) (cdr lines)))))
-        )))))
+                 (loop (+ h (measure-height (car lines))) (cdr lines)))))))
+     )))
 
     

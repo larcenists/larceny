@@ -941,9 +941,9 @@
        ((gfxptr) g)
        ))))
 
-;; This code depends on funtionality defined in simple-reflection; I
-;; can probably predicate it accordingly in a relatively straight
-;; forward manner.
+;; This code to support double-buffering auto-magically depends on
+;; funtionality defined in simple-reflection; I can probably predicate
+;; it accordingly in a relatively straight forward manner.
 (begin 
   (define double-buffered-form-type-builder
     (define-type "DoubleBufferedForm" form-type))
@@ -981,10 +981,23 @@
 (define keys-type (find-forms-type "Keys"))
 (define keys-foreign->symbols (enum-type->foreign->symbol keys-type))
 
+(define scrollbar-type  (find-forms-type "ScrollBar"))
 (define hscrollbar-type (find-forms-type "HScrollBar"))
 (define vscrollbar-type (find-forms-type "VScrollBar"))
 (define make-hscrollbar (type->nullary-constructor hscrollbar-type))
 (define make-vscrollbar (type->nullary-constructor vscrollbar-type))
+(define scrollbar-value (make-property-ref scrollbar-type "Value"))
+(define set-scrollbar-value! (make-property-setter scrollbar-type "Value"))
+(define scrollbar-maximum (make-property-ref scrollbar-type "Maximum"))
+(define scrollbar-minimum (make-property-ref scrollbar-type "Minimum"))
+(define set-scrollbar-maximum! (make-property-setter scrollbar-type "Maximum"))
+(define set-scrollbar-minimum! (make-property-setter scrollbar-type "Minimum"))
+(define scrollbar-largechange (make-property-ref scrollbar-type "LargeChange"))
+(define scrollbar-smallchange (make-property-ref scrollbar-type "SmallChange"))
+(define set-scrollbar-largechange! 
+  (make-property-setter scrollbar-type "LargeChange"))
+(define set-scrollbar-smallchange!
+  (make-property-setter scrollbar-type "SmallChange"))
 
 (define (make-mnu name)
   (define (string->menu-item s)
@@ -1012,7 +1025,7 @@
          (title
           (cond ((memq 'title args) => cadr)
                 (else #f)))
-         (agent (agent-ctor))
+         (agent (agent-ctor (list-ref bounds 2) (list-ref bounds 3)))
          (agent-ops ((agent 'operations)))
          (form-ctor (cond ((memq 'double-buffered args) 
                            make-double-buffered-form)
@@ -1072,30 +1085,31 @@
          (mouse-event-args-y e))))
 
     (define horizontal-scrollbar?
-      (if (memq 'horizontal-scrollbar? agent-ops)
-          (lambda () ((agent 'horizontal-scrollbar?)))
+      (if (memq 'horizontal-scrollbar agent-ops)
+          (lambda () ((agent 'horizontal-scrollbar)))
           (lambda () #f)))
     (define vertical-scrollbar?
-      (if (memq 'vertical-scrollbar? agent-ops)
-          (lambda () ((agent 'vertical-scrollbar?)))
+      (if (memq 'vertical-scrollbar agent-ops)
+          (lambda () ((agent 'vertical-scrollbar)))
           (lambda () #f)))
     (define horizontal-scrollbar (make-hscrollbar))
     (define vertical-scrollbar (make-vscrollbar))
-    (define update-scrollbars!/props
-      (let ((vscroll (make-property-ref form-type "VScroll"))
-            (hscroll (make-property-ref form-type "HScroll"))
-            (set-vscroll! (make-property-setter form-type "VScroll"))
-            (set-hscroll! (make-property-setter form-type "HScroll")))
-        (lambda (form)
-          (let*-loud ((h (horizontal-scrollbar?))
-                      (v (vertical-scrollbar?) )
-                      (h* (hscroll form))
-                      (v* (vscroll form)))
-            (cond ((not (eqv? h h*))
-                   (set-hscroll! h)))
-            (cond ((not (eqv? v v*))
-                   (set-vscroll! v)))
-            ))))
+    (define (vertical-line! mag)
+      (set-scrollbar-value! vertical-scrollbar
+                            (+ (scrollbar-value vertical-scrollbar)
+                               mag)))
+    (define (horizontal-line! mag)
+      (set-scrollbar-value! horizontal-scrollbar
+                            (+ (scrollbar-value horizontal-scrollbar)
+                               mag)))
+
+    (define (set-if-present setter! tgt key lst)
+      (cond ((assq key lst) => 
+             (lambda (l)
+               (begin (display `(setter! tgt ,key ,(cadr l)))
+                      (newline))
+               (setter! tgt (cadr l))))))
+      
     (define update-scrollbars!/controls
       (let ((hh (control-height horizontal-scrollbar))
             (vw (control-width vertical-scrollbar)))
@@ -1110,15 +1124,37 @@
             (set-control-left! vertical-scrollbar (- cw vw))
             (set-control-height! vertical-scrollbar (- ch hh))
             (set-control-top! horizontal-scrollbar (- ch hh))
-            (cond ((horizontal-scrollbar?)
-                   (set-control-height! contents (- ch hh))
-                   (set-control-visible! horizontal-scrollbar #t))
+            (cond ((horizontal-scrollbar?) =>
+                   (lambda (props)
+                     (set-if-present set-scrollbar-minimum! 
+                                     horizontal-scrollbar 'min props)
+                     (set-if-present set-scrollbar-maximum!
+                                     horizontal-scrollbar 'max props)
+                     (set-if-present set-scrollbar-value!
+                                     horizontal-scrollbar 'value props)
+                     (set-if-present set-scrollbar-largechange!
+                                     horizontal-scrollbar 'dlarge props)
+                     (set-if-present set-scrollbar-smallchange!
+                                     horizontal-scrollbar 'dsmall props)
+                     (set-control-height! contents (- ch hh))
+                     (set-control-visible! horizontal-scrollbar #t)))
                   (else
                    (set-control-height! contents ch)
                    (set-control-visible! horizontal-scrollbar #f)))
-            (cond ((vertical-scrollbar?)
-                   (set-control-width! contents (- cw vw))
-                   (set-control-visible! vertical-scrollbar #t))
+            (cond ((vertical-scrollbar?) =>
+                   (lambda (props)
+                     (set-if-present set-scrollbar-minimum! 
+                                     vertical-scrollbar 'min props)
+                     (set-if-present set-scrollbar-maximum!
+                                     vertical-scrollbar 'max props)
+                     (set-if-present set-scrollbar-value!
+                                     vertical-scrollbar 'value props)
+                     (set-if-present set-scrollbar-largechange!
+                                     vertical-scrollbar 'dlarge props)
+                     (set-if-present set-scrollbar-smallchange!
+                                     vertical-scrollbar 'dsmall props)
+                     (set-control-width! contents (- cw vw))
+                     (set-control-visible! vertical-scrollbar #t)))
                   (else 
                    (set-control-width! contents cw)
                    (set-control-visible! vertical-scrollbar #f)))))))
@@ -1138,7 +1174,12 @@
                         horizontal-scrollbar 
                         vertical-scrollbar))
     (set-form-keypreview! form #t)
-
+    (begin
+      (display `((hscroll min: ,(scrollbar-minimum horizontal-scrollbar))
+                 (hscroll max: ,(scrollbar-maximum horizontal-scrollbar))
+                 (vscroll min: ,(scrollbar-minimum vertical-scrollbar))
+                 (vscroll max: ,(scrollbar-maximum vertical-scrollbar))))
+      (newline))
     (update-scrollbars! form)
     (cond (title (set-control-text! form title)))
     
@@ -1228,12 +1269,19 @@
              (else
               (form-set-menu! form clr/null)))
        (update!))
-      
+
+      ((scroll orient magnitude)
+       (case orient
+         ((vertical) (vertical-line! magnitude))
+         ((horizontal) (horizontal-line! magnitude))
+         (else (error 'scroll ": improper orientation " orient))))
+       
       ;; Are these really necessary in this development model?  Perhaps
       ;; for testing???  (But why not just extract the agent and call
       ;; it manually?)
       ((keydown char)  (((default-impl 'keydown)) wnd char))
       ((mousedown x y) (((default-impl 'mousedown)) wnd x y))
+
       
       ))))
 
