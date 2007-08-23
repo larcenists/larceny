@@ -466,144 +466,21 @@
   (make-property-ref flow-layout-panel-type "WrapContents" clr/foreign->bool))
 (define set-flow-layout-panel-wrap-contents!
   (make-property-setter flow-layout-panel-type "WrapContents" clr/bool->foreign))
-                     
-  
-
-(define text-box1 (make-text-box))
-(set-text! text-box1 "Welcome!")
-(set-control-top! text-box1 20)
-
-;; below temporary code snagged from event-handling-demo1.sch
 
 (define button-type              (find-forms-type "Button"))
 (define make-button      (type->nullary-constructor button-type))
-(define button1                  (make-button))
 (define label-type               (find-forms-type "Label"))
 (define make-label       (type->nullary-constructor label-type))
 (define message-box-type         (find-forms-type "MessageBox"))
-(define label1                   (make-label))
-(set-control-text! button1 "Click Me")
-(set-control-top!  button1 50)
-(set-control-text!  label1 "no click received")
-
-(define (button1-click sender args)
-  (set-control-text! label1 "Click Received Successfully!"))
-
-(define panel1 (make-panel))
-
-(define panel1-controls (control-controls panel1))
-
-;;; very strange; putting label1 *and* text-box1 on the same form
-;;; leads to text-box1 not being rendered.
-;;(add-controls form1-controls (list label1 button1))
-(add-controls panel1-controls (list label1 button1 text-box1))
-(add-controls form1-controls (list panel1))
-;;(add-controls form1-controls (list label1 text-box1))
-;;(add-controls form1-controls (list button1 text-box1)) 
-(add-event-handler button1 "Click" button1-click)
-
-(define fonts-combo-box (make-combo-box))
-(for-each (lambda (fam)
-            (combo-box-add-item! fonts-combo-box
-                                 (font-family-name fam)))
-          (font-families))
-;(add-controls form1-controls fonts-combo-box)
-(add-controls panel1-controls (list fonts-combo-box))
-(set-control-top! fonts-combo-box 70)
-
-(define form2 (make-form))
-(define main-menu2 (make-main-menu))
-(define file-menu (add-child-menu-item! main-menu2 "File"))
-(define edit-menu (add-child-menu-item! main-menu2 "Edit"))
-(define view-menu (add-child-menu-item! main-menu2 "View"))
-
-(define file..open    (add-child-menu-item! file-menu "Open"))
-(define file..save    (add-child-menu-item! file-menu "Save"))
-(define file..save-as (add-child-menu-item! file-menu "Save As..."))
-(define edit..cut     (add-child-menu-item! edit-menu "Cut"))
-(define edit..copy    (add-child-menu-item! edit-menu "Copy"))
-(define edit..paste   (add-child-menu-item! edit-menu "Paste"))
-(define view..definitions  (add-child-menu-item! view-menu "Definitions"))
-(define view..interactions (add-child-menu-item! view-menu "Interactions"))
                                                  
-(form-set-menu! form2 main-menu2)
-
-(define text-box2.1 (make-text-box))
-(define hidden-panel2.1 (make-panel))
-(define hidden-button2.1 (make-button))
-(set-control-text! hidden-button2.1 "Show 1")
-(set-control-visible! hidden-panel2.1 #f)
-(define text-box2.2 (make-text-box))
-(define hidden-panel2.2 (make-panel))
-(define hidden-button2.2 (make-button))
-(set-control-text! hidden-button2.2 "Show 2")
-(set-control-visible! hidden-panel2.2 #f)
-
-;; The Panel1Collapsed and Panel2Collapsed do not seem to behave as
-;; described in my book (at least under Mono)... so perhaps I should
-;; abandon experimenting with them...
-(add-event-handler 
- view..definitions "Click" 
- (lambda (sender args)
-   (cond ((split-container-panel1-collapsed split-container1)
-          (set-split-container-panel1-collapsed! split-container1 #f))
-         (else
-          (set-split-container-panel1-collapsed! split-container1 #t)))))
-(add-event-handler 
- view..interactions "Click" 
- (lambda (sender args)
-   (cond ((split-container-panel2-collapsed split-container1)
-          (set-split-container-panel2-collapsed! split-container1 #f))
-         (else
-          (set-split-container-panel2-collapsed! split-container1 #t)))))
-(define current-filename #f)
-(add-event-handler 
- file..open "Click"
- (lambda (sender args)
-   (let ((ofd (make-open-file-dialog)))
-     (case (show-dialog ofd)
-       ((ok) (let ((filename (file-dialog-filename ofd)))
-               (set! current-filename filename)
-               (begin (display `(opening file: ,filename))
-                      (newline))))))))
-
-;(add-controls (control-controls form2) (list text-box2.1 text-box2.2))
-(define split-container1 (make-split-container))
-(add-controls (control-controls form2) (list split-container1))
-(set-split-container-orientation! split-container1 'horizontal)
-(add-controls (control-controls (split-container-panel1 split-container1))
-              (list text-box2.1))
-(add-controls (control-controls (split-container-panel2 split-container1))
-              (list text-box2.2))
-
 (define set-text-box-multiline!
   (make-property-setter text-box-base-type "Multiline" clr/bool->foreign))
-(set-text-box-multiline! text-box2.1 #t)
-(set-text-box-multiline! text-box2.2 #t)
-
-(set-control-dock! split-container1 'fill)
-(set-control-dock! text-box2.1 'fill)
-(set-control-dock! text-box2.2 'bottom)
-'(begin
-  (set-control-anchor! text-box2.1 'top 'right 'left)
-  (set-control-size! text-box2.1 
-                     (let ((sz (control-client-size form2)))
-                       (make-size (size-width sz)
-                                  (quotient (size-height sz) 2)))))
-'(set-control-dock! text-box2.2 'bottom)
-(define code-font (make-font (generic-font-family 'monospace) 10 'regular))
-(set-control-font! text-box2.1 code-font)
-(set-control-font! text-box2.2 code-font)
 
 (define (add-display-event-handler publisher event-name)
   (add-event-handler publisher event-name
                      (lambda (sender args)
                        (display `(handling ,event-name ,sender ,args))
                        (newline))))
-
-(add-display-event-handler text-box2.1 "KeyDown")
-(add-display-event-handler text-box2.1 "KeyPress")
-(add-display-event-handler text-box2.1 "KeyUp")
 
 ;;; Control events: (map event-info->name (type->events control-type))
 ; (AutoSizeChanged BackColorChanged BackgroundImageChanged BackgroundImageLayoutChanged
