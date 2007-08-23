@@ -113,13 +113,19 @@
 ;; If it does not handle paint, then the window will keep image state
 ;; to be rendered and the agent will imperatively modify that.
 
-;; AGENT: (make-noisy-agent) ;; client makes own agent ctors, perhaps via msg-handler special form
+;; Note that all agent operations are optional, except (of course) the
+;; 'operations operation.
+;; 
+;; AGENT: (make-noisy-agent) ; client def's ctors, perhaps via msg-handler form
 ;;  (on-close wnd) 
 ;;  (on-keypress wnd char) (on-keydown wnd sym mods) (on-keyup sym mods)
 ;;  (on-mousedown x y) (on-mouseup x y) (on-mousemove x y) 
 ;;  (on-mouseclick x y) (on-mousedoubleclick x y)
 ;;  (on-mouseenter) (on-mouseleave)
 ;;  (on-paint gfx x y w h) (dispose)
+;;  (vertical-scrollbar?) (horizontal-scrollbar?) ; controls scrollbar exposure
+;;  (on-vscroll old-int new-int event-type)
+;;  (on-hscroll old-int new-int event-type)
 
 ;; Agents are client written entities; the objects below are provided
 ;; by the runtime system.
@@ -298,8 +304,10 @@
                 '(begin (write `(on-keypress wnd ,char)) (newline))
                 (set! prefix (cons char prefix))))))
       ((wnd 'update)))
+     ((horizontal-scrollbar?) #f)
+     ((vertical-scrollbar?) #t)
      ((on-paint wnd g x y w h)
-      '(begin (write `(on-paint wnd g ,x ,y ,w ,h))
+     '(begin (write `(on-paint wnd g ,x ,y ,w ,h))
              (newline))
       (let* ((measure-height
               (lambda (s) (call-with-values (lambda () ((g 'measure-text) s fnt))
