@@ -522,6 +522,10 @@
 (define rectangle-y (make-property-ref rectangle-type "Y"))
 
 (define graphics-type (find-drawing-type "Graphics"))
+(define graphics-dispose! 
+  (let ((dispose-method (clr/%get-method graphics-type "Dispose" '#())))
+    (lambda (g)
+      (clr/%invoke dispose-method g '#()))))
 (define pen-type      (find-drawing-type "Pen"))
 (define make-pen 
   (let ((pen-ctor (clr/%get-constructor pen-type (vector color-type))))
@@ -629,6 +633,10 @@
       (map property-info->name 
            (filter (lambda (x) (eq? color-sym (type->name (property-info->type x)))) 
                    (type->properties color-type))))))
+(define control-creategraphics 
+  (let ((method (clr/%get-method control-type "GetGraphics" '#())))
+    (lambda (c)
+      (clr/%invoke method c '#()))))
 (define graphics->gfx 
   (let* ((text-renderer-type (find-forms-type "TextRenderer"))
          (measure-text/text-renderer
@@ -1181,6 +1189,14 @@
          ((horizontal) (horizontal-scroll! magnitude))
          (else (error 'scroll ": improper orientation " orient))))
        
+      ((measure-text txt-string fnt)
+       (let ((g (control-creategraphics (wnd 'wndptr))))
+         (call-with-values 
+             (lambda () (((graphics->gfx g) 'measure-text) txt-string fnt))
+           (lambda vals
+             (graphics-dispose! g)
+             (apply values vals)))))
+
       ;; Are these really necessary in this development model?  Perhaps
       ;; for testing???  (But why not just extract the agent and call
       ;; it manually?)
