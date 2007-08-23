@@ -109,6 +109,7 @@
 ;;; System.Windows.Forms.Control class, properties, and methods
 
 (define control-type             (find-forms-type "Control"))
+(define make-control      (type->nullary-constructor control-type))
 (define control-anchor    (make-property-ref control-type "Anchor"))
 (define control-controls  (make-property-ref control-type "Controls"))
 (define control-text      (make-property-ref control-type "Text"))
@@ -180,6 +181,7 @@
 (define make-form (type->nullary-constructor form-type))
 (define form?     (type->predicate form-type))
 (define form-close! (make-unary-method form-type "Close"))
+(define set-form-keypreview! (make-property-setter form-type "KeyPreview"))
 
 (define panel-type               (find-forms-type "Panel"))
 (define make-panel (type->nullary-constructor panel-type))
@@ -979,6 +981,11 @@
 (define keys-type (find-forms-type "Keys"))
 (define keys-foreign->symbols (enum-type->foreign->symbol keys-type))
 
+(define hscrollbar-type (find-forms-type "HScrollBar"))
+(define vscrollbar-type (find-forms-type "VScrollBar"))
+(define make-hscrollbar (type->nullary-constructor hscrollbar-type))
+(define make-vscrollbar (type->nullary-constructor vscrollbar-type))
+
 (define (make-mnu name)
   (define (string->menu-item s)
     (let ((mi (make-menu-item)))
@@ -1011,6 +1018,7 @@
                            make-double-buffered-form)
                           (else make-form)))
          (form (form-ctor))
+         (contents (make-panel))
          (menu-stack '())
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
@@ -1062,7 +1070,76 @@
          wnd ;; should I check that ((wnd 'wndptr)) is eq? with sender?
          (mouse-event-args-x e)
          (mouse-event-args-y e))))
-    
+
+    (define horizontal-scrollbar?
+      (if (memq 'horizontal-scrollbar? agent-ops)
+          (lambda () ((agent 'horizontal-scrollbar?)))
+          (lambda () #f)))
+    (define vertical-scrollbar?
+      (if (memq 'vertical-scrollbar? agent-ops)
+          (lambda () ((agent 'vertical-scrollbar?)))
+          (lambda () #f)))
+    (define horizontal-scrollbar (make-hscrollbar))
+    (define vertical-scrollbar (make-vscrollbar))
+    (define update-scrollbars!/props
+      (let ((vscroll (make-property-ref form-type "VScroll"))
+            (hscroll (make-property-ref form-type "HScroll"))
+            (set-vscroll! (make-property-setter form-type "VScroll"))
+            (set-hscroll! (make-property-setter form-type "HScroll")))
+        (lambda (form)
+          (let*-loud ((h (horizontal-scrollbar?))
+                      (v (vertical-scrollbar?) )
+                      (h* (hscroll form))
+                      (v* (vscroll form)))
+            (cond ((not (eqv? h h*))
+                   (set-hscroll! h)))
+            (cond ((not (eqv? v v*))
+                   (set-vscroll! v)))
+            ))))
+    (define update-scrollbars!/controls
+      (let ((hh (control-height horizontal-scrollbar))
+            (vw (control-width vertical-scrollbar)))
+        (lambda (form)
+          '(begin (display `(update-scrollbars!))
+                  (newline))
+          (let* ((client-size (control-client-size form))
+                 (cw (size-width client-size))
+                 (ch (size-height client-size)))
+            
+            (set-control-width! horizontal-scrollbar (- cw vw))
+            (set-control-left! vertical-scrollbar (- cw vw))
+            (set-control-height! vertical-scrollbar (- ch hh))
+            (set-control-top! horizontal-scrollbar (- ch hh))
+            (cond ((horizontal-scrollbar?)
+                   (set-control-height! contents (- ch hh))
+                   (set-control-visible! horizontal-scrollbar #t))
+                  (else
+                   (set-control-height! contents ch)
+                   (set-control-visible! horizontal-scrollbar #f)))
+            (cond ((vertical-scrollbar?)
+                   (set-control-width! contents (- cw vw))
+                   (set-control-visible! vertical-scrollbar #t))
+                  (else 
+                   (set-control-width! contents cw)
+                   (set-control-visible! vertical-scrollbar #f)))))))
+
+    (define update-scrollbars! update-scrollbars!/controls)
+
+    (define (update!)
+      ;; Need to double-check this; for now this signals that a
+      ;; control needs to be repainted.
+      (update-scrollbars! form)
+      ; (invalidate! contents)
+      (invalidate! form)
+      )
+
+    (add-controls (control-controls form) 
+                  (list ; contents
+                        horizontal-scrollbar 
+                        vertical-scrollbar))
+    (set-form-keypreview! form #t)
+
+    (update-scrollbars! form)
     (cond (title (set-control-text! form title)))
     
     (add-event-handler form "FormClosed"
@@ -1098,6 +1175,16 @@
     (add-if-supported 'on-mousedoubleclick "MouseDoubleClick"
                       (mouse-event-handler 'on-mousedoubleclick))
     
+    (add-event-handler form "Resize" 
+                       (cond ((memq 'on-resize agent-ops)
+                              (lambda (sender e) 
+                                ((agent 'on-resize) wnd)
+                                ((wnd 'update))))
+                             (else
+                              (lambda (sender e) 
+                                ((wnd 'update))))
+                             ))
+
     (add-if-supported 'on-paint "Paint"
                       (lambda (sender e)
                         (let* ((r (paint-event-args-cliprectangle e))
@@ -1118,10 +1205,9 @@
       ((agent)    agent)
       ((width)    (control-width form))
       ((height)   (control-height form))
-      ((update)
-       ;; Need to double-check this; for now this signals that a
-       ;; control needs to be repainted.
-       (invalidate! form))
+
+      ((update)   (update!))
+
       ((activate) (activate! form))
       ((show)     (show form))
       ((show-dialog) (form-show-dialog form))
@@ -1133,13 +1219,15 @@
        (let ((main-menu (make-main-menu)))
          (for-each (lambda (mnu) (menu-add-menu-item! main-menu ((mnu 'mnuptr)))) mnus)
          (set! menu-stack (cons main-menu menu-stack))
-         (form-set-menu! form main-menu)))
+         (form-set-menu! form main-menu))
+       (update!))
       ((pop-menus)
        (set! menu-stack (cdr menu-stack))
        (cond ((not (null? menu-stack))
               (form-set-menu! form (car menu-stack)))
              (else
-              (form-set-menu! form clr/null))))
+              (form-set-menu! form clr/null)))
+       (update!))
       
       ;; Are these really necessary in this development model?  Perhaps
       ;; for testing???  (But why not just extract the agent and call
