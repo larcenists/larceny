@@ -228,6 +228,10 @@
             (else (drop (cdr lst) (- n 1)))))
 
     (define (max-visible-lines)
+      ;; XXX this is broken; the em-size is not directly related to
+      ;; the height of a line.  (This manner of exposing the em-size
+      ;; might be a mistake anyway for this application; might be
+      ;; better to have a available-emsizes function.)
       (quotient height em-size))
 
     (define (count-visible-lines)
