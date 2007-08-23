@@ -348,7 +348,8 @@
                (else
                 'do-nothing)))
         (else 
-         (begin (write `(keyup ,((wnd 'title)) ,sym ,mods)) (newline)))
+         '(begin (write `(keyup ,((wnd 'title)) ,sym ,mods)) (newline))
+         )
         )
       ((wnd 'update)))
      ((on-resize wnd)
@@ -377,8 +378,6 @@
       (begin (write `(on-hscroll wnd ,new-int ,event-type))
              (newline)))
      ((on-vscroll wnd new-int event-type)
-      (begin (write `(on-vscroll wnd ,new-int ,event-type))
-             (newline))
       (let ((lines-before (reverse (append rlines-before-cursor
                                            rlines-before-view))))
         (set! rlines-before-cursor (reverse (drop lines-before new-int)))

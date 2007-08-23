@@ -1120,8 +1120,6 @@
     (define (set-if-present setter! tgt key lst)
       (cond ((assq key lst) => 
              (lambda (l)
-               (begin (display `(setter! tgt ,key ,(cadr l)))
-                      (newline))
                (setter! tgt (cadr l))))))
       
     (define update-scrollbars!/controls
@@ -1204,15 +1202,11 @@
 
     (add-if-supported horizontal-scrollbar 'on-hscroll "Scroll"
                       (lambda (sender e)
-                        (begin (display `("horizontal Scroll event" ,e))
-                               (newline))
                         ((agent 'on-hscroll) wnd 
                          (scrolleventargs-newvalue e)
                          (scrolleventargs-gettype e))))
     (add-if-supported vertical-scrollbar 'on-vscroll "Scroll"
                       (lambda (sender e)
-                        (begin (display `("vertical Scroll event" ,e))
-                               (newline))
                         ((agent 'on-vscroll) wnd 
                          (scrolleventargs-newvalue e)
                          (scrolleventargs-gettype e))))
