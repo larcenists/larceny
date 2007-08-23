@@ -639,11 +639,16 @@
                                               clr-type-handle/system-string
                                               font-type))))
             (lambda (g string fnt)
-              (let ((sz (clr/%invoke measure-text-method #f
-                                     (vector g
-                                             (clr/%string->foreign string) 
-                                             ((fnt 'fntptr))))))
-                (values (size-width sz) (size-height sz))))))
+              ;; XXX a hack to workaround the "helpful" trimming behavior
+              ;; (is there a flag like MeasureTrailingSpaces for TextRenderer?)
+              (let* ((string* (clr/%string->foreign (string-append string "a")))
+                     (stringa (clr/%string->foreign "a"))
+                     (fntptr ((fnt 'fntptr)))
+                     (sza (clr/%invoke measure-text-method #f 
+                                       (vector g stringa fntptr)))
+                     (szf (clr/%invoke measure-text-method #f
+                                       (vector g string* fntptr))))
+                (values (- (size-width szf) (size-width sza)) (size-height szf))))))
          (draw-text/text-renderer
           (let ((draw-text-method (clr/%get-method 
                                    text-renderer-type 
