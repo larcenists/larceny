@@ -124,8 +124,8 @@
 ;;  (on-mouseenter) (on-mouseleave)
 ;;  (on-paint gfx x y w h) (dispose)
 ;;  (vertical-scrollbar) (horizontal-scrollbar) ; scrollbar exposure+properties
-;;  (on-vscroll old-int new-int event-type)
-;;  (on-hscroll old-int new-int event-type)
+;;  (on-vscroll wnd new-val event-type)
+;;  (on-hscroll wnd new-val event-type)
 ;;  (on-resize wnd)
 
 ;; Agents are client written entities; the objects below are provided
@@ -269,9 +269,7 @@
                ((null? rlines-before-view)
                 'do-nothing)
                (else
-                ;; XXX should pull out k lines of text and measure
-                ;; their total height exactly.
-                ((wnd 'scroll) 'vertical (- em-size))
+                ((wnd 'scroll) 'vertical -1)
                 (assert (not (null? rlines-before-cursor)))
                 (set! prefix (reverse (string->list 
                                        (car rlines-before-cursor))))
@@ -299,7 +297,7 @@
                  ((null? rlines-before-view)         
                   'do-nothing)
                  (else
-                  ((wnd 'scroll) 'vertical (- em-size))
+                  ((wnd 'scroll) 'vertical -1)
                   (move-up!)))))
         ((down)
          (cond ((null? lines-after) 'do-nothing)
@@ -313,7 +311,7 @@
                   (set! lines-after (cdr lines-after))
                   (cond ((> (+ (length rlines-before-cursor) 1)
                             (count-visible-lines))
-                         ((wnd 'scroll) 'vertical em-size)))))))
+                         ((wnd 'scroll) 'vertical 1)))))))
         ((left) 
          (let ((move-left! 
                 (lambda ()
@@ -331,7 +329,7 @@
                  ((not (null? rlines-before-cursor))
                   (move-left!))
                  ((not (null? rlines-before-view))
-                  ((wnd 'scroll) 'vertical em-size)
+                  ((wnd 'scroll) 'vertical 1)
                   (move-left!)))))
         ((right)
          (cond ((not (null? suffix))
@@ -346,7 +344,7 @@
                 (set! lines-after (cdr lines-after))
                 (cond ((> (+ (length rlines-before-cursor) 1)
                           (count-visible-lines))
-                       ((wnd 'scroll) 'vertical em-size))))
+                       ((wnd 'scroll) 'vertical 1))))
                (else
                 'do-nothing)))
         (else 
@@ -370,9 +368,22 @@
      ((horizontal-scrollbar) #f)
      ((vertical-scrollbar)
       ;; my hope is that these do not have to be in pixels to be meaningful
-      `((min ,0) (max ,(count-lines)) (value ,(cursor-line))
+      `((min ,0) 
+        (max ,(count-lines))
+        (value ,(length rlines-before-view))
         (dsmall ,1)
         (dlarge ,(quotient (max-visible-lines) 2))))
+     ((on-hscroll wnd new-int event-type)
+      (begin (write `(on-hscroll wnd ,new-int ,event-type))
+             (newline)))
+     ((on-vscroll wnd new-int event-type)
+      (begin (write `(on-vscroll wnd ,new-int ,event-type))
+             (newline))
+      (let ((lines-before (reverse (append rlines-before-cursor
+                                           rlines-before-view))))
+        (set! rlines-before-cursor (reverse (drop lines-before new-int)))
+        (set! rlines-before-view (reverse (take lines-before new-int))))
+      ((wnd 'update)))
      ((on-paint wnd g rx ry rw rh)
       '(begin (write `(on-paint wnd g ,rx ,ry ,rw ,rh))
               (newline))

@@ -998,7 +998,17 @@
   (make-property-setter scrollbar-type "LargeChange"))
 (define set-scrollbar-smallchange!
   (make-property-setter scrollbar-type "SmallChange"))
-
+(define scrolleventargs-type (find-forms-type "ScrollEventArgs"))
+(define scrolleventtype-type (find-forms-type "ScrollEventType"))
+(define scrolleventargs-newvalue
+  (make-property-ref scrolleventargs-type "NewValue"))
+;; OldValue property doesn't seem to work in Mono.  :(
+;;(define scrolleventargs-oldvalue
+;;  (make-property-ref scrolleventargs-type "OldValue" (lambda (x) x)))
+(define scrolleventargs-gettype 
+  (make-property-ref scrolleventargs-type "Type" 
+                     (enum-type->foreign->symbol scrolleventtype-type)))
+(define evt #f)
 (define (make-mnu name)
   (define (string->menu-item s)
     (let ((mi (make-menu-item)))
@@ -1050,7 +1060,7 @@
          (return-wnd (lambda (obj) (set! wnd obj) obj))
          )
 
-    (define (add-if-supported op-name event-name handler)
+    (define (add-if-supported form op-name event-name handler)
       (cond ((memq op-name agent-ops)
              (add-event-handler form event-name handler))
             (else 
@@ -1094,14 +1104,18 @@
           (lambda () #f)))
     (define horizontal-scrollbar (make-hscrollbar))
     (define vertical-scrollbar (make-vscrollbar))
-    (define (vertical-line! mag)
-      (set-scrollbar-value! vertical-scrollbar
-                            (+ (scrollbar-value vertical-scrollbar)
-                               mag)))
-    (define (horizontal-line! mag)
-      (set-scrollbar-value! horizontal-scrollbar
-                            (+ (scrollbar-value horizontal-scrollbar)
-                               mag)))
+    (define vertical-scroll! 
+      (let ((tell-agent ((default-impl 'on-vscroll))))
+        (lambda (mag)
+          (let ((val (+ (scrollbar-value vertical-scrollbar) mag)))
+            (set-scrollbar-value! vertical-scrollbar val)
+            (tell-agent wnd val 'external)))))
+    (define horizontal-scroll! 
+      (let ((tell-agent ((default-impl 'on-hscroll))))
+        (lambda (mag)
+          (let ((val (+ (scrollbar-value horizontal-scrollbar) mag)))
+            (set-scrollbar-value! horizontal-scrollbar val)
+            (tell-agent wnd val 'external)))))
 
     (define (set-if-present setter! tgt key lst)
       (cond ((assq key lst) => 
@@ -1187,12 +1201,27 @@
                        (lambda (sender e)
                          (set! is-closed #t)
                          (((default-impl 'on-close)) wnd)))
+
+    (add-if-supported horizontal-scrollbar 'on-hscroll "Scroll"
+                      (lambda (sender e)
+                        (begin (display `("horizontal Scroll event" ,e))
+                               (newline))
+                        ((agent 'on-hscroll) wnd 
+                         (scrolleventargs-newvalue e)
+                         (scrolleventargs-gettype e))))
+    (add-if-supported vertical-scrollbar 'on-vscroll "Scroll"
+                      (lambda (sender e)
+                        (begin (display `("vertical Scroll event" ,e))
+                               (newline))
+                        ((agent 'on-vscroll) wnd 
+                         (scrolleventargs-newvalue e)
+                         (scrolleventargs-gettype e))))
     
-    (add-if-supported 'on-keydown "KeyDown"
+    (add-if-supported form 'on-keydown "KeyDown"
                       (key-event-handler 'on-keydown))
-    (add-if-supported 'on-keyup "KeyUp"
+    (add-if-supported form 'on-keyup "KeyUp"
                       (key-event-handler 'on-keyup))
-    (add-if-supported 'on-keypress "KeyPress"
+    (add-if-supported form 'on-keypress "KeyPress"
                       (lambda (sender e)
                         ((agent 'on-keypress)
                          ;; Felix believes integer->char is safe based
@@ -1201,19 +1230,19 @@
                          (integer->char
                           (clr/%foreign->int
                            (key-press-event-args-keychar e))))))
-    (add-if-supported 'on-mousedown "MouseDown"
+    (add-if-supported form 'on-mousedown "MouseDown"
                       (mouse-event-handler 'on-mousedown))
-    (add-if-supported 'on-mouseup "MouseUp"
+    (add-if-supported form 'on-mouseup "MouseUp"
                       (mouse-event-handler 'on-mouseup))
-    (add-if-supported 'on-mousemove "MouseMove"
+    (add-if-supported form 'on-mousemove "MouseMove"
                       (mouse-event-handler 'on-mousemove))
-    (add-if-supported 'on-mouseenter "MouseEnter"
+    (add-if-supported form 'on-mouseenter "MouseEnter"
                       (lambda (sender e) ((agent 'on-mouseenter) wnd)))
-    (add-if-supported 'on-mouseleave "MouseLeave"
+    (add-if-supported form 'on-mouseleave "MouseLeave"
                       (lambda (sender e) ((agent 'on-mouseleave) wnd)))
-    (add-if-supported 'on-mouseclick "MouseClick"
+    (add-if-supported form 'on-mouseclick "MouseClick"
                       (mouse-event-handler 'on-mouseclick))
-    (add-if-supported 'on-mousedoubleclick "MouseDoubleClick"
+    (add-if-supported form 'on-mousedoubleclick "MouseDoubleClick"
                       (mouse-event-handler 'on-mousedoubleclick))
     
     (add-event-handler form "Resize" 
@@ -1226,7 +1255,7 @@
                                 ((wnd 'update))))
                              ))
 
-    (add-if-supported 'on-paint "Paint"
+    (add-if-supported form 'on-paint "Paint"
                       (lambda (sender e)
                         (let* ((r (paint-event-args-cliprectangle e))
                                (x (rectangle-x r))
@@ -1272,8 +1301,8 @@
 
       ((scroll orient magnitude)
        (case orient
-         ((vertical) (vertical-line! magnitude))
-         ((horizontal) (horizontal-line! magnitude))
+         ((vertical) (vertical-scroll! magnitude))
+         ((horizontal) (horizontal-scroll! magnitude))
          (else (error 'scroll ": improper orientation " orient))))
        
       ;; Are these really necessary in this development model?  Perhaps
