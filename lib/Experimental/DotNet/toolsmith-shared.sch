@@ -118,10 +118,10 @@
 ;; 
 ;; AGENT: (make-noisy-agent) ; client def's ctors, perhaps via msg-handler form
 ;;  (on-close wnd) 
-;;  (on-keypress wnd char) (on-keydown wnd sym mods) (on-keyup sym mods)
-;;  (on-mousedown x y) (on-mouseup x y) (on-mousemove x y) 
-;;  (on-mouseclick x y) (on-mousedoubleclick x y)
-;;  (on-mouseenter) (on-mouseleave)
+;;  (on-keypress wnd char) (on-keydown wnd sym mods) (on-keyup wnd sym mods)
+;;  (on-mousedown wnd x y) (on-mouseup wnd x y) (on-mousemove wnd x y) 
+;;  (on-mouseclick wnd x y) (on-mousedoubleclick wnd x y)
+;;  (on-mouseenter wnd) (on-mouseleave wnd)
 ;;  (on-paint gfx x y w h) (dispose)
 ;;  (vertical-scrollbar) (horizontal-scrollbar) ; scrollbar exposure+properties
 ;;  (on-vscroll wnd new-val event-type)
