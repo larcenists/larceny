@@ -831,42 +831,47 @@
        ((gfxptr) g)
        ))))
 
-;; This code to support double-buffering auto-magically depends on
-;; funtionality defined in simple-reflection; I can probably predicate
-;; it accordingly in a relatively straight forward manner.
-(begin 
-  (define double-buffered-form-type-builder
-    (define-type "DoubleBufferedForm" form-type))
-  (define dbf-ctor
-    (define-constructor double-buffered-form-type-builder))
-  (define dbf-ilgen (constructor->ilgen dbf-ctor))
-  (define dbf-emit! (ilgen->emitter dbf-ilgen))
-  (define binding-flags-type (find-reflection-type "BindingFlags"))
-  (define get-method/private-meth
-    (clr/%get-method type-type "GetMethod" 
-                     (vector clr-type-handle/system-string binding-flags-type)))
+;; This code to support double-buffering depends on funtionality
+;; defined in simple-reflection; I can probably predicate it
+;; accordingly in a relatively straight forward manner.
+
+(begin
   (define set-double-buffered-meth 
-    (let ((non-public-instance-flags
+    (let ((get-method/private-meth
+           (clr/%get-method type-type "GetMethod" 
+                            (vector clr-type-handle/system-string binding-flags-type)))
+          (non-public-instance-flags
            ((enum-type->symbol->foreign binding-flags-type) 
             'nonpublic 'instance)))
       (clr/%invoke get-method/private-meth
                    control-type 
                    (vector (clr/string->foreign "set_DoubleBuffered") 
                            non-public-instance-flags))))
-  (dbf-emit! 'ldarg.0)
-  (dbf-emit! 'call (clr/%get-constructor form-type '#()))
-  (dbf-emit! 'ldarg.0)
-  (dbf-emit! 'ldc.i4.1)
-  (dbf-emit! 'call set-double-buffered-meth)
-  (dbf-emit! 'ret)
-  (define double-buffered-form-type 
-    (let ((create-type-meth
-           (clr/%get-method typebuilder-type "CreateType" '#())))
-      (clr/%invoke create-type-meth
-                   double-buffered-form-type-builder '#())))
+
+  (define (protected-property-constructor name type set-meth)
+    (let* ((type-builder (define-type name type))
+           (ctor (define-constructor type-builder))
+           (ilgen (constructor->ilgen ctor))
+           (emit! (ilgen->emitter ilgen))
+           (binding-flags-type (find-reflection-type "BindingFlags")))
+      (emit! 'ldarg.0)
+      (emit! 'call (clr/%get-constructor type '#()))
+      (emit! 'ldarg.0)
+      (emit! 'ldc.i4.1)
+      (emit! 'call set-meth)
+      (emit! 'ret)
+      (let* ((create-type-meth (clr/%get-method
+                                typebuilder-type "CreateType" '#()))
+             (type (clr/%invoke create-type-meth type-builder '#()))
+             (make-object (type->nullary-constructor type)))
+        make-object)))
+
   (define make-double-buffered-form 
-    (type->nullary-constructor double-buffered-form-type))
-  )
+    (protected-property-constructor "DoubleBufferedForm" form-type
+                                    set-double-buffered-meth))
+  (define make-double-buffered-panel
+    (protected-property-constructor "DoubleBufferedPanel" panel-type
+                                    set-double-buffered-meth)))
 
 (define keys-type (find-forms-type "Keys"))
 (define keys-foreign->symbols (enum-type->foreign->symbol keys-type))
@@ -927,11 +932,11 @@
                 (else #f)))
          (agent (agent-ctor (list-ref bounds 2) (list-ref bounds 3)))
          (agent-ops ((agent 'operations)))
-         (form-ctor (cond ((memq 'double-buffered args) 
-                           make-double-buffered-form)
-                          (else make-form)))
-         (form (form-ctor))
-         (contents (make-panel))
+         (form (make-form))
+         (panel-ctor (cond ((memq 'double-buffered args)
+                            make-double-buffered-panel)
+                           (else make-panel)))
+         (contents (panel-ctor))
          (menu-stack '())
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
@@ -1067,12 +1072,12 @@
       ;; Need to double-check this; for now this signals that a
       ;; control needs to be repainted.
       (update-scrollbars! form)
-      ; (invalidate! contents)
-      (invalidate! form)
+      (invalidate! contents)
+      ;; (invalidate! form)
       )
 
     (add-controls (control-controls form) 
-                  (list ; contents
+                  (list contents
                         horizontal-scrollbar 
                         vertical-scrollbar))
     (set-form-keypreview! form #t)
@@ -1139,7 +1144,7 @@
                                 ((wnd 'update))))
                              ))
 
-    (add-if-supported form 'on-paint "Paint"
+    (add-if-supported contents 'on-paint "Paint"
                       (lambda (sender e)
                         (let* ((r (paint-event-args-cliprectangle e))
                                (x (rectangle-x r))
