@@ -257,6 +257,43 @@
       (+ (length rlines-before-view)
          (length lines)))
 
+    ;; Maps a mouse position (mx,my) to a text coordinate.  When the
+    ;; mouse clicks on an actual character at row I column J, returns
+    ;; (values I J).  But note that if the mouse clicks horizontally
+    ;; past the end of the line on row I, denoted r_I, returns 
+    ;; (values (string-length r_I) I), and if the mouse clicks 
+    ;; vertically past the final row, returns (values num-rows 0).
+    ;; Therefore, the returned values are not necessarily indices into
+    ;; the text structure.
+    (define (pixel-coord->text-coord wnd mx my)
+      (let loop ((lines lines) (wh 0) (ty 0))
+        (cond 
+         ((null? lines) (values ty 0))
+         (else
+          (call-with-values (lambda () 
+                              ((wnd 'measure-text) (car lines) fnt))
+            (lambda (lw lh)
+              (cond 
+               ((<= wh my (+ wh lh))
+                (let loop2 ((si 0) (wx 0) (tx 0))
+                  (cond 
+                   ((<= (+ si 1) (string-length (car lines)))
+                    (call-with-values
+                        (lambda ()
+                          ((wnd 'measure-text) 
+                           (substring (car lines) 0 (+ si 1))
+                           fnt))
+                      (lambda (slw slh)
+                        (cond 
+                         ((<= wx mx slw)
+                          (values ty tx))
+                         (else
+                          (loop2 (+ si 1) slw (+ tx 1)))))))
+                   (else
+                    (values ty tx)))))
+               (else
+                (loop (cdr lines) (+ wh lh) (+ ty 1))))))))))
+    
     (msg-handler
      ((text) 
       (all-text-string))
@@ -391,6 +428,11 @@
         (set! lines (drop all-lines new-int))
         (set! rlines-before-view (reverse (take all-lines new-int)))
         (set! cursor-line (- abs-cursor-line (length rlines-before-view))))
+      ((wnd 'update)))
+     ((on-mousedown wnd mx my)
+      (let-values (((row col) (pixel-coord->text-coord wnd mx my)))
+        (begin (display `((mx: ,mx) (my: ,my) (row: ,row) (col: ,col)))
+               (newline)))
       ((wnd 'update)))
      ((on-paint wnd g rx ry rw rh)
       '(begin (write `(on-paint wnd g ,rx ,ry ,rw ,rh))
