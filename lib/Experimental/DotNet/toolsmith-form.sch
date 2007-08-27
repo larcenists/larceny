@@ -314,6 +314,7 @@
 (enable-interrupts (standard-timeslice))
 
 (define show             (make-unary-method form-type "Show"))
+(define hide             (make-unary-method form-type "Hide"))
 (define close            (make-unary-method form-type "Close"))
 
 (define menu-type      (find-forms-type "Menu"))
@@ -1169,6 +1170,7 @@
 
       ((activate) (activate! form))
       ((show)     (show form))
+      ((hide)     (hide form))
       ((show-dialog) (form-show-dialog form))
       ((dispose)       
        (((default-impl 'dispose)) wnd) 

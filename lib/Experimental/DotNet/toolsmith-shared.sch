@@ -145,7 +145,7 @@
 ;;                ['bounds (x y w h)] 
 ;;                ['double-buffered] 
 ;;                ['title string])
-;;  (show) (show-dialog) (title) (close) (dispose) (update)
+;;  (show) (hide) (show-dialog) (title) (close) (dispose) (update)
 ;;  (width) (height)
 ;;  (measure-text txt-string font-obj) 
 ;;  (push-menus mnu ...) (pop-menus)
