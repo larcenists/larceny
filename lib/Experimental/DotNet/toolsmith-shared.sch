@@ -363,7 +363,6 @@
         ((#\backspace #\return #\esc #\tab) 'do-nothing)
         (else
          (let ((l_k (list-ref lines cursor-line)))
-           (pretty-print `(on-keypress ,char ,l_k ,cursor-pos))
            (let* ((prefix (substring l_k 0 cursor-pos))
                   (suffix (substring l_k cursor-pos (string-length l_k)))
                   (l_k* (string-append prefix (string char) suffix)))
