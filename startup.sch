@@ -4,6 +4,7 @@
 ;; Set up the standard path for the require procedure.
 (current-require-path
   (list "lib/SRFI"
+        "lib/R6RS"
 	"lib/Ffi"
 	"lib/Base"
         "lib/Standard" "lib"

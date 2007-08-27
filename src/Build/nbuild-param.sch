@@ -80,6 +80,7 @@
     (apply-parameter-value 'compatibility (pathname-append dir "src" "Compat" "Larceny"))
     (apply-parameter-value 'larceny-compatibility (pathname-append dir "src" "Compat" "Larceny"))
     (apply-parameter-value 'srfi (pathname-append dir "lib" "SRFI"))
+    (apply-parameter-value 'r6rs (pathname-append dir "lib" "R6RS"))
     (apply-parameter-value 'auxiliary (pathname-append dir "lib" "Base"))
     (apply-parameter-value 'debugger (pathname-append dir "lib" "Debugger"))
     (apply-parameter-value 'always-source? #t)
@@ -117,6 +118,7 @@
          compatibility
          larceny-compatibility
          srfi
+         r6rs
          auxiliary
          debugger
          root
