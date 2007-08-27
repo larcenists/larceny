@@ -396,6 +396,7 @@
       (set! width  ((wnd 'width)))
       (set! height ((wnd 'height))))
      ((on-keypress wnd char) 
+      '(begin (write `(keypress ,((wnd 'title)) ,char)) (newline))
       (case char
         ((#\backspace #\return #\esc #\tab) 'do-nothing)
         (else
