@@ -38,20 +38,24 @@
 ;         (because the R5.97RS is still quite confusing)
 ;     the rtd-rtd should probably be sealed and opaque
 ;
-; FIXME: the following representation would perform better:
+; Larceny now supports (I believe) the following invariant:
 ;     all structures are records
 ;     slot 0 contains an extended inheritance hierarchy, a vector
-;     that vector always contains at least N elements
+;     that vector always contains at least record:hierarchy:min elements
 ;     element 0 of that vector holds the rtd
 ;     element 1 holds the base rtd (which has no parent)
 ;     element 2 holds an immediate child of the base rtd
 ;     et cetera
-; Advantages:
+;
+; FIXME: This invariant is not enforced by make-structure,
+; so programmers who use make-structure can break it.
+;
+; Advantages of that invariant:
 ;     once you know r is a structure,
-;     you also know slot 0 is a vector with at least N elements
+;     you know slot 0 is a vector with at least record:hierarchy:min elements
 ;     so you can perform the type check by fetching and comparing
 ;     provided the inheritance depth of the expected record type
-;     is no greater than N-1
+;     is no greater than record:hierarchy:min - 1
 
 (define record:hierarchy:min 7)
 
