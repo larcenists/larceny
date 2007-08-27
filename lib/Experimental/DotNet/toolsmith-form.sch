@@ -837,11 +837,12 @@
 
 (begin
   (define set-double-buffered-meth 
-    (let ((get-method/private-meth
-           (clr/%get-method type-type "GetMethod" 
-                            (vector clr-type-handle/system-string binding-flags-type)))
-          (non-public-instance-flags
-           ((enum-type->symbol->foreign binding-flags-type) 
+    (let* ((binding-flags-type (find-reflection-type "BindingFlags"))
+           (get-method/private-meth
+            (clr/%get-method type-type "GetMethod" 
+                             (vector clr-type-handle/system-string binding-flags-type)))
+           (non-public-instance-flags
+           ((enum-type->symbol->foreign binding-flags-type)
             'nonpublic 'instance)))
       (clr/%invoke get-method/private-meth
                    control-type 
@@ -852,8 +853,7 @@
     (let* ((type-builder (define-type name type))
            (ctor (define-constructor type-builder))
            (ilgen (constructor->ilgen ctor))
-           (emit! (ilgen->emitter ilgen))
-           (binding-flags-type (find-reflection-type "BindingFlags")))
+           (emit! (ilgen->emitter ilgen)))
       (emit! 'ldarg.0)
       (emit! 'call (clr/%get-constructor type '#()))
       (emit! 'ldarg.0)
