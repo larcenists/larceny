@@ -635,7 +635,7 @@
            (filter (lambda (x) (eq? color-sym (type->name (property-info->type x)))) 
                    (type->properties color-type))))))
 (define control-creategraphics 
-  (let ((method (clr/%get-method control-type "GetGraphics" '#())))
+  (let ((method (clr/%get-method control-type "CreateGraphics" '#())))
     (lambda (c)
       (clr/%invoke method c '#()))))
 (define graphics->gfx 
@@ -1120,19 +1120,19 @@
                          (integer->char
                           (clr/%foreign->int
                            (key-press-event-args-keychar e))))))
-    (add-if-supported form 'on-mousedown "MouseDown"
+    (add-if-supported contents 'on-mousedown "MouseDown"
                       (mouse-event-handler 'on-mousedown))
-    (add-if-supported form 'on-mouseup "MouseUp"
+    (add-if-supported contents 'on-mouseup "MouseUp"
                       (mouse-event-handler 'on-mouseup))
-    (add-if-supported form 'on-mousemove "MouseMove"
+    (add-if-supported contents 'on-mousemove "MouseMove"
                       (mouse-event-handler 'on-mousemove))
-    (add-if-supported form 'on-mouseenter "MouseEnter"
+    (add-if-supported contents 'on-mouseenter "MouseEnter"
                       (lambda (sender e) ((agent 'on-mouseenter) wnd)))
-    (add-if-supported form 'on-mouseleave "MouseLeave"
+    (add-if-supported contents 'on-mouseleave "MouseLeave"
                       (lambda (sender e) ((agent 'on-mouseleave) wnd)))
-    (add-if-supported form 'on-mouseclick "MouseClick"
+    (add-if-supported contents 'on-mouseclick "MouseClick"
                       (mouse-event-handler 'on-mouseclick))
-    (add-if-supported form 'on-mousedoubleclick "MouseDoubleClick"
+    (add-if-supported contents 'on-mousedoubleclick "MouseDoubleClick"
                       (mouse-event-handler 'on-mousedoubleclick))
     
     (add-event-handler form "Resize" 
@@ -1197,9 +1197,10 @@
          (else (error 'scroll ": improper orientation " orient))))
        
       ((measure-text txt-string fnt)
-       (let ((g (control-creategraphics (wnd 'wndptr))))
+       (let ((g (control-creategraphics ((wnd 'wndptr)))))
          (call-with-values 
-             (lambda () (((graphics->gfx g) 'measure-text) txt-string fnt))
+             (lambda () 
+               (((graphics->gfx g) 'measure-text) txt-string fnt))
            (lambda vals
              (graphics-dispose! g)
              (apply values vals)))))
