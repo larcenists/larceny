@@ -869,8 +869,8 @@
   (define make-double-buffered-form 
     (protected-property-constructor "DoubleBufferedForm" form-type
                                     set-double-buffered-meth))
-  (define make-double-buffered-panel
-    (protected-property-constructor "DoubleBufferedPanel" panel-type
+  (define make-double-buffered-control
+    (protected-property-constructor "DoubleBufferedControl" control-type
                                     set-double-buffered-meth)))
 
 (define keys-type (find-forms-type "Keys"))
@@ -933,10 +933,10 @@
          (agent (agent-ctor (list-ref bounds 2) (list-ref bounds 3)))
          (agent-ops ((agent 'operations)))
          (form (make-form))
-         (panel-ctor (cond ((memq 'double-buffered args)
-                            make-double-buffered-panel)
-                           (else make-panel)))
-         (contents (panel-ctor))
+         (contents-ctor (cond ((memq 'double-buffered args) 
+                               make-double-buffered-control)
+                              (else make-control)))
+         (contents (contents-ctor))
          (menu-stack '())
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
@@ -1106,11 +1106,11 @@
                          (scrolleventargs-newvalue e)
                          (scrolleventargs-gettype e))))
     
-    (add-if-supported form 'on-keydown "KeyDown"
+    (add-if-supported contents 'on-keydown "KeyDown"
                       (key-event-handler 'on-keydown))
-    (add-if-supported form 'on-keyup "KeyUp"
+    (add-if-supported contents 'on-keyup "KeyUp"
                       (key-event-handler 'on-keyup))
-    (add-if-supported form 'on-keypress "KeyPress"
+    (add-if-supported contents 'on-keypress "KeyPress"
                       (lambda (sender e)
                         ((agent 'on-keypress)
                          ;; Felix believes integer->char is safe based
