@@ -933,11 +933,15 @@
                 (else #f)))
          (agent (agent-ctor (list-ref bounds 2) (list-ref bounds 3)))
          (agent-ops ((agent 'operations)))
-         (form (make-form))
+         (form-ctor (cond ((memq 'double-buffered args) 
+                           make-double-buffered-form)
+                          (else make-form)))
+         (form (form-ctor))
          (contents-ctor (cond ((memq 'double-buffered args) 
                                make-double-buffered-control)
                               (else make-control)))
          (contents (contents-ctor))
+         (core-control form)
          (menu-stack '())
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
@@ -1073,14 +1077,13 @@
       ;; Need to double-check this; for now this signals that a
       ;; control needs to be repainted.
       (update-scrollbars! form)
-      (invalidate! contents)
-      ;; (invalidate! form)
+      (invalidate! core-control)
       )
 
     (add-controls (control-controls form) 
-                  (list contents
-                        horizontal-scrollbar 
-                        vertical-scrollbar))
+                  `(,@(if (eq? contents core-control) (list contents) '())
+                    ,horizontal-scrollbar 
+                    ,vertical-scrollbar))
     (set-form-keypreview! form #t)
     (begin
       (display `((hscroll min: ,(scrollbar-minimum horizontal-scrollbar))
@@ -1107,11 +1110,11 @@
                          (scrolleventargs-newvalue e)
                          (scrolleventargs-gettype e))))
     
-    (add-if-supported contents 'on-keydown "KeyDown"
+    (add-if-supported core-control 'on-keydown "KeyDown"
                       (key-event-handler 'on-keydown))
-    (add-if-supported contents 'on-keyup "KeyUp"
+    (add-if-supported core-control 'on-keyup "KeyUp"
                       (key-event-handler 'on-keyup))
-    (add-if-supported contents 'on-keypress "KeyPress"
+    (add-if-supported core-control 'on-keypress "KeyPress"
                       (lambda (sender e)
                         ((agent 'on-keypress)
                          ;; Felix believes integer->char is safe based
@@ -1120,19 +1123,19 @@
                          (integer->char
                           (clr/%foreign->int
                            (key-press-event-args-keychar e))))))
-    (add-if-supported contents 'on-mousedown "MouseDown"
+    (add-if-supported core-control 'on-mousedown "MouseDown"
                       (mouse-event-handler 'on-mousedown))
-    (add-if-supported contents 'on-mouseup "MouseUp"
+    (add-if-supported core-control 'on-mouseup "MouseUp"
                       (mouse-event-handler 'on-mouseup))
-    (add-if-supported contents 'on-mousemove "MouseMove"
+    (add-if-supported core-control 'on-mousemove "MouseMove"
                       (mouse-event-handler 'on-mousemove))
-    (add-if-supported contents 'on-mouseenter "MouseEnter"
+    (add-if-supported core-control 'on-mouseenter "MouseEnter"
                       (lambda (sender e) ((agent 'on-mouseenter) wnd)))
-    (add-if-supported contents 'on-mouseleave "MouseLeave"
+    (add-if-supported core-control 'on-mouseleave "MouseLeave"
                       (lambda (sender e) ((agent 'on-mouseleave) wnd)))
-    (add-if-supported contents 'on-mouseclick "MouseClick"
+    (add-if-supported core-control 'on-mouseclick "MouseClick"
                       (mouse-event-handler 'on-mouseclick))
-    (add-if-supported contents 'on-mousedoubleclick "MouseDoubleClick"
+    (add-if-supported core-control 'on-mousedoubleclick "MouseDoubleClick"
                       (mouse-event-handler 'on-mousedoubleclick))
     
     (add-event-handler form "Resize" 
@@ -1145,7 +1148,7 @@
                                 ((wnd 'update))))
                              ))
 
-    (add-if-supported contents 'on-paint "Paint"
+    (add-if-supported core-control 'on-paint "Paint"
                       (lambda (sender e)
                         (let* ((r (paint-event-args-cliprectangle e))
                                (x (rectangle-x r))
