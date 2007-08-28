@@ -311,7 +311,7 @@
       ;; probably have to invent an encoding for saving images in
       ;; files anyway, so we could just make that part of this.)
       (all-text-string))
-     ((set-textstring string)
+     ((set-textstring! string)
       (set! rlines-before-view '#())
       (set! lines-from-buftop 
             (list->vector
