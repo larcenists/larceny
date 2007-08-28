@@ -5,6 +5,13 @@
 (require "Experimental/DotNet/simple-inspection")
 (require "Experimental/DotNet/toolsmith-form")
 
+;; TODO: change enumflags to produce a series of checkboxes rather
+;;       than a single combo box.
+;; TODO: don't render form objects as strings; instead make them 
+;;       clickable entities (to allow interactive exploration of the
+;;       object graph).
+;; TODO (related to above): handle collections intelligently.
+
 (define (type->value-box type)
   (define (names->fixed-combo-box names)
     (let ((cb (make-combo-box)))
