@@ -1020,7 +1020,6 @@
               ;; original bitset 
               (value (key-event-args-keyvalue e)))
           ((agent on-x)
-           wnd
            (keys-foreign->symbols code)
            `(,@(if alt '(alt) '())
              ,@(if ctrl '(ctrl) '())
@@ -1029,7 +1028,6 @@
     (define (mouse-event-handler on-x)
       (lambda (sender e)
         ((agent on-x)
-         wnd ;; should I check that ((wnd 'wndptr)) is eq? with sender?
          (mouse-event-args-x e)
          (mouse-event-args-y e))))
     
@@ -1121,7 +1119,7 @@
       ((hide)     (hide form))
       ((show-dialog) (form-show-dialog form))
       ((dispose)       
-       (((default-impl 'dispose)) wnd) 
+       (((default-impl 'dispose)))
        (control-dispose! form))
 
       ((push-menus . mnus) 
@@ -1156,8 +1154,8 @@
       ;; Are these really necessary in this development model?  Perhaps
       ;; for testing???  (But why not just extract the agent and call
       ;; it manually?)
-      ((keydown char)  (((default-impl 'keydown)) wnd char))
-      ((mousedown x y) (((default-impl 'mousedown)) wnd x y))
+      ((keydown char)  (((default-impl 'keydown)) char))
+      ((mousedown x y) (((default-impl 'mousedown)) x y))
 
       
       ))
@@ -1178,13 +1176,13 @@
             (lambda (mag)
               (let ((val (+ (scrollbar-value vertical-scrollbar) mag)))
                 (set-scrollbar-value! vertical-scrollbar val)
-                (tell-agent wnd val 'external)))))
+                (tell-agent val 'external)))))
     (set! horizontal-scroll! 
           (let ((tell-agent ((default-impl 'on-hscroll))))
             (lambda (mag)
               (let ((val (+ (scrollbar-value horizontal-scrollbar) mag)))
                 (set-scrollbar-value! horizontal-scrollbar val)
-                (tell-agent wnd val 'external)))))
+                (tell-agent val 'external)))))
     
     (add-controls (control-controls form) 
                   `(,@(if (eq? contents core-control) (list contents) '())
@@ -1203,16 +1201,16 @@
     (add-event-handler form "FormClosed"
                        (lambda (sender e)
                          (set! is-closed #t)
-                         (((default-impl 'on-close)) wnd)))
+                         (((default-impl 'on-close)))))
 
     (add-if-supported horizontal-scrollbar 'on-hscroll "Scroll"
                       (lambda (sender e)
-                        ((agent 'on-hscroll) wnd 
+                        ((agent 'on-hscroll) 
                          (scrolleventargs-newvalue e)
                          (scrolleventargs-gettype e))))
     (add-if-supported vertical-scrollbar 'on-vscroll "Scroll"
                       (lambda (sender e)
-                        ((agent 'on-vscroll) wnd 
+                        ((agent 'on-vscroll) 
                          (scrolleventargs-newvalue e)
                          (scrolleventargs-gettype e))))
     
@@ -1225,7 +1223,6 @@
                         ((agent 'on-keypress)
                          ;; Felix believes integer->char is safe based
                          ;; on Microsoft docs...
-                         wnd
                          (integer->char
                           (clr/%foreign->int
                            (key-press-event-args-keychar e))))))
@@ -1236,9 +1233,9 @@
     (add-if-supported core-control 'on-mousemove "MouseMove"
                       (mouse-event-handler 'on-mousemove))
     (add-if-supported core-control 'on-mouseenter "MouseEnter"
-                      (lambda (sender e) ((agent 'on-mouseenter) wnd)))
+                      (lambda (sender e) ((agent 'on-mouseenter))))
     (add-if-supported core-control 'on-mouseleave "MouseLeave"
-                      (lambda (sender e) ((agent 'on-mouseleave) wnd)))
+                      (lambda (sender e) ((agent 'on-mouseleave))))
     (add-if-supported core-control 'on-mouseclick "MouseClick"
                       (mouse-event-handler 'on-mouseclick))
     (add-if-supported core-control 'on-mousedoubleclick "MouseDoubleClick"
@@ -1247,7 +1244,7 @@
     (add-event-handler form "Resize" 
                        (cond ((memq 'on-resize agent-ops)
                               (lambda (sender e) 
-                                ((agent 'on-resize) wnd)
+                                ((agent 'on-resize))
                                 ((wnd 'update))))
                              (else
                               (lambda (sender e) 
@@ -1263,7 +1260,7 @@
                                (w (rectangle-width r))
                                (g (paint-event-args-graphics e)))
                           ((agent 'on-paint) 
-                           wnd (graphics->gfx g) x y w h))))
+                           (graphics->gfx g) x y w h))))
     
     wnd))
 
