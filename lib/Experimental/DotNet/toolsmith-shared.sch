@@ -267,6 +267,40 @@
       (+ (lines-length rlines-before-view)
          (lines-length lines-from-buftop)))
 
+    (define (text-pos->text-coord idx)
+      (let ((init-cursor-line (- (lines-length rlines-before-view))))
+        (let loop ((lines (all-text-lines))
+                   (accum-line init-cursor-line)
+                   (accum-pos idx))
+          (cond 
+           ((> accum-pos (string-length (car lines)))
+            (loop (cdr lines)
+                  (+ accum-line 1)
+                  (- accum-pos (+ 1 (string-length (car lines))))))
+           ((<= accum-pos (string-length (car lines)))
+            (values accum-line accum-pos))))))
+
+    (define (text-coord->text-pos row col)
+      (let ((absolute-cursor-line 
+             (+ row (lines-length rlines-before-view))))
+        (let loop ((lines (all-text-lines)) 
+                   (search-line 0)
+                   (accum-pos 0))
+          (cond 
+           ((null? lines)
+            (error 'text-coord->text-pos 
+                   ": internal inconsistency: no lines."))
+           ((< search-line absolute-cursor-line)
+            (loop (cdr lines) 
+                  (+ search-line 1)
+                  ;; extra 1   (here)  is to compensate for #\newline
+                  (+ accum-pos (+ 1 (string-length (car lines))))))
+           ((= search-line absolute-cursor-line)
+            (+ accum-pos (min (string-length (car lines)) col)))
+           (else
+            (error 'cursor-pos 
+                   ": internal inconsistency: cursor-line too large."))))))
+
     ;; Maps a mouse position (mx,my) to a text coordinate.  When the
     ;; mouse clicks on an actual character at row I column J, returns
     ;; (values I J).  But note that if the mouse clicks horizontally
@@ -332,37 +366,12 @@
      ((cursor-line) cursor-line)
      ((cursor-column) cursor-column)
      ((cursor-pos)
-      (let ((absolute-cursor-line 
-             (+ cursor-line (lines-length rlines-before-view))))
-        (let loop ((lines (all-text-lines)) 
-                   (search-line 0)
-                   (accum-pos 0))
-          (cond 
-           ((null? lines)
-            (error 'cursor-pos ": internal inconsistency: no lines."))
-           ((< search-line absolute-cursor-line)
-            (loop (cdr lines) 
-                  (+ search-line 1)
-                  ;; extra 1   (here)  is to compensate for #\newline
-                  (+ accum-pos (+ 1 (string-length (car lines))))))
-           ((= search-line absolute-cursor-line)
-            (+ accum-pos cursor-column))
-           (else
-            (error 'cursor-pos 
-                   ": internal inconsistency: cursor-line too large."))))))
+      (text-coord->text-pos cursor-line cursor-column))
      ((set-cursor-pos! idx)
-      (let ((init-cursor-line (- (lines-length rlines-before-view))))
-        (let loop ((lines (all-text-lines))
-                   (accum-line init-cursor-line)
-                   (accum-pos idx))
-          (cond 
-           ((> accum-pos (string-length (car lines)))
-            (loop (cdr lines)
-                  (+ accum-line 1)
-                  (- accum-pos (+ 1 (string-length (car lines))))))
-           ((<= accum-pos (string-length (car lines)))
-            (set! cursor-line accum-line)
-            (set! cursor-column accum-pos)))))
+      (call-with-values (lambda () (text-pos->text-coord idx))
+        (lambda (line pos)
+          (set! cursor-line line)
+          (set! cursor-column pos)))
       ((wnd 'update)))
      ((on-keydown sym mods)
       '(begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline))
