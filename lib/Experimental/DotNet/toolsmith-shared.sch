@@ -296,8 +296,10 @@
                    (accum-pos 0))
           (cond 
            ((null? lines)
-            (error 'text-coord->text-pos 
-                   ": internal inconsistency: no lines."))
+            ;; This happens when we've clicked past the end of the
+            ;; buffer; in that case we should return the length of the
+            ;; buffer (which happens to be computed as accum-pos)
+            accum-pos)
            ((< search-line absolute-cursor-line)
             (loop (cdr lines) 
                   (+ search-line 1)
