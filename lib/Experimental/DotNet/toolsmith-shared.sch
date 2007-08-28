@@ -219,7 +219,7 @@
          (rlines-before-view (lines "line B" "line A"))
          (lines-from-buftop (lines "line C" "line D" "" "line Y" "line Z"))
          (cursor-line 2)
-         (cursor-pos  0)
+         (cursor-column 0)
          (em-size 10)
          (fnt (make-fnt (monospace-fontname) em-size))
          (col (name->col (string->symbol "Black"))))
@@ -228,11 +228,12 @@
       (assert (number? cursor-line))
       ;; cursor-line is less than 0 when cursor's line is out of view
       (assert (< cursor-line (lines-length lines-from-buftop)))
-      (assert (number? cursor-pos))
-      (assert (>= cursor-pos 0))
+      (assert (number? cursor-column))
+      (assert (>= cursor-column 0))
       (assert (or (< cursor-line 0)
-                  (<= cursor-pos (string-length 
-                                  (lines-ref lines-from-buftop cursor-line))))))
+                  (<= cursor-column 
+                      (string-length 
+                       (lines-ref lines-from-buftop cursor-line))))))
       
     (define (all-text-lines)
       (append (reverse (lines->list rlines-before-view)) (lines->list lines-from-buftop)))
@@ -320,10 +321,10 @@
                 (else
                  (loop (cons (car chars) curr) (cdr chars)))))))
       (set! cursor-line 0)
-      (set! cursor-pos 0)
+      (set! cursor-column 0)
       ((wnd 'update)))
      ((cursor-line) cursor-line)
-     ((cursor-pos) cursor-pos)
+     ((cursor-column) cursor-column)
      ((on-keydown wnd sym mods)
       '(begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline))
       )
@@ -337,12 +338,12 @@
           (case sym
             ((back delete) 
              (cond 
-              ((> cursor-pos 0)
+              ((> cursor-column 0)
                (lines-set! lines-from-buftop cursor-line
-                          (string-append (substring l_k 0 (- cursor-pos 1))
-                                         (substring l_k cursor-pos
+                          (string-append (substring l_k 0 (- cursor-column 1))
+                                         (substring l_k cursor-column
                                                     (string-length l_k))))
-               (set! cursor-pos (- cursor-pos 1)))
+               (set! cursor-column (- cursor-column 1)))
               ((> cursor-line 0)
                (let* ((l_0..k-2 (take (lines->list lines-from-buftop)
                                       (- cursor-line 1))) 
@@ -355,7 +356,7 @@
                                       (list l_new)
                                       l_k+1..n)))
                  (set! cursor-line (- cursor-line 1))
-                 (set! cursor-pos (string-length l_k-1))
+                 (set! cursor-column (string-length l_k-1))
                  ))
               ((= 0 (lines-length rlines-before-view))
                'do-nothing)
@@ -375,17 +376,17 @@
                  (set! lines-from-buftop 
                        (list->vector
                         (append l_0..k-1
-                                (list (substring l_k 0 cursor-pos)
-                                      (substring l_k cursor-pos (string-length l_k)))
+                                (list (substring l_k 0 cursor-column)
+                                      (substring l_k cursor-column (string-length l_k)))
                                 l_k+1..n)))
                  (set! cursor-line (+ cursor-line 1))
-                 (set! cursor-pos 0)))))
+                 (set! cursor-column 0)))))
             ((up)
              (cond ((> cursor-line 0)
                     (set! cursor-line (- cursor-line 1))
-                    (set! cursor-pos
+                    (set! cursor-column
                           (min (string-length (lines-ref lines-from-buftop cursor-line))
-                               cursor-pos)))
+                               cursor-column)))
                    ((= 0 (lines-length rlines-before-view))
                     'do-nothing)
                    (else
@@ -395,28 +396,29 @@
              (cond ((>= (+ cursor-line 1) (lines-length lines-from-buftop)) 'do-nothing)
                    ((< cursor-line (count-visible-lines))
                     (set! cursor-line (+ cursor-line 1))
-                    (set! cursor-pos
+                    (set! cursor-column
                           (min (string-length (lines-ref lines-from-buftop cursor-line))
-                               cursor-pos)))
+                               cursor-column)))
                    ((= cursor-line (count-visible-lines))
                     ((wnd 'scroll) 'vertical 1)
                     (retry))))
             ((left)
-             (cond ((> cursor-pos 0)
-                    (set! cursor-pos (- cursor-pos 1)))
+             (cond ((> cursor-column 0)
+                    (set! cursor-column (- cursor-column 1)))
                    ((> cursor-line 0)
                     (set! cursor-line (- cursor-line 1))
-                    (set! cursor-pos (string-length 
-                                      (lines-ref lines-from-buftop cursor-line))))
+                    (set! cursor-column 
+                          (string-length 
+                           (lines-ref lines-from-buftop cursor-line))))
                    (else
                     ((wnd 'scroll) 'vertical -1)
                     (retry))))
             ((right)
-             (cond ((< cursor-pos (string-length l_k))
-                    (set! cursor-pos (+ cursor-pos 1)))
+             (cond ((< cursor-column (string-length l_k))
+                    (set! cursor-column (+ cursor-column 1)))
                    ((< cursor-line (count-visible-lines))
                     (set! cursor-line (+ cursor-line 1))
-                    (set! cursor-pos 0))
+                    (set! cursor-column 0))
                    ((= cursor-line (count-visible-lines))
                     ((wnd 'scroll) 'vertical 1)
                     (retry))
@@ -432,11 +434,11 @@
         ((#\backspace #\return #\esc #\tab) 'do-nothing)
         (else
          (let ((l_k (lines-ref lines-from-buftop cursor-line)))
-           (let* ((prefix (substring l_k 0 cursor-pos))
-                  (suffix (substring l_k cursor-pos (string-length l_k)))
+           (let* ((prefix (substring l_k 0 cursor-column))
+                  (suffix (substring l_k cursor-column (string-length l_k)))
                   (l_k* (string-append prefix (string char) suffix)))
              (lines-set! lines-from-buftop cursor-line l_k*)))
-         (set! cursor-pos (+ cursor-pos 1))))
+         (set! cursor-column (+ cursor-column 1))))
       ((wnd 'update)))
      ((horizontal-scrollbar) #f)
      ((vertical-scrollbar)
@@ -489,7 +491,7 @@
           (let ((l_k (lines-ref lines-from-buftop cursor-line)))
             (call-with-values (lambda () 
                                 ((g 'measure-text) 
-                                 (substring l_k 0 cursor-pos)
+                                 (substring l_k 0 cursor-column)
                                  fnt))
               (lambda (w h)
                 ((g 'draw-line) col w cursor-height w (+ cursor-height h)))))
