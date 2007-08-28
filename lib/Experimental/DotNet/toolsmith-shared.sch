@@ -324,6 +324,8 @@
                  (cons (list->string (reverse curr)) (loop '() (cdr chars))))
                 (else
                  (loop (cons (car chars) curr) (cdr chars)))))))
+      ; XXX consider saving original cursor-pos and then attempting to
+      ; XXX restore it after installing the new textstring.
       (set! cursor-line 0)
       (set! cursor-column 0)
       ((wnd 'update)))
