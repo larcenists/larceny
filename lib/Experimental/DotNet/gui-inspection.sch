@@ -2,8 +2,10 @@
 
 ;;; object->property-form
 
-(require "Experimental/DotNet/simple-inspection")
-(require "Experimental/DotNet/toolsmith-form")
+'(require "Experimental/DotNet/simple-inspection")
+type-type
+'(require "Experimental/DotNet/toolsmith-form")
+find-forms-type
 
 ;; TODO: change enumflags to produce a series of checkboxes rather
 ;;       than a single combo box.
