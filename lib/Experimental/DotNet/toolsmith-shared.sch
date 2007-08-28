@@ -306,8 +306,16 @@
     
     (msg-handler
      ((textstring) 
+      ;; Careful here; when we add image support in the future, it 
+      ;; is not clear what this method should do then.  (We'll
+      ;; probably have to invent an encoding for saving images in
+      ;; files anyway, so we could just make that part of this.)
       (all-text-string))
      ((set-textstring wnd string)
+      ;; XXX See below note about tying agents to their window at
+      ;; construction time
+      ;; (rather than artificially requiring clients to pass a wnd
+      ;; argument to this method...)
       (set! rlines-before-view '#())
       (set! lines-from-buftop 
             (list->vector
