@@ -325,6 +325,43 @@
       ((wnd 'update)))
      ((cursor-line) cursor-line)
      ((cursor-column) cursor-column)
+     ((cursor-pos)
+      (let ((absolute-cursor-line 
+             (+ cursor-line (lines-length rlines-before-view))))
+        (let loop ((lines (all-text-lines)) 
+                   (search-line 0)
+                   (accum-pos 0))
+          (cond 
+           ((null? lines)
+            (error 'cursor-pos ": internal inconsistency: no lines."))
+           ((< search-line absolute-cursor-line)
+            (loop (cdr lines) 
+                  (+ search-line 1)
+                  ;; extra 1   (here)  is to compensate for #\newline
+                  (+ accum-pos (+ 1 (string-length (car lines))))))
+           ((= search-line absolute-cursor-line)
+            (+ accum-pos cursor-column))
+           (else
+            (error 'cursor-pos 
+                   ": internal inconsistency: cursor-line too large."))))))
+     ((set-cursor-pos! idx)
+      (let ((init-cursor-line (- (lines-length rlines-before-view))))
+        (let loop ((lines (all-text-lines))
+                   (accum-line init-cursor-line)
+                   (accum-pos idx))
+          (cond 
+           ((> accum-pos (string-length (car lines)))
+            (loop (cdr lines)
+                  (+ accum-line 1)
+                  (- accum-pos (+ 1 (string-length (car lines))))))
+           ((<= accum-pos (string-length (car lines)))
+            (set! cursor-line accum-line)
+            (set! cursor-column accum-pos)))))
+      ;; It would be nice to automatically update the window at this
+      ;; point in control flow.  Maybe agents should be tied to their
+      ;; window at construction time.  (That or I could add optional
+      ;; set-wnd! method that make-wnd must call if it exists...)
+      )
      ((on-keydown wnd sym mods)
       '(begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline))
       )
