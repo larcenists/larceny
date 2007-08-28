@@ -838,11 +838,11 @@
                               ((fill) (values fill-rect-method/exact
                                               (make-solid-brush colptr)
                                               brush-dispose!
-                                              exact->int32))
+                                              fixnum->int32))
                               ((draw) (values draw-rect-method/exact
                                               (make-pen colptr)
                                               pen-dispose!
-                                              exact->int32))))
+                                              fixnum->int32))))
                            (else
                             (case op
                               ((fill) (values fill-rect-method/inexact
