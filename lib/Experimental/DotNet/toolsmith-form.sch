@@ -852,13 +852,13 @@
                    (vector (clr/string->foreign "set_DoubleBuffered") 
                            non-public-instance-flags))))
 
-  (define (protected-property-constructor name type set-meth)
-    (let* ((type-builder (define-type name type))
-           (ctor (define-constructor type-builder))
+  (define (protected-property-constructor type-builder set-meth)
+    (let* ((ctor (define-constructor type-builder))
            (ilgen (constructor->ilgen ctor))
            (emit! (ilgen->emitter ilgen)))
       (emit! 'ldarg.0)
-      (emit! 'call (clr/%get-constructor type '#()))
+      (emit! 'call (clr/%get-constructor (type->superclass type-builder) 
+					 '#()))
       (emit! 'ldarg.0)
       (emit! 'ldc.i4.1)
       (emit! 'call set-meth)
@@ -870,11 +870,14 @@
         make-object)))
 
   (define make-double-buffered-form 
-    (protected-property-constructor "DoubleBufferedForm" form-type
-                                    set-double-buffered-meth))
+    (protected-property-constructor
+     (define-type "DoubleBufferedForm" form-type)
+     set-double-buffered-meth))
   (define make-double-buffered-control
-    (protected-property-constructor "DoubleBufferedControl" control-type
-                                    set-double-buffered-meth)))
+    (protected-property-constructor 
+     (define-type "DoubleBufferedControl" control-type)
+     set-double-buffered-meth))
+  )
 
 (define keys-type (find-forms-type "Keys"))
 (define keys-foreign->symbols (enum-type->foreign->symbol keys-type))
