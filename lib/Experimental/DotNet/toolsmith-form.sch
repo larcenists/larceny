@@ -309,6 +309,15 @@
       ;; (its a static property)
       (p clr/null))))
 
+;; This kills the event loop.  It does not seem to kill the main REPL
+;; thread, so it seems to be appropriate for flushing the event loop
+;; (e.g. when a buggy callback is making life difficult.)
+(define application-exit-thread!!!
+  (let* ((application-type (find-forms-type "Application"))
+         (meth (clr/%get-method application-type "ExitThread" '#())))
+    (lambda ()
+      (clr/%invoke meth clr/null '#()))))
+
 (define toolsmith-interrupt-handler
   (lambda ()
     '(begin (display "timer interrupt was fired!") 
@@ -319,7 +328,7 @@
             (lambda args
               (begin (display "interrupt had error!")
                      (newline))
-              (standard-timeslice (most-positive-fixnum))
+              (application-exit-thread!!!)
               (apply orig-error-handler args))))
       (parameterize ((error-handler new-error-handler))
         (application-do-events!)
