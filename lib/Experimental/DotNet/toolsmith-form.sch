@@ -789,6 +789,29 @@
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single)))
+         (fill-rect-method/exact   (clr/%get-method
+                                    graphics-type
+                                    "FillRectangle"
+                                    (vector pen-type
+                                            clr-type-handle/system-int32
+                                            clr-type-handle/system-int32
+                                            clr-type-handle/system-int32
+                                            clr-type-handle/system-int32)))
+         (draw-or-fill-rect 
+          (lambda (meth col x1 y1 x2 y2)
+            (let ((pen (make-pen ((col 'colptr))))
+                  (x (min x1 x2))
+                  (y (min y1 y2))
+                  (w (abs (- x2 x1)))
+                  (h (abs (- y2 y1))))
+              (clr/%invoke meth g
+                           (vector pen
+                                   (clr/%number->foreign-int32 x)
+                                   (clr/%number->foreign-int32 y)
+                                   (clr/%number->foreign-int32 w)
+                                   (clr/%number->foreign-int32 h)))
+              (pen-dispose! pen))))
+          
          (draw-image-method (clr/%get-method 
                              graphics-type
                              "DrawImage"
@@ -821,19 +844,11 @@
                                       (clr/%flonum->foreign-single (exact->inexact x2))
                                       (clr/%flonum->foreign-single (exact->inexact y2))))))
           (pen-dispose! pen)))
+
        ((draw-rect col x1 y1 x2 y2) 
-        (let ((pen (make-pen ((col 'colptr))))
-              (x (min x1 x2))
-              (y (min y1 y2))
-              (w (abs (- x2 x1)))
-              (h (abs (- y2 y1))))
-          (clr/%invoke draw-rect-method/exact g
-                       (vector pen
-                               (clr/%number->foreign-int32 x)
-                               (clr/%number->foreign-int32 y)
-                               (clr/%number->foreign-int32 w)
-                               (clr/%number->foreign-int32 h)))
-          (pen-dispose! pen)))
+        (draw-or-fill-rect draw-rect-method/exact col x1 y1 x2 y2))
+       ((fill-rect col x1 y1 x2 y2)
+        (draw-or-fill-rect fill-rect-method/exact col x1 y1 x2 y2))
                                
        ((draw-image img x y) 
         (clr/%invoke draw-image-method g
