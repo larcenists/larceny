@@ -792,25 +792,55 @@
          (fill-rect-method/exact   (clr/%get-method
                                     graphics-type
                                     "FillRectangle"
-                                    (vector pen-type
+                                    (vector brush-type
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32)))
+         (fill-rect-method/inexact (clr/%get-method
+                                    graphics-type
+                                    "FillRectangle"
+                                    (vector brush-type
+                                            clr-type-handle/system-single
+                                            clr-type-handle/system-single
+                                            clr-type-handle/system-single
+                                            clr-type-handle/system-single)))
          (draw-or-fill-rect 
-          (lambda (meth col x1 y1 x2 y2)
-            (let ((pen (make-pen ((col 'colptr))))
-                  (x (min x1 x2))
-                  (y (min y1 y2))
-                  (w (abs (- x2 x1)))
-                  (h (abs (- y2 y1))))
-              (clr/%invoke meth g
-                           (vector pen
-                                   (clr/%number->foreign-int32 x)
-                                   (clr/%number->foreign-int32 y)
-                                   (clr/%number->foreign-int32 w)
-                                   (clr/%number->foreign-int32 h)))
-              (pen-dispose! pen))))
+          (lambda (g op col x1 y1 x2 y2)
+            (define colptr ((col 'colptr)))
+            (define (fixnum->int32 x)
+              (clr/%number->foreign-int32 x))
+            (define (number->single x)
+              (clr/%flonum->foreign-single (exact->inexact x)))
+            (let-values (((meth ink ink-dispose! num)
+                          (cond 
+                           ((and (fixnum? x1) (fixnum? y1)
+                                 (fixnum? x2) (fixnum? y2))
+                            (case op
+                              ((fill) (values fill-rect-method/exact
+                                              (make-solid-brush colptr)
+                                              brush-dispose!
+                                              exact->int32))
+                              ((draw) (values draw-rect-method/exact
+                                              (make-pen colptr)
+                                              pen-dispose!
+                                              exact->int32))))
+                           (else
+                            (case op
+                              ((fill) (values fill-rect-method/inexact
+                                              (make-solid-brush colptr)
+                                              brush-dispose!
+                                              number->single))
+                              ((draw) (values draw-rect-method/inexact
+                                              (make-pen colptr)
+                                              pen-dispose!
+                                              number->single)))))))
+              (let ((x (num (min x1 x2)))
+                    (y (num (min y1 y2)))
+                    (w (num (abs (- x2 x1))))
+                    (h (num (abs (- y2 y1)))))
+                (clr/%invoke meth g (vector ink x y w h))
+                (ink-dispose! ink)))))
           
          (draw-image-method (clr/%get-method 
                              graphics-type
@@ -846,9 +876,9 @@
           (pen-dispose! pen)))
 
        ((draw-rect col x1 y1 x2 y2) 
-        (draw-or-fill-rect draw-rect-method/exact col x1 y1 x2 y2))
+        (draw-or-fill-rect g 'draw col x1 y1 x2 y2))
        ((fill-rect col x1 y1 x2 y2)
-        (draw-or-fill-rect fill-rect-method/exact col x1 y1 x2 y2))
+        (draw-or-fill-rect g 'fill col x1 y1 x2 y2))
                                
        ((draw-image img x y) 
         (clr/%invoke draw-image-method g
