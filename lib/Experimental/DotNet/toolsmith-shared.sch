@@ -230,9 +230,10 @@
       (assert (< cursor-line (lines-length lines-from-buftop)))
       (assert (number? cursor-pos))
       (assert (>= cursor-pos 0))
-      (assert (<= cursor-pos (string-length 
-                              (lines-ref lines-from-buftop cursor-line)))))
-    
+      (assert (or (< cursor-line 0)
+                  (<= cursor-pos (string-length 
+                                  (lines-ref lines-from-buftop cursor-line))))))
+      
     (define (all-text-lines)
       (append (reverse (lines->list rlines-before-view)) (lines->list lines-from-buftop)))
 
