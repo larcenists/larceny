@@ -851,18 +851,27 @@
                    control-type 
                    (vector (clr/string->foreign "set_DoubleBuffered") 
                            non-public-instance-flags))))
-
-  (define (protected-property-constructor type-builder set-meth)
-    (let* ((ctor (define-constructor type-builder))
+  
+  (define (create-type name supertype constructor-extension . 
+		       method-extensions)
+    (let* ((type-builder (define-type name supertype))
+	   (ctor (define-constructor type-builder))
            (ilgen (constructor->ilgen ctor))
            (emit! (ilgen->emitter ilgen)))
       (emit! 'ldarg.0)
       (emit! 'call (clr/%get-constructor (type->superclass type-builder) 
 					 '#()))
-      (emit! 'ldarg.0)
-      (emit! 'ldc.i4.1)
-      (emit! 'call set-meth)
+      (constructor-extension emit!)
       (emit! 'ret)
+      (for-each (lambda (method-pieces) 
+		  (call-with-values method-pieces
+		    (lambda (name arg-types result-type extension)
+		      (let* ((m (define-method type-builder
+				  name arg-types result-type))
+			     (ilgen (method->ilgen m))
+			     (emit! (ilgen->emitter ilgen)))
+			(extension emit!)))))
+		method-extensions)
       (let* ((create-type-meth (clr/%get-method
                                 typebuilder-type "CreateType" '#()))
              (type (clr/%invoke create-type-meth type-builder '#()))
@@ -870,13 +879,34 @@
         make-object)))
 
   (define make-double-buffered-form 
-    (protected-property-constructor
-     (define-type "DoubleBufferedForm" form-type)
-     set-double-buffered-meth))
+    (create-type "DoubleBufferedForm" form-type
+		 (lambda (emit!)
+		   (emit! 'ldarg.0)
+		   (emit! 'ldc.i4.1)
+		   (emit! 'call set-double-buffered-meth))))
+
   (define make-double-buffered-control
-    (protected-property-constructor 
-     (define-type "DoubleBufferedControl" control-type)
-     set-double-buffered-meth))
+    (let ((write-line-meth
+	   (clr/%get-method (find-clr-type "System.Console") "WriteLine" 
+			    (vector clr-type-handle/system-string))))
+      (create-type
+       "DoubleBufferedControl" control-type
+       (lambda (emit!)
+	 (emit! 'ldarg.0)
+	 (emit! 'ldc.i4.1)
+	 (emit! 'call set-double-buffered-meth))
+
+       (lambda ()
+	 ;; EVERYTHING'S an input key!!!
+	 ;; ha ha ha!  So crazy it just might work!
+	 (values "IsInputKey" (list (find-forms-type "Keys"))
+		 clr-type-handle/system-boolean
+		 (lambda (emit!)
+		   ;;(emit! 'ldstr "Hi there!")
+		   ;;(emit! 'call write-line-meth)
+		   (emit! 'ldc.i4.1)
+		   (emit! 'ret))))
+       )))
   )
 
 (define keys-type (find-forms-type "Keys"))
