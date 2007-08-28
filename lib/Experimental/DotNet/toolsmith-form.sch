@@ -164,6 +164,8 @@
                    (clr/%number->foreign width)
                    (clr/%number->foreign height)))))
 (define control-dispose! (make-unary-method control-type "Dispose"))
+(define control-focus!   (make-unary-method control-type "Focus"))
+(define control-select!  (make-unary-method control-type "Select"))
 
 (define controls-collection-type (find-forms-type "Control+ControlCollection"))
 (define add-controls 
