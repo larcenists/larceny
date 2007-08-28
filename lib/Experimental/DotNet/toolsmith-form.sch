@@ -516,7 +516,10 @@
 (define key-press-event-args-keychar (make-property-ref key-press-event-args-type "KeyChar"))
 
 (define mouse-event-args-type (find-forms-type "MouseEventArgs"))
-(define mouse-event-args-button (make-property-ref mouse-event-args-type "Button"))
+(define mouse-event-args-button 
+  (make-property-ref mouse-event-args-type "Button"
+                     (enum-type->foreign->symbol 
+                      (find-forms-type "MouseButtons"))))
 (define mouse-event-args-clicks (make-property-ref mouse-event-args-type "Clicks"))
 (define mouse-event-args-delta (make-property-ref mouse-event-args-type "Delta"))
 (define mouse-event-args-x (make-property-ref mouse-event-args-type "X"))
@@ -1005,8 +1008,7 @@
             (else 
              (display "No support for op ")
              (display op-name)
-             (newline)
-             )))
+             (newline))))
 
     (define (key-event-handler on-x)
       (lambda (sender e)
@@ -1230,8 +1232,29 @@
                       (mouse-event-handler 'on-mousedown))
     (add-if-supported core-control 'on-mouseup "MouseUp"
                       (mouse-event-handler 'on-mouseup))
-    (add-if-supported core-control 'on-mousemove "MouseMove"
-                      (mouse-event-handler 'on-mousemove))
+    (let ((add! (lambda (fcn) 
+                  (add-event-handler core-control "MouseMove" fcn)))
+          (has-move? (memq 'on-mousemove agent-ops))
+          (has-drag? (memq 'on-mousedrag agent-ops)))
+      (cond 
+       ((and has-move? has-drag?)
+        (let ((move-handler (mouse-event-handler 'on-mousemove))
+              (drag-handler (mouse-event-handler 'on-mousedrag)))
+          (add! (lambda (sender e)
+                  (case (mouse-event-args-button e)
+                    ((none) (move-handler sender e))
+                    (else   (drag-handler sender e)))))))
+       (has-move?
+        (let ((move-handler (mouse-event-handler 'on-mousemove)))
+          (add! (lambda (sender e)
+                  (case (mouse-event-args-button e)
+                    ((none) (move-handler sender e)))))))
+       (has-drag?
+        (let ((drag-handler (mouse-event-handler 'on-mousedrag)))
+          (add! (lambda (sender e)
+                  (case (mouse-event-args-button e)
+                    ((none) 'do-nothing)
+                    (else   (drag-handler sender e)))))))))
     (add-if-supported core-control 'on-mouseenter "MouseEnter"
                       (lambda (sender e) ((agent 'on-mouseenter))))
     (add-if-supported core-control 'on-mouseleave "MouseLeave"
