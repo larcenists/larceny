@@ -116,7 +116,7 @@
 ;; Note that all agent operations are optional, except (of course) the
 ;; 'operations operation.
 ;; 
-;; AGENT: (make-noisy-agent) ; client def's ctors, perhaps via msg-handler form
+;; AGENT: (make-noisy-agent wnd width height) ; client def's ctors, perhaps via msg-handler form
 ;;  (on-close wnd) 
 ;;  (on-keypress wnd char) (on-keydown wnd sym mods) (on-keyup wnd sym mods)
 ;;  (on-mousedown wnd x y) (on-mouseup wnd x y) (on-mousemove wnd x y) 
@@ -154,7 +154,7 @@
 ;;  (append item action enabled?) ;; enabled? is nullary predicate
 ;;  (items) (mnuptr) (name)
 
-(define (make-noisy-agent width height)
+(define (make-noisy-agent wnd width height)
   (define (displayln x) (display x) (newline))
   (msg-handler
    ((on-close wnd)                (displayln `(on-close)))
@@ -172,7 +172,7 @@
    ((on-dispose wnd)              (displayln `(on-dispose)))
    ))
 
-(define (make-rectangle-drawing-agent width height)
+(define (make-rectangle-drawing-agent wnd width height)
   (let* ((last-x #f)
          (last-y #f)
          (temp-rect #f)
@@ -204,7 +204,7 @@
       (cond (temp-rect (apply (g 'draw-rect) (name->col "Red") temp-rect)))
       ))))
 
-(define (make-code-editor-agent width height)
+(define (make-code-editor-agent wnd width height)
   ;; XXX don't spend too much time writing code oriented around this
   ;; representation of the text contents; we would be better off
   ;; adopting something like Will's buffer abstraction (see text.sch
@@ -311,11 +311,7 @@
       ;; probably have to invent an encoding for saving images in
       ;; files anyway, so we could just make that part of this.)
       (all-text-string))
-     ((set-textstring wnd string)
-      ;; XXX See below note about tying agents to their window at
-      ;; construction time
-      ;; (rather than artificially requiring clients to pass a wnd
-      ;; argument to this method...)
+     ((set-textstring string)
       (set! rlines-before-view '#())
       (set! lines-from-buftop 
             (list->vector
@@ -365,11 +361,7 @@
            ((<= accum-pos (string-length (car lines)))
             (set! cursor-line accum-line)
             (set! cursor-column accum-pos)))))
-      ;; It would be nice to automatically update the window at this
-      ;; point in control flow.  Maybe agents should be tied to their
-      ;; window at construction time.  (That or I could add optional
-      ;; set-wnd! method that make-wnd must call if it exists...)
-      )
+      ((wnd 'update)))
      ((on-keydown wnd sym mods)
       '(begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline))
       )

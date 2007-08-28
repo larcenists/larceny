@@ -972,8 +972,8 @@
          (title
           (cond ((memq 'title args) => cadr)
                 (else #f)))
-         (agent (agent-ctor (list-ref bounds 2) (list-ref bounds 3)))
-         (agent-ops ((agent 'operations)))
+         (agent (undefined))
+         (agent-ops (undefined))
          (form-ctor (cond ((memq 'double-buffered args) 
                            make-double-buffered-form)
                           (else make-form)))
@@ -997,8 +997,6 @@
                                (else
                                 (lambda () (unhandled method-name))))))
          (is-closed #f)
-         (wnd (undefined))
-         (return-wnd (lambda (obj) (set! wnd obj) obj))
          )
 
     (define (add-if-supported form op-name event-name handler)
@@ -1034,29 +1032,14 @@
          wnd ;; should I check that ((wnd 'wndptr)) is eq? with sender?
          (mouse-event-args-x e)
          (mouse-event-args-y e))))
+    
+    (define horizontal-scrollbar? (undefined))
+    (define vertical-scrollbar? (undefined))
+    (define horizontal-scroll! (undefined))
+    (define vertical-scroll! (undefined))
 
-    (define horizontal-scrollbar?
-      (if (memq 'horizontal-scrollbar agent-ops)
-          (lambda () ((agent 'horizontal-scrollbar)))
-          (lambda () #f)))
-    (define vertical-scrollbar?
-      (if (memq 'vertical-scrollbar agent-ops)
-          (lambda () ((agent 'vertical-scrollbar)))
-          (lambda () #f)))
     (define horizontal-scrollbar (make-hscrollbar))
     (define vertical-scrollbar (make-vscrollbar))
-    (define vertical-scroll! 
-      (let ((tell-agent ((default-impl 'on-vscroll))))
-        (lambda (mag)
-          (let ((val (+ (scrollbar-value vertical-scrollbar) mag)))
-            (set-scrollbar-value! vertical-scrollbar val)
-            (tell-agent wnd val 'external)))))
-    (define horizontal-scroll! 
-      (let ((tell-agent ((default-impl 'on-hscroll))))
-        (lambda (mag)
-          (let ((val (+ (scrollbar-value horizontal-scrollbar) mag)))
-            (set-scrollbar-value! horizontal-scrollbar val)
-            (tell-agent wnd val 'external)))))
 
     (define (set-if-present setter! tgt key lst)
       (cond ((assq key lst) => 
@@ -1121,6 +1104,88 @@
       (invalidate! core-control)
       )
 
+    (define wnd
+     (msg-handler
+      ((title)    title)
+      ((close)    (form-close! form))
+      ((closed?)  is-closed)
+      ((wndptr)  core-control) ;; for debugging; not for client code (e.g. agents)
+      ((agent)    agent)
+      ((width)    (control-width form))
+      ((height)   (control-height form))
+
+      ((update)   (update!))
+
+      ((activate) (activate! form))
+      ((show)     (show form))
+      ((hide)     (hide form))
+      ((show-dialog) (form-show-dialog form))
+      ((dispose)       
+       (((default-impl 'dispose)) wnd) 
+       (control-dispose! form))
+
+      ((push-menus . mnus) 
+       (let ((main-menu (make-main-menu)))
+         (for-each (lambda (mnu) (menu-add-menu-item! main-menu ((mnu 'mnuptr)))) mnus)
+         (set! menu-stack (cons main-menu menu-stack))
+         (form-set-menu! form main-menu))
+       (update!))
+      ((pop-menus)
+       (set! menu-stack (cdr menu-stack))
+       (cond ((not (null? menu-stack))
+              (form-set-menu! form (car menu-stack)))
+             (else
+              (form-set-menu! form clr/null)))
+       (update!))
+
+      ((scroll orient magnitude)
+       (case orient
+         ((vertical) (vertical-scroll! magnitude))
+         ((horizontal) (horizontal-scroll! magnitude))
+         (else (error 'scroll ": improper orientation " orient))))
+       
+      ((measure-text txt-string fnt)
+       (let ((g (control-creategraphics ((wnd 'wndptr)))))
+         (call-with-values 
+             (lambda () 
+               (((graphics->gfx g) 'measure-text) txt-string fnt))
+           (lambda vals
+             (graphics-dispose! g)
+             (apply values vals)))))
+
+      ;; Are these really necessary in this development model?  Perhaps
+      ;; for testing???  (But why not just extract the agent and call
+      ;; it manually?)
+      ((keydown char)  (((default-impl 'keydown)) wnd char))
+      ((mousedown x y) (((default-impl 'mousedown)) wnd x y))
+
+      
+      ))
+    
+    (set! agent (agent-ctor wnd (list-ref bounds 2) (list-ref bounds 3)))
+    (set! agent-ops ((agent 'operations)))
+
+    (set! horizontal-scrollbar?
+          (if (memq 'horizontal-scrollbar agent-ops)
+              (lambda () ((agent 'horizontal-scrollbar)))
+              (lambda () #f)))
+    (set! vertical-scrollbar?
+          (if (memq 'vertical-scrollbar agent-ops)
+              (lambda () ((agent 'vertical-scrollbar)))
+              (lambda () #f)))
+    (set! vertical-scroll! 
+          (let ((tell-agent ((default-impl 'on-vscroll))))
+            (lambda (mag)
+              (let ((val (+ (scrollbar-value vertical-scrollbar) mag)))
+                (set-scrollbar-value! vertical-scrollbar val)
+                (tell-agent wnd val 'external)))))
+    (set! horizontal-scroll! 
+          (let ((tell-agent ((default-impl 'on-hscroll))))
+            (lambda (mag)
+              (let ((val (+ (scrollbar-value horizontal-scrollbar) mag)))
+                (set-scrollbar-value! horizontal-scrollbar val)
+                (tell-agent wnd val 'external)))))
+    
     (add-controls (control-controls form) 
                   `(,@(if (eq? contents core-control) (list contents) '())
                     ,horizontal-scrollbar 
@@ -1200,61 +1265,5 @@
                           ((agent 'on-paint) 
                            wnd (graphics->gfx g) x y w h))))
     
-    (return-wnd 
-     (msg-handler
-      ((title)    title)
-      ((close)    (form-close! form))
-      ((closed?)  is-closed)
-      ((wndptr)  core-control) ;; for debugging; not for client code (e.g. agents)
-      ((agent)    agent)
-      ((width)    (control-width form))
-      ((height)   (control-height form))
-
-      ((update)   (update!))
-
-      ((activate) (activate! form))
-      ((show)     (show form))
-      ((hide)     (hide form))
-      ((show-dialog) (form-show-dialog form))
-      ((dispose)       
-       (((default-impl 'dispose)) wnd) 
-       (control-dispose! form))
-
-      ((push-menus . mnus) 
-       (let ((main-menu (make-main-menu)))
-         (for-each (lambda (mnu) (menu-add-menu-item! main-menu ((mnu 'mnuptr)))) mnus)
-         (set! menu-stack (cons main-menu menu-stack))
-         (form-set-menu! form main-menu))
-       (update!))
-      ((pop-menus)
-       (set! menu-stack (cdr menu-stack))
-       (cond ((not (null? menu-stack))
-              (form-set-menu! form (car menu-stack)))
-             (else
-              (form-set-menu! form clr/null)))
-       (update!))
-
-      ((scroll orient magnitude)
-       (case orient
-         ((vertical) (vertical-scroll! magnitude))
-         ((horizontal) (horizontal-scroll! magnitude))
-         (else (error 'scroll ": improper orientation " orient))))
-       
-      ((measure-text txt-string fnt)
-       (let ((g (control-creategraphics ((wnd 'wndptr)))))
-         (call-with-values 
-             (lambda () 
-               (((graphics->gfx g) 'measure-text) txt-string fnt))
-           (lambda vals
-             (graphics-dispose! g)
-             (apply values vals)))))
-
-      ;; Are these really necessary in this development model?  Perhaps
-      ;; for testing???  (But why not just extract the agent and call
-      ;; it manually?)
-      ((keydown char)  (((default-impl 'keydown)) wnd char))
-      ((mousedown x y) (((default-impl 'mousedown)) wnd x y))
-
-      
-      ))))
+    wnd))
 
