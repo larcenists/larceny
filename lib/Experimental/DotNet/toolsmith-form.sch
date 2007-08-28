@@ -313,8 +313,17 @@
   (lambda ()
     '(begin (display "timer interrupt was fired!") 
             (newline))
-    (application-do-events!)
-    (enable-interrupts (standard-timeslice))))
+    (let* ((orig-error-handler (error-handler))
+           (new-error-handler
+            ;; on errors, avoid repeat interrupt (buggy callback mire)
+            (lambda args
+              (begin (display "interrupt had error!")
+                     (newline))
+              (standard-timeslice (most-positive-fixnum))
+              (apply orig-error-handler args))))
+      (parameterize ((error-handler new-error-handler))
+        (application-do-events!)
+        (enable-interrupts (standard-timeslice))))))
 
 (timer-interrupt-handler toolsmith-interrupt-handler)
 
