@@ -304,8 +304,26 @@
                 (loop (cdr lines) (+ wh lh) (+ ty 1))))))))))
     
     (msg-handler
-     ((text) 
+     ((textstring) 
       (all-text-string))
+     ((set-textstring wnd string)
+      (set! rlines-before-view '#())
+      (set! lines-from-buftop 
+            (list->vector
+             (let loop ((curr '())
+                        (chars (string->list string)))
+               (cond
+                ((and (null? chars) (null? curr)) '())
+                ((null? chars) (list (list->string (reverse curr))))
+                ((char=? (car chars) #\newline)
+                 (cons (list->string (reverse curr)) (loop '() (cdr chars))))
+                (else
+                 (loop (cons (car chars) curr) (cdr chars)))))))
+      (set! cursor-line 0)
+      (set! cursor-pos 0)
+      ((wnd 'update)))
+     ((cursor-line) cursor-line)
+     ((cursor-pos) cursor-pos)
      ((on-keydown wnd sym mods)
       '(begin (write `(keydown ,((wnd 'title)) ,sym ,mods)) (newline))
       )
