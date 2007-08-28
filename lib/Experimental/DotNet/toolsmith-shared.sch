@@ -185,7 +185,7 @@
          (rect-list '()))
     (msg-handler 
      ((on-mousedown x y) (save! x y))
-     ((on-mousemove x y) 
+     ((on-mousedrag x y) 
       (cond ((and last-x last-y)
              (temp! x y) ((wnd 'update)))))
      ((on-mouseup x y) 
