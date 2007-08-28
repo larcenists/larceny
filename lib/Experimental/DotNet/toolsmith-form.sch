@@ -303,6 +303,12 @@
   (let* ((application-type (find-forms-type "Application")))
     (make-static-method application-type "DoEvents")))
 
+(define application-message-loop?
+  (let ((p (make-property-ref (find-forms-type "Application") "MessageLoop")))
+    (lambda () 
+      ;; (its a static property)
+      (p clr/null))))
+
 (define toolsmith-interrupt-handler
   (lambda ()
     '(begin (display "timer interrupt was fired!") 
