@@ -75,15 +75,22 @@
          (clr/%field-ref standard-conventions-field #f)))
     calling-convention))
 
-(define define-constructor 
+(define-values (define-constructor define-method)
   (let* ((methattrs-type (find-reflection-type "MethodAttributes"))
          (convert (enum-type->symbol->foreign methattrs-type))
-         (default-methattrs (list 'public))
+         (default-ctorattrs (list 'public))
+         (default-methattrs (list 'public 'virtual))
          (typearray-type (clr/%get-type "System.Type[]"))
          (dc-meth (clr/%get-method typebuilder-type "DefineConstructor"
                                    (vector methattrs-type 
                                            calling-conventions-type
-                                           typearray-type))))
+                                           typearray-type)))
+	 (dm-meth (clr/%get-method typebuilder-type "DefineMethod"
+				   (vector clr-type-handle/system-string
+					   methattrs-type
+					   calling-conventions-type
+					   type-type
+					   typearray-type))))
                                            
     ;; (X:%Type) [Listof X] -> [%Arrayof X]
     (define (objects->foreign-array base-type objects)
@@ -99,17 +106,34 @@
     (define (types->foreign-array types)
       (objects->foreign-array clr-type-handle/system-type types))
 
-    (lambda (type-bldr . args)
+    (define (defctor type-bldr . args)
       (let* ((methattrs (apply convert 
-                               (list-ref/default args 0 default-methattrs)))
-             (arg-infos (list-ref/default args 1 '()))
+                               (list-ref/default args 1 default-ctorattrs)))
+             (arg-infos (list-ref/default args 0 '()))
 
              (arg-infos/array (types->foreign-array arg-infos)))
         (clr/%invoke dc-meth type-bldr (vector methattrs 
                                                standard-calling-convention
-                                               arg-infos/array))))))
+                                               arg-infos/array))))
+
+    (define (defmeth type-bldr name . args)
+      (let* ((methattrs (apply convert 
+			       (list-ref/default args 2 default-methattrs)))
+	     (arg-infos (list-ref/default args 0 '()))
+	     (arg-infos/array (types->foreign-array arg-infos))
+	     (rtn-info (list-ref/default args 1 clr-type-handle/system-void)))
+	(clr/%invoke dm-meth type-bldr (vector (clr/%string->foreign name)
+					       methattrs
+					       standard-calling-convention
+					       rtn-info
+					       arg-infos/array))))
+    (values defctor defmeth)
+    ))
+   
 (define constructorbuilder-type 
   (find-emit-type "ConstructorBuilder"))
+(define methodbuilder-type
+  (find-emit-type "MethodBuilder"))
 (define ilgenerator-type
   (find-emit-type "ILGenerator"))
 (define constructor->ilgen 
@@ -118,6 +142,12 @@
                                       '#())))
     (lambda (ctor-builder)
       (clr/%invoke get-il-meth ctor-builder '#()))))
+(define method->ilgen
+  (let ((get-il-meth (clr/%get-method methodbuilder-type
+				      "GetILGenerator"
+				      '#())))
+    (lambda (method-builder)
+      (clr/%invoke get-il-meth method-builder '#()))))
 
 (define-syntax let*-loud
   (syntax-rules ()
