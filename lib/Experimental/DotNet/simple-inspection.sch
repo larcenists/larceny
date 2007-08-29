@@ -8,8 +8,23 @@
 ;;; type->properties
 ;;; type->events
 ;;; type->methods
+;;; type->predicate
 
 ;;; prop-ref/name : Foreign String -> Foreign
+
+;;; box :   SchemeObject or Foreign -> Foreign
+;;; unbox : Foreign -> SchemeObject or Foreign
+
+;;; type->nullary-constructor
+;;; type*args&convert->constructor
+;;;   int32-arg&convert single-arg&convert string-arg&convert
+
+;;; make-static-method
+;;; make-unary-method
+;;; make-binary-method
+
+;;; make-property-ref
+;;; make-property-setter
 
 (define type-type                (find-clr-type "System.Type"))
 
