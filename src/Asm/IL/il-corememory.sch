@@ -51,21 +51,25 @@
 ;; current-il-generator : [Param System.Reflection.Emit.ILGenerator]
 (define current-il-generator  (make-parameter "current-il-generator" #f))
 
+(define (make-table) (list))
+(define (table-lookup key table) (assoc key table))
+(define (table-add entry table) (cons entry table))
+
 ;; current-registered-class-table : [Map (list CanonNS String) TypeBuilder]
 (define current-registered-class-table
-  (make-parameter "current-registered-class-table" '()))
+  (make-parameter "current-registered-class-table" (make-table)))
 
 ;; current-registered-superclass-table : [Map TypeBuilder Type]
 (define current-registered-superclass-table
-  (make-parameter "current-registered-superclass-table" '()))
+  (make-parameter "current-registered-superclass-table" (make-table)))
 
 ;; current-registered-field-table : [Map (list Type String) FieldInfo]
 (define current-registered-field-table
-  (make-parameter "current-registered-field-table" '()))
+  (make-parameter "current-registered-field-table" (make-table)))
 
 ;; current-registered-method-table : [Map (list Type String [Vectorof Type]) [Oneof MethodBuilder ConstructorBuilder]]
 (define current-registered-method-table
-  (make-parameter "current-registered-method-table" '()))
+  (make-parameter "current-registered-method-table" (make-table)))
 
 ;; current-saved-manifests : [Listof PseudoManifest]
 ;; Stored in *reverse* order!
@@ -74,10 +78,10 @@
 ;; Resets the parameters which don't require any input state for their
 ;; default value.
 (define (reset-valueless-parameters!)
-  (current-registered-class-table '())
-  (current-registered-superclass-table '())
-  (current-registered-field-table '())
-  (current-registered-method-table '())
+  (current-registered-class-table (make-table))
+  (current-registered-superclass-table (make-table))
+  (current-registered-field-table (make-table))
+  (current-registered-method-table (make-table))
   (current-saved-manifests '()))
 
 ;; Similar to with-fresh-dynamic-assembly-setup, except the names are
@@ -433,11 +437,11 @@
 			   (current-assembly-builder) 
                            (clr/%string->foreign module-name)
                            (clr/%string->foreign dll-file-name))))
-	    (parameterize ((current-registered-class-table '())
-			   (current-registered-superclass-table '())
-			   (current-registered-field-table '())
-			   (current-registered-method-table '())
-			   (current-label-intern-table '())
+	    (parameterize ((current-registered-class-table (make-table))
+			   (current-registered-superclass-table (make-table))
+			   (current-registered-field-table (make-table))
+			   (current-registered-method-table (make-table))
+			   (current-label-intern-table (make-table))
 			   (current-saved-manifests '()))
 	      (thunk)
 	      )))))))
@@ -790,17 +794,17 @@
     ;; Should be reset in between method constructions 
     ;; (though Felix is not sure if this is necessary)
     (define current-label-intern-table 
-      (make-parameter "current-label-intern-table" '()))
+      (make-parameter "current-label-intern-table" (make-table)))
 
     ;; IL-label -> Emit.Label
     (define (get-label-object label)
-      (cond ((assoc (il-label:key label) (current-label-intern-table)) 
+      (cond ((table-lookup (il-label:key label) (current-label-intern-table)) 
 	     => cadr)
 	    (else 
 	     (let ((val (ilc/%define-label! (current-il-generator))))
 	       (current-label-intern-table
-		(cons (list (il-label:key label) val)
-		      (current-label-intern-table)))
+		(table-add (list (il-label:key label) val)
+                           (current-label-intern-table)))
 	       val))))
 
 
@@ -1001,8 +1005,8 @@
                                      clr-type-handle/system-reflection-fieldattributes
                                      (options->field-attributes options)))))
 	    (current-registered-field-table
-	     (cons (list (make-field-table-key (current-type-builder) name) field-info)
-		   (current-registered-field-table)))))))
+	     (table-add (list (make-field-table-key (current-type-builder) name) field-info)
+                        (current-registered-field-table)))))))
 
     ;; co-register-class : class -> void
     (define (co-register-class class)
@@ -1021,11 +1025,11 @@
                               (options->type-attributes options))
                              (co-find-class super))))
 	  (current-registered-class-table
-	   (cons (list (make-class-table-key namespace name) type-builder)
-		 (current-registered-class-table)))
+	   (table-add (list (make-class-table-key namespace name) type-builder)
+                      (current-registered-class-table)))
 	  (current-registered-superclass-table
-	   (cons (list (make-superclass-table-key type-builder) (co-find-class super))
-		 (current-registered-superclass-table)))
+	   (table-add (list (make-superclass-table-key type-builder) (co-find-class super))
+                      (current-registered-superclass-table)))
 	)))
 
     ;; (X:%Type) [Listof X] -> [%Arrayof X]
@@ -1099,9 +1103,9 @@
 		   (co-find-class ret-type)
 		   arg-infos/fgn)))))
 	  (current-registered-method-table
-	   (cons (list (make-method-table-key type-info name (list->vector arg-infos))
-                       method-info)
-		 (current-registered-method-table))))))
+	   (table-add (list (make-method-table-key type-info name (list->vector arg-infos))
+                            method-info)
+                      (current-registered-method-table))))))
 
     ;; A ClassRef is one of:
     ;; - (list namespace name)
@@ -1123,8 +1127,8 @@
     ;; registered-class : ClassRef -> [Maybe TypeBuilder]
     (define (registered-class class-ref)
       (let ((namespace+name (class-ref->namespace+name class-ref)))
-	(cond ((assoc (apply make-class-table-key namespace+name) 
-                      (current-registered-class-table))
+	(cond ((table-lookup (apply make-class-table-key namespace+name) 
+                             (current-registered-class-table))
 	       => cadr)
 	      (else #f))))
 
@@ -1134,13 +1138,13 @@
                       ,(current-registered-method-table)))
              (newline))
       (let ((key (make-method-table-key type name args)))
-	(cond ((assoc key (current-registered-method-table))
+	(cond ((table-lookup key (current-registered-method-table))
 	       => cadr)
 	      (else #f))))
 
     ;; co-find-superclass : TypeBuilder -> [Maybe [Oneof Type TypeBuilder]]
     (define (co-find-superclass tb)
-      (cond ((assoc (make-superclass-table-key tb) (current-registered-superclass-table))
+      (cond ((table-lookup (make-superclass-table-key tb) (current-registered-superclass-table))
 	     => cadr)
 	    (else #f)))
 
@@ -1183,9 +1187,9 @@
       ;;; because fields are INHERITED, and so I need to be
       ;;; able to (e.g.) lookup the name "instance" of the 
       ;;; superclass of type: CodeVector_1_1
-      (cond ((assoc (make-field-table-key type name) (current-registered-field-table))
+      (cond ((table-lookup (make-field-table-key type name) (current-registered-field-table))
 	     => cadr)
-	    ((assoc (make-superclass-table-key type) (current-registered-superclass-table))
+	    ((table-lookup (make-superclass-table-key type) (current-registered-superclass-table))
 	     ;; if type is one of our currently registered classes, 
 	     ;; try using its super type to get the field...
 	     => (lambda (entry)
@@ -1195,8 +1199,8 @@
     ;; co-find-method : type string [Vectorof type] -> MethodBase
     ;; Note that type is the type of the method receiver, not the return type.
     (define (co-find-method type name args)
-      (cond ((assoc (make-method-table-key type name args)
-                    (current-registered-method-table))
+      (cond ((table-lookup (make-method-table-key type name args)
+                           (current-registered-method-table))
 	     => cadr)
             ((equal? name ".ctor")
 	     (clr/%get-constructor type args))
@@ -1272,7 +1276,7 @@
                 (error 'codump-method "Unable to find method builder"))
 	    (parameterize ((current-il-generator 
 			    (ilc/%get-ilgenerator (current-method-builder)))
-			   (current-label-intern-table '()))
+			   (current-label-intern-table (make-table)))
 	      (for-each codump-il instrs))))))
     
 ;;;    (define compile-class codump-class)
