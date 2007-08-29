@@ -514,12 +514,7 @@
 	  ((_ CTXT X (TAG REST ...) ...)
 	   (let ((obj X))
 	     (case obj
-               ;; FIXME: TAG should not be included in match, because
-               ;; (most of the time) TAG is a String and therefore is
-               ;; not a correct thing to use in case literals list.
-               ;; Unfortunately this is a non-local fix (because there
-               ;; are clauses below where TAG is not a String.)
-	       ((TAG REST ...) (quote TAG)) ...
+	       ((REST ...) (quote TAG)) ...
 	       (else (error CTXT
 			    (twobit-format #f "Unmatched ~a" obj))))))))
        ;; TODO: clr/find-static-field-getter is from dotnet.sch;
@@ -649,15 +644,15 @@
        ("Conv_U2" conv_u2 conv.u2) 
        ("Conv_U4" conv_u4 conv.u4) 
        ("Conv_U8" conv_u8 conv.u8) 
-       (comment) 
+       (comment comment) 
        ("Cpblk" cpblk) ("Cpobj" cpobj)
-       (directive) 
+       (directive directive) 
        ("Div" div) ("Div_Un" div_un div.un)
        ("Dup" dup) 
        ("Endfilter" endfilter) ("Endfinally" endfinally)
        ("Initblk" initblk) ("Initobj" initobj)
        ("Isinst" isinst) ("Jmp" jmp)
-       (label) 
+       (label label) 
        ("Ldarg" ldarg)
        ("Ldarg_0" ldarg_0 ldarg.0)
        ("Ldarg_1" ldarg_1 ldarg.1)
