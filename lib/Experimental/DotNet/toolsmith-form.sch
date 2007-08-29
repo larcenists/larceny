@@ -1,5 +1,30 @@
 (clr/%load-assembly "System.Windows.Forms" "2.0.0.0" "" "b77a5c561934e089")
 
+;; If (procedure-name p) is #f, installs sym as p's name; o/w does nothing.
+(define install-procedure-name! 
+  (let ((doc.procedure-name 0)) ;; offset from src/Lib/Common/procinfo.sch
+    (lambda (p sym)
+      (cond ((and (not (procedure-name p))
+                  (procedure-documentation p))
+             => (lambda (d)
+                  (cond ((and (vector? d) 
+                              (< doc.procedure-name (vector-length d))
+                              (not (vector-ref d doc.procedure-name)))
+                         (vector-set! d doc.procedure-name sym)))))))))
+;; Ironically, the way I wrote the above definition means that it is unnamed
+(install-procedure-name! install-procedure-name! 'install-procedure-name!)
+(assert 
+ (equal? (procedure-name install-procedure-name!) 'install-procedure-name!))
+
+(define-syntax definp 
+  (syntax-rules ()
+    ((_ NAME EXPR)
+     (define NAME
+       (let ((val EXPR))
+         (cond ((procedure? val)
+                (install-procedure-name! val 'NAME)))
+         val)))))
+
 (define (find-forms-type name)
   (find-clr-type (string-append "System.Windows.Forms." name)))
 (define (find-drawing-type name)
