@@ -51,9 +51,10 @@
 ;; current-il-generator : [Param System.Reflection.Emit.ILGenerator]
 (define current-il-generator  (make-parameter "current-il-generator" #f))
 
-(define (make-table) (list))
-(define (table-lookup key table) (assoc key table))
-(define (table-add entry table) (cons entry table))
+(define (make-table) (make-hashtable equal-hash assoc))
+(define (table-lookup key table) (hashtable-get table key))
+;; Non-applicative, but that is okay for the usage pattern in this file
+(define (table-add entry table) (hashtable-put! table (car entry) entry) table)
 
 ;; current-registered-class-table : [Map (list CanonNS String) TypeBuilder]
 (define current-registered-class-table
