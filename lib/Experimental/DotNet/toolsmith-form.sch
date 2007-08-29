@@ -5,31 +5,13 @@
 (define (find-drawing-type name)
   (find-clr-type (string-append "System.Drawing." name)))
 
-(define (box foreign-or-scheme-object)
-  (let ((x foreign-or-scheme-object))
-    (cond ((%foreign? x) x)
-          ((and (number? x) (exact? x))   (clr/%number->foreign-int32 x))
-          ((and (number? x) (inexact? x)) (clr/%flonum->foreign-double x))
-          ((boolean? x) (clr/bool->foreign x))
-          ((string? x)  (clr/%string->foreign x))
-          (else (error 'box ": unknown argument type to convert " x)))))
-(define (unbox foreign)
-  (let ((x foreign))
-    (cond ((or (clr/%isa? x clr-type-handle/system-int32)
-               (clr/%isa? x clr-type-handle/system-uint32)
-               (clr/%isa? x clr-type-handle/system-int64)
-               (clr/%isa? x clr-type-handle/system-uint64))
-           (clr/%foreign->int x))
-          ((or (clr/%isa? x clr-type-handle/system-single))
-           (clr/%foreign-single->flonum x))
-          ((or (clr/%isa? x clr-type-handle/system-double))
-           (clr/%foreign-double->flonum x))
-          ((or (clr/%isa? x clr-type-handle/system-string))
-           (clr/%foreign->string x))
-          ((or (clr/%isa? x clr-type-handle/system-boolean))
-           (clr/foreign->bool x))
-          (else 
-           x))))
+(define o
+  (lambda funcs
+    (lambda (arg)
+      (let loop ((fs funcs))
+        (cond
+         ((null? fs) arg)
+         (else ((car fs) (loop (cdr fs)))))))))
 
 (define (name->string x)
   (cond
@@ -41,70 +23,6 @@
    ((symbol? x) x)
    ((string? x) (string->symbol x))
    (else (error 'name->symbol ": " x " is not a name."))))
-
-(define type->nullary-constructor 
-  (lambda (type)
-    (let ((ctor (clr/%get-constructor type '#())))
-      (lambda ()
-        (clr/%invoke-constructor ctor '#())))))
-(define (type*args&convert->constructor type . argtypes*converters)
-  (let* ((argtypes (map car argtypes*converters))
-         (converters (map cadr argtypes*converters))
-         (tvec (list->vector argtypes))
-         (ctor (clr/%get-constructor type tvec)))
-    (lambda actuals
-      (if (not (= (vector-length tvec) (length actuals)))
-          (error 'constructor (format #t ": ~a requires argument types ~a" 
-                                      type tvec))
-          (clr/%invoke-constructor
-           ctor (list->vector (map (lambda (f x) (f x)) 
-                                   converters actuals)))))))
-(define make-property-setter 
-  (lambda (type property-name-string . maybe-convert)
-    (let* ((convert (if (null? maybe-convert) box (car maybe-convert)))
-           (prop (clr/%get-property type property-name-string '#())))
-      (lambda (obj new-val)
-        (clr/%property-set! prop obj (convert new-val) '#())))))
-        
-(define int32-arg&convert
-  (list clr-type-handle/system-int32 clr/%number->foreign-int32))
-(define single-arg&convert
-  (list clr-type-handle/system-single clr/%flonum->foreign-single))
-(define string-arg&convert
-  (list clr-type-handle/system-string clr/string->foreign))
-
-(define make-static-method
-  (lambda (type method-name-string . arg-types)
-    (let ((method (clr/%get-method type method-name-string (list->vector arg-types))))
-      (lambda argl
-        (cond ((not (= (length argl) (length arg-types)))
-               (error (string->symbol method-name-string) 
-                      ": argument count mismatch.")))
-        (clr/%invoke method #f (list->vector argl))))))
-(define make-unary-method
-  (lambda (type method-name-string)
-    (let ((method (clr/%get-method type method-name-string '#())))
-      (lambda (obj)
-        (unbox (clr/%invoke method obj '#()))))))
-(define make-binary-method
-  (lambda (type method-name-string arg-type)
-    (let ((method (clr/%get-method type method-name-string (vector arg-type))))
-      (lambda (obj arg)
-        (unbox (clr/%invoke method obj (vector (box arg))))))))
-(define make-property-ref
-  (lambda (type property-name-string . maybe-convert)
-    (let ((convert (if (null? maybe-convert) unbox (car maybe-convert)))
-          (prop (clr/%get-property type property-name-string '#())))
-      (lambda (obj)
-        (convert (clr/%property-ref prop obj '#()))))))
-
-(define type->predicate
-  (lambda (type)
-    (lambda (obj)
-      (clr/%isa? obj type))))
-(define type->name
-  (make-property-ref (find-clr-type "System.Type") "Name" 
-                     (lambda (x) (string->symbol (clr/foreign->string x)))))
   
 ;;; System.Windows.Forms.Control class, properties, and methods
 
