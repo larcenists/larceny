@@ -41,7 +41,7 @@
 	(let loop ((dsl ds) (this (car ds)))
 	  (if (null? (cdr dsl))
 	      (if (<= (car this) pc)
-		  this
+		  (cdr this)
 		  #f)
 	      (let ((next (cadr dsl)))
 		(cond ((and (<= (car this) pc) (< pc (car next)))
