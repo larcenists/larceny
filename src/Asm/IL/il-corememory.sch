@@ -54,7 +54,7 @@
 (define (make-table) (make-hashtable equal-hash assoc))
 (define (table-lookup key table) (hashtable-get table key))
 ;; Non-applicative, but that is okay for the usage pattern in this file
-(define (table-add entry table) (hashtable-put! table (car entry) entry) table)
+(define (table-add! entry tbl) (hashtable-put! tbl (car entry) entry) tbl)
 
 ;; current-registered-class-table : [Map (list CanonNS String) TypeBuilder]
 (define current-registered-class-table
@@ -804,8 +804,8 @@
 	    (else 
 	     (let ((val (ilc/%define-label! (current-il-generator))))
 	       (current-label-intern-table
-		(table-add (list (il-label:key label) val)
-                           (current-label-intern-table)))
+		(table-add! (list (il-label:key label) val)
+                            (current-label-intern-table)))
 	       val))))
 
 
@@ -1006,8 +1006,8 @@
                                      clr-type-handle/system-reflection-fieldattributes
                                      (options->field-attributes options)))))
 	    (current-registered-field-table
-	     (table-add (list (make-field-table-key (current-type-builder) name) field-info)
-                        (current-registered-field-table)))))))
+	     (table-add! (list (make-field-table-key (current-type-builder) name) field-info)
+                         (current-registered-field-table)))))))
 
     ;; co-register-class : class -> void
     (define (co-register-class class)
@@ -1026,11 +1026,11 @@
                               (options->type-attributes options))
                              (co-find-class super))))
 	  (current-registered-class-table
-	   (table-add (list (make-class-table-key namespace name) type-builder)
-                      (current-registered-class-table)))
+	   (table-add! (list (make-class-table-key namespace name) type-builder)
+                       (current-registered-class-table)))
 	  (current-registered-superclass-table
-	   (table-add (list (make-superclass-table-key type-builder) (co-find-class super))
-                      (current-registered-superclass-table)))
+	   (table-add! (list (make-superclass-table-key type-builder) (co-find-class super))
+                       (current-registered-superclass-table)))
 	)))
 
     ;; (X:%Type) [Listof X] -> [%Arrayof X]
@@ -1104,9 +1104,9 @@
 		   (co-find-class ret-type)
 		   arg-infos/fgn)))))
 	  (current-registered-method-table
-	   (table-add (list (make-method-table-key type-info name (list->vector arg-infos))
-                            method-info)
-                      (current-registered-method-table))))))
+	   (table-add! (list (make-method-table-key type-info name (list->vector arg-infos))
+                             method-info)
+                       (current-registered-method-table))))))
 
     ;; A ClassRef is one of:
     ;; - (list namespace name)
