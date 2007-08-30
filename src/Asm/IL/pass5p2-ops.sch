@@ -92,11 +92,13 @@
 
 (define opX-implicit-continuation? op1-implicit-continuation?)
 
-(define (peephole-operation)
+(define (peephole-operation opcode)
   (lambda (instruction as)
     (cond ((lookup-peephole-operation (operand1 instruction))
            => (lambda (h) 
-                (il:comment "operation ~s" (operand1 instruction))
+                (emit as 
+                      (il:comment "instruction ~s" opcode)
+                      (il:comment "operation ~s" (operand1 instruction)))
                 (apply (cdr h) as (cddr instruction))))
           (else (error "Operation not supported: " instruction)))))
 
@@ -115,16 +117,16 @@
   (opX 3 #f))
 
 (define-instruction $op1/branchf
-  (peephole-operation))
+  (peephole-operation 'op1/branchf))
 
 (define-instruction $reg/op1/check
-  (peephole-operation))
+  (peephole-operation 'reg/op1/check))
 
 (define-instruction $reg/op2/check
-  (peephole-operation))
+  (peephole-operation 'reg/op2/check))
 
 (define-instruction $reg/op2imm/check
-  (peephole-operation))
+  (peephole-operation 'reg/op2imm/check))
 
 ;; -----------------
 ;; Operations
