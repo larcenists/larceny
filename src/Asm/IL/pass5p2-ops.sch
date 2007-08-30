@@ -54,7 +54,7 @@
 ;; use that. Otherwise, call the generic implementation.
 (define (opX argc immediate?)
   (lambda (instruction as)
-    (list-instruction/line (twobit-format #f "op~a" argc) instruction as)
+    (list-instruction/line (twobit-format #f (if immediate? "op~aimm" "op~a") argc) instruction as)
     (cond ((and (not immediate?) (lookup-operation argc (operand1 instruction)))
            => (lambda (h) (apply (cdr h) as (cddr instruction))))
           ((and immediate? (lookup-imm2-operation (operand1 instruction)))
@@ -85,6 +85,7 @@
                 (rep:reset-implicit-continuation)
                 (il:label numeric)))
         (emit as
+	      (il:comment "operation ~s" (operand1 instruction))
               load-arguments-code
               (il:set-register 'result
                                (il:call-opX (operand1 instruction) argc #f))))))
