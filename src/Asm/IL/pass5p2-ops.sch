@@ -128,6 +128,9 @@
 (define-instruction $reg/op2imm/check
   (peephole-operation 'reg/op2imm/check))
 
+(define-instruction $op2imm-int32
+  (peephole-operation 'op2imm-int32))
+
 ;; -----------------
 ;; Operations
 ;; -----------------
@@ -415,5 +418,48 @@
 (define-reg/op1/check-operation 'internal:check-pair? "isPair")
 (define-reg/op1/check-operation 'internal:check-vector? "isVector")
 (define-reg/op1/check-operation 'internal:check-string? "isString")
+
+(define (define-op2imm-int32-operation code orig-code method)
+  (define-peephole-operation code
+    (lambda (as const)
+      (cond 
+       ((opX-implicit-continuation? orig-code) ;; XXX case might be bogus to attempt
+;;;        (error 'define-op2imm-int32-operation 
+;;;                ": Felix doesn't trust the implicit continuation case in codegen.")
+        (let ((numeric (allocate-label as)))
+          (emit as
+                (il:comment "  implicit continuation LABEL ~s; JUMP INDEX ~s"
+                            numeric (intern-label as numeric))
+                (rep:set-implicit-continuation numeric)
+                (il:load-register 'result)
+                (il 'ldc.i4 const)
+                (il:call '(instance virtual) iltype-void il-schemeobject
+                         method (list iltype-int32))
+                (rep:reset-implicit-continuation)
+                (il:label numeric))))
+       (else
+        (emit as
+              (il:load-register 'result)
+              (il 'ldc.i4 const)
+              (il:call '(instance virtual) iltype-schemeobject il-schemeobject
+                       method (list iltype-int32))
+              (il:set-register/pop 'result)))))))
+
+(define-op2imm-int32-operation 'eq?:int32 'eq?
+  "op_eqp_int32")
+(define-op2imm-int32-operation '+:idx:idx:int32 '+:idx:idx 
+  "op_plus_idx_idx_int32")
+(define-op2imm-int32-operation '=:int32 '=                   
+  "op_numeric_equals_int32")
+(define-op2imm-int32-operation '+:int32 '+ 
+  "op_plus_int32")
+(define-op2imm-int32-operation '-:int32 '- 
+  "op_minus_int32")
+(define-op2imm-int32-operation 'fx<:int32 'fx<               
+  "op_fxless_int32")
+(define-op2imm-int32-operation '>=:fix:fix:int32 '>=:fix:fix 
+  "op_greaterequal_fix_fix_int32")
+(define-op2imm-int32-operation '<:fix:fix:int32 '<:fix:fix   
+  "op_less_fix_fix_int32")
 
 ;; /Operations

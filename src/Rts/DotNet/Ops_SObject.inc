@@ -250,3 +250,13 @@
         SPECIALOP1_VIRTUAL_EXN(negative, EX_NEG)
         SPECIALOP1_VIRTUAL_MS(exact2inexact, MS_GENERIC_EXACT2INEXACT)
         SPECIALOP1_VIRTUAL_MS(inexact2exact, MS_GENERIC_INEXACT2EXACT)
+
+	// below overridden in Ops_SFixnum (to avoid boxing n) but none need be
+	public virtual SObject op_eqp_int32(int n) { return this.op_eqp(SFixnum.makeFixnum(n)); }
+	public virtual SObject op_plus_idx_idx_int32(int n) { return this.op_plus_idx_idx(SFixnum.makeFixnum(n)); }
+	public virtual void    op_numeric_equals_int32(int n) { this.op_numeric_equals(SFixnum.makeFixnum(n)); }
+	public virtual void op_plus_int32(int n) { this.op_plus(SFixnum.makeFixnum(n)); }
+	public virtual void op_minus_int32(int n) { this.op_minus(SFixnum.makeFixnum(n)); }
+	public virtual SObject op_fxless_int32(int n) { return this.op_fxless(SFixnum.makeFixnum(n)); }
+	public virtual SObject op_greaterequal_fix_fix_int32(int n) { return this.op_greaterequal_fix_fix(SFixnum.makeFixnum(n)); }
+	public virtual SObject op_less_fix_fix_int32(int n) { return this.op_less_fix_fix(SFixnum.makeFixnum(n)); }

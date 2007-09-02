@@ -591,6 +591,8 @@
   (make-mnemonic 'save/storem-uniform))
 (define $loadm-uniform                    ; loadm-uniform k
   (make-mnemonic 'loadm-uniform))
+(define $op2imm-int32                     ; op2imm-int32  prim,i
+  (make-mnemonic 'op2imm-int32))
 
 ; misc
 

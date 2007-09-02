@@ -68,10 +68,19 @@
 
 (define-peephole $op2imm
   (lambda (as i1 i2 i3 t1 t2 t3)
-    (cond ((= (car i2) $branchf)
-           (op2imm-branchf as i1 i2 t2))
-          ((= (car i2) $check)
-           (op2imm-check as i1 i2 t2)))))
+    (let ((src1 (as-source as)))
+      ;; Attempt instruction merge
+      (cond ((= (car i2) $branchf)
+             (op2imm-branchf as i1 i2 t2))
+            ((= (car i2) $check)
+             (op2imm-check as i1 i2 t2)))
+      ;; Check if merge failed
+      (let ((src2 (as-source as)))
+        (cond ((eq? src1 src2)
+               (cond 
+                ((fixnum? (operand2 i1))
+                 (op2imm-int32 as i1 t1)))))))))
+           
 
 (define-peephole $const
   (lambda (as i1 i2 i3 t1 t2 t3)
@@ -207,6 +216,24 @@
                     (cons (list $op2imm/branchf op imm l)
                           tail)))))
 
+(define (op2imm-int32 as i:op2imm tail)
+  (let* ((op (operand1 i:op2imm))
+         (imm (operand2 i:op2imm))
+         (op (case op
+               ((eq?)       'eq?:int32)
+               ((+:idx:idx) '+:idx:idx:int32)
+               ((fx<)       'fx<:int32)
+               ((>=:fix:fix) '>=:fix:fix:int32)
+               ((<:fix:fix)  '<:fix:fix:int32)
+               ;;; Don't trust implicit continuation stuff yet...
+               ((=)         '=:int32)
+               ((+)         '+:int32)
+               ((-)         '-:int32)
+               (else #f))))
+    (cond (op 
+           (as-source! as (cons (list $op2imm-int32 op imm)
+                                tail))))))
+  
 ; Check optimization.
 
 (define (reg-op1-check as i:reg i:op1 i:check tail)
