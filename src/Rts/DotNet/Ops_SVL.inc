@@ -160,3 +160,5 @@
                 return base.op_imag_part();
             }
         }
+
+	public override SObject op_vector_ref_trusted_int32(int n) { return (this.elements)[n]; }

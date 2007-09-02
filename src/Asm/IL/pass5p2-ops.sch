@@ -449,6 +449,8 @@
   "op_eqp_int32")
 (define-op2imm-int32-operation '+:idx:idx:int32 '+:idx:idx 
   "op_plus_idx_idx_int32")
+(define-op2imm-int32-operation '-:idx:idx:int32 '-:idx:idx 
+  "op_minus_idx_idx_int32")
 (define-op2imm-int32-operation '=:int32 '=                   
   "op_numeric_equals_int32")
 (define-op2imm-int32-operation '+:int32 '+ 
@@ -461,5 +463,7 @@
   "op_greaterequal_fix_fix_int32")
 (define-op2imm-int32-operation '<:fix:fix:int32 '<:fix:fix   
   "op_less_fix_fix_int32")
+(define-op2imm-int32-operation 'vector-ref:trusted:int32 'vector-ref:trusted
+  "op_vector_ref_trusted_int32")
 
 ;; /Operations

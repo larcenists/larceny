@@ -222,9 +222,11 @@
          (op (case op
                ((eq?)       'eq?:int32)
                ((+:idx:idx) '+:idx:idx:int32)
+               ((-:idx:idx) '-:idx:idx:int32)
                ((fx<)       'fx<:int32)
                ((>=:fix:fix) '>=:fix:fix:int32)
                ((<:fix:fix)  '<:fix:fix:int32)
+               ((vector-ref:trusted) 'vector-ref:trusted:int32)
                ;;; Don't trust implicit continuation stuff yet...
                ((=)         '=:int32)
                ((+)         '+:int32)

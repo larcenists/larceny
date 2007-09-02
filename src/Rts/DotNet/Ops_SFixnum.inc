@@ -564,9 +564,11 @@
 
 	public override SObject op_eqp_int32(int n) { return (this.value == n) ? Factory.True : Factory.False; }
 	public override SObject op_plus_idx_idx_int32(int n) { return Factory.makeNumber(this.value + n); }
+	public override SObject op_minus_idx_idx_int32(int n) { return Factory.makeNumber(this.value - n); }
 	public override void    op_numeric_equals_int32(int n) { Reg.Result = (this.value == n) ? Factory.True : Factory.False; }
 	public override void op_plus_int32(int n) { Reg.Result = Factory.makeNumber( this.value + n ); }
 	public override void op_minus_int32(int n) { Reg.Result = Factory.makeNumber( this.value - n); }
 	public override SObject op_fxless_int32(int n) { return (this.value < n) ? Factory.True : Factory.False; }
 	public override SObject op_greaterequal_fix_fix_int32(int n) { return (this.value >= n) ? Factory.True : Factory.False; }
 	public override SObject op_less_fix_fix_int32(int n) { return (this.value < n) ? Factory.True : Factory.False; }
+
