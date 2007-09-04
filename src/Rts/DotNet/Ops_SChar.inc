@@ -41,3 +41,10 @@
         SPECIALOP2_OVERRIDE_REVERSED_CASE(eqvp_not_eq, char, SChar) {
             Reg.Result = (arg1.val == this.val) ? Factory.True : Factory.False;
         }
+
+	public override bool isCharEqualsInt32(int val) { 
+	  return this.val == val; 
+	}
+	public override SObject op_charequals_int32(int val) { 
+	  return (this.val == val) ? Factory.True : Factory.False;
+	}

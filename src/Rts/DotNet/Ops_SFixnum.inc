@@ -572,3 +572,7 @@
 	public override SObject op_greaterequal_fix_fix_int32(int n) { return (this.value >= n) ? Factory.True : Factory.False; }
 	public override SObject op_less_fix_fix_int32(int n) { return (this.value < n) ? Factory.True : Factory.False; }
 
+ 	public override bool isEqpInt32(int n) { return this.value == n; }
+ 	public override bool isFxLessInt32(int n) { return this.value < n; }
+ 	public override bool isNumericEqualFixFixInt32(int n) { return this.value == n; }
+ 	public override bool isLessFixFixInt32(int n) { return this.value < n; }

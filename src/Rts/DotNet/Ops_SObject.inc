@@ -262,3 +262,15 @@
 	public virtual SObject op_greaterequal_fix_fix_int32(int n) { return this.op_greaterequal_fix_fix(SFixnum.makeFixnum(n)); }
 	public virtual SObject op_less_fix_fix_int32(int n) { return this.op_less_fix_fix(SFixnum.makeFixnum(n)); }
 	public virtual SObject op_vector_ref_trusted_int32(int n) { return this.op_vector_ref_trusted(SFixnum.makeFixnum(n)); }
+
+ 	// below overridden in Ops_SFixnum (to avoid boxing n) but none need be
+ 	public virtual bool isEqpInt32(int n) { return (this.op_eqp(SFixnum.makeFixnum(n)) == Factory.True); }
+ 	public virtual bool isFxLessInt32(int n) { return (this.op_fxless(SFixnum.makeFixnum(n)) == Factory.True); }
+ 	public virtual bool isNumericEqualFixFixInt32(int n) { this.op_numeric_equals(SFixnum.makeFixnum(n)); return (Reg.Result == Factory.True); }
+ 	public virtual bool isLessFixFixInt32(int n) { this.op_less_than(SFixnum.makeFixnum(n)); return (Reg.Result == Factory.True); }
+
+	// first *must* be overriden in Ops_SChar
+	public virtual bool isCharEqualsInt32(int val) { return false; }
+        public virtual SObject op_charequals_int32(int val) {
+	    return this.op_char_equals( Factory.makeChar(val) );
+	} 

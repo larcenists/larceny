@@ -79,7 +79,10 @@
         (cond ((eq? src1 src2)
                (cond 
                 ((fixnum? (operand2 i1))
-                 (op2imm-int32 as i1 t1)))))))))
+                 (op2imm-int32 as i1 t1))
+                ((char?   (operand2 i1))
+                 (op2imm-char as i1 t1))
+                )))))))
            
 
 (define-peephole $const
@@ -167,13 +170,8 @@
 	 (rs2 (operand2 i:op2))
 	 (l   (operand1 i:branchf))
 	 (op  (case op
-;		((<)       'internal:branchf-<)
-;		((>)       'internal:branchf->)
-;		((>=)      'internal:branchf->=)
-;		((<=)      'internal:branchf-<=)
-;		((=)       'internal:branchf-=)
-;		((eq?)     'internal:branchf-eq?)
-;		((char=?)  'internal:branchf-char=?)
+;TODO		((eq?)     'internal:branchf-eq?)
+;TODO		((char=?)  'internal:branchf-char=?)
 ;		((char>=?) 'internal:branchf-char>=?)
 ;		((char>?)  'internal:branchf-char>?)
 ;		((char<=?) 'internal:branchf-char<=?)
@@ -181,7 +179,7 @@
 ;		((fx=)     'internal:branchf-fx=)
 ;		((fx>)     'internal:branchf-fx>)
 ;		((fx>=)    'internal:branchf-fx>=)
-;		((fx<)     'internal:branchf-fx<)
+;TODO		((fx<)     'internal:branchf-fx<)
 ;		((fx<=)    'internal:branchf-fx<=)
 		(else #f))))
     (if op
@@ -194,13 +192,8 @@
 	 (imm (operand2 i:op2imm))
 	 (l   (operand1 i:branchf))
 	 (op  (case op
-;		((<)       'internal:branchf-</imm)
-;		((>)       'internal:branchf->/imm)
-;		((>=)      'internal:branchf->=/imm)
-;		((<=)      'internal:branchf-<=/imm)
-;		((=)       'internal:branchf-=/imm)
-;		((eq?)     'internal:branchf-eq?/imm)
-;		((char=?)  'internal:branchf-char=?/imm)
+		((eq?)     (if (fixnum? imm) 'internal:branchf-eq?/imm-int32 #f))
+		((char=?)  (if (char? imm) 'internal:branchf-char=?/imm-char #f))
 ;		((char>=?) 'internal:branchf-char>=?/imm)
 ;		((char>?)  'internal:branchf-char>?/imm)
 ;		((char<=?) 'internal:branchf-char<=?/imm)
@@ -208,8 +201,10 @@
 ;		((fx=)     'internal:branchf-fx=/imm)
 ;		((fx>)     'internal:branchf-fx>/imm)
 ;		((fx>=)    'internal:branchf-fx>=/imm)
-;		((fx<)     'internal:branchf-fx</imm)
+		((fx<)     (if (fixnum? imm) 'internal:branchf-fx</imm-int32 #f))
 ;		((fx<=)    'internal:branchf-fx<=/imm)
+		((=:fix:fix) (if (fixnum? imm) 'internal:branchf-=:fix:fix/imm-int32 #f))
+		((<:fix:fix) (if (fixnum? imm) 'internal:branchf-<:fix:fix/imm-int32 #f))
 		(else #f))))
     (if op
         (as-source! as
@@ -236,6 +231,16 @@
            (as-source! as (cons (list $op2imm-int32 op imm)
                                 tail))))))
   
+(define (op2imm-char as i:op2imm tail)
+  (let* ((op (operand1 i:op2imm))
+         (imm (operand2 i:op2imm))
+         (op (case op
+               ((char=?) 'char=?:char)
+               (else     #f))))
+    (cond (op
+           (as-source! as (cons (list $op2imm-char op imm)
+                                tail))))))
+
 ; Check optimization.
 
 (define (reg-op1-check as i:reg i:op1 i:check tail)

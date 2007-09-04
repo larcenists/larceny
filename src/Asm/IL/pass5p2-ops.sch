@@ -119,6 +119,12 @@
 (define-instruction $op1/branchf
   (peephole-operation 'op1/branchf))
 
+(define-instruction $op2/branchf
+  (peephole-operation 'op2/branchf))
+
+(define-instruction $op2imm/branchf
+  (peephole-operation 'op2imm/branchf))
+
 (define-instruction $reg/op1/check
   (peephole-operation 'reg/op1/check))
 
@@ -130,6 +136,9 @@
 
 (define-instruction $op2imm-int32
   (peephole-operation 'op2imm-int32))
+
+(define-instruction $op2imm-char
+  (peephole-operation 'op2imm-char))
 
 ;; -----------------
 ;; Operations
@@ -406,6 +415,49 @@
 (define-branchf-pred-operation 'internal:branchf-fixnum? "isFixnum")
 (define-branchf-pred-operation 'internal:branchf-char? "isChar")
 
+(define (define-branchf-pred-imm-int32-operation code orig-code method)
+  (define-peephole-operation code 
+    (lambda (as imm target-label)
+      (cond ((opX-implicit-continuation? orig-code)
+             (error 'define-branchf-pred-imm-int32-operation
+                    ": op " code " needs an implicit continuation...")))
+      (let ((no-branch-label (allocate-label as)))
+        (emit as 
+              (il:load-register 'result)
+              (il 'ldc.i4 imm)
+              (il:call '(instance virtual) iltype-bool il-schemeobject 
+                       method (list iltype-int32))
+              (il:branch-s 'brtrue no-branch-label)
+              (if (assq target-label (as-labels as))
+                  (il:br/use-fuel target-label)
+                  (il:branch 'br target-label))
+              (il:label no-branch-label))))))
+(define-branchf-pred-imm-int32-operation 'internal:branchf-eq?/imm-int32 
+  'eq? "isEqpInt32")
+(define-branchf-pred-imm-int32-operation 'internal:branchf-fx</imm-int32 
+  'fx< "isFxLessInt32")
+(define-branchf-pred-imm-int32-operation 'internal:branchf-=:fix:fix/imm-int32 
+  '=:fix:fix "isNumericEqualFixFixInt32")
+(define-branchf-pred-imm-int32-operation 'internal:branchf-<:fix:fix/imm-int32 
+  '<:fix:fix "isLessFixFixInt32")
+
+(define (define-branchf-pred-imm-char-operation code orig-code method)
+  (define-peephole-operation code
+    (lambda (as char-imm target-label)
+      (let ((no-branch-label (allocate-label as)))
+        (emit as
+              (il:load-register 'result)
+              (il 'ldc.i4 (char->integer char-imm))
+              (il:call '(instance virtual) iltype-bool il-schemeobject
+                       method (list iltype-int32))
+              (il:branch-s 'brtrue no-branch-label)
+              (if (assq target-label (as-labels as))
+                  (il:br/use-fuel target-label)
+                  (il:branch 'br target-label))
+              (il:label no-branch-label))))))
+(define-branchf-pred-imm-char-operation 'internal:branchf-char=?/imm-char
+  'char=? "isCharEqualsInt32")
+
 (define (define-reg/op1/check-operation code method)
   (define-peephole-operation code
     (lambda (as reg target-label unused-triplet)
@@ -465,5 +517,14 @@
   "op_less_fix_fix_int32")
 (define-op2imm-int32-operation 'vector-ref:trusted:int32 'vector-ref:trusted
   "op_vector_ref_trusted_int32")
+
+(define-peephole-operation 'char=?:char
+  (lambda (as const)
+    (emit as
+          (il:load-register 'result)
+          (il 'ldc.i4 (char->integer const))
+          (il:call '(instance virtual) iltype-schemeobject il-schemeobject
+                   "op_charequals_int32" (list iltype-int32))
+          (il:set-register/pop 'result))))
 
 ;; /Operations

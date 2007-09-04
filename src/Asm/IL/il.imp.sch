@@ -593,6 +593,8 @@
   (make-mnemonic 'loadm-uniform))
 (define $op2imm-int32                     ; op2imm-int32  prim,i
   (make-mnemonic 'op2imm-int32))
+(define $op2imm-char                      ; op2imm-int32  prim,i
+  (make-mnemonic 'op2imm-char))
 
 ; misc
 
