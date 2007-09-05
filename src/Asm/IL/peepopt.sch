@@ -41,17 +41,29 @@
 (define-peephole $reg
   (lambda (as i1 i2 i3 t1 t2 t3)
     (cond ((= (car i2) $op1)
-           (cond ((= (car i3) $check)
-                  (reg-op1-check as i1 i2 i3 t3))))
+           (let ((src1 (as-source as)))
+             ;; Attempt instruction merge
+             (cond ((= (car i3) $check)
+                    (reg-op1-check as i1 i2 i3 t3))
+                   ((= (car i3) $setreg)
+                    (reg-op1-setreg as i1 i2 i3 t3)))
+             ;; Check if merge failed
+             (let ((src2 (as-source as)))
+               (cond ((eq? src1 src2)
+                      (reg-op1 as i1 i2 t2))))))
           ((= (car i2) $op2)
-           (cond ((= (car i3) $check)
-                  (reg-op2-check as i1 i2 i3 t3))
-                 ((= (car i3) $setreg)
-                  (reg-op2-setreg as i1 i2 i3 t3))
-                 ((= (car i3) $branchf)
-                  (reg-op2-branchf as i1 i2 i3 t3))
-                 (else
-                  (reg-op2 as i1 i2 t2))))
+           (let ((src1 (as-source as)))
+             ;; Attempt instruction merge
+             (cond ((= (car i3) $check)
+                    (reg-op2-check as i1 i2 i3 t3))
+                   ((= (car i3) $setreg)
+                    (reg-op2-setreg as i1 i2 i3 t3))
+                   ((= (car i3) $branchf)
+                    (reg-op2-branchf as i1 i2 i3 t3)))
+             ;; Check if merge failed
+             (let ((src2 (as-source as)))
+               (cond ((eq? src1 src2)
+                      (reg-op2 as i1 i2 t2))))))
           ((= (car i2) $op2imm)
            (cond ((= (car i3) $check)
                   (reg-op2imm-check as i1 i2 i3 t3))
@@ -468,6 +480,32 @@
         (rd (operand1 i:setreg)))
     (as-source! as (cons (list $const/setreg cs rd) tail))))
 
+(define (reg-op1 as i:reg i:op tail)
+  (let* ((rs (operand1 i:reg))
+         (op (operand1 i:op))
+         (rd 'result))
+    (peep-reg/op1/setreg as op rs rd tail)))
+
+(define (reg-op1-setreg as i:reg i:op i:setreg tail)
+  (let* ((rs (operand1 i:reg))
+         (op (operand1 i:op))
+         (rd (operand1 i:setreg)))
+    (peep-reg/op1/setreg as op rs rd tail)))
+
+(define (peep-reg/op1/setreg as op rs rd tail)
+  (let ((op (case op
+              ((car:pair)      'car:pair)
+              ((cdr:pair)      'cdr:pair)
+              ((char->integer) 'char->integer)
+              ((vector-length:vec) 'vector-length:vec)
+              ((char?)         'char?)
+              ((cell-ref)      'cell-ref)
+              (else #f))))
+    (if op
+        (as-source! as
+                    (cons (list $reg/op1/setreg op rs rd)
+                          tail)))))
+
 (define (reg-op2 as i:reg i:op2 tail)
   (let* ((rs1 (operand1 i:reg))
          (rs2 (operand2 i:op2))
@@ -484,6 +522,7 @@
 
 (define (peep-reg/op2/setreg as op rs1 rs2 rd tail)
   (let ((op (case op
+              ((cons) 'cons)
               ((eq?) 'eq?)
               (else #f))))
     (if op

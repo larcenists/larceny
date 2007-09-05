@@ -320,10 +320,10 @@
 (define-operation 2 'cons
    (lambda (as rs1 rd rs2)
      (emit as
-           (il:load-register 'result)
+           (il:load-register rs1)
            (il:load-register rs2)
            (rep:make-pair)
-           (il:set-register/pop 'result))))
+           (il:set-register/pop rd))))
 ;(define-operation 1 'car
 ;  (lambda (as)
 ;    (emit as
@@ -332,13 +332,13 @@
 ;                         (il:fault-abort $ex.car))
 ;          (rep:pair-car)
 ;          (il:set-register/pop 'result))))
-;(define-operation 1 'car:pair
-;  (lambda (as)
-;    (emit as
-;          (il:load-register 'result)
-;          (il 'castclass iltype-schemepair)
-;          (rep:pair-car)
-;          (il:set-register/pop 'result))))
+(define-operation 1 'car:pair
+  (lambda (as rs rd)
+    (emit as
+          (il:load-register rs)
+          (il 'castclass iltype-schemepair)
+          (rep:pair-car)
+          (il:set-register/pop rd))))
 ;(define-operation 1 'cdr
 ;  (lambda (as)
 ;    (emit as
@@ -347,13 +347,13 @@
 ;                         (il:fault-abort $ex.cdr))
 ;          (rep:pair-cdr)
 ;          (il:set-register/pop 'result))))
-;(define-operation 1 'cdr:pair
-;  (lambda (as)
-;    (emit as
-;          (il:load-register 'result)
-;          (il 'castclass iltype-schemepair)
-;          (rep:pair-cdr)
-;          (il:set-register/pop 'result))))
+(define-operation 1 'cdr:pair
+  (lambda (as rs rd)
+    (emit as
+          (il:load-register rs)
+          (il 'castclass iltype-schemepair)
+          (rep:pair-cdr)
+          (il:set-register/pop rd))))
 ;(define-operation 2 'set-car!
 ;  (lambda (as reg2)
 ;    (emit as
@@ -413,6 +413,18 @@
 ;          (il 'clt)
 ;          (rep:make-boolean)
 ;          (il:set-register/pop 'result))))
+(define (define-reg/setreg-op1 op op_method)
+  (define-operation 1 op
+    (lambda (as rs rd)
+      (emit as
+            (il:load-register rs)
+            (il:call '(instance virtual) iltype-schemeobject il-schemeobject
+                     op_method '())
+            (il:set-register/pop rd)))))
+(define-reg/setreg-op1 'char->integer     "op_char2integer")
+(define-reg/setreg-op1 'vector-length:vec "op_vector_length_vec")
+(define-reg/setreg-op1 'char?             "op_charp")
+(define-reg/setreg-op1 'cell-ref          "op_cell_ref")
 
 ;; could do 2-operand fixnum arithmetic here...
 
