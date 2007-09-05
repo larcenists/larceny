@@ -52,18 +52,30 @@
 ;; opX : assembler (opcode -> boolean) symbol instruction thunk -> void
 ;; If there is a special implementation defined in the operations-table, 
 ;; use that. Otherwise, call the generic implementation.
-(define (opX argc immediate?)
+(define (opX argc immediate? reg/setreg?)
   (lambda (instruction as)
-    (list-instruction/line (twobit-format #f (if immediate? "op~aimm" "op~a") argc) instruction as)
-    (cond ((and (not immediate?) (lookup-operation argc (operand1 instruction)))
-           => (lambda (h) 
-                (emit as (il:comment "operation ~s" (operand1 instruction)))
-                (apply (cdr h) as (cddr instruction))))
-          ((and immediate? (lookup-imm2-operation (operand1 instruction)))
-           => (lambda (h) 
-                (emit as (il:comment "operation ~s" (operand1 instruction)))
-                (apply (cdr h) as (cddr instruction))))
-          (else (opX/rt argc immediate? instruction as)))))
+    '(begin (write `(opX ,argc ,immediate? ,reg/setreg? ,instruction as))
+           (newline))
+    (let ((fmt (if reg/setreg?
+                   (if immediate? "reg/op~aimm/setreg" "reg/op~a/setreg")
+                   (if immediate? "op~aimm" "op~a"))))
+      (list-instruction/line (twobit-format #f fmt argc) instruction as))
+    (let ((primop (operand1 instruction))
+          (operands (if reg/setreg? 
+                        (cddr instruction) 
+                        (append '(result result) (cddr instruction)))))
+      (cond ((and (not immediate?) (lookup-operation argc primop))
+             => (lambda (h) 
+                  (emit as (il:comment "operation ~s" primop))
+                  (apply (cdr h) as operands)))
+            ((and immediate? (lookup-imm2-operation primop))
+             => (lambda (h) 
+                  (emit as (il:comment "operation ~s" primop))
+                  (apply (cdr h) as operands)))
+            (else
+             (cond (reg/setreg? (error 'opX)))
+             (opX/rt argc immediate? instruction as))))))
+
 (define (opX/rt argc immediate? instruction as)
   (let ((load-arguments-code
          (list 
@@ -98,36 +110,48 @@
 
 (define (peephole-operation opcode)
   (lambda (instruction as)
-    (cond ((lookup-peephole-operation (operand1 instruction))
-           => (lambda (h) 
-                (emit as 
-                      (il:comment "instruction ~s" opcode)
-                      (il:comment "operation ~s" (operand1 instruction)))
-                (apply (cdr h) as (cddr instruction))))
-          (else (error "Operation not supported: " instruction)))))
+    '(begin (write `(peephole-operation ,opcode ,instruction as))
+           (newline))
+    (let ((primop (operand1 instruction)))
+      (cond ((lookup-peephole-operation primop)
+             => (lambda (h) 
+                  (emit as 
+                        (il:comment "instruction ~s" opcode)
+                        (il:comment "operation ~s" primop))
+                  (apply (cdr h) as (cddr instruction))))
+            (else (error "Operation not supported: " instruction))))))
 
 ;; Instructions
 
 (define-instruction $op1
-  (opX 1 #f))
+  (opX 1 #f #f))
 
 (define-instruction $op2
-  (opX 2 #f))
+  (opX 2 #f #f))
 
 (define-instruction $op2imm
-  (opX 2 #t))
+  (opX 2 #t #f))
 
 (define-instruction $op3
-  (opX 3 #f))
+  (opX 3 #f #f))
 
-(define-instruction $op1/branchf
-  (peephole-operation 'op1/branchf))
+(define-instruction $reg/op1/setreg
+  (opX 1 #f #t))
 
-(define-instruction $op2/branchf
-  (peephole-operation 'op2/branchf))
+(define-instruction $reg/op2/setreg
+  (opX 2 #f #t))
 
-(define-instruction $op2imm/branchf
-  (peephole-operation 'op2imm/branchf))
+(define-instruction $reg/op2imm/setreg
+  (opX 2 #t #t))
+
+(define-instruction $reg/op1/branchf
+  (peephole-operation 'reg/op1/branchf))
+
+(define-instruction $reg/op2/branchf
+  (peephole-operation 'reg/op2/branchf))
+
+(define-instruction $reg/op2imm/branchf
+  (peephole-operation 'reg/op2imm/branchf))
 
 (define-instruction $reg/op1/check
   (peephole-operation 'reg/op1/check))
@@ -138,37 +162,31 @@
 (define-instruction $reg/op2imm/check
   (peephole-operation 'reg/op2imm/check))
 
-(define-instruction $op2imm-int32
-  (peephole-operation 'op2imm-int32))
-
-(define-instruction $op2imm-char
-  (peephole-operation 'op2imm-char))
-
 ;; -----------------
 ;; Operations
 ;; -----------------
 
 (define-operation 1 'creg
-  (lambda (as)
+  (lambda (as rs rd)
     (emit as
           (il:call '() iltype-schemeobject il-cont "getCC" '())
           (il:set-register/pop 'result))))
 (define-operation 1 'creg-set!
-  (lambda (as)
+  (lambda (as rs rd)
     (emit as
           (il:load-register 'result)
           (il:call '() iltype-void il-cont "setCC" (list iltype-schemeobject))
           (il:set-register 'result (il:load-constant (unspecified))))))
 (define-operation 1 'break
-  (lambda (as)
+  (lambda (as rs rd)
     (emit as
           (il:fault $ex.breakpoint))))
 (define-operation 1 'gc-counter
-  (lambda (as)
+  (lambda (as rs rd)
     (emit as
           (il:fault $ex.unsupported))))
 (define-operation 1 'not
-  (lambda (as)
+  (lambda (as rs rd)
     (emit as
           (il:load-register 'result)
           (il:load-constant #f)
@@ -179,13 +197,22 @@
 ;; Predicates
 
 (define-operation 2 'eq?
-  (lambda (as reg2)
+  (lambda (as rs1 rd rs2)
     (emit as
-          (il:load-register 'result)
-          (il:load-register reg2)
+          (il:load-register rs1)
+          (il:load-register rs2)
           (il 'ceq)
           (rep:make-boolean)
-          (il:set-register/pop 'result))))
+          (il:set-register/pop rd))))
+
+(define-imm2-operation 'eq? 
+  (lambda (as rs1 rd imm)
+    (emit as
+          (il:load-register rs1)
+          (il:load-constant imm)
+          (il 'ceq)
+          (rep:make-boolean)
+          (il:set-register/pop rd))))
 
 ;;(define (define-type-predicate op type)
 ;;  (define-operation 1 op
@@ -203,7 +230,7 @@
 ;;              (il:label done-label))))))
 (define (define-predicate op method)
   (define-operation 1 op
-    (lambda (as)
+    (lambda (as rs rd)
       (emit as
             (il:load-register 'result)
             (il:call '(instance virtual) iltype-bool il-schemeobject method '())
@@ -240,7 +267,7 @@
 
 (define (define-eq-predicate op value)
   (define-operation 1 op
-    (lambda (as)
+    (lambda (as rs rd)
       (emit as
             (il:load-register 'result)
             (il:load-constant value)
@@ -254,7 +281,7 @@
 
 (define (define-datum-op op value)
   (define-operation 1 op
-    (lambda (as)
+    (lambda (as rs rd)
       (emit as (il:set-register 'result (il:load-constant value))))))
 (define-datum-op 'unspecified (unspecified))
 (define-datum-op 'undefined (undefined))
@@ -265,7 +292,7 @@
 ;; Cell Data
 
 (define-operation 1 'make-cell
-  (lambda (as)
+  (lambda (as rs rd)
     (emit as
           (il:load-register 'result)
           (il:load-constant #f)
@@ -291,10 +318,10 @@
 ;; List Data
 
 (define-operation 2 'cons
-   (lambda (as reg2)
+   (lambda (as rs1 rd rs2)
      (emit as
            (il:load-register 'result)
-           (il:load-register reg2)
+           (il:load-register rs2)
            (rep:make-pair)
            (il:set-register/pop 'result))))
 ;(define-operation 1 'car
@@ -389,31 +416,46 @@
 
 ;; could do 2-operand fixnum arithmetic here...
 
+(define (il:br/maybe-use-fuel as target-label)
+  (if (assq target-label (as-labels as))
+      (il:br/use-fuel target-label)
+      (il:branch 'br target-label)))
+
 ;; Operations introduced by peephole optimizer
 
 (define (define-branchf-eq-operation code object)
   (define-peephole-operation code
-    (lambda (as target-label)
+    (lambda (as rs target-label)
       (let ((no-branch-label (allocate-label as)))
         (emit as
-              (il:load-register 'result)
+              (il:load-register rs)
               (il:load-constant object)
               (il:branch-s 'beq no-branch-label)
-              (il:br/use-fuel target-label)
+              (il:br/maybe-use-fuel as target-label)
               (il:label no-branch-label))))))
 (define-branchf-eq-operation 'internal:branchf-null? '())
 (define-branchf-eq-operation 'internal:branchf-eof-object? (eof-object))
 (define-branchf-eq-operation 'internal:branchf-fxzero? 0)
 
+(define-peephole-operation 'internal:branchf-eq?
+  (lambda (as rs1 rs2 target-label)
+    (let ((no-branch-label (allocate-label as)))
+      (emit as 
+            (il:load-register rs1)
+            (il:load-register rs2)
+            (il:branch-s 'beq no-branch-label)
+            (il:br/maybe-use-fuel as target-label)
+            (il:label no-branch-label)))))
+
 (define (define-branchf-pred-operation code method)
   (define-peephole-operation code
-    (lambda (as target-label)
+    (lambda (as rs target-label)
       (let ((no-branch-label (allocate-label as)))
         (emit as
               (il:load-register 'result)
               (il:call '(instance virtual) iltype-bool il-schemeobject method '())
               (il:branch-s 'brtrue no-branch-label)
-              (il:br/use-fuel target-label)
+              (il:br/maybe-use-fuel as target-label)
               (il:label no-branch-label))))))
 (define-branchf-pred-operation 'internal:branchf-pair? "isPair")
 (define-branchf-pred-operation 'internal:branchf-fixnum? "isFixnum")
@@ -421,7 +463,7 @@
 
 (define (define-branchf-pred-imm-int32-operation code orig-code method)
   (define-peephole-operation code 
-    (lambda (as imm target-label)
+    (lambda (as rs imm target-label)
       (cond ((opX-implicit-continuation? orig-code)
              (error 'define-branchf-pred-imm-int32-operation
                     ": op " code " needs an implicit continuation...")))
@@ -432,9 +474,7 @@
               (il:call '(instance virtual) iltype-bool il-schemeobject 
                        method (list iltype-int32))
               (il:branch-s 'brtrue no-branch-label)
-              (if (assq target-label (as-labels as))
-                  (il:br/use-fuel target-label)
-                  (il:branch 'br target-label))
+              (il:br/maybe-use-fuel as target-label)
               (il:label no-branch-label))))))
 (define-branchf-pred-imm-int32-operation 'internal:branchf-eq?/imm-int32 
   'eq? "isEqpInt32")
@@ -447,7 +487,7 @@
 
 (define (define-branchf-pred-imm-char-operation code orig-code method)
   (define-peephole-operation code
-    (lambda (as char-imm target-label)
+    (lambda (as rs char-imm target-label)
       (let ((no-branch-label (allocate-label as)))
         (emit as
               (il:load-register 'result)
@@ -455,9 +495,7 @@
               (il:call '(instance virtual) iltype-bool il-schemeobject
                        method (list iltype-int32))
               (il:branch-s 'brtrue no-branch-label)
-              (if (assq target-label (as-labels as))
-                  (il:br/use-fuel target-label)
-                  (il:branch 'br target-label))
+              (il:br/maybe-use-fuel as target-label)
               (il:label no-branch-label))))))
 (define-branchf-pred-imm-char-operation 'internal:branchf-char=?/imm-char
   'char=? "isCharEqualsInt32")
@@ -476,30 +514,41 @@
 (define-reg/op1/check-operation 'internal:check-string? "isString")
 
 (define (define-op2imm-int32-operation code orig-code method)
-  (define-peephole-operation code
-    (lambda (as const)
+  (define-imm2-operation code
+    (lambda (as rs rd const)
       (cond 
-       ((opX-implicit-continuation? orig-code) ;; XXX case might be bogus to attempt
-;;;        (error 'define-op2imm-int32-operation 
-;;;                ": Felix doesn't trust the implicit continuation case in codegen.")
+       ((opX-implicit-continuation? orig-code)
+        ;; this is complex b/c generic arith ops only work via result reg.  :(
+        (cond ((not (eqv? rs 'result))
+               (emit as 
+                     (il:call '() iltype-void il-instructions
+                              (string-append "reg" (number->string rs))
+                              '()))))
         (let ((numeric (allocate-label as)))
           (emit as
                 (il:comment "  implicit continuation LABEL ~s; JUMP INDEX ~s"
                             numeric (intern-label as numeric))
                 (rep:set-implicit-continuation numeric)
-                (il:load-register 'result)
+                (il:load-register rs)
                 (il 'ldc.i4 const)
                 (il:call '(instance virtual) iltype-void il-schemeobject
                          method (list iltype-int32))
-                (rep:reset-implicit-continuation)
-                (il:label numeric))))
+                ;; if codegen were correct, is this reset actually necessary???
+                (rep:reset-implicit-continuation) 
+                (il:label numeric)))
+        (cond ((not (eqv? rd 'result))
+               ;; UGH.  Might be better to not bother opX/setreg on these.
+               (emit as 
+                     (il:call '() iltype-void il-instructions
+                              (string-append "setreg" (number->string rd))
+                              '())))))
        (else
         (emit as
-              (il:load-register 'result)
+              (il:load-register rs)
               (il 'ldc.i4 const)
               (il:call '(instance virtual) iltype-schemeobject il-schemeobject
                        method (list iltype-int32))
-              (il:set-register/pop 'result)))))))
+              (il:set-register/pop rd)))))))
 
 (define-op2imm-int32-operation 'eq?:int32 'eq?
   "op_eqp_int32")
@@ -522,13 +571,13 @@
 (define-op2imm-int32-operation 'vector-ref:trusted:int32 'vector-ref:trusted
   "op_vector_ref_trusted_int32")
 
-(define-peephole-operation 'char=?:char
-  (lambda (as const)
+(define-imm2-operation 'char=?:char
+  (lambda (as rs rd const)
     (emit as
-          (il:load-register 'result)
+          (il:load-register rs)
           (il 'ldc.i4 (char->integer const))
           (il:call '(instance virtual) iltype-schemeobject il-schemeobject
                    "op_charequals_int32" (list iltype-int32))
-          (il:set-register/pop 'result))))
+          (il:set-register/pop rd))))
 
 ;; /Operations
