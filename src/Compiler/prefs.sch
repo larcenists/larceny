@@ -49,7 +49,7 @@
 
 (define (make-toplevel-definition id exp)
   (if (lambda? exp)
-      (doc.name-set! (lambda.doc exp) id))
+      (doc.name-set! (lambda.doc exp) (m-strip id)))
   (make-begin
    (list (make-assignment id exp)
          (make-constant id))))

@@ -146,7 +146,7 @@
            (definitions1 '()))   ; for lambda expressions
       (define (make-toplevel-definition id exp)
         (if (lambda? exp)
-            (doc.name-set! (lambda.doc exp) id))
+            (doc.name-set! (lambda.doc exp) (m-strip id)))
         (let ((probe (assq id alist)))
           (if probe
               (let ((id1 (cdr probe)))
