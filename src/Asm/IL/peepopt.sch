@@ -267,9 +267,9 @@
                       ((>=:fix:fix) '>=:fix:fix:int32)
                       ((<:fix:fix)  '<:fix:fix:int32)
                       ((vector-ref:trusted) 'vector-ref:trusted:int32)
-;TODO                      ((=)          '=:int32)
-;TODO                      ((+)          '+:int32)
-;TODO                      ((-)          '-:int32)
+                      ((=)          '=:int32)
+                      ((+)          '+:int32)
+                      ((-)          '-:int32)
                       (else #f)))
                    ((char? imm)
                     (case op
