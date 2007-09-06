@@ -54,8 +54,6 @@
 ;; use that. Otherwise, call the generic implementation.
 (define (opX argc immediate? reg/setreg?)
   (lambda (instruction as)
-    '(begin (write `(opX ,argc ,immediate? ,reg/setreg? ,instruction as))
-           (newline))
     (let ((fmt (if reg/setreg?
                    (if immediate? "reg/op~aimm/setreg" "reg/op~a/setreg")
                    (if immediate? "op~aimm" "op~a"))))
@@ -110,8 +108,6 @@
 
 (define (peephole-operation opcode)
   (lambda (instruction as)
-    '(begin (write `(peephole-operation ,opcode ,instruction as))
-           (newline))
     (let ((primop (operand1 instruction)))
       (cond ((lookup-peephole-operation primop)
              => (lambda (h) 
@@ -170,13 +166,13 @@
   (lambda (as rs rd)
     (emit as
           (il:call '() iltype-schemeobject il-cont "getCC" '())
-          (il:set-register/pop 'result))))
+          (il:set-register/pop rd))))
 (define-operation 1 'creg-set!
   (lambda (as rs rd)
     (emit as
-          (il:load-register 'result)
+          (il:load-register rs)
           (il:call '() iltype-void il-cont "setCC" (list iltype-schemeobject))
-          (il:set-register 'result (il:load-constant (unspecified))))))
+          (il:set-register rd (il:load-constant (unspecified))))))
 (define-operation 1 'break
   (lambda (as rs rd)
     (emit as
@@ -188,11 +184,11 @@
 (define-operation 1 'not
   (lambda (as rs rd)
     (emit as
-          (il:load-register 'result)
+          (il:load-register rs)
           (il:load-constant #f)
           (il 'ceq)
           (rep:make-boolean)
-          (il:set-register/pop 'result))))
+          (il:set-register/pop rd))))
 
 ;; Predicates
 
@@ -232,10 +228,10 @@
   (define-operation 1 op
     (lambda (as rs rd)
       (emit as
-            (il:load-register 'result)
+            (il:load-register rs)
             (il:call '(instance virtual) iltype-bool il-schemeobject method '())
             (rep:make-boolean)
-            (il:set-register/pop 'result)))))
+            (il:set-register/pop rd)))))
 
 ;(define-predicate 'complex? "isComplex")
 ;(define-predicate 'real? "isReal")
@@ -269,11 +265,11 @@
   (define-operation 1 op
     (lambda (as rs rd)
       (emit as
-            (il:load-register 'result)
+            (il:load-register rs)
             (il:load-constant value)
             (il 'ceq)
             (rep:make-boolean)
-            (il:set-register/pop 'result)))))
+            (il:set-register/pop rd)))))
 (define-eq-predicate 'null? '())
 (define-eq-predicate 'unspecified? (unspecified))
 (define-eq-predicate 'eof-object? (eof-object))
@@ -282,7 +278,7 @@
 (define (define-datum-op op value)
   (define-operation 1 op
     (lambda (as rs rd)
-      (emit as (il:set-register 'result (il:load-constant value))))))
+      (emit as (il:set-register rd (il:load-constant value))))))
 (define-datum-op 'unspecified (unspecified))
 (define-datum-op 'undefined (undefined))
 (define-datum-op 'eof-object (eof-object))
@@ -294,10 +290,10 @@
 (define-operation 1 'make-cell
   (lambda (as rs rd)
     (emit as
-          (il:load-register 'result)
+          (il:load-register rs)
           (il:load-constant #f)
           (rep:make-pair)
-          (il:set-register/pop 'result))))
+          (il:set-register/pop rd))))
 ;(define-operation 1 'cell-ref
 ;   (lambda (as)
 ;     (emit as
@@ -464,7 +460,7 @@
     (lambda (as rs target-label)
       (let ((no-branch-label (allocate-label as)))
         (emit as
-              (il:load-register 'result)
+              (il:load-register rs)
               (il:call '(instance virtual) iltype-bool il-schemeobject method '())
               (il:branch-s 'brtrue no-branch-label)
               (il:br/maybe-use-fuel as target-label)
@@ -481,7 +477,7 @@
                     ": op " code " needs an implicit continuation...")))
       (let ((no-branch-label (allocate-label as)))
         (emit as 
-              (il:load-register 'result)
+              (il:load-register rs)
               (il 'ldc.i4 imm)
               (il:call '(instance virtual) iltype-bool il-schemeobject 
                        method (list iltype-int32))
@@ -502,7 +498,7 @@
     (lambda (as rs char-imm target-label)
       (let ((no-branch-label (allocate-label as)))
         (emit as
-              (il:load-register 'result)
+              (il:load-register rs)
               (il 'ldc.i4 (char->integer char-imm))
               (il:call '(instance virtual) iltype-bool il-schemeobject
                        method (list iltype-int32))

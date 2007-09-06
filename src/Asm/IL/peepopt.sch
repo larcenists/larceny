@@ -65,10 +65,18 @@
                (cond ((eq? src1 src2)
                       (reg-op2 as i1 i2 t2))))))
           ((= (car i2) $op2imm)
-           (cond ((= (car i3) $check)
-                  (reg-op2imm-check as i1 i2 i3 t3))
-                 ((= (car i3) $setreg)
-                  (reg-op2imm-setreg as i1 i2 i3 t3))))
+           (let ((src1 (as-source as)))
+             ;; Attempt instruction merge
+             (cond ((= (car i3) $check)
+                    (reg-op2imm-check as i1 i2 i3 t3))
+                   ((= (car i3) $branchf)
+                    (reg-op2imm-branchf as i1 i2 i3 t3))
+                   ((= (car i3) $setreg)
+                    (reg-op2imm-setreg as i1 i2 i3 t3)))
+             ;; Check if merge failed
+             (let ((src2 (as-source as)))
+               (cond ((eq? src1 src2)
+                      (reg-op2imm as i1 i2 t2))))))
           ((= (car i2) $setreg)
            (reg-setreg as i1 i2 t2)))))
 
@@ -202,6 +210,13 @@
 	 (rs2 (operand2 i:op2))
 	 (l   (operand1 i:branchf)))
     (peep-reg/op2/branchf as op 'result rs2 l tail)))
+
+(define (reg-op2imm-branchf as i:reg i:op2imm i:branchf tail)
+  (let* ((rs  (operand1 i:reg))
+         (op  (operand1 i:op2imm))
+         (imm (operand2 i:op2imm))
+         (l   (operand1 i:branchf)))
+    (peep-reg/op2imm/branchf as op rs imm l tail)))
 
 (define (op2imm-branchf as i:op2imm i:branchf tail)
   (let* ((op  (operand1 i:op2imm))

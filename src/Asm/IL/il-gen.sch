@@ -543,18 +543,16 @@
         ((number? register)
          (if (codegen-option 'special-reg-instructions)
              (il:call '()
-                      (if (zero? register) iltype-procedure iltype-schemeobject)
+                      iltype-schemeobject
                       il-reg
-                      (if (zero? register) 
-                          "get_ProcRegister0"
-                          (string-append "get_Register" (number->string register)))
+                      (string-append "get_Register" (number->string register))
                       '())
-
-             (il:ldsfld (if (zero? register) iltype-procedure iltype-schemeobject)
+             (il:ldsfld iltype-schemeobject
                         il-reg
                         (twobit-format #f "r~a" register))))
-        (error "il:load-register: cannot emit IL to load register: "
-               register)))
+        (else
+         (error "il:load-register: cannot emit IL to load register: "
+                register))))
 
 ;; il:set-register : int|symbol ilpackage -> ilpackage
 ;; IL to store the value pushed by the given IL fragment into the specified
