@@ -983,9 +983,9 @@
          (is-closed #f)
          )
 
-    (define (add-if-supported form op-name event-name handler)
+    (define (add-if-supported form op-name event-name mk-handler)
       (cond ((memq op-name agent-ops)
-             (add-event-handler form event-name handler))
+             (add-event-handler form event-name (mk-handler (agent op-name))))
             (else 
              (display "No support for op ")
              (display op-name)
@@ -1002,7 +1002,7 @@
               (data (key-event-args-keydata e))
               ;; original bitset 
               (value (key-event-args-keyvalue e)))
-          ((agent on-x)
+          (on-x
            (keys-foreign->symbols code)
            `(,@(if alt '(alt) '())
              ,@(if ctrl '(ctrl) '())
@@ -1010,9 +1010,12 @@
           )))
     (define (mouse-event-handler on-x)
       (lambda (sender e)
-        ((agent on-x)
+        (on-x
          (mouse-event-args-x e)
          (mouse-event-args-y e))))
+    (define (trivial-handler on-x)
+      (lambda (sender e)
+        (on-x)))
     
     (define horizontal-scrollbar? (undefined))
     (define vertical-scrollbar? (undefined))
@@ -1187,84 +1190,83 @@
                          (((default-impl 'on-close)))))
 
     (add-if-supported horizontal-scrollbar 'on-hscroll "Scroll"
-                      (lambda (sender e)
-                        ((agent 'on-hscroll) 
-                         (scrolleventargs-newvalue e)
-                         (scrolleventargs-gettype e))))
+                      (lambda (on-hscroll)
+                        (lambda (sender e)
+                          (on-hscroll
+                           (scrolleventargs-newvalue e)
+                           (scrolleventargs-gettype e)))))
     (add-if-supported vertical-scrollbar 'on-vscroll "Scroll"
-                      (lambda (sender e)
-                        ((agent 'on-vscroll) 
-                         (scrolleventargs-newvalue e)
-                         (scrolleventargs-gettype e))))
+                      (lambda (on-vscroll)
+                        (lambda (sender e)
+                          (on-vscroll
+                           (scrolleventargs-newvalue e)
+                           (scrolleventargs-gettype e)))))
     
-    (add-if-supported core-control 'on-keydown "KeyDown"
-                      (key-event-handler 'on-keydown))
-    (add-if-supported core-control 'on-keyup "KeyUp"
-                      (key-event-handler 'on-keyup))
+    (add-if-supported core-control 'on-keydown "KeyDown" key-event-handler)
+    (add-if-supported core-control 'on-keyup "KeyUp" key-event-handler)
     (add-if-supported core-control 'on-keypress "KeyPress"
-                      (lambda (sender e)
-                        ((agent 'on-keypress)
-                         ;; Felix believes integer->char is safe based
-                         ;; on Microsoft docs...
-                         (integer->char
-                          (clr/%foreign->int
-                           (key-press-event-args-keychar e))))))
-    (add-if-supported core-control 'on-mousedown "MouseDown"
-                      (mouse-event-handler 'on-mousedown))
-    (add-if-supported core-control 'on-mouseup "MouseUp"
-                      (mouse-event-handler 'on-mouseup))
+                      (lambda (on-keypress)
+                        (lambda (sender e)
+                          (on-keypress
+                           ;; Felix believes integer->char is safe based
+                           ;; on Microsoft docs...
+                           (integer->char
+                            (clr/%foreign->int
+                             (key-press-event-args-keychar e)))))))
+    (add-if-supported core-control 'on-mousedown "MouseDown" mouse-event-handler)
+    (add-if-supported core-control 'on-mouseup "MouseUp" mouse-event-handler)
     (let ((add! (lambda (fcn) 
                   (add-event-handler core-control "MouseMove" fcn)))
           (has-move? (memq 'on-mousemove agent-ops))
           (has-drag? (memq 'on-mousedrag agent-ops)))
       (cond 
        ((and has-move? has-drag?)
-        (let ((move-handler (mouse-event-handler 'on-mousemove))
-              (drag-handler (mouse-event-handler 'on-mousedrag)))
+        (let ((move-handler (mouse-event-handler (agent 'on-mousemove)))
+              (drag-handler (mouse-event-handler (agent 'on-mousedrag))))
           (add! (lambda (sender e)
                   (case (mouse-event-args-button e)
                     ((none) (move-handler sender e))
                     (else   (drag-handler sender e)))))))
        (has-move?
-        (let ((move-handler (mouse-event-handler 'on-mousemove)))
+        (let ((move-handler (mouse-event-handler (agent 'on-mousemove))))
           (add! (lambda (sender e)
                   (case (mouse-event-args-button e)
                     ((none) (move-handler sender e)))))))
        (has-drag?
-        (let ((drag-handler (mouse-event-handler 'on-mousedrag)))
+        (let ((drag-handler (mouse-event-handler (agent 'on-mousedrag))))
           (add! (lambda (sender e)
                   (case (mouse-event-args-button e)
                     ((none) 'do-nothing)
                     (else   (drag-handler sender e)))))))))
-    (add-if-supported core-control 'on-mouseenter "MouseEnter"
-                      (lambda (sender e) ((agent 'on-mouseenter))))
-    (add-if-supported core-control 'on-mouseleave "MouseLeave"
-                      (lambda (sender e) ((agent 'on-mouseleave))))
-    (add-if-supported core-control 'on-mouseclick "MouseClick"
-                      (mouse-event-handler 'on-mouseclick))
-    (add-if-supported core-control 'on-mousedoubleclick "MouseDoubleClick"
-                      (mouse-event-handler 'on-mousedoubleclick))
+    (add-if-supported core-control 'on-mouseenter "MouseEnter" trivial-handler)
+    (add-if-supported core-control 'on-mouseleave "MouseLeave" trivial-handler)
+    (add-if-supported core-control 'on-mouseclick "MouseClick" mouse-event-handler)
+    (add-if-supported core-control 'on-mousedoubleclick "MouseDoubleClick" 
+                      mouse-event-handler)
     
     (add-event-handler form "Resize" 
                        (cond ((memq 'on-resize agent-ops)
-                              (lambda (sender e) 
-                                ((agent 'on-resize))
-                                ((wnd 'update))))
+                              (let ((resize-op (agent 'on-resize))
+                                    (update-op (wnd 'update)))
+                                (lambda (sender e) 
+                                  (resize-op)
+                                  (update-op))))
                              (else
-                              (lambda (sender e) 
-                                ((wnd 'update))))
-                             ))
+                              (let ((update-op (wnd 'update)))
+                                (lambda (sender e) 
+                                  (update-op))))))
 
     (add-if-supported core-control 'on-paint "Paint"
-                      (lambda (sender e)
-                        (let* ((r (paint-event-args-cliprectangle e))
-                               (x (rectangle-x r))
-                               (y (rectangle-y r))
-                               (h (rectangle-height r))
-                               (w (rectangle-width r))
-                               (g (paint-event-args-graphics e)))
-                          ((agent 'on-paint) 
-                           (graphics->gfx g) x y w h))))
-    
+                      (lambda (on-paint)
+                        (lambda (sender e)
+                          (let* ((r (paint-event-args-cliprectangle e))
+                                 (x (rectangle-x r))
+                                 (y (rectangle-y r))
+                                 (h (rectangle-height r))
+                                 (w (rectangle-width r))
+                                 (g (paint-event-args-graphics e)))
+                            (on-paint
+                             (graphics->gfx g) x y w h)))))
+
     wnd))
 
