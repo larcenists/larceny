@@ -315,6 +315,10 @@ namespace Scheme.RT {
             //stats[29 /*STIME*/] = Factory.makeNumber (ticks);
             stats[30 /*UTIME*/] = Factory.makeNumber (ticks);
 
+            // amount of physical memory mapped to the process context.
+            long working_set_bytes = Environment.WorkingSet;
+            long working_set_words = working_set_bytes / 4;
+            stats[19 /*WORDS_HEAP*/] = Factory.makeNumber(working_set_words);
             Reg.Result = Reg.Register2;
         }
 
