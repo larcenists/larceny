@@ -8,12 +8,6 @@
 ;; temporarily divert them to the instrumenting code
 (require 'trace)
 
-;; We need to gather timing info.  SRFI-19 provides some reasonable
-;; interfaces for doing so.  (We could also just use the memstats
-;; interface directly if we'd like to get more fine-grained control.)
-(require 'srfi-0)
-(require 'srfi-19)
-
 (define accum-profile-rt 
   (make-record-type "accum-profile" '(times wrap-records) #f))
 
