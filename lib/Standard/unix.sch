@@ -10,7 +10,7 @@
 (require 'std-ffi)
 (require 'string)
 (require "Experimental/unix")
-(require "Experimental/unix-descriptor")
+(require "Standard/unix-descriptor")
 
 ; Does PATH denote a directory?
 
