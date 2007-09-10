@@ -22,16 +22,31 @@
           (else #f))))
 
 (define twobit-pass-times 
-  (let* (
-         (ap (make-accum-profile))
-         (assemble (find-subprocedure 'assemble compile-file))
-         (assembly-postpass-segment 
-          (find-subprocedure 'assembly-postpass-segment assemble))
-         (sassy-assemble 
-          (find-subprocedure 'sassy-assemble assembly-postpass-segment))
-         (sassy 
-          (find-subprocedure 'sassy sassy-assemble))
-         (compile (find-subprocedure 'compile compile-file))
+  (let* ((ap (make-accum-profile))
+         (compile*assemble
+          (cond 
+           ((member '(arch-name . "IAssassin") (system-features))
+            (let* ((assemble (find-subprocedure 'assemble compile-file))
+                   (assembly-postpass-segment 
+                    (find-subprocedure 'assembly-postpass-segment assemble))
+                   (sassy-assemble 
+                    (find-subprocedure 'sassy-assemble assembly-postpass-segment))
+                   (sassy 
+                    (find-subprocedure 'sassy sassy-assemble))
+                   (compile (find-subprocedure 'compile compile-file)))
+              
+              (instrument-accumulating-time! ap 'asm:sassy sassy)
+              
+              (list compile assemble)))
+           ((member '(arch-name . "CLR") (system-features))
+            (instrument-accumulating-time! ap 'asm:link-lop-segment/clr link-lop-segment/clr)
+            (list compile assemble))
+           (else
+            (error 'twobit-pass-times ": unknown arch-name " 
+                   (assq 'arch-name (system-features))))))
+         (compile (car compile*assemble))
+         (assemble (cadr compile*assemble))
+
          (pass1 (find-subprocedure 'pass1 compile))
          (twobit-expand (find-subprocedure 'twobit-expand pass1))
          (desugar-definitions (find-subprocedure 'desugar-definitions twobit-expand))
@@ -39,15 +54,15 @@
          (pass2 (find-subprocedure 'pass2 compile))
          (pass3 (find-subprocedure 'pass3 compile))
          (pass4 (find-subprocedure 'pass4 compile)))
-    (instrument-accumulating-time! ap 'asm:sassy sassy)
+    
     (instrument-accumulating-time! ap 'assemble assemble)
     (instrument-accumulating-time! ap 'compile compile)
     (instrument-accumulating-time! ap 'twobit:pass4 pass4)
     (instrument-accumulating-time! ap 'twobit:pass3 pass3)
     (instrument-accumulating-time! ap 'twobit:pass2 pass2)
     ;; Still too slow... 
-    ;(instrument-accumulating-time/pure! ap 'twobit:syntactic-lookup syntactic-lookup)
+    ;;(instrument-accumulating-time/pure! ap 'twobit:syntactic-lookup syntactic-lookup)
     (instrument-accumulating-time! ap 'twobit:pass1 pass1)
-    
+
     (lambda ()
       (accum-profile-times ap))))
