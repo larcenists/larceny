@@ -549,12 +549,14 @@
              (newline)))
      ((on-vscroll new-int event-type)
       (let* ((all-lines (all-text-lines))
-             (len-rlines (lines-length rlines-before-view))
-             (abs-cursor-line (+ len-rlines cursor-line)))
+             (len-rlines (lines-length rlines-before-view)))
         (set! lines-from-buftop (list->vector (drop all-lines new-int)))
         (set! rlines-before-view (list->vector 
                                   (reverse (take all-lines new-int))))
-        (set! cursor-line (- abs-cursor-line (lines-length rlines-before-view))))
+        (cond (cursor-line
+               (let ((abs-cursor-line (+ len-rlines cursor-line)))
+                 (set! cursor-line (- abs-cursor-line
+                                      (lines-length rlines-before-view)))))))
       ((wnd 'update)))
      ((on-mousedown mx my)
       (begin (display `(mousedown (mx: ,mx) (my: ,my)))
