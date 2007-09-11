@@ -138,7 +138,9 @@
 ;;  (measure-text txt-string font-obj) 
 ;;  (draw-text txt-string font-obj x y col) 
 ;;  (draw-line col x1 y1 x2 y2) (draw-image img-obj x y) 
-;;  (draw-rect col x1 y1 x2 y2) (gfxptr)
+;;  (draw-rect col x1 y1 x2 y2) 
+;;  (fill-rect col x1 y1 x2 y2) 
+;;  (gfxptr)
 ;; COL: (make-col alpha red green blue) (name->col name) (available-colornames)
 ;;  (name) (alpha) (red) (green) (blue) (colptr)
 ;; WND: (make-wnd ['make-agent agent-ctor] 
@@ -204,6 +206,13 @@
       (cond (temp-rect (apply (g 'draw-rect) (name->col "Red") temp-rect)))
       ))))
 
+(define (invert-col col)
+  (define (inv num) (- 255 num))
+  (make-col ((col 'alpha))
+            (inv ((col 'red))) 
+            (inv ((col 'green)))
+            (inv ((col 'blue)))))
+
 (define (make-code-editor-agent wnd width height)
   ;; XXX don't spend too much time writing code oriented around this
   ;; representation of the text contents; we would be better off
@@ -220,6 +229,10 @@
           (lambda (lines) ;; counts number of characters of text held in lines
             (apply + (map (lambda (x) (+ 1 (string-length x)))
                           (lines->list lines)))))
+
+         ;; [Oneof 'thin-line 'invert-rect]
+         (cursor-rendering-method 'invert-rect)
+
          (rlines-before-view (lines "line B" "line A"))
          (lines-from-buftop (lines "line C" "line D" "" "line Y" "line Z"))
          (cursor-line 2)
@@ -613,14 +626,42 @@
                  (set! cursor-height h)))
           (cond ((not (null? lines))
                  (draw-selected-background g (car lines) curr-pos h)
-                 ((g 'draw-text) (car lines) fnt 0 h col)
+                 (cond ((and (eq? cursor-rendering-method 'invert-rect)
+                             cursor-line
+                             (= cursor-line line-num))
+                        (let* ((l_k (car lines))
+                               (len (string-length l_k))
+                               (pre (substring l_k 0 cursor-column))
+                               (cur (substring l_k
+                                               (min len cursor-column)
+                                               (min len (+ cursor-column 1))))
+                               (cur (if (= 0 (string-length cur)) " " cur))
+                               (suf (substring l_k
+                                               (min len (+ cursor-column 1))
+                                               len)))
+                          (call-with-values (lambda ()
+                                              ((g 'measure-text) pre fnt))
+                            (lambda (pre-w pre-h)
+                              (call-with-values (lambda ()
+                                                  ((g 'measure-text) cur fnt))
+                                (lambda (cur-w cur-h)
+                                  (define text (g 'draw-text))
+                                  (text pre fnt 0 h col)
+                                  ((g 'fill-rect) col 
+                                   pre-w h
+                                   (+ pre-w cur-w) (+ h cur-h))
+                                  (text cur fnt pre-w h (invert-col col))
+                                  (text suf fnt (+ pre-w cur-w) h col)))))))
+                       (else
+                        ((g 'draw-text) (car lines) fnt 0 h col)))
                  (loop (+ h (measure-height (car lines))) 
                        (cdr lines) 
                        (+ line-num 1)
                        (+ curr-pos 1 (string-length (car lines)))
                        ))))
         (cond 
-         ((and cursor-line (>= cursor-line 0))
+         ((and (eq? cursor-rendering-method 'thin-line)
+               cursor-line (>= cursor-line 0))
           (let ((l_k (lines-ref lines-from-buftop cursor-line)))
             (call-with-values (lambda () 
                                 ((g 'measure-text) 
