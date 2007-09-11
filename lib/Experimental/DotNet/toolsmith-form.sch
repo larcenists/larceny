@@ -547,10 +547,10 @@
 (define (color->col colorptr)
   (msg-handler 
    ((name)     (name->symbol (color-name colorptr)))
-   ((alpha)    (color-alpha colorptr))
-   ((red)      (color-red   colorptr))
-   ((green)    (color-green colorptr))
-   ((blue)     (color-green colorptr))
+   ((alpha)    (clr/%foreign->int (color-alpha colorptr)))
+   ((red)      (clr/%foreign->int (color-red   colorptr)))
+   ((green)    (clr/%foreign->int (color-green colorptr)))
+   ((blue)     (clr/%foreign->int (color-blue colorptr)))
    ((colptr)   colorptr)))
 (define make-col
   (let ((from-argb-method
