@@ -214,10 +214,8 @@
             (inv ((col 'blue)))))
 
 (define (make-editor-agent wnd width height)
-  (define mytext "") ;; revist when we add IMG objects.
-  (define cursorpos 0)
-  (define selection-start-pos 0) ;; (inclusive)
-  (define selection-finis-pos 0) ;; (exclusive)
+  (define mytext "\n") ;; revist when we add IMG objects.
+  (define selection 0) ;; [Oneof Nat (cons Nat Nat)]
   (define mouse-down #f)
   (define mouse-up #f)
   (define mouse-drag #f)
@@ -225,7 +223,23 @@
   (define fnt (make-fnt (monospace-fontname) em-size))
   (define selection-col (name->col (string->symbol "LightBlue")))
   (define col (name->col (string->symbol "Black")))
-
+  (define backing-agent #f)
+  (define (cursor-left!)
+    (cond ((number? selection) 
+           (set! selection (max 0 (- selection 1))))
+          (else
+           (set! selection (car selection)))))
+  (define (cursor-right!)
+    (cond ((number? selection) 
+           (set! selection (min (string-length mytext) (+ selection 1))))
+          (else 
+           (set! selection (cdr selection)))))
+  (define (selection-start-pos)
+    (cond ((number? selection) selection)
+          (else (car selection))))
+  (define (selection-finis-pos)
+    (cond ((number? selection) (+ selection 1))
+          (else (cdr selection))))
   (define (point-in-range? pt x y w h)
     (and (<= x (car pt) (+ x w))
          (<= y (cdr pt) (+ y h))))
@@ -248,44 +262,95 @@
                  (curr-pos 0))
         (cond
          ((>= curr-pos (string-length mytext))
-          'done)
-         ((char=? (string-ref mytext curr-pos) #\newline)
-          (loop 0
-                (+ y max-height-on-line) 
-                initial-height
-                (+ line-num 1) 
-                0
-                (+ curr-pos 1)))
+          (unspecified))
+
          (else
           (let* ((char (string-ref mytext curr-pos))
                  (char-text (string char)))
             (call-with-values (lambda () ((g 'measure-text) char-text fnt))
               (lambda (char-w char-h)
                 (proc char curr-pos x y char-w char-h line-num col-num)
-                (loop (+ x char-w)
-                      y
-                      (max max-height-on-line char-h)
-                      line-num
-                      (+ col-num 1)
-                      (+ curr-pos 1))))))))))
+                (cond 
+                 ((char=? char #\newline)
+                  (loop 0
+                        (+ y max-height-on-line) 
+                        initial-height
+                        (+ line-num 1) 
+                        0
+                        (+ curr-pos 1)))
+                 (else
+                  (loop (+ x char-w)
+                        y
+                        (max max-height-on-line char-h)
+                        line-num
+                        (+ col-num 1)
+                        (+ curr-pos 1))))))))))))
+  
+  (define (delegate msg . args)
+    (cond ((and backing-agent
+                (memq msg ((backing-agent 'operations))))
+           (apply (backing-agent msg) args))
+          (else 
+           #f)))
+  
+  (define (insert-char-at-point! char)
+    (define len (string-length mytext))
+    (call-with-values 
+        (lambda () (cond ((number? selection) 
+                          (values (substring mytext 0 selection)
+                                  (substring mytext selection len)
+                                  selection))
+                         (else
+                          (values (substring mytext 0 (car selection))
+                                  (substring mytext (cdr selection) len)
+                                  (car selection)))))
+      (lambda (prefix suffix pos)
+        (set! mytext (string-append prefix (string char) suffix))
+        (set! selection (+ pos 1)))))
+
+  (define (delete-char-at-point!)
+    (define len (string-length mytext))
+    (call-with-values 
+        (lambda () (cond ((number? selection) 
+                          (let ((pos (max 0 (- selection 1))))
+                            (values (substring mytext 0 pos)
+                                    (substring mytext selection len)
+                                    pos)))
+                         (else
+                          (values (substring mytext 0 (car selection))
+                                  (substring mytext (cdr selection) len)
+                                  (car selection)))))
+      (lambda (prefix suffix pos)
+        (set! mytext (string-append prefix suffix))
+        (set! selection pos))))
   
   (msg-handler
    ((textstring) mytext)
    ((set-textstring! string) (set! mytext string))
-   ((cursor-pos) cursorpos)
-   ((set-cursor-pos! idx) (set! cursorpos idx))
-   ((selection) (values selection-start-pos selection-finis-pos))
+   ((selection) 
+    (cond ((number? selection)
+           (values selection selection))
+          (else
+           (values (car selection) (cdr selection)))))
    ((set-selection! start-pos-incl end-pos-excl)
-    (set! selection-start-pos start-pos-incl)
-    (set! selection-finis-pos end-pos-excl))
-   ((on-keydown sym mods) 'DELEGATE) ; XXX
-   ((on-keyup   sym mods) 'DELEGATE) ; XXX
-   ((on-keypress char)   
-    (let* ((len (string-length mytext))
-           (prefix (substring mytext 0 cursorpos))
-           (suffix (substring mytext cursorpos len)))
-      (set! mytext (string-append prefix (string char) suffix))
-      (set! cursorpos (+ cursorpos 1)))
+    (set! selection (cons start-pos-incl end-pos-excl)))
+   ((on-keydown sym mods) 
+    (delegate 'on-keydown sym mods)
+    ((wnd 'update)))
+   ((on-keyup   sym mods) 
+    (or (delegate 'on-keyup   sym mods)
+        (case sym
+          ((enter)       (insert-char-at-point! #\newline))
+          ((left)        (cursor-left!))
+          ((right)       (cursor-right!))
+          ((back delete) (delete-char-at-point!))))
+    ((wnd 'update)))
+   ((on-keypress char)
+    (or (delegate 'on-keypress char)
+        (case char
+          ((#\backspace #\return #\esc #\tab) 'do-nothing)
+          (else 
+           (insert-char-at-point! char))))
     ((wnd 'update)))
    ((on-resize) 
     (set! width ((wnd 'width)))
@@ -343,19 +408,42 @@
                      mouse-up   pixel-x pixel-y
                      char-pixel-width char-pixel-height)
                     (assert (not pos-2))
-                    (set! pos-2 pos)))))))
+                    (set! pos-2 pos)))))
+        (set! mouse-down #f)
+        (set! mouse-up #f)))
       (cond ((and pos-1 pos-2)
-             (set! selection-start-pos (min pos-1 pos-2))
-             (set! selection-finis-pos (max pos-1 pos-2)))))
-                                  
-    (for-each-charpos 
-     g (lambda (char pos x y w h line column)
-         (cond
-          ((<= selection-start-pos pos selection-finis-pos)
-           ((g 'fill-rect) col x y (+ x w) (+ y h))
-           ((g 'draw-text) (string char) fnt x y (invert-col col)))
-          (else
-           ((g 'draw-text) (string char) fnt x y col))))))))
+             (set! selection
+                   (cond ((= pos-1 pos-2)
+                          pos-1)
+                         (else (cons (min pos-1 pos-2)
+                                     (max pos-1 pos-2)))))))
+      )
+    
+    (call-with-values (lambda () ((g 'measure-text) "A" fnt))
+      (lambda (a-char-w a-char-h)
+        (for-each-charpos 
+         g (lambda (char pos x y w h line column)
+             (cond
+              ((and (number? selection) 
+                    (= selection pos)
+                    (char=? char #\newline))
+               ((g 'fill-rect) col x y (+ x a-char-w) (+ y a-char-h)))
+              ((and (<= (selection-start-pos) pos)
+                    (< pos (selection-finis-pos)))
+               ((g 'fill-rect) col x y (+ x w) (+ y h))
+               ((g 'draw-text) (string char) fnt x y (invert-col col)))
+              (else
+               ((g 'draw-text) (string char) fnt x y col))))))))
+   ;; Note this method is not meant for use outside of editor-agent-maker
+   ((set-backing-agent! agent) (set! backing-agent agent))
+   ))
+
+(define (editor-agent-maker make-backing-agent)
+  (lambda (wnd width height)
+    (let* ((editor-agent (make-editor-agent wnd width height))
+           (backing-agent (make-backing-agent editor-agent)))
+      ((editor-agent 'set-backing-agent!) backing-agent)
+      editor-agent)))
 
 (define (make-code-editor-agent wnd width height)
   ;; XXX don't spend too much time writing code oriented around this
