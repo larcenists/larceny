@@ -1160,15 +1160,25 @@
     (set! vertical-scroll! 
           (let ((tell-agent ((default-impl 'on-vscroll))))
             (lambda (mag)
-              (let ((val (+ (scrollbar-value vertical-scrollbar) mag)))
-                (set-scrollbar-value! vertical-scrollbar val)
-                (tell-agent val 'external)))))
+              (let ((val (+ (scrollbar-value vertical-scrollbar) mag))
+                    (min (scrollbar-minimum vertical-scrollbar))
+                    (max (scrollbar-maximum vertical-scrollbar)))
+                (cond ((<= min val max)
+                       (set-scrollbar-value! vertical-scrollbar val)
+                       (tell-agent val 'external))
+                      (else (error 'vertical-scroll! ": " val 
+                                   " is not in range [" min "," max "]")))))))
     (set! horizontal-scroll! 
           (let ((tell-agent ((default-impl 'on-hscroll))))
             (lambda (mag)
-              (let ((val (+ (scrollbar-value horizontal-scrollbar) mag)))
-                (set-scrollbar-value! horizontal-scrollbar val)
-                (tell-agent val 'external)))))
+              (let ((val (+ (scrollbar-value horizontal-scrollbar) mag))
+                    (min (scrollbar-minimum horizontal-scrollbar))
+                    (max (scrollbar-maximum horizontal-scrollbar)))
+                (cond ((<= min val max)
+                       (set-scrollbar-value! horizontal-scrollbar val)
+                       (tell-agent val 'external))
+                      (else (error 'horizontal-scroll! ": " val
+                                   " is not in range [" min "," max "]")))))))
     
     (add-controls (control-controls form) 
                   `(,@(if (eq? contents core-control) (list contents) '())
