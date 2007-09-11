@@ -213,6 +213,150 @@
             (inv ((col 'green)))
             (inv ((col 'blue)))))
 
+(define (make-editor-agent wnd width height)
+  (define mytext "") ;; revist when we add IMG objects.
+  (define cursorpos 0)
+  (define selection-start-pos 0) ;; (inclusive)
+  (define selection-finis-pos 0) ;; (exclusive)
+  (define mouse-down #f)
+  (define mouse-up #f)
+  (define mouse-drag #f)
+  (define em-size 10)
+  (define fnt (make-fnt (monospace-fontname) em-size))
+  (define selection-col (name->col (string->symbol "LightBlue")))
+  (define col (name->col (string->symbol "Black")))
+
+  (define (point-in-range? pt x y w h)
+    (and (<= x (car pt) (+ x w))
+         (<= y (cdr pt) (+ y h))))
+
+  ;; A CharPosHandler is a  (Char Pos X Y Width Height LineNo ColNo -> void)
+
+  ;; for-each-charpos : Gfx CharPosHandler -> void
+  (define (for-each-charpos g proc)
+    (let* ((measure-height
+            (lambda (s) 
+              (call-with-values (lambda () ((g 'measure-text) s fnt))
+                (lambda (w h) h))))
+           (cursor-height #f)
+           (initial-height (measure-height "A")))
+      (let loop ((x 0)
+                 (y 0)
+                 (max-height-on-line initial-height)
+                 (line-num 0)
+                 (col-num 0)
+                 (curr-pos 0))
+        (cond
+         ((>= curr-pos (string-length mytext))
+          'done)
+         ((char=? (string-ref mytext curr-pos) #\newline)
+          (loop 0
+                (+ y max-height-on-line) 
+                initial-height
+                (+ line-num 1) 
+                0
+                (+ curr-pos 1)))
+         (else
+          (let* ((char (string-ref mytext curr-pos))
+                 (char-text (string char)))
+            (call-with-values (lambda () ((g 'measure-text) char-text fnt))
+              (lambda (char-w char-h)
+                (proc char curr-pos x y char-w char-h line-num col-num)
+                (loop (+ x char-w)
+                      y
+                      (max max-height-on-line char-h)
+                      line-num
+                      (+ col-num 1)
+                      (+ curr-pos 1))))))))))
+  
+  (msg-handler
+   ((textstring) mytext)
+   ((set-textstring! string) (set! mytext string))
+   ((cursor-pos) cursorpos)
+   ((set-cursor-pos! idx) (set! cursorpos idx))
+   ((selection) (values selection-start-pos selection-finis-pos))
+   ((set-selection! start-pos-incl end-pos-excl)
+    (set! selection-start-pos start-pos-incl)
+    (set! selection-finis-pos end-pos-excl))
+   ((on-keydown sym mods) 'DELEGATE) ; XXX
+   ((on-keyup   sym mods) 'DELEGATE) ; XXX
+   ((on-keypress char)   
+    (let* ((len (string-length mytext))
+           (prefix (substring mytext 0 cursorpos))
+           (suffix (substring mytext cursorpos len)))
+      (set! mytext (string-append prefix (string char) suffix))
+      (set! cursorpos (+ cursorpos 1)))
+    ((wnd 'update)))
+   ((on-resize) 
+    (set! width ((wnd 'width)))
+    (set! height ((wnd 'height))))
+   ((horizontal-scrollbar) #f) ; XXX
+   ((vertical-scrollbar)   #f) ; XXX
+   ((on-mousedown mx my)
+    (begin (display `(mousedown (mx: ,mx) (my: ,my)))
+           (newline))
+    (set! mouse-down (cons mx my))
+    (set! mouse-drag (cons mx my))
+    (set! mouse-up #f)
+    ((wnd 'update)))
+   ((on-mouseup mx my)
+    (begin (display `(mouseup (mx: ,mx) (my: ,my)))
+           (newline))
+    (set! mouse-drag #f)
+    (set! mouse-up (cons mx my))
+    ((wnd 'update)))
+   ((on-mousedrag mx my)
+    (cond (mouse-drag
+           (set-car! mouse-drag mx)
+           (set-cdr! mouse-drag my)))
+    ((wnd 'update)))
+   ((on-paint g rx ry rw rh)
+    (let ((pos-1 #f) 
+          (pos-2 #f))
+      (cond 
+       ((and mouse-down mouse-drag)
+        (for-each-charpos 
+         g (lambda (char pos pixel-x pixel-y
+                    char-pixel-width char-pixel-height 
+                    line column)
+             (cond ((point-in-range? 
+                     mouse-down pixel-x pixel-y
+                     char-pixel-width char-pixel-height)
+                    (assert (not pos-1))
+                    (set! pos-1 pos)))
+             (cond ((point-in-range? 
+                     mouse-drag pixel-x pixel-y
+                     char-pixel-width char-pixel-height)
+                    (assert (not pos-2))
+                    (set! pos-2 pos))))))
+       ((and mouse-down mouse-up)
+        (for-each-charpos 
+         g (lambda (char pos pixel-x pixel-y
+                    char-pixel-width char-pixel-height 
+                    line column)
+             (cond ((point-in-range? 
+                     mouse-down pixel-x pixel-y
+                     char-pixel-width char-pixel-height)
+                    (assert (not pos-1))
+                    (set! pos-1 pos)))
+             (cond ((point-in-range? 
+                     mouse-up   pixel-x pixel-y
+                     char-pixel-width char-pixel-height)
+                    (assert (not pos-2))
+                    (set! pos-2 pos)))))))
+      (cond ((and pos-1 pos-2)
+             (set! selection-start-pos (min pos-1 pos-2))
+             (set! selection-finis-pos (max pos-1 pos-2)))))
+                                  
+    (for-each-charpos 
+     g (lambda (char pos x y w h line column)
+         (cond
+          ((<= selection-start-pos pos selection-finis-pos)
+           ((g 'fill-rect) col x y (+ x w) (+ y h))
+           ((g 'draw-text) (string char) fnt x y (invert-col col)))
+          (else
+           ((g 'draw-text) (string char) fnt x y col))))))))
+
 (define (make-code-editor-agent wnd width height)
   ;; XXX don't spend too much time writing code oriented around this
   ;; representation of the text contents; we would be better off
