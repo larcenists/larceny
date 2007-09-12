@@ -41,6 +41,10 @@
            ((member '(arch-name . "CLR") (system-features))
             (instrument-accumulating-time! ap 'asm:link-lop-segment/clr link-lop-segment/clr)
             (list compile assemble))
+           ((member '(arch-name . "SPARC") (system-features))
+            (let* ((assemble (find-subprocedure 'assemble compile-file))
+                   (compile  (find-subprocedure 'compile  compile-file)))
+              (list compile assemble)))
            (else
             (error 'twobit-pass-times ": unknown arch-name " 
                    (assq 'arch-name (system-features))))))
