@@ -57,7 +57,185 @@
 ;; Returns the suggested amount that that the cursor should be 
 ;; indented by if we were to start a new line now.
 (define (suggest-indentation p)
-  ...)
+  (define (found-end-of-sexp suggest-indent keyword-sym)
+    ;; At this point, the port is at the paren associated with
+    ;; keyword-sym.  
+    ;; Count chars between the paren and the start of the line (or eof)
+    ;;
+    ;; (suggest-indent is a fallback if keyword-sym is not associated
+    ;; with any particular indentation level).
+
+    (let ((remaining-indent
+           (do ((i 0 (+ i 1))
+                (c (read-char p) (read-char p)))
+               ((or (eof-object? c)
+                    (char=? c #\newline))
+                i))))
+      ;; XXX
+      (list remaining-indent 
+            suggest-indent 
+            keyword-sym)))
+  
+  (let loop (;; A StateInfo is a (list Symbol Depth FormCount [Listof Char])
+             (curr-state  (list 'start 0 0 '()))
+             (indent-on-line-so-far 0)
+             (first-line-indent #f)
+             (line-state  (list 'start 0 0 '())))
+
+    (define (peek-depth)     (cadr curr-state))
+    (define (peek-id-chars)  (cadddr curr-state))
+    (define (peek-symbol)
+      (if (null? (peek-id-chars))
+          #f
+          (string->symbol (list->string (reverse (peek-id-chars))))))
+
+    (define (change-state sym state-info)
+      (list sym (cadr state-info) (caddr state-info) (cadddr state-info)))
+    (define (deepen-state sym state-info)
+      (list sym (+ (cadr state-info) 1) (caddr state-info) (cadddr state-info)))
+    (define (shallow-state sym state-info)
+      (list sym (- (cadr state-info) 1) (caddr state-info) (cadddr state-info)))
+    (define (addchar-state sym state-info char)
+      (list sym 
+            (cadr state-info) 
+            (caddr state-info) 
+            (cons char (cadddr state-info))))
+    (define (freshid-state sym state-info char)
+      (list sym (cadr state-info) (caddr state-info) (list char)))
+
+    (define (next-state state new-indent-for-line)
+      (loop state new-indent-for-line first-line-indent line-state))
+
+    (define (next-white next-sym)
+      (next-state (change-state next-sym curr-state) 
+                  (+ indent-on-line-so-far 1)))
+    (define (next-with-char next-sym char)
+      (next-state (addchar-state next-sym curr-state char) 
+                  0))
+    (define (next-new-id next-sym char)
+      (next-state (freshid-state next-sym curr-state char)
+                  0))
+
+    (define (push-sexp next-sym)
+      (next-state (deepen-state next-sym curr-state) 
+                  0))
+    (define (pop-sexp  next-sym)
+      (next-state (shallow-state next-sym curr-state)
+                  0))
+
+    (define (reset-line)
+      (loop line-state 0 first-line-indent line-state))
+    (define (newer-line next-sym)
+      (loop (change-state next-sym curr-state) 
+            0
+            (suggest-indent)
+            curr-state))
+
+    (define (suggest-indent)
+      (if first-line-indent 
+          first-line-indent 
+          indent-on-line-so-far))
+    
+    (let-syntax ((dispatch
+                  (syntax-rules (whitespace else)
+                    ((_ c elems ...)
+                     (_ "BUILD" () #f #f c elems ...))
+                    ((_ "BUILD" CS #f ES c (whitespace ws-exp) elems ...)
+                     (_ "BUILD" CS (whitespace ws-exp) ES c elems ...))
+                    ((_ "BUILD" CS WS #f c (else else-exp))
+                     (_ "GENER" CS WS (else else-exp) c))
+                    ((_ "BUILD" CS WS ES c clause elems ...)
+                     (_ "BUILD" (clause . CS) WS ES c elems ...))
+                    ((_ "GENER" 
+                        ((char char-exp) ...)
+                        (whitespace ws-exp)
+                        (else else-exp) 
+                        c)
+                     (cond
+                      ((char=? c char) char-exp)
+                      ...
+                      ((char-whitespace? c) ws-esp)
+                      (else else-exp)))
+                    )))
+      (let ((c (read-char p)))
+        (cond 
+         ((eof-object? c)      (suggest-indent))
+         (else
+          (case (car curr-state)
+            ((start)   
+             (dispatch c 
+                       (#\(    (if (zero? (peek-depth))
+                                   (found-end-of-sexp (suggest-indent)
+                                                      (peek-symbol))))
+                       (#\)        (pop-sexp    'start))
+                       (#\)        (push-sexp   'start))
+                       (#\"        (next-new-id 'mbstr c))
+                       (#\\        (next-new-id 'id-bs c))
+                       (#\;        (reset-line))
+                       (#\newline  (newer-line  'start))
+                       (whitespace (next-white  'start))
+                       (else       (next-new-id 'id c))))
+            ((id)      
+             (dispatch c 
+                       (#\(    (if (zero? (peek-depth))
+                                   (found-end-of-sexp (suggest-indent)
+                                                      (peek-symbol))
+                                   (pop-sexp    'start)))
+                       (#\)        (push-sexp   'start))
+                       (#\"        (next-new-id 'mbstr c))
+                       (#\\        (next-new-id 'id-bs c))
+                       (#\;        (reset-line))
+                       (#\newline  (newer-line  'start))
+                       (whitespace (next-white  'start))
+                       (else       (next-with-char 'id c))))
+            ((mbstr)
+             (dispatch c
+                       (#\\        (next-with-char 'mbid c))
+                       (#\"        (next-with-char 'mbstrend c))
+                       (else       (next-with-char 'str c))))
+            ((mbid)      
+             (dispatch c 
+                       (#\(    (if (zero? (peek-depth))
+                                   (found-end-of-sexp (suggest-indent)
+                                                      (peek-symbol))
+                                   (pop-sexp    'start)))
+                       (#\)        (push-sexp   'start))
+                       (#\"        (next-new-id 'mbstr c))
+                       (#\\        (next-with-char 'mbstr c))
+                       (#\;        (reset-line))
+                       (#\newline  (newer-line  'start))
+                       (whitespace (next-white  'start))
+                       (else       (next-with-char 'id c))))
+            ((str)     
+             (dispatch c 
+                       (#\"       (next-with-char 'mbstrend c))
+                       (else      (next-with-char 'str c))))
+            ((mbstrend)
+             (dispatch c 
+                       (#\(    (if (zero? (peek-depth))
+                                   (found-end-of-sexp (suggest-indent)
+                                                      (peek-symbol))
+                                   (pop-sexp    'start)))
+                       (#\)        (push-sexp   'start))
+                       (#\"        (next-new-id 'mbstr c))
+                       (#\\        (next-with-char 'mbstr c))
+                       (#\;        (reset-line))
+                       (#\newline  (newer-line  'start))
+                       (whitespace (next-white  'start))
+                       (else       (next-with-char 'id c))))
+            ((id-bs)   
+             (dispatch c
+                       (#\(    (if (zero? (peek-depth))
+                                   (found-end-of-sexp (suggest-indent)
+                                                      (peek-symbol))
+                                   (pop-sexp    'start)))
+                       (#\)        (push-sexp   'start))
+                       (#\"        (next-new-id 'mbstr c))
+                       (#\\        (next-with-char 'id c))
+                       (#\;        (reset-line))
+                       (#\newline  (newer-line  'start))
+                       (whitespace (next-white  'start))
+                       (else       (next-with-char 'id c)))))))))))
 
 ;; Used to define test cases below
 (define (reversed-string->input-port s)
