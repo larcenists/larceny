@@ -165,7 +165,7 @@
             )))
       (let ((c (read-char p)))
         (cond 
-         ((eof-object? c)      (suggest-indent))
+         ((eof-object? c)      0)
          (else
           (case (car curr-state)
             ((start)   
