@@ -3,8 +3,8 @@
 
 ;; Table mapping keywords to indentation-suggestors.
 
-;; An IndentationSuggestor is a fcn (Nat -> [Oneof Nat #f])
-;; An IndentationTable is a fcn (Symbol -> IndentationSuggestor)
+;; An IndentSuggest is a fcn (Nat -> [Oneof `(prev ,Nat) Nat 'prev-subform #f])
+;; An IndentationTable is a fcn (Symbol -> IndentSuggest)
 
 ;; interpretation: 
 ;; Let table be an IndentationTable
@@ -27,7 +27,7 @@
 ;; combination (sym form ...) is the first form on a new line, then
 ;; the suggested indentation of the i'th s-exp is to line up with the
 ;; first form of the combination on the preceding line (*excluding*
-;; sym).  It is an error for an IndentationSuggestor to return
+;; sym).  It is an error for an IndentSuggest to return
 ;; 'prev-subform for i < 2.
 ;; 
 ;; Note that (prev 1) or prev-subform is probably the right thing in
@@ -51,6 +51,41 @@
 ;; ((table 'do) 2) => 3
 ;; ((table 'do) i) => prev-subform                [ forall i > 2 ]
 
+(define *indentation-table-data* (lambda (x) (lambda (form) #f)))
+
+(define (install-indentation-table-entry! keyword suggest)
+  (let* ((table *indentation-table-data*)
+         (table* (lambda (x) (if (eq? x keyword) suggest (table x)))))
+    (set! *indentation-table-data* table*)))
+
+(install-indentation-table-entry! 'define
+                                  (lambda (i) '(prev 1)))
+(install-indentation-table-entry! 'lambda 
+                                  (lambda (i) (case i
+                                                ((1) 3)
+                                                ((2) 1)
+                                                (else 'prev-subform))))
+
+;; lookup-indentation : Symbol Nat Nat [Maybe Nat] Nat -> Nat
+(define (lookup-indentation keyword
+                            form-indent
+                            first-subform-indent
+                            prev-line-indent 
+                            subform-num)
+  (let* ((suggestor (*indentation-table-data* keyword))
+         (suggestion (suggestor subform-num)))
+    (cond
+     ((number? suggestion) (+ form-indent suggestion))
+     ((pair? suggestion) (if prev-line-indent
+                             prev-line-indent
+                             (+ form-indent (cadr suggestion))))
+     ((eq? suggestion 'prev-subform) (if prev-line-indent
+                                         prev-line-indent
+                                         first-subform-indent))
+     ((not suggestion) (or prev-line-indent form-indent))
+     (else 
+      (error 'lookup-indentation ": unexpected suggestion" suggestion)))))
+
 ;; suggest-indentation : Port -> Nat
 ;; Assumes that p feeds characters from the text starting from the
 ;; cursor and working backwards.
@@ -60,7 +95,8 @@
 ;; KNOWN LIMITATIONS (by design)
 ;; * Multiline string literals are not handled properly in all cases
 (define (suggest-indentation p)
-  (define (found-end-of-sexp suggest-indent keyword-sym)
+  ;; found-end-of-sexp : [Maybe Nat] Symbol Nat -> Nat
+  (define (found-end-of-sexp suggest-indent keyword-sym subform-num)
     ;; At this point, the port is at the paren associated with
     ;; keyword-sym.  
     ;; Count chars between the paren and the start of the line (or eof)
@@ -68,16 +104,22 @@
     ;; (suggest-indent is a fallback if keyword-sym is not associated
     ;; with any particular indentation level).
 
-    (let ((remaining-indent
-           (do ((i 0 (+ i 1))
-                (c (read-char p) (read-char p)))
-               ((or (eof-object? c)
-                    (char=? c #\newline))
-                i))))
-      ;; XXX
-      (list remaining-indent 
-            suggest-indent 
-            keyword-sym)))
+    (let* ((remaining-indent
+            (do ((i 1 (+ i 1))
+                 (c (read-char p) (read-char p)))
+                ((or (eof-object? c)
+                     (char=? c #\newline))
+                 i)))
+           (suggestion (lookup-indentation 
+                        keyword-sym
+                        remaining-indent
+                        (+ remaining-indent ;; XXX bogus but close
+                           1 
+                           (string-length (symbol->string keyword-sym)))
+                        suggest-indent
+                        subform-num
+                        )))
+      suggestion))
   
   (let loop (;; A StateInfo is a (list Symbol Depth FormCount [Listof Char])
              (curr-state  (list 'start 0 0 '()))
@@ -87,6 +129,7 @@
 
     (define (peek-depth)     (cadr curr-state))
     (define (peek-id-chars)  (cadddr curr-state))
+    (define (peek-form-count) (caddr curr-state))
     (define (peek-symbol)
       (if (null? (peek-id-chars))
           #f
@@ -131,13 +174,11 @@
     (define (newer-line next-sym)
       (loop (change-state next-sym curr-state) 
             0
-            (suggest-indent)
+            (if first-line-indent first-line-indent indent-on-line-so-far)
             curr-state))
 
     (define (suggest-indent)
-      (if first-line-indent 
-          first-line-indent 
-          indent-on-line-so-far))
+      first-line-indent)
     
     (letrec-syntax 
         ((dispatch
@@ -172,7 +213,8 @@
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp (suggest-indent)
-                                                      (peek-symbol))))
+                                                      (peek-symbol)
+                                                      (peek-form-count))))
                        (#\)        (pop-sexp    'start))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
@@ -185,7 +227,8 @@
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp (suggest-indent)
-                                                      (peek-symbol))
+                                                      (peek-symbol)
+                                                      (peek-form-count))
                                    (pop-sexp    'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
@@ -203,7 +246,8 @@
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp (suggest-indent)
-                                                      (peek-symbol))
+                                                      (peek-symbol)
+                                                      (peek-form-count))
                                    (pop-sexp    'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
@@ -220,7 +264,8 @@
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp (suggest-indent)
-                                                      (peek-symbol))
+                                                      (peek-symbol)
+                                                      (peek-form-count))
                                    (pop-sexp    'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
@@ -233,7 +278,8 @@
              (dispatch c
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp (suggest-indent)
-                                                      (peek-symbol))
+                                                      (peek-symbol)
+                                                      (peek-form-count))
                                    (pop-sexp    'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
