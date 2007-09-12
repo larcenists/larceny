@@ -213,7 +213,7 @@
             (inv ((col 'green)))
             (inv ((col 'blue)))))
 
-(define (make-editor-agent wnd width height)
+(define (make-textview-agent wnd width height)
   ;; Invariant: mytext must always end with a #\newline character.
   (define mytext "\n") ;; revist when we add IMG objects.
   (define selection 0) ;; [Oneof Nat (cons Nat Nat)]
@@ -386,29 +386,21 @@
            (values (car selection) (cdr selection)))))
    ((set-selection! start-pos-incl end-pos-excl)
     (set! selection (cons start-pos-incl end-pos-excl)))
-   ((on-keydown sym mods) 
-    (delegate 'on-keydown sym mods)
-    ((wnd 'update)))
-   ((on-keyup   sym mods) 
-    (or (delegate 'on-keyup   sym mods)
-        (case sym
-          ((enter)       (insert-char-at-point! #\newline))
-          ((left)        (cursor-left!))
-          ((right)       (cursor-right!))
-          ((up)          (cursor-up!))
-          ((down)        (cursor-down!))
-          ((back delete) (delete-char-at-point!))))
-    ((wnd 'update)))
-   ((on-keypress char)
-    (or (delegate 'on-keypress char)
-        (case char
-          ((#\backspace #\return #\esc #\tab) 'do-nothing)
-          (else 
-           (insert-char-at-point! char))))
-    ((wnd 'update)))
+
+   ((cursor-left!)               (cursor-left!)               ((wnd 'update)))
+   ((cursor-right!)              (cursor-right!)              ((wnd 'update)))
+   ((cursor-up!)                 (cursor-up!)                 ((wnd 'update)))
+   ((cursor-down!)               (cursor-down!)               ((wnd 'update)))
+   ((insert-char-at-point! char) (insert-char-at-point! char) ((wnd 'update)))
+   ((delete-char-at-point!)      (delete-char-at-point!)      ((wnd 'update)))
+
+   ((on-keydown sym mods)  (delegate 'on-keydown sym mods))
+   ((on-keyup   sym mods)  (delegate 'on-keyup   sym mods))
+   ((on-keypress char)     (delegate 'on-keypress char))
    ((on-resize)            (delegate 'on-resize))
    ((horizontal-scrollbar) (delegate 'horizontal-scrollbar))
    ((vertical-scrollbar)   (delegate 'vertical-scrollbar))
+
    ((on-mousedown mx my)
     (set! mouse-down (cons mx my))
     (set! mouse-drag (cons mx my))
@@ -487,12 +479,32 @@
    ((set-backing-agent! agent) (set! backing-agent agent))
    ))
 
+(define (make-simplest-backing-agent wnd editor-agent)
+  (msg-handler 
+   ((on-keyup   sym mods)
+    (case sym
+      ((enter)       ((editor-agent 'insert-char-at-point!) #\newline))
+      ((left)        ((editor-agent 'cursor-left!)))
+      ((right)       ((editor-agent 'cursor-right!)))
+      ((up)          ((editor-agent 'cursor-up!)))
+      ((down)        ((editor-agent 'cursor-down!)))
+      ((back delete) ((editor-agent 'delete-char-at-point!)))))
+   ((on-keypress char)
+    (case char
+      ((#\backspace #\return #\esc #\tab) 'do-nothing)
+      (else 
+       ((editor-agent 'insert-char-at-point!) char))))))
+      
+
 (define (editor-agent-maker make-backing-agent)
   (lambda (wnd width height)
-    (let* ((editor-agent (make-editor-agent wnd width height))
-           (backing-agent (make-backing-agent wnd editor-agent)))
-      ((editor-agent 'set-backing-agent!) backing-agent)
-      editor-agent)))
+    (let* ((textview-agent (make-textview-agent wnd width height))
+           (backing-agent (make-backing-agent wnd textview-agent)))
+      ((textview-agent 'set-backing-agent!) backing-agent)
+      textview-agent)))
+
+(define (make-editor-agent wnd width height)
+  ((editor-agent-maker make-simplest-backing-agent) wnd width height))
 
 (define (make-code-editor-agent wnd width height)
   ;; XXX don't spend too much time writing code oriented around this
