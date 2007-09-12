@@ -90,7 +90,7 @@
     (define (peek-symbol)
       (if (null? (peek-id-chars))
           #f
-          (string->symbol (list->string (reverse (peek-id-chars))))))
+          (string->symbol (list->string (peek-id-chars)))))
 
     (define (change-state sym state-info)
       (list sym (cadr state-info) (caddr state-info) (cadddr state-info)))
