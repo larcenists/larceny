@@ -282,9 +282,13 @@
   (define (selection-finis-pos)
     (cond ((number? selection) (+ selection 1))
           (else (cdr selection))))
-  (define (point-in-range? pt x y w h)
-    (and (<= x (car pt) (+ x w))
-         (<= y (cdr pt) (+ y h))))
+  (define (point-in-range? char pt x y w h)
+    ;; #\newline has indefinite right extent
+    (or (and (char=? #\newline char)
+             (<= x (car pt))
+             (<= y (cdr pt) (+ y h)))
+        (and (<= x (car pt) (+ x w))
+             (<= y (cdr pt) (+ y h)))))
 
   ;; A CharPosHandler is a  (Char Pos X Y Width Height LineNo ColNo -> void)
 
@@ -429,29 +433,30 @@
                     char-pixel-width char-pixel-height 
                     line column)
              (cond ((point-in-range? 
+                     char 
                      mouse-down pixel-x pixel-y
                      char-pixel-width char-pixel-height)
-                    (assert (not pos-1))
                     (set! pos-1 pos)))
              (cond ((point-in-range? 
+                     char 
                      mouse-drag pixel-x pixel-y
                      char-pixel-width char-pixel-height)
-                    (assert (not pos-2))
-                    (set! pos-2 pos))))))
+                    (set! pos-2 pos)))
+             )))
        ((and mouse-down mouse-up)
         (for-each-charpos 
          g (lambda (char pos pixel-x pixel-y
                     char-pixel-width char-pixel-height 
                     line column)
              (cond ((point-in-range? 
+                     char 
                      mouse-down pixel-x pixel-y
                      char-pixel-width char-pixel-height)
-                    (assert (not pos-1))
                     (set! pos-1 pos)))
              (cond ((point-in-range? 
+                     char 
                      mouse-up   pixel-x pixel-y
                      char-pixel-width char-pixel-height)
-                    (assert (not pos-2))
                     (set! pos-2 pos)))))
         (set! mouse-down #f)
         (set! mouse-up #f)))
