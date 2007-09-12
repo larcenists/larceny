@@ -352,21 +352,15 @@
           (else 
            (insert-char-at-point! char))))
     ((wnd 'update)))
-   ((on-resize) 
-    (set! width ((wnd 'width)))
-    (set! height ((wnd 'height))))
-   ((horizontal-scrollbar) #f) ; XXX
-   ((vertical-scrollbar)   #f) ; XXX
+   ((on-resize)            (delegate 'on-resize))
+   ((horizontal-scrollbar) (delegate 'horizontal-scrollbar))
+   ((vertical-scrollbar)   (delegate 'vertical-scrollbar))
    ((on-mousedown mx my)
-    (begin (display `(mousedown (mx: ,mx) (my: ,my)))
-           (newline))
     (set! mouse-down (cons mx my))
     (set! mouse-drag (cons mx my))
     (set! mouse-up #f)
     ((wnd 'update)))
    ((on-mouseup mx my)
-    (begin (display `(mouseup (mx: ,mx) (my: ,my)))
-           (newline))
     (set! mouse-drag #f)
     (set! mouse-up (cons mx my))
     ((wnd 'update)))
@@ -441,7 +435,7 @@
 (define (editor-agent-maker make-backing-agent)
   (lambda (wnd width height)
     (let* ((editor-agent (make-editor-agent wnd width height))
-           (backing-agent (make-backing-agent editor-agent)))
+           (backing-agent (make-backing-agent wnd editor-agent)))
       ((editor-agent 'set-backing-agent!) backing-agent)
       editor-agent)))
 
