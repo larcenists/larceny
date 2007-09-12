@@ -56,6 +56,9 @@
 ;; cursor and working backwards.
 ;; Returns the suggested amount that that the cursor should be 
 ;; indented by if we were to start a new line now.
+;;
+;; KNOWN LIMITATIONS (by design)
+;; * Multiline string literals are not handled properly in all cases
 (define (suggest-indentation p)
   (define (found-end-of-sexp suggest-indent keyword-sym)
     ;; At this point, the port is at the paren associated with
@@ -267,3 +270,14 @@
 (test "((foo)"                      1)
 (test "(((foo (baz (bing))"         7)
 (test "(((foo (baz (bing)))"        2)
+
+;;; TEST TODO: 
+;;; ----------
+;;; [ ] cond special form
+;;; [ ] if special form
+;;; [ ] case special form
+;;; [ ] do special form
+;;; [ ] semicolon comments
+;;; [ ] hashpipe comments
+;;; [ ] hashsemicolon comments
+
