@@ -249,7 +249,7 @@
       (let* ((start-of-target-line 
               (case dir
                 ((backward)
-                 (do ((idx (- start-of-line-idx 2) (- idx 1)))
+                 (do ((idx (max -1 (- start-of-line-idx 2)) (- idx 1)))
                      ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
                       (+ idx 1))))
                 ((forward)
