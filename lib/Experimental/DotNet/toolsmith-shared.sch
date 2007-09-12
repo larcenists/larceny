@@ -216,6 +216,7 @@
 (define (make-editor-agent wnd width height)
   (define mytext "\n") ;; revist when we add IMG objects.
   (define selection 0) ;; [Oneof Nat (cons Nat Nat)]
+  (define preferred-cursor-col #f) ;; used when moving cursor up and down
   (define mouse-down #f)
   (define mouse-up #f)
   (define mouse-drag #f)
@@ -225,15 +226,48 @@
   (define col (name->col (string->symbol "Black")))
   (define backing-agent #f)
   (define (cursor-left!)
+    (set! preferred-cursor-col #f)
     (cond ((number? selection) 
            (set! selection (max 0 (- selection 1))))
           (else
            (set! selection (car selection)))))
   (define (cursor-right!)
+    (set! preferred-cursor-col #f)
     (cond ((number? selection) 
            (set! selection (min (string-length mytext) (+ selection 1))))
           (else 
            (set! selection (cdr selection)))))
+  (define (cursor-vertical! dir)
+    (define pos (cond ((number? selection) selection)
+                      (else (car selection))))
+    (let ((start-of-line-idx
+           (do ((idx (- pos 1) (- idx 1)))
+               ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
+                (+ idx 1)))))
+      (cond ((not preferred-cursor-col)
+             (set! preferred-cursor-col (- pos start-of-line-idx))))
+      (let* ((start-of-target-line 
+              (case dir
+                ((backward)
+                 (do ((idx (- start-of-line-idx 2) (- idx 1)))
+                     ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
+                      (+ idx 1))))
+                ((forward)
+                 (do ((idx pos (+ idx 1)))
+                     ((or (>= idx (string-length mytext))
+                          (char=? #\newline (string-ref mytext idx)))
+                      (+ idx 1))))))
+             (target-idx
+              (do ((idx start-of-target-line (+ idx 1))
+                   (col preferred-cursor-col (- col 1)))
+                  ((or (= col 0) 
+                       (char=? #\newline (string-ref mytext idx)))
+                   idx))))
+        (set! selection target-idx))))
+  (define (cursor-up!)
+    (cursor-vertical! 'backward))
+  (define (cursor-down!)
+    (cursor-vertical! 'forward))
   (define (selection-start-pos)
     (cond ((number? selection) selection)
           (else (car selection))))
@@ -295,6 +329,7 @@
   
   (define (insert-char-at-point! char)
     (define len (string-length mytext))
+    (set! preferred-cursor-col #f)
     (call-with-values 
         (lambda () (cond ((number? selection) 
                           (values (substring mytext 0 selection)
@@ -310,6 +345,7 @@
 
   (define (delete-char-at-point!)
     (define len (string-length mytext))
+    (set! preferred-cursor-col #f)
     (call-with-values 
         (lambda () (cond ((number? selection) 
                           (let ((pos (max 0 (- selection 1))))
@@ -343,6 +379,8 @@
           ((enter)       (insert-char-at-point! #\newline))
           ((left)        (cursor-left!))
           ((right)       (cursor-right!))
+          ((up)          (cursor-up!))
+          ((down)        (cursor-down!))
           ((back delete) (delete-char-at-point!))))
     ((wnd 'update)))
    ((on-keypress char)
