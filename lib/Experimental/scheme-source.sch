@@ -139,27 +139,30 @@
           first-line-indent 
           indent-on-line-so-far))
     
-    (let-syntax ((dispatch
-                  (syntax-rules (whitespace else)
-                    ((_ c elems ...)
-                     (_ "BUILD" () #f #f c elems ...))
-                    ((_ "BUILD" CS #f ES c (whitespace ws-exp) elems ...)
-                     (_ "BUILD" CS (whitespace ws-exp) ES c elems ...))
-                    ((_ "BUILD" CS WS #f c (else else-exp))
-                     (_ "GENER" CS WS (else else-exp) c))
-                    ((_ "BUILD" CS WS ES c clause elems ...)
-                     (_ "BUILD" (clause . CS) WS ES c elems ...))
-                    ((_ "GENER" 
-                        ((char char-exp) ...)
-                        (whitespace ws-exp)
-                        (else else-exp) 
-                        c)
-                     (cond
-                      ((char=? c char) char-exp)
-                      ...
-                      ((char-whitespace? c) ws-esp)
-                      (else else-exp)))
-                    )))
+    (letrec-syntax 
+        ((dispatch
+          (syntax-rules (whitespace else)
+            ((_        "BUILD"       CS #f ES c (whitespace ws-exp) elems ...)
+             (dispatch "BUILD"       CS (whitespace ws-exp) ES c elems ...))
+            ((_        "BUILD"       CS WS #f c (else else-exp))
+             (dispatch "GENER"       CS WS (else else-exp) c))
+            ((_        "BUILD" (CZ ...) WS ES c clause elems ...)
+             (dispatch "BUILD" (CZ ... clause) WS ES c elems ...))
+            ((_ "GENER" 
+                ((char char-exp) ...)
+                (whitespace ws-exp)
+                (else else-exp) 
+                c)
+             (cond
+              ((char=? c char) char-exp)
+              ...
+              ((char-whitespace? c) ws-exp)
+              (else else-exp)))
+            ((_ "BUILD" args ...) (error 'dispatch-form '(args ...)))
+            ((_ "GENER" args ...) (error 'dispatch-form '(args ...)))
+            ((_ c elems ...) ;; standard entry point
+             (dispatch "BUILD" () #f #f c elems ...))
+            )))
       (let ((c (read-char p)))
         (cond 
          ((eof-object? c)      (suggest-indent))
@@ -244,8 +247,18 @@
 (define (reversed-string->input-port s)
   (open-input-string (list->string (reverse (string->list s)))))
 (define (test input output)
-  (equal? (suggest-indentation (reversed-string->input-port input)) 
-          output))
+  (cond
+   ((equal? (suggest-indentation (reversed-string->input-port input)) 
+            output)
+    'test-passed)
+   (else
+    (display "test failure: ") 
+    (write input)
+    (display " should be ")
+    (write output)
+    (newline)
+    )))
+
 ;; Examples:
 (test "some-symbol"                 0)
 (test "  some-symbol"               0)
