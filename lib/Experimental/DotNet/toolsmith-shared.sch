@@ -214,6 +214,7 @@
             (inv ((col 'blue)))))
 
 (define (make-editor-agent wnd width height)
+  ;; Invariant: mytext must always end with a #\newline character.
   (define mytext "\n") ;; revist when we add IMG objects.
   (define selection 0) ;; [Oneof Nat (cons Nat Nat)]
   (define preferred-cursor-col #f) ;; used when moving cursor up and down
@@ -253,10 +254,17 @@
                      ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
                       (+ idx 1))))
                 ((forward)
-                 (do ((idx pos (+ idx 1)))
-                     ((or (>= idx (string-length mytext))
-                          (char=? #\newline (string-ref mytext idx)))
-                      (+ idx 1))))))
+                 (let loop ((idx (+ pos 1)))
+                   (cond 
+                    ((>= idx (string-length mytext))
+                     ;; We reached the end of mytext without passing over
+                     ;; a newline; therefore pos is on the final line.
+                     ;; To preserve no-op semantics, return start of that line
+                     start-of-line-idx)
+                    ((char=? #\newline (string-ref mytext (- idx 1)))
+                     idx)
+                    (else
+                     (loop (+ idx 1))))))))
              (target-idx
               (do ((idx start-of-target-line (+ idx 1))
                    (col preferred-cursor-col (- col 1)))
@@ -362,7 +370,11 @@
   
   (msg-handler
    ((textstring) mytext)
-   ((set-textstring! string) (set! mytext string))
+   ((set-textstring! string) 
+    (cond ((char=? #\newline (string-ref string (- (string-length string) 1)))
+           (set! mytext string))
+          (else
+           (set! mytext (string-append string "\n")))))
    ((selection) 
     (cond ((number? selection)
            (values selection selection))
