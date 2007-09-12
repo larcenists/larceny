@@ -247,17 +247,16 @@
 (define (reversed-string->input-port s)
   (open-input-string (list->string (reverse (string->list s)))))
 (define (test input output)
-  (cond
-   ((equal? (suggest-indentation (reversed-string->input-port input)) 
-            output)
-    'test-passed)
-   (else
-    (display "test failure: ") 
-    (write input)
-    (display " should be ")
-    (write output)
-    (newline)
-    )))
+  (let ((result (suggest-indentation (reversed-string->input-port input))))
+    (cond
+     ((equal? result output) 'test-passed)
+     (else (display "test failure: ") 
+           (write input)
+           (display " should be ")
+           (write output)
+           (display " not ")
+           (write result)
+           (newline)))))
 
 ;; Examples:
 (test "some-symbol"                 0)
