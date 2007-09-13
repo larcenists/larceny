@@ -108,9 +108,9 @@
           (apply lookup-indentation vals)))))
 
 (define (gather-indentation-data-from-port p)
-  ;; found-end-of-sexp : [Maybe Nat] String Nat -> Nat
+  ;; found-end-of-sexp : [Maybe FormInfo] String Nat [Maybe FormInfo] -> Nat
   (define (found-end-of-sexp last-line-forminfo keyword subform-num 
-                             next-form-indent)
+                             next-forminfo)
     ;; At this point, the port is at the paren associated with
     ;; keyword.  
     ;; Count chars between the paren and the start of the line (or eof)
@@ -125,7 +125,7 @@
                     (char=? c #\newline))
                 i))))
       (values (list keyword remaining-indent)
-              next-form-indent
+              next-forminfo
               last-line-forminfo
               subform-num)))
 
@@ -143,7 +143,7 @@
     (list-ref state-info 2))
   (define (state-chars state-info)
     (list-ref state-info 3))
-  (define (state-next-form-indent state-info)
+  (define (state-next-forminfo state-info)
     (list-ref state-info 4))
 
   (define (list-update lst idx xform)
@@ -165,7 +165,7 @@
     (list-update state-info 3 (lambda (lst) (cons char lst))))
   (define (clone-state-fresh-char char state-info)
     (list-update state-info 3 (lambda (ignore) (list char))))
-  (define (clone-state-adjust-next-form-indent adj state-info)
+  (define (clone-state-adjust-next-forminfo adj state-info)
     (list-update state-info 4 adj))
 
   (let loop ((curr-state initial-state)
@@ -197,9 +197,9 @@
                    sym
                    (clone-state-fresh-char
                     char 
-                    (clone-state-adjust-next-form-indent
+                    (clone-state-adjust-next-forminfo
                      (lambda (ign)
-                       indent-on-line-so-far)
+                       (list (peek-string) indent-on-line-so-far))
                      curr-state)))
                   zer0))
     (define (reset-line)
@@ -228,8 +228,8 @@
       (string->symbol (peek-string)))
     (define (peek-form-count)
       (state-form-count curr-state))
-    (define (peek-next-form-indent)
-      (state-next-form-indent curr-state))
+    (define (peek-next-forminfo)
+      (state-next-forminfo curr-state))
 
     (letrec-syntax 
         ((dispatch
@@ -284,7 +284,7 @@
                                    (found-end-of-sexp last-line-forminfo
                                                       (peek-string)
                                                       (peek-form-count)
-                                                      (peek-next-form-indent))
+                                                      (peek-next-forminfo))
                                    (pop-sexp 'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -299,7 +299,7 @@
                                    (found-end-of-sexp last-line-forminfo
                                                       (peek-string)
                                                       (peek-form-count)
-                                                      (peek-next-form-indent))
+                                                      (peek-next-forminfo))
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -319,7 +319,7 @@
                                    (found-end-of-sexp last-line-forminfo
                                                       (peek-string)
                                                       (peek-form-count)
-                                                      (peek-next-form-indent))
+                                                      (peek-next-forminfo))
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -338,7 +338,7 @@
                                    (found-end-of-sexp last-line-forminfo
                                                       (peek-string)
                                                       (peek-form-count)
-                                                      (peek-next-form-indent))
+                                                      (peek-next-forminfo))
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -353,7 +353,7 @@
                                    (found-end-of-sexp last-line-forminfo
                                                       (peek-string)
                                                       (peek-form-count)
-                                                      (peek-next-form-indent))
+                                                      (peek-next-forminfo))
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
