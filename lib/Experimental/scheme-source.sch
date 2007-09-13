@@ -9,9 +9,14 @@
 ;; interpretation: 
 ;; Let table be an IndentationTable
 ;;
-;; Let the j'th s-exp S_j of the combination (sym S_1 ... S_l) be the
-;; first form on a new line; let the preceding line with content be
-;; denoted P.
+;; Let the j'th s-exp S_j of the partial combination (K S_1 ... S_j 
+;; be the first form on a new line; let the preceding line with content 
+;; be denoted P.
+;; e.g., for the partial combination:
+;;        (case n            ;; K is case, n is S_1
+;;          ((0) a) ((1) b)  ;; ((0) a) is S_2
+;;          ((2) c) ((3) d)  ;; ((3) d) is S_5 = S_j
+;;                           ;; P is the previous line (including indentation)
 ;;
 ;; If ((table sym) j) => (prev k) and P starts with some S_i, then
 ;; S_j should be indented to line up with S_i.
@@ -20,7 +25,7 @@
 ;; itself (rather than some S_i) then S_j should be indented k units
 ;; past the open parenthesis in the combination.
 ;; 
-;; If ((table sym) j) => k then the S_j should be indented k units
+;; If ((table sym) j) => (comb k) then the S_j should be indented k units
 ;; past the open parenthesis in the combination.
 ;; 
 ;; If ((table sym) i) => prev-subform and if the i'th s-exp of the
@@ -72,7 +77,7 @@
                             first-subform-indent
                             prev-line-indent 
                             subform-num)
-  (let* ((suggestor (*indentation-table-data* keyword))
+  '(let* ((suggestor (*indentation-table-data* keyword))
          (suggestion (suggestor subform-num)))
     (cond
      ((number? suggestion) (+ form-indent suggestion))
@@ -84,7 +89,13 @@
                                          first-subform-indent))
      ((not suggestion) (or prev-line-indent form-indent))
      (else 
-      (error 'lookup-indentation ": unexpected suggestion" suggestion)))))
+      (error 'lookup-indentation ": unexpected suggestion" suggestion))))
+  `(lookup-indentation ,keyword 
+                       ,form-indent 
+                       ,first-subform-indent
+                       ,prev-line-indent 
+                       ,subform-num)
+  )
 
 ;; suggest-indentation : Port -> Nat
 ;; Assumes that p feeds characters from the text starting from the
@@ -205,6 +216,22 @@
              (dispatch "BUILD" () #f #f c elems ...))
             )))
       (let ((c (read-char p)))
+        
+        ;; Code to trace the behavior of the scanner.
+        (begin
+          (write c)
+          (let ((sp (open-output-string)))
+            (write c sp)
+            (display (make-string (- 10 (string-length (get-output-string sp)))
+                                  #\space)))
+          (display " ")
+          (write `(loop ,curr-state 
+                        ,indent-on-line-so-far 
+                        ,first-line-indent
+                        ,line-state))
+          (newline))
+
+
         (cond 
          ((eof-object? c)      0)
          (else
@@ -214,8 +241,8 @@
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp (suggest-indent)
                                                       (peek-symbol)
-                                                      (peek-form-count))))
-                       (#\)        (pop-sexp    'start))
+                                                      (peek-form-count))
+                                   (pop-sexp    'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-new-id 'id-bs c))
@@ -328,6 +355,24 @@
 (test "((foo)"                      1)
 (test "(((foo (baz (bing))"         7)
 (test "(((foo (baz (bing)))"        2)
+
+(define case-example-1
+"
+        (case n            ;; K is case, n is S_1
+          ((0) a) ((1) b)  ;; ((0) a) is S_2
+          ((2) c) ((3) d)  ;; ((3) d) is S_5 = S_j
+                           ;; P is the previous line (including indentation)
+")
+
+(define case-example-2
+"
+        (case    n         ;; K is case, n is S_1
+          ((0) a) ((1) b)  ;; ((0) a) is S_2
+          ((2) c) 
+            ((3) d)        ;; ((3) d) is S_5 = S_j
+                           ;; P is the previous line (including indentation)
+")
+
 
 ;;; TEST TODO: 
 ;;; ----------
