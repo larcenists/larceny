@@ -38,6 +38,22 @@
 ;; Let table be an IndentationTable
 ;; 
 
+(define (make-prev-k-suggestor k)
+  (lambda (form-count to-paren to-keyword to-first to-final)
+    (cond (to-final (car to-final))
+          (else (+ (car to-paren) k)))))
+
+(define (make-constant-suggestor k)
+  (lambda (form-count to-paren to-keyword to-first to-final)
+    (+ (car to-paren) k)))
+
+(define (make-prev-subform-suggestor k)
+  (lambda (form-count to-paren to-keyword to-first to-final)
+    (cond (to-final (car to-final))
+          (to-first (car to-first))
+          (else (+ (car to-paren) default)))))
+
+
 ;; The below are old notes when I was trying to design a "simpler"
 ;; IndentSuggest by constraining its return values. 
 ;; 
@@ -88,20 +104,34 @@
 ;; ((table 'do) 2) => 3
 ;; ((table 'do) i) => prev-subform                [ forall i > 2 ]
 
-(define *indentation-table-data* (lambda (x) (lambda (form) #f)))
+(define *indentation-table-data* 
+  (lambda (x) (lambda (n p f0 f1 fn) (car f0))))
 
 (define (install-indentation-table-entry! keyword suggest)
   (let* ((table *indentation-table-data*)
          (table* (lambda (x) (if (eq? x keyword) suggest (table x)))))
     (set! *indentation-table-data* table*)))
 
-(install-indentation-table-entry! 'define
-                                  (lambda (i) '(prev 1)))
-(install-indentation-table-entry! 'lambda 
-                                  (lambda (i) (case i
-                                                ((1) 3)
-                                                ((2) 1)
-                                                (else 'prev-subform))))
+
+(let () 
+  (define define-suggest 
+    (make-prev-k-suggestor 1))
+  ;; (trace define-suggest)
+  (install-indentation-table-entry! 'define define-suggest))
+
+
+
+(let ()
+  (define lambda-suggest
+    (lambda (form-count to-paren to-keyword to-first to-final)
+      (cond 
+       ((= form-count 1) (+ (car to-paren) 3))
+       ((= form-count 2) (+ (car to-paren) 1))
+       (to-final => car)
+       (to-first => car)
+       (else (car to-paren)))))
+  ;; (trace lambda-suggest)
+  (install-indentation-table-entry! 'lambda lambda-suggest))
 
 ;; A FormInfo is a (list String Nat Nat)
 (define (make-forminfo form-start indent line-count)
@@ -110,34 +140,36 @@
 (define forminfo-indent cadr)
 (define forminfo-line-count caddr)
 
-;; lookup-indentation : Nat [Maybe FormInfo] [Maybe FormInfo] [Maybe FormInfo] Nat -> Nat
+;; lookup-indentation : 
+;;   Posn [Maybe FormInfo] [Maybe FormInfo] [Maybe FormInfo] Nat -> Nat
 (define (lookup-indentation form-indent
                             keyword-forminfo
                             first-subform-forminfo
                             final-subform-forminfo 
                             subform-num)
+  (define (maybe-cdr x) (cond ((pair? x) (cdr x)) 
+                              ((not x) #f)
+                              (else (error 'lookup-indentation))))
   (cond 
    (keyword-forminfo
     (let* ((keyword (string->symbol (forminfo-form keyword-forminfo)))
-           (form-indent (forminfo-indent keyword-forminfo))
            (suggestor (*indentation-table-data* keyword))
-           (suggestion (suggestor subform-num)))
+           (suggestion (suggestor subform-num
+                                  form-indent
+                                  (cdr keyword-forminfo)
+                                  (maybe-cdr first-subform-forminfo)
+                                  (maybe-cdr final-subform-forminfo)
+                                  )))
       (cond
-       ((number? suggestion) (+ form-indent suggestion))
-       ((pair? suggestion) (if final-subform-forminfo
-                               final-subform-forminfo
-                               (+ form-indent (cadr suggestion))))
-       ((eq? suggestion 'prev-subform) (if final-subform-forminfo
-                                           final-subform-forminfo
-                                           first-subform-forminfo))
-       ((not suggestion) (or final-subform-forminfo form-indent))
+       ((number? suggestion) suggestion)
        (else 
-        (error 'lookup-indentation ": unexpected suggestion" suggestion)))))
+        (error 'lookup-indentation ": suggestion" 
+               suggestion " should be a (natural) number.")))))
    (final-subform-forminfo
     (forminfo-indent final-subform-forminfo))
    (else
     form-indent)))
-   
+
 ;; suggest-indentation : Port -> Nat
 ;; Assumes that p feeds characters from the text starting from the
 ;; cursor and working backwards.
@@ -169,11 +201,13 @@
                ((or (eof-object? c)
                     (char=? c #\newline))
                 i))))
-      (values remaining-indent
-              (make-forminfo 
-               (forminfo-form keyword-forminfo)
-               (+ remaining-indent (forminfo-indent keyword-forminfo))
-               (forminfo-line-count keyword-forminfo))
+      (values (list remaining-indent line-count)
+              (if (= line-count (forminfo-line-count keyword-forminfo))
+                  (make-forminfo 
+                   (forminfo-form keyword-forminfo)
+                   (+ remaining-indent (forminfo-indent keyword-forminfo))
+                   (forminfo-line-count keyword-forminfo))
+                  keyword-forminfo)
               (if next-forminfo
                   (make-forminfo
                    (forminfo-form next-forminfo)
