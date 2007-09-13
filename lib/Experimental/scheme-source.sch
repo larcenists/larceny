@@ -451,6 +451,25 @@
         c)
 ")
 
+(define define-example-7
+"
+   (define (foo x)
+     (+ a b
+        c)
+     (- a
+       b
+")
+
+(define define-example-8
+"
+   (define (foo x)
+     (+ a b
+        c)
+          (- a
+            b)
+")
+
+
 (define case-example-1
 "
         (case n            ;; K is case, n is S_1
