@@ -412,6 +412,45 @@
            (write result)
            (newline)))))
 
+(define (examine string) 
+  (display string) (newline)
+  (gather-indentation-data-from-port (reversed-string->input-port string)))
+
+(define define-example-1
+"
+   (define 
+")
+
+(define define-example-2
+"
+   (define x 
+")
+
+(define define-example-3
+"
+   (define 
+     x  
+")
+
+(define define-example-4
+"
+   (define (foo)
+")
+
+(define define-example-5
+"
+   (define (foo x)
+     (+ a b
+        c
+")
+
+(define define-example-6
+"
+   (define (foo x)
+     (+ a b
+        c)
+")
+
 (define case-example-1
 "
         (case n            ;; K is case, n is S_1
