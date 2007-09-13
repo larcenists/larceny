@@ -429,14 +429,14 @@
 (define case-example-3
 "
         (case              ;; K is case
-n                          ;; n is S_1
+ n                         ;; n is S_1
           ((0) a) ((1) b)  ;; ((0) a) is S_2
           ((2) c) 
             ((3) d)        ;; ((3) d) is S_5 = S_j
                            ;; P is the previous line (including indentation)
 ") 
 ;;  9 units to case keyword
-;;  0 units to n subform (note that we only count from start of its own line)
+;;  1 units to n subform (note that we only count from start of its own line)
 ;; 12 units to ((3) d) form (first form on last non-trivial line)
 
 ;;; TEST TODO: 
