@@ -71,13 +71,14 @@
                                                 ((2) 1)
                                                 (else 'prev-subform))))
 
-;; lookup-indentation : Symbol Nat Nat [Maybe Nat] Nat -> Nat
-(define (lookup-indentation keyword
-                            form-indent
+;; lookup-indentation : FormInfo Nat [Maybe Nat] Nat -> Nat
+(define (lookup-indentation keyword-form-indent
                             first-subform-indent
                             prev-line-indent 
                             subform-num)
-  (let* ((suggestor (*indentation-table-data* keyword))
+  (let* ((keyword (string->symbol (car keyword-form-indent)))
+         (form-indent (cadr keyword-form-indent))
+         (suggestor (*indentation-table-data* keyword))
          (suggestion (suggestor subform-num)))
     (cond
      ((number? suggestion) (+ form-indent suggestion))
@@ -107,14 +108,14 @@
           (apply lookup-indentation vals)))))
 
 (define (gather-indentation-data-from-port p)
-  ;; found-end-of-sexp : [Maybe Nat] Symbol Nat -> Nat
-  (define (found-end-of-sexp last-line-forminfo keyword-sym subform-num 
+  ;; found-end-of-sexp : [Maybe Nat] String Nat -> Nat
+  (define (found-end-of-sexp last-line-forminfo keyword subform-num 
                              next-form-indent)
     ;; At this point, the port is at the paren associated with
-    ;; keyword-sym.  
+    ;; keyword.  
     ;; Count chars between the paren and the start of the line (or eof)
     ;;
-    ;; (suggest-indent is a fallback if keyword-sym is not associated
+    ;; (suggest-indent is a fallback if keyword is not associated
     ;; with any particular indentation level).
 
     (let ((remaining-indent
@@ -123,8 +124,7 @@
                ((or (eof-object? c)
                     (char=? c #\newline))
                 i))))
-      (values keyword-sym
-              remaining-indent
+      (values (list keyword remaining-indent)
               next-form-indent
               last-line-forminfo
               subform-num)))
@@ -222,8 +222,10 @@
       (state-depth curr-state))
     (define (peek-chars)
       (state-chars curr-state))
+    (define (peek-string)
+      (list->string (state-chars curr-state)))
     (define (peek-symbol)
-      (string->symbol (list->string (state-chars curr-state))))
+      (string->symbol (peek-string)))
     (define (peek-form-count)
       (state-form-count curr-state))
     (define (peek-next-form-indent)
@@ -280,7 +282,7 @@
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp last-line-forminfo
-                                                      (peek-symbol)
+                                                      (peek-string)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
                                    (pop-sexp 'start c)))
@@ -295,7 +297,7 @@
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp last-line-forminfo
-                                                      (peek-symbol)
+                                                      (peek-string)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
                                    (pop-sexp    'start c)))
@@ -315,7 +317,7 @@
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp last-line-forminfo
-                                                      (peek-symbol)
+                                                      (peek-string)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
                                    (pop-sexp    'start c)))
@@ -334,7 +336,7 @@
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp last-line-forminfo
-                                                      (peek-symbol)
+                                                      (peek-string)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
                                    (pop-sexp    'start c)))
@@ -349,7 +351,7 @@
              (dispatch c
                        (#\(    (if (zero? (peek-depth))
                                    (found-end-of-sexp last-line-forminfo
-                                                      (peek-symbol)
+                                                      (peek-string)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
                                    (pop-sexp    'start c)))
