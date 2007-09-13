@@ -72,7 +72,8 @@
                                                 (else 'prev-subform))))
 
 ;; lookup-indentation : FormInfo Nat [Maybe Nat] Nat -> Nat
-(define (lookup-indentation keyword-form-indent
+(define (lookup-indentation form-indent
+                            keyword-form-indent
                             first-subform-indent
                             prev-line-indent 
                             subform-num)
@@ -108,8 +109,8 @@
           (apply lookup-indentation vals)))))
 
 (define (gather-indentation-data-from-port p)
-  ;; found-end-of-sexp : [Maybe FormInfo] String Nat [Maybe FormInfo] -> Nat
-  (define (found-end-of-sexp last-line-forminfo keyword subform-num 
+  ;; found-end-of-sexp : [Maybe FormInfo] FormInfo Nat [Maybe FormInfo] -> Nat
+  (define (found-end-of-sexp last-line-forminfo keyword-forminfo subform-num 
                              next-forminfo next-line-forminfo
                              line-count)
     ;; At this point, the port is at the paren associated with
@@ -125,13 +126,18 @@
                ((or (eof-object? c)
                     (char=? c #\newline))
                 i))))
-      (values (make-forminfo keyword remaining-indent line-count)
+      (values remaining-indent
+              (make-forminfo 
+               (forminfo-form keyword-forminfo)
+               (+ remaining-indent (forminfo-indent keyword-forminfo))
+               (forminfo-line-count keyword-forminfo))
               (if next-forminfo
-                  (make-forminfo (forminfo-form next-forminfo)
-                                 (+ remaining-indent 
-                                    (string-length keyword) 
-                                    (forminfo-indent next-forminfo))
-                                 (forminfo-line-count next-forminfo))
+                  (make-forminfo
+                   (forminfo-form next-forminfo)
+                   (+ remaining-indent 
+                      (string-length (forminfo-form keyword-forminfo))
+                      (forminfo-indent next-forminfo))
+                   (forminfo-line-count next-forminfo))
                   next-line-forminfo)
               last-line-forminfo
               subform-num)))
@@ -282,7 +288,9 @@
 
     (define (found-it)
       (found-end-of-sexp last-line-forminfo
-                         (peek-string)
+                         (make-forminfo (peek-string) 
+                                        indent-on-line-so-far
+                                        line-count)
                          (peek-form-count)
                          (peek-next-forminfo)
                          next-line-forminfo
