@@ -77,7 +77,7 @@
                             first-subform-indent
                             prev-line-indent 
                             subform-num)
-  '(let* ((suggestor (*indentation-table-data* keyword))
+  (let* ((suggestor (*indentation-table-data* keyword))
          (suggestion (suggestor subform-num)))
     (cond
      ((number? suggestion) (+ form-indent suggestion))
@@ -89,13 +89,7 @@
                                          first-subform-indent))
      ((not suggestion) (or prev-line-indent form-indent))
      (else 
-      (error 'lookup-indentation ": unexpected suggestion" suggestion))))
-  `(lookup-indentation ,keyword 
-                       ,form-indent 
-                       ,first-subform-indent
-                       ,prev-line-indent 
-                       ,subform-num)
-  )
+      (error 'lookup-indentation ": unexpected suggestion" suggestion)))))
 
 ;; suggest-indentation : Port -> Nat
 ;; Assumes that p feeds characters from the text starting from the
@@ -106,8 +100,16 @@
 ;; KNOWN LIMITATIONS (by design)
 ;; * Multiline string literals are not handled properly in all cases
 (define (suggest-indentation p)
+  (call-with-values (lambda () (gather-indentation-data-from-port p))
+    (lambda vals
+      (if (null? (cdr vals))
+          (car vals)
+          (apply lookup-indentation vals)))))
+
+(define (gather-indentation-data-from-port p)
   ;; found-end-of-sexp : [Maybe Nat] Symbol Nat -> Nat
-  (define (found-end-of-sexp suggest-indent keyword-sym subform-num)
+  (define (found-end-of-sexp suggest-indent keyword-sym subform-num 
+                             next-form-indent)
     ;; At this point, the port is at the paren associated with
     ;; keyword-sym.  
     ;; Count chars between the paren and the start of the line (or eof)
@@ -115,82 +117,112 @@
     ;; (suggest-indent is a fallback if keyword-sym is not associated
     ;; with any particular indentation level).
 
-    (let* ((remaining-indent
-            (do ((i 1 (+ i 1))
-                 (c (read-char p) (read-char p)))
-                ((or (eof-object? c)
-                     (char=? c #\newline))
-                 i)))
-           (suggestion (lookup-indentation 
-                        keyword-sym
-                        remaining-indent
-                        (+ remaining-indent ;; XXX bogus but close
-                           1 
-                           (string-length (symbol->string keyword-sym)))
-                        suggest-indent
-                        subform-num
-                        )))
-      suggestion))
-  
-  (let loop (;; A StateInfo is a (list Symbol Depth FormCount [Listof Char])
-             (curr-state  (list 'start 0 0 '()))
+    (let ((remaining-indent
+           (do ((i 1 (+ i 1))
+                (c (read-char p) (read-char p)))
+               ((or (eof-object? c)
+                    (char=? c #\newline))
+                i))))
+      (values keyword-sym
+              remaining-indent
+              next-form-indent
+              suggest-indent
+              subform-num)))
+
+  ;; A LineStateInfo is a 
+  ;;   (list Symbol Depth FormCount [Listof Char] NextFormIndent)
+  (define initial-state (list 'start 0 0 '() 0))
+
+  (define (state-sym state-info)
+    (list-ref state-info 0))
+  (define (state-depth state-info)
+    (list-ref state-info 1))
+  (define (state-form-count state-info)
+    (list-ref state-info 2))
+  (define (state-chars state-info)
+    (list-ref state-info 3))
+  (define (state-next-form-indent state-info)
+    (list-ref state-info 4))
+
+  (define (list-update lst idx xform)
+    (if (= idx 0)
+        (cons (xform (car lst)) (cdr lst))
+        (cons (car lst) (list-update (cdr lst) (- idx 1) xform))))
+  (define (add1 n) (+ n 1))
+  (define (sub1 n) (- n 1))
+  (define (zer0 n) 0)
+  (define (clone-state-sym sym state-info) 
+    (list-update state-info 0 (lambda (ignor) sym)))
+  (define (clone-state-incr-depth state-info)
+    (list-update state-info 1 add1))
+  (define (clone-state-decr-depth state-info)
+    (list-update state-info 1 sub1))
+  (define (clone-state-incr-form-count state-info)
+    (list-update state-info 2 add1))
+  (define (clone-state-add-char char state-info)
+    (list-update state-info 3 (lambda (lst) (cons char lst))))
+  (define (clone-state-fresh-char char state-info)
+    (list-update state-info 3 (lambda (ignore) (list char))))
+  (define (clone-state-adjust-next-form-indent adj state-info)
+    (list-update state-info 4 adj))
+
+  (let loop ((curr-state initial-state)
              (indent-on-line-so-far 0)
-             (first-line-indent #f)
-             (line-state  (list 'start 0 0 '())))
-
-    (define (peek-depth)     (cadr curr-state))
-    (define (peek-id-chars)  (cadddr curr-state))
-    (define (peek-form-count) (caddr curr-state))
-    (define (peek-symbol)
-      (if (null? (peek-id-chars))
-          #f
-          (string->symbol (list->string (peek-id-chars)))))
-
-    (define (change-state sym state-info)
-      (list sym (cadr state-info) (caddr state-info) (cadddr state-info)))
-    (define (deepen-state sym state-info)
-      (list sym (+ (cadr state-info) 1) (caddr state-info) (cadddr state-info)))
-    (define (shallow-state sym state-info)
-      (list sym (- (cadr state-info) 1) (caddr state-info) (cadddr state-info)))
-    (define (addchar-state sym state-info char)
-      (list sym 
-            (cadr state-info) 
-            (caddr state-info) 
-            (cons char (cadddr state-info))))
-    (define (freshid-state sym state-info char)
-      (list sym (cadr state-info) (caddr state-info) (list char)))
-
-    (define (next-state state new-indent-for-line)
-      (loop state new-indent-for-line first-line-indent line-state))
-
-    (define (next-white next-sym)
-      (next-state (change-state next-sym curr-state) 
-                  (+ indent-on-line-so-far 1)))
-    (define (next-with-char next-sym char)
-      (next-state (addchar-state next-sym curr-state char) 
-                  0))
-    (define (next-new-id next-sym char)
-      (next-state (freshid-state next-sym curr-state char)
-                  0))
-
-    (define (push-sexp next-sym)
-      (next-state (deepen-state next-sym curr-state) 
-                  0))
-    (define (pop-sexp  next-sym)
-      (next-state (shallow-state next-sym curr-state)
-                  0))
-
-    (define (reset-line)
-      (loop line-state 0 first-line-indent line-state))
-    (define (newer-line next-sym)
-      (loop (change-state next-sym curr-state) 
-            0
-            (if first-line-indent first-line-indent indent-on-line-so-far)
-            curr-state))
-
-    (define (suggest-indent)
-      first-line-indent)
+             (last-line-indent #f)
+             (line-state initial-state))
+    (define (next-state state adj-indent)
+      (loop state (adj-indent indent-on-line-so-far) last-line-indent line-state))
+    (define (reset-state adj-indent)
+      (loop line-state (adj-indent indent-on-line-so-far) last-line-indent line-state))
+    (define (lineend-state state adj-indent)
+      (loop state 
+            (adj-indent indent-on-line-so-far)
+            (or last-line-indent indent-on-line-so-far)
+            state))
     
+    (define (pop-sexp sym)
+      (next-state 
+       (clone-state-sym sym (clone-state-decr-depth curr-state))
+       zer0))
+    (define (push-sexp sym)
+      (next-state 
+       (clone-state-sym sym (clone-state-incr-depth curr-state))
+       zer0))
+    (define (next-new-id sym char)
+      (next-state (clone-state-sym 
+                   sym
+                   (clone-state-fresh-char
+                    char 
+                    (clone-state-adjust-next-form-indent
+                     (lambda (ign)
+                       indent-on-line-so-far)
+                     curr-state)))
+                  zer0))
+    (define (reset-line)
+      (reset-state zer0))
+    (define (newer-line sym)
+      (lineend-state (clone-state-sym sym curr-state) zer0))
+    (define (next-white sym)
+      (next-state (clone-state-sym 
+                   sym 
+                   (clone-state-incr-form-count
+                    curr-state))
+                  add1))
+    (define (next-white-again sym)
+      (next-state (clone-state-sym sym curr-state) add1))
+    (define (next-with-char sym char)
+      (next-state (clone-state-sym sym (clone-state-add-char char curr-state))
+                  zer0))
+
+    (define (peek-depth)
+      (state-depth curr-state))
+    (define (peek-symbol)
+      (string->symbol (list->string (state-chars curr-state))))
+    (define (peek-form-count)
+      (state-form-count curr-state))
+    (define (peek-next-form-indent)
+      (state-next-form-indent curr-state))
+
     (letrec-syntax 
         ((dispatch
           (syntax-rules (whitespace else)
@@ -218,7 +250,7 @@
       (let ((c (read-char p)))
         
         ;; Code to trace the behavior of the scanner.
-        (begin
+        '(begin
           (write c)
           (let ((sp (open-output-string)))
             (write c sp)
@@ -227,7 +259,7 @@
           (display " ")
           (write `(loop ,curr-state 
                         ,indent-on-line-so-far 
-                        ,first-line-indent
+                        ,last-line-indent
                         ,line-state))
           (newline))
 
@@ -239,23 +271,25 @@
             ((start)   
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp (suggest-indent)
+                                   (found-end-of-sexp last-line-indent
                                                       (peek-symbol)
-                                                      (peek-form-count))
-                                   (pop-sexp    'start)))
+                                                      (peek-form-count)
+                                                      (peek-next-form-indent))
+                                   (pop-sexp 'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-new-id 'id-bs c))
                        (#\;        (reset-line))
                        (#\newline  (newer-line  'start))
-                       (whitespace (next-white  'start))
+                       (whitespace (next-white-again  'start))
                        (else       (next-new-id 'id c))))
             ((id)      
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp (suggest-indent)
+                                   (found-end-of-sexp last-line-indent
                                                       (peek-symbol)
-                                                      (peek-form-count))
+                                                      (peek-form-count)
+                                                      (peek-next-form-indent))
                                    (pop-sexp    'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
@@ -272,9 +306,10 @@
             ((mbid)      
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp (suggest-indent)
+                                   (found-end-of-sexp last-line-indent
                                                       (peek-symbol)
-                                                      (peek-form-count))
+                                                      (peek-form-count)
+                                                      (peek-next-form-indent))
                                    (pop-sexp    'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
@@ -290,9 +325,10 @@
             ((mbstrend)
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp (suggest-indent)
+                                   (found-end-of-sexp last-line-indent
                                                       (peek-symbol)
-                                                      (peek-form-count))
+                                                      (peek-form-count)
+                                                      (peek-next-form-indent))
                                    (pop-sexp    'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
@@ -304,9 +340,10 @@
             ((id-bs)   
              (dispatch c
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp (suggest-indent)
+                                   (found-end-of-sexp last-line-indent
                                                       (peek-symbol)
-                                                      (peek-form-count))
+                                                      (peek-form-count)
+                                                      (peek-next-form-indent))
                                    (pop-sexp    'start)))
                        (#\)        (push-sexp   'start))
                        (#\"        (next-new-id 'mbstr c))
@@ -366,7 +403,17 @@
 
 (define case-example-2
 "
-        (case    n         ;; K is case, n is S_1
+     (case    n         ;; K is case, n is S_1
+       ((0) a) ((1) b)  ;; ((0) a) is S_2
+       ((2) c) 
+         ((3) d)        ;; ((3) d) is S_5 = S_j
+                        ;; P is the previous line (including indentation)
+")
+
+(define case-example-3
+"
+        (case              ;; K is case
+n                          ;; n is S_1
           ((0) a) ((1) b)  ;; ((0) a) is S_2
           ((2) c) 
             ((3) d)        ;; ((3) d) is S_5 = S_j
