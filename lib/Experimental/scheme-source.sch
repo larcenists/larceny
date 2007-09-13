@@ -400,15 +400,21 @@
           ((2) c) ((3) d)  ;; ((3) d) is S_5 = S_j
                            ;; P is the previous line (including indentation)
 ")
+;;  9 units to case keyword
+;; 14 units to n subform (9+|case|+1 = 14)
+;; 10 units to ((2) c) form (first form on last non-trival line)
 
 (define case-example-2
 "
-     (case    n         ;; K is case, n is S_1
+     (case     n        ;; K is case, n is S_1
        ((0) a) ((1) b)  ;; ((0) a) is S_2
        ((2) c) 
          ((3) d)        ;; ((3) d) is S_5 = S_j
                         ;; P is the previous line (including indentation)
 ")
+;;  6 units to case keyword
+;; 15 units to n subform (6+|case|+5 = 15)
+;;  9 units to ((3) d) form (first form on last non-trivial line)
 
 (define case-example-3
 "
@@ -418,8 +424,10 @@ n                          ;; n is S_1
           ((2) c) 
             ((3) d)        ;; ((3) d) is S_5 = S_j
                            ;; P is the previous line (including indentation)
-")
-
+") 
+;;  9 units to case keyword
+;;  0 units to n subform (note that we only count from start of its own line)
+;; 12 units to ((3) d) form (first form on last non-trivial line)
 
 ;;; TEST TODO: 
 ;;; ----------
