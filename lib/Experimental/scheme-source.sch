@@ -412,31 +412,6 @@
            (write result)
            (newline)))))
 
-;; Examples:
-(test "some-symbol"                 0)
-(test "  some-symbol"               0)
-(test "(some-symbol"                1)
-(test "(  some-symbol"              3)
-(test "(define"                     2)
-(test "(define f y"                 2)
-(test "(define    f y"              2)
-(test "(define (f y)"               2)
-(test "(define    (f y)"            2)
-(test "   (define f  "              5)
-(test "(   define"                  2)
-(test "  (   define"                4)
-(test "(lambda "                    4)
-(test "(lambda x "                  2)
-(test "  (lambda "                  6)
-(test "  (  lambda "                6)
-(test "(lambda (x) y "              8)
-(test "(lambda   (x) y "           10)
-(test "(lambda (x)\n  y "           2)
-(test "(lambda (x)\n    y "         4)
-(test "((foo)"                      1)
-(test "(((foo (baz (bing))"         7)
-(test "(((foo (baz (bing)))"        2)
-
 (define case-example-1
 "
         (case n            ;; K is case, n is S_1
@@ -472,6 +447,31 @@
 ;;  9 units to case keyword
 ;;  1 units to n subform (note that we only count from start of its own line)
 ;; 12 units to ((3) d) form (first form on last non-trivial line)
+
+;; Examples:
+(test "some-symbol"                 0)
+(test "  some-symbol"               0)
+(test "(some-symbol"                1)
+(test "(  some-symbol"              3)
+(test "(define"                     2)
+(test "(define f y"                 2)
+(test "(define    f y"              2)
+(test "(define (f y)"               2)
+(test "(define    (f y)"            2)
+(test "   (define f  "              5)
+(test "(   define"                  2)
+(test "  (   define"                4)
+(test "(lambda "                    4)
+(test "(lambda x "                  2)
+(test "  (lambda "                  6)
+(test "  (  lambda "                6)
+(test "(lambda (x) y "              8)
+(test "(lambda   (x) y "           10)
+(test "(lambda (x)\n  y "           2)
+(test "(lambda (x)\n    y "         4)
+(test "((foo)"                      1)
+(test "(((foo (baz (bing))"         7)
+(test "(((foo (baz (bing)))"        2)
 
 ;;; TEST TODO: 
 ;;; ----------
