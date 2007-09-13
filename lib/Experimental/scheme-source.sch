@@ -421,22 +421,29 @@
 "
    (define 
 ")
+;;  4 units to define keyword.  No further subforms.
 
 (define define-example-2
 "
    (define x 
 ")
+;;  4 units to define keyword.
+;; 11 units to x initial subform (4+|define|+1 = 11).  No further subforms.
 
 (define define-example-3
 "
    (define 
      x  
 ")
+;;  4 units to define keyword
+;;  5 units to x initial subform.  No further subforms.
 
 (define define-example-4
 "
    (define (foo)
 ")
+;;  4 units to define keyword.
+;; 11 units to (foo initial subform (4+|define|+1 = 11).  No further subforms.
 
 (define define-example-5
 "
@@ -444,6 +451,9 @@
      (+ a b
         c
 ")
+;;  6 units to + keyword (note that is the closest form to consider).
+;;  8 units to a initial subform.
+;;  8 units to c final subform.
 
 (define define-example-6
 "
@@ -451,6 +461,9 @@
      (+ a b
         c)
 ")
+;;  4 units to define keyword.
+;; 11 units to (foo initial subform.
+;;  5 units to (+ final subform.
 
 (define define-example-7
 "
@@ -460,6 +473,9 @@
      (- a
        b
 ")
+;;  6 units to - keyword (note that it is the closest form to consider).
+;;  8 units to a initial subform.
+;;  7 units to b final subform.
 
 (define define-example-8
 "
@@ -469,7 +485,9 @@
           (- a
             b)
 ")
-
+;;  4 units to define keyword.
+;; 11 units to (foo initial subform.
+;; 10 units to (- final subform.
 
 (define case-example-1
 "
