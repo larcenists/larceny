@@ -71,28 +71,41 @@
                                                 ((2) 1)
                                                 (else 'prev-subform))))
 
-;; lookup-indentation : FormInfo Nat [Maybe Nat] Nat -> Nat
-(define (lookup-indentation form-indent
-                            keyword-form-indent
-                            first-subform-indent
-                            prev-line-indent 
-                            subform-num)
-  (let* ((keyword (string->symbol (car keyword-form-indent)))
-         (form-indent (cadr keyword-form-indent))
-         (suggestor (*indentation-table-data* keyword))
-         (suggestion (suggestor subform-num)))
-    (cond
-     ((number? suggestion) (+ form-indent suggestion))
-     ((pair? suggestion) (if prev-line-indent
-                             prev-line-indent
-                             (+ form-indent (cadr suggestion))))
-     ((eq? suggestion 'prev-subform) (if prev-line-indent
-                                         prev-line-indent
-                                         first-subform-indent))
-     ((not suggestion) (or prev-line-indent form-indent))
-     (else 
-      (error 'lookup-indentation ": unexpected suggestion" suggestion)))))
+;; A FormInfo is a (list String Nat Nat)
+(define (make-forminfo form-start indent line-count)
+  (list form-start indent line-count))
+(define forminfo-form car)
+(define forminfo-indent cadr)
+(define forminfo-line-count caddr)
 
+;; lookup-indentation : Nat [Maybe FormInfo] [Maybe FormInfo] [Maybe FormInfo] Nat -> Nat
+(define (lookup-indentation form-indent
+                            keyword-forminfo
+                            first-subform-forminfo
+                            final-subform-forminfo 
+                            subform-num)
+  (cond 
+   (keyword-forminfo
+    (let* ((keyword (string->symbol (forminfo-form keyword-forminfo)))
+           (form-indent (forminfo-indent keyword-forminfo))
+           (suggestor (*indentation-table-data* keyword))
+           (suggestion (suggestor subform-num)))
+      (cond
+       ((number? suggestion) (+ form-indent suggestion))
+       ((pair? suggestion) (if final-subform-forminfo
+                               final-subform-forminfo
+                               (+ form-indent (cadr suggestion))))
+       ((eq? suggestion 'prev-subform) (if final-subform-forminfo
+                                           final-subform-forminfo
+                                           first-subform-forminfo))
+       ((not suggestion) (or final-subform-forminfo form-indent))
+       (else 
+        (error 'lookup-indentation ": unexpected suggestion" suggestion)))))
+   (final-subform-forminfo
+    (forminfo-indent final-subform-forminfo))
+   (else
+    form-indent)))
+   
 ;; suggest-indentation : Port -> Nat
 ;; Assumes that p feeds characters from the text starting from the
 ;; cursor and working backwards.
@@ -103,10 +116,7 @@
 ;; * Multiline string literals are not handled properly in all cases
 (define (suggest-indentation p)
   (call-with-values (lambda () (gather-indentation-data-from-port p))
-    (lambda vals
-      (if (null? (cdr vals))
-          (car vals)
-          (apply lookup-indentation vals)))))
+    lookup-indentation))
 
 (define (gather-indentation-data-from-port p)
   ;; found-end-of-sexp : [Maybe FormInfo] FormInfo Nat [Maybe FormInfo] -> Nat
@@ -141,13 +151,6 @@
                   next-line-forminfo)
               last-line-forminfo
               subform-num)))
-
-  ;; A FormInfo is a (list String Nat Nat)
-  (define (make-forminfo form-start indent line-count)
-    (list form-start indent line-count))
-  (define forminfo-form car)
-  (define forminfo-indent cadr)
-  (define forminfo-line-count caddr)
 
   ;; A LineStateInfo is a 
   ;;   (list Symbol Depth FormCount [Listof Char] [Maybe FormInfo])
@@ -295,6 +298,12 @@
                          (peek-next-forminfo)
                          next-line-forminfo
                          line-count))
+    (define (didnt-find-it)
+      (values 0
+              #f
+              (peek-form-count)
+              (peek-next-forminfo)
+              next-line-forminfo))
 
     (letrec-syntax 
         ((dispatch
@@ -341,7 +350,8 @@
 
 
         (cond 
-         ((eof-object? c)      0)
+         ((eof-object? c)      
+          (didnt-find-it))
          (else
           (case (car curr-state)
             ((start)   
