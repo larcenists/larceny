@@ -202,7 +202,8 @@
               (and (not (null? (peek-chars)))
                    (list (peek-string) indent-on-line-so-far))
               (or last-line-forminfo
-                  (and (not (null? (peek-chars)))
+                  (and (zero? (peek-depth))
+                       (not (null? (peek-chars)))
                        (list (peek-string) indent-on-line-so-far)))
               newstate)))
     
