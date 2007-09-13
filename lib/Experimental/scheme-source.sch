@@ -3,14 +3,46 @@
 
 ;; Table mapping keywords to indentation-suggestors.
 
-;; An IndentSuggest is a fcn (Nat -> [Oneof `(prev ,Nat) Nat 'prev-subform #f])
+;; An Posn is a (list Nat Nat)
+;; 
+;; An IndentSuggest is a fcn: 
+;;    (Nat Posn Posn [Maybe Posn] [Maybe Posn] -> Nat)
+;;
 ;; An IndentationTable is a fcn (Symbol -> IndentSuggest)
 
+
 ;; interpretation: 
-;; Let table be an IndentationTable
+;; 
+;; A Posn (list i j) is a point indented by i spaces and j lines up.
 ;;
+;; An IndentSuggest is fed up to four arguments which summarize the
+;; character positions of some points of interest on the S-exp that we
+;; are in the middle of typing.
+;; 
+;; The IndentSuggest is in charge of returning how many spaces the
+;; cursor should be moved to the right to get "proper" indentation.
+;; 
+;; (Note the IndentationTable, defined below, maps keywords to
+;; distinct IndentSuggests)
+;;
+;; (indent-suggest form-count to-paren to-keyword to-first to-final)
+;; form-count is number of sexp forms between the cursor and the open paren.
+;; to-paren is the point immediately past the open paren.
+;; to-keyword is the point at the start of the keyword.
+;; to-first, if present, is the point at the start of the first subform.
+;; to-final, if present, is the point at the start of the left-most
+;;    subform on the ``final'' line.
+
+;; (to-keyword is often the same as to-paren)
+;;
+;; Let table be an IndentationTable
+;; 
+
+;; The below are old notes when I was trying to design a "simpler"
+;; IndentSuggest by constraining its return values. 
+;; 
 ;; Let the j'th s-exp S_j of the partial combination (K S_1 ... S_j 
-;; be the first form on a new line; let the preceding line with content 
+;; be the first form on a new line; let the last line with content 
 ;; be denoted P.
 ;; e.g., for the partial combination:
 ;;        (case n            ;; K is case, n is S_1
@@ -113,6 +145,7 @@
 ;; indented by if we were to start a new line now.
 ;;
 ;; KNOWN LIMITATIONS (by design)
+;; * newlines between the open paren and keyword are never handled properly.
 ;; * Multiline string literals are not handled properly in all cases
 (define (suggest-indentation p)
   (call-with-values (lambda () (gather-indentation-data-from-port p))
@@ -550,6 +583,21 @@
 ;;  9 units to case keyword
 ;;  1 units to n subform (note that we only count from start of its own line)
 ;; 12 units to ((3) d) form (first form on last non-trivial line)
+
+(define case-example-4
+"
+        (case              ;; K is case
+ n                         ;; n is S_1
+          ((0) a) ((1) b)  ;; ((0) a) is S_2
+          ((2) c) 
+            ((3) d) ((4    
+                   e))
+                           ;; P is the previous line (including indentation)
+") 
+;;  9 units to case keyword
+;;  1 units to n subform (note that we only count from start of its own line)
+;; 12 units to ((3) d) form (left-most form on last non-trivial line)
+
 
 ;; Examples:
 (test "some-symbol"                 0)
