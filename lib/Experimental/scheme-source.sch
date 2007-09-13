@@ -108,7 +108,7 @@
 
 (define (gather-indentation-data-from-port p)
   ;; found-end-of-sexp : [Maybe Nat] Symbol Nat -> Nat
-  (define (found-end-of-sexp suggest-indent keyword-sym subform-num 
+  (define (found-end-of-sexp last-line-forminfo keyword-sym subform-num 
                              next-form-indent)
     ;; At this point, the port is at the paren associated with
     ;; keyword-sym.  
@@ -126,12 +126,14 @@
       (values keyword-sym
               remaining-indent
               next-form-indent
-              suggest-indent
+              last-line-forminfo
               subform-num)))
 
+  ;; A FormInfo is a (list String Indent)
+
   ;; A LineStateInfo is a 
-  ;;   (list Symbol Depth FormCount [Listof Char] NextFormIndent)
-  (define initial-state (list 'start 0 0 '() 0))
+  ;;   (list Symbol Depth FormCount [Listof Char] [Maybe FormInfo])
+  (define initial-state (list 'start 0 0 '() #f))
 
   (define (state-sym state-info)
     (list-ref state-info 0))
@@ -168,25 +170,27 @@
 
   (let loop ((curr-state initial-state)
              (indent-on-line-so-far 0)
-             (last-line-indent #f)
+             (last-line-forminfo   #f)   ;; [Maybe FormInfo]
              (line-state initial-state))
     (define (next-state state adj-indent)
-      (loop state (adj-indent indent-on-line-so-far) last-line-indent line-state))
+      (loop state (adj-indent indent-on-line-so-far) last-line-forminfo line-state))
     (define (reset-state adj-indent)
-      (loop line-state (adj-indent indent-on-line-so-far) last-line-indent line-state))
+      (loop line-state (adj-indent indent-on-line-so-far) last-line-forminfo line-state))
     (define (lineend-state state adj-indent)
       (loop state 
             (adj-indent indent-on-line-so-far)
-            (or last-line-indent indent-on-line-so-far)
+            (or last-line-forminfo
+                (and (not (null? (peek-chars)))
+                     (list (list->string (peek-chars)) indent-on-line-so-far)))
             state))
     
-    (define (pop-sexp sym)
+    (define (pop-sexp sym char)
       (next-state 
-       (clone-state-sym sym (clone-state-decr-depth curr-state))
+       (clone-state-sym sym (clone-state-decr-depth (clone-state-add-char char curr-state)))
        zer0))
-    (define (push-sexp sym)
+    (define (push-sexp sym char)
       (next-state 
-       (clone-state-sym sym (clone-state-incr-depth curr-state))
+       (clone-state-sym sym (clone-state-incr-depth (clone-state-add-char char curr-state)))
        zer0))
     (define (next-new-id sym char)
       (next-state (clone-state-sym 
@@ -216,6 +220,8 @@
 
     (define (peek-depth)
       (state-depth curr-state))
+    (define (peek-chars)
+      (state-chars curr-state))
     (define (peek-symbol)
       (string->symbol (list->string (state-chars curr-state))))
     (define (peek-form-count)
@@ -230,15 +236,17 @@
              (dispatch "BUILD"       CS (whitespace ws-exp) ES c elems ...))
             ((_        "BUILD"       CS WS #f c (else else-exp))
              (dispatch "GENER"       CS WS (else else-exp) c))
-            ((_        "BUILD" (CZ ...) WS ES c clause elems ...)
-             (dispatch "BUILD" (CZ ... clause) WS ES c elems ...))
+            ((_        "BUILD" (CZ ...) WS ES c ((chars ...) cs-exp) elems ...)
+             (dispatch "BUILD" (CZ ... ((chars ...) cs-exp)) WS ES c elems ...))
+            ((_        "BUILD" (CZ ...) WS ES c (char c-exp) elems ...)
+             (dispatch "BUILD" (CZ ... ((char) c-exp)) WS ES c elems ...))
             ((_ "GENER" 
-                ((char char-exp) ...)
+                (((chars ...) char-exp) ...)
                 (whitespace ws-exp)
                 (else else-exp) 
                 c)
              (cond
-              ((char=? c char) char-exp)
+              ((memq c '(chars ...)) char-exp)
               ...
               ((char-whitespace? c) ws-exp)
               (else else-exp)))
@@ -259,7 +267,7 @@
           (display " ")
           (write `(loop ,curr-state 
                         ,indent-on-line-so-far 
-                        ,last-line-indent
+                        ,last-line-forminfo
                         ,line-state))
           (newline))
 
@@ -271,12 +279,12 @@
             ((start)   
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp last-line-indent
+                                   (found-end-of-sexp last-line-forminfo
                                                       (peek-symbol)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
-                                   (pop-sexp 'start)))
-                       (#\)        (push-sexp   'start))
+                                   (pop-sexp 'start c)))
+                       (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-new-id 'id-bs c))
                        (#\;        (reset-line))
@@ -286,12 +294,12 @@
             ((id)      
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp last-line-indent
+                                   (found-end-of-sexp last-line-forminfo
                                                       (peek-symbol)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
-                                   (pop-sexp    'start)))
-                       (#\)        (push-sexp   'start))
+                                   (pop-sexp    'start c)))
+                       (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-new-id 'id-bs c))
                        (#\;        (reset-line))
@@ -306,12 +314,12 @@
             ((mbid)      
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp last-line-indent
+                                   (found-end-of-sexp last-line-forminfo
                                                       (peek-symbol)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
-                                   (pop-sexp    'start)))
-                       (#\)        (push-sexp   'start))
+                                   (pop-sexp    'start c)))
+                       (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-with-char 'mbstr c))
                        (#\;        (reset-line))
@@ -325,12 +333,12 @@
             ((mbstrend)
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp last-line-indent
+                                   (found-end-of-sexp last-line-forminfo
                                                       (peek-symbol)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
-                                   (pop-sexp    'start)))
-                       (#\)        (push-sexp   'start))
+                                   (pop-sexp    'start c)))
+                       (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-with-char 'mbstr c))
                        (#\;        (reset-line))
@@ -340,12 +348,12 @@
             ((id-bs)   
              (dispatch c
                        (#\(    (if (zero? (peek-depth))
-                                   (found-end-of-sexp last-line-indent
+                                   (found-end-of-sexp last-line-forminfo
                                                       (peek-symbol)
                                                       (peek-form-count)
                                                       (peek-next-form-indent))
-                                   (pop-sexp    'start)))
-                       (#\)        (push-sexp   'start))
+                                   (pop-sexp    'start c)))
+                       (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-with-char 'id c))
                        (#\;        (reset-line))
