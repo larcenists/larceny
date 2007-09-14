@@ -170,7 +170,7 @@
    (final-subform-forminfo
     (forminfo-indent final-subform-forminfo))
    (else
-    form-indent)))
+    (car form-indent))))
 
 ;; suggest-indentation : Port -> Nat
 ;; Assumes that p feeds characters from the text starting from the
@@ -207,12 +207,13 @@
                     (char=? c #\newline))
                 i))))
       (values (list remaining-indent line-count)
-              (if (= line-count (forminfo-line-count keyword-forminfo))
-                  (make-forminfo 
-                   (forminfo-form keyword-forminfo)
-                   (+ remaining-indent (forminfo-indent keyword-forminfo))
-                   (forminfo-line-count keyword-forminfo))
-                  keyword-forminfo)
+              (and keyword-forminfo
+                   (if (= line-count (forminfo-line-count keyword-forminfo))
+                       (make-forminfo 
+                        (forminfo-form keyword-forminfo)
+                        (+ remaining-indent (forminfo-indent keyword-forminfo))
+                        (forminfo-line-count keyword-forminfo))
+                       keyword-forminfo))
               (if next-forminfo
                   (make-forminfo
                    (forminfo-form next-forminfo)
@@ -368,27 +369,30 @@
     (define (peek-next-forminfo)
       (state-next-forminfo curr-state))
 
-
     (define (found-it-white)
       (found-end-of-sexp last-line-forminfo
-                         (make-forminfo (peek-string) 
-                                        indent-on-line-so-far
-                                        line-count)
+                         (if (null? (peek-chars))
+                             #f
+                             (make-forminfo (peek-string) 
+                                            indent-on-line-so-far
+                                            line-count))
                          (peek-form-count)
                          (peek-next-forminfo)
                          next-line-forminfo
                          line-count))
     (define (found-it)
       (found-end-of-sexp last-line-forminfo
-                         (make-forminfo (peek-string) 
-                                        indent-on-line-so-far
-                                        line-count)
+                         (if (null? (peek-chars))
+                             #f
+                             (make-forminfo (peek-string) 
+                                            indent-on-line-so-far
+                                            line-count))
                          (+ 1 (peek-form-count))
                          (peek-next-forminfo)
                          next-line-forminfo
                          line-count))
     (define (didnt-find-it)
-      (values 0
+      (values (list 0 0)
               #f
               (peek-form-count)
               (peek-next-forminfo)
@@ -656,6 +660,11 @@
 
 
 ;; Examples:
+(test "("                           1)
+(test " ("                          2)
+(test "( "                          1)
+(test " ( "                         2)
+
 (test "some-symbol"                 0)
 (test "  some-symbol"               0)
 (test "(some-symbol"                1)
@@ -679,6 +688,16 @@
 (test "((foo)"                      1)
 (test "(((foo (baz (bing))"         7)
 (test "(((foo (baz (bing)))"        2)
+
+(test "(cond "                      1)
+(test "(cond ("                     7)
+(test "(case"                       4)
+(test "(case n"                     2)
+(test "(do"                         4)
+(test "(do    ()"                   4)
+(test "(do\n    ()"                 4)
+(test "(do\n    ()\n    ()"         2)
+(test "(do\n    ()\n    ()\na"      2)
 
 ;;; TEST TODO: 
 ;;; ----------
