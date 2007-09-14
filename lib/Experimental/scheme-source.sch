@@ -135,6 +135,29 @@
   ;; (trace lambda-suggest)
   (install-indentation-table-entry! 'lambda lambda-suggest))
 
+(let ()
+  (define case-suggest
+    (lambda (form-count to-paren to-keyword to-first to-final)
+      (cond
+       ((= form-count 1) 4)
+       ((= form-count 2) 2)
+       (to-final => car)
+       (to-first => car)
+       (else (car to-paren)))))
+  (install-indentation-table-entry! 'case case-suggest))
+
+(let () 
+  (define do-suggest
+    (lambda (form-count to-paren to-keyword to-first to-final)
+      (cond
+       ((= form-count 1) 4)
+       ((= form-count 2) 4)
+       ((= form-count 3) 2)
+       (to-final => car)
+       (to-first => car)
+       (else (car to-paren)))))
+  (install-indentation-table-entry! 'do do-suggest))
+
 ;; A FormInfo is a (list String Nat Nat)
 (define (make-forminfo form-start indent line-count)
   (list form-start indent line-count))
@@ -701,11 +724,11 @@
 
 ;;; TEST TODO: 
 ;;; ----------
-;;; [ ] cond special form
+;;; [-] cond special form
 ;;; [ ] if special form
-;;; [ ] case special form
-;;; [ ] do special form
-;;; [ ] semicolon comments
+;;; [-] case special form
+;;; [-] do special form
+;;; [-] semicolon comments
 ;;; [ ] hashpipe comments
 ;;; [ ] hashsemicolon comments
 
