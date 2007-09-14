@@ -494,7 +494,33 @@
       ((#\backspace #\return #\esc #\tab) 'do-nothing)
       (else 
        ((editor-agent 'insert-char-at-point!) char))))))
-      
+
+(define (make-auto-indenting-agent wnd editor-agent)
+  (require "Experimental/scheme-source")
+  (msg-handler 
+   ((on-keyup   sym mods)
+    (case sym
+      ((enter)       
+       (let* ((ea editor-agent)
+              (textstring (call-with-values (lambda () ((ea 'selection))) 
+                            (lambda (beg end) (substring ((ea 'textstring)) 0 beg))))
+              (indent
+               (suggest-indentation 
+                (open-input-string (list->string (reverse (string->list textstring)))))))
+         ((editor-agent 'insert-char-at-point!) #\newline)
+         (do ((i indent (- i 1)))
+             ((zero? i))
+           ((editor-agent 'insert-char-at-point!) #\space))))
+      ((left)        ((editor-agent 'cursor-left!)))
+      ((right)       ((editor-agent 'cursor-right!)))
+      ((up)          ((editor-agent 'cursor-up!)))
+      ((down)        ((editor-agent 'cursor-down!)))
+      ((back delete) ((editor-agent 'delete-char-at-point!)))))
+   ((on-keypress char)
+    (case char
+      ((#\backspace #\return #\esc #\tab) 'do-nothing)
+      (else 
+       ((editor-agent 'insert-char-at-point!) char))))))
 
 (define (editor-agent-maker make-backing-agent)
   (lambda (wnd width height)
