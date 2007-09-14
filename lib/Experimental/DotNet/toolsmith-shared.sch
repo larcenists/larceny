@@ -497,25 +497,73 @@
 
 (define (make-auto-indenting-agent wnd editor-agent)
   (require "Experimental/scheme-source")
+
   (msg-handler 
    ((on-keyup   sym mods)
     (case sym
       ((enter)       
        (let* ((ea editor-agent)
-              (textstring (call-with-values (lambda () ((ea 'selection))) 
-                            (lambda (beg end) (substring ((ea 'textstring)) 0 beg))))
+              (prefixstr (call-with-values (lambda () ((ea 'selection))) 
+                           (lambda (beg end) 
+                             (substring ((ea 'textstring)) 0 beg))))
               (indent
                (suggest-indentation 
-                (open-input-string (list->string (reverse (string->list textstring)))))))
+                (open-input-string 
+                 (list->string (reverse (string->list prefixstr)))))))
          ((editor-agent 'insert-char-at-point!) #\newline)
          (do ((i indent (- i 1)))
              ((zero? i))
            ((editor-agent 'insert-char-at-point!) #\space))))
+      ((tab)         
+       (let* ((ea editor-agent)
+              (text ((ea 'textstring))))
+         (call-with-values (lambda () ((ea 'selection)))
+           (lambda (beg end) 
+             ;; 1. if beg = end, then we want to indent cursor's line
+             ;; 2. if beg < end, then we want to indent selected region 
+             ;;               (I think)
+             ;; For now, just assume beg = end; I can add support for 
+             ;; the case (2) later.
+             
+             (let* (;; search backward for the newline
+                    (line-start (do ((i beg (- i 1)))
+                                    ((or (= i 0)
+                                         (char=? #\newline (string-ref text (- i 1))))
+                                     i)))
+                    ;; search forward for non-whitespace; don't go past a newline
+                    (content-start (do ((i line-start (+ i 1)))
+                                       ((or (= i (string-length text))
+                                            (char=? #\newline (string-ref text i))
+                                            (not (char-whitespace? (string-ref text i))))
+                                        i)))
+                    ;; find suggested indentation
+                    (prefixstr (substring text 0 line-start))
+                    (indent
+                     (suggest-indentation
+                      (open-input-string
+                       (list->string (reverse (string->list prefixstr))))))
+                    (delta (- (- content-start line-start) indent))
+                    )
+               
+               ;; replace all that white space with spaces for suggested indent
+               ((ea 'set-textstring!) (string-append (substring text 0 line-start)
+                                                     (make-string indent #\space)
+                                                     (substring text content-start 
+                                                                (string-length text))))
+
+               ;; fix the cursor's position
+               ((ea 'set-selection!) (- beg delta) (- end delta))
+               
+               ((wnd 'update))
+
+               (begin (display "saw tab!") (newline))
+               )))))
       ((left)        ((editor-agent 'cursor-left!)))
       ((right)       ((editor-agent 'cursor-right!)))
       ((up)          ((editor-agent 'cursor-up!)))
       ((down)        ((editor-agent 'cursor-down!)))
-      ((back delete) ((editor-agent 'delete-char-at-point!)))))
+      ((back delete) ((editor-agent 'delete-char-at-point!)))
+      ))
    ((on-keypress char)
     (case char
       ((#\backspace #\return #\esc #\tab) 'do-nothing)
