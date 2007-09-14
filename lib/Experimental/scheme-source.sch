@@ -358,6 +358,11 @@
                   zer0 id))
     (define (reset-line)
       (reset-state zer0 id))
+    (define (newer-line-from-form sym)
+      (lineend-state (clone-state-sym 
+                      sym
+                      (clone-state-incr-form-count curr-state))
+                     zer0 add1))
     (define (newer-line sym)
       (lineend-state (clone-state-sym 
                       sym
@@ -491,7 +496,7 @@
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-new-id 'id-bs c))
                        (#\;        (reset-line))
-                       (#\newline  (newer-line  'start))
+                       (#\newline  (newer-line-from-form  'start))
                        (whitespace (next-white  'start))
                        (else       (next-with-char 'id c))))
             ((mbstr)
@@ -508,7 +513,7 @@
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-with-char 'mbstr c))
                        (#\;        (reset-line))
-                       (#\newline  (newer-line  'start))
+                       (#\newline  (newer-line-from-form  'start))
                        (whitespace (next-white  'start))
                        (else       (next-with-char 'id c))))
             ((str)     
@@ -524,7 +529,7 @@
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-with-char 'mbstr c))
                        (#\;        (reset-line))
-                       (#\newline  (newer-line  'start))
+                       (#\newline  (newer-line-from-form  'start))
                        (whitespace (next-white  'start))
                        (else       (next-with-char 'id c))))
             ((id-bs)   
@@ -536,7 +541,7 @@
                        (#\"        (next-new-id 'mbstr c))
                        (#\\        (next-with-char 'id c))
                        (#\;        (reset-line))
-                       (#\newline  (newer-line  'start))
+                       (#\newline  (newer-line-from-form  'start))
                        (whitespace (next-white  'start))
                        (else       (next-with-char 'id c)))))))))))
 
@@ -724,6 +729,8 @@
 (test "(do\n    ()\n    ()\n  a"    2)
 (test "(do\n    ()\n    ()\n a"     1)
 (test "(do\n    ()\n    ()\na"      0)
+
+(test "(display \"\""               9)
 
 ;;; TEST TODO: 
 ;;; ----------
