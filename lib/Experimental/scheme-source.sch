@@ -431,6 +431,8 @@
           (syntax-rules (whitespace else)
             ((_        "BUILD"       CS #f ES c (whitespace ws-exp) elems ...)
              (dispatch "BUILD"       CS (whitespace ws-exp) ES c elems ...))
+            ((_        "BUILD"       CS #f #f c (else else-exp))
+             (dispatch "GENER"       CS (whitespace else-exp) (else else-exp) c))
             ((_        "BUILD"       CS WS #f c (else else-exp))
              (dispatch "GENER"       CS WS (else else-exp) c))
             ((_        "BUILD" (CZ ...) WS ES c ((chars ...) cs-exp) elems ...)
