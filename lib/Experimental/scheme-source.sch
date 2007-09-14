@@ -139,8 +139,8 @@
   (define case-suggest
     (lambda (form-count to-paren to-keyword to-first to-final)
       (cond
-       ((= form-count 1) 4)
-       ((= form-count 2) 2)
+       ((= form-count 1) (+ (car to-paren) 3))
+       ((= form-count 2) (+ (car to-paren) 1))
        (to-final => car)
        (to-first => car)
        (else (car to-paren)))))
@@ -150,9 +150,9 @@
   (define do-suggest
     (lambda (form-count to-paren to-keyword to-first to-final)
       (cond
-       ((= form-count 1) 4)
-       ((= form-count 2) 4)
-       ((= form-count 3) 2)
+       ((= form-count 1) (+ (car to-paren) 3))
+       ((= form-count 2) (+ (car to-paren) 3))
+       ((= form-count 3) (+ (car to-paren) 1))
        (to-final => car)
        (to-first => car)
        (else (car to-paren)))))
@@ -716,11 +716,14 @@
 (test "(cond ("                     7)
 (test "(case"                       4)
 (test "(case n"                     2)
+(test "  (case n"                   4)
 (test "(do"                         4)
 (test "(do    ()"                   4)
 (test "(do\n    ()"                 4)
 (test "(do\n    ()\n    ()"         2)
-(test "(do\n    ()\n    ()\na"      2)
+(test "(do\n    ()\n    ()\n  a"    2)
+(test "(do\n    ()\n    ()\n a"     1)
+(test "(do\n    ()\n    ()\na"      0)
 
 ;;; TEST TODO: 
 ;;; ----------
