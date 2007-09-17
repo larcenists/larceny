@@ -239,6 +239,26 @@ static int decision( old_heap_t *heap )
   return PASS_THE_BUCK;
 }
 
+static void start_timers( stats_id_t *timer1, stats_id_t *timer2 ) {
+  *timer1 = stats_start_timer( TIMER_ELAPSED );
+  *timer2 = stats_start_timer( TIMER_CPU );
+}
+
+static void stop_timers( old_data_t *data, 
+			 int bytes_copied, int bytes_moved, 
+			 stats_id_t *timer1, stats_id_t *timer2 ) {
+  /* Why isn't this `+=' ?  I think it is benign in this collector. */
+  data->gc_stats.words_copied = bytes2words( bytes_copied );
+  data->gc_stats.words_moved = bytes2words( bytes_moved );
+
+  data->gen_stats.ms_collection += stats_stop_timer( *timer1 );
+  data->gen_stats.ms_collection_cpu += stats_stop_timer( *timer2 );
+#if GC_EVENT_COUNTERS
+  data->event_stats.copied_by_gc += bytes2words( bytes_copied );
+  data->event_stats.moved_by_gc  += bytes2words( bytes_moved );
+#endif
+}
+
 static void perform_collect( old_heap_t *heap )
 {
   semispace_t *from, *to;
@@ -250,9 +270,8 @@ static void perform_collect( old_heap_t *heap )
 #if FLOAT_REDUCTION
   full_collection( heap );
 #endif
-
-  timer1 = stats_start_timer( TIMER_ELAPSED );
-  timer2 = stats_start_timer( TIMER_CPU );
+  
+  start_timers( &timer1, &timer2 );
 
   from = data->current_space;
   to = create_semispace( GC_CHUNK_SIZE, data->gen_no );
@@ -263,19 +282,11 @@ static void perform_collect( old_heap_t *heap )
   ss_free( from );
   ss_sync( to );
 
-  /* Why isn't this `+=' ?  I think it is benign in this collector. */
-  data->gc_stats.words_copied = bytes2words( to->used );
-  data->gc_stats.words_moved = 
-    bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
-
-  data->gen_stats.ms_collection += stats_stop_timer( timer1 );
-  data->gen_stats.ms_collection_cpu += stats_stop_timer( timer2 );
   data->gen_stats.collections++;
-#if GC_EVENT_COUNTERS
-  data->event_stats.copied_by_gc += bytes2words( to->used );
-  data->event_stats.moved_by_gc += 
-    bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
-#endif
+  stop_timers( data, 
+	       to->used, 
+	       los_bytes_used( heap->collector->los, data->gen_no ),
+	       &timer1, &timer2 );
 }
 
 static void perform_promote( old_heap_t *heap )
@@ -290,8 +301,7 @@ static void perform_promote( old_heap_t *heap )
   full_collection( heap );
 #endif
 
-  timer1 = stats_start_timer( TIMER_ELAPSED );
-  timer2 = stats_start_timer( TIMER_CPU );
+  start_timers( &timer1, &timer2 );
 
   used_before = used_space( heap );
   ss_sync( data->current_space );
@@ -302,21 +312,11 @@ static void perform_promote( old_heap_t *heap )
 
   data->promoted_last_gc = used_space( heap ) - used_before;
 
-  /* Why isn't this `+=' ?  I think it is benign in this collector. */
-  data->gc_stats.words_copied = 
-    bytes2words(data->current_space->used - tospace_before);
-  data->gc_stats.words_moved =
-    bytes2words(los_bytes_used(heap->collector->los, data->gen_no)-los_before);
-
-  data->gen_stats.ms_promotion += stats_stop_timer( timer1 );
-  data->gen_stats.ms_promotion_cpu += stats_stop_timer( timer2 );
   data->gen_stats.promotions++;
-#if GC_EVENT_COUNTERS
-  data->event_stats.copied_by_prom += 
-    bytes2words(data->current_space->used - tospace_before);
-  data->event_stats.moved_by_prom += 
-    bytes2words(los_bytes_used(heap->collector->los, data->gen_no)-los_before);
-#endif
+  stop_timers( data, 
+	       data->current_space->used - tospace_before,
+	       los_bytes_used(heap->collector->los, data->gen_no)-los_before,
+	       &timer1, &timer2 );
 }
 
 static void perform_promote_then_promote( old_heap_t *heap )
