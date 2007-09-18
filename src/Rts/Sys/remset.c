@@ -52,12 +52,12 @@
  *
  * Notes.
  *
- * The main reason for the low-level implementation of the node pool
+ * NOTE 1 The main reason for the low-level implementation of the node pool
  * (an array of two-word structures would have been more natural) is
  * to allow the remembered-set forwarding scanner to scan more than one
  * object at a time, an optimization that is not currently implemented.
  *
- * The SSB may contain raw pointers (pointers where the tag is #b000).
+ * NOTE 2 The SSB may contain raw pointers (pointers where the tag is #b000).
  * These pointers are placed in the SSB by the large-object allocator in
  * the generational collector; it was either that or requiring every 
  * allocation call to pass a type descriptor.  When compacting the SSB,
@@ -234,6 +234,24 @@ void rs_clear( remset_t *rs )
   data->stats.cleared++;
 }
 
+word retagptr( word w ) 
+{
+  if (tagof(w) == 0) {
+    switch (header(*(word*)w)) {
+    case VEC_HDR :
+      return (word)tagptr( w, VEC_TAG );
+    case BV_HDR : 
+      return 0; /* signal that entry should be removed! */
+    case PROC_HDR :
+      return (word)tagptr( w, PROC_TAG );
+    default:
+      panic_abort( "remset.c: word is nonptr." );
+    }
+  } else {
+    return w;
+  }
+}
+
 bool rs_compact( remset_t *rs )
 {
   word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
@@ -259,20 +277,9 @@ bool rs_compact( remset_t *rs )
   while (q > p) {
     q--;
     w = *q;
-    if (tagof( w ) == 0) {	/* See NOTE above. */
-      switch (header(*(word*)w)) {
-      case VEC_HDR :
-	w = (word)tagptr( w, VEC_TAG );
-	break;
-      case BV_HDR :
-	continue;		/* Remove the entry! */
-      case PROC_HDR :
-	w = (word)tagptr( w, PROC_TAG );
-	break;
-      default :
-	panic_abort( "rs_compact" );
-      }
-    }
+    w = retagptr(w);           /* See NOTE 2 above. */
+    if (!w) 
+      continue;                /* Remove the entry! */
     h = hash_object( w, mask );
     b = (word*)tbl[ h ];
     while (b != 0 && *b != w) 
@@ -341,20 +348,9 @@ bool rs_compact_nocheck( remset_t *rs )
   while (q > p) {
     q--;
     w = *q;
-    if (tagof( w ) == 0) {      /* See NOTE above. */
-      switch (header(*(word*)w)) {
-      case VEC_HDR :
-	w = (word)tagptr( w, VEC_TAG );
-	break;
-      case BV_HDR :
-	continue;		/* Remove the entry! */
-      case PROC_HDR :
-	w = (word)tagptr( w, PROC_TAG );
-	break;
-      default :
-	panic_abort( "rs_compact_nocheck" );
-      }
-    }
+    w = retagptr(w);           /* See NOTE 2 above. */
+    if (!w) 
+      continue;                /* Remove the entry! */
     h = hash_object( w, mask );
     if (pooltop == poollim) {
       data->stats.recorded += recorded;
