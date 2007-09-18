@@ -252,6 +252,22 @@ static word retagptr( word w )
   }
 }
 
+static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop ) 
+{
+  DATA(rs)->stats.recorded += recorded;
+  rs->live += recorded;
+  DATA(rs)->curr_pool->top = pooltop;
+  
+  annoyingmsg( "Remset @0x%p overflow, entries=%d", (void*)rs, rs->live);
+  
+  rs->has_overflowed = TRUE;
+  if (DATA(rs)->curr_pool->next == 0) {
+    DATA(rs)->curr_pool->next = allocate_pool_segment( DATA(rs)->pool_entries );
+    DATA(rs)->numpools++;
+  }
+  DATA(rs)->curr_pool = DATA(rs)->curr_pool->next;
+}
+
 bool rs_compact( remset_t *rs )
 {
   word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
@@ -286,20 +302,8 @@ bool rs_compact( remset_t *rs )
       b = (word*)*(b+1);
     if (b == 0) {
       if (pooltop == poollim) {
-	data->stats.recorded += recorded;
-	rs->live += recorded;
+	handle_overflow( rs, recorded, pooltop );
 	recorded = 0;
-	data->curr_pool->top = pooltop;
-
-	annoyingmsg( "Remset @0x%p overflow, entries=%d", (void*)rs, rs->live);
-
-	rs->has_overflowed = TRUE;
-	if (data->curr_pool->next == 0) {
-	  data->curr_pool->next = allocate_pool_segment( data->pool_entries );
-	  data->numpools++;
-	}
-	data->curr_pool = data->curr_pool->next;
-
 	pooltop = data->curr_pool->top;
 	poollim = data->curr_pool->lim;
       }
@@ -353,20 +357,8 @@ bool rs_compact_nocheck( remset_t *rs )
       continue;                /* Remove the entry! */
     h = hash_object( w, mask );
     if (pooltop == poollim) {
-      data->stats.recorded += recorded;
-      rs->live += recorded;
+      handle_overflow( rs, recorded, pooltop );
       recorded = 0;
-      data->curr_pool->top = pooltop;
-
-      annoyingmsg( "Remset @0x%p overflow, entries=%d", (void*)rs, rs->live );
-
-      rs->has_overflowed = TRUE;
-      if (data->curr_pool->next == 0) {
-	data->curr_pool->next = allocate_pool_segment( data->pool_entries );
-	data->numpools++;
-      }
-      data->curr_pool = data->curr_pool->next;
-
       pooltop = data->curr_pool->top;
       poollim = data->curr_pool->lim;
     }
