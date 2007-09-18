@@ -234,7 +234,7 @@ void rs_clear( remset_t *rs )
   data->stats.cleared++;
 }
 
-word retagptr( word w ) 
+static word retagptr( word w ) 
 {
   if (tagof(w) == 0) {
     switch (header(*(word*)w)) {
