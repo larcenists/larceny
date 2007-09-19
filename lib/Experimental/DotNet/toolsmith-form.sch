@@ -510,11 +510,11 @@
          (make-bool-pset 
           (lambda (pname)  
             (make-property-setter font-type pname clr/bool->foreign)))
-         (get-name     (make-property-ref font-type "Name" '#()))
-         (get-size     (make-property-ref font-type "Size" '#()))
-         (get-italic   (make-property-ref font-type "Italic" '#()))
-         (get-bold     (make-property-ref font-type "Bold" '#()))
-         (get-uline    (make-property-ref font-type "Underline" '#()))
+         (get-name     (make-property-ref font-type "Name"))
+         (get-size     (make-property-ref font-type "Size"))
+         (get-italic   (make-property-ref font-type "Italic"))
+         (get-bold     (make-property-ref font-type "Bold"))
+         (get-uline    (make-property-ref font-type "Underline"))
          (set-italic   (make-bool-pset "Italic"))
          (set-bold     (make-bool-pset "Bold"))
         (set-uline    (make-bool-pset "Underline"))
@@ -1095,8 +1095,8 @@
       ((closed?)  is-closed)
       ((wndptr)  core-control) ;; for debugging; not for client code (e.g. agents)
       ((agent)    agent)
-      ((width)    (control-width form))
-      ((height)   (control-height form))
+      ((width)    (control-width contents))
+      ((height)   (control-height contents))
 
       ((update)   (update!))
 
