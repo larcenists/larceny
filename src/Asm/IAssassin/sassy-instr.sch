@@ -1686,7 +1686,8 @@
              ((81 vector-ref) ia86.t_op2_81) 
              ((82 bytevector-ref) ia86.t_op2_82) 
              ((83 procedure-ref) ia86.t_op2_83) 
-             ((84 cell-set! cell-set!:nwb) ia86.t_op2_84)
+             ((84 cell-set!) ia86.t_op2_84)
+             ((   cell-set!:nwb) ia86.t_op2_84:nwb)
              ((85 char<?) ia86.t_op2_85) 
              ((86 char<=?) ia86.t_op2_86) 
              ((87 char=?) ia86.t_op2_87) 
@@ -1814,8 +1815,8 @@
              ((93 procedure-set!) ia86.t_op3_93) 
              ((97 bytevector-like-set!) ia86.t_op3_97)
              ((100 vector-like-set!) ia86.t_op3_100)
-             ;; TODO: add support for :nwb
-             ((403 vector-set!:trusted vector-set!:trusted:nwb) ia86.t_op3_403)
+             ((403 vector-set!:trusted) ia86.t_op3_403)
+             ((vector-set!:trusted:nwb) ia86.t_op3_403:nwb)
              (else (error 'ia86.t_op3 x))
              )))
     (f y z)))
@@ -1897,6 +1898,7 @@
 (define-sassy-instr (ia86.t_reg_op3 op rs1 rs2 rs3)
   (let ((f (case op
              ((internal:vector-set!:trusted) ia86.t_reg_op3_403)
+             ((internal:vector-set!:trusted:nwb) ia86.t_reg_op3_403:nwb)
              (else (error 'ia86.t_reg_op3 op))
              )))
     (f rs1 rs2 rs3)))
@@ -2506,6 +2508,13 @@
          (ia86.loadr	$r.second regno)
          (ia86.mov/wb `(& ,$r.result ,(- $tag.pair-tag)) $r.second))))
 
+(define-sassy-instr (ia86.t_op2_84:nwb regno)		; cell-set!:nwb
+  (cond ((is_hwreg regno)
+         `(mov (& ,$r.result ,(- $tag.pair-tag)) ,(reg regno)))
+        (else
+         (ia86.loadr	$r.second regno)
+         `(mov (& ,$r.result ,(- $tag.pair-tag)) ,$r.second))))
+
 (define-sassy-instr (ia86.t_op2_85 regno)		; char<?
   (ia86.generic_char_compare regno 'l  $ex.char<?))
 
@@ -2904,8 +2913,14 @@
 (define-sassy-instr (ia86.t_op3_403 regno y)		; vector-set!:trusted
   (ia86.do_indexed_structure_set_word $r.result regno y $tag.vector-tag))
 
+(define-sassy-instr (ia86.t_op3_403:nwb regno y)	; vector-set!:trusted:nwb
+  (ia86.do_indexed_structure_set_word:nwb $r.result regno y $tag.vector-tag))
+
 (define-sassy-instr (ia86.t_reg_op3_403 hwregno regno2 regno3)
   (ia86.do_indexed_structure_set_word hwregno regno2 regno3 $tag.vector-tag))
+
+(define-sassy-instr (ia86.t_reg_op3_403:nwb hwregno regno2 regno3)
+  (ia86.do_indexed_structure_set_word:nwb hwregno regno2 regno3 $tag.vector-tag))
 
 (define-sassy-instr/peep (or (ia86.t_op1_404* rs rd)		; car:pair
                              (ia86.t_op1_404))

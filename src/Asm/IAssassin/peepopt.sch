@@ -433,6 +433,7 @@
     (if (is_hwreg rs1)
         (let ((op (case op
                     ((vector-set!:trusted) 'internal:vector-set!:trusted)
+                    ((vector-set!:trusted:nwb) 'internal:vector-set!:trusted:nwb)
                     (else #f))))
           (if op
               (as-source! as (cons (list $reg/op3 op rs1 rs2 rs3) tail)))))))
