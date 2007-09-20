@@ -291,7 +291,7 @@
         ((wnd 'attempt-scroll) 'vertical -1))
     (cursor-vertical! 'backward))
   (define (cursor-down!)
-    (if (= (cursor-line) (count-visible-lines))
+    (if (= (cursor-line) (- (count-visible-lines) 1))
         ((wnd 'attempt-scroll) 'vertical  1))
     (cursor-vertical! 'forward))
   (define (selection-start-pos)
