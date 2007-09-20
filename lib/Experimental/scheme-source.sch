@@ -166,7 +166,7 @@
 (define forminfo-indent cadr)
 (define forminfo-line-count caddr)
 (define (forminfo->posn fi)
-  (list (cadr fi) (caddr fi) (string-ref fi 0)))
+  (list (cadr fi) (caddr fi) (string-ref (car fi) 0)))
 ;; lift/maybe : (X -> Y) -> [Maybe X] -> [Maybe Y]
 (define (lift/maybe f)
   (lambda (x)
