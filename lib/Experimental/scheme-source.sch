@@ -3,7 +3,7 @@
 
 ;; Table mapping keywords to indentation-suggestors.
 
-;; An Posn is a (list Nat Nat)
+;; An Posn is a (list Nat Nat Char)
 ;; 
 ;; An IndentSuggest is a fcn: 
 ;;    (Nat Posn Posn [Maybe Posn] [Maybe Posn] -> Nat)
@@ -13,7 +13,8 @@
 
 ;; interpretation: 
 ;; 
-;; A Posn (list i j) is a point indented by i spaces and j lines up.
+;; A Posn (list i j c) is a point indented by i spaces and j lines up;
+;; character c is at that point.
 ;;
 ;; An IndentSuggest is fed up to four arguments which summarize the
 ;; character positions of some points of interest on the S-exp that we
@@ -164,6 +165,12 @@
 (define forminfo-form car)
 (define forminfo-indent cadr)
 (define forminfo-line-count caddr)
+(define (forminfo->posn fi)
+  (list (cadr fi) (caddr fi) (string-ref fi 0)))
+;; lift/maybe : (X -> Y) -> [Maybe X] -> [Maybe Y]
+(define (lift/maybe f)
+  (lambda (x)
+    (and x (f x))))
 
 ;; lookup-indentation : 
 ;;   Posn [Maybe FormInfo] [Maybe FormInfo] [Maybe FormInfo] Nat -> Nat
@@ -179,11 +186,12 @@
    (keyword-forminfo
     (let* ((keyword (string->symbol (forminfo-form keyword-forminfo)))
            (suggestor (*indentation-table-data* keyword))
+           (maybe-forminfo->posn (lift/maybe forminfo->posn))
            (suggestion (suggestor subform-num
                                   form-indent
-                                  (cdr keyword-forminfo)
-                                  (maybe-cdr first-subform-forminfo)
-                                  (maybe-cdr final-subform-forminfo)
+                                  (maybe-forminfo->posn keyword-forminfo)
+                                  (maybe-forminfo->posn first-subform-forminfo)
+                                  (maybe-forminfo->posn final-subform-forminfo)
                                   )))
       (cond
        ((number? suggestion) suggestion)
@@ -208,6 +216,8 @@
   (call-with-values (lambda () (gather-indentation-data-from-port p))
     lookup-indentation))
 
+;; gather-indentation-data-from-port 
+;;  : Port -> (values Posn [Maybe FormInfo] [Maybe FormInfo] [Maybe FormInfo] Nat)
 (define (gather-indentation-data-from-port p)
   ;; found-end-of-sexp : [Maybe FormInfo] FormInfo Nat [Maybe FormInfo] -> Nat
   (define (found-end-of-sexp last-line-forminfo 
@@ -420,7 +430,7 @@
                          next-line-forminfo
                          line-count))
     (define (didnt-find-it)
-      (values (list 0 0)
+      (values (list 0 0 #f)
               #f
               (peek-form-count)
               (peek-next-forminfo)
