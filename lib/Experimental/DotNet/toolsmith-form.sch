@@ -521,7 +521,7 @@
         (set-emsize   (make-property-setter font-type "Size" 
                                             clr/%number->foreign-int32)))
     (define (construct fontptr)
-      (msg-handler
+      (make-root-object fnt
        ((clone . args) ;; should extend to allow turning OFF bold et al???
         (let* ((is-italic (memq 'italic args))
                (is-bold   (memq 'bold args))
@@ -545,7 +545,7 @@
     (lambda (name em-size)
       (construct (make-font (name->string name) em-size 'regular)))))
 (define (color->col colorptr)
-  (msg-handler 
+  (make-root-object col
    ((name)     (name->symbol (color-name colorptr)))
    ((alpha)    (clr/%foreign->int (color-alpha colorptr)))
    ((red)      (clr/%foreign->int (color-red   colorptr)))
@@ -790,7 +790,7 @@
          (draw-text draw-text/graphics)
          )
     (lambda (g)
-      (msg-handler 
+      (make-root-object gfx
        ((measure-text txt-string fnt)      (measure-text g txt-string fnt))
        ((draw-text txt-string fnt x y col) (draw-text g txt-string fnt x y col))
        ((draw-line col x1 y1 x2 y2) 
@@ -936,7 +936,7 @@
       (menu-item-set-text! mi (name->string s))
       mi))
   (let ((mi (string->menu-item name)))
-    (msg-handler
+    (make-root-object mnu
      ((name) (name->symbol (menu-item-text mi)))
      ((mnuptr) mi)
      ((append item action) 
@@ -1089,7 +1089,7 @@
       )
 
     (define wnd
-     (msg-handler
+     (make-root-object wnd
       ((title)    title)
       ((close)    (form-close! form))
       ((closed?)  is-closed)
