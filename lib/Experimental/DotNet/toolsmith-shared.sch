@@ -98,6 +98,13 @@
 ;; dispatch.
 (define delegate-token (cons 0 0))
 
+(define-syntax name-and-partially-apply-proc
+  (syntax-rules ()
+    ((_ NAME (ARGS ...) FIRST PROC)
+     (let () (define (NAME ARGS ...) (PROC FIRST ARGS ...)) NAME))
+    ((_ NAME ARGS       FIRST PROC)
+     (let () (define (NAME . argl) (apply PROC FIRST argl)) NAME))))
+
 (define-syntax make-root-object
   (syntax-rules ()
     ((root-object self ((OP-NAME . ARGS) BODY ...) ...)
@@ -123,15 +130,13 @@
                      core-object
                      (case op
                        ((OP-NAME) 
-                        ;; expanded from a simple lambda exp into a
-                        ;; full def'n to get proc documentation.
-                        (let () 
-                          (define (OP-NAME . argl) 
-                            ;; Here we tie knot marrying dispatch function w/ self.
-                            (apply (core-object 'OP-NAME) self argl))
-                          OP-NAME))
+                        ;; Here we tie knot marrying dispatch function w/ self.
+                        (name-and-partially-apply-proc 
+                         OP-NAME ARGS self (core-object 'OP-NAME)))
                        ...
-                       ((operations) (lambda () '(OP-NAME ... operations)))
+                       ((operations) 
+                        (name-and-partially-apply-proc
+                         operations () self (lambda (me) '(OP-NAME ... operations))))
                        ;; This 'self' is only for error msg documentation
                        (else (error 'self ": unhandled object message " op)))))))
        self))))
