@@ -1122,10 +1122,18 @@
               (form-set-menu! form clr/null)))
        (update!))
 
-      ((scroll orient magnitude)
+      ((attempt-scroll orient magnitude)
+       (define (out-of-range-handler val min max) 'ignore)
        (case orient
-         ((vertical) (vertical-scroll! magnitude))
-         ((horizontal) (horizontal-scroll! magnitude))
+         ((vertical) (vertical-scroll! magnitude out-of-range-handler))
+         ((horizontal) (horizontal-scroll! magnitude out-of-range-handler))
+         (else (error 'scroll ": improper orientation " orient))))
+      ((scroll orient magnitude)
+       (define (out-of-range-handler val min max)
+         (error orient ": " val " is not in range [" min "," max "]"))
+       (case orient
+         ((vertical) (vertical-scroll! magnitude out-of-range-handler))
+         ((horizontal) (horizontal-scroll! magnitude out-of-range-handler))
          (else (error 'scroll ": improper orientation " orient))))
        
       ((measure-text txt-string fnt)
@@ -1159,15 +1167,16 @@
               (lambda () #f)))
     (set! vertical-scroll! 
           (let ((tell-agent ((default-impl 'on-vscroll))))
-            (lambda (mag)
+            (lambda (mag out-of-range-handler)
               (let ((val (+ (scrollbar-value vertical-scrollbar) mag))
                     (min (scrollbar-minimum vertical-scrollbar))
                     (max (scrollbar-maximum vertical-scrollbar)))
                 (cond ((<= min val max)
                        (set-scrollbar-value! vertical-scrollbar val)
                        (tell-agent val 'external))
-                      (else (error 'vertical-scroll! ": " val 
-                                   " is not in range [" min "," max "]")))))))
+                      (else 
+                       (out-of-range-handler val min max)))))))
+
     (set! horizontal-scroll! 
           (let ((tell-agent ((default-impl 'on-hscroll))))
             (lambda (mag)
