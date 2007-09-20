@@ -114,13 +114,26 @@
                    ;; This 'self' is only for error msg documentation
                    (else (error 'self
                                 ": unhandled object message " op)))))
-              (self ;; This 'self' is only for proc documentation
+              (self 
+               ;; This 'self' is only for proc documentation; (it is
+               ;; sound to alpha rename w/ sole occurrence below)
                (lambda (op)
                  ;; (display `(handling msg ,op)) (newline)
                  (if (eq? op delegate-token)
                      core-object
-                     ;; Here we tie knot marrying dispatch function w/ self.
-                     (lambda arglst (apply (core-object op) self arglst))))))
+                     (case op
+                       ((OP-NAME) 
+                        ;; expanded from a simple lambda exp into a
+                        ;; full def'n to get proc documentation.
+                        (let () 
+                          (define (OP-NAME . argl) 
+                            ;; Here we tie knot marrying dispatch function w/ self.
+                            (apply (core-object 'OP-NAME) self argl))
+                          OP-NAME))
+                       ...
+                       ((operations) (lambda () '(OP-NAME ... operations)))
+                       ;; This 'self' is only for error msg documentation
+                       (else (error 'self ": unhandled object message " op)))))))
        self))))
 
 (define-syntax msg-handler
