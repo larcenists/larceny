@@ -265,6 +265,22 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     vector_set( v, 0, fixnum( 0 ) );  // bytevector
 #endif
     break;
+  /* FIXME: The rest of these aren't implemented yet. */
+  case 12 : /* foldcase */
+    vector_set( v, 0, fixnum( 0 ) );
+    break;
+  case 13 : /* execmode */
+    vector_set( v, 0, fixnum( 1 ) );
+    break;
+  case 14 : /* pedantic */
+    vector_set( v, 0, fixnum( 0 ) );
+    break;
+  case 15 : /* r6path */
+    vector_set( v, 0, fixnum( 0 ) );  /* FIXME: should be a string */
+    break;
+  case 16 : /* r6program */
+    vector_set( v, 0, fixnum( 0 ) );  /* FIXME: should be a string */
+    break;
   default : 
     panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
   }

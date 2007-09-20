@@ -77,6 +77,11 @@
           (cons 'string-representation  string-repr)
 	  (cons 'flonum-bits            64)
 	  (cons 'flonum-representation  'ieee)
+          (cons 'case-sensitivity       (not (sys$system-feature 'foldcase)))
+          (cons 'execution-mode         (sys$system-feature 'execmode))
+          (cons 'pedantic               (sys$system-feature 'pedantic))
+          (cons 'library-path           (sys$system-feature 'r6path))
+          (cons 'top-level-program      (sys$system-feature 'r6program))
 	  (cons 'gc-technology          (car gc-info))
 	  (cons 'heap-area-info         (cdr gc-info)))))
 

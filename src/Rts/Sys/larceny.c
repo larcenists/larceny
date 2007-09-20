@@ -45,7 +45,16 @@ struct opt {
   bool       flush;                     /* force icache flushing */
   bool       noflush;                   /* disable icache flushing */
   bool       reorganize_and_dump;       /* split text and data and dump */
-  bool       nobanner;                  /* disable printing of (secondary) banner. */
+  bool       nobanner;          /* disable printing of (secondary) banner */
+  bool       foldcase;          /* case-insensitive mode */
+  bool       nofoldcase;        /* case-sensitive mode */
+  bool       r6rs;              /* batch/script mode */
+  bool       r6fast;            /* R6RS-compatible mode; requires r6rs */
+  bool       r6slow;            /* R6RS-conforming mode; requires r6rs */
+  bool       r6pedantic;        /* R6RS-conforming mode; requires r6rs */
+  bool       r6less_pedantic;   /* but not so pedantic; requires pedantic */
+  char       *r6program;        /* file containing R6RS top-level program */
+  char       *r6path;           /* directory containing R6RS libraries */
   int        restc;                     /* number of extra arguments */
   char       **restv;                   /* vector of extra arguments */
 };
@@ -136,6 +145,15 @@ int main( int argc, char **os_argv )
   o.gc_info.is_conservative_system = 1;
 #endif
   o.nobanner = 0;
+  o.foldcase = 0;
+  o.nofoldcase = 0;
+  o.r6rs = 0;
+  o.r6fast = 0;
+  o.r6slow = 0;
+  o.r6pedantic = 0;
+  o.r6less_pedantic = 0;
+  o.r6program = "";
+  o.r6path = "";
 
   if (larceny_version_qualifier[0] == '.') {
     /* If we our version qualifier starts with a period, then the
@@ -560,6 +578,30 @@ parse_options( int argc, char **argv, opt_t *o )
     }
     else if (hstrcmp( *argv, "-nobanner" ) == 0)
       o->nobanner = 1;
+    else if (hstrcmp( *argv, "-foldcase" ) == 0)
+      o->foldcase = 1;
+    else if (hstrcmp( *argv, "-nofoldcase" ) == 0)
+      o->nofoldcase = 1;
+    else if (hstrcmp( *argv, "-r6rs" ) == 0)
+      o->r6rs = 1;
+    else if (hstrcmp( *argv, "-fast" ) == 0)
+      o->r6fast = 1;
+    else if (hstrcmp( *argv, "-slow" ) == 0)
+      o->r6slow = 1;
+    else if (hstrcmp( *argv, "-pedantic" ) == 0)
+      o->r6pedantic = 1;
+    else if (hstrcmp( *argv, "-but-not-that-pedantic" ) == 0)
+      o->r6less_pedantic = 1;
+    else if (hstrcmp( *argv, "-program" ) == 0) {
+      ++argv;
+      --argc;
+      o->r6program = *argv;
+    }
+    else if (hstrcmp( *argv, "-path" ) == 0) {
+      ++argv;
+      --argc;
+      o->r6path = *argv;
+    }
     else if (hstrcmp( *argv, "-args" ) == 0 ||
                strcmp( *argv, "--" ) == 0) {
       o->restc = argc-1;
@@ -587,6 +629,23 @@ parse_options( int argc, char **argv, opt_t *o )
   }
 
   /* Initial validation */
+
+  if (o->foldcase && o->nofoldcase)
+    param_error( "Both -foldcase and -nofoldcase selected." );
+
+  if ((o->r6slow || o->r6pedantic) &&
+      ((! (o->r6rs)) || (! (o->r6slow)) ||
+       (! (o->r6pedantic)) || (o->r6program == 0)))
+    param_error( "Missing one of -r6rs -slow -pedantic -program options." );
+
+  if (o->r6less_pedantic && (! (o->r6pedantic)))
+    param_error( "Missing -pedantic option." );
+
+  if ((o->r6fast ||
+       (strcmp (o->r6path, "") != 0) ||
+       (strcmp (o->r6program, "") != 0)) && (! (o->r6rs)))
+    param_error( "Missing -r6rs option." );
+
   if (o->gc_info.is_conservative_system &&
       (o->gc_info.is_generational_system || o->gc_info.is_stopcopy_system))
     param_error( "Both precise and conservative gc selected." );
