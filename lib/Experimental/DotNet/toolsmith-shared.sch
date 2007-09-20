@@ -218,6 +218,14 @@
   (define mytext "\n") ;; revist when we add IMG objects.
   (define selection 0) ;; [Oneof Nat (cons Nat Nat)]
   (define preferred-cursor-col #f) ;; used when moving cursor up and down
+  (define (cursor-line)
+    (let ((pos (cond ((number? selection) selection)
+                     (else (car selection)))))
+      (do ((i 0 (+ i 1))
+           (j 0 (+ j (if (char=? #\newline (string-ref mytext i)) 1 0))))
+          ((= i pos)
+           j))))
+                    
   (define mouse-down #f)
   (define mouse-up #f)
   (define mouse-drag #f)
@@ -226,6 +234,12 @@
   (define selection-col (name->col (string->symbol "LightBlue")))
   (define col (name->col (string->symbol "Black")))
   (define backing-agent #f)
+  (define (count-visible-lines)
+    (inexact->exact
+     (quotient ((wnd 'height)) 
+               (call-with-values (lambda () ((wnd 'measure-text) "" fnt))
+                 (lambda (w h) h)))))
+    
   (define (cursor-left!)
     (set! preferred-cursor-col #f)
     (cond ((number? selection) 
@@ -273,8 +287,12 @@
                    idx))))
         (set! selection target-idx))))
   (define (cursor-up!)
+    (if (= (cursor-line) 0)
+        ((wnd 'attempt-scroll) 'vertical -1))
     (cursor-vertical! 'backward))
   (define (cursor-down!)
+    (if (= (cursor-line) (count-visible-lines))
+        ((wnd 'attempt-scroll) 'vertical  1))
     (cursor-vertical! 'forward))
   (define (selection-start-pos)
     (cond ((number? selection) selection)
@@ -363,14 +381,23 @@
                           (let ((pos (max 0 (- selection 1))))
                             (values (substring mytext 0 pos)
                                     (substring mytext selection len)
-                                    pos)))
+                                    pos
+                                    (substring mytext pos selection)
+                                    )))
                          (else
                           (values (substring mytext 0 (car selection))
                                   (substring mytext (cdr selection) len)
-                                  (car selection)))))
-      (lambda (prefix suffix pos)
+                                  (car selection)
+                                  (substring mytext (car selection) (cdr selection))
+                                  ))))
+      (lambda (prefix suffix new-selection-val deleted-text)
         (set! mytext (string-append prefix suffix))
-        (set! selection pos))))
+        (set! selection new-selection-val)
+        deleted-text)))
+  
+  (define (call-with-wnd-update thunk)
+    (call-with-values thunk
+      (lambda vals ((wnd 'update)) (apply values vals))))
   
   (msg-handler
    ((textstring) mytext)
@@ -385,21 +412,31 @@
           (else
            (values (car selection) (cdr selection)))))
    ((set-selection! start-pos-incl end-pos-excl)
-    (set! selection (cons start-pos-incl end-pos-excl)))
+    (set! selection 
+          (if (= start-pos-incl end-pos-excl)
+              start-pos-incl
+              (cons start-pos-incl end-pos-excl))))
 
-   ((cursor-left!)               (cursor-left!)               ((wnd 'update)))
-   ((cursor-right!)              (cursor-right!)              ((wnd 'update)))
-   ((cursor-up!)                 (cursor-up!)                 ((wnd 'update)))
-   ((cursor-down!)               (cursor-down!)               ((wnd 'update)))
-   ((insert-char-at-point! char) (insert-char-at-point! char) ((wnd 'update)))
-   ((delete-char-at-point!)      (delete-char-at-point!)      ((wnd 'update)))
-
+   ((cursor-left!)               (call-with-wnd-update cursor-left!))
+   ((cursor-right!)              (call-with-wnd-update cursor-right!))
+   ((cursor-up!)                 (call-with-wnd-update cursor-up!))
+   ((cursor-down!)               (call-with-wnd-update cursor-down!))
+   ((insert-char-at-point! char) (call-with-wnd-update 
+                                  (lambda () (insert-char-at-point! char))))
+   ((delete-char-at-point!)      (call-with-wnd-update delete-char-at-point!))
    ((on-keydown sym mods)  (delegate 'on-keydown sym mods))
    ((on-keyup   sym mods)  (delegate 'on-keyup   sym mods))
    ((on-keypress char)     (delegate 'on-keypress char))
    ((on-resize)            (delegate 'on-resize))
+   ((on-hscroll new-int event-type)  (delegate 'on-hscroll new-int event-type))
+   ((on-vscroll new-int event-type)  (delegate 'on-vscroll new-int event-type))
    ((horizontal-scrollbar) (delegate 'horizontal-scrollbar))
    ((vertical-scrollbar)   (delegate 'vertical-scrollbar))
+
+   ((count-visible-lines)  (count-visible-lines))
+
+   ;; XXX not well defined for non-fixed width fonts...
+   ;; ((count-visible-columns) (quotient ((wnd 'width)) ((fnt 'em-width))))
 
    ((on-mousedown mx my)
     (set! mouse-down (cons mx my))
@@ -496,6 +533,36 @@
        ((editor-agent 'insert-char-at-point!) char))))))
 
 (define (make-auto-indenting-agent wnd editor-agent)
+  (define (count-newlines-in string)
+    (length (filter (lambda (x) (char=? x #\newline)) (string->list string))))
+  ;; String Nat -> [Maybe Nat]
+  (define (index-after-line-count text line-count)
+    (let loop ((i 0) (j 0))
+      (cond ((= i (string-length text))
+             #f) ;; if we return #f, then there are not line-count lines in text
+            ((= j line-count)
+             i)
+            (else
+             (loop (+ i 1)
+                   (+ j (if (char=? #\newline (string-ref text i)) 1 0)))))))
+  (define (line-count)
+    (let ((prefix-lines (count-newlines-in prefix))
+          (text-lines   (count-newlines-in ((editor-agent 'textstring))))
+          (suffix-lines (count-newlines-in suffix)))
+      '(begin (display `(line-count ((prefix-lines ,prefix-lines)
+                                    (text-lines   ,text-lines)
+                                    (suffix-lines ,suffix-lines))))
+             (newline))
+      (+ prefix-lines text-lines suffix-lines)))
+     
+     
+  (define first-line-idx 0)
+  ;; Bad rep; scrolling op's take O(n) time (where n is the size of
+  ;; the entirety of the text).  A doubly linked list of lines may be
+  ;; better.  Or even a pair of singly linked list (where the first is
+  ;; kept in reverse order).  But this is simple prototype code.
+  (define prefix "")
+  (define suffix "")
   (require "Experimental/scheme-source")
 
   (msg-handler 
@@ -562,13 +629,87 @@
       ((right)       ((editor-agent 'cursor-right!)))
       ((up)          ((editor-agent 'cursor-up!)))
       ((down)        ((editor-agent 'cursor-down!)))
-      ((back delete) ((editor-agent 'delete-char-at-point!)))
+      ((back delete) 
+       (let* (;; 1. Delete the text
+              (deleted-text ((editor-agent 'delete-char-at-point!)))
+              ;; 2. Analyze deleted text to see if we need to append more text
+              (lines (count-newlines-in deleted-text)))
+         (cond 
+          ((not (= lines 0))
+           ;;    3. Okay, append more text.
+           (let* ((text ((editor-agent 'textstring)))
+                  (idx  (index-after-line-count suffix lines))
+                  (suflen (string-length suffix))
+                  (append-text (if idx (substring suffix 0 idx) suffix))
+                  (new-text (string-append text append-text))
+                  (new-suffix (if idx (substring suffix idx suflen) "")))
+             ((editor-agent 'set-textstring!) new-text)
+             (set! suffix new-suffix))))))
       ))
+
    ((on-keypress char)
     (case char
       ((#\backspace #\return #\esc #\tab) 'do-nothing)
       (else 
-       ((editor-agent 'insert-char-at-point!) char))))))
+       ((editor-agent 'insert-char-at-point!) char))))
+   ((vertical-scrollbar)
+    ;; These do not have to be in pixels to be meaningful; we as the
+    ;; client select our own unit of measurement, and are then
+    ;; responsible for using it consistently.  In this case, we are
+    ;; using a line as the measurement grain, (and I suppose that
+    ;; the horizontal scrollbars will use a column as the grain).
+    ;; When image support is added, these grains might not remain
+    ;; appropriate.
+    (let ((max-val (max 0 (- (line-count) ((editor-agent 'count-visible-lines))))))
+      (cond ((not (<= 0 first-line-idx max-val))
+             (display `(want: (<= 0 ,first-line-idx ,max-val)))
+             (newline)))
+      (assert (<= 0 first-line-idx max-val))
+      `((min ,0)
+        (max ,max-val)
+        (value ,first-line-idx)
+        (dsmall ,1)
+        (dlarge ,1)))) ;; XXX how large?  Base on current window height?
+   ((on-vscroll new-int event-type)
+
+    (let* ((visible-line-count ((editor-agent 'count-visible-lines)))
+           (old-int first-line-idx)
+           ;; 1. Extract existing text + cursor info from the textview.
+           (text ((editor-agent 'textstring)))
+           (cursor-info (call-with-values (lambda () ((editor-agent 'selection))) 
+                          list))
+           ;; 2. Merge textview's text with our own text.
+           (text (string-append prefix text suffix))
+           ;; 3. Extract the appropriate substring from the total text.
+           (subtext-start-idx (index-after-line-count text new-int))
+           (subtext-finis-idx (index-after-line-count text (+ new-int 
+                                                              visible-line-count)))
+           ;; 4. Calculate change to cursor-info
+           (cursor-delta (- (string-length prefix) subtext-start-idx))
+           (new-cursor-info (map (lambda (x) (+ x cursor-delta)) cursor-info)))
+      (let* ((prefix* (substring text 0 (or subtext-start-idx 0)))
+             (start   (or subtext-start-idx 0))
+             (finis   (or subtext-finis-idx (string-length text)))
+             (view*   (substring text start finis))
+             (suffix* (substring text finis (string-length text))))
+        '(begin (display `(repartition-and-install ,text 
+                                                  (,0 ,subtext-start-idx
+                                                      ,subtext-finis-idx
+                                                      ,(string-length text))
+                                                  ,prefix*
+                                                  ,view*
+                                                  ,suffix*
+                                                  ))
+               (newline))
+        ;;    5. Repartition and install text
+        (set! prefix prefix*)
+        ((editor-agent 'set-textstring!) view*)
+        (set! suffix suffix*)
+        (apply (editor-agent 'set-selection!) new-cursor-info))
+      (set! first-line-idx new-int)
+      ((wnd 'update))
+      ))
+   ))
 
 (define (editor-agent-maker make-backing-agent)
   (lambda (wnd width height)
