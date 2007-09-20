@@ -94,17 +94,60 @@
 ;;   sets scroll bar indicators so that they indicate correct position
 ;;   of currently displayed text
 
+;; This is only for the use within object extension for effecting
+;; dispatch.
+(define delegate-token (cons 0 0))
+
+(define-syntax make-root-object
+  (syntax-rules ()
+    ((root-object self ((OP-NAME . ARGS) BODY ...) ...)
+     (letrec ((core-object
+               (lambda (op)
+                 (case op
+                   ;; This use of the id 'self' is important (it is
+                   ;; semantically significant so that we actually
+                   ;; have true dynamic dispatch when one uses methods
+                   ;; on self within BODY)
+                   ((OP-NAME) (lambda (self . ARGS) BODY ...))
+                   ...
+                   ((operations) (lambda (self) '(OP-NAME ... operations)))
+                   ;; This 'self' is only for error msg documentation
+                   (else (error 'self
+                                ": unhandled object message " op)))))
+              (self ;; This 'self' is only for proc documentation
+               (lambda (op)
+                 ;; (display `(handling msg ,op)) (newline)
+                 (if (eq? op delegate-token)
+                     core-object
+                     ;; Here we tie knot marrying dispatch function w/ self.
+                     (lambda arglst (apply (core-object op) self arglst))))))
+       self))))
+
 (define-syntax msg-handler
   (syntax-rules ()
     ((msg-handler ((OP-NAME . ARGS) BODY ...) ...)
-     (lambda (op)
-       ;; (display `(handling msg ,op)) (newline)
-       (case op
-         ((OP-NAME) (lambda ARGS BODY ...))
-         ...
-         ((operations) (lambda () '(OP-NAME ... operations)))
-         (else (error 'msg-handler 
-                      ": unhandled object message " op)))))))
+     (make-root-object self-name ((OP-NAME . ARGS) BODY ...) ...))))
+
+(define-syntax extend-object
+  (syntax-rules ()
+    ((extend-object super-expr self ((OP-NAME . ARGS) BODY ...) ...)
+     (letrec ((super-obj super-expr)
+              (core-object 
+               (lambda (op)
+                 (case op 
+                   ;; See above re: this use of id 'self'
+                   ((OP-NAME) (lambda (self . ARGS) BODY ...))
+                   ...
+                   ((operations) (lambda (self) (append '(OP-NAME ... operations)
+                                                        ((super-obj 'operations)))))
+                   (else ((super-obj delegate-token) op)))))
+              (self ;; See above re: this use of id 'self'
+               (lambda (op)
+                 (if (eq? op delegate-token)
+                     core-object
+                     ;; Here we tie knot marrying dispatch function w/ self.
+                     (lambda arglst (apply (core-object op) self arglst))))))
+       self))))
 
 ;; An agent can choose whether or not it handles the paint event (by
 ;; including paint in its operations list).
