@@ -201,7 +201,7 @@
 
 (define (make-noisy-agent wnd width height)
   (define (displayln x) (display x) (newline))
-  (msg-handler
+  (make-root-object noisy-agent
    ((on-close)                (displayln `(on-close)))
    ((on-keydown int mods)     (displayln `(on-keydown ,int ,mods)))
    ((on-keyup int mods)       (displayln `(on-keyup ,int ,mods)))
@@ -228,7 +228,7 @@
          (forget! (lambda () 
                     (set! last-x #f) (set! last-y #f) (set! temp-rect #f)))
          (rect-list '()))
-    (msg-handler 
+    (make-root-object rectangle-drawing-agent
      ((on-mousedown x y) (save! x y))
      ((on-mousedrag x y) 
       (cond ((and last-x last-y)
@@ -442,7 +442,7 @@
     (call-with-values thunk
       (lambda vals ((wnd 'update)) (apply values vals))))
   
-  (msg-handler
+  (make-root-object textview-agent
    ((textstring) mytext)
    ((set-textstring! string) 
     (cond ((char=? #\newline (string-ref string (- (string-length string) 1)))
@@ -560,7 +560,7 @@
    ))
 
 (define (make-simplest-backing-agent wnd editor-agent)
-  (msg-handler 
+  (make-root-object simplest-backing-agent
    ((on-keyup   sym mods)
     (case sym
       ((enter)       ((editor-agent 'insert-char-at-point!) #\newline))
@@ -608,7 +608,7 @@
   (define suffix "")
   (require "Experimental/scheme-source")
 
-  (msg-handler 
+  (make-root-object auto-indenting-agent
    ((on-keyup   sym mods)
     (case sym
       ((enter)       
@@ -940,7 +940,7 @@
                 (lambda (stw sth)
                   (fill utw start-h stw sth)))))))))
 
-    (msg-handler
+    (make-root-object code-editor-agent
      ((textstring) 
       ;; Careful here; when we add image support in the future, it 
       ;; is not clear what this method should do then.  (We'll
