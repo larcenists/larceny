@@ -27,37 +27,7 @@
 #include "gc_t.h"
 #include "young_heap_t.h"
 
-/* Argument parsing structure */
-
-typedef struct opt opt_t;
-struct opt {
-  int        maxheaps;                  /* length of size[] member */
-  int        size[ MAX_GENERATIONS ];   /* area 1 at loc 0, etc */
-  gc_param_t gc_info;                   /* detailed info about areas */
-  unsigned   timerval;                  /* timer value */
-  bool       enable_singlestep;         /* enable/disable single stepping */
-  bool       enable_breakpoints;        /* enable/disable breakpoints */
-  bool       enable_timer;              /* enable/disable timer */
-  char       *heapfile;                 /* name of heap file */
-  bool       quiet;                     /* do not print informative msgs */
-  bool       annoying;                  /* print many informative msgs */
-  bool       supremely_annoying;        /* print massively many msgs */
-  bool       flush;                     /* force icache flushing */
-  bool       noflush;                   /* disable icache flushing */
-  bool       reorganize_and_dump;       /* split text and data and dump */
-  bool       nobanner;          /* disable printing of (secondary) banner */
-  bool       foldcase;          /* case-insensitive mode */
-  bool       nofoldcase;        /* case-sensitive mode */
-  bool       r6rs;              /* batch/script mode */
-  bool       r6fast;            /* R6RS-compatible mode; requires r6rs */
-  bool       r6slow;            /* R6RS-conforming mode; requires r6rs */
-  bool       r6pedantic;        /* R6RS-conforming mode; requires r6rs */
-  bool       r6less_pedantic;   /* but not so pedantic; requires pedantic */
-  char       *r6program;        /* file containing R6RS top-level program */
-  char       *r6path;           /* directory containing R6RS libraries */
-  int        restc;                     /* number of extra arguments */
-  char       **restv;                   /* vector of extra arguments */
-};
+opt_t command_line_options;
 
 static void param_error( char *s );
 static void invalid( char *s );
@@ -107,7 +77,6 @@ int larceny_main( int argc, char **os_argv )
 int main( int argc, char **os_argv )
 #endif
 {
-  opt_t o;
   int generations;
   char **argv;
 
@@ -132,28 +101,28 @@ int main( int argc, char **os_argv )
   osdep_init();
   cache_setup();
 
-  memset( &o, 0, sizeof( o ) );
-  o.maxheaps = MAX_GENERATIONS;
-  o.timerval = 0xFFFFFFFF;
-  o.heapfile = 0;
-  o.enable_breakpoints = 1;
-  o.restv = 0;
-  o.gc_info.ephemeral_info = 0;
-  o.gc_info.use_static_area = 1;
-  o.gc_info.globals = globals;
+  memset( &command_line_options, 0, sizeof( command_line_options ) );
+  command_line_options.maxheaps = MAX_GENERATIONS;
+  command_line_options.timerval = 0xFFFFFFFF;
+  command_line_options.heapfile = 0;
+  command_line_options.enable_breakpoints = 1;
+  command_line_options.restv = 0;
+  command_line_options.gc_info.ephemeral_info = 0;
+  command_line_options.gc_info.use_static_area = 1;
+  command_line_options.gc_info.globals = globals;
 #if defined( BDW_GC )
-  o.gc_info.is_conservative_system = 1;
+  command_line_options.gc_info.is_conservative_system = 1;
 #endif
-  o.nobanner = 0;
-  o.foldcase = 0;
-  o.nofoldcase = 0;
-  o.r6rs = 0;
-  o.r6fast = 0;
-  o.r6slow = 0;
-  o.r6pedantic = 0;
-  o.r6less_pedantic = 0;
-  o.r6program = "";
-  o.r6path = "";
+  command_line_options.nobanner = 0;
+  command_line_options.foldcase = 0;
+  command_line_options.nofoldcase = 0;
+  command_line_options.r6rs = 0;
+  command_line_options.r6fast = 0;
+  command_line_options.r6slow = 0;
+  command_line_options.r6pedantic = 0;
+  command_line_options.r6less_pedantic = 0;
+  command_line_options.r6program = "";
+  command_line_options.r6path = "";
 
   if (larceny_version_qualifier[0] == '.') {
     /* If we our version qualifier starts with a period, then the
@@ -164,7 +133,7 @@ int main( int argc, char **os_argv )
     print_banner();
     /* since we printed the banner here, there's no reason to print it
      * again below. */
-    o.nobanner = 1;
+    command_line_options.nobanner = 1;
   }
 
   /* FIXME: This should all be factored out as osdep_get_program_options()
@@ -191,64 +160,65 @@ int main( int argc, char **os_argv )
       fclose( fp );
     }
     argv[argc] = 0;
-    parse_options( argc, argv, &o );
+    parse_options( argc, argv, &command_line_options );
   }
 #else
-  parse_options( argc, argv, &o );
+  parse_options( argc, argv, &command_line_options );
 #endif
 
-  if (!o.nobanner)
+  if (!command_line_options.nobanner)
     print_banner();
 
   osdep_poll_startup_events();
 
-  if (o.heapfile == 0) {
+  if (command_line_options.heapfile == 0) {
     char *path = getenv(LARCENY_ROOT);
     size_t path_length = strlen(path);
     size_t base_length = strlen(larceny_heap_name);
 
     /* This leaks, but only once at startup.  I think it's worth it: */
-    o.heapfile = malloc(path_length + base_length + 2);
-    if (o.heapfile == NULL) {
+    command_line_options.heapfile = malloc(path_length + base_length + 2);
+    if (command_line_options.heapfile == NULL) {
       panic_exit("Cannot allocate buffer for heapfile name.");
     }
 
-    sprintf(o.heapfile, "%s/%s", path, larceny_heap_name);
+    sprintf(command_line_options.heapfile, "%s/%s", path, larceny_heap_name);
   }
 
-  quiet = o.quiet;
-  annoying = o.annoying;
-  supremely_annoying = o.supremely_annoying;
+  quiet = command_line_options.quiet;
+  annoying = command_line_options.annoying;
+  supremely_annoying = command_line_options.supremely_annoying;
 
   if (annoying || supremely_annoying)
-    dump_options( &o );
+    dump_options( &command_line_options );
 
-  if (o.flush)
+  if (command_line_options.flush)
     globals[ G_CACHE_FLUSH ] = 1;
-  else if (o.noflush)
+  else if (command_line_options.noflush)
     globals[ G_CACHE_FLUSH ] = 0;
 
-  if (o.reorganize_and_dump && !o.gc_info.is_stopcopy_system) {
-    o.gc_info.is_conservative_system = 0;
-    o.gc_info.is_generational_system = 0;
-    o.gc_info.is_stopcopy_system = 1;
-    o.gc_info.use_static_area = 1;
-    o.gc_info.use_non_predictive_collector = 0;
-    o.gc_info.use_incremental_bdw_collector = 0;
-    o.gc_info.sc_info.size_bytes = DEFAULT_STOPCOPY_SIZE;
-    o.gc_info.sc_info.load_factor = DEFAULT_LOAD_FACTOR;
+  if (command_line_options.reorganize_and_dump &&
+      !command_line_options.gc_info.is_stopcopy_system) {
+    command_line_options.gc_info.is_conservative_system = 0;
+    command_line_options.gc_info.is_generational_system = 0;
+    command_line_options.gc_info.is_stopcopy_system = 1;
+    command_line_options.gc_info.use_static_area = 1;
+    command_line_options.gc_info.use_non_predictive_collector = 0;
+    command_line_options.gc_info.use_incremental_bdw_collector = 0;
+    command_line_options.gc_info.sc_info.size_bytes = DEFAULT_STOPCOPY_SIZE;
+    command_line_options.gc_info.sc_info.load_factor = DEFAULT_LOAD_FACTOR;
   }
 
-  if (!create_memory_manager( &o.gc_info, &generations ))
+  if (!create_memory_manager( &command_line_options.gc_info, &generations ))
     panic_exit( "Unable to set up the garbage collector." );
 
-  if (!load_heap_image_from_file( o.heapfile ))
+  if (!load_heap_image_from_file( command_line_options.heapfile ))
     panic_exit( "Unable to load the heap image." );
 
-  if (o.reorganize_and_dump) {
+  if (command_line_options.reorganize_and_dump) {
     char buf[ FILENAME_MAX ];   /* Standard C */
 
-    sprintf( buf, "%s.split", o.heapfile );
+    sprintf( buf, "%s.split", command_line_options.heapfile );
     if (!reorganize_and_dump_static_heap( buf ))
       panic_exit( "Failed heap reorganization." );
     return 0;
@@ -256,13 +226,13 @@ int main( int argc, char **os_argv )
 
   /* initialize some policy globals */
   globals[ G_BREAKPT_ENABLE ] =
-    (o.enable_breakpoints ? TRUE_CONST : FALSE_CONST);
+    (command_line_options.enable_breakpoints ? TRUE_CONST : FALSE_CONST);
   globals[ G_SINGLESTEP_ENABLE ] =
-    (o.enable_singlestep ? TRUE_CONST : FALSE_CONST );
+    (command_line_options.enable_singlestep ? TRUE_CONST : FALSE_CONST );
   globals[ G_TIMER_ENABLE ] =
-    (o.enable_timer ? TRUE_CONST : FALSE_CONST );
+    (command_line_options.enable_timer ? TRUE_CONST : FALSE_CONST );
   globals[ G_TIMER ] = 0;
-  globals[ G_TIMER2 ] = o.timerval;
+  globals[ G_TIMER2 ] = command_line_options.timerval;
   globals[ G_RESULT ] = fixnum( 0 );  /* No arguments */
 
   setup_signal_handlers();
@@ -282,7 +252,9 @@ int main( int argc, char **os_argv )
    */
   { word args[1], res;
 
-    args[0] = allocate_argument_vector( the_gc(globals), o.restc, o.restv );
+    args[0] = allocate_argument_vector( the_gc(globals),
+                                        command_line_options.restc,
+                                        command_line_options.restv );
     larceny_call( globals[ G_STARTUP ], 1, args, &res );
     consolemsg( "Startup procedure returned with value %08lx", (long)res );
   }

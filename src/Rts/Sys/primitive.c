@@ -267,14 +267,26 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     break;
   /* FIXME: The rest of these aren't implemented yet. */
   case 12 : /* foldcase */
-    vector_set( v, 0, fixnum( 0 ) );
+    vector_set( v, 0, fixnum( command_line_options.foldcase ) );
     break;
-  case 13 : /* execmode */
-    vector_set( v, 0, fixnum( 1 ) );
+  case 13 : /* execmode */ {
+    int mode = 1;
+    if (command_line_options.r6rs)
+      mode = 2;
+    if (command_line_options.r6slow)
+      mode = 3;
+    vector_set( v, 0, fixnum( mode ) );
     break;
-  case 14 : /* pedantic */
-    vector_set( v, 0, fixnum( 0 ) );
+  }
+  case 14 : /* pedantic */ {
+    int pedantry = 0;
+    if (command_line_options.r6pedantic)
+      pedantry = 2;
+    if (command_line_options.r6less_pedantic)
+      pedantry = 1;
+    vector_set( v, 0, fixnum( pedantry ) );
     break;
+  }
   case 15 : /* r6path */
     vector_set( v, 0, fixnum( 0 ) );  /* FIXME: should be a string */
     break;

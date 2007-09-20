@@ -16,6 +16,7 @@
 #include "macros.h"
 #include "cdefs.h"
 #include "assert.h"
+#include "gc.h"
 
 #ifdef GC_INTERNAL
 #define NOGLOBALS      /* globals[] array is not declared in this file */
@@ -37,6 +38,41 @@ extern const char *larceny_gc_technology;
 #endif
 
 /* In "Rts/Sys/larceny.c" */
+
+/* Argument parsing structure */
+/* FIXME: This is why larceny.h depends upon gc.h */
+
+typedef struct opt opt_t;
+struct opt {
+  int        maxheaps;                  /* length of size[] member */
+  int        size[ MAX_GENERATIONS ];   /* area 1 at loc 0, etc */
+  gc_param_t gc_info;                   /* detailed info about areas */
+  unsigned   timerval;                  /* timer value */
+  bool       enable_singlestep;         /* enable/disable single stepping */
+  bool       enable_breakpoints;        /* enable/disable breakpoints */
+  bool       enable_timer;              /* enable/disable timer */
+  char       *heapfile;                 /* name of heap file */
+  bool       quiet;                     /* do not print informative msgs */
+  bool       annoying;                  /* print many informative msgs */
+  bool       supremely_annoying;        /* print massively many msgs */
+  bool       flush;                     /* force icache flushing */
+  bool       noflush;                   /* disable icache flushing */
+  bool       reorganize_and_dump;       /* split text and data and dump */
+  bool       nobanner;          /* disable printing of (secondary) banner */
+  bool       foldcase;          /* case-insensitive mode */
+  bool       nofoldcase;        /* case-sensitive mode */
+  bool       r6rs;              /* batch/script mode */
+  bool       r6fast;            /* R6RS-compatible mode; requires r6rs */
+  bool       r6slow;            /* R6RS-conforming mode; requires r6rs */
+  bool       r6pedantic;        /* R6RS-conforming mode; requires r6rs */
+  bool       r6less_pedantic;   /* but not so pedantic; requires pedantic */
+  char       *r6program;        /* file containing R6RS top-level program */
+  char       *r6path;           /* directory containing R6RS libraries */
+  int        restc;                     /* number of extra arguments */
+  char       **restv;                   /* vector of extra arguments */
+};
+
+extern opt_t command_line_options;
 
 extern int  panic_exit( const char *fmt, ... );
 extern int  panic_abort( const char *fmt, ... );
