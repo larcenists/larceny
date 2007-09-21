@@ -105,19 +105,30 @@
     ((_ NAME ARGS       FIRST PROC)
      (let () (define (NAME . argl) (apply PROC FIRST argl)) NAME))))
 
+;; *Not* named-lambda; in particular, NAME is *not* bound in BODY ...
+(define-syntax lambda-with-name
+  (syntax-rules ()
+    ((_ NAME (ARGS ...) BODY ...)
+     (let ((proc (lambda (ARGS ...) BODY ...))) 
+       (define (NAME ARGS ...) (proc ARGS ...)) NAME))
+    ((_ NAME ARGL       BODY ...)
+     (let ((proc (lambda ARGL BODY ...))) 
+       (define (NAME . rest) (apply proc rest)) NAME))
+    ))
+
 (define-syntax make-root-object
   (syntax-rules ()
     ((root-object self ((OP-NAME . ARGS) BODY ...) ...)
      (letrec ((core-object
-               (lambda (op)
+               ;; This use of the id 'self' is important (it is
+               ;; semantically significant so that we actually
+               ;; have true dynamic dispatch when one uses methods
+               ;; on self within BODY)
+               (lambda (op self)
                  (case op
-                   ;; This use of the id 'self' is important (it is
-                   ;; semantically significant so that we actually
-                   ;; have true dynamic dispatch when one uses methods
-                   ;; on self within BODY)
-                   ((OP-NAME) (lambda (self . ARGS) BODY ...))
+                   ((OP-NAME) (lambda-with-name OP-NAME ARGS BODY ...))
                    ...
-                   ((operations) (lambda (self) '(OP-NAME ... operations)))
+                   ((operations) (lambda () '(OP-NAME ... operations)))
                    ;; This 'self' is only for error msg documentation
                    (else (error 'self
                                 ": unhandled object message " op)))))
@@ -128,17 +139,8 @@
                  ;; (display `(handling msg ,op)) (newline)
                  (if (eq? op delegate-token)
                      core-object
-                     (case op
-                       ((OP-NAME) 
-                        ;; Here we tie knot marrying dispatch function w/ self.
-                        (name-and-partially-apply-proc 
-                         OP-NAME ARGS self (core-object 'OP-NAME)))
-                       ...
-                       ((operations) 
-                        (name-and-partially-apply-proc
-                         operations () self (lambda (me) '(OP-NAME ... operations))))
-                       ;; This 'self' is only for error msg documentation
-                       (else (error 'self ": unhandled object message " op)))))))
+                     ;; Here we tie knot marrying dispatch function w/ self.
+                     (core-object op self)))))
        self))))
 
 (define-syntax msg-handler
@@ -151,21 +153,61 @@
     ((extend-object super-expr self ((OP-NAME . ARGS) BODY ...) ...)
      (letrec ((super-obj super-expr)
               (core-object 
-               (lambda (op)
+               (lambda (op self)
                  (case op 
                    ;; See above re: this use of id 'self'
-                   ((OP-NAME) (lambda (self . ARGS) BODY ...))
+                   ((OP-NAME) (lambda-with-name OP-NAME ARGS BODY ...))
                    ...
-                   ((operations) (lambda (self) (append '(OP-NAME ... operations)
-                                                        ((super-obj 'operations)))))
-                   (else ((super-obj delegate-token) op)))))
+                   ((operations) (lambda () (append '(OP-NAME ... operations)
+                                                    ((super-obj 'operations)))))
+                   (else ((super-obj delegate-token) op self)))))
               (self ;; See above re: this use of id 'self'
                (lambda (op)
                  (if (eq? op delegate-token)
                      core-object
                      ;; Here we tie knot marrying dispatch function w/ self.
-                     (lambda arglst (apply (core-object op) self arglst))))))
+                     (core-object op self)))))
        self))))
+
+;; SAMPLE USAGE OF ABOVE OBJECT SYSTEM
+(begin 
+  (define (make-point x y) 
+    (make-root-object 
+     point-self
+     ((x) x)
+     ((y) y) 
+     ((move dx dy) (make-point (+ x dx) (+ y dy)))))
+  (define some-tests
+    (let () 
+      (make-point 1 2)                ; => #<procedure point-self>
+      ((make-point 1 2) 'x)           ; => #<procedure x>
+      (((make-point 1 2) 'x))         ; => 1
+      (((make-point 1 2) 'y))         ; => 2
+      (((make-point 1 2) 'move) 3 4)  ; => #<procedure point-self>
+      (let* ((p1 (make-point 1 2))
+             (p2 ((p1 'move) 5 8)))
+        ((p2 'x)))                    ; => 6
+      ))
+  (define (make-colored-point x y col)
+    (define (add-color-to-point p)
+      (extend-object p 
+       colored-self 
+       ((color) col) 
+       ((move x y) 
+        ;; ugly way to get hook on super's method.  :(
+        (add-color-to-point ((p 'move) x y)))
+       ))
+    (add-color-to-point (make-point x y)))
+  (define some-more-tests
+    (let ()
+      (make-colored-point 10 20 'black) ; => #<interpreted-procedure colored-self>
+      (let ((cp (make-colored-point 10 20 'black)))
+        ((cp 'x)))                      ; => 10
+      (let* ((cp1 (make-colored-point 10 20 'black))
+             (cp2 ((cp1 'move) 4 7)))
+        ((cp2 'color)))                 ; => black
+      ))
+  )
 
 ;; An agent can choose whether or not it handles the paint event (by
 ;; including paint in its operations list).
