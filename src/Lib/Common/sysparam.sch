@@ -78,6 +78,7 @@
 	  (cons 'flonum-bits            64)
 	  (cons 'flonum-representation  'ieee)
           (cons 'case-sensitivity       (not (sys$system-feature 'foldcase)))
+          (cons 'safety                 (sys$system-feature 'safety))
           (cons 'execution-mode         (sys$system-feature 'execmode))
           (cons 'pedantic               (sys$system-feature 'pedantic))
           (cons 'library-path           (sys$system-feature 'r6path))

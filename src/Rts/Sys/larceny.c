@@ -114,6 +114,7 @@ int main( int argc, char **os_argv )
   command_line_options.gc_info.is_conservative_system = 1;
 #endif
   command_line_options.nobanner = 0;
+  command_line_options.unsafe = 0;
   command_line_options.foldcase = 0;
   command_line_options.nofoldcase = 0;
   command_line_options.r5rs = 0;
@@ -556,12 +557,18 @@ parse_options( int argc, char **argv, opt_t *o )
       o->foldcase = 1;
     else if (hstrcmp( *argv, "-nofoldcase" ) == 0)
       o->nofoldcase = 1;
-    else if (hstrcmp( *argv, "-r5rs" ) == 0)
+    else if (hstrcmp( *argv, "-r5rs" ) == 0) {
       o->r5rs = 1;
+      o->foldcase = 1;
+    }
     else if (hstrcmp( *argv, "-err5rs" ) == 0)
       o->err5rs = 1;
-    else if (hstrcmp( *argv, "-r6rs" ) == 0)
+    else if (hstrcmp( *argv, "-r6rs" ) == 0) {
       o->r6rs = 1;
+      o->nobanner = 1;
+    }
+    else if (hstrcmp( *argv, "-unsafe" ) == 0)
+      o->unsafe = 1;
     else if (hstrcmp( *argv, "-fast" ) == 0)
       o->r6fast = 1;
     else if (hstrcmp( *argv, "-slow" ) == 0)
@@ -623,6 +630,9 @@ parse_options( int argc, char **argv, opt_t *o )
 
   if (o->r6less_pedantic && (! (o->r6pedantic)))
     param_error( "Missing -pedantic option." );
+
+  if (o->r6slow && (strcmp (o->r6path, "") != 0))
+    param_error( "The -slow and -path options are incompatible." );
 
   if ((o->r6fast ||
        (strcmp (o->r6path, "") != 0) ||
@@ -1045,9 +1055,52 @@ static void usage( void )
 #define STR2(x) #x
 
 static char *helptext[] = {
-  "  -heap",
+  "  -heap <filename>",
   "     Select the initial heap image.",
+  "  -nofoldcase",
+  "     Symbols are case-sensitive (the default; #!fold-case overrides).",
+  "  -foldcase",
+  "     Symbols are case-insensitive (#!no-fold-case overrides).",
+  "  -err5rs",
+  "     Enter a traditional interactive read/eval/print loop (the default).",
+  "  -r5rs",
+  "     Roughly equivalent to -err5rs -foldcase.",
+  "  -r6rs",
+  "     Execute an R6RS-style program in batch mode.  The -program option",
+  "     must specify a file that contains the R6RS top-level program, and",
+  "     the other options below may also be specified.",
+  "       -program <filename>",
+  "          Execute the R6RS-style program found in this file.",
+  "       -path <directory>",
+  "          Location of R6RS libraries; incompatible with -slow.",
+  "       -fast",
+  "          Execute the R6RS-style program as compiled code (the default).",
+  "       -slow",
+  "          Execute in Spanky mode; must be accompanied by -pedantic.",
+  "       -pedantic",
+  "          Execute in Spanky mode; must be accompanied by -slow.",
+  "       -but-not-that-pedantic",
+  "          Modifies -pedantic, which must also be specified.",
+  "  -quiet",
+  "     Suppress nonessential messages.",
+  "  -nobanner",
+  "     Suppress runtime startup banner (implied by -r6rs).",
+  "  -help",
+  "     Print this message.",
+  "  -wizard",
+  "     Print this message as well as help on wizard options.",
+  "",
+  0 };
+
+static char *wizardhelptext[] = {
+  "  (Wizard options below this point.)",
+  "  -unsafe",
+  "     Crash spectacularly when errors occur (not yet implemented).",
 #if !defined(BDW_GC)
+  "  -annoy-user",
+  "     Print a bunch of annoying debug messages, usually about GC.",
+  "  -annoy-user-greatly",
+  "     Print a great deal of very annoying debug messages, usually about GC.",
   "  -stopcopy",
   "     Select the stop-and-copy collector." ,
   "  -gen",
@@ -1105,24 +1158,7 @@ static char *helptext[] = {
   "     parameter).  The -expansion and -load parameters are mutually",
   "     exclusive.",
 #endif
-  "  -quiet",
-  "     Suppress nonessential messages.",
-  "  -nobanner",
-  "     Suppress runtime startup banner.",
-  "  -help",
-  "     Print this message.",
-  "  -wizard",
-  "     Print this message as well as help on wizard options.",
-  "",
-  0 };
-
-static char *wizardhelptext[] = {
-  "  (Wizard options below this point.)",
 #if !defined(BDW_GC)
-  "  -annoy-user",
-  "     Print a bunch of annoying debug messages, usually about GC.",
-  "  -annoy-user-greatly",
-  "     Print a great deal of very annoying debug messages, usually about GC.",
   "  -nostatic",
   "     Do not use the static area, but load the heap image into the",
   "     garbage-collected heap." ,

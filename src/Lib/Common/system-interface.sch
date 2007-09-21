@@ -131,6 +131,7 @@
 (define feature$pedantic          14)
 (define feature$r6path            15)
 (define feature$r6program         16)
+(define feature$unsafe            17)
 
 (define (sys$system-feature name)
 
@@ -257,6 +258,10 @@
        (if (bytevector? bv)
            (sys$cstring->string bv)
            "")))
+    ((safety)
+     (case (get-feature feature$unsafe)
+      ((0) 1)
+      (else 0)))
     (else 
      (error "sys$system-feature: " name " is not a system feature name"))))
 

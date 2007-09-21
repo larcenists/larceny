@@ -59,6 +59,7 @@ struct opt {
   bool       noflush;                   /* disable icache flushing */
   bool       reorganize_and_dump;       /* split text and data and dump */
   bool       nobanner;          /* disable printing of (secondary) banner */
+  bool       unsafe;            /* cheat ad libitum */
   bool       foldcase;          /* case-insensitive mode */
   bool       nofoldcase;        /* case-sensitive mode */
   bool       r5rs;              /* R5RS mode */

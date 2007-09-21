@@ -6,7 +6,16 @@
 
 ($$trace "main")
 
-; Entry point in a bootstrap heap.
+; Public procedures.
+
+(define herald
+  (make-parameter "herald" #f))
+
+(define (dump-interactive-heap filename)
+  (dump-heap filename interactive-entry-point))
+
+
+; Entry point in a bootstrap heap.  Called by go.
 
 (define (main argv)
   ($$trace "In main")
@@ -20,26 +29,50 @@
 ; Entry point in a saved interactive heap.
 
 (define (interactive-entry-point argv)
-  (for-each eval *interactive-eval-list*)
+  (for-each eval *interactive-eval-list*) ; FIXME: used only for JavaDot?
   ($$trace "In interactive-entry-point")
   (command-line-arguments argv)
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
   (failsafe-load-init-files)
   (failsafe-process-arguments)
+  (let ((features (system-features)))
+    (define (get-feature name)
+      (let ((probe (assq name features)))
+        (and probe (cdr probe))))
+    (define (adjust-case-sensitivity!)
+      (case-sensitive? (get-feature 'case-sensitivity)))
+    (case (get-feature 'execution-mode)
+     ((r5rs err5rs)
+      (adjust-case-sensitivity!)
+      (r5rs-entry-point argv))
+     ((dargo)
+      (require 'r6rsmode)
+      (eval (list 'run-r6rs-program
+                  (get-feature 'top-level-program))
+            (interaction-environment))
+      (exit 0))
+     ((spanky)
+      (display "Larceny's R6RS-conforming mode isn't implemented yet.")
+      (newline)
+      (display "Please use Larceny's R6RS-compatible mode instead.")
+      (newline)
+      (exit 1))
+     (else
+      (display "Unrecognized execution mode: ")
+      (write (get-feature 'execution-mode))
+      (newline)
+      (exit 1)))))
+
+
+; Entry point for R5RS and ERR5RS execution modes.
+; Called only by interactive-entry-point, above.
+
+(define (r5rs-entry-point argv)
   (if (herald)
       (writeln (herald)))
   (start-repl)
   (exit 0))
-
-
-; Public procedures.
-
-(define herald
-  (make-parameter "herald" #f))
-
-(define (dump-interactive-heap filename)
-  (dump-heap filename interactive-entry-point))
 
 
 ; Error/reset/interrupt handling.

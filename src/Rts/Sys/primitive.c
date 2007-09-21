@@ -325,6 +325,9 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
     break;
   }
+  case 17 : /* unsafe */
+    vector_set( v, 0, fixnum( command_line_options.unsafe ) );
+    break;
   default : 
     panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
   }
