@@ -339,9 +339,9 @@
   (define backing-agent #f)
   (define (count-visible-lines)
     (inexact->exact
-     (quotient ((wnd 'height)) 
-               (call-with-values (lambda () ((wnd 'measure-text) "" fnt))
-                 (lambda (w h) h)))))
+     (ceiling (/ ((wnd 'height)) 
+                 (call-with-values (lambda () ((wnd 'measure-text) "" fnt))
+                   (lambda (w h) h))))))
     
   (define (cursor-left!)
     (set! preferred-cursor-col #f)
@@ -763,7 +763,10 @@
     ;; the horizontal scrollbars will use a column as the grain).
     ;; When image support is added, these grains might not remain
     ;; appropriate.
-    (let ((max-val (max 0 (- (line-count) ((editor-agent 'count-visible-lines))))))
+    (let* ((my-line-count (line-count))
+           (visible-lines ((editor-agent 'count-visible-lines)))
+           (max-val (max 0 (- my-line-count visible-lines))) ;; XXX this is buggy
+           (max-val my-line-count)) ;; This is questionable but easier to work with
       (cond ((not (<= 0 first-line-idx max-val))
              (display `(want: (<= 0 ,first-line-idx ,max-val)))
              (newline)))
@@ -772,7 +775,10 @@
         (max ,max-val)
         (value ,first-line-idx)
         (dsmall ,1)
-        (dlarge ,1)))) ;; XXX how large?  Base on current window height?
+        (dlarge ,(if (> (* 2 visible-lines) my-line-count)
+                     1
+                     (quotient visible-lines 2)
+                     )))))
    ((on-vscroll new-int event-type)
 
     (let* ((visible-line-count ((editor-agent 'count-visible-lines)))
