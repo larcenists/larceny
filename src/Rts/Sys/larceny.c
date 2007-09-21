@@ -116,6 +116,8 @@ int main( int argc, char **os_argv )
   command_line_options.nobanner = 0;
   command_line_options.foldcase = 0;
   command_line_options.nofoldcase = 0;
+  command_line_options.r5rs = 0;
+  command_line_options.err5rs = 0;
   command_line_options.r6rs = 0;
   command_line_options.r6fast = 0;
   command_line_options.r6slow = 0;
@@ -554,6 +556,10 @@ parse_options( int argc, char **argv, opt_t *o )
       o->foldcase = 1;
     else if (hstrcmp( *argv, "-nofoldcase" ) == 0)
       o->nofoldcase = 1;
+    else if (hstrcmp( *argv, "-r5rs" ) == 0)
+      o->r5rs = 1;
+    else if (hstrcmp( *argv, "-err5rs" ) == 0)
+      o->err5rs = 1;
     else if (hstrcmp( *argv, "-r6rs" ) == 0)
       o->r6rs = 1;
     else if (hstrcmp( *argv, "-fast" ) == 0)
@@ -604,6 +610,11 @@ parse_options( int argc, char **argv, opt_t *o )
 
   if (o->foldcase && o->nofoldcase)
     param_error( "Both -foldcase and -nofoldcase selected." );
+
+  if ((o->r5rs && (o->err5rs || o->r6rs)) ||
+      (o->err5rs && (o->r5rs || o->r6rs)) ||
+      (o->r6rs && (o->r5rs || o->err5rs)))
+    param_error( "More than one of -r5rs -err5rs -r6rs selected." );
 
   if ((o->r6slow || o->r6pedantic) &&
       ((! (o->r6rs)) || (! (o->r6slow)) ||

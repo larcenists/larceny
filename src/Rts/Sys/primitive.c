@@ -50,7 +50,7 @@ word w_envvar;
   }
   l = strlen( p );
   q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
-  *q = mkheader( l, (BV_HDR | STR_SUBTAG) );
+  *q = mkheader( l, BV_HDR );
   memcpy( string_data( q ), p, l );
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
@@ -271,6 +271,10 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     break;
   case 13 : /* execmode */ {
     int mode = 1;
+    if (command_line_options.r5rs)
+      mode = 0;
+    if (command_line_options.err5rs)
+      mode = 1;
     if (command_line_options.r6rs)
       mode = 2;
     if (command_line_options.r6slow)
@@ -287,12 +291,40 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     vector_set( v, 0, fixnum( pedantry ) );
     break;
   }
-  case 15 : /* r6path */
-    vector_set( v, 0, fixnum( 0 ) );  /* FIXME: should be a string */
+  case 15 : /* r6path */ {
+    char *p;
+    word *q;
+    int l;
+
+    p = command_line_options.r6path;
+    if (p == 0) {
+      globals[ G_RESULT ] = FALSE_CONST;
+      return;
+    }
+    l = strlen( p );
+    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    *q = mkheader( l, BV_HDR );
+    memcpy( string_data( q ), p, l );
+    vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
     break;
-  case 16 : /* r6program */
-    vector_set( v, 0, fixnum( 0 ) );  /* FIXME: should be a string */
+  }
+  case 16 : /* r6program */ {
+    char *p;
+    word *q;
+    int l;
+
+    p = command_line_options.r6program;
+    if (p == 0) {
+      globals[ G_RESULT ] = FALSE_CONST;
+      return;
+    }
+    l = strlen( p );
+    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    *q = mkheader( l, BV_HDR );
+    memcpy( string_data( q ), p, l );
+    vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
     break;
+  }
   default : 
     panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
   }

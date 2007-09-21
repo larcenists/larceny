@@ -61,7 +61,9 @@ struct opt {
   bool       nobanner;          /* disable printing of (secondary) banner */
   bool       foldcase;          /* case-insensitive mode */
   bool       nofoldcase;        /* case-sensitive mode */
-  bool       r6rs;              /* batch/script mode */
+  bool       r5rs;              /* R5RS mode */
+  bool       err5rs;            /* ERR5RS mode */
+  bool       r6rs;              /* R6RS (batch/script) mode */
   bool       r6fast;            /* R6RS-compatible mode; requires r6rs */
   bool       r6slow;            /* R6RS-conforming mode; requires r6rs */
   bool       r6pedantic;        /* R6RS-conforming mode; requires r6rs */

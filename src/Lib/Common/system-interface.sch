@@ -247,8 +247,16 @@
       ((0) #f)
       ((1) #t)
       (else 'extremely)))
-    ((r6path) "")
-    ((r6program) "")
+    ((r6path)
+     (let ((bv (get-feature feature$r6path)))
+       (if (bytevector? bv)
+           (sys$cstring->string bv)
+           "")))
+    ((r6program)
+     (let ((bv (get-feature feature$r6program)))
+       (if (bytevector? bv)
+           (sys$cstring->string bv)
+           "")))
     (else 
      (error "sys$system-feature: " name " is not a system feature name"))))
 
