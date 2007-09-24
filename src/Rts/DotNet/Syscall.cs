@@ -588,7 +588,31 @@ namespace Scheme.RT {
           case 10: // stats-remsets
               v[0] = Factory.makeFixnum (0);
               break;
-              }
+          case 11: // codevec (not used by Common Larceny)
+              v[0] = Factory.makeFixnum (0);  // bytevector
+              break;
+
+          // FIXME: The rest of these aren't implemented yet.
+
+          case 12: // foldcase
+              v[0] = Factory.makeFixnum (0);
+              break;
+          case 13: // execmode
+              v[0] = Factory.makeFixnum (1); // err5rs
+              break;
+          case 14: // pedantic
+              v[0] = Factory.makeFixnum (0);
+              break;
+          case 15: // r6path
+              v[0] = Factory.makeUString ("");
+              break;
+          case 16: // r6program
+              v[0] = Factory.makeUString ("");
+              break;
+          case 17: // unsafe
+              v[0] = Factory.makeFixnum (0);
+              break;
+          }
           Reg.Result = Factory.Unspecified;
         }
 

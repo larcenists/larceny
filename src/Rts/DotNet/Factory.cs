@@ -282,6 +282,8 @@ namespace Scheme.Rep {
         //   Strings, UStrings, ByteVL
         // ===========================
 
+        // FIXME: Nothing should use Factory.makeString any more.
+
         public static SByteVL makeString(int length, byte fill) {
             return new SByteVL(Tags.StringTag, length, (byte)fill);
         }
