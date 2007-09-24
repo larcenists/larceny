@@ -284,22 +284,22 @@ namespace Scheme.Rep {
 
         // FIXME: Nothing should use Factory.makeString any more.
 
-        public static SByteVL makeString(int length, byte fill) {
-            return new SByteVL(Tags.StringTag, length, (byte)fill);
-        }
-        public static SByteVL makeString(string s) {
-           // byte [] chars = new byte [SByteVL.stringEncoding.GetByteCount (s)];
-           // SByteVL.stringEncoding.GetBytes (s, 0, s.Length, chars, 0);
-           // return new SByteVL (Tags.StringTag, chars);
-            byte[] chars = new byte[s.Length];
-           for (int i = 0; i < chars.Length; i++) {
-                chars[i] = (byte)s[i];
-            }
-            return new SByteVL(Tags.StringTag, chars);
-        }
-        public static SByteVL makeString(byte[] elements) {
-            return new SByteVL(Tags.StringTag, elements);
-        }
+//        public static SByteVL makeString(int length, byte fill) {
+//            return new SByteVL(Tags.StringTag, length, (byte)fill);
+//        }
+//        public static SByteVL makeString(string s) {
+//           // byte [] chars = new byte [SByteVL.stringEncoding.GetByteCount (s)];
+//           // SByteVL.stringEncoding.GetBytes (s, 0, s.Length, chars, 0);
+//           // return new SByteVL (Tags.StringTag, chars);
+//            byte[] chars = new byte[s.Length];
+//           for (int i = 0; i < chars.Length; i++) {
+//                chars[i] = (byte)s[i];
+//            }
+//            return new SByteVL(Tags.StringTag, chars);
+//        }
+//        public static SByteVL makeString(byte[] elements) {
+//            return new SByteVL(Tags.StringTag, elements);
+//        }
 
         public static SByteVL makeUString(string s) {
             SByteVL ustring = new SByteVL(Tags.UStringTag, s.Length * 4, 0);
