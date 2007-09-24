@@ -159,6 +159,27 @@
        (else (car to-paren)))))
   (install-indentation-table-entry! 'do do-suggest))
 
+(let ()
+  (define let-suggest
+    (lambda (form-count to-paren to-keyword to-first to-final)
+      (cond ((= form-count 1) (+ (car to-paren) 3))
+            ((>= form-count 2)
+             (cond 
+              ((char=? #\( (caddr to-first))
+               (cond 
+                ((= form-count 2) (+ (car to-paren) 1))
+                (to-final => car)
+                (to-first => car)
+                (else (car to-paren))))
+              (else
+               (cond
+                ((= form-count 2) (+ (car to-paren) 2))
+                ((= form-count 3) (+ (car to-paren) 1))
+                (to-final => car)
+                (to-first => car)
+                (else (car to-paren)))))))))
+  (install-indentation-table-entry! 'let let-suggest))
+
 ;; A FormInfo is a (list String Nat Nat)
 (define (make-forminfo form-start indent line-count)
   (list form-start indent line-count))
@@ -219,8 +240,9 @@
 ;; gather-indentation-data-from-port 
 ;;  : Port -> (values Posn [Maybe FormInfo] [Maybe FormInfo] [Maybe FormInfo] Nat)
 (define (gather-indentation-data-from-port p)
-  ;; found-end-of-sexp : [Maybe FormInfo] FormInfo Nat [Maybe FormInfo] -> Nat
-  (define (found-end-of-sexp last-line-forminfo 
+  ;; found-end-of-sexp : Char [Maybe FormInfo] FormInfo Nat [Maybe FormInfo] -> Nat
+  (define (found-end-of-sexp orig-char 
+                             last-line-forminfo 
                              keyword-forminfo 
                              form-count
                              next-forminfo
@@ -239,7 +261,7 @@
                ((or (eof-object? c)
                     (char=? c #\newline))
                 i))))
-      (values (list remaining-indent line-count)
+      (values (list remaining-indent line-count orig-char)
               (and keyword-forminfo
                    (if (= line-count (forminfo-line-count keyword-forminfo))
                        (make-forminfo 
@@ -407,8 +429,9 @@
     (define (peek-next-forminfo)
       (state-next-forminfo curr-state))
 
-    (define (found-it-white)
-      (found-end-of-sexp last-line-forminfo
+    (define (found-it-white c)
+      (found-end-of-sexp c
+                         last-line-forminfo
                          (if (null? (peek-chars))
                              #f
                              (make-forminfo (peek-string) 
@@ -418,8 +441,9 @@
                          (peek-next-forminfo)
                          next-line-forminfo
                          line-count))
-    (define (found-it)
-      (found-end-of-sexp last-line-forminfo
+    (define (found-it c)
+      (found-end-of-sexp c 
+                         last-line-forminfo
                          (if (null? (peek-chars))
                              #f
                              (make-forminfo (peek-string) 
@@ -490,7 +514,7 @@
             ((start)   
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it-white)
+                                   (found-it-white c)
                                    (pop-sexp 'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -502,7 +526,7 @@
             ((id)      
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it)
+                                   (found-it c)
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -519,7 +543,7 @@
             ((mbid)      
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it)
+                                   (found-it c)
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -535,7 +559,7 @@
             ((mbstrend)
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it)
+                                   (found-it c)
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -547,7 +571,7 @@
             ((id-bs)   
              (dispatch c
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it)
+                                   (found-it c)
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -574,7 +598,10 @@
 
 (define (examine string) 
   (display string) (newline)
-  (gather-indentation-data-from-port (reversed-string->input-port string)))
+  (call-with-values (lambda () (gather-indentation-data-from-port
+                                (reversed-string->input-port string)))
+    (lambda vals
+      (apply values (cons (apply lookup-indentation vals) vals)))))
 
 (define define-example-1
 "
@@ -743,6 +770,9 @@
 (test "(do\n    ()\n    ()\na"      0)
 
 (test "(display \"\""               9)
+
+(test "(let ((x 3))"                2)
+(test "(let loop ((x 3))"           2)
 
 ;;; TEST TODO: 
 ;;; ----------
