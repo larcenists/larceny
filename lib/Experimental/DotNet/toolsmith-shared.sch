@@ -335,7 +335,43 @@
   (define em-size 10)
   (define fnt (make-fnt (monospace-fontname) em-size))
   (define selection-col (name->col (string->symbol "LightBlue")))
-  (define col (name->col (string->symbol "Black")))
+  
+  ;; A ColRange is a (list [Maybe Pos] [Maybe Pos] Col)
+  ;; interpretation:
+  ;; ( m  n c) maps the number range [m, n) to c
+  ;; (#f  n c) maps the number range < n to c
+  ;; ( m #f c) maps the number range >= m to c  
+  
+  ;; Pos ColRange -> [Maybe Col]
+  (define (lookup-col pos col-ranges)
+    (let loop ((ranges col-ranges))
+      (cond
+       ((null? ranges) #f)
+       (else 
+        (let ((range (car ranges)))
+          (cond ((and (or (not (car range)) (<= (car range) pos))
+                      (or (not (cadr range)) (< pos (cadr range))))
+                 (caddr range))
+                (else
+                 (loop (cdr ranges)))))))))
+
+  ;; [Listof ColRange]
+  (define stable-foreground-col-ranges '())
+  (define stable-background-col-ranges '())
+  (define transient-foreground-col-ranges '())
+  (define transient-background-col-ranges '())
+  (define selection-foreground-col-ranges 
+    (list
+     (list #f #f (name->col (string->symbol "Black")))))
+  (define selection-background-col-ranges
+    (list 
+     (list #f #f (name->col (string->symbol "LightBlue")))))
+  
+  (define default-foreground-col (name->col (string->symbol "Black")))
+  (define default-background-col (name->col (string->symbol "White")))
+  (define (default-selection-foreground-col) (invert-col default-foreground-col))
+  (define (default-selection-background-col) (invert-col default-background-col))
+  
   (define backing-agent #f)
   (define (count-visible-lines)
     (inexact->exact
@@ -600,21 +636,34 @@
                                      (max pos-1 pos-2)))))))
       )
     
+    ((g 'fill-rect) default-background-col rx ry (+ rx rw) (+ ry rh))
     (call-with-values (lambda () ((g 'measure-text) "A" fnt))
       (lambda (a-char-w a-char-h)
         (for-each-charpos 
          g (lambda (char pos x y w h line column)
-             (cond
-              ((and (number? selection) 
-                    (= selection pos)
-                    (char=? char #\newline))
-               ((g 'fill-rect) col x y (+ x a-char-w) (+ y a-char-h)))
-              ((and (<= (selection-start-pos) pos)
-                    (< pos (selection-finis-pos)))
-               ((g 'fill-rect) col x y (+ x w) (+ y h))
-               ((g 'draw-text) (string char) fnt x y (invert-col col)))
-              (else
-               ((g 'draw-text) (string char) fnt x y col))))))))
+             (let ((fg-col (or (lookup-col pos transient-foreground-col-ranges)
+                               (lookup-col pos stable-foreground-col-ranges)
+                               default-foreground-col))
+                   (bg-col (or (lookup-col pos transient-background-col-ranges)
+                               (lookup-col pos stable-background-col-ranges)
+                               default-background-col))
+                   (sel-fg-col (or (lookup-col pos selection-foreground-col-ranges)
+                                   (default-selection-foreground-col)))
+                   (sel-bg-col (or (lookup-col pos selection-background-col-ranges)
+                                   (default-selection-background-col))))
+               (cond
+                ((and (number? selection) 
+                      (= selection pos)
+                      (char=? char #\newline))
+                 ((g 'fill-rect) sel-bg-col x y (+ x a-char-w) (+ y a-char-h))
+                 )
+                ((and (<= (selection-start-pos) pos)
+                      (< pos (selection-finis-pos)))
+                 ((g 'fill-rect) sel-bg-col x y (+ x w) (+ y h))
+                 ((g 'draw-text) (string char) fnt x y sel-fg-col))
+                (else
+                 ((g 'fill-rect) bg-col x y (+ x w) (+ y h))
+                 ((g 'draw-text) (string char) fnt x y fg-col)))))))))
    ;; Note this method is not meant for use outside of editor-agent-maker
    ((set-backing-agent! agent) (set! backing-agent agent))
    ))
