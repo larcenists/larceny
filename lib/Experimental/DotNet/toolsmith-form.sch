@@ -666,13 +666,18 @@
               ;; take this hack of appending "a" out.
               (let* ((string* (clr/%string->foreign (string-append string "a")))
                      (stringa (clr/%string->foreign "a"))
+                     (stringo (clr/%string->foreign string))
                      (fntptr ((fnt 'fntptr)))
                      (maxint30 (clr/%number->foreign-int32 (most-positive-fixnum)))
                      (sza (clr/%invoke measure-text-method 
                                        g (vector stringa fntptr maxint30 string-format)))
                      (szf (clr/%invoke measure-text-method 
-                                       g (vector string* fntptr maxint30 string-format))))
-                (values (- (sizef-width szf) (sizef-width sza)) (sizef-height szf))))))
+                                       g (vector string* fntptr maxint30 string-format)))
+                     (szo (clr/%invoke measure-text-method
+                                       g (vector stringo fntptr maxint30 string-format))))
+                (values (max (sizef-width szo) 
+                             (- (sizef-width szf) (sizef-width sza)))
+                        (sizef-height szf))))))
          (draw-text/graphics 
           (let ((draw-string-method (clr/%get-method
                                      graphics-type
