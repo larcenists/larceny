@@ -372,6 +372,43 @@
   (define default-background-col (name->col (string->symbol "White")))
   (define (default-selection-foreground-col) (invert-col default-foreground-col))
   (define (default-selection-background-col) (invert-col default-background-col))
+
+  (define (clear-transient-state!) 
+    (set! transient-background-col-ranges '())
+    (set! transient-foreground-col-ranges '()))
+  (define (clear-stable-state!)
+    (set! stable-background-col-ranges '())
+    (set! stable-foreground-col-ranges '()))
+  (define (update-stable-ranges! change-start-incl change-finis-excl remain-delta)
+    (define (shift-entry start finis col)
+      (list (+ start remain-delta)
+            (+ finis remain-delta)
+            col))
+    (define (updated ranges)
+      (let loop ((ranges ranges))
+        (cond
+         ((null? ranges) '())
+         (else
+          (let* ((entry (car ranges))
+                 (start-incl (car entry))
+                 (finis-excl (cadr entry))
+                 (col   (caddr entry)))
+            (cond ((<= finis-excl change-start-incl) 
+                   ;; Leave early entries unchanged
+                   (cons entry (loop (cdr ranges))))
+                  ((and (< start-incl change-finis-excl)
+                        (< change-start-incl finis-excl))
+                   ;; Drop overlapping entries
+                   (loop (cdr ranges)))
+                  ((<= change-finis-excl start-incl)
+                   ;; Shift late entries
+                   (cons (shift-entry start-incl finis-excl col)
+                         (loop (cdr ranges))))
+                  (else
+                   (error 'update-stable-ranges!
+                          ": this should be dead code."))))))))
+    (set! stable-background-col-ranges (updated stable-background-col-ranges))
+    (set! stable-foreground-col-ranges (updated stable-foreground-col-ranges)))
   
   (define backing-agent #f)
   (define (count-visible-lines)
@@ -381,12 +418,14 @@
                    (lambda (w h) h))))))
     
   (define (cursor-left!)
+    (clear-transient-state!)
     (set! preferred-cursor-col #f)
     (cond ((number? selection) 
            (set! selection (max 0 (- selection 1))))
           (else
            (set! selection (car selection)))))
   (define (cursor-right!)
+    (clear-transient-state!)
     (set! preferred-cursor-col #f)
     (cond ((number? selection) 
            (set! selection (min (string-length mytext) (+ selection 1))))
@@ -395,6 +434,7 @@
   (define (cursor-vertical! dir)
     (define pos (cond ((number? selection) selection)
                       (else (car selection))))
+    (clear-transient-state!)
     (let ((start-of-line-idx
            (do ((idx (- pos 1) (- idx 1)))
                ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
@@ -427,10 +467,12 @@
                    idx))))
         (set! selection target-idx))))
   (define (cursor-up!)
+    (clear-transient-state!)
     (if (= (cursor-line) 0)
         ((wnd 'attempt-scroll) 'vertical -1))
     (cursor-vertical! 'backward))
   (define (cursor-down!)
+    (clear-transient-state!)
     (if (= (cursor-line) (- (count-visible-lines) 1))
         ((wnd 'attempt-scroll) 'vertical  1))
     (cursor-vertical! 'forward))
@@ -504,17 +546,24 @@
         (lambda () (cond ((number? selection) 
                           (values (substring mytext 0 selection)
                                   (substring mytext selection len)
-                                  selection))
+                                  selection
+                                  (+ selection 1)
+                                  ))
                          (else
                           (values (substring mytext 0 (car selection))
                                   (substring mytext (cdr selection) len)
-                                  (car selection)))))
-      (lambda (prefix suffix pos)
+                                  (car selection)
+                                  (cdr selection)
+                                  ))))
+      (lambda (prefix suffix pos end)
+        (clear-transient-state!)
+        (update-stable-ranges! pos end (- end pos))
         (set! mytext (string-append prefix (string char) suffix))
         (set! selection (+ pos 1)))))
 
   (define (delete-char-at-point!)
     (define len (string-length mytext))
+    (clear-transient-state!)
     (set! preferred-cursor-col #f)
     (call-with-values 
         (lambda () (cond ((number? selection) 
@@ -522,17 +571,21 @@
                             (values (substring mytext 0 pos)
                                     (substring mytext selection len)
                                     pos
+                                    selection
                                     (substring mytext pos selection)
                                     )))
                          (else
                           (values (substring mytext 0 (car selection))
                                   (substring mytext (cdr selection) len)
                                   (car selection)
+                                  (cdr selection)
                                   (substring mytext (car selection) (cdr selection))
                                   ))))
-      (lambda (prefix suffix new-selection-val deleted-text)
+      (lambda (prefix suffix pos end deleted-text)
+        (clear-transient-state!)
+        (update-stable-ranges! pos end (- pos end))
         (set! mytext (string-append prefix suffix))
-        (set! selection new-selection-val)
+        (set! selection pos)
         deleted-text)))
   
   (define (call-with-wnd-update thunk)
@@ -542,6 +595,7 @@
   (make-root-object textview-agent
    ((textstring) mytext)
    ((set-textstring! string) 
+    (clear-stable-state!)
     (cond ((char=? #\newline (string-ref string (- (string-length string) 1)))
            (set! mytext string))
           (else
@@ -601,15 +655,18 @@
    ;; ((count-visible-columns) (quotient ((wnd 'width)) ((fnt 'em-width))))
 
    ((on-mousedown mx my)
+    (clear-transient-state!)
     (set! mouse-down (cons mx my))
     (set! mouse-drag (cons mx my))
     (set! mouse-up #f)
     ((wnd 'update)))
    ((on-mouseup mx my)
+    (clear-transient-state!)
     (set! mouse-drag #f)
     (set! mouse-up (cons mx my))
     ((wnd 'update)))
    ((on-mousedrag mx my)
+    (clear-transient-state!)
     (cond (mouse-drag
            (set-car! mouse-drag mx)
            (set-cdr! mouse-drag my)))
