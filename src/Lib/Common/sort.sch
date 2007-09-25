@@ -96,4 +96,15 @@
 	(else
 	 (error "sort: not a valid sequence: " seq))))
 
+; Added for R6RS.
+
+(define (list-sort less? seq)
+  (sort!! (list-copy seq) less?))
+
+(define (vector-sort less? seq)
+  (list->vector (sort!! (vector->list seq) less?)))
+
+(define (vector-sort! less? seq)
+  (vector-sort less? seq))
+
 ; eof

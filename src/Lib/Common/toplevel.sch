@@ -670,6 +670,14 @@
 
   (environment-set! larc 'vector-copy vector-copy)
 
+  ;; sorting
+
+  (environment-set! larc 'list-sort list-sort)
+  (environment-set! larc 'sort sort)
+  (environment-set! larc 'sort! sort!)
+  (environment-set! larc 'vector-sort vector-sort)
+  (environment-set! larc 'vector-sort! vector-sort!)
+
   ;; control features
 
   (environment-set! larc 'values-list values-list)
@@ -886,8 +894,6 @@
   (environment-set! larc 'add-init-procedure! add-init-procedure!)
   (environment-set! larc 'quit quit)
   (environment-set! larc 'quit-handler quit-handler)
-  (environment-set! larc 'sort sort)
-  (environment-set! larc 'sort! sort!)
   (environment-set! larc 'make-parameter make-parameter)
 
   ;; debugging.
