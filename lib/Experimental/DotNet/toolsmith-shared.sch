@@ -603,9 +603,14 @@
    ((textstring) mytext)
    ((set-textstring! string) 
     (clear-stable-state!)
-    (cond ((char=? #\newline (string-ref string (- (string-length string) 1)))
+    (cond ((and (not (zero? (string-length string)))
+                (char=? #\newline 
+                        (string-ref string (- (string-length string) 1))))
            (set! mytext string))
           (else
+           (begin (display "textview set-textstring! ")
+                  (display "warning: appending newline")
+                  (newline))
            (set! mytext (string-append string "\n")))))
    ((selection) 
     (cond ((number? selection)
