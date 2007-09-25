@@ -590,7 +590,11 @@
   
   (define (call-with-wnd-update thunk)
     (call-with-values thunk
-      (lambda vals ((wnd 'update)) (apply values vals))))
+      (lambda vals 
+        (cond (backing-agent
+               ((backing-agent 'on-cursor-reposition))))
+        ((wnd 'update)) 
+        (apply values vals))))
   
   (make-root-object textview-agent
    ((textstring) mytext)
@@ -884,6 +888,33 @@
       ((#\backspace #\return #\esc #\tab) 'do-nothing)
       (else 
        ((editor-agent 'insert-char-at-point!) char))))
+   ((on-cursor-reposition)
+    (let* ((matched-col (name->col "Orange"))
+           (unmatch-col (name->col "Red"))
+           (ea editor-agent)
+           (text ((ea 'textstring)))
+           (cursor-pos (call-with-values (lambda () ((ea 'selection)))
+                         (lambda (beg end) 
+                           end)))
+           (preceding-char (and (<= 1 cursor-pos (string-length text))
+                                (string-ref text (- cursor-pos 1)))))
+      (cond 
+       ((and preceding-char 
+             (case preceding-char ((#\] #\)) #t) (else #f)))
+        (cond 
+         ((let ((prefixstr (substring text 0 (max 0 (- cursor-pos 1)))))
+            (count-until-unmatched-open-paren
+             (open-input-string 
+              (list->string
+               (reverse (string->list prefixstr))))))
+          => (lambda (count-until-match)
+               (let* ((e (- cursor-pos 1))
+                      (s (- cursor-pos (+ 2 count-until-match))))
+                 ((ea 'color-background-transiently!) s (+ s 1) matched-col)
+                 ((ea 'color-background-transiently!) e (+ e 1) matched-col))))
+         (else
+          (let ((e cursor-pos))
+            ((ea 'color-background-transiently!) e (+ e 1) unmatch-col))))))))
    ((vertical-scrollbar)
     ;; These do not have to be in pixels to be meaningful; we as the
     ;; client select our own unit of measurement, and are then
