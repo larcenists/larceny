@@ -996,19 +996,108 @@
              (display op-name)
              (newline))))
 
+
+    ;; A KeySym is a Symbol that is one of the enumerated values of
+    ;; keys-type
+    
+    ;; KeySym -> [Maybe Char]
+    ;; Converts ks to the corresponding character on a keyboard.
+    ;; This would seem like a very silly task, since the KeyPress
+    ;; events already give us the integer code that we can convert
+    ;; directly into a character.  However, the fire ordering of
+    ;; keyevents for KeyPress and KeyUp seems to be non-deterministic.
+    (define (keysym->maybe-char ks shift)
+      (case ks
+        ((Escape escape)                 #\esc)
+        ((Enter enter)                   #\newline)
+        ((Return return)                 #\return)
+        ((Space space)                   #\space)
+        ((Tab tab)                       #\tab)
+        ((Back back)                     #\backspace)
+        ((OemPlus Oemplus oemplus)       (if shift #\+ #\=))
+        ((D1 d1)                         (if shift #\! #\1))
+        ((D2 d2)                         (if shift #\@ #\2))
+        ((D3 d3)                         (if shift #\# #\3))
+        ((D4 d4)                         (if shift #\$ #\4))
+        ((D5 d5)                         (if shift #\% #\5))
+        ((D6 d6)                         (if shift #\^ #\6))
+        ((D7 d7)                         (if shift #\& #\7))
+        ((D8 d8)                         (if shift #\* #\8))
+        ((D9 d9)                         (if shift #\( #\9))
+        ((D0 d0)                         (if shift #\) #\0))
+        ((OemMinus Oemminus oemminus)    (if shift #\_ #\-))
+        ((OemSemicolon Oemsemicolon
+          oemsemicolon
+          Oem1 oem1)                     (if shift #\: #\;))
+        ((OemComma Oemcomma oemcomma)    (if shift #\< #\,))
+        ((OemPeriod Oemperiod oemperiod) (if shift #\> #\.))
+        ((OemQuestion Oemquestion 
+          oemquestion 
+          Oem2 oem2)                     (if shift #\? #\/))
+        ((OemTilde Oemtilde oemtilde
+          Oem3 oem3)                     (if shift #\~ #\`))
+        ((OemOpenBrackets OemOpenbrackets
+          Oemopenbrackets oemopenbrackets
+          Oem4 oem4)                     (if shift #\{ #\[))
+        ((OemPipe Oempipe 
+          oempipe
+          Oem5 oem5)                     (if shift #\| #\\))
+        ((OemCloseBrackets OemClosebrackets
+          Oemclosebrackets oemclosebrackets
+          Oem6 oem6)                     (if shift #\} #\]))
+        ((OemQuotes Oemquotes
+          oemquotes
+          Oem7 oem7)                     (if shift #\" #\'))
+        ;; There is also OemBackslash, but (on my keyboard) 
+        ;; that is handled by OemPipe, and I have not managed 
+        ;; to generate a KeyEvent with OemBackslash in it...
+        ;; (Is there a different keyboard type that maps this
+        ;; differently?)
+
+        ((A) (if shift #\A #\a))
+        ((B) (if shift #\B #\b))
+        ((C) (if shift #\C #\c))
+        ((D) (if shift #\D #\d))
+        ((E) (if shift #\E #\e))
+        ((F) (if shift #\F #\f))
+        ((G) (if shift #\G #\g))
+        ((H) (if shift #\H #\h))
+        ((I) (if shift #\I #\i))
+        ((J) (if shift #\J #\j))
+        ((K) (if shift #\K #\k))
+        ((L) (if shift #\L #\l))
+        ((M) (if shift #\M #\m))
+        ((N) (if shift #\N #\n))
+        ((O) (if shift #\O #\o))
+        ((P) (if shift #\P #\p))
+        ((Q) (if shift #\Q #\q))
+        ((R) (if shift #\R #\r))
+        ((S) (if shift #\S #\s))
+        ((T) (if shift #\T #\t))
+        ((U) (if shift #\U #\u))
+        ((V) (if shift #\V #\v))
+        ((W) (if shift #\W #\w))
+        ((X) (if shift #\X #\x))
+        ((Y) (if shift #\Y #\y))
+        ((Z) (if shift #\Z #\z))
+
+        (else #f)))
+
     (define (key-event-handler on-x)
       (lambda (sender e)
-        (let ((alt (key-event-args-alt e))
-              (ctrl (key-event-args-control e))
-              (shift (key-event-args-shift e))
-              ;; code enum excludes modifiers
-              (code (key-event-args-keycode e))
-              ;; data enum includes modifiers
-              (data (key-event-args-keydata e))
-              ;; original bitset 
-              (value (key-event-args-keyvalue e)))
+        (let* ((alt (key-event-args-alt e))
+               (ctrl (key-event-args-control e))
+               (shift (key-event-args-shift e))
+               ;; code enum excludes modifiers
+               (code (key-event-args-keycode e))
+               ;; data enum includes modifiers
+               (data (key-event-args-keydata e))
+               ;; original bitset 
+               (value (key-event-args-keyvalue e))
+               (keysym (keys-foreign->symbols code)))
           (on-x
-           (keys-foreign->symbols code)
+           (keysym->maybe-char keysym shift)
+           keysym
            `(,@(if alt '(alt) '())
              ,@(if ctrl '(ctrl) '())
              ,@(if shift '(shift) '())))

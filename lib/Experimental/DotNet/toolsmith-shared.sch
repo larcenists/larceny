@@ -221,7 +221,7 @@
 ;; 
 ;; AGENT: (make-noisy-agent wnd width height) ; client def's ctors, perhaps via msg-handler form
 ;;  (on-close) 
-;;  (on-keypress char) (on-keydown sym mods) (on-keyup sym mods)
+;;  (on-keypress char) (on-keydown mchar sym mods) (on-keyup mchar sym mods)
 ;;  (on-mousedown x y) (on-mouseup x y) (on-mousemove x y) (on-mousedrag x y)
 ;;  (on-mouseclick x y) (on-mousedoubleclick x y)
 ;;  (on-mouseenter) (on-mouseleave)
@@ -260,21 +260,21 @@
 ;;  (items) (mnuptr) (name)
 
 (define (make-noisy-agent wnd width height)
-  (define (displayln x) (display x) (newline))
+  (define (displayln x) (write x) (newline))
   (make-root-object noisy-agent
-   ((on-close)                (displayln `(on-close)))
-   ((on-keydown int mods)     (displayln `(on-keydown ,int ,mods)))
-   ((on-keyup int mods)       (displayln `(on-keyup ,int ,mods)))
-   ((on-keypress char)        (displayln `(on-keypress ,char)))
-   ((on-mousedown x y)        (displayln `(on-mousedown ,x ,y)))
-   ((on-mouseup   x y)        (displayln `(on-mouseup ,x ,y)))
-   ((on-mousemove x y)        (displayln `(on-mousemove ,x ,y)))
-   ((on-mouseclick x y)       (displayln `(on-mouseclick ,x ,y)))
-   ((on-mousedoubleclick x y) (displayln `(on-mousedoubleclick ,x ,y)))
-   ((on-mouseenter)           (displayln `(on-mouseenter)))
-   ((on-mouseleave)           (displayln `(on-mouseleave)))
-   ((on-paint g x y w h)      (displayln `(on-paint ,g ,x ,y ,w ,h)))
-   ((on-dispose)              (displayln `(on-dispose)))
+   ((on-close)                  (displayln `(on-close)))
+   ((on-keydown mchar sym mods) (displayln `(on-keydown ,mchar ,sym ,mods)))
+   ((on-keyup mchar sym mods)   (displayln `(on-keyup ,mchar ,sym ,mods)))
+   ((on-keypress char)          (displayln `(on-keypress ,char)))
+   ((on-mousedown x y)          (displayln `(on-mousedown ,x ,y)))
+   ((on-mouseup   x y)          (displayln `(on-mouseup ,x ,y)))
+   ((on-mousemove x y)          (displayln `(on-mousemove ,x ,y)))
+   ((on-mouseclick x y)         (displayln `(on-mouseclick ,x ,y)))
+   ((on-mousedoubleclick x y)   (displayln `(on-mousedoubleclick ,x ,y)))
+   ((on-mouseenter)             (displayln `(on-mouseenter)))
+   ((on-mouseleave)             (displayln `(on-mouseleave)))
+   ((on-paint g x y w h)        (displayln `(on-paint ,g ,x ,y ,w ,h)))
+   ((on-dispose)                (displayln `(on-dispose)))
    ))
 
 (define (make-rectangle-drawing-agent wnd width height)
@@ -563,8 +563,8 @@
    ((insert-char-at-point! char) (call-with-wnd-update 
                                   (lambda () (insert-char-at-point! char))))
    ((delete-char-at-point!)      (call-with-wnd-update delete-char-at-point!))
-   ((on-keydown sym mods)  (delegate 'on-keydown sym mods))
-   ((on-keyup   sym mods)  (delegate 'on-keyup   sym mods))
+   ((on-keydown mchar sym mods)  (delegate 'on-keydown mchar sym mods))
+   ((on-keyup   mchar sym mods)  (delegate 'on-keyup   mchar sym mods))
    ((on-keypress char)     (delegate 'on-keypress char))
    ((on-resize)            (delegate 'on-resize))
    ((on-hscroll new-int event-type)  (delegate 'on-hscroll new-int event-type))
@@ -718,7 +718,7 @@
   (require "Experimental/scheme-source")
 
   (make-root-object auto-indenting-agent
-   ((on-keyup   sym mods)
+   ((on-keydown mchar  sym mods)
     (case sym
       ((enter)       
        (let* ((ea editor-agent)
