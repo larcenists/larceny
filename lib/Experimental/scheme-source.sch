@@ -1,6 +1,6 @@
 ;; Exported functions:
 ;; suggest-indentation : Port -> Nat 
-;; count-until-unmatched-open-paren : Port -> Nat
+;; count-until-unmatched-open-paren : Port -> [Maybe Nat]
 ;; install-indentation-table-entry! : Symbol IndentSuggest -> unspecified
 
 ;; Ideas for auto-indent support (that might generalize to extensible
@@ -248,10 +248,13 @@
   (call-with-values (lambda () (gather-indentation-data-from-port p))
     lookup-indentation))
 
+;; count-until-unmatched-open-paren : Port -> [Maybe Nat]
 (define (count-until-unmatched-open-paren p)
   (call-with-values (lambda () (gather-indentation-data-from-port p))
     (lambda (form-indent ig no re me)
-      (cadddr form-indent))))
+      (if (caddr form-indent)
+          (cadddr form-indent)
+          #f))))
 
 ;; gather-indentation-data-from-port 
 ;;  : Port -> (values Posn [Maybe FormInfo] [Maybe FormInfo] [Maybe FormInfo] Nat)
