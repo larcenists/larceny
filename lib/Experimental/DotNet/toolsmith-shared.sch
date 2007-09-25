@@ -587,12 +587,15 @@
         (set! mytext (string-append prefix suffix))
         (set! selection pos)
         deleted-text)))
-  
+
+  (define (cursor-repositioned)
+    (cond (backing-agent
+           ((backing-agent 'on-cursor-reposition)))))
+
   (define (call-with-wnd-update thunk)
     (call-with-values thunk
       (lambda vals 
-        (cond (backing-agent
-               ((backing-agent 'on-cursor-reposition))))
+        (cursor-repositioned)
         ((wnd 'update)) 
         (apply values vals))))
   
@@ -717,7 +720,8 @@
                    (cond ((= pos-1 pos-2)
                           pos-1)
                          (else (cons (min pos-1 pos-2)
-                                     (max pos-1 pos-2)))))))
+                                     (max pos-1 pos-2)))))
+             (cursor-repositioned)))
       )
     
     ((g 'fill-rect) default-background-col rx ry (+ rx rw) (+ ry rh))
