@@ -24,8 +24,10 @@
   (require 'r6rs-standard-libraries))
 
 (define (larceny:load-r6rs-package)
-  (larceny:load-r6rs-runtime)
-  (require 'r6rs-expander))
+  (require 'r6rs-compat-larceny)
+  (require 'r6rs-runtime)
+  (require 'r6rs-expander)
+  (require 'r6rs-standard-libraries))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

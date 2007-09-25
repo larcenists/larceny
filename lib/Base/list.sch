@@ -8,8 +8,9 @@
 ; * Reduce, reduce-right, fold-right, fold-left are compatible with MIT Scheme.
 ; * Make-list is compatible with MIT Scheme and Chez Scheme.
 ; * These are not (yet) compatible with Shivers's proposed list functions.
-; * remq, remv, remove, remq!, remv!, remove!, every?, and some? are in the 
-;   basic library.
+; * find, filter, fold-left, fold-right are now in Lib/Common/list.sch
+; * remq, remv, remove, remq!, remv!, remove!, every?, and some?
+;   have long been in Lib/Common/list.sch
 
 ; Destructively remove all associations whose key matches `key' from `alist'.
 
@@ -53,22 +54,6 @@
   (cond ((null? alist) #f)
         ((equal? (cdar alist) key) (car alist))
         (else (reverse-assoc key (cdr alist)))))
-
-; Return a list of elements of `list' selected by the predicate.
-
-(define (filter select? list)
-  (cond ((null? list) list)
-	((select? (car list))
-	 (cons (car list) (filter select? (cdr list))))
-	(else
-	 (filter select? (cdr list)))))
-
-; Return the first element of `list' selected by the predicate.
-
-(define (find selected? list)
-  (cond ((null? list) #f)
-	((selected? (car list)) (car list))
-	(else (find selected? (cdr list)))))
 
 ; Map proc over lists and return all non-#f values.
 
@@ -146,20 +131,6 @@
   (cond ((null? l) initial)
 	((null? (cdr l)) (car l))
 	(else (loop l))))
-
-; (fold-left p x (a b ...)) => (p (p (p x a) b) ...)
-
-(define (fold-left proc initial l)
-  (if (null? l)
-      initial
-      (fold-left proc (proc initial (car l)) (cdr l))))
-
-; (fold-right p x (a b ...)) => (p a (p b (p ... x)))
-
-(define (fold-right proc initial l)
-  (if (null? l)
-      initial
-      (proc (car l) (fold-right proc initial (cdr l)))))
 
 ; (iota n) => (0 1 2 ... n-1)
 

@@ -29,6 +29,23 @@
          (string-bytevector-tests)
          (exhaustive-string-bytevector-tests)))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The deprecated endianness syntax is not present in R5RS mode.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-syntax endianness
+  (syntax-rules ()
+   ((endianness x)
+    (quote x))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; End of R6RS silliness.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (define (basic-bytevector-tests)
   (allof "basic bytevector tests"
 

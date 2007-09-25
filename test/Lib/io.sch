@@ -13,12 +13,39 @@
       #t)
   )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The deprecated eol-style, buffer-mode, and error-handling-mode
+; syntaxes are not present in R5RS mode.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-syntax eol-style
+  (syntax-rules ()
+   ((eol-style x)
+    (quote x))))
+
+(define-syntax buffer-mode
+  (syntax-rules ()
+   ((buffer-mode x)
+    (quote x))))
+
+(define-syntax error-handling-mode
+  (syntax-rules ()
+   ((error-handling-mode x)
+    (quote x))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; End of R6RS silliness.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Port i/o.
 
 (define (io-basic-tests)
 
-  (define buffer-modes '(none line datum block))         ; datum is nonstandard
+  (define buffer-modes '(none line block))
   ; FIXME:  UTF-16 isn't supported yet
 ; (define codecs '(latin-1 utf-8 utf-16))         ; nonstandard representations
   (define codecs '(latin-1 utf-8))                ; nonstandard representations
@@ -55,7 +82,7 @@
 
    (test "(buffer-mode? 'none)"  (buffer-mode? 'none)  #t)
    (test "(buffer-mode? 'line)"  (buffer-mode? 'line)  #t)
-   (test "(buffer-mode? 'datum)" (buffer-mode? 'datum) #t)
+   (test "(buffer-mode? 'datum)" (buffer-mode? 'datum) #f)
    (test "(buffer-mode? 'block)" (buffer-mode? 'block) #t)
    (test "(buffer-mode? 'foo)"   (buffer-mode? 'foo)   #f)
    (test "(buffer-mode? 17)"     (buffer-mode? 17)     #f)

@@ -42,6 +42,7 @@
 
 ;; (list* a b c tail) => (cons a (cons b (cons c tail)))
 ;; Note that (list* x) = x
+
 (define (list* first-element . rest-elements)
   (define (loop this-element rest-elements)
     (if (pair? rest-elements)
@@ -74,6 +75,7 @@
         (else 1)))
 
 ;; #t if L is a proper list of the correct length
+
 (define (length=? l n)
   (cond ((> n 0) (cond ((pair? l) (length=? (cdr l) (- n 1)))
                        ((null? l) #f)
@@ -84,6 +86,7 @@
         (else (error "length=?: negative n " n))))
 
 ;; #t if L is a list longer than N elements
+
 (define (length>? l n)
   (cond ((> n 0) (cond ((pair? l) (length>? (cdr l) (- n 1)))
                        ((null? l) #f)
@@ -94,6 +97,7 @@
         (else (error "length>?: negative n " n))))
 
 ;; #t if L is a list N or more elements long
+
 (define (length>=? l n)
   (cond ((> n 0) (cond ((pair? l) (length>=? (cdr l) (- n 1)))
                        ((null? l) #f)
@@ -104,6 +108,7 @@
         (else (error "length>=?: negative n" n))))
 
 ;; #t if L is a list shorter than N elements
+
 (define (length<? l n)
   (cond ((> n 0) (cond ((pair? l) (length<? (cdr l) (- n 1)))
                        ((null? l) #t)
@@ -112,6 +117,7 @@
         (else (error "length<?: negative n " n))))
 
 ;; #t if L is a list no longer than N elements
+
 (define (length<=? l n)
   (cond ((> n 0) (cond ((pair? l) (length<=? (cdr l) (- n 1)))
                        ((null? l) #t)
@@ -122,6 +128,7 @@
         (else (error "length<=?: negative n " n))))
 
 ;; #t if left is a shorter list than right
+
 (define (shorter? left right)
   (cond ((pair? left) (cond ((pair? right) (shorter? (cdr left) (cdr right)))
                             ((null? right) #f)
@@ -132,6 +139,7 @@
         (else (error "shorter?:  Improper list " left))))
 
 ;; #t if left is a longer list than right
+
 (define (longer? left right)
   (cond ((pair? left) (cond ((pair? right) (longer? (cdr left) (cdr right)))
                             ((null? right) #t)
@@ -140,6 +148,8 @@
                             ((null? right) #f)
                             (else (error "longer?: Improper list " right))))
         (else (error "longer?: Improper list " left))))
+
+; FIXME:  The performance of map can be improved.
 
 (define (map f x . rest)
 
@@ -739,5 +749,54 @@
 
 (define (union left right)
   (foldl adjoin right left))
+
+;; Added for R6RS.
+
+; Return the first element of `list' selected by the predicate.
+
+(define (find selected? list)
+  (cond ((null? list) #f)
+	((selected? (car list)) (car list))
+	(else (find selected? (cdr list)))))
+
+; Return a list of elements of `list' selected by the predicate.
+
+(define (filter select? list)
+  (cond ((null? list) list)
+	((select? (car list))
+	 (cons (car list) (filter select? (cdr list))))
+	(else
+	 (filter select? (cdr list)))))
+
+; Returns two lists: the list that filter would return,
+; and a list consisting of the other elements.
+
+(define (partition proc list)
+  (define (loop todo part1 part2)
+    (cond ((null? todo)
+           (values part1 part2))
+          ((proc (car todo))
+           (loop (cdr todo) (cons (car todo) part1) part2))
+          (else
+           (loop (cdr todo) part1 (cons (car todo) part2)))))
+  (loop (reverse list) '() '()))
+
+; (fold-left p x (a b ...)) => (p (p (p x a) b) ...)
+
+(define (fold-left proc initial l)
+  (if (null? l)
+      initial
+      (fold-left proc (proc initial (car l)) (cdr l))))
+
+; (fold-right p x (a b ...)) => (p a (p b (p ... x)))
+
+(define (fold-right proc initial l)
+  (if (null? l)
+      initial
+      (proc (car l) (fold-right proc initial (cdr l)))))
+
+(define for-all every?)
+(define exists some?)
+(define cons* list*)
 
 ; eof

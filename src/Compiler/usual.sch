@@ -598,14 +598,6 @@
 ; Believe it or not, the following definitions conform to the
 ; current draft R6RS.
 
-; In Larceny, *every* symbol describes an endianness.
-; See Lib/Common/bytevector.sch for semantics.
-
-(define-syntax endianness
-  (syntax-rules ()
-   ((_ x)
-    (r6rs-syntax-silliness x "endianness"))))
-
 ; The three buffer modes allowed by the current draft R6RS
 ; do not include Larceny's traditional discretionary-flush
 ; mode for interactive ports.  Beginning in Larceny v0.94,

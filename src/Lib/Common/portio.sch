@@ -4,11 +4,15 @@
 ;
 ; Larceny -- R6RS-compatible I/O system.
 
-; The buffer-mode syntax is in Compiler/usual.sch
+; The deprecated buffer-mode syntax is supported only by R6RS modes.
+
+; The R6RS specification of buffer-mode? does not allow it
+; to return true for the datum buffer mode, so this predicate
+; is worse than useless.
 
 (define (buffer-mode? mode)
   (case mode
-   ((none line datum block) #t)
+   ((none line block) #t)
    (else #f)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -22,7 +26,7 @@
 (define (utf-8-codec) 'utf-8)
 (define (utf-16-codec) 'utf-16)
 
-; eol-style is implemented in Compiler/usual.sch
+; The deprecated eol-style syntax is supported only by R6RS modes.
 
 (define (native-eol-style) 'none)   ; FIXME: for backward compatibility
 
@@ -30,7 +34,7 @@
 ; operations aren't yet implemented because conditions aren't
 ; implemented yet.
 
-; error-handling-mode is implemented in Compiler/usual.sch
+; The deprecated error-handling-mode syntax is supported only by R6RS modes.
 
 (define (make-transcoder codec . rest)
   (cond ((null? rest)
@@ -178,7 +182,7 @@
 (define (output-port-buffer-mode p)
   (if (output-port? p)
       (io/buffer-mode p)
-      (assertion-violatoin 'output-port-buffer-mode "not an output port" p)))
+      (assertion-violation 'output-port-buffer-mode "not an output port" p)))
 
 ; FIXME: fakes file options
 

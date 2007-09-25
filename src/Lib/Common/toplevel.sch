@@ -355,7 +355,7 @@
 
   (environment-set-macro! larc 'letrec* (usual-syntax 'letrec*))
   (environment-set-macro! larc 'assert (usual-syntax 'assert))
-  (environment-set-macro! larc 'endianness (usual-syntax 'endianness))
+; (environment-set-macro! larc 'endianness (usual-syntax 'endianness))
   (environment-set-macro! larc 'file-options (usual-syntax 'file-options))
   (environment-set-macro! larc 'buffer-mode (usual-syntax 'buffer-mode))
   (environment-set-macro! larc 'eol-style (usual-syntax 'eol-style))
@@ -389,36 +389,41 @@
 
   (environment-set! larc 'adjoin adjoin)
   (environment-set! larc 'append! append!)
-  (environment-set! larc 'append-map append-map)
-  (environment-set! larc 'append-map! append-map!)
+  (environment-set! larc 'append-map append-map)                        ; FIXME
+  (environment-set! larc 'append-map! append-map!)                      ; FIXME
   (environment-set! larc 'assoc assoc)
-  (environment-set! larc 'assoc-string assoc-string)
-  (environment-set! larc 'assoc-string-ci assoc-string-ci)
+  (environment-set! larc 'assoc-string assoc-string)                    ; FIXME
+  (environment-set! larc 'assoc-string-ci assoc-string-ci)              ; FIXME
   (environment-set! larc 'assq assq)
   (environment-set! larc 'assv assv)
+  (environment-set! larc 'cons* cons*)
   (environment-set! larc 'every? every?)
   (environment-set! larc 'filter filter)
-  (environment-set! larc 'find-if find-if)
-  (environment-set! larc 'find-if-not find-if-not)
-  (environment-set! larc 'foldl foldl)
-  (environment-set! larc 'foldr foldr)
-  (environment-set! larc 'improper-length improper-length)
-  (environment-set! larc 'last last)
+  (environment-set! larc 'find find)
+  (environment-set! larc 'find-if find-if)                              ; FIXME
+  (environment-set! larc 'find-if-not find-if-not)                      ; FIXME
+  (environment-set! larc 'fold-left fold-left)
+  (environment-set! larc 'fold-right fold-right)
+  (environment-set! larc 'foldl foldl)                                  ; FIXME
+  (environment-set! larc 'foldr foldr)                                  ; FIXME
+  (environment-set! larc 'improper-length improper-length)              ; FIXME
+  (environment-set! larc 'last last)                                    ; FIXME
   (environment-set! larc 'last-pair last-pair)
-  (environment-set! larc 'length<=? length<=?)
-  (environment-set! larc 'length<? length<?)
-  (environment-set! larc 'length=? length=?)
-  (environment-set! larc 'length>=? length>=?)
-  (environment-set! larc 'length>? length>?)
-  (environment-set! larc 'list* list*)
+  (environment-set! larc 'length<=? length<=?)                          ; FIXME
+  (environment-set! larc 'length<? length<?)                            ; FIXME
+  (environment-set! larc 'length=? length=?)                            ; FIXME
+  (environment-set! larc 'length>=? length>=?)                          ; FIXME
+  (environment-set! larc 'length>? length>?)                            ; FIXME
+  (environment-set! larc 'list* list*)                                  ; FIXME
   (environment-set! larc 'list-copy list-copy)
   (environment-set! larc 'list-head list-head)
-  (environment-set! larc 'list-set! list-set!)
+  (environment-set! larc 'list-set! list-set!)                          ; FIXME
   (environment-set! larc 'longer? longer?)
   (environment-set! larc 'memp memp)
   (environment-set! larc 'memp-not memp-not)
   (environment-set! larc 'memf memp)            ; deprecated alias
   (environment-set! larc 'memf-not memp-not)    ; deprecated alias
+  (environment-set! larc 'partition partition)
   (environment-set! larc 'position-of position-of)
   (environment-set! larc 'remove remove)
   (environment-set! larc 'remove! remove!)
@@ -428,10 +433,10 @@
   (environment-set! larc 'remv! remv!)
   (environment-set! larc 'remp remp)
   (environment-set! larc 'remp! remp!)
-  (environment-set! larc 'revappend revappend)
-  (environment-set! larc 'revappend! revappend!)
+  (environment-set! larc 'revappend revappend)                          ; FIXME
+  (environment-set! larc 'revappend! revappend!)                        ; FIXME
   (environment-set! larc 'reverse! reverse!)
-  (environment-set! larc 'set-last! set-last!)
+  (environment-set! larc 'set-last! set-last!)                          ; FIXME
   (environment-set! larc 'shorter? shorter?)
   (environment-set! larc 'some? some?)
   (environment-set! larc 'union union)
