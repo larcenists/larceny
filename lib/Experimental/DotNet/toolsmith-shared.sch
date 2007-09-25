@@ -128,7 +128,8 @@
                  (case op
                    ((OP-NAME) (lambda-with-name OP-NAME ARGS BODY ...))
                    ...
-                   ((operations) (lambda () '(OP-NAME ... operations)))
+                   ((operations) 
+                    (lambda-with-name operations () '(OP-NAME ... operations)))
                    ;; This 'self' is only for error msg documentation
                    (else (error 'self
                                 ": unhandled object message " op)))))
@@ -563,6 +564,28 @@
    ((insert-char-at-point! char) (call-with-wnd-update 
                                   (lambda () (insert-char-at-point! char))))
    ((delete-char-at-point!)      (call-with-wnd-update delete-char-at-point!))
+
+   ((color-foreground-transiently! start-incl finis-excl col)
+    (set! transient-foreground-col-ranges
+          (cons (list start-incl finis-excl col) transient-foreground-col-ranges)))
+   ((color-background-transiently! start-incl finis-excl col)
+    (set! transient-background-col-ranges
+          (cons (list start-incl finis-excl col) transient-background-col-ranges)))
+   ((color-foreground-stably! start-incl finis-excl col)
+    (set! stable-foreground-col-ranges
+          (cons (list start-incl finis-excl col) stable-foreground-col-ranges)))
+   ((color-background-stably! start-incl finis-excl col)
+    (set! stable-background-col-ranges
+          (cons (list start-incl finis-excl col) stable-background-col-ranges)))
+
+   ((foreground-colors) (list transient-foreground-col-ranges
+                              stable-foreground-col-ranges
+                              default-foreground-col))
+   ((background-colors) (list transient-background-col-ranges
+                              stable-background-col-ranges
+                              default-background-col))
+    
+
    ((on-keydown mchar sym mods)  (delegate 'on-keydown mchar sym mods))
    ((on-keyup   mchar sym mods)  (delegate 'on-keyup   mchar sym mods))
    ((on-keypress char)     (delegate 'on-keypress char))
