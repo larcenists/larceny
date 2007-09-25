@@ -1,3 +1,8 @@
+;; Exported functions:
+;; suggest-indentation : Port -> Nat 
+;; count-until-unmatched-open-paren : Port -> Nat
+;; install-indentation-table-entry! : Symbol IndentSuggest -> unspecified
+
 ;; Ideas for auto-indent support (that might generalize to extensible
 ;; pretty-printing)
 
@@ -13,8 +18,9 @@
 
 ;; interpretation: 
 ;; 
-;; A Posn (list i j c) is a point indented by i spaces and j lines up;
-;; character c is at that point.
+;; A Posn (list i j c k) is a point indented by i spaces and j lines
+;; up; character c is at that point.  The point is also k spaces
+;; before the cursor.
 ;;
 ;; An IndentSuggest is fed up to four arguments which summarize the
 ;; character positions of some points of interest on the S-exp that we
@@ -192,7 +198,7 @@
 (define forminfo-indent cadr)
 (define forminfo-line-count caddr)
 (define (forminfo->posn fi)
-  (list (cadr fi) (caddr fi) (string-ref (car fi) 0)))
+  (list (cadr fi) (caddr fi) (string-ref (car fi) 0) (cadddr fi)))
 ;; lift/maybe : (X -> Y) -> [Maybe X] -> [Maybe Y]
 (define (lift/maybe f)
   (lambda (x)
@@ -242,6 +248,11 @@
   (call-with-values (lambda () (gather-indentation-data-from-port p))
     lookup-indentation))
 
+(define (count-until-unmatched-open-paren p)
+  (call-with-values (lambda () (gather-indentation-data-from-port p))
+    (lambda (form-indent ig no re me)
+      (cadddr form-indent))))
+
 ;; gather-indentation-data-from-port 
 ;;  : Port -> (values Posn [Maybe FormInfo] [Maybe FormInfo] [Maybe FormInfo] Nat)
 (define (gather-indentation-data-from-port p)
@@ -267,7 +278,7 @@
                ((or (eof-object? c)
                     (char=? c #\newline))
                 i))))
-      (values (list remaining-indent line-count orig-char)
+      (values (list remaining-indent line-count orig-char char-count)
               (and keyword-forminfo
                    (if (= line-count (forminfo-line-count keyword-forminfo))
                        (make-forminfo 
@@ -474,7 +485,7 @@
                          line-count
                          char-count))
     (define (didnt-find-it char-count)
-      (values (list 0 0 #f)
+      (values (list 0 0 #f char-count)
               #f
               (peek-form-count)
               (peek-next-forminfo)
