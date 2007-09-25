@@ -180,9 +180,14 @@
                 (else (car to-paren)))))))))
   (install-indentation-table-entry! 'let let-suggest))
 
-;; A FormInfo is a (list String Nat Nat)
-(define (make-forminfo form-start indent line-count)
-  (list form-start indent line-count))
+;; A FormInfo is a (list String Nat Nat Nat)
+;; 
+;; interpretation: 
+;; A FormInfo (list s i l c) is a piece of text (s) that is indented i
+;; spaces in and is l lines up from the cursor; it is also c characters
+;; from the cursor.
+(define (make-forminfo form-start indent line-count char-count)
+  (list form-start indent line-count char-count))
 (define forminfo-form car)
 (define forminfo-indent cadr)
 (define forminfo-line-count caddr)
@@ -247,7 +252,8 @@
                              form-count
                              next-forminfo
                              next-line-forminfo
-                             line-count)
+                             line-count
+                             char-count)
     ;; At this point, the port is at the paren associated with
     ;; keyword.  
     ;; Count chars between the paren and the start of the line (or eof)
@@ -267,7 +273,8 @@
                        (make-forminfo 
                         (forminfo-form keyword-forminfo)
                         (+ remaining-indent (forminfo-indent keyword-forminfo))
-                        (forminfo-line-count keyword-forminfo))
+                        (forminfo-line-count keyword-forminfo)
+                        char-count)
                        keyword-forminfo))
               (if next-forminfo
                   (make-forminfo
@@ -275,7 +282,8 @@
                    (+ remaining-indent 
                       (string-length (forminfo-form keyword-forminfo))
                       (forminfo-indent next-forminfo))
-                   (forminfo-line-count next-forminfo))
+                   (forminfo-line-count next-forminfo)
+                   char-count)
                   next-line-forminfo)
               last-line-forminfo
               form-count)))
@@ -325,21 +333,25 @@
              (next-line-forminfo   #f)   ;; [Maybe FormInfo]
              (last-line-forminfo   #f)   ;; [Maybe FormInfo]
              (line-state initial-state)
-             (line-count 0))
+             (line-count 0)
+             (char-count 0))
     (define (next-state state adj-indent adj-line)
       (loop state
             (adj-indent indent-on-line-so-far) 
             next-line-forminfo
             last-line-forminfo
             line-state
-            (adj-line line-count)))
+            (adj-line line-count)
+            (+ char-count 1)
+            ))
     (define (reset-state adj-indent adj-line)
       (loop line-state 
             (adj-indent indent-on-line-so-far) 
             next-line-forminfo
             last-line-forminfo
             line-state
-            (adj-line line-count)))
+            (adj-line line-count)
+            (+ char-count 1)))
     (define (lineend-state state adj-indent adj-line)
       (let ((newstate (clone-state-clear-char 
                        (clone-state-next-forminfo 
@@ -350,15 +362,18 @@
               (and (not (null? (peek-chars)))
                    (make-forminfo (peek-string) 
                                   indent-on-line-so-far 
-                                  line-count))
+                                  line-count
+                                  char-count))
               (or last-line-forminfo
                   (and (zero? (peek-depth))
                        (not (null? (peek-chars)))
                        (make-forminfo (peek-string)
                                       indent-on-line-so-far
-                                      line-count)))
+                                      line-count
+                                      char-count)))
               newstate
-              (adj-line line-count))))
+              (adj-line line-count)
+              (+ char-count 1))))
     
     (define (pop-sexp sym char)
       (let* ((new-state
@@ -385,7 +400,8 @@
                         (clone-state-next-forminfo
                          (make-forminfo (peek-string) 
                                         indent-on-line-so-far
-                                        line-count)
+                                        line-count
+                                        char-count)
                          curr-state))))
                   zer0 id))
     (define (reset-line)
@@ -429,31 +445,35 @@
     (define (peek-next-forminfo)
       (state-next-forminfo curr-state))
 
-    (define (found-it-white c)
+    (define (found-it-white c char-count)
       (found-end-of-sexp c
                          last-line-forminfo
                          (if (null? (peek-chars))
                              #f
                              (make-forminfo (peek-string) 
                                             indent-on-line-so-far
-                                            line-count))
+                                            line-count
+                                            char-count))
                          (peek-form-count)
                          (peek-next-forminfo)
                          next-line-forminfo
-                         line-count))
-    (define (found-it c)
+                         line-count
+                         char-count))
+    (define (found-it c char-count)
       (found-end-of-sexp c 
                          last-line-forminfo
                          (if (null? (peek-chars))
                              #f
                              (make-forminfo (peek-string) 
                                             indent-on-line-so-far
-                                            line-count))
+                                            line-count
+                                            char-count))
                          (+ 1 (peek-form-count))
                          (peek-next-forminfo)
                          next-line-forminfo
-                         line-count))
-    (define (didnt-find-it)
+                         line-count
+                         char-count))
+    (define (didnt-find-it char-count)
       (values (list 0 0 #f)
               #f
               (peek-form-count)
@@ -508,13 +528,13 @@
 
         (cond 
          ((eof-object? c)      
-          (didnt-find-it))
+          (didnt-find-it char-count))
          (else
           (case (car curr-state)
             ((start)   
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it-white c)
+                                   (found-it-white c char-count)
                                    (pop-sexp 'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -526,7 +546,7 @@
             ((id)      
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it c)
+                                   (found-it c char-count)
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -543,7 +563,7 @@
             ((mbid)      
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it c)
+                                   (found-it c char-count)
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -559,7 +579,7 @@
             ((mbstrend)
              (dispatch c 
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it c)
+                                   (found-it c char-count)
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
@@ -571,7 +591,7 @@
             ((id-bs)   
              (dispatch c
                        (#\(    (if (zero? (peek-depth))
-                                   (found-it c)
+                                   (found-it c char-count)
                                    (pop-sexp    'start c)))
                        (#\)        (push-sexp   'start c))
                        (#\"        (next-new-id 'mbstr c))
