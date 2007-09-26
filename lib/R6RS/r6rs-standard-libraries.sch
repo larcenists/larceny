@@ -1298,3 +1298,256 @@
   (export list-sort vector-sort vector-sort!)
   (import (primitives list-sort vector-sort vector-sort!)))
 
+(library (rnrs records procedural (6))
+  (export
+   make-record-type-descriptor record-type-descriptor?
+   make-record-constructor-descriptor record-constructor
+   record-predicate record-accessor record-mutator)
+  (import
+   (primitives
+    make-record-type-descriptor record-type-descriptor?
+    make-record-constructor-descriptor record-constructor
+    record-predicate record-accessor record-mutator)))
+
+(library (rnrs records inspection (6))
+  (export
+   record? record-rtd record-type-name record-type-parent record-type-uid
+   record-type-generative? record-type-sealed? record-type-opaque?
+   record-type-field-names record-field-mutable?)
+  (import
+   (primitives
+    record? record-rtd record-type-name record-type-parent record-type-uid
+    record-type-generative? record-type-sealed? record-type-opaque?
+    record-type-field-names record-field-mutable?)))
+
+; FIXME: (rnrs records syntactic (6)) not yet implemented.
+
+; FIXME: (rnrs exceptions (6)) not yet implemented.
+
+; FIXME: (rnrs conditions (6)) not yet implemented.
+
+(library (rnrs io ports (6))
+
+  (export
+
+   file-options                           ; deprecated syntax
+   buffer-mode                            ; deprecated syntax
+   buffer-mode?                           ; deprecated procedure
+
+   latin-1-codec utf-8-codec utf-16-codec
+
+   eol-style                              ; deprecated syntax
+   native-eol-style
+
+;  &i/o-decoding                          ; FIXME
+;  make-i/o-decoding-error                ; FIXME
+;  io/-decoding-error?                    ; FIXME
+;  &i/o-encoding                          ; FIXME
+;  make-i/o-encoding-error                ; FIXME
+;  io/-encoding-error?                    ; FIXME
+;  io/-encoding-error-char                ; FIXME
+
+   error-handling-mode                    ; deprecated syntax
+
+   make-transcoder
+   native-transcoder
+   transcoder-codec transcoder-eol-style transcoder-error-handling-mode
+
+;  bytevector->string string->bytevector  ; FIXME
+
+   eof-object eof-object?
+
+   port? port-transcoder textual-port? binary-port? transcoded-port
+   port-has-port-position? port-position
+   port-has-set-port-position!? set-port-position!
+   close-port call-with-port
+
+   input-port? port-eof?
+   open-file-input-port open-bytevector-input-port open-string-input-port
+   standard-input-port current-input-port
+   make-custom-binary-input-port make-custom-textual-input-port
+
+   get-u8 lookahead-u8 get-bytevector-n get-bytevector-n!
+   get-bytevector-some                    ; deprecated procedure
+   get-bytevector-all
+
+   get-char lookahead-char
+   get-string-n get-string-n! get-string-all get-line get-datum
+
+   output-port? flush-output-port output-port-buffer-mode
+   open-file-output-port
+   open-bytevector-output-port            ; deprecated procedure
+   open-string-output-port                ; deprecated procedure
+   call-with-bytevector-output-port
+   call-with-string-output-port
+   standard-output-port current-output-port current-error-port
+   make-custom-binary-output-port make-custom-textual-output-port
+
+   put-u8 put-bytevector
+
+   put-char put-string put-datum
+
+;  open-file-input/output-port            ; FIXME
+;  make-custom-binary-input/output-port   ; FIXME
+;  make-custom-textual-input/output-port  ; FIXME
+   )
+
+  (import
+   (core primitives)
+   (for (only (core primitives) ...) expand)
+   (for (core syntax-rules) expand)
+   (larceny deprecated)
+   (primitives
+
+    buffer-mode?
+
+    latin-1-codec utf-8-codec utf-16-codec
+
+    native-eol-style
+
+;   &i/o-decoding                          ; FIXME
+;   make-i/o-decoding-error                ; FIXME
+;   io/-decoding-error?                    ; FIXME
+;   &i/o-encoding                          ; FIXME
+;   make-i/o-encoding-error                ; FIXME
+;   io/-encoding-error?                    ; FIXME
+;   io/-encoding-error-char                ; FIXME
+
+    make-transcoder
+    native-transcoder
+    transcoder-codec transcoder-eol-style transcoder-error-handling-mode
+
+;   bytevector->string string->bytevector  ; FIXME
+
+    eof-object eof-object?
+
+    port? port-transcoder textual-port? binary-port? transcoded-port
+    port-has-port-position? port-position
+    port-has-set-port-position!? set-port-position!
+    close-port call-with-port
+
+    input-port? port-eof?
+    open-file-input-port open-bytevector-input-port open-string-input-port
+    standard-input-port current-input-port
+    make-custom-binary-input-port make-custom-textual-input-port
+
+    get-u8 lookahead-u8 get-bytevector-n get-bytevector-n!
+    get-bytevector-some                    ; deprecated procedure
+    get-bytevector-all
+
+    get-char lookahead-char
+    get-string-n get-string-n! get-string-all get-line get-datum
+
+    output-port? flush-output-port output-port-buffer-mode
+    open-file-output-port
+    open-bytevector-output-port            ; deprecated procedure
+    open-string-output-port                ; deprecated procedure
+    call-with-bytevector-output-port
+    call-with-string-output-port
+    standard-output-port current-output-port current-error-port
+    make-custom-binary-output-port make-custom-textual-output-port
+
+    put-u8 put-bytevector
+
+    put-char put-string put-datum
+
+;   open-file-input/output-port            ; FIXME
+;   make-custom-binary-input/output-port   ; FIXME
+;   make-custom-textual-input/output-port  ; FIXME
+    ))
+
+  ; Larceny accepts any symbol as a file option,
+  ; but ignores all but a few options.
+
+  (define-syntax file-options
+    (syntax-rules ()
+     ((_ opt ...)
+      (make-file-options 'opt ...))))
+
+  ; FIXME:  This should return an enumeration set,
+  ; although how Larceny is supposed to do that given
+  ; its infinite set of legal file options is a mystery.
+
+  (define make-file-options list)
+
+  ; In Larceny, *every* symbol describes a buffer mode.
+  ; See Lib/Common/portio.sch for semantics.
+  ;
+  ; The three buffer modes allowed by the current draft R6RS
+  ; do not include Larceny's traditional discretionary-flush
+  ; mode for interactive ports.  Beginning in Larceny v0.94,
+  ; the preferred name of this buffer mode is datum.
+  ;
+  ; As the current draft R6RS is written, however, the
+  ; buffer-mode syntax accepts only three symbols:
+  ;
+  ;     none, line, block
+  ;
+  ; Programmers should therefore get into the habit of
+  ; specifying buffer modes using Scheme's traditional
+  ; quote syntax.
+  ;
+  ; FIXME:  Syntax checking should be done at macro expansion time,
+  ; although this particular syntax check is so stupid it really
+  ; shouldn't be done at all.
+
+  (define-syntax buffer-mode
+    (syntax-rules ()
+     ((_ x)
+      (begin
+       (issue-warning-deprecated 'buffer-mode)
+       (let ((mode (quote x)))
+         (if (memq mode '(none line block))
+             mode
+             (assertion-violation 'buffer-mode
+                                  "Larceny-specific buffer mode"
+                                  mode)))))))
+
+  ; In Larceny, *every* symbol describes an eol-style.
+  ; See Lib/Common/portio.sch for semantics.
+
+  (define-syntax eol-style
+    (syntax-rules ()
+     ((_ x)
+      (begin
+       (issue-warning-deprecated 'eol-style)
+       (quote x)))))
+
+  ; In Larceny, *every* symbol describes an error handling mode.
+  ; See Lib/Common/portio.sch for semantics.
+
+  (define-syntax error-handling-mode
+    (syntax-rules ()
+     ((_ x)
+      (begin
+       (issue-warning-deprecated 'error-handling-mode)
+       (quote x)))))
+
+  )
+
+(library (rnrs files (6))
+  (export file-exists? delete-file)
+  (import (primitives file-exists? delete-file)))
+
+(library (rnrs programs (6))
+  (export command-line exit)
+  (import
+   (core primitives)
+   (primitives command-line-arguments exit))
+
+  (define (command-line)
+    (list->vector (cons 'larceny (vector->list (command-line-arguments)))))
+  )
+
+; FIXME: (rnrs arithmetic fixnums (6)) not yet implemented.
+
+; FIXME: (rnrs arithmetic flonums (6)) not yet implemented.
+
+; FIXME: (rnrs arithmetic bitwise (6)) not yet implemented.
+
+; FIXME: (rnrs hashtables (6)) not yet implemented.
+
+; FIXME: (rnrs enums (6)) not yet implemented.
+
+; FIXME: (rnrs base (6)) not yet complete.
+; (van Tonder's definition above must be completed.)

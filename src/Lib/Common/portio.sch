@@ -4,6 +4,11 @@
 ;
 ; Larceny -- R6RS-compatible I/O system.
 
+; FIXME:  It's hard to know what to do about file-options,
+; short of supporting the (rnrs enums) library in Larceny.
+;
+; See toplevel.sch for the current workaround.
+
 ; The deprecated buffer-mode syntax is supported only by R6RS modes.
 
 ; The R6RS specification of buffer-mode? does not allow it

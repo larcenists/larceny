@@ -355,14 +355,20 @@
 
   (environment-set-macro! larc 'letrec* (usual-syntax 'letrec*))
   (environment-set-macro! larc 'assert (usual-syntax 'assert))
+
+; Deprecated R6RS syntax.
+;
 ; (environment-set-macro! larc 'endianness (usual-syntax 'endianness))
-  (environment-set-macro! larc 'file-options (usual-syntax 'file-options))
-  (environment-set-macro! larc 'buffer-mode (usual-syntax 'buffer-mode))
-  (environment-set-macro! larc 'eol-style (usual-syntax 'eol-style))
-  (environment-set-macro! larc 'error-handling-mode
-                          (usual-syntax 'error-handling-mode))
-  (environment-set-macro! larc 'r6rs-syntax-silliness
-                          (usual-syntax 'r6rs-syntax-silliness))
+; (environment-set-macro! larc 'file-options (usual-syntax 'file-options))
+; (environment-set-macro! larc 'buffer-mode (usual-syntax 'buffer-mode))
+; (environment-set-macro! larc 'eol-style (usual-syntax 'eol-style))
+; (environment-set-macro! larc 'error-handling-mode
+;                         (usual-syntax 'error-handling-mode))
+
+  (environment-set! larc 'file-options list)
+  (environment-set! larc 'no-create    'no-create)
+  (environment-set! larc 'no-fail      'no-fail)
+  (environment-set! larc 'no-truncate  'no-truncate)
 
   ;; JavaDot and case-sensitivity
   ;;(environment-set-macro! larc '.javadot (usual-syntax '.javadot))
