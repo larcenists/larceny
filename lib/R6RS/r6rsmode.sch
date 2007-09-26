@@ -1,4 +1,9 @@
-; FIXME:  Temporary hack for experimentation.
+; Copyright 2007 William D Clinger
+;
+; $Id$
+;
+; Larceny's R6RS-compatible (D'Argo) mode.
+
 
 
 ; FIXME:  This is for compiling by hand.  It should be moved into
@@ -31,14 +36,30 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Called by interactive-entry-point in Lib/Repl/main.sch
+
+(define (run-r6rs-forms forms)
+  (larceny:load-r6rs-package)
+  (ex:run-r6rs-sequence forms))
+
+; Called by interactive-entry-point in Lib/Repl/main.sch
+
 (define (run-r6rs-program filename)
   (larceny:load-r6rs-package)
   (ex:run-r6rs-program filename))
 
+; Expands an R6RS program into an R5RS program that can be
+; loaded by load-r6rs-program.  The target-filename can be
+; compiled before it is loaded.
+
+(define (expand-r6rs-program filename target-filename)
+  (larceny:load-r6rs-package)
+  (ex:expand-file filename target-filename))
+
+; Loads (thereby running) an expanded R6RS program
+; or a .fasl file compiled from an expanded R6RS program.
+
 (define (load-r6rs-program filename)
   (larceny:load-r6rs-runtime)
   (load filename))
-
-(define (expand-r6rs-program filename target-filename)
-  (ex:expand-file filename target-filename))
 

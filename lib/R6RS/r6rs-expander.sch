@@ -167,6 +167,7 @@
 (define ex:repl                      #f)
 (define ex:expand-r5rs-file          #f)
 
+(define ex:run-r6rs-sequence         #f) ;[Larceny]
 (define ex:run-r6rs-program          #f) ;[Larceny]
 
 ;; Indirect exports:
@@ -2198,16 +2199,18 @@
     ;;
     ;;  Larceny will expose these entry points, and no others:
     ;;
+    ;;      (ex:run-r6rs-sequence forms)
     ;;      (ex:run-r6rs-program filename)
-    ;;      (ex:load-r6rs-program filename)
-    ;;      (ex:expand-r6rs-program filename target-filename)
     ;;
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-    (define (run-r6rs-program filename)
+    (define (run-r6rs-sequence forms)
       (reset-toplevel!)
       (for-each (lambda (exp) (eval exp (interaction-environment)))
-                (expand-toplevel-sequence (normalize (read-file filename)))))
+                (expand-toplevel-sequence (normalize forms))))
+
+    (define (run-r6rs-program filename)
+      (run-r6rs-sequence (read-file filename)))
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;;
@@ -2419,7 +2422,8 @@
     (set! ex:expand-file               expand-file)
     (set! ex:repl                      repl)
     (set! ex:expand-r5rs-file          expand-r5rs-file)
-    (set! ex:run-r6rs-program          run-r6rs-program)    ;[Larceny]
+    (set! ex:run-r6rs-sequence         run-r6rs-sequence)            ;[Larceny]
+    (set! ex:run-r6rs-program          run-r6rs-program)             ;[Larceny]
 
     (set! ex:invalid-form              invalid-form)
     (set! ex:register-macro!           register-macro!)
