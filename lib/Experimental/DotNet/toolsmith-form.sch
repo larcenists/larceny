@@ -1383,3 +1383,60 @@
 
     wnd))
 
+
+
+;; A FileChoiceFilter is a (list String String String ...)
+;; interpretation:
+;; A FileChoiceFilter (list description ext-1 ... ext-n) tells the file chooser to
+;; only show file that end with the extension ext-i for some i.
+
+;; file-chooser-dialog : String [Listof FileChoiceFilter] -> [Maybe String]
+(define file-chooser-dialog
+  (let* ((open-file-dialog-type (find-forms-type "OpenFileDialog"))
+         (save-file-dialog-type (find-forms-type "SaveFileDialog"))
+         (file-dialog-type (find-forms-type "FileDialog"))
+         (dialog-result-type (find-forms-type "DialogResult"))
+         (convert-dialog-result (enum-type->foreign->symbol dialog-result-type))
+         (make-open-file-dialog
+          (type->nullary-constructor open-file-dialog-type))
+         (set-initial-directory! 
+          (make-property-setter file-dialog-type "InitialDirectory"))
+         (set-filter!
+          (make-property-setter file-dialog-type "Filter"))
+         (set-filter-index!
+          (make-property-setter file-dialog-type "FilterIndex"))
+         (get-filename
+          (make-property-ref file-dialog-type "FileName"))
+         (filter->string
+          (lambda (filter)
+            (let* ((desc (car filter))
+                   (head-ext (cadr filter))
+                   (tail-ext (cddr filter))
+                   (tail-strings 
+                    (map (lambda (x) (string-append ";" "*." x)) tail-ext)))
+              (apply string-append 
+                     desc "|" "*." head-ext tail-strings))))
+         (filters->string
+          (lambda (filters)
+            (let ((strings (map filter->string filters)))
+              (cond 
+               ((null? strings) "")
+               (else
+                (apply string-append
+                       (car strings) (map (lambda (x) (string-append "|" x))
+                                          strings))))))))
+    (lambda (dir-string filter-list)
+      (let ((d (make-open-file-dialog)))
+        (set-initial-directory! d dir-string)
+        (set-filter! d (filters->string filter-list))
+        (set-filter-index! d 0)
+        (let* ((dialog-result (dialog-show-dialog d))
+               (dialog-result (convert-dialog-result dialog-result)))
+          (case dialog-result
+            ((OK ok) (get-filename d))
+            (else #f)))))))
+
+
+        
+    
+  
