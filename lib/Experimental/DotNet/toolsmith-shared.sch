@@ -541,6 +541,9 @@
   
   (define (insert-char-at-point! char)
     (define len (string-length mytext))
+    (define on-last-line
+      (and (char=? char #\newline)
+            (>= (cursor-line) (- (count-visible-lines) 2))))
     (set! preferred-cursor-col #f)
     (call-with-values 
         (lambda () (cond ((number? selection) 
@@ -559,7 +562,10 @@
         (clear-transient-state!)
         (update-stable-ranges! pos end (- end pos))
         (set! mytext (string-append prefix (string char) suffix))
-        (set! selection (+ pos 1)))))
+        (set! selection (+ pos 1))))
+    ;; We delay the scroll until after the text change has been made...
+    (cond (on-last-line
+           ((wnd 'attempt-scroll) 'vertical 1))))
 
   (define (delete-char-at-point!)
     (define len (string-length mytext))
