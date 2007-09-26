@@ -289,8 +289,6 @@
 (define open-file-dialog-type (find-forms-type "OpenFileDialog"))
 (define save-file-dialog-type (find-forms-type "SaveFileDialog"))
 (define dialog-result-type    (find-forms-type "DialogResult"))
-(define make-open-file-dialog (type->nullary-constructor open-file-dialog-type))
-(define make-save-file-dialog (type->nullary-constructor save-file-dialog-type))
 (define dialog-show-dialog    (make-unary-method common-dialog-type "ShowDialog"))
 (define form-show-dialog      (make-unary-method form-type "ShowDialog"))
 (define common-dialog?        (type->predicate common-dialog-type))
@@ -1390,23 +1388,15 @@
 ;; A FileChoiceFilter (list description ext-1 ... ext-n) tells the file chooser to
 ;; only show file that end with the extension ext-i for some i.
 
-;; file-chooser-dialog : String [Listof FileChoiceFilter] -> [Maybe String]
-(define file-chooser-dialog
-  (let* ((open-file-dialog-type (find-forms-type "OpenFileDialog"))
-         (save-file-dialog-type (find-forms-type "SaveFileDialog"))
-         (file-dialog-type (find-forms-type "FileDialog"))
-         (dialog-result-type (find-forms-type "DialogResult"))
-         (convert-dialog-result (enum-type->foreign->symbol dialog-result-type))
-         (make-open-file-dialog
-          (type->nullary-constructor open-file-dialog-type))
+(define file-chooser-dialog-maker 
+  (let* ((file-dialog-type (find-forms-type "FileDialog"))
          (set-initial-directory! 
           (make-property-setter file-dialog-type "InitialDirectory"))
          (set-filter!
           (make-property-setter file-dialog-type "Filter"))
          (set-filter-index!
           (make-property-setter file-dialog-type "FilterIndex"))
-         (get-filename
-          (make-property-ref file-dialog-type "FileName"))
+
          (filter->string
           (lambda (filter)
             (let* ((desc (car filter))
@@ -1425,16 +1415,40 @@
                 (apply string-append
                        (car strings) (map (lambda (x) (string-append "|" x))
                                           strings))))))))
+    (lambda (dialog-type)
+      (let* ((make-file-dialog (type->nullary-constructor dialog-type)))
+        (lambda (dir-string filter-list)
+          (let ((d (make-file-dialog)))
+            (set-initial-directory! d dir-string)
+            (set-filter! d (filters->string filter-list))
+            (set-filter-index! d 0)
+            d))))))
+
+;; show-and-post-process-dialog : Dialog -> [Maybe String]
+(define (show-and-post-process-dialog d)
+  (let ((dialog-result (show-dialog d))
+        (file-dialog-type (find-forms-type "FileDialog"))
+        (get-filename
+         (make-property-ref file-dialog-type "FileName")))
+    (case dialog-result
+      ((OK ok) (get-filename d))
+      (else #f))))
+
+;; open-file-chooser-dialog : String [Listof FileChoiceFilter] -> [Maybe String]
+(define open-file-chooser-dialog
+  (let ((maker (file-chooser-dialog-maker (find-forms-type "OpenFileDialog"))))
     (lambda (dir-string filter-list)
-      (let ((d (make-open-file-dialog)))
-        (set-initial-directory! d dir-string)
-        (set-filter! d (filters->string filter-list))
-        (set-filter-index! d 0)
-        (let* ((dialog-result (dialog-show-dialog d))
-               (dialog-result (convert-dialog-result dialog-result)))
-          (case dialog-result
-            ((OK ok) (get-filename d))
-            (else #f)))))))
+      (let ((d (maker dir-string filter-list)))
+        (show-and-post-process-dialog d)))))
+
+;; save-file-chooser-dialog : String [Listof FileChoiceFilter] -> [Maybe String]
+(define save-as-file-chooser-dialog
+  (let ((maker (file-chooser-dialog-maker (find-forms-type "SaveFileDialog"))))
+    (lambda (dir-string filter-list)
+      (let ((d (maker dir-string filter-list)))
+        (show-and-post-process-dialog d)))))
+
+  
 
 
         
