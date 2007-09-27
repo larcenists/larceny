@@ -765,6 +765,15 @@
                  ((g 'draw-text) (string char) fnt x y fg-col)))))))))
    ;; Note this method is not meant for use outside of editor-agent-maker
    ((set-backing-agent! agent) (set! backing-agent agent))
+   ;; This method is not really meant to be used except for debugging.
+   ((backing-agent) backing-agent)
+
+   ;; These methods *might* be sane.  Or they might be a sign of a
+   ;; serious design mistake.  Or they might need to be factored out
+   ;; into an object extension/subclass/mixin/whatever...
+   ((load-file-cmd)    (delegate 'load-file-cmd))
+   ((save-file-cmd)    (delegate 'save-file-cmd))
+   ((save-file-as-cmd) (delegate 'save-file-as-cmd))
    ))
 
 (define (make-simplest-backing-agent wnd editor-agent)
@@ -814,6 +823,9 @@
   ;; kept in reverse order).  But this is simple prototype code.
   (define prefix "")
   (define suffix "")
+
+  (define current-filename #f)
+
   (require "Experimental/scheme-source")
 
   (make-root-object auto-indenting-agent
@@ -993,6 +1005,56 @@
       (set! first-line-idx new-int)
       ((wnd 'update))
       ))
+   
+   ((load-file-cmd)
+    (cond ((open-file-chooser-dialog (current-directory)
+                                     (list (list "Scheme Files" "sch" "scm" "ss")
+                                           (list "All Files" "*")))
+           => (lambda (name)
+                ((auto-indenting-agent 'load-file) name)))))
+   ((save-file-cmd)
+    (cond (current-filename ((auto-indenting-agent 'save-file-as) current-filename))
+          (else ((auto-indenting-agent 'save-file-as-cmd)))))
+   ((save-file-as-cmd) 
+    (cond ((save-as-file-chooser-dialog (current-directory)
+                                        (list (list "Scheme Files" "sch" "scm" "ss")
+                                              (list "All Files" "*")))
+           => (lambda (name)
+                ((auto-indenting-agent 'save-file-as) name)))))
+
+   ((load-file filename)   
+    (set! current-filename filename)
+    (call-with-input-file filename
+      (lambda (filein)
+        (let* ((chars (do ((c (read-char filein) (read-char filein))
+                           (l '() (cons c l)))
+                          ((eof-object? c) (reverse l))))
+               (text (list->string chars))
+               (visible-line-count ((editor-agent 'count-visible-lines)))
+               (line-idx 0)
+               (subtext-start-idx (index-after-line-count text line-idx))
+               (subtext-finis-idx (index-after-line-count 
+                                   text (+ line-idx visible-line-count)))
+               (prefix* (substring text 0 line-idx))
+               (start (or subtext-start-idx 0))
+               (finis (or subtext-finis-idx (string-length text)))
+               (view* (substring text start finis))
+               (suffix* (substring text finis (string-length text))))
+          (set! prefix prefix*)
+          ((editor-agent 'set-textstring!) view*)
+          (set! suffix suffix*)
+          ((editor-agent 'set-selection!) 0 0)
+          (set! first-line-idx line-idx)
+          ((wnd 'update))
+          ))))
+   ((save-file-as filename) 
+    (set! current-filename filename)
+    (call-with-output-file filename
+      (lambda (fileout)
+        (let ((text (string-append prefix ((editor-agent 'textstring)) suffix)))
+          (do ((i 0 (+ i 1)))
+              ((= i (string-length text)))
+            (write-char (string-ref text i) fileout))))))
    ))
 
 (define (editor-agent-maker make-backing-agent)
