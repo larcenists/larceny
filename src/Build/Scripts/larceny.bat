@@ -6,10 +6,13 @@ REM pair.  If LARCENY_ROOT is set, it looks there; otherwise, if the directory
 REM this script is in is named Scripts, it looks in the parent; otherwise, it
 REM looks in the same directory as itself.
 
+REM The setlocal command makes any changes to environment variables local to
+REM this script.  This keeps changes to the LARCENY_ROOT environment variable
+REM from persisting across invocations of this script.
+setlocal
+
 REM You can specify a particular LARCENY_ROOT here:
 REM set LARCENY_ROOT=/usr/local/lib/larceny
-
-setlocal
 
 if not defined LARCENY_ROOT (
     set LARCENY_ROOT=%~dp0
