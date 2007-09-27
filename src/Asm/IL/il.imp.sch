@@ -7,10 +7,12 @@
 ; 2002-11-17 / lth
 ;
 ; Issues that need to be resolved at some point
-; - Clean up table to pack it looser, group related operations, rename.  Makes it
-;   easier to add primitives with related primitives rather than "at end", like now.
+; - Clean up table to pack it looser, group related operations, rename.
+;   Makes it easier to add primitives with related primitives rather than
+;   "at end", like now.
 ; - Aren't creg/creg-set! really obsolete?
-; - Fixnum and flonum primitives are not implemented, not important to do this now.
+; - Fixnum and flonum primitives are not implemented, not important to do
+;   this now.
 ; - We must now implement peephole opt for reasonable performance.
 ; - Some primitives that do not currently support immediate operands should be
 ;   fixed to accept them, cf comments in tables below.
@@ -62,10 +64,11 @@
 ;    Primop code used to name twobit_ macros in the output, note must be < 1000
 ;    The effects that kill this primop's result
 ;    The effects of this primop that kill available expressions
-;    A flag that is #t if the primitive's implementation may call-out to Scheme
-;     to implement the operation, thereby constituting an implicit return point.
-;     In the future this will also be #t if the primitive may throw a continuable
-;     exception.
+;    A flag that is #t if the primitive's implementation may
+;     call-out to Scheme to implement the operation, thereby
+;     constituting an implicit return point.
+;     In the future this will also be #t if the primitive may
+;     throw a continuable exception.
 
 (define (prim-entry name)
   (assq name (twobit-integrable-procedures)))
@@ -164,75 +167,79 @@
         (ak:dead     available:killer:dead)     ; never available
         )
 
-;    external     arity  internal    immediate   primcode  killed     kills cont
-;    name                name        predicate             by what
-;                                                          kind of
-;                                                          effect
-  `((,name:CAR        1 car              #f            15 ,ak:car      ,ak:none #f)
-    (,name:CDR        1 cdr              #f            16 ,ak:cdr      ,ak:none #f)
-    (,name:MAKE-CELL  1 make-cell        #f            52 ,ak:dead     ,ak:none #f)
-    (,name:CELL-REF   1 cell-ref         #f            54 ,ak:cell     ,ak:none #f)
-    (,name:CELL-SET!  2 cell-set!        #f            84 ,ak:dead     ,ak:cell #f)
-    (.cell-set!:nwb   2 cell-set!        #f            -1 ,ak:dead     ,ak:cell #f)  ; FIXME
-    (,name:CONS       2 cons             #f            58 ,ak:dead     ,ak:none #f)
+;    external     arity  internal  immediate  primcode  killed     kills   cont
+;    name                name      predicate            by what
+;                                                       kind of
+;                                                       effect
+  `((,name:CAR        1 car              #f        15 ,ak:car      ,ak:none #f)
+    (,name:CDR        1 cdr              #f        16 ,ak:cdr      ,ak:none #f)
+    (,name:MAKE-CELL  1 make-cell        #f        52 ,ak:dead     ,ak:none #f)
+    (,name:CELL-REF   1 cell-ref         #f        54 ,ak:cell     ,ak:none #f)
+    (,name:CELL-SET!  2 cell-set!        #f        84 ,ak:dead     ,ak:cell #f)
+    (.cell-set!:nwb   2 cell-set!        #f        -1 ,ak:dead     ,ak:cell #f)  ; FIXME
+    (,name:CONS       2 cons             #f        58 ,ak:dead     ,ak:none #f)
 
-    (.unspecified     0 unspecified      #f             3 ,ak:dead     ,ak:none #f)
-    (.undefined       0 undefined        #f             4 ,ak:dead     ,ak:none #f)
-    (.fixnum?         1 fixnum?          #f            23 ,ak:immortal ,ak:none #f)
-    (.symbol?         1 symbol?          #f            17 ,ak:immortal ,ak:none #f)
-    (.char?           1 char?            #f            36 ,ak:immortal ,ak:none #f)
-    (.char->integer   1 char->integer    #f            37 ,ak:immortal ,ak:none #f)
-    (.char->integer:chr 1 char->integer  #f            -1 ,ak:immortal ,ak:none #f)
-    (.integer->char:trusted 1 integer->char #f         -1 ,ak:immortal ,ak:none #f)
-    (.--              1 --               #f            32 ,ak:immortal ,ak:none #t)
+    (.unspecified     0 unspecified      #f         3 ,ak:dead     ,ak:none #f)
+    (.undefined       0 undefined        #f         4 ,ak:dead     ,ak:none #f)
+    (.fixnum?         1 fixnum?          #f        23 ,ak:immortal ,ak:none #f)
+    (.symbol?         1 symbol?          #f        17 ,ak:immortal ,ak:none #f)
+    (.char?           1 char?            #f        36 ,ak:immortal ,ak:none #f)
+    (.char->integer   1 char->integer    #f        37 ,ak:immortal ,ak:none #f)
+    (.char->integer:chr 1 char->integer  #f        -1 ,ak:immortal ,ak:none #f)
+    (.integer->char:trusted 1 integer->char #f     -1 ,ak:immortal ,ak:none #f)
+    (.--              1 --               #f        32 ,ak:immortal ,ak:none #t)
 
     ; FIXME: unspecified, undefined and -- should not be here with these 
     ; names but are introduced by the compiler, macro expander, or standard 
     ; macros.
 
-;   (unspecified      0 unspecified      #f            -1 ,ak:dead     ,ak:none #f)
-;   (undefined        0 undefined        #f             4 ,ak:dead     ,ak:none #t)
-;   (--               1 --               #f            32 ,ak:immortal ,ak:none #t)
+;   (unspecified      0 unspecified      #f        -1 ,ak:dead     ,ak:none #f)
+;   (undefined        0 undefined        #f         4 ,ak:dead     ,ak:none #t)
+;   (--               1 --               #f        32 ,ak:immortal ,ak:none #t)
 
     ; Added for CSE, representation analysis.
 
-    (,name:CHECK!    -1 check!                  #f         -1 ,ak:dead     ,ak:none #f)
-    (.vector-length:vec 1 vector-length:vec     #f        401 ,ak:immortal ,ak:none #f)
-    (.vector-ref:trusted 2 vector-ref:trusted ,stdc-imm?  402 ,ak:vector   ,ak:none #f)
-    (.vector-set!:trusted 3 vector-set!:trusted #f        403 ,ak:dead     ,ak:vector #f)
-    (.vector-set!:trusted:nwb 3 vector-set!:trusted #f     -1 ,ak:dead     ,ak:vector #f)   ; FIXME
-    (.string-length:str 1 ustring-length:str     #f         40 ,ak:immortal ,ak:none #f)
-    (.string-ref:trusted 2 ustring-ref:trusted   #f         78 ,ak:string   ,ak:none #f)
-    (.string-set!:trusted 3 ustring-set!:trusted ,stdc-imm? 79 ,ak:dead     ,ak:string #f)
+    (,name:CHECK!    -1 check!                 #f  -1 ,ak:dead     ,ak:none #f)
+    (.vector-length:vec 1 vector-length:vec    #f 401 ,ak:immortal ,ak:none #f)
+    (.vector-ref:trusted
+                 2 vector-ref:trusted ,stdc-imm?  402 ,ak:vector   ,ak:none #f)
+    (.vector-set!:trusted
+                 3 vector-set!:trusted #f         403 ,ak:dead   ,ak:vector #f)
+    (.vector-set!:trusted:nwb
+                 3 vector-set!:trusted #f          -1 ,ak:dead   ,ak:vector #f)   ; FIXME
+    (.string-length:str 1 ustring-length:str   #f  40 ,ak:immortal ,ak:none #f)
+    (.string-ref:trusted 2 ustring-ref:trusted #f  78 ,ak:string   ,ak:none #f)
+    (.string-set!:trusted
+                 3 ustring-set!:trusted ,stdc-imm? 79 ,ak:dead   ,ak:string #f)
 
-    (.car:pair        1 car:pair         #f           404 ,ak:car      ,ak:none #f)
-    (.cdr:pair        1 cdr:pair         #f           405 ,ak:cdr      ,ak:none #f)
+    (.car:pair        1 car:pair         #f       404 ,ak:car      ,ak:none #f)
+    (.cdr:pair        1 cdr:pair         #f       405 ,ak:cdr      ,ak:none #f)
 
-    (.+:idx:idx       2 +:idx:idx        ,stdc-imm?   500 ,ak:immortal ,ak:none #f)
-    (.+:fix:fix       2 +:fix:fix        #f           501 ,ak:immortal ,ak:none #f)
-    (.-:idx:idx       2 -:idx:idx        ,stdc-imm?    -1 ,ak:immortal ,ak:none #f)     ; FIXME
-    (.-:fix:fix       2 -:fix:fix        #f            -1 ,ak:immortal ,ak:none #f)     ; FIXME
+    (.+:idx:idx       2 +:idx:idx      ,stdc-imm? 500 ,ak:immortal ,ak:none #f)
+    (.+:fix:fix       2 +:fix:fix        #f       501 ,ak:immortal ,ak:none #f)
+    (.-:idx:idx       2 -:idx:idx      ,stdc-imm?  -1 ,ak:immortal ,ak:none #f)     ; FIXME
+    (.-:fix:fix       2 -:fix:fix        #f        -1 ,ak:immortal ,ak:none #f)     ; FIXME
 
-    (.=:fix:fix       2 =:fix:fix        ,stdc-imm?   406 ,ak:immortal ,ak:none #f)
-    (.<:fix:fix       2 <:fix:fix        ,stdc-imm?   407 ,ak:immortal ,ak:none #f)
-    (.<=:fix:fix      2 <=:fix:fix       ,stdc-imm?   408 ,ak:immortal ,ak:none #f)
-    (.>=:fix:fix      2 >=:fix:fix       ,stdc-imm?   409 ,ak:immortal ,ak:none #f)
-    (.>:fix:fix       2 >:fix:fix        ,stdc-imm?   410 ,ak:immortal ,ak:none #f)
+    (.=:fix:fix       2 =:fix:fix      ,stdc-imm? 406 ,ak:immortal ,ak:none #f)
+    (.<:fix:fix       2 <:fix:fix      ,stdc-imm? 407 ,ak:immortal ,ak:none #f)
+    (.<=:fix:fix      2 <=:fix:fix     ,stdc-imm? 408 ,ak:immortal ,ak:none #f)
+    (.>=:fix:fix      2 >=:fix:fix     ,stdc-imm? 409 ,ak:immortal ,ak:none #f)
+    (.>:fix:fix       2 >:fix:fix      ,stdc-imm? 410 ,ak:immortal ,ak:none #f)
 
     ; Not yet implemented.
 
-;    (.+:flo:flo       2 +:flo:flo        #f            -1 ,ak:immortal ,ak:none)
-;    (.-:flo:flo       2 -:flo:flo        #f            -1 ,ak:immortal ,ak:none)
-;    (.*:flo:flo       2 *:flo:flo        #f            -1 ,ak:immortal ,ak:none)
-;    (./:flo:flo       2 /:flo:flo        #f            -1 ,ak:immortal ,ak:none)
+;    (.+:flo:flo       2 +:flo:flo        #f       -1 ,ak:immortal ,ak:none)
+;    (.-:flo:flo       2 -:flo:flo        #f       -1 ,ak:immortal ,ak:none)
+;    (.*:flo:flo       2 *:flo:flo        #f       -1 ,ak:immortal ,ak:none)
+;    (./:flo:flo       2 /:flo:flo        #f       -1 ,ak:immortal ,ak:none)
 
-;    (.=:flo:flo       2 =:flo:flo        #f            -1 ,ak:immortal ,ak:none)
-;    (.=:obj:flo       2 =:obj:flo        #f            -1 ,ak:immortal ,ak:none)
-;    (.=:flo:obj       2 =:flo:obj        #f            -1 ,ak:immortal ,ak:none)
-;    (.<:flo:flo       2 =:flo:flo        #f            -1 ,ak:immortal ,ak:none)
-;    (.<=:flo:flo      2 =:flo:flo        #f            -1 ,ak:immortal ,ak:none)
-;    (.>:flo:flo       2 =:flo:flo        #f            -1 ,ak:immortal ,ak:none)
-;    (.>=:flo:flo      2 =:flo:flo        #f            -1 ,ak:immortal ,ak:none)
+;    (.=:flo:flo       2 =:flo:flo        #f       -1 ,ak:immortal ,ak:none)
+;    (.=:obj:flo       2 =:obj:flo        #f       -1 ,ak:immortal ,ak:none)
+;    (.=:flo:obj       2 =:flo:obj        #f       -1 ,ak:immortal ,ak:none)
+;    (.<:flo:flo       2 =:flo:flo        #f       -1 ,ak:immortal ,ak:none)
+;    (.<=:flo:flo      2 =:flo:flo        #f       -1 ,ak:immortal ,ak:none)
+;    (.>:flo:flo       2 =:flo:flo        #f       -1 ,ak:immortal ,ak:none)
+;    (.>=:flo:flo      2 =:flo:flo        #f       -1 ,ak:immortal ,ak:none)
     )))
 
 (define $r4rs-integrable-procedures$
@@ -254,69 +261,70 @@
 ;                                                          kind of
 ;                                                          effect
  (append
-  `((eof-object       0 eof-object       #f             5 ,ak:dead     ,ak:none #f)
-    (not              1 not              #f             9 ,ak:immortal ,ak:none #f)
-    (null?            1 null?            #f            10 ,ak:immortal ,ak:none #f)
-    (pair?            1 pair?            #f            11 ,ak:immortal ,ak:none #f)
-    (eof-object?      1 eof-object?      #f            12 ,ak:immortal ,ak:none #f)
-    (car              1 car              #f            15 ,ak:car      ,ak:none #f)
-    (cdr              1 cdr              #f            16 ,ak:cdr      ,ak:none #f)
-    (symbol?          1 symbol?          #f            17 ,ak:immortal ,ak:none #f)
-    (number?          1 complex?         #f            18 ,ak:immortal ,ak:none #f)
-    (complex?         1 complex?         #f            18 ,ak:immortal ,ak:none #f)
-    (real?            1 rational?        #f            20 ,ak:immortal ,ak:none #f)
-    (rational?        1 rational?        #f            20 ,ak:immortal ,ak:none #f)
-    (integer?         1 integer?         #f            22 ,ak:immortal ,ak:none #f)
-    (exact?           1 exact?           #f            25 ,ak:immortal ,ak:none #f)
-    (inexact?         1 inexact?         #f            26 ,ak:immortal ,ak:none #f)
-    (exact->inexact   1 exact->inexact   #f            27 ,ak:immortal ,ak:none #t)
-    (inexact->exact   1 inexact->exact   #f            28 ,ak:immortal ,ak:none #t)
-    (round            1 round            #f            29 ,ak:immortal ,ak:none #t)
-    (truncate         1 truncate         #f            30 ,ak:immortal ,ak:none #t)
-    (zero?            1 zero?            #f            31 ,ak:immortal ,ak:none #t)
-    (real-part        1 real-part        #f            34 ,ak:immortal ,ak:none #f)
-    (imag-part        1 imag-part        #f            35 ,ak:immortal ,ak:none #f)
-    (char?            1 char?            #f            36 ,ak:immortal ,ak:none #f)
-    (char->integer    1 char->integer    #f            37 ,ak:immortal ,ak:none #f)
-    (integer->char    1 integer->char    #f            38 ,ak:immortal ,ak:none #f)
-    (string?          1 ustring?         #f            39 ,ak:immortal ,ak:none #f)
-    (string-length    1 ustring-length   #f            40 ,ak:immortal ,ak:none #f)
-    (ustring?         1 ustring?         #f          8039 ,ak:immortal ,ak:none #f)
-    (.ustring-length:str 1 ustring-length:str  #f    8040 ,ak:immortal ,ak:none #f)
-    (vector?          1 vector?          #f            41 ,ak:immortal ,ak:none #f)
-    (vector-length    1 vector-length    #f            42 ,ak:immortal ,ak:none #f)
-    (procedure?       1 procedure?       #f            47 ,ak:immortal ,ak:none #f)
-    (eq?              2 eq?           ,stdc-eq-imm?    56 ,ak:immortal ,ak:none #f)
-    (eqv?             2 eqv?             #f            57 ,ak:immortal ,ak:none #t)
-    (cons             2 cons             #f            58 ,ak:dead     ,ak:none #f)
-    (set-car!         2 set-car!         #f            59 ,ak:dead     ,ak:car  #f)
-    (set-cdr!         2 set-cdr!         #f            60 ,ak:dead     ,ak:cdr  #f)
-    (+                2 +                ,stdc-imm?    61 ,ak:immortal ,ak:none #t)
-    (-                2 -                ,stdc-imm?    62 ,ak:immortal ,ak:none #t)
-    (*                2 *                ,stdc-imm?    63 ,ak:immortal ,ak:none #t)
-;    (*                2 *                #f            63 ,ak:immortal ,ak:none #t)
-    (/                2 /                #f            64 ,ak:immortal ,ak:none #t)
-    (quotient         2 quotient         #f            65 ,ak:immortal ,ak:none #t)
-    (<                2 <                ,stdc-imm?    66 ,ak:immortal ,ak:none #t)
-    (<=               2 <=               ,stdc-imm?    67 ,ak:immortal ,ak:none #t)
-    (=                2 =                ,stdc-imm?    68 ,ak:immortal ,ak:none #t)
-    (>                2 >                ,stdc-imm?    69 ,ak:immortal ,ak:none #t)
-    (>=               2 >=               ,stdc-imm?    70 ,ak:immortal ,ak:none #t)
-    (make-string      2 make-ustring     #f           109 ,ak:dead     ,ak:none #f)
-    (string-ref       2 ustring-ref      ,stdc-imm?    78 ,ak:string   ,ak:none #f)
-    (string-set!      3 ustring-set!     ,stdc-imm?    79 ,ak:dead     ,ak:string #f)
-    (make-ustring     2 make-ustring     #f          8109 ,ak:dead     ,ak:none #f)
-    (.ustring-ref:trusted  2 ustring-ref:trusted  #f 8078 ,ak:string   ,ak:none #f)
-    (.ustring-set!:trusted 3 ustring-set!:trusted #f 8079 ,ak:dead     ,ak:string #f)
-    (make-vector      2 make-vector      #f            80 ,ak:dead     ,ak:none #f)
-    (vector-ref       2 vector-ref       ,stdc-imm?    81 ,ak:vector   ,ak:none #f)
-    (char<?           2 char<?           ,char?        85 ,ak:immortal ,ak:none #f)
-    (char<=?          2 char<=?          ,char?        86 ,ak:immortal ,ak:none #f)
-    (char=?           2 char=?           ,char?        87 ,ak:immortal ,ak:none #f)
-    (char>?           2 char>?           ,char?        88 ,ak:immortal ,ak:none #f)
-    (char>=?          2 char>=?          ,char?        89 ,ak:immortal ,ak:none #f)
-    (vector-set!      3 vector-set!      #f            91 ,ak:dead     ,ak:vector #f)
-    (remainder        2 remainder        #f           103 ,ak:immortal ,ak:none #t))
+  `((eof-object       0 eof-object       #f         5 ,ak:dead     ,ak:none #f)
+    (not              1 not              #f         9 ,ak:immortal ,ak:none #f)
+    (null?            1 null?            #f        10 ,ak:immortal ,ak:none #f)
+    (pair?            1 pair?            #f        11 ,ak:immortal ,ak:none #f)
+    (eof-object?      1 eof-object?      #f        12 ,ak:immortal ,ak:none #f)
+    (car              1 car              #f        15 ,ak:car      ,ak:none #f)
+    (cdr              1 cdr              #f        16 ,ak:cdr      ,ak:none #f)
+    (symbol?          1 symbol?          #f        17 ,ak:immortal ,ak:none #f)
+    (number?          1 complex?         #f        18 ,ak:immortal ,ak:none #f)
+    (complex?         1 complex?         #f        18 ,ak:immortal ,ak:none #f)
+    (real?            1 rational?        #f        20 ,ak:immortal ,ak:none #f)
+    (rational?        1 rational?        #f        20 ,ak:immortal ,ak:none #f)
+    (integer?         1 integer?         #f        22 ,ak:immortal ,ak:none #f)
+    (exact?           1 exact?           #f        25 ,ak:immortal ,ak:none #f)
+    (inexact?         1 inexact?         #f        26 ,ak:immortal ,ak:none #f)
+    (exact->inexact   1 exact->inexact   #f        27 ,ak:immortal ,ak:none #t)
+    (inexact->exact   1 inexact->exact   #f        28 ,ak:immortal ,ak:none #t)
+    (round            1 round            #f        29 ,ak:immortal ,ak:none #t)
+    (truncate         1 truncate         #f        30 ,ak:immortal ,ak:none #t)
+    (zero?            1 zero?            #f        31 ,ak:immortal ,ak:none #t)
+    (real-part        1 real-part        #f        34 ,ak:immortal ,ak:none #f)
+    (imag-part        1 imag-part        #f        35 ,ak:immortal ,ak:none #f)
+    (char?            1 char?            #f        36 ,ak:immortal ,ak:none #f)
+    (char->integer    1 char->integer    #f        37 ,ak:immortal ,ak:none #f)
+    (integer->char    1 integer->char    #f        38 ,ak:immortal ,ak:none #f)
+    (string?          1 ustring?         #f        39 ,ak:immortal ,ak:none #f)
+    (string-length    1 ustring-length   #f        40 ,ak:immortal ,ak:none #f)
+    (ustring?         1 ustring?         #f      8039 ,ak:immortal ,ak:none #f)
+    (.ustring-length:str 1 ustring-length:str #f 8040 ,ak:immortal ,ak:none #f)
+    (vector?          1 vector?          #f        41 ,ak:immortal ,ak:none #f)
+    (vector-length    1 vector-length    #f        42 ,ak:immortal ,ak:none #f)
+    (procedure?       1 procedure?       #f        47 ,ak:immortal ,ak:none #f)
+    (eq?              2 eq?          ,stdc-eq-imm? 56 ,ak:immortal ,ak:none #f)
+    (eqv?             2 eqv?             #f        57 ,ak:immortal ,ak:none #t)
+    (cons             2 cons             #f        58 ,ak:dead     ,ak:none #f)
+    (set-car!         2 set-car!         #f        59 ,ak:dead     ,ak:car  #f)
+    (set-cdr!         2 set-cdr!         #f        60 ,ak:dead     ,ak:cdr  #f)
+    (+                2 +               ,stdc-imm? 61 ,ak:immortal ,ak:none #t)
+    (-                2 -               ,stdc-imm? 62 ,ak:immortal ,ak:none #t)
+    (*                2 *               ,stdc-imm? 63 ,ak:immortal ,ak:none #t)
+;    (*                2 *               #f        63 ,ak:immortal ,ak:none #t)
+    (/                2 /                #f        64 ,ak:immortal ,ak:none #t)
+    (quotient         2 quotient         #f        65 ,ak:immortal ,ak:none #t)
+    (<                2 <               ,stdc-imm? 66 ,ak:immortal ,ak:none #t)
+    (<=               2 <=              ,stdc-imm? 67 ,ak:immortal ,ak:none #t)
+    (=                2 =               ,stdc-imm? 68 ,ak:immortal ,ak:none #t)
+    (>                2 >               ,stdc-imm? 69 ,ak:immortal ,ak:none #t)
+    (>=               2 >=              ,stdc-imm? 70 ,ak:immortal ,ak:none #t)
+    (make-string      2 make-ustring     #f       109 ,ak:dead     ,ak:none #f)
+    (string-ref       2 ustring-ref     ,stdc-imm? 78 ,ak:string   ,ak:none #f)
+    (string-set!      3 ustring-set!    ,stdc-imm? 79 ,ak:dead     ,ak:string #f)
+    (make-ustring     2 make-ustring     #f      8109 ,ak:dead     ,ak:none #f)
+    (.ustring-ref:trusted 2 ustring-ref:trusted #f 8078 ,ak:string ,ak:none #f)
+    (.ustring-set!:trusted
+                      3 ustring-set!:trusted #f  8079 ,ak:dead   ,ak:string #f)
+    (make-vector      2 make-vector      #f        80 ,ak:dead     ,ak:none #f)
+    (vector-ref       2 vector-ref      ,stdc-imm? 81 ,ak:vector   ,ak:none #f)
+    (char<?           2 char<?           ,char?    85 ,ak:immortal ,ak:none #f)
+    (char<=?          2 char<=?          ,char?    86 ,ak:immortal ,ak:none #f)
+    (char=?           2 char=?           ,char?    87 ,ak:immortal ,ak:none #f)
+    (char>?           2 char>?           ,char?    88 ,ak:immortal ,ak:none #f)
+    (char>=?          2 char>=?          ,char?    89 ,ak:immortal ,ak:none #f)
+    (vector-set!      3 vector-set!      #f        91 ,ak:dead   ,ak:vector #f)
+    (remainder        2 remainder        #f       103 ,ak:immortal ,ak:none #t))
   $minimal-integrable-procedures$)))
 
 (define $r5rs-integrable-procedures$
@@ -343,56 +351,60 @@
 
   (append
   `(
-    (larceny-break    0 break            #f             1 ,ak:dead     ,ak:all  #f)
-    (.creg            0 creg             #f           106 ,ak:dead     ,ak:all  #f)
-    (enable-interrupts 1 enable-interrupts #f           6 ,ak:dead     ,ak:all  #t)
-    (disable-interrupts 0 disable-interrupts #f         7 ,ak:dead     ,ak:all  #t)
-    (typetag          1 typetag          #f             8 ,ak:dead     ,ak:none #f)
-    (port?            1 port?            #f            13 ,ak:dead     ,ak:none #f)
-    (structure?       1 structure?       #f            14 ,ak:dead     ,ak:none #f)
-    (fixnum?          1 fixnum?          #f            23 ,ak:immortal ,ak:none #f)
-    (flonum?          1 flonum?          #f            24 ,ak:immortal ,ak:none #f)
-    (compnum?         1 compnum?         #f            21 ,ak:immortal ,ak:none #f)
-    (fxlognot         1 fxlognot         #f            33 ,ak:immortal ,ak:none #f)
-    (bytevector?      1 bytevector?      #f            43 ,ak:immortal ,ak:none #f)
-    (bytevector-length 1 bytevector-length #f          44 ,ak:immortal ,ak:none #f)
-    (bytevector-fill! 2 bytevector-fill! #f            45 ,ak:dead     ,ak:string #f)
-    (make-bytevector  1 make-bytevector  #f            46 ,ak:dead     ,ak:none #f)
-    (procedure-length 1 procedure-length #f            48 ,ak:dead     ,ak:none #f)
-    (make-procedure   1 make-procedure   #f            49 ,ak:dead     ,ak:none #f)
-    (.creg-set!       1 creg-set!        #f           107 ,ak:dead     ,ak:none #f)
-    (typetag-set!     2 typetag-set! ,valid-typetag?   55 ,ak:dead     ,ak:all #f)
-    (fxlogand         2 fxlogand         #f            71 ,ak:immortal ,ak:none #f)
-    (fxlogior         2 fxlogior         #f            72 ,ak:immortal ,ak:none #f)
-    (fxlogxor         2 fxlogxor         #f            73 ,ak:immortal ,ak:none #f)
-    (fxlsh            2 fxlsh            #f            74 ,ak:immortal ,ak:none #f)
-    (fxrsha           2 fxrsha           #f            75 ,ak:immortal ,ak:none #f)
-    (fxrshl           2 fxrshl           #f            76 ,ak:immortal ,ak:none #f)
-    (rot              2 rot              #f            77 ,ak:immortal ,ak:none #f)
-    (bytevector-ref   2 bytevector-ref   ,stdc-imm?    82 ,ak:string   ,ak:none #f)
-    (procedure-ref    2 procedure-ref    #f            83 ,ak:dead     ,ak:none #f)
-    (sys$partial-list->vector 2 sys$partial-list->vector #f 90 ,ak:dead ,ak:all #f)
-    (bytevector-set!  3 bytevector-set!  #f            92 ,ak:dead     ,ak:string #f)
-    (procedure-set!   3 procedure-set!   #f            93 ,ak:dead     ,ak:all  #f)
-    (bytevector-like? 1 bytevector-like? #f            94 ,ak:immortal ,ak:none #f)
-    (vector-like?     1 vector-like?     #f            95 ,ak:immortal ,ak:none #f)
-    (bytevector-like-ref 2 bytevector-like-ref ,stdc-imm?  96 ,ak:string   ,ak:none #f)
-    (bytevector-like-set! 3 bytevector-like-set! #f    97 ,ak:dead     ,ak:string #f)
-    (sys$bvlcmp       2 sys$bvlcmp       #f            98 ,ak:dead     ,ak:all #f)
-    (vector-like-ref  2 vector-like-ref  ,stdc-imm?    99 ,ak:vector   ,ak:none #f)
-    (vector-like-set! 3 vector-like-set! #f           100 ,ak:dead     ,ak:vector #f)
-    (vector-like-length 1 vector-like-length #f       101 ,ak:immortal ,ak:none #f)
-    (bytevector-like-length 1 bytevector-like-length #f 102 ,ak:immortal ,ak:none #f)
-    (#f               1 petit-patch-boot-code #f       104 #f         #f     #f)
-    (#f               1 syscall          #f            105 #f         #f     #t)
-    (gc-counter       0 gc-counter       #f            108 ,ak:dead     ,ak:none #f)
+    (larceny-break    0 break            #f         1 ,ak:dead     ,ak:all  #f)
+    (.creg            0 creg             #f       106 ,ak:dead     ,ak:all  #f)
+    (enable-interrupts 1 enable-interrupts #f       6 ,ak:dead     ,ak:all  #t)
+    (disable-interrupts 0 disable-interrupts #f     7 ,ak:dead     ,ak:all  #t)
+    (typetag          1 typetag          #f         8 ,ak:dead     ,ak:none #f)
+    (port?            1 port?            #f        13 ,ak:dead     ,ak:none #f)
+    (structure?       1 structure?       #f        14 ,ak:dead     ,ak:none #f)
+    (fixnum?          1 fixnum?          #f        23 ,ak:immortal ,ak:none #f)
+    (flonum?          1 flonum?          #f        24 ,ak:immortal ,ak:none #f)
+    (compnum?         1 compnum?         #f        21 ,ak:immortal ,ak:none #f)
+    (fxlognot         1 fxlognot         #f        33 ,ak:immortal ,ak:none #f)
+    (bytevector?      1 bytevector?      #f        43 ,ak:immortal ,ak:none #f)
+    (bytevector-length 1 bytevector-length #f      44 ,ak:immortal ,ak:none #f)
+    (bytevector-fill! 2 bytevector-fill! #f        45 ,ak:dead   ,ak:string #f)
+    (make-bytevector  1 make-bytevector  #f        46 ,ak:dead     ,ak:none #f)
+    (procedure-length 1 procedure-length #f        48 ,ak:dead     ,ak:none #f)
+    (make-procedure   1 make-procedure   #f        49 ,ak:dead     ,ak:none #f)
+    (.creg-set!       1 creg-set!        #f       107 ,ak:dead     ,ak:none #f)
+    (typetag-set!     2 typetag-set! ,valid-typetag? 55 ,ak:dead   ,ak:all  #f)
+    (fxlogand         2 fxlogand         #f        71 ,ak:immortal ,ak:none #f)
+    (fxlogior         2 fxlogior         #f        72 ,ak:immortal ,ak:none #f)
+    (fxlogxor         2 fxlogxor         #f        73 ,ak:immortal ,ak:none #f)
+    (fxlsh            2 fxlsh            #f        74 ,ak:immortal ,ak:none #f)
+    (fxrsha           2 fxrsha           #f        75 ,ak:immortal ,ak:none #f)
+    (fxrshl           2 fxrshl           #f        76 ,ak:immortal ,ak:none #f)
+    (rot              2 rot              #f        77 ,ak:immortal ,ak:none #f)
+    (bytevector-ref   2 bytevector-ref  ,stdc-imm? 82 ,ak:string   ,ak:none #f)
+    (procedure-ref    2 procedure-ref    #f        83 ,ak:dead     ,ak:none #f)
+    (sys$partial-list->vector
+                      2 sys$partial-list->vector #f 90 ,ak:dead    ,ak:all  #f)
+    (bytevector-set!  3 bytevector-set!  #f         92 ,ak:dead  ,ak:string #f)
+    (procedure-set!   3 procedure-set!   #f         93 ,ak:dead    ,ak:all  #f)
+    (bytevector-like? 1 bytevector-like? #f        94 ,ak:immortal ,ak:none #f)
+    (vector-like?     1 vector-like?     #f        95 ,ak:immortal ,ak:none #f)
+    (bytevector-like-ref
+                    2 bytevector-like-ref ,stdc-imm? 96 ,ak:string ,ak:none #f)
+    (bytevector-like-set!
+                      3 bytevector-like-set! #f    97 ,ak:dead   ,ak:string #f)
+    (sys$bvlcmp       2 sys$bvlcmp       #f        98 ,ak:dead     ,ak:all  #f)
+    (vector-like-ref  2 vector-like-ref ,stdc-imm? 99 ,ak:vector   ,ak:none #f)
+    (vector-like-set! 3 vector-like-set! #f       100 ,ak:dead   ,ak:vector #f)
+    (vector-like-length 1 vector-like-length #f   101 ,ak:immortal ,ak:none #f)
+    (bytevector-like-length
+                      1 bytevector-like-length #f 102 ,ak:immortal ,ak:none #f)
+    (#f               1 petit-patch-boot-code #f  104 #f           #f       #f)
+    (#f               1 syscall          #f       105 #f           #f       #t)
+    (gc-counter       0 gc-counter       #f       108 ,ak:dead     ,ak:none #f)
 
     (most-positive-fixnum
                       0 most-positive-fixnum
-                                         #f            200 ,ak:immortal ,ak:none #f)
+                                         #f       200 ,ak:immortal ,ak:none #f)
     (most-negative-fixnum
                       0 most-negative-fixnum
-                                         #f            201 ,ak:immortal ,ak:none #f)
+                                         #f       201 ,ak:immortal ,ak:none #f)
     (fx+          2 fx+          ,stdc-imm?    202 ,ak:immortal ,ak:none #f)
     (fx-          2 fx-          ,stdc-imm?    203 ,ak:immortal ,ak:none #f)
     (fx--         1 fx--         #f            204 ,ak:immortal ,ak:none #f)
@@ -420,28 +432,30 @@
 
     ; Added for CSE, representation analysis.
 
-    (vector-length:vec 1 vector-length:vec #f          401 ,ak:immortal ,ak:none #f)
-    (vector-ref:trusted 2 vector-ref:trusted ,stdc-imm? 402 ,ak:vector   ,ak:none #f)
-    (vector-set!:trusted 3 vector-set!:trusted #f      403 ,ak:dead     ,ak:vector #f)
-    (car:pair         1 car:pair         #f            404 ,ak:car      ,ak:none #f)
-    (cdr:pair         1 cdr:pair         #f            405 ,ak:cdr      ,ak:none #f)
-    (=:fix:fix        2 =:fix:fix        ,stdc-imm?    406 ,ak:immortal ,ak:none #f)
-    (<:fix:fix        2 <:fix:fix        ,stdc-imm?    407 ,ak:immortal ,ak:none #f)
-    (<=:fix:fix       2 <=:fix:fix       ,stdc-imm?    408 ,ak:immortal ,ak:none #f)
-    (>=:fix:fix       2 >=:fix:fix       ,stdc-imm?    409 ,ak:immortal ,ak:none #f)
-    (>:fix:fix        2 >:fix:fix        ,stdc-imm?    410 ,ak:immortal ,ak:none #f)
+    (vector-length:vec 1 vector-length:vec #f   401 ,ak:immortal ,ak:none #f)
+    (vector-ref:trusted
+                   2 vector-ref:trusted ,stdc-imm? 402 ,ak:vector ,ak:none #f)
+    (vector-set!:trusted 3 vector-set!:trusted #f  403 ,ak:dead  ,ak:vector #f)
+    (car:pair         1 car:pair         #f        404 ,ak:car   ,ak:none #f)
+    (cdr:pair         1 cdr:pair         #f        405 ,ak:cdr   ,ak:none #f)
+    (=:fix:fix        2 =:fix:fix      ,stdc-imm? 406 ,ak:immortal ,ak:none #f)
+    (<:fix:fix        2 <:fix:fix      ,stdc-imm? 407 ,ak:immortal ,ak:none #f)
+    (<=:fix:fix       2 <=:fix:fix     ,stdc-imm? 408 ,ak:immortal ,ak:none #f)
+    (>=:fix:fix       2 >=:fix:fix     ,stdc-imm? 409 ,ak:immortal ,ak:none #f)
+    (>:fix:fix        2 >:fix:fix      ,stdc-imm? 410 ,ak:immortal ,ak:none #f)
 
     ; FIXME: Not yet implemented in twobit.h
-    (+:idx:idx        2 +:idx:idx        #f            500 ,ak:immortal ,ak:none #f)
-    (+:fix:fix        2 +:idx:idx        #f            501 ,ak:immortal ,ak:none #f)
-    (+:exi:exi        2 +:idx:idx        #f            502 ,ak:immortal ,ak:none #f)
-    (+:flo:flo        2 +:idx:idx        #f            503 ,ak:immortal ,ak:none #f)
-    (=:flo:flo        2 =:flo:flo        #f            504 ,ak:immortal ,ak:none #f)
-    (=:obj:flo        2 =:obj:flo        #f            505 ,ak:immortal ,ak:none #f)
-    (=:flo:obj        2 =:flo:obj        #f            506 ,ak:immortal ,ak:none #f)
+    (+:idx:idx        2 +:idx:idx        #f       500 ,ak:immortal ,ak:none #f)
+    (+:fix:fix        2 +:idx:idx        #f       501 ,ak:immortal ,ak:none #f)
+    (+:exi:exi        2 +:idx:idx        #f       502 ,ak:immortal ,ak:none #f)
+    (+:flo:flo        2 +:idx:idx        #f       503 ,ak:immortal ,ak:none #f)
+    (=:flo:flo        2 =:flo:flo        #f       504 ,ak:immortal ,ak:none #f)
+    (=:obj:flo        2 =:obj:flo        #f       505 ,ak:immortal ,ak:none #f)
+    (=:flo:obj        2 =:flo:obj        #f       506 ,ak:immortal ,ak:none #f)
 
     ; Introduced by peephole optimization
-    ; External name, immediate predicate, killed, and kills are not used for these.
+    ; External name, immediate predicate, killed, and kills
+    ; are not used for these.
 
     (#f               2 make-vector:0    #f            600 _          _ #f)
     (#f               2 make-vector:1    #f            601 _          _ #f)
@@ -507,9 +521,10 @@
     (#f               2 internal:check-range #f        661 _          _ #f)
     (#f               2 internal:check-vector?/vector-length:vec #f 662 _ _ #f)
     (#f               2 internal:check-string?/string-length:str #f 663 _ _ #f)
-    (--               1 --               #f            32 ,ak:immortal ,ak:none #t)
-    (unspecified      0 unspecified      #f             3 ,ak:dead     ,ak:none #f)
-    (undefined        0 undefined        #f             4 ,ak:dead     ,ak:none #f)
+
+    (--               1 --               #f        32 ,ak:immortal ,ak:none #t)
+    (unspecified      0 unspecified      #f         3 ,ak:dead     ,ak:none #f)
+    (undefined        0 undefined        #f         4 ,ak:dead     ,ak:none #f)
 
     )
   $r5rs-integrable-procedures$)))
@@ -575,23 +590,23 @@
 
 ; Operations introduced by peephole optimizer.
 
-(define $reg/op1/branchf                      ; reg/op1/branchf        prim,k1,L
+(define $reg/op1/branchf                  ; reg/op1/branchf        prim,k1,L
   (make-mnemonic 'op1/branchf))
-(define $reg/op2/branchf                      ; reg/op2/branchf        prim,k1,k2,L
+(define $reg/op2/branchf                  ; reg/op2/branchf        prim,k1,k2,L
   (make-mnemonic 'op2/branchf))
-(define $reg/op2imm/branchf                   ; reg/op2imm/branchf     prim,k1,x,L
+(define $reg/op2imm/branchf               ; reg/op2imm/branchf     prim,k1,x,L
   (make-mnemonic 'op2imm/branchf))
-(define $reg/op1/check                    ; reg/op1/check      prim,k1,k2,k3,k4,exn
+(define $reg/op1/check                    ; reg/op1/check  prim,k1,k2,k3,k4,exn
   (make-mnemonic 'reg/op1/check))
 (define $reg/op1/setreg                   ; reg/op1/setreg     prim,k1,kr
   (make-mnemonic 'reg/op1/setreg))
 (define $reg/op2/setreg                   ; reg/op2/setreg     prim,k1,kr,k2
   (make-mnemonic 'reg/op2/setreg))
-(define $reg/op2/check                    ; reg/op2/check      prim,k1,k2,k3,k4,k5,exn
+(define $reg/op2/check                  ; reg/op2/check prim,k1,k2,k3,k4,k5,exn
   (make-mnemonic 'reg/op2/check))
 (define $reg/op2/branchf                  ; reg/op2/branchf    prim,k1,k2,L
   (make-mnemonic 'reg/op2/branchf))
-(define $reg/op2imm/check                 ; reg/op2imm/check   prim,k1,x,k2,k3,k4,exn
+(define $reg/op2imm/check             ; reg/op2imm/check prim,k1,x,k2,k3,k4,exn
   (make-mnemonic 'reg/op2imm/check))
 (define $save/storem-uniform              ; save/storem-uniform k
   (make-mnemonic 'save/storem-uniform))
