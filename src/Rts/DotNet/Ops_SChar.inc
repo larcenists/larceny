@@ -27,9 +27,9 @@
             return Factory.makeNumber (this.val);
         }
 
-        OP2_OVERRIDE_REVERSED(make_string, SFixnum) {
-            return Factory.makeString(arg1.value, (byte)this.val);
-        }
+//        OP2_OVERRIDE_REVERSED(make_string, SFixnum) {
+//            return Factory.makeString(arg1.value, (byte)this.val);
+//        }
 
         OP2_OVERRIDE_REVERSED(make_ustring, SFixnum) {
             return Factory.makeUString(arg1.value, this.val);
