@@ -19,7 +19,13 @@
 (define-syntax make-documented-root-object
   (syntax-rules ()
     ((root-object self ((OP-NAME . ARGS) DOC-STRING BODY ...) ...)
-     (letrec ((core-object
+     (letrec ((document (lambda (op-sym arglst docstr)
+                          (format #t "~a: ~a ~a" op-sym arglst)))
+              (doc-string 
+               "documentation: (op) => string documenting operation symbol op")
+              (ops-string
+               "operations: () => list of operation symbols")
+              (core-object
                ;; This use of the id 'self' is important (it is
                ;; semantically significant so that we actually
                ;; have true dynamic dispatch when one uses methods
@@ -34,14 +40,13 @@
                     (lambda-with-name documentation (op)
                       (case op 
                         ((OP-NAME) 
-                         (format #t "~a: ~a ~a" 
-                                 'OP-NAME 'ARGS (or DOC-STRING "undocumented")))
+                         (let ((docstr (or DOC-STRING "undocumented")))
+                           (format #t "~a: ~a ~a" 'OP-NAME 'ARGS docstr)))
                         ... 
-                        ((documentation) 
-                         "documentation: (op) produces string documenting operation symbol op")
-                        ((operations) 
-                         "operations: () produces list of symbols representing available operations")
-                        (else (error 'documentation ": no method " op " in " self)))))
+                        ((documentation) doc-string)
+                        ((operations) ops-string)
+                        (else (error 'documentation 
+                                     ": no method " op " in " self)))))
                    ((operations) 
                     (lambda-with-name 
                      operations () '(OP-NAME ... documentation operations)))
@@ -92,14 +97,16 @@
                    ((documentation op)
                     (lambda-with-name documentation (op)
                       (case op
-                        ((OP-NAME) (if DOC-STRING
-                                       (format #t "~a: ~a ~a" 'OP-NAME 'ARGS DOC-STRING)
-                                       ((super-obj 'documentation) op)))
+                        ((OP-NAME) 
+                         (if DOC-STRING
+                             (format #t "~a: ~a ~a" 'OP-NAME 'ARGS DOC-STRING)
+                             ((super-obj 'documentation) op)))
                         ...
                         (else 
                          ((super-obj 'documentation) op)))))
-                   ((operations) (lambda () (append '(OP-NAME ... documentation operations)
-                                                    ((super-obj 'operations)))))
+                   ((operations) 
+                    (lambda () (append '(OP-NAME ... documentation operations)
+                                       ((super-obj 'operations)))))
                    (else ((super-obj delegate-token) op self)))))
               (self ;; See above re: this use of id 'self'
                (lambda (op)
@@ -125,7 +132,7 @@
      ((x) "selector" x)
      ((y) "selector" y)
      ((move dx dy) 
-      "produces a new point shifted by vector (dx,dy)" 
+      "=> new point shifted by vector (dx,dy)" 
       (make-point (+ x dx) (+ y dy)))))
   (define some-tests
     (let () 
@@ -150,7 +157,8 @@
     (add-color-to-point (make-point x y)))
   (define some-more-tests
     (let ()
-      (make-colored-point 10 20 'black) ; => #<interpreted-procedure colored-self>
+      (make-colored-point 10 20 'black) 
+      ;; => #<interpreted-procedure colored-self>
       (let ((cp (make-colored-point 10 20 'black)))
         ((cp 'x)))                      ; => 10
       (let* ((cp1 (make-colored-point 10 20 'black))
