@@ -21,9 +21,9 @@
     ((root-object self ((OP-NAME . ARGS) DOC-STRING BODY ...) ...)
      (letrec ((document (lambda (op-sym arglst docstr)
                           (format #t "~a: ~a ~a" op-sym arglst)))
-              (doc-string 
+              (doc-docstring
                "documentation: (op) => string documenting operation symbol op")
-              (ops-string
+              (ops-docstring
                "operations: () => list of operation symbols")
               (core-object
                ;; This use of the id 'self' is important (it is
@@ -43,8 +43,8 @@
                          (let ((docstr (or DOC-STRING "undocumented")))
                            (format #t "~a: ~a ~a" 'OP-NAME 'ARGS docstr)))
                         ... 
-                        ((documentation) doc-string)
-                        ((operations) ops-string)
+                        ((documentation) doc-docstring)
+                        ((operations) ops-docstring)
                         (else (error 'documentation 
                                      ": no method " op " in " self)))))
                    ((operations) 
