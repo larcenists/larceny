@@ -98,13 +98,6 @@
 ;; dispatch.
 (define delegate-token (cons 0 0))
 
-(define-syntax name-and-partially-apply-proc
-  (syntax-rules ()
-    ((_ NAME (ARGS ...) FIRST PROC)
-     (let () (define (NAME ARGS ...) (PROC FIRST ARGS ...)) NAME))
-    ((_ NAME ARGS       FIRST PROC)
-     (let () (define (NAME . argl) (apply PROC FIRST argl)) NAME))))
-
 ;; *Not* named-lambda; in particular, NAME is *not* bound in BODY ...
 (define-syntax lambda-with-name
   (syntax-rules ()
