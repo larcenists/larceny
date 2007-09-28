@@ -33,8 +33,9 @@
                (lambda (op self)
                  (case op
                    ((OP-NAME) 
-                    ;; [include DOC-STRING in case it was intended return val]
-                    (lambda-with-name OP-NAME ARGS DOC-STRING BODY ...))
+                    ;; no need to include DOC-STRING; when originally
+                    ;; present, add-default-doc copies into BODY ...
+                    (lambda-with-name OP-NAME ARGS BODY ...))
                    ...
                    ((documentation)
                     (lambda-with-name documentation (op)
@@ -67,9 +68,11 @@
 (define (add-default-doc method-definition)
   (let ((op-signature (car method-definition))
         (op-body (cdr method-definition)))
-    (if (string? (car op-body)) ; already documented
-        method-definition
-        (cons op-signature (cons #f op-body))))) ; #f marks it as undocumented
+    (cons op-signature 
+          (cons (if (string? (car op-body))
+                    (car op-body) ; already documented
+                    #f) ; marks method as undocumented
+                op-body))))
 
 (define-syntax make-root-object
   (transformer 
