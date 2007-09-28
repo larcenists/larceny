@@ -595,8 +595,7 @@
         deleted-text)))
 
   (define (cursor-repositioned)
-    (cond (backing-agent
-           ((backing-agent 'on-cursor-reposition)))))
+    (delegate 'on-cursor-reposition))
 
   (define (call-with-wnd-update thunk)
     (call-with-values thunk
@@ -1066,3 +1065,210 @@
 
 (define (make-editor-agent wnd width height)
   ((editor-agent-maker make-simplest-backing-agent) wnd width height))
+
+(define (make-read-eval-print-loop-agent wnd editor-agent)
+  (define prompt-idx 0)
+  (define (bump-prompt! count) 
+    (begin (display "  ")
+           (write `(bump-prompt! ,count prompt-idx: ,prompt-idx))
+           (newline))
+    (set! prompt-idx (+ prompt-idx count)))
+  
+  ;; A MaybeReadResult is one of:
+  ;; - (list 'evaluate  Sexp Nat)
+  ;; - (list 'eof       Char)
+  ;; - (list 'error     Any)
+  
+  ;; maybe-read : TextualPort Char -> MaybeReadResult
+  (define (maybe-read port input-char)
+    (call-with-current-continuation
+     (lambda (escape)
+       (let* ((idx 0)
+              (custom-binary-port
+               ;; This is so broken.  Its a total hack to try to
+               ;; convert a string into a binary port.  But Larceny
+               ;; does not support constructing custom string ports
+               ;; yet.  Other options include making a custom reader
+               ;; for this purpose, but that's also unappealing.
+               (let ((read! 
+                      (lambda (bytevec start count)
+                        (let ((c (get-char port)))
+                          (cond 
+                           ((eof-object? c)
+                            (escape `(eof ,input-char)))
+                           (else 
+                            (set! idx (+ idx 1))
+                            (bytevector-set! bytevec start (char->integer c))
+                            1))))))
+                 (make-custom-binary-input-port "REPL PORT" read! #f #f #f)))
+              (custom-port
+               ;; See note above; once Larceny has custom text ports,
+               ;; then transcoding won't be necessary here.
+               (transcoded-port custom-binary-port (native-transcoder)))
+              (read-result
+               (call-with-error-handler
+                (lambda args (escape `(error ,args)))
+                (lambda () (read custom-port)))))
+         `(evaluate ,read-result ,idx)))))
+
+  (define (insert-string-at-point! editor-agent string)
+    (do ((i 0 (+ i 1)))
+        ((= i (string-length string)))
+      ((editor-agent 'insert-char-at-point!) (string-ref string i))))
+  
+  (define (insert-string-at-point/bump! editor-agent string)
+    (begin (write `(insert-string-at-point/bump! editor-agent ,string))
+           (newline))
+    (insert-string-at-point! editor-agent string)
+    (bump-prompt! (string-length string)))
+  
+  ;; Maybe I should abstract over this above...
+  (define my-own-env (environment-copy (interaction-environment)))
+
+  (make-root-object repl-agent
+   ((on-keydown mchar sym mods)
+    (case sym
+      ((enter) 
+       ;; If user hits enter *and* we're at the end of the foremost
+       ;; S-exp, then evaluate it.  I'm going to hack this up by
+       ;; making a custom port for reading from the text.  If the
+       ;; reader ever requests to read past the end of the input text,
+       ;; then we abandon the read attempt (via an escape
+       ;; continuation) and just insert the #\newline.
+       ;; TODO: add support for catching errors during the read,
+       ;; printing the error message in the GUI, and resetting REPL.
+       ;; TODO: figure out how this is going to integrate with Image
+       ;; support.  (Perhaps even at this level, images will be
+       ;; rendered to ASCII and the text view will be reponsible for
+       ;; interpreting the code sequences.
+       
+       (begin (write `((on-keydown ,sym)
+                       (prompt-idx: ,prompt-idx)
+                       (text: ,((editor-agent 'textstring)))
+                       (len: ,(string-length ((editor-agent 'textstring))))
+                       ))
+              (newline))
+
+       (let* ((ea editor-agent)
+              (text ((ea 'textstring)))
+              (subtext (substring text prompt-idx (string-length text)))
+              ;; Add whitespace to end of text, so that this will work independently of
+              ;; whether (ea 'textstring) returns text ending with newline
+              (orig-port (open-string-input-port subtext))
+              (mrr (maybe-read orig-port #\newline)))
+
+         (begin (write `((prompt-idx: ,prompt-idx)
+                         (subtext: ,subtext)
+                         (mrr: ,mrr)))
+                (newline))
+
+         (case (car mrr)
+           ((evaluate) 
+            ;; First provide user feedback by actually printing char
+            (cond (mchar
+                   (insert-string-at-point/bump! ea (string mchar))))
+
+            ;; XXX during evaluation, should override
+            ;; current-input-port and current-output-port here so that
+            ;; user code will side-effect the REPL window or something
+            ;; similar.  (DrScheme's approach is very nice IMHO.)
+            ;; XXX during evaluation, we also should catch errors
+            ;; and print them to the REPL window.
+            (let* ((sexp (cadr mrr))
+                   (count-chars-read (caddr mrr))
+                   (val (eval sexp my-own-env))
+                   (valstr 
+                    (call-with-output-string
+                     (lambda (strport)
+                       (call-with-current-continuation 
+                        (lambda (escape)
+                          (call-with-error-handler 
+                           (lambda (who . args)
+                             (display "Error during printing.  ")
+                             (display "NOT reverting to ur-printer tho'.")
+                             (newline)
+                             (escape "print-error"))
+                           (lambda () ((repl-printer) val strport))))))))
+                   (promptstr
+                    (call-with-output-string
+                     (lambda (strport)
+                       ((repl-prompt) (repl-level) strport))))
+                   (ignore 
+                    (begin (write `((count-chars-read: ,count-chars-read)
+                                    (subtext len: ,(string-length subtext))
+                                    (subtext: ,subtext)))
+                           (newline)))
+                   (remaining-input
+                    (substring subtext 
+                               count-chars-read (string-length subtext)))
+                   ;; with data like () or "foo", remaining-input will
+                   ;; include a newline.  for data that requires a
+                   ;; delimiter (like a number or symbol),
+                   ;; remaining-input will not include the newline
+                   ;; Either way, *we* don't want it.
+                   (remaining-input
+                    (let ((len (string-length remaining-input)))
+                      (cond 
+                       ((= len 0) remaining-input)
+                       ((char=? (string-ref remaining-input (- len 1))
+                                #\newline)
+                        (substring remaining-input 0 (- len 1)))
+                       (else
+                        remaining-input)))))
+
+              ;; Now that we've read it the user's text, we should
+              ;; bump the prompt over it.
+              (begin (write `(manually bumping ,(- (string-length subtext) 1) for ,subtext))
+                     (newline))
+              (bump-prompt! (- (string-length subtext) 1))
+
+              ;; Write rendered value to textview.
+              (insert-string-at-point/bump! ea valstr)
+
+              ;; Print new prompt
+              (insert-string-at-point/bump! ea promptstr)
+              
+              ;; XXX if there is still data on orig-port, then we
+              ;; should probably propagate it down past the new
+              ;; prompt.  (This does not match DrScheme's behavior
+              ;; though; I believe it evaluates greedily until there
+              ;; aren't any S-exps left; another option for us.)
+              (begin (write `(propagating remaining-input: ,remaining-input))
+                     (newline))
+              (insert-string-at-point! ea remaining-input)
+              ))
+           ((eof)      
+            (insert-string-at-point/bump! ea (string (cadr mrr))))
+           ((error)
+            (let ((errstr (call-with-output-string
+                           (lambda (p)
+                             (decode-error (cadr mrr) p))))
+                  (promptstr (call-with-output-string
+                              (lambda (strport)
+                                ((repl-prompt) (repl-level) strport)))))
+              (bump-prompt! (string-length subtext))
+              (insert-string-at-point/bump! ea errstr)
+              (insert-string-at-point/bump! ea promptstr)
+              ))
+           (else (error 'repl-agent..on-keydown ": oops.")))))
+      (else
+       (cond 
+        (mchar 
+         (let* ((ea editor-agent))
+           ;; move cursor to end of buffer
+           (call-with-values (lambda () ((ea 'selection)))
+             (lambda (beg end) ((ea 'set-selection!) end end)))
+           ;; This doesn't bump the prompt-idx, because it is
+           ;; part of the user input that we're still waiting
+           ;; to process.
+           (insert-string-at-point! ea (string mchar))
+           ))))))
+   ((prompt!) 
+    (let* ((ea editor-agent))
+      (call-with-values (lambda () ((ea 'selection)))
+        (lambda (beg end) ((ea 'set-selection!) end end)))
+      (let ((str (call-with-output-string 
+                  (lambda (strport)
+                    ((repl-prompt) (repl-level) strport)))))
+        (insert-string-at-point/bump! ea str))))
+   ))
