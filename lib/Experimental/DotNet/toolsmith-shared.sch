@@ -955,7 +955,7 @@
 (define (make-read-eval-print-loop-agent wnd editor-agent)
   (define prompt-idx 0)
   (define (bump-prompt! count) 
-    (begin (display "  ")
+    '(begin (display "  ")
            (write `(bump-prompt! ,count prompt-idx: ,prompt-idx))
            (newline))
     (set! prompt-idx (+ prompt-idx count)))
@@ -1003,7 +1003,7 @@
       ((editor-agent 'insert-char-at-point!) (string-ref string i))))
   
   (define (insert-string-at-point/bump! editor-agent string)
-    (begin (write `(insert-string-at-point/bump! editor-agent ,string))
+    '(begin (write `(insert-string-at-point/bump! editor-agent ,string))
            (newline))
     (insert-string-at-point! editor-agent string)
     (bump-prompt! (string-length string)))
@@ -1028,7 +1028,7 @@
        ;; rendered to ASCII and the text view will be reponsible for
        ;; interpreting the code sequences.
        
-       (begin (write `((on-keydown ,sym)
+       '(begin (write `((on-keydown ,sym)
                        (prompt-idx: ,prompt-idx)
                        (text: ,((editor-agent 'textstring)))
                        (len: ,(string-length ((editor-agent 'textstring))))
@@ -1043,7 +1043,7 @@
               (orig-port (open-string-input-port subtext))
               (mrr (maybe-read orig-port #\newline)))
 
-         (begin (write `((prompt-idx: ,prompt-idx)
+         '(begin (write `((prompt-idx: ,prompt-idx)
                          (subtext: ,subtext)
                          (mrr: ,mrr)))
                 (newline))
@@ -1080,7 +1080,7 @@
                      (lambda (strport)
                        ((repl-prompt) (repl-level) strport))))
                    (ignore 
-                    (begin (write `((count-chars-read: ,count-chars-read)
+                    '(begin (write `((count-chars-read: ,count-chars-read)
                                     (subtext len: ,(string-length subtext))
                                     (subtext: ,subtext)))
                            (newline)))
@@ -1104,7 +1104,7 @@
 
               ;; Now that we've read it the user's text, we should
               ;; bump the prompt over it.
-              (begin (write `(manually bumping ,(- (string-length subtext) 1) for ,subtext))
+              '(begin (write `(manually bumping ,(- (string-length subtext) 1) for ,subtext))
                      (newline))
               (bump-prompt! (- (string-length subtext) 1))
 
@@ -1119,7 +1119,7 @@
               ;; prompt.  (This does not match DrScheme's behavior
               ;; though; I believe it evaluates greedily until there
               ;; aren't any S-exps left; another option for us.)
-              (begin (write `(propagating remaining-input: ,remaining-input))
+              '(begin (write `(propagating remaining-input: ,remaining-input))
                      (newline))
               (insert-string-at-point! ea remaining-input)
               ))
