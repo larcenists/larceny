@@ -1130,16 +1130,30 @@
       ((enter) 
        ;; If user hits enter and we're at the end of the foremost
        ;; S-exp, then evaluate it.  
-       ;; TODO: If user hits enter and we're selecting text before the
+       ;; If user hits enter and we're selecting text before the
        ;; prompt, then copy the text after the prompt and then attempt
        ;; to evaluate it.
+       ;; XXX what should REPL do if user hits enter while in middle
+       ;; of text post prompt?
+       ;; XXX what shoudl REPL do if user hits enter while selecting
+       ;; text post prompt?
        '(begin (write `((on-keydown ,sym)
                        (prompt-idx: ,prompt-idx)
                        (text: ,((editor-agent 'textstring)))
                        (len: ,(string-length ((editor-agent 'textstring))))
                        ))
               (newline))
-       (evaluate-first-sexp-after-prompt mchar))
+       (let ((ea editor-agent))
+         (call-with-values (lambda () ((ea 'selection)))
+           (lambda (beg end)
+             (if (<= beg prompt-idx)
+                 (let* ((text ((ea 'textstring)))
+                        (subtext (substring text beg end))
+                        (end (string-length text)))
+                   ;; Move prompt to end of buffer
+                   ((ea 'set-selection!) (- end 1) (- end 1))
+                   (insert-string-at-point! ea subtext)))))
+         (evaluate-first-sexp-after-prompt mchar)))
 
       ((back delete)
        (let* ((ea editor-agent))
@@ -1155,10 +1169,11 @@
       (else
        (cond 
         (mchar 
-         (let* ((ea editor-agent))
+         (let* ((ea editor-agent)
+                (text ((ea 'textstring)))
+                (end (string-length text)))
            ;; move cursor to end of buffer
-           (call-with-values (lambda () ((ea 'selection)))
-             (lambda (beg end) ((ea 'set-selection!) end end)))
+           ((ea 'set-selection!) (- end 1) (- end 1))
            ;; This doesn't bump the prompt-idx, because it is
            ;; part of the user input that we're still waiting
            ;; to process.
