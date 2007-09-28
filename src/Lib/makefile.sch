@@ -199,6 +199,7 @@
     "format"            ; `format' procedure.
     "sort"              ; `sort' and `sort!' (used by new macro expander)
     "number"            ; arithmetic
+    "fx"                ; fixnum arithmetic
     "globals"           ; `global' offsets (for memstats)
 
     ; It's important for bellerophon to be loaded as late as possible

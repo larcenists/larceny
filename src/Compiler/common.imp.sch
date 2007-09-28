@@ -4,8 +4,6 @@
 ;
 ; Relatively target-independent information for Twobit's backend.
 ;
-; 28 September 2000 / wdc
-;
 ; Most of the definitions in this file can be extended or overridden by
 ; target-specific definitions.
 ;
@@ -33,6 +31,14 @@
 ; .--             (might not be necessary)
 ; .+:idx:idx
 ; .-:idx:idx
+;
+; .fxlognot
+; .fxlogand
+; .fxlogior
+; .fxlogxor
+; .fxlsh
+; .fxrsha
+; .fxrshl
 ; 
 ; .integer->char:trusted
 ; .char->integer:chr
@@ -58,6 +64,7 @@
 
 ;; A hook for backends to override if they have a register preference
 ;; Produces #t only if r1 preferred over r2 (otherwise inconclusive).
+
 (define (arch-prefers-reg? r1 r2) #f)
 
 (define renaming-prefix ".")
@@ -115,9 +122,11 @@
 (define name:VECTOR-REF    '.vector-ref:trusted)
 
 ; FIXME: should be fixnum-and:trusted, but that isn't implemented yet
+
 (define name:FIXNUM-AND    'fxlogand)
 
 ; FIXME: should be fixnum-arithmetic-shift-left:trusted
+
 (define name:FIXNUM-ARITHMETIC-SHIFT-LEFT 'fxlsh)
 
 ; If (INTEGRATE-PROCEDURES) is anything but null, then special optimization
@@ -360,6 +369,12 @@
                  bytevector-u8-ref bytevector-u8-set!
                  = < > <= >= + * - /
                  abs negative? positive?
+                 fx=? fx<? fx>? fx<=? fx>=?
+                 fxzero? fxpositive? fxnegative?
+                 fxmin fxmax
+                 fx+ fx- fx*
+                 fxnot fxand fxior fxxor fxif
+                 fxeven? fxodd?
                  eqv? memv assv memq
                  map for-each
                  lookahead-u8 get-u8
@@ -367,11 +382,13 @@
                  peek-char read-char
                  )
 
-   ((,name:CALL r4rs ?proc ?exp)
-    (,name:CALL r5rs ?proc ?exp))
+   ; FIXME: Eliminating these next two should fix ticket #37.
 
-   ((,name:CALL r5rs ?proc ?exp)
-    (,name:CALL larceny ?proc ?exp))
+;  ((,name:CALL r4rs ?proc ?exp)
+;   (,name:CALL r5rs ?proc ?exp))
+
+;  ((,name:CALL r5rs ?proc ?exp)
+;   (,name:CALL larceny ?proc ?exp))
 
    ; FIXME
    ; Commented out by the quote.
@@ -555,6 +572,8 @@
    ((_ larceny bytevector-u8-set! (bytevector-u8-set! x y z))
     (bytevector-set! x y z))
 
+   ; FIXME: These are incorrect because ?e3 ... might not return.
+
    ((_ larceny = (= ?e1 ?e2 ?e3 ?e4 ...))
     (let ((t ?e2))
       (and (= ?e1 t)
@@ -615,6 +634,168 @@
 
    ((_ larceny positive? (positive? ?x))
     (> ?x 0))
+
+   ; Special cases for two or three arguments.
+
+   ((_ larceny fx=? (fx=? ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (.fixnum? x) ,$ex.fx= x)
+      (.check! (.fixnum? y) ,$ex.fx= y)
+      (.=:fix:fix x y)))
+   ((_ larceny fx=? (fx=? ?x ?y ?z))
+    (let* ((x ?x)
+           (y ?y)
+           (z ?z))
+      (and (fx=? x y) (fx=? y z))))
+
+   ((_ larceny fx<? (fx<? ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (.fixnum? x) ,$ex.fx< x)
+      (.check! (.fixnum? y) ,$ex.fx< y)
+      (.<:fix:fix x y)))
+   ((_ larceny fx<? (fx<? ?x ?y ?z))
+    (let* ((x ?x)
+           (y ?y)
+           (z ?z))
+      (and (fx<? x y) (fx<? y z))))
+
+   ((_ larceny fx>? (fx>? ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (.fixnum? x) ,$ex.fx> x)
+      (.check! (.fixnum? y) ,$ex.fx> y)
+      (.>:fix:fix x y)))
+   ((_ larceny fx>? (fx>? ?x ?y ?z))
+    (let* ((x ?x)
+           (y ?y)
+           (z ?z))
+      (and (fx>? x y) (fx>? y z))))
+
+   ((_ larceny fx<=? (fx<=? ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (.fixnum? x) ,$ex.fx<= x)
+      (.check! (.fixnum? y) ,$ex.fx<= y)
+      (.<=:fix:fix x y)))
+   ((_ larceny fx<=? (fx<=? ?x ?y ?z))
+    (let* ((x ?x)
+           (y ?y)
+           (z ?z))
+      (and (fx<=? x y) (fx<=? y z))))
+
+   ((_ larceny fx>=? (fx>=? ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (.fixnum? x) ,$ex.fx>= x)
+      (.check! (.fixnum? y) ,$ex.fx>= y)
+      (.>=:fix:fix x y)))
+   ((_ larceny fx>=? (fx>=? ?x ?y ?z))
+    (let* ((x ?x)
+           (y ?y)
+           (z ?z))
+      (and (fx>=? x y) (fx>=? y z))))
+
+   ((_ larceny fxzero? (fxzero? ?x))
+    (fx=? ?x 0))
+
+   ((_ larceny fxpositive? (fxpositive? ?x))
+    (fx>? ?x 0))
+
+   ((_ larceny fxnegative? (fxnegative? ?x))
+    (fx<? ?x 0))
+
+   ; Special cases for two or three arguments.
+
+   ((_ larceny fxmin (fxmin ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (if (fx<=? x y) x y)))
+   ((_ larceny fxmin (fxmin ?x ?y ?z))
+    (let ((x ?x)
+          (y ?y)
+          (z ?z))
+      (fxmin (if (fx<=? x y) x y) z)))
+
+   ((_ larceny fxmax (fxmax ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (if (fx>=? x y) x y)))
+   ((_ larceny fxmax (fxmax ?x ?y ?z))
+    (let ((x ?x)
+          (y ?y)
+          (z ?z))
+      (fxmax (if (fx>=? x y) x y) z)))
+
+   ; These procedures accept only two arguments.
+
+   ((_ larceny fx+ (fx+ ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (fixnum? x) ,$ex.fx+ x y)
+      (.check! (fixnum? y) ,$ex.fx+ x y)
+      (let ((z (+ x y)))
+        (.check! (fixnum? z) ,$ex.fx+ x y)
+        z)))
+
+   ((_ larceny fx* (fx* ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (fixnum? x) ,$ex.fx* x y)
+      (.check! (fixnum? y) ,$ex.fx* x y)
+      (let ((z (* x y)))
+        (.check! (fixnum? z) ,$ex.fx* x y)
+        z)))
+
+   ((_ larceny fx- (fx- ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (fixnum? x) ,$ex.fx- x y)
+      (.check! (fixnum? y) ,$ex.fx- x y)
+      (let ((z (- x y)))
+        (.check! (fixnum? z) ,$ex.fx- x y)
+        z)))
+
+   ((_ larceny fx- (fx- ?x))
+    (let ((x ?x))
+      (.check! (fixnum? x) ,$ex.fx-- x)
+      (let ((z (- 0 x)))
+        (.check! (fixnum? z) ,$ex.fx-- x)
+        z)))
+
+   ((_ larceny fxnot (fxnot ?x))
+    (.fxlognot ?x))
+
+   ; FIXME: These are incorrect because some argument might not return.
+
+   ((_ larceny fxand (fxand ?x ?y))
+    (.fxlogand ?x ?y))
+   ((_ larceny fxand (fxand ?x ?y ?z ...))
+    (.fxlogand ?x (fxand ?y ?z ...)))
+
+   ((_ larceny fxior (fxior ?x ?y))
+    (.fxlogior ?x ?y))
+   ((_ larceny fxior (fxior ?x ?y ?z ...))
+    (.fxlogior ?x (fxior ?y ?z ...)))
+
+   ((_ larceny fxxor (fxxor ?x ?y))
+    (.fxlogxor ?x ?y))
+   ((_ larceny fxxor (fxxor ?x ?y ?z ...))
+    (.fxlogxor ?x (fxxor ?y ?z ...)))
+
+   ((_ larceny fxif (fxif ?x ?y ?z))
+    (let ((x ?x)
+          (y ?y)
+          (z ?z))
+      (fxior (fxand x y)
+             (fxand (fxnot x) z))))
+
+   ((_ larceny fxeven? (fxeven? ?x))
+    (fxzero? (fxand ?x 1)))
+
+   ((_ larceny fxodd? (fxodd? ?x))
+    (not (fxzero? (fxand ?x 1))))
 
    ; These three compiler macros cannot be expressed using SYNTAX-RULES.
 
@@ -732,7 +913,7 @@
         (cond ((and (eq? type 2)
                     (fx< ptr lim))
                (let ((byte (bytevector-ref buf ptr)))
-                 (vector-like-set! p 2 (fx+ ptr 1)); 2 = port.mainptr
+                 (vector-like-set! p 2 (+ ptr 1))  ; 2 = port.mainptr
                  byte))
               (else
                (io/get-u8 p #f))))))

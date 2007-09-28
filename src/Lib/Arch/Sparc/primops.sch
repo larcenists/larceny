@@ -318,14 +318,18 @@
 (define gc-counter (lambda () (gc-counter)))
 
 ; Fixnum primitives
+;
+; FIXME: (rnrs arithmetic fixnums) procedures are now defined
+; in Lib/Common/fx.sch; they have been commented out below.
 
 (define most-negative-fixnum (lambda () (most-negative-fixnum)))
 (define most-positive-fixnum (lambda () (most-positive-fixnum)))
 (define fx-- (lambda (x) (fx-- x)))
-(define fxpositive? (lambda (x) (fxpositive? x)))
-(define fxnegative? (lambda (x) (fxnegative? x)))
-(define fxzero? (lambda (x) (fxzero? x)))
+;(define fxpositive? (lambda (x) (fxpositive? x)))
+;(define fxnegative? (lambda (x) (fxnegative? x)))
+;(define fxzero? (lambda (x) (fxzero? x)))
 
+'
 (define fx+
   (letrec ((loop (lambda (sum args)
 		   (if (null? args)
@@ -336,6 +340,7 @@
 	  0
 	  (loop (car args) (cdr args))))))
 
+'
 (define fx- 
   (letrec ((loop (lambda (diff args)
 		   (if (null? args)
@@ -346,6 +351,7 @@
 	  (fx-- arg)
 	  (loop arg args)))))
 
+'
 (define fx*
   (letrec ((loop (lambda (prod args)
 		   (if (null? args)

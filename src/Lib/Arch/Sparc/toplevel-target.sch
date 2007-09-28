@@ -14,13 +14,13 @@
 
   ;; numbers
 
-  (environment-set! larc 'fx+ fx+)
-  (environment-set! larc 'fx- fx-)
+ ;(environment-set! larc 'fx+ fx+)
+ ;(environment-set! larc 'fx- fx-)
   (environment-set! larc 'fx-- fx--)
-  (environment-set! larc 'fx* fx*)
-  (environment-set! larc 'fxzero? fxzero?)
-  (environment-set! larc 'fxpositive? fxpositive?)
-  (environment-set! larc 'fxnegative? fxnegative?)
+ ;(environment-set! larc 'fx* fx*)
+ ;(environment-set! larc 'fxzero? fxzero?)
+ ;(environment-set! larc 'fxpositive? fxpositive?)
+ ;(environment-set! larc 'fxnegative? fxnegative?)
   (environment-set! larc 'fx= fx=)
   (environment-set! larc 'fx< fx<)
   (environment-set! larc 'fx<= fx<=)

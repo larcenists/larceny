@@ -175,6 +175,14 @@
     (.>=:fix:fix      2 >=:fix:fix       ,sparc-imm?   -1 ,:immortal ,:none)
     (.>:fix:fix       2 >:fix:fix        ,sparc-imm?   -1 ,:immortal ,:none)
     
+    (.fxlognot        1 fxlognot         #f            33 ,:immortal ,:none)
+    (.fxlogand        2 fxlogand         #f            71 ,:immortal ,:none)
+    (.fxlogior        2 fxlogior         #f            72 ,:immortal ,:none)
+    (.fxlogxor        2 fxlogxor         #f            73 ,:immortal ,:none)
+    (.fxlsh           2 fxlsh            #f            74 ,:immortal ,:none)
+    (.fxrsha          2 fxrsha           #f            75 ,:immortal ,:none)
+    (.fxrshl          2 fxrshl           #f            76 ,:immortal ,:none)
+
     ; Not yet implemented.
 
 ;    (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)

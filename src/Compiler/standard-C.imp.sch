@@ -223,6 +223,14 @@
     (.>=:fix:fix      2 >=:fix:fix       ,stdc-imm?   409 ,:immortal ,:none #f)
     (.>:fix:fix       2 >:fix:fix        ,stdc-imm?   410 ,:immortal ,:none #f)
     
+    (.fxlognot        1 fxlognot         #f            33 ,:immortal ,:none #f)
+    (.fxlogand        2 fxlogand         #f            71 ,:immortal ,:none #f)
+    (.fxlogior        2 fxlogior         #f            72 ,:immortal ,:none #f)
+    (.fxlogxor        2 fxlogxor         #f            73 ,:immortal ,:none #f)
+    (.fxlsh           2 fxlsh            #f            74 ,:immortal ,:none #f)
+    (.fxrsha          2 fxrsha           #f            75 ,:immortal ,:none #f)
+    (.fxrshl          2 fxrshl           #f            76 ,:immortal ,:none #f)
+
     ; Not yet implemented.
 
 ;    (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
