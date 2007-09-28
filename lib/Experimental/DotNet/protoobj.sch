@@ -1,6 +1,5 @@
 ;; Prototype based object system, with "features" like operation
-;; reflection, inline documentation (well, soon to be added) and
-;; delegation support.
+;; reflection, inline documentation and delegation support.
 
 ;; This is only for the use within object extension for effecting
 ;; dispatch.
@@ -17,9 +16,9 @@
        (define (NAME . rest) (apply proc rest)) NAME))
     ))
 
-(define-syntax make-root-object
+(define-syntax make-documented-root-object
   (syntax-rules ()
-    ((root-object self ((OP-NAME . ARGS) BODY ...) ...)
+    ((root-object self ((OP-NAME . ARGS) DOC-STRING BODY ...) ...)
      (letrec ((core-object
                ;; This use of the id 'self' is important (it is
                ;; semantically significant so that we actually
@@ -27,10 +26,25 @@
                ;; on self within BODY)
                (lambda (op self)
                  (case op
-                   ((OP-NAME) (lambda-with-name OP-NAME ARGS BODY ...))
+                   ((OP-NAME) 
+                    ;; [include DOC-STRING in case it was intended return val]
+                    (lambda-with-name OP-NAME ARGS DOC-STRING BODY ...))
                    ...
+                   ((documentation)
+                    (lambda-with-name documentation (op)
+                      (case op 
+                        ((OP-NAME) 
+                         (format #t "~a: ~a ~a" 
+                                 'OP-NAME 'ARGS (or DOC-STRING "undocumented")))
+                        ... 
+                        ((documentation) 
+                         "documentation: (op) produces string documenting operation symbol op")
+                        ((operations) 
+                         "operations: () produces list of symbols representing available operations")
+                        (else (error 'documentation ": no method " op " in " self)))))
                    ((operations) 
-                    (lambda-with-name operations () '(OP-NAME ... operations)))
+                    (lambda-with-name 
+                     operations () '(OP-NAME ... documentation operations)))
                    ;; This 'self' is only for error msg documentation
                    (else (error 'self
                                 ": unhandled object message " op)))))
@@ -45,22 +59,46 @@
                      (core-object op self)))))
        self))))
 
+(define (add-default-doc method-definition)
+  (let ((op-signature (car method-definition))
+        (op-body (cdr method-definition)))
+    (if (string? (car op-body)) ; already documented
+        method-definition
+        (cons op-signature (cons #f op-body))))) ; #f marks it as undocumented
+
+(define-syntax make-root-object
+  (transformer 
+   (lambda (exp ren cmp)
+     `(,(ren 'make-documented-root-object)
+       ,(cadr exp)
+       ,@(map add-default-doc (cddr exp))))))
+
 (define-syntax msg-handler
   (syntax-rules ()
     ((msg-handler ((OP-NAME . ARGS) BODY ...) ...)
      (make-root-object self-name ((OP-NAME . ARGS) BODY ...) ...))))
 
-(define-syntax extend-object
+(define-syntax extend-object-documented
   (syntax-rules ()
-    ((extend-object super-expr self ((OP-NAME . ARGS) BODY ...) ...)
+    ((_ super-expr self ((OP-NAME . ARGS) DOC-STRING BODY ...) ...)
      (letrec ((super-obj super-expr)
               (core-object 
                (lambda (op self)
                  (case op 
                    ;; See above re: this use of id 'self'
-                   ((OP-NAME) (lambda-with-name OP-NAME ARGS BODY ...))
+                   ((OP-NAME) 
+                    (lambda-with-name OP-NAME ARGS DOC-STRING BODY ...))
                    ...
-                   ((operations) (lambda () (append '(OP-NAME ... operations)
+                   ((documentation op)
+                    (lambda-with-name documentation (op)
+                      (case op
+                        ((OP-NAME) (if DOC-STRING
+                                       (format #t "~a: ~a ~a" 'OP-NAME 'ARGS DOC-STRING)
+                                       ((super-obj 'documentation) op)))
+                        ...
+                        (else 
+                         ((super-obj 'documentation) op)))))
+                   ((operations) (lambda () (append '(OP-NAME ... documentation operations)
                                                     ((super-obj 'operations)))))
                    (else ((super-obj delegate-token) op self)))))
               (self ;; See above re: this use of id 'self'
@@ -71,14 +109,24 @@
                      (core-object op self)))))
        self))))
 
+(define-syntax extend-object 
+  (transformer 
+   (lambda (exp ren cmp)
+     `(,(ren 'extend-object-documented)
+       ,(cadr exp)  ; super expr
+       ,(caddr exp) ; self identifer
+       ,@(map add-default-doc (cdddr exp))))))
+
 ;; SAMPLE USAGE OF ABOVE OBJECT SYSTEM
 (begin 
   (define (make-point x y) 
     (make-root-object 
      point-self
-     ((x) x)
-     ((y) y) 
-     ((move dx dy) (make-point (+ x dx) (+ y dy)))))
+     ((x) "selector" x)
+     ((y) "selector" y)
+     ((move dx dy) 
+      "produces a new point shifted by vector (dx,dy)" 
+      (make-point (+ x dx) (+ y dy)))))
   (define some-tests
     (let () 
       (make-point 1 2)                ; => #<procedure point-self>
@@ -94,7 +142,7 @@
     (define (add-color-to-point p)
       (extend-object p 
        colored-self 
-       ((color) col) 
+       ((color) "selector" col)
        ((move x y) 
         ;; ugly way to get hook on super's method.  :(
         (add-color-to-point ((p 'move) x y)))
