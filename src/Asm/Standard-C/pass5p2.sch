@@ -155,6 +155,30 @@
   (assembler-value! as 'functions (cons (list name definite? entrypoint?)
 					(lookup-functions as)))
   name)
+
+; Given a symbol, returns that symbol unless its print name
+; contains "/*" or "*/", which should not appear within a C comment.
+
+(define (safe-symbol sym)
+  (let* ((s (symbol->string sym))
+         (n (- (string-length s) 1)))
+    (define (loop i)
+      (if (= i n)
+          sym
+          (let ((c (string-ref s i)))
+            (cond ((char=? c #\/)
+                   (if (char=? (string-ref s (+ i 1)) #\*)
+                       *safe-symbol*
+                       (loop (+ i 1))))
+                  ((char=? c #\*)
+                   (if (char=? (string-ref s (+ i 1)) #\/)
+                       *safe-symbol*
+                       (loop (+ i 1))))
+                  (else
+                   (loop (+ i 1)))))))
+    (loop 0)))
+
+(define *safe-symbol* (string->symbol "UNPRINTABLE"))
     
 ; Pseudo-instructions.
 
@@ -296,14 +320,14 @@
     (list-instruction "global" instruction)
     (emit-text as "twobit_global( ~a ); /* ~a */"
 	       (emit-global as (operand1 instruction))
-	       (operand1 instruction))))
+	       (safe-symbol (operand1 instruction)))))
 
 (define-instruction $setglbl
   (lambda (instruction as)
     (list-instruction "setglbl" instruction)
     (emit-text as "twobit_setglbl( ~a ); /* ~a */"
 	       (emit-global as (operand1 instruction))
-	       (operand1 instruction))))
+	       (safe-symbol (operand1 instruction)))))
 
 (define-instruction $lambda
   (lambda (instruction as)
