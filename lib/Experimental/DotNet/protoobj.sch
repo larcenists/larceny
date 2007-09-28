@@ -16,6 +16,17 @@
        (define (NAME . rest) (apply proc rest)) NAME))
     ))
 
+;; delegate : Obj Sym Obj -> Method
+;; (delegate obj-1 op obj-2) extracts the method M named op from
+;; obj-1, and then fixes the self parameter of M with obj-2.
+;; 
+;; Usual dispatch of tgt.op can be thought of as doing 
+;; (delegate tgt op tgt)
+;; Passing the buck (via inheritance) can be thought of as doing
+;; (delegate (parentof tgt) op tgt)
+(define (delegate method-source op receiver)
+  ((method-source delegate-token) op receiver))
+
 (define-syntax make-documented-root-object
   (syntax-rules ()
     ((root-object self ((OP-NAME . ARGS) DOC-STRING BODY ...) ...)
@@ -110,7 +121,7 @@
                    ((operations) 
                     (lambda () (append '(OP-NAME ... documentation operations)
                                        ((super-obj 'operations)))))
-                   (else ((super-obj delegate-token) op self)))))
+                   (else (delegate super-obj op self)))))
               (self ;; See above re: this use of id 'self'
                (lambda (op)
                  (if (eq? op delegate-token)
@@ -154,8 +165,7 @@
        colored-self 
        ((color) "selector" col)
        ((move x y) 
-        ;; ugly way to get hook on super's method.  :(
-        (add-color-to-point ((p 'move) x y)))
+        (add-color-to-point ((delegate p 'move colored-self) x y)))
        ))
     (add-color-to-point (make-point x y)))
   (define some-more-tests
