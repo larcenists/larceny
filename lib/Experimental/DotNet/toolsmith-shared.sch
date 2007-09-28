@@ -1124,7 +1124,7 @@
               (insert-string-at-point! ea remaining-input)
               ))
            ((eof)      
-            (insert-string-at-point/bump! ea (string (cadr mrr))))
+            (insert-string-at-point! ea (string (cadr mrr))))
            ((error)
             (let ((errstr (call-with-output-string
                            (lambda (p)
@@ -1137,6 +1137,17 @@
               (insert-string-at-point/bump! ea promptstr)
               ))
            (else (error 'repl-agent..on-keydown ": oops.")))))
+      ((back delete)
+       (let* ((ea editor-agent))
+         (call-with-values (lambda () ((ea 'selection)))
+           (lambda (beg end)
+             ;; ensure selection area is only after prompt.
+             (cond ((<= beg prompt-idx)
+                    ((ea 'set-selection!) prompt-idx (max end prompt-idx))
+                    (if (< prompt-idx end)
+                        ((ea 'delete-char-at-point!))))
+                   (else
+                    ((ea 'delete-char-at-point!))))))))
       (else
        (cond 
         (mchar 
