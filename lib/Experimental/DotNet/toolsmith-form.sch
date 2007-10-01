@@ -1054,7 +1054,7 @@
 
         ((A a) (if shift #\A #\a))
         ((B b) (if shift #\B #\b))
-        ((C b) (if shift #\C #\c))
+        ((C c) (if shift #\C #\c))
         ((D d) (if shift #\D #\d))
         ((E e) (if shift #\E #\e))
         ((F f) (if shift #\F #\f))
