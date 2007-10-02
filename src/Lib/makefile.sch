@@ -201,6 +201,7 @@
     "number"            ; arithmetic
     "fx"                ; fixnum arithmetic
     "fl"                ; flonum arithmetic
+    "bitwise"           ; bitwise operations on exact integers
     "globals"           ; `global' offsets (for memstats)
 
     ; It's important for bellerophon to be loaded as late as possible

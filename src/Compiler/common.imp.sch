@@ -238,6 +238,12 @@
 ; procedures have their usual values, but cannot assume that non-R4RS
 ; procedures are intact.
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; FIXME:  This part is obsolete.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 '
 (define inline-syntactic-environment
   (syntactic-copy (the-usual-syntactic-environment)))
@@ -273,10 +279,21 @@
                              (syntactic-lookup inline-syntactic-environment n))
                            names))))
 
-(for-each (lambda (x) 
-            (twobit-expand x (the-usual-syntactic-environment)))
-`(
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; End of obsolete code.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; The list of compiler macros has been rewritten to avoid the
+; use of quasiquote on large structures.  Larceny's quasiquote
+; apparently takes quadratic time, so this rewrite improved
+; Larceny's build times.
+
+(define common-compiler-macros
+  (list
+
+'
 (define-syntax .rewrite-eqv?
   (transformer
    (lambda (exp rename compare)
@@ -298,6 +315,7 @@
                  exp))
            exp)))))
 
+'
 (define-syntax .rewrite-memv
   (transformer
    (lambda (exp rename compare)
@@ -327,6 +345,7 @@
                  exp))
            exp)))))
 
+'
 (define-syntax .rewrite-assv
   (transformer
    (lambda (exp rename compare)
@@ -356,8 +375,9 @@
                  exp))
            exp)))))
 
-(define-syntax ,name:CALL
-  (syntax-rules (r4rs r5rs larceny quote lambda
+(list 'define-syntax name:CALL
+      (list 'syntax-rules
+            '   (r4rs r5rs larceny quote lambda
                  car cdr
                  vector-length vector-ref vector-set!
                  string-length string-ref string-set!
@@ -397,7 +417,7 @@
    ; FIXME
    ; Commented out by the quote.
 
-   ((_ quote integer->char (integer->char k0))
+`  ((_ quote integer->char (integer->char k0))
     (let ((k k0))
       (.check! (.fixnum? k) ,$ex.int2char k)
       (.check! (.<:fix:fix k #x110000) ,$ex.int2char k)
@@ -405,22 +425,22 @@
       (.check! (not (.=:fix:fix #x0000d800 (logand #x00fff800 k))))
       (.integer->char:trusted k)))
    
-   ((_ larceny car (car x0))
+`  ((_ larceny car (car x0))
     (let ((x x0))
       (.check! (pair? x) ,$ex.car x)
       (.car:pair x)))
    
-   ((_ larceny cdr (cdr x0))
+`  ((_ larceny cdr (cdr x0))
     (let ((x x0))
       (.check! (pair? x) ,$ex.cdr x)
       (.cdr:pair x)))
 
-   ((_ larceny vector-length (vector-length v0))
+`  ((_ larceny vector-length (vector-length v0))
     (let ((v v0))
       (.check! (vector? v) ,$ex.vlen v)
       (.vector-length:vec v)))
    
-   ((_ larceny vector-ref (vector-ref v0 i0))
+`  ((_ larceny vector-ref (vector-ref v0 i0))
     (let ((v v0)
           (i i0))
       (.check! (.fixnum? i) ,$ex.vref v i)
@@ -429,7 +449,7 @@
       (.check! (.>=:fix:fix i 0) ,$ex.vref  v i)
       (.vector-ref:trusted v i)))
    
-   ((_ larceny vector-set! (vector-set! v0 i0 x0))
+`  ((_ larceny vector-set! (vector-set! v0 i0 x0))
     (let ((v v0)
           (i i0)
           (x x0))
@@ -439,12 +459,12 @@
       (.check! (.>=:fix:fix i 0) ,$ex.vset v i x)
       (.vector-set!:trusted v i x)))
    
-   ((_ larceny string-length (string-length v0))
+`  ((_ larceny string-length (string-length v0))
     (let ((v v0))
       (.check! (string? v) ,$ex.slen v)
       (.string-length:str v)))
    
-   ((_ larceny string-ref (string-ref v0 i0))
+`  ((_ larceny string-ref (string-ref v0 i0))
     (let ((v v0)
           (i i0))
       (.check! (.fixnum? i) ,$ex.sref v i)
@@ -453,7 +473,7 @@
       (.check! (.>=:fix:fix i 0) ,$ex.sref  v i)
       (.string-ref:trusted v i)))
    
-   ((_ larceny string-set! (string-set! v0 i0 x0))
+`  ((_ larceny string-set! (string-set! v0 i0 x0))
     (let ((v v0)
           (i i0)
           (x x0))
@@ -464,15 +484,15 @@
       (.check! (.char? x) ,$ex.sset v i x)
       (.string-set!:trusted v i x)))
    
-   ((_ larceny make-ustring (make-ustring ?n))
+`  ((_ larceny make-ustring (make-ustring ?n))
     (make-ustring ?n #\space))
 
-   ((_ larceny ustring-length (ustring-length v0))
+`  ((_ larceny ustring-length (ustring-length v0))
     (let ((v v0))
       (.check! (ustring? v) ,$ex.slen v)
       (.ustring-length:str v)))
    
-   ((_ larceny ustring-ref (ustring-ref v0 i0))
+`  ((_ larceny ustring-ref (ustring-ref v0 i0))
     (let ((v v0)
           (i i0))
       (.check! (.fixnum? i) ,$ex.sref v i)
@@ -481,7 +501,7 @@
       (.check! (.>=:fix:fix i 0) ,$ex.sref  v i)
       (.ustring-ref:trusted v i)))
    
-   ((_ larceny ustring-set! (ustring-set! v0 i0 x0))
+`  ((_ larceny ustring-set! (ustring-set! v0 i0 x0))
     (let ((v v0)
           (i i0)
           (x x0))
@@ -495,11 +515,11 @@
 ; This transformation must make sure the entire list is freshly
 ; allocated when an argument to LIST returns more than once.
 
-   ((_ larceny list (list))
+`  ((_ larceny list (list))
     '())
-   ((_ larceny list (list ?e))
+`  ((_ larceny list (list ?e))
     (cons ?e '()))
-   ((_ larceny list (list ?e1 ?e2 ...))
+`  ((_ larceny list (list ?e1 ?e2 ...))
     (let* ((t1 ?e1)
            (t2 (list ?e2 ...)))
       (cons t1 t2)))
@@ -507,11 +527,11 @@
 ; This transformation must make sure the entire vector is freshly
 ; allocated when an argument to VECTOR returns more than once.
 
-   ((_ larceny vector (vector))
+`  ((_ larceny vector (vector))
     '#())
-   ((_ larceny vector (vector ?e))
+`  ((_ larceny vector (vector ?e))
     (make-vector 1 ?e))
-   ((_ larceny vector (vector ?e1 ?e2 ...))
+`  ((_ larceny vector (vector ?e1 ?e2 ...))
     (letrec-syntax
       ((vector-aux1
         (... (syntax-rules ()
@@ -535,211 +555,211 @@
                  v))))))
       (vector-aux1 (?e1 ?e2 ...) 0 () () ())))
 
-   ((_ larceny cadddr (cadddr ?e))
+`  ((_ larceny cadddr (cadddr ?e))
     (car (cdr (cdr (cdr ?e)))))
 
-   ((_ larceny cddddr (cddddr ?e))
+`  ((_ larceny cddddr (cddddr ?e))
     (cdr (cdr (cdr (cdr ?e)))))
 
-   ((_ larceny cdddr (cdddr ?e))
+`  ((_ larceny cdddr (cdddr ?e))
     (cdr (cdr (cdr ?e))))
 
-   ((_ larceny caddr (caddr ?e))
+`  ((_ larceny caddr (caddr ?e))
     (car (cdr (cdr ?e))))
 
-   ((_ larceny cddr (cddr ?e))
+`  ((_ larceny cddr (cddr ?e))
     (cdr (cdr ?e)))
 
-   ((_ larceny cdar (cdar ?e))
+`  ((_ larceny cdar (cdar ?e))
     (cdr (car ?e)))
 
-   ((_ larceny cadr (cadr ?e))
+`  ((_ larceny cadr (cadr ?e))
     (car (cdr ?e)))
 
-   ((_ larceny caar (caar ?e))
+`  ((_ larceny caar (caar ?e))
     (car (car ?e)))
 
-   ((_ larceny make-vector (make-vector ?n))
+`  ((_ larceny make-vector (make-vector ?n))
     (make-vector ?n '()))
 
-   ((_ larceny make-bytevector (make-bytevector ?n ?fill))
+`  ((_ larceny make-bytevector (make-bytevector ?n ?fill))
     (let ((bv (make-bytevector ?n)))
       (bytevector-fill! bv ?fill)
       bv))
 
-   ((_ larceny make-string (make-string ?n))
+`  ((_ larceny make-string (make-string ?n))
     (make-string ?n #\space))
 
-   ((_ larceny bytevector-u8-ref (bytevector-u8-ref x y))
+`  ((_ larceny bytevector-u8-ref (bytevector-u8-ref x y))
     (bytevector-ref x y))
 
-   ((_ larceny bytevector-u8-set! (bytevector-u8-set! x y z))
+`  ((_ larceny bytevector-u8-set! (bytevector-u8-set! x y z))
     (bytevector-set! x y z))
 
    ; FIXME: These are incorrect because ?e3 ... might not return.
 
-   ((_ larceny = (= ?e1 ?e2 ?e3 ?e4 ...))
+`  ((_ larceny = (= ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 ?e2)
            (t3 (= t2 ?e3 ?e4 ...)))
       (if (= t1 t2) t3 #f)))
 
-   ((_ larceny < (< ?e1 ?e2 ?e3 ?e4 ...))
+`  ((_ larceny < (< ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 ?e2)
            (t3 (< t2 ?e3 ?e4 ...)))
       (if (< t1 t2) t3 #f)))
 
-   ((_ larceny > (> ?e1 ?e2 ?e3 ?e4 ...))
+`  ((_ larceny > (> ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 ?e2)
            (t3 (> t2 ?e3 ?e4 ...)))
       (if (> t1 t2) t3 #f)))
 
-   ((_ larceny <= (<= ?e1 ?e2 ?e3 ?e4 ...))
+`  ((_ larceny <= (<= ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 ?e2)
            (t3 (<= t2 ?e3 ?e4 ...)))
       (if (<= t1 t2) t3 #f)))
 
-   ((_ larceny >= (>= ?e1 ?e2 ?e3 ?e4 ...))
+`  ((_ larceny >= (>= ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 ?e2)
            (t3 (>= t2 ?e3 ?e4 ...)))
       (if (>= t1 t2) t3 #f)))
 
-   ((_ larceny + (+))
+`  ((_ larceny + (+))
     0)
-   ((_ larceny + (+ ?e))
+`  ((_ larceny + (+ ?e))
     (+ ?e 0))
-   ((_ larceny + (+ ?e1 ?e2 ?e3 ?e4 ...))
+`  ((_ larceny + (+ ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 (+ ?e2 ?e3 ?e4 ...)))
       (+ t1 t2)))
 
-   ((_ larceny * (*))
+`  ((_ larceny * (*))
     1)
-   ((_ larceny * (* ?e))
+`  ((_ larceny * (* ?e))
     (+ ?e 0))
-   ((_ larceny * (* ?e1 ?e2 ?e3 ?e4 ...))
+`  ((_ larceny * (* ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 (* ?e2 ?e3 ?e4 ...)))
       (* t1 t2)))
 
-   ((_ larceny - (- ?e))
+`  ((_ larceny - (- ?e))
     (- 0 ?e))
-   ((_ larceny - (- ?e1 ?e2 ?e3 ?e4 ...))
+`  ((_ larceny - (- ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 (+ ?e2 ?e3 ?e4 ...)))
       (- t1 t2)))
 
-   ((_ larceny / (/ ?e))
+`  ((_ larceny / (/ ?e))
     (/ 1 ?e))
-   ((_ larceny / (/ ?e1 ?e2 ?e3 ?e4 ...))
+`  ((_ larceny / (/ ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 (* ?e2 ?e3 ?e4 ...)))
       (/ t1 t2)))
 
-   ((_ larceny abs (abs ?z))
+`  ((_ larceny abs (abs ?z))
     (let ((temp ?z))
       (if (< temp 0)
           (.-- temp)
           temp)))
 
-   ((_ larceny negative? (negative? ?x))
+`  ((_ larceny negative? (negative? ?x))
     (< ?x 0))
 
-   ((_ larceny positive? (positive? ?x))
+`  ((_ larceny positive? (positive? ?x))
     (> ?x 0))
 
    ; Special cases for two or three arguments.
 
-   ((_ larceny fx=? (fx=? ?x ?y))
+`  ((_ larceny fx=? (fx=? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (.fixnum? x) ,$ex.fx= x)
       (.check! (.fixnum? y) ,$ex.fx= y)
       (.=:fix:fix x y)))
-   ((_ larceny fx=? (fx=? ?x ?y ?z))
+`  ((_ larceny fx=? (fx=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fx=? x y) (fx=? y z))))
 
-   ((_ larceny fx<? (fx<? ?x ?y))
+`  ((_ larceny fx<? (fx<? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (.fixnum? x) ,$ex.fx< x)
       (.check! (.fixnum? y) ,$ex.fx< y)
       (.<:fix:fix x y)))
-   ((_ larceny fx<? (fx<? ?x ?y ?z))
+`  ((_ larceny fx<? (fx<? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fx<? x y) (fx<? y z))))
 
-   ((_ larceny fx>? (fx>? ?x ?y))
+`  ((_ larceny fx>? (fx>? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (.fixnum? x) ,$ex.fx> x)
       (.check! (.fixnum? y) ,$ex.fx> y)
       (.>:fix:fix x y)))
-   ((_ larceny fx>? (fx>? ?x ?y ?z))
+`  ((_ larceny fx>? (fx>? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fx>? x y) (fx>? y z))))
 
-   ((_ larceny fx<=? (fx<=? ?x ?y))
+`  ((_ larceny fx<=? (fx<=? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (.fixnum? x) ,$ex.fx<= x)
       (.check! (.fixnum? y) ,$ex.fx<= y)
       (.<=:fix:fix x y)))
-   ((_ larceny fx<=? (fx<=? ?x ?y ?z))
+`  ((_ larceny fx<=? (fx<=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fx<=? x y) (fx<=? y z))))
 
-   ((_ larceny fx>=? (fx>=? ?x ?y))
+`  ((_ larceny fx>=? (fx>=? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (.fixnum? x) ,$ex.fx>= x)
       (.check! (.fixnum? y) ,$ex.fx>= y)
       (.>=:fix:fix x y)))
-   ((_ larceny fx>=? (fx>=? ?x ?y ?z))
+`  ((_ larceny fx>=? (fx>=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fx>=? x y) (fx>=? y z))))
 
-   ((_ larceny fxzero? (fxzero? ?x))
+`  ((_ larceny fxzero? (fxzero? ?x))
     (fx=? ?x 0))
 
-   ((_ larceny fxpositive? (fxpositive? ?x))
+`  ((_ larceny fxpositive? (fxpositive? ?x))
     (fx>? ?x 0))
 
-   ((_ larceny fxnegative? (fxnegative? ?x))
+`  ((_ larceny fxnegative? (fxnegative? ?x))
     (fx<? ?x 0))
 
    ; Special cases for two or three arguments.
 
-   ((_ larceny fxmin (fxmin ?x ?y))
+`  ((_ larceny fxmin (fxmin ?x ?y))
     (let ((x ?x)
           (y ?y))
       (if (fx<=? x y) x y)))
-   ((_ larceny fxmin (fxmin ?x ?y ?z))
+`  ((_ larceny fxmin (fxmin ?x ?y ?z))
     (let ((x ?x)
           (y ?y)
           (z ?z))
       (fxmin (if (fx<=? x y) x y) z)))
 
-   ((_ larceny fxmax (fxmax ?x ?y))
+`  ((_ larceny fxmax (fxmax ?x ?y))
     (let ((x ?x)
           (y ?y))
       (if (fx>=? x y) x y)))
-   ((_ larceny fxmax (fxmax ?x ?y ?z))
+`  ((_ larceny fxmax (fxmax ?x ?y ?z))
     (let ((x ?x)
           (y ?y)
           (z ?z))
@@ -747,7 +767,7 @@
 
    ; These procedures accept only two arguments.
 
-   ((_ larceny fx+ (fx+ ?x ?y))
+`  ((_ larceny fx+ (fx+ ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (fixnum? x) ,$ex.fx+ x y)
@@ -756,7 +776,7 @@
         (.check! (fixnum? z) ,$ex.fx+ x y)
         z)))
 
-   ((_ larceny fx* (fx* ?x ?y))
+`  ((_ larceny fx* (fx* ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (fixnum? x) ,$ex.fx* x y)
@@ -765,7 +785,7 @@
         (.check! (fixnum? z) ,$ex.fx* x y)
         z)))
 
-   ((_ larceny fx- (fx- ?x ?y))
+`  ((_ larceny fx- (fx- ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (fixnum? x) ,$ex.fx- x y)
@@ -774,139 +794,139 @@
         (.check! (fixnum? z) ,$ex.fx- x y)
         z)))
 
-   ((_ larceny fx- (fx- ?x))
+`  ((_ larceny fx- (fx- ?x))
     (let ((x ?x))
       (.check! (fixnum? x) ,$ex.fx-- x)
       (let ((z (- 0 x)))
         (.check! (fixnum? z) ,$ex.fx-- x)
         z)))
 
-   ((_ larceny fxnot (fxnot ?x))
+`  ((_ larceny fxnot (fxnot ?x))
     (.fxlognot ?x))
 
-   ((_ larceny fxand (fxand ?x ?y))
+`  ((_ larceny fxand (fxand ?x ?y))
     (.fxlogand ?x ?y))
-   ((_ larceny fxand (fxand ?x ?y ?z ...))
+`  ((_ larceny fxand (fxand ?x ?y ?z ...))
     (let* ((x ?x)
            (y (fxand ?y ?z ...)))
       (.fxlogand x y)))
 
-   ((_ larceny fxior (fxior ?x ?y))
+`  ((_ larceny fxior (fxior ?x ?y))
     (.fxlogior ?x ?y))
-   ((_ larceny fxior (fxior ?x ?y ?z ...))
+`  ((_ larceny fxior (fxior ?x ?y ?z ...))
     (let* ((x ?x)
            (y (fxior ?y ?z ...)))
       (.fxlogior x y)))
 
-   ((_ larceny fxxor (fxxor ?x ?y))
+`  ((_ larceny fxxor (fxxor ?x ?y))
     (.fxlogxor ?x ?y))
-   ((_ larceny fxxor (fxxor ?x ?y ?z ...))
+`  ((_ larceny fxxor (fxxor ?x ?y ?z ...))
     (let* ((x ?x)
            (y (fxxor ?y ?z ...)))
       (.fxlogxor x y)))
 
-   ((_ larceny fxif (fxif ?x ?y ?z))
+`  ((_ larceny fxif (fxif ?x ?y ?z))
     (let ((x ?x)
           (y ?y)
           (z ?z))
       (fxior (fxand x y)
              (fxand (fxnot x) z))))
 
-   ((_ larceny fxeven? (fxeven? ?x))
+`  ((_ larceny fxeven? (fxeven? ?x))
     (fxzero? (fxand ?x 1)))
 
-   ((_ larceny fxodd? (fxodd? ?x))
+`  ((_ larceny fxodd? (fxodd? ?x))
     (not (fxzero? (fxand ?x 1))))
 
    ; Special cases for two or three arguments.
    ; FIXME: should be faster.
 
-   ((_ larceny fl=? (fl=? ?x ?y))
+`  ((_ larceny fl=? (fl=? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl= x)
       (.check! (flonum? y) ,$ex.fl= y)
       (= x y)))
-   ((_ larceny fl=? (fl=? ?x ?y ?z))
+`  ((_ larceny fl=? (fl=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fl=? x y) (fl=? y z))))
 
-   ((_ larceny fl<? (fl<? ?x ?y))
+`  ((_ larceny fl<? (fl<? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl< x)
       (.check! (flonum? y) ,$ex.fl< y)
       (< x y)))
-   ((_ larceny fl<? (fl<? ?x ?y ?z))
+`  ((_ larceny fl<? (fl<? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fl<? x y) (fl<? y z))))
 
-   ((_ larceny fl>? (fl>? ?x ?y))
+`  ((_ larceny fl>? (fl>? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl> x)
       (.check! (flonum? y) ,$ex.fl> y)
       (> x y)))
-   ((_ larceny fl>? (fl>? ?x ?y ?z))
+`  ((_ larceny fl>? (fl>? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fl>? x y) (fl>? y z))))
 
-   ((_ larceny fl<=? (fl<=? ?x ?y))
+`  ((_ larceny fl<=? (fl<=? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl<= x)
       (.check! (flonum? y) ,$ex.fl<= y)
       (<= x y)))
-   ((_ larceny fl<=? (fl<=? ?x ?y ?z))
+`  ((_ larceny fl<=? (fl<=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fl<=? x y) (fl<=? y z))))
 
-   ((_ larceny fl>=? (fl>=? ?x ?y))
+`  ((_ larceny fl>=? (fl>=? ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl>= x)
       (.check! (flonum? y) ,$ex.fl>= y)
       (>= x y)))
-   ((_ larceny fl>=? (fl>=? ?x ?y ?z))
+`  ((_ larceny fl>=? (fl>=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
            (z ?z))
       (and (fl>=? x y) (fl>=? y z))))
 
-   ((_ larceny flzero? (flzero? ?x))
+`  ((_ larceny flzero? (flzero? ?x))
     (fl=? ?x 0.0))
 
-   ((_ larceny flpositive? (flpositive? ?x))
+`  ((_ larceny flpositive? (flpositive? ?x))
     (fl>? ?x 0.0))
 
-   ((_ larceny flnegative? (flnegative? ?x))
+`  ((_ larceny flnegative? (flnegative? ?x))
     (fl<? ?x 0.0))
 
    ; Special cases for two or three arguments.
 
-   ((_ larceny flmin (flmin ?x ?y))
+`  ((_ larceny flmin (flmin ?x ?y))
     (let ((x ?x)
           (y ?y))
       (if (fl<=? x y) x y)))
-   ((_ larceny flmin (flmin ?x ?y ?z))
+`  ((_ larceny flmin (flmin ?x ?y ?z))
     (let ((x ?x)
           (y ?y)
           (z ?z))
       (flmin (if (fl<=? x y) x y) z)))
 
-   ((_ larceny flmax (flmax ?x ?y))
+`  ((_ larceny flmax (flmax ?x ?y))
     (let ((x ?x)
           (y ?y))
       (if (fl>=? x y) x y)))
-   ((_ larceny flmax (flmax ?x ?y ?z))
+`  ((_ larceny flmax (flmax ?x ?y ?z))
     (let ((x ?x)
           (y ?y)
           (z ?z))
@@ -914,59 +934,59 @@
 
    ; Special cases for two, three, or more arguments.
 
-   ((_ larceny fl+ (fl+))
+`  ((_ larceny fl+ (fl+))
     0.0)
-   ((_ larceny fl+ (fl+ ?x))
+`  ((_ larceny fl+ (fl+ ?x))
     (fl+ ?x 0.0))
-   ((_ larceny fl+ (fl+ ?x ?y))
+`  ((_ larceny fl+ (fl+ ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl+ x y)
       (.check! (flonum? y) ,$ex.fl+ x y)
       (+ x y)))
-   ((_ larceny fl+ (fl+ ?x ?y ?z ...))
+`  ((_ larceny fl+ (fl+ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl+ x (fl+ y z))))
 
-   ((_ larceny fl* (fl*))
+`  ((_ larceny fl* (fl*))
     1.0)
-   ((_ larceny fl* (fl* ?x))
+`  ((_ larceny fl* (fl* ?x))
     (fl* ?x 1.0))
-   ((_ larceny fl* (fl* ?x ?y))
+`  ((_ larceny fl* (fl* ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl* x y)
       (.check! (flonum? y) ,$ex.fl* x y)
       (* x y)))
-   ((_ larceny fl* (fl* ?x ?y ?z ...))
+`  ((_ larceny fl* (fl* ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl* x (fl* y z))))
 
-   ((_ larceny fl- (fl- ?x))
+`  ((_ larceny fl- (fl- ?x))
     (let ((x ?x))
       (.check! (flonum? x) ,$ex.fl-- x)
       (- 0.0 x)))
-   ((_ larceny fl- (fl- ?x ?y))
+`  ((_ larceny fl- (fl- ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl- x y)
       (.check! (flonum? y) ,$ex.fl- x y)
       (- x y)))
-   ((_ larceny fl- (fl- ?x ?y ?z ...))
+`  ((_ larceny fl- (fl- ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl- x (fl+ y z))))
 
-   ((_ larceny fl/ (fl/ ?x))
+`  ((_ larceny fl/ (fl/ ?x))
     (let ((x ?x))
       (.check! (flonum? x) ,$ex.fl/ x)
       (/ 1.0 x)))
-   ((_ larceny fl/ (fl/ ?x ?y))
+`  ((_ larceny fl/ (fl/ ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl/ x y)
       (.check! (flonum? y) ,$ex.fl/ x y)
       (/ x y)))
-   ((_ larceny fl/ (fl/ ?x ?y ?z ...))
+`  ((_ larceny fl/ (fl/ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl/ x (fl* y z))))
 
@@ -981,7 +1001,7 @@
 ;   ((_ larceny assv exp)
 ;    (.rewrite-assv exp))
 
-   ((_ larceny memq (memq ?expr '(?datum ...)))
+`  ((_ larceny memq (memq ?expr '(?datum ...)))
     (letrec-syntax
       ((memq0
         (... (syntax-rules (quote)
@@ -1003,7 +1023,7 @@
                      (memq1 ?t0 ?t1 (?d2 ...)))))))))
       (memq0 ?expr '(?datum ...))))
 
-   ((_ larceny map (map ?proc ?exp1 ?exp2 ...))
+`  ((_ larceny map (map ?proc ?exp1 ?exp2 ...))
     (letrec-syntax
       ((loop
         (... (syntax-rules (lambda)
@@ -1032,7 +1052,7 @@
       
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
 
-   ((_ larceny for-each (for-each ?proc ?exp1 ?exp2 ...))
+`  ((_ larceny for-each (for-each ?proc ?exp1 ?exp2 ...))
     (letrec-syntax
       ((loop
         (... (syntax-rules (lambda)
@@ -1063,7 +1083,7 @@
    ; The fast path for lookahead-u8 and get-u8.
    ; FIXME:  This can be bummed further.
 
-   ((_ larceny lookahead-u8 (lookahead-u8 p0))
+`  ((_ larceny lookahead-u8 (lookahead-u8 p0))
     (let ((p p0))
       (.check! (port? p) ,$ex.get-u8 p)
       (let ((type (vector-like-ref p 0))           ; 0 = port.type
@@ -1076,7 +1096,7 @@
               (else
                (io/get-u8 p #t))))))
 
-   ((_ larceny get-u8 (get-u8 p0))
+`  ((_ larceny get-u8 (get-u8 p0))
     (let ((p p0))
       (.check! (port? p) ,$ex.get-u8 p)
       (let ((type (vector-like-ref p 0))           ; 0 = port.type
@@ -1094,7 +1114,7 @@
    ; The fast path for lookahead-char.
    ; FIXME:  This can be bummed further.
 
-   ((_ larceny lookahead-char (lookahead-char p0))
+`  ((_ larceny lookahead-char (lookahead-char p0))
     (let ((p p0))
       (.check! (port? p) ,$ex.get-char p)
       (let ((type (.vector-ref:trusted p 0))       ; 0 = port.type
@@ -1111,7 +1131,7 @@
    ; The fast path for get-char.
    ; FIXME:  This can be bummed further.
 
-   ((_ larceny get-char (get-char p0))
+`  ((_ larceny get-char (get-char p0))
     (let ((p p0))
       (.check! (port? p) ,$ex.get-char p)
       (let ((type (.vector-ref:trusted p 0))       ; 0 = port.type
@@ -1131,26 +1151,30 @@
 
    ; The fast path for peek-char and get-char.
 
-   ((_ larceny peek-char (peek-char))
+`  ((_ larceny peek-char (peek-char))
     (lookahead-char (current-input-port)))
 
-   ((_ larceny peek-char (peek-char p))
+`  ((_ larceny peek-char (peek-char p))
     (lookahead-char p))
 
-   ((_ larceny read-char (read-char))
+`  ((_ larceny read-char (read-char))
     (get-char (current-input-port)))
 
-   ((_ larceny read-char (read-char p))
+`  ((_ larceny read-char (read-char p))
     (get-char p))
 
    ; Default case: expand into the original expression.
 
-   ((_ ?anything ?proc ?exp)
+`  ((_ ?anything ?proc ?exp)
     ?exp)
 
    ))
 
 ))
+
+(for-each (lambda (x) 
+            (twobit-expand x (the-usual-syntactic-environment)))
+          common-compiler-macros)
 
 ; MacScheme machine assembly instructions.
 

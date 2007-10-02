@@ -617,6 +617,26 @@
   (environment-set! larc 'flexpt flexpt)
   (environment-set! larc 'fixnum->flonum fixnum->flonum)
 
+  (environment-set! larc 'bitwise-not bitwise-not)
+  (environment-set! larc 'bitwise-and bitwise-and)
+  (environment-set! larc 'bitwise-ior bitwise-ior)
+  (environment-set! larc 'bitwise-xor bitwise-xor)
+  (environment-set! larc 'bitwise-if bitwise-if)
+  (environment-set! larc 'bitwise-bit-count bitwise-bit-count)
+  (environment-set! larc 'bitwise-length bitwise-length)
+  (environment-set! larc 'bitwise-first-bit-set bitwise-first-bit-set)
+  (environment-set! larc 'bitwise-bit-set? bitwise-bit-set?)
+  (environment-set! larc 'bitwise-copy-bit bitwise-copy-bit)
+  (environment-set! larc 'bitwise-bit-field bitwise-bit-field)
+  (environment-set! larc 'bitwise-copy-bit-field bitwise-copy-bit-field)
+  (environment-set! larc 'bitwise-arithmetic-shift bitwise-arithmetic-shift)
+  (environment-set! larc 'bitwise-arithmetic-shift-left
+                    bitwise-arithmetic-shift-left)
+  (environment-set! larc 'bitwise-arithmetic-shift-right
+                    bitwise-arithmetic-shift-right)
+  (environment-set! larc 'bitwise-rotate-bit-field bitwise-rotate-bit-field)
+  (environment-set! larc 'bitwise-reverse-bit-field bitwise-reverse-bit-field)
+
   (environment-set! larc 'real-valued? real-valued?)
   (environment-set! larc 'rational-valued? rational-valued?)
   (environment-set! larc 'integer-valued? integer-valued?)

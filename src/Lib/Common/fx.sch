@@ -373,7 +373,7 @@
 (define (fxcopy-bit-field to start end from)
   (fx:range-check! 'fxcopy-bit-field start)
   (fx:range-check! 'fxcopy-bit-field end)
-  (if (fx<=? fx2 fx3)
+  (if (fx<=? start end)
       (let* ((mask1 (fxarithmetic-shift-left -1 start))
              (mask2 (fxnot
                      (fxarithmetic-shift-left -1 end)))
