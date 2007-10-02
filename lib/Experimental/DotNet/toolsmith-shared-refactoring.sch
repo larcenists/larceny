@@ -658,7 +658,7 @@
                          (count-newlines-in (substring text s start)))
                         (cursor-lines
                          (+ cursor-lines (quotient nlines 2))))
-                   (begin (format #t "Attempting to scroll ~a lines back"
+                   '(begin (format #t "Attempting to scroll ~a lines back"
                                   cursor-lines)
                           (newline))
                    ((wnd 'attempt-scroll) 'vertical (- cursor-lines))))
@@ -668,7 +668,7 @@
                          (count-newlines-in (substring text finis (+ s 1))))
                         (cursor-lines
                          (+ cursor-lines (quotient nlines 2))))
-                   (begin (format #t "Attempting to scroll ~a lines forward"
+                   '(begin (format #t "Attempting to scroll ~a lines forward"
                                   cursor-lines)
                           (newline))
                    ((wnd 'attempt-scroll) 'vertical cursor-lines)))))))
