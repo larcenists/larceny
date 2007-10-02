@@ -33,7 +33,7 @@
      (letrec ((document (lambda (op-sym arglst docstr)
                           (format #t "~a: ~a ~a" op-sym arglst)))
               (doc-docstring
-               "documentation: (op) => string documenting operation symbol op")
+               "documentation: (op) prints doc for operation symbol op")
               (ops-docstring
                "operations: () => list of operation symbols")
               (core-object
@@ -55,8 +55,8 @@
                          (let ((docstr (or DOC-STRING "undocumented")))
                            (format #t "~a: ~a ~a" 'OP-NAME 'ARGS docstr)))
                         ... 
-                        ((documentation) doc-docstring)
-                        ((operations) ops-docstring)
+                        ((documentation) (format #t "~a" doc-docstring))
+                        ((operations) (format #t "~a" ops-docstring))
                         (else (error 'documentation 
                                      ": no method " op " in " self)))))
                    ((operations) 
