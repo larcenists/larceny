@@ -347,12 +347,12 @@
 
    ((on-cursor-reposition) "event hook" 'default-hook-does-nothing)
    ((set-selection! start-pos-incl end-pos-excl)
-    (set! selection 
-          (if (= start-pos-incl end-pos-excl)
-              start-pos-incl
-              (cons start-pos-incl end-pos-excl)))
-    ((textmodel 'on-cursor-reposition)))
-
+    (call-with-wnd-update
+     textmodel 
+     (lambda () (set! selection 
+                      (if (= start-pos-incl end-pos-excl)
+                          start-pos-incl
+                          (cons start-pos-incl end-pos-excl))))))
    ((cursor-left!)  "Moves cursor one column left (wrapping
  to end of previous line) if possible." 
     (call-with-wnd-update textmodel cursor-left!))
@@ -436,7 +436,9 @@
   
   (lambda (textmodel)
     (extend-object textmodel renderable-textmodel
-     ((on-cursor-reposition) ((wnd 'update)))
+     ((on-cursor-reposition) 
+      ((wnd 'update))
+      ((delegate textmodel 'on-cursor-reposition renderable-textmodel)))
      ((wnd) wnd)
      ((font-ranges) "=> list of (fnt s e) where fnt is used on text in range [s,e)."
       ;; Making this so flexible may have been a mistake...
@@ -624,7 +626,7 @@
    ((first-line-index) "=> line offset according to vertical scrollbar."
     first-line-idx)
    ((set-textstring! string)
-    (set! first-line-idx 0)
+    (set! first-line-idx (min first-line-idx (count-newlines-in string)))
     ((delegate textmodel 'set-textstring! scrollable-textmodel) string))
    ((visible-offset)
     (let* ((text ((scrollable-textmodel 'textstring)))
@@ -634,80 +636,47 @@
            (finis (index-after-line-count text (+ first-line-idx nlines)))
            (finis (or finis (string-length text))))
       start))
-   ((cursor-up!)
-    (if (= (cursor-line scrollable-textmodel) 0)
-        ((wnd 'attempt-scroll) 'vertical -1))
-    ((delegate textmodel 'cursor-up! scrollable-textmodel)))
-   ((cursor-down!)
-    (if (= (cursor-line scrollable-textmodel) 
-           (- ((scrollable-textmodel 'count-visible-lines)) 1))
-        ((wnd 'attempt-scroll) 'vertical  1))
-    ((delegate textmodel 'cursor-down! scrollable-textmodel)))
-   ((insert-char-at-point! char)
-    (let* ((mytext ((scrollable-textmodel 'textstring)))
-           (len (string-length mytext))
-           (on-last-line
-            (and (char=? char #\newline)
-                 (>= (cursor-line scrollable-textmodel) 
-                     (- ((scrollable-textmodel 'count-visible-lines)) 2)))))
-
-      ((delegate textmodel 'insert-char-at-point! scrollable-textmodel) char)
-      ;; We delay the scroll until after the text change has been made...
-      (cond (on-last-line
-             ((wnd 'attempt-scroll) 'vertical 1)))))
-   ((delete-char-at-point!)
-    (let* ((self scrollable-textmodel)
-           (deleted-text  ; 1. Delete the text
-            ((delegate textmodel 'delete-char-at-point! self)))
-           (lines         ; 2. See if we need to append more text
-            (count-newlines-in deleted-text)))
-      ;; XXX I've switched to a monolithic text model across the board
-      ;; XXX (which is bad but simple) 
-      ;; XXX so I don't think this complexity is necessary anymore...
-      '(cond 
-       ((not (= lines 0)) ; 3. Okay, append more text.
-        (let* ((text ((self 'textstring)))
-               (idx  (index-after-line-count suffix lines))
-               (suflen (string-length suffix))
-               (append-text (if idx (substring suffix 0 idx) suffix))
-               (new-text (string-append text append-text))
-               (new-suffix (if idx (substring suffix idx suflen) "")))
-          ((self 'set-textstring!) new-text)
-          (set! suffix new-suffix))))
-      deleted-text))
+   ((on-cursor-reposition)
+    (let* ((text ((scrollable-textmodel 'textstring)))
+           (nlines ((scrollable-textmodel 'count-visible-lines)))
+           (start (index-after-line-count text first-line-idx))
+           (start (or start (string-length text)))
+           (finis (index-after-line-count text (+ first-line-idx nlines)))
+           (finis (or finis (string-length text))))
+      (call-with-values (lambda () ((scrollable-textmodel 'selection)))
+        (lambda (s e)
+          ;; This is simpler than the prefactored code (which overrode
+          ;; all of the cursor related operations with advise on when
+          ;; and how to scroll).  It's also an improvement, because
+          ;; when the cursor goes offscreen, it attempts to scroll to
+          ;; center it (rather than going up or down by one line).
+          ;; But it still isn't quite right; should handle selections
+          ;; as well (that will require some serious redesign though).
+          (cond ((and (= s e)
+                      (< s start))
+                 (let* ((cursor-lines 
+                         (count-newlines-in (substring text s start)))
+                        (cursor-lines
+                         (+ cursor-lines (quotient nlines 2))))
+                   (begin (format #t "Attempting to scroll ~a lines back"
+                                  cursor-lines)
+                          (newline))
+                   ((wnd 'attempt-scroll) 'vertical (- cursor-lines))))
+                ((and (= s e)
+                      (<= finis (+ s 1)))
+                 (let* ((cursor-lines
+                         (count-newlines-in (substring text finis (+ s 1))))
+                        (cursor-lines
+                         (+ cursor-lines (quotient nlines 2))))
+                   (begin (format #t "Attempting to scroll ~a lines forward"
+                                  cursor-lines)
+                          (newline))
+                   ((wnd 'attempt-scroll) 'vertical cursor-lines)))))))
+    ((delegate textmodel 'on-cursor-reposition scrollable-textmodel)))
    ((on-hscroll new-int event-type)  #f)
    ((on-vscroll new-int event-type)
-    ;; XXX as above, since I'm using the bad, simple monolithic text
-    ;; XXX model, this code is unnecessary for now.
-    '(let* ((self scrollable-textmodel)
-           (visible-line-count ((self 'count-visible-lines)))
-           (old-int first-line-idx)
-           ;; 1. Extract existing text + cursor info from the textview.
-           (text showtext)
-           (cursor-info (call-with-values (lambda () ((self 'selection))) 
-                          list))
-           ;; 2. Merge textview's text with our own text.
-           (text (string-append prefix text suffix))
-           ;; 3. Extract the appropriate substring from the total text.
-           (subtext-start-idx (index-after-line-count text new-int))
-           (subtext-finis-idx (index-after-line-count text (+ new-int 
-                                                              visible-line-count)))
-           ;; 4. Calculate change to cursor-info
-           (cursor-delta (- (string-length prefix) subtext-start-idx))
-           (new-cursor-info (map (lambda (x) (+ x cursor-delta)) cursor-info)))
-      (let* ((prefix* (substring text 0 (or subtext-start-idx 0)))
-             (start   (or subtext-start-idx 0))
-             (finis   (or subtext-finis-idx (string-length text)))
-             (view*   (substring text start finis))
-             (suffix* (substring text finis (string-length text))))
-        ;;    5. Repartition and install text
-        (set! prefix prefix*)
-        (set! showtext view*)
-        (set! suffix suffix*)
-        (apply (self 'set-selection!) new-cursor-info)))
     (set! first-line-idx new-int)
-    ((wnd 'update))
-    )
+    ((wnd 'update)))
    ((horizontal-scrollbar) #f)
    ((vertical-scrollbar)
     ;; These do not have to be in pixels to be meaningful; we as the
@@ -902,10 +871,15 @@
                  )
             
             ;; replace all that white space with spaces for suggested indent
-            ((self 'set-textstring!) (string-append (substring text 0 line-start)
-                                                  (make-string indent #\space)
-                                                  (substring text content-start 
-                                                             (string-length text))))
+            ;; XXX the behavior set-textstring! method in all the subclasses 
+            ;; XXX is not as well fleshed out as the cursor manipulation 
+            ;; XXX methods; perhaps consider reexpressing this in terms of 
+            ;; XXX local edits to the text via the cursor.
+            ((self 'set-textstring!) 
+             (string-append (substring text 0 line-start)
+                            (make-string indent #\space)
+                            (substring text content-start 
+                                       (string-length text))))
             
             ;; fix the cursor's position
             ((self 'set-selection!) (- beg delta) (- end delta))
