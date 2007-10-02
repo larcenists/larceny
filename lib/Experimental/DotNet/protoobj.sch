@@ -112,9 +112,13 @@
                     (lambda-with-name documentation (op)
                       (case op
                         ((OP-NAME) 
-                         (if DOC-STRING
-                             (format #t "~a: ~a ~a" 'OP-NAME 'ARGS DOC-STRING)
-                             ((super-obj 'documentation) op)))
+                         (cond 
+                          (DOC-STRING
+                           (format #t "~a: ~a ~a" 'OP-NAME 'ARGS DOC-STRING))
+                          ((memq op ((super-obj 'operations)))
+                           ((super-obj 'documentation) op))
+                          (else
+                           "undocumented")))
                         ...
                         (else 
                          ((super-obj 'documentation) op)))))
