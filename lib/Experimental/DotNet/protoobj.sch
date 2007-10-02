@@ -112,13 +112,15 @@
                     (lambda-with-name documentation (op)
                       (case op
                         ((OP-NAME) 
-                         (cond 
-                          (DOC-STRING
-                           (format #t "~a: ~a ~a" 'OP-NAME 'ARGS DOC-STRING))
-                          ((memq op ((super-obj 'operations)))
-                           ((super-obj 'documentation) op))
-                          (else
-                           "undocumented")))
+                         (let ((doc->annotated
+                                (lambda (str)
+                                  (format #t "~a: ~a ~a" 'OP-NAME 'ARGS str))))
+                           (cond 
+                            (DOC-STRING => doc->annotated)
+                            ((memq op ((super-obj 'operations)))
+                             ((super-obj 'documentation) op))
+                            (else
+                             (doc->annotated "undocumented")))))
                         ...
                         (else 
                          ((super-obj 'documentation) op)))))
