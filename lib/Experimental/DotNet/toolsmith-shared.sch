@@ -677,6 +677,9 @@
       (else 
        ((editor-agent 'insert-char-at-point!) char))))))
 
+(define (make-scheme-editor-agent wnd editor-agent)
+  (make-auto-indenting-agent wnd editor-agent))
+
 (define (make-auto-indenting-agent wnd editor-agent)
   (define (count-newlines-in string)
     (length (filter (lambda (x) (char=? x #\newline)) (string->list string))))

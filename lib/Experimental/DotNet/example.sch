@@ -10,7 +10,7 @@
 
 (define editor-wnd
   (make-wnd 'double-buffered 'title "DrStrange"
-            'make-agent (editor-agent-maker make-auto-indenting-agent)))
+            'make-agent (editor-agent-maker make-scheme-editor-agent)))
 
 (define repl-wnd
   (make-wnd 'double-buffered 'title "StrangeRepl" 
