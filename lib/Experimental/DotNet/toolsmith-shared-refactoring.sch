@@ -1024,7 +1024,7 @@
 (define (make-editor-agent wnd width height)
   ((editor-agent-maker (lambda (w tm) tm)) wnd width height))
 
-(define (make-read-eval-print-loop-agent wnd editor-agent)
+(define (make-read-eval-print-loop-agent wnd textmodel)
   (define prompt-idx 0)
   (define (bump-prompt! count) 
     '(begin (display "  ")
@@ -1094,7 +1094,7 @@
     ;; support.  (Perhaps even at this level, images will be rendered
     ;; to ASCII and the text view will be reponsible for interpreting
     ;; the code sequences.
-    (let* ((ea editor-agent)
+    (let* ((ea textmodel)
            (text ((ea 'textstring)))
            (subtext (substring text prompt-idx (string-length text)))
            ;; TODO: Add whitespace to end of text, so that this will
@@ -1196,7 +1196,7 @@
            ))
         (else (error 'repl-agent..on-keydown ": oops.")))))
   
-  (make-root-object repl-agent
+  (extend-object textmodel repl-agent
    ((on-keydown mchar sym mods)
     (case sym
       ((enter) 
@@ -1211,11 +1211,11 @@
        ;; text post prompt?
        '(begin (write `((on-keydown ,sym)
                        (prompt-idx: ,prompt-idx)
-                       (text: ,((editor-agent 'textstring)))
-                       (len: ,(string-length ((editor-agent 'textstring))))
+                       (text: ,((repl-agent 'textstring)))
+                       (len: ,(string-length ((repl-agent 'textstring))))
                        ))
               (newline))
-       (let ((ea editor-agent))
+       (let ((ea repl-agent))
          (call-with-values (lambda () ((ea 'selection)))
            (lambda (beg end)
              (if (<= beg prompt-idx)
@@ -1228,7 +1228,7 @@
          (evaluate-first-sexp-after-prompt mchar)))
 
       ((back delete)
-       (let* ((ea editor-agent))
+       (let* ((ea repl-agent))
          (call-with-values (lambda () ((ea 'selection)))
            (lambda (beg end)
              ;; ensure selection area is only after prompt.
@@ -1241,7 +1241,7 @@
       (else
        (cond 
         (mchar 
-         (let* ((ea editor-agent)
+         (let* ((ea repl-agent)
                 (text ((ea 'textstring)))
                 (end (string-length text)))
            ;; move cursor to end of buffer
@@ -1252,7 +1252,7 @@
            (insert-string-at-point! ea (string mchar))
            ))))))
    ((prompt!) 
-    (let* ((ea editor-agent))
+    (let* ((ea repl-agent))
       (call-with-values (lambda () ((ea 'selection)))
         (lambda (beg end) ((ea 'set-selection!) end end)))
       (let ((str (call-with-output-string 
