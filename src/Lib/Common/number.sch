@@ -9,7 +9,7 @@
 (define *pi* 3.14159265358979323846)           ; from <math.h>
 
 (define positive? (lambda (x) (> x 0)))
- 
+
 (define negative? (lambda (x) (< x 0)))
  
 (define abs
@@ -386,8 +386,9 @@
 	((or (not (real? z)) (< z 0))
 	 (+ (log (magnitude z)) (* +1.0i (angle z))))
 	((zero? z)
-	 (error "log: Domain error: " z)
-	 #t)
+         (if (exact? z)
+             (error "log: Domain error: " z)
+             -1e500))
 	(else
 	 (flonum:log (exact->inexact z)))))
 

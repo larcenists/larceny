@@ -433,9 +433,14 @@
 	       (loop b rest))))))
 
 ; Flonum primitives
+;
+; FIXME: (rnrs arithmetic flonums) procedures are now defined
+; in Lib/Common/fl.sch; they have been commented out below.
+
 
 (define fl-- (lambda (x) (fl-- x)))
 
+'
 (define fl+
   (letrec ((loop (lambda (sum args)
 		   (if (null? args)
@@ -446,6 +451,7 @@
 	  0
 	  (loop (car args) (cdr args))))))
 
+'
 (define fl- 
   (letrec ((loop (lambda (diff args)
 		   (if (null? args)
@@ -456,6 +462,7 @@
 	  (fl-- arg)
 	  (loop arg args)))))
 
+'
 (define fl*
   (letrec ((loop (lambda (prod args)
 		   (if (null? args)
@@ -465,6 +472,8 @@
       (if (null? args)
 	  1
 	  (loop (car args) (cdr args))))))
+
+; FIXME: These should go away also.
 
 (define fl= 
   (letrec ((loop (lambda (first rest)

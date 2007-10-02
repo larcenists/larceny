@@ -10,6 +10,8 @@
 ; data structure; the latter sorts the data structure in-place.  A 
 ; mergesort algorithm is used.
 
+($$trace "sort")
+
 ; Destructive merge of two sorted lists.
 
 (define (merge!! a b less?)

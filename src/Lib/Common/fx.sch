@@ -5,6 +5,8 @@
 ; Larceny -- R6RS procedures from (rnrs arithmetic fixnums).
 ; See also Lib/Arch/*/primops.sch and Compiler/common.imp.sch.
 
+($$trace "fx")
+
 ; Argument checking.
 
 (define (fx:check! name x)
@@ -17,14 +19,6 @@
       (assertion-violation name "fixnum shift count out of range" x)))
 
 ; fixnum? is a primop; see Lib/Arch/*/primops.sch
-;
-; fixnum?
-; fx=? fx>? fx<? fx>=? fx<=?
-; fxzero? fxpositive? fxnegative?
-; fxodd? fxeven?
-; fx+ fx- fx*
-; fxnot fxand fxior fxxor
-; fxarithmetic-shift fxarithmetic-shift-left fxarithmetic-shift-right
 
 (define *fixnum-width* #f)
 (define *least-fixnum* #f)
