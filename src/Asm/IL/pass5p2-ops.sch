@@ -180,7 +180,8 @@
 (define-operation 1 'gc-counter
   (lambda (as rs rd)
     (emit as
-          (il:fault $ex.unsupported))))
+          (il:load-constant 0)
+          (il:set-register/pop rd))))
 (define-operation 1 'not
   (lambda (as rs rd)
     (emit as

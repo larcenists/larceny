@@ -234,6 +234,15 @@
     (.fxrsha          2 fxrsha           #f        75 ,ak:immortal ,ak:none #f)
     (.fxrshl          2 fxrshl           #f        76 ,ak:immortal ,ak:none #f)
 
+    ; FIXME:
+    (.fxlognot:trusted 1 fxlognot        #f        33 ,ak:immortal ,ak:none #f)
+    (.fxlogand:trusted 2 fxlogand        #f        71 ,ak:immortal ,ak:none #f)
+    (.fxlogior:trusted 2 fxlogior        #f        72 ,ak:immortal ,ak:none #f)
+    (.fxlogxor:trusted 2 fxlogxor        #f        73 ,ak:immortal ,ak:none #f)
+    (.fxlsh:trusted   2 fxlsh            #f        74 ,ak:immortal ,ak:none #f)
+    (.fxrsha:trusted  2 fxrsha           #f        75 ,ak:immortal ,ak:none #f)
+    (.fxrshl:trusted  2 fxrshl           #f        76 ,ak:immortal ,ak:none #f)
+
     ; Not yet implemented.
 
 ;    (.+:flo:flo       2 +:flo:flo        #f       -1 ,ak:immortal ,ak:none)
@@ -248,6 +257,7 @@
 ;    (.<=:flo:flo      2 =:flo:flo        #f       -1 ,ak:immortal ,ak:none)
 ;    (.>:flo:flo       2 =:flo:flo        #f       -1 ,ak:immortal ,ak:none)
 ;    (.>=:flo:flo      2 =:flo:flo        #f       -1 ,ak:immortal ,ak:none)
+
     )))
 
 (define $r4rs-integrable-procedures$
