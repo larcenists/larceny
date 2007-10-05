@@ -823,6 +823,7 @@
     
     let let* letrec letrec* let-values let*-values
     case cond else =>
+    assert
     quasiquote unquote unquote-splicing
     syntax-rules 
     identifier-syntax
@@ -868,6 +869,12 @@
            (for (core syntax-rules)      expand)   
            (for (core identifier-syntax) expand)
            (for (only (core primitives) _ ... set!) expand))
+
+   (define-syntax assert
+     (syntax-rules ()
+      ((_ expression)
+       (if (not expression)
+           (assertion-violation #f "assertion failed" 'expression)))))
    
    ) ;; rnrs base
  
@@ -885,6 +892,7 @@
     
     let let* letrec letrec* let-values let*-values
     case cond else =>
+    assert
     quasiquote unquote unquote-splicing
     syntax-rules identifier-syntax
     
