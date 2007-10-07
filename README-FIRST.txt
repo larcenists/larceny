@@ -15,9 +15,9 @@ WHAT YOU NEED
 
 Native (SPARC, IA32): everything should work out of the box.
 
-Petit/C (Solaris, Linux, Mac OS X): ensure that the GNU C Compiler (GCC)
-    is in your search path [2].  (If you are building from source, see
-    doc/HOWTO-SETUP.)
+Petit Larceny (Solaris, Linux, Mac OS X): ensure that the GNU C
+    Compiler (GCC) is in your search path [2].  (If you are
+    building from source, see doc/HOWTO-SETUP.)
 
     Mac OS X: Use Apple's Developer Tools, http://developer.apple.com/
 
@@ -45,6 +45,36 @@ COMPILING SCHEME SOURCE WITH LARCENY
 
  - (load "target.fasl")
      loads the compiled code in "target.fasl"
+
+
+R6RS SCHEME SCRIPTS
+
+On most Unix systems (including MacOS X and Linux), Larceny's
+scheme-script will execute Scheme scripts as described in R6RS
+non-normative appendix D, with or without the optional script
+header.  To make Scheme scripts executable in their own right,
+without executing scheme-script directly, add Larceny's root
+directory to your path as described in doc/HOWTO-INSTALL.
+
+Suppose, for example, that /home/myself/hello is an R6RS
+Scheme script whose first line is the optional script header
+(#!/usr/bin/env scheme-script).  If you do not have execute
+permission for this script, or Larceny's root directory is
+not in your path, then you can still run the script from
+Larceny's root directory as follows:
+     
+    % ./scheme-script /home/myself/hello
+
+If you have execute permission for the script, and Larceny's
+root directory is in your path, then you can also run the
+script as follows:
+
+    % /home/myself/hello
+
+If, in addition, the directory that contains the script is
+in your path, then you can run the script as follows:
+
+    % hello
 
 
 FURTHER READING

@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# Copyright 2007 William D Clinger
+#
+# $Id$
+#
+# Script for running R6RS Scheme scripts.
+#
+# Please note that, as defined by R6RS non-normative appendix D,
+# a Scheme script is unlikely to be a legal R6RS program because
+# a Scheme script is likely to begin with an ignored first line
+# of one of the forms
+#
+#     #!/...
+#     #! ...
+#
+# Both of those lexical notations are illegal in R6RS top-level
+# programs.
+
+# This script tries to find the Larceny binaries and to select the correct
+# pair.  If LARCENY_ROOT is set, it looks there; otherwise, if the directory
+# this script is in is named Scripts, it looks in the parent; otherwise, it
+# looks in the same directory as itself.
+
+# You can specify a particular LARCENY_ROOT here:
+# LARCENY_ROOT=/usr/local/lib/larceny
+
+if [ -z "$LARCENY_ROOT" ]; then
+    # To guess LARCENY_ROOT, we start with the directory containing this
+    # script.  If it's a relative path, we make it absolute.  Then, if it ends
+    # in Scripts, we chop off that component.
+
+    dir="`dirname "$0"`"
+    dir="`( cd $dir; pwd )`"
+    [ "`basename "$dir"`" = Scripts ] && dir="`dirname "$dir"`"
+
+    # Now we have LARCENY_ROOT.
+    LARCENY_ROOT="$dir"
+fi
+
+export LARCENY_ROOT
+
+cmd=petit-larceny.bin
+heap=petit-larceny.heap
+if test -x $LARCENY_ROOT/$cmd; then
+    :
+else
+    cmd=larceny.bin
+    heap=larceny.heap
+fi
+
+cmd="$LARCENY_ROOT/$cmd"
+heap="$LARCENY_ROOT/$heap"
+
+case "`head -n +1 $@ | sed -e 's/^[#][!][/ ].*/ignore/'`" in
+    ignore)
+    exec tail -n +2 "$@" | "$cmd" -heap "$heap" -r6rs
+    ;;
+    *)
+    exec "$cmd" -heap "$heap" -r6rs -program "$@"
+    ;;
+esac
