@@ -13,7 +13,7 @@
   
   (define special-names (cons name:IGNORED argument-registers))
   
-  (define original-names (make-hashtable symbol-hash assq))
+  (define original-names (make-oldstyle-hashtable symbol-hash assq))
   
   (define renaming-counter 0)
   
@@ -43,7 +43,7 @@
   ; Environments that map symbols to arbitrary information.
   ; This data type is mutable, and uses the shallow binding technique.
   
-  (define (make-env) (make-hashtable symbol-hash assq))
+  (define (make-env) (make-oldstyle-hashtable symbol-hash assq))
   
   (define (env-bind! env sym info)
     (let ((stack (hashtable-get env sym)))

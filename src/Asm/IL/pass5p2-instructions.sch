@@ -34,7 +34,7 @@
   (instr-runtime-method/full instr argc #t))
 
 ; Mnemonic to IL methodname mapping
-(define instr-methodname-table (make-hashtable))
+(define instr-methodname-table (make-oldstyle-hashtable))
 (define (define-instr-methodname instr methodname)
   (hashtable-put! instr-methodname-table instr methodname))
 

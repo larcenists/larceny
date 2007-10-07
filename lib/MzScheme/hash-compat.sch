@@ -6,16 +6,16 @@
              ;; discard the weak flag for now
              (apply make-hash-table (cdr flags)))
             ((eq? (car flags) 'equal)
-             (make-hashtable equal-hash assoc))
+             (make-oldstyle-hashtable equal-hash assoc))
             ;; Add these possibilities
             ((eq? (car flags) 'string=)
-             (make-hashtable string-hash assoc-string))
+             (make-oldstyle-hashtable string-hash assoc-string))
             ((eq? (car flags) 'string-ci=)
-             (make-hashtable string-hash-ci assoc-string-ci))
+             (make-oldstyle-hashtable string-hash-ci assoc-string-ci))
             ((eq? (car flags) 'symbol-eq?)
-             (make-hashtable symbol-hash assq))
-            (else (make-hashtable)))
-      (make-hashtable)))
+             (make-oldstyle-hashtable symbol-hash assq))
+            (else (make-oldstyle-hashtable)))
+      (make-oldstyle-hashtable)))
 
 (define hash-table-get
   (let ((entry-not-found (make-vector 1)))

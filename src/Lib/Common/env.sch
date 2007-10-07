@@ -83,7 +83,7 @@
 (define (make-environment name)
   (let ((env (make-structure 6)))
     (vector-like-set! env 0 *environment-key*)
-    (vector-like-set! env 1 (make-hashtable symbol-hash assq))
+    (vector-like-set! env 1 (make-oldstyle-hashtable symbol-hash assq))
     (vector-like-set! env 2 #t)
     (vector-like-set! env 3 name)
     (vector-like-set! env 4 (make-minimal-syntactic-environment))

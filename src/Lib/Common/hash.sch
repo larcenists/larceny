@@ -8,8 +8,14 @@
 ; Given any Scheme object, returns a non-negative exact integer
 ; less than 2^24.
 
+; FIXME: not required by R5RS or R6RS; should be improved.
+
 (define object-hash (lambda (x) 0))    ; hash on EQ?, EQV?
+
 (define equal-hash (lambda (x) 0))     ; hash on EQUAL?
+
+; string-hash and string-ci-hash are defined in Lib/Common/string.sch
+; symbol-hash is defined in Lib/Common/oblist.sch
 
 ;; Hook for instances
 (define procedure-hasher

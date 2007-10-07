@@ -156,7 +156,7 @@
              ; is computed.  The graph has no cycles, and the maximum
              ; out-degree is 1, so this is easy.
              
-             (label-table (make-hashtable (lambda (n) n) assv)))
+             (label-table (make-oldstyle-hashtable (lambda (n) n) assv)))
         
         (define (compute-transitive-closure!)
           (define (lookup x)

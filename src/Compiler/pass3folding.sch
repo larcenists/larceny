@@ -92,8 +92,8 @@
 (define (constant-propagation-using-callgraph g)
   (let ((debugging? #f)
         (folding? #t)
-        (known (make-hashtable))
-        (variables (make-hashtable))
+        (known (make-oldstyle-hashtable))
+        (variables (make-oldstyle-hashtable))
         (counter 0))
     
     ; Computes joins of abstract values.

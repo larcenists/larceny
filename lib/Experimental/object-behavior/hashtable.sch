@@ -4,7 +4,7 @@
 ;
 ; 24 June 1999 / lth
 ;
-; (make-hashtable <hash-function> <bucket-searcher> <size>)
+; (make-bummed-hashtable <hash-function> <bucket-searcher> <size>)
 ;
 ;     Returns a newly allocated mutable hash table
 ;     using <hash-function> as the hash function
@@ -13,18 +13,18 @@
 ;     The <hash-function> must accept a key and return a non-negative exact
 ;     integer.
 ;
-; (make-hashtable <hash-function> <bucket-searcher>)
+; (make-bummed-hashtable <hash-function> <bucket-searcher>)
 ;
-;     Equivalent to (make-hashtable <hash-function> <bucket-searcher> n)
+;     Equivalent to (make-bummed-hashtable <hash-function> <bucket-searcher> n)
 ;     for some value of n chosen by the implementation.
 ;
-; (make-hashtable <hash-function>)
+; (make-bummed-hashtable <hash-function>)
 ;
-;     Equivalent to (make-hashtable <hash-function> assv).
+;     Equivalent to (make-bummed-hashtable <hash-function> assv).
 ;
-; (make-hashtable)
+; (make-bummed-hashtable)
 ;
-;     Equivalent to (make-hashtable object-hash assv).
+;     Equivalent to (make-bummed-hashtable object-hash assv).
 ;
 ; (hashtable-contains? <hashtable> <key>)
 ;
@@ -82,7 +82,7 @@
 
 ; These global variables are assigned new values later.
 
-(define make-hashtable      (lambda args '*))
+(define make-bummed-hashtable      (lambda args '*))
 (define hashtable-contains? (lambda (ht key) #f))
 (define hashtable-fetch     (lambda (ht key flag) flag))
 (define hashtable-get       (lambda (ht key) (hashtable-fetch ht key #f)))
@@ -326,7 +326,7 @@
     
     (define (ht-copy ht)
       (if (hashtable? ht)
-          (let* ((newtable (make-hashtable (hasher ht) (searcher ht) 0))
+          (let* ((newtable (make-bummed-hashtable (hasher ht) (searcher ht) 0))
                  (v (buckets ht))
                  (n (vector-length v))
                  (newvector (make-vector n '())))
@@ -340,7 +340,7 @@
     
     ; External entry points.
     
-    (set! make-hashtable
+    (set! make-bummed-hashtable
           (lambda args
             (let* ((hashfun (if (null? args) object-hash (car args)))
                    (searcher (if (or (null? args) (null? (cdr args)))

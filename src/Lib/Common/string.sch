@@ -311,6 +311,9 @@
 ;  (let ((n (string-length string)))
 ;    (loop string (- n 1) n)))
 
+(define (string-ci-hash s)
+  (string-hash (string-foldcase s)))
+
 ; FIXME:  These downcase and upcase procedures are superseded
 ; by the Unicode versions, which are defined in unicode*.sch.
 ; The string comparisons are also incorrect.

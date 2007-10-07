@@ -52,7 +52,7 @@
 
 (define (pkl/make-context port)
   (list port
-        (make-hashtable assq equal-hash)
+        (make-oldstyle-hashtable assq equal-hash)
         0))
 
 (define (pkl/pickle-obj obj context)

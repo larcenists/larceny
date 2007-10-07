@@ -1143,25 +1143,9 @@
 
 (library (larceny deprecated)
   (export issue-warning-deprecated)
-  (import (core primitives))
-
-  (define (issue-warning-deprecated name-of-deprecated-misfeature)
-    (if (not (memq name-of-deprecated-misfeature already-warned))
-        (begin
-         (set! already-warned
-               (cons name-of-deprecated-misfeature already-warned))
-         (display "WARNING: ")
-         (display name-of-deprecated-misfeature)
-         (display " is deprecated in Larceny.  See")
-         (newline)
-         (display "    ")
-         (display url:deprecated)
-         (newline))))
-
-  (define url:deprecated
-    "http://larceny.ccs.neu.edu/larceny-trac/wiki/DeprecatedFeatures")
-
-  (define already-warned '()))
+  (import
+   (primitives
+    issue-warning-deprecated)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

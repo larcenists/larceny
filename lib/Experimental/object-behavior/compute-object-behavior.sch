@@ -339,11 +339,12 @@
                  (l         (vector-length ref1))
                  (m1        (memstats))
                  (ht        (hashtable-from-objects 
-                             (make-hashtable (lambda (x)
-                                               (or key (equal-hash x)))
-                                             optimized-assq
-                                             (+ nobjects 
-                                                (quotient nobjects 2)))))
+                             (make-bummed-hashtable
+                              (lambda (x)
+                                (or key (equal-hash x)))
+                              optimized-assq
+                              (+ nobjects 
+                                 (quotient nobjects 2)))))
                  (m2        (memstats))
                  (objs-live nobjects))
             (do ((i 0 (+ i 1)))

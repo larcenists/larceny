@@ -11,7 +11,7 @@
 (define (deep-copy x)
 
   (define ht
-    (make-hashtable equal-hash assq))
+    (make-oldstyle-hashtable equal-hash assq))
 
   (define (lookup x)
     (hashtable-get ht x))

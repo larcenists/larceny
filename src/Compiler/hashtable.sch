@@ -1,4 +1,12 @@
-; Hash tables.
+; Copyright 1999 William Clinger
+;
+; $Id$
+;
+; Hash tables for Twobit.
+; This is a copy of Lib/Common/hashtable.sch, but the copy is
+; necessary so Twobit can run as a cross-compiler on systems
+; other than Larceny.
+;
 ; Requires CALL-WITHOUT-INTERRUPTS.
 ; This code should be thread-safe provided VECTOR-REF is atomic.
 ;
@@ -71,9 +79,75 @@
 ;
 ;     Returns a copy of the <hashtable>.
 
+; Larceny's old-style hashtables are now deprecated.
+
+(define (make-hashtable . args)
+  (display "WARNING: delegating to make-oldstyle-hashtable;")
+  (newline)
+  (display "    for R6RS hashtables, call make-r6rs-hashtable")
+  (newline)
+  (issue-warning-deprecated 'make-oldstyle-hashtable)
+  (apply make-oldstyle-hashtable args))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; FIXME: temporary implementation of R6RS hashtables.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (make-r6rs-hashtable hash equiv? . rest)
+  (define (searcher key bucket)
+    (assp equiv? key bucket))
+  (cond ((null? rest)
+         (make-oldstyle-hashtable hash searcher))
+        (else
+         (make-oldstyle-hashtable hash searcher (car rest)))))
+
+(define (make-eq-hashtable . rest)
+  (cond ((null? rest)
+         (make-oldstyle-hashtable object-hash assq))
+        (else
+         (make-oldstyle-hashtable object-hash assq (car rest)))))
+
+(define (make-eqv-hashtable . rest)
+  (cond ((null? rest)
+         (make-oldstyle-hashtable object-hash assv))
+        (else
+         (make-oldstyle-hashtable object-hash assv (car rest)))))
+
+(define (hashtable-ref ht key default)
+  (hashtable-fetch ht key default))
+
+(define (hashtable-set! ht key value)
+  (hashtable-put! ht key value))
+
+(define (hashtable-delete! ht key)
+  (hashtable-remove! ht key))
+
+(define (hashtable-update! ht key proc default)
+  (let ((x (proc (hashtable-ref ht key default))))
+    (hashtable-set! ht key x)))
+
+(define (hashtable-keys ht)
+  (list->vector (hashtable-map (lambda (key value) key) ht)))
+
+(define (hashtable-entries ht)
+  (let ((entries (hashtable-map cons ht)))
+    (values (list->vector (map car entries))
+            (list->vector (map cdr entries)))))
+
+; FIXME: The inspection procedures aren't implemented yet.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Larceny's old-style hashtables.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; These global variables are assigned new values later.
 
-(define make-hashtable      (lambda args '*))
+(define make-oldstyle-hashtable      (lambda args '*))
+(define hashtable?          (lambda (arg) #f))
 (define hashtable-contains? (lambda (ht key) #f))
 (define hashtable-fetch     (lambda (ht key flag) flag))
 (define hashtable-get       (lambda (ht key) (hashtable-fetch ht key #f)))
@@ -112,16 +186,23 @@
       (buckets  (lambda (ht)   (vector-ref ht 4)))
       (buckets! (lambda (ht v) (vector-set! ht 4 v)))
       (defaultn 10))
-  (let ((hashtable? (lambda (ht)
+  (let ((%hashtable? (lambda (ht)
                       (and (vector? ht)
                            (= 5 (vector-length ht))
                            (eq? doc (vector-ref ht 0)))))
-        (hashtable-error (lambda (x)
-                           (display "ERROR: Bad hash table: ")
+        (hashtable-error (lambda (procedure x)
+                           (display "ERROR: ")
+                           (display procedure)
+                           (display ": Bad hash table: ")
                            (newline)
                            (write x)
                            (newline))))
-    
+
+    (define (guarantee-hashtable procedure object)
+      (if (not (%hashtable? object))
+          (begin (hashtable-error procedure object)
+                 #t)))
+
     ; Internal operations.
     
     (define (make-ht hashfun searcher size)
@@ -165,139 +246,132 @@
              (n (vector-length v))
              (z (make-vector (count ht) '())))
         (define (loop i bucket j)
-          (if (null? bucket)
-              (if (= i n)
-                  (if (= j (vector-length z))
-                      z
-                      (begin (display "BUG in hashtable")
-                             (newline)
-                             '#()))
-                  (loop (+ i 1)
-                        (vector-ref v i)
-                        j))
-              (let ((entry (car bucket)))
-                (vector-set! z j (cons (car entry) (cdr entry)))
-                (loop i
-                      (cdr bucket)
-                      (+ j 1)))))
+          (cond ((pair? bucket)
+                 (let ((entry (car bucket)))
+                   (vector-set! z j (cons (car entry) (cdr entry)))
+                   (loop i
+                         (cdr bucket)
+                         (+ j 1))))
+                ((null? bucket)
+                 (if (= i n)
+                     (if (= j (vector-length z))
+                         z
+                         (begin (display "BUG in hashtable")
+                                (newline)
+                                '#()))
+                     (loop (+ i 1)
+                           (vector-ref v i)
+                           j)))
+                (else (error "Illegal hashtable structure."))))
         (loop 0 '() 0)))
     
     (define (contains? ht key)
-      (if (hashtable? ht)
-          (let* ((v (buckets ht))
-                 (n (vector-length v))
-                 (h (modulo ((hasher ht) key) n))
-                 (b (vector-ref v h)))
-            (if ((searcher ht) key b)
-                #t
-                #f))
-          (hashtable-error ht)))
-    
+      (guarantee-hashtable 'contains? ht)
+      (let* ((v (buckets ht))
+             (n (vector-length v))
+             (h (remainder ((hasher ht) key) n))
+             (b (vector-ref v h)))
+        (if ((searcher ht) key b)
+            #t
+            #f)))
+
     (define (fetch ht key flag)
-      (if (hashtable? ht)
-          (let* ((v (buckets ht))
-                 (n (vector-length v))
-                 (h (modulo ((hasher ht) key) n))
-                 (b (vector-ref v h))
-                 (probe ((searcher ht) key b)))
-            (if probe
-                (cdr probe)
-                flag))
-          (hashtable-error ht)))
-    
+      (guarantee-hashtable 'fetch ht)
+      (let* ((v (buckets ht))
+             (n (vector-length v))
+             (h (remainder ((hasher ht) key) n))
+             (b (vector-ref v h))
+             (probe ((searcher ht) key b)))
+        (if (pair? probe)
+            (cdr probe)
+            flag)))
+
     (define (put! ht key val)
-      (if (hashtable? ht)
-          (call-without-interrupts
-           (lambda ()
-             (let* ((v (buckets ht))
-                    (n (vector-length v))
-                    (h (modulo ((hasher ht) key) n))
-                    (b (vector-ref v h))
-                    (probe ((searcher ht) key b)))
-               (if probe
-                   ; Using SET-CDR! on the probe would make it necessary
-                   ; to synchronize the CONTENTS routine.
-                   (vector-set! v h (substitute1 (cons key val) probe b))
-                   (begin (count! ht (+ (count ht) 1))
-                          (vector-set! v h (cons (cons key val) b))
-                          (if (> (count ht) n)
-                              (resize ht)))))
-             #f))
-          (hashtable-error ht)))
-    
+      (guarantee-hashtable 'put! ht)
+      (call-without-interrupts
+       (lambda ()
+         (let* ((v (buckets ht))
+                (n (vector-length v))
+                (h (remainder ((hasher ht) key) n))
+                (b (vector-ref v h))
+                (probe ((searcher ht) key b)))
+           (if probe
+               ;; Using SET-CDR! on the probe would make it necessary
+               ;; to synchronize the CONTENTS routine.
+               (vector-set! v h (substitute1 (cons key val) probe b))
+               (begin (count! ht (+ (count ht) 1))
+                      (vector-set! v h (cons (cons key val) b))
+                      (if (> (count ht) n)
+                          (resize ht)))))
+         #f)))
+
     (define (remove! ht key)
-      (if (hashtable? ht)
-          (call-without-interrupts
-           (lambda ()
-             (let* ((v (buckets ht))
-                    (n (vector-length v))
-                    (h (modulo ((hasher ht) key) n))
-                    (b (vector-ref v h))
-                    (probe ((searcher ht) key b)))
-               (if probe
-                   (begin (count! ht (- (count ht) 1))
-                          (vector-set! v h (remq1 probe b))
-                          (if (< (* 2 (+ defaultn (count ht))) n)
-                              (resize ht))))
-               #f)))
-          (hashtable-error ht)))
-    
+      (guarantee-hashtable 'remove! ht)
+      (call-without-interrupts
+       (lambda ()
+         (let* ((v (buckets ht))
+                (n (vector-length v))
+                (h (remainder ((hasher ht) key) n))
+                (b (vector-ref v h))
+                (probe ((searcher ht) key b)))
+           (if probe
+               (begin (count! ht (- (count ht) 1))
+                      (vector-set! v h (remq1 probe b))
+                      (if (< (* 2 (+ defaultn (count ht))) n)
+                          (resize ht))))
+           #f))))
+
     (define (clear! ht)
-      (if (hashtable? ht)
-          (call-without-interrupts
-           (lambda ()
-             (begin (count! ht 0)
-                    (buckets! ht (make-vector defaultn '()))
-                    #f)))
-          (hashtable-error ht)))
-    
+      (guarantee-hashtable 'clear! ht)
+      (call-without-interrupts
+       (lambda ()
+         (begin (count! ht 0)
+                (buckets! ht (make-vector defaultn '()))
+                #f))))
+
     (define (size ht)
-      (if (hashtable? ht)
-          (count ht)
-          (hashtable-error ht)))
-    
+      (guarantee-hashtable 'size ht)
+      (count ht))
+
     ; This code must be written so that the procedure can modify the
     ; hashtable without breaking any invariants.
     
     (define (ht-for-each f ht)
-      (if (hashtable? ht)
-          (let* ((v (contents ht))
-                 (n (vector-length v)))
-            (do ((j 0 (+ j 1)))
-                ((= j n))
-                (let ((x (vector-ref v j)))
-                  (f (car x) (cdr x)))))
-          (hashtable-error ht)))
-    
+      (guarantee-hashtable 'ht-for-each ht)
+      (let* ((v (contents ht))
+             (n (vector-length v)))
+        (do ((j 0 (+ j 1)))
+            ((= j n))
+          (let ((x (vector-ref v j)))
+            (f (car x) (cdr x))))))
+
     (define (ht-map f ht)
-      (if (hashtable? ht)
-          (let* ((v (contents ht))
-                 (n (vector-length v)))
-            (do ((j 0 (+ j 1))
-                 (results '() (let ((x (vector-ref v j)))
-                                (cons (f (car x) (cdr x))
-                                      results))))
-                ((= j n)
-                 (reverse results))))
-          (hashtable-error ht)))
-    
+      (guarantee-hashtable 'ht-map ht)
+      (let* ((v (contents ht))
+             (n (vector-length v)))
+        (do ((j 0 (+ j 1))
+             (results '() (let ((x (vector-ref v j)))
+                            (cons (f (car x) (cdr x))
+                                  results))))
+            ((= j n)
+             (reverse results)))))
+
     (define (ht-copy ht)
-      (if (hashtable? ht)
-          (let* ((newtable (make-hashtable (hasher ht) (searcher ht) 0))
-                 (v (buckets ht))
-                 (n (vector-length v))
-                 (newvector (make-vector n '())))
-            (count! newtable (count ht))
-            (buckets! newtable newvector)
-            (do ((i 0 (+ i 1)))
-                ((= i n))
-                (vector-set! newvector i (append (vector-ref v i) '())))
-            newtable)
-          (hashtable-error ht)))
-    
+      (guarantee-hashtable 'ht-copy ht)
+      (let* ((newtable (make-oldstyle-hashtable (hasher ht) (searcher ht) 0))
+             (v (buckets ht))
+             (n (vector-length v))
+             (newvector (make-vector n '())))
+        (count! newtable (count ht))
+        (buckets! newtable newvector)
+        (do ((i 0 (+ i 1)))
+            ((= i n))
+          (vector-set! newvector i (append (vector-ref v i) '())))
+        newtable))
+
     ; External entry points.
     
-    (set! make-hashtable
+    (set! make-oldstyle-hashtable
           (lambda args
             (let* ((hashfun (if (null? args) object-hash (car args)))
                    (searcher (if (or (null? args) (null? (cdr args)))
@@ -307,15 +381,17 @@
                              defaultn
                              (caddr args))))
               (make-ht hashfun searcher size))))
-    
+    (set! hashtable?          (lambda (object)      (%hashtable? object)))
     (set! hashtable-contains? (lambda (ht key)      (contains? ht key)))
     (set! hashtable-fetch     (lambda (ht key flag) (fetch ht key flag)))
     (set! hashtable-get       (lambda (ht key)      (fetch ht key #f)))
     (set! hashtable-put!      (lambda (ht key val)  (put! ht key val)))
     (set! hashtable-remove!   (lambda (ht key)      (remove! ht key)))
-    (set! hashtable-clear!    (lambda (ht)          (clear! ht)))
+    (set! hashtable-clear!    (lambda (ht . rest)   (clear! ht)))   ; FIXME
     (set! hashtable-size      (lambda (ht)          (size ht)))
     (set! hashtable-for-each  (lambda (ht proc)     (ht-for-each ht proc)))
     (set! hashtable-map       (lambda (ht proc)     (ht-map ht proc)))
-    (set! hashtable-copy      (lambda (ht)          (ht-copy ht)))
+    (set! hashtable-copy      (lambda (ht . rest)   (ht-copy ht)))  ; FIXME
     #f))
+
+; eof

@@ -565,7 +565,7 @@
 (define (constraints.killed constraints) (cadr constraints))
 
 (define (make-constraints-table)
-  (list (make-hashtable symbol-hash assq)
+  (list (make-oldstyle-hashtable symbol-hash assq)
         (make-vector number-of-basic-killers '())))
 
 (define (copy-constraints-table constraints)

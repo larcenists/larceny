@@ -75,9 +75,74 @@
 ;
 ;     Returns a copy of the <hashtable>.
 
+; Larceny's old-style hashtables are now deprecated.
+
+(define (make-hashtable . args)
+  (display "WARNING: delegating to make-oldstyle-hashtable;")
+  (newline)
+  (display "    for R6RS hashtables, call make-r6rs-hashtable")
+  (newline)
+  (issue-warning-deprecated 'make-oldstyle-hashtable)
+  (apply make-oldstyle-hashtable args))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; FIXME: temporary implementation of R6RS hashtables.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (make-r6rs-hashtable hash equiv? . rest)
+  (define (searcher key bucket)
+    (assp equiv? key bucket))
+  (cond ((null? rest)
+         (make-oldstyle-hashtable hash searcher))
+        (else
+         (make-oldstyle-hashtable hash searcher (car rest)))))
+
+(define (make-eq-hashtable . rest)
+  (cond ((null? rest)
+         (make-oldstyle-hashtable object-hash assq))
+        (else
+         (make-oldstyle-hashtable object-hash assq (car rest)))))
+
+(define (make-eqv-hashtable . rest)
+  (cond ((null? rest)
+         (make-oldstyle-hashtable object-hash assv))
+        (else
+         (make-oldstyle-hashtable object-hash assv (car rest)))))
+
+(define (hashtable-ref ht key default)
+  (hashtable-fetch ht key default))
+
+(define (hashtable-set! ht key value)
+  (hashtable-put! ht key value))
+
+(define (hashtable-delete! ht key)
+  (hashtable-remove! ht key))
+
+(define (hashtable-update! ht key proc default)
+  (let ((x (proc (hashtable-ref ht key default))))
+    (hashtable-set! ht key x)))
+
+(define (hashtable-keys ht)
+  (list->vector (hashtable-map (lambda (key value) key) ht)))
+
+(define (hashtable-entries ht)
+  (let ((entries (hashtable-map cons ht)))
+    (values (list->vector (map car entries))
+            (list->vector (map cdr entries)))))
+
+; FIXME: The inspection procedures aren't implemented yet.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Larceny's old-style hashtables.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; These global variables are assigned new values later.
 
-(define make-hashtable      (lambda args '*))
+(define make-oldstyle-hashtable      (lambda args '*))
 (define hashtable?          (lambda (arg) #f))
 (define hashtable-contains? (lambda (ht key) #f))
 (define hashtable-fetch     (lambda (ht key flag) flag))
@@ -289,7 +354,7 @@
 
     (define (ht-copy ht)
       (guarantee-hashtable 'ht-copy ht)
-      (let* ((newtable (make-hashtable (hasher ht) (searcher ht) 0))
+      (let* ((newtable (make-oldstyle-hashtable (hasher ht) (searcher ht) 0))
              (v (buckets ht))
              (n (vector-length v))
              (newvector (make-vector n '())))
@@ -302,7 +367,7 @@
 
     ; External entry points.
     
-    (set! make-hashtable
+    (set! make-oldstyle-hashtable
           (lambda args
             (let* ((hashfun (if (null? args) object-hash (car args)))
                    (searcher (if (or (null? args) (null? (cdr args)))
@@ -318,11 +383,11 @@
     (set! hashtable-get       (lambda (ht key)      (fetch ht key #f)))
     (set! hashtable-put!      (lambda (ht key val)  (put! ht key val)))
     (set! hashtable-remove!   (lambda (ht key)      (remove! ht key)))
-    (set! hashtable-clear!    (lambda (ht)          (clear! ht)))
+    (set! hashtable-clear!    (lambda (ht . rest)   (clear! ht)))   ; FIXME
     (set! hashtable-size      (lambda (ht)          (size ht)))
     (set! hashtable-for-each  (lambda (ht proc)     (ht-for-each ht proc)))
     (set! hashtable-map       (lambda (ht proc)     (ht-map ht proc)))
-    (set! hashtable-copy      (lambda (ht)          (ht-copy ht)))
+    (set! hashtable-copy      (lambda (ht . rest)   (ht-copy ht)))  ; FIXME
     #f))
 
 ; eof

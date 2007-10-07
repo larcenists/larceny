@@ -99,7 +99,7 @@
         (frame (cgframe-initial))
         (regs (cgreg-initial))
         (t0 (newtemp)))
-    (assembly-stream-info! output (make-hashtable equal-hash assoc))
+    (assembly-stream-info! output (make-oldstyle-hashtable equal-hash assoc))
     (cgreg-bind! regs 0 t0)
     (gen-save! output frame t0)
     (cg0 output
@@ -173,7 +173,8 @@
          (free (cg-sort-vars free regs frame env))
          (newenv (cgenv-extend env (cons #t free) '()))
          (newoutput (make-assembly-stream)))
-    (assembly-stream-info! newoutput (make-hashtable equal-hash assoc))
+    (assembly-stream-info! newoutput
+                           (make-oldstyle-hashtable equal-hash assoc))
     (gen! newoutput $.proc)
     (if (list? args)
         (gen! newoutput $args= (length args))
@@ -359,7 +360,8 @@
                   (args (lambda.args exp))
                   (vars (make-null-terminated args))
                   (newoutput (make-assembly-stream)))
-             (assembly-stream-info! newoutput (make-hashtable equal-hash assoc))
+             (assembly-stream-info! newoutput
+                                    (make-oldstyle-hashtable equal-hash assoc))
              (gen! newoutput $.proc)
              (if (list? args)
                  (gen! newoutput $args= (length args))

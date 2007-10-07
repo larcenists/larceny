@@ -38,6 +38,7 @@
   ((reset-handler)))
 
 ; To be replaced by exception system.
+
 (define (call-without-errors thunk . rest)
   (let ((fail (if (null? rest) #f (car rest))))
     (call-with-current-continuation
@@ -45,6 +46,7 @@
        (call-with-error-handler (lambda (who . args) (k fail)) thunk)))))
 
 ; Old code: clients should use PARAMETERIZE instead.
+
 (define (call-with-error-handler handler thunk)
   (let ((old-handler (error-handler)))
     (dynamic-wind 
@@ -53,6 +55,7 @@
      (lambda () (error-handler old-handler)))))
 
 ; Old code: clients should use PARAMETERIZE instead.
+
 (define (call-with-reset-handler handler thunk)
   (let ((old-handler (reset-handler)))
     (dynamic-wind 
@@ -93,5 +96,32 @@
           (for-each (lambda (x) (display x port)) (cdr the-error))
           (newline port)
           (flush-output-port port)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Warns of deprecated features.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (issue-warning-deprecated name-of-deprecated-misfeature)
+  (if (not (memq name-of-deprecated-misfeature already-warned))
+      (begin
+       (set! already-warned
+             (cons name-of-deprecated-misfeature already-warned))
+       (display "WARNING: ")
+       (display name-of-deprecated-misfeature)
+       (display " is deprecated in Larceny.  See")
+       (newline)
+       (display "    ")
+       (display url:deprecated)
+       (newline))))
+
+(define url:deprecated
+  "http://larceny.ccs.neu.edu/larceny-trac/wiki/DeprecatedFeatures")
+
+; List of deprecated features for which a warning has already
+; been issued.
+
+(define already-warned '())
 
 ; eof

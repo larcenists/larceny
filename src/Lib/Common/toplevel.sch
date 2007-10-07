@@ -451,8 +451,10 @@
 
   (environment-set! larc 'object-hash object-hash)
   (environment-set! larc 'equal-hash equal-hash)
-  (environment-set! larc 'make-hashtable make-hashtable)
   (environment-set! larc 'procedure-hasher procedure-hasher)
+  (environment-set! larc 'make-oldstyle-hashtable make-oldstyle-hashtable)
+  (environment-set! larc 'make-r6rs-hashtable make-r6rs-hashtable)
+  (environment-set! larc 'make-hashtable make-hashtable)
   (environment-set! larc 'hashtable? hashtable?)
   (environment-set! larc 'hashtable-contains? hashtable-contains?)
   (environment-set! larc 'hashtable-fetch hashtable-fetch)
@@ -997,6 +999,7 @@
 
   ;; common and less common extensions to R4RS
 
+  (environment-set! larc 'issue-warning-deprecated issue-warning-deprecated)
   (environment-set! larc 'assertion-violation assertion-violation)
   (environment-set! larc 'error error)
   (environment-set! larc 'error-handler error-handler)

@@ -86,7 +86,7 @@
        ; is referenced.  This information is not accurate until we
        ; are backing out of the recursion, and does not have to be.
        
-       (define local-variables (make-hashtable symbol-hash assq))
+       (define local-variables (make-oldstyle-hashtable symbol-hash assq))
        
        (define (local-variable? sym)
          (hashtable-get local-variables sym))

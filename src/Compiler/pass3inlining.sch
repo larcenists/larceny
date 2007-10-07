@@ -65,7 +65,7 @@
 ; procedures that aren't called or are called in exactly one place.
 
 (define (inline-using-callgraph! g)
-  (let ((known (make-hashtable))
+  (let ((known (make-oldstyle-hashtable))
         (category2 '())
         (category3 '()))
     (for-each (lambda (node)

@@ -51,7 +51,7 @@
 ;; current-il-generator : [Param System.Reflection.Emit.ILGenerator]
 (define current-il-generator  (make-parameter "current-il-generator" #f))
 
-(define (make-table) (make-hashtable equal-hash assoc))
+(define (make-table) (make-oldstyle-hashtable equal-hash assoc))
 (define (table-lookup key table) (hashtable-get table key))
 ;; Non-applicative, but that is okay for the usage pattern in this file
 (define (table-add! entry tbl) (hashtable-put! tbl (car entry) entry) tbl)
