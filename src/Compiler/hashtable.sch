@@ -3,9 +3,20 @@
 ; $Id$
 ;
 ; Hash tables for Twobit.
-; This is a copy of Lib/Common/hashtable.sch, but the copy is
-; necessary so Twobit can run as a cross-compiler on systems
-; other than Larceny.
+;
+; FIXME:
+;
+; In the past, this file has been a near-copy of
+; Lib/Common/hashtable.sch, but the separate copy is
+; necessary so Twobit can run as a cross-compiler on
+; systems other than Larceny.
+;
+; As Larceny converts to a more efficient implementation
+; of R6RS hashtables, this file should become a portable
+; (and therefore less efficient) implementation of R6RS
+; hashtables.  When Larceny is built, this less efficient
+; implementation should not replace Larceny's native
+; implementation.
 ;
 ; Requires CALL-WITHOUT-INTERRUPTS.
 ; This code should be thread-safe provided VECTOR-REF is atomic.
@@ -78,6 +89,11 @@
 ; (hashtable-copy <hashtable>)
 ;
 ;     Returns a copy of the <hashtable>.
+
+; FIXME: temporary hacks so we can tell which implementation of
+; hashtables is active.
+
+(define (hashtable-implementation) 'twobit)
 
 ; Larceny's old-style hashtables are now deprecated.
 

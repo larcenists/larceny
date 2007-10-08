@@ -75,6 +75,11 @@
 ;
 ;     Returns a copy of the <hashtable>.
 
+; FIXME: temporary hacks so we can tell which implementation of
+; hashtables is active.
+
+(define (hashtable-implementation) 'Lib/Common)
+
 ; Larceny's old-style hashtables are now deprecated.
 
 (define (make-hashtable . args)

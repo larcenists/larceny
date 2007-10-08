@@ -4,13 +4,20 @@
 ;
 ; File lists for nbuild et al.  Don't rearrange the lists -- order matters.
 
+; Twobit shouldn't redefine Larceny's hash functions and hashtable
+; procedures when running under Larceny.
+
 (define *nbuild:twobit-files-1*
   (param-filename 'compiler
-    `("sets.sch" "hash.sch" "hashtable.sch" "hashtree.sch"
+   (append
+    (if (string=? (nbuild-parameter 'host-system) "Larceny")
+        '()
+        '("hash.sch" "hashtable.sch"))
+    `("hashtree.sch" "sets.sch"
       "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
       "prefs.sch" "syntaxenv.sch" "syntaxrules.sch" "lowlevel.sch"
       "expand.sch" "usual.sch" "pass1.sch"
-      "copy.sch" "pass3commoning.aux.sch" "pass3rep.aux.sch")))
+      "copy.sch" "pass3commoning.aux.sch" "pass3rep.aux.sch"))))
 
 (define *nbuild:sparc/twobit-files*
   (param-filename

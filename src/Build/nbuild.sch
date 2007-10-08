@@ -22,10 +22,12 @@
 ;                      standard-c      ANSI C
 ;                      dotnet          Microsoft Common Language Runtime
 ;                      x86-nasm        Intel 80x86, NASM assembler
-;   endianness      endianness of target, either 'big' or 'little'.
+;   target-endianness
+;                   endianness of target, either 'big' or 'little'.
+;   always-source?  if true, loads source files instead of compiled
 ;
 ; If target-machine = sparc:
-;   sparc-asm       the directory the SPARC assembler
+;   sparc-asm       the directory for the SPARC assembler
 ;
 ; If target-machine = standard-c
 ;   standard-C-asm  the directory for the standard-C assembler

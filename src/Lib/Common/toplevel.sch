@@ -452,6 +452,7 @@
   (environment-set! larc 'object-hash object-hash)
   (environment-set! larc 'equal-hash equal-hash)
   (environment-set! larc 'procedure-hasher procedure-hasher)
+  (environment-set! larc 'hashtable-implementation hashtable-implementation)
   (environment-set! larc 'make-oldstyle-hashtable make-oldstyle-hashtable)
   (environment-set! larc 'make-r6rs-hashtable make-r6rs-hashtable)
   (environment-set! larc 'make-hashtable make-hashtable)
