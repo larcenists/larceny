@@ -6,11 +6,15 @@
 
 ; Twobit shouldn't redefine Larceny's hash functions and hashtable
 ; procedures when running under Larceny.
+;
+; FIXME:  This is temporarily disabled because Larceny 0.94
+; doesn't support make-oldstyle-hashtable et cetera.
 
 (define *nbuild:twobit-files-1*
   (param-filename 'compiler
    (append
-    (if (string=? (nbuild-parameter 'host-system) "Larceny")
+    (if (and (string=? (nbuild-parameter 'host-system) "Larceny")
+             (not (nbuild-parameter 'development?)))
         '()
         '("hash.sch" "hashtable.sch"))
     `("hashtree.sch" "sets.sch"
