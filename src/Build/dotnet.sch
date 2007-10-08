@@ -12,15 +12,19 @@
 
 ;; larceny root should be the current directory when the host
 ;; Scheme system loads this file.
+
 (define *larceny-root* #f)
 
 ;; this needs to be global... it floats all around the build-system.
 ;; it will be set to something meaningful by (larceny-setup ...).
+
 (define nbuild-parameter
-  (lambda x (display "!! nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
+  (lambda x
+    (display "!! nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
 
 (define make-nbuild-parameter
-  (lambda x (display "!! make-nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
+  (lambda x 
+    (display "!! make-nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
 
 (define (param-filename param . components)
   (let* ((reversed (reverse components))
@@ -35,6 +39,7 @@
 
 ;; These needs to be global for the definition of lib-files
 ;; They are set!'d by larceny-setup
+
 (define option:os #f)
 (define option:endian #f)
 (define option:codegen-options '())
@@ -64,6 +69,7 @@
 	    (begin-crock 2 REST ...)))))
 
 ;; FIXME:  figure out endian from host scheme system?
+
 (define (larceny-setup host os endian . codegen-options)
   (begin-crock 1  ;; see crock craziness above and below
    (set! option:os os)
@@ -76,6 +82,7 @@
   
   ;; FIXME:  might have to fudge more this for Cygwin
   ;; load code to work with pathnames
+
   (case option:os
     ((win32) (load "src/Build/sysdep-win32.sch"))
     ((unix macosx) (load "src/Build/sysdep-unix.sch"))
@@ -93,6 +100,7 @@
     (load (make-filename "src" "Build" "nbuild-param.sch"))
 
     ;; set this so everybody can use it
+
     (set! nbuild-parameter
       (let ((dir *larceny-root*)
             (option:source? #f)
@@ -122,6 +130,7 @@
       )
 
   ;; Load the compatibility file, expander, and config system.
+
   (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
   (compat:initialize)
   (load (string-append (nbuild-parameter 'util) "expander.sch"))
@@ -170,6 +179,7 @@
           cfg-names))))
 
 ;; Load the compiler
+
 (define (load-compiler . how)
   (if (not (null? how))
       (case (car how)
@@ -186,10 +196,13 @@
   (let ((cmd-string 
 	 (twobit-format 
 	  #f (case (nbuild-parameter 'host-os)
-	       ((win32)       "cd src\\Rts\\DotNet && nmake.exe ~a ~a DEBUG_OPT=\"~a\" DEFINES=\"~a\"")
-	       ((unix macosx) "cd src/Rts/DotNet;    make      ~a ~a DEBUG_OPT='~a'   DEFINES='~a'")
+	       ((win32)
+                "cd src\\Rts\\DotNet && nmake.exe ~a ~a DEBUG_OPT=\"~a\" DEFINES=\"~a\"")
+	       ((unix macosx)
+                "cd src/Rts/DotNet;    make      ~a ~a DEBUG_OPT='~a'   DEFINES='~a'")
 	       (else
-		(error "Unknown operating system: " (nbuild-parameter 'host-os))))
+		(error "Unknown operating system: "
+                       (nbuild-parameter 'host-os))))
 	  (if (codegen-option 'mono)
 	      "CSC=gmcs "
 	      "CSC=csc ")
@@ -261,8 +274,10 @@
   (compile-application 
    app-name
    (append (param-filename 'util '("dotnet.sch")) 
+
 	   ;; Next bunch is the result of breaking down larceny-setup
 	   ;; into seperate components seperated by its calls to load
+
 	   (list crock-file-1)
            (param-filename 'util
                            (case option:os 
@@ -270,13 +285,19 @@
                              ((unix macosx) '("sysdep-unix.sch"))))
 	   (param-filename 'util '("petit-unix-defns-globals.sch"))
 	   (list crock-file-2)
-           (param-filename 'larceny-compatibility '("compat.sch" "compat2.sch"))
+           (param-filename 'larceny-compatibility
+                           '("compat.sch" "compat2.sch"))
            (param-filename 'auxiliary '("list.sch" "pp.sch"))
            (param-filename 'util '("expander.sch" "config.sch"
                                    "csharp-config.sch"))
+
 	   ;; Rest is from load-compiler
+
            (param-filename 'util '("nbuild-files.sch" "nbuild-defns.sch"))
-		 ;; "Util/nbuild.sch" ;; This does the loading that's inlined below
+
+           ;; "Util/nbuild.sch"
+           ;; This does the loading that's inlined below
+
 	   (nbuild:twobit-files)
 	   (nbuild:common-asm-files)
 	   (nbuild:machine-asm-files)

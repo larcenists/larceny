@@ -20,6 +20,7 @@
                                         ; init-toplevel-environment
 
 ;;; Need compile-files to find Petit includes
+
 (require 'petit-compile-file)
 
 ;;; First load the compiler and seal its namespace.
@@ -34,10 +35,14 @@
 			  (lambda ()
 			    (compiler-switches 'standard))
 			  (lambda ()
-			    (twobit-expand form (environment-syntax-environment environment)))
+			    (twobit-expand
+                             form
+                             (environment-syntax-environment environment)))
 			  (lambda ()
 			    (compiler-switches 'set! switches))))))
+
   ; Kids, don't try this at home
+
   (vector-like-set! (interaction-environment) 
 		    4
 		    (the-usual-syntactic-environment))
@@ -46,7 +51,8 @@
   
   (parameterize ((case-sensitive? #t))
     (compat:load (param-filename 'common-source "toplevel.sch"))
-    (compat:load (param-filename 'source "Arch" "Standard-C" "toplevel-target.sch")))
+    (compat:load
+     (param-filename 'source "Arch" "Standard-C" "toplevel-target.sch")))
 
   (let ((e (interaction-environment)))
     (letrec ((install-procedures 
@@ -63,18 +69,24 @@
       ; containing the bindings for the standard names; those bindings are 
       ; initialized with values taken from the current interaction
       ; environment.
+
       (init-toplevel-environment)
       
       (install-procedures (interaction-environment)
                           '(; Compilation
+
 			    *scheme-file-types*
                             *fasl-file-type*
 			    rewrite-file-type
 			    compile-files
                             macro-expand-expression
+
                             ; On-line help
+
                             help
+
                             ; Compiler and assembler switches
+
                             compiler-switches
                             compiler-flags
                             global-optimization-flags
@@ -102,10 +114,14 @@
                             peephole-optimization
                             inline-allocation
 			    optimize-c-code
+
                             ; Temporary to assist this file
+
                             param-filename
                             compat:load
+
                             ; Make utility
+
                             make:project
                             make:new-project
                             make:project?
@@ -115,7 +131,9 @@
                             make:pretend
                             make:debug
                             make:make
+
 			    ; Other
+
 			    pretty-print
 			    ))))
 
@@ -143,6 +161,7 @@
 ;;; Redefine COMPILE-FILE to use the above redefinition of COMPILE-FILES
 ;;; (the one that we required from petit-compile-file was sealed off with
 ;;;  the old compile-files definition)
+
 (define (compile-file infile . rest)
   (let ((outfile
           (if (null? rest)
@@ -234,6 +253,7 @@
 (set! set-parameter-defaults-for-a-standard-heap! (undefined))
 
 "Remove the functions that we only exported to assist on this script"
+
 (set! param-filename (undefined))
 (set! compat:load (undefined))
 
@@ -259,8 +279,10 @@
       (set! petit-command "./petit-larceny.bin")))
 
 (system
- (string-append petit-command " -reorganize-and-dump -heap petit-larceny.heap"))
+ (string-append petit-command
+                " -reorganize-and-dump -heap petit-larceny.heap"))
 (system
- (string-append mv-command " petit-larceny.heap.split petit-larceny.heap"))
+ (string-append mv-command
+                " petit-larceny.heap.split petit-larceny.heap"))
 
 ; eof

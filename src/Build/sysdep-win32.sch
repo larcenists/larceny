@@ -5,10 +5,12 @@
 ; Completely fundamental pathname manipulation.
 
 ; TODO doc
+
 (define (make-directory . components)
   (system (string-append "mkdir " (apply make-filename components))))
 
 ; TODO doc
+
 (define (catfiles input-files output-file)
   (delete-file output-file)
   (call-with-output-file output-file
@@ -22,11 +24,13 @@
 		input-files))))
 
 ; TODO doc
+
 (define (copy-file/regexp source-path pat target-path)
   (system (string-append "copy " (make-filename source-path pat)
 			 "     " target-path)))
 
 ; TODO doc
+
 (define (delete-file/regexp target-path pat)
   (system (string-append "del " (make-filename target-path pat))))
 
@@ -65,7 +69,6 @@
 		 (or (char=? c #\/) (char=? c #\\)))
 	       (string-append first rest)
 	       (string-append first "\\" rest))))))
-
 
 ; This takes zero or more directory components without directory
 ; separators and a file name and constructs a filename relative to the
@@ -112,6 +115,7 @@
 ;; split-path-string : String -> (values String String)
 ;; Splits an input path into the container portion and the immediate target.
 ;; (The container is either a path itself or "")
+
 (define (split-path-string path)
   (let loop ((chars (reverse (string->list path)))
 	     (file '()))

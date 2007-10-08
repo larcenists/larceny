@@ -53,10 +53,14 @@
 			  (lambda ()
 			    (compiler-switches 'standard))
 			  (lambda ()
-			    (twobit-expand form (environment-syntax-environment environment)))
+			    (twobit-expand
+                             form
+                             (environment-syntax-environment environment)))
 			  (lambda ()
 			    (compiler-switches 'set! switches))))))
+
   ; Kids, don't try this at home
+
   (vector-like-set! (interaction-environment) 
 		    4
 		    (the-usual-syntactic-environment))
@@ -75,29 +79,36 @@
                                         (car procs)
                                         (environment-get e (car procs)))
                       (install-procedures x (cdr procs)))))))
-        
   
       ; Replace the existing environments with fresh environments
       ; containing the bindings for the standard names; those bindings are 
       ; initialized with values taken from the current interaction
       ; environment.
+
       (init-toplevel-environment)
       
       (install-procedures (interaction-environment)
                           '(; Compilation
+
                             compile-file
                             assemble-file
                             compile-expression
                             macro-expand-expression
                             make-assembly-procedure
+
                             ; On-line help
+
                             help
+
                             ; Disassembler
+
                             disassemble-codevector
                             print-instructions
                             disassemble-file
                             disassemble
+
                             ; Compiler and assembler switches
+
                             compiler-switches
                             compiler-flags
                             global-optimization-flags
@@ -126,10 +137,14 @@
                             peephole-optimization
                             inline-allocation
                             fill-delay-slots
+
                             ; Temporary to assist this file
+
                             param-filename
                             compat:load
+
                             ; Make utility
+
                             make:project
                             make:new-project
                             make:project?

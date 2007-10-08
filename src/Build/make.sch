@@ -317,7 +317,8 @@
     (for-each make deps)
     (cond ((and (file-exists? target)
 		(not (some? (lambda (d) (newer-than? d target)) deps)))
-	   (make:debugmsg "make-target target=" target ": all dependencies are older."))
+	   (make:debugmsg
+            "make-target target=" target ": all dependencies are older."))
 	  (else
 	   (make:debugmsg "make-target target=" target ": building.")
 	   (call-with-error-control

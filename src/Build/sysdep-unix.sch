@@ -5,10 +5,12 @@
 ; Completely fundamental pathname manipulation.
 
 ; TODO doc
+
 (define (make-directory . components)
   (system (string-append "mkdir " (apply make-filename components))))
 	
 ; TODO doc
+
 (define (catfiles input-files output-file)
   (system (string-append "cat " 
 			 (apply string-append 
@@ -18,15 +20,18 @@
 			 output-file)))
 
 ; TODO doc
+
 (define (copy-file/regexp source-path pat target-path)
   (system (string-append "cp " (make-filename source-path pat)
 			 "   " target-path)))
 
 ; TODO doc
+
 (define (delete-file/regexp target-path pat)
   (system (string-append "rm -f " (make-filename target-path pat))))
 
 ; TODO doc
+
 (define (execute-in-directory dir cmd)
   (system (string-append "( cd " dir "; " cmd " )" )))
 
@@ -93,6 +98,7 @@
 ;; split-path-string : String -> (values String String)
 ;; Splits an input path into the container portion and the immediate target.
 ;; (The container is either a path itself or "")
+
 (define (split-path-string path)
   (let loop ((chars (reverse (string->list path)))
 	     (file '()))

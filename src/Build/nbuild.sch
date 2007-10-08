@@ -54,11 +54,16 @@
 (writeln "Loading Twobit.")
 (if *code-coverage*
     (begin
+
       ;;; FIXME or not
+
       (error '*code-coverage* "Code coverage is 'temporarily' broken.")
       (if *rebuild-code-coverage*
           (begin
-            (compat:load (param-filename 'util "Misc" "stcov.sch")) ; this line is currently dead
+
+            ; the next line is currently dead
+
+            (compat:load (param-filename 'util "Misc" "stcov.sch"))
             (writeln "Preprocessing for code coverage")
             (stcov-files (code-cov-files))))
       (writeln "Loading code-coverage mangled files")
@@ -71,7 +76,8 @@
       (writeln "Loading the common assembler.")
       (nbuild-load-files (nbuild:common-asm-files))
       
-      (writeln "Loading " (nbuild-parameter 'target-machine) " machine assembler.")
+      (writeln "Loading "
+               (nbuild-parameter 'target-machine) " machine assembler.")
       (nbuild-load-files (nbuild:machine-asm-files))))
     
 (writeln "Loading bootstrap heap dumper.")

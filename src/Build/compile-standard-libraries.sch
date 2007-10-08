@@ -6,6 +6,7 @@
 ;; the libraries to load syntax from before compiling F.
 
 ;; files-to-compile : [Listof CompileEntry]
+
 (define standard-lib-files-to-compile 
   '(
     "applyhook.sch"
@@ -93,7 +94,8 @@
     ("unix.sch"            srfi-0 foreign-ctools)
     ("unix-descriptor.sch" define-record))) 
 
-(compile-libraries-in-dir "lib/Experimental/" experimental-lib-files-to-compile)
+(compile-libraries-in-dir "lib/Experimental/"
+                          experimental-lib-files-to-compile)
 
 (define ffi-lib-files-to-compile
   '(

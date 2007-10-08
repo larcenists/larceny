@@ -1,8 +1,11 @@
 ;; Utility for sealing the compiler internals off from the world,
 ;; so that the heap will only provide a controlled interface to
 ;; the Twobit compiler.
+
 '(load-compiler 'release)
+
 (compat:load (param-filename 'common-source "toplevel.sch"))
+
 (let ((arch (assq 'arch-name (system-features))))
   (case (string->symbol (string-downcase (cdr arch)))
     ((sparc) (compat:load (param-filename 'source "Arch" "Sparc"
@@ -33,13 +36,16 @@
 
   ;; Install twobit's macro expander as the interpreter's ditto
   ;; FSK: I'm not too thrilled about this either.
+
   (macro-expander (lambda (form environment)
                     (let ((switches (compiler-switches 'get)))
 		      (dynamic-wind
 			  (lambda ()
 			    (compiler-switches 'standard))
 			  (lambda ()
-			    (twobit-expand form (environment-syntax-environment environment)))
+			    (twobit-expand
+                             form
+                             (environment-syntax-environment environment)))
 			  (lambda ()
 			    (compiler-switches 'set! switches))))))
   

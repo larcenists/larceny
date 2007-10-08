@@ -1,6 +1,6 @@
 ; Copyright 2006 Felix S Klock
 ;
-; $Id: twobit-heap.sch 2916 2006-04-27 21:25:00Z tov $
+; $Id$
 ;
 ; Load script for building a heap image with all compiler names exposed.
 ;

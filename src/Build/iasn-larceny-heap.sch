@@ -1,6 +1,6 @@
 ; Copyright 1998-2004 Lars T Hansen.    -*- mode: scheme; mode: font-lock -*-
 ;
-; $Id: larceny-heap.sch 2916 2006-04-27 21:25:00Z tov $
+; $Id$
 ;
 ; IAssassin Larceny:
 ; Script for building the full heap image "larceny.heap"
@@ -55,10 +55,14 @@
 			  (lambda ()
 			    (compiler-switches 'standard))
 			  (lambda ()
-			    (twobit-expand form (environment-syntax-environment environment)))
+			    (twobit-expand
+                             form
+                             (environment-syntax-environment environment)))
 			  (lambda ()
 			    (compiler-switches 'set! switches))))))
+
   ; Kids, don't try this at home
+
   (vector-like-set! (interaction-environment) 
 		    4
 		    (the-usual-syntactic-environment))
@@ -89,6 +93,7 @@
       ; containing the bindings for the standard names; those bindings are 
       ; initialized with values taken from the current interaction
       ; environment.
+
       (init-toplevel-environment)
       
       (install-procedures (interaction-environment)
@@ -155,6 +160,7 @@
   (unspecified))
 
 "Install a herald that identifies the generated heap."
+
 (let ()
   (define (file->char-list port)
     (do ((c (read-char port) (read-char port))
@@ -177,7 +183,9 @@
         "date    "))
   (let ((herald-string
          (begin
+
            ;; A "temporary" file (we know it is about to get overwritten).
+
            (system (string-append date-cmd "> larceny.heap"))
            (call-with-input-file "larceny.heap"
              (lambda (port)
@@ -248,6 +256,7 @@
        (pretty-print x port))))
 
 "Load a bunch of useful things."
+
 ;;; FIXME: Some of these files could usefully be loaded in private namespaces.
 
 (compat:load (param-filename 'auxiliary "macros.sch"))
@@ -278,6 +287,7 @@
 (set! set-parameter-defaults-for-a-standard-heap! (undefined))
 
 "Remove the functions that we only exported to assist on this script"
+
 (set! param-filename (undefined))
 (set! compat:load (undefined))
 

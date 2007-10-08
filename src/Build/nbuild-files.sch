@@ -199,8 +199,11 @@
 
 (define (nbuild:twobit-files)
   (append *nbuild:twobit-files-1*
+
           ; The target-specific tables may need these constants.
+
           *nbuild:build-files*
+
 	  (case (nbuild-parameter 'target-machine)
 	    ((sparc)      *nbuild:sparc/twobit-files*)
 	    ((standard-c) *nbuild:petit/twobit-files*)
@@ -208,6 +211,7 @@
 	    ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
             ((dotnet)     *nbuild:dotnet/twobit-files*) ; FIXME
 	    (else (error "nbuild:twobit-files: bad architecture.")))
+
 	  *nbuild:twobit-files-2*))
 
 (define (nbuild:common-asm-files)

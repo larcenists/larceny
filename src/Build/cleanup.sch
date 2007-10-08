@@ -139,8 +139,10 @@
   (clean-fasl)
   (for-each cleanup-file
 	    `("core" 
-	      ,(string-append "petit" exe-suffix) "petit.c" "petit.o" "petit.obj" 
-	      ,(string-append "twobit" exe-suffix) "twobit.c" "twobit.o" "twobit.obj"
+	      ,(string-append "petit" exe-suffix)
+              "petit.c" "petit.o" "petit.obj" 
+	      ,(string-append "twobit" exe-suffix)
+              "twobit.c" "twobit.o" "twobit.obj"
 	      "*.heap" "HEAPDATA.*" "*.fasl"))
   (cleanup-files "arithmetic.c" '(("Rts" "Standard-C")))
   (cleanup-directory '("Rts" "Build"))

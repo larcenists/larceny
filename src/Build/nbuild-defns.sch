@@ -20,7 +20,8 @@
                                (nbuild:common-asm-files)
                                (nbuild:machine-asm-files)))
 
-(define (new-files) (map (lambda (x) (string-append x ".stcov")) (code-cov-files)))
+(define (new-files)
+  (map (lambda (x) (string-append x ".stcov")) (code-cov-files)))
 
 (define (nbuild-load-files files)
   (for-each compat:load files))
