@@ -15,8 +15,8 @@
 typedef struct seqbuf_data seqbuf_data_t;
 
 struct seqbuf_data {
-  entry_processor ep;
-  void* ep_data;
+  seqbuf_processor ep;
+  void* sp_data;
 };
 
 #define DATA(ssb)               ((seqbuf_data_t*)(ssb->data))
@@ -26,8 +26,8 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
 	       word **bot_loc,  /* Location of pointer to start of SSB */
 	       word **top_loc,  /* Location of pointer to next free of SSB*/
 	       word **lim_loc,  /* Location of pointer past end of SSB */
-	       entry_processor processor,
-	       void *ep_data )
+	       seqbuf_processor processor,
+	       void *sp_data )
 {
   seqbuf_t *ssb;
   seqbuf_data_t *ssb_data;
@@ -51,7 +51,7 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
   *ssb->lim = buf + num_entries;
 
   DATA(ssb)->ep = processor;
-  DATA(ssb)->ep_data = ep_data;
+  DATA(ssb)->sp_data = sp_data;
 
   return ssb;
 }
@@ -60,8 +60,8 @@ int process_seqbuf( seqbuf_t *ssb )
 {
   int retval;
   
-  void *ep_data = DATA(ssb)->ep_data;
-  retval = DATA(ssb)->ep( *ssb->bot, *ssb->top, ep_data );
+  void *sp_data = DATA(ssb)->sp_data;
+  retval = DATA(ssb)->ep( *ssb->bot, *ssb->top, sp_data );
   *ssb->top = *ssb->bot;
   return retval;
 }

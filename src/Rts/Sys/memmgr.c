@@ -385,9 +385,9 @@ static void permute_remembered_sets( gc_t *gc, int permutation[] )
     data->ssb_bot[j] = tmp[i].ssb_bot;  /* ssb pointers */
     data->ssb_top[j] = tmp[i].ssb_top;
     data->ssb_lim[j] = tmp[i].ssb_lim;
-    r->ssb_bot = data->ssb_bot + j;     /* ssb pointer locations */
-    r->ssb_top = data->ssb_top + j;
-    r->ssb_lim = data->ssb_lim + j;
+    r->ssb->bot = data->ssb_bot + j;     /* ssb pointer locations */
+    r->ssb->top = data->ssb_top + j;
+    r->ssb->lim = data->ssb_lim + j;
   }
 }
 

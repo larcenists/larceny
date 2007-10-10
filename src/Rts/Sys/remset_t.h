@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "larceny-types.h"
+#include "seqbuf_t.h"
 
 struct remset {
   int identity;
@@ -33,9 +34,7 @@ struct remset {
        */
 
   /* For the write barrier. */
-  word **ssb_bot;		/* Location of pointer to start of SSB */
-  word **ssb_top;		/* Location of pointer to next free in SSB */
-  word **ssb_lim;		/* Location of pointer past end of SSB */
+  seqbuf_t *ssb;
 
   void *data;			/* Implementation's data */
 };

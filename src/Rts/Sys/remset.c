@@ -118,6 +118,7 @@ static pool_t *allocate_pool_segment( unsigned entries );
 static void   free_pool_segments( pool_t *first, unsigned entries );
 static void ssb_consistency_check( remset_t *rs );
 
+static int ssb_process(word *bot, word *top, void *ep_data);
 
 remset_t *
 create_remset( int tbl_entries,    /* size of hash table, 0 = default */
@@ -181,12 +182,9 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
   data->tbl_lim = heapptr;
 
   /* SSB */
-  rs->ssb_bot = ssb_bot_loc;
-  rs->ssb_top = ssb_top_loc;
-  rs->ssb_lim = ssb_lim_loc;
-  *rs->ssb_bot = *rs->ssb_top = heapptr;
-  heapptr += ssb_entries;
-  *rs->ssb_lim = heapptr;
+  rs->ssb = create_seqbuf( ssb_entries, 
+			   ssb_bot_loc, ssb_top_loc, ssb_lim_loc, 
+			   ssb_process, rs ); 
 
   /* Node pool */
   p = allocate_pool_segment( pool_entries );
@@ -207,6 +205,10 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
   return rs;
 }
 
+static int ssb_process( word *bot, word *top, void *ep_data ) {
+  return rs_compact( (remset_t*)ep_data );
+}
+
 void rs_clear( remset_t *rs )
 {
   remset_data_t *data = DATA(rs);
@@ -216,7 +218,7 @@ void rs_clear( remset_t *rs )
   supremely_annoyingmsg( "REMSET @0x%p: clear", (void*)rs );
 
   /* Clear SSB */
-  *rs->ssb_top = *rs->ssb_bot;
+  *rs->ssb->top = *rs->ssb->bot;
 
   /* Clear hash table */
   for ( p=data->tbl_bot, i=data->tbl_lim-data->tbl_bot ; i > 0 ; p++, i-- )
@@ -277,10 +279,10 @@ bool rs_compact( remset_t *rs )
   assert( WORDS_PER_POOL_ENTRY == 2 );
 
   supremely_annoyingmsg( "REMSET @0x%p: compact", (void*)rs );
-  data->stats.ssb_recorded += *rs->ssb_top - *rs->ssb_bot;
+  data->stats.ssb_recorded += *rs->ssb->top - *rs->ssb->bot;
 
-  p = *rs->ssb_bot;
-  q = *rs->ssb_top;
+  p = *rs->ssb->bot;
+  q = *rs->ssb->top;
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
   tbl = data->tbl_bot;
@@ -318,7 +320,7 @@ bool rs_compact( remset_t *rs )
   data->stats.recorded += recorded;
   rs->live += recorded;
   data->curr_pool->top = pooltop;
-  *rs->ssb_top = *rs->ssb_bot;
+  *rs->ssb->top = *rs->ssb->bot;
   data->stats.compacted++;
 
   supremely_annoyingmsg( "REMSET @0x%x: Added %u elements (total %u). oflo=%d",
@@ -336,10 +338,10 @@ bool rs_compact_nocheck( remset_t *rs )
   assert( WORDS_PER_POOL_ENTRY == 2 );
 
   supremely_annoyingmsg( "REMSET @0x%p: fast compact", (void*)rs );
-  data->stats.ssb_recorded += *rs->ssb_top - *rs->ssb_bot;
+  data->stats.ssb_recorded += *rs->ssb->top - *rs->ssb->bot;
 
-  p = *rs->ssb_bot;
-  q = *rs->ssb_top;
+  p = *rs->ssb->bot;
+  q = *rs->ssb->top;
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
   tbl = data->tbl_bot;
@@ -372,7 +374,7 @@ bool rs_compact_nocheck( remset_t *rs )
   data->stats.recorded += recorded;
   rs->live += recorded;
   data->curr_pool->top = pooltop;
-  *rs->ssb_top = *rs->ssb_bot;
+  *rs->ssb->top = *rs->ssb->bot;
   data->stats.compacted++;
 
   return rs->has_overflowed;
@@ -394,7 +396,7 @@ void rs_enumerate( remset_t *rs,
 
   supremely_annoyingmsg( "REMSET @0x%p: scan", (void*)rs );
 
-  if ( *rs->ssb_top != *rs->ssb_bot )
+  if ( *rs->ssb->top != *rs->ssb->bot )
     rs_compact( rs );
 
   ps = DATA(rs)->first_pool;
@@ -442,8 +444,8 @@ void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
 
   rs_compact( r2 );
   ps = DATA(r2)->first_pool;
-  top = *r1->ssb_top;
-  lim = *r1->ssb_lim;
+  top = *r1->ssb->top;
+  lim = *r1->ssb->lim;
   while (1) {
     p = ps->bot;
     q = ps->top;
@@ -451,9 +453,9 @@ void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
       if (*p != 0) {
 	*top++ = *p;
 	if (top == lim) {
-	  *r1->ssb_top = top;
+	  *r1->ssb->top = top;
 	  rs_compact( r1 );
-	  top = *r1->ssb_top;
+	  top = *r1->ssb->top;
 	}
       }
       p += 2;
@@ -461,7 +463,7 @@ void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
     if (ps == DATA(r2)->curr_pool) break;
     ps = ps->next;
   }
-  *r1->ssb_top = top;
+  *r1->ssb->top = top;
   rs_compact( r1 );
 }
 
@@ -509,7 +511,7 @@ int rs_size( remset_t *rs )
   
   return (  data->pool_entries*data->numpools*WORDS_PER_POOL_ENTRY
           + data->tbl_lim - data->tbl_bot
-	  + *rs->ssb_lim - *rs->ssb_bot ) * sizeof(word);
+	  + *rs->ssb->lim - *rs->ssb->bot ) * sizeof(word);
 }
 
 void rs_stats( remset_t *rs )
@@ -518,18 +520,18 @@ void rs_stats( remset_t *rs )
 
   data->stats.allocated = 
     (data->tbl_lim - data->tbl_bot) +
-    (*rs->ssb_lim - *rs->ssb_bot) +
+    (*rs->ssb->lim - *rs->ssb->bot) +
     (data->pool_entries*data->numpools*WORDS_PER_POOL_ENTRY);
 
   data->stats.used =
     (data->tbl_lim - data->tbl_bot) +
-    (*rs->ssb_lim - *rs->ssb_bot) +
+    (*rs->ssb->lim - *rs->ssb->bot) +
     data->pool_entries*(data->numpools-1)*WORDS_PER_POOL_ENTRY +
     (data->curr_pool->top - data->curr_pool->bot);
 
   data->stats.live = 
     (data->tbl_lim - data->tbl_bot) +
-    (*rs->ssb_lim - *rs->ssb_bot) +
+    (*rs->ssb->lim - *rs->ssb->bot) +
     rs->live;
 
   stats_add_remset_stats( data->self, &data->stats );
@@ -623,8 +625,8 @@ static void ssb_consistency_check( remset_t *rs )
 {
   word *p, *q;
 
-  p = *rs->ssb_bot;
-  q = *rs->ssb_top;
+  p = *rs->ssb->bot;
+  q = *rs->ssb->top;
 
   while (p < q) {
     gclib_check_object( *p );
