@@ -54,6 +54,9 @@ typedef struct static_heap static_heap_t;
 /* remset_t is elaborated in remset_t.h */
 typedef struct remset remset_t;
 
+/* seqbuf_t is elaborated in seqbuf_t.h */
+typedef struct seqbuf seqbuf_t;
+
 /* semispace_t and ss_chunk_t are elaborated in semispace_t.h */
 typedef struct semispace semispace_t;
 typedef struct ss_chunk ss_chunk_t;

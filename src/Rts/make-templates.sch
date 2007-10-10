@@ -373,7 +373,8 @@ PRECISE_GC_OBJECTS=\\
 	Sys/alloc.$(O) Sys/cheney.$(O) Sys/dof-heap.$(O) Sys/gc.$(O) \\
 	Sys/heapio.$(O) Sys/los.$(O) Sys/memmgr.$(O) Sys/ffi.$(O) \\
 	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) \\
-	Sys/old_heap_t.$(O) Sys/old-heap.$(O) Sys/remset.$(O) \\
+	Sys/old_heap_t.$(O) Sys/old-heap.$(O) \\
+	Sys/seqbuf.$(O) Sys/remset.$(O) \\
 	Sys/sc-heap.$(O) Sys/semispace.$(O) Sys/static-heap.$(O) \\
 	Sys/stats.$(O) Sys/young_heap_t.$(O)
 
@@ -560,6 +561,7 @@ Sys/old-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \\
 	Sys/stats.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \\
 	Sys/remset_t.h Sys/semispace_t.h Sys/static_heap_t.h Sys/young_heap_t.h
 Sys/osdep.$(O): $(LARCENY_H)
+Sys/seqbuf.$(O): $(LARCENY_H) Sys/gclib.h Sys/seqbuf_t.h
 Sys/remset.$(O): $(LARCENY_H) Sys/gclib.h Sys/memmgr.h Sys/remset_t.h
 Sys/sc-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \\
 	Sys/stats.h Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h \\
