@@ -1296,4 +1296,5 @@
 
 (define (make-read-eval-print-loop-agent wnd textmodel)
   (extend-with-repl 
-   (extend-with-auto-indentation textmodel)))
+   (extend-with-paren-matching
+    (extend-with-auto-indentation textmodel))))
