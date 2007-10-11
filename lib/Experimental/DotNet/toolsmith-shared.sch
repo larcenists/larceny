@@ -328,8 +328,8 @@
         (apply values vals))))
 
   (make-root-object textmodel
-   ((textstring) mytext)
-   ((set-textstring! string) 
+   ((textstring) "=> string holding model's text." mytext)
+   ((set-textstring! string) "Sets model's text to string parameter."
     (cond ((and (not (zero? (string-length string)))
                 (char=? #\newline 
                         (string-ref string (- (string-length string) 1))))
@@ -339,14 +339,16 @@
                   (display "warning: appending newline")
                   (newline))
            (set! mytext (string-append string "\n")))))
-   ((selection) 
+   ((selection) "=> (values b e) where [b,e) is selected.  
+ If b = e, then no text is selected, and the cursor resides at b."
     (cond ((number? selection)
            (values selection selection))
           (else
            (values (car selection) (cdr selection)))))
 
    ((on-cursor-reposition) "event hook" 'default-hook-does-nothing)
-   ((set-selection! start-pos-incl end-pos-excl)
+   ((set-selection! start-pos-incl end-pos-excl) "Sets model's selection to 
+ [start-pos-incl,end-pos-excl)."
     (call-with-wnd-update
      textmodel 
      (lambda () (set! selection 
