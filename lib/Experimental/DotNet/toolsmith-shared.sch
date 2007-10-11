@@ -1289,7 +1289,7 @@
              (lambda (beg end) (<= prompt-idx beg)))
            ((delegate textmodel 'delete-char-at-point! repl-agent)))))
 
-   ((prompt!) 
+   ((prompt!) "Prints a prompt at the end of the text buffer."
     (let* ((ea repl-agent))
       (call-with-values (lambda () ((ea 'selection)))
         (lambda (beg end) ((ea 'set-selection!) end end)))
