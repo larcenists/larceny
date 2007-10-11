@@ -1110,6 +1110,11 @@
       
       (case (car mrr)
         ((evaluate) 
+
+         ;; Now that we've read it the user's text, we should
+         ;; bump the prompt over it.
+         (bump-prompt! (- (string-length subtext) 1))
+
          ;; First provide user feedback by actually printing char
          (cond (mchar
                 (insert-string-at-point/bump! ea (string mchar))))
@@ -1136,6 +1141,9 @@
                             (newline)
                             (escape "print-error"))
                           (lambda () ((repl-printer) val strport)))))))))
+
+             ;; Write rendered value to textview, bumping the prompt over it.
+             (insert-string-at-point/bump! ea valstr)
              
              (let* ((promptstr
                      (call-with-output-string
@@ -1146,6 +1154,10 @@
                                       (subtext len: ,(string-length subtext))
                                       (subtext: ,subtext)))
                              (newline))))
+
+               ;; Print new prompt
+               (insert-string-at-point/bump! ea promptstr)
+
                (let* ((remaining-input
                        (substring subtext 
                                   count-chars-read (string-length subtext)))
@@ -1163,16 +1175,6 @@
                            (substring remaining-input 0 (- len 1)))
                           (else
                            remaining-input)))))
-                 
-                 ;; Now that we've read it the user's text, we should
-                 ;; bump the prompt over it.
-                 (bump-prompt! (- (string-length subtext) 1))
-                 
-                 ;; Write rendered value to textview, bumping the prompt over it.
-                 (insert-string-at-point/bump! ea valstr)
-                 
-                 ;; Print new prompt
-                 (insert-string-at-point/bump! ea promptstr)
                  
                  ;; XXX if there is still data on orig-port, then we should
                  ;; probably propagate it down past the new prompt.  (This
