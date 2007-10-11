@@ -1024,7 +1024,7 @@
 (define (make-editor-agent wnd width height)
   ((editor-agent-maker (lambda (w tm) tm)) wnd width height))
 
-(define (make-read-eval-print-loop-agent wnd textmodel)
+(define (extend-with-repl textmodel)
   (define prompt-idx 0)
   (define (bump-prompt! count) 
     '(begin (display "  ")
@@ -1083,7 +1083,7 @@
   ;; Maybe I should abstract over this above...
   (define my-own-env (environment-copy (interaction-environment)))
 
-  (define (evaluate-first-sexp-after-prompt mchar)
+  (define (evaluate-first-sexp-after-prompt mchar alternative-behavior)
     ;; I'm going to hack this up by making a custom port for reading
     ;; from the text.  If the reader ever requests to read past the
     ;; end of the input text, then we abandon the read attempt (via an
@@ -1211,7 +1211,7 @@
              (insert-string-at-point! ea remaining-input))
            ))
         ((eof)      
-         (insert-string-at-point! ea (string (cadr mrr))))
+         (alternative-behavior))
         ((error)
          (let ((errstr (call-with-output-string
                         (lambda (p)
@@ -1254,7 +1254,11 @@
                    ;; Move prompt to end of buffer
                    ((ea 'set-selection!) (- end 1) (- end 1))
                    (insert-string-at-point! ea subtext)))))
-         (evaluate-first-sexp-after-prompt mchar)))
+         (evaluate-first-sexp-after-prompt 
+          mchar
+          (lambda () 
+            ((delegate textmodel 'on-keydown repl-agent) mchar sym mods))
+          )))
 
       ((back delete)
        (let* ((ea repl-agent))
@@ -1289,3 +1293,6 @@
                     ((repl-prompt) (repl-level) strport)))))
         (insert-string-at-point/bump! ea str))))
    ))
+
+(define (make-read-eval-print-loop-agent wnd textmodel)
+  (extend-with-repl textmodel))
