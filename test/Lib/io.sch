@@ -334,7 +334,32 @@
           5000)
          (make-bytevector 5000 200))
 
-   ; FIXME: make-custom-textual-input-port isn't implemented yet
+   (test "make-custom-textual-input-port"
+         (get-string-n
+          (make-custom-textual-input-port
+           "two-hundred"
+           (lambda (s start count)
+             (do ((n (+ start count))
+                  (i start (+ i 1)))
+                 ((= i n) count)
+               (string-set! s i #\*)))
+           #f #f #f)
+          5000)
+         (make-string 5000 #\*))
+
+   (test "make-custom-textual-input-port (Zeno)"
+         (get-string-n
+          (make-custom-textual-input-port
+           "two-hundred"
+           (lambda (s start count)
+             (let ((count (max 1 (quotient count 2))))
+               (do ((n (+ start count))
+                    (i start (+ i 1)))
+                   ((= i n) count)
+                 (string-set! s i #\x3bb))))
+           #f #f #f)
+          5000)
+         (make-string 5000 #\x3bb))
 
    (test "make-custom-binary-output-port"
          (let* ((bytes '())
@@ -371,6 +396,149 @@
            (close-output-port p)
            (reverse bytes))
          (cons 1 (vector->list (make-vector 5000 100))))
+
+   (test "make-custom-textual-output-port"
+         (let* ((chars '())
+                (p (make-custom-textual-output-port
+                    "one-hundred"
+                    (lambda (s start count)
+                      (do ((n (+ start count))
+                           (i start (+ i 1)))
+                          ((= i n) count)
+                        (set! chars (cons (string-ref s i) chars))))
+                    #f #f #f)))
+           (put-char p #\x10001)
+           (put-string p (make-string 5000 #\.))
+           (close-output-port p)
+           (reverse chars))
+         (cons #\x10001 (vector->list (make-vector 5000 #\.))))
+
+   (test "make-custom-textual-output-port (Zeno)"
+         (let* ((chars '())
+                (p (make-custom-textual-output-port
+                    "one-hundred"
+                    (lambda (s start count)
+                      (let ((count (if (positive? count)
+                                       (max 1 (quotient count 2))
+                                       0)))
+                        (do ((n (+ start count))
+                             (i start (+ i 1)))
+                            ((= i n)
+                             count)
+                          (set! chars (cons (string-ref s i) chars)))))
+                    #f #f #f)))
+           (put-char p #\$)
+           (put-string p (make-string 5000 #\x3bb))
+           (close-output-port p)
+           (reverse chars))
+         (cons #\$ (vector->list (make-vector 5000 #\x3bb))))
+
+   (test "make-custom-binary-input/output-port"
+         (get-bytevector-n
+          (make-custom-binary-input/output-port
+           "two-hundred"
+           (lambda (bv start count)
+             (do ((n (+ start count))
+                  (i start (+ i 1)))
+                 ((= i n) count)
+               (bytevector-set! bv i 200)))
+           (lambda (bv start count) count)
+           #f #f #f)
+          5000)
+         (make-bytevector 5000 200))
+
+   (test "make-custom-binary-input/output-port (Zeno)"
+         (get-bytevector-n
+          (make-custom-binary-input/output-port
+           "two-hundred"
+           (lambda (bv start count)
+             (let ((count (max 1 (quotient count 2))))
+               (do ((n (+ start count))
+                    (i start (+ i 1)))
+                   ((= i n) count)
+                 (bytevector-set! bv i 200))))
+           (lambda (bv start count) count)
+           #f #f #f)
+          5000)
+         (make-bytevector 5000 200))
+
+   (test "make-custom-binary-input/output-port"
+         (let* ((bytes '())
+                (p (make-custom-binary-input/output-port
+                    "one-hundred"
+                    (lambda (bv start count) count)
+                    (lambda (bv start count)
+                      (do ((n (+ start count))
+                           (i start (+ i 1)))
+                          ((= i n) count)
+                        (set! bytes (cons (bytevector-ref bv i) bytes))))
+                    #f #f #f)))
+           (put-u8 p 1)
+           (put-bytevector p (make-bytevector 5000 100))
+           (close-port p)
+           (reverse bytes))
+         (cons 1 (vector->list (make-vector 5000 100))))
+
+   (test "make-custom-binary-input/output-port (Zeno)"
+         (let* ((bytes '())
+                (p (make-custom-binary-input/output-port
+                    "one-hundred"
+                    (lambda (bv start count) count)
+                    (lambda (bv start count)
+                      (let ((count (if (positive? count)
+                                       (max 1 (quotient count 2))
+                                       0)))
+                        (do ((n (+ start count))
+                             (i start (+ i 1)))
+                            ((= i n)
+                             count)
+                          (set! bytes (cons (bytevector-ref bv i) bytes)))))
+                    #f #f #f)))
+           (put-u8 p 1)
+           (put-bytevector p (make-bytevector 5000 100))
+           (close-port p)
+           (reverse bytes))
+         (cons 1 (vector->list (make-vector 5000 100))))
+
+   (test "make-custom-binary-input/output-port (lookahead)"
+         (let ((p (make-custom-binary-input/output-port
+                   "looking"
+                   (lambda (bv start count)
+                     (do ((i 0 (+ i 1)))
+                         ((= i count)
+                          count)
+                       (bytevector-set! bv (+ start i) 33)))
+                   (lambda (bv start count)
+                     (let ((bv2 (make-bytevector count)))
+                       (bytevector-copy! bv start bv2 0 count)
+                       count))
+                   #f #f #f)))
+           (let* ((n1 (get-u8 p))
+                  (n2 (lookahead-u8 p))
+                  (n3 (begin (put-u8 p 44) (lookahead-u8 p)))
+                  (n4 (get-u8 p)))
+             (list n1 n2 n3 n4)))
+         '(33 33 33 33))
+
+   (test "make-custom-textual-input/output-port (lookahead)"
+         (let ((p (make-custom-textual-input/output-port
+                   "looking"
+                   (lambda (bv start count)
+                     (do ((i 0 (+ i 1)))
+                         ((= i count)
+                          count)
+                       (bytevector-set! bv (+ start i) (char->integer #\*))))
+                   (lambda (bv start count)
+                     (let ((bv2 (make-bytevector count)))
+                       (bytevector-copy! bv start bv2 0 count)
+                       count))
+                   #f #f #f)))
+           (let* ((c1 (get-char p))
+                  (c2 (lookahead-char p))
+                  (c3 (begin (put-char p #\a) (lookahead-char p)))
+                  (c4 (get-char p)))
+             (string c1 c2 c3 c4)))
+         "****")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

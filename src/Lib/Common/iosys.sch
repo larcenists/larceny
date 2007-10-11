@@ -31,7 +31,7 @@
 ;     mainbuf
 ;     auxbuf          4-byte bytevector
 ;
-; An input port p can be in one of these states.
+; An input (but not input/output) port p can be in one of these states:
 ;
 ; closed          type = 0 & state = 'closed
 ;
@@ -39,7 +39,7 @@
 ;
 ; eof             type > 0 & state = 'eof
 ;
-; binary          type = <binary,_> & state = 'binary
+; binary          type = <binary,input> & state = 'binary
 ;
 ; textual         (type = <textual,input> & state = 'textual
 ;                 & mainbuf[mainlim] = 255
@@ -55,20 +55,54 @@
 ;                 & mainbuf[mainlim] = 255
 ;                 & 0 <= auxptr < auxlim
 ;
-; input/output    type = <_,input/output> & state = 'input/output
-;                 & mainptr = 0 & mainbuf[0] = 255
-;                 & mainlim = (bytevector-length mainbuf);                
-;
 ; In the auxstart state, the contents of auxbuf precede mainbuf.
 ; In the auxend state, the contents of auxbuf follow mainbuf.
 ;
 ; In the textual state, the buffered bytes lie between mainptr
 ; and mainlim.
 ;
-; In the input/output state, the sole purpose of the invariant
-; is to force all inlined read and write operations to perform
-; a closed call to the main read and write routines defined in
-; this file.
+; Input/output ports preserve this invariant:
+;
+; closed          type = <_,input/output> & state = 'closed
+;
+; error           type > <_,input/output> & state = 'error
+;
+; eof             type = <_,input/output> & state = 'eof
+;
+; input/output    type = <_,input/output> & state = 'input/output
+;                 & mainptr <= 4
+;                 & mainlim = (bytevector-length mainbuf)
+;
+; The buffer is empty iff mainptr = 0.  If mainptr > 0, then
+; the buffer contains exactly one lookahead byte or character
+; (in UTF-8).  Aside from the one byte or character of
+; lookahead, input/output ports are never buffered.
+;
+; Input/output ports are different in several other ways:
+;
+;     If an input/output port supports get-port-position at all,
+;     then it is implemented by the port's ioproc, not by the
+;     code in this file.
+;
+;     If an input/output port supports set-port-position!,
+;     then it is implemented by the port's ioproc, not by the
+;     code in this file.
+;
+;     A binary input/output port's ioproc never reads or writes
+;     more than one byte at a time.
+;
+;     A textual input/output port's ioproc never reads or writes
+;     more than one character at a time.
+;
+;     If a textual input/output port is transcoded, then all
+;     transcoding and end-of-line handling is done by the port's
+;     ioproc, not by the on-the-fly transcoding in this file
+;     (partly because end-of-line handling requires accurate
+;     positioning).
+;
+; Inlined read and write operations on input/output ports
+; always perform a closed call to the main read and write
+; routines defined in this file.
 ;
 ; FIXME:  For textual output ports, keeping the buffered bytes
 ; between 0 and mainptr *might* be better.  This might affect
@@ -127,8 +161,6 @@
 (define type:binary-input/output  6)
 (define type:textual-input/output 7)
 
-; FIXME:  The input/output direction is not yet implemented.
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Fields and offsets of a port structure.
@@ -181,7 +213,11 @@
 (define port.linestart 15) ; integer: character position after last line ending
 (define port.wasreturn 16) ; boolean: last line ending was #\return
 
-(define port.structure-size 17)      ; size of port structure
+; all ports
+
+(define port.setposn   17) ; boolean: true iff supports set-port-position!
+
+(define port.structure-size 18)      ; size of port structure
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -219,15 +255,19 @@
 ;   ready? : iodata -> boolean
 ;   name : iodata -> string
 ;
+; If the port supports set-port-position!, then ioproc also performs
+;
+;   set-position! : iodata * posn -> { 'ok, 'error }
+;
 ; Note: io/make-port defaults to textual (for backward compatibility)
-
 
 (define (io/make-port ioproc iodata . rest)
   (let ((v (make-vector port.structure-size #f))
         (input? #f)
         (output? #f)
         (binary? #f)
-        (textual? #f))
+        (textual? #f)
+        (set-position? #f))
 
     (vector-set! v port.bufmode 'block) ; default buffer mode is block
 
@@ -236,15 +276,16 @@
     (for-each
      (lambda (keyword)
        (case keyword
-        ((input)       (set! input? #t))
-        ((output)      (set! output? #t))
-        ((text)        (set! textual? #t))
-        ((binary)      (set! binary? #t))
-        ((none)        (vector-set! v port.bufmode 'none))
-        ((line)        (vector-set! v port.bufmode 'line))
-        ((datum flush) (vector-set! v port.bufmode 'datum)
-                       (vector-set! v port.wr-flush? #t))
-        ((block)       (vector-set! v port.bufmode 'block))
+        ((input)         (set! input? #t))
+        ((output)        (set! output? #t))
+        ((text)          (set! textual? #t))
+        ((binary)        (set! binary? #t))
+        ((set-position!) (set! set-position? #t))
+        ((none)          (vector-set! v port.bufmode 'none))
+        ((line)          (vector-set! v port.bufmode 'line))
+        ((datum flush)   (vector-set! v port.bufmode 'datum)
+                         (vector-set! v port.wr-flush? #t))
+        ((block)         (vector-set! v port.bufmode 'block))
         (else
          (assertion-violation 'io/make-port "bad attribute" (car l))
          #t)))
@@ -254,16 +295,18 @@
         (assertion-violation 'io/make-port "binary incompatible with textual"))
     (vector-set! v
                  port.type
-                 (cond ((and binary? input?)   type:binary-input)
-                       ((and binary? output?)  type:binary-output)
-                       ((and textual? input?)  type:textual-input)
-                       ((and textual? output?) type:textual-output)
-                       ; FIXME: no input/output ports yet
-                       (input?                 type:textual-input)
-                       (output?                type:textual-output)
-                       (else
-                        (error
-                         'io/make-port "neither input nor output" rest))))
+                 (cond
+                  ((and binary? input? output?)  type:binary-input/output)
+                  ((and binary? input?)          type:binary-input)
+                  ((and binary? output?)         type:binary-output)
+                  ((and textual? input? output?) type:textual-input/output)
+                  ((and textual? input?)         type:textual-input)
+                  ((and textual? output?)        type:textual-output)
+                  (input?                        type:textual-input)
+                  (output?                       type:textual-output)
+                  (else
+                   (error
+                    'io/make-port "neither input nor output" rest))))
 
     (vector-set! v port.mainbuf (make-bytevector port.mainbuf-size))
     (vector-set! v port.mainptr 0)
@@ -281,6 +324,8 @@
     (vector-set! v port.linesread 0)
     (vector-set! v port.linestart 0)
     (vector-set! v port.wasreturn #f)
+
+    (vector-set! v port.setposn set-position?)
 
     (typetag-set! v sys$tag.port-typetag)
     (io/reset-buffers! v)                     ; inserts sentinel
@@ -389,114 +434,6 @@
       (begin (error "write-char: not an output port: " p)
              #t)))
 
-(define (io/put-u8 p byte)
-  (assert (port? p))
-  (let ((type (vector-like-ref p port.type))
-        (buf (vector-like-ref p port.mainbuf))
-        (lim (vector-like-ref p port.mainlim)))
-    (cond ((eq? type type:binary-output)
-           (cond ((< lim (bytevector-like-length buf))
-                  (bytevector-like-set! buf lim byte)
-                  (vector-like-set! p port.mainlim (+ lim 1))
-                  (unspecified))
-                 (else
-                  (io/flush-buffer p)
-                  (io/put-u8 p byte))))
-          (else
-           (error 'put-u8 "not a binary output port" p)
-           #t))))
-
-(define (io/put-char p c)
-  (if (port? p)
-      (let ((type (vector-like-ref p port.type))
-            (buf (vector-like-ref p port.mainbuf))
-            (lim (vector-like-ref p port.mainlim)))
-        (cond ((eq? type type:textual-output)
-               (let ((sv (char->integer c))
-                     (n  (bytevector-length buf)))
-                 (cond ((fx>= lim n)
-                        (io/flush-buffer p)
-                        (io/put-char p c))
-                       ((fx= sv 10)
-                        (io/put-eol p))
-                       ((fx<= sv #x7f)
-                        (bytevector-set! buf lim sv)
-                        (vector-like-set! p port.mainlim (+ lim 1))
-                        (unspecified))
-                       ((and (fx<= sv #xff)
-                             (fx= codec:latin-1
-                                  (fxlogand
-                                   transcoder-mask:codec
-                                   (vector-like-ref p port.transcoder))))
-                        (bytevector-set! buf lim sv)
-                        (vector-like-set! p port.mainlim (+ lim 1))
-                        (unspecified))
-                       ((not (fx= codec:utf-8
-                                  (fxlogand
-                                   transcoder-mask:codec
-                                   (vector-like-ref p port.transcoder))))
-                        (let* ((t (vector-like-ref p port.transcoder))
-                               (mode (fxlogand transcoder-mask:errmode t)))
-                          (cond ((fx= mode errmode:ignore)
-                                 (unspecified))
-                                ((fx= mode errmode:replace)
-                                 (io/put-char p #\?))
-                                ((fx= mode errmode:raise)
-                                 (error 'put-char "encoding error" p c))
-                                (else
-                                 (assertion-violation 'put-char
-                                                      "internal error" p c)))))
-                       ((fx>= lim (- n 4))
-                        (io/flush-buffer p)
-                        (io/put-char p c))
-                       ((<= sv #x07ff)
-                        (let ((u0 (fxlogior #b11000000
-                                            (fxrshl sv 6)))
-                              (u1 (fxlogior #b10000000
-                                            (fxlogand sv #b00111111)))
-                              (pos (vector-like-ref p port.mainpos)))
-                          (bytevector-set! buf lim u0)
-                          (bytevector-set! buf (+ lim 1) u1)
-                          (vector-like-set! p port.mainpos (- pos 1))
-                          (vector-like-set! p port.mainlim (+ lim 2))))
-                       ((<= sv #xffff)
-                        (let ((u0 (fxlogior #b11100000
-                                            (fxrshl sv 12)))
-                              (u1 (fxlogior #b10000000
-                                            (fxlogand (fxrshl sv 6)
-                                                      #b00111111)))
-                              (u2 (fxlogior #b10000000
-                                            (fxlogand sv #b00111111)))
-                              (pos (vector-like-ref p port.mainpos)))
-                          (bytevector-set! buf lim u0)
-                          (bytevector-set! buf (+ lim 1) u1)
-                          (bytevector-set! buf (+ lim 2) u2)
-                          (vector-like-set! p port.mainpos (- pos 2))
-                          (vector-like-set! p port.mainlim (+ lim 3))))
-                       (else
-                        (let ((u0 (fxlogior #b11110000
-                                            (fxrshl sv 18)))
-                              (u1 (fxlogior #b10000000
-                                            (fxlogand (fxrshl sv 12)
-                                                      #b00111111)))
-                              (u2 (fxlogior #b10000000
-                                            (fxlogand (fxrshl sv 6)
-                                                      #b00111111)))
-                              (u3 (fxlogior #b10000000
-                                            (fxlogand sv #b00111111)))
-                              (pos (vector-like-ref p port.mainpos)))
-                          (bytevector-set! buf lim u0)
-                          (bytevector-set! buf (+ lim 1) u1)
-                          (bytevector-set! buf (+ lim 2) u2)
-                          (bytevector-set! buf (+ lim 3) u3)
-                          (vector-like-set! p port.mainpos (- pos 3))
-                          (vector-like-set! p port.mainlim (+ lim 4)))))))
-              (else
-               (error 'put-char "not an output port" p)
-               #t)))
-      (begin (error "put-char: not an output port: " p)
-             #t)))
-
 ; FIXME:  The name is misleading, since it now requires a bytevector.
 ; FIXME:  Asm/Shared/makefasl.sch uses this procedure, mainly
 ; to write codevectors.
@@ -600,6 +537,30 @@
 ; R6RS i/o (preliminary and incomplete)
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (io/port-has-set-port-position!? p)
+  (cond ((port? p)
+         (vector-like-ref p port.setposn))
+        (else
+         (error 'io/has-set-port-position!? "illegal argument" p)
+         #t)))
+
+(define (io/set-port-position! p posn)
+  (cond ((and (port? p)
+              (vector-like-ref p port.setposn))
+         (if (and (exact? posn) (integer? posn))
+             (begin (io/reset-buffers! p)
+                    (vector-like-set! p port.mainpos posn)
+
+                    ; FIXME: should check the result
+
+                    (((vector-like-ref p port.ioproc) 'set-position!)
+                     (vector-like-ref p port.iodata)
+                     posn))
+             (error 'io/set-port-position! "illegal argument" posn)))
+        (else
+         (error 'io/set-port-position! "illegal argument" p)
+         #t)))
 
 (define (io/port-transcoder p)
   (assert (port? p))
@@ -748,17 +709,16 @@
   (assert (eq? 'binary (vector-like-ref p port.state)))
   (if (io/output-port? p)
       (io/flush p))
+
   ; shallow copy
-  (let* ((n (vector-like-length p))
-         (newport (make-vector n)))
-    (do ((i 0 (+ i 1)))
-        ((= i n))
-      (vector-set! newport i (vector-like-ref p i)))
-    (vector-set! newport
-                 port.type
-                 (fxlogior type:textual (vector-like-ref p port.type)))
-    (vector-set! newport port.transcoder t)
-    (vector-set! newport port.state 'textual)
+
+  (let ((newport (io/clone-port p)))
+    (vector-like-set! newport
+                      port.type
+                      (fxlogior type:textual (vector-like-ref p port.type)))
+    (vector-like-set! newport port.transcoder t)
+    (vector-like-set! newport port.state 'textual)
+    (vector-like-set! newport port.setposn #f)
 
     ; io/transcode-port! expects a newly filled mainbuf,
     ; so we have to fake it here.
@@ -779,9 +739,22 @@
 
     (io/set-closed-state! p)
 
-    (typetag-set! newport sys$tag.port-typetag)
-    (if (io/input-port? newport)
-        (io/transcode-port! newport))
+    (cond ((and (io/input-port? newport)
+                (io/output-port? newport))
+           (assert #t))
+          ((io/input-port? newport)
+           (io/transcode-port! newport)))
+    newport))
+
+; Like transcoded-port but preserves slightly different state
+; and uses the correct transcoder for custom textual ports.
+
+(define (io/custom-transcoded-port p)
+  (assert (port? p))
+  (let* ((setposn (vector-like-ref p port.setposn))
+         (t (make-transcoder (utf-8-codec) 'none 'ignore))
+         (newport (io/transcoded-port p t)))
+    (vector-like-set! newport port.setposn setposn)
     newport))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -798,9 +771,11 @@
         (buf  (vector-like-ref p port.mainbuf))
         (ptr  (vector-like-ref p port.mainptr))
         (lim  (vector-like-ref p port.mainlim)))
-    (cond ((not (eq? type 2))
-           (assertion-violation 'get-u8
-                                "not an open binary input port" p))
+    (cond ((not (eq? type type:binary-input))
+           (if (eq? type type:binary-input/output)
+               (io/get-u8-input/output p lookahead?)
+               (assertion-violation 'get-u8
+                                    "not an open binary input port" p)))
           ((fx< ptr lim)
            (let ((byte (bytevector-ref buf ptr)))
              (if (not lookahead?)
@@ -823,8 +798,10 @@
         (ptr  (vector-like-ref p port.mainptr))
         (lim  (vector-like-ref p port.mainlim)))
     (cond ((not (eq? type type:textual-input))
-           (assertion-violation 'get-char
-                                "argument not a textual input port" p))
+           (if (eq? type type:textual-input/output)
+               (io/get-char-input/output p lookahead?)
+               (assertion-violation 'get-char
+                                    "argument not a textual input port" p)))
           ((fx< ptr lim)
            (let ((unit (bytevector-ref buf ptr)))
              (cond ((<= unit #x7f)
@@ -901,6 +878,233 @@
            (io/reset-buffers! p)
            (io/fill-buffer! p)
            (io/get-char p lookahead?)))))
+
+(define (io/put-u8 p byte)
+  (assert (port? p))
+  (let ((type (vector-like-ref p port.type))
+        (buf (vector-like-ref p port.mainbuf))
+        (lim (vector-like-ref p port.mainlim)))
+    (cond ((eq? type type:binary-output)
+           (cond ((< lim (bytevector-like-length buf))
+                  (bytevector-like-set! buf lim byte)
+                  (vector-like-set! p port.mainlim (+ lim 1))
+                  (unspecified))
+                 (else
+                  (io/flush-buffer p)
+                  (io/put-u8 p byte))))
+          ((eq? type type:binary-input/output)
+           (io/put-u8-input/output p byte))
+          (else
+           (error 'put-u8 "not a binary output port" p)
+           #t))))
+
+(define (io/put-char p c)
+  (if (port? p)
+      (let ((type (vector-like-ref p port.type))
+            (buf (vector-like-ref p port.mainbuf))
+            (lim (vector-like-ref p port.mainlim)))
+        (cond ((eq? type type:textual-output)
+               (let ((sv (char->integer c))
+                     (n  (bytevector-length buf)))
+                 (cond ((fx>= lim n)
+                        (io/flush-buffer p)
+                        (io/put-char p c))
+                       ((fx= sv 10)
+                        (io/put-eol p))
+                       ((fx<= sv #x7f)
+                        (bytevector-set! buf lim sv)
+                        (vector-like-set! p port.mainlim (+ lim 1))
+                        (unspecified))
+                       ((and (fx<= sv #xff)
+                             (fx= codec:latin-1
+                                  (fxlogand
+                                   transcoder-mask:codec
+                                   (vector-like-ref p port.transcoder))))
+                        (bytevector-set! buf lim sv)
+                        (vector-like-set! p port.mainlim (+ lim 1))
+                        (unspecified))
+                       ((not (fx= codec:utf-8
+                                  (fxlogand
+                                   transcoder-mask:codec
+                                   (vector-like-ref p port.transcoder))))
+                        (let* ((t (vector-like-ref p port.transcoder))
+                               (mode (fxlogand transcoder-mask:errmode t)))
+                          (cond ((fx= mode errmode:ignore)
+                                 (unspecified))
+                                ((fx= mode errmode:replace)
+                                 (io/put-char p #\?))
+                                ((fx= mode errmode:raise)
+                                 (error 'put-char "encoding error" p c))
+                                (else
+                                 (assertion-violation 'put-char
+                                                      "internal error" p c)))))
+                       ((fx>= lim (- n 4))
+                        (io/flush-buffer p)
+                        (io/put-char p c))
+                       ((<= sv #x07ff)
+                        (let ((u0 (fxlogior #b11000000
+                                            (fxrshl sv 6)))
+                              (u1 (fxlogior #b10000000
+                                            (fxlogand sv #b00111111)))
+                              (pos (vector-like-ref p port.mainpos)))
+                          (bytevector-set! buf lim u0)
+                          (bytevector-set! buf (+ lim 1) u1)
+                          (vector-like-set! p port.mainpos (- pos 1))
+                          (vector-like-set! p port.mainlim (+ lim 2))))
+                       ((<= sv #xffff)
+                        (let ((u0 (fxlogior #b11100000
+                                            (fxrshl sv 12)))
+                              (u1 (fxlogior #b10000000
+                                            (fxlogand (fxrshl sv 6)
+                                                      #b00111111)))
+                              (u2 (fxlogior #b10000000
+                                            (fxlogand sv #b00111111)))
+                              (pos (vector-like-ref p port.mainpos)))
+                          (bytevector-set! buf lim u0)
+                          (bytevector-set! buf (+ lim 1) u1)
+                          (bytevector-set! buf (+ lim 2) u2)
+                          (vector-like-set! p port.mainpos (- pos 2))
+                          (vector-like-set! p port.mainlim (+ lim 3))))
+                       (else
+                        (let ((u0 (fxlogior #b11110000
+                                            (fxrshl sv 18)))
+                              (u1 (fxlogior #b10000000
+                                            (fxlogand (fxrshl sv 12)
+                                                      #b00111111)))
+                              (u2 (fxlogior #b10000000
+                                            (fxlogand (fxrshl sv 6)
+                                                      #b00111111)))
+                              (u3 (fxlogior #b10000000
+                                            (fxlogand sv #b00111111)))
+                              (pos (vector-like-ref p port.mainpos)))
+                          (bytevector-set! buf lim u0)
+                          (bytevector-set! buf (+ lim 1) u1)
+                          (bytevector-set! buf (+ lim 2) u2)
+                          (bytevector-set! buf (+ lim 3) u3)
+                          (vector-like-set! p port.mainpos (- pos 3))
+                          (vector-like-set! p port.mainlim (+ lim 4)))))))
+              ((eq? type type:textual-input/output)
+               (io/put-char-input/output p c))
+              (else
+               (error 'put-char "not an output port" p)
+               #t)))
+      (begin (error "put-char: not an output port: " p)
+             #t)))
+
+; Operations on input/output ports, which are always custom.
+;
+; These operations are invoked only when p is known to be a
+; custom input/output port of the correct type (binary/textual).
+
+(define (io/get-u8-input/output p lookahead?)
+  (let* ((state   (vector-like-ref p port.state))
+         (mainbuf (vector-like-ref p port.mainbuf))
+         (mainptr (vector-like-ref p port.mainptr))
+         (iodata  (vector-like-ref p port.iodata))
+         (ioproc  (vector-like-ref p port.ioproc)))
+    (cond ((eq? state 'eof)
+           (eof-object))
+          ((eq? state 'error)
+           (error 'get-u8 "permanent read error on port " p)
+           (eof-object))
+          ((eq? state 'closed)
+           (error 'get-u8 "read attempted on closed port " p))
+          ((> mainptr 0)
+           (let ((r (bytevector-ref mainbuf 0)))
+             (if (not lookahead?)
+                 (vector-like-set! p port.mainptr 0))
+             r))
+          (else
+           (let ((n ((ioproc 'read) iodata mainbuf)))
+             (cond ((eq? n 1)
+                    (let ((r (bytevector-ref mainbuf 0)))
+                      (if lookahead?
+                          (vector-like-set! p port.mainptr 1))
+                      r))
+                   ((or (eq? n 0) (eq? n 'eof))
+                    (io/set-eof-state! p)
+                    (eof-object))
+                   (else
+                    (io/set-error-state! p)
+                    (io/get-u8-input/output p lookahead?))))))))
+
+(define (io/get-char-input/output p lookahead?)
+  (let* ((state   (vector-like-ref p port.state))
+         (mainbuf (vector-like-ref p port.mainbuf))
+         (mainptr (vector-like-ref p port.mainptr))
+         (iodata  (vector-like-ref p port.iodata))
+         (ioproc  (vector-like-ref p port.ioproc)))
+    (cond ((eq? state 'eof)
+           (eof-object))
+          ((eq? state 'error)
+           (error 'get-char "Read error on port " p)
+           (eof-object))
+          ((eq? state 'closed)
+           (error 'get-char "Read attempted on closed port " p))
+          ((> mainptr 0)
+           (let* ((bv (make-bytevector mainptr))
+                  (s  (begin (bytevector-copy! mainbuf 0 bv 0 mainptr)
+                             (utf8->string bv))))
+             (if (not lookahead?)
+                 (vector-like-set! p port.mainptr 0))
+             (string-ref s 0)))
+          (else
+           (let ((n ((ioproc 'read) iodata mainbuf)))
+             (cond ((and (fixnum? n) (> n 0))
+                    (let* ((bv (make-bytevector n))
+                           (s  (begin (bytevector-copy! mainbuf 0 bv 0 n)
+                                      (utf8->string bv))))
+                      (if lookahead?
+                          (vector-like-set! p port.mainptr n))
+                      (string-ref s 0)))
+                   ((or (eq? n 0) (eq? n 'eof))
+                    (io/set-eof-state! p)
+                    (eof-object))
+                   (else
+                    (io/set-error-state! p)
+                    (io/get-char-input/output p lookahead?))))))))
+
+(define (io/put-u8-input/output p byte)
+  (let* ((state   (vector-like-ref p port.state))
+         (mainbuf (vector-like-ref p port.mainbuf))
+         (mainptr (vector-like-ref p port.mainptr))
+         (iodata  (vector-like-ref p port.iodata))
+         (ioproc  (vector-like-ref p port.ioproc))
+         (buf (if (> mainptr 0)
+                  (make-bytevector 1)
+                  mainbuf)))
+    (cond ((eq? state 'error)
+           (error 'put-u8 "permanent write error on port " p)
+           (eof-object))
+          ((eq? state 'closed)
+           (error 'put-u8 "write attempted on closed port " p))
+          (else
+           (bytevector-set! buf 0 byte)
+           (let ((r ((ioproc 'write) iodata buf 1)))
+             (cond ((eq? r 'ok)
+                    (unspecified))
+                   (else
+                    (io/set-error-state! p)
+                    (io/put-u8-input/output p byte))))))))
+
+(define (io/put-char-input/output p c)
+  (let* ((state   (vector-like-ref p port.state))
+         (iodata  (vector-like-ref p port.iodata))
+         (ioproc  (vector-like-ref p port.ioproc))
+         (buf     (string->utf8 (string c))))
+    (cond ((eq? state 'error)
+           (error 'put-char "permanent write error on port " p)
+           (eof-object))
+          ((eq? state 'closed)
+           (error 'put-char "write attempted on closed port " p))
+          (else
+           (let* ((n0 (bytevector-length buf))
+                  (r ((ioproc 'write) iodata buf n0)))
+             (cond ((eq? r 'ok)
+                    (unspecified))
+                   (else
+                    (io/set-error-state! p)
+                    (io/put-char-input/output p c))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -1021,6 +1225,17 @@
   (vector-like-set! p port.auxptr 0)
   (vector-like-set! p port.auxlim 0)
   (bytevector-set! (vector-like-ref p port.mainbuf) 0 port.sentinel))
+
+; Shallow-clones a port without closing it.
+
+(define (io/clone-port p)
+  (let* ((n (vector-like-length p))
+         (newport (make-vector n)))
+    (do ((i 0 (+ i 1)))
+        ((= i n)
+         (typetag-set! newport sys$tag.port-typetag)
+         newport)
+      (vector-set! newport i (vector-like-ref p i)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;

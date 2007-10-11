@@ -1149,7 +1149,7 @@
 
               (io/get-char p #f))))))
 
-   ; The fast path for peek-char and get-char.
+   ; The fast path for peek-char and read-char.
 
 `  ((_ larceny peek-char (peek-char))
     (lookahead-char (current-input-port)))

@@ -286,8 +286,10 @@
      (set! *host-dir*  "Larceny") 
      (set! *host-name* "Larceny"))
     ((chez petite)
+
      ;; Felix hasn't gotten his hands on Chez yet,
      ;; but will assume that Petite is a subset of Chez.
+
      (set! *host-dir*  "Petite")
      (set! *host-name* "Chez"))
     (else (error 'setup "Unknown host scheme: ~a" host-scheme)))

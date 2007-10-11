@@ -86,7 +86,11 @@
   (if (and (binary-port? p)
            (memq (transcoder-codec t) '(latin-1 utf-8))
            (memq (transcoder-eol-style t) '(none lf cr crlf nel crnel ls))
-           (memq (transcoder-error-handling-mode t) '(ignore replace raise)))
+           (memq (transcoder-error-handling-mode t) '(ignore replace raise))
+           (if (and (input-port? p) (output-port? p))
+               (and (eq? (transcoder-codec t) 'latin-1)
+                    (eq? (transcoder-eol-style t) 'none))
+               #t))
       (io/transcoded-port p t)
       (assertion-violation 'transcoded-port
                            "bad port or unsupported transcoder" p t)))
@@ -105,10 +109,11 @@
 
 ; FIXME:  For now, no ports support set-port-position!.
 
-(define (port-has-set-port-position!? p) #f)
+(define (port-has-set-port-position!? p)
+  (io/port-has-set-port-position!? p))
 
 (define (set-port-position! p pos)
-  (assertion-violation 'set-port-position! "not yet implemented"))
+  (io/set-port-position! p pos))
 
 (define (close-port p)
   (io/close-port p))
@@ -381,7 +386,7 @@
        (lambda (out)
          (do ((count count (fx- count 1))
               (char (get-char p) (get-char p)))
-             ((or (eof-object? char) (fx< count 0)))
+             ((or (eof-object? char) (fx<= count 0)))
            (put-char out char))))
       (portio/illegal-arguments 'get-string-n p count)))
 
