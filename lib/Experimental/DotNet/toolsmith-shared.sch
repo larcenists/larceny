@@ -1025,6 +1025,8 @@
   ((editor-agent-maker (lambda (w tm) tm)) wnd width height))
 
 (define (extend-with-repl textmodel)
+  ;; prompt-idx marks the start of the text that we will use as input
+  ;; to the reader for the REPL.
   (define prompt-idx 0)
   (define (bump-prompt! count) 
     '(begin (display "  ")
@@ -1244,46 +1246,48 @@
                        (len: ,(string-length ((repl-agent 'textstring))))
                        ))
               (newline))
-       (let ((ea repl-agent))
+       (let ((ea repl-agent)
+             (default-behavior-thunk
+               (lambda () 
+                 ((delegate textmodel 'on-keydown repl-agent) mchar sym mods))))
          (call-with-values (lambda () ((ea 'selection)))
            (lambda (beg end)
-             (if (<= beg prompt-idx)
-                 (let* ((text ((ea 'textstring)))
-                        (subtext (substring text beg end))
-                        (end (string-length text)))
-                   ;; Move prompt to end of buffer
-                   ((ea 'set-selection!) (- end 1) (- end 1))
-                   (insert-string-at-point! ea subtext)))))
-         (evaluate-first-sexp-after-prompt 
-          mchar
-          (lambda () 
-            ((delegate textmodel 'on-keydown repl-agent) mchar sym mods))
-          )))
-
-      ((back delete)
-       (let* ((ea repl-agent))
-         (call-with-values (lambda () ((ea 'selection)))
-           (lambda (beg end)
-             ;; ensure selection area is only after prompt.
-             (cond ((<= beg prompt-idx)
-                    ((ea 'set-selection!) prompt-idx (max end prompt-idx))
-                    (if (< prompt-idx end)
-                        ((ea 'delete-char-at-point!))))
-                   (else
-                    ((ea 'delete-char-at-point!))))))))
+             (cond 
+              ((<= beg prompt-idx)
+               (let* ((text ((ea 'textstring)))
+                      (subtext (substring text beg end))
+                      (end (string-length text)))
+                 ;; Move prompt to end of buffer
+                 ((ea 'set-selection!) (- end 1) (- end 1))
+                 (insert-string-at-point! ea subtext)))
+              (else
+               (let* ((text ((ea 'textstring)))
+                      (text-end (string-length text)))
+                 (if (= end (- text-end 1))
+                     (evaluate-first-sexp-after-prompt 
+                      mchar
+                      default-behavior-thunk)
+                     (default-behavior-thunk)))))))))
       (else
-       (cond 
-        (mchar 
-         (let* ((ea repl-agent)
-                (text ((ea 'textstring)))
-                (end (string-length text)))
-           ;; move cursor to end of buffer
-           ((ea 'set-selection!) (- end 1) (- end 1))
-           ;; This doesn't bump the prompt-idx, because it is
-           ;; part of the user input that we're still waiting
-           ;; to process.
-           (insert-string-at-point! ea (string mchar))
-           ))))))
+       ;; Pass the buck to the underlying agent.
+       ((delegate textmodel 'on-keydown repl-agent) mchar sym mods))))
+
+   ;; The REPL will silently drop attempts to edit text before the
+   ;; prompt.
+   ;; 
+   ;; Text edits that *do* take effect do not effect the prompt-idx,
+   ;; because such edits are guaranteed to be part of the user input
+   ;; that we're still waiting to process, and therefore we can leave
+   ;; prompt-idx where it is.
+   ((insert-char-at-point! char) 
+    (cond ((call-with-values (lambda () ((repl-agent 'selection)))
+             (lambda (beg end) (<= prompt-idx beg)))
+           ((delegate textmodel 'insert-char-at-point! repl-agent) char))))
+   ((delete-char-at-point!) 
+    (cond ((call-with-values (lambda () ((repl-agent 'selection)))
+             (lambda (beg end) (<= prompt-idx beg)))
+           ((delegate textmodel 'delete-char-at-point! repl-agent)))))
+
    ((prompt!) 
     (let* ((ea repl-agent))
       (call-with-values (lambda () ((ea 'selection)))
