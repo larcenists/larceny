@@ -1121,66 +1121,68 @@
          ;; XXX during evaluation, we also should catch errors and
          ;; print them to the REPL window.
          (let* ((sexp (cadr mrr))
-                (count-chars-read (caddr mrr))
-                (val (eval sexp my-own-env))
-                (valstr 
-                 (call-with-output-string
-                  (lambda (strport)
-                    (call-with-current-continuation 
-                     (lambda (escape)
-                       (call-with-error-handler 
-                        (lambda (who . args)
-                          (display "Error during printing.  ")
-                          (display "NOT reverting to ur-printer tho'.")
-                          (newline)
-                          (escape "print-error"))
-                        (lambda () ((repl-printer) val strport))))))))
-                (promptstr
-                 (call-with-output-string
-                  (lambda (strport)
-                    ((repl-prompt) (repl-level) strport))))
-                (ignore 
-                 '(begin (write `((count-chars-read: ,count-chars-read)
-                                  (subtext len: ,(string-length subtext))
-                                  (subtext: ,subtext)))
-                         (newline)))
-                (remaining-input
-                 (substring subtext 
-                            count-chars-read (string-length subtext)))
-                ;; with data like () or "foo", remaining-input will
-                ;; include a newline.  for data that requires a
-                ;; delimiter (like a number or symbol),
-                ;; remaining-input will not include the newline
-                ;; Either way, *we* don't want it.
-                (remaining-input
-                 (let ((len (string-length remaining-input)))
-                   (cond 
-                    ((= len 0) remaining-input)
-                    ((char=? (string-ref remaining-input (- len 1))
-                             #\newline)
-                     (substring remaining-input 0 (- len 1)))
-                    (else
-                     remaining-input)))))
+                (count-chars-read (caddr mrr)))
            
-           ;; Now that we've read it the user's text, we should
-           ;; bump the prompt over it.
-           (bump-prompt! (- (string-length subtext) 1))
-           
-           ;; Write rendered value to textview, bumping the prompt over it.
-           (insert-string-at-point/bump! ea valstr)
-           
-           ;; Print new prompt
-           (insert-string-at-point/bump! ea promptstr)
-           
-           ;; XXX if there is still data on orig-port, then we should
-           ;; probably propagate it down past the new prompt.  (This
-           ;; does not match DrScheme's behavior though; I believe it
-           ;; evaluates greedily until there aren't any S-exps left;
-           ;; which is another option for us.)
-           '(begin (write `(propagating remaining-input: ,remaining-input))
-                   (newline))
-           (insert-string-at-point! ea remaining-input)
-           ))
+           (let* ((val (eval sexp my-own-env))
+                  (valstr 
+                   (call-with-output-string
+                    (lambda (strport)
+                      (call-with-current-continuation 
+                       (lambda (escape)
+                         (call-with-error-handler 
+                          (lambda (who . args)
+                            (display "Error during printing.  ")
+                            (display "NOT reverting to ur-printer tho'.")
+                            (newline)
+                            (escape "print-error"))
+                          (lambda () ((repl-printer) val strport)))))))))
+             
+             (let* ((promptstr
+                     (call-with-output-string
+                      (lambda (strport)
+                        ((repl-prompt) (repl-level) strport))))
+                    (ignore 
+                     '(begin (write `((count-chars-read: ,count-chars-read)
+                                      (subtext len: ,(string-length subtext))
+                                      (subtext: ,subtext)))
+                             (newline)))
+                    (remaining-input
+                     (substring subtext 
+                                count-chars-read (string-length subtext)))
+                    ;; with data like () or "foo", remaining-input will
+                    ;; include a newline.  for data that requires a
+                    ;; delimiter (like a number or symbol),
+                    ;; remaining-input will not include the newline
+                    ;; Either way, *we* don't want it.
+                    (remaining-input
+                     (let ((len (string-length remaining-input)))
+                       (cond 
+                        ((= len 0) remaining-input)
+                        ((char=? (string-ref remaining-input (- len 1))
+                                 #\newline)
+                         (substring remaining-input 0 (- len 1)))
+                        (else
+                         remaining-input)))))
+               
+               ;; Now that we've read it the user's text, we should
+               ;; bump the prompt over it.
+               (bump-prompt! (- (string-length subtext) 1))
+               
+               ;; Write rendered value to textview, bumping the prompt over it.
+               (insert-string-at-point/bump! ea valstr)
+               
+               ;; Print new prompt
+               (insert-string-at-point/bump! ea promptstr)
+               
+               ;; XXX if there is still data on orig-port, then we should
+               ;; probably propagate it down past the new prompt.  (This
+               ;; does not match DrScheme's behavior though; I believe it
+               ;; evaluates greedily until there aren't any S-exps left;
+               ;; which is another option for us.)
+               '(begin (write `(propagating remaining-input: ,remaining-input))
+                       (newline))
+               (insert-string-at-point! ea remaining-input)
+               ))))
         ((eof)      
          (insert-string-at-point! ea (string (cadr mrr))))
         ((error)
