@@ -1143,7 +1143,7 @@
                           (lambda () ((repl-printer) val strport)))))))))
 
              ;; Write rendered value to textview, bumping the prompt over it.
-             (insert-string-at-point/bump! ea valstr)
+             (insert-string-at-point/bump! ea valstr))
              
              (let* ((promptstr
                      (call-with-output-string
@@ -1156,7 +1156,7 @@
                              (newline))))
 
                ;; Print new prompt
-               (insert-string-at-point/bump! ea promptstr)
+               (insert-string-at-point/bump! ea promptstr))
 
                (let* ((remaining-input
                        (substring subtext 
@@ -1183,8 +1183,8 @@
                  ;; which is another option for us.)
                  '(begin (write `(propagating remaining-input: ,remaining-input))
                          (newline))
-                 (insert-string-at-point! ea remaining-input)
-               )))))
+                 (insert-string-at-point! ea remaining-input))
+               ))
         ((eof)      
          (insert-string-at-point! ea (string (cadr mrr))))
         ((error)
