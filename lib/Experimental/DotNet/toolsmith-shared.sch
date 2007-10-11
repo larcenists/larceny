@@ -203,26 +203,510 @@
             (inv ((col 'green)))
             (inv ((col 'blue)))))
 
-(define (make-textview-agent wnd width height)
+;; TextModel has methods
+;;    textstring set-textstring!                         
+;;    selection set-selection!                           
+;;    on-cursor-reposition                               
+;;    cursor-left! cursor-right! cursor-up! cursor-down! 
+;;    insert-char-at-point! delete-char-at-point!        
+
+;; [Rendered T]  <: T has on-paint wnd font-ranges
+;; [Keyed T]     <: T has on-keydown on-keyup on-keypress
+;; [Moused T]    <: T has on-mousedown on-mouseup on-mousedrag
+;; [Scrolled T]  <: T has on-hscroll on-vscroll 
+;;                        horizontal-scrollbar vertical-scrollbar
+;; [Colorable T] <: T has color-foreground-transiently!
+;;                        color-background-transiently!
+;;                        color-foreground-stably!
+;;                        color-background-stably!                
+;; make-textmodel : -> TextModel
+(define (make-textmodel)
   ;; Invariant: mytext must always end with a #\newline character.
   (define mytext "\n") ;; revist when we add IMG objects.
   (define selection 0) ;; [Oneof Nat (cons Nat Nat)]
   (define preferred-cursor-col #f) ;; used when moving cursor up and down
-  (define (cursor-line)
-    (let ((pos (cond ((number? selection) selection)
-                     (else (car selection)))))
+
+  (define (cursor-left!)
+    (set! preferred-cursor-col #f)
+    (cond ((number? selection) 
+           (set! selection (max 0 (- selection 1))))
+          (else
+           (set! selection (car selection)))))
+  (define (cursor-right!)
+    (set! preferred-cursor-col #f)
+    (cond ((number? selection) 
+           (set! selection (min (string-length mytext) (+ selection 1))))
+          (else 
+           (set! selection (cdr selection)))))
+  (define (cursor-vertical! dir)
+    (define pos (cond ((number? selection) selection)
+                      (else (car selection))))
+    (let ((start-of-line-idx
+           (do ((idx (- pos 1) (- idx 1)))
+               ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
+                (+ idx 1)))))
+      (cond ((not preferred-cursor-col)
+             (set! preferred-cursor-col (- pos start-of-line-idx))))
+      (let* ((start-of-target-line 
+              (case dir
+                ((backward)
+                 (do ((idx (max -1 (- start-of-line-idx 2)) (- idx 1)))
+                     ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
+                      (+ idx 1))))
+                ((forward)
+                 (let loop ((idx (+ pos 1)))
+                   (cond 
+                    ((>= idx (string-length mytext))
+                     ;; We reached the end of mytext without passing over
+                     ;; a newline; therefore pos is on the final line.
+                     ;; To preserve no-op semantics, return start of that line
+                     start-of-line-idx)
+                    ((char=? #\newline (string-ref mytext (- idx 1)))
+                     idx)
+                    (else
+                     (loop (+ idx 1))))))))
+             (target-idx
+              (do ((idx start-of-target-line (+ idx 1))
+                   (col preferred-cursor-col (- col 1)))
+                  ((or (= col 0) 
+                       (char=? #\newline (string-ref mytext idx)))
+                   idx))))
+        (set! selection target-idx))))
+  (define (do-cursor-up!)
+    (cursor-vertical! 'backward))
+  (define (do-cursor-down!)
+    (cursor-vertical! 'forward))
+
+  (define (insert-char-at-point! char)
+    (define len (string-length mytext))
+    (set! preferred-cursor-col #f)
+    (call-with-values 
+        (lambda () (cond ((number? selection) 
+                          (values (substring mytext 0 selection)
+                                  (substring mytext selection len)
+                                  selection
+                                  (+ selection 1)
+                                  ))
+                         (else
+                          (values (substring mytext 0 (car selection))
+                                  (substring mytext (cdr selection) len)
+                                  (car selection)
+                                  (cdr selection)
+                                  ))))
+      (lambda (prefix suffix pos end)
+        (set! mytext (string-append prefix (string char) suffix))
+        (set! selection (+ pos 1)))))
+
+  (define (delete-char-at-point!)
+    (define len (string-length mytext))
+    (set! preferred-cursor-col #f)
+    (call-with-values 
+        (lambda () (cond ((number? selection) 
+                          (let ((pos (max 0 (- selection 1))))
+                            (values (substring mytext 0 pos)
+                                    (substring mytext selection len)
+                                    pos
+                                    selection
+                                    (substring mytext pos selection)
+                                    )))
+                         (else
+                          (values (substring mytext 0 (car selection))
+                                  (substring mytext (cdr selection) len)
+                                  (car selection)
+                                  (cdr selection)
+                                  (substring mytext (car selection) (cdr selection))
+                                  ))))
+      (lambda (prefix suffix pos end deleted-text)
+        (set! mytext (string-append prefix suffix))
+        (set! selection pos)
+        deleted-text)))
+
+  (define (call-with-wnd-update self thunk)
+    (call-with-values thunk
+      (lambda vals 
+        ((self 'on-cursor-reposition))
+        (apply values vals))))
+
+  (make-root-object textmodel
+   ((textstring) mytext)
+   ((set-textstring! string) 
+    (cond ((and (not (zero? (string-length string)))
+                (char=? #\newline 
+                        (string-ref string (- (string-length string) 1))))
+           (set! mytext string))
+          (else
+           (begin (display "textview set-textstring! ")
+                  (display "warning: appending newline")
+                  (newline))
+           (set! mytext (string-append string "\n")))))
+   ((selection) 
+    (cond ((number? selection)
+           (values selection selection))
+          (else
+           (values (car selection) (cdr selection)))))
+
+   ((on-cursor-reposition) "event hook" 'default-hook-does-nothing)
+   ((set-selection! start-pos-incl end-pos-excl)
+    (call-with-wnd-update
+     textmodel 
+     (lambda () (set! selection 
+                      (if (= start-pos-incl end-pos-excl)
+                          start-pos-incl
+                          (cons start-pos-incl end-pos-excl))))))
+   ((cursor-left!)  "Moves cursor one column left (wrapping
+ to end of previous line) if possible." 
+    (call-with-wnd-update textmodel cursor-left!))
+   ((cursor-right!) "Moves cursor one column right (wrapping
+ to start of succeeding line) if possible."
+    (call-with-wnd-update textmodel cursor-right!))
+   ((cursor-up!)    "Moves cursor one line up, if possible."
+    (call-with-wnd-update textmodel do-cursor-up!))
+   ((cursor-down!)  "Moves cursor one line down, if possible."
+    (call-with-wnd-update textmodel do-cursor-down!))
+   ((insert-char-at-point! char) "Inserts char after cursor or replaces 
+ selected text with char."
+    (let ((insert! (lambda () (insert-char-at-point! char))))
+      (call-with-wnd-update textmodel insert!)))
+   ((delete-char-at-point!) "Deletes selected text or char preceding 
+ cursor, if any.
+ => deleted string."
+    (call-with-wnd-update textmodel delete-char-at-point!))
+   ))
+
+;; A CharPosHandler is a  (Char Pos X Y Width Height LineNo ColNo -> void)
+
+;; for-each-charpos : String Nat Gfx Fnt CharPosHandler -> void
+(define (for-each-charpos mytext start-pos g fnt proc)
+  (let* ((measure-height
+          (lambda (s) 
+            (call-with-values (lambda () ((g 'measure-text) s fnt))
+              (lambda (w h) h))))
+         (cursor-height #f)
+         (initial-height (measure-height "A")))
+    (let loop ((x 0)
+               (y 0)
+               (max-height-on-line initial-height)
+               (line-num 0)
+               (col-num 0)
+               (curr-pos start-pos))
+      (cond
+       ((>= curr-pos (string-length mytext))
+        (unspecified))
+       
+       (else
+        (let* ((char (string-ref mytext curr-pos))
+               (char-text (string char)))
+          (call-with-values (lambda () ((g 'measure-text) char-text fnt))
+            (lambda (char-w char-h)
+              (proc char curr-pos x y char-w char-h line-num col-num)
+              (cond 
+               ((char=? char #\newline)
+                (loop 0
+                      (+ y max-height-on-line) 
+                      initial-height
+                      (+ line-num 1) 
+                      0
+                      (+ curr-pos 1)))
+               (else
+                (loop (+ x char-w)
+                      y
+                      (max max-height-on-line char-h)
+                      line-num
+                      (+ col-num 1)
+                      (+ curr-pos 1))))))))))))
+
+;; rendering-extender : Wnd -> T -> [Rendered T] where T <: TextModel
+(define (rendering-extender wnd)
+  (define em-size 10)
+  (define fnt (make-fnt (monospace-fontname) em-size))
+  (define default-foreground-col (name->col (string->symbol "Black")))
+  (define default-background-col (name->col (string->symbol "White")))
+  
+  (define (count-visible-lines)
+    (inexact->exact
+     (ceiling (/ ((wnd 'height)) 
+                 (call-with-values (lambda () ((wnd 'measure-text) "" fnt))
+                   (lambda (w h) h))))))
+  (define (selection-start-pos self)
+    (call-with-values (lambda () ((self 'selection)))
+      (lambda (s e) s)))
+  (define (selection-finis-pos self)
+    (call-with-values (lambda () ((self 'selection)))
+      (lambda (s e) (if (= s e) (+ e 1) e))))
+  
+  (lambda (textmodel)
+    (extend-object textmodel renderable-textmodel
+     ((on-cursor-reposition) 
+      ((wnd 'update))
+      ((delegate textmodel 'on-cursor-reposition renderable-textmodel)))
+     ((wnd) wnd)
+     ((font-ranges) "=> list of (fnt s e) where fnt is used on text in range [s,e)."
+      ;; Making this so flexible may have been a mistake...
+      ;; 1. Ambiguities as to what happens when ranges overlap
+      ;; 2. If disallow overlaps, perhaps should require returned list is sorted.
+      (list (list fnt 0 (string-length ((renderable-textmodel 'textstring))))))
+     ((on-resize)            #f)
+     ((count-visible-lines)  (count-visible-lines))
+     ;; XXX adding this as a hook that can be potentially overridden, 
+     ;; but I'm not sure it is a good idea.
+     ((visible-offset) "=> integer offset where the visible part of str begins.
+ Override to change view behavior."
+      0)
+     ((foreground-color idx) default-foreground-col)
+     ((background-color idx) default-background-col)
+     ((on-paint g rx ry rw rh)
+      ((g 'fill-rect) default-background-col rx ry (+ rx rw) (+ ry rh))
+      (call-with-values (lambda () ((g 'measure-text) "A" fnt))
+        (lambda (a-char-w a-char-h)
+          (call-with-current-continuation
+           (lambda (abandon)
+             (define max-lines (count-visible-lines))
+             (for-each-charpos 
+              ((renderable-textmodel 'textstring))
+              ((renderable-textmodel 'visible-offset))
+              g fnt
+              (lambda (char pos x y w h line column)
+                (cond ((> line max-lines)
+                       (abandon line)))
+                (let* ((self renderable-textmodel)
+                       (fg-col ((self 'foreground-color) pos))
+                       (bg-col ((self 'background-color) pos))
+                       (sel-fg-col (invert-col fg-col))
+                       (sel-bg-col (invert-col bg-col)))
+                  (cond
+                   ((and (call-with-values (self 'selection) (lambda (s e)
+                                                               (= s e pos)))
+                         (char=? char #\newline))
+                    ((g 'fill-rect) 
+                     sel-bg-col x y (+ x a-char-w) (+ y a-char-h)))
+                   ((and (<= (selection-start-pos self) pos)
+                         (< pos (selection-finis-pos self)))
+                    ((g 'fill-rect) sel-bg-col x y (+ x w) (+ y h))
+                    ((g 'draw-text) (string char) fnt x y sel-fg-col))
+                   (else
+                    ((g 'fill-rect) bg-col x y (+ x w) (+ y h))
+                    ((g 'draw-text) (string char) fnt x y fg-col)))))))))))
+     )))
+  
+;; extend-with-keystroke-handling : T -> [Keyed T] where T <: TextModel
+(define (extend-with-keystroke-handling textmodel)
+  (extend-object textmodel keystroke-handling-textmodel
+   ((on-keydown mchar  sym mods)
+    (let ((self keystroke-handling-textmodel))
+      (case sym
+        ((enter)       ((self 'insert-char-at-point!) #\newline))
+        ((left)        ((self 'cursor-left!)))
+        ((right)       ((self 'cursor-right!)))
+        ((up)          ((self 'cursor-up!)))
+        ((down)        ((self 'cursor-down!)))
+        ((back delete) ((self 'delete-char-at-point!)))
+        (else
+         (cond (mchar
+                (case mchar
+                  ((#\backspace #\return #\esc #\tab) 'do-nothing)
+                  (else ((self 'insert-char-at-point!) mchar)))))))))
+   ((on-keyup mchar  sym mods) #f)
+   ((on-keypress char) #f)
+   ))
+
+;; extend-with-mousehandling : T -> [Moused T] where T <: [Rendered TextModel]
+(define (extend-with-mouse-handling textmodel)
+  (define mouse-down #f)
+  (define mouse-up #f)
+  (define mouse-drag #f)
+  (define wnd ((textmodel 'wnd)))
+  
+  (define (point-in-range? char pt x y w h)
+    ;; #\newline has indefinite right extent
+    (or (and (char=? #\newline char)
+             (<= x (car pt))
+             (<= y (cdr pt) (+ y h)))
+        (and (<= x (car pt) (+ x w))
+             (<= y (cdr pt) (+ y h)))))
+
+  (extend-object textmodel mouse-handling-textmodel
+   ((on-mousedown mx my)
+    (set! mouse-down (cons mx my))
+    (set! mouse-drag (cons mx my))
+    (set! mouse-up #f)
+    ((wnd 'update)))
+   ((on-mouseup mx my)
+    (set! mouse-drag #f)
+    (set! mouse-up (cons mx my))
+    ((wnd 'update)))
+   ((on-mousedrag mx my)
+    (cond (mouse-drag
+           (set-car! mouse-drag mx)
+           (set-cdr! mouse-drag my)))
+    ((wnd 'update)))
+   ((on-paint g rx ry rw rh)
+    (let ((pos-1 #f) 
+          (pos-2 #f)
+          (self mouse-handling-textmodel))
+      (cond 
+       ((and mouse-down mouse-drag)
+        (for-each-charpos 
+         ((self 'textstring))
+         ((self 'visible-offset))
+         g (caar ((self 'font-ranges))) 
+         (lambda (char pos pixel-x pixel-y
+                  char-pixel-width char-pixel-height 
+                  line column)
+           (cond ((point-in-range? 
+                   char 
+                   mouse-down pixel-x pixel-y
+                   char-pixel-width char-pixel-height)
+                  (set! pos-1 pos)))
+           (cond ((point-in-range? 
+                   char 
+                   mouse-drag pixel-x pixel-y
+                   char-pixel-width char-pixel-height)
+                  (set! pos-2 pos)))
+           )))
+       ((and mouse-down mouse-up)
+        (for-each-charpos 
+         ((mouse-handling-textmodel 'textstring))
+         ((mouse-handling-textmodel 'visible-offset))
+         g (caar ((self 'font-ranges)))
+         (lambda (char pos pixel-x pixel-y
+                  char-pixel-width char-pixel-height 
+                  line column)
+           (cond ((point-in-range? 
+                   char 
+                   mouse-down pixel-x pixel-y
+                   char-pixel-width char-pixel-height)
+                  (set! pos-1 pos)))
+           (cond ((point-in-range? 
+                   char 
+                   mouse-up   pixel-x pixel-y
+                   char-pixel-width char-pixel-height)
+                  (set! pos-2 pos)))))
+        (set! mouse-down #f)
+        (set! mouse-up #f)))
+      (cond ((and pos-1 pos-2)
+             ((mouse-handling-textmodel 'set-selection!) 
+              (min pos-1 pos-2)
+              (max pos-1 pos-2)))))
+    ((delegate textmodel 'on-paint mouse-handling-textmodel) g rx ry rw rh))))
+
+;; extend-with-scrolling : T -> [Scrolled T] where T <: [Rendered TextModel]
+(define (extend-with-scrolling textmodel)
+  (define wnd ((textmodel 'wnd)))
+  (define (count-newlines-in string)
+    (length (filter (lambda (x) (char=? x #\newline)) (string->list string))))
+  ;; String Nat -> [Maybe Nat]
+  (define (index-after-line-count text line-count)
+    (let loop ((i 0) (j 0))
+      (cond ((= i (string-length text))
+             #f) ;; if we return #f, then there aren't line-count lines in text
+            ((= j line-count)
+             i)
+            (else
+             (loop (+ i 1)
+                   (+ j (if (char=? #\newline (string-ref text i)) 1 0)))))))
+  (define (line-count self)
+    (count-newlines-in ((self 'textstring))))
+
+  (define (cursor-line self)
+    (let ((mytext ((self 'textstring)))
+          (pos (call-with-values (self 'selection) (lambda (s e) s))))
       (do ((i 0 (+ i 1))
            (j 0 (+ j (if (char=? #\newline (string-ref mytext i)) 1 0))))
           ((= i pos)
            j))))
-                    
-  (define mouse-down #f)
-  (define mouse-up #f)
-  (define mouse-drag #f)
-  (define em-size 10)
-  (define fnt (make-fnt (monospace-fontname) em-size))
-  (define selection-col (name->col (string->symbol "LightBlue")))
   
+  (define first-line-idx 0)
+
+  ;; Bad rep; scrolling op's take O(n) time (where n is the size of
+  ;; the entirety of the text).  A doubly linked list of lines may be
+  ;; better.  Or even a pair of singly linked list (where the first is
+  ;; kept in reverse order).  But this is simple prototype code.
+
+  (extend-object textmodel scrollable-textmodel
+   ((first-line-index) "=> line offset according to vertical scrollbar."
+    first-line-idx)
+   ((set-textstring! string)
+    (set! first-line-idx (min first-line-idx (count-newlines-in string)))
+    ((delegate textmodel 'set-textstring! scrollable-textmodel) string))
+   ((visible-offset)
+    (let* ((text ((scrollable-textmodel 'textstring)))
+           (nlines ((scrollable-textmodel 'count-visible-lines)))
+           (start (index-after-line-count text first-line-idx))
+           (start (or start (string-length text)))
+           (finis (index-after-line-count text (+ first-line-idx nlines)))
+           (finis (or finis (string-length text))))
+      start))
+   ((on-cursor-reposition)
+    (let* ((text ((scrollable-textmodel 'textstring)))
+           (nlines ((scrollable-textmodel 'count-visible-lines)))
+           (start (index-after-line-count text first-line-idx))
+           (start (or start (string-length text)))
+           (finis (index-after-line-count text (+ first-line-idx nlines)))
+           (finis (or finis (string-length text))))
+      (call-with-values (lambda () ((scrollable-textmodel 'selection)))
+        (lambda (s e)
+          ;; This is simpler than the prefactored code (which overrode
+          ;; all of the cursor related operations with advise on when
+          ;; and how to scroll).  It's also an improvement, because
+          ;; when the cursor goes offscreen, it attempts to scroll to
+          ;; center it (rather than going up or down by one line).
+          ;; But it still isn't quite right; should handle selections
+          ;; as well (that will require some serious redesign though).
+          (cond ((and (= s e)
+                      (< s start))
+                 (let* ((cursor-lines 
+                         (count-newlines-in (substring text s start)))
+                        (cursor-lines
+                         (+ cursor-lines (quotient nlines 2))))
+                   '(begin (format #t "Attempting to scroll ~a lines back"
+                                  cursor-lines)
+                          (newline))
+                   ((wnd 'attempt-scroll) 'vertical (- cursor-lines))))
+                ((and (= s e)
+                      (<= finis (+ s 1)))
+                 (let* ((cursor-lines
+                         (count-newlines-in (substring text finis (+ s 1))))
+                        (cursor-lines
+                         (+ cursor-lines (quotient nlines 2))))
+                   '(begin (format #t "Attempting to scroll ~a lines forward"
+                                  cursor-lines)
+                          (newline))
+                   ((wnd 'attempt-scroll) 'vertical cursor-lines)))))))
+    ((delegate textmodel 'on-cursor-reposition scrollable-textmodel)))
+   ((on-hscroll new-int event-type)  #f)
+   ((on-vscroll new-int event-type)
+    (set! first-line-idx new-int)
+    ((wnd 'update)))
+   ((horizontal-scrollbar) #f)
+   ((vertical-scrollbar)
+    ;; These do not have to be in pixels to be meaningful; we as the
+    ;; client select our own unit of measurement, and are then
+    ;; responsible for using it consistently.  In this case, we are
+    ;; using a line as the measurement grain, (and I suppose that
+    ;; the horizontal scrollbars will use a column as the grain).
+    ;; When image support is added, these grains might not remain
+    ;; appropriate.
+    (let* ((my-line-count (line-count scrollable-textmodel))
+           (visible-lines ((scrollable-textmodel 'count-visible-lines)))
+           (max-val (max 0 (- my-line-count visible-lines))) ;; XXX this is buggy
+           (max-val my-line-count)) ;; This is questionable but easier to work with
+      (cond ((not (<= 0 first-line-idx max-val))
+             (display `(want: (<= 0 ,first-line-idx ,max-val)))
+             (newline)))
+      (assert (<= 0 first-line-idx max-val))
+      `((min ,0)
+        (max ,max-val)
+        (value ,first-line-idx)
+        (dsmall ,1)
+        (dlarge ,(if (> (* 2 visible-lines) my-line-count)
+                     1
+                     (quotient visible-lines 2)
+                     )))))
+   ))
+
+;; extend-with-text-coloring 
+;;                    : T -> [Colorable T] where T <: [Rendered TextModel]
+(define (extend-with-text-coloring textmodel)
   ;; A ColRange is a (list [Maybe Pos] [Maybe Pos] Col)
   ;; interpretation:
   ;; ( m  n c) maps the number range [m, n) to c
@@ -247,17 +731,6 @@
   (define stable-background-col-ranges '())
   (define transient-foreground-col-ranges '())
   (define transient-background-col-ranges '())
-  (define selection-foreground-col-ranges 
-    (list
-     (list #f #f (name->col (string->symbol "Black")))))
-  (define selection-background-col-ranges
-    (list 
-     (list #f #f (name->col (string->symbol "LightBlue")))))
-  
-  (define default-foreground-col (name->col (string->symbol "Black")))
-  (define default-background-col (name->col (string->symbol "White")))
-  (define (default-selection-foreground-col) (invert-col default-foreground-col))
-  (define (default-selection-background-col) (invert-col default-background-col))
 
   (define (clear-transient-state!) 
     (set! transient-background-col-ranges '())
@@ -295,245 +768,65 @@
                           ": this should be dead code."))))))))
     (set! stable-background-col-ranges (updated stable-background-col-ranges))
     (set! stable-foreground-col-ranges (updated stable-foreground-col-ranges)))
-  
-  (define backing-agent #f)
-  (define (count-visible-lines)
-    (inexact->exact
-     (ceiling (/ ((wnd 'height)) 
-                 (call-with-values (lambda () ((wnd 'measure-text) "" fnt))
-                   (lambda (w h) h))))))
-    
-  (define (cursor-left!)
-    (clear-transient-state!)
-    (set! preferred-cursor-col #f)
-    (cond ((number? selection) 
-           (set! selection (max 0 (- selection 1))))
-          (else
-           (set! selection (car selection)))))
-  (define (cursor-right!)
-    (clear-transient-state!)
-    (set! preferred-cursor-col #f)
-    (cond ((number? selection) 
-           (set! selection (min (string-length mytext) (+ selection 1))))
-          (else 
-           (set! selection (cdr selection)))))
-  (define (cursor-vertical! dir)
-    (define pos (cond ((number? selection) selection)
-                      (else (car selection))))
-    (clear-transient-state!)
-    (let ((start-of-line-idx
-           (do ((idx (- pos 1) (- idx 1)))
-               ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
-                (+ idx 1)))))
-      (cond ((not preferred-cursor-col)
-             (set! preferred-cursor-col (- pos start-of-line-idx))))
-      (let* ((start-of-target-line 
-              (case dir
-                ((backward)
-                 (do ((idx (max -1 (- start-of-line-idx 2)) (- idx 1)))
-                     ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
-                      (+ idx 1))))
-                ((forward)
-                 (let loop ((idx (+ pos 1)))
-                   (cond 
-                    ((>= idx (string-length mytext))
-                     ;; We reached the end of mytext without passing over
-                     ;; a newline; therefore pos is on the final line.
-                     ;; To preserve no-op semantics, return start of that line
-                     start-of-line-idx)
-                    ((char=? #\newline (string-ref mytext (- idx 1)))
-                     idx)
-                    (else
-                     (loop (+ idx 1))))))))
-             (target-idx
-              (do ((idx start-of-target-line (+ idx 1))
-                   (col preferred-cursor-col (- col 1)))
-                  ((or (= col 0) 
-                       (char=? #\newline (string-ref mytext idx)))
-                   idx))))
-        (set! selection target-idx))))
-  (define (cursor-up!)
-    (clear-transient-state!)
-    (if (= (cursor-line) 0)
-        ((wnd 'attempt-scroll) 'vertical -1))
-    (cursor-vertical! 'backward))
-  (define (cursor-down!)
-    (clear-transient-state!)
-    (if (= (cursor-line) (- (count-visible-lines) 1))
-        ((wnd 'attempt-scroll) 'vertical  1))
-    (cursor-vertical! 'forward))
-  (define (selection-start-pos)
-    (cond ((number? selection) selection)
-          (else (car selection))))
-  (define (selection-finis-pos)
-    (cond ((number? selection) (+ selection 1))
-          (else (cdr selection))))
-  (define (point-in-range? char pt x y w h)
-    ;; #\newline has indefinite right extent
-    (or (and (char=? #\newline char)
-             (<= x (car pt))
-             (<= y (cdr pt) (+ y h)))
-        (and (<= x (car pt) (+ x w))
-             (<= y (cdr pt) (+ y h)))))
 
-  ;; A CharPosHandler is a  (Char Pos X Y Width Height LineNo ColNo -> void)
 
-  ;; for-each-charpos : Gfx CharPosHandler -> void
-  (define (for-each-charpos g proc)
-    (let* ((measure-height
-            (lambda (s) 
-              (call-with-values (lambda () ((g 'measure-text) s fnt))
-                (lambda (w h) h))))
-           (cursor-height #f)
-           (initial-height (measure-height "A")))
-      (let loop ((x 0)
-                 (y 0)
-                 (max-height-on-line initial-height)
-                 (line-num 0)
-                 (col-num 0)
-                 (curr-pos 0))
-        (cond
-         ((>= curr-pos (string-length mytext))
-          (unspecified))
 
-         (else
-          (let* ((char (string-ref mytext curr-pos))
-                 (char-text (string char)))
-            (call-with-values (lambda () ((g 'measure-text) char-text fnt))
-              (lambda (char-w char-h)
-                (proc char curr-pos x y char-w char-h line-num col-num)
-                (cond 
-                 ((char=? char #\newline)
-                  (loop 0
-                        (+ y max-height-on-line) 
-                        initial-height
-                        (+ line-num 1) 
-                        0
-                        (+ curr-pos 1)))
-                 (else
-                  (loop (+ x char-w)
-                        y
-                        (max max-height-on-line char-h)
-                        line-num
-                        (+ col-num 1)
-                        (+ curr-pos 1))))))))))))
-  
-  (define (delegate msg . args)
-    (cond ((and backing-agent
-                (memq msg ((backing-agent 'operations))))
-           (apply (backing-agent msg) args))
-          (else 
-           #f)))
-  
-  (define (insert-char-at-point! char)
-    (define len (string-length mytext))
-    (define on-last-line
-      (and (char=? char #\newline)
-            (>= (cursor-line) (- (count-visible-lines) 2))))
-    (set! preferred-cursor-col #f)
-    (call-with-values 
-        (lambda () (cond ((number? selection) 
-                          (values (substring mytext 0 selection)
-                                  (substring mytext selection len)
-                                  selection
-                                  (+ selection 1)
-                                  ))
-                         (else
-                          (values (substring mytext 0 (car selection))
-                                  (substring mytext (cdr selection) len)
-                                  (car selection)
-                                  (cdr selection)
-                                  ))))
-      (lambda (prefix suffix pos end)
-        (clear-transient-state!)
-        (update-stable-ranges! pos end (- end pos))
-        (set! mytext (string-append prefix (string char) suffix))
-        (set! selection (+ pos 1))))
-    ;; We delay the scroll until after the text change has been made...
-    (cond (on-last-line
-           ((wnd 'attempt-scroll) 'vertical 1))))
-
-  (define (delete-char-at-point!)
-    (define len (string-length mytext))
-    (clear-transient-state!)
-    (set! preferred-cursor-col #f)
-    (call-with-values 
-        (lambda () (cond ((number? selection) 
-                          (let ((pos (max 0 (- selection 1))))
-                            (values (substring mytext 0 pos)
-                                    (substring mytext selection len)
-                                    pos
-                                    selection
-                                    (substring mytext pos selection)
-                                    )))
-                         (else
-                          (values (substring mytext 0 (car selection))
-                                  (substring mytext (cdr selection) len)
-                                  (car selection)
-                                  (cdr selection)
-                                  (substring mytext (car selection) (cdr selection))
-                                  ))))
-      (lambda (prefix suffix pos end deleted-text)
-        (clear-transient-state!)
-        (update-stable-ranges! pos end (- pos end))
-        (set! mytext (string-append prefix suffix))
-        (set! selection pos)
-        deleted-text)))
-
-  (define (cursor-repositioned)
-    (delegate 'on-cursor-reposition))
-
-  (define (call-with-wnd-update thunk)
-    (call-with-values thunk
-      (lambda vals 
-        (cursor-repositioned)
-        ((wnd 'update)) 
-        (apply values vals))))
-  
-  (make-root-object textview-agent
-   ((textstring) mytext)
-   ((set-textstring! string) 
+  (extend-object textmodel colorable-textmodel
+   ((foreground-color pos)
+    (or (lookup-col pos transient-foreground-col-ranges)
+        (lookup-col pos stable-foreground-col-ranges)
+        ((delegate textmodel 'foreground-color colorable-textmodel) pos)))
+   ((background-color pos)
+    (or (lookup-col pos transient-background-col-ranges)
+        (lookup-col pos stable-background-col-ranges)
+        ((delegate textmodel 'background-color colorable-textmodel) pos)))
+   ((on-cursor-reposition)
+    ((delegate textmodel 'on-cursor-reposition colorable-textmodel))
+    (clear-transient-state!))
+   ((set-textstring! string)
     (clear-stable-state!)
-    (cond ((and (not (zero? (string-length string)))
-                (char=? #\newline 
-                        (string-ref string (- (string-length string) 1))))
-           (set! mytext string))
-          (else
-           (begin (display "textview set-textstring! ")
-                  (display "warning: appending newline")
-                  (newline))
-           (set! mytext (string-append string "\n")))))
-   ((selection) 
-    (cond ((number? selection)
-           (values selection selection))
-          (else
-           (values (car selection) (cdr selection)))))
-   ((set-selection! start-pos-incl end-pos-excl)
-    (set! selection 
-          (if (= start-pos-incl end-pos-excl)
-              start-pos-incl
-              (cons start-pos-incl end-pos-excl))))
-
-   ((cursor-left!)               (call-with-wnd-update cursor-left!))
-   ((cursor-right!)              (call-with-wnd-update cursor-right!))
-   ((cursor-up!)                 (call-with-wnd-update cursor-up!))
-   ((cursor-down!)               (call-with-wnd-update cursor-down!))
-   ((insert-char-at-point! char) (call-with-wnd-update 
-                                  (lambda () (insert-char-at-point! char))))
-   ((delete-char-at-point!)      (call-with-wnd-update delete-char-at-point!))
-
-   ((color-foreground-transiently! start-incl finis-excl col)
+    ((delegate textmodel 'set-textstring! colorable-textmodel) string))
+   ((insert-char-at-point! char)
+    (clear-transient-state!)
+    (call-with-values (colorable-textmodel 'selection)
+      (lambda (pos end) 
+        (let ((end (if (= pos end) (+ pos 1) end)))
+          (update-stable-ranges! pos end (- end pos)))))
+    ((delegate textmodel 'insert-char-at-point! colorable-textmodel) char))
+   ((delete-char-at-point!)
+    (call-with-values (colorable-textmodel 'selection)
+      (lambda (pos end) 
+        (let ((pos (if (= pos end) (max 0 (- end 1)) pos)))
+          (update-stable-ranges! pos end (- pos end)))))
+    ((delegate textmodel 'delete-char-at-point! colorable-textmodel)))
+   ((color-foreground-transiently! start-incl finis-excl col) "Colors text
+ range [start-incl,finis-excl) using color col.
+ Meant to be used for hints of color that will not last beyond next editor
+ state chage (cursor movements, text edits)."
     (set! transient-foreground-col-ranges
-          (cons (list start-incl finis-excl col) transient-foreground-col-ranges)))
-   ((color-background-transiently! start-incl finis-excl col)
+          (cons (list start-incl finis-excl col) 
+                transient-foreground-col-ranges)))
+   ((color-background-transiently! start-incl finis-excl col) "Colors behind
+ text range [start-incl,finis-excl) using color col.
+ Meant to be used for hints of color that will not last beyond next editor
+ state chage (cursor movements, text edits)."
     (set! transient-background-col-ranges
-          (cons (list start-incl finis-excl col) transient-background-col-ranges)))
-   ((color-foreground-stably! start-incl finis-excl col)
+          (cons (list start-incl finis-excl col) 
+                transient-background-col-ranges)))
+   ((color-foreground-stably! start-incl finis-excl col) "Colors text 
+ range [start-incl,finis-excl) using color col.
+ Meant to be used for colors that should persist through cursor and 
+ changes to unrelated pieces of text."
     (set! stable-foreground-col-ranges
-          (cons (list start-incl finis-excl col) stable-foreground-col-ranges)))
-   ((color-background-stably! start-incl finis-excl col)
+          (cons (list start-incl finis-excl col) 
+                stable-foreground-col-ranges)))
+   ((color-background-stably! start-incl finis-excl col) "Colors behind text
+ range [start-incl,finis-excl) using color col.
+ Meant to be used for colors that should persist through cursor and 
+ changes to unrelated pieces of text." 
     (set! stable-background-col-ranges
-          (cons (list start-incl finis-excl col) stable-background-col-ranges)))
+          (cons (list start-incl finis-excl col) 
+                stable-background-col-ranges)))
 
    ((foreground-colors) (list transient-foreground-col-ranges
                               stable-foreground-col-ranges
@@ -541,274 +834,79 @@
    ((background-colors) (list transient-background-col-ranges
                               stable-background-col-ranges
                               default-background-col))
-    
-
-   ((on-keydown mchar sym mods)  (delegate 'on-keydown mchar sym mods))
-   ((on-keyup   mchar sym mods)  (delegate 'on-keyup   mchar sym mods))
-   ((on-keypress char)     (delegate 'on-keypress char))
-   ((on-resize)            (delegate 'on-resize))
-   ((on-hscroll new-int event-type)  (delegate 'on-hscroll new-int event-type))
-   ((on-vscroll new-int event-type)  (delegate 'on-vscroll new-int event-type))
-   ((horizontal-scrollbar) (delegate 'horizontal-scrollbar))
-   ((vertical-scrollbar)   (delegate 'vertical-scrollbar))
-
-   ((count-visible-lines)  (count-visible-lines))
-
-   ;; XXX not well defined for non-fixed width fonts...
-   ;; ((count-visible-columns) (quotient ((wnd 'width)) ((fnt 'em-width))))
-
-   ((on-mousedown mx my)
-    (clear-transient-state!)
-    (set! mouse-down (cons mx my))
-    (set! mouse-drag (cons mx my))
-    (set! mouse-up #f)
-    ((wnd 'update)))
-   ((on-mouseup mx my)
-    (clear-transient-state!)
-    (set! mouse-drag #f)
-    (set! mouse-up (cons mx my))
-    ((wnd 'update)))
-   ((on-mousedrag mx my)
-    (clear-transient-state!)
-    (cond (mouse-drag
-           (set-car! mouse-drag mx)
-           (set-cdr! mouse-drag my)))
-    ((wnd 'update)))
-   ((on-paint g rx ry rw rh)
-    (let ((pos-1 #f) 
-          (pos-2 #f))
-      (cond 
-       ((and mouse-down mouse-drag)
-        (for-each-charpos 
-         g (lambda (char pos pixel-x pixel-y
-                    char-pixel-width char-pixel-height 
-                    line column)
-             (cond ((point-in-range? 
-                     char 
-                     mouse-down pixel-x pixel-y
-                     char-pixel-width char-pixel-height)
-                    (set! pos-1 pos)))
-             (cond ((point-in-range? 
-                     char 
-                     mouse-drag pixel-x pixel-y
-                     char-pixel-width char-pixel-height)
-                    (set! pos-2 pos)))
-             )))
-       ((and mouse-down mouse-up)
-        (for-each-charpos 
-         g (lambda (char pos pixel-x pixel-y
-                    char-pixel-width char-pixel-height 
-                    line column)
-             (cond ((point-in-range? 
-                     char 
-                     mouse-down pixel-x pixel-y
-                     char-pixel-width char-pixel-height)
-                    (set! pos-1 pos)))
-             (cond ((point-in-range? 
-                     char 
-                     mouse-up   pixel-x pixel-y
-                     char-pixel-width char-pixel-height)
-                    (set! pos-2 pos)))))
-        (set! mouse-down #f)
-        (set! mouse-up #f)))
-      (cond ((and pos-1 pos-2)
-             (set! selection
-                   (cond ((= pos-1 pos-2)
-                          pos-1)
-                         (else (cons (min pos-1 pos-2)
-                                     (max pos-1 pos-2)))))
-             (cursor-repositioned)))
-      )
-    
-    ((g 'fill-rect) default-background-col rx ry (+ rx rw) (+ ry rh))
-    (call-with-values (lambda () ((g 'measure-text) "A" fnt))
-      (lambda (a-char-w a-char-h)
-        (for-each-charpos 
-         g (lambda (char pos x y w h line column)
-             (let ((fg-col (or (lookup-col pos transient-foreground-col-ranges)
-                               (lookup-col pos stable-foreground-col-ranges)
-                               default-foreground-col))
-                   (bg-col (or (lookup-col pos transient-background-col-ranges)
-                               (lookup-col pos stable-background-col-ranges)
-                               default-background-col))
-                   (sel-fg-col (or (lookup-col pos selection-foreground-col-ranges)
-                                   (default-selection-foreground-col)))
-                   (sel-bg-col (or (lookup-col pos selection-background-col-ranges)
-                                   (default-selection-background-col))))
-               (cond
-                ((and (number? selection) 
-                      (= selection pos)
-                      (char=? char #\newline))
-                 ((g 'fill-rect) sel-bg-col x y (+ x a-char-w) (+ y a-char-h))
-                 )
-                ((and (<= (selection-start-pos) pos)
-                      (< pos (selection-finis-pos)))
-                 ((g 'fill-rect) sel-bg-col x y (+ x w) (+ y h))
-                 ((g 'draw-text) (string char) fnt x y sel-fg-col))
-                (else
-                 ((g 'fill-rect) bg-col x y (+ x w) (+ y h))
-                 ((g 'draw-text) (string char) fnt x y fg-col)))))))))
-   ;; Note this method is not meant for use outside of editor-agent-maker
-   ((set-backing-agent! agent) (set! backing-agent agent))
-   ;; This method is not really meant to be used except for debugging.
-   ((backing-agent) backing-agent)
-
-   ;; These methods *might* be sane.  Or they might be a sign of a
-   ;; serious design mistake.  Or they might need to be factored out
-   ;; into an object extension/subclass/mixin/whatever...
-   ((load-file-cmd)    (delegate 'load-file-cmd))
-   ((save-file-cmd)    (delegate 'save-file-cmd))
-   ((save-file-as-cmd) (delegate 'save-file-as-cmd))
-
-   ((prompt!)          (delegate 'prompt!))
    ))
 
-(define (make-simplest-backing-agent wnd editor-agent)
-  (make-root-object simplest-backing-agent
-   ((on-keyup   sym mods)
+;; extend-with-auto-indentation : T -> T where T <: [Keyed T]
+;; This extension only advises existing methods; it introduces no new methods.
+(define (extend-with-auto-indentation textmodel)
+  (define (reindent-according-to-suggestion self)
+    (require "Experimental/scheme-source")
+    (let ((text ((self 'textstring))))
+      (call-with-values (lambda () ((self 'selection)))
+        (lambda (beg end) 
+          ;; 1. if beg = end, then we want to indent cursor's line
+          ;; 2. if beg < end, then we want to indent selected region 
+          ;;               (I think)
+          ;; For now, just assume beg = end; I can add support for 
+          ;; the case (2) later.
+          
+          (let* (;; search backward for the newline
+                 (line-start (do ((i beg (- i 1)))
+                                 ((or (= i 0)
+                                      (char=? #\newline (string-ref text (- i 1))))
+                                  i)))
+                 ;; search forward for non-whitespace; don't go past a newline
+                 (content-start (do ((i line-start (+ i 1)))
+                                    ((or (= i (string-length text))
+                                         (char=? #\newline (string-ref text i))
+                                         (not (char-whitespace? (string-ref text i))))
+                                     i)))
+                    ;; find suggested indentation
+                 (prefixstr (substring text 0 line-start))
+                 (indent
+                  (suggest-indentation
+                   (open-input-string
+                    (list->string (reverse (string->list prefixstr))))))
+                 (delta (- (- content-start line-start) indent))
+                 )
+            
+            ;; replace all that white space with spaces for suggested indent
+            ;; XXX the behavior set-textstring! method in all the subclasses 
+            ;; XXX is not as well fleshed out as the cursor manipulation 
+            ;; XXX methods; perhaps consider reexpressing this in terms of 
+            ;; XXX local edits to the text via the cursor.
+            ((self 'set-textstring!) 
+             (string-append (substring text 0 line-start)
+                            (make-string indent #\space)
+                            (substring text content-start 
+                                       (string-length text))))
+            
+            ;; fix the cursor's position
+            ((self 'set-selection!) (- beg delta) (- end delta))
+            
+            )))))
+    
+  (extend-object textmodel auto-indenting-textmodel
+   ((on-keydown mchar  sym mods)
+    ((delegate textmodel 'on-keydown auto-indenting-textmodel) mchar sym mods)
     (case sym
-      ((enter)       ((editor-agent 'insert-char-at-point!) #\newline))
-      ((left)        ((editor-agent 'cursor-left!)))
-      ((right)       ((editor-agent 'cursor-right!)))
-      ((up)          ((editor-agent 'cursor-up!)))
-      ((down)        ((editor-agent 'cursor-down!)))
-      ((back delete) ((editor-agent 'delete-char-at-point!)))))
-   ((on-keypress char)
-    (case char
-      ((#\backspace #\return #\esc #\tab) 'do-nothing)
-      (else 
-       ((editor-agent 'insert-char-at-point!) char))))))
+      ((enter) 
+       (reindent-according-to-suggestion auto-indenting-textmodel))
+      ((tab) 
+       (reindent-according-to-suggestion auto-indenting-textmodel))
+      ))))
 
-(define (make-scheme-editor-agent wnd editor-agent)
-  (make-auto-indenting-agent wnd editor-agent))
-
-(define (make-auto-indenting-agent wnd editor-agent)
-  (define (count-newlines-in string)
-    (length (filter (lambda (x) (char=? x #\newline)) (string->list string))))
-  ;; String Nat -> [Maybe Nat]
-  (define (index-after-line-count text line-count)
-    (let loop ((i 0) (j 0))
-      (cond ((= i (string-length text))
-             #f) ;; if we return #f, then there are not line-count lines in text
-            ((= j line-count)
-             i)
-            (else
-             (loop (+ i 1)
-                   (+ j (if (char=? #\newline (string-ref text i)) 1 0)))))))
-  (define (line-count)
-    (let ((prefix-lines (count-newlines-in prefix))
-          (text-lines   (count-newlines-in ((editor-agent 'textstring))))
-          (suffix-lines (count-newlines-in suffix)))
-      '(begin (display `(line-count ((prefix-lines ,prefix-lines)
-                                    (text-lines   ,text-lines)
-                                    (suffix-lines ,suffix-lines))))
-             (newline))
-      (+ prefix-lines text-lines suffix-lines)))
-     
-     
-  (define first-line-idx 0)
-  ;; Bad rep; scrolling op's take O(n) time (where n is the size of
-  ;; the entirety of the text).  A doubly linked list of lines may be
-  ;; better.  Or even a pair of singly linked list (where the first is
-  ;; kept in reverse order).  But this is simple prototype code.
-  (define prefix "")
-  (define suffix "")
-
-  (define current-filename #f)
-
+;; extend-with-paren-matching : T -> T where T <: [Colorable T]
+;; This extension only advises existing methods; it introduces no new methods.
+(define (extend-with-paren-matching textmodel)
   (require "Experimental/scheme-source")
 
-  (make-root-object auto-indenting-agent
-   ((on-keydown mchar  sym mods)
-    (case sym
-      ((enter)       
-       (let* ((ea editor-agent)
-              (prefixstr (call-with-values (lambda () ((ea 'selection))) 
-                           (lambda (beg end) 
-                             (substring ((ea 'textstring)) 0 beg))))
-              (indent
-               (suggest-indentation 
-                (open-input-string 
-                 (list->string (reverse (string->list prefixstr)))))))
-         ((editor-agent 'insert-char-at-point!) #\newline)
-         (do ((i indent (- i 1)))
-             ((zero? i))
-           ((editor-agent 'insert-char-at-point!) #\space))))
-      ((tab)         
-       (let* ((ea editor-agent)
-              (text ((ea 'textstring))))
-         (call-with-values (lambda () ((ea 'selection)))
-           (lambda (beg end) 
-             ;; 1. if beg = end, then we want to indent cursor's line
-             ;; 2. if beg < end, then we want to indent selected region 
-             ;;               (I think)
-             ;; For now, just assume beg = end; I can add support for 
-             ;; the case (2) later.
-             
-             (let* (;; search backward for the newline
-                    (line-start (do ((i beg (- i 1)))
-                                    ((or (= i 0)
-                                         (char=? #\newline (string-ref text (- i 1))))
-                                     i)))
-                    ;; search forward for non-whitespace; don't go past a newline
-                    (content-start (do ((i line-start (+ i 1)))
-                                       ((or (= i (string-length text))
-                                            (char=? #\newline (string-ref text i))
-                                            (not (char-whitespace? (string-ref text i))))
-                                        i)))
-                    ;; find suggested indentation
-                    (prefixstr (substring text 0 line-start))
-                    (indent
-                     (suggest-indentation
-                      (open-input-string
-                       (list->string (reverse (string->list prefixstr))))))
-                    (delta (- (- content-start line-start) indent))
-                    )
-               
-               ;; replace all that white space with spaces for suggested indent
-               ((ea 'set-textstring!) (string-append (substring text 0 line-start)
-                                                     (make-string indent #\space)
-                                                     (substring text content-start 
-                                                                (string-length text))))
-
-               ;; fix the cursor's position
-               ((ea 'set-selection!) (- beg delta) (- end delta))
-               
-               ((wnd 'update))
-
-               (begin (display "saw tab!") (newline))
-               )))))
-      ((left)        ((editor-agent 'cursor-left!)))
-      ((right)       ((editor-agent 'cursor-right!)))
-      ((up)          ((editor-agent 'cursor-up!)))
-      ((down)        ((editor-agent 'cursor-down!)))
-      ((back delete) 
-       (let* (;; 1. Delete the text
-              (deleted-text ((editor-agent 'delete-char-at-point!)))
-              ;; 2. Analyze deleted text to see if we need to append more text
-              (lines (count-newlines-in deleted-text)))
-         (cond 
-          ((not (= lines 0))
-           ;;    3. Okay, append more text.
-           (let* ((text ((editor-agent 'textstring)))
-                  (idx  (index-after-line-count suffix lines))
-                  (suflen (string-length suffix))
-                  (append-text (if idx (substring suffix 0 idx) suffix))
-                  (new-text (string-append text append-text))
-                  (new-suffix (if idx (substring suffix idx suflen) "")))
-             ((editor-agent 'set-textstring!) new-text)
-             (set! suffix new-suffix))))))
-      ))
-
-   ((on-keypress char)
-    (case char
-      ((#\backspace #\return #\esc #\tab) 'do-nothing)
-      (else 
-       ((editor-agent 'insert-char-at-point!) char))))
+  (extend-object textmodel paren-matching-textmodel
    ((on-cursor-reposition)
+    ((delegate textmodel 'on-cursor-reposition paren-matching-textmodel))
     (let* ((matched-col (name->col "Orange"))
            (unmatch-col (name->col "Red"))
-           (ea editor-agent)
+           (ea paren-matching-textmodel)
            (text ((ea 'textstring)))
            (cursor-pos (call-with-values (lambda () ((ea 'selection)))
                          (lambda (beg end) 
@@ -831,87 +929,29 @@
                  ((ea 'color-background-transiently!) e (+ e 1) matched-col))))
          (else
           (let ((e cursor-pos))
-            ((ea 'color-background-transiently!) e (+ e 1) unmatch-col))))))))
-   ((vertical-scrollbar)
-    ;; These do not have to be in pixels to be meaningful; we as the
-    ;; client select our own unit of measurement, and are then
-    ;; responsible for using it consistently.  In this case, we are
-    ;; using a line as the measurement grain, (and I suppose that
-    ;; the horizontal scrollbars will use a column as the grain).
-    ;; When image support is added, these grains might not remain
-    ;; appropriate.
-    (let* ((my-line-count (line-count))
-           (visible-lines ((editor-agent 'count-visible-lines)))
-           (max-val (max 0 (- my-line-count visible-lines))) ;; XXX this is buggy
-           (max-val my-line-count)) ;; This is questionable but easier to work with
-      (cond ((not (<= 0 first-line-idx max-val))
-             (display `(want: (<= 0 ,first-line-idx ,max-val)))
-             (newline)))
-      (assert (<= 0 first-line-idx max-val))
-      `((min ,0)
-        (max ,max-val)
-        (value ,first-line-idx)
-        (dsmall ,1)
-        (dlarge ,(if (> (* 2 visible-lines) my-line-count)
-                     1
-                     (quotient visible-lines 2)
-                     )))))
-   ((on-vscroll new-int event-type)
+            ((ea 'color-background-transiently!) e (+ e 1) unmatch-col)))))))
+    ((((paren-matching-textmodel 'wnd)) 'update))
+    )))
 
-    (let* ((visible-line-count ((editor-agent 'count-visible-lines)))
-           (old-int first-line-idx)
-           ;; 1. Extract existing text + cursor info from the textview.
-           (text ((editor-agent 'textstring)))
-           (cursor-info (call-with-values (lambda () ((editor-agent 'selection))) 
-                          list))
-           ;; 2. Merge textview's text with our own text.
-           (text (string-append prefix text suffix))
-           ;; 3. Extract the appropriate substring from the total text.
-           (subtext-start-idx (index-after-line-count text new-int))
-           (subtext-finis-idx (index-after-line-count text (+ new-int 
-                                                              visible-line-count)))
-           ;; 4. Calculate change to cursor-info
-           (cursor-delta (- (string-length prefix) subtext-start-idx))
-           (new-cursor-info (map (lambda (x) (+ x cursor-delta)) cursor-info)))
-      (let* ((prefix* (substring text 0 (or subtext-start-idx 0)))
-             (start   (or subtext-start-idx 0))
-             (finis   (or subtext-finis-idx (string-length text)))
-             (view*   (substring text start finis))
-             (suffix* (substring text finis (string-length text))))
-        '(begin (display `(repartition-and-install ,text 
-                                                  (,0 ,subtext-start-idx
-                                                      ,subtext-finis-idx
-                                                      ,(string-length text))
-                                                  ,prefix*
-                                                  ,view*
-                                                  ,suffix*
-                                                  ))
-               (newline))
-        ;;    5. Repartition and install text
-        (set! prefix prefix*)
-        ((editor-agent 'set-textstring!) view*)
-        (set! suffix suffix*)
-        (apply (editor-agent 'set-selection!) new-cursor-info))
-      (set! first-line-idx new-int)
-      ((wnd 'update))
-      ))
-   
+(define (extend-with-file-handling textmodel)
+  (define current-filename #f)
+
+  (extend-object textmodel file-handling-textmodel
    ((load-file-cmd)
     (cond ((open-file-chooser-dialog (current-directory)
                                      (list (list "Scheme Files" "sch" "scm" "ss")
                                            (list "All Files" "*")))
            => (lambda (name)
-                ((auto-indenting-agent 'load-file) name)))))
+                ((file-handling-textmodel 'load-file) name)))))
    ((save-file-cmd)
-    (cond (current-filename ((auto-indenting-agent 'save-file-as) current-filename))
-          (else ((auto-indenting-agent 'save-file-as-cmd)))))
+    (cond (current-filename ((file-handling-textmodel 'save-file-as) current-filename))
+          (else ((file-handling-textmodel 'save-file-as-cmd)))))
    ((save-file-as-cmd) 
     (cond ((save-as-file-chooser-dialog (current-directory)
                                         (list (list "Scheme Files" "sch" "scm" "ss")
                                               (list "All Files" "*")))
            => (lambda (name)
-                ((auto-indenting-agent 'save-file-as) name)))))
-
+                ((file-handling-textmodel 'save-file-as) name)))))
    ((load-file filename)   
     (set! current-filename filename)
     (call-with-input-file filename
@@ -920,44 +960,71 @@
                            (l '() (cons c l)))
                           ((eof-object? c) (reverse l))))
                (text (list->string chars))
-               (visible-line-count ((editor-agent 'count-visible-lines)))
-               (line-idx 0)
-               (subtext-start-idx (index-after-line-count text line-idx))
-               (subtext-finis-idx (index-after-line-count 
-                                   text (+ line-idx visible-line-count)))
-               (prefix* (substring text 0 line-idx))
-               (start (or subtext-start-idx 0))
-               (finis (or subtext-finis-idx (string-length text)))
-               (view* (substring text start finis))
-               (suffix* (substring text finis (string-length text))))
-          (set! prefix prefix*)
-          ((editor-agent 'set-textstring!) view*)
-          (set! suffix suffix*)
-          ((editor-agent 'set-selection!) 0 0)
-          (set! first-line-idx line-idx)
-          ((wnd 'update))
+               (self file-handling-textmodel))
+          ((self 'set-textstring!) text)
+          ((self 'set-selection!) 0 0)
           ))))
    ((save-file-as filename) 
     (set! current-filename filename)
     (call-with-output-file filename
       (lambda (fileout)
-        (let ((text (string-append prefix ((editor-agent 'textstring)) suffix)))
+        (let* ((self file-handling-textmodel)
+               (text ((self 'textstring))))
           (do ((i 0 (+ i 1)))
               ((= i (string-length text)))
             (write-char (string-ref text i) fileout))))))
    ))
 
-(define (editor-agent-maker make-backing-agent)
+(define (make-simplest-backing-agent wnd textmodel)
+  (extend-object textmodel simplest-backing-agent
+   ((on-keyup mchar  sym mods)
+    (case sym
+      ((enter)       ((simplest-backing-agent 'insert-char-at-point!) #\newline))
+      ((left)        ((simplest-backing-agent 'cursor-left!)))
+      ((right)       ((simplest-backing-agent 'cursor-right!)))
+      ((up)          ((simplest-backing-agent 'cursor-up!)))
+      ((down)        ((simplest-backing-agent 'cursor-down!)))
+      ((back delete) ((simplest-backing-agent 'delete-char-at-point!)))))
+   ((on-keypress char)
+    (case char
+      ((#\backspace #\return #\esc #\tab) 'do-nothing)
+      (else 
+       ((textmodel 'insert-char-at-point!) char))))))
+
+(define (make-auto-indenting-agent wnd textmodel)
+  (extend-with-paren-matching (extend-with-auto-indentation textmodel)))
+
+(define (make-scheme-editor-agent wnd textmodel)
+  (extend-with-file-handling 
+   (extend-with-paren-matching
+    (extend-with-auto-indentation textmodel))))
+
+
+(define (make-textview wnd)
+  (define (o . fcns)
+    (lambda (x)
+      (if (null? fcns) 
+          x
+          ((car fcns) ((apply o (cdr fcns)) x)))))
+  (define extend-with-rendering (rendering-extender wnd))
+  
+  ((o extend-with-text-coloring
+      extend-with-scrolling
+      extend-with-mouse-handling
+      extend-with-keystroke-handling
+      extend-with-rendering)
+   (make-textmodel)))
+
+(define (editor-agent-maker wnd*textmodel->agent)
   (lambda (wnd width height)
-    (let* ((textview-agent (make-textview-agent wnd width height))
-           (backing-agent (make-backing-agent wnd textview-agent)))
-      ((textview-agent 'set-backing-agent!) backing-agent)
-      textview-agent)))
+    (let* ((textview (make-textview wnd))
+           (agent (wnd*textmodel->agent wnd textview)))
+      agent)))
 
 (define (make-editor-agent wnd width height)
-  ((editor-agent-maker make-simplest-backing-agent) wnd width height))
+  ((editor-agent-maker (lambda (w tm) tm)) wnd width height))
 
-(define (make-read-eval-print-loop-agent wnd editor-agent)
+(define (extend-with-repl textmodel)
   (define prompt-idx 0)
   (define (bump-prompt! count) 
     '(begin (display "  ")
@@ -978,7 +1045,7 @@
               (custom-binary-port
                ;; This is so broken.  Its a total hack to try to
                ;; convert a string into a binary port.  But Larceny
-               ;; does not support constructing custom string ports
+               ;; does not support constructing custom textual ports
                ;; yet.  Other options include making a custom reader
                ;; for this purpose, but that's also unappealing.
                (let ((read! 
@@ -1016,7 +1083,7 @@
   ;; Maybe I should abstract over this above...
   (define my-own-env (environment-copy (interaction-environment)))
 
-  (define (evaluate-first-sexp-after-prompt mchar)
+  (define (evaluate-first-sexp-after-prompt mchar alternative-behavior)
     ;; I'm going to hack this up by making a custom port for reading
     ;; from the text.  If the reader ever requests to read past the
     ;; end of the input text, then we abandon the read attempt (via an
@@ -1027,13 +1094,29 @@
     ;; support.  (Perhaps even at this level, images will be rendered
     ;; to ASCII and the text view will be reponsible for interpreting
     ;; the code sequences.
-    (let* ((ea editor-agent)
+    (let* ((ea textmodel)
            (text ((ea 'textstring)))
            (subtext (substring text prompt-idx (string-length text)))
            ;; TODO: Add whitespace to end of text, so that this will
            ;; work independently of whether (ea 'textstring) returns
            ;; text ending with newline
            (orig-port (open-string-input-port subtext))
+           
+           (repl-binary-output-port 
+            (let ((write! 
+                   (lambda (bv start count)
+                     (if (= count 0)
+                         0
+                         (let* ((b (bytevector-ref bv start))
+                                (c (integer->char b))
+                                (s (string c)))
+                           (insert-string-at-point/bump! ea s)
+                           1)))))
+              (make-custom-binary-output-port 
+               "REPL OUTPUT" write! #f #f #f)))
+           (repl-output-port 
+            (transcoded-port repl-binary-output-port (native-transcoder)))
+           
            (mrr (maybe-read orig-port #\newline)))
       
       '(begin (write `((prompt-idx: ,prompt-idx)
@@ -1043,6 +1126,11 @@
       
       (case (car mrr)
         ((evaluate) 
+
+         ;; Now that we've read it the user's text, we should
+         ;; bump the prompt over it.
+         (bump-prompt! (- (string-length subtext) 1))
+
          ;; First provide user feedback by actually printing char
          (cond (mchar
                 (insert-string-at-point/bump! ea (string mchar))))
@@ -1054,68 +1142,76 @@
          ;; XXX during evaluation, we also should catch errors and
          ;; print them to the REPL window.
          (let* ((sexp (cadr mrr))
-                (count-chars-read (caddr mrr))
-                (val (eval sexp my-own-env))
-                (valstr 
-                 (call-with-output-string
-                  (lambda (strport)
-                    (call-with-current-continuation 
-                     (lambda (escape)
-                       (call-with-error-handler 
-                        (lambda (who . args)
-                          (display "Error during printing.  ")
-                          (display "NOT reverting to ur-printer tho'.")
-                          (newline)
-                          (escape "print-error"))
-                        (lambda () ((repl-printer) val strport))))))))
-                (promptstr
-                 (call-with-output-string
-                  (lambda (strport)
-                    ((repl-prompt) (repl-level) strport))))
-                (ignore 
-                 '(begin (write `((count-chars-read: ,count-chars-read)
-                                  (subtext len: ,(string-length subtext))
-                                  (subtext: ,subtext)))
-                         (newline)))
-                (remaining-input
-                 (substring subtext 
-                            count-chars-read (string-length subtext)))
-                ;; with data like () or "foo", remaining-input will
-                ;; include a newline.  for data that requires a
-                ;; delimiter (like a number or symbol),
-                ;; remaining-input will not include the newline
-                ;; Either way, *we* don't want it.
-                (remaining-input
-                 (let ((len (string-length remaining-input)))
-                   (cond 
-                    ((= len 0) remaining-input)
-                    ((char=? (string-ref remaining-input (- len 1))
-                             #\newline)
-                     (substring remaining-input 0 (- len 1)))
-                    (else
-                     remaining-input)))))
+                (count-chars-read (caddr mrr)))
            
-           ;; Now that we've read it the user's text, we should
-           ;; bump the prompt over it.
-           (bump-prompt! (- (string-length subtext) 1))
+           (call-with-current-continuation 
+            (lambda (escape-from-eval)
+              (let* ((orig-error-handler (error-handler))
+                     (repl-error-handler 
+                      (lambda args
+                        (parameterize ((error-handler orig-error-handler))
+                          (decode-error args repl-output-port)
+                          (escape-from-eval 'ignore-me))))
+                     (val (parameterize ((error-handler repl-error-handler))
+                            (eval sexp my-own-env)))
+                     (valstr 
+                      (call-with-output-string
+                       (lambda (strport)
+                         (call-with-current-continuation 
+                          (lambda (escape)
+                            (call-with-error-handler 
+                             (lambda (who . args)
+                               (display "Error during printing.  ")
+                               (display "NOT reverting to ur-printer tho'.")
+                               (newline)
+                               (escape "print-error"))
+                             (lambda () ((repl-printer) val strport)))))))))
+
+                ;; Write rendered value to textview, bumping the prompt over it.
+                (insert-string-at-point/bump! ea valstr))))
            
-           ;; Write rendered value to textview, bumping the prompt over it.
-           (insert-string-at-point/bump! ea valstr)
+           (let* ((promptstr
+                   (call-with-output-string
+                    (lambda (strport)
+                      ((repl-prompt) (repl-level) strport))))
+                  (ignore 
+                   '(begin (write `((count-chars-read: ,count-chars-read)
+                                    (subtext len: ,(string-length subtext))
+                                    (subtext: ,subtext)))
+                           (newline))))
+             
+             ;; Print new prompt
+             (insert-string-at-point/bump! ea promptstr))
            
-           ;; Print new prompt
-           (insert-string-at-point/bump! ea promptstr)
-           
-           ;; XXX if there is still data on orig-port, then we should
-           ;; probably propagate it down past the new prompt.  (This
-           ;; does not match DrScheme's behavior though; I believe it
-           ;; evaluates greedily until there aren't any S-exps left;
-           ;; which is another option for us.)
-           '(begin (write `(propagating remaining-input: ,remaining-input))
-                   (newline))
-           (insert-string-at-point! ea remaining-input)
+           (let* ((remaining-input
+                   (substring subtext 
+                              count-chars-read (string-length subtext)))
+                  ;; with data like () or "foo", remaining-input will
+                  ;; include a newline.  for data that requires a
+                  ;; delimiter (like a number or symbol),
+                  ;; remaining-input will not include the newline
+                  ;; Either way, *we* don't want it.
+                  (remaining-input
+                   (let ((len (string-length remaining-input)))
+                     (cond 
+                      ((= len 0) remaining-input)
+                      ((char=? (string-ref remaining-input (- len 1))
+                               #\newline)
+                       (substring remaining-input 0 (- len 1)))
+                      (else
+                       remaining-input)))))
+             
+             ;; XXX if there is still data on orig-port, then we should
+             ;; probably propagate it down past the new prompt.  (This
+             ;; does not match DrScheme's behavior though; I believe it
+             ;; evaluates greedily until there aren't any S-exps left;
+             ;; which is another option for us.)
+             '(begin (write `(propagating remaining-input: ,remaining-input))
+                     (newline))
+             (insert-string-at-point! ea remaining-input))
            ))
         ((eof)      
-         (insert-string-at-point! ea (string (cadr mrr))))
+         (alternative-behavior))
         ((error)
          (let ((errstr (call-with-output-string
                         (lambda (p)
@@ -1129,7 +1225,7 @@
            ))
         (else (error 'repl-agent..on-keydown ": oops.")))))
   
-  (make-root-object repl-agent
+  (extend-object textmodel repl-agent
    ((on-keydown mchar sym mods)
     (case sym
       ((enter) 
@@ -1144,11 +1240,11 @@
        ;; text post prompt?
        '(begin (write `((on-keydown ,sym)
                        (prompt-idx: ,prompt-idx)
-                       (text: ,((editor-agent 'textstring)))
-                       (len: ,(string-length ((editor-agent 'textstring))))
+                       (text: ,((repl-agent 'textstring)))
+                       (len: ,(string-length ((repl-agent 'textstring))))
                        ))
               (newline))
-       (let ((ea editor-agent))
+       (let ((ea repl-agent))
          (call-with-values (lambda () ((ea 'selection)))
            (lambda (beg end)
              (if (<= beg prompt-idx)
@@ -1158,10 +1254,14 @@
                    ;; Move prompt to end of buffer
                    ((ea 'set-selection!) (- end 1) (- end 1))
                    (insert-string-at-point! ea subtext)))))
-         (evaluate-first-sexp-after-prompt mchar)))
+         (evaluate-first-sexp-after-prompt 
+          mchar
+          (lambda () 
+            ((delegate textmodel 'on-keydown repl-agent) mchar sym mods))
+          )))
 
       ((back delete)
-       (let* ((ea editor-agent))
+       (let* ((ea repl-agent))
          (call-with-values (lambda () ((ea 'selection)))
            (lambda (beg end)
              ;; ensure selection area is only after prompt.
@@ -1174,7 +1274,7 @@
       (else
        (cond 
         (mchar 
-         (let* ((ea editor-agent)
+         (let* ((ea repl-agent)
                 (text ((ea 'textstring)))
                 (end (string-length text)))
            ;; move cursor to end of buffer
@@ -1185,7 +1285,7 @@
            (insert-string-at-point! ea (string mchar))
            ))))))
    ((prompt!) 
-    (let* ((ea editor-agent))
+    (let* ((ea repl-agent))
       (call-with-values (lambda () ((ea 'selection)))
         (lambda (beg end) ((ea 'set-selection!) end end)))
       (let ((str (call-with-output-string 
@@ -1193,3 +1293,8 @@
                     ((repl-prompt) (repl-level) strport)))))
         (insert-string-at-point/bump! ea str))))
    ))
+
+(define (make-read-eval-print-loop-agent wnd textmodel)
+  (extend-with-repl 
+   (extend-with-paren-matching
+    (extend-with-auto-indentation textmodel))))
