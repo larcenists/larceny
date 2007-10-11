@@ -1289,7 +1289,7 @@
    ;; The REPL will silently drop attempts to edit text before the
    ;; prompt.
    ;; 
-   ;; Text edits that *do* take effect do not effect the prompt-idx,
+   ;; Text edits that *do* take effect do not affect the prompt-idx,
    ;; because such edits are guaranteed to be part of the user input
    ;; that we're still waiting to process, and therefore we can leave
    ;; prompt-idx where it is.
