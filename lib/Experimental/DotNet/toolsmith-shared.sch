@@ -659,6 +659,8 @@
    ((load-file-cmd)    (delegate 'load-file-cmd))
    ((save-file-cmd)    (delegate 'save-file-cmd))
    ((save-file-as-cmd) (delegate 'save-file-as-cmd))
+
+   ((prompt!)          (delegate 'prompt!))
    ))
 
 (define (make-simplest-backing-agent wnd editor-agent)
