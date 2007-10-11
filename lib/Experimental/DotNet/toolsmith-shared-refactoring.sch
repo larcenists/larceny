@@ -1045,7 +1045,7 @@
               (custom-binary-port
                ;; This is so broken.  Its a total hack to try to
                ;; convert a string into a binary port.  But Larceny
-               ;; does not support constructing custom string ports
+               ;; does not support constructing custom textual ports
                ;; yet.  Other options include making a custom reader
                ;; for this purpose, but that's also unappealing.
                (let ((read! 
@@ -1101,6 +1101,22 @@
            ;; work independently of whether (ea 'textstring) returns
            ;; text ending with newline
            (orig-port (open-string-input-port subtext))
+           
+           (repl-binary-output-port 
+            (let ((write! 
+                   (lambda (bv start count)
+                     (if (= count 0)
+                         0
+                         (let* ((b (bytevector-ref bv start))
+                                (c (integer->char b))
+                                (s (string c)))
+                           (insert-string-at-point/bump! ea s)
+                           1)))))
+              (make-custom-binary-output-port 
+               "REPL OUTPUT" write! #f #f #f)))
+           (repl-output-port 
+            (transcoded-port repl-binary-output-port (native-transcoder)))
+           
            (mrr (maybe-read orig-port #\newline)))
       
       '(begin (write `((prompt-idx: ,prompt-idx)
@@ -1131,23 +1147,10 @@
            (call-with-current-continuation 
             (lambda (escape-from-eval)
               (let* ((orig-error-handler (error-handler))
-                     (bin-port 
-                      (let ((write! 
-                             (lambda (bv start count)
-                               (if (= count 0)
-                                   0
-                                   (let* ((b (bytevector-ref bv start))
-                                          (c (integer->char b))
-                                          (s (string c)))
-                                     (insert-string-at-point/bump! ea s)
-                                     1)))))
-                        (make-custom-binary-output-port 
-                         "REPL OUTPUT" write! #f #f #f)))
-                     (port (transcoded-port bin-port (native-transcoder)))
                      (repl-error-handler 
                       (lambda args
                         (parameterize ((error-handler orig-error-handler))
-                          (decode-error args port)
+                          (decode-error args repl-output-port)
                           (escape-from-eval 'ignore-me))))
                      (val (parameterize ((error-handler repl-error-handler))
                             (eval sexp my-own-env)))
