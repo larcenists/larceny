@@ -1,3 +1,11 @@
+;;; Procedures of interest:
+;;; define-type
+;;; define-constructor
+;;; define-method
+;;; constructor->ilgen 
+;;; method->ilgen
+;;; ilgen->emitter
+
 (define (find-emit-type name)
   (find-clr-type (string-append "System.Reflection.Emit." name)))
 (define (find-reflection-type name)
