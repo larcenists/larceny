@@ -447,8 +447,9 @@
       ;; 1. Ambiguities as to what happens when ranges overlap
       ;; 2. If disallow overlaps, perhaps should require returned list is sorted.
       (list (list fnt 0 (string-length ((renderable-textmodel 'textstring))))))
-     ((on-resize)            #f)
-     ((count-visible-lines)  (count-visible-lines))
+     ((on-resize) "handler for window resize event." #f)
+     ((count-visible-lines)  "=> number of lines visible in buffer."
+      (count-visible-lines))
      ;; XXX adding this as a hook that can be potentially overridden, 
      ;; but I'm not sure it is a good idea.
      ((visible-offset) "=> integer offset where the visible part of str begins.
@@ -456,7 +457,7 @@
       0)
      ((foreground-color idx) default-foreground-col)
      ((background-color idx) default-background-col)
-     ((on-paint g rx ry rw rh)
+     ((on-paint g rx ry rw rh) "handler for window paint event."
       ((g 'fill-rect) default-background-col rx ry (+ rx rw) (+ ry rh))
       (call-with-values (lambda () ((g 'measure-text) "A" fnt))
         (lambda (a-char-w a-char-h)
@@ -493,7 +494,9 @@
 ;; extend-with-keystroke-handling : T -> [Keyed T] where T <: TextModel
 (define (extend-with-keystroke-handling textmodel)
   (extend-object textmodel keystroke-handling-textmodel
-   ((on-keydown mchar  sym mods)
+   ((on-keydown mchar  sym mods) "handler for keydown of keystroke sym
+ with modifiers mods.  
+ If sym and mods correspond to char c, then mchar is c; otherwise mchar is #f."
     (let ((self keystroke-handling-textmodel))
       (case sym
         ((enter)       ((self 'insert-char-at-point!) #\newline))
@@ -507,8 +510,13 @@
                 (case mchar
                   ((#\backspace #\return #\esc #\tab) 'do-nothing)
                   (else ((self 'insert-char-at-point!) mchar)))))))))
-   ((on-keyup mchar  sym mods) #f)
-   ((on-keypress char) #f)
+   ((on-keyup mchar  sym mods) "handler for keyup of keystroke sym 
+ with modifiers mods.
+ If sym and mods correspond to char c, then mchar is c; otherwise mchar is #f." 
+    #f)
+   ((on-keypress char) "deprecated method.
+ handler for keypress of char."
+    #f)
    ))
 
 ;; extend-with-mousehandling : T -> [Moused T] where T <: [Rendered TextModel]
@@ -527,16 +535,16 @@
              (<= y (cdr pt) (+ y h)))))
 
   (extend-object textmodel mouse-handling-textmodel
-   ((on-mousedown mx my)
+   ((on-mousedown mx my) "handler for mousedown event."
     (set! mouse-down (cons mx my))
     (set! mouse-drag (cons mx my))
     (set! mouse-up #f)
     ((wnd 'update)))
-   ((on-mouseup mx my)
+   ((on-mouseup mx my) "handler for mouseup event."
     (set! mouse-drag #f)
     (set! mouse-up (cons mx my))
     ((wnd 'update)))
-   ((on-mousedrag mx my)
+   ((on-mousedrag mx my) "handler for mousedrag event."
     (cond (mouse-drag
            (set-car! mouse-drag mx)
            (set-cdr! mouse-drag my)))
@@ -676,8 +684,9 @@
                           (newline))
                    ((wnd 'attempt-scroll) 'vertical cursor-lines)))))))
     ((delegate textmodel 'on-cursor-reposition scrollable-textmodel)))
-   ((on-hscroll new-int event-type)  #f)
-   ((on-vscroll new-int event-type)
+   ((on-hscroll new-int event-type) "handler horizontal scroll to index new-int." 
+    #f)
+   ((on-vscroll new-int event-type) "handler vertical scroll to index new-int."
     (set! first-line-idx new-int)
     ((wnd 'update)))
    ((horizontal-scrollbar) #f)
@@ -775,11 +784,11 @@
 
 
   (extend-object textmodel colorable-textmodel
-   ((foreground-color pos)
+   ((foreground-color pos) "=> col for text at index pos."
     (or (lookup-col pos transient-foreground-col-ranges)
         (lookup-col pos stable-foreground-col-ranges)
         ((delegate textmodel 'foreground-color colorable-textmodel) pos)))
-   ((background-color pos)
+   ((background-color pos) "=> col for background at index pos."
     (or (lookup-col pos transient-background-col-ranges)
         (lookup-col pos stable-background-col-ranges)
         ((delegate textmodel 'background-color colorable-textmodel) pos)))
@@ -831,12 +840,14 @@
           (cons (list start-incl finis-excl col) 
                 stable-background-col-ranges)))
 
-   ((foreground-colors) (list transient-foreground-col-ranges
-                              stable-foreground-col-ranges
-                              default-foreground-col))
-   ((background-colors) (list transient-background-col-ranges
-                              stable-background-col-ranges
-                              default-background-col))
+   ((foreground-colors) "debugging method.  Scheduled for deletion."
+    (list transient-foreground-col-ranges
+          stable-foreground-col-ranges
+          default-foreground-col))
+   ((background-colors) "debugging method.  Scheduled for deletion."
+    (list transient-background-col-ranges
+          stable-background-col-ranges
+          default-background-col))
    ))
 
 ;; extend-with-auto-indentation : T -> T where T <: [Keyed T]
