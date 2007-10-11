@@ -1128,22 +1128,44 @@
          (let* ((sexp (cadr mrr))
                 (count-chars-read (caddr mrr)))
            
-           (let* ((val (eval sexp my-own-env))
-                  (valstr 
-                   (call-with-output-string
-                    (lambda (strport)
-                      (call-with-current-continuation 
-                       (lambda (escape)
-                         (call-with-error-handler 
-                          (lambda (who . args)
-                            (display "Error during printing.  ")
-                            (display "NOT reverting to ur-printer tho'.")
-                            (newline)
-                            (escape "print-error"))
-                          (lambda () ((repl-printer) val strport)))))))))
+           (call-with-current-continuation 
+            (lambda (escape-from-eval)
+              (let* ((orig-error-handler (error-handler))
+                     (bin-port 
+                      (let ((write! 
+                             (lambda (bv start count)
+                               (if (= count 0)
+                                   0
+                                   (let* ((b (bytevector-ref bv start))
+                                          (c (integer->char b))
+                                          (s (string c)))
+                                     (insert-string-at-point/bump! ea s)
+                                     1)))))
+                        (make-custom-binary-output-port 
+                         "REPL OUTPUT" write! #f #f #f)))
+                     (port (transcoded-port bin-port (native-transcoder)))
+                     (repl-error-handler 
+                      (lambda args
+                        (parameterize ((error-handler orig-error-handler))
+                          (decode-error args port)
+                          (escape-from-eval 'ignore-me))))
+                     (val (parameterize ((error-handler repl-error-handler))
+                            (eval sexp my-own-env)))
+                     (valstr 
+                      (call-with-output-string
+                       (lambda (strport)
+                         (call-with-current-continuation 
+                          (lambda (escape)
+                            (call-with-error-handler 
+                             (lambda (who . args)
+                               (display "Error during printing.  ")
+                               (display "NOT reverting to ur-printer tho'.")
+                               (newline)
+                               (escape "print-error"))
+                             (lambda () ((repl-printer) val strport)))))))))
 
-             ;; Write rendered value to textview, bumping the prompt over it.
-             (insert-string-at-point/bump! ea valstr))
+                ;; Write rendered value to textview, bumping the prompt over it.
+                (insert-string-at-point/bump! ea valstr))))
            
            (let* ((promptstr
                    (call-with-output-string
