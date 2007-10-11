@@ -8,7 +8,8 @@
 ; Given any Scheme object, returns a non-negative exact integer
 ; less than 2^24.
 
-; FIXME: not required by R5RS or R6RS; should be improved.
+; FIXME: object-hash is not required by R5RS or R6RS, but
+; Larceny's implementation of it should still be improved.
 
 (define object-hash (lambda (x) 0))    ; hash on EQ?, EQV?
 

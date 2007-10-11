@@ -116,21 +116,43 @@
         (else
          (make-oldstyle-hashtable object-hash assv (car rest)))))
 
+; hashtable? is already defined for oldstyle hashtables.
+
+; hashtable-size is already defined for oldstyle hashtables.
+
+; hashtable-ref is the R6RS name for oldstyle hashtable-fetch
+; and supersedes oldstyle hashtable-get
+
 (define (hashtable-ref ht key default)
   (hashtable-fetch ht key default))
+
+; hashtable-set! is the R6RS name for oldstyle hashtable-put!
 
 (define (hashtable-set! ht key value)
   (hashtable-put! ht key value))
 
+; hashtable-delete! is the R6RS name for oldstyle hashtable-remove!
+
 (define (hashtable-delete! ht key)
   (hashtable-remove! ht key))
+
+; hashtable-contains is already defined for oldstyle hashtables.
 
 (define (hashtable-update! ht key proc default)
   (let ((x (proc (hashtable-ref ht key default))))
     (hashtable-set! ht key x)))
 
+; hashtable-copy is already defined for oldstyle hashtables,
+; but needs to take an optional second argument.
+
+; hashtable-clear! is already defined for oldstyle hashtables,
+; but needs to take an optional second argument.
+
 (define (hashtable-keys ht)
   (list->vector (hashtable-map (lambda (key value) key) ht)))
+
+; hashtable-entries subsumes oldstyle hashtable-for-each and
+; hashtable-map
 
 (define (hashtable-entries ht)
   (let ((entries (hashtable-map cons ht)))
@@ -138,6 +160,12 @@
             (list->vector (map cdr entries)))))
 
 ; FIXME: The inspection procedures aren't implemented yet.
+
+(define (hashtable-equivalence-function ht) ...)
+
+(define (hashtable-hash-function ht) ...)
+
+(define (hashtable-mutable? ht) #t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
