@@ -663,6 +663,7 @@
                           (newline))
                    ((wnd 'attempt-scroll) 'vertical (- cursor-lines))))
                 ((and (= s e)
+                      (< s (string-length text))
                       (<= finis (+ s 1)))
                  (let* ((cursor-lines
                          (count-newlines-in (substring text finis (+ s 1))))
