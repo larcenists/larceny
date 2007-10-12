@@ -521,24 +521,25 @@
          '(33 33 33 33))
 
    (test "make-custom-textual-input/output-port (lookahead)"
-         (let ((p (make-custom-textual-input/output-port
-                   "looking"
-                   (lambda (bv start count)
-                     (do ((i 0 (+ i 1)))
-                         ((= i count)
-                          count)
-                       (bytevector-set! bv (+ start i) (char->integer #\*))))
-                   (lambda (bv start count)
-                     (let ((bv2 (make-bytevector count)))
-                       (bytevector-copy! bv start bv2 0 count)
-                       count))
-                   #f #f #f)))
-           (let* ((c1 (get-char p))
+         (let* ((strings '())
+                (p (make-custom-textual-input/output-port
+                    "looking"
+                    (lambda (s start count)
+                      (do ((i 0 (+ i 1)))
+                          ((= i count)
+                           count)
+                        (string-set! s (+ start i) #\*)))
+                    (lambda (s start count)
+                      (let ((s2 (substring s start (+ start count))))
+                        (set! strings (cons s2 strings))
+                        count))
+                    #f #f #f)))
+           (let* ((c1 (begin (put-char p #\a) (get-char p)))
                   (c2 (lookahead-char p))
-                  (c3 (begin (put-char p #\a) (lookahead-char p)))
+                  (c3 (begin (put-char p #\b) (lookahead-char p)))
                   (c4 (get-char p)))
-             (string c1 c2 c3 c4)))
-         "****")
+             (cons (string c1 c2 c3 c4) (reverse strings))))
+         '("****" "a" "b"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

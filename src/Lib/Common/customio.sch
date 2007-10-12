@@ -333,22 +333,26 @@
              (this '*)
              (read-method
               (lambda (data buffer)
-                (let ((n (read! buffer 0 1)))
+                (let* ((s (make-string 1))
+                       (n (read! s 0 1)))
                   (cond ((not (fixnum? n)) 'error)
-                        ((fx= n 0) 'eof)
-                        ((fx> n 0) n)
+                        ((eq? n 0) 'eof)
+                        ((eq? n 1)
+                         (let* ((bv (string->utf8 s))
+                                (k  (bytevector-length bv)))
+                           (bytevector-copy! bv 0 buffer 0 k)
+                           k))
                         (else 'error)))))
              (write-method
               (lambda (data buffer count)
-                (let loop ((start 0)
-                           (count count))
-                  (let ((n (write! buffer start 1)))
-                    (cond ((not (fixnum? n)) 'error)
-                          ((fx= n count) 'ok)
-                          ((fx= n 0) 'error)        ; no progress, or bogus eof
-                          ((fx< n count)
-                           (loop (+ start n) (- count n)))
-                          (else 'error)))))))
+                (assert (<= count 4))
+                (let ((bv (make-bytevector count)))
+                  (bytevector-copy! buffer 0 bv 0 count)
+                  (let ((s (utf8->string bv)))
+                    (assert (= (string-length s) 1))
+                    (let ((n (write! s 0 1)))
+                      (cond ((eq? n 1) 'ok)
+                            (else 'error))))))))    ; no progress, or bogus eof
         (define (customio/ioproc op)
           (case op
            ((read)   read-method)
@@ -360,10 +364,11 @@
              'make-custom-textual-input/output-port this op))))
         (if set-position!
             (set! this
-                  (io/make-port customio/ioproc name 'input 'output 'text
+                  (io/make-port customio/ioproc name 'input 'output 'binary
                                 'set-position!))
             (set! this
-                  (io/make-port customio/ioproc name 'input 'output 'text)))
+                  (io/make-port customio/ioproc name 'input 'output 'binary)))
+        (set! this (io/custom-transcoded-port this))
         this)
       (assertion-violation 'make-custom-textual-input/output-port
                            "illegal argument(s)"
