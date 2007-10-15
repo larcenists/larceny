@@ -344,6 +344,7 @@ host_scm_cmd gLarcenyFasl  "5. larceny fasl files" ${DIR}/larceny_src "(build-la
 eval_stage   hLarcenyHeap  "6. larceny heap"       ${DIR}/larceny_src "echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}"
 host_scm_cmd iLarcenyFasl  "7. twobit fasl files"  ${DIR}/larceny_src "(build-twobit)"
 eval_stage   jTwobitHeap   "8. twobit heap"        ${DIR}/larceny_src "echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}"
+eval_stage   kChkDiskUsage "9. measure disk usage" ${DIR}             "du -skh larceny_src; dk -kh"
 
 BUILD_STATUS=${STATUS}
 
