@@ -464,6 +464,7 @@
                     (selection  (self 'selection))
                     (fill-rect (g 'fill-rect))
                     (draw-text (g 'draw-text)))
+               ;; Draw background
                (for-each-charpos 
                 text
                 visible-offset
@@ -471,9 +472,7 @@
                 (lambda (char pos x y w h line column)
                   (cond ((> line max-lines)
                          (abandon line)))
-                  (let* ((fg-col (foreground pos))
-                         (bg-col (background pos))
-                         (sel-fg-col (invert-col fg-col))
+                  (let* ((bg-col (background pos))
                          (sel-bg-col (invert-col bg-col)))
                     (cond
                      ((and (call-with-values selection (lambda (s e) 
@@ -482,10 +481,30 @@
                       (fill-rect sel-bg-col x y (+ x a-char-w) (+ y a-char-h)))
                      ((and (<= (selection-start-pos self) pos)
                            (< pos (selection-finis-pos self)))
-                      (fill-rect sel-bg-col x y (+ x w) (+ y h))
+                      (fill-rect sel-bg-col x y (+ x w) (+ y h)))
+                     (else
+                      (fill-rect bg-col x y (+ x w) (+ y h))))))
+                (lambda (x y height line-num col-num pos)
+                  (unspecified)))
+               ;; Draw foreground
+               (for-each-charpos 
+                text
+                visible-offset
+                g fnt
+                (lambda (char pos x y w h line column)
+                  (cond ((> line max-lines)
+                         (abandon line)))
+                  (let* ((fg-col (foreground pos))
+                         (sel-fg-col (invert-col fg-col)))
+                    (cond
+                     ((and (call-with-values selection (lambda (s e) 
+                                                         (= s e pos)))
+                           (char=? char #\newline))
+                      'ignore)
+                     ((and (<= (selection-start-pos self) pos)
+                           (< pos (selection-finis-pos self)))
                       (draw-text (string char) fnt x y sel-fg-col))
                      (else
-                      (fill-rect bg-col x y (+ x w) (+ y h))
                       (draw-text (string char) fnt x y fg-col)))))
                 (lambda (x y height line-num col-num pos)
                   (cond 
