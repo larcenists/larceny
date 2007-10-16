@@ -382,9 +382,12 @@
 ;; - String (which has no newlines)
 ;; - #\newline
 
-;; for-each-textelem : String Nat Gfx Fnt TextElemHandler [TextElemCont X] -> X
-(define (for-each-textelem mytext start-pos g fnt proc at-end)
-  (let* ((measure-height
+;; for-each-textelem : 
+;;     [Rendered TextModel] Gfx Fnt TextElemHandler [TextElemCont X] -> X
+(define (for-each-textelem textmodel g fnt proc at-end)
+  (let* ((mytext ((textmodel 'textstring)))
+         (start-pos ((textmodel 'visible-offset)))
+         (measure-height
           (lambda (s) 
             (call-with-values (lambda () ((g 'measure-text) s fnt))
               (lambda (w h) h))))
@@ -481,8 +484,7 @@
                     (draw-text (g 'draw-text)))
                ;; Draw background
                (for-each-textelem
-                text
-                visible-offset
+                self
                 g fnt
                 (lambda (telem pos span x y w h line column)
                   (cond ((> line max-lines)
@@ -502,9 +504,8 @@
                 (lambda (x y height line-num col-num pos)
                   (unspecified)))
                ;; Draw foreground
-               (for-each-textelem
-                text
-                visible-offset
+               (for-each-textelem 
+                self
                 g fnt
                 (lambda (telem pos span x y w h line column)
                   (cond ((> line max-lines)
@@ -591,8 +592,7 @@
       (cond 
        ((and mouse-down mouse-drag)
         (for-each-textelem
-         ((self 'textstring))
-         ((self 'visible-offset))
+         self
          g (caar ((self 'font-ranges))) 
          (lambda (telem pos span pixel-x pixel-y
                   char-pixel-width char-pixel-height 
@@ -611,8 +611,7 @@
          (lambda (x y h l c p) (unspecified))))
        ((and mouse-down mouse-up)
         (for-each-textelem
-         ((mouse-handling-textmodel 'textstring))
-         ((mouse-handling-textmodel 'visible-offset))
+         self
          g (caar ((self 'font-ranges)))
          (lambda (telem pos span pixel-x pixel-y
                   char-pixel-width char-pixel-height 
