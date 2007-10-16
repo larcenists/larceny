@@ -456,40 +456,43 @@
           (call-with-current-continuation
            (lambda (abandon)
              (define max-lines (count-visible-lines))
-             (for-each-charpos 
-              ((renderable-textmodel 'textstring))
-              ((renderable-textmodel 'visible-offset))
-              g fnt
-              (lambda (char pos x y w h line column)
-                (cond ((> line max-lines)
-                       (abandon line)))
-                (let* ((self renderable-textmodel)
-                       (fg-col ((self 'foreground-color) pos))
-                       (bg-col ((self 'background-color) pos))
-                       (sel-fg-col (invert-col fg-col))
-                       (sel-bg-col (invert-col bg-col)))
-                  (cond
-                   ((and (call-with-values (self 'selection) (lambda (s e)
-                                                               (= s e pos)))
-                         (char=? char #\newline))
-                    ((g 'fill-rect) 
-                     sel-bg-col x y (+ x a-char-w) (+ y a-char-h)))
-                   ((and (<= (selection-start-pos self) pos)
-                         (< pos (selection-finis-pos self)))
-                    ((g 'fill-rect) sel-bg-col x y (+ x w) (+ y h))
-                    ((g 'draw-text) (string char) fnt x y sel-fg-col))
-                   (else
-                    ((g 'fill-rect) bg-col x y (+ x w) (+ y h))
-                    ((g 'draw-text) (string char) fnt x y fg-col)))))
-              (lambda (x y height line-num col-num pos)
-                (let ((self renderable-textmodel))
-                  (cond
-                   ((call-with-values (self 'selection) 
-                      (lambda (s e) (= s e pos)))
-                    ((g 'fill-rect) 
-                     (invert-col ((self 'background-color) (- pos 1)))
-                     x y (+ x a-char-w) (+ y a-char-h))))))
-              ))))))
+             (let* ((self renderable-textmodel)
+                    (text ((self 'textstring)))
+                    (visible-offset ((self 'visible-offset)))
+                    (foreground (self 'foreground-color))
+                    (background (self 'background-color))
+                    (selection  (self 'selection))
+                    (fill-rect (g 'fill-rect))
+                    (draw-text (g 'draw-text)))
+               (for-each-charpos 
+                text
+                visible-offset
+                g fnt
+                (lambda (char pos x y w h line column)
+                  (cond ((> line max-lines)
+                         (abandon line)))
+                  (let* ((fg-col (foreground pos))
+                         (bg-col (background pos))
+                         (sel-fg-col (invert-col fg-col))
+                         (sel-bg-col (invert-col bg-col)))
+                    (cond
+                     ((and (call-with-values selection (lambda (s e) 
+                                                         (= s e pos)))
+                           (char=? char #\newline))
+                      (fill-rect sel-bg-col x y (+ x a-char-w) (+ y a-char-h)))
+                     ((and (<= (selection-start-pos self) pos)
+                           (< pos (selection-finis-pos self)))
+                      (fill-rect sel-bg-col x y (+ x w) (+ y h))
+                      (draw-text (string char) fnt x y sel-fg-col))
+                     (else
+                      (fill-rect bg-col x y (+ x w) (+ y h))
+                      (draw-text (string char) fnt x y fg-col)))))
+                (lambda (x y height line-num col-num pos)
+                  (cond 
+                   ((call-with-values selection (lambda (s e) (= s e pos)))
+                    (fill-rect (invert-col (background (- pos 1)))
+                               x y (+ x a-char-w) (+ y a-char-h)))))))
+             )))))
      )))
   
 ;; extend-with-keystroke-handling : T -> [Keyed T] where T <: TextModel
