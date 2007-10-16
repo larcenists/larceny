@@ -221,8 +221,7 @@
 ;;                        color-background-stably!                
 ;; make-textmodel : -> TextModel
 (define (make-textmodel)
-  ;; Invariant: mytext must always end with a #\newline character.
-  (define mytext "\n") ;; revist when we add IMG objects.
+  (define mytext "") ;; revisit when we add IMG objects.
   (define selection 0) ;; [Oneof Nat (cons Nat Nat)]
   (define preferred-cursor-col #f) ;; used when moving cursor up and down
 
@@ -330,15 +329,7 @@
   (make-root-object textmodel
    ((textstring) "=> string holding model's text." mytext)
    ((set-textstring! string) "Sets model's text to string parameter."
-    (cond ((and (not (zero? (string-length string)))
-                (char=? #\newline 
-                        (string-ref string (- (string-length string) 1))))
-           (set! mytext string))
-          (else
-           (begin (display "textview set-textstring! ")
-                  (display "warning: appending newline")
-                  (newline))
-           (set! mytext (string-append string "\n")))))
+    (set! mytext string))
    ((selection) "=> (values b e) where [b,e) is selected.  
  If b = e, then no text is selected, and the cursor resides at b."
     (cond ((number? selection)
@@ -376,9 +367,10 @@
    ))
 
 ;; A CharPosHandler is a  (Char Pos X Y Width Height LineNo ColNo -> void)
+;; A [CharPosCont X] is a (X Y Height LineNo ColNo Pos -> X)
 
-;; for-each-charpos : String Nat Gfx Fnt CharPosHandler -> void
-(define (for-each-charpos mytext start-pos g fnt proc)
+;; for-each-charpos : String Nat Gfx Fnt CharPosHandler [CharPosCont X] -> X
+(define (for-each-charpos mytext start-pos g fnt proc at-end)
   (let* ((measure-height
           (lambda (s) 
             (call-with-values (lambda () ((g 'measure-text) s fnt))
@@ -393,7 +385,7 @@
                (curr-pos start-pos))
       (cond
        ((>= curr-pos (string-length mytext))
-        (unspecified))
+        (at-end x y max-height-on-line line-num col-num curr-pos))
        
        (else
         (let* ((char (string-ref mytext curr-pos))
@@ -488,7 +480,16 @@
                     ((g 'draw-text) (string char) fnt x y sel-fg-col))
                    (else
                     ((g 'fill-rect) bg-col x y (+ x w) (+ y h))
-                    ((g 'draw-text) (string char) fnt x y fg-col)))))))))))
+                    ((g 'draw-text) (string char) fnt x y fg-col)))))
+              (lambda (x y height line-num col-num pos)
+                (let ((self renderable-textmodel))
+                  (cond
+                   ((call-with-values (self 'selection) 
+                      (lambda (s e) (= s e pos)))
+                    ((g 'fill-rect) 
+                     (invert-col ((self 'background-color) (- pos 1)))
+                     x y (+ x a-char-w) (+ y a-char-h))))))
+              ))))))
      )))
   
 ;; extend-with-keystroke-handling : T -> [Keyed T] where T <: TextModel
@@ -572,7 +573,8 @@
                    mouse-drag pixel-x pixel-y
                    char-pixel-width char-pixel-height)
                   (set! pos-2 pos)))
-           )))
+           )
+         (lambda (x y h l c p) (unspecified))))
        ((and mouse-down mouse-up)
         (for-each-charpos 
          ((mouse-handling-textmodel 'textstring))
@@ -590,7 +592,8 @@
                    char 
                    mouse-up   pixel-x pixel-y
                    char-pixel-width char-pixel-height)
-                  (set! pos-2 pos)))))
+                  (set! pos-2 pos))))
+         (lambda (x y h l c p) (unspecified)))
         (set! mouse-down #f)
         (set! mouse-up #f)))
       (cond ((and pos-1 pos-2)
