@@ -366,11 +366,15 @@
     (call-with-wnd-update textmodel delete-char-at-point!))
    ))
 
-;; A CharPosHandler is a  (Char Pos X Y Width Height LineNo ColNo -> void)
-;; A [CharPosCont X] is a (X Y Height LineNo ColNo Pos -> X)
+;; A TextElemHandler is a 
+;;       (TextElem CharPos CharSpan X Y Width Height LineNo ColNo -> void)
+;; A [TextElemCont X] is a (X Y Height LineNo ColNo Pos -> X)
+;; A TextElem is one of:
+;; - String (which has no newlines)
+;; - #\newline
 
-;; for-each-charpos : String Nat Gfx Fnt CharPosHandler [CharPosCont X] -> X
-(define (for-each-charpos mytext start-pos g fnt proc at-end)
+;; for-each-textelem : String Nat Gfx Fnt TextElemHandler [TextElemCont X] -> X
+(define (for-each-textelem mytext start-pos g fnt proc at-end)
   (let* ((measure-height
           (lambda (s) 
             (call-with-values (lambda () ((g 'measure-text) s fnt))
@@ -392,7 +396,8 @@
                (char-text (string char)))
           (call-with-values (lambda () ((g 'measure-text) char-text fnt))
             (lambda (char-w char-h)
-              (proc char curr-pos x y char-w char-h line-num col-num)
+              (proc (if (char=? char #\newline) char (string char)) 
+                    curr-pos 1 x y char-w char-h line-num col-num)
               (cond 
                ((char=? char #\newline)
                 (loop 0
@@ -465,11 +470,11 @@
                     (fill-rect (g 'fill-rect))
                     (draw-text (g 'draw-text)))
                ;; Draw background
-               (for-each-charpos 
+               (for-each-textelem
                 text
                 visible-offset
                 g fnt
-                (lambda (char pos x y w h line column)
+                (lambda (telem pos span x y w h line column)
                   (cond ((> line max-lines)
                          (abandon line)))
                   (let* ((bg-col (background pos))
@@ -477,7 +482,7 @@
                     (cond
                      ((and (call-with-values selection (lambda (s e) 
                                                          (= s e pos)))
-                           (char=? char #\newline))
+                           (eqv? telem #\newline))
                       (fill-rect sel-bg-col x y (+ x a-char-w) (+ y a-char-h)))
                      ((and (<= (selection-start-pos self) pos)
                            (< pos (selection-finis-pos self)))
@@ -487,25 +492,22 @@
                 (lambda (x y height line-num col-num pos)
                   (unspecified)))
                ;; Draw foreground
-               (for-each-charpos 
+               (for-each-textelem
                 text
                 visible-offset
                 g fnt
-                (lambda (char pos x y w h line column)
+                (lambda (telem pos span x y w h line column)
                   (cond ((> line max-lines)
                          (abandon line)))
                   (let* ((fg-col (foreground pos))
                          (sel-fg-col (invert-col fg-col)))
-                    (cond
-                     ((and (call-with-values selection (lambda (s e) 
-                                                         (= s e pos)))
-                           (char=? char #\newline))
-                      'ignore)
-                     ((and (<= (selection-start-pos self) pos)
+                    (cond 
+                     ((and (string? telem)
+                           (<= (selection-start-pos self) pos)
                            (< pos (selection-finis-pos self)))
-                      (draw-text (string char) fnt x y sel-fg-col))
-                     (else
-                      (draw-text (string char) fnt x y fg-col)))))
+                      (draw-text telem fnt x y sel-fg-col))
+                     ((string? telem)
+                      (draw-text telem fnt x y fg-col)))))
                 (lambda (x y height line-num col-num pos)
                   (cond 
                    ((call-with-values selection (lambda (s e) (= s e pos)))
@@ -549,9 +551,9 @@
   (define mouse-drag #f)
   (define wnd ((textmodel 'wnd)))
   
-  (define (point-in-range? char pt x y w h)
+  (define (point-in-range? telem pt x y w h)
     ;; #\newline has indefinite right extent
-    (or (and (char=? #\newline char)
+    (or (and (eqv? #\newline telem)
              (<= x (car pt))
              (<= y (cdr pt) (+ y h)))
         (and (<= x (car pt) (+ x w))
@@ -578,40 +580,40 @@
           (self mouse-handling-textmodel))
       (cond 
        ((and mouse-down mouse-drag)
-        (for-each-charpos 
+        (for-each-textelem
          ((self 'textstring))
          ((self 'visible-offset))
          g (caar ((self 'font-ranges))) 
-         (lambda (char pos pixel-x pixel-y
+         (lambda (telem pos span pixel-x pixel-y
                   char-pixel-width char-pixel-height 
                   line column)
            (cond ((point-in-range? 
-                   char 
+                   telem
                    mouse-down pixel-x pixel-y
                    char-pixel-width char-pixel-height)
                   (set! pos-1 pos)))
            (cond ((point-in-range? 
-                   char 
+                   telem
                    mouse-drag pixel-x pixel-y
                    char-pixel-width char-pixel-height)
                   (set! pos-2 pos)))
            )
          (lambda (x y h l c p) (unspecified))))
        ((and mouse-down mouse-up)
-        (for-each-charpos 
+        (for-each-textelem
          ((mouse-handling-textmodel 'textstring))
          ((mouse-handling-textmodel 'visible-offset))
          g (caar ((self 'font-ranges)))
-         (lambda (char pos pixel-x pixel-y
+         (lambda (telem pos span pixel-x pixel-y
                   char-pixel-width char-pixel-height 
                   line column)
            (cond ((point-in-range? 
-                   char 
+                   telem
                    mouse-down pixel-x pixel-y
                    char-pixel-width char-pixel-height)
                   (set! pos-1 pos)))
            (cond ((point-in-range? 
-                   char 
+                   telem
                    mouse-up   pixel-x pixel-y
                    char-pixel-width char-pixel-height)
                   (set! pos-2 pos))))
