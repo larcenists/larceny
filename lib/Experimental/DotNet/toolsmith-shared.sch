@@ -648,9 +648,11 @@
       start))
    ((on-cursor-reposition)
     (let* ((text ((scrollable-textmodel 'textstring)))
-           (nlines ((scrollable-textmodel 'count-visible-lines)))
+           (vlines ((scrollable-textmodel 'count-visible-lines)))
            (start (index-after-line-count text first-line-idx))
            (start (or start (string-length text)))
+           (nlines (min vlines (count-newlines-in
+                                (substring text start (string-length text)))))
            (finis (index-after-line-count text (+ first-line-idx nlines)))
            (finis (or finis (string-length text))))
       (call-with-values (lambda () ((scrollable-textmodel 'selection)))
@@ -674,7 +676,8 @@
                    ((wnd 'attempt-scroll) 'vertical (- cursor-lines))))
                 ((and (= s e)
                       (< s (string-length text))
-                      (<= finis (+ s 1)))
+                      (<= finis (+ s 1))
+                      (= nlines vlines))
                  (let* ((cursor-lines
                          (count-newlines-in (substring text finis (+ s 1))))
                         (cursor-lines
