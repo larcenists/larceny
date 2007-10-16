@@ -106,7 +106,11 @@
 ;; Note that all agent operations are optional, except (of course) the
 ;; 'operations operation.
 ;; 
-;; AGENT: (make-noisy-agent wnd width height) ; client def's ctors, perhaps via msg-handler form
+;; Note that for useful agents, client developer defines appropriate
+;; constructors (perhaps via msg-handler form) and passes a
+;; constructor to make-wnd via 'make-agent keyword argument
+;;
+;; AGENT: (make-noisy-agent wnd width height)
 ;;  (on-close) 
 ;;  (on-keypress char) (on-keydown mchar sym mods) (on-keyup mchar sym mods)
 ;;  (on-mousedown x y) (on-mouseup x y) (on-mousemove x y) (on-mousedrag x y)
@@ -121,9 +125,13 @@
 ;; Agents are client written entities; the objects below are provided
 ;; by the runtime system.
 
-;; FNT: (make-fnt name em-size) (available-fontnames) (monospace-fontname) (sans-serif-fontname) (serif-fontname)
+;; FNT: (make-fnt name em-size) 
 ;;  (clone ['italic] ['bold] ['underline] ['em-size r])
 ;;  (name) (em-size) (italic?) (bold?) (underline?) (fntptr)
+;; Font names are availble via the procedures:
+;;  (available-fontnames)
+;;  (monospace-fontname) (sans-serif-fontname) (serif-fontname)
+;; 
 ;; GFX: ;; no public constructors (received via agent's on-paint op)
 ;;  (measure-text txt-string font-obj) 
 ;;  (draw-text txt-string font-obj x y col) 
@@ -313,7 +321,8 @@
                                   (substring mytext (cdr selection) len)
                                   (car selection)
                                   (cdr selection)
-                                  (substring mytext (car selection) (cdr selection))
+                                  (substring mytext 
+                                             (car selection) (cdr selection))
                                   ))))
       (lambda (prefix suffix pos end deleted-text)
         (set! mytext (string-append prefix suffix))
@@ -439,10 +448,11 @@
       ((wnd 'update))
       ((delegate textmodel 'on-cursor-reposition renderable-textmodel)))
      ((wnd) wnd)
-     ((font-ranges) "=> list of (fnt s e) where fnt is used on text in range [s,e)."
+     ((font-ranges) "=> list of (fnt s e) where fnt is used on
+ text in range [s,e)."
       ;; Making this so flexible may have been a mistake...
       ;; 1. Ambiguities as to what happens when ranges overlap
-      ;; 2. If disallow overlaps, perhaps should require returned list is sorted.
+      ;; 2. If disallow overlaps, perhaps require returned list is sorted.
       (list (list fnt 0 (string-length ((renderable-textmodel 'textstring))))))
      ((on-resize) "handler for window resize event." #f)
      ((count-visible-lines)  "=> number of lines visible in buffer."
@@ -714,10 +724,10 @@
                           (newline))
                    ((wnd 'attempt-scroll) 'vertical cursor-lines)))))))
     ((delegate textmodel 'on-cursor-reposition scrollable-textmodel)))
-   ((on-hscroll new-int event-type) "handler horizontal scroll to index new-int." 
+   ((on-hscroll new-idx event-type) "handler horizontal scroll to new-idx." 
     #f)
-   ((on-vscroll new-int event-type) "handler vertical scroll to index new-int."
-    (set! first-line-idx new-int)
+   ((on-vscroll new-idx event-type) "handler vertical scroll to new-idx."
+    (set! first-line-idx new-idx)
     ((wnd 'update)))
    ((horizontal-scrollbar) #f)
    ((vertical-scrollbar)
@@ -730,8 +740,8 @@
     ;; appropriate.
     (let* ((my-line-count (line-count scrollable-textmodel))
            (visible-lines ((scrollable-textmodel 'count-visible-lines)))
-           (max-val (max 0 (- my-line-count visible-lines))) ;; XXX this is buggy
-           (max-val my-line-count)) ;; This is questionable but easier to work with
+           (max-val (max 0 (- my-line-count visible-lines))) ;; XXX (buggy)
+           (max-val my-line-count)) ;; questionable but easier to work with
       (cond ((not (<= 0 first-line-idx max-val))
              (display `(want: (<= 0 ,first-line-idx ,max-val)))
              (newline)))
@@ -780,7 +790,9 @@
   (define (clear-stable-state!)
     (set! stable-background-col-ranges '())
     (set! stable-foreground-col-ranges '()))
-  (define (update-stable-ranges! change-start-incl change-finis-excl remain-delta)
+  (define (update-stable-ranges! change-start-incl 
+                                 change-finis-excl 
+                                 remain-delta)
     (define (shift-entry start finis col)
       (list (+ start remain-delta)
             (+ finis remain-delta)
@@ -895,17 +907,19 @@
           ;; the case (2) later.
           
           (let* (;; search backward for the newline
-                 (line-start (do ((i beg (- i 1)))
-                                 ((or (= i 0)
-                                      (char=? #\newline (string-ref text (- i 1))))
-                                  i)))
+                 (line-start
+                  (do ((i beg (- i 1)))
+                      ((or (= i 0)
+                           (char=? #\newline (string-ref text (- i 1))))
+                       i)))
                  ;; search forward for non-whitespace; don't go past a newline
-                 (content-start (do ((i line-start (+ i 1)))
-                                    ((or (= i (string-length text))
-                                         (char=? #\newline (string-ref text i))
-                                         (not (char-whitespace? (string-ref text i))))
-                                     i)))
-                    ;; find suggested indentation
+                 (content-start 
+                  (do ((i line-start (+ i 1)))
+                      ((or (= i (string-length text))
+                           (char=? #\newline (string-ref text i))
+                           (not (char-whitespace? (string-ref text i))))
+                       i)))
+                 ;; find suggested indentation
                  (prefixstr (substring text 0 line-start))
                  (indent
                   (suggest-indentation
@@ -983,16 +997,19 @@
   (extend-object textmodel file-handling-textmodel
    ((load-file-cmd)
     (cond ((open-file-chooser-dialog (current-directory)
-                                     (list (list "Scheme Files" "sch" "scm" "ss")
+                                     (list (list "Scheme Files" 
+                                                 "sch" "scm" "ss")
                                            (list "All Files" "*")))
            => (lambda (name)
                 ((file-handling-textmodel 'load-file) name)))))
    ((save-file-cmd)
-    (cond (current-filename ((file-handling-textmodel 'save-file-as) current-filename))
+    (cond (current-filename 
+           ((file-handling-textmodel 'save-file-as) current-filename))
           (else ((file-handling-textmodel 'save-file-as-cmd)))))
    ((save-file-as-cmd) 
     (cond ((save-as-file-chooser-dialog (current-directory)
-                                        (list (list "Scheme Files" "sch" "scm" "ss")
+                                        (list (list "Scheme Files"
+                                                    "sch" "scm" "ss")
                                               (list "All Files" "*")))
            => (lambda (name)
                 ((file-handling-textmodel 'save-file-as) name)))))
@@ -1022,18 +1039,19 @@
 (define (make-simplest-backing-agent wnd textmodel)
   (extend-object textmodel simplest-backing-agent
    ((on-keyup mchar  sym mods)
-    (case sym
-      ((enter)       ((simplest-backing-agent 'insert-char-at-point!) #\newline))
-      ((left)        ((simplest-backing-agent 'cursor-left!)))
-      ((right)       ((simplest-backing-agent 'cursor-right!)))
-      ((up)          ((simplest-backing-agent 'cursor-up!)))
-      ((down)        ((simplest-backing-agent 'cursor-down!)))
-      ((back delete) ((simplest-backing-agent 'delete-char-at-point!)))))
+    (let ((self simplest-backing-agent))
+      (case sym
+        ((enter)       ((self 'insert-char-at-point!) #\newline))
+        ((left)        ((self 'cursor-left!)))
+        ((right)       ((self 'cursor-right!)))
+        ((up)          ((self 'cursor-up!)))
+        ((down)        ((self 'cursor-down!)))
+        ((back delete) ((self 'delete-char-at-point!))))))
    ((on-keypress char)
     (case char
       ((#\backspace #\return #\esc #\tab) 'do-nothing)
       (else 
-       ((textmodel 'insert-char-at-point!) char))))))
+       ((textmodel 'insert-char-at-point!) char)))))) ;; XXX should be self
 
 (define (make-auto-indenting-agent wnd textmodel)
   (extend-with-paren-matching (extend-with-auto-indentation textmodel)))
