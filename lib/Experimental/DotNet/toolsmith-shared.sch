@@ -379,6 +379,51 @@
     (call-with-wnd-update textmodel delete-char-at-point!))
    ))
 
+;; A CharPosHandler is a  (Char Pos X Y Width Height LineNo ColNo -> void)
+;; A [CharPosCont X] is a (X Y Height LineNo ColNo Pos -> X)
+
+;; for-each-charpos : String Nat Gfx Fnt CharPosHandler [CharPosCont X] -> X
+(define (for-each-charpos textmodel g fnt proc at-end)
+  (let* ((mytext ((textmodel 'textstring)))
+         (start-pos ((textmodel 'visible-offset)))
+         (measure-height 
+          (lambda (s)  
+            (call-with-values (lambda () ((g 'measure-text) s fnt)) 
+              (lambda (w h) h)))) 
+         (cursor-height #f) 
+         (initial-height (measure-height "A"))) 
+    (let loop ((x 0) 
+               (y 0) 
+               (max-height-on-line initial-height) 
+               (line-num 0) 
+               (col-num 0) 
+               (curr-pos start-pos)) 
+      (cond
+       ((>= curr-pos (string-length mytext))
+        (at-end x y max-height-on-line line-num col-num curr-pos))
+       
+       (else
+        (let* ((char (string-ref mytext curr-pos))
+               (char-text (string char)))
+          (call-with-values (lambda () ((g 'measure-text) char-text fnt))
+            (lambda (char-w char-h)
+              (proc char curr-pos x y char-w char-h line-num col-num)
+              (cond 
+               ((char=? char #\newline)
+                (loop 0
+                      (+ y max-height-on-line) 
+                      initial-height
+                      (+ line-num 1) 
+                      0
+                      (+ curr-pos 1)))
+               (else
+                (loop (+ x char-w)
+                      y
+                      (max max-height-on-line char-h)
+                      line-num
+                      (+ col-num 1)
+                      (+ curr-pos 1))))))))))))
+
 ;; A TextElemHandler is a 
 ;;       (TextElem CharPos CharSpan X Y Width Height LineNo ColNo -> void)
 ;; A [TextElemCont X] is a (X Y Height LineNo ColNo Pos -> X)
@@ -389,8 +434,13 @@
 ;; for-each-textelem : 
 ;;     [Rendered TextModel] Gfx Fnt TextElemHandler [TextElemCont X] -> X
 (define (for-each-textelem textmodel g fnt proc at-end)
+  ;; XXX this should also subdivide based on changes in font...
   (let* ((mytext ((textmodel 'textstring)))
          (start-pos ((textmodel 'visible-offset)))
+         (sel-start (call-with-values (textmodel 'selection)
+                      (lambda (s e) s)))
+         (sel-finis (call-with-values (textmodel 'selection)
+                      (lambda (s e) e)))
          (measure-height
           (lambda (s) 
             (call-with-values (lambda () ((g 'measure-text) s fnt))
@@ -408,27 +458,49 @@
         (at-end x y max-height-on-line line-num col-num curr-pos))
        
        (else
-        (let* ((char (string-ref mytext curr-pos))
-               (char-text (string char)))
-          (call-with-values (lambda () ((g 'measure-text) char-text fnt))
-            (lambda (char-w char-h)
-              (proc (if (char=? char #\newline) char (string char)) 
-                    curr-pos 1 x y char-w char-h line-num col-num)
-              (cond 
-               ((char=? char #\newline)
-                (loop 0
-                      (+ y max-height-on-line) 
-                      initial-height
-                      (+ line-num 1) 
-                      0
-                      (+ curr-pos 1)))
-               (else
-                (loop (+ x char-w)
-                      y
-                      (max max-height-on-line char-h)
-                      line-num
-                      (+ col-num 1)
-                      (+ curr-pos 1))))))))))))
+        (let* ((<&<= (lambda (x y z) (and (< x y) (<= y z))))
+               (<=&< (lambda (x y z) (and (<= x y) (< y z))))
+               (telem 
+                (cond
+                 ((char=? #\newline (string-ref mytext curr-pos))
+                  #\newline)
+                 (else
+                  (let char-scan ((chars '())
+                                  (pos curr-pos))
+                    (cond
+                     ((or (>= pos (string-length mytext))
+                          (<&<= curr-pos sel-start pos)
+                          (<=&< curr-pos sel-start pos)
+                          (<&<= curr-pos sel-finis pos)
+                          (<=&< curr-pos sel-finis pos)
+                          (char=? #\newline (string-ref mytext pos)))
+                      (list->string (reverse chars)))
+                     (else
+                      (char-scan (cons (string-ref mytext pos) chars)
+                                 (+ pos 1)))))))))
+          (cond 
+           ((eqv? telem #\newline)
+            (call-with-values 
+                (lambda () ((g 'measure-text) (string telem) fnt))
+              (lambda (char-w char-h)
+                (proc telem curr-pos 1 x y char-w char-h line-num col-num)))
+            (let ((y* (+ y max-height-on-line))
+                  (line-num* (+ line-num 1))
+                  (curr-pos* (+ curr-pos 1)))
+              (loop 0 y* initial-height line-num* 0 curr-pos*)))
+           (else
+            (call-with-values (lambda () ((g 'measure-text) telem fnt))
+              (lambda (text-w text-h)
+                (let ((span (string-length telem)))
+                  (proc telem curr-pos span x y 
+                        text-w text-h ;; XXX
+                        line-num col-num)
+                  (loop (+ x text-w)
+                        y
+                        (max max-height-on-line text-h)
+                        line-num
+                        (+ col-num 1)
+                        (+ curr-pos span)))))))))))))
 
 ;; rendering-extender : Wnd -> T -> [Rendered T] where T <: TextModel
 (define (rendering-extender wnd)
@@ -595,38 +667,38 @@
           (self mouse-handling-textmodel))
       (cond 
        ((and mouse-down mouse-drag)
-        (for-each-textelem
+        (for-each-charpos
          self
          g (caar ((self 'font-ranges))) 
-         (lambda (telem pos span pixel-x pixel-y
+         (lambda (char pos pixel-x pixel-y
                   char-pixel-width char-pixel-height 
                   line column)
            (cond ((point-in-range? 
-                   telem
+                   char
                    mouse-down pixel-x pixel-y
                    char-pixel-width char-pixel-height)
                   (set! pos-1 pos)))
            (cond ((point-in-range? 
-                   telem
+                   char
                    mouse-drag pixel-x pixel-y
                    char-pixel-width char-pixel-height)
                   (set! pos-2 pos)))
            )
          (lambda (x y h l c p) (unspecified))))
        ((and mouse-down mouse-up)
-        (for-each-textelem
+        (for-each-charpos
          self
          g (caar ((self 'font-ranges)))
-         (lambda (telem pos span pixel-x pixel-y
+         (lambda (char pos pixel-x pixel-y
                   char-pixel-width char-pixel-height 
                   line column)
            (cond ((point-in-range? 
-                   telem
+                   char
                    mouse-down pixel-x pixel-y
                    char-pixel-width char-pixel-height)
                   (set! pos-1 pos)))
            (cond ((point-in-range? 
-                   telem
+                   char
                    mouse-up   pixel-x pixel-y
                    char-pixel-width char-pixel-height)
                   (set! pos-2 pos))))
