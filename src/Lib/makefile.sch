@@ -190,6 +190,7 @@
     "bytevectorio"      ; bytevector ports
     "stringio"          ; string ports
     "customio"          ; custom ports
+    "utf16"             ; UTF-16 transcoding
 ;    "transio"           ; transcript ports
     "portio"            ; user-level procedures for R6RS
     "stdio"             ; user-level procedures

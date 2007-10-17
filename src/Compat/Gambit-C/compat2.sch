@@ -141,11 +141,11 @@
 (define (list->bytevector l)
   (list->vector (cons *bv-key* l)))
 
-(define (string->bytevector s)
+(define (flat1->bytevector s)
   (list->bytevector (map char->integer (string->list s))))
 
 (define (symbol->bytevector s)
-  (string->bytevector (symbol->string s)))
+  (flat1->bytevector (symbol->string s)))
 
 ; Specific to IEEE double precision floating point.
 ;

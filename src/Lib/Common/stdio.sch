@@ -219,6 +219,18 @@
 (define (reset-output-string port)
   (string-io/reset-output-string port))
 
+(define (open-input-bytevector s)
+  (bytevector-io/open-input-bytevector s))
+
+(define (open-output-bytevector)
+  (bytevector-io/open-output-bytevector))
+
+(define (get-output-bytevector port)
+  (bytevector-io/get-output-bytevector port))
+
+(define (reset-output-bytevector port)
+  (bytevector-io/reset-output-bytevector port))
+
 (define (close-input-port p) 
   (cond ((input-port? p)
          (io/close-port p))
@@ -262,6 +274,13 @@
   (let ((port (open-output-string)))
     (proc port)
     (let ((str (get-output-string port)))
+      (close-output-port port)
+      str)))
+
+(define (call-with-output-bytevector proc)
+  (let ((port (open-output-bytevector)))
+    (proc port)
+    (let ((str (get-output-bytevector port)))
       (close-output-port port)
       str)))
 

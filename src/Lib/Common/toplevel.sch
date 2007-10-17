@@ -853,12 +853,15 @@
   (environment-set! larc 'flush-output-port flush-output-port)
   (environment-set! larc 'format format)
   (environment-set! larc 'get-output-string get-output-string)
+  (environment-set! larc 'get-output-bytevector get-output-bytevector)
   (environment-set! larc 'hashtable-printer hashtable-printer)
   (environment-set! larc 'lowlevel-write lowlevel-write)
   (environment-set! larc 'open-text-input-file open-text-input-file)
   (environment-set! larc 'open-text-output-file open-text-output-file)
   (environment-set! larc 'open-input-string open-input-string)
   (environment-set! larc 'open-output-string open-output-string)
+  (environment-set! larc 'open-input-bytevector open-input-bytevector)
+  (environment-set! larc 'open-output-bytevector open-output-bytevector)
   (environment-set! larc 'port-name port-name)
   (environment-set! larc 'io/make-port io/make-port) ; XXX
   (environment-set! larc 'io/get-u8 io/get-u8)       ; FIXME (common.imp.sch)
@@ -876,6 +879,7 @@
                     datum-source-locations-clear!)
   (environment-set! larc 'rename-file rename-file)
   (environment-set! larc 'reset-output-string reset-output-string)
+  (environment-set! larc 'reset-output-bytevector reset-output-bytevector)
   (environment-set! larc 'weird-printer weird-printer)
   (environment-set! larc 'with-input-from-port with-input-from-port)
   (environment-set! larc 'with-output-to-port with-output-to-port)
@@ -899,6 +903,8 @@
   (environment-set! larc 'transcoder-eol-style transcoder-eol-style)
   (environment-set! larc 'transcoder-error-handling-mode
                     transcoder-error-handling-mode)
+  (environment-set! larc 'bytevector->string bytevector->string)
+  (environment-set! larc 'string->bytevector string->bytevector)
 
   (environment-set! larc 'port? port?)
   (environment-set! larc 'port-transcoder port-transcoder)

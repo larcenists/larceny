@@ -1049,6 +1049,16 @@
       (loop 0 0)
       bv)))
 
+; The second argument should be optional should be optional,
+; and was optional in the R5.94RS draft, but was made mandatory
+; in the R5.95RS draft by someone who misinterpreted John Cowan's
+; response of 27 May 2007 to an ambiguous question posed by
+; Mike Sperber.  This error was not spotted by anyone, and
+; made its way into the ratified R6RS.
+;
+; Larceny will not perpetuate this error.  In Larceny, the
+; second argument is optional.
+
 (define (utf16->string bytevector . rest)
   (let* ((n (bytevector-length bytevector))
 
@@ -1066,6 +1076,19 @@
                            (else (endianness-violation
                                   'utf16->string
                                   (car rest)))))
+
+         (mandatory? (cond ((or (null? rest) (null? (cdr rest)))
+                            #f)
+                           ((and (null? (cddr rest))
+                                 (boolean? (cadr rest)))
+                            (cadr rest))
+                           (else
+                            (apply assertion-violation 'utf16->string
+                                   "illegal arguments" string rest))))
+
+         (begins-with-bom? (if mandatory? #f begins-with-bom?))
+
+         (endianness (if mandatory? (car rest) endianness))
 
          ; endianness-dependent adjustments to indexing
 
@@ -1203,6 +1226,19 @@
                            (else (endianness-violation
                                   'utf32->string
                                   (car rest)))))
+
+         (mandatory? (cond ((or (null? rest) (null? (cdr rest)))
+                            #f)
+                           ((and (null? (cddr rest))
+                                 (boolean? (cadr rest)))
+                            (cadr rest))
+                           (else
+                            (apply assertion-violation 'utf32->string
+                                   "illegal arguments" string rest))))
+
+         (begins-with-bom? (if mandatory? #f begins-with-bom?))
+
+         (endianness (if mandatory? (car rest) endianness))
 
          (i0 (if begins-with-bom? 4 0))
 

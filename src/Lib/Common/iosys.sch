@@ -614,6 +614,7 @@
 (define codec:binary  0)
 (define codec:latin-1 #b00100000)
 (define codec:utf-8   #b01000000)
+(define codec:utf-16  #b01100000)
 
 (define eolstyle:none  #b00000)
 (define eolstyle:lf    #b00100)
@@ -642,11 +643,8 @@
   (let ((bits:codec (case codec
                      ((latin-1) codec:latin-1)
                      ((utf-8)   codec:utf-8)
-                     ((utf-16)
-                      (assertion-violation 'make-transcoder
-                                           "unimplemented (until v0.95) codec"
-                                           codec))
-                     (else (local-error "unimplemented codec" codec)
+                     ((utf-16)  codec:utf-16)
+                     (else (local-error "nonstandard codec" codec)
                            codec:latin-1)))
         (bits:eol (case eol-style
                    ((none)  eolstyle:none)
@@ -710,41 +708,84 @@
   (if (io/output-port? p)
       (io/flush p))
 
+  (if (not (memq (transcoder-codec t) '(latin-1 utf-8)))
+      (io/transcoded-port-random p t)
+
+      ; shallow copy
+
+      (let ((newport (io/clone-port p)))
+        (vector-like-set! newport
+                          port.type
+                          (fxlogior type:textual
+                                    (vector-like-ref p port.type)))
+        (vector-like-set! newport port.transcoder t)
+        (vector-like-set! newport port.state 'textual)
+        (vector-like-set! newport port.setposn #f)
+
+        ; io/transcode-port! expects a newly filled mainbuf,
+        ; so we have to fake it here.
+        ;
+        ; FIXME: Is the above really true?
+    
+        (let* ((mainbuf1 (vector-like-ref p port.mainbuf))
+               (mainptr1 (vector-like-ref p port.mainptr))
+               (mainlim1 (vector-like-ref p port.mainlim))
+               (mainbuf2 (make-bytevector (bytevector-length mainbuf1))))
+
+          ; FIXME:  Unclear what port-position should do.
+
+          (vector-like-set! newport port.mainpos 0)
+
+          (bytevector-copy! mainbuf1
+                            mainptr1
+                            mainbuf2 0 (fx- mainlim1 mainptr1))
+          (vector-like-set! newport port.mainbuf mainbuf2))
+
+        ; close original port, destroying original mainbuf
+
+        (io/set-closed-state! p)
+
+        (cond ((and (io/input-port? newport)
+                    (io/output-port? newport))
+               (assert #t))
+              ((io/input-port? newport)
+               (io/transcode-port! newport)))
+        newport)))
+
+; Latin-1 and UTF-8 are transcoded on the fly, but other
+; codecs are transcoded by interposing an extra binary port.
+
+(define (io/transcoded-port-random p t)
+
+  ; FIXME: for now, we support only Latin-1, UTF-8, and UTF-16.
+
+  (assert (eq? (transcoder-codec t) 'utf-16))
+
   ; shallow copy
 
-  (let ((newport (io/clone-port p)))
-    (vector-like-set! newport
-                      port.type
-                      (fxlogior type:textual (vector-like-ref p port.type)))
-    (vector-like-set! newport port.transcoder t)
-    (vector-like-set! newport port.state 'textual)
-    (vector-like-set! newport port.setposn #f)
+  (let ((newport (io/clone-port p))
+        (mainbuf1 (vector-like-ref p port.mainbuf))
+        (mainptr1 (vector-like-ref p port.mainptr))
+        (mainlim1 (vector-like-ref p port.mainlim))
+        (mainbuf2 (make-bytevector (bytevector-length mainbuf1))))
 
-    ; io/transcode-port! expects a newly filled mainbuf,
-    ; so we have to fake it here.
-    
-    (let* ((mainbuf1 (vector-like-ref p port.mainbuf))
-           (mainptr1 (vector-like-ref p port.mainptr))
-           (mainlim1 (vector-like-ref p port.mainlim))
-           (mainbuf2 (make-bytevector (bytevector-length mainbuf1))))
-
-      ; FIXME:  Unclear what port-position should do.
-
-      (vector-like-set! newport port.mainpos 0)
-
-      (bytevector-copy! mainbuf1 mainptr1 mainbuf2 0 (fx- mainlim1 mainptr1))
+      (bytevector-copy! mainbuf1
+                        mainptr1
+                        mainbuf2 0 (fx- mainlim1 mainptr1))
       (vector-like-set! newport port.mainbuf mainbuf2))
 
-    ; close original port, destroying original mainbuf
+      ; close original port, destroying original mainbuf
 
-    (io/set-closed-state! p)
+      (io/set-closed-state! p)
 
-    (cond ((and (io/input-port? newport)
-                (io/output-port? newport))
-           (assert #t))
-          ((io/input-port? newport)
-           (io/transcode-port! newport)))
-    newport))
+      (let* ((p (utf16/transcoded-binary-port newport))
+             (t (make-transcoder (utf-8-codec)
+                                 (transcoder-eol-style t)
+                                 (transcoder-error-handling-mode t))))
+
+        ; FIXME: this will look like it's transcoded as UTF-8
+
+        (io/transcoded-port p t)))
 
 ; Like transcoded-port but preserves slightly different state
 ; and uses the correct transcoder for custom textual ports.

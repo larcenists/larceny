@@ -53,7 +53,7 @@
 ; Used only when dumping a heap with the flat1 representation
 ; for strings.
 
-(define (string->bytevector s)
+(define (flat1->bytevector s)
   (let* ((n (string-length s))
          (bv (make-bytevector n)))
     (do ((i 0 (+ i 1)))

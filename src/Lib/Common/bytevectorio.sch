@@ -6,7 +6,7 @@
 ; Bytevector I/O ports, only partially compatible with the draft R6RS.
 ; FIXME:  Doesn't support set-port-position!
 ;
-; FIXME: inefficient representation for output strings
+; FIXME: inefficient representation for output bytevectors
 
 ; Offsets in the bytevector port data structure.
 

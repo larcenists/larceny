@@ -16,6 +16,7 @@
 ; is worse than useless.
 
 (define (buffer-mode? mode)
+  (issue-warning-deprecated 'buffer-mode?)
   (case mode
    ((none line block) #t)
    (else #f)))
@@ -65,6 +66,47 @@
 (define (transcoder-error-handling-mode t)
   (io/transcoder-error-handling-mode t))
 
+(define (bytevector->string bv t)
+  (call-with-port
+   (transcoded-port (open-input-bytevector bv) t)
+   get-string-all))
+
+(define (string->bytevector s t)
+  (let ((n (string-length s))
+        (codec (transcoder-codec t))
+        (eolstyle (transcoder-eol-style t))
+        (errmode (transcoder-error-handling-mode t)))
+    (cond ((and (eq? eolstyle 'none)
+                (or (eq? errmode 'replace)
+                    (not (eq? codec 'latin-1))))
+           (case codec
+            ((latin-1)
+             (do ((bv (make-bytevector n))
+                  (i 0 (+ i 1)))
+                 ((= i n) bv)
+               (let* ((sv (char->integer (string-ref s i)))
+                      (sv (if (< sv 256) sv (char->integer #\?))))
+                 (bytevector-set! bv i sv))))
+            ((utf-8)
+             (string->utf8 s))
+            ((utf-16)
+             (string->utf16 s))
+            (else
+             (assertion-violation 'string->bytevector
+                                  "illegal arguments" s t))))
+          ((eq? codec 'utf-8)
+           (call-with-port
+            (string-io/open-output-string t)
+            (lambda (out)
+              (put-string out s)
+              (string->utf8 (get-output-string out)))))
+          (else
+           (string->bytevector
+            (utf8->string
+             (string->bytevector
+              s (make-transcoder (utf-8-codec) eolstyle errmode)))
+            (make-transcoder codec 'none 'replace))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Operations on ports.
@@ -84,7 +126,7 @@
 
 (define (transcoded-port p t)
   (if (and (binary-port? p)
-           (memq (transcoder-codec t) '(latin-1 utf-8))
+           (memq (transcoder-codec t) '(latin-1 utf-8 utf-16))
            (memq (transcoder-eol-style t) '(none lf cr crlf nel crnel ls))
            (memq (transcoder-error-handling-mode t) '(ignore replace raise))
            (if (and (input-port? p) (output-port? p))
@@ -106,8 +148,6 @@
 
 (define (port-lines-read p) (io/port-lines-read p))
 (define (port-line-start p) (io/port-line-start p))
-
-; FIXME:  For now, no ports support set-port-position!.
 
 (define (port-has-set-port-position!? p)
   (io/port-has-set-port-position!? p))
@@ -211,17 +251,25 @@
                               "wrong number of arguments"
                               (cons filename rest)))))
 
+; FIXME:  Doesn't check legitimacy of the transcoder.
+
 (define (open-bytevector-output-port . rest)
-  (let* ((transcoder (if (null? rest) #f (car rest)))
-         (port (bytevector-io/open-output-bytevector))
-         (port (if transcoder
-                   (transcoded-port port transcoder)
-                   port)))
-    (values port
-            (lambda ()
-              (let ((bv (bytevector-io/get-output-bytevector port)))
-                (bytevector-io/reset-output-bytevector port)
-                bv)))))
+  (issue-warning-deprecated 'open-bytevector-output-port)
+  (let ((transcoder (if (null? rest) #f (car rest))))
+    (if transcoder
+        (let ((out (open-output-string)))
+          (values out
+                  (lambda ()
+                    (let* ((s (get-output-string out))
+                           (bv (string->bytevector s transcoder)))
+                      (reset-output-string out)
+                      bv))))
+        (let ((out (open-output-bytevector)))
+          (values out
+                  (lambda ()
+                    (let ((bv (get-output-bytevector out)))
+                      (reset-output-bytevector out)
+                      bv)))))))
 
 ; FIXME:  Doesn't check legitimacy of the transcoder.
 
@@ -230,16 +278,24 @@
            (or (null? rest)
                (null? (cdr rest))))
       (let ((transcoder (if (null? rest) #f (car rest))))
-        (call-with-values
-         (lambda () (open-bytevector-output-port transcoder))
-         (lambda (p get-bvec)
-           (dynamic-wind (lambda () #t)
-                         (lambda () (f p) (get-bvec))
-                         (lambda () (close-output-port p))))))
+        (if transcoder
+            (call-with-port
+             (open-output-string)
+             (lambda (out)
+               (f out)
+               (let ((s (get-output-string out)))
+                 (reset-output-string out)
+                 (string->bytevector s transcoder))))
+            (call-with-port
+             (open-output-bytevector)
+             (lambda (out)
+               (f out)
+               (get-output-bytevector out)))))
       (assertion-violation 'call-with-bytevector-output-port
                            "illegal argument(s)" f)))
 
 (define (open-string-output-port)
+  (issue-warning-deprecated 'open-string-output-port)
   (let* ((transcoder (make-transcoder (utf-8-codec) 'none 'ignore))
          (port (bytevector-io/open-output-bytevector))
          (port (transcoded-port port transcoder))
@@ -252,12 +308,9 @@
 
 (define (call-with-string-output-port f)
   (if (procedure? f)
-      (call-with-values
-       (lambda () (open-string-output-port))
-       (lambda (p get-string)
-         (dynamic-wind (lambda () #t)
-                       (lambda () (f p) (get-string))
-                       (lambda () (close-output-port p)))))
+      (call-with-port
+       (open-output-string)
+       (lambda (out) (f out) (get-output-string out)))
       (assertion-violation 'call-with-string-output-port
                            "illegal argument" f)))
 
@@ -296,8 +349,6 @@
          id read! write! get-position set-position! close)
   (customio/make-binary-input/output-port
    id read! write! get-position set-position! close))
-
-; FIXME:  These aren't implemented yet.
 
 (define (make-custom-textual-input-port
          id read! get-position set-position! close)
@@ -356,6 +407,7 @@
 ; FIXME:  This is extremely inefficient.
 
 (define (get-bytevector-some p)
+  (issue-warning-deprecated 'get-bytevector-some)
   (if (and (input-port? p)
            (binary-port? p))
       (let ((byte (get-u8 p)))
@@ -367,11 +419,13 @@
 (define (get-bytevector-all p)
   (if (and (input-port? p)
            (binary-port? p))
-      (let ((bv (call-with-bytevector-output-port
-                  (lambda (out)
-                    (do ((byte (get-u8 p) (get-u8 p)))
-                        ((eof-object? byte))
-                      (put-u8 out byte))))))
+      (let ((bv (call-with-port
+                 (open-output-bytevector)
+                 (lambda (out)
+                   (do ((byte (get-u8 p) (get-u8 p)))
+                       ((eof-object? byte)
+                        (get-output-bytevector out))
+                     (put-u8 out byte))))))
         (if (fx= 0 (bytevector-length bv))
             (eof-object)
             bv))
@@ -466,12 +520,14 @@
   (cond ((null? rest)
          (put-bytevector p bv 0 (bytevector-length bv)))
         ((null? (cdr rest))
-         (put-bytevector p bv (car rest) (- (bytevector-length bv) (car rest)))
+         (let* ((start (car rest))
+                (count (- (bytevector-length bv) start)))
+           (put-bytevector p bv start count)))
         ((null? (cddr rest))
          (put-bytevector p bv (car rest) (cadr rest)))
         (else
          (assertion-violation 'put-bytevector
-                              "too many arguments" (cons p (cons bv rest)))))))
+                              "too many arguments" (cons p (cons bv rest))))))
 
 (define (put-string p s . rest)
   (define (put-string p s start count)
@@ -492,12 +548,12 @@
   (cond ((null? rest)
          (put-string p s 0 (string-length s)))
         ((null? (cdr rest))
-         (put-string p s (car rest) (- (string-length s) (car rest)))
+         (put-string p s (car rest) (- (string-length s) (car rest))))
         ((null? (cddr rest))
          (put-string p s (car rest) (cadr rest)))
         (else
          (assertion-violation 'put-string
-                              "too many arguments" (cons p (cons s rest)))))))
+                              "too many arguments" (cons p (cons s rest))))))
 
 (define (put-datum p x)
   (write x p))

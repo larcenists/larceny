@@ -399,7 +399,7 @@
   (let ((rep (nbuild-parameter 'target-string-rep)))
     (case rep
      ((flat1)
-      (dump-bytevector! h (string->bytevector s) $tag.string-typetag))
+      (dump-bytevector! h (flat1->bytevector s) $tag.string-typetag))
      ((flat4)
       (let* ((n (string-length s))
              (bv (make-bytevector (* 4 n)))

@@ -10,11 +10,11 @@
 (if (not (eq? (nbuild-parameter 'target-endianness) 'big))
     (error "tobytevector-be.sch is only for big-endian targets."))
 
-(define (string->bytevector s)
+(define (flat1->bytevector s)
   (list->bytevector (map char->integer (string->list s))))
 
 (define (symbol->bytevector s)
-  (string->bytevector (symbol->string s)))
+  (flat1->bytevector (symbol->string s)))
 
 ; Bignums are bytevector-like with the sign in the first two bytes
 ; (0 for 0 or positive, 1 for negative), followed by a digit
