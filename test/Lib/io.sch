@@ -46,9 +46,7 @@
 (define (io-basic-tests)
 
   (define buffer-modes '(none line block))
-  ; FIXME:  UTF-16 isn't supported yet
-; (define codecs '(latin-1 utf-8 utf-16))         ; nonstandard representations
-  (define codecs '(latin-1 utf-8))                ; nonstandard representations
+  (define codecs '(latin-1 utf-8 utf-16))         ; nonstandard representations
   (define eol-styles '(none lf cr crlf nel crnel ls))
   (define err-modes '(ignore replace raise))
 
@@ -157,14 +155,14 @@
                 #t))
          #t)
 
-#; (test "bytevector->string 1"
+   (test "bytevector->string 1"
          (let* ((s0 "a\x3bb;b\x7834;c\xffff;d\x100000;e\x10ffff;f")
                 (bv (string->utf8 s0))
                 (t (make-transcoder (utf-8-codec) 'none 'ignore)))
            (string=? s0 (bytevector->string bv t)))
          #t)
 
-#; (test "bytevector->string 2"
+   (test "bytevector->string 2"
          (let* ((s0 "a\x3bb;b\x7834;c\xffff;d\x100000;e\x10ffff;f")
                 (bv (string->utf8 s0))
                 (t (make-transcoder (latin-1-codec) 'none 'ignore)))
@@ -174,19 +172,22 @@
                      (bytevector->string bv t)))
          #t)
 
-#; (test "string->bytevector 1"
+   (test "string->bytevector 1"
          (let* ((s0 "a\x3bb;b\x7834;c\xffff;d\x100000;e\x10ffff;f")
                 (t (make-transcoder (utf-8-codec) 'none 'ignore))
                 (bv (string->bytevector s0 t)))
-           (string=? bv
+           (string=? s0
                      (bytevector->string bv t)))
          #t)
 
-#; (test "string->bytevector 2"
+   (test "string->bytevector 2"
          (let* ((s0 "a\x3bb;b\x7834;c\xffff;d\x100000;e\x10ffff;f")
                 (t (make-transcoder (latin-1-codec) 'none 'ignore))
                 (bv (string->bytevector s0 t)))
-           (string=? bv
+           (string=? (list->string
+                      (filter (lambda (c)
+                                (char<=? c (integer->char #xff)))
+                              (string->list s0)))
                      (bytevector->string bv t)))
          #t)
 
@@ -665,9 +666,15 @@
              (s (if (eq? codec 'latin-1)
                     (string->latin-1 s)
                     s))
-             (bv (if (eq? codec 'latin-1)
-                     (list->bytevector (map char->integer (string->list s)))
-                     (string->utf8 s))))
+             (bv (cond ((eq? codec 'latin-1)
+                        (list->bytevector
+                         (map char->integer (string->list s))))
+                       ((eq? codec 'utf-8)
+                        (string->utf8 s))
+                       ((eq? codec 'utf-16)
+                        (string->utf16 s))
+                       (else
+                        (assert #f)))))
         (call-with-port
          (open-bytevector-input-port bv t)
          (lambda (p)
@@ -778,6 +785,48 @@
 
      (test-line-lengths
       "utf-8 ls u" u (make-transcoder (utf-8-codec) 'ls 'ignore))
+
+     (test-line-lengths
+      "utf-16 none a" s (make-transcoder (utf-16-codec) 'none 'ignore))
+
+     (test-line-lengths
+      "utf-16 none u" u (make-transcoder (utf-16-codec) 'none 'ignore))
+
+     (test-line-lengths
+      "utf-16 lf a" s (make-transcoder (utf-16-codec) 'lf 'ignore))
+
+     (test-line-lengths
+      "utf-16 lf u" u (make-transcoder (utf-16-codec) 'lf 'ignore))
+
+     (test-line-lengths
+      "utf-16 cr a" s (make-transcoder (utf-16-codec) 'cr 'ignore))
+
+     (test-line-lengths
+      "utf-16 cr u" u (make-transcoder (utf-16-codec) 'cr 'ignore))
+
+     (test-line-lengths
+      "utf-16 crlf a" s (make-transcoder (utf-16-codec) 'crlf 'ignore))
+
+     (test-line-lengths
+      "utf-16 crlf u" u (make-transcoder (utf-16-codec) 'crlf 'ignore))
+
+     (test-line-lengths
+      "utf-16 nel a" s (make-transcoder (utf-16-codec) 'nel 'ignore))
+
+     (test-line-lengths
+      "utf-16 nel u" u (make-transcoder (utf-16-codec) 'nel 'ignore))
+
+     (test-line-lengths
+      "utf-16 crnel a" s (make-transcoder (utf-16-codec) 'crnel 'ignore))
+
+     (test-line-lengths
+      "utf-16 crnel u" u (make-transcoder (utf-16-codec) 'crnel 'ignore))
+
+     (test-line-lengths
+      "utf-16 ls a" s (make-transcoder (utf-16-codec) 'ls 'ignore))
+
+     (test-line-lengths
+      "utf-16 ls u" u (make-transcoder (utf-16-codec) 'ls 'ignore))
 
      (test-output
       "native" "a\nb" (native-transcoder) '#vu8(97 10 98))

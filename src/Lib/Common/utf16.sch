@@ -27,7 +27,7 @@
          (close-method
           (lambda () (close-port p))))
     (cond ((and (input-port? p) (output-port? p))
-           (make-custom-binary-input-port
+           (make-custom-binary-input/output-port
             "utf-16"
             read-method write-method
             get-position-method set-position-method close-method))
@@ -78,8 +78,8 @@
          (offset2 (- 1 offset1)))
 
     (lambda (bv start count)
-      (let ((count (max 2 (quotient (min bufsize count) 2)))
-            (n (get-bytevector-n! p buffer 0 count)))
+      (let* ((count (max 2 (quotient (min bufsize count) 2)))
+             (n (get-bytevector-n! p buffer 0 count)))
 
         (define (loop i j)
           (if (= i n)
@@ -96,8 +96,7 @@
                 (define (decode3 i j)
                   (let ((b1 (fxior
                              #b11100000
-                             (fxrshl byte1 4)
-                             (fxlogand byte2 #b00000011)))
+                             (fxrshl byte1 4)))
                         (b2 (fxlogior
                              #b10000000
                              (fxlogior
@@ -117,7 +116,7 @@
                                   (loop (+ i 2) (+ j 1)))
                            (let ((b1 (fxlogior
                                       #b11000000
-                                      (fxlogand byte2 #b00000011)))
+                                      (fxrshl byte2 6)))
                                  (b2 (fxlogior
                                       #b10000000
                                       (fxlogand byte2 #b00111111))))
@@ -128,7 +127,7 @@
                        (let ((b1 (fxior
                                   #b11000000
                                   (fxlsh byte1 2)
-                                  (fxlogand byte2 #b00000011)))
+                                  (fxrshl byte2 6)))
                              (b2 (fxlogior
                                   #b10000000
                                   (fxlogand byte2 #b00111111))))
@@ -159,10 +158,10 @@
                                                   (fxrshl bits 18)))
                                     (b2 (fxlogior #b10000000
                                                   (fxlogand #xb00111111
-                                                            (rxrshl bits 12))))
+                                                            (fxrshl bits 12))))
                                     (b3 (fxlogior #b10000000
                                                   (fxlogand #xb00111111
-                                                            (rxrshl bits 6))))
+                                                            (fxrshl bits 6))))
                                     (b3 (fxlogior #b10000000
                                                   (fxlogand #xb00111111
                                                             bits))))
@@ -196,10 +195,6 @@
                            endianness))))
 
   (assert (memq endianness '(big little)))
-
-  ; Write byte-order mark.
-
-  (write16 #xfe #xff)
 
   (lambda (bv start count)
 
@@ -247,6 +242,11 @@
                      (write16 (fxlogior #xd800 (fxrshl bits 10))
                               (fxlogior #xdc00 (fxlogand bits #x03ff)))
                      (loop (+ i 4) limit)))))))
+
+    ; Write byte-order mark at the beginning.
+
+    (if (= (port-position p) 0)
+        (write16 #xfe #xff))
 
     (loop start (+ start count))))
 

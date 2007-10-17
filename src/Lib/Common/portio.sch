@@ -71,22 +71,34 @@
    (transcoded-port (open-input-bytevector bv) t)
    get-string-all))
 
+; When converting a string to a bytevector using the UTF-8
+; or UTF-16 encoding forms, no encoding errors are possible
+; so the transcoder's error-handling mode doesn't matter.
+
 (define (string->bytevector s t)
   (let ((n (string-length s))
         (codec (transcoder-codec t))
         (eolstyle (transcoder-eol-style t))
         (errmode (transcoder-error-handling-mode t)))
-    (cond ((and (eq? eolstyle 'none)
-                (or (eq? errmode 'replace)
-                    (not (eq? codec 'latin-1))))
+    (cond ((eq? eolstyle 'none)
            (case codec
             ((latin-1)
-             (do ((bv (make-bytevector n))
-                  (i 0 (+ i 1)))
-                 ((= i n) bv)
-               (let* ((sv (char->integer (string-ref s i)))
-                      (sv (if (< sv 256) sv (char->integer #\?))))
-                 (bytevector-set! bv i sv))))
+             (call-with-port
+              (open-output-bytevector)
+              (lambda (out)
+                (do ((bv (make-bytevector n))
+                     (i 0 (+ i 1)))
+                    ((= i n) (get-output-bytevector out))
+                  (let ((sv (char->integer (string-ref s i))))
+                    (cond ((< sv 256)
+                           (put-u8 out sv))
+                          ((eq? errmode 'replace)
+                           (put-u8 out (char->integer #\?)))
+                          ((eq? errmode 'raise)
+                           (assertion-violation
+                            'string->bytevector "encoding error" sv))
+                          (else
+                           'ignore)))))))
             ((utf-8)
              (string->utf8 s))
             ((utf-16)
@@ -104,8 +116,8 @@
            (string->bytevector
             (utf8->string
              (string->bytevector
-              s (make-transcoder (utf-8-codec) eolstyle errmode)))
-            (make-transcoder codec 'none 'replace))))))
+              s (make-transcoder (utf-8-codec) eolstyle 'ignore)))
+            (make-transcoder codec 'none errmode))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -396,7 +408,7 @@
            (fx<= 0 start)
            (fixnum? count)
            (fx<= 0 count)
-           (fx< (fx+ start count) (bytevector-length bv)))
+           (fx<= (fx+ start count) (bytevector-length bv)))
       (do ((n    (fx+ start count))
            (i    start      (fx+ i 1)))
           ((or (port-eof? p) (fx= i n))

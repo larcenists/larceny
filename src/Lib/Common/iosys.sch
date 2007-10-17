@@ -763,16 +763,16 @@
 
   ; shallow copy
 
-  (let ((newport (io/clone-port p))
-        (mainbuf1 (vector-like-ref p port.mainbuf))
-        (mainptr1 (vector-like-ref p port.mainptr))
-        (mainlim1 (vector-like-ref p port.mainlim))
-        (mainbuf2 (make-bytevector (bytevector-length mainbuf1))))
+  (let* ((newport (io/clone-port p))
+         (mainbuf1 (vector-like-ref p port.mainbuf))
+         (mainptr1 (vector-like-ref p port.mainptr))
+         (mainlim1 (vector-like-ref p port.mainlim))
+         (mainbuf2 (make-bytevector (bytevector-length mainbuf1))))
 
       (bytevector-copy! mainbuf1
                         mainptr1
                         mainbuf2 0 (fx- mainlim1 mainptr1))
-      (vector-like-set! newport port.mainbuf mainbuf2))
+      (vector-like-set! newport port.mainbuf mainbuf2)
 
       ; close original port, destroying original mainbuf
 
@@ -785,7 +785,7 @@
 
         ; FIXME: this will look like it's transcoded as UTF-8
 
-        (io/transcoded-port p t)))
+        (io/transcoded-port p t))))
 
 ; Like transcoded-port but preserves slightly different state
 ; and uses the correct transcoder for custom textual ports.
