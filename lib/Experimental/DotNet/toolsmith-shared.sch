@@ -37,8 +37,12 @@
 ;; (popmenubar)
 ;; ((menu 'id))
 ;; ((menu 'menuhandle))
-;; (make-window) (make-window 'make-agent make-window-agent 'text 'bounds (left top right bottom) 'title string 'nogoaway 'nosizebox)
-;;    (make-window 'text) is equivalent to (make-window 'make-agent make-editor)
+;; (make-window) 
+;; (make-window 'make-agent make-window-agent 'text 
+;;              'bounds (left top right bottom) 'title string
+;;              'nogoaway 'nosizebox)
+;;    (make-window 'text) is equivalent to 
+;;    (make-window 'make-agent make-editor)
 ;; ((window 'close))
 ;; ((window 'closed?))
 ;; ((window 'agent))
@@ -548,7 +552,7 @@
                   (else ((self 'insert-char-at-point!) mchar)))))))))
    ((on-keyup mchar  sym mods) "handler for keyup of keystroke sym 
  with modifiers mods.
- If sym and mods correspond to char c, then mchar is c; otherwise mchar is #f." 
+ If sym and mods correspond to char c, then mchar is c; otherwise mchar is #f."
     #f)
    ((on-keypress char) "deprecated method.
  handler for keypress of char."
@@ -1230,7 +1234,7 @@
                                (escape "print-error"))
                              (lambda () ((repl-printer) val strport)))))))))
 
-                ;; Write rendered value to textview, bumping the prompt over it.
+                ;; Write rendered value to textview, bumping prompt over it.
                 (insert-string-at-point/bump! ea valstr))))
            
            (let* ((promptstr
@@ -1307,10 +1311,10 @@
                        (len: ,(string-length ((repl-agent 'textstring))))
                        ))
               (newline))
-       (let ((ea repl-agent)
-             (default-behavior-thunk
-               (lambda () 
-                 ((delegate textmodel 'on-keydown repl-agent) mchar sym mods))))
+       (let* ((ea repl-agent)
+              (default-behavior-thunk
+                (lambda () 
+                  ((delegate textmodel 'on-keydown ea) mchar sym mods))))
          (call-with-values (lambda () ((ea 'selection)))
            (lambda (beg end)
              (cond 
