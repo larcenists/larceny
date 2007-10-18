@@ -252,11 +252,11 @@
   (define (cursor-vertical! dir)
     (define pos (cond ((number? selection) selection)
                       (else (car selection))))
-    (let ((start-of-line-idx
-           (do ((idx (- pos 1) (- idx 1)))
-               ((or (< idx 0) (char=? #\newline (string-ref mytext idx)))
-                (+ idx 1)))))
-      (cond ((not preferred-cursor-col)
+    (let ((start-of-line-idx ;; search backward for start of line cursor is on
+           (do ((c-idx (- pos 1) (- c-idx 1)))
+               ((or (< c-idx 0) (char=? #\newline (string-ref mytext c-idx)))
+                (+ c-idx 1)))))
+      (cond ((not preferred-cursor-col) ;; save current cursor column if needed
              (set! preferred-cursor-col (- pos start-of-line-idx))))
       (let* ((start-of-target-line 
               (case dir
@@ -267,7 +267,7 @@
                 ((forward)
                  (let loop ((idx (+ pos 1)))
                    (cond 
-                    ((>= idx (string-length mytext))
+                    ((> idx (string-length mytext)) ;; DOC for CHANGE BELOW
                      ;; We reached the end of mytext without passing over
                      ;; a newline; therefore pos is on the final line.
                      ;; To preserve no-op semantics, return start of that line
@@ -277,11 +277,16 @@
                     (else
                      (loop (+ idx 1))))))))
              (target-idx
-              (do ((idx start-of-target-line (+ idx 1))
-                   (col preferred-cursor-col (- col 1)))
-                  ((or (= col 0) 
-                       (char=? #\newline (string-ref mytext idx)))
-                   idx))))
+	      (do ((idx start-of-target-line (+ idx 1))
+		   (col preferred-cursor-col (- col 1)))
+		  ((or (= col 0) 
+		       ;; This change and the one above fix a problem
+		       ;; where hitting down on the last line with
+		       ;; content did not move the cursor to the
+		       ;; implicit newline.
+		       (= idx (string-length mytext))
+		       (char=? #\newline (string-ref mytext idx)))
+		   idx))))
         (set! selection target-idx))))
   (define (do-cursor-up!)
     (cursor-vertical! 'backward))
@@ -509,11 +514,14 @@
   (define default-foreground-col (name->col (string->symbol "Black")))
   (define default-background-col (name->col (string->symbol "White")))
   
-  (define (count-visible-lines)
-    (inexact->exact
-     (ceiling (/ ((wnd 'height)) 
-                 (call-with-values (lambda () ((wnd 'measure-text) "" fnt))
-                   (lambda (w h) h))))))
+  (define (count-visible-lines/lower-bound)
+    (inexact->exact (floor (count-visible-lines/fractional))))
+  (define (count-visible-lines/upper-bound)
+    (inexact->exact (ceiling (count-visible-lines/fractional))))
+  (define (count-visible-lines/fractional)
+    (/ ((wnd 'height)) 
+       (call-with-values (lambda () ((wnd 'measure-text) "" fnt))
+	 (lambda (w h) h))))
   (define (selection-start-pos self)
     (call-with-values (lambda () ((self 'selection)))
       (lambda (s e) s)))
@@ -535,7 +543,7 @@
       (list (list fnt 0 (string-length ((renderable-textmodel 'textstring))))))
      ((on-resize) "handler for window resize event." #f)
      ((count-visible-lines)  "=> number of lines visible in buffer."
-      (count-visible-lines))
+      (count-visible-lines/fractional))
      ;; XXX adding this as a hook that can be potentially overridden, 
      ;; but I'm not sure it is a good idea.
      ((visible-offset) "=> integer offset where the visible part of str begins.
@@ -547,23 +555,27 @@
       ((g 'fill-rect) default-background-col rx ry (+ rx rw) (+ ry rh))
       (call-with-values (lambda () ((g 'measure-text) "A" fnt))
         (lambda (a-char-w a-char-h)
-          (call-with-current-continuation
-           (lambda (abandon)
-             (define max-lines (count-visible-lines))
-             (let* ((self renderable-textmodel)
-                    (text ((self 'textstring)))
-                    (visible-offset ((self 'visible-offset)))
-                    (foreground (self 'foreground-color))
-                    (background (self 'background-color))
-                    (selection  (self 'selection))
-                    (fill-rect (g 'fill-rect))
-                    (draw-text (g 'draw-text)))
+	  (define max-lines (count-visible-lines/upper-bound))
+	  (let* ((self renderable-textmodel)
+		 (text ((self 'textstring)))
+		 (visible-offset ((self 'visible-offset)))
+		 (foreground (self 'foreground-color))
+		 (background (self 'background-color))
+		 (selection  (self 'selection))
+		 (fill-rect (g 'fill-rect))
+		 (draw-text (g 'draw-text)))
+	    ;; XXX this change fixes a bug where abandoning in the
+	    ;; middle of the background render would cause *none* of
+	    ;; the foreground to be rendered.
+	    (call-with-current-continuation
+	     (lambda (abandon)
                ;; Draw background
                (for-each-textelem
                 self
                 g fnt
                 (lambda (telem pos span x y w h line column)
-                  (cond ((> line max-lines)
+		  '(begin (write `(background ,telem ,pos ,x ,y ,line ,column))
+			 (newline))                  (cond ((> line max-lines)
                          (abandon line)))
                   (let* ((bg-col (background pos))
                          (sel-bg-col (invert-col bg-col)))
@@ -578,12 +590,17 @@
                      (else
                       (fill-rect bg-col x y (+ x w) (+ y h))))))
                 (lambda (x y height line-num col-num pos)
-                  (unspecified)))
+                  (unspecified)))))
+	    ;; DOC for CHANGE above
+	    (call-with-current-continuation
+	     (lambda (abandon)
                ;; Draw foreground
                (for-each-textelem 
                 self
                 g fnt
                 (lambda (telem pos span x y w h line column)
+		  '(begin (write `(foreground ,telem ,pos ,x ,y ,line ,column))
+			 (newline))
                   (cond ((> line max-lines)
                          (abandon line)))
                   (let* ((fg-col (foreground pos))
@@ -599,9 +616,9 @@
                   (cond 
                    ((call-with-values selection (lambda (s e) (= s e pos)))
                     (fill-rect (invert-col (background (- pos 1)))
-                               x y (+ x a-char-w) (+ y a-char-h)))))))
+                               x y (+ x a-char-w) (+ y a-char-h))))))))
              )))))
-     )))
+    ))
   
 ;; extend-with-keystroke-handling : T -> [Keyed T] where T <: TextModel
 (define (extend-with-keystroke-handling textmodel)
@@ -752,19 +769,26 @@
     ((delegate textmodel 'set-textstring! scrollable-textmodel) string))
    ((visible-offset)
     (let* ((text ((scrollable-textmodel 'textstring)))
-           (nlines ((scrollable-textmodel 'count-visible-lines)))
+           (nlines (inexact->exact (ceiling ((scrollable-textmodel 'count-visible-lines)))))
            (start (index-after-line-count text first-line-idx))
            (start (or start (string-length text)))
            (finis (index-after-line-count text (+ first-line-idx nlines)))
            (finis (or finis (string-length text))))
+      '(begin (display `('visible-offset nlines: ,nlines
+					start: ,start
+					finis: ,finis))
+	     (newline))
       start))
    ((on-cursor-reposition)
     (let* ((text ((scrollable-textmodel 'textstring)))
-           (vlines ((scrollable-textmodel 'count-visible-lines)))
+           (vlinesf ((scrollable-textmodel 'count-visible-lines)))
+	   (vlines-fire (inexact->exact (floor vlinesf)))
+	   (vlines-measure (inexact->exact (ceiling vlinesf)))
            (start (index-after-line-count text first-line-idx))
            (start (or start (string-length text)))
-           (nlines (min vlines (count-newlines-in
-                                (substring text start (string-length text)))))
+           (nlines (min vlines-fire
+			(count-newlines-in
+			 (substring text start (string-length text)))))
            (finis (index-after-line-count text (+ first-line-idx nlines)))
            (finis (or finis (string-length text))))
       (call-with-values (lambda () ((scrollable-textmodel 'selection)))
@@ -781,20 +805,21 @@
                  (let* ((cursor-lines 
                          (count-newlines-in (substring text s start)))
                         (cursor-lines
-                         (+ cursor-lines (quotient nlines 2))))
+                         (+ ; cursor-lines
+			    (min nlines (quotient vlines-measure 2)))))
                    '(begin (format #t "Attempting to scroll ~a lines back"
                                   cursor-lines)
                           (newline))
                    ((wnd 'attempt-scroll) 'vertical (- cursor-lines))))
                 ((and (= s e)
-                      (< s (string-length text))
-                      (<= finis (+ s 1))
-                      (= nlines vlines))
+                      (<= s (string-length text))
+                      (<= finis s)
+                      (= nlines vlines-fire))
                  (let* ((cursor-lines
-                         (count-newlines-in (substring text finis (+ s 1))))
+                         (count-newlines-in (substring text finis s)))
                         (cursor-lines
-                         (+ cursor-lines (quotient nlines 2))))
-                   '(begin (format #t "Attempting to scroll ~a lines forward"
+                         (+ cursor-lines (quotient vlines-measure 2))))
+		   '(begin (format #t "Attempting to scroll ~a lines forward"
                                   cursor-lines)
                           (newline))
                    ((wnd 'attempt-scroll) 'vertical cursor-lines)))))))
@@ -814,7 +839,8 @@
     ;; When image support is added, these grains might not remain
     ;; appropriate.
     (let* ((my-line-count (line-count scrollable-textmodel))
-           (visible-lines ((scrollable-textmodel 'count-visible-lines)))
+           (visible-lines 
+	    (inexact->exact (floor ((scrollable-textmodel 'count-visible-lines)))))
            (max-val (max 0 (- my-line-count visible-lines))) ;; XXX (buggy)
            (max-val my-line-count)) ;; questionable but easier to work with
       (cond ((not (<= 0 first-line-idx max-val))
@@ -1222,7 +1248,7 @@
   ;; Maybe I should abstract over this above...
   (define my-own-env (environment-copy (interaction-environment)))
 
-  (define (evaluate-first-sexp-after-prompt mchar alternative-behavior)
+  (define (evaluate-first-sexp-after-prompt alternative-behavior)
     ;; I'm going to hack this up by making a custom port for reading
     ;; from the text.  If the reader ever requests to read past the
     ;; end of the input text, then we abandon the read attempt (via an
@@ -1270,10 +1296,6 @@
          ;; bump the prompt over it.
          (bump-prompt! (- (string-length subtext) 1))
 
-         ;; First provide user feedback by actually printing char
-         (cond (mchar
-                (insert-string-at-point/bump! ea (string mchar))))
-         
          ;; XXX during evaluation, should override current-input-port
          ;; and current-output-port here so that user code will
          ;; side-effect the REPL window or something similar.
@@ -1400,11 +1422,19 @@
               (else
                (let* ((text ((ea 'textstring)))
                       (text-end (string-length text)))
-                 (if (= end (- text-end 1))
-                     (evaluate-first-sexp-after-prompt 
-                      mchar
-                      default-behavior-thunk)
-                     (default-behavior-thunk)))))))))
+		 ;; XXX yet another fencepost-fix that was necessary
+		 ;; after I got rid of the "every textmodel ends with
+		 ;; newline" invariant.  (Though the reality is that
+		 ;; this probably should not require that end is at
+		 ;; the text-end, but rather that there is no
+		 ;; non-whitespace content in between end and
+		 ;; text-end...)
+                 (cond ((= end text-end)
+			(default-behavior-thunk)
+			(evaluate-first-sexp-after-prompt 
+			 (lambda () 'no-alternative-behavior)))
+		       (else 
+			(default-behavior-thunk))))))))))
       (else
        ;; Pass the buck to the underlying agent.
        ((delegate textmodel 'on-keydown repl-agent) mchar sym mods))))
