@@ -29,12 +29,13 @@
 
 (cond-expand
   (win32
-    (define list-directory
+    (define-values (list-directory file-directory? file-attributes)
       (let ()
         (define-c-info
           (include<> "windows.h")
           (sizeof find-data-size "WIN32_FIND_DATA")
           (const  invalid-handle ulong "INVALID_HANDLE_VALUE")
+	  (const  file-attribute-directory ulong "FILE_ATTRIBUTE_DIRECTORY")
           (fields "WIN32_FIND_DATA"
                   (find-data-name "cFileName")))
 
@@ -61,10 +62,17 @@
                              'int
                              'stdcall))
 
+	(define get-file-attributes 
+	  (foreign-procedure "GetFileAttributesA"
+			     '(string)
+			     'long
+			     'stdcall))
+	  
+
         (define (find-data->filename find-data)
           (%peek-string (+ find-data-name find-data)))
 
-        (lambda (path)
+	(define (list-directory path)
           (let* ((mask      (string-append path "/*"))
                  (find-data (malloc find-data-size))
                  (handle    (find-first-file mask find-data)))
@@ -83,13 +91,21 @@
                        (reverse result))))))
               (lambda ()
                 (find-close handle)
-                (free find-data))))))))
+                (free find-data)))))
+	
+	(define (file-directory? filename)
+	  (let ((attrs (get-file-attributes filename)))
+	    (cond ((< attrs 0)
+		   (error 'file-directory? ": " filename " does not exist.")))
+	    (not (zero? (fxlogand file-attribute-directory attrs)))))
+	
+	(values list-directory file-directory? get-file-attributes))))
 
   (else
     ;;; XXX not thread-safe!  Consider using the _r variants where
     ;;; appropriate.  (but at the moment define-cstruct-offset is even less
     ;;; robust than this is...)
-    (define list-directory
+    (define-values (list-directory file-attributes)
       (let ()
         (define-c-info (include<> "dirent.h")
                        (struct "dirent" (*d_name_offset* "d_name")))
@@ -132,18 +148,20 @@
           (include<> "sys/stat.h") 
           (sizeof struct-stat-sz "struct stat")
           (sizeof dev-t-sz   "dev_t")        (sizeof ino-t-sz   "ino_t")  
-          (sizeof mode-t-sz  "mode_t")       (sizeof nlink-t-sz "nlink_t")
-          (sizeof uid-t-sz   "uid_t")        (sizeof gid-t-sz   "gid_t")
+          (sizeof mode-t-sz  "mode_t")       (sizeof nlink-t-sz "nlink_t") ;XXX
+          (sizeof uid-t-sz   "uid_t")        (sizeof gid-t-sz   "gid_t")   ;XXX
           (sizeof off-t-sz   "off_t")        (sizeof time-t-sz  "time_t")
-          (sizeof blksize-t-sz "blksize_t")  (sizeof blkcnt-t-sz "blkcnt_t")
+          (sizeof blksize-t-sz "blksize_t")  (sizeof blkcnt-t-sz "blkcnt_t") ;XXX
           (struct "stat" 
                   (*st_dev_offs*   "st_dev")   (*st_ino_offs*     "st_ino")
                   (*st_mode_offs*  "st_mode")  (*st_nlink_offs*   "st_nlink")
                   (*st_uid_offs*   "st_uid")   (*st_gid_offs*     "st_gid")
                   (*st_rdev_offs*  "st_rdev")  (*st_size_offs*    "st_size")
                   (*st_atime_offs* "st_atime") (*st_mtime_offs*   "st_mtime")
-                  (*st_ctime_offs* "st_ctime") (*st_blksize_offs* "st_blksize")
-                  (*st_blocks*     "st_blocks"))
+                  (*st_ctime_offs* "st_ctime") 
+                  (*st_blksize_offs* "st_blksize") ;XXX
+                  (*st_blocks*     "st_blocks") ;XXX
+	)
           (const s_ifmt  uint "S_IFMT")
           (const s_ifblk uint "S_IFBLK")
           (const s_ifchr uint "S_IFCHR")
