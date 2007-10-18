@@ -862,6 +862,8 @@
   (environment-set! larc 'open-output-string open-output-string)
   (environment-set! larc 'open-input-bytevector open-input-bytevector)
   (environment-set! larc 'open-output-bytevector open-output-bytevector)
+  (environment-set! larc 'open-input/output-bytevector
+                    open-input/output-bytevector)
   (environment-set! larc 'port-name port-name)
   (environment-set! larc 'io/make-port io/make-port) ; XXX
   (environment-set! larc 'io/get-u8 io/get-u8)       ; FIXME (common.imp.sch)

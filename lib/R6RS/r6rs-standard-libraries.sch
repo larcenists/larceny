@@ -1345,7 +1345,7 @@
    native-transcoder
    transcoder-codec transcoder-eol-style transcoder-error-handling-mode
 
-;  bytevector->string string->bytevector  ; FIXME
+   bytevector->string string->bytevector
 
    eof-object eof-object?
 
@@ -1380,8 +1380,8 @@
    put-char put-string put-datum
 
 ;  open-file-input/output-port            ; FIXME
-;  make-custom-binary-input/output-port   ; FIXME
-;  make-custom-textual-input/output-port  ; FIXME
+   make-custom-binary-input/output-port
+   make-custom-textual-input/output-port
    )
 
   (import
@@ -1409,7 +1409,7 @@
     native-transcoder
     transcoder-codec transcoder-eol-style transcoder-error-handling-mode
 
-;   bytevector->string string->bytevector  ; FIXME
+    bytevector->string string->bytevector
 
     eof-object eof-object?
 
@@ -1444,8 +1444,8 @@
     put-char put-string put-datum
 
 ;   open-file-input/output-port            ; FIXME
-;   make-custom-binary-input/output-port   ; FIXME
-;   make-custom-textual-input/output-port  ; FIXME
+    make-custom-binary-input/output-port
+    make-custom-textual-input/output-port
     ))
 
   ; Larceny accepts any symbol as a file option,

@@ -169,7 +169,13 @@
 ;
 ; NOTE that you can *not* change the offsets without also changing
 ; them in Compiler/common.imp.sch, where they are likely to be
-; inlined.  They should not be used in any other files.
+; inlined.  The offsets may also be used in the following files:
+;
+;     bytevectorio.sch
+;     stringio.sch
+;     transio.sch
+;
+; They should not be used in any other files.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -287,7 +293,7 @@
                          (vector-set! v port.wr-flush? #t))
         ((block)         (vector-set! v port.bufmode 'block))
         (else
-         (assertion-violation 'io/make-port "bad attribute" (car l))
+         (assertion-violation 'io/make-port "bad attribute" (car rest))
          #t)))
      rest)
 
@@ -548,16 +554,25 @@
 (define (io/set-port-position! p posn)
   (cond ((and (port? p)
               (vector-like-ref p port.setposn))
-         (if (and (exact? posn) (integer? posn))
-             (begin (io/reset-buffers! p)
-                    (vector-like-set! p port.mainpos posn)
-
-                    ; FIXME: should check the result
-
-                    (((vector-like-ref p port.ioproc) 'set-position!)
-                     (vector-like-ref p port.iodata)
-                     posn))
-             (error 'io/set-port-position! "illegal argument" posn)))
+         (cond ((eq? (vector-like-ref p port.state) 'closed)
+                (unspecified))
+               ((and (exact? posn) (integer? posn))
+                (io/reset-buffers! p)
+                (vector-like-set! p port.mainpos posn)
+                (let ((r (((vector-like-ref p port.ioproc) 'set-position!)
+                          (vector-like-ref p port.iodata)
+                          posn)))
+                  (cond ((eq? r 'ok)
+                         (if (eq? (vector-like-ref p port.state) 'eof)
+                             (vector-like-set!
+                              p
+                              port.state
+                              (if (binary-port? p) 'binary 'textual)))
+                         (unspecified))
+                        (else
+                         (error 'set-port-position! "io error" p posn)))))
+               (else
+                (error 'io/set-port-position! "illegal argument" posn))))
         (else
          (error 'io/set-port-position! "illegal argument" p)
          #t)))

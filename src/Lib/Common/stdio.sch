@@ -225,6 +225,9 @@
 (define (open-output-bytevector)
   (bytevector-io/open-output-bytevector))
 
+(define (open-input/output-bytevector bv)
+  (bytevector-io/open-input/output-bytevector bv))
+
 (define (get-output-bytevector port)
   (bytevector-io/get-output-bytevector port))
 
