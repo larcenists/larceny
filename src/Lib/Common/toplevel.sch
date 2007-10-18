@@ -941,6 +941,8 @@
   (environment-set! larc 'open-string-output-port open-string-output-port)
   (environment-set! larc 'call-with-string-output-port
                     call-with-string-output-port)
+  (environment-set! larc 'open-file-input/output-port
+                    open-file-input/output-port)
   (environment-set! larc 'standard-output-port standard-output-port)
   (environment-set! larc 'standard-error-port standard-error-port)
   (environment-set! larc 'current-error-port current-error-port)

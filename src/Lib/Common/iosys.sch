@@ -70,23 +70,19 @@
 ; eof             type = <_,input/output> & state = 'eof
 ;
 ; input/output    type = <_,input/output> & state = 'input/output
-;                 & mainptr <= 4
-;                 & mainlim = (bytevector-length mainbuf)
+;                 & mainptr = 0
+;                 & mainlim <= 4
 ;
-; The buffer is empty iff mainptr = 0.  If mainptr > 0, then
+; The buffer is empty iff mainptr = 0.  If mainlim > 0, then
 ; the buffer contains exactly one lookahead byte or character
 ; (in UTF-8).  Aside from the one byte or character of
 ; lookahead, input/output ports are never buffered.
 ;
 ; Input/output ports are different in several other ways:
 ;
-;     If an input/output port supports get-port-position at all,
-;     then it is implemented by the port's ioproc, not by the
-;     code in this file.
-;
-;     If an input/output port supports set-port-position!,
-;     then it is implemented by the port's ioproc, not by the
-;     code in this file.
+;     Input/output ports must support set-port-position! so
+;     they can undo lookahead buffering when switching from
+;     input to output.  (See io/put-X-input/output.)
 ;
 ;     A binary input/output port's ioproc never reads or writes
 ;     more than one byte at a time.
@@ -96,9 +92,7 @@
 ;
 ;     If a textual input/output port is transcoded, then all
 ;     transcoding and end-of-line handling is done by the port's
-;     ioproc, not by the on-the-fly transcoding in this file
-;     (partly because end-of-line handling requires accurate
-;     positioning).
+;     ioproc, not by the on-the-fly transcoding in this file.
 ;
 ; Inlined read and write operations on input/output ports
 ; always perform a closed call to the main read and write
@@ -1047,15 +1041,20 @@
       (begin (error "put-char: not an output port: " p)
              #t)))
 
-; Operations on input/output ports, which are always custom.
+; Operations on input/output ports, which are peculiar.
+; Currently, the only input/output ports are
 ;
-; These operations are invoked only when p is known to be a
-; custom input/output port of the correct type (binary/textual).
+;     bytevector input/output ports
+;     custom input/output ports
+;     transcoded input/output ports (FIXME: which don't work?)
+;
+; These operations are invoked only when p is known to be an
+; input/output port of the correct type (binary/textual).
 
 (define (io/get-u8-input/output p lookahead?)
   (let* ((state   (vector-like-ref p port.state))
          (mainbuf (vector-like-ref p port.mainbuf))
-         (mainptr (vector-like-ref p port.mainptr))
+         (mainlim (vector-like-ref p port.mainlim))
          (iodata  (vector-like-ref p port.iodata))
          (ioproc  (vector-like-ref p port.ioproc)))
     (cond ((eq? state 'eof)
@@ -1065,17 +1064,22 @@
            (eof-object))
           ((eq? state 'closed)
            (error 'get-u8 "read attempted on closed port " p))
-          ((> mainptr 0)
+          ((> mainlim 0)
            (let ((r (bytevector-ref mainbuf 0)))
              (if (not lookahead?)
-                 (vector-like-set! p port.mainptr 0))
+                 (let ((mainpos (vector-like-ref p port.mainpos)))
+                   (vector-like-set! p port.mainpos (+ mainpos 1))
+                   (vector-like-set! p port.mainlim 0)))
              r))
           (else
            (let ((n ((ioproc 'read) iodata mainbuf)))
              (cond ((eq? n 1)
                     (let ((r (bytevector-ref mainbuf 0)))
-                      (if lookahead?
-                          (vector-like-set! p port.mainptr 1))
+                      (if (not lookahead?)
+                          (let ((mainpos (vector-like-ref p port.mainpos)))
+                            (vector-like-set! p port.mainpos (+ mainpos 1))
+                            (vector-like-set! p port.mainlim 0))
+                          (vector-like-set! p port.mainlim 1))
                       r))
                    ((or (eq? n 0) (eq? n 'eof))
                     (io/set-eof-state! p)
@@ -1087,7 +1091,7 @@
 (define (io/get-char-input/output p lookahead?)
   (let* ((state   (vector-like-ref p port.state))
          (mainbuf (vector-like-ref p port.mainbuf))
-         (mainptr (vector-like-ref p port.mainptr))
+         (mainlim (vector-like-ref p port.mainlim))
          (iodata  (vector-like-ref p port.iodata))
          (ioproc  (vector-like-ref p port.ioproc)))
     (cond ((eq? state 'eof)
@@ -1097,12 +1101,14 @@
            (eof-object))
           ((eq? state 'closed)
            (error 'get-char "Read attempted on closed port " p))
-          ((> mainptr 0)
-           (let* ((bv (make-bytevector mainptr))
-                  (s  (begin (bytevector-copy! mainbuf 0 bv 0 mainptr)
+          ((> mainlim 0)
+           (let* ((bv (make-bytevector mainlim))
+                  (s  (begin (bytevector-copy! mainbuf 0 bv 0 mainlim)
                              (utf8->string bv))))
              (if (not lookahead?)
-                 (vector-like-set! p port.mainptr 0))
+                 (let ((mainpos (vector-like-ref p port.mainpos)))
+                   (vector-like-set! p port.mainpos (+ mainpos 1))
+                   (vector-like-set! p port.mainlim 0)))
              (string-ref s 0)))
           (else
            (let ((n ((ioproc 'read) iodata mainbuf)))
@@ -1110,8 +1116,11 @@
                     (let* ((bv (make-bytevector n))
                            (s  (begin (bytevector-copy! mainbuf 0 bv 0 n)
                                       (utf8->string bv))))
-                      (if lookahead?
-                          (vector-like-set! p port.mainptr n))
+                      (if (not lookahead?)
+                          (let ((mainpos (vector-like-ref p port.mainpos)))
+                            (vector-like-set! p port.mainpos (+ mainpos 1))
+                            (vector-like-set! p port.mainlim 0))
+                          (vector-like-set! p port.mainlim n))
                       (string-ref s 0)))
                    ((or (eq? n 0) (eq? n 'eof))
                     (io/set-eof-state! p)
@@ -1123,21 +1132,29 @@
 (define (io/put-u8-input/output p byte)
   (let* ((state   (vector-like-ref p port.state))
          (mainbuf (vector-like-ref p port.mainbuf))
-         (mainptr (vector-like-ref p port.mainptr))
+         (mainpos (vector-like-ref p port.mainpos))
+         (mainlim (vector-like-ref p port.mainlim))
          (iodata  (vector-like-ref p port.iodata))
          (ioproc  (vector-like-ref p port.ioproc))
-         (buf (if (> mainptr 0)
-                  (make-bytevector 1)
-                  mainbuf)))
+         (buf     mainbuf))
     (cond ((eq? state 'error)
            (error 'put-u8 "permanent write error on port " p)
            (eof-object))
           ((eq? state 'closed)
            (error 'put-u8 "write attempted on closed port " p))
+          ((> mainlim 0)
+           (if (vector-like-ref p port.setposn)
+               (begin (io/set-port-position! p mainpos)
+                      (io/put-u8-input/output p byte))
+               (begin (io/set-error-state! p)
+                      (error 'put-u8
+                             "input/output port without set-port-position!"
+                             p))))
           (else
            (bytevector-set! buf 0 byte)
            (let ((r ((ioproc 'write) iodata buf 1)))
              (cond ((eq? r 'ok)
+                    (vector-like-set! p port.mainpos (+ mainpos 1))
                     (unspecified))
                    (else
                     (io/set-error-state! p)
@@ -1145,6 +1162,8 @@
 
 (define (io/put-char-input/output p c)
   (let* ((state   (vector-like-ref p port.state))
+         (mainpos (vector-like-ref p port.mainpos))
+         (mainlim (vector-like-ref p port.mainlim))
          (iodata  (vector-like-ref p port.iodata))
          (ioproc  (vector-like-ref p port.ioproc))
          (buf     (string->utf8 (string c))))
@@ -1153,10 +1172,19 @@
            (eof-object))
           ((eq? state 'closed)
            (error 'put-char "write attempted on closed port " p))
+          ((> mainlim 0)
+           (if (vector-like-ref p port.setposn)
+               (begin (io/set-port-position! p mainpos)
+                      (io/put-char-input/output p c))
+               (begin (io/set-error-state! p)
+                      (error 'put-char
+                             "input/output port without set-port-position!"
+                             p))))
           (else
            (let* ((n0 (bytevector-length buf))
                   (r ((ioproc 'write) iodata buf n0)))
              (cond ((eq? r 'ok)
+                    (vector-like-set! p port.mainpos (+ mainpos 1))
                     (unspecified))
                    (else
                     (io/set-error-state! p)

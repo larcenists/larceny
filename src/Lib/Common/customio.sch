@@ -10,10 +10,6 @@
 ;
 ; Custom ports.
 ;
-; FIXME:  This is as close as we can come without extending the
-; ioproc conventions of Larceny v0.93.
-; That leaves get-position and set-position! for v0.95.
-;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; 'ioproc' is a procedure of one argument: a symbol that denotes the 
@@ -25,6 +21,10 @@
 ;   close : iodata -> { 'ok, 'error }
 ;   ready? : iodata -> boolean
 ;   name : iodata -> string
+;
+; If the port supports set-port-position!, then ioproc also performs
+;
+;   set-position! : iodata * posn -> { 'ok, 'error }
 
 (define (customio/make-binary-input-port
          id read! get-position set-position! close)
@@ -44,15 +44,19 @@
                         (else 'error))))))
         (define (customio/ioproc op)
           (case op
-           ((read)   read-method)
-           ((close)  (lambda (data) (if close (close))))
-           ((name)   (lambda (data) name))
+           ((read)          read-method)
+           ((close)         (lambda (data) (if close (close))))
+           ((name)          (lambda (data) name))
+           ((set-position!) (if set-position!
+                                (lambda (data posn) (set-position! posn) 'ok)
+                                (customio/unsupported-operation
+                                 'make-custom-binary-input-port this op)))
            (else
             (customio/unsupported-operation
              'make-custom-binary-input-port this op))))
-        (if (and #f set-position!) ; FIXME
+        (if set-position!
             (set! this
-                  (io/make-port customio/ioproc name 'input 'output 'binary
+                  (io/make-port customio/ioproc name 'input 'binary
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'input 'binary)))
@@ -86,12 +90,16 @@
            ((write)  write-method)
            ((close)  (lambda (data) (if close (close))))
            ((name)   (lambda (data) name))
+           ((set-position!) (if set-position!
+                                (lambda (data posn) (set-position! posn) 'ok)
+                                (customio/unsupported-operation
+                                 'make-custom-binary-output-port this op)))
            (else
             (customio/unsupported-operation
              'make-custom-binary-output-port this op))))
-        (if (and #f set-position!) ; FIXME
+        (if set-position!
             (set! this
-                  (io/make-port customio/ioproc name 'input 'output 'binary
+                  (io/make-port customio/ioproc name 'output 'binary
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'output 'binary)))
@@ -137,6 +145,11 @@
            ((write)  write-method)
            ((close)  (lambda (data) (if close (close))))
            ((name)   (lambda (data) name))
+           ((set-position!) (if set-position!
+                                (lambda (data posn) (set-position! posn) 'ok)
+                                (customio/unsupported-operation
+                                 'make-custom-binary-input/output-port
+                                 this op)))
            (else
             (customio/unsupported-operation
              'make-custom-binary-input/output-port this op))))
@@ -182,12 +195,16 @@
            ((read)   read-method)
            ((close)  (lambda (data) (if close (close))))
            ((name)   (lambda (data) name))
+           ((set-position!) (if set-position!
+                                (lambda (data posn) (set-position! posn) 'ok)
+                                (customio/unsupported-operation
+                                 'make-custom-textual-input-port this op)))
            (else
             (customio/unsupported-operation
              'make-custom-textual-input-port this op))))
-        (if (and #f set-position!) ; FIXME
+        (if set-position!
             (set! this
-                  (io/make-port customio/ioproc name 'input 'output 'binary
+                  (io/make-port customio/ioproc name 'input 'binary
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'input 'binary)))
@@ -303,12 +320,16 @@
            ((write)  write-method)
            ((close)  (lambda (data) (if close (close))))
            ((name)   (lambda (data) name))
+           ((set-position!) (if set-position!
+                                (lambda (data posn) (set-position! posn) 'ok)
+                                (customio/unsupported-operation
+                                 'make-custom-textual-output-port this op)))
            (else
             (customio/unsupported-operation
              'make-custom-textual-output-port this op))))
-        (if (and #f set-position!) ; FIXME
+        (if set-position!
             (set! this
-                  (io/make-port customio/ioproc name 'input 'output 'binary
+                  (io/make-port customio/ioproc name 'output 'binary
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'output 'binary)))
@@ -359,6 +380,11 @@
            ((write)  write-method)
            ((close)  (lambda (data) (if close (close))))
            ((name)   (lambda (data) name))
+           ((set-position!) (if set-position!
+                                (lambda (data posn) (set-position! posn) 'ok)
+                                (customio/unsupported-operation
+                                 'make-custom-textual-input/output-port
+                                 this op)))
            (else
             (customio/unsupported-operation
              'make-custom-textual-input/output-port this op))))
