@@ -155,16 +155,16 @@
                                            byte4))
                                     (sv (+ bits #x10000))
                                     (b1 (fxlogior #b11110000
-                                                  (fxrshl bits 18)))
+                                                  (fxrshl sv 18)))
                                     (b2 (fxlogior #b10000000
-                                                  (fxlogand #xb00111111
-                                                            (fxrshl bits 12))))
+                                                  (fxlogand #b00111111
+                                                            (fxrshl sv 12))))
                                     (b3 (fxlogior #b10000000
-                                                  (fxlogand #xb00111111
-                                                            (fxrshl bits 6))))
-                                    (b3 (fxlogior #b10000000
-                                                  (fxlogand #xb00111111
-                                                            bits))))
+                                                  (fxlogand #b00111111
+                                                            (fxrshl sv 6))))
+                                    (b4 (fxlogior #b10000000
+                                                  (fxlogand #b00111111
+                                                            sv))))
                                (bytevector-set! bv j b1)
                                (bytevector-set! bv (+ j 1) b2)
                                (bytevector-set! bv (+ j 2) b3)
