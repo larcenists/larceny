@@ -76,23 +76,17 @@ create_labelled_remset( int tbl_ent,
      are used to label the remset in the stats() module.
      */
 
-remset_t *
-create_remset_no_ssb( int tbl_ent,
-		      int pool_ent );
-  /* Exactly like create_remset except that no ssb is created.
-     (Transitioning to a code base where the remset and ssb are
-      decoupled.)
-     */
-
 void rs_clear( remset_t *remset );
   /* Clears the remembered set.
      */
 
-bool rs_add_elems( remset_t *remset, seqbuf_t *ssb );
-  /* Copies the elements of ssb into remset.  Clears ssb.
-     Every element in ssb is subject to a collision check.
-     Returns TRUE if the remset overflowed during the addition.
-     */ 
+bool rs_compact( remset_t *remset );
+  /* Moves the contents of the set's SSB into the set and clears the SSB.
+     Only entries not already in the set are added to the set, so every
+     element in the SSB is subject to a collision check.
+
+     Returns TRUE if the remembered set overflowed during the compaction.
+     */
 
 bool rs_compact_nocheck( remset_t *remset );
   /* Moves the contents of the set's SSB into the set and clears the SSB.
