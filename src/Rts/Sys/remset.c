@@ -120,6 +120,12 @@ static void ssb_consistency_check( remset_t *rs );
 
 static int ssb_process(word *bot, word *top, void *ep_data);
 
+static remset_t * 
+create_labelled_remset_no_ssb( int tbl_entries, 
+			       int pool_entries, 
+			       int major_id, 
+			       int minor_id );
+
 remset_t *
 create_remset( int tbl_entries,    /* size of hash table, 0 = default */
 	       int pool_entries,   /* size of remset, 0 = default */
@@ -150,6 +156,44 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
 			int minor_id        /* for stats */
 			)
 {
+  remset_t *rs;
+
+  assert( ssb_entries >= 0 );
+  if (ssb_entries == 0) ssb_entries = DEFAULT_SSB_SIZE;
+
+  annoyingmsg( "Allocated remembered set\n  hash=%d ssb=%d pool=%d",
+	       tbl_entries, ssb_entries, pool_entries );
+
+  rs = create_labelled_remset_no_ssb( tbl_entries, 
+				      pool_entries,
+				      major_id,
+				      minor_id );
+				      
+
+  /* SSB */
+  rs->ssb = create_seqbuf( ssb_entries, 
+			   ssb_bot_loc, ssb_top_loc, ssb_lim_loc, 
+			   ssb_process, rs ); 
+
+  return rs;
+}
+
+remset_t *
+create_remset_no_ssb( int tbl_entries,    /* size of hash table, 0=default */
+		      int pool_entries    /* size of remset, 0 = default */
+		      ) 
+{
+  return create_labelled_remset_no_ssb( tbl_entries, pool_entries, ++identity, 0 );
+}
+
+static remset_t * 
+create_labelled_remset_no_ssb
+( int tbl_entries,    /* size of hash table, 0=default */
+  int pool_entries,   /* size of remset, 0 = default */
+  int major_id,       /* for stats */
+  int minor_id        /* for stats */
+  )
+{
   word *heapptr;
   remset_t *rs;
   remset_data_t *data;
@@ -157,34 +201,24 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
 
   assert( tbl_entries >= 0 && (tbl_entries == 0 || ilog2( tbl_entries ) != -1));
   assert( pool_entries >= 0 );
-  assert( ssb_entries >= 0 );
 
   if (pool_entries == 0) pool_entries = DEFAULT_REMSET_POOLSIZE;
   if (tbl_entries == 0) tbl_entries = DEFAULT_REMSET_TBLSIZE;
-  if (ssb_entries == 0) ssb_entries = DEFAULT_SSB_SIZE;
-
-  annoyingmsg( "Allocated remembered set\n  hash=%d ssb=%d pool=%d",
-	       tbl_entries, ssb_entries, pool_entries );
 
   rs   = (remset_t*)must_malloc( sizeof( remset_t ) );
   data = (remset_data_t*)must_malloc( sizeof( remset_data_t ) );
 
   while(1) {
-    heapptr = gclib_alloc_rts( (tbl_entries + ssb_entries)*sizeof(word), 
+    heapptr = gclib_alloc_rts( tbl_entries*sizeof(word), 
 			       MB_REMSET );
     if (heapptr != 0) break;
-    memfail( MF_RTS, "Can't allocate table and SSB for remembered set." );
+    memfail( MF_RTS, "Can't allocate table for remembered set." );
   }
 
   /* Hash table */
   data->tbl_bot = heapptr;
   heapptr += tbl_entries;
   data->tbl_lim = heapptr;
-
-  /* SSB */
-  rs->ssb = create_seqbuf( ssb_entries, 
-			   ssb_bot_loc, ssb_top_loc, ssb_lim_loc, 
-			   ssb_process, rs ); 
 
   /* Node pool */
   p = allocate_pool_segment( pool_entries );
@@ -206,7 +240,8 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
 }
 
 static int ssb_process( word *bot, word *top, void *ep_data ) {
-  return rs_compact( (remset_t*)ep_data );
+  remset_t *rs = (remset_t*)ep_data;
+  return rs_add_elems( rs, rs->ssb );
 }
 
 void rs_clear( remset_t *rs )
@@ -272,6 +307,11 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
 
 bool rs_compact( remset_t *rs )
 {
+  return rs_add_elems( rs, rs->ssb );
+}
+
+bool rs_add_elems( remset_t *rs, seqbuf_t *ssb )
+{  
   word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
   unsigned recorded;
   remset_data_t *data = DATA(rs);
@@ -279,10 +319,10 @@ bool rs_compact( remset_t *rs )
   assert( WORDS_PER_POOL_ENTRY == 2 );
 
   supremely_annoyingmsg( "REMSET @0x%p: compact", (void*)rs );
-  data->stats.ssb_recorded += *rs->ssb->top - *rs->ssb->bot;
+  data->stats.ssb_recorded += *ssb->top - *ssb->bot;
 
-  p = *rs->ssb->bot;
-  q = *rs->ssb->top;
+  p = *ssb->bot;
+  q = *ssb->top;
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
   tbl = data->tbl_bot;
@@ -320,7 +360,7 @@ bool rs_compact( remset_t *rs )
   data->stats.recorded += recorded;
   rs->live += recorded;
   data->curr_pool->top = pooltop;
-  *rs->ssb->top = *rs->ssb->bot;
+  *ssb->top = *ssb->bot;
   data->stats.compacted++;
 
   supremely_annoyingmsg( "REMSET @0x%x: Added %u elements (total %u). oflo=%d",
