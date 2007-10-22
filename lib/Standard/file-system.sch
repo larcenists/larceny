@@ -105,7 +105,7 @@
     ;;; XXX not thread-safe!  Consider using the _r variants where
     ;;; appropriate.  (but at the moment define-cstruct-offset is even less
     ;;; robust than this is...)
-    (define-values (list-directory file-attributes)
+    (define-values (list-directory)
       (let ()
         (define-c-info (include<> "dirent.h")
                        (struct "dirent" (*d_name_offset* "d_name")))
