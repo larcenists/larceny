@@ -885,7 +885,7 @@
 ;; Sample code.  Creates a window and hooks the mouse-leave events.
 
 (define (window-demo)
-  (let* ((form (System.Windows.Forms.form.))
+  (let* ((form (System.Windows.Forms.Form.))
          (context (System.Windows.Forms.ApplicationContext. form)))
     (System.Windows.Forms.Application.AddMessageFilter standard-message-filter)
     (System.Windows.Forms.Application.Run context)
