@@ -1331,13 +1331,15 @@
    eol-style                              ; deprecated syntax
    native-eol-style
 
-;  &i/o-decoding                          ; FIXME
-;  make-i/o-decoding-error                ; FIXME
-;  io/-decoding-error?                    ; FIXME
-;  &i/o-encoding                          ; FIXME
-;  make-i/o-encoding-error                ; FIXME
-;  io/-encoding-error?                    ; FIXME
-;  io/-encoding-error-char                ; FIXME
+;  FIXME
+;
+;  &i/o-decoding
+;  make-i/o-decoding-error
+;  io/-decoding-error?
+;  &i/o-encoding
+;  make-i/o-encoding-error
+;  io/-encoding-error?
+;  io/-encoding-error-char
 
    error-handling-mode                    ; deprecated syntax
 
@@ -1379,7 +1381,7 @@
 
    put-char put-string put-datum
 
-;  open-file-input/output-port            ; FIXME
+   open-file-input/output-port
    make-custom-binary-input/output-port
    make-custom-textual-input/output-port
    )
@@ -1397,13 +1399,15 @@
 
     native-eol-style
 
-;   &i/o-decoding                          ; FIXME
-;   make-i/o-decoding-error                ; FIXME
-;   io/-decoding-error?                    ; FIXME
-;   &i/o-encoding                          ; FIXME
-;   make-i/o-encoding-error                ; FIXME
-;   io/-encoding-error?                    ; FIXME
-;   io/-encoding-error-char                ; FIXME
+;   FIXME
+;
+;   &i/o-decoding
+;   make-i/o-decoding-error
+;   io/-decoding-error?
+;   &i/o-encoding
+;   make-i/o-encoding-error
+;   io/-encoding-error?
+;   io/-encoding-error-char
 
     make-transcoder
     native-transcoder
@@ -1443,7 +1447,7 @@
 
     put-char put-string put-datum
 
-;   open-file-input/output-port            ; FIXME
+    open-file-input/output-port
     make-custom-binary-input/output-port
     make-custom-textual-input/output-port
     ))
