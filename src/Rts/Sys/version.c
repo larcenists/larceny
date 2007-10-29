@@ -18,7 +18,7 @@
  *  Definite Missile Track      0.92
  *  Deviated Prevert            0.93
  *  Doomsday Device             0.94
- *  First Safety
+ *  First Safety                0.95
  *  Fluoridation
  *  Funny in the Head
  *  General Ripper 
@@ -63,8 +63,9 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 94;
-char *larceny_version_qualifier = " \"Doomsday Device\"";
+int  larceny_minor_version = 95;
+/* char *larceny_version_qualifier = " \"First Safety\""; */
+char *larceny_version_qualifier = "alpha1 (development)";
 
 char *date = DATE " " TIME;
 char *user = USER;

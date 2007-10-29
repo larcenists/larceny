@@ -299,6 +299,9 @@ static void perform_promote( old_heap_t *heap )
 
 #if FLOAT_REDUCTION
   full_collection( heap );
+#else
+  if (data->gen_no == 1)
+    gc_signal_minor_collection( heap->collector );
 #endif
 
   start_timers( &timer1, &timer2 );

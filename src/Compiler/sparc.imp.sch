@@ -365,6 +365,7 @@
     (bytevector-like-length 1 bytevector-like-length #f -1 ,:immortal ,:none)
     (sys$read-char    1 sys$read-char    #f            -1 ,:dead     ,:io)
     (gc-counter       0 gc-counter       #f            -1 ,:dead     ,:none)
+    (major-gc-counter 0 major-gc-counter #f            -1 ,:dead     ,:none)
     ,@(if (fixnum-primitives)
 	  `((most-positive-fixnum
                           0 most-positive-fixnum

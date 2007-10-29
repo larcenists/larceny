@@ -815,6 +815,7 @@
   (environment-set! larc 'keyboard-interrupt-handler
                     keyboard-interrupt-handler)
   (environment-set! larc 'break-handler break-handler)
+  (environment-set! larc 'vector-like-cas! vector-like-cas!)
   (environment-set! larc 'call-without-interrupts call-without-interrupts)
   (environment-set! larc 'standard-timeslice standard-timeslice)
   (environment-set! larc 'procedure-arity procedure-arity)
@@ -1064,6 +1065,7 @@
   (environment-set! larc 'stats-dump-stdout stats-dump-stdout)
   (environment-set! larc 'system-function system-function)
   (environment-set! larc 'gc-counter gc-counter)
+  (environment-set! larc 'major-gc-counter major-gc-counter)
   (environment-set! larc 'run-with-stats run-with-stats)
   (environment-set! larc 'run-benchmark run-benchmark)
   (environment-set! larc 'display-memstats display-memstats)

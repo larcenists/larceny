@@ -33,6 +33,7 @@ int create_memory_manager( gc_param_t *params, int *gens )
   gc_initialize( gc );
   globals[ G_GC ] = (word)gc;
   globals[ G_GC_CNT ] = fixnum(0);
+  globals[ G_MAJORGC_CNT ] = fixnum(0);
   *gens = generations;
   return 1;
 }

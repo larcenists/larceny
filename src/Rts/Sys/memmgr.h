@@ -44,8 +44,15 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
 			     int lower_limit, int upper_limit );
 
 void gc_signal_moving_collection( gc_t *gc );
-  /* Increment the moving gc counter (globals[G_GC_CNT]) to signal to
-     clients that rely on object addresses that they may have changed.
+  /* Increment the moving gc counters
+     (globals[G_GC_CNT] and globals[G_MAJORGC_CNT])
+     to tell clients that object addresses may have changed.
+     */
+    
+void gc_signal_minor_collection( gc_t *gc );
+  /* Adjust globals[G_MAJORGC_CNT] 
+     to tell clients that the addresses of objects that had
+     already survived a previous collection have not changed.
      */
     
 /* In nursery.c */

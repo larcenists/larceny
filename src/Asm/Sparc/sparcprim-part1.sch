@@ -90,6 +90,10 @@
   (lambda (as)
     (sparc.ldi as $r.globals $g.gccnt $r.result)))
 
+(define-primop 'major-gc-counter
+  (lambda (as)
+    (sparc.ldi as $r.globals $g.majorgccnt $r.result)))
+
 (define-primop 'zero?
   (lambda (as)
     (emit-cmp-primop! as sparc.be.a $m.zerop $r.g0)))
