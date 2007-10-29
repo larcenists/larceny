@@ -416,6 +416,7 @@
     (#f               1 petit-patch-boot-code #f  104 #f           #f       #f)
     (#f               1 syscall          #f       105 #f           #f       #t)
     (gc-counter       0 gc-counter       #f       108 ,ak:dead     ,ak:none #f)
+    (major-gc-counter 0 gc-counter       #f       108 ,ak:dead     ,ak:none #f)
 
     (most-positive-fixnum
                       0 most-positive-fixnum

@@ -1611,6 +1611,7 @@
              ((106 creg) ia86.t_op1_106) 
              ((107 creg-set!) ia86.t_op1_107) 
              ((108 gc-counter) ia86.t_op1_108)
+             ((109 gc-counter) ia86.t_op1_109)
              ((200 most-positive-fixnum) ia86.t_op1_200) 
              ((201 most-negative-fixnum) ia86.t_op1_201) 
              ((204 fx--) ia86.t_op1_204)
@@ -2594,6 +2595,9 @@
 
 (define-sassy-instr (ia86.t_op1_108)		; gc-counter
   `(mov	,$r.result (& ,$r.globals ,$g.gccnt)))
+
+(define-sassy-instr (ia86.t_op1_109)		; major-gc-counter
+  `(mov	,$r.result (& ,$r.globals ,$g.majorgccnt)))
 
 (define-sassy-instr (ia86.t_op2imm_128 imm)		; typetag-set!
   (ia86.const2regf $r.second imm)

@@ -311,7 +311,6 @@
 
 (define symbol? (lambda (x) (symbol? x)))
 (define larceny-break (lambda () (larceny-break)))
-(define gc-counter (lambda () (gc-counter)))
 (define .creg (lambda () (.creg)))                   ; FIXME
 (define .creg-set! (lambda (x) (.creg-set! x)))      ; FIXME
 (define undefined (lambda () (undefined)))
@@ -319,6 +318,7 @@
 (define enable-interrupts (lambda (n) (enable-interrupts n)))
 (define disable-interrupts (lambda () (disable-interrupts)))
 (define gc-counter (lambda () (gc-counter)))
+(define major-gc-counter (lambda () (major-gc-counter)))
 
 ; Fixnum primitives
 
