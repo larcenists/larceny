@@ -226,8 +226,12 @@
 
 (define (peep-reg/op2imm/branchf as op rs imm l1 tail)
   (let ((op   (case op
-                ((eq?)     (if (fixnum? imm) 'internal:branchf-eq?/imm-int32 #f))
-		((char=?)  (if (char? imm) 'internal:branchf-char=?/imm-char #f))
+                ((eq?)     (if (fixnum? imm)
+                                'internal:branchf-eq?/imm-int32
+                                #f))
+		((char=?)  (if (char? imm)
+                               'internal:branchf-char=?/imm-char
+                               #f))
 ;		((char>=?) 'internal:branchf-char>=?/imm)
 ;		((char>?)  'internal:branchf-char>?/imm)
 ;		((char<=?) 'internal:branchf-char<=?/imm)
@@ -235,10 +239,16 @@
 ;		((fx=)     'internal:branchf-fx=/imm)
 ;		((fx>)     'internal:branchf-fx>/imm)
 ;		((fx>=)    'internal:branchf-fx>=/imm)
-		((fx<)     (if (fixnum? imm) 'internal:branchf-fx</imm-int32 #f))
+		((fx<)     (if (fixnum? imm)
+                               'internal:branchf-fx</imm-int32
+                               #f))
 ;		((fx<=)    'internal:branchf-fx<=/imm)
-		((=:fix:fix) (if (fixnum? imm) 'internal:branchf-=:fix:fix/imm-int32 #f))
-		((<:fix:fix) (if (fixnum? imm) 'internal:branchf-<:fix:fix/imm-int32 #f))
+		((=:fix:fix) (if (fixnum? imm)
+                                 'internal:branchf-=:fix:fix/imm-int32
+                                 #f))
+		((<:fix:fix) (if (fixnum? imm)
+                                 'internal:branchf-<:fix:fix/imm-int32
+                                 #f))
 		(else #f))))
     (if op
         (as-source! as
@@ -270,9 +280,11 @@
     (peep-reg/op2imm/setreg as op rs imm rd tail)))
 
 (define (peep-reg/op2imm/setreg as op rs imm rd tail)
+
   ;; XXX the logic here could be changed so that even non-int32
   ;; optimized variants get move-coalesced; but Felix does not know
   ;; how much of a win that is at that point...
+
   (let* ((op (cond ((fixnum? imm) 
                     (case op
                       ((eq?)       'eq?:int32)

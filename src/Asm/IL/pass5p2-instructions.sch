@@ -12,6 +12,7 @@
 
 ;; instr-runtime-method/full : symbol number boolean ->
 ;;         (instruction assembler -> void)
+
 (define (instr-runtime-method/full instr argc ret?)
   (lambda (instruction as)
     (list-instruction/line (symbol->string instr) instruction as)
@@ -34,7 +35,9 @@
   (instr-runtime-method/full instr argc #t))
 
 ; Mnemonic to IL methodname mapping
+
 (define instr-methodname-table (make-oldstyle-hashtable))
+
 (define (define-instr-methodname instr methodname)
   (hashtable-put! instr-methodname-table instr methodname))
 
@@ -63,16 +66,18 @@
 (define-syntax instr-method
   (syntax-rules ()
     ((_ name (argtype ...))
-     (instr-method/full () iltype-void il-instructions name (argtype ...)))))
+     (instr-method/full ()
+      iltype-void il-instructions name (argtype ...)))))
+
 (define-syntax instr-method/ret
   (syntax-rules ()
     ((_ name (argtype ...))
-     (instr-method/full (tail) iltype-code-address il-instructions name (argtype ...)))))
+     (instr-method/full (tail)
+      iltype-code-address il-instructions name (argtype ...)))))
 
 ;; Default implementations: These are used if inlining is not
 ;; specified for the instruction (see config.sch). Some instructions
 ;; have no runtime implementation (like branchf).
-
 
 (instr-method argseq (iltype-int32))
 (instr-method argsge (iltype-int32))
@@ -130,7 +135,9 @@
 
 (define-instruction $.entry
   (lambda (instruction as)
+
     ;; Entry point... marks beginning of codevector
+
     (let ((local-variables-closed
            (if (pair? (cdddr instruction)) (operand3 instruction) #f)))
       (begin-codevector-class as
@@ -140,7 +147,9 @@
 
 (define-instruction $.label
   (lambda (instruction as)
+
     ;; Marks beginning of basic block
+
     (list-label/line instruction as)
     (make-asm-label as (operand1 instruction))
     (begin-basic-block as (operand1 instruction))))
@@ -165,6 +174,7 @@
 ;; are defined in pass5p2-ops.sch
 
 ;; Globals and Constants (Constant Vector)
+
 (define-instruction $const
   (lambda (instruction as)
     (list-instruction/line "const" instruction as)
@@ -179,7 +189,8 @@
   (lambda (instruction as)
     (list-instruction/line "const" instruction as)
     (if (immediate-constant? (operand1 instruction))
-        (emit as (il:set-register 'result (il:load-constant (operand1 instruction))))
+        (emit as (il:set-register 'result
+                                  (il:load-constant (operand1 instruction))))
         (let ((index (emit-datum as (operand1 instruction))))
 
           (define (default)
@@ -190,7 +201,8 @@
           (if (and (codegen-option 'special-const-instructions)
                    (< index SPECIAL-INSTRUCTION-LIMIT))
               (emit as (il:call '() iltype-void il-instructions
-                                (string-append "constant" (number->string index))
+                                (string-append "constant"
+                                               (number->string index))
                                 '()))
               (default))))))
 
@@ -202,7 +214,8 @@
       (emit as
             (il:load-global-cell global-index)
             ;; (rep:pair-car)
-            (il:call '(instance virtual) iltype-schemeobject il-schemeobject "op_cell_ref" '())
+            (il:call '(instance virtual)
+                     iltype-schemeobject il-schemeobject "op_cell_ref" '())
             (il 'dup)
             (il:load-constant (undefined))
             (il:branch-s 'bne.un defined-label)
@@ -269,6 +282,7 @@
               (il:recache-result))))))
 
 ;; not used
+
 (define-instruction $lexes
   (instr-runtime-method 'lexes 1))
 
@@ -287,7 +301,9 @@
             (else
              (emit as
                    (il:load-register 'result)
+
                    ;; unchecked: we trust call convention
+
                    (il 'castclass iltype-fixnum)
                    (rep:fixnum-value)
                    (il 'ldc.i4 (operand1 instruction))
@@ -310,7 +326,9 @@
               iltype-procedure
               (il:fault/invoke-nonproc (operand1 instruction)))
              (il 'stloc procedure-local)
+
              ;; Stack is empty
+
              (il:set-register 'second
                               (il:load-register ENV-REGISTER))
              (il:set-register 'result
@@ -325,6 +343,7 @@
              (il:call-scheme))))
     (assembler-value! as 'basic-block-closed #t))
   (lambda (instruction as)
+
     (define (default)
       ((instr-runtime-method/ret 'invoke 1) instruction as))
 
@@ -360,11 +379,14 @@
                               (il 'ldloc procedure-local))
 
              ;; Destroys registers 1 - N
+
              (il 'ldc.i4 (operand1 instruction))
              (il 'ldc.i4 (operand2 instruction))
              (il:call '() iltype-int32 il-call "applySetup"
                       (list iltype-int32 iltype-int32))
+
              ;; records N in RESULT
+
              (rep:make-fixnum)
              (il:set-register/pop 'result)
 
@@ -379,8 +401,10 @@
     ((instr-runtime-method/ret 'apply 2) instruction as)))
 
 ;; Stack
+
 (define-instruction $save
   (lambda (instruction as)
+
     (define (default)
       ((instr-runtime-method 'save 1) instruction as))
 
@@ -408,12 +432,15 @@
           (il 'ldc.i4 (operand1 instruction))
           (il:call '() iltype-void il-instructions
                    "loadm_uniform" (list iltype-int32)))))
+
 ;; Not used
+
 (define-instruction $restore
   (instr-runtime-method 'restore 1))
 
 (define-instruction $pop
   (lambda (instruction as)
+
     (define (default)
       ((instr-runtime-method 'pop 1) instruction as))
 
@@ -473,9 +500,11 @@
           (emit as
                 (il:call '() iltype-void il-instructions
                          (string-append "load_"
-                                        (number->string (operand1 instruction))
+                                        (number->string
+                                         (operand1 instruction))
                                         "_"
-                                        (number->string (operand2 instruction)))
+                                        (number->string
+                                         (operand2 instruction)))
                          '()))
           ((instr-runtime-method 'load 2) instruction as)))))
 
@@ -491,9 +520,11 @@
           (slot (operand2 instruction)))
       (cond ((and (zero? reg) (zero? slot))
              (list-instruction/line "store" instruction as)
+
              ;; This is only emitted after a `save' instruction
              ;; and the save instruction does this anyway.
              ;; (emit as (il:instr-method-call 'store_0_0))
+
              )
             ((< slot CONTINUATION-FRAME-SLOTS)
              (emit as
@@ -518,7 +549,9 @@
              (rep:load-frame-slot 0)
              (il 'dup)
              (il:set-register/pop ENV-REGISTER)
+
              ;(il 'castclass iltype-procedure)
+
              (rep:procedure-entrypoint)
              (il 'ldloc contframe)
              (rep:frame-return-index)
@@ -541,6 +574,7 @@
           (il:instr-method-call 'setrtn))))
 
 ;; Lexical
+
 (define-instruction $lexical
   (lambda (instruction as)
     (list-instruction/line "lexical" instruction as)
@@ -563,6 +597,7 @@
   (instr-runtime-method 'setlex 2))
 
 ;; Registers
+
 (define-instruction $reg
   (lambda (instruction as)
     (list-instruction/line "reg" instruction as)
@@ -573,7 +608,8 @@
   (lambda (instruction as)
     (if (codegen-option 'special-reg-instructions)
         (emit as (il:call '() iltype-void il-instructions
-                          (string-append "reg" (number->string (operand1 instruction)))
+                          (string-append
+                           "reg" (number->string (operand1 instruction)))
                           '()))
         ((instr-runtime-method 'reg 1) instruction as))))
 
@@ -587,7 +623,8 @@
   (lambda (instruction as)
     (if (codegen-option 'special-setreg-instructions)
         (emit as (il:call '() iltype-void il-instructions
-                          (string-append "setreg" (number->string (operand1 instruction)))
+                          (string-append
+                           "setreg" (number->string (operand1 instruction)))
                           '()))
         ((instr-runtime-method 'setreg 1) instruction as))))
 
@@ -613,25 +650,35 @@
   (instr-runtime-method 'nop 0))
 
 ;; Control Flow
+
 (define-instruction $jump
   (lambda (instruction as)
     (list-instruction/line "jump" instruction as)
     (emit as
+
           ;; Set reg0 to right procedure
+
           (il:set-register
            ENV-REGISTER
            (list
             (rep:load-static-link (operand1 instruction))))
 
           (il:load-register ENV-REGISTER)
+
           ;(il 'castclass iltype-procedure)
+
           (rep:procedure-entrypoint)
+
           ;; Load the jump index (delayed, will be forced
           ;; in patch-up, when all info is available)
+
           (raw:make-il-delay 
-	   (lambda () (list (il 'ldc.i4 (as:label->index as (operand2 instruction))))))
+	   (lambda ()
+             (list (il 'ldc.i4 (as:label->index as (operand2 instruction))))))
+
           ;; And call.
           ;; NOTE: no fuel used on jump (FIXME???)
+
           (il:call-scheme))
     (assembler-value! as 'basic-block-closed #t)))
 

@@ -35,6 +35,7 @@
         (write-listify-label line (cadr instr)))))
 
 ;; list-entry/line : symbol instruction assembler -> number
+
 (define (list-entry/line name instruction as)
   (if (codegen-option 'listify-write-list-file)
       (begin

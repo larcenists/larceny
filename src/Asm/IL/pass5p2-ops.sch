@@ -1,23 +1,30 @@
 ; OPERATIONS
 
 (define $operation-table$ (vector '() '() '() '() '() '()))
+
 (define (define-operation argc op handler)
   (vector-set! $operation-table$ argc 
                (cons (cons op handler) (vector-ref $operation-table$ argc))))
+
 (define (define-imm2-operation op handler)
   (vector-set! $operation-table$ 4
                (cons (cons op handler) (vector-ref $operation-table$ 4))))
+
 (define (define-peephole-operation op handler)
   (vector-set! $operation-table$ 5
                (cons (cons op handler) (vector-ref $operation-table$ 5))))
+
 (define (lookup-operation argc op)
   (assq op (vector-ref $operation-table$ argc)))
+
 (define (lookup-imm2-operation op)
   (assq op (vector-ref $operation-table$ 4)))
+
 (define (lookup-peephole-operation op)
   (assq op (vector-ref $operation-table$ 5)))
 
 ;; il:call-opX : symbol number boolean -> ilpackage
+
 (define (il:call-opX opcode argc can-call-scheme?)
   (if (codegen-option 'new-operations)
       (il:call '(virtual instance) 
@@ -52,6 +59,7 @@
 ;; opX : assembler (opcode -> boolean) symbol instruction thunk -> void
 ;; If there is a special implementation defined in the operations-table, 
 ;; use that. Otherwise, call the generic implementation.
+
 (define (opX argc immediate? reg/setreg?)
   (lambda (instruction as)
     (let ((fmt (if reg/setreg?
@@ -102,7 +110,8 @@
 	      (il:comment "operation ~s" (operand1 instruction))
               load-arguments-code
               (il:set-register 'result
-                               (il:call-opX (operand1 instruction) argc #f))))))
+                               (il:call-opX (operand1 instruction)
+                                            argc #f))))))
 
 (define opX-implicit-continuation? op1-implicit-continuation?)
 
@@ -167,21 +176,25 @@
     (emit as
           (il:call '() iltype-schemeobject il-cont "getCC" '())
           (il:set-register/pop rd))))
+
 (define-operation 1 'creg-set!
   (lambda (as rs rd)
     (emit as
           (il:load-register rs)
           (il:call '() iltype-void il-cont "setCC" (list iltype-schemeobject))
           (il:set-register rd (il:load-constant (unspecified))))))
+
 (define-operation 1 'break
   (lambda (as rs rd)
     (emit as
           (il:fault $ex.breakpoint))))
+
 (define-operation 1 'gc-counter
   (lambda (as rs rd)
     (emit as
           (il:load-constant 0)
           (il:set-register/pop rd))))
+
 (define-operation 1 'not
   (lambda (as rs rd)
     (emit as
@@ -225,6 +238,7 @@
 ;;              (il:label true-label)
 ;;              (il:set-register 'result (il:load-constant #t))
 ;;              (il:label done-label))))))
+
 (define (define-predicate op method)
   (define-operation 1 op
     (lambda (as rs rd)
@@ -271,17 +285,24 @@
             (il 'ceq)
             (rep:make-boolean)
             (il:set-register/pop rd)))))
+
 (define-eq-predicate 'null? '())
+
 (define-eq-predicate 'unspecified? (unspecified))
+
 (define-eq-predicate 'eof-object? (eof-object))
+
 (define-eq-predicate 'undefined? (undefined))
 
 (define (define-datum-op op value)
   (define-operation 1 op
     (lambda (as rs rd)
       (emit as (il:set-register rd (il:load-constant value))))))
+
 (define-datum-op 'unspecified (unspecified))
+
 (define-datum-op 'undefined (undefined))
+
 (define-datum-op 'eof-object (eof-object))
 
 ;; Data
@@ -295,6 +316,7 @@
           (il:load-constant #f)
           (rep:make-pair)
           (il:set-register/pop rd))))
+
 ;(define-operation 1 'cell-ref
 ;   (lambda (as)
 ;     (emit as
@@ -321,6 +343,7 @@
            (il:load-register rs2)
            (rep:make-pair)
            (il:set-register/pop rd))))
+
 ;(define-operation 1 'car
 ;  (lambda (as)
 ;    (emit as
@@ -329,6 +352,7 @@
 ;                         (il:fault-abort $ex.car))
 ;          (rep:pair-car)
 ;          (il:set-register/pop 'result))))
+
 (define-operation 1 'car:pair
   (lambda (as rs rd)
     (emit as
@@ -336,6 +360,7 @@
           (il 'castclass iltype-schemepair)
           (rep:pair-car)
           (il:set-register/pop rd))))
+
 ;(define-operation 1 'cdr
 ;  (lambda (as)
 ;    (emit as
@@ -344,6 +369,7 @@
 ;                         (il:fault-abort $ex.cdr))
 ;          (rep:pair-cdr)
 ;          (il:set-register/pop 'result))))
+
 (define-operation 1 'cdr:pair
   (lambda (as rs rd)
     (emit as
@@ -351,6 +377,7 @@
           (il 'castclass iltype-schemepair)
           (rep:pair-cdr)
           (il:set-register/pop rd))))
+
 ;(define-operation 2 'set-car!
 ;  (lambda (as reg2)
 ;    (emit as
@@ -410,6 +437,7 @@
 ;          (il 'clt)
 ;          (rep:make-boolean)
 ;          (il:set-register/pop 'result))))
+
 (define (define-reg/setreg-op1 op op_method)
   (define-operation 1 op
     (lambda (as rs rd)
@@ -418,6 +446,7 @@
             (il:call '(instance virtual) iltype-schemeobject il-schemeobject
                      op_method '())
             (il:set-register/pop rd)))))
+
 (define-reg/setreg-op1 'char->integer     "op_char2integer")
 (define-reg/setreg-op1 'vector-length:vec "op_vector_length_vec")
 (define-reg/setreg-op1 'char?             "op_charp")
@@ -442,6 +471,7 @@
               (il:branch-s 'beq no-branch-label)
               (il:br/maybe-use-fuel as target-label)
               (il:label no-branch-label))))))
+
 (define-branchf-eq-operation 'internal:branchf-null? '())
 (define-branchf-eq-operation 'internal:branchf-eof-object? (eof-object))
 (define-branchf-eq-operation 'internal:branchf-fxzero? 0)
@@ -462,10 +492,12 @@
       (let ((no-branch-label (allocate-label as)))
         (emit as
               (il:load-register rs)
-              (il:call '(instance virtual) iltype-bool il-schemeobject method '())
+              (il:call '(instance virtual)
+                       iltype-bool il-schemeobject method '())
               (il:branch-s 'brtrue no-branch-label)
               (il:br/maybe-use-fuel as target-label)
               (il:label no-branch-label))))))
+
 (define-branchf-pred-operation 'internal:branchf-pair? "isPair")
 (define-branchf-pred-operation 'internal:branchf-fixnum? "isFixnum")
 (define-branchf-pred-operation 'internal:branchf-char? "isChar")
@@ -485,12 +517,16 @@
               (il:branch-s 'brtrue no-branch-label)
               (il:br/maybe-use-fuel as target-label)
               (il:label no-branch-label))))))
+
 (define-branchf-pred-imm-int32-operation 'internal:branchf-eq?/imm-int32 
   'eq? "isEqpInt32")
+
 (define-branchf-pred-imm-int32-operation 'internal:branchf-fx</imm-int32 
   'fx< "isFxLessInt32")
+
 (define-branchf-pred-imm-int32-operation 'internal:branchf-=:fix:fix/imm-int32 
   '=:fix:fix "isNumericEqualFixFixInt32")
+
 (define-branchf-pred-imm-int32-operation 'internal:branchf-<:fix:fix/imm-int32 
   '<:fix:fix "isLessFixFixInt32")
 
@@ -506,6 +542,7 @@
               (il:branch-s 'brtrue no-branch-label)
               (il:br/maybe-use-fuel as target-label)
               (il:label no-branch-label))))))
+
 (define-branchf-pred-imm-char-operation 'internal:branchf-char=?/imm-char
   'char=? "isCharEqualsInt32")
 
@@ -515,8 +552,10 @@
       (let ((no-branch-label (allocate-label as)))
         (emit as
               (il:load-register reg)
-              (il:call '(instance virtual) iltype-bool il-schemeobject method '())
+              (il:call '(instance virtual)
+                       iltype-bool il-schemeobject method '())
               (il:branch 'brfalse target-label))))))
+
 (define-reg/op1/check-operation 'internal:check-fixnum? "isFixnum")
 (define-reg/op1/check-operation 'internal:check-pair? "isPair")
 (define-reg/op1/check-operation 'internal:check-vector? "isVector")
@@ -527,7 +566,9 @@
     (lambda (as rs rd const)
       (cond 
        ((opX-implicit-continuation? orig-code)
+
         ;; this is complex b/c generic arith ops only work via result reg.  :(
+
         (cond ((not (eqv? rs 'result))
                (emit as 
                      (il:call '() iltype-void il-instructions
@@ -542,11 +583,15 @@
                 (il 'ldc.i4 const)
                 (il:call '(instance virtual) iltype-void il-schemeobject
                          method (list iltype-int32))
+
                 ;; if codegen were correct, is this reset actually necessary???
+
                 (rep:reset-implicit-continuation) 
                 (il:label numeric)))
         (cond ((not (eqv? rd 'result))
+
                ;; UGH.  Might be better to not bother opX/setreg on these.
+
                (emit as 
                      (il:call '() iltype-void il-instructions
                               (string-append "setreg" (number->string rd))
