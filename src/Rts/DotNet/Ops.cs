@@ -220,6 +220,9 @@ public class Ops {
     public static SObject op1_eof_object(SObject unused) {
         return Factory.Eof;
     }
+    public static SObject op1_machine_address(SObject arg) {
+        return arg.op_machine_address();
+    }
 
     /* Char Operations */
     /* --------------- */
