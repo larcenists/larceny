@@ -1611,7 +1611,7 @@
              ((106 creg) ia86.t_op1_106) 
              ((107 creg-set!) ia86.t_op1_107) 
              ((108 gc-counter) ia86.t_op1_108)
-             ((109 gc-counter) ia86.t_op1_109)
+             ((109 major-gc-counter) ia86.t_op1_109)
              ((200 most-positive-fixnum) ia86.t_op1_200) 
              ((201 most-negative-fixnum) ia86.t_op1_201) 
              ((204 fx--) ia86.t_op1_204)
