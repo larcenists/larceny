@@ -793,6 +793,15 @@ extern cont_t twobit_cont_label;
 #define twobit_op1_39() /* string? */ \
    double_tag_predicate( RESULT, BVEC_TAG, STR_HDR )
 
+#define twobit_op1_40() /* string-length */				  \
+   do { word h, a=RESULT;						  \
+        if (UNSAFE_TRUE2(double_tag_test( a, BVEC_TAG, STR_HDR, h ),	  \
+                         h = the_header( a, BVEC_TAG )))		  \
+          RESULT = sizefield(h) << 2;					  \
+        else { FAIL( EX_STRING_LENGTH ); } \
+        integrity_check( "string-length" );				  \
+   } while( 0 )
+
 #define twobit_op1_41() /* vector? */ \
    double_tag_predicate( RESULT, VEC_TAG, VECTOR_HDR )
 
@@ -989,6 +998,27 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_77( y ) /* rot */ \
    panic( "twobit_rot not implemented." )
 
+#define twobit_op2_78( y ) /* string-ref */ \
+   do { word a=RESULT, b=reg(y), h; \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, STR_HDR, h ) && \
+	                is_fixnum(b) && \
+	                (b >> 2) < (h >> 8))) \
+	 RESULT = int_to_char(*byte_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b));\
+        else { SECOND=b; \
+               FAIL( EX_STRING_REF ); } \
+   } while(0)
+
+#define twobit_op3_79( y, z ) /* string-set! */ \
+   do { word a=RESULT, b=reg(y), c=reg(z), h; \
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, STR_HDR, h ) && \
+	               is_fixnum(b) && \
+	               (b >> 2) < (h >> 8) && \
+	               is_char( c ))) \
+	  *byte_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b ) = charcode(c); \
+        else { SECOND=b; THIRD=c; \
+               FAIL( EX_STRING_SET ); } \
+   } while(0)
+
 #define twobit_op2_80( y ) /* make-vector */ \
    make_vectorish( VEC_HEADER_WORDS, EX_MAKE_VECTOR, VEC_HDR, VEC_TAG, reg(y) )
 
@@ -1178,6 +1208,22 @@ extern cont_t twobit_cont_label;
 #define twobit_op1_109() /* major-gc-counter */ \
   RESULT = globals[ G_MAJORGC_CNT ]
 
+/* FIXME: the following is obsolete */
+
+#define twobit_op2_109( y ) /* make-string */ \
+   do { word a=RESULT, b=reg(y), *p; \
+        if (UNSAFE_TRUE(is_nonnegative_fixnum(a) && is_char(b))) { \
+          word size = a >> 2; \
+          ALLOCATE_BV( a + fixnum(BVEC_HEADER_WORDS*sizeof( word )) ); \
+          p =(word*)RESULT; \
+          *p = mkheader( size, STR_HDR ); \
+          memset( (char*)p + sizeof(word), charcode(b), size ); \
+	  RESULT = tagptr( p, BVEC_TAG ); \
+        } else { FAIL( EX_MAKE_STRING ); } \
+        integrity_check( "make-string" ); \
+   } while(0)
+  
+
 #define twobit_op2imm_128( y ) /* typetag-set! */ \
   SECOND = y; WITH_SAVED_STATE( mc_typetag_set( globals ) )
 
@@ -1226,6 +1272,15 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2imm_141( y ) /* char>=? */ \
   charcmp_imm( >=, y, EX_CHARGE )
+
+#define twobit_op2imm_142( b ) /* string-ref */						\
+   do { word a=RESULT, h;								\
+        if (UNSAFE_TRUE(double_tag_test( a, BVEC_TAG, STR_HDR, h ) &&			\
+	                (word)(b >> 2) < (h >> 8)))					\
+	 RESULT = int_to_char(*byte_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b));          \
+        else { SECOND=b;							\
+               FAIL( EX_STRING_REF ); }							\
+   } while(0)
 
 #define twobit_op2imm_143( b ) /* vector-ref */				\
   do { word a=RESULT, h;						\
@@ -1775,15 +1830,15 @@ extern cont_t twobit_cont_label;
 #define twobit_reg_op1_check_652( y, L_numeric, L_symbolic ) /* pair? */ \
   if (tagof(y) != PAIR_TAG) twobit_skip( L_numeric, L_symbolic )
 
-#define twobit_reg_op1_check_653( y, L_numeric, L_symbolic ) /* vector? */	\
+#define twobit_reg_op1_check_653( y, L_numeric, L_symbolic ) /* string? */	\
   do { word x = y;								\
        if (tagof(x) != VEC_TAG || typetag(*ptrof(x)) != VEC_SUBTAG)		\
          twobit_skip( L_numeric, L_symbolic );					\
   } while(0)
 
-#define twobit_reg_op1_check_654( y, L_numeric, L_symbolic ) /* string? */	\
+#define twobit_reg_op1_check_654( y, L_numeric, L_symbolic ) /* vector? */	\
   do { word x = y;								\
-       if (tagof(x) != BVEC_TAG || typetag(*ptrof(x)) != USTR_SUBTAG)		\
+       if (tagof(x) != BVEC_TAG || typetag(*ptrof(x)) != STR_SUBTAG)		\
          twobit_skip( L_numeric, L_symbolic );					\
   } while(0)
 
@@ -1818,7 +1873,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_reg_op2_check_663( y1, y2, L_numeric, L_symbolic ) /* check-string?/string-length:str */	\
   do { word x1 = (y1);							\
-       if (tagof(x1) != BVEC_TAG || typetag(*ptrof(x1)) != USTR_SUBTAG)	\
+       if (tagof(x1) != BVEC_TAG || typetag(*ptrof(x1)) != STR_SUBTAG)	\
          twobit_skip( L_numeric, L_symbolic );				\
        y2 = fixnum(string_length(x1));					\
   } while(0)

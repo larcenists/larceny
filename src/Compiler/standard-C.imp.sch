@@ -434,8 +434,7 @@
     (enable-interrupts 1 enable-interrupts #f           6 ,:dead     ,:all  #t)
     (disable-interrupts 0 disable-interrupts #f         7 ,:dead     ,:all  #t)
 
-    ; These have replaced the Latin-1 string operations.
-    ; FIXME:  We should add an immediate version of ustring-ref:trusted.
+    ; FIXME: these will eventually replace the string operations
 
     (make-ustring     2 make-ustring     #f           799 ,:dead     ,:none #f)
     (ustring?         1 ustring?         #f           800 ,:immortal ,:none #f)
@@ -480,8 +479,8 @@
     (vector-like-set! 3 vector-like-set! #f           100 ,:dead     ,:vector #f)
     (vector-like-length 1 vector-like-length #f       101 ,:immortal ,:none #f)
     (bytevector-like-length 1 bytevector-like-length #f 102 ,:immortal ,:none #f)
-    (gc-counter       0 gc-counter       #f            108 ,:dead    ,:none #f)
-    (major-gc-counter 0 major-gc-counter #f            109 ,:dead    ,:none #f)
+    (gc-counter       0 gc-counter       #f           108 ,:dead     ,:none #f)
+    (major-gc-counter 0 major-gc-counter #f           109 ,:dead     ,:none #f)
 
     (most-positive-fixnum
                       0 most-positive-fixnum
