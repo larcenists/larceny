@@ -11,6 +11,7 @@
 (compile-file "normalization.sch")
 (compile-file "bytevector.sch")
 (compile-file "io.sch")
+(compile-file "hashtable.sch")
 ;(compile-file "complex.sch")
 (compile-file "ctak.sch")
 (compile-file "dynamic-wind.sch")
@@ -30,8 +31,9 @@
 (load "char.fasl")			; Characters
 (load "string.fasl")			; Strings
 (load "normalization.fasl")		; String normalization
-(load "bytevector.fasl")
-(load "io.fasl")
+(load "bytevector.fasl")                ; Bytevectors
+(load "io.fasl")                        ; Input and output
+(load "hashtable.fasl")                 ; Hashtables
 ;(load "complex.fasl")                   ; Complex numbers
 (load "ctak.fasl")			; Call/cc test
 (load "dynamic-wind.fasl")              ; Dynamic-wind test
@@ -59,6 +61,7 @@
 
   (run-bytevector-tests)
   (run-io-tests)
+  (run-hashtable-tests)
   (run-predicate-tests)
   (run-number-tests)
   (run-fact-tests)
