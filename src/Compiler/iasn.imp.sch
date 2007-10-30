@@ -497,6 +497,7 @@
     (bytevector-like-length 1 bytevector-like-length #f 102 ,:immortal ,:none #f)
     (gc-counter       0 gc-counter       #f            108 ,:dead    ,:none #f)
     (major-gc-counter 0 major-gc-counter #f            109 ,:dead    ,:none #f)
+    (.internal:machine-address 1 machine-address #f    110 ,:dead    ,:none #f)
 
     (most-positive-fixnum
                       0 most-positive-fixnum

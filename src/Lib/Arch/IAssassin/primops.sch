@@ -319,6 +319,7 @@
 (define disable-interrupts (lambda () (disable-interrupts)))
 (define gc-counter (lambda () (gc-counter)))
 (define major-gc-counter (lambda () (major-gc-counter)))
+(define .internal:machine-address (lambda (x) (.internal:machine-address x)))
 
 ; Fixnum primitives
 
