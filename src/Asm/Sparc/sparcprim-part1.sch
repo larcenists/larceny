@@ -94,6 +94,13 @@
   (lambda (as)
     (sparc.ldi as $r.globals $g.majorgccnt $r.result)))
 
+; Works on all objects, not just tagged pointers.
+
+(define-primop 'machine-address
+  (lambda (as)
+    (sparc.andi as $r.result -16 $r.result)
+    (sparc.srli as $r.result 2 $r.result)))
+
 (define-primop 'zero?
   (lambda (as)
     (emit-cmp-primop! as sparc.be.a $m.zerop $r.g0)))

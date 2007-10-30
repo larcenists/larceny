@@ -400,6 +400,7 @@
   (environment-set! larc 'assoc assoc)
   (environment-set! larc 'assoc-string assoc-string)                    ; FIXME
   (environment-set! larc 'assoc-string-ci assoc-string-ci)              ; FIXME
+  (environment-set! larc 'assp assp)
   (environment-set! larc 'assq assq)
   (environment-set! larc 'assv assv)
   (environment-set! larc 'cons* cons*)
@@ -426,9 +427,9 @@
   (environment-set! larc 'list-set! list-set!)                          ; FIXME
   (environment-set! larc 'longer? longer?)
   (environment-set! larc 'memp memp)
-  (environment-set! larc 'memp-not memp-not)
-  (environment-set! larc 'memf memp)            ; deprecated alias
-  (environment-set! larc 'memf-not memp-not)    ; deprecated alias
+  (environment-set! larc 'memp-not memp-not)                            ; FIXME
+  (environment-set! larc 'memf memp)            ; deprecated alias      ; FIXME
+  (environment-set! larc 'memf-not memp-not)    ; deprecated alias      ; FIXME
   (environment-set! larc 'partition partition)
   (environment-set! larc 'position-of position-of)
   (environment-set! larc 'remove remove)
@@ -453,20 +454,34 @@
   (environment-set! larc 'equal-hash equal-hash)
   (environment-set! larc 'procedure-hasher procedure-hasher)
   (environment-set! larc 'hashtable-implementation hashtable-implementation)
+
   (environment-set! larc 'make-oldstyle-hashtable make-oldstyle-hashtable)
   (environment-set! larc 'make-r6rs-hashtable make-r6rs-hashtable)
+  (environment-set! larc 'make-eq-hashtable make-eq-hashtable)
+  (environment-set! larc 'make-eqv-hashtable make-eqv-hashtable)
   (environment-set! larc 'make-hashtable make-hashtable)
   (environment-set! larc 'hashtable? hashtable?)
+  (environment-set! larc 'hashtable-size hashtable-size)
+  (environment-set! larc 'hashtable-ref hashtable-ref)
+  (environment-set! larc 'hashtable-set! hashtable-set!)
+  (environment-set! larc 'hashtable-delete! hashtable-delete!)
   (environment-set! larc 'hashtable-contains? hashtable-contains?)
+  (environment-set! larc 'hashtable-update! hashtable-update!)
+  (environment-set! larc 'hashtable-copy hashtable-copy)
+  (environment-set! larc 'hashtable-clear! hashtable-clear!)
+  (environment-set! larc 'hashtable-keys hashtable-keys)
+  (environment-set! larc 'hashtable-entries hashtable-entries)
+  (environment-set! larc 'hashtable-equivalence-function
+                    hashtable-equivalence-function)
+  (environment-set! larc 'hashtable-hash-function hashtable-hash-function)
+  (environment-set! larc 'hashtable-mutable? hashtable-mutable?)
+
   (environment-set! larc 'hashtable-fetch hashtable-fetch)
   (environment-set! larc 'hashtable-get hashtable-get)
   (environment-set! larc 'hashtable-put! hashtable-put!)
   (environment-set! larc 'hashtable-remove! hashtable-remove!)
-  (environment-set! larc 'hashtable-clear! hashtable-clear!)
-  (environment-set! larc 'hashtable-size hashtable-size)
   (environment-set! larc 'hashtable-for-each hashtable-for-each)
   (environment-set! larc 'hashtable-map hashtable-map)
-  (environment-set! larc 'hashtable-copy hashtable-copy)
 
   ;; symbols
 
@@ -769,6 +784,7 @@
   (environment-set! larc 'string-for-each string-for-each)
 
   (environment-set! larc 'string-hash string-hash)
+  (environment-set! larc 'string-ci-hash string-ci-hash)
   (environment-set! larc 'substring-fill! substring-fill!)
   (environment-set! larc 'string-downcase! string-downcase!)
   (environment-set! larc 'string-upcase! string-upcase!)
@@ -1066,6 +1082,7 @@
   (environment-set! larc 'system-function system-function)
   (environment-set! larc 'gc-counter gc-counter)
   (environment-set! larc 'major-gc-counter major-gc-counter)
+  (environment-set! larc '.internal:machine-address .internal:machine-address)
   (environment-set! larc 'run-with-stats run-with-stats)
   (environment-set! larc 'run-benchmark run-benchmark)
   (environment-set! larc 'display-memstats display-memstats)

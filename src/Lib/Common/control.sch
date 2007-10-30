@@ -302,10 +302,12 @@
 ;; structure of the continuation mark stack is never mutated; all
 ;; changes must be done by creating a new structure and mutating
 ;; only the variable.
+
 (define *cms* '())
 
 ;; sys$replace-mark/call-thunk
 ;; Called by call-with-continuation-mark in malcode.mal
+
 (define (sys$replace-mark/call-thunk key mark thunk)
   (define (alist-replace alist key mark)
     (cond ((pair? alist)
@@ -325,6 +327,7 @@
 ;; When the before and after thunks of a dynamic-wind execute, they
 ;; should observe the continuation marks belonging to the continuation
 ;; of the dynamic wind expression.
+
 (define dynamic-wind
   (let ((dynamic-wind dynamic-wind))
     (lambda (before during after)
@@ -501,6 +504,7 @@
         else))))
 
 ;; Print them nicely, so they can pretend to be opaque:
+
 (let ((old-structure-printer (structure-printer)))
   (structure-printer
     (lambda (obj port quote?)
