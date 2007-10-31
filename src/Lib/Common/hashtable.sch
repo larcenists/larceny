@@ -754,7 +754,7 @@
     (define (maybe-resize! ht)
       (let* ((k (count ht))
              (v (buckets ht))
-             (v1 (buckets ht))
+             (v1 (buckets1 ht))
              (n (+ (vector-length v)
                    (if v1 (vector-length v1) 0))))
         (if (or (< n k)
