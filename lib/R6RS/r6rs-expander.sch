@@ -1,3 +1,5 @@
+
+
 ;;;=================================================================================
 ;;;
 ;;; R6RS Macros and R6RS libraries:
@@ -7,13 +9,6 @@
 ;;;   Copyright statement at http://srfi.schemers.org/srfi-process.html
 ;;;
 ;;;=================================================================================
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-;  Code added for Larceny is marked by [Larceny] in a comment.
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 ;;;
 ;;;=================================================================================
 ;;;
@@ -44,15 +39,25 @@
 ;;;
 ;;; For compiler and REPL integration, see the procedures
 ;;;
-;;;   - ex:REPL             : Use this as REPL evaluator
-;;;   - ex:EXPAND-FILE      : Use this to expand a file containing libraries and/or
-;;;                           toplevel programs before loading into an r5rs-type system
-;;;                           or feeding result to an r5rs-type compiler
-;;;   - ex:EXPAND-R5RS-FILE : For expanding r5rs-like toplevel files in a given environment.
-;;;                           Mainly provided so this expander can expand itself, but may
-;;;                           have other uses.  See the documentation below where the
-;;;                           procedure is defined.  See also the note below on
-;;;                           metacircularity.
+;;;   - ex:repl              : Use this as REPL evaluator.  See description below.
+;;;   - ex:expand-file       : Use this to expand a file containing libraries and/or
+;;;                            toplevel programs before loading into an r5rs-type system
+;;;                            or feeding result to an r5rs-type compiler.
+;;;                            Suitable for separate compilation.
+;;;   - ex:run-r6rs-sequence : Evaluates a sequence of forms of the format
+;;;                            <library>* | <library>* <toplevel program>.
+;;;                            The <toplevel program> environment is separate from the 
+;;;                            interactive REPL environment and does not persist
+;;;                            between invocations of run-r6rs-sequence.  
+;;;                            For importing and evaluating stuff in the persistent 
+;;;                            interactive environment, ex:REPL should be used instead.
+;;;   - ex:run-r6rs-program  : Same as ex:run-r6rs-sequence, except that it reads the 
+;;;                            input from a file.
+;;;   - ex:expand-r5rs-file  : For expanding r5rs-like toplevel files in a given environment.
+;;;                            Mainly provided so this expander can expand itself, but may
+;;;                            have other uses.  See the documentation below where the
+;;;                            procedure is defined.  See also the note below on
+;;;                            metacircularity.
 ;;;
 ;;; COMPILATION:
 ;;; ------------
@@ -73,9 +78,16 @@
 ;;; definitions, evaluate toplevel expressions, enter libraries and
 ;;; <toplevel programs> at the prompt, as well as import libraries
 ;;; into the toplevel environment.
+;;;    
+;;; EX:REPL evaluates a sequence of library definitions, commands, and top-level 
+;;; import forms in the interactive environment.  The semantics for 
+;;; evaluating libraries in and importing bindings into the interactive 
+;;; environment is consistent with the ERR5RS proposal at
+;;; http://scheme-punks.cyber-rush.org/wiki/index.php?title=ERR5RS:Libraries.
+;;; Bindings in the interactive environment persist between invocations 
+;;; of REPL. 
 ;;;
-;;; The appropriate primitive is ex:repl, and an example
-;;; session where I do all these things is in examples.scm.
+;;; An example session where I do all these things is in examples.scm.
 ;;; All an integrator would need to do is to automate the call to
 ;;; ex:repl in the development system so users don't have to type
 ;;; (ex:repl '( <code> )) at each prompt.
@@ -92,19 +104,27 @@
 ;;; METACIRCULARITY AND BOOTSTRAPPING:
 ;;; ----------------------------------
 ;;;
-;;; The expander relies on r5rs syntax-rules and letrec-syntax
-;;; and should run in a correct r5rs system, but if the reliance
-;;; on macros is a problem for you, don't worry, be metacircular.
-;;; In other words, if you don't have r5rs macros, you may use the
-;;; provided fully expanded version to bootstrap modifications by
-;;; feeding the expander to its expanded self.  Here is how to do
-;;; it:
+;;; This section is mostly of interest for r5rs non-compliant systems.
 ;;;
+;;; The expander relies on r5rs (or r6rs) syntax-rules and letrec-syntax
+;;; and should run in a correct r5rs system, but if you don't have 
+;;; r5rs macros, you may bootstrap it by expanding the expander itself
+;;; first on an R5RS system.
+;;; Here is how to do it:
+;;;
+;;;   (load "compat-mzscheme.scm")   ; for example bootstrapping from mzscheme 
 ;;;   (load "runtime.scm")
-;;;   (load "standard-libraries.0.exp")  ; expanded version
-;;;   (load "expander.0.exp")            ; expanded version
-;;;   (ex:expand-file "standard-libraries.scm" "standard-libraries.1.exp")
-;;;   (ex:expand-r5rs-file "expander.scm" "expander.1.exp" (ex:environment '(rnrs base)))
+;;;   (load "expander.scm")
+;;;   (ex:expand-file "standard-libraries.scm" "standard-libraries.exp")
+;;;   (ex:expand-r5rs-file "expander.scm" "expander.exp" (ex:environment '(rnrs base)))
+;;; 
+;;; The expanded (.exp) files are vanilla Scheme and can then be run on the target
+;;; system as follows:
+;;;
+;;;   (load "compat-chez.scm")       ; for example
+;;;   (load "runtime.scm")
+;;;   (load "standard-libraries.exp")
+;;;   (load "expander.exp")
 ;;;
 ;;; SIZE OF OBJECT CODE:
 ;;; --------------------
@@ -166,9 +186,8 @@
 (define ex:expand-file               #f)
 (define ex:repl                      #f)
 (define ex:expand-r5rs-file          #f)
-
-(define ex:run-r6rs-sequence         #f) ;[Larceny]
-(define ex:run-r6rs-program          #f) ;[Larceny]
+(define ex:run-r6rs-sequence         #f)
+(define ex:run-r6rs-program          #f)
 
 ;; Indirect exports:
 
@@ -1991,10 +2010,12 @@
       (fluid-let ((*usage-env* (make-unit-env)))
         (env-import! eval-template (make-library-language) *usage-env*)
         (call-with-values
-            (lambda () (scan-imports
-                        (map (lambda (spec)
-                               (datum->syntax eval-template spec))
-                             import-specs)))
+            (lambda () 
+              (fluid-let ((*phase* 0))
+                (scan-imports
+                 (map (lambda (spec)
+                        (datum->syntax eval-template spec))
+                      import-specs))))
           (lambda (imported-libraries imports)
             (make-r6rs-environment imported-libraries
                                    (let ((env (make-unit-env)))
@@ -2161,6 +2182,14 @@
     ;;
     ;;============================================================================
 
+    ;; Evaluates a sequence of library definitions, commands, and top-level 
+    ;; import forms in the interactive environment.  The semantics for 
+    ;; evaluating libraries in and importing bindings into the interactive 
+    ;; environment is consistent with the ERR5RS proposal at
+    ;; http://scheme-punks.cyber-rush.org/wiki/index.php?title=ERR5RS:Libraries.
+    ;; Bindings in the interactive environment persist between invocations 
+    ;; of REPL.
+    
     (define (repl exps)
       (reset-toplevel!)
       (for-each (lambda (exp)
@@ -2174,6 +2203,22 @@
                                           list)))
                             (expand-toplevel-sequence (list exp))))
                 exps))
+    
+    ;; Evaluates a sequence of forms of the format
+    ;; <library>* | <library>* <toplevel program>.
+    ;; The <toplevel program> environment is separate from the 
+    ;; interactive REPL environment and does not persist
+    ;; between invocations of run-r6rs-sequence.  
+    ;; For importing and evaluating stuff in the persistent 
+    ;; interactive environment, see REPL above.
+    
+    (define (run-r6rs-sequence forms)
+      (reset-toplevel!)
+      (for-each (lambda (exp) (eval exp (interaction-environment)))
+                (expand-toplevel-sequence (normalize forms))))
+    
+    (define (run-r6rs-program filename)
+      (run-r6rs-sequence (read-file filename)))
 
     ;; Restores parameters to a consistent state
     ;; in case they were left inconsistent by an error.
@@ -2192,32 +2237,6 @@
                      (source->syntax forms)
                      (lambda (forms syntax-definitions bound-variables)
                        (emit-body forms 'define))))
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;;
-    ;;  start of code added for [Larceny]
-    ;;
-    ;;  Larceny will expose these entry points, and no others:
-    ;;
-    ;;      (ex:run-r6rs-sequence forms)
-    ;;      (ex:run-r6rs-program filename)
-    ;;
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-    (define (run-r6rs-sequence forms)
-      (reset-toplevel!)
-      (for-each (lambda (exp) (eval exp (interaction-environment)))
-                (expand-toplevel-sequence (normalize forms))))
-
-    (define (run-r6rs-program filename)
-      (run-r6rs-sequence (read-file filename)))
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;;
-    ;;  end of code added for [Larceny]
-    ;;
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
     ;;==========================================================================
     ;;
@@ -2241,11 +2260,11 @@
     ;; as bare symbols that may refer to variables in the built-in toplevel
     ;; environment.  The environment argument should import at least the
     ;; macros necessary to expand the file.
-    ;; In contrast, expand-file strictly isolates a <toplevel program>
-    ;; environment from the builtin environment and strictlu disallows
-    ;; unbound identifiers.
     ;; This is provided mainly to be able to self-expand this expander
     ;; metacircularly (see the relevant note at the top of this file).
+    ;; In contrast, expand-file strictly isolates a <toplevel program>
+    ;; environment from the builtin environment and strictly disallows
+    ;; unbound identifiers.
     ;; The resulting file will need the include file runtime.scm
     ;; and the appropriate libraries that constitute the env argument
     ;; to be preloaded before it can be run.
@@ -2305,7 +2324,6 @@
       (if (file-exists? fn)
           (delete-file fn))
       (let ((p (open-output-file fn)))
-        (define (write exp p) (pretty-print exp p))   ;[Larceny]
         (for-each (lambda (exp)
                     (write exp p)
                     (newline p))
@@ -2422,8 +2440,8 @@
     (set! ex:expand-file               expand-file)
     (set! ex:repl                      repl)
     (set! ex:expand-r5rs-file          expand-r5rs-file)
-    (set! ex:run-r6rs-sequence         run-r6rs-sequence)            ;[Larceny]
-    (set! ex:run-r6rs-program          run-r6rs-program)             ;[Larceny]
+    (set! ex:run-r6rs-sequence         run-r6rs-sequence)
+    (set! ex:run-r6rs-program          run-r6rs-program)
 
     (set! ex:invalid-form              invalid-form)
     (set! ex:register-macro!           register-macro!)

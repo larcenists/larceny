@@ -11,7 +11,7 @@
 
 ;; A numeric string that uniquely identifies this run in the universe
 
-(define (ex:unique-token) (ex:unique-token3)) ; see below
+(define (ex:unique-token) (ex:unique-token1)) ; see below
 
 ;; The letrec black hole and corresponding setter.
 
@@ -40,8 +40,8 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; FIXME:  This might not work with Windows, and probably
-; doesn't work with Common Larceny.
+; FIXME:  This probably doesn't work with Common Larceny,
+; but Common Larceny doesn't yet support R6RS modes anyway.
 
 (define (ex:unique-token1)
 
@@ -82,4 +82,3 @@
         ; assumes 31 d/m - just need unique number
         (* (vector-ref time 1) 2678400)
         (* (- (vector-ref time 0) 2000) 32140800)))))
-

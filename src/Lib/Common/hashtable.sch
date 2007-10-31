@@ -36,7 +36,7 @@
 ; (hashtable-entries ht)
 ;
 ; (hashtable-equivalence-function ht)
-; (hashtable-hash-function ht)             ; returns #f
+; (hashtable-hash-function ht)
 ; (hashtable-mutable? ht)
 ;
 ; (equal-hash x)
