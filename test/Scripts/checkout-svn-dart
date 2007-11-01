@@ -390,6 +390,8 @@ library_test string     string
 library_test normalization normalization
 ## library_test complex
 library_test bytevector bytevector
+library_test io         io
+library_test hashtable  hashtable
 library_test pred       predicate
 library_test number     number
 library_test fact       fact 
@@ -400,6 +402,7 @@ library_test dynamic-wind dynamic-wind
 library_test regression regression
 library_test fixnums    fixnum
 library_test wcm        wcm
+library_test record     record
 
 function compiler_tests {
     dartlog '<Test>'
