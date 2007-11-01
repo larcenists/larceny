@@ -568,7 +568,7 @@ enumerate_remsets_older_than( gc_t *gc,
   }
 
   if (enumerate_np_young) {
-    process_seqbuf( gc->remset[ gc->np_remset ] );
+    process_seqbuf( gc->remset[ gc->np_remset ]->ssb );
     rs_enumerate( gc->remset[ gc->np_remset ], f, fdata );
   }
 }
