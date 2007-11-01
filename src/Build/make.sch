@@ -86,6 +86,7 @@
 ;   (make:debug)                            => bool
 ;   (make:debug bool)                       => bool
 ;   (make:make project target)              => unspecified
+;   (make:make project target tgt-ehandler) => unspecified
 ;
 ; A makefile is set up by creating a project and then adding 
 ; dependencies, rules, and targets to that project, and then running
@@ -240,7 +241,7 @@
 ; Create 'target', unless all its dependencies exist and are older,
 ; recursively.
 
-(define (make:make proj target)
+(define (make:make proj target . maybe-error-target)
 
   (define have-made '())
 
@@ -252,7 +253,11 @@
       (display target)
       (newline)
       (if (not (make:pretend))
-	  (delete-file target))))
+	  (delete-file target))
+      ;; Maybe this should advise or replace the above behavior,
+      ;; but for now it is easiest and safest to merely augment.
+      (if (not (null? maybe-error-target))
+          ((car maybe-error-target) target))))
 
   (define (extension fn)
     (let ((len (string-length fn)))

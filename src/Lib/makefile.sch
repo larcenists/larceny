@@ -300,7 +300,8 @@
   (make:pretend (not (null? rest)))
   (parameterize ((integrate-procedures 'larceny)
                  (compat:read-case-sensitive? #t))
-    (make:make sparc-heap-project "sparc.heap")))
+    (make:make sparc-heap-project "sparc.heap" 
+               (lambda (tgt) (error 'make-sparc-heap tgt)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -416,7 +417,8 @@
   (make:pretend (not (null? rest)))
   (parameterize ((integrate-procedures 'larceny)
                  (compat:read-case-sensitive? #t))
-    (make:make dotnet-heap-project "dotnet.heap")))
+    (make:make dotnet-heap-project "dotnet.heap"
+               (lambda (tgt) (error 'make-dotnet-heap tgt)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -473,7 +475,8 @@
     (make:pretend (not (null? rest)))
     (parameterize ((integrate-procedures 'larceny)
                    (compat:read-case-sensitive? #t))
-      (make:make petit-heap-project "petit.heap"))))
+      (make:make petit-heap-project "petit.heap"
+                 (lambda (tgt) (error 'make-petit-heap tgt))))))
 
 (define (make-sasstrap-heap . rest)
   (if (null? petit-heap-files)
@@ -483,7 +486,8 @@
     (make:pretend (not (null? rest)))
     (parameterize ((integrate-procedures 'larceny)
                    (compat:read-case-sensitive? #t))
-      (make:make petit-heap-project "sasstrap.heap"))))
+      (make:make petit-heap-project "sasstrap.heap"
+                 (lambda (tgt) (error 'make-sasstrap-heap tgt))))))
 
 (define (make-sassy-project . rest)
   (define (srfi-file ext)
@@ -537,7 +541,8 @@
 
 (define (make-sassy . rest)
   (make:pretend (not (null? rest)))
-  (make:make (make-sassy-project) "sassy.date"))
+  (make:make (make-sassy-project) "sassy.date"
+             (lambda (tgt) (error 'make-sassy tgt))))
 
 (define (make-petit-libclean)
   (let ((files (append petit-heap-files petit-eval-files)))
@@ -607,13 +612,15 @@
 
 (define (make-compiler . rest)
   (make:pretend (not (null? rest)))
-  (make:make compiler-project/fasl "compiler.date"))
+  (make:make compiler-project/fasl "compiler.date"
+             (lambda (tgt) (error 'make-compiler tgt))))
 
 (define compiler-project/lop (make-compiler-project ".lop"))
 
 (define (make-petit-compiler . rest)
   (make:pretend (not (null? rest)))
-  (make:make compiler-project/lop "compiler.date"))
+  (make:make compiler-project/lop "compiler.date"
+             (lambda (tgt) (error 'make-petit-compiler tgt))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -642,7 +649,8 @@
 
 (define (make-sparcasm . rest)
   (make:pretend (not (null? rest)))
-  (make:make sparcasm-project "sparcasm.date"))
+  (make:make sparcasm-project "sparcasm.date"
+             (lambda (tgt) (error 'make-sparcasm tgt))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -668,13 +676,15 @@
 
 (define (make-petitasm . rest)
   (make:pretend (not (null? rest)))
-  (make:make petit-asm-project/fasl "petitasm.date"))
+  (make:make petit-asm-project/fasl "petitasm.date"
+             (lambda (tgt) (error 'make-petitasm tgt))))
 
 (define petit-asm-project/lop (make-petit-asm-project ".lop"))
 
 (define (make-petit-petitasm . rest)
   (make:pretend (not (null? rest)))
-  (make:make petit-asm-project/lop "petitasm.date"))
+  (make:make petit-asm-project/lop "petitasm.date"
+             (lambda (tgt) (error 'make-petit-petitasm tgt))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -698,7 +708,8 @@
 
 (define (make-dotnetasm . rest)
   (make:pretend (not (null? rest)))
-  (make:make dotnetasm-project "dotnetasm.date"))
+  (make:make dotnetasm-project "dotnetasm.date"
+             (lambda (tgt) (error 'make-dotnetassm tgt))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -722,11 +733,13 @@
 
 (define (make-compat . rest)
   (make:pretend (not (null? rest)))
-  (make:make compat-project/fasl "compat.date"))
+  (make:make compat-project/fasl "compat.date"
+             (lambda (tgt) (error 'make-compat tgt))))
 
 (define (make-petit-compat . rest)
   (make:pretend (not (null? rest)))
-  (make:make compat-project/lop "compat.date"))
+  (make:make compat-project/lop "compat.date"
+             (lambda (tgt) (error 'make-petit-compat tgt))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -779,11 +792,13 @@
 
 (define (make-auxlib . rest)
   (make:pretend (not (null? rest)))
-  (make:make auxlib-project/fasl "auxlib.date"))
+  (make:make auxlib-project/fasl "auxlib.date"
+             (lambda (tgt) (error 'make-auxlib tgt))))
 
 (define (make-petit-auxlib . rest)
   (make:pretend (not (null? rest)))
-  (make:make auxlib-project/lop "auxlib.date"))
+  (make:make auxlib-project/lop "auxlib.date"
+             (lambda (tgt) (error 'make-petit-auxlib tgt))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
