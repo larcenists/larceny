@@ -544,6 +544,271 @@
   
   ) ; core let-values
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Library added for Larceny.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (larceny deprecated)             ; [Larceny]
+  (export issue-warning-deprecated)
+  (import
+   (primitives
+    issue-warning-deprecated)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; R6RS standard libraries.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (rnrs base (6))         
+  
+  (export 
+   
+   ;; Macros defined in core expander:
+   
+   begin if lambda quote set! and or
+   define define-syntax let-syntax letrec-syntax
+   _ ...
+   
+   ;; Derived syntax:
+   
+   let let* letrec letrec* let-values let*-values
+   case cond else =>
+   assert
+   quasiquote unquote unquote-splicing
+   syntax-rules 
+   identifier-syntax
+   
+   ;; R5RS primitives:
+   
+   * + - / < <= = > >= abs acos append apply asin atan 
+   boolean? call-with-current-continuation 
+   call-with-values car cdr caar cadr cdar cddr
+   caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
+   cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+   ceiling char? char->integer
+   complex? cons cos 
+   denominator dynamic-wind 
+   eq? equal? eqv? even? exact? exp expt floor for-each
+   gcd imag-part inexact? integer->char integer?
+   lcm length list list->string
+   list->vector list-ref list-tail list? log magnitude make-polar
+   make-rectangular make-string make-vector map max min
+   negative? not null? number->string number? numerator
+   odd? pair? 
+   positive? procedure? rational? rationalize
+   real-part real? reverse round
+   sin sqrt string string->list string->number string->symbol
+   string-append 
+   string-copy string-length string-ref string<=? string<?
+   string=? string>=? string>? string? substring symbol->string symbol? tan
+   truncate values vector vector->list
+   vector-fill! vector-length vector-ref vector-set! vector? zero?
+   
+   ;; R6RS additional procedures:
+   
+   real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
+   nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
+   symbol=? string-for-each vector-map vector-for-each error assertion-violation
+   call/cc)
+  
+  (import (except (core primitives) _ ...)     
+          (core let)                          
+          (core derived)             
+          (core quasiquote)        
+          (core let-values)
+          (for (core syntax-rules)      expand)   
+          (for (core identifier-syntax) expand)
+          (for (only (core primitives) _ ... set!) expand)
+          (primitives 
+           
+           ;; R5RS primitives:
+           
+           * + - / < <= = > >= abs acos append apply asin atan 
+           boolean? call-with-current-continuation 
+           call-with-values car cdr caar cadr cdar cddr
+           caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
+           cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+           ceiling char? char->integer
+           complex? cons cos 
+           denominator dynamic-wind 
+           eq? equal? eqv? even? exact? exp expt floor for-each
+           gcd imag-part inexact? integer->char integer?
+           lcm length list list->string
+           list->vector list-ref list-tail list? log magnitude make-polar
+           make-rectangular make-string make-vector map max min
+           negative? not null? number->string number? numerator
+           odd? pair? 
+           positive? procedure? rational? rationalize
+           real-part real? reverse round
+           sin sqrt string string->list string->number string->symbol
+           string-append 
+           string-copy string-length string-ref string<=? string<?
+           string=? string>=? string>? string? substring symbol->string symbol? tan
+           truncate values vector vector->list
+           vector-fill! vector-length vector-ref vector-set! vector? zero?
+           
+           ;; R6RS additional procedures:
+           
+           real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
+           nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
+           symbol=? string-for-each vector-map vector-for-each error assertion-violation
+           call/cc))
+  
+    (define-syntax assert
+      (syntax-rules ()
+        ((_ expression)
+         (if (not expression)
+             (assertion-violation #f "assertion failed" 'expression)))))
+  
+  ) ;; rnrs base
+
+(library (rnrs unicode (6))
+  
+  (export
+   char-upcase char-downcase char-titlecase char-foldcase
+   char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
+   char-alphabetic? char-numeric? char-whitespace?
+   char-upper-case? char-lower-case? char-title-case?
+   char-general-category
+   string-upcase string-downcase string-titlecase string-foldcase
+   string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?
+   string-normalize-nfd string-normalize-nfkd
+   string-normalize-nfc string-normalize-nfkc)
+
+  (import
+   (primitives
+    char-upcase char-downcase char-titlecase char-foldcase
+    char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
+    char-alphabetic? char-numeric? char-whitespace?
+    char-upper-case? char-lower-case? char-title-case?
+    char-general-category
+    string-upcase string-downcase string-titlecase string-foldcase
+    string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?
+    string-normalize-nfd string-normalize-nfkd
+    string-normalize-nfc string-normalize-nfkc))
+  )
+
+(library (rnrs bytevectors (6))
+  (export
+   endianness                                  ; deprecated
+   native-endianness
+
+   bytevector? make-bytevector bytevector-length
+   bytevector=?
+   bytevector-fill! bytevector-copy! bytevector-copy
+
+   bytevector-u8-ref bytevector-s8-ref
+   bytevector-u8-set! bytevector-s8-set!
+   bytevetor->u8-list u8-list->bytevector
+
+   bytevector-uint-ref bytevector-sint-ref
+   bytevector-uint-set! bytevector-sint-set!
+   bytevetor->uint-list bytevetor->sint-list
+   uint-list->bytevector sint-list->bytevector
+
+   bytevector-u16-ref bytevector-s16-ref
+   bytevector-u16-native-ref bytevector-s16-native-ref
+   bytevector-u16-set! bytevector-s16-set!
+   bytevector-u16-native-set! bytevector-s16-native-set!
+
+   bytevector-u32-ref bytevector-s32-ref
+   bytevector-u32-native-ref bytevector-s32-native-ref
+   bytevector-u32-set! bytevector-s32-set!
+   bytevector-u32-native-set! bytevector-s32-native-set!
+
+   bytevector-u64-ref bytevector-s64-ref
+   bytevector-u64-native-ref bytevector-s64-native-ref
+   bytevector-u64-set! bytevector-s64-set!
+   bytevector-u64-native-set! bytevector-s64-native-set!
+
+   bytevector-ieee-single-native-ref
+   bytevector-ieee-single-ref
+   bytevector-ieee-double-native-ref
+   bytevector-ieee-double-ref
+   bytevector-ieee-single-native-set!
+   bytevector-ieee-single-set!
+   bytevector-ieee-double-native-set!
+   bytevector-ieee-double-set!
+
+   string->utf8 string->utf16 string->utf32
+   utf8->string utf16->string utf32->string)
+
+  (import
+   (core primitives)
+   (for (core syntax-rules) expand)
+   (larceny deprecated)
+   (primitives
+    native-endianness
+
+    bytevector? make-bytevector bytevector-length
+    bytevector=?
+    bytevector-fill! bytevector-copy! bytevector-copy
+
+    bytevector-u8-ref bytevector-s8-ref
+    bytevector-u8-set! bytevector-s8-set!
+    bytevetor->u8-list u8-list->bytevector
+
+    bytevector-uint-ref bytevector-sint-ref
+    bytevector-uint-set! bytevector-sint-set!
+    bytevetor->uint-list bytevetor->sint-list
+    uint-list->bytevector sint-list->bytevector
+
+    bytevector-u16-ref bytevector-s16-ref
+    bytevector-u16-native-ref bytevector-s16-native-ref
+    bytevector-u16-set! bytevector-s16-set!
+    bytevector-u16-native-set! bytevector-s16-native-set!
+
+    bytevector-u32-ref bytevector-s32-ref
+    bytevector-u32-native-ref bytevector-s32-native-ref
+    bytevector-u32-set! bytevector-s32-set!
+    bytevector-u32-native-set! bytevector-s32-native-set!
+
+    bytevector-u64-ref bytevector-s64-ref
+    bytevector-u64-native-ref bytevector-s64-native-ref
+    bytevector-u64-set! bytevector-s64-set!
+    bytevector-u64-native-set! bytevector-s64-native-set!
+
+    bytevector-ieee-single-native-ref
+    bytevector-ieee-single-ref
+    bytevector-ieee-double-native-ref
+    bytevector-ieee-double-ref
+    bytevector-ieee-single-native-set!
+    bytevector-ieee-single-set!
+    bytevector-ieee-double-native-set!
+    bytevector-ieee-double-set!
+
+    string->utf8 string->utf16 string->utf32
+    utf8->string utf16->string utf32->string))
+
+  ; [Larceny]
+  ; In Larceny, *every* symbol describes an endianness.
+  ; See Lib/Common/bytevector.sch for semantics.
+
+  (define-syntax endianness
+    (syntax-rules ()
+     ((_ x)
+      (begin
+       (issue-warning-deprecated 'endianness)
+       (quote x)))))
+
+  ) ; rnrs bytevectors
+
+(library (rnrs lists (6))
+  (export find for-all exists filter partition fold-left fold-right
+          remp remove remq remv memp member memv memq
+          assp assoc assv assq)
+  (import (primitives 
+           find for-all exists filter partition fold-left fold-right
+           remp remove remq remv memp member memv memq
+           assp assoc assv assq)))  
+
+(library (rnrs sorting (6))
+  (export list-sort vector-sort vector-sort!)
+  (import (primitives list-sort vector-sort vector-sort!)))
+
 (library (rnrs control (6))
   (export when unless do case-lambda)
   (import (for (core primitives)   expand run)
@@ -614,60 +879,6 @@
   
   ) ; rnrs control                                      
 
-(library (rnrs lists (6))
-  (export find for-all exists filter partition fold-left fold-right
-          remp remove remq remv memp member memv memq
-          assp assoc assv assq)
-  (import (primitives 
-           find for-all exists filter partition fold-left fold-right
-           remp remove remq remv memp member memv memq
-           assp assoc assv assq)))  
-
-(library (rnrs io simple (6))
-  (export call-with-input-file call-with-output-file 
-          close-input-port close-output-port current-input-port current-output-port
-          display eof-object? newline open-input-file open-output-file peek-char
-          read read-char with-input-from-file with-output-to-file write write-char
-          ;; AND SO ON
-          )
-  (import (primitives
-           call-with-input-file call-with-output-file 
-           close-input-port close-output-port current-input-port current-output-port
-           display eof-object? newline open-input-file open-output-file peek-char
-           read read-char with-input-from-file with-output-to-file write write-char
-           ;; AND SO ON
-           )))
-
-(library (rnrs unicode (6))
-  
-  (export
-   char-upcase char-downcase char-titlecase char-foldcase
-   char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
-   char-alphabetic? char-numeric? char-whitespace?
-   char-upper-case? char-lower-case? char-title-case?
-   char-general-category
-   string-upcase string-downcase string-titlecase string-foldcase
-   string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?
-   string-normalize-nfd string-normalize-nfkd
-   string-normalize-nfc string-normalize-nfkc)
-
-  (import
-   (primitives
-    char-upcase char-downcase char-titlecase char-foldcase
-    char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
-    char-alphabetic? char-numeric? char-whitespace?
-    char-upper-case? char-lower-case? char-title-case?
-    char-general-category
-    string-upcase string-downcase string-titlecase string-foldcase
-    string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?
-    string-normalize-nfd string-normalize-nfkd
-    string-normalize-nfc string-normalize-nfkc))
-  )
-
-(library (rnrs sorting (6))
-  (export list-sort vector-sort vector-sort!)
-  (import (primitives list-sort vector-sort vector-sort!)))
-
 (library (rnrs records procedural (6))
   (export
    make-record-type-descriptor record-type-descriptor?
@@ -689,6 +900,269 @@
     record? record-rtd record-type-name record-type-parent record-type-uid
     record-type-generative? record-type-sealed? record-type-opaque?
     record-type-field-names record-field-mutable?)))
+
+; FIXME: (rnrs records syntactic (6)) not yet implemented.
+
+; FIXME: (rnrs exceptions (6)) not yet implemented.
+
+; FIXME: (rnrs conditions (6)) not yet implemented.
+
+(library (rnrs io ports (6))
+
+  (export
+
+   file-options                           ; deprecated syntax
+   buffer-mode                            ; deprecated syntax
+   buffer-mode?                           ; deprecated procedure
+
+   latin-1-codec utf-8-codec utf-16-codec
+
+   eol-style                              ; deprecated syntax
+   native-eol-style
+
+;  FIXME
+;
+;  &i/o-decoding
+;  make-i/o-decoding-error
+;  io/-decoding-error?
+;  &i/o-encoding
+;  make-i/o-encoding-error
+;  io/-encoding-error?
+;  io/-encoding-error-char
+
+   error-handling-mode                    ; deprecated syntax
+
+   make-transcoder
+   native-transcoder
+   transcoder-codec transcoder-eol-style transcoder-error-handling-mode
+
+   bytevector->string string->bytevector
+
+   eof-object eof-object?
+
+   port? port-transcoder textual-port? binary-port? transcoded-port
+   port-has-port-position? port-position
+   port-has-set-port-position!? set-port-position!
+   close-port call-with-port
+
+   input-port? port-eof?
+   open-file-input-port open-bytevector-input-port open-string-input-port
+   standard-input-port current-input-port
+   make-custom-binary-input-port make-custom-textual-input-port
+
+   get-u8 lookahead-u8 get-bytevector-n get-bytevector-n!
+   get-bytevector-some                    ; deprecated procedure
+   get-bytevector-all
+
+   get-char lookahead-char
+   get-string-n get-string-n! get-string-all get-line get-datum
+
+   output-port? flush-output-port output-port-buffer-mode
+   open-file-output-port
+   open-bytevector-output-port            ; deprecated procedure
+   open-string-output-port                ; deprecated procedure
+   call-with-bytevector-output-port
+   call-with-string-output-port
+   standard-output-port current-output-port current-error-port
+   make-custom-binary-output-port make-custom-textual-output-port
+
+   put-u8 put-bytevector
+
+   put-char put-string put-datum
+
+   open-file-input/output-port
+   make-custom-binary-input/output-port
+   make-custom-textual-input/output-port
+   )
+
+  (import
+   (core primitives)
+   (for (only (core primitives) ...) expand)
+   (for (core syntax-rules) expand)
+   (rnrs base)
+   (larceny deprecated) ; [Larceny]
+   (primitives
+
+    buffer-mode?
+
+    latin-1-codec utf-8-codec utf-16-codec
+
+    native-eol-style
+
+;   FIXME
+;
+;   &i/o-decoding
+;   make-i/o-decoding-error
+;   io/-decoding-error?
+;   &i/o-encoding
+;   make-i/o-encoding-error
+;   io/-encoding-error?
+;   io/-encoding-error-char
+
+    make-transcoder
+    native-transcoder
+    transcoder-codec transcoder-eol-style transcoder-error-handling-mode
+
+    bytevector->string string->bytevector
+
+    eof-object eof-object?
+
+    port? port-transcoder textual-port? binary-port? transcoded-port
+    port-has-port-position? port-position
+    port-has-set-port-position!? set-port-position!
+    close-port call-with-port
+
+    input-port? port-eof?
+    open-file-input-port open-bytevector-input-port open-string-input-port
+    standard-input-port current-input-port
+    make-custom-binary-input-port make-custom-textual-input-port
+
+    get-u8 lookahead-u8 get-bytevector-n get-bytevector-n!
+    get-bytevector-some                    ; deprecated procedure
+    get-bytevector-all
+
+    get-char lookahead-char
+    get-string-n get-string-n! get-string-all get-line get-datum
+
+    output-port? flush-output-port output-port-buffer-mode
+    open-file-output-port
+    open-bytevector-output-port            ; deprecated procedure
+    open-string-output-port                ; deprecated procedure
+    call-with-bytevector-output-port
+    call-with-string-output-port
+    standard-output-port current-output-port current-error-port
+    make-custom-binary-output-port make-custom-textual-output-port
+
+    put-u8 put-bytevector
+
+    put-char put-string put-datum
+
+    open-file-input/output-port
+    make-custom-binary-input/output-port
+    make-custom-textual-input/output-port
+    ))
+
+  ; [Larceny]
+  ; Larceny accepts any symbol as a file option,
+  ; but ignores all but a few options.
+
+  (define-syntax file-options
+    (syntax-rules ()
+     ((_ opt ...)
+      (make-file-options 'opt ...))))
+
+  ; [Larceny]
+  ; FIXME:  This should return an enumeration set,
+  ; although how Larceny is supposed to do that given
+  ; its infinite set of legal file options is a mystery.
+
+  (define make-file-options list)
+
+  ; [Larceny]
+  ; In Larceny, *every* symbol describes a buffer mode.
+  ; See Lib/Common/portio.sch for semantics.
+  ;
+  ; The three buffer modes allowed by the current draft R6RS
+  ; do not include Larceny's traditional discretionary-flush
+  ; mode for interactive ports.  Beginning in Larceny v0.94,
+  ; the preferred name of this buffer mode is datum.
+  ;
+  ; As the current draft R6RS is written, however, the
+  ; buffer-mode syntax accepts only three symbols:
+  ;
+  ;     none, line, block
+  ;
+  ; Programmers should therefore get into the habit of
+  ; specifying buffer modes using Scheme's traditional
+  ; quote syntax.
+  ;
+  ; FIXME:  Syntax checking should be done at macro expansion time,
+  ; although this particular syntax check is so stupid it really
+  ; shouldn't be done at all.
+
+  (define-syntax buffer-mode
+    (syntax-rules ()
+     ((_ x)
+      (begin
+       (issue-warning-deprecated 'buffer-mode)
+       (let ((mode (quote x)))
+         (if (memq mode '(none line block))
+             mode
+             (assertion-violation 'buffer-mode
+                                  "Larceny-specific buffer mode"
+                                  mode)))))))
+
+  ; [Larceny]
+  ; In Larceny, *every* symbol describes an eol-style.
+  ; See Lib/Common/portio.sch for semantics.
+
+  (define-syntax eol-style
+    (syntax-rules ()
+     ((_ x)
+      (begin
+       (issue-warning-deprecated 'eol-style)
+       (quote x)))))
+
+  ; [Larceny]
+  ; In Larceny, *every* symbol describes an error handling mode.
+  ; See Lib/Common/portio.sch for semantics.
+
+  (define-syntax error-handling-mode
+    (syntax-rules ()
+     ((_ x)
+      (begin
+       (issue-warning-deprecated 'error-handling-mode)
+       (quote x)))))
+
+  )
+
+(library (rnrs io simple (6))
+  (export
+   eof-object eof-object?
+   call-with-input-file call-with-output-file 
+   input-port? output-port?
+   current-input-port current-output-port current-error-port
+   with-input-from-file with-output-to-file
+   open-input-file open-output-file
+   close-input-port close-output-port 
+   read-char peek-char
+   read
+   write-char newline 
+   display write
+   )
+  (import
+   (primitives
+    eof-object eof-object?
+    call-with-input-file call-with-output-file 
+    input-port? output-port?
+    current-input-port current-output-port current-error-port
+    with-input-from-file with-output-to-file
+    open-input-file open-output-file
+    close-input-port close-output-port 
+    read-char peek-char
+    read
+    write-char newline 
+    display write
+    )))
+
+(library (rnrs files (6))
+  (export file-exists? delete-file)
+  (import (primitives file-exists? delete-file)))
+
+(library (rnrs programs (6))
+  (export command-line exit)
+  (import
+   (core primitives)
+   (rnrs base)
+   (primitives
+    command-line-arguments               ; [Larceny]
+    exit))
+
+  ; [Larceny]
+
+  (define (command-line)
+    (list->vector (cons 'larceny (vector->list (command-line-arguments)))))
+  )
 
 (library (rnrs arithmetic fixnums (6))
 
@@ -815,10 +1289,6 @@
     bitwise-rotate-bit-field
     bitwise-reverse-bit-field)))
 
-(library (rnrs files (6))
-  (export file-exists? delete-file)
-  (import (primitives file-exists? delete-file)))
-
 (library (rnrs syntax-case (6))
   
   (export make-variable-transformer
@@ -834,108 +1304,68 @@
   
   ) ;; rnrs syntax-case
 
-(library (rnrs base (6))         
-  
-  (export 
-   
-   ;; Macros defined in core expander:
-   
-   begin if lambda quote set! and or
-   define define-syntax let-syntax letrec-syntax
-   _ ...
-   
-   ;; Derived syntax:
-   
-   let let* letrec letrec* let-values let*-values
-   case cond else =>
-   assert
-   quasiquote unquote unquote-splicing
-   syntax-rules 
-   identifier-syntax
-   
-   ;; R5RS primitives:
-   
-   * + - / < <= = > >= abs acos append apply asin atan 
-   boolean? call-with-current-continuation 
-   call-with-values car cdr caar cadr cdar cddr
-   caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-   cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
-   ceiling char? char->integer
-   complex? cons cos 
-   denominator dynamic-wind 
-   eq? equal? eqv? even? exact? exp expt floor for-each
-   gcd imag-part inexact? integer->char integer?
-   lcm length list list->string
-   list->vector list-ref list-tail list? log magnitude make-polar
-   make-rectangular make-string make-vector map max min
-   negative? not null? number->string number? numerator
-   odd? pair? 
-   positive? procedure? rational? rationalize
-   real-part real? reverse round
-   sin sqrt string string->list string->number string->symbol
-   string-append 
-   string-copy string-length string-ref string<=? string<?
-   string=? string>=? string>? string? substring symbol->string symbol? tan
-   truncate values vector vector->list
-   vector-fill! vector-length vector-ref vector-set! vector? zero?
-   
-   ;; R6RS additional procedures:
-   
-   real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-   nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-   symbol=? string-for-each vector-map vector-for-each error assertion-violation
-   call/cc)
-  
-  (import (except (core primitives) _ ...)     
-          (core let)                          
-          (core derived)             
-          (core quasiquote)        
-          (core let-values)
-          (for (core syntax-rules)      expand)   
-          (for (core identifier-syntax) expand)
-          (for (only (core primitives) _ ... set!) expand)
-          (primitives 
-           
-           ;; R5RS primitives:
-           
-           * + - / < <= = > >= abs acos append apply asin atan 
-           boolean? call-with-current-continuation 
-           call-with-values car cdr caar cadr cdar cddr
-           caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-           cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
-           ceiling char? char->integer
-           complex? cons cos 
-           denominator dynamic-wind 
-           eq? equal? eqv? even? exact? exp expt floor for-each
-           gcd imag-part inexact? integer->char integer?
-           lcm length list list->string
-           list->vector list-ref list-tail list? log magnitude make-polar
-           make-rectangular make-string make-vector map max min
-           negative? not null? number->string number? numerator
-           odd? pair? 
-           positive? procedure? rational? rationalize
-           real-part real? reverse round
-           sin sqrt string string->list string->number string->symbol
-           string-append 
-           string-copy string-length string-ref string<=? string<?
-           string=? string>=? string>? string? substring symbol->string symbol? tan
-           truncate values vector vector->list
-           vector-fill! vector-length vector-ref vector-set! vector? zero?
-           
-           ;; R6RS additional procedures:
-           
-           real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-           nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-           symbol=? string-for-each vector-map vector-for-each error assertion-violation
-           call/cc))
-  
-    (define-syntax assert
-      (syntax-rules ()
-        ((_ expression)
-         (if (not expression)
-             (assertion-violation #f "assertion failed" 'expression)))))
-  
-  ) ;; rnrs base
+(library (rnrs hashtables (6))
+
+  (export
+
+   make-eq-hashtable
+   make-eqv-hashtable
+   make-hashtable
+   hashtable?
+   hashtable-size
+   hashtable-ref
+   hashtable-set!
+   hashtable-delete!
+   hashtable-contains?
+   hashtable-update!
+   hashtable-copy
+   hashtable-clear!
+   hashtable-keys
+   hashtable-entries
+   hashtable-equivalence-function
+   hashtable-hash-function
+   hashtable-mutable?
+   equal-hash
+   string-hash
+   string-ci-hash
+   symbol-hash)
+
+  (import
+   (rnrs base)
+   (primitives
+
+    make-eq-hashtable
+    make-eqv-hashtable
+    make-r6rs-hashtable                      ; [Larceny]
+    hashtable?
+    hashtable-size
+    hashtable-ref
+    hashtable-set!
+    hashtable-delete!
+    hashtable-contains?
+    hashtable-update!
+    hashtable-copy
+    hashtable-clear!
+    hashtable-keys
+    hashtable-entries
+    hashtable-equivalence-function
+    hashtable-hash-function
+    hashtable-mutable?
+    equal-hash
+    string-hash
+    string-ci-hash
+    symbol-hash))
+
+  ; [Larceny]
+  ; Larceny's traditional make-hashtable procedure is incompatible
+  ; with the R6RS procedure of the same name, so the R6RS version
+  ; goes under the name of make-r6rs-hashtable in R5RS mode.
+
+  (define make-hashtable make-r6rs-hashtable))
+
+; FIXME: (rnrs enums (6)) not yet implemented.
+
+; FIXME: (rnrs (6)) not yet complete.
 
 (library (rnrs (6))         
   
@@ -1125,14 +1555,6 @@
   
   ) ;; rnrs
 
-(library (rnrs mutable-pairs (6))
-  (export set-car! set-cdr!)
-  (import (primitives set-car! set-cdr!)))
-
-(library (rnrs mutable-strings (6))
-  (export string-set! string-fill!)
-  (import (primitives string-set! string-fill!)))
-
 (library (rnrs eval (6))
   (export eval environment)
   (import (core primitives)))
@@ -1143,6 +1565,14 @@
 (library (rnrs eval reflection (6))
   (export environment-bindings)
   (import (core primitives)))
+
+(library (rnrs mutable-pairs (6))
+  (export set-car! set-cdr!)
+  (import (primitives set-car! set-cdr!)))
+
+(library (rnrs mutable-strings (6))
+  (export string-set! string-fill!)
+  (import (primitives string-set! string-fill!)))
 
 (library (rnrs r5rs (6))
   
@@ -1399,405 +1829,4 @@
   (import (explicit-renaming helper)
           (rnrs syntax-case)))
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Libraries added for Larceny.
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(library (larceny deprecated)
-  (export issue-warning-deprecated)
-  (import
-   (primitives
-    issue-warning-deprecated)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; R6RS libraries that were missing from van Tonder's implementation.
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(library (rnrs bytevectors (6))
-  (export
-   endianness                                  ; deprecated
-   native-endianness
-
-   bytevector? make-bytevector bytevector-length
-   bytevector=?
-   bytevector-fill! bytevector-copy! bytevector-copy
-
-   bytevector-u8-ref bytevector-s8-ref
-   bytevector-u8-set! bytevector-s8-set!
-   bytevetor->u8-list u8-list->bytevector
-
-   bytevector-uint-ref bytevector-sint-ref
-   bytevector-uint-set! bytevector-sint-set!
-   bytevetor->uint-list bytevetor->sint-list
-   uint-list->bytevector sint-list->bytevector
-
-   bytevector-u16-ref bytevector-s16-ref
-   bytevector-u16-native-ref bytevector-s16-native-ref
-   bytevector-u16-set! bytevector-s16-set!
-   bytevector-u16-native-set! bytevector-s16-native-set!
-
-   bytevector-u32-ref bytevector-s32-ref
-   bytevector-u32-native-ref bytevector-s32-native-ref
-   bytevector-u32-set! bytevector-s32-set!
-   bytevector-u32-native-set! bytevector-s32-native-set!
-
-   bytevector-u64-ref bytevector-s64-ref
-   bytevector-u64-native-ref bytevector-s64-native-ref
-   bytevector-u64-set! bytevector-s64-set!
-   bytevector-u64-native-set! bytevector-s64-native-set!
-
-   bytevector-ieee-single-native-ref
-   bytevector-ieee-single-ref
-   bytevector-ieee-double-native-ref
-   bytevector-ieee-double-ref
-   bytevector-ieee-single-native-set!
-   bytevector-ieee-single-set!
-   bytevector-ieee-double-native-set!
-   bytevector-ieee-double-set!
-
-   string->utf8 string->utf16 string->utf32
-   utf8->string utf16->string utf32->string)
-
-  (import
-   (core primitives)
-   (for (core syntax-rules) expand)
-   (larceny deprecated)
-   (primitives
-    native-endianness
-
-    bytevector? make-bytevector bytevector-length
-    bytevector=?
-    bytevector-fill! bytevector-copy! bytevector-copy
-
-    bytevector-u8-ref bytevector-s8-ref
-    bytevector-u8-set! bytevector-s8-set!
-    bytevetor->u8-list u8-list->bytevector
-
-    bytevector-uint-ref bytevector-sint-ref
-    bytevector-uint-set! bytevector-sint-set!
-    bytevetor->uint-list bytevetor->sint-list
-    uint-list->bytevector sint-list->bytevector
-
-    bytevector-u16-ref bytevector-s16-ref
-    bytevector-u16-native-ref bytevector-s16-native-ref
-    bytevector-u16-set! bytevector-s16-set!
-    bytevector-u16-native-set! bytevector-s16-native-set!
-
-    bytevector-u32-ref bytevector-s32-ref
-    bytevector-u32-native-ref bytevector-s32-native-ref
-    bytevector-u32-set! bytevector-s32-set!
-    bytevector-u32-native-set! bytevector-s32-native-set!
-
-    bytevector-u64-ref bytevector-s64-ref
-    bytevector-u64-native-ref bytevector-s64-native-ref
-    bytevector-u64-set! bytevector-s64-set!
-    bytevector-u64-native-set! bytevector-s64-native-set!
-
-    bytevector-ieee-single-native-ref
-    bytevector-ieee-single-ref
-    bytevector-ieee-double-native-ref
-    bytevector-ieee-double-ref
-    bytevector-ieee-single-native-set!
-    bytevector-ieee-single-set!
-    bytevector-ieee-double-native-set!
-    bytevector-ieee-double-set!
-
-    string->utf8 string->utf16 string->utf32
-    utf8->string utf16->string utf32->string))
-
-  ; In Larceny, *every* symbol describes an endianness.
-  ; See Lib/Common/bytevector.sch for semantics.
-
-  (define-syntax endianness
-    (syntax-rules ()
-     ((_ x)
-      (begin
-       (issue-warning-deprecated 'endianness)
-       (quote x)))))
-
-  )
-
-; FIXME: (rnrs records syntactic (6)) not yet implemented.
-
-; FIXME: (rnrs exceptions (6)) not yet implemented.
-
-; FIXME: (rnrs conditions (6)) not yet implemented.
-
-(library (rnrs io ports (6))
-
-  (export
-
-   file-options                           ; deprecated syntax
-   buffer-mode                            ; deprecated syntax
-   buffer-mode?                           ; deprecated procedure
-
-   latin-1-codec utf-8-codec utf-16-codec
-
-   eol-style                              ; deprecated syntax
-   native-eol-style
-
-;  FIXME
-;
-;  &i/o-decoding
-;  make-i/o-decoding-error
-;  io/-decoding-error?
-;  &i/o-encoding
-;  make-i/o-encoding-error
-;  io/-encoding-error?
-;  io/-encoding-error-char
-
-   error-handling-mode                    ; deprecated syntax
-
-   make-transcoder
-   native-transcoder
-   transcoder-codec transcoder-eol-style transcoder-error-handling-mode
-
-   bytevector->string string->bytevector
-
-   eof-object eof-object?
-
-   port? port-transcoder textual-port? binary-port? transcoded-port
-   port-has-port-position? port-position
-   port-has-set-port-position!? set-port-position!
-   close-port call-with-port
-
-   input-port? port-eof?
-   open-file-input-port open-bytevector-input-port open-string-input-port
-   standard-input-port current-input-port
-   make-custom-binary-input-port make-custom-textual-input-port
-
-   get-u8 lookahead-u8 get-bytevector-n get-bytevector-n!
-   get-bytevector-some                    ; deprecated procedure
-   get-bytevector-all
-
-   get-char lookahead-char
-   get-string-n get-string-n! get-string-all get-line get-datum
-
-   output-port? flush-output-port output-port-buffer-mode
-   open-file-output-port
-   open-bytevector-output-port            ; deprecated procedure
-   open-string-output-port                ; deprecated procedure
-   call-with-bytevector-output-port
-   call-with-string-output-port
-   standard-output-port current-output-port current-error-port
-   make-custom-binary-output-port make-custom-textual-output-port
-
-   put-u8 put-bytevector
-
-   put-char put-string put-datum
-
-   open-file-input/output-port
-   make-custom-binary-input/output-port
-   make-custom-textual-input/output-port
-   )
-
-  (import
-   (core primitives)
-   (for (only (core primitives) ...) expand)
-   (for (core syntax-rules) expand)
-   (rnrs base)
-   (larceny deprecated)
-   (primitives
-
-    buffer-mode?
-
-    latin-1-codec utf-8-codec utf-16-codec
-
-    native-eol-style
-
-;   FIXME
-;
-;   &i/o-decoding
-;   make-i/o-decoding-error
-;   io/-decoding-error?
-;   &i/o-encoding
-;   make-i/o-encoding-error
-;   io/-encoding-error?
-;   io/-encoding-error-char
-
-    make-transcoder
-    native-transcoder
-    transcoder-codec transcoder-eol-style transcoder-error-handling-mode
-
-    bytevector->string string->bytevector
-
-    eof-object eof-object?
-
-    port? port-transcoder textual-port? binary-port? transcoded-port
-    port-has-port-position? port-position
-    port-has-set-port-position!? set-port-position!
-    close-port call-with-port
-
-    input-port? port-eof?
-    open-file-input-port open-bytevector-input-port open-string-input-port
-    standard-input-port current-input-port
-    make-custom-binary-input-port make-custom-textual-input-port
-
-    get-u8 lookahead-u8 get-bytevector-n get-bytevector-n!
-    get-bytevector-some                    ; deprecated procedure
-    get-bytevector-all
-
-    get-char lookahead-char
-    get-string-n get-string-n! get-string-all get-line get-datum
-
-    output-port? flush-output-port output-port-buffer-mode
-    open-file-output-port
-    open-bytevector-output-port            ; deprecated procedure
-    open-string-output-port                ; deprecated procedure
-    call-with-bytevector-output-port
-    call-with-string-output-port
-    standard-output-port current-output-port current-error-port
-    make-custom-binary-output-port make-custom-textual-output-port
-
-    put-u8 put-bytevector
-
-    put-char put-string put-datum
-
-    open-file-input/output-port
-    make-custom-binary-input/output-port
-    make-custom-textual-input/output-port
-    ))
-
-  ; Larceny accepts any symbol as a file option,
-  ; but ignores all but a few options.
-
-  (define-syntax file-options
-    (syntax-rules ()
-     ((_ opt ...)
-      (make-file-options 'opt ...))))
-
-  ; FIXME:  This should return an enumeration set,
-  ; although how Larceny is supposed to do that given
-  ; its infinite set of legal file options is a mystery.
-
-  (define make-file-options list)
-
-  ; In Larceny, *every* symbol describes a buffer mode.
-  ; See Lib/Common/portio.sch for semantics.
-  ;
-  ; The three buffer modes allowed by the current draft R6RS
-  ; do not include Larceny's traditional discretionary-flush
-  ; mode for interactive ports.  Beginning in Larceny v0.94,
-  ; the preferred name of this buffer mode is datum.
-  ;
-  ; As the current draft R6RS is written, however, the
-  ; buffer-mode syntax accepts only three symbols:
-  ;
-  ;     none, line, block
-  ;
-  ; Programmers should therefore get into the habit of
-  ; specifying buffer modes using Scheme's traditional
-  ; quote syntax.
-  ;
-  ; FIXME:  Syntax checking should be done at macro expansion time,
-  ; although this particular syntax check is so stupid it really
-  ; shouldn't be done at all.
-
-  (define-syntax buffer-mode
-    (syntax-rules ()
-     ((_ x)
-      (begin
-       (issue-warning-deprecated 'buffer-mode)
-       (let ((mode (quote x)))
-         (if (memq mode '(none line block))
-             mode
-             (assertion-violation 'buffer-mode
-                                  "Larceny-specific buffer mode"
-                                  mode)))))))
-
-  ; In Larceny, *every* symbol describes an eol-style.
-  ; See Lib/Common/portio.sch for semantics.
-
-  (define-syntax eol-style
-    (syntax-rules ()
-     ((_ x)
-      (begin
-       (issue-warning-deprecated 'eol-style)
-       (quote x)))))
-
-  ; In Larceny, *every* symbol describes an error handling mode.
-  ; See Lib/Common/portio.sch for semantics.
-
-  (define-syntax error-handling-mode
-    (syntax-rules ()
-     ((_ x)
-      (begin
-       (issue-warning-deprecated 'error-handling-mode)
-       (quote x)))))
-
-  )
-
-(library (rnrs programs (6))
-  (export command-line exit)
-  (import
-   (core primitives)
-   (rnrs base)
-   (primitives command-line-arguments exit))
-
-  (define (command-line)
-    (list->vector (cons 'larceny (vector->list (command-line-arguments)))))
-  )
-
-(library (rnrs hashtables (6))
-
-  (export
-
-   make-eq-hashtable
-   make-eqv-hashtable
-   make-hashtable
-   hashtable?
-   hashtable-size
-   hashtable-ref
-   hashtable-set!
-   hashtable-delete!
-   hashtable-contains?
-   hashtable-update!
-   hashtable-copy
-   hashtable-clear!
-   hashtable-keys
-   hashtable-entries
-   hashtable-equivalence-function
-   hashtable-hash-function
-   hashtable-mutable?
-   equal-hash
-   string-hash
-   string-ci-hash
-   symbol-hash)
-
-  (import
-   (rnrs base)
-   (primitives
-
-    make-eq-hashtable
-    make-eqv-hashtable
-    make-r6rs-hashtable
-    hashtable?
-    hashtable-size
-    hashtable-ref
-    hashtable-set!
-    hashtable-delete!
-    hashtable-contains?
-    hashtable-update!
-    hashtable-copy
-    hashtable-clear!
-    hashtable-keys
-    hashtable-entries
-    hashtable-equivalence-function
-    hashtable-hash-function
-    hashtable-mutable?
-    equal-hash
-    string-hash
-    string-ci-hash
-    symbol-hash))
-
-  (define make-hashtable make-r6rs-hashtable))
-
-; FIXME: (rnrs enums (6)) not yet implemented.
-
-; FIXME: (rnrs base (6)) not yet complete.
-; (van Tonder's definition above must be completed.)
+; end of file
