@@ -341,13 +341,13 @@
 
                      (let* ((id (random 1000000))  ; FIXME
                             (r  (vector-like-cas! ht 12 #f id)))
-                       (if r
+                       (if (eq? r #f)
                            (vector-like-cas! ht 12 id #t)
                            (begin (set! *ht* ht)
                                   (assertion-violation 'hashtable:lock!
                                                        "race detected" ht))))))
       (unlock!     (lambda (ht)
-                     (if (not (vector-like-cas! ht 12 #t #f))
+                     (if (not (eq? #t (vector-like-cas! ht 12 #t #f)))
                          (assertion-violation 'hashtable:unlock!
                                               "hashtable not locked" ht))))
 

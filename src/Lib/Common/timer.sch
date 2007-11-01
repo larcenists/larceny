@@ -28,12 +28,11 @@
 
      (let ((x (vector-like-ref v i)))
        (if (eq? x old)
-           (begin (vector-like-set! v i new)
+           (vector-like-set! v i new))
 
-                  ; end critical section
+     ; end critical section
 
-                  #t)
-           #f)));))
+       x));))
 
 ; A timeslice of 50,000 is a compromise between overhead and response time.
 ; On atlas.ccs.neu.edu (a SPARC 10 (?)), 50,000 is really too much for
