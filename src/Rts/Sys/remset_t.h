@@ -80,6 +80,13 @@ void rs_clear( remset_t *remset );
   /* Clears the remembered set.
      */
 
+bool rs_add_elems( remset_t *remset, seqbuf_t *ssb );
+  /* Copies the elements of ssb into remset.  Clears ssb.
+     Every element in ssb is subject to a collision check.
+
+     Returns TRUE if the remset overflowed during the addition.
+     */  
+
 bool rs_compact( remset_t *remset );
   /* Moves the contents of the set's SSB into the set and clears the SSB.
      Only entries not already in the set are added to the set, so every

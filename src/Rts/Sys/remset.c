@@ -206,7 +206,8 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
 }
 
 static int ssb_process( word *bot, word *top, void *ep_data ) {
-  return rs_compact( (remset_t*)ep_data );
+  remset_t *rs = (remset_t*)ep_data;
+  return rs_add_elems( rs, rs->ssb );
 }
 
 void rs_clear( remset_t *rs )
@@ -272,6 +273,11 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
 
 bool rs_compact( remset_t *rs )
 {
+  return rs_add_elems( rs, rs->ssb );
+}
+
+bool rs_add_elems( remset_t *rs, seqbuf_t *ssb ) 
+{
   word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
   unsigned recorded;
   remset_data_t *data = DATA(rs);
@@ -279,10 +285,10 @@ bool rs_compact( remset_t *rs )
   assert( WORDS_PER_POOL_ENTRY == 2 );
 
   supremely_annoyingmsg( "REMSET @0x%p: compact", (void*)rs );
-  data->stats.ssb_recorded += *rs->ssb->top - *rs->ssb->bot;
+  data->stats.ssb_recorded += *ssb->top - *ssb->bot;
 
-  p = *rs->ssb->bot;
-  q = *rs->ssb->top;
+  p = *ssb->bot;
+  q = *ssb->top;
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
   tbl = data->tbl_bot;
@@ -320,7 +326,7 @@ bool rs_compact( remset_t *rs )
   data->stats.recorded += recorded;
   rs->live += recorded;
   data->curr_pool->top = pooltop;
-  *rs->ssb->top = *rs->ssb->bot;
+  *ssb->top = *ssb->bot;
   data->stats.compacted++;
 
   supremely_annoyingmsg( "REMSET @0x%x: Added %u elements (total %u). oflo=%d",
