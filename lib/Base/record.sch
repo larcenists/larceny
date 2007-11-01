@@ -14,10 +14,11 @@
 ;   * Record-type-descriptors are records
 ;   * There are installable record printers
 ;
-; This implementation has been modified and extended to conform
+; That implementation has been modified and extended to conform
 ; to the procedural record layer (r6rs records procedural) that
-; is described in the 5.92 draft R6RS.  The R6RS extension is
-; at the bottom of this file.
+; is described in the 5.92 draft R6RS.
+;
+; Finally, the ERR5RS API is layered on top of the R6RS API.
 ;
 ; There are now two kinds of records, old-style and R6RS.
 ; The R6RS procedures have been extended to accept old-style
@@ -27,11 +28,18 @@
 ; returns a list when given an old-style record, but returns
 ; a vector when given an R6RS record.
 ;
+; FIXME:  The implementation is now incredibly crufty because
+; Will added the R6RS extensions before he really understood
+; the R6RS spec (which was in even worse shape at that time
+; than it is now).  The whole thing should be rewritten to
+; implement ERR5RS records natively, and Larceny's traditional
+; records and R6RS records should both be layered on top of
+; the ERR5RS API.
+;
+; FIXME:  This file belongs in src/Lib/Common.
+;
 ; FIXME:
 ;     all records are generative
-;     not checking sealed?
-;     not checking opaque?
-;     not checking mutability
 ;     make-record-constructor-descriptor should check its arguments
 ;         and should create sealed and immutable records
 ;     record-constructor may not be quite right
@@ -86,7 +94,10 @@
 (define record-type-opaque?)
 (define record-field-mutable?)
 
-(define (record-rtd rec) (record-type-descriptor rec))
+(define (record-rtd rec)
+  (if (record? rec)
+      (record-type-descriptor rec)
+      (assertion-violation 'record-rtd "illegal argument" rec)))
 
 (define make-record-constructor-descriptor)
 
@@ -383,7 +394,8 @@
                   (eq? (vector-ref r1-vector (+ r2-depth 1)) r2))))
 
          (define (make-record-type type-name field-names parent)
-           (or (not parent) (assert-rtd parent))
+           (if parent (and (assert-rtd parent)
+                           (assert (not (rtd-sealed? parent)))))
            (let* ((field-names
                    (if parent
                        (append (rtd-field-names parent)
@@ -471,7 +483,7 @@
                      (error "Illegal record field name: " k)))))
 
          (define (make-record-type-descriptor
-                  name parent uid sealed? opaque? fields)
+                  name parent uid sealed? opaque? fields0)
            (if (and (symbol? name)
                     (or (eq? parent #f)
                         (and (record-type-descriptor? parent)
@@ -482,8 +494,8 @@
                     (or (symbol? uid) (eq? uid #f))
                     (boolean? sealed?)
                     (boolean? opaque?)
-                    (vector? fields))
-               (do ((fields (reverse (vector->list fields)) (cdr fields))
+                    (vector? fields0))
+               (do ((fields (reverse (vector->list fields0)) (cdr fields))
                     (names '() (cons (cadar fields) names))
                     (mutabilities '()
                                   (cons (eq? (caar fields) 'mutable)
@@ -516,12 +528,17 @@
                                  (+ (length field-names) record-overhead)
                                  hierarchy-vector
                                  hierarchy-depth
-                                 #t uid sealed? opaque?
+                                 #t uid sealed?
+                                 (or opaque?
+                                     (and parent (rtd-opaque? parent)))
                                  names mutabilities #f)))
 
                       (vector-set! hierarchy-vector 0 rtd)
                       (vector-set! hierarchy-vector (+ hierarchy-depth 1) rtd)
-                      rtd))
+                      (if uid
+                          (lookup-nongenerative-rtd
+                           rtd name parent uid sealed? opaque? fields0)
+                          rtd)))
 
                  (if (let ((field (car fields)))
                        (or (not (list? field))
@@ -533,7 +550,7 @@
                             (car fields))))
                (error "Bad arguments to make-record-type-descriptor: "
                             (list name parent
-                                  uid sealed? opaque? fields))))
+                                  uid sealed? opaque? fields0))))
 
          (define (r6rs-record-constructor cd)
            (define wna
@@ -742,8 +759,6 @@
                  (vector-like-ref obj i))
                (error "Record index out of range: " rtd k))))
 
-         ; FIXME: check mutability
-
          (define (r6rs-record-mutator rtd k)
            (assert-rtd rtd)
            (assert-index k)
@@ -751,11 +766,17 @@
                   (field-names (rtd-field-names-r6rs rtd))
                   (n (rtd-record-size rtd))
                   (i (+ k (- n (length field-names)))))
-             (if (< i n)
-               (lambda (obj val)
-                 (assert-record-of-type obj rtd)
-                 (vector-like-set! obj i val))
-               (error "Record index out of range: " rtd k))))
+             (cond ((not (record-field-mutable? rtd k))
+                    (assertion-violation
+                     'r6rs-record-mutator "record field is immutable" rtd k))
+                   ((< i n)
+                    (lambda (obj val)
+                      (assert-record-of-type obj rtd)
+                      (vector-like-set! obj i val)))
+                   (else
+                    (assertion-violaton
+                     'r6rs-record-mutator
+                     "record index out of range: " rtd k)))))
 
          ; Helper functions.
 
@@ -803,7 +824,9 @@
           (lambda (rtd) (record-type-name rtd))
           (lambda (rtd1 rtd2) (record-type-extends? rtd1 rtd2))
           (lambda (rtd) (record-type-parent rtd))
-          (lambda (x) (record? x))
+          (lambda (x)
+            (and (record? x)
+                 (not (rtd-opaque? (record-type-descriptor x)))))
           (lambda (rtd . rest)
             (if (record-type-descriptor? rtd)
                 (record-constructor rtd (if (null? rest)
@@ -859,6 +882,40 @@
   (set! record-field-mutable? (list-ref interface 17))
   (set! make-record-type-descriptor (list-ref interface 18))
   'records)
+
+; Table of nongenerative record type descriptors.
+;
+; FIXME:  Should be a hashtable instead of an association list,
+; but programs that create infinitely many nongenerative record
+; types are probably broken anyway.
+;
+; FIXME:  The transaction should be atomic, as in a hashtable.
+
+(define record:nongenerative-rtds '())
+
+(define (lookup-nongenerative-rtd rtd name parent uid sealed? opaque? fields)
+  (let ((probe (assq uid record:nongenerative-rtds)))
+    (if probe
+        (let ((rtd0    (list-ref probe 1))
+              (name0   (list-ref probe 2))
+              (parent0 (list-ref probe 3))
+              (sealed0 (list-ref probe 4))
+              (opaque0 (list-ref probe 5))
+              (fields0 (list-ref probe 6)))
+          (if (and ; FIXME: not comparing names may be an error in the R6RS
+                   (eqv? parent0 parent)
+                   (eq? sealed0 sealed?)
+                   (eq? opaque0 opaque?)
+                   (equal? fields0 fields))
+              rtd0
+              (assertion-violation 'make-record-type-descriptor
+                                   "nongenerative record type"
+                                   name parent uid sealed? opaque? fields)))
+        (let* ((fields (vector-map list-copy fields))
+               (entry (list uid rtd name parent sealed? opaque? fields)))
+          (set! record:nongenerative-rtds
+                (cons entry record:nongenerative-rtds))
+          rtd))))
 
 ; R6RS constructor descriptors.  Ugh.
 
@@ -917,6 +974,189 @@
               (previous-printer obj port quote?))))))
   'records-printers)
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; FIXME:  This hack makes it unnecessary to edit library code.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-syntax library
+  (syntax-rules (export import)
+   ((library name (export x ...) (import y ...) form ...)
+    (begin form ...))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ERR5RS Records.
+;
+; This is a quick-and-dirty reference implementation that favors
+; simplicity over quality error messages and performance.  It is
+; implemented using the R6RS procedural and inspection layers,
+; with which it interoperates nicely.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; This library breaks a circular interdependence between the
+; procedural and inspection layers.
+
+(library (err5rs-helpers records rtd?)
+  (export rtd?)
+  (import (rnrs base) (rnrs records procedural))
+
+  (define rtd? record-type-descriptor?)
+
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; (err5rs records inspection)
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  
+(library (err5rs records inspection)
+
+  (export record? record-rtd
+          rtd-name rtd-parent
+          rtd-field-names rtd-all-field-names rtd-field-mutable?)
+
+  (import (rnrs base)
+          (rnrs lists)
+          (rnrs records inspection)
+          (err5rs-helpers records rtd?))
+
+  ; The record? predicate is already defined by (rnrs records inspection).
+  
+  ; The record-rtd procedure is already defined by (rnrs records inspection).
+  
+  (define rtd-name record-type-name)
+  
+  (define rtd-parent record-type-parent)
+  
+  (define rtd-field-names record-type-field-names)
+  
+  (define (rtd-all-field-names rtd)
+    (define (loop rtd othernames)
+      (let ((parent (rtd-parent rtd))
+            (names (append (vector->list
+                            (rtd-field-names rtd))
+                           othernames)))
+        (if parent
+            (loop parent names)
+            (list->vector names))))
+    (loop rtd '()))
+  
+  (define (rtd-field-mutable? rtd0 fieldname)
+    (define (loop rtd)
+      (if (rtd? rtd)
+          (let* ((names (vector->list (rtd-field-names rtd)))
+                 (probe (memq fieldname names)))
+            (if probe
+                (record-field-mutable? rtd (- (length names) (length probe)))
+                (loop (rtd-parent rtd))))
+          (assertion-violation 'rtd-field-mutable?
+                               "illegal argument" rtd0 fieldname)))
+    (loop rtd0))
+
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; (err5rs records procedural)
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (err5rs records procedural)
+
+  (export make-rtd rtd? rtd-constructor
+          rtd-predicate rtd-accessor rtd-mutator)
+
+  (import (rnrs base)
+          (rnrs lists)
+          (rnrs records procedural)
+          (err5rs records inspection))
+
+  (define (make-rtd name fieldspecs . rest)
+    (make-record-type-descriptor
+     name
+     (if (null? rest) #f (car rest))
+     #f #f #f
+     (vector-map (lambda (fieldspec)
+                   (if (symbol? fieldspec)
+                       (list 'mutable fieldspec)
+                       fieldspec))
+                 fieldspecs)))
+  
+  (define rtd? record-type-descriptor?)
+  
+  (define (rtd-constructor rtd . rest)
+  
+    ; Computes permutation and allocates permutation buffer
+    ; when the constructor is created, not when the constructor
+    ; is called.  More error checking is recommended.
+  
+    (define (make-constructor fieldspecs allnames maker)
+      (let* ((k (length fieldspecs))
+             (n (length allnames))
+             (buffer (make-vector n 'some-unspecified-value))
+             (reverse-all-names (reverse allnames)))
+  
+        (define (position fieldname)
+          (let ((names (memq fieldname reverse-all-names)))
+            (assert names)
+            (- (length names) 1)))
+  
+        (let ((indexes (map position fieldspecs)))
+  
+          ; The following can be made quite efficient by
+          ; hand-coding it in some lower-level language,
+          ; e.g. Larceny's mal.  Even case-lambda would
+          ; be good enough in most systems.
+  
+          (lambda args
+            (assert (= (length args) k))
+            (for-each (lambda (arg posn)
+                        (vector-set! buffer posn arg))
+                      args indexes)
+            (apply maker (vector->list buffer))))))
+  
+    (if (null? rest)
+        (record-constructor
+         (make-record-constructor-descriptor rtd #f #f))
+        (begin (assert (null? (cdr rest)))
+               (make-constructor
+                (vector->list (car rest))
+                (vector->list (rtd-all-field-names rtd))
+                (record-constructor
+                 (make-record-constructor-descriptor rtd #f #f))))))
+  
+  (define rtd-predicate record-predicate)
+  
+  (define (rtd-accessor rtd0 fieldname)
+    (define (loop rtd)
+      (if (rtd? rtd)
+          (let* ((names (vector->list (rtd-field-names rtd)))
+                 (probe (memq fieldname names)))
+            (if probe
+                (record-accessor rtd (- (length names) (length probe)))
+                (loop (rtd-parent rtd))))
+          (assertion-violation 'rtd-accessor
+                               "illegal argument" rtd0 fieldname)))
+    (loop rtd0))
+  
+  (define (rtd-mutator rtd0 fieldname)
+    (define (loop rtd)
+      (if (rtd? rtd)
+          (let* ((names (vector->list (rtd-field-names rtd)))
+                 (probe (memq fieldname names)))
+            (if probe
+                (record-mutator rtd (- (length names) (length probe)))
+                (loop (rtd-parent rtd))))
+          (assertion-violation 'rtd-mutator
+                               "illegal argument" rtd0 fieldname)))
+    (loop rtd0))
+
+  )
 
 ; eof
 
