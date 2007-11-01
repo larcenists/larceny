@@ -1418,35 +1418,6 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(library (rnrs unicode (6))
-  (export
-
-   char-upcase char-downcase char-titlecase char-foldcase
-   char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
-   char-alphabetic? char-numeric? char-whitespace?
-   char-upper-case? char-lower-case? char-title-case?
-   char-general-category
-
-   string-upcase string-downcase string-titlecase string-foldcase
-   string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?
-   string-normalize-nfd string-normalize-nfkd
-   string-normalize-nfc string-normalize-nfkc)
-
-  (import
-   (primitives
-
-    char-upcase char-downcase char-titlecase char-foldcase
-    char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
-    char-alphabetic? char-numeric? char-whitespace?
-    char-upper-case? char-lower-case? char-title-case?
-    char-general-category
-
-    string-upcase string-downcase string-titlecase string-foldcase
-    string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?
-    string-normalize-nfd string-normalize-nfkd
-    string-normalize-nfc string-normalize-nfkc))
-  )
-
 (library (rnrs bytevectors (6))
   (export
    endianness                                  ; deprecated
@@ -1550,32 +1521,6 @@
        (quote x)))))
 
   )
-
-(library (rnrs sorting (6))
-  (export list-sort vector-sort vector-sort!)
-  (import (primitives list-sort vector-sort vector-sort!)))
-
-(library (rnrs records procedural (6))
-  (export
-   make-record-type-descriptor record-type-descriptor?
-   make-record-constructor-descriptor record-constructor
-   record-predicate record-accessor record-mutator)
-  (import
-   (primitives
-    make-record-type-descriptor record-type-descriptor?
-    make-record-constructor-descriptor record-constructor
-    record-predicate record-accessor record-mutator)))
-
-(library (rnrs records inspection (6))
-  (export
-   record? record-rtd record-type-name record-type-parent record-type-uid
-   record-type-generative? record-type-sealed? record-type-opaque?
-   record-type-field-names record-field-mutable?)
-  (import
-   (primitives
-    record? record-rtd record-type-name record-type-parent record-type-uid
-    record-type-generative? record-type-sealed? record-type-opaque?
-    record-type-field-names record-field-mutable?)))
 
 ; FIXME: (rnrs records syntactic (6)) not yet implemented.
 
@@ -1787,10 +1732,6 @@
 
   )
 
-(library (rnrs files (6))
-  (export file-exists? delete-file)
-  (import (primitives file-exists? delete-file)))
-
 (library (rnrs programs (6))
   (export command-line exit)
   (import
@@ -1801,131 +1742,6 @@
   (define (command-line)
     (list->vector (cons 'larceny (vector->list (command-line-arguments)))))
   )
-
-(library (rnrs arithmetic fixnums (6))
-
-  (export
-   fixnum? fixnum-width least-fixnum greatest-fixnum
-   fx=? fx>? fx<? fx>=? fx<=?
-   fxzero? fxpositive? fxnegative?
-   fxodd? fxeven?
-   fxmax fxmin
-   fx+ fx- fx*
-   fxdiv-and-mod fxdiv fxmod
-   fxdiv0-and-mod0 fxdiv0 fxmod0
-   fx+/carry fx-/carry fx*/carry
-   fxnot fxand fxior fxxor
-   fxif fxbit-count fxlength
-   fxfirst-bit-set fxbit-set? fxcopy-bit fxbit-field fxcopy-bit-field
-   fxrotate-bit-field fxreverse-bit-field
-   fxarithmetic-shift fxarithmetic-shift-left fxarithmetic-shift-right)
-
-  (import
-   (primitives
-    fixnum? fixnum-width least-fixnum greatest-fixnum
-    fx=? fx>? fx<? fx>=? fx<=?
-    fxzero? fxpositive? fxnegative?
-    fxodd? fxeven?
-    fxmax fxmin
-    fx+ fx- fx*
-    fxdiv-and-mod fxdiv fxmod
-    fxdiv0-and-mod0 fxdiv0 fxmod0
-    fx+/carry fx-/carry fx*/carry
-    fxnot fxand fxior fxxor
-    fxif fxbit-count fxlength
-    fxfirst-bit-set fxbit-set? fxcopy-bit fxbit-field fxcopy-bit-field
-    fxrotate-bit-field fxreverse-bit-field
-    fxarithmetic-shift fxarithmetic-shift-left fxarithmetic-shift-right)))
-
-(library (rnrs arithmetic flonums (6))
-
-  (export
-   flonum?
-   real->flonum
-   fl=? fl<? fl>? fl<=? fl>=?
-   flinteger? flzero? flpositive? flnegative? flodd? fleven?
-   flfinite? flinfinite? flnan?
-   flmax flmin
-   fl+ fl* fl- fl/
-   flabs
-   fldiv-and-mod fldiv flmod
-   fldiv0-and-mod0 fldiv0 flmod0
-   flnumerator fldenominator
-   flfloor flceiling fltruncate flround
-   flexp fllog flsin flcos fltan flasin flacos flatan
-   flsqrt flexpt
-
-;  FIXME
-;  &no-infinities make-no-infinities-violation no-infinities-violation
-;  &no-nans make-no-nans-violation no-nans-violation
-
-   fixnum->flonum)
-
-  (import
-   (primitives
-    flonum?
-    real->flonum
-    fl=? fl<? fl>? fl<=? fl>=?
-    flinteger? flzero? flpositive? flnegative? flodd? fleven?
-    flfinite? flinfinite? flnan?
-    flmax flmin
-    fl+ fl* fl- fl/
-    flabs
-    fldiv-and-mod fldiv flmod
-    fldiv0-and-mod0 fldiv0 flmod0
-    flnumerator fldenominator
-    flfloor flceiling fltruncate flround
-    flexp fllog flsin flcos fltan flasin flacos flatan
-    flsqrt flexpt
-
-;   FIXME
-;   &no-infinities make-no-infinities-violation no-infinities-violation
-;   &no-nans make-no-nans-violation no-nans-violation
-
-    fixnum->flonum)))
-
-(library (rnrs arithmetic bitwise (6))
-
-  (export
-
-   bitwise-not
-   bitwise-and
-   bitwise-ior
-   bitwise-xor
-   bitwise-if
-   bitwise-bit-count
-   bitwise-length
-   bitwise-first-bit-set
-   bitwise-bit-set?
-   bitwise-copy-bit
-   bitwise-bit-field
-   bitwise-copy-bit-field
-   bitwise-rotate-bit-field
-   bitwise-reverse-bit-field
-   bitwise-arithmetic-shift
-   bitwise-arithmetic-shift-left
-   bitwise-arithmetic-shift-right)
-
-  (import
-   (primitives
-
-    bitwise-not
-    bitwise-and
-    bitwise-ior
-    bitwise-xor
-    bitwise-if
-    bitwise-bit-count
-    bitwise-length
-    bitwise-first-bit-set
-    bitwise-bit-set?
-    bitwise-copy-bit
-    bitwise-bit-field
-    bitwise-copy-bit-field
-    bitwise-arithmetic-shift
-    bitwise-arithmetic-shift-left
-    bitwise-arithmetic-shift-right
-    bitwise-rotate-bit-field
-    bitwise-reverse-bit-field)))
 
 (library (rnrs hashtables (6))
 
