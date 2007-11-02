@@ -42,11 +42,24 @@
         (and probe (cdr probe))))
     (define (adjust-case-sensitivity!)
       (case-sensitive? (get-feature 'case-sensitivity)))
+    (define (adjust-safety! safety)
+      (case safety
+       ((0 1)
+        (eval '(catch-undefined-globals #f)               ; FIXME
+              (interaction-environment)))))
+    (define (add-require-path! path)
+      (current-require-path (cons path (current-require-path))))
     (case (get-feature 'execution-mode)
      ((r5rs err5rs)
       (adjust-case-sensitivity!)
+      (if (< (get-feature 'safety) 1)                     ; FIXME
+          (adjust-safety! 1))                             ; FIXME
+      (let ((path (get-feature 'library-path)))
+        (if (not (string=? path ""))
+            (add-require-path! path)))
       (r5rs-entry-point argv))
      ((dargo)
+      (adjust-safety! 1)                                  ; FIXME
       (require 'r6rsmode)
       (let* ((pgm (get-feature 'top-level-program))
              (input (if (string=? pgm "")
