@@ -562,6 +562,22 @@
    ((_ exp0 exp1 ...)
     (if (not exp0) (begin exp1 ...)))))
 
+; Note: This relies on letrec* semantics for internal definitions.
+
+(define-syntax define-condition-type
+  (syntax-rules ()
+   ((define-condition-type <condition-type>
+      <supertype> <constructor> <predicate> (<field> <accessor>) ...)
+    (begin
+     (define <condition-type>
+       (make-rtd '<condition-type>
+                 (vector (list 'immutable '<field>) ...)
+                 <supertype>))
+     (define <constructor> (rtd-constructor <condition-type>))
+     (define <predicate> (rtd-predicate <condition-type>))
+     (define <accessor> (rtd-accessor <condition-type> '<field>))
+     ...))))
+
 ))  ; end of (for-each (lambda (x) (twobit-expand ...)) ...)
 
 (define-syntax-scope 'letrec)

@@ -558,6 +558,36 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ERR5RS standard libraries.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (err5rs records procedural)
+  (export
+   make-rtd rtd? rtd-constructor rtd-predicate rtd-accessor rtd-mutator)
+  (import
+   (primitives
+    make-rtd rtd? rtd-constructor rtd-predicate rtd-accessor rtd-mutator)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ERR5RS optional libraries.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (err5rs records inspection)
+  (export
+   record? record-rtd rtd-name rtd-parent
+   rtd-field-names rtd-all-field-names rtd-field-mutable?)
+  (import
+   (primitives
+    record? record-rtd rtd-name rtd-parent
+    rtd-field-names rtd-all-field-names rtd-field-mutable?)))
+
+; FIXME: (err5rs records syntactic) not yet implemented.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; R6RS standard libraries.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

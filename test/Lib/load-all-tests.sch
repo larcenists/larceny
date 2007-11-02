@@ -24,6 +24,7 @@
 (compile-file "regression.sch")
 (compile-file "wcm.sch")
 (compile-file "record.sch")
+(compile-file "condition.sch")
 
 (load "test.fasl")			; Scaffolding
 
@@ -46,6 +47,7 @@
 (load "regression.fasl")		; Past error cases
 (load "wcm.fasl")                       ; Continuation marks
 (load "record.fasl")                    ; Records
+(load "condition.fasl")                 ; Conditions
 
 (define (run-all-tests)
   (run-boolean-tests)
@@ -73,6 +75,7 @@
   (run-fixnum-tests)
   (run-wcm-tests)
   (run-record-tests)
+  (run-condition-tests)
   )
 
 

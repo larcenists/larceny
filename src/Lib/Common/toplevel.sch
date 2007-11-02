@@ -355,6 +355,8 @@
 
   (environment-set-macro! larc 'letrec* (usual-syntax 'letrec*))
   (environment-set-macro! larc 'assert (usual-syntax 'assert))
+  (environment-set-macro! larc 'define-condition-type
+                          (usual-syntax 'define-condition-type))
 
 ; Deprecated R6RS syntax.
 ;
@@ -405,6 +407,7 @@
   (environment-set! larc 'assv assv)
   (environment-set! larc 'cons* cons*)
   (environment-set! larc 'every? every?)
+  (environment-set! larc 'exists exists)
   (environment-set! larc 'filter filter)
   (environment-set! larc 'find find)
   (environment-set! larc 'find-if find-if)                              ; FIXME
@@ -413,6 +416,7 @@
   (environment-set! larc 'fold-right fold-right)
   (environment-set! larc 'foldl foldl)                                  ; FIXME
   (environment-set! larc 'foldr foldr)                                  ; FIXME
+  (environment-set! larc 'for-all for-all)
   (environment-set! larc 'improper-length improper-length)              ; FIXME
   (environment-set! larc 'last last)                                    ; FIXME
   (environment-set! larc 'last-pair last-pair)

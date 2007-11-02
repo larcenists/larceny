@@ -39,7 +39,6 @@
 ; FIXME:  This file belongs in src/Lib/Common.
 ;
 ; FIXME:
-;     all records are generative
 ;     make-record-constructor-descriptor should check its arguments
 ;         and should create sealed and immutable records
 ;     record-constructor may not be quite right
@@ -297,6 +296,7 @@
                      v))
                   (name
                    "record-type-descriptor-type"))
+
              (vector-like-set! x 0 x-hierarchy)
              (vector-like-set! x 1 name)
              (vector-like-set! x 2 slot-offsets)
@@ -741,9 +741,10 @@
                          ((= offset nlimit)
                           (if (null? inits)
                               r
-                              (error:constructor:wna rtd derived-inits)))
+                              (error:constructor:wna derived-rtd
+                                                     derived-inits)))
                        (if (null? inits)
-                           (error:constructor:wna rtd derived-inits)
+                           (error:constructor:wna derived-rtd derived-inits)
                            (vector-like-set! r offset (car inits)))))))))))
 
          (define (r6rs-record-accessor rtd k)
@@ -1076,16 +1077,29 @@
           (rnrs records procedural)
           (err5rs records inspection))
 
+  ; Note: the options are permitted by ERR5RS,
+  ; but are not part of ERR5RS.
+
   (define (make-rtd name fieldspecs . rest)
-    (make-record-type-descriptor
-     name
-     (if (null? rest) #f (car rest))
-     #f #f #f
-     (vector-map (lambda (fieldspec)
-                   (if (symbol? fieldspec)
-                       (list 'mutable fieldspec)
-                       fieldspec))
-                 fieldspecs)))
+    (let* ((parent (if (null? rest) #f (car rest)))
+           (options (if (null? rest) '() (cdr rest)))
+           (sealed? (and (memq 'sealed options) #t))
+           (opaque? (and (memq 'opaque options) #t))
+           (uid (let ((probe (memq 'uid options)))
+                  (if (and probe (not (null? (cdr probe))))
+                      (cadr probe)
+                      #f))))
+      (make-record-type-descriptor
+       name
+       parent
+       uid
+       sealed?
+       opaque?
+       (vector-map (lambda (fieldspec)
+                     (if (symbol? fieldspec)
+                         (list 'mutable fieldspec)
+                         fieldspec))
+                   fieldspecs))))
   
   (define rtd? record-type-descriptor?)
   
