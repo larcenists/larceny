@@ -76,6 +76,7 @@
 #include "remset_t.h"
 #include "gclib.h"
 #include "stats.h"
+#include "gc_t.h"
 
 /* This is an artifact of the low-level implementation of the hash pool;
    see comments above. */
@@ -118,7 +119,7 @@ static pool_t *allocate_pool_segment( unsigned entries );
 static void   free_pool_segments( pool_t *first, unsigned entries );
 static void ssb_consistency_check( remset_t *rs );
 
-static int ssb_process(word *bot, word *top, void *ep_data);
+static int ssb_process( gc_t *gc, word *bot, word *top, void *ep_data);
 
 remset_t *
 create_remset( int tbl_entries,    /* size of hash table, 0 = default */
@@ -205,9 +206,10 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
   return rs;
 }
 
-static int ssb_process( word *bot, word *top, void *ep_data ) {
+static int ssb_process( gc_t *gc, word *bot, word *top, void *ep_data ) {
   remset_t *rs = (remset_t*)ep_data;
-  return rs_add_elems( rs, rs->ssb );
+  remset_t **remset = gc->remset;
+  return rs_add_elems( remset, rs->ssb );
 }
 
 void rs_clear( remset_t *rs )
@@ -273,11 +275,6 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
 
 bool rs_compact( remset_t *rs )
 {
-  return rs_add_elems( rs, rs->ssb );
-}
-
-bool rs_add_elems( remset_t *rs, seqbuf_t *ssb ) 
-{
   word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
   unsigned recorded;
   remset_data_t *data = DATA(rs);
@@ -285,10 +282,10 @@ bool rs_add_elems( remset_t *rs, seqbuf_t *ssb )
   assert( WORDS_PER_POOL_ENTRY == 2 );
 
   supremely_annoyingmsg( "REMSET @0x%p: compact", (void*)rs );
-  data->stats.ssb_recorded += *ssb->top - *ssb->bot;
+  data->stats.ssb_recorded += *rs->ssb->top - *rs->ssb->bot;
 
-  p = *ssb->bot;
-  q = *ssb->top;
+  p = *rs->ssb->bot;
+  q = *rs->ssb->top;
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
   tbl = data->tbl_bot;
@@ -326,13 +323,74 @@ bool rs_add_elems( remset_t *rs, seqbuf_t *ssb )
   data->stats.recorded += recorded;
   rs->live += recorded;
   data->curr_pool->top = pooltop;
-  *ssb->top = *ssb->bot;
+  *rs->ssb->top = *rs->ssb->bot;
   data->stats.compacted++;
 
   supremely_annoyingmsg( "REMSET @0x%x: Added %u elements (total %u). oflo=%d",
                          (word)rs, recorded, rs->live, rs->has_overflowed);
 
   return rs->has_overflowed;
+}
+
+bool rs_add_elems( remset_t **remset, seqbuf_t *ssb ) 
+{
+  word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
+  unsigned recorded;
+  remset_t *rs;
+  int gno;
+  bool overflowed = FALSE;
+
+  assert( WORDS_PER_POOL_ENTRY == 2 );
+
+  p = *ssb->bot;
+  q = *ssb->top;
+  recorded = 0;
+
+  /* (The scan is down for historical reasons that no longer apply.) */
+
+  while (q > p) {
+    q--;
+    w = *q;
+    w = retagptr(w);           /* See NOTE 2 above. */
+    if (!w) 
+      continue;                /* Remove the entry! */
+    gno = gclib_desc_g[pageof(w)];
+    rs = remset[gno];
+    DATA(rs)->stats.ssb_recorded += 1;
+    pooltop = DATA(rs)->curr_pool->top;
+    poollim = DATA(rs)->curr_pool->lim;
+    tbl = DATA(rs)->tbl_bot;
+    tblsize = DATA(rs)->tbl_lim - tbl;
+    mask = tblsize-1;
+
+    h = hash_object( w, mask );
+    b = (word*)tbl[ h ];
+    while (b != 0 && *b != w) 
+      b = (word*)*(b+1);
+    if (b == 0) {
+      if (pooltop == poollim) {
+	handle_overflow( rs, recorded, pooltop );
+	recorded = 0;
+	pooltop = DATA(rs)->curr_pool->top;
+	poollim = DATA(rs)->curr_pool->lim;
+	overflowed = TRUE;
+      }
+      *pooltop = w;
+      *(pooltop+1) = tbl[h];
+      tbl[h] = (word)pooltop;
+      pooltop += 2;
+      recorded++;
+    }
+    
+    DATA(rs)->stats.recorded += recorded;
+    rs->live += recorded;
+    DATA(rs)->curr_pool->top = pooltop;
+    DATA(rs)->stats.compacted++;
+  }
+
+  *ssb->top = *ssb->bot;
+
+  return overflowed;
 }
 
 bool rs_compact_nocheck( remset_t *rs )

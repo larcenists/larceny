@@ -56,12 +56,12 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
   return ssb;
 }
 
-int process_seqbuf( seqbuf_t *ssb ) 
+int process_seqbuf( gc_t *gc, seqbuf_t *ssb ) 
 {
   int retval;
   
   void *sp_data = DATA(ssb)->sp_data;
-  retval = DATA(ssb)->ep( *ssb->bot, *ssb->top, sp_data );
+  retval = DATA(ssb)->ep( gc, *ssb->bot, *ssb->top, sp_data );
   *ssb->top = *ssb->bot;
   return retval;
 }

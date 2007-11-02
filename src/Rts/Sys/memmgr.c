@@ -554,12 +554,12 @@ enumerate_remsets_older_than( gc_t *gc,
   if (!DATA(gc)->is_generational_system) return;
 
   for ( i = generation+1 ; i < DATA(gc)->generations ; i++ ) {
-    process_seqbuf( gc->remset[i]->ssb );
+    process_seqbuf( gc, gc->remset[i]->ssb );
     rs_enumerate( gc->remset[i], f, fdata );
   }
 
   if (enumerate_np_young) {
-    process_seqbuf( gc->remset[ gc->np_remset ] );
+    process_seqbuf( gc, gc->remset[ gc->np_remset ]->ssb );
     rs_enumerate( gc->remset[ gc->np_remset ], f, fdata );
   }
 }
@@ -671,7 +671,7 @@ static int compact_all_ssbs( gc_t *gc )
 
   overflowed = 0;
   for ( i=1 ; i < gc->remset_count ; i++ )
-    overflowed = process_seqbuf( gc->remset[i]->ssb ) || overflowed;
+    overflowed = process_seqbuf( gc, gc->remset[i]->ssb ) || overflowed;
   return overflowed;
 }
 
