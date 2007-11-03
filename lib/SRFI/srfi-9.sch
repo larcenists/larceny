@@ -18,7 +18,7 @@
 ; This implementation uses the R3RS-proposed record package to do the
 ; dirty work.
 
-(require 'record)
+; The aforementioned record package is now part of Lib/Common
 
 ; NOTE, this can only be used predictably on the top level; if used
 ; where internal definitions may be used, the definitions may be

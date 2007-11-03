@@ -229,12 +229,6 @@
 ;(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
 ;(load "Experimental/exception.sch")
 
-; FIXME: std-ffi.sch does a (require 'record), which
-; has the effect of loading record.sch twice.  Since
-; the *rtd-type* is generative, anything that's
-; loaded between record.sch and std-ffi.sch gets
-; screwed.
-
 (compat:load (param-filename 'auxiliary "std-ffi.sch"))
 (compat:load (param-filename 'auxiliary "unix-functions.sch"))
 (compat:load "lib/Experimental/system-stuff.sch")

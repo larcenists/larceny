@@ -8,8 +8,6 @@
 ;; temporarily divert them to the instrumenting code
 (require 'trace)
 
-(require 'record)
-
 (define accum-profile-rt 
   (make-record-type "accum-profile" '(times wrap-records) #f))
 

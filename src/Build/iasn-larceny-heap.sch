@@ -260,7 +260,6 @@
 ;;; FIXME: Some of these files could usefully be loaded in private namespaces.
 
 (compat:load (param-filename 'auxiliary "macros.sch"))
-(compat:load (param-filename 'auxiliary "record.sch")) ; Record package
 ;(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
 ;(load "Experimental/exception.sch")
 (compat:load (param-filename 'auxiliary "std-ffi.sch"))

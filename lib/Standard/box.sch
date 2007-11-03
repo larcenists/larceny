@@ -18,8 +18,6 @@
 ;    tell the expander that literal structures in the data stream are 
 ;    in fact constants -- just like procedures.
 
-(require 'record)
-
 (define box)
 (define box?)
 (define unbox)

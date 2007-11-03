@@ -73,7 +73,6 @@
 ;          (error "This is a test.")))))
 
 '(require 'macros)                      ; PARAMETERIZE and other syntax
-'(require 'record)                      ; Record system (used by DEFINE-RECORD)
 '(require 'define-record)               ; DEFINE-RECORD syntax
 
 (define exception/token (vector 'exception))

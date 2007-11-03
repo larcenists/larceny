@@ -337,6 +337,7 @@
             during
             (lambda () (set! *cms* cms) (after)))))))
 
+;;; FIXME: can we put all these back, now that records are in Lib/Common?
 ;; This would be nice, but we don't have records everywhere yet.
 ;(require 'record)
 ;
