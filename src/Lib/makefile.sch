@@ -311,6 +311,7 @@
 
 ;; set within def. of dotnet-heap-project because that's where
 ;; the filenames are available with the least effort.
+
 (define remove-dotnet-heap-objects #f)
 
 (define dotnet-heap-project
@@ -322,9 +323,11 @@
                    ".manifest"
                    common-heap-files
                    `((primops
-                      . ,(param-filename 'source "Arch" "IL" "primops.manifest"))
+                      . ,(param-filename 'source "Arch" "IL"
+                                         "primops.manifest"))
                      (toplevel-target
-                      . ,(param-filename 'source "Arch" "IL" "toplevel-target.manifest"))
+                      . ,(param-filename 'source "Arch" "IL"
+                                         "toplevel-target.manifest"))
                      (flonum-endian
                       . ,(common-endian "flonums" ".manifest"))
                      (bignum-endian
@@ -332,7 +335,8 @@
                      (osdep
                       . ,(common-relative osdep-file))
                      (extra
-                      . ,(param-filename 'source "Arch" "IL" "loadable.manifest")))))
+                      . ,(param-filename 'source "Arch" "IL"
+                                         "loadable.manifest")))))
          (dotnet-eval-files
           (objects "" ".manifest" eval-files))
          (mzscheme-source-target/keywords
@@ -344,7 +348,8 @@
          (mzscheme-source-dependency
           (lambda (name source)
             (list (string-append (nbuild-parameter 'mzscheme-source) name)
-                  (list (string-append (nbuild-parameter 'mzscheme-source) source)))))
+                  (list (string-append (nbuild-parameter 'mzscheme-source)
+                                       source)))))
 	 (common-larceny/debug
 	  (string-append (pathname-append "bin" "Debug") "CommonLarceny"))
 	 (common-larceny/release
@@ -353,6 +358,7 @@
           (objects "" ".manifest" mzscheme-files)))
 
     ;; a handy procedure to delete all the intermediate files
+
     (set! remove-dotnet-heap-objects
           (lambda ()
             (let* ((manifest-files (append dotnet-mzscheme-files
