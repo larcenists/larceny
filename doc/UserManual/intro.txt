@@ -5,18 +5,18 @@ anchor:TheIntroduction[the introduction]
 
 Installing and Running Twobit and Larceny
 
+If you are installing or running Common Larceny, please
+consult the
+http://larceny.ccs.neu.edu[Common Larceny User Manual]
+instead of becoming confused by the instructions below.
+
 === Installing the programs
 
 Twobit and Larceny are distributed in two forms: as a precompiled
-binary such as larceny-X.Y-bin-native-ia32-win32.tar.gz
-(where X.Y is a version number, "bin" indicates a precompiled
-binary, "native" means it compiles incrementally to native code,
-"ia32" identifies the target processor, and "win32" identifies
-an operating system),
-or as a source tree (larceny-X.Y-src.tar.gz) that can be used
-to reconstruct any of the precompiled binary distributions.
-Unless you intend to change Larceny's source code, you do not
-need to download the source tree.
+binary, or as source code that can be used to reconstruct
+any of the precompiled binary distributions.
+Unless you intend to modify Larceny yourself, you do not
+need to download the source code.
 
 Unpack the distribution files with an appropriate command such
 as one of the following:
@@ -27,7 +27,6 @@ as one of the following:
         tar -xzf larceny-X.Y-bin-native-ia32-linux86.tar.gz
         tar -xzf larceny-X.Y-bin-native-ia32-win32.tar.gz
         tar -xzf larceny-X.Y-bin-petit-stdc-macosx.tar.gz
-        tar -xzf larceny-X.Y-bin-common-cls-win32.tar.gz
         tar -xzf larceny-X.Y-src.tar.gz
     
 
@@ -54,8 +53,8 @@ files from a binary distribution of Larceny.
 
 The scripts and heap images are discussed in the following section. 
 
-You should decide where you want to install Twobit and Larceny; say
-you want to install them in /usr/local/bin and
+You should decide where you want to install Twobit and Larceny;
+let's suppose you want to install them in /usr/local/bin and
 /usr/local/lib/larceny. Copy the files larceny and
 twobit to /usr/local/bin and edit the definition of the
 variable LARCENY_PATH at the head of each file to point to the correct
@@ -65,19 +64,20 @@ directory:
         LARCENY_PATH=/usr/local/lib/larceny
     
 
-Then, move or copy larceny.bin, larceny.heap, twobit.heap,
+Then move or copy larceny.bin, larceny.heap, twobit.heap,
 startup.sch, and the lib directory to /usr/local/lib/larceny.
 
-You should now be able to run Larceny by typing "`larceny`" at the
+You should now be able to run Larceny by typing "`larceny`" at a
 Unix prompt, and similarly you should be able to run the Twobit
-compiler by typing "`twobit`".
+compiler by typing "`twobit`".  On Windows, type "`larceny.bat`"
+or "`twobit.bat`".
 
 === Larceny or Twobit?
 
-Unless you are doing compiler development, you should probably use the
-"`larceny`" script instead of the "`twobit`" script. The difference
-between these two scripts is that `larceny` runs the heap image named
-"larceny.heap" while `twobit` runs the heap image named "twobit.heap".
+Unless you are doing compiler development, you should use the
+"`larceny`" script, not the "`twobit`" script. The difference
+is that `larceny` runs the heap image named "larceny.heap"
+while `twobit` runs the heap image named "twobit.heap".
 
 Both of these heap images contain the Twobit compiler and the
 `compile-file` procedure that is used to compile files of Scheme code,
