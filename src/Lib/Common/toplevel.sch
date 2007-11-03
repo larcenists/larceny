@@ -639,6 +639,14 @@
   (environment-set! larc 'flexpt flexpt)
   (environment-set! larc 'fixnum->flonum fixnum->flonum)
 
+  (environment-set! larc '&no-infinities &no-infinities)
+  (environment-set! larc 'make-no-infinities-violation
+                    make-no-infinities-violation)
+  (environment-set! larc 'no-infinities-violation? no-infinities-violation?)
+  (environment-set! larc '&no-nans &no-nans)
+  (environment-set! larc 'make-no-nans-violation make-no-nans-violation)
+  (environment-set! larc 'no-nans-violation? no-nans-violation?)
+
   (environment-set! larc 'bitwise-not bitwise-not)
   (environment-set! larc 'bitwise-and bitwise-and)
   (environment-set! larc 'bitwise-ior bitwise-ior)
@@ -1115,6 +1123,58 @@
   (environment-set! larc 'put-char put-char)
   (environment-set! larc 'put-string put-string)
   (environment-set! larc 'put-datum put-datum)
+
+  (environment-set! larc '&i/o &i/o)
+  (environment-set! larc 'make-i/o-error make-i/o-error)
+  (environment-set! larc 'i/o-error? i/o-error?)
+  (environment-set! larc '&i/o-read &i/o-read)
+  (environment-set! larc 'make-i/o-read-error make-i/o-read-error)
+  (environment-set! larc 'i/o-read-error? i/o-read-error?)
+  (environment-set! larc '&i/o-write &i/o-write)
+  (environment-set! larc 'make-i/o-write-error make-i/o-write-error)
+  (environment-set! larc 'i/o-write-error? i/o-write-error?)
+  (environment-set! larc '&i/o-invalid-position &i/o-invalid-position)
+  (environment-set! larc 'make-i/o-invalid-position-error
+                    make-i/o-invalid-position-error)
+  (environment-set! larc 'i/o-invalid-position-error?
+                    i/o-invalid-position-error?)
+  (environment-set! larc 'i/o-error-position i/o-error-position)
+  (environment-set! larc '&i/o-filename &i/o-filename)
+  (environment-set! larc 'make-i/o-filename-error make-i/o-filename-error)
+  (environment-set! larc 'i/o-filename-error? i/o-filename-error?)
+  (environment-set! larc 'i/o-error-filename i/o-error-filename)
+  (environment-set! larc '&i/o-file-protection &i/o-file-protection)
+  (environment-set! larc 'make-i/o-file-protection-error
+                    make-i/o-file-protection-error)
+  (environment-set! larc 'i/o-file-protection-error?
+                    i/o-file-protection-error?)
+  (environment-set! larc '&i/o-file-is-read-only &i/o-file-is-read-only)
+  (environment-set! larc 'make-i/o-file-is-read-only-error
+                    make-i/o-file-is-read-only-error)
+  (environment-set! larc 'i/o-file-is-read-only-error?
+                    i/o-file-is-read-only-error?)
+  (environment-set! larc '&i/o-file-already-exists &i/o-file-already-exists)
+  (environment-set! larc 'make-i/o-file-already-exists-error
+                    make-i/o-file-already-exists-error)
+  (environment-set! larc 'i/o-file-already-exists-error?
+                    i/o-file-already-exists-error?)
+  (environment-set! larc '&i/o-file-does-not-exist &i/o-file-does-not-exist)
+  (environment-set! larc 'make-i/o-file-does-not-exist-error
+                    make-i/o-file-does-not-exist-error)
+  (environment-set! larc 'i/o-file-does-not-exist-error?
+                    i/o-file-does-not-exist-error?)
+  (environment-set! larc '&i/o-port &i/o-port)
+  (environment-set! larc 'make-i/o-port-error make-i/o-port-error)
+  (environment-set! larc 'i/o-port-error? i/o-port-error?)
+  (environment-set! larc 'i/o-error-port i/o-error-port)
+
+  (environment-set! larc '&i/o-decoding &i/o-decoding)
+  (environment-set! larc 'make-i/o-decoding-error make-i/o-decoding-error)
+  (environment-set! larc 'i/o-decoding-error? i/o-decoding-error?)
+  (environment-set! larc '&i/o-encoding &i/o-encoding)
+  (environment-set! larc 'make-i/o-encoding-error make-i/o-encoding-error)
+  (environment-set! larc 'i/o-encoding-error? i/o-encoding-error?)
+  (environment-set! larc 'i/o-encoding-error-char i/o-encoding-error-char)
 
   ;; FIXME: deprecated procedures
 

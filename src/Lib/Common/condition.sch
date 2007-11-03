@@ -17,8 +17,6 @@
    ((library name (export x ...) (import y ...) form ...)
     (begin form ...))))
 
-(define FIXME ($$trace "condition 0"))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; R6RS conditions.
@@ -57,8 +55,6 @@
           (err5rs records procedural)
           (err5rs records inspection))
 
-(define FIXME ($$trace "condition 00"))
-
   (define &condition
    (make-rtd '&condition '#()))
 
@@ -68,19 +64,13 @@
   ;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define FIXME ($$trace "condition 1"))
-
   (define &compound-condition
     (make-rtd '&compound-condition
               '#((immutable components))   ; a list of simple conditions
               &condition
               'sealed))
 
-(define FIXME ($$trace "condition 2"))
-
   (define make-compound-condition (rtd-constructor &compound-condition))
-
-(define FIXME ($$trace "condition 3"))
 
   (define compound-condition? (rtd-predicate &compound-condition))
 
@@ -148,8 +138,6 @@
                      (proc (car components)))))))
         (complain)))
 
-(define FIXME ($$trace "condition 4"))
-
   ; define-condition-type is defined in Compiler/usual.sch
   ;
   ; Note: This relies on letrec* semantics for internal definitions.
@@ -174,8 +162,6 @@
     make-message-condition message-condition?
     (message condition-message))
   
-(define FIXME ($$trace "condition 5"))
-
   (define-condition-type &warning &condition
     make-warning warning?)
   
@@ -220,3 +206,99 @@
   
   )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; These conditions are exported by R6RS standard libraries other
+; than (rnrs conditions).
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (larceny conditions other-r6rs)
+
+  (export
+   &i/o make-i/o-error i/o-error?
+   &i/o-read make-i/o-read-error i/o-read-error?
+   &i/o-write make-i/o-write-error i/o-write-error?
+   &i/o-invalid-position make-i/o-invalid-position-error
+   i/o-invalid-position-error? i/o-error-position
+   &i/o-filename make-i/o-filename-error i/o-filename-error?
+   i/o-error-filename
+   &i/o-file-protection make-i/o-file-protection-error
+   i/o-file-protection-error?
+   &i/o-file-is-read-only make-i/o-file-is-read-only-error
+   i/o-file-is-read-only-error?
+   &i/o-file-already-exists make-i/o-file-already-exists-error
+   i/o-file-already-exists-error?
+   &i/o-file-does-not-exist make-i/o-file-does-not-exist-error
+   i/o-file-does-not-exist-error?
+   &i/o-port make-i/o-port-error i/o-port-error? i/o-error-port
+
+   &i/o-decoding make-i/o-decoding-error i/o-decoding-error?
+   &i/o-encoding make-i/o-encoding-error i/o-encoding-error?
+   i/o-encoding-error-char
+
+   &no-infinities make-no-infinities-violation no-infinities-violation?
+   &no-nans make-no-nans-violation no-nans-violation?)
+
+  (import (rnrs base) (rnrs conditions))
+
+  ; These conditions are exported by both (rnrs io ports)
+  ; and (rnrs io simple).
+
+  (define-condition-type &i/o &error
+    make-i/o-error i/o-error?)
+
+  (define-condition-type &i/o-read &i/o
+    make-i/o-read-error i/o-read-error?)
+
+  (define-condition-type &i/o-write &i/o
+    make-i/o-write-error i/o-write-error?)
+
+  (define-condition-type &i/o-invalid-position &i/o
+    make-i/o-invalid-position-error
+    i/o-invalid-position-error?
+    (position i/o-error-position))
+
+  (define-condition-type &i/o-filename &i/o
+    make-i/o-filename-error i/o-filename-error?
+    (filename i/o-error-filename))
+
+  (define-condition-type &i/o-file-protection
+      &i/o-filename
+    make-i/o-file-protection-error
+    i/o-file-protection-error?)
+
+  (define-condition-type &i/o-file-is-read-only &i/o-file-protection
+    make-i/o-file-is-read-only-error
+    i/o-file-is-read-only-error?)
+
+  (define-condition-type &i/o-file-already-exists &i/o-filename
+    make-i/o-file-already-exists-error
+    i/o-file-already-exists-error?)
+
+  (define-condition-type &i/o-file-does-not-exist &i/o-filename
+    make-i/o-file-does-not-exist-error
+    i/o-file-does-not-exist-error?)
+
+  (define-condition-type &i/o-port &i/o
+    make-i/o-port-error i/o-port-error?
+    (port i/o-error-port))
+
+  ; These conditions are exported by (rnrs io ports).
+
+  (define-condition-type &i/o-decoding &i/o-port
+    make-i/o-decoding-error i/o-decoding-error?)
+
+  (define-condition-type &i/o-encoding &i/o-port
+    make-i/o-encoding-error i/o-encoding-error?
+    (char i/o-encoding-error-char))
+
+  ; These conditions are exported by (rnrs arithmetic flonums).
+
+  (define-condition-type &no-infinities &implementation-restriction
+    make-no-infinities-violation
+    no-infinities-violation?)
+
+  (define-condition-type &no-nans &implementation-restriction
+    make-no-nans-violation no-nans-violation?)
+)
