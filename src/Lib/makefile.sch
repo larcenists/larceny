@@ -163,11 +163,12 @@
     "string"            ; string and bytevector procs
     "control"           ; control procedures
     "hash"              ; hash functions
-    "hashtable"         ; hashtables
     "preds"             ; some predicates
     "oblist"            ; symbol table
     "mcode"             ; millicode support
     "memstats"          ; runtime stats
+    "record"            ; records
+    "condition"         ; conditions
     "ecodes"            ; exception codes
     "ehandler"          ; exception handler
     "error"             ; error/reset system
@@ -175,6 +176,7 @@
     "exit"              ; exit procedure; exit/init hooks
     "dump"              ; dump-heap procedure
     "secret"            ; some "hidden" top-level names
+    "hashtable"         ; hashtables
     "unicode0"          ; general utility procedures for binary search
     "unicode1"          ; char-* procedures
     "unicode2"          ; the word-breaking algorithm defined by UAX #29
@@ -400,8 +402,6 @@
         ,(mzscheme-source-dependency "identifier.manifest" "identifier.sch")
         ("dotnet.heap" ,dotnet-heap-files)
         ("dotnet.heap" ,dotnet-eval-files)
-        ("dotnet.heap" ,(objects "" ".manifest" 
-                                 (param-filename 'auxiliary '("record"))))
         ("dotnet.heap" ,dotnet-mzscheme-files)
 
         (,common-larceny/debug ,dotnet-heap-files)
@@ -748,7 +748,7 @@
 
 (define auxlib-files
   '("misc" "list" "vector" "string" "pp" "io" "format" "load"
-    "osdep-unix" "osdep-win32" "record"))
+    "osdep-unix" "osdep-win32"))
 
 (define experimental-files
   ; (param-filename 'root "Lib" "Experimental

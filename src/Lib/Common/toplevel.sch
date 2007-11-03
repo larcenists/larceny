@@ -851,6 +851,119 @@
 
   (environment-set! larc 'call/cc call/cc)
 
+  ;; records
+
+  ;; (err5rs records procedural)
+
+  (environment-set! larc 'make-rtd make-rtd)
+  (environment-set! larc 'rtd? rtd?)
+  (environment-set! larc 'rtd-constructor rtd-constructor)
+  (environment-set! larc 'rtd-predicate rtd-predicate)
+  (environment-set! larc 'rtd-accessor rtd-accessor)
+  (environment-set! larc 'rtd-mutator rtd-mutator)
+
+  ;; (err5rs records inspection)
+
+  (environment-set! larc 'record? record?)
+  (environment-set! larc 'record-rtd record-rtd)
+  (environment-set! larc 'rtd-name rtd-name)
+  (environment-set! larc 'rtd-parent rtd-parent)
+  (environment-set! larc 'rtd-field-names rtd-field-names)
+  (environment-set! larc 'rtd-all-field-names rtd-all-field-names)
+  (environment-set! larc 'rtd-field-mutable? rtd-field-mutable?)
+
+  ;; (rnrs records procedural)
+
+  (environment-set! larc 'make-record-type-descriptor
+                    make-record-type-descriptor)
+  (environment-set! larc 'record-type-descriptor? record-type-descriptor?)
+  (environment-set! larc 'make-record-constructor-descriptor
+                    make-record-constructor-descriptor)
+  (environment-set! larc 'record-constructor record-constructor)
+  (environment-set! larc 'record-predicate record-predicate)
+  (environment-set! larc 'record-accessor record-accessor)
+  (environment-set! larc 'record-mutator record-mutator)
+
+  ;; (rnrs records inspection)
+
+  (environment-set! larc 'record-type-name record-type-name)
+  (environment-set! larc 'record-type-parent record-type-parent)
+  (environment-set! larc 'record-type-uid record-type-uid)
+  (environment-set! larc 'record-type-generative? record-type-generative?)
+  (environment-set! larc 'record-type-sealed? record-type-sealed?)
+  (environment-set! larc 'record-type-opaque? record-type-opaque?)
+  (environment-set! larc 'record-type-field-names record-type-field-names)
+  (environment-set! larc 'record-field-mutable? record-field-mutable?)
+
+  ;; Larceny's traditional records API, now deprecated.
+
+  (environment-set! larc 'make-record-type make-record-type)
+  (environment-set! larc 'record-type-extends? record-type-extends?)
+  (environment-set! larc 'record-updater record-updater)
+  (environment-set! larc 'record-type-descriptor record-type-descriptor)
+
+  (environment-set! larc 'record-indexer record-indexer) ; MzScheme
+
+  ;; conditions
+
+  (environment-set! larc '&condition &condition)
+  (environment-set! larc 'condition condition)
+  (environment-set! larc 'simple-conditions simple-conditions)
+  (environment-set! larc 'condition? condition?)
+  (environment-set! larc 'condition-predicate condition-predicate)
+  (environment-set! larc 'condition-accessor condition-accessor)
+  (environment-set-macro! larc 'define-condition-type
+                          (usual-syntax 'define-condition-type))
+  (environment-set! larc '&message &message)
+  (environment-set! larc 'make-message-condition make-message-condition)
+  (environment-set! larc 'message-condition? message-condition?)
+  (environment-set! larc 'condition-message condition-message)
+  (environment-set! larc '&warning &warning)
+  (environment-set! larc 'make-warning make-warning)
+  (environment-set! larc 'warning? warning?)
+  (environment-set! larc '&serious &serious)
+  (environment-set! larc 'make-serious-condition make-serious-condition)
+  (environment-set! larc 'serious-condition? serious-condition?)
+  (environment-set! larc '&error &error)
+  (environment-set! larc 'make-error make-error)
+  (environment-set! larc 'error? error?)
+  (environment-set! larc '&violation &violation)
+  (environment-set! larc 'make-violation make-violation)
+  (environment-set! larc 'violation? violation?)
+  (environment-set! larc '&assertion &assertion)
+  (environment-set! larc 'make-assertion-violation make-assertion-violation)
+  (environment-set! larc 'assertion-violation? assertion-violation?)
+  (environment-set! larc '&irritants &irritants)
+  (environment-set! larc 'make-irritants-condition make-irritants-condition)
+  (environment-set! larc 'irritants-condition? irritants-condition?)
+  (environment-set! larc 'condition-irritants condition-irritants)
+  (environment-set! larc '&who &who)
+  (environment-set! larc 'make-who-condition make-who-condition)
+  (environment-set! larc 'who-condition? who-condition?)
+  (environment-set! larc 'condition-who condition-who)
+  (environment-set! larc '&non-continuable &non-continuable)
+  (environment-set! larc 'make-non-continuable-violation
+                    make-non-continuable-violation)
+  (environment-set! larc 'non-continuable-violation?
+                    non-continuable-violation?)
+  (environment-set! larc '&implementation-restriction
+                    &implementation-restriction)
+  (environment-set! larc 'make-implementation-restriction-violation
+                    make-implementation-restriction-violation)
+  (environment-set! larc 'implementation-restriction-violation?
+                    implementation-restriction-violation?)
+  (environment-set! larc '&lexical &lexical)
+  (environment-set! larc 'make-lexical-violation make-lexical-violation)
+  (environment-set! larc 'lexical-violation? lexical-violation?)
+  (environment-set! larc '&syntax &syntax)
+  (environment-set! larc 'make-syntax-violation make-syntax-violation)
+  (environment-set! larc 'syntax-violation? syntax-violation?)
+  (environment-set! larc 'syntax-violation-form syntax-violation-form)
+  (environment-set! larc 'syntax-violation-subform syntax-violation-subform)
+  (environment-set! larc '&undefined &undefined)
+  (environment-set! larc 'make-undefined-violation make-undefined-violation)
+  (environment-set! larc 'undefined-violation? undefined-violation?)
+
   ;; io
 
   (environment-set! larc 'call-with-text-input-file call-with-text-input-file)

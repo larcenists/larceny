@@ -574,8 +574,10 @@
                  (vector (list 'immutable '<field>) ...)
                  <supertype>))
      (define <constructor> (rtd-constructor <condition-type>))
-     (define <predicate> (rtd-predicate <condition-type>))
-     (define <accessor> (rtd-accessor <condition-type> '<field>))
+     (define <predicate> (condition-predicate <condition-type>))
+     (define <accessor>
+       (condition-accessor <condition-type>
+                           (rtd-accessor <condition-type> '<field>)))
      ...))))
 
 ))  ; end of (for-each (lambda (x) (twobit-expand ...)) ...)

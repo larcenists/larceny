@@ -57,7 +57,6 @@
 ;;; Initialization
 
 (require 'ffi-load)
-(require 'record) ; for void* abstract record
 
 (define *ffi-architecture*)
 (define *ffi-callout-abi*)

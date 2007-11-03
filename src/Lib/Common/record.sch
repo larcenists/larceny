@@ -64,6 +64,8 @@
 ;     provided the inheritance depth of the expected record type
 ;     is no greater than record:hierarchy:min - 1
 
+($$trace "record")
+
 (define record:hierarchy:min 7)
 
 (define make-record-type)

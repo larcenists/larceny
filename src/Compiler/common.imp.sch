@@ -378,6 +378,7 @@
 (list 'define-syntax name:CALL
       (list 'syntax-rules
             '   (r4rs r5rs larceny quote lambda
+                 boolean?
                  car cdr
                  vector-length vector-ref vector-set!
                  string-length string-ref string-set!
@@ -388,7 +389,7 @@
                  endianness big little
                  bytevector-u8-ref bytevector-u8-set!
                  = < > <= >= + * - /
-                 abs negative? positive?
+                 abs negative? positive? min max
                  fx=? fx<? fx>? fx<=? fx>=?
                  fxzero? fxpositive? fxnegative?
                  fxmin fxmax
@@ -425,6 +426,9 @@
       (.check! (not (.=:fix:fix #x0000d800 (logand #x00fff800 k))))
       (.integer->char:trusted k)))
    
+`  ((_ larceny boolean? (boolean? ?x))
+    (let ((x ?x)) (or (eq? x #t) (eq? x #f))))
+
 `  ((_ larceny car (car x0))
     (let ((x x0))
       (.check! (pair? x) ,$ex.car x)
@@ -671,6 +675,26 @@
 
 `  ((_ larceny positive? (positive? ?x))
     (> ?x 0))
+
+`  ((_ larceny min (min ?x ?y))
+    (let ((x ?x) (y ?y))
+      (let ((r (if (<= x y) x y)))
+        (if (or (inexact? x) (inexact? y))
+            (+ r 0.0)
+            r))))
+`  ((_ larceny min (min ?x ?y ?z ...))
+    (let ((x ?x) (y (min ?y ?z ...)))
+      (min x y)))
+
+`  ((_ larceny max (max ?x ?y))
+    (let ((x ?x) (y ?y))
+      (let ((r (if (>= x y) x y)))
+        (if (or (inexact? x) (inexact? y))
+            (+ r 0.0)
+            r))))
+`  ((_ larceny max (max ?x ?y ?z ...))
+    (let ((x ?x) (y (max ?y ?z ...)))
+      (max x y)))
 
    ; Special cases for two or three arguments.
 

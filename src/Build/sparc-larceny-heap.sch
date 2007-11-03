@@ -222,19 +222,20 @@
 ;;; FIXME: Some of these files could usefully be loaded in private namespaces.
 
 (compat:load (param-filename 'auxiliary "macros.sch"))
-(compat:load (param-filename 'auxiliary "record.sch"))
 
+; The record system is now defined in Lib/Common/record.sch.
+
+;(compat:load (param-filename 'auxiliary "record.sch"))
 ;(load "Experimental/define-record.sch") ; DEFINE-RECORD syntax
 ;(load "Experimental/exception.sch")
 
 ; FIXME: std-ffi.sch does a (require 'record), which
 ; has the effect of loading record.sch twice.  Since
-; the *rtd-type* is nongenerative, anything that's
+; the *rtd-type* is generative, anything that's
 ; loaded between record.sch and std-ffi.sch gets
 ; screwed.
 
 (compat:load (param-filename 'auxiliary "std-ffi.sch"))
-(compat:load (param-filename 'auxiliary "condition.sch"))
 (compat:load (param-filename 'auxiliary "unix-functions.sch"))
 (compat:load "lib/Experimental/system-stuff.sch")
 ;(load "Experimental/applyhook0.fasl")

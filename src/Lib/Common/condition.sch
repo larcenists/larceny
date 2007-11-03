@@ -4,6 +4,8 @@
 ;
 ; R6RS conditions.
 
+($$trace "condition")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; FIXME:  This hack makes it unnecessary to edit library code.
@@ -14,6 +16,8 @@
   (syntax-rules (export import)
    ((library name (export x ...) (import y ...) form ...)
     (begin form ...))))
+
+(define FIXME ($$trace "condition 0"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -49,7 +53,11 @@
    &undefined make-undefined-violation undefined-violation?)
 
   (import (rnrs base)
-          (err5rs records procedural))
+          (rnrs lists)
+          (err5rs records procedural)
+          (err5rs records inspection))
+
+(define FIXME ($$trace "condition 00"))
 
   (define &condition
    (make-rtd '&condition '#()))
@@ -60,13 +68,19 @@
   ;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define FIXME ($$trace "condition 1"))
+
   (define &compound-condition
     (make-rtd '&compound-condition
               '#((immutable components))   ; a list of simple conditions
               &condition
               'sealed))
 
+(define FIXME ($$trace "condition 2"))
+
   (define make-compound-condition (rtd-constructor &compound-condition))
+
+(define FIXME ($$trace "condition 3"))
 
   (define compound-condition? (rtd-predicate &compound-condition))
 
@@ -134,28 +148,34 @@
                      (proc (car components)))))))
         (complain)))
 
-  ; Note: This relies on letrec* semantics for internal definitions.
+(define FIXME ($$trace "condition 4"))
 
-  (define-syntax define-condition-type
-    (syntax-rules ()
-     ((define-condition-type <condition-type>
-        <supertype> <constructor> <predicate> (<field> <accessor>) ...)
-      (begin
-       (define <condition-type>
-         (make-rtd '<condition-type>
-                   (vector (list 'immutable '<field>) ...)
-                   <supertype>))
-       (define <constructor> (rtd-constructor <condition-type>))
-       (define <predicate> (condition-predicate <condition-type>))
-       (define <accessor>
-         (condition-accessor <condition-type>
-                             (rtd-accessor <condition-type> '<field>)))
-       ...))))
+  ; define-condition-type is defined in Compiler/usual.sch
+  ;
+  ; Note: This relies on letrec* semantics for internal definitions.
+  ;
+ ;(define-syntax define-condition-type
+ ;  (syntax-rules ()
+ ;   ((define-condition-type <condition-type>
+ ;      <supertype> <constructor> <predicate> (<field> <accessor>) ...)
+ ;    (begin
+ ;     (define <condition-type>
+ ;       (make-rtd '<condition-type>
+ ;                 (vector (list 'immutable '<field>) ...)
+ ;                 <supertype>))
+ ;     (define <constructor> (rtd-constructor <condition-type>))
+ ;     (define <predicate> (condition-predicate <condition-type>))
+ ;     (define <accessor>
+ ;       (condition-accessor <condition-type>
+ ;                           (rtd-accessor <condition-type> '<field>)))
+ ;     ...))))
 
   (define-condition-type &message &condition
     make-message-condition message-condition?
     (message condition-message))
   
+(define FIXME ($$trace "condition 5"))
+
   (define-condition-type &warning &condition
     make-warning warning?)
   
