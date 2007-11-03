@@ -247,7 +247,11 @@
 
 (define (dynamic-wind before during after)
   (let ((here *here*))
-    (reroot! (cons (cons before after) here))
+    (let ((there (list #f)))
+      (before)
+      (set-car! *here* (cons after before))
+      (set-cdr! *here* there)
+      (set! *here* there))
     ;; Don't listify and respread the values.
     (call-with-values
      during
@@ -262,16 +266,20 @@
         (begin (reroot-loop (cdr there))
                ;; Reusing this cell cuts a significant
                ;; amount of consing.
-               (let* ((reuse-cell (car there))
-                      (before (car reuse-cell))
-                      (after  (cdr reuse-cell)))
+               (let* ((old-pair (car there))
+                      (before (car old-pair))
+                      (after  (cdr old-pair)))
+
+                 ; http://www.r6rs.org/r6rs-editors/2006-June/001319.html
+
+                 (set-car! *here* (cons after before))
+                 (set-cdr! *here* there)
                  (set-car! there #f)
                  (set-cdr! there '())
-                 (set-car! reuse-cell after)
-                 (set-cdr! reuse-cell before)
 
-                 (set-car! *here* reuse-cell)
-                 (set-cdr! *here* there)
+                ;(set-car! old-pair after)
+                ;(set-cdr! old-pair before)
+
                  (set! *here* there)
                  (before)))))
 
@@ -337,7 +345,6 @@
             during
             (lambda () (set! *cms* cms) (after)))))))
 
-;;; FIXME: can we put all these back, now that records are in Lib/Common?
 ;; This would be nice, but we don't have records everywhere yet.
 ;(require 'record)
 ;
