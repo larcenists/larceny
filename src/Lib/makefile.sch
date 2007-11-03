@@ -172,6 +172,7 @@
     "ecodes"            ; exception codes
     "ehandler"          ; exception handler
     "error"             ; error/reset system
+    "raise"             ; R6RS exception mechanism
     "timer"             ; timer interrupts
     "exit"              ; exit procedure; exit/init hooks
     "dump"              ; dump-heap procedure

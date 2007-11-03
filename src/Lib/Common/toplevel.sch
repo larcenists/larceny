@@ -912,6 +912,13 @@
 
   (environment-set! larc 'record-indexer record-indexer) ; MzScheme
 
+  ;; R6RS exception mechanism
+
+  (environment-set! larc 'with-exception-handler with-exception-handler)
+  (environment-set-macro! larc 'guard (usual-syntax 'guard))
+  (environment-set! larc 'raise raise)
+  (environment-set! larc 'raise-continuable raise-continuable)
+
   ;; conditions
 
   (environment-set! larc '&condition &condition)

@@ -62,3 +62,51 @@
    (test "(c1-a v5)" (c1-a v5) "a3")
    (test "(c2-b v5)" (c2-b v5) "b2")
    ))
+
+; FIXME: examples from R6RS library section 7.1.
+
+(define (condition-test-1)
+'
+  (guard (con
+          ((error? con)
+           (if (message-condition? con)
+               (display (condition-message con))
+               (display "an error has occurred"))
+           'error)
+          ((violation? con)
+           (if (message-condition? con)
+               (display (condition-message con))
+               (display "the program has a bug"))
+           'violation))
+    (raise
+     (condition
+      (make-error)
+      (make-message-condition "I am an error"))))
+'
+  (guard (con
+          ((error? con)
+           (if (message-condition? con)
+               (display (condition-message con))
+               (display "an error has occurred"))
+           'error))
+   (raise
+    (condition (make-violation)
+               (make-message-condition "I am an error"))))
+'
+  (with-exception-handler
+    (lambda (con)
+      (cond ((not (warning? con))
+             (raise con))
+            ((message-condition? con)
+             (display (condition-message con)))
+            (else
+             (display "a warning has been issued")))
+      42)
+    (lambda ()
+      (+ (raise-continuable
+          (condition
+           (make-warning)
+           (make-message-condition
+            "should be a number")))
+         23)))
+  )
