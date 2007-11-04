@@ -1,0 +1,12 @@
+#! /usr/bin/env bash
+
+LARCENY=${LARCENY:-"../../larceny"}
+
+echo; ${LARCENY} -r6rs < grabbag.sch
+echo; ${LARCENY} -r6rs -program grabbag.sch
+
+echo; time ${LARCENY} -r6rs -program nothing.sch
+echo; time ${LARCENY} -r6rs -program hello.sch
+echo; time ${LARCENY} -r6rs -program fib.sch     < fib.input
+echo; time ${LARCENY} -r6rs -program earley.sch  < earley.input
+echo; time ${LARCENY} -r6rs -program nboyer.sch  < nboyer.input

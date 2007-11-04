@@ -136,23 +136,33 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; FIXME:  This is an awful hack to connect two exception systems.
+; FIXME:  This is an awful hack to connect two exception systems
+; via the messages produced by Larceny.
 
 (define (decode-and-raise-r6rs-exception the-error)
   (let* ((out (open-output-string))
          (msg (begin (decode-error the-error out)
                      (get-output-string out)))
-         (msg (let* ((larceny-system-prefix "\nError: ")
-                     (n (string-length larceny-system-prefix)))
-                (if (and (< n (string-length msg))
-                         (string=? larceny-system-prefix
-                                   (substring msg 0 n)))
-                    (substring msg n (string-length msg))
-                    msg))))
+         (larceny-system-prefix "\nError: ")
+         (n (string-length larceny-system-prefix))
+         (larceny-style?
+          (and (< n (string-length msg))
+               (string=? larceny-system-prefix (substring msg 0 n))))
+         (msg (if larceny-style?
+                  (substring msg n (string-length msg))
+                  msg))
+         (chars (if larceny-style? (string->list msg) '()))
+         (colon (memq #\: chars))
+         (who (if colon
+                  (substring msg 0 (- (string-length msg) (length colon)))
+                  #f))
+         (msg (if colon (list->string (cdr colon)) msg))
+         (c0 (make-assertion-violation))
+         (c1 (make-message-condition msg)))
     (raise
-     (condition
-      (make-assertion-violation)
-      (make-message-condition msg)))))
+     (if who
+         (condition c0 (make-who-condition who) c1)
+         (condition c0 c1)))))
 
 (define (raise-r6rs-exception c0 who msg irritants)
   (let ((c1 (cond ((or (symbol? who) (string? who))

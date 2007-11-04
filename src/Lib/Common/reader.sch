@@ -8128,7 +8128,7 @@
     (define (set-mode! m)
       (let ()
         (case m
-         ((r6rs)
+         ((r6rs err5rs)
           (set-switches recognize-keywords?          #f
                         recognize-javadot-symbols?   #f
                         case-sensitive?              #t
@@ -8389,7 +8389,8 @@
           (let* ((n (string-length tokenValue))
                  (flag (string->symbol (substring tokenValue 2 n))))
             (case flag
-             ((fold-case no-fold-case r5rs larceny fasl slow fast safe unsafe)
+             ((fold-case no-fold-case
+               err5rs r5rs larceny fasl slow fast safe unsafe)
               (set-mode! flag)
               (unspecified))
              ((unspecified) (unspecified))
@@ -8690,19 +8691,25 @@
   
     (define (parse-error nonterminal expected-terminals)
       (let ((msg (string-append
-                  "Syntax error while parsing a "
+                  "Syntax error while parsing "
                   (symbol->string nonterminal)
                   (string #\newline)
                   "  Encountered "
                   (symbol->string (next-token))
-                  " while expecting something in"
-                  (string #\newline)
-                  "  "
-                  (apply string-append
-                         (map (lambda (terminal)
-                                (string-append " "
-                                               (symbol->string terminal)))
-                              expected-terminals)))))
+                  " while expecting "
+                  (case nonterminal
+                   ((<datum> <outermost-datum>)
+                    "a datum")
+                   (else
+                    (string-append
+                     (string #\newline)
+                     "  "
+                     (apply string-append
+                            (map (lambda (terminal)
+                                   (string-append " "
+                                                  (symbol->string terminal)))
+                                 expected-terminals)))))
+                  (string #\newline))))
         (error 'get-datum msg input-port)))
 
     ; The list of tokens that can start a datum in R6RS mode.

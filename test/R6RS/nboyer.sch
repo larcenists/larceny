@@ -528,7 +528,7 @@
                 (cons
                  (translate-term term)
                  (get (car (cadr term)) (quote lemmas)))))
-          (else (error "ADD-LEMMA did not like term:  " term))))
+          (else (error #f "ADD-LEMMA did not like term:  " term))))
   
   ; Translates a term by replacing its constructor symbols by symbol-records.
   
