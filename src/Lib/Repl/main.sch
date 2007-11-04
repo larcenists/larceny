@@ -36,21 +36,26 @@
   (enable-interrupts (standard-timeslice))
   (failsafe-load-init-files)
   (failsafe-process-arguments)
-  (let ((features (system-features)))
-    (define (get-feature name)
-      (let ((probe (assq name features)))
-        (and probe (cdr probe))))
-    (define (adjust-case-sensitivity!)
-      (case-sensitive? (get-feature 'case-sensitivity)))
-    (define (adjust-safety! safety)
-      (case safety
-       ((0 1)
-        (eval '(catch-undefined-globals #f)               ; FIXME
-              (interaction-environment)))))
-    (define (add-require-path! path)
-      (current-require-path (cons path (current-require-path))))
+  (let* ((features (system-features))
+         (get-feature
+          (lambda (name)
+            (let ((probe (assq name features)))
+              (and probe (cdr probe)))))
+         (adjust-case-sensitivity!
+          (lambda ()
+            (case-sensitive? (get-feature 'case-sensitivity))))
+         (adjust-safety!
+          (lambda (safety)
+            (case safety
+             ((0 1)
+              (eval '(catch-undefined-globals #f)               ; FIXME
+                    (interaction-environment))))))
+         (add-require-path!
+          (lambda (path)
+            (current-require-path (cons path (current-require-path)))))
+         (emode (get-feature 'execution-mode)))
 
-    (case (get-feature 'execution-mode)
+    (case emode
      ((r5rs err5rs)
       (adjust-case-sensitivity!)
       (if (< (get-feature 'safety) 1)                     ; FIXME
@@ -58,6 +63,18 @@
       (let ((path (get-feature 'library-path)))
         (if (not (string=? path ""))
             (add-require-path! path)))
+      (if (eq? emode 'err5rs)
+          (let ((env (interaction-environment)))
+            (eval '(begin
+                    (require 'r6rsmode)
+                    (larceny:load-r6rs-package))
+                  env)
+            (let* ((ex:repl (eval 'ex:repl env))
+                   (aeryn-evaluator
+                    (lambda (exp . rest)
+                      (ex:repl (list exp)))))
+              (load-evaluator aeryn-evaluator)
+              (repl-evaluator aeryn-evaluator))))
       (r5rs-entry-point argv))
 
      ; R6RS modes are batch modes, so we want to exit rather

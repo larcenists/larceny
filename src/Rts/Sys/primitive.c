@@ -265,12 +265,11 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     vector_set( v, 0, fixnum( 0 ) );  // bytevector
 #endif
     break;
-  /* FIXME: The rest of these aren't implemented yet. */
   case 12 : /* foldcase */
     vector_set( v, 0, fixnum( command_line_options.foldcase ) );
     break;
   case 13 : /* execmode */ {
-    int mode = 1;
+    int mode = 0;
     if (command_line_options.r5rs)
       mode = 0;
     if (command_line_options.err5rs)
