@@ -49,6 +49,7 @@
               (interaction-environment)))))
     (define (add-require-path! path)
       (current-require-path (cons path (current-require-path))))
+
     (case (get-feature 'execution-mode)
      ((r5rs err5rs)
       (adjust-case-sensitivity!)
@@ -58,22 +59,32 @@
         (if (not (string=? path ""))
             (add-require-path! path)))
       (r5rs-entry-point argv))
+
+     ; R6RS modes are batch modes, so we want to exit rather
+     ; than enter the debugger.
+
      ((dargo)
       (adjust-safety! 1)                                  ; FIXME
       (require 'r6rsmode)
-      (let* ((pgm (get-feature 'top-level-program))
-             (input (if (string=? pgm "")
-                        (do ((x (read) (read))
-                             (forms '() (cons x forms)))
-                            ((eof-object? x)
-                             (reverse forms)))
-                        pgm)))
-        (if (string? input)
-            (eval (list 'run-r6rs-program input)
-                  (interaction-environment))
-            (eval (list 'run-r6rs-forms (list 'quote input))
-                  (interaction-environment))))
-      (exit 0))
+      (parameterize ((error-handler
+                      (lambda the-error
+                        (parameterize ((print-length 7)
+                                       (print-level 7))
+                          (decode-and-raise-r6rs-exception the-error)))))
+        (let* ((pgm (get-feature 'top-level-program))
+               (input (if (string=? pgm "")
+                          (do ((x (read) (read))
+                               (forms '() (cons x forms)))
+                              ((eof-object? x)
+                               (reverse forms)))
+                          pgm)))
+          (if (string? input)
+              (eval (list 'run-r6rs-program input)
+                    (interaction-environment))
+              (eval (list 'run-r6rs-forms (list 'quote input))
+                    (interaction-environment))))
+        (exit 0)))
+
      ((spanky)
       (display "Larceny's R6RS-conforming mode isn't implemented yet.")
       (newline)

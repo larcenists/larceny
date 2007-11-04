@@ -1234,6 +1234,9 @@
                     current-continuation-structure)
   (environment-set! larc 'larceny-break larceny-break)
 
+  (environment-set! larc 'display-condition display-condition) ; FIXME
+  (environment-set! larc 'display-record display-record)       ; FIXME
+
   ;; property lists
 
   (environment-set! larc 'getprop getprop)

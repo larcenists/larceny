@@ -21,16 +21,23 @@
 
 ($$trace "raise")
 
-(define *current-exception-handlers*
-  (list (lambda (condition)
-          (error 'raise "unhandled exception" condition))))
+(define *basic-exception-handlers*
+  (list unhandled-exception-error))
+
+(define *current-exception-handlers* *basic-exception-handlers*)
+
+(define (custom-exception-handlers?)
+  (not (eq? *current-exception-handlers* *basic-exception-handlers*)))
 
 (define (with-exception-handler handler thunk)
   (with-exception-handlers (cons handler *current-exception-handlers*)
                            thunk))
 
 (define (with-exception-handlers new-handlers thunk)
-  (let ((previous-handlers *current-exception-handlers*))
+  (let ((previous-handlers *current-exception-handlers*)
+        (new-handlers (if (null? new-handlers)
+                          *basic-exception-handlers*
+                          new-handlers)))
     (dynamic-wind
       (lambda ()
         (set! *current-exception-handlers* new-handlers))

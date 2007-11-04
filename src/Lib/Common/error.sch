@@ -6,14 +6,42 @@
 
 ($$trace "error")
 
+; R6RS-style programs should never enter Larceny's debugger,
+; because Larceny's R6RS modes are designed for batch-mode
+; execution by people who don't know anything about Scheme.
+; Programmers should use ERR5RS mode instead of R6RS modes.
+
+(define (unhandled-exception-error x)
+  (let ((emode (cdr (assq 'execution-mode (system-features)))))
+    (case emode
+     ((dargo spanky)
+      (newline)
+      (display "Error: no handler for exception ")
+      (write x)
+      (newline)
+      (if (condition? x)
+          (display-condition x))
+      (newline)
+      (display "Terminating program execution.")
+      (newline)
+      (exit 1))
+     (else
+      (error 'raise "unhandled exception" x)))))
+
 ; Heuristically recognizes both R6RS-style and Larceny's old-style
 ; arguments.
+;
+; The R6RS exception mechanism is used if and only if
+;     the program is executing in an R6RS mode, or
+;     a custom exception handler is currently installed,
+;         and the arguments are acceptable to the R6RS.
 
 (define (error . args)
   (if (and (pair? args) (pair? (cdr args)))
       (let ((who (car args))
             (msg (cadr args))
             (irritants (cddr args))
+            (emode (cdr (assq 'execution-mode (system-features))))
             (handler (error-handler)))
         (define (separated irritants)
           (if (null? irritants)
@@ -21,18 +49,23 @@
               (cons " "
                     (cons (car irritants) (separated (cdr irritants))))))
         (if (string? msg)
-            (cond ((or (symbol? who) (string? who))
+            (cond ((or (memq emode '(dargo spanky))
+                       (and (custom-exception-handlers?)
+                            (or (symbol? who) (string? who) (eq? who #f))
+                            (string? msg)))
+                   (raise-r6rs-exception (make-error) who msg irritants))
+                  ((or (symbol? who) (string? who))
                    (apply handler who msg (separated irritants)))
                   ((eq? who #f)
                    (apply handler msg (separated irritants)))
                   (else
-                   ; old-style, not R6RS
+                   ; old-style
                    (apply handler '() args)))
             (apply handler '() args)))
       (apply (error-handler) '() args)))
 
 (define (assertion-violation who msg . irritants)
-  (apply error who msg irritants))
+  (raise-r6rs-exception (make-violation) who msg irritants))
 
 (define (reset)
   ((reset-handler)))
@@ -99,6 +132,53 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; Transition to R6RS conditions and exception mechanism.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; FIXME:  This is an awful hack to connect two exception systems.
+
+(define (decode-and-raise-r6rs-exception the-error)
+  (let* ((out (open-output-string))
+         (msg (begin (decode-error the-error out)
+                     (get-output-string out)))
+         (msg (let* ((larceny-system-prefix "\nError: ")
+                     (n (string-length larceny-system-prefix)))
+                (if (and (< n (string-length msg))
+                         (string=? larceny-system-prefix
+                                   (substring msg 0 n)))
+                    (substring msg n (string-length msg))
+                    msg))))
+    (raise
+     (condition
+      (make-assertion-violation)
+      (make-message-condition msg)))))
+
+(define (raise-r6rs-exception c0 who msg irritants)
+  (let ((c1 (cond ((or (symbol? who) (string? who))
+                   (make-who-condition who))
+                  ((eq? who #f)
+                   #f)
+                  (else
+                   (condition
+                    (make-violation)
+                    (make-who-condition 'make-who-condition)
+                    (make-irritants-condition (list who))))))
+        (c2 (cond ((string? msg)
+                   (make-message-condition msg))
+                  (else
+                   (condition
+                    (make-assertion-violation)
+                    (make-who-condition 'make-message-condition)
+                    (make-irritants-condition (list msg))))))
+        (c3 (make-irritants-condition irritants)))
+    (raise
+     (if who
+         (condition c0 c1 c2 c3)
+         (condition c0 c2 c3)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Warns of deprecated features.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -124,5 +204,39 @@
 ; been issued.
 
 (define already-warned '())
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; FIXME: temporary hack, doesn't belong here
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (display-condition x . rest)
+  (let ((out (if (null? rest) (current-output-port) (car rest))))
+    (if (compound-condition? x)
+        (begin (display "Compound condition has these components: ")
+               (newline)
+               (for-each (lambda (c) (display-record c out))
+                         (simple-conditions x)))
+        (apply display-record x rest))))
+
+(define (display-record x . rest)
+  (assert (record? x))
+  (parameterize ((print-length 7)
+                 (print-level 7))
+    (let* ((out (if (null? rest) (current-output-port) (car rest)))
+           (rtd (record-rtd x))
+           (name (rtd-name rtd))
+           (field-names (rtd-all-field-names rtd))
+           (n (vector-length field-names)))
+      (write x out)
+      (newline out)
+      (do ((i 0 (+ i 1)))
+          ((= i n))
+        (display "    " out)
+        (display (vector-ref field-names i) out)
+        (display " : " out)
+        (write ((record-accessor rtd i) x) out)
+        (newline out)))))
 
 ; eof
