@@ -72,7 +72,8 @@
     ;; Procedures and values defined in the core expander:
     
     ex:make-variable-transformer ex:identifier? ex:bound-identifier=?
-    ex:free-identifier=? ex:generate-temporaries ex:datum->syntax ex:syntax->datum 
+    ex:free-identifier=? ex:generate-temporaries
+    ex:datum->syntax ex:syntax->datum 
     ex:syntax-violation ex:environment ex:environment-bindings ex:eval
     ex:undefined
     ))
@@ -91,7 +92,8 @@
         ((_ ((out in)) e1 e2 ...)     (syntax (syntax-case in ()
                                                 (out (begin e1 e2 ...)))))
         ((_ ((out in) ...) e1 e2 ...) (syntax (syntax-case (list in ...) ()
-                                                ((out ...) (begin e1 e2 ...))))))))
+                                                ((out ...)
+                                                 (begin e1 e2 ...))))))))
   )
 
 (library (core syntax-rules)
@@ -187,7 +189,8 @@
                 ((e0)             (syntax (let ((t e0)) (if t t))))
                 ((e0 => e1)       (syntax (let ((t e0)) (if t (e1 t)))))
                 ((e0 e1 e2 ...)   (syntax (if e0 (begin e1 e2 ...))))
-                (_                (syntax-violation 'cond "Invalid expression" x))))
+                (_                (syntax-violation
+                                   'cond "Invalid expression" x))))
              ((c2 c3 ...)
               (with-syntax ((rest (f (syntax c2)
                                      (syntax (c3 ...)))))
@@ -195,7 +198,8 @@
                   ((e0)           (syntax (let ((t e0)) (if t t rest))))
                   ((e0 => e1)     (syntax (let ((t e0)) (if t (e1 t) rest))))
                   ((e0 e1 e2 ...) (syntax (if e0 (begin e1 e2 ...) rest)))
-                  (_              (syntax-violation 'cond "Invalid expression" x)))))))))))
+                  (_              (syntax-violation
+                                   'cond "Invalid expression" x)))))))))))
   
   (define-syntax case
     (lambda (x)
@@ -206,9 +210,11 @@
                                 (cmore (syntax (c2 ...))))
                           (if (null? cmore)
                               (syntax-case c1 (else)
-                                ((else e1 e2 ...)    (syntax (begin e1 e2 ...)))
-                                (((k ...) e1 e2 ...) (syntax (if (memv t '(k ...))
-                                                                 (begin e1 e2 ...)))))
+                                ((else e1 e2 ...)
+                                 (syntax (begin e1 e2 ...)))
+                                (((k ...) e1 e2 ...)
+                                 (syntax (if (memv t '(k ...))
+                                             (begin e1 e2 ...)))))
                               (with-syntax ((rest (f (car cmore) (cdr cmore))))
                                 (syntax-case c1 ()
                                   (((k ...) e1 e2 ...)
@@ -242,7 +248,8 @@
          (syntax (lambda (x)
                    (syntax-case x ()
                      (id (identifier? (syntax id)) (syntax e))
-                     ((_ x (... ...))              (syntax (e x (... ...))))))))
+                     ((_ x (... ...))              (syntax
+                                                    (e x (... ...))))))))
         ((_ (id exp1) 
             ((set! var val) exp2))
          (and (identifier? (syntax id)) 
@@ -337,13 +344,15 @@
           (((unsyntax e ...) . r)
            (= level 0)
            (with-syntax (((r* (rep ...)) (expand (syntax r) 0))
-                         ((t ...)        (generate-temporaries (syntax (e ...)))))
+                         ((t ...)        (generate-temporaries
+                                          (syntax (e ...)))))
              (syntax ((t ... . r*)
                       ((t e) ... rep ...)))))
           (((unsyntax-splicing e ...) . r)
            (= level 0)
            (with-syntax (((r* (rep ...)) (expand (syntax r) 0))
-                         ((t ...)        (generate-temporaries (syntax (e ...)))))
+                         ((t ...)        (generate-temporaries
+                                          (syntax (e ...)))))
              (with-syntax ((((t ...) ...) (syntax ((t (... ...)) ...))))
                (syntax ((t ... ... . r*)
                         (((t ...) e) ... rep ...))))))
@@ -359,7 +368,7 @@
                          ((t* (rep2 ...)) (expand (syntax t) level)))
              (syntax ((h* . t*)
                       (rep1 ... rep2 ...)))))
-          (#(e ...)                                                               
+          (#(e ...)
            (with-syntax ((((e* ...) reps)
                           (expand (vector->list (syntax #(e ...))) level)))
              (syntax (#(e* ...) reps))))
@@ -388,7 +397,8 @@
           (for (core derived)     run expand)
           (for (core with-syntax) expand)
           (for (core quasisyntax) expand)
-          (for (primitives = + - null? cons car cdr append map list vector list->vector) 
+          (for (primitives
+                = + - null? cons car cdr append map list vector list->vector) 
             run expand)) 
   
   ;; Optimised version copied from portable syntax-case (Dybvig)
@@ -400,21 +410,27 @@
           ((unquote p)
            (if (= lev 0)
                (syntax ("value" p))
-               (quasicons (syntax ("quote" unquote)) (quasi (syntax (p)) (- lev 1)))))
-          ((quasiquote p) (quasicons (syntax ("quote" quasiquote)) (quasi (syntax (p)) (+ lev 1))))
+               (quasicons (syntax ("quote" unquote))
+                          (quasi (syntax (p)) (- lev 1)))))
+          ((quasiquote p) (quasicons (syntax ("quote" quasiquote))
+                                     (quasi (syntax (p)) (+ lev 1))))
           ((p . q)
            (syntax-case (syntax p) (unquote unquote-splicing)
              ((unquote p ...)
               (if (= lev 0)
-                  (quasilist* (syntax (("value" p) ...)) (quasi (syntax q) lev))
+                  (quasilist* (syntax (("value" p) ...))
+                              (quasi (syntax q) lev))
                   (quasicons
-                   (quasicons (syntax ("quote" unquote)) (quasi (syntax (p ...)) (- lev 1)))
+                   (quasicons (syntax ("quote" unquote))
+                              (quasi (syntax (p ...)) (- lev 1)))
                    (quasi (syntax q) lev))))
              ((unquote-splicing p ...)
               (if (= lev 0)
-                  (quasiappend (syntax (("value" p) ...)) (quasi (syntax q) lev))
+                  (quasiappend (syntax (("value" p) ...))
+                               (quasi (syntax q) lev))
                   (quasicons
-                   (quasicons (syntax ("quote" unquote-splicing)) (quasi (syntax (p ...)) (- lev 1)))
+                   (quasicons (syntax ("quote" unquote-splicing))
+                              (quasi (syntax (p ...)) (- lev 1)))
                    (quasi (syntax q) lev))))
              (_ (quasicons (quasi (syntax p) lev) (quasi (syntax q) lev)))))
           (#(x ...) (quasivector (vquasi (syntax (x ...)) lev)))
@@ -425,13 +441,16 @@
            (syntax-case (syntax p) (unquote unquote-splicing)
              ((unquote p ...)
               (if (= lev 0)
-                  (quasilist* (syntax (("value" p) ...)) (vquasi (syntax q) lev))
+                  (quasilist* (syntax (("value" p) ...))
+                              (vquasi (syntax q) lev))
                   (quasicons
-                   (quasicons (syntax ("quote" unquote)) (quasi (syntax (p ...)) (- lev 1)))
+                   (quasicons (syntax ("quote" unquote))
+                              (quasi (syntax (p ...)) (- lev 1)))
                    (vquasi (syntax q) lev))))
              ((unquote-splicing p ...)
               (if (= lev 0)
-                  (quasiappend (syntax (("value" p) ...)) (vquasi (syntax q) lev))
+                  (quasiappend (syntax (("value" p) ...))
+                               (vquasi (syntax q) lev))
                   (quasicons
                    (quasicons
                     (syntax ("quote" unquote-splicing))
@@ -445,7 +464,9 @@
             (("quote" dy)
              (syntax-case (syntax x) ()
                (("quote" dx) (syntax ("quote" (dx . dy))))
-               (_ (if (null? (syntax dy)) (syntax ("list" x)) (syntax ("list*" x y))))))
+               (_ (if (null? (syntax dy))
+                      (syntax ("list" x))
+                      (syntax ("list*" x y))))))
             (("list" . stuff) (syntax ("list" x . stuff)))
             (("list*" . stuff) (syntax ("list*" x . stuff)))
             (_ (syntax ("list*" x y))))))
@@ -459,7 +480,8 @@
           (_
            (cond
              ((null? x) y)
-             (else (with-syntax (((p ...) x) (y y)) (syntax ("append" p ... y))))))))
+             (else (with-syntax (((p ...) x) (y y))
+                    (syntax ("append" p ... y))))))))
       (define (quasilist* x y)
         (let f ((x x))
           (if (null? x)
@@ -469,25 +491,36 @@
         (syntax-case x ()
           (("quote" (x ...)) (syntax ("quote" #(x ...))))
           (_
-           (let f ((y x) (k (lambda (ls) (quasisyntax ("vector" (unsyntax-splicing ls))))))
+           (let f ((y x) (k (lambda (ls)
+                              (quasisyntax
+                               ("vector" (unsyntax-splicing ls))))))
              (syntax-case y ()
                (("quote" (y ...)) (k (syntax (("quote" y) ...))))
                (("list" y ...) (k (syntax (y ...))))
-               (("list*" y ... z) (f (syntax z) (lambda (ls) (k (append (syntax (y ...)) ls)))))
+               (("list*" y ... z)
+                (f (syntax z) (lambda (ls) (k (append (syntax (y ...)) ls)))))
                (else (quasisyntax ("list->vector" (unsyntax x)))))))))
       (define (emit x)
         (syntax-case x ()
           (("quote" x) (syntax 'x))
-          (("list" x ...) (quasisyntax (list (unsyntax-splicing (map emit (syntax (x ...)))))))
+          (("list" x ...)
+           (quasisyntax
+            (list (unsyntax-splicing (map emit (syntax (x ...)))))))
           ;; could emit list* for 3+ arguments if implementation supports list*
           (("list*" x ... y)
            (let f ((x* (syntax (x ...))))
              (if (null? x*)
                  (emit (syntax y))
-                 (quasisyntax (cons (unsyntax (emit (car x*))) (unsyntax (f (cdr x*))))))))
-          (("append" x ...) (quasisyntax (append (unsyntax-splicing (map emit (syntax (x ...)))))))
-          (("vector" x ...) (quasisyntax (vector (unsyntax-splicing (map emit (syntax (x ...)))))))
-          (("list->vector" x) (quasisyntax (list->vector (unsyntax (emit (syntax x))))))
+                 (quasisyntax
+                  (cons (unsyntax (emit (car x*))) (unsyntax (f (cdr x*))))))))
+          (("append" x ...)
+           (quasisyntax
+            (append (unsyntax-splicing (map emit (syntax (x ...)))))))
+          (("vector" x ...)
+           (quasisyntax
+            (vector (unsyntax-splicing (map emit (syntax (x ...)))))))
+          (("list->vector" x)
+           (quasisyntax (list->vector (unsyntax (emit (syntax x))))))
           (("value" x) (syntax x))))
       (lambda (x)
         (syntax-case x ()
@@ -527,7 +560,8 @@
         (lambda ?args
           (let-values "bind" ?bindings ?tmps ?body))))
       ((let-values "mktmp" (?a . ?b) ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
-       (let-values "mktmp" ?b ?e0 (?arg ... x) ?bindings (?tmp ... (?a x)) ?body))
+       (let-values "mktmp"
+         ?b ?e0 (?arg ... x) ?bindings (?tmp ... (?a x)) ?body))
       ((let-values "mktmp" ?a ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
        (call-with-values
         (lambda () ?e0)
@@ -616,8 +650,9 @@
    * + - / < <= = > >= abs acos append apply asin atan 
    boolean? call-with-current-continuation 
    call-with-values car cdr caar cadr cdar cddr
-   caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-   cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+   caaar caadr cadar caddr cdaar cdadr cddar cdddr
+   caaaar caaadr caadar caaddr cadaar cadadr caddar
+   cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
    ceiling char? char->integer char=? char<? char>? char<=? char>=?
    complex? cons cos 
    denominator dynamic-wind 
@@ -639,53 +674,61 @@
    
    ;; R6RS additional procedures:
    
-   real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-   nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-   symbol=? string-for-each vector-map vector-for-each error assertion-violation
+   real-valued? rational-valued? integer-valued?
+   exact inexact finite? infinite?
+   nan? div mod div-and-mod div0 mod0 div0-and-mod0
+   exact-integer-sqrt boolean=?
+   symbol=? string-for-each vector-map vector-for-each
+   error assertion-violation
    call/cc)
   
-  (import (except (core primitives) _ ...)     
-          (core let)                          
-          (core derived)             
-          (core quasiquote)        
-          (core let-values)
-          (for (core syntax-rules)      expand)   
-          (for (core identifier-syntax) expand)
-          (for (only (core primitives) _ ... set!) expand)
-          (primitives 
+  (import
+   (except (core primitives) _ ...)     
+   (core let)                          
+   (core derived)             
+   (core quasiquote)        
+   (core let-values)
+   (for (core syntax-rules)      expand)   
+   (for (core identifier-syntax) expand)
+   (for (only (core primitives) _ ... set!) expand)
+   (primitives 
            
-           ;; R5RS primitives:
+    ;; R5RS primitives:
            
-           * + - / < <= = > >= abs acos append apply asin atan 
-           boolean? call-with-current-continuation 
-           call-with-values car cdr caar cadr cdar cddr
-           caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-           cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
-           ceiling char? char->integer char=? char<? char>? char<=? char>=?
-           complex? cons cos 
-           denominator dynamic-wind 
-           eq? equal? eqv? even? exact? exp expt floor for-each
-           gcd imag-part inexact? integer->char integer?
-           lcm length list list->string
-           list->vector list-ref list-tail list? log magnitude make-polar
-           make-rectangular make-string make-vector map max min
-           negative? not null? number->string number? numerator
-           odd? pair? 
-           positive? procedure? rational? rationalize
-           real-part real? reverse round
-           sin sqrt string string->list string->number string->symbol
-           string-append 
-           string-copy string-length string-ref string<=? string<?
-           string=? string>=? string>? string? substring symbol->string symbol? tan
-           truncate values vector vector->list
-           vector-fill! vector-length vector-ref vector-set! vector? zero?
-           
-           ;; R6RS additional procedures:
-           
-           real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-           nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-           symbol=? string-for-each vector-map vector-for-each error assertion-violation
-           call/cc))
+    * + - / < <= = > >= abs acos append apply asin atan 
+    boolean? call-with-current-continuation 
+    call-with-values car cdr caar cadr cdar cddr
+    caaar caadr cadar caddr cdaar cdadr cddar cdddr
+    caaaar caaadr caadar caaddr cadaar cadadr caddar
+    cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+    ceiling char? char->integer char=? char<? char>? char<=? char>=?
+    complex? cons cos 
+    denominator dynamic-wind 
+    eq? equal? eqv? even? exact? exp expt floor for-each
+    gcd imag-part inexact? integer->char integer?
+    lcm length list list->string
+    list->vector list-ref list-tail list? log magnitude make-polar
+    make-rectangular make-string make-vector map max min
+    negative? not null? number->string number? numerator
+    odd? pair? 
+    positive? procedure? rational? rationalize
+    real-part real? reverse round
+    sin sqrt string string->list string->number string->symbol
+    string-append 
+    string-copy string-length string-ref string<=? string<?
+    string=? string>=? string>? string? substring symbol->string symbol? tan
+    truncate values vector vector->list
+    vector-fill! vector-length vector-ref vector-set! vector? zero?
+    
+    ;; R6RS additional procedures:
+    
+    real-valued? rational-valued? integer-valued?
+    exact inexact finite? infinite?
+    nan? div mod div-and-mod div0 mod0 div0-and-mod0
+    exact-integer-sqrt boolean=?
+    symbol=? string-for-each vector-map vector-for-each
+    error assertion-violation
+    call/cc))
   
     (define-syntax assert
       (syntax-rules ()
@@ -869,7 +912,8 @@
                                (syntax-case s ()
                                  (()  v)
                                  ((e) (syntax e))
-                                 (_   (syntax-violation 'do "Invalid step" orig-x s))))
+                                 (_   (syntax-violation
+                                       'do "Invalid step" orig-x s))))
                              (syntax (var ...))
                              (syntax (step ...)))))
            (syntax-case (syntax (e1 ...)) ()
@@ -879,7 +923,7 @@
              ((e1 e2 ...) (syntax (let do ((var init) ...)
                                     (if e0
                                         (begin e1 e2 ...)
-                                        (begin c ... (do step ...))))))))))))                         
+                                        (begin c ... (do step ...))))))))))))
   
   (define-syntax case-lambda
     (syntax-rules ()
@@ -905,7 +949,7 @@
                   args)
            (case-lambda-help args n more ...)))
       ((_ args n (r b1 b2 ...) more ...)
-       (apply (lambda r b1 b2 ...) args))))                                      
+       (apply (lambda r b1 b2 ...) args))))
   
   ) ; rnrs control                                      
 
@@ -1620,8 +1664,9 @@
    * + - / < <= = > >= abs acos append apply asin atan 
    boolean? call-with-current-continuation 
    call-with-values car cdr caar cadr cdar cddr
-   caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-   cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+   caaar caadr cadar caddr cdaar cdadr cddar cdddr
+   caaaar caaadr caadar caaddr cadaar cadadr caddar
+   cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
    ceiling char? char->integer char=? char<? char>? char<=? char>=?
    complex? cons cos 
    denominator dynamic-wind 
@@ -1643,9 +1688,12 @@
    
    ;; R6RS additional procedures:
    
-   real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-   nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-   symbol=? string-for-each vector-map vector-for-each error assertion-violation
+   real-valued? rational-valued? integer-valued?
+   exact inexact finite? infinite?
+   nan? div mod div-and-mod div0 mod0 div0-and-mod0
+   exact-integer-sqrt boolean=?
+   symbol=? string-for-each vector-map vector-for-each
+   error assertion-violation
    call/cc
    
    ;; From (rnrs syntax-case)
@@ -1764,22 +1812,24 @@
    
    file-exists? delete-file)
   
-  (import (for (except (rnrs base) syntax-rules identifier-syntax _ ... set!) run expand)
-          (for (only (rnrs base) set!)                                        run expand)
-          (for (core syntax-rules)                                            run expand)   
-          (for (core identifier-syntax)                                       run expand)
-          (for (rnrs control)                                                 run expand)
-          (for (rnrs lists)                                                   run expand)
-          (for (rnrs syntax-case)                                             run expand)
-          (for (rnrs io simple)                                               run expand)
-          (for (rnrs unicode)                                                 run expand)
-          (for (rnrs sorting)                                                 run expand)
-          (for (rnrs records procedural)                                      run expand)
-          (for (rnrs records inspection)                                      run expand)
-          (for (rnrs files)                                                   run expand)
-          (for (rnrs arithmetic fixnums)                                      run expand)
-          (for (rnrs arithmetic flonums)                                      run expand)
-          (for (rnrs arithmetic bitwise)                                      run expand)
+  (import (for (except (rnrs base)
+                       syntax-rules identifier-syntax _ ... set!)
+               run expand)
+          (for (only (rnrs base) set!)                              run expand)
+          (for (core syntax-rules)                                  run expand)
+          (for (core identifier-syntax)                             run expand)
+          (for (rnrs control)                                       run expand)
+          (for (rnrs lists)                                         run expand)
+          (for (rnrs syntax-case)                                   run expand)
+          (for (rnrs io simple)                                     run expand)
+          (for (rnrs unicode)                                       run expand)
+          (for (rnrs sorting)                                       run expand)
+          (for (rnrs records procedural)                            run expand)
+          (for (rnrs records inspection)                            run expand)
+          (for (rnrs files)                                         run expand)
+          (for (rnrs arithmetic fixnums)                            run expand)
+          (for (rnrs arithmetic flonums)                            run expand)
+          (for (rnrs arithmetic bitwise)                            run expand)
           )
   
   ) ;; rnrs
@@ -1815,7 +1865,8 @@
   
   (define (scheme-report-environment n)
     (unless (= n 5)
-      (assertion-violation 'scheme-report-environment "Argument should be 5" n))
+      (assertion-violation 'scheme-report-environment
+                           "Argument should be 5" n))
     (environment '(r5rs)))
   
   (define null-environment
@@ -1830,7 +1881,7 @@
                         '(only (rnrs control) do))))
       (lambda (n)
         (unless (= n 5)
-          (assertion-violation 'scheme-report-environment "Argument should be 5" n))
+          (assertion-violation 'null-environment "Argument should be 5" n))
         null-env)))
   
   (define force
@@ -1901,8 +1952,9 @@
    * + - / < <= = > >= abs acos append apply asin atan 
    boolean? call-with-current-continuation 
    call-with-values car cdr caar cadr cdar cddr
-   caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-   cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+   caaar caadr cadar caddr cdaar cdadr cddar cdddr
+   caaaar caaadr caadar caaddr cadaar cadadr caddar
+   cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
    ceiling char? char->integer char=? char<? char>? char<=? char>=?
    complex? cons cos 
    denominator dynamic-wind 
@@ -1968,31 +2020,37 @@
   ;; Not necessary to use only and except here, but keep
   ;; them because they contain useful information.
   
-  (import (only (core primitives) set!)
-          (except (rnrs base)
-            set! ; because should not be exported for expand
-            _ letrec* let-values let*-values identifier-syntax
-            real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-            nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-            symbol=? string-for-each vector-map vector-for-each error assertion-violation
-            call/cc)
-          (only (rnrs eval) eval)
-          (only (rnrs load) load)
-          (only (rnrs control) do)
-          (only (rnrs io simple)
-            call-with-input-file call-with-output-file 
-            close-input-port close-output-port current-input-port current-output-port
-            display eof-object? newline open-input-file open-output-file peek-char
-            read read-char with-input-from-file with-output-to-file write write-char)
-          (only (rnrs unicode)
-            char-upcase char-downcase char-ci=? char-ci<? char-ci>?
-            char-ci<=? char-ci>=? char-alphabetic? char-numeric? char-whitespace?
-            char-upper-case? char-lower-case? string-ci=? string-ci<? string-ci>?
-            string-ci<=? string-ci>=?)
-          (only (rnrs mutable-pairs) set-car! set-cdr!)
-          (only (rnrs lists) assoc assv assq member memv memq)
-          (only (rnrs mutable-strings) string-set! string-fill!)
-          (rnrs r5rs))
+  (import
+   (only (core primitives) set!)
+   (except (rnrs base)
+           set! ; because should not be exported for expand
+           _ letrec* let-values let*-values identifier-syntax
+           real-valued? rational-valued? integer-valued?
+           exact inexact finite? infinite?
+           nan? div mod div-and-mod div0 mod0 div0-and-mod0
+           exact-integer-sqrt boolean=?
+           symbol=? string-for-each vector-map vector-for-each
+           error assertion-violation
+           call/cc)
+   (only (rnrs eval) eval)
+   (only (rnrs load) load)
+   (only (rnrs control) do)
+   (only (rnrs io simple)
+         call-with-input-file call-with-output-file 
+         close-input-port close-output-port
+         current-input-port current-output-port
+         display eof-object? newline open-input-file open-output-file peek-char
+         read read-char with-input-from-file
+         with-output-to-file write write-char)
+   (only (rnrs unicode)
+         char-upcase char-downcase char-ci=? char-ci<? char-ci>?
+         char-ci<=? char-ci>=? char-alphabetic? char-numeric? char-whitespace?
+         char-upper-case? char-lower-case? string-ci=? string-ci<? string-ci>?
+         string-ci<=? string-ci>=?)
+   (only (rnrs mutable-pairs) set-car! set-cdr!)
+   (only (rnrs lists) assoc assv assq member memv memq)
+   (only (rnrs mutable-strings) string-set! string-fill!)
+   (rnrs r5rs))
   )
 
 ;; Nonstandard explicit renaming library: 
@@ -2041,7 +2099,8 @@
 (library (explicit-renaming helper)
   (export er-transformer)
   (import (only (rnrs) 
-            define-syntax lambda syntax-case syntax datum->syntax free-identifier=?))
+           define-syntax lambda syntax-case
+           syntax datum->syntax free-identifier=?))
   
   (define-syntax er-transformer
     (lambda (exp)
