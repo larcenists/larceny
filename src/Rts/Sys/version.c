@@ -65,7 +65,7 @@
 int  larceny_major_version = 0;
 int  larceny_minor_version = 95;
 /* char *larceny_version_qualifier = " \"First Safety\""; */
-char *larceny_version_qualifier = "alpha2 (development)";
+char *larceny_version_qualifier = "alpha3 (development)";
 
 char *date = DATE " " TIME;
 char *user = USER;

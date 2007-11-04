@@ -17,7 +17,7 @@ doc/CommonLarceny/user-manual.txt.
 
 WHAT TO DO
 
-Building Larceny has three major steps:
+Building Larceny has four major steps:
 
 1. Get the Larceny development environment working.
 
@@ -138,16 +138,43 @@ On Petit Larceny:
     % ./twobit.bin -stopcopy -- src/Build/petit-twobit-heap.sch
     > (exit)
 
-You can now run "./larceny" or "./twobit".
+You can now run "./larceny" or "./twobit" in its default -r5rs
+mode, but the -err5rs and -r6rs modes won't work until you do
+step 4.
 
+
+
+4. Compile the ERR5RS/R6RS standard libraries.
+
+Starting from the root directory of the Larceny tree, change
+to lib/R6RS, run Larceny in its default -r5rs mode, and compile
+the ERR5RS/R6RS standard libraries as follows.
+
+    % cd lib/R6RS
+    % larceny
+    Larceny v0.95 "First Safety" (...)
+
+    > (require 'r6rsmode)
+    > (larceny:compile-r6rs-runtime)
+    > (exit)
+
+Larceny should now run correctly in all modes.  If you want
+to use Larceny to run Scheme scripts on a Unix system, then
+you should make sure that the Larceny root directory is in
+your execution path, ahead of any other directories that
+may contain a file named scheme-script.
+
+
+
+----------------------------------------------------------------
 
 NOTES
 
 [1] For the build process, we recommend using a prebuilt version of
-Larceny itself.  MzScheme 36x seems to work.  Use (Petite) Chez at your
-own risk.  In the past, several other implementations of Scheme could be
-used for the build process, but they haven't been tested lately and
-aren't likely to work any more.
+Larceny itself.  MzScheme 37x seems to work.  In the past, several
+other implementations of Scheme could be used for the build process,
+but they haven't been tested lately and aren't likely to work any
+more.
 
 [2] http://sourceforge.net/projects/nasm
 
@@ -184,4 +211,3 @@ the call to setup:
 [5] The quotation marks around "./larceny.bin" are a uniform syntax that
 works on both Microsoft Windows and UNIX-like shells.  The reason is
 left as an exercise for the reader.
-
