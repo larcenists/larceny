@@ -9,9 +9,16 @@
 ; Most of this was written by Will Clinger by copying
 ; code written by Lars Hansen, Felix Klock, et cetera.
 
-;; A numeric string that uniquely identifies this run in the universe
+;; A numeric string that uniquely identifies this run in the universe.
 
-(define (ex:unique-token) (ex:unique-token1)) ; see below
+(define (ex:unique-token)
+  (let ((arch-name
+         (string->symbol (cdr (assq 'arch-name (system-features))))))
+    (case arch-name
+     ((SPARC IAssassin)
+      (ex:unique-token1))
+     (else
+      (ex:unique-token2)))))
 
 ;; The letrec black hole and corresponding setter.
 
@@ -40,8 +47,7 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; FIXME:  This probably doesn't work with Common Larceny,
-; but Common Larceny doesn't yet support R6RS modes anyway.
+; FIXME:  This doesn't work with Petit Larceny or Common Larceny.
 
 (define (ex:unique-token1)
 
