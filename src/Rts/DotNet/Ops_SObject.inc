@@ -60,7 +60,7 @@
         OP1(undefined) { return Factory.Undefined; }
         OP1(eof_object) { return Factory.Eof; }
         
-        OP1(machine_address) { return Factory.makeFixnum(this.GetHashCode()); }
+        OP1(machine_address) { return Factory.makeFixnum(this.GetHashCode() & SFixnum.MAX); }
 
         // Chars
         OP2_VIRTUAL_EXN_PAIR(char_lt, EX_CHARLT, SChar)
