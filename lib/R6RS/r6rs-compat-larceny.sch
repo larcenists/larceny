@@ -17,12 +17,12 @@
   (let ((arch-name
          (string->symbol (cdr (assq 'arch-name (system-features)))))
         (os-name
-         (string->symbol (cdr (assq 'os-name (system-features)))))
+         (string->symbol (cdr (assq 'os-name (system-features))))))
     (cond ((and (memq arch-name '(SPARC IAssassin))
                 (memq os-name '(SunOS MacOS\x20;X Linux)))
            (ex:unique-token1))
           (else
-           (ex:unique-token2))))))
+           (ex:unique-token2)))))
 
 ;; The letrec black hole and corresponding setter.
 
