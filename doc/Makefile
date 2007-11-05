@@ -61,7 +61,6 @@ builddate.html: alwaysdo
 	date                                                                      >> builddate.html
 	echo "</BODY></HTML>"                                              >> builddate.html
 
-# Empty target so that things like builddate.html are always remade
 log-start: 
 	echo "<HTML><HEAD>"                            > ${LOGFILE}
 	echo "<TITLE>Documentation Build Log</TITLE>" >> ${LOGFILE}
@@ -74,4 +73,5 @@ log-finis:
 	echo "Finished on "                           >> ${LOGFILE}
 	date                                          >> ${LOGFILE}
 	echo "</BODY></HTML>"                         >> ${LOGFILE}
+# Empty target so that things like builddate.html are always remade
 alwaysdo:
