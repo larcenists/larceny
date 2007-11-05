@@ -1,3 +1,10 @@
+# This Makefile is known to work
+# for the target(s): artichoke 
+# and for the users: pnkfelix henchman 
+#
+# It would be nice if it works on other targets, but Felix found it
+# hard to get things running on his Mac.
+
 ASCIIDOC_HOME=../../../vendor/asciidoc-8.0.0
 ASCIIDOC=asciidoc
 A2X=JAVACMD=$(shell which java) a2x
