@@ -3,17 +3,23 @@ anchor:repl[]
 The Read-Eval-Print Loop ("REPL")
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+anchor:repl-level[]
+indexterm:[repl-level]
 _Parameter repl-level_
 
 The value of this parameter is a nonnegative exact integer that is the
 current nesting level of read-eval-print loops.
 
+anchor:repl-evaluator[]
+indexterm:[repl-evaluator]
 _Parameter repl-evaluator_
 
 The value of repl-evaluator is a procedure of two arguments, an
 expression and an environment. The procedure should evaluate the
 expression in the environment and return the result(s).
 
+anchor:repl-printer[]
+indexterm:[repl-printer]
 _Parameter repl-printer_
 
 The value of repl-printer is a procedure of two arguments, a value to
@@ -23,12 +29,16 @@ If the value to print is not #!unspecified, the procedure should print
 it on the current output port. The default printer is write in
 r5rs.heap and pretty-print in larceny.heap and twobit.heap.
 
+anchor:repl-prompt[]
+indexterm:[repl-prompt]
 _Parameter repl-prompt_
 
 The value of repl-prompt is a procedure that takes two arguments, a
 level and an output port, and that prints a prompt corresponding to
 that level on the port.
 
+anchor:herald[]
+indexterm:[herald]
 _Parameter herald_
 
 The value of herald is a string or #f. If a string, the

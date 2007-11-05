@@ -75,6 +75,8 @@ proc:environment-syntax-environment[args="env",result="syntaxenv"]
 
 Returns the syntactic environment of _env._ Generally this is of no use unless you're working with the Twobit internals.
 
+anchor:interaction-environment[]
+indexterm:[interaction-environment]
 _Parameter interaction-environment_     
 
 The value of this parameter is the current interaction environment, which is used to look up global variables and syntax definitions in the read-eval-print loop as well as in eval and load when those procedures are called without arguments.

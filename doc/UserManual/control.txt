@@ -48,6 +48,7 @@ proc:error[args="arg ...",result="unspecified"]
 The error procedure applies the currently installed error handler (see <<error-handler>>) to _arg ..._.
 
 anchor:error-handler[]
+indexterm:[error-handler]
 _Parameter error-handler_     
 
 The value of the error-handler parameter is a procedure of one or more arguments. The first argument is a key that indicates where the error occurred. If the key is an exact integer, then the error occurred in a primitive or system subroutine, and the integer is the system error code; additional arguments are arguments to the primitive that failed. If the key is the empty list, then it should be ignored. Otherwise, it is part of an error message signalled with 'error' (which calls the installed error handler).
@@ -61,6 +62,7 @@ Eval conforms to the specification in the R5RS but additionally allows a <<envir
 Eval just calls the current value of the <<evaluator>> parameter on its arguments.
 
 anchor:evaluator[]
+indexterm:[evaluator]
 _Parameter evaluator_     
 
 The value of this parameter is a procedure of one or two arguments: an expression to be evaluated and optionally an environment. The eval procedure calls the value of evaluator.
@@ -72,12 +74,16 @@ proctempl:exit[args="value",result="never returns"]
 
 exit runs any exit procedures installed by <<add-exit-procedure!>> and then terminates the Scheme process. The optional argument is the exit status to return to the parent process. The default exit status is 0.
 
+anchor:keyboard-interrupt-handler[]
+indexterm:[keyboard-interrupt-handler]
 _Parameter keyboard-interrupt-handler_     
 
 This parameter takes a value that is a procedure of no arguments. The procedure is called whenever a keyboard interrupt is received by the system. In the current system, a keyboard interrupt can be received in a critical section; the keyboard interrupt handler is called with the interrupt enable state unchanged.
 
 If the keyboard interrupt handler returns, the interrupted computation will continue execution.
 
+anchor:load-evaluator[]
+indexterm:[load-evaluator]
 _Parameter load-evaluator_     
 
 The value of the parameter load-evaluator is a procedure of two arguments. The procedure is called to evaluate an expression loaded from a source file.
@@ -87,6 +93,7 @@ proc:quit[args="none",result="unspecified"]
 Quit calls the currently installed quit handler (see <<quit-handler>>).
 
 anchor:quit-handler[]
+indexterm:[quit-handler]
 _Parameter quit-handler_     
 
 The value of this parameter is a procedure of no parameters. The initial value of quit-handler is exit, though the <<repl,read-eval-print loop>> sets up its own quit handler.
@@ -96,10 +103,13 @@ proc:reset[args="none",result="unspecified"]
 Reset calls the currently installed reset handler (see <<reset-handler>>).
 
 anchor:reset-handler[]
+indexterm:[reset-handler]
 _Parameter reset-handler_     
 
 The value of the reset-handler parameter is a procedure of an arbitrary number of arguments. The default reset handler terminates the program; the read-eval-print loop installs a new handler that instead returns control to the read-eval-print loop.
 
+anchor:standard-timeslice[]
+indexterm:[standard-timeslice]
 _Parameter standard-timeslice_     
 
 The value of this parameter is a positive fixnum that will be used to reinitialize the countdown timer on expiration.
@@ -108,6 +118,8 @@ Using the value returned from standard-timeslice rather than some arbitrary inte
 
 For what it's worth, a setting of 50000 gives OK interrupt behavior on a Sparc-10 system, about 10 interrupts per second. This of course depends on the actual code running.
 
+anchor:timer-interrupt-handler[]
+indexterm:[timer-interrupt-handler]
 _Parameter timer-interrupt-handler_     
 
 The value of this parameter is a procedure of no arguments. The procedure is called with interrupts disabled when a timer interrupt is received and the interrupt enable state is "enabled".

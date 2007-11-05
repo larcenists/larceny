@@ -9,7 +9,6 @@ This index lists the procedures that are documented in this Manual. Procedures t
     
     
     [bignum?][5]
-    [break-handler][8]
     [bytevector?][9]
     [bytevector-copy][10]
     [bytevector-equal?][11]
@@ -25,14 +24,6 @@ This index lists the procedures that are documented in this Manual. Procedures t
     [bytevector-set!][21]
     
     [compnum?][26]
-    [console-input-port-factory][28]
-    [console-output-port-factory][30]
-    [current-continuation-structure][31]
-    [current-input-port][32]
-    [current-output-port][33]
-    
-    [error-handler][57]
-    [evaluator][59]
     
     [flonum?][65]
     [fx--][73]
@@ -40,13 +31,6 @@ This index lists the procedures that are documented in this Manual. Procedures t
     [<=">fx<=][77]
     [">fx>][78]
     [=">fx>=][79]
-    
-    [herald][99]
-    
-    [keyboard-interrupt-handler][100]
-    [interaction-environment][101]
-    
-    [load-evaluator][104]
     
     [make-procedure][114]
     
@@ -57,23 +41,11 @@ This index lists the procedures that are documented in this Manual. Procedures t
     [procedure-ref][140]
     [procedure-set!][141]
     
-    [quit-handler][146]
-    
     [ratnum?][148]
     [rectnum?][159]
-    [repl-level][164]
-    [repl-printer][165]
-    [repl-evaluator][166]
-    [repl-prompt][167]
-    [reset-handler][169]
     
     [sort][178]
     [sort!][178]
-    [standard-timeslice][182]
-    [structure-comparator][191]
-    [structure-printer][192]
-    
-    [timer-interrupt-handler][201]
     
     [vector-like?][207]
     [vector-like-length][208]

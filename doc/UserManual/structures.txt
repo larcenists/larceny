@@ -17,6 +17,8 @@ proc:structure?[args="object",result="boolean"]
 
 Returns #t if _object_ is a structure, and #f otherwise.
 
+anchor:structure-comparator[]
+indexterm:[structure-comparator]
 _Parameter structure-comparator_     
 
 The value of this parameter is a procedure of two arguments: the
@@ -27,6 +29,8 @@ at all fields.
 The structure comparator may be called by equal? to compare two
 structures for equality.
 
+anchor:structure-printer[]
+indexterm:[structure-printer]
 _Parameter structure-printer_     
 
 The value of this parameter is a procedure of three arguments: a

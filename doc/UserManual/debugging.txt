@@ -100,6 +100,8 @@ The first form removes any trace points from the _procedure_s. The second form r
 
 ==== Other functionality
 
+anchor:break-handler[]
+indexterm:[break-handler]
 _Parameter break-handler_     
 
 The value of break-handler is a procedure that is called when a breakpoint or tracepoint is encountered. The procedure takes two arguments: the procedure in which the breakpoint was set, and the byte offset within the procedure's code vector of the breakpoint.
