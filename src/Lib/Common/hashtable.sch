@@ -298,66 +298,101 @@
         ((procedure? x) #t)
         (else #f)))
   
-; FIXME: Hashtables should be records, but hashtables are defined
-; before records during Larceny's current build process, so we
-; have to define hashtables as structures for now.
-;
-; Note that structures must contain a fake record hierarchy
-; in slot 0, to avoid breaking our new improved implementation
-; of records.
-;
-; FIXME: the 15 should be large enough, but that depends
-; on the record invariant.
+(define *hashtable-rtd*
+  (make-rtd 'hashtable
+            '#(count
+               (immutable hash-function)
+               (immutable safe-hash-function)
+               (immutable equivalence-predicate)
+               (immutable bucket-searcher)
+               (immutable hashtable-type)
+               main-buckets
+               tenured-buckets
+               nursery-buckets
+               tenured-timestamp
+               nursery-timestamp
+               mutable-flag
+               (immutable the-lock))))
 
-(define *hashtable-key*
-  (let ((fake-hierarchy (make-vector 15 #f)))
-    (vector-set! fake-hierarchy 0 (list 'hashtable))
-    fake-hierarchy))
+(let ((%hashtable? (rtd-predicate *hashtable-rtd*))
+      (make-raw-ht
+       (let ((raw-maker (rtd-constructor *hashtable-rtd*))
+             (make-safe-hasher
+              (lambda (hf)
+                (lambda (key)
+                  (let ((h (hf key)))
+                    (cond ((and (fixnum? h) (<= 0 h))
+                           h)
+                          ((and (exact? h) (integer? h) (<= 0 h))
+                           h)
+                          (else
+                           (assertion-violation
+                            'hashtable
+                            "illegal hash value" h)))))))
+             (make-lock (lambda () (vector #f))))
+         (lambda (hf equiv searcher size type)
+           (let* ((n (max 1 size))
+                  (n (if (eq? type 'usual)
+                         n
+                         (+ 1 (quotient n 2))))
+                  (b (make-vector n '()))
+                  (b0 (if (eq? type 'usual) #f (make-vector n '())))
+                  (b1 (if (eq? type 'usual) #f (make-vector n '()))))
+             (raw-maker 0 hf (make-safe-hasher hf)
+                        equiv searcher type
+                        b b1 b0
+                        (major-gc-counter)
+                        (gc-counter)
+                        #t
+                        (make-lock))))))
+      (count       (rtd-accessor *hashtable-rtd* 'count))
+      (count!      (rtd-mutator  *hashtable-rtd* 'count))
+      (hasher      (rtd-accessor *hashtable-rtd* 'hash-function))
+      (safe-hasher (rtd-accessor *hashtable-rtd* 'safe-hash-function))
+      (equiv       (rtd-accessor *hashtable-rtd* 'equivalence-predicate))
+      (searcher    (rtd-accessor *hashtable-rtd* 'bucket-searcher))
+      (htype       (rtd-accessor *hashtable-rtd* 'hashtable-type))
+      (buckets     (rtd-accessor *hashtable-rtd* 'main-buckets))
+      (buckets!    (rtd-mutator  *hashtable-rtd* 'main-buckets))
+      (buckets1    (rtd-accessor *hashtable-rtd* 'tenured-buckets))
+      (buckets1!   (rtd-mutator  *hashtable-rtd* 'tenured-buckets))
+      (buckets0    (rtd-accessor *hashtable-rtd* 'nursery-buckets))
+      (buckets0!   (rtd-mutator  *hashtable-rtd* 'nursery-buckets))
+      (timestamp1  (rtd-accessor *hashtable-rtd* 'tenured-timestamp))
+      (timestamp1! (rtd-mutator  *hashtable-rtd* 'tenured-timestamp))
+      (timestamp0  (rtd-accessor *hashtable-rtd* 'nursery-timestamp))
+      (timestamp0! (rtd-mutator  *hashtable-rtd* 'nursery-timestamp))
+      (mutable?    (rtd-accessor *hashtable-rtd* 'mutable-flag))
+      (immutable!  (let ((mutable-flag!
+                          (rtd-mutator *hashtable-rtd* 'mutable-flag)))
+                     (lambda (ht) (mutable-flag! ht #f))))
+      (make-lock   (lambda () (vector #f)))
+      (lock!       (let ((ht-lock (rtd-accessor *hashtable-rtd* 'the-lock)))
+                     (lambda (ht)
 
-(let ((doc         *hashtable-key*)
-      (count       (lambda (ht)   (vector-like-ref ht 1)))
-      (count!      (lambda (ht n) (vector-like-set! ht 1 n)))
-      (hasher      (lambda (ht)   (vector-like-ref ht 2)))
-      (equiv       (lambda (ht)   (vector-like-ref ht 3)))
-      (searcher    (lambda (ht)   (vector-like-ref ht 4)))
-      (htype       (lambda (ht)   (vector-like-ref ht 5)))
-      (buckets     (lambda (ht)   (vector-like-ref ht 6)))
-      (buckets!    (lambda (ht v) (vector-like-set! ht 6 v)))
-      (buckets1    (lambda (ht)   (vector-like-ref ht 7)))
-      (buckets1!   (lambda (ht v) (vector-like-set! ht 7 v)))
-      (buckets0    (lambda (ht)   (vector-like-ref ht 8)))
-      (buckets0!   (lambda (ht v) (vector-like-set! ht 8 v)))
-      (timestamp1  (lambda (ht)   (vector-like-ref ht 9)))
-      (timestamp1! (lambda (ht t) (vector-like-set! ht 9 t)))
-      (timestamp0  (lambda (ht)   (vector-like-ref ht 10)))
-      (timestamp0! (lambda (ht t) (vector-like-set! ht 10 t)))
-      (mutable?    (lambda (ht)   (vector-like-ref ht 11)))
-      (immutable!  (lambda (ht)   (vector-like-set! ht 11 #f)))
-      (lock        (lambda (ht)   (vector-like-ref ht 12)))
-      (lock!       (lambda (ht)
+                       ; FIXME: this hack detects races and nested locking,
+                       ; but won't work with true multithreading
 
-                     ; FIXME: this hack detects races and nested locking,
-                     ; but won't work with true multithreading
+                       (let* ((the-lock (ht-lock ht))
+                              (r  (vector-like-cas! the-lock 0 #f #t)))
+                         (if (not (eq? r #f))
+                             (begin (set! *ht* ht)
+                                    (assertion-violation
+                                     'hashtable:lock!
+                                     "race detected" ht)))))))
+      (unlock!     (let ((ht-lock (rtd-accessor *hashtable-rtd* 'the-lock)))
+                     (lambda (ht)
 
-                     (let* ((id (random 1000000))  ; FIXME
-                            (r  (vector-like-cas! ht 12 #f id)))
-                       (if (eq? r #f)
-                           (vector-like-cas! ht 12 id #t)
-                           (begin (set! *ht* ht)
-                                  (assertion-violation 'hashtable:lock!
-                                                       "race detected" ht))))))
-      (unlock!     (lambda (ht)
-                     (if (not (eq? #t (vector-like-cas! ht 12 #t #f)))
-                         (assertion-violation 'hashtable:unlock!
-                                              "hashtable not locked" ht))))
+                       (let* ((the-lock (ht-lock ht))
+                              (r  (vector-like-cas! the-lock 0 #t #f)))
+                         (if (not (eq? r #t))
+                             (assertion-violation
+                              'hashtable:unlock!
+                              "hashtable not locked" ht))))))
 
       (defaultn 10))
 
-  (let ((%hashtable? (lambda (ht)
-                       (and (vector-like? ht)
-                            (> (vector-like-length ht) 0)
-                            (eq? doc (vector-like-ref ht 0)))))
-        (hashtable-error (lambda (procedure x mut?)
+  (let ((hashtable-error (lambda (procedure x mut?)
                            (assertion-violation
                             procedure
                             (if mut?
@@ -375,45 +410,24 @@
       (if (not (mutable? object))
           (hashtable-error procedure object #t)))
 
-    ; Analogous to vector.
-
-    (define (structure . values)
-      (let* ((n (length values))
-             (v (make-structure n)))
-        (do ((i 0 (+ i 1))
-             (values values (cdr values)))
-            ((null? values) v)
-          (vector-like-set! v i (car values)))))
-
     ; Internal operations.
 
     (define (make-oldstyle-ht hashfun searcher size)
-      (make-ht hashfun
-               (lambda (x y)
-                 (if (searcher x (list (list y))) #t #f))
-               searcher
-               size))
+      (make-raw-ht hashfun
+                   (lambda (x y)
+                     (if (searcher x (list (list y))) #t #f))
+                   searcher
+                   size
+                   'usual))
 
     (define (make-ht hashfun equiv searcher size)
-      (structure doc 0 hashfun equiv searcher 'usual
-                 (make-vector (max 1 size) '())
-                 #f #f 0 0 #t #f))
+      (make-raw-ht hashfun equiv searcher size 'usual))
 
     (define (make-ht-eq size)
-      (let ((size (+ 1 (quotient size 2))))
-        (structure doc 0 eq-hash eq? assq 'eq?
-                   (make-vector size '())
-                   (make-vector size '())
-                   (make-vector size '())
-                   (major-gc-counter) (gc-counter) #t #f)))
+      (make-raw-ht eq-hash eq? assq size 'eq?))
 
     (define (make-ht-eqv size)
-      (let ((size (+ 1 (quotient size 2))))
-        (structure doc 0 eqv-hash eqv? assv 'eqv?
-                   (make-vector size '())
-                   (make-vector size '())
-                   (make-vector size '())
-                   (major-gc-counter) (gc-counter) #t #f)))
+      (make-raw-ht eqv-hash eqv? assv size 'eqv?))
     
     ; Remove the first occurrence of x from y.
     ; x is known to occur within y.
@@ -436,7 +450,7 @@
         (case type
          ((usual)
           (let ((v  (make-vector n '())))
-            (rehash-buckets! b v (hasher ht))
+            (rehash-buckets! b v (safe-hasher ht))
             (buckets! ht v)
             (unlock! ht)
             (unspecified)))
@@ -597,7 +611,7 @@
       (guarantee-hashtable 'hashtable-contains? ht)
       (let* ((type (htype ht))
              (bucket-search (searcher ht))
-             (hf (hasher ht))
+             (hf (safe-hasher ht))
              (h (hf key)))
         (define (tablet-contains? v)
           (let* ((n (vector-length v))
@@ -624,7 +638,7 @@
       (guarantee-hashtable 'hashtable-ref ht)
       (let* ((type (htype ht))
              (bucket-search (searcher ht))
-             (hf (hasher ht))
+             (hf (safe-hasher ht))
              (h (hf key)))
         (define (tablet-search v)
           (let* ((n (vector-length v))
@@ -655,7 +669,7 @@
       (lock! ht)
       (let* ((type (htype ht))
              (bucket-search (searcher ht))
-             (hf (hasher ht))
+             (hf (safe-hasher ht))
              (h (hf key)))
         (define (tablet-search v)
           (let* ((n (vector-length v))
@@ -713,7 +727,7 @@
       (lock! ht)
       (let* ((type (htype ht))
              (bucket-search (searcher ht))
-             (hf (hasher ht))
+             (hf (safe-hasher ht))
              (h (hf key)))
         (define (tablet-remove! v)
           (let* ((n (vector-length v))
