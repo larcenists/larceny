@@ -1,6 +1,6 @@
 ;;;===============================================================================
 ;;;
-;;; Larceny compatibility file (tested on Larceny version 0.94)
+;;; Larceny compatibility file
 ;;;
 ;;; Uncomment appropriate LOAD comand in macros-core.scm
 ;;;
@@ -8,6 +8,8 @@
 
 ; Most of this was written by Will Clinger by copying
 ; code written by Lars Hansen, Felix Klock, et cetera.
+;
+; $Id$
 
 ;; A numeric string that uniquely identifies this run in the universe.
 
@@ -29,16 +31,8 @@
 ;; No builtins may start with one of these.
 ;; If they do, select different values here.
 
-(define ex:guid-prefix "&")
-(define ex:free-prefix "~")
-
-;; These are only partial implementations for specific use cases needed.
-;; Full implementations should be provided by host implementation.
-
-(define (for-all proc l . ls)
-  (or (null? l)
-      (and (apply proc (car l) (map car ls))
-           (apply for-all proc (cdr l) (map cdr ls)))))
+(define ex:guid-prefix "\x0;")
+(define ex:free-prefix "\x1;")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

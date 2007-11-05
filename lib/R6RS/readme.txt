@@ -19,7 +19,7 @@ feature, "r6rs-" has been prefixed to van Tonder's file names.
 
     r6rs-compat-larceny.sch
 
-        identical to van Tonder's compat-larceny.scm
+        improved version of van Tonder's compat-larceny.scm
 
     r6rs-runtime.sch
 
@@ -27,7 +27,8 @@ feature, "r6rs-" has been prefixed to van Tonder's file names.
 
     r6rs-expander.sch
 
-        identical to van Tonder's expander.scm
+        same as van Tonder's expander.scm except for the
+        definition of ex:repl
 
     standard-libraries.sch
 

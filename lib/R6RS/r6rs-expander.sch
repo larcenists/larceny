@@ -1,4 +1,4 @@
-
+;;; The definition of repl has been modified for Larceny.
 
 ;;;=================================================================================
 ;;;
@@ -2190,6 +2190,9 @@
     ;; Bindings in the interactive environment persist between invocations 
     ;; of REPL.
     
+    ;; Modified for Larceny, mainly so Larceny's repl will print
+    ;; the results.
+#|
     (define (repl exps)
       (reset-toplevel!)
       (for-each (lambda (exp)
@@ -2203,6 +2206,31 @@
                                           list)))
                             (expand-toplevel-sequence (list exp))))
                 exps))
+|#
+
+    ;; Larceny-specific version.
+
+    (define (repl exps)
+      (define (eval1 exp)
+        (eval exp (interaction-environment)))
+      (define (inner-loop exps)
+        (cond ((null? exps)
+               (if #f #f))
+              ((null? (cdr exps))
+               (eval1 (car exps)))
+              (else
+               (eval1 (car exps))
+               (inner-loop (cdr exps)))))
+      (define (outer-loop exps)
+        (cond ((null? exps)
+               (if #f #f))
+              ((null? (cdr exps))
+               (inner-loop (expand-toplevel-sequence exps)))
+              (else
+               (inner-loop (expand-toplevel-sequence (list (car exps))))
+               (outer-loop (cdr exps)))))
+      (reset-toplevel!)
+      (outer-loop exps))
     
     ;; Evaluates a sequence of forms of the format
     ;; <library>* | <library>* <toplevel program>.
