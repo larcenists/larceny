@@ -23,7 +23,7 @@ perform interactive queries about supported SRFIs.
 It is useful to be able to add SRFI keys dynamically because many
 SRFIs are implementable in standard Scheme and can be provided by
 third parties. For example, the reference implementation for
-http://srfi.schemers.org/srfi-7[SRFI-7][5] will work "out of the box" if 
+http://srfi.schemers.org/srfi-7[SRFI-7] will work "out of the box" if 
 loaded into Larceny, but programs cannot discover its presence until SRFI-0 
 has been made aware of its presence.
 
