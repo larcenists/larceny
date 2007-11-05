@@ -10,7 +10,7 @@
 ; FIXME:  This is temporarily disabled because Larceny 0.94
 ; doesn't support make-oldstyle-hashtable et cetera.
 
-(define *nbuild:twobit-files-1*
+(define (*nbuild:twobit-files-1*)
   (param-filename 'compiler
    (append
     (if (and (string=? (nbuild-parameter 'host-system) "Larceny")
@@ -209,7 +209,7 @@
       (param-filename 'dotnet-asm '())))
 
 (define (nbuild:twobit-files)
-  (append *nbuild:twobit-files-1*
+  (append (*nbuild:twobit-files-1*)
 
           ; The target-specific tables may need these constants.
 
