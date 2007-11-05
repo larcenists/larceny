@@ -15,12 +15,14 @@
 
 (define (ex:unique-token)
   (let ((arch-name
-         (string->symbol (cdr (assq 'arch-name (system-features))))))
-    (case arch-name
-     ((SPARC IAssassin)
-      (ex:unique-token1))
-     (else
-      (ex:unique-token2)))))
+         (string->symbol (cdr (assq 'arch-name (system-features)))))
+        (os-name
+         (string->symbol (cdr (assq 'os-name (system-features)))))
+    (cond ((and (memq arch-name '(SPARC IAssassin))
+                (memq os-name '(SunOS MacOS\x20;X Linux)))
+           (ex:unique-token1))
+          (else
+           (ex:unique-token2))))))
 
 ;; The letrec black hole and corresponding setter.
 
@@ -41,7 +43,8 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; FIXME:  This doesn't work with Petit Larceny or Common Larceny.
+; FIXME:  This doesn't work with Petit Larceny or Common Larceny
+; or Windows.
 
 (define (ex:unique-token1)
 

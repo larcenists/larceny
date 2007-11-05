@@ -151,7 +151,7 @@ to lib/R6RS, run Larceny in its default -r5rs mode, and compile
 the ERR5RS/R6RS standard libraries as follows.
 
     % cd lib/R6RS
-    % larceny
+    % ../../larceny
     Larceny v0.95 "First Safety" (...)
 
     > (require 'r6rsmode)
