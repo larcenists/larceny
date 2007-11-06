@@ -2001,8 +2001,13 @@
         ; [Larceny]
 
         (let ((form (syntax-debug form))
-              (subforms (if subform (list (syntax-debug subform)) '())))
-          (apply error 'syntax-violation message who form subforms))))
+              (subforms (if subform (list (syntax-debug subform)) '()))
+              (msg (cond ((symbol? who)
+                          (string-append (symbol->string who) ": " message))
+                         ((string? who)
+                          (string-append who ": " message))
+                         (else message))))
+          (apply error 'syntax-violation msg form subforms))))
 
     (define (syntax-debug exp)
       (sexp-map (lambda (leaf)

@@ -8698,7 +8698,7 @@
                   (symbol->string (next-token))
                   " while expecting "
                   (case nonterminal
-                   ((<datum> <outermost-datum>)
+                   ((<datum> <outermost-datum> <data>)
                     "a datum")
                    (else
                     (string-append

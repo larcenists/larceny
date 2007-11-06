@@ -25,6 +25,7 @@
 (compile-file "wcm.sch")
 (compile-file "record.sch")
 (compile-file "condition.sch")
+(compile-file "enum.sch")
 
 (load "test.fasl")			; Scaffolding
 
@@ -48,6 +49,7 @@
 (load "wcm.fasl")                       ; Continuation marks
 (load "record.fasl")                    ; Records
 (load "condition.fasl")                 ; Conditions
+(load "enum.fasl")                      ; Enumeration sets
 
 (define (run-all-tests)
   (run-boolean-tests)
@@ -76,6 +78,7 @@
   (run-wcm-tests)
   (run-record-tests)
   (run-condition-tests)
+  (run-enumset-tests)
   )
 
 

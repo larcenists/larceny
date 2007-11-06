@@ -1209,6 +1209,22 @@
   (environment-set! larc 'with-output-to-raw-latin-1-file
                     with-output-to-raw-latin-1-file)
 
+  ;; enumeration sets
+
+  (environment-set! larc 'make-enumeration make-enumeration)
+  (environment-set! larc 'enum-set-universe enum-set-universe)
+  (environment-set! larc 'enum-set-indexer enum-set-indexer)
+  (environment-set! larc 'enum-set-constructor enum-set-constructor)
+  (environment-set! larc 'enum-set->list enum-set->list)
+  (environment-set! larc 'enum-set-member? enum-set-member?)
+  (environment-set! larc 'enum-set-subset? enum-set-subset?)
+  (environment-set! larc 'enum-set=? enum-set=?)
+  (environment-set! larc 'enum-set-union enum-set-union)
+  (environment-set! larc 'enum-set-intersection enum-set-intersection)
+  (environment-set! larc 'enum-set-difference enum-set-difference)
+  (environment-set! larc 'enum-set-complement enum-set-complement)
+  (environment-set! larc 'enum-set-projection enum-set-projection)
+
   ;; common and less common extensions to R4RS
 
   (environment-set! larc 'issue-warning-deprecated issue-warning-deprecated)

@@ -2001,9 +2001,64 @@
 
   (define make-hashtable make-r6rs-hashtable))
 
-; FIXME: (rnrs enums (6)) not yet implemented.
+(library (rnrs enums)
 
-; FIXME: (rnrs (6)) not yet complete.
+  (export make-enumeration
+          enum-set-universe
+          enum-set-indexer
+          enum-set-constructor
+          enum-set->list
+          enum-set-member?
+          enum-set-subset?
+          enum-set=?
+          enum-set-union
+          enum-set-intersection
+          enum-set-difference
+          enum-set-complement
+          enum-set-projection
+          define-enumeration)
+
+  (import
+   (for (rnrs base)        run expand)
+   (for (rnrs syntax-case) run expand)
+   (for (rnrs lists)       run expand)
+   (primitives
+    make-enumeration
+    enum-set-universe
+    enum-set-indexer
+    enum-set-constructor
+    enum-set->list
+    enum-set-member?
+    enum-set-subset?
+    enum-set=?
+    enum-set-union
+    enum-set-intersection
+    enum-set-difference
+    enum-set-complement
+    enum-set-projection))
+
+  (define-syntax define-enumeration
+    (syntax-rules ()
+     ((_ type-name (symbol1 ...) set-constructor-syntax)
+      (begin (define-syntax type-name
+               (lambda (x)
+                 (define (complain)
+                   (syntax-violation 'type-name "illegal symbol" x))
+                 (syntax-case x ()
+                  ((_ y)
+                   (let ((sym1 (syntax->datum #'y)))
+                     (if (memq sym1 '(symbol1 ...))
+                         #''y
+                         (complain)))))))
+             (define hidden-name (make-enumeration '(symbol1 ...)))
+             (define-syntax set-constructor-syntax
+               (syntax-rules ()
+                ((_ sym1 (... ...))
+                 ((enum-set-constructor hidden-name)
+                  (list (type-name sym1) (... ...))))))))))
+
+  ) ; rnrs enums
+
 
 (library (rnrs (6))         
   
@@ -2144,7 +2199,7 @@
    record-type-generative? record-type-sealed? record-type-opaque?
    record-type-field-names record-field-mutable?
 
-   ;; From (rnrs records syntactic) ; FIXME
+   ;; From (rnrs records syntactic)
 
    define-record-type
 
@@ -2358,6 +2413,23 @@
    string-ci-hash
    symbol-hash
 
+   ;; From (rnrs enums)
+
+   make-enumeration
+   enum-set-universe
+   enum-set-indexer
+   enum-set-constructor
+   enum-set->list
+   enum-set-member?
+   enum-set-subset?
+   enum-set=?
+   enum-set-union
+   enum-set-intersection
+   enum-set-difference
+   enum-set-complement
+   enum-set-projection
+   define-enumeration
+
    )
    
   (import (for (except (rnrs base)
@@ -2385,7 +2457,7 @@
           (for (rnrs arithmetic bitwise)                            run expand)
           (for (rnrs syntax-case)                                   run expand)
           (for (rnrs hashtables)                                    run expand)
-; FIXME   (for (rnrs enums)                                         run expand)
+          (for (rnrs enums)                                         run expand)
           )
   
   ) ;; rnrs
@@ -2789,8 +2861,6 @@
                      (filter (lambda (x) (= (length x) 4))
                              field-specs))))
   
-               ; FIXME
-                        
           (datum->syntax
            #'tname
            `(,#'define-record-type-helper

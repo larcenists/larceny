@@ -178,6 +178,7 @@
     "dump"              ; dump-heap procedure
     "secret"            ; some "hidden" top-level names
     "hashtable"         ; hashtables
+    "enum"              ; enumeration sets
     "unicode0"          ; general utility procedures for binary search
     "unicode1"          ; char-* procedures
     "unicode2"          ; the word-breaking algorithm defined by UAX #29
