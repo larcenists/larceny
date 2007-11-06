@@ -1957,7 +1957,9 @@
                             (car maybe-subform))
                            (else (assertion-violation 'syntax-violation
                                                       "Invalid subform in syntax violation"
-                                                      maybe-subform)))))
+                                                      maybe-subform))))
+            (larceny:plength 7) ; [Larceny]
+            (larceny:plevel 5)) ; [Larceny]
         (display who)
         (newline)
         (newline)
@@ -1966,7 +1968,9 @@
         (newline)
         (if subform
             (begin (display "Subform: ")
-                   (pretty-print (syntax-debug subform))
+                   (parameterize ((print-length larceny:plength)    ; [Larceny]
+                                  (print-level larceny:plevel))
+                     (pretty-print (syntax-debug subform)))
                    (newline)))
         (display "Form: ")
         (pretty-print (syntax-debug form))
@@ -1976,10 +1980,19 @@
         (newline)
         (for-each (lambda (exp)
                     (display "  ")
-                    (pretty-print (syntax-debug exp))
+                    (parameterize ((print-length larceny:plength)   ; [Larceny]
+                                   (print-level larceny:plevel))
+                      (pretty-print (syntax-debug exp)))
                     (newline))
                   *trace*)
-        (error 'syntax-violation "Integrate with host error handling here")))
+
+        ;(error 'syntax-violation "Integrate with host error handling here")
+
+        ; [Larceny]
+
+        (let ((form (syntax-debug form))
+              (subforms (if subform (list (syntax-debug subform)) '())))
+          (apply error 'syntax-violation message who form subforms))))
 
     (define (syntax-debug exp)
       (sexp-map (lambda (leaf)

@@ -7,8 +7,18 @@ Currently, this software is distributed for:
  - Linux on Intel x86 machines (native IA32 and C backends)
  - Windows on Intel x86 machines (native IA32 backend)
 
-"Petit Larceny" is used throughout this documentation to refer to all
-versions other than the SPARC and IA32 native backends [1].
+The current version of Larceny always runs in 32-bit mode, but the
+native varieties of Larceny are known to work on 64-bit SPARC and
+IA32 hardware.
+
+A binary distribution of Larceny will occupy about 25 megabytes
+of disk.  A source distribution of Larceny will expand to almost
+200 megabytes as it is built.
+
+"Petit Larceny" is used throughout Larceny's documentation to
+refer to all varieties other than Common Larceny and the SPARC
+and IA32 native backends [1].  (If you intend to use Common
+Larceny, see the Common Larceny user's manual [2].)
 
 
 WHAT YOU NEED
@@ -16,7 +26,7 @@ WHAT YOU NEED
 Native (SPARC, IA32): everything should work out of the box.
 
 Petit Larceny (Solaris, Linux, Mac OS X): ensure that the GNU C
-    Compiler (GCC) is in your search path [2].  (If you are
+    Compiler (GCC) is in your search path [3].  (If you are
     building from source, see doc/HOWTO-SETUP.)
 
     Mac OS X: Use Apple's Developer Tools, http://developer.apple.com/
@@ -33,7 +43,20 @@ Win32:
    > larceny
 
 
+EXECUTION MODES
+
+    R5RS              traditional read/eval/print loop (the default)
+    ERR5RS            see doc/HOWTO-ERR5RS
+    R6RS              see doc/HOWTO-R6RS
+    Scheme script     see doc/HOWTO-SCRIPT
+
+
 COMPILING SCHEME SOURCE WITH LARCENY
+
+Native versions of Larceny compile all definitions and most
+expressions to machine code as they are typed or loaded.
+Programs will load faster if precompiled; in Petit Larceny,
+the precompiled programs will also run much faster.
 
  - (compile-file <SOURCE> [<TARGET>])
 
@@ -91,7 +114,9 @@ NOTES
 (e.g. Linux/PPC or Solaris/IA32 with the C backend) but we do not
 yet offer support for those systems.
 
-[2] We currently support GCC version 3.3; other versions may work, but
+[2] http://www.ccs.neu.edu/home/will/Larceny/CommonLarceny/user-manual.html
+
+[3] We currently support GCC version 3.3; other versions may work, but
 currently GCC 4.0 seems to have trouble with the code we generate.  GCC
 version 4.0 is the default C compiler on Mac OS X 10.4, but you can
 select another version using /usr/sbin/gcc_select.
