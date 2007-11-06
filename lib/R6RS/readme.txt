@@ -28,7 +28,7 @@ feature, "r6rs-" has been prefixed to van Tonder's file names.
     r6rs-expander.sch
 
         same as van Tonder's expander.scm except for the
-        definition of ex:repl
+        definitions of repl and syntax-violation
 
     standard-libraries.sch
 

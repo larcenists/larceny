@@ -1,4 +1,5 @@
-;;; The definition of repl has been modified for Larceny.
+;;; The definitions of repl and syntax-violation have been modified
+;;; for Larceny.
 
 ;;;=================================================================================
 ;;;
@@ -1447,8 +1448,17 @@
                (let* ((x (process-template t seg-dim ellipses-quoted?))
                       (gen (if (equal? (list x) vars)   ; +++
                                x                        ; +++
-                               `(map (lambda ,vars ,x)
-                                     ,@vars)))
+                               `(if (or (< (length ',vars) 2)
+                                        (= ,@(map (lambda (var) 
+                                                    `(length ,var))
+                                                  vars)))
+                                    (map (lambda ,vars ,x)
+                                         ,@vars)
+                                    (ex:syntax-violation 
+                                     'syntax 
+                                     "Pattern variables denoting lists of unequal length preceding ellipses"
+                                     ',(syntax->datum template) 
+                                     (list ,@vars)))))
                       (gen (do ((d depth (- d 1))
                                 (gen gen `(apply append ,gen)))
                                ((= d 1)
@@ -2264,14 +2274,26 @@
     ;; Restores parameters to a consistent state
     ;; in case they were left inconsistent by an error.
 
-    (define (reset-toplevel!)
-      (set! *trace*           '())
-      (set! *current-library* '())
-      (set! *phase*           0)
-      (set! *used*            (list '()))
-      (set! *color*           (generate-color))
-      (set! *usage-env*       *toplevel-env*))
-
+    (define reset-toplevel!
+      (let ((last-good-macro-table '()) 
+            (last-good-env-table   '()))
+        (lambda ()
+          (if (not (null? *current-library*))
+              (begin 
+                ;; an error occurred while library was being
+                ;; expanded so restore last good toplevel tables
+                (set! *macro-table* last-good-macro-table)
+                (set! *env-table*   last-good-env-table)))
+          (set! last-good-macro-table *macro-table*)
+          (set! last-good-env-table   *env-table*)
+          (set! *trace*            '())
+          (set! *current-library*  '())
+          (set! *phase*            0)
+          (set! *used*             (list '()))
+          (set! *color*            (generate-color))
+          (set! *usage-env*        *toplevel-env*)
+          (set! *syntax-reflected* #f))))
+    
     (define (expand-toplevel-sequence forms)
       (scan-sequence 'toplevel
                      make-toplevel-mapping
