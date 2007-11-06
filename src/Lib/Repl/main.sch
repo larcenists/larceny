@@ -75,7 +75,7 @@
                       (ex:repl (list exp)))))
               (load-evaluator aeryn-evaluator)
               (repl-evaluator aeryn-evaluator)
-              (display "ERR5RS mode; no libraries have been imported.")
+              (display "ERR5RS mode (no libraries have been imported)")
               (newline))))
       (r5rs-entry-point argv))
 

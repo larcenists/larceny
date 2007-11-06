@@ -1114,7 +1114,7 @@
     (define (make-constructor fieldspecs allnames maker)
       (let* ((k (length fieldspecs))
              (n (length allnames))
-             (buffer (make-vector n 'some-unspecified-value))
+             (buffer (make-vector n (unspecified)))
              (reverse-all-names (reverse allnames)))
   
         (define (position fieldname)

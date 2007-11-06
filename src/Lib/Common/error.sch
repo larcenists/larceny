@@ -36,12 +36,18 @@
 ;     a custom exception handler is currently installed,
 ;         and the arguments are acceptable to the R6RS.
 
+(define (use-r6rs-mechanism? who msg)
+  (let ((emode (cdr (assq 'execution-mode (system-features)))))
+    (or (memq emode '(dargo spanky))
+        (and (custom-exception-handlers?)
+             (or (symbol? who) (string? who) (eq? who #f))
+             (string? msg)))))
+
 (define (error . args)
   (if (and (pair? args) (pair? (cdr args)))
       (let ((who (car args))
             (msg (cadr args))
             (irritants (cddr args))
-            (emode (cdr (assq 'execution-mode (system-features))))
             (handler (error-handler)))
         (define (separated irritants)
           (if (null? irritants)
@@ -49,10 +55,7 @@
               (cons " "
                     (cons (car irritants) (separated (cdr irritants))))))
         (if (string? msg)
-            (cond ((or (memq emode '(dargo spanky))
-                       (and (custom-exception-handlers?)
-                            (or (symbol? who) (string? who) (eq? who #f))
-                            (string? msg)))
+            (cond ((use-r6rs-mechanism? who msg)
                    (raise-r6rs-exception (make-error) who msg irritants))
                   ((or (symbol? who) (string? who))
                    (apply handler who msg (separated irritants)))
@@ -65,7 +68,9 @@
       (apply (error-handler) '() args)))
 
 (define (assertion-violation who msg . irritants)
-  (raise-r6rs-exception (make-violation) who msg irritants))
+  (if (use-r6rs-mechanism? who msg)
+      (raise-r6rs-exception (make-violation) who msg irritants)
+      (apply error who msg irritants)))
 
 (define (reset)
   ((reset-handler)))
