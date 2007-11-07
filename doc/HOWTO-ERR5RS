@@ -1,0 +1,99 @@
+ABOUT ERR5RS
+
+ERR5RS is an expeditious revision of the R5RS to fill part
+of the gap that lies between the R5RS and R6RS standards [1].
+ERR5RS extends the R5RS by adding
+
+  * R6RS-compatible library and import syntax
+  * dynamic loading of libraries
+  * dynamic importing of libraries
+  * repl-friendly semantics for top-level programs
+  * a subset of R6RS lexical syntax
+  * R6RS-compatible records, but with superior APIs
+
+The most important thing to know about ERR5RS is that it is
+a supplement to the R6RS, not a replacement.  ERR5RS makes
+the most important innovations of the R6RS available for use
+in read/eval-print loops and R5RS-style dynamic programs,
+which are outside the scope of the R6RS.
+
+The second most important thing to know about ERR5RS is that
+it is being designed with portability in mind.  Its statement
+of requirements and goals mentions several different aspects
+of portability:
+
+  * portability/reuse between R5RS and ERR5RS (backward compatibility)
+  * portability/reuse between different implementations of ERR5RS
+  * portability/reuse between ERR5RS and R6RS programs
+  * ease of understanding
+  * ease of implementation
+
+ERR5RS libraries are portable because the mapping between
+library names and files is not left up to implementations,
+but is specified by the extended semantics of loading and
+importing.
+
+Portability of ERR5RS libraries and programs also depends
+upon the availability and quality of ERR5RS-compatible
+implementations.  Larceny v0.95 was the first implementation
+of ERR5RS, and Larceny users' experience will influence the
+continuing evolution of ERR5RS.
+
+
+ERR5RS MODE
+
+To interact with Larceny's ERR5RS read/eval/print loop,
+specify the -err5rs option on Larceny's command line:
+
+    % larceny -err5rs
+    Larceny v0.95 "First Safety" (...)
+    ERR5RS mode (no libraries have been imported)
+
+Since no libraries have been imported, the only forms you
+can evaluate are constant literals, variable references
+(but no variables have been imported!), procedure calls
+(but no procedure values are accessible!), library
+definitions, and import forms.  The first thing you'll
+want to do is to import some predefined libraries, such
+as:
+
+    > (import (rnrs base) (rnrs lists) (rnrs io simple))
+
+Once you have imported (rnrs base) or a composite library
+that includes it, you can evaluate definitions and use
+all other syntax and variables you have imported:
+
+    > (define two^7 (expt 2 (+ 3 4)))
+    > two^7
+    128
+
+To load libraries, top-level programs, or unadorned
+R5RS-style code from a file, you must first import a
+suitable load procedure:
+
+    > (import (err5rs load))
+
+Loading a library does not automatically import it.  To
+use the variables and syntax it exports, you must import
+it explicitly:
+
+    > (load "test/time.sch")     ; defines (larceny time) library
+    > (import (larceny time))
+
+
+COMPILING THE ERR5RS/R6RS RUNTIME
+
+
+PRECOMPILING ERR5RS/R6RS FILES
+
+
+ACCESS TO LARCENY PROCEDURES
+
+
+PREDEFINED LIBRARIES
+
+--------
+
+[1] http://www.r6rs.org/
+[2] http://www.schemers.org/Documents/Standards/R5RS/
+[3] http://scheme-punks.org/wiki/index.php?title=ERR5RS:Charter

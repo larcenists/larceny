@@ -1309,7 +1309,7 @@ static void help(int wizardp)
           consolemsg( wizardhelptext[i] );
   }
   consolemsg("The Larceny User's Manual is available on the web at");
-  consolemsg("  http://www.ccs.neu.edu/home/will/Larceny/manual/index.html");
+  consolemsg("  http://larceny.ccs.neu.edu/doc/");
   exit( 0 );
 }
 

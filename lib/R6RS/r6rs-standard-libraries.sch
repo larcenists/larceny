@@ -2540,7 +2540,7 @@
 ;; Nonstandard library for loading files into a
 ;; top-level interactive REPL environment.
 ;; The files may contain libraries in source form,
-;; which are them dynamically loaded.  
+;; which are then dynamically loaded.  
 
 (library (rnrs load)
   (export load)
@@ -2908,5 +2908,15 @@
              ...))))
 
   ) ; err5rs records syntactic
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; More libraries, added for Larceny.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (err5rs load)
+  (export load)
+  (import (rnrs load)))
 
 ; end of file

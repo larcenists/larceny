@@ -1,8 +1,10 @@
 Installing Larceny
-April 2006 / tov+pnkfelix
 
-Short version:  Copy the startup scripts to wherever you like, and then
-edit them to set LARCENY_ROOT to the absolute path of the Larceny tree.
+
+Short version:
+
+Copy the startup scripts wherever you like, and edit them to
+set LARCENY_ROOT to the absolute path of the Larceny tree.
 
 
 Long version:
@@ -41,3 +43,8 @@ LARCENY_ROOT, and setting it to /usr/local/lib/larceny.
 If you would like to change something else, such as the name of one of
 the scripts, editing the script should not be too difficult.
 
+Note that all implementations of the R6RS on Unix machines are
+likely to provide their own scheme-script.  If you want Larceny
+to execute your Scheme scripts, then you should use the which
+command to make sure Larceny's scheme-script comes first in your
+execution path.

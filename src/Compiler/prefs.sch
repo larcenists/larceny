@@ -47,12 +47,14 @@
 
 ; Patches for Twobit.  Here temporarily.
 
+; FIXME: returning #!unspecified to prevent display of mangled names
+
 (define (make-toplevel-definition id exp)
   (if (lambda? exp)
       (doc.name-set! (lambda.doc exp) (m-strip id)))
   (make-begin
    (list (make-assignment id exp)
-         (make-constant id))))
+         (make-unspecified))))
         
 (define (make-undefined)
   (make-call (make-variable '.undefined) '()))
