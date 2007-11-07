@@ -403,6 +403,8 @@ library_test regression regression
 library_test fixnums    fixnum
 library_test wcm        wcm
 library_test record     record
+library_test condition  condition
+library_test enum       enum
 
 function compiler_tests {
     dartlog '<Test>'
