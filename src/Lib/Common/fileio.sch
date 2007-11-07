@@ -82,6 +82,9 @@
                #t))))
 
 ; FIXME: ignores file options and buffer mode.
+; The R6RS says it's supposed to ignore the file options anyway,
+; and the buffer mode doesn't appear to have any real semantics
+; for files.
 
 (define (file-io/open-file-input-port filename options bufmode transcoder)
   (let* ((fd      (osdep/open-file filename 'input 'binary)))
@@ -96,14 +99,26 @@
         (begin (error 'open-file-input-port "unable to open file" filename)
                #t))))
 
-; FIXME: ignores file options and buffer mode.
+; FIXME: ignores the no-fail and no-truncate file options
+; and ignores the buffer mode.
 
 (define (file-io/open-file-output-port filename options bufmode transcoder)
-  (let* ((bufmode (case bufmode
+  (let* ((opts (file-options->list options))
+         (dont-create (memq 'no-create opts))
+         (dont-fail (memq 'no-fail opts))
+         (dont-truncate (memq 'no-truncate opts))
+         (bufmode (case bufmode
                    ((none) 'none)
                    ((line) 'line)
                    ((datum flush) 'datum)
                    (else 'block)))
+         (ignored
+          (begin (if (and dont-create
+                          (not (osdep/file-exists? filename)))
+                     (let ((c (condition
+                               (make-i/o-file-does-not-exist-error)
+                               (make-irritants-condition filename))))
+                       (raise c)))))
          (fd      (osdep/open-file filename 'output 'binary)))
     (if (>= fd 0)
         (let* ((data (file-io/data fd filename))

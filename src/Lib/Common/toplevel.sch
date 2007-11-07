@@ -367,7 +367,7 @@
 ; (environment-set-macro! larc 'error-handling-mode
 ;                         (usual-syntax 'error-handling-mode))
 
-  (environment-set! larc 'file-options list)
+  (environment-set! larc 'file-options file-options)
   (environment-set! larc 'no-create    'no-create)
   (environment-set! larc 'no-fail      'no-fail)
   (environment-set! larc 'no-truncate  'no-truncate)

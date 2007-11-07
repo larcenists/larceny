@@ -4,12 +4,42 @@
 ;
 ; Larceny -- R6RS-compatible I/O system.
 
-; FIXME:  It's hard to know what to do about file-options,
-; short of supporting the (rnrs enums) library in Larceny.
-;
-; See toplevel.sch for the current workaround.
+($$trace "portio")
 
-; The deprecated buffer-mode syntax is supported only by R6RS modes.
+; The deprecated buffer-mode syntax is supported only by R6RS modes,
+; but the enumeration set has to be defined here so the i/o system
+; can use it.  Several nonstandard symbols are included so Spanky
+; mode can do arbitrary things with them.
+
+(define *file-option-symbols*
+  '(no-create no-fail no-truncate
+    spanky0 spanky1 spanky2))
+
+; Enumeration sets can't be created until late in the initialization
+; process, so the creation of this enumeration set must be delayed.
+
+(define *file-options-enumeration-set* #f)
+
+(define (file-options-enumeration-set)
+  (if (not *file-options-enumeration-set*)
+      (set! *file-options-enumeration-set*
+            (make-enumeration *file-option-symbols*)))
+  *file-options-enumeration-set*)  
+
+(define (make-file-options-set syms)
+  ((enum-set-constructor (file-options-enumeration-set)) syms))
+
+(define (file-options->list options)
+  (enum-set->list options))
+
+; toplevel.sch defines variables no-create, no-fail, and
+; no-truncate so they don't have to be quoted when passed
+; to file-options.
+
+(define (file-options . symbols)
+  (make-file-options-set
+   (filter (lambda (sym) (memq sym *file-option-symbols*))
+           symbols)))
 
 ; The R6RS specification of buffer-mode? does not allow it
 ; to return true for the datum buffer mode, so this predicate
@@ -195,11 +225,9 @@
          ; probably closed
          #f)))
 
-; FIXME: fakes file options
-
 (define (open-file-input-port filename . rest)
   (cond ((null? rest)
-         (file-io/open-file-input-port filename '() 'block #f))
+         (file-io/open-file-input-port filename (file-options) 'block #f))
         ((null? (cdr rest))
          (file-io/open-file-input-port filename (car rest) 'block #f))
         ((null? (cddr rest))
@@ -250,7 +278,7 @@
 
 (define (open-file-output-port filename . rest)
   (cond ((null? rest)
-         (file-io/open-file-output-port filename '() 'block #f))
+         (file-io/open-file-output-port filename (file-options) 'block #f))
         ((null? (cdr rest))
          (file-io/open-file-output-port filename (car rest) 'block #f))
         ((null? (cddr rest))
@@ -328,7 +356,8 @@
 
 (define (open-file-input/output-port filename . rest)
   (cond ((null? rest)
-         (file-io/open-file-input/output-port filename '() 'block #f))
+         (file-io/open-file-input/output-port
+          filename (file-options) 'block #f))
         ((null? (cdr rest))
          (file-io/open-file-input/output-port filename (car rest) 'block #f))
         ((null? (cddr rest))

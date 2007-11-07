@@ -1515,6 +1515,8 @@
    &i/o-port make-i/o-port-error i/o-port-error? i/o-error-port
 
    file-options                           ; deprecated syntax
+   no-create no-fail no-truncate          ; Larceny hack
+
    buffer-mode                            ; deprecated syntax
    buffer-mode?                           ; deprecated procedure
 
@@ -1597,6 +1599,9 @@
     i/o-file-does-not-exist-error?
     &i/o-port make-i/o-port-error i/o-port-error? i/o-error-port
 
+    file-options
+    no-create no-fail no-truncate                                ; Larceny hack
+
     buffer-mode?
 
     latin-1-codec utf-8-codec utf-16-codec
@@ -1653,18 +1658,14 @@
   ; [Larceny]
   ; Larceny accepts any symbol as a file option,
   ; but ignores all but a few options.
+  ;
+  ; This could be implemented as a macro, but it's easier
+  ; for Larceny to implement file-options as a procedure.
 
-  (define-syntax file-options
-    (syntax-rules ()
-     ((_ opt ...)
-      (make-file-options 'opt ...))))
-
-  ; [Larceny]
-  ; FIXME:  This should return an enumeration set,
-  ; although how Larceny is supposed to do that given
-  ; its infinite set of legal file options is a mystery.
-
-  (define make-file-options list)
+  ;(define-syntax file-options
+  ;  (syntax-rules ()
+  ;   ((_ opt ...)
+  ;    (make-file-options 'opt ...))))
 
   ; [Larceny]
   ; In Larceny, *every* symbol describes a buffer mode.

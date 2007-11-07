@@ -55,7 +55,7 @@
 (write (record-type-field-names :point))
 (newline)
 
-(put-datum (current-output-port) (file-options hello world))
+(put-datum (current-output-port) (file-options no-create))
 (newline)
 
 (display "Hello world!")
