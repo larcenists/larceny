@@ -57,6 +57,8 @@
 
     (case emode
      ((r5rs err5rs)
+      (if (herald)
+          (writeln (herald)))
       (adjust-case-sensitivity!)
       (if (< (get-feature 'safety) 1)                     ; FIXME
           (adjust-safety! 1))                             ; FIXME
@@ -75,8 +77,7 @@
                       (ex:repl (list exp)))))
               (load-evaluator aeryn-evaluator)
               (repl-evaluator aeryn-evaluator)
-              (display "ERR5RS mode (no libraries have been imported)")
-              (newline))))
+              (writeln "ERR5RS mode (no libraries have been imported)"))))
       (r5rs-entry-point argv))
 
      ; R6RS modes are batch modes, so we want to exit rather
@@ -121,8 +122,6 @@
 ; Called only by interactive-entry-point, above.
 
 (define (r5rs-entry-point argv)
-  (if (herald)
-      (writeln (herald)))
   (start-repl)
   (exit 0))
 
