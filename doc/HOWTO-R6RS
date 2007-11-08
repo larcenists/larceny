@@ -94,14 +94,18 @@ You probably don't want to do that.  Had you wanted
 to type R6RS code at Larceny, you'd be using ERR5RS
 mode instead.  See HOWTO-ERR5RS.
 
-If your attempts to run a correct R6RS program result
-in a long series of error messages, as though a very
-large R6RS program had been fed to a Scheme compiler
-that was expecting to see R5RS-compatible code, then
-the R6RS runtime and standard libraries were probably
-not installed correctly, or their source code was
-modified after they were last compiled.  To fix the
-problem, repeat step 4 of HOWTO-BUILD.
+When attempting to run an R6RS program, you may see
+a warning about "loading source in favor of stale
+fasl file: .../lib/R6RS/r6rs-standard-libraries.sch",
+following by a long series of error messages about
+syntactic keywords used as a variable, ending with
+the kind of error you'd expect to see when a large
+R6RS program is fed to a Scheme compiler that was
+expecting to see R5RS-compatible code.  That means
+the R6RS runtime and standard libraries were not
+installed correctly, or their source files have been
+touched or modified since they were last compiled.
+To fix the problem, repeat step 4 of HOWTO-BUILD.
 
 
 PREDEFINED LIBRARIES
@@ -134,7 +138,8 @@ Larceny is non-conforming because it does not perform
 all of the checking for non-portable code that the
 R6RS requires implementations to perform.  Since R6RS
 libraries are non-portable anyway, the R6RS-mandated
-checking for other portability problems is silly.
+checking for other portability problems is overly
+prescriptive.
 
 Larceny performs all checks needed to ensure safety
 as that concept has traditionally been defined.
@@ -156,8 +161,8 @@ preferred way to execute R6RS programs.
 RECOMMENDATIONS
 
 If you are writing a program that will run only in Larceny
-and be used by people who don't know Scheme, then adherence
-to the R6RS standard may help to achieve your goals.
+and be used by people who don't know Scheme, then the R6RS
+standard may help to achieve your goals.
 
 If your goal is to create or to distribute substantial
 programs and libraries that will run without modification
