@@ -3,8 +3,11 @@ Compiling and Installing Larceny
 
 INSERT INTRODUCTORY TEXT HERE (compiling.txt).
 
-WARNING: This text is absurdly out of date.  You're better off reading
-link:HOWTO-SETUP[].
+[WARNING]
+================================================================
+This text is absurdly out of date.  You're better off reading
+link:HOWTO-BUILD[].
+================================================================
 
 ///////////////////////////////////
 ==== Contents

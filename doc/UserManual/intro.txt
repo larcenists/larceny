@@ -53,10 +53,10 @@ files from a binary distribution of Larceny.
 
 The scripts and heap images are discussed in the following section. 
 
-You should decide where you want to install Twobit and Larceny;
-let's suppose you want to install them in /usr/local/bin and
-/usr/local/lib/larceny. Copy the files larceny and
-twobit to /usr/local/bin and edit the definition of the
+You should decide where you want to install Larceny;
+let's suppose you want to install it in /usr/local/bin and
+/usr/local/lib/larceny.  Copy the files larceny, twobit,
+and scheme-script to /usr/local/bin and edit the definition of the
 variable LARCENY_PATH at the head of each file to point to the correct
 directory:
     
@@ -71,6 +71,10 @@ You should now be able to run Larceny by typing "`larceny`" at a
 Unix prompt, and similarly you should be able to run the Twobit
 compiler by typing "`twobit`".  On Windows, type "`larceny.bat`"
 or "`twobit.bat`".
+
+Before you can run Larceny in ERR5RS or R6RS modes, you may
+have to compile the ERR5RS/R6RS runtime and standard libraries.
+Step 4 of doc/HOWTO-BUILD tells how to do this.
 
 === Larceny or Twobit?
 
@@ -95,21 +99,20 @@ compiler development can be a risky business, "twobit.heap" uses the
 interpreter for evaluation -- the interpreter is unaffected by changes
 to Twobit.
 
-Running "twobit.heap" is probably not useful unless you are doing
+Using the "twobit.heap" is probably not useful unless you are doing
 compiler development, in which case you will need the source code as
 well as the binaries, or using Petit Larceny.
 
-WARNING: In Petit Larceny,
-the compiler may not be present in "larceny.heap".  Until this
-known bug is fixed, you will have to use "twobit.heap" when you
-want to compile files.
 
 === Using Larceny
 
 ==== Running Scheme files as scripts
 
+To run Scheme scripts or R6RS top-level programs, follow
+the instructions in doc/HOWTO-SCRIPT.
+
 On Unix systems, the following command line will run the
-Scheme code in "myprogram.sch":
+R5RS code in "myprogram.sch":
 
     larceny -nobanner -- -e '(load "myprogram.sch")'
 
@@ -124,10 +127,15 @@ Pre-compiled programs will load faster.  See compile-file.
 
 ==== Interactive work
 
-When you start Larceny you will be presented with a banner
-message and the read-eval-print loop's prompt:
+To use Larceny's new ERR5RS-compatible read/eval/print
+loop, follow the instructions in doc/HOWTO-ERR5RS.
+
+When you start Larceny in R5RS mode (the default), you
+will be presented with a banner message and the
+read-eval-print loop's prompt:
 
 ------------------------------------------------------------
+% larceny
 Larceny vX.Y <version_name> (MMM DD YYYY HH:MM:SS, precise:SunOS5:split)
         
 >
@@ -211,12 +219,25 @@ For still more information about compiler switches, see the
 
 ==== Error messages when starting Larceny
 
+When attempting to run an R6RS program, you may see
+a warning about "loading source in favor of stale
+fasl file: .../lib/R6RS/r6rs-standard-libraries.sch",
+following by a long series of error messages about
+syntactic keywords used as a variable, ending with
+the kind of error you'd expect to see when a large
+R6RS program is fed to a Scheme compiler that was
+expecting to see R5RS-compatible code.  That means
+the R6RS runtime and standard libraries were not
+installed correctly, or their source files have been
+touched or modified since they were last compiled.
+To fix the problem, repeat step 4 of doc/HOWTO-BUILD.
+
 The precompiled binary forms of Larceny should run on
 most machines with the appropriate processor and operating
 system, but the executable program "larceny.bin" may be
 incompatible with very old or with very new versions of
 the processor or operating system.  If that appears to be
-the case, you can use MzScheme to recompile larceny.bin
+the case, you can use MzScheme v37x to recompile larceny.bin
 from source.  First, though, you should report the problem
 to us (larceny@ccs.neu.edu).  Please report success stories
 as well.

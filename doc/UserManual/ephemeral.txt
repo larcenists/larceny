@@ -1,28 +1,32 @@
 Ephemeral functionality
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-WARNING: This document is a pseudo user manual for experimental and/or
+[WARNING]
+================================================================
+Some of the information in this section is obsolete or
+obsolescent.  Larceny's libraries have been reorganized
+several times since this chapter was written, and will
+undergo even more rapid reorganization during Larceny's
+transition to ERR5RS/R6RS libraries.
+================================================================
+
+[WARNING]
+================================================================
+This chapter is a pseudo user manual for experimental and/or
 ephemeral functionality in Larceny. Experimental functionality is
-functionality that will eventually be incorporated in the standard
+functionality that might eventually be incorporated in the standard
 distribution in some form or another, because it's a feature we
-want. Ephemeral functionality is functionality that is useful in the
-current implementation of Larceny, and that may be radically
+want. Ephemeral functionality is functionality that may be useful
+in the current implementation of Larceny, but may be radically
 redesigned or removed altogether in the future. 
+================================================================
+
 
 ==== Ephemeral functionality
 
 (None supported in this release.) 
 
 ==== Experimental functionality
-
-===== The debugger
-
-Synopsis: Load Experimental/debug.sch, and following an error,
-evaluate (debug). When in the debugger, type ? for help.
-
-===== Record package
-
-Synopsis: Load Experimental/record.sch and read Experimental/record.doc. 
 
 ===== Generalized procedures
 

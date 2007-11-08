@@ -12,11 +12,20 @@ http://www.r6rs.org/[Revised^6^ Report],
 and
 http://scheme-punks.org/wiki/index.php?title=Main_Page[ERR5RS].
 Those standards serve as Larceny's primary documentation.
-
 This manual describes aspects of Larceny that are not described
 by the IEEE standard, the Revised Reports, or ERR5RS.
-The most current version of this manual is online at
+
+The R6RS is a new standard, and ERR5RS is still in
+development.  These new standards have led to many
+recent changes in Larceny, and we have not had time
+to update this manual to describe all of those
+changes; for the most part, this manual assumes you
+are using Larceny's traditional R5RS-compatible mode
+of execution.
+For the most current version of this manual, please
+visit our online documentation at
 http://larceny.ccs.neu.edu/doc.
+
 The most current versions of Larceny are available for
 download at
 http://larceny.ccs.neu.edu/[Larceny's main web page],
@@ -31,8 +40,8 @@ http://larceny.ccs.neu.edu/trac/[Trac system].
 
 include::intro.txt[]
 
-R6RS extensions
----------------
+ERR5RS/R6RS modes and extensions
+--------------------------------
 
 include::r6rs.txt[]
 

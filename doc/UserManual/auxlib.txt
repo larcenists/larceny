@@ -1,6 +1,15 @@
 Auxiliary Library
 ~~~~~~~~~~~~~~~~~
 
+[WARNING]
+================================================================
+Most of the information in this section is obsolete or
+obsolescent.  Larceny's libraries have been reorganized
+several times since this chapter was written, and will
+undergo even more rapid reorganization during Larceny's
+transition to ERR5RS/R6RS libraries.
+================================================================
+
 Larceny's library is split into two parts: the basis library and the
 auxiliary library. The basis library is the library in the basis heap
 image ("larceny.heap"), which is produced by the development

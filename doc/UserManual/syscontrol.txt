@@ -29,12 +29,26 @@ to promote all live data into generation 3.
 
 proc:gc-counter[args="none",result="fixnum"]
 
-_GC-counter_ returns the number of garbage collections performed since
+_gc-counter_ returns the number of garbage collections performed since
 startup. On a 32-bit system, the counter wraps around every
 1,073,741,824 collections.
 
-_GC-counter_ is a primitive and compiles to a single load instruction
+_gc-counter_ is a primitive and compiles to a single load instruction
 on the SPARC.
+
+proc:major-gc-counter[args="none",result="fixnum"]
+
+_major-gc-counter_ returns the number of major garbage collections
+performed since startup, where a major collection is defined as a
+collection that may change the address of objects that have already
+survived a previous collection.
+On a 32-bit system, the counter wraps around every
+1,073,741,824 collections.
+
+_major-gc-counter_ is a primitive and compiles to a single load
+instruction on the SPARC.  Its primary use to implement efficient
+hashtables that hash on object identity (make-eq-hashtable and
+make-eqv-hashtable).
 
 proc:gcctl[args="heap-number operation operand",result="unspecified"]
 
