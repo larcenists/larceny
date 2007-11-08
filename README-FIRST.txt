@@ -9,11 +9,11 @@ Currently, this software is distributed for:
 
 The current version of Larceny always runs in 32-bit mode, but the
 native varieties of Larceny are known to work on 64-bit SPARC and
-IA32 hardware.
+x86-64 hardware.
 
 A binary distribution of Larceny will occupy about 25 megabytes
-of disk.  A source distribution of Larceny will expand to almost
-200 megabytes as it is built.
+of disk when unpacked.  A source distribution of Larceny will
+expand to almost 200 megabytes as it is built.
 
 "Petit Larceny" is used throughout Larceny's documentation to
 refer to all varieties other than Common Larceny and the SPARC

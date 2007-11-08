@@ -75,7 +75,7 @@ can evaluate are constant literals, variable references
 (but no variables have been imported!), procedure calls
 (but no procedure values are accessible!), library
 definitions, and import forms.  The first thing you'll
-want to do is to import some of the preloaded libraries,
+want to do is to import some of the pre-loaded libraries,
 such as:
 
     > (import (rnrs base) (rnrs lists) (rnrs io simple))
@@ -117,8 +117,8 @@ explicitly:
     Elapsed time...: 111 ms (User: 104 ms; System: 8 ms)
     Elapsed GC time: 4 ms (CPU: 4 in 8 collections.)
 
-Before you import a library or load top-level program, you
-must first load all of the nonstandard libraries that it
+Before you import a library or load a top-level program,
+you must first load all of the nonstandard libraries it
 imports.
 
 You do not have to import those libraries into the ERR5RS

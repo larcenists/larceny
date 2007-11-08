@@ -53,7 +53,7 @@ You can redirect Larceny's standard input, in which case
 you may want to eliminate the herald announcement and the
 read/eval/print loop's prompt:
 
-    % larceny -nobanner -- -e "(begin (repl-prompt values) (herald #f))" \
+    % larceny -nobanner -- -e "(begin (herald #f) (repl-prompt values))" \
               < hello.sch
 
 For an explanation of why that works, which may suggest other
