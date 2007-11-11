@@ -637,11 +637,6 @@ parse_options( int argc, char **argv, opt_t *o )
   if (o->r6less_pedantic && (! (o->r6pedantic)))
     param_error( "Missing -pedantic option." );
 
-  /* FIXME: should allow -path in R6RS modes. */
-
-  if (o->r6rs && (strcmp (o->r6path, "") != 0))
-    param_error( "The -r6rs and -path options are currently incompatible." );
-
   if (o->r6slow && (strcmp (o->r6path, "") != 0))
     param_error( "The -slow and -path options are incompatible." );
 
