@@ -1,0 +1,63 @@
+Bytevectors
+~~~~~~~~~~~
+
+A _bytevector_ is a data structure that stores bytes -- exact
+8-bit unsigned integers. Bytevectors are useful in constructing
+system interfaces and other low-level programming. In Larceny,
+many bytevector-like structures -- strings, bignums, and even
+bytevectors themselves -- are implemented in terms of a
+lower-level _bytevector-like_ data type. The operations on
+generic bytevector-like structures are particularly fast but
+useful largely in code that manipulates Larceny's data
+representations.
+
+The R6RS <<BytevectorsLibrary, bytevectors library>> now
+provides a large set of procedures that, in Larceny, are
+defined using the procedures described below.
+
+proc:make-bytevector[kind="Integrable procedure",args="length",result="bytevector"]
+proctempl:make-bytevector[kind="Integrable procedure",args="length fill",result="bytevector"]
+
+Returns a bytevector of the desired length.
+If no second argument is given, then the bytevector has not
+been initialized and most likely contains garbage.
+
+_Operations on bytevector structures_
+
+proctempl:bytevector?[args="obj",result="boolean"]
+
+proctempl:bytevector-length[args="bytevector",result="integer"]
+
+proctempl:bytevector-ref[args="bytevector offset",result="byte"]
+
+proctempl:bytevector-set![args="bytevector offset byte",result="unspecified"]
+
+proctempl:bytevector-equal?[args="bytevector1 bytevector2",result="boolean"]
+
+proctempl:bytevector-fill![args="bytevector byte",result="unspecified"]
+
+proctempl:bytevector-copy[args="bytevector",result="bytevector"]
+
+These procedures do what you expect. All procedures are integrable, except bytevector-equal? and bytevector-copy. 
+
+_Operations on bytevector-like structures_
+
+proctempl:bytevector-like?[args="obj",result="boolean"]
+
+proctempl:bytevector-like-length[args="bytevector",result="integer"]
+
+proctempl:bytevector-like-ref[args="bytevector offset",result="byte"]
+
+proctempl:bytevector-like-set![args="bytevector offset byte",result="unspecified"]
+
+proctempl:bytevector-like-equal?[args="bytevector1 bytevector2",result="boolean"]
+
+proctempl:bytevector-like-copy[args="bytevector",result="bytevector"]
+    
+
+A bytevector-like structure is a low-level representation on which data that are indexable like bytevectors are built, e.g., bytevectors, strings, bignums, and flonums.
+
+There is no way of constructing a "generic" bytevector-like structure; use the constructors for the data mapped onto bytevector-like structures instead, like make-string or make-bytevector.
+
+The bytevector-like operations operate on all bytevector-like structures. All the procedures are integrable, except bytevector-like-equal? and bytevector-like-copy.
+

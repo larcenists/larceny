@@ -1,0 +1,211 @@
+Running Larceny
+~~~~~~~~~~~~~~~
+
+WARNING: Some of this section is wildly out of date.  But other parts are unchanged.  Beware.
+
+////////////////////////////////////////////////
+==== Contents
+
+1. [Summary (Overall behavior)][1]  
+2. [Quick summary (precise GC)][2]  
+3. [Quick summary (conservative GC)][3]  
+4. [Command line format overview][4]  
+5. [Heap allocation options (precise GC)][5]  
+6. [GC policy options (precise GC)][6]  
+7. [GC policy options (conservative gc)][7]  
+8. [General options][8]  
+9. [Developers' options][9]  
+10. [Startup file][10]  
+11. [Reorganizing a heap image][11]  
+////////////////////////////////////////////////
+
+==== Summary (Overall behavior)
+
+Larceny can be started in two distinct ways. Those users who use
+Larceny only for Scheme programming will usually install it as
+described in <<TheIntroduction>> and will run it via the standard
+shell script by typing larceny at the shell prompt.
+
+Those users who change Twobit and Larceny, on the other hand, will
+also run the shell script -- and also the twobit script -- but will
+sometimes need to run a newly-compiled program or newly-built heap
+without installing it first. In that case, the binary 'larceny.bin'
+will be run directly, as described below.
+
+The command line options in this section apply to both the shell
+scripts and the binary program. However, a heap file name may not be
+supplied to the shell scripts, and the option -small (described in
+<<TheIntroduction>>) is not accepted by the binary program or by
+the twobit script.
+
+==== Summary (precise gc)
+
+Larceny is most easily run from the command line with the following
+command:
+    
+         larceny.bin _heap-filename_
+
+That command will run Larceny with the default configuration. (You can
+also omit the _heap-filename_, which then defaults to the file
+sparc.heap in the current directory.) The default configuration is:
+
+  * Writeable static area for the heap image 
+  * Three collected areas: 
+
+    * Nursery (youngest generation): 1Mbyte single space 
+    * Ephemeral generation: 2Mbyte, fixed size, two-space copy-collected 
+    * Dynamic generation: 3Mbyte, expandable, two-space copy-collected, no size limit, load factor 3.0 
+
+  * Separate large object subspace in each collected area 
+  * Remembered set: 16K hash table entries; 16K sequential store buffer (SSB) slots 
+  * Breakpoints are enabled 
+  * Single stepping is disabled 
+  * Printing of startup statistics is disabled 
+  * Printing of nonessential messages is enabled 
+
+==== Summary (conservative GC)
+
+Larceny with the conservative collector is run from the command line
+with the following command:
+    
+         bdwlarceny.bin _heap-filename_
+
+That command will run Larceny with the default configuration. (You can
+also omit the _heap-filename_, which then defaults to the file
+larceny.heap in the current directory.) The default configuration is:
+
+  * Non-generational, non-incremental collection 
+  * Breakpoints are disabled 
+  * Single stepping is disabled 
+  * Printing of startup statistics is disabled 
+  * Printing of nonessential messages is enabled 
+
+_Note:_ It is beneficial to run the conservative collector with a
+_split heap image_, that is, a heap image where the code vectors and
+the other data are separated. Using such a heap image reduces the risk
+of accidental storage retention, although it is at the present time
+unclear whether the practical benefits are measurable (in Larceny, at
+least). The heap image created by the development system is not split,
+but you can create such a heap image with Larceny. Click [here][11] to
+learn more.
+
+==== Command line format overview
+
+Larceny accepts a number of command line options to control its
+configuration and behavior. The summary of the command line format is
+as follows:
+    
+         larceny.bin [ _option_ ... ] [ _heap-filename_ ] [ -args _argument_ ... ]
+
+where each _option_ is described in this document; see the
+[contents][13] for a topic listing. If the switch -args is present,
+then the arguments following that switch are made available to Scheme
+code running in Larceny as a vector of strings; see the description of
+the [command-line-arguments][14] procedure.
+
+_Option arguments_: where an argument _size_ is indicated, a
+nonnegative integer is expected, optionally followed immediately by
+the letter "K" (Kilo) or "M" (Mega); e.g. a size of 512K means 524288
+8-bit bytes. Where an argument _n_ is indicated, a nonnegative integer
+is expected.
+
+==== Heap allocation options (precise GC)
+
+    -gen      Select the generational garbage collector with the default number of collected areas (3). An area is akin to a generation except that some areas (notably, the non-predictive dynamic area) have multiple generations. 
+
+    -areas _n_      Select the generational garbage collector with _n_ collected areas, where _n_ specifies the number of non-static heap areas the system will use. Implies use of a generational collector. The default for _n_ is 3 and the minimum is 2. 
+
+    -np      Select the generational garbage collector with the non-predictive dynamic area. This option can be combined with -areas to select a specific number of areas. 
+
+    -stopcopy      Select the stop-and-copy garbage collector with one collected area. 
+
+    -nostatic      Disable the static area (which is on by default in all configurations). 
+
+    -size _size_  
+    -size_k_ _size_      Specify the size of the data areas, in bytes. If the form -size_k_ is used, then the size for area _k_ is set, all others remain unchanged. Areas are numbered from 1, where area 1 is the youngest. If the more general form is used, then the value specified affects all areas that have not had their size specified individually. 
+
+The dynamic area will grow to accomodate the live data; see -load and -max. 
+
+    -steps _n_  
+    -stepsize _size_  
+     Select the generational garbage collector and the non-predictive dynamic area, and also set the initial number of steps or the initial step size. 
+
+     -stats      Print a summary of memory allocation statistics at startup time. 
+
+==== GC policy options (precise GC)
+
+    -max _size_      Specify the desired maximum heap size for the dynamic area. This is a very strong suggestion to the collector for that area that it should never allow the size of the area to grow to more than _size_ bytes. In each case when the collector cannot obey this, it prints a message to this effect and temporarily exceeds the limit with the minimal amount it thinks works. 
+
+In practice this appears to work very well. 
+
+   -load _n_      Specify the inverse load factor (ratio of heap storage to live storage) for the dynamic area. This is a decimal number; the default is 3.0. 
+
+   -rhash _size_      Specify the size of the remembered-set hash table, in the number of elements the table will have. The size given must be a power of 2. The default is 16K. _Bug warning: this is ignored in 1.0a1. See BUGS._
+
+   -ssb _size_      Specify the size of the write barrier's Sequential Store Buffer (SSB), as the number of elements the SSB will have. The default is 16K. _Bug warning: this is ignored in 1.0a1. See BUGS._
+
+==== GC policy options (conservative GC)
+
+    -incremental      Enable the conservative collector's incremental, generational mode. **This switch is currently disabled**. I've had no luck whatever using incremental collection under SunOS; this probably has to do with the costly VM write protection under SunOS coupled with the very high frequency of writes. 
+link:LarcenyNotes/note11-bdw.html[Here] are some musings on the issue. 
+
+==== General options
+
+    -help      Print a summary of the legal command line options. 
+
+    -quiet      Suppress nonessential messages. 
+
+    -annoy-user  
+    -annoy-user-greatly      Print annoying messages at major points in the program (garbage collections in older generations, for example). The form -annoy-user-greatly causes the garbage collectors to print messages about promotions and policy decisions also. Try it; you'll hate it. 
+
+==== Developers' options
+
+    -break      _[Development]_ Enable manually-placed breakpoints. 
+
+    -step      _[Development]_ Enable debugging of code compiled with MAL single-stepping enabled. 
+
+==== Startup/configuration file
+
+The default read-eval-print loop looks for a startup/configuration
+file when Larceny is started. The file, if found, will be assumed to
+contain either Scheme source code or compiled fasl-format code, and
+will be loaded before control is passed to the repl. If the file is
+found but the load fails, a warning will be printed but the
+read-eval-print loop will still be run.
+
+The file .larceny will be taken to be the startup file; Larceny looks
+first in the current directory and then in the user's home directory.
+
+==== Reorganizing a heap image
+
+You can create a split heap image by invoking the following command: 
+    
+        larceny.bin -reorganize-and-dump filename
+
+where filename is the name of an existing heap file. Larceny will read
+the heap file, reorganize it into two pieces, one containing code and
+one other data, and then dump a new heap file filename.split
+containing the split heap. Larceny then exits. The new heap file can
+be used as an argument to larceny in future runs.
+
+* * *
+
+$Id: starting.html 434 1998-12-21 21:23:26Z will $  
+[larceny@ccs.neu.edu][16]
+
+   [1]: #summary:overall
+   [2]: #summary:precise
+   [3]: #summary:conservative
+   [4]: #summary:general
+   [5]: #heap:precise
+   [6]: #policy:precise
+   [7]: #policy:conservative
+   [8]: #general
+   [9]: #developer
+   [10]: #startup-file
+   [11]: #reorg
+   [12]: intro.html
+   [13]: #contents
+   [14]: manual#proc:command-line-arguments
+   [16]: mailto:larceny@ccs.neu.edu
+

@@ -50,13 +50,7 @@ The library
 
 include::bytevectors.txt[]
 
-include::control.txt[]
-
 include::debugging.txt[]
-
-[[SectionEnvironments]]
-
-include::environ.txt[]	    
 
 include::fixnums.txt[]
 
@@ -65,8 +59,6 @@ include::ffi.txt[]
 include::hashtable.txt[]
 
 include::io.txt[]
-
-include::lowlevel.txt[]
 
 include::os.txt[]
 
@@ -88,19 +80,11 @@ include::srfi.txt[]
 
 include::strings.txt[]
 
-[[SectionStructures]]
-
-include::structures.txt[]
-
 include::symbols.txt[]
 
 include::syscontrol.txt[]
 
 include::vectors.txt[]
-
-include::auxlib.txt[]
-
-include::ephemeral.txt[]
 
 Using the development system
 ----------------------------
@@ -109,22 +93,10 @@ include::compiling.txt[]
 
 include::starting.txt[]
 
-include::repl.txt[]
-
-include::developing.txt[]
-
-include::bdw.txt[]
-
-[[SectionMemstats]]
-
-include::memstats.txt[]
-
 Reference
 ---------
 
 include::procidx.txt[]
-
-include::concept.txt[]
 
 Appendices
 ----------
@@ -133,11 +105,12 @@ Appendices
 
 include::ieee-std.txt[]
 
+////////////////////////////////////////////////////////////////
 [[LarcenyNoteRepr]]
 link:../notes/note2-repr.html[]
-
 [[LarcenyNoteFfi]]
 link:../notes/note7-ffi.html[]
+////////////////////////////////////////////////////////////////
 
 ifdef::basebackend-docbook[]
 Index
