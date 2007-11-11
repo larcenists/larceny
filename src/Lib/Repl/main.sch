@@ -34,8 +34,6 @@
   (command-line-arguments argv)
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
-  (failsafe-load-init-files)
-  (failsafe-process-arguments)
   (let* ((features (system-features))
          (get-feature
           (lambda (name)
@@ -57,6 +55,8 @@
 
     (case emode
      ((r5rs err5rs)
+      (failsafe-load-init-files)
+      (failsafe-process-arguments)
       (if (herald)
           (writeln (herald)))
       (adjust-case-sensitivity!)
@@ -189,11 +189,13 @@
             (loop (+ i 1))))))))))
 
 ;; retract-eof : Any -> Any
+
 (define (retract-eof x)
   (cond ((eof-object? x) (error "Encountered EOF"))
         (else x)))
   
 ;; failsafe-eval-thunk : (-> S-exp) [Listof Any] -> Any
+
 (define (failsafe-eval-thunk arg-thunk error-mesgs)
   (call-with-current-continuation
    (lambda (k)
@@ -205,6 +207,7 @@
         (failsafe-eval (arg-thunk)))))))
 
 ;; failsafe-eval-string : S-exp -> Any
+
 (define (failsafe-eval arg-exp)
   (call-with-current-continuation
    (lambda (k)
@@ -216,6 +219,7 @@
         (eval arg-exp))))))
 
 ;; failsafe-load-file : String -> Any
+
 (define (failsafe-load-file filename)
   (call-with-current-continuation
    (lambda (k)

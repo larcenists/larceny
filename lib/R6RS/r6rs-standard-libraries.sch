@@ -1806,7 +1806,7 @@
   ; [Larceny]
 
   (define (command-line)
-    (cons "larceny" (vector->list (command-line-arguments))))
+    (vector->list (command-line-arguments)))
   )
 
 (library (rnrs arithmetic fixnums (6))

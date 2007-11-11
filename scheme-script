@@ -52,11 +52,11 @@ fi
 cmd="$LARCENY_ROOT/$cmd"
 heap="$LARCENY_ROOT/$heap"
 
-case "`head -n +1 $@ | sed -e 's/^[#][!][/ ].*/ignore/'`" in
+case "`head -n +1 $1 | sed -e 's/^[#][!][/ ].*/ignore/'`" in
     ignore)
-    exec tail -n +2 "$@" | "$cmd" -heap "$heap" -r6rs
+    exec tail -n +2 "$1" | "$cmd" -heap "$heap" -r6rs -- $@
     ;;
     *)
-    exec "$cmd" -heap "$heap" -r6rs -program "$@"
+    exec "$cmd" -heap "$heap" -r6rs -program "$1" -- $@
     ;;
 esac
