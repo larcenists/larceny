@@ -1,35 +1,34 @@
 Larceny User Manual
 ===================
 
-http://larceny.ccs.neu.edu/[Larceny]
+Larceny
+-------
+
+Larceny
 implements the Scheme programming language
 as defined by
 <<IeeeStd, IEEE Standard 1178-1990>>,
 the
-http://www-swiss.ai.mit.edu/~jaffer/r5rs_toc.html[Revised^5^ Report],
+Revised^5^ Report,
 the
-http://www.r6rs.org/[Revised^6^ Report],
+Revised^6^ Report,
 and
-http://scheme-punks.org/wiki/index.php?title=Main_Page[ERR5RS].
-Those standards serve as Larceny's primary documentation.
+ERR5RS.
+Those language standards serve as Larceny's primary documentation.
+The R5RS, R6RS, and ERR5RS standards are available online:
+
+----------------------------------------------------------------
+        R5RS:   http://www-swiss.ai.mit.edu/~jaffer/r5rs_toc.html
+        R6RS:   http://www.r6rs.org/
+        ERR5RS: http://scheme-punks.org/wiki/index.php?title=Main_Page
+----------------------------------------------------------------
+
 This manual describes aspects of Larceny that are not described
 by the IEEE standard, the Revised Reports, or ERR5RS.
-
-The R6RS is a new standard, and ERR5RS is still in
-development.  These new standards have led to many
-recent changes in Larceny, and we have not had time
-to update this manual to describe all of those
-changes; for the most part, this manual assumes you
-are using Larceny's traditional R5RS-compatible mode
-of execution.
 For the most current version of this manual, please
-visit our online documentation at
+visit Larceny's main web page at
 http://larceny.ccs.neu.edu/doc.
-
-The most current versions of Larceny are available for
-download at
-http://larceny.ccs.neu.edu/[Larceny's main web page],
-which also contains links to the Common Larceny User
+That page also links to the Common Larceny User
 Manual and to the Larceny mailing list.
 
 To report bugs, please send email to the Larceny
