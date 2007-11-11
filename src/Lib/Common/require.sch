@@ -24,9 +24,10 @@
 ;; noisy, it complains when loading source because the fasl is stale.
 
 (define (require/resolve-dir name dir noisy)
-  (define base (if (absolute-path-string? dir)
-                   (string-append dir "/" name)
-                   (string-append (current-larceny-root) "/" dir "/" name)))
+  (define base
+    (if (absolute-path-string? dir)
+        (string-append dir "/" name)
+        (string-append (current-larceny-root) "/" dir "/" name)))
   (define (warn src)
     (if noisy
         (format #t "Warning: loading source in favor of stale fasl file: ~a~%"
@@ -71,7 +72,7 @@
                  #f
                  (begin
                   (set! *require-loaded-files*
-                   (cons file *require-loaded-files*))
+                        (cons file *require-loaded-files*))
                   (load file)
                   #t))))
     (else
