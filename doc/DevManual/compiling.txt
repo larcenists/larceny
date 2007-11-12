@@ -1,0 +1,164 @@
+Compiling and Installing Larceny
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+INSERT INTRODUCTORY TEXT HERE (compiling.txt).
+
+[WARNING]
+================================================================
+This text is absurdly out of date.  You're better off reading
+link:HOWTO-BUILD[].
+================================================================
+
+///////////////////////////////////
+==== Contents
+
+[1. Source distribution format][1]  
+[2. Requirements][2]  
+[3. Installation][3]  
+[4. Creating the heap images][4]  
+///////////////////////////////////
+
+
+==== Source distribution format
+
+Larceny is distributed as a gzipped tar file that contains the sources
+for the compiler, the run-time system, and the Scheme libraries, and
+everything needed to build the system (short of a host Scheme
+implementation and the conservative garbage collector, if you'll be
+using that). The name of the archive is larceny-_X.Y_-src.tar.gz,
+where _Z.Y_ is the version number.
+
+In the distribution directory you will also find archives of
+precompiled binaries and heap images for Larceny; the archives are
+named larceny-_X.Y_-sunos_Z_-bin.tar.gz where _Z_ is 4 or 5.
+
+==== Requirements
+
+A host Scheme system is needed to compile the Larceny Scheme
+sources. Any version of Larceny is suitable, as is Chez Scheme version
+5. (Chez Scheme version 4 has worked in the past, also.) See Step 5
+below for details.
+
+==== Installation
+
+===== Step 1: Unpack
+
+Unpack the source archive as discussed in the [Introduction][5]. 
+
+===== Step 2: Configure
+
+Edit the file _Rts/Makefile_ to reflect your environment and
+experimental needs. Normally, there's nothing you need to do here. If
+you do need to do something, then the comments in the makefile will
+guide you.
+
+Some older Sparc machines have strange instruction cache behavior that must be dealt with specially by editing the Makefile. Click [here][6] for more information about this. 
+
+If you are planning on building the system with the
+Boehm-Demers-Weiser conservative garbage collector, then you should
+read [this][7] for more information about other setup steps you need
+to perform.
+
+===== Step 3: Create the bootstrap setup
+
+Before anything else can be done, the build directories must be
+configured. That is done by executing the command
+    
+       make setup
+
+That command will edit the "build" script, set up some symbolic links
+in the source tree, and compile some C programs used by the
+development system.
+
+===== Step 4: Compiling the system
+
+To create the Larceny executable, execute the command 
+
+       make larceny.bin
+
+or, if you are compiling the system with the conservative collector, 
+
+       make bdwlarceny.bin
+
+You are now the proud owner of a Larceny executable, called either
+larceny.bin or bdwlarceny.bin.
+
+===== Step 5: Building the heap image
+
+The heap image is built using a Scheme-based compiler, so you need a
+working Scheme system. Normally, you can use a previously built
+version of Larceny as your development environment. If for some reason
+you can't use a previously built version of Larceny, you can use
+another Scheme system.
+
+We have built Larceny with Chez Scheme, MacScheme, and Gambit-C; a
+compatibility library for Chez Scheme is included in the
+distribution. If you have neither of these host systems, contact us,
+as setting up a new host system can be a little hairy.
+
+The system you are using as the host system needs to be configured in
+to the _build_ script: set the BUILD_HOST variable at the top to a
+string that identifies your system (see comments in the file).
+
+Now execute the command 
+    
+       build
+
+When the Scheme prompt appears, create the heap image by evaluating
+the expression
+    
+       (make-sparc-heap)
+
+All Scheme source files will now be compiled and then dumped in a heap
+image with the name sparc.heap.
+
+More information about how to use the development system for more
+interesting things, including how to compile the compiler, is
+available [here][8].
+
+To find out how to run Larceny, click [here][9]. 
+
+==== Creating the heap images
+
+First compile the development system as detailed [here][10]. 
+
+Some Scheme scripts are supplied in the Util subdirectory that are
+helpful in (re)creating the heap images distributed with Larceny:
+larceny.heap, twobit.heap, and r5rs.heap. These files are called
+std-heap.sch, twobit-heap.sch, and r5rs-heap.sch. They may _only_ be
+loaded into a process that was started with the command line
+    
+    
+        larceny.bin -stopcopy sparc.heap
+    
+
+where `sparc.heap` is a heap that was created as in step 3 above.
+
+(The -stopcopy switch is needed because the generational collector
+does not yet do heap dumping.)
+
+To build a heap image, start larceny.bin as outlined above and load
+the desired script ("Util/std-heap.sch", "Util/twobit-heap.sch", or
+"Util/r5rs-heap.sch") into the interpreter. The script will load the
+necessary files, dump a heap image, and then run larceny on the image
+to reorganize it (splitting code and data, as it were). Once you've
+built a heap, you should not use the same running process to build
+another, and it is most useful to quit and restart.
+
+* * *
+
+_$Id: compiling.html 434 1998-12-21 21:23:26Z will $_  
+[larceny@ccs.neu.edu][11]
+
+   [1]: #distribution
+   [2]: #requirements
+   [3]: #installation
+   [4]: #heaps
+   [5]: intro.html
+   [6]: sparc-cache.html
+   [7]: bdw.html
+   [8]: developing.html
+   [9]: starting.html
+   [10]: developing.html#larceny
+   [11]: mailto:larceny@ccs.neu.edu
+

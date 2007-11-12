@@ -1,0 +1,117 @@
+Using the Boehm-Demers-Weiser conservative GC
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+INSERT INTRODUCTORY TEXT HERE (bdw.txt).
+
+////////////////////////////////////
+==== Contents
+
+[1. Introduction][1]  
+[2. Installation][2]  
+[3. Configuration and build][3]  
+[4. Use][4]  
+[5. Performance measurements][5]  
+////////////////////////////////////
+
+==== Introduction
+
+Larceny can be configured to use the Boehm-Demers-Weiser conservative garbage collector (in the following called "the collector"). The collector is covered by the following copyright notice:
+
+_
+
+Copyright 1988, 1989 Hans-J. Boehm, Alan J. Demers  
+Copyright (c) 1991-1996 by Xerox Corporation. All rights reserved.  
+Copyright (c) 1996-1998 by Silicon Graphics. All rights reserved.  
+
+
+THIS MATERIAL IS PROVIDED AS IS, WITH ABSOLUTELY NO WARRANTY EXPRESSED OR IMPLIED. ANY USE IS AT YOUR OWN RISK. 
+
+Permission is hereby granted to use or copy this program for any purpose, provided the above notices are retained on all copies. Permission to modify the code and to distribute modified code is granted, provided the above notices are retained, and a notice that the code was modified is included with the above copyright notice. 
+
+_
+
+==== Installation
+
+I have tested version 4.14 of the collector with Larceny. Integration is straightforward, although you must build a separate version of larceny (called bdwlarceny) that uses the collector - you can't build a Grand Unified executable that lets you select the conservative collector with a command line switch.
+
+The collector is not part of the Larceny distribution file - you must get it and install it separately.
+
+Download the collector from Hans Boehm's web site at [ http://www.hpl.hp.com/personal/Hans_Boehm/gc/][6], and give it a name; I usually call it something like bdw-gc-4.14.tar.gz. Whatever you call it, you should have a .tar.gz file, and you should place it in the directory $LARCENY (cf. the [setup instructions][7]). Edit the file $LARCENY/Makefile so that the value of the variable BDW_DIST corresponds to the name of the archive that holds the collector.
+
+When in $LARCENY, type 
+    
+    
+        make bdw_unpack
+    
+
+and the archive will be unpacked and moved to the correct location, which is the directory $LARCENY/Rts/bdw-gc.
+
+==== Configuration and build
+
+===== Setup
+
+The file Rts/bdw-gc/Makefile as distributed by Boehm defines the C compiler to be 'cc'. You may want to change this to be the compiler you use to compile Larceny, which, on SunOS systems, will most certainly not be the standard 'cc'. I've been using gcc without problems.
+
+In the definition of CFLAGS near the top of the Makefile:
+
+  * You may want to change -O to -O3 (or higher). 
+  * Yoy may want to add -g to aid in debugging. 
+  * You must remove -DNO_EXECUTE_PERMISSION. 
+  * -DALL_INTERIOR_POINTERS is no longer required and may be removed. 
+
+===== Installing hooks
+
+(This is optional, but recommended.)
+
+The collector does not itself provide a mechanism whereby user code can be called at the beginning and end of garbage collections, so I've created one. It requires some trivial code modification.
+
+Add the line 
+    
+    
+        #include "../Sys/bdw.h"
+    
+
+to the file Rts/bdw-gc/alloc.c, following the other include files. This header file redefines two macros used by the collector, STOP_WORLD and START_WORLD, and makes them call the procedures bdw_before_gc and bdw_after_gc, respectively. (Those are defined in Rts/Sys/bdw-collector.c.)
+
+Performing this step is recommended because it enables performance measurements, detection of in-line allocation, and clearing of the unused portion of the stack before each collection. Even so, not all GC time is accounted for, in particular any time spent in lazy sweeping is not recorded.
+
+===== Build
+
+The collector will now be built when you build bdwlarceny: go to $LARCENY and type 
+    
+    
+        make bdwlarceny
+    
+
+===== Using newer versions of the collector
+
+It is probable that any newer version of the collector can be subsitituted for version 4.14. If you do use a newer version, check the collector's config.h file to make sure that the symbol ALIGN_DOUBLE is defined for the SPARC architecture (on line 477 in version 4.14).
+
+==== Use
+
+_You may not run Scheme code that has been compiled with in-line allocation._ In its default configuration, and if the hooks have been installed [as explained above][8], the run-time system will detect such attempts (after the fact, but in a reliable manner), and abort the program. While it would be possible for the system to recover from such attempts, the performance of the resulting programs would most likely be very poor, and I'm not going to bother.
+
+It is in your best interest to use split heaps, as explained in the manual ([Reorganizing a heap image][9]), but this is not required.
+
+==== Performance measurements and statistics
+
+Larceny's interface to the collector is not yet full-fledged; many run-time statistics are not gathered because the collector does not provide the necessary hooks. In an effort to make it possible to learn at least something about performance, the [previously mentioned hooks][8] have been provided.
+
+The collector uses lazy sweeping, so the time measurements you get are at best a lower bound on GC time, and probably not an accurate statistic. It's better than nothing. It is also reasonably straightforward to account for the time spent in lazy sweeping, but outside the scope of this release.
+
+* * *
+
+_$Id: bdw.html 1480 2000-09-12 21:23:07Z lth $_  
+[larceny@ccs.neu.edu][10]
+
+   [1]: #intro
+   [2]: #install
+   [3]: #config
+   [4]: #use
+   [5]: #measuring
+   [6]: http://www.hpl.hp.com/personal/Hans_Boehm/gc/
+   [7]: compiling.html
+   [8]: #hooks
+   [9]: starting.html#reorg
+   [10]: mailto:larceny@ccs.neu.edu
+

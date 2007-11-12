@@ -1,0 +1,180 @@
+ABOUT R6RS
+
+The R6RS is a new and controversial standard that extends the
+Scheme programming language.  In August 2007, the R6RS was
+ratified by 65.7% of the voters, which exceeded the required
+60% supermajority [1].
+
+The most important thing to know about the R6RS is that it is a
+supplement to the R5RS, not a replacement.  The R6RS has nothing
+to say about traditional Scheme programs; it merely adds two new
+kinds of Scheme programs, both intended for execution of entire
+programs in batch mode.  For interactive read/eval/print loops
+and dynamic loading of libraries or traditional Scheme programs,
+the relevant standards are IEEE-1178, R5RS, and ERR5RS [2,3].
+Larceny supports all of these standards; for more about ERR5RS,
+see HOWTO-ERR5RS.
+
+The second most important thing to know about the R6RS is that
+R6RS programs are not portable unless they limit themselves to
+the standard R6RS libraries and do not define any libraries of
+their own.  The R6RS does not define any mechanism for mapping
+library names to files or to other representations of library
+source or executable code.  Implementations of the R6RS may
+define their own implementation-specific mechanisms that allow
+R6RS programs to define and to import nonstandard libraries,
+but any program that relies on this is non-portable.
+
+R6RS libraries are best regarded as a standard distribution
+syntax for program fragments that can be installed locally
+using some implementation-specific protocol.
+
+The portability of R6RS programs will also depend upon the
+availability and quality of R6RS-compatible implementations.
+Larceny v0.95 was the first complete implementation of an
+R6RS-compatible system.  When v0.95 was released, another
+implementation was 80% complete, and implementors of three
+other systems had announced their intention to support the
+R6RS within a year.  The implementors of thirteen other
+systems had said they do not plan to implement the R6RS in
+toto, although some intend to implement selected features
+of the R6RS or to support ERR5RS.
+
+
+R6RS PROGRAMS
+
+There are two distinct kinds of R6RS programs.  A top-level
+program consists of an import form followed by a sequence
+of definitions and expressions.  A Scheme script has almost
+the same syntax as a top-level programs, but its first line
+is ignored.  The syntax of Scheme scripts was designed for
+Unix, and Larceny currently supports Scheme scripts only on
+Unix systems.
+
+
+DEFINING LIBRARIES
+
+As an extension to the R6RS, Larceny allows a top-level
+program or Scheme script to define R6RS libraries within
+the file that contains the top-level program or Scheme
+script, before the import form that begins the top-level
+program.  These libraries must be arranged so that no
+library depends upon libraries that come later in the
+file.
+
+We emphasize again that this extension is non-portable.
+It is not supported by Ikarus, which is currently the
+only other system that implements a substantial fraction
+of the R6RS.
+
+
+RUNNING A TOP-LEVEL PROGRAM
+
+To run a Scheme script, just execute it the same way
+you'd execute any other Unix script.  For detailed
+instructions, see HOWTO-SCRIPT.
+
+To execute a top-level R6RS program that is contained
+within a file named pgm, type:
+
+    larceny -r6rs -program pgm
+
+The -program option can be omitted, in which case
+Larceny will read the top-level program from standard
+input:
+
+    larceny -r6rs < pgm
+
+If you omit the -program option and do not redirect
+the standard input, then Larceny will wait patiently
+for you to type a complete top-level program into
+standard input, terminating it with an end-of-file.
+
+You probably don't want to do that.  Had you wanted
+to type R6RS code at Larceny, you'd be using ERR5RS
+mode instead.  See HOWTO-ERR5RS.
+
+When attempting to run an R6RS program, you may see
+a warning about "loading source in favor of stale
+fasl file: .../lib/R6RS/r6rs-standard-libraries.sch",
+following by a long series of error messages about
+syntactic keywords used as a variable, ending with
+the kind of error you'd expect to see when a large
+R6RS program is fed to a Scheme compiler that was
+expecting to see R5RS-compatible code.  That means
+the R6RS runtime and standard libraries were not
+installed correctly, or their source files have been
+touched or modified since they were last compiled.
+To fix the problem, repeat step 4 of HOWTO-BUILD.
+
+
+PREDEFINED LIBRARIES
+
+In addition to the standard R6RS libraries, Larceny
+predefines a variety of other libraries that R6RS
+programs and libraries can import.  For a partial
+list of predefined libraries, see HOWTO-ERR5RS.
+
+We recommend that R6RS programs use ERR5RS standard
+libraries for records instead of the corresponding
+R6RS libraries.  ERR5RS records interoperate more
+smoothly with R6RS records than R6RS record types
+themselves interoperate with R6RS records, and the
+standard reference implementation of ERR5RS records
+should run efficiently in any R6RS-compatible system
+that allows new libraries to be defined at all.
+
+
+R6RS CONFORMANCE
+
+Larceny is R6RS-compatible but not R6RS-conforming.
+
+That means Larceny is a practical implementation of
+the R6RS, capable of running almost any R6RS program
+with the efficiency you'd expect from an optimizing
+compiler and precise generational garbage collection.
+
+Larceny is non-conforming because it does not perform
+all of the checking for non-portable code that the
+R6RS requires implementations to perform.  Since R6RS
+libraries are non-portable anyway, the R6RS-mandated
+checking for other portability problems is overly
+prescriptive.
+
+Larceny performs all checks needed to ensure safety
+as that concept has traditionally been defined.
+
+
+SPANKY MODE
+
+An R6RS-conforming mode is planned for Larceny, but
+it will consist of a slow interpreter that performs
+a great many runtime checks that far exceed the R6RS
+requirements for punitive portability checking.
+
+Larceny's R6RS-conforming mode will help programmers
+to detect non-portable code, such as R6RS libraries,
+but Larceny's R6RS-compatible mode will remain the
+preferred way to execute R6RS programs.
+
+
+RECOMMENDATIONS
+
+If you are writing a program that will run only in Larceny
+and be used by people who don't know Scheme, then the R6RS
+standard may help to achieve your goals.
+
+If your goal is to create or to distribute substantial
+programs and libraries that will run without modification
+in a variety of implementations, then you would be better
+off with ERR5RS [3].
+
+You do not have to choose between ERR5RS and the R6RS.
+It is easy to write programs and libraries that conform
+to both standards.  We recommend that approach.
+
+--------
+
+[1] http://www.r6rs.org/
+[2] http://www.schemers.org/Documents/Standards/R5RS/
+[3] http://scheme-punks.org/wiki/index.php?title=ERR5RS:Charter

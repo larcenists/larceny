@@ -1,0 +1,186 @@
+Using The Development System
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[WARNING]
+================================================================
+This section is woefully out of date.
+================================================================
+
+///////////////////////////////////////////////////////////////////////
+== Contents
+
+[1. Overview][1]  
+[2. Starting the development system][2] [3. File name conventions][3]  
+[4. Compiling][4]  
+[5. Compiler switches][5]  (wiki name: DevelopingSwitches )
+[6. The "make" facility][6]  
+[7. Developing under Chez Scheme][7]  
+[8. Developing under Larceny][8]  
+[9. Bootstrapping][9]  
+///////////////////////////////////////////////////////////////////////
+
+
+==== Overview
+
+The development system is a Scheme application that runs inside a
+Scheme host system. Currently, the host Scheme system can be either
+Chez Scheme (we use version 5) or Larceny.
+
+The development system contains the Twobit compiler and the selected
+target assembler (currently only a SPARC assembler is operational). A
+Scheme-based "make" utility is also available.
+
+For the novice, the most important command in the development
+environment is
+    
+    
+       (help)
+    
+
+which is a simple, interactive help system for the developer. 
+
+==== Starting the development system
+
+You start the development system with the command build on the Unix command line, after [configuring and compiling][10] the support code. build accepts several command line switches, as shown below; you can also type build -help. If you start it without options, it will use Larceny as the host system, and will load the SPARC assembler. 
+
+-a argument ... or -arguments argument ...      Pass the arguments on the command line to the host Scheme system. This switch must be the last switch on the build command line. 
+
+-c or -chez      Use Chez Scheme as the host system. 
+
+-h or -help      Print a command summary. 
+
+-i or -interpreted      Load the Scheme source files for the development environment, even if compiled versions that are newer exist. 
+
+-l or -larceny      Use the installed version of Larceny as the host system (the shell script "larceny" in your path). 
+
+-lb or -larceny.bin      Use larceny.bin as the host system (the file "larceny.bin" in the directory in which build was configured). 
+
+-sparc      Load the SPARC assembler. 
+
+-v      Display the names of all development system files loaded, as they are loaded. 
+
+==== File name conventions
+
+The following table lists the file name extensions that by convention are used by the development environment. While it is often possible for you to use other extensions, the development environment may not always do what you expect; for example, if you compile "foo.sch" you get "foo.fasl", but if you compile "foo.s", you will end up with "foo.s.fasl". 
+
+**.sch** or **.scm**: Scheme source files. **.lap**: Compiled files in tokenized form ("Lisp Assembly Program"). **.mal**: MacScheme assembly language source. **.lop**: Compiled and assembled files in tokenized form ("Lisp Object Program"). **.fasl**: Compiled and assembled files in directly-loadable form ("Fastload"). **.heap**: Larceny heap images. 
+
+==== Compiling
+
+===== Rebuilding the heap image
+
+The command 
+    
+    
+       (make-sparc-heap)
+    
+
+recompiles any changed files in the Lib, Repl, and Eval subdirectories, and rebuilds "sparc.heap" from the resulting object files. You need to rebuild the heap every time you change any files in these subdirectories, since loading them into the interactive system will not have any effect on their use in the procedures compiled into the heap. 
+
+===== Rebuilding the development environment
+
+You can compile the various pieces of the development environments with the commands listed below. These commands, as well as file lists for each and the rules used in compilation, are defined in the file Lib/makefile.sch (see the next section for more about the Make utility). Common to all of these commands is that if you pass an extra argument (anything will do), then instead of doing the rebuild, the command will just print out what it would have done had you asked for a build. 
+
+(make-auxlib)      Rebuilds all the files in the Auxlib subdirectory. These include a pretty printer, sorting procedures, and utility procedures that are not in the basic heap image. 
+
+(make-compat)      Rebuilds the Larceny compatibility package. 
+
+(make-compiler)      Rebuilds all the files in the Compiler subdirectory, and some files in Asm/Common. 
+
+(make-development-environment)      Rebuilds the compiler, the Sparc assembler, the Larceny compatibility package, and the Auxlib directory, and in addition creates Lib/makefile.fasl. 
+
+(make-sparcasm)      Rebuilds the Sparc assembler files and any common assembler files not built by make-compiler. 
+
+===== Single-file compiling
+
+(compile-file _source-file-name_)  
+(compile-file _source-file-name_ _target-file-name_)      Compile-file compiles a Scheme source file directly to a fastload-format target file. If _target-file-name_ is not specified, the output file will be the name of the source file with extension **.fasl**. 
+
+(compile313 _source-file-name_)  
+(compile313 _source-file-name_ _target-file-name_)      Compiles a Scheme source file to LAP format. 
+
+(assemble313 _source-file-name_)  
+(assemble313 _source-file-name_ _target-file-name_)      Compiles a LAP or MAL format source file to LOP format. 
+
+(make-fasl _source-file-name_)  
+(make-fasl _source-file-name_ _target-file-name_)      Translates a LOP format source file to a fastload format file. 
+
+===== Disassembly
+
+(disassemble-file _source-file-name_)  
+(disassemble-file _source-file-name_ _target-file-name_)      Disassembles a LOP format file. The disassembly is printed to the current output port, or, if a target file name is given, to the target file. 
+
+[[DevelopingSwitches]]
+==== Compiler switches
+
+The command 
+    
+    
+       (compiler-switches)
+    
+
+lists all the compiler switches. See the online help for more information about how to set and reset switches. 
+
+The command 
+    
+    
+       (compiler-switches _flag_)
+    
+
+sets groups of compiler switches according to the value of the symbol _flag_. The flags are slow, standard, fast-safe, fast-unsafe, and factory-settings. See the online help for more information about the flags and their effects. 
+
+If you are willing to compromise safety a little, you should turn off catch-undefined-globals. Normally, compiled code checks every global access to see whether the value fetched was the special value #!undefined, triggering an error if it was. This check adds a test to every read from a global variable. 
+
+If you use (compiler-switches 'fast-unsafe), most type checking in the compiled code will then be disabled. Type checking will still be performed by library procedures, however. The truly needy may feel free to recompile the heap image with safety turned off. Be warned that Larceny does not currently catch SIGSEGV or SIGBUS, so any wrong step on your part will likely crash the system. 
+
+==== The "make" facility
+
+UTSL (specifically, Util/make.sch). 
+
+==== Developing under Chez Scheme
+
+A facility is available in the Chez Scheme based development environment that makes starting the environment much faster. When in the development environment, the command 
+    
+    
+       (chez-compile-files)
+    
+
+will compile most of the Scheme files used by the development environment into Chez Scheme object modules (.so type) in their respective directories. The next time you enter the development environment, the object files will be loaded in preference of the Scheme files. However, if a Scheme file has been modified since its object file was created, the Scheme file is loaded instead. 
+
+==== Developing under Larceny
+
+If you're using the installed Larceny for development, you can cut down the time it takes to load the compiler by precompiling the development environment to .fasl files. When in the development environment, execute 
+    
+    
+       (make-development-environment)
+    
+
+to compile all the pertinent files. Then run build to run Larceny with the compiled development environment. As for the Chez Scheme environment, if a Scheme file is modified after it has been compiled, the source file will be loaded rather than the compiled file. 
+
+==== Bootstrapping
+
+Here's how I do it. 
+
+  * Build the basic heap image with Chez Scheme. 
+  * Either build the compiler files with Chez Scheme, or load the development environment into Larceny's interpreter, and build the compiler files. 
+  * Load the compiler development environment into Larceny, and rebuild everything. 
+
+Also see the file Testsuite/Scripts/autobuild-precise. 
+
+* * *
+
+_$Id: developing.html 1116 1999-11-02 16:38:38Z lth $_  
+[larceny@ccs.neu.edu][11]
+
+   [1]: #overview
+   [2]: #starting
+   [3]: #naming
+   [4]: #compiling
+   [5]: #switches
+   [6]: #make
+   [7]: #chez
+   [8]: #larceny
+   [9]: #bootstrap
+   [10]: compiling.html
+   [11]: mailto:larceny@ccs.neu.edu
+

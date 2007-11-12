@@ -1,0 +1,95 @@
+anchor:environ[]
+
+Environments
+~~~~~~~~~~~~
+
+Environments are a deprecated feature of Larceny.
+(During Larceny's conversion to R6RS, all programs
+that use environments are likely to break.
+If the documentation that follows were not needed
+by the Larceny developers themselves, it would have
+been removed from this user manual.)
+
+Larceny's top-level environments are implemented using
+first-class environment data structures. Environments can
+be created and manipulated by user code and are occasionally
+useful to isolate computations or provide restricted namespaces.
+
+proc:make-environment[args="name",result="env"]
+
+Make-environment creates a new environment with the given _name,_ a string. 
+
+proc:environment?[args="obj",result="bool"]
+
+Returns #T iff _obj_ is an environment.
+
+proc:environment-name[args="env",result="name"]
+
+Returns the _name_ that was given to _make-environment._
+
+proc:environment-get-cell[args="env id",result="cell"]
+
+Returns the cell for the variable _id_ in environment _env._ Signals an error if _id_ denotes a macro in _env._
+
+proc:environment-variables[args="env",result="variables"]
+
+Returns a list of the names of variables that are bound in _env_.
+
+proc:environment-variable?[args="env id",result="bool"]
+
+Returns #T if _id_ is a variable in _env._
+
+proc:environment-get[args="env id",result="obj"]
+
+Returns the value of _id_ in _env._ Signals an error if _id_ does not denote a variable with a defined value in _env._
+
+proc:environment-set![args="env id obj"]
+
+Stores _obj_ in the location denoted by _id_ in the environment represented by _env_. If _id_ denotes a macro in _env_ then the macro definition is removed.
+
+// FIXME below needs review on many points
+
+proc:environment-macros[args="env",result="macros"]
+
+Returns a list of the names of macros defined in _env._
+
+// FIXME check result type
+
+proc:environment-macro?[args="env id",result="macro"]
+
+Returns #T if _id_ is a macro in _env._
+
+proc:environment-get-macro[args="env id",result="macro"]
+
+Returns the macro associated with _id_ in _env._ Signals an error if _id_ does not denote a macro in _env._
+
+proc:environment-set-macro![args="env id macro"]
+
+Changes the macro associated with _id_ in _env_ to be _macro_. If _id_ denotes a variable in _env_ then the variable is removed.
+
+proc:environment-copy[args="env",optarg="name",result="env"]
+
+Returns a copy of the environment _env,_ giving the new environment the name _name_ if it is specified. The new environment has the same macros and variables as _env,_ but the variables are all bound to new locations.
+
+proc:environment-syntax-environment[args="env",result="syntaxenv"]
+
+Returns the syntactic environment of _env._ Generally this is of no use unless you're working with the Twobit internals.
+
+anchor:interaction-environment[]
+indexterm:[interaction-environment]
+_Parameter interaction-environment_     
+
+The value of this parameter is the current interaction environment, which is used to look up global variables and syntax definitions in the read-eval-print loop as well as in eval and load when those procedures are called without arguments.
+
+// FIXME: does null environment really take a version?
+
+proc:null-environment[args="version",result="env"]
+
+proc:scheme-report-environment[args="version",result="env"]
+
+These are specified as for the R5RS, and _version_ may be 4 or 5.
+
+NOTE: Based in part on _Extracting heuristic information from
+environments_, authored by Will Clinger and sent to rrrs-authors on 09
+May 1996.
+

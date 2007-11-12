@@ -1,0 +1,57 @@
+Ephemeral functionality
+~~~~~~~~~~~~~~~~~~~~~~~
+
+[WARNING]
+================================================================
+Some of the information in this section is obsolete or
+obsolescent.  Larceny's libraries have been reorganized
+several times since this chapter was written, and will
+undergo even more rapid reorganization during Larceny's
+transition to ERR5RS/R6RS libraries.
+================================================================
+
+[WARNING]
+================================================================
+This chapter is a pseudo user manual for experimental and/or
+ephemeral functionality in Larceny. Experimental functionality is
+functionality that might eventually be incorporated in the standard
+distribution in some form or another, because it's a feature we
+want. Ephemeral functionality is functionality that may be useful
+in the current implementation of Larceny, but may be radically
+redesigned or removed altogether in the future. 
+================================================================
+
+
+==== Ephemeral functionality
+
+(None supported in this release.) 
+
+==== Experimental functionality
+
+===== Generalized procedures
+
+Larceny has an experimental implementation of MIT Scheme style "apply
+hooks", which are generalized procedures. To use this facility, you
+must assemble Experimental/applyhook0.mal to a fasl file and load it;
+you must also load Experimental/applyhook.sch.
+
+An apply hook is a procedure that contains another procedure and a
+data object; in particular, if x is bound to an apply hook, then
+    
+    
+       (procedure? x) => #t.
+    
+
+When the apply hook is called, the procedure stored in the hook is
+called with the arguments of the apply hook. That procedure can
+inspect or change the procedure or the data stored in the hook using
+the procedures below.
+    
+    
+    (make-apply-hook procedure object) => apply-hook
+    (apply-hook? object) => boolean
+    (apply-hook-procedure apply-hook) => procedure
+    (set-apply-hook-procedure! apply-hook procedure) => unspecified
+    (apply-hook-extra apply-hook) => object
+    (set-apply-hook-extra! apply-hook val) => unspecified
+

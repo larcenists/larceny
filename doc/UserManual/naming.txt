@@ -1,0 +1,84 @@
+File naming conventions
+-----------------------
+
+anchor:naming[naming]
+
+Suffixes
+~~~~~~~~
+
+In Larceny, file names generally follow Unix conventions,
+even on Windows.  The following suffixes have special
+meanings to some components of Larceny.
+
+`.sls`
+is the preferred suffix for files that contain
+ERR5RS/R6RS-compatible library definitions.
+
+`.sch`
+is the preferred suffix for files that contain R5RS or
+ERR5RS source code (other than library definitions).
+
+`.scm`
+is an alternative suffix for files that contain R5RS source code.
+
+`.mal`
+is the preferred suffix for files that contain MacScheme
+assembly language in symbolic form.
+
+`.slfasl`
+is the suffix for files that contain the pre-compiled
+form of R6RS-compatible code.
+
+`.fasl`
+is the suffix for files that contain the pre-compiled form of R5RS code.
+
+`.lap`
+is the suffix for files that contain MacScheme assembly language.
+
+`.lop`
+is the suffix for files that contain machine code
+segments in the form expected by Larceny's heap linker.
+
+`.heap`
+is the suffix for files that contain an executable heap
+image (must be combined with the larceny.bin runtime).
+
+Directories
+~~~~~~~~~~~
+
+Larceny's root directory should contain the following
+files:
+
+----------------------------------------------------------------
+    larceny
+    twobit
+    scheme-script
+    larceny.bin
+    larceny.heap
+    twobit.heap
+    startup.sch
+----------------------------------------------------------------
+
+The following subdirectories are also essential for correct
+operation of some features of some modes in some varieties of
+Larceny:
+
+----------------------------------------------------------------
+    include
+    lib
+    lib/Base
+    lib/Debugger
+    lib/Ffi
+    lib/MzScheme
+    lib/R6RS
+    lib/SRFI
+    lib/Standard
+    lib/TeachPacks
+----------------------------------------------------------------
+
+The `include` subdirectory is used when compiling files with
+Petit Larceny.
+
+The `startup.sch` file tells Larceny's `require` procedure to
+search some of the `lib` subdirectories for libraries that are
+loaded dynamically.

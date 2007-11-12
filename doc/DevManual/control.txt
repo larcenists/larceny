@@ -1,0 +1,147 @@
+Control Features
+~~~~~~~~~~~~~~~~
+
+For more information about the countdown timer and timer interrupts, see 
+link:LarcenyNotes/note1-timer.html[the note on timer interrupts].
+
+proc:add-exit-procedure![args="thunk",result="unspecified"]
+
+add-exit-procedure! adds _thunk_ to the list of procedures that are
+run when the Scheme process terminates (either by a call to <<ProcExit,exit>>
+or when end-of-file is detected at the interactive prompt). The
+procedures are run in the opposite order of that in which they were
+added.
+
+proc:add-init-procedure![args="thunk",result="unspecified"]
+
+add-init-procedure! adds _thunk_ to the list of procedures that are
+run when the Scheme process is restarted from a dumped heap image. The
+procedures are run in the order in which they were added.
+
+proc:call-without-interrupts[args="thunk",result="object"]
+
+Call _thunk_, disabling timer interrupts in its dynamic extent. Returns the value(s) returned by the call to _thunk_.
+
+proc:decode-error[args="error",optarg="port",result="unspecified"]
+
+Prints a human-readable form of _error_ on the _port_, or on the current output port if _port_ is not supplied.
+
+The _error_ is a list as obtained by the error handler, as in the following example where the error handler prints the error and then resets the system: 
+    
+    
+       (error-handler 
+         (lambda error
+           (decode-error error)
+           (reset)))
+    
+
+proc:disable-interrupts[args="none",result="ticks-remaining or #f"]
+
+Disables timer interrupts and returns the number of ticks remaining on the clock before the next interrupt, or #f if interrupts were already disabled.
+
+proc:enable-interrupts[args="timer-value",result="unspecified"]
+
+Enables timer interrupts and sets the countdown timer to _timer-value_, which must be a positive fixnum. 
+
+proc:error[args="arg ...",result="unspecified"]    
+
+The error procedure applies the currently installed error handler (see <<error-handler>>) to _arg ..._.
+
+anchor:error-handler[]
+indexterm:[error-handler]
+_Parameter error-handler_     
+
+The value of the error-handler parameter is a procedure of one or more arguments. The first argument is a key that indicates where the error occurred. If the key is an exact integer, then the error occurred in a primitive or system subroutine, and the integer is the system error code; additional arguments are arguments to the primitive that failed. If the key is the empty list, then it should be ignored. Otherwise, it is part of an error message signalled with 'error' (which calls the installed error handler).
+
+The default error handler prints an appropriate error message and then calls reset.
+
+proc:eval[args="datum",optarg="environment",result="value ..."]
+
+Eval conforms to the specification in the R5RS but additionally allows a <<environ,first-class environment>> to be used in place of the environment-specifier. If no environment or environment-specifier is used, the current interaction environment is used.
+
+Eval just calls the current value of the <<evaluator>> parameter on its arguments.
+
+anchor:evaluator[]
+indexterm:[evaluator]
+_Parameter evaluator_     
+
+The value of this parameter is a procedure of one or two arguments: an expression to be evaluated and optionally an environment. The eval procedure calls the value of evaluator.
+
+proc:ProcExit[var="exit"]
+
+proctempl:exit[args="none",result="never returns"]
+proctempl:exit[args="value",result="never returns"]
+
+exit runs any exit procedures installed by <<add-exit-procedure!>> and then terminates the Scheme process. The optional argument is the exit status to return to the parent process. The default exit status is 0.
+
+anchor:keyboard-interrupt-handler[]
+indexterm:[keyboard-interrupt-handler]
+_Parameter keyboard-interrupt-handler_     
+
+This parameter takes a value that is a procedure of no arguments. The procedure is called whenever a keyboard interrupt is received by the system. In the current system, a keyboard interrupt can be received in a critical section; the keyboard interrupt handler is called with the interrupt enable state unchanged.
+
+If the keyboard interrupt handler returns, the interrupted computation will continue execution.
+
+anchor:load-evaluator[]
+indexterm:[load-evaluator]
+_Parameter load-evaluator_     
+
+The value of the parameter load-evaluator is a procedure of two arguments. The procedure is called to evaluate an expression loaded from a source file.
+
+proc:quit[args="none",result="unspecified"]
+
+Quit calls the currently installed quit handler (see <<quit-handler>>).
+
+anchor:quit-handler[]
+indexterm:[quit-handler]
+_Parameter quit-handler_     
+
+The value of this parameter is a procedure of no parameters. The initial value of quit-handler is exit, though the <<repl,read-eval-print loop>> sets up its own quit handler.
+
+proc:reset[args="none",result="unspecified"]
+
+Reset calls the currently installed reset handler (see <<reset-handler>>).
+
+anchor:reset-handler[]
+indexterm:[reset-handler]
+_Parameter reset-handler_     
+
+The value of the reset-handler parameter is a procedure of an arbitrary number of arguments. The default reset handler terminates the program; the read-eval-print loop installs a new handler that instead returns control to the read-eval-print loop.
+
+anchor:standard-timeslice[]
+indexterm:[standard-timeslice]
+_Parameter standard-timeslice_     
+
+The value of this parameter is a positive fixnum that will be used to reinitialize the countdown timer on expiration.
+
+Using the value returned from standard-timeslice rather than some arbitrary integer value allows you to write programs that manipulate the interrupt enable flag without hard-coding timer values into your program. The value returned is normally very large, ensuring minimal interrupt overhead to the program. However, tasking systems will want to change the timeslice value to ensure reasonable task switching behavior; the "best" setting depends on the system on which Larceny is running and can presumably be computed by the tasking system, if desired.
+
+For what it's worth, a setting of 50000 gives OK interrupt behavior on a Sparc-10 system, about 10 interrupts per second. This of course depends on the actual code running.
+
+anchor:timer-interrupt-handler[]
+indexterm:[timer-interrupt-handler]
+_Parameter timer-interrupt-handler_     
+
+The value of this parameter is a procedure of no arguments. The procedure is called with interrupts disabled when a timer interrupt is received and the interrupt enable state is "enabled".
+
+proc:typetag[args="object",result="fixnum"]
+
+Returns the typetag of _object_ if _object_ is boxed, and signals an error if it is not boxed.
+
+Typetags are documented link:LarcenyNotes/note2-repr.html[elsewhere].
+
+proc:typetag-set![args="object typetag",result="unspecified"]
+
+Sets the typetag of _object_ to _typetag_, if _object_ is boxed, and signals an error if it is not boxed.
+
+Typetags are documented [elsewhere][10].
+
+* * *
+
+_$Id: control.html 1470 2000-09-12 02:46:47Z lth $_  
+[larceny@ccs.neu.edu][11]  
+
+
+   [9]: #proc:reset-handler
+   [11]: mailto:larceny@ccs.neu.edu
+

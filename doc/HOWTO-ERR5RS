@@ -1,0 +1,199 @@
+ABOUT ERR5RS
+
+ERR5RS is an expeditious revision of the R5RS to fill part
+of the gap that lies between the R5RS and R6RS [1,2,3].
+ERR5RS extends the R5RS by adding
+
+  * R6RS-compatible library and import syntax
+  * dynamic loading of libraries
+  * dynamic importing of libraries
+  * repl-friendly semantics for top-level programs
+  * a subset of R6RS lexical syntax
+  * R6RS-compatible records, but with superior APIs
+
+The most important thing to know about ERR5RS is that it is
+a supplement to the R6RS, not a replacement.  ERR5RS makes
+the most important innovations of the R6RS available for use
+in read/eval-print loops and R5RS-style dynamic programs,
+which are outside the scope of the R6RS.
+
+The second most important thing to know about ERR5RS is that
+it is being designed with portability in mind.  Its statement
+of requirements and goals mentions several different aspects
+of portability:
+
+  * portability/reuse between R5RS and ERR5RS (backward compatibility)
+  * portability/reuse between different implementations of ERR5RS
+  * portability/reuse between ERR5RS and R6RS programs
+  * ease of understanding
+  * ease of implementation
+
+ERR5RS libraries are portable because the mapping between
+library names and files is not left up to implementations,
+but is specified by the extended semantics of loading and
+importing.
+
+Portability of ERR5RS libraries and programs also depends
+upon the availability and quality of ERR5RS-compatible
+implementations.  Larceny v0.95 was the first implementation
+of ERR5RS, and Larceny's users have a great opportunity to
+influence the continuing evolution and acceptance of ERR5RS.
+
+
+COMPILING THE ERR5RS/R6RS RUNTIME
+
+If you are using Petit Larceny, you must pre-compile the
+ERR5RS/R6RS runtime and standard libraries before you can
+use Larceny's ERR5RS mode.  Follow the instructions for
+step 4 of the process described in HOWTO-BUILD.
+
+If you are using a binary distribution of native Larceny,
+the ERR5RS/R6RS runtime and standard libraries should work
+out of the box.  If you touch or modify any of the source
+files in lib/R6RS, however, then your next attempt to run
+Larceny in ERR5RS or R6RS mode is likely to generate a
+warning about "loading source in favor of stale fasl file:
+.../lib/R6RS/r6rs-standard-libraries.sch", followed by a
+long series of error messages about syntactic keywords used
+as a variable, ending with the kind of error you'd expect
+to see when a large R6RS program is fed to a Scheme compiler
+that was expecting to see R5RS-compatible code.  To fix the
+problem, repeat step 4 of HOWTO-BUILD.
+
+
+ERR5RS MODE
+
+To interact with Larceny's ERR5RS read/eval/print loop,
+specify the -err5rs option on Larceny's command line:
+
+    % larceny -err5rs
+    Larceny v0.95 "First Safety" (...)
+    ERR5RS mode (no libraries have been imported)
+
+Since no libraries have been imported, the only forms you
+can evaluate are constant literals, variable references
+(but no variables have been imported!), procedure calls
+(but no procedure values are accessible!), library
+definitions, and import forms.  The first thing you'll
+want to do is to import some of the pre-loaded libraries,
+such as:
+
+    > (import (rnrs base) (rnrs lists) (rnrs io simple))
+
+Once you have imported (rnrs base) or a composite library
+that includes it, you can evaluate definitions and use
+all other syntax and variables you have imported:
+
+    > (define two^7 (expt 2 (+ 3 4)))
+    > two^7
+    128
+
+
+DYNAMIC LOADING
+
+To load libraries, top-level programs, or unadorned
+R5RS-style code from a file, you must first import a
+suitable load procedure:
+
+    > (import (err5rs load))
+
+Loading a library does not automatically import it:
+
+    > (load "lib/R6RS/benchmarking.sch")
+    > (time (vector-for-each + (make-vector 1000000 0)))
+
+    Error: Undefined global variable "time".
+    Entering debugger; type "?" for help.
+    debug> q
+
+To use the variables and syntax that are exported by a
+library, you must first load and then import that library
+explicitly:
+
+    > (import (larceny benchmarking))
+    > (time (vector-for-each + (make-vector 1000000 0)))
+    Words allocated: 3095752
+    Words reclaimed: 0
+    Elapsed time...: 111 ms (User: 104 ms; System: 8 ms)
+    Elapsed GC time: 4 ms (CPU: 4 in 8 collections.)
+
+Before you import a library or load a top-level program,
+you must first load all of the nonstandard libraries it
+imports.
+
+You do not have to import those libraries into the ERR5RS
+top level, however, unless you want to use the variables
+and syntax exported by those libraries in the expressions
+and definitions you evaluate at the top level.
+
+
+PRE-LOADED LIBRARIES
+
+For your convenience, Larceny pre-loads all of the standard
+R6RS libraries and several other libraries besides, so you
+can import from those libraries without having to load them
+yourself.  The pre-loaded libraries include:
+
+  R6RS standard libraries:
+
+    (rnrs base (6))                  ; R6RS chapter 9
+    (rnrs unicode (6))               ; R6RS library chapter 1
+    (rnrs bytevectors (6))           ; R6RS library chapter 2
+    (rnrs lists (6))                 ; R6RS library chapter 3
+    (rnrs sorting (6))               ; R6RS library chapter 4
+    (rnrs control (6))               ; R6RS library chapter 5
+    (rnrs exceptions (6))            ; R6RS library section 7.1
+    (rnrs conditions (6))            ; R6RS library sections 7.2 and 7.3
+    (rnrs io ports (6))              ; R6RS library sections 8.1 and 8.2
+    (rnrs io simple (6))             ; R6RS library sections 8.1 and 8.3
+    (rnrs files (6))                 ; R6RS library chapter 9
+    (rnrs programs (6))              ; R6RS library chapter 10
+    (rnrs arithmetic fixnums (6))    ; R6RS library section 11.2
+    (rnrs arithmetic flonums (6))    ; R6RS library section 11.3
+    (rnrs arithmetic bitwise (6))    ; R6RS library section 11.4
+    (rnrs syntax-case (6))           ; R6RS library chapter 12
+    (rnrs hashtables (6))            ; R6RS library chapter 13
+    (rnrs enums)                     ; R6RS library chapter 14
+    (rnrs (6))                       ; R6RS library chapter 15
+    (rnrs eval (6))                  ; R6RS library chapter 16
+    (rnrs mutable-pairs (6))         ; R6RS library chapter 17
+    (rnrs mutable-strings (6))       ; R6RS library chapter 18
+    (rnrs r5rs (6))                  ; R6RS library chapter 19
+
+  R6RS standard libraries that are pre-loaded but deprecated in Larceny:
+
+    (rnrs records procedural (6))    ; R6RS library section 6.3 (deprecated)
+    (rnrs records inspection (6))    ; R6RS library section 6.4 (deprecated)
+    (rnrs records syntactic)         ; R6RS library section 6.2 (deprecated)
+
+  Other pre-loaded libraries:
+
+    (err5rs records procedural)      ; ERR5RS records (procedural API)
+    (err5rs records inspection)      ; ERR5RS records (inspection API)
+    (err5rs records syntactic)       ; ERR5RS records (syntactic API)
+    (err5rs load)                    ; ERR5RS load procedure
+    (rnrs load)                      ; equivalent to (err5rs load)
+    (r5rs)                           ; approximates the R5RS top level
+    (explicit-renaming)              ; a macro system with explicit renaming
+
+
+ACCESS TO LARCENY PROCEDURES
+
+Larceny supports an extension to the ERR5RS that allows an
+import form to import any R5RS procedure from Larceny's
+R5RS-conforming top-level environment.  For examples of its
+use, see lib/R6RS/benchmarking.sch.
+
+
+PRECOMPILING ERR5RS/R6RS FILES
+
+In Larceny v0.95, the compile-file procedure can only be used
+to compile files that contain R5RS source code.  ERR5RS and
+R6RS libraries cannot be pre-compiled.  This limitation will
+be removed in the near future.
+
+--------
+
+[1] http://scheme-punks.org/wiki/index.php?title=ERR5RS:Charter
+[2] http://www.schemers.org/Documents/Standards/R5RS/
+[3] http://www.r6rs.org/

@@ -1,0 +1,66 @@
+R6RS SCHEME SCRIPTS
+
+On most Unix systems (including MacOS X and Linux), Larceny's
+scheme-script will execute Scheme scripts as described in R6RS
+non-normative appendix D, with or without the optional script
+header [1].  To make Scheme scripts executable in their own
+right, without executing scheme-script directly, add Larceny's
+root directory to your path as described in doc/HOWTO-INSTALL.
+
+Suppose, for example, that /home/myself/hello is an R6RS
+Scheme script whose first line is the optional script header
+(#!/usr/bin/env scheme-script).  If you do not have execute
+permission for this script, or Larceny's root directory is
+not in your path, then you can still run the script from
+Larceny's root directory as follows:
+     
+    % ./scheme-script /home/myself/hello
+
+If you have execute permission for the script, and Larceny's
+root directory is in your path, then you can also run the
+script as follows:
+
+    % /home/myself/hello
+
+If, in addition, the directory that contains the script is
+in your path, then you can run the script as follows:
+
+    % hello
+
+
+R6RS TOP-LEVEL PROGRAMS
+
+R6RS top-level programs are similar to Scheme scripts, but
+are executed by an R6RS-compatible processor such as Larceny
+instead of being directly executable on Unix machines.  To
+execute an R6RS top-level program, see HOWTO-R6RS.
+
+
+R5RS SCRIPTING
+
+Suppose hello.sch contains the following R5RS code:
+
+    (display "Hello world!")
+    (newline)
+    (exit)
+
+You can run hello.sch as a script by executing Larceny as
+follows:
+
+    % larceny -nobanner -- hello.sch
+
+You can redirect Larceny's standard input, in which case
+you may want to eliminate the herald announcement and the
+read/eval/print loop's prompt:
+
+    % larceny -nobanner -- -e "(begin (herald #f) (repl-prompt values))" \
+              < hello.sch
+
+For an explanation of why that works, which may suggest other
+creative uses of Larceny, ask for help:
+
+    % larceny -help
+
+--------
+
+[1] http://www.r6rs.org/final/html/r6rs-app/r6rs-app-Z-H-6.html#node_chap_D
