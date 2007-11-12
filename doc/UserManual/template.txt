@@ -2,7 +2,7 @@
 
 * * *
 
-_$Id: template.html 1470 2000-09-12 02:46:47Z lth $_  
+_$Id$_  
 [larceny@ccs.neu.edu][1]  
 
 

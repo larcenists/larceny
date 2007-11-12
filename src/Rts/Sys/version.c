@@ -4,21 +4,26 @@
  *
  * Larceny run-time system -- the version number :-)
  *
- * Some nicknames to choose from:
- *  Burpelson AFB               0.46
- *  'Bat' Guano                 0.47
- *  Big Board                   0.48
- *  'Buck' Turgidson            0.49
- *  Ambassador de Sadesky       0.50
+ * Version history, with more nicknames for future releases:
+ *                                          release date    revision
+ *                              0.36        20 Nov 1998     28, 12, 31
+ *                              0.37        11 Dec 1998     250, 249
+ *                              0.38        14 Dec 1998     290, 289
+ *                              0.40        16 Dec 1998     352, 351
+ *  Burpelson AFB               0.46        20 Oct 1999     1081, 1080
+ *  'Bat' Guano                 0.47        19 Nov 1999     1226, 1225
+ *  Big Board                   0.48        25 Mar 2000     1422, 1421
+ *  'Buck' Turgidson            0.49        11 Sep 2000     1461, 1459
+ *  Ambassador de Sadesky       0.50        28 Sep 2000
  *  The Coca-Cola Company       0.51
- *  CRM-114                     0.52
- *  Dear John                   0.53
- *  Operation Drop-Kick         0.90
- *  Children's Ice Cream        0.91
- *  Definite Missile Track      0.92
- *  Deviated Prevert            0.93
- *  Doomsday Device             0.94
- *  First Safety
+ *  CRM-114                     0.52        06 Nov 2003     1742, 1719
+ *  Dear John                   0.53        14 Jun 2005     2499, 1632
+ *  Operation Drop-Kick         0.90        15 Feb 2006
+ *  Children's Ice Cream        0.91        23 May 2006     3039
+ *  Definite Missile Track      0.92        21 Jul 2006     3221
+ *  Deviated Prevert            0.93         9 Nov 2006     3782, 3944
+ *  Doomsday Device             0.94         3 Jul 2007     4663
+ *  First Safety                0.95         8 Nov 2007     5108
  *  Fluoridation
  *  Funny in the Head
  *  General Ripper 
@@ -63,8 +68,8 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 94;
-char *larceny_version_qualifier = " \"Doomsday Device\"";
+int  larceny_minor_version = 95;
+char *larceny_version_qualifier = "1 \"First Safety\"";
 
 char *date = DATE " " TIME;
 char *user = USER;

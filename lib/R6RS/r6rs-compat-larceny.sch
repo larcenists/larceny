@@ -1,6 +1,6 @@
 ;;;===============================================================================
 ;;;
-;;; Larceny compatibility file (tested on Larceny version 0.94)
+;;; Larceny compatibility file
 ;;;
 ;;; Uncomment appropriate LOAD comand in macros-core.scm
 ;;;
@@ -8,10 +8,21 @@
 
 ; Most of this was written by Will Clinger by copying
 ; code written by Lars Hansen, Felix Klock, et cetera.
+;
+; $Id$
 
-;; A numeric string that uniquely identifies this run in the universe
+;; A numeric string that uniquely identifies this run in the universe.
 
-(define (ex:unique-token) (ex:unique-token3)) ; see below
+(define (ex:unique-token)
+  (let ((arch-name
+         (string->symbol (cdr (assq 'arch-name (system-features)))))
+        (os-name
+         (string->symbol (cdr (assq 'os-name (system-features))))))
+    (cond ((and (memq arch-name '(SPARC IAssassin))
+                (memq os-name '(SunOS MacOS\x20;X Linux)))
+           (ex:unique-token1))
+          (else
+           (ex:unique-token2)))))
 
 ;; The letrec black hole and corresponding setter.
 
@@ -22,16 +33,8 @@
 ;; No builtins may start with one of these.
 ;; If they do, select different values here.
 
-(define ex:guid-prefix "&")
-(define ex:free-prefix "~")
-
-;; These are only partial implementations for specific use cases needed.
-;; Full implementations should be provided by host implementation.
-
-(define (for-all proc l . ls)
-  (or (null? l)
-      (and (apply proc (car l) (map car ls))
-           (apply for-all proc (cdr l) (map cdr ls)))))
+(define ex:guid-prefix "\x0;")
+(define ex:free-prefix "\x1;")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -40,8 +43,8 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; FIXME:  This might not work with Windows, and probably
-; doesn't work with Common Larceny.
+; FIXME:  This doesn't work with Petit Larceny or Common Larceny
+; or Windows.
 
 (define (ex:unique-token1)
 
@@ -82,4 +85,3 @@
         ; assumes 31 d/m - just need unique number
         (* (vector-ref time 1) 2678400)
         (* (- (vector-ref time 0) 2000) 32140800)))))
-

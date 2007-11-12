@@ -355,6 +355,8 @@
 
   (environment-set-macro! larc 'letrec* (usual-syntax 'letrec*))
   (environment-set-macro! larc 'assert (usual-syntax 'assert))
+  (environment-set-macro! larc 'define-condition-type
+                          (usual-syntax 'define-condition-type))
 
 ; Deprecated R6RS syntax.
 ;
@@ -365,7 +367,7 @@
 ; (environment-set-macro! larc 'error-handling-mode
 ;                         (usual-syntax 'error-handling-mode))
 
-  (environment-set! larc 'file-options list)
+  (environment-set! larc 'file-options file-options)
   (environment-set! larc 'no-create    'no-create)
   (environment-set! larc 'no-fail      'no-fail)
   (environment-set! larc 'no-truncate  'no-truncate)
@@ -400,10 +402,12 @@
   (environment-set! larc 'assoc assoc)
   (environment-set! larc 'assoc-string assoc-string)                    ; FIXME
   (environment-set! larc 'assoc-string-ci assoc-string-ci)              ; FIXME
+  (environment-set! larc 'assp assp)
   (environment-set! larc 'assq assq)
   (environment-set! larc 'assv assv)
   (environment-set! larc 'cons* cons*)
   (environment-set! larc 'every? every?)
+  (environment-set! larc 'exists exists)
   (environment-set! larc 'filter filter)
   (environment-set! larc 'find find)
   (environment-set! larc 'find-if find-if)                              ; FIXME
@@ -412,6 +416,7 @@
   (environment-set! larc 'fold-right fold-right)
   (environment-set! larc 'foldl foldl)                                  ; FIXME
   (environment-set! larc 'foldr foldr)                                  ; FIXME
+  (environment-set! larc 'for-all for-all)
   (environment-set! larc 'improper-length improper-length)              ; FIXME
   (environment-set! larc 'last last)                                    ; FIXME
   (environment-set! larc 'last-pair last-pair)
@@ -426,9 +431,9 @@
   (environment-set! larc 'list-set! list-set!)                          ; FIXME
   (environment-set! larc 'longer? longer?)
   (environment-set! larc 'memp memp)
-  (environment-set! larc 'memp-not memp-not)
-  (environment-set! larc 'memf memp)            ; deprecated alias
-  (environment-set! larc 'memf-not memp-not)    ; deprecated alias
+  (environment-set! larc 'memp-not memp-not)                            ; FIXME
+  (environment-set! larc 'memf memp)            ; deprecated alias      ; FIXME
+  (environment-set! larc 'memf-not memp-not)    ; deprecated alias      ; FIXME
   (environment-set! larc 'partition partition)
   (environment-set! larc 'position-of position-of)
   (environment-set! larc 'remove remove)
@@ -453,20 +458,34 @@
   (environment-set! larc 'equal-hash equal-hash)
   (environment-set! larc 'procedure-hasher procedure-hasher)
   (environment-set! larc 'hashtable-implementation hashtable-implementation)
+
   (environment-set! larc 'make-oldstyle-hashtable make-oldstyle-hashtable)
   (environment-set! larc 'make-r6rs-hashtable make-r6rs-hashtable)
+  (environment-set! larc 'make-eq-hashtable make-eq-hashtable)
+  (environment-set! larc 'make-eqv-hashtable make-eqv-hashtable)
   (environment-set! larc 'make-hashtable make-hashtable)
   (environment-set! larc 'hashtable? hashtable?)
+  (environment-set! larc 'hashtable-size hashtable-size)
+  (environment-set! larc 'hashtable-ref hashtable-ref)
+  (environment-set! larc 'hashtable-set! hashtable-set!)
+  (environment-set! larc 'hashtable-delete! hashtable-delete!)
   (environment-set! larc 'hashtable-contains? hashtable-contains?)
+  (environment-set! larc 'hashtable-update! hashtable-update!)
+  (environment-set! larc 'hashtable-copy hashtable-copy)
+  (environment-set! larc 'hashtable-clear! hashtable-clear!)
+  (environment-set! larc 'hashtable-keys hashtable-keys)
+  (environment-set! larc 'hashtable-entries hashtable-entries)
+  (environment-set! larc 'hashtable-equivalence-function
+                    hashtable-equivalence-function)
+  (environment-set! larc 'hashtable-hash-function hashtable-hash-function)
+  (environment-set! larc 'hashtable-mutable? hashtable-mutable?)
+
   (environment-set! larc 'hashtable-fetch hashtable-fetch)
   (environment-set! larc 'hashtable-get hashtable-get)
   (environment-set! larc 'hashtable-put! hashtable-put!)
   (environment-set! larc 'hashtable-remove! hashtable-remove!)
-  (environment-set! larc 'hashtable-clear! hashtable-clear!)
-  (environment-set! larc 'hashtable-size hashtable-size)
   (environment-set! larc 'hashtable-for-each hashtable-for-each)
   (environment-set! larc 'hashtable-map hashtable-map)
-  (environment-set! larc 'hashtable-copy hashtable-copy)
 
   ;; symbols
 
@@ -620,6 +639,14 @@
   (environment-set! larc 'flexpt flexpt)
   (environment-set! larc 'fixnum->flonum fixnum->flonum)
 
+  (environment-set! larc '&no-infinities &no-infinities)
+  (environment-set! larc 'make-no-infinities-violation
+                    make-no-infinities-violation)
+  (environment-set! larc 'no-infinities-violation? no-infinities-violation?)
+  (environment-set! larc '&no-nans &no-nans)
+  (environment-set! larc 'make-no-nans-violation make-no-nans-violation)
+  (environment-set! larc 'no-nans-violation? no-nans-violation?)
+
   (environment-set! larc 'bitwise-not bitwise-not)
   (environment-set! larc 'bitwise-and bitwise-and)
   (environment-set! larc 'bitwise-ior bitwise-ior)
@@ -769,6 +796,7 @@
   (environment-set! larc 'string-for-each string-for-each)
 
   (environment-set! larc 'string-hash string-hash)
+  (environment-set! larc 'string-ci-hash string-ci-hash)
   (environment-set! larc 'substring-fill! substring-fill!)
   (environment-set! larc 'string-downcase! string-downcase!)
   (environment-set! larc 'string-upcase! string-upcase!)
@@ -815,6 +843,7 @@
   (environment-set! larc 'keyboard-interrupt-handler
                     keyboard-interrupt-handler)
   (environment-set! larc 'break-handler break-handler)
+  (environment-set! larc 'vector-like-cas! vector-like-cas!)
   (environment-set! larc 'call-without-interrupts call-without-interrupts)
   (environment-set! larc 'standard-timeslice standard-timeslice)
   (environment-set! larc 'procedure-arity procedure-arity)
@@ -829,6 +858,126 @@
   (environment-set! larc 'procedure-environment procedure-environment)
 
   (environment-set! larc 'call/cc call/cc)
+
+  ;; records
+
+  ;; (err5rs records procedural)
+
+  (environment-set! larc 'make-rtd make-rtd)
+  (environment-set! larc 'rtd? rtd?)
+  (environment-set! larc 'rtd-constructor rtd-constructor)
+  (environment-set! larc 'rtd-predicate rtd-predicate)
+  (environment-set! larc 'rtd-accessor rtd-accessor)
+  (environment-set! larc 'rtd-mutator rtd-mutator)
+
+  ;; (err5rs records inspection)
+
+  (environment-set! larc 'record? record?)
+  (environment-set! larc 'record-rtd record-rtd)
+  (environment-set! larc 'rtd-name rtd-name)
+  (environment-set! larc 'rtd-parent rtd-parent)
+  (environment-set! larc 'rtd-field-names rtd-field-names)
+  (environment-set! larc 'rtd-all-field-names rtd-all-field-names)
+  (environment-set! larc 'rtd-field-mutable? rtd-field-mutable?)
+
+  ;; (rnrs records procedural)
+
+  (environment-set! larc 'make-record-type-descriptor
+                    make-record-type-descriptor)
+  (environment-set! larc 'record-type-descriptor? record-type-descriptor?)
+  (environment-set! larc 'make-record-constructor-descriptor
+                    make-record-constructor-descriptor)
+  (environment-set! larc 'record-constructor record-constructor)
+  (environment-set! larc 'record-predicate record-predicate)
+  (environment-set! larc 'record-accessor record-accessor)
+  (environment-set! larc 'record-mutator record-mutator)
+
+  ;; (rnrs records inspection)
+
+  (environment-set! larc 'record-type-name record-type-name)
+  (environment-set! larc 'record-type-parent record-type-parent)
+  (environment-set! larc 'record-type-uid record-type-uid)
+  (environment-set! larc 'record-type-generative? record-type-generative?)
+  (environment-set! larc 'record-type-sealed? record-type-sealed?)
+  (environment-set! larc 'record-type-opaque? record-type-opaque?)
+  (environment-set! larc 'record-type-field-names record-type-field-names)
+  (environment-set! larc 'record-field-mutable? record-field-mutable?)
+
+  ;; Larceny's traditional records API, now deprecated.
+
+  (environment-set! larc 'make-record-type make-record-type)
+  (environment-set! larc 'record-type-extends? record-type-extends?)
+  (environment-set! larc 'record-updater record-updater)
+  (environment-set! larc 'record-type-descriptor record-type-descriptor)
+
+  (environment-set! larc 'record-indexer record-indexer) ; MzScheme
+
+  ;; R6RS exception mechanism
+
+  (environment-set! larc 'with-exception-handler with-exception-handler)
+  (environment-set-macro! larc 'guard (usual-syntax 'guard))
+  (environment-set! larc 'raise raise)
+  (environment-set! larc 'raise-continuable raise-continuable)
+
+  ;; conditions
+
+  (environment-set! larc '&condition &condition)
+  (environment-set! larc 'condition condition)
+  (environment-set! larc 'simple-conditions simple-conditions)
+  (environment-set! larc 'condition? condition?)
+  (environment-set! larc 'condition-predicate condition-predicate)
+  (environment-set! larc 'condition-accessor condition-accessor)
+  (environment-set-macro! larc 'define-condition-type
+                          (usual-syntax 'define-condition-type))
+  (environment-set! larc '&message &message)
+  (environment-set! larc 'make-message-condition make-message-condition)
+  (environment-set! larc 'message-condition? message-condition?)
+  (environment-set! larc 'condition-message condition-message)
+  (environment-set! larc '&warning &warning)
+  (environment-set! larc 'make-warning make-warning)
+  (environment-set! larc 'warning? warning?)
+  (environment-set! larc '&serious &serious)
+  (environment-set! larc 'make-serious-condition make-serious-condition)
+  (environment-set! larc 'serious-condition? serious-condition?)
+  (environment-set! larc '&error &error)
+  (environment-set! larc 'make-error make-error)
+  (environment-set! larc 'error? error?)
+  (environment-set! larc '&violation &violation)
+  (environment-set! larc 'make-violation make-violation)
+  (environment-set! larc 'violation? violation?)
+  (environment-set! larc '&assertion &assertion)
+  (environment-set! larc 'make-assertion-violation make-assertion-violation)
+  (environment-set! larc 'assertion-violation? assertion-violation?)
+  (environment-set! larc '&irritants &irritants)
+  (environment-set! larc 'make-irritants-condition make-irritants-condition)
+  (environment-set! larc 'irritants-condition? irritants-condition?)
+  (environment-set! larc 'condition-irritants condition-irritants)
+  (environment-set! larc '&who &who)
+  (environment-set! larc 'make-who-condition make-who-condition)
+  (environment-set! larc 'who-condition? who-condition?)
+  (environment-set! larc 'condition-who condition-who)
+  (environment-set! larc '&non-continuable &non-continuable)
+  (environment-set! larc 'make-non-continuable-violation
+                    make-non-continuable-violation)
+  (environment-set! larc 'non-continuable-violation?
+                    non-continuable-violation?)
+  (environment-set! larc '&implementation-restriction
+                    &implementation-restriction)
+  (environment-set! larc 'make-implementation-restriction-violation
+                    make-implementation-restriction-violation)
+  (environment-set! larc 'implementation-restriction-violation?
+                    implementation-restriction-violation?)
+  (environment-set! larc '&lexical &lexical)
+  (environment-set! larc 'make-lexical-violation make-lexical-violation)
+  (environment-set! larc 'lexical-violation? lexical-violation?)
+  (environment-set! larc '&syntax &syntax)
+  (environment-set! larc 'make-syntax-violation make-syntax-violation)
+  (environment-set! larc 'syntax-violation? syntax-violation?)
+  (environment-set! larc 'syntax-violation-form syntax-violation-form)
+  (environment-set! larc 'syntax-violation-subform syntax-violation-subform)
+  (environment-set! larc '&undefined &undefined)
+  (environment-set! larc 'make-undefined-violation make-undefined-violation)
+  (environment-set! larc 'undefined-violation? undefined-violation?)
 
   ;; io
 
@@ -941,6 +1090,8 @@
   (environment-set! larc 'open-string-output-port open-string-output-port)
   (environment-set! larc 'call-with-string-output-port
                     call-with-string-output-port)
+  (environment-set! larc 'open-file-input/output-port
+                    open-file-input/output-port)
   (environment-set! larc 'standard-output-port standard-output-port)
   (environment-set! larc 'standard-error-port standard-error-port)
   (environment-set! larc 'current-error-port current-error-port)
@@ -980,6 +1131,58 @@
   (environment-set! larc 'put-string put-string)
   (environment-set! larc 'put-datum put-datum)
 
+  (environment-set! larc '&i/o &i/o)
+  (environment-set! larc 'make-i/o-error make-i/o-error)
+  (environment-set! larc 'i/o-error? i/o-error?)
+  (environment-set! larc '&i/o-read &i/o-read)
+  (environment-set! larc 'make-i/o-read-error make-i/o-read-error)
+  (environment-set! larc 'i/o-read-error? i/o-read-error?)
+  (environment-set! larc '&i/o-write &i/o-write)
+  (environment-set! larc 'make-i/o-write-error make-i/o-write-error)
+  (environment-set! larc 'i/o-write-error? i/o-write-error?)
+  (environment-set! larc '&i/o-invalid-position &i/o-invalid-position)
+  (environment-set! larc 'make-i/o-invalid-position-error
+                    make-i/o-invalid-position-error)
+  (environment-set! larc 'i/o-invalid-position-error?
+                    i/o-invalid-position-error?)
+  (environment-set! larc 'i/o-error-position i/o-error-position)
+  (environment-set! larc '&i/o-filename &i/o-filename)
+  (environment-set! larc 'make-i/o-filename-error make-i/o-filename-error)
+  (environment-set! larc 'i/o-filename-error? i/o-filename-error?)
+  (environment-set! larc 'i/o-error-filename i/o-error-filename)
+  (environment-set! larc '&i/o-file-protection &i/o-file-protection)
+  (environment-set! larc 'make-i/o-file-protection-error
+                    make-i/o-file-protection-error)
+  (environment-set! larc 'i/o-file-protection-error?
+                    i/o-file-protection-error?)
+  (environment-set! larc '&i/o-file-is-read-only &i/o-file-is-read-only)
+  (environment-set! larc 'make-i/o-file-is-read-only-error
+                    make-i/o-file-is-read-only-error)
+  (environment-set! larc 'i/o-file-is-read-only-error?
+                    i/o-file-is-read-only-error?)
+  (environment-set! larc '&i/o-file-already-exists &i/o-file-already-exists)
+  (environment-set! larc 'make-i/o-file-already-exists-error
+                    make-i/o-file-already-exists-error)
+  (environment-set! larc 'i/o-file-already-exists-error?
+                    i/o-file-already-exists-error?)
+  (environment-set! larc '&i/o-file-does-not-exist &i/o-file-does-not-exist)
+  (environment-set! larc 'make-i/o-file-does-not-exist-error
+                    make-i/o-file-does-not-exist-error)
+  (environment-set! larc 'i/o-file-does-not-exist-error?
+                    i/o-file-does-not-exist-error?)
+  (environment-set! larc '&i/o-port &i/o-port)
+  (environment-set! larc 'make-i/o-port-error make-i/o-port-error)
+  (environment-set! larc 'i/o-port-error? i/o-port-error?)
+  (environment-set! larc 'i/o-error-port i/o-error-port)
+
+  (environment-set! larc '&i/o-decoding &i/o-decoding)
+  (environment-set! larc 'make-i/o-decoding-error make-i/o-decoding-error)
+  (environment-set! larc 'i/o-decoding-error? i/o-decoding-error?)
+  (environment-set! larc '&i/o-encoding &i/o-encoding)
+  (environment-set! larc 'make-i/o-encoding-error make-i/o-encoding-error)
+  (environment-set! larc 'i/o-encoding-error? i/o-encoding-error?)
+  (environment-set! larc 'i/o-encoding-error-char i/o-encoding-error-char)
+
   ;; FIXME: deprecated procedures
 
   (environment-set! larc 'call-with-binary-input-file
@@ -1006,6 +1209,22 @@
   (environment-set! larc 'with-output-to-raw-latin-1-file
                     with-output-to-raw-latin-1-file)
 
+  ;; enumeration sets
+
+  (environment-set! larc 'make-enumeration make-enumeration)
+  (environment-set! larc 'enum-set-universe enum-set-universe)
+  (environment-set! larc 'enum-set-indexer enum-set-indexer)
+  (environment-set! larc 'enum-set-constructor enum-set-constructor)
+  (environment-set! larc 'enum-set->list enum-set->list)
+  (environment-set! larc 'enum-set-member? enum-set-member?)
+  (environment-set! larc 'enum-set-subset? enum-set-subset?)
+  (environment-set! larc 'enum-set=? enum-set=?)
+  (environment-set! larc 'enum-set-union enum-set-union)
+  (environment-set! larc 'enum-set-intersection enum-set-intersection)
+  (environment-set! larc 'enum-set-difference enum-set-difference)
+  (environment-set! larc 'enum-set-complement enum-set-complement)
+  (environment-set! larc 'enum-set-projection enum-set-projection)
+
   ;; common and less common extensions to R4RS
 
   (environment-set! larc 'issue-warning-deprecated issue-warning-deprecated)
@@ -1030,6 +1249,9 @@
   (environment-set! larc 'current-continuation-structure
                     current-continuation-structure)
   (environment-set! larc 'larceny-break larceny-break)
+
+  (environment-set! larc 'display-condition display-condition) ; FIXME
+  (environment-set! larc 'display-record display-record)       ; FIXME
 
   ;; property lists
 
@@ -1062,6 +1284,8 @@
   (environment-set! larc 'stats-dump-stdout stats-dump-stdout)
   (environment-set! larc 'system-function system-function)
   (environment-set! larc 'gc-counter gc-counter)
+  (environment-set! larc 'major-gc-counter major-gc-counter)
+  (environment-set! larc '.internal:machine-address .internal:machine-address)
   (environment-set! larc 'run-with-stats run-with-stats)
   (environment-set! larc 'run-benchmark run-benchmark)
   (environment-set! larc 'display-memstats display-memstats)

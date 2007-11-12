@@ -8,10 +8,46 @@
 
 (define (run-dynamic-wind-tests)
   (display "Dynamic-wind") (newline)
+
   (allof "Dynamic-wind"
+
    (test "dynamic-wind test"
 	 (test-dynamic-wind)
 	 dynamic-wind-test-result)
+
+   ; See http://www.r6rs.org/r6rs-editors/2006-June/001319.html
+
+   (test "dynamic-wind example 1"
+         (let ((n 0))
+           (call-with-current-continuation
+            (lambda (k)
+              (dynamic-wind
+               (lambda ()
+                ;(display "Executing in thunk") (newline)
+                 (set! n (+ n 1))
+                 (k #f))
+               (lambda () #f)
+               (lambda ()
+                ;(display "Executing out thunk") (newline)
+                 (set! n (+ n 1))))))
+           n)
+         1)
+
+   (test "dynamic-wind example 2"
+         (let ((n 0))
+           (call-with-current-continuation
+            (lambda (k)
+              (dynamic-wind
+               (lambda ()
+                ;(display "Executing in thunk") (newline)
+                 #t)
+               (lambda () #f)
+               (lambda ()
+                ;(display "Executing out thunk") (newline)
+                 (set! n (+ n 1))
+                 (k #f)))))
+           n)
+         1)
    ))
 
 (define (test-dynamic-wind)

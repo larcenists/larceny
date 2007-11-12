@@ -15,6 +15,25 @@
      thunk
      (lambda () (if old (enable-interrupts old))))))
 
+; FIXME: this won't work with true multiprocessing,
+; and might not work even with green threads.
+; It works if and only if the critical section is an
+; uninterruptible sequence of straight-line code.
+
+(define (vector-like-cas! v i old new)
+; (call-without-interrupts
+;  (lambda ()
+
+     ; begin critical section
+
+     (let ((x (vector-like-ref v i)))
+       (if (eq? x old)
+           (vector-like-set! v i new))
+
+     ; end critical section
+
+       x));))
+
 ; A timeslice of 50,000 is a compromise between overhead and response time.
 ; On atlas.ccs.neu.edu (a SPARC 10 (?)), 50,000 is really too much for
 ; longer sections of straight-line code yet too little for very branch-

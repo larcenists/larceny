@@ -577,6 +577,19 @@
           (assoc key list)
           (error "assoc-string-ci: not a string " key)))))
 
+(define (assp pred list0)
+  (define (assp pred list)
+    (cond ((pair? list)
+           (let ((x (car list)))
+             (cond ((not (pair? x))
+                    (assertion-violation 'assp "illegal argument" list0))
+                   ((pred (car x))
+                    x)
+                   (else
+                    (assp pred list)))))
+          (else #f)))
+  (assp pred list0))
+
 (define assoc
   (letrec ((assoc
 	    (lambda (key list)

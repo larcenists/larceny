@@ -7,7 +7,9 @@
   (record-test-r6rs-0)
   (record-test-r6rs-1)
   (record-test-r6rs-2)
-  (record-test-r6rs-3))
+  (record-test-r6rs-3)
+  (record-test-err5rs-1)
+  (record-test-err5rs-2))
 
 (define (record-test-0)
   (let* ((pt2 (make-record-type "pt2" '(x y)))
@@ -255,7 +257,7 @@
          (pt3 (make-record-type-descriptor
                'pt3 pt2 #f #f #f '#((mutable z))))
          (pt3uid (make-record-type-descriptor
-                  'pt3 pt2 'uid1234567890 #f #f '#((mutable z))))
+                  'pt3 pt2 'uid1234567891 #f #f '#((mutable z))))
          (pt3sealed (make-record-type-descriptor
                      'pt3 pt2 #f #t #f '#((mutable z))))
          (pt3opaque (make-record-type-descriptor
@@ -408,7 +410,7 @@
          (pt3 (make-record-type-descriptor
                'pt3 pt2 #f #f #f '#((mutable z))))
          (pt3uid (make-record-type-descriptor
-                  'pt3 pt2 'uid1234567890 #f #f '#((mutable z))))
+                  'pt3 pt2 'uid1234567892 #f #f '#((mutable z))))
          (pt3sealed (make-record-type-descriptor
                      'pt3 pt2 #f #t #f '#((mutable z))))
          (pt3opaque (make-record-type-descriptor
@@ -613,3 +615,143 @@
      (test "(x4 obj3)" (x4 obj3) 11)
      (test "(x5 obj3)" (x5 obj3) 15)
      (test "(x6 obj3)" (x6 obj3) 17))))
+
+; This is the first example from the ERR5RS:Records web page.
+; FIXME: assumes letrec* semantics for internal definitions.
+
+(define (record-test-err5rs-1)
+  
+  (define rtd1
+    (make-rtd 'rtd1 '#((immutable x1) (immutable x2))))
+  
+  (define rtd2
+    (make-rtd 'rtd2 '#((immutable x3) (immutable x4)) rtd1))
+  
+  (define rtd3
+    (make-rtd 'rtd3 '#((immutable x5) (immutable x6)) rtd2))
+  
+  (define protocol1
+    (lambda (p)
+      (lambda (a b c)
+        (p (+ a b) (+ b c)))))
+  
+  (define protocol2
+    (lambda (n)
+      (lambda (a b c d e f)
+        (let ((p (n a b c)))
+          (p (+ d e) (+ e f))))))
+  
+  (define protocol3
+    (lambda (n)
+      (lambda (a b c d e f g h i)
+        (let ((p (n a b c d e f)))
+          (p (+ g h) (+ h i))))))
+  
+  (define make-rtd1
+    (protocol1 (rtd-constructor rtd1)))
+  
+  (define make-rtd2
+    (let ((maker2 (rtd-constructor rtd2)))
+      (protocol2
+       (protocol1
+        (lambda (x1 x2)
+          (lambda (x3 x4)
+            (maker2 x1 x2 x3 x4)))))))
+  
+  (define make-rtd3
+    (let ((maker3 (rtd-constructor rtd3)))
+      (protocol3
+       (protocol2
+        (protocol1
+         (lambda (x1 x2)
+           (lambda (x3 x4)
+             (lambda (x5 x6)
+               (maker3 x1 x2 x3 x4 x5 x6)))))))))
+
+  (define r (make-rtd3 1 2 3 4 5 6 7 8 9))
+  
+  (test "ERR5RS example 1"
+        (list ((rtd-accessor rtd1 'x1) r)
+              ((rtd-accessor rtd3 'x2) r)
+              ((rtd-accessor rtd2 'x3) r)
+              ((rtd-accessor rtd3 'x4) r)
+              ((rtd-accessor rtd3 'x5) r)
+              ((rtd-accessor rtd3 'x6) r))
+        '(3 5 9 11 15 17)))
+
+; This is the second example from the ERR5RS:Records web page.
+; FIXME: assumes letrec* semantics for internal definitions.
+
+(define (record-test-err5rs-2)
+  (define :point
+    (make-rtd 'point '#((mutable x) (mutable y))))
+  
+  (define make-point (rtd-constructor :point))
+  
+  (define point? (rtd-predicate :point))
+  (define point-x (rtd-accessor :point 'x))
+  (define point-y (rtd-accessor :point 'y))
+  (define point-x-set! (rtd-mutator :point 'x))
+  (define point-y-set! (rtd-mutator :point 'y))
+  
+  (define p1 (make-point 1 2))
+
+  (define :point2
+    (make-rtd 'point2 '#((mutable x) (mutable y)) :point))
+  
+  (define make-point2
+    (rtd-constructor :point2))
+  (define point2? (rtd-predicate :point2))
+  (define point2-xx (rtd-accessor :point2 'x))
+  (define point2-yy (rtd-accessor :point2 'y))
+  
+  (define p2 (make-point2 1 2 3 4))
+
+  (define make-point/abs
+    (let ((maker (rtd-constructor :point)))
+      (lambda (x y)
+        (maker (abs x) (abs y)))))
+  
+  (define :cpoint
+    (make-rtd 'cpoint '#((mutable rgb)) :point))
+  
+  (define make-cpoint
+    (let ((maker (rtd-constructor :cpoint)))
+      (lambda (x y c)
+        (maker x y (color->rgb c)))))
+  
+  (define make-cpoint/abs
+    (let ((maker (rtd-constructor :cpoint)))
+      (lambda (x y c)
+        (maker (abs x) (abs y) (color->rgb c)))))
+  
+  (define cpoint-rgb
+    (rtd-accessor :cpoint 'rgb))
+  
+  (define (color->rgb c)
+    (cons 'rgb c))
+  
+  (test "(point? p1)" (point? p1) #t)
+  (test "(point-x p1)" (point-x p1) 1)
+  (test "(point-y p1)" (point-y p1) 2)
+  (point-x-set! p1 5)
+  (test "(point-x p1)" (point-x p1) 5)
+  
+  (test "(point? p2)" (point? p2) #t)
+  (test "(point-x p2)" (point-x p2) 1)
+  (test "(point-y p2)" (point-y p2) 2)
+  (test "(point2-xx p2)" (point2-xx p2) 3)
+  (test "(point2-yy p2)" (point2-yy p2) 4)
+  
+  (test "(point-x (make-point/abs -1 -2))" (point-x (make-point/abs -1 -2)) 1)
+  (test "(point-y (make-point/abs -1 -2))" (point-y (make-point/abs -1 -2)) 2)
+  
+  (test "(cpoint-rgb (make-cpoint -1 -3 'red))"
+        (cpoint-rgb (make-cpoint -1 -3 'red))
+        '(rgb . red))
+  (test "(point-x (make-cpoint -1 -3 'red))"
+        (point-x (make-cpoint -1 -3 'red))
+        -1)
+  (test "(point-x (make-cpoint/abs -1 -3 'red))"
+        (point-x (make-cpoint/abs -1 -3 'red))
+        1))

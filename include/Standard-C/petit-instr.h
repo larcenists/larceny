@@ -1205,6 +1205,14 @@ extern cont_t twobit_cont_label;
 #define twobit_op1_108() /* gc-counter */ \
   RESULT = globals[ G_GC_CNT ]
 
+#define twobit_op1_109() /* major-gc-counter */ \
+  RESULT = globals[ G_MAJORGC_CNT ]
+
+#define twobit_op1_110() /* machine-address */ \
+  RESULT = (RESULT >> 4) << 2;
+
+/* FIXME: the following is obsolete */
+
 #define twobit_op2_109( y ) /* make-string */ \
    do { word a=RESULT, b=reg(y), *p; \
         if (UNSAFE_TRUE(is_nonnegative_fixnum(a) && is_char(b))) { \

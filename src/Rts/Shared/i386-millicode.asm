@@ -213,7 +213,7 @@ PUBLIC i386_alloc
 	add	TEMP, RESULT
 	add	TEMP, SCE_BUFFER
 	cmp	TEMP, CONT
-	jg	L1
+	ja	L1
 	mov	RESULT, [GLOBALS+G_ETOP]
 	sub	TEMP, SCE_BUFFER
 	mov	[GLOBALS+G_ETOP], TEMP
@@ -237,7 +237,7 @@ PUBLIC i386_alloci
 	add	TEMP, RESULT
 	add	TEMP, SCE_BUFFER
 	cmp	TEMP, CONT
-	jg	L2
+	ja	L2
 	mov	RESULT, [GLOBALS+G_ETOP]
 	sub	TEMP, SCE_BUFFER
 	mov	[GLOBALS+G_ETOP], TEMP
@@ -383,7 +383,7 @@ PUBLIC i386_bytevector_like_compare
 	mov	TEMP, [GLOBALS+G_ETOP]
 	add	TEMP, 16+SCE_BUFFER	; try alloc flo object
 	cmp	TEMP, CONT
-	jg	%%NOROOM
+	ja	%%NOROOM
 	sub	TEMP, SCE_BUFFER
 	fld qword [RESULT] 	; load fp arg
 	mov	RESULT, TEMP
@@ -469,7 +469,7 @@ PUBLIC i386_bytevector_like_compare
 	mov	TEMP, [GLOBALS+G_ETOP]
 	add	TEMP, 16+SCE_BUFFER	; try alloc 4 words (to preserve alignment of etop)
 	cmp	TEMP, CONT
-	jg	%%NOROOM
+	ja	%%NOROOM
 	fld  qword [RESULT] 	; load the first fp arg
 	sub	TEMP, SCE_BUFFER
 	mov	RESULT, TEMP

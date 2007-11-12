@@ -34,33 +34,77 @@
   (command-line-arguments argv)
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
-  (failsafe-load-init-files)
-  (failsafe-process-arguments)
-  (let ((features (system-features)))
-    (define (get-feature name)
-      (let ((probe (assq name features)))
-        (and probe (cdr probe))))
-    (define (adjust-case-sensitivity!)
-      (case-sensitive? (get-feature 'case-sensitivity)))
-    (case (get-feature 'execution-mode)
+  (let* ((features (system-features))
+         (get-feature
+          (lambda (name)
+            (let ((probe (assq name features)))
+              (and probe (cdr probe)))))
+         (adjust-case-sensitivity!
+          (lambda ()
+            (case-sensitive? (get-feature 'case-sensitivity))))
+         (adjust-safety!
+          (lambda (safety)
+            (case safety
+             ((0 1)
+              (eval '(catch-undefined-globals #f)               ; FIXME
+                    (interaction-environment))))))
+         (add-require-path!
+          (lambda (path)
+            (current-require-path (cons path (current-require-path)))))
+         (emode (get-feature 'execution-mode)))
+
+    (case emode
      ((r5rs err5rs)
+      (failsafe-load-init-files)
+      (failsafe-process-arguments)
+      (if (herald)
+          (writeln (herald)))
       (adjust-case-sensitivity!)
+      (if (< (get-feature 'safety) 1)                     ; FIXME
+          (adjust-safety! 1))                             ; FIXME
+      (let ((path (get-feature 'library-path)))
+        (if (not (string=? path ""))
+            (add-require-path! path)))
+      (if (eq? emode 'err5rs)
+          (let ((env (interaction-environment)))
+            (eval '(begin
+                    (require 'r6rsmode)
+                    (larceny:load-r6rs-package))
+                  env)
+            (let* ((ex:repl (eval 'ex:repl env))
+                   (aeryn-evaluator
+                    (lambda (exp . rest)
+                      (ex:repl (list exp)))))
+              (load-evaluator aeryn-evaluator)
+              (repl-evaluator aeryn-evaluator)
+              (writeln "ERR5RS mode (no libraries have been imported)"))))
       (r5rs-entry-point argv))
+
+     ; R6RS modes are batch modes, so we want to exit rather
+     ; than enter the debugger.
+
      ((dargo)
+      (adjust-safety! 1)                                  ; FIXME
       (require 'r6rsmode)
-      (let* ((pgm (get-feature 'top-level-program))
-             (input (if (string=? pgm "")
-                        (do ((x (read) (read))
-                             (forms '() (cons x forms)))
-                            ((eof-object? x)
-                             (reverse forms)))
-                        pgm)))
-        (if (string? input)
-            (eval (list 'run-r6rs-program input)
-                  (interaction-environment))
-            (eval (list 'run-r6rs-forms (list 'quote input))
-                  (interaction-environment))))
-      (exit 0))
+      (parameterize ((error-handler
+                      (lambda the-error
+                        (parameterize ((print-length 7)
+                                       (print-level 7))
+                          (decode-and-raise-r6rs-exception the-error)))))
+        (let* ((pgm (get-feature 'top-level-program))
+               (input (if (string=? pgm "")
+                          (do ((x (read) (read))
+                               (forms '() (cons x forms)))
+                              ((eof-object? x)
+                               (reverse forms)))
+                          pgm)))
+          (if (string? input)
+              (eval (list 'run-r6rs-program input)
+                    (interaction-environment))
+              (eval (list 'run-r6rs-forms (list 'quote input))
+                    (interaction-environment))))
+        (exit 0)))
+
      ((spanky)
       (display "Larceny's R6RS-conforming mode isn't implemented yet.")
       (newline)
@@ -78,8 +122,6 @@
 ; Called only by interactive-entry-point, above.
 
 (define (r5rs-entry-point argv)
-  (if (herald)
-      (writeln (herald)))
   (start-repl)
   (exit 0))
 
@@ -147,11 +189,13 @@
             (loop (+ i 1))))))))))
 
 ;; retract-eof : Any -> Any
+
 (define (retract-eof x)
   (cond ((eof-object? x) (error "Encountered EOF"))
         (else x)))
   
 ;; failsafe-eval-thunk : (-> S-exp) [Listof Any] -> Any
+
 (define (failsafe-eval-thunk arg-thunk error-mesgs)
   (call-with-current-continuation
    (lambda (k)
@@ -163,6 +207,7 @@
         (failsafe-eval (arg-thunk)))))))
 
 ;; failsafe-eval-string : S-exp -> Any
+
 (define (failsafe-eval arg-exp)
   (call-with-current-continuation
    (lambda (k)
@@ -174,6 +219,7 @@
         (eval arg-exp))))))
 
 ;; failsafe-load-file : String -> Any
+
 (define (failsafe-load-file filename)
   (call-with-current-continuation
    (lambda (k)

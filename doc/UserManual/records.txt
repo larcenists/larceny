@@ -3,7 +3,34 @@ Records
 
 [NOTE]
 ======================================================================
-The following is based on a proposal posted by Pavel Curtis to
+Larceny's records have been extended to implement all
+http://scheme-punks.org/wiki/index.php?title=Main_Page[ERR5RS]
+and
+http://www.r6rs.org/[R6RS]
+procedures from
+
+    (err5rs records procedural)
+    (err5rs records inspection)
+    (rnrs records procedural)
+    (rnrs records inspection)
+
+We recommend that Larceny programmers use the ERR5RS APIs instead
+of the R6RS APIs.  This should entail no loss of portability, since
+the standard reference implementation of ERR5RS records should run
+efficiently in any implementation of the R6RS that permits new
+libraries to defined at all.
+
+Larceny now has two kinds of records: old-style and ERR5RS/R6RS.
+Old-style records cannot be created in R6RS-conforming mode, so
+our extension of R6RS procedures to accept old-style records does
+not affect R6RS conformance.
+======================================================================
+
+[NOTE]
+======================================================================
+The following specification describes Larceny's old-style record API,
+which is now deprecated.  It
+is based on a proposal posted by Pavel Curtis to
 rrrs-authors on 10 Sep 1989, and later re-posted by Norman Adams to
 comp.lang.scheme on 5 Feb 1992. The authorship and copyright status of
 the original text are unknown to me.
@@ -11,20 +38,6 @@ the original text are unknown to me.
 This document differs from the original proposal in that its record
 types are extensible, and that it specifies the type of record-type
 descriptors.
-======================================================================
-
-[NOTE]
-======================================================================
-Larceny's records have been extended to implement all R6RS procedures
-from
-
-    (r6rs records procedural)
-    (r6rs records inspection)
-
-There are now two kinds of records: old-style and R6RS.  Old-style
-records cannot be created in R6RS-conforming mode, so our extension
-of R6RS procedures to accept old-style records does not affect R6RS
-conformance.
 ======================================================================
 
 ==== Specification
@@ -142,6 +155,18 @@ it exists, is a subtype of _t._
 
 ==== Implementation
 
-Records are implemented on top of Larceny's
-<<SectionStructures,structure>> data type: a record is a structure
-whose first slot contains a record-type-descriptor object.
+Larceny's old-style records are implemented on top of Larceny's
+low-level structure data type.  In Larceny v0.95, R6RS records
+are implemented as an extension to old-style records, ERR5RS
+records are implemented on top of R6RS records, and the R6RS
+syntactic layer is implemented on top of ERR5RS records.
+
+In some future release, ERR5RS records will become the
+foundation of the implementation, with old-style and R6RS
+implemented on top of ERR5RS records.
+
+The R6RS spouts some tendentious nonsense about procedural
+records being slower than syntactic records, but this is not
+true of Larceny's records, and it will be even less true when
+ERR5RS procedural records become the foundation of the
+implementation.

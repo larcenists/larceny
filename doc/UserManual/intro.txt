@@ -1,22 +1,47 @@
-Introductory material
----------------------
+Installing Larceny
+------------------
 
-anchor:TheIntroduction[the introduction]
+anchor:installation[installation]
 
-Installing and Running Twobit and Larceny
+System requirements
+~~~~~~~~~~~~~~~~~~~
 
-=== Installing the programs
+There are three main varieties of Larceny.
+
+Native Larceny is the fastest and most convenient variety
+of Larceny.  It compiles directly to native machine code
+for Intel x86-32 or SPARC microprocessors running Windows,
+Linux, MacOS X, or Solaris operating systems.
+
+Petit Larceny compiles to C instead of machine code.  It
+runs on most Unix machines, including PowerPC Macintoshes
+with MacOS X.
+
+Common Larceny compiles to JIT-compiled IL on Microsoft's
+Common Language Runtime (CLR) or Mono.  It provides access
+to the .NET libraries from Scheme.
+
+Downloading
+~~~~~~~~~~~
+
+The current versions of Larceny are available for
+download at
+http://larceny.ccs.neu.edu/[Larceny's main web page].
 
 Twobit and Larceny are distributed in two forms: as a precompiled
-binary such as larceny-X.Y-bin-native-ia32-win32.tar.gz
-(where X.Y is a version number, "bin" indicates a precompiled
-binary, "native" means it compiles incrementally to native code,
-"ia32" identifies the target processor, and "win32" identifies
-an operating system),
-or as a source tree (larceny-X.Y-src.tar.gz) that can be used
-to reconstruct any of the precompiled binary distributions.
-Unless you intend to change Larceny's source code, you do not
-need to download the source tree.
+binary, or as source code that can be used to reconstruct
+any of the precompiled binary distributions.
+Unless you intend to modify Larceny yourself, you do not
+need to download the source code.
+
+Installing the programs
+~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are installing or running Common Larceny, please
+consult the
+http://larceny.ccs.neu.edu[Common Larceny User Manual]
+instead of becoming confused by the instructions in this
+manual.
 
 Unpack the distribution files with an appropriate command such
 as one of the following:
@@ -27,11 +52,10 @@ as one of the following:
         tar -xzf larceny-X.Y-bin-native-ia32-linux86.tar.gz
         tar -xzf larceny-X.Y-bin-native-ia32-win32.tar.gz
         tar -xzf larceny-X.Y-bin-petit-stdc-macosx.tar.gz
-        tar -xzf larceny-X.Y-bin-common-cls-win32.tar.gz
         tar -xzf larceny-X.Y-src.tar.gz
     
 
-This will create a directory called "larceny" in your current working
+This will create a directory called `larceny` in your current working
 directory.  Assuming you have unpacked a binary distribution, that
 directory will contain the following files:
     
@@ -41,11 +65,12 @@ directory will contain the following files:
         twobit.heap         Heap image with some libraries and compiler
         larceny             Shell script that runs larceny.heap
         twobit              Shell script that runs twobit.heap
+        scheme-script       Shell script that runs Scheme scripts
         startup.sch         Pathnames for the require feature
     
 
 If you unpacked the source code there will be many other files and
-directories, but "larceny.bin", "larceny.heap", and "twobit.heap"
+directories, but `larceny.bin`, `larceny.heap`, and `twobit.heap`
 will not be present.  You can reconstruct those files from their
 source code, but that process requires a working version of Larceny
 or MzScheme; unless you're porting Larceny or Petit Larceny to a
@@ -54,178 +79,58 @@ files from a binary distribution of Larceny.
 
 The scripts and heap images are discussed in the following section. 
 
-You should decide where you want to install Twobit and Larceny; say
-you want to install them in /usr/local/bin and
-/usr/local/lib/larceny. Copy the files larceny and
-twobit to /usr/local/bin and edit the definition of the
-variable LARCENY_PATH at the head of each file to point to the correct
+You should decide where you want to install Larceny;
+let's suppose you want to install it in `/usr/local/bin` and
+`/usr/local/lib/larceny`.  Copy `larceny`, `twobit`,
+and `scheme-script` to `/usr/local/bin` and edit the definition of
+`LARCENY_PATH` at the head of each file to point to the correct
 directory:
     
     
         LARCENY_PATH=/usr/local/lib/larceny
     
 
-Then, move or copy larceny.bin, larceny.heap, twobit.heap,
-startup.sch, and the lib directory to /usr/local/lib/larceny.
+Then move or copy `larceny.bin`, `larceny.heap`, `twobit.heap`,
+`startup.sch`, and the `lib` directory to `/usr/local/lib/larceny`.
 
-You should now be able to run Larceny by typing "`larceny`" at the
-Unix prompt, and similarly you should be able to run the Twobit
-compiler by typing "`twobit`".
+You should now be able to run Larceny by typing "`larceny`" at a
+Unix prompt.  On Windows, type "`larceny.bat`".
 
-=== Larceny or Twobit?
+==== Compiling the R6RS standard libraries
 
-Unless you are doing compiler development, you should probably use the
-"`larceny`" script instead of the "`twobit`" script. The difference
-between these two scripts is that `larceny` runs the heap image named
-"larceny.heap" while `twobit` runs the heap image named "twobit.heap".
+Before you can run Larceny in ERR5RS or R6RS modes, you may
+have to compile the ERR5RS/R6RS runtime and standard libraries
+as described by step 4 of `doc/HOWTO-BUILD`.
+
+This step is definitely required if you are using Petit Larceny,
+and is recommended even if you are using a prebuilt distribution
+of native Larceny.
+
+==== Twobit
+
+Unless you are doing compiler development, you should use the
+"`larceny`" script, not the "`twobit`" script. The difference
+is that `larceny` runs the heap image named "larceny.heap"
+while `twobit` runs the heap image named "twobit.heap".
 
 Both of these heap images contain the Twobit compiler and the
 `compile-file` procedure that is used to compile files of Scheme code,
 but they differ in other ways.
 
-In "larceny.heap", every expression is compiled before it is
-evaluated, but the internals of the Twobit compiler are hidden (except
-for compilation switches).
+In "`larceny.heap`", every expression is compiled before it is
+evaluated, but the internals of the Twobit compiler are hidden
+(except for compilation switches).
 
-In "twobit.heap", some of the libraries that are present in
-"larceny.heap" are missing, and the internals of Twobit are exposed:
+In "`twobit.heap`", some of the libraries that are present in
+"`larceny.heap`" are missing, and all internals of Twobit are exposed:
 every top-level name in Twobit is bound in the interaction environment
-and may be changed interactively, with immediate effect. Since
-compiler development can be a risky business, "twobit.heap" uses the
-interpreter for evaluation -- the interpreter is unaffected by changes
-to Twobit.
+and may be changed interactively, with immediate effect.  Since
+compiler development can be a risky business, "`twobit.heap`" uses an
+interpreter to evaluate the Scheme code you load and type -- the
+interpreter is unaffected by changes to Twobit.
 
-Running "twobit.heap" is probably not useful unless you are doing
+Using "`twobit.heap`" is probably not useful unless you are doing
 compiler development, in which case you will need the source code as
-well as the binaries, or using Petit Larceny.
-
-WARNING: In Petit Larceny,
-the compiler may not be present in "larceny.heap".  Until this
-known bug is fixed, you will have to use "twobit.heap" when you
-want to compile files.
-
-=== Using Larceny
-
-==== Running Scheme files as scripts
-
-On Unix systems, the following command line will run the
-Scheme code in "myprogram.sch":
-
-    larceny -nobanner -- -e '(load "myprogram.sch")'
-
-To exit after normal termination of the program, change
-the Scheme expression above to
+well as the binaries.
 
 
-    (begin (load "myprogram.sch") (exit))
-
-
-Pre-compiled programs will load faster.  See compile-file.
-
-==== Interactive work
-
-When you start Larceny you will be presented with a banner
-message and the read-eval-print loop's prompt:
-
-------------------------------------------------------------
-Larceny vX.Y <version_name> (MMM DD YYYY HH:MM:SS, precise:SunOS5:split)
-        
->
-------------------------------------------------------------
-    
-
-You can enter a Scheme expression at the prompt.
-After a complete expression has been read, it will
-be evaluated and its results printed.
-
-==== Dealing with errors
-
-Larceny has a crude debugger. If your program crashes, the point of
-error will be saved, and back at the prompt you can start the
-debugger:
-    
-    
-        (debug)
-    
-
-There is some help available on-line in the debugger. (The debugger is
-pretty much a prototype; you don't need to tell us how bad it is.)
-
-==== Performance
-
-By default, the Twobit compiler assumes that Scheme's standard
-procedures will not be redefined, which allows the compiler to
-generate inline code for many calls to standard procedures. If you
-want to be able to redefine standard procedures, then you should
-evaluate the expression
-    
-    
-        (integrate-procedures #f)
-    
-
-After this expression has been evaluated, the compiler will generate
-slower code.
-
-To make the compiler generate faster code, you can promise not to
-redefine standard procedures _and_ not to redefine any top-level
-procedure while it is running. To make this promise, evaluate
-    
-    
-        (compiler-switches 'fast-safe)
-
-To view the current settings of Twobit's numerous compiler switches,
-evaluate
-    
-    
-        (compiler-switches)
-
-All of Twobit's compiler switches are procedures whose setting
-can be changed by passing the new value of the switch as an
-argument.
-
-// benchmark-block-mode broken for a long time; commenting out below
-
-////////////////////////////////////////////////////////////////////////
-To make `compile-file` generate faster code, you can promise that none
-of the top-level variables that are defined within a file of Scheme
-code are redefined or assigned outside of that file unless they are
-redefined or assigned within the file. To make this promise, evaluate
-    
-    
-        (benchmark-block-mode #t)
-////////////////////////////////////////////////////////////////////////
-    
-
-For more information, evaluate
-    
-    
-        (help)
-
-Some of the help information that will be printed is out of
-date or may be irrelevant to the heap image you are using,
-but most of it is still true.
-For still more information about compiler switches, see the
-<<DevelopingSwitches,developer documentation>>.
-
-=== Troubleshooting
-
-==== Error messages when starting Larceny
-
-The precompiled binary forms of Larceny should run on
-most machines with the appropriate processor and operating
-system, but the executable program "larceny.bin" may be
-incompatible with very old or with very new versions of
-the processor or operating system.  If that appears to be
-the case, you can use MzScheme to recompile larceny.bin
-from source.  First, though, you should report the problem
-to us (larceny@ccs.neu.edu).  Please report success stories
-as well.
-
-==== Crashes
-
-Please report all crashes with as much information is possible;
-a backtrace from a debugger or a core dump is ideal (but please
-do not mail the core dump without contacting us first).
-Larceny's run-time system is compiled with full debugging
-information by default and a debugger like GDB should be able
-to provide at least some clues.

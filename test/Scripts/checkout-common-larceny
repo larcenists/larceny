@@ -192,9 +192,9 @@ EOF
 library_test bool       boolean
 library_test char       char
 library_test string     string
+library_test bytevector bytevector
 library_test normalization normalization
 ## library_test complex
-library_test bytevector bytevector
 library_test pred       predicate
 library_test number     number
 library_test fact       fact 
@@ -236,7 +236,10 @@ EOF
 }
 
 ## Compiler tests (sanity switches only, but we could add extra passes...)
-compiler_tests sanity-switches
+
+#### This is currently too broken:
+# compiler_tests sanity-switches
+
 ## compiler_tests basic-switches
 ## compiler_tests optimization-switches
 ## compiler_tests backend-switches

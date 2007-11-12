@@ -11,12 +11,12 @@ generic bytevector-like structures are particularly fast but
 useful largely in code that manipulates Larceny's data
 representations.
 
-The R6RS <<BytevectorsLibrary, bytevectors library>> now
+The <<BytevectorsLibrary, `(rnrs bytevectors)` library>> now
 provides a large set of procedures that, in Larceny, are
 defined using the procedures described below.
 
 proc:make-bytevector[kind="Integrable procedure",args="length",result="bytevector"]
-proc:make-bytevector[kind="Integrable procedure",args="length fill",result="bytevector"]
+proctempl:make-bytevector[kind="Integrable procedure",args="length fill",result="bytevector"]
 
 Returns a bytevector of the desired length.
 If no second argument is given, then the bytevector has not
@@ -38,7 +38,10 @@ proctempl:bytevector-fill![args="bytevector byte",result="unspecified"]
 
 proctempl:bytevector-copy[args="bytevector",result="bytevector"]
 
-These procedures do what you expect. All procedures are integrable, except bytevector-equal? and bytevector-copy. 
+These procedures do what you expect.
+All are integrable, except `bytevector-equal?` and `bytevector-copy`.
+The `bytevector-equal?` name is deprecated, since the
+R6RS calls it `bytevector=?`.
 
 _Operations on bytevector-like structures_
 
@@ -55,9 +58,19 @@ proctempl:bytevector-like-equal?[args="bytevector1 bytevector2",result="boolean"
 proctempl:bytevector-like-copy[args="bytevector",result="bytevector"]
     
 
-A bytevector-like structure is a low-level representation on which data that are indexable like bytevectors are built, e.g., bytevectors, strings, bignums, and flonums.
+A bytevector-like structure is a low-level representation
+on which data that are indexable like bytevectors are built,
+e.g., bytevectors, bignums, and flonums.
 
-There is no way of constructing a "generic" bytevector-like structure; use the constructors for the data mapped onto bytevector-like structures instead, like make-string or make-bytevector.
+There is no way of constructing a "generic" bytevector-like
+structure; use the constructors for specific bytevector-like
+types.
 
-The bytevector-like operations operate on all bytevector-like structures. All the procedures are integrable, except bytevector-like-equal? and bytevector-like-copy.
+The bytevector-like operations operate on all bytevector-like
+structures.  All are integrable, except bytevector-like-equal?
+and bytevector-like-copy.  All are deprecated because they
+violate abstraction barriers and make your code
+representation-independent; they are useful mainly to
+Larceny developers, who might otherwise be tempted to
+write some low-level operations in C or assembly language.
 

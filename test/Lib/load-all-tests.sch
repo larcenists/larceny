@@ -11,6 +11,7 @@
 (compile-file "normalization.sch")
 (compile-file "bytevector.sch")
 (compile-file "io.sch")
+(compile-file "hashtable.sch")
 ;(compile-file "complex.sch")
 (compile-file "ctak.sch")
 (compile-file "dynamic-wind.sch")
@@ -23,6 +24,8 @@
 (compile-file "regression.sch")
 (compile-file "wcm.sch")
 (compile-file "record.sch")
+(compile-file "condition.sch")
+(compile-file "enum.sch")
 
 (load "test.fasl")			; Scaffolding
 
@@ -30,8 +33,9 @@
 (load "char.fasl")			; Characters
 (load "string.fasl")			; Strings
 (load "normalization.fasl")		; String normalization
-(load "bytevector.fasl")
-(load "io.fasl")
+(load "bytevector.fasl")                ; Bytevectors
+(load "io.fasl")                        ; Input and output
+(load "hashtable.fasl")                 ; Hashtables
 ;(load "complex.fasl")                   ; Complex numbers
 (load "ctak.fasl")			; Call/cc test
 (load "dynamic-wind.fasl")              ; Dynamic-wind test
@@ -44,6 +48,8 @@
 (load "regression.fasl")		; Past error cases
 (load "wcm.fasl")                       ; Continuation marks
 (load "record.fasl")                    ; Records
+(load "condition.fasl")                 ; Conditions
+(load "enum.fasl")                      ; Enumeration sets
 
 (define (run-all-tests)
   (run-boolean-tests)
@@ -59,6 +65,7 @@
 
   (run-bytevector-tests)
   (run-io-tests)
+  (run-hashtable-tests)
   (run-predicate-tests)
   (run-number-tests)
   (run-fact-tests)
@@ -70,6 +77,8 @@
   (run-fixnum-tests)
   (run-wcm-tests)
   (run-record-tests)
+  (run-condition-tests)
+  (run-enumset-tests)
   )
 
 

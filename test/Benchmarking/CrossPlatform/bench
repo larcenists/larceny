@@ -354,18 +354,18 @@ scheme48_exec ()
 
 larceny_comp ()
 {
-  printf "$COMPCOMMANDS" "$1" | ${LARCENY} $COMPOPTS
+  printf "$COMPCOMMANDS" "$1" | "${LARCENY}" $COMPOPTS
   :
 }
 
 larceny_exec ()
 {
-  printf "$EXECCOMMANDS" "$1" | ${LARCENY} $COMPOPTS
+  printf "$EXECCOMMANDS" "$1" | "${LARCENY}" $COMPOPTS
 }
 
 lardump_comp ()
 {
-  printf "$COMPCOMMANDS" "$1" "$1" "$1" | ${LARCENY} -stopcopy $COMPOPTS
+  printf "$COMPCOMMANDS" "$1" "$1" "$1" | "${LARCENY}" -stopcopy $COMPOPTS
   ### Commands below partition bytevector and non-bytevector heap data.
   # ${LARCENY} -stopcopy -reorganize-and-dump -heap $1.heap
   # cp $1.heap.split $1.heap
@@ -373,7 +373,7 @@ lardump_comp ()
 
 lardump_exec () 
 {
-  printf "$EXECCOMMANDS" | ${LARCENY} -heap $1.heap
+  printf "$EXECCOMMANDS" | "${LARCENY}" -heap $1.heap
 }
 
 henchman_comp ()
@@ -383,7 +383,7 @@ henchman_comp ()
 
 henchman_exec ()
 {
-  printf "$REPLCOMMANDS" "$1" | $HENCHMAN $COMPOPTS
+  printf "$REPLCOMMANDS" "$1" | "$HENCHMAN" $COMPOPTS
 }
 
 # -----------------------------------------------------------------------------

@@ -402,7 +402,7 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
   assert( data->in_gc >= 0 );
 
   if (data->in_gc++ == 0) {
-    gc_signal_moving_collection( gc ); /* should delegate thisto collector */
+    gc_signal_moving_collection( gc ); /* should delegate to collector */
     before_collection( gc );
   }
 
@@ -432,11 +432,20 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 void gc_signal_moving_collection( gc_t *gc )
 {
   DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
+  DATA(gc)->globals[ G_MAJORGC_CNT ] += fixnum(1);
   if (DATA(gc)->globals[ G_GC_CNT ] == 0)
     hardconsolemsg( "\n\nCongratulations!\n"
 		    "You have survived 1,073,741,824 garbage collections!\n" );
 }
 
+void gc_signal_minor_collection( gc_t *gc ) {
+
+  /* Undo the increment performed by gc_signal_moving_collection. */
+
+  DATA(gc)->globals[ G_MAJORGC_CNT ] -= fixnum(1);
+
+}
+    
 #if DOF_COLLECTOR
 /* DOF collection is a little different. */
 /* hack */
@@ -446,7 +455,7 @@ static void gc_start_gc( gc_t *gc )
 
   if (!data->have_stats) {
     data->have_stats = TRUE;
-    gc_signal_moving_collection( gc ); /* Should delegate this to collector */
+    gc_signal_moving_collection( gc ); /* Should delegate to collector */
     before_collection( gc );
   }
 }

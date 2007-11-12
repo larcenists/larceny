@@ -25,6 +25,10 @@
 		  (zero?
 		   (system "test \"`uname -m | grep 'i.86'`x\" != \"x\"")))
 	     'i386-linux)
+            ((and (string=? os "Linux")
+                  (zero?
+                   (system "test \"`uname -m | grep 'x86_64'`x\" != \"x\"")))
+             'i386-linux)
 	    (else
 	     (error "FFI: unsupported operating system " os)))))
 

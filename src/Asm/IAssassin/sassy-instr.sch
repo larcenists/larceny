@@ -323,7 +323,7 @@
            `(and ,$r.temp -8)                  ;  up to 8-byte boundary
            `(add ,$r.temp ,$sce.buffer)
 	   `(cmp ,$r.temp ,$r.cont)
-	   `(jle short ,l2)
+	   `(jbe short ,l2)
 	   (ia86.mcall $m.morecore 'morecore)
 	   `(jmp short ,l1)
            `(label ,l2)
@@ -595,7 +595,7 @@
     `(label ,l0)
     `(sub ,$r.cont ,(+ $sce.buffer (framesize n)))
     `(cmp ,$r.cont (& ,$r.globals ,$g.etop))
-    `(jge short ,l1)
+    `(jae short ,l1)
     `(add ,$r.cont ,(+ $sce.buffer (framesize n)))
     (ia86.mcall $m.stkoflow 'stkoflow)
     `(jmp short ,l0)
@@ -617,7 +617,7 @@
     `(mov ,$r.temp ,$r.cont)
     `(sub ,$r.temp ,(+ $sce.buffer (framesize n)))
     `(cmp ,$r.temp (& ,$r.globals ,$g.etop))
-    `(jge short ,l1)
+    `(jae short ,l1)
     (ia86.mcall $m.stkoflow 'stkoflow)
     `(jmp short ,l0)
     `(label ,l1)))
@@ -1611,6 +1611,8 @@
              ((106 creg) ia86.t_op1_106) 
              ((107 creg-set!) ia86.t_op1_107) 
              ((108 gc-counter) ia86.t_op1_108)
+             ((109 major-gc-counter) ia86.t_op1_109)
+             ((110 machine-address) ia86.t_op1_110)
              ((200 most-positive-fixnum) ia86.t_op1_200) 
              ((201 most-negative-fixnum) ia86.t_op1_201) 
              ((204 fx--) ia86.t_op1_204)
@@ -2311,7 +2313,7 @@
            `(mov	,$r.temp (& ,$r.globals ,$g.etop))
            `(add	,$r.temp ,(+ $sce.buffer 8))
            `(cmp	,$r.temp ,$r.cont)
-           `(jle short ,l2)
+           `(jbe short ,l2)
            (ia86.mcall	$m.morecore 'morecore)
            `(jmp short ,l1)
            `(label ,l2)
@@ -2594,6 +2596,13 @@
 
 (define-sassy-instr (ia86.t_op1_108)		; gc-counter
   `(mov	,$r.result (& ,$r.globals ,$g.gccnt)))
+
+(define-sassy-instr (ia86.t_op1_109)		; major-gc-counter
+  `(mov	,$r.result (& ,$r.globals ,$g.majorgccnt)))
+
+(define-sassy-instr (ia86.t_op1_110)            ; machine-address
+  `(shr	,$r.result 4)
+  `(shl	,$r.result 2))
 
 (define-sassy-instr (ia86.t_op2imm_128 imm)		; typetag-set!
   (ia86.const2regf $r.second imm)

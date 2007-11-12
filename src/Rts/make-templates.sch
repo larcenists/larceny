@@ -163,7 +163,7 @@ ASFLAGS+=-f elf -I$(INC_ROOT)/Nasm/ -DLINUX"))
 CC=gcc
 DEBUGINFO=#-g -gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS+=-c -falign-functions=4
+CFLAGS+=-c -falign-functions=4 -m32
 LIBS=-ldl -lm
 AS=nasm
 ASFLAGS+=-f elf -g -DLINUX"))
@@ -356,7 +356,7 @@ CC=cl
 
 (define make-template-target-sassy-unix-static
 "larceny.bin: $(X86_SASSY_LARCENY_OBJECTS)
-	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(X86_SASSY_LARCENY_OBJECTS) \\
+	$(CC) $(PROFILE) -m32 $(TCOV) -o larceny.bin $(X86_SASSY_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	rm Sys/version.$(O)")
 

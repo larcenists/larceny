@@ -247,7 +247,11 @@
 
 (define (dynamic-wind before during after)
   (let ((here *here*))
-    (reroot! (cons (cons before after) here))
+    (let ((there (list #f)))
+      (before)
+      (set-car! *here* (cons after before))
+      (set-cdr! *here* there)
+      (set! *here* there))
     ;; Don't listify and respread the values.
     (call-with-values
      during
@@ -262,16 +266,20 @@
         (begin (reroot-loop (cdr there))
                ;; Reusing this cell cuts a significant
                ;; amount of consing.
-               (let* ((reuse-cell (car there))
-                      (before (car reuse-cell))
-                      (after  (cdr reuse-cell)))
+               (let* ((old-pair (car there))
+                      (before (car old-pair))
+                      (after  (cdr old-pair)))
+
+                 ; http://www.r6rs.org/r6rs-editors/2006-June/001319.html
+
+                 (set-car! *here* (cons after before))
+                 (set-cdr! *here* there)
                  (set-car! there #f)
                  (set-cdr! there '())
-                 (set-car! reuse-cell after)
-                 (set-cdr! reuse-cell before)
 
-                 (set-car! *here* reuse-cell)
-                 (set-cdr! *here* there)
+                ;(set-car! old-pair after)
+                ;(set-cdr! old-pair before)
+
                  (set! *here* there)
                  (before)))))
 
@@ -302,10 +310,12 @@
 ;; structure of the continuation mark stack is never mutated; all
 ;; changes must be done by creating a new structure and mutating
 ;; only the variable.
+
 (define *cms* '())
 
 ;; sys$replace-mark/call-thunk
 ;; Called by call-with-continuation-mark in malcode.mal
+
 (define (sys$replace-mark/call-thunk key mark thunk)
   (define (alist-replace alist key mark)
     (cond ((pair? alist)
@@ -325,6 +335,7 @@
 ;; When the before and after thunks of a dynamic-wind execute, they
 ;; should observe the continuation marks belonging to the continuation
 ;; of the dynamic wind expression.
+
 (define dynamic-wind
   (let ((dynamic-wind dynamic-wind))
     (lambda (before during after)
@@ -501,6 +512,7 @@
         else))))
 
 ;; Print them nicely, so they can pretend to be opaque:
+
 (let ((old-structure-printer (structure-printer)))
   (structure-printer
     (lambda (obj port quote?)

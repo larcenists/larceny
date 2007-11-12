@@ -8038,6 +8038,10 @@
                                                0
                                                string_accumulator_length)
                                     next)))
+
+        ; must avoid infinite loop on current input port
+
+        (consumeChar)
         (error 'get-datum
                (string-append "Lexical Error: " msgtxt " ")
                input-port))
@@ -8128,7 +8132,7 @@
     (define (set-mode! m)
       (let ()
         (case m
-         ((r6rs)
+         ((r6rs err5rs)
           (set-switches recognize-keywords?          #f
                         recognize-javadot-symbols?   #f
                         case-sensitive?              #t
@@ -8389,7 +8393,8 @@
           (let* ((n (string-length tokenValue))
                  (flag (string->symbol (substring tokenValue 2 n))))
             (case flag
-             ((fold-case no-fold-case r5rs larceny fasl slow fast safe unsafe)
+             ((fold-case no-fold-case
+               err5rs r5rs larceny fasl slow fast safe unsafe)
               (set-mode! flag)
               (unspecified))
              ((unspecified) (unspecified))
@@ -8397,9 +8402,12 @@
              ((null)        '())
              ((false)       #f)
              ((true)        #t)
-             (else (parse-error '<miscflag> '(miscflag)))))
+             (else
+              (accept 'miscflag)
+              (parse-error '<miscflag> '(miscflag)))))
 
-          (parse-error '<miscflag> '(miscflag))))
+          (begin (accept 'miscflag)
+                 (parse-error '<miscflag> '(miscflag)))))
   
     ; #^Fxxxxxxxx
     ; Coding bits as characters is inherently evil.
@@ -8422,13 +8430,15 @@
       (let ((x (string->number tokenValue)))
         (if x
             x
-            (parse-error '<number> '(number)))))
+            (begin (accept 'number)
+                   (parse-error '<number> '(number))))))
   
     (define (makeOctet)
       (let ((n (string->number tokenValue)))
         (if (and (exact? n) (integer? n) (<= 0 n 255))
             n
-            (parse-error '<octet> '(octet)))))
+            (begin (accept 'octet)
+                   (parse-error '<octet> '(octet))))))
   
     (define (makeString)
 
@@ -8684,25 +8694,36 @@
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
     ; Error procedure called by the parser.
-    ; As a hack, this error procedure recovers from end-of-file.
     ;
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
     (define (parse-error nonterminal expected-terminals)
-      (let ((msg (string-append
-                  "Syntax error while parsing a "
-                  (symbol->string nonterminal)
-                  (string #\newline)
-                  "  Encountered "
-                  (symbol->string (next-token))
-                  " while expecting something in"
-                  (string #\newline)
-                  "  "
-                  (apply string-append
-                         (map (lambda (terminal)
-                                (string-append " "
-                                               (symbol->string terminal)))
-                              expected-terminals)))))
+      (let* ((culprit (next-token))
+             (culprit-as-string (symbol->string culprit))
+             (culprit-as-string
+              (if (memq culprit expected-terminals)
+                  (string-append "illegal " culprit-as-string)
+                  culprit-as-string))
+             (msg (string-append
+                   "Syntax error while parsing "
+                   (symbol->string nonterminal)
+                   (string #\newline)
+                   "  Encountered "
+                   culprit-as-string
+                   " while expecting "
+                   (case nonterminal
+                    ((<datum> <outermost-datum> <data>)
+                     "a datum")
+                    (else
+                     (string-append
+                      (string #\newline)
+                      "  "
+                      (apply string-append
+                             (map (lambda (terminal)
+                                    (string-append " "
+                                                   (symbol->string terminal)))
+                                  expected-terminals)))))
+                   (string #\newline))))
         (error 'get-datum msg input-port)))
 
     ; The list of tokens that can start a datum in R6RS mode.

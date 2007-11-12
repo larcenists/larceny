@@ -163,18 +163,22 @@
     "string"            ; string and bytevector procs
     "control"           ; control procedures
     "hash"              ; hash functions
-    "hashtable"         ; hashtables
     "preds"             ; some predicates
     "oblist"            ; symbol table
     "mcode"             ; millicode support
     "memstats"          ; runtime stats
+    "record"            ; records
+    "condition"         ; conditions
     "ecodes"            ; exception codes
     "ehandler"          ; exception handler
     "error"             ; error/reset system
+    "raise"             ; R6RS exception mechanism
     "timer"             ; timer interrupts
     "exit"              ; exit procedure; exit/init hooks
     "dump"              ; dump-heap procedure
     "secret"            ; some "hidden" top-level names
+    "hashtable"         ; hashtables
+    "enum"              ; enumeration sets
     "unicode0"          ; general utility procedures for binary search
     "unicode1"          ; char-* procedures
     "unicode2"          ; the word-breaking algorithm defined by UAX #29
@@ -300,7 +304,8 @@
   (make:pretend (not (null? rest)))
   (parameterize ((integrate-procedures 'larceny)
                  (compat:read-case-sensitive? #t))
-    (make:make sparc-heap-project "sparc.heap")))
+    (make:make sparc-heap-project "sparc.heap" 
+               (lambda (tgt) (error 'make-sparc-heap tgt)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -308,6 +313,7 @@
 
 ;; set within def. of dotnet-heap-project because that's where
 ;; the filenames are available with the least effort.
+
 (define remove-dotnet-heap-objects #f)
 
 (define dotnet-heap-project
@@ -319,9 +325,11 @@
                    ".manifest"
                    common-heap-files
                    `((primops
-                      . ,(param-filename 'source "Arch" "IL" "primops.manifest"))
+                      . ,(param-filename 'source "Arch" "IL"
+                                         "primops.manifest"))
                      (toplevel-target
-                      . ,(param-filename 'source "Arch" "IL" "toplevel-target.manifest"))
+                      . ,(param-filename 'source "Arch" "IL"
+                                         "toplevel-target.manifest"))
                      (flonum-endian
                       . ,(common-endian "flonums" ".manifest"))
                      (bignum-endian
@@ -329,7 +337,8 @@
                      (osdep
                       . ,(common-relative osdep-file))
                      (extra
-                      . ,(param-filename 'source "Arch" "IL" "loadable.manifest")))))
+                      . ,(param-filename 'source "Arch" "IL"
+                                         "loadable.manifest")))))
          (dotnet-eval-files
           (objects "" ".manifest" eval-files))
          (mzscheme-source-target/keywords
@@ -341,7 +350,8 @@
          (mzscheme-source-dependency
           (lambda (name source)
             (list (string-append (nbuild-parameter 'mzscheme-source) name)
-                  (list (string-append (nbuild-parameter 'mzscheme-source) source)))))
+                  (list (string-append (nbuild-parameter 'mzscheme-source)
+                                       source)))))
 	 (common-larceny/debug
 	  (string-append (pathname-append "bin" "Debug") "CommonLarceny"))
 	 (common-larceny/release
@@ -350,6 +360,7 @@
           (objects "" ".manifest" mzscheme-files)))
 
     ;; a handy procedure to delete all the intermediate files
+
     (set! remove-dotnet-heap-objects
           (lambda ()
             (let* ((manifest-files (append dotnet-mzscheme-files
@@ -399,8 +410,6 @@
         ,(mzscheme-source-dependency "identifier.manifest" "identifier.sch")
         ("dotnet.heap" ,dotnet-heap-files)
         ("dotnet.heap" ,dotnet-eval-files)
-        ("dotnet.heap" ,(objects "" ".manifest" 
-                                 (param-filename 'auxiliary '("record"))))
         ("dotnet.heap" ,dotnet-mzscheme-files)
 
         (,common-larceny/debug ,dotnet-heap-files)
@@ -416,7 +425,8 @@
   (make:pretend (not (null? rest)))
   (parameterize ((integrate-procedures 'larceny)
                  (compat:read-case-sensitive? #t))
-    (make:make dotnet-heap-project "dotnet.heap")))
+    (make:make dotnet-heap-project "dotnet.heap"
+               (lambda (tgt) (error 'make-dotnet-heap tgt)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -473,7 +483,8 @@
     (make:pretend (not (null? rest)))
     (parameterize ((integrate-procedures 'larceny)
                    (compat:read-case-sensitive? #t))
-      (make:make petit-heap-project "petit.heap"))))
+      (make:make petit-heap-project "petit.heap"
+                 (lambda (tgt) (error 'make-petit-heap tgt))))))
 
 (define (make-sasstrap-heap . rest)
   (if (null? petit-heap-files)
@@ -483,7 +494,8 @@
     (make:pretend (not (null? rest)))
     (parameterize ((integrate-procedures 'larceny)
                    (compat:read-case-sensitive? #t))
-      (make:make petit-heap-project "sasstrap.heap"))))
+      (make:make petit-heap-project "sasstrap.heap"
+                 (lambda (tgt) (error 'make-sasstrap-heap tgt))))))
 
 (define (make-sassy-project . rest)
   (define (srfi-file ext)
@@ -537,7 +549,8 @@
 
 (define (make-sassy . rest)
   (make:pretend (not (null? rest)))
-  (make:make (make-sassy-project) "sassy.date"))
+  (make:make (make-sassy-project) "sassy.date"
+             (lambda (tgt) (error 'make-sassy tgt))))
 
 (define (make-petit-libclean)
   (let ((files (append petit-heap-files petit-eval-files)))
@@ -607,13 +620,15 @@
 
 (define (make-compiler . rest)
   (make:pretend (not (null? rest)))
-  (make:make compiler-project/fasl "compiler.date"))
+  (make:make compiler-project/fasl "compiler.date"
+             (lambda (tgt) (error 'make-compiler tgt))))
 
 (define compiler-project/lop (make-compiler-project ".lop"))
 
 (define (make-petit-compiler . rest)
   (make:pretend (not (null? rest)))
-  (make:make compiler-project/lop "compiler.date"))
+  (make:make compiler-project/lop "compiler.date"
+             (lambda (tgt) (error 'make-petit-compiler tgt))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -642,7 +657,8 @@
 
 (define (make-sparcasm . rest)
   (make:pretend (not (null? rest)))
-  (make:make sparcasm-project "sparcasm.date"))
+  (make:make sparcasm-project "sparcasm.date"
+             (lambda (tgt) (error 'make-sparcasm tgt))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -668,13 +684,15 @@
 
 (define (make-petitasm . rest)
   (make:pretend (not (null? rest)))
-  (make:make petit-asm-project/fasl "petitasm.date"))
+  (make:make petit-asm-project/fasl "petitasm.date"
+             (lambda (tgt) (error 'make-petitasm tgt))))
 
 (define petit-asm-project/lop (make-petit-asm-project ".lop"))
 
 (define (make-petit-petitasm . rest)
   (make:pretend (not (null? rest)))
-  (make:make petit-asm-project/lop "petitasm.date"))
+  (make:make petit-asm-project/lop "petitasm.date"
+             (lambda (tgt) (error 'make-petit-petitasm tgt))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -698,7 +716,8 @@
 
 (define (make-dotnetasm . rest)
   (make:pretend (not (null? rest)))
-  (make:make dotnetasm-project "dotnetasm.date"))
+  (make:make dotnetasm-project "dotnetasm.date"
+             (lambda (tgt) (error 'make-dotnetassm tgt))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -722,11 +741,13 @@
 
 (define (make-compat . rest)
   (make:pretend (not (null? rest)))
-  (make:make compat-project/fasl "compat.date"))
+  (make:make compat-project/fasl "compat.date"
+             (lambda (tgt) (error 'make-compat tgt))))
 
 (define (make-petit-compat . rest)
   (make:pretend (not (null? rest)))
-  (make:make compat-project/lop "compat.date"))
+  (make:make compat-project/lop "compat.date"
+             (lambda (tgt) (error 'make-petit-compat tgt))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -735,7 +756,7 @@
 
 (define auxlib-files
   '("misc" "list" "vector" "string" "pp" "io" "format" "load"
-    "osdep-unix" "osdep-win32" "record"))
+    "osdep-unix" "osdep-win32"))
 
 (define experimental-files
   ; (param-filename 'root "Lib" "Experimental
@@ -779,11 +800,13 @@
 
 (define (make-auxlib . rest)
   (make:pretend (not (null? rest)))
-  (make:make auxlib-project/fasl "auxlib.date"))
+  (make:make auxlib-project/fasl "auxlib.date"
+             (lambda (tgt) (error 'make-auxlib tgt))))
 
 (define (make-petit-auxlib . rest)
   (make:pretend (not (null? rest)))
-  (make:make auxlib-project/lop "auxlib.date"))
+  (make:make auxlib-project/lop "auxlib.date"
+             (lambda (tgt) (error 'make-petit-auxlib tgt))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -308,10 +308,15 @@
            additional-files
 	   )))
 
+(define (nbuild-key->parameter key)
+  (lambda args
+    (apply nbuild-parameter key args)))
+
 (define (build-twobit)
   (cond ((file-exists? "Twobit.fasl")
 	 (delete-file "Twobit.fasl")))
-  (parameterize ((compat:read-case-sensitive? #t))
+  (parameterize ((compat:read-case-sensitive? #t)
+                 ((nbuild-key->parameter 'development?) #t))
      (build-twobit-base
        "Twobit"
        (list (param-filename 'auxiliary "dotnet-compile-file.sch")))))
@@ -319,7 +324,8 @@
 (define (build-larceny)
   (cond ((file-exists? "Larceny.fasl")
          (delete-file "Larceny.fasl")))
-  (parameterize ((compat:read-case-sensitive? #t))
+  (parameterize ((compat:read-case-sensitive? #t)
+                 ((nbuild-key->parameter 'development?) #f))
     (build-twobit-base
       "Larceny"
       `(,@(param-filename 'compiler '("driver-larceny.sch"))

@@ -426,7 +426,7 @@
               (let ((c (char-downcase c)))
                 (and (char<=? #\a c) (char<=? c #\f))))
           (and (char<=? #\0 c)
-               (char<=? c (integer->char (+ (char->integer #\0) r))))))
+               (char<? c (integer->char (+ (char->integer #\0) r))))))
     
     (define (radix-digit-value c r)
       (cond ((not (eq? r 16))

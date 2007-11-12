@@ -585,7 +585,13 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (hstrcmp( *argv, "-path" ) == 0) {
       ++argv;
       --argc;
-      o->r6path = *argv;
+      /* FIXME */
+      if (hstrcmp ( o->r6path, "" ) == 0) {
+        o->r6path = *argv;
+      }
+      else {
+        param_error ( "Currently, only one path can be specified. " );
+      }
     }
     else if (hstrcmp( *argv, "-args" ) == 0 ||
                strcmp( *argv, "--" ) == 0) {
@@ -634,9 +640,7 @@ parse_options( int argc, char **argv, opt_t *o )
   if (o->r6slow && (strcmp (o->r6path, "") != 0))
     param_error( "The -slow and -path options are incompatible." );
 
-  if ((o->r6fast ||
-       (strcmp (o->r6path, "") != 0) ||
-       (strcmp (o->r6program, "") != 0)) && (! (o->r6rs)))
+  if ((strcmp (o->r6program, "") != 0) && (! (o->r6rs)))
     param_error( "Missing -r6rs option." );
 
   if (o->gc_info.is_conservative_system &&
@@ -1045,7 +1049,7 @@ static void invalid( char *s )
 static void usage( void )
 {
   consolemsg( "" );
-  consolemsg( "Usage: larceny [ OPTIONS ][ -heap HEAPFILE ][-- ARGUMENTS]" );
+  consolemsg( "Usage: larceny [ OPTIONS ][-- ARGUMENTS]" );
   consolemsg( "Type \"larceny -help\" for help." );
   exit( 1 );
 }
@@ -1061,18 +1065,15 @@ static char *helptext[] = {
   "     Symbols are case-sensitive (the default; #!fold-case overrides).",
   "  -foldcase",
   "     Symbols are case-insensitive (#!no-fold-case overrides).",
-  "  -err5rs",
-  "     Enter a traditional interactive read/eval/print loop (the default).",
   "  -r5rs",
-  "     Roughly equivalent to -err5rs -foldcase.",
+  "     Enter Larceny's traditional read/eval/print loop (the default).",
+  "  -err5rs",
+  "     Enter an ERR5RS read/eval/print loop.",
   "  -r6rs",
-  "     Execute an R6RS-style program in batch mode.  The -program option",
-  "     must specify a file that contains the R6RS top-level program, and",
-  "     the other options below may also be specified.",
+  "     Execute an R6RS-style program in batch mode.",
+  "     The following options may also be specified:",
   "       -program <filename>",
-  "          Execute the R6RS-style program found in this file.",
-  "       -path <directory>",
-  "          Location of R6RS libraries; incompatible with -slow.",
+  "          Execute the R6RS-style program found in the file.",
   "       -fast",
   "          Execute the R6RS-style program as compiled code (the default).",
   "       -slow",
@@ -1081,10 +1082,22 @@ static char *helptext[] = {
   "          Execute in Spanky mode; must be accompanied by -slow.",
   "       -but-not-that-pedantic",
   "          Modifies -pedantic, which must also be specified.",
+  "  -path <directory>",
+  "     Search the directory when using require.",
+  "     Only one directory can be specified by a -path option, and the",
+  "     -path option is currently incompatible with the -r6rs option.",
   "  -quiet",
   "     Suppress nonessential messages.",
   "  -nobanner",
   "     Suppress runtime startup banner (implied by -r6rs).",
+  "  -- <argument> ...",
+  "     Tell (command-line-arguments) to return #(<argument> ...)",
+  "     This option, if present, must come last.",
+  "     Standard heaps recognize these command line arguments:",
+  "         -e <expr>",
+  "           Evaluate <expr> at startup.",
+  "         <file>",
+  "           Load the specified file (if it exists) at startup.",
   "  -help",
   "     Print this message.",
   "  -wizard",
@@ -1281,7 +1294,7 @@ static void help(int wizardp)
 {
   int i;
 
-  consolemsg("Usage: larceny [options][heapfile][-- arg-to-scheme ...]");
+  consolemsg("Usage: larceny [options][-- arg-to-scheme ...]");
   consolemsg("" );
   consolemsg("Options:" );
   for (i=0 ; helptext[i] != 0 ; i++ )
@@ -1291,7 +1304,7 @@ static void help(int wizardp)
           consolemsg( wizardhelptext[i] );
   }
   consolemsg("The Larceny User's Manual is available on the web at");
-  consolemsg("  http://www.ccs.neu.edu/home/will/Larceny/manual/index.html");
+  consolemsg("  http://larceny.ccs.neu.edu/doc/");
   exit( 0 );
 }
 

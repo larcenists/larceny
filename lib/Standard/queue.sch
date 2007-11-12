@@ -2,7 +2,6 @@
 ; 2004-01-15 / lth
 
 (require 'assert)
-(require 'record)
 
 (define make-queue)            ; (make-queue)              --> queue
 (define queue?)                ; (queue? obj)              --> boolean

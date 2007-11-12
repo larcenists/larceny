@@ -1,11 +1,11 @@
 Debugging
-~~~~~~~~~
+---------
 
 Larceny's debugging functionality is implemented in Scheme, using some
 of Larceny's extensions for catching exceptions and inspecting the
 continuation structure.
 
-==== Entering the debugger
+=== Entering the debugger
 
 When Larceny detects an error or a keyboard interrupt, or when it hits
 a breakpoint, it signals the condition by printing a message on the
@@ -19,7 +19,7 @@ with a short banner and the debugger prompt:
 
 You can also re-enter the debugger by evaluating (debug).
 
-==== Debugger commands
+=== Debugger commands
 
 The debugger is still in an immature state. The following commands are available (commands can be typed in upper or lower case): 
 
@@ -57,12 +57,12 @@ activation record.
 
 The **B**, **D**, and **U** commands can be prefixed with a count, for example, 5 U moves up five activation records, and 10 B displays the next 10 activation records. The default for **B** is to display all the activations; the default count for **D** and **U** is 1. 
 
-==== Breakpoints
+=== Breakpoints
 
 You can set breakpoints either in program text with the break primitive or interactively at the start of a procedure with the break-entry procedure. When Larceny reaches a breakpoint during execution, the program is suspended and the debugger is entered to allow you to inspect the program. 
 
 
-proc:break[args=""]
+proc:larceny-break[args=""]
 
 Invokes the breakpoint handler.
 
@@ -76,7 +76,7 @@ proctempl:unbreak[args=""]
 
 In the first form, remove any breakpoint set by break-entry at the start of the _procedure_s. In the second form, remove all breakpoints set by _break-entry_.
 
-==== Tracing
+=== Tracing
 
 proc:trace-entry[args="procedure"]
 
@@ -98,8 +98,10 @@ proctempl:untrace[args=""]
 
 The first form removes any trace points from the _procedure_s. The second form removes all untrace points.
 
-==== Other functionality
+=== Other functionality
 
+anchor:break-handler[]
+indexterm:[break-handler]
 _Parameter break-handler_     
 
 The value of break-handler is a procedure that is called when a breakpoint or tracepoint is encountered. The procedure takes two arguments: the procedure in which the breakpoint was set, and the byte offset within the procedure's code vector of the breakpoint.

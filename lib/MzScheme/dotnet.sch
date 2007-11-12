@@ -186,9 +186,9 @@
   ;; various hash tables.
 (define (StudlyName->key StudlyName)
 ;    (parameterize ((read-square-bracket-as-paren #f)
-;                   (read-case-sensitive #f))
+;                   (read-case-sensitive #t))
 ;      (read-from-string StudlyName)))
-  (string->symbol (string-downcase StudlyName))
+  (string->symbol StudlyName)
   )
 
   ;; A temporary scaffolding class for bootstrapping

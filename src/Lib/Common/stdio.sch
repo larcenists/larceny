@@ -39,17 +39,15 @@
 ; are represented by R6RS-style textual file ports with Latin-1
 ; transcoding and no end-of-line conversion.
 
-; FIXME: fakes file options
-
 (define (open-raw-latin-1-input-file filename)
   (open-file-input-port filename
-                        '()             ; FIXME: fake file options
+                        (file-options)
                         'block
                         (make-transcoder (latin-1-codec) 'none 'ignore)))
 
 (define (open-raw-latin-1-output-file filename)
   (open-file-output-port filename
-                         '()             ; FIXME: fake file options
+                         (file-options)
                          'block
                          (make-transcoder (latin-1-codec) 'none 'ignore)))
 
@@ -181,13 +179,13 @@
 
 (define (open-input-file filename)
   (open-file-input-port filename
-                        '()             ; FIXME: fake file options
+                        (file-options)
                         'block
                         (native-transcoder)))
 
 (define (open-output-file filename)
   (open-file-output-port filename
-                         '()             ; FIXME: fake file options
+                         (file-options)
                          'block
                          (native-transcoder)))
 

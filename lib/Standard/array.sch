@@ -77,8 +77,6 @@
 ;
 ; End of manual.
 
-(require 'record)
-
 ;(declare (usual-integrations))
 ;(eval-when (compile load) (compiler-switches 'fast-safe))
 

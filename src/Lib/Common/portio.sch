@@ -4,12 +4,42 @@
 ;
 ; Larceny -- R6RS-compatible I/O system.
 
-; FIXME:  It's hard to know what to do about file-options,
-; short of supporting the (rnrs enums) library in Larceny.
-;
-; See toplevel.sch for the current workaround.
+($$trace "portio")
 
-; The deprecated buffer-mode syntax is supported only by R6RS modes.
+; The deprecated buffer-mode syntax is supported only by R6RS modes,
+; but the enumeration set has to be defined here so the i/o system
+; can use it.  Several nonstandard symbols are included so Spanky
+; mode can do arbitrary things with them.
+
+(define *file-option-symbols*
+  '(no-create no-fail no-truncate
+    spanky0 spanky1 spanky2))
+
+; Enumeration sets can't be created until late in the initialization
+; process, so the creation of this enumeration set must be delayed.
+
+(define *file-options-enumeration-set* #f)
+
+(define (file-options-enumeration-set)
+  (if (not *file-options-enumeration-set*)
+      (set! *file-options-enumeration-set*
+            (make-enumeration *file-option-symbols*)))
+  *file-options-enumeration-set*)  
+
+(define (make-file-options-set syms)
+  ((enum-set-constructor (file-options-enumeration-set)) syms))
+
+(define (file-options->list options)
+  (enum-set->list options))
+
+; toplevel.sch defines variables no-create, no-fail, and
+; no-truncate so they don't have to be quoted when passed
+; to file-options.
+
+(define (file-options . symbols)
+  (make-file-options-set
+   (filter (lambda (sym) (memq sym *file-option-symbols*))
+           symbols)))
 
 ; The R6RS specification of buffer-mode? does not allow it
 ; to return true for the datum buffer mode, so this predicate
@@ -195,11 +225,9 @@
          ; probably closed
          #f)))
 
-; FIXME: fakes file options
-
 (define (open-file-input-port filename . rest)
   (cond ((null? rest)
-         (file-io/open-file-input-port filename '() 'block #f))
+         (file-io/open-file-input-port filename (file-options) 'block #f))
         ((null? (cdr rest))
          (file-io/open-file-input-port filename (car rest) 'block #f))
         ((null? (cddr rest))
@@ -250,7 +278,7 @@
 
 (define (open-file-output-port filename . rest)
   (cond ((null? rest)
-         (file-io/open-file-output-port filename '() 'block #f))
+         (file-io/open-file-output-port filename (file-options) 'block #f))
         ((null? (cdr rest))
          (file-io/open-file-output-port filename (car rest) 'block #f))
         ((null? (cddr rest))
@@ -326,6 +354,78 @@
       (assertion-violation 'call-with-string-output-port
                            "illegal argument" f)))
 
+(define (open-file-input/output-port filename . rest)
+  (cond ((null? rest)
+         (file-io/open-file-input/output-port
+          filename (file-options) 'block #f))
+        ((null? (cdr rest))
+         (file-io/open-file-input/output-port filename (car rest) 'block #f))
+        ((null? (cddr rest))
+         (file-io/open-file-input/output-port filename
+                                              (car rest) (cadr rest) #f))
+        ((null? (cdddr rest))
+         (file-io/open-file-input/output-port filename
+                                  (car rest) (cadr rest) (caddr rest)))
+        (else
+         (assertion-violation 'open-file-input/output-port
+                              "wrong number of arguments"
+                              (cons filename rest)))))
+
+; FIXME:  This belongs in fileio.sch, and should be implemented better.
+
+(define (file-io/open-file-input/output-port filename opts bufmode t)
+  (let ((dir (current-directory)))
+    (cond ((not t)
+           (let* ((initial-contents
+                   (call-with-port
+                    (open-file-input-port filename)
+                    get-bytevector-all))
+                  (bvport (open-input/output-bytevector initial-contents))
+                  (show
+                   (lambda ()
+                     (display " ")
+                     (write (vector-like-ref bvport 7))
+                     (newline)))
+                  (read-method
+                   (lambda (bv start count)
+                     (write (list 'reading start count))
+                     (show)
+                     (get-bytevector-n! bvport bv start count)))
+                  (write-method
+                   (lambda (bv start count)
+                     (write (list 'writing start count))
+                     (show)
+                     (put-bytevector bvport bv start count)
+                     count))
+                  (get-position-method
+                   (lambda () (port-position bvport)))
+                  (set-position-method
+                   (lambda (posn) (set-port-position! bvport posn)))
+                  (close-method
+                   (lambda ()
+                     (let* ((final-contents (get-output-bytevector bvport))
+                            (current-dir (current-directory)))
+                       (dynamic-wind
+                        (lambda () (current-directory dir))
+                        (lambda ()
+                          (call-with-port
+                           (open-file-output-port filename opts bufmode)
+                           (lambda (out)
+                             (put-bytevector out final-contents))))
+                        (lambda () (current-directory current-dir)))))))
+             (make-custom-binary-input/output-port
+              filename
+              read-method write-method
+              get-position-method set-position-method close-method)))
+          ((eq? (transcoder-codec t) 'latin-1)
+           (transcoded-port
+            (file-io/open-file-input/output-port filename opts bufmode #f)
+            t))
+          (else
+           (assertion-violation
+            'open-file-input/output-port
+            "illegal codec" t)))))
+
 ; FIXME: not implemented yet
 
 (define (standard-output-port)
@@ -349,31 +449,55 @@
 
 (define (make-custom-binary-input-port
          id read! get-position set-position! close)
+  (if get-position
+      (issue-warning-deprecated
+       'make-custom-binary-input-port...get-port-position))
   (customio/make-binary-input-port
    id read! get-position set-position! close))
 
 (define (make-custom-binary-output-port
          id write! get-position set-position! close)
+  (if get-position
+      (issue-warning-deprecated
+       'make-custom-binary-output-port...get-port-position))
   (customio/make-binary-output-port
    id write! get-position set-position! close))
 
 (define (make-custom-binary-input/output-port
          id read! write! get-position set-position! close)
+  (if get-position
+      (issue-warning-deprecated
+       'make-custom-binary-input/output-port...get-port-position))
+  (if (not set-position!)
+      (issue-warning-deprecated
+       'make-custom-binary-input/output-port...set-port-position!))
   (customio/make-binary-input/output-port
    id read! write! get-position set-position! close))
 
 (define (make-custom-textual-input-port
          id read! get-position set-position! close)
+  (if get-position
+      (issue-warning-deprecated
+       'make-custom-textual-input-port...get-port-position))
   (customio/make-textual-input-port
    id read! get-position set-position! close))
 
 (define (make-custom-textual-output-port
          id write! get-position set-position! close)
+  (if get-position
+      (issue-warning-deprecated
+       'make-custom-textual-output-port...get-port-position))
   (customio/make-textual-output-port
    id write! get-position set-position! close))
 
 (define (make-custom-textual-input/output-port
          id read! write! get-position set-position! close)
+  (if get-position
+      (issue-warning-deprecated
+       'make-custom-textual-input/output-port...get-port-position))
+  (if (not set-position!)
+      (issue-warning-deprecated
+       'make-custom-textual-input/output-port...set-port-position!))
   (customio/make-textual-input/output-port
    id read! write! get-position set-position! close))
 

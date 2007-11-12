@@ -20,5 +20,10 @@ There is no way of constructing a "generic" vector-like structure; use
 the constructors for the data types mapped onto vector-like structures
 instead, like make-vector.
 
-The vector-like operations operate on all vector-like structures. All
-the procedures are integrable.
+The vector-like operations operate on all vector-like structures.
+All are integrable.
+All are deprecated because they
+violate abstraction barriers and make your code
+representation-independent; they are useful mainly to
+Larceny developers, who might otherwise be tempted to
+write some low-level operations in C or assembly language.

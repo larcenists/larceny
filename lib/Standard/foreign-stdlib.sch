@@ -1,5 +1,4 @@
 (require 'std-ffi)
-(require 'record)
 
 ;; stdlib/malloc : PI [Rtd] . (Size -> Rtd)) 
 ;;   above, Rtd must have a unary constructor a la Void*-Rtd

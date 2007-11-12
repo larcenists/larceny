@@ -50,7 +50,7 @@ This manual describes those aspects of Larceny that are not described by the Rev
 
 * * *
 
-_$Id: index.html 1481 2000-09-12 21:23:22Z lth $_  
+_$Id$_  
 [larceny@ccs.neu.edu][37]  
 
 

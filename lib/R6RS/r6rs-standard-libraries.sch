@@ -6,6 +6,13 @@
 ;;;
 ;;;   Copyright statement at http://srfi.schemers.org/srfi-process.html
 ;;;
+;;;   Copyright (C) Richard Kelsey, Michael Sperber (2002).
+;;;   All Rights Reserved.
+;;;
+;;;       The Kelsey/Sperber copyright covers only the macros defined
+;;;       in (rnrs exceptions), which come from SRFI 34.  The full
+;;;       copyright statement is reproduced within that library.
+;;;
 ;;; Modified for Larceny.
 ;;;
 ;;; $Id$
@@ -37,17 +44,617 @@
    
    begin if lambda quote set! and or
    define define-syntax let-syntax letrec-syntax
+   _ ... syntax syntax-case
+      
+   ;; Procedures and values defined in core expander:
+   
+   (rename (ex:make-variable-transformer make-variable-transformer)
+           (ex:identifier?               identifier?)
+           (ex:bound-identifier=?        bound-identifier=?)
+           (ex:free-identifier=?         free-identifier=?)
+           (ex:generate-temporaries      generate-temporaries) 
+           (ex:datum->syntax             datum->syntax)
+           (ex:syntax->datum             syntax->datum)
+           (ex:syntax-violation          syntax-violation)
+           (ex:environment               environment)
+           (ex:environment-bindings      environment-bindings)
+           (ex:eval                      eval)
+           (ex:undefined                 undefined)))
+  
+  (import
+   
+   (only (core primitive-macros)
+     
+     begin if set! and or lambda quote
+     define define-syntax let-syntax letrec-syntax 
+     syntax syntax-case _ ...)
+   
+   ;; An extension to the r6rs import syntax, used here to make  
+   ;; available variable bindings provided natively.
+   ;; This will not work for macros, which have to be defined
+   ;; within the context of this expander.  
+   
+   (primitives
+   
+    ;; Procedures and values defined in the core expander:
+    
+    ex:make-variable-transformer ex:identifier? ex:bound-identifier=?
+    ex:free-identifier=? ex:generate-temporaries
+    ex:datum->syntax ex:syntax->datum 
+    ex:syntax-violation ex:environment ex:environment-bindings ex:eval
+    ex:undefined
+    ))
+  
+  ) ;; core primitives
+
+(library (core with-syntax)
+  (export with-syntax)
+  (import (for (core primitives) run expand)
+          (primitives list)) 
+  
+  (define-syntax with-syntax
+    (lambda (x)
+      (syntax-case x ()
+        ((_ () e1 e2 ...)             (syntax (begin e1 e2 ...)))
+        ((_ ((out in)) e1 e2 ...)     (syntax (syntax-case in ()
+                                                (out (begin e1 e2 ...)))))
+        ((_ ((out in) ...) e1 e2 ...) (syntax (syntax-case (list in ...) ()
+                                                ((out ...)
+                                                 (begin e1 e2 ...))))))))
+  )
+
+(library (core syntax-rules)
+  (export syntax-rules)
+  (import (for (core primitives)        expand run)
+          (for (core with-syntax)       expand)
+          (for (primitives for-all map) expand))
+  
+  (define-syntax syntax-rules
+    (lambda (x)
+      (define clause
+        (lambda (y)
+          (syntax-case y ()
+            (((keyword . pattern) template)
+             (syntax ((dummy . pattern) (syntax template))))
+            (_
+             (syntax-violation 'syntax-rules "Invalid expression" x)))))
+      (syntax-case x ()
+        ((_ (k ...) cl ...)
+         (for-all identifier? (syntax (k ...)))
+         (with-syntax (((cl ...) (map clause (syntax (cl ...)))))
+           (syntax
+            (lambda (x) (syntax-case x (k ...) cl ...))))))))
+  )
+
+(library (core let)
+  (export let letrec letrec*)
+  (import (for (core primitives)        expand run)
+          (for (core with-syntax)       expand)
+          (for (primitives for-all)     expand))
+  
+  (define-syntax let
+    (lambda (x)
+      (syntax-case x ()
+        ((_ ((x v) ...) e1 e2 ...)
+         (for-all identifier? (syntax (x ...)))
+         (syntax ((lambda (x ...) e1 e2 ...) v ...)))
+        ((_ f ((x v) ...) e1 e2 ...)
+         (for-all identifier? (syntax (f x ...)))
+         (syntax ((letrec ((f (lambda (x ...) e1 e2 ...))) f) v ...))))))
+  
+  (define-syntax letrec
+    (lambda (x)
+      (syntax-case x ()
+        ((_ ((i v) ...) e1 e2 ...)
+         (with-syntax (((t ...) (generate-temporaries (syntax (i ...)))))
+           (syntax (let ((i undefined) ...)
+                     (let ((t v) ...)
+                       (set! i t) ...
+                       (let () e1 e2 ...)))))))))
+  
+  (define-syntax letrec*
+    (lambda (x)
+      (syntax-case x ()
+        ((_ ((i v) ...) e1 e2 ...)
+         (syntax (let ()
+                   (define i v) ...
+                   (let () e1 e2 ...)))))))
+  
+  ) ; let
+
+(library (core derived)
+  (export let* cond case else =>)   
+  (import (for (core primitives)       expand run)
+          (for (core let)              expand run)
+          (for (core with-syntax)      expand)
+          (for (core syntax-rules)     expand)
+          (for (primitives for-all null? memv car cdr) expand run))
+  
+  (define-syntax let*
+    (lambda (x)
+      (syntax-case x ()
+        ((_ () e1 e2 ...)
+         (syntax (let () e1 e2 ...)))
+        ((_ ((x v) ...) e1 e2 ...)
+         (for-all identifier? (syntax (x ...)))
+         (let f ((bindings (syntax ((x v) ...))))
+           (syntax-case bindings ()
+             (((x v))        (syntax (let ((x v)) e1 e2 ...)))
+             (((x v) . rest) (with-syntax ((body (f (syntax rest))))
+                               (syntax (let ((x v)) body))))))))))
+  
+  (define-syntax cond
+    (lambda (x)
+      (syntax-case x ()
+        ((_ c1 c2 ...)
+         (let f ((c1  (syntax c1))
+                 (c2* (syntax (c2 ...))))
+           (syntax-case c2* ()
+             (()
+              (syntax-case c1 (else =>)
+                ((else e1 e2 ...) (syntax (begin e1 e2 ...)))
+                ((e0)             (syntax (let ((t e0)) (if t t))))
+                ((e0 => e1)       (syntax (let ((t e0)) (if t (e1 t)))))
+                ((e0 e1 e2 ...)   (syntax (if e0 (begin e1 e2 ...))))
+                (_                (syntax-violation
+                                   'cond "Invalid expression" x))))
+             ((c2 c3 ...)
+              (with-syntax ((rest (f (syntax c2)
+                                     (syntax (c3 ...)))))
+                (syntax-case c1 (else =>)
+                  ((e0)           (syntax (let ((t e0)) (if t t rest))))
+                  ((e0 => e1)     (syntax (let ((t e0)) (if t (e1 t) rest))))
+                  ((e0 e1 e2 ...) (syntax (if e0 (begin e1 e2 ...) rest)))
+                  (_              (syntax-violation
+                                   'cond "Invalid expression" x)))))))))))
+  
+  (define-syntax case
+    (lambda (x)
+      (syntax-case x ()
+        ((_ e c1 c2 ...)
+         (with-syntax ((body
+                        (let f ((c1 (syntax c1))
+                                (cmore (syntax (c2 ...))))
+                          (if (null? cmore)
+                              (syntax-case c1 (else)
+                                ((else e1 e2 ...)
+                                 (syntax (begin e1 e2 ...)))
+                                (((k ...) e1 e2 ...)
+                                 (syntax (if (memv t '(k ...))
+                                             (begin e1 e2 ...)))))
+                              (with-syntax ((rest (f (car cmore) (cdr cmore))))
+                                (syntax-case c1 ()
+                                  (((k ...) e1 e2 ...)
+                                   (syntax (if (memv t '(k ...))
+                                               (begin e1 e2 ...)
+                                               rest)))))))))
+           (syntax (let ((t e)) body)))))))
+  
+  (define-syntax =>
+    (lambda (x)
+      (syntax-violation '=> "Invalid expression" x)))
+  
+  (define-syntax else
+    (lambda (x)
+      (syntax-violation 'else "Invalid expression" x)))
+  
+  ) ; derived
+
+(library (core identifier-syntax)
+  (export identifier-syntax)
+  (import (for (core primitives) 
+            expand 
+            run
+            ;; since generated macro contains (syntax set!) at level 0
+            (meta -1))) 
+  
+  (define-syntax identifier-syntax
+    (lambda (x)
+      (syntax-case x (set!)
+        ((_ e)
+         (syntax (lambda (x)
+                   (syntax-case x ()
+                     (id (identifier? (syntax id)) (syntax e))
+                     ((_ x (... ...))              (syntax
+                                                    (e x (... ...))))))))
+        ((_ (id exp1) 
+            ((set! var val) exp2))
+         (and (identifier? (syntax id)) 
+              (identifier? (syntax var)))
+         (syntax 
+          (make-variable-transformer
+           (lambda (x)
+             (syntax-case x (set!)
+               ((set! var val)               (syntax exp2))
+               ((id x (... ...))             (syntax (exp1 x (... ...))))
+               (id (identifier? (syntax id)) (syntax exp1))))))))))
+  )
+
+;;;=========================================================
+;;;
+;;; Quasisyntax in terms of syntax-case.
+;;;
+;;;=========================================================
+;;;
+;;; To make nested unquote-splicing behave in a useful way,
+;;; the R5RS-compatible extension of quasiquote in appendix B
+;;; of the following paper is here ported to quasisyntax:
+;;;
+;;; Alan Bawden - Quasiquotation in Lisp
+;;; http://citeseer.ist.psu.edu/bawden99quasiquotation.html
+;;;
+;;; The algorithm converts a quasisyntax expression to an
+;;; equivalent with-syntax expression.
+;;; For example:
+;;;
+;;; (quasisyntax (set! #,a #,b))
+;;;   ==> (with-syntax ((t0 a)
+;;;                     (t1 b))
+;;;         (syntax (set! t0 t1)))
+;;;
+;;; (quasisyntax (list #,@args))
+;;;   ==> (with-syntax (((t ...) args))
+;;;         (syntax (list t ...)))
+;;;
+;;; Note that quasisyntax is expanded first, before any
+;;; ellipses act.  For example:
+;;;
+;;; (quasisyntax (f ((b #,a) ...))
+;;;   ==> (with-syntax ((t a))
+;;;         (syntax (f ((b t) ...))))
+;;;
+;;; so that
+;;;
+;;; (let-syntax ((test-ellipses-over-unsyntax
+;;;               (lambda (e)
+;;;                 (let ((a (syntax a)))
+;;;                   (with-syntax (((b ...) (syntax (1 2 3))))
+;;;                     (quasisyntax
+;;;                      (quote ((b #,a) ...))))))))
+;;;   (test-ellipses-over-unsyntax))
+;;;
+;;;     ==> ((1 a) (2 a) (3 a))
+
+(library (core quasisyntax)
+  (export quasisyntax unsyntax unsyntax-splicing) 
+  (import (for (core primitives)  run expand)
+          (for (core let)         run expand) 
+          (for (core derived)     run expand)
+          (for (core with-syntax) run expand)
+          (for (primitives = > + - vector->list) run expand)) 
+  
+  (define-syntax quasisyntax
+    (lambda (e)
+      
+      ;; Expand returns a list of the form
+      ;;    [template[t/e, ...] (replacement ...)]
+      ;; Here template[t/e ...] denotes the original template
+      ;; with unquoted expressions e replaced by fresh
+      ;; variables t, followed by the appropriate ellipses
+      ;; if e is also spliced.
+      ;; The second part of the return value is the list of
+      ;; replacements, each of the form (t e) if e is just
+      ;; unquoted, or ((t ...) e) if e is also spliced.
+      ;; This will be the list of bindings of the resulting
+      ;; with-syntax expression.
+      
+      (define (expand x level)
+        (syntax-case x (quasisyntax unsyntax unsyntax-splicing)
+          ((quasisyntax e)
+           (with-syntax (((k _)     x) ;; original identifier must be copied
+                         ((e* reps) (expand (syntax e) (+ level 1))))
+             (syntax ((k e*) reps))))                                  
+          ((unsyntax e)
+           (= level 0)
+           (with-syntax (((t) (generate-temporaries '(t))))
+             (syntax (t ((t e))))))
+          (((unsyntax e ...) . r)
+           (= level 0)
+           (with-syntax (((r* (rep ...)) (expand (syntax r) 0))
+                         ((t ...)        (generate-temporaries
+                                          (syntax (e ...)))))
+             (syntax ((t ... . r*)
+                      ((t e) ... rep ...)))))
+          (((unsyntax-splicing e ...) . r)
+           (= level 0)
+           (with-syntax (((r* (rep ...)) (expand (syntax r) 0))
+                         ((t ...)        (generate-temporaries
+                                          (syntax (e ...)))))
+             (with-syntax ((((t ...) ...) (syntax ((t (... ...)) ...))))
+               (syntax ((t ... ... . r*)
+                        (((t ...) e) ... rep ...))))))
+          ((k . r)
+           (and (> level 0)
+                (identifier? (syntax k))
+                (or (free-identifier=? (syntax k) (syntax unsyntax))
+                    (free-identifier=? (syntax k) (syntax unsyntax-splicing))))
+           (with-syntax (((r* reps) (expand (syntax r) (- level 1))))
+             (syntax ((k . r*) reps))))
+          ((h . t)
+           (with-syntax (((h* (rep1 ...)) (expand (syntax h) level))
+                         ((t* (rep2 ...)) (expand (syntax t) level)))
+             (syntax ((h* . t*)
+                      (rep1 ... rep2 ...)))))
+          (#(e ...)
+           (with-syntax ((((e* ...) reps)
+                          (expand (vector->list (syntax #(e ...))) level)))
+             (syntax (#(e* ...) reps))))
+          (other
+           (syntax (other ())))))
+      
+      (syntax-case e ()
+        ((_ template)
+         (with-syntax (((template* replacements) (expand (syntax template) 0)))
+           (syntax
+            (with-syntax replacements (syntax template*))))))))
+  
+  (define-syntax unsyntax
+    (lambda (e)
+      (syntax-violation 'unsyntax "Invalid expression" e)))
+  
+  (define-syntax unsyntax-splicing
+    (lambda (e)
+      (syntax-violation 'unsyntax "Invalid expression" e)))
+  )
+
+(library (core quasiquote)
+  (export quasiquote unquote unquote-splicing)
+  (import (for (core primitives)  run expand)
+          (for (core let)         run expand) 
+          (for (core derived)     run expand)
+          (for (core with-syntax) expand)
+          (for (core quasisyntax) expand)
+          (for (primitives
+                = + - null? cons car cdr append map list vector list->vector) 
+            run expand)) 
+  
+  ;; Optimised version copied from portable syntax-case (Dybvig)
+  
+  (define-syntax quasiquote
+    (let ()
+      (define (quasi p lev)
+        (syntax-case p (unquote quasiquote)
+          ((unquote p)
+           (if (= lev 0)
+               (syntax ("value" p))
+               (quasicons (syntax ("quote" unquote))
+                          (quasi (syntax (p)) (- lev 1)))))
+          ((quasiquote p) (quasicons (syntax ("quote" quasiquote))
+                                     (quasi (syntax (p)) (+ lev 1))))
+          ((p . q)
+           (syntax-case (syntax p) (unquote unquote-splicing)
+             ((unquote p ...)
+              (if (= lev 0)
+                  (quasilist* (syntax (("value" p) ...))
+                              (quasi (syntax q) lev))
+                  (quasicons
+                   (quasicons (syntax ("quote" unquote))
+                              (quasi (syntax (p ...)) (- lev 1)))
+                   (quasi (syntax q) lev))))
+             ((unquote-splicing p ...)
+              (if (= lev 0)
+                  (quasiappend (syntax (("value" p) ...))
+                               (quasi (syntax q) lev))
+                  (quasicons
+                   (quasicons (syntax ("quote" unquote-splicing))
+                              (quasi (syntax (p ...)) (- lev 1)))
+                   (quasi (syntax q) lev))))
+             (_ (quasicons (quasi (syntax p) lev) (quasi (syntax q) lev)))))
+          (#(x ...) (quasivector (vquasi (syntax (x ...)) lev)))
+          (p (syntax ("quote" p)))))
+      (define (vquasi p lev)
+        (syntax-case p ()
+          ((p . q)
+           (syntax-case (syntax p) (unquote unquote-splicing)
+             ((unquote p ...)
+              (if (= lev 0)
+                  (quasilist* (syntax (("value" p) ...))
+                              (vquasi (syntax q) lev))
+                  (quasicons
+                   (quasicons (syntax ("quote" unquote))
+                              (quasi (syntax (p ...)) (- lev 1)))
+                   (vquasi (syntax q) lev))))
+             ((unquote-splicing p ...)
+              (if (= lev 0)
+                  (quasiappend (syntax (("value" p) ...))
+                               (vquasi (syntax q) lev))
+                  (quasicons
+                   (quasicons
+                    (syntax ("quote" unquote-splicing))
+                    (quasi (syntax (p ...)) (- lev 1)))
+                   (vquasi (syntax q) lev))))
+             (_ (quasicons (quasi (syntax p) lev) (vquasi (syntax q) lev)))))
+          (() (syntax ("quote" ())))))
+      (define (quasicons x y)
+        (with-syntax ((x x) (y y))
+          (syntax-case (syntax y) ()
+            (("quote" dy)
+             (syntax-case (syntax x) ()
+               (("quote" dx) (syntax ("quote" (dx . dy))))
+               (_ (if (null? (syntax dy))
+                      (syntax ("list" x))
+                      (syntax ("list*" x y))))))
+            (("list" . stuff) (syntax ("list" x . stuff)))
+            (("list*" . stuff) (syntax ("list*" x . stuff)))
+            (_ (syntax ("list*" x y))))))
+      (define (quasiappend x y)
+        (syntax-case y ()
+          (("quote" ())
+           (cond
+             ((null? x) (syntax ("quote" ())))
+             ((null? (cdr x)) (car x))
+             (else (with-syntax (((p ...) x)) (syntax ("append" p ...))))))
+          (_
+           (cond
+             ((null? x) y)
+             (else (with-syntax (((p ...) x) (y y))
+                    (syntax ("append" p ... y))))))))
+      (define (quasilist* x y)
+        (let f ((x x))
+          (if (null? x)
+              y
+              (quasicons (car x) (f (cdr x))))))
+      (define (quasivector x)
+        (syntax-case x ()
+          (("quote" (x ...)) (syntax ("quote" #(x ...))))
+          (_
+           (let f ((y x) (k (lambda (ls)
+                              (quasisyntax
+                               ("vector" (unsyntax-splicing ls))))))
+             (syntax-case y ()
+               (("quote" (y ...)) (k (syntax (("quote" y) ...))))
+               (("list" y ...) (k (syntax (y ...))))
+               (("list*" y ... z)
+                (f (syntax z) (lambda (ls) (k (append (syntax (y ...)) ls)))))
+               (else (quasisyntax ("list->vector" (unsyntax x)))))))))
+      (define (emit x)
+        (syntax-case x ()
+          (("quote" x) (syntax 'x))
+          (("list" x ...)
+           (quasisyntax
+            (list (unsyntax-splicing (map emit (syntax (x ...)))))))
+          ;; could emit list* for 3+ arguments if implementation supports list*
+          (("list*" x ... y)
+           (let f ((x* (syntax (x ...))))
+             (if (null? x*)
+                 (emit (syntax y))
+                 (quasisyntax
+                  (cons (unsyntax (emit (car x*))) (unsyntax (f (cdr x*))))))))
+          (("append" x ...)
+           (quasisyntax
+            (append (unsyntax-splicing (map emit (syntax (x ...)))))))
+          (("vector" x ...)
+           (quasisyntax
+            (vector (unsyntax-splicing (map emit (syntax (x ...)))))))
+          (("list->vector" x)
+           (quasisyntax (list->vector (unsyntax (emit (syntax x))))))
+          (("value" x) (syntax x))))
+      (lambda (x)
+        (syntax-case x ()
+          ;; convert to intermediate language, combining introduced (but not
+          ;; unquoted source) quote expressions where possible and choosing
+          ;; optimal construction code otherwise, then emit Scheme code
+          ;; corresponding to the intermediate language forms.
+          ((_ e) (emit (quasi (syntax e) 0)))))))
+  
+  (define-syntax unquote
+    (lambda (e)
+      (syntax-violation 'unquote "Invalid expression" e)))
+  
+  (define-syntax unquote-splicing
+    (lambda (e)
+      (syntax-violation 'unquote-splicing "Invalid expression" e)))
+  )
+
+(library (core let-values)
+  (export let-values let*-values)
+  (import (for (core primitives)   expand run)
+          (for (core syntax-rules) expand)
+          (core let)
+          (primitives call-with-values))
+  
+  (define-syntax let-values
+    (syntax-rules ()
+      ((let-values (?binding ...) ?body0 ?body1 ...)
+       (let-values "bind" (?binding ...) () (begin ?body0 ?body1 ...)))
+      ((let-values "bind" () ?tmps ?body)
+       (let ?tmps ?body))
+      ((let-values "bind" ((?b0 ?e0) ?binding ...) ?tmps ?body)
+       (let-values "mktmp" ?b0 ?e0 () (?binding ...) ?tmps ?body))
+      ((let-values "mktmp" () ?e0 ?args ?bindings ?tmps ?body)
+       (call-with-values 
+        (lambda () ?e0)
+        (lambda ?args
+          (let-values "bind" ?bindings ?tmps ?body))))
+      ((let-values "mktmp" (?a . ?b) ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
+       (let-values "mktmp"
+         ?b ?e0 (?arg ... x) ?bindings (?tmp ... (?a x)) ?body))
+      ((let-values "mktmp" ?a ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
+       (call-with-values
+        (lambda () ?e0)
+        (lambda (?arg ... . x)
+          (let-values "bind" ?bindings (?tmp ... (?a x)) ?body))))))
+  
+  (define-syntax let*-values
+    (syntax-rules ()
+      ((let*-values () ?body0 ?body1 ...)
+       (begin ?body0 ?body1 ...))
+      ((let*-values (?binding0 ?binding1 ...) ?body0 ?body1 ...)
+       (let-values (?binding0)
+         (let*-values (?binding1 ...) ?body0 ?body1 ...)))))
+  
+  ) ; core let-values
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Library added for Larceny.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (larceny deprecated)             ; [Larceny]
+  (export issue-warning-deprecated)
+  (import
+   (primitives
+    issue-warning-deprecated)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ERR5RS records.
+;
+; The syntactic layer is defined near the end of this file.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (err5rs records procedural)
+  (export
+   make-rtd rtd? rtd-constructor rtd-predicate rtd-accessor rtd-mutator)
+  (import
+   (primitives
+    make-rtd rtd? rtd-constructor rtd-predicate rtd-accessor rtd-mutator)))
+
+(library (err5rs records inspection)
+  (export
+   record? record-rtd rtd-name rtd-parent
+   rtd-field-names rtd-all-field-names rtd-field-mutable?)
+  (import
+   (primitives
+    record? record-rtd rtd-name rtd-parent
+    rtd-field-names rtd-all-field-names rtd-field-mutable?)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; R6RS standard libraries.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (rnrs base (6))         
+  
+  (export 
+   
+   ;; Macros defined in core expander:
+   
+   begin if lambda quote set! and or
+   define define-syntax let-syntax letrec-syntax
    _ ...
-   syntax syntax-case
+   
+   ;; Derived syntax:
+   
+   let let* letrec letrec* let-values let*-values
+   case cond else =>
+   assert
+   quasiquote unquote unquote-splicing
+   syntax-rules 
+   identifier-syntax
    
    ;; R5RS primitives:
    
    * + - / < <= = > >= abs acos append apply asin atan 
    boolean? call-with-current-continuation 
    call-with-values car cdr caar cadr cdar cddr
-   caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-   cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
-   ceiling char? char->integer
+   caaar caadr cadar caddr cdaar cdadr cddar cdddr
+   caaaar caaadr caadar caaddr cadaar cadadr caddar
+   cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+   ceiling char? char->integer char=? char<? char>? char<=? char>=?
    complex? cons cos 
    denominator dynamic-wind 
    eq? equal? eqv? even? exact? exp expt floor for-each
@@ -68,1100 +675,78 @@
    
    ;; R6RS additional procedures:
    
-   real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-   nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-   symbol=? string-for-each vector-map vector-for-each error assertion-violation
-   call/cc
-   
-   ;; For (rnrs lists) 
-   
-   find for-all exists
-   filter partition fold-left fold-right
-   remp remove remq remv memp member memv memq
-   assp assoc assv assq
-   
-   ;; For (rnrs io simple)
-   
-   call-with-input-file call-with-output-file 
-   close-input-port close-output-port current-input-port current-output-port
-   display eof-object? newline open-input-file open-output-file peek-char
-   read read-char with-input-from-file with-output-to-file write write-char
-   
-   ;; For (rnrs unicode)
-   
-   char-upcase char-downcase char-ci=? char-ci<? char-ci>?
-   char-ci<=? char-ci>=? char-alphabetic? char-numeric? char-whitespace?
-   char-upper-case? char-lower-case? string-ci=? string-ci<? string-ci>?
-   string-ci<=? string-ci>=?
-   
-   ;; For (rnrs mutable-strings)
-   
-   string-fill! string-set!
-   
-   ;; For (rnrs mutable-lists)
-   
-   set-car! set-cdr!
-   
-   ;; For (rnrs r5rs)
-   
-   exact->inexact inexact->exact quotient remainder modulo
-   
-   ;; Procedures and values defined in core expander:
-   
-   (rename (ex:make-variable-transformer make-variable-transformer)
-           (ex:identifier?               identifier?)
-           (ex:bound-identifier=?        bound-identifier=?)
-           (ex:free-identifier=?         free-identifier=?)
-           (ex:generate-temporaries      generate-temporaries) 
-           (ex:datum->syntax             datum->syntax)
-           (ex:syntax->datum             syntax->datum)
-           (ex:syntax-violation          syntax-violation)
-           (ex:environment               environment)
-           (ex:environment-bindings      environment-bindings)
-           (ex:eval                      eval)
-           (ex:undefined                 undefined)))
-   
-  (import
-   
-   (only (core primitive-macros)
-     
-     begin if set! and or lambda quote
-     define define-syntax let-syntax letrec-syntax 
-     syntax syntax-case _ ...)
-   
-   ;; An extension to the r6rs import syntax, used here to make  
-   ;; available variable bindings provided natively.
-   ;; This will not work for macros, which have to be defined
-   ;; within the context of this expander.  
-   
-   (primitives
-    
-    ;; R5RS primitives:
-    
-    * + - / < <= = > >= abs acos append apply asin atan 
-    boolean? call-with-current-continuation 
-    call-with-values car cdr caar cadr cdar cddr
-    caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-    cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
-    ceiling char? char->integer
-    complex? cons cos 
-    denominator dynamic-wind 
-    eq? equal? eqv? even? exact? exp expt floor for-each
-    gcd imag-part inexact? integer->char integer?
-    lcm length list list->string
-    list->vector list-ref list-tail list? log magnitude make-polar
-    make-rectangular make-string make-vector map max min
-    negative? not null? number->string number? numerator
-    odd? pair? 
-    positive? procedure? rational? rationalize
-    real-part real? reverse round
-    sin sqrt string string->list string->number string->symbol
-    string-append 
-    string-copy string-length string-ref string<=? string<?
-    string=? string>=? string>? string? substring symbol->string symbol? tan
-    truncate values vector vector->list
-    vector-fill! vector-length vector-ref vector-set! vector? zero?
-    
-    ;; R6RS additional procedures:
-    
-    real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-    nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-    symbol=? string-for-each vector-map vector-for-each error assertion-violation
-    call/cc
-    
-    ;; For (rnrs lists) 
-    
-    find for-all exists
-    filter partition fold-left fold-right
-    remp remove remq remv memp member memv memq
-    assp assoc assv assq
-    
-    ;; For (rnrs io simple)
-    
-    call-with-input-file call-with-output-file 
-    close-input-port close-output-port current-input-port current-output-port
-    display eof-object? newline open-input-file open-output-file peek-char
-    read read-char with-input-from-file with-output-to-file write write-char
-    
-    ;; For (rnrs unicode)
-    
-    char-upcase char-downcase char-ci=? char-ci<? char-ci>?
-    char-ci<=? char-ci>=? char-alphabetic? char-numeric? char-whitespace?
-    char-upper-case? char-lower-case? string-ci=? string-ci<? string-ci>?
-    string-ci<=? string-ci>=?
-    
-    ;; For (rnrs mutable-strings)
-    
-    string-fill! string-set!
-    
-    ;; For (rnrs mutable-lists)
-    
-    set-car! set-cdr!
-    
-    ;; For (rnrs r5rs)
-    
-    exact->inexact inexact->exact quotient remainder modulo
-    
-    ;; Procedures and values defined in the core expander:
-    
-    ex:make-variable-transformer ex:identifier? ex:bound-identifier=?
-    ex:free-identifier=? ex:generate-temporaries ex:datum->syntax ex:syntax->datum 
-    ex:syntax-violation ex:environment ex:environment-bindings ex:eval
-    ex:undefined
-    ))
+   real-valued? rational-valued? integer-valued?
+   exact inexact finite? infinite?
+   nan? div mod div-and-mod div0 mod0 div0-and-mod0
+   exact-integer-sqrt boolean=?
+   symbol=? string-for-each vector-map vector-for-each
+   error assertion-violation
+   call/cc)
   
-  ) ;; core primitives
-   
-   (library (core with-syntax)
-     (export with-syntax)
-     (import (for (only 
-                      (core primitives) define-syntax lambda syntax-case syntax begin list _ ...) 
-               run expand))
-     
-     (define-syntax with-syntax
-       (lambda (x)
-         (syntax-case x ()
-           ((_ () e1 e2 ...)             (syntax (begin e1 e2 ...)))
-           ((_ ((out in)) e1 e2 ...)     (syntax (syntax-case in ()
-                                                   (out (begin e1 e2 ...)))))
-           ((_ ((out in) ...) e1 e2 ...) (syntax (syntax-case (list in ...) ()
-                                                   ((out ...) (begin e1 e2 ...))))))))
-     )
- 
- (library (core syntax-rules)
-   (export syntax-rules)
-   (import (for (only (core primitives) 
-                  define-syntax define lambda syntax-case syntax ... _ 
-                  syntax-violation quote for-all identifier? map)   
-             expand run) 
-           (for (core with-syntax) expand))
-   
-   (define-syntax syntax-rules
-     (lambda (x)
-       (define clause
-         (lambda (y)
-           (syntax-case y ()
-             (((keyword . pattern) template)
-              (syntax ((dummy . pattern) (syntax template))))
-             (_
-              (syntax-violation 'syntax-rules "Invalid expression" x)))))
-       (syntax-case x ()
-         ((_ (k ...) cl ...)
-          (for-all identifier? (syntax (k ...)))
-          (with-syntax (((cl ...) (map clause (syntax (cl ...)))))
-            (syntax
-             (lambda (x) (syntax-case x (k ...) cl ...))))))))
-   )
- 
- (library (core let)
-   (export let letrec letrec*)
-   (import (for (only (core primitives) 
-                  define-syntax lambda syntax-case _ ... for-all identifier? syntax
-                  generate-temporaries set! if define undefined)
-             expand run) 
-           (for (core with-syntax) expand))
-   
-   (define-syntax let
-     (lambda (x)
-       (syntax-case x ()
-         ((_ ((x v) ...) e1 e2 ...)
-          (for-all identifier? (syntax (x ...)))
-          (syntax ((lambda (x ...) e1 e2 ...) v ...)))
-         ((_ f ((x v) ...) e1 e2 ...)
-          (for-all identifier? (syntax (f x ...)))
-          (syntax ((letrec ((f (lambda (x ...) e1 e2 ...))) f) v ...))))))
-   
-   (define-syntax letrec
-     (lambda (x)
-       (syntax-case x ()
-         ((_ ((i v) ...) e1 e2 ...)
-          (with-syntax (((t ...) (generate-temporaries (syntax (i ...)))))
-            (syntax (let ((i undefined) ...)
-                      (let ((t v) ...)
-                        (set! i t) ...
-                        (let () e1 e2 ...)))))))))
-   
-   (define-syntax letrec*
-     (lambda (x)
-       (syntax-case x ()
-         ((_ ((i v) ...) e1 e2 ...)
-          (syntax (let ()
-                    (define i v) ...
-                    (let () e1 e2 ...)))))))
-   
-   ) ; let
- 
- (library (core derived)
-   (export let* cond case else =>)   
-   (import (for (only (core primitives)
-                  define-syntax lambda syntax-case _ ... syntax for-all identifier?
-                  begin if syntax-violation quote null? memv car cdr)
-             expand run) 
-           (for (core let)          expand run)
-           (for (core with-syntax)  expand)
-           (for (core syntax-rules) expand))
-   
-   (define-syntax let*
-     (lambda (x)
-       (syntax-case x ()
-         ((_ () e1 e2 ...)
-          (syntax (let () e1 e2 ...)))
-         ((_ ((x v) ...) e1 e2 ...)
-          (for-all identifier? (syntax (x ...)))
-          (let f ((bindings (syntax ((x v) ...))))
-            (syntax-case bindings ()
-              (((x v))        (syntax (let ((x v)) e1 e2 ...)))
-              (((x v) . rest) (with-syntax ((body (f (syntax rest))))
-                                (syntax (let ((x v)) body))))))))))
-   
-   (define-syntax cond
-     (lambda (x)
-       (syntax-case x ()
-         ((_ c1 c2 ...)
-          (let f ((c1  (syntax c1))
-                  (c2* (syntax (c2 ...))))
-            (syntax-case c2* ()
-              (()
-               (syntax-case c1 (else =>)
-                 ((else e1 e2 ...) (syntax (begin e1 e2 ...)))
-                 ((e0)             (syntax (let ((t e0)) (if t t))))
-                 ((e0 => e1)       (syntax (let ((t e0)) (if t (e1 t)))))
-                 ((e0 e1 e2 ...)   (syntax (if e0 (begin e1 e2 ...))))
-                 (_                (syntax-violation 'cond "Invalid expression" x))))
-              ((c2 c3 ...)
-               (with-syntax ((rest (f (syntax c2)
-                                      (syntax (c3 ...)))))
-                 (syntax-case c1 (else =>)
-                   ((e0)           (syntax (let ((t e0)) (if t t rest))))
-                   ((e0 => e1)     (syntax (let ((t e0)) (if t (e1 t) rest))))
-                   ((e0 e1 e2 ...) (syntax (if e0 (begin e1 e2 ...) rest)))
-                   (_              (syntax-violation 'cond "Invalid expression" x)))))))))))
-   
-   (define-syntax case
-     (lambda (x)
-       (syntax-case x ()
-         ((_ e c1 c2 ...)
-          (with-syntax ((body
-                         (let f ((c1 (syntax c1))
-                                 (cmore (syntax (c2 ...))))
-                           (if (null? cmore)
-                               (syntax-case c1 (else)
-                                 ((else e1 e2 ...)    (syntax (begin e1 e2 ...)))
-                                 (((k ...) e1 e2 ...) (syntax (if (memv t '(k ...))
-                                                                  (begin e1 e2 ...)))))
-                               (with-syntax ((rest (f (car cmore) (cdr cmore))))
-                                 (syntax-case c1 ()
-                                   (((k ...) e1 e2 ...)
-                                    (syntax (if (memv t '(k ...))
-                                                (begin e1 e2 ...)
-                                                rest)))))))))
-            (syntax (let ((t e)) body)))))))
-   
-   (define-syntax =>
-     (lambda (x)
-       (syntax-violation '=> "Invalid expression" x)))
-   
-   (define-syntax else
-     (lambda (x)
-       (syntax-violation 'else "Invalid expression" x)))
-   
-   ) ; derived
- 
- (library (core identifier-syntax)
-   (export identifier-syntax)
-   (import (for (only (core primitives)
-                  define-syntax lambda syntax-case set! _ ... syntax 
-                  identifier? and make-variable-transformer)
-             expand 
-             run 
-             (meta -1))) ; since generated macro contains (syntax set!) at level 0
-   
-   (define-syntax identifier-syntax
-     (lambda (x)
-       (syntax-case x (set!)
-         ((_ e)
-          (syntax (lambda (x)
-                    (syntax-case x ()
-                      (id (identifier? (syntax id)) (syntax e))
-                      ((_ x (... ...))              (syntax (e x (... ...))))))))
-         ((_ (id exp1) 
-             ((set! var val) exp2))
-          (and (identifier? (syntax id)) 
-               (identifier? (syntax var)))
-          (syntax 
-           (make-variable-transformer
-               (lambda (x)
-                 (syntax-case x (set!)
-                   ((set! var val)               (syntax exp2))
-                   ((id x (... ...))             (syntax (exp1 x (... ...))))
-                   (id (identifier? (syntax id)) (syntax exp1))))))))))
-   )
- 
- ;;;=========================================================
- ;;;
- ;;; Quasisyntax in terms of syntax-case.
- ;;;
- ;;;=========================================================
- ;;;
- ;;; To make nested unquote-splicing behave in a useful way,
- ;;; the R5RS-compatible extension of quasiquote in appendix B
- ;;; of the following paper is here ported to quasisyntax:
- ;;;
- ;;; Alan Bawden - Quasiquotation in Lisp
- ;;; http://citeseer.ist.psu.edu/bawden99quasiquotation.html
- ;;;
- ;;; The algorithm converts a quasisyntax expression to an
- ;;; equivalent with-syntax expression.
- ;;; For example:
- ;;;
- ;;; (quasisyntax (set! #,a #,b))
- ;;;   ==> (with-syntax ((t0 a)
- ;;;                     (t1 b))
- ;;;         (syntax (set! t0 t1)))
- ;;;
- ;;; (quasisyntax (list #,@args))
- ;;;   ==> (with-syntax (((t ...) args))
- ;;;         (syntax (list t ...)))
- ;;;
- ;;; Note that quasisyntax is expanded first, before any
- ;;; ellipses act.  For example:
- ;;;
- ;;; (quasisyntax (f ((b #,a) ...))
- ;;;   ==> (with-syntax ((t a))
- ;;;         (syntax (f ((b t) ...))))
- ;;;
- ;;; so that
- ;;;
- ;;; (let-syntax ((test-ellipses-over-unsyntax
- ;;;               (lambda (e)
- ;;;                 (let ((a (syntax a)))
- ;;;                   (with-syntax (((b ...) (syntax (1 2 3))))
- ;;;                     (quasisyntax
- ;;;                      (quote ((b #,a) ...))))))))
- ;;;   (test-ellipses-over-unsyntax))
- ;;;
- ;;;     ==> ((1 a) (2 a) (3 a))
- 
- (library (core quasisyntax)
-   (export quasisyntax unsyntax unsyntax-splicing) 
-   (import (for (only (core primitives)
-                  define-syntax lambda define syntax-case _ ... syntax 
-                  generate-temporaries identifier? free-identifier=? = > + -
-                  vector->list syntax-violation quote and or)
-             run expand) 
-           (for (core let)         run expand) 
-           (for (core derived)     run expand)
-           (for (core with-syntax) run expand))  
-   
-   (define-syntax quasisyntax
-     (lambda (e)
-       
-       ;; Expand returns a list of the form
-       ;;    [template[t/e, ...] (replacement ...)]
-       ;; Here template[t/e ...] denotes the original template
-       ;; with unquoted expressions e replaced by fresh
-       ;; variables t, followed by the appropriate ellipses
-       ;; if e is also spliced.
-       ;; The second part of the return value is the list of
-       ;; replacements, each of the form (t e) if e is just
-       ;; unquoted, or ((t ...) e) if e is also spliced.
-       ;; This will be the list of bindings of the resulting
-       ;; with-syntax expression.
-       
-       (define (expand x level)
-         (syntax-case x (quasisyntax unsyntax unsyntax-splicing)
-           ((quasisyntax e)
-            (with-syntax (((k _)     x) ;; original identifier must be copied
-                          ((e* reps) (expand (syntax e) (+ level 1))))
-              (syntax ((k e*) reps))))                                  
-           ((unsyntax e)
-            (= level 0)
-            (with-syntax (((t) (generate-temporaries '(t))))
-              (syntax (t ((t e))))))
-           (((unsyntax e ...) . r)
-            (= level 0)
-            (with-syntax (((r* (rep ...)) (expand (syntax r) 0))
-                          ((t ...)        (generate-temporaries (syntax (e ...)))))
-              (syntax ((t ... . r*)
-                       ((t e) ... rep ...)))))
-           (((unsyntax-splicing e ...) . r)
-            (= level 0)
-            (with-syntax (((r* (rep ...)) (expand (syntax r) 0))
-                          ((t ...)        (generate-temporaries (syntax (e ...)))))
-              (with-syntax ((((t ...) ...) (syntax ((t (... ...)) ...))))
-                (syntax ((t ... ... . r*)
-                         (((t ...) e) ... rep ...))))))
-           ((k . r)
-            (and (> level 0)
-                 (identifier? (syntax k))
-                 (or (free-identifier=? (syntax k) (syntax unsyntax))
-                     (free-identifier=? (syntax k) (syntax unsyntax-splicing))))
-            (with-syntax (((r* reps) (expand (syntax r) (- level 1))))
-              (syntax ((k . r*) reps))))
-           ((h . t)
-            (with-syntax (((h* (rep1 ...)) (expand (syntax h) level))
-                          ((t* (rep2 ...)) (expand (syntax t) level)))
-              (syntax ((h* . t*)
-                       (rep1 ... rep2 ...)))))
-           (#(e ...)                                                               
-            (with-syntax ((((e* ...) reps)
-                           (expand (vector->list (syntax #(e ...))) level)))
-              (syntax (#(e* ...) reps))))
-           (other
-            (syntax (other ())))))
-       
-       (syntax-case e ()
-         ((_ template)
-          (with-syntax (((template* replacements) (expand (syntax template) 0)))
-            (syntax
-             (with-syntax replacements (syntax template*))))))))
-   
-   (define-syntax unsyntax
-     (lambda (e)
-       (syntax-violation 'unsyntax "Invalid expression" e)))
-   
-   (define-syntax unsyntax-splicing
-     (lambda (e)
-       (syntax-violation 'unsyntax "Invalid expression" e)))
-   )
- 
- (library (core quasiquote)
-   (export quasiquote unquote unquote-splicing)
-   (import (for (only (core primitives)
-                  define-syntax define syntax-case syntax _ ... = + -
-                  if null? cons car cdr append map list vector list->vector
-                  lambda quote syntax-violation)
-             expand run) 
-           (for (core let)         expand run) 
-           (for (core derived)     expand run) 
-           (for (core with-syntax) expand)
-           (for (core quasisyntax) expand))
-   
-   ;; Optimised version copied from portable syntax-case (Dybvig)
-   
-   (define-syntax quasiquote
-     (let ()
-       (define (quasi p lev)
-         (syntax-case p (unquote quasiquote)
-           ((unquote p)
-            (if (= lev 0)
-                (syntax ("value" p))
-                (quasicons (syntax ("quote" unquote)) (quasi (syntax (p)) (- lev 1)))))
-           ((quasiquote p) (quasicons (syntax ("quote" quasiquote)) (quasi (syntax (p)) (+ lev 1))))
-           ((p . q)
-            (syntax-case (syntax p) (unquote unquote-splicing)
-              ((unquote p ...)
-               (if (= lev 0)
-                   (quasilist* (syntax (("value" p) ...)) (quasi (syntax q) lev))
-                   (quasicons
-                    (quasicons (syntax ("quote" unquote)) (quasi (syntax (p ...)) (- lev 1)))
-                    (quasi (syntax q) lev))))
-              ((unquote-splicing p ...)
-               (if (= lev 0)
-                   (quasiappend (syntax (("value" p) ...)) (quasi (syntax q) lev))
-                   (quasicons
-                    (quasicons (syntax ("quote" unquote-splicing)) (quasi (syntax (p ...)) (- lev 1)))
-                    (quasi (syntax q) lev))))
-              (_ (quasicons (quasi (syntax p) lev) (quasi (syntax q) lev)))))
-           (#(x ...) (quasivector (vquasi (syntax (x ...)) lev)))
-           (p (syntax ("quote" p)))))
-       (define (vquasi p lev)
-         (syntax-case p ()
-           ((p . q)
-            (syntax-case (syntax p) (unquote unquote-splicing)
-              ((unquote p ...)
-               (if (= lev 0)
-                   (quasilist* (syntax (("value" p) ...)) (vquasi (syntax q) lev))
-                   (quasicons
-                    (quasicons (syntax ("quote" unquote)) (quasi (syntax (p ...)) (- lev 1)))
-                    (vquasi (syntax q) lev))))
-              ((unquote-splicing p ...)
-               (if (= lev 0)
-                   (quasiappend (syntax (("value" p) ...)) (vquasi (syntax q) lev))
-                   (quasicons
-                    (quasicons
-                     (syntax ("quote" unquote-splicing))
-                     (quasi (syntax (p ...)) (- lev 1)))
-                    (vquasi (syntax q) lev))))
-              (_ (quasicons (quasi (syntax p) lev) (vquasi (syntax q) lev)))))
-           (() (syntax ("quote" ())))))
-       (define (quasicons x y)
-         (with-syntax ((x x) (y y))
-           (syntax-case (syntax y) ()
-             (("quote" dy)
-              (syntax-case (syntax x) ()
-                (("quote" dx) (syntax ("quote" (dx . dy))))
-                (_ (if (null? (syntax dy)) (syntax ("list" x)) (syntax ("list*" x y))))))
-             (("list" . stuff) (syntax ("list" x . stuff)))
-             (("list*" . stuff) (syntax ("list*" x . stuff)))
-             (_ (syntax ("list*" x y))))))
-       (define (quasiappend x y)
-         (syntax-case y ()
-           (("quote" ())
-            (cond
-              ((null? x) (syntax ("quote" ())))
-              ((null? (cdr x)) (car x))
-              (else (with-syntax (((p ...) x)) (syntax ("append" p ...))))))
-           (_
-            (cond
-              ((null? x) y)
-              (else (with-syntax (((p ...) x) (y y)) (syntax ("append" p ... y))))))))
-       (define (quasilist* x y)
-         (let f ((x x))
-           (if (null? x)
-               y
-               (quasicons (car x) (f (cdr x))))))
-       (define (quasivector x)
-         (syntax-case x ()
-           (("quote" (x ...)) (syntax ("quote" #(x ...))))
-           (_
-            (let f ((y x) (k (lambda (ls) (quasisyntax ("vector" (unsyntax-splicing ls))))))
-              (syntax-case y ()
-                (("quote" (y ...)) (k (syntax (("quote" y) ...))))
-                (("list" y ...) (k (syntax (y ...))))
-                (("list*" y ... z) (f (syntax z) (lambda (ls) (k (append (syntax (y ...)) ls)))))
-                (else (quasisyntax ("list->vector" (unsyntax x)))))))))
-       (define (emit x)
-         (syntax-case x ()
-           (("quote" x) (syntax 'x))
-           (("list" x ...) (quasisyntax (list (unsyntax-splicing (map emit (syntax (x ...)))))))
-           ;; could emit list* for 3+ arguments if implementation supports list*
-           (("list*" x ... y)
-            (let f ((x* (syntax (x ...))))
-              (if (null? x*)
-                  (emit (syntax y))
-                  (quasisyntax (cons (unsyntax (emit (car x*))) (unsyntax (f (cdr x*))))))))
-           (("append" x ...) (quasisyntax (append (unsyntax-splicing (map emit (syntax (x ...)))))))
-           (("vector" x ...) (quasisyntax (vector (unsyntax-splicing (map emit (syntax (x ...)))))))
-           (("list->vector" x) (quasisyntax (list->vector (unsyntax (emit (syntax x))))))
-           (("value" x) (syntax x))))
-       (lambda (x)
-         (syntax-case x ()
-           ;; convert to intermediate language, combining introduced (but not
-           ;; unquoted source) quote expressions where possible and choosing
-           ;; optimal construction code otherwise, then emit Scheme code
-           ;; corresponding to the intermediate language forms.
-           ((_ e) (emit (quasi (syntax e) 0)))))))
-   
-   (define-syntax unquote
-     (lambda (e)
-       (syntax-violation 'unquote "Invalid expression" e)))
-   
-   (define-syntax unquote-splicing
-     (lambda (e)
-       (syntax-violation 'unquote-splicing "Invalid expression" e)))
-   )
- 
- (library (core let-values)
-   (export let-values let*-values)
-   (import (for (only (core primitives) 
-                  define-syntax ... _ call-with-values lambda begin)
-             expand run)
-           (for (core syntax-rules) expand)
-           (core let))
-   
-   (define-syntax let-values
-     (syntax-rules ()
-       ((let-values (?binding ...) ?body0 ?body1 ...)
-        (let-values "bind" (?binding ...) () (begin ?body0 ?body1 ...)))
-       ((let-values "bind" () ?tmps ?body)
-        (let ?tmps ?body))
-       ((let-values "bind" ((?b0 ?e0) ?binding ...) ?tmps ?body)
-        (let-values "mktmp" ?b0 ?e0 () (?binding ...) ?tmps ?body))
-       ((let-values "mktmp" () ?e0 ?args ?bindings ?tmps ?body)
-        (call-with-values 
-         (lambda () ?e0)
-         (lambda ?args
-           (let-values "bind" ?bindings ?tmps ?body))))
-       ((let-values "mktmp" (?a . ?b) ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
-        (let-values "mktmp" ?b ?e0 (?arg ... x) ?bindings (?tmp ... (?a x)) ?body))
-       ((let-values "mktmp" ?a ?e0 (?arg ...) ?bindings (?tmp ...) ?body)
-        (call-with-values
-         (lambda () ?e0)
-         (lambda (?arg ... . x)
-           (let-values "bind" ?bindings (?tmp ... (?a x)) ?body))))))
-   
-   (define-syntax let*-values
-     (syntax-rules ()
-       ((let*-values () ?body0 ?body1 ...)
-        (begin ?body0 ?body1 ...))
-       ((let*-values (?binding0 ?binding1 ...) ?body0 ?body1 ...)
-        (let-values (?binding0)
-          (let*-values (?binding1 ...) ?body0 ?body1 ...)))))
-   
-   ) ; core let-values
- 
- (library (rnrs control (6))
-   (export when unless do case-lambda)
-   (import (for (only (core primitives)
-                  define-syntax ... _ if begin not lambda syntax-case syntax
-                  map syntax-violation quote length assertion-violation = >=
-                  apply)
-             expand run) 
-           (for (core let)          expand run)
-           (for (core with-syntax)  expand)
-           (for (core syntax-rules) expand))
-   
-   (define-syntax when
-     (syntax-rules ()
-       ((when test result1 result2 ...)
-        (if test
-            (begin result1 result2 ...)))))
-   
-   (define-syntax unless
-     (syntax-rules ()
-       ((unless test result1 result2 ...)
-        (if (not test)
-            (begin result1 result2 ...)))))
-   
-   (define-syntax do
-     (lambda (orig-x)
-       (syntax-case orig-x ()
-         ((_ ((var init . step) ...) (e0 e1 ...) c ...)
-          (with-syntax (((step ...)
-                         (map (lambda (v s)
-                                (syntax-case s ()
-                                  (()  v)
-                                  ((e) (syntax e))
-                                  (_   (syntax-violation 'do "Invalid step" orig-x s))))
-                              (syntax (var ...))
-                              (syntax (step ...)))))
-            (syntax-case (syntax (e1 ...)) ()
-              (()          (syntax (let do ((var init) ...)
-                                     (if (not e0)
-                                         (begin c ... (do step ...))))))
-              ((e1 e2 ...) (syntax (let do ((var init) ...)
-                                     (if e0
-                                         (begin e1 e2 ...)
-                                         (begin c ... (do step ...))))))))))))                         
-   
-   (define-syntax case-lambda
-     (syntax-rules ()
-       ((_ (fmls b1 b2 ...))
-        (lambda fmls b1 b2 ...))
-       ((_ (fmls b1 b2 ...) ...)
-        (lambda args
-          (let ((n (length args)))
-            (case-lambda-help args n
-                              (fmls b1 b2 ...) ...))))))
-   
-   (define-syntax case-lambda-help
-     (syntax-rules ()
-       ((_ args n)
-        (assertion-violation #f "unexpected number of arguments"))
-       ((_ args n ((x ...) b1 b2 ...) more ...)
-        (if (= n (length '(x ...)))
-            (apply (lambda (x ...) b1 b2 ...) args)
-            (case-lambda-help args n more ...)))
-       ((_ args n ((x1 x2 ... . r) b1 b2 ...) more ...)
-        (if (>= n (length '(x1 x2 ...)))
-            (apply (lambda (x1 x2 ... . r) b1 b2 ...)
-                   args)
-            (case-lambda-help args n more ...)))
-       ((_ args n (r b1 b2 ...) more ...)
-        (apply (lambda r b1 b2 ...) args))))                                      
-   
-   ) ; rnrs control                                      
- 
- 
- (library (rnrs lists (6))
-   (export find for-all exists filter partition fold-left fold-right
-           remp remove remq remv memp member memv memq
-           assp assoc assv assq)
-   (import (core primitives)))  
- 
- (library (rnrs io simple (6))
-   (export call-with-input-file call-with-output-file 
-           close-input-port close-output-port current-input-port current-output-port
-           display eof-object? newline open-input-file open-output-file peek-char
-           read read-char with-input-from-file with-output-to-file write write-char
-           ;; AND SO ON
-           )
-   (import (core primitives)))
- 
- 
- (library (rnrs unicode (6))
-   (export char-upcase char-downcase char-ci=? char-ci<? char-ci>?
-           char-ci<=? char-ci>=? char-alphabetic? char-numeric? char-whitespace?
-           char-upper-case? char-lower-case? string-ci=? string-ci<? string-ci>?
-           string-ci<=? string-ci>=?
-           ;; AND SO ON
-           )
-   (import (core primitives)))
- 
- 
- (library (rnrs mutable-strings (6))
-   (export string-set! string-fill!)
-   (import (core primitives)))
- 
- (library (rnrs syntax-case (6))
-   
-   (export make-variable-transformer
-           identifier? bound-identifier=? free-identifier=?
-           generate-temporaries datum->syntax syntax->datum 
-           syntax-violation syntax syntax-case quasisyntax 
-           unsyntax unsyntax-splicing with-syntax 
-           _ ...)
-   
-   (import (core primitives)
-           (core with-syntax)  
-           (core quasisyntax))
-   
-   ) ;; rnrs syntax-case
- 
- (library (rnrs base (6))         
-   
-   (export 
-    
-    ;; Macros defined in core expander:
-    
-    begin if lambda quote set! and or
-    define define-syntax let-syntax letrec-syntax
-    _ ...
-    
-    ;; Derived syntax:
-    
-    let let* letrec letrec* let-values let*-values
-    case cond else =>
-    assert
-    quasiquote unquote unquote-splicing
-    syntax-rules 
-    identifier-syntax
-    
-    ;; R5RS primitives:
-    
-    * + - / < <= = > >= abs acos append apply asin atan 
-    boolean? call-with-current-continuation 
-    call-with-values car cdr caar cadr cdar cddr
-    caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-    cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
-    ceiling char? char->integer
-    complex? cons cos 
-    denominator dynamic-wind 
-    eq? equal? eqv? even? exact? exp expt floor for-each
-    gcd imag-part inexact? integer->char integer?
-    lcm length list list->string
-    list->vector list-ref list-tail list? log magnitude make-polar
-    make-rectangular make-string make-vector map max min
-    negative? not null? number->string number? numerator
-    odd? pair? 
-    positive? procedure? rational? rationalize
-    real-part real? reverse round
-    sin sqrt string string->list string->number string->symbol
-    string-append 
-    string-copy string-length string-ref string<=? string<?
-    string=? string>=? string>? string? substring symbol->string symbol? tan
-    truncate values vector vector->list
-    vector-fill! vector-length vector-ref vector-set! vector? zero?
-    
-    ;; R6RS additional procedures:
-    
-    real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-    nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-    symbol=? string-for-each vector-map vector-for-each error assertion-violation
-    call/cc)
-   
-   (import (except (core primitives) _ ...)     
-           (core let)                          
-           (core derived)             
-           (core quasiquote)        
-           (core let-values)
-           (for (core syntax-rules)      expand)   
-           (for (core identifier-syntax) expand)
-           (for (only (core primitives) _ ... set!) expand))
-
-   (define-syntax assert
-     (syntax-rules ()
-      ((_ expression)
-       (if (not expression)
-           (assertion-violation #f "assertion failed" 'expression)))))
-   
-   ) ;; rnrs base
- 
- (library (rnrs (6))         
-   
-   (export
-    
-    ;; Macros defined in core expander:
-    
-    begin if lambda quote set! and or
-    define define-syntax let-syntax letrec-syntax
-    _ ...
-    
-    ;; Derived syntax:
-    
-    let let* letrec letrec* let-values let*-values
-    case cond else =>
-    assert
-    quasiquote unquote unquote-splicing
-    syntax-rules identifier-syntax
-    
-    ;; R5RS primitives:
-    
-    * + - / < <= = > >= abs acos append apply asin atan 
-    boolean? call-with-current-continuation 
-    call-with-values car cdr caar cadr cdar cddr
-    caaar caadr cadar caddr cdaar cdadr cddar cdddr caaaar caaadr caadar caaddr cadaar
-    cadadr caddar cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
-    ceiling char? char->integer
-    complex? cons cos 
-    denominator dynamic-wind 
-    eq? equal? eqv? even? exact? exp expt floor for-each
-    gcd imag-part inexact? integer->char integer?
-    lcm length list list->string
-    list->vector list-ref list-tail list? log magnitude make-polar
-    make-rectangular make-string make-vector map max min
-    negative? not null? number->string number? numerator
-    odd? pair? 
-    positive? procedure? rational? rationalize
-    real-part real? reverse round
-    sin sqrt string string->list string->number string->symbol
-    string-append 
-    string-copy string-length string-ref string<=? string<?
-    string=? string>=? string>? string? substring symbol->string symbol? tan
-    truncate values vector vector->list
-    vector-fill! vector-length vector-ref vector-set! vector? zero?
-    
-    ;; R6RS additional procedures:
-    
-    real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-    nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-    symbol=? string-for-each vector-map vector-for-each error assertion-violation
-    call/cc
-    
-    ;; From (rnrs syntax-case)
-    
-    make-variable-transformer
-    identifier? bound-identifier=? free-identifier=?
-    generate-temporaries datum->syntax syntax->datum 
-    syntax-violation syntax syntax-case quasisyntax 
-    unsyntax unsyntax-splicing with-syntax 
-    
-    ;; From (rnrs control)
-    
-    when unless do case-lambda
-    
-    ;; From (rnrs lists)
-    
-    find for-all exists filter partition fold-left fold-right
-    remp remove remq remv memp member memv memq
-    assp assoc assv assq
-    
-    ;; From (rnrs io simple)
-    
-    call-with-input-file call-with-output-file 
-    close-input-port close-output-port current-input-port current-output-port
-    display eof-object? newline open-input-file open-output-file peek-char
-    read read-char with-input-from-file with-output-to-file write write-char
-    
-    ;; From (rnrs unicode)
-    
-    char-upcase char-downcase char-ci=? char-ci<? char-ci>?
-    char-ci<=? char-ci>=? char-alphabetic? char-numeric? char-whitespace?
-    char-upper-case? char-lower-case? string-ci=? string-ci<? string-ci>?
-    string-ci<=? string-ci>=?
-    
-    ;; From (rnrs mutable-strings)
-    
-    string-set! string-fill!)
-   
-   (import (for (except (rnrs base) syntax-rules identifier-syntax _ ... set!) run expand)
-           (for (only (rnrs base) set!)                                        run expand)
-           (for (core syntax-rules)                                            run expand)   
-           (for (core identifier-syntax)                                       run expand)
-           (for (rnrs control)                                                 run expand)
-           (for (rnrs lists)                                                   run expand)
-           (for (rnrs syntax-case)                                             run expand)
-           (for (rnrs io simple)                                               run expand)
-           (for (rnrs unicode)                                                 run expand)
-           (for (rnrs mutable-strings)                                         run expand))
-   
-   ) ;; rnrs
- 
- (library (rnrs eval (6))
-   (export eval environment)
-   (import (core primitives)))
- 
- (library (rnrs mutable-pairs (6))
-   (export set-car! set-cdr!)
-   (import (core primitives)))
- 
- (library (rnrs r5rs (6))
-   
-   (export null-environment scheme-report-environment delay force
-           exact->inexact inexact->exact quotient remainder modulo)
-   
-   (import (only (core primitives) exact->inexact inexact->exact quotient remainder modulo)
-           (rnrs eval)
-           (rnrs base)
-           (rnrs control))
-   
-   (define scheme-report-environment
-     (let ((r5rs-env 
-            (environment
-             '(except (rnrs base)
-                      _ letrec* let-values let*-values
-                      real-valued? rational-valued? integer-valued? exact inexact finite? infinite?
-                      nan? div mod div-and-mod div0 mod0 div0-and-mod0 exact-integer-sqrt boolean=?
-                      symbol=? string-for-each vector-map vector-for-each error assertion-violation
-                      call/cc)
-             '(only (rnrs eval) eval)
-             '(only (rnrs control) do)
-             '(only (rnrs lists) assoc assv assq)
-             '(only (rnrs io simple)
-                call-with-input-file call-with-output-file 
-                close-input-port close-output-port current-input-port current-output-port
-                display eof-object? newline open-input-file open-output-file peek-char
-                read read-char with-input-from-file with-output-to-file write write-char)
-             '(only (rnrs unicode)
-                char-upcase char-downcase char-ci=? char-ci<? char-ci>?
-                char-ci<=? char-ci>=? char-alphabetic? char-numeric? char-whitespace?
-                char-upper-case? char-lower-case? string-ci=? string-ci<? string-ci>?
-                string-ci<=? string-ci>=?)
-             '(only (rnrs mutable-pairs) set-car! set-cdr!)
-             '(only (rnrs lists) assoc assv assq member memv memq)
-             '(only (rnrs mutable-strings) string-set! string-fill!)
-             '(rnrs r5rs))))
-       (lambda (n)
-         (unless (= n 5)
-           (assertion-violation 'scheme-report-environment "Argument should be 5" n))
-         r5rs-env)))
-   
-   (define null-environment
-     (let ((null-env
-            (environment '(only (rnrs base)
-                            begin if lambda quote set! and or
-                            define define-syntax let-syntax letrec-syntax 
-                            let let* letrec
-                            case cond else =>
-                            quasiquote unquote unquote-splicing
-                            syntax-rules ...)
-                         '(only (rnrs control) do))))
-       (lambda (n)
-         (unless (= n 5)
-           (assertion-violation 'scheme-report-environment "Argument should be 5" n))
-         null-env)))
-   
-   (define force
-     (lambda (object)
-       (object)))
-   
-   (define-syntax delay
-     (syntax-rules ()
-       ((delay expression)
-        (make-promise (lambda () expression)))))
-   
-   (define make-promise
-     (lambda (proc)
-       (let ((result-ready? #f)
-             (result #f))
-         (lambda ()
-           (if result-ready?
-               result
-               (let ((x (proc)))
-                 (if result-ready?
-                     result
-                     (begin (set! result-ready? #t)
-                            (set! result x)
-                            result))))))))
-   ) ; rnrs r5rs
- 
- ;; Nonstandard library for reflection
- 
- (library (rnrs eval reflection (6))
-   (export environment-bindings)
-   (import (core primitives)))
- 
- ;; Nonstandard explicit renaming library: 
- ;; See also examples and discussion in file examples.scm.
- ;;
- ;; Exports:
- ;;
- ;;    er-transformer     (syntax)
- ;;    bound-identifier=? (procedure)
- ;;    datum->syntax      (procedure)
- ;;
- ;; Differences with traditional explicit renaming:
- ;;
- ;; - The renaming procedure has signature <symbol> -> <identifier>,
- ;;   where the <identifier> type is disjoint from the <symbol> type.
- ;;
- ;; - The renaming procedure acts as a mathematical function in the sense that
- ;;   the identifiers obtained from any two calls with the same argument will
- ;;   be the same in the sense of bound-identifier=?, not eqv?
- ;;
- ;; - The output may not contain raw symbols, so implicit identifiers must
- ;;   be introduced using datum->syntax.
- ;;
- ;; - Breaking hygiene with datum->syntax allows more modular macro
- ;;   programming than traditional explicit renaming.
- ;;   See in particular the example of while in terms of loop below.
- ;;
- ;; - The renaming procedure is aware of the transformer environment,
- ;;   so that identifiers not bound at the usage site will resolve to
- ;;   the r6rs library-local bindings at the transformer site.
- ;;   More precisely, they will be resolved in the lexical environment
- ;;   of the er-transformer keyword.
- ;;
- ;; - Fully compatible with my r6rs syntax-case macro system.
- ;;
- ;; Portability and complexity note:
- ;;
- ;;   This library is not r6rs-portable, since it assumes that the input
- ;;   to a transformer is always an unwrapped syntax object, which is
- ;;   allowed but not required by r6rs, and is currently only true for my
- ;;   implementation.  The library could be ported to other implementations
- ;;   by inserting a step that unwrapped the input to the transformer.
- ;;   However, that would adversely modify the complexity class of
- ;;   er-transformer macros in those implementations.
- 
- (library (explicit-renaming helper)
-   (export er-transformer)
-   (import (only (rnrs) 
-             define-syntax lambda syntax-case syntax datum->syntax free-identifier=?))
-           
-   (define-syntax er-transformer
-     (lambda (exp)
-       (syntax-case exp ()
-         ((k proc)
-          (syntax
-           (lambda (form)
-             (proc form
-                   (lambda (symbol) (datum->syntax (syntax k) symbol))
-                   free-identifier=?))))))))
- 
- (library (explicit-renaming)
-   (export er-transformer identifier? bound-identifier=? datum->syntax)
-   (import (explicit-renaming helper)
-           (rnrs syntax-case)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Libraries added for Larceny.
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(library (larceny deprecated)
-  (export issue-warning-deprecated)
   (import
-   (primitives
-    issue-warning-deprecated)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; R6RS libraries that were missing from van Tonder's implementation.
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   (except (core primitives) _ ...)     
+   (core let)                          
+   (core derived)             
+   (core quasiquote)        
+   (core let-values)
+   (for (core syntax-rules)      expand)   
+   (for (core identifier-syntax) expand)
+   (for (only (core primitives) _ ... set!) expand)
+   (primitives 
+           
+    ;; R5RS primitives:
+           
+    * + - / < <= = > >= abs acos append apply asin atan 
+    boolean? call-with-current-continuation 
+    call-with-values car cdr caar cadr cdar cddr
+    caaar caadr cadar caddr cdaar cdadr cddar cdddr
+    caaaar caaadr caadar caaddr cadaar cadadr caddar
+    cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+    ceiling char? char->integer char=? char<? char>? char<=? char>=?
+    complex? cons cos 
+    denominator dynamic-wind 
+    eq? equal? eqv? even? exact? exp expt floor for-each
+    gcd imag-part inexact? integer->char integer?
+    lcm length list list->string
+    list->vector list-ref list-tail list? log magnitude make-polar
+    make-rectangular make-string make-vector map max min
+    negative? not null? number->string number? numerator
+    odd? pair? 
+    positive? procedure? rational? rationalize
+    real-part real? reverse round
+    sin sqrt string string->list string->number string->symbol
+    string-append 
+    string-copy string-length string-ref string<=? string<?
+    string=? string>=? string>? string? substring symbol->string symbol? tan
+    truncate values vector vector->list
+    vector-fill! vector-length vector-ref vector-set! vector? zero?
+    
+    ;; R6RS additional procedures:
+    
+    real-valued? rational-valued? integer-valued?
+    exact inexact finite? infinite?
+    nan? div mod div-and-mod div0 mod0 div0-and-mod0
+    exact-integer-sqrt boolean=?
+    symbol=? string-for-each vector-map vector-for-each
+    error assertion-violation
+    call/cc))
+  
+    (define-syntax assert
+      (syntax-rules ()
+        ((_ expression)
+         (if (not expression)
+             (assertion-violation #f "assertion failed" 'expression)))))
+  
+  ) ;; rnrs base
 
 (library (rnrs unicode (6))
+  
   (export
-
    char-upcase char-downcase char-titlecase char-foldcase
    char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
    char-alphabetic? char-numeric? char-whitespace?
    char-upper-case? char-lower-case? char-title-case?
    char-general-category
-
    string-upcase string-downcase string-titlecase string-foldcase
    string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?
    string-normalize-nfd string-normalize-nfkd
@@ -1169,13 +754,11 @@
 
   (import
    (primitives
-
     char-upcase char-downcase char-titlecase char-foldcase
     char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
     char-alphabetic? char-numeric? char-whitespace?
     char-upper-case? char-lower-case? char-title-case?
     char-general-category
-
     string-upcase string-downcase string-titlecase string-foldcase
     string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?
     string-normalize-nfd string-normalize-nfkd
@@ -1274,6 +857,7 @@
     string->utf8 string->utf16 string->utf32
     utf8->string utf16->string utf32->string))
 
+  ; [Larceny]
   ; In Larceny, *every* symbol describes an endianness.
   ; See Lib/Common/bytevector.sch for semantics.
 
@@ -1284,11 +868,91 @@
        (issue-warning-deprecated 'endianness)
        (quote x)))))
 
-  )
+  ) ; rnrs bytevectors
+
+(library (rnrs lists (6))
+  (export find for-all exists filter partition fold-left fold-right
+          remp remove remq remv memp member memv memq
+          assp assoc assv assq)
+  (import (primitives 
+           find for-all exists filter partition fold-left fold-right
+           remp remove remq remv memp member memv memq
+           assp assoc assv assq)))  
 
 (library (rnrs sorting (6))
   (export list-sort vector-sort vector-sort!)
   (import (primitives list-sort vector-sort vector-sort!)))
+
+(library (rnrs control (6))
+  (export when unless do case-lambda)
+  (import (for (core primitives)   expand run)
+          (for (core let)          expand run)
+          (for (core with-syntax)  expand)
+          (for (core syntax-rules) expand)
+          (for (primitives not map length assertion-violation = >= apply)
+            expand run) )
+  
+  (define-syntax when
+    (syntax-rules ()
+      ((when test result1 result2 ...)
+       (if test
+           (begin result1 result2 ...)))))
+  
+  (define-syntax unless
+    (syntax-rules ()
+      ((unless test result1 result2 ...)
+       (if (not test)
+           (begin result1 result2 ...)))))
+  
+  (define-syntax do
+    (lambda (orig-x)
+      (syntax-case orig-x ()
+        ((_ ((var init . step) ...) (e0 e1 ...) c ...)
+         (with-syntax (((step ...)
+                        (map (lambda (v s)
+                               (syntax-case s ()
+                                 (()  v)
+                                 ((e) (syntax e))
+                                 (_   (syntax-violation
+                                       'do "Invalid step" orig-x s))))
+                             (syntax (var ...))
+                             (syntax (step ...)))))
+           (syntax-case (syntax (e1 ...)) ()
+             (()          (syntax (let do ((var init) ...)
+                                    (if (not e0)
+                                        (begin c ... (do step ...))))))
+             ((e1 e2 ...) (syntax (let do ((var init) ...)
+                                    (if e0
+                                        (begin e1 e2 ...)
+                                        (begin c ... (do step ...))))))))))))
+  
+  (define-syntax case-lambda
+    (syntax-rules ()
+      ((_ (fmls b1 b2 ...))
+       (lambda fmls b1 b2 ...))
+      ((_ (fmls b1 b2 ...) ...)
+       (lambda args
+         (let ((n (length args)))
+           (case-lambda-help args n
+                             (fmls b1 b2 ...) ...))))))
+  
+  (define-syntax case-lambda-help
+    (syntax-rules ()
+      ((_ args n)
+       (assertion-violation #f "unexpected number of arguments"))
+      ((_ args n ((x ...) b1 b2 ...) more ...)
+       (if (= n (length '(x ...)))
+           (apply (lambda (x ...) b1 b2 ...) args)
+           (case-lambda-help args n more ...)))
+      ((_ args n ((x1 x2 ... . r) b1 b2 ...) more ...)
+       (if (>= n (length '(x1 x2 ...)))
+           (apply (lambda (x1 x2 ... . r) b1 b2 ...)
+                  args)
+           (case-lambda-help args n more ...)))
+      ((_ args n (r b1 b2 ...) more ...)
+       (apply (lambda r b1 b2 ...) args))))
+  
+  ) ; rnrs control                                      
 
 (library (rnrs records procedural (6))
   (export
@@ -1312,17 +976,547 @@
     record-type-generative? record-type-sealed? record-type-opaque?
     record-type-field-names record-field-mutable?)))
 
-; FIXME: (rnrs records syntactic (6)) not yet implemented.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; (rnrs records syntactic)
+;
+; This implementation extends the R6RS define-record-type as
+; outlined by William D Clinger in his essay on language design
+; that accompanied his vote against ratification of the R6RS:
+; http://www.r6rs.org/ratification/results.html#X101
+;
+; FIXME:  That means this implementation is R6RS-compatible but
+; not R6RS-conforming.  An R6RS-conforming implementation would
+; have to reject some perfectly sensible record type definitions
+; that this implementation accepts.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; FIXME: (rnrs exceptions (6)) not yet implemented.
+(library (rnrs records syntactic helper)
 
-; FIXME: (rnrs conditions (6)) not yet implemented.
+  (export preferred-cd preferred-cd-set!)
+
+  (import (for (core primitives) run expand)
+          (for (primitives make-eqv-hashtable hashtable-ref hashtable-set!)
+               run expand)
+          (for (rnrs base) run expand)
+          (rnrs records procedural)
+          (err5rs records procedural))
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;
+  ; Preferred record-constructor descriptors.  Whoopee.
+  ;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  (define preferred-cd-table (make-eqv-hashtable))
+
+  (define (preferred-cd rtd)
+    (let ((cd (hashtable-ref preferred-cd-table rtd #f)))
+      (if cd
+          cd
+          (make-record-constructor-descriptor rtd #f #f))))
+
+  (define (preferred-cd-set! rtd cd)
+    (hashtable-set! preferred-cd-table rtd cd))
+)
+
+
+(library (rnrs records syntactic (6))
+
+  ; FIXME: should this library define and export auxiliary keywords?
+
+#;
+  (export define-record-type fields mutable immutable
+          parent protocol sealed opaque nongenerative parent-rtd)
+
+  (export define-record-type)
+
+  (import (for (core primitives) run expand)
+          (for (rnrs base) run expand)
+          (for (rnrs lists) run expand)
+          (rnrs records procedural)
+          (err5rs records procedural)
+          (rnrs records syntactic helper)
+          (for (primitives gensym) run expand))
+
+  (define-syntax define-record-type
+    (syntax-rules ()
+     ((_ (rtd-name constructor-name predicate-name) clause ...)
+      (define-record-type-helper0
+       #t rtd-name constructor-name predicate-name clause ...))
+     ((_ rtd-name clause ...)
+      (define-record-type-helper0
+       #f rtd-name #f #f clause ...))))
+
+  (define-syntax define-record-type-helper0
+    (lambda (x)
+
+      (define (spanky-mode?) #f) ; FIXME
+
+      (define (construct-record-type-definitions
+               rtd-name constructor-name predicate-name      ; syntax objects
+               type-name field-specs
+               protocol sealed? opaque? uid
+               parent parent-cd)
+        (let ()
+          (datum->syntax
+           rtd-name
+           `(,#'define-record-type-helper1
+             ,rtd-name ,constructor-name ,predicate-name
+             ,type-name ,field-specs
+             ,protocol ,sealed? ,opaque? ,uid
+             ,parent ,parent-cd))))
+
+      (define (complain)
+        (syntax-violation 'define-record-type "illegal syntax" x))
+
+      (syntax-case x ()
+       ((_ explicit? rtd-name constructor-name predicate-name clause ...)
+        (let* ((type-name (syntax->datum #'rtd-name))
+               (clauses (syntax->datum #'(clause ...)))
+               (fields-clause (assq 'fields clauses))
+               (parent-clause (assq 'parent clauses))
+               (protocol-clause (assq 'protocol clauses))
+               (sealed-clause (assq 'sealed clauses))
+               (opaque-clause (assq 'opaque clauses))
+               (nongenerative-clause (assq 'nongenerative clauses))
+               (parent-rtd-clause (assq 'parent-rtd-clause clauses))
+               (okay?
+                (and (symbol? type-name)
+                     (if (syntax->datum #'explicit?)
+                         (and (symbol? (syntax->datum #'constructor-name))
+                              (symbol? (syntax->datum #'predicate-name)))
+                         #t)
+                     (or (not fields-clause)
+                         (and
+                          (list? fields-clause)
+                          (for-all (lambda (fspec)
+                                     (or (symbol? fspec)
+                                         (and (list? fspec)
+                                              (>= (length fspec) 2)
+                                              (memq (car fspec)
+                                                    '(immutable mutable))
+                                              (symbol? (cadr fspec))
+                                              (case (length fspec)
+                                               ((2) #t)
+                                               ((3)
+                                                (and (eq? (car fspec)
+                                                          'immutable)
+                                                     (symbol? (caddr fspec))))
+                                               ((4)
+                                                (and (eq? (car fspec) 'mutable)
+                                                     (symbol? (caddr fspec))
+                                                     (symbol? (cadddr fspec))))
+                                               (else #f)))))
+                                   (cdr fields-clause))))
+                     (or (not parent-clause)
+                         (and (list? parent-clause)
+                              (= (length parent-clause) 2)
+                              (if (spanky-mode?)
+                                  (symbol? (cadr parent-clause))
+                                  #t)))
+                     (or (not protocol-clause)
+                         (and (list? protocol-clause)
+                              (= (length protocol-clause) 2)))
+                     (or (not sealed-clause)
+                         (and (list? sealed-clause)
+                              (= (length sealed-clause) 2)
+                              (boolean? (cadr sealed-clause))))
+                     (or (not opaque-clause)
+                         (and (list? opaque-clause)
+                              (= (length opaque-clause) 2)
+                              (boolean? (cadr opaque-clause))))
+                     (or (not nongenerative-clause)
+                         (and (list? nongenerative-clause)
+                              (or (null? (cdr nongenerative-clause))
+                                  (symbol? (cadr nongenerative-clause)))))
+                     (or (not parent-rtd-clause)
+                         (and (list? parent-rtd-clause)
+                              (= (length parent-rtd-clause) 3)))))
+               (type-name-string (symbol->string type-name))
+               (cname
+                (if (symbol? (syntax->datum #'constructor-name))
+                    #'constructor-name
+                    (datum->syntax
+                     #'rtd-name
+                     (string->symbol
+                      (string-append "make-" type-name-string)))))
+               (pname
+                (if (symbol? (syntax->datum #'predicate-name))
+                    #'predicate-name
+                    (datum->syntax
+                     #'rtd-name
+                     (string->symbol
+                      (string-append type-name-string "?")))))
+               (make-accessor-name
+                (lambda (field-name)
+                  (string->symbol
+                   (string-append type-name-string
+                                  "-"
+                                  (symbol->string field-name)))))
+               (make-mutator-name
+                (lambda (field-name)
+                  (string->symbol
+                   (string-append type-name-string
+                                  "-"
+                                  (symbol->string field-name)
+                                  "-set!"))))
+               (field-specs
+                (map (lambda (fspec)
+                       (let ((fspec (if (symbol? fspec)
+                                        (list 'immutable fspec)
+                                        fspec)))
+                         (cond ((= (length fspec) 2)
+                                (let ((accessor-name
+                                       (make-accessor-name (cadr fspec))))
+                                  (case (car fspec)
+                                   ((immutable)
+                                    (list 'immutable
+                                          (cadr fspec)
+                                          accessor-name
+                                          #f))
+                                   ((mutable)
+                                    (list 'mutable
+                                          (cadr fspec)
+                                          accessor-name
+                                          (make-mutator-name (cadr fspec)))))))
+                               ((= (length fspec) 3)
+                                (list (car fspec)
+                                      (cadr fspec)
+                                      (caddr fspec)
+                                      #f))
+                               (else fspec))))
+                     (cdr fields-clause))))
+          (if (not okay?)
+              (complain))
+          (construct-record-type-definitions
+           #'rtd-name
+           cname
+           pname
+           type-name
+           field-specs
+           (and protocol-clause (cadr protocol-clause))
+           (and sealed-clause (cadr sealed-clause))
+           (and opaque-clause (cadr opaque-clause))
+           (cond ((eq? nongenerative-clause #f)
+                  #f)
+                 ((null? (cdr nongenerative-clause))
+                  (gensym "uid"))
+                 (else
+                  (cadr nongenerative-clause)))
+           (cond (parent-clause (cadr parent-clause))
+                 (parent-rtd-clause (cadr parent-rtd-clause))
+                 (else #f))
+           (and parent-rtd-clause (caddr parent-rtd-clause))))))))
+
+  (define-syntax define-record-type-helper1
+    (syntax-rules ()
+     ((_ rtd-name constructor-name predicate-name
+         type-name ((mutable? field-name accessor mutator) ...)
+         protocol sealed? opaque? uid
+         parent parent-cd)
+      (begin (def-rtd-name rtd-name type-name ((mutable? field-name) ...)
+                           parent sealed? opaque? uid)
+             (def-cd rtd-name type-name parent parent-cd protocol)
+             (def-constructor rtd-name constructor-name)
+             (def-predicate rtd-name predicate-name)
+             (def-accessor rtd-name field-name accessor)
+             ...
+             (def-mutator rtd-name field-name mutator)
+             ...))))
+
+  ; FIXME: implements the sealed, opaque, and uid features
+  ; using Larceny's extensions to make-rtd.
+
+  (define-syntax def-rtd-name
+    (syntax-rules ()
+
+     ((_ rtd-name type-name (fieldspec ...) parent #f #f #f)
+      (define rtd-name
+        (make-rtd 'type-name '#(fieldspec ...) parent)))
+
+     ((_ rtd-name type-name (fieldspec ...) parent sealed? #f #f)
+      (define rtd-name
+        (make-rtd 'type-name '#(fieldspec ...) parent 'sealed)))
+
+     ((_ rtd-name type-name (fieldspec ...) parent #f opaque? #f)
+      (define rtd-name
+        (make-rtd 'type-name '#(fieldspec ...) parent 'opaque)))
+
+     ((_ rtd-name type-name (fieldspec ...) parent sealed? opaque? #f)
+      (define rtd-name
+        (make-rtd 'type-name '#(fieldspec ...) parent 'sealed 'opaque)))
+
+     ((_ rtd-name type-name (fieldspec ...) parent #f #f id)
+      (define rtd-name
+        (make-rtd 'type-name '#(fieldspec ...) parent 'uid 'id)))
+
+     ((_ rtd-name type-name (fieldspec ...) parent sealed? #f id)
+      (define rtd-name
+        (make-rtd 'type-name '#(fieldspec ...) parent 'sealed 'uid 'id)))
+
+     ((_ rtd-name type-name (fieldspec ...) parent #f opaque? id)
+      (define rtd-name
+        (make-rtd 'type-name '#(fieldspec ...) parent 'opaque 'uid 'id)))
+
+     ((_ rtd-name type-name (fieldspec ...) parent sealed? opaque? id)
+      (define rtd-name
+        (make-rtd 'type-name '#(fieldspec ...) parent
+                  'sealed 'opaque 'uid 'id)))))
+
+  (define-syntax def-cd
+    (syntax-rules ()
+
+     ((_ rtd-name type-name #f #f #f)
+      (define ignored
+        (preferred-cd-set!
+         rtd-name
+         (make-record-constructor-descriptor rtd-name #f #f))))
+
+     ((_ rtd-name type-name #f #f protocol)
+      (define ignored
+        (preferred-cd-set!
+         rtd-name
+         (make-record-constructor-descriptor rtd-name #f protocol))))
+
+     ; FIXME: the R6RS says the parent mustn't have a protocol clause
+     ; in this case, but the following doesn't bother to check.
+
+     ((_ rtd-name type-name parent #f #f)
+      (define ignored
+        (preferred-cd-set!
+         rtd-name
+         (make-record-constructor-descriptor rtd-name #f #f))))
+
+     ((_ rtd-name type-name parent #f protocol)
+      (define ignored
+        (preferred-cd-set!
+         rtd-name
+         (make-record-constructor-descriptor
+          rtd-name (preferred-cd parent) protocol))))
+
+     ((_ rtd-name type-name parent parent-cd protocol)
+      (define ignored
+        (preferred-cd-set!
+         rtd-name
+         (make-record-constructor-descriptor rtd-name parent-cd protocol))))))
+
+  (define-syntax def-constructor
+    (syntax-rules ()
+
+     ((_ rtd-name #f)
+      (begin))
+
+     ((_ rtd-name constructor-name)
+      (define constructor-name (record-constructor (preferred-cd rtd-name))))))
+
+  (define-syntax def-predicate
+    (syntax-rules ()
+
+     ((_ rtd-name #f)
+      (begin))
+
+     ((_ rtd-name predicate-name)
+      (define predicate-name (rtd-predicate rtd-name)))))
+
+  (define-syntax def-accessor
+    (syntax-rules ()
+
+     ((_ rtd-name field-name #f)
+      (begin))
+
+     ((_ rtd-name field-name accessor)
+      (define accessor (rtd-accessor rtd-name 'field-name)))))
+
+  (define-syntax def-mutator
+    (syntax-rules ()
+
+     ((_ rtd-name field-name #f)
+      (begin))
+
+     ((_ rtd-name field-name mutator)
+      (define mutator (rtd-mutator rtd-name 'field-name)))))
+
+  ) ; rnrs records syntactic
+
+
+(library (rnrs exceptions (6))
+
+  (export with-exception-handler raise raise-continuable guard)
+
+  (import
+   (rnrs base)
+   (primitives
+    with-exception-handler raise raise-continuable))
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;
+  ; The definitions of guard and guard-aux come from the
+  ; reference implementation for SRFI 34, whose copyright
+  ; notice is reproduced below.  See
+  ; http://srfi.schemers.org/srfi-34/srfi-34.html
+  ;
+  ; Copyright (C) Richard Kelsey, Michael Sperber (2002). All Rights Reserved.
+  ;
+  ; Permission is hereby granted, free of charge, to any
+  ; person obtaining a copy of this software and associated
+  ; documentation files (the "Software"), to deal in the
+  ; Software without restriction, including without
+  ; limitation the rights to use, copy, modify, merge,
+  ; publish, distribute, sublicense, and/or sell copies of
+  ; the Software, and to permit persons to whom the Software
+  ; is furnished to do so, subject to the following conditions:
+  ; 
+  ; The above copyright notice and this permission notice
+  ; shall be included in all copies or substantial portions
+  ; of the Software. 
+  
+  (define-syntax guard
+    (syntax-rules ()
+      ((guard (var clause ...) e1 e2 ...)
+       ((call-with-current-continuation
+         (lambda (guard-k)
+           (with-exception-handler
+            (lambda (condition)
+              ((call-with-current-continuation
+                 (lambda (handler-k)
+                   (guard-k
+                    (lambda ()
+                      (let ((var condition))      ; clauses may SET! var
+                        (guard-aux (handler-k (lambda ()
+                                                (raise condition)))
+                                   clause ...))))))))
+            (lambda ()
+              (call-with-values
+               (lambda () e1 e2 ...)
+               (lambda args
+                 (guard-k (lambda ()
+                            (apply values args)))))))))))))
+  
+  (define-syntax guard-aux
+    (syntax-rules (else =>)
+      ((guard-aux reraise (else result1 result2 ...))
+       (begin result1 result2 ...))
+      ((guard-aux reraise (test => result))
+       (let ((temp test))
+         (if temp 
+             (result temp)
+             reraise)))
+      ((guard-aux reraise (test => result) clause1 clause2 ...)
+       (let ((temp test))
+         (if temp
+             (result temp)
+             (guard-aux reraise clause1 clause2 ...))))
+      ((guard-aux reraise (test))
+       test)
+      ((guard-aux reraise (test) clause1 clause2 ...)
+       (let ((temp test))
+         (if temp
+             temp
+             (guard-aux reraise clause1 clause2 ...))))
+      ((guard-aux reraise (test result1 result2 ...))
+       (if test
+           (begin result1 result2 ...)
+           reraise))
+      ((guard-aux reraise (test result1 result2 ...) clause1 clause2 ...)
+       (if test
+           (begin result1 result2 ...)
+           (guard-aux reraise clause1 clause2 ...)))))
+  
+  ; End of copyrighted extract from the reference implementation
+  ; for SRFI 34.
+  ;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  )
+
+(library (rnrs conditions (6))
+
+  (export
+   &condition condition simple-conditions condition?
+   condition-predicate condition-accessor
+   define-condition-type
+   &message make-message-condition message-condition? condition-message
+   &warning make-warning warning?
+   &serious make-serious-condition serious-condition?
+   &error make-error error?
+   &violation make-violation violation?
+   &assertion make-assertion-violation assertion-violation?
+   &irritants make-irritants-condition irritants-condition? condition-irritants
+   &who make-who-condition who-condition? condition-who
+   &non-continuable make-non-continuable-violation non-continuable-violation?
+   &implementation-restriction make-implementation-restriction-violation
+   implementation-restriction-violation?
+   &lexical make-lexical-violation lexical-violation?
+   &syntax make-syntax-violation syntax-violation?
+   syntax-violation-form syntax-violation-subform
+   &undefined make-undefined-violation undefined-violation?)
+
+  (import
+   (rnrs base)
+   (primitives
+    &condition condition simple-conditions condition?
+    condition-predicate condition-accessor
+    &message make-message-condition message-condition? condition-message
+    &warning make-warning warning?
+    &serious make-serious-condition serious-condition?
+    &error make-error error?
+    &violation make-violation violation?
+    &assertion make-assertion-violation assertion-violation?
+    &irritants make-irritants-condition irritants-condition?
+    condition-irritants
+    &who make-who-condition who-condition? condition-who
+    &non-continuable make-non-continuable-violation non-continuable-violation?
+    &implementation-restriction make-implementation-restriction-violation
+    implementation-restriction-violation?
+    &lexical make-lexical-violation lexical-violation?
+    &syntax make-syntax-violation syntax-violation?
+    syntax-violation-form syntax-violation-subform
+    &undefined make-undefined-violation undefined-violation?))
+
+  ; Note: This relies on letrec* semantics for internal definitions.
+
+  (define-syntax define-condition-type
+    (syntax-rules ()
+     ((define-condition-type <condition-type>
+        <supertype> <constructor> <predicate> (<field> <accessor>) ...)
+      (begin
+       (define <condition-type>
+         (make-rtd '<condition-type>
+                   (vector (list 'immutable '<field>) ...)
+                   <supertype>))
+       (define <constructor> (rtd-constructor <condition-type>))
+       (define <predicate> (condition-predicate <condition-type>))
+       (define <accessor>
+         (condition-accessor <condition-type>
+                             (rtd-accessor <condition-type> '<field>)))
+       ...)))))
 
 (library (rnrs io ports (6))
 
   (export
 
+   &i/o make-i/o-error i/o-error?
+   &i/o-read make-i/o-read-error i/o-read-error?
+   &i/o-write make-i/o-write-error i/o-write-error?
+   &i/o-invalid-position make-i/o-invalid-position-error
+   i/o-invalid-position-error? i/o-error-position
+   &i/o-filename make-i/o-filename-error i/o-filename-error?
+   i/o-error-filename
+   &i/o-file-protection make-i/o-file-protection-error
+   i/o-file-protection-error?
+   &i/o-file-is-read-only make-i/o-file-is-read-only-error
+   i/o-file-is-read-only-error?
+   &i/o-file-already-exists make-i/o-file-already-exists-error
+   i/o-file-already-exists-error?
+   &i/o-file-does-not-exist make-i/o-file-does-not-exist-error
+   i/o-file-does-not-exist-error?
+   &i/o-port make-i/o-port-error i/o-port-error? i/o-error-port
+
    file-options                           ; deprecated syntax
+   no-create no-fail no-truncate          ; Larceny hack
+
    buffer-mode                            ; deprecated syntax
    buffer-mode?                           ; deprecated procedure
 
@@ -1331,13 +1525,9 @@
    eol-style                              ; deprecated syntax
    native-eol-style
 
-;  &i/o-decoding                          ; FIXME
-;  make-i/o-decoding-error                ; FIXME
-;  io/-decoding-error?                    ; FIXME
-;  &i/o-encoding                          ; FIXME
-;  make-i/o-encoding-error                ; FIXME
-;  io/-encoding-error?                    ; FIXME
-;  io/-encoding-error-char                ; FIXME
+   &i/o-decoding make-i/o-decoding-error i/o-decoding-error?
+   &i/o-encoding make-i/o-encoding-error i/o-encoding-error?
+   i/o-encoding-error-char
 
    error-handling-mode                    ; deprecated syntax
 
@@ -1379,7 +1569,7 @@
 
    put-char put-string put-datum
 
-;  open-file-input/output-port            ; FIXME
+   open-file-input/output-port
    make-custom-binary-input/output-port
    make-custom-textual-input/output-port
    )
@@ -1388,8 +1578,29 @@
    (core primitives)
    (for (only (core primitives) ...) expand)
    (for (core syntax-rules) expand)
-   (larceny deprecated)
+   (rnrs base)
+   (larceny deprecated) ; [Larceny]
    (primitives
+
+    &i/o make-i/o-error i/o-error?
+    &i/o-read make-i/o-read-error i/o-read-error?
+    &i/o-write make-i/o-write-error i/o-write-error?
+    &i/o-invalid-position make-i/o-invalid-position-error
+    i/o-invalid-position-error? i/o-error-position
+    &i/o-filename make-i/o-filename-error i/o-filename-error?
+    i/o-error-filename
+    &i/o-file-protection make-i/o-file-protection-error
+    i/o-file-protection-error?
+    &i/o-file-is-read-only make-i/o-file-is-read-only-error
+    i/o-file-is-read-only-error?
+    &i/o-file-already-exists make-i/o-file-already-exists-error
+    i/o-file-already-exists-error?
+    &i/o-file-does-not-exist make-i/o-file-does-not-exist-error
+    i/o-file-does-not-exist-error?
+    &i/o-port make-i/o-port-error i/o-port-error? i/o-error-port
+
+    file-options
+    no-create no-fail no-truncate                                ; Larceny hack
 
     buffer-mode?
 
@@ -1397,13 +1608,9 @@
 
     native-eol-style
 
-;   &i/o-decoding                          ; FIXME
-;   make-i/o-decoding-error                ; FIXME
-;   io/-decoding-error?                    ; FIXME
-;   &i/o-encoding                          ; FIXME
-;   make-i/o-encoding-error                ; FIXME
-;   io/-encoding-error?                    ; FIXME
-;   io/-encoding-error-char                ; FIXME
+    &i/o-decoding make-i/o-decoding-error i/o-decoding-error?
+    &i/o-encoding make-i/o-encoding-error i/o-encoding-error?
+    i/o-encoding-error-char
 
     make-transcoder
     native-transcoder
@@ -1443,25 +1650,24 @@
 
     put-char put-string put-datum
 
-;   open-file-input/output-port            ; FIXME
+    open-file-input/output-port
     make-custom-binary-input/output-port
     make-custom-textual-input/output-port
     ))
 
+  ; [Larceny]
   ; Larceny accepts any symbol as a file option,
   ; but ignores all but a few options.
+  ;
+  ; This could be implemented as a macro, but it's easier
+  ; for Larceny to implement file-options as a procedure.
 
-  (define-syntax file-options
-    (syntax-rules ()
-     ((_ opt ...)
-      (make-file-options 'opt ...))))
+  ;(define-syntax file-options
+  ;  (syntax-rules ()
+  ;   ((_ opt ...)
+  ;    (make-file-options 'opt ...))))
 
-  ; FIXME:  This should return an enumeration set,
-  ; although how Larceny is supposed to do that given
-  ; its infinite set of legal file options is a mystery.
-
-  (define make-file-options list)
-
+  ; [Larceny]
   ; In Larceny, *every* symbol describes a buffer mode.
   ; See Lib/Common/portio.sch for semantics.
   ;
@@ -1495,6 +1701,7 @@
                                   "Larceny-specific buffer mode"
                                   mode)))))))
 
+  ; [Larceny]
   ; In Larceny, *every* symbol describes an eol-style.
   ; See Lib/Common/portio.sch for semantics.
 
@@ -1505,6 +1712,7 @@
        (issue-warning-deprecated 'eol-style)
        (quote x)))))
 
+  ; [Larceny]
   ; In Larceny, *every* symbol describes an error handling mode.
   ; See Lib/Common/portio.sch for semantics.
 
@@ -1517,6 +1725,71 @@
 
   )
 
+(library (rnrs io simple (6))
+  (export
+
+   &i/o make-i/o-error i/o-error?
+   &i/o-read make-i/o-read-error i/o-read-error?
+   &i/o-write make-i/o-write-error i/o-write-error?
+   &i/o-invalid-position make-i/o-invalid-position-error
+   i/o-invalid-position-error? i/o-error-position
+   &i/o-filename make-i/o-filename-error i/o-filename-error?
+   i/o-error-filename
+   &i/o-file-protection make-i/o-file-protection-error
+   i/o-file-protection-error?
+   &i/o-file-is-read-only make-i/o-file-is-read-only-error
+   i/o-file-is-read-only-error?
+   &i/o-file-already-exists make-i/o-file-already-exists-error
+   i/o-file-already-exists-error?
+   &i/o-file-does-not-exist make-i/o-file-does-not-exist-error
+   i/o-file-does-not-exist-error?
+   &i/o-port make-i/o-port-error i/o-port-error? i/o-error-port
+
+   eof-object eof-object?
+   call-with-input-file call-with-output-file 
+   input-port? output-port?
+   current-input-port current-output-port current-error-port
+   with-input-from-file with-output-to-file
+   open-input-file open-output-file
+   close-input-port close-output-port 
+   read-char peek-char
+   read
+   write-char newline 
+   display write
+   )
+
+  (import
+   (primitives
+    &i/o make-i/o-error i/o-error?
+    &i/o-read make-i/o-read-error i/o-read-error?
+    &i/o-write make-i/o-write-error i/o-write-error?
+    &i/o-invalid-position make-i/o-invalid-position-error
+    i/o-invalid-position-error? i/o-error-position
+    &i/o-filename make-i/o-filename-error i/o-filename-error?
+    i/o-error-filename
+    &i/o-file-protection make-i/o-file-protection-error
+    i/o-file-protection-error?
+    &i/o-file-is-read-only make-i/o-file-is-read-only-error
+    i/o-file-is-read-only-error?
+    &i/o-file-already-exists make-i/o-file-already-exists-error
+    i/o-file-already-exists-error?
+    &i/o-file-does-not-exist make-i/o-file-does-not-exist-error
+    i/o-file-does-not-exist-error?
+    &i/o-port make-i/o-port-error i/o-port-error? i/o-error-port
+
+    eof-object eof-object?
+    call-with-input-file call-with-output-file 
+    input-port? output-port?
+    current-input-port current-output-port current-error-port
+    with-input-from-file with-output-to-file
+    open-input-file open-output-file
+    close-input-port close-output-port 
+    read-char peek-char
+    read
+    write-char newline 
+    display write
+    )))
+
 (library (rnrs files (6))
   (export file-exists? delete-file)
   (import (primitives file-exists? delete-file)))
@@ -1525,10 +1798,15 @@
   (export command-line exit)
   (import
    (core primitives)
-   (primitives command-line-arguments exit))
+   (rnrs base)
+   (primitives
+    command-line-arguments               ; [Larceny]
+    exit))
+
+  ; [Larceny]
 
   (define (command-line)
-    (list->vector (cons 'larceny (vector->list (command-line-arguments)))))
+    (vector->list (command-line-arguments)))
   )
 
 (library (rnrs arithmetic fixnums (6))
@@ -1567,7 +1845,7 @@
     fxarithmetic-shift fxarithmetic-shift-left fxarithmetic-shift-right)))
 
 (library (rnrs arithmetic flonums (6))
-
+  
   (export
    flonum?
    real->flonum
@@ -1583,11 +1861,8 @@
    flfloor flceiling fltruncate flround
    flexp fllog flsin flcos fltan flasin flacos flatan
    flsqrt flexpt
-
-;  FIXME
-;  &no-infinities make-no-infinities-violation no-infinities-violation
-;  &no-nans make-no-nans-violation no-nans-violation
-
+   &no-infinities make-no-infinities-violation no-infinities-violation?
+   &no-nans make-no-nans-violation no-nans-violation?
    fixnum->flonum)
 
   (import
@@ -1606,11 +1881,8 @@
     flfloor flceiling fltruncate flround
     flexp fllog flsin flcos fltan flasin flacos flatan
     flsqrt flexpt
-
-;   FIXME
-;   &no-infinities make-no-infinities-violation no-infinities-violation
-;   &no-nans make-no-nans-violation no-nans-violation
-
+    &no-infinities make-no-infinities-violation no-infinities-violation?
+    &no-nans make-no-nans-violation no-nans-violation?
     fixnum->flonum)))
 
 (library (rnrs arithmetic bitwise (6))
@@ -1656,9 +1928,1023 @@
     bitwise-rotate-bit-field
     bitwise-reverse-bit-field)))
 
-; FIXME: (rnrs hashtables (6)) not yet implemented.
+(library (rnrs syntax-case (6))
+  
+  (export make-variable-transformer
+          identifier? bound-identifier=? free-identifier=?
+          generate-temporaries datum->syntax syntax->datum 
+          syntax-violation syntax syntax-case quasisyntax 
+          unsyntax unsyntax-splicing with-syntax 
+          _ ...)
+  
+  (import (core primitives)
+          (core with-syntax)  
+          (core quasisyntax))
+  
+  ) ;; rnrs syntax-case
 
-; FIXME: (rnrs enums (6)) not yet implemented.
+(library (rnrs hashtables (6))
 
-; FIXME: (rnrs base (6)) not yet complete.
-; (van Tonder's definition above must be completed.)
+  (export
+
+   make-eq-hashtable
+   make-eqv-hashtable
+   make-hashtable
+   hashtable?
+   hashtable-size
+   hashtable-ref
+   hashtable-set!
+   hashtable-delete!
+   hashtable-contains?
+   hashtable-update!
+   hashtable-copy
+   hashtable-clear!
+   hashtable-keys
+   hashtable-entries
+   hashtable-equivalence-function
+   hashtable-hash-function
+   hashtable-mutable?
+   equal-hash
+   string-hash
+   string-ci-hash
+   symbol-hash)
+
+  (import
+   (rnrs base)
+   (primitives
+
+    make-eq-hashtable
+    make-eqv-hashtable
+    make-r6rs-hashtable                      ; [Larceny]
+    hashtable?
+    hashtable-size
+    hashtable-ref
+    hashtable-set!
+    hashtable-delete!
+    hashtable-contains?
+    hashtable-update!
+    hashtable-copy
+    hashtable-clear!
+    hashtable-keys
+    hashtable-entries
+    hashtable-equivalence-function
+    hashtable-hash-function
+    hashtable-mutable?
+    equal-hash
+    string-hash
+    string-ci-hash
+    symbol-hash))
+
+  ; [Larceny]
+  ; Larceny's traditional make-hashtable procedure is incompatible
+  ; with the R6RS procedure of the same name, so the R6RS version
+  ; goes under the name of make-r6rs-hashtable in R5RS mode.
+
+  (define make-hashtable make-r6rs-hashtable))
+
+(library (rnrs enums)
+
+  (export make-enumeration
+          enum-set-universe
+          enum-set-indexer
+          enum-set-constructor
+          enum-set->list
+          enum-set-member?
+          enum-set-subset?
+          enum-set=?
+          enum-set-union
+          enum-set-intersection
+          enum-set-difference
+          enum-set-complement
+          enum-set-projection
+          define-enumeration)
+
+  (import
+   (for (rnrs base)        run expand)
+   (for (rnrs syntax-case) run expand)
+   (for (rnrs lists)       run expand)
+   (primitives
+    make-enumeration
+    enum-set-universe
+    enum-set-indexer
+    enum-set-constructor
+    enum-set->list
+    enum-set-member?
+    enum-set-subset?
+    enum-set=?
+    enum-set-union
+    enum-set-intersection
+    enum-set-difference
+    enum-set-complement
+    enum-set-projection))
+
+  (define-syntax define-enumeration
+    (syntax-rules ()
+     ((_ type-name (symbol1 ...) set-constructor-syntax)
+      (begin (define-syntax type-name
+               (lambda (x)
+                 (define (complain)
+                   (syntax-violation 'type-name "illegal symbol" x))
+                 (syntax-case x ()
+                  ((_ y)
+                   (let ((sym1 (syntax->datum #'y)))
+                     (if (memq sym1 '(symbol1 ...))
+                         #''y
+                         (complain)))))))
+             (define hidden-name (make-enumeration '(symbol1 ...)))
+             (define-syntax set-constructor-syntax
+               (syntax-rules ()
+                ((_ sym1 (... ...))
+                 ((enum-set-constructor hidden-name)
+                  (list (type-name sym1) (... ...))))))))))
+
+  ) ; rnrs enums
+
+
+(library (rnrs (6))         
+  
+  (export
+   
+   ;; Macros defined in core expander:
+   
+   begin if lambda quote set! and or
+   define define-syntax let-syntax letrec-syntax
+   _ ...
+   
+   ;; Derived syntax:
+   
+   let let* letrec letrec* let-values let*-values
+   case cond else =>
+   assert
+   quasiquote unquote unquote-splicing
+   syntax-rules identifier-syntax
+   
+   ;; R5RS primitives:
+   
+   * + - / < <= = > >= abs acos append apply asin atan 
+   boolean? call-with-current-continuation 
+   call-with-values car cdr caar cadr cdar cddr
+   caaar caadr cadar caddr cdaar cdadr cddar cdddr
+   caaaar caaadr caadar caaddr cadaar cadadr caddar
+   cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+   ceiling char? char->integer char=? char<? char>? char<=? char>=?
+   complex? cons cos 
+   denominator dynamic-wind 
+   eq? equal? eqv? even? exact? exp expt floor for-each
+   gcd imag-part inexact? integer->char integer?
+   lcm length list list->string
+   list->vector list-ref list-tail list? log magnitude make-polar
+   make-rectangular make-string make-vector map max min
+   negative? not null? number->string number? numerator
+   odd? pair? 
+   positive? procedure? rational? rationalize
+   real-part real? reverse round
+   sin sqrt string string->list string->number string->symbol
+   string-append 
+   string-copy string-length string-ref string<=? string<?
+   string=? string>=? string>? string? substring symbol->string symbol? tan
+   truncate values vector vector->list
+   vector-fill! vector-length vector-ref vector-set! vector? zero?
+   
+   ;; R6RS additional procedures:
+   
+   real-valued? rational-valued? integer-valued?
+   exact inexact finite? infinite?
+   nan? div mod div-and-mod div0 mod0 div0-and-mod0
+   exact-integer-sqrt boolean=?
+   symbol=? string-for-each vector-map vector-for-each
+   error assertion-violation
+   call/cc
+   
+   ;; From (rnrs unicode)
+   
+   char-upcase char-downcase char-titlecase char-foldcase
+   char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
+   char-alphabetic? char-numeric? char-whitespace?
+   char-upper-case? char-lower-case? char-title-case?
+   char-general-category
+
+   string-upcase string-downcase string-titlecase string-foldcase
+   string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?
+   string-normalize-nfd string-normalize-nfkd
+   string-normalize-nfc string-normalize-nfkc
+   
+   ;; From (rnrs bytevectors)
+
+   endianness                                  ; deprecated
+   native-endianness
+
+   bytevector? make-bytevector bytevector-length
+   bytevector=?
+   bytevector-fill! bytevector-copy! bytevector-copy
+
+   bytevector-u8-ref bytevector-s8-ref
+   bytevector-u8-set! bytevector-s8-set!
+   bytevetor->u8-list u8-list->bytevector
+
+   bytevector-uint-ref bytevector-sint-ref
+   bytevector-uint-set! bytevector-sint-set!
+   bytevetor->uint-list bytevetor->sint-list
+   uint-list->bytevector sint-list->bytevector
+
+   bytevector-u16-ref bytevector-s16-ref
+   bytevector-u16-native-ref bytevector-s16-native-ref
+   bytevector-u16-set! bytevector-s16-set!
+   bytevector-u16-native-set! bytevector-s16-native-set!
+
+   bytevector-u32-ref bytevector-s32-ref
+   bytevector-u32-native-ref bytevector-s32-native-ref
+   bytevector-u32-set! bytevector-s32-set!
+   bytevector-u32-native-set! bytevector-s32-native-set!
+
+   bytevector-u64-ref bytevector-s64-ref
+   bytevector-u64-native-ref bytevector-s64-native-ref
+   bytevector-u64-set! bytevector-s64-set!
+   bytevector-u64-native-set! bytevector-s64-native-set!
+
+   bytevector-ieee-single-native-ref
+   bytevector-ieee-single-ref
+   bytevector-ieee-double-native-ref
+   bytevector-ieee-double-ref
+   bytevector-ieee-single-native-set!
+   bytevector-ieee-single-set!
+   bytevector-ieee-double-native-set!
+   bytevector-ieee-double-set!
+
+   string->utf8 string->utf16 string->utf32
+   utf8->string utf16->string utf32->string
+
+   ;; From (rnrs lists)
+   
+   find for-all exists filter partition fold-left fold-right
+   remp remove remq remv memp member memv memq
+   assp assoc assv assq
+   
+   ;; From (rnrs sorting)
+   
+   list-sort vector-sort vector-sort!
+
+   ;; From (rnrs control)
+   
+   when unless do case-lambda
+   
+   ;; From (rnrs records procedural)
+ 
+   make-record-type-descriptor record-type-descriptor?
+   make-record-constructor-descriptor record-constructor
+   record-predicate record-accessor record-mutator
+
+   ;; From (rnrs records inspection)
+   
+   record? record-rtd record-type-name record-type-parent record-type-uid
+   record-type-generative? record-type-sealed? record-type-opaque?
+   record-type-field-names record-field-mutable?
+
+   ;; From (rnrs records syntactic)
+
+   define-record-type
+
+   ;; From (rnrs exceptions)
+
+   with-exception-handler raise raise-continuable guard
+
+   ;; From (rnrs conditions)
+
+   &condition condition simple-conditions condition?
+   condition-predicate condition-accessor
+   define-condition-type
+   &message make-message-condition message-condition? condition-message
+   &warning make-warning warning?
+   &serious make-serious-condition serious-condition?
+   &error make-error error?
+   &violation make-violation violation?
+   &assertion make-assertion-violation assertion-violation?
+   &irritants make-irritants-condition irritants-condition? condition-irritants
+   &who make-who-condition who-condition? condition-who
+   &non-continuable make-non-continuable-violation non-continuable-violation?
+   &implementation-restriction make-implementation-restriction-violation
+   implementation-restriction-violation?
+   &lexical make-lexical-violation lexical-violation?
+   &syntax make-syntax-violation syntax-violation?
+   syntax-violation-form syntax-violation-subform
+   &undefined make-undefined-violation undefined-violation?
+
+   ;; From (rnrs io ports)
+   
+   &i/o make-i/o-error i/o-error?
+   &i/o-read make-i/o-read-error i/o-read-error?
+   &i/o-write make-i/o-write-error i/o-write-error?
+   &i/o-invalid-position make-i/o-invalid-position-error
+   i/o-invalid-position-error? i/o-error-position
+   &i/o-filename make-i/o-filename-error i/o-filename-error?
+   i/o-error-filename
+   &i/o-file-protection make-i/o-file-protection-error
+   i/o-file-protection-error?
+   &i/o-file-is-read-only make-i/o-file-is-read-only-error
+   i/o-file-is-read-only-error?
+   &i/o-file-already-exists make-i/o-file-already-exists-error
+   i/o-file-already-exists-error?
+   &i/o-file-does-not-exist make-i/o-file-does-not-exist-error
+   i/o-file-does-not-exist-error?
+   &i/o-port make-i/o-port-error i/o-port-error? i/o-error-port
+
+   file-options                           ; deprecated syntax
+   buffer-mode                            ; deprecated syntax
+   buffer-mode?                           ; deprecated procedure
+
+   latin-1-codec utf-8-codec utf-16-codec
+
+   eol-style                              ; deprecated syntax
+   native-eol-style
+
+   &i/o-decoding make-i/o-decoding-error i/o-decoding-error?
+   &i/o-encoding make-i/o-encoding-error i/o-encoding-error?
+   i/o-encoding-error-char
+
+   error-handling-mode                    ; deprecated syntax
+
+   make-transcoder
+   native-transcoder
+   transcoder-codec transcoder-eol-style transcoder-error-handling-mode
+
+   bytevector->string string->bytevector
+
+   eof-object
+  ;eof-object?                            ; would be duplicated below
+
+   port? port-transcoder textual-port? binary-port? transcoded-port
+   port-has-port-position? port-position
+   port-has-set-port-position!? set-port-position!
+   close-port call-with-port
+
+   input-port? port-eof?
+   open-file-input-port open-bytevector-input-port open-string-input-port
+   standard-input-port
+  ;current-input-port                     ; would be duplicated below
+   make-custom-binary-input-port make-custom-textual-input-port
+
+   get-u8 lookahead-u8 get-bytevector-n get-bytevector-n!
+   get-bytevector-some                    ; deprecated procedure
+   get-bytevector-all
+
+   get-char lookahead-char
+   get-string-n get-string-n! get-string-all get-line get-datum
+
+   output-port? flush-output-port output-port-buffer-mode
+   open-file-output-port
+   open-bytevector-output-port            ; deprecated procedure
+   open-string-output-port                ; deprecated procedure
+   call-with-bytevector-output-port
+   call-with-string-output-port
+   standard-output-port
+  ;current-output-port                    ; would be duplicated below
+   current-error-port
+   make-custom-binary-output-port make-custom-textual-output-port
+
+   put-u8 put-bytevector
+
+   put-char put-string put-datum
+
+   open-file-input/output-port
+   make-custom-binary-input/output-port
+   make-custom-textual-input/output-port
+
+   ;; From (rnrs io simple)
+   
+   call-with-input-file call-with-output-file 
+   close-input-port close-output-port current-input-port current-output-port
+   display eof-object? newline open-input-file open-output-file peek-char
+   read read-char with-input-from-file with-output-to-file write write-char
+   
+   ;; From (rnrs files)
+   
+   file-exists? delete-file
+
+   ;; From (rnrs programs)
+  
+   command-line exit
+
+   ;; From (rnrs arithmetic fixnums)
+
+   fixnum? fixnum-width least-fixnum greatest-fixnum
+   fx=? fx>? fx<? fx>=? fx<=?
+   fxzero? fxpositive? fxnegative?
+   fxodd? fxeven?
+   fxmax fxmin
+   fx+ fx- fx*
+   fxdiv-and-mod fxdiv fxmod
+   fxdiv0-and-mod0 fxdiv0 fxmod0
+   fx+/carry fx-/carry fx*/carry
+   fxnot fxand fxior fxxor
+   fxif fxbit-count fxlength
+   fxfirst-bit-set fxbit-set? fxcopy-bit fxbit-field fxcopy-bit-field
+   fxrotate-bit-field fxreverse-bit-field
+   fxarithmetic-shift fxarithmetic-shift-left fxarithmetic-shift-right
+
+   ;;; From (rnrs arithmetic flonums)
+
+   flonum?
+   real->flonum
+   fl=? fl<? fl>? fl<=? fl>=?
+   flinteger? flzero? flpositive? flnegative? flodd? fleven?
+   flfinite? flinfinite? flnan?
+   flmax flmin
+   fl+ fl* fl- fl/
+   flabs
+   fldiv-and-mod fldiv flmod
+   fldiv0-and-mod0 fldiv0 flmod0
+   flnumerator fldenominator
+   flfloor flceiling fltruncate flround
+   flexp fllog flsin flcos fltan flasin flacos flatan
+   flsqrt flexpt
+   fixnum->flonum
+
+   &no-infinities make-no-infinities-violation no-infinities-violation?
+   &no-nans make-no-nans-violation no-nans-violation?
+
+   ;; From (rnrs arithmetic bitwise)
+
+   bitwise-not
+   bitwise-and
+   bitwise-ior
+   bitwise-xor
+   bitwise-if
+   bitwise-bit-count
+   bitwise-length
+   bitwise-first-bit-set
+   bitwise-bit-set?
+   bitwise-copy-bit
+   bitwise-bit-field
+   bitwise-copy-bit-field
+   bitwise-rotate-bit-field
+   bitwise-reverse-bit-field
+   bitwise-arithmetic-shift
+   bitwise-arithmetic-shift-left
+   bitwise-arithmetic-shift-right
+
+   ;; From (rnrs syntax-case)
+   
+   make-variable-transformer
+   identifier? bound-identifier=? free-identifier=?
+   generate-temporaries datum->syntax syntax->datum 
+   syntax-violation syntax syntax-case quasisyntax 
+   unsyntax unsyntax-splicing with-syntax 
+
+   ;; From (rnrs hashtables)
+   
+   make-eq-hashtable
+   make-eqv-hashtable
+   make-hashtable
+   hashtable?
+   hashtable-size
+   hashtable-ref
+   hashtable-set!
+   hashtable-delete!
+   hashtable-contains?
+   hashtable-update!
+   hashtable-copy
+   hashtable-clear!
+   hashtable-keys
+   hashtable-entries
+   hashtable-equivalence-function
+   hashtable-hash-function
+   hashtable-mutable?
+   equal-hash
+   string-hash
+   string-ci-hash
+   symbol-hash
+
+   ;; From (rnrs enums)
+
+   make-enumeration
+   enum-set-universe
+   enum-set-indexer
+   enum-set-constructor
+   enum-set->list
+   enum-set-member?
+   enum-set-subset?
+   enum-set=?
+   enum-set-union
+   enum-set-intersection
+   enum-set-difference
+   enum-set-complement
+   enum-set-projection
+   define-enumeration
+
+   )
+   
+  (import (for (except (rnrs base)
+                       syntax-rules identifier-syntax _ ... set!)
+               run expand)
+          (for (only (rnrs base) set!)                              run expand)
+          (for (core syntax-rules)                                  run expand)
+          (for (core identifier-syntax)                             run expand)
+          (for (rnrs unicode)                                       run expand)
+          (for (rnrs bytevectors)                                   run expand)
+          (for (rnrs lists)                                         run expand)
+          (for (rnrs sorting)                                       run expand)
+          (for (rnrs control)                                       run expand)
+          (for (rnrs records procedural)                            run expand)
+          (for (rnrs records inspection)                            run expand)
+          (for (rnrs records syntactic)                             run expand)
+          (for (rnrs exceptions)                                    run expand)
+          (for (rnrs conditions)                                    run expand)
+          (for (rnrs io ports)                                      run expand)
+          (for (rnrs io simple)                                     run expand)
+          (for (rnrs files)                                         run expand)
+          (for (rnrs programs)                                      run expand)
+          (for (rnrs arithmetic fixnums)                            run expand)
+          (for (rnrs arithmetic flonums)                            run expand)
+          (for (rnrs arithmetic bitwise)                            run expand)
+          (for (rnrs syntax-case)                                   run expand)
+          (for (rnrs hashtables)                                    run expand)
+          (for (rnrs enums)                                         run expand)
+          )
+  
+  ) ;; rnrs
+
+(library (rnrs eval (6))
+  (export eval environment)
+  (import (core primitives)))
+
+;; Nonstandard library for reflection on library import sets.
+;; See examples file for sevaral examples.
+
+(library (rnrs eval reflection (6))
+  (export environment-bindings)
+  (import (core primitives)))
+
+(library (rnrs mutable-pairs (6))
+  (export set-car! set-cdr!)
+  (import (primitives set-car! set-cdr!)))
+
+(library (rnrs mutable-strings (6))
+  (export string-set! string-fill!)
+  (import (primitives string-set! string-fill!)))
+
+(library (rnrs r5rs (6))
+  
+  (export null-environment scheme-report-environment delay force
+          exact->inexact inexact->exact quotient remainder modulo)
+  
+  (import (primitives exact->inexact inexact->exact quotient remainder modulo)
+          (rnrs eval)
+          (rnrs base)
+          (rnrs control))
+  
+  (define (scheme-report-environment n)
+    (unless (= n 5)
+      (assertion-violation 'scheme-report-environment
+                           "Argument should be 5" n))
+    (environment '(r5rs)))
+  
+  (define null-environment
+    (let ((null-env
+           (environment '(only (rnrs base)
+                           begin if lambda quote set! and or
+                           define define-syntax let-syntax letrec-syntax 
+                           let let* letrec
+                           case cond else =>
+                           quasiquote unquote unquote-splicing
+                           syntax-rules ...)
+                        '(only (rnrs control) do))))
+      (lambda (n)
+        (unless (= n 5)
+          (assertion-violation 'null-environment "Argument should be 5" n))
+        null-env)))
+  
+  (define force
+    (lambda (object)
+      (object)))
+  
+  (define-syntax delay
+    (syntax-rules ()
+      ((delay expression)
+       (make-promise (lambda () expression)))))
+  
+  (define make-promise
+    (lambda (proc)
+      (let ((result-ready? #f)
+            (result #f))
+        (lambda ()
+          (if result-ready?
+              result
+              (let ((x (proc)))
+                (if result-ready?
+                    result
+                    (begin (set! result-ready? #t)
+                           (set! result x)
+                           result))))))))
+  ) ; rnrs r5rs
+
+;; Nonstandard library for loading files into a
+;; top-level interactive REPL environment.
+;; The files may contain libraries in source form,
+;; which are then dynamically loaded.  
+
+(library (rnrs load)
+  (export load)
+  (import (rnrs)
+          (primitives ex:repl))
+  
+  (define (load filename)
+    (define (read-file fn)
+      (let ((p (open-input-file fn)))
+        (let f ((x (read p)))
+          (if (eof-object? x)
+              (begin (close-input-port p) '())
+              (cons x
+                    (f (read p)))))))
+    (ex:repl (read-file filename)))
+  )
+  
+;; Nonstandard R5RS library:
+
+(library (r5rs)  
+  (export 
+   
+   ;; core primitives
+   
+   set!
+   
+   ;; rnrs base
+   
+   begin if lambda quote and or
+   define define-syntax let-syntax letrec-syntax
+   ...
+   
+   let let* letrec
+   case cond else =>
+   quasiquote unquote unquote-splicing
+   syntax-rules 
+   
+   * + - / < <= = > >= abs acos append apply asin atan 
+   boolean? call-with-current-continuation 
+   call-with-values car cdr caar cadr cdar cddr
+   caaar caadr cadar caddr cdaar cdadr cddar cdddr
+   caaaar caaadr caadar caaddr cadaar cadadr caddar
+   cadddr cdaaar cdaadr cdadar cdaddr cddaar cddadr cdddar cddddr
+   ceiling char? char->integer char=? char<? char>? char<=? char>=?
+   complex? cons cos 
+   denominator dynamic-wind 
+   eq? equal? eqv? even? exact? exp expt floor for-each
+   gcd imag-part inexact? integer->char integer?
+   lcm length list list->string
+   list->vector list-ref list-tail list? log magnitude make-polar
+   make-rectangular make-string make-vector map max min
+   negative? not null? number->string number? numerator
+   odd? pair? 
+   positive? procedure? rational? rationalize
+   real-part real? reverse round
+   sin sqrt string string->list string->number string->symbol
+   string-append 
+   string-copy string-length string-ref string<=? string<?
+   string=? string>=? string>? string? substring symbol->string symbol? tan
+   truncate values vector vector->list
+   vector-fill! vector-length vector-ref vector-set! vector? zero?
+   
+   ;; rnrs eval
+   
+   eval
+   
+   ;; rnrs load
+   
+   load
+   
+   ;; rnrs control
+   
+   do
+   
+   ;; rnrs io simple
+   
+   call-with-input-file call-with-output-file 
+   close-input-port close-output-port current-input-port current-output-port
+   display eof-object? newline open-input-file open-output-file peek-char
+   read read-char with-input-from-file with-output-to-file write write-char
+   
+   ;; rnrs unicode
+   
+   char-upcase char-downcase char-ci=? char-ci<? char-ci>?
+   char-ci<=? char-ci>=? char-alphabetic? char-numeric? char-whitespace?
+   char-upper-case? char-lower-case? string-ci=? string-ci<? string-ci>?
+   string-ci<=? string-ci>=?
+   
+   ;; rnrs mutable pairs
+   
+   set-car! set-cdr!
+   
+   ;; rnrs lists
+   
+   assoc assv assq member memv memq
+   
+   ;; rnrs mutable-strings
+   
+   string-set! string-fill!
+   
+   ;; rnrs r5rs
+   
+   null-environment scheme-report-environment delay force
+   exact->inexact inexact->exact quotient remainder modulo)
+  
+  ;; Not necessary to use only and except here, but keep
+  ;; them because they contain useful information.
+  
+  (import
+   (only (core primitives) set!)
+   (except (rnrs base)
+           set! ; because should not be exported for expand
+           _ letrec* let-values let*-values identifier-syntax
+           real-valued? rational-valued? integer-valued?
+           exact inexact finite? infinite?
+           nan? div mod div-and-mod div0 mod0 div0-and-mod0
+           exact-integer-sqrt boolean=?
+           symbol=? string-for-each vector-map vector-for-each
+           error assertion-violation
+           call/cc)
+   (only (rnrs eval) eval)
+   (only (rnrs load) load)
+   (only (rnrs control) do)
+   (only (rnrs io simple)
+         call-with-input-file call-with-output-file 
+         close-input-port close-output-port
+         current-input-port current-output-port
+         display eof-object? newline open-input-file open-output-file peek-char
+         read read-char with-input-from-file
+         with-output-to-file write write-char)
+   (only (rnrs unicode)
+         char-upcase char-downcase char-ci=? char-ci<? char-ci>?
+         char-ci<=? char-ci>=? char-alphabetic? char-numeric? char-whitespace?
+         char-upper-case? char-lower-case? string-ci=? string-ci<? string-ci>?
+         string-ci<=? string-ci>=?)
+   (only (rnrs mutable-pairs) set-car! set-cdr!)
+   (only (rnrs lists) assoc assv assq member memv memq)
+   (only (rnrs mutable-strings) string-set! string-fill!)
+   (rnrs r5rs))
+  )
+
+;; Nonstandard explicit renaming library: 
+;; See also examples and discussion in file examples.scm.
+;;
+;; Exports:
+;;
+;;    er-transformer     (syntax)
+;;    bound-identifier=? (procedure)
+;;    datum->syntax      (procedure)
+;;
+;; Differences with traditional explicit renaming:
+;;
+;; - The renaming procedure has signature <symbol> -> <identifier>,
+;;   where the <identifier> type is disjoint from the <symbol> type.
+;;
+;; - The renaming procedure acts as a mathematical function in the sense that
+;;   the identifiers obtained from any two calls with the same argument will
+;;   be the same in the sense of bound-identifier=?, not eqv?
+;;
+;; - The output may not contain raw symbols, so implicit identifiers must
+;;   be introduced using datum->syntax.
+;;
+;; - Breaking hygiene with datum->syntax allows more modular macro
+;;   programming than traditional explicit renaming.
+;;   See in particular the example of while in terms of loop below.
+;;
+;; - The renaming procedure is aware of the transformer environment,
+;;   so that identifiers not bound at the usage site will resolve to
+;;   the r6rs library-local bindings at the transformer site.
+;;   More precisely, they will be resolved in the lexical environment
+;;   of the er-transformer keyword.
+;;
+;; - Fully compatible with my r6rs syntax-case macro system.
+;;
+;; Portability and complexity note:
+;;
+;;   This library is not r6rs-portable, since it assumes that the input
+;;   to a transformer is always an unwrapped syntax object, which is
+;;   allowed but not required by r6rs, and is currently only true for my
+;;   implementation.  The library could be ported to other implementations
+;;   by inserting a step that unwrapped the input to the transformer.
+;;   However, that would adversely modify the complexity class of
+;;   er-transformer macros in those implementations.
+
+(library (explicit-renaming helper)
+  (export er-transformer)
+  (import (only (rnrs) 
+           define-syntax lambda syntax-case
+           syntax datum->syntax free-identifier=?))
+  
+  (define-syntax er-transformer
+    (lambda (exp)
+      (syntax-case exp ()
+        ((k proc)
+         (syntax
+          (lambda (form)
+            (proc form
+                  (lambda (symbol) (datum->syntax (syntax k) symbol))
+                  free-identifier=?))))))))
+
+(library (explicit-renaming)
+  (export er-transformer identifier? bound-identifier=? datum->syntax)
+  (import (explicit-renaming helper)
+          (rnrs syntax-case)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ERR5RS records, syntactic layer.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (err5rs records syntactic)
+
+  (export define-record-type)
+
+  (import (for (core primitives) run expand)
+          (for (rnrs base) run expand)
+          (for (rnrs lists) run expand)
+          (err5rs records procedural))
+
+  (define-syntax define-record-type
+    (syntax-rules ()
+     ((_ (type-name parent) constructor-spec predicate-spec . field-specs)
+      (define-record-type-helper0
+       type-name parent constructor-spec predicate-spec . field-specs))
+     ((_ type-name constructor-spec predicate-spec . field-specs)
+      (define-record-type-helper0
+       type-name #f constructor-spec predicate-spec . field-specs))))
+
+  (define-syntax define-record-type-helper0
+    (lambda (x)
+      (define (complain)
+        (syntax-violation 'define-record-type "illegal syntax" x))
+      (syntax-case x ()
+       ((_ tname pname constructor-spec predicate-spec . field-specs)
+        (let* ((type-name (syntax->datum #'tname))
+               (parent (syntax->datum #'pname))
+               (cspec (syntax->datum #'constructor-spec))
+               (pspec (syntax->datum #'predicate-spec))
+               (fspecs (syntax->datum #'field-specs))
+               (type-name-string
+                (begin (if (not (symbol? type-name))
+                           (complain))
+                       (symbol->string type-name)))
+               (constructor-name
+                (cond ((eq? cspec #f)
+                       #f)
+                      ((eq? cspec #t)
+                       (string->symbol
+                        (string-append "make-" type-name-string)))
+                      ((symbol? cspec)
+                       cspec)
+                      ((pair? cspec)
+                       (car cspec))
+                      (else (complain))))
+               (constructor-args
+                (cond ((pair? cspec)
+                       (if (not (for-all symbol? cspec))
+                           (complain)
+                           (list->vector (cdr cspec))))
+                      (else #f)))
+               (predicate-name
+                (cond ((eq? pspec #f)
+                       #f)
+                      ((eq? pspec #t)
+                       (string->symbol
+                        (string-append type-name-string "?")))
+                      ((symbol? pspec)
+                       pspec)
+                      (else (complain))))
+               (field-specs
+                (map (lambda (fspec)
+                       (cond ((symbol? fspec)
+                              (list 'immutable
+                                    fspec
+                                    (string->symbol
+                                     (string-append
+                                      type-name-string
+                                      "-"
+                                      (symbol->string fspec)))))
+                             ((not (pair? fspec))
+                              (complain))
+                             ((not (list? fspec))
+                              (complain))
+                             ((not (for-all symbol? fspec))
+                              (complain))
+                             ((null? (cdr fspec))
+                              (list 'mutable
+                                    (car fspec)
+                                    (string->symbol
+                                     (string-append
+                                      type-name-string
+                                      "-"
+                                      (symbol->string (car fspec))))
+                                    (string->symbol
+                                     (string-append
+                                      type-name-string
+                                      "-"
+                                      (symbol->string (car fspec))
+                                      "-set!"))))
+                             ((null? (cddr fspec))
+                              (list 'immutable
+                                    (car fspec)
+                                    (cadr fspec)))
+                             ((null? (cdddr fspec))
+                              (cons 'mutable fspec))
+                             (else (complain))))
+                     fspecs))
+  
+               (fields (list->vector (map cadr field-specs)))
+  
+               (accessor-fields
+                (map (lambda (x) (list (caddr x) (cadr x)))
+                     (filter (lambda (x) (>= (length x) 3))
+                             field-specs)))
+  
+               (mutator-fields
+                (map (lambda (x) (list (cadddr x) (cadr x)))
+                     (filter (lambda (x) (= (length x) 4))
+                             field-specs))))
+  
+          (datum->syntax
+           #'tname
+           `(,#'define-record-type-helper
+             ,type-name ,fields ,parent
+             ,(if constructor-args
+                  (list constructor-name constructor-args)
+                  constructor-name)
+             ,predicate-name
+             ,accessor-fields ,mutator-fields)))))))
+  
+  (define-syntax define-record-type-helper
+    (syntax-rules ()
+  
+     ((_ type-name fields parent #f predicate
+         ((accessor field) ...) ((mutator mutable-field) ...))
+      (define-record-type-helper
+       type-name fields parent ignored predicate
+       ((accessor field) ...) ((mutator mutable-field) ...)))
+  
+     ((_ type-name fields parent constructor #f
+         ((accessor field) ...) ((mutator mutable-field) ...))
+      (define-record-type-helper
+       type-name fields parent constructor ignored
+       ((accessor field) ...) ((mutator mutable-field) ...)))
+  
+     ((_ type-name fields parent (constructor args) predicate
+         ((accessor field) ...) ((mutator mutable-field) ...))
+      (begin (define type-name (make-rtd 'type-name 'fields parent))
+             (define constructor (rtd-constructor type-name 'args))
+             (define predicate (rtd-predicate type-name))
+             (define accessor (rtd-accessor type-name 'field))
+             ...
+             (define mutator (rtd-mutator type-name 'mutable-field))
+             ...))
+  
+     ((_ type-name fields parent constructor predicate
+         ((accessor field) ...) ((mutator mutable-field) ...))
+      (begin (define type-name (make-rtd 'type-name 'fields parent))
+             (define constructor (rtd-constructor type-name))
+             (define predicate (rtd-predicate type-name))
+             (define accessor (rtd-accessor type-name 'field))
+             ...
+             (define mutator (rtd-mutator type-name 'mutable-field))
+             ...))))
+
+  ) ; err5rs records syntactic
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; More libraries, added for Larceny.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(library (err5rs load)
+  (export load)
+  (import (rnrs load)))
+
+(library (larceny load)
+  (export load require)
+  (import (err5rs load) (primitives require)))
+
+(library (larceny compile-file)
+  (export load require compile-file compile-library)
+  (import (rnrs base)
+          (err5rs load)
+          (primitives require compile-r6rs-file))
+
+  (define (compile-file src . rest)
+    (compile-file-shared src rest #f))
+
+  (define (compile-library src . rest)
+    (compile-file-shared src rest #t))
+
+  (define (compile-file-shared src rest libraries-only?)
+    (cond ((null? rest)
+           (compile-r6rs-file src #f libraries-only?))
+          ((and (string? (car rest)) (null? (cdr rest)))
+           (compile-r6rs-file src (car rest) libraries-only?))
+          (else
+           (assertion-violation
+            (if libraries-only? 'compile-library 'compile-file)
+            "too many arguments"
+            (cons src rest)))))
+  )
+
+; end of file

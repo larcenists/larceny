@@ -1,0 +1,86 @@
+#!/usr/bin/env scheme-script
+
+#!r6rs
+
+(import
+  (rnrs base)
+  (rnrs unicode)
+  (rnrs bytevectors)
+  (rnrs lists)
+  (rnrs sorting)
+  (rnrs control)
+  (rnrs records procedural)
+  (rnrs records inspection)
+  (rnrs io ports)
+  (rnrs io simple)
+  (rnrs files)
+  (rnrs programs)
+  (rnrs arithmetic fixnums)
+  (rnrs arithmetic flonums)
+  (rnrs arithmetic bitwise)
+  (rnrs hashtables))
+
+(write (string-titlecase "\x3bb;arceny"))
+(newline)
+
+(write (endianness little))
+(newline)
+
+(write (fold-right cons '(q) '(a b c)))
+(newline)
+
+(write (vector-sort < '#(9 7 5 3 1 8 6 4 2 0)))
+(newline)
+
+(when (unless #t #f) (display "unless when"))
+(newline)
+
+(define :point
+  (make-record-type-descriptor
+   'point #f #f #f #f '#((mutable x) (mutable y))))
+
+(define :point-cd
+  (make-record-constructor-descriptor :point #f #f))
+
+(define make-point (record-constructor :point-cd))
+
+(define point? (record-predicate :point))
+(define point-x (record-accessor :point 0))
+(define point-y (record-accessor :point 1))
+(define point-x-set! (record-mutator :point 0))
+(define point-y-set! (record-mutator :point 1))
+
+(define p1 (make-point 1 2))
+(write (list (point-x p1) (point-y p1)))
+(newline)
+
+(write (record-type-field-names :point))
+(newline)
+
+(put-datum (current-output-port) (file-options no-create))
+(newline)
+
+(display "Hello world!")
+(newline)
+
+(write (file-exists? "hello.sch"))
+(newline)
+
+(write (command-line))
+(newline)
+
+(write (fxior (fxarithmetic-shift-left -1 10) 77))
+(newline)
+
+(write (flnumerator (fl+ (flsin (flacos 0.0)) (flacos 1.0))))
+(newline)
+
+(write (bitwise-ior (bitwise-arithmetic-shift-left 1 100) 1))
+(newline)
+
+(let ((ht (make-hashtable symbol-hash eq?))
+      (square (lambda (x) (* x x))))
+  (hashtable-update! ht 'foo square 11)
+  (hashtable-update! ht 'foo sqrt 12)
+  (write (hashtable-ref ht 'foo 13))
+  (newline))

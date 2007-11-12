@@ -4,8 +4,8 @@ are being developed or executed.
 
 The files in this directory are derived from Andre van Tonder's
 implementation of R6RS programs, libraries, and macros.
-The starting point was van Tonder's version 5.97.4, dated
-19 August 2007, downloaded from
+The starting point was van Tonder's version 6.0, dated
+29 October 2007, downloaded from
 
     http://www.het.brown.edu/people/andre/macros/
 
@@ -19,7 +19,7 @@ feature, "r6rs-" has been prefixed to van Tonder's file names.
 
     r6rs-compat-larceny.sch
 
-        simplified from van Tonder's compat-larceny.scm
+        improved version of van Tonder's compat-larceny.scm
 
     r6rs-runtime.sch
 
@@ -27,8 +27,8 @@ feature, "r6rs-" has been prefixed to van Tonder's file names.
 
     r6rs-expander.sch
 
-        adds a definition of ex:run-r6rs-program to
-        van Tonder's expander.scm
+        same as van Tonder's expander.scm except for the
+        definitions of repl and syntax-violation
 
     standard-libraries.sch
 
@@ -36,6 +36,7 @@ feature, "r6rs-" has been prefixed to van Tonder's file names.
         from van Tonder's standard-libraries.scm
 
 What follows is the contents of van Tonder's readme.txt file.
+
 
 ;;;===============================================================================
 ;;;
@@ -51,16 +52,13 @@ What follows is the contents of van Tonder's readme.txt file.
 TO RUN : execute examples.scm
 ----------------------------------------------------------------------
 
-Should run out of the box on any R5RS system.
+Should run out of the box on any R5RS-compliant system that 
+provides (interaction-environment) and load.
 
 Tested on: MzScheme     (compat file provided)
            Petite Chez  (compat file provided)
            Larceny      (compat file provided)
            Scheme48     (compat file provided)
-
-In case you don't have syntax-rules, a fully expanded version is 
-provided for bootstrapping.  These are the two large .exp files,
-which are otherwise unnecessary.  
 
 R6RS COMPLIANCE NOTES:
 ======================
@@ -68,7 +66,7 @@ R6RS COMPLIANCE NOTES:
 SYNTAX-CASE: 
 ------------   
 
- FULLY R5.97RS-COMPLIANT, WITH THE FOLLOWING OPTIONAL OR RECOMMENDED FEATURES:
+ FULLY R6RS-COMPLIANT, WITH THE FOLLOWING OPTIONAL OR RECOMMENDED FEATURES:
   
    * Expansion algorithm (r6rs optional):
    
@@ -99,7 +97,7 @@ SYNTAX-CASE:
 LIBRARIES:
 ----------
 
- FULLY R5.97RS-COMPLIANT WITH ONE EXCEPTION (SEE BELOW) WITH THE FOLLOWING 
+ FULLY R6RS-COMPLIANT WITH ONE EXCEPTION (SEE BELOW) WITH THE FOLLOWING 
  OPTIONAL FEATURES: 
    
    * Phase semantics (r6rs optional):
@@ -162,6 +160,13 @@ ADDITIONAL FEATURES:
        Libraries and programs can be defined at, imported into and run in the REPL toplevel. 
        The ex:repl procedure expands and evaluates a sequence of forms one by one. 
        See example REPL session examples.scm.
+
+   * Dynamic loading of libraries:
+
+       A non-standard library (rnrs load) is provided containing LOAD, which can be
+       used for dynamic loading of any code, including dynamic loading 
+       of R6RS libraries.
+       See example in examples.scm.
        
    * Reflection:
     
@@ -187,6 +192,25 @@ ADDITIONAL FEATURES:
  
 CHANGELOG:
 ========== 
+
+CHANGES SINCE VERSION OF AUG 19, 2007:
+--------------------------------------
+
+- Added non-standard library (rnrs load) containing LOAD, which can be
+  used for dynamic loading of any code, including dynamic loading 
+  of R6RS libraries.
+- Added (r5rs) non-standard library.
+- Added ASSERT to (rnrs base) and (rnrs).
+- Added missing stuff to (rnrs unicode).
+- Added (rnrs sorting), (rnrs records procedural), (rnrs records inspection),
+  (rnrs files), (rnrs arithmetic fixnums), (rnrs arithmetic flonums), 
+  (rnrs arithmetic bitwise).
+- Added additional bindings in these libraries to (rnrs).
+- Removed mutable string primitives from (rnrs (6)).
+- Fixed minor bug that prevented (environment ---) from executing
+  correctly when evaluated in phase > 0.
+- Updated compat-larceny.scm to latest version found at
+  http://larceny.ccs.neu.edu/larceny-trac/browser/trunk/larceny_src/lib/R6RS
 
 CHANGES SINCE VERSION OF AUG 14, 2007:
 --------------------------------------

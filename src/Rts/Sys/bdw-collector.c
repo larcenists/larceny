@@ -210,6 +210,7 @@ void bdw_before_gc( void )
 
   /* Don't increment the count because it's a nonmoving collector! */
   /* globals[ G_GC_CNT ] += fixnum(1); */
+  /* globals[ G_MAJORGC_CNT ] += fixnum(1); */
 
   /* Stack sanity check */
   if (bdw_state.globals[G_ETOP] != bdw_state.globals[G_EBOT])

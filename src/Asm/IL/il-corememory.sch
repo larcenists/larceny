@@ -786,10 +786,11 @@
 ;; guideline, but I've decided against actually overriding the
 ;; definitions in that file.  Therefore, hide behind define-values,
 ;; exposing only the definitions I need.
-;;;;; Never mind that for now, just make the names semi-unique and
-;;;;; move on...
-;;; (define-values (compile-class compile-member compile-il)
-;;;   (let ()
+(define-values (current-label-intern-table
+		co-create-type-builders!
+		co-create-member-infos!
+		co-emit-object-code!)
+  (let ()
 
     ;; maps IL-label objects to Emit.Label objects
     ;; Should be reset in between method constructions 
@@ -1285,9 +1286,6 @@
 
 ;;;    (define compile-il codump-il)
 ;;;
-;;;     (values compile-class compile-member compile-il)
-;;;    ))
-
 
      (define (co-create-type-builders!)
        ;; prepass creating types to represent all of the classes we
@@ -1325,6 +1323,13 @@
 			 ((field? tli) (codump-member tli))
 			 (else (codump-il tli))))
 		 (reverse *il-top-level*)))
+
+    (values current-label-intern-table
+	    co-create-type-builders!
+	    co-create-member-infos!
+	    co-emit-object-code!)
+    ))
+
 
 ;; link-lop-segment/clr : segment string environment -> (-> any)
 ;; Analogous to link-lop-segment, except that the lop-segment uses our

@@ -7,6 +7,11 @@ link:LarcenyNotes/note7-ffi.html[Larceny Note #7].
 The FFI described in this manual section is a simple example of
 a derived FFI. It is not yet fully evolved, but it is useful.
 
+[WARNING]
+================================================================
+Some of the information in this section may be out of date.
+================================================================
+
 [[FfiCompiliing, Creating loadable modules]]
 ==== Creating loadable modules
 

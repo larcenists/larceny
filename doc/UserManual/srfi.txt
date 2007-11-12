@@ -12,36 +12,18 @@ implementation about the available SRFIs (and potentially about other
 implementation features) at macro expansion time. The design documents
 for this and other SRFIs are available at the web site shown above.
 
-Larceny 1.0a2 has built-in support for 
-http://srfi.schemers.org/srfi-0[SRFI-0], 
-http://srfi.schemers.org/srfi-6[SRFI-6] and
-http://srfi.schemers.org/srfi-11[SRFI-11]. 
-In addition, a procedural interface to SRFI-0 is
-provided that allows the programmer to add new SRFI keys and to
-perform interactive queries about supported SRFIs.
+Larceny currently supports many SRFIs, but not as many as it should.
+Some SRFIs are built into Larceny, but most must be loaded dynamically
+using Larceny's `require` procedure:
 
-It is useful to be able to add SRFI keys dynamically because many
-SRFIs are implementable in standard Scheme and can be provided by
-third parties. For example, the reference implementation for
-http://srfi.schemers.org/srfi-7[SRFI-7][5] will work "out of the box" if 
-loaded into Larceny, but programs cannot discover its presence until SRFI-0 
-has been made aware of its presence.
+----------------------------------------------------------------
+    > (require 'srfi-0)
+----------------------------------------------------------------
 
-Larceny 1.0a2 also provides the following nonstandard SRFI keys: 
+Larceny provides the following nonstandard SRFI keys for use in
+SRFI 0:
     
+----------------------------------------------------------------
+    larceny
+----------------------------------------------------------------
     
-        larceny
-        larceny-1.0a2
-        r5rs
-        r4rs
-    
-
-The previous release of Larceny did not provide any SRFI support. 
-
-proc:srfi0-add-key![args="key",result="unspecified"]
-
-Add the symbol _key_ to the list of keys recognized by the SRFI-0 implementation.
-
-proc:srfi0-keys[args="none",result="list"]
-
-Return a list of symbols naming the SRFIs that are currently supported.

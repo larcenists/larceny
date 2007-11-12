@@ -1,6 +1,13 @@
 Input, Output, and Files
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+The `(rnrs io ports)` and `(rnrs files)` libraries now
+provide a set of procedures that may supersede some
+of the procedures described below.
+If one of Larceny's procedures duplicates the semantics of
+an R6RS procedure whose name is different, then Larceny's
+name is deprecated.
+
 proc:close-open-files[args="none",result="unspecified"]
 
 Closes all open files.
@@ -34,6 +41,8 @@ signalled an error.
 
 See console-input-port for a full explanation.
 
+anchor:console-input-port-factory[]
+indexterm:[console-input-port-factory]
 _Parameter console-input-port-factory_     
 
 The value of this parameter is a procedure that returns a character
@@ -42,6 +51,8 @@ returned the end-of-file object.
 
 See console-input-port for a full explanation.
 
+anchor:console-output-port-factory[]
+indexterm:[console-output-port-factory]
 _Parameter console-output-port-factory_     
 
 The value of this parameter is a procedure that returns a character
@@ -49,10 +60,14 @@ output port s.t. no write the port has signalled an error.
 
 See console-input-port for a full explanation.
 
+anchor:current-input-port[]
+indexterm:[current-input-port]
 _Parameter current-input-port_     
 
 The value of this parameter is a character input port.
 
+anchor:current-output-port[]
+indexterm:[current-output-port]
 _Parameter current-output-port_     
 
 The value of this parameter is a character output port.

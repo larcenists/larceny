@@ -43,8 +43,9 @@
             (with-output-to-port (console-output-port)
               (lambda ()
                 (cond ((null? results)
-                       (display "; No values")
-                       (newline))
+                       ;(display "; No values")  ; FIXME: is this a good idea?
+                       ;(newline)
+                       (unspecified))
                       ((null? (cdr results))
                        (repl-display (car results)))
                       (else

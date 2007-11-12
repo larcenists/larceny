@@ -7,7 +7,7 @@ IEEE P1178 is IEEE Standard 1178-1990, "IEEE Standard for the Scheme Programming
 
 * * *
 
-_$Id: ieee-std.html 189 1998-12-08 20:39:01Z lth $_  
+_$Id$_  
 [larceny@ccs.neu.edu][1]  
 
 

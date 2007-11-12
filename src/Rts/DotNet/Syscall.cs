@@ -599,7 +599,7 @@ namespace Scheme.RT {
               v[0] = Factory.makeFixnum (0);
               break;
           case 13: // execmode
-              v[0] = Factory.makeFixnum (1); // err5rs
+              v[0] = Factory.makeFixnum (0); // r5rs is default
               break;
           case 14: // pedantic
               v[0] = Factory.makeFixnum (0);

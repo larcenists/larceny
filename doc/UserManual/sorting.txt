@@ -1,6 +1,12 @@
 Sorting
 ~~~~~~~
 
+The `(rnrs sorting)` library now
+provides a small set of procedures that supersede most
+of the procedures described below.
+All of the procedures described below are therefore
+deprecated.
+
 _Procedures sort and sort!_
 
 proctempl:sort[args="list less?",result="list"]

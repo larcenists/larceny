@@ -239,6 +239,7 @@
                   (not (number? exp))
                   (not (char? exp))
                   (not (string? exp))
+                  (not (bytevector? exp)) ; new in R6RS
 		  (not (procedure? exp))
 		  (not (eq? exp (unspecified))))
              (m-warn "Malformed constant -- should be quoted" exp))

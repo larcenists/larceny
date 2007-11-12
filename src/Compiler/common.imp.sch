@@ -378,6 +378,7 @@
 (list 'define-syntax name:CALL
       (list 'syntax-rules
             '   (r4rs r5rs larceny quote lambda
+                 boolean?
                  car cdr
                  vector-length vector-ref vector-set!
                  string-length string-ref string-set!
@@ -388,7 +389,7 @@
                  endianness big little
                  bytevector-u8-ref bytevector-u8-set!
                  = < > <= >= + * - /
-                 abs negative? positive?
+                 abs negative? positive? min max
                  fx=? fx<? fx>? fx<=? fx>=?
                  fxzero? fxpositive? fxnegative?
                  fxmin fxmax
@@ -425,6 +426,9 @@
       (.check! (not (.=:fix:fix #x0000d800 (logand #x00fff800 k))))
       (.integer->char:trusted k)))
    
+`  ((_ larceny boolean? (boolean? ?x))
+    (let ((x ?x)) (or (eq? x #t) (eq? x #f))))
+
 `  ((_ larceny car (car x0))
     (let ((x x0))
       (.check! (pair? x) ,$ex.car x)
@@ -671,6 +675,26 @@
 
 `  ((_ larceny positive? (positive? ?x))
     (> ?x 0))
+
+`  ((_ larceny min (min ?x ?y))
+    (let ((x ?x) (y ?y))
+      (let ((r (if (<= x y) x y)))
+        (if (or (inexact? x) (inexact? y))
+            (+ r 0.0)
+            r))))
+`  ((_ larceny min (min ?x ?y ?z ...))
+    (let ((x ?x) (y (min ?y ?z ...)))
+      (min x y)))
+
+`  ((_ larceny max (max ?x ?y))
+    (let ((x ?x) (y ?y))
+      (let ((r (if (>= x y) x y)))
+        (if (or (inexact? x) (inexact? y))
+            (+ r 0.0)
+            r))))
+`  ((_ larceny max (max ?x ?y ?z ...))
+    (let ((x ?x) (y (max ?y ?z ...)))
+      (max x y)))
 
    ; Special cases for two or three arguments.
 
@@ -1091,7 +1115,7 @@
             (ptr  (vector-like-ref p 2))           ; 2 = port.mainptr
             (lim  (vector-like-ref p 3)))          ; 3 = port.mainlim
         (cond ((and (eq? type 2)
-                    (fx< ptr lim))
+                    (.<:fix:fix ptr lim))
                (bytevector-ref buf ptr))
               (else
                (io/get-u8 p #t))))))
@@ -1104,9 +1128,11 @@
             (ptr  (vector-like-ref p 2))           ; 2 = port.mainptr
             (lim  (vector-like-ref p 3)))          ; 3 = port.mainlim
         (cond ((and (eq? type 2)
-                    (fx< ptr lim))
+                    (.<:fix:fix ptr lim))
                (let ((byte (bytevector-ref buf ptr)))
-                 (vector-like-set! p 2 (+ ptr 1))  ; 2 = port.mainptr
+                 (vector-like-set! p
+                                   2               ; 2 = port.mainptr
+                                   (.+:idx:idx ptr 1))
                  byte))
               (else
                (io/get-u8 p #f))))))
@@ -1123,8 +1149,8 @@
         (let ((unit (if (eq? type 3)               ; 3 = input, textual
                         (bytevector-ref buf ptr)   ; FIXME: should be trusted
                         255)))
-          (if (and (fx< 13 unit)                   ; 13 = #\return
-                   (fx< unit 128))
+          (if (and (.<:fix:fix 13 unit)            ; 13 = #\return
+                   (.<:fix:fix unit 128))
               (.integer->char:trusted unit)
               (io/get-char p #t))))))
 
@@ -1141,8 +1167,8 @@
                         (bytevector-ref buf ptr)   ; FIXME: should be trusted
                         255)))
 
-          (if (and (fx< 13 unit)                   ; 13 = #\return
-                   (fx< unit 128))                 ; 2 = port.mainptr
+          (if (and (.<:fix:fix 13 unit)            ; 13 = #\return
+                   (.<:fix:fix unit 128))          ; 2 = port.mainptr
 
               (begin (.vector-set!:trusted:nwb p 2 (.+:idx:idx ptr 1))
                      (.integer->char:trusted unit))
