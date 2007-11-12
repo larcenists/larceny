@@ -46,7 +46,7 @@ the expense of slower code, evaluate the expression
 ----------------------------------------------------------------
 
 For more information on compiler switches, see the
-section of this user manual devoted to ''Performance''.
+<<Performance,Performance section>> of this user manual.
 
 
 ERR5RS mode
@@ -379,6 +379,7 @@ Larceny's run-time system is compiled with full debugging
 information by default and a debugger like GDB should be able
 to provide at least some clues.
 
+[[Performance]]
 Performance
 ~~~~~~~~~~~
 
