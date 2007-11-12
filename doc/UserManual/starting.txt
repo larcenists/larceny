@@ -190,7 +190,7 @@ be used as an argument to larceny in future runs.
 
 * * *
 
-$Id: starting.html 434 1998-12-21 21:23:26Z will $  
+$Id$  
 [larceny@ccs.neu.edu][16]
 
    [1]: #summary:overall

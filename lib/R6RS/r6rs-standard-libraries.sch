@@ -1022,7 +1022,7 @@
 )
 
 
-(library (rnrs records syntactic)
+(library (rnrs records syntactic (6))
 
   ; FIXME: should this library define and export auxiliary keywords?
 

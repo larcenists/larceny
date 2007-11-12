@@ -13,7 +13,7 @@ Oblist returns the list of interned symbols.
 proc:oblist-set![args="list",result="unspecified"]
 proctempl:oblist-set![args="list table-size",result="unspecified"]
 
-Oblist-set! sets the list of interned symbols to those in the given
+`oblist-set!` sets the list of interned symbols to those in the given
 _list_ by clearing the symbol hash table and storing the symbols in
 _list_ in the hash table. If the optional _table-size_ is given, it is
 taken to be the desired size of the new symbol table.

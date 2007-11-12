@@ -1,6 +1,13 @@
 Input, Output, and Files
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+The `(rnrs io ports)` and `(rnrs files)` libraries now
+provide a set of procedures that may supersede some
+of the procedures described below.
+If one of Larceny's procedures duplicates the semantics of
+an R6RS procedure whose name is different, then Larceny's
+name is deprecated.
+
 proc:close-open-files[args="none",result="unspecified"]
 
 Closes all open files.

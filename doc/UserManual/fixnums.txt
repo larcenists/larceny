@@ -11,6 +11,13 @@ on fixnums can sometimes be substantially faster than generic
 operations, and the following primitives are provided for use in those
 programs that need especially good performance.
 
+The `(rnrs arithmetic fixnums)` library now
+provides a large set of procedures that, in Larceny, are
+defined using the procedures described below.
+If one of Larceny's procedures duplicates the semantics of
+an R6RS procedure whose name is different, then Larceny's
+name is deprecated.
+
 All arguments to the following procedures must be fixnums.
 
 proc:fixnum?[args="obj",result="boolean"]

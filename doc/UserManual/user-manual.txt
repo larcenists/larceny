@@ -39,58 +39,73 @@ http://larceny.ccs.neu.edu/trac/[Trac system].
 
 include::intro.txt[]
 
-ERR5RS/R6RS modes and extensions
---------------------------------
+include::running.txt[]
+
+include::naming.txt[]
+
+ERR5RS standard libraries
+-------------------------
+
+[FIXME]
+================================================================
+This chapter isn't written yet.
+================================================================
+
 
 include::r6rs.txt[]
 
-The library
------------
+Larceny libraries
+-----------------
+
+The procedures described in this chapter are nonstandard.
+Some are deprecated after being rendered obsolete by ERR5RS
+or R6RS standard libraries.
+Others still provide useful capabilities that the standard
+libraries don't.
+
+include::strings.txt[]
 
 include::bytevectors.txt[]
 
-include::debugging.txt[]
+include::vectors.txt[]
 
-include::fixnums.txt[]
+include::procedures.txt[]
 
-include::ffi.txt[]
+include::pairs_lists.txt[]
 
-include::hashtable.txt[]
+include::sorting.txt[]
+
+include::records.txt[]
 
 include::io.txt[]
 
 include::os.txt[]
 
+include::fixnums.txt[]
+
 include::numbers.txt[]
 
-include::pairs_lists.txt[]
+include::hashtable.txt[]
 
 include::parameters.txt[]
 
-include::procedures.txt[]
-
 include::proplist.txt[]
-
-include::records.txt[]
-
-include::sorting.txt[]
-
-include::srfi.txt[]
-
-include::strings.txt[]
 
 include::symbols.txt[]
 
 include::syscontrol.txt[]
 
-include::vectors.txt[]
+include::srfi.txt[]
 
-Using the development system
-----------------------------
+include::ffi.txt[]
+
+include::debugging.txt[]
 
 include::compiling.txt[]
 
+////////////////////////////////////////////////////////////////
 include::starting.txt[]
+////////////////////////////////////////////////////////////////
 
 Reference
 ---------

@@ -57,7 +57,7 @@ This index lists the procedures that are documented in this Manual. Procedures t
 
 * * *
 
-_$Id: procidx.html 1526 2000-09-22 21:27:03Z lth $_  
+_$Id$_  
 [larceny@ccs.neu.edu][1]  
 
 

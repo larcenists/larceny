@@ -155,6 +155,18 @@ it exists, is a subtype of _t._
 
 ==== Implementation
 
-Records are implemented on top of Larceny's
-<<SectionStructures,structure>> data type: a record is a structure
-whose first slot contains a record-type-descriptor object.
+Larceny's old-style records are implemented on top of Larceny's
+low-level structure data type.  In Larceny v0.95, R6RS records
+are implemented as an extension to old-style records, ERR5RS
+records are implemented on top of R6RS records, and the R6RS
+syntactic layer is implemented on top of ERR5RS records.
+
+In some future release, ERR5RS records will become the
+foundation of the implementation, with old-style and R6RS
+implemented on top of ERR5RS records.
+
+The R6RS spouts some tendentious nonsense about procedural
+records being slower than syntactic records, but this is not
+true of Larceny's records, and it will be even less true when
+ERR5RS procedural records become the foundation of the
+implementation.

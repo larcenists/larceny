@@ -15,13 +15,24 @@ proc:procedure-copy[args="procedure",result="procedure"]
 
 Returns a shallow copy of the procedure.
 
-* * *
+The procedures above are deprecated because they
+violate abstraction barriers and make your code
+representation-independent; they are useful mainly to
+Larceny developers, who might otherwise be tempted to
+write some low-level operations in C or assembly language.
 
-_ The rest of this section describes some procedures that extract
-heuristic information from procedures, for debugging purposes. The
+The rest of this section describes some procedures that
+reach through abstraction barriers in a more controlled way
+to extract heuristic information from procedures for debugging
+purposes.
+
+[NOTE]
+================================================================
+The following
 text is copied from a straw proposal authored by Will Clinger and sent
 to rrr-authors on 09 May 1996. The text has been edited lightly. See
-the end for notes about the Larceny implementation. _
+the end for notes about the Larceny implementation.
+================================================================
 
 The procedures that extract heuristic information from procedures are
 permitted to return any result whatsoever. If the type of a result is

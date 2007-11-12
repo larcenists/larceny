@@ -1,0 +1,29 @@
+Lexical syntax
+--------------
+
+Larceny is now case-sensitive by default.
+This is controlled by Larceny's `case-sensitive?` parameter,
+which is affected by the following flags:
+
+
+    #!r6rs
+    #!r5rs
+    #!err5rs
+    #!larceny
+    #!fold-case
+    #!no-fold-case
+
+
+For the detailed semantics of these flags, please consult
+the Larceny developers' web page that describes
+http://larceny.ccs.neu.edu/larceny-trac/wiki/LexicalConversion[Larceny's
+lexical syntax].
+
+Apart from case-sensitivity, Larceny extends both R5RS lexical
+syntax and the lexical syntax proposed by the
+http://www.r6rs.org/[R6RS].
+The R6RS does not permit extensions, however, so Larceny
+provides several mechanisms for turning its extensions on and
+off.
+For details, please consult the web page cited above.
+

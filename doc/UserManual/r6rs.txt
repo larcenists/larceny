@@ -1,198 +1,168 @@
-Larceny can be executed in any of four modes:
+R6RS standard libraries
+-----------------------
 
-    R5RS              traditional read/eval/print loop (the default)
-    ERR5RS            see doc/HOWTO-ERR5RS
-    R6RS              see doc/HOWTO-R6RS
-    Scheme script     see doc/HOWTO-SCRIPT
+This chapter explains which features of the R6RS standard
+libraries are available in each of Larceny's major modes
+of execution.
 
-The most up-to-date instructions for running Larceny
-in
-http://scheme-punks.org/wiki/index.php?title=Main_Page[ERR5RS],
-http://www.r6rs.org/[R6RS],
-or scheme-script modes can be found
-in the files indicated above.
-The most up-to-date documentation on the
-http://scheme-punks.org/wiki/index.php?title=Main_Page[ERR5RS]
-and
-http://www.r6rs.org/[R6RS]
-language standards can be found at their respective web sites.
+Larceny's implementation of the R6RS standard is
+approximately 100% complete, so any features that
+are missing from R6RS modes are missing because of
+a bug or because the features are deprecated in Larceny.
+The most up-to-date listing of Larceny's known deviations
+from the R6RS standard can be found at
+`http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode`
 
-Larceny's implementation of the ERR5RS and R6RS standards
-is approximately 100% complete.  The most up-to-date listing
-of Larceny's known deviations from those standards can be
-found at
-http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode
+Larceny is R6RS-compatible but not R6RS-conforming.
+When Larceny is said to support a feature of the R6RS,
+that means the feature is present and will behave as
+specified by the R6RS so long as no exception is raised.
+Larceny does not always raise the specific conditions
+specified by the R6RS, and does not perform all of the
+checking for portability problems that is mandated by
+the R6RS.  These deviations do not affect the execution
+of production code, and do not compromise Larceny's
+traditional safety.
 
-The rest of this chapter describes the ERR5RS/R6RS
-extensions that are available in Larceny's traditional
-http://www-swiss.ai.mit.edu/~jaffer/r5rs_toc.html[R5RS]
-mode of execution.
-
-When Larceny's R5RS mode is said to support an R6RS procedure,
-that means the procedure is present in Larceny's standard
-heap and will behave as specified by the R6RS so long
-as no exception is raised.
-
-Lexical syntax
-~~~~~~~~~~~~~~
-
-Larceny is now case-sensitive by default.
-This is controlled by Larceny's case-sensitive? parameter,
-which is affected by the following flags:
-
-
-    #!r6rs
-    #!r5rs
-    #!err5rs
-    #!larceny
-    #!fold-case
-    #!no-fold-case
-
-
-For the current semantics of these flags, please consult
-the Larceny developers' web page that describes
-http://larceny.ccs.neu.edu/larceny-trac/wiki/LexicalConversion[Larceny's
-lexical syntax].
-
-Apart from case-sensitivity, Larceny extends both R5RS lexical
-syntax and the lexical syntax proposed by the
-http://www.r6rs.org/[R6RS].
-The R6RS does not permit extensions, however, so Larceny
-provides several mechanisms for turning its extensions on and
-off.
-For details, please consult the web page cited above.
 
 Base library
 ~~~~~~~~~~~~
 
-Larceny's R5RS mode does not support library, import, or
-identifier-syntax.
+ERR5RS and R6RS modes support all procedures and syntaxes
+exported by `(rnrs base)`.
+Larceny's R5RS mode does not support `library`, `import`, or
+`identifier-syntax`.
 
-All of the other (rnrs base) syntaxes and procedures
-are present in Larceny, with the following known deviations
-from R6RS semantics.  These deviations should be fixed in
-a future release.
+The following deviations from R6RS semantics are known bugs
+that should be fixed in a future release.
 
 In Larceny v0.95, the imaginary part of an inexact real is
 inexact.  Some of the algebraic and transcendental functions
 do not yet behave as specified by the R6RS, especially with
 regard to branch cuts.
 
-The number->string and string->number procedures do not
+The `number->string` and `string->number` procedures do not
 yet support mantissa widths.
 
-In R5RS mode, Larceny's quasiquote does not support the
-generalizations and new requirements added by the R6RS.
-
-The semantics of let-syntax and letrec-syntax differ between
-the R5RS and the R6RS.  Larceny's R5RS mode still supports
-the R5RS semantics.
+The semantics of `quasiquote`, `let-syntax`, and `letrec-syntax`
+differ between the R5RS and the R6RS.  Larceny's R5RS mode still
+supports the R5RS semantics.
 
 Unicode
 ~~~~~~~
 
-Larceny supports all features of the (rnrs unicode) library.
+All of Larceny's modes support all features of the `(rnrs unicode)`
+library.
 
 [[BytevectorsLibrary]]
 Bytevectors
 ~~~~~~~~~~~
 
-Larceny supports all procedures of the (rnrs bytevectors)
-library except for the endianness syntax, which is
-deprecated even in ERR5RS/R6RS modes because it is
-redundant with quote.
+ERR5RS and R6RS modes support all procedures and syntaxes
+exported by `(rnrs bytevectors)`, but the `endianness`
+syntax is deprecated because it is redundant with `quote`.
+Larceny's R5RS mode does not support `endianness`.
 
 In Larceny, any symbol names a supported endianness.
-The symbols big and little have their expected meanings.
-All other symbols mean (native-endianness) with respect
+The symbols `big` and `little` have their expected meanings.
+All other symbols mean `(native-endianness)` with respect
 to integer operations, but mean the opposite of
-(native-endianness) with respect to IEEE-754 operations.
+`(native-endianness)` with respect to IEEE-754 operations.
 For string operations, the endianness must be the symbol
-big or the symbol little.  All of these extensions are
-permitted by the current draft R6RS.
+`big` or the symbol `little`.  All of these extensions are
+permitted by the R6RS standard.
 
 Lists
 ~~~~~
 
-Larceny supports all procedures of the (rnrs lists)
-library.
+All of Larceny's modes support all features of the
+`(rnrs lists)` library.
 
 Sorting
 ~~~~~~~
 
-Larceny supports all procedures of the (rnrs sorting)
-library.
+All of Larceny's modes support all features of the
+`(rnrs sorting)` library.
 
 Control
 ~~~~~~~
 
-Larceny supports all four syntaxes of the (rnrs control)
-library.
+All of Larceny's modes support all features of the
+`(rnrs control)` library.
 
 Records
 ~~~~~~~
 
-Larceny's R5RS mode does not support the syntax of
-(rnrs records syntactic), which is deprecated even in
-ERR5RS/R6RS modes because it is gratuitously incompatible
-with the procedural and inspection layers of R6RS records.
+ERR5RS and R6RS modes support all procedures and syntaxes
+exported by
+`(rnrs records procedural)`,
+`(rnrs records inspection)`, and
+`(rnrs records syntactic)`,
+but all three of those libraries are deprecated because
+the `make-record-constructor-descriptor` procedure does
+not simplify unusually complex cases enough to justify
+the complexity it adds to typical cases, and because
+the entire syntactic layer is gratuitously incompatible
+with the procedural layer.
 
-Although Larceny's R5RS mode provides all procedures of
-the (rnrs records procedural) and (rnrs records inspection)
-libraries, the make-record-constructor-descriptor procedure
-is deprecated because the simplification it provides for
-unusually complex cases does not justify the complexity
-it adds to typical cases.
+Larceny's R5RS mode supports all features of the deprecated
+`(rnrs records procedural)` and `(rnrs records inspection)`
+libraries.  R5RS mode does not support `(rnrs records syntactic)`.
 
-Larceny's R5RS mode provides all procedures of the
-(err5rs records procedural) and (err5rs records inspection)
-libraries.  We recommend these procedures be used instead
-of the corresponding R6RS procedures.
-
-To define records syntactically, we recommend SRFI 9,
+All of Larceny's modes support all features of the
+`(err5rs records procedural)` and `(err5rs records inspection)`
+libraries.  ERR5RS and R6RS modes also support the
+`(err5rs records syntactic)` library.
+R5RS mode supports SRFI 9 via `require`,
 which provides a proper subset of the syntax provided
-by the (err5rs records syntactic) library.
+by the `(err5rs records syntactic)` library.
+We recommend these ERR5RS libraries be used instead
+of the corresponding R6RS libraries.
 
-WARNING:  Larceny continues to support its old-style
+[WARNING]
+================================================================
+Larceny continues to support its old-style
 records, which are almost but not quite compatible
 with ERR5RS and R6RS records.  This can be confusing,
 since some of Larceny's procedures have the same names
-as R6RS procedures.  That made it necessary to overload
+as R6RS procedures.  That has made it necessary to overload
 those procedures to work with both old-style and R6RS
 records.  We apologize for the mess.
+================================================================
 
 
 Exceptions and conditions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Larceny's R5RS mode provides all procedures and conditions
-exported by the (rnrs exceptions) and (rnrs conditions)
-libraries.  It does not provide any of the syntax exported
-by those libraries.
+All of Larceny's modes support all features of the
+`(rnrs exceptions)` and `(rnrs conditions)` libraries.
 
 
 Input and output
 ~~~~~~~~~~~~~~~~
 
-Larceny's R5RS mode provides all procedures and conditions
-exported by the (rnrs io ports), (rnrs io simple), and
-(rnrs files) libraries.
+ERR5RS and R6RS modes support all names exported by the
+`(rnrs io ports)`, `(rnrs io simple)`, and
+`(rnrs files)` libraries.
+The `buffer-mode`, `eol-style`, and `error-handling-mode`
+syntaxes, which are deprecated because they are redundant
+with `quote`, may be provided in the form of procedures
+rather than syntax, but this deviation from R6RS semantics
+cannot be detected by portable R6RS programs.
+Larceny's R5RS mode supports all non-deprecated features
+of those libraries.
 
-Larceny's R5RS mode does not provide the buffer-mode,
-eol-style, and error-handling-mode syntaxes because
-they are redundant with quote.
-
-Larceny supports four distinct buffer modes: none,
-line, datum, and block.  The draft R6RS requires the
-buffer-mode syntax to raise an exception for the
-datum buffer mode, which is the buffer mode Larceny
+Larceny supports four distinct buffer modes: `none`,
+`line`, `datum`, and `block`.  The draft R6RS requires
+the `buffer-mode` syntax to raise an exception for the
+`datum` buffer mode, which is the buffer mode Larceny
 uses for interactive output ports.
 
 In Larceny, any symbol names a supported end-of-line
 style.  All end-of-line and error-handling-mode symbols
 whose meanings are not described by the R6RS have
 locale-dependent meanings, which is an extension
-permitted by the current draft R6RS.
+permitted by the R6RS standard.
 
 Although Larceny supports the UTF-16 codec, it is not
 really useful on Windows machines (where it should be
@@ -203,79 +173,103 @@ future version of Larceny.
 
 The most up-to-date list of known deviations from R6RS
 io semantics can be found at
-http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode
+`http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode`
 
 
-Exit
-~~~~
+Programs
+~~~~~~~~
 
-Larceny's R5RS mode provides the exit procedure but
-not the command-line procedure of (rnrs programs).
+ERR5RS and R6RS modes support the `(rnrs programs)` library.
+Larceny's R5RS mode provides the `exit` procedure but
+not the `command-line` procedure of that library.
 
-Larceny's traditional command-line-arguments procedure
-can be used to implement an approximation to command-line.
-See lib/R6RS/r6rs-standard-libraries.sch for a definition.
+Larceny's traditional `command-line-arguments` procedure
+can be used to implement an approximation to `command-line`.
+See `lib/R6RS/r6rs-standard-libraries.sch` for a definition.
+
+[WARNING]
+================================================================
+Larceny v0.95 has two bugs in its definition of `command-line`;
+in addition, the `scheme-script` of v0.95 does not pass the
+command-line arguments to the Scheme script.  These bugs will
+be fixed in the next release.
+================================================================
 
 
 Arithmetic
 ~~~~~~~~~~
 
-Larceny's R5RS mode provides all of the procedures
-exported by the (rnrs arithmetic fixnums),
-(rnrs arithmetic flonums), and (rnrs arithmetic bitwise)
+All of Larceny's modes support all features of the
+`(rnrs arithmetic fixnums)`,
+`(rnrs arithmetic flonums)`, and
+`(rnrs arithmetic bitwise)`
 libraries.
+
+[NOTE]
+================================================================
+R6RS fixnum and flonum operations may be slower than the
+corresponding generic operations, since the fixnum and flonum
+operations are required to check their arguments and may also
+have to check their results.
+================================================================
 
 
 Syntax-case
 ~~~~~~~~~~~
 
-Larceny's R5RS mode does not support syntax-case.
+ERR5RS and R6RS modes support the `(rnrs syntax-case)` library.
+Larceny's R5RS mode does not.
 
 
 Hashtables
 ~~~~~~~~~~
 
-Larceny's R5RS mode provides all of the procedures exported by
-(rnrs hashtables), but renames the make-hashtable procedure
-to make-r6rs-hashtable so it won't clash with Larceny's
-traditional make-hashtable procedure, which has itself been
-renamed to make-oldstyle-hashtable.
+ERR5RS and R6RS modes support the `(rnrs hashtables)` library.
 
-In Larceny v0.95, make-hashtable delegates to
-make-oldstyle-hashtable after printing a warning
+Larceny's R5RS mode provides all of the procedures exported by
+`(rnrs hashtables)`, but renames the `make-hashtable` procedure
+to `make-r6rs-hashtable` so it won't clash with Larceny's
+traditional `make-hashtable` procedure, which has itself been
+renamed to `make-oldstyle-hashtable`.
+
+In Larceny v0.95, `make-hashtable` delegates to
+`make-oldstyle-hashtable` after printing a warning
 that describes what it is doing.
-In future versions of Larceny, make-hashtable will
-delegate to make-r6rs-hashtable after printing a
+In future versions of Larceny, `make-hashtable` will
+delegate to `make-r6rs-hashtable` after printing a
 warning that describes what it is doing.
 
 
 Enumeration sets
 ~~~~~~~~~~~~~~~~
 
+ERR5RS and R6RS modes support the `(rnrs enums)` library.
 Larceny's R5RS mode provides all of the procedures exported by
-(rnrs enums) but does not provide the define-enumeration
+`(rnrs enums)` but does not provide the `define-enumeration`
 syntax.
 
 
 Eval
 ~~~~
 
+ERR5RS and R6RS modes are believed to support the `(rnrs eval)`
+library, but the `environment` procedure has not been tested.
 Larceny's R5RS mode provides an R5RS-compatible eval procedure,
 not an R6RS-compatible eval procedure, and does not provide the
-environment procedure of (rnrs eval).
+`environment` procedure.
 
 
 Mutable pairs and strings
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Larceny's R5RS mode provides the procedures exported by
-(rnrs mutable-pairs) and (rnrs mutable-strings).
+All of Larceny's modes support all features of the
+`(rnrs mutable-pairs)` and `(rnrs mutable-strings)` libraries.
 
 
 R5RS
 ~~~~
 
-Larceny's R5RS mode provides all of the procedures and syntax
-exported by (rnrs r5rs).
+All of Larceny's modes support all features of the
+`(rnrs r5rs)` library.
 
 
