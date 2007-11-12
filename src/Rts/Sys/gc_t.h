@@ -44,6 +44,13 @@ struct gc {
        or NULL.  Entry 0 in the array is unused.
        */
 
+  seqbuf_t **ssb;
+    /* XXX 
+       Temporary field; shifting SSB out of remset and into this structure.
+       Still maintaining an SSB for each gno, but that will hopefully be
+       easy to remove after this restructuring transformation is done.
+       */
+
   int ephemeral_area_count;
     /* The number of entries in the ephemeral_area table.
        */

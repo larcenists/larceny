@@ -32,6 +32,8 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
   seqbuf_t *ssb;
   seqbuf_data_t *ssb_data;
   word *buf;
+
+  if (num_entries == 0) num_entries = DEFAULT_SSB_SIZE;
   
   ssb = (seqbuf_t*)must_malloc( sizeof( seqbuf_t ) );
   ssb_data = (seqbuf_data_t*)must_malloc( sizeof( seqbuf_data_t ) );

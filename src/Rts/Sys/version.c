@@ -69,7 +69,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 95;
-char *larceny_version_qualifier = "1 \"First Safety\"";
+char *larceny_version_qualifier = "1 \"(refactorgc branch)\"";
 
 char *date = DATE " " TIME;
 char *user = USER;

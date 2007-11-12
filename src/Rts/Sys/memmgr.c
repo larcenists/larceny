@@ -353,6 +353,7 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
   return sh_allocate( gc->static_area, nbytes );
 }
 
+#if DOF_COLLECTOR
 /* Shuffle remembered sets
    Shuffle SSB pointer table entries
    Shuffle the pointers in the remsets to the ssb pointer tables
@@ -390,6 +391,7 @@ static void permute_remembered_sets( gc_t *gc, int permutation[] )
     r->ssb->lim = data->ssb_lim + j;
   }
 }
+#endif
 
 static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 {
@@ -562,13 +564,20 @@ enumerate_remsets_older_than( gc_t *gc,
 
   if (!DATA(gc)->is_generational_system) return;
 
+  /* Clear the SSBs for the regions being collected. */
+  for ( i = 1 ; i < generation+1 ; i++ ) {
+    *gc->ssb[i]->top = *gc->ssb[i]->bot;
+  }
+  /* Add elements from the SSBs for regions outside collection set. */
   for ( i = generation+1 ; i < DATA(gc)->generations ; i++ ) {
-    process_seqbuf( gc, gc->remset[i]->ssb );
+    process_seqbuf( gc, gc->ssb[i] );
+  }
+  for ( i = generation+1 ; i < DATA(gc)->generations ; i++ ) {
     rs_enumerate( gc->remset[i], f, fdata );
   }
 
   if (enumerate_np_young) {
-    process_seqbuf( gc, gc->remset[ gc->np_remset ]->ssb );
+    process_seqbuf( gc, gc->ssb[ gc->np_remset ] );
     rs_enumerate( gc->remset[ gc->np_remset ], f, fdata );
   }
 }
@@ -680,14 +689,8 @@ static int compact_all_ssbs( gc_t *gc )
 
   overflowed = 0;
   for ( i=1 ; i < gc->remset_count ; i++ )
-    overflowed = process_seqbuf( gc, gc->remset[i]->ssb ) || overflowed;
+    overflowed = process_seqbuf( gc, gc->ssb[i] ) || overflowed;
   return overflowed;
-}
-
-static void compact_np_ssb( gc_t *gc )
-{
-  if (gc->np_remset != -1)
-    rs_compact_nocheck( gc->remset[gc->np_remset] );
 }
 
 static void np_remset_ptrs( gc_t *gc, word ***ssbtop, word ***ssblim )
@@ -845,6 +848,11 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
   return (info->use_static_area ? 2 : 1);
 }
 
+static int ssb_process( gc_t *gc, word *bot, word *top, void *ep_data ) {
+  remset_t **remset = gc->remset;
+  return rs_add_elems( remset, bot, top );
+}
+
 static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 256 ], buf2[ 100 ];
@@ -953,16 +961,22 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   data->ssb_top = (word**)must_malloc( sizeof( word* )*gc->remset_count );
   data->ssb_lim = (word**)must_malloc( sizeof( word* )*gc->remset_count );
   gc->remset = (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
+  gc->ssb = (seqbuf_t**)must_malloc( sizeof( seqbuf_t* )*gc->remset_count );
 
   data->ssb_bot[0] = 0;
   data->ssb_top[0] = 0;
   data->ssb_lim[0] = 0;
 
   gc->remset[0] = (void*)0xDEADBEEF;
-  for ( i = 1 ; i < gc->remset_count ; i++ )
+  gc->ssb[0]    = (void*)0xDEADBEEF;
+  for ( i = 1 ; i < gc->remset_count ; i++ ) {
     gc->remset[i] =
-      create_remset( info->rhash, 0, info->ssb,
-		     &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i] );
+      create_remset( info->rhash, 0 );
+    gc->ssb[i] =
+      create_seqbuf( info->ssb, 
+		     &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i], 
+		     ssb_process, 0 );       
+  }
 
   if (info->use_non_predictive_collector)
     gc->np_remset = gc->remset_count - 1;
@@ -1004,7 +1018,11 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 #else
 		 collect,
 #endif
+#if DOF_COLLECTOR
 		 permute_remembered_sets,
+#else
+		 0,
+#endif
 		 set_policy,
 		 data_load_area,
 		 text_load_area,
@@ -1017,7 +1035,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 #if defined(SIMULATE_NEW_BARRIER)
 		 isremembered,
 #endif
-		 compact_np_ssb,
+		 0,
 		 np_remset_ptrs,
 		 0,		/* load_heap */
 		 dump_image,

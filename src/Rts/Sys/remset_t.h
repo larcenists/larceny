@@ -33,19 +33,12 @@ struct remset {
        last time the set was cleared.
        */
 
-  /* For the write barrier. */
-  seqbuf_t *ssb;
-
   void *data;			/* Implementation's data */
 };
 
 remset_t *
 create_remset( int tbl_ent,	   /* Number of entries in hash table */
-	       int pool_ent,       /* Number of entries in initial node pool */
-	       int ssb_ent,        /* Number of entries in SSB */
-	       word **ssb_bot_loc, /* Location of pointer to start of SSB */
-	       word **ssb_top_loc, /* Location of pointer to next free of SSB*/
-	       word **ssb_lim_loc  /* Location of pointer past end of SSB */
+	       int pool_ent        /* Number of entries in initial node pool */
 	       );
   /* Create a remembered set and return a pointer to it.
 
@@ -66,10 +59,6 @@ create_remset( int tbl_ent,	   /* Number of entries in hash table */
 remset_t *
 create_labelled_remset( int tbl_ent,
 			int pool_ent,
-			int ssb_ent,
-			word **ssb_bot_loc,
-			word **ssb_top_loc,
-			word **ssb_lim_loc,
 			int major_id,
 			int minor_id );
   /* Exactly like create_remset except that the given major and minor ID
@@ -80,12 +69,20 @@ void rs_clear( remset_t *remset );
   /* Clears the remembered set.
      */
 
-bool rs_add_elems( remset_t **remset, seqbuf_t *ssb );
-  /* Copies the elements of ssb into remset.  Clears ssb.
-     Every element in ssb is subject to a collision check.
+bool rs_add_elem( remset_t *rs, word w );
+  /* Copies w into the remset.rs.
+     w is subject to a collision check.
 
      Returns TRUE if the remset overflowed during the addition.
-     */  
+     */
+
+bool rs_add_elems( remset_t **remset, word *bot, word *top );
+  /* Copies the elements in the buffer [bot,top) into remset[i],
+     where i is the gno for each element.
+     Every element in the buffer is subject to a collision check.
+
+     Returns TRUE if the remset overflowed during the addition.
+     */
 
 bool rs_compact( remset_t *remset );
   /* Moves the contents of the set's SSB into the set and clears the SSB.
