@@ -31,7 +31,7 @@ SETUP_ARGS="'exit-on-error 'quiet-load 'always-source"
 
 WARNINGNUM=1
 # SVNTRUNK="http://larceny.ccs.neu.edu/svn/trunk/larceny_src"
-SVNTRUNK="http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src"
+SVNTRUNK=${SVNTRUNK:-"http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src"}
 
 FINAL_LARCENY_SCRIPT=larceny
 FIXPATH_CMD=echo
