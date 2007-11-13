@@ -13,6 +13,10 @@
 gdb=false
 gdb_command_file=/tmp/gdb-larceny.gdb-commands
 
+# rtopts variable is to control GC options via program name dispatch
+# (see larceny-np case below)
+rtopts=""
+
 if [ -z "$LARCENY_ROOT" ]; then
     # To guess LARCENY_ROOT, we start with the directory containing this
     # script.  If it's a relative path, we make it absolute.  Then, if it ends
@@ -65,6 +69,12 @@ case "`basename "$0"`" in
 	gdb=true
     ;;
 
+    larceny-np)         #option
+	heap=larceny.heap
+	cmd=larceny.bin
+	rtopts="-np"
+    ;;
+
     *)
         exec 1>&2
         echo "Usage:"
@@ -77,9 +87,9 @@ cmd="$LARCENY_ROOT/$cmd"
 heap="$LARCENY_ROOT/$heap"
 
 if $gdb ; then
-    echo "r -heap $heap $@" > $gdb_command_file
+    echo "r $rtopts -heap $heap $@" > $gdb_command_file
     exec "gdb" "$cmd" -command "$gdb_command_file"
 else
-    exec "$cmd" -heap "$heap" "$@"
+    exec "$cmd" $rtopts -heap "$heap" "$@"
 fi
 
