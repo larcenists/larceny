@@ -161,6 +161,12 @@ int rs_size( remset_t *rs )
           + data->tbl_lim - data->tbl_bot ) * sizeof(word);
 }
 
+/* Perform a consistency check and print some statistics.  Useful mainly
+   when called from an interactive debugger.  If gen_no >= 0 then a
+   check will be performed that every entry in the set points to a
+   heap page with that generation number, and that it points to
+   an apparently valid object.
+*/
 void rs_consistency_check( remset_t *rs, int gen_no )
 {
   word *p, *q, *t, obj;
