@@ -34,6 +34,7 @@ WARNINGNUM=1
 SVNTRUNK=${SVNTRUNK:-"http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src"}
 
 FINAL_LARCENY_SCRIPT=larceny
+FINAL_LARCENY_ROF_SCRIPT=larceny-np # (only for autobuilds)
 FIXPATH_CMD=echo
 FINAL_LARCENY_BIN=larceny.bin
 FINAL_TWOBIT_BIN=larceny.bin
@@ -205,6 +206,7 @@ case "`basename "$0"`" in
 	FINAL_LARCENY_BIN=larceny.bin.exe
 	FINAL_TWOBIT_BIN=larceny.bin.exe
 	FINAL_LARCENY_SCRIPT=larceny.bat
+	FINAL_LARCENY_ROF_SCRIPT=larceny-np.bat
 	FIXPATH_CMD="cygpath -w"
 	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
 	DIRNAME=default
@@ -357,6 +359,7 @@ function dart_post_test {
     dartlog '</Measurement>'
 }
 
+# usage: library_test TESTFILE TESTTYPE
 function library_test {
     dartlog '<Test>'
     dartlog '<Name>'.Test.Lib.$1.$2'</Name>'
@@ -406,6 +409,7 @@ library_test record     record
 library_test condition  condition
 library_test enum       enumset
 
+# usage: compiler_tests SWITCHES
 function compiler_tests {
     dartlog '<Test>'
     dartlog '<Name>'.Test.Compiler.$1'</Name>'
@@ -441,14 +445,21 @@ compiler_tests sanity-switches
 
 # Benchmarks
 pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
-LARCENY=`pwd`/../../../${FINAL_LARCENY_SCRIPT} ./bench -r 3 larceny all > ${TEMPLOG} 2>&1
+
+# usage: run_benchmarks SCRIPTNAME RNRS
+function run_benchmarks {
+LARCENY=`pwd`/../../../$1 ./bench -r 3 -s $2 larceny all > ${TEMPLOG} 2>&1
+}
+
+# usage: process_benchmarks SCRIPTNAME RNRS
+function process_benchmarks {
 cat > ${TEMPSCM} <<EOF
 (error-handler (lambda l (display l) (newline) (exit 117)))
 (load "summarize.sch")
 (let ((os (open-output-string)))
     (with-output-to-port os
       (lambda () 
-	((summarize larceny-results) "results.Larceny-r5rs")))
+	((summarize larceny-results) "results.Larceny-$2")))
     (let* ((str (get-output-string os))
 	   (is (open-input-string str))
 	   (decoded (decode-summary is))
@@ -461,7 +472,7 @@ cat > ${TEMPSCM} <<EOF
        (lambda (line)
          (cond ((eq? (list-ref line 1) 'Error:)
                 (let ((name (list-ref line 0)))
-                  (format #t "<Test><Name>.DynamicAnalysis.~s.~s</Name>" name name)
+                  (format #t "<Test><Name>.DynamicAnalysis.~a.~a.~s</Name>" "$2" "$1" name)
                   (format #t "<Status>failed</Status>")
                   (newline)
                   (format #t "<Measurement name=\"Output\" type=\"text/text\">~a ~a</Measurement>"
@@ -475,7 +486,7 @@ cat > ${TEMPSCM} <<EOF
                         (real (list-ref line 2))
                         (gc   (list-ref line 3))
                         (numt "numeric/integer"))
-                    (format #t "<Test><Name>.DynamicAnalysis.~s.~s</Name>" name name)
+                    (format #t "<Test><Name>.DynamicAnalysis.~a.~a.~s</Name>" "$2" "$1" name)
                     (format #t "<Status>passed</Status>")
                     (newline)
                     (format-measurement "Execution Time" "numeric/float" 
@@ -489,10 +500,27 @@ cat > ${TEMPSCM} <<EOF
        lines)))
 (exit)
 EOF
+# This is not benchmarked, so use standard name rather than parameter $1
 ../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${DARTLOG}
 
-cat results.Larceny-r5rs >> Results/results.Larceny
-rm results.Larceny-r5rs
+cat results.Larceny-$2 >> Results/results.Larceny
+rm results.Larceny-$2
+}
+
+# usage: run_and_process_benchmarks SCRIPTNAME RNRS
+function run_and_process_benchmarks {
+    run_benchmarks     $1 $2
+    process_benchmarks $1 $2
+}
+
+# Create the script that will use the ROF collector. 
+# (This is really only for autobuild purposes.)
+cp ../../../${FINAL_LARCENY_SCRIPT} ../../../${FINAL_LARCENY_ROF_SCRIPT}
+
+run_and_process_benchmarks ${FINAL_LARCENY_SCRIPT}     r5rs
+run_and_process_benchmarks ${FINAL_LARCENY_SCRIPT}     r6rs
+run_and_process_benchmarks ${FINAL_LARCENY_ROF_SCRIPT} r6rs
+
 popd > /dev/null
 
 dartlog '</DartSubmission>'
