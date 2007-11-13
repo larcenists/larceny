@@ -302,13 +302,6 @@ bool rs_add_elems( remset_t **remset, word *bot, word *top )
     if (!w) 
       continue;                /* Remove the entry! */
     gno = gen_of(w);
-    if (!( gno >= 0 )) {
-      printf( "w: 0x%08x gno: %d q: 0x%08x bot: 0x%08x top: 0x%08x\n",
-	      w, gno, q, bot, top );
-      assert( bot <= q  );
-      assert( q   < top );
-      assert( gno >= 0  );
-    }
     rs = remset[gno];
     overflowed |= rs_add_elem( rs, w );
   }
