@@ -44,7 +44,7 @@ below.
 
 proc:procedure-arity[args="proc"]
 
-Returns information about the arity of _proc_. If the result is #F,
+Returns information about the arity of _proc_. If the result is `#f`,
 then no information is available. If the result is an exact
 non-negative integer _k_, then _proc_ requires exactly _k_
 arguments. If the result is an inexact non-negative integer _n_, then
@@ -55,13 +55,13 @@ necessarily exhaustive.
 
 proc:procedure-documentation-string[args="proc"]
 
-Returns general information about _proc_. If the result is #F, then no
+Returns general information about _proc_. If the result is `#f`, then no
 information is available. If the result is a string, then it is to be
 interpreted as a "documentation string" (see Common Lisp).
 
 proc:procedure-name[args="proc"]
 
-Returns information about the name of _proc_. If the result is #F,
+Returns information about the name of _proc_. If the result is `#f`,
 then no information is available. If the result is a symbol or string,
 then it represents a name. If the result is a pair, then it is a list
 of symbols and/or strings representing a path of names; the first
@@ -71,7 +71,7 @@ inner name.
 proc:procedure-source-file[args="proc"]
 
 Returns information about the name of a file that contains the source
-code for _proc_. If the result is #F, then no information is
+code for _proc_. If the result is `#f`, then no information is
 available. If the result is a string, then the string is the name of a
 file.
 
@@ -79,23 +79,23 @@ proc:procedure-source-position[args="proc"]
 
 Returns information about the position of the source code for _proc_
 whithin the source file specified by procedure-source-file. If the
-result is #F, then no information is available. If the result is an
+result is `#f`, then no information is available. If the result is an
 exact integer _k_, then _k_ characters precede the opening parenthesis
 of the source code for _proc_ within that source file.
 
 proc:procedure-expression[args="proc"]
 
 Returns information about the source code for _proc_. If the result is
-#F, then no information is available. If the result is a pair, then it
+`#f`, then no information is available. If the result is a pair, then it
 is a lambda expression in the traditional representation of a list.
 
 proc:procedure-environment[args="proc"]
 
 Returns information about the environment of _proc_. If the result is
-#F, then no information is available. In any case the result may be
+`#f`, then no information is available. In any case the result may be
 passed to any of the <<SectionEnvironments,environment inquiry functions>>.
 
 **Notes on the Larceny implementation**
 
 Twobit does not yet produce data for all of these functions, so some
-of them always return #f.
+of them always return `#f`.

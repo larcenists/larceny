@@ -10,8 +10,9 @@ approximately 100% complete, so any features that
 are missing from R6RS modes are missing because of
 a bug or because the features are deprecated in Larceny.
 The most up-to-date listing of Larceny's known deviations
-from the R6RS standard can be found at
-`http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode`
+from the R6RS standard can be found on the web page
+that describes the current status of
+http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode[Larceny's R6RS-compatible mode].
 
 Larceny is R6RS-compatible but not R6RS-conforming.
 When Larceny is said to support a feature of the R6RS,
@@ -29,7 +30,7 @@ Base library
 ~~~~~~~~~~~~
 
 ERR5RS and R6RS modes support all procedures and syntaxes
-exported by `(rnrs base)`.
+exported by the `(rnrs base)` library.
 Larceny's R5RS mode does not support `library`, `import`, or
 `identifier-syntax`.
 
@@ -97,8 +98,8 @@ ERR5RS and R6RS modes support all procedures and syntaxes
 exported by
 `(rnrs records procedural)`,
 `(rnrs records inspection)`, and
-`(rnrs records syntactic)`,
-but all three of those libraries are deprecated because
+`(rnrs records syntactic)`.
+Those libraries are deprecated, however, because
 the `make-record-constructor-descriptor` procedure does
 not simplify unusually complex cases enough to justify
 the complexity it adds to typical cases, and because
@@ -113,10 +114,17 @@ All of Larceny's modes support all features of the
 `(err5rs records procedural)` and `(err5rs records inspection)`
 libraries.  ERR5RS and R6RS modes also support the
 `(err5rs records syntactic)` library.
-R5RS mode supports SRFI 9 via `require`,
-which provides a proper subset of the syntax provided
-by the `(err5rs records syntactic)` library.
-We recommend these ERR5RS libraries be used instead
+
+The record definition syntax of SRFI 9 is a proper subset
+of the syntax provided by the `(err5rs records syntactic)`
+library.  In R5RS mode, SRFI 9 can be loaded dynamically
+using the `require` procedure:
+
+----------------------------------------------------------------
+    > (require 'srfi-9)
+----------------------------------------------------------------
+
+We recommend the ERR5RS and/or SRFI 9 libraries be used instead
 of the corresponding R6RS libraries.
 
 [WARNING]
@@ -172,8 +180,9 @@ Windows.  This problem should be addressed in some
 future version of Larceny.
 
 The most up-to-date list of known deviations from R6RS
-io semantics can be found at
-`http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode`
+io semantics can be found on the web page
+that describes the current status of
+http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode[Larceny's R6RS-compatible mode].
 
 
 Programs
@@ -185,7 +194,7 @@ not the `command-line` procedure of that library.
 
 Larceny's traditional `command-line-arguments` procedure
 can be used to implement an approximation to `command-line`.
-See `lib/R6RS/r6rs-standard-libraries.sch` for a definition.
+For a definition, see `lib/R6RS/r6rs-standard-libraries.sch`.
 
 [WARNING]
 ================================================================
@@ -211,6 +220,10 @@ R6RS fixnum and flonum operations may be slower than the
 corresponding generic operations, since the fixnum and flonum
 operations are required to check their arguments and may also
 have to check their results.
+Isolated operations in small micro-benchmarks are likely to
+be slower than groups of similar operations in larger programs,
+because the Twobit compiler removes redundant checks and
+propagates type information.
 ================================================================
 
 

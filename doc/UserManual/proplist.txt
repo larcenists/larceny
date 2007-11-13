@@ -15,7 +15,7 @@ _symbol_ that associates _property_ with _obj_.
 proc:getprop[args="symbol property",result="obj"]
 
 If an association exists for _property_ on the property list of
-_symbol_, then its value is returned. Otherwise, #f is returned.
+_symbol_, then its value is returned. Otherwise, `#f` is returned.
 
 proc:remprop[args="symbol property",result="unspecified"]
 

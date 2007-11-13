@@ -4,7 +4,7 @@ SRFI Support
 The SRFIs (Scheme Requests For Implementations) is an Internet-based
 collection of Scheme code designed and provided by Scheme
 programmers. The SRFI effort is open to anyone, and is described at
-http://srfi.schemers.org[]
+http://srfi.schemers.org[].
 
 The fundamental SRFI is SRFI-0, "Feature-based conditional expansion
 construct", which allows a program to query the underlying

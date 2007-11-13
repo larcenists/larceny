@@ -26,8 +26,8 @@ The R5RS, R6RS, and ERR5RS standards are available online:
 This manual describes aspects of Larceny that are not described
 by the IEEE standard, the Revised Reports, or ERR5RS.
 For the most current version of this manual, please
-visit Larceny's main web page at
-http://larceny.ccs.neu.edu/doc.
+visit
+http://larceny.ccs.neu.edu/doc[Larceny's main web page].
 That page also links to the Common Larceny User
 Manual and to the Larceny mailing list.
 
@@ -46,9 +46,9 @@ include::naming.txt[]
 ERR5RS standard libraries
 -------------------------
 
-[FIXME]
+[NOTE]
 ================================================================
-This chapter isn't written yet.
+FIXME: This chapter isn't written yet.
 ================================================================
 
 

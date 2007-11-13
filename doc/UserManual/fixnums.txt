@@ -2,9 +2,9 @@
 Fixnum primitives
 ~~~~~~~~~~~~~~~~~
 
-Fixnums are small exact integers that can be represented without heap
-allocation (see <<LarcenyNoteRepr,this note>> for more
-information). Larceny never represents a number that can be
+Fixnums are small exact integers that are likely to be
+represented without heap
+allocation. Larceny never represents a number that can be
 represented as a fixnum any other way, so programs that can use
 fixnums will do so automatically. However, operations that work only
 on fixnums can sometimes be substantially faster than generic
@@ -22,7 +22,7 @@ All arguments to the following procedures must be fixnums.
 
 proc:fixnum?[args="obj",result="boolean"]
 
-Returns #t if its argument is a fixnum, and #f otherwise.
+Returns `#t` if its argument is a fixnum, and `#f` otherwise.
 
 proc:fx+[args="fix1 fix2",result="fixnum"]
 
@@ -47,37 +47,37 @@ representable as a fixnum, then an error is signalled.
 
 proc:fx=[args="fix1 fix2",result="boolean"]
 
-Returns #t if its arguments are equal, and #f otherwise.
+Returns `#t` if its arguments are equal, and `#f` otherwise.
 
 proc:fx<[args="fix1 fix2",result="boolean"]
 
-Returns #t if _fix1_ is less than _fix2_, and #f otherwise.
+Returns `#t` if _fix1_ is less than _fix2_, and `#f` otherwise.
 
 proc:fx<=[args="fix1 fix2",result="boolean"]
 
-Returns #t if _fix1_ is less than or equal to _fix2_, and #f
+Returns `#t` if _fix1_ is less than or equal to _fix2_, and `#f`
 otherwise.
 
 proc:fx>[args="fix1 fix2",result="boolean"]
 
-Returns #t if _fix1_ is greater than _fix2_, and #f otherwise.
+Returns `#t` if _fix1_ is greater than _fix2_, and `#f` otherwise.
 
 proc:fx>=[args="fix1 fix2",result="boolean"]
 
-Returns #t if _fix1_ is greater than or equal to _fix2_, and #f
+Returns `#t` if _fix1_ is greater than or equal to _fix2_, and `#f`
 otherwise.
 
 proc:fxnegative?[args="fix",result="boolean"]
 
-Returns #t if its argument is less than zero, and #f otherwise.
+Returns `#t` if its argument is less than zero, and `#f` otherwise.
 
 proc:fxpositive?[args="fix",result="boolean"]
 
-Returns #t if its argument is greater than zero, and #f otherwise.
+Returns `#t` if its argument is greater than zero, and `#f` otherwise.
 
 proc:fxzero?[args="fix",result="boolean"]
 
-Returns #t if its argument is zero, and #f otherwise.
+Returns `#t` if its argument is zero, and `#f` otherwise.
 
 // FIXME these names have changed
 

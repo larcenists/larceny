@@ -10,27 +10,27 @@ name is deprecated.
 
 proc:append![args="list1 list2 ... obj",result="object"]
     
-Append! destructively appends its arguments, which must be lists, and
+`append!` destructively appends its arguments, which must be lists, and
 returns the resulting list. The last argument can be any object. The
 argument lists are appended by changing the cdr of the last pair of
 each argument except the last to point to the next argument.
 
 proc:every?[args="procedure list1 list2 ...",result="object"]
 
-every? applies _procedure_ to each element tuple of _list_s in
-first-to-last order, and returns #f as soon as _procedure_ returns
-#f. If _procedure_ does not return #f for any element tuple of
+`every?` applies _procedure_ to each element tuple of _list_s in
+first-to-last order, and returns `#f` as soon as _procedure_ returns
+`#f`. If _procedure_ does not return `#f` for any element tuple of
 _list_s, then the value returned by _procedure_ for the last element
 tuple of _list_s is returned.
 
 proc:last-pair[args="list-structure",result="pair"]
 
-last-pair returns the last pair of the _list structure_, which must be
+`last-pair` returns the last pair of the _list structure_, which must be
 a sequence of pairs linked through the cdr fields.
 
 proc:list-copy[args="list-copy",result="list"]
 
-list-copy makes a shallow copy of the _list_ and returns that copy.
+`list-copy` makes a shallow copy of the _list_ and returns that copy.
 
 proc:remove[args="key list",result="list"]
 proc:remq[args="key list",result="list"]
@@ -40,25 +40,25 @@ proc:remp[args="pred? list",result="list"]
 Each of these procedures returns a new list which contains all the
 elements of _list_ in the original order, except that those elements of
 the original list that were equal to _key_ (or that satisfy _pred?_) are
-not in the new list. Remove uses equal? as the equivalence predicate;
-remq uses eq?, and remv uses eqv?.
+not in the new list. Remove uses `equal?` as the equivalence predicate;
+`remq` uses `eq?`, and `remv` uses `eqv?`.
 
 proc:remove![args="key list",result="list"]
 proc:remq![args="key list",result="list"]
 proc:remv![args="key list",result="list"]
 proc:remp![args="pred? list",result="list"]
 
-These procedures are like remove, remq, remv, and remp, except that they
-modify _list_ instead of returning a fresh list.
+These procedures are like `remove`, `remq`, `remv`, and `remp`,
+except they modify _list_ instead of returning a fresh list.
 
 proc:reverse![args="list",result="list"]
 
-Reverse! destructively reverses its argument and returns the reversed
+`reverse!` destructively reverses its argument and returns the reversed
 list.
 
 proc:some?[args="procedure list1 list2 ...",result="object"]
 
-some? applies _procedure_ to each element tuple of _list_s in
-first-to-last order, and returns the first non-#f value returned by
+`some?` applies _procedure_ to each element tuple of _list_s in
+first-to-last order, and returns the first non-false value returned by
 _procedure._ If _procedure_ does not return a true value for any
-element tuple of _list_s, then some? returns #f.
+element tuple of _list_s, then some? returns `#f`.

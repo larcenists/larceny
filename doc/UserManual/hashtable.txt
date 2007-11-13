@@ -1,8 +1,9 @@
-Hash tables and hash functions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Hashtables and hash functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Hash tables are key/value mapping structures that provide expected
-constant time lookup.
+Hashtables represent finite mappings from keys to values.
+If the hash function is a good one, then the value associated
+with a key may be looked up in constant time (on the average).
 
 [NOTE]
 ================================================================
@@ -14,11 +15,12 @@ instead of the API described below.
 [NOTE]
 ================================================================
 To resolve a clash of names and semantics with the
-R6RS make-hashtable procedure, Larceny's traditional
-make-hashtable procedure has been renamed to make-oldstyle-hashtable.
-In Larceny v0.95, the make-hashtable procedure delegates to
-make-oldstyle-hashtable after printing a warning, but will
-delegate to make-r6rs-hashtable in v0.96.
+R6RS `make-hashtable` procedure, Larceny's traditional
+`make-hashtable` procedure has been renamed to
+`make-oldstyle-hashtable`.
+In Larceny v0.95, the `make-hashtable` procedure delegates to
+`make-oldstyle-hashtable` after printing a warning, but will
+delegate to `make-r6rs-hashtable` in v0.96.
 ================================================================
 
 ==== Hash tables
@@ -26,23 +28,23 @@ delegate to make-r6rs-hashtable in v0.96.
 proc:make-oldstyle-hashtable[args="hash-function bucket-searcher size",result="hashtable"]
 
 Returns a newly allocated mutable hash table using _hash-function_ as
-the hash function and _bucket-searcher_, e.g. ASSQ, ASSV, ASSOC, to
+the hash function and _bucket-searcher_, e.g. `assq`, `assv`, `assoc`, to
 search a bucket with _size_ buckets at first, expanding the number of
 buckets as needed. The _hash-function_ must accept a key and return a
 non-negative exact integer.
 
 proctempl:make-oldstyle-hashtable[args="hash-function bucket-searcher",result="hashtable"]
 
-Equivalent to (make-oldstyle-hashtable _hash-function bucket-searcher n_) for
+Equivalent to `(make-oldstyle-hashtable _hash-function bucket-searcher n_)` for
 some value of _n_ chosen by the implementation.
 
 proctempl:make-oldstyle-hashtable[args="hash-function",result="hashtable"]
 
-Equivalent to (make-oldstyle-hashtable _hash-function_ assv).
+Equivalent to `(make-oldstyle-hashtable _hash-function_ assv)`.
 
 proctempl:make-oldstyle-hashtable[args="none",result="hashtable"]
 
-Equivalent to (make-oldstyle-hashtable object-hash assv).
+Equivalent to `(make-oldstyle-hashtable object-hash assv)`.
 
 proc:hashtable-contains?[args="hashtable key",result="bool"]
 
@@ -55,7 +57,7 @@ _hashtable_ contains _key_; otherwise returns _flag_.
 
 proc:hashtable-get[args="hashtable key",result="object"]
 
-Equivalent to (hashtable-fetch  #f).
+Equivalent to `(hashtable-fetch  #f)`.
 
 proc:hashtable-put![args="hashtable key value",result="unspecified"]
 
@@ -105,12 +107,23 @@ proc:object-hash[args="object",result="integer"]
 
 Returns a hash value for _object_ based on its identity.
 
+[WARNING]
+================================================================
+This hash function performs extremely poorly on pairs,
+vectors, strings, and bytevectors, which are the objects
+with which it is mostly likely to be used.
+For efficient hashing on object identity, create the
+hashtable with `make-eq-hashtable` or `make-eqv-hashtable`
+of the `(rnrs hashtables)` library.
+================================================================
+
 proc:string-hash[args="string",result="fixnum"]
 
 Returns a hash value for _string_ based on its content.
 
 proc:symbol-hash[args="symbol",result="fixnum"]
 
-Returns a hash value for _symbol_ based on its print name. Symbol-hash
+Returns a hash value for _symbol_ based on its print name.
+The `symbol-hash`
 is very fast, because the hash code is cached in the symbol data
 structure.

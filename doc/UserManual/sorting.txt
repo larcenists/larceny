@@ -18,5 +18,5 @@ These procedures sort their argument (a list or a vector) according to
 the predicate _less?_, which must implement a total order on the
 elements in the data structures that are sorted.
 
-Sort returns a fresh data structure containing the sorted data; sort!
-sorts the data structure in-place.
+`sort` returns a fresh data structure containing the sorted data;
+`sort!` sorts the data structure in-place.
