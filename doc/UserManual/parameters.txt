@@ -57,7 +57,7 @@ proc:make-parameter[args="name value",optarg="predicate",result="procedure"]
 
 Create a parameter with name _name,_ initial value _value,_ and
 optional setter predicate _predicate._ When the parameter is set the
-new value is first passed to _predicate,_, and if it returns #F then
+new value is first passed to _predicate,_, and if it returns `#f` then
 an error is signalled. _Name_ can be a symbol or a string.
 
 _Syntax parameterize_

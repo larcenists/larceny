@@ -23,11 +23,11 @@ will be presented with a banner message and the
 read-eval-print loop's prompt:
 
 ------------------------------------------------------------
-% larceny
-Larceny vX.Y "<version_name>" (MMM DD YYYY HH:MM:SS, ...)
-larceny.heap, built ...
+    % larceny
+    Larceny vX.Y "<version_name>" (MMM DD YYYY HH:MM:SS, ...)
+    larceny.heap, built ...
         
-> 
+    > 
 ------------------------------------------------------------
 
 You can enter a Scheme expression at the prompt.
@@ -42,11 +42,12 @@ To obtain strict conformance to R5RS semantics at
 the expense of slower code, evaluate the expression
 
 ----------------------------------------------------------------
-        (compiler-switches 'standard)
+    (compiler-switches 'standard)
 ----------------------------------------------------------------
 
 For more information on compiler switches, see the
-<<Performance,Performance section>> of this user manual.
+section of this user manual devoted to
+<<PerformanceSection, performance>>.
 
 
 ERR5RS mode
@@ -72,7 +73,11 @@ definitions, and import forms.  The first thing you'll
 want to do is to import some of the pre-loaded libraries,
 such as:
 
-    > (import (rnrs base) (rnrs io simple) (err5rs records syntactic))
+----------------------------------------------------------------
+    > (import (rnrs base)
+              (rnrs io simple)
+              (err5rs records syntactic))
+----------------------------------------------------------------
 
 Once you have imported `(rnrs base)` or a composite library
 that includes it, you can evaluate definitions and use
@@ -177,13 +182,17 @@ R6RS mode
 To execute a top-level R6RS program that is contained
 within a file named `pgm`, type:
 
+----------------------------------------------------------------
     larceny -r6rs -program pgm
+----------------------------------------------------------------
 
 The `-program` option can be omitted, in which case
 Larceny will read the top-level program from standard
 input:
 
+----------------------------------------------------------------
     larceny -r6rs < pgm
+----------------------------------------------------------------
 
 If you omit the `-program` option and do not redirect
 standard input, then Larceny will wait patiently
@@ -254,18 +263,24 @@ permission for this script, or Larceny's root directory is
 not in your path, then you can still run the script from
 Larceny's root directory as follows:
      
+----------------------------------------------------------------
     % ./scheme-script /home/myself/hello
+----------------------------------------------------------------
 
 If you have execute permission for the script, and Larceny's
 root directory is in your path, then you can also run the
 script as follows:
 
+----------------------------------------------------------------
     % /home/myself/hello
+----------------------------------------------------------------
 
 If, in addition, the directory that contains the script is
 in your path, then you can run the script as follows:
 
+----------------------------------------------------------------
     % hello
+----------------------------------------------------------------
 
 [WARNING]
 ================================================================
@@ -360,12 +375,12 @@ To fix the problem, repeat step 4 of `doc/HOWTO-BUILD`.
 
 The precompiled binary forms of Larceny should run on
 most machines with the appropriate processor and operating
-system, but the executable program "larceny.bin" may be
+system, but the executable program "`larceny.bin`" may be
 incompatible with very old or with very new versions of
 the processor or operating system.  If that appears to be
 the case, you should see whether a newer version of Larceny
 fixes the problem.  If not, you may be able to use
-MzScheme v37x to recompile larceny.bin from source.
+MzScheme v37x to recompile `larceny.bin` from source.
 First, though, you should report the problem
 to us (`larceny@ccs.neu.edu`).
 Please report success stories as well.
@@ -379,7 +394,8 @@ Larceny's run-time system is compiled with full debugging
 information by default and a debugger like GDB should be able
 to provide at least some clues.
 
-[[Performance]]
+[[PerformanceSection]]
+
 Performance
 ~~~~~~~~~~~
 

@@ -6,8 +6,11 @@ exact integers; _bignums_ are unlimited-precision exact integers;
 _ratnums_ are exact rationals; _flonums_ are inexact rationals;
 _rectnums_ are exact complexes; and _compnums_ are inexact complexes.
 
+////////////////////////////////////////////////////////////////
+FIXME
 You can read more about the number representations
 <<LarcenyNoteRepr,here>>.
+////////////////////////////////////////////////////////////////
 
 _Number-representation predicates_
 
@@ -19,7 +22,7 @@ proctempl:rectnum?[args="obj",result="boolean"]
 proctempl:compnum?[args="obj",result="boolean"]
 
 These predicates test whether an object is a number of a particular
-representation and return #t if so, #f if not.
+representation and return `#t` if so, `#f` if not.
 
 proc:random[args="limit",result="exact integer"]
 

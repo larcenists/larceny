@@ -12,13 +12,13 @@ proctempl:vector-like-length[args="vector-like",result="fixnum"]
 proctempl:vector-like-ref[args="vector-like k",result="object"]
 proctempl:vector-like-set![args="vector-like k object",result="unspecified"]
 
-A vector-like structure is a low-level representation on which data
-that are indexable like vectors are built, e.g., vectors, structures,
-symbols, and ports.
+A vector-like structure is a low-level representation
+for indexed arrays of Scheme objects.  Vector-like
+structures are used to represent types such as vectors,
+records, symbols, and ports.
 
-There is no way of constructing a "generic" vector-like structure; use
-the constructors for the data types mapped onto vector-like structures
-instead, like make-vector.
+There is no way to construct a "generic" vector-like structure;
+use the constructors for specific data types.
 
 The vector-like operations operate on all vector-like structures.
 All are integrable.

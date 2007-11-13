@@ -58,7 +58,7 @@ type. It is an error if the complete list of field names contains any
 duplicates.
 
 Record-type descriptors are themselves records. In particular,
-record-type descriptors have a field printer that is either #f or a
+record-type descriptors have a field printer that is either `#f` or a
 procedure. If the value of the field is a procedure, then the
 procedure will be called to print records of the type represented by
 the record-type descriptor. The procedure must accept two arguments:
@@ -111,10 +111,10 @@ represented by _rtd._
 
 proc:record?[args="obj"]
 
-Returns a true value if obj is a record of any type and a false value
-otherwise. Note that record? may be true of any Scheme value; of
+Returns a true value if _obj_ is a record of any type and a false value
+otherwise. Note that `record?` may be true of any Scheme value; of
 course, if it returns true for some particular value, then
-record-type-descriptor is applicable to that value and returns an
+`record-type-descriptor` is applicable to that value and returns an
 appropriate descriptor.
 
 proc:record-type-descriptor[args="record"]
@@ -163,10 +163,9 @@ syntactic layer is implemented on top of ERR5RS records.
 
 In some future release, ERR5RS records will become the
 foundation of the implementation, with old-style and R6RS
-implemented on top of ERR5RS records.
+records implemented on top of ERR5RS records.
 
 The R6RS spouts some tendentious nonsense about procedural
 records being slower than syntactic records, but this is not
-true of Larceny's records, and it will be even less true when
-ERR5RS procedural records become the foundation of the
-implementation.
+true of Larceny's records, and is unlikely to be true of other
+implementations either.

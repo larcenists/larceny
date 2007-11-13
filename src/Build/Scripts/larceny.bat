@@ -30,6 +30,8 @@ if %~n0 == petit (
     call :finish "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\larceny.heap" %*
 ) else if %~n0 == larceny-r5rs (
     call :finish "%LARCENY_ROOT%\larceny.bin.exe" -heap "%LARCENY_ROOT%\r5rs.heap" %*
+) else if %~n0 == larceny-np (
+    call :finish "%LARCENY_ROOT%\larceny.bin.exe" -np -heap "%LARCENY_ROOT%\larceny.heap" %*
 ) else (
     echo Usage:
     echo     petit LARCENYOPTIONS

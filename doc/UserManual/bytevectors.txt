@@ -59,16 +59,17 @@ proctempl:bytevector-like-copy[args="bytevector",result="bytevector"]
     
 
 A bytevector-like structure is a low-level representation
-on which data that are indexable like bytevectors are built,
-e.g., bytevectors, bignums, and flonums.
+for indexed arrays of uninterpreted bytes.  Bytevector-like
+structures are used to represent types such as bignums and
+flonums.
 
-There is no way of constructing a "generic" bytevector-like
+There is no way to construct a "generic" bytevector-like
 structure; use the constructors for specific bytevector-like
 types.
 
 The bytevector-like operations operate on all bytevector-like
-structures.  All are integrable, except bytevector-like-equal?
-and bytevector-like-copy.  All are deprecated because they
+structures.  All are integrable, except `bytevector-like-equal?`
+and `bytevector-like-copy`.  All are deprecated because they
 violate abstraction barriers and make your code
 representation-independent; they are useful mainly to
 Larceny developers, who might otherwise be tempted to

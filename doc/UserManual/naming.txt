@@ -41,7 +41,7 @@ segments in the form expected by Larceny's heap linker.
 
 `.heap`
 is the suffix for files that contain an executable heap
-image (must be combined with the larceny.bin runtime).
+image (must be combined with the `larceny.bin` runtime).
 
 Directories
 ~~~~~~~~~~~

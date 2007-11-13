@@ -11,10 +11,10 @@ proc:dump-heap[args="filename procedure",result="unspecified"]
 Dump a heap image to the named file that will start up with the
 supplied procedure. Before _procedure_ is called, command line
 arguments will be parsed and any init procedures registered with 
-<<add-init-procedure!>>  will be called.
+`add-init-procedure!`  will be called.
 
 _Note: Currently, heap dumping is only available with the
-stop-and-copy collector (-stopcopy command line option), although the
+stop-and-copy collector (`-stopcopy` command line option), although the
 heap image can be used with all the other collectors._
 
 proc:dump-interactive-heap[args="filename",result="unspecified"]
@@ -22,17 +22,17 @@ proc:dump-interactive-heap[args="filename",result="unspecified"]
 Dump a heap image to the named file that will start up with the
 standard read-eval-print loop. Before the read-eval-print loop is
 called, command line arguments will be parsed and any init procedures
-registered with <<add-init-procedure!>> 
+registered with `add-init-procedure!`
 will be called.
 
 _Note: Currently, heap dumping is only available with the
-stop-and-copy collector (-stopcopy command line option), although the
+stop-and-copy collector (`-stopcopy` command line option), although the
 heap image can be used with all the other collectors._
 
 proc:getenv[args="key",result="string or #f"]
 
 Returns the operating system environment mapping for the string _key_,
-or #f if there is no mapping for _key_.
+or `#f` if there is no mapping for _key_.
 
 proc:system[args="command",result="status"]
 
