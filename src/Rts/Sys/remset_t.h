@@ -83,21 +83,6 @@ bool rs_add_elems( remset_t **remset, word *bot, word *top );
 
      Returns TRUE if the remset overflowed during the addition.
      */
-
-bool rs_compact( remset_t *remset );
-  /* Moves the contents of the set's SSB into the set and clears the SSB.
-     Only entries not already in the set are added to the set, so every
-     element in the SSB is subject to a collision check.
-
-     Returns TRUE if the remembered set overflowed during the compaction.
-     */
-
-bool rs_compact_nocheck( remset_t *remset );
-  /* Moves the contents of the set's SSB into the set and clears the SSB.
-     Entries are added to the set without checking for duplicates.
-
-     Returns TRUE if the remembered set overflowed during the compaction.
-     */
      
 void rs_enumerate( remset_t *remset, 
 		   bool (*scanner)(word loc, void *data, unsigned *stats),
@@ -113,41 +98,14 @@ void rs_enumerate( remset_t *remset,
      retained in the set, otherwise it is removed.
      */
 
-int  rs_size( remset_t *remset );
-  /* Returns the amount of memory occupied by the remembered set's data
-     structures, including its SSB, in bytes.
-     */
-
 void rs_stats( remset_t *remset );
   /* Add current counters to the global accumulators.
-     */
-
-void rs_assimilate( remset_t *dest, remset_t *src );
-  /* Folds the set 'src' into the set 'dest'.
-     */
-
-void rs_assimilate_and_clear( remset_t *dest, remset_t *src );
-  /* Folds the set 'src' into the set 'dest', and clears 'src'.
      */
 
 bool rs_isremembered( remset_t *rs, word w );
   /* Returns TRUE if the object denoted by w is in the remembered set.
      */
 
-void rs_consistency_check( remset_t *rs, int gen_no );
-  /* Perform a consistency check and print some statistics.  Useful mainly
-     when called from an interactive debugger.  If gen_no >= 0 then a
-     check will be performed that every entry in the set points to a
-     heap page with that generation number, and that it points to
-     an apparently valid object.
-     */
-
-#if defined(REMSET_PROFILE)
-void rs_print_crossing_stats( remset_t *rs );
-  /* Prints out a bunch of information about the volume of pointers from
-     the remembered set into various generations.
-     */
-#endif
 #endif /* INCLUDED_REMSET_T_H */
 
 /* eof */
