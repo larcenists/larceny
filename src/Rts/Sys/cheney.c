@@ -438,7 +438,7 @@
  do {  word *X = *e->np.ssbtop;                 \
        *X = w; X += 1; *e->np.ssbtop = X;       \
        if (X == *e->np.ssblim) {                \
-         gc_compact_np_ssb( e->gc );            \
+         compact_np_ssb( e->gc );               \
        }                                        \
  } while(0)
 
@@ -705,6 +705,18 @@ void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
 }
 
 #if ROF_COLLECTOR
+static void compact_np_ssb( gc_t *gc )
+{
+  if (gc->np_remset != -1) {
+    /* The below was rs_compact_nocheck( gc->remset[gc->np_remset] );
+     * but that function has been removed.  This does the same job,
+     * but probably less efficiently because it is going to check for
+     * membership before adding elements to the remset. */
+    process_seqbuf( gc, gc->ssb[ gc->np_remset ] );
+  }
+}
+
+
 void gclib_stopcopy_promote_into_np( gc_t *gc,
                                      semispace_t *old, semispace_t *young,
                                      int old_remaining, int young_remaining )
@@ -719,7 +731,7 @@ void gclib_stopcopy_promote_into_np( gc_t *gc,
   gc_np_remset_ptrs( gc, &e.np.ssbtop, &e.np.ssblim );
 
   oldspace_copy( &e );
-  gc_compact_np_ssb( gc );
+  compact_np_ssb( gc );
   sweep_large_objects( gc, old->gen_no-1, old->gen_no, young->gen_no );
   stats_set_gc_event_stats( &cheney );
 }
