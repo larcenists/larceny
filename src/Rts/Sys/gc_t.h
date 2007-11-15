@@ -44,11 +44,12 @@ struct gc {
        or NULL.  Entry 0 in the array is unused.
        */
 
-  seqbuf_t **ssb;
-    /* XXX 
-       Temporary field; shifting SSB out of remset and into this structure.
-       Still maintaining an SSB for each gno, but that will hopefully be
-       easy to remove after this restructuring transformation is done.
+  seqbuf_t *ssb;
+    /* The sequential store buffer (SSB) for all regions.
+       The write barrier inserts pointers into the SSB, and 
+       when its full, the SSB processing function determines
+       how to distribute the contents of the SSB across the
+       remsets.
        */
 
   int ephemeral_area_count;

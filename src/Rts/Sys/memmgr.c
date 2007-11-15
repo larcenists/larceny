@@ -52,9 +52,9 @@ struct gc_data {
   int  generations;            /* number of generations (incl. static) */
   int  static_generation;	/* Generation number of static area */
   bool have_stats;		/* For DOF collection */
-  word **ssb_bot;
-  word **ssb_top;
-  word **ssb_lim;
+  word *ssb_bot;
+  word *ssb_top;
+  word *ssb_lim;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
@@ -312,8 +312,8 @@ static int initialize( gc_t *gc )
 #endif
 	      data->generations,
 	      data->globals,
-	      data->ssb_top,
-	      data->ssb_lim, 
+	      &data->ssb_top,
+	      &data->ssb_lim, 
 	      (data->use_np_collector ? data->generations-1 : -1 ),
 	      gc->np_remset
 	     );
@@ -374,21 +374,12 @@ static void permute_remembered_sets( gc_t *gc, int permutation[] )
 
   for ( i=1 ; i < gc->remset_count ; i++ ) {
     tmp[i].r = gc->remset[i];
-    tmp[i].ssb_bot = data->ssb_bot[i];
-    tmp[i].ssb_top = data->ssb_top[i];
-    tmp[i].ssb_lim = data->ssb_lim[i];
   }
 
   for ( i=1 ; i < gc->remset_count ; i++ ) {
     j = permutation[i];
     assert( j > 0 );
     gc->remset[j] = r = tmp[i].r;       /* remset */
-    data->ssb_bot[j] = tmp[i].ssb_bot;  /* ssb pointers */
-    data->ssb_top[j] = tmp[i].ssb_top;
-    data->ssb_lim[j] = tmp[i].ssb_lim;
-    r->ssb->bot = data->ssb_bot + j;     /* ssb pointer locations */
-    r->ssb->top = data->ssb_top + j;
-    r->ssb->lim = data->ssb_lim + j;
   }
 }
 #endif
@@ -564,20 +555,19 @@ enumerate_remsets_older_than( gc_t *gc,
 
   if (!DATA(gc)->is_generational_system) return;
 
-  /* Clear the SSBs for the regions being collected. */
-  for ( i = 1 ; i < generation+1 ; i++ ) {
-    *gc->ssb[i]->top = *gc->ssb[i]->bot;
-  }
-  /* Add elements from the SSBs for regions outside collection set. */
-  for ( i = generation+1 ; i < DATA(gc)->generations ; i++ ) {
-    process_seqbuf( gc, gc->ssb[i] );
-  }
+  /* Add elements to regions outside collection set. 
+   *
+   * I might need to extend this interface in some way so that we
+   * don't waste time adding elements to remset[gno] for 
+   * gno <= generation
+   */
+  process_seqbuf( gc, gc->ssb );
+
   for ( i = generation+1 ; i < DATA(gc)->generations ; i++ ) {
     rs_enumerate( gc->remset[i], f, fdata );
   }
 
   if (enumerate_np_young) {
-    process_seqbuf( gc, gc->ssb[ gc->np_remset ] );
     rs_enumerate( gc->remset[ gc->np_remset ], f, fdata );
   }
 }
@@ -687,17 +677,15 @@ static int compact_all_ssbs( gc_t *gc )
 {
   int overflowed, i;
 
-  overflowed = 0;
-  for ( i=1 ; i < gc->remset_count ; i++ )
-    overflowed = process_seqbuf( gc, gc->ssb[i] ) || overflowed;
+  overflowed = process_seqbuf( gc, gc->ssb );
   return overflowed;
 }
 
 static void np_remset_ptrs( gc_t *gc, word ***ssbtop, word ***ssblim )
 {
   if (gc->np_remset != -1) {
-    *ssbtop = &DATA(gc)->ssb_top[gc->np_remset];
-    *ssblim = &DATA(gc)->ssb_lim[gc->np_remset];
+    *ssbtop = &DATA(gc)->ssb_top;
+    *ssblim = &DATA(gc)->ssb_lim;
   }
   else {
     *ssbtop = *ssblim = 0;
@@ -957,26 +945,17 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   else
     gc->remset_count = gen_no;
 
-  data->ssb_bot = (word**)must_malloc( sizeof( word* )*gc->remset_count );
-  data->ssb_top = (word**)must_malloc( sizeof( word* )*gc->remset_count );
-  data->ssb_lim = (word**)must_malloc( sizeof( word* )*gc->remset_count );
   gc->remset = (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
-  gc->ssb = (seqbuf_t**)must_malloc( sizeof( seqbuf_t* )*gc->remset_count );
-
-  data->ssb_bot[0] = 0;
-  data->ssb_top[0] = 0;
-  data->ssb_lim[0] = 0;
 
   gc->remset[0] = (void*)0xDEADBEEF;
-  gc->ssb[0]    = (void*)0xDEADBEEF;
   for ( i = 1 ; i < gc->remset_count ; i++ ) {
     gc->remset[i] =
       create_remset( info->rhash, 0 );
-    gc->ssb[i] =
-      create_seqbuf( info->ssb, 
-		     &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i], 
-		     ssb_process, 0 );       
   }
+  gc->ssb =
+    create_seqbuf( info->ssb, 
+		   &data->ssb_bot, &data->ssb_top, &data->ssb_lim, 
+		   ssb_process, 0 );
 
   if (info->use_non_predictive_collector)
     gc->np_remset = gc->remset_count - 1;

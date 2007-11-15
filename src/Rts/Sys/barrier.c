@@ -31,7 +31,7 @@
  * will go away with the new WB.
  */
 
-static word **wb_ssbtopv;      /* [0..n] where 0 is invalid */
+static word **wb_ssbtopv;      /* pointer to cell holding the top of SSB */
 static word **wb_ssblimv;      /* ditto */
 static int wb_generations;     /* the value 'n' */
 static word *wb_globals;       /* the globals array */
