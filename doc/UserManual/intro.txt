@@ -1,3 +1,5 @@
+[[InstallationChapter]]
+
 Installing Larceny
 ------------------
 
@@ -95,6 +97,8 @@ Then move or copy `larceny.bin`, `larceny.heap`, `twobit.heap`,
 
 You should now be able to run Larceny by typing "`larceny`" at a
 Unix prompt.  On Windows, type "`larceny.bat`".
+
+[[CompilingStdLibSection]]
 
 ==== Compiling the R6RS standard libraries
 

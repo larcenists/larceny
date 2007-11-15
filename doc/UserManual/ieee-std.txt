@@ -1,15 +1,33 @@
-The IEEE Standard for Scheme
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-From the Scheme FAQ: 
-
-IEEE P1178 is IEEE Standard 1178-1990, "IEEE Standard for the Scheme Programming Language", published by IEEE in 1991. ISBN 1-55937-125-0. It is now also an ANSI standard. It may be ordered from IEEE by calling 1-800-678-IEEE or 908-981-1393 or writing IEEE Service Center, 445 Hoes Lane, P.O. Box 1331, Piscataway, NJ 08855-1331, and using order number SH14209 ($28 for IEEE members, $40 others). 
-
-* * *
-
+////////////////////////////////////////////////////////////////
 _$Id$_  
-[larceny@ccs.neu.edu][1]  
+////////////////////////////////////////////////////////////////
 
+Scheme Standards
+~~~~~~~~~~~~~~~~
 
-   [1]: mailto:larceny@ccs.neu.edu
+IEEE Standard 1178-1990,
+"IEEE Standard for the Scheme Programming Language",
+IEEE, 1991. ISBN 1-55937-125-0.
+May be ordered from IEEE by calling 1-800-678-IEEE or 908-981-1393
+or writing
+IEEE Service Center, 445 Hoes Lane, P.O. Box 1331,
+Piscataway, NJ 08855-1331, and using order number SH14209.
 
+<a href="http://www.brics.dk/~hosc/11-1/">
+Revised^5 Report on the Algorithmic Language Scheme</a>.
+<em>Journal of Higher Order and Symbolic Computation</em>,
+11(1), 1998, pages 7-105.
+Also appears in ACM SIGPLAN Notices 33(9), September 1998.
+Available online
+<a href="http://www.schemers.org/Documents/Standards/R5RS/">
+in various formats</a>.
+
+<a href="http://www.r6rs.org/">
+Revised^6 Report on the Algorithmic Language Scheme</a>.
+
+<a href="http://scheme-punks.org/wiki/index.php?title=Main_Page">ERR5RS</a>
+is under construction.
+
+////////////////////////////////////////////////////////////////
+[1]: mailto:larceny@ccs.neu.edu
+////////////////////////////////////////////////////////////////

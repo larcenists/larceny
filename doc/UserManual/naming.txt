@@ -1,7 +1,11 @@
+[[NamingChapter]]
+
 File naming conventions
 -----------------------
 
 anchor:naming[naming]
+
+[[SuffixSection]]
 
 Suffixes
 ~~~~~~~~
@@ -43,6 +47,8 @@ segments in the form expected by Larceny's heap linker.
 is the suffix for files that contain an executable heap
 image (must be combined with the `larceny.bin` runtime).
 
+[[DirectorySection]]
+
 Directories
 ~~~~~~~~~~~
 
@@ -82,3 +88,147 @@ Petit Larceny.
 The `startup.sch` file tells Larceny's `require` procedure to
 search some of the `lib` subdirectories for libraries that are
 loaded dynamically.
+
+[[LibraryResolutionSection]]
+
+Resolving references to libraries
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The R6RS does not specify any mapping from library names to
+files or to other locations at which the code for a library
+might be found.  As R6RS non-normative appendix E puts it:
+
+________________________________________________________________
+Implementations may take radically different approaches to
+storing source code for libraries, among them: files in the
+file system where each file contains an arbitrary number of
+library forms, files in the file system where each file
+contains exactly one library form, records in a database,
+and data structures in memory....Implementations may provide
+a means for importing libraries....
+________________________________________________________________
+
+In other words, implementations are allowed to extend the
+R6RS with arbitrary mechanisms for resolving references to
+imported libraries, but R6RS programs that rely on such
+mechanisms are not portable.  Hence R6RS libraries are
+not portable.
+
+Larceny provides three distinct Larceny-specific
+mechanisms that non-portable R6RS programs can use to
+import or to define libraries:
+
+1.  ERR5RS and R6RS standard libraries may be imported.
+Their code is located automagically.
+
+2.  R6RS top-level programs and Scheme scripts may
+<<DefiningLibrariesSection, define their own libraries>>
+in the same file that contains the top-level program or
+Scheme script.
+
+3.  R6RS top-level programs may use
+<<R6RSLibraryPathSection, Larceny's `-path` option>>
+to specify a directory that contains other libraries
+the program may import, provided those libraries are
+located in files that follow Larceny's standard naming
+conventions as described below.
+
+[WARNING]
+================================================================
+The third mechanism above is not implemented in Larceny v0.95
+"First Safety", but will be supported by future versions of
+Larceny.
+================================================================
+
+ERR5RS programs may use any of those three mechanisms,
+and may also use a fourth mechanism:
+An ERR5RS program can be written as a little configuration
+program that loads the program's libraries from files
+before any libraries are imported.  This fourth mechanism
+is portable, but is not available to R6RS programs.
+
+[[LibraryTranslationSection]]
+
+Mapping library names to files (ERR5RS/R6RS)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Suppose Larceny's `-path` option is used to specify
+a certain _directory_, and the program imports a
+nonstandard library whose name is of the form
+`(_name1_ _name2_ ... _lastname_)`.
+Larceny will search for that library in the following
+files:
+
+- `_directory_/_name1_.slfasl`
+- `_directory_/_name1_.sls`
+- `_directory_/_name1_/_name_2.slfasl`
+- `_directory_/_name1_/_name_2.sls`
+- ...
+- `_directory_/_name1_/_name_2/.../_lastname_.slfasl`
+- `_directory_/_name1_/_name_2/.../_lastname_.sls`
+
+The search starts with the first of those file names,
+continues with the following file names in order,
+and ends when a file with one of those names is found.
+The imported library _must_ be one of the libraries
+defined within the first file found by this search,
+since the search is not continued after that first file
+is found (except as noted in the next paragraph).
+
+If the search ends by finding a file whose name ends
+with `.slfasl`, then Larceny checks to see whether
+there is a file in the same directory with the same
+root name but ending with `.sls` instead of `.slfasl`.
+If the `.sls` file has been modified since the `.slfasl`
+file was last modified, then a warning is printed and
+the `.sls` file is loaded instead of the `.slfasl` file.
+Otherwise the `.slfasl` file is loaded.
+
+[WARNING]
+================================================================
+Larceny v0.95 "First Safety" does not allow R6RS top-level
+programs or Scheme scripts to specify the `-path` option,
+and does not perform the search described above,
+but future versions of Larceny will allow the option and
+perform the search.
+================================================================
+
+[NOTE]
+================================================================
+The R6RS allows arbitrary mappings from library names to library
+code.  Larceny takes advantage of this by ignoring version
+numbers when mapping library names to files, and by rewriting
+any version number that may be specified in the definition of
+a library so it matches any version specification that appears
+within the import form.  Furthermore Larceny allows different
+versions of the same library to be imported, but Larceny's
+algorithm for resolving library references ensures that the
+different versions of a library will be identical except for
+their version numbers, which have no meaningful semantics.
+Although Larceny's treatment of versions conforms to the R6RS
+specification, it should be clear that version numbers are
+useless in Larceny.  Since the R6RS version feature has no
+usefully portable semantics, it is deprecated.
+================================================================
+
+
+Mapping library names to files (R5RS)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In R5RS mode, Larceny's `-path` option may be used to
+specify a directory to be searched by the `require`
+procedure, which takes a single symbol _libname_ as
+its argument.
+The `require` procedure will search for the following
+files in every directory that is part of the current
+require path, starting with the directory specified
+by the `-path` option:
+
+- `_libname_.fasl`
+- `_libname_.sch`
+- `_libname_.scm`
+
+These files are expected to contain R5RS code, not
+library definitions.  Otherwise the search proceeds
+much the same as when searching for an ERR5RS/R6RS
+library.

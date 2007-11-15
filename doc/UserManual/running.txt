@@ -1,3 +1,5 @@
+[[RunningChapter]]
+
 Running Larceny
 ---------------
 
@@ -34,6 +36,18 @@ You can enter a Scheme expression at the prompt.
 After a complete expression has been read, it will
 be evaluated and its results printed.
 
+[NOTE]
+================================================================
+In native Larceny, the expression is evaluated by
+compiling it to native machine code, which is then executed.
+In Petit Larceny, the expression is evaluated by
+an interpreter because compiling to C, running the
+C compiler, and loading the compiled C code would
+take too long.  Interpreted code behaves like compiled code,
+so most of what this manual says about the compiler is also
+true of Petit Larceny's interpreter.
+================================================================
+
 By default, Larceny's Twobit compiler makes several
 assumptions that allow it to generate faster code;
 for example, the compiler assumes Scheme's standard
@@ -53,7 +67,7 @@ section of this user manual devoted to
 ERR5RS mode
 ~~~~~~~~~~~
 
-For the most current information on  Larceny's new
+For the most current information on Larceny's new
 ERR5RS-compatible read/eval/print loop, see `doc/HOWTO-ERR5RS`.
 
 To interact with Larceny's ERR5RS read/eval/print loop,
@@ -166,13 +180,16 @@ Other pre-loaded libraries:
     (r5rs)                           ; approximates the R5RS top level
     (explicit-renaming)              ; a macro system with explicit renaming
 
+[[ERR5RSLibraryPathSection]]
+
 ==== Library path
 
 For convenience, future versions of Larceny will automatically
 load libraries when they are imported, provided the library is
 standard or can be found in the directory specified by the
-`-path` option on Larceny's command line using Larceny's
-standard translation from library names to file names.
+`-path` option on Larceny's command line using
+<<LibraryTranslationSection, Larceny's standard translation>>
+from library names to file names.
 
 This feature is not implemented in Larceny v0.95 "First Safety".
 
@@ -210,6 +227,8 @@ any R6RS standard libraries, and may also import any
 of the libraries that are pre-loaded in Larceny's
 ERR5RS mode.
 
+[[DefiningLibrariesSection]]
+
 ==== Defining libraries
 
 The R6RS standard does not specify any way for a
@@ -230,13 +249,16 @@ It is not supported by Ikarus, which is currently the
 only other system that implements a substantial fraction
 of the R6RS.
 
+[[R6RSLibraryPathSection]]
+
 ==== Library path
 
 As another extension to the R6RS, future versions of Larceny
 will allow top-level programs to import nonstandard libraries
 that can be found in the directory specified by the
-`-path` option on Larceny's command line using Larceny's
-standard translation from library names to file names.
+`-path` option on Larceny's command line using
+<<LibraryTranslationSection, Larceny's standard translation>>
+from library names to file names.
 
 We emphasize that this extension too will be non-portable.
 Although Ikarus provides a similar feature, Ikarus's
@@ -250,15 +272,15 @@ Scheme scripts
 ~~~~~~~~~~~~~~
 
 On most Unix systems (including MacOS X and Linux), Larceny's
-scheme-script will execute Scheme scripts as described in R6RS
+`scheme-script` will execute Scheme scripts as described in R6RS
 non-normative appendix D, with or without the optional script
 header.  To make Scheme scripts executable in their own
-right, without executing scheme-script directly, add Larceny's
+right, without executing `scheme-script` directly, add Larceny's
 root directory to your path as described in `doc/HOWTO-INSTALL`.
 
 Suppose, for example, that `/home/myself/hello` is an R6RS
 Scheme script whose first line is the optional script header
-(#!/usr/bin/env scheme-script).  If you do not have execute
+(`#!/usr/bin/env scheme-script`).  If you do not have execute
 permission for this script, or Larceny's root directory is
 not in your path, then you can still run the script from
 Larceny's root directory as follows:
@@ -371,7 +393,9 @@ expecting to see R5RS-compatible code.  That means
 the R6RS runtime and standard libraries were not
 installed correctly, or their source files have been
 touched or modified since they were last compiled.
-To fix the problem, repeat step 4 of `doc/HOWTO-BUILD`.
+To fix the problem
+<<CompilingStdLibSection, recompile the R6RS standard
+libraries>> as described in step 4 of `doc/HOWTO-BUILD`.
 
 The precompiled binary forms of Larceny should run on
 most machines with the appropriate processor and operating
