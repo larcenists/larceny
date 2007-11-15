@@ -184,7 +184,7 @@ EXTNAME(m_partial_barrier):
 	st	%TMP2, [%TMP0]			/* *ssbtopv in %TMP2 */
 	/* %TMP0: dead
 	 * %TMP1: gl, shifted for indexing
-	 * %TMP2: ssbtopv[gl]
+	 * %TMP2: *ssbtopv
 	 */
 	ld 	[%GLOBALS+G_SSBLIMV], %TMP0	/* ssblimv in %TMP0 */
 	ld	[%TMP0], %TMP0			/* *ssblimv in %TMP0 */
