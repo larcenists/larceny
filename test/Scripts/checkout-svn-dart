@@ -446,12 +446,12 @@ compiler_tests sanity-switches
 # Benchmarks
 pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
 
-# usage: run_benchmarks SCRIPTNAME RNRS
+# usage: run_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
 function run_benchmarks {
 LARCENY=`pwd`/../../../$1 ./bench -r 3 -s $2 larceny all > ${TEMPLOG} 2>&1
 }
 
-# usage: process_benchmarks SCRIPTNAME RNRS
+# usage: process_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
 function process_benchmarks {
 cat > ${TEMPSCM} <<EOF
 (error-handler (lambda l (display l) (newline) (exit 117)))
@@ -472,7 +472,7 @@ cat > ${TEMPSCM} <<EOF
        (lambda (line)
          (cond ((eq? (list-ref line 1) 'Error:)
                 (let ((name (list-ref line 0)))
-                  (format #t "<Test><Name>.DynamicAnalysis.~a.~a.~s</Name>" "$2" "$1" name)
+                  (format #t "<Test><Name>.DynamicAnalysis.~a.~a.~s</Name>" "$3" "$1" name)
                   (format #t "<Status>failed</Status>")
                   (newline)
                   (format #t "<Measurement name=\"Output\" type=\"text/text\">~a ~a</Measurement>"
@@ -486,7 +486,7 @@ cat > ${TEMPSCM} <<EOF
                         (real (list-ref line 2))
                         (gc   (list-ref line 3))
                         (numt "numeric/integer"))
-                    (format #t "<Test><Name>.DynamicAnalysis.~a.~a.~s</Name>" "$2" "$1" name)
+                    (format #t "<Test><Name>.DynamicAnalysis.~a.~a.~s</Name>" "$3" "$1" name)
                     (format #t "<Status>passed</Status>")
                     (newline)
                     (format-measurement "Execution Time" "numeric/float" 
@@ -507,19 +507,19 @@ cat results.Larceny-$2 >> Results/results.Larceny
 rm results.Larceny-$2
 }
 
-# usage: run_and_process_benchmarks SCRIPTNAME RNRS
+# usage: run_and_process_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
 function run_and_process_benchmarks {
-    run_benchmarks     $1 $2
-    process_benchmarks $1 $2
+    run_benchmarks     $1 $2 $3
+    process_benchmarks $1 $2 $3
 }
 
 # Create the script that will use the ROF collector. 
 # (This is really only for autobuild purposes.)
 cp ../../../${FINAL_LARCENY_SCRIPT} ../../../${FINAL_LARCENY_ROF_SCRIPT}
 
-run_and_process_benchmarks ${FINAL_LARCENY_SCRIPT}     r5rs
-run_and_process_benchmarks ${FINAL_LARCENY_SCRIPT}     r6rs
-run_and_process_benchmarks ${FINAL_LARCENY_ROF_SCRIPT} r6rs
+run_and_process_benchmarks ${FINAL_LARCENY_SCRIPT}     r5rs r5rs-real
+run_and_process_benchmarks ${FINAL_LARCENY_SCRIPT}     r6rs r6rs-fake
+run_and_process_benchmarks ${FINAL_LARCENY_ROF_SCRIPT} r6rs r6rs-fake
 
 popd > /dev/null
 
