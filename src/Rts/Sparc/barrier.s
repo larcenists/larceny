@@ -101,9 +101,9 @@ EXTNAME(mem_addtrans):
  *    }
  *    ssbtopv = (word**)globals[ G_SSBTOPV ];
  *    ssblimv = (word**)globals[ G_SSBLIMV ];
- *    *ssbtopv[gl] = lhs;
- *    ssbtopv[gl] = ssbtopv[gl]+1;
- *    if (ssbtopv[gl] == ssblimv[gl]) C_wb_compact( gl );
+ *    **ssbtopv = lhs;
+ *    *ssbtopv = *ssbtopv+1;
+ *    if (*ssbtopv == *ssblimv) C_wb_compact( gl );
  *  }
  */
 
@@ -178,16 +178,16 @@ EXTNAME(m_partial_barrier):
 	 * %TMP2: dead
 	 */
 	ld	[%GLOBALS+G_SSBTOPV], %TMP0	/* ssbtopv in %TMP0 */
-	ld	[%TMP0+%TMP1], %TMP2		/* ssbtopv[gl] in %TMP2 */
+	ld	[%TMP0], %TMP2			/* *ssbtopv in %TMP2 */
 	st	%RESULT, [%TMP2]		/* remember pointer */
 	add	%TMP2, 4, %TMP2
-	st	%TMP2, [%TMP0+%TMP1]		/* ssbtopv[gl] in %TMP2 */
+	st	%TMP2, [%TMP0]			/* *ssbtopv in %TMP2 */
 	/* %TMP0: dead
 	 * %TMP1: gl, shifted for indexing
 	 * %TMP2: ssbtopv[gl]
 	 */
 	ld 	[%GLOBALS+G_SSBLIMV], %TMP0	/* ssblimv in %TMP0 */
-	ld	[%TMP0+%TMP1], %TMP0		/* ssblimv[gl] in %TMP0 */
+	ld	[%TMP0], %TMP0			/* *ssblimv in %TMP0 */
 	cmp	%TMP0, %TMP2
 	bne	9f
 	nop
