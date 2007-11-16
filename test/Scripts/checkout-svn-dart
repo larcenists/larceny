@@ -224,9 +224,10 @@ esac
 # Perhaps add more to this, like the hour and minute?
 TODAY=`date +%Y-%m-%d` 
 DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TRACK}-${TODAY}
-DARTLOG=${DARTLOG:-"${DIR}/dart-sub.xml"}
-TEMPLOG=${TEMPLOG:-"${DIR}/temp.log"}
-TEMPSCM=${TEMPSCM:-"${DIR}/temp.scm"}
+DARTLOG=${DARTLOG:-"${DIR}/../dart-sub.xml"}
+MY_DARTLOG="${DIR}/dart-sub.xml"
+TEMPLOG="${DIR}/temp.log"
+TEMPSCM="${DIR}/temp.scm"
 REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
 CALCDATEDART="date +%Y-%m-%dT%H:%M:%S%z"
 LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
@@ -235,10 +236,10 @@ TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
 mkdir -p ${DIR}
 
 # Initialize the Dart log
-echo '<?xml version="1.0" encoding="utf-8"?>'            >  $DARTLOG
+echo '<?xml version="1.0" encoding="utf-8"?>'            >  $MY_DARTLOG
 
 function dartlog {
-   echo $@ >> $DARTLOG
+   echo $@ >> $MY_DARTLOG
 }
 
 function cmdsetstatus {
@@ -258,14 +259,14 @@ function cmdsetstatus {
 
 function quotetextfile_cdata { # doesn't work for some reason...
    dartlog '<![CDATA['
-   cat $1 >> ${DARTLOG}
+   cat $1 >> ${MY_DARTLOG}
    dartlog ']]>'
 }
 
 function quotetextfile { # esc_html
   # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
   # On non CCIS Sun, we don't have native2ascii.
-  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${DARTLOG}
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_DARTLOG}
 }
 
 dartlog '<DartSubmission version="2.0" createdby="' $0 '">'
@@ -312,7 +313,7 @@ function eval_stage {
       grep -n -i warning ${TEMPLOG} | while read WARNINGLINE ; do
 	  WARNINGLINENUM=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\1/'`
 	  WARNINGLINETXT=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\2/'`
-	  cat >> ${DARTLOG} <<EOF
+	  cat >> ${MY_DARTLOG} <<EOF
 <Test>
 <Name>.Build.Stage${1}.Warning${WARNINGNUM}</Name>
 <Measurement name="BuildLogLine" type="text/string">${WARNINGLINENUM}</Measurement>
@@ -501,7 +502,7 @@ cat > ${TEMPSCM} <<EOF
 (exit)
 EOF
 # This is not benchmarked, so use standard name rather than parameter $1
-../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${DARTLOG}
+../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${MY_DARTLOG}
 
 cat results.Larceny-$2 >> Results/results.Larceny
 rm results.Larceny-$2
@@ -524,6 +525,10 @@ run_and_process_benchmarks ${FINAL_LARCENY_ROF_SCRIPT} r6rs r6rs-fake
 popd > /dev/null
 
 dartlog '</DartSubmission>'
+
+# Now copy the log we've been building into the final location where
+# the caller expects to find it.
+cp $MY_DARTLOG $DARTLOG
 
 if [ $BUILD_STATUS == "failed" ] 
 then exit 1
