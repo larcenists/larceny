@@ -229,7 +229,7 @@ MY_DARTLOG="${DIR}/dart-sub.xml"
 TEMPLOG="${DIR}/temp.log"
 TEMPSCM="${DIR}/temp.scm"
 REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
-CALCDATEDART="date +%Y-%m-%dT%H:%M:%S%z"
+CALCDATEDART="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
 LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
 TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
 
