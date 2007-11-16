@@ -111,8 +111,8 @@ ________________________________________________________________
 In other words, implementations are allowed to extend the
 R6RS with arbitrary mechanisms for resolving references to
 imported libraries, but R6RS programs that rely on such
-mechanisms are not portable.  Hence R6RS libraries are
-not portable.
+mechanisms are not portable.  In particular, R6RS libraries
+are not portable.
 
 Larceny provides three distinct Larceny-specific
 mechanisms that non-portable R6RS programs can use to
@@ -159,13 +159,13 @@ nonstandard library whose name is of the form
 Larceny will search for that library in the following
 files:
 
+- `_directory_/_name1_/_name2_/.../_lastname_.slfasl`
+- `_directory_/_name1_/_name2_/.../_lastname_.sls`
+- ...
+- `_directory_/_name1_/_name2_.slfasl`
+- `_directory_/_name1_/_name2_.sls`
 - `_directory_/_name1_.slfasl`
 - `_directory_/_name1_.sls`
-- `_directory_/_name1_/_name_2.slfasl`
-- `_directory_/_name1_/_name_2.sls`
-- ...
-- `_directory_/_name1_/_name_2/.../_lastname_.slfasl`
-- `_directory_/_name1_/_name_2/.../_lastname_.sls`
 
 The search starts with the first of those file names,
 continues with the following file names in order,
@@ -197,18 +197,19 @@ perform the search.
 ================================================================
 The R6RS allows arbitrary mappings from library names to library
 code.  Larceny takes advantage of this by ignoring version
-numbers when mapping library names to files, and by rewriting
-any version number that may be specified in the definition of
-a library so it matches any version specification that appears
-within the import form.  Furthermore Larceny allows different
-versions of the same library to be imported, but Larceny's
-algorithm for resolving library references ensures that the
-different versions of a library will be identical except for
-their version numbers, which have no meaningful semantics.
-Although Larceny's treatment of versions conforms to the R6RS
-specification, it should be clear that version numbers are
-useless in Larceny.  Since the R6RS version feature has no
-usefully portable semantics, it is deprecated.
+numbers when mapping library names to files, and by (virtually)
+rewriting any version number that may be specified in the
+definition of a library so it matches any version specification
+that appears within the `import` form.  Furthermore Larceny
+allows different versions of the same library to be imported,
+but Larceny's algorithm for resolving library references
+ensures that the different versions of a library will be
+identical except for their version numbers, which have no
+meaningful semantics.  Although Larceny's treatment of versions
+conforms to the R6RS specification, it should be clear that
+version numbers serve no purpose in Larceny.  Since the R6RS
+version feature has no usefully portable semantics, it is
+deprecated.
 ================================================================
 
 
@@ -232,3 +233,13 @@ These files are expected to contain R5RS code, not
 library definitions.  Otherwise the search proceeds
 much the same as when searching for an ERR5RS/R6RS
 library.
+
+[NOTE]
+================================================================
+The `require` path is specified by `startup.sch` in Larceny's
+root directory, but may be changed dynamically using the
+`current-require-path` parameter.  Changing the `require` path
+is not recommended, however, because Larceny relies on the
+`require` path for dynamic loading of libraries used by several
+important features of Larceny, notably ERR5RS and R6RS modes.
+================================================================
