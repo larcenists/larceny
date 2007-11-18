@@ -44,14 +44,7 @@ include::running.txt[]
 
 include::naming.txt[]
 
-ERR5RS standard libraries
--------------------------
-
-[NOTE]
-================================================================
-FIXME: This chapter isn't written yet.
-================================================================
-
+include::err5rs.txt[]
 
 include::r6rs.txt[]
 

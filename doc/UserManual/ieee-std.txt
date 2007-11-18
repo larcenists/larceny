@@ -2,7 +2,7 @@
 _$Id$_  
 ////////////////////////////////////////////////////////////////
 
-Scheme Standards
+Scheme standards
 ~~~~~~~~~~~~~~~~
 
 IEEE Standard 1178-1990,
@@ -13,20 +13,52 @@ or writing
 IEEE Service Center, 445 Hoes Lane, P.O. Box 1331,
 Piscataway, NJ 08855-1331, and using order number SH14209.
 
-<a href="http://www.brics.dk/~hosc/11-1/">
-Revised^5 Report on the Algorithmic Language Scheme</a>.
-<em>Journal of Higher Order and Symbolic Computation</em>,
+Richard Kelsey, William Clinger, and Jonathan Rees [editors].
+http://www.brics.dk/~hosc/11-1/[Revised^5 Report
+on the Algorithmic Language Scheme].
+_Journal of Higher Order and Symbolic Computation_,
 11(1), 1998, pages 7-105.
-Also appears in ACM SIGPLAN Notices 33(9), September 1998.
+Also appears in _ACM SIGPLAN Notices_ 33(9), September 1998.
 Available online
-<a href="http://www.schemers.org/Documents/Standards/R5RS/">
-in various formats</a>.
+http://www.schemers.org/Documents/Standards/R5RS/[in various formats].
 
-<a href="http://www.r6rs.org/">
-Revised^6 Report on the Algorithmic Language Scheme</a>.
+Michael Sperber, R Kent Dybvig, Matthew Flatt, and Anton van Straaten
+[editors].
+http://www.r6rs.org/[Revised^6 Report
+on the Algorithmic Language Scheme].
 
-<a href="http://scheme-punks.org/wiki/index.php?title=Main_Page">ERR5RS</a>
+Various SchemePunks [editors].
+http://scheme-punks.org/wiki/index.php?title=Main_Page[ERR5RS]
 is under construction.
+
+Other relevant standards
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+IEEE Standard 754-1985,
+"IEEE Standard for Binary Floating-Point Arithmetic",
+IEEE, 1985.
+
+A
+http://en.wikipedia.org/wiki/IEEE_754r[revision of IEEE Std 754-1985]
+has been underway since 2000.
+The IEEE Microprocessor Standards Committee (MSC)
+accepted a candidate draft on 9 October 2006.
+The candidate draft 1.2.6 was approved by 79% of 70 votes,
+which exceeded the required supermajority of 75%.
+Because there were negative votes and several hundred comments,
+however, a revised draft 1.3.0 was prepared and approved by
+84% of 73 votes.
+Since there were over a hundred comments on the
+second candidate draft as well, a third candidate draft 1.4.0 was
+prepared and another vote taken in April 2007.
+When the Ballot Review Committee decides that
+http://www.validlab.com/754R/[maximum possible timely
+consensus has been obtained], the consensus draft will be
+submitted to IEEE-SA RevCom.
+
+The Unicode Consortium.
+http://www.unicode.org/[The Unicode 5.0 Standard].
+Addison-Wesley Professional, 2006.
 
 ////////////////////////////////////////////////////////////////
 [1]: mailto:larceny@ccs.neu.edu

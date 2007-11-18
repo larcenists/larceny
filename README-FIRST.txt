@@ -27,7 +27,7 @@ Native (SPARC, IA32): everything should work out of the box.
 
 Petit Larceny (Solaris, Linux, Mac OS X): ensure that the GNU C
     Compiler (gcc) is in your execution path [3].  (If you are
-    building from source, see doc/HOWTO-SETUP.)
+    building from source, see doc/HOWTO-BUILD.)
 
     Mac OS X: Use Apple's Developer Tools, http://developer.apple.com/
 
