@@ -32,7 +32,7 @@ DARTLOG=${DARTLOG:-"${HOME}/larcenytest/dart-sub-common.xml"}
 TEMPLOG=${TEMPLOG:-"${HOME}/larcenytest/temp-common.log"}
 TEMPSCM=${TEMPSCM:-"${HOME}/larcenytest/temp-common.scm"}
 REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
-CALCDATEDART="date +%Y-%m-%dT%H:%M:%S%z"
+CALCDATEDART="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
 
 # Initialize the Dart log
 echo '<?xml version="1.0" encoding="utf-8"?>'            >  $DARTLOG
