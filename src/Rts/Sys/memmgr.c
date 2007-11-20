@@ -953,7 +953,9 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
       create_remset( info->rhash, 0 );
   }
   gc->ssb =
-    create_seqbuf( info->ssb, 
+    create_seqbuf( /* XXX the remset_count factor is an attempt to 
+                    * correct for comparison with non-refactored. XXX */
+                   info->ssb*gc->remset_count, 
 		   &data->ssb_bot, &data->ssb_top, &data->ssb_lim, 
 		   ssb_process, 0 );
 
