@@ -177,6 +177,12 @@
 (define (port-name p)
   (io/port-name p))
 
+(define (port-folds-case? p)
+  (io/port-folds-case? p))
+
+(define (port-folds-case! p bool)
+  (io/port-folds-case! p bool))
+
 (define (open-input-file filename)
   (open-file-input-port filename
                         (file-options)

@@ -212,12 +212,13 @@
 (define port.linesread 14) ; integer: number of line endings read so far
 (define port.linestart 15) ; integer: character position after last line ending
 (define port.wasreturn 16) ; boolean: last line ending was #\return
+(define port.foldcase  17) ; boolean: true iff #!fold-case is on
 
 ; all ports
 
-(define port.setposn   17) ; boolean: true iff supports set-port-position!
+(define port.setposn   18) ; boolean: true iff supports set-port-position!
 
-(define port.structure-size 18)      ; size of port structure
+(define port.structure-size 19)      ; size of port structure
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -324,6 +325,7 @@
     (vector-set! v port.linesread 0)
     (vector-set! v port.linestart 0)
     (vector-set! v port.wasreturn #f)
+    (vector-set! v port.foldcase (and textual? input? (case-sensitive?)))
 
     (vector-set! v port.setposn set-position?)
 
@@ -530,6 +532,20 @@
          (vector-like-ref p port.linestart))
         (else
          (error 'io/port-line-start "not a textual input port" p)
+         #t)))
+
+(define (io/port-folds-case? p)
+  (cond ((io/input-port? p)
+         (vector-like-ref p port.foldcase))
+        (else
+         (error 'io/port-folds-case? "not a textual input port" p)
+         #t)))
+
+(define (io/port-folds-case! p bool)
+  (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
+         (vector-like-set! p port.foldcase bool))
+        (else
+         (error 'io/port-folds-case! "illegal arguments" p bool)
          #t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -1004,6 +1004,11 @@
   (environment-set! larc 'get-output-string get-output-string)
   (environment-set! larc 'get-output-bytevector get-output-bytevector)
   (environment-set! larc 'hashtable-printer hashtable-printer)
+  (environment-set! larc 'io/make-port io/make-port) ; XXX
+  (environment-set! larc 'io/get-u8 io/get-u8)       ; FIXME (common.imp.sch)
+  (environment-set! larc 'io/put-u8 io/put-u8)       ; FIXME (common.imp.sch)
+  (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
+  (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
   (environment-set! larc 'lowlevel-write lowlevel-write)
   (environment-set! larc 'open-text-input-file open-text-input-file)
   (environment-set! larc 'open-text-output-file open-text-output-file)
@@ -1014,11 +1019,8 @@
   (environment-set! larc 'open-input/output-bytevector
                     open-input/output-bytevector)
   (environment-set! larc 'port-name port-name)
-  (environment-set! larc 'io/make-port io/make-port) ; XXX
-  (environment-set! larc 'io/get-u8 io/get-u8)       ; FIXME (common.imp.sch)
-  (environment-set! larc 'io/put-u8 io/put-u8)       ; FIXME (common.imp.sch)
-  (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
-  (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
+  (environment-set! larc 'port-folds-case? port-folds-case?)
+  (environment-set! larc 'port-folds-case! port-folds-case!)
   (environment-set! larc 'print-length print-length)
   (environment-set! larc 'print-level print-level)
   (environment-set! larc 'procedure-printer procedure-printer)

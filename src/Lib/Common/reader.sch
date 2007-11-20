@@ -253,14 +253,14 @@
                    (char=? c #\newline))
                (read-char input-port)
                (loop (peek-char input-port)))
-#;            ((char=? c #\;)
-               (scanner1))
-#;            ((char=? c #\()
-               (read-char input-port)
-               (accept 'lparen))
-#;            ((char=? c #\))
-               (read-char input-port)
-               (accept 'rparen))
+;             ((char=? c #\;)
+;              (scanner1))
+;             ((char=? c #\()
+;              (read-char input-port)
+;              (accept 'lparen))
+;             ((char=? c #\))
+;              (read-char input-port)
+;              (accept 'rparen))
               (else
                (state0 c))))
       (loop (peek-char input-port)))
@@ -285,22 +285,22 @@
   
   (define (state0 c)
     (case c
-      ((#\`) (consumeChar) (accept 'backquote))
-      ((#\') (consumeChar) (accept 'quote))
-      ((#\]) (consumeChar) (accept 'rbracket))
-      ((#\[) (consumeChar) (accept 'lbracket))
-      ((#\)) (consumeChar) (accept 'rparen))
-      ((#\() (consumeChar) (accept 'lparen))
+      ((#\`) (consumeChar) (accept (quote backquote)))
+      ((#\') (consumeChar) (accept (quote quote)))
+      ((#\]) (consumeChar) (accept (quote rbracket)))
+      ((#\[) (consumeChar) (accept (quote lbracket)))
+      ((#\)) (consumeChar) (accept (quote rparen)))
+      ((#\() (consumeChar) (accept (quote lparen)))
       ((#\tab #\newline #\vtab #\page #\return #\space)
        (consumeChar)
        (begin
          (set! string_accumulator_length 0)
          (state0 (scanChar))))
-      ((#\;) (consumeChar) (state193 (scanChar)))
-      ((#\#) (consumeChar) (state192 (scanChar)))
+      ((#\;) (consumeChar) (state201 (scanChar)))
+      ((#\#) (consumeChar) (state200 (scanChar)))
       ((#\0 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state123 (scanChar)))
+       (state131 (scanChar)))
       ((#\a
         #\b
         #\c
@@ -384,25 +384,25 @@
                    (> (char->integer c) 127)
                    (let ((cat (char-general-category c)))
                      (memq cat
-                           '(Lu Ll
-                                Lt
-                                Lm
-                                Lo
-                                Mn
-                                Nl
-                                No
-                                Pd
-                                Pc
-                                Po
-                                Sc
-                                Sm
-                                Sk
-                                So
-                                Co)))))
+                           (quote (Lu Ll
+                                      Lt
+                                      Lm
+                                      Lo
+                                      Mn
+                                      Nl
+                                      No
+                                      Pd
+                                      Pc
+                                      Po
+                                      Sc
+                                      Sm
+                                      Sk
+                                      So
+                                      Co))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if (eof-object? c)
-               (begin (consumeChar) (accept 'eofobj))
+               (begin (consumeChar) (accept (quote eofobj)))
                (if ((lambda (c) (and (char? c) (char-whitespace? c)))
                     c)
                    (begin
@@ -421,7 +421,7 @@
                        (scannerError errIncompleteToken))))))))
   (define (state1 c)
     (case c
-      ((#\") (consumeChar) (accept 'string))
+      ((#\") (consumeChar) (accept (quote string)))
       ((#\newline #\return)
        (consumeChar)
        (state4 (scanChar)))
@@ -520,7 +520,7 @@
                    (scannerError errIncompleteToken)))))))
   (define (state4 c)
     (case c
-      ((#\") (consumeChar) (accept 'string))
+      ((#\") (consumeChar) (accept (quote string)))
       ((#\newline #\return)
        (consumeChar)
        (state4 (scanChar)))
@@ -539,8 +539,8 @@
                    (scannerError errIncompleteToken)))))))
   (define (state5 c)
     (case c
-      ((#\@) (consumeChar) (accept 'splicing))
-      (else (accept 'comma))))
+      ((#\@) (consumeChar) (accept (quote splicing)))
+      (else (accept (quote comma)))))
   (define (state6 c)
     (case c
       ((#\a
@@ -632,7 +632,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -640,24 +640,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state7 c)
     (case c
       ((#\a
@@ -749,7 +749,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -757,24 +757,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state8 c)
     (case c
       ((#\a
@@ -810,7 +810,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -861,12 +860,12 @@
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
       ((#\#) (consumeChar) (state64 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       (else
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -874,24 +873,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state9 c)
     (case c
       ((#\a
@@ -983,7 +982,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -991,24 +990,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state10 c)
     (case c
       ((#\a
@@ -1100,7 +1099,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -1108,24 +1107,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state11 c)
     (case c
       ((#\a
@@ -1217,7 +1216,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -1225,24 +1224,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state12 c)
     (case c
       ((#\b
@@ -1334,7 +1333,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -1342,24 +1341,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state13 c)
     (case c
       ((#\a
@@ -1444,7 +1443,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -1452,24 +1451,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state14 c)
     (case c
       ((#\a
@@ -1505,7 +1504,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -1546,7 +1544,7 @@
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
       ((#\#) (consumeChar) (state64 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state14 (scanChar)))
@@ -1554,7 +1552,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -1562,24 +1560,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state15 c)
     (case c
       ((#\a
@@ -1664,7 +1662,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -1672,24 +1670,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state16 c)
     (case c
       ((#\a
@@ -1725,7 +1723,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -1765,7 +1762,7 @@
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
       ((#\#) (consumeChar) (state64 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state16 (scanChar)))
@@ -1774,7 +1771,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -1782,24 +1779,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state17 c)
     (case c
       ((#\a
@@ -1884,7 +1881,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -1892,24 +1889,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state18 c)
     (case c
       ((#\a
@@ -1993,7 +1990,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -2001,32 +1998,32 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state19 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state153 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state161 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state20 c)
@@ -2056,7 +2053,6 @@
         #\C
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\M
@@ -2093,7 +2089,7 @@
        (consumeChar)
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state20 (scanChar)))
@@ -2106,7 +2102,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -2114,28 +2110,28 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state21 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state154 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state162 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state22 c)
@@ -2173,7 +2169,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -2213,7 +2208,7 @@
        (consumeChar)
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state22 (scanChar)))
@@ -2222,7 +2217,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -2230,24 +2225,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state23 c)
     (case c
       ((#\a
@@ -2332,7 +2327,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -2340,34 +2335,34 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state24 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state157 (scanChar)))
-      ((#\/) (consumeChar) (state156 (scanChar)))
-      ((#\.) (consumeChar) (state153 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state165 (scanChar)))
+      ((#\/) (consumeChar) (state164 (scanChar)))
+      ((#\.) (consumeChar) (state161 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state25 c)
@@ -2397,7 +2392,6 @@
         #\C
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\M
@@ -2432,7 +2426,7 @@
        (consumeChar)
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state25 (scanChar)))
@@ -2447,7 +2441,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -2455,24 +2449,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state26 c)
     (case c
       ((#\a
@@ -2507,7 +2501,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -2547,6 +2540,7 @@
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
       ((#\#) (consumeChar) (state64 (scanChar)))
+      ((#\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state25 (scanChar)))
@@ -2557,7 +2551,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -2565,24 +2559,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state27 c)
     (case c
       ((#\a
@@ -2674,7 +2668,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -2682,24 +2676,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state28 c)
     (case c
       ((#\a
@@ -2791,7 +2785,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -2799,24 +2793,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state29 c)
     (case c
       ((#\a
@@ -2908,7 +2902,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -2916,24 +2910,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state30 c)
     (case c
       ((#\a
@@ -3025,7 +3019,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -3033,24 +3027,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state31 c)
     (case c
       ((#\a
@@ -3142,7 +3136,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -3150,24 +3144,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state32 c)
     (case c
       ((#\a
@@ -3259,7 +3253,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -3267,24 +3261,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state33 c)
     (case c
       ((#\b
@@ -3376,7 +3370,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -3384,24 +3378,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state34 c)
     (case c
       ((#\a
@@ -3486,7 +3480,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -3494,24 +3488,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state35 c)
     (case c
       ((#\a
@@ -3596,7 +3590,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -3604,24 +3598,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state36 c)
     (case c
       ((#\a
@@ -3706,7 +3700,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -3714,24 +3708,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state37 c)
     (case c
       ((#\a
@@ -3816,7 +3810,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -3824,24 +3818,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state38 c)
     (case c
       ((#\a
@@ -3926,7 +3920,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -3934,24 +3928,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state39 c)
     (case c
       ((#\a
@@ -4035,7 +4029,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -4043,33 +4037,33 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state40 c)
     (case c
-      ((#\#) (consumeChar) (state173 (scanChar)))
+      ((#\#) (consumeChar) (state181 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state41 c)
     (case c
       ((#\a
@@ -4147,7 +4141,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -4155,29 +4149,29 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state42 c)
     (case c
-      ((#\#) (consumeChar) (state174 (scanChar)))
+      ((#\#) (consumeChar) (state182 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state43 c)
     (case c
       ((#\a
@@ -4262,7 +4256,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -4270,24 +4264,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state44 c)
     (case c
       ((#\a
@@ -4372,7 +4366,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -4380,35 +4374,35 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state45 c)
     (case c
-      ((#\#) (consumeChar) (state177 (scanChar)))
-      ((#\/) (consumeChar) (state176 (scanChar)))
-      ((#\.) (consumeChar) (state173 (scanChar)))
+      ((#\#) (consumeChar) (state185 (scanChar)))
+      ((#\/) (consumeChar) (state184 (scanChar)))
+      ((#\.) (consumeChar) (state181 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state46 c)
     (case c
       ((#\a
@@ -4486,7 +4480,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -4494,24 +4488,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state47 c)
     (case c
       ((#\a
@@ -4596,7 +4590,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -4604,24 +4598,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state48 c)
     (case c
       ((#\a
@@ -4705,7 +4699,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -4713,24 +4707,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state49 c)
     (case c
       ((#\a
@@ -4814,7 +4808,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -4822,24 +4816,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state50 c)
     (case c
       ((#\a
@@ -4924,7 +4918,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -4932,24 +4926,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state51 c)
     (case c
       ((#\a
@@ -5033,7 +5027,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -5041,24 +5035,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state52 c)
     (case c
       ((#\a
@@ -5143,7 +5137,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -5151,24 +5145,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state53 c)
     (case c
       ((#\a
@@ -5252,7 +5246,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -5260,35 +5254,35 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state54 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state118 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state126 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state55 c)
     (case c
       ((#\a
@@ -5365,7 +5359,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -5373,24 +5367,24 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'number))))))
+               (accept (quote number)))))))
   (define (state56 c)
     (case c
       ((#\a
@@ -5475,7 +5469,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -5483,94 +5477,97 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'period))))))
+               (accept (quote period)))))))
   (define (state57 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state123 (scanChar)))
-      ((#\#) (consumeChar) (state122 (scanChar)))
-      ((#\/) (consumeChar) (state121 (scanChar)))
+       (state131 (scanChar)))
+      ((#\#) (consumeChar) (state130 (scanChar)))
+      ((#\/) (consumeChar) (state129 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      ((#\.) (consumeChar) (state112 (scanChar)))
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      ((#\.) (consumeChar) (state120 (scanChar)))
       ((#\+ #\-) (consumeChar) (state58 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state58 c)
     (case c
+      ((#\I) (consumeChar) (accept (quote number)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state158 (scanChar)))
-      ((#\.) (consumeChar) (state146 (scanChar)))
-      ((#\n) (consumeChar) (state145 (scanChar)))
-      ((#\i) (consumeChar) (state140 (scanChar)))
-      (else (accept 'id))))
+       (state166 (scanChar)))
+      ((#\.) (consumeChar) (state154 (scanChar)))
+      ((#\n) (consumeChar) (state153 (scanChar)))
+      ((#\i) (consumeChar) (state148 (scanChar)))
+      (else (accept (quote id)))))
   (define (state59 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\#) (consumeChar) (state184 (scanChar)))
-      ((#\/) (consumeChar) (state183 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\-) (consumeChar) (state159 (scanChar)))
+       (state193 (scanChar)))
+      ((#\#) (consumeChar) (state192 (scanChar)))
+      ((#\/) (consumeChar) (state191 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\-) (consumeChar) (state167 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      ((#\.) (consumeChar) (state132 (scanChar)))
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      ((#\.) (consumeChar) (state140 (scanChar)))
       ((#\+) (consumeChar) (state58 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state60 c)
     (case c
-      ((#\-) (consumeChar) (accept 'id))
+      ((#\-) (consumeChar) (accept (quote id)))
+      ((#\I) (consumeChar) (accept (quote number)))
       ((#\0 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\.) (consumeChar) (state131 (scanChar)))
-      ((#\n) (consumeChar) (state130 (scanChar)))
-      ((#\i) (consumeChar) (state125 (scanChar)))
+       (state193 (scanChar)))
+      ((#\.) (consumeChar) (state139 (scanChar)))
+      ((#\n) (consumeChar) (state138 (scanChar)))
+      ((#\i) (consumeChar) (state133 (scanChar)))
       ((#\: #\>) (consumeChar) (state68 (scanChar)))
       ((#\1) (consumeChar) (state59 (scanChar)))
-      (else (accept 'id))))
+      (else (accept (quote id)))))
   (define (state61 c)
     (case c
+      ((#\I) (consumeChar) (accept (quote number)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\.) (consumeChar) (state131 (scanChar)))
-      ((#\n) (consumeChar) (state130 (scanChar)))
-      ((#\i) (consumeChar) (state125 (scanChar)))
+       (state193 (scanChar)))
+      ((#\.) (consumeChar) (state139 (scanChar)))
+      ((#\n) (consumeChar) (state138 (scanChar)))
+      ((#\i) (consumeChar) (state133 (scanChar)))
       ((#\:) (consumeChar) (state68 (scanChar)))
-      (else (accept 'id))))
+      (else (accept (quote id)))))
   (define (state62 c)
     (case c
       ((#\" #\\) (consumeChar) (state63 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state63 c)
     (case c
-      ((#\") (consumeChar) (accept 'xstring))
+      ((#\") (consumeChar) (accept (quote xstring)))
       ((#\\) (consumeChar) (state62 (scanChar)))
       (else (begin (consumeChar) (state63 (scanChar))))))
   (define (state64 c)
@@ -5732,7 +5729,7 @@
        (if ((lambda (c)
               (and (char? c)
                    (let ((cat (char-general-category c)))
-                     (memq cat '(Nd Mc Me)))))
+                     (memq cat (quote (Nd Mc Me))))))
             c)
            (begin (consumeChar) (state68 (scanChar)))
            (if ((lambda (c)
@@ -5740,31 +5737,33 @@
                        (> (char->integer c) 127)
                        (let ((cat (char-general-category c)))
                          (memq cat
-                               '(Lu Ll
-                                    Lt
-                                    Lm
-                                    Lo
-                                    Mn
-                                    Nl
-                                    No
-                                    Pd
-                                    Pc
-                                    Po
-                                    Sc
-                                    Sm
-                                    Sk
-                                    So
-                                    Co)))))
+                               (quote (Lu Ll
+                                          Lt
+                                          Lm
+                                          Lo
+                                          Mn
+                                          Nl
+                                          No
+                                          Pd
+                                          Pc
+                                          Po
+                                          Sc
+                                          Sm
+                                          Sk
+                                          So
+                                          Co))))))
                 c)
                (begin (consumeChar) (state68 (scanChar)))
-               (accept 'id))))))
+               (accept (quote id)))))))
   (define (state69 c)
     (case c
-      ((#\@) (consumeChar) (accept 'unsyntaxsplicing))
-      (else (accept 'unsyntax))))
+      ((#\@)
+       (consumeChar)
+       (accept (quote unsyntaxsplicing)))
+      (else (accept (quote unsyntax)))))
   (define (state70 c)
     (case c
-      ((#\() (consumeChar) (accept 'bvecstart))
+      ((#\() (consumeChar) (accept (quote bvecstart)))
       (else (scannerError errIncompleteToken))))
   (define (state71 c)
     (case c
@@ -5801,10 +5800,36 @@
         #\w
         #\x
         #\y
-        #\z)
+        #\z
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F
+        #\G
+        #\H
+        #\I
+        #\J
+        #\K
+        #\L
+        #\M
+        #\N
+        #\O
+        #\P
+        #\Q
+        #\R
+        #\S
+        #\T
+        #\U
+        #\V
+        #\W
+        #\X
+        #\Y
+        #\Z)
        (consumeChar)
        (state73 (scanChar)))
-      (else (accept 'character))))
+      (else (accept (quote character)))))
   (define (state74 c)
     (case c
       ((#\0
@@ -5831,28 +5856,13 @@
         #\F)
        (consumeChar)
        (state74 (scanChar)))
-      (else (accept 'character))))
+      (else (accept (quote character)))))
   (define (state75 c)
     (case c
-      ((#\a #\b #\c #\d #\e #\f)
+      ((#\a #\b #\c #\d #\e #\f #\A #\B #\C #\D #\E #\F)
        (consumeChar)
        (state75 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state74 (scanChar)))
       ((#\g
@@ -5874,10 +5884,30 @@
         #\w
         #\x
         #\y
-        #\z)
+        #\z
+        #\G
+        #\H
+        #\I
+        #\J
+        #\K
+        #\L
+        #\M
+        #\N
+        #\O
+        #\P
+        #\Q
+        #\R
+        #\S
+        #\T
+        #\U
+        #\V
+        #\W
+        #\X
+        #\Y
+        #\Z)
        (consumeChar)
        (state73 (scanChar)))
-      (else (accept 'character))))
+      (else (accept (quote character)))))
   (define (state76 c)
     (case c
       ((#\x) (consumeChar) (state75 (scanChar)))
@@ -5905,22 +5935,48 @@
         #\v
         #\w
         #\y
-        #\z)
+        #\z
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F
+        #\G
+        #\H
+        #\I
+        #\J
+        #\K
+        #\L
+        #\M
+        #\N
+        #\O
+        #\P
+        #\Q
+        #\R
+        #\S
+        #\T
+        #\U
+        #\V
+        #\W
+        #\X
+        #\Y
+        #\Z)
        (consumeChar)
        (state73 (scanChar)))
       (else
        (if (char? c)
-           (begin (consumeChar) (accept 'character))
+           (begin (consumeChar) (accept (quote character)))
            (scannerError errIncompleteToken)))))
   (define (state77 c)
     (case c
       ((#\i #\I #\e #\E)
        (consumeChar)
-       (state108 (scanChar)))
+       (state116 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state78 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state107 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state115 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -5949,14 +6005,14 @@
       (else (scannerError errIncompleteToken))))
   (define (state79 c)
     (case c
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
       ((#\#) (consumeChar) (state79 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state80 c)
     (case c
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -5982,7 +6038,7 @@
        (consumeChar)
        (state80 (scanChar)))
       ((#\#) (consumeChar) (state79 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state81 c)
     (case c
       ((#\0
@@ -6012,15 +6068,15 @@
       (else (scannerError errIncompleteToken))))
   (define (state82 c)
     (case c
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
       ((#\#) (consumeChar) (state82 (scanChar)))
       ((#\/) (consumeChar) (state81 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state83 c)
     (case c
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -6047,7 +6103,7 @@
        (state83 (scanChar)))
       ((#\#) (consumeChar) (state82 (scanChar)))
       ((#\/) (consumeChar) (state81 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state84 c)
     (case c
       ((#\f) (consumeChar) (state88 (scanChar)))
@@ -6055,13 +6111,13 @@
   (define (state85 c)
     (case c
       ((#\n) (consumeChar) (state84 (scanChar)))
-      (else (accept 'number))))
+      (else (accept (quote number)))))
   (define (state86 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
-      (else (accept 'number))))
+      ((#\i) (consumeChar) (accept (quote number)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
+      (else (accept (quote number)))))
   (define (state87 c)
     (case c
       ((#\0) (consumeChar) (state86 (scanChar)))
@@ -6080,187 +6136,40 @@
       (else (scannerError errIncompleteToken))))
   (define (state91 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state154 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state91 (scanChar)))
+      ((#\f) (consumeChar) (state95 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state92 c)
     (case c
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state91 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\n) (consumeChar) (state91 (scanChar)))
+      (else (accept (quote number)))))
   (define (state93 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state93 (scanChar)))
-      ((#\/) (consumeChar) (state92 (scanChar)))
+      ((#\i) (consumeChar) (accept (quote number)))
       (else (scannerError errIncompleteToken))))
   (define (state94 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state94 (scanChar)))
-      ((#\#) (consumeChar) (state93 (scanChar)))
-      ((#\/) (consumeChar) (state92 (scanChar)))
+      ((#\0) (consumeChar) (state93 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state95 c)
     (case c
-      ((#\n) (consumeChar) (state145 (scanChar)))
-      ((#\i) (consumeChar) (state140 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state94 (scanChar)))
+      ((#\.) (consumeChar) (state94 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state96 c)
     (case c
-      ((#\#) (consumeChar) (state174 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state96 (scanChar)))
-      (else (accept 'number))))
+      ((#\n) (consumeChar) (state95 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state97 c)
     (case c
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state96 (scanChar)))
+      ((#\a) (consumeChar) (state96 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state98 c)
     (case c
+      ((#\i) (consumeChar) (accept (quote number)))
       ((#\#) (consumeChar) (state98 (scanChar)))
-      ((#\/) (consumeChar) (state97 (scanChar)))
-      (else (accept 'number))))
+      (else (scannerError errIncompleteToken))))
   (define (state99 c)
     (case c
+      ((#\i) (consumeChar) (accept (quote number)))
       ((#\0
         #\1
         #\2
@@ -6286,12 +6195,9 @@
        (consumeChar)
        (state99 (scanChar)))
       ((#\#) (consumeChar) (state98 (scanChar)))
-      ((#\/) (consumeChar) (state97 (scanChar)))
-      (else (accept 'number))))
+      (else (scannerError errIncompleteToken))))
   (define (state100 c)
     (case c
-      ((#\n) (consumeChar) (state165 (scanChar)))
-      ((#\i) (consumeChar) (state161 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -6319,42 +6225,42 @@
       (else (scannerError errIncompleteToken))))
   (define (state101 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state100 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state99 (scanChar)))
+      ((#\i) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state101 (scanChar)))
+      ((#\/) (consumeChar) (state100 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state102 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state102 (scanChar)))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
-      (else (accept 'number))))
+      ((#\i) (consumeChar) (accept (quote number)))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state102 (scanChar)))
+      ((#\#) (consumeChar) (state101 (scanChar)))
+      ((#\/) (consumeChar) (state100 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state103 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
       ((#\0
         #\1
         #\2
@@ -6378,13 +6284,13 @@
         #\E
         #\F)
        (consumeChar)
-       (state103 (scanChar)))
-      ((#\#) (consumeChar) (state102 (scanChar)))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
-      (else (accept 'number))))
+       (state102 (scanChar)))
+      ((#\n) (consumeChar) (state97 (scanChar)))
+      ((#\i) (consumeChar) (state92 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state104 c)
     (case c
+      ((#\#) (consumeChar) (state182 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -6408,19 +6314,10 @@
         #\E
         #\F)
        (consumeChar)
-       (state103 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+       (state104 (scanChar)))
+      (else (accept (quote number)))))
   (define (state105 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state105 (scanChar)))
-      ((#\/) (consumeChar) (state104 (scanChar)))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
-      (else (accept 'number))))
-  (define (state106 c)
-    (case c
-      ((#\i) (consumeChar) (accept 'number))
       ((#\0
         #\1
         #\2
@@ -6444,12 +6341,13 @@
         #\E
         #\F)
        (consumeChar)
-       (state106 (scanChar)))
-      ((#\#) (consumeChar) (state105 (scanChar)))
-      ((#\/) (consumeChar) (state104 (scanChar)))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
-      (else (accept 'number))))
+       (state104 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state106 c)
+    (case c
+      ((#\#) (consumeChar) (state106 (scanChar)))
+      ((#\/) (consumeChar) (state105 (scanChar)))
+      (else (accept (quote number)))))
   (define (state107 c)
     (case c
       ((#\0
@@ -6475,13 +6373,204 @@
         #\E
         #\F)
        (consumeChar)
-       (state106 (scanChar)))
+       (state107 (scanChar)))
+      ((#\#) (consumeChar) (state106 (scanChar)))
+      ((#\/) (consumeChar) (state105 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state108 c)
+    (case c
+      ((#\n) (consumeChar) (state173 (scanChar)))
+      ((#\i) (consumeChar) (state169 (scanChar)))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state107 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state109 c)
+    (case c
+      ((#\+ #\-) (consumeChar) (state108 (scanChar)))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state107 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state110 c)
+    (case c
+      ((#\i) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state110 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state111 c)
+    (case c
+      ((#\i) (consumeChar) (accept (quote number)))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state111 (scanChar)))
+      ((#\#) (consumeChar) (state110 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state112 c)
+    (case c
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state111 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state113 c)
+    (case c
+      ((#\i) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state113 (scanChar)))
+      ((#\/) (consumeChar) (state112 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state114 c)
+    (case c
+      ((#\i) (consumeChar) (accept (quote number)))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state114 (scanChar)))
+      ((#\#) (consumeChar) (state113 (scanChar)))
+      ((#\/) (consumeChar) (state112 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state115 c)
+    (case c
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state114 (scanChar)))
       ((#\n) (consumeChar) (state90 (scanChar)))
       ((#\i) (consumeChar) (state85 (scanChar)))
       (else (scannerError errIncompleteToken))))
-  (define (state108 c)
+  (define (state116 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state107 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state115 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -6507,505 +6596,442 @@
        (consumeChar)
        (state83 (scanChar)))
       (else (scannerError errIncompleteToken))))
-  (define (state109 c)
-    (case c
-      ((#\d #\D) (consumeChar) (state187 (scanChar)))
-      ((#\b #\B #\o #\O #\x #\X)
-       (consumeChar)
-       (state108 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state110 c)
-    (case c
-      ((#\+ #\-) (consumeChar) (state186 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state123 (scanChar)))
-      ((#\.) (consumeChar) (state111 (scanChar)))
-      ((#\#) (consumeChar) (state109 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state111 c)
-    (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state112 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state112 c)
-    (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state118 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state112 (scanChar)))
-      (else (accept 'number))))
-  (define (state113 c)
-    (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state113 (scanChar)))
-      (else (accept 'number))))
-  (define (state114 c)
-    (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state113 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state115 c)
-    (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state115 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      (else (accept 'number))))
-  (define (state116 c)
-    (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state115 (scanChar)))
-      (else (scannerError errIncompleteToken))))
   (define (state117 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state116 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+      ((#\d #\D) (consumeChar) (state195 (scanChar)))
+      ((#\b #\B #\o #\O #\x #\X)
        (consumeChar)
-       (state115 (scanChar)))
+       (state116 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state118 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state118 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      (else (accept 'number))))
-  (define (state119 c)
-    (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state119 (scanChar)))
-      (else (accept 'number))))
-  (define (state120 c)
-    (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state194 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state120 (scanChar)))
-      ((#\#) (consumeChar) (state119 (scanChar)))
-      (else (accept 'number))))
-  (define (state121 c)
+       (state131 (scanChar)))
+      ((#\.) (consumeChar) (state119 (scanChar)))
+      ((#\#) (consumeChar) (state117 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state119 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state120 (scanChar)))
       (else (scannerError errIncompleteToken))))
-  (define (state122 c)
+  (define (state120 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state122 (scanChar)))
-      ((#\/) (consumeChar) (state121 (scanChar)))
-      ((#\.) (consumeChar) (state118 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state126 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      (else (accept 'number))))
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state120 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state121 c)
+    (case c
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state121 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state122 c)
+    (case c
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state121 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state123 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state123 (scanChar)))
-      ((#\#) (consumeChar) (state122 (scanChar)))
-      ((#\/) (consumeChar) (state121 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      ((#\.) (consumeChar) (state112 (scanChar)))
-      (else (accept 'number))))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      (else (accept (quote number)))))
   (define (state124 c)
     (case c
-      ((#\f) (consumeChar) (state128 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state123 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state125 c)
     (case c
-      ((#\n) (consumeChar) (state124 (scanChar)))
-      (else (accept 'number))))
+      ((#\+ #\-) (consumeChar) (state124 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state123 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state126 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      (else (accept 'number))))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state126 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      (else (accept (quote number)))))
   (define (state127 c)
     (case c
-      ((#\0) (consumeChar) (state126 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state127 (scanChar)))
+      (else (accept (quote number)))))
   (define (state128 c)
     (case c
-      ((#\.) (consumeChar) (state127 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state128 (scanChar)))
+      ((#\#) (consumeChar) (state127 (scanChar)))
+      (else (accept (quote number)))))
   (define (state129 c)
     (case c
-      ((#\n) (consumeChar) (state128 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state128 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state130 c)
     (case c
-      ((#\a) (consumeChar) (state129 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state131 c)
-    (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state132 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state132 c)
-    (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state138 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state130 (scanChar)))
+      ((#\/) (consumeChar) (state129 (scanChar)))
+      ((#\.) (consumeChar) (state126 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state131 c)
+    (case c
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state132 (scanChar)))
-      (else (accept 'number))))
+       (state131 (scanChar)))
+      ((#\#) (consumeChar) (state130 (scanChar)))
+      ((#\/) (consumeChar) (state129 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      ((#\.) (consumeChar) (state120 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state132 c)
+    (case c
+      ((#\f) (consumeChar) (state136 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state133 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state133 (scanChar)))
-      (else (accept 'number))))
+      ((#\n) (consumeChar) (state132 (scanChar)))
+      (else (accept (quote number)))))
   (define (state134 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state133 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      (else (accept (quote number)))))
   (define (state135 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state135 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      (else (accept 'number))))
+      ((#\0) (consumeChar) (state134 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state136 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state135 (scanChar)))
+      ((#\.) (consumeChar) (state135 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state137 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state136 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state135 (scanChar)))
+      ((#\n) (consumeChar) (state136 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state138 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state138 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      (else (accept 'number))))
+      ((#\a) (consumeChar) (state137 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state139 c)
     (case c
-      ((#\f) (consumeChar) (state143 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state140 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state140 c)
     (case c
-      ((#\n) (consumeChar) (state139 (scanChar)))
-      (else (accept 'number))))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state146 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state140 (scanChar)))
+      (else (accept (quote number)))))
   (define (state141 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      (else (scannerError errIncompleteToken))))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state141 (scanChar)))
+      (else (accept (quote number)))))
   (define (state142 c)
     (case c
-      ((#\0) (consumeChar) (state141 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state141 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state143 c)
     (case c
-      ((#\.) (consumeChar) (state142 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state143 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      (else (accept (quote number)))))
   (define (state144 c)
     (case c
-      ((#\n) (consumeChar) (state143 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state143 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state145 c)
     (case c
-      ((#\a) (consumeChar) (state144 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state144 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state143 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state146 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state147 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state147 c)
-    (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state153 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state146 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state147 (scanChar)))
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state147 c)
+    (case c
+      ((#\f) (consumeChar) (state151 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state148 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state148 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\n) (consumeChar) (state147 (scanChar)))
+      (else (accept (quote number)))))
   (define (state149 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state148 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
       (else (scannerError errIncompleteToken))))
   (define (state150 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state150 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+      ((#\0) (consumeChar) (state149 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state151 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state150 (scanChar)))
+      ((#\.) (consumeChar) (state150 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state152 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state151 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state150 (scanChar)))
+      ((#\n) (consumeChar) (state151 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state153 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state153 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+      ((#\a) (consumeChar) (state152 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state154 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state154 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state155 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state155 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state161 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state155 (scanChar)))
-      ((#\#) (consumeChar) (state154 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state156 c)
     (case c
+      ((#\i #\I) (consumeChar) (accept (quote number)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state155 (scanChar)))
+       (state156 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state157 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state157 (scanChar)))
-      ((#\/) (consumeChar) (state156 (scanChar)))
-      ((#\.) (consumeChar) (state153 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+       (state156 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state158 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state158 (scanChar)))
-      ((#\#) (consumeChar) (state157 (scanChar)))
-      ((#\/) (consumeChar) (state156 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
-      ((#\.) (consumeChar) (state147 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state159 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state158 (scanChar)))
-      ((#\.) (consumeChar) (state146 (scanChar)))
-      ((#\n) (consumeChar) (state145 (scanChar)))
-      ((#\i) (consumeChar) (state140 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state160 c)
     (case c
-      ((#\f) (consumeChar) (state163 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state158 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state161 c)
     (case c
-      ((#\n) (consumeChar) (state160 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state161 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state162 c)
     (case c
-      ((#\0) (consumeChar) (accept 'number))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state162 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state163 c)
     (case c
-      ((#\.) (consumeChar) (state162 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state163 (scanChar)))
+      ((#\#) (consumeChar) (state162 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state164 c)
     (case c
-      ((#\n) (consumeChar) (state163 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state163 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state165 c)
     (case c
-      ((#\a) (consumeChar) (state164 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state165 (scanChar)))
+      ((#\/) (consumeChar) (state164 (scanChar)))
+      ((#\.) (consumeChar) (state161 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state166 c)
     (case c
+      ((#\i #\I) (consumeChar) (accept (quote number)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state167 (scanChar)))
+       (state166 (scanChar)))
+      ((#\#) (consumeChar) (state165 (scanChar)))
+      ((#\/) (consumeChar) (state164 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
+      ((#\.) (consumeChar) (state155 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state167 c)
     (case c
-      ((#\#) (consumeChar) (state173 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
+      ((#\I) (consumeChar) (accept (quote number)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state167 (scanChar)))
-      (else (accept 'number))))
+       (state166 (scanChar)))
+      ((#\.) (consumeChar) (state154 (scanChar)))
+      ((#\n) (consumeChar) (state153 (scanChar)))
+      ((#\i) (consumeChar) (state148 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state168 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state168 (scanChar)))
-      (else (accept 'number))))
+      ((#\f) (consumeChar) (state171 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state169 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state168 (scanChar)))
+      ((#\n) (consumeChar) (state168 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state170 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state170 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
-      (else (accept 'number))))
+      ((#\0) (consumeChar) (accept (quote number)))
+      (else (scannerError errIncompleteToken))))
   (define (state171 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state170 (scanChar)))
+      ((#\.) (consumeChar) (state170 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state172 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state171 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state170 (scanChar)))
+      ((#\n) (consumeChar) (state171 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state173 c)
     (case c
-      ((#\#) (consumeChar) (state173 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
-      (else (accept 'number))))
+      ((#\a) (consumeChar) (state172 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state174 c)
-    (case c
-      ((#\#) (consumeChar) (state174 (scanChar)))
-      (else (accept 'number))))
-  (define (state175 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state175 (scanChar)))
-      ((#\#) (consumeChar) (state174 (scanChar)))
-      (else (accept 'number))))
+      (else (scannerError errIncompleteToken))))
+  (define (state175 c)
+    (case c
+      ((#\#) (consumeChar) (state181 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state175 (scanChar)))
+      (else (accept (quote number)))))
   (define (state176 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state175 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+       (state176 (scanChar)))
+      (else (accept (quote number)))))
   (define (state177 c)
     (case c
-      ((#\#) (consumeChar) (state177 (scanChar)))
-      ((#\/) (consumeChar) (state176 (scanChar)))
-      ((#\.) (consumeChar) (state173 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
-      (else (accept 'number))))
+       (state176 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state178 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state178 (scanChar)))
-      ((#\#) (consumeChar) (state177 (scanChar)))
-      ((#\/) (consumeChar) (state176 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
-      ((#\.) (consumeChar) (state167 (scanChar)))
-      (else (accept 'number))))
+      ((#\|) (consumeChar) (state177 (scanChar)))
+      (else (accept (quote number)))))
   (define (state179 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state178 (scanChar)))
-      ((#\.) (consumeChar) (state166 (scanChar)))
-      ((#\n) (consumeChar) (state165 (scanChar)))
-      ((#\i) (consumeChar) (state161 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state180 c)
     (case c
@@ -7013,93 +7039,158 @@
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state178 (scanChar)))
-      ((#\.) (consumeChar) (state166 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state181 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
       ((#\#) (consumeChar) (state181 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      (else (accept 'number))))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
+      (else (accept (quote number)))))
   (define (state182 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state182 (scanChar)))
-      ((#\#) (consumeChar) (state181 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      (else (accept 'number))))
+      ((#\#) (consumeChar) (state182 (scanChar)))
+      (else (accept (quote number)))))
   (define (state183 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state182 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+       (state183 (scanChar)))
+      ((#\#) (consumeChar) (state182 (scanChar)))
+      (else (accept (quote number)))))
   (define (state184 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state184 (scanChar)))
-      ((#\/) (consumeChar) (state183 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\.) (consumeChar) (state138 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      (else (accept 'number))))
-  (define (state185 c)
-    (case c
-      ((#\i) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\#) (consumeChar) (state184 (scanChar)))
-      ((#\/) (consumeChar) (state183 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+       (state183 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state185 c)
+    (case c
+      ((#\#) (consumeChar) (state185 (scanChar)))
+      ((#\/) (consumeChar) (state184 (scanChar)))
+      ((#\.) (consumeChar) (state181 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      ((#\.) (consumeChar) (state132 (scanChar)))
-      (else (accept 'number))))
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
+      (else (accept (quote number)))))
   (define (state186 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\.) (consumeChar) (state131 (scanChar)))
-      ((#\n) (consumeChar) (state130 (scanChar)))
-      ((#\i) (consumeChar) (state125 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+       (state186 (scanChar)))
+      ((#\#) (consumeChar) (state185 (scanChar)))
+      ((#\/) (consumeChar) (state184 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
+      ((#\.) (consumeChar) (state175 (scanChar)))
+      (else (accept (quote number)))))
   (define (state187 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state186 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state123 (scanChar)))
-      ((#\.) (consumeChar) (state111 (scanChar)))
+       (state186 (scanChar)))
+      ((#\.) (consumeChar) (state174 (scanChar)))
+      ((#\n) (consumeChar) (state173 (scanChar)))
+      ((#\i) (consumeChar) (state169 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state188 c)
     (case c
-      ((#\i #\I #\e #\E)
+      ((#\+ #\-) (consumeChar) (state187 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state187 (scanChar)))
+       (state186 (scanChar)))
+      ((#\.) (consumeChar) (state174 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state189 c)
     (case c
-      ((#\#) (consumeChar) (state188 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state186 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state189 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state190 c)
+    (case c
+      ((#\i #\I) (consumeChar) (accept (quote number)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state123 (scanChar)))
-      ((#\.) (consumeChar) (state111 (scanChar)))
+       (state190 (scanChar)))
+      ((#\#) (consumeChar) (state189 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state191 c)
+    (case c
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state190 (scanChar)))
       (else (scannerError errIncompleteToken))))
-  (define (state190 c)
+  (define (state192 c)
+    (case c
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\#) (consumeChar) (state192 (scanChar)))
+      ((#\/) (consumeChar) (state191 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\.) (consumeChar) (state146 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state193 c)
+    (case c
+      ((#\i #\I) (consumeChar) (accept (quote number)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state193 (scanChar)))
+      ((#\#) (consumeChar) (state192 (scanChar)))
+      ((#\/) (consumeChar) (state191 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      ((#\.) (consumeChar) (state140 (scanChar)))
+      (else (accept (quote number)))))
+  (define (state194 c)
+    (case c
+      ((#\I) (consumeChar) (accept (quote number)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state193 (scanChar)))
+      ((#\.) (consumeChar) (state139 (scanChar)))
+      ((#\n) (consumeChar) (state138 (scanChar)))
+      ((#\i) (consumeChar) (state133 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state195 c)
+    (case c
+      ((#\+ #\-) (consumeChar) (state194 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state131 (scanChar)))
+      ((#\.) (consumeChar) (state119 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state196 c)
+    (case c
+      ((#\i #\I #\e #\E)
+       (consumeChar)
+       (state195 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state197 c)
+    (case c
+      ((#\#) (consumeChar) (state196 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state194 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state131 (scanChar)))
+      ((#\.) (consumeChar) (state119 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state198 c)
     (case c
       ((#\a
         #\b
@@ -7165,9 +7256,9 @@
         #\9
         #\-)
        (consumeChar)
-       (state190 (scanChar)))
-      (else (accept 'miscflag))))
-  (define (state191 c)
+       (state198 (scanChar)))
+      (else (accept (quote miscflag)))))
+  (define (state199 c)
     (case c
       ((#\a
         #\b
@@ -7222,25 +7313,29 @@
         #\Y
         #\Z)
        (consumeChar)
-       (state190 (scanChar)))
-      (else (accept 'xcomment))))
-  (define (state192 c)
+       (state198 (scanChar)))
+      (else (accept (quote xcomment)))))
+  (define (state200 c)
     (case c
-      ((#\&) (consumeChar) (accept 'xbox))
-      ((#\.) (consumeChar) (accept 'xsharpdot))
-      ((#\`) (consumeChar) (accept 'quasisyntax))
-      ((#\') (consumeChar) (accept 'syntax))
-      ((#\() (consumeChar) (accept 'vecstart))
+      ((#\&) (consumeChar) (accept (quote xbox)))
+      ((#\.) (consumeChar) (accept (quote xsharpdot)))
+      ((#\`)
+       (consumeChar)
+       (accept (quote quasisyntax)))
+      ((#\') (consumeChar) (accept (quote syntax)))
+      ((#\() (consumeChar) (accept (quote vecstart)))
       ((#\t #\T #\f #\F)
        (consumeChar)
-       (accept 'boolean))
-      ((#\;) (consumeChar) (accept 'commentdatum))
-      ((#\|) (consumeChar) (accept 'comment))
-      ((#\!) (consumeChar) (state191 (scanChar)))
-      ((#\d #\D) (consumeChar) (state189 (scanChar)))
+       (accept (quote boolean)))
+      ((#\;)
+       (consumeChar)
+       (accept (quote commentdatum)))
+      ((#\|) (consumeChar) (accept (quote comment)))
+      ((#\!) (consumeChar) (state199 (scanChar)))
+      ((#\d #\D) (consumeChar) (state197 (scanChar)))
       ((#\i #\I #\e #\E)
        (consumeChar)
-       (state110 (scanChar)))
+       (state118 (scanChar)))
       ((#\b #\B #\o #\O #\x #\X)
        (consumeChar)
        (state78 (scanChar)))
@@ -7253,97 +7348,97 @@
        (if ((lambda (c)
               (and (char? c) (char=? c (integer->char 16))))
             c)
-           (begin (consumeChar) (accept 'xfaslp))
+           (begin (consumeChar) (accept (quote xfaslp)))
            (if ((lambda (c)
                   (and (char? c) (char=? c (integer->char 7))))
                 c)
-               (begin (consumeChar) (accept 'xfaslg))
+               (begin (consumeChar) (accept (quote xfaslg)))
                (if ((lambda (c)
                       (and (char? c) (char=? c (integer->char 6))))
                     c)
-                   (begin (consumeChar) (accept 'xfaslf))
+                   (begin (consumeChar) (accept (quote xfaslf)))
                    (if ((lambda (c)
                           (and (char? c) (char=? c (integer->char 3))))
                         c)
-                       (begin (consumeChar) (accept 'xfaslc))
+                       (begin (consumeChar) (accept (quote xfaslc)))
                        (if ((lambda (c)
                               (and (char? c) (char=? c (integer->char 2))))
                             c)
-                           (begin (consumeChar) (accept 'xfaslb))
+                           (begin (consumeChar) (accept (quote xfaslb)))
                            (scannerError errIncompleteToken)))))))))
-  (define (state193 c)
+  (define (state201 c)
     (case c
       (else
        (if ((lambda (c)
               (and (char? c)
                    (not (char=? c (integer->char 10)))))
             c)
-           (begin (consumeChar) (state193 (scanChar)))
+           (begin (consumeChar) (state201 (scanChar)))
            (begin
              (set! string_accumulator_length 0)
              (state0 (scanChar)))))))
-  (define (state194 c)
+  (define (state202 c)
     (case c
       (else
        (begin
          (set! string_accumulator_length 0)
          (state0 (scanChar))))))
-  (define (state195 c)
-    (case c (else (accept 'comment))))
-  (define (state196 c)
-    (case c (else (accept 'commentdatum))))
-  (define (state197 c)
-    (case c (else (accept 'boolean))))
-  (define (state198 c)
-    (case c (else (accept 'number))))
-  (define (state199 c)
-    (case c (else (accept 'character))))
-  (define (state200 c)
-    (case c (else (accept 'vecstart))))
-  (define (state201 c)
-    (case c (else (accept 'bvecstart))))
-  (define (state202 c)
-    (case c (else (accept 'syntax))))
   (define (state203 c)
-    (case c (else (accept 'quasisyntax))))
+    (case c (else (accept (quote comment)))))
   (define (state204 c)
-    (case c (else (accept 'unsyntaxsplicing))))
+    (case c (else (accept (quote commentdatum)))))
   (define (state205 c)
-    (case c (else (accept 'xfaslb))))
+    (case c (else (accept (quote boolean)))))
   (define (state206 c)
-    (case c (else (accept 'xfaslc))))
+    (case c (else (accept (quote number)))))
   (define (state207 c)
-    (case c (else (accept 'xfaslf))))
+    (case c (else (accept (quote character)))))
   (define (state208 c)
-    (case c (else (accept 'xfaslg))))
+    (case c (else (accept (quote vecstart)))))
   (define (state209 c)
-    (case c (else (accept 'xfaslp))))
+    (case c (else (accept (quote bvecstart)))))
   (define (state210 c)
-    (case c (else (accept 'xsharpdot))))
+    (case c (else (accept (quote syntax)))))
   (define (state211 c)
-    (case c (else (accept 'xbox))))
+    (case c (else (accept (quote quasisyntax)))))
   (define (state212 c)
-    (case c (else (accept 'xstring))))
+    (case c (else (accept (quote unsyntaxsplicing)))))
   (define (state213 c)
-    (case c (else (accept 'eofobj))))
+    (case c (else (accept (quote xfaslb)))))
   (define (state214 c)
-    (case c (else (accept 'id))))
+    (case c (else (accept (quote xfaslc)))))
   (define (state215 c)
-    (case c (else (accept 'lparen))))
+    (case c (else (accept (quote xfaslf)))))
   (define (state216 c)
-    (case c (else (accept 'rparen))))
+    (case c (else (accept (quote xfaslg)))))
   (define (state217 c)
-    (case c (else (accept 'lbracket))))
+    (case c (else (accept (quote xfaslp)))))
   (define (state218 c)
-    (case c (else (accept 'rbracket))))
+    (case c (else (accept (quote xsharpdot)))))
   (define (state219 c)
-    (case c (else (accept 'quote))))
+    (case c (else (accept (quote xbox)))))
   (define (state220 c)
-    (case c (else (accept 'backquote))))
+    (case c (else (accept (quote xstring)))))
   (define (state221 c)
-    (case c (else (accept 'splicing))))
+    (case c (else (accept (quote eofobj)))))
   (define (state222 c)
-    (case c (else (accept 'string))))
+    (case c (else (accept (quote id)))))
+  (define (state223 c)
+    (case c (else (accept (quote lparen)))))
+  (define (state224 c)
+    (case c (else (accept (quote rparen)))))
+  (define (state225 c)
+    (case c (else (accept (quote lbracket)))))
+  (define (state226 c)
+    (case c (else (accept (quote rbracket)))))
+  (define (state227 c)
+    (case c (else (accept (quote quote)))))
+  (define (state228 c)
+    (case c (else (accept (quote backquote)))))
+  (define (state229 c)
+    (case c (else (accept (quote splicing)))))
+  (define (state230 c)
+    (case c (else (accept (quote string)))))
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
@@ -8133,27 +8228,29 @@
       (let ()
         (case m
          ((r6rs err5rs)
+          (port-folds-case! input-port #f)
           (set-switches recognize-keywords?          #f
                         recognize-javadot-symbols?   #f
-                        case-sensitive?              #t
                         read-square-bracket-as-paren #t
                        ;datum-source-locations?      (datum-source-locations?)
                         read-r6rs-flags?             #t
                         read-larceny-weirdness?      #f
                         read-traditional-weirdness?  #f
                         read-mzscheme-weirdness?     #f))
+
          ((r5rs)
-          (set-switches read-larceny-weirdness?      #t
-                        case-sensitive?              #f))
+          (port-folds-case! input-port #t)
+          (set-switches read-larceny-weirdness?      #t))
+
          ((fasl larceny)
-          (set-switches read-larceny-weirdness?      #t
-                        case-sensitive?              #t))
+          (port-folds-case! input-port #f)
+          (set-switches read-larceny-weirdness?      #t))
 
          ((fold-case)
-          (set-switches case-sensitive?              #f))
+          (port-folds-case! input-port #t))
 
          ((no-fold-case)
-          (set-switches case-sensitive?              #t))
+          (port-folds-case! input-port #f))
 
          ; FIXME: these compiler switches might not be defined in all heaps.
 
@@ -8305,7 +8402,9 @@
                 (string->number (substring tokenValue 3 n) 16)))
               (else
                (let* ((s (substring tokenValue 2 n))
-                      (s (if (case-sensitive?) s (string-foldcase s)))
+                      (s (if (port-folds-case? input-port)
+                             (string-foldcase s)
+                             s))
                       (sym (string->symbol s)))
                  (case sym
                   ((nul)       #\nul)
@@ -8562,16 +8661,16 @@
               sym))
         (define (loop i)
           (if (= i n)
-              (return (string->symbol (if (case-sensitive?)
-                                          tokenValue
-                                          (string-foldcase tokenValue))))
+              (return (string->symbol (if (port-folds-case? input-port)
+                                          (string-foldcase tokenValue)
+                                          tokenValue)))
               (let ((c (string-ref tokenValue i)))
                 (cond ((or (char=? c #\\)
                            (char=? c #\#))
                        (slow-loop i
                                   (reverse
                                    (string->list (substring tokenValue 0 i)))
-                                  (not (case-sensitive?))))
+                                  (port-folds-case? input-port)))
                       ((and (char=? c #\|)
                             (not (read-larceny-weirdness?)))
                        (scannerError errIllegalSymbol))
