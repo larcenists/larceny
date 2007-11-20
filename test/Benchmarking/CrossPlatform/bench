@@ -68,6 +68,7 @@ setup ()
         SCHEME48="${APPS}/bin/scheme48"
         MIT="${APPS}/bin/mit-scheme"
         PETITE_CHEZ="${APPS}/bin/petite-chez"
+        KAWA="${APPS}/bin/kawa"
         HENCHMAN="/home/henchman/bin/larceny"
         ;;
 
@@ -77,6 +78,7 @@ setup ()
 
   BIGLOO=${BIGLOO:-"${APPS}/bin/bigloo"}
   LARCENY=${LARCENY:-"larceny"}
+  PETIT=${PETIT:-"petit-larceny"}
   MZSCHEME=${MZSCHEME:-"mzscheme"}
  
   CSC=$CHICKEN
@@ -363,6 +365,17 @@ larceny_exec ()
   printf "$EXECCOMMANDS" "$1" | "${LARCENY}" $COMPOPTS
 }
 
+petit_comp ()
+{
+  printf "$COMPCOMMANDS" "$1" | "${PETIT}" $COMPOPTS
+  :
+}
+
+petit_exec ()
+{
+  printf "$EXECCOMMANDS" "$1" | "${PETIT}" $COMPOPTS
+}
+
 lardump_comp ()
 {
   printf "$COMPCOMMANDS" "$1" "$1" "$1" | "${LARCENY}" -stopcopy $COMPOPTS
@@ -410,6 +423,19 @@ petite_chez_comp ()
 petite_chez_exec ()
 {
   printf "$REPLCOMMANDS" "$1" | /usr/bin/time $PETITE_CHEZ
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Kawa
+
+kawa_comp ()
+{
+  :
+}
+
+kawa_exec ()
+{
+  printf "$REPLCOMMANDS" "$1" | /usr/bin/time $KAWA
 }
 
 # -----------------------------------------------------------------------------
@@ -1072,14 +1098,14 @@ chicken-int) NAME='Chicken-int'
                 INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
                 PREFIXCODE="; %s %s"
                 SUFFIXCODE="; %s %s"
-                REPLCOMMANDS=",bench off\n,open time posix bitwise ascii\n,load %s.scm\n,exit\n"
+                REPLCOMMANDS=",bench off\n,unset inline-values\n,open time posix bitwise ascii\n,load %s.scm\n,exit\n"
                 ;;
               r6rs)
                 COMPOPTS="-h 20000000"
                 INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
                 PREFIXCODE="; %s %s"
                 SUFFIXCODE="; %s %s"
-                REPLCOMMANDS=",bench on\n,open time posix bitwise ascii\n,load %s.scm\n,exit\n"
+                REPLCOMMANDS=",bench on\n,set inline-values\n,open time posix bitwise ascii\n,load %s.scm\n,exit\n"
                 ;;
               r6rs-unsafe)
                 # Scheme48 does not seem to have an unsafe mode.
@@ -1119,6 +1145,41 @@ chicken-int) NAME='Chicken-int'
             COMP=larceny_comp
             COMPOPTS=""
             EXEC=larceny_exec
+            iterfile=num-iters.scm
+            extension=".scm"
+            PREFIXCODE="; %s %s"
+            SUFFIXCODE="; %s %s"
+            case "$setting" in
+              r5rs)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
+                COMPSWITCHES="(compiler-switches 'standard)"
+                ;;
+              r6rs)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
+		COMPSWITCHES="(compiler-switches 'fast-safe)"
+                ;;
+              r6rs-unsafe)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
+		COMPSWITCHES="(compiler-switches 'fast-unsafe)"
+                ;;
+              r6rs-fixflo)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) yes)))"
+		COMPSWITCHES="(compiler-switches 'fast-safe)"
+                ;;
+              r6rs-fixflo-unsafe)
+                INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) yes)))"
+		COMPSWITCHES="(compiler-switches 'fast-unxsafe)"
+                ;;
+            esac
+	    REPLCOMMANDS="(begin $COMPSWITCHES (load \"%s.scm\") (main))"
+	    COMPCOMMANDS="(begin $COMPSWITCHES (compile-file \"%s.scm\"))"
+	    EXECCOMMANDS="(begin (load \"%s.fasl\") (main))"
+            ;;
+
+     petit) NAME='PetitLarceny'
+            COMP=petit_comp
+            COMPOPTS=""
+            EXEC=petit_exec
             iterfile=num-iters.scm
             extension=".scm"
             PREFIXCODE="; %s %s"
@@ -1260,6 +1321,25 @@ petite-chez) NAME='Petite-Chez-Scheme'
                 ;;
               r6rs)
                 REPLCOMMANDS="(begin (optimize-level 2) (load \"%s.scm\") (main))"
+                ;;
+            esac
+             ;;
+
+       kawa) NAME='Kawa'
+             COMP=kawa_comp
+             COMPOPTS=""
+             EXEC=kawa_exec
+             iterfile=num-iters.scm
+             extension=".scm"
+            INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
+             PREFIXCODE="; %s %s"
+             SUFFIXCODE="; %s %s"
+            case "$setting" in
+              r5rs)
+                REPLCOMMANDS="(begin (load \"%s.scm\") (main))"
+                ;;
+              r6rs)
+                REPLCOMMANDS="(begin (load \"%s.scm\") (main))"
                 ;;
             esac
              ;;
