@@ -3,10 +3,10 @@
 Installing Larceny
 ------------------
 
-anchor:installation[installation]
+[[VarietiesSection]]
 
-System requirements
-~~~~~~~~~~~~~~~~~~~
+Varieties of Larceny
+~~~~~~~~~~~~~~~~~~~~
 
 There are three main varieties of Larceny.
 
@@ -23,6 +23,8 @@ Common Larceny compiles to JIT-compiled IL on Microsoft's
 Common Language Runtime (CLR) or Mono.  It provides access
 to the .NET libraries from Scheme.
 
+[[DownloadingSection]]
+
 Downloading
 ~~~~~~~~~~~
 
@@ -35,6 +37,8 @@ binary, or as source code that can be used to reconstruct
 any of the precompiled binary distributions.
 Unless you intend to modify Larceny yourself, you do not
 need to download the source code.
+
+[[InstallationSection]]
 
 Installing the programs
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -98,6 +102,7 @@ Then move or copy `larceny.bin`, `larceny.heap`, `twobit.heap`,
 You should now be able to run Larceny by typing "`larceny`" at a
 Unix prompt.  On Windows, type "`larceny.bat`".
 
+
 [[CompilingStdLibSection]]
 
 ==== Compiling the R6RS standard libraries
@@ -109,6 +114,7 @@ as described by step 4 of `doc/HOWTO-BUILD`.
 This step is definitely required if you are using Petit Larceny,
 and is recommended even if you are using a prebuilt distribution
 of native Larceny.
+
 
 ==== Twobit
 

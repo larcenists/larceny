@@ -1,29 +1,109 @@
+[[LexicalChapter]]
+
 Lexical syntax
 --------------
 
-Larceny is now case-sensitive by default.
-This is controlled by Larceny's `case-sensitive?` parameter,
-which is affected by the following flags:
+Larceny's default lexical syntax extends the lexical syntax
+required by the R5RS, R6RS, and ERR5RS <<Standards, standards>>.
+
+The R6RS forbids most lexical extensions, however, so Larceny
+provides several mechanisms for turning its lexical extensions
+on and off.
 
 
+[[FlagsSection]]
+
+Flags
+~~~~~
+
+By default, Larceny recognizes several Larceny-specific flags
+of the form permitted by the R6RS.  The flag you are most
+likely to encounter represents one of Larceny's unspecified
+values:
+
+----------------------------------------------------------------
+    #!unspecified
+----------------------------------------------------------------
+
+Certain other flags have special meanings to Larceny's
+`read` and `get-datum` procedures.  They are described below.
+
+
+[[CaseFoldingSection]]
+
+Case-sensitivity
+~~~~~~~~~~~~~~~~
+
+By default, Larceny is case-sensitive.
+This global default can be overridden by specifying
+`--foldcase` or `--nofoldcase` on Larceny's command line,
+or by changing the value of Larceny's `case-sensitive?` parameter.
+
+The case-sensitivity of a particular textual input port
+is affected by reading one of the following flags from
+the port using the `read` or `get-datum` procedures:
+
+----------------------------------------------------------------
+    #!fold-case
+    #!no-fold-case
+----------------------------------------------------------------
+
+The `#!fold-case` flag enables case-folding on data read from
+the port by the `read` and `get-datum` procedures, while the
+`#!no-fold-case` flag disables case-folding.  The behavior
+established by one of these flags extends to the next flag
+read from the port by `read` or `get-datum`.
+
+Both `#!fold-case` and `#!no-fold-case` evaluate to an
+unspecified value.  To obtain the effect of one of these flags
+while treating it as a comment, place `#;` in front of the flag.
+
+
+[[LexicalExtensionsSection]]
+
+Lexical extensions
+~~~~~~~~~~~~~~~~~~
+
+The following flags affect the case-sensitivity of a port,
+but have additional side effects that may change the behavior
+of `read` and `get-datum` on all ports:
+
+----------------------------------------------------------------
     #!r6rs
     #!r5rs
     #!err5rs
     #!larceny
-    #!fold-case
-    #!no-fold-case
+----------------------------------------------------------------
 
+These flags disable (`#!r6rs`, `#!err5rs`, and `#!larceny`) or
+enable (`#!r6rs`) case-folding on the textual input port from
+which they are read, but they also disable (`#!r6rs`) or enable
+(`#!r5rs`, `#!err5rs` and `#!larceny`) several Larceny-specific
+extensions to the lexical syntax accepted on all ports.
 
-For the detailed semantics of these flags, please consult
+The `#!r6rs` flag is a comment, while all of Larceny's other
+flags evaluate to an unspecified value.  To obtain the effect
+of a flag other than `#!r6rs` while treating it as a comment,
+place `#;` in front of the flag.
+
+[WARNING]
+================================================================
+The R6RS requires implementations to treat `#!r6rs` as a
+comment; it is the only flag that implementations of the R6RS
+are required to treat as a comment.  Since the `#!r6rs` flag
+behaves differently from all other flags, it is deprecated.
+================================================================
+
+[WARNING]
+================================================================
+The semantics of the `#!r6rs`, `#!r6rs`, `#!err5rs`, and
+`#!larceny` flags is subject to change in future
+versions of Larceny.  In particular, future versions of
+Larceny may limit the effect of these flags to the port
+from which they are read.
+For the current semantics of these flags, please consult
 the Larceny developers' web page that describes
 http://larceny.ccs.neu.edu/larceny-trac/wiki/LexicalConversion[Larceny's
 lexical syntax].
-
-Apart from case-sensitivity, Larceny extends both R5RS lexical
-syntax and the lexical syntax proposed by the
-http://www.r6rs.org/[R6RS].
-The R6RS does not permit extensions, however, so Larceny
-provides several mechanisms for turning its extensions on and
-off.
-For details, please consult the web page cited above.
+================================================================
 

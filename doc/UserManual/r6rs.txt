@@ -28,6 +28,8 @@ of production code, and do not compromise Larceny's
 traditional safety.
 
 
+[[R6rsBaseSection]]
+
 Base library
 ~~~~~~~~~~~~
 
@@ -51,6 +53,9 @@ The semantics of `quasiquote`, `let-syntax`, and `letrec-syntax`
 differ between the R5RS and the R6RS.  Larceny's R5RS mode still
 supports the R5RS semantics.
 
+
+[[R6rsUnicodeSection]]
+
 Unicode
 ~~~~~~~
 
@@ -60,7 +65,10 @@ library.
 Larceny v0.95 conforms to
 <<Standards, The Unicode Standard>>, Version 5.0.
 
+
 [[BytevectorsLibrary]]
+[[R6rsBytevectorsSection]]
+
 Bytevectors
 ~~~~~~~~~~~
 
@@ -79,11 +87,17 @@ For string operations, the endianness must be the symbol
 `big` or the symbol `little`.  All of these extensions are
 permitted by the R6RS standard.
 
+
+[[R6rsListsSection]]
+
 Lists
 ~~~~~
 
 All of Larceny's modes support all features of the
 `(rnrs lists)` library.
+
+
+[[R6rsSortingSection]]
 
 Sorting
 ~~~~~~~
@@ -91,11 +105,17 @@ Sorting
 All of Larceny's modes support all features of the
 `(rnrs sorting)` library.
 
+
+[[R6rsControlSection]]
+
 Control
 ~~~~~~~
 
 All of Larceny's modes support all features of the
 `(rnrs control)` library.
+
+
+[[R6rsRecordsSection]]
 
 Records
 ~~~~~~~
@@ -117,14 +137,20 @@ Larceny's R5RS mode supports all features of the deprecated
 libraries.  R5RS mode does not support `(rnrs records syntactic)`.
 
 All of Larceny's modes support all features of the
-`(err5rs records procedural)` and `(err5rs records inspection)`
+<<Err5rsRecordsProceduralSection, `(err5rs records procedural)`>>
+and
+<<Err5rsRecordsInspectionSection, `(err5rs records inspection)`>>
 libraries.  ERR5RS and R6RS modes also support the
-`(err5rs records syntactic)` library.
+<<Err5rsRecordsSyntacticSection, `(err5rs records syntactic)`>>
+library.
 
-The record definition syntax of SRFI 9 is a proper subset
+The record definition syntax of
+http://srfi.schemers.org/srfi-9/[SRFI 9]
+is a proper subset
 of the syntax provided by the `(err5rs records syntactic)`
 library.  In R5RS mode, SRFI 9 can be loaded dynamically
-using the `require` procedure:
+using the
+<<require, `require`>> procedure:
 
 ----------------------------------------------------------------
     > (require 'srfi-9)
@@ -153,12 +179,17 @@ records.  We apologize for the mess.
 ================================================================
 
 
+[[R6rsExceptionsSection]]
+[[R6rsConditionsSection]]
+
 Exceptions and conditions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 All of Larceny's modes support all features of the
 `(rnrs exceptions)` and `(rnrs conditions)` libraries.
 
+
+[[R6rsIoSection]]
 
 Input and output
 ~~~~~~~~~~~~~~~~
@@ -200,6 +231,8 @@ that describes the current status of
 http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode[Larceny's R6RS-compatible mode].
 
 
+[[R6rsProgramsSection]]
+
 Programs
 ~~~~~~~~
 
@@ -219,6 +252,8 @@ command-line arguments to the Scheme script.  These bugs will
 be fixed in the next release.
 ================================================================
 
+
+[[R6rsArithmeticSection]]
 
 Arithmetic
 ~~~~~~~~~~
@@ -242,12 +277,16 @@ propagates type information.
 ================================================================
 
 
+[[R6rsSyntaxCaseSection]]
+
 Syntax-case
 ~~~~~~~~~~~
 
 ERR5RS and R6RS modes support the `(rnrs syntax-case)` library.
 Larceny's R5RS mode does not.
 
+
+[[R6rsHashtablesSection]]
 
 Hashtables
 ~~~~~~~~~~
@@ -271,6 +310,8 @@ warning that describes what it is doing.
 ================================================================
 
 
+[[R6rsEnumerationsSection]]
+
 Enumeration sets
 ~~~~~~~~~~~~~~~~
 
@@ -279,6 +320,8 @@ Larceny's R5RS mode provides all of the procedures exported by
 `(rnrs enums)` but does not provide the `define-enumeration`
 syntax.
 
+
+[[R6rsEvalSection]]
 
 Eval
 ~~~~
@@ -290,12 +333,17 @@ not an R6RS-compatible eval procedure, and does not provide the
 `environment` procedure.
 
 
+[[R6rsMutablePairsSection]]
+[[R6rsMutableStringsSection]]
+
 Mutable pairs and strings
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 All of Larceny's modes support all features of the
 `(rnrs mutable-pairs)` and `(rnrs mutable-strings)` libraries.
 
+
+[[R6rsR5rsSection]]
 
 R5RS
 ~~~~

@@ -3,8 +3,6 @@
 Running Larceny
 ---------------
 
-anchor:running[running]
-
 Larceny currently runs in any of four distinct modes:
 
     R5RS              traditional read/eval/print loop (the default)
@@ -16,6 +14,8 @@ These modes correspond to the four distinct kinds of Scheme
 programs that are described by the current de facto standards
 for Scheme.  (IEEE/ANSI Std 1178 is so similar to the R5RS
 standard that Larceny implements both languages in R5RS mode.)
+
+[[R5rsSection]]
 
 R5RS mode
 ~~~~~~~~~
@@ -64,6 +64,8 @@ section of this user manual devoted to
 <<PerformanceSection, performance>>.
 
 
+[[Err5rsSection]]
+
 ERR5RS mode
 ~~~~~~~~~~~
 
@@ -96,6 +98,9 @@ such as:
 Once you have imported `(rnrs base)` or a composite library
 that includes it, you can evaluate definitions and use
 all other syntax and variables you have imported.
+
+
+[[Err5rsDynamicLoadingSection]]
 
 ==== Dynamic loading
 
@@ -130,6 +135,9 @@ You do not have to import those libraries into the ERR5RS
 top level, however, unless you want to use the variables
 and syntax exported by those libraries in the expressions
 and definitions you evaluate at the top level.
+
+
+[[Err5rsPreLoadedSection]]
 
 ==== Pre-loaded libraries
 
@@ -180,6 +188,7 @@ Other pre-loaded libraries:
     (r5rs)                           ; approximates the R5RS top level
     (explicit-renaming)              ; a macro system with explicit renaming
 
+
 [[ERR5RSLibraryPathSection]]
 
 ==== Library path
@@ -192,6 +201,9 @@ standard or can be found in the directory specified by the
 from library names to file names.
 
 This feature is not implemented in Larceny v0.95 "First Safety".
+
+
+[[R6rsSection]]
 
 R6RS mode
 ~~~~~~~~~
@@ -220,12 +232,16 @@ You probably don't want to do that.  Had you wanted
 to type R6RS code at Larceny, you'd be using ERR5RS
 mode instead.
 
+
+[[R6rsPreLoadedSection]]
+
 ==== Pre-defined libraries
 
 R6RS top-level programs and Scheme scripts may import
 any R6RS standard libraries, and may also import any
 of the libraries that are pre-loaded in Larceny's
 ERR5RS mode.
+
 
 [[DefiningLibrariesSection]]
 
@@ -249,6 +265,7 @@ It is not supported by Ikarus, which is currently the
 only other system that implements a substantial fraction
 of the R6RS.
 
+
 [[R6RSLibraryPathSection]]
 
 ==== Library path
@@ -267,6 +284,9 @@ with Larceny's mapping.
 
 The library path feature is not implemented in Larceny v0.95
 "First Safety".
+
+
+[[SchemeScriptsSection]]
 
 Scheme scripts
 ~~~~~~~~~~~~~~
@@ -312,6 +332,8 @@ in the next release of Larceny.
 ================================================================
 
 
+[[R5rsScriptSection]]
+
 R5RS scripting
 ~~~~~~~~~~~~~~
 
@@ -345,6 +367,9 @@ creative uses of Larceny, ask for help:
 ----------------------------------------------------------------
     % larceny -help
 ----------------------------------------------------------------
+
+
+[[ErrorsSection]]
 
 Errors
 ~~~~~~
@@ -409,6 +434,9 @@ First, though, you should report the problem
 to us (`larceny@ccs.neu.edu`).
 Please report success stories as well.
 
+
+[[CrashesSection]]
+
 ==== Crashes
 
 Please report all crashes with as much information is possible;
@@ -417,6 +445,7 @@ do not mail the core dump without contacting us first).
 Larceny's run-time system is compiled with full debugging
 information by default and a debugger like GDB should be able
 to provide at least some clues.
+
 
 [[PerformanceSection]]
 
@@ -458,7 +487,9 @@ argument.
 // benchmark-block-mode broken for a long time; commenting out below
 
 ////////////////////////////////////////////////////////////////////////
-To make `compile-file` generate faster code, you can promise that none
+To make
+<<compile-file,`compile-file`>>
+generate faster code, you can promise that none
 of the top-level variables that are defined within a file of Scheme
 code are redefined or assigned outside of that file unless they are
 redefined or assigned within the file. To make this promise, evaluate

@@ -10,6 +10,8 @@ http://larceny.ccs.neu.edu/larceny-trac/wiki/AsciiDoc
 Larceny User Manual
 ===================
 
+[[LarcenyChapter]]
+
 Larceny
 -------
 
@@ -41,6 +43,8 @@ http://larceny.ccs.neu.edu/trac/[Trac system].
 include::intro.txt[]
 
 include::running.txt[]
+
+include::lexical.txt[]
 
 include::naming.txt[]
 

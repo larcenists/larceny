@@ -3,7 +3,6 @@
 File naming conventions
 -----------------------
 
-anchor:naming[naming]
 
 [[SuffixSection]]
 
@@ -45,7 +44,9 @@ segments in the form expected by Larceny's heap linker.
 
 `.heap`
 is the suffix for files that contain an executable heap
-image (must be combined with the `larceny.bin` runtime).
+image (must be combined with the
+<<InstallationSection,`larceny.bin`>> runtime).
+
 
 [[DirectorySection]]
 
@@ -88,6 +89,7 @@ Petit Larceny.
 The `startup.sch` file tells Larceny's `require` procedure to
 search some of the `lib` subdirectories for libraries that are
 loaded dynamically.
+
 
 [[LibraryResolutionSection]]
 
@@ -146,6 +148,7 @@ An ERR5RS program can be written as a little configuration
 program that loads the program's libraries from files
 before any libraries are imported.  This fourth mechanism
 is portable, but is not available to R6RS programs.
+
 
 [[LibraryTranslationSection]]
 
@@ -213,6 +216,8 @@ deprecated.
 ================================================================
 
 
+[[RequireLibraryTranslationSection]]
+
 Mapping library names to files (R5RS)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -243,3 +248,16 @@ is not recommended, however, because Larceny relies on the
 `require` path for dynamic loading of libraries used by several
 important features of Larceny, notably ERR5RS and R6RS modes.
 ================================================================
+
+proc:require[args="libname"]
+
+_libname_ must be a symbol that names an R5RS-compatible
+library within the current require path.
+
+If the library has not already been loaded, then it is
+located and loaded.  If the library is found and loaded
+successfully, then `require` returns true; otherwise an
+error is signalled.
+
+If the library has already been loaded, then `require`
+returns false without loading the library a second time.
