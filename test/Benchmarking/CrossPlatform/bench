@@ -69,6 +69,7 @@ setup ()
         MIT="${APPS}/bin/mit-scheme"
         PETITE_CHEZ="${APPS}/bin/petite-chez"
         KAWA="${APPS}/bin/kawa"
+        IKARUS="${APPS}/bin/ikarus"
         HENCHMAN="/home/henchman/bin/larceny"
         ;;
 
@@ -400,6 +401,19 @@ henchman_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Ikarus
+
+ikarus_comp ()
+{
+  :
+}
+
+ikarus_exec ()
+{
+  printf "$REPLCOMMANDS" "$1" | "${IKARUS}"
+}
+
+# -----------------------------------------------------------------------------
 # Definitions specific to Chez Scheme
 
 chez_comp ()
@@ -430,12 +444,13 @@ petite_chez_exec ()
 
 kawa_comp ()
 {
+  printf "$COMPCOMMANDS" "$1" "$1" | "${KAWA}" $COMPOPTS
   :
 }
 
 kawa_exec ()
 {
-  printf "$REPLCOMMANDS" "$1" | /usr/bin/time $KAWA
+  printf "$EXECCOMMANDS" "$1" | /usr/bin/time $KAWA
 }
 
 # -----------------------------------------------------------------------------
@@ -1278,6 +1293,22 @@ chicken-int) NAME='Chicken-int'
             esac
             ;;
 
+    ikarus) NAME='Ikarus'
+            COMP=ikarus_comp
+            COMPOPTS=""
+            EXEC=ikarus_exec
+            iterfile=num-iters.scm
+            extension=".scm"
+            INSERTCODE="(define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))"
+            PREFIXCODE="; %s %s"
+            SUFFIXCODE="; %s %s"
+            case "$setting" in
+              r6rs)
+                REPLCOMMANDS="(begin (load \"%s.scm\") (main))"
+                ;;
+            esac
+            ;;
+
       chez) NAME='Chez-Scheme'
             COMP=chez_comp
             COMPOPTS=""
@@ -1335,13 +1366,12 @@ petite-chez) NAME='Petite-Chez-Scheme'
              PREFIXCODE="; %s %s"
              SUFFIXCODE="; %s %s"
             case "$setting" in
-              r5rs)
-                REPLCOMMANDS="(begin (load \"%s.scm\") (main))"
-                ;;
               r6rs)
-                REPLCOMMANDS="(begin (load \"%s.scm\") (main))"
+                REPLCOMMANDS="(begin (load \"%s.zip\") (main))"
                 ;;
             esac
+	    COMPCOMMANDS="(compile-file \"%s.scm\" \"%s.zip\")"
+	    EXECCOMMANDS="(begin (load \"%s.zip\") (main))"
              ;;
 
        mit) NAME='MIT-Scheme'
