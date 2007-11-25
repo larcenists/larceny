@@ -253,7 +253,8 @@
 	  #f
           (%peek-string x)))
 
-    `((int      signed32   ,integer-check           ,id)
+    `((byte     signed32   ,integer-check           ,id)
+      (int      signed32   ,integer-check           ,id)
       (short    signed32   ,integer-check           ,id)
       (char     signed32   ,character->char         ,char->character)
       (unsigned unsigned32 ,unsigned-integer-check  ,id) ; avoid
@@ -465,9 +466,9 @@
 
   (define (check-for-obvious-type-problems param-types ret-type)
     (cond ((memq 'void param-types)
-           (error "FFI: \"void\" is not a valid parameter type."))
+           (error name "FFI: \"void\" is not a valid parameter type."))
           ((eq? 'boxed ret-type)
-           (error "FFI: \"boxed\" is not a valid return type.")))
+           (error name "FFI: \"boxed\" is not a valid return type.")))
     (let ((pointer-objects
            (filter (lambda (x) (or (eq? x 'boxed) (eq? x 'string)))
                    param-types))
@@ -478,7 +479,7 @@
                   (not (null? callbacks)))
              (for-each 
               display
-              (list "FFI warning: boxed objects"
+              (list name " FFI warning: boxed objects"
                     ", e.g. " pointer-objects ", can "
                     "become unstable when callbacks"
                     ", e.g. " callbacks ", are invoked."))
