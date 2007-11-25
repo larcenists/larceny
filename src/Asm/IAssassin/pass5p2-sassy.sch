@@ -807,9 +807,9 @@
                 (operand3 instruction)
                 (operand4 instruction))))
 
-(define-instruction $inline-asm
+(define-instruction $.asm
   (lambda (instruction as)
-    (list-instruction "inline-asm" instruction)
+    (list-instruction "$.asm" instruction)
     (for-each (lambda (asminst)
                 (apply emit-sassy as asminst))
               (cdr instruction))))
