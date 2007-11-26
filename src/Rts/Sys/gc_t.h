@@ -99,12 +99,6 @@ struct gc {
        allocated following the collection.
        */
 
-  void (*permute_remembered_sets)( gc_t *gc, int permutation[] );
-    /* Permute the remembered sets and pertinent remembered-set system
-       data according to `permutation', where permutation[i] = j means
-       that remembered-set i becomes remembered-set j.
-       */
-
   void (*set_policy)( gc_t *gc, int heap, int x, int y );
 
   word *(*data_load_area)( gc_t *gc, int nbytes );
@@ -201,8 +195,6 @@ struct gc {
 #define gc_load_heap( gc, h )         ((gc)->load_heap( gc, h ))
 #define gc_enumerate_roots( gc,s,d )  ((gc)->enumerate_roots( gc, s, d ))
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
-#define gc_permute_remembered_sets( gc, p ) \
-  ((gc)->permute_remembered_sets( (gc), (p) ))
 #define gc_enumerate_remsets_older_than( gc, g, s, d, f ) \
   ((gc)->enumerate_remsets_older_than( gc, g, s, d, f ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
@@ -215,7 +207,6 @@ gc_t
 	     word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic),
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
 	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
-	     void (*permute_remembered_sets)( gc_t *gc, int permutation[] ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
 	     word *(*data_load_area)( gc_t *gc, int nbytes ),
 	     word *(*text_load_area)( gc_t *gc, int nbytes ),

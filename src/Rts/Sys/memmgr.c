@@ -872,7 +872,6 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 allocate,
 		 allocate_nonmoving,
 		 collect,
-		 0,
 		 set_policy,
 		 data_load_area,
 		 text_load_area,
