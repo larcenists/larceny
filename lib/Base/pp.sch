@@ -74,7 +74,7 @@
       (define (length1? l) (and (pair? l) (null? (cdr l))))
       (let ((head (car l)) (tail (cdr l)))
         (case head
-          ((QUOTE QUASIQUOTE UNQUOTE UNQUOTE-SPLICING) (length1? tail))
+          ((quote quasiquote unquote unquote-splicing) (length1? tail))
           (else                                        #f))))
 
     (define (read-macro-body l)
@@ -83,10 +83,10 @@
     (define (read-macro-prefix l)
       (let ((head (car l)) (tail (cdr l)))
         (case head
-          ((QUOTE)            "'")
-          ((QUASIQUOTE)       "`")
-          ((UNQUOTE)          ",")
-          ((UNQUOTE-SPLICING) ",@"))))
+          ((quote)            "'")
+          ((quasiquote)       "`")
+          ((unquote)          ",")
+          ((unquote-splicing) ",@"))))
 
     (define (out str col)
       (and col (output str) (+ col (string-length str))))
