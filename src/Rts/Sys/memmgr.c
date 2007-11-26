@@ -38,7 +38,6 @@ typedef struct gc_data gc_data_t;
 
 struct gc_data {
   bool is_generational_system;  /* True if system has multiple generations */
-  bool use_dof_collector;	/* True if system uses DOF collector */
   bool use_np_collector;	/* True if dynamic area is non-predictive */
   bool shrink_heap;		/* True if heap can be shrunk */
   int  dynamic_min;		/* 0 or lower limit of expandable area */
@@ -51,7 +50,6 @@ struct gc_data {
   int  in_gc;                  /* a counter: > 0 means in gc */
   int  generations;            /* number of generations (incl. static) */
   int  static_generation;	/* Generation number of static area */
-  bool have_stats;		/* For DOF collection */
   word *ssb_bot;
   word *ssb_top;
   word *ssb_lim;
@@ -204,8 +202,7 @@ void gc_parameters( gc_t *gc, int op, int *ans )
   }
   else {
     /* info about generation op-1
-       ans[0] = type: 0=nursery, 1=two-space, 2=np-old, 3=np-young, 4=static,
-                      6=one-space-dof
+       ans[0] = type: 0=nursery, 1=two-space, 2=np-old, 3=np-young, 4=static
        ans[1] = size in bytes [the 'maximum' field]
        ans[2] = parameter if appropriate for type
                    if np, then k
@@ -253,10 +250,6 @@ void gc_parameters( gc_t *gc, int op, int *ans )
 	ans[1] = (gc->dynamic_area->maximum / k) * j;
       }
 #endif
-    }
-    else if (op < data->static_generation &&
-	     gc->dynamic_area &&
-	     data->use_dof_collector) {
     }
     else if (op-1 == gc->ephemeral_area_count && gc->dynamic_area) {
       /* Dynamic area */
@@ -750,17 +743,12 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 
   gen_no = 0;
   data->is_generational_system = 1;
-  data->use_dof_collector = info->use_dof_collector;
   data->use_np_collector = info->use_non_predictive_collector;
   size = 0;
 
   if (info->use_non_predictive_collector) {
     DATA(gc)->dynamic_max = info->dynamic_np_info.dynamic_max;
     DATA(gc)->dynamic_min = info->dynamic_np_info.dynamic_min;
-  }
-  else if (info->use_dof_collector) {
-    DATA(gc)->dynamic_max = info->dynamic_dof_info.dynamic_max;
-    DATA(gc)->dynamic_min = info->dynamic_dof_info.dynamic_min;
   }
   else {
     DATA(gc)->dynamic_max = info->dynamic_sc_info.dynamic_max;
@@ -808,9 +796,6 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 #else
     panic_exit( "ROF collector not compiled in" );
 #endif
-  }
-  else if (info->use_dof_collector) {
-    panic_exit( "DOF collector not compiled in" );
   }
   else {
     gc->dynamic_area = create_sc_area( gen_no, gc, &info->dynamic_sc_info, 0 );
@@ -870,7 +855,6 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->is_generational_system = 0;
   data->shrink_heap = 0;
   data->in_gc = 0;
-  data->have_stats = 0;
   data->handles = (word*)must_malloc( sizeof(word)*10 );
   data->nhandles = 10;
   memset( data->handles, 0, sizeof(word)*data->nhandles );

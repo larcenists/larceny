@@ -56,23 +56,6 @@ struct bdw_info {
   int    dynamic_max;           /* 0 or upper bound on collected area */
 };
 
-struct dof_info {               /* Deferred-oldest-first intermediate area */
-  int    generations;           /* Number of generations, > 0 */
-  int    area_size;             /* Size of area in bytes, > 0 */
-  int    full_frequency;        /* Frequency of full collections, >= 0 */
-  int    dynamic_min;           /* 0 or lower bound on collected area */
-  int    dynamic_max;           /* 0 or upper bound on collected area */
-  double load_factor;           /* Inverse load factor */
-  double growth_divisor;        /* Divisor for growth speed, > 0.0 */
-  double free_before_promotion; /* Feeling lucky?  0.0 < d <= 1.0 */
-  double free_before_collection;/* Feeling lucky?  0.0 < d <= 1.0 */
-  double free_after_collection; /* d > 0.0 */
-  bool   no_shadow_remsets;     /* Disable shadow sets */
-  bool   fullgc_generational;   /* Use generational full GC */
-  bool   fullgc_on_collection;  /* Count collections, not resets */
-  bool   fullgc_on_promotion;   /* Count promotions, not collections/resets */
-};
-
 struct gc_param {               /* Parameter structure passed to create_gc() */
   /* Overall flags to select the mode */
   bool is_conservative_system;
@@ -80,7 +63,6 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   bool is_stopcopy_system;
   bool use_static_area;                /* In the nonconservative systems */
   bool use_non_predictive_collector;   /* In the generational system */
-  bool use_dof_collector;              /* In the generational system */
   bool use_incremental_bdw_collector;  /* In the conservative system */
   bool dont_shrink_heap;               /* In the nonconservative systems */
 
@@ -91,7 +73,6 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   nursery_info_t nursery_info;
   int            ephemeral_area_count;  /* Number of ephemeral areas */
   sc_info_t      *ephemeral_info;       /* an array of these */
-  dof_info_t     dynamic_dof_info;
   sc_info_t      dynamic_sc_info;
   np_info_t      dynamic_np_info;
 

@@ -83,12 +83,6 @@
 
  ; Other configuration options.
 
- "DOF_COLLECTOR"
-    ; When set, includes the deferred-older-first collector when
-    ; compiling the system.
-    ;
-    ; Recommended setting is off.
-
  "ROF_COLLECTOR"
     ; When set, includes the renewal-older-first collector when
     ; compiling the system.

@@ -73,17 +73,6 @@ yhsc_data_area( young_heap_t *heap );
      young area.
      */
 
-/* In dof-heap.c */
-
-old_heap_t *
-create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info );
-
-void
-dof_gc_parameters( old_heap_t *heap, int *size );
-  /* Given a DOF area, return the generation size.  Assumes all 
-     generations are the same size, which is true for the time being.
-     */
-
 /* In old-heap.c */
 
 old_heap_t *

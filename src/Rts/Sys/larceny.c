@@ -408,9 +408,6 @@ parse_options( int argc, char **argv, opt_t *o )
   int np_remset_limit = INT_MAX;              /* Infinity, or close enough. */
   int full_frequency = 0;
   double growth_divisor = 1.0;
-  double dof_free_before_collection = 1.0;
-  double dof_free_before_promotion = 1.0;
-  double dof_free_after_collection = 1.0;
   int dynamic_max = 0;
   int dynamic_min = 0;
   int val;
@@ -640,14 +637,8 @@ parse_options( int argc, char **argv, opt_t *o )
     }
 
     /* Dynamic generation */
-    if (o->gc_info.use_dof_collector && 
-        o->gc_info.use_non_predictive_collector) {
-      consolemsg( "Error: Both nonpredictive (ROF) and DOF gc selected." );
-      consolemsg( "Type \"larceny -help\" for help." );
-      exit( 1 );
-    }
 #if ROF_COLLECTOR
-    else if (o->gc_info.use_non_predictive_collector) {
+    if (o->gc_info.use_non_predictive_collector) {
       int size;
 
       o->gc_info.dynamic_np_info.load_factor = load_factor;
