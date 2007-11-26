@@ -140,7 +140,6 @@
     *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG);                    \
     check_memory( dest, 2 );                                             \
     dest += 2;                                                           \
-    if (0 && e->eager_copy) EAGERLY_FORW_PAIRS( next_obj, dest, lim, e, forw_limit_gen); \
   } while ( 0 )
 
 #define forw_core( T_obj, loc, dest, lim, e, forw_limit_gen )           \
@@ -492,11 +491,6 @@ struct cheney_env {
        address of codevectors.
        */
 
-  bool eager_copy;
-    /* TRUE if the forward operation should eagerly copy pairs
-   .   (and perhaps other objects) rather than waiting for 
-       the scanner to do it. */
-
   void (*scan_from_globals)( word *loc, void *data );
     /* Scanner function for forwarding from globals[]
        */
@@ -543,8 +537,6 @@ struct cheney_env {
   } np;
 };
 
-void eagerly_forward_pairs( word T_obj, word **pdest,  word **plim, cheney_env_t *e);
-
 /* External */
 
 extern void mem_icache_flush( void *start, void *end );
@@ -566,54 +558,6 @@ static void scan_oflo_splitting( cheney_env_t *e );
 static void expand_semispace( semispace_t *, word **, word **, unsigned );
 static word forward_large_object( cheney_env_t *e, word *ptr, int tag );
 static word forward( word, word **, cheney_env_t *e );
-
-#define EAGERLY_FORW_PAIRS( T_obj, dest, lim, e, forw_limit_gen )           \
-  do { int depth = ((char*)lim - (char*)dest) / 8; while ( depth-- && (tagof( T_obj ) == PAIR_TAG && gen_of(T_obj) < forw_limit_gen)) { \
-    word *TMP_P = ptrof( T_obj );                                           \
-    word TMP_W = *TMP_P;                                                    \
-    if (TMP_W == FORWARD_HDR)                                               \
-      break;                                                                \
-    *dest = TMP_W;                                                          \
-    *(dest+1) = next_obj = *(TMP_P+1);                                      \
-    check_address( TMP_P );                                                 \
-    *TMP_P = FORWARD_HDR;                                                   \
-    *(TMP_P+1) = (word)tagptr(dest, PAIR_TAG);                              \
-    check_memory( dest, 2 );                                                \
-    dest += 2;                                                              \
-    T_obj = next_obj;                                                       \
-  }} while (0)
-
-void eagerly_forward_pairs( word T_obj, word **pdest,  word **plim, cheney_env_t *e) {
-  word *dest = *pdest;
-  word *lim  = *plim;
-  unsigned gno = e->effective_generation;
-  word *TMP_P;
-
-  word *orig_dest = dest;
-  word *orig_lim  = lim;
-  word *page_lim  = roundup_page((char*)dest);
-  int depth = ((char*)min(page_lim,lim) - (char*)dest) / 8;
-
-  while ( depth && (tagof( T_obj ) == PAIR_TAG && gen_of(T_obj) < gno) ) {
-    depth--;
-    TMP_P = ptrof( T_obj );
-    if (*TMP_P == FORWARD_HDR) 
-      break;
-
-    check_space(dest,lim,8,e);
-    
-    *dest = *TMP_P;
-    *(dest+1) = T_obj = *(TMP_P+1);
-    check_address( TMP_P );
-    *TMP_P = FORWARD_HDR;
-    *(TMP_P+1) = (word)tagptr(dest, PAIR_TAG);
-    check_memory( dest, 2 );
-    dest += 2;
-  }
-
-  *pdest = dest;
-  *plim  = lim;
-}
 
 #if ROF_COLLECTOR
 static void root_scanner_np( word *ptr, void *data );
@@ -685,7 +629,6 @@ void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace )
 
   CHENEY_TYPE( 1 );
   init_env( &e, gc, tospace, 0, tospace->gen_no+1, 0, scan_oflo_normal );
-  e.eager_copy = 1;
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
@@ -698,7 +641,6 @@ void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
   CHENEY_TYPE( 1 );
   init_env( &e, gc, tospace, 0, tospace->gen_no+1, SCAN_STATIC, 
             scan_oflo_normal );
-  e.eager_copy = 1;
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
@@ -743,7 +685,6 @@ void gclib_stopcopy_collect_np( gc_t *gc, semispace_t *tospace )
   CHENEY_TYPE( 1 );
   init_env( &e, gc, tospace, 0, tospace->gen_no, ENUMERATE_NP_REMSET, 
             scan_oflo_normal );
-  e.eager_copy = 1;
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
@@ -756,7 +697,6 @@ void gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text)
 
   init_env( &e, gc, data, text, data->gen_no+1, SPLITTING_GC,
             scan_oflo_splitting );
-  e.eager_copy = 1;
   oldspace_copy( &e );
   /* Note: No LOS sweeping */
 }
@@ -791,7 +731,6 @@ static void init_env( cheney_env_t *e,
   e->enumerate_np_remset = attributes & ENUMERATE_NP_REMSET;
   e->splitting = attributes & SPLITTING_GC;
   e->iflush = gc_iflush( gc );
-  e->eager_copy = 0;
   e->tospace = tospace;
   e->tospace2 = tospace2;
   e->dest = tospace->chunks[tospace->current].top;
