@@ -370,7 +370,7 @@ CC=cl
 	Sys/syscall.$(O) Sys/util.$(O) Sys/version.$(O)
 
 PRECISE_GC_OBJECTS=\\
-	Sys/alloc.$(O) Sys/cheney.$(O) Sys/dof-heap.$(O) Sys/gc.$(O) \\
+	Sys/alloc.$(O) Sys/cheney.$(O) Sys/gc.$(O) \\
 	Sys/heapio.$(O) Sys/los.$(O) Sys/memmgr.$(O) Sys/ffi.$(O) \\
 	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) \\
 	Sys/old_heap_t.$(O) Sys/old-heap.$(O) \\
@@ -535,9 +535,6 @@ Sys/bdw-ffi.$(O): Sys/ffi.c $(LARCENY_H)
 Sys/callback.$(O): $(LARCENY_H)
 Sys/cheney.$(O): $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \\
 	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
-Sys/dof-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \\
-	Sys/stats.h Sys/los_t.h Sys/memmgr.h Sys/old_heap_t.h \\
-	Sys/remset_t.h Sys/semispace_t.h Sys/young_heap_t.h
 Sys/ffi.$(O): $(LARCENY_H)
 Sys/gc.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h Sys/semispace_t.h \\
 	Sys/static_heap_t.h

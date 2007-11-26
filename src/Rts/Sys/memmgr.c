@@ -257,15 +257,6 @@ void gc_parameters( gc_t *gc, int op, int *ans )
     else if (op < data->static_generation &&
 	     gc->dynamic_area &&
 	     data->use_dof_collector) {
-#if DOF_COLLECTOR
-      /*  DOF area -- fixed number of same-size generations */
-      int size;
-
-      dof_gc_parameters( gc->dynamic_area, &size );
-      ans[0] = 6;
-      ans[1] = size;
-      ans[2] = 1;		/* Expandable */
-#endif
     }
     else if (op-1 == gc->ephemeral_area_count && gc->dynamic_area) {
       /* Dynamic area */
@@ -353,37 +344,6 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
   return sh_allocate( gc->static_area, nbytes );
 }
 
-#if DOF_COLLECTOR
-/* Shuffle remembered sets
-   Shuffle SSB pointer table entries
-   Shuffle the pointers in the remsets to the ssb pointer tables
-   
-   The permutation encodes the destination: v[i] -> v[perm[i]]
-   */
-static void permute_remembered_sets( gc_t *gc, int permutation[] )
-{
-  struct {
-    remset_t *r;
-    word *ssb_bot;
-    word *ssb_top;
-    word *ssb_lim;
-  } tmp[ MAX_GENERATIONS ];
-  int i, j;
-  remset_t *r;
-  gc_data_t *data = DATA(gc);
-
-  for ( i=1 ; i < gc->remset_count ; i++ ) {
-    tmp[i].r = gc->remset[i];
-  }
-
-  for ( i=1 ; i < gc->remset_count ; i++ ) {
-    j = permutation[i];
-    assert( j > 0 );
-    gc->remset[j] = r = tmp[i].r;       /* remset */
-  }
-}
-#endif
-
 static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
@@ -438,65 +398,6 @@ void gc_signal_minor_collection( gc_t *gc ) {
   DATA(gc)->globals[ G_MAJORGC_CNT ] -= fixnum(1);
 
 }
-    
-#if DOF_COLLECTOR
-/* DOF collection is a little different. */
-/* hack */
-static void gc_start_gc( gc_t *gc )
-{
-  gc_data_t *data = DATA(gc);
-
-  if (!data->have_stats) {
-    data->have_stats = TRUE;
-    gc_signal_moving_collection( gc ); /* Should delegate to collector */
-    before_collection( gc );
-  }
-}
-
-static void gc_end_gc( gc_t *gc )
-{
-  gc_data_t *data = DATA(gc);
-
-  if (data->have_stats) {
-    data->have_stats = FALSE;
-    after_collection( gc );
-  }
-}
-
-static void 
-dof_collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
-{
-  gc_data_t *data = DATA(gc);
-  gclib_stats_t stats;
-
-  assert( gen >= 0 );
-  assert( gen > 0 || bytes_needed >= 0 );
-
-  data->in_gc++;
-  gc_start_gc( gc );
-
-  if (gen == 0)
-    yh_collect( gc->young_area, bytes_needed, request );
-  else if (gen-1 < gc->ephemeral_area_count)
-    oh_collect( gc->ephemeral_area[ gen-1 ], request );
-  else if (gc->dynamic_area)
-    oh_collect( gc->dynamic_area, request );
-  else
-    yh_collect( gc->young_area, bytes_needed, request );
-
-  gc_end_gc( gc );
-  if (--data->in_gc == 0) {
-    stats_following_gc( gc );
-
-    gclib_stats( &stats );
-    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
-		 stats.heap_allocated, stats.remset_allocated,
-		 stats.rts_allocated );
-    annoyingmsg( "  Max heap usage: %d words", 
-		 stats.heap_allocated_max );
-  }
-}
-#endif /* DOF_COLLECTOR */
 
 static void before_collection( gc_t *gc )
 {
@@ -909,15 +810,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 #endif
   }
   else if (info->use_dof_collector) {
-#if DOF_COLLECTOR
-    int gen_allocd;
-
-    gc->dynamic_area = 
-      create_dof_area( gen_no, &gen_allocd, gc, &info->dynamic_dof_info );
-    gen_no += gen_allocd;
-#else
     panic_exit( "DOF collector not compiled in" );
-#endif
   }
   else {
     gc->dynamic_area = create_sc_area( gen_no, gc, &info->dynamic_sc_info, 0 );
@@ -994,16 +887,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 initialize, 
 		 allocate,
 		 allocate_nonmoving,
-#if DOF_COLLECTOR
-		 (info->use_dof_collector ? dof_collect : collect),
-#else
 		 collect,
-#endif
-#if DOF_COLLECTOR
-		 permute_remembered_sets,
-#else
 		 0,
-#endif
 		 set_policy,
 		 data_load_area,
 		 text_load_area,
