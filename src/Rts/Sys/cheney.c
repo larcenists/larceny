@@ -992,6 +992,10 @@ static void scan_oflo_np_promote( cheney_env_t *e )
       e->scan_lim2 = e->tospace2->chunks[ e->scan_idx2 ].lim;
     }
 
+    /* Explicitly die rather than infinite loop below. */
+    assert( e->scan_ptr <= e->scan_lim );
+    assert( e->scan_ptr2 <= e->scan_lim2 );
+
     work = 0;
     if (e->scan_ptr != e->scan_lim && e->scan_ptr != e->dest) {
       scan_np_old( e );
