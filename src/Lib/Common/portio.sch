@@ -439,7 +439,7 @@
 ; FIXME: not implemented yet
 
 (define (current-error-port)
-  (assertion-violation 'current-error-port "not yet implemented"))
+  (current-output-port))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

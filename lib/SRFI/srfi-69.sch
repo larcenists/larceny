@@ -1,5 +1,5 @@
 ;;; Copyright © Panu Kalliokoski (2005). All Rights Reserved.
-;;; (with Larceny specific updates by Felix Klock (2006))
+;;; (with Larceny-specific updates by Felix Klock (2006))
 ;;; 
 ;;; Permission is hereby granted, free of charge, to any person
 ;;; obtaining a copy of this software and associated documentation
@@ -20,12 +20,14 @@
 ;;; WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ;;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ;;; DEALINGS IN THE SOFTWARE.
+
 (require 'srfi-9)
 
 (define *default-bound* (- (expt 2 29) 3))
 
 ;; Hack to allow use of Larceny's built-in string-hash implementation
 ;; and to keep it in the face of multiple loads of this srfi.
+
 (define %%string-hash 
   (if (environment-variable? (interaction-environment) '%%string-hash)
       %%string-hash
