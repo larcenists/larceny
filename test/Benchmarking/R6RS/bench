@@ -44,9 +44,9 @@ NUM_BENCHMARKS="fib fibc fibfp sum sumfp fft mbrot nucleic pnpoly"
 
 KVW_BENCHMARKS="ack array1 string sum1 cat cat2 cat3 tail wc"
 
-IO_BENCHMARKS="bibfreq bibfreq2 read0 parsing read1 read2 read3"
+IO_BENCHMARKS="read0 read1 read2 read3"
 
-OTHER_BENCHMARKS="compiler conform dynamic earley graphs lattice matrix maze mazefun nqueens paraffins peval pi primes quicksort ray scheme simplex slatex"
+OTHER_BENCHMARKS="bibfreq bibfreq2 compiler conform dynamic earley graphs lattice matrix maze mazefun nqueens paraffins parsing peval pi primes quicksort ray scheme simplex slatex"
 
 GC_BENCHMARKS="nboyer sboyer gcbench mperm"
 
