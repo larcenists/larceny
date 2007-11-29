@@ -5,9 +5,9 @@
 (current-require-path
   (list "lib/R6RS"
         "lib/SRFI"
-        "lib/SLIB"
 	"lib/Ffi"
 	"lib/Base"
         "lib/Standard"
+        "lib/SLIB"
         "lib"
 	"lib/Debugger"))
