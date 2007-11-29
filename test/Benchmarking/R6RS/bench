@@ -38,27 +38,21 @@ TEMP="/tmp/larcenous"
 
 ################################################################
 
-GABRIEL_BENCHMARKS="boyer browse cpstak ctak dderiv deriv destruc diviter divrec puzzle takl triangl" # fft tak trav1 trav2
+GABRIEL_BENCHMARKS="browse deriv dderiv destruc diviter divrec puzzle triangl tak takl ntakl cpstak ctak"
 
-KVW_BENCHMARKS="ack array1 cat string sum1 sumloop tail wc"
+NUM_BENCHMARKS="fib fibc fibfp sum sumfp fft mbrot nucleic pnpoly"
 
-#C_BENCHMARKS="fft fib fibfp mbrot nucleic pnpoly sum sumfp tak tfib $KVW_BENCHMARKS"
-C_BENCHMARKS="fft fib fibfp mbrot pnpoly sum sumfp tak $KVW_BENCHMARKS"
+KVW_BENCHMARKS="ack array1 string sum1 cat cat2 cat3 tail wc"
 
-#OTHER_BENCHMARKS="conform dynamic earley fibc graphs lattice matrix maze mazefun nqueens paraffins peval pi primes ray scheme simplex slatex"
-OTHER_BENCHMARKS="conform dynamic earley fibc graphs lattice matrix maze mazefun nqueens paraffins peval primes ray scheme simplex slatex perm9 nboyer sboyer gcbench"
+IO_BENCHMARKS="bibfreq bibfreq2 read0 parsing read1 read2 read3"
 
-NEW_BENCHMARKS="parsing gcold"
+OTHER_BENCHMARKS="compiler conform dynamic earley graphs lattice matrix maze mazefun nqueens paraffins peval pi primes quicksort ray scheme simplex slatex"
 
-AWK_BENCHMARKS="$KVW_BENCHMARKS"
+GC_BENCHMARKS="nboyer sboyer gcbench mperm"
 
-JAVA_BENCHMARKS="tfib"
+SYNTH_BENCHMARKS="equal normalization bv2string listsort vecsort hashtable0"
 
-#ALL_BENCHMARKS="succeed fail crash $GABRIEL_BENCHMARKS $C_BENCHMARKS $OTHER_BENCHMARKS"
-ALL_BENCHMARKS="$GABRIEL_BENCHMARKS $C_BENCHMARKS $OTHER_BENCHMARKS $NEW_BENCHMARKS"
-
-ALL_BENCHMARKS="ack array1 bibfreq bibfreq2 browse bv2string cat cat2 cat3 compiler conform cpstak ctak dderiv deriv destruc diviter divrec dynamic earley equal fft fib fibc fibfp fpsum gcbench graphs hashtable0 lattice listsort matrix maze mazefun mbrot mperm nboyer normalization nqueens ntakl nucleic paraffins parsing peval pi pnpoly primes puzzle quicksort ray read0 read1 read2 read3 sboyer scheme simplex slatex string sum sum1 sumfp tail tak takl triangl vecsort wc"
-
+ALL_BENCHMARKS="$GABRIEL_BENCHMARKS $NUM_BENCHMARKS $KVW_BENCHMARKS $OTHER_BENCHMARKS $GC_BENCHMARKS $SYNTH_BENCHMARKS"
 
 ################################################################
 

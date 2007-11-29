@@ -1441,7 +1441,9 @@
         (else (slatex.error 'slatex.*directory-mark* 'cant-determine))))
 
 (define slatex.*file-hider*
-  (cond ((eq? *op-sys* 'unix) "") ((eq? *op-sys* 'dos) "x") (else ".")))
+  (cond ((eq? *op-sys* 'unix) "outputs/")
+        ((eq? *op-sys* 'dos) "x")
+        (else ".")))
 
 (define slatex.path->list
   (lambda (p)
