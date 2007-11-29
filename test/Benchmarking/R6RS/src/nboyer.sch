@@ -63,7 +63,7 @@
 (define (main)
   (let* ((count (read))
          (input (read))
-        ;(output (read))
+         (output (read))
          (s2 (number->string count))
          (s1 (number->string input))
          (name "nboyer"))

@@ -57,7 +57,7 @@ JAVA_BENCHMARKS="tfib"
 #ALL_BENCHMARKS="succeed fail crash $GABRIEL_BENCHMARKS $C_BENCHMARKS $OTHER_BENCHMARKS"
 ALL_BENCHMARKS="$GABRIEL_BENCHMARKS $C_BENCHMARKS $OTHER_BENCHMARKS $NEW_BENCHMARKS"
 
-ALL_BENCHMARKS="ack array1 bibfreq2 bibfreq browse cat2 cat3 cat compiler conform cpstak ctak dderiv deriv destruc diviter divrec dynamic earley fib mazefun maze nboyer ntakl parsing pi puzzle sboyer takl tak wc"
+ALL_BENCHMARKS="ack array1 bibfreq bibfreq2 browse bv2string cat cat2 cat3 compiler conform cpstak ctak dderiv deriv destruc diviter divrec dynamic earley equal fft fib fibc fibfp fpsum gcbench graphs hashtable0 lattice listsort matrix maze mazefun mbrot mperm nboyer normalization nqueens ntakl nucleic paraffins parsing peval pi pnpoly primes puzzle quicksort ray read0 read1 read2 read3 sboyer scheme simplex slatex string sum sum1 sumfp tail tak takl triangl vecsort wc"
 
 
 ################################################################

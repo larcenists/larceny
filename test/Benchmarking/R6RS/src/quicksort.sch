@@ -51,9 +51,16 @@
     
     (ploop (- left 1) right)))
 
-;;; As distributed with Gambit, this was nothing but a bignum
-;;; benchmark because it spent practically all of its time
-;;; generating the random numbers using bignum arithmetic.
+;;; Hansen's original code for this benchmark used Larceny's
+;;; predefined random procedure.  When Marc Feeley modified
+;;; Hansen's benchmark for the Gambit benchmark suite, however,
+;;; he added a specific random number generator taken from an
+;;; article in CACM.  Feeley's generator used bignums, and was
+;;; extremely slow, causing the Gambit version of this benchmark
+;;; to spend nearly all of its time generating the random numbers.
+;;; For a benchmark called quicksort to become a bignum benchmark
+;;; was very misleading, so Clinger left Feeley's version of this
+;;; benchmark out of the Larceny benchmark suite.
 ;;;
 ;;; The following random number generator is much better and
 ;;; faster than the one used in the Gambit benchmark.  See
@@ -116,7 +123,7 @@
 ;;; this benchmark still spends almost all of its time
 ;;; generating the random vector.  To make this a true
 ;;; quicksort benchmark, we generate a relatively small
-;;; random vector and then sort it many times.
+;;; random vector and then sort many copies of it.
 
 (define (main)
   (let* ((count (read))

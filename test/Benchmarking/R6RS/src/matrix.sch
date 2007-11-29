@@ -2,7 +2,8 @@
   
 (import (rnrs base)
         (rnrs control)
-        (rnrs io simple))
+        (rnrs io simple)
+        (rnrs mutable-pairs))
 
 ; Chez-Scheme compatibility stuff:
 
