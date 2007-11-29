@@ -371,6 +371,7 @@ CC=cl
 
 PRECISE_GC_OBJECTS=\\
 	Sys/alloc.$(O) Sys/cheney.$(O) Sys/gc.$(O) \\
+	Sys/cheney-check.$(O) Sys/cheney-np.$(O) Sys/cheney-split.$(O) \\
 	Sys/heapio.$(O) Sys/los.$(O) Sys/memmgr.$(O) Sys/ffi.$(O) \\
 	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) \\
 	Sys/old_heap_t.$(O) Sys/old-heap.$(O) \\
@@ -534,6 +535,12 @@ Sys/bdw-stats.$(O): Sys/stats.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \\
 Sys/bdw-ffi.$(O): Sys/ffi.c $(LARCENY_H)
 Sys/callback.$(O): $(LARCENY_H)
 Sys/cheney.$(O): $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \\
+	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+Sys/cheney-np.$(O): $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \\
+	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+Sys/cheney-split.$(O): $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \\
+	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+Sys/cheney-check.$(O): $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \\
 	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
 Sys/ffi.$(O): $(LARCENY_H)
 Sys/gc.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h Sys/semispace_t.h \\
