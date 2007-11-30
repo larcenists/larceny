@@ -22,9 +22,6 @@
         (rnrs io simple)
         (rnrs arithmetic flonums))
 
-(define FLOATatan flatan)
-(define FLOATcos flcos)
-(define FLOATsin flsin)
 (define-syntax nuc-const
   (syntax-rules ()
     [(_ x* ...) '#(x* ...)]))

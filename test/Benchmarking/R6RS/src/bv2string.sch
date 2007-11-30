@@ -503,24 +503,48 @@
 
   (timeit (test-exhaustively "UTF-8" utf8->string string->utf8))
 
-  (timeit (test-exhaustively "UTF-16" utf16->string string->utf16))
+  : NOTE:  An unfortunate misunderstanding led to a late deletion
+  ; of single-argument utf16->string from the R6RS.  To get the
+  ; correct effect of single-argument utf16->string, you have to
+  ; use two arguments, as below.
+  ;
+  ;(timeit (test-exhaustively "UTF-16" utf16->string string->utf16))
+
+  (timeit (test-exhaustively "UTF-16"
+                             (lambda (bv) (utf16->string bv 'big))
+                             string->utf16))
+
+  ; NOTE:  To get the correct effect of two-argument utf16->string,
+  ; you have to use three arguments, as below.
 
   (timeit (test-exhaustively "UTF-16BE"
-                             (lambda (bv) (utf16->string bv 'big))
+                             (lambda (bv) (utf16->string bv 'big #t))
                              (lambda (s) (string->utf16 s 'big))))
 
   (timeit (test-exhaustively "UTF-16LE"
-                             (lambda (bv) (utf16->string bv 'little))
+                             (lambda (bv) (utf16->string bv 'little #t))
                              (lambda (s) (string->utf16 s 'little))))
 
-  (timeit (test-exhaustively "UTF-32" utf32->string string->utf32))
+  : NOTE:  An unfortunate misunderstanding led to a late deletion
+  ; of single-argument utf32->string from the R6RS.  To get the
+  ; correct effect of single-argument utf32->string, you have to
+  ; use two arguments, as below.
+  ;
+  ;(timeit (test-exhaustively "UTF-32" utf32->string string->utf32))
+
+  (timeit (test-exhaustively "UTF-32"
+                             (lambda (bv) (utf32->string bv 'big))
+                             string->utf32))
+
+  ; NOTE:  To get the correct effect of two-argument utf32->string,
+  ; you have to use three arguments, as below.
 
   (timeit (test-exhaustively "UTF-32BE"
-                             (lambda (bv) (utf32->string bv 'big))
+                             (lambda (bv) (utf32->string bv 'big #t))
                              (lambda (s) (string->utf32 s 'big))))
 
   (timeit (test-exhaustively "UTF-32LE"
-                             (lambda (bv) (utf32->string bv 'little))
+                             (lambda (bv) (utf32->string bv 'little #t))
                              (lambda (s) (string->utf32 s 'little)))))
 
 (define (main)
