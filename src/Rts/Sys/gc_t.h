@@ -170,6 +170,12 @@ struct gc {
 				        bool (*f)(word, void*, unsigned * ),
 				        void *,
 				        bool enumerate_np_remset );
+     /* Invokes f on every word in the remsets older than generation.
+        If f returns TRUE then word argument is retained in the remset 
+        being traversed; otherwise word is removed (see interface for 
+        rs_enumerate() for more info).
+        */
+
 };
 
 /* Operations.  For prototypes, see the method specs above. */
