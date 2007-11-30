@@ -17,12 +17,16 @@
 (define current-output-port 
   (make-parameter "current-output-port" #f (lambda (x) (output-port? x))))
 
+(define current-error-port 
+  (make-parameter "current-error-port" #f (lambda (x) (output-port? x))))
+
 (define (initialize-io-system)
   (io/initialize)
   (file-io/initialize)
   (console-io/initialize)
   (current-input-port (console-input-port))
   (current-output-port (console-output-port))
+  (current-error-port (console-output-port))
   (unspecified))
 
 (define (shutdown-io-system)

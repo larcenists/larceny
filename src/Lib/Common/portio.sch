@@ -67,8 +67,7 @@
 (define (native-eol-style) 'none)   ; FIXME: for backward compatibility
 
 ; FIXME:  &i/o-decoding, &i/o-encoding, and their associated
-; operations aren't yet implemented because conditions aren't
-; implemented yet.
+; operations might not be implemented yet.
 
 ; The deprecated error-handling-mode syntax is supported only by R6RS modes.
 
@@ -252,10 +251,12 @@
         (port (bytevector-io/open-input-bytevector-no-copy (string->utf8 s))))
     (transcoded-port port transcoder)))
 
-; FIXME: not implemented yet
-
 (define (standard-input-port)
-  (assertion-violation 'standard-input-port "not yet implemented"))
+  (let ((fd (osdep/open-console 'input)))
+    (io/make-port console-io/ioproc
+                  (file-io/data fd "*console-input*")
+                  'input
+                  'binary)))
 
 ; FIXME: current-input-port is implemented elsewhere
 
@@ -426,20 +427,21 @@
             'open-file-input/output-port
             "illegal codec" t)))))
 
-; FIXME: not implemented yet
-
 (define (standard-output-port)
-  (assertion-violation 'standard-output-port "not yet implemented"))
-
-; FIXME: not implemented yet
+  (let ((fd (osdep/open-console 'output)))
+    (io/make-port console-io/ioproc
+                  (file-io/data fd "*console-output*")
+                  'output
+                  'flush
+                  'binary)))
 
 (define (standard-error-port)
-  (assertion-violation 'standard-error-port "not yet implemented"))
-
-; FIXME: not implemented yet
-
-(define (current-error-port)
-  (current-output-port))
+  (let ((fd (osdep/open-console 'output)))
+    (io/make-port console-io/ioproc
+                  (file-io/data fd "*console-output*")
+                  'output
+                  'flush
+                  'binary)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
