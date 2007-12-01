@@ -72,10 +72,6 @@
 ;     the symbol error (meaning get-datum should raise an exception)
 
 (define (dotest s expected)
-  (safely (lambda () (testparse "#!r6rs")) #t)
-  (dotest-in-current-reader-mode s expected))
-
-(define (dotest-in-current-reader-mode s expected)
   (set! test-input s)
   (cond ((eq? 'error expected)
          (mustfail s testparse s))
@@ -270,8 +266,11 @@
 ;                    | <line ending>
 ;                    | \a | \b | \t | \n | \v | \f | \r
 ;                    | \" | \\
-;                    | \<line ending>
+;                    | \<intraline whitespace>\<line ending>
+;                      <intraline whitespace>
 ;                    | <inline hex escape>
+; <intraline whitespace> --> <character tabulation>
+;                    | <any character whose category is Zs>
 ; <line ending> --> <linefeed>
 ;                 | <carriage return>
 ;                 | <carriage return> <linefeed>
