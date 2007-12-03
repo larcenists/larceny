@@ -43,9 +43,11 @@
  
    Forw_core() implements the meat of the forwarding operation.
 
-   Check_space() checks whether the semispace has room for 'wanted' bytes,
+   Check_space() checks whether the semispace has room for 'wanted+wiggle' bytes,
    and if not, it expands the semispace and updates the 'dest' and 'lim' 
-   variables.
+   variables.  The wiggle parameter is to differentiate the wanted
+   amount from the object's actual size, which affects whether an
+   object is allocated in the large object space.
 
    Scan_core() implements the semispace scanning operation.  It is
    parameterized by an expression that calls the appropriate forwarding macro.
@@ -97,7 +99,7 @@
 #define FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen )            \
   do {                                                                   \
     word next_obj;                                                       \
-    check_space(dest,lim,8,e);                                           \
+    check_space(dest,lim,8,0,e);                                         \
     *dest = *TMP_P;                                                      \
     *(dest+1) = next_obj = *(TMP_P+1);                                   \
     check_address( TMP_P );                                              \
@@ -117,8 +119,7 @@
   }                                                     \
   else {                                                \
     word *TMPD;                                         \
-    check_space(dest,lim,sizefield(TMP_W)+4,e);         \
-    check_space(dest,lim,sizefield(TMP_W)+4+8,e);       \
+    check_space(dest,lim,sizefield(TMP_W)+4,8,e);       \
     TMPD = dest;                                        \
     *loc = forward( T_obj, &TMPD, e ); dest = TMPD;     \
   }
@@ -127,10 +128,10 @@
    handle them; by letting the check succeed for large objects, the
    subsequent call to forward() will handle the object properly.
    */
-#define check_space( dest, lim, wanted, e )                                  \
-  if ((char*)lim-(char*)dest < (wanted) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
+#define check_space( dest, lim, wanted, wiggle, e )                          \
+  if ((char*)lim-(char*)dest < (wanted+wiggle) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
     word *CS_LIM=lim, *CS_DEST=dest;                                         \
-    expand_semispace( e->tospace, &CS_LIM, &CS_DEST, (wanted) );             \
+    expand_semispace( e->tospace, &CS_LIM, &CS_DEST, (wanted+wiggle) );      \
     dest = CS_DEST; lim = CS_LIM;                                            \
   }
 
