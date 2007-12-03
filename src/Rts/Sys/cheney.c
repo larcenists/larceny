@@ -45,9 +45,14 @@
 
    Check_space() checks whether the semispace has room for 'wanted+wiggle' bytes,
    and if not, it expands the semispace and updates the 'dest' and 'lim' 
-   variables.  The wiggle parameter is to differentiate the wanted
-   amount from the object's actual size, which affects whether an
-   object is allocated in the large object space.
+   variables.  
+   - The wiggle parameter is to differentiate the wanted amount from
+     the object's actual size, which affects whether an object is
+     allocated in the large object space.
+   - The uses of check_space in the macros are performed via the
+     check_spaceI macro parameter, so that client code can override
+     the behavior and instantiate a different policy for handling
+     space exhaustion (such as allocating a new region).
 
    Scan_core() implements the semispace scanning operation.  It is
    parameterized by an expression that calls the appropriate forwarding macro.
@@ -61,11 +66,11 @@
    not controlled by the macro.  forw_limit_gen is an expression with no
    side effect.
    */
-#define forw_oflo( loc, forw_limit_gen, dest, lim, e )                      \
-  do { word T_obj = *loc;                                                   \
-       if (isptr(T_obj) && gen_of(T_obj) < (forw_limit_gen)){ \
-          forw_core( T_obj, loc, dest, lim, e, (forw_limit_gen) );          \
-       }                                                                    \
+#define forw_oflo( loc, forw_limit_gen, dest, lim, e, check_spaceI )            \
+  do { word T_obj = *loc;                                                       \
+       if (isptr(T_obj) && gen_of(T_obj) < (forw_limit_gen)){                   \
+          forw_core( T_obj, loc, dest, lim, e, (forw_limit_gen), check_spaceI); \
+       }                                                                        \
   } while( 0 )
 
 /* Old_obj_gen is the generation of the object being scanned.
@@ -80,46 +85,42 @@
    Same goes for forw_np_record.
    */
 #define forw_oflo_record( loc, forw_limit_gen, dest, lim, has_intergen_ptr, \
-                          old_obj_gen, e )                                  \
+                          old_obj_gen, e, check_spaceI )                    \
   do { word T_obj = *loc;                                                   \
        if (isptr( T_obj )) {                                                \
-          unsigned T_obj_gen = gen_of(T_obj);                 \
+          unsigned T_obj_gen = gen_of(T_obj);                               \
           if (T_obj_gen < (forw_limit_gen)) {                               \
-            forw_core( T_obj, loc, dest, lim, e, (forw_limit_gen) );        \
+            forw_core( T_obj, loc,dest, lim, e, (forw_limit_gen),           \
+                       check_spaceI );                                      \
           }                                                                 \
           if (T_obj_gen < old_obj_gen) has_intergen_ptr=1;                  \
        }                                                                    \
   } while( 0 )
 
-/* NB: This is called by both forw_core and forw_core2.  The
- * check_space2 call from forw_core2 has been replaced with
- * check_space; this is sound because wanted is always 8; in such a
- * context the two check_space's are equivalent.
- */
-#define FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen )            \
-  do {                                                                   \
-    word next_obj;                                                       \
-    check_space(dest,lim,8,0,e);                                         \
-    *dest = *TMP_P;                                                      \
-    *(dest+1) = next_obj = *(TMP_P+1);                                   \
-    check_address( TMP_P );                                              \
-    *TMP_P = FORWARD_HDR;                                                \
-    *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG);                    \
-    check_memory( dest, 2 );                                             \
-    dest += 2;                                                           \
+#define FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen, check_spaceI ) \
+  do {                                                                 \
+    word next_obj;                                                     \
+    check_spaceI(dest,lim,8,0,e);                                           \
+    *dest = *TMP_P;                                                    \
+    *(dest+1) = next_obj = *(TMP_P+1);                                 \
+    check_address( TMP_P );                                            \
+    *TMP_P = FORWARD_HDR;                                              \
+    *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG);                  \
+    check_memory( dest, 2 );                                           \
+    dest += 2;                                                         \
   } while ( 0 )
 
-#define forw_core( T_obj, loc, dest, lim, e, forw_limit_gen )           \
+#define forw_core( T_obj, loc, dest, lim, e, forw_limit_gen, check_spaceI ) \
   word *TMP_P = ptrof( T_obj );                         \
   word TMP_W = *TMP_P;                                  \
   if (TMP_W == FORWARD_HDR)                             \
     *loc = *(TMP_P+1);                                  \
   else if (tagof( T_obj ) == PAIR_TAG) {                \
-    FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen ); \
+    FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen, check_spaceI ); \
   }                                                     \
   else {                                                \
     word *TMPD;                                         \
-    check_space(dest,lim,sizefield(TMP_W)+4,8,e);       \
+    check_spaceI(dest,lim,sizefield(TMP_W)+4,8,e);       \
     TMPD = dest;                                        \
     *loc = forward( T_obj, &TMPD, e ); dest = TMPD;     \
   }
@@ -135,8 +136,8 @@
     dest = CS_DEST; lim = CS_LIM;                                            \
   }
 
-#define scan_and_forward( loc, iflush, gno, dest, lim, e ) \
-  scan_core( loc, iflush, forw_oflo( loc, gno, dest, lim, e) )
+#define scan_and_forward( loc, iflush, gno, dest, lim, e, check_spaceI ) \
+  scan_core( loc, iflush, forw_oflo( loc, gno, dest, lim, e, check_spaceI ) )
 
 /* External */
 
@@ -275,7 +276,7 @@ static void scan_static_area( cheney_env_t *e )
     loc = s_data->chunks[i].bot;
     limit = s_data->chunks[i].top;
     while ( loc < limit )
-      scan_and_forward( loc, e->iflush, forw_limit_gen, dest, lim, e );
+      scan_and_forward( loc, e->iflush, forw_limit_gen, dest, lim, e, check_space );
   }
 
   e->dest = dest;
@@ -285,7 +286,7 @@ static void scan_static_area( cheney_env_t *e )
 static void root_scanner_oflo( word *ptr, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
-  forw_oflo( ptr, e->effective_generation, e->dest, e->lim, e );
+  forw_oflo( ptr, e->effective_generation, e->dest, e->lim, e, check_space );
 }
 
 static bool remset_scanner_oflo( word object, void *data, unsigned *count )
@@ -300,7 +301,8 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
 
   remset_scanner_core( object, loc, 
                        forw_oflo_record( loc, forw_limit_gen, dest, lim,
-                                         has_intergen_ptr, old_obj_gen, e ),
+                                         has_intergen_ptr, old_obj_gen, e, 
+                                         check_space ),
                        *count );
 
   e->dest = dest;
@@ -326,7 +328,7 @@ void scan_oflo_normal( cheney_env_t *e )
 
     while (scanptr != dest) {
       while (scanptr != dest && scanptr < scanlim) {
-        scan_and_forward( scanptr, e->iflush, gno, dest, copylim, e );
+        scan_and_forward( scanptr, e->iflush, gno, dest, copylim, e, check_space );
       }
 
       if (scanptr != dest) {
@@ -352,7 +354,7 @@ void scan_oflo_normal( cheney_env_t *e )
       los_p = p;
       morework = 1;
       assert2( ishdr( *p ) );
-      scan_and_forward( p, e->iflush, gno, dest, copylim, e );
+      scan_and_forward( p, e->iflush, gno, dest, copylim, e, check_space );
     }
   } while (morework);
 
