@@ -203,21 +203,6 @@ word *los_walk_list( los_list_t *list, word *p )
   }
 }
 
-void los_permute_object_lists( los_t *los, int permutation[] )
-{
-  los_list_t *old[ MAX_GENERATIONS ];
-  int i, k;
-
-  for ( i=0 ; i < los->generations ; i++ )
-    old[i] = los->object_lists[i];
-
-  for ( i=0 ; i < los->generations ; i++ ) {
-    k = permutation[i];
-    los->object_lists[k] = old[i];
-    los_list_set_gen_no( los->object_lists[k], k );
-  }
-}
-
 static los_list_t *make_los_list( void )
 {
   los_list_t *list;
