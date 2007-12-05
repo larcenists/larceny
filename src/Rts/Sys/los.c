@@ -14,7 +14,6 @@
 #include "larceny.h"
 #include "los_t.h"
 #include "gclib.h"
-#include "gc.h"			/* For MAX_GENERATIONS */
 
 #define HEADER_WORDS     4	/* Number of header words */
 #define HEADER_UNUSED    -4     /* Unused field (could be mark?) */
