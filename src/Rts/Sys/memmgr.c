@@ -737,6 +737,8 @@ static int find_fresh_gno( gc_t *gc )
   old_heap_t *heap;
   semispace_t *ss; 
 
+  assert( gc->ephemeral_area_count > 0 );
+
   heap = gc->ephemeral_area[gc->ephemeral_area_count-1];
   ss = ohsc_data_area( heap );
   return ss->gen_no+1;
