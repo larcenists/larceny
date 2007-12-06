@@ -175,6 +175,10 @@ struct gc {
         being traversed; otherwise word is removed (see interface for 
         rs_enumerate() for more info).
         */
+  semispace_t *(*fresh_space)(gc_t *gc);
+     /* Creates a fresh space to copy objects into with a 
+      * distinct generation number.
+      */
 
 };
 
@@ -205,6 +209,7 @@ struct gc {
   ((gc)->enumerate_remsets_older_than( gc, g, s, d, f ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
 #define gc_free_handle( gc, h )       ((gc)->free_handle( gc, h ))
+#define gc_fresh_space( gc )          ((gc)->fresh_space( gc ))
 
 gc_t 
 *create_gc_t(char *id,
@@ -237,7 +242,8 @@ gc_t
 	        ( gc_t *gc, int generation,
 		  bool (*f)(word, void*, unsigned * ),
 		  void *data,
-		  bool enumerate_np_remset )
+		  bool enumerate_np_remset ),
+	     semispace_t *(*fresh_space)( gc_t *gc )
 	     );
 
 void gc_parameters( gc_t *gc, int op, int *ans );

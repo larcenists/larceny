@@ -27,7 +27,7 @@
  * have a value n-7 <= s <= n.
  *
  * A large object is always on either one of the object_lists or on 
- * the marked list.
+ * the marked list (FSK: that is an *exclusive* or, yes?)
  */
 
 #include "larceny-types.h"
@@ -45,6 +45,11 @@ los_t *create_los( int generations );
   /* Create and initialize a LOS structure.
 
      generations > 0
+     */
+
+void expand_los_gnos( los_t *los, int fresh_gno );
+  /* Adds a new generation, with unique fresh_gno, to the LOS structure.
+     Objects in los change their gno assignment to accomodate fresh_gno.
      */
 
 los_list_t *create_los_list(void);

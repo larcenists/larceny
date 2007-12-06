@@ -710,6 +710,125 @@ static void free_handle( gc_t *gc, word *handle )
   *handle = 0;
 }
 
+/* Returns generation number appropriate for a fresh area.  The
+ * returned number is not yet accomodated by gc; it is merely
+ * suggested as an appropriate value to make room for in the internal
+ * gc structure.  (Attempts to make room with other values may or may
+ * not work...)
+ *
+ * A more expressive interface would allow the client code to
+ * influence this decision, but this is not meant to be all things to
+ * all people.
+ */
+static int find_fresh_generation_number( gc_t *gc ) 
+{
+  int fresh_gno;
+  /* A simple policy would be to just use the successor of the max
+   * generation number in gc.  However, we want to maintain an
+   * invariant that the static area, if present, always has the
+   * maximum gno (to simplify the write barrier).  In that case we
+   * instead increment the gno of the static generation and then use
+   * the old static gno for the fresh gno.
+   */
+  if (gc->static_area != NULL) {
+    fresh_gno = DATA(gc)->static_generation;
+  } else {
+    fresh_gno = DATA(gc)->generations;
+  }
+}
+
+static void expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno ) 
+{
+  int i;
+  int new_ephemeral_area_count = gc->ephemeral_area_count + 1;
+  old_heap_t** new_ephemeral_area = 
+    (old_heap_t**)must_malloc( new_ephemeral_area_count*sizeof( old_heap_t* ));
+  
+  for( i=0 ; i < fresh_gno; i++) {
+    new_ephemeral_area[ i ] = gc->ephemeral_area[ i ];
+  }
+  new_ephemeral_area[ fresh_gno ] = 
+    clone_sc_area( gc->ephemeral_area[ fresh_gno ] );
+  for( i=fresh_gno+1 ; i < new_ephemeral_area_count; i++) {
+    new_ephemeral_area[ i ] = gc->ephemeral_area[ i-1 ];
+  }
+  
+  gc->ephemeral_area_count = new_ephemeral_area_count;
+  gc->ephemeral_area = new_ephemeral_area;
+}
+
+static expand_dynamic_area_gnos( gc_t *gc, int fresh_gno ) 
+{
+  assert( 0 );
+}
+
+static void expand_static_area_gnos( gc_t *gc, int fresh_gno ) 
+{
+  int new_static_gno;
+  if (DATA(gc)->static_generation >= fresh_gno) {
+    new_static_gno = DATA(gc)->static_generation + 1;
+    ss_set_gen_no( gc->static_area->data_area, new_static_gno );
+    ss_set_gen_no( gc->static_area->text_area, new_static_gno );
+    DATA(gc)->static_generation = new_static_gno;
+  }
+}
+
+static void expand_remset_gnos( gc_t *gc, int fresh_gno )
+{
+  int i;
+  int new_remset_count = gc->remset_count + 1;
+  remset_t** new_remset = 
+    (remset_t**)must_malloc( sizeof( remset_t* )*new_remset_count );
+  assert( fresh_gno < new_remset_count );
+
+  for( i = 0; i < fresh_gno; i++ ) {
+    new_remset[i] = gc->remset[i];
+  }
+  new_remset[fresh_gno] = create_remset( 0, 0 );
+  for( i = fresh_gno+1; i < new_remset_count; i++ ) {
+    new_remset[i] = gc->remset[i-1];
+  }
+
+  free( gc->remset );
+  gc->remset = new_remset;
+  gc->remset_count = new_remset_count;
+  
+}
+
+
+static void expand_gc_area_gnos( gc_t *gc, int fresh_gno ) 
+{
+  expand_los_gnos( gc->los, fresh_gno );
+  /* hypothesis: young_area gno == 0; implicit accommodation */
+  expand_ephemeral_area_gnos( gc, fresh_gno );
+  expand_dynamic_area_gnos( gc, fresh_gno );
+  expand_static_area_gnos( gc, fresh_gno );
+  expand_remset_gnos( gc, fresh_gno );
+}
+
+static semispace_t *fresh_space( gc_t *gc ) 
+{
+  semispace_t *ss;
+  int fresh_gno;
+
+  /* Some checks since prototype code relies on unestablished
+   * invariants between the static gno and the number of generations. 
+   */
+  assert( DATA(gc)->static_generation == DATA(gc)->generations - 1 );
+  assert( DATA(gc)->static_generation == gc->static_area->data_area->gen_no );
+  assert( DATA(gc)->static_generation == gc->static_area->text_area->gen_no );
+  
+  /* Allocate a gno to assign to the returned semispace. */
+  fresh_gno = find_fresh_generation_number( gc );
+
+  /* make room for the new space and its associated remembered set. */
+  expand_gc_area_gnos( gc, fresh_gno );
+  
+  ss = ohsc_data_area( gc->ephemeral_area[ fresh_gno ] );
+  
+  return ss;
+}
+
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 100 ];
@@ -891,7 +1010,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 make_handle,
 		 free_handle,
 		 enumerate_roots,
-		 enumerate_remsets_older_than );
+		 enumerate_remsets_older_than,
+		 fresh_space );
 }
 
 /* eof */

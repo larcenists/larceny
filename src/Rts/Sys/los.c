@@ -38,6 +38,7 @@ static los_list_t *make_los_list( void );
 static void remove( word *w );
 static void insert_at_end( word *w, los_list_t *list );
 static void set_generation_number( los_list_t *list, int gen_no, bool clear );
+static void incr_generation_number_for( los_list_t *list, int fresh_gno );
 static void append_and_clear( los_list_t *left, los_list_t *right );
 static void dump_list( los_list_t *l, char *tag, int nbytes );
 static void clear_list( los_list_t *l );
@@ -59,6 +60,31 @@ los_t *create_los( int generations )
   los->mark2 = make_los_list();
 
   return los;
+}
+
+void expand_los_gnos( los_t *los, int fresh_gno )
+{
+  int i;
+  int new_generations = los->generations + 1;
+  los_list_t **new_object_lists =
+    (los_list_t**)must_malloc( new_generations*sizeof( los_list_t* ) );
+  
+  for ( i=0 ; i < fresh_gno ; i++ ) 
+    new_object_lists[i] = los->object_lists[i];
+  new_object_lists[fresh_gno] = make_los_list();
+  for ( i=fresh_gno+1 ; i < new_generations ; i++ ) {
+    new_object_lists[i] = los->object_lists[i-1];
+    set_generation_number( new_object_lists[i], i, FALSE );
+  }
+  /* also need to traverse the mark lists and increment any generation
+   * numbers >= fresh_gno. 
+   */
+  incr_generation_number_for( los->mark1, fresh_gno );
+  incr_generation_number_for( los->mark2, fresh_gno );
+  
+  free( los->object_lists );
+  los->object_lists = new_object_lists;
+  los->generations = new_generations;
 }
 
 los_list_t *create_los_list(void)
@@ -252,6 +278,29 @@ static void set_generation_number( los_list_t *list, int gen_no, bool clear )
     if (clear) 
       set_prev( this, prev );
     prev = this;
+    this = next( this );
+  }
+}
+
+static void incr_generation_number_for( los_list_t *list, int fresh_gno )
+{
+  word *header, *this;
+  word *addr;
+  int gno;
+  
+  /* Note that this code will break completely if the same object
+   * appears in this list multiple times!  (Likewise clients of LOS
+   * must ensure objects have at most one reference in all lists.) 
+   */
+
+  header = list->header;
+  this = next( header );
+  while (this != header) {
+    addr = this - HEADER_WORDS;
+    gno = gen_of( addr );
+    if ( gno >= fresh_gno ) {
+      gclib_set_generation( addr, size( this ), gno+1 );
+    }
     this = next( this );
   }
 }

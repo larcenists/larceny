@@ -74,6 +74,45 @@ static int  used_space( old_heap_t *heap );
 static void full_collection( old_heap_t *heap );
 #endif
 
+semispace_t *
+ohsc_data_area( old_heap_t *heap ) 
+{
+  return DATA(heap)->current_space;
+}
+
+old_heap_t *
+clone_sc_area( old_heap_t *src_heap )
+{
+  old_heap_t *tgt_heap;
+  old_data_t *tgt_data;
+  old_data_t *src_data;
+  int tgt_gen_no;
+  bool ephemeral;
+
+  src_data = DATA(src_heap);
+  tgt_gen_no = src_data->gen_no;
+  ephemeral = src_data->is_ephemeral_area;
+
+  tgt_heap = allocate_heap( tgt_gen_no, src_heap->collector, ephemeral );
+  tgt_data = DATA(tgt_heap);
+
+  tgt_data->current_space = create_semispace( GC_CHUNK_SIZE, tgt_gen_no );
+  tgt_data->size_bytes = src_data->size_bytes;
+  
+  if (!ephemeral) {
+    tgt_data->load_factor = src_data->load_factor;
+    tgt_data->lower_limit = src_data->lower_limit;
+    tgt_data->upper_limit = src_data->upper_limit;
+    tgt_data->target_size = src_data->target_size;
+  } else {
+    tgt_data->target_size = src_data->target_size;
+  }
+
+  tgt_heap->maximum = tgt_data->target_size;
+  tgt_heap->allocated = 0;
+
+  return tgt_heap;
+}
 
 old_heap_t *
 create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral )

@@ -136,6 +136,13 @@
     dest = CS_DEST; lim = CS_LIM;                                            \
   }
 
+#define check_space_alloc( dest, lim, wanted, wiggle, e )                    \
+  if ((char*)lim-(char*)dest < (wanted+wiggle) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
+    word *CS_LIM=lim, *CS_DEST=dest;                                         \
+    fresh_generation( e, &CS_LIM, &CS_DEST, (wanted+wiggle) );               \
+    dest = CS_DEST; lim = CS_LIM;                                            \
+  }
+
 #define scan_and_forward( loc, iflush, gno, dest, lim, e, check_spaceI ) \
   scan_core( loc, iflush, forw_oflo( loc, gno, dest, lim, e, check_spaceI ) )
 
@@ -522,6 +529,20 @@ expand_semispace( semispace_t *ss, word **lim, word **dest, unsigned bytes )
 {
   seal_chunk( ss, *lim, *dest );
   ss_expand( ss, max( bytes, GC_CHUNK_SIZE ) );
+  *lim = ss->chunks[ss->current].lim;
+  *dest = ss->chunks[ss->current].top;
+}
+
+void
+fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
+{
+  semispace_t *ss;
+  int gno;
+
+  ss = e->tospace;
+  seal_chunk( ss, *lim, *dest );
+  ss = gc_fresh_space( e->gc ); 
+  e->tospace = ss;
   *lim = ss->chunks[ss->current].lim;
   *dest = ss->chunks[ss->current].top;
 }

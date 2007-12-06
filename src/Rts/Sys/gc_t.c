@@ -39,7 +39,8 @@ gc_t
 	        ( gc_t *gc, int generation,
 		  bool (*f)(word, void*, unsigned * ),
 		  void *data, 
-		  bool enumerate_np_remset )
+		  bool enumerate_np_remset ),
+	     semispace_t *(*fresh_space)( gc_t *gc )
 	     )
 {
   gc_t *gc;
@@ -89,6 +90,7 @@ gc_t
   
   gc->enumerate_roots = enumerate_roots;
   gc->enumerate_remsets_older_than = enumerate_remsets_older_than;
+  gc->fresh_space = fresh_space;
 
   return gc;
 }

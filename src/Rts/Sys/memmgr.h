@@ -78,6 +78,18 @@ yhsc_data_area( young_heap_t *heap );
 old_heap_t *
 create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral );
 
+old_heap_t *
+clone_sc_area( old_heap_t *heap );
+  /* Returns a fresh area using heap as a basis for assigning all
+   * internal properties (such as gen_no or maximum size).
+   */
+
+semispace_t *
+ohsc_data_area( old_heap_t *heap );
+  /* Returns the current semispace structure for an old area.
+     (It is not necessarily legal to expand the returned space.)
+     */
+
 /* In np-sc-heap.c */
 
 old_heap_t *
