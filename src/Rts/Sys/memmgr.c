@@ -744,9 +744,10 @@ static int find_fresh_gno( gc_t *gc )
   return ss->gen_no+1;
 }
 
-static void expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno ) 
+static old_heap_t* expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno ) 
 {
   int i;
+  old_heap_t* new_heap;
   int old_area_count = gc->ephemeral_area_count;
   int new_area_count = old_area_count + 1;
   old_heap_t** new_ephemeral_area = 
@@ -758,26 +759,32 @@ static void expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
 
   assert( old_area_count > 0 );
   
+  new_heap = 
+    clone_sc_area( gc->ephemeral_area[ old_area_count-1 ], fresh_gno );
+
   for( i=0 ; i < old_area_count; i++) {
     new_ephemeral_area[ i ] = gc->ephemeral_area[ i ];
   }
-  new_ephemeral_area[ old_area_count ] = 
-    clone_sc_area( gc->ephemeral_area[ old_area_count-1 ], fresh_gno );
-  
+  new_ephemeral_area[ old_area_count ] = new_heap;
 
   free( gc->ephemeral_area );
   gc->ephemeral_area = new_ephemeral_area;
   gc->ephemeral_area_count = new_area_count;
+  
+  return new_heap;
 }
 
 static void expand_dynamic_area_gnos( gc_t *gc, int fresh_gno ) 
 {
   semispace_t *ss;
-  ss = ohsc_data_area( gc->dynamic_area );
-  if (ss->gen_no >= fresh_gno) {
-    
+  if (gc->dynamic_area != NULL) {
+    ss = ohsc_data_area( gc->dynamic_area );
+    assert( ss != NULL );
+    assert( gc->dynamic_area->set_gen_no != NULL );
+    if (ss->gen_no >= fresh_gno) {
+      oh_set_gen_no( gc->dynamic_area, ss->gen_no+1 );
+    }
   }
-    
 }
 
 static void expand_static_area_gnos( gc_t *gc, int fresh_gno ) 
@@ -814,19 +821,26 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
 }
 
 
-static void expand_gc_area_gnos( gc_t *gc, int fresh_gno ) 
+static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno ) 
 {
+  old_heap_t *heap;
   expand_los_gnos( gc->los, fresh_gno );
+
   /* hypothesis: young_area gno == 0; implicit accommodation */
-  expand_ephemeral_area_gnos( gc, fresh_gno );
+  
+  heap = expand_ephemeral_area_gnos( gc, fresh_gno );
+
   expand_dynamic_area_gnos( gc, fresh_gno );
   expand_static_area_gnos( gc, fresh_gno );
   expand_remset_gnos( gc, fresh_gno );
+
+  return heap;
 }
 
 static semispace_t *fresh_space( gc_t *gc ) 
 {
   semispace_t *ss;
+  old_heap_t *heap;
   int fresh_gno;
 
   /* Some checks since prototype code relies on unestablished
@@ -841,9 +855,9 @@ static semispace_t *fresh_space( gc_t *gc )
   annoyingmsg( "  fresh_space: gno %d", fresh_gno );
 
   /* make room for the new space and its associated remembered set. */
-  expand_gc_area_gnos( gc, fresh_gno );
+  heap = expand_gc_area_gnos( gc, fresh_gno );
   
-  ss = ohsc_data_area( gc->ephemeral_area[ fresh_gno ] );
+  ss = ohsc_data_area( heap );
   
   return ss;
 }
