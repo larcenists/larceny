@@ -125,6 +125,7 @@ old_heap_t *create_old_heap_t(
 #define oh_stats( oh )             ((oh)->stats( oh ))
 #define oh_data_load_area( oh, n ) ((oh)->data_load_area( oh, n ))
 #define oh_set_policy( oh, x, y )  ((oh)->set_policy( oh, x, y ))
+#define oh_set_gen_no( oh, gno )   ((oh)->set_gen_no( oh, gno ))
 
 #endif  /* INCLUDED_OLD_HEAP_T_H */
 

@@ -52,6 +52,7 @@ old_heap_t *create_old_heap_t(
   heap->load_prepare = load_prepare;
   heap->load_data = load_data;
   heap->set_policy = (set_policy ? set_policy : default_set_policy);
+  heap->set_gen_no = set_gen_no;
 
   return heap;
 }
