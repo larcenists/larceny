@@ -43,9 +43,9 @@
  
    Forw_core() implements the meat of the forwarding operation.
 
-   Check_space() checks whether the semispace has room for 'wanted+wiggle' bytes,
-   and if not, it expands the semispace and updates the 'dest' and 'lim' 
-   variables.  
+   check_space_expand() checks whether the semispace has room 
+   for 'wanted+wiggle' bytes, and if not, it expands the semispace 
+   and updates the 'dest' and 'lim' variables.
    - The wiggle parameter is to differentiate the wanted amount from
      the object's actual size, which affects whether an object is
      allocated in the large object space.
@@ -129,7 +129,7 @@
    handle them; by letting the check succeed for large objects, the
    subsequent call to forward() will handle the object properly.
    */
-#define check_space( dest, lim, wanted, wiggle, e )                          \
+#define check_space_expand( dest, lim, wanted, wiggle, e )                   \
   if ((char*)lim-(char*)dest < (wanted+wiggle) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
     word *CS_LIM=lim, *CS_DEST=dest;                                         \
     expand_semispace( e->tospace, &CS_LIM, &CS_DEST, (wanted+wiggle) );      \
@@ -276,7 +276,7 @@ static void scan_static_area( cheney_env_t *e )
     loc = s_data->chunks[i].bot;
     limit = s_data->chunks[i].top;
     while ( loc < limit )
-      scan_and_forward( loc, e->iflush, forw_limit_gen, dest, lim, e, check_space );
+      scan_and_forward( loc, e->iflush, forw_limit_gen, dest, lim, e, check_space_expand );
   }
 
   e->dest = dest;
@@ -286,7 +286,7 @@ static void scan_static_area( cheney_env_t *e )
 static void root_scanner_oflo( word *ptr, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
-  forw_oflo( ptr, e->effective_generation, e->dest, e->lim, e, check_space );
+  forw_oflo( ptr, e->effective_generation, e->dest, e->lim, e, check_space_expand );
 }
 
 static bool remset_scanner_oflo( word object, void *data, unsigned *count )
@@ -302,7 +302,7 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
   remset_scanner_core( object, loc, 
                        forw_oflo_record( loc, forw_limit_gen, dest, lim,
                                          has_intergen_ptr, old_obj_gen, e, 
-                                         check_space ),
+                                         check_space_expand ),
                        *count );
 
   e->dest = dest;
@@ -328,7 +328,7 @@ void scan_oflo_normal( cheney_env_t *e )
 
     while (scanptr != dest) {
       while (scanptr != dest && scanptr < scanlim) {
-        scan_and_forward( scanptr, e->iflush, gno, dest, copylim, e, check_space );
+        scan_and_forward( scanptr, e->iflush, gno, dest, copylim, e, check_space_expand );
       }
 
       if (scanptr != dest) {
@@ -354,7 +354,7 @@ void scan_oflo_normal( cheney_env_t *e )
       los_p = p;
       morework = 1;
       assert2( ishdr( *p ) );
-      scan_and_forward( p, e->iflush, gno, dest, copylim, e, check_space );
+      scan_and_forward( p, e->iflush, gno, dest, copylim, e, check_space_expand );
     }
   } while (morework);
 
