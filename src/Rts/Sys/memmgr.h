@@ -79,9 +79,10 @@ old_heap_t *
 create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral );
 
 old_heap_t *
-clone_sc_area( old_heap_t *heap );
-  /* Returns a fresh area using heap as a basis for assigning all
-   * internal properties (such as gen_no or maximum size).
+clone_sc_area( old_heap_t *heap, int gen_no );
+  /* Returns a fresh area with generation number gen_no, 
+   * using heap as a basis for assigning all other 
+   * internal properties (such as maximum size).
    */
 
 semispace_t *

@@ -81,16 +81,17 @@ ohsc_data_area( old_heap_t *heap )
 }
 
 old_heap_t *
-clone_sc_area( old_heap_t *src_heap )
+clone_sc_area( old_heap_t *src_heap, int tgt_gen_no )
 {
   old_heap_t *tgt_heap;
   old_data_t *tgt_data;
   old_data_t *src_data;
-  int tgt_gen_no;
   bool ephemeral;
 
+  annoyingmsg( "old-heap: clone heap tgt_gno %d src_gno: %d", 
+	       tgt_gen_no, DATA(src_heap)->gen_no );
+
   src_data = DATA(src_heap);
-  tgt_gen_no = src_data->gen_no;
   ephemeral = src_data->is_ephemeral_area;
 
   tgt_heap = allocate_heap( tgt_gen_no, src_heap->collector, ephemeral );

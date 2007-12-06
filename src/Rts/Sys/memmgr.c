@@ -720,21 +720,21 @@ static void free_handle( gc_t *gc, word *handle )
  * influence this decision, but this is not meant to be all things to
  * all people.
  */
-static int find_fresh_generation_number( gc_t *gc ) 
+static int find_fresh_gno( gc_t *gc ) 
 {
   int fresh_gno;
   /* A simple policy would be to just use the successor of the max
-   * generation number in gc.  However, we want to maintain an
-   * invariant that the static area, if present, always has the
-   * maximum gno (to simplify the write barrier).  In that case we
-   * instead increment the gno of the static generation and then use
-   * the old static gno for the fresh gno.
+   * generation number in gc.  However, we want to maintain 
+   * the following invarants:
+   * - the static area, if present, always has the maximum gno (to
+   *   simplify the write barrier).
+   * - the returned gno is appropriate for insertion into
+   *   gc->ephemeral_area[] (after it is appropriately expanded).
+   * 
+   * This relies on the invariant that the ephemeral area always comes
+   * immediately after the nursery (which has gno 0),
    */
-  if (gc->static_area != NULL) {
-    fresh_gno = DATA(gc)->static_generation;
-  } else {
-    fresh_gno = DATA(gc)->generations;
-  }
+  return gc->ephemeral_area_count+1;
 }
 
 static void expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno ) 
@@ -744,11 +744,15 @@ static void expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
   old_heap_t** new_ephemeral_area = 
     (old_heap_t**)must_malloc( new_ephemeral_area_count*sizeof( old_heap_t* ));
   
+  annoyingmsg( "memmgr: expand_ephemeral_area_gnos "
+	       "fresh_gno %d area_count: %d",
+	       fresh_gno, gc->ephemeral_area_count );
+  
   for( i=0 ; i < fresh_gno; i++) {
     new_ephemeral_area[ i ] = gc->ephemeral_area[ i ];
   }
   new_ephemeral_area[ fresh_gno ] = 
-    clone_sc_area( gc->ephemeral_area[ fresh_gno ] );
+    clone_sc_area( gc->ephemeral_area[ fresh_gno-1 ], fresh_gno );
   for( i=fresh_gno+1 ; i < new_ephemeral_area_count; i++) {
     new_ephemeral_area[ i ] = gc->ephemeral_area[ i-1 ];
   }
@@ -819,7 +823,8 @@ static semispace_t *fresh_space( gc_t *gc )
   assert( DATA(gc)->static_generation == gc->static_area->text_area->gen_no );
   
   /* Allocate a gno to assign to the returned semispace. */
-  fresh_gno = find_fresh_generation_number( gc );
+  fresh_gno = find_fresh_gno( gc );
+  annoyingmsg( "  fresh_space: gno %d", fresh_gno );
 
   /* make room for the new space and its associated remembered set. */
   expand_gc_area_gnos( gc, fresh_gno );
