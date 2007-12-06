@@ -734,36 +734,48 @@ static int find_fresh_gno( gc_t *gc )
    * This relies on the invariant that the ephemeral area always comes
    * immediately after the nursery (which has gno 0),
    */
-  return gc->ephemeral_area_count+1;
+  old_heap_t *heap;
+  semispace_t *ss; 
+
+  heap = gc->ephemeral_area[gc->ephemeral_area_count-1];
+  ss = ohsc_data_area( heap );
+  return ss->gen_no+1;
 }
 
 static void expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno ) 
 {
   int i;
-  int new_ephemeral_area_count = gc->ephemeral_area_count + 1;
+  int old_area_count = gc->ephemeral_area_count;
+  int new_area_count = old_area_count + 1;
   old_heap_t** new_ephemeral_area = 
-    (old_heap_t**)must_malloc( new_ephemeral_area_count*sizeof( old_heap_t* ));
+    (old_heap_t**)must_malloc( new_area_count*sizeof( old_heap_t* ));
   
   annoyingmsg( "memmgr: expand_ephemeral_area_gnos "
 	       "fresh_gno %d area_count: %d",
-	       fresh_gno, gc->ephemeral_area_count );
+	       fresh_gno, old_area_count );
+
+  assert( old_area_count > 0 );
   
-  for( i=0 ; i < fresh_gno; i++) {
+  for( i=0 ; i < old_area_count; i++) {
     new_ephemeral_area[ i ] = gc->ephemeral_area[ i ];
   }
-  new_ephemeral_area[ fresh_gno ] = 
-    clone_sc_area( gc->ephemeral_area[ fresh_gno-1 ], fresh_gno );
-  for( i=fresh_gno+1 ; i < new_ephemeral_area_count; i++) {
-    new_ephemeral_area[ i ] = gc->ephemeral_area[ i-1 ];
-  }
+  new_ephemeral_area[ old_area_count ] = 
+    clone_sc_area( gc->ephemeral_area[ old_area_count-1 ], fresh_gno );
   
-  gc->ephemeral_area_count = new_ephemeral_area_count;
+
+  free( gc->ephemeral_area );
   gc->ephemeral_area = new_ephemeral_area;
+  gc->ephemeral_area_count = new_area_count;
 }
 
-static expand_dynamic_area_gnos( gc_t *gc, int fresh_gno ) 
+static void expand_dynamic_area_gnos( gc_t *gc, int fresh_gno ) 
 {
-  assert( 0 );
+  semispace_t *ss;
+  ss = ohsc_data_area( gc->dynamic_area );
+  if (ss->gen_no >= fresh_gno) {
+    
+  }
+    
 }
 
 static void expand_static_area_gnos( gc_t *gc, int fresh_gno ) 

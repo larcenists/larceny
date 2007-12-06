@@ -92,6 +92,11 @@ struct old_heap {
   void (*set_policy)( old_heap_t *heap, int op, int value );
      /* A method that gives external agents control over GC policy.
         */
+
+  void (*set_gen_no)( old_heap_t *heap, int gen_no );
+    /* Changes gen_no associated with heap (and the gen_no of the
+       semispace associated with heap).
+       */
 };
 
 /* The initialize and set_policy arguments may be NULL. */
@@ -109,6 +114,7 @@ old_heap_t *create_old_heap_t(
 		        heapio_t *h, word **lo, word **hi ),
   int  (*load_data)( old_heap_t *heap, metadata_block_t *m, heapio_t *h ),
   void (*set_policy)( old_heap_t *heap, int op, int value ),
+  void (*set_gen_no)( old_heap_t *heap, int gen_no ),
   void *data
 );
 

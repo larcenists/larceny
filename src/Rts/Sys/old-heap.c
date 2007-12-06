@@ -454,6 +454,12 @@ static int used_space( old_heap_t *heap )
            los_bytes_used( heap->collector->los, data->gen_no );
 }
 
+static void set_gen_no( old_heap_t *heap, int gen_no ) 
+{
+  DATA(heap)->gen_no = gen_no;
+  ss_set_gen_no( DATA(heap)->current_space, gen_no );
+}
+
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
 {
   old_heap_t *heap;
@@ -471,6 +477,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
 			    0,                    /* FIXME: load_prepare */
 			    0,                    /* FIXME: load_data */
 			    0,	                  /* set_policy */
+			    set_gen_no,
 			    data );
   heap->collector = gc;
   data->self = stats_new_generation( gen_no, 0 );

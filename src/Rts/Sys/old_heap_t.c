@@ -27,6 +27,7 @@ old_heap_t *create_old_heap_t(
 		        heapio_t *h, word **lo, word **hi ),
   int  (*load_data)( old_heap_t *heap, metadata_block_t *m, heapio_t *h ),
   void (*set_policy)( old_heap_t *heap, int op, int value ),
+  void (*set_gen_no)( old_heap_t *heap, int gen_no ),
   void *data
 )
 {
