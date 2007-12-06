@@ -156,6 +156,8 @@ static void scan_static_area( cheney_env_t *e );
 static void root_scanner_oflo( word *addr, void *data );
 static bool remset_scanner_oflo( word obj, void *data, unsigned *count );
 static word forward_large_object( cheney_env_t *e, word *ptr, int tag );
+static void
+fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes );
 
 void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
 {
