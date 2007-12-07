@@ -292,8 +292,8 @@
             (else
              (let ((class0 (append (cdr xclass) yclass)))
                (set-cdr! xclass class0)
-               (set-car! yclass (car xclass))
-               (set-cdr! yclass class0)))))
+               (for-each (lambda (y) (hashtable-set! table y xclass))
+                         yclass)))))
     table)
 
   (let ((result (equal? x y equal:bound-on-recursion)))
