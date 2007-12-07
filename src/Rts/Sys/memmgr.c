@@ -833,7 +833,9 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
   expand_dynamic_area_gnos( gc, fresh_gno );
   expand_static_area_gnos( gc, fresh_gno );
   expand_remset_gnos( gc, fresh_gno );
-
+  
+  ++(DATA(gc)->generations);
+  
   return heap;
 }
 
