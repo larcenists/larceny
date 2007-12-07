@@ -848,10 +848,12 @@ static semispace_t *fresh_space( gc_t *gc )
   /* Some checks since prototype code relies on unestablished
    * invariants between the static gno and the number of generations. 
    */
-  assert( DATA(gc)->static_generation == DATA(gc)->generations - 1 );
-  assert( DATA(gc)->static_generation == gc->static_area->data_area->gen_no );
-  assert( DATA(gc)->static_generation == gc->static_area->text_area->gen_no );
-  
+  if (gc->static_area != NULL) {
+    assert( DATA(gc)->static_generation == DATA(gc)->generations - 1 );
+    assert( DATA(gc)->static_generation == gc->static_area->data_area->gen_no );
+    assert( DATA(gc)->static_generation == gc->static_area->text_area->gen_no );
+  }
+
   /* Allocate a gno to assign to the returned semispace. */
   fresh_gno = find_fresh_gno( gc );
   annoyingmsg( "  fresh_space: gno %d", fresh_gno );
