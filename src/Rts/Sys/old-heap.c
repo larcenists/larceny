@@ -315,10 +315,10 @@ static void perform_collect( old_heap_t *heap )
 
   from = data->current_space;
   to = create_semispace( GC_CHUNK_SIZE, data->gen_no );
+  data->current_space = to;
   
   gclib_stopcopy_collect( heap->collector, to );
 
-  data->current_space = to;
   ss_free( from );
   ss_sync( to );
 
