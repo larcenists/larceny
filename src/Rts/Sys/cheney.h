@@ -108,7 +108,11 @@ struct cheney_env {
 
   gclib_desc_t *gclib_desc_g;   /* Descriptor table */
   
-  semispace_t *tospace;         /* The first tospace */
+  int tospaces_len;             /* Number of initialized tospaces */
+  int tospaces_cap;             /* tospaces capacity (>= tospaces_len) */
+  int tospaces_cur_scan;        /* tospaces index of scanning semispace */
+  int tospaces_cur_dest;        /* tospaces index of forw'ing semispace */
+  semispace_t **tospaces;       /* The first tospace */
   semispace_t *tospace2;        /* The second tospace, or 0 */
   word *dest;                   /* Copy pointer of tospace */
   word *dest2;                  /* Copy pointer of tospace2, or 0 */
@@ -144,7 +148,7 @@ struct cheney_env {
 #define SPLITTING_GC        8
 
 /* Ad-hoc instrumentation */
-static gc_event_stats_t cheney;
+static gc_event_stats_t cheney; /* FIXME: duplicated across each include */
 
 #if GC_HIRES_TIMERS
 static struct {
@@ -244,6 +248,9 @@ static void stop( void )
     }                                                   \
   }
 
+#define tospace_scan( e ) ((e)->tospaces[(e)->tospaces_cur_scan])
+#define tospace_dest( e ) ((e)->tospaces[(e)->tospaces_cur_dest])
+
 /* private procedures shared among cheney*.c */
 void scan_oflo_normal( cheney_env_t *e );
 word forward( word, word **, cheney_env_t *e );
@@ -252,7 +259,8 @@ void seal_chunk( semispace_t *ss, word *lim, word *dest );
 void sweep_large_objects( gc_t *gc, int sweep_oldest, int g1, int g2 );
 void expand_semispace( semispace_t *, word **, word **, unsigned );
 void init_env( cheney_env_t *e, gc_t *gc,
-	       semispace_t *tospace, semispace_t *tospace2,
+	       semispace_t **tospaces, int tospaces_len, int tospaces_cap,
+               semispace_t *tospace2,
 	       int  effective_generation,
 	       int  attributes,
 	       void (*scanner)( cheney_env_t * ) );

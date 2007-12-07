@@ -132,7 +132,7 @@
 #define check_space_expand( dest, lim, wanted, wiggle, e )                   \
   if ((char*)lim-(char*)dest < (wanted+wiggle) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
     word *CS_LIM=lim, *CS_DEST=dest;                                         \
-    expand_semispace( e->tospace, &CS_LIM, &CS_DEST, (wanted+wiggle) );      \
+    expand_semispace( tospace_scan(e), &CS_LIM, &CS_DEST, (wanted+wiggle) ); \
     dest = CS_DEST; lim = CS_LIM;                                            \
   }
 
@@ -159,38 +159,76 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag );
 static void
 fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes );
 
+static const int tospaces_init_buf_size = 10;
+
+/* FIXME: Lars clearly avoided invoking malloc/free within the
+ * collector (but they of course trickle through, via expand_semispace
+ * invocation of ss_expand). Felix would also like to continue this
+ * practice; e.g. the spaces buffer could be maintained scross
+ * collector invocations...
+ */
+static semispace_t**
+begin_semispaces_buffer( int init_capacity ) 
+{
+  return (semispace_t**)
+    must_malloc( sizeof( semispace_t* )*init_capacity );
+}
+static void
+finis_semispaces_buffer( semispace_t** spaces, int capacity )
+{
+  free( spaces );
+}
+
 void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
-
+  semispace_t **spaces;
+  int init_size = tospaces_init_buf_size;
+  
+  spaces = begin_semispaces_buffer( init_size );
+  spaces[0] = tospace;
   CHENEY_TYPE( 0 );
-  init_env( &e, gc, tospace, 0, tospace->gen_no, 0, scan_oflo_normal );
+  init_env( &e, gc, spaces, 1, init_size, 
+            0, tospace->gen_no, 0, scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
+  
+  finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
 }
 
 void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
+  semispace_t **spaces;
+  int init_size = tospaces_init_buf_size;
 
+  spaces = begin_semispaces_buffer( init_size );
+  spaces[0] = tospace;
   CHENEY_TYPE( 1 );
-  init_env( &e, gc, tospace, 0, tospace->gen_no+1, 0, scan_oflo_normal );
+  init_env( &e, gc, spaces, 1, init_size, 
+            0, tospace->gen_no+1, 0, scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
+  finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
 }
 
 void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
+  semispace_t **spaces;
+  int init_size = tospaces_init_buf_size;
 
+  spaces = begin_semispaces_buffer( init_size );
+  spaces[0] = tospace;
   CHENEY_TYPE( 1 );
-  init_env( &e, gc, tospace, 0, tospace->gen_no+1, SCAN_STATIC, 
-            scan_oflo_normal );
+  init_env( &e, gc, spaces, 1, init_size, 
+            0, tospace->gen_no+1, SCAN_STATIC, scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
+  finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
 }
 
 void sweep_large_objects( gc_t *gc, 
@@ -208,7 +246,9 @@ void sweep_large_objects( gc_t *gc,
 
 void init_env( cheney_env_t *e, 
                gc_t *gc,
-               semispace_t *tospace, 
+               semispace_t **tospaces,
+               int tospaces_len,
+               int tospaces_cap,
                semispace_t *tospace2,
                int effective_generation,
                int attributes,
@@ -221,11 +261,16 @@ void init_env( cheney_env_t *e,
   e->scan_static = attributes & SCAN_STATIC;
   e->splitting = attributes & SPLITTING_GC;
   e->iflush = gc_iflush( gc );
-  e->tospace = tospace;
+  e->tospaces = tospaces;
+  e->tospaces_len = tospaces_len;
+  e->tospaces_cap = tospaces_cap;
+  assert( tospaces_len > 0 );
+  e->tospaces_cur_scan = 0;
+  e->tospaces_cur_dest = 0;
   e->tospace2 = tospace2;
-  e->dest = tospace->chunks[tospace->current].top;
+  e->dest = tospace_dest(e)->chunks[tospace_dest(e)->current].top;
   e->dest2 = (tospace2 ? tospace2->chunks[tospace2->current].top : 0);
-  e->lim = tospace->chunks[tospace->current].lim;
+  e->lim = tospace_dest(e)->chunks[tospace_dest(e)->current].lim;
   e->lim2 = (tospace2 ? tospace2->chunks[tospace2->current].lim : 0);
   e->los = (e->splitting ? 0 : gc->los);
 
@@ -238,11 +283,11 @@ void init_env( cheney_env_t *e,
 void oldspace_copy( cheney_env_t *e )
 {
   /* Setup */
-  e->scan_idx = e->tospace->current;
+  e->scan_idx = tospace_scan(e)->current;
   e->scan_idx2 = (e->tospace2 ? e->tospace2->current : 0);
-  e->scan_ptr = e->tospace->chunks[e->scan_idx].top;
+  e->scan_ptr = tospace_scan(e)->chunks[e->scan_idx].top;
   e->scan_ptr2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].top : 0);
-  e->scan_lim = e->tospace->chunks[e->scan_idx].lim;
+  e->scan_lim = tospace_scan(e)->chunks[e->scan_idx].lim;
   e->scan_lim2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].lim : 0);
 
   /* Collect */
@@ -262,11 +307,12 @@ void oldspace_copy( cheney_env_t *e )
   stop();
 
   /* Shutdown */
-  e->tospace->chunks[e->tospace->current].top = e->dest;
+  tospace_dest(e)->chunks[tospace_dest(e)->current].top = e->dest;
   if (e->tospace2)
     e->tospace2->chunks[e->tospace2->current].top = e->dest2;
-  assert2( e->tospace->chunks[e->tospace->current].bot
-           <= e->tospace->chunks[e->tospace->current].top );
+  assert2( tospace_dest(e) == tospace_scan(e) );
+  assert2( tospace_dest(e)->chunks[tospace_dest(e)->current].bot
+           <= tospace_dest(e)->chunks[tospace_dest(e)->current].top );
 }
 
 static void scan_static_area( cheney_env_t *e )
@@ -342,8 +388,13 @@ void scan_oflo_normal( cheney_env_t *e )
 
       if (scanptr != dest) {
         e->scan_idx++;
-        scanptr = e->tospace->chunks[e->scan_idx].bot;
-        scanlim = e->tospace->chunks[e->scan_idx].lim;
+        if (e->scan_idx == tospace_scan(e)->n) {
+          e->tospaces_cur_scan++;
+          assert(e->tospaces_cur_scan < e->tospaces_len);
+          e->scan_idx = 0;
+        }
+        scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
+        scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
         
         /* A corner case when we fill up all of the to-space chunk
          * (that is, when dest == copylim).  In this situation, dest
@@ -541,10 +592,22 @@ fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
   semispace_t *ss;
   int gno;
 
-  ss = e->tospace;
+  annoyingmsg("   fresh_generation( e, 0x%08x, 0x%08x, %d )", 
+              *lim, *dest, bytes );
+
+  ss = tospace_dest(e);
   seal_chunk( ss, *lim, *dest );
-  ss = gc_fresh_space( e->gc ); 
-  e->tospace = ss;
+
+  ss = gc_fresh_space( e->gc );
+
+  e->tospaces_cur_dest++;
+  assert(e->tospaces_len == e->tospaces_cur_dest);
+
+  /* FIXME: not an actual invariant; may need to realloc tospaces. */
+  assert(e->tospaces_len < e->tospaces_cap); 
+
+  e->tospaces[e->tospaces_len] = ss;
+  e->tospaces_len++;
   *lim = ss->chunks[ss->current].lim;
   *dest = ss->chunks[ss->current].top;
 }

@@ -78,7 +78,7 @@
   }                                                                     \
   else {                                                                \
     word *TMPD;                                                         \
-    check_space2(dest,lim,sizefield(*TMP_P)+4,e->tospace);/*data*/      \
+    check_space2(dest,lim,sizefield(*TMP_P)+4,tospace_dest(e));/*data*/ \
     TMPD = dest;                                                        \
     *loc = forward( T_obj, &TMPD, e ); dest = TMPD;               \
   }
@@ -96,7 +96,7 @@ void gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text)
 {
   cheney_env_t e;
 
-  init_env( &e, gc, data, text, data->gen_no+1, SPLITTING_GC,
+  init_env( &e, gc, &data, 1, 1, text, data->gen_no+1, SPLITTING_GC,
             scan_oflo_splitting );
   oldspace_copy( &e );
   /* Note: No LOS sweeping */
@@ -121,8 +121,8 @@ static void scan_oflo_splitting( cheney_env_t *e )
 
     if (scanptr != dest) {
       e->scan_idx++;
-      scanptr = e->tospace->chunks[e->scan_idx].bot;
-      scanlim = e->tospace->chunks[e->scan_idx].lim;
+      scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
+      scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
     }
   }
 

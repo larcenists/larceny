@@ -260,7 +260,7 @@ static void init_np_env( cheney_env_t *e,
                          int attributes,
                          void (*scanner)( cheney_env_t * ) )
 {
-  init_env( e, gc, tospace, tospace2, effective_generation, 
+  init_env( e, gc, &tospace, 1, 1, tospace2, effective_generation, 
             attributes, scanner );
 
   e->np_promotion = attributes & NP_PROMOTION;
@@ -315,10 +315,10 @@ static void scan_oflo_np_promote( cheney_env_t *e )
   bool work;
 
   do {
-    if (e->scan_ptr == e->scan_lim && e->scan_idx < e->tospace->current) {
+    if (e->scan_ptr == e->scan_lim && e->scan_idx < tospace_scan(e)->current) {
       e->scan_idx++;
-      e->scan_ptr = e->tospace->chunks[ e->scan_idx ].bot;
-      e->scan_lim = e->tospace->chunks[ e->scan_idx ].lim;
+      e->scan_ptr = tospace_scan(e)->chunks[ e->scan_idx ].bot;
+      e->scan_lim = tospace_scan(e)->chunks[ e->scan_idx ].lim;
     }
     if (e->scan_ptr2 == e->scan_lim2 && e->scan_idx2 < e->tospace2->current) {
       e->scan_idx2++;
@@ -349,13 +349,13 @@ static void scan_oflo_np_promote( cheney_env_t *e )
     }
   } while( work );
 
-  assert( e->scan_idx == e->tospace->current );
+  assert( e->scan_idx == tospace_scan(e)->current );
   assert( e->scan_idx2 == e->tospace2->current );
 }
 
 static void scan_np_old( cheney_env_t *e )
 {
-  unsigned forw_limit_gen = e->tospace->gen_no;
+  unsigned forw_limit_gen = tospace_scan(e)->gen_no;
   word     *scanptr = e->scan_ptr;
   word     *scanlim = e->scan_lim;
   FORW_NP_ENV_BEGIN( e, dest, copylim )
@@ -375,7 +375,7 @@ static void scan_np_old( cheney_env_t *e )
 
 static void scan_np_young( cheney_env_t *e )
 {
-  unsigned forw_limit_gen = e->tospace->gen_no; /* [sic] */
+  unsigned forw_limit_gen = tospace_dest(e)->gen_no; /* [sic] */
   unsigned np_young_gen = e->tospace2->gen_no;
   word     *scanptr = e->scan_ptr2;
   word     *scanlim = e->scan_lim2;
@@ -383,6 +383,9 @@ static void scan_np_young( cheney_env_t *e )
 #if GCLIB_LARGE_TABLE && SHADOW
   gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
 #endif
+
+  /* Ensure above choice for forw_limit_gen was irrelevant. */
+  assert( e->tospaces_cur_scan == e->tospaces_cur_dest ); 
 
   /* must_add_to_extra is a name used by the scanning and fwd macros as a 
      temp */
@@ -400,12 +403,15 @@ static void scan_np_young( cheney_env_t *e )
 
 static void scan_np_los_old( cheney_env_t *e, word **los_p )
 {
-  unsigned forw_limit_gen = e->tospace->gen_no;
+  unsigned forw_limit_gen = tospace_dest(e)->gen_no;
   FORW_NP_ENV_BEGIN( e, dest, copylim )
   word     *p;
 #if GCLIB_LARGE_TABLE && SHADOW
   gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
 #endif
+
+  /* Ensure above choice for forw_limit_gen was irrelevant. */
+  assert( e->tospaces_cur_scan == e->tospaces_cur_dest ); 
 
   while ((p = los_walk_list( e->los->mark1, *los_p )) != 0) {
     *los_p = p;
@@ -419,13 +425,16 @@ static void scan_np_los_old( cheney_env_t *e, word **los_p )
 
 static void scan_np_los_young( cheney_env_t *e, word **los_p )
 {
-  unsigned forw_limit_gen = e->tospace->gen_no;      /* [sic] */
+  unsigned forw_limit_gen = tospace_dest(e)->gen_no;      /* [sic] */
   unsigned np_young_gen = e->tospace2->gen_no;
   FORW_NP_ENV_BEGIN( e, dest, copylim )
   word     *p;
 #if GCLIB_LARGE_TABLE && SHADOW
   gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
 #endif
+
+  /* Ensure above choice for forw_limit_gen was irrelevant. */
+  assert( e->tospaces_cur_scan == e->tospaces_cur_dest ); 
 
   /* must_add_to_extra is a name used by the scanning and fwd macros as a 
      temp */
@@ -454,14 +463,14 @@ expand_semispace_np( word **lim, word **dest, unsigned bytes, cheney_env_t *e )
     e->np.young_steps_remaining--;
   }
   else if (e->np.old_steps_remaining - e->np.old_los_steps > 0) {
-    ss = e->tospace;
+    ss = tospace_dest(e);
     e->np.old_steps_remaining--;
   }
   else {
     e->np.has_switched = 1;
     e->dest = *dest;
     e->lim = *lim;
-    seal_chunk( e->tospace, *lim, *dest );
+    seal_chunk( tospace_dest(e), *lim, *dest );
     ss = e->tospace2;
     *dest = ss->chunks[ ss->current ].top; /* [sic] */
     *lim = ss->chunks[ ss->current ].lim;
