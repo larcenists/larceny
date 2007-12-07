@@ -173,6 +173,18 @@ begin_semispaces_buffer( int init_capacity )
   return (semispace_t**)
     must_malloc( sizeof( semispace_t* )*init_capacity );
 }
+static semispace_t**
+enlarge_semispaces_buffer( semispace_t** spaces, int len, int new_capacity ) 
+{
+  int i;
+  semispace_t** new_spaces = 
+    (semispace_t**) must_malloc( sizeof( semispace_t* )*new_capacity );
+  for( i=0; i < len; i++) {
+    new_spaces[i] = spaces[i];
+  }
+  free( spaces );
+  return new_spaces;
+}
 static void
 finis_semispaces_buffer( semispace_t** spaces, int capacity )
 {
@@ -603,8 +615,11 @@ fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
   e->tospaces_cur_dest++;
   assert(e->tospaces_len == e->tospaces_cur_dest);
 
-  /* FIXME: not an actual invariant; may need to realloc tospaces. */
-  assert(e->tospaces_len < e->tospaces_cap); 
+  if (e->tospaces_len == e->tospaces_cap) {
+    int new_cap = e->tospaces_cap * 2;
+    e->tospaces = enlarge_semispaces_buffer( e->tospaces, e->tospaces_len, new_cap );
+    e->tospaces_cap = new_cap;
+  }
 
   e->tospaces[e->tospaces_len] = ss;
   e->tospaces_len++;
