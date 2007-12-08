@@ -144,7 +144,7 @@
   }
 
 #define scan_and_forward( loc, iflush, gno, dest, lim, e, check_spaceI ) \
-  scan_core( loc, iflush, forw_oflo( loc, gno, dest, lim, e, check_spaceI ) )
+  scan_core( e, loc, iflush, forw_oflo( loc, gno, dest, lim, e, check_spaceI ), update_remset )
 
 /* External */
 
@@ -155,7 +155,7 @@ extern void mem_icache_flush( void *start, void *end );
 static void scan_static_area( cheney_env_t *e );
 static void root_scanner_oflo( word *addr, void *data );
 static bool remset_scanner_oflo( word obj, void *data, unsigned *count );
-static word forward_large_object( cheney_env_t *e, word *ptr, int tag );
+static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_gen );
 static void
 fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes );
 
@@ -256,6 +256,50 @@ void sweep_large_objects( gc_t *gc,
   if (dest2 >= 0) los_append_and_clear_list( gc->los, gc->los->mark2, dest2 );
 }
 
+static int last_origin_gen_added; 
+static const int gf_filter_remset_lhs = 0;
+static word gf_last_lhs;
+
+static void update_remset( cheney_env_t *e,
+                           word origin_ptr, int origin_gen, int origin_tag,
+                           word target_ptr ) {
+  assert( origin_gen != 0 );
+  assert( e->points_across != NULL );
+  if ( is_ptr(target_ptr) &&
+       last_origin_gen_added != origin_ptr ) {
+    int target_gen = gen_of(target_ptr);
+    if (origin_gen != target_gen) {
+      bool added = e->points_across( e, tagptr(origin_ptr,origin_tag),
+                                     target_ptr );
+      if (added)
+        last_origin_gen_added = origin_ptr;
+    }
+  }
+}
+
+static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
+  int g_lhs = gen_of(lhs);
+  int g_rhs = gen_of(rhs);
+  assert2( g_lhs != gf_filter_remset_lhs );
+  if (g_rhs != e->gc->static_area->data_area->gen_no) {
+    {
+      assert2(g_lhs >= 0);
+      assert2(g_rhs >= 0);
+
+      if (gf_last_lhs == lhs)
+	return FALSE;
+      gf_last_lhs = lhs;
+
+      /* enqueue lhs in remset. */
+      rs_add_elem( e->gc->remset[g_lhs], lhs );
+
+      return TRUE;
+    }
+  } else {
+    return FALSE;
+  }
+}
+
 void init_env( cheney_env_t *e, 
                gc_t *gc,
                semispace_t **tospaces,
@@ -290,6 +334,7 @@ void init_env( cheney_env_t *e,
   e->scan_from_remsets = remset_scanner_oflo;
 
   e->scan_from_tospace = scanner;
+  e->points_across = points_across;
 }
 
 void oldspace_copy( cheney_env_t *e )
@@ -301,6 +346,9 @@ void oldspace_copy( cheney_env_t *e )
   e->scan_ptr2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].top : 0);
   e->scan_lim = tospace_scan(e)->chunks[e->scan_idx].lim;
   e->scan_lim2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].lim : 0);
+
+  last_origin_gen_added = -1;
+  gf_last_lhs = -1;
 
   /* Collect */
   start( &cheney.root_scan_prom, &cheney.root_scan_gc );
@@ -343,7 +391,8 @@ static void scan_static_area( cheney_env_t *e )
     loc = s_data->chunks[i].bot;
     limit = s_data->chunks[i].top;
     while ( loc < limit )
-      scan_and_forward( loc, e->iflush, forw_limit_gen, dest, lim, e, check_space_expand );
+      scan_and_forward( loc, e->iflush, forw_limit_gen, dest, lim, e, 
+                        check_space_expand );
   }
 
   e->dest = dest;
@@ -366,11 +415,11 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
   word         *lim = e->lim;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
-  remset_scanner_core( object, loc, 
+  remset_scanner_core( e, object, loc, 
                        forw_oflo_record( loc, forw_limit_gen, dest, lim,
                                          has_intergen_ptr, old_obj_gen, e, 
                                          check_space_expand ),
-                       *count );
+                       *count, update_remset );
 
   e->dest = dest;
   e->lim = lim;
@@ -497,7 +546,7 @@ word forward( word p, word **dest, cheney_env_t *e )
       }
     }
     else if (words > GC_LARGE_OBJECT_LIMIT/4 && e->los) 
-      return forward_large_object( e, ptr, tag );
+      return forward_large_object( e, ptr, tag, tospace_dest(e)->gen_no );
     else {
       memcpy( p1, p2, words*4 );
       p1 += words;
@@ -511,7 +560,7 @@ word forward( word p, word **dest, cheney_env_t *e )
 
   bytes = roundup8( sizefield( hdr ) + 4 );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los) 
-    return forward_large_object( e, ptr, tag );
+    return forward_large_object( e, ptr, tag, gen_of(p1) );
 
   switch (bytes >> 3) {
     case 8  : *p1++ = *p2++;
@@ -542,7 +591,7 @@ word forward( word p, word **dest, cheney_env_t *e )
   /* This appears to be slowest */
   bytes = roundup8( sizefield( hdr ) + 4 );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los)
-    return forward_large_object( e, ptr, tag );
+    return forward_large_object( e, ptr, tag, gen_of(p1) );
 
   memcpy( p1, p2, bytes );
   *dest = p1 + (bytes >> 2);
@@ -643,7 +692,7 @@ fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
    behavior, though a large object might be added to the remembered
    set when it should not have been.
 */
-static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
+static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_gen )
 {
   los_t *los = e->los;
   los_list_t *mark_list;
@@ -682,7 +731,7 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
   }
 
   if (attr_of(ptr) & MB_LARGE_OBJECT) {
-    was_marked = los_mark( los, mark_list, ptr, gen_of(ptr) );
+    was_marked = los_mark_and_set_generation( los, mark_list, ptr, gen_of(ptr), tgt_gen );
     ret = tagptr( ptr, tag );
   }
   else {
@@ -695,7 +744,7 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag )
     memcpy( new, ptr, bytes );
     
     /* Must mark it also! */
-    was_marked = los_mark( los, mark_list, new, gen_of( ptr ));
+    was_marked = los_mark_and_set_generation( los, mark_list, new, gen_of( ptr ), tgt_gen );
     
     /* Leave a forwarding pointer */
     check_address( ptr );

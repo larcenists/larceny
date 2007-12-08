@@ -293,10 +293,10 @@ static bool remset_scanner_np( word object, void *data, unsigned *count )
   word         *loc;            /* Used as a temp by scanner and fwd macros */
   FORW_NP_ENV_BEGIN( e, dest, lim )
 
-  remset_scanner_core( object, loc, 
+  remset_scanner_core( e, object, loc, 
                        forw_np_record( loc, forw_limit_gen, dest, lim,
                                        has_intergen_ptr, old_obj_gen, e ),
-                       *count );
+                       *count, no_update_remset );
 
   FORW_NP_ENV_END( e, dest, lim )
   return has_intergen_ptr;
@@ -364,8 +364,9 @@ static void scan_np_old( cheney_env_t *e )
 #endif
 
   while (scanptr != dest && scanptr < scanlim) {
-    scan_core( scanptr, e->iflush,
-               forw_np( scanptr, forw_limit_gen, dest, copylim, e ) );
+    scan_core( e, scanptr, e->iflush,
+               forw_np( scanptr, forw_limit_gen, dest, copylim, e ), 
+               no_update_remset );
   }
 
   e->scan_ptr = scanptr;
@@ -416,8 +417,9 @@ static void scan_np_los_old( cheney_env_t *e, word **los_p )
   while ((p = los_walk_list( e->los->mark1, *los_p )) != 0) {
     *los_p = p;
     assert2( ishdr( *p ) );
-    scan_core( p, e->iflush,
-               forw_np( p, forw_limit_gen, dest, copylim, e ));
+    scan_core( e, p, e->iflush,
+               forw_np( p, forw_limit_gen, dest, copylim, e ), 
+               no_update_remset );
   }
 
   FORW_NP_ENV_END( e, dest, copylim )

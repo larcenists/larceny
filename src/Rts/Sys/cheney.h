@@ -91,6 +91,11 @@ struct cheney_env {
        address of codevectors.
        */
 
+  bool (*points_across)( cheney_env_t *e, word l, word r);
+    /* (potentially) invoked by scanner when l points to r across 
+       generations.  Returns true iff l is added to remset. 
+       */
+
   void (*scan_from_globals)( word *loc, void *data );
     /* Scanner function for forwarding from globals[]
        */
@@ -192,10 +197,13 @@ static void stop( void )
  * to-space and update *ptr.
  * When this command completes, ptr should have advanced by one object.
  */
-#define scan_core( ptr, iflush, FORW )                                        \
+#define scan_core( e, ptr, iflush, FORW, UPDATE_REMSET )                      \
   do {                                                                        \
-    word T_w = *ptr;                                                          \
+    word *scan_core_old_ptr = ptr, T_w = *ptr;                                \
+    int g_lhs, g_rhs;                                                         \
     assert2( T_w != FORWARD_HDR);                                             \
+    g_lhs = gen_of(ptr);                                                      \
+    assert( g_lhs != 0 );                                                     \
     if (ishdr( T_w )) {                                                       \
       word T_h = header( T_w );                                               \
       if (T_h == BV_HDR) {                                                    \
@@ -217,36 +225,59 @@ static void stop( void )
         ptr++;                                                                \
         while (T_words--) {                                                   \
           FORW;                                                               \
+          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                         \
+                         ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG), *ptr );         \
           ptr++;                                                              \
         }                                                                     \
         if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                   \
       }                                                                       \
     }                                                                         \
     else {                                                                    \
-      FORW; ptr++; FORW; ptr++;                                               \
+      FORW;                                                                   \
+      UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );           \
+      ptr++;                                                                  \
+      FORW;                                                                   \
+      UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );           \
+      ptr++;                                                                  \
     }                                                                         \
   } while (0)
 
 /* 'p' is not local to the macro because it is also used by the expansion 
    of FORW.
    */
-#define remset_scanner_core( ptr, p, FORW, count )      \
-  p = ptrof( ptr );                                     \
-  if (tagof( ptr ) == PAIR_TAG) {                       \
-    FORW;                                               \
-    ++p;                                                \
-    FORW;                                               \
-    count += 2;                                         \
-  }                                                     \
-  else {                                                \
-    word words = sizefield( *p ) / 4;                   \
-    COUNT_REMSET_LARGE_OBJ( words );                    \
-    count += words;                                     \
-    while (words--) {                                   \
-      ++p;                                              \
-      FORW;                                             \
-    }                                                   \
-  }
+#define remset_scanner_core( e, ptr, p, FORW, count, update_remset ) \
+  do {                                                               \
+    int g_lhs, g_rhs;                                                \
+    p = ptrof( ptr );                                                \
+    g_lhs = gen_of(ptr);                                             \
+    assert(g_lhs != 0);                                              \
+    if (tagof( ptr ) == PAIR_TAG) {                                  \
+      FORW;                                                          \
+      update_remset( e, ptr, g_lhs, PAIR_TAG, *p );                  \
+      ++p;                                                           \
+      FORW;                                                          \
+      update_remset( e, ptr, g_lhs, PAIR_TAG, *p );                  \
+      count += 2;                                                    \
+    }                                                                \
+    else {                                                           \
+      word words = sizefield( *p ) / 4;                              \
+      COUNT_REMSET_LARGE_OBJ( words );                               \
+      count += words;                                                \
+      while (words--) {                                              \
+        ++p;                                                         \
+        FORW;                                                        \
+        update_remset( e, ptr, g_lhs,                                \
+                       ((header(*ptrof(ptr)) == VEC_HDR)             \
+                        ? VEC_TAG : PROC_TAG), *p );                 \
+      }                                                              \
+    }                                                                \
+  } while (0)
+
+static void
+no_update_remset( cheney_env_t *e, word origin_ptr, int g_lhs, int pair_tag, word target_ptr )
+{
+  return;
+}
 
 #define tospace_scan( e ) ((e)->tospaces[(e)->tospaces_cur_scan])
 #define tospace_dest( e ) ((e)->tospaces[(e)->tospaces_cur_dest])
