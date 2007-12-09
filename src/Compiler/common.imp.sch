@@ -403,8 +403,8 @@
                  eqv? memv assv memq
                  map for-each
                  lookahead-u8 get-u8
-                 lookahead-char get-char
-                 peek-char read-char
+                 lookahead-char get-char put-char
+                 peek-char read-char write-char
                  )
 
    ; FIXME: Eliminating these next two should fix ticket #37.
@@ -1175,6 +1175,28 @@
 
               (io/get-char p #f))))))
 
+   ; The fast path for put-char.
+   ; FIXME:  This can be bummed further.
+
+`  ((_ larceny put-char (put-char p0 c0))
+    (let ((p p0)
+          (c c0))
+      (.check! (port? p) ,$ex.put-char p c)
+      (let ((type (.vector-ref:trusted p 0))       ; 0 = port.type
+            (buf  (.vector-ref:trusted p 1))       ; 1 = port.mainbuf
+            (lim  (.vector-ref:trusted p 3))       ; 3 = port.mainlim
+            (sv   (char->integer c0)))
+        (if (and (eq? type 5)                      ; 5 = output, textual
+                 (.<:fix:fix
+                  lim
+                  (bytevector-length buf))         ; FIXME: should be trusted
+                 (.<:fix:fix 10 sv)                ; 10 = #\newline
+                 (.<:fix:fix sv 128))
+            (begin (bytevector-set! buf lim sv)    ; 3 = port.mainlim
+                   (.vector-set!:trusted:nwb p 3 (.+:idx:idx lim 1))
+                   (unspecified))
+            (io/put-char p c)))))
+
    ; The fast path for peek-char and read-char.
 
 `  ((_ larceny peek-char (peek-char))
@@ -1188,6 +1210,12 @@
 
 `  ((_ larceny read-char (read-char p))
     (get-char p))
+
+`  ((_ larceny write-char (write-char c))
+    (put-char (current-input-port) c))
+
+`  ((_ larceny write-char (write-char c p))
+    (put-char p c))
 
    ; Default case: expand into the original expression.
 

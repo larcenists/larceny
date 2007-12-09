@@ -66,7 +66,8 @@
 
 ($$trace "record")
 
-(define record:hierarchy:min 7)
+(define record:hierarchy:min 7)          ; record hierarchy vec's min length
+(define record:bummed? #t)               ; #f means slow, #t means fast
 
 (define make-record-type)
 (define record-type-descriptor?)
@@ -101,6 +102,118 @@
       (assertion-violation 'record-rtd "illegal argument" rec)))
 
 (define make-record-constructor-descriptor)
+
+; The performance of records is mostly determined by these procedures.
+; FIXME: all of them could be made faster
+
+; Given the hierarchy vector that goes in element 0,
+; the number of elements of the record to be created,
+; the number of arguments to be passed to the creator,
+; and a list of indices within the record structure for those arguments,
+; returns a procedure that accepts the arguments and creates the record.
+
+(define (make-bummed-record-constructor rtd hierarchy-vector size n indices)
+  (cond ((and (= size 1) (= n 0) (equal? indices '()))
+         (lambda ()
+           (let ((r (make-structure 1)))
+             (vector-like-set! r 0 hierarchy-vector)
+             r)))
+        ((and (= size (+ n 1)) (= n 1) (equal? indices '(1)))
+         (lambda (a)
+           (let ((r (make-structure 2)))
+             (vector-like-set! r 0 hierarchy-vector)
+             (vector-like-set! r 1 a)
+             r)))
+        ((and (= size (+ n 1)) (= n 2) (equal? indices '(1 2)))
+         (lambda (a b)
+           (let ((r (make-structure 3)))
+             (vector-like-set! r 0 hierarchy-vector)
+             (vector-like-set! r 1 a)
+             (vector-like-set! r 2 b)
+             r)))
+        ((and (= size (+ n 1)) (= n 3) (equal? indices '(1 2 3)))
+         (lambda (a b c)
+           (let ((r (make-structure 4)))
+             (vector-like-set! r 0 hierarchy-vector)
+             (vector-like-set! r 1 a)
+             (vector-like-set! r 2 b)
+             (vector-like-set! r 3 c)
+             r)))
+        ((and (= size (+ n 1)) (= n 4) (equal? indices '(1 2 3 4)))
+         (lambda (a b c d)
+           (let ((r (make-structure 5)))
+             (vector-like-set! r 0 hierarchy-vector)
+             (vector-like-set! r 1 a)
+             (vector-like-set! r 2 b)
+             (vector-like-set! r 3 c)
+             (vector-like-set! r 4 d)
+             r)))
+        ((and (= size (+ n 1)) (= n 5) (equal? indices '(1 2 3 4 5)))
+         (lambda (a b c d e)
+           (let ((r (make-structure 6)))
+             (vector-like-set! r 0 hierarchy-vector)
+             (vector-like-set! r 1 a)
+             (vector-like-set! r 2 b)
+             (vector-like-set! r 3 c)
+             (vector-like-set! r 4 d)
+             (vector-like-set! r 5 e)
+             r)))
+        ((and (= size (+ n 1)) (= n 6) (equal? indices '(1 2 3 4 5 6)))
+         (lambda (a b c d e f)
+           (let ((r (make-structure 7)))
+             (vector-like-set! r 0 hierarchy-vector)
+             (vector-like-set! r 1 a)
+             (vector-like-set! r 2 b)
+             (vector-like-set! r 3 c)
+             (vector-like-set! r 4 d)
+             (vector-like-set! r 5 e)
+             (vector-like-set! r 6 f)
+             r)))
+        ((= n (length indices))
+
+         ; FIXME: poor error message for wrong number of args
+
+         (lambda vals0
+           (let ((r (make-structure size)))
+             (vector-like-set! r 0 hierarchy-vector)
+             (do ((indices indices (cdr indices))
+                  (vals    vals0   (cdr vals)))
+                 ((or (null? indices) (null? vals))
+                  (if (not (and (null? indices) (null? vals)))
+                      (error #f
+                             "wrong number of arguments to record constructor"
+                             rtd vals0))
+                  r)
+               (vector-like-set! r (car indices) (car vals))))))
+        (else
+         (assertion-violation 'record-constructor
+                              "internal error" rtd n indices))))
+
+(define (make-bummed-record-predicate rtd depth)
+  (lambda (obj)
+    (and (structure? obj)
+         (eq? (vector-ref (vector-like-ref obj 0) depth)
+              rtd))))
+
+(define (make-bummed-record-accessor rtd depth i)
+  (lambda (obj)
+    (if (and (structure? obj)
+             (eq? (vector-ref (vector-like-ref obj 0) depth)
+                  rtd))
+        (vector-like-ref obj i)
+        (assertion-violation 'anonymous-record-accessor
+                             "illegal argument" rtd obj))))
+
+(define (make-bummed-record-mutator rtd depth i)
+  (lambda (obj x)
+    (if (and (structure? obj)
+             (eq? (vector-ref (vector-like-ref obj 0) depth)
+                  rtd))
+        (vector-like-set! obj i x)
+        (assertion-violation 'anonymous-record-mutator
+                             "illegal argument" rtd obj))))
+
+;
 
 (let ((interface
 
@@ -140,8 +253,6 @@
                        (>= (vector-length slot0) record:hierarchy:min)
                        (record-type-descriptor? (vector-ref slot0 0))))))
 
-         ; FIXME: constant offsets would save a few load instructions
-
          (define (record-constructor rtd fields)
            (assert-rtd rtd)
            (let* ((indices (map (lambda (name)
@@ -151,46 +262,9 @@
                                     fields)))
                   (n       (length indices))
                   (size    (rtd-record-size rtd))
-                  (make-the-record
-                   (lambda ()
-                     (let ((r (make-structure size)))
-                       (vector-like-set! r 0 (rtd-hierarchy-vector rtd))
-                       r))))
-             (case n
-               ((1) (let ((a-offset (car indices)))
-                      (lambda (a)
-                        (let ((r (make-the-record)))
-                          (vector-like-set! r a-offset a)
-                          r))))
-               ((2) (let ((a-offset (car indices))
-                          (b-offset (cadr indices)))
-                      (lambda (a b)
-                        (let ((r (make-the-record)))
-                          (vector-like-set! r a-offset a)
-                          (vector-like-set! r b-offset b)
-                          r))))
-               ((3) (let ((a-offset (car indices))
-                          (b-offset (cadr indices))
-                          (c-offset (caddr indices)))
-                      (lambda (a b c)
-                        (let ((r (make-the-record)))
-                          (vector-like-set! r a-offset a)
-                          (vector-like-set! r b-offset b)
-                          (vector-like-set! r c-offset c)
-                          r))))
-               (else
-                ; FIXME: poor error message for wrong number of args
-                (lambda values
-                  (let ((r (make-the-record)))
-                    (do ((indices indices (cdr indices))
-                         (values  values  (cdr values)))
-                        ((null? indices)
-                         (if (not (null? values))
-                             (error #f
-                                    "too many arguments to record constructor"
-                                    rtd))
-                         r)
-                      (vector-like-set! r (car indices) (car values)))))))))
+                  (hvec    (rtd-hierarchy-vector rtd)))
+             (make-bummed-record-constructor
+              rtd hvec size n indices)))
 
          ; Returns a thunk that creates an instance of rtd
          ; with all of its fields initialized to unspecified values.
@@ -205,22 +279,37 @@
 
          (define (record-predicate rtd)
            (assert-rtd rtd)
-           (lambda (obj)
-             (record-with-type? obj rtd)))
+           (let* ((rtd-depth (rtd-hierarchy-depth rtd))
+                  (depth (+ rtd-depth 1)))
+             (if (and record:bummed?
+                      (< depth record:hierarchy:min))
+                 (make-bummed-record-predicate rtd depth)
+                 (lambda (obj)
+                   (record-with-type? obj rtd)))))
 
          (define (record-accessor rtd field-name)
            (assert-rtd rtd)
-           (let ((i (rtd-field-offset rtd field-name)))
-             (lambda (obj)
-               (assert-record-of-type obj rtd)
-               (vector-like-ref obj i))))
+           (let* ((rtd-depth (rtd-hierarchy-depth rtd))
+                  (depth (+ rtd-depth 1))
+                  (i (rtd-field-offset rtd field-name)))
+             (if (and record:bummed?
+                      (< depth record:hierarchy:min))
+                 (make-bummed-record-accessor rtd depth i)
+                 (lambda (obj)
+                   (assert-record-of-type obj rtd)
+                   (vector-like-ref obj i)))))
 
          (define (record-updater rtd field-name)
            (assert-rtd rtd)
-           (let ((i (rtd-field-offset rtd field-name)))
-             (lambda (obj val)
-               (assert-record-of-type obj rtd)
-               (vector-like-set! obj i val))))
+           (let* ((rtd-depth (rtd-hierarchy-depth rtd))
+                  (depth (+ rtd-depth 1))
+                  (i (rtd-field-offset rtd field-name)))
+             (if (and record:bummed?
+                      (< depth record:hierarchy:min))
+                 (make-bummed-record-mutator rtd depth i)
+                 (lambda (obj val)
+                   (assert-record-of-type obj rtd)
+                   (vector-like-set! obj i val)))))
 
          (define (record-type-descriptor rec)
            (assert-record rec)
@@ -571,39 +660,13 @@
                                    (< 0 (rtd-hierarchy-depth rtd))))
                           (or (eq? #f protocol)
                               (procedure? protocol)))
-                     (cond ((and #f (eq? #f parent-cd) (eq? #f protocol))
-                            (record-constructor rtd #f))
-                           ((and #f (= 0 (rtd-hierarchy-depth rtd)))
-                            (protocol (record-constructor rtd #f)))
-                           ((and #f (eq? #f parent-cd))
-                            ; FIXME: I don't understand what the
-                            ; draft R6RS says about this case.
-                            ; What follows is my best guess.
-                            (let* ((parent (record-type-parent rtd))
-                                   (parent-fields (rtd-field-names parent))
-                                   (all-fields (rtd-field-names rtd))
-                                   (nparent (length parent-fields))
-                                   (nthis (- (length all-fields) nparent))
-                                   (maker (record-constructor rtd #f)))
-                              (protocol
-                               (lambda parent-values
-                                 (if (= nparent (length parent-values))
-                                     (lambda this-values
-                                       (if (= nthis (length this-values))
-                                           (maker (append parent-values
-                                                          this-values))
-                                           (error wna
-                                                  (rtd-name rtd)
-                                                  nthis this-values)))
-                                     (error wna
-                                            (rtd-name parent)
-                                            nparent parent-values))))))
-                           (else
-                            (r6rs-record-constructor-general-case rtd cd)))
+                     (r6rs-record-constructor-general-case rtd cd)
                      (error
-                      "Illegal arguments to record-constructor: "
+                      'record-constructor
+                      "illegal arguments"
                       rtd parent-cd protocol)))
-               (error "Illegal argument to constructor-descriptor: " cd)))
+               (error 'record-constructor
+                      "illegal arguments to constructor-descriptor" cd)))
 
          ; Returns a procedure that constructs an instance of rtd
          ; and initializes an initial segment of the fields
@@ -755,12 +818,18 @@
            (let* ((all-field-names (rtd-field-names rtd))
                   (field-names (rtd-field-names-r6rs rtd))
                   (n (rtd-record-size rtd))
-                  (i (+ k (- n (length field-names)))))
+                  (i (+ k (- n (length field-names))))
+                  (rtd-depth (rtd-hierarchy-depth rtd))
+                  (depth (+ rtd-depth 1)))
              (if (< i n)
-               (lambda (obj)
-                 (assert-record-of-type obj rtd)
-                 (vector-like-ref obj i))
-               (error "Record index out of range: " rtd k))))
+                 (if (and record:bummed?
+                          (< depth record:hierarchy:min))
+                     (make-bummed-record-accessor rtd depth i)
+                     (lambda (obj)
+                       (assert-record-of-type obj rtd)
+                       (vector-like-ref obj i)))
+                 (error 'record-accessor
+                        "record index out of range" rtd k))))
 
          (define (r6rs-record-mutator rtd k)
            (assert-rtd rtd)
@@ -768,18 +837,24 @@
            (let* ((all-field-names (rtd-field-names rtd))
                   (field-names (rtd-field-names-r6rs rtd))
                   (n (rtd-record-size rtd))
-                  (i (+ k (- n (length field-names)))))
-             (cond ((not (record-field-mutable? rtd k))
-                    (assertion-violation
-                     'r6rs-record-mutator "record field is immutable" rtd k))
-                   ((< i n)
-                    (lambda (obj val)
-                      (assert-record-of-type obj rtd)
-                      (vector-like-set! obj i val)))
-                   (else
-                    (assertion-violaton
-                     'r6rs-record-mutator
-                     "record index out of range: " rtd k)))))
+                  (i (+ k (- n (length field-names))))
+                  (rtd-depth (rtd-hierarchy-depth rtd))
+                  (depth (+ rtd-depth 1)))
+             (if (< i n)
+                 (cond ((not (record-field-mutable? rtd k))
+                        (assertion-violation
+                         'r6rs-record-mutator
+                         "record field is immutable" rtd k))
+                       ((and record:bummed?
+                             (< depth record:hierarchy:min))
+                        (make-bummed-record-mutator rtd depth i))
+                       (else
+                        (lambda (obj val)
+                          (assert-record-of-type obj rtd)
+                          (vector-like-set! obj i val))))
+                 (assertion-violaton
+                 'r6rs-record-mutator
+                 "record index out of range: " rtd k))))
 
          ; Helper functions.
 

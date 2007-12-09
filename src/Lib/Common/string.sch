@@ -8,6 +8,8 @@
 
 ($$trace "string")
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; The character table that follows, and the procedures that use it,
 ; are obsolete and will soon be replaced by Unicode tables and
 ; procedures.
@@ -21,6 +23,8 @@
 ; - Lowercase alphabetic: value 2
 ; - Numeric:              value 4
 ; - Whitespace:           value 8
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define *char-table* '#())
 
@@ -114,6 +118,12 @@
   (lambda (x y)
     (not (string-ci<? x y))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; End of deprecated (and probably obsolete) stuff.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; Copies (substring x i j) into y starting at k.
 ; Used only within this file.
 ; Performs no checking.
@@ -121,10 +131,10 @@
 
 (define string-copy-into!
   (lambda (x i j y k)
-    (do ((i i (+ i 1))
-         (k k (+ k 1)))
-        ((>= i j))
-      (string-set! y k (string-ref x i)))))
+    (do ((i i (.+:idx:idx i 1))
+         (k k (.+:idx:idx k 1)))
+        ((.>=:fix:fix i j))
+      (.string-set!:trusted y k (.string-ref:trusted x i)))))
 
 (define string-copy
   (lambda (x)
