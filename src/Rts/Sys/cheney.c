@@ -263,8 +263,9 @@ static word gf_last_lhs;
 static void update_remset( cheney_env_t *e,
                            word origin_ptr, int origin_gen, int origin_tag,
                            word target_ptr ) {
-  assert( origin_gen != 0 );
-  assert( e->points_across != NULL );
+  if (e->points_across == NULL)
+    return;
+  assert( origin_gen != 0 || e->gc->remset == NULL );
   if ( is_ptr(target_ptr) &&
        last_origin_gen_added != origin_ptr ) {
     int target_gen = gen_of(target_ptr);
@@ -277,14 +278,20 @@ static void update_remset( cheney_env_t *e,
   }
 }
 
+static bool points_across_noop( cheney_env_t* e, word lhs, word rhs ) 
+{
+  return FALSE;
+}
+
 static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
   int g_lhs = gen_of(lhs);
   int g_rhs = gen_of(rhs);
   assert2( g_lhs != gf_filter_remset_lhs );
   if (g_rhs != e->gc->static_area->data_area->gen_no) {
     {
-      assert2(g_lhs >= 0);
+      assert2(g_lhs > 0);
       assert2(g_rhs >= 0);
+      assert2(e->gc->remset != NULL);
 
       if (gf_last_lhs == lhs)
 	return FALSE;
@@ -334,7 +341,7 @@ void init_env( cheney_env_t *e,
   e->scan_from_remsets = remset_scanner_oflo;
 
   e->scan_from_tospace = scanner;
-  e->points_across = points_across;
+  e->points_across = (e->gc->remset != NULL) ? points_across : points_across_noop;
 }
 
 void oldspace_copy( cheney_env_t *e )

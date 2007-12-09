@@ -203,7 +203,6 @@ static void stop( void )
     int g_lhs, g_rhs;                                                         \
     assert2( T_w != FORWARD_HDR);                                             \
     g_lhs = gen_of(ptr);                                                      \
-    assert( g_lhs != 0 );                                                     \
     if (ishdr( T_w )) {                                                       \
       word T_h = header( T_w );                                               \
       if (T_h == BV_HDR) {                                                    \
