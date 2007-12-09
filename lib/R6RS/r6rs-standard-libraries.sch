@@ -776,11 +776,11 @@
 
    bytevector-u8-ref bytevector-s8-ref
    bytevector-u8-set! bytevector-s8-set!
-   bytevetor->u8-list u8-list->bytevector
+   bytevector->u8-list u8-list->bytevector
 
    bytevector-uint-ref bytevector-sint-ref
    bytevector-uint-set! bytevector-sint-set!
-   bytevetor->uint-list bytevetor->sint-list
+   bytevector->uint-list bytevector->sint-list
    uint-list->bytevector sint-list->bytevector
 
    bytevector-u16-ref bytevector-s16-ref
@@ -823,11 +823,11 @@
 
     bytevector-u8-ref bytevector-s8-ref
     bytevector-u8-set! bytevector-s8-set!
-    bytevetor->u8-list u8-list->bytevector
+    bytevector->u8-list u8-list->bytevector
 
     bytevector-uint-ref bytevector-sint-ref
     bytevector-uint-set! bytevector-sint-set!
-    bytevetor->uint-list bytevetor->sint-list
+    bytevector->uint-list bytevector->sint-list
     uint-list->bytevector sint-list->bytevector
 
     bytevector-u16-ref bytevector-s16-ref
@@ -2140,11 +2140,11 @@
 
    bytevector-u8-ref bytevector-s8-ref
    bytevector-u8-set! bytevector-s8-set!
-   bytevetor->u8-list u8-list->bytevector
+   bytevector->u8-list u8-list->bytevector
 
    bytevector-uint-ref bytevector-sint-ref
    bytevector-uint-set! bytevector-sint-set!
-   bytevetor->uint-list bytevetor->sint-list
+   bytevector->uint-list bytevector->sint-list
    uint-list->bytevector sint-list->bytevector
 
    bytevector-u16-ref bytevector-s16-ref
