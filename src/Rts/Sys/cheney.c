@@ -144,7 +144,10 @@
   }
 
 #define scan_and_forward( loc, iflush, gno, dest, lim, e, check_spaceI ) \
-  scan_core( e, loc, iflush, forw_oflo( loc, gno, dest, lim, e, check_spaceI ), update_remset )
+  scan_core( e, loc, iflush, forw_oflo( loc, gno, dest, lim, e, check_spaceI ) )
+
+#define scan_and_forward_update_rs( loc, iflush, gno, dest, lim, e, check_spaceI ) \
+  scan_update_rs( e, loc, iflush, forw_oflo( loc, gno, dest, lim, e, check_spaceI ), update_remset )
 
 /* External */
 
@@ -406,6 +409,31 @@ static void scan_static_area( cheney_env_t *e )
   e->lim = lim;
 }
 
+static void scan_static_area_update_rs( cheney_env_t *e )
+{
+  int         forw_limit_gen = e->effective_generation;
+  semispace_t *s_data = e->gc->static_area->data_area;
+  word        *dest = e->dest;
+  word        *lim = e->lim;
+  word        *loc, *limit;
+  int         i;
+#if GCLIB_LARGE_TABLE && SHADOW_TABLE
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
+  
+  for ( i=0 ; i <= s_data->current ; i++ ) {
+    loc = s_data->chunks[i].bot;
+    limit = s_data->chunks[i].top;
+    while ( loc < limit )
+      scan_and_forward_update_rs
+        ( loc, e->iflush, forw_limit_gen, dest, lim, e, 
+          check_space_expand );
+  }
+
+  e->dest = dest;
+  e->lim = lim;
+}
+
 static void root_scanner_oflo( word *ptr, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
@@ -426,7 +454,29 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
                        forw_oflo_record( loc, forw_limit_gen, dest, lim,
                                          has_intergen_ptr, old_obj_gen, e, 
                                          check_space_expand ),
-                       *count, update_remset );
+                       *count );
+
+  e->dest = dest;
+  e->lim = lim;
+  return has_intergen_ptr;
+}
+
+static bool remset_scanner_oflo_update_rs( word object, void *data, unsigned *count )
+{
+  cheney_env_t *e = (cheney_env_t*)data;
+  unsigned     forw_limit_gen = e->effective_generation;
+  unsigned     old_obj_gen = gen_of(object);
+  bool         has_intergen_ptr = 0;
+  word         *dest = e->dest;
+  word         *lim = e->lim;
+  word         *loc;            /* Used as a temp by scanner and fwd macros */
+
+  remset_scanner_update_rs
+    ( e, object, loc, 
+      forw_oflo_record( loc, forw_limit_gen, dest, lim,
+                        has_intergen_ptr, old_obj_gen, e, 
+                        check_space_expand ),
+      *count, update_remset );
 
   e->dest = dest;
   e->lim = lim;
@@ -483,6 +533,63 @@ void scan_oflo_normal( cheney_env_t *e )
       morework = 1;
       assert2( ishdr( *p ) );
       scan_and_forward( p, e->iflush, gno, dest, copylim, e, check_space_expand );
+    }
+  } while (morework);
+
+  e->dest = dest;
+  e->lim = copylim;
+}
+
+void scan_oflo_normal_update_rs( cheney_env_t *e )
+{
+  unsigned gno = e->effective_generation;
+  word     *scanptr = e->scan_ptr;
+  word     *scanlim = e->scan_lim;
+  word     *dest = e->dest;
+  word     *copylim = e->lim;
+  word     *los_p = 0, *p;
+  int      morework;
+#if GCLIB_LARGE_TABLE && SHADOW_TABLE
+  gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
+#endif
+
+  do {
+    morework = 0;
+
+    while (scanptr != dest) {
+      while (scanptr != dest && scanptr < scanlim) {
+        scan_and_forward_update_rs( scanptr, e->iflush, gno, dest, copylim, e, check_space_expand );
+      }
+
+      if (scanptr != dest) {
+        e->scan_idx++;
+        if (e->scan_idx == tospace_scan(e)->n) {
+          e->tospaces_cur_scan++;
+          assert(e->tospaces_cur_scan < e->tospaces_len);
+          e->scan_idx = 0;
+        }
+        scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
+        scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
+        
+        /* A corner case when we fill up all of the to-space chunk
+         * (that is, when dest == copylim).  In this situation, dest
+         * does not point to a valid location in to-space; it may be
+         * pointing at the _next_ chunk that we would scan when the
+         * scan_idx is incremented below, which leads to a premature
+         * scan loop termination. */
+        if (dest == copylim) {
+          /* Set dest and copylim to values that we *know* cannot
+           * alias the new scanptr. */
+          dest = copylim = 0;
+        }
+      }
+    }
+
+    while ((p = los_walk_list( e->los->mark1, los_p )) != 0) {
+      los_p = p;
+      morework = 1;
+      assert2( ishdr( *p ) );
+      scan_and_forward_update_rs( p, e->iflush, gno, dest, copylim, e, check_space_expand );
     }
   } while (morework);
 

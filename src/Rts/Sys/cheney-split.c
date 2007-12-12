@@ -116,8 +116,7 @@ static void scan_oflo_splitting( cheney_env_t *e )
     while (scanptr != dest && scanptr < scanlim) {
       scan_core( e, scanptr, e->iflush,
                  forw_oflo2( scanptr, forw_limit_gen, dest, dest2,
-                             copylim, copylim2, e ), 
-                 no_update_remset );
+                             copylim, copylim2, e ) );
     }
 
     if (scanptr != dest) {

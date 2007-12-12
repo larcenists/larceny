@@ -197,7 +197,7 @@ static void stop( void )
  * to-space and update *ptr.
  * When this command completes, ptr should have advanced by one object.
  */
-#define scan_core( e, ptr, iflush, FORW, UPDATE_REMSET )                      \
+#define scan_core( e, ptr, iflush, FORW )                                     \
   do {                                                                        \
     word *scan_core_old_ptr = ptr, T_w = *ptr;                                \
     int g_lhs, g_rhs;                                                         \
@@ -224,8 +224,6 @@ static void stop( void )
         ptr++;                                                                \
         while (T_words--) {                                                   \
           FORW;                                                               \
-          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                         \
-                         ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG), *ptr );         \
           ptr++;                                                              \
         }                                                                     \
         if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                   \
@@ -233,18 +231,60 @@ static void stop( void )
     }                                                                         \
     else {                                                                    \
       FORW;                                                                   \
-      UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );           \
       ptr++;                                                                  \
       FORW;                                                                   \
-      UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );           \
       ptr++;                                                                  \
     }                                                                         \
+  } while (0)
+
+#define scan_update_rs( e, ptr, iflush, FORW, UPDATE_REMSET )                  \
+  do {                                                                         \
+    word *scan_core_old_ptr = ptr, T_w = *ptr;                                 \
+    int g_lhs, g_rhs;                                                          \
+    assert2( T_w != FORWARD_HDR);                                              \
+    g_lhs = gen_of(ptr);                                                       \
+    if (ishdr( T_w )) {                                                        \
+      word T_h = header( T_w );                                                \
+      if (T_h == BV_HDR) {                                                     \
+        /* bytevector: skip it, and flush the icache if code */                \
+        word *T_oldptr = ptr;                                                  \
+        word T_bytes = roundup4( sizefield( T_w ) );                           \
+        ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */  \
+        if (!(T_bytes & 4)) *ptr++ = 0;             /* pad. */                 \
+        /* Only code vectors typically use a plain bytevector typetag,         \
+         * so almost any bytevector will be a code vector that must            \
+         * be flushed.                                                         \
+         */                                                                    \
+        if (iflush && typetag( T_w ) == BVEC_SUBTAG)                           \
+          mem_icache_flush( T_oldptr, ptr );                                   \
+      }                                                                        \
+      else {                                                                   \
+        /* vector or procedure: scan in a tight loop */                        \
+        word T_words = sizefield( T_w ) >> 2;                                  \
+        ptr++;                                                                 \
+        while (T_words--) {                                                    \
+          FORW;                                                                \
+          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                          \
+                         ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG), *ptr );          \
+          ptr++;                                                               \
+        }                                                                      \
+        if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                    \
+      }                                                                        \
+    }                                                                          \
+    else {                                                                     \
+      FORW;                                                                    \
+      UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );            \
+      ptr++;                                                                   \
+      FORW;                                                                    \
+      UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );            \
+      ptr++;                                                                   \
+    }                                                                          \
   } while (0)
 
 /* 'p' is not local to the macro because it is also used by the expansion 
    of FORW.
    */
-#define remset_scanner_core( e, ptr, p, FORW, count, update_remset ) \
+#define remset_scanner_core( e, ptr, p, FORW, count )                \
   do {                                                               \
     int g_lhs, g_rhs;                                                \
     p = ptrof( ptr );                                                \
@@ -252,10 +292,8 @@ static void stop( void )
     assert(g_lhs != 0);                                              \
     if (tagof( ptr ) == PAIR_TAG) {                                  \
       FORW;                                                          \
-      update_remset( e, ptr, g_lhs, PAIR_TAG, *p );                  \
       ++p;                                                           \
       FORW;                                                          \
-      update_remset( e, ptr, g_lhs, PAIR_TAG, *p );                  \
       count += 2;                                                    \
     }                                                                \
     else {                                                           \
@@ -265,11 +303,36 @@ static void stop( void )
       while (words--) {                                              \
         ++p;                                                         \
         FORW;                                                        \
-        update_remset( e, ptr, g_lhs,                                \
-                       ((header(*ptrof(ptr)) == VEC_HDR)             \
-                        ? VEC_TAG : PROC_TAG), *p );                 \
       }                                                              \
     }                                                                \
+  } while (0)
+
+#define remset_scanner_update_rs( e, ptr, p, FORW, count, update_remset ) \
+  do {                                                                    \
+    int g_lhs, g_rhs;                                                     \
+    p = ptrof( ptr );                                                     \
+    g_lhs = gen_of(ptr);                                                  \
+    assert(g_lhs != 0);                                                   \
+    if (tagof( ptr ) == PAIR_TAG) {                                       \
+      FORW;                                                               \
+      update_remset( e, ptr, g_lhs, PAIR_TAG, *p );                       \
+      ++p;                                                                \
+      FORW;                                                               \
+      update_remset( e, ptr, g_lhs, PAIR_TAG, *p );                       \
+      count += 2;                                                         \
+    }                                                                     \
+    else {                                                                \
+      word words = sizefield( *p ) / 4;                                   \
+      COUNT_REMSET_LARGE_OBJ( words );                                    \
+      count += words;                                                     \
+      while (words--) {                                                   \
+        ++p;                                                              \
+        FORW;                                                             \
+        update_remset( e, ptr, g_lhs,                                     \
+                       ((header(*ptrof(ptr)) == VEC_HDR)                  \
+                        ? VEC_TAG : PROC_TAG), *p );                      \
+      }                                                                   \
+    }                                                                     \
   } while (0)
 
 static void
