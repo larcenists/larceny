@@ -5,6 +5,8 @@
 ;;     current-larceny-root
 ;;     current-library-resolver 
 ;;     current-require-path
+;;     current-require-path-suffixes
+;;     current-require-path-suffixes-compiled
 ;;
 ;; Names starting with require/ are "not exported."
 
@@ -33,9 +35,15 @@
         (format #t "Warning: loading source in favor of stale fasl file: ~a~%"
                 src))
     src)
-  (if (file-exists? base) base
-      (let ((src (require/resolve-ext base '("sch" "scm" "ss")))
-            (fasl (require/resolve-ext base '("fasl"))))
+  (if (and (current-require-path-suffix-optional)
+           (file-exists? base))
+      base
+      (let ((src
+             (require/resolve-ext base
+                                  (current-require-path-suffixes)))
+            (fasl
+             (require/resolve-ext base
+                                  (current-require-path-suffixes-compiled))))
         (if (and fasl src)
             (if (file-newer? fasl src) fasl (warn src))
             (or fasl src)))))
@@ -86,4 +94,13 @@
 
 (define current-require-path
   (make-parameter "current-require-path" '()))
+
+(define current-require-path-suffix-optional
+  (make-parameter "current-require-path-suffix-optional" #f))
                  
+(define current-require-path-suffixes
+  (make-parameter "current-require-path-suffixes" '("sch" "scm" "ss")))
+
+(define current-require-path-suffixes-compiled
+  (make-parameter "current-require-path-suffixes" '("fasl")))
+

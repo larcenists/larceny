@@ -50,6 +50,88 @@
   (larceny:load-r6rs-package)
   (ex:run-r6rs-program filename))
 
+; Never load a library file twice.
+;
+; We can't rely on require to do this for us, because
+; we'd have to parameterize (current-require-path) for
+; each call to require, and then recursive calls to
+; larceny:autoload-r6rs-library would be executed with
+; the wrong (current-require-path).
+
+(define larceny:autoloaded-r6rs-library-files '())
+
+; Called by ex:lookup-library in lib/R6RS/r6rs-runtime.sch
+; Returns its argument (a library name) or raises an exception.
+
+(define (larceny:autoload-r6rs-library libname)
+
+  ; FIXME: this isn't the best place for pathname hacking
+
+  (define (make-path path)
+    (apply string-append
+           (cons (car path)
+                 (map (lambda (s) (string-append "/" s))
+                      (cdr path)))))
+
+  (define (load-r6rs-library fname)
+    (if (member fname larceny:autoloaded-r6rs-library-files)
+        #f
+        (begin (set! larceny:autoloaded-r6rs-library-files
+                     (cons fname larceny:autoloaded-r6rs-library-files))
+               (display "    from ")
+               (display fname)
+               (newline)
+               (load fname)
+               '
+               (begin
+                (display "Loading of ")
+                (display fname)
+                (display " completed")
+                (newline))
+               #t)))
+
+  (display "Autoloading ")
+  (write libname)
+  (newline)
+
+  (let* ((libpath (map symbol->string libname))
+         (libpaths (do ((libpath (reverse libpath) (cdr libpath))
+                        (libpaths '() (cons libpath libpaths)))
+                       ((null? libpath)
+                        (reverse libpaths))))
+         (require-paths (current-require-path))
+         (fname
+          (call-with-current-continuation
+           (lambda (return)
+             (for-each
+              (lambda (rpath)
+                (for-each (lambda (lpath)
+                            (let ((path (make-path
+                                         (cons rpath (reverse (cdr lpath)))))
+                                  (name (car lpath)))
+                              '
+                              (begin (display "Trying ")
+                                     (display path)
+                                     (display "/")
+                                     (display name)
+                                     (newline))
+                              (parameterize
+                               ((current-require-path (list path))
+                                (current-require-path-suffix-optional #f)
+                                (current-require-path-suffixes '("sls"))
+                                (current-require-path-suffixes-compiled
+                                 '("slfasl")))
+                               (let ((fname
+                                      ((current-library-resolver) name)))
+                                 (if fname
+                                     (return fname))))))
+                          libpaths))
+              require-paths)
+             #f))))
+    (if fname
+        (load-r6rs-library fname)
+        (assertion-violation 'lookup-library "library not loaded" libname))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Expands an R6RS program into an R5RS program that can be

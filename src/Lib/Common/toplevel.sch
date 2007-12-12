@@ -1551,6 +1551,12 @@
   ;; require (library system)
   (environment-set! larc 'current-larceny-root current-larceny-root)
   (environment-set! larc 'current-require-path current-require-path)
+  (environment-set! larc 'current-require-path-suffix-optional
+                    current-require-path-suffix-optional)
+  (environment-set! larc 'current-require-path-suffixes
+                    current-require-path-suffixes)
+  (environment-set! larc 'current-require-path-suffixes-compiled
+                    current-require-path-suffixes-compiled)
   (environment-set! larc 'current-library-resolver current-library-resolver)
   (environment-set! larc 'require require)
   (environment-set! larc 'clear-require-loaded-files!

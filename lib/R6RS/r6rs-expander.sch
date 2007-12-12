@@ -180,6 +180,7 @@
 (define ex:environment               #f)
 (define ex:environment-bindings      #f)
 (define ex:eval                      #f)
+(define ex:load                      #f)
 (define ex:syntax-violation          #f)
 
 ;; System exports:
@@ -1289,13 +1290,13 @@
               `(let ((,temp ,input))
                  ,(process-match temp pattern sk fk)))
             (match pattern
-              ((syntax _)            sk)
-              ((syntax ...)          (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
-              (()                    `(if (null? ,input) ,sk ,fk))
-              ((? literal? id)       `(if (and (ex:identifier? ,input)
-                                               (ex:free-identifier=? ,input ,(syntax-reflect id)))
-                                          ,sk
-                                          ,fk))
+              ((syntax _)         sk)
+              ((syntax ...)       (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
+              (()                 `(if (null? ,input) ,sk ,fk))
+              ((? literal? id)    `(if (and (ex:identifier? ,input)
+                                            (ex:free-identifier=? ,input ,(syntax-reflect id)))
+                                       ,sk
+                                       ,fk))
               ((? identifier? id) `(let ((,(binding-name (binding id)) ,input)) ,sk))
               ((p (syntax ...))
                (let ((mapped-pvars (map (lambda (pvar) (binding-name (binding pvar)))
@@ -1592,8 +1593,6 @@
                  (lambda () (scan-imports specs))
                (lambda (imported-libraries imports)
                  (fluid-let ((*usage-env*        (make-unit-env))
-                             (*env-table*        '())
-                             (*macro-table*      '())
                              (*current-library*  name)
                              (*syntax-reflected* #f))       ; +++ space
 
@@ -1687,22 +1686,18 @@
        builds
        phase
        (lambda (library phase imported)
-         (if (>= phase 0)
-             (let ((name (ex:library-name library)))
-               (if (not (memp (lambda (entry)
-                                (and (equal? (car entry) name)
-                                     (>= (cdr entry) 0)))
-                              imported))
-                   (fluid-let ((*phase* phase))
-                     (set! *env-table* (append ((ex:library-envs library)) *env-table*))
-                     ((ex:library-visiter library))))
-               (if (>= phase 1)
-                   (if (not (memp (lambda (entry)
-                                    (and (equal? (car entry) name)
-                                         (>= (cdr entry) 1)))
-                                  imported))
-                       (fluid-let ((*phase* phase))
-                         ((ex:library-invoker library))))))))))
+         (if (and (>= phase 0)
+                  (not (ex:library-visited? library)))
+             (begin
+               (set! *env-table* (append ((ex:library-envs library)) *env-table*))
+               ((ex:library-visiter library))
+               (ex:library-visited?-set! library #t)))
+         (if (and (>= phase 1)
+                  (not (ex:library-invoked? library)))
+             (begin 
+               ((ex:library-invoker library))
+               (ex:library-invoked?-set! library #t))))
+       'expand))
 
     ;; Returns ((<rename-identifier> <identifier> <level> ...) ...)
 
@@ -2222,18 +2217,19 @@
     ;; the results.
 #|
     (define (repl exps)
-      (reset-toplevel!)
-      (for-each (lambda (exp)
-                  (for-each (lambda (exp)
-                              (for-each (lambda (result)
-                                          (display result)
-                                          (newline))
-                                        (call-with-values
+      (with-toplevel-parameters
+       (lambda ()
+         (for-each (lambda (exp)
+                     (for-each (lambda (exp)
+                                 (for-each (lambda (result)
+                                             (display result)
+                                             (newline))
+                                           (call-with-values
                                             (lambda ()
                                               (eval exp (interaction-environment)))
-                                          list)))
-                            (expand-toplevel-sequence (list exp))))
-                exps))
+                                            list)))
+                               (expand-toplevel-sequence (list exp))))
+                   exps))))
 |#
 
     ;; Larceny-specific version.
@@ -2257,8 +2253,9 @@
               (else
                (inner-loop (expand-toplevel-sequence (list (car exps))))
                (outer-loop (cdr exps)))))
-      (reset-toplevel!)
-      (outer-loop exps))
+      (with-toplevel-parameters
+       (lambda ()
+        (outer-loop exps))))
     
     ;; Evaluates a sequence of forms of the format
     ;; <library>* | <library>* <toplevel program>.
@@ -2269,35 +2266,28 @@
     ;; interactive environment, see REPL above.
     
     (define (run-r6rs-sequence forms)
-      (reset-toplevel!)
-      (for-each (lambda (exp) (eval exp (interaction-environment)))
-                (expand-toplevel-sequence (normalize forms))))
+      (with-toplevel-parameters
+       (lambda ()
+         (for-each (lambda (exp) (eval exp (interaction-environment)))
+                   (expand-toplevel-sequence (normalize forms))))))
     
     (define (run-r6rs-program filename)
       (run-r6rs-sequence (read-file filename)))
 
-    ;; Restores parameters to a consistent state
-    ;; in case they were left inconsistent by an error.
+    ;; Puts parameters to a consistent state for the toplevel
+    ;; Old state is restored afterwards so that things will be
+    ;; reentrant. 
 
-    (define reset-toplevel!
-      (let ((last-good-macro-table '()) 
-            (last-good-env-table   '()))
-        (lambda ()
-          (if (not (null? *current-library*))
-              (begin 
-                ;; an error occurred while library was being
-                ;; expanded so restore last good toplevel tables
-                (set! *macro-table* last-good-macro-table)
-                (set! *env-table*   last-good-env-table)))
-          (set! last-good-macro-table *macro-table*)
-          (set! last-good-env-table   *env-table*)
-          (set! *trace*            '())
-          (set! *current-library*  '())
-          (set! *phase*            0)
-          (set! *used*             (list '()))
-          (set! *color*            (generate-color))
-          (set! *usage-env*        *toplevel-env*)
-          (set! *syntax-reflected* #f))))
+    (define with-toplevel-parameters
+      (lambda (thunk)
+        (fluid-let ((*trace*            '())
+                    (*current-library*  '())
+                    (*phase*            0)
+                    (*used*             (list '()))
+                    (*color*            (generate-color))
+                    (*usage-env*        *toplevel-env*)
+                    (*syntax-reflected* #f))
+          (thunk))))
     
     (define (expand-toplevel-sequence forms)
       (scan-sequence 'toplevel
@@ -2306,12 +2296,20 @@
                      (lambda (forms syntax-definitions bound-variables)
                        (emit-body forms 'define))))
 
-    ;;==========================================================================
-    ;;
-    ;;  Expand-file:
-    ;;
-    ;;==========================================================================
-
+    ;; ERR5RS load:
+    ;; We take some care to make this reentrant so that 
+    ;; it can be used to recursively load libraries while
+    ;; expanding a client library or program.
+    
+    (define (r6rs-load filename)
+      (with-toplevel-parameters
+       (lambda ()
+         (for-each (lambda (exp)
+                     (for-each (lambda (exp)
+                                 (eval exp (interaction-environment)))
+                               (expand-toplevel-sequence (list exp))))
+                   (read-file filename)))))
+      
     ;; This may be used as a front end for the compiler.
     ;; It expands a file consisting of a possibly empty sequence
     ;; of libraries optionally followed by a <toplevel program>.
@@ -2319,9 +2317,10 @@
     ;; definitions and expressions.
 
     (define (expand-file filename target-filename)
-      (reset-toplevel!)
-      (write-file (expand-toplevel-sequence (normalize (read-file filename)))
-                  target-filename))
+      (with-toplevel-parameters
+       (lambda ()
+         (write-file (expand-toplevel-sequence (normalize (read-file filename)))
+                     target-filename))))
 
     ;; This approximates the common r5rs behaviour of
     ;; expanding a toplevel file but treating unbound identifiers
@@ -2338,18 +2337,19 @@
     ;; to be preloaded before it can be run.
 
     (define (expand-r5rs-file filename target-filename r6rs-env)
-      (reset-toplevel!)
-      (fluid-let ((make-free-name (lambda (symbol) symbol))
-                  (*usage-env*    (r6rs-environment-env r6rs-env))
-                  (*macro-table*  *macro-table*))
-        (let ((imported-libraries (r6rs-environment-imported-libraries r6rs-env)))
-          (import-libraries-for-expand (r6rs-environment-imported-libraries r6rs-env) (map not imported-libraries) 0)
-          (write-file (cons `(ex:import-libraries-for-run ',(r6rs-environment-imported-libraries r6rs-env)
-                                                          ',(current-builds imported-libraries)
-                                                          0)
-                            (expand-toplevel-sequence (read-file filename)))
-                      target-filename))))
-
+      (with-toplevel-parameters
+       (lambda ()
+         (fluid-let ((make-free-name (lambda (symbol) symbol))
+                     (*usage-env*    (r6rs-environment-env r6rs-env))
+                     (*macro-table*  *macro-table*))
+           (let ((imported-libraries (r6rs-environment-imported-libraries r6rs-env)))
+             (import-libraries-for-expand (r6rs-environment-imported-libraries r6rs-env) (map not imported-libraries) 0)
+             (write-file (cons `(ex:import-libraries-for-run ',(r6rs-environment-imported-libraries r6rs-env)
+                                                             ',(current-builds imported-libraries)
+                                                             0)
+                               (expand-toplevel-sequence (read-file filename)))
+                         target-filename))))))
+       
     ;; Keeps (<library> ...) the same.
     ;; Converts (<library> ... . <toplevel program>)
     ;; to (<library> ... (program . <toplevel program>))
@@ -2503,8 +2503,9 @@
     (set! ex:environment               environment)
     (set! ex:environment-bindings      environment-bindings)
     (set! ex:eval                      r6rs-eval)
+    (set! ex:load                      r6rs-load)
     (set! ex:syntax-violation          syntax-violation)
-
+    
     (set! ex:expand-file               expand-file)
     (set! ex:repl                      repl)
     (set! ex:expand-r5rs-file          expand-r5rs-file)
