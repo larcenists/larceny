@@ -59,7 +59,7 @@
  "SUNOS5"			; SunOS 5.x aka Solaris 2.x
  "LINUX"			; Generic GNU/Linux
  "MACOS_X"			; MacOS X *only* (~BSD (4.3ish) Unix)
- "BSD_UNIX"			; Generic BSD (4.3ish) Unix, also MacOS X
+ "BSD_UNIX"			; Generic BSD (4.3ish); MacOS X (before 10.5)
  "POSIX_UNIX"		        ; Generic POSIX-standard Unix
  "XOPEN_UNIX"		        ; Generic XOPEN-standard Unix
  "CYGWIN"                       ; Generic Unix with some twists
@@ -365,7 +365,7 @@
     "BITS_32"
     "BIG_ENDIAN"
     "MACOS_X"
-    "BSD_UNIX"
+    "POSIX_UNIX"
     "HAVE_RINT"
     "HAVE_STRDUP"
     "HAVE_STRNCASECMP"
@@ -382,7 +382,7 @@
     "BITS_32"
     "ENDIAN_LITTLE"
     "MACOS_X"
-    "BSD_UNIX"
+    "POSIX_UNIX"
     "HAVE_RINT"
     "HAVE_STRDUP"
     "HAVE_STRNCASECMP"
@@ -481,7 +481,7 @@
     "BITS_32"
     "ENDIAN_LITTLE"
     "MACOS_X"
-    "BSD_UNIX"
+    "POSIX_UNIX"
     "HAVE_RINT"
     "HAVE_STRNCASECMP"
     "HAVE_STRDUP"

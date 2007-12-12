@@ -14,6 +14,10 @@
 typedef unsigned int word;
 typedef int s_word;
 typedef unsigned char byte;
+#if defined __bool_true_false_are_defined /* C99 <stdbool.h> */
+#define TRUE true
+#define FALSE false
+#else
 #if defined TRUE
 # undef FALSE
 # define FALSE 0
@@ -22,6 +26,7 @@ typedef unsigned char byte;
 # define bool int
 #else
 typedef enum { FALSE, TRUE } bool;
+#endif
 #endif
 typedef enum { GCTYPE_COLLECT, 
 	         /* A collection in an area that may also promote in
