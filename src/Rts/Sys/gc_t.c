@@ -59,6 +59,7 @@ gc_t
   gc->ephemeral_area_count = 0;
   gc->remset_count = 0;
   gc->np_remset = -1;
+  gc->scan_update_remset = 0;
 
   gc->initialize = initialize;
   gc->allocate = allocate;

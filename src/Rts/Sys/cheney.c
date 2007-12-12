@@ -156,8 +156,10 @@ extern void mem_icache_flush( void *start, void *end );
 /* Private procedures */
 
 static void scan_static_area( cheney_env_t *e );
+static void scan_static_area_update_rs( cheney_env_t *e );
 static void root_scanner_oflo( word *addr, void *data );
 static bool remset_scanner_oflo( word obj, void *data, unsigned *count );
+static bool remset_scanner_oflo_update_rs( word obj, void *data, unsigned *count );
 static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_gen );
 static void
 fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes );
@@ -204,7 +206,8 @@ void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
   spaces[0] = tospace;
   CHENEY_TYPE( 0 );
   init_env( &e, gc, spaces, 1, init_size, 
-            0, tospace->gen_no, 0, scan_oflo_normal );
+            0, tospace->gen_no, 0, 
+            gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
@@ -222,7 +225,8 @@ void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace )
   spaces[0] = tospace;
   CHENEY_TYPE( 1 );
   init_env( &e, gc, spaces, 1, init_size, 
-            0, tospace->gen_no+1, 0, scan_oflo_normal );
+            0, tospace->gen_no+1, 0, 
+            gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
@@ -239,7 +243,8 @@ void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
   spaces[0] = tospace;
   CHENEY_TYPE( 1 );
   init_env( &e, gc, spaces, 1, init_size, 
-            0, tospace->gen_no+1, SCAN_STATIC, scan_oflo_normal );
+            0, tospace->gen_no+1, SCAN_STATIC, 
+            gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
@@ -341,7 +346,9 @@ void init_env( cheney_env_t *e,
   e->los = (e->splitting ? 0 : gc->los);
 
   e->scan_from_globals = root_scanner_oflo;
-  e->scan_from_remsets = remset_scanner_oflo;
+  e->scan_from_remsets = ((e->gc->scan_update_remset)
+                          ? remset_scanner_oflo_update_rs
+                          : remset_scanner_oflo );
 
   e->scan_from_tospace = scanner;
   e->points_across = (e->gc->remset != NULL) ? points_across : points_across_noop;
@@ -368,8 +375,13 @@ void oldspace_copy( cheney_env_t *e )
                                    e->scan_from_remsets,
                                    (void*)e,
                                    e->enumerate_np_remset );
-  if (e->scan_static && e->gc->static_area)
-    scan_static_area( e );
+  if (e->scan_static && e->gc->static_area) {
+    if (e->gc->scan_update_remset) {
+      scan_static_area_update_rs( e );
+    } else {
+      scan_static_area( e );
+    }
+  }
   stop();
 
   start( &cheney.tospace_scan_prom, &cheney.tospace_scan_gc );

@@ -65,6 +65,14 @@ struct gc {
        the extra non-predictive remembered set, otherwise -1.
        */
 
+  int scan_update_remset;
+    /* 1 iff is a collector where objects may be forwarded into
+       distinct generations and therefore the remembered sets of
+       referring objects must be updated during cheney scan; otherwise 0.
+       (This might be synonymous with the barrier_gc flag in cheney_env_t; 
+       Felix cannot tell from the current codebase.)
+       */
+
   void *data;
     /* Private data.
        */
