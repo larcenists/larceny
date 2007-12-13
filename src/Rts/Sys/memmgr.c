@@ -852,6 +852,14 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
   return heap;
 }
 
+static semispace_t *find_space( gc_t *gc, unsigned bytes_needed, 
+				semispace_t *current_space, 
+				semispace_t **spaces_filtered, int sf_len ) 
+{
+  ss_expand( current_space, max( bytes_needed, GC_CHUNK_SIZE ) );
+  return current_space;
+}
+
 static semispace_t *fresh_space( gc_t *gc ) 
 {
   semispace_t *ss;
@@ -1061,7 +1069,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 free_handle,
 		 enumerate_roots,
 		 enumerate_remsets_older_than,
-		 fresh_space );
+		 fresh_space,
+		 find_space);
 }
 
 /* eof */

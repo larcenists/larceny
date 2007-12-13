@@ -351,7 +351,7 @@ word forward( word, word **, cheney_env_t *e );
 void oldspace_copy( cheney_env_t *e );
 void seal_chunk( semispace_t *ss, word *lim, word *dest );
 void sweep_large_objects( gc_t *gc, int sweep_oldest, int g1, int g2 );
-void expand_semispace( semispace_t *, word **, word **, unsigned );
+void expand_space( cheney_env_t *, word **, word **, unsigned );
 void init_env( cheney_env_t *e, gc_t *gc,
 	       semispace_t **tospaces, int tospaces_len, int tospaces_cap,
                semispace_t *tospace2,

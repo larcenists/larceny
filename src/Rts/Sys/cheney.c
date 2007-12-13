@@ -132,14 +132,7 @@
 #define check_space_expand( dest, lim, wanted, wiggle, e )                   \
   if ((char*)lim-(char*)dest < (wanted+wiggle) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
     word *CS_LIM=lim, *CS_DEST=dest;                                         \
-    expand_semispace( tospace_scan(e), &CS_LIM, &CS_DEST, (wanted+wiggle) ); \
-    dest = CS_DEST; lim = CS_LIM;                                            \
-  }
-
-#define check_space_alloc( dest, lim, wanted, wiggle, e )                    \
-  if ((char*)lim-(char*)dest < (wanted+wiggle) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
-    word *CS_LIM=lim, *CS_DEST=dest;                                         \
-    fresh_generation( e, &CS_LIM, &CS_DEST, (wanted+wiggle) );               \
+    expand_space( e, &CS_LIM, &CS_DEST, (wanted+wiggle) );                   \
     dest = CS_DEST; lim = CS_LIM;                                            \
   }
 
@@ -746,6 +739,11 @@ word forward( word p, word **dest, cheney_env_t *e )
    A bignum header is used rather than a generic bytevector header since
    the latter value would cause the scanner to flush the icache for the
    garbage area.
+
+   The fake bignum is not treated as allocated by the metadata
+   of ss itself.  That is, a later attempt to allocate into ss will happily
+   overwrite the fake bignum header, since the top field of current chunk
+   ("Pointer to neext free word") will still point at the inserted bignum.
    */
 void seal_chunk( semispace_t *ss, word *lim, word *dest )
 {
@@ -764,40 +762,65 @@ void seal_chunk( semispace_t *ss, word *lim, word *dest )
   assert2( ss->chunks[ss->current].bot <= ss->chunks[ss->current].top );
 }
 
-void
-expand_semispace( semispace_t *ss, word **lim, word **dest, unsigned bytes )
+static 
+void enqueue_tospace( cheney_env_t *e, semispace_t *ss ) 
 {
-  seal_chunk( ss, *lim, *dest );
-  ss_expand( ss, max( bytes, GC_CHUNK_SIZE ) );
-  *lim = ss->chunks[ss->current].lim;
-  *dest = ss->chunks[ss->current].top;
+  if (e->tospaces_len == e->tospaces_cap) {
+    int new_cap = e->tospaces_cap * 2;
+    e->tospaces = enlarge_semispaces_buffer( e->tospaces, e->tospaces_len, new_cap );
+    e->tospaces_cap = new_cap;
+  }
+  
+  e->tospaces[e->tospaces_len] = ss;
+  e->tospaces_len++;
 }
 
 void
-fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
+expand_space( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
 {
   semispace_t *ss;
-  int gno;
+  int i;
 
   annoyingmsg("   fresh_generation( e, 0x%08x, 0x%08x, %d )", 
               *lim, *dest, bytes );
 
   ss = tospace_dest(e);
   seal_chunk( ss, *lim, *dest );
+  
+  assert( e->tospaces_cur_scan <= e->tospaces_cur_dest );
+  assert( /* not an inherent structural invariant! */
+          e->tospaces_cur_dest == e->tospaces_len - 1 );
+  assert( e->tospaces_len <= e->tospaces_cap );
 
-  ss = gc_fresh_space( e->gc );
+  /* We want to allow the gc to expand our current tospace, but we
+   * cannot allow it to reuse other spaces we have already copied
+   * into, because we may have already scanned them (or be in the
+   * process of scanning them).  Therefore we pass a prefix of
+   * e->tospaces as the filter for the gc_find_space method, and the
+   * current dest space as a potential space to expand.
+   * 
+   * (Hypothetically we could determine which spaces are after the
+   * scan pointer, and keep them out of the filter as well, but Felix
+   * doesn't see much point in that; if e->gc's policy led it to
+   * choose not to expand a space during this collection cycle, then
+   * Felix sees no reason it might to choose to expand it now.)
+   */
+  ss = gc_find_space( e->gc, bytes, ss, e->tospaces, e->tospaces_len - 1 );
 
-  e->tospaces_cur_dest++;
-  assert(e->tospaces_len == e->tospaces_cur_dest);
-
-  if (e->tospaces_len == e->tospaces_cap) {
-    int new_cap = e->tospaces_cap * 2;
-    e->tospaces = enlarge_semispaces_buffer( e->tospaces, e->tospaces_len, new_cap );
-    e->tospaces_cap = new_cap;
+  /* check that gc_find_space obeys its contract and did not return a
+     filtered space. */
+  for( i = 0; i < e->tospaces_len - 1; i++ ) 
+    assert( ss != e->tospaces[ i ] );
+  
+  if ( ss == tospace_dest( e ) ) {
+    /* e->gc chose to expand the current semispace, so we do not need
+       to adjust the tospaces array. */
+  } else {
+    e->tospaces_cur_dest++;
+    assert(e->tospaces_len == e->tospaces_cur_dest);
+    enqueue_tospace( e, ss );
   }
-
-  e->tospaces[e->tospaces_len] = ss;
-  e->tospaces_len++;
+  
   *lim = ss->chunks[ss->current].lim;
   *dest = ss->chunks[ss->current].top;
 }

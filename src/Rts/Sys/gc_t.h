@@ -187,7 +187,15 @@ struct gc {
      /* Creates a fresh space to copy objects into with a 
       * distinct generation number.
       */
-
+  semispace_t *(*find_space)(gc_t *gc, unsigned bytes_needed, semispace_t *cur,
+			     semispace_t **filter, int filter_len );
+     /* Let filter_set be the set { filter[i] | 0 <= i < filter_len }.
+      * requires: cur not in filter_set
+      * modifies: cur
+      * The returned semispace is guaranteed to have sufficient space
+      * to store an object of size bytes_needed and is also guaranteed
+      * to not be a member of filter_set.
+      */
 };
 
 /* Operations.  For prototypes, see the method specs above. */
@@ -217,6 +225,8 @@ struct gc {
   ((gc)->enumerate_remsets_older_than( gc, g, s, d, f ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
 #define gc_free_handle( gc, h )       ((gc)->free_handle( gc, h ))
+#define gc_find_space( gc, n, ss, f, fl ) \
+  ((gc)->find_space( gc, n, ss, f, fl ))
 #define gc_fresh_space( gc )          ((gc)->fresh_space( gc ))
 
 gc_t 
@@ -251,7 +261,10 @@ gc_t
 		  bool (*f)(word, void*, unsigned * ),
 		  void *data,
 		  bool enumerate_np_remset ),
-	     semispace_t *(*fresh_space)( gc_t *gc )
+	     semispace_t *(*fresh_space)( gc_t *gc ),
+	     semispace_t *(*find_space)( gc_t *gc, int bytes_needed,
+					 semispace_t *cur, 
+					 semispace_t **filter, int filter_len )
 	     );
 
 void gc_parameters( gc_t *gc, int op, int *ans );

@@ -92,6 +92,15 @@
 
 static void scan_oflo_splitting( cheney_env_t *e );
 
+static void
+expand_semispace( semispace_t *ss, word **lim, word **dest, unsigned bytes )
+{
+  seal_chunk( ss, *lim, *dest );
+  ss_expand( ss, max( bytes, GC_CHUNK_SIZE ) );
+  *lim = ss->chunks[ss->current].lim;
+  *dest = ss->chunks[ss->current].top;
+}
+
 void gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text)
 {
   cheney_env_t e;
