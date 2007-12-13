@@ -12,7 +12,7 @@ echo "R5RS startup"; time larceny < /dev/null
 echo
 echo "R6RS startup (rnrs base)"; time ${LARCENY} -r6rs -program nothing.sch
 echo
-echo "R6RS startup (rnrs)"; time ${LARCENY} -r6rs -program nothing.sch
+echo "R6RS startup (rnrs)"; time ${LARCENY} -r6rs -program nothingBig.sch
 echo
 echo; time ${LARCENY} -r6rs -program hello.sch
 echo; time ${LARCENY} -r6rs -program fib.sch     < fib.input

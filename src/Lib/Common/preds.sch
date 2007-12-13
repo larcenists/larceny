@@ -92,7 +92,7 @@
 ; How long should we try the traditional recursive algorithm
 ; before switching to the terminating algorithm?
 
-(define equal:bound-on-recursion 100000)
+(define equal:bound-on-recursion 5000000)
 
 (define (equal? x y)
 

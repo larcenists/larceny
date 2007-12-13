@@ -14,6 +14,7 @@
 ; FIXME:  This assumes the current directory is lib/R6RS
 
 (define (larceny:compile-r6rs-runtime)
+  (compile-file "r6rsmode.sch")
   (compile-file "r6rs-compat-larceny.sch")
   (compile-file "r6rs-runtime.sch")
   (compile-file "r6rs-expander.sch")
