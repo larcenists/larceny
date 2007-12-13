@@ -5,6 +5,7 @@
 ;;     current-larceny-root
 ;;     current-library-resolver 
 ;;     current-require-path
+;;     current-require-path-suffix-optional
 ;;     current-require-path-suffixes
 ;;     current-require-path-suffixes-compiled
 ;;
