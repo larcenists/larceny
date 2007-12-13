@@ -351,15 +351,28 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
     gc_signal_moving_collection( gc ); /* should delegate to collector */
     before_collection( gc );
   }
-
-  if (gen == 0)
+  
+  if (request == GCTYPE_EVACUATE) {
+    if (gen < gc->ephemeral_area_count) {
+      oh_collect( gc->ephemeral_area[ gen ], GCTYPE_PROMOTE );
+    } else if (gc->dynamic_area) {
+      oh_collect( gc->dynamic_area, GCTYPE_PROMOTE );
+    } else {
+      /* Both kinds of young heaps ignore the request parameter, 
+       * so the third argument below isn't relevant. */
+      yh_collect( gc->young_area, bytes_needed, GCTYPE_PROMOTE );
+    }
+  } else if (gen == 0) {
     yh_collect( gc->young_area, bytes_needed, request );
-  else if (gen-1 < gc->ephemeral_area_count)
+  } else if (gen-1 < gc->ephemeral_area_count) {
     oh_collect( gc->ephemeral_area[ gen-1 ], request );
-  else if (gc->dynamic_area)
+  } else if (gc->dynamic_area) {
     oh_collect( gc->dynamic_area, request );
-  else
+  } else {
+    /* Both kinds of young heaps ignore the request parameter, 
+     * so the third argument below isn't relevant. */
     yh_collect( gc->young_area, bytes_needed, request );
+  }
 
   assert( data->in_gc > 0 );
 

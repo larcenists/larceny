@@ -197,7 +197,8 @@ static void collect( young_heap_t *heap, int nbytes, int request )
     }
   }
 #endif
-  gc_collect( heap->collector, data->gen_no+1, 0, GCTYPE_PROMOTE );
+  /* Why did Lars pass 0 instead of nbytes below? */
+  gc_collect( heap->collector, data->gen_no, 0, GCTYPE_EVACUATE );
   data->nbytes_wanted = nbytes;  /* For use in after_collection() */
 }
 
