@@ -154,8 +154,6 @@ static void root_scanner_oflo( word *addr, void *data );
 static bool remset_scanner_oflo( word obj, void *data, unsigned *count );
 static bool remset_scanner_oflo_update_rs( word obj, void *data, unsigned *count );
 static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_gen );
-static void
-fresh_generation( cheney_env_t *e, word **lim, word **dest, unsigned bytes );
 
 static const int tospaces_init_buf_size = 10;
 
@@ -781,7 +779,7 @@ expand_space( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
   semispace_t *ss;
   int i;
 
-  annoyingmsg("   fresh_generation( e, 0x%08x, 0x%08x, %d )", 
+  annoyingmsg("   expand_space( e, 0x%08x, 0x%08x, %d )", 
               *lim, *dest, bytes );
 
   ss = tospace_dest(e);
