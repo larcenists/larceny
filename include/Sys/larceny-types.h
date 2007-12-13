@@ -29,6 +29,10 @@ typedef enum { GCTYPE_COLLECT,
                GCTYPE_PROMOTE,
                  /* A promotion into an area where the target area is
                     not itself being collected, only scanned. */
+	       GCTYPE_EVACUATE,
+                 /* A promotion of objects out of the argument area.
+                    The target area is left unspecified, to be decided
+                    internally by the collector. */
                GCTYPE_FULL,
 	         /* A collection that traces every live object in the
                     system.  Used for special purposes only, like the 
