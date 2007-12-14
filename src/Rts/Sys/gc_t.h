@@ -11,6 +11,19 @@
 #include "config.h"
 #include "larceny-types.h"
 
+typedef enum { gs_singleton, gs_range } gset_tag_t;
+typedef struct { gset_tag_t tag; int g1; int g2; } gset_t;
+/* interpretation of gset_t:
+ * [[ <gs_singleton, g1, g2> ]] = { g1 }
+ * [[ <gs_range, g1, g2> ]] = { i | g1 <= i < g2 }
+ */
+static gset_t gset_singleton( int g1 ) { 
+  gset_t g; g.tag = gs_singleton; g.g1 = g1; return g; 
+}
+static gset_t gset_range( int g1, int g2 ) {
+  gset_t g; g.tag = gs_range; g.g1 = g1; g.g2 = g2; return g; 
+}
+
 struct gc { 
   char *id;
     /* A human-readable string identifying the collector, its heaps,
@@ -24,15 +37,6 @@ struct gc {
   young_heap_t *young_area;
     /* In precise collectors: A pointer to the allocation area (a nursery
        or a stop-and-copy heap).
-       */
-
-  old_heap_t **ephemeral_area;
-    /* In precise collectors: An array of pointers to ephemeral areas;
-       the number of entries is held in ephemeral_area_count.  May be NULL.
-       */
-
-  old_heap_t *dynamic_area;
-    /* In precise collectors: A pointer to a dynamic area, or NULL.
        */
 
   static_heap_t *static_area;
@@ -50,10 +54,6 @@ struct gc {
        when its full, the SSB processing function determines
        how to distribute the contents of the SSB across the
        remsets.
-       */
-
-  int ephemeral_area_count;
-    /* The number of entries in the ephemeral_area table.
        */
 
   int remset_count;
@@ -196,6 +196,9 @@ struct gc {
       * to store an object of size bytes_needed and is also guaranteed
       * to not be a member of filter_set.
       */
+  
+  int (*allocated_to_areas)( gc_t *gc, gset_t gs );
+  int (*maximum_allotted)( gc_t *gc, gset_t gs );
 };
 
 /* Operations.  For prototypes, see the method specs above. */
@@ -228,6 +231,9 @@ struct gc {
 #define gc_find_space( gc, n, ss, f, fl ) \
   ((gc)->find_space( gc, n, ss, f, fl ))
 #define gc_fresh_space( gc )          ((gc)->fresh_space( gc ))
+
+#define gc_allocated_to_areas( gc, gs ) ((gc)->allocated_to_areas( gc, gs ))
+#define gc_maximum_allotted( gc, gs )   ((gc)->maximum_allotted( gc, gs ))
 
 gc_t 
 *create_gc_t(char *id,
@@ -264,7 +270,10 @@ gc_t
 	     semispace_t *(*fresh_space)( gc_t *gc ),
 	     semispace_t *(*find_space)( gc_t *gc, int bytes_needed,
 					 semispace_t *cur, 
-					 semispace_t **filter, int filter_len )
+					 semispace_t **filter, int filter_len ),
+	     
+	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
+	     int (*maximum_allotted)( gc_t *gc, gset_t gs )
 	     );
 
 void gc_parameters( gc_t *gc, int op, int *ans );

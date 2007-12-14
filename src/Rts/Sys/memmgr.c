@@ -53,6 +53,17 @@ struct gc_data {
   word *ssb_bot;
   word *ssb_top;
   word *ssb_lim;
+
+  old_heap_t **ephemeral_area;
+    /* In precise collectors: An array of pointers to ephemeral areas;
+       the number of entries is held in ephemeral_area_count.  May be NULL.
+       */
+  int ephemeral_area_count;
+    /* The number of entries in the ephemeral_area table.
+       */
+  old_heap_t *dynamic_area;
+    /* In precise collectors: A pointer to a dynamic area, or NULL.
+       */
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
@@ -225,36 +236,36 @@ void gc_parameters( gc_t *gc, int op, int *ans )
 	ans[2] = 1;
       }
     }
-    else if (op-1 < gc->ephemeral_area_count) {
+    else if (op-1 < DATA(gc)->ephemeral_area_count) {
       ans[0] = 1;
-      ans[1] = gc->ephemeral_area[op-1]->maximum;
+      ans[1] = DATA(gc)->ephemeral_area[op-1]->maximum;
       ans[2] = 0;
     }
     else if (op < data->static_generation &&
-	     gc->dynamic_area &&
+	     DATA(gc)->dynamic_area &&
 	     data->use_np_collector) {
 #if ROF_COLLECTOR
       int k, j;
 
       /* Non-predictive dynamic area */
-      np_gc_parameters( gc->dynamic_area, &k, &j );
+      np_gc_parameters( DATA(gc)->dynamic_area, &k, &j );
       ans[2] = k;
       ans[3] = j;
-      if (op-1 == gc->ephemeral_area_count) {
+      if (op-1 == DATA(gc)->ephemeral_area_count) {
 	/* NP old */
 	ans[0] = 2;
-	ans[1] = (gc->dynamic_area->maximum / k) * (k - j);
+	ans[1] = (DATA(gc)->dynamic_area->maximum / k) * (k - j);
       }
       else {
 	ans[0] = 3;
-	ans[1] = (gc->dynamic_area->maximum / k) * j;
+	ans[1] = (DATA(gc)->dynamic_area->maximum / k) * j;
       }
 #endif
     }
-    else if (op-1 == gc->ephemeral_area_count && gc->dynamic_area) {
+    else if (op-1 == DATA(gc)->ephemeral_area_count && DATA(gc)->dynamic_area) {
       /* Dynamic area */
       ans[0] = 1;
-      ans[1] = gc->dynamic_area->maximum;
+      ans[1] = DATA(gc)->dynamic_area->maximum;
       ans[2] = 1;
     }
     else if (gc->static_area) {
@@ -274,13 +285,13 @@ static int initialize( gc_t *gc )
   if (!yh_initialize( gc->young_area ))
     return 0;
 
-  if (gc->ephemeral_area)
-    for ( i = 0 ; i < gc->ephemeral_area_count  ; i++ )
-      if (!oh_initialize( gc->ephemeral_area[i] ))
+  if (DATA(gc)->ephemeral_area)
+    for ( i = 0 ; i < DATA(gc)->ephemeral_area_count  ; i++ )
+      if (!oh_initialize( DATA(gc)->ephemeral_area[i] ))
 	return 0;
 
-  if (gc->dynamic_area)
-    if (!oh_initialize( gc->dynamic_area ))
+  if (DATA(gc)->dynamic_area)
+    if (!oh_initialize( DATA(gc)->dynamic_area ))
       return 0;
 
   if (gc->static_area)
@@ -353,10 +364,10 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
   }
   
   if (request == GCTYPE_EVACUATE) {
-    if (gen < gc->ephemeral_area_count) {
-      oh_collect( gc->ephemeral_area[ gen ], GCTYPE_PROMOTE );
-    } else if (gc->dynamic_area) {
-      oh_collect( gc->dynamic_area, GCTYPE_PROMOTE );
+    if (gen < DATA(gc)->ephemeral_area_count) {
+      oh_collect( DATA(gc)->ephemeral_area[ gen ], GCTYPE_PROMOTE );
+    } else if (DATA(gc)->dynamic_area) {
+      oh_collect( DATA(gc)->dynamic_area, GCTYPE_PROMOTE );
     } else {
       /* Both kinds of young heaps ignore the request parameter, 
        * so the third argument below isn't relevant. */
@@ -364,10 +375,10 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
     }
   } else if (gen == 0) {
     yh_collect( gc->young_area, bytes_needed, request );
-  } else if (gen-1 < gc->ephemeral_area_count) {
-    oh_collect( gc->ephemeral_area[ gen-1 ], request );
-  } else if (gc->dynamic_area) {
-    oh_collect( gc->dynamic_area, request );
+  } else if (gen-1 < DATA(gc)->ephemeral_area_count) {
+    oh_collect( DATA(gc)->ephemeral_area[ gen-1 ], request );
+  } else if (DATA(gc)->dynamic_area) {
+    oh_collect( DATA(gc)->dynamic_area, request );
   } else {
     /* Both kinds of young heaps ignore the request parameter, 
      * so the third argument below isn't relevant. */
@@ -410,10 +421,10 @@ static void before_collection( gc_t *gc )
   int e;
 
   yh_before_collection( gc->young_area );
-  for ( e=0 ; e < gc->ephemeral_area_count ; e++ )
-    oh_before_collection( gc->ephemeral_area[ e ] );
-  if (gc->dynamic_area)
-    oh_before_collection( gc->dynamic_area );
+  for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
+    oh_before_collection( DATA(gc)->ephemeral_area[ e ] );
+  if (DATA(gc)->dynamic_area)
+    oh_before_collection( DATA(gc)->dynamic_area );
 }
 
 static void after_collection( gc_t *gc )
@@ -421,20 +432,20 @@ static void after_collection( gc_t *gc )
   int e;
 
   yh_after_collection( gc->young_area );
-  for ( e=0 ; e < gc->ephemeral_area_count ; e++ )
-    oh_after_collection( gc->ephemeral_area[ e ] );
-  if (gc->dynamic_area)
-    oh_after_collection( gc->dynamic_area );
+  for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
+    oh_after_collection( DATA(gc)->ephemeral_area[ e ] );
+  if (DATA(gc)->dynamic_area)
+    oh_after_collection( DATA(gc)->dynamic_area );
 }
 
 static void set_policy( gc_t *gc, int gen, int op, int value )
 {
   if (gen == 0)
     yh_set_policy( gc->young_area, op, value );
-  else if (gen-1 <= gc->ephemeral_area_count)
-    oh_set_policy( gc->ephemeral_area[gen-1], op, value );
-  else if (gc->dynamic_area)
-    oh_set_policy( gc->dynamic_area, op, value );
+  else if (gen-1 <= DATA(gc)->ephemeral_area_count)
+    oh_set_policy( DATA(gc)->ephemeral_area[gen-1], op, value );
+  else if (DATA(gc)->dynamic_area)
+    oh_set_policy( DATA(gc)->dynamic_area, op, value );
 }
 
 static void
@@ -502,8 +513,8 @@ static word *load_text_or_data( gc_t *gc, int nbytes, int load_text )
     return sh_text_load_area( gc->static_area, nbytes );
   else if (gc->static_area)
     return sh_data_load_area( gc->static_area, nbytes );
-  else if (gc->dynamic_area)
-    return oh_data_load_area( gc->dynamic_area, nbytes );
+  else if (DATA(gc)->dynamic_area)
+    return oh_data_load_area( DATA(gc)->dynamic_area, nbytes );
   else
     return yh_data_load_area( gc->young_area, nbytes );
 }
@@ -555,11 +566,11 @@ static void stats_following_gc( gc_t *gc )
 
   yh_stats( gc->young_area );
 
-  for ( i=0 ; i < gc->ephemeral_area_count ; i++ )
-    oh_stats( gc->ephemeral_area[i] );
+  for ( i=0 ; i < DATA(gc)->ephemeral_area_count ; i++ )
+    oh_stats( DATA(gc)->ephemeral_area[i] );
 
-  if (gc->dynamic_area)
-    oh_stats( gc->dynamic_area );
+  if (DATA(gc)->dynamic_area)
+    oh_stats( DATA(gc)->dynamic_area );
 
   if (gc->static_area)
     sh_stats( gc->static_area );
@@ -750,9 +761,9 @@ static int find_fresh_gno( gc_t *gc )
   old_heap_t *heap;
   semispace_t *ss; 
 
-  assert( gc->ephemeral_area_count > 0 );
+  assert( DATA(gc)->ephemeral_area_count > 0 );
 
-  heap = gc->ephemeral_area[gc->ephemeral_area_count-1];
+  heap = DATA(gc)->ephemeral_area[DATA(gc)->ephemeral_area_count-1];
   ss = ohsc_data_area( heap );
   return ss->gen_no+1;
 }
@@ -761,7 +772,7 @@ static old_heap_t* expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
 {
   int i;
   old_heap_t* new_heap;
-  int old_area_count = gc->ephemeral_area_count;
+  int old_area_count = DATA(gc)->ephemeral_area_count;
   int new_area_count = old_area_count + 1;
   old_heap_t** new_ephemeral_area = 
     (old_heap_t**)must_malloc( new_area_count*sizeof( old_heap_t* ));
@@ -773,16 +784,16 @@ static old_heap_t* expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
   assert( old_area_count > 0 );
   
   new_heap = 
-    clone_sc_area( gc->ephemeral_area[ old_area_count-1 ], fresh_gno );
+    clone_sc_area( DATA(gc)->ephemeral_area[ old_area_count-1 ], fresh_gno );
 
   for( i=0 ; i < old_area_count; i++) {
-    new_ephemeral_area[ i ] = gc->ephemeral_area[ i ];
+    new_ephemeral_area[ i ] = DATA(gc)->ephemeral_area[ i ];
   }
   new_ephemeral_area[ old_area_count ] = new_heap;
 
-  free( gc->ephemeral_area );
-  gc->ephemeral_area = new_ephemeral_area;
-  gc->ephemeral_area_count = new_area_count;
+  free( DATA(gc)->ephemeral_area );
+  DATA(gc)->ephemeral_area = new_ephemeral_area;
+  DATA(gc)->ephemeral_area_count = new_area_count;
   
   return new_heap;
 }
@@ -790,12 +801,12 @@ static old_heap_t* expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
 static void expand_dynamic_area_gnos( gc_t *gc, int fresh_gno ) 
 {
   semispace_t *ss;
-  if (gc->dynamic_area != NULL) {
-    ss = ohsc_data_area( gc->dynamic_area );
+  if (DATA(gc)->dynamic_area != NULL) {
+    ss = ohsc_data_area( DATA(gc)->dynamic_area );
     assert( ss != NULL );
-    assert( gc->dynamic_area->set_gen_no != NULL );
+    assert( DATA(gc)->dynamic_area->set_gen_no != NULL );
     if (ss->gen_no >= fresh_gno) {
-      oh_set_gen_no( gc->dynamic_area, ss->gen_no+1 );
+      oh_set_gen_no( DATA(gc)->dynamic_area, ss->gen_no+1 );
     }
   }
 }
@@ -887,6 +898,58 @@ static semispace_t *fresh_space( gc_t *gc )
   return ss;
 }
 
+static int allocated_to_area( gc_t *gc, int gno ) 
+{
+  annoyingmsg(" allocated_to_area( gc, %d ) ", gno );
+  int eph_idx = gno-1;
+  if (gno == 0) 
+    return gc->young_area->allocated;
+  else if (DATA(gc)->ephemeral_area && eph_idx < DATA(gc)->ephemeral_area_count)
+    return DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
+    
+  assert(0);
+}
+
+static int maximum_allotted_to_area( gc_t *gc, int gno ) 
+{
+  if (gno == 0)
+    return gc->young_area->maximum;
+  else if (DATA(gc)->ephemeral_area && gno < DATA(gc)->ephemeral_area_count)
+    return DATA(gc)->ephemeral_area[ gno ]->maximum;
+
+  assert(0);
+}
+
+static int allocated_to_areas( gc_t *gc, gset_t gs ) 
+{
+  int i, sum;
+  switch (gs.tag) {
+  case gs_singleton:
+    return allocated_to_area( gc, gs.g1 );
+  case gs_range:
+    sum = 0;
+    for (i = gs.g1; i < gs.g2; i++) 
+      sum += allocated_to_area( gc, i );
+    return sum;
+  }
+  assert(0);
+}
+
+static int maximum_allotted( gc_t *gc, gset_t gs ) 
+{
+  int i, sum;
+  switch (gs.tag) {
+  case gs_singleton:
+    return maximum_allotted_to_area( gc, gs.g1 );
+  case gs_range:
+    sum = 0;
+    for (i = gs.g1; i < gs.g2; i++) 
+      sum += maximum_allotted_to_area( gc, i );
+    return sum;
+  }
+  assert(0);
+}
+
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 100 ];
@@ -942,20 +1005,20 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 
   /* Create ephemeral areas. 
      */
-  { int e = gc->ephemeral_area_count = info->ephemeral_area_count;
-    gc->ephemeral_area =
+  { int e = DATA(gc)->ephemeral_area_count = info->ephemeral_area_count;
+    DATA(gc)->ephemeral_area =
       (old_heap_t**)must_malloc( e*sizeof( old_heap_t* ) );
 
     for ( i = 0 ; i < e ; i++ ) {
       size += info->ephemeral_info[i].size_bytes;
-      gc->ephemeral_area[ i ] = 
+      DATA(gc)->ephemeral_area[ i ] = 
 	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 1 );
       gen_no += 1;
     }
   }
-  if (gc->ephemeral_area_count > 0) {
+  if (DATA(gc)->ephemeral_area_count > 0) {
     sprintf( buf2, "+%d*%s",
-	     gc->ephemeral_area_count, gc->ephemeral_area[0]->id );
+	     DATA(gc)->ephemeral_area_count, DATA(gc)->ephemeral_area[0]->id );
     strcat( buf, buf2 );
   }
 
@@ -967,7 +1030,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 #if ROF_COLLECTOR
     int gen_allocd;
 
-    gc->dynamic_area = 
+    DATA(gc)->dynamic_area = 
       create_np_dynamic_area( gen_no, &gen_allocd, gc, &info->dynamic_np_info);
     gen_no += gen_allocd;
 #else
@@ -975,11 +1038,11 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 #endif
   }
   else {
-    gc->dynamic_area = create_sc_area( gen_no, gc, &info->dynamic_sc_info, 0 );
+    DATA(gc)->dynamic_area = create_sc_area( gen_no, gc, &info->dynamic_sc_info, 0 );
     gen_no += 1;
   }
   strcat( buf, "+" );
-  strcat( buf, gc->dynamic_area->id );
+  strcat( buf, DATA(gc)->dynamic_area->id );
 
   /* Create static area.
      */
@@ -1041,6 +1104,9 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->dynamic_max = 0;
   data->dynamic_min = 0;
   data->nonexpandable_size = 0;
+  data->ephemeral_area = 0;
+  data->ephemeral_area_count = 0;
+  data->dynamic_area = 0;
 
   return 
     create_gc_t( "*invalid*",
@@ -1070,7 +1136,10 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 enumerate_roots,
 		 enumerate_remsets_older_than,
 		 fresh_space,
-		 find_space);
+		 find_space,
+		 allocated_to_areas,
+		 maximum_allotted
+		 );
 }
 
 /* eof */

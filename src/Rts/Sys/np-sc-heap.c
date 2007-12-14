@@ -254,10 +254,8 @@ static enum action decision( old_heap_t *heap )
   npsc_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
   int X, No, Ny, i, max_fragmentation, large_live;
-
-  X = gc->young_area->allocated;
-  for ( i=0 ; i < gc->ephemeral_area_count ; i++ )
-    X += gc->ephemeral_area[i]->allocated;
+  
+  X = gc_allocated_to_areas( gc, gset_range( 0, data->gen_no ));
 
   /* Max fragmentation in the data promoted in depends on the amount being
      promoted, the maximum small object size, and the allocation area chunk 

@@ -210,13 +210,11 @@ static void expand_semispace_np( word **, word **, unsigned, cheney_env_t* );
 #if ROF_COLLECTOR
 static void compact_np_ssb( gc_t *gc )
 {
-  if (gc->np_remset != -1) {
-    /* The below was rs_compact_nocheck( gc->remset[gc->np_remset] );
-     * but that function has been removed.  This does the same job,
-     * but probably less efficiently because it is going to check for
-     * membership before adding elements to the remset. */
-    process_seqbuf( gc, gc->ssb );
-  }
+  /* The below was rs_compact_nocheck( gc->remset[gc->np_remset] );
+   * but that function has been removed.  This does the same job,
+   * but probably less efficiently because it is going to check for
+   * membership before adding elements to the remset. */
+  process_seqbuf( gc, gc->ssb );
 }
 
 

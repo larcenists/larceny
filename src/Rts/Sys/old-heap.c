@@ -157,9 +157,7 @@ static void collect_dynamic( old_heap_t *heap, gc_type_t request )
 
   /* Compute live data in the ephemeral areas.  ->allocated includes LOS.
      */
-  alloc = gc->young_area->allocated;
-  for ( i = 0 ; i < gc->ephemeral_area_count ; i++ )
-    alloc += gc->ephemeral_area[i]->allocated;
+  alloc = gc_allocated_to_areas( gc, gset_range( 0, data->gen_no ));
 
   supremely_annoyingmsg( "  alloc=%d  size=%d  used=%d",
 			 alloc, data->target_size, used_space( heap ) );
@@ -223,9 +221,12 @@ static int decision( old_heap_t *heap )
   int X, Y, Z, M, Xnext;
   int i, n, j;
 
+#if 0
   /* n: number of ephemeral areas (including young_area) */
-  /* i: _index_ in ephemeral_area[] of this heap */
   n = heap->collector->ephemeral_area_count+1;
+#endif
+
+  /* i: _index_ in ephemeral_area[] of this heap */
   i = data->gen_no-1;
 
   /* Gather information */
@@ -233,14 +234,10 @@ static int decision( old_heap_t *heap )
   /* Y: allocated in this and younger generations */
   /* M: sum of sizes of younger generations */
   /* Note that it's possible to have X > M because of large objects */
-
-  X = gc->young_area->allocated;
-  M = gc->young_area->maximum;
-  for ( j=0 ; j < i ; j++ ) {
-    X += gc->ephemeral_area[j]->allocated;
-    M += gc->ephemeral_area[j]->maximum;
-  }
-  Y = X + gc->ephemeral_area[i]->allocated;
+  
+  X = gc_allocated_to_areas( gc, gset_range( 0, data->gen_no ));
+  M = gc_maximum_allotted( gc, gset_range( 0, data->gen_no ));
+  Y = X + gc_allocated_to_areas( gc, gset_singleton( data->gen_no ));
 
   /* Z: estimate of live data to promote */
   /* Xnext: Estimate of X next time */
@@ -261,6 +258,7 @@ static int decision( old_heap_t *heap )
       return PROMOTE_WITHOUT_COLLECTING;
   }
 
+#if 0
   /* Case 2: data will not fit, but can we do better than pass the buck? */
   if (data->gen_no+1 < n) {
     old_heap_t *next = gc->ephemeral_area[i+1];
@@ -274,6 +272,7 @@ static int decision( old_heap_t *heap )
       /* FIXME */
     }
   }
+#endif
 
   /* Case 3: not here. */
   return PASS_THE_BUCK;

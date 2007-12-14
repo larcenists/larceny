@@ -43,7 +43,9 @@ gc_t
 	     semispace_t *(*fresh_space)( gc_t *gc ),
 	     semispace_t *(*find_space)( gc_t *gc, int bytes_needed,
 					 semispace_t *cur, 
-					 semispace_t **filter, int filter_len )
+					 semispace_t **filter, int filter_len ),
+	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
+	     int (*maximum_allotted)( gc_t *gc, gset_t gs )
 	     )
 {
   gc_t *gc;
@@ -54,12 +56,9 @@ gc_t
 
   gc->los = 0;
   gc->young_area = 0;
-  gc->ephemeral_area = 0;
-  gc->dynamic_area = 0;
-  gc->static_area = 0;
+  gc->static_area = 0; 
   gc->los = 0;
   gc->remset = 0;
-  gc->ephemeral_area_count = 0;
   gc->remset_count = 0;
   gc->np_remset = -1;
   gc->scan_update_remset = 0;
@@ -96,6 +95,9 @@ gc_t
   gc->enumerate_remsets_older_than = enumerate_remsets_older_than;
   gc->fresh_space = fresh_space;
   gc->find_space = find_space;
+
+  gc->allocated_to_areas = allocated_to_areas;
+  gc->maximum_allotted = maximum_allotted;
 
   return gc;
 }
