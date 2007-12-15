@@ -1,5 +1,24 @@
 // Operations for SObject
 // Mostly, just declares virtual methods that fault with the right excode.
+//
+// The macros used in this file are defined in Ops.h
+//
+// To add a new primop (e.g. machine-address) to Common Larceny:
+//     describe the primop in src/Asm/IL/il.imp.sch
+//     define the primop in src/Lib/Arch/IL/primops.sch
+//     define a static method for the primop in src/Rts/DotNet/Ops.cs
+//     define a dynamic method for the primop in this file
+//     if necessary, add methods to other files; for example:
+//         the implementation of car_pair involves
+//             Ops_SPair.inc
+//         the implementation of vector_ref_trusted involves
+//             Ops_SVL.inc
+//             Ops_SFixnum.inc
+//         the implementation of vector_ref_trusted involves
+//             Ops_SVL.inc
+//             Ops_SFixnum.inc
+//
+// FIXME: Some of the .cs files in this directory appear to be obsolete.
 
         // Predicates
         PREDICATE_VIRTUAL_FALSE(isNumber, numberp)
@@ -60,7 +79,9 @@
         OP1(undefined) { return Factory.Undefined; }
         OP1(eof_object) { return Factory.Eof; }
         
-        OP1(machine_address) { return Factory.makeFixnum(this.GetHashCode() & SFixnum.MAX); }
+        OP1(machine_address) {
+            return Factory.makeFixnum(this.GetHashCode() & SFixnum.MAX);
+        }
 
         // Chars
         OP2_VIRTUAL_EXN_PAIR(char_lt, EX_CHARLT, SChar)

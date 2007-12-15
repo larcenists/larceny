@@ -34,10 +34,41 @@ namespace Scheme.Rep {
     // SImmediate
     // -------------------------------------------
     public sealed class SImmediate : SObject {
+        public const int IMM_COUNT = 16;
+        public static readonly SImmediate[] immediates =
+            new SImmediate[IMM_COUNT];
+
         public readonly string rep;
+        public readonly int id;
         public SImmediate(String rep) {
             this.rep = rep;
+            this.id = -1;
         }
+        public SImmediate(String rep, int id) {
+            this.rep = rep;
+            this.id = id;
+        }
+        public SImmediate(int id) {
+            this.rep = "#<WEIRD>";
+            this.id = id;
+        }
+        public static void Initialize () {
+            for (int i = 0; i < IMM_COUNT; ++i) {
+                immediates[i] = new SImmediate(i);
+            }
+            immediates[1] = new SImmediate("#!unspecified", 1);
+            immediates[2] = new SImmediate("#<eof>", 2);
+            immediates[3] = new SImmediate("#!undefined", 3);
+            immediates[4] = new SImmediate("#!fasl", 4);
+        }
+
+        public static SChar makeImmediate(int id) {
+            if (id >= 0 && id < IMM_COUNT)
+                return immediates[id];
+            Exn.fault(Constants.EX_ASSERT, "Invalid immediate");
+            return new SImmediate(0);
+        }
+
         public override void write(TextWriter w) {
             w.Write(rep);
         }

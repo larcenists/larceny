@@ -45,11 +45,11 @@ namespace Scheme.Rep {
         public static readonly SImmediate Null
             = new SImmediate("()");
         public static readonly SImmediate Eof 
-            = new SImmediate("#<eof>");
+            = SImmediate.makeImmediate(2);
         public static readonly SImmediate Unspecified
-            = new SImmediate("#<unspecified>");
+            = SImmediate.makeImmediate(1);
         public static readonly SImmediate Undefined
-            = new SImmediate("#<undefined>");
+            = SImmediate.makeImmediate(3);
         
         // Used as "return value" in escaping procedures
         public static readonly SImmediate Impossible
