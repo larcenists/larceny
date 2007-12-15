@@ -212,7 +212,7 @@
 (define port.linesread 14) ; integer: number of line endings read so far
 (define port.linestart 15) ; integer: character position after last line ending
 (define port.wasreturn 16) ; boolean: last line ending was #\return
-(define port.foldcase  17) ; boolean: true iff #!fold-case is on
+(define port.readmode  17) ; fixnum: see comment at io/port-folds-case?
 
 ; all ports
 
@@ -325,7 +325,10 @@
     (vector-set! v port.linesread 0)
     (vector-set! v port.linestart 0)
     (vector-set! v port.wasreturn #f)
-    (vector-set! v port.foldcase (and textual? input? (case-sensitive?)))
+    (vector-set! v port.readmode
+                   (if (and (not binary?) input?)
+                       (default-read-mode)
+                       readmode:binary))
 
     (vector-set! v port.setposn set-position?)
 
@@ -534,19 +537,281 @@
          (error 'io/port-line-start "not a textual input port" p)
          #t)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Parameters.
+;
+; These parameters control how the read and get-datum procedures
+; parse data from a textual input port.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; If #t, symbols beginning with : are self-quoting.
+;;
+;; FIXME:  This affects macro expansion, but not the reader.
+
+(define recognize-keywords? (make-parameter "recognize-keywords?" #f))
+
+(define recognize-javadot-symbols?
+  (make-parameter "recognize-javadot-symbols?" #f boolean?))
+
+(define case-sensitive? (make-parameter "case-sensitive?" #f boolean?))
+
+; FIXME: deprecated
+
+(define read-square-bracket-as-paren
+  (make-parameter "read-square-bracket-as-paren" #t boolean?))
+
+;; If #t, the reader keeps track of source locations.
+
+(define datum-source-locations?
+  (make-parameter "datum-source-locations?" #f boolean?))
+
+;; Enables #!r5rs and #!larceny
+
+(define read-r6rs-flags?
+  (make-parameter "read-r6rs-flags?" #t boolean?))
+
+;; Enables:
+;; # as an insignificant digit
+;; #!null #!false #!true #!unspecified #!undefined
+;; embedded vertical bars within symbols
+;; #^B #^C #^F #^P #^G randomness (used in FASL files)
+
+(define read-larceny-weirdness?
+  (make-parameter "read-larceny-weirdness?" #t boolean?))
+
+;; Enables:
+;; vertical bars surrounding symbols
+;; backslash escaping of symbols (disables *all* case-folding in symbol)
+;; non-number implies symbol (at least for some things)
+;; some nonstandard peculiar identifiers (-- -1+ 1+ 1-)
+;; backslashes in strings before characters that don't have to be escaped
+;; unconditional downcasing of the character following #
+;; nonstandard character names (?)
+;; #! ... !# comments (see lib/Standard/exec-comment.sch)
+;; #.(...) read-time evaluation (see lib/Standard/sharp-dot.sch)
+;; #&... (see lib/Standard/box.sch)
+
+(define read-traditional-weirdness?
+  (make-parameter "read-traditional-weirdness?" #f boolean?))
+
+;; Enables
+;; MzScheme #\uXX character notation
+;; MzScheme #% randomness
+;; #"..." randomness
+
+(define read-mzscheme-weirdness?
+  (make-parameter "read-mzscheme-weirdness?" #f boolean?))
+
+;; The following were supported in v0.93 but will not be in the
+;; future:
+;;
+;; #r randomness (regular expressions?)
+;; some kind of weirdness in flush-whitespace-until-rparen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Reader mode of a textual input port.
+;
+; A binary port always has mode 0.
+; The reader mode of a textual port is encoded by a fixnum
+; that is the inclusive or of
+;
+;     nofoldcase/foldcase:
+;         0 means #!no-fold-case
+;         1 means #!fold-case
+;     source locations:
+;         0 means don't record source locations
+;         2 means record source locations
+;     javadot:
+;         0 means don't recognize JavaDot symbols
+;         4 means recognize JavaDot symbols
+;     flags:
+;         0 means recognize all flags
+;         8 means recognize #!r6rs flag only
+;     weirdness:
+;         0 means to enforce R6RS lexical syntax (modulo case, javadot)
+;        16 means to allow Larceny weirdness
+;        32 means to allow traditional weirdness
+;        48 means to allow all implemented weirdness
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define readmode-mask:foldcase        1)
+(define readmode-mask:locations       2)
+(define readmode-mask:javadot         4)
+(define readmode-mask:flags           8)
+(define readmode-mask:weirdness      48)
+
+(define readmode:binary               0)
+(define readmode:nofoldcase           0)
+(define readmode:foldcase             1)
+(define readmode:nolocations          0)
+(define readmode:locations            2)
+(define readmode:nojavadot            0)
+(define readmode:javadot              4)
+(define readmode:noflags              0)
+(define readmode:flags                8)
+(define readmode:noweird              0)
+(define readmode:r6rs                 0)
+(define readmode:larceny             16)
+(define readmode:traditional         32)
+(define readmode:mzscheme            64)
+
+(define (default-read-mode)
+  (define (default parameter iftrue iffalse)
+    (if (parameter) iftrue iffalse))
+  (+ (default case-sensitive?             readmode:nofoldcase
+                                          readmode:foldcase)
+     (default datum-source-locations?     readmode:locations
+                                          readmode:nolocations)
+     (default recognize-javadot-symbols?  readmode:javadot
+                                          readmode:nojavadot)
+     (default read-r6rs-flags?            readmode:flags
+                                          readmode:noflags)
+     (default read-larceny-weirdness?     readmode:larceny
+                                          readmode:noweird)
+     (default read-traditional-weirdness? readmode:traditional
+                                          readmode:noweird)
+     (default read-mzscheme-weirdness?    readmode:mzscheme
+                                          readmode:noweird)))
+
+(define (io/complain-of-illegal-argument proc arg)
+  (error proc "illegal argument" arg)
+  #t)
+
 (define (io/port-folds-case? p)
   (cond ((io/input-port? p)
-         (vector-like-ref p port.foldcase))
+         (eq? (fxlogand readmode-mask:foldcase
+                        (vector-like-ref p port.readmode))
+              readmode:foldcase))
         (else
-         (error 'io/port-folds-case? "not a textual input port" p)
-         #t)))
+         (io/complain-of-illegal-argument 'io/port-folds-case? p))))
 
 (define (io/port-folds-case! p bool)
   (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
-         (vector-like-set! p port.foldcase bool))
+         (let* ((mode (vector-like-ref p port.readmode))
+                (mode (fxlogand mode (fxlognot readmode-mask:foldcase)))
+                (mode (fxlogior mode
+                                (if bool
+                                    readmode:foldcase
+                                    readmode:nofoldcase))))
+           (vector-like-set! p port.readmode mode)))
         (else
-         (error 'io/port-folds-case! "illegal arguments" p bool)
-         #t)))
+         (io/complain-of-illegal-argument
+          'io/port-folds-case!
+          (if (boolean? bool) p bool)))))
+
+(define (io/port-records-source-locations? p)
+  (cond ((io/input-port? p)
+         (eq? (fxlogand readmode-mask:locations
+                        (vector-like-ref p port.readmode))
+              readmode:locations))
+        (else
+         (io/complain-of-illegal-argument 'io/port-records-locations? p))))
+
+(define (io/port-recognizes-javadot-symbols? p)
+  (cond ((io/input-port? p)
+         (eq? (fxlogand readmode-mask:javadot
+                        (vector-like-ref p port.readmode))
+              readmode:javadot))
+        (else
+         (io/complain-of-illegal-argument 'io/port-recognizes-javadot-symbols?
+                                          p))))
+
+(define (io/port-recognizes-javadot-symbols! p bool)
+  (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
+         (let* ((mode (vector-like-ref p port.readmode))
+                (mode (fxlogand mode (fxlognot readmode-mask:javadot)))
+                (mode (fxlogior mode
+                                (if bool
+                                    readmode:javadot
+                                    readmode:nojavadot))))
+           (vector-like-set! p port.readmode mode)))
+        (else
+         (io/complain-of-illegal-argument
+          'io/port-recognizes-javadot-symbols!
+          (if (boolean? bool) p bool)))))
+
+(define (io/port-allows-flags? p)
+  (cond ((io/input-port? p)
+         (eq? (fxlogand readmode-mask:flags
+                        (vector-like-ref p port.readmode))
+              readmode:flags))
+        (else
+         (io/complain-of-illegal-argument 'io/port-recognizes-javadot-symbols?
+                                          p))))
+
+(define (io/port-allows-larceny-weirdness? p)
+  (cond ((io/input-port? p)
+         (eq? (fxlogand readmode-mask:weirdness
+                        (vector-like-ref p port.readmode))
+              readmode:larceny))
+        (else
+         (io/complain-of-illegal-argument 'io/port-allows-larceny-weirdness?
+                                          p))))
+
+(define (io/port-allows-larceny-weirdness! p bool)
+  (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
+         (let* ((mode (vector-like-ref p port.readmode))
+                (mode (fxlogand mode (fxlognot readmode:larceny)))
+                (mode (fxlogior mode
+                                (if bool
+                                    readmode:larceny
+                                    readmode:noweird))))
+           (vector-like-set! p port.readmode mode)))
+        (else
+         (io/complain-of-illegal-argument
+          'io/port-allows-larceny-weirdness!
+          (if (boolean? bool) p bool)))))
+
+(define (io/port-allows-traditional-weirdness? p)
+  (cond ((io/input-port? p)
+         (eq? (fxlogand readmode-mask:weirdness
+                        (vector-like-ref p port.readmode))
+              readmode:traditional))
+        (else
+         (io/complain-of-illegal-argument
+          'io/port-allows-traditional-weirdness?
+          p))))
+
+(define (io/port-allows-traditional-weirdness! p bool)
+  (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
+         (let* ((mode (vector-like-ref p port.readmode))
+                (mode (fxlogand mode (fxlognot readmode:traditional)))
+                (mode (fxlogior mode
+                                (if bool
+                                    readmode:traditional
+                                    readmode:noweird))))
+           (vector-like-set! p port.readmode mode)))
+        (else
+         (io/complain-of-illegal-argument
+          'io/port-allows-traditional-weirdness!
+          (if (boolean? bool) p bool)))))
+
+(define (io/port-allows-mzscheme-weirdness? p)
+  (cond ((io/input-port? p)
+         (eq? (fxlogand readmode-mask:weirdness
+                        (vector-like-ref p port.readmode))
+              readmode:mzscheme))
+        (else
+         (io/complain-of-illegal-argument 'io/port-allows-mzscheme-weirdness?
+                                          p))))
+
+(define (io/port-allows-mzscheme-weirdness! p bool)
+  (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
+         (let* ((mode (vector-like-ref p port.readmode))
+                (mode (fxlogand mode (fxlognot readmode:mzscheme)))
+                (mode (fxlogior mode
+                                (if bool
+                                    readmode:mzscheme
+                                    readmode:noweird))))
+           (vector-like-set! p port.readmode mode)))
+        (else
+         (io/complain-of-illegal-argument
+          'io/port-allows-mzscheme-weirdness!
+          (if (boolean? bool) p bool)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -746,6 +1011,7 @@
         (vector-like-set! newport port.transcoder t)
         (vector-like-set! newport port.state 'textual)
         (vector-like-set! newport port.setposn #f)
+        (vector-like-set! newport port.readmode (default-read-mode))
 
         ; io/transcode-port! expects a newly filled mainbuf,
         ; so we have to fake it here.

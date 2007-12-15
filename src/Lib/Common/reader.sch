@@ -105,78 +105,6 @@
   #t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; If #t, symbols beginning with : are self-quoting.
-;;
-;; Note:  This affects macro expansion, but doesn't affect the reader
-;; apart from its mode setting in response to #!r6rs et cetera.
-
-(define recognize-keywords? (make-parameter "recognize-keywords?" #f))
-
-(define recognize-javadot-symbols?
-  (make-parameter "recognize-javadot-symbols?" #f boolean?))
-
-(define case-sensitive? (make-parameter "case-sensitive?" #f boolean?))
-
-(define read-square-bracket-as-paren
-  (make-parameter "read-square-bracket-as-paren" #t boolean?))
-
-;; If #t, the reader keeps track of source locations.
-
-(define datum-source-locations?
-  (make-parameter "datum-source-locations?" #f boolean?))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; New parameters and stuff.
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Enables #!r5rs and #!larceny
-
-(define read-r6rs-flags?
-  (make-parameter "read-r6rs-flags?" #t boolean?))
-
-;; Enables:
-;; #!null #!false #!true #!unspecified #!undefined
-;; #!slow #!fast #!safe #!unsafe
-;; embedded vertical bars within symbols
-;; #^B #^C #^F #^P #^G randomness (used in FASL files)
-
-(define read-larceny-weirdness?
-  (make-parameter "read-larceny-weirdness?" #t boolean?))
-
-;; Enables:
-;; vertical bars surrounding symbols
-;; backslash escaping of symbols (disables *all* case-folding in symbol)
-;; non-number implies symbol (at least for some things)
-;; some nonstandard peculiar identifiers (-- -1+ 1+ 1-)
-;; backslashes in strings before characters that don't have to be escaped
-;; unconditional downcasing of the character following #
-;; nonstandard character names (?)
-;; #! ... !# comments (see lib/Standard/exec-comment.sch)
-;; #.(...) read-time evaluation (see lib/Standard/sharp-dot.sch)
-;; #&... (see lib/Standard/box.sch)
-
-(define read-traditional-weirdness?
-  (make-parameter "read-traditional-weirdness?" #f boolean?))
-
-;; Enables
-;; MzScheme #\uXX character notation
-;; MzScheme #% randomness
-;; #"..." randomness
-
-(define read-mzscheme-weirdness?
-  (make-parameter "read-mzscheme-weirdness?" #f boolean?))
-
-;; The traditional and MzScheme weirdness is not yet supported.
-;; The following were supported in v0.93 but will not be in the
-;; future:
-;;
-;; #r randomness (regular expressions?)
-;; some kind of weirdness in flush-whitespace-until-rparen
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; This is the real parser.
 ;
@@ -8220,31 +8148,33 @@
       (loop 1))
 
 
-    ; This scanner may be in r6rs mode, or it may be in r6rs mode.
-    ; Implementations are allowed to provide other modes, which is
-    ; the reason for this stub.
+    ; Most reader modes are now port-specific.
+    ; Some, but not all, can be changed by reading a flag.
 
     (define (set-mode! m)
       (let ()
         (case m
-         ((r6rs err5rs)
-          (port-folds-case! input-port #f)
-          (set-switches recognize-keywords?          #f
-                        recognize-javadot-symbols?   #f
-                        read-square-bracket-as-paren #t
-                       ;datum-source-locations?      (datum-source-locations?)
-                        read-r6rs-flags?             #t
-                        read-larceny-weirdness?      #f
-                        read-traditional-weirdness?  #f
-                        read-mzscheme-weirdness?     #f))
+         ((r6rs)
+          (set-port-switches input-port
+                             port-folds-case! #f
+                             io/port-allows-larceny-weirdness!     #f
+                             io/port-allows-traditional-weirdness! #f
+                             io/port-allows-mzscheme-weirdness!    #f
+                             io/port-recognizes-javadot-symbols!   #f))
+
+         ((err5rs)
+          (set-port-switches input-port
+                             io/port-allows-larceny-weirdness! #t))
 
          ((r5rs)
-          (port-folds-case! input-port #t)
-          (set-switches read-larceny-weirdness?      #t))
+          (set-port-switches input-port
+                             port-folds-case! #t
+                             io/port-allows-larceny-weirdness! #t))
 
          ((fasl larceny)
-          (port-folds-case! input-port #f)
-          (set-switches read-larceny-weirdness?      #t))
+          (set-port-switches input-port
+                             port-folds-case! #f
+                             io/port-allows-larceny-weirdness! #t))
 
          ((fold-case)
           (port-folds-case! input-port #t))
@@ -8268,10 +8198,10 @@
 
     ; This looks weird but saves code space.
 
-    (define (set-switches . settings)
+    (define (set-port-switches port . settings)
       (do ((settings settings (cddr settings)))
           ((null? settings))
-        ((car settings) (cadr settings))))
+        ((car settings) port (cadr settings))))
   
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
@@ -8281,9 +8211,6 @@
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
     (define (scanChar)
-      ; For debugging, change #f to #t below.
-      (if #f
-          (if (char? c) (write-char (peek-char input-port))))
       (peek-char input-port))
 
     ; Consumes the current character.  Returns unspecified values.
@@ -8381,7 +8308,7 @@
     (define (list2bytevector octets) (u8-list->bytevector octets))
 
     (define (list2proc vals)
-      (if (read-larceny-weirdness?)
+      (if (io/port-allows-larceny-weirdness? input-port)
           (list->procedure vals)
           (parse-error '<datum> datum-starters)))
 
@@ -8452,7 +8379,7 @@
             (loop))
            (else
             (loop)))))
-      (if (read-larceny-weirdness?)
+      (if (io/port-allows-larceny-weirdness? input-port)
           (let ((c (scanChar)))
             (if (char=? c #\")
                 (begin (consumeChar)
@@ -8487,7 +8414,7 @@
       ; Note that the #!r6rs flag is a comment, handled by accept,
       ; so that flag will never be seen here.
 
-      (if (read-r6rs-flags?)
+      (if (io/port-allows-flags? input-port)
 
           (let* ((n (string-length tokenValue))
                  (flag (string->symbol (substring tokenValue 2 n))))
@@ -8630,7 +8557,7 @@
                                                (+ j 1)
                                                (+ j 2))))
                                  (loop i+2 n newstring j+1)))
-                              ((read-larceny-weirdness?)
+                              ((io/port-allows-larceny-weirdness? input-port)
                                (string-set! newstring j c2)
                                (loop (+ i 2) n newstring (+ j 1)))
                               (else
@@ -8655,7 +8582,7 @@
     (define (makeSym)
       (let ((n (string-length tokenValue)))
         (define (return sym)
-          (if (and (recognize-javadot-symbols?)
+          (if (and (io/port-recognizes-javadot-symbols? input-port)
                    (javadot-syntax? sym))
               (symbol->javadot-symbol! sym)
               sym))
@@ -8672,7 +8599,8 @@
                                    (string->list (substring tokenValue 0 i)))
                                   (port-folds-case? input-port)))
                       ((and (char=? c #\|)
-                            (not (read-larceny-weirdness?)))
+                            (not
+                             (io/port-allows-larceny-weirdness? input-port)))
                        (scannerError errIllegalSymbol))
                       (else
                        (loop (+ i 1)))))))
@@ -8692,7 +8620,8 @@
                                                   chars)
                                             fold-case?))))
                              ((and (< (+ i 1) n)
-                                   (read-larceny-weirdness?))
+                                   (io/port-allows-larceny-weirdness?
+                                    input-port))
                               (slow-loop (+ i 2)
                                          (cons (string-ref tokenValue (+ i 1))
                                                chars)
@@ -8701,7 +8630,7 @@
                               (scannerError errIllegalSymbol))))
                       ((char=? c #\#)
                        (if (and (< (+ i 1) n)
-                                (read-mzscheme-weirdness?)
+                                (io/port-allows-mzscheme-weirdness? input-port)
                                 (char=? (string-ref tokenValue (+ i 1))
                                         #\%))
                            (slow-loop (+ i 1) (cons c chars) fold-case?)
@@ -8709,31 +8638,31 @@
                       (else (slow-loop (+ i 1) (cons c chars) fold-case?))))))
         (let ((c (string-ref tokenValue 0)))
           (cond ((or (char=? c #\.) (char=? c #\@))
-                 (if (or (read-larceny-weirdness?)
+                 (if (or (io/port-allows-larceny-weirdness? input-port)
                          (string=? "..." tokenValue))
                      (loop 0)
                      (scannerError errIllegalSymbol)))
                 ((and (char=? c #\-)
                       (< 1 (string-length tokenValue))
                       (not (char=? (string-ref tokenValue 1) #\>)))
-                 (if (and (read-larceny-weirdness?)
+                 (if (and (io/port-allows-larceny-weirdness? input-port)
                           (or (member tokenValue '("--" "-1+"))
                               (char=? #\: (string-ref tokenValue 1))))
                      (loop 0)
                      (scannerError errIllegalSymbol)))
                 ((and (char=? c #\+)
                       (< 1 (string-length tokenValue)))
-                 (if (and (read-larceny-weirdness?)
+                 (if (and (io/port-allows-larceny-weirdness? input-port)
                           (char=? #\: (string-ref tokenValue 1)))
                      (loop 0)
                      (scannerError errIllegalSymbol)))
                 ((char=? c #\1)
-                 (if (and (read-larceny-weirdness?)
+                 (if (and (io/port-allows-larceny-weirdness? input-port)
                           (member tokenValue '("1+" "1-")))
                      (loop 0)
                      (scannerError errIllegalSymbol)))
                 ((char=? c #\|)
-                 (if (and (read-traditional-weirdness?)
+                 (if (and (io/port-allows-traditional-weirdness? input-port)
                           (< 1 n)
                           (char=? (string-ref tokenValue (- n 1)) #\|))
                      ; |...| symbols
@@ -8745,7 +8674,7 @@
     ; #"..." Ascii string syntax of MzScheme
 
     (define (makeXString)
-      (if (read-mzscheme-weirdness?)
+      (if (io/port-allows-mzscheme-weirdness? input-port)
           (begin (set! tokenValue
                        (substring
                         tokenValue 0 (- (string-length tokenValue) 1)))
@@ -8763,21 +8692,22 @@
     ; #.(...) read-time evaluation
 
     (define (sharpDot x)
-      (if (read-traditional-weirdness?)
+      (if (io/port-allows-traditional-weirdness? input-port)
           (eval x)
           (parse-error '<datum> datum-starters)))
 
     ; #^Gsym syntax used in .fasl files
 
     (define (sym2global sym)
-      (if (read-larceny-weirdness?)
+      (if (io/port-allows-larceny-weirdness? input-port)
           ((global-name-resolver) sym)
           (parse-error '<datum> datum-starters)))
 
     ; Oh, dear.  There's no excuse, but see lib/Standard/box.sch
 
     (define (symBox)
-      (if (and (read-traditional-weirdness?) (bound? box))
+      (if (and (io/port-allows-traditional-weirdness? input-port)
+               (bound? box))
           (box (parse-datum))
           (parse-error '<datum> datum-starters)))
   

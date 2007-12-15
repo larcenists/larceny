@@ -1211,7 +1211,7 @@
     (get-char p))
 
 `  ((_ larceny write-char (write-char c))
-    (put-char (current-input-port) c))
+    (put-char (current-output-port) c))
 
 `  ((_ larceny write-char (write-char c p))
     (put-char p c))
