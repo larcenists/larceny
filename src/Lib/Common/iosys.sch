@@ -634,7 +634,7 @@
 ;         0 means to enforce R6RS lexical syntax (modulo case, javadot)
 ;        16 means to allow Larceny weirdness
 ;        32 means to allow traditional weirdness
-;        48 means to allow all implemented weirdness
+;        64 means to allow MzScheme weirdness
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -642,7 +642,7 @@
 (define readmode-mask:locations       2)
 (define readmode-mask:javadot         4)
 (define readmode-mask:flags           8)
-(define readmode-mask:weirdness      48)
+(define readmode-mask:weirdness     112)
 
 (define readmode:binary               0)
 (define readmode:nofoldcase           0)
