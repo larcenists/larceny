@@ -1017,15 +1017,46 @@
   (record-accessor r6rs-constructor-descriptor-type 'protocol))
 
 
-
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Install printers.
+;
+; A record printer is a procedure that takes two arguments:
+;     a record
+;     a textual output port
+;
+; When called, the record printer should print some arbitrary
+; representation of the record to the output port.
+;
+; Most record printers only know how to print instances of
+; some particular record type descriptor.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(let ((rtdtd (record-type-descriptor (make-record-type "" '()))))
+; Given an rtd, returns the current record printer for
+; instances of that rtd, or #f if no record printer is
+; currently installed for that rtd (or one of its parents).
+
+(define rtd-printer
+  (record-accessor (record-type-descriptor (make-record-type "" '()))
+                   'printer))
+
+; Given a record type descriptor and a record printer
+; that knows how to print instances of that rtd, installs
+; the record printer so it will be used when printing
+; instances of that rtd.
+
+(define rtd-printer-set!
+  (record-mutator (record-type-descriptor (make-record-type "" '()))
+                  'printer))
+
+(let* ((rtd0 (make-record-type "" '()))
+       (rtdtd (record-type-descriptor rtd0))
+       (get-printer (rtd-printer rtd0)))
 
   ; Record-type descriptor printer.
 
-  ((record-updater rtdtd 'printer)
+  (rtd-printer-set!
    rtdtd
    (lambda (obj port)
      (display "#<record-type-descriptor " port)
@@ -1036,13 +1067,13 @@
   ; print #<record name>.
 
   (let ((previous-printer (structure-printer))
-        (get-printer (record-accessor rtdtd 'printer)))
+        (get-printer (rtd-printer rtdtd)))
     (structure-printer
      (lambda (obj port quote?)
        (cond ((record? obj)
-              (let ((p (get-printer (record-type-descriptor obj))))
-                (if p
-                    (p obj port)
+              (let ((printer (rtd-printer (record-type-descriptor obj))))
+                (if printer
+                    (printer obj port)
                     (begin (display "#<record " port)
                            (display (record-type-name
                                      (record-type-descriptor obj))

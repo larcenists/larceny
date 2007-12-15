@@ -316,6 +316,7 @@
   ;; general
 
   (environment-set! r4rs 'load load)
+
   ; transcript-on and transcript-off are not in the primitive heap.
 
   r4rs)
@@ -911,6 +912,11 @@
   (environment-set! larc 'record-type-descriptor record-type-descriptor)
 
   (environment-set! larc 'record-indexer record-indexer) ; MzScheme
+
+  ;; record printers
+
+  (environment-set! larc 'rtd-printer rtd-printer)
+  (environment-set! larc 'rtd-printer-set! rtd-printer-set!)
 
   ;; R6RS exception mechanism
 
@@ -1529,6 +1535,7 @@
                     interpreted-expression-source)
 
   ;; Continuation marks
+
   (environment-set-macro! larc 'with-continuation-mark
 			  (usual-syntax 'with-continuation-mark))
   (environment-set! larc 'call-with-continuation-mark
@@ -1549,6 +1556,7 @@
                     call-if-continuation-mark-replace)
 
   ;; require (library system)
+
   (environment-set! larc 'current-larceny-root current-larceny-root)
   (environment-set! larc 'current-require-path current-require-path)
   (environment-set! larc 'current-require-path-suffix-optional
@@ -1570,6 +1578,7 @@
   (environment-set! larc 'repl-prompt repl-prompt)
   (environment-set! larc 'repl-level repl-level)
   (environment-set! larc 'herald herald)
+  (environment-set! larc 'load-from-port load-from-port)
   (environment-set! larc 'load-evaluator load-evaluator)
   (environment-set! larc 'load-print load-print)
   (environment-set! larc 'load-verbose load-verbose)
