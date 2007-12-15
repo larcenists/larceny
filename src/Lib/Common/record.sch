@@ -1070,15 +1070,17 @@
         (get-printer (rtd-printer rtdtd)))
     (structure-printer
      (lambda (obj port quote?)
-       (cond ((record? obj)
-              (let ((printer (rtd-printer (record-type-descriptor obj))))
-                (if printer
-                    (printer obj port)
-                    (begin (display "#<record " port)
-                           (display (record-type-name
-                                     (record-type-descriptor obj))
-                                    port)
-                           (display ">" port)))))
+       (assert (structure? obj))
+       (cond ((rtd-printer (vector-ref (vector-like-ref obj 0) 0))
+              =>
+              (lambda (printer)
+                (printer obj port)))
+             ((record? obj)
+              (display "#<record " port)
+              (display (record-type-name
+                        (record-type-descriptor obj))
+                       port)
+              (display ">" port))
              (else
               (previous-printer obj port quote?))))))
   'records-printers)
