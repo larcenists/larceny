@@ -62,7 +62,7 @@ namespace Scheme.Rep {
             immediates[4] = new SImmediate("#!fasl", 4);
         }
 
-        public static SChar makeImmediate(int id) {
+        public static SImmediate makeImmediate(int id) {
             if (id >= 0 && id < IMM_COUNT)
                 return immediates[id];
             Exn.fault(Constants.EX_ASSERT, "Invalid immediate");
