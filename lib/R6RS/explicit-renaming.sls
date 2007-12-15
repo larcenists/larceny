@@ -43,11 +43,11 @@
 
 (library (explicit-renaming helper)
   (export er-transformer)
-  (import (only (rnrs base)
-           define-syntax lambda)
-          (only (rnrs syntax-case)
-           syntax-case
-           syntax datum->syntax free-identifier=?))
+  (import (for (only (rnrs base)
+                define-syntax lambda) run expand)
+          (for (only (rnrs syntax-case)
+                syntax-case
+                syntax datum->syntax free-identifier=?) run expand))
   
   (define-syntax er-transformer
     (lambda (exp)

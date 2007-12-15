@@ -10,19 +10,97 @@
 
 ; FIXME:  This is for compiling by hand.  It should be moved into
 ; test/Scripts/package-bin-release.sh
-;
-; FIXME:  This assumes the current directory is lib/R6RS
 
 (define (larceny:compile-r6rs-runtime)
-  (compile-file "r6rsmode.sch")
-  (compile-file "r6rs-compat-larceny.sch")
-  (compile-file "r6rs-runtime.sch")
-  (compile-file "r6rs-expander.sch")
-  (load "r6rs-compat-larceny.fasl")
-  (load "r6rs-runtime.fasl")
-  (load "r6rs-expander.fasl")
-  (ex:expand-file "r6rs-standard-libraries.sch" "r6rs-standard-libraries.exp")
-  (compile-file "r6rs-standard-libraries.exp" "r6rs-standard-libraries.fasl"))
+  (parameterize ((current-directory (current-larceny-root)))
+    (parameterize ((current-directory "lib/R6RS"))
+      (compile-file "r6rsmode.sch")
+      (compile-file "r6rs-compat-larceny.sch")
+      (compile-file "r6rs-runtime.sch")
+      (compile-file "r6rs-expander.sch")
+      (require 'r6rs-compat-larceny)
+      (require 'r6rs-runtime)
+      (require 'r6rs-expander)
+      (ex:expand-file "r6rs-standard-libraries.sch"
+                      "r6rs-standard-libraries.exp")
+      (compile-file "r6rs-standard-libraries.exp"
+                    "r6rs-standard-libraries.fasl")
+      (require 'r6rs-standard-libraries))
+    (parameterize ((compile-libraries-older-than-this-file
+                    (string-append (current-directory)
+                                   "/lib/R6RS/r6rs-standard-libraries.fasl")))
+      (for-each larceny:compile-libraries
+                (current-require-path)))))
+
+; FIXME:  This stuff really doesn't belong here.
+
+(define (larceny:os)
+  (let ((os-name (cdr (assq 'os-name (system-features)))))
+    (cond ((member os-name '("SunOS" "Linux" "MacOS X"))
+           'unix)
+          ((member os-name '("Win32"))
+           'windows)
+          (else
+           'unknown))))
+
+(define (larceny:unsupported-os)
+  (error 'larceny:compile-r6rs-runtime
+         "can't find all library files for this OS yet"))
+
+(define (larceny:directory? path)
+  (case (larceny:os)
+   ((unix)
+    (zero? (system (string-append "ls " path "/* 2>/dev/null >/dev/null"))))
+   (else
+    (larceny:unsupported-os))))
+
+(define (larceny:compile-libraries path)
+  (let ((tempfile (generate-temporary-name
+                   (string-append (current-directory) "/temporary")))
+        (aeryn-evaluator
+         (lambda (exp . rest)
+           (ex:repl (list exp)))))
+    (parameterize ((load-evaluator aeryn-evaluator)
+                   (repl-evaluator aeryn-evaluator))
+      (case (larceny:os)
+       ((unix)
+        (let ()
+          (define (compile-libraries path)
+(display "Entering directory ") (display path) (newline)
+            (if (and (larceny:directory? path)
+                     (zero?
+                      (system (string-append "ls -1 " path " > " tempfile))))
+                (let ((files
+                       (call-with-input-file
+                        tempfile
+                        (lambda (p)
+                          (do ((file (get-line p) (get-line p))
+                               (files '() (cons file files)))
+                              ((eof-object? file)
+                               (reverse files)))))))
+;(display "Listing in ") (display (current-directory)) (newline)
+;(for-each (lambda (file) (display file) (newline)) files)
+                  (parameterize ((current-directory path))
+                    (for-each (lambda (file)
+(display "Considering directory ") (display file) (newline)
+                                (if (larceny:directory? file)
+                                    (compile-libraries file)))
+                              files)
+                    (for-each (lambda (file)
+(display "Considering ") (display file) (newline)
+                                (if (and (file-type=? file ".sls")
+                                         (let ((slfasl
+                                                (rewrite-file-type file
+                                                                   ".sls"
+                                                                   ".slfasl")))
+                                           (or (not (file-exists? slfasl))
+                                               (file-newer? file slfasl))))
+                                    (compile-r6rs-file file #f #t)))
+                              files)))))
+          (compile-libraries path)
+          (delete-file tempfile)))
+     (else
+      (larceny:unsupported-os))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -46,10 +124,41 @@
   (ex:run-r6rs-sequence forms))
 
 ; Called by interactive-entry-point in Lib/Repl/main.sch
+;
+; Fasl files must be raw Latin-1, while source files may be
+; UTF-8 or UTF-16 on some platforms.
+; To detect fasl files, we open the file as raw Latin-1 and
+; look at the first line.  If it's a fasl file, we load it
+; as a fasl file.  Otherwise we close the raw Latin-1 port
+; and load the file as a source file.
 
 (define (run-r6rs-program filename)
   (larceny:load-r6rs-package)
-  (ex:run-r6rs-program filename))
+  (if (call-with-port
+       (open-raw-latin-1-input-file filename)
+       (lambda (p)
+         (let ((first-line (get-line p)))
+           (cond ((and (string? first-line)
+                       (string=? first-line "#!fasl"))
+                  (load-from-port p interaction-environment)
+                  #t)
+                 (else
+                  #f)))))
+      (unspecified)
+      (ex:run-r6rs-program filename)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Auto-loading and auto-compiling of ERR5RS/R6RS libraries.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; When (rnrs base) is recompiled, then all of the older .slfasl
+; files need to be recompiled.
+; FIXME:  Should limit to files that depend on the recompiled file(s).
+
+(define compile-libraries-older-than-this-file
+  (make-parameter "compile-libraries-older-than-this-file" #f))
 
 ; Never load a library file twice.
 ;
@@ -58,11 +167,15 @@
 ; each call to require, and then recursive calls to
 ; larceny:autoload-r6rs-library would be executed with
 ; the wrong (current-require-path).
+;
+; FIXME:  Do we need to detect circular dependencies?
 
 (define larceny:autoloaded-r6rs-library-files '())
 
 ; Called by ex:lookup-library in lib/R6RS/r6rs-runtime.sch
-; Returns its argument (a library name) or raises an exception.
+; Returns false is the library has previously been loaded,
+; returns true if the file exists and loads successfully,
+; or raises an exception.
 
 (define (larceny:autoload-r6rs-library libname)
 
@@ -74,22 +187,45 @@
                  (map (lambda (s) (string-append "/" s))
                       (cdr path)))))
 
+  (define (register! fname)
+    (set! larceny:autoloaded-r6rs-library-files
+          (cons fname larceny:autoloaded-r6rs-library-files))
+    (display "    from ")
+    (display fname)
+    (newline))
+
   (define (load-r6rs-library fname)
-    (if (member fname larceny:autoloaded-r6rs-library-files)
-        #f
-        (begin (set! larceny:autoloaded-r6rs-library-files
-                     (cons fname larceny:autoloaded-r6rs-library-files))
-               (display "    from ")
-               (display fname)
-               (newline)
-               (load fname)
-               '
-               (begin
-                (display "Loading of ")
-                (display fname)
-                (display " completed")
-                (newline))
-               #t)))
+    (cond ((member fname larceny:autoloaded-r6rs-library-files)
+           #f)
+          ((compile-libraries-older-than-this-file)
+           (cond ((file-type=? fname ".sls")
+                  (compile-r6rs-file fname #f #t)
+                  (let ((fname (rewrite-file-type fname ".sls" ".slfasl")))
+                    (register! fname)
+                    (load fname)
+                    #t))
+                 ((file-type=? fname ".slfasl")
+                  (let ((src (rewrite-file-type fname ".slfasl" ".sls")))
+                    (if (and (file-exists? src)
+                             (or (file-newer? src fname)
+                                 (file-newer?
+                                  (compile-libraries-older-than-this-file)
+                                  fname)))
+                        (begin (compile-r6rs-file src fname #t)
+                               (register! fname)
+                               (load fname)
+                               #t)
+                        (begin (register! fname)
+                               (load fname)
+                               #t))))
+                 (else
+                  (register! fname)
+                  (load fname)
+                  #t)))
+          (else
+           (register! fname)
+           (load fname)
+           #t)))
 
   (display "Autoloading ")
   (write libname)
@@ -145,6 +281,8 @@
 
 ; Loads (thereby running) an expanded R6RS program
 ; or a .fasl file compiled from an expanded R6RS program.
+;
+; FIXME:  Nothing uses this.
 
 (define (load-r6rs-program filename)
   (larceny:load-r6rs-runtime)
@@ -155,6 +293,7 @@
 ; Imported by (larceny compile-file).
 
 (define (compile-r6rs-file src dst libraries-only?)
+
   (cond ((and libraries-only?
               (not (contains-libraries-only? src)))
          (assertion-violation
@@ -173,11 +312,18 @@
            (dynamic-wind
             (lambda () #t)
             (lambda ()
-              (expand-r6rs-program src tempfile)
+              (let ((aeryn-evaluator
+                     (lambda (exp . rest)
+                       (ex:repl (list exp)))))
+                (parameterize ((load-evaluator aeryn-evaluator)
+                               (repl-evaluator aeryn-evaluator))
+                  (expand-r6rs-program src tempfile)))
               (compile-file tempfile dst))
             (lambda () (delete-file tempfile)))))
         (else
-         (compile-r6rs-file src (generate-fasl-name src) libraries-only?))))
+         (compile-r6rs-file src
+                            (generate-fasl-name src)
+                            libraries-only?))))
 
 (define (contains-libraries-only? fn)
   (let* ((nothing-but-libraries?
