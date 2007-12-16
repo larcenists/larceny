@@ -95,6 +95,9 @@
 
      ((dargo)
       (adjust-safety! 1)                                  ; FIXME
+      (let ((path (get-feature 'library-path)))
+        (if (not (string=? path ""))
+            (add-require-path! path)))
       (aeryn-mode!)
       (parameterize ((error-handler
                       (lambda the-error

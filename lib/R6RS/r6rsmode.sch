@@ -57,6 +57,7 @@
 (define (larceny:compile-libraries path)
   (let ((tempfile (generate-temporary-name
                    (string-append (current-directory) "/temporary")))
+        (basefile (compile-libraries-older-than-this-file))
         (aeryn-evaluator
          (lambda (exp . rest)
            (ex:repl (list exp)))))
@@ -66,7 +67,6 @@
        ((unix)
         (let ()
           (define (compile-libraries path)
-(display "Entering directory ") (display path) (newline)
             (if (and (larceny:directory? path)
                      (zero?
                       (system (string-append "ls -1 " path " > " tempfile))))
@@ -78,23 +78,20 @@
                                (files '() (cons file files)))
                               ((eof-object? file)
                                (reverse files)))))))
-;(display "Listing in ") (display (current-directory)) (newline)
-;(for-each (lambda (file) (display file) (newline)) files)
                   (parameterize ((current-directory path))
                     (for-each (lambda (file)
-(display "Considering directory ") (display file) (newline)
                                 (if (larceny:directory? file)
                                     (compile-libraries file)))
                               files)
                     (for-each (lambda (file)
-(display "Considering ") (display file) (newline)
                                 (if (and (file-type=? file ".sls")
                                          (let ((slfasl
                                                 (rewrite-file-type file
                                                                    ".sls"
                                                                    ".slfasl")))
                                            (or (not (file-exists? slfasl))
-                                               (file-newer? file slfasl))))
+                                               (file-newer? basefile
+                                                            slfasl))))
                                     (compile-r6rs-file file #f #t)))
                               files)))))
           (compile-libraries path)
@@ -190,9 +187,10 @@
   (define (register! fname)
     (set! larceny:autoloaded-r6rs-library-files
           (cons fname larceny:autoloaded-r6rs-library-files))
-    (display "    from ")
-    (display fname)
-    (newline))
+   ;(display "    from ")
+   ;(display fname)
+   ;(newline)
+    #t)
 
   (define (load-r6rs-library fname)
     (cond ((member fname larceny:autoloaded-r6rs-library-files)
@@ -302,13 +300,13 @@
         (dst
          (let ((tempfile (generate-temporary-name dst)))
 (display "Compiling ")
-(newline)
+;(newline)
 (display src)
 (newline)
-(display tempfile)
-(newline)
-(display dst)
-(newline)
+;(display tempfile)
+;(newline)
+;(display dst)
+;(newline)
            (dynamic-wind
             (lambda () #t)
             (lambda ()
