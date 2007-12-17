@@ -205,6 +205,26 @@ void los_append_and_clear_list( los_t *los, los_list_t *l, int to_gen )
   append_and_clear( los->object_lists[ to_gen ], l );
 }
 
+/* This procedure only makes sense when l is a mark list,
+ * since that's the only one that is allowed to contain 
+ * objects with varied associated generations. */
+void los_append_and_clear_list_infer_gen( los_t *los, los_list_t *lst )
+{
+  word *p, *n, *h;
+  int gen_no;
+  
+  h = lst->header;
+  p = next( h );
+  while ( p != h ) {
+    n = next( p );
+    gen_no = gen_of( p - HEADER_WORDS );
+    assert2( 0 <= gen_no && gen_no < los->generations );
+    insert_at_end( p, los->object_lists[ gen_no ]);
+    p = n;
+  }
+  clear_list(lst);
+}
+
 void los_list_set_gen_no( los_list_t *list, int gen_no )
 {
   set_generation_number( list, gen_no, FALSE );

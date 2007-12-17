@@ -109,6 +109,12 @@ void los_append_and_clear_list( los_t *los, los_list_t *l, int to_gen );
      0 <= to_gen < los.generations
      */
 
+void los_append_and_clear_list_infer_gen( los_t *los, los_list_t *l );
+  /* Distribute the objects in l amongst the object lists of los
+     according to the generation numbers that have been already
+     set on the objects (using los_mark_and_set_generation)
+     */
+
 void los_list_set_gen_no( los_list_t *list, int gen_no );
   /* Set the generation number on the pages occupied by large objects
      in the list to `gen_no'.
