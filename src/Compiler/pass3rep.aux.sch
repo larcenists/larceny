@@ -500,9 +500,13 @@
                   (if (not (representation-subtype? type0 type1))
                       (if (variable? arg)
                           (let ((name (variable.name arg)))
+
                             ; FIXME:  In this context, a variable
                             ; should always be local so the hashtable
-                            ; operation isn't necessary.
+                            ; operation shouldn't be necessary, but
+                            ; some previous pass appears to break
+                            ; that invariant.
+
                             (if (hashtable-get types name)
                                 (constraints-add!
                                  types
@@ -511,9 +515,10 @@
                                   name
                                   type1 
                                   (available:killer-combine K K2)))
-                                (cerror
-                                 "Compiler bug: unexpected global: "
-                                 name))))))
+                                (if debugging?
+                                    (cerror
+                                     "Compiler bug: unexpected global: "
+                                     name)))))))
                 args argtypes reps))
     
     (if (not (zero? K))

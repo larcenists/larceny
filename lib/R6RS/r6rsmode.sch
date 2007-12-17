@@ -13,35 +13,71 @@
 
 (define (larceny:compile-r6rs-runtime)
   (parameterize ((current-directory (current-larceny-root)))
-    (parameterize ((current-directory "lib/R6RS"))
-      (compile-file "r6rsmode.sch")
-      (compile-file "r6rs-compat-larceny.sch")
-      (compile-file "r6rs-runtime.sch")
-      (compile-file "r6rs-expander.sch")
-      (require 'r6rs-compat-larceny)
-      (require 'r6rs-runtime)
-      (require 'r6rs-expander)
-      (ex:expand-file "r6rs-standard-libraries.sch"
-                      "r6rs-standard-libraries.exp")
-      (compile-file "r6rs-standard-libraries.exp"
-                    "r6rs-standard-libraries.fasl")
-      (require 'r6rs-standard-libraries))
-    (parameterize ((compile-libraries-older-than-this-file
-                    (string-append (current-directory)
-                                   "/lib/R6RS/r6rs-standard-libraries.fasl")))
-      (for-each larceny:compile-libraries
-                (current-require-path)))))
+    (define (compile-r6rs-runtime-core)
+      (parameterize ((current-directory "lib/R6RS"))
+        (compile-file "r6rsmode.sch")
+        (compile-file "r6rs-compat-larceny.sch")
+        (compile-file "r6rs-runtime.sch")
+        (compile-file "r6rs-expander.sch")
+        (require 'r6rs-compat-larceny)
+        (require 'r6rs-runtime)
+        (require 'r6rs-expander)
+        (ex:expand-file "r6rs-standard-libraries.sch"
+                        "r6rs-standard-libraries.exp")
+        (compile-file "r6rs-standard-libraries.exp"
+                      "r6rs-standard-libraries.fasl")
+        (require 'r6rs-standard-libraries)))
+    (define (compile-source-libraries)
+      (parameterize ((compile-libraries-older-than-this-file
+                      (string-append
+                       (current-directory)
+                       "/lib/R6RS/r6rs-standard-libraries.fasl")))
+        (for-each larceny:compile-libraries
+                  (current-require-path))))
+    (time (compile-r6rs-runtime-core))
+    (time (compile-source-libraries))))
+
+; Given the absolute pathname for a reference file in some directory,
+; compiles all ERR5RS/R6RS library files that directory and its
+; subdirectories that are older than the reference file.
+
+(define (compile-stale-libraries . rest)
+  (cond ((null? rest)
+         (let ((fname (generate-temporary-name
+                       (string-append (current-directory) "/temporary"))))
+           (call-with-output-file fname values)
+           (dynamic-wind
+            (lambda () #t)
+            (lambda () (compile-stale-libraries fname))
+            (lambda () (delete-file fname)))))
+        ((and (null? (cdr rest))
+              (string? (car rest)))
+         (let ((fname (car rest)))
+           (larceny:load-r6rs-package)
+           (parameterize ((compile-libraries-older-than-this-file fname))
+             (larceny:compile-libraries
+              (larceny:directory-of fname)))))
+        (else
+         (assertion-violation 'compile-stale-libraries
+                              "illegal arguments"
+                              rest))))
 
 ; FIXME:  This stuff really doesn't belong here.
 
-(define (larceny:os)
-  (let ((os-name (cdr (assq 'os-name (system-features)))))
-    (cond ((member os-name '("SunOS" "Linux" "MacOS X"))
-           'unix)
-          ((member os-name '("Win32"))
-           'windows)
-          (else
-           'unknown))))
+; Returns one of these symbols: unix, windows, unknown.
+
+(define larceny:os
+  (let ((os #f))
+    (lambda ()
+      (or os
+          (let ((os-name (cdr (assq 'os-name (system-features)))))
+            (cond ((member os-name '("SunOS" "Linux" "MacOS X"))
+                   (set! os 'unix))
+                  ((member os-name '("Win32"))
+                   (set! os 'windows))
+                  (else
+                   (set! os 'unknown)))
+            os)))))
 
 (define (larceny:unsupported-os)
   (error 'larceny:compile-r6rs-runtime
@@ -53,6 +89,15 @@
     (zero? (system (string-append "ls " path "/* 2>/dev/null >/dev/null"))))
    (else
     (larceny:unsupported-os))))
+
+; FIXME: doesn't handle . or ..
+
+(define (larceny:directory-of fname)
+  (if (char=? (string-ref fname 0) #\/)
+      (do ((i (- (string-length fname) 1) (- i 1)))
+          ((char=? (string-ref fname i) #\/)
+           (substring fname 0 i)))
+      (larceny:directory-of (string-append (current-directory) "/" fname))))
 
 (define (larceny:compile-libraries path)
   (let ((tempfile (generate-temporary-name
@@ -184,6 +229,19 @@
                  (map (lambda (s) (string-append "/" s))
                       (cdr path)))))
 
+  ; Returns true iff the second file is in the same directory
+  ; as the first, or in a subdirectory of that directory.
+
+  (define (in-same-directory? fname1 fname2)
+    (string-prefix? (larceny:directory-of fname1)
+                    (larceny:directory-of fname2)))
+
+  (define (string-prefix? s1 s2)
+    (let ((n1 (string-length s1))
+          (n2 (string-length s2)))
+      (and (<= n1 n2)
+           (string=? s1 (substring s2 0 n1)))))
+
   (define (register! fname)
     (set! larceny:autoloaded-r6rs-library-files
           (cons fname larceny:autoloaded-r6rs-library-files))
@@ -196,30 +254,32 @@
     (cond ((member fname larceny:autoloaded-r6rs-library-files)
            #f)
           ((compile-libraries-older-than-this-file)
-           (cond ((file-type=? fname ".sls")
-                  (compile-r6rs-file fname #f #t)
-                  (let ((fname (rewrite-file-type fname ".sls" ".slfasl")))
+           =>
+           (lambda (reference-file)
+             (cond ((file-type=? fname ".sls")
+                    (compile-r6rs-file fname #f #t)
+                    (let ((fname (rewrite-file-type fname ".sls" ".slfasl")))
+                      (register! fname)
+                      (load fname)
+                      #t))
+                   ((file-type=? fname ".slfasl")
+                    (let ((src (rewrite-file-type fname ".slfasl" ".sls")))
+                      (if (and (file-exists? src)
+                               (or (file-newer? src fname)
+                                   (and
+                                    (in-same-directory? reference-file fname)
+                                    (file-newer? reference-file fname))))
+                          (begin (compile-r6rs-file src fname #t)
+                                 (register! fname)
+                                 (load fname)
+                                 #t)
+                          (begin (register! fname)
+                                 (load fname)
+                                 #t))))
+                   (else
                     (register! fname)
                     (load fname)
-                    #t))
-                 ((file-type=? fname ".slfasl")
-                  (let ((src (rewrite-file-type fname ".slfasl" ".sls")))
-                    (if (and (file-exists? src)
-                             (or (file-newer? src fname)
-                                 (file-newer?
-                                  (compile-libraries-older-than-this-file)
-                                  fname)))
-                        (begin (compile-r6rs-file src fname #t)
-                               (register! fname)
-                               (load fname)
-                               #t)
-                        (begin (register! fname)
-                               (load fname)
-                               #t))))
-                 (else
-                  (register! fname)
-                  (load fname)
-                  #t)))
+                    #t))))
           (else
            (register! fname)
            (load fname)
@@ -387,22 +447,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (make-file-processer/preserve-reader-state a-process-file)
-
-  ;; FIXME: The reader modes are parameterized here to protect the
-  ;; interactive session's modes from changes made while reading the
-  ;; compiled file.
-  ;; FIXME: This needs to be kept in sync with the preserved
-  ;; parameters in src/Lib/Common/load.sch until we adopt a more
-  ;; robust solution.
-
   (lambda args
-    (parameterize
-     ((recognize-keywords?          (recognize-keywords?))
-      (recognize-javadot-symbols?   (recognize-javadot-symbols?))
-      (read-square-bracket-as-paren (read-square-bracket-as-paren))
-      (case-sensitive?              (case-sensitive?))
-      (read-r6rs-flags?             #t)
-      (read-larceny-weirdness?      (read-larceny-weirdness?))
-      (read-traditional-weirdness?  (read-traditional-weirdness?))
-      (read-mzscheme-weirdness?     (read-mzscheme-weirdness?)))
-     (apply a-process-file args))))
+   (apply a-process-file args)))

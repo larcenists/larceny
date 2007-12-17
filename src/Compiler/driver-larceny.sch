@@ -8,29 +8,6 @@
 ; heap (twobit exposed only through COMPILE-FILE and COMPILE-EXPRESSION).
 ; Uses basis functionality defined in driver-common.sch
 
-(define (make-file-processer/preserve-reader-state a-process-file)
-  ;; FIXME: The reader modes are parameterized here to protect the
-  ;; interactive session's modes from changes made while reading the
-  ;; compiled file.
-  ;; FIXME: This needs to be kept in sync with the preserved
-  ;; parameters in src/Lib/Common/load.sch until we adopt a more
-  ;; robust solution.
-  (lambda args
-    (parameterize ((recognize-keywords?          (recognize-keywords?))
-                   (recognize-javadot-symbols?   (recognize-javadot-symbols?))
-                   (read-square-bracket-as-paren (read-square-bracket-as-paren))
-                   (case-sensitive?              (case-sensitive?))
-                   (read-r6rs-flags?             #t)
-                   (read-larceny-weirdness?      (read-larceny-weirdness?))
-                   (read-traditional-weirdness?  (read-traditional-weirdness?))
-                   (read-mzscheme-weirdness?     (read-mzscheme-weirdness?)))
-      (apply a-process-file args))))
-
-(define process-file/preserve-reader-state 
-  (make-file-processer/preserve-reader-state process-file))
-(define process-file-block/preserve-reader-state
-  (make-file-processer/preserve-reader-state process-file-block))
-
 ; Compile and assemble a scheme source file and produce a FASL file.
 
 (define (compile-file infilename . rest)
@@ -57,23 +34,21 @@
               (environment-syntax-environment
                (interaction-environment)))))
         (if (benchmark-block-mode)
-            (process-file-block/preserve-reader-state
-             infilename
-             `(,outfilename binary)
-             (cons write-fasl-token
-                   (assembly-declarations user))
-             dump-fasl-segment-to-port
-             (lambda (forms)
-               (assemble (compile-block forms syntaxenv) 
-                         user)))
-            (process-file/preserve-reader-state
-             infilename
-             `(,outfilename binary)
-             (cons write-fasl-token
-                   (assembly-declarations user))
-             dump-fasl-segment-to-port
-             (lambda (expr)
-               (assemble (compile expr syntaxenv) user)))))
+            (process-file-block infilename
+                                `(,outfilename binary)
+                                (cons write-fasl-token
+                                      (assembly-declarations user))
+                                dump-fasl-segment-to-port
+                                (lambda (forms)
+                                  (assemble (compile-block forms syntaxenv) 
+                                            user)))
+            (process-file infilename
+                          `(,outfilename binary)
+                          (cons write-fasl-token
+                                (assembly-declarations user))
+                          dump-fasl-segment-to-port
+                          (lambda (expr)
+                            (assemble (compile expr syntaxenv) user)))))
       (unspecified)))
 
   (if (eq? (nbuild-parameter 'target-machine) 'standard-c)
@@ -125,20 +100,18 @@
                       (environment-syntax-environment
                        (interaction-environment)))))
       (if (benchmark-block-mode)
-          (process-file-block/preserve-reader-state
-           infilename 
-           outfilename 
-           '()
-           write-lap 
-           (lambda (x)
-             (compile-block x syntaxenv)))
-          (process-file/preserve-reader-state
-           infilename 
-           outfilename 
-           '()
-           write-lap 
-           (lambda (x) 
-             (compile x syntaxenv)))))
+          (process-file-block infilename 
+                              outfilename 
+                              '()
+                              write-lap 
+                              (lambda (x)
+                                (compile-block x syntaxenv)))
+          (process-file infilename 
+                        outfilename 
+                        '()
+                        write-lap 
+                        (lambda (x) 
+                          (compile x syntaxenv)))))
     (unspecified)))
 
 
@@ -155,13 +128,12 @@
          (file-type=? file *mal-file-type*))
         (user
          (assembly-user-data)))
-    (process-file/preserve-reader-state
-     file
-     `(,outputfile binary)
-     (assembly-declarations user)
-     write-lop
-     (lambda (x) 
-       (assemble (if malfile? (eval x) x) user)))
+    (process-file file
+                  `(,outputfile binary)
+                  (assembly-declarations user)
+                  write-lop
+                  (lambda (x) 
+                    (assemble (if malfile? (eval x) x) user)))
     (unspecified)))
 
 
@@ -180,20 +152,18 @@
                       (environment-syntax-environment 
                        (interaction-environment)))))
       (if (benchmark-block-mode)
-          (process-file-block/preserve-reader-state
-           input-file
-           `(,output-file binary)
-           (assembly-declarations user)
-           write-lop
-           (lambda (x)
-             (assemble (compile-block x syntaxenv) user)))
-          (process-file/preserve-reader-state
-           input-file
-           `(,output-file binary)
-           (assembly-declarations user)
-           write-lop
-           (lambda (x) 
-             (assemble (compile x syntaxenv) user)))))
+          (process-file-block input-file
+                              `(,output-file binary)
+                              (assembly-declarations user)
+                              write-lop
+                              (lambda (x)
+                                (assemble (compile-block x syntaxenv) user)))
+          (process-file input-file
+                        `(,output-file binary)
+                        (assembly-declarations user)
+                        write-lop
+                        (lambda (x) 
+                          (assemble (compile x syntaxenv) user)))))
     (unspecified)))
 
 
@@ -207,12 +177,11 @@
                (rewrite-file-type infilename
                                   *lop-file-type*
                                   *fasl-file-type*))))
-      (process-file/preserve-reader-state
-       `(,infilename binary)
-       `(,outfilename binary)
-       (list write-fasl-token)
-       dump-fasl-segment-to-port
-       (lambda (x) x))
+      (process-file `(,infilename binary)
+                    `(,outfilename binary)
+                    (list write-fasl-token)
+                    dump-fasl-segment-to-port
+                    (lambda (x) x))
       (unspecified)))
 
   (if (eq? (nbuild-parameter 'target-machine) 'standard-c)

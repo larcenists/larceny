@@ -8,26 +8,34 @@
 ;   <tag> ::= <symbol>
 ;   <descriptor> ::= <string>
 ;   <text> ::= ((<selector> ...) <string>)
-;   <selector> ::= brief | full | native | petit
+;   <selector> ::= <brevity> | <system>
+;   <brevity>  ::= brief | full
+;   <system>   ::= native | petit | common
+;
+; Every text should have both <brevity> and <system> selectors.
+; If not, the current help system will never display the text.
 
 (compiling 
 "  compiling          Compiling and assembling Scheme programs."
-((brief full native)
+((brief full native petit common)
 "(compile-file <schemefile>)
 (compile-file <schemefile> <outputfile>)
   Compile the Scheme source file and produce a .fasl file.
+")
 
+((full native)
+"
 (assemble-file <asm-file>)
 (assemble-file <asm-file> <outputfile>)
   Assemble the .lap or .mal source file and produce a .fasl file.
 ")
-((brief full petit)
+((brief full petit common)
 "(compile-files (<schemefile> ...) <outputfile>)
   Compile the Scheme source files and produce a .fasl file referencing
   a native shared object; when the .fasl file is loaded, the shared
   object is dynamically linked into Larceny.
 ")
-((full native petit)
+((obsolete native petit)
 "
 (compile313 <schemefile> &opt <outputfile>)
   Compile the Scheme source file and produce a .lap file.
@@ -36,7 +44,7 @@
   Assemble a .lap or .mal source file and produce a .lop file.
 ")
 
-((full native)
+((obsolete native)
 "
 (make-fasl <lopfile> &opt <outputfile>)
   Create a fast-load file (.fasl) from the object file.
@@ -44,7 +52,7 @@
 
 (compiler-switches
 "  compiler-switches  Info about a slew of compiler switches."
-((brief full)
+((brief full native petit common)
 "
 The command (compiler-switches) lists the current settings of all compiler
 and assembler switches.  These switches are:
@@ -63,7 +71,7 @@ Safety:
     catch-undefined-globals  Check references to global variables.
 
 Speed:
-  integrate-usual-procedures Generate in-line code for primitive procedures.
+  integrate-procedures       Generate in-line code for primitive procedures.
   control-optimization       Improve code for IF, AND, OR, COND, CASE.
   parallel-assignment-optimization    Choose a good order of evaluation.
   lambda-optimization        Improve code for known local procedures.
@@ -79,10 +87,10 @@ Speed:
   local-optimization         Eliminate branches to branches and locally
                              redundant machine instructions.
   peephole-optimization      Improve common sequences of machine code.
-  fill-delay-slots           Fill SPARC branch delay slots.
   inline-allocation          Generate in-line code for CONS, et cetera.
+  fill-delay-slots           Fill SPARC branch delay slots.
 ")
-((full)
+((obsolete native petit common)
 "
 Internal (development) switches:
   listify?                   Produce listing of MAL code.  (NOTE: a variable)
@@ -100,10 +108,9 @@ on the value of the symbol <flag>.  The flags are:
                 and disable type and range checking.
   default       Set switches to their default (factory) settings.
 
-All switches can be set to #t to enable the effect explained above, or to
-#f to disable the effect.  If the switch is a variable, its value can be 
-set by an assignment.  If the switch is a procedure, it can be set by
-passing an argument as in (benchmark-mode #f).
+All switches can be set to #t to enable the effect explained above, or
+to #f to disable the effect.  For example, (benchmark-mode #f) disables
+benchmark mode.
 "))
 
 (disassembling
@@ -126,34 +133,46 @@ passing an argument as in (benchmark-mode #f).
   
 (general
 "  general            General information about file types etc."
-((brief full petit native)
-"Scheme source files have extension .sch or .scm; these extensions
-are treated specially by the compiler. You may compile source files
-with extensions other than these, but the compiler will not replace
-them with an object file extension, only append the object file
-extension to the file name.
+((brief full petit native common)
+"R5RS Scheme source files usually have names ending in .sch or
+.scm; these extensions are treated specially by the compiler.
+You may compile source files with extensions other than these,
+but the compiler will not replace them with an object file
+extension, only append the object file extension to the file
+name.
 
-Compiled files in tokenized form have extension .lap, for \"Lisp
-Assembly Program\".
+ERR5RS/R6RS library files have names ending in .sls (for source
+code) or .slfasl (for compiled libraries).  These extensions are
+treated specially by Larceny's load-on-import feature.
 
-MacScheme assembly language files in symbolic form have extension
-.mal (for \"MacScheme Assembly Language\").
+Loadable files that contain fast-loading machine code (or
+references to machine code in other files) have extension .fasl
+(R5RS) or .slfasl (ERR5RS/R6RS).  These files begin with special
+syntax that allows them to be recognized and loaded like source
+files; apart from special handling of .slfasl files by Larceny's
+load-on-import feature, there is nothing magic about the .fasl
+or .slfasl extensions.
 
-Assembled files containing machine code segments have extension
-.lop (for \"Lisp Object Program\").
+Files that have been compiled but not assembled have extension
+.lap, for \"Lisp Assembly Program\".
 
-Fast-load files containing machine code (or references to machine
-code in external object files or inside the executable) have
-extension .fasl, for \"Fast-Load\". These files contains special
-syntax which allow them to be read by Larceny's reader like any
-other file; there is nothing magic about the extension.
+Files that contain hand-written MacScheme assembly language code
+have extension .mal (for \"MacScheme Assembly Language\").
 
-Heap files usually have the extension .heap.
+Files that contain non-loadable segments of machine code have
+extension .lop (for \"Lisp Object Program\").  Heap images are
+produced by linking .lop files.
+
+Files that contain a heap image usually have extension .heap.
 "))
 
 (heaps
 "  heaps              Dumping heap images."
-((full native)
+((brief full native petit common)
+"A bootstrap heap image is created using the setup procedure,
+which is defined in setup.sch.  For details, see doc/HOWTO-BUILD.
+")
+((obsolete native)
 "A bootstrap heap image is created with the dump-heap procedure:
 
   (build-heap-image <heapname> <object-file-list>)
@@ -175,7 +194,7 @@ files.
 
 For details, see the file Lib/makefile.sch.
 ")
-((full petit)
+((obsolete petit)
 "A bootstrap heap image is created with the BUILD-HEAP procedure:
 
   (build-heap)

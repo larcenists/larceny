@@ -4,43 +4,48 @@ the standard Larceny system.
 These descriptions provide the intended purpose and invariants for
 each directory.
 
-lib/Base/	: Miscellaneous code.  Each file is integrated into at
-		  least one heap included with the standard
-		  distribution.  No dependences on files elsewhere in
-		  the lib/ hierarchy.  Every file is portable across
-		  target operating systems.
+lib/Base/       : Miscellaneous code.  Each file is integrated into at
+                  least one heap included with the standard
+                  distribution.  Does not depend on files in other
+                  parts of the lib/ hierarchy.  Every file is portable across
+                  target operating systems.
 
-lib/Debugger/	: Debugging, tracing, and profiling tools.  Some files 
-		  are included in heaps in the standard distribution.
-		  Dependent on the representation of continuation 
-		  frames (standard across all Larceny variants), 
-		  but otherwise portable.
+lib/Debugger/   : Debugging, tracing, and profiling tools.  Some files 
+                  are included in heaps in the standard distribution.
+                  Dependent on the representation of continuation 
+                  frames (standard across all Larceny variants), 
+                  but otherwise portable.
 
-lib/SRFI/	: Scheme Request For Implementation (SRFI) libraries.
-		  Contains dependences on functionality provided 
-		  elsewhere in the lib/ hierarchy.
+lib/R6RS        : ERR5RS/R6RS libraries and supporting code.  Used
+                  only by ERR5RS/R6RS modes.  Does not depend on
+                  other parts of the lib/ hierarchy, except perhaps
+                  some parts of lib/Base that are part of standard
+                  heaps.
 
-lib/Standard/	: Miscellaneous code.  No file is included in any
-		  heap in the standard distribution.  Contains
-		  dependences on functionality provided elsewhere in
-		  the lib/ hierarchy.  Some files only work on certain
-		  operating systems.
+lib/SRFI/        : Scheme Request For Implementation (SRFI) libraries.
+                  Depends on things provided elsewhere in the lib/
+                  hierarchy.
 
-lib/Ffi/	: FFI code (Petit and native Larceny).  Files may be
-		  built into distributed heaps.  Dependent on many
-		  aspects of the runtime, operating system, and
-		  compiler.
+lib/Standard/   : Miscellaneous code.  No file is included in any
+                  heap in the standard distribution.  Depends on
+                  things provided elsewhere in the lib/ hierarchy.
+                  Some files only work on certain systems.
+
+lib/Ffi/        : FFI code (Petit and native Larceny).  Files may be
+                  built into distributed heaps.  Dependent on many
+                  aspects of the runtime, operating system, and
+                  compiler.
 
 lib/TeachPacks/ : Support files for teachpacks compatible with "How To
-		  Design Programs" (HtDP).
+                  Design Programs" (HtDP).
 
 
 ----
 
 The directories below are not supported as well as the ones above.
 
-lib/MzScheme/	: MzScheme compatibilty layer for Common Larceny.
-		  (Also contains FFI code for Common Larceny,
-		  unfortunately.)
+lib/MzScheme/   : MzScheme compatibilty layer for Common Larceny.
+                  (Also contains FFI code for Common Larceny,
+                  unfortunately.)
 
 lib/Experimental/ : Staging area for experimental libraries.

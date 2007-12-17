@@ -308,7 +308,7 @@
 ;
 ; FIXME: 
 ;   - There's no check that the value actually fits in a byte.
-;   - Uses ARGREG3 and and TMP2.
+;   - Uses ARGREG3 and TMP2.
 
 (define (emit-bytevector-like-set! as idx byte fault header-loaded?)
   (let ((r1 (force-hwreg! as idx $r.tmp1))
@@ -322,6 +322,8 @@
           (sparc.orr     as r1 r2 $r.tmp2)
           (sparc.btsti   as $r.tmp2 3)
           (sparc.bnz     as fault)
+          (if (not (eq? r2 $r.argreg3))
+              (sparc.move as r2 $r.argreg3))
           ; No NOP -- next instruction is OK in slot.
           ; Index must be in range.
           (sparc.srli    as $r.tmp0 8 $r.tmp0)    ; limit - in slot
