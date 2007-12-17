@@ -216,7 +216,8 @@
            ((2 fast-safe)        (fast-safe-code))
            ((3 fast-unsafe)      (fast-unsafe-code))
            ((default
-             factory-settings)   (fast-safe-code))
+             factory-settings)   (fast-safe-code)
+                                 (benchmark-block-mode #f))
            (else 
             (error "Unrecognized flag " (car rest) " to compiler-switches.")))
          (unspecified))
