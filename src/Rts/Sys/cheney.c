@@ -69,7 +69,7 @@
 #define forw_oflo( loc, forw_limit_gen, dest, lim, e, check_spaceI )            \
   do { word T_obj = *loc;                                                       \
        if (isptr(T_obj) && gen_of(T_obj) < (forw_limit_gen)){                   \
-          forw_core( T_obj, loc, dest, lim, e, (forw_limit_gen), check_spaceI); \
+          forw_core( T_obj, loc, dest, lim, e, check_spaceI);                   \
        }                                                                        \
   } while( 0 )
 
