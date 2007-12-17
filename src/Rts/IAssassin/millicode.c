@@ -533,8 +533,11 @@ void EXPORT mc_partial_barrier( word *globals )
 
   gl = genv[pageof(lhs)];       /* gl: generation # of lhs */
   gr = genv[pageof(rhs)];       /* gr: generation # of rhs */
-  if (gl <= gr) return;  
-  
+  if (gl == gr) return;
+  if (globals[ G_FILTER_REMSET_GEN_ORDER ] && gl <= gr) return;  
+  if (globals[ G_FILTER_REMSET_RHS_NUM ] == gr) return;
+  if (globals[ G_FILTER_REMSET_LHS_NUM ] == gl) return;
+
   ssbtopv = (word**)globals[ G_SSBTOPV ];
   ssblimv = (word**)globals[ G_SSBLIMV ];
 

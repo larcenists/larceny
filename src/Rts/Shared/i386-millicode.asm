@@ -19,8 +19,9 @@
 ;;; for correct operation.  The amount of assembler in this file
 ;;; is not an indication of the required porting effort.
 	
-%define OPTIMIZE_MILLICODE
-
+%define OPTIMIZE_MILLICODE 1
+%define OPTIMIZE_BARRIER 1
+	
 	section	.text align=4
 	
 	global  EXTNAME(i386_scheme_jump)
@@ -268,7 +269,7 @@ PUBLIC i386_restore_continuation
 	MCg	mc_restore_continuation
 	
 PUBLIC i386_full_barrier
-%ifdef OPTIMIZE_MILLICODE
+%if OPTIMIZE_MILLICODE && OPTIMIZE_BARRIER
 	test	SECOND, 1			; If rhs is ptr
 	jnz	EXTNAME(i386_partial_barrier)	;   enter the barrier
 	ret					; Otherwise return
@@ -279,7 +280,7 @@ PUBLIC i386_full_barrier
 %endif ; OPTIMIZE_MILLICODE
 	
 PUBLIC i386_partial_barrier
-%ifdef OPTIMIZE_MILLICODE
+%if OPTIMIZE_MILLICODE && OPTIMIZE_BARRIER
   %ifdef GCLIB_LARGE_TABLE
     %error Optimized write barrier does not work with "GCLIB_LARGE_TABLE" yet
   %endif
@@ -300,10 +301,17 @@ Lpb1:	mov	[GLOBALS+G_WBDEST], RESULT	; Save state and
 	mov	SECOND, [REG1+SECOND]		;       for rhs
 	cmp	RESULT, SECOND			; Only store lhs in SSB
 	jg	Lpb3				;   if gen(lhs) > gen(rhs)
+	jl	Lpb4				;   (or more complex non-gen logic)
 Lpb2:	mov	RESULT, [GLOBALS+G_WBDEST]	; Restore
 	mov	SECOND, [GLOBALS+G_WBVALUE]	;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	ret					;       return to Scheme
+Lpb4:	cmp	dword [GLOBALS+G_FILTER_REMSET_GEN_ORDER], 0
+	je	Lpb2 		                ; filter when generational
+	cmp	dword [GLOBALS+G_FILTER_REMSET_LHS_NUM], RESULT
+	je	Lpb2		                ; filter lhs nursery
+	cmp	dword [GLOBALS+G_FILTER_REMSET_RHS_NUM], SECOND
+	je	Lpb2		                ; filter rhs static area
 Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
 	mov	REG1, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
 	mov	SECOND, [GLOBALS+G_WBDEST]	; The value to store (lhs)
