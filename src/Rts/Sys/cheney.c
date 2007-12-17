@@ -90,14 +90,13 @@
        if (isptr( T_obj )) {                                                \
           unsigned T_obj_gen = gen_of(T_obj);                               \
           if (T_obj_gen < (forw_limit_gen)) {                               \
-            forw_core( T_obj, loc,dest, lim, e, (forw_limit_gen),           \
-                       check_spaceI );                                      \
+            forw_core( T_obj, loc,dest, lim, e, check_spaceI );             \
           }                                                                 \
           if (T_obj_gen < old_obj_gen) has_intergen_ptr=1;                  \
        }                                                                    \
   } while( 0 )
 
-#define FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen, check_spaceI ) \
+#define FORW_PAIR( TMP_P, loc, dest, lim, e, check_spaceI ) \
   do {                                                                 \
     word next_obj;                                                     \
     check_spaceI(dest,lim,8,0,e);                                           \
@@ -110,13 +109,13 @@
     dest += 2;                                                         \
   } while ( 0 )
 
-#define forw_core( T_obj, loc, dest, lim, e, forw_limit_gen, check_spaceI ) \
+#define forw_core( T_obj, loc, dest, lim, e, check_spaceI ) \
   word *TMP_P = ptrof( T_obj );                         \
   word TMP_W = *TMP_P;                                  \
   if (TMP_W == FORWARD_HDR)                             \
     *loc = *(TMP_P+1);                                  \
   else if (tagof( T_obj ) == PAIR_TAG) {                \
-    FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen, check_spaceI ); \
+    FORW_PAIR( TMP_P, loc, dest, lim, e, check_spaceI ); \
   }                                                     \
   else {                                                \
     word *TMPD;                                         \
