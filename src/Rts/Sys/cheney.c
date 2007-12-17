@@ -61,14 +61,15 @@
    parameterized by an expression that calls the appropriate forwarding macro.
    */
 
-/* Assumes that all parameters except forw_limit_gen are lvalues whose
+/* Assumes that all parameters except fwdgens* are lvalues whose
    evaluation has no side effect and whose value will not change in ways
-   not controlled by the macro.  forw_limit_gen is an expression with no
-   side effect.
+   not controlled by the macro.  
+   (fwdgens,fwdgens_data) are pure expressions that produce 
+   Exists X : ((Gen X) -> Bool) * X
    */
-#define forw_oflo( loc, forw_limit_gen, dest, lim, e, check_spaceI )            \
+#define forw_oflo( loc, fwdgens, fwdgens_data, dest, lim, e, check_spaceI ) \
   do { word T_obj = *loc;                                                       \
-       if (isptr(T_obj) && gen_of(T_obj) < (forw_limit_gen)){                   \
+       if (isptr(T_obj) && fwdgens( gen_of(T_obj), (fwdgens_data))) {           \
           forw_core( T_obj, loc, dest, lim, e, check_spaceI);                   \
        }                                                                        \
   } while( 0 )
@@ -84,12 +85,12 @@
    reset pointers and so on, I forego the expense of fixing this macro.
    Same goes for forw_np_record.
    */
-#define forw_oflo_record( loc, forw_limit_gen, dest, lim, has_intergen_ptr, \
+#define forw_oflo_record( loc, fwdgens, fwdgens_data, dest, lim, has_intergen_ptr, \
                           old_obj_gen, e, check_spaceI )                    \
   do { word T_obj = *loc;                                                   \
        if (isptr( T_obj )) {                                                \
           unsigned T_obj_gen = gen_of(T_obj);                               \
-          if (T_obj_gen < (forw_limit_gen)) {                               \
+          if (fwdgens(T_obj_gen, fwdgens_data)) {                           \
             forw_core( T_obj, loc,dest, lim, e, check_spaceI );             \
           }                                                                 \
           if (T_obj_gen < old_obj_gen) has_intergen_ptr=1;                  \
@@ -135,11 +136,18 @@
     dest = CS_DEST; lim = CS_LIM;                                            \
   }
 
-#define scan_and_forward( loc, iflush, gno, dest, lim, e, check_spaceI ) \
-  scan_core( e, loc, iflush, forw_oflo( loc, gno, dest, lim, e, check_spaceI ) )
+#define scan_and_forward( loc, iflush, fwdgens, fwdgens_data, \
+                          dest, lim, e, check_spaceI )        \
+  scan_core( e, loc, iflush,                                  \
+             forw_oflo( loc, fwdgens, fwdgens_data,           \
+                        dest, lim, e, check_spaceI ) )
 
-#define scan_and_forward_update_rs( loc, iflush, gno, dest, lim, e, check_spaceI ) \
-  scan_update_rs( e, loc, iflush, forw_oflo( loc, gno, dest, lim, e, check_spaceI ), update_remset )
+#define scan_and_forward_update_rs( loc, iflush, fwdgens, fwdgens_data, \
+                                    dest, lim, e, check_spaceI )        \
+  scan_update_rs( e, loc, iflush,                                       \
+                  forw_oflo( loc, fwdgens, fwdgens_data,                \
+                             dest, lim, e, check_spaceI ),              \
+                  update_remset )
 
 /* External */
 
@@ -147,13 +155,17 @@ extern void mem_icache_flush( void *start, void *end );
 
 /* Private procedures */
 
+static void sweep_large_objects_in( gc_t *gc, gset_t genset );
 static void scan_static_area( cheney_env_t *e );
 static void scan_static_area_update_rs( cheney_env_t *e );
 static void root_scanner_oflo( word *addr, void *data );
 static bool remset_scanner_oflo( word obj, void *data, unsigned *count );
 static bool remset_scanner_oflo_update_rs( word obj, void *data, unsigned *count );
 static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_gen );
-
+static bool forward_lessthan( int gno, int gno_bound ) {
+  return gno < gno_bound; }
+static bool forward_nursery_and( int gno, gset_t gset ) { 
+  return gno == 0 || gset_memberp( gno, gset ); }
 static const int tospaces_init_buf_size = 10;
 
 /* FIXME: Lars clearly avoided invoking malloc/free within the
@@ -186,6 +198,25 @@ finis_semispaces_buffer( semispace_t** spaces, int capacity )
   free( spaces );
 }
 
+void gclib_stopcopy_collect_genset( gc_t *gc, gset_t gs, semispace_t *tospace )
+{
+  cheney_env_t e;
+  semispace_t **spaces;
+  int init_size = tospaces_init_buf_size;
+  
+  spaces = begin_semispaces_buffer( init_size );
+  spaces[0] = tospace;
+
+  CHENEY_TYPE( 2 ); /* Felix has never used GC_HIRES_TIMERS... */
+  init_env( &e, gc, spaces, 1, init_size, 
+            0, gs, 0, scan_oflo_normal_update_rs );
+  oldspace_copy( &e );
+  sweep_large_objects_in( gc, gs );
+  stats_set_gc_event_stats( &cheney );
+  
+  finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
+}
+
 void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
@@ -196,7 +227,7 @@ void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
   spaces[0] = tospace;
   CHENEY_TYPE( 0 );
   init_env( &e, gc, spaces, 1, init_size, 
-            0, tospace->gen_no, 0, 
+            0, gset_younger_than( tospace->gen_no ), 0, 
             gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
@@ -215,7 +246,7 @@ void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace )
   spaces[0] = tospace;
   CHENEY_TYPE( 1 );
   init_env( &e, gc, spaces, 1, init_size, 
-            0, tospace->gen_no+1, 0, 
+            0, gset_younger_than( tospace->gen_no+1 ), 0, 
             gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
@@ -233,12 +264,22 @@ void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
   spaces[0] = tospace;
   CHENEY_TYPE( 1 );
   init_env( &e, gc, spaces, 1, init_size, 
-            0, tospace->gen_no+1, SCAN_STATIC, 
+            0, gset_younger_than( tospace->gen_no+1 ), SCAN_STATIC, 
             gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
   finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
+}
+
+void sweep_large_objects_in( gc_t *gc, gset_t genset )
+{
+  int i;
+
+  for ( i=0; i <= gset_max_elem( genset ); i++ )
+    if (gset_memberp( i, genset ))
+      los_sweep( gc->los, i );
+  los_append_and_clear_list_infer_gen( gc->los, gc->los->mark1 );
 }
 
 void sweep_large_objects( gc_t *gc, 
@@ -311,14 +352,14 @@ void init_env( cheney_env_t *e,
                int tospaces_len,
                int tospaces_cap,
                semispace_t *tospace2,
-               int effective_generation,
+               gset_t forw_gset,
                int attributes,
                void (*scanner)( cheney_env_t * ) )
 {
   memset( e, 0, sizeof( cheney_env_t ) );
   e->gc = gc;
   e->gclib_desc_g = gclib_desc_g;
-  e->effective_generation = effective_generation;
+  e->forw_gset = forw_gset;
   e->scan_static = attributes & SCAN_STATIC;
   e->splitting = attributes & SPLITTING_GC;
   e->iflush = gc_iflush( gc );
@@ -360,8 +401,8 @@ void oldspace_copy( cheney_env_t *e )
   /* Collect */
   start( &cheney.root_scan_prom, &cheney.root_scan_gc );
   gc_enumerate_roots( e->gc, e->scan_from_globals, (void*)e );
-  gc_enumerate_remsets_older_than( e->gc,
-                                   e->effective_generation-1,
+  gc_enumerate_remsets_complement( e->gc,
+                                   e->forw_gset,
                                    e->scan_from_remsets,
                                    (void*)e,
                                    e->enumerate_np_remset );
@@ -389,7 +430,7 @@ void oldspace_copy( cheney_env_t *e )
 
 static void scan_static_area( cheney_env_t *e )
 {
-  int         forw_limit_gen = e->effective_generation;
+  gset_t         forw_gset = e->forw_gset;
   semispace_t *s_data = e->gc->static_area->data_area;
   word        *dest = e->dest;
   word        *lim = e->lim;
@@ -403,7 +444,8 @@ static void scan_static_area( cheney_env_t *e )
     loc = s_data->chunks[i].bot;
     limit = s_data->chunks[i].top;
     while ( loc < limit )
-      scan_and_forward( loc, e->iflush, forw_limit_gen, dest, lim, e, 
+      scan_and_forward( loc, e->iflush, forward_nursery_and, forw_gset, 
+                        dest, lim, e, 
                         check_space_expand );
   }
 
@@ -413,7 +455,7 @@ static void scan_static_area( cheney_env_t *e )
 
 static void scan_static_area_update_rs( cheney_env_t *e )
 {
-  int         forw_limit_gen = e->effective_generation;
+  gset_t      forw_gset = e->forw_gset;
   semispace_t *s_data = e->gc->static_area->data_area;
   word        *dest = e->dest;
   word        *lim = e->lim;
@@ -428,7 +470,8 @@ static void scan_static_area_update_rs( cheney_env_t *e )
     limit = s_data->chunks[i].top;
     while ( loc < limit )
       scan_and_forward_update_rs
-        ( loc, e->iflush, forw_limit_gen, dest, lim, e, 
+        ( loc, e->iflush, forward_nursery_and, forw_gset, 
+          dest, lim, e, 
           check_space_expand );
   }
 
@@ -439,13 +482,14 @@ static void scan_static_area_update_rs( cheney_env_t *e )
 static void root_scanner_oflo( word *ptr, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
-  forw_oflo( ptr, e->effective_generation, e->dest, e->lim, e, check_space_expand );
+  forw_oflo( ptr, forward_nursery_and, e->forw_gset, 
+             e->dest, e->lim, e, check_space_expand );
 }
 
 static bool remset_scanner_oflo( word object, void *data, unsigned *count )
 {
   cheney_env_t *e = (cheney_env_t*)data;
-  unsigned     forw_limit_gen = e->effective_generation;
+  gset_t       forw_gset = e->forw_gset;
   unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *dest = e->dest;
@@ -453,7 +497,8 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
   remset_scanner_core( e, object, loc, 
-                       forw_oflo_record( loc, forw_limit_gen, dest, lim,
+                       forw_oflo_record( loc, forward_nursery_and, forw_gset,
+                                         dest, lim,
                                          has_intergen_ptr, old_obj_gen, e, 
                                          check_space_expand ),
                        *count );
@@ -466,7 +511,7 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
 static bool remset_scanner_oflo_update_rs( word object, void *data, unsigned *count )
 {
   cheney_env_t *e = (cheney_env_t*)data;
-  unsigned     forw_limit_gen = e->effective_generation;
+  gset_t       forw_gset = e->forw_gset;
   unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *dest = e->dest;
@@ -475,7 +520,7 @@ static bool remset_scanner_oflo_update_rs( word object, void *data, unsigned *co
 
   remset_scanner_update_rs
     ( e, object, loc, 
-      forw_oflo_record( loc, forw_limit_gen, dest, lim,
+      forw_oflo_record( loc, forward_nursery_and, forw_gset, dest, lim,
                         has_intergen_ptr, old_obj_gen, e, 
                         check_space_expand ),
       *count, update_remset );
@@ -487,7 +532,7 @@ static bool remset_scanner_oflo_update_rs( word object, void *data, unsigned *co
 
 void scan_oflo_normal( cheney_env_t *e )
 {
-  unsigned gno = e->effective_generation;
+  gset_t   forw_gset = e->forw_gset;
   word     *scanptr = e->scan_ptr;
   word     *scanlim = e->scan_lim;
   word     *dest = e->dest;
@@ -503,7 +548,8 @@ void scan_oflo_normal( cheney_env_t *e )
 
     while (scanptr != dest) {
       while (scanptr != dest && scanptr < scanlim) {
-        scan_and_forward( scanptr, e->iflush, gno, dest, copylim, e, check_space_expand );
+        scan_and_forward( scanptr, e->iflush, forward_nursery_and, forw_gset, 
+                          dest, copylim, e, check_space_expand );
       }
 
       if (scanptr != dest) {
@@ -534,7 +580,8 @@ void scan_oflo_normal( cheney_env_t *e )
       los_p = p;
       morework = 1;
       assert2( ishdr( *p ) );
-      scan_and_forward( p, e->iflush, gno, dest, copylim, e, check_space_expand );
+      scan_and_forward( p, e->iflush, forward_nursery_and, forw_gset, 
+                        dest, copylim, e, check_space_expand );
     }
   } while (morework);
 
@@ -544,7 +591,7 @@ void scan_oflo_normal( cheney_env_t *e )
 
 void scan_oflo_normal_update_rs( cheney_env_t *e )
 {
-  unsigned gno = e->effective_generation;
+  gset_t   forw_gset = e->forw_gset;
   word     *scanptr = e->scan_ptr;
   word     *scanlim = e->scan_lim;
   word     *dest = e->dest;
@@ -560,7 +607,8 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
 
     while (scanptr != dest) {
       while (scanptr != dest && scanptr < scanlim) {
-        scan_and_forward_update_rs( scanptr, e->iflush, gno, dest, copylim, e, check_space_expand );
+        scan_and_forward_update_rs( scanptr, e->iflush, forward_nursery_and, forw_gset,
+                                    dest, copylim, e, check_space_expand );
       }
 
       if (scanptr != dest) {
@@ -591,7 +639,8 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
       los_p = p;
       morework = 1;
       assert2( ishdr( *p ) );
-      scan_and_forward_update_rs( p, e->iflush, gno, dest, copylim, e, check_space_expand );
+      scan_and_forward_update_rs( p, e->iflush, forward_nursery_and, forw_gset, 
+                                  dest, copylim, e, check_space_expand );
     }
   } while (morework);
 

@@ -463,8 +463,8 @@ enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_da
 }
 
 static void
-enumerate_remsets_older_than( gc_t *gc,
-			      int generation,
+enumerate_remsets_complement( gc_t *gc,
+			      gset_t gset,
 			      bool (*f)(word obj, void *data, unsigned *count),
 			      void *fdata,
 			      bool enumerate_np_young )
@@ -480,8 +480,10 @@ enumerate_remsets_older_than( gc_t *gc,
    * gno <= generation
    */
   process_seqbuf( gc, gc->ssb );
-
-  for ( i = generation+1 ; i < DATA(gc)->generations ; i++ ) {
+  
+  assert( gset.tag == gs_range );
+  assert( gset.g1 == 0 );
+  for ( i = gset.g2 ; i < DATA(gc)->generations ; i++ ) {
     rs_enumerate( gc->remset[i], f, fdata );
   }
 
@@ -819,6 +821,7 @@ static void expand_static_area_gnos( gc_t *gc, int fresh_gno )
     ss_set_gen_no( gc->static_area->data_area, new_static_gno );
     ss_set_gen_no( gc->static_area->text_area, new_static_gno );
     DATA(gc)->static_generation = new_static_gno;
+    DATA(gc)->globals[ G_FILTER_REMSET_RHS_NUM ] = new_static_gno;
   }
 }
 
@@ -981,6 +984,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   int gen_no, i, size;
   gc_data_t *data = DATA(gc);
 
+  data->globals[ G_FILTER_REMSET_GEN_ORDER ] =  TRUE;
   gen_no = 0;
   data->is_generational_system = 1;
   data->use_np_collector = info->use_non_predictive_collector;
@@ -999,6 +1003,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
      */
   gc->young_area =
     create_nursery( gen_no, gc, &info->nursery_info, info->globals );
+  data->globals[ G_FILTER_REMSET_LHS_NUM ] = gen_no;
   size += info->nursery_info.size_bytes;
   gen_no += 1;
   strcpy( buf, gc->young_area->id );
@@ -1048,10 +1053,13 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
      */
   if (info->use_static_area) {
     gc->static_area = create_static_area( gen_no, gc );
+    data->globals[ G_FILTER_REMSET_RHS_NUM ] = gen_no;
     data->static_generation = gen_no;
     gen_no += 1;
     strcat( buf, "+" );
     strcat( buf, gc->static_area->id );
+  } else {
+    data->globals[ G_FILTER_REMSET_RHS_NUM ] = -1;
   }
 
   /* Create remembered sets and SSBs.  Entry 0 is not used.
@@ -1134,7 +1142,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 make_handle,
 		 free_handle,
 		 enumerate_roots,
-		 enumerate_remsets_older_than,
+		 enumerate_remsets_complement,
 		 fresh_space,
 		 find_space,
 		 allocated_to_areas,

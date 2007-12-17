@@ -55,25 +55,25 @@
    that it must be done.
    */
 
-#define forw_np( loc, forw_limit_gen, dest, lim, e )                          \
-  do { word T_obj = *loc;                                                     \
-       if (isptr( T_obj ) && gen_of(T_obj) < (forw_limit_gen)){ \
-          forw_core_np( T_obj, loc, dest, lim, e );                           \
-       }                                                                      \
+#define forw_np( loc, genset, dest, lim, e )                           \
+  do { word T_obj = *loc;                                              \
+       if (isptr( T_obj ) && gset_memberp( gen_of(T_obj), (genset))) { \
+          forw_core_np( T_obj, loc, dest, lim, e );                    \
+       }                                                               \
   } while( 0 )
 
 /* See comments for forw_oflo_record regarding this implementation. 
    */
-#define forw_np_record( loc, forw_limit_gen, dest, lim, has_intergen_ptr, \
-                        old_obj_gen, e )                                  \
-  do { word T_obj = *loc;                                                 \
-       if (isptr( T_obj )) {                                              \
-          unsigned T_obj_gen = gen_of(T_obj);               \
-          if (T_obj_gen < (forw_limit_gen)) {                             \
-            forw_core_np( T_obj, loc, dest, lim, e );                     \
-          }                                                               \
-          if (T_obj_gen < (old_obj_gen)) has_intergen_ptr=1;              \
-       }                                                                  \
+#define forw_np_record( loc, genset, dest, lim, has_intergen_ptr, \
+                        old_obj_gen, e )                          \
+  do { word T_obj = *loc;                                         \
+       if (isptr( T_obj )) {                                      \
+          unsigned T_obj_gen = gen_of(T_obj);                     \
+          if ( gset_range_memberp( T_obj_gen, (genset))) {        \
+            forw_core_np( T_obj, loc, dest, lim, e );             \
+          }                                                       \
+          if (T_obj_gen < (old_obj_gen)) has_intergen_ptr=1;      \
+       }                                                          \
   } while( 0 )
 
 /* In general, the generation lookup must be done twice because
@@ -258,7 +258,7 @@ static void init_np_env( cheney_env_t *e,
                          int attributes,
                          void (*scanner)( cheney_env_t * ) )
 {
-  init_env( e, gc, &tospace, 1, 1, tospace2, effective_generation, 
+  init_env( e, gc, &tospace, 1, 1, tospace2, gset_younger_than( effective_generation ), 
             attributes, scanner );
 
   e->np_promotion = attributes & NP_PROMOTION;
@@ -275,7 +275,7 @@ static void root_scanner_np( word *ptr, void *data )
   cheney_env_t *e = (cheney_env_t*)data;
   FORW_NP_ENV_BEGIN( e, dest, lim )
 
-  forw_np( ptr, e->effective_generation, dest, lim, e );
+  forw_np( ptr, e->forw_gset, dest, lim, e );
 
   FORW_NP_ENV_END( e, dest, lim )
 }
@@ -285,14 +285,14 @@ static void root_scanner_np( word *ptr, void *data )
 static bool remset_scanner_np( word object, void *data, unsigned *count )
 {
   cheney_env_t *e = (cheney_env_t*)data;
-  unsigned     forw_limit_gen = e->effective_generation;
+  gset_t       forw_gset = e->forw_gset;
   unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
   FORW_NP_ENV_BEGIN( e, dest, lim )
 
   remset_scanner_core( e, object, loc, 
-                       forw_np_record( loc, forw_limit_gen, dest, lim,
+                       forw_np_record( loc, forw_gset, dest, lim,
                                        has_intergen_ptr, old_obj_gen, e ),
                        *count );
 
@@ -363,7 +363,8 @@ static void scan_np_old( cheney_env_t *e )
 
   while (scanptr != dest && scanptr < scanlim) {
     scan_core( e, scanptr, e->iflush,
-               forw_np( scanptr, forw_limit_gen, dest, copylim, e ) );
+               forw_np( scanptr, gset_younger_than( forw_limit_gen ), 
+                        dest, copylim, e ) );
   }
 
   e->scan_ptr = scanptr;
@@ -415,7 +416,7 @@ static void scan_np_los_old( cheney_env_t *e, word **los_p )
     *los_p = p;
     assert2( ishdr( *p ) );
     scan_core( e, p, e->iflush,
-               forw_np( p, forw_limit_gen, dest, copylim, e ) );
+               forw_np( p, gset_younger_than( forw_limit_gen ), dest, copylim, e ) );
   }
 
   FORW_NP_ENV_END( e, dest, copylim )

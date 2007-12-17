@@ -43,9 +43,9 @@
    copied the same way as other objects.
    */
 
-#define forw_oflo2( loc, forw_limit_gen, dest, dest2, lim, lim2, e )          \
+#define forw_oflo2( loc, genset, dest, dest2, lim, lim2, e )          \
   do { word T_obj = *loc;                                                     \
-       if (isptr( T_obj ) && gen_of(T_obj) < (forw_limit_gen)){ \
+       if (isptr( T_obj ) && gset_range_memberp( gen_of(T_obj), (genset))) {   \
           forw_core2( T_obj, loc, dest, dest2, lim, lim2, e, forw_limit_gen ); \
        }                                                                       \
   } while( 0 )
@@ -105,15 +105,15 @@ void gclib_stopcopy_split_heap( gc_t *gc, semispace_t *data, semispace_t *text)
 {
   cheney_env_t e;
 
-  init_env( &e, gc, &data, 1, 1, text, data->gen_no+1, SPLITTING_GC,
-            scan_oflo_splitting );
+  init_env( &e, gc, &data, 1, 1, text, gset_younger_than( data->gen_no+1 ), 
+            SPLITTING_GC, scan_oflo_splitting );
   oldspace_copy( &e );
   /* Note: No LOS sweeping */
 }
 
 static void scan_oflo_splitting( cheney_env_t *e )
 {
-  unsigned forw_limit_gen = e->effective_generation;
+  gset_t   forw_gset = e->forw_gset;
   word     *scanptr = e->scan_ptr;
   word     *scanlim = e->scan_lim;
   word     *dest = e->dest;
@@ -124,7 +124,7 @@ static void scan_oflo_splitting( cheney_env_t *e )
   while (scanptr != dest) {
     while (scanptr != dest && scanptr < scanlim) {
       scan_core( e, scanptr, e->iflush,
-                 forw_oflo2( scanptr, forw_limit_gen, dest, dest2,
+                 forw_oflo2( scanptr, forw_gset, dest, dest2,
                              copylim, copylim2, e ) );
     }
 

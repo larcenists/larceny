@@ -23,6 +23,27 @@ static gset_t gset_singleton( int g1 ) {
 static gset_t gset_range( int g1, int g2 ) {
   gset_t g; g.tag = gs_range; g.g1 = g1; g.g2 = g2; return g; 
 }
+static gset_t gset_younger_than( int g2 ) { return gset_range( 0, g2 ); }
+static bool gset_singleton_memberp( int gno, gset_t gs ) {
+  assert2( gs.tag == gs_singleton ); return ( gs.g1 == gno ); 
+}
+static bool gset_range_memberp( int gno, gset_t gs ) {
+  assert2( gs.tag == gs_range ); return ( gs.g1 <= gno && gno < gs.g2 ); 
+}
+static bool gset_memberp( int gno, gset_t gs ) {
+  switch (gs.tag) {
+  case gs_singleton: return gset_singleton_memberp( gno, gs );
+  case gs_range:     return gset_range_memberp( gno, gs );
+  }
+  assert2(0);
+}
+static bool gset_max_elem( gset_t gs ) {
+  switch (gs.tag) {
+  case gs_singleton: return gs.g1;
+  case gs_range:     return gs.g2-1;
+  }
+  assert2(0);
+}
 
 struct gc { 
   char *id;
@@ -174,11 +195,11 @@ struct gc {
   /* PRIVATE */
   /* Internal to the collector implementation. */
   void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *), void * );
-  void (*enumerate_remsets_older_than)( gc_t *gc, int generation,
+  void (*enumerate_remsets_complement)( gc_t *gc, gset_t genset,
 				        bool (*f)(word, void*, unsigned * ),
 				        void *,
 				        bool enumerate_np_remset );
-     /* Invokes f on every word in the remsets older than generation.
+     /* Invokes f on every word in the remsets in the complement of genset.
         If f returns TRUE then word argument is retained in the remset 
         being traversed; otherwise word is removed (see interface for 
         rs_enumerate() for more info).
@@ -224,8 +245,8 @@ struct gc {
 #define gc_load_heap( gc, h )         ((gc)->load_heap( gc, h ))
 #define gc_enumerate_roots( gc,s,d )  ((gc)->enumerate_roots( gc, s, d ))
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
-#define gc_enumerate_remsets_older_than( gc, g, s, d, f ) \
-  ((gc)->enumerate_remsets_older_than( gc, g, s, d, f ))
+#define gc_enumerate_remsets_complement( gc, gset, s, d, f ) \
+  ((gc)->enumerate_remsets_complement( gc, gset, s, d, f ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
 #define gc_free_handle( gc, h )       ((gc)->free_handle( gc, h ))
 #define gc_find_space( gc, n, ss, f, fl ) \
@@ -262,8 +283,8 @@ gc_t
 	     void (*free_handle)( gc_t *gc, word *handle ),
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
-	     void (*enumerate_remsets_older_than)
-	        ( gc_t *gc, int generation,
+	     void (*enumerate_remsets_complement)
+	        ( gc_t *gc, gset_t genset,
 		  bool (*f)(word, void*, unsigned * ),
 		  void *data,
 		  bool enumerate_np_remset ),

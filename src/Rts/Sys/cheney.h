@@ -57,9 +57,8 @@
 typedef struct cheney_env cheney_env_t;
 struct cheney_env {
   /* Controlling parameters */
-  int  effective_generation;
-    /* A generation number s.t. all (or some, see may_be_partial, below) 
-       objects from younger generations are copied into tospace.
+  gset_t forw_gset;
+    /* A generation set S s.t. all objects in S are forwarded into tospace.
        */
 
   bool enumerate_np_remset;
@@ -355,7 +354,7 @@ void expand_space( cheney_env_t *, word **, word **, unsigned );
 void init_env( cheney_env_t *e, gc_t *gc,
 	       semispace_t **tospaces, int tospaces_len, int tospaces_cap,
                semispace_t *tospace2,
-	       int  effective_generation,
+	       gset_t  forw_gset,
 	       int  attributes,
 	       void (*scanner)( cheney_env_t * ) );
 
