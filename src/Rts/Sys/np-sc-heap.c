@@ -42,6 +42,7 @@
 #include "semispace_t.h"
 #include "stats.h"
 #include "remset_t.h"
+#include "remset_np_t.h"
 #include "static_heap_t.h"
 
 enum action { PROMOTE_TO_OLD, PROMOTE_TO_BOTH, PROMOTE_TO_YOUNG, COLLECT };

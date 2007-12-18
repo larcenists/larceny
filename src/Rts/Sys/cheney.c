@@ -31,6 +31,8 @@
 #include "barrier.h"
 #include "stats.h"
 #include "cheney.h"
+#include "remset_t.h"
+#include "seqbuf_t.h"
 
 /* Forwarding macros for normal copying collection and promotion.
 

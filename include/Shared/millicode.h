@@ -383,6 +383,12 @@ void execute_sigfpe_magic( void *context );
      execute_sigfpe_magic() performs additional signal handling cleanup.
      */
 
+/* Also visible to native systems based on Petit Larceny */
+void handle_sigfpe( word *globals );
+cont_t refill_stack_cache( word *globals );
+cont_t restore_context( word *globals );
+RTYPE dispatch_loop_return( CONT_PARAMS );
+RTYPE return_from_scheme( CONT_PARAMS );
 
 /* The following system procedures are in arithmetic.c */
 

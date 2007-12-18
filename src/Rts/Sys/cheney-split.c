@@ -90,6 +90,10 @@
     dest = CS_DEST; lim = CS_LIM;                               \
   }
 
+/* External */
+
+extern void mem_icache_flush( void *start, void *end );
+
 static void scan_oflo_splitting( cheney_env_t *e );
 
 static void

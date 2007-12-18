@@ -26,6 +26,7 @@
 #include "barrier.h"
 #include "stats.h"
 #include "cheney.h"
+#include "seqbuf_t.h"
 
 /* Additional forwarding macros for non-predictive promotion.
 
@@ -191,6 +192,10 @@
 #define FORW_NP_ENV_END( e_, dest_, lim_ )                              \
   if (e_->np.has_switched) { e_->dest2 = dest_; e_->lim2 = lim_; }      \
   else { e_->dest = dest_; e_->lim = lim_; }
+
+/* External */
+
+extern void mem_icache_flush( void *start, void *end );
 
 /* Private procedures (private to cheney* at least). */
 

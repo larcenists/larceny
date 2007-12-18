@@ -8,8 +8,11 @@
 #include <assert.h>
 #include "larceny.h"
 #include "millicode.h"
+#include "gclib.h"
 
 extern void i386_dispatch_loop_return();
+extern void i386_scheme_jump( word *globals, cont_t f );
+extern void i386_stack_underflow();
 
 void scheme_init( word *globals )
 {
@@ -83,8 +86,6 @@ void scheme_start( word *globals )
   /* Inner loop */
   i386_scheme_jump(globals,f);   /* Never returns */  
 }
-
-extern void i386_stack_underflow();
 
 void stk_initialize_underflow_frame( word *stkp )
 {
