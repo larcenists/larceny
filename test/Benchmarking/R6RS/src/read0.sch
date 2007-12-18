@@ -90,8 +90,7 @@
 
 (define (dotest-extension s expected)
   (if *test-extensions*
-      (begin (safely (lambda () (testparse *extensions-enabler*)) #t)
-             (dotest-in-current-reader-mode s expected))))
+      (dotest (string-append *extensions-enabler* s) expected)))
 
 (define (failure s expected)
   (set! failed-inputs (cons s failed-inputs))
@@ -257,7 +256,7 @@
 (dotest "#\\x61 #\\x3bb #\\xffff #\\x10ffff"
         '(#\a #\x3bb #\xffff #\x10ffff))
 
-(dotest-extension "#\\newline #\\newline" '(#\linefeed #\linefeed))
+(dotest "#\\newline #\\newline" '(#\linefeed #\linefeed))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

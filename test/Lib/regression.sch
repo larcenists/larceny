@@ -238,6 +238,12 @@
    (test "Ticket #457"                  ; Bug in Sparc Larceny 0.93
          (* 2.0 (log -1.0))
          0.0+6.283185307179586i)
+   (test "Ticket #512"                  ; Bug in Larceny 0.95
+         (char->integer (string-ref "\x10FFFD;" 0))
+         #x10fffd)
+   (test "Ticket #512"                  ; Bug in Larceny 0.95
+         (char->integer (string-ref (symbol->string '\x10FFFD;) 0))
+         #x10fffd)
    (test "Ticket #511"                  ; Bug in Larceny 0.95
          (let ()                        ; contributed by R Kent Dybvig
            (define x

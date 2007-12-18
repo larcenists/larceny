@@ -86,7 +86,8 @@ setup ()
 
   # For both Solaris and Linux machines.
 
-  LARCENY=${LARCENY:-"larceny"}
+#  LARCENY=${LARCENY:-"larceny"}
+  LARCENY="/home/will/LarcenyDev/larceny"
   PETIT=${PETIT:-"petit-larceny"}
   MZSCHEME=${MZSCHEME:-"mzscheme"}
  
@@ -149,14 +150,14 @@ evaluate ()
   {
     echo
     echo Testing $1 under ${NAME}
-    echo Compiling...
     make_src_code $1
-#   $COMP "${TEMP}/$1.${EXTENSION}"
+    echo Compiling...
+    $COMP "${TEMP}/$1.${EXTENSION}"
     i=0
     while [ "$i" -lt "$NB_RUNS" ]
     do
       echo Running...
-      $EXEC "${TEMP}/$1.${EXTENSION}" "${INPUTS}/$1.input"
+      $EXEC "${TEMP}/$1.${EXTENSIONCOMP}" "${INPUTS}/$1.input"
       i=`expr $i + 1`
     done
   } 2>&1 | tee -a results.${NAME}
@@ -170,16 +171,20 @@ make_src_code ()
 
 # -----------------------------------------------------------------------------
 # Definitions specific to Larceny and Petit Larceny
+#
+# The --nocontract command-line option reduces variability
+# of timing, and probably corresponds to the default for
+# most other systems.
 
 larceny_comp ()
 {
 # printf "$COMPCOMMANDS" "$1" | "${LARCENY}" $COMPOPTS
-  :
+  "${LARCENY}" -- -e "(begin (global-optimization #f) (require 'r6rsmode) (larceny:load-r6rs-package) (compile-r6rs-file \"$1\" #f #f) (exit))"
 }
 
 larceny_exec ()
 {
-  time "${LARCENY}" -r6rs -program "$1" < "$2"
+  time "${LARCENY}" --nocontract --r6rs --program "$1" < "$2"
 }
 
 petit_comp ()
@@ -190,7 +195,7 @@ petit_comp ()
 
 petit_exec ()
 {
-  time "${PETIT}" -r6rs -program "$1" < "$2"
+  time "${PETIT}" --nocontract --r6rs --program "$1" < "$2"
 }
 
 henchman_comp ()
@@ -265,6 +270,7 @@ for system in $systems ; do
             EXEC=larceny_exec
             COMPOPTS=""
             EXTENSION="sch"
+            EXTENSIONCOMP="slfasl"
 	    COMPCOMMANDS=""
 	    EXECCOMMANDS=""
             ;;
@@ -274,6 +280,7 @@ for system in $systems ; do
             EXEC=petit_exec
             COMPOPTS=""
             EXTENSION="sch"
+            EXTENSIONCOMP="slfasl"
 	    COMPCOMMANDS=""
 	    EXECCOMMANDS=""
             ;;
@@ -283,6 +290,7 @@ for system in $systems ; do
             EXEC=henchman_exec
             COMPOPTS=""
             EXTENSION="sch"
+            EXTENSIONCOMP="slfasl"
 	    COMPCOMMANDS=""
 	    EXECCOMMANDS=""
             ;;
@@ -292,6 +300,7 @@ for system in $systems ; do
             EXEC=ikarus_exec
             COMPOPTS=""
             EXTENSION="sch"
+            EXTENSIONCOMP="sch"
 	    COMPCOMMANDS=""
 	    EXECCOMMANDS=""
             ;;

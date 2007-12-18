@@ -1,4 +1,4 @@
-1
+1000
 
 (begin
   (declare (standard-bindings) (fixnum) (not safe) (block))

@@ -235,7 +235,8 @@
                          #x00 #x80
                          #x07 #xff
                          #x08 #x00
-                         #xff #xff)))
+                         #xff #xff)
+                   'big))
         #t)
 
   (test "utf-16, errors 2"
@@ -247,7 +248,7 @@
                          #x07 #xff
                          #x08 #x00
                          #xff #xff)
-                   'big))
+                   'big #t))
         #t)
 
   (test "utf-16, errors 3"
@@ -259,7 +260,8 @@
                          #x00 #x80
                          #x07 #xff
                          #x08 #x00
-                         #xff #xff)))
+                         #xff #xff)
+                   'big))
         #t)
 
   (test "utf-16, errors 4"
@@ -271,7 +273,7 @@
                          #xff #x07
                          #x00 #x08
                          #xff #xff)
-                   'little))
+                   'little #t))
         #t)
 
   (test "utf-16, errors 5"
@@ -283,12 +285,13 @@
                          #x80 #x00
                          #xff #x07
                          #x00 #x08
-                         #xff #xff)))
+                         #xff #xff)
+                   'big))
         #t)
 
-  (let ((tostring        utf16->string)
-        (tostring-big    (lambda (bv) (utf16->string bv 'big)))
-        (tostring-little (lambda (bv) (utf16->string bv 'little)))
+  (let ((tostring        (lambda (bv) (utf16->string bv 'big)))
+        (tostring-big    (lambda (bv) (utf16->string bv 'big #t)))
+        (tostring-little (lambda (bv) (utf16->string bv 'little #t)))
         (tobvec          string->utf16)
         (tobvec-big      (lambda (s) (string->utf16 s 'big)))
         (tobvec-little   (lambda (s) (string->utf16 s 'little))))
@@ -334,7 +337,8 @@
                          #x00 #x11 #x00 #x00
                          #x00 #x00 #x00 #x64
                          #x01 #x00 #x00 #x65
-                         #x00 #x00 #x00 #x65)))
+                         #x00 #x00 #x00 #x65)
+                   'big))
         #t)
 
   (test "utf-32, errors 2"
@@ -349,7 +353,7 @@
                          #x00 #x00 #x00 #x64
                          #x01 #x00 #x00 #x65
                          #x00 #x00 #x00 #x65)
-                   'big))
+                   'big #t))
         #t)
 
   (test "utf-32, errors 3"
@@ -364,7 +368,8 @@
                          #x00 #x11 #x00 #x00
                          #x00 #x00 #x00 #x64
                          #x01 #x00 #x00 #x65
-                         #x00 #x00 #x00 #x65)))
+                         #x00 #x00 #x00 #x65)
+                   'big))
         #t)
 
   (test "utf-32, errors 4"
@@ -380,7 +385,7 @@
                          #x00 #x00 #x00 #x64
                          #x01 #x00 #x00 #x65
                          #x00 #x00 #x00 #x65)
-                   'big))
+                   'big #t))
         #t)
 
   (test "utf-32, errors 5"
@@ -395,7 +400,7 @@
                          #x64 #x00 #x00 #x00
                          #x65 #x00 #x00 #x01
                          #x65 #x00 #x00 #x00)
-                   'little))
+                   'little #t))
         #t)
 
   (test "utf-32, errors 6"
@@ -410,7 +415,8 @@
                          #x00 #x00 #x11 #x00
                          #x64 #x00 #x00 #x00
                          #x65 #x00 #x00 #x01
-                         #x65 #x00 #x00 #x00)))
+                         #x65 #x00 #x00 #x00)
+                   'big))
         #t)
 
   (test "utf-32, errors 7"
@@ -426,12 +432,12 @@
                          #x64 #x00 #x00 #x00
                          #x65 #x00 #x00 #x01
                          #x65 #x00 #x00 #x00)
-                   'little))
+                   'little #t))
         #t)
 
-  (let ((tostring        utf32->string)
-        (tostring-big    (lambda (bv) (utf32->string bv 'big)))
-        (tostring-little (lambda (bv) (utf32->string bv 'little)))
+  (let ((tostring        (lambda (bv) (utf32->string bv 'big)))
+        (tostring-big    (lambda (bv) (utf32->string bv 'big #t)))
+        (tostring-little (lambda (bv) (utf32->string bv 'little #t)))
         (tobvec          string->utf32)
         (tobvec-big      (lambda (s) (string->utf32 s 'big)))
         (tobvec-little   (lambda (s) (string->utf32 s 'little))))
@@ -503,7 +509,7 @@
 
   (timeit (test-exhaustively "UTF-8" utf8->string string->utf8))
 
-  : NOTE:  An unfortunate misunderstanding led to a late deletion
+  ; NOTE:  An unfortunate misunderstanding led to a late deletion
   ; of single-argument utf16->string from the R6RS.  To get the
   ; correct effect of single-argument utf16->string, you have to
   ; use two arguments, as below.
@@ -525,7 +531,7 @@
                              (lambda (bv) (utf16->string bv 'little #t))
                              (lambda (s) (string->utf16 s 'little))))
 
-  : NOTE:  An unfortunate misunderstanding led to a late deletion
+  ; NOTE:  An unfortunate misunderstanding led to a late deletion
   ; of single-argument utf32->string from the R6RS.  To get the
   ; correct effect of single-argument utf32->string, you have to
   ; use two arguments, as below.

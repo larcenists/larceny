@@ -16,7 +16,7 @@
         '("hash.sch" "hashtable.sch"))
     `("hashtree.sch" "sets.sch"
       "switches.sch" "pass1.aux.sch" "pass2.aux.sch"
-      "prefs.sch"
+      "prefs.sch" "pass0.sch"
       "syntaxenv.sch" "syntaxrules2.sch" "syntaxrules.sch" "lowlevel.sch"
       "expand.sch" "usual.sch" "pass1.sch"
       "copy.sch" "pass3commoning.aux.sch" "pass3rep.aux.sch"))))

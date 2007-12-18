@@ -8289,7 +8289,7 @@
                   (loop (+ i 1)
                         (+ (* 16 val)
                            10
-                           (- (char->integer c) (char->integer #\a)))))
+                           (- (char->integer c) (char->integer #\A)))))
                  ((#\;)
                   (values val (+ i 1)))
                  (else (scannerError errIllegalHexEscape))))))
