@@ -47,30 +47,26 @@ setup ()
 
         APPS="/proj/will/Apps"
 
-        CHICKEN="${APPS}/Chicken/bin/csc"
-        CHICKEN_INT="${APPS}/Chicken/bin/csi"
         GSC="${APPS}/bin/gsc"
         GSI="${APPS}/bin/gsi"
         TWOBIT="/proj/will/LarcenyDev/twobit"
-        SCHEME48="${APPS}/Scheme48/scheme48-1.3/go"
         MIT="${APPS}/bin/mitscheme"
+        PETIT=${PETIT:-"${APPS}/bin/petit-larceny"}
         ;;
 
     "Linux")
 
         APPS="/usr/local"
 
-        CHICKEN="${APPS}/bin/chicken-csc"
-        CHICKEN_INT="${APPS}/bin/chicken-csi"
         GSC="${APPS}/bin/gambit-gsc"
         GSI="${APPS}/bin/gambit-gsi"
         TWOBIT="${APPS}/bin/twobit"
-        SCHEME48="${APPS}/bin/scheme48"
         MIT="${APPS}/bin/mit-scheme"
         PETITE_CHEZ="${APPS}/bin/petite-chez"
         KAWA="${APPS}/bin/kawa"
         IKARUS="${APPS}/bin/ikarus"
         HENCHMAN="/home/henchman/bin/larceny"
+        PETIT=${PETIT:-"petit-larceny"}
         ;;
 
   esac
@@ -78,9 +74,11 @@ setup ()
   # For both Solaris and Linux machines.
 
   BIGLOO=${BIGLOO:-"${APPS}/bin/bigloo"}
+  CHICKEN="${APPS}/bin/csc"
+  CHICKEN_INT="${APPS}/bin/csi"
   LARCENY=${LARCENY:-"larceny"}
-  PETIT=${PETIT:-"petit-larceny"}
   MZSCHEME=${MZSCHEME:-"mzscheme"}
+  SCHEME48="${APPS}/bin/scheme48"
  
   CSC=$CHICKEN
   CSI=$CHICKEN_INT

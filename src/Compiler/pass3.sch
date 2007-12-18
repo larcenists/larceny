@@ -79,8 +79,24 @@
 ; Commoning              ignores R,   ignores F,  destroys R,  computes F.
 ; Register targeting     ignores R,   ignores F,  destroys R,  computes F.
 
+; Conversion to A-normal form and optimizations
+; that use A-normal form will be abandoned for
+; expressions whose size exceeds this threshold.
+;
+; The reader's size is about 32000.
+
+(define anf-threshold 40000)
+
 (define (pass3 exp)
-  
+
+  (define (A-normal-form-maybe exp)
+    (let ((anf (A-normal-form exp anf-threshold)))
+      (if (not anf)
+          (begin (display "Note:  Some global optimizations ")
+                 (display "weren't done for a large expression.")
+                 (newline)))
+      anf))
+
   (define (phase1 exp)
     (if (interprocedural-inlining)
         (let ((g (callgraph exp)))
@@ -94,29 +110,47 @@
         exp))
   
   (define (phase3 exp)
-    (if (common-subexpression-elimination)
-        (let* ((exp (if (interprocedural-constant-propagation)
-                        exp
-                        ; alpha-conversion
-                        (copy-exp exp)))
-               (exp (A-normal-form exp)))
-          (if (representation-inference)
-              (intraprocedural-commoning exp 'commoning)
-              (intraprocedural-commoning exp)))
-        exp))
+    (cond ((and (common-subexpression-elimination)
+                (representation-inference))
+           (let* ((exp (if (interprocedural-constant-propagation)
+                           exp
+                           ; alpha-conversion
+                           (copy-exp exp)))
+                  (anf (A-normal-form-maybe exp)))
+             (if anf
+                 (intraprocedural-commoning
+                  (representation-analysis
+                   (intraprocedural-commoning anf 'commoning)))
+                 exp)))
+          ((common-subexpression-elimination)
+           (let* ((exp (if (interprocedural-constant-propagation)
+                           exp
+                           ; alpha-conversion
+                           (copy-exp exp)))
+                  (anf (A-normal-form-maybe exp)))
+             (if anf
+                 (intraprocedural-commoning anf)
+                 exp)))
+          (else
+           exp)))
   
+  ; If both common-subexpression-elimination and representation-inference
+  ; are enabled, then they are both done during phase3 above.
+
   (define (phase4 exp)
-    (if (representation-inference)
-        (let ((exp (cond ((common-subexpression-elimination)
-                          exp)
-                         ((interprocedural-constant-propagation)
-                          (A-normal-form exp))
-                         (else
-                          ; alpha-conversion
-                          (A-normal-form (copy-exp exp))))))
-          (intraprocedural-commoning
-           (representation-analysis exp)))
-        exp))
+    (cond ((and (not (common-subexpression-elimination))
+                (representation-inference))
+           (let ((anf (cond ((interprocedural-constant-propagation)
+                             (A-normal-form-maybe exp))
+                            (else
+                             ; alpha-conversion
+                             (A-normal-form-maybe (copy-exp exp))))))
+             (if anf
+                 (intraprocedural-commoning
+                  (representation-analysis anf))
+                 exp)))
+          (else
+           exp)))
   
   (define (finish exp)
     (if (and (not (interprocedural-constant-propagation))

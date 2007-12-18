@@ -13,7 +13,10 @@
     ((summarize chez-results) "results.Chez-Scheme" "summary.Chez")
     ((summarize chicken-results) "results.Chicken" "summary.Chicken")
     ((summarize gambit-results) "results.Gambit-C" "summary.Gambit")
+    ((summarize larceny-results) "results.Larceny093" "summary.Larceny093")
+    ((summarize larceny-results) "results.Larceny094" "summary.Larceny094")
     ((summarize larceny-results) "results.Larceny" "summary.Larceny")
+    ((summarize larceny-results) "results.PetitLarceny" "summary.PetitLarceny")
     ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme")
     ((summarize scheme48-results) "results.Scheme48" "summary.Scheme48")))
 
@@ -24,6 +27,9 @@
             (decode-summary (string-append in setting)))))
     (map decode-summary
          '("summary.Larceny"
+           "summary.Larceny094"
+           "summary.Larceny093"
+           "summary.PetitLarceny"
            "summary.Bigloo"
            "summary.Chez"
            "summary.Chicken"
@@ -69,8 +75,13 @@
     ((summarize bigloo-results) "results.Bigloo" "summary.Bigloo")
     ((summarize chicken-results) "results.Chicken" "summary.Chicken")
     ((summarize gambit-results) "results.Gambit-C" "summary.Gambit")
-    ((summarize henchman-results) "results.Henchman" "summary.Henchman")
+    ((summarize ikarus-results) "results.Ikarus" "summary.Ikarus")
+   ;((summarize kawa-results) "results.Kawa" "summary.Kawa")
+    ((summarize larceny-results) "results.Larceny093" "summary.Larceny093")
+    ((summarize larceny-results) "results.Larceny094" "summary.Larceny094")
     ((summarize larceny-results) "results.Larceny" "summary.Larceny")
+   ;((summarize henchman-results) "results.Henchman" "summary.Henchman")
+    ((summarize petit-larceny-results) "results.PetitLarceny" "summary.PetitLarceny")
     ((summarize mit-results) "results.MIT-Scheme" "summary.MIT")
     ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme")
     ((summarize petite-chez-results) "results.Petite-Chez-Scheme" "summary.Petite")
@@ -84,9 +95,14 @@
     (map decode-summary
          '(;"summary.Henchman"
            "summary.Larceny"
+           "summary.Larceny093"
+           "summary.Larceny094"
+           "summary.PetitLarceny"
            "summary.Bigloo"
            "summary.Chicken"
            "summary.Gambit"
+           "summary.Ikarus"
+          ;"summary.Kawa"
            "summary.MIT"
            "summary.MzScheme"
            "summary.Petite"
@@ -390,6 +406,9 @@
 (define (petite-chez-results lines out)
   (chez-results-proto "Petite-Chez-Scheme" lines out))
 
+(define (ikarus-results lines out)
+  (chez-results-proto "Ikarus" lines out))
+
 (define (chez-results-proto sysname lines out)
   (let ((system-key "Benchmarking ")
         (test-key "Testing ")
@@ -453,6 +472,9 @@
 
 (define (henchman-results lines out)
   (larceny-results-proto "Henchman" lines out))
+
+(define (petit-larceny-results lines out)
+  (larceny-results-proto "PetitLarceny" lines out))
 
 (define (larceny-results-proto sysname lines out)
   (let ((system-key "Benchmarking ")
@@ -590,13 +612,15 @@
 (define (bigloo-results lines out)
   (generic-results "Bigloo" lines out))
 
+(define (kawa-results lines out)
+  (generic2-results "Kawa" lines out))
+
 ; The following is commented out.
 
-'
-(define (bigloo-results lines out)
+(define (generic2-results sysname lines out)
   (let ((system-key "Benchmarking ")
         (test-key "Testing ")
-        (test-key-tail " under Bigloo")
+        (test-key-tail (string-append " under " sysname))
         (run-key "Running...")
         (cpu-key "user")
         (real-key "real")

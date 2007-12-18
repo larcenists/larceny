@@ -86,9 +86,8 @@ setup ()
 
   # For both Solaris and Linux machines.
 
-#  LARCENY=${LARCENY:-"larceny"}
-  LARCENY="/home/will/LarcenyDev/larceny"
-  PETIT=${PETIT:-"petit-larceny"}
+  LARCENY=${LARCENY:-"../../../larceny"}
+  PETIT=${PETIT:-"../../../larceny"}
   MZSCHEME=${MZSCHEME:-"mzscheme"}
  
 }
@@ -179,7 +178,7 @@ make_src_code ()
 larceny_comp ()
 {
 # printf "$COMPCOMMANDS" "$1" | "${LARCENY}" $COMPOPTS
-  "${LARCENY}" -- -e "(begin (global-optimization #f) (require 'r6rsmode) (larceny:load-r6rs-package) (compile-r6rs-file \"$1\" #f #f) (exit))"
+  time "${LARCENY}" -- -e "(begin (require 'r6rsmode) (larceny:load-r6rs-package) (compile-r6rs-file \"$1\" #f #f) (exit))"
 }
 
 larceny_exec ()
