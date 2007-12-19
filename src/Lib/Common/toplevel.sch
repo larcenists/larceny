@@ -1589,6 +1589,8 @@
   (environment-set! larc 'unspecified unspecified)
   (environment-set! larc 'undefined undefined)
 
+  (environment-set! larc 'current-seconds current-seconds)
+
 
   ;; INSTALL-ENVIRONMENTS! is used by Util/std-heap.sch, at least.
 

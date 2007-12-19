@@ -9,6 +9,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "larceny.h"
 #include "signals.h"
@@ -375,6 +376,17 @@ void primitive_seterrno( w_errcode )
 word w_errcode;
 {
   errno = nativeint( w_errcode );
+}
+
+/* Returns the current time in the flonum provided. */
+
+void primitive_time( word w_result )
+{
+  time_t t0 = 0;
+  time_t t1 = time(0);
+  double d = difftime(t1, t0);
+  box_flonum( w_result, d );
+  globals[ G_RESULT ] = w_result;
 }
 
 /* eof */

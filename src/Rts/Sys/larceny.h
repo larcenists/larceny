@@ -162,6 +162,7 @@ extern void primitive_sro( word ptrtag, word hdrtag, word limit );
 extern void primitive_exit( word );
 extern void primitive_errno( void );
 extern void primitive_seterrno( word );
+extern void primitive_time( word );
 #endif
 
 

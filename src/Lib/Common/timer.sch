@@ -6,6 +6,11 @@
 
 ($$trace "timer")
 
+; FIXME:  This seems out of place.
+
+(define (current-seconds)
+  (inexact->exact (round (flonum:time))))
+
 ; This is well-behaved but somewhat expensive w.r.t. allocation.
 
 (define (call-without-interrupts thunk)

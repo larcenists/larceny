@@ -210,11 +210,8 @@
        ((unix windows)
         (let ()
           (define (compile-libraries path)
-(display "Compiling files in ") (display path) (newline) ;FIXME
             (if (larceny:directory? path)
                 (let ((files (larceny:list-directory path)))
-(display "  The files are:") (newline)
-(for-each (lambda (x) (display x) (newline)) files)
                   (parameterize ((current-directory path))
                     (for-each (lambda (file)
                                 (if (larceny:directory? file)

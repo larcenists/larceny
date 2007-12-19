@@ -24,7 +24,7 @@
  *  Deviated Prevert            0.93         9 Nov 2006     3782, 3944
  *  Doomsday Device             0.94         3 Jul 2007     4663
  *  First Safety                0.95         8 Nov 2007     5108
- *  Fluoridation
+ *  Fluoridation                0.96
  *  Funny in the Head
  *  General Ripper 
  *  Goldie
@@ -68,8 +68,8 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 95;
-char *larceny_version_qualifier = "1 \"First Safety\"";
+int  larceny_minor_version = 96;
+char *larceny_version_qualifier = "a1 \"Fluoridation\"";
 
 char *date = DATE " " TIME;
 char *user = USER;
