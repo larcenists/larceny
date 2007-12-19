@@ -141,7 +141,19 @@
 
 (define A-normal-form-declaration (list 'anf))
 
+; Expressions larger than this threshold are definitely complicated.
+
 (define *anf-complication* 100)
+
+; Expressions larger than this will not be converted to A-normal form.
+; (One million corresponds to about 200,000 lines of dense source code.)
+
+(define anf-infinity 1000000)
+
+; If an input expression is larger than this, then its ANF size
+; will be printed during compilation.
+
+(define anf-large 10000)
 
 (define (A-normal-form E . rest)
   
@@ -578,15 +590,15 @@
              (default-prefix)))))
 
   (define temp-threshold
-    (cond ((null? rest) 1000000)
+    (cond ((null? rest) anf-infinity)
           ((number? (car rest))
            (car rest))
           ((null? (cdr rest))
-           1000000)
+           anf-infinity)
           ((number? (cadr rest))
            (cadr rest))
           (else
-           1000000)))
+           anf-infinity)))
   
   (define temp-counter 0)
 
@@ -596,7 +608,7 @@
    (lambda (k)
      (set! return (lambda () (k #f)))
      (let ((anf (A-normal-form E)))
-       (if (> temp-counter 10000)
+       (if (> temp-counter anf-large)
            (begin (display "ANF size: ")
                   (write temp-counter)
                   (newline)))

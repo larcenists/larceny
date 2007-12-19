@@ -8,7 +8,7 @@ echo; ${LARCENY} -r6rs -program cpoint.sch
 echo; ${LARCENY} -r6rs -program cpointR6.sch
 
 echo
-echo "R5RS startup"; time larceny < /dev/null
+echo "R5RS startup"; time ${LARCENY} < /dev/null
 echo
 echo "R6RS startup (rnrs base)"; time ${LARCENY} -r6rs -program nothing.sch
 echo

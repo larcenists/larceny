@@ -40,6 +40,12 @@
 ; Given the absolute pathname for a reference file in some directory,
 ; compiles all ERR5RS/R6RS library files that directory and its
 ; subdirectories that are older than the reference file.
+;
+; The reference file is typically a file that has been modified,
+; so all files that depend upon it must be recompiled anyway.
+;
+; FIXME: It might be better to compile only the files that depend
+; upon the reference file, but that's a little harder.
 
 (define (compile-stale-libraries . rest)
   (cond ((null? rest)
@@ -62,7 +68,21 @@
                               "illegal arguments"
                               rest))))
 
-; FIXME:  This stuff really doesn't belong here.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Directory hacking.
+;
+; FIXME:  This stuff really doesn't belong here, but
+; lib/Standard/file-system.sch currently relies on the FFI,
+; which relies on having a C compiler properly installed and
+; the execution path set correctly.
+;
+; FIXME:  Many of these procedures write temporary files in
+; some directory.  That works because those directories should
+; be ignored anyway if we don't have write permission in them,
+; but it isn't the right way to do this stuff.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Returns one of these symbols: unix, windows, unknown.
 
@@ -81,48 +101,120 @@
 
 (define (larceny:unsupported-os)
   (error 'larceny:compile-r6rs-runtime
-         "can't find all library files for this OS yet"))
+         "can't find library files for this OS yet"))
+
+(define (larceny:system-transcoder)
+  (case (larceny:os)
+   ((unix)
+    (native-transcoder))
+   ((windows)
+    (make-transcoder (latin-1-codec) ; [sic]
+                     'crlf))
+   (else
+    (native-transcoder))))
+
+(define (larceny:list-directory path)
+  (if (not (larceny:directory? path))
+      '()
+      (let* ((tempfile
+              (generate-temporary-name
+               (string-append (current-directory) "/temporary")))
+             (result
+              (case (larceny:os)
+               ((unix)
+                (system
+                 (string-append "ls -1 " path " > " tempfile)))
+               ((windows)
+                (system
+                 (string-append "dir /B \"" path "\" > \"" tempfile "\"")))
+               (else 1)))
+             (files
+              (if (zero? result)
+                  (call-with-port
+                   (transcoded-port (open-file-input-port tempfile)
+                                    (larceny:system-transcoder))
+                   (lambda (p)
+                     (do ((file (get-line p) (get-line p))
+                          (files '() (cons file files)))
+                         ((eof-object? file)
+                          (reverse files)))))
+                  '())))
+        (delete-file tempfile)
+        files)))
+
+(define (larceny:list-subdirectories path)
+  (case (larceny:os)
+   ((unix)
+    (filter larceny:directory? (larceny:list-directory path)))
+   ((windows)
+    (let* ((tempfile
+            (generate-temporary-name
+             (string-append (current-directory) "/temporary")))
+           (result
+            (system
+             (string-append "dir /AD /B \"" path "\" > \"" tempfile "\"")))
+           (directories
+            (if (zero? result)
+                (call-with-port
+                 (transcoded-port (open-file-input-port tempfile)
+                                  (larceny:system-transcoder))
+                 (lambda (p)
+                   (do ((file (get-line p) (get-line p))
+                        (files '() (cons file files)))
+                       ((eof-object? file)
+                        (reverse files)))))
+                '())))
+      (delete-file tempfile)
+      directories))
+   (else '())))
 
 (define (larceny:directory? path)
   (case (larceny:os)
    ((unix)
     (zero? (system (string-append "ls " path "/* 2>/dev/null >/dev/null"))))
+   ((windows)
+    (zero? (system (string-append "dir /AD /B \"" path "\""))))
    (else
     (larceny:unsupported-os))))
 
 ; FIXME: doesn't handle . or ..
 
 (define (larceny:directory-of fname)
-  (if (char=? (string-ref fname 0) #\/)
+  (case (larceny:os)
+   ((unix)
+    (if (char=? (string-ref fname 0) #\/)
+        (do ((i (- (string-length fname) 1) (- i 1)))
+            ((char=? (string-ref fname i) #\/)
+             (substring fname 0 i)))
+        (larceny:directory-of (string-append (current-directory) "/" fname))))
+   ((windows)
+    (if (and (>= (string-length fname) 2)
+             (char-alphabetic? (string-ref fname 0))
+             (char=? (string-ref fname 1) #\:))
       (do ((i (- (string-length fname) 1) (- i 1)))
-          ((char=? (string-ref fname i) #\/)
+          ((memv (string-ref fname i)'(#\\ #\/))
            (substring fname 0 i)))
-      (larceny:directory-of (string-append (current-directory) "/" fname))))
+      (larceny:directory-of
+       (string-append (current-directory) "\\" fname))))
+   (else
+    (larceny:unsupported-os))))    
 
 (define (larceny:compile-libraries path)
-  (let ((tempfile (generate-temporary-name
-                   (string-append (current-directory) "/temporary")))
-        (basefile (compile-libraries-older-than-this-file))
+  (let ((basefile (compile-libraries-older-than-this-file))
         (aeryn-evaluator
          (lambda (exp . rest)
            (ex:repl (list exp)))))
     (parameterize ((load-evaluator aeryn-evaluator)
                    (repl-evaluator aeryn-evaluator))
       (case (larceny:os)
-       ((unix)
+       ((unix windows)
         (let ()
           (define (compile-libraries path)
-            (if (and (larceny:directory? path)
-                     (zero?
-                      (system (string-append "ls -1 " path " > " tempfile))))
-                (let ((files
-                       (call-with-input-file
-                        tempfile
-                        (lambda (p)
-                          (do ((file (get-line p) (get-line p))
-                               (files '() (cons file files)))
-                              ((eof-object? file)
-                               (reverse files)))))))
+(display "Compiling files in ") (display path) (newline) ;FIXME
+            (if (larceny:directory? path)
+                (let ((files (larceny:list-directory path)))
+(display "  The files are:") (newline)
+(for-each (lambda (x) (display x) (newline)) files)
                   (parameterize ((current-directory path))
                     (for-each (lambda (file)
                                 (if (larceny:directory? file)
@@ -139,10 +231,9 @@
                                                             slfasl))))
                                     (compile-r6rs-file file #f #t)))
                               files)))))
-          (compile-libraries path)
-          (delete-file tempfile)))
-     (else
-      (larceny:unsupported-os))))))
+          (compile-libraries path)))
+       (else
+        (larceny:unsupported-os))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
