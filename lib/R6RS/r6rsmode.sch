@@ -113,12 +113,36 @@
    (else
     (native-transcoder))))
 
+(define (larceny:separator)
+  (case (larceny:os)
+   ((windows) "\\")
+   (else "/")))
+
+; Converts Windows pathnames to a canonical form
+; by replacing forward slashes with backslashes
+; and by ignoring all but the first of each sequence
+; of consecutive slashes.
+
+(define (larceny:canonical-path path)
+  (define (loop rchars chars ignore-slash)
+    (cond ((null? rchars)
+           (list->string chars))
+          ((memv (car rchars) '(#\\ #\/))
+           (loop (cdr rchars)
+                 (if ignore-slash chars (cons #\\ chars))
+                 #t))
+          (else
+           (loop (cdr rchars) (cons (car rchars) chars) #f))))
+  (loop (reverse (string->list path)) '() #f))
+
 (define (larceny:list-directory path)
   (if (not (larceny:directory? path))
       '()
       (let* ((tempfile
               (generate-temporary-name
-               (string-append (current-directory) "/temporary")))
+               (string-append (current-directory)
+                              (larceny:separator)
+                              "temporary")))
              (result
               (case (larceny:os)
                ((unix)
@@ -148,11 +172,17 @@
     (filter larceny:directory? (larceny:list-directory path)))
    ((windows)
     (let* ((tempfile
-            (generate-temporary-name
-             (string-append (current-directory) "/temporary")))
+            (larceny:canonical-path
+             (generate-temporary-name
+              (string-append (current-directory)
+                             (larceny:separator)
+                             "temporary"))))
            (result
             (system
-             (string-append "dir /AD /B \"" path "\" > \"" tempfile "\"")))
+             (string-append
+              "dir /AD /B \""
+              (larceny:canonical-path path)
+              "\" > \"" tempfile "\"")))
            (directories
             (if (zero? result)
                 (call-with-port
@@ -173,29 +203,32 @@
    ((unix)
     (zero? (system (string-append "ls " path "/* 2>/dev/null >/dev/null"))))
    ((windows)
-    (zero? (system (string-append "dir /AD /B \"" path "\""))))
+    (zero? (system (string-append
+                    "dir /AD /B \"" (larceny:canonical-path path) "\""))))
    (else
     (larceny:unsupported-os))))
 
+; Under Windows, converts to a canonical form that
+; replaces backward slashes by forward slashes
+; and ignores all but the first of a sequence of consecutive slashes.
 ; FIXME: doesn't handle . or ..
 
 (define (larceny:directory-of fname)
   (case (larceny:os)
    ((unix)
-    (if (char=? (string-ref fname 0) #\/)
+    (if (absolute-path-string? fname)
         (do ((i (- (string-length fname) 1) (- i 1)))
             ((char=? (string-ref fname i) #\/)
              (substring fname 0 i)))
         (larceny:directory-of (string-append (current-directory) "/" fname))))
    ((windows)
-    (if (and (>= (string-length fname) 2)
-             (char-alphabetic? (string-ref fname 0))
-             (char=? (string-ref fname 1) #\:))
-      (do ((i (- (string-length fname) 1) (- i 1)))
-          ((memv (string-ref fname i)'(#\\ #\/))
-           (substring fname 0 i)))
-      (larceny:directory-of
-       (string-append (current-directory) "\\" fname))))
+    (if (absolute-path-string? fname)
+        (do ((i (- (string-length fname) 1) (- i 1)))
+            ((or (< i 0)
+                 (memv (string-ref fname i)'(#\\ #\/)))
+             (larceny:canonical-path (substring fname 0 (max i 0)))))
+        (larceny:directory-of
+         (string-append (current-directory) "\\" fname))))
    (else
     (larceny:unsupported-os))))    
 
@@ -314,7 +347,7 @@
   (define (make-path path)
     (apply string-append
            (cons (car path)
-                 (map (lambda (s) (string-append "/" s))
+                 (map (lambda (s) (string-append (larceny:separator) s))
                       (cdr path)))))
 
   ; Returns true iff the second file is in the same directory
