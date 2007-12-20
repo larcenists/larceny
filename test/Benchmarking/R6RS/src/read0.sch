@@ -70,11 +70,16 @@
 ;     a list of expected results that can be compared using equal?
 ;     a unary predicate that is true of the expected results
 ;     the symbol error (meaning get-datum should raise an exception)
+;
+; Tests that should fail are preceded by #!r6rs, in an attempt
+; to disable implementation-specific extensions to the lexical
+; syntax that might otherwise be allowed by default.
 
 (define (dotest s expected)
   (set! test-input s)
   (cond ((eq? 'error expected)
-         (mustfail s testparse s))
+         (let ((s (string-append "#!r6rs " s)))
+           (mustfail s testparse s)))
         ((procedure? expected)
          (let ((results (safely (lambda () (testparse s))
                                 '(this should not happen))))

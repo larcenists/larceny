@@ -204,7 +204,7 @@ henchman_comp ()
 
 henchman_exec ()
 {
-  time "${HENCHMAN}" -r6rs -program "$1" < "$2"
+  time "${HENCHMAN}" --nocontract --r6rs --program "$1" < "$2"
 }
 
 # -----------------------------------------------------------------------------

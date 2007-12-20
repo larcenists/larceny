@@ -1058,24 +1058,42 @@
 ;
 ; Larceny will not perpetuate this error.  In Larceny, the
 ; second argument is optional.
+;
+; The R6RS also contradicts itself by saying the bytevector
+; will be decoded according to UTF-16BE or UTF-16LE, which
+; implies any BOM must be ignored.  I believe the intended
+; specification was along these lines:
+;
+;    Bytevector is decoded acccording to UTF-16, UTF-16BE,
+;    UTF-16LE, or a fourth encoding scheme that differs from
+;    all three of those, depending upon the optional arguments
+;    endianness and endianness-mandatory.  If endianness
+;    is the symbol big and endianness-mandatory is absent
+;    or false, then bytevector is decoded according to
+;    UTF-16.  If endianness is the symbol big and
+;    endianness-mandatory is #t, then bytevector is decoded
+;    according to UTF-16BE.  If endianness is the symbol
+;    little and endianness-mandatory is #t, then bytevector
+;    is decoded according to UTF-16LE.  If endianness is
+;    the symbol little and endianness-mandatory is absent
+;    or #f, then the bytevector is decoded according to
+;    UTF-16 if it begins with a BOM but is decoded according
+;    to UTF-16LE if it does not begin with a BOM; note that
+;    this fourth decoding does not correspond to any of the
+;    seven Unicode encoding schemes that are defined by the
+;    Unicode standard.
+;
+; That is the specification implemented by Larceny.
 
 (define (utf16->string bytevector . rest)
   (let* ((n (bytevector-length bytevector))
 
          (begins-with-bom?
-          (and (null? rest)
-               (<= 2 n)
+          (and (<= 2 n)
                (let ((b0 (bytevector-u8-ref bytevector 0))
                      (b1 (bytevector-u8-ref bytevector 1)))
                  (or (and (= b0 #xfe) (= b1 #xff) 'big)
                      (and (= b0 #xff) (= b1 #xfe) 'little)))))
-
-         (endianness (cond ((null? rest) (or begins-with-bom? 'big))
-                           ((eq? (car rest) 'big) 'big)
-                           ((eq? (car rest) 'little) 'little)
-                           (else (endianness-violation
-                                  'utf16->string
-                                  (car rest)))))
 
          (mandatory? (cond ((or (null? rest) (null? (cdr rest)))
                             #f)
@@ -1085,6 +1103,20 @@
                            (else
                             (apply assertion-violation 'utf16->string
                                    "illegal arguments" string rest))))
+
+         (endianness (cond ((null? rest)
+                            (or begins-with-bom? 'big))
+                           ((eq? (car rest) 'big)
+                            (if mandatory?
+                                'big
+                                (or begins-with-bom? 'big)))
+                           ((eq? (car rest) 'little)
+                            (if mandatory?
+                                'little
+                                (or begins-with-bom? 'little)))
+                           (else (endianness-violation
+                                  'utf16->string
+                                  (car rest)))))
 
          (begins-with-bom? (if mandatory? #f begins-with-bom?))
 
@@ -1209,8 +1241,7 @@
   (let* ((n (bytevector-length bytevector))
 
          (begins-with-bom?
-          (and (null? rest)
-               (<= 4 n)
+          (and (<= 4 n)
                (let ((b0 (bytevector-u8-ref bytevector 0))
                      (b1 (bytevector-u8-ref bytevector 1))
                      (b2 (bytevector-u8-ref bytevector 2))
@@ -1220,13 +1251,6 @@
                      (and (= b0 #xff) (= b1 #xfe) (= b2 0) (= b3 0)
                           'little)))))
 
-         (endianness (cond ((null? rest) (or begins-with-bom? 'big))
-                           ((eq? (car rest) 'big) 'big)
-                           ((eq? (car rest) 'little) 'little)
-                           (else (endianness-violation
-                                  'utf32->string
-                                  (car rest)))))
-
          (mandatory? (cond ((or (null? rest) (null? (cdr rest)))
                             #f)
                            ((and (null? (cddr rest))
@@ -1235,6 +1259,20 @@
                            (else
                             (apply assertion-violation 'utf32->string
                                    "illegal arguments" string rest))))
+
+         (endianness (cond ((null? rest)
+                            (or begins-with-bom? 'big))
+                           ((eq? (car rest) 'big)
+                            (if mandatory?
+                                'big
+                                (or begins-with-bom? 'big)))
+                           ((eq? (car rest) 'little)
+                            (if mandatory?
+                                'little
+                                (or begins-with-bom? 'little)))
+                           (else (endianness-violation
+                                  'utf32->string
+                                  (car rest)))))
 
          (begins-with-bom? (if mandatory? #f begins-with-bom?))
 
