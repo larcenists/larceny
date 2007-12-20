@@ -8,6 +8,6 @@
 	"lib/Ffi"
 	"lib/Base"
         "lib/Standard"
-        "lib/SLIB"
         "lib"
-	"lib/Debugger"))
+	"lib/Debugger"
+        "lib/SLIB"))

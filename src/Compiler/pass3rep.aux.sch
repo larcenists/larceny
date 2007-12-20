@@ -336,11 +336,34 @@
             (else
              (loop (cdr entries)))))))
 
+; To prevent representation analysis from taking an inordinately
+; long time, we keep track of the number of calls to aeval, and
+; abandon representation analysis by widening everything to
+; rep:object if the number of calls exceeds a threshold computed
+; by multiplying the expression size by a multiplier.
+;
+; Widening is crude, but effective.
+;
+; The multiplier isn't critical.  A multiplier of 1000 would be
+; small enough to cause widening on pathological cases, but
+; would waste a lot of time first.  A multiplier of 12 is just
+; large enough to avoid widening on Larceny's current code.
+; A multiplier of 5 would be large enough to avoid widening on
+; all but 3 expressions.
+
+(define aeval:multiplier 25)
+
+(define aeval:calls 0)
+(define aeval:threshold 0)
+
 ; Abstract interpretation with respect to types and constraints.
 ; Returns a representation type.
 
 (define (aeval E types constraints)
-  (cond ((call? E)
+  (set! aeval:calls (+ aeval:calls 1))
+  (cond ((> aeval:calls aeval:threshold)
+         rep:object)
+        ((call? E)
          (let ((proc (call.proc E)))
            (if (variable? proc)
                (let* ((op (variable.name proc))
