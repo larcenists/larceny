@@ -9,12 +9,13 @@ coding standards.  The SLIB developers remain responsible
 for the SLIB files themselves, and can maintain the SLIB
 coding standards.
 
-SLIB is mildly deprecated in Larceny, mainly because it
-redefines Larceny's require procedure.  That breaks all
-of Larceny's support for dynamic loading of non-SLIB
+SLIB redefines Larceny's require procedure.  That breaks
+all of Larceny's support for dynamic loading of non-SLIB
 libraries, which include SRFI, ERR5RS, R6RS, and many
 Larceny-specific libraries such as Larceny's general
-interface to libraries written in C.
+interface to libraries written in C.  We hope to resolve
+this conflict in future versions of Larceny, but for now
+we can offer only the following workaround.
 
 If you use SLIB, you should require all SRFI and other
 libraries that might be needed by your program before

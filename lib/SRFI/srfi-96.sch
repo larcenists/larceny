@@ -200,6 +200,8 @@
 
 ;;;     trace                           ;has macros: TRACE and UNTRACE
 
+        fluid-let
+
         ;; Implementation Specific features
 
         ))
@@ -279,6 +281,12 @@
     ans))
 
 ;;; current-error-port is predefined by Larceny
+;;; beginning with v0.96
+
+(define current-error-port
+  (if (string<=? (scheme-implementation-version) "0.95")
+      current-output-port
+      current-error-port))
 
 ;;; force-output flushes any pending output on optional arg output port
 
