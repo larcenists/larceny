@@ -54,8 +54,16 @@
                     (interaction-environment))))))
 
          (add-require-path!
-          (lambda (path)
-            (current-require-path (cons path (current-require-path)))))
+          (lambda ()
+            (define (add-path! path)
+              (current-require-path (cons path (current-require-path))))
+            (let ((path (get-feature 'library-path)))
+              (cond ((string=? path "") #t)
+                    ((absolute-path-string? path)
+                     (add-path! path))
+                    (else
+                     (add-path!
+                      (string-append (current-directory) "/" path)))))))
 
          (aeryn-mode!
           (lambda ()
@@ -83,7 +91,7 @@
           (adjust-safety! 1))                             ; FIXME
       (let ((path (get-feature 'library-path)))
         (if (not (string=? path ""))
-            (add-require-path! path)))
+            (add-require-path!)))
       (if (eq? emode 'err5rs)
           (begin (aeryn-mode!)
                  (writeln "ERR5RS mode (no libraries have been imported)")))
@@ -96,7 +104,7 @@
       (adjust-safety! 1)                                  ; FIXME
       (let ((path (get-feature 'library-path)))
         (if (not (string=? path ""))
-            (add-require-path! path)))
+            (add-require-path!)))
       (aeryn-mode!)
       (parameterize ((error-handler
                       (lambda the-error

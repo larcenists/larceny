@@ -1,8 +1,10 @@
-(library (larceny compile-file)
-  (export load require compile-file compile-library)
+(library (larceny compiler)
+  (export load require current-require-path
+          compile-file compile-library compile-stale-libraries)
   (import (rnrs base)
           (err5rs load)
-          (primitives require compile-r6rs-file))
+          (primitives require current-require-path
+                      compile-r6rs-file compile-stale-libraries))
 
   (define (compile-file src . rest)
     (compile-file-shared src rest #f))

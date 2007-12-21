@@ -320,6 +320,8 @@
          (let ((first-line (get-line p)))
            (cond ((and (string? first-line)
                        (string=? first-line "#!fasl"))
+                  (aeryn-evaluator (aeryn-fasl-evaluator)
+                                   interaction-environment)
                   (load-from-port p interaction-environment)
                   #t)
                  (else
