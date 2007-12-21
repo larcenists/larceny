@@ -25,6 +25,7 @@ const char *larceny_gc_technology = "precise";
 #include "heapio.h"
 #include "barrier.h"
 #include "stack.h"
+#include "msgc-core.h"
 
 typedef struct gc_data gc_data_t;
 
@@ -583,6 +584,16 @@ static void after_collection( gc_t *gc )
     oh_after_collection( DATA(gc)->ephemeral_area[ e ] );
   if (DATA(gc)->dynamic_area)
     oh_after_collection( DATA(gc)->dynamic_area );
+
+  /* For debugging of prototype;
+   * double check heap consistency via mark/sweep routines. */
+  if (0) {
+    int marked, traced, words_marked;
+    msgc_context_t *msgc_ctxt = msgc_begin( gc );
+    msgc_mark_objects_from_roots( msgc_ctxt, &marked, &traced, &words_marked );
+    msgc_assert_conservative_approximation( msgc_ctxt );
+    msgc_end( msgc_ctxt );
+  }
 }
 
 static void set_policy( gc_t *gc, int gen, int op, int value )
