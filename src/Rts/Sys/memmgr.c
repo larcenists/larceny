@@ -40,15 +40,18 @@ struct gc_data {
   bool is_partitioned_system;   /* True if system has partitioned heap */
   bool use_np_collector;	/* True if dynamic area is non-predictive */
   bool shrink_heap;		/* True if heap can be shrunk */
+  bool fixed_ephemeral_area;    /* True iff ephemeral_area_count is invariant */
+
   int  dynamic_min;		/* 0 or lower limit of expandable area */
   int  dynamic_max;		/* 0 or upper limit of expandable area */
-  int  nonexpandable_size;	/* Size of nonexpandable areas */
+  int  nonexpandable_size;	/* Size of nonexpandable areas (but RROF?) */
 
   word *globals;
   word *handles;               /* array of handles */
   int  nhandles;               /* current array length */
   int  in_gc;                  /* a counter: > 0 means in gc */
   int  generations;            /* number of generations (incl. static) */
+  int  generations_after_gc;   /* number of generations in rts after gc complete */
   int  static_generation;	/* Generation number of static area */
   word *ssb_bot;
   word *ssb_top;
@@ -64,6 +67,15 @@ struct gc_data {
   old_heap_t *dynamic_area;
     /* In precise collectors: A pointer to a dynamic area, or NULL.
        */
+
+  int rrof_to_region;
+    /* In RROF collector, the to-space for minor collections. */
+  int rrof_next_region;
+    /* In RROF collector, the next region to collect. */
+  int rrof_final_region;
+    /* In RROF collector, the final region to collect in this cycle. */
+  int rrof_region_limit;
+    /* In RROF collector, the region count (at the time this cycle started). */
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
@@ -73,6 +85,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
 static word *load_text_or_data( gc_t *gc, int size_bytes, int load_text );
 static int allocate_generational_system( gc_t *gc, gc_param_t *params );
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info );
+static int allocate_regional_system( gc_t *gc, gc_param_t *info );
 static void before_collection( gc_t *gc );
 static void after_collection( gc_t *gc );
 static void stats_following_gc( gc_t *gc );
@@ -90,7 +103,10 @@ gc_t *create_gc( gc_param_t *info, int *generations )
 {
   gc_t *gc;
 
-  assert( info->is_generational_system || info->is_stopcopy_system );
+  /* mutually exclusive, collectively exhaustive */
+  assert( (info->is_generational_system + 
+	   info->is_stopcopy_system + 
+	   info->is_regional_system) == 1 );
 
   gclib_init();
   gc = alloc_gc_structure( info->globals, info );
@@ -98,10 +114,15 @@ gc_t *create_gc( gc_param_t *info, int *generations )
   /* Number of generations includes static heap, if any */
   if (info->is_generational_system) 
     *generations = allocate_generational_system( gc, info );
-  else
+  else if (info->is_stopcopy_system)
     *generations = allocate_stopcopy_system( gc, info );
+  else if (info->is_regional_system)
+    *generations = allocate_regional_system( gc, info );
+  else 
+    assert(0);
 
   DATA(gc)->generations = *generations;
+  DATA(gc)->generations_after_gc = DATA(gc)->generations;
 
   DATA(gc)->shrink_heap = !info->dont_shrink_heap;
   gc->los = create_los( *generations );
@@ -399,6 +420,130 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
   }
 }
 
+static int next_rgn( int rgn, int num_rgns ) {
+  rgn++;
+  if (rgn > num_rgns) 
+    rgn = 1;
+  return rgn;
+}
+
+static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
+{
+  gclib_stats_t stats;
+  gc_data_t *data = DATA(gc);
+
+  { 
+    char *type_str;
+    switch (request) {
+    case GCTYPE_PROMOTE:  type_str = "PROMOTE"; break;
+    case GCTYPE_COLLECT:  type_str = "COLLECT"; break;
+    case GCTYPE_EVACUATE: type_str = "EVACUATE"; break;
+    case GCTYPE_FULL:     type_str = "FULL"; break;
+    default: assert(0);
+    }
+    annoyingmsg("collect_rgnl(gc, %d, %d, %s)", rgn, bytes_needed, type_str );
+  }
+
+  assert( rgn >= 0 );
+  assert( rgn > 0 || bytes_needed >= 0 );
+  assert( data->in_gc >= 0 );
+
+  if (data->in_gc++ >= 0) {
+    gc_signal_moving_collection( gc );
+    before_collection( gc );
+  }
+  
+  switch (request) {
+  case GCTYPE_COLLECT: /* collect nursery and rgn, promoting into rgn first. */
+    if (rgn == 0) {
+      /* (Both kinds of young heaps ignore request parameter.) */
+      yh_collect( gc->young_area, bytes_needed, request );
+    } else {
+      /* explicit request for major collection of rgn. */
+      oh_collect( DATA(gc)->ephemeral_area[ rgn - 1 ], request );
+    }
+    break;
+  case GCTYPE_EVACUATE: /* collect nursery and rgn, promoting _anywhere_. */
+    if (rgn == 0) {
+      int rgn_to, rgn_next, nursery_sz, rgn_to_cur, rgn_to_max;
+      int num_rgns = DATA(gc)->ephemeral_area_count;
+      
+    collect_evacuate_nursery:
+      rgn_to = DATA(gc)->rrof_to_region;
+      rgn_next = DATA(gc)->rrof_next_region;
+
+      annoyingmsg("collect_rgnl decide major or minor.  to: %d next: %d",
+		  rgn_to, rgn_next );
+
+      nursery_sz = gc_allocated_to_areas( gc, gset_singleton( 0 ));
+      rgn_to_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
+      rgn_to_max = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
+
+      annoyingmsg( "collect_rgnl rgn_to: %d rgn_next: %d nursery_sz: %d "
+		   "rgn_to_cur: %d rgn_to_max: %d ", 
+		   rgn_to, rgn_next, nursery_sz, rgn_to_cur, rgn_to_max );
+      
+      if (rgn_to == rgn_next /* && summarization is complete */) {
+	/* ideal case for major collect */
+	int rgn_idx = rgn_next;
+	old_heap_t *oh = DATA(gc)->ephemeral_area[ rgn_idx-1 ];
+	semispace_t *tospace = oh_current_space( oh );
+	annoyingmsg("collect_rgnl major collect of %d", rgn_idx);
+	rs_clear( gc->remset[ rgn_idx ] );
+	gclib_stopcopy_collect_genset( gc, gset_singleton( rgn_idx ), tospace );
+	DATA(gc)->rrof_next_region = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
+      } else if (rgn_to_cur + nursery_sz < rgn_to_max) {
+	/* if there's room, minor collect the nursery into current region. */	
+	int rgn_idx = rgn_to; 
+	old_heap_t *oh = DATA(gc)->ephemeral_area[ rgn_idx-1 ];
+	semispace_t *tospace =  oh_current_space( oh );
+	annoyingmsg("collect_rgnl minor collect into %d", rgn_idx);
+	gclib_stopcopy_collect_genset( gc, gset_singleton( 0 ), tospace );
+	/* TODO: add code to incrementally summarize by attempting to
+	 * predict how many minor collections will precede the next
+	 * major collection. */
+      } else {
+	/* the to-space is full, so shift to the next to-space */
+	annoyingmsg("collect_rgnl shift to next to-space %d => %d",
+		    DATA(gc)->rrof_to_region,
+		    next_rgn(DATA(gc)->rrof_to_region,  num_rgns ));
+	DATA(gc)->rrof_to_region = next_rgn(DATA(gc)->rrof_to_region,  num_rgns);
+	/* TODO: double check that minor gc's haven't filled up to-spaces
+	 * so fast that major GC hasn't had a chance to go (which should
+	 * only happen when a summary is abandoned. */
+	goto collect_evacuate_nursery;
+#if 0
+      } else {
+	/* if there's not room, major collect "eldest" region. */
+	int rgn_idx = DATA(gc)->rrof_next_region;
+	old_heap_t *oh = DATA(gc)->ephemeral_area[ rgn_idx-1 ];
+	semispace_t *tospace = oh_current_space( oh );
+	annoyingmsg("collect_rgnl major collect of %d", rgn_idx);
+	gclib_stopcopy_collect_genset( gc, gset_singleton( rgn_idx ), tospace );
+#endif
+      }
+    } else {
+      /* explicit request for evacuation-style major collection of rgn. */
+      oh_collect( DATA(gc)->ephemeral_area[ rgn - 1 ], request );
+    }
+    break;
+  default: 
+    assert(0); /* Regional collector only supports above collection types. */
+  }
+
+  assert( data->in_gc > 0 );
+  
+  if (--data->in_gc == 0) {
+    after_collection( gc );
+    stats_following_gc( gc );
+    gclib_stats( &stats );
+    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
+		 stats.heap_allocated, stats.remset_allocated, 
+		 stats.rts_allocated );
+    annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
+  }
+}
+
 void gc_signal_moving_collection( gc_t *gc )
 {
   DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
@@ -430,6 +575,8 @@ static void before_collection( gc_t *gc )
 static void after_collection( gc_t *gc )
 {
   int e;
+
+  DATA(gc)->generations = DATA(gc)->generations_after_gc;
 
   yh_after_collection( gc->young_area );
   for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
@@ -481,10 +628,19 @@ enumerate_remsets_complement( gc_t *gc,
    */
   process_seqbuf( gc, gc->ssb );
   
-  assert( gset.tag == gs_range );
-  assert( gset.g1 == 0 );
-  for ( i = gset.g2 ; i < DATA(gc)->generations ; i++ ) {
-    rs_enumerate( gc->remset[i], f, fdata );
+  switch (gset.tag) {
+  case gs_range: 
+    assert( gset.g1 == 0 );
+    for ( i = gset.g2 ; i < DATA(gc)->generations ; i++ ) {
+      rs_enumerate( gc->remset[i], f, fdata );
+    }
+    break;
+  case gs_singleton:
+    for (i = 1; i < DATA(gc)->generations ; i++) {
+      if (i != gset.g1)
+	rs_enumerate( gc->remset[i], f, fdata );
+    }
+    break;
   }
 
   if (enumerate_np_young) {
@@ -818,8 +974,10 @@ static void expand_static_area_gnos( gc_t *gc, int fresh_gno )
   int new_static_gno;
   if (DATA(gc)->static_generation >= fresh_gno) {
     new_static_gno = DATA(gc)->static_generation + 1;
-    ss_set_gen_no( gc->static_area->data_area, new_static_gno );
-    ss_set_gen_no( gc->static_area->text_area, new_static_gno );
+    if (gc->static_area->data_area)
+      ss_set_gen_no( gc->static_area->data_area, new_static_gno );
+    if (gc->static_area->text_area)
+      ss_set_gen_no( gc->static_area->text_area, new_static_gno );
     DATA(gc)->static_generation = new_static_gno;
     DATA(gc)->globals[ G_FILTER_REMSET_RHS_NUM ] = new_static_gno;
   }
@@ -861,17 +1019,34 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
   expand_static_area_gnos( gc, fresh_gno );
   expand_remset_gnos( gc, fresh_gno );
   
-  ++(DATA(gc)->generations);
+  ++(DATA(gc)->generations_after_gc);
   
   return heap;
 }
 
-static semispace_t *find_space( gc_t *gc, unsigned bytes_needed, 
-				semispace_t *current_space, 
-				semispace_t **spaces_filtered, int sf_len ) 
+static semispace_t *find_space_expanding( gc_t *gc, unsigned bytes_needed, 
+					  semispace_t *current_space, 
+					  semispace_t **spaces_filtered, 
+					  int sf_len ) 
 {
   ss_expand( current_space, max( bytes_needed, GC_CHUNK_SIZE ) );
   return current_space;
+}
+
+static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
+				     semispace_t *current_space,
+				     semispace_t **spaces_filtered, int sf_len )
+{
+  int cur_allocated = 
+    gc_allocated_to_areas( gc, gset_singleton( current_space->gen_no ));
+  int max_allocated = 
+    gc_maximum_allotted( gc, gset_singleton( current_space->gen_no ));
+  if (cur_allocated + bytes_needed < max_allocated ) {
+    ss_expand( current_space, max( bytes_needed, GC_CHUNK_SIZE ));
+    return current_space;
+  } else {
+    return gc_fresh_space( gc );
+  }
 }
 
 static semispace_t *fresh_space( gc_t *gc ) 
@@ -884,9 +1059,13 @@ static semispace_t *fresh_space( gc_t *gc )
    * invariants between the static gno and the number of generations. 
    */
   if (gc->static_area != NULL) {
-    assert( DATA(gc)->static_generation == DATA(gc)->generations - 1 );
-    assert( DATA(gc)->static_generation == gc->static_area->data_area->gen_no );
-    assert( DATA(gc)->static_generation == gc->static_area->text_area->gen_no );
+    assert( DATA(gc)->static_generation == DATA(gc)->generations_after_gc - 1 );
+    assert( ! gc->static_area->data_area || 
+	    (DATA(gc)->static_generation == 
+	     gc->static_area->data_area->gen_no ));
+    assert( ! gc->static_area->text_area ||
+	    (DATA(gc)->static_generation == 
+	     gc->static_area->text_area->gen_no ));
   }
 
   /* Allocate a gno to assign to the returned semispace. */
@@ -903,24 +1082,29 @@ static semispace_t *fresh_space( gc_t *gc )
 
 static int allocated_to_area( gc_t *gc, int gno ) 
 {
-  annoyingmsg(" allocated_to_area( gc, %d ) ", gno );
   int eph_idx = gno-1;
+  if (0) annoyingmsg(" allocated_to_area( gc, %d ) ", gno );
   if (gno == 0) 
     return gc->young_area->allocated;
   else if (DATA(gc)->ephemeral_area && eph_idx < DATA(gc)->ephemeral_area_count)
     return DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
-    
-  assert(0);
+  else {
+    consolemsg( "allocated_to_area: unknown area %d", gno );
+    assert(0);
+  }
 }
 
 static int maximum_allotted_to_area( gc_t *gc, int gno ) 
 {
+  int eph_idx = gno-1;
   if (gno == 0)
     return gc->young_area->maximum;
-  else if (DATA(gc)->ephemeral_area && gno < DATA(gc)->ephemeral_area_count)
-    return DATA(gc)->ephemeral_area[ gno ]->maximum;
-
-  assert(0);
+  else if (DATA(gc)->ephemeral_area && eph_idx < DATA(gc)->ephemeral_area_count)
+    return DATA(gc)->ephemeral_area[ eph_idx ]->maximum;
+  else {
+    consolemsg( "maximum_allotted_to_area: unknown area %d", gno );
+    assert(0);
+  }
 }
 
 static int allocated_to_areas( gc_t *gc, gset_t gs ) 
@@ -987,8 +1171,10 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
   DATA(gc)->dynamic_max = info->sc_info.dynamic_max;
   DATA(gc)->dynamic_min = info->sc_info.dynamic_min;
 
+  strcpy( buf, "S+C " );
+
   gc->young_area = create_sc_heap( 0, gc, &info->sc_info, info->globals );
-  strcpy( buf, gc->young_area->id );
+  strcat( buf, gc->young_area->id );
 
   if (info->use_static_area) {
     gc->static_area = create_static_area( 1, gc );
@@ -1017,6 +1203,8 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   data->use_np_collector = info->use_non_predictive_collector;
   size = 0;
 
+  strcpy( buf, "GEN " );
+
   if (info->use_non_predictive_collector) {
     DATA(gc)->dynamic_max = info->dynamic_np_info.dynamic_max;
     DATA(gc)->dynamic_min = info->dynamic_np_info.dynamic_min;
@@ -1033,11 +1221,12 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   data->globals[ G_FILTER_REMSET_LHS_NUM ] = gen_no;
   size += info->nursery_info.size_bytes;
   gen_no += 1;
-  strcpy( buf, gc->young_area->id );
+  strcat( buf, gc->young_area->id );
 
   /* Create ephemeral areas. 
      */
   { int e = DATA(gc)->ephemeral_area_count = info->ephemeral_area_count;
+    DATA(gc)->fixed_ephemeral_area = TRUE;
     DATA(gc)->ephemeral_area =
       (old_heap_t**)must_malloc( e*sizeof( old_heap_t* ) );
 
@@ -1120,10 +1309,112 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   return gen_no;
 }
 
+static int allocate_regional_system( gc_t *gc, gc_param_t *info )
+{
+  char buf[ 256 ], buf2[100]; /* are these numbers large enough in general? */
+  gc_data_t *data = DATA(gc);
+  int gen_no, size;
+  
+  data->globals[ G_FILTER_REMSET_GEN_ORDER ] = FALSE;
+  gen_no = 0;
+  data->is_partitioned_system = 1;
+  assert( ! info->use_non_predictive_collector );
+  data->use_np_collector = 0; /* RROF is not ROF. */
+  size = 0;
+
+  strcpy( buf, "RGN " );
+  
+  data->dynamic_max = info->dynamic_sc_info.dynamic_max;
+  data->dynamic_min = info->dynamic_sc_info.dynamic_min;
+
+  /* Create nursery. */
+  gc->young_area = 
+    create_nursery( gen_no, gc, &info->nursery_info, info->globals );
+  data->globals[ G_FILTER_REMSET_LHS_NUM ] = gen_no;
+  size += info->nursery_info.size_bytes;
+  gen_no += 1;
+  strcat( buf, gc->young_area->id );
+  
+  /* Create ephemeral areas. */
+  { 
+    int i;
+    int e = data->ephemeral_area_count = info->ephemeral_area_count;
+    data->fixed_ephemeral_area = FALSE;
+    data->ephemeral_area = (old_heap_t**)must_malloc( e*sizeof( old_heap_t* ));
+    
+    for ( i = 0; i < e; i++ ) {
+      assert( info->ephemeral_info[i].size_bytes > 0 );
+      size += info->ephemeral_info[i].size_bytes;
+      data->ephemeral_area[ i ] = 
+	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 1 );
+      gen_no += 1;
+    }
+  }
+  if (data->ephemeral_area_count > 0) {
+    sprintf( buf2, "+%d*%s",
+	     DATA(gc)->ephemeral_area_count, DATA(gc)->ephemeral_area[0]->id );
+    strcat( buf, buf2 );
+  }
+  data->nonexpandable_size = size; /* is this sensible in RROF? */
+  
+  /* There is no dynamic area in the RROF 
+     (the ephemeral area array is expanded instead).
+     */
+  data->dynamic_area = 0;
+  
+  /* Create static area.
+     */
+  if (info->use_static_area) {
+    gc->static_area = create_static_area( gen_no, gc );
+    data->globals[ G_FILTER_REMSET_RHS_NUM ] = gen_no;
+    data->static_generation = gen_no;
+    gen_no += 1;
+    strcat( buf, "+" );
+    strcat( buf, gc->static_area->id );
+  } else {
+    data->globals[ G_FILTER_REMSET_RHS_NUM ] = -1;
+  }
+
+  /* Create remembered sets and SSBs.  Entry 0 is not used.
+     */
+  { 
+    int i;
+    gc->remset_count = gen_no;
+    gc->remset = (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
+    gc->remset[0] = (void*)0xDEADBEEF;
+    for ( i = 1 ; i < gc->remset_count ; i++ ) {
+      gc->remset[i] =
+	create_remset( info->rhash, 0 );
+    }
+    gc->ssb =
+      create_seqbuf( /* XXX the remset_count factor is an attempt to 
+		      * correct for comparison with non-refactored. XXX */
+		    info->ssb*gc->remset_count, 
+		    &data->ssb_bot, &data->ssb_top, &data->ssb_lim, 
+		    ssb_process, 0 );
+  }
+
+  gc->id = strdup( buf );
+
+  return gen_no;
+}
+
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 {
   gc_data_t *data;
+  semispace_t *(*my_find_space)( gc_t *gc, unsigned bytes_needed, 
+				 semispace_t *current_space, 
+				 semispace_t **spaces_filtered, int sf_len );
+  void (*my_collect)( gc_t *gc, int rgn, int bytes_needed, gc_type_t request );
   
+  if (info->is_regional_system) {
+    my_find_space = find_space_rgnl;
+    my_collect = collect_rgnl;
+  } else {
+    my_find_space = find_space_expanding;
+    my_collect = collect;
+  }
+
   data = (gc_data_t*)must_malloc( sizeof( gc_data_t ) );
 
   data->globals = globals;
@@ -1141,7 +1432,11 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->nonexpandable_size = 0;
   data->ephemeral_area = 0;
   data->ephemeral_area_count = 0;
+  data->fixed_ephemeral_area = TRUE;
   data->dynamic_area = 0;
+
+  data->rrof_to_region = 1;
+  data->rrof_next_region = 2;
 
   return 
     create_gc_t( "*invalid*",
@@ -1149,7 +1444,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 initialize, 
 		 allocate,
 		 allocate_nonmoving,
-		 collect,
+		 my_collect,
 		 set_policy,
 		 data_load_area,
 		 text_load_area,
@@ -1171,7 +1466,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 enumerate_roots,
 		 enumerate_remsets_complement,
 		 fresh_space,
-		 find_space,
+		 my_find_space,
 		 allocated_to_areas,
 		 maximum_allotted,
 		 is_address_mapped

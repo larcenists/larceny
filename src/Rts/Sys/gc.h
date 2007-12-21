@@ -61,6 +61,7 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   bool is_conservative_system;
   bool is_generational_system;
   bool is_stopcopy_system;
+  bool is_regional_system;
   bool use_static_area;                /* In the nonconservative systems */
   bool use_non_predictive_collector;   /* In the generational system */
   bool use_incremental_bdw_collector;  /* In the conservative system */
