@@ -368,9 +368,39 @@ void hardconsolemsg( const char *fmt, ... )
  */
 
 static int hstrcmp( const char *s1, const char* s2 );
+
+/* A SizeSpec is either a Number n, or a Number n followed by the character 'M', 
+ * or a Number n followed by the character 'K'
+ * interpretation: [[ n ]] = n; [[ nM ]] = n*1024*1024; [[ nK ]] = n*1024
+ */
+
+/* requires: (to be determined)
+ * effects: if *argv[0] matches str as an option, *argc > 1, and *argv[1] holds
+ *          a SizeSpec, then *var holds the number corresponding to *argv[1],
+ *          advances *argv, decrements *argc, and returns 1.  Else returns 0.
+ * example: sizearg( "-option", 2, { "-option", "3K" }, receiver )
+ *          returns 1, with *receiver == 3072
+ */
 static int sizearg( char *str, int *argc, char ***argv, int *var );
+
+/* requires: (to be determined)
+ * effects: if exists integer N such that *argv[0] matches strN as an option,
+ *                    argc > 1, and *argv[1] holds a SizeSpec,
+ *          then *var holds the number corresponding to *argv[1]
+ *           and *loc holds (the largest such) N.
+ * example: hsizearg( "-optnum", 2, { "-optnum3" "2K" }, recv1, recv2 )
+ *          returns 1, with *recv1 == 2048 and *recv2 == 3
+ */
 static int hsizearg( char *str, int *argc, char ***argv, int *var, int *loc );
 static int doublearg( char *str, int *argc, char ***argv, double *var );
+
+/* requires: (to be determined)
+ * effects: if *argv[0] matches str as an option, *argc > 1, and *argv[1] holds
+ *          an integer, then *var holds the integer corresponding to *argv[1],
+ *          advances *argv, decrements *argc, and returns 1.  Else returns 0.
+ * example: numbarg( "-option", 2 { "-option" "4" }, receiver )
+ *          returns 1, with *receiver = 4.
+ */
 static int numbarg( char *str, int *argc, char ***argv, int *var );
 static int hnumbarg( char *str, int *argc, char ***argv, int *var, int *loc );
 static void compute_np_parameters( opt_t *o, int suggested_size );
