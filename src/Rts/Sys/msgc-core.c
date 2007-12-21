@@ -107,6 +107,7 @@ static int free_stack( msgc_stackseg_t *stack )
   return n;
 }
 
+#if 1
 #define PUSH( context, obj )                                    \
   do { word TMP = obj;                                          \
        if (isptr(TMP)) {                                        \
@@ -122,6 +123,30 @@ static int free_stack( msgc_stackseg_t *stack )
        *((context)->los_stack.stkp++) = next;                           \
        *((context)->los_stack.stkp++) = obj;                            \
   } while(0)
+#else
+static void PUSH( msgc_context_t *context, word obj ) {
+  word TMP = obj;
+  if (isptr(TMP)) {
+    assert2( (context)->lowest_heap_address <= TMP );
+    assert2( TMP < (context)->highest_heap_address );
+#ifndef NDEBUG2
+    if (! gc_is_address_mapped( context->gc, TMP, FALSE )) {
+      assert2(gc_is_address_mapped( context->gc, TMP, TRUE ));
+    }
+#endif
+    
+    if ((context)->stack.stkp == (context)->stack.stklim)
+      push_segment( &((context)->stack) );
+    *((context)->stack.stkp++) = TMP;
+  }
+}
+static void LOS_PUSH( msgc_context_t *context, word next, word obj ) {
+  if ((context)->los_stack.stkp == (context)->los_stack.stklim)
+    push_segment( &context->los_stack );
+  *((context)->los_stack.stkp++) = next;                           
+  *((context)->los_stack.stkp++) = obj;
+}
+#endif
 
 static bool fill_from_los_stack( msgc_context_t *context )
 {
