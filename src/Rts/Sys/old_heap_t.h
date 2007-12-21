@@ -98,6 +98,13 @@ struct old_heap {
        semispace associated with heap).
        */
 
+  semispace_t* (*current_space)( old_heap_t *heap );
+    /* Returns internal semispace structure that holds data for heap.
+       (Felix is doing evil abstraction breaking stuff; but is it
+       really evil if the abstraction was ill-chosen in the first
+       place?)
+       */
+
   bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy );
     /* Returns true iff 'addr' is an object in 'heap'. 
        */
@@ -119,6 +126,7 @@ old_heap_t *create_old_heap_t(
   int  (*load_data)( old_heap_t *heap, metadata_block_t *m, heapio_t *h ),
   void (*set_policy)( old_heap_t *heap, int op, int value ),
   void (*set_gen_no)( old_heap_t *heap, int gen_no ),
+  semispace_t (*current_space)( old_heap_t *heap ),
   bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy ),
   void *data
 );
@@ -131,6 +139,7 @@ old_heap_t *create_old_heap_t(
 #define oh_data_load_area( oh, n ) ((oh)->data_load_area( oh, n ))
 #define oh_set_policy( oh, x, y )  ((oh)->set_policy( oh, x, y ))
 #define oh_set_gen_no( oh, gno )   ((oh)->set_gen_no( oh, gno ))
+#define oh_current_space( oh )     ((oh)->current_space( oh ))
 #define oh_is_address_mapped( oh,a,n)((oh)->is_address_mapped( (oh), (a), (n) ))
 
 #endif  /* INCLUDED_OLD_HEAP_T_H */

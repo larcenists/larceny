@@ -459,6 +459,11 @@ static void set_gen_no( old_heap_t *heap, int gen_no )
   ss_set_gen_no( DATA(heap)->current_space, gen_no );
 }
 
+static semispace_t *current_space( old_heap_t *heap )
+{
+  return DATA(heap)->current_space;
+}
+
 static bool is_address_mapped( old_heap_t *heap, word *addr, bool noisy )
 {
   return ss_is_address_mapped( DATA(heap)->current_space, addr, noisy );
@@ -482,6 +487,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
 			    0,                    /* FIXME: load_data */
 			    0,	                  /* set_policy */
 			    set_gen_no,
+			    current_space,
 			    is_address_mapped,
 			    data );
   heap->collector = gc;
