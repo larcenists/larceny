@@ -192,6 +192,23 @@ static int push_constituents( msgc_context_t *context, word w )
   }
 }
 
+/* Marks obj in bitmap.  Returns true if and only if obj was already
+ * marked in the bitmap at theoutset. */
+static bool mark_word( word *bitmap, word obj, word first ) {
+  bool retval; 
+  word bit_idx, word_idx, bit;
+
+  /* Note: marks object only, not entire address range occupied
+     by object.  A "real" collector must mark the range.
+  */
+  bit_idx = (obj - first) >> BIT_IDX_SHIFT;
+  word_idx = bit_idx >> BITS_TO_WORDS;
+  bit = 1 << (bit_idx & BIT_IN_WORD_MASK);
+  retval = (bitmap[ word_idx ] & bit);
+  bitmap[ word_idx ] |= bit;
+  return retval;
+}
+
 /* A couple ways to speed this up:
    - inline push_constituents
    - Cache the stack pointer, stack bottom, and stack limit in
@@ -202,10 +219,11 @@ static int push_constituents( msgc_context_t *context, word w )
    */
 static void mark_from_stack( msgc_context_t *context )
 {
-  word w, bit_idx, word_idx, bit;
+  word w;
   word first = (word)context->lowest_heap_address;
   word *bitmap = context->bitmap;
   int traced=0, marked=0, words_marked=0;
+  bool already_marked;
 
   while (1) {
     /* Pop */
@@ -219,14 +237,8 @@ static void mark_from_stack( msgc_context_t *context )
     traced++;
 
     /* Mark */
-    /* Note: marks object only, not entire address range occupied
-       by object.  A "real" collector must mark the range.
-       */
-    bit_idx = (w - first) >> BIT_IDX_SHIFT;
-    word_idx = bit_idx >> BITS_TO_WORDS;
-    bit = 1 << (bit_idx & BIT_IN_WORD_MASK);
-    if (bitmap[ word_idx ] & bit) continue; /* Already marked */
-    bitmap[ word_idx ] |= bit;
+    already_marked = mark_word( bitmap, w, first );
+    if (already_marked) continue;
     marked++;
 
     words_marked += push_constituents( context, w );
@@ -289,9 +301,7 @@ void msgc_mark_object( msgc_context_t *context, word obj )
   assert2( context->lowest_heap_address <= ptrof( obj ) &&
            ptrof( obj ) < context->highest_heap_address );
 
-  bit_idx = (obj - (word)context->lowest_heap_address) >> BIT_IDX_SHIFT;
-  word_idx = bit_idx >> BITS_TO_WORDS;
-  context->bitmap[ word_idx ] |= 1 << (bit_idx & BIT_IN_WORD_MASK);
+  mark_word( context->bitmap, obj, (word)context->lowest_heap_address );
 }
 
 void msgc_push_constituents( msgc_context_t *context, word obj )
