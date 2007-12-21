@@ -71,10 +71,14 @@ void primitive_garbage_collect( w_gen, w_type )
 word w_gen;			/* fixnum: generation */
 word w_type;			/* fixnum: type requested */
 {
-  gc_collect( the_gc( globals ), 
-	      nativeint( w_gen ), 
-	      0,
-	      (w_type ? GCTYPE_COLLECT : GCTYPE_PROMOTE ) );
+  gc_type_t type;
+  assert(is_fixnum(w_type));
+  switch (nativeint(w_type)) {
+  case 1 : type = GCTYPE_COLLECT; break;
+  case 0 : type = GCTYPE_PROMOTE; break;
+  default: assert(0);
+  }
+  gc_collect( the_gc( globals ), nativeint( w_gen ), 0, type );
 }
 
 void primitive_iflush( w_bv )
