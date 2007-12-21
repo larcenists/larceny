@@ -132,5 +132,9 @@ void los_free_list( los_list_t *list );
   /* Free the list.  Does not affect any objects on the list.
      */
 
+bool los_is_address_mapped( los_t *los, word *addr );
+  /* Returns true iff 'addr' is an object in 'los'. 
+     */
+
 /* eof */
 

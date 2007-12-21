@@ -953,6 +953,33 @@ static int maximum_allotted( gc_t *gc, gset_t gs )
   assert(0);
 }
 
+static bool is_address_mapped( gc_t *gc, word *addr, bool noisy ) 
+{
+  bool ret = FALSE;
+  if (gc->los && los_is_address_mapped( gc->los, addr )) {
+    assert(!ret); ret = TRUE;
+  }
+  if (gc->young_area && yh_is_address_mapped( gc->young_area, addr, noisy )) {
+    assert(!ret); ret = TRUE;
+  }
+  if (gc->static_area && sh_is_address_mapped( gc->static_area, addr, noisy )) {
+    assert(!ret); ret = TRUE;
+  }
+  { 
+    int i;
+    for( i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
+      if (oh_is_address_mapped( DATA(gc)->ephemeral_area[i], addr, noisy )) {
+	assert(!ret); ret = TRUE;
+      }
+    }
+  }
+  if (DATA(gc)->dynamic_area && 
+      oh_is_address_mapped( DATA(gc)->dynamic_area, addr, noisy )) {
+    assert(!ret); ret = TRUE;
+  }
+  return ret;
+}
+
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 100 ];
@@ -1146,7 +1173,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 fresh_space,
 		 find_space,
 		 allocated_to_areas,
-		 maximum_allotted
+		 maximum_allotted,
+		 is_address_mapped
 		 );
 }
 

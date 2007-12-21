@@ -28,6 +28,7 @@ old_heap_t *create_old_heap_t(
   int  (*load_data)( old_heap_t *heap, metadata_block_t *m, heapio_t *h ),
   void (*set_policy)( old_heap_t *heap, int op, int value ),
   void (*set_gen_no)( old_heap_t *heap, int gen_no ),
+  bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy ),
   void *data
 )
 {
@@ -53,6 +54,7 @@ old_heap_t *create_old_heap_t(
   heap->load_data = load_data;
   heap->set_policy = (set_policy ? set_policy : default_set_policy);
   heap->set_gen_no = set_gen_no;
+  heap->is_address_mapped = is_address_mapped;
 
   return heap;
 }

@@ -165,6 +165,10 @@ void ss_set_gen_no( semispace_t *ss, int gen_no );
      gen_no >= 0
      */
 
+bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy );
+  /* Returns true iff 'addr' is an object in 'ss'.
+     */
+
 #endif  /* INCLUDED_SEMISPACE_T_H */
 
 /* eof */

@@ -92,6 +92,9 @@ struct static_heap {
   int  (*load_data)( static_heap_t *heap, metadata_block_t *m, heapio_t *h );
      /* UNDOCUMENTED: Used by the future heap dumper.
         */
+  bool (*is_address_mapped)( static_heap_t *heap, word *addr, bool noisy );
+    /* Returns true iff 'addr' is an object in 'heap'
+     */
 };
 
 /* Operations */
@@ -103,6 +106,7 @@ struct static_heap {
 #define sh_data_load_area( h, n )     ((h)->data_load_area( (h),(n) ))
 #define sh_text_load_area( h, n )     ((h)->text_load_area( (h),(n) ))
 #define sh_get_data_areas( h, d, t )  ((h)->get_data_areas( (h),(d),(t) ))
+#define sh_is_address_mapped( h,a,n ) ((h)->is_address_mapped( (h), (a), (n) ))
 
 #endif
 

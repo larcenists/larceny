@@ -389,4 +389,21 @@ static void clear_list( los_list_t *l )
   l->bytes = 0;
 }
 
+bool los_is_address_mapped( los_t *los, word *addr ) 
+{
+  word *cursor;
+  int i;
+  bool ret = FALSE;
+  for( i = 0; i < los->generations; i++ ) {
+    cursor = NULL;
+    do { 
+      cursor = los_walk_list( los->object_lists[i], cursor );
+      if (abs((byte*)cursor - (byte*)addr) < 8) {
+	assert(! ret); ret = TRUE;
+      }
+    } while (cursor != NULL);
+  }
+  return ret;
+}
+
 /* eof */

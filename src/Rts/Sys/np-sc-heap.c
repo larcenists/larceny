@@ -847,6 +847,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
                             0,               /* FIXME: load_data */
                             set_policy,
                             0,               /* FIXME? set_gen_no */
+                            0,               /* FIXME is_address_mapped */
                             data
                            );
   heap->collector = gc;

@@ -144,6 +144,10 @@ struct young_heap {
   void (*stack_overflow)( young_heap_t *heap );
      /* Spills a full stack cache to the heap.
 	*/
+
+  bool (*is_address_mapped)( young_heap_t *heap, word *addr, bool noisy );
+     /* Returns true iff 'addr' is an object in 'heap'. 
+        */
 };
 
 
@@ -174,6 +178,7 @@ young_heap_t *create_young_heap_t(
    void (*creg_set)( young_heap_t *heap, word k ),
    void (*stack_underflow)( young_heap_t *heap ),
    void (*stack_overflow)( young_heap_t *heap ),
+   bool (*is_address_mapped)( young_heap_t *heap, word *addr ),
    void *data
 );
 
@@ -192,6 +197,7 @@ young_heap_t *create_young_heap_t(
 #define yh_creg_set( h, k )        ((h)->creg_set( (h), (k) ))
 #define yh_stack_underflow( h )    ((h)->stack_underflow( (h) ))
 #define yh_stack_overflow( h )     ((h)->stack_overflow( (h) ))
+#define yh_is_address_mapped(h,a,n)((h)->is_address_mapped( (h), (a), (n) ))
 
 #endif   /* INCLUDED_YOUNG_HEAP_T_H */
 

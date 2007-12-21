@@ -116,6 +116,18 @@ static word *text_load_area( static_heap_t *heap, int nbytes )
   return allocate_chunk( &heap->text_area, nbytes, DATA(heap)->gen_no );
 }
 
+static bool is_address_mapped( static_heap_t *heap, word *addr, bool noisy )
+{
+  bool ret = FALSE;
+  if (heap->data_area && ss_is_address_mapped( heap->data_area, addr, noisy ) ) {
+    assert(!ret); ret = TRUE;
+  }
+  if (heap->text_area && ss_is_address_mapped( heap->text_area, addr, noisy ) ) {
+    assert(!ret); ret = TRUE;
+  }
+  return ret;
+}
+
 static_heap_t *create_static_area( int gen_no, gc_t *gc )
 {
   static_heap_t *heap;
@@ -141,6 +153,7 @@ static_heap_t *create_static_area( int gen_no, gc_t *gc )
   heap->reorganize = reorganize;
   heap->load_prepare = 0;
   heap->load_data = 0;
+  heap->is_address_mapped = is_address_mapped;
 
   data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;

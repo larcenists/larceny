@@ -395,6 +395,22 @@ void ss_set_gen_no( semispace_t *ss, int gen_no )
   ss_invariants( ss );
 }
 
+bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy ) 
+{
+  int i;
+  bool ret = FALSE;
+  for (i=0; i < ss->n; i++ ) {
+    if (noisy) 
+      annoyingmsg( "ss_is_address_mapped ss: 0x%08x addr: 0x%08x i: %d"
+                   " bot: 0x%08x top: 0x%08x lim: 0x%08x",
+                   ss, addr, i,
+                   ss->chunks[i].bot, ss->chunks[i].top, ss->chunks[i].lim );
+    if ((ss->chunks[i].bot <= addr) && (addr < ss->chunks[i].top)) {
+      assert( !ret ); ret = TRUE;
+    }
+  }
+  return ret;
+}
 
 /* Finds the first empty slot past ss->current and returns its index,
    extending the chunk array if necessary.

@@ -45,7 +45,8 @@ gc_t
 					 semispace_t *cur, 
 					 semispace_t **filter, int filter_len ),
 	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
-	     int (*maximum_allotted)( gc_t *gc, gset_t gs )
+	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
+	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy )
 	     )
 {
   gc_t *gc;
@@ -98,6 +99,7 @@ gc_t
 
   gc->allocated_to_areas = allocated_to_areas;
   gc->maximum_allotted = maximum_allotted;
+  gc->is_address_mapped = is_address_mapped;
 
   return gc;
 }

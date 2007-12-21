@@ -344,6 +344,11 @@ static void collect_if_no_room( young_heap_t *heap, int room )
     gc_collect( heap->collector, 0, room, GCTYPE_PROMOTE );
 }
 
+static bool is_address_mapped( young_heap_t *h, word *addr ) 
+{
+  return ((DATA(h)->heapbot <= addr) && (addr < DATA(h)->heaplim));
+}
+
 static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
 {
   young_data_t *data;
@@ -369,6 +374,7 @@ static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
 			      creg_set,
 			      stack_underflow,
 			      stack_overflow,
+			      is_address_mapped,
 			      data );
   heap->collector = gc;
 
