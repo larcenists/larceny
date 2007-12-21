@@ -422,6 +422,23 @@ static void init_generational( opt_t *o, int areas, char *name )
   o->gc_info.ephemeral_area_count = areas-2;
 }
 
+static void init_regional( opt_t *o, int areas, char *name )
+{
+  if (areas < 3)
+    invalid( name );
+
+  if (o->gc_info.ephemeral_info != 0) {
+    consolemsg( "Error: Number of areas re-specified with '%s'", name );
+    consolemsg( "Type \"larceny -heap\" for help." );
+    exit( 1 );
+  }
+  
+  o->gc_info.is_regional_system = 1;
+  o->gc_info.ephemeral_info = 
+    (sc_info_t*)must_malloc( sizeof( sc_info_t)*areas-1 );
+  o->gc_info.ephemeral_area_count = areas-1;
+}
+
 static void
 parse_options( int argc, char **argv, opt_t *o )
 {
@@ -456,7 +473,10 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (hstrcmp( *argv, "-nocontract" ) == 0)
       o->gc_info.dont_shrink_heap = 1;
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
-      if (loc > 1) o->gc_info.is_generational_system = 1;
+      if (loc > 1 && ! o->gc_info.is_regional_system) {
+        /* Maybe we shouldn't be inferring this anymore */
+        o->gc_info.is_generational_system = 1; 
+      }
       if (loc < 0 || loc > o->maxheaps)
         invalid( "-size" );
       else if (loc > 0)
@@ -464,6 +484,11 @@ parse_options( int argc, char **argv, opt_t *o )
       else 
         for ( i=1 ; i < o->maxheaps ; i++ )
           if (o->size[i-1] == 0) o->size[i-1] = val;
+    }
+    else if (hstrcmp( *argv, "-rrof" ) == 0 || 
+             hstrcmp( *argv, "-regional" ) == 0) {
+      areas = max( areas, 3 );
+      init_regional( o, areas, *argv );
     }
     else if (sizearg( "-rhash", &argc, &argv, (int*)&o->gc_info.rhash ))
       ;
@@ -625,14 +650,25 @@ parse_options( int argc, char **argv, opt_t *o )
   if ((strcmp (o->r6program, "") != 0) && (! (o->r6rs)))
     param_error( "Missing -r6rs option." );
 
+  if ((((int)o->gc_info.is_conservative_system)
+       + ((int)o->gc_info.is_generational_system)
+       + ((int)o->gc_info.is_stopcopy_system)
+       + ((int)o->gc_info.is_regional_system)) > 1) {
+    param_error( "More than one kind of collector tech selected." );
+  }
+
   if (o->gc_info.is_conservative_system &&
-      (o->gc_info.is_generational_system || o->gc_info.is_stopcopy_system))
+      (o->gc_info.is_generational_system || 
+       o->gc_info.is_stopcopy_system || 
+       o->gc_info.is_regional_system))
     param_error( "Both precise and conservative gc selected." );
     
   if (o->gc_info.is_generational_system && o->gc_info.is_stopcopy_system)
     param_error( "Both generational and non-generational gc selected." );
 
-  if (!o->gc_info.is_stopcopy_system && !o->gc_info.is_conservative_system
+  /* TODO: double check logic in this case. */
+  if (!o->gc_info.is_stopcopy_system && !o->gc_info.is_conservative_system &&
+      !o->gc_info.is_regional_system
       && o->gc_info.ephemeral_info == 0)
     init_generational( o, areas, "*invalid*" );
 
@@ -731,6 +767,39 @@ parse_options( int argc, char **argv, opt_t *o )
     o->gc_info.bdw_info.divisor = divisor;
     o->gc_info.bdw_info.dynamic_min = dynamic_min;
     o->gc_info.bdw_info.dynamic_max = dynamic_max;
+  }
+  else if (o->gc_info.is_regional_system) {
+    /* (roughly cut and pasted from is_generational_system case above) */
+
+    int n = areas-1;            /* Index of dynamic generation */
+
+    /* Nursery */
+    o->gc_info.nursery_info.size_bytes =
+      (o->size[0] > 0 ? o->size[0] : DEFAULT_NURSERY_SIZE);
+
+    /* Ephemeral generations */
+    prev_size = o->gc_info.nursery_info.size_bytes;
+
+    for ( i = 1 ; i <= areas-1 ; i++ ) {
+      if (o->size[i] == 0)
+        o->size[i] = prev_size + DEFAULT_EPHEMERAL_INCREMENT;
+      assert( o->size[i] > 0 );
+      o->gc_info.ephemeral_info[i-1].size_bytes = o->size[i];
+      prev_size = o->size[i];
+    }
+    
+    /* Dynamic generation */
+    o->gc_info.dynamic_sc_info.load_factor = load_factor;
+    o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
+    o->gc_info.dynamic_sc_info.dynamic_min = dynamic_min;
+    if (o->size[n] == 0) {
+      int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
+      if (dynamic_min) size = max( dynamic_min, size );
+      if (dynamic_max) size = min( dynamic_max, size );
+      o->gc_info.dynamic_sc_info.size_bytes = size;
+    }
+    else
+      o->gc_info.dynamic_sc_info.size_bytes = o->size[n];
   }
 }
 
@@ -915,6 +984,17 @@ static void dump_options( opt_t *o )
     consolemsg( "  Min size: %d", o->gc_info.sc_info.dynamic_min );
     consolemsg( "  Max size: %d", o->gc_info.sc_info.dynamic_max );
   }
+  else if (o->gc_info.is_regional_system) {
+    consolemsg( "Using generational garbage collector." );
+    consolemsg( "  Nursery" );
+    consolemsg( "    Size (bytes): %d", o->gc_info.nursery_info.size_bytes );
+    for ( i=1 ; i<= o->gc_info.ephemeral_area_count ; i++ ) {
+      consolemsg( "  Ephemeral area %d", i );
+      consolemsg( "    Size (bytes): %d",
+                  o->gc_info.ephemeral_info[i-1].size_bytes );
+    }    
+    consolemsg( "  Using static area: %d", o->gc_info.use_static_area );
+  }
   else if (o->gc_info.is_generational_system) {
     consolemsg( "Using generational garbage collector." );
     consolemsg( "  Nursery" );
@@ -1098,6 +1178,10 @@ static char *wizardhelptext[] = {
   "  -nocontract",
   "     Do not contract the dynamic area according to the load factor, but",
   "     always use all the memory that has been allocated.",
+  "  -rrof",
+  "  -regional",
+  "     Select regional collection with a round robin collection policy,"
+  " .   which should act like a fine grained renewal-oldest-first collector.",
 #if ROF_COLLECTOR
   "  -steps n",
   "     Select the initial number of steps in the non-predictive collector.",
