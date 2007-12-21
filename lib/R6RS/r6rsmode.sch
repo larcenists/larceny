@@ -8,6 +8,25 @@
 ;     D'Argo   R6RS-compatible
 ;     Spanky   R6RS-conforming (not yet implemented)
 
+(define (aeryn-evaluator exp . rest)
+  (ex:repl (list exp)))
+
+; FIXME:  This probably isn't right for Common Larceny.
+
+(define aeryn-fasl-evaluator
+  (let* ((arch-name (cdr (assq 'arch-name (system-features))))
+         (fasl-value
+          (cond ((string=? arch-name "Standard-C")
+                 '(import (rnrs base)
+                          (primitives .petit-shared-object
+                                      .petit-patch-procedure)))
+                ((string=? arch-name "CLR")
+                 (unspecified))
+                (else
+                 (unspecified)))))
+    (lambda () fasl-value)))
+
+
 ; FIXME:  This is for compiling by hand.  It should be moved into
 ; test/Scripts/package-bin-release.sh
 
@@ -233,11 +252,9 @@
     (larceny:unsupported-os))))    
 
 (define (larceny:compile-libraries path)
-  (let ((basefile (compile-libraries-older-than-this-file))
-        (aeryn-evaluator
-         (lambda (exp . rest)
-           (ex:repl (list exp)))))
-    (parameterize ((load-evaluator aeryn-evaluator)
+  (let ((basefile (compile-libraries-older-than-this-file)))
+    (parameterize ((fasl-evaluator aeryn-fasl-evaluator)
+                   (load-evaluator aeryn-evaluator)
                    (repl-evaluator aeryn-evaluator))
       (case (larceny:os)
        ((unix windows)
@@ -461,11 +478,11 @@
 ; Loads (thereby running) an expanded R6RS program
 ; or a .fasl file compiled from an expanded R6RS program.
 ;
-; FIXME:  Nothing uses this.
+; FIXME:  Nothing uses this, so it is commented out.
 
-(define (load-r6rs-program filename)
-  (larceny:load-r6rs-runtime)
-  (load filename))
+;(define (load-r6rs-program filename)
+;  (larceny:load-r6rs-runtime)
+;  (load filename))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -491,12 +508,10 @@
            (dynamic-wind
             (lambda () #t)
             (lambda ()
-              (let ((aeryn-evaluator
-                     (lambda (exp . rest)
-                       (ex:repl (list exp)))))
-                (parameterize ((load-evaluator aeryn-evaluator)
-                               (repl-evaluator aeryn-evaluator))
-                  (expand-r6rs-program src tempfile)))
+              (parameterize ((fasl-evaluator aeryn-fasl-evaluator)
+                             (load-evaluator aeryn-evaluator)
+                             (repl-evaluator aeryn-evaluator))
+                (expand-r6rs-program src tempfile))
               (compile-file tempfile dst))
             (lambda () (delete-file tempfile)))))
         (else
@@ -527,10 +542,10 @@
 (define (generate-fasl-name fn)
   (rewrite-file-type fn
                      *scheme-file-types*
-                     *fasl-file-type*))
+                     *slfasl-file-type*))
 
 (define *scheme-file-types* '(".sls" ".sch" ".scm"))
-(define *fasl-file-type*    ".slfasl")
+(define *slfasl-file-type*    ".slfasl")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

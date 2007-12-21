@@ -393,6 +393,7 @@
   (environment-set! larc 'read-traditional-weirdness?
                     read-traditional-weirdness?)
   (environment-set! larc 'read-mzscheme-weirdness? read-mzscheme-weirdness?)
+  (environment-set! larc 'fasl-evaluator fasl-evaluator)
 
   ;; pairs and lists
 

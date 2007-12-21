@@ -8420,9 +8420,12 @@
                  (flag (string->symbol (substring tokenValue 2 n))))
             (case flag
              ((fold-case no-fold-case
-               err5rs r5rs larceny fasl slow fast safe unsafe)
+               err5rs r5rs larceny slow fast safe unsafe)
               (set-mode! flag)
               (unspecified))
+             ((fasl)
+              (set-mode! flag)
+              ((fasl-evaluator)))
              ((unspecified) (unspecified))
              ((undefined)   (undefined))
              ((null)        '())

@@ -633,6 +633,12 @@
 ;; #r randomness (regular expressions?)
 ;; some kind of weirdness in flush-whitespace-until-rparen
 
+;; This thunk is called whenever a #!fasl flag is read.
+;; Its result is the value of the #!fasl flag.
+
+(define fasl-evaluator
+  (make-parameter "fast-evaluator" (lambda () (unspecified)) procedure?))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Reader mode of a textual input port.

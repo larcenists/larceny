@@ -64,10 +64,9 @@
                       (require 'r6rsmode)
                       (larceny:load-r6rs-package))
                     env)
-              (let* ((ex:repl (eval 'ex:repl env))
-                     (aeryn-evaluator
-                      (lambda (exp . rest)
-                        (ex:repl (list exp)))))
+              (let* ((aeryn-fasl-evaluator (eval 'aeryn-fasl-evaluator env))
+                     (aeryn-evaluator (eval 'aeryn-evaluator env)))
+                (fasl-evaluator aeryn-fasl-evaluator)
                 (load-evaluator aeryn-evaluator)
                 (repl-evaluator aeryn-evaluator)))))
 
