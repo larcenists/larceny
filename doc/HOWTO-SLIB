@@ -1,0 +1,55 @@
+Installing and using SLIB
+
+
+Larceny supports SLIB via SRFI 96, not via a larceny.init
+file.  That gives the Larceny developers control of the
+file(s) that implement SRFI 96, so they can upgrade its
+implementation at any time while maintaining Larceny's
+coding standards.  The SLIB developers remain responsible
+for the SLIB files themselves, and can maintain the SLIB
+coding standards.
+
+SLIB is mildly deprecated in Larceny, mainly because it
+redefines Larceny's require procedure.  That breaks all
+of Larceny's support for dynamic loading of non-SLIB
+libraries, which include SRFI, ERR5RS, R6RS, and many
+Larceny-specific libraries such as Larceny's general
+interface to libraries written in C.
+
+If you use SLIB, you should require all SRFI and other
+libraries that might be needed by your program before
+you require srfi-96.  Once you have used Larceny's
+require procedure to load srfi-96, you will no longer
+be able to require non-SLIB libraries.
+
+
+INSTALLATION
+
+Download SLIB and unpack it into the lib/SLIB directory.
+Then create the slibcat catalog in Larceny's root directory
+as follows:
+
+    % ./larceny
+    Larceny v0.96 "Fluoridation"
+    > (require 'srfi-96)
+    > (require 'new-catalog)
+    > (exit)
+
+
+USING SLIB
+
+After your program has loaded all of the non-SLIB libraries
+it might need, use Larceny's require procedure to load the
+SRFI 96 interface to the SLIB system:
+
+    (require 'srfi-96)
+
+SLIB will then be operational.  Please consult the SLIB
+documentation for detailed usage of SLIB.
+
+Please report bugs in SLIB to the maintainers of SLIB.
+Please report bugs in Larceny's implementation of SRFI
+96 to the Larceny developers.  When in doubt, report
+bugs to the Larceny developers; if we determine that
+the bug is in SLIB, we will forward the report to the
+maintainers of SLIB.
