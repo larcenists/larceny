@@ -99,15 +99,25 @@
        }                                                                    \
   } while( 0 )
 
+/* Installs a forwarding pointer to 'newaddr' with tag 'tag' at 'addr' */
+static word install_fwdptr( word *addr, word *newaddr, word tag ) {
+  /* factored routine; should later double check whether this is being
+   * inlined, or if I should instead implemented it as a macro */
+  word ret;
+  check_address( addr );
+  ret = (word)tagptr( newaddr, tag );
+  *addr = FORWARD_HDR;
+  *(addr+1) = ret;
+  return ret;
+}
+
 #define FORW_PAIR( TMP_P, loc, dest, lim, e, check_spaceI ) \
   do {                                                                 \
     word next_obj;                                                     \
     check_spaceI(dest,lim,8,0,e);                                           \
     *dest = *TMP_P;                                                    \
     *(dest+1) = next_obj = *(TMP_P+1);                                 \
-    check_address( TMP_P );                                            \
-    *TMP_P = FORWARD_HDR;                                              \
-    *(TMP_P+1) = *loc = (word)tagptr(dest, PAIR_TAG);                  \
+    *loc = install_fwdptr( TMP_P, dest, PAIR_TAG);                     \
     check_memory( dest, 2 );                                           \
     dest += 2;                                                         \
   } while ( 0 )
@@ -765,14 +775,7 @@ word forward( word p, word **dest, cheney_env_t *e )
   }
 #endif
 
-  newptr = (word) tagptr( newptr, tag );
-
-  /* leave forwarding pointer */
-  check_address( ptr );
-  *ptr = FORWARD_HDR;
-  *(ptr+1) = newptr;
-
-  return newptr;
+  return install_fwdptr( ptr, newptr, tag );
 }
 
 
@@ -943,11 +946,7 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_g
     /* Must mark it also! */
     was_marked = los_mark_and_set_generation( los, mark_list, new, gen_of( ptr ), tgt_gen );
     
-    /* Leave a forwarding pointer */
-    check_address( ptr );
-    *ptr = FORWARD_HDR;
-    *(ptr+1) = tagptr( new, tag );
-    ret = *(ptr+1);
+    ret = install_fwdptr( ptr, new, tag );
   }
 
   if (e->np_promotion && !was_marked) {
