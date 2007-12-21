@@ -37,7 +37,7 @@ typedef struct gc_data gc_data_t;
    */
 
 struct gc_data {
-  bool is_generational_system;  /* True if system has multiple generations */
+  bool is_partitioned_system;   /* True if system has partitioned heap */
   bool use_np_collector;	/* True if dynamic area is non-predictive */
   bool shrink_heap;		/* True if heap can be shrunk */
   int  dynamic_min;		/* 0 or lower limit of expandable area */
@@ -208,7 +208,7 @@ void gc_parameters( gc_t *gc, int op, int *ans )
   assert( op >= 0 && op <= data->generations );
 
   if (op == 0) {
-    ans[0] = data->is_generational_system;
+    ans[0] = data->is_partitioned_system;
     ans[1] = data->generations;
   }
   else {
@@ -225,7 +225,7 @@ void gc_parameters( gc_t *gc, int op, int *ans )
     op--;
     if (op == 0) {
       ans[1] = gc->young_area->maximum;
-      if (data->is_generational_system) {
+      if (data->is_partitioned_system) {
 	/* Nursery */
 	ans[0] = 0;
 	ans[2] = 0;
@@ -298,7 +298,7 @@ static int initialize( gc_t *gc )
     if (!sh_initialize( gc->static_area ))
       return 0;
 
-  if (data->is_generational_system) {
+  if (data->is_partitioned_system) {
     wb_setup( gclib_desc_g,
 #if GCLIB_LARGE_TABLE
 	      (byte*)0,
@@ -471,7 +471,7 @@ enumerate_remsets_complement( gc_t *gc,
 {
   int i;
 
-  if (!DATA(gc)->is_generational_system) return;
+  if (!DATA(gc)->is_partitioned_system) return;
 
   /* Add elements to regions outside collection set. 
    *
@@ -614,7 +614,7 @@ static void np_remset_ptrs( gc_t *gc, word ***ssbtop, word ***ssblim )
 
 static int dump_image( gc_t *gc, const char *filename, bool compact )
 {
-  if (DATA(gc)->is_generational_system) 
+  if (DATA(gc)->is_partitioned_system) 
     return dump_generational_system( gc, filename, compact );
   else
     return dump_stopcopy_system( gc, filename, compact );
@@ -1013,7 +1013,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 
   data->globals[ G_FILTER_REMSET_GEN_ORDER ] =  TRUE;
   gen_no = 0;
-  data->is_generational_system = 1;
+  data->is_partitioned_system = 1;
   data->use_np_collector = info->use_non_predictive_collector;
   size = 0;
 
@@ -1127,7 +1127,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data = (gc_data_t*)must_malloc( sizeof( gc_data_t ) );
 
   data->globals = globals;
-  data->is_generational_system = 0;
+  data->is_partitioned_system = 0;
   data->shrink_heap = 0;
   data->in_gc = 0;
   data->handles = (word*)must_malloc( sizeof(word)*10 );
