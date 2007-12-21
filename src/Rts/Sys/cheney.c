@@ -12,6 +12,7 @@
  *   gclib_stopcopy_promote_into 
  *   gclib_stopcopy_collect 
  *   gclib_stopcopy_collect_and_scan_static
+ *   gclib_stopcopy_collect_genset
  * 
  */
 

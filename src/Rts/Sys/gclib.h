@@ -176,6 +176,12 @@ void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace );
      necessary.
      */
 
+void gclib_stopcopy_collect_genset( gc_t *gc, gset_t s, semispace_t *tospace );
+  /* Garbage collect the generation of 'tospace', copying all live objects
+     belonging to 's' into 'tospace', finding new space according to policy
+     implemented by gc's find_space method.
+     */
+
 void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *to );
   /* Garbage collect the generation of 'tospace', copying all live objects
      and all live younger objects into 'tospace', growing 'tospace' as
