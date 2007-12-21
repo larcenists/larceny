@@ -41,34 +41,6 @@
 
 (require 'defmacro)   ; defmacro
 
-(define (program-arguments)
-  (cons "larceny" (vector->list (command-line-arguments))))
-
-; FIXME:  This doesn't work with Petit Larceny or Common Larceny
-; or Windows.
-
-(define (current-time)
-  (if (and (eq? (software-type) 'unix)
-           (eq? (scheme-implementation-type) 'larceny))
-      (let ((bv (make-bytevector 8)))
-
-        ; Returns the number of seconds since Jan 1, 1970 00:00:00 GMT.
-        ; The argument should be #f or a bytevector of length  
-        ; at least 4, in which to store the time.  See time(2).
-
-        (define unix:time
-          (let ((_time (foreign-procedure "time" '(boxed) 'int)))
-            (lambda (arg)
-              (if (and arg
-                       (not (and (bytevector? arg)
-                                 (>= (bytevector-length arg) 4))))
-                  (error "Invalid parameter to unix:time"))
-              (_time arg))))
-
-        (unix:time #f))
-
-      0))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
 ;;; Configuration
@@ -116,7 +88,7 @@
 (define (scheme-implementation-home-page)
   "http://larceny.ccs.neu.edu/")
 
-; FIXME:  This should probably be ".sch", but then SLIB wouldn't work.
+; FIXME:  This should really be ".sch", but then SLIB wouldn't work.
 
 (define (scheme-file-suffix) ".scm")
 
@@ -124,17 +96,15 @@
 ;;; initially supported by this implementation.
 
 (define slib:features
-      `(
-        source                          ;can load scheme source files
-                                        ;(SLIB:LOAD-SOURCE "filename")
-        compiled                        ;can load compiled files
-                                        ;(SLIB:LOAD-COMPILED "filename")
+      '(
         vicinity
 
         srfi-59
 
-;;;     char-ready?
-
+        source                          ;can load scheme source files
+                                        ;(SLIB:LOAD-SOURCE "filename")
+        compiled                        ;can load compiled files
+                                        ;(SLIB:LOAD-COMPILED "filename")
 ;;;     object-hash                     ;has OBJECT-HASH and OBJECT-UNHASH
 
         full-continuation               ;can return multiple times
@@ -155,9 +125,7 @@
 
         program-arguments               ;returns list of strings (argv)
 
-        ,@(if (positive? (current-time))
-              '(current-time)           ;returns time in seconds since 1/1/1970
-              '())
+        current-time                    ;returns time in seconds since 1/1/1970
 
         ;; Scheme report features
         ;; R5RS-compliant implementations should provide all 9 features.
@@ -175,6 +143,8 @@
         delay                           ;has DELAY and FORCE
 
         multiarg-apply                  ;APPLY can take more than 2 args.
+
+        char-ready?                     ;has char-ready?
 
         rev4-optional-procedures        ;LIST-TAIL, STRING-COPY,
                                         ;STRING-FILL!, and VECTOR-FILL!
@@ -209,8 +179,8 @@
 ;;;     srfi                            ;srfi-0, COND-EXPAND finds all srfi-*
                                         ;
                                         ;not supported in Larceny because
-                                        ;SLIB's redefinition of require will
-                                        ;break srfi-0, cond-expand
+                                        ;SLIB's redefinition of require
+                                        ;will break srfi-0 and cond-expand
 
         defmacro                        ;has Common Lisp DEFMACRO
 
@@ -222,25 +192,38 @@
 
 ;;;     sort
 
-        pretty-print
+;;;     pretty-print
 
 ;;;     object->string
 
 ;;;     format                          ;Common-lisp output formatting
 
-        trace                           ;has macros: TRACE and UNTRACE
-                                        ;(FIXME: as procedures, not macros)
-
-        compiler                        ;has (COMPILER)
-                                        ;FIXME: via eval, compile-file
+;;;     trace                           ;has macros: TRACE and UNTRACE
 
         ;; Implementation Specific features
 
         ))
 
-;;; most-positive-fixnum is used in modular.scm
+;;; Implements SLIB's record package.
 
-(define most-positive-fixnum (expt 2 (- 24 2)))
+(define record-modifier record-mutator)
+
+;;; Implements SLIB's current-time package.
+
+(define (current-time)
+  (current-seconds))
+
+(define (difftime t1 t0) (- t1 t0))
+
+(define (offset-time t1 offset) (+ t1 offset))
+
+;;; most-positive-fixnum is used in modular.scm
+;;;
+;;; SRFI 96 says it must be within the range of exact integers
+;;; that may result from computing the length of a list, vector,
+;;; or string.
+
+(define most-positive-fixnum (- (expt 2 (- 24 2)) 3))
 
 ;;; char-code-limit is one greater than the largest integer which can
 ;;; be returned by char->integer.
@@ -253,17 +236,7 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define with-load-pathname
-  (let ((exchange
-         (lambda (new)
-           (let ((old *load-pathname*))
-             (set! *load-pathname* new)
-             old))))
-    (lambda (path thunk)
-      (let* ((old (exchange path))
-             (val (thunk)))
-        (exchange old)
-        val))))
+;;; with-load-pathname is defined in srfi-59.sch
 
 ;;; (tmpnam) makes a temporary file name.
 
@@ -347,27 +320,7 @@
 ;;;
 ;;; Defmacro
 ;;;
-;;; FIXME:  I don't see how this could possibly work with
-;;; Larceny's defmacro.
-;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; Private stuff.
-
-(define (base:eval . args)
-  (apply slib:eval args))
-
-;(define (defmacro:expand* x)
-;  (require 'defmacroexpand) (apply defmacro:expand* x '()))
-
-(define (defmacro:expand* x)
-  (macro-expand x))
-
-(define *defmacros*
-  (list (cons 'defmacro
-              (lambda (name parms . body)
-                `(set! *defmacros* (cons (cons ',name (lambda ,parms ,@body))
-                                      *defmacros*))))))
 
 ;;; FIXME:
 ;;; SLIB appears to need these things, even though SRFI 96 doesn't
@@ -378,7 +331,11 @@
 
 (define (macro:load . args) (apply load args))
 
+;;;
+
 ;;; Public stuff.
+
+;;; defmacro is defined by Larceny's defmacro package
 
 (define gentemp
   (let ((*gensym-counter* -1))
@@ -387,30 +344,49 @@
       (string->symbol
        (string-append "slib:G" (number->string *gensym-counter*))))))
 
-(define (defmacro? m) (and (assq m *defmacros*) #t))
+;;; FIXME:  With Larceny's implementation of defmacro,
+;;; macros that have been defined using defmacro are
+;;; indistinguishable from macros that have been defined
+;;; using Larceny's low-level explicit-renaming facility.
+;;;
+;;; For SLIB, however, it's probably good enough to pretend
+;;; that all low-level macros were defined using defmacro.
+;;;
+;;; FIXME:  This is terribly representation-dependent,
+;;; and will break when (not if) the representation of
+;;; macros changes.
 
-(define (defmacro:eval x) (base:eval (defmacro:expand* x)))
+(define (defmacro? m)
+  (let ((x (environment-get-macro (interaction-environment) m)))
+    (and x (procedure? (cadr x)))))
 
-(define (defmacro:load <pathname>)
-  (slib:eval-load <pathname> defmacro:eval))
+(define (defmacro:eval x) (slib:eval (defmacro:expand* x)))
 
-(define (macroexpand-1 e)
-  (if (pair? e)
-      (let ((a (car e)))
-        (cond ((symbol? a)
-               (set! a (assq a *defmacros*))
-               (if a (apply (cdr a) (cdr e)) e))
-              (else e)))
-      e))
+;;; FIXME:  The specification of defmacro:eval says it
+;;; has to use slib:eval, but the definition of
+;;; defmacro:load says no such thing.
 
-(define (macroexpand e)
-  (if (pair? e)
-      (let ((a (car e)))
-        (cond ((symbol? a)
-               (set! a (assq a *defmacros*))
-               (if a (macroexpand (apply (cdr a) (cdr e))) e))
-              (else e)))
-      e))
+(define defmacro:load load)
+
+;;; FIXME:  There doesn't seem to be any analogue of
+;;; macroexpand-1 in Larceny.
+
+(define (macroexpand-1 e) (macro-expand e))
+
+(define macroexpand macro-expand)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; R5RS Macros
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define macro:expand macro-expand)
+
+(define (macro:eval exp)
+  (eval exp (interaction-environment)))
+
+(define macro:load load)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -418,24 +394,11 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; (slib:load-source "foo") should load "foo.scm" or with whatever
-;;; suffix all the module files in SLIB have.  See feature 'source.
+(define slib:load-source load)
 
-;(define slib:load-source load)
+(define slib:load-compiled load)
 
-(define (slib:load-source f)
-  (load (string-append f (scheme-file-suffix))))
-
-;;; (SLIB:LOAD-COMPILED "foo") should load the file that was produced
-;;; by compiling "foo.scm" if this implementation can compile files.
-;;; See feature 'COMPILED.
-
-(define (slib:load-compiled f)
-  (load (string-append f ".fasl")))
-
-;;; At this point SLIB:LOAD must be able to load SLIB files.
-
-(define slib:load slib:load-source)
+(define slib:load load)
 
 ;;; SLIB:EVAL is single argument eval using the top-level (user) environment.
 
@@ -465,11 +428,16 @@
   (lambda args
     (apply exit args)))
 
-; FIXME
+;;; FIXME
 
 (define (browse-url url)
-  (slib:warn "define BROWSE-URL in larceny.init")
+  (slib:warn "Larceny provides no browser")
   #f)
+
+;;; getenv and system are predefined by Larceny.
+
+(define (program-arguments)
+  (cons "larceny" (vector->list (command-line-arguments))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -522,6 +490,13 @@
 ;;; to specify the location of SLIB.
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; FIXME: the following line redefines Larceny's require
+;;; procedure, which breaks Larceny's support for SRFIs,
+;;; cond-expand, ERR5RS, R6RS, and a lot of other things.
+;;;
+;;; Workaround:  Don't require srfi-96 until all other
+;;; libraries that your program needs have been required.
 
 (slib:load (in-vicinity (library-vicinity) "require"))
 

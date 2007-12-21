@@ -415,6 +415,29 @@
       (begin (error "peek-char: not an input port: " p)
              #t)))
 
+; FIXME: deprecated in Larceny.  This was dropped in R6RS
+; because its semantics as specified by the R5RS aren't
+; really useful.  See below.
+;
+; FIXME: works only when an Ascii character is ready on a
+; textual port, which is a restriction permitted by the R5RS.
+;
+; FIXME: makes no effort to fill a depleted buffer, which
+; is a limitation permitted by the R5RS.
+
+(define (io/char-ready? p)
+  (if (port? p)
+      (let ((type (vector-like-ref p port.type))
+            (buf  (vector-like-ref p port.mainbuf))
+            (ptr  (vector-like-ref p port.mainptr)))
+        (cond ((eq? type type:textual-input)
+               (let ((unit (bytevector-ref buf ptr)))
+                 (or (< unit 128)
+                     (eq? (vector-like-ref p port.state)
+                          'eof))))
+              (else #f)))
+      (error 'char-ready? "not an input port" p)))
+
 ; FIXME:  For v0.94 only, io/write-char can write to binary
 ; ports, treating them as Latin-1.
 ;

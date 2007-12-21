@@ -139,7 +139,7 @@
 	  (else (loop (- i 1))))))
 
 ; Larceny does not support program-vicinity except in combination
-; with with-load-pathname.  See SRFII 96.
+; with with-load-pathname.  See SRFI 96.
 
 (define *load-pathname* #f)
 
