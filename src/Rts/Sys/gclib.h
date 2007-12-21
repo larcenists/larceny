@@ -22,6 +22,7 @@
 #define INCLUDED_GCLIB_H
 
 #include "config.h"
+#include "gset_t.h"
 
 /* The attribute GCLIB_LARGE_TABLE may be set in config.h.  This
    attribute is experimental.  If set, then
