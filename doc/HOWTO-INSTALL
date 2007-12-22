@@ -30,18 +30,20 @@ Which scripts you have depends on what platform you are using:
 
  - Windows: Batch files "larceny.bat" and "twobit.bat"
  - Solaris, Linux, Mac OS X: Shell scripts "larceny", "twobit",
-   and "scheme-script"
+   "scheme-script", and "compile-stale"
 
-If you would like to move one of these scripts to another directory but
-not rename it, it is sufficient to hard-code the location of the Larceny
-tree into the script.  For example, to install Petit Larceny into
-/usr/local on Linux, untar the Larceny tree as /usr/local/lib/larceny.
-Then, copy the scripts "larceny", "twobit", and "scheme-script" to
-/usr/local/bin, and edit each one by uncommenting the line that sets
-LARCENY_ROOT, and setting it to /usr/local/lib/larceny.
+If you would like to move a larceny or twobit script to another
+directory but not rename it, it is sufficient to hard-code the
+location of Larceny's root directory into the script.  For
+example, to install Petit Larceny into /usr/local on Linux,
+untar the Larceny tree as /usr/local/lib/larceny.  Then copy
+the scripts "larceny", "twobit", "scheme-script", and
+"compile-stale" to /usr/local/bin, editing the first two by
+uncommenting the line that sets LARCENY_ROOT, and setting it
+to /usr/local/lib/larceny.
 
-If you would like to change something else, such as the name of one of
-the scripts, editing the script should not be too difficult.
+If you would like to change something else, such as the name of
+a script, editing the script should not be too difficult.
 
 Note that all implementations of the R6RS on Unix machines are
 likely to provide their own scheme-script.  If you want Larceny

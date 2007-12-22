@@ -1,12 +1,11 @@
 Building Larceny
-1 June 2007
+21 December 2007
 
 WHAT YOU NEED
 
 If you want to recompile the Scheme sources entirely from source, you
 will need a Scheme system to host the Larceny build process: MzScheme
-3xx, MzScheme 209, or Larceny itself [1].  See README-FIRST.txt for
-more details.
+37x or Larceny itself [1].  See README-FIRST.txt for more details.
 
 If you want to build Larceny or Petit Larceny entirely from source,
 you will also need a C compiler (such as gcc).  For x86-32 targets,
@@ -146,13 +145,11 @@ step 4.
 
 4. Compile the ERR5RS/R6RS standard libraries.
 
-Starting from the root directory of the Larceny tree, change
-to lib/R6RS, run Larceny in its default -r5rs mode, and compile
-the ERR5RS/R6RS standard libraries as follows.
+Run Larceny in its default -r5rs mode, and compile the
+ERR5RS/R6RS standard libraries as follows.
 
-    % cd lib/R6RS
-    % ../../larceny
-    Larceny v0.95 "First Safety" (...)
+    % larceny
+    Larceny v0.96 "Fluoridation" (...)
 
     > (require 'r6rsmode)
     > (larceny:compile-r6rs-runtime)

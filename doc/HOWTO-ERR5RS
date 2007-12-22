@@ -52,12 +52,12 @@ the ERR5RS/R6RS runtime and standard libraries should work
 out of the box.  If you touch or modify any of the source
 files in lib/R6RS, however, then your next attempt to run
 Larceny in ERR5RS or R6RS mode is likely to generate a
-warning about "loading source in favor of stale fasl file:
-.../lib/R6RS/r6rs-standard-libraries.sch", followed by a
-long series of error messages about syntactic keywords used
-as a variable, ending with the kind of error you'd expect
-to see when a large R6RS program is fed to a Scheme compiler
-that was expecting to see R5RS-compatible code.  To fix the
+warning about "loading source in favor of stale fasl file".
+This message may be followed by a long series of error
+messages about syntactic keywords used as a variable,
+ending with the kind of error you'd expect to see when a
+large R6RS program is fed to a Scheme compiler that was
+expecting to see R5RS-compatible code.  To fix the
 problem, repeat step 4 of HOWTO-BUILD.
 
 
@@ -67,7 +67,7 @@ To interact with Larceny's ERR5RS read/eval/print loop,
 specify the -err5rs option on Larceny's command line:
 
     % larceny -err5rs
-    Larceny v0.95 "First Safety" (...)
+    Larceny v0.96 "Fluoridation" (...)
     ERR5RS mode (no libraries have been imported)
 
 Since no libraries have been imported, the only forms you
@@ -89,11 +89,26 @@ all other syntax and variables you have imported:
     128
 
 
+LIBRARY PATH
+
+As an extension to ERR5RS, Larceny automatically loads
+libraries when they are first imported, provided Larceny
+can find the libraries in its library search path.  The
+library search path defaults to a path that contains
+the predefined libraries listed below, but one additional
+directory can be added to the library search path using
+Larceny's --path command-line option.
+
+Autoloaded libraries must be defined in files that follow
+Larceny's standard naming conventions for ERR5RS/R6RS
+library files.  These naming conventions are described
+in Larceny's user manual (see doc/user-manual.*).
+
+
 DYNAMIC LOADING
 
-To load libraries, top-level programs, or unadorned
-R5RS-style code from a file, you must first import a
-suitable load procedure:
+To load top-level programs or unadorned R5RS-style code
+from a file, you must first import a suitable load procedure:
 
     > (import (err5rs load))
 
@@ -106,8 +121,8 @@ Loading a library does not automatically import it:
     Entering debugger; type "?" for help.
     debug> q
 
-To use the variables and syntax that are exported by a
-library, you must first load and then import that library
+To use the variables and syntax that are exported by an
+explicitly loaded library, you must import that library
 explicitly:
 
     > (import (larceny benchmarking))
@@ -118,8 +133,9 @@ explicitly:
     Elapsed GC time: 4 ms (CPU: 4 in 8 collections.)
 
 Before you import a library or load a top-level program,
-you must first load all of the nonstandard libraries it
-imports.
+you must first load any nonstandard libraries it imports
+unless those libraries will be found using Larceny's
+library search path.
 
 You do not have to import those libraries into the ERR5RS
 top level, however, unless you want to use the variables
@@ -127,12 +143,13 @@ and syntax exported by those libraries in the expressions
 and definitions you evaluate at the top level.
 
 
-PRE-LOADED LIBRARIES
+PREDEFINED LIBRARIES
 
-For your convenience, Larceny pre-loads all of the standard
-R6RS libraries and several other libraries besides, so you
-can import from those libraries without having to load them
-yourself.  The pre-loaded libraries include:
+For your convenience, Larceny pre-loads or autoloads all
+of the standard R6RS libraries and several other libraries
+besides, so you can import from those libraries without
+having to load them yourself.  The predefined libraries
+include:
 
   R6RS standard libraries:
 
@@ -173,6 +190,9 @@ yourself.  The pre-loaded libraries include:
     (err5rs records syntactic)       ; ERR5RS records (syntactic API)
     (err5rs load)                    ; ERR5RS load procedure
     (rnrs load)                      ; equivalent to (err5rs load)
+    (larceny load)                   ; extension of (err5rs load)
+    (larceny compiler)               ; separate compilation for ERR5RS/R6RS
+    (larceny benchmarking)           ; timing facilities
     (r5rs)                           ; approximates the R5RS top level
     (explicit-renaming)              ; a macro system with explicit renaming
 
@@ -182,15 +202,21 @@ ACCESS TO LARCENY PROCEDURES
 Larceny supports an extension to the ERR5RS that allows an
 import form to import any R5RS procedure from Larceny's
 R5RS-conforming top-level environment.  For examples of its
-use, see lib/R6RS/benchmarking.sch.
+use, see lib/R6RS/larceny/benchmarking.sls.
 
 
 PRECOMPILING ERR5RS/R6RS FILES
 
-In Larceny v0.95, the compile-file procedure can only be used
-to compile files that contain R5RS source code.  ERR5RS and
-R6RS libraries cannot be pre-compiled.  This limitation will
-be removed in the near future.
+Larceny v0.96 allows separate compilation of ERR5RS/R6RS
+libraries, top-level programs, and Scheme scripts.  The
+compile-stale script will compile all .sls files that
+reside within the directory from which it is invoked.
+That is awkward to do manually, since a file should not
+be compiled until all of the libraries that it imports
+have been compiled.
+
+For more information on separate compilation of ERR5RS
+libraries and programs, see Larceny's user manual.
 
 --------
 

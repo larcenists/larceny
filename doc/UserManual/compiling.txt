@@ -82,7 +82,7 @@ If _faslfile_ is supplied as a second argument,
 then it must be a string naming the file that will
 contain the compiled code; otherwise the name of
 the compiled file is obtained from _sourcefile_
-by replacing the "`.sch`" or "`.scm" suffix with
+by replacing the "`.sch`" or "`.scm`" suffix with
 "`.fasl`".
 
 For ERR5RS/R6RS libraries and top-level programs,

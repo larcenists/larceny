@@ -1,0 +1,79 @@
+[[LarcenyCompilerSection]]
+
+Compiler
+~~~~~~~~
+
+The `(larceny compiler)` library exports the
+`load` and `require` procedures of `(larceny load)`,
+the
+<<current-require-path,`current-require-path`>>
+procedure, and the
+<<compile-file,`compile-file`>>,
+<<compile-library,`compile-library`>>, and
+<<compile-stale-libraries,`compile-stale-libraries`>>
+procedures described below.
+
+These procedures can be used to compile ERR5RS/R6RS
+libraries and top-level programs before they are imported
+or executed.
+This is especially important for Petit Larceny, which
+would otherwise use an interpreter.  For native Larceny,
+whose just-in-time compiler generates native machine code
+as source libraries and programs are loaded, imported, or
+executed, the main advantage of separate compilation is
+that compiled libraries and programs will load much
+faster than source libraries and programs.
+
+The main disadvantage of separate compilation is that
+compiled libraries and programs go _stale_ when their
+source code is changed or when a library on which they
+depend is changed or recompiled.  Stale libraries and
+programs can be dangerously inconsistent with libraries
+on which they depend, so Larceny checks for staleness
+and refuses to execute a stale library or program.
+The <<compile-stale-libraries,`compile-stale-libraries`>>
+procedure provides a convenient way to recompile stale
+libraries and programs.
+
+proctempl:compile-file[args="sourcefile",optarg="slfaslfile"]
+
+Compiles _sourcefile_, which must be a string naming
+a file that contains source code for one or more
+ERR5RS/R6RS libraries or a top-level program.
+If _slfaslfile_ is supplied as a second argument,
+then it must be a string naming the file that will
+contain the compiled code; otherwise the name of
+the compiled file is obtained from _sourcefile_
+by replacing the "`.sls`" suffix with "`.slfasl`".
+
+proc:compile-library[args="sourcefile",optarg="slfaslfile"]
+
+Compiles _sourcefile_, which must be a string naming
+a file that contains source code for one or more
+ERR5RS/R6RS libraries.
+Apart from its unwillingness to compile top-level
+programs, `compile-library` behaves the same as
+`compile-file` above.
+
+proc:compile-stale-libraries[args="",optarg="changedfile"]
+
+If no argument is supplied, then all "`.sls`" files that
+lie within the current directory or a subdirectory are
+recompiled.
+
+If _changedfile_ is supplied, then it must be a string
+giving the absolute pathname of a file.
+(In typical usage, _changedfile_ is a source file that
+has been modified, making it necessary to recompile all
+files that depend upon it.)
+Compiles all ERR5RS/R6RS library files that lie within
+the same directory as _changedfile_ or a subdirectory,
+and have not yet been compiled or whose compiled files
+are older than _changedfile_.
+
+[NOTE]
+================================================================
+In future versions of Larceny, `compile-stale-libraries`
+might compile only the source files that depend upon
+_changedfile_.
+================================================================

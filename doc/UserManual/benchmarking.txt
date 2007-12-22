@@ -1,0 +1,50 @@
+[[LarcenyBenchmarkingSection]]
+
+Benchmarking
+~~~~~~~~~~~~
+
+The `(larceny benchmarking)` library exports the
+`time` syntax and `run-benchmark` procedure described
+below.
+
+_Syntax time_
+
+++(time expression)++
+
+Evaluates _expression_ and returns its result
+after printing approximations to the storage
+allocated and time taken during evaluation of
+_expression_.
+
+----------------------------------------------------------------
+    > (time (fib 30))
+    Words allocated: 0
+    Words reclaimed: 0
+    Elapsed time...: 49 ms (User: 48 ms; System: 0 ms)
+    Elapsed GC time: 0 ms (CPU: 0 in 0 collections.)
+    832040
+----------------------------------------------------------------
+
+proctempl:run-benchmark[args="name iterations thunk predicate"]
+
+Given the _name_ of a benchmark, the number of
+_iterations_ to be performed, a zero-argument
+procedure _thunk_ that runs the benchmark,
+and a unary _predicate_ that checks the result
+of _thunk_, prints approximations to the storage
+allocated and time taken by _iterations_ calls
+to _thunk_.
+
+----------------------------------------------------------------
+    > (run-benchmark "fib30"
+                     100
+                     (lambda () (fib 30))
+                     (lambda (x) (= x 832040)))
+
+    --------------------------------------------------------
+    fib30
+    Words allocated: 0
+    Words reclaimed: 0
+    Elapsed time...: 4828 ms (User: 4824 ms; System: 4 ms)
+    Elapsed GC time: 0 ms (CPU: 0 in 0 collections.)
+----------------------------------------------------------------
