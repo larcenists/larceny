@@ -24,9 +24,15 @@ require procedure to load srfi-96, you will no longer
 be able to require non-SLIB libraries.
 
 
+DOWNLOADING
+
+SLIB is available for downloading at
+http://www-swiss.ai.mit.edu/~jaffer/SLIB.html
+
+
 INSTALLATION
 
-Download SLIB and unpack it into the lib/SLIB directory.
+Download SLIB and unpack it into Larceny's lib/SLIB directory.
 Then create the slibcat catalog in Larceny's root directory
 as follows:
 

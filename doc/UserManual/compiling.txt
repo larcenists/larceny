@@ -1,19 +1,89 @@
+[[CompilingChapter]]
+
 Compiling files and libraries
 -----------------------------
 
-This section isn't written yet, mainly because Larceny's
-ERR5RS and R6RS modes are undergoing rapid development.
+This chapter explains how you can use Larceny to compile
+Scheme source code to native machine code.
 
-To compile files that contain R5RS code and will run only in
-R5RS mode, see the `README-FIRST.txt` file in Larceny's root
+The native varieties of Larceny have a just-in-time
+compiler that compiles to native code automatically
+whenever you evaluate an expression, load a source
+file, or import a source library.  Even so, files
+will load faster if they are compiled ahead of time.
+
+Petit Larceny does not have a just-in-time compiler,
+so compiling ahead of time is the only way to enjoy
+the speed of native machine code in Petit Larceny.
+
+Common Larceny uses an interpreter for expressions
+that are typed at the interactive read/eval/print
+loop, but files will be compiled as they are loaded
+if you specify +Larceny.fasl+ on the command line.
+For more information on compiling files in Common
+Larceny, please consult the
+http://larceny.ccs.neu.edu[Common Larceny User Manual].
+
+
+[[CompilingErr5rsSection]]
+
+Compiling ERR5RS/R6RS libraries
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+On Unix machines, the most convenient way to compile
+a group of ERR5RS/R6RS libraries and top-level programs
+is to use the +compile-stale+ script in Larceny's root
 directory.
+If Larceny's root directory is in your execution path,
+then there are just two steps:
 
-For the most current information on compiling files that
-contain ERR5RS code, R6RS libraries or top-level programs,
-or Scheme scripts, see
+1.  Use +cd+ to change to the directory that contains
+the ERR5RS/R6RS files you want to compile.  (Files
+that lie within subdirectories of that directory will
+be compiled also.)
 
+2.  Run the +compile-stale+ script.
+
+For example:
 ----------------------------------------------------------------
-    doc/HOWTO-ERR5RS
-    doc/HOWTO-R6RS
-    doc/HOWTO-SCRIPT
+    % cd lib/R6RS/larceny
+    % compile-stale
 ----------------------------------------------------------------
+
+On non-Unix machines, you can accomplish the same thing
+using Larceny's ERR5RS mode and the +(larceny compiler)+
+library:
+----------------------------------------------------------------
+    % pushd lib\R6RS\larceny
+    % ..\..\..\larceny.bat -err5rs
+    Larceny v0.96 "Fluoridation"
+    ERR5RS mode (no libraries have been imported)
+
+    > (import (larceny compiler))
+
+    > (compile-stale-libraries)
+----------------------------------------------------------------
+
+To compile individual files, use the `compile-file` or
+`compile-library` procedures that are exported by
+<<LarcenyCompilerSection,`(larceny compiler)`>>.
+
+
+[[CompilingR5rsSection]]
+
+Compiling R5RS source files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+proc:compile-file[args="sourcefile",optarg="faslfile"]
+
+Compiles _sourcefile_, which must be a string naming
+a file that contains R5RS source code.
+If _faslfile_ is supplied as a second argument,
+then it must be a string naming the file that will
+contain the compiled code; otherwise the name of
+the compiled file is obtained from _sourcefile_
+by replacing the "`.sch`" or "`.scm" suffix with
+"`.fasl`".
+
+For ERR5RS/R6RS libraries and top-level programs,
+<<CompilingErr5rsSection,see above>>.

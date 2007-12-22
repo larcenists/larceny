@@ -52,8 +52,26 @@ include::err5rs.txt[]
 
 include::r6rs.txt[]
 
-Larceny libraries
------------------
+[[LarcenyErr5rsLibrariesChapter]]
+
+Larceny's ERR5RS/R6RS libraries
+-------------------------------
+
+Larceny provides libraries for loading and compiling
+ERR5RS/R6RS libraries and for timing benchmarks.
+Future versions of Larceny will offer more ERR5RS/R6RS
+libraries.
+
+include::load.txt[]
+
+include::compiler.txt[]
+
+include::benchmarking.txt[]
+
+[[LarcenyR5rsLibrariesChapter]]
+
+Larceny's R5RS libraries
+------------------------
 
 The procedures described in this chapter are nonstandard.
 Some are deprecated after being rendered obsolete by ERR5RS
@@ -94,6 +112,8 @@ include::symbols.txt[]
 include::syscontrol.txt[]
 
 include::srfi.txt[]
+
+include::slib.txt[]
 
 include::ffi.txt[]
 

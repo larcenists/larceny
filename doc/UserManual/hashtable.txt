@@ -18,9 +18,6 @@ To resolve a clash of names and semantics with the
 R6RS `make-hashtable` procedure, Larceny's traditional
 `make-hashtable` procedure has been renamed to
 `make-oldstyle-hashtable`.
-In Larceny v0.95, the `make-hashtable` procedure delegates to
-`make-oldstyle-hashtable` after printing a warning, but will
-delegate to `make-r6rs-hashtable` in v0.96.
 ================================================================
 
 ==== Hash tables

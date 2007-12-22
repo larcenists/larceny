@@ -26,7 +26,7 @@ values:
 ----------------------------------------------------------------
 
 Certain other flags have special meanings to Larceny's
-`read` and `get-datum` procedures.  They are described below.
++read+ and +get-datum+ procedures.  They are described below.
 
 
 [[CaseFoldingSection]]
@@ -36,27 +36,27 @@ Case-sensitivity
 
 By default, Larceny is case-sensitive.
 This global default can be overridden by specifying
-`--foldcase` or `--nofoldcase` on Larceny's command line,
-or by changing the value of Larceny's `case-sensitive?` parameter.
++--foldcase+ or +--nofoldcase+ on Larceny's command line,
+or by changing the value of Larceny's +case-sensitive?+ parameter.
 
 The case-sensitivity of a particular textual input port
 is affected by reading one of the following flags from
-the port using the `read` or `get-datum` procedures:
+the port using the +read+ or +get-datum+ procedures:
 
 ----------------------------------------------------------------
     #!fold-case
     #!no-fold-case
 ----------------------------------------------------------------
 
-The `#!fold-case` flag enables case-folding on data read from
-the port by the `read` and `get-datum` procedures, while the
-`#!no-fold-case` flag disables case-folding.  The behavior
+The +\#!fold-case+ flag enables case-folding on data read from
+the port by the +read+ and +get-datum+ procedures, while the
++\#!no-fold-case+ flag disables case-folding.  The behavior
 established by one of these flags extends to the next flag
-read from the port by `read` or `get-datum`.
+read from the port by +read+ or +get-datum+.
 
-Both `#!fold-case` and `#!no-fold-case` evaluate to an
+Both +\#!fold-case+ and +\#!no-fold-case+ evaluate to an
 unspecified value.  To obtain the effect of one of these flags
-while treating it as a comment, place `#;` in front of the flag.
+while treating it as a comment, place +#;+ in front of the flag.
 
 
 [[LexicalExtensionsSection]]
@@ -64,46 +64,69 @@ while treating it as a comment, place `#;` in front of the flag.
 Lexical extensions
 ~~~~~~~~~~~~~~~~~~
 
-The following flags affect the case-sensitivity of a port,
-but have additional side effects that may change the behavior
-of `read` and `get-datum` on all ports:
+When a port is first opened, the Larceny-specific lexical
+extensions that are accepted on the port are determined
+by Larceny's <<LexicalParametersSection,lexical parameters>>.
+
+The following flags change the case-sensitivity and lexical
+extensions on the specific port from which they are read:
 
 ----------------------------------------------------------------
-    #!r6rs
-    #!r5rs
-    #!err5rs
-    #!larceny
+    #!r6rs         ; implies #!no-fold-case, negates other flags
+    #!r5rs         ; implies #!fold-case, #!err5rs
+    #!err5rs       ; allows Larceny-specific extensions
+    #!larceny      ; implies #!no-fold-case, #!err5rs
 ----------------------------------------------------------------
 
-These flags disable (`#!r6rs`, `#!err5rs`, and `#!larceny`) or
-enable (`#!r6rs`) case-folding on the textual input port from
-which they are read, but they also disable (`#!r6rs`) or enable
-(`#!r5rs`, `#!err5rs` and `#!larceny`) several Larceny-specific
-extensions to the lexical syntax accepted on all ports.
-
-The `#!r6rs` flag is a comment, while all of Larceny's other
+The +\#!r6rs+ flag is a comment, while all of Larceny's other
 flags evaluate to an unspecified value.  To obtain the effect
-of a flag other than `#!r6rs` while treating it as a comment,
-place `#;` in front of the flag.
+of a flag other than +\#!r6rs+ while treating it as a comment,
+place +\#;+ in front of the flag.
 
 [WARNING]
 ================================================================
-The R6RS requires implementations to treat `#!r6rs` as a
+The R6RS requires implementations to treat +\#!r6rs+ as a
 comment; it is the only flag that implementations of the R6RS
-are required to treat as a comment.  Since the `#!r6rs` flag
+are required to treat as a comment.  Since the +\#!r6rs+ flag
 behaves differently from all other flags, it is deprecated.
 ================================================================
 
-[WARNING]
-================================================================
-The semantics of the `#!r6rs`, `#!r6rs`, `#!err5rs`, and
-`#!larceny` flags is subject to change in future
-versions of Larceny.  In particular, future versions of
-Larceny may limit the effect of these flags to the port
-from which they are read.
-For the current semantics of these flags, please consult
+
+[[LexicalParametersSection]]
+
+Lexical parameters
+~~~~~~~~~~~~~~~~~~
+
+When given no argument, these parameters return the current
+default for some aspect of the lexical syntax that will be
+accepted on newly created ports.
+When given an argument, these procedures change the default
+as specified by the argument.
+
+proc:case-sensitive?[args="",optarg="boolean",result="boolean"]
+
+Determines whether newly created textual ports default to
+case-sensitive.
+
+proc:read-larceny-weirdness?[args="",optarg="boolean",result="boolean"]
+
+Determines whether newly created textual ports allow
+Larceny's usual extensions to R5RS lexical syntax.
+This parameter also determines whether newly created
+ports allow +\#+ as an insignificant digit; this is
+required by the R5RS, but disallowed by the R6RS.
+
+proc:read-traditional-weirdness?[args="",optarg="boolean",result="boolean"]
+
+Determines whether newly created textual ports allow
+certain lexical extensions that are deprecated in Larceny.
+These extensions include symbols enclosed by vertical
+bars and read-time evaluation.
+
+For the current semantics of these parameters, please consult
 the Larceny developers' web page that describes
 http://larceny.ccs.neu.edu/larceny-trac/wiki/LexicalConversion[Larceny's
 lexical syntax].
-================================================================
+
+
 

@@ -139,8 +139,7 @@ compiler development can be a risky business, "`twobit.heap`" uses an
 interpreter to evaluate the Scheme code you load and type -- the
 interpreter is unaffected by changes to Twobit.
 
-Using "`twobit.heap`" is probably not useful unless you are doing
-compiler development, in which case you will need the source code as
-well as the binaries.
-
+If you are using "`twobit.heap`" for compiler development,
+you will need the source code as well as a binary distribution
+of Larceny.
 

@@ -30,7 +30,7 @@
 (define (print-circular-internal obj port quote? primitive-printer)
 
   (define tbl                           ; Maps objects to refs 
-    (make-hashtable equal-hash assq))
+    (make-eq-hashtable))
 
   (define next 0)			; Next output ID to be used
 

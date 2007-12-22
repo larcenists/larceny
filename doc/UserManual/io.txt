@@ -14,7 +14,7 @@ Closes all open files.
 
 proc:console-input-port[args="none",result="input-port"]
 
-Returns a character input port s.t. no read from the port has
+Returns a character input port such that no read from the port has
 signalled an error or returned the end-of-file object.
 
 _Rationale:_ console-input-port and console-output-port are artifacts
@@ -36,7 +36,7 @@ their own console port generators.
 
 proc:console-output-port[args="none",result="output-port"]
 
-Returns a character output port s.t. no write to the port has
+Returns a character output port such that no write to the port has
 signalled an error.
 
 See console-input-port for a full explanation.
@@ -46,7 +46,7 @@ indexterm:[console-input-port-factory]
 _Parameter console-input-port-factory_     
 
 The value of this parameter is a procedure that returns a character
-input port s.t. no read from the port has signalled an error or
+input port such that no read from the port has signalled an error or
 returned the end-of-file object.
 
 See console-input-port for a full explanation.
@@ -56,7 +56,7 @@ indexterm:[console-output-port-factory]
 _Parameter console-output-port-factory_     
 
 The value of this parameter is a procedure that returns a character
-output port s.t. no write the port has signalled an error.
+output port such that no write the port has signalled an error.
 
 See console-input-port for a full explanation.
 

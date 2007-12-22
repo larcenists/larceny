@@ -1,0 +1,14 @@
+#!/usr/bin/env scheme-script
+
+#!r6rs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Compiles all .sls files within this directory and its
+;;; subdirectories.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(import (rnrs base) (larceny compiler))
+
+(compile-stale-libraries)

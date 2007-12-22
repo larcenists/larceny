@@ -4,8 +4,8 @@ Bytevectors
 A _bytevector_ is a data structure that stores bytes -- exact
 8-bit unsigned integers. Bytevectors are useful in constructing
 system interfaces and other low-level programming. In Larceny,
-many bytevector-like structures -- strings, bignums, and even
-bytevectors themselves -- are implemented in terms of a
+many bytevector-like structures -- bignums, for example --
+are implemented in terms of a
 lower-level _bytevector-like_ data type. The operations on
 generic bytevector-like structures are particularly fast but
 useful largely in code that manipulates Larceny's data
