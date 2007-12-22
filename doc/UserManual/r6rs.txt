@@ -42,7 +42,7 @@ Larceny's R5RS mode does not support `library`, `import`, or
 The following deviations from R6RS semantics are known bugs
 that should be fixed in a future release.
 
-In Larceny v0.95, the imaginary part of an inexact real is
+In Larceny v0.96, the imaginary part of an inexact real is
 inexact.  Some of the algebraic and transcendental functions
 do not yet behave as specified by the R6RS, especially with
 regard to branch cuts.
@@ -292,22 +292,15 @@ Larceny's R5RS mode does not.
 Hashtables
 ~~~~~~~~~~
 
-ERR5RS and R6RS modes support the `(rnrs hashtables)` library.
+All of Larceny's modes support all features of the
+`(rnrs hashtables)` library.
 
-Larceny's R5RS mode provides all of the procedures exported by
-`(rnrs hashtables)`, but renames the `make-hashtable` procedure
-to `make-r6rs-hashtable` so it won't clash with Larceny's
-traditional `make-hashtable` procedure, which has itself been
-renamed to `make-oldstyle-hashtable`.
-
-[WARNING]
+[NOTE]
 ================================================================
-In Larceny v0.96, `make-hashtable` delegates to
-`make-oldstyle-hashtable` after printing a warning
-that describes what it is doing.
-In future versions of Larceny, `make-hashtable` will
-delegate to `make-r6rs-hashtable` after printing a
-warning that describes what it is doing.
+Larceny's traditional `make-hashtable` procedure has been
+renamed to `make-oldstyle-hashtable`.  In Larceny v0.96,
+`make-hashtable` prints a warning when it is called.  To
+avoid that warning, call `make-r6rs-hashtable` instead.
 ================================================================
 
 

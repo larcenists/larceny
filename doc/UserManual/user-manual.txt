@@ -48,6 +48,8 @@ include::lexical.txt[]
 
 include::naming.txt[]
 
+include::compiling.txt[]
+
 include::err5rs.txt[]
 
 include::r6rs.txt[]
@@ -67,6 +69,8 @@ include::load.txt[]
 include::compiler.txt[]
 
 include::benchmarking.txt[]
+
+include::recprinter.txt[]
 
 [[LarcenyR5rsLibrariesChapter]]
 
@@ -118,8 +122,6 @@ include::slib.txt[]
 include::ffi.txt[]
 
 include::debugging.txt[]
-
-include::compiling.txt[]
 
 ////////////////////////////////////////////////////////////////
 include::starting.txt[]

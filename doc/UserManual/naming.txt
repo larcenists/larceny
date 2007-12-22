@@ -14,9 +14,8 @@ even on Windows.  The following suffixes have special
 meanings to some components of Larceny.
 
 `.sls`
-is the preferred suffix for files that contain
-ERR5RS/R6RS-compatible library definitions or
-top-level programs (with import declarations).
+is the preferred suffix for files that consist
+of ERR5RS/R6RS-compatible library definitions.
 
 `.sch`
 is the preferred suffix for files that contain R5RS
