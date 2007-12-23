@@ -72,7 +72,8 @@ directory will contain the following files:
         larceny             Shell script that runs larceny.heap
         twobit              Shell script that runs twobit.heap
         scheme-script       Shell script that runs Scheme scripts
-        startup.sch         Pathnames for the require feature
+        compile-stale       Scheme script that compiles ERR5RS/R6RS libraries
+        startup.sch         Pathnames for the require and autoload features
     
 
 If you unpacked the source code there will be many other files and

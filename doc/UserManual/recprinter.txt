@@ -1,4 +1,4 @@
-[[LarcenyCompilerSection]]
+[[RecordsPrinterSection]]
 
 Records printer
 ~~~~~~~~~~~~~~~

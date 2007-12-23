@@ -229,6 +229,7 @@ Other autoloadable libraries:
     (larceny load)                   ; extension of (err5rs load)
     (larceny compiler)               ; separate compilation for ERR5RS/R6RS
     (larceny benchmarking)           ; timing facilities
+    (larceny records printer)        ; custom printing of records
     (r5rs)                           ; approximates the R5RS top level
     (explicit-renaming)              ; macro system with explicit renaming
 
@@ -455,7 +456,7 @@ Troubleshooting
 
 When attempting to run an R6RS program, you may see
 a warning about "loading source in favor of stale
-fasl file: `.../lib/R6RS/r6rs-standard-libraries.sch`",
+fasl file`",
 following by a long series of error messages about
 syntactic keywords used as a variable, ending with
 the kind of error you'd expect to see when a large
@@ -464,7 +465,7 @@ expecting to see R5RS-compatible code.  That means
 the R6RS runtime and standard libraries were not
 installed correctly, or their source files have been
 touched or modified since they were last compiled.
-To fix the problem
+To fix the problem,
 <<CompilingStdLibSection, recompile the R6RS standard
 libraries>> as described in step 4 of `doc/HOWTO-BUILD`.
 
@@ -494,7 +495,7 @@ omitted or incorrect.
 
 If an ERR5RS/R6RS library is compiled, then all compiled
 libraries and top-level programs that depend upon it must
-also be recompiled.  In particular, compiling the standard
+also be recompiled.  In particular, recompiling the standard
 R6RS runtime will invalidate all compiled libraries and
 top-level programs.  Larceny's `compile-stale` script
 and the

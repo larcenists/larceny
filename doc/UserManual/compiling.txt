@@ -24,6 +24,15 @@ For more information on compiling files in Common
 Larceny, please consult the
 http://larceny.ccs.neu.edu[Common Larceny User Manual].
 
+The main disadvantage of compiling files and libraries
+is that compiled code goes _stale_ when its original
+source code is changed or when a library on which
+the compiled code depends is changed or recompiled.
+Stale compiled code can be dangerously inconsistent
+with libraries on which it depends, so Larceny checks
+for staleness and refuses to execute a stale library
+or program.
+
 
 [[CompilingErr5rsSection]]
 
@@ -46,7 +55,7 @@ be compiled also.)
 
 For example:
 ----------------------------------------------------------------
-    % cd lib/R6RS/larceny
+    % cd lib/R6RS
     % compile-stale
 ----------------------------------------------------------------
 
@@ -54,8 +63,8 @@ On non-Unix machines, you can accomplish the same thing
 using Larceny's ERR5RS mode and the +(larceny compiler)+
 library:
 ----------------------------------------------------------------
-    % pushd lib\R6RS\larceny
-    % ..\..\..\larceny.bat -err5rs
+    % pushd lib\R6RS
+    % ..\..\larceny.bat -err5rs
     Larceny v0.96 "Fluoridation"
     ERR5RS mode (no libraries have been imported)
 
