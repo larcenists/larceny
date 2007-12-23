@@ -1,11 +1,11 @@
 SYSTEM REQUIREMENTS
 
 Currently, this software is distributed for:
- - Solaris on SPARC machines (native SPARC and C backends)
- - Mac OS X (>= 10.2) on PowerPC machines (C backend)
- - Mac OS X (>= 10.4) on Intel x86 machines (native IA32 backend)
- - Linux on Intel x86 machines (native IA32 and C backends)
  - Windows on Intel x86 machines (native IA32 backend)
+ - Linux on Intel x86 machines (native IA32 and C backends)
+ - Mac OS X (>= 10.4) on Intel x86 machines (native IA32 backend)
+ - Mac OS X (>= 10.2) on PowerPC machines (C backend)
+ - Solaris on SPARC machines (native SPARC and C backends)
 
 The current version of Larceny always runs in 32-bit mode, but the
 native varieties of Larceny are known to work on 64-bit SPARC and
@@ -68,6 +68,8 @@ expressions to machine code as they are typed or loaded.
 Programs will load faster if precompiled; in Petit Larceny,
 the precompiled programs will also run much faster.
 
+To precompile files that contain R5RS Scheme code:
+
  - (compile-file <SOURCE> [<TARGET>])
 
    (compile-file "source.sch")
@@ -79,10 +81,10 @@ the precompiled programs will also run much faster.
  - (load "target.fasl")
      loads the compiled code in "target.fasl"
 
-In Larceny v0.95, the compile-file procedure can only be used
-to compile files that contain R5RS source code.  ERR5RS and
-R6RS libraries cannot be precompiled.  This limitation will
-be removed in the near future.
+To precompile ERR5RS/R6RS libraries, top-level programs, and
+Scheme scripts, use the compile-stale Scheme script that is
+in Larceny's root directory.  Please see the Larceny User
+Manual [2] for details.
 
 
 FURTHER READING
