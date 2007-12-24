@@ -45,13 +45,17 @@
 
 ; Wrapping those definitions and expressions inside a let
 ; may allow Twobit to generate better code.
+;
+; FIXME: (gensym) should return an unforgeable symbol,
+; but there is no such thing anymore.
 
 (define (pass0-optimize-toplevel exp)
   (define (gensym)
     (set! counter (+ counter 16))
     (string->symbol
-     (string-append "\x10fffd;" (number->string counter 16))))
-  (define counter 0)
+     (string-append "ignored0"
+                    (number->string counter 16))))
+  (define counter #xf0000)
   (let* ((form1 (cadr exp))
          (forms (cddr exp))
          (forms (map (lambda (form)
