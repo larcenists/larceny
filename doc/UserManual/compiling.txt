@@ -83,7 +83,7 @@ To compile individual files, use the `compile-file` or
 Compiling R5RS source files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-proc:compile-file[args="sourcefile",optarg="faslfile"]
+proc:compile-file[args="sourcefile",optargs="faslfile"]
 
 Compiles _sourcefile_, which must be a string naming
 a file that contains R5RS source code.

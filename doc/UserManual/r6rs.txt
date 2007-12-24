@@ -216,7 +216,7 @@ Larceny's R5RS mode supports all non-deprecated features
 of those libraries.
 
 Larceny supports four distinct buffer modes: `none`,
-`line`, `datum`, and `block`.  The draft R6RS requires
+`line`, `datum`, and `block`.  The R6RS requires
 the `buffer-mode` syntax to raise an exception for the
 `datum` buffer mode, which is the buffer mode Larceny
 uses for interactive output ports.
@@ -251,7 +251,7 @@ Larceny's R5RS mode provides the `exit` procedure but
 not the `command-line` procedure of that library.
 Larceny's traditional `command-line-arguments` procedure
 can be used to implement an approximation to `command-line`.
-For a definition, see `lib/R6RS/r6rs-standard-libraries.sch`.
+For a definition, see `lib/R6RS/rnrs/programs.sls`.
 
 
 [[R6rsArithmeticSection]]

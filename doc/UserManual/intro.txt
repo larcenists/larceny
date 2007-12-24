@@ -109,12 +109,37 @@ Unix prompt.  On Windows, type "`larceny.bat`".
 ==== Compiling the R6RS standard libraries
 
 Before you can run Larceny in ERR5RS or R6RS modes, you may
-have to compile the ERR5RS/R6RS runtime and standard libraries
-as described by step 4 of `doc/HOWTO-BUILD`.
+have to compile the ERR5RS/R6RS runtime and standard libraries,
+which is accomplished as follows:
 
-This step is definitely required if you are using Petit Larceny,
-and is recommended even if you are using a prebuilt distribution
-of native Larceny.
+----------------------------------------------------------------
+    $ ./larceny
+    Larceny v0.96 "Fluoridation" (...)
+    > (require 'r6rsmode)
+    > (larceny:compile-r6rs-runtime)
+    > (exit)
+----------------------------------------------------------------
+
+This step is definitely required if you are using Petit Larceny
+or building any variety of Larceny from source code.
+With the prebuilt native varieties of Larceny, however, this step
+should not be necessary.
+
+[WARNING]
+================================================================
+Compiling the ERR5RS/R6RS runtime as shown above causes
+all previously compiled ERR5RS/R6RS libraries and top-level
+programs to become <<CompilingChapter,stale>>.  That means
+those previously compiled files will need to be recompiled
+or removed.
+================================================================
+
+[TIP]
+================================================================
+If the +lib/R6RS+ directory and its subdirectories are read-only,
+then the standard libraries will not be touched, modified, or
+recompiled by accident.
+================================================================
 
 
 ==== Twobit

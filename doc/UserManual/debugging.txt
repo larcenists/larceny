@@ -96,7 +96,8 @@ proc:untrace[args="procedure ..."]
 
 proctempl:untrace[args=""]
 
-The first form removes any trace points from the _procedure_s. The second form removes all untrace points.
+The first form removes any trace points from the specified procedures.
+The second form removes all untrace points.
 
 === Other functionality
 

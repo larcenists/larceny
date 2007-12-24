@@ -103,7 +103,7 @@ all other syntax and variables you have imported.
 As an extension to ERR5RS, Larceny attempts to load
 libraries automatically when they are first imported.
 Autoloading makes interactive development and
-<<Err5rsCompilationSection,separate compilation>>
+<<CompilingChapter,separate compilation>>
 much more convenient.
 
 All of Larceny's
@@ -455,7 +455,7 @@ Troubleshooting
 ==== Errors when starting Larceny
 
 When attempting to run an R6RS program, you may see
-a warning about "loading source in favor of stale
+a warning about "`loading source in favor of stale
 fasl file`",
 following by a long series of error messages about
 syntactic keywords used as a variable, ending with
@@ -480,6 +480,27 @@ MzScheme v37x to recompile `larceny.bin` from source.
 First, though, you should report the problem
 to us (`larceny@ccs.neu.edu`).
 Please report success stories as well.
+
+
+==== Errors when compiling the ERR5RS/R6RS runtime
+
+If something goes wrong while
+<<CompilingStdLibSection,compiling the ERR5RS/R6RS runtime>>,
+make sure you are running the copy of Larceny you think
+you are running and have read and write permission
+for +lib/R6RS+ and all its subdirectories and files.
+If you get an error message about something being
+"`expanded against a different build of this library`",
+then one or more of the compiled files in +lib/R6RS+
+and its subdirectories has gone
+<<CompilingChapter,stale>>.
+Removing all `.slfasl` files from +lib/R6RS+ and its
+subdirectories will eliminate the stale file(s).
+
+[WARNING]
+================================================================
+Don't remove the `.sch` or `.sls` files.
+================================================================
 
 
 [[AutoLoadErrorsSection]]
@@ -577,6 +598,9 @@ For more information, evaluate
         (help)
 ----------------------------------------------------------------
 
-Some of the help information that will be printed may be out of
-date or irrelevant to the heap image you are using,
-but most of it is still true.
+[NOTE]
+================================================================
+Some of the help information that will be printed may be
+irrelevant to the heap image you are using.
+================================================================
+

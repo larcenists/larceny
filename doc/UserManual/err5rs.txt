@@ -214,7 +214,8 @@ The syntactic layer consists of
 http://srfi.schemers.org/srfi-9/[SRFI 9]
 extended with single inheritance and (optional) implicit naming.
 
-All ERR5RS record-type definitions are generative, but
+All ERR5RS record-type definitions are generative (unless
+Larceny's optional +uid+ feature is used), but
 ERR5RS drops the SRFI 9 restriction to top level, mainly
 because the R6RS allows generative definitions wherever
 a definition may appear.
