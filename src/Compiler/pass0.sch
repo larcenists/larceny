@@ -50,7 +50,7 @@
   (define (gensym)
     (set! counter (+ counter 16))
     (string->symbol
-     (string-append "\x10FFFD;" (number->string counter 16))))
+     (string-append "\x10fffd;" (number->string counter 16))))
   (define counter 0)
   (let* ((form1 (cadr exp))
          (forms (cddr exp))
