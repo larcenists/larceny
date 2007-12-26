@@ -40,7 +40,7 @@ TEMP="/tmp/larcenous"
 
 GABRIEL_BENCHMARKS="browse deriv dderiv destruc diviter divrec puzzle triangl tak takl ntakl cpstak ctak"
 
-NUM_BENCHMARKS="fib fibc fibfp sum sumfp fft mbrot nucleic pnpoly"
+NUM_BENCHMARKS="fib fibc fibfp sum sumfp fft mbrot mbrotZ nucleic pnpoly"
 
 KVW_BENCHMARKS="ack array1 string sum1 cat cat2 cat3 tail wc"
 
@@ -87,7 +87,7 @@ setup ()
   # For both Solaris and Linux machines.
 
   LARCENY=${LARCENY:-"../../../larceny"}
-  PETIT=${PETIT:-"../../../larceny"}
+  PETIT=${PETIT:-"../../../petit-larceny"}
   MZSCHEME=${MZSCHEME:-"mzscheme"}
  
 }
@@ -177,8 +177,8 @@ make_src_code ()
 
 larceny_comp ()
 {
-# printf "$COMPCOMMANDS" "$1" | "${LARCENY}" $COMPOPTS
-  time "${LARCENY}" -- -e "(begin (require 'r6rsmode) (larceny:load-r6rs-package) (compile-r6rs-file \"$1\" #f #f) (exit))"
+  echo "(import (larceny compiler)) (compile-file \"$1\")" \
+| time "${LARCENY}" -err5rs -- -e "(repl-prompt values)"
 }
 
 larceny_exec ()
@@ -188,8 +188,8 @@ larceny_exec ()
 
 petit_comp ()
 {
-# printf "$COMPCOMMANDS" "$1" | "${PETIT}" $COMPOPTS
-  :
+  echo "(import (larceny compiler)) (compile-file \"$1\")" \
+  | time "${PETIT}" -err5rs -- -e "(repl-prompt values)"
 }
 
 petit_exec ()
@@ -199,7 +199,8 @@ petit_exec ()
 
 henchman_comp ()
 {
-  :
+  echo "(import (larceny compiler)) (compile-file \"$1\")" \
+  | time "${HENCHMAN}" -err5rs -- -e "(repl-prompt values)"
 }
 
 henchman_exec ()
