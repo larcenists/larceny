@@ -1141,7 +1141,7 @@
                              bound-variables))
                       ((define)
                        (call-with-values
-                           (lambda () (parse-definition form))
+                           (lambda () (parse-definition form #f))
                          (lambda (id rhs)
                            (check-valid-definition id common-env body-type form forms type)
                            (env-extend! (list (make-map 'variable id #f)) common-env)
@@ -1154,7 +1154,7 @@
                                  (cons (binding-name (binding id)) bound-variables)))))
                       ((define-syntax)
                        (call-with-values
-                           (lambda () (parse-definition form))
+                           (lambda () (parse-definition form #t))
                          (lambda (id rhs)
                            (check-valid-definition id common-env body-type form forms type)
                            (let ((mapping (make-map 'macro id #f)))
@@ -1217,13 +1217,15 @@
                  (cdr body-form)))
            body-forms))
 
-    (define (parse-definition exp)
+    (define (parse-definition exp syntax-def?)
       (match exp
         ((- (? identifier? id))
          (values id (rename 'variable 'ex:unspecified)))
         ((- (? identifier? id) e)
          (values id e))
         ((- ((? identifier? id) . (? formals? formals)) body ___)
+         (and syntax-def?
+              (invalid-form exp))
          (values id `(,(rename 'macro 'lambda) ,formals ,@body)))))
 
     (define (parse-local-syntax t)
@@ -1434,8 +1436,7 @@
          (process-template p dim #t))
         ((? (lambda (_) (not ellipses-quoted?))
             (t (syntax ...) . tail))
-         (let* ((depth (segment-depth template))
-                (seg-dim (+ dim depth))
+         (let* ((head (segment-head template)) 
                 (vars
                  (map (lambda (mapping)
                         (let ((id      (car mapping))
@@ -1443,27 +1444,28 @@
                           (check-binding-level id binding)
                           (register-use! id binding)
                           (binding-name binding)))
-                      (free-meta-variables t seg-dim '()))))
+                      (free-meta-variables head (+ dim 1) '() 0))))
            (if (null? vars)
                (syntax-violation 'syntax "Too many ...'s" template)
-               (let* ((x (process-template t seg-dim ellipses-quoted?))
+               (let* ((x (process-template head (+ dim 1) ellipses-quoted?))
                       (gen (if (equal? (list x) vars)   ; +++
                                x                        ; +++
-                               `(if (or (< (length ',vars) 2)
-                                        (= ,@(map (lambda (var) 
-                                                    `(length ,var))
-                                                  vars)))
-                                    (map (lambda ,vars ,x)
+                               (if (= (length vars) 1) 
+                                   `(map (lambda ,vars ,x)
                                          ,@vars)
-                                    (ex:syntax-violation 
-                                     'syntax 
-                                     "Pattern variables denoting lists of unequal length preceding ellipses"
-                                     ',(syntax->datum template) 
-                                     (list ,@vars)))))
-                      (gen (do ((d depth (- d 1))
-                                (gen gen `(apply append ,gen)))
-                               ((= d 1)
-                                gen))))
+                                   `(if (= ,@(map (lambda (var) 
+                                                    `(length ,var))
+                                                  vars))
+                                        (map (lambda ,vars ,x)
+                                             ,@vars)
+                                        (ex:syntax-violation 
+                                         'syntax 
+                                         "Pattern variables denoting lists of unequal length preceding ellipses"
+                                         ',(syntax->datum template) 
+                                         (list ,@vars))))))
+                      (gen (if (> (segment-depth template) 1)
+                               `(apply append ,gen)
+                               gen)))
                  (if (null? (segment-tail template))   ; +++
                      gen                               ; +++
                      `(append ,gen ,(process-template (segment-tail template) dim ellipses-quoted?)))))))
@@ -1474,10 +1476,8 @@
          `(list->vector ,(process-template ts dim ellipses-quoted?)))
         (other
          `(quote ,(expand other)))))
-
-    ;; Return a list of meta-variables of given higher dim
-
-    (define (free-meta-variables template dim free)
+    
+    (define (free-meta-variables template dim free deeper)
       (match template
         ((? identifier? id)
          (if (memp (lambda (x) (bound-identifier=? (car x) id)) free)
@@ -1486,17 +1486,23 @@
                (if (and binding
                         (eq? (binding-type binding) 'pattern-variable)
                         (let ((pdim (binding-dimension binding)))
-                          (>= pdim dim)))
+                          (and (> pdim 0) 
+                               (not (>= deeper pdim))
+                               (<= (- pdim deeper) 
+                                   dim))))
                    (cons (cons id binding) free)
                    free))))
-        ((t (syntax ...) . tail)
-         (free-meta-variables t dim (free-meta-variables tail dim free)))
+        ((t (syntax ...) . rest)
+         (free-meta-variables t 
+                              dim 
+                              (free-meta-variables (segment-tail template) dim free deeper)
+                              (+ deeper (segment-depth template))))  
         ((t1 . t2)
-         (free-meta-variables t1 dim (free-meta-variables t2 dim free)))
-        (#(ts ___)
-         (free-meta-variables ts dim free))
+         (free-meta-variables t1 dim (free-meta-variables t2 dim free deeper) deeper))
+        (#(ts ___) 
+         (free-meta-variables ts dim free deeper))
         (- free)))
-
+ 
     ;; Count the number of `...'s in PATTERN.
 
     (define (segment-depth pattern)
@@ -1504,6 +1510,21 @@
         ((p (syntax ...) . rest)
          (+ 1 (segment-depth (cdr pattern))))
         (- 0)))
+      
+    ;; All but the last ellipses
+    
+    (define (segment-head pattern)
+      (let ((head
+             (let recur ((pattern pattern))
+               (match pattern
+                 ((h (syntax ...) (syntax ...) . rest)
+                  (cons h (recur (cdr pattern))))
+                 ((h (syntax ...) . rest)
+                  (list h))))))
+        (match head 
+          ((h (syntax ...) . rest)
+           head)
+          (- (car head)))))   
 
     ;; Get whatever is after the `...'s in PATTERN.
 
@@ -1990,7 +2011,6 @@
                       (pretty-print (syntax-debug exp)))
                     (newline))
                   *trace*)
-
         ;(error 'syntax-violation "Integrate with host error handling here")
 
         ; [Larceny]
@@ -2164,7 +2184,7 @@
                (if (memv (car (car sets)) rest)
                    rest
                    (cons (car (car sets)) rest))))))
-
+    
     (define (drop-tail list tail)
       (cond ((null? list)    '())
             ((eq? list tail) '())
@@ -2524,3 +2544,5 @@
 
     ) ; let
   ) ; letrec-syntax
+
+
