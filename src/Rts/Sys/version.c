@@ -24,7 +24,7 @@
  *  Deviated Prevert            0.93         9 Nov 2006     3782, 3944
  *  Doomsday Device             0.94         3 Jul 2007     4663
  *  First Safety                0.95         8 Nov 2007     5108
- *  Fluoridation                0.96
+ *  Fluoridation                0.96        24 Dec 2007     5266
  *  Funny in the Head
  *  General Ripper 
  *  Goldie

@@ -2,6 +2,11 @@
 
 ;; http://download.plt-scheme.org/doc/207/html/mzscheme/mzscheme-Z-H-4.html#node_chap_4
 
+;; FIXME:
+;; This is horribly representation-dependent.  Most of the hair
+;; appears to come from the proc-spec argument to make-struct-type,
+;; which is apparently never used within Larceny's code base.
+;;
 ;; FIXME / TODO:
 ;;  - immutable-k-list is ignored.
 ;;  - struct-procedure fields should be immutable
@@ -10,9 +15,11 @@
 ;;  - make-struct-type should use struct-type-property guard proc
 ;;  - inherit things like inspectors, prop-value-lists, struct-procedures
 ;;  - handle error cases appropriately (relies on having Mz. exception system)
+
 ($$trace "struct")
 
 ;; These procedures are provided.
+
 (define make-struct-type)
 (define make-struct-type-property)
 (define make-struct-field-accessor)
@@ -286,11 +293,23 @@
                             inspector
                             proc-spec
                             immutable-k-list)))
+
                   ;; Still need to invoke a bit of voodoo:
                   ;; make-record-type leaves the hierarchy-vector entry
                   ;; as a record-type-descriptor, but we want our
                   ;; shiny new struct-type-descriptor there instead.
-                  (vector-set! hierarchy-vec hierarchy-depth st)
+                  ;;
+                  ;; FIXME: This is horribly representation-dependent
+                  ;; code, and it broke when the representation of
+                  ;; hierarchy vectors was changed in v0.96.
+
+                 ;(display "Before: ") (newline)
+                 ;(pretty-print hierarchy-vec)
+                 ;(vector-set! hierarchy-vec hierarchy-depth st) ; before v0.96
+                  (vector-set! hierarchy-vec 0 st)
+                  (vector-set! hierarchy-vec (+ 1 hierarchy-depth) st)
+                 ;(display "After: ") (newline)
+                 ;(pretty-print hierarchy-vec)
 
                   (let ((predicate (struct-predicate st))
                         (constructor (struct-constructor st)))

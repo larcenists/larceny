@@ -195,16 +195,19 @@
            (let* ((name (timing:benchmark t))
                   (timings (map (lambda (x) (assq name x))
                                 other-results))
-                  (best (apply min
-                               1000000000
-                               (filter positive?
-                                       (map timing:real
-                                            (filter (lambda (x) x)
-                                                    timings))))))
+                  (timings (filter positive?
+                                   (map timing:real
+                                        (filter (lambda (x) x)
+                                                timings))))
+                  (best (if (null? timings) 1 (apply min timings)))
+                  (worst (if (null? timings) 1 (apply max timings))))
              (let ((realtime (timing:real t)))
                (if (positive? realtime)
                    (/ best realtime)
-                   *arbitrary-relative-performance*))))
+                   (begin (display "No positive timing")
+                          (newline)
+                          (* *arbitrary-relative-performance*
+                             (/ best worst)))))))
          timings)))
 
 ; Given a list of positive numbers,

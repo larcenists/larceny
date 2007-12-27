@@ -15,8 +15,10 @@
     ((summarize gambit-results) "results.Gambit-C" "summary.Gambit")
     ((summarize larceny-results) "results.Larceny093" "summary.Larceny093")
     ((summarize larceny-results) "results.Larceny094" "summary.Larceny094")
+    ((summarize larceny-results) "results.Larceny095" "summary.Larceny095")
     ((summarize larceny-results) "results.Larceny" "summary.Larceny")
-    ((summarize larceny-results) "results.PetitLarceny" "summary.PetitLarceny")
+    ((summarize petit-larceny-results)
+     "results.PetitLarceny" "summary.PetitLarceny")
     ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme")
     ((summarize scheme48-results) "results.Scheme48" "summary.Scheme48")))
 
@@ -27,6 +29,7 @@
             (decode-summary (string-append in setting)))))
     (map decode-summary
          '("summary.Larceny"
+           "summary.Larceny095"
            "summary.Larceny094"
            "summary.Larceny093"
            "summary.PetitLarceny"
@@ -79,9 +82,11 @@
    ;((summarize kawa-results) "results.Kawa" "summary.Kawa")
     ((summarize larceny-results) "results.Larceny093" "summary.Larceny093")
     ((summarize larceny-results) "results.Larceny094" "summary.Larceny094")
+    ((summarize larceny-results) "results.Larceny095" "summary.Larceny095")
     ((summarize larceny-results) "results.Larceny" "summary.Larceny")
    ;((summarize henchman-results) "results.Henchman" "summary.Henchman")
-    ((summarize petit-larceny-results) "results.PetitLarceny" "summary.PetitLarceny")
+    ((summarize petit-larceny-results)
+     "results.PetitLarceny" "summary.PetitLarceny")
     ((summarize mit-results) "results.MIT-Scheme" "summary.MIT")
     ((summarize mzscheme-results) "results.MzScheme" "summary.MzScheme")
     ((summarize petite-chez-results) "results.Petite-Chez-Scheme" "summary.Petite")
@@ -95,8 +100,9 @@
     (map decode-summary
          '(;"summary.Henchman"
            "summary.Larceny"
-           "summary.Larceny093"
+           "summary.Larceny095"
            "summary.Larceny094"
+           "summary.Larceny093"
            "summary.PetitLarceny"
            "summary.Bigloo"
            "summary.Chicken"
