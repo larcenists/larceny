@@ -6,6 +6,7 @@ echo; ${LARCENY} -r6rs < grabbag.sch
 echo; ${LARCENY} -r6rs -program grabbag.sch
 echo; ${LARCENY} -r6rs -program cpoint.sch
 echo; ${LARCENY} -r6rs -program cpointR6.sch
+echo; ${LARCENY} -r6rs -program regression.sch
 
 echo
 echo "R5RS startup"; time ${LARCENY} < /dev/null

@@ -19,7 +19,8 @@
   (export preferred-cd preferred-cd-set!)
 
   (import (for (core primitives) run expand)
-          (for (primitives make-eqv-hashtable hashtable-ref hashtable-set!)
+          (for (primitives make-r6rs-hashtable hashtable-ref hashtable-set!
+                           symbol-hash record-type-name)
                run expand)
           (for (rnrs base) run expand)
           (rnrs records procedural)
@@ -31,7 +32,10 @@
   ;
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (define preferred-cd-table (make-eqv-hashtable))
+  (define preferred-cd-table
+    (make-r6rs-hashtable (lambda (rtd)
+                           (symbol-hash (record-type-name rtd)))
+                         eqv?))
 
   (define (preferred-cd rtd)
     (let ((cd (hashtable-ref preferred-cd-table rtd #f)))
