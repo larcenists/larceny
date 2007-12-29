@@ -1184,7 +1184,7 @@
       (let ((type (.vector-ref:trusted p 0))       ; 0 = port.type
             (buf  (.vector-ref:trusted p 1))       ; 1 = port.mainbuf
             (lim  (.vector-ref:trusted p 3))       ; 3 = port.mainlim
-            (sv   (char->integer c0)))
+            (sv   (char->integer c)))
         (if (and (eq? type 5)                      ; 5 = output, textual
                  (.<:fix:fix
                   lim

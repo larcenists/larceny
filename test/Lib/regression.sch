@@ -292,6 +292,20 @@
                y1))
            (equal? x y))
          #t)
+   (test "Ticket #519"                  ; Bug in Larceny 0.96
+         (let ((s "abcdefgh"))          ; contributed by Ray Racine
+           (define echochars
+             (lambda (ip op)
+               (let loop ((ch (peek-char ip)))
+                 (cond ((eof-object? ch)
+                        (get-output-string op))
+                       (else
+                        (write-char (read-char ip) op)
+                        (loop (peek-char ip)))))))
+           (string=?
+            s
+            (echochars (open-input-string s) (open-output-string))))
+         #t)
    ))
 
 (define (bug-105-test1)
