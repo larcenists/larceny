@@ -47,6 +47,11 @@ rm -rf bin
 # Remove the setup script, since that's confusing
 rm -f setup.sch
 
+# Remove the larceny-np script, since that's confusing
+if [ -e larceny.np ]; then
+    rm -f larceny-np
+fi
+
 # Remove the include directory from the non-Petit distributions.
 if [ ! -e petit.bin ] && [ ! -e petit.bin.exe ]; then
     rm -rf include
