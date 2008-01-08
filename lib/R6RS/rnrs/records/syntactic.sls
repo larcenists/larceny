@@ -213,7 +213,9 @@
                                       (caddr fspec)
                                       #f))
                                (else fspec))))
-                     (cdr fields-clause))))
+                     (if fields-clause
+                         (cdr fields-clause)
+                         '()))))
           (if (not okay?)
               (complain))
           (construct-record-type-definitions
