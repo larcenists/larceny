@@ -128,7 +128,7 @@ word *los_allocate( los_t *los, int nbytes, int gen_no )
   set_size( w, size );
   insert_at_end( w, los->object_lists[ gen_no ] );
 
-  supremely_annoyingmsg( "{LOS} Allocating large object size %d at 0x%p", 
+  supremely_annoyingmsg( "{LOS} Allocating large object size %d at 0x%08x", 
 			 size, w );
 
   return w;
@@ -186,7 +186,7 @@ void los_sweep( los_t *los, int gen_no )
     remove( p );
     nbytes = size( p );
     gclib_free( p - HEADER_WORDS, nbytes );
-    supremely_annoyingmsg( "{LOS} Freeing large object %d bytes at 0x%p",
+    supremely_annoyingmsg( "{LOS} Freeing large object %d bytes at 0x%08x",
 			   nbytes, (void*)p );
     p = n;
   }
@@ -363,10 +363,10 @@ static void dump_list( los_list_t *l, char *tag, int nbytes )
   int fwd_n, fwd_size, backwd_n, backwd_size;
 
   consolemsg( "{LOS} list dump %s for %d bytes", tag, nbytes );
-  consolemsg( "{LOS}   header at 0x%p", l->header - HEADER_WORDS );
+  consolemsg( "{LOS}   header at 0x%08x", l->header - HEADER_WORDS );
   fwd_n = fwd_size = 0;
   for ( p = next( l->header ) ; p != l->header ; p = next( p ) ) {
-    consolemsg( "{LOS}   > %d bytes at 0x%p", size( p ), p - HEADER_WORDS );
+    consolemsg( "{LOS}   > %d bytes at 0x%08x", size( p ), p - HEADER_WORDS );
     fwd_n++;
     fwd_size += size( p );
   }
@@ -398,7 +398,9 @@ bool los_is_address_mapped( los_t *los, word *addr )
     cursor = NULL;
     do { 
       cursor = los_walk_list( los->object_lists[i], cursor );
-      if (abs((byte*)cursor - (byte*)addr) < 8) {
+      if (cursor != NULL &&
+	  ((byte*)addr >= (byte*)cursor) && 
+	  ((byte*)addr < (byte*)cursor + size( cursor ))) {
 	assert(! ret); ret = TRUE;
       }
     } while (cursor != NULL);
