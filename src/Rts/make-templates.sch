@@ -535,13 +535,17 @@ Sys/bdw-stats.$(O): Sys/stats.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \\
 Sys/bdw-ffi.$(O): Sys/ffi.c $(LARCENY_H)
 Sys/callback.$(O): $(LARCENY_H)
 Sys/cheney.$(O): $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \\
-	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h \\
+	Sys/cheney.h
 Sys/cheney-np.$(O): $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \\
-	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h \\
+	Sys/cheney.h
 Sys/cheney-split.$(O): $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \\
-	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h \\
+	Sys/cheney.h
 Sys/cheney-check.$(O): $(LARCENY_H) Sys/barrier.h Sys/gc_t.h Sys/gclib.h \\
-	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
+	Sys/los_t.h Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h \\
+	Sys/cheney.h
 Sys/ffi.$(O): $(LARCENY_H)
 Sys/gc.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/heapio.h Sys/semispace_t.h \\
 	Sys/static_heap_t.h
