@@ -41,12 +41,13 @@ gc_t
 		  void *data, 
 		  bool enumerate_np_remset ),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
-	     semispace_t *(*find_space)( gc_t *gc, int bytes_needed,
+	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
 					 semispace_t *cur, 
 					 semispace_t **filter, int filter_len ),
 	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
 	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
-	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy )
+	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
+	     void (*check_remset_invs)( gc_t *gc, word src, word tgt )
 	     )
 {
   gc_t *gc;
@@ -100,6 +101,7 @@ gc_t
   gc->allocated_to_areas = allocated_to_areas;
   gc->maximum_allotted = maximum_allotted;
   gc->is_address_mapped = is_address_mapped;
+  gc->check_remset_invs = check_remset_invs;
 
   return gc;
 }

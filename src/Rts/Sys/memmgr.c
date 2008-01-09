@@ -27,6 +27,9 @@ const char *larceny_gc_technology = "precise";
 #include "stack.h"
 #include "msgc-core.h"
 
+/* Checking code */
+#define CHECK_HEAP_INVARIANTS 0
+
 typedef struct gc_data gc_data_t;
 
 /* The 'remset' table in the gc structure has one extra element if the
@@ -490,6 +493,14 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	old_heap_t *oh = DATA(gc)->ephemeral_area[ rgn_idx-1 ];
 	semispace_t *tospace = oh_current_space( oh );
 	annoyingmsg("collect_rgnl major collect of %d", rgn_idx);
+
+	/* first clear out the SSB, so that we don't inadvertantly re-add
+	 * words after we do the clearing in the next statement.
+	 * FIXME: 
+	 * (this is probably not the right control structure for the long run)
+	 */
+	process_seqbuf( gc, gc->ssb );
+
 	rs_clear( gc->remset[ rgn_idx ] );
 	gclib_stopcopy_collect_genset( gc, gset_singleton( rgn_idx ), tospace );
 	DATA(gc)->rrof_next_region = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
@@ -545,6 +556,27 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
   }
 }
 
+static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 
+{
+  supremely_annoyingmsg( "check_remset_invs_rgnl( gc, 0x%08x (%d), 0x%08x (%d) )", 
+			 src, src?gen_of(src):0, tgt, gen_of(tgt) );
+  assert( src == 0 ||
+	  gen_of(src) != gen_of(tgt) ||
+	  gen_of(src) != 0 ||
+	  gen_of(tgt) != DATA(gc)->static_generation ||
+	  rs_isremembered( gc->remset[ gen_of(src) ], tgt ));
+}
+static void check_remset_invs( gc_t *gc, word src, word tgt ) 
+{
+  supremely_annoyingmsg( "check_remset_invs( gc, 0x%08x (%d), 0x%08x (%d) )", 
+			 src, src?gen_of(src):0, tgt, gen_of(tgt) );
+  assert( !src || 
+	  gen_of(src)  < gen_of(tgt) ||
+	  gen_of(src) != 0 ||
+	  gen_of(tgt) != DATA(gc)->static_generation ||
+	  rs_isremembered( gc->remset[ gen_of(src) ], tgt ));
+}
+
 void gc_signal_moving_collection( gc_t *gc )
 {
   DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
@@ -566,6 +598,19 @@ static void before_collection( gc_t *gc )
 {
   int e;
 
+  /* For debugging of prototype;
+   * double check heap consistency via mark/sweep routines.
+   * (before collection means that mutator introduced inconsistency) */
+#if CHECK_HEAP_INVARIANTS
+  {
+    int marked, traced, words_marked;
+    msgc_context_t *msgc_ctxt = msgc_begin( gc );
+    supremely_annoyingmsg("before GC, heap consistency check");
+    msgc_mark_objects_from_roots( msgc_ctxt, &marked, &traced, &words_marked );
+    msgc_end( msgc_ctxt );
+  }
+#endif
+
   yh_before_collection( gc->young_area );
   for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
     oh_before_collection( DATA(gc)->ephemeral_area[ e ] );
@@ -585,15 +630,17 @@ static void after_collection( gc_t *gc )
   if (DATA(gc)->dynamic_area)
     oh_after_collection( DATA(gc)->dynamic_area );
 
+#if CHECK_HEAP_INVARIANTS
   /* For debugging of prototype;
    * double check heap consistency via mark/sweep routines. */
-  if (0) {
+ {
     int marked, traced, words_marked;
     msgc_context_t *msgc_ctxt = msgc_begin( gc );
+    supremely_annoyingmsg("after  GC, heap consistency check");
     msgc_mark_objects_from_roots( msgc_ctxt, &marked, &traced, &words_marked );
-    msgc_assert_conservative_approximation( msgc_ctxt );
     msgc_end( msgc_ctxt );
   }
+#endif
 }
 
 static void set_policy( gc_t *gc, int gen, int op, int value )
@@ -628,8 +675,16 @@ enumerate_remsets_complement( gc_t *gc,
 			      bool enumerate_np_young )
 {
   int i;
+  int ecount;
 
   if (!DATA(gc)->is_partitioned_system) return;
+
+  /* Felix is pretty sure that this method is intended only
+   * for use by clients who are always attempting to enumerate
+   * the elements of the static area's remembered set,
+   * and therefore the static area should not be in gset. 
+   */
+  assert2( ! gset_memberp( DATA(gc)->static_generation, gset ));
 
   /* Add elements to regions outside collection set. 
    *
@@ -638,20 +693,31 @@ enumerate_remsets_complement( gc_t *gc,
    * gno <= generation
    */
   process_seqbuf( gc, gc->ssb );
+
+  /* (ephemeral_area_count may be incremented by f, so we have to
+   * checkpoint its value here.) */
+  ecount = DATA(gc)->ephemeral_area_count;
   
-  switch (gset.tag) {
-  case gs_range: 
-    assert( gset.g1 == 0 );
-    for ( i = gset.g2 ; i < DATA(gc)->generations ; i++ ) {
-      rs_enumerate( gc->remset[i], f, fdata );
+  /* The ecount corresponds to the largest region index
+   * in the ephemeral_area array. */
+  for( i = 1; i <= ecount; i++ ) {
+    if (! gset_memberp( i, gset )) {
+      rs_enumerate( gc->remset[i], f, fdata);
     }
-    break;
-  case gs_singleton:
-    for (i = 1; i < DATA(gc)->generations ; i++) {
-      if (i != gset.g1)
-	rs_enumerate( gc->remset[i], f, fdata );
+  }
+  
+  if (DATA(gc)->dynamic_area) {
+    i = oh_current_space(DATA(gc)->dynamic_area)->gen_no;
+    if (! gset_memberp( i, gset )) {
+      rs_enumerate( gc->remset[i], f, fdata);
     }
-    break;
+  }
+    
+  if (gc->static_area) {
+    i = DATA(gc)->static_generation;
+    { 
+      rs_enumerate( gc->remset[i], f, fdata ); 
+    }
   }
 
   if (enumerate_np_young) {
@@ -1154,7 +1220,7 @@ static bool is_address_mapped( gc_t *gc, word *addr, bool noisy )
   if (gc->los && los_is_address_mapped( gc->los, addr )) {
     assert(!ret); ret = TRUE;
   }
-  if (gc->young_area && yh_is_address_mapped( gc->young_area, addr, noisy )) {
+  if (gc->young_area && yh_is_address_mapped( gc->young_area, addr )) {
     assert(!ret); ret = TRUE;
   }
   if (gc->static_area && sh_is_address_mapped( gc->static_area, addr, noisy )) {
@@ -1413,17 +1479,21 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 {
   gc_data_t *data;
+  gc_t *ret;
   semispace_t *(*my_find_space)( gc_t *gc, unsigned bytes_needed, 
 				 semispace_t *current_space, 
 				 semispace_t **spaces_filtered, int sf_len );
   void (*my_collect)( gc_t *gc, int rgn, int bytes_needed, gc_type_t request );
+  void (*my_check_remset_invs)( gc_t *gc, word src, word tgt );
   
   if (info->is_regional_system) {
     my_find_space = find_space_rgnl;
     my_collect = collect_rgnl;
+    my_check_remset_invs = check_remset_invs_rgnl;    
   } else {
     my_find_space = find_space_expanding;
     my_collect = collect;
+    my_check_remset_invs = check_remset_invs;
   }
 
   data = (gc_data_t*)must_malloc( sizeof( gc_data_t ) );
@@ -1449,9 +1519,9 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_to_region = 1;
   data->rrof_next_region = 2;
 
-  return 
+  ret = 
     create_gc_t( "*invalid*",
-		 data,
+		 (void*)data,
 		 initialize, 
 		 allocate,
 		 allocate_nonmoving,
@@ -1480,8 +1550,11 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 my_find_space,
 		 allocated_to_areas,
 		 maximum_allotted,
-		 is_address_mapped
+		 is_address_mapped,
+		 my_check_remset_invs
 		 );
+  ret->scan_update_remset = info->is_regional_system;
+  return ret;
 }
 
 /* eof */

@@ -13,7 +13,7 @@
 #define KILOBYTE                     1024
 #define MEGABYTE                     (KILOBYTE*KILOBYTE)
 
-#define MAX_GENERATIONS              64  /* If GCLIB_LARGE_TABLE is set */
+#define MAX_GENERATIONS              6400  /* If GCLIB_LARGE_TABLE is set */
 #define DEFAULT_AREAS                2
 #define DEFAULT_NURSERY_SIZE         MEGABYTE
 #define DEFAULT_STOPCOPY_SIZE        (2*MEGABYTE)

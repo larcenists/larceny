@@ -188,6 +188,7 @@ struct gc {
   int (*allocated_to_areas)( gc_t *gc, gset_t gs );
   int (*maximum_allotted)( gc_t *gc, gset_t gs );
   bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy );
+  void (*check_remset_invs)( gc_t *gc, word src, word tgt );
 };
 
 /* Operations.  For prototypes, see the method specs above. */
@@ -224,6 +225,7 @@ struct gc {
 #define gc_allocated_to_areas( gc, gs ) ((gc)->allocated_to_areas( gc, gs ))
 #define gc_maximum_allotted( gc, gs )   ((gc)->maximum_allotted( gc, gs ))
 #define gc_is_address_mapped( gc,a,n )  ((gc)->is_address_mapped( (gc), (a), (n) ))
+#define gc_check_remset_invs( gc,s,t )  ((gc)->check_remset_invs( (gc), (s), (t) ))
 
 gc_t 
 *create_gc_t(char *id,
@@ -258,13 +260,14 @@ gc_t
 		  void *data,
 		  bool enumerate_np_remset ),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
-	     semispace_t *(*find_space)( gc_t *gc, int bytes_needed,
+	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
 					 semispace_t *cur, 
 					 semispace_t **filter, int filter_len ),
 	     
 	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
 	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
-	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy )
+	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
+	     void (*check_remset_invs)( gc_t *gc, word src, word tgt )
 	     );
 
 void gc_parameters( gc_t *gc, int op, int *ans );
