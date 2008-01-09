@@ -100,12 +100,28 @@
        }                                                                    \
   } while( 0 )
 
+#define forw_oflo_record_update_rs( loc, fwdgens, fwdgens_data, dest, lim,  \
+                          has_intergen_ptr, old_obj_gen, e, check_spaceI )  \
+  do { word T_obj = *loc;                                                   \
+       if (isptr( T_obj )) {                                                \
+          unsigned T_obj_gen = gen_of(T_obj);                               \
+          if (fwdgens(T_obj_gen, fwdgens_data)) {                           \
+            forw_core( T_obj, loc,dest, lim, e, check_spaceI );             \
+          }                                                                 \
+          if (gen_of(*loc) != old_obj_gen) has_intergen_ptr=1;              \
+       }                                                                    \
+  } while( 0 )
+
 /* Installs a forwarding pointer to 'newaddr' with tag 'tag' at 'addr' */
 static word install_fwdptr( word *addr, word *newaddr, word tag ) {
   /* factored routine; should later double check whether this is being
    * inlined, or if I should instead implemented it as a macro */
   word ret;
   check_address( addr );
+  /* Proposed, currently unchecked invariant: 
+   * Since object at addr is about to be forwarded, addr should not be
+   * in any remembered sets.
+   */
   ret = (word)tagptr( newaddr, tag );
   *addr = FORWARD_HDR;
   *(addr+1) = ret;
@@ -533,7 +549,8 @@ static bool remset_scanner_oflo_update_rs( word object, void *data, unsigned *co
 
   remset_scanner_update_rs
     ( e, object, loc, 
-      forw_oflo_record( loc, forward_nursery_and, forw_gset, dest, lim,
+      forw_oflo_record_update_rs( loc, 
+                        forward_nursery_and, forw_gset, dest, lim,
                         has_intergen_ptr, old_obj_gen, e, 
                         check_space_expand ),
       *count, update_remset );
@@ -802,7 +819,7 @@ void seal_chunk( semispace_t *ss, word *lim, word *dest )
   if (dest < lim) {
     word len = (lim - dest)*sizeof(word);
     *dest = mkheader(len-sizeof(word),BIGNUM_HDR);
-    *(dest+1) = 0xABCDABCD;
+    if (dest+1 < lim) *(dest+1) = 0xABCDABCD;
   }
   if (dest == NULL) {
     /* A NULL dest indicates that we exhausted the chunk; only happens
