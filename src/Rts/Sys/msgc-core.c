@@ -16,6 +16,8 @@
 #include "gc_t.h"
 #include "gclib.h"
 #include "msgc-core.h"
+#include "young_heap_t.h" /* for yh_is_address_mapped */
+#include "static_heap_t.h" /* for sh_is_address_mapped */
 
 #define LARGE_OBJECT_LIMIT 1024 /* elements */
 
@@ -107,8 +109,138 @@ static int free_stack( msgc_stackseg_t *stack )
   return n;
 }
 
+static void assert2_basic_invs( msgc_context_t *context, word src, word obj )
+{
+#ifndef NDEBUG2
+  word TMP = obj;
+  if (isptr(TMP)) {
+    gc_check_remset_invs( context->gc, src, obj );
+    assert2( (context)->lowest_heap_address <= (word*)TMP );
+    assert2( (word*)TMP < (context)->highest_heap_address );
+    if (! gc_is_address_mapped( context->gc, (word*)TMP, FALSE )) {
+      assert2(gc_is_address_mapped( context->gc, (word*)TMP, TRUE ));
+    }
+    if (tagof(TMP) == PAIR_TAG) {
+      /* no header on pairs... */
+    } else if (tagof(TMP) == VEC_TAG) {
+      assert2(ishdr(*ptrof(TMP)));
+      assert2(header(*ptrof(TMP)) == header(VEC_HDR));
+    } else if (tagof(TMP) == PROC_TAG) {
+      assert2(ishdr(*ptrof(TMP)));
+      assert2(header(*ptrof(TMP)) == header(PROC_HDR));
+    }
+  }
+#endif
+}
+
+static void assert2_address_mapped( msgc_context_t *context, word obj )
+{
+#ifndef NDEBUG2
+  if (! yh_is_address_mapped( context->gc->young_area, obj ) &&
+      ! los_is_address_mapped( context->gc->los, obj ) &&
+      ! sh_is_address_mapped( context->gc->static_area, obj, FALSE )) {
+    assert( gc_is_address_mapped( context->gc, obj, TRUE ));
+    assert( yh_is_address_mapped( context->gc->young_area, obj ) ||
+            los_is_address_mapped( context->gc->los, obj ) ||
+            sh_is_address_mapped( context->gc->static_area, obj, TRUE ));
+  }
+#endif
+}
+
+static void assert2_los_addresses_mapped( msgc_context_t *context, word obj, 
+                                          int k, int next ) 
+{
+#ifndef NDEBUG2
+  int i;
+  for ( i=0 ; i < k ; i++ ) {
+    if (isptr(vector_ref(obj, i+next)) &&
+        ! gc_is_address_mapped( context->gc, 
+                                (word*) vector_ref(obj, i+next), FALSE )) {
+      assert( gc_is_address_mapped( context->gc, obj, TRUE ));
+      consolemsg("unmapped address, los vector 0x%08x in gen %d, elem [%d] = 0x%08x",
+                 obj, gen_of(obj), i+next, vector_ref(obj, i+next ));
+      consolemsg("(remset count: %d)", context->gc->remset_count);
+      assert2(0);
+    }
+  }
+#endif
+}
+
+static void assert2_pair_addresses_mapped( msgc_context_t *context, word w )
+{
+    { 
+#ifndef NDEBUG2
+      if (isptr(pair_cdr(w)) &&
+          ! gc_is_address_mapped( context->gc, 
+                                  (word*)pair_cdr(w), FALSE )) {
+        gc_is_address_mapped( context->gc, (word*)pair_cdr(w), TRUE );
+        consolemsg("unmapped address, pair 0x%08x in gen %d, cdr = 0x%08x",
+                   w, gen_of(w), pair_cdr(w));
+        consolemsg("(remset count: %d)", context->gc->remset_count);
+        assert2(0);
+      }
+      if (isptr(pair_car(w)) &&
+          ! gc_is_address_mapped( context->gc, 
+                                  (word*)pair_car(w), FALSE )) {
+        gc_is_address_mapped( context->gc, (word*)pair_car(w), TRUE );
+        consolemsg("unmapped address, pair 0x%08x in gen %d, car = 0x%08x",
+                   w, gen_of(w), pair_car(w));
+        consolemsg("(remset count: %d)", context->gc->remset_count);
+        assert2(0);
+      }
+#endif
+    }
+}
+
+static void assert2_tag_hdr_consistency( msgc_context_t *context, word w ) 
+{
+#ifndef NDEBUG2
+    switch (tagof(w)) {
+    case VEC_TAG:
+      if (!(ishdr(*ptrof(w)) && header(*ptrof(w)) == header(VEC_HDR) )) {
+        consolemsg("VEC  w: 0x%08x *ptrof(w): 0x%08x ishdr: %s header(*ptrof(w)): %x", w, *ptrof(w), ishdr(*ptrof(w))?"TRUE":"FALSE", header(*ptrof(w)));
+      }
+      assert( ishdr(*ptrof(w)) && header(*ptrof(w)) == header(VEC_HDR) );
+      break;
+    case PROC_TAG:
+      if (!( ishdr(*ptrof(w)) && header(*ptrof(w)) == header(PROC_HDR) )) {
+        consolemsg("PROC w: 0x%08x *ptrof(w): 0x%08x ishdr: %s header(*ptrof(w)): %x", w, *ptrof(w), ishdr(*ptrof(w))?"TRUE":"FALSE", header(*ptrof(w)));
+      }
+      assert( ishdr(*ptrof(w)) && header(*ptrof(w)) == header(PROC_HDR) );
+      break;
+    }
+#endif
+
+}
+
+static void assert2_object_contents_mapped( msgc_context_t *context, word w )
+{
+#ifndef NDEBUG2
+      for ( i=0 ; i < n ; i++ ) {
+        if (isptr(vector_ref( w, i )) &&
+            ! gc_is_address_mapped( context->gc, 
+                                    (word*)vector_ref( w, i ), FALSE )) {
+          consolemsg("unmapped address, vector 0x%08x in gen %d, elem [%d] = 0x%08x", 
+                     w, gen_of( w ), i, vector_ref( w, i ));
+          consolemsg("(remset count: %d)", context->gc->remset_count);
+          assert2(0);
+        }
+      }
+#endif
+}
+
+static void assert2_root_address_mapped( msgc_context_t *context, word *loc )
+{
+#ifndef NDEBUG2
+  if (isptr(*loc) &&
+      ! gc_is_address_mapped( context->gc, (word*)*loc, FALSE )) {
+    assert2(0);
+  }
+#endif
+}
+
 #if 1
-#define PUSH( context, obj )                                    \
+#define PUSH( context, obj, src )                               \
   do { word TMP = obj;                                          \
        if (isptr(TMP)) {                                        \
          if ((context)->stack.stkp == (context)->stack.stklim)  \
@@ -124,23 +256,17 @@ static int free_stack( msgc_stackseg_t *stack )
        *((context)->los_stack.stkp++) = obj;                            \
   } while(0)
 #else
-static void PUSH( msgc_context_t *context, word obj ) {
+static void PUSH( msgc_context_t *context, word obj, word src ) {
   word TMP = obj;
+  assert2_basic_invs( context, src, obj );
   if (isptr(TMP)) {
-    assert2( (context)->lowest_heap_address <= TMP );
-    assert2( TMP < (context)->highest_heap_address );
-#ifndef NDEBUG2
-    if (! gc_is_address_mapped( context->gc, TMP, FALSE )) {
-      assert2(gc_is_address_mapped( context->gc, TMP, TRUE ));
-    }
-#endif
-    
     if ((context)->stack.stkp == (context)->stack.stklim)
       push_segment( &((context)->stack) );
     *((context)->stack.stkp++) = TMP;
   }
 }
 static void LOS_PUSH( msgc_context_t *context, word next, word obj ) {
+  assert2_address_mapped( context, obj );
   if ((context)->los_stack.stkp == (context)->los_stack.stklim)
     push_segment( &context->los_stack );
   *((context)->los_stack.stkp++) = next;                           
@@ -162,11 +288,19 @@ static bool fill_from_los_stack( msgc_context_t *context )
   next = (int)*--context->los_stack.stkp;
   n = bytes2words( sizefield( *ptrof(obj) ) );
   k = min( n-next, LARGE_OBJECT_LIMIT );
+  assert2_los_addresses_mapped( context, obj, k, next );
   for ( i=0 ; i < k ; i++ )
-    PUSH( context, vector_ref( obj, i+next ) );
+    PUSH( context, vector_ref( obj, i+next ), obj );
   if (next+k < n)
     LOS_PUSH( context, next+k, obj );
   return TRUE;
+}
+
+static int push_pair_constiuents( msgc_context_t *context, word w ) 
+{
+  PUSH( context, pair_cdr( w ), w ); /* Do the CDR last */
+  PUSH( context, pair_car( w ), w ); /* Do the CAR first */
+  return 2;
 }
 
 static int push_constituents( msgc_context_t *context, word w )
@@ -175,17 +309,19 @@ static int push_constituents( msgc_context_t *context, word w )
 
   switch (tagof(w)) {
   case PAIR_TAG :
-    PUSH( context, pair_cdr( w ) ); /* Do the CDR last */
-    PUSH( context, pair_car( w ) ); /* Do the CAR first */
-    return 2;
+    return push_pair_constiuents( context, w );
   case VEC_TAG :
   case PROC_TAG :
+    assert2_tag_hdr_consistency( context, w );
     n = bytes2words( sizefield(*ptrof(w)) );
     if (n > LARGE_OBJECT_LIMIT)
       LOS_PUSH( context, 0, w );    /* Treat large objects specially */
-    else
-      for ( i=0 ; i < n ; i++ )
-        PUSH( context, vector_ref( w, i ) );
+    else {
+      assert2_object_contents_mapped( context, w );
+      for ( i=0 ; i < n ; i++ ) {
+        PUSH( context, vector_ref( w, i ), w );
+      }
+    }
     return n+1;
   default :
     return 0;
@@ -250,7 +386,8 @@ static void mark_from_stack( msgc_context_t *context )
 
 static void push_root( word *loc, void *data )
 {
-  PUSH( (msgc_context_t*)data, *loc );
+  assert2_root_address_mapped( (msgc_context_t*)data, loc );
+  PUSH( (msgc_context_t*)data, *loc, 0x0 );
 }
 
 bool msgc_object_marked_p( msgc_context_t *context, word obj )
