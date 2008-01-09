@@ -201,8 +201,8 @@ void *gclib_alloc_heap( int bytes, int gen_no )
   data.heap_bytes += bytes;
   data.max_heap_bytes = max( data.max_heap_bytes, data.heap_bytes );
 
-  supremely_annoyingmsg( "Allocated heap memory gen=%d bytes=%d addr=%p",
-			 gen_no, bytes, (void*)ptr );
+  supremely_annoyingmsg( "Allocated heap memory gen=%d bytes=%d addr=[0x%08x,0x%08x)",
+			 gen_no, bytes, (void*)ptr, (void*)(ptr+bytes) );
 
   update_mem_bytes();
 
@@ -235,6 +235,9 @@ void *gclib_alloc_rts( int bytes, unsigned attribute )
     data.rts_bytes += bytes;
     data.max_rts_bytes = max( data.max_rts_bytes, data.rts_bytes );
   }
+
+  supremely_annoyingmsg( "Allocated rts memory bytes=%d addr=[0x%08x,0x%08x)",
+			 bytes, (void*)ptr, (void*)(ptr+bytes) );
 
   update_mem_bytes();
   return (void*)ptr;
@@ -399,7 +402,7 @@ void gclib_free( void *addr, int bytes )
 
   bytes = roundup_page( bytes );
 
-  supremely_annoyingmsg( "Freeing: bytes=%d addr=%p", bytes, (void*)addr );
+  supremely_annoyingmsg( "Freeing: bytes=%d addr=[0x%08x,0x%08x)", bytes, (void*)addr, (void*)(((byte*)addr)+bytes) );
   
   free_aligned( addr, bytes );
   data.wastage_bytes -= PAGESIZE;
