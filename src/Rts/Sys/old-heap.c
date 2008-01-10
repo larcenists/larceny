@@ -165,7 +165,27 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, oh_type_t oh_type )
 
 static void collect_regional( old_heap_t *heap, gc_type_t request ) 
 {
-  assert(0);
+  semispace_t *tospace = oh_current_space( heap );
+
+  switch (request) {
+  case GCTYPE_COLLECT: 
+    /* Collect this region and the nursery.  Forwards objects into
+     * this region until it is full; then switches to using
+     * gc_find_space to decide where things go after that. 
+     */
+    gclib_stopcopy_collect_genset( heap->collector, 
+				   gset_singleton( DATA(heap)->gen_no ), 
+				   tospace );
+    break;
+  case GCTYPE_PROMOTE: 
+    /* Promote the nursery into this region. */
+    gclib_stopcopy_collect_genset( heap->collector, 
+				   gset_singleton( 0 ), 
+				   tospace );
+    break;
+  default:
+    assert(0);
+  }
 }
 
 static void collect_dynamic( old_heap_t *heap, gc_type_t request )
