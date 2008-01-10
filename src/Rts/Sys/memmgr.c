@@ -1310,7 +1310,8 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
     for ( i = 0 ; i < e ; i++ ) {
       size += info->ephemeral_info[i].size_bytes;
       DATA(gc)->ephemeral_area[ i ] = 
-	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 1 );
+	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
+			OHTYPE_EPHEMERAL );
       gen_no += 1;
     }
   }
@@ -1336,7 +1337,8 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 #endif
   }
   else {
-    DATA(gc)->dynamic_area = create_sc_area( gen_no, gc, &info->dynamic_sc_info, 0 );
+    DATA(gc)->dynamic_area = 
+      create_sc_area( gen_no, gc, &info->dynamic_sc_info, OHTYPE_DYNAMIC );
     gen_no += 1;
   }
   strcat( buf, "+" );
@@ -1423,7 +1425,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       assert( info->ephemeral_info[i].size_bytes > 0 );
       size += info->ephemeral_info[i].size_bytes;
       data->ephemeral_area[ i ] = 
-	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 1 );
+	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
+			OHTYPE_REGIONAL );
       gen_no += 1;
     }
   }

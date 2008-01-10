@@ -42,7 +42,7 @@ struct old_data {
   stats_id_t  self;
   int         gen_no;             /* Generation and heap number */
   semispace_t *current_space;     /* Space to promote into */
-  bool        is_ephemeral_area;  /* Otherwise, it's dynamic */
+  oh_type_t   oh_type;            /* ephemeral/dynamic/regional */
 
   /* Strategy/Policy/Mechanism */
   int         size_bytes;         /* Initial size */
@@ -62,7 +62,7 @@ struct old_data {
 
 #define DATA(x)  ((old_data_t*)((x)->data))
 
-static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem );
+static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type );
 
 static int  decision( old_heap_t *heap );
 static void perform_collect( old_heap_t *heap );
@@ -86,27 +86,35 @@ clone_sc_area( old_heap_t *src_heap, int tgt_gen_no )
   old_heap_t *tgt_heap;
   old_data_t *tgt_data;
   old_data_t *src_data;
-  bool ephemeral;
+  oh_type_t oh_type;
 
   annoyingmsg( "old-heap: clone heap tgt_gno %d src_gno: %d", 
 	       tgt_gen_no, DATA(src_heap)->gen_no );
 
   src_data = DATA(src_heap);
-  ephemeral = src_data->is_ephemeral_area;
+  oh_type = src_data->oh_type;
 
-  tgt_heap = allocate_heap( tgt_gen_no, src_heap->collector, ephemeral );
+  tgt_heap = allocate_heap( tgt_gen_no, src_heap->collector, oh_type );
   tgt_data = DATA(tgt_heap);
 
   tgt_data->current_space = create_semispace( GC_CHUNK_SIZE, tgt_gen_no );
   tgt_data->size_bytes = src_data->size_bytes;
   
-  if (!ephemeral) {
+  switch (oh_type) {
+  case OHTYPE_DYNAMIC:
     tgt_data->load_factor = src_data->load_factor;
     tgt_data->lower_limit = src_data->lower_limit;
     tgt_data->upper_limit = src_data->upper_limit;
     tgt_data->target_size = src_data->target_size;
-  } else {
+    break;
+  case OHTYPE_EPHEMERAL:
     tgt_data->target_size = src_data->target_size;
+    break;
+  case OHTYPE_REGIONAL:
+    tgt_data->target_size = src_data->target_size;
+    break;
+  default:
+    assert(0);
   }
 
   tgt_heap->maximum = tgt_data->target_size;
@@ -116,20 +124,21 @@ clone_sc_area( old_heap_t *src_heap, int tgt_gen_no )
 }
 
 old_heap_t *
-create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral )
+create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, oh_type_t oh_type )
 {
   old_heap_t *heap;
   old_data_t *data;
 
   assert( info->size_bytes > 0 );
 
-  heap = allocate_heap( gen_no, gc, ephemeral );
+  heap = allocate_heap( gen_no, gc, oh_type );
   data = DATA(heap);
 
   data->current_space = create_semispace( GC_CHUNK_SIZE, gen_no );
   data->size_bytes = roundup_page( info->size_bytes );
 
-  if (!ephemeral) {
+  switch (oh_type) {
+  case OHTYPE_DYNAMIC:
     data->load_factor = info->load_factor;
     data->lower_limit = info->dynamic_min;
     data->upper_limit = info->dynamic_max;
@@ -137,14 +146,26 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral )
       compute_dynamic_size( heap,
 			    data->size_bytes/data->load_factor,
 			    0 );
-  }
-  else
+    break;
+  case OHTYPE_EPHEMERAL:
     data->target_size = data->size_bytes;
+    break;
+  case OHTYPE_REGIONAL:
+    data->target_size = data->size_bytes;
+    break;
+  default: 
+    assert(0);
+  }
 
   heap->maximum = data->target_size;
   heap->allocated = 0;
 
   return heap;
+}
+
+static void collect_regional( old_heap_t *heap, gc_type_t request ) 
+{
+  assert(0);
 }
 
 static void collect_dynamic( old_heap_t *heap, gc_type_t request )
@@ -469,16 +490,36 @@ static bool is_address_mapped( old_heap_t *heap, word *addr, bool noisy )
   return ss_is_address_mapped( DATA(heap)->current_space, addr, noisy );
 }
 
-static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
+static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
 {
   old_heap_t *heap;
   old_data_t *data;
 
+  char *my_id;
+  void (*my_collect)( old_heap_t *heap, gc_type_t request );
+
+  switch (oh_type) {
+  case OHTYPE_EPHEMERAL:
+    my_id = "sc/fixed";
+    my_collect = collect_ephemeral;
+    break;
+  case OHTYPE_DYNAMIC:
+    my_id = "sc/variable";
+    my_collect = collect_dynamic;
+    break;
+  case OHTYPE_REGIONAL:
+    my_id = "sc/regional";
+    my_collect = collect_regional;
+    break;
+  default:
+    assert(0);
+  }
+
   data = (old_data_t*)must_malloc( sizeof( old_data_t ) );
-  heap = create_old_heap_t( (ephem ? "sc/fixed" : "sc/variable" ),
+  heap = create_old_heap_t( my_id, 
 			    HEAPCODE_OLD_2SPACE,
 			    0,                    /* initialize */
-			    (ephem ? collect_ephemeral : collect_dynamic),
+			    my_collect,
 			    before_collection,
 			    after_collection,
 			    stats,
@@ -494,7 +535,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, bool ephem )
   data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;
   data->promoted_last_gc = 0;
-  data->is_ephemeral_area = ephem;
+  data->oh_type = oh_type;
   data->load_factor = 0.0;
   data->target_size = 0;
   data->must_clear_area = 0;

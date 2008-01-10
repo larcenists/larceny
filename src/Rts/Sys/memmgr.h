@@ -76,7 +76,7 @@ yhsc_data_area( young_heap_t *heap );
 /* In old-heap.c */
 
 old_heap_t *
-create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral );
+create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, oh_type_t oh_type );
 
 old_heap_t *
 clone_sc_area( old_heap_t *heap, int gen_no );

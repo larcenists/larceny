@@ -56,6 +56,7 @@ typedef struct young_heap young_heap_t;
 
 /* old_heap_t is elaborated in old_heap_t.h */
 typedef struct old_heap old_heap_t;
+typedef enum { OHTYPE_EPHEMERAL, OHTYPE_DYNAMIC, OHTYPE_REGIONAL } oh_type_t;
 
 /* static_heap_t is elaborated in static_heap_t.h */
 typedef struct static_heap static_heap_t;
