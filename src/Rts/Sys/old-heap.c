@@ -73,6 +73,10 @@ static int  used_space( old_heap_t *heap );
 #if FLOAT_REDUCTION
 static void full_collection( old_heap_t *heap );
 #endif
+static void start_timers( stats_id_t *timer1, stats_id_t *timer2 );
+static void stop_timers( old_data_t *data, 
+			 int bytes_copied, int bytes_moved, 
+			 stats_id_t *timer1, stats_id_t *timer2 );
 
 semispace_t *
 ohsc_data_area( old_heap_t *heap ) 
@@ -165,8 +169,12 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, oh_type_t oh_type )
 
 static void collect_regional( old_heap_t *heap, gc_type_t request ) 
 {
-  semispace_t *tospace = oh_current_space( heap );
-  int rgn_idx = DATA(heap)->gen_no;
+  old_data_t *data = DATA(heap);
+  semispace_t *tospace = data->current_space;
+  int rgn_idx = data->gen_no;
+  int used_before, tospace_before, los_before;
+  stats_id_t timer1, timer2;
+  int bytes_copied, bytes_moved;
 
   annoyingmsg( "Regional area: garbage collection." );
 
@@ -178,6 +186,8 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
      */
 
     annoyingmsg("collect_rgnl major collect of %d", rgn_idx);
+
+    start_timers( &timer1, &timer2 );
 
     /* The regional collector will generally need to build up a new
      * remembered set for this heap during collection, so we have to
@@ -202,20 +212,47 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
      * superior to the regional collector according to internal
      * measurements.  FIXME. */
     
+    /* FIXME: the standard collectors create a fresh semispace around
+     * this point in the control flow, swap it in to data->tospace
+     * accordingly, and then free the old space after the collection
+     * invocation below.  I should be doing the same, I think.
+     * QUESTION: is promoted data *ever* getting freed???
+     */ 
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( rgn_idx ),
 				   tospace );
+    data->gen_stats.collections++;
+    bytes_copied = tospace->used;
+    bytes_moved = 
+      los_bytes_used( heap->collector->los, data->gen_no );
+
     break;
   case GCTYPE_PROMOTE: 
     /* Promote the nursery into this region. */
     annoyingmsg("collect_rgnl minor collect into %d", rgn_idx);
+    gc_signal_minor_collection( heap->collector );
+
+    start_timers( &timer1, &timer2 );
+    used_before = used_space( heap );
+    ss_sync( tospace );
+    tospace_before = tospace->used;
+    los_before = los_bytes_used( heap->collector->los, data->gen_no );
+
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( 0 ), 
 				   tospace );
+    data->promoted_last_gc = used_space( heap ) - used_before;
+    
+    data->gen_stats.promotions++;
+    bytes_copied = tospace->used - tospace_before;
+    bytes_moved = 
+      los_bytes_used(heap->collector->los, data->gen_no)-los_before;
+
     break;
   default:
     assert(0);
   }
+  stop_timers( data, bytes_copied, bytes_moved, &timer1, &timer2 );
 }
 
 static void collect_dynamic( old_heap_t *heap, gc_type_t request )
