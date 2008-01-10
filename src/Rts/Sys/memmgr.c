@@ -491,23 +491,12 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
       if (rgn_to == rgn_next /* && summarization is complete */) {
 	/* ideal case for major collect */
 	int rgn_idx = rgn_next;
-	annoyingmsg("collect_rgnl major collect of %d", rgn_idx);
-
-	/* first clear out the SSB, so that we don't inadvertantly re-add
-	 * words after we do the clearing in the next statement.
-	 * FIXME: 
-	 * (this is probably not the right control structure for the long run)
-	 */
-	process_seqbuf( gc, gc->ssb );
-
-	rs_clear( gc->remset[ rgn_idx ] );
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
 
 	DATA(gc)->rrof_next_region = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
       } else if (rgn_to_cur + nursery_sz < rgn_to_max) {
 	/* if there's room, minor collect the nursery into current region. */	
 	int rgn_idx = rgn_to; 
-	annoyingmsg("collect_rgnl minor collect into %d", rgn_idx);
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
 
 	/* TODO: add code to incrementally summarize by attempting to

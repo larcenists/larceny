@@ -166,6 +166,9 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, oh_type_t oh_type )
 static void collect_regional( old_heap_t *heap, gc_type_t request ) 
 {
   semispace_t *tospace = oh_current_space( heap );
+  int rgn_idx = DATA(heap)->gen_no;
+
+  annoyingmsg( "Regional area: garbage collection." );
 
   switch (request) {
   case GCTYPE_COLLECT: 
@@ -173,12 +176,39 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
      * this region until it is full; then switches to using
      * gc_find_space to decide where things go after that. 
      */
+
+    annoyingmsg("collect_rgnl major collect of %d", rgn_idx);
+
+    /* The regional collector will generally need to build up a new
+     * remembered set for this heap during collection, so we have to
+     * clear out the remset's soon-to-be-invalid state before starting
+     * the collection loop.
+     */
+    { 
+      /* first clear out the SSB, so that we don't inadvertantly re-add
+       * words after we do the clearing in the rs_clear invocation.
+       *
+       * FIXME: this may reflect a mistake in the control structure;
+       * perhaps rs_enumerate should not be flushing the SSB.
+       */
+      process_seqbuf( heap->collector, heap->collector->ssb );
+      
+      rs_clear( heap->collector->remset[ rgn_idx ] );
+    }
+
+    /* NOTE on the above: the standard collectors seem to do their
+     * rs_clear calls in an _untimed_ portion of the control flow.
+     * This means that the standard collectors may seem artificially
+     * superior to the regional collector according to internal
+     * measurements.  FIXME. */
+    
     gclib_stopcopy_collect_genset( heap->collector, 
-				   gset_singleton( DATA(heap)->gen_no ), 
+				   gset_singleton( rgn_idx ),
 				   tospace );
     break;
   case GCTYPE_PROMOTE: 
     /* Promote the nursery into this region. */
+    annoyingmsg("collect_rgnl minor collect into %d", rgn_idx);
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( 0 ), 
 				   tospace );
