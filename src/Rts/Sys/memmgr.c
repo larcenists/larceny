@@ -826,6 +826,20 @@ static void stats_following_gc( gc_t *gc )
 
   memset( &stats_gclib, 0, sizeof( gclib_stats_t ) );
   gclib_stats( &stats_gclib );
+
+#define assert_geq_and_assign( lhs, rhs ) \
+  do { assert( lhs <= rhs ); lhs = rhs; } while (0)
+  assert_geq_and_assign(stats_gclib.max_remset_scan,
+			gc->stat_max_remset_scan);
+  assert_geq_and_assign(stats_gclib.max_remset_scan_cpu,
+			gc->stat_max_remset_scan_cpu);
+  assert_geq_and_assign(stats_gclib.total_remset_scan,
+			gc->stat_total_remset_scan);
+  assert_geq_and_assign(stats_gclib.total_remset_scan_cpu,
+			gc->stat_total_remset_scan_cpu);
+  assert_geq_and_assign(stats_gclib.remset_scan_count,
+			gc->stat_remset_scan_count);
+
   stats_add_gclib_stats( &stats_gclib );
 
   stats_dumpstate();		/* Dumps stats state if dumping is on */

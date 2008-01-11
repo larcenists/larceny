@@ -412,9 +412,9 @@ void msgc_mark_range( msgc_context_t *context, void *bot, void *lim )
   byte *first = (byte*)context->lowest_heap_address;
   byte* botp = (byte*)bot, *limp = (byte*)lim;
   
-  bit_idx_lo = (botp - first) >> BIT_IDX_SHIFT;
+  bit_idx_lo = ((unsigned)(botp - first)) >> BIT_IDX_SHIFT;
   word_idx_lo = bit_idx_lo >> BITS_TO_WORDS;
-  bit_idx_hi = (limp - 1 - first) >> BIT_IDX_SHIFT;
+  bit_idx_hi = ((unsigned)(limp - 1 - first)) >> BIT_IDX_SHIFT;
   word_idx_hi = bit_idx_hi >> BITS_TO_WORDS;
   
   /* First partial word */

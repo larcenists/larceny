@@ -1297,6 +1297,10 @@
                     memstats-gc-total-elapsed-time)
   (environment-set! larc 'memstats-gc-total-cpu-time
                     memstats-gc-total-cpu-time)
+  (environment-set! larc 'memstats-gc-max-elapsed-time
+                    memstats-gc-max-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-cpu-time
+                    memstats-gc-max-cpu-time)
   (environment-set! larc 'memstats-gc-promotion-elapsed-time
                     memstats-gc-promotion-elapsed-time)
   (environment-set! larc 'memstats-gc-promotion-cpu-time

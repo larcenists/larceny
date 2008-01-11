@@ -61,6 +61,12 @@ struct gc {
        Felix cannot tell from the current codebase.)
        */
 
+  int stat_max_remset_scan;
+  int stat_max_remset_scan_cpu;
+  int stat_total_remset_scan;
+  int stat_total_remset_scan_cpu;
+  int stat_remset_scan_count;
+
   void *data;
     /* Private data.
        */

@@ -400,17 +400,26 @@ static void stop_timers( bool is_promotion,
 			 old_data_t *data, 
 			 int bytes_copied, int bytes_moved, 
 			 stats_id_t *timer1, stats_id_t *timer2 ) {
+  int ms;
+  int ms_cpu;
+
   /* Why isn't this `+=' ?  I think it is benign in this collector. */
   data->gc_stats.words_copied = bytes2words( bytes_copied );
   data->gc_stats.words_moved = bytes2words( bytes_moved );
 
+  ms = stats_stop_timer( *timer1 );
+  ms_cpu = stats_stop_timer( *timer2 );
   if (is_promotion) {
-    data->gen_stats.ms_promotion += stats_stop_timer( *timer1 );
-    data->gen_stats.ms_promotion_cpu += stats_stop_timer( *timer2 );
+    data->gen_stats.ms_promotion += ms;
+    data->gen_stats.ms_promotion_cpu += ms_cpu;
   } else {
-    data->gen_stats.ms_collection += stats_stop_timer( *timer1 );
-    data->gen_stats.ms_collection_cpu += stats_stop_timer( *timer2 );
+    data->gen_stats.ms_collection += ms;
+    data->gen_stats.ms_collection_cpu += ms_cpu;
   }
+  data->gc_stats.max_ms_collection = 
+    max( data->gc_stats.max_ms_collection, ms );
+  data->gc_stats.max_ms_collection_cpu =
+    max( data->gc_stats.max_ms_collection_cpu, ms_cpu );
 #if GC_EVENT_COUNTERS
   data->event_stats.copied_by_gc += bytes2words( bytes_copied );
   data->event_stats.moved_by_gc  += bytes2words( bytes_moved );

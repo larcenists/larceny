@@ -65,6 +65,12 @@ gc_t
   gc->np_remset = -1;
   gc->scan_update_remset = 0;
 
+  gc->stat_max_remset_scan       = 0;
+  gc->stat_max_remset_scan_cpu   = 0;
+  gc->stat_total_remset_scan     = 0;
+  gc->stat_total_remset_scan_cpu = 0;
+  gc->stat_remset_scan_count     = 0;
+
   gc->initialize = initialize;
   gc->allocate = allocate;
   gc->allocate_nonmoving = allocate_nonmoving;

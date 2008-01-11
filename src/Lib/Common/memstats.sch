@@ -119,6 +119,13 @@
             (vector-ref v $mstat.dof-resets)
             (vector-ref v $mstat.dof-repeats)
             0                           ; GC event counters
+            (vector-ref v $mstat.max-gctime)
+            (vector-ref v $mstat.max-gctime-cpu)      ;   # 50
+            (vector-ref v $mstat.max-remset-scan)
+            (vector-ref v $mstat.max-remset-scan-cpu)
+            (vector-ref v $mstat.total-remset-scan)
+            (vector-ref v $mstat.total-remset-scan-cpu)
+            (vector-ref v $mstat.remset-scan-count)
             ))
 
   (define (make-gc-event-vector v)
@@ -212,6 +219,13 @@
 (define (memstats-gc-copied v) (vector-ref v 2))
 (define (memstats-gc-total-elapsed-time v) (vector-ref v 3))
 (define (memstats-gc-total-cpu-time v) (vector-ref v 44))
+(define (memstats-gc-max-elapsed-time v) (vector-ref v 49))
+(define (memstats-gc-max-cpu-time v) (vector-ref v 50))
+(define (memstats-gc-max-remset-scan-elapsed-time v) (vector-ref v 51))
+(define (memstats-gc-max-remset-scan-cpu-time v) (vector-ref v 52))
+(define (memstats-gc-total-remset-scan-elapsed-time v) (vector-ref v 53))
+(define (memstats-gc-total-remset-scan-cpu-time v) (vector-ref v 54))
+(define (memstats-gc-remset-scan-count v) (vector-ref v 55))
 (define (memstats-gc-promotion-elapsed-time v) (vector-ref v 28))
 (define (memstats-gc-promotion-cpu-time v) (vector-ref v 45))
 (define (memstats-heap-allocated-now v) (vector-ref v 13))
@@ -486,7 +500,10 @@
           (set! gcs (+ gcs (memstats-gen-promotions x)))))
       (mprint "Elapsed GC time: " (memstats-gc-total-elapsed-time v) 
               " ms (CPU: " (memstats-gc-total-cpu-time v)
-              " ms, in " gcs " collections.)")))
+              " ms, in " gcs " collections.)"
+              " Max pause elapsed: " (memstats-gc-max-elapsed-time v)
+              " Max pause CPU: " (memstats-gc-max-cpu-time v)
+              )))
 
   (if minimal?
       (print-minimal)
@@ -508,13 +525,20 @@
   (define (mprint . rest)
     (for-each display rest) (newline))
 
-  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu)
+  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu maxgctime maxgccpu maxscantime maxscancpu avgscantime avgscancpu)
     (mprint "Words allocated: " allocated)
     (mprint "Words reclaimed: " reclaimed)
     (mprint "Elapsed time...: " elapsed
 	   " ms (User: " user " ms; System: " system " ms)")
     (mprint "Elapsed GC time: " gctime " ms (CPU: " gccpu 
-            " in " gcs " collections.)"))
+            " in " gcs " collections.)")
+    (mprint "{Max pause elapsed: " maxgctime " ms"
+            ", CPU: " maxgccpu " ms} ")
+    (mprint "{Max remset scan elapsed: " maxscantime " ms"
+            ", CPU: " maxscancpu " ms} ")
+    (mprint "{Avg remset scan elapsed: " avgscantime " ms"
+            ", CPU: " avgscancpu " ms} ")
+    )
 
   (define (print-stats s1 s2)
     (pr (- (memstats-allocated s2) (memstats-allocated s1))
@@ -539,6 +563,14 @@
            (memstats-gc-total-elapsed-time s1))
         (- (memstats-gc-total-cpu-time s2)
            (memstats-gc-total-cpu-time s1))
+        (memstats-gc-max-elapsed-time s2)
+        (memstats-gc-max-cpu-time s2)
+        (memstats-gc-max-remset-scan-elapsed-time s2)
+        (memstats-gc-max-remset-scan-cpu-time s2)
+        (/ (memstats-gc-total-remset-scan-elapsed-time s2)
+           (memstats-gc-remset-scan-count s2))
+        (/ (memstats-gc-total-remset-scan-cpu-time s2)
+           (memstats-gc-remset-scan-count s2))
 	))
   
   (let* ((s1 (memstats))

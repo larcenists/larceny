@@ -24,6 +24,12 @@ struct gclib_stats {
   int heap_fragmentation_max;	/* max of heap_fragmentation over time */
   int mem_allocated;		/* words of allocation: heap+rts+remset+frag */
   int mem_allocated_max;	/* max of mem_allocated over time */
+
+  int max_remset_scan;
+  int max_remset_scan_cpu;
+  int total_remset_scan;
+  int total_remset_scan_cpu;
+  int remset_scan_count;
 };
 
 struct gc_stats {
@@ -50,6 +56,9 @@ struct gc_stats {
   int full_pointers_traced;	/* ditto */
   int full_ms_collection;	/* ditto */
   int full_ms_collection_cpu;	/* ditto */
+
+  int max_ms_collection;        /* Max milliseconds collecting in an area */
+  int max_ms_collection_cpu;    /* ditto, CPU time */
 };
 
 struct gen_stats {

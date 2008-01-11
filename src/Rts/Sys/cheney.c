@@ -430,11 +430,28 @@ void oldspace_copy( cheney_env_t *e )
   /* Collect */
   start( &cheney.root_scan_prom, &cheney.root_scan_gc );
   gc_enumerate_roots( e->gc, e->scan_from_globals, (void*)e );
-  gc_enumerate_remsets_complement( e->gc,
-                                   e->forw_gset,
-                                   e->scan_from_remsets,
-                                   (void*)e,
-                                   e->enumerate_np_remset );
+  { 
+    stats_id_t timer1, timer2;
+    int elapsed, cpu;
+    gc_t *gc = e->gc;
+    timer1 = stats_start_timer( TIMER_ELAPSED );
+    timer2 = stats_start_timer( TIMER_CPU );
+
+    gc_enumerate_remsets_complement( e->gc,
+                                     e->forw_gset,
+                                     e->scan_from_remsets,
+                                     (void*)e,
+                                     e->enumerate_np_remset );
+
+    elapsed = stats_stop_timer( timer1 );
+    cpu     = stats_stop_timer( timer2 );
+    
+    gc->stat_max_remset_scan = max( gc->stat_max_remset_scan, elapsed );
+    gc->stat_max_remset_scan_cpu = max( gc->stat_max_remset_scan_cpu, cpu );
+    gc->stat_total_remset_scan += elapsed;
+    gc->stat_total_remset_scan_cpu += cpu;
+    gc->stat_remset_scan_count++;
+  }
   if (e->scan_static && e->gc->static_area) {
     if (e->gc->scan_update_remset) {
       scan_static_area_update_rs( e );

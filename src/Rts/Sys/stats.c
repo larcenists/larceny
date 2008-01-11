@@ -42,6 +42,9 @@
 #define ADD_WORD( src, target, field ) \
   target->field += fixnum( src->field )
 
+#define MAX_WORD( src, target, field ) \
+  target->field = max(target->field, fixnum( src->field ))
+
 /* Put a 58-bit int into two fixnum fields */
 #define PUTBIG_DWORD( src, target, field )				\
   do { target->PASTE(field,_lo) = fixnum( src->field & FIXNUM_MASK );	\
@@ -85,6 +88,12 @@ struct gclib_memstat {
   word heap_fragmentation_max;	/* max words of external heap fragmentation */
   word mem_allocated;		/* total words of allocation */
   word mem_allocated_max;	/* max total words of allocation */
+
+  word max_remset_scan;
+  word max_remset_scan_cpu;
+  word total_remset_scan;
+  word total_remset_scan_cpu;
+  word remset_scan_count;
 };
 
 struct gc_memstat {
@@ -110,6 +119,9 @@ struct gc_memstat {
   DWORD( full_objects_marked );
   DWORD( full_words_marked );
   DWORD( full_pointers_traced );
+
+  word max_ms_collection;       /* Max milliseconds collecting in an area */
+  word max_ms_collection_cpu;   /* ditto, CPU time */
 };
 
 struct stack_memstat {
@@ -320,6 +332,12 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   PUT_WORD( stats, s, heap_fragmentation_max );
   PUT_WORD( stats, s, mem_allocated );
   PUT_WORD( stats, s, mem_allocated_max );
+
+  PUT_WORD( stats, s, max_remset_scan );
+  PUT_WORD( stats, s, max_remset_scan_cpu );
+  PUT_WORD( stats, s, total_remset_scan );
+  PUT_WORD( stats, s, total_remset_scan_cpu );
+  PUT_WORD( stats, s, remset_scan_count );
 }
 
 void stats_add_gc_stats( gc_stats_t *stats )
@@ -348,6 +366,10 @@ void stats_add_gc_stats( gc_stats_t *stats )
   ADD_DWORD( stats, s, full_objects_marked );
   ADD_DWORD( stats, s, full_words_marked );
   ADD_DWORD( stats, s, full_pointers_traced );
+
+  /* RROF collector (but why not others...) */
+  MAX_WORD( stats, s, max_ms_collection );
+  MAX_WORD( stats, s, max_ms_collection_cpu );
 }
 
 void stats_add_stack_stats( stack_stats_t *stats )
@@ -534,7 +556,13 @@ static void fill_main_entries( word *vp )
   vp[ STAT_WASTAGE_MAX ]   = gclib->heap_fragmentation_max;
   vp[ STAT_WORDS_MEM ]     = gclib->mem_allocated;
   vp[ STAT_WORDS_MEM_MAX ] = gclib->mem_allocated_max;
-  
+
+  vp[ STAT_MAX_REMSET_SCAN ]       = gclib->max_remset_scan;
+  vp[ STAT_MAX_REMSET_SCAN_CPU ]   = gclib->max_remset_scan_cpu;
+  vp[ STAT_TOTAL_REMSET_SCAN ]     = gclib->total_remset_scan;
+  vp[ STAT_TOTAL_REMSET_SCAN_CPU ] = gclib->total_remset_scan_cpu;
+  vp[ STAT_REMSET_SCAN_COUNT ]     = gclib->remset_scan_count;
+
   /* gc */
   vp[ STAT_WALLOCATED_HI ] = gc->allocated_hi;
   vp[ STAT_WALLOCATED_LO ] = gc->allocated_lo;
@@ -561,6 +589,8 @@ static void fill_main_entries( word *vp )
   vp[ STAT_FULL_WMARKED_LO ] = gc->full_words_marked_lo;
   vp[ STAT_FULL_PTRACED_HI ] = gc->full_pointers_traced_hi;
   vp[ STAT_FULL_PTRACED_LO ] = gc->full_pointers_traced_lo;
+  vp[ STAT_MAX_GCTIME ]     = gc->max_ms_collection;
+  vp[ STAT_MAX_GCTIME_CPU ] = gc->max_ms_collection_cpu;
 
   /* stack */
   vp[ STAT_STK_CREATED ]   = stack->stacks_created;
