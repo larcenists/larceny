@@ -68,6 +68,11 @@ struct gc_data {
   int ephemeral_area_count;
     /* The number of entries in the ephemeral_area table.
        */
+  int region_count;
+    /* For regional collector.  During cycle of collections, the regions
+        { ephemeral_area[i] | region_count <= i < ephemeral_area_count }
+       are new and should not be processed until cycle completes
+       */
   old_heap_t *dynamic_area;
     /* In precise collectors: A pointer to a dynamic area, or NULL.
        */
@@ -471,7 +476,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
     if (rgn == 0) {
       /* only forward data out of the nursery, if possible */
       int rgn_to, rgn_next, nursery_sz, rgn_to_cur, rgn_to_max;
-      int num_rgns = DATA(gc)->ephemeral_area_count;
+      int num_rgns = DATA(gc)->region_count;
       
     collect_evacuate_nursery:
       rgn_to = DATA(gc)->rrof_to_region;
@@ -491,11 +496,19 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
       if (rgn_to == rgn_next /* && summarization is complete */) {
 	/* ideal case for major collect */
 	int rgn_idx = rgn_next;
+	int n;
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
 
-	DATA(gc)->rrof_next_region = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
+	n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
+	/* If we're about to start from the beginning of the array, 
+	 * then we are guaranteed to attempt to collect all regions 
+	 * in current cycle before newly generated regions.
+	 * Therefore it is safe to update the region_count. */
+	if (n < DATA(gc)->rrof_next_region)
+	  DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
+	DATA(gc)->rrof_next_region = n;
       } else if (rgn_to_cur + nursery_sz < rgn_to_max) {
-	/* if there's room, minor collect the nursery into current region. */	
+	/* if there's room, minor collect the nursery into current region. */
 	int rgn_idx = rgn_to; 
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
 
@@ -503,11 +516,15 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	 * predict how many minor collections will precede the next
 	 * major collection. */
       } else {
+	int n;
 	/* the to-space is full, so shift to the next to-space */
 	annoyingmsg("collect_rgnl shift to next to-space %d => %d",
 		    DATA(gc)->rrof_to_region,
 		    next_rgn(DATA(gc)->rrof_to_region,  num_rgns ));
-	DATA(gc)->rrof_to_region = next_rgn(DATA(gc)->rrof_to_region,  num_rgns);
+	n = next_rgn(DATA(gc)->rrof_to_region,  num_rgns);
+	if (n < DATA(gc)->rrof_to_region)
+	  DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
+	DATA(gc)->rrof_to_region = n;
 	/* TODO: double check that minor gc's haven't filled up to-spaces
 	 * so fast that major GC hasn't had a chance to go (which should
 	 * only happen when a summary is abandoned. */
@@ -1406,6 +1423,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     int e = data->ephemeral_area_count = info->ephemeral_area_count;
+    data->region_count = e;
     data->fixed_ephemeral_area = FALSE;
     data->ephemeral_area = (old_heap_t**)must_malloc( e*sizeof( old_heap_t* ));
     
@@ -1504,6 +1522,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->nonexpandable_size = 0;
   data->ephemeral_area = 0;
   data->ephemeral_area_count = 0;
+  data->region_count = 0;
   data->fixed_ephemeral_area = TRUE;
   data->dynamic_area = 0;
 
