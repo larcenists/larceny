@@ -213,9 +213,11 @@ static void assert2_tag_hdr_consistency( msgc_context_t *context, word w )
 
 }
 
-static void assert2_object_contents_mapped( msgc_context_t *context, word w )
+static void assert2_object_contents_mapped( msgc_context_t *context, word w, 
+                                            int n )
 {
 #ifndef NDEBUG2
+      int i;
       for ( i=0 ; i < n ; i++ ) {
         if (isptr(vector_ref( w, i )) &&
             ! gc_is_address_mapped( context->gc, 
@@ -317,7 +319,7 @@ static int push_constituents( msgc_context_t *context, word w )
     if (n > LARGE_OBJECT_LIMIT)
       LOS_PUSH( context, 0, w );    /* Treat large objects specially */
     else {
-      assert2_object_contents_mapped( context, w );
+      assert2_object_contents_mapped( context, w, n );
       for ( i=0 ; i < n ; i++ ) {
         PUSH( context, vector_ref( w, i ), w );
       }
