@@ -172,7 +172,7 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, oh_type_t oh_type )
 static void collect_regional( old_heap_t *heap, gc_type_t request ) 
 {
   old_data_t *data = DATA(heap);
-  semispace_t *tospace = data->current_space;
+  semispace_t *from, *to;
   int rgn_idx = data->gen_no;
   int used_before, tospace_before, los_before;
   stats_id_t timer1, timer2;
@@ -214,17 +214,17 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
      * superior to the regional collector according to internal
      * measurements.  FIXME. */
     
-    /* FIXME: the standard collectors create a fresh semispace around
-     * this point in the control flow, swap it in to data->tospace
-     * accordingly, and then free the old space after the collection
-     * invocation below.  I should be doing the same, I think.
-     * QUESTION: is promoted data *ever* getting freed???
-     */ 
+    from = data->current_space;
+    to = create_semispace( GC_CHUNK_SIZE, data->gen_no );
+    data->current_space = to;
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( rgn_idx ),
-				   tospace );
+				   to );
+    ss_free( from );
+    ss_sync( to );
+
     data->gen_stats.collections++;
-    bytes_copied = tospace->used;
+    bytes_copied = to->used;
     bytes_moved = 
       los_bytes_used( heap->collector->los, data->gen_no );
 
@@ -236,17 +236,18 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
 
     start_timers( &timer1, &timer2 );
     used_before = used_space( heap );
-    ss_sync( tospace );
-    tospace_before = tospace->used;
+    to = data->current_space;
+    ss_sync( to );
+    tospace_before = to->used;
     los_before = los_bytes_used( heap->collector->los, data->gen_no );
 
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( 0 ), 
-				   tospace );
+				   to );
     data->promoted_last_gc = used_space( heap ) - used_before;
     
     data->gen_stats.promotions++;
-    bytes_copied = tospace->used - tospace_before;
+    bytes_copied = to->used - tospace_before;
     bytes_moved = 
       los_bytes_used(heap->collector->los, data->gen_no)-los_before;
 
