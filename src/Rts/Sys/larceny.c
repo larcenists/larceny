@@ -985,7 +985,7 @@ static void dump_options( opt_t *o )
     consolemsg( "  Max size: %d", o->gc_info.sc_info.dynamic_max );
   }
   else if (o->gc_info.is_regional_system) {
-    consolemsg( "Using generational garbage collector." );
+    consolemsg( "Using regional garbage collector." );
     consolemsg( "  Nursery" );
     consolemsg( "    Size (bytes): %d", o->gc_info.nursery_info.size_bytes );
     for ( i=1 ; i<= o->gc_info.ephemeral_area_count ; i++ ) {
