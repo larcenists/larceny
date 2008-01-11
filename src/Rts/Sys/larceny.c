@@ -1180,8 +1180,8 @@ static char *wizardhelptext[] = {
   "     always use all the memory that has been allocated.",
   "  -rrof",
   "  -regional",
-  "     Select regional collection with a round robin collection policy,"
-  " .   which should act like a fine grained renewal-oldest-first collector.",
+  "     Select regional collection with a round robin collection policy,",
+  "     which should act like a fine grained renewal-oldest-first collector.",
 #if ROF_COLLECTOR
   "  -steps n",
   "     Select the initial number of steps in the non-predictive collector.",
