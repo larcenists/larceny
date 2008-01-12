@@ -21,6 +21,7 @@ const char *larceny_gc_technology = "precise";
 #include "remset_t.h"
 #include "los_t.h"
 #include "semispace_t.h"
+#include "gset_t.h"
 #include "gclib.h"
 #include "heapio.h"
 #include "barrier.h"
@@ -85,6 +86,9 @@ struct gc_data {
     /* In RROF collector, the final region to collect in this cycle. */
   int rrof_region_limit;
     /* In RROF collector, the region count (at the time this cycle started). */
+
+  remset_t *remset_summary;     /* NULL or summarization of remset array */
+  bool      remset_summary_valid;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
@@ -429,6 +433,97 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
   }
 }
 
+typedef struct remset_summary_data remset_summary_data_t;
+struct remset_summary_data {
+  gset_t genset;
+  remset_t *remset;
+  int objects_visited;
+  int objects_added;
+};
+static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *count )
+{
+  word *loc = ptrof(ptr);
+  word scanned = 0;
+  bool do_enqueue = FALSE;
+  remset_summary_data_t *remsum = (remset_summary_data_t*)data;
+  gset_t genset = remsum->genset;
+  annoyingmsg("scan_object_for_remset_summary( 0x%08x (%d), data, count )", ptr, gen_of(ptr) );
+  do {
+    if (tagof( ptr ) == PAIR_TAG) {
+      /* handle car */
+      if (isptr(*loc)) {
+	int gen = gen_of(*loc);
+	if (gen == 0 || gset_memberp(gen,genset)) {
+	  do_enqueue = TRUE;
+	  scanned = 1;
+	  break;
+	}
+      }
+      ++loc;
+      /* handle cdr */
+      if (isptr(*loc)) {
+	int gen = gen_of(*loc);
+	if (gen == 0 || gset_memberp(gen,genset)) {
+	  do_enqueue = TRUE;
+	  scanned = 2;
+	  break;
+	}
+      }
+    } else { /* vector or procedure */
+      word words = sizefield( *loc ) / 4;
+      scanned = words; /* start at upper bound */
+      while (words--) {
+	++loc;
+	if (isptr(*loc)) {
+	  int gen = gen_of(*loc);
+	  if (gen == 0 || gset_memberp(gen,genset)) {
+	    do_enqueue = TRUE;
+	    scanned -= words; /* then take away what's left */
+	    break;
+	  }
+	}
+      }
+    }
+  } while (0);
+  
+  remsum->objects_visited += 1;
+  if (do_enqueue) {
+    annoyingmsg("adding 0x%08x (%d) to summary.", ptr, gen_of(ptr));
+    remsum->objects_added += 1;
+    rs_add_elem( remsum->remset, ptr );
+  }
+
+  *count += scanned;
+  return TRUE; /* don't remove entries from the remembered set we are summarizing! */  
+}
+
+static void build_remset_summary( gc_t *gc, int gen )
+{
+  remset_summary_data_t remsum;
+  gset_t genset;
+  int i;
+  int remset_count = gc->remset_count;
+  
+  genset = gset_singleton( gen );
+  remsum.genset = genset;
+  remsum.remset = DATA(gc)->remset_summary; 
+  remsum.objects_visited = 0;
+  remsum.objects_added = 0;
+  for(i = 1; i < remset_count; i++) {
+    if (gset_memberp(i, genset))
+      continue;
+    annoyingmsg("add remset %d to summary for collecting {0, %d}", i, gen );
+    /* TODO: use rs_enumerate_partial here? */
+    rs_enumerate( gc->remset[ i ], 
+		  scan_object_for_remset_summary,
+		  (void*) &remsum );
+  }
+  DATA(gc)->remset_summary_valid = TRUE;
+  annoyingmsg( "remset summary for collecting {0, %d}, live: %d", 
+	       gen, DATA(gc)->remset_summary->live );
+
+}
+
 static int next_rgn( int rgn, int num_rgns ) {
   rgn++;
   if (rgn > num_rgns) 
@@ -497,7 +592,12 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	/* ideal case for major collect */
 	int rgn_idx = rgn_next;
 	int n;
+
+	process_seqbuf( gc, gc->ssb );
+	build_remset_summary( gc, rgn_idx );
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
+	rs_clear( DATA(gc)->remset_summary );
+	DATA(gc)->remset_summary_valid = FALSE;
 
 	n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
 	/* If we're about to start from the beginning of the array, 
@@ -683,6 +783,13 @@ enumerate_remsets_complement( gc_t *gc,
   int ecount;
 
   if (!DATA(gc)->is_partitioned_system) return;
+
+  if (DATA(gc)->remset_summary_valid) {
+    /* If summarization complete, then just use that instead
+     * of iterating over the remset array. */
+    rs_enumerate( DATA(gc)->remset_summary, f, fdata );
+    return;
+  }
 
   /* Felix is pretty sure that this method is intended only
    * for use by clients who are always attempting to enumerate
@@ -1486,6 +1593,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       gc->remset[i] =
 	create_remset( info->rhash, 0 );
     }
+
+    data->remset_summary = create_remset( 0, 0 );
+
     gc->ssb =
       create_seqbuf( /* XXX the remset_count factor is an attempt to 
 		      * correct for comparison with non-refactored. XXX */
