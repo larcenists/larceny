@@ -221,7 +221,7 @@ static struct {
   gc_memstat_t     gc_stats;
   gclib_memstat_t  gclib_stats;
   gen_memstat_t    gen_stats[ MAX_GENERATIONS ];
-  remset_memstat_t remset_stats[ MAX_GENERATIONS ];
+  remset_memstat_t remset_stats[ MAX_REMSETS ];
   stack_memstat_t  stack_stats;
 #if defined(SIMULATE_NEW_BARRIER)
   swb_remstat_t    swb_stats;
@@ -265,7 +265,7 @@ stats_id_t stats_new_remembered_set( int major_id, int minor_id )
 {
   int i;
 
-  assert( stats_state.remsets < MAX_GENERATIONS );
+  assert( stats_state.remsets < MAX_REMSETS );
 
   i = stats_state.remsets++;
   stats_state.remset_stats[i].major_id = fixnum(major_id);
