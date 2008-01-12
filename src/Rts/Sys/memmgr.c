@@ -607,7 +607,12 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
       } else if (rgn_to_cur + nursery_sz < rgn_to_max) {
 	/* if there's room, minor collect the nursery into current region. */
 	int rgn_idx = rgn_to; 
+
+	process_seqbuf( gc, gc->ssb );
+	build_remset_summary( gc, 0 );
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
+	rs_clear( DATA(gc)->remset_summary );
+	DATA(gc)->remset_summary_valid = FALSE;
 
 	/* TODO: add code to incrementally summarize by attempting to
 	 * predict how many minor collections will precede the next
