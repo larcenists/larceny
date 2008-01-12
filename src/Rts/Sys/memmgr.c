@@ -447,7 +447,6 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
   bool do_enqueue = FALSE;
   remset_summary_data_t *remsum = (remset_summary_data_t*)data;
   gset_t genset = remsum->genset;
-  annoyingmsg("scan_object_for_remset_summary( 0x%08x (%d), data, count )", ptr, gen_of(ptr) );
   do {
     if (tagof( ptr ) == PAIR_TAG) {
       /* handle car */
@@ -488,7 +487,6 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
   
   remsum->objects_visited += 1;
   if (do_enqueue) {
-    annoyingmsg("adding 0x%08x (%d) to summary.", ptr, gen_of(ptr));
     remsum->objects_added += 1;
     rs_add_elem( remsum->remset, ptr );
   }
@@ -512,7 +510,6 @@ static void build_remset_summary( gc_t *gc, int gen )
   for(i = 1; i < remset_count; i++) {
     if (gset_memberp(i, genset))
       continue;
-    annoyingmsg("add remset %d to summary for collecting {0, %d}", i, gen );
     /* TODO: use rs_enumerate_partial here? */
     rs_enumerate( gc->remset[ i ], 
 		  scan_object_for_remset_summary,
