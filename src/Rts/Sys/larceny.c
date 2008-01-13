@@ -424,7 +424,7 @@ static void init_generational( opt_t *o, int areas, char *name )
 
 static void init_regional( opt_t *o, int areas, char *name )
 {
-  if (areas < 3)
+  if (areas < 2)
     invalid( name );
 
   if (o->gc_info.ephemeral_info != 0) {
@@ -435,8 +435,8 @@ static void init_regional( opt_t *o, int areas, char *name )
   
   o->gc_info.is_regional_system = 1;
   o->gc_info.ephemeral_info = 
-    (sc_info_t*)must_malloc( sizeof( sc_info_t)*areas-1 );
-  o->gc_info.ephemeral_area_count = areas-1;
+    (sc_info_t*)must_malloc( sizeof( sc_info_t)*areas );
+  o->gc_info.ephemeral_area_count = areas;
 }
 
 static void
@@ -477,17 +477,22 @@ parse_options( int argc, char **argv, opt_t *o )
         /* Maybe we shouldn't be inferring this anymore */
         o->gc_info.is_generational_system = 1; 
       }
-      if (loc < 0 || loc > o->maxheaps)
+      if (loc < 0 || loc > o->maxheaps) {
         invalid( "-size" );
-      else if (loc > 0)
-        o->size[loc-1] = val;
-      else 
-        for ( i=1 ; i < o->maxheaps ; i++ )
-          if (o->size[i-1] == 0) o->size[i-1] = val;
+      } else if (o->gc_info.is_generational_system) {
+        if (loc > 0)
+          o->size[loc-1] = val;
+        else 
+          for ( i=1 ; i < o->maxheaps ; i++ )
+            if (o->size[i-1] == 0) o->size[i-1] = val;
+      } else if (o->gc_info.is_regional_system) {
+        o->size[loc] = val;
+      }
     }
-    else if (hstrcmp( *argv, "-rrof" ) == 0 || 
+    else if (numbarg( "-regions", &argc, &argv, &areas))  {
+      init_regional( o, areas, "-regions" );
+    } else if (hstrcmp( *argv, "-rrof" ) == 0 || 
              hstrcmp( *argv, "-regional" ) == 0) {
-      areas = max( areas, 3 );
       init_regional( o, areas, *argv );
     }
     else if (sizearg( "-rhash", &argc, &argv, (int*)&o->gc_info.rhash ))
@@ -771,8 +776,6 @@ parse_options( int argc, char **argv, opt_t *o )
   else if (o->gc_info.is_regional_system) {
     /* (roughly cut and pasted from is_generational_system case above) */
 
-    int n = areas-1;            /* Index of dynamic generation */
-
     /* Nursery */
     o->gc_info.nursery_info.size_bytes =
       (o->size[0] > 0 ? o->size[0] : DEFAULT_NURSERY_SIZE);
@@ -780,26 +783,13 @@ parse_options( int argc, char **argv, opt_t *o )
     /* Ephemeral generations */
     prev_size = o->gc_info.nursery_info.size_bytes;
 
-    for ( i = 1 ; i <= areas-1 ; i++ ) {
+    for ( i = 1 ; i <= areas ; i++ ) {
       if (o->size[i] == 0)
         o->size[i] = prev_size + DEFAULT_EPHEMERAL_INCREMENT;
       assert( o->size[i] > 0 );
       o->gc_info.ephemeral_info[i-1].size_bytes = o->size[i];
       prev_size = o->size[i];
     }
-    
-    /* Dynamic generation */
-    o->gc_info.dynamic_sc_info.load_factor = load_factor;
-    o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
-    o->gc_info.dynamic_sc_info.dynamic_min = dynamic_min;
-    if (o->size[n] == 0) {
-      int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
-      if (dynamic_min) size = max( dynamic_min, size );
-      if (dynamic_max) size = min( dynamic_max, size );
-      o->gc_info.dynamic_sc_info.size_bytes = size;
-    }
-    else
-      o->gc_info.dynamic_sc_info.size_bytes = o->size[n];
   }
 }
 
@@ -1182,6 +1172,9 @@ static char *wizardhelptext[] = {
   "  -regional",
   "     Select regional collection with a round robin collection policy,",
   "     which should act like a fine grained renewal-oldest-first collector.",
+  "  -regions n",
+  "     Select regional collection, with n heap areas.  The default number",
+  "     number of heap areas is " STR(DEFAULT_AREAS) ".",
 #if ROF_COLLECTOR
   "  -steps n",
   "     Select the initial number of steps in the non-predictive collector.",
