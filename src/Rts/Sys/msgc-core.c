@@ -51,6 +51,9 @@ struct msgc_context {
   int          traced;          /* Pointers traced */
   int          marked;          /* Objects marked */
   int          words_marked;    /* Words marked */
+
+  void* (*object_visitor)( word obj, void *data );
+  void *object_visitor_data;
 };
 
 #define STACKSIZE  4094        /* Must be an even number of words */
@@ -347,6 +350,15 @@ static bool mark_word( word *bitmap, word obj, word first ) {
   return retval;
 }
 
+static bool my_mark_object( msgc_context_t *context, word obj ) 
+{
+  if (context->object_visitor != NULL) {
+    context->object_visitor_data = 
+      context->object_visitor( obj, context->object_visitor_data );
+  }
+  return mark_word( context->bitmap, obj, (word)context->lowest_heap_address );
+}
+
 /* A couple ways to speed this up:
    - inline push_constituents
    - Cache the stack pointer, stack bottom, and stack limit in
@@ -375,7 +387,7 @@ static void mark_from_stack( msgc_context_t *context )
     traced++;
 
     /* Mark */
-    already_marked = mark_word( bitmap, w, first );
+    already_marked = my_mark_object( context, w );
     if (already_marked) continue;
     marked++;
 
@@ -440,7 +452,7 @@ void msgc_mark_object( msgc_context_t *context, word obj )
   assert2( context->lowest_heap_address <= ptrof( obj ) &&
            ptrof( obj ) < context->highest_heap_address );
 
-  mark_word( context->bitmap, obj, (word)context->lowest_heap_address );
+  my_mark_object( context, obj );
 }
 
 void msgc_push_constituents( msgc_context_t *context, word obj )
@@ -546,6 +558,19 @@ void msgc_assert_conservative_approximation( msgc_context_t *context )
   }
   assert( diffs == 0 );
   msgc_end( ncontext );
+}
+
+void msgc_set_object_visitor( msgc_context_t *context,
+                              void* (*visitor)( word obj, void *data ),
+                              void *visit_data ) 
+{
+  context->object_visitor = visitor;
+  context->object_visitor_data = visit_data;
+}
+
+void* msgc_get_object_visitor_data( msgc_context_t *context ) 
+{
+  return context->object_visitor_data;
 }
 
 /* eof */
