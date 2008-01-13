@@ -555,7 +555,7 @@ static void* calc_popularity_fcn( word obj, word src, void *data )
     (struct popularity_analysis_data*)data;
   if (isptr(obj) && 
       gen_of(obj) == my_data->rgn &&
-      gen_of(src) != my_data->rgn
+      (src == 0 || gen_of(src) != my_data->rgn)
       ) {
     int idx = (obj - my_data->fst_obj)>>3;
     assert(idx >= 0 );
