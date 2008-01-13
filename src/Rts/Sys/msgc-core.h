@@ -59,4 +59,10 @@ extern void msgc_assert_conservative_approximation( msgc_context_t *context );
      This operation is not cheap.
      */
 
+extern void msgc_set_object_visitor( msgc_context_t *context, 
+                                     void* (*visitor)( word obj, void *data ),
+                                     void *visit_data );
+
+extern void* msgc_get_object_visitor_data( msgc_context_t *context );
+
 /* eof */
