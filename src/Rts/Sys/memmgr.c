@@ -536,7 +536,7 @@ struct popularity_analysis_data {
   int popularity_len;
 };
 
-static void* find_bounds_fcn( word obj, void *data ) 
+static void* find_bounds_fcn( word obj, word src, void *data ) 
 {
   struct popularity_analysis_data *my_data = 
     (struct popularity_analysis_data*)data;
@@ -549,11 +549,14 @@ static void* find_bounds_fcn( word obj, void *data )
   return data;
 }
 
-static void* calc_popularity_fcn( word obj, void *data )
+static void* calc_popularity_fcn( word obj, word src, void *data )
 {
   struct popularity_analysis_data *my_data =
     (struct popularity_analysis_data*)data;
-  if (isptr(obj) && gen_of(obj) == my_data->rgn) {
+  if (isptr(obj) && 
+      gen_of(obj) == my_data->rgn &&
+      gen_of(src) != my_data->rgn
+      ) {
     int idx = (obj - my_data->fst_obj)>>3;
     assert(idx >= 0 );
     assert(idx < my_data->popularity_len );
@@ -568,7 +571,8 @@ static void popularity_analysis( gc_t *gc, int rgn )
   struct popularity_analysis_data my_data;
   int marked, traced, words_marked;
   int range;
-  consolemsg( "   large summary: %d objects", 
+  consolemsg( "   large summary for region %d: %d objects", 
+	      rgn, 
 	      DATA(gc)->remset_summary->live );
   
   /* figure out bounds of the region's objects */
@@ -592,12 +596,36 @@ static void popularity_analysis( gc_t *gc, int rgn )
   msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
   { 
     int i;
+    int entries_due_to_popular_objects = 0;
     for( i = 0; i < my_data.popularity_len; i++ ) {
       if (my_data.popularity[i] > 100) {
-	consolemsg( "popularity 0x%08x: %d", 
-		    ((my_data.fst_obj>>3) + i)<<3, my_data.popularity[i] );
+	word *ptr = (word*)(((my_data.fst_obj>>3) + i)<<3);
+	word w = *ptr;
+	if ( ishdr( w )) {
+	  word h = header(w);
+	  int s = sizefield(w);
+	  char* type;
+	  if (h == BV_HDR) {
+	    type = "BVEC";
+	  } else if (h == VEC_HDR) {
+	    type = " VEC";
+	  } else if (h == PROC_HDR) {
+	    type = "PROC";
+	  }
+	  consolemsg( "popularity 0x%08x (%s[%d]): %d", 
+		      ptr, type, s, my_data.popularity[i] );
+	} else {
+	  consolemsg( "popularity 0x%08x (PAIR): %d", 
+		      ptr, my_data.popularity[i] );
+	}
+	
+	entries_due_to_popular_objects += my_data.popularity[i];
       }
     }
+    consolemsg( "   %d out of %d are due to popular objects.",
+		entries_due_to_popular_objects, 
+		DATA(gc)->remset_summary->live );
+
   }
   free(my_data.popularity);
   msgc_end( context );

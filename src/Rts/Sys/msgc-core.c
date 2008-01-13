@@ -52,7 +52,7 @@ struct msgc_context {
   int          marked;          /* Objects marked */
   int          words_marked;    /* Words marked */
 
-  void* (*object_visitor)( word obj, void *data );
+  void* (*object_visitor)( word obj, word src, void *data );
   void *object_visitor_data;
 };
 
@@ -247,6 +247,11 @@ static void assert2_root_address_mapped( msgc_context_t *context, word *loc )
 #if 1
 #define PUSH( context, obj, src )                               \
   do { word TMP = obj;                                          \
+       if ((context)->object_visitor != NULL) {                     \
+         (context)->object_visitor_data =                           \
+           (context)->object_visitor                                \
+                      ( obj, src, (context)->object_visitor_data ); \
+       }                                                            \
        if (isptr(TMP)) {                                        \
          if ((context)->stack.stkp == (context)->stack.stklim)  \
            push_segment( &((context)->stack) );                 \
@@ -352,10 +357,6 @@ static bool mark_word( word *bitmap, word obj, word first ) {
 
 static bool my_mark_object( msgc_context_t *context, word obj ) 
 {
-  if (context->object_visitor != NULL) {
-    context->object_visitor_data = 
-      context->object_visitor( obj, context->object_visitor_data );
-  }
   return mark_word( context->bitmap, obj, (word)context->lowest_heap_address );
 }
 
@@ -561,7 +562,9 @@ void msgc_assert_conservative_approximation( msgc_context_t *context )
 }
 
 void msgc_set_object_visitor( msgc_context_t *context,
-                              void* (*visitor)( word obj, void *data ),
+                              void* (*visitor)( word obj, 
+                                                word src, 
+                                                void *data ),
                               void *visit_data ) 
 {
   context->object_visitor = visitor;
