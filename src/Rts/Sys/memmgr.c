@@ -528,6 +528,81 @@ static int next_rgn( int rgn, int num_rgns ) {
   return rgn;
 }
 
+struct popularity_analysis_data {
+  int rgn;
+  word fst_obj;
+  word fin_obj;
+  int *popularity;
+  int popularity_len;
+};
+
+static void* find_bounds_fcn( word obj, void *data ) 
+{
+  struct popularity_analysis_data *my_data = 
+    (struct popularity_analysis_data*)data;
+  if (isptr(obj) && gen_of(obj) == my_data->rgn) {
+    if (obj < my_data->fst_obj)
+      my_data->fst_obj = obj;
+    if (obj > my_data->fin_obj)
+      my_data->fin_obj = obj;
+  }
+  return data;
+}
+
+static void* calc_popularity_fcn( word obj, void *data )
+{
+  struct popularity_analysis_data *my_data =
+    (struct popularity_analysis_data*)data;
+  if (isptr(obj) && gen_of(obj) == my_data->rgn) {
+    int idx = (obj - my_data->fst_obj)>>3;
+    assert(idx >= 0 );
+    assert(idx < my_data->popularity_len );
+    my_data->popularity[idx]++;
+  }
+  return data;
+}
+
+static void popularity_analysis( gc_t *gc, int rgn ) 
+{
+  msgc_context_t *context;
+  struct popularity_analysis_data my_data;
+  int marked, traced, words_marked;
+  int range;
+  consolemsg( "   large summary: %d objects", 
+	      DATA(gc)->remset_summary->live );
+  
+  /* figure out bounds of the region's objects */
+  context = msgc_begin( gc );
+  msgc_set_object_visitor( context, find_bounds_fcn, &my_data );
+  my_data.rgn     = rgn;
+  my_data.fst_obj = (word)-1;
+  my_data.fin_obj = (word)0;
+  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+  range = 1+((my_data.fin_obj - my_data.fst_obj)>>3);
+  consolemsg( "  fst: 0x%08x fin: 0x%08x range: %d ",
+	      my_data.fst_obj, my_data.fin_obj, range);
+
+  msgc_end( context );
+  /* calculate popularity of each object in the region. */
+  context = msgc_begin( gc );
+  my_data.popularity_len = range;
+  my_data.popularity = (int*)must_malloc( range*sizeof(int) );
+  assert(my_data.popularity != NULL);
+  msgc_set_object_visitor( context, calc_popularity_fcn, &my_data );
+  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+  { 
+    int i;
+    for( i = 0; i < my_data.popularity_len; i++ ) {
+      if (my_data.popularity[i] > 100) {
+	consolemsg( "popularity 0x%08x: %d", 
+		    ((my_data.fst_obj>>3) + i)<<3, my_data.popularity[i] );
+      }
+    }
+  }
+  free(my_data.popularity);
+  msgc_end( context );
+}
+
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
@@ -592,6 +667,13 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 	process_seqbuf( gc, gc->ssb );
 	build_remset_summary( gc, rgn_idx );
+
+	/* Temporary detective code: if the summary is overly large,
+	 * get more info on the popularity of the objects in region.
+	 */
+	if ( DATA(gc)->remset_summary->live > 40000) 
+	  popularity_analysis( gc, rgn_idx );
+	
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
 	rs_clear( DATA(gc)->remset_summary );
 	DATA(gc)->remset_summary_valid = FALSE;
