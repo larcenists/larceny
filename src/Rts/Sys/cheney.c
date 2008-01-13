@@ -414,6 +414,8 @@ void init_env( cheney_env_t *e,
   e->points_across = (e->gc->remset != NULL) ? points_across : points_across_noop;
 }
 
+static unsigned objects_scanned;
+
 void oldspace_copy( cheney_env_t *e )
 {
   /* Setup */
@@ -437,6 +439,7 @@ void oldspace_copy( cheney_env_t *e )
     timer1 = stats_start_timer( TIMER_ELAPSED );
     timer2 = stats_start_timer( TIMER_CPU );
 
+    objects_scanned = 0;
     gc_enumerate_remsets_complement( e->gc,
                                      e->forw_gset,
                                      e->scan_from_remsets,
@@ -446,11 +449,15 @@ void oldspace_copy( cheney_env_t *e )
     elapsed = stats_stop_timer( timer1 );
     cpu     = stats_stop_timer( timer2 );
     
+    gc->stat_max_entries_remset_scan =
+      max( gc->stat_max_entries_remset_scan, objects_scanned );
     gc->stat_max_remset_scan = max( gc->stat_max_remset_scan, elapsed );
     gc->stat_max_remset_scan_cpu = max( gc->stat_max_remset_scan_cpu, cpu );
+    gc->stat_total_entries_remset_scan += objects_scanned;
     gc->stat_total_remset_scan += elapsed;
     gc->stat_total_remset_scan_cpu += cpu;
     gc->stat_remset_scan_count++;
+    objects_scanned = 0;
   }
   if (e->scan_static && e->gc->static_area) {
     if (e->gc->scan_update_remset) {
@@ -542,6 +549,7 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
   word         *lim = e->lim;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
+  objects_scanned++;
   remset_scanner_core( e, object, loc, 
                        forw_oflo_record( loc, forward_nursery_and, forw_gset,
                                          dest, lim,
@@ -564,6 +572,7 @@ static bool remset_scanner_oflo_update_rs( word object, void *data, unsigned *co
   word         *lim = e->lim;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
+  objects_scanned++;
   remset_scanner_update_rs
     ( e, object, loc, 
       forw_oflo_record_update_rs( loc, 

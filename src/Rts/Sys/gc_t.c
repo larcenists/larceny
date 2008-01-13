@@ -65,6 +65,8 @@ gc_t
   gc->np_remset = -1;
   gc->scan_update_remset = 0;
 
+  gc->stat_max_entries_remset_scan = 0;
+  gc->stat_total_entries_remset_scan = 0;
   gc->stat_max_remset_scan       = 0;
   gc->stat_max_remset_scan_cpu   = 0;
   gc->stat_total_remset_scan     = 0;

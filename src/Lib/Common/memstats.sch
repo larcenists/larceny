@@ -126,6 +126,8 @@
             (vector-ref v $mstat.total-remset-scan)
             (vector-ref v $mstat.total-remset-scan-cpu)
             (vector-ref v $mstat.remset-scan-count)
+            (vector-ref v $mstat.max-entries-remset-scan)
+            (vector-ref v $mstat.total-entries-remset-scan)
             ))
 
   (define (make-gc-event-vector v)
@@ -226,6 +228,8 @@
 (define (memstats-gc-total-remset-scan-elapsed-time v) (vector-ref v 53))
 (define (memstats-gc-total-remset-scan-cpu-time v) (vector-ref v 54))
 (define (memstats-gc-remset-scan-count v) (vector-ref v 55))
+(define (memstats-gc-max-entries-remset-scan v) (vector-ref v 56))
+(define (memstats-gc-total-entries-remset-scan v) (vector-ref v 57))
 (define (memstats-gc-promotion-elapsed-time v) (vector-ref v 28))
 (define (memstats-gc-promotion-cpu-time v) (vector-ref v 45))
 (define (memstats-heap-allocated-now v) (vector-ref v 13))
@@ -525,7 +529,7 @@
   (define (mprint . rest)
     (for-each display rest) (newline))
 
-  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu maxgctime maxgccpu maxscantime maxscancpu avgscantime avgscancpu)
+  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu maxgctime maxgccpu maxscantime maxscancpu maxscanentries avgscantime avgscancpu avgscanentries)
     (mprint "Words allocated: " allocated)
     (mprint "Words reclaimed: " reclaimed)
     (mprint "Elapsed time...: " elapsed
@@ -535,9 +539,9 @@
     (mprint "{Max pause elapsed: " maxgctime " ms"
             ", CPU: " maxgccpu " ms} ")
     (mprint "{Max remset scan elapsed: " maxscantime " ms"
-            ", CPU: " maxscancpu " ms} ")
+            ", CPU: " maxscancpu " ms, entries: " maxscanentries "} ")
     (mprint "{Avg remset scan elapsed: " avgscantime " ms"
-            ", CPU: " avgscancpu " ms} ")
+            ", CPU: " avgscancpu " ms, entries: " avgscanentries "} ")
     )
 
   (define (print-stats s1 s2)
@@ -567,10 +571,19 @@
         (memstats-gc-max-cpu-time s2)
         (memstats-gc-max-remset-scan-elapsed-time s2)
         (memstats-gc-max-remset-scan-cpu-time s2)
-        (/ (memstats-gc-total-remset-scan-elapsed-time s2)
-           (memstats-gc-remset-scan-count s2))
-        (/ (memstats-gc-total-remset-scan-cpu-time s2)
-           (memstats-gc-remset-scan-count s2))
+        (memstats-gc-max-entries-remset-scan s2)
+        (if (zero? (memstats-gc-remset-scan-count s2))
+            0
+            (/ (memstats-gc-total-remset-scan-elapsed-time s2)
+               (memstats-gc-remset-scan-count s2)))
+        (if (zero? (memstats-gc-remset-scan-count s2))
+            0
+            (/ (memstats-gc-total-remset-scan-cpu-time s2)
+               (memstats-gc-remset-scan-count s2)))
+        (if (zero? (memstats-gc-remset-scan-count s2))
+            0
+            (/ (memstats-gc-total-entries-remset-scan s2)
+               (memstats-gc-remset-scan-count s2)))
 	))
   
   (let* ((s1 (memstats))

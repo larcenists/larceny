@@ -94,6 +94,8 @@ struct gclib_memstat {
   word total_remset_scan;
   word total_remset_scan_cpu;
   word remset_scan_count;
+  word max_entries_remset_scan;
+  word total_entries_remset_scan;
 };
 
 struct gc_memstat {
@@ -338,6 +340,8 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   PUT_WORD( stats, s, total_remset_scan );
   PUT_WORD( stats, s, total_remset_scan_cpu );
   PUT_WORD( stats, s, remset_scan_count );
+  PUT_WORD( stats, s, max_entries_remset_scan );
+  PUT_WORD( stats, s, total_entries_remset_scan );
 }
 
 void stats_add_gc_stats( gc_stats_t *stats )
@@ -562,6 +566,8 @@ static void fill_main_entries( word *vp )
   vp[ STAT_TOTAL_REMSET_SCAN ]     = gclib->total_remset_scan;
   vp[ STAT_TOTAL_REMSET_SCAN_CPU ] = gclib->total_remset_scan_cpu;
   vp[ STAT_REMSET_SCAN_COUNT ]     = gclib->remset_scan_count;
+  vp[ STAT_MAX_ENTRIES_REMSET_SCAN ]   = gclib->max_entries_remset_scan;
+  vp[ STAT_TOTAL_ENTRIES_REMSET_SCAN ] = gclib->total_entries_remset_scan;
 
   /* gc */
   vp[ STAT_WALLOCATED_HI ] = gc->allocated_hi;

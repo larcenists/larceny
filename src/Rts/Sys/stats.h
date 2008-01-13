@@ -30,6 +30,8 @@ struct gclib_stats {
   int total_remset_scan;
   int total_remset_scan_cpu;
   int remset_scan_count;
+  int max_entries_remset_scan;
+  int total_entries_remset_scan;
 };
 
 struct gc_stats {

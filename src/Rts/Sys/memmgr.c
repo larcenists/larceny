@@ -948,6 +948,10 @@ static void stats_following_gc( gc_t *gc )
 			gc->stat_total_remset_scan_cpu);
   assert_geq_and_assign(stats_gclib.remset_scan_count,
 			gc->stat_remset_scan_count);
+  assert_geq_and_assign(stats_gclib.max_entries_remset_scan,
+			gc->stat_max_entries_remset_scan);
+  assert_geq_and_assign(stats_gclib.total_entries_remset_scan,
+			gc->stat_total_entries_remset_scan);
 
   stats_add_gclib_stats( &stats_gclib );
 
