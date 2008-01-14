@@ -69,6 +69,13 @@ void rs_clear( remset_t *remset );
   /* Clears the remembered set.
      */
 
+bool rs_add_elem_new( remset_t *rs, word w );
+  /* Copies w into the remset.rs.
+     w is *not* subject to a collision check.
+
+     Returns TRUE if the remset overflowed during the addition.
+     */
+
 bool rs_add_elem( remset_t *rs, word w );
   /* Copies w into the remset.rs.
      w is subject to a collision check.
