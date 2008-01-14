@@ -57,6 +57,7 @@ old_heap_t *create_old_heap_t(
   heap->set_gen_no = set_gen_no;
   heap->current_space = current_space;
   heap->is_address_mapped = is_address_mapped;
+  heap->has_popular_objects = FALSE;
 
   return heap;
 }

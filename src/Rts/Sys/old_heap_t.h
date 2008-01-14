@@ -39,6 +39,8 @@ struct old_heap {
 	This field is valid following a call to before_collection().
 	*/
 
+  bool has_popular_objects;
+
   void *data;
      /* Data private to the heap implementation.
 	*/
