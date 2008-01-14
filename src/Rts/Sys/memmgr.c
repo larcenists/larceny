@@ -583,8 +583,6 @@ static void popularity_analysis( gc_t *gc, int rgn )
   my_data.fin_obj = (word)0;
   msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
   range = 1+((my_data.fin_obj - my_data.fst_obj)>>3);
-  consolemsg( "  fst: 0x%08x fin: 0x%08x range: %d ",
-	      my_data.fst_obj, my_data.fin_obj, range);
 
   msgc_end( context );
   /* calculate popularity of each object in the region. */
@@ -596,8 +594,10 @@ static void popularity_analysis( gc_t *gc, int rgn )
   msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
   { 
     int i;
+    int entries = 0;
     int entries_due_to_popular_objects = 0;
     for( i = 0; i < my_data.popularity_len; i++ ) {
+      entries += my_data.popularity[i];
       if (my_data.popularity[i] > 100) {
 	word *ptr = (word*)(((my_data.fst_obj>>3) + i)<<3);
 	word w = *ptr;
@@ -622,9 +622,10 @@ static void popularity_analysis( gc_t *gc, int rgn )
 	entries_due_to_popular_objects += my_data.popularity[i];
       }
     }
-    consolemsg( "   %d out of %d are due to popular objects.",
+    consolemsg( "   %d out of (summary: %d, actual: %d) are due to popular objects.",
 		entries_due_to_popular_objects, 
-		DATA(gc)->remset_summary->live );
+		DATA(gc)->remset_summary->live,
+		entries );
 
   }
   free(my_data.popularity);
