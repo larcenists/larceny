@@ -50,6 +50,14 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
  */
 int process_seqbuf( gc_t *gc, seqbuf_t *ssb );
 
+#define SSB_ENQUEUE( gc, ssb, word )        \
+  do { seqbuf_t *ssb_tmp = (ssb);           \
+       **(ssb_tmp->top) = (word);           \
+       (*ssb_tmp->top)++;		    \
+       if (*ssb_tmp->top == *ssb_tmp->lim)  \
+         process_seqbuf( (gc), ssb_tmp );   \
+  } while (0);
+
 #endif /* INCLUDED_SEQBUF_T_H */
 
 /* eof */
