@@ -244,6 +244,40 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
   assert( DATA(rs)->curr_pool != 0 );
 }
 
+bool rs_add_elem_new( remset_t *rs, word w ) 
+{
+  word mask, *tbl, *b, *pooltop, *poollim, tblsize, h;
+  bool overflowed = FALSE;
+  remset_data_t *data = DATA(rs);
+
+  assert2(! rs_isremembered( rs, w ));
+
+  pooltop = data->curr_pool->top;
+  poollim = data->curr_pool->lim;
+  tbl = data->tbl_bot;
+  tblsize = data->tbl_lim - tbl;
+  mask = tblsize-1;
+
+  h = hash_object( w, mask );
+
+  if (pooltop == poollim) {
+    handle_overflow( rs, 0, pooltop );
+    pooltop = data->curr_pool->top;
+    poollim = data->curr_pool->lim;
+    overflowed = TRUE;
+  }
+  *pooltop = w;
+  *(pooltop+1) = tbl[h];
+  tbl[h] = (word)pooltop;
+  pooltop += 2;
+  data->curr_pool->top = pooltop;
+  data->curr_pool->lim = poollim;
+  data->stats.recorded += 1;
+  rs->live += 1;
+
+  return overflowed;
+}
+
 /* Adds w to remset rs.  Returns true if rs overflowed when inserting w. */
 bool rs_add_elem( remset_t *rs, word w ) 
 {
