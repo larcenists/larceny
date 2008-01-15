@@ -774,8 +774,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  DATA(gc)->rrof_next_region = n;
 	} else {
 	  DATA(gc)->ephemeral_area[ rgn_idx-1 ]->has_popular_objects = TRUE;
-	  rs_clear( DATA(gc)->remset_summary );
-	  DATA(gc)->remset_summary_valid = FALSE;
+	  invalidate_remset_summary( gc );
 
 	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
 	  if (n < DATA(gc)->rrof_next_region) {
@@ -794,8 +793,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	process_seqbuf( gc, gc->ssb );
 	build_remset_summary( gc, 0 );
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
-	rs_clear( DATA(gc)->remset_summary );
-	DATA(gc)->remset_summary_valid = FALSE;
+	invalidate_remset_summary( gc );
 
 	/* TODO: add code to incrementally summarize by attempting to
 	 * predict how many minor collections will precede the next
