@@ -97,7 +97,7 @@ word sro( gc_t *gc, int p_tag, int h_tag, int limit )
 
   /* Perform a minor collection to guarantee space also for 
      small result vectors. */
-  gc_collect( gc, 0, GC_LARGE_OBJECT_LIMIT, GCTYPE_PROMOTE );
+  gc_collect( gc, 0, GC_LARGE_OBJECT_LIMIT, GCTYPE_EVACUATE );
 
   if (h_tag != -1) h_tag = h_tag << 2;  /* Matches value of typetag() */
 
