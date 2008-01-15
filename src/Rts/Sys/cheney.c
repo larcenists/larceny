@@ -238,7 +238,8 @@ void gclib_stopcopy_collect_genset( gc_t *gc, gset_t gs, semispace_t *tospace )
 
   CHENEY_TYPE( 2 ); /* Felix has never used GC_HIRES_TIMERS... */
   init_env( &e, gc, spaces, 1, init_size, 
-            0, gs, 0, scan_oflo_normal_update_rs );
+            0, gs, 0, 
+            gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects_in( gc, gs );
   stats_set_gc_event_stats( &cheney );
