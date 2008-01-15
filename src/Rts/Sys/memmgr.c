@@ -536,6 +536,7 @@ static int next_rgn( int rgn, int num_rgns ) {
   return rgn;
 }
 
+static remset_t *popularity_analysis_remset = NULL;
 struct popularity_analysis_data {
   int rgn;
   word fst_obj;
@@ -543,6 +544,11 @@ struct popularity_analysis_data {
   int *popularity;
   int popularity_len;
   remset_t *summary_remset;
+  int live_extra_objects_in_summary_remset;
+  int dead_extra_objects_in_summary_remset;
+  int* dead_extra_objects_in_region;
+  msgc_context_t *init_context;
+  gc_t *gc;
 };
 
 static void* find_bounds_fcn( word obj, word src, void *data ) 
@@ -593,36 +599,110 @@ static void* calc_popularity_fcn( word obj, word src, void *data )
       assert( rs_isremembered( my_data->summary_remset, src ));
     }
 
+    rs_add_elem( popularity_analysis_remset, src );
     my_data->popularity[idx]++;
   }
   return data;
 }
 
+static bool categorize_extra_rs_members( word obj, void *data, unsigned *count )
+{
+  struct popularity_analysis_data *my_data = 
+    (struct popularity_analysis_data*)data;
+  assert( rs_isremembered( my_data->summary_remset, obj ));
+  if ( rs_isremembered( popularity_analysis_remset, obj )) {
+    /* we do not worry about members of both sets. */
+  } else if ( msgc_object_marked_p( my_data->init_context, obj )) {
+    my_data->live_extra_objects_in_summary_remset++;
+  } else {
+    /* the object is dead, tell me that! */
+    my_data->dead_extra_objects_in_summary_remset++;
+
+    assert( gen_of(obj) >= 0 );
+    assert( gen_of(obj) < my_data->gc->remset_count );
+    my_data->dead_extra_objects_in_region[ gen_of(obj) ]++;
+  }
+  return TRUE;
+}
+
 static void popularity_analysis( gc_t *gc, int rgn ) 
 {
-  msgc_context_t *context;
+  msgc_context_t *init_context, *context;
   struct popularity_analysis_data my_data;
   int marked, traced, words_marked;
   int range;
   
   /* figure out bounds of the region's objects */
-  context = msgc_begin( gc );
-  msgc_set_object_visitor( context, find_bounds_fcn, &my_data );
+  init_context = msgc_begin( gc );
+  msgc_set_object_visitor( init_context, find_bounds_fcn, &my_data );
+  my_data.gc      = gc;
   my_data.rgn     = rgn;
   my_data.fst_obj = (word)-1;
   my_data.fin_obj = (word)0;
-  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+  my_data.init_context = init_context;
+  msgc_mark_objects_from_roots( init_context, &marked, &traced, &words_marked );
   range = 1 + (popularity_analysis_addr2index(&my_data, my_data.fin_obj) -
 	       popularity_analysis_addr2index(&my_data, my_data.fst_obj));
-  msgc_end( context );
+
   /* calculate popularity of each object in the region. */
   context = msgc_begin( gc );
+
+  if (popularity_analysis_remset == NULL)
+    popularity_analysis_remset = create_remset( 0, 0 );
+  else
+    rs_clear( popularity_analysis_remset );
+
   my_data.popularity_len = range;
   my_data.popularity = (int*)must_malloc( range*sizeof(int) );
   my_data.summary_remset = DATA(gc)->remset_summary;
   assert(my_data.popularity != NULL);
   msgc_set_object_visitor( context, calc_popularity_fcn, &my_data );
   msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+
+  consolemsg(""); /* A blank line to make output more readable... */
+  {
+    my_data.live_extra_objects_in_summary_remset = 0;
+    my_data.dead_extra_objects_in_summary_remset = 0;
+    my_data.dead_extra_objects_in_region = 
+      (int*)must_malloc( gc->remset_count*sizeof(int) );
+    { 
+      int i;
+      for( i = 0; i < gc->remset_count; i++ ) {
+	my_data.dead_extra_objects_in_region[i] = 0;
+      }
+    }
+    rs_enumerate( DATA(gc)->remset_summary, 
+		  categorize_extra_rs_members, 
+		  &my_data );
+    if (my_data.live_extra_objects_in_summary_remset != 0) {
+      consolemsg("summary remset size: %8d"
+		 " marker remset size: %8d"
+		 " extra live objects: %8d"
+		 " extra dead objects: %8d",
+		 DATA(gc)->remset_summary->live,
+		 popularity_analysis_remset->live,
+		 my_data.live_extra_objects_in_summary_remset,
+		 my_data.dead_extra_objects_in_summary_remset);
+    } else {
+      consolemsg("summary remset size: %8d"
+		 " marker remset size: %8d"
+		 " extra dead objects: %8d",
+		 DATA(gc)->remset_summary->live,
+		 popularity_analysis_remset->live,
+
+		 my_data.dead_extra_objects_in_summary_remset);
+    }
+    { 
+      int i;
+      for( i=0; i < gc->remset_count; i++ ) {
+	consolemsg(" dead_objects[%3d]: %8d", 
+		   i, 
+		   my_data.dead_extra_objects_in_region[i] );
+      }
+    }
+    free( my_data.dead_extra_objects_in_region );
+    my_data.dead_extra_objects_in_region = NULL;
+  }
   { 
     int i;
     int entries = 0;
@@ -643,10 +723,10 @@ static void popularity_analysis( gc_t *gc, int rgn )
 	  } else if (h == PROC_HDR) {
 	    type = "PROC";
 	  }
-	  consolemsg( "popularity 0x%08x (%s[%d]): %d", 
+	  consolemsg( "popularity 0x%08x (%s[%d]): %8d", 
 		      ptr, type, s, my_data.popularity[i] );
 	} else {
-	  consolemsg( "popularity 0x%08x (PAIR): %d", 
+	  consolemsg( "popularity 0x%08x (PAIR): %8d", 
 		      ptr, my_data.popularity[i] );
 	}
 	
@@ -654,16 +734,17 @@ static void popularity_analysis( gc_t *gc, int rgn )
       }
     }
     consolemsg( " pop analysis rgn %d:"
-		" %d of (summary: %d, mark: %d)"
+		" %d of (summary: %d, mark: %d, popset: %d)"
 		" to pop objects",
 		rgn, 
 		entries_due_to_popular_objects, 
 		DATA(gc)->remset_summary->live,
-		entries );
-
+		entries, 
+		popularity_analysis_remset->live );
   }
   free(my_data.popularity);
   msgc_end( context );
+  msgc_end( init_context );
 }
 
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
