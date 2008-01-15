@@ -536,6 +536,8 @@ static int next_rgn( int rgn, int num_rgns ) {
   return rgn;
 }
 
+#define ANALYZE_POPULARITY 0
+
 static remset_t *popularity_analysis_remset = NULL;
 struct popularity_analysis_data {
   int rgn;
@@ -811,7 +813,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 	process_seqbuf( gc, gc->ssb );
 	if (DATA(gc)->ephemeral_area[ rgn_idx-1 ]->has_popular_objects) {
-	  if (1) {
+	  if (ANALYZE_POPULARITY) {
 	    /* (building summary is just to gather stats to feed to
 	     * popularity analysis; it is not necessary for skipping
 	     * collection of the popular region. */
@@ -834,7 +836,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	/* Temporary detective code: if the summary is overly large,
 	 * get more info on the popularity of the objects in region.
 	 */
-	if ( DATA(gc)->remset_summary->live > 40000) {
+	if ( ANALYZE_POPULARITY &&
+	     DATA(gc)->remset_summary->live > 40000) {
 	  consolemsg( "   large summary for region %d: %d objects", 
 		      rgn_idx, 
 		      DATA(gc)->remset_summary->live );
