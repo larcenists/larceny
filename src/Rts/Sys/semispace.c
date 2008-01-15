@@ -401,10 +401,10 @@ bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy )
   bool ret = FALSE;
   for (i=0; i < ss->n; i++ ) {
     if (noisy) 
-      annoyingmsg( "ss_is_address_mapped ss: 0x%08x addr: 0x%08x i: %d"
-                   " bot: 0x%08x top: 0x%08x lim: 0x%08x",
-                   ss, addr, i,
-                   ss->chunks[i].bot, ss->chunks[i].top, ss->chunks[i].lim );
+      consolemsg( "ss_is_address_mapped ss: 0x%08x addr: 0x%08x i: %d"
+                  " bot: 0x%08x top: 0x%08x lim: 0x%08x",
+                  ss, addr, i,
+                  ss->chunks[i].bot, ss->chunks[i].top, ss->chunks[i].lim );
     if ((ss->chunks[i].bot <= addr) && (addr < ss->chunks[i].top)) {
       assert( !ret ); ret = TRUE;
     }
