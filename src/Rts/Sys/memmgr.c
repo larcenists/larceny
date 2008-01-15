@@ -447,6 +447,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
   bool do_enqueue = FALSE;
   remset_summary_data_t *remsum = (remset_summary_data_t*)data;
   gset_t genset = remsum->genset;
+  assert( ! gset_memberp(gen_of(ptr), genset ));
   do {
     if (tagof( ptr ) == PAIR_TAG) {
       /* handle car */
@@ -469,6 +470,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
 	}
       }
     } else { /* vector or procedure */
+      assert( (tagof(ptr) == VEC_TAG) || (tagof(ptr) == PROC_TAG) );
       word words = sizefield( *loc ) / 4;
       scanned = words; /* start at upper bound */
       while (words--) {
@@ -521,6 +523,12 @@ static void build_remset_summary( gc_t *gc, int gen )
 
 }
 
+static void invalidate_remset_summary( gc_t *gc )
+{
+  rs_clear( DATA(gc)->remset_summary );
+  DATA(gc)->remset_summary_valid = FALSE;
+}
+
 static int next_rgn( int rgn, int num_rgns ) {
   rgn++;
   if (rgn > num_rgns) 
@@ -534,6 +542,7 @@ struct popularity_analysis_data {
   word fin_obj;
   int *popularity;
   int popularity_len;
+  remset_t *summary_remset;
 };
 
 static void* find_bounds_fcn( word obj, word src, void *data ) 
@@ -549,17 +558,41 @@ static void* find_bounds_fcn( word obj, word src, void *data )
   return data;
 }
 
+static int popularity_analysis_addr2index( struct popularity_analysis_data *pa_data, 
+					   word addr )
+{
+  return ((word)addr - (word)pa_data->fst_obj) >> 3;
+}
+static int popularity_analysis_index2addr( struct popularity_analysis_data *pa_data,
+					   int index )
+{
+  return (((byte*)(pa_data->fst_obj&~0x7)) + (index<<3));
+}
+					   
 static void* calc_popularity_fcn( word obj, word src, void *data )
 {
   struct popularity_analysis_data *my_data =
     (struct popularity_analysis_data*)data;
   if (isptr(obj) && 
       gen_of(obj) == my_data->rgn &&
-      (src == 0 || gen_of(src) != my_data->rgn)
+      (src == 0 || (gen_of(src) != 0 && gen_of(src) != my_data->rgn))
       ) {
-    int idx = (obj - my_data->fst_obj)>>3;
+    int idx = popularity_analysis_addr2index( my_data, obj );
+    if (idx < 0 || idx >= my_data->popularity_len) {
+      consolemsg( " invalid obj: 0x%08x (idx: %d) for pop data"
+		  " {rgn: %d, addrs: [0x%08x,0x%08x), len: %d}",
+		  obj, idx, my_data->rgn, my_data->fst_obj, my_data->fin_obj, 
+		  my_data->popularity_len );
+    }
     assert(idx >= 0 );
     assert(idx < my_data->popularity_len );
+    if ( src != 0 && 
+	 ! rs_isremembered( my_data->summary_remset, src )) {
+      consolemsg(" pop analysis mark, obj: 0x%08x (%d) not in remset summary", 
+		 src, gen_of(src) );
+      assert( rs_isremembered( my_data->summary_remset, src ));
+    }
+
     my_data->popularity[idx]++;
   }
   return data;
@@ -571,9 +604,6 @@ static void popularity_analysis( gc_t *gc, int rgn )
   struct popularity_analysis_data my_data;
   int marked, traced, words_marked;
   int range;
-  consolemsg( "   large summary for region %d: %d objects", 
-	      rgn, 
-	      DATA(gc)->remset_summary->live );
   
   /* figure out bounds of the region's objects */
   context = msgc_begin( gc );
@@ -582,13 +612,14 @@ static void popularity_analysis( gc_t *gc, int rgn )
   my_data.fst_obj = (word)-1;
   my_data.fin_obj = (word)0;
   msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
-  range = 1+((my_data.fin_obj - my_data.fst_obj)>>3);
-
+  range = 1 + (popularity_analysis_addr2index(&my_data, my_data.fin_obj) -
+	       popularity_analysis_addr2index(&my_data, my_data.fst_obj));
   msgc_end( context );
   /* calculate popularity of each object in the region. */
   context = msgc_begin( gc );
   my_data.popularity_len = range;
   my_data.popularity = (int*)must_malloc( range*sizeof(int) );
+  my_data.summary_remset = DATA(gc)->remset_summary;
   assert(my_data.popularity != NULL);
   msgc_set_object_visitor( context, calc_popularity_fcn, &my_data );
   msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
@@ -599,7 +630,7 @@ static void popularity_analysis( gc_t *gc, int rgn )
     for( i = 0; i < my_data.popularity_len; i++ ) {
       entries += my_data.popularity[i];
       if (my_data.popularity[i] > 100) {
-	word *ptr = (word*)(((my_data.fst_obj>>3) + i)<<3);
+	word *ptr = (word*) popularity_analysis_index2addr(&my_data, i);
 	word w = *ptr;
 	if ( ishdr( w )) {
 	  word h = header(w);
@@ -622,7 +653,10 @@ static void popularity_analysis( gc_t *gc, int rgn )
 	entries_due_to_popular_objects += my_data.popularity[i];
       }
     }
-    consolemsg( "   %d out of (summary: %d, actual: %d) are due to popular objects.",
+    consolemsg( " pop analysis rgn %d:"
+		" %d of (summary: %d, mark: %d)"
+		" to pop objects",
+		rgn, 
 		entries_due_to_popular_objects, 
 		DATA(gc)->remset_summary->live,
 		entries );
@@ -696,6 +730,14 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 	process_seqbuf( gc, gc->ssb );
 	if (DATA(gc)->ephemeral_area[ rgn_idx-1 ]->has_popular_objects) {
+	  if (1) {
+	    /* (building summary is just to gather stats to feed to
+	     * popularity analysis; it is not necessary for skipping
+	     * collection of the popular region. */
+	    build_remset_summary( gc, rgn_idx );
+	    popularity_analysis( gc, rgn_idx );
+	    invalidate_remset_summary( gc );
+	  }
 	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
 	  if (n < DATA(gc)->rrof_next_region) {
 	    gc_fresh_space(gc); /* XXX necessary to prevent loop? */
@@ -711,13 +753,16 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	/* Temporary detective code: if the summary is overly large,
 	 * get more info on the popularity of the objects in region.
 	 */
-	if ( DATA(gc)->remset_summary->live > 40000) 
+	if ( DATA(gc)->remset_summary->live > 40000) {
+	  consolemsg( "   large summary for region %d: %d objects", 
+		      rgn_idx, 
+		      DATA(gc)->remset_summary->live );
 	  popularity_analysis( gc, rgn_idx );
+	}
 	
 	if ( DATA(gc)->remset_summary->live <= 40000 ) {
 	  oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
-	  rs_clear( DATA(gc)->remset_summary );
-	  DATA(gc)->remset_summary_valid = FALSE;
+	  invalidate_remset_summary( gc );
 	  
 	  n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
 	  /* If we're about to start from the beginning of the array, 
