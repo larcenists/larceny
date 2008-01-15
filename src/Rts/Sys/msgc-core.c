@@ -269,6 +269,11 @@ static void assert2_root_address_mapped( msgc_context_t *context, word *loc )
 static void PUSH( msgc_context_t *context, word obj, word src ) {
   word TMP = obj;
   assert2_basic_invs( context, src, obj );
+  if ((context)->object_visitor != NULL) {                     
+    (context)->object_visitor_data =                           
+      (context)->object_visitor                                
+      ( obj, src, (context)->object_visitor_data ); 
+  }                                                            
   if (isptr(TMP)) {
     if ((context)->stack.stkp == (context)->stack.stklim)
       push_segment( &((context)->stack) );
@@ -478,6 +483,8 @@ msgc_context_t *msgc_begin( gc_t *gc )
     roundup(doublewords,(8*sizeof(word)))/(8*sizeof(word));
   context->bitmap = 
     gclib_alloc_rts( context->words_in_bitmap * sizeof(word), 0 );
+  context->object_visitor = NULL;
+  context->object_visitor_data = NULL;
 
   memset( context->bitmap, 0, context->words_in_bitmap*sizeof(word) );
   context->stack.seg = 0;
