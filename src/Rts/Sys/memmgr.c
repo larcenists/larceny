@@ -695,6 +695,17 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	int n;
 
 	process_seqbuf( gc, gc->ssb );
+	if (DATA(gc)->ephemeral_area[ rgn_idx-1 ]->has_popular_objects) {
+	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
+	  if (n < DATA(gc)->rrof_next_region) {
+	    gc_fresh_space(gc); /* XXX necessary to prevent loop? */
+	    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
+	    num_rgns = DATA(gc)->region_count;
+	  }
+	  DATA(gc)->rrof_next_region = n;
+	  DATA(gc)->rrof_to_region = n;
+	  goto collect_evacuate_nursery;
+	}
 	build_remset_summary( gc, rgn_idx );
 
 	/* Temporary detective code: if the summary is overly large,
@@ -703,18 +714,34 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	if ( DATA(gc)->remset_summary->live > 40000) 
 	  popularity_analysis( gc, rgn_idx );
 	
-	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
-	rs_clear( DATA(gc)->remset_summary );
-	DATA(gc)->remset_summary_valid = FALSE;
+	if ( DATA(gc)->remset_summary->live <= 40000 ) {
+	  oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
+	  rs_clear( DATA(gc)->remset_summary );
+	  DATA(gc)->remset_summary_valid = FALSE;
+	  
+	  n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
+	  /* If we're about to start from the beginning of the array, 
+	   * then we are guaranteed to attempt to collect all regions 
+	   * in current cycle before newly generated regions.
+	   * Therefore it is safe to update the region_count. */
+	  if (n < DATA(gc)->rrof_next_region)
+	    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
+	  DATA(gc)->rrof_next_region = n;
+	} else {
+	  DATA(gc)->ephemeral_area[ rgn_idx-1 ]->has_popular_objects = TRUE;
+	  rs_clear( DATA(gc)->remset_summary );
+	  DATA(gc)->remset_summary_valid = FALSE;
 
-	n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
-	/* If we're about to start from the beginning of the array, 
-	 * then we are guaranteed to attempt to collect all regions 
-	 * in current cycle before newly generated regions.
-	 * Therefore it is safe to update the region_count. */
-	if (n < DATA(gc)->rrof_next_region)
-	  DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
-	DATA(gc)->rrof_next_region = n;
+	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
+	  if (n < DATA(gc)->rrof_next_region) {
+	    gc_fresh_space(gc); /* XXX necessary to prevent loop? */
+	    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
+	    num_rgns = DATA(gc)->region_count;
+	  }
+	  DATA(gc)->rrof_next_region = n;
+	  DATA(gc)->rrof_to_region = n;
+	  goto collect_evacuate_nursery;
+	}
       } else if (rgn_to_cur + nursery_sz < rgn_to_max) {
 	/* if there's room, minor collect the nursery into current region. */
 	int rgn_idx = rgn_to; 
