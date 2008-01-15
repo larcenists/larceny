@@ -328,11 +328,11 @@ static int last_origin_gen_added;
 static const int gf_filter_remset_lhs = 0;
 static word gf_last_lhs;
 
-static void update_remset( cheney_env_t *e,
+static bool update_remset( cheney_env_t *e,
                            word origin_ptr, int origin_gen, int origin_tag,
                            word target_ptr ) {
   if (e->points_across == NULL)
-    return;
+    return FALSE;
   assert( origin_gen != 0 || e->gc->remset == NULL );
   if ( is_ptr(target_ptr) &&
        last_origin_gen_added != origin_ptr ) {
@@ -342,7 +342,12 @@ static void update_remset( cheney_env_t *e,
                                      target_ptr );
       if (added)
         last_origin_gen_added = origin_ptr;
+      return added;
+    } else {
+      return FALSE;
     }
+  } else {
+    return FALSE;
   }
 }
 
@@ -361,13 +366,8 @@ static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
       assert2(g_rhs >= 0);
       assert2(e->gc->remset != NULL);
 
-      if (gf_last_lhs == lhs)
-	return FALSE;
-      gf_last_lhs = lhs;
-
       /* enqueue lhs in remset. */
-      rs_add_elem( e->gc->remset[g_lhs], lhs );
-
+      rs_add_elem_new( e->gc->remset[g_lhs], lhs );
       return TRUE;
     }
   } else {

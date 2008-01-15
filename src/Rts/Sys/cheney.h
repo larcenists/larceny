@@ -260,22 +260,33 @@ static void stop( void )
       else {                                                                   \
         /* vector or procedure: scan in a tight loop */                        \
         word T_words = sizefield( T_w ) >> 2;                                  \
+        bool updated = FALSE;                                                  \
         ptr++;                                                                 \
+        while (T_words) {                                                      \
+          T_words--;                                                           \
+          FORW;                                                                \
+          updated =                                                            \
+            UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                        \
+                           ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG), *ptr );        \
+          ptr++;                                                               \
+          if (updated) break;                                                  \
+        }                                                                      \
         while (T_words--) {                                                    \
           FORW;                                                                \
-          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                          \
-                         ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG), *ptr );          \
           ptr++;                                                               \
         }                                                                      \
         if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                    \
       }                                                                        \
     }                                                                          \
     else {                                                                     \
+      bool upd;                                                                \
       FORW;                                                                    \
-      UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );            \
+      upd = UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );      \
       ptr++;                                                                   \
       FORW;                                                                    \
-      UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );            \
+      if (!upd)                                                                \
+        upd =                                                                  \
+          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );        \
       ptr++;                                                                   \
     }                                                                          \
   } while (0)
@@ -314,10 +325,8 @@ static void stop( void )
     assert(g_lhs != 0);                                                   \
     if (tagof( ptr ) == PAIR_TAG) {                                       \
       FORW;                                                               \
-      update_remset( e, ptr, g_lhs, PAIR_TAG, *p );                       \
       ++p;                                                                \
       FORW;                                                               \
-      update_remset( e, ptr, g_lhs, PAIR_TAG, *p );                       \
       count += 2;                                                         \
     }                                                                     \
     else {                                                                \
@@ -327,9 +336,6 @@ static void stop( void )
       while (words--) {                                                   \
         ++p;                                                              \
         FORW;                                                             \
-        update_remset( e, ptr, g_lhs,                                     \
-                       ((header(*ptrof(ptr)) == VEC_HDR)                  \
-                        ? VEC_TAG : PROC_TAG), *p );                      \
       }                                                                   \
     }                                                                     \
   } while (0)
