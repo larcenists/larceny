@@ -389,7 +389,7 @@ static void clear_list( los_list_t *l )
   l->bytes = 0;
 }
 
-bool los_is_address_mapped( los_t *los, word *addr ) 
+bool los_is_address_mapped( los_t *los, word *addr, bool noisy ) 
 {
   word *cursor;
   int i;
@@ -398,10 +398,22 @@ bool los_is_address_mapped( los_t *los, word *addr )
     cursor = NULL;
     do { 
       cursor = los_walk_list( los->object_lists[i], cursor );
-      if (cursor != NULL &&
-	  ((byte*)addr >= (byte*)cursor) && 
-	  ((byte*)addr < (byte*)cursor + size( cursor ))) {
-	assert(! ret); ret = TRUE;
+      if (cursor != NULL) {
+	byte* start = (byte*)(cursor - HEADER_WORDS);
+	byte* finis = start + size(cursor);
+	if (((byte*)addr >= start) && ((byte*)addr < finis)) {
+	  if (noisy)
+	    consolemsg("los_is_address_mapped los: 0x%08x addr: 0x%08x "
+		       "i: %d cursor: 0x%08x size: %d (range): [0x%08x,0x%08x) Y",
+		       los, addr, i, cursor, size(cursor), (void*)start, (void*)finis);
+	  
+	  assert(! ret); ret = TRUE;
+	} else {
+	  if (noisy)
+	    consolemsg("los_is_address_mapped los: 0x%08x addr: 0x%08x "
+		       "i: %d cursor: 0x%08x size: %d (range): [0x%08x,0x%08x) N",
+		       los, addr, i, cursor, size(cursor), (void*)start, (void*)finis);
+	}
       }
     } while (cursor != NULL);
   }

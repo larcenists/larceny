@@ -1614,7 +1614,7 @@ static int maximum_allotted( gc_t *gc, gset_t gs )
 static bool is_address_mapped( gc_t *gc, word *addr, bool noisy ) 
 {
   bool ret = FALSE;
-  if (gc->los && los_is_address_mapped( gc->los, addr )) {
+  if (gc->los && los_is_address_mapped( gc->los, addr, noisy )) {
     assert(!ret); ret = TRUE;
   }
   if (gc->young_area && yh_is_address_mapped( gc->young_area, addr )) {
