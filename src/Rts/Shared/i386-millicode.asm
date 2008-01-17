@@ -307,7 +307,7 @@ Lpb2:	mov	RESULT, [GLOBALS+G_WBDEST]	; Restore
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	ret					;       return to Scheme
 Lpb4:	cmp	dword [GLOBALS+G_FILTER_REMSET_GEN_ORDER], 0
-	je	Lpb2 		                ; filter when generational
+	jne	Lpb2 		                ; filter when generational
 	cmp	dword [GLOBALS+G_FILTER_REMSET_LHS_NUM], RESULT
 	je	Lpb2		                ; filter lhs nursery
 	cmp	dword [GLOBALS+G_FILTER_REMSET_RHS_NUM], SECOND
