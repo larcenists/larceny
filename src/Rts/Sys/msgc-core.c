@@ -118,10 +118,10 @@ static void assert2_basic_invs( msgc_context_t *context, word src, word obj )
   word TMP = obj;
   if (isptr(TMP)) {
     gc_check_remset_invs( context->gc, src, obj );
-    assert2( (context)->lowest_heap_address <= (word*)TMP );
-    assert2( (word*)TMP < (context)->highest_heap_address );
-    if (! gc_is_address_mapped( context->gc, (word*)TMP, FALSE )) {
-      assert2(gc_is_address_mapped( context->gc, (word*)TMP, TRUE ));
+    assert2( (context)->lowest_heap_address <= ptrof(TMP) );
+    assert2( ptrof(TMP) < (context)->highest_heap_address );
+    if (! gc_is_address_mapped( context->gc, ptrof(TMP), FALSE )) {
+      assert2(gc_is_address_mapped( context->gc, ptrof(TMP), TRUE ));
     }
     if (tagof(TMP) == PAIR_TAG) {
       /* no header on pairs... */
@@ -140,12 +140,12 @@ static void assert2_address_mapped( msgc_context_t *context, word obj )
 {
 #ifndef NDEBUG2
   if (! yh_is_address_mapped( context->gc->young_area, obj ) &&
-      ! los_is_address_mapped( context->gc->los, obj ) &&
+      ! los_is_address_mapped( context->gc->los, obj, FALSE ) &&
       ! sh_is_address_mapped( context->gc->static_area, obj, FALSE )) {
-    assert( gc_is_address_mapped( context->gc, obj, TRUE ));
-    assert( yh_is_address_mapped( context->gc->young_area, obj ) ||
-            los_is_address_mapped( context->gc->los, obj ) ||
-            sh_is_address_mapped( context->gc->static_area, obj, TRUE ));
+    assert( gc_is_address_mapped( context->gc, ptrof(obj), TRUE ));
+    assert( yh_is_address_mapped( context->gc->young_area, ptrof(obj) ) ||
+            los_is_address_mapped( context->gc->los, ptrof(obj), TRUE ) ||
+            sh_is_address_mapped( context->gc->static_area, ptrof(obj), TRUE ));
   }
 #endif
 }
@@ -158,7 +158,7 @@ static void assert2_los_addresses_mapped( msgc_context_t *context, word obj,
   for ( i=0 ; i < k ; i++ ) {
     if (isptr(vector_ref(obj, i+next)) &&
         ! gc_is_address_mapped( context->gc, 
-                                (word*) vector_ref(obj, i+next), FALSE )) {
+                                ptrof(vector_ref(obj, i+next)), FALSE )) {
       assert( gc_is_address_mapped( context->gc, obj, TRUE ));
       consolemsg("unmapped address, los vector 0x%08x in gen %d, elem [%d] = 0x%08x",
                  obj, gen_of(obj), i+next, vector_ref(obj, i+next ));
@@ -175,8 +175,8 @@ static void assert2_pair_addresses_mapped( msgc_context_t *context, word w )
 #ifndef NDEBUG2
       if (isptr(pair_cdr(w)) &&
           ! gc_is_address_mapped( context->gc, 
-                                  (word*)pair_cdr(w), FALSE )) {
-        gc_is_address_mapped( context->gc, (word*)pair_cdr(w), TRUE );
+                                  ptrof(pair_cdr(w)), FALSE )) {
+        gc_is_address_mapped( context->gc, ptrof(pair_cdr(w)), TRUE );
         consolemsg("unmapped address, pair 0x%08x in gen %d, cdr = 0x%08x",
                    w, gen_of(w), pair_cdr(w));
         consolemsg("(remset count: %d)", context->gc->remset_count);
@@ -184,8 +184,8 @@ static void assert2_pair_addresses_mapped( msgc_context_t *context, word w )
       }
       if (isptr(pair_car(w)) &&
           ! gc_is_address_mapped( context->gc, 
-                                  (word*)pair_car(w), FALSE )) {
-        gc_is_address_mapped( context->gc, (word*)pair_car(w), TRUE );
+                                  ptrof(pair_car(w)), FALSE )) {
+        gc_is_address_mapped( context->gc, ptrof(pair_car(w)), TRUE );
         consolemsg("unmapped address, pair 0x%08x in gen %d, car = 0x%08x",
                    w, gen_of(w), pair_car(w));
         consolemsg("(remset count: %d)", context->gc->remset_count);
@@ -224,7 +224,7 @@ static void assert2_object_contents_mapped( msgc_context_t *context, word w,
       for ( i=0 ; i < n ; i++ ) {
         if (isptr(vector_ref( w, i )) &&
             ! gc_is_address_mapped( context->gc, 
-                                    (word*)vector_ref( w, i ), FALSE )) {
+                                    ptrof(vector_ref( w, i )), FALSE )) {
           consolemsg("unmapped address, vector 0x%08x in gen %d, elem [%d] = 0x%08x", 
                      w, gen_of( w ), i, vector_ref( w, i ));
           consolemsg("(remset count: %d)", context->gc->remset_count);
@@ -238,7 +238,7 @@ static void assert2_root_address_mapped( msgc_context_t *context, word *loc )
 {
 #ifndef NDEBUG2
   if (isptr(*loc) &&
-      ! gc_is_address_mapped( context->gc, (word*)*loc, FALSE )) {
+      ! gc_is_address_mapped( context->gc, ptrof(*loc), FALSE )) {
     assert2(0);
   }
 #endif
