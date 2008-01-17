@@ -536,6 +536,9 @@ static int next_rgn( int rgn, int num_rgns ) {
   return rgn;
 }
 
+#define NO_COPY_COLLECT_FOR_POP_RGNS 1
+#define POPULARITY_LIMIT 40000
+
 #define ANALYZE_POPULARITY 0
 
 static remset_t *popularity_analysis_remset = NULL;
@@ -837,14 +840,15 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	 * get more info on the popularity of the objects in region.
 	 */
 	if ( ANALYZE_POPULARITY &&
-	     DATA(gc)->remset_summary->live > 40000) {
+	     DATA(gc)->remset_summary->live > POPULARITY_LIMIT) {
 	  consolemsg( "   large summary for region %d: %d objects", 
 		      rgn_idx, 
 		      DATA(gc)->remset_summary->live );
 	  popularity_analysis( gc, rgn_idx );
 	}
 	
-	if ( DATA(gc)->remset_summary->live <= 40000 ) {
+	if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
+	     DATA(gc)->remset_summary->live <= POPULARITY_LIMIT ) {
 	  oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
 	  invalidate_remset_summary( gc );
 	  
@@ -946,7 +950,7 @@ static void check_remset_invs( gc_t *gc, word src, word tgt )
 	  gen_of(src)  < gen_of(tgt) ||
 	  gen_of(src) != 0 ||
 	  gen_of(tgt) != DATA(gc)->static_generation ||
-	  rs_isremembered( gc->remset[ gen_of(src) ], tgt ));
+	  rs_isremembered( gc->remset[ gen_of(src) ], src ));
 }
 
 void gc_signal_moving_collection( gc_t *gc )
@@ -1923,6 +1927,9 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->rrof_to_region = 1;
   data->rrof_next_region = 2;
+
+  data->remset_summary = 0;
+  data->remset_summary_valid = FALSE;
 
   ret = 
     create_gc_t( "*invalid*",
