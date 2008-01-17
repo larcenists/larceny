@@ -536,8 +536,42 @@ static int next_rgn( int rgn, int num_rgns ) {
   return rgn;
 }
 
+#define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
 #define POPULARITY_LIMIT 40000
+
+static void* verify_remsets_fcn( word obj, word src, void *data ) 
+{
+  gc_t *gc = (gc_t*)data;
+  if (isptr(src) && isptr(obj) &&
+      gen_of(src) != gen_of(obj) &&
+      gen_of(obj) != DATA(gc)->static_generation) {
+    assert( gen_of(src) >= 0 );
+    if (gen_of(src) > 0) {
+      process_seqbuf( gc, gc->ssb );
+      if (!rs_isremembered( gc->remset[ gen_of(src) ], src )) {
+	consolemsg( " src: 0x%08x (%d) points to obj: 0x%08x (%d),"
+		    " but not in remset @0x%08x",
+		    src, gen_of(src), obj, gen_of(obj), 
+		    gc->remset[ gen_of(src) ]);
+	assert( gc_is_address_mapped( gc, ptrof(src), TRUE ));
+	assert( gc_is_address_mapped( gc, ptrof(obj), TRUE ));
+	assert(0);
+      }
+    }
+  }
+  return data;
+}
+
+static void verify_remsets_via_oracle( gc_t *gc ) 
+{
+  msgc_context_t *context;
+  int marked, traced, words_marked; 
+  context = msgc_begin( gc );
+  msgc_set_object_visitor( context, verify_remsets_fcn, gc );
+  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+  msgc_end( context );
+}
 
 #define ANALYZE_POPULARITY 0
 
@@ -974,6 +1008,9 @@ static void before_collection( gc_t *gc )
 {
   int e;
 
+  if (USE_ORACLE_TO_VERIFY_REMSETS)
+    verify_remsets_via_oracle( gc );
+
   /* For debugging of prototype;
    * double check heap consistency via mark/sweep routines.
    * (before collection means that mutator introduced inconsistency) */
@@ -1017,6 +1054,9 @@ static void after_collection( gc_t *gc )
     msgc_end( msgc_ctxt );
   }
 #endif
+
+ if (USE_ORACLE_TO_VERIFY_REMSETS)
+   verify_remsets_via_oracle( gc );
 }
 
 static void set_policy( gc_t *gc, int gen, int op, int value )
