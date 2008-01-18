@@ -1657,27 +1657,57 @@ static int maximum_allotted( gc_t *gc, gset_t gs )
 
 static bool is_address_mapped( gc_t *gc, word *addr, bool noisy ) 
 {
+  assert(tagof(addr) == 0);
   bool ret = FALSE;
   if (gc->los && los_is_address_mapped( gc->los, addr, noisy )) {
     assert(!ret); ret = TRUE;
   }
   if (gc->young_area && yh_is_address_mapped( gc->young_area, addr )) {
-    assert(!ret); ret = TRUE;
+    if (ret) {
+      assert( ! los_is_address_mapped( gc->los, addr, TRUE ));
+      assert( !ret );
+    }
+    ret = TRUE;
   }
   if (gc->static_area && sh_is_address_mapped( gc->static_area, addr, noisy )) {
-    assert(!ret); ret = TRUE;
-  }
-  { 
-    int i;
-    for( i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
-      if (oh_is_address_mapped( DATA(gc)->ephemeral_area[i], addr, noisy )) {
-	assert(!ret); ret = TRUE;
-      }
+    if (ret) {
+      sh_is_address_mapped( gc->static_area, addr, TRUE );
+      assert( ! los_is_address_mapped( gc->los, addr, TRUE ));
+      assert( ! yh_is_address_mapped( gc->young_area, addr ));
+      assert( !ret );
     }
+    ret = TRUE;
   }
   if (DATA(gc)->dynamic_area && 
       oh_is_address_mapped( DATA(gc)->dynamic_area, addr, noisy )) {
-    assert(!ret); ret = TRUE;
+    if (ret) {
+      oh_is_address_mapped( DATA(gc)->dynamic_area, addr, TRUE );
+      assert( ! los_is_address_mapped( gc->los, addr, TRUE ));
+      assert( ! yh_is_address_mapped( gc->young_area, addr ));
+      assert( ! sh_is_address_mapped( gc->static_area, addr, FALSE ));
+      assert( !ret );
+    }
+    ret = TRUE;
+  }
+  { 
+    int i, j;
+    for( i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
+      if (oh_is_address_mapped( DATA(gc)->ephemeral_area[i], addr, noisy )) {
+	if (ret) {
+	  oh_is_address_mapped( DATA(gc)->ephemeral_area[i], addr, TRUE );
+	  assert( ! los_is_address_mapped( gc->los, addr, TRUE ));
+	  assert( ! yh_is_address_mapped( gc->young_area, addr ));
+	  assert( ! sh_is_address_mapped( gc->static_area, addr, TRUE ));
+	  assert( ! oh_is_address_mapped( DATA(gc)->dynamic_area, addr, TRUE ));
+	  for ( j = 0; j < i; j++ )
+	    assert( ! oh_is_address_mapped( DATA(gc)->ephemeral_area[j], 
+					    addr, 
+					    TRUE ));
+	  assert( !ret ); 
+	}
+	ret = TRUE;
+      }
+    }
   }
   return ret;
 }
