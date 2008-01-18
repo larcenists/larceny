@@ -37,16 +37,18 @@
             (vector-ref r $mstat.r-live)      ; new meaning (but close)
             0                                 ; removed: hash-alloc
             (bignum r $mstat.r-hrec-hi)
-            (bignum r $mstat.r-hrem-hi)
+            (bignum r $mstat.r-hrem-hi)       ;           #5
             (bignum r $mstat.r-hscan-hi)
             (bignum r $mstat.r-wscan-hi)
             (bignum r $mstat.r-ssbrec-hi)
             (vector-ref r $mstat.r-cleared)   ; new field
-            (vector-ref r $mstat.r-scanned)   ; new field
+            (vector-ref r $mstat.r-scanned)   ; new field #10
             (vector-ref r $mstat.r-compacted) ; new field
             (vector-ref r $mstat.r-max-size)  ; new field
             (vector-ref r $mstat.r-major-id)  ; new field
             (vector-ref r $mstat.r-minor-id)  ; new field
+            (vector-ref r $mstat.r-max-hscan) ;           #15
+            (vector-ref r $mstat.r-max-wscan)
             ))
 
   (define (make-generation-stats g)
@@ -333,6 +335,8 @@
 (define (memstats-remset-times-cleared v) (vector-ref v 9))
 (define (memstats-remset-times-scanned v) (vector-ref v 10))
 (define (memstats-remset-times-compacted v) (vector-ref v 11))
+(define (memstats-remset-max-scanned v) (vector-ref v 15))
+(define (memstats-remset-max-object-words-scanned v) (vector-ref v 16))
 
 ; Takes a vector as returned from memstats and displays it with useful
 ; labels.

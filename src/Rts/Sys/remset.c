@@ -383,7 +383,11 @@ void rs_enumerate( remset_t *rs,
     ps = ps->next;
   }
   DATA(rs)->stats.objs_scanned += scanned;
+  DATA(rs)->stats.max_objs_scanned = 
+    max( DATA(rs)->stats.max_objs_scanned, scanned );
   DATA(rs)->stats.words_scanned += word_count;
+  DATA(rs)->stats.max_words_scanned =
+    max( DATA(rs)->stats.max_words_scanned, word_count );
   DATA(rs)->stats.removed += removed_count;
   rs->live -= removed_count;
   DATA(rs)->stats.scanned++;

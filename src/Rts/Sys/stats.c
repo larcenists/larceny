@@ -163,8 +163,10 @@ struct remset_memstat {
   DWORD( ssb_recorded );	/* SSB transactions recorded */
   DWORD( recorded );		/* remset table entries recorded */
   DWORD( objs_scanned );	/* remset table entries scanned */
-  DWORD( words_scanned );	/* Words of old objects scanned */
+  DWORD( words_scanned );	/* words of old objects scanned */
   DWORD( removed );		/* remset table entries removed */
+  word max_objs_scanned;	/* max remset table entries scanned */
+  word max_words_scanned;	/* max words of old objects scanned */
   word cleared;			/* Number of times remset was cleared */
   word scanned;			/* Number of times remset was scanned */
   word compacted;		/* Number of times SSB was compacted */
@@ -428,6 +430,9 @@ void stats_add_remset_stats( stats_id_t remset, remset_stats_t *stats )
   ADD_WORD( stats, s, cleared );
   ADD_WORD( stats, s, scanned );
   ADD_WORD( stats, s, compacted );
+
+  MAX_WORD( stats, s, max_objs_scanned );
+  MAX_WORD( stats, s, max_words_scanned );
 }
 
 #if defined(SIMULATE_NEW_BARRIER)
@@ -700,6 +705,8 @@ static void fill_remset_vector( word *rv, remset_memstat_t *rs )
   rv[ STAT_R_CLEARED ] = rs->cleared;
   rv[ STAT_R_SCANNED ] = rs->scanned;
   rv[ STAT_R_COMPACTED ] = rs->compacted;
+  rv[ STAT_R_MAX_HSCAN ] = rs->max_objs_scanned;
+  rv[ STAT_R_MAX_WSCAN ] = rs->max_words_scanned;
 }
 
 /* Adds a word to a doubleword with carry propagation, both parts of

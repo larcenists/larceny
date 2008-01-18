@@ -93,6 +93,8 @@ struct remset_stats {
   int cleared;			/* Number of times set was cleared */
   int scanned;			/* Number of times set was scanned */
   int compacted;		/* Number of times set was compacted */
+  int max_objs_scanned;         /* Max entries scanned in any one pass */
+  int max_words_scanned;        /* Max words scanned in any one pass */
 };
 
 struct stack_stats {
