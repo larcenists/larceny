@@ -537,6 +537,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 }
 
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
+#define USE_ORACLE_TO_UPDATE_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
 #define POPULARITY_LIMIT 40000
 
@@ -569,6 +570,29 @@ static void verify_remsets_via_oracle( gc_t *gc )
   int marked, traced, words_marked; 
   context = msgc_begin( gc );
   msgc_set_object_visitor( context, verify_remsets_fcn, gc );
+  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+  msgc_end( context );
+}
+
+static void* update_remsets_fcn( word obj, word src, void *data ) 
+{
+  gc_t *gc = (gc_t*)data;
+  if (isptr(src) && isptr(obj) &&
+      gen_of(src) != gen_of(obj) &&
+      gen_of(obj) != DATA(gc)->static_generation) {
+    assert( gen_of(src) > 0 );
+    if (gen_of(src) > 0)
+      rs_add_elem( gc->remset[ gen_of(src) ], src );
+  }
+  return data;
+}
+
+static void update_remsets_via_oracle( gc_t *gc ) 
+{
+  msgc_context_t *context;
+  int marked, traced, words_marked; 
+  context = msgc_begin( gc );
+  msgc_set_object_visitor( context, update_remsets_fcn, gc );
   msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
   msgc_end( context );
 }
@@ -883,6 +907,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	
 	if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
 	     DATA(gc)->remset_summary->live <= POPULARITY_LIMIT ) {
+	  if (USE_ORACLE_TO_UPDATE_REMSETS) 
+	    gc->scan_update_remset = FALSE;
 	  oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
 	  invalidate_remset_summary( gc );
 	  
@@ -914,6 +940,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 	process_seqbuf( gc, gc->ssb );
 	build_remset_summary( gc, 0 );
+	if (USE_ORACLE_TO_UPDATE_REMSETS) 
+	  gc->scan_update_remset = FALSE;
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
 	invalidate_remset_summary( gc );
 
@@ -1055,6 +1083,8 @@ static void after_collection( gc_t *gc )
   }
 #endif
 
+ if (USE_ORACLE_TO_UPDATE_REMSETS)
+   update_remsets_via_oracle( gc );
  if (USE_ORACLE_TO_VERIFY_REMSETS)
    verify_remsets_via_oracle( gc );
 }
