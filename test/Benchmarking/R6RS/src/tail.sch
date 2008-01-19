@@ -9,7 +9,8 @@
 
 (import (rnrs base)
         (rnrs io ports)
-        (rnrs io simple))
+        (rnrs io simple)
+        (rnrs files))
 
 (define (tail-r-aux port file-so-far)
   (let ((x (get-line port)))
@@ -25,6 +26,7 @@
   (call-with-input-file
    input
    (lambda (in)
+     (if (file-exists? output) (delete-file output))
      (call-with-output-file
       output
       (lambda (out)

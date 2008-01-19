@@ -309,17 +309,13 @@
 
 (dotest (teststring #\" #\\ #\linefeed #\\ #\return #\\ #\return #\linefeed
                     #\\ #\x85 #\\ #\return #\x85 #\\ #\x2028 #\")
-        (list (teststring #\linefeed #\return #\return #\linefeed
-                          #\x85 #\return #\x85 #\x2028)))
+        (list ""))
 
 (dotest (teststring #\" #\\ #\linefeed #\space #\\ #\return #\space
                     #\\ #\return #\linefeed #\space
                     #\\ #\x85 #\space #\\ #\return #\x85 #\space
                     #\\ #\x2028 #\")
-        (list (teststring #\linefeed #\space #\return #\space
-                          #\return #\linefeed #\space
-                          #\x85 #\space #\return #\x85 #\space
-                          #\x2028)))
+        (list ""))
 
 (dotest "\"\\x61;\\x3bb;\\xffff;\\x10000;\\x10ffff;\""
         (list (teststring #\a #\x3bb #\xffff #\x10000 #\x10ffff)))
