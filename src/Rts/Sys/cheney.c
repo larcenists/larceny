@@ -611,7 +611,7 @@ void scan_oflo_normal( cheney_env_t *e )
 
       if (scanptr != dest) {
         e->scan_idx++;
-        if (e->scan_idx == tospace_scan(e)->n) {
+        if (e->scan_idx > tospace_scan(e)->current) {
           e->tospaces_cur_scan++;
           assert(e->tospaces_cur_scan < e->tospaces_len);
           e->scan_idx = 0;
@@ -670,7 +670,7 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
 
       if (scanptr != dest) {
         e->scan_idx++;
-        if (e->scan_idx == tospace_scan(e)->n) {
+        if (e->scan_idx > tospace_scan(e)->current) {
           e->tospaces_cur_scan++;
           assert(e->tospaces_cur_scan < e->tospaces_len);
           e->scan_idx = 0;
