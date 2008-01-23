@@ -517,6 +517,36 @@ msgc_mark_objects_from_roots( msgc_context_t *context,
   *words_marked += context->words_marked;
 }
 
+static bool push_remset_entry( word obj, void* data, unsigned *count )
+{
+  assert2_root_address_mapped( (msgc_context_t*)data, obj );
+  PUSH( (msgc_context_t*)data, obj, 0x0 );
+  return TRUE;
+}
+
+void 
+msgc_mark_objects_from_roots_and_remsets( msgc_context_t *context,
+                                          int *marked, 
+                                          int *traced, 
+                                          int *words_marked )
+{
+  context->marked = 0;
+  context->traced = 0;
+  context->words_marked = 0;
+  
+  gc_enumerate_roots( context->gc, push_root, (void*)context );
+  gc_enumerate_remsets_complement( context->gc, 
+                                   gset_singleton(0), 
+                                   push_remset_entry, context, 
+                                   FALSE /* todo kill this formal parameter! */
+                                   );
+  mark_from_stack( context );
+
+  *marked += context->marked;
+  *traced += context->traced;
+  *words_marked += context->words_marked;
+}
+
 void msgc_end( msgc_context_t *context )
 {
   int n;
