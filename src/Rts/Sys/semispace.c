@@ -34,13 +34,38 @@ static void free_chunk_memory( semispace_t *ss, int slot );
 static void clear( semispace_t *ss, int i );
 static int find_empty_slot_and_chunk( semispace_t *ss, int bytes, int *chunk );
 
+#define ATTEMPT_TO_REUSE_SEMISPACES 0
+
+static semispace_t *last_freed = NULL;
 
 semispace_t *create_semispace( int bytes, int gen_no )
 {
   assert( bytes > 0 );
   assert( gen_no >= 0 );
 
+#if ATTEMPT_TO_REUSE_SEMISPACES
+  { 
+    semispace_t *ss = NULL;
+    if (last_freed != NULL) {
+      ss_reset( last_freed );
+      assert( last_freed->current == 0 );
+      if (last_freed->chunks[last_freed->current].bytes >= bytes) {
+        ss = last_freed;
+        last_freed = NULL;
+        ss_reset( ss );
+        ss_set_gen_no( ss, gen_no );
+      }
+    }
+    
+    if (ss == NULL)
+      ss = create_semispace_n( bytes, 1, gen_no );
+    
+    ss_invariants( ss );
+    return ss;
+  }
+#else
   return create_semispace_n( bytes, 1, gen_no );
+#endif
 }
 
 
@@ -212,7 +237,7 @@ void ss_sync( semispace_t *ss )
 }
 
 
-void ss_free( semispace_t *ss )
+static void ss_really_free( semispace_t *ss )
 {
   int i;
 
@@ -230,6 +255,18 @@ void ss_free( semispace_t *ss )
   /* *ss is dead */
 }
 
+void ss_free( semispace_t *ss ) 
+{
+#if ATTEMPT_TO_REUSE_SEMISPACES
+  if (last_freed != NULL) {
+    int i;
+    ss_really_free( last_freed );
+  }
+  last_freed = ss;
+#else
+  ss_really_free( ss );
+#endif
+}
 
 int ss_allocate_and_insert_block( semispace_t *ss, int nbytes )
 {
