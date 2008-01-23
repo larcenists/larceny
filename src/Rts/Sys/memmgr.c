@@ -593,7 +593,8 @@ static void update_remsets_via_oracle( gc_t *gc )
   int marked, traced, words_marked; 
   context = msgc_begin( gc );
   msgc_set_object_visitor( context, update_remsets_fcn, gc );
-  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+  msgc_mark_objects_from_roots_and_remsets
+    ( context, &marked, &traced, &words_marked );
   msgc_end( context );
 }
 
