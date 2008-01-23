@@ -519,7 +519,6 @@ msgc_mark_objects_from_roots( msgc_context_t *context,
 
 static bool push_remset_entry( word obj, void* data, unsigned *count )
 {
-  assert2_root_address_mapped( (msgc_context_t*)data, obj );
   PUSH( (msgc_context_t*)data, obj, 0x0 );
   return TRUE;
 }
