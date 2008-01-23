@@ -83,6 +83,8 @@
 
 #define WORDS_PER_POOL_ENTRY     2
 
+#define ATTEMPT_TO_REUSE_POOL_SEGMENTS 0
+
 typedef struct pool pool_t;
 typedef struct remset_data remset_data_t;
 
@@ -99,6 +101,7 @@ struct remset_data {
   word           *tbl_lim;	/* Hash table limit */
   pool_t         *first_pool;	/* Pointer to first pool */
   pool_t         *curr_pool;	/* Pointer to current pool */
+  pool_t         *free_pool;	/* Pointer to unused pool */
   int            pool_entries;	/* Number of entries in a pool */
   int            numpools;	/* Number of pools */
   remset_stats_t stats;		/* Remset statistics */
@@ -168,6 +171,7 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
   /* Node pool */
   p = allocate_pool_segment( pool_entries );
   data->first_pool = data->curr_pool = p;
+  data->free_pool = 0;
   assert( data->curr_pool != 0 );
   data->numpools = 1;
 
@@ -200,7 +204,20 @@ void rs_clear( remset_t *rs )
   /* Clear pools */
   data->first_pool->top = data->first_pool->bot;
   data->curr_pool = data->first_pool;
+#if ATTEMPT_TO_REUSE_POOL_SEGMENTS
+  { 
+    pool_t *q;
+    for( q = data->first_pool->next; q != NULL; q = q->next ) {
+      if (q->next == NULL) {
+	q->next = data->free_pool;
+	break;
+      }
+    }
+  }
+  data->free_pool = data->first_pool->next;
+#else
   free_pool_segments( data->first_pool->next, data->pool_entries );
+#endif
   data->first_pool->next = 0;
 
   rs->has_overflowed = FALSE;
@@ -237,7 +254,19 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
   
   rs->has_overflowed = TRUE;
   if (DATA(rs)->curr_pool->next == 0) {
+#if ATTEMPT_TO_REUSE_POOL_SEGMENTS
+    if (DATA(rs)->free_pool == 0) {
+      DATA(rs)->curr_pool->next = allocate_pool_segment( DATA(rs)->pool_entries );
+    } else {
+      pool_t* p = DATA(rs)->free_pool;
+      p->top = p->bot;
+      p->next = 0;
+      DATA(rs)->curr_pool->next = p;
+      DATA(rs)->free_pool = p->next;
+    }
+#else
     DATA(rs)->curr_pool->next = allocate_pool_segment( DATA(rs)->pool_entries );
+#endif
     DATA(rs)->numpools++;
   }
   DATA(rs)->curr_pool = DATA(rs)->curr_pool->next;
