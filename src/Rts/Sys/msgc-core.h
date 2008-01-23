@@ -27,6 +27,17 @@ extern void msgc_mark_objects_from_roots( msgc_context_t *context,
      words marked to *words_marked, and number of pointers traced to *traced.
      */
 
+extern void msgc_mark_objects_from_roots_and_remsets
+                                        ( msgc_context_t *context, 
+                                          int *marked, int *traced,
+                                          int *words_marked );
+  /* Mark the entire heap from roots and all remsets, marking only objects
+     (not interior locations).  
+     Adds the number of objects marked to *marked, number of words marked 
+     to *words_marked, and number of pointers traced to *traced.
+     */
+
+
 extern void msgc_mark_range( msgc_context_t *context, void *bot, void *lim );
   /* Mark all words in the range [bot,lim) as reachable.
      */
