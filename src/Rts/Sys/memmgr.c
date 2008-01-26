@@ -1066,6 +1066,11 @@ static void after_collection( gc_t *gc )
 
   DATA(gc)->generations = DATA(gc)->generations_after_gc;
 
+ if (USE_ORACLE_TO_UPDATE_REMSETS)
+   update_remsets_via_oracle( gc );
+ if (USE_ORACLE_TO_VERIFY_REMSETS)
+   verify_remsets_via_oracle( gc );
+
   yh_after_collection( gc->young_area );
   for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
     oh_after_collection( DATA(gc)->ephemeral_area[ e ] );
@@ -1084,10 +1089,6 @@ static void after_collection( gc_t *gc )
   }
 #endif
 
- if (USE_ORACLE_TO_UPDATE_REMSETS)
-   update_remsets_via_oracle( gc );
- if (USE_ORACLE_TO_VERIFY_REMSETS)
-   verify_remsets_via_oracle( gc );
 }
 
 static void set_policy( gc_t *gc, int gen, int op, int value )
