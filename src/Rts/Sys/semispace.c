@@ -432,6 +432,57 @@ void ss_set_gen_no( semispace_t *ss, int gen_no )
   ss_invariants( ss );
 }
 
+void* ss_enumerate( semispace_t *ss, 
+                    void *(*visitor)( word *addr, int tag, void *accum ), 
+                    void *accum_init )
+{
+  int i;
+  word *cursor;
+  word *end;
+  void *accum = accum_init;
+
+  for (i = 0; i <= ss->current; i++) {
+    cursor = ss->chunks[i].bot;
+    end    = ss->chunks[i].top;
+    /* scanning code below is based on scan_core macro in cheney.h */
+    assert( !( ((word)cursor) & 7) ); /* cursor is aligned, right? */
+    while (cursor < end) {
+      assert( !( ((word)cursor) & 7) ); /* cursor is still aligned, right? */
+      word w = *cursor;
+      if (ishdr( w )) {
+        word h = header( w );
+        if (h == BV_HDR) {
+          word bytes;
+          accum = visitor( cursor, BVEC_TAG, accum );
+          bytes = roundup4( sizefield( w ));
+          cursor++;         /* header */
+          cursor = (word*)((word)cursor + bytes);
+          if (!(bytes & 4)) cursor++; /* padding */
+        } else {
+          word words;
+          int tag;
+          if (h == VEC_HDR) 
+            tag = VEC_TAG;
+          else if (h == header(PROC_HDR)) 
+            tag = PROC_TAG;
+          else
+            assert(0);
+          accum = visitor( cursor, tag, accum );
+          words = sizefield( w ) >> 2;
+          cursor++;        /* header */
+          cursor += words; /* contents */
+          if (!( sizefield( w ) & 4))
+            cursor++;      /* padding */
+        }
+      } else {
+        accum = visitor( cursor, PAIR_TAG, accum );
+        cursor += 2;
+      }
+    }
+  }
+  return accum;
+}
+
 bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy ) 
 {
   int i;
