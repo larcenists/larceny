@@ -86,6 +86,8 @@ struct gc_data {
     /* In RROF collector, the final region to collect in this cycle. */
   int rrof_region_limit;
     /* In RROF collector, the region count (at the time this cycle started). */
+  int rrof_last_tospace;
+    /* In RROF collector, the region used as a to-space in the last collect */
 
   remset_t *remset_summary;     /* NULL or summarization of remset array */
   bool      remset_summary_valid;
@@ -574,7 +576,7 @@ static void verify_remsets_via_oracle( gc_t *gc )
   msgc_end( context );
 }
 
-static void* update_remsets_fcn( word obj, word src, void *data ) 
+static void* update_remsets_msgc_fcn( word obj, word src, void *data ) 
 {
   gc_t *gc = (gc_t*)data;
   if (isptr(src) && isptr(obj) &&
@@ -587,15 +589,87 @@ static void* update_remsets_fcn( word obj, word src, void *data )
   return data;
 }
 
-static void update_remsets_via_oracle( gc_t *gc ) 
+static void update_remsets_via_oracular_msgc( gc_t *gc ) 
 {
   msgc_context_t *context;
   int marked, traced, words_marked; 
   context = msgc_begin( gc );
-  msgc_set_object_visitor( context, update_remsets_fcn, gc );
+  msgc_set_object_visitor( context, update_remsets_msgc_fcn, gc );
   msgc_mark_objects_from_roots_and_remsets
     ( context, &marked, &traced, &words_marked );
   msgc_end( context );
+}
+
+static void* update_remsets_visitor( word *addr, int tag, void *accum ) 
+{
+  word w, words;
+  gc_t *gc = (gc_t*)accum;
+  word *src = tagptr( addr, tag );
+  int src_gen = gen_of( src );
+  assert(src_gen > 0);
+
+  switch (tag) {
+  case PAIR_TAG:
+    if (isptr(*addr) &&
+	src_gen != gen_of( *addr ) &&
+	gen_of( *addr ) != DATA(gc)->static_generation) {
+      rs_add_elem( gc->remset[ src_gen ], src );
+      break;
+    }
+    addr++;
+    if (isptr(*addr) &&
+	src_gen != gen_of( *addr ) &&
+	gen_of( *addr ) != DATA(gc)->static_generation) {
+      rs_add_elem( gc->remset[ src_gen ], src );
+      break;
+    }
+    break;
+  case VEC_TAG:
+  case PROC_TAG:
+    w = *addr;
+    words = sizefield( w ) >> 2;
+    addr++;
+    while (words) {
+      words--;
+      if (isptr(*addr) &&
+	  src_gen != gen_of( *addr ) &&
+	  gen_of( *addr ) != DATA(gc)->static_generation) {
+	rs_add_elem( gc->remset[ src_gen ], src );
+	break;
+      }
+      addr++;
+    }
+  }
+
+  return accum;
+}
+
+static void update_remsets_via_oracular_ss( gc_t *gc )
+{
+  { 
+    int rgn = DATA(gc)->rrof_last_tospace;
+    old_heap_t *heap = DATA(gc)->ephemeral_area[ rgn - 1];
+    heap->enumerate( heap, update_remsets_visitor, gc );
+  }
+
+  /* we also might have evacuated objects to an additional region 
+   * if the last tospace ran out of room. */
+  { 
+    int rgn = DATA(gc)->ephemeral_area_count;
+    old_heap_t *heap;
+    if (rgn != DATA(gc)->rrof_last_tospace) {
+      heap = DATA(gc)->ephemeral_area[ rgn - 1];
+      heap->enumerate( heap, update_remsets_visitor, gc );
+    }
+  }
+}
+
+static void update_remsets_via_oracle( gc_t *gc )
+{
+  if (0)
+    update_remsets_via_oracular_msgc( gc );
+  else 
+    update_remsets_via_oracular_ss( gc );
 }
 
 #define ANALYZE_POPULARITY 0
@@ -845,6 +919,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
     } else {
       /* explicit request for major collection of rgn. */
       oh_collect( DATA(gc)->ephemeral_area[ rgn - 1 ], request );
+      DATA(gc)->rrof_last_tospace = rgn;
     }
     break;
   case GCTYPE_EVACUATE: /* collect nursery and rgn, promoting _anywhere_. */
@@ -912,6 +987,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	    gc->scan_update_remset = FALSE;
 	  oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
 	  invalidate_remset_summary( gc );
+	  DATA(gc)->rrof_last_tospace = rgn_idx;
 	  
 	  n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
 	  /* If we're about to start from the beginning of the array, 
@@ -945,6 +1021,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  gc->scan_update_remset = FALSE;
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
 	invalidate_remset_summary( gc );
+	DATA(gc)->rrof_last_tospace = rgn_idx;
 
 	/* TODO: add code to incrementally summarize by attempting to
 	 * predict how many minor collections will precede the next
@@ -976,6 +1053,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
     } else {
       /* explicit request for evacuation-style major collection of rgn. */
       oh_collect( DATA(gc)->ephemeral_area[ rgn - 1 ], request );
+      DATA(gc)->rrof_last_tospace = rgn;
     }
     break;
   default: 
@@ -2029,6 +2107,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->rrof_to_region = 1;
   data->rrof_next_region = 2;
+  data->rrof_last_tospace = -1;
 
   data->remset_summary = 0;
   data->remset_summary_valid = FALSE;
