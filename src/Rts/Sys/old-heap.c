@@ -592,6 +592,34 @@ static semispace_t *current_space( old_heap_t *heap )
   return DATA(heap)->current_space;
 }
 
+static void *enumerate( old_heap_t *heap, 
+			void *(*visitor)( word *addr, int tag, void *accum ),
+			void *accum_init ) 
+{
+  void *accum = accum_init;
+  accum = ss_enumerate( DATA(heap)->current_space, visitor, accum );
+
+  { 
+    los_list_t *list = 
+      heap->collector->los->object_lists[ DATA(heap)->gen_no ];
+    word *cursor = los_walk_list( list, NULL );
+    while (cursor != NULL) {
+      int tag;
+      word w = *cursor;
+      if (header(w) == BV_HDR) {
+	accum = visitor( cursor, BVEC_TAG, accum );
+      } else if (header(w) == VEC_HDR) {
+	accum = visitor( cursor, VEC_TAG, accum );
+      } else if (header(w) == header(PROC_HDR)) {
+	accum = visitor( cursor, PROC_TAG, accum );
+      }
+      cursor = los_walk_list( list, cursor );
+    }
+  }
+  
+  return accum;
+}
+
 static bool is_address_mapped( old_heap_t *heap, word *addr, bool noisy )
 {
   return ss_is_address_mapped( DATA(heap)->current_space, addr, noisy );
@@ -636,6 +664,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
 			    0,	                  /* set_policy */
 			    set_gen_no,
 			    current_space,
+			    enumerate, 
 			    is_address_mapped,
 			    data );
   heap->collector = gc;

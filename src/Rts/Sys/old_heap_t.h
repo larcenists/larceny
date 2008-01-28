@@ -107,6 +107,16 @@ struct old_heap {
        place?)
        */
 
+  void* (*enumerate)( old_heap_t *heap, 
+		      void *visitor( word *addr, int tag, void *accum ),
+		      void *accum_init );
+    /* Invokes visitor on each object allocated in heap; note
+       that this might include objects unreachable from the roots, 
+       but all visited objects (and the object graph induced by treating
+       the visited objects as additional roots) should be properly
+       formatted.
+       */
+
   bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy );
     /* Returns true iff 'addr' is an object in 'heap'. 
        */
@@ -129,6 +139,9 @@ old_heap_t *create_old_heap_t(
   void (*set_policy)( old_heap_t *heap, int op, int value ),
   void (*set_gen_no)( old_heap_t *heap, int gen_no ),
   semispace_t *(*current_space)( old_heap_t *heap ),
+  void *(*enumerate)( old_heap_t *heap, 
+		      void *visitor( word *addr, int tag, void *accum ),
+		      void *accum_init ),
   bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy ),
   void *data
 );
