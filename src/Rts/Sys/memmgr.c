@@ -666,6 +666,8 @@ static void update_remsets_via_oracular_ss( gc_t *gc )
 
 static void update_remsets_via_oracle( gc_t *gc )
 {
+  if (gc->remset == NULL) 
+    return;
   if (0)
     update_remsets_via_oracular_msgc( gc );
   else 
