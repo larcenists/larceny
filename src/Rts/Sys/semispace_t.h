@@ -165,6 +165,13 @@ void ss_set_gen_no( semispace_t *ss, int gen_no );
      gen_no >= 0
      */
 
+void* ss_enumerate( semispace_t *ss, 
+                    void *(*visitor)( word *addr, int tag, void *accum ), 
+                    void *accum_init );
+  /* Invokes visitor on each object allocated in the semispace.
+     This might include objects unreachable from the roots.
+     */
+
 bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy );
   /* Returns true iff 'addr' is an object in 'ss'.
      */
