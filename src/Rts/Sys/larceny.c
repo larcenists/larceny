@@ -362,6 +362,32 @@ void hardconsolemsg( const char *fmt, ... )
   fprintf( stderr, "\n" );
 }
 
+static long long generic_event_counter = 0;
+static const long long max_event_count = 0;
+static const long long key_event_count = 0;
+static const long long event_trace_len = 100;
+void saw_event() 
+{ 
+  generic_event_counter++;
+  if (max_event_count > 0) {
+    if (generic_event_counter+1 == max_event_count)
+      panic_abort( "hit max event count %lld", generic_event_counter);
+  }
+}
+
+void eventmsg( const char *fmt, ... )
+{
+  if (generic_event_counter > (key_event_count - event_trace_len)
+      && (generic_event_counter < (key_event_count + event_trace_len))) {
+    va_list args;
+    va_start( args, fmt );
+    fprintf( stderr, "(event %8lld)", generic_event_counter );
+    vfprintf( stderr, fmt, args );
+    va_end( args );
+    fprintf( stderr, "\n" );
+  }
+}
+
 /****************************************************************************
  *
  * Command line parsing.

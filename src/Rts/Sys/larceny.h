@@ -84,6 +84,8 @@ extern void supremely_annoyingmsg( const char *fmt, ... );
 extern void consolemsg( const char *fmt, ... );
 extern void hardconsolemsg( const char *fmt, ... );
 extern void conditional_abort( void );
+extern void saw_event( void );
+extern void eventmsg( const char *fnt, ... );
 
 /* In "Rts/Sys/heapio.c" */
 
