@@ -107,6 +107,11 @@ struct old_heap {
        place?)
        */
 
+  void  (*assimilate)( old_heap_t *heap, semispace_t *ss );
+    /* requires: ss->gen_no matches heap->gen_no.
+       Merges all chunks in ss into heap; invalidates ss.
+       */
+
   void* (*enumerate)( old_heap_t *heap, 
 		      void *visitor( word *addr, int tag, void *accum ),
 		      void *accum_init );
@@ -139,6 +144,7 @@ old_heap_t *create_old_heap_t(
   void (*set_policy)( old_heap_t *heap, int op, int value ),
   void (*set_gen_no)( old_heap_t *heap, int gen_no ),
   semispace_t *(*current_space)( old_heap_t *heap ),
+  void (*assimilate)( old_heap_t *heap, semispace_t *ss ),
   void *(*enumerate)( old_heap_t *heap, 
 		      void *visitor( word *addr, int tag, void *accum ),
 		      void *accum_init ),
@@ -154,6 +160,7 @@ old_heap_t *create_old_heap_t(
 #define oh_data_load_area( oh, n ) ((oh)->data_load_area( oh, n ))
 #define oh_set_policy( oh, x, y )  ((oh)->set_policy( oh, x, y ))
 #define oh_set_gen_no( oh, gno )   ((oh)->set_gen_no( oh, gno ))
+#define oh_assimilate( oh, ss )    ((oh)->assimilate( oh, ss ))
 #define oh_current_space( oh )     ((oh)->current_space( oh ))
 #define oh_is_address_mapped( oh,a,n)((oh)->is_address_mapped( (oh), (a), (n) ))
 

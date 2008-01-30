@@ -592,6 +592,11 @@ static semispace_t *current_space( old_heap_t *heap )
   return DATA(heap)->current_space;
 }
 
+static void assimilate( old_heap_t *heap, semispace_t *ss )
+{
+  ss_assimilate( DATA(heap)->current_space, ss );
+}
+
 static void *enumerate( old_heap_t *heap, 
 			void *(*visitor)( word *addr, int tag, void *accum ),
 			void *accum_init ) 
@@ -664,6 +669,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
 			    0,	                  /* set_policy */
 			    set_gen_no,
 			    current_space,
+			    assimilate, 
 			    enumerate, 
 			    is_address_mapped,
 			    data );

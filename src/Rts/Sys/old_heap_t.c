@@ -29,6 +29,7 @@ old_heap_t *create_old_heap_t(
   void (*set_policy)( old_heap_t *heap, int op, int value ),
   void (*set_gen_no)( old_heap_t *heap, int gen_no ),
   semispace_t *(*current_space)( old_heap_t *heap ),
+  void  (*assimilate)( old_heap_t *heap, semispace_t *ss ),
   void *(*enumerate)( old_heap_t *heap, 
 		      void *visitor( word *addr, int tag, void *accum ),
 		      void *accum_init ),
@@ -59,6 +60,7 @@ old_heap_t *create_old_heap_t(
   heap->set_policy = (set_policy ? set_policy : default_set_policy);
   heap->set_gen_no = set_gen_no;
   heap->current_space = current_space;
+  heap->assimilate = assimilate;
   heap->enumerate = enumerate;
   heap->is_address_mapped = is_address_mapped;
   heap->has_popular_objects = FALSE;
