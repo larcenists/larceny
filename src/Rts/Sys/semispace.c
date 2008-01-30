@@ -29,6 +29,7 @@ static word NOWHERE[1];
   } while (0)
 
 static void extend_chunk_array( semispace_t *ss );
+static void extend_chunk_array_to( semispace_t *ss, int n );
 static void allocate_chunk_memory( semispace_t *ss, int slot, int bytes );
 static void free_chunk_memory( semispace_t *ss, int slot );
 static void clear( semispace_t *ss, int i );
@@ -432,6 +433,54 @@ void ss_set_gen_no( semispace_t *ss, int gen_no )
   ss_invariants( ss );
 }
 
+static void ss_assimilate_via_move_block( semispace_t *ss_tgt, semispace_t *ss_src ) 
+{
+  int i;
+
+  while (ss_src->current >= 0) {
+    ss_move_block_to_semispace( ss_src, 0, ss_tgt );
+  }
+}
+
+static void ss_assimilate_directly( semispace_t *ss_tgt, semispace_t *ss_src )
+{
+  int i, tgt_slots_avail, src_slots_used;
+
+  assert2(ss_tgt->gen_no == ss_src->gen_no);
+  assert2(ss_tgt->current >= 0);
+
+  src_slots_used = ss_src->current+1;
+  tgt_slots_avail = ss_tgt->n - (ss_tgt->current + 1);
+  if (tgt_slots_avail < src_slots_used) {
+    extend_chunk_array_to( ss_tgt, ss_tgt->n + src_slots_used );
+  }
+  
+  for( i=0; i <= ss_src->current; i++ ) {
+    ss_tgt->current++;
+    ss_tgt->chunks[ss_tgt->current] = ss_src->chunks[i];
+    clear( ss_src, i );
+  }
+
+  assert2(ss_tgt->chunks[ ss_tgt->current ].bytes > 0);
+  ss_src->current = -1;
+
+  assert2(ss_src->used == 0);
+}
+
+void ss_assimilate( semispace_t *ss_tgt, semispace_t *ss_src )
+{
+  ss_invariants( ss_tgt );
+  ss_invariants( ss_src );
+  
+  if (0)
+    ss_assimilate_via_move_block( ss_tgt, ss_src );
+  else
+    ss_assimilate_directly( ss_tgt, ss_src );    
+
+  ss_really_free(ss_src);
+  ss_invariants( ss_tgt );
+}
+
 void* ss_enumerate( semispace_t *ss, 
                     void *(*visitor)( word *addr, int tag, void *accum ), 
                     void *accum_init )
@@ -554,6 +603,11 @@ static void clear( semispace_t *ss, int i )
 static void extend_chunk_array( semispace_t *ss )
 {
   const int n = ss->n*2;
+  extend_chunk_array_to( ss, n );
+}
+
+static void extend_chunk_array_to( semispace_t *ss, int n )
+{
   ss_chunk_t *c;
   int i;
 
