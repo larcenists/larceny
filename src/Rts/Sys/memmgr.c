@@ -1666,12 +1666,13 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   int cur_allocated;
   int max_allocated = 
     gc_maximum_allotted( gc, gset_singleton( current_space->gen_no ));
+  int expansion_amount = max( bytes_needed, GC_CHUNK_SIZE );
 
   ss_sync( current_space );
   cur_allocated = 
     current_space->allocated+los_bytes_used( gc->los, current_space->gen_no );
-  if (cur_allocated + bytes_needed < max_allocated ) {
-    ss_expand( current_space, max( bytes_needed, GC_CHUNK_SIZE ));
+  if (cur_allocated + expansion_amount < max_allocated) {
+    ss_expand( current_space, expansion_amount );
     return current_space;
   } else {
     return gc_fresh_space( gc );
