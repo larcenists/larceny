@@ -81,11 +81,7 @@ struct gc_data {
   int rrof_to_region;
     /* In RROF collector, the to-space for minor collections. */
   int rrof_next_region;
-    /* In RROF collector, the next region to collect. */
-  int rrof_final_region;
-    /* In RROF collector, the final region to collect in this cycle. */
-  int rrof_region_limit;
-    /* In RROF collector, the region count (at the time this cycle started). */
+    /* In RROF collector, the next region scheduled for major collection. */
   int rrof_last_tospace;
     /* In RROF collector, the region used as a to-space in the last collect */
 
