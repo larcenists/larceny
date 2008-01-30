@@ -165,6 +165,11 @@ void ss_set_gen_no( semispace_t *ss, int gen_no );
      gen_no >= 0
      */
 
+void ss_assimilate( semispace_t *ss_tgt, semispace_t *ss_src );
+    /* requires: ss_src->gen_no matches ss_tgt->gen_no.
+       Moves all chunks in ss_src into ss_tgt; invalidates ss_src.
+       */
+
 void* ss_enumerate( semispace_t *ss, 
                     void *(*visitor)( word *addr, int tag, void *accum ), 
                     void *accum_init );
