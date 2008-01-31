@@ -1205,7 +1205,7 @@ static void after_collection( gc_t *gc )
 
   DATA(gc)->generations = DATA(gc)->generations_after_gc;
 
- if (USE_ORACLE_TO_UPDATE_REMSETS)
+ if (USE_ORACLE_TO_UPDATE_REMSETS && DATA(gc)->region_count != 0)
    update_remsets_via_oracle( gc );
  if (USE_ORACLE_TO_VERIFY_REMSETS)
    verify_remsets_via_oracle( gc );
