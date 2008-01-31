@@ -816,6 +816,10 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.ephemeral_info[i-1].size_bytes = o->size[i];
       prev_size = o->size[i];
     }
+
+    o->gc_info.dynamic_sc_info.load_factor = load_factor;
+    o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
+    o->gc_info.dynamic_sc_info.dynamic_min = dynamic_min;
   }
 }
 
