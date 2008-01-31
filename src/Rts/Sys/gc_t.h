@@ -183,14 +183,12 @@ struct gc {
      /* Creates a fresh space to copy objects into with a 
       * distinct generation number.
       */
-  semispace_t *(*find_space)(gc_t *gc, unsigned bytes_needed, semispace_t *cur,
-			     semispace_t **filter, int filter_len );
-     /* Let filter_set be the set { filter[i] | 0 <= i < filter_len }.
-      * requires: cur not in filter_set
-      * modifies: cur
+  semispace_t *(*find_space)(gc_t *gc, unsigned bytes_needed, semispace_t *ss);
+     /* modifies: ss
       * The returned semispace is guaranteed to have sufficient space
-      * to store an object of size bytes_needed and is also guaranteed
-      * to not be a member of filter_set.
+      * to store an object of size bytes_needed.  It will either be ss
+      * or an entirely fresh semispace (but even when it is fresh, it
+      * may share the same gen_no as another semispace).
       */
   
   int (*allocated_to_areas)( gc_t *gc, gset_t gs );
@@ -226,8 +224,7 @@ struct gc {
   ((gc)->enumerate_remsets_complement( gc, gset, s, d, f ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
 #define gc_free_handle( gc, h )       ((gc)->free_handle( gc, h ))
-#define gc_find_space( gc, n, ss, f, fl ) \
-  ((gc)->find_space( gc, n, ss, f, fl ))
+#define gc_find_space( gc, n, ss )    ((gc)->find_space( gc, n, ss ))
 #define gc_fresh_space( gc )          ((gc)->fresh_space( gc ))
 
 #define gc_allocated_to_areas( gc, gs ) ((gc)->allocated_to_areas( gc, gs ))
@@ -269,8 +266,7 @@ gc_t
 		  bool enumerate_np_remset ),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
 	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
-					 semispace_t *cur, 
-					 semispace_t **filter, int filter_len ),
+					 semispace_t *ss ),
 	     
 	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
 	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),

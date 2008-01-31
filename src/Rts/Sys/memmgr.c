@@ -1670,17 +1670,14 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
 }
 
 static semispace_t *find_space_expanding( gc_t *gc, unsigned bytes_needed, 
-					  semispace_t *current_space, 
-					  semispace_t **spaces_filtered, 
-					  int sf_len ) 
+					  semispace_t *current_space )
 {
   ss_expand( current_space, max( bytes_needed, GC_CHUNK_SIZE ) );
   return current_space;
 }
 
 static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
-				     semispace_t *current_space,
-				     semispace_t **spaces_filtered, int sf_len )
+				     semispace_t *current_space )
 {
   int cur_allocated;
   int max_allocated = 
@@ -2130,8 +2127,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   gc_data_t *data;
   gc_t *ret;
   semispace_t *(*my_find_space)( gc_t *gc, unsigned bytes_needed, 
-				 semispace_t *current_space, 
-				 semispace_t **spaces_filtered, int sf_len );
+				 semispace_t *current_space );
   void (*my_collect)( gc_t *gc, int rgn, int bytes_needed, gc_type_t request );
   void (*my_check_remset_invs)( gc_t *gc, word src, word tgt );
   

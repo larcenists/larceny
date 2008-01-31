@@ -888,20 +888,7 @@ expand_space( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
           e->tospaces_cur_dest == e->tospaces_len - 1 );
   assert( e->tospaces_len <= e->tospaces_cap );
 
-  /* We want to allow the gc to expand our current tospace, but we
-   * cannot allow it to reuse other spaces we have already copied
-   * into, because we may have already scanned them (or be in the
-   * process of scanning them).  Therefore we pass a prefix of
-   * e->tospaces as the filter for the gc_find_space method, and the
-   * current dest space as a potential space to expand.
-   * 
-   * (Hypothetically we could determine which spaces are after the
-   * scan pointer, and keep them out of the filter as well, but Felix
-   * doesn't see much point in that; if e->gc's policy led it to
-   * choose not to expand a space during this collection cycle, then
-   * Felix sees no reason it might to choose to expand it now.)
-   */
-  ss = gc_find_space( e->gc, bytes, ss, e->tospaces, e->tospaces_len - 1 );
+  ss = gc_find_space( e->gc, bytes, ss );
 
   /* check that gc_find_space obeys its contract and did not return a
      filtered space. */
