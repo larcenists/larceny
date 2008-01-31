@@ -1005,12 +1005,11 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  DATA(gc)->rrof_last_tospace = rgn_idx;
 	  
 	  n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
-	  /* If we're about to start from the beginning of the array, 
-	   * then we are guaranteed to attempt to collect all regions 
-	   * in current cycle before newly generated regions.
-	   * Therefore it is safe to update the region_count. */
-	  if (n < DATA(gc)->rrof_next_region)
-	    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
+	  if (n == DATA(gc)->rrof_first_region) {
+	    assert2( DATA(gc)->region_count == num_rgns );
+	    n = completed_regional_cycle( gc );
+	    num_rgns = DATA(gc)->region_count;
+	  }
 	  DATA(gc)->rrof_next_region = n;
 	} else {
 	  DATA(gc)->ephemeral_area[ rgn_idx-1 ]->has_popular_objects = TRUE;
@@ -1048,8 +1047,11 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 		    DATA(gc)->rrof_to_region,
 		    next_rgn(DATA(gc)->rrof_to_region,  num_rgns ));
 	n = next_rgn(DATA(gc)->rrof_to_region,  num_rgns);
-	if (n < DATA(gc)->rrof_to_region)
-	  DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
+	if (n == DATA(gc)->rrof_first_region) {
+	  assert2( DATA(gc)->region_count == num_rgns );
+	  n = completed_regional_cycle( gc );
+	  num_rgns = DATA(gc)->region_count;
+	}
 	DATA(gc)->rrof_to_region = n;
 	/* TODO: double check that minor gc's haven't filled up to-spaces
 	 * so fast that major GC hasn't had a chance to go (which should
