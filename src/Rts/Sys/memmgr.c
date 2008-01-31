@@ -86,6 +86,8 @@ struct gc_data {
     /* In RROF collector, the region used as a to-space in the last collect */
   int rrof_first_region;
     /* In RROF collector, the first region collected in this cycle */
+  double rrof_load_factor;
+    /* Lars put a load factor in each old-heap; RROF needs one load_factor */
 
   remset_t *remset_summary;     /* NULL or summarization of remset array */
   bool      remset_summary_valid;
@@ -538,6 +540,7 @@ static int next_rgn( int rgn, int num_rgns ) {
   return rgn;
 }
 
+#define EXPAND_RGNS_FROM_LOAD_FACTOR 1
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define USE_ORACLE_TO_UPDATE_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
@@ -890,6 +893,40 @@ static void popularity_analysis( gc_t *gc, int rgn )
 static int completed_regional_cycle( gc_t *gc ) 
 {
   int n;
+
+#if EXPAND_RGNS_FROM_LOAD_FACTOR
+  /* every collection cycle, lets check and see if we should expand
+   * the number of regions so that we can satisfy the inverse load
+   * factor. */
+  {
+    int i;
+    int total_live_at_last_major_gc = 0;
+    int maximum_allotted = 0;
+    int live_predicted_at_next_gc;
+    for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
+      total_live_at_last_major_gc += 
+	DATA(gc)->ephemeral_area[ i ]->live_last_major_gc;
+      maximum_allotted += 
+	DATA(gc)->ephemeral_area[ i ]->maximum;
+    }
+    live_predicted_at_next_gc = 
+      (int)(DATA(gc)->rrof_load_factor * total_live_at_last_major_gc);
+
+    annoyingmsg( "completed_regional_cycle total: %d max: %d predict: %d",
+		 total_live_at_last_major_gc, 
+		 maximum_allotted, 
+		 live_predicted_at_next_gc );
+
+    while (live_predicted_at_next_gc > maximum_allotted) {
+      semispace_t *ss = gc_fresh_space(gc);
+      int eidx = ss->gen_no - 1;
+      old_heap_t *fresh_heap = DATA(gc)->ephemeral_area[ eidx ];
+      assert2( fresh_heap->live_last_major_gc == 0 );
+      maximum_allotted += fresh_heap->maximum;
+    }
+  }
+#endif
+
   if (DATA(gc)->region_count != DATA(gc)->ephemeral_area_count) {
     n = DATA(gc)->region_count;
     DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
@@ -2054,6 +2091,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   
   data->dynamic_max = info->dynamic_sc_info.dynamic_max;
   data->dynamic_min = info->dynamic_sc_info.dynamic_min;
+  data->rrof_load_factor = info->dynamic_sc_info.load_factor;
 
   /* Create nursery. */
   gc->young_area = 
