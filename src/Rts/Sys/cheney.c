@@ -877,8 +877,8 @@ expand_space( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
   semispace_t *ss;
   int i;
 
-  annoyingmsg("   expand_space( e, 0x%08x, 0x%08x, %d )", 
-              *lim, *dest, bytes );
+  supremely_annoyingmsg("   expand_space( e, 0x%08x, 0x%08x, %d )", 
+                        *lim, *dest, bytes );
 
   ss = tospace_dest(e);
   seal_chunk( ss, *lim, *dest );
