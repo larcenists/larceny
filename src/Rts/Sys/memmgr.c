@@ -887,6 +887,19 @@ static void popularity_analysis( gc_t *gc, int rgn )
   msgc_end( init_context );
 }
 
+static int completed_regional_cycle( gc_t *gc ) 
+{
+  int n;
+  if (DATA(gc)->region_count != DATA(gc)->ephemeral_area_count) {
+    n = DATA(gc)->region_count;
+    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
+    DATA(gc)->rrof_first_region = n;
+  } else {
+    n = DATA(gc)->rrof_first_region;
+  }
+  return n;
+}
+
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
@@ -962,13 +975,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  }
 	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
 	  if (n == DATA(gc)->rrof_first_region) {
-	    /* completed a collection cycle */
-	    if (DATA(gc)->region_count != DATA(gc)->ephemeral_area_count) {
-	      num_rgns = DATA(gc)->ephemeral_area_count;
-	      n = DATA(gc)->region_count;
-	      DATA(gc)->region_count = num_rgns;
-	      DATA(gc)->rrof_first_region = n;
-	    }
+	    assert2( DATA(gc)->region_count == num_rgns );
+	    n = completed_regional_cycle( gc );
+	    num_rgns = DATA(gc)->region_count;
 	  }
 	  DATA(gc)->rrof_next_region = n;
 	  DATA(gc)->rrof_to_region = n;
@@ -1009,13 +1018,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
 	  if (n == DATA(gc)->rrof_first_region) {
-	    /* completed a collection cycle. */
-	    if (DATA(gc)->region_count != DATA(gc)->ephemeral_area_count) {
-	      num_rgns = DATA(gc)->ephemeral_area_count;
-	      n = DATA(gc)->region_count;
-	      DATA(gc)->region_count = num_rgns;
-	      DATA(gc)->rrof_first_region = n;
-	    }
+	    assert2( DATA(gc)->region_count == num_rgns );
+	    n = completed_regional_cycle( gc );
+	    num_rgns = DATA(gc)->region_count;
 	  }
 	  DATA(gc)->rrof_next_region = n;
 	  DATA(gc)->rrof_to_region = n;
