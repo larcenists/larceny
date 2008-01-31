@@ -1765,15 +1765,18 @@ static int allocated_to_area( gc_t *gc, int gno )
   if (gno == 0) 
     return gc->young_area->allocated;
   else if (DATA(gc)->ephemeral_area && eph_idx < DATA(gc)->ephemeral_area_count) {
-    if (0)
-      return DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
-    else {
-      int retval;
-      semispace_t *space = oh_current_space( DATA(gc)->ephemeral_area[ eph_idx ] );
-      ss_sync( space );
-      retval = space->used + los_bytes_used( gc->los, gno );
-      return retval;
-    }
+#ifdef NDEBUG2
+    return DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
+#else
+    int area_thinks_allocated = 
+      DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
+    int retval;
+    semispace_t *space = oh_current_space( DATA(gc)->ephemeral_area[ eph_idx ] );
+    ss_sync( space );
+    retval = space->used + los_bytes_used( gc->los, gno );
+    assert( area_thinks_allocated == retval );
+    return retval;
+#endif
   } else {
     consolemsg( "allocated_to_area: unknown area %d", gno );
     assert(0);
