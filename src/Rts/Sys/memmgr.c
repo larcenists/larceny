@@ -84,9 +84,13 @@ struct gc_data {
     /* In RROF collector, the next region scheduled for major collection. */
   int rrof_last_tospace;
     /* In RROF collector, the region used as a to-space in the last collect */
+  int rrof_first_region;
+    /* In RROF collector, the first region collected in this cycle */
 
   remset_t *remset_summary;     /* NULL or summarization of remset array */
   bool      remset_summary_valid;
+
+  semispace_t *secondary_space; /* NULL or space for when tospace overflows */
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
@@ -957,10 +961,14 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	    invalidate_remset_summary( gc );
 	  }
 	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
-	  if (n < DATA(gc)->rrof_next_region) {
-	    gc_fresh_space(gc); /* XXX necessary to prevent loop? */
-	    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
-	    num_rgns = DATA(gc)->region_count;
+	  if (n == DATA(gc)->rrof_first_region) {
+	    /* completed a collection cycle */
+	    if (DATA(gc)->region_count != DATA(gc)->ephemeral_area_count) {
+	      num_rgns = DATA(gc)->ephemeral_area_count;
+	      n = DATA(gc)->region_count;
+	      DATA(gc)->region_count = num_rgns;
+	      DATA(gc)->rrof_first_region = n;
+	    }
 	  }
 	  DATA(gc)->rrof_next_region = n;
 	  DATA(gc)->rrof_to_region = n;
@@ -1000,10 +1008,14 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  invalidate_remset_summary( gc );
 
 	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
-	  if (n < DATA(gc)->rrof_next_region) {
-	    gc_fresh_space(gc); /* XXX necessary to prevent loop? */
-	    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
-	    num_rgns = DATA(gc)->region_count;
+	  if (n == DATA(gc)->rrof_first_region) {
+	    /* completed a collection cycle. */
+	    if (DATA(gc)->region_count != DATA(gc)->ephemeral_area_count) {
+	      num_rgns = DATA(gc)->ephemeral_area_count;
+	      n = DATA(gc)->region_count;
+	      DATA(gc)->region_count = num_rgns;
+	      DATA(gc)->rrof_first_region = n;
+	    }
 	  }
 	  DATA(gc)->rrof_next_region = n;
 	  DATA(gc)->rrof_to_region = n;
@@ -1056,6 +1068,13 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
     break;
   default: 
     assert(0); /* Regional collector only supports above collection types. */
+  }
+
+  if (data->secondary_space != NULL) {
+    int gen_no = data->secondary_space->gen_no;
+    oh_assimilate( data->ephemeral_area[ gen_no-1 ],
+		   data->secondary_space );
+    data->secondary_space = NULL;
   }
 
   assert( data->in_gc > 0 );
@@ -1670,12 +1689,45 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
 
   ss_sync( current_space );
   cur_allocated = 
-    current_space->allocated+los_bytes_used( gc->los, current_space->gen_no );
-  if (cur_allocated + expansion_amount < max_allocated) {
+    current_space->used+los_bytes_used( gc->los, current_space->gen_no );
+
+  if (cur_allocated + expansion_amount <= max_allocated) {
     ss_expand( current_space, expansion_amount );
     return current_space;
   } else {
-    return gc_fresh_space( gc );
+    int last_gen_no = DATA(gc)->ephemeral_area_count;
+    old_heap_t *heap = DATA(gc)->ephemeral_area[ last_gen_no-1 ];
+    int allocated_there;
+    int allotted_there = 
+      gc_maximum_allotted( gc, gset_singleton( last_gen_no ));
+    ss_sync( oh_current_space( heap ));
+    allocated_there = 
+      oh_current_space( heap )->used + 
+      los_bytes_used( gc->los, last_gen_no );
+
+    if (DATA(gc)->secondary_space != NULL) {
+      int gen_no = DATA(gc)->secondary_space->gen_no;
+      oh_assimilate( DATA(gc)->ephemeral_area[ gen_no-1 ],
+		     DATA(gc)->secondary_space );
+      DATA(gc)->secondary_space = NULL;
+      return gc_fresh_space( gc );
+    }    
+    if (current_space->gen_no == last_gen_no) {
+      return gc_fresh_space( gc );
+    }
+
+    /* Putting in GC_CHUNK_SIZE as a fudge factor, since we sometimes
+     * end up with gaps in the tospace as we seal off chunks (and
+     * insert alignment padding). */
+    if (allocated_there + gc->young_area->allocated + GC_CHUNK_SIZE 
+	<= allotted_there ) {
+      assert(DATA(gc)->secondary_space == NULL);
+      DATA(gc)->secondary_space =
+	create_semispace( GC_CHUNK_SIZE, last_gen_no );
+      return DATA(gc)->secondary_space;
+    } else {
+      return gc_fresh_space( gc );
+    }
   }
 }
 
@@ -1713,12 +1765,19 @@ static semispace_t *fresh_space( gc_t *gc )
 static int allocated_to_area( gc_t *gc, int gno ) 
 {
   int eph_idx = gno-1;
-  if (0) annoyingmsg(" allocated_to_area( gc, %d ) ", gno );
   if (gno == 0) 
     return gc->young_area->allocated;
-  else if (DATA(gc)->ephemeral_area && eph_idx < DATA(gc)->ephemeral_area_count)
-    return DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
-  else {
+  else if (DATA(gc)->ephemeral_area && eph_idx < DATA(gc)->ephemeral_area_count) {
+    if (0)
+      return DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
+    else {
+      int retval;
+      semispace_t *space = oh_current_space( DATA(gc)->ephemeral_area[ eph_idx ] );
+      ss_sync( space );
+      retval = space->used + los_bytes_used( gc->los, gno );
+      return retval;
+    }
+  } else {
     consolemsg( "allocated_to_area: unknown area %d", gno );
     assert(0);
   }
@@ -2110,6 +2169,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_to_region = 1;
   data->rrof_next_region = 2;
   data->rrof_last_tospace = -1;
+  data->rrof_first_region = 1;
 
   data->remset_summary = 0;
   data->remset_summary_valid = FALSE;
