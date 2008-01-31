@@ -464,7 +464,10 @@ static void ss_assimilate_directly( semispace_t *ss_tgt, semispace_t *ss_src )
   assert2(ss_tgt->chunks[ ss_tgt->current ].bytes > 0);
   ss_src->current = -1;
 
+#ifndef NDEBUG2
+  ss_sync( ss_src );
   assert2(ss_src->used == 0);
+#endif
 }
 
 void ss_assimilate( semispace_t *ss_tgt, semispace_t *ss_src )
