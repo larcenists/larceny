@@ -229,6 +229,8 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
     bytes_moved = 
       los_bytes_used( heap->collector->los, data->gen_no );
 
+    heap->live_last_major_gc = bytes_copied + bytes_moved;
+
     break;
   case GCTYPE_PROMOTE: 
     /* Promote the nursery into this region. */

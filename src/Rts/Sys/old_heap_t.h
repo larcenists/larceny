@@ -40,6 +40,7 @@ struct old_heap {
 	*/
 
   bool has_popular_objects;
+  int live_last_major_gc;
 
   void *data;
      /* Data private to the heap implementation.
