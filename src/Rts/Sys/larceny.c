@@ -366,13 +366,14 @@ static long long generic_event_counter = 0;
 static const long long max_event_count = 0;
 static const long long key_event_count = 0;
 static const long long event_trace_len = 100;
-void saw_event() 
+int saw_event() 
 { 
   generic_event_counter++;
   if (max_event_count > 0) {
     if (generic_event_counter+1 == max_event_count)
       panic_abort( "hit max event count %lld", generic_event_counter);
   }
+  return generic_event_counter;
 }
 
 void eventmsg( const char *fmt, ... )
