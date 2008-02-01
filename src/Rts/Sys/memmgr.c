@@ -600,7 +600,7 @@ static void* verify_remsets_fcn( word obj, word src, void *data )
   gc_t *gc = (gc_t*)data;
   if (isptr(src) && isptr(obj) &&
       gen_of(src) != gen_of(obj) &&
-      gen_of(obj) != DATA(gc)->static_generation) {
+      ! gc_is_nonmoving( gc, gen_of(obj) )) {
     assert( gen_of(src) >= 0 );
     if (gen_of(src) > 0) {
       process_seqbuf( gc, gc->ssb );
