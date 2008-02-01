@@ -83,7 +83,7 @@ bool rs_add_elem( remset_t *rs, word w );
      Returns TRUE if the remset overflowed during the addition.
      */
 
-bool rs_add_elems( remset_t **remset, word *bot, word *top );
+bool rs_add_elems_distribute( remset_t **remset, word *bot, word *top );
   /* Copies the elements in the buffer [bot,top) into remset[i],
      where i is the gno for each element.
      Every element in the buffer is subject to a collision check.

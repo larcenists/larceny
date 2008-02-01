@@ -343,7 +343,7 @@ bool rs_add_elem( remset_t *rs, word w )
   return overflowed;
 }
 
-bool rs_add_elems( remset_t **remset, word *bot, word *top ) 
+bool rs_add_elems_distribute( remset_t **remset, word *bot, word *top ) 
 {
   word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
   remset_t *rs;

@@ -1997,7 +1997,7 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 
 static int ssb_process( gc_t *gc, word *bot, word *top, void *ep_data ) {
   remset_t **remset = gc->remset;
-  return rs_add_elems( remset, bot, top );
+  return rs_add_elems_distribute( remset, bot, top );
 }
 
 static int allocate_generational_system( gc_t *gc, gc_param_t *info )
