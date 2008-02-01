@@ -90,6 +90,13 @@ bool rs_add_elems_distribute( remset_t **remset, word *bot, word *top );
 
      Returns TRUE if the remset overflowed during the addition.
      */
+
+bool rs_add_elems_funnel( remset_t *rs, word *bot, word *top );
+  /* Copies the elements in the buffer [bot,top) into rs.
+     Every element in the buffer is subject to a collision check.
+
+     Returns TRUE if the remset overflowed during the addition.
+     */
      
 void rs_enumerate( remset_t *remset, 
 		   bool (*scanner)(word loc, void *data, unsigned *stats),

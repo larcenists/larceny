@@ -372,6 +372,32 @@ bool rs_add_elems_distribute( remset_t **remset, word *bot, word *top )
   return overflowed;
 }
 
+bool rs_add_elems_funnel( remset_t *rs, word *bot, word *top ) 
+{
+  word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
+  int gno;
+  bool added_word; 
+  bool overflowed = FALSE;
+
+  assert( WORDS_PER_POOL_ENTRY == 2 );
+
+  p = bot;
+  q = top;
+
+  /* (The scan is down for historical reasons that no longer apply.) */
+
+  while (q > p) {
+    q--;
+    w = *q;
+    w = retagptr(w);           /* See NOTE 2 above. */
+    if (!w) 
+      continue;                /* Remove the entry! */
+    overflowed |= rs_add_elem( rs, w );
+  }
+
+  return overflowed;
+}
+
 /* FIXME: Worth optimizing!  Pass more than one object to the scanner. */
 void rs_enumerate( remset_t *rs, 
 		   bool (*scanner)( word, void*, unsigned* ),
