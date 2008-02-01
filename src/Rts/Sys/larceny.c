@@ -499,6 +499,8 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.use_static_area = 0;
     else if (hstrcmp( *argv, "-nocontract" ) == 0)
       o->gc_info.dont_shrink_heap = 1;
+    else if (hstrcmp( *argv, "-oracle" ) == 0)
+      o->gc_info.use_oracle_to_update_remsets = 1;
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
       if (loc > 1 && ! o->gc_info.is_regional_system) {
         /* Maybe we shouldn't be inferring this anymore */

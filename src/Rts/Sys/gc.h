@@ -67,6 +67,7 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   bool use_non_predictive_collector;   /* In the generational system */
   bool use_incremental_bdw_collector;  /* In the conservative system */
   bool dont_shrink_heap;               /* In the nonconservative systems */
+  bool use_oracle_to_update_remsets;   /* In the regional system. */
 
   /* Common parameters */
   word *globals;		/* globals table used by collector */

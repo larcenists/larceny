@@ -589,9 +589,11 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define CHECK_NURSERY_REMSET_VIA_SUM 0
 #define EXPAND_RGNS_FROM_LOAD_FACTOR 1
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
-#define USE_ORACLE_TO_UPDATE_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
 #define POPULARITY_LIMIT 40000
+
+/* set by -oracle command line option. */
+static bool use_oracle_to_update_remsets = FALSE;
 
 static void* verify_remsets_fcn( word obj, word src, void *data ) 
 {
@@ -1104,7 +1106,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	
 	if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
 	     DATA(gc)->remset_summary->live <= POPULARITY_LIMIT ) {
-	  if (USE_ORACLE_TO_UPDATE_REMSETS) 
+	  if (use_oracle_to_update_remsets) 
 	    gc->scan_update_remset = FALSE;
 	  oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
 	  invalidate_remset_summary( gc );
@@ -1168,7 +1170,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	remset_summary_valid = DATA(gc)->remset_summary_valid;
 	DATA(gc)->remset_summary = DATA(gc)->nursery_remset;
 	DATA(gc)->remset_summary_valid =  TRUE;
-	if (USE_ORACLE_TO_UPDATE_REMSETS) 
+	if (use_oracle_to_update_remsets) 
 	  gc->scan_update_remset = FALSE;
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
 	rs_clear( DATA(gc)->nursery_remset );
@@ -1308,7 +1310,7 @@ static void after_collection( gc_t *gc )
 
   DATA(gc)->generations = DATA(gc)->generations_after_gc;
 
- if (USE_ORACLE_TO_UPDATE_REMSETS && DATA(gc)->region_count != 0)
+ if (use_oracle_to_update_remsets && DATA(gc)->region_count != 0)
    update_remsets_via_oracle( gc );
  if (USE_ORACLE_TO_VERIFY_REMSETS)
    verify_remsets_via_oracle( gc );
@@ -2280,6 +2282,11 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   }
 
   gc->id = strdup( buf );
+
+  if (info->use_oracle_to_update_remsets)
+    use_oracle_to_update_remsets = TRUE;
+  else
+    use_oracle_to_update_remsets = FALSE;
 
   return gen_no;
 }
