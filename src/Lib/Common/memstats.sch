@@ -533,7 +533,12 @@
   (define (mprint . rest)
     (for-each display rest) (newline))
 
-  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu maxgctime maxgccpu maxscantime maxscancpu maxscanentries avgscantime avgscancpu avgscanentries)
+  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu 
+              maxgctime maxgccpu 
+              maxscantime maxscancpu maxscanentries 
+              avgscantime avgscancpu avgscanentries
+              words-mem-max words-heap-max words-remset-max 
+              words-rts-max words-waste-max)
     (mprint "Words allocated: " allocated)
     (mprint "Words reclaimed: " reclaimed)
     (mprint "Elapsed time...: " elapsed
@@ -546,6 +551,9 @@
             ", CPU: " maxscancpu " ms, entries: " maxscanentries "} ")
     (mprint "{Avg remset scan elapsed: " avgscantime " ms"
             ", CPU: " avgscancpu " ms, entries: " avgscanentries "} ")
+    (mprint "{Max words, Mem: " words-mem-max " Heap: " words-heap-max
+            " Remset: " words-remset-max " Rts: " words-rts-max 
+            " Waste: " words-waste-max "}")
     )
 
   (define (print-stats s1 s2)
@@ -588,6 +596,11 @@
             0
             (/ (memstats-gc-total-entries-remset-scan s2)
                (memstats-gc-remset-scan-count s2)))
+        (memstats-mem-allocated-max s2)
+        (memstats-heap-allocated-max s2)
+        (memstats-remsets-allocated-max s2)
+        (memstats-rts-allocated-max s2)
+        (memstats-heap-fragmentation-max s2)
 	))
   
   (let* ((s1 (memstats))
