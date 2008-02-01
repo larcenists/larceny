@@ -97,6 +97,7 @@ struct gc_data {
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
 
+#define PRINT_REMSET_SUMMARY_TIME 0
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
 static word *load_text_or_data( gc_t *gc, int size_bytes, int load_text );
@@ -501,7 +502,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
   return TRUE; /* don't remove entries from the remembered set we are summarizing! */  
 }
 
-static void build_remset_summary( gc_t *gc, int gen )
+static void build_remset_summary_core( gc_t *gc, int gen )
 {
   remset_summary_data_t remsum;
   gset_t genset;
@@ -525,6 +526,49 @@ static void build_remset_summary( gc_t *gc, int gen )
   annoyingmsg( "remset summary for collecting {0, %d}, live: %d", 
 	       gen, DATA(gc)->remset_summary->live );
 
+}
+
+static void build_remset_summary( gc_t *gc, int gen ) 
+{
+#if PRINT_REMSET_SUMMARY_TIME
+  static int total_minor_ms = 0; 
+  static int total_minor_ms_cpu = 0;
+  static int total_major_ms = 0;
+  static int total_major_ms_cpu = 0;
+  int ms, ms_cpu;
+  stats_id_t timer_elapsed, timer_cpu;
+  timer_elapsed = stats_start_timer( TIMER_ELAPSED );
+  timer_cpu     = stats_start_timer( TIMER_CPU );
+#endif
+
+  build_remset_summary_core( gc, gen );
+
+#if PRINT_REMSET_SUMMARY_TIME  
+  ms     = stats_stop_timer( timer_elapsed );
+  ms_cpu = stats_stop_timer( timer_cpu );
+
+  if (gen == 0) {
+    total_minor_ms     += ms;
+    total_minor_ms_cpu += ms_cpu;
+    if (1) consolemsg("build summary minor "
+	       "pause{ elapsed: %d cpu: %d} "
+	       "minor_total{ elapsed: %d cpu: %d} "
+	       "major_total{ elapsed: %d cpu: %d} ", 
+	       ms, ms_cpu, 
+	       total_minor_ms, total_minor_ms_cpu,
+	       total_major_ms, total_major_ms_cpu );
+  } else {
+    total_major_ms     += ms;
+    total_major_ms_cpu += ms_cpu;
+    if (1) consolemsg("build summary major "
+	       "pause{ elapsed: %d cpu: %d} "
+	       "minor_total{ elapsed: %d cpu: %d} "
+	       "major_total{ elapsed: %d cpu: %d} ", 
+	       ms, ms_cpu, 
+	       total_minor_ms, total_minor_ms_cpu,
+	       total_major_ms, total_major_ms_cpu );
+  }
+#endif
 }
 
 static void invalidate_remset_summary( gc_t *gc )
@@ -1049,6 +1093,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  }
 	  DATA(gc)->rrof_next_region = n;
 	} else {
+	  annoyingmsg( "remset summary says region %d too popular to collect", 
+		       rgn_idx );
 	  DATA(gc)->ephemeral_area[ rgn_idx-1 ]->has_popular_objects = TRUE;
 	  invalidate_remset_summary( gc );
 
