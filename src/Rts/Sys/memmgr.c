@@ -92,6 +92,8 @@ struct gc_data {
   remset_t *remset_summary;     /* NULL or summarization of remset array */
   bool      remset_summary_valid;
 
+  remset_t *nursery_remset;     /* Points-into remset for the nursery. */
+
   semispace_t *secondary_space; /* NULL or space for when tospace overflows */
 };
 
@@ -584,6 +586,7 @@ static int next_rgn( int rgn, int num_rgns ) {
   return rgn;
 }
 
+#define CHECK_NURSERY_REMSET_VIA_SUM 0
 #define EXPAND_RGNS_FROM_LOAD_FACTOR 1
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define USE_ORACLE_TO_UPDATE_REMSETS 0
@@ -981,6 +984,23 @@ static int completed_regional_cycle( gc_t *gc )
   return n;
 }
 
+static bool check_object_in_remset( word ptr, void *data, unsigned *count ) 
+{
+  assert( rs_isremembered( ((remset_t*)data), ptr ) );
+  return TRUE;
+}
+
+static bool print_object_not_in_summary( word ptr, void *data, unsigned *count ) 
+{
+  gc_t *gc = (gc_t*)data;
+  if ( ! rs_isremembered( DATA(gc)->remset_summary, ptr ) ) {
+    if (! rs_isremembered( gc->remset[ gen_of(ptr) ], ptr )) {
+      consolemsg("object 0x%08x is in nursery remset but not in summary.nor in major remsets.", ptr);
+    }
+  }
+  return TRUE;
+}
+
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
@@ -1083,6 +1103,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	    gc->scan_update_remset = FALSE;
 	  oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
 	  invalidate_remset_summary( gc );
+	  rs_clear( DATA(gc)->nursery_remset );
 	  DATA(gc)->rrof_last_tospace = rgn_idx;
 	  
 	  n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
@@ -1112,12 +1133,36 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	/* if there's room, minor collect the nursery into current region. */
 	int rgn_idx = rgn_to; 
 
+	/* hack: stash away old remset_summary, then use the
+	   points-into nursery remset as the remset summary. */
+	remset_t *remset_summary;
+	bool remset_summary_valid;
+
+#if CHECK_NURSERY_REMSET_VIA_SUM
+	assert( DATA(gc)->remset_summary->live == 0 );
 	process_seqbuf( gc, gc->ssb );
 	build_remset_summary( gc, 0 );
+	/* assert: remset_summary is a subset of nursery_remset */
+	rs_enumerate( DATA(gc)->remset_summary, 
+		      check_object_in_remset, 
+		      (void*) DATA(gc)->nursery_remset );
+	rs_enumerate( DATA(gc)->nursery_remset,
+		      print_object_not_in_summary,
+		      (void*) gc );
+	invalidate_remset_summary( gc );
+#endif
+
+	process_seqbuf( gc, gc->ssb );
+	remset_summary = DATA(gc)->remset_summary;
+	remset_summary_valid = DATA(gc)->remset_summary_valid;
+	DATA(gc)->remset_summary = DATA(gc)->nursery_remset;
+	DATA(gc)->remset_summary_valid =  TRUE;
 	if (USE_ORACLE_TO_UPDATE_REMSETS) 
 	  gc->scan_update_remset = FALSE;
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
-	invalidate_remset_summary( gc );
+	rs_clear( DATA(gc)->nursery_remset );
+	DATA(gc)->remset_summary = remset_summary;
+	DATA(gc)->remset_summary_valid = remset_summary_valid;
 	DATA(gc)->rrof_last_tospace = rgn_idx;
 
 	/* TODO: add code to incrementally summarize by attempting to
@@ -1995,9 +2040,18 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
   return (info->use_static_area ? 2 : 1);
 }
 
-static int ssb_process( gc_t *gc, word *bot, word *top, void *ep_data ) {
+static int ssb_process_gen( gc_t *gc, word *bot, word *top, void *ep_data ) {
   remset_t **remset = gc->remset;
   return rs_add_elems_distribute( remset, bot, top );
+}
+
+static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data ) {
+  remset_t **remset = gc->remset;
+  remset_t *rs = DATA(gc)->nursery_remset;
+  int retval = 0;
+  retval |= rs_add_elems_distribute( remset, bot, top );
+  retval |= rs_add_elems_funnel( rs, bot, top );
+  return retval;
 }
 
 static int allocate_generational_system( gc_t *gc, gc_param_t *info )
@@ -2110,7 +2164,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
                     * correct for comparison with non-refactored. XXX */
                    info->ssb*gc->remset_count, 
 		   &data->ssb_bot, &data->ssb_top, &data->ssb_lim, 
-		   ssb_process, 0 );
+		   ssb_process_gen, 0 );
 
   if (info->use_non_predictive_collector)
     gc->np_remset = gc->remset_count - 1;
@@ -2202,13 +2256,15 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     }
 
     data->remset_summary = create_remset( 0, 0 );
+    
+    data->nursery_remset = create_remset( 0, 0 );
 
     gc->ssb =
       create_seqbuf( /* XXX the remset_count factor is an attempt to 
 		      * correct for comparison with non-refactored. XXX */
 		    info->ssb*gc->remset_count, 
 		    &data->ssb_bot, &data->ssb_top, &data->ssb_lim, 
-		    ssb_process, 0 );
+		    ssb_process_rrof, 0 );
   }
 
   gc->id = strdup( buf );
@@ -2263,6 +2319,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->remset_summary = 0;
   data->remset_summary_valid = FALSE;
+  data->nursery_remset = 0;
 
   ret = 
     create_gc_t( "*invalid*",
