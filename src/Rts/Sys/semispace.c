@@ -35,7 +35,7 @@ static void free_chunk_memory( semispace_t *ss, int slot );
 static void clear( semispace_t *ss, int i );
 static int find_empty_slot_and_chunk( semispace_t *ss, int bytes, int *chunk );
 
-#define ATTEMPT_TO_REUSE_SEMISPACES 0
+#define ATTEMPT_TO_REUSE_SEMISPACES 1
 
 static semispace_t *last_freed = NULL;
 
