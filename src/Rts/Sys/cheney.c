@@ -361,7 +361,7 @@ static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
   int g_lhs = gen_of(lhs);
   int g_rhs = gen_of(rhs);
   assert2( g_lhs != gf_filter_remset_lhs );
-  if (g_rhs != e->gc->static_area->data_area->gen_no) {
+  if (! gc_is_nonmoving( e->gc, g_rhs )) {
     {
       assert2(g_lhs > 0);
       assert2(g_rhs >= 0);

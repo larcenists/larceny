@@ -1975,6 +1975,18 @@ static int maximum_allotted( gc_t *gc, gset_t gs )
   assert(0);
 }
 
+static bool is_nonmoving( gc_t *gc, int gen_no ) 
+{
+  if (gen_no == DATA(gc)->static_generation)
+    return TRUE;
+  if (gen_no > 0 &&
+      gen_no < DATA(gc)->ephemeral_area_count &&
+      DATA(gc)->ephemeral_area[ gen_no-1 ]->has_popular_objects)
+    return TRUE;
+  
+  return FALSE;
+}
+
 static bool is_address_mapped( gc_t *gc, word *addr, bool noisy ) 
 {
   assert(tagof(addr) == 0);
@@ -2370,6 +2382,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 my_find_space,
 		 allocated_to_areas,
 		 maximum_allotted,
+		 is_nonmoving, 
 		 is_address_mapped,
 		 my_check_remset_invs
 		 );

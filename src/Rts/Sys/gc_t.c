@@ -45,6 +45,7 @@ gc_t
 					 semispace_t *cur ),
 	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
 	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
+	     bool (*is_nonmoving)( gc_t *gc, int gen_no ), 
 	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt )
 	     )
@@ -107,6 +108,7 @@ gc_t
 
   gc->allocated_to_areas = allocated_to_areas;
   gc->maximum_allotted = maximum_allotted;
+  gc->is_nonmoving = is_nonmoving; 
   gc->is_address_mapped = is_address_mapped;
   gc->check_remset_invs = check_remset_invs;
 

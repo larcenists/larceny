@@ -193,6 +193,7 @@ struct gc {
   
   int (*allocated_to_areas)( gc_t *gc, gset_t gs );
   int (*maximum_allotted)( gc_t *gc, gset_t gs );
+  bool (*is_nonmoving)( gc_t *gc, int gen_no );
   bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy );
   void (*check_remset_invs)( gc_t *gc, word src, word tgt );
 };
@@ -229,6 +230,7 @@ struct gc {
 
 #define gc_allocated_to_areas( gc, gs ) ((gc)->allocated_to_areas( gc, gs ))
 #define gc_maximum_allotted( gc, gs )   ((gc)->maximum_allotted( gc, gs ))
+#define gc_is_nonmoving( gc, gno )      ((gc)->is_nonmoving( (gc), (gno) ))
 #define gc_is_address_mapped( gc,a,n )  ((gc)->is_address_mapped( (gc), (a), (n) ))
 #define gc_check_remset_invs( gc,s,t )  ((gc)->check_remset_invs( (gc), (s), (t) ))
 
@@ -270,6 +272,7 @@ gc_t
 	     
 	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
 	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
+	     bool (*is_nonmoving)( gc_t *gc, int gen_no ),
 	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt )
 	     );
