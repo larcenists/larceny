@@ -84,8 +84,6 @@ struct gc_data {
     /* In RROF collector, the next region scheduled for major collection. */
   int rrof_last_tospace;
     /* In RROF collector, the region used as a to-space in the last collect */
-  int rrof_first_region;
-    /* In RROF collector, the first region collected in this cycle */
   double rrof_load_factor;
     /* Lars put a load factor in each old-heap; RROF needs one load_factor */
 
@@ -118,6 +116,8 @@ static int
 dump_generational_system( gc_t *gc, const char *filename, bool compact );
 static int
 dump_stopcopy_system( gc_t *gc, const char *filename, bool compact );
+
+const int rrof_first_region = 1;
 
 gc_t *create_gc( gc_param_t *info, int *generations )
 {
@@ -937,9 +937,8 @@ static void popularity_analysis( gc_t *gc, int rgn )
   msgc_end( init_context );
 }
 
-static int completed_regional_cycle( gc_t *gc ) 
+static void completed_regional_cycle( gc_t *gc ) 
 {
-  int n;
 
 #if EXPAND_RGNS_FROM_LOAD_FACTOR
   /* every collection cycle, lets check and see if we should expand
@@ -971,17 +970,21 @@ static int completed_regional_cycle( gc_t *gc )
       assert2( fresh_heap->live_last_major_gc == 0 );
       maximum_allotted += fresh_heap->maximum;
     }
+
+    annoyingmsg( "completed_regional_cycle region_count: %d ephemeral_area_count: %d", 
+		 DATA(gc)->region_count, DATA(gc)->ephemeral_area_count );
   }
 #endif
-
-  if (DATA(gc)->region_count != DATA(gc)->ephemeral_area_count) {
-    n = DATA(gc)->region_count;
-    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
-    DATA(gc)->rrof_first_region = n;
+  
+  if (DATA(gc)->region_count < DATA(gc)->ephemeral_area_count-1) {
+    DATA(gc)->rrof_to_region = DATA(gc)->region_count+1;
+    DATA(gc)->rrof_next_region = 1;
+    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count-1;
   } else {
-    n = DATA(gc)->rrof_first_region;
+    assert(DATA(gc)->region_count == DATA(gc)->ephemeral_area_count-1);
+    DATA(gc)->rrof_to_region = 1;
+    DATA(gc)->rrof_next_region = 0;
   }
-  return n;
 }
 
 static bool check_object_in_remset( word ptr, void *data, unsigned *count ) 
@@ -1074,14 +1077,16 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	    popularity_analysis( gc, rgn_idx );
 	    invalidate_remset_summary( gc );
 	  }
+
+	  /* choose next region for major collection so that we can summarize its remsets */
+	  /* TODO: add loop to skip to next if n is popular. */
 	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
-	  if (n == DATA(gc)->rrof_first_region) {
+	  DATA(gc)->rrof_next_region = n;
+	  if (n == rrof_first_region) {
 	    assert2( DATA(gc)->region_count == num_rgns );
-	    n = completed_regional_cycle( gc );
+	    completed_regional_cycle( gc );
 	    num_rgns = DATA(gc)->region_count;
 	  }
-	  DATA(gc)->rrof_next_region = n;
-	  DATA(gc)->rrof_to_region = n;
 	  goto collect_evacuate_nursery;
 	}
 	build_remset_summary( gc, rgn_idx );
@@ -1106,30 +1111,36 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  rs_clear( DATA(gc)->nursery_remset );
 	  DATA(gc)->rrof_last_tospace = rgn_idx;
 	  
+	  /* choose next region for major collection so that we can summarize its remsets */
+	  /* TODO: add loop to skip to next if n is popular. */
 	  n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
-	  if (n == DATA(gc)->rrof_first_region) {
+	  DATA(gc)->rrof_next_region = n;
+	  if (n == rrof_first_region) {
 	    assert2( DATA(gc)->region_count == num_rgns );
-	    n = completed_regional_cycle( gc );
+	    completed_regional_cycle( gc );
 	    num_rgns = DATA(gc)->region_count;
 	  }
-	  DATA(gc)->rrof_next_region = n;
 	} else {
 	  annoyingmsg( "remset summary says region %d too popular to collect", 
 		       rgn_idx );
 	  DATA(gc)->ephemeral_area[ rgn_idx-1 ]->has_popular_objects = TRUE;
+	  DATA(gc)->ephemeral_area[ rgn_idx-1 ]->live_last_major_gc = 
+	    DATA(gc)->ephemeral_area[ rgn_idx-1 ]->allocated;
 	  invalidate_remset_summary( gc );
 
+	  /* choose next region for major collection so that we can summarize its remsets */
+	  /* TODO: add loop to skip to next if n is popular. */
 	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
-	  if (n == DATA(gc)->rrof_first_region) {
+	  DATA(gc)->rrof_next_region = n;
+	  if (n == rrof_first_region) {
 	    assert2( DATA(gc)->region_count == num_rgns );
-	    n = completed_regional_cycle( gc );
+	    completed_regional_cycle( gc );
 	    num_rgns = DATA(gc)->region_count;
 	  }
-	  DATA(gc)->rrof_next_region = n;
-	  DATA(gc)->rrof_to_region = n;
 	  goto collect_evacuate_nursery;
 	}
-      } else if (rgn_to_cur + nursery_sz < rgn_to_max) {
+      } else if (rgn_to_cur + nursery_sz < rgn_to_max &&
+		 ! DATA(gc)->ephemeral_area[ rgn_to ]->has_popular_objects ) {
 	/* if there's room, minor collect the nursery into current region. */
 	int rgn_idx = rgn_to; 
 
@@ -1170,15 +1181,16 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	 * major collection. */
       } else {
 	int n;
+	int num_minor_rgns = 
+	  max( DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
 	/* the to-space is full, so shift to the next to-space */
-	annoyingmsg("collect_rgnl shift to next to-space %d => %d",
+	annoyingmsg("collect_rgnl shift to next to-space %d => %d out of %d max(%d,%d)",
 		    DATA(gc)->rrof_to_region,
-		    next_rgn(DATA(gc)->rrof_to_region,  num_rgns ));
-	n = next_rgn(DATA(gc)->rrof_to_region,  num_rgns);
-	if (n == DATA(gc)->rrof_first_region) {
-	  assert2( DATA(gc)->region_count == num_rgns );
-	  n = completed_regional_cycle( gc );
-	  num_rgns = DATA(gc)->region_count;
+		    next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns),
+		    num_minor_rgns, DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
+	n = next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns);
+	if (DATA(gc)->rrof_next_region == 0) {
+	  DATA(gc)->rrof_next_region = 1;
 	}
 	DATA(gc)->rrof_to_region = n;
 	/* TODO: double check that minor gc's haven't filled up to-spaces
@@ -2205,7 +2217,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     int e = data->ephemeral_area_count = info->ephemeral_area_count;
-    data->region_count = e;
+    data->region_count = e-1;
     data->fixed_ephemeral_area = FALSE;
     data->ephemeral_area = (old_heap_t**)must_malloc( e*sizeof( old_heap_t* ));
     
@@ -2313,9 +2325,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->dynamic_area = 0;
 
   data->rrof_to_region = 1;
-  data->rrof_next_region = 2;
+  data->rrof_next_region = 0;
   data->rrof_last_tospace = -1;
-  data->rrof_first_region = 1;
 
   data->remset_summary = 0;
   data->remset_summary_valid = FALSE;
