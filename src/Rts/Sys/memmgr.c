@@ -87,6 +87,10 @@ struct gc_data {
   double rrof_load_factor;
     /* Lars put a load factor in each old-heap; RROF needs one load_factor */
 
+  int rrof_refine_mark_period;
+  int rrof_refine_mark_countdown;
+    /* In RROF collector, #nursery evacuations until refine remset via mark */
+
   remset_t *remset_summary;     /* NULL or summarization of remset array */
   bool      remset_summary_valid;
 
@@ -541,6 +545,7 @@ static int next_rgn( int rgn, int num_rgns ) {
   return rgn;
 }
 
+#define PRINT_FLOAT_STATS_EACH_CYCLE 0
 #define CHECK_NURSERY_REMSET_VIA_SUM 0
 #define EXPAND_RGNS_FROM_LOAD_FACTOR 1
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
@@ -894,8 +899,105 @@ static void popularity_analysis( gc_t *gc, int rgn )
   msgc_end( init_context );
 }
 
+struct visit_measuring_float_data {
+  msgc_context_t *context;
+  int float_word_count;
+  int float_obj_count;
+  int float_pair_count;
+  int float_vec_count;
+  int float_bvec_count;
+  int float_proc_count;
+};
+static void* visit_measuring_float( word *addr, int tag, void *accum ) 
+{
+  struct visit_measuring_float_data *data = 
+    (struct visit_measuring_float_data*)accum;
+  word obj = tagptr( addr, tag );
+  if (msgc_object_marked_p( data->context, obj )) {
+    /* skip */
+  } else {
+    data->float_obj_count += 1;
+    switch (tag) {
+    case PAIR_TAG:
+      data->float_word_count += 2;
+      data->float_pair_count += 1;
+      break;
+    case VEC_TAG:
+      data->float_vec_count += 1;
+      data->float_word_count += roundup8((sizefield( *addr )+4)/4);
+      break;
+    case BVEC_TAG:
+      data->float_bvec_count += 1;
+      data->float_word_count += roundup8((sizefield( *addr )+4)/4);
+      break;
+    case PROC_TAG:
+      data->float_proc_count += 1;
+      data->float_word_count += roundup8((sizefield( *addr )+4)/4);
+      break;
+    default:
+      assert(0);
+    }
+  }
+  return data;
+}
+
+static bool scan_refine_remset( word loc, void *data, unsigned *stats )
+{
+  msgc_context_t *context = (msgc_context_t*)data;
+  if (msgc_object_marked_p( context, loc )) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
+static int cycle_count = 0;
 static void completed_regional_cycle( gc_t *gc ) 
 {
+  cycle_count += 1;
+
+#if PRINT_FLOAT_STATS_EACH_CYCLE
+  /* every collection cycle, lets use the mark/sweep system to 
+   * measure how much float has accumulated. */
+  {
+    msgc_context_t *context;
+    int i, rgn;
+    int marked=0, traced=0, words_marked=0; 
+    int total_float_words = 0, total_float_objects = 0;
+    struct visit_measuring_float_data data;
+    context = msgc_begin( gc );
+    msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+    
+    for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
+      data.context = context;
+      data.float_word_count = 0;
+      data.float_obj_count = 0;
+      data.float_pair_count = 0;
+      data.float_vec_count = 0;
+      data.float_bvec_count = 0;
+      data.float_proc_count = 0;
+      rgn = i+1;
+      DATA(gc)->ephemeral_area[ i ]->enumerate
+	( DATA(gc)->ephemeral_area[ i ], visit_measuring_float, &data );
+      consolemsg( "cycle count %d region %d float{ objs: %d words: %d } %s", 
+		  cycle_count, 
+		  rgn, 
+		  data.float_obj_count, 
+		  data.float_word_count,
+		  (DATA(gc)->ephemeral_area[ i ]->has_popular_objects ?
+		   "(popular)" : "")
+		  );
+      total_float_objects += data.float_obj_count;
+      total_float_words += data.float_word_count;
+    }
+    consolemsg( "cycle count %d total float { objs: %d words: %d }",
+		cycle_count, 
+		total_float_objects, 
+		total_float_words );
+
+    msgc_end( context );
+  }
+#endif
 
 #if EXPAND_RGNS_FROM_LOAD_FACTOR
   /* every collection cycle, lets check and see if we should expand
@@ -1003,6 +1105,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
       /* only forward data out of the nursery, if possible */
       int rgn_to, rgn_next, nursery_sz, rgn_to_cur, rgn_to_max;
       int num_rgns = DATA(gc)->region_count;
+
+      if (DATA(gc)->rrof_refine_mark_countdown > 0)
+	DATA(gc)->rrof_refine_mark_countdown -= 1;
       
     collect_evacuate_nursery:
       rgn_to = DATA(gc)->rrof_to_region;
@@ -1061,6 +1166,27 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	
 	if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
 	     DATA(gc)->remset_summary->live <= POPULARITY_LIMIT ) {
+
+	  if (DATA(gc)->rrof_refine_mark_countdown == 0) {
+	    DATA(gc)->rrof_refine_mark_countdown = 
+	      DATA(gc)->rrof_refine_mark_period;
+
+	    /* use the mark/sweep system to refine (*all* of) the
+	     * remembered sets. */
+	    msgc_context_t *context;
+	    int i, rgn;
+	    int marked=0, traced=0, words_marked=0; 
+	    int total_float_words = 0, total_float_objects = 0;
+	    context = msgc_begin( gc );
+	    msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+	    
+	    for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
+	      rgn = i+1;
+	      rs_enumerate( gc->remset[ rgn ], scan_refine_remset, context );
+	    }
+	    msgc_end( context );
+	  }
+
 	  if (use_oracle_to_update_remsets) 
 	    gc->scan_update_remset = FALSE;
 	  oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
@@ -1236,9 +1362,6 @@ static void before_collection( gc_t *gc )
 {
   int e;
 
-  if (USE_ORACLE_TO_VERIFY_REMSETS)
-    verify_remsets_via_oracle( gc );
-
   /* For debugging of prototype;
    * double check heap consistency via mark/sweep routines.
    * (before collection means that mutator introduced inconsistency) */
@@ -1257,6 +1380,9 @@ static void before_collection( gc_t *gc )
     oh_before_collection( DATA(gc)->ephemeral_area[ e ] );
   if (DATA(gc)->dynamic_area)
     oh_before_collection( DATA(gc)->dynamic_area );
+
+  if (USE_ORACLE_TO_VERIFY_REMSETS)
+    verify_remsets_via_oracle( gc );
 }
 
 static void after_collection( gc_t *gc )
@@ -2174,6 +2300,11 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   data->dynamic_min = info->dynamic_sc_info.dynamic_min;
   data->rrof_load_factor = info->dynamic_sc_info.load_factor;
 
+  if (info->mark_period) {
+    data->rrof_refine_mark_period = info->mark_period;
+    data->rrof_refine_mark_countdown = data->rrof_refine_mark_period;
+  }
+
   /* Create nursery. */
   gc->young_area = 
     create_nursery( gen_no, gc, &info->nursery_info, info->globals );
@@ -2301,6 +2432,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_to_region = 1;
   data->rrof_next_region = 0;
   data->rrof_last_tospace = -1;
+  data->rrof_refine_mark_period = -1;
+  data->rrof_refine_mark_countdown = -1;
 
   data->remset_summary = 0;
   data->remset_summary_valid = FALSE;
