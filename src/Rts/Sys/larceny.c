@@ -546,8 +546,8 @@ parse_options( int argc, char **argv, opt_t *o )
       if (load_factor < 1.0 && load_factor != 0.0)
         param_error( "Load factor must be at least 1.0" );
 #else
-      if (load_factor < 2.0)
-        param_error( "Load factor must be at least 2.0" );
+      if (load_factor < 1.0)
+        param_error( "Load factor must be at least 1.0" );
 #endif
     }
 #if ROF_COLLECTOR
@@ -714,6 +714,11 @@ parse_options( int argc, char **argv, opt_t *o )
       !o->gc_info.is_regional_system
       && o->gc_info.ephemeral_info == 0)
     init_generational( o, areas, "*invalid*" );
+
+  if (o->gc_info.is_generational_system)
+    if (load_factor < 2.0)
+      param_error( "Load factor must be at least 2.0" );
+
 
   if (dynamic_max && dynamic_min && dynamic_max < dynamic_min)
     param_error( "Expandable MAX is less than expandable MIN." );
