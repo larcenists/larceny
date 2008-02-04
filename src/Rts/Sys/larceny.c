@@ -470,6 +470,7 @@ static void
 parse_options( int argc, char **argv, opt_t *o )
 {
   int i, loc, prev_size, areas = DEFAULT_AREAS;
+  int mark_period;
 #if defined( BDW_GC )
   double load_factor = 0.0;                   /* Ignore it. */
 #else
@@ -523,6 +524,9 @@ parse_options( int argc, char **argv, opt_t *o )
     } else if (hstrcmp( *argv, "-rrof" ) == 0 || 
              hstrcmp( *argv, "-regional" ) == 0) {
       init_regional( o, areas, *argv );
+    }
+    else if (numbarg( "-mark_period", &argc, &argv, &mark_period)) {
+      o->gc_info.mark_period = mark_period;
     }
     else if (sizearg( "-rhash", &argc, &argv, (int*)&o->gc_info.rhash ))
       ;
