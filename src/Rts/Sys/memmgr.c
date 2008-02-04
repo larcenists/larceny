@@ -87,6 +87,8 @@ struct gc_data {
   double rrof_load_factor;
     /* Lars put a load factor in each old-heap; RROF needs one load_factor */
 
+  bool   rrof_has_refine_factor; /* With factor R,                         */
+  double rrof_refinement_factor; /*   countdown = ceil((R*heap) / nursery) */
   int rrof_refine_mark_period;
   int rrof_refine_mark_countdown;
     /* In RROF collector, #nursery evacuations until refine remset via mark */
@@ -951,6 +953,41 @@ static bool scan_refine_remset( word loc, void *data, unsigned *stats )
   }
 }
 
+static void refine_remsets_via_marksweep( gc_t *gc ) 
+{
+  /* use the mark/sweep system to refine (*all* of) the
+   * remembered sets. */
+  msgc_context_t *context;
+  int i, rgn;
+  int marked=0, traced=0, words_marked=0; 
+  int total_float_words = 0, total_float_objects = 0;
+  context = msgc_begin( gc );
+  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+  
+  for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
+    rgn = i+1;
+    rs_enumerate( gc->remset[ rgn ], scan_refine_remset, context );
+  }
+  
+  if (DATA(gc)->rrof_refine_mark_period > 0) {
+    DATA(gc)->rrof_refine_mark_countdown = 
+      DATA(gc)->rrof_refine_mark_period;
+  } else if (DATA(gc)->rrof_has_refine_factor) {
+    double R = DATA(gc)->rrof_refinement_factor;
+    int new_countdown;
+    new_countdown = 
+      (int)((R*(double)(sizeof(word)*words_marked)) 
+	    / ((double)gc->young_area->allocated));
+    assert( new_countdown >= 0 );
+    DATA(gc)->rrof_refine_mark_countdown = new_countdown;
+    if (0) consolemsg("revised mark countdown: %d", new_countdown );
+  } else {
+    assert(0);
+  }
+  
+  msgc_end( context );
+}
+
 static int cycle_count = 0;
 static void completed_regional_cycle( gc_t *gc ) 
 {
@@ -1151,6 +1188,11 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  }
 	  goto collect_evacuate_nursery;
 	}
+
+	if (DATA(gc)->rrof_refine_mark_countdown == 0) {
+	  refine_remsets_via_marksweep( gc );
+	}
+
 	build_remset_summary( gc, rgn_idx );
 
 	/* Temporary detective code: if the summary is overly large,
@@ -1166,26 +1208,6 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	
 	if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
 	     DATA(gc)->remset_summary->live <= POPULARITY_LIMIT ) {
-
-	  if (DATA(gc)->rrof_refine_mark_countdown == 0) {
-	    DATA(gc)->rrof_refine_mark_countdown = 
-	      DATA(gc)->rrof_refine_mark_period;
-
-	    /* use the mark/sweep system to refine (*all* of) the
-	     * remembered sets. */
-	    msgc_context_t *context;
-	    int i, rgn;
-	    int marked=0, traced=0, words_marked=0; 
-	    int total_float_words = 0, total_float_objects = 0;
-	    context = msgc_begin( gc );
-	    msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
-	    
-	    for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
-	      rgn = i+1;
-	      rs_enumerate( gc->remset[ rgn ], scan_refine_remset, context );
-	    }
-	    msgc_end( context );
-	  }
 
 	  if (use_oracle_to_update_remsets) 
 	    gc->scan_update_remset = FALSE;
@@ -2300,11 +2322,6 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   data->dynamic_min = info->dynamic_sc_info.dynamic_min;
   data->rrof_load_factor = info->dynamic_sc_info.load_factor;
 
-  if (info->mark_period) {
-    data->rrof_refine_mark_period = info->mark_period;
-    data->rrof_refine_mark_countdown = data->rrof_refine_mark_period;
-  }
-
   /* Create nursery. */
   gc->young_area = 
     create_nursery( gen_no, gc, &info->nursery_info, info->globals );
@@ -2386,6 +2403,26 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   else
     use_oracle_to_update_remsets = FALSE;
 
+  if (info->mark_period) {
+    assert(! info->has_refine_factor );
+    data->rrof_refine_mark_period = info->mark_period;
+    data->rrof_refine_mark_countdown 
+      = data->rrof_refine_mark_period;
+  }
+  if (info->has_refine_factor) {
+    double R = info->refinement_factor;
+    int countdown_to_first_mark;
+    assert(! info->mark_period);
+    data->rrof_has_refine_factor = TRUE;
+    data->rrof_refinement_factor = R;
+    /* semi-arbitrary guess at an expression for initial value */
+    countdown_to_first_mark = 
+      (int)(R*(double)size)/((double)info->nursery_info.size_bytes);
+    assert( countdown_to_first_mark >= 0 );
+    data->rrof_refine_mark_countdown = countdown_to_first_mark;
+    if (0) consolemsg("initial mark countdown: %d", countdown_to_first_mark );
+  }
+
   return gen_no;
 }
 
@@ -2432,6 +2469,9 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_to_region = 1;
   data->rrof_next_region = 0;
   data->rrof_last_tospace = -1;
+
+  data->rrof_has_refine_factor = FALSE;
+  data->rrof_refinement_factor = 0.0;
   data->rrof_refine_mark_period = -1;
   data->rrof_refine_mark_countdown = -1;
 
