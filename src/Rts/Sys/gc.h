@@ -69,6 +69,8 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   bool dont_shrink_heap;               /* In the nonconservative systems */
   bool use_oracle_to_update_remsets;   /* In the regional system. */
   int  mark_period;		       /* In the regional system. */
+  bool   has_refine_factor;	       /* In the regional system. */
+  double refinement_factor;	       /* In the regional system. */
 
   /* Common parameters */
   word *globals;		/* globals table used by collector */

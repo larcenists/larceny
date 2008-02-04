@@ -471,6 +471,7 @@ parse_options( int argc, char **argv, opt_t *o )
 {
   int i, loc, prev_size, areas = DEFAULT_AREAS;
   int mark_period;
+  double refine_factor = 0.0;
 #if defined( BDW_GC )
   double load_factor = 0.0;                   /* Ignore it. */
 #else
@@ -527,6 +528,10 @@ parse_options( int argc, char **argv, opt_t *o )
     }
     else if (numbarg( "-mark_period", &argc, &argv, &mark_period)) {
       o->gc_info.mark_period = mark_period;
+    }
+    else if (doublearg( "-refinement", &argc, &argv, &refine_factor)) {
+      o->gc_info.has_refine_factor = TRUE;
+      o->gc_info.refinement_factor = refine_factor;
     }
     else if (sizearg( "-rhash", &argc, &argv, (int*)&o->gc_info.rhash ))
       ;
