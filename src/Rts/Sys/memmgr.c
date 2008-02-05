@@ -102,6 +102,7 @@ struct gc_data {
 
   int stat_last_ms_remset_sumrize;
   int stat_last_ms_remset_sumrize_cpu;
+  int stat_length_minor_gc_run;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
@@ -1677,6 +1678,13 @@ static void stats_following_gc( gc_t *gc )
   stats_gclib.last_ms_gc_pause           = gc->stat_last_ms_gc_pause;
   stats_gclib.last_ms_gc_pause_cpu       = gc->stat_last_ms_gc_pause_cpu;
   stats_gclib.last_gc_pause_ismajor      = gc->stat_last_gc_pause_ismajor;
+  if (gc->stat_last_gc_pause_ismajor) {
+    stats_gclib.length_minor_gc_run = DATA(gc)->stat_length_minor_gc_run;
+    DATA(gc)->stat_length_minor_gc_run = 0;
+  } else {
+    stats_gclib.length_minor_gc_run = -1;
+    DATA(gc)->stat_length_minor_gc_run += 1;
+  }
   stats_gclib.last_ms_remset_sumrize     = DATA(gc)->stat_last_ms_remset_sumrize;
   stats_gclib.last_ms_remset_sumrize_cpu = DATA(gc)->stat_last_ms_remset_sumrize_cpu;
 
