@@ -75,7 +75,7 @@ static void full_collection( old_heap_t *heap );
 #endif
 static void start_timers( stats_id_t *timer1, stats_id_t *timer2 );
 static void stop_timers( bool is_promotion,
-			 old_data_t *data, 
+			 old_heap_t *heap, 
 			 int bytes_copied, int bytes_moved, 
 			 stats_id_t *timer1, stats_id_t *timer2 );
 
@@ -258,7 +258,7 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
   default:
     assert(0);
   }
-  stop_timers( (request==GCTYPE_PROMOTE), data, 
+  stop_timers( (request==GCTYPE_PROMOTE), heap, 
 	       bytes_copied, bytes_moved, &timer1, &timer2 );
 }
 
@@ -399,11 +399,12 @@ static void start_timers( stats_id_t *timer1, stats_id_t *timer2 ) {
 }
 
 static void stop_timers( bool is_promotion, 
-			 old_data_t *data, 
+			 old_heap_t *heap, 
 			 int bytes_copied, int bytes_moved, 
 			 stats_id_t *timer1, stats_id_t *timer2 ) {
   int ms;
   int ms_cpu;
+  old_data_t *data = DATA(heap);
 
   /* Why isn't this `+=' ?  I think it is benign in this collector. */
   data->gc_stats.words_copied = bytes2words( bytes_copied );
@@ -411,12 +412,16 @@ static void stop_timers( bool is_promotion,
 
   ms = stats_stop_timer( *timer1 );
   ms_cpu = stats_stop_timer( *timer2 );
+  heap->collector->stat_last_ms_gc_pause = ms;
+  heap->collector->stat_last_ms_gc_pause_cpu = ms_cpu;
   if (is_promotion) {
     data->gen_stats.ms_promotion += ms;
     data->gen_stats.ms_promotion_cpu += ms_cpu;
+    heap->collector->stat_last_gc_pause_ismajor = 0;
   } else {
     data->gen_stats.ms_collection += ms;
     data->gen_stats.ms_collection_cpu += ms_cpu;
+    heap->collector->stat_last_gc_pause_ismajor = 1;
   }
   data->gc_stats.max_ms_collection = 
     max( data->gc_stats.max_ms_collection, ms );
@@ -452,7 +457,7 @@ static void perform_collect( old_heap_t *heap )
   ss_sync( to );
 
   data->gen_stats.collections++;
-  stop_timers( FALSE, data, 
+  stop_timers( FALSE, heap, 
 	       to->used, 
 	       los_bytes_used( heap->collector->los, data->gen_no ),
 	       &timer1, &timer2 );
@@ -485,7 +490,7 @@ static void perform_promote( old_heap_t *heap )
   data->promoted_last_gc = used_space( heap ) - used_before;
 
   data->gen_stats.promotions++;
-  stop_timers( TRUE, data, 
+  stop_timers( TRUE, heap, 
 	       data->current_space->used - tospace_before,
 	       los_bytes_used(heap->collector->los, data->gen_no)-los_before,
 	       &timer1, &timer2 );

@@ -69,6 +69,10 @@ struct gc {
   int stat_total_remset_scan_cpu;
   int stat_remset_scan_count;
 
+  int stat_last_ms_gc_pause;
+  int stat_last_ms_gc_pause_cpu;
+  int stat_last_gc_pause_ismajor;
+
   void *data;
     /* Private data.
        */
