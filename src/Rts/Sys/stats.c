@@ -103,10 +103,14 @@ struct gclib_memstat {
   word total_mark_pause_cpu;
   word mark_pause_count;
 
+  word max_ms_minor;
+  word max_ms_minor_cpu;
   word total_ms_minor;
   word total_ms_minor_cpu;
   word count_minors;
   
+  word max_ms_major;
+  word max_ms_major_cpu;
   word total_ms_major;
   word total_ms_major_cpu;
   word count_majors;
@@ -554,24 +558,46 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
    * here's the actual code to put in the values. */
   RANGECASES( s->count_collect_, _ms, stats->last_ms_gc_pause );
   if (stats->last_gc_pause_ismajor) {
-    RANGECASES( s->count_majorgc_, _ms, stats->last_ms_gc_pause );
+    word ms_major     = stats->last_ms_gc_pause;
+    word ms_major_cpu = stats->last_ms_gc_pause_cpu;
+    RANGECASES( s->count_majorgc_, _ms, ms_major );
     RANGECASES_FINE( s->count_minor_, _runs, stats->length_minor_gc_run );
+    s->max_ms_major        = max( fixnum(ms_major),     s->max_ms_major );
+    s->max_ms_major_cpu    = max( fixnum(ms_major_cpu), s->max_ms_major_cpu );
     s->count_majors       += fixnum(1);
-    s->total_ms_major     += fixnum( stats->last_ms_gc_pause );
-    s->total_ms_major_cpu += fixnum( stats->last_ms_gc_pause_cpu );
+    s->total_ms_major     += fixnum( ms_major );
+    s->total_ms_major_cpu += fixnum( ms_major_cpu );
   } else {
-    RANGECASES( s->count_minorgc_, _ms, stats->last_ms_gc_pause );
+    word ms_minor     = stats->last_ms_gc_pause;
+    word ms_minor_cpu = stats->last_ms_gc_pause_cpu;
+    RANGECASES( s->count_minorgc_, _ms, ms_minor );
+    s->max_ms_minor        = max( fixnum(ms_minor),     s->max_ms_minor );
+    s->max_ms_minor_cpu    = max( fixnum(ms_minor_cpu), s->max_ms_minor_cpu );
     s->count_minors       += fixnum(1);
-    s->total_ms_minor     += fixnum( stats->last_ms_gc_pause );
-    s->total_ms_minor_cpu += fixnum( stats->last_ms_gc_pause_cpu );
+    s->total_ms_minor     += fixnum( ms_minor );
+    s->total_ms_minor_cpu += fixnum( ms_minor_cpu );
   }
   if (stats->last_ms_remset_sumrize == -1) {
   } else {
-    RANGECASES( s->count_sumrize_, _ms, stats->last_ms_remset_sumrize );
-    s->build_remset_summary_count += fixnum(1);
-    s->total_build_remset_summary += fixnum( stats->last_ms_remset_sumrize );
-    s->total_build_remset_summary_cpu += 
-      fixnum( stats->last_ms_remset_sumrize_cpu );
+    word ms     = stats->last_ms_remset_sumrize;
+    word ms_cpu = stats->last_ms_remset_sumrize_cpu;
+    RANGECASES( s->count_sumrize_, _ms, ms );
+    s->max_build_remset_summary        = max( ms, s->max_build_remset_summary);
+    s->max_build_remset_summary_cpu    = 
+      max( ms_cpu, s->max_build_remset_summary_cpu);
+    s->build_remset_summary_count     += fixnum(1);
+    s->total_build_remset_summary     += fixnum( ms );
+    s->total_build_remset_summary_cpu += fixnum( ms_cpu );
+  }
+  if (stats->last_ms_mark_refinement == -1) {
+  } else {
+    word ms     = fixnum( stats->last_ms_mark_refinement );
+    word ms_cpu = fixnum( stats->last_ms_mark_refinement_cpu );
+    s->max_mark_pause        = max( ms, s->max_mark_pause );
+    s->max_mark_pause_cpu    = max( ms_cpu, s->max_mark_pause_cpu );
+    s->mark_pause_count     += fixnum(1);
+    s->total_mark_pause     += ms;
+    s->total_mark_pause_cpu += ms_cpu;
   }
 }
 
@@ -800,8 +826,38 @@ static void fill_main_entries( word *vp )
   vp[ STAT_TOTAL_REMSET_SCAN ]     = gclib->total_remset_scan;
   vp[ STAT_TOTAL_REMSET_SCAN_CPU ] = gclib->total_remset_scan_cpu;
   vp[ STAT_REMSET_SCAN_COUNT ]     = gclib->remset_scan_count;
+
+  vp[ STAT_MAX_MARK_PAUSE ]          = gclib->max_mark_pause;
+  vp[ STAT_MAX_MARK_PAUSE_CPU ]      = gclib->max_mark_pause_cpu;
+  vp[ STAT_TOTAL_MARK_PAUSE ]        = gclib->total_mark_pause;
+  vp[ STAT_TOTAL_MARK_PAUSE_CPU ]    = gclib->total_mark_pause_cpu;
+  vp[ STAT_MARK_PAUSE_COUNT ]        = gclib->mark_pause_count;
+
   vp[ STAT_MAX_ENTRIES_REMSET_SCAN ]   = gclib->max_entries_remset_scan;
   vp[ STAT_TOTAL_ENTRIES_REMSET_SCAN ] = gclib->total_entries_remset_scan;
+
+  vp[ STAT_MAX_BUILD_REMSET_SUMMARY ]       = 
+    gclib->max_build_remset_summary;
+  vp[ STAT_MAX_BUILD_REMSET_SUMMARY_CPU ]   = 
+    gclib->max_build_remset_summary_cpu;
+  vp[ STAT_TOTAL_BUILD_REMSET_SUMMARY ]     = 
+    gclib->total_build_remset_summary;
+  vp[ STAT_TOTAL_BUILD_REMSET_SUMMARY_CPU ] = 
+    gclib->total_build_remset_summary_cpu;
+  vp[ STAT_BUILD_REMSET_SUMMARY_COUNT ]     =
+    gclib->build_remset_summary_count;
+
+  vp[ STAT_MAX_MAJORGC_PAUSE ]               = gclib->max_ms_major;
+  vp[ STAT_MAX_MAJORGC_PAUSE_CPU ]           = gclib->max_ms_major_cpu;
+  vp[ STAT_TOTAL_MAJORGC_PAUSE ]             = gclib->total_ms_major;
+  vp[ STAT_TOTAL_MAJORGC_PAUSE_CPU ]         = gclib->total_ms_major_cpu;
+  vp[ STAT_MAJORGC_PAUSE_COUNT ]             = gclib->count_majors;
+
+  vp[ STAT_MAX_MINORGC_PAUSE ]               = gclib->max_ms_minor;
+  vp[ STAT_MAX_MINORGC_PAUSE_CPU ]           = gclib->max_ms_minor_cpu;
+  vp[ STAT_TOTAL_MINORGC_PAUSE ]             = gclib->total_ms_minor;
+  vp[ STAT_TOTAL_MINORGC_PAUSE_CPU ]         = gclib->total_ms_minor_cpu;
+  vp[ STAT_MINORGC_PAUSE_COUNT ]             = gclib->count_minors;
 
 #define UPDATE_COUNT_COLLECT( lo, hi ) \
   vp[ STAT_COUNT_COLLECT_ ## lo ## _ ## hi ] = \
