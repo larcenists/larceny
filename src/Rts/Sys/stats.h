@@ -32,6 +32,12 @@ struct gclib_stats {
   int remset_scan_count;
   int max_entries_remset_scan;
   int total_entries_remset_scan;
+
+  int last_ms_gc_pause;           /* Time in core gc methods in last gc. */
+  int last_ms_gc_pause_cpu;
+  int last_gc_pause_ismajor;      /* 1 for major, 0 for minor */
+  int last_ms_remset_sumrize;     /* Time in remset summarizing in last gc. */
+  int last_ms_remset_sumrize_cpu;
 };
 
 struct gc_stats {
