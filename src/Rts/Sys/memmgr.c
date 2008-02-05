@@ -102,6 +102,8 @@ struct gc_data {
 
   int stat_last_ms_remset_sumrize;
   int stat_last_ms_remset_sumrize_cpu;
+  int stat_last_ms_mark_refinement;
+  int stat_last_ms_mark_refinement_cpu;
   int stat_length_minor_gc_run;
 };
 
@@ -1123,6 +1125,17 @@ static void stop_sumrize_timers( gc_t *gc,
   DATA(gc)->stat_last_ms_remset_sumrize_cpu = ms_cpu;
 }
 
+static void stop_refinem_timers( gc_t *gc, 
+				 stats_id_t *timer1, stats_id_t *timer2 )
+{
+  int ms, ms_cpu;
+  ms     = stats_stop_timer( *timer1 );
+  ms_cpu = stats_stop_timer( *timer2 );
+  
+  DATA(gc)->stat_last_ms_mark_refinement     = ms;
+  DATA(gc)->stat_last_ms_mark_refinement_cpu = ms_cpu;
+}
+
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
@@ -1213,7 +1226,10 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	}
 
 	if (DATA(gc)->rrof_refine_mark_countdown == 0) {
+	  stats_id_t timer1, timer2;
+	  start_timers( &timer1, &timer2 );
 	  refine_remsets_via_marksweep( gc );
+	  stop_refinem_timers( gc, &timer1, &timer2 );
 	}
 
 	{ 
@@ -1417,7 +1433,9 @@ static void before_collection( gc_t *gc )
   gc->stat_last_gc_pause_ismajor = -1;
   DATA(gc)->stat_last_ms_remset_sumrize = -1;
   DATA(gc)->stat_last_ms_remset_sumrize_cpu = -1;
-  
+  DATA(gc)->stat_last_ms_mark_refinement = -1;
+  DATA(gc)->stat_last_ms_mark_refinement_cpu = -1;
+
   /* For debugging of prototype;
    * double check heap consistency via mark/sweep routines.
    * (before collection means that mutator introduced inconsistency) */
@@ -1685,9 +1703,14 @@ static void stats_following_gc( gc_t *gc )
     stats_gclib.length_minor_gc_run = -1;
     DATA(gc)->stat_length_minor_gc_run += 1;
   }
-  stats_gclib.last_ms_remset_sumrize     = DATA(gc)->stat_last_ms_remset_sumrize;
-  stats_gclib.last_ms_remset_sumrize_cpu = DATA(gc)->stat_last_ms_remset_sumrize_cpu;
-
+  stats_gclib.last_ms_remset_sumrize     = 
+    DATA(gc)->stat_last_ms_remset_sumrize;
+  stats_gclib.last_ms_remset_sumrize_cpu = 
+    DATA(gc)->stat_last_ms_remset_sumrize_cpu;
+  stats_gclib.last_ms_mark_refinement     = 
+    DATA(gc)->stat_last_ms_mark_refinement;
+  stats_gclib.last_ms_mark_refinement_cpu = 
+    DATA(gc)->stat_last_ms_mark_refinement_cpu;
   stats_add_gclib_stats( &stats_gclib );
 
   stats_dumpstate();		/* Dumps stats state if dumping is on */
