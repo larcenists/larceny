@@ -96,6 +96,114 @@ struct gclib_memstat {
   word remset_scan_count;
   word max_entries_remset_scan;
   word total_entries_remset_scan;
+
+  word max_mark_pause;
+  word max_mark_pause_cpu;
+  word total_mark_pause;
+  word total_mark_pause_cpu;
+  word mark_pause_count;
+
+  word total_ms_minor;
+  word total_ms_minor_cpu;
+  word count_minors;
+  
+  word total_ms_major;
+  word total_ms_major_cpu;
+  word count_majors;
+  
+  word max_build_remset_summary;
+  word max_build_remset_summary_cpu;
+  word total_build_remset_summary;
+  word total_build_remset_summary_cpu;
+  word build_remset_summary_count;
+  
+  word count_collect_00_10_ms;
+  word count_collect_10_20_ms;
+  word count_collect_20_30_ms;
+  word count_collect_30_40_ms;
+  word count_collect_40_50_ms;
+  word count_collect_50_60_ms;
+  word count_collect_60_70_ms;
+  word count_collect_70_80_ms;
+  word count_collect_80_90_ms;
+  word count_collect_90_100_ms;
+  word count_collect_100_200_ms;
+  word count_collect_200_300_ms;
+  word count_collect_300_400_ms;
+  word count_collect_400_500_ms;
+  word count_collect_500_600_ms;
+  word count_collect_600_700_ms;
+  word count_collect_700_800_ms;
+  word count_collect_800_900_ms;
+  word count_collect_900_1000_ms;
+  word count_collect_1000_2000_ms;
+  word count_collect_geq_2000_ms;
+
+  word count_minorgc_00_10_ms;
+  word count_minorgc_10_20_ms;
+  word count_minorgc_20_30_ms;
+  word count_minorgc_30_40_ms;
+  word count_minorgc_40_50_ms;
+  word count_minorgc_50_60_ms;
+  word count_minorgc_60_70_ms;
+  word count_minorgc_70_80_ms;
+  word count_minorgc_80_90_ms;
+  word count_minorgc_90_100_ms;
+  word count_minorgc_100_200_ms;
+  word count_minorgc_200_300_ms;
+  word count_minorgc_300_400_ms;
+  word count_minorgc_400_500_ms;
+  word count_minorgc_500_600_ms;
+  word count_minorgc_600_700_ms;
+  word count_minorgc_700_800_ms;
+  word count_minorgc_800_900_ms;
+  word count_minorgc_900_1000_ms;
+  word count_minorgc_1000_2000_ms;
+  word count_minorgc_geq_2000_ms;
+
+  word count_majorgc_00_10_ms;
+  word count_majorgc_10_20_ms;
+  word count_majorgc_20_30_ms;
+  word count_majorgc_30_40_ms;
+  word count_majorgc_40_50_ms;
+  word count_majorgc_50_60_ms;
+  word count_majorgc_60_70_ms;
+  word count_majorgc_70_80_ms;
+  word count_majorgc_80_90_ms;
+  word count_majorgc_90_100_ms;
+  word count_majorgc_100_200_ms;
+  word count_majorgc_200_300_ms;
+  word count_majorgc_300_400_ms;
+  word count_majorgc_400_500_ms;
+  word count_majorgc_500_600_ms;
+  word count_majorgc_600_700_ms;
+  word count_majorgc_700_800_ms;
+  word count_majorgc_800_900_ms;
+  word count_majorgc_900_1000_ms;
+  word count_majorgc_1000_2000_ms;
+  word count_majorgc_geq_2000_ms;
+
+  word count_sumrize_00_10_ms;
+  word count_sumrize_10_20_ms;
+  word count_sumrize_20_30_ms;
+  word count_sumrize_30_40_ms;
+  word count_sumrize_40_50_ms;
+  word count_sumrize_50_60_ms;
+  word count_sumrize_60_70_ms;
+  word count_sumrize_70_80_ms;
+  word count_sumrize_80_90_ms;
+  word count_sumrize_90_100_ms;
+  word count_sumrize_100_200_ms;
+  word count_sumrize_200_300_ms;
+  word count_sumrize_300_400_ms;
+  word count_sumrize_400_500_ms;
+  word count_sumrize_500_600_ms;
+  word count_sumrize_600_700_ms;
+  word count_sumrize_700_800_ms;
+  word count_sumrize_800_900_ms;
+  word count_sumrize_900_1000_ms;
+  word count_sumrize_1000_2000_ms;
+  word count_sumrize_geq_2000_ms;
 };
 
 struct gc_memstat {
@@ -344,6 +452,61 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   PUT_WORD( stats, s, remset_scan_count );
   PUT_WORD( stats, s, max_entries_remset_scan );
   PUT_WORD( stats, s, total_entries_remset_scan );
+
+#define RANGECASE(lo, hi, recv_prefix, arg)     \
+  else if (lo <= arg && arg < hi)            \
+    recv_prefix ## lo ## _ ## hi ## _ms += fixnum(1)
+
+  /* Note that the leading zero in 00 below is signifcant, 
+   * since the token is turned into an identifier as well
+   * as being used to represent zero. */
+#define RANGECASES( recv_prefix, arg )          \
+  do {                                          \
+    if (0);                                     \
+    RANGECASE(   00,   10, recv_prefix, arg );  \
+    RANGECASE(   10,   20, recv_prefix, arg );  \
+    RANGECASE(   20,   30, recv_prefix, arg );  \
+    RANGECASE(   30,   40, recv_prefix, arg );  \
+    RANGECASE(   40,   50, recv_prefix, arg );  \
+    RANGECASE(   50,   60, recv_prefix, arg );  \
+    RANGECASE(   60,   70, recv_prefix, arg );  \
+    RANGECASE(   70,   80, recv_prefix, arg );  \
+    RANGECASE(   80,   90, recv_prefix, arg );  \
+    RANGECASE(   90,  100, recv_prefix, arg );  \
+    RANGECASE(  100,  200, recv_prefix, arg );  \
+    RANGECASE(  200,  300, recv_prefix, arg );  \
+    RANGECASE(  300,  400, recv_prefix, arg );  \
+    RANGECASE(  400,  500, recv_prefix, arg );  \
+    RANGECASE(  500,  600, recv_prefix, arg );  \
+    RANGECASE(  600,  700, recv_prefix, arg );  \
+    RANGECASE(  700,  800, recv_prefix, arg );  \
+    RANGECASE(  800,  900, recv_prefix, arg );  \
+    RANGECASE(  900, 1000, recv_prefix, arg );  \
+    RANGECASE( 1000, 2000, recv_prefix, arg );  \
+    else { assert(arg > 1000);                  \
+      recv_prefix ## geq_2000_ms += fixnum(1);  \
+    }                                           \
+  } while (0)
+  
+  /* okay, now that we have the above helper macros,
+   * here's the actual code to put in the values. */
+  RANGECASES( s->count_collect_, stats->last_ms_gc_pause );
+  if (stats->last_gc_pause_ismajor) {
+    RANGECASES( s->count_majorgc_, stats->last_ms_gc_pause );
+    s->count_majors       += fixnum(1);
+    s->total_ms_major     += fixnum( stats->last_ms_gc_pause );
+    s->total_ms_major_cpu += fixnum( stats->last_ms_gc_pause_cpu );
+  } else {
+    RANGECASES( s->count_minorgc_, stats->last_ms_gc_pause );
+    s->count_minors       += fixnum(1);
+    s->total_ms_minor     += fixnum( stats->last_ms_gc_pause );
+    s->total_ms_minor_cpu += fixnum( stats->last_ms_gc_pause_cpu );
+  }
+  RANGECASES( s->count_sumrize_, stats->last_ms_remset_sumrize );
+  s->build_remset_summary_count += fixnum(1);
+  s->total_build_remset_summary += fixnum( stats->last_ms_remset_sumrize );
+  s->total_build_remset_summary_cpu += 
+    fixnum( stats->last_ms_remset_sumrize_cpu );
 }
 
 void stats_add_gc_stats( gc_stats_t *stats )
@@ -573,6 +736,106 @@ static void fill_main_entries( word *vp )
   vp[ STAT_REMSET_SCAN_COUNT ]     = gclib->remset_scan_count;
   vp[ STAT_MAX_ENTRIES_REMSET_SCAN ]   = gclib->max_entries_remset_scan;
   vp[ STAT_TOTAL_ENTRIES_REMSET_SCAN ] = gclib->total_entries_remset_scan;
+
+#define UPDATE_COUNT_COLLECT( lo, hi ) \
+  vp[ STAT_COUNT_COLLECT_ ## lo ## _ ## hi ] = \
+    gclib->count_collect_ ## lo ## _ ## hi ## _ms
+  UPDATE_COUNT_COLLECT( 00, 10 );
+  UPDATE_COUNT_COLLECT( 10, 20 );
+  UPDATE_COUNT_COLLECT( 20, 30 );
+  UPDATE_COUNT_COLLECT( 30, 40 );
+  UPDATE_COUNT_COLLECT( 40, 50 );
+  UPDATE_COUNT_COLLECT( 50, 60 );
+  UPDATE_COUNT_COLLECT( 60, 70 );
+  UPDATE_COUNT_COLLECT( 70, 80 );
+  UPDATE_COUNT_COLLECT( 80, 90 );
+  UPDATE_COUNT_COLLECT( 90, 100 );
+  UPDATE_COUNT_COLLECT( 100, 200 );
+  UPDATE_COUNT_COLLECT( 200, 300 );
+  UPDATE_COUNT_COLLECT( 300, 400 );
+  UPDATE_COUNT_COLLECT( 400, 500 );
+  UPDATE_COUNT_COLLECT( 500, 600 );
+  UPDATE_COUNT_COLLECT( 600, 700 );
+  UPDATE_COUNT_COLLECT( 700, 800 );
+  UPDATE_COUNT_COLLECT( 800, 900 );
+  UPDATE_COUNT_COLLECT( 900, 1000 );
+  UPDATE_COUNT_COLLECT( 1000, 2000 );
+  vp[ STAT_COUNT_COLLECT_GEQ_2000 ] = gclib->count_collect_geq_2000_ms;
+
+#define UPDATE_COUNT_MINORGC( lo, hi ) \
+  vp[ STAT_COUNT_MINORGC_ ## lo ## _ ## hi ] = \
+    gclib->count_minorgc_ ## lo ## _ ## hi ## _ms
+  UPDATE_COUNT_MINORGC( 00, 10 );
+  UPDATE_COUNT_MINORGC( 10, 20 );
+  UPDATE_COUNT_MINORGC( 20, 30 );
+  UPDATE_COUNT_MINORGC( 30, 40 );
+  UPDATE_COUNT_MINORGC( 40, 50 );
+  UPDATE_COUNT_MINORGC( 50, 60 );
+  UPDATE_COUNT_MINORGC( 60, 70 );
+  UPDATE_COUNT_MINORGC( 70, 80 );
+  UPDATE_COUNT_MINORGC( 80, 90 );
+  UPDATE_COUNT_MINORGC( 90, 100 );
+  UPDATE_COUNT_MINORGC( 100, 200 );
+  UPDATE_COUNT_MINORGC( 200, 300 );
+  UPDATE_COUNT_MINORGC( 300, 400 );
+  UPDATE_COUNT_MINORGC( 400, 500 );
+  UPDATE_COUNT_MINORGC( 500, 600 );
+  UPDATE_COUNT_MINORGC( 600, 700 );
+  UPDATE_COUNT_MINORGC( 700, 800 );
+  UPDATE_COUNT_MINORGC( 800, 900 );
+  UPDATE_COUNT_MINORGC( 900, 1000 );
+  UPDATE_COUNT_MINORGC( 1000, 2000 );
+  vp[ STAT_COUNT_MINORGC_GEQ_2000 ] = gclib->count_minorgc_geq_2000_ms;
+
+#define UPDATE_COUNT_MAJORGC( lo, hi ) \
+  vp[ STAT_COUNT_MAJORGC_ ## lo ## _ ## hi ] = \
+    gclib->count_majorgc_ ## lo ## _ ## hi ## _ms
+  UPDATE_COUNT_MAJORGC( 00, 10 );
+  UPDATE_COUNT_MAJORGC( 10, 20 );
+  UPDATE_COUNT_MAJORGC( 20, 30 );
+  UPDATE_COUNT_MAJORGC( 30, 40 );
+  UPDATE_COUNT_MAJORGC( 40, 50 );
+  UPDATE_COUNT_MAJORGC( 50, 60 );
+  UPDATE_COUNT_MAJORGC( 60, 70 );
+  UPDATE_COUNT_MAJORGC( 70, 80 );
+  UPDATE_COUNT_MAJORGC( 80, 90 );
+  UPDATE_COUNT_MAJORGC( 90, 100 );
+  UPDATE_COUNT_MAJORGC( 100, 200 );
+  UPDATE_COUNT_MAJORGC( 200, 300 );
+  UPDATE_COUNT_MAJORGC( 300, 400 );
+  UPDATE_COUNT_MAJORGC( 400, 500 );
+  UPDATE_COUNT_MAJORGC( 500, 600 );
+  UPDATE_COUNT_MAJORGC( 600, 700 );
+  UPDATE_COUNT_MAJORGC( 700, 800 );
+  UPDATE_COUNT_MAJORGC( 800, 900 );
+  UPDATE_COUNT_MAJORGC( 900, 1000 );
+  UPDATE_COUNT_MAJORGC( 1000, 2000 );
+  vp[ STAT_COUNT_MAJORGC_GEQ_2000 ] = gclib->count_majorgc_geq_2000_ms;
+
+#define UPDATE_COUNT_SUMMARIZE( lo, hi ) \
+  vp[ STAT_COUNT_SUMMARIZE_ ## lo ## _ ## hi ] = \
+    gclib->count_sumrize_ ## lo ## _ ## hi ## _ms
+  UPDATE_COUNT_SUMMARIZE( 00, 10 );
+  UPDATE_COUNT_SUMMARIZE( 10, 20 );
+  UPDATE_COUNT_SUMMARIZE( 20, 30 );
+  UPDATE_COUNT_SUMMARIZE( 30, 40 );
+  UPDATE_COUNT_SUMMARIZE( 40, 50 );
+  UPDATE_COUNT_SUMMARIZE( 50, 60 );
+  UPDATE_COUNT_SUMMARIZE( 60, 70 );
+  UPDATE_COUNT_SUMMARIZE( 70, 80 );
+  UPDATE_COUNT_SUMMARIZE( 80, 90 );
+  UPDATE_COUNT_SUMMARIZE( 90, 100 );
+  UPDATE_COUNT_SUMMARIZE( 100, 200 );
+  UPDATE_COUNT_SUMMARIZE( 200, 300 );
+  UPDATE_COUNT_SUMMARIZE( 300, 400 );
+  UPDATE_COUNT_SUMMARIZE( 400, 500 );
+  UPDATE_COUNT_SUMMARIZE( 500, 600 );
+  UPDATE_COUNT_SUMMARIZE( 600, 700 );
+  UPDATE_COUNT_SUMMARIZE( 700, 800 );
+  UPDATE_COUNT_SUMMARIZE( 800, 900 );
+  UPDATE_COUNT_SUMMARIZE( 900, 1000 );
+  UPDATE_COUNT_SUMMARIZE( 1000, 2000 );
+  vp[ STAT_COUNT_SUMMARIZE_GEQ_2000 ] = gclib->count_sumrize_geq_2000_ms;
 
   /* gc */
   vp[ STAT_WALLOCATED_HI ] = gc->allocated_hi;
