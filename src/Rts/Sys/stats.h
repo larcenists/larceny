@@ -38,6 +38,8 @@ struct gclib_stats {
   int last_gc_pause_ismajor;      /* 1 for major, 0 for minor */
   int last_ms_remset_sumrize;     /* Time in remset summarizing in last gc. */
   int last_ms_remset_sumrize_cpu;
+  int last_ms_mark_refinement;    /* Time in remset refinement in last gc. */
+  int last_ms_mark_refinement_cpu;
   int length_minor_gc_run;        /* Num of consecutive minor gc's (so far) */
 };
 
