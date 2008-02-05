@@ -502,11 +502,14 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
     s->total_ms_minor     += fixnum( stats->last_ms_gc_pause );
     s->total_ms_minor_cpu += fixnum( stats->last_ms_gc_pause_cpu );
   }
-  RANGECASES( s->count_sumrize_, stats->last_ms_remset_sumrize );
-  s->build_remset_summary_count += fixnum(1);
-  s->total_build_remset_summary += fixnum( stats->last_ms_remset_sumrize );
-  s->total_build_remset_summary_cpu += 
-    fixnum( stats->last_ms_remset_sumrize_cpu );
+  if (stats->last_ms_remset_sumrize == -1) {
+  } else {
+    RANGECASES( s->count_sumrize_, stats->last_ms_remset_sumrize );
+    s->build_remset_summary_count += fixnum(1);
+    s->total_build_remset_summary += fixnum( stats->last_ms_remset_sumrize );
+    s->total_build_remset_summary_cpu += 
+      fixnum( stats->last_ms_remset_sumrize_cpu );
+  }
 }
 
 void stats_add_gc_stats( gc_stats_t *stats )
