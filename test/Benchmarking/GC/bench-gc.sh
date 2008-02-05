@@ -54,7 +54,7 @@ echo "running LARCENY=${LARCENY}"
 # twobitshort
 # 5twobitshort
 
-AFTER_BENCH='(let ((m (memstats))) (newline) (display "{Max words, ") (for-each (lambda (nm+idx) (display (car nm+idx)) (display (vector-ref m (cadr nm+idx)))) (quote (("Mem: "  42) (" Heap: " 27) (" Remset: " 31) (" Rts: " 32) (" Waste: " 33)))) (display "}") (newline))'
+AFTER_BENCH='(let ((m (memstats))) (newline) (display "{Max words, ") (for-each (lambda (nm+idx) (display (car nm+idx)) (display (vector-ref m (cadr nm+idx)))) (quote (("Mem: "  42) (" Heap: " 27) (" Remset: " 31) (" Rts: " 32) (" Waste: " 33)))) (display "}") (newline) (for-each (lambda (name+idxs) (let ((name (car name+idxs)) (idxs (cadr name+idxs))) (pretty-print (quasiquote ((unquote name) (unquote (map (lambda (idx) (vector-ref m idx)) idxs))))))) (quote (("MREFINE" (60 61 62 59 58)) ("MINORGC" (65 66 67 63 64)) ("MAJORGC" (70 71 72 68 69)) ("SUMRIZE" (75 76 77 73 74)) ("MINORS" (79)) ("MAJORS" (80)) ("SUMRIZES" (81)) ("MINORUN" (82))))))'
 # AFTER_BENCH='(let ((m (memstats))) (for-each (lambda (nm+idx) (display (car nm+idx)) (display (vector-ref m (cadr nm+idx))) (newline)) (quote (("Max Mem: "  42) ("Max Heap: " 27) ("Max Remset: " 31) ("Max Rts: " 32) ("Max Waste: " 33)))) (for-each (lambda (idx) (pretty-print (vector-ref m idx))) (list 56 57 58)))'
 
 echo '(earley-benchmark 12 5)' ${AFTER_BENCH}     | ${LARCENY} -- earley.fasl
