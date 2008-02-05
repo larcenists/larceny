@@ -204,6 +204,28 @@ struct gclib_memstat {
   word count_sumrize_900_1000_ms;
   word count_sumrize_1000_2000_ms;
   word count_sumrize_geq_2000_ms;
+
+  word count_minor_00_10_runs;
+  word count_minor_10_20_runs;
+  word count_minor_20_30_runs;
+  word count_minor_30_40_runs;
+  word count_minor_40_50_runs;
+  word count_minor_50_60_runs;
+  word count_minor_60_70_runs;
+  word count_minor_70_80_runs;
+  word count_minor_80_90_runs;
+  word count_minor_90_100_runs;
+  word count_minor_100_200_runs;
+  word count_minor_200_300_runs;
+  word count_minor_300_400_runs;
+  word count_minor_400_500_runs;
+  word count_minor_500_600_runs;
+  word count_minor_600_700_runs;
+  word count_minor_700_800_runs;
+  word count_minor_800_900_runs;
+  word count_minor_900_1000_runs;
+  word count_minor_1000_2000_runs;
+  word count_minor_geq_2000_runs;
 };
 
 struct gc_memstat {
@@ -453,58 +475,59 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   PUT_WORD( stats, s, max_entries_remset_scan );
   PUT_WORD( stats, s, total_entries_remset_scan );
 
-#define RANGECASE(lo, hi, recv_prefix, arg)     \
+#define RANGECASE(lo, hi, recv_prefix, recv_suffix, arg)     \
   else if (lo <= arg && arg < hi)            \
-    recv_prefix ## lo ## _ ## hi ## _ms += fixnum(1)
+    recv_prefix ## lo ## _ ## hi ## recv_suffix += fixnum(1)
 
   /* Note that the leading zero in 00 below is signifcant, 
    * since the token is turned into an identifier as well
    * as being used to represent zero. */
-#define RANGECASES( recv_prefix, arg )          \
+#define RANGECASES( recv_prefix, recv_suffix, arg )          \
   do {                                          \
     if (0);                                     \
-    RANGECASE(   00,   10, recv_prefix, arg );  \
-    RANGECASE(   10,   20, recv_prefix, arg );  \
-    RANGECASE(   20,   30, recv_prefix, arg );  \
-    RANGECASE(   30,   40, recv_prefix, arg );  \
-    RANGECASE(   40,   50, recv_prefix, arg );  \
-    RANGECASE(   50,   60, recv_prefix, arg );  \
-    RANGECASE(   60,   70, recv_prefix, arg );  \
-    RANGECASE(   70,   80, recv_prefix, arg );  \
-    RANGECASE(   80,   90, recv_prefix, arg );  \
-    RANGECASE(   90,  100, recv_prefix, arg );  \
-    RANGECASE(  100,  200, recv_prefix, arg );  \
-    RANGECASE(  200,  300, recv_prefix, arg );  \
-    RANGECASE(  300,  400, recv_prefix, arg );  \
-    RANGECASE(  400,  500, recv_prefix, arg );  \
-    RANGECASE(  500,  600, recv_prefix, arg );  \
-    RANGECASE(  600,  700, recv_prefix, arg );  \
-    RANGECASE(  700,  800, recv_prefix, arg );  \
-    RANGECASE(  800,  900, recv_prefix, arg );  \
-    RANGECASE(  900, 1000, recv_prefix, arg );  \
-    RANGECASE( 1000, 2000, recv_prefix, arg );  \
-    else { assert(arg > 1000);                  \
-      recv_prefix ## geq_2000_ms += fixnum(1);  \
-    }                                           \
+    RANGECASE(   00,   10, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   10,   20, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   20,   30, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   30,   40, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   40,   50, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   50,   60, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   60,   70, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   70,   80, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   80,   90, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   90,  100, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  100,  200, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  200,  300, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  300,  400, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  400,  500, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  500,  600, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  600,  700, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  700,  800, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  800,  900, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  900, 1000, recv_prefix, recv_suffix, arg );  \
+    RANGECASE( 1000, 2000, recv_prefix, recv_suffix, arg );  \
+    else { assert(arg > 1000);                               \
+      recv_prefix ## geq_2000 ## recv_suffix += fixnum(1);   \
+    }                                                        \
   } while (0)
   
   /* okay, now that we have the above helper macros,
    * here's the actual code to put in the values. */
-  RANGECASES( s->count_collect_, stats->last_ms_gc_pause );
+  RANGECASES( s->count_collect_, _ms, stats->last_ms_gc_pause );
   if (stats->last_gc_pause_ismajor) {
-    RANGECASES( s->count_majorgc_, stats->last_ms_gc_pause );
+    RANGECASES( s->count_majorgc_, _ms, stats->last_ms_gc_pause );
+    RANGECASES( s->count_minor_, _runs, stats->length_minor_gc_run );
     s->count_majors       += fixnum(1);
     s->total_ms_major     += fixnum( stats->last_ms_gc_pause );
     s->total_ms_major_cpu += fixnum( stats->last_ms_gc_pause_cpu );
   } else {
-    RANGECASES( s->count_minorgc_, stats->last_ms_gc_pause );
+    RANGECASES( s->count_minorgc_, _ms, stats->last_ms_gc_pause );
     s->count_minors       += fixnum(1);
     s->total_ms_minor     += fixnum( stats->last_ms_gc_pause );
     s->total_ms_minor_cpu += fixnum( stats->last_ms_gc_pause_cpu );
   }
   if (stats->last_ms_remset_sumrize == -1) {
   } else {
-    RANGECASES( s->count_sumrize_, stats->last_ms_remset_sumrize );
+    RANGECASES( s->count_sumrize_, _ms, stats->last_ms_remset_sumrize );
     s->build_remset_summary_count += fixnum(1);
     s->total_build_remset_summary += fixnum( stats->last_ms_remset_sumrize );
     s->total_build_remset_summary_cpu += 
@@ -839,6 +862,31 @@ static void fill_main_entries( word *vp )
   UPDATE_COUNT_SUMMARIZE( 900, 1000 );
   UPDATE_COUNT_SUMMARIZE( 1000, 2000 );
   vp[ STAT_COUNT_SUMMARIZE_GEQ_2000 ] = gclib->count_sumrize_geq_2000_ms;
+
+#define UPDATE_COUNT_MINOR_RUNS( lo, hi ) \
+  vp[ STAT_COUNT_MINOR_RUNS_ ## lo ## _ ## hi ] = \
+    gclib->count_minor_ ## lo ## _ ## hi ## _runs
+  UPDATE_COUNT_MINOR_RUNS( 00, 10 );
+  UPDATE_COUNT_MINOR_RUNS( 10, 20 );
+  UPDATE_COUNT_MINOR_RUNS( 20, 30 );
+  UPDATE_COUNT_MINOR_RUNS( 30, 40 );
+  UPDATE_COUNT_MINOR_RUNS( 40, 50 );
+  UPDATE_COUNT_MINOR_RUNS( 50, 60 );
+  UPDATE_COUNT_MINOR_RUNS( 60, 70 );
+  UPDATE_COUNT_MINOR_RUNS( 70, 80 );
+  UPDATE_COUNT_MINOR_RUNS( 80, 90 );
+  UPDATE_COUNT_MINOR_RUNS( 90, 100 );
+  UPDATE_COUNT_MINOR_RUNS( 100, 200 );
+  UPDATE_COUNT_MINOR_RUNS( 200, 300 );
+  UPDATE_COUNT_MINOR_RUNS( 300, 400 );
+  UPDATE_COUNT_MINOR_RUNS( 400, 500 );
+  UPDATE_COUNT_MINOR_RUNS( 500, 600 );
+  UPDATE_COUNT_MINOR_RUNS( 600, 700 );
+  UPDATE_COUNT_MINOR_RUNS( 700, 800 );
+  UPDATE_COUNT_MINOR_RUNS( 800, 900 );
+  UPDATE_COUNT_MINOR_RUNS( 900, 1000 );
+  UPDATE_COUNT_MINOR_RUNS( 1000, 2000 );
+  vp[ STAT_COUNT_MINOR_RUNS_GEQ_2000 ] = gclib->count_minor_geq_2000_runs;
 
   /* gc */
   vp[ STAT_WALLOCATED_HI ] = gc->allocated_hi;
