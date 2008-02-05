@@ -316,7 +316,11 @@
     (let ((maybe (lambda (lo hi val) (if (= val 0) '() (list (list lo hi val))))))
       (list->vector
        (apply append '(minorgc-run-length-histogram)
-              (maybe   0    10 (vector-ref v $mstat.count-minor-runs-00-10))
+              (maybe   0     2 (vector-ref v $mstat.count-minor-runs-00-02))
+              (maybe   2     4 (vector-ref v $mstat.count-minor-runs-02-04))
+              (maybe   4     6 (vector-ref v $mstat.count-minor-runs-04-06))
+              (maybe   6     8 (vector-ref v $mstat.count-minor-runs-06-08))
+              (maybe   8    10 (vector-ref v $mstat.count-minor-runs-08-10))
               (maybe  10    20 (vector-ref v $mstat.count-minor-runs-10-20))
               (maybe  20    30 (vector-ref v $mstat.count-minor-runs-20-30))
               (maybe  30    40 (vector-ref v $mstat.count-minor-runs-30-40))

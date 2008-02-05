@@ -205,7 +205,11 @@ struct gclib_memstat {
   word count_sumrize_1000_2000_ms;
   word count_sumrize_geq_2000_ms;
 
-  word count_minor_00_10_runs;
+  word count_minor_00_02_runs;
+  word count_minor_02_04_runs;
+  word count_minor_04_06_runs;
+  word count_minor_06_08_runs;
+  word count_minor_08_10_runs;
   word count_minor_10_20_runs;
   word count_minor_20_30_runs;
   word count_minor_30_40_runs;
@@ -479,6 +483,10 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   else if (lo <= arg && arg < hi)            \
     recv_prefix ## lo ## _ ## hi ## recv_suffix += fixnum(1)
 
+#define RANGECASE_ALT(lo, hi, lo_id, hi_id, recv_prefix, recv_suffix, arg) \
+  else if (lo <= arg && arg < hi)            \
+    recv_prefix ## lo_id ## _ ## hi_id ## recv_suffix += fixnum(1)
+
   /* Note that the leading zero in 00 below is signifcant, 
    * since the token is turned into an identifier as well
    * as being used to represent zero. */
@@ -509,13 +517,45 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
       recv_prefix ## geq_2000 ## recv_suffix += fixnum(1);   \
     }                                                        \
   } while (0)
+
+#define RANGECASES_FINE( recv_prefix, recv_suffix, arg )     \
+  do {                                          \
+    if (0);                                     \
+    RANGECASE_ALT(0,2, 00,02, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(2,4, 02,04, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(4,6, 04,06, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(6,8, 06,08, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(8,10,08,10, recv_prefix, recv_suffix, arg ); \
+    RANGECASE(   10,   20, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   20,   30, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   30,   40, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   40,   50, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   50,   60, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   60,   70, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   70,   80, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   80,   90, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   90,  100, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  100,  200, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  200,  300, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  300,  400, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  400,  500, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  500,  600, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  600,  700, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  700,  800, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  800,  900, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  900, 1000, recv_prefix, recv_suffix, arg );  \
+    RANGECASE( 1000, 2000, recv_prefix, recv_suffix, arg );  \
+    else { assert(arg > 1000);                               \
+      recv_prefix ## geq_2000 ## recv_suffix += fixnum(1);   \
+    }                                                        \
+  } while (0)
   
   /* okay, now that we have the above helper macros,
    * here's the actual code to put in the values. */
   RANGECASES( s->count_collect_, _ms, stats->last_ms_gc_pause );
   if (stats->last_gc_pause_ismajor) {
     RANGECASES( s->count_majorgc_, _ms, stats->last_ms_gc_pause );
-    RANGECASES( s->count_minor_, _runs, stats->length_minor_gc_run );
+    RANGECASES_FINE( s->count_minor_, _runs, stats->length_minor_gc_run );
     s->count_majors       += fixnum(1);
     s->total_ms_major     += fixnum( stats->last_ms_gc_pause );
     s->total_ms_major_cpu += fixnum( stats->last_ms_gc_pause_cpu );
@@ -866,7 +906,11 @@ static void fill_main_entries( word *vp )
 #define UPDATE_COUNT_MINOR_RUNS( lo, hi ) \
   vp[ STAT_COUNT_MINOR_RUNS_ ## lo ## _ ## hi ] = \
     gclib->count_minor_ ## lo ## _ ## hi ## _runs
-  UPDATE_COUNT_MINOR_RUNS( 00, 10 );
+  UPDATE_COUNT_MINOR_RUNS( 00, 02 );
+  UPDATE_COUNT_MINOR_RUNS( 02, 04 );
+  UPDATE_COUNT_MINOR_RUNS( 04, 06 );
+  UPDATE_COUNT_MINOR_RUNS( 06, 08 );
+  UPDATE_COUNT_MINOR_RUNS( 08, 10 );
   UPDATE_COUNT_MINOR_RUNS( 10, 20 );
   UPDATE_COUNT_MINOR_RUNS( 20, 30 );
   UPDATE_COUNT_MINOR_RUNS( 30, 40 );
