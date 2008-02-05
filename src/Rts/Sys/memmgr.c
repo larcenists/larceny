@@ -99,6 +99,12 @@ struct gc_data {
   remset_t *nursery_remset;     /* Points-into remset for the nursery. */
 
   semispace_t *secondary_space; /* NULL or space for when tospace overflows */
+
+  int stat_last_ms_gc_pause;
+  int stat_last_ms_gc_pause_cpu;
+  int stat_last_gc_pause_ismajor;
+  int stat_last_ms_remset_sumrize;
+  int stat_last_ms_remset_sumrize_cpu;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
@@ -120,7 +126,7 @@ static int
 dump_generational_system( gc_t *gc, const char *filename, bool compact );
 static int
 dump_stopcopy_system( gc_t *gc, const char *filename, bool compact );
-
+static void my_oh_collect( gc_t *gc, old_heap_t *heap, gc_type_t request );
 const int rrof_first_region = 1;
 
 gc_t *create_gc( gc_param_t *info, int *generations )
@@ -410,9 +416,9 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
   
   if (request == GCTYPE_EVACUATE) {
     if (gen < DATA(gc)->ephemeral_area_count) {
-      oh_collect( DATA(gc)->ephemeral_area[ gen ], GCTYPE_PROMOTE );
+      my_oh_collect( gc, DATA(gc)->ephemeral_area[ gen ], GCTYPE_PROMOTE );
     } else if (DATA(gc)->dynamic_area) {
-      oh_collect( DATA(gc)->dynamic_area, GCTYPE_PROMOTE );
+      my_oh_collect( gc, DATA(gc)->dynamic_area, GCTYPE_PROMOTE );
     } else {
       /* Both kinds of young heaps ignore the request parameter, 
        * so the third argument below isn't relevant. */
@@ -421,9 +427,9 @@ static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
   } else if (gen == 0) {
     yh_collect( gc->young_area, bytes_needed, request );
   } else if (gen-1 < DATA(gc)->ephemeral_area_count) {
-    oh_collect( DATA(gc)->ephemeral_area[ gen-1 ], request );
+    my_oh_collect( gc, DATA(gc)->ephemeral_area[ gen-1 ], request );
   } else if (DATA(gc)->dynamic_area) {
-    oh_collect( DATA(gc)->dynamic_area, request );
+    my_oh_collect( gc, DATA(gc)->dynamic_area, request );
   } else {
     /* Both kinds of young heaps ignore the request parameter, 
      * so the third argument below isn't relevant. */
@@ -1100,6 +1106,49 @@ static bool print_object_not_in_summary( word ptr, void *data, unsigned *count )
   return TRUE;
 }
 
+static void start_timers( stats_id_t *timer1, stats_id_t *timer2 )
+{
+  *timer1 = stats_start_timer( TIMER_ELAPSED );
+  *timer2 = stats_start_timer( TIMER_CPU );
+}
+
+static void stop_collect_timers( gc_t *gc, gc_type_t request, 
+				 stats_id_t *timer1, stats_id_t *timer2 ) 
+{
+  int ms, ms_cpu;
+  ms     = stats_stop_timer( *timer1 );
+  ms_cpu = stats_stop_timer( *timer2 );
+  
+  DATA(gc)->stat_last_ms_gc_pause     = ms;
+  DATA(gc)->stat_last_ms_gc_pause_cpu = ms_cpu;
+  if (request == GCTYPE_PROMOTE) {
+    DATA(gc)->stat_last_gc_pause_ismajor = 0;
+  } else if (request == GCTYPE_COLLECT) {
+    DATA(gc)->stat_last_gc_pause_ismajor = 1;
+  } else {
+    assert(0);
+  }
+}
+
+static void stop_sumrize_timers( gc_t *gc, 
+				 stats_id_t *timer1, stats_id_t *timer2 ) 
+{
+  int ms, ms_cpu;
+  ms     = stats_stop_timer( *timer1 );
+  ms_cpu = stats_stop_timer( *timer2 );
+  
+  DATA(gc)->stat_last_ms_remset_sumrize     = ms;
+  DATA(gc)->stat_last_ms_remset_sumrize_cpu = ms_cpu;
+}
+
+static void my_oh_collect( gc_t *gc, old_heap_t *heap, gc_type_t request ) 
+{
+  stats_id_t timer1, timer2;
+  start_timers( &timer1, &timer2 );
+  oh_collect( heap, request );
+  stop_collect_timers( gc, request, &timer1, &timer2 );
+}
+
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
@@ -1133,7 +1182,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
       yh_collect( gc->young_area, bytes_needed, request );
     } else {
       /* explicit request for major collection of rgn. */
-      oh_collect( DATA(gc)->ephemeral_area[ rgn - 1 ], request );
+      my_oh_collect( gc, DATA(gc)->ephemeral_area[ rgn - 1 ], request );
       DATA(gc)->rrof_last_tospace = rgn;
     }
     break;
@@ -1193,7 +1242,12 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  refine_remsets_via_marksweep( gc );
 	}
 
-	build_remset_summary( gc, rgn_idx );
+	{ 
+	  stats_id_t timer1, timer2;
+	  start_timers( &timer1, &timer2 );
+	  build_remset_summary( gc, rgn_idx );
+	  stop_sumrize_timers( gc, &timer1, &timer2 );
+	}
 
 	/* Temporary detective code: if the summary is overly large,
 	 * get more info on the popularity of the objects in region.
@@ -1211,7 +1265,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 	  if (use_oracle_to_update_remsets) 
 	    gc->scan_update_remset = FALSE;
-	  oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
+	  my_oh_collect( gc, DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_COLLECT );
 	  invalidate_remset_summary( gc );
 	  rs_clear( DATA(gc)->nursery_remset );
 	  DATA(gc)->rrof_last_tospace = rgn_idx;
@@ -1275,7 +1329,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	DATA(gc)->remset_summary_valid =  TRUE;
 	if (use_oracle_to_update_remsets) 
 	  gc->scan_update_remset = FALSE;
-	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
+	my_oh_collect( gc, DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
 	rs_clear( DATA(gc)->nursery_remset );
 	DATA(gc)->remset_summary = remset_summary;
 	DATA(gc)->remset_summary_valid = remset_summary_valid;
@@ -1314,7 +1368,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
       }
     } else {
       /* explicit request for evacuation-style major collection of rgn. */
-      oh_collect( DATA(gc)->ephemeral_area[ rgn - 1 ], request );
+      my_oh_collect( gc, DATA(gc)->ephemeral_area[ rgn - 1 ], request );
       DATA(gc)->rrof_last_tospace = rgn;
     }
     break;
@@ -1640,6 +1694,12 @@ static void stats_following_gc( gc_t *gc )
 			gc->stat_max_entries_remset_scan);
   assert_geq_and_assign(stats_gclib.total_entries_remset_scan,
 			gc->stat_total_entries_remset_scan);
+
+  stats_gclib.last_ms_gc_pause           = DATA(gc)->stat_last_ms_gc_pause;
+  stats_gclib.last_ms_gc_pause_cpu       = DATA(gc)->stat_last_ms_gc_pause_cpu;
+  stats_gclib.last_gc_pause_ismajor      = DATA(gc)->stat_last_gc_pause_ismajor;
+  stats_gclib.last_ms_remset_sumrize     = DATA(gc)->stat_last_ms_remset_sumrize;
+  stats_gclib.last_ms_remset_sumrize_cpu = DATA(gc)->stat_last_ms_remset_sumrize_cpu;
 
   stats_add_gclib_stats( &stats_gclib );
 
