@@ -1,0 +1,92 @@
+Source Code for Selected GC Benchmarks
+
+These benchmarks are derived from the benchmarks that Lars Hansen used for
+his thesis on Older-first garbage collection in practice . That thesis
+contains storage profiles and detailed discussion for most of these
+benchmarks.
+
+Portability
+
+Apart from a run-benchmark procedure, most of these benchmarks are intended
+to run in any R5RS-conforming implementation of Scheme. (The softscheme
+benchmark is an exception.) Please report any portability problems that you
+encounter.
+
+To find the main entry point(s) of a benchmark, search for calls to
+run-benchmark, which calculates and reports the run time and any other
+relevant statistics. The run-benchmark procedure is
+implementation-dependent; see run-benchmark.chez for an example of how to
+write it.
+
+GC Benchmarks
+
+To obtain a gzip'ed tar file containing source code for all of the
+benchmarks described below, click here .
+
+dummy
+     Description: A null benchmark for testing the implementation-specific
+     run-benchmark procedure.
+dynamic
+     Description: Fritz Henglein's algorithm for dynamic type inference.
+     Three inputs are available for this benchmark. In increasing order of
+     size, they are:
+       1. dynamic.sch, the code for the benchmark itself
+       2. dynamic-input-small.sch, which is macro-expanded code for the
+          Twobit compiler
+       3. dynamic-input-large.sch, which is macro-expanded code for the
+          Twobit compiler and SPARC assembler.
+earley
+     Description: Earley's context-free parsing algorithm, as implemented by
+     Marc Feeley, given a simple ambiguous grammar, generating all the parse
+     trees for a short input.
+gcbench
+     Description: A synthetic benchmark originally written in Java by John
+     Ellis, Pete Kovac, and Hans Boehm.
+graphs
+     Description: Enumeration of directed graphs, possibly written by Jim
+     Miller. Makes heavy use of higher-order procedures.
+lattice
+     Description: Enumeration of lattices of monotone maps between lattices,
+     obtained from Andrew Wright, possibly written by Wright or Jim Miller.
+nboyer
+     Description: Bob Boyer's theorem proving benchmark, with a scaling
+     parameter suggested by Boyer, some bug fixes noted by Henry Baker and
+     ourselves, and rewritten to use a more reasonable representation for
+     the database (with constant-time lookups) instead of property lists
+     (which gave linear-time lookups for the most widely distributed form of
+     the boyer benchmark in Scheme).
+nucleic2
+     Description: Marc Feeley et al's Pseudoknot benchmark, revised to use
+     R5RS macros instead of implementation-dependent macro systems.
+perm
+     Description: Zaks's algorithm for generating a list of permutations.
+     This is a diabolical garbage collection benchmark with four parameters
+     M, N, K, and L. The MpermNKL benchmark allocates a queue of size K and
+     then performs M iterations of the following operation: Fill the queue
+     with individually computed copies of all permutations of a list of size
+     N, and then remove the oldest L copies from the queue. At the end of
+     each iteration, the oldest L/K of the live storage becomes garbage, and
+     object lifetimes are distributed uniformly between two volumes that
+     depend upon N, K, and L.
+sboyer
+     Description: This is the nboyer benchmark with a small but effective
+     tweak: shared consing as implemented by Henry Baker.
+softscheme
+     Description: Andrew's Wright's soft type inference for Scheme. This
+     software is covered by the GNU GENERAL PUBLIC LICENSE. This benchmark
+     is nonportable because it uses a low-level syntax definition to define
+     a non-hygienic defmacro construct. Requires an input file; the inputs
+     used with the dynamic and twobit benchmarks should be suitable.
+twobit
+     Description: A portable version of the Twobit Scheme compiler and
+     Larceny's SPARC assembler, written by Will Clinger and Lars Hansen. Two
+     input files are provided:
+       1. twobit-input-short.sch, the nucleic2 benchmark stripped of
+          implementation-specific alternatives to its R4RS macros
+       2. twobit.sch, the twobit benchmark itself
+twobit-smaller.sch
+     Description: The twobit benchmark without the SPARC assembler.
+
+----------------------------------------------------------------------------
+
+Last updated 4 April 2001.
