@@ -130,34 +130,29 @@
             (vector-ref v $mstat.remset-scan-count)
             (vector-ref v $mstat.max-entries-remset-scan)
             (vector-ref v $mstat.total-entries-remset-scan)
-            
             (vector-ref v $mstat.max-mark-pause)
             (vector-ref v $mstat.max-mark-pause-cpu)
-            (vector-ref v $mstat.total-mark-pause)
+            (vector-ref v $mstat.total-mark-pause)     ;  # 60
             (vector-ref v $mstat.total-mark-pause-cpu)
             (vector-ref v $mstat.mark-pause-count)
-
             (vector-ref v $mstat.max-minorgc-pause)
             (vector-ref v $mstat.max-minorgc-pause-cpu)
             (vector-ref v $mstat.total-minorgc-pause)
             (vector-ref v $mstat.total-minorgc-pause-cpu)
             (vector-ref v $mstat.minorgc-pause-count)
-
             (vector-ref v $mstat.max-majorgc-pause)
             (vector-ref v $mstat.max-majorgc-pause-cpu)
-            (vector-ref v $mstat.total-majorgc-pause)
+            (vector-ref v $mstat.total-majorgc-pause)   ; # 70
             (vector-ref v $mstat.total-majorgc-pause-cpu)
             (vector-ref v $mstat.majorgc-pause-count)
-
             (vector-ref v $mstat.max-sumrize-pause)
             (vector-ref v $mstat.max-sumrize-pause-cpu)
             (vector-ref v $mstat.total-sumrize-pause)
             (vector-ref v $mstat.total-sumrize-pause-cpu)
             (vector-ref v $mstat.sumrize-pause-count)
-            
             (build-collect-pause-histogram v)
             (build-minorgc-pause-histogram v)
-            (build-majorgc-pause-histogram v)
+            (build-majorgc-pause-histogram v)           ; # 80
             (build-summarize-pause-histogram v)
             (build-minorgc-run-length-histogram v)
             ))
@@ -730,16 +725,23 @@
 	(let ((gcs0 0)
 	      (gcs1 0))
 	  (do ((i 0 (+ i 1)))
-	      ((= i (vector-length (memstats-generations s1)))
+	      ((= i (vector-length (memstats-generations s2)))
                (- gcs1 gcs0))
-	    (let ((x0 (vector-ref (memstats-generations s1) i))
-		  (x1 (vector-ref (memstats-generations s2) i)))
-	      (set! gcs0 (+ gcs0 
-                            (memstats-gen-collections x0) 
-                            (memstats-gen-promotions x0)))
-	      (set! gcs1 (+ gcs1 
-                            (memstats-gen-collections x1)
-                            (memstats-gen-promotions x1))))))
+	    (cond
+             ((< i (vector-length (memstats-generations s1)))
+              (let ((x0 (vector-ref (memstats-generations s1) i))
+                    (x1 (vector-ref (memstats-generations s2) i)))
+                (set! gcs0 (+ gcs0 
+                              (memstats-gen-collections x0) 
+                              (memstats-gen-promotions x0)))
+                (set! gcs1 (+ gcs1 
+                              (memstats-gen-collections x1)
+                              (memstats-gen-promotions x1)))))
+             (else
+              (let ((x1 (vector-ref (memstats-generations s2) i)))
+                (set! gcs1 (+ gcs1 
+                              (memstats-gen-collections x1)
+                              (memstats-gen-promotions x1))))))))
 	(- (memstats-gc-total-elapsed-time s2) 
            (memstats-gc-total-elapsed-time s1))
         (- (memstats-gc-total-cpu-time s2)
