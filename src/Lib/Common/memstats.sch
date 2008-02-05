@@ -159,6 +159,7 @@
             (build-minorgc-pause-histogram v)
             (build-majorgc-pause-histogram v)
             (build-summarize-pause-histogram v)
+            (build-minorgc-run-length-histogram v)
             ))
 
   (define (make-gc-event-vector v)
@@ -310,6 +311,33 @@
               (maybe 900  1000 (vector-ref v $mstat.count-summarize-900-1000))
               (maybe 1000 2000 (vector-ref v $mstat.count-summarize-1000-2000))
               (maybe '>=  2000 (vector-ref v $mstat.count-summarize-geq-2000))))))
+
+  (define (build-minorgc-run-length-histogram v)
+    (let ((maybe (lambda (lo hi val) (if (= val 0) '() (list (list lo hi val))))))
+      (list->vector
+       (apply append '(minorgc-run-length-histogram)
+              (maybe   0    10 (vector-ref v $mstat.count-minor-runs-00-10))
+              (maybe  10    20 (vector-ref v $mstat.count-minor-runs-10-20))
+              (maybe  20    30 (vector-ref v $mstat.count-minor-runs-20-30))
+              (maybe  30    40 (vector-ref v $mstat.count-minor-runs-30-40))
+              (maybe  40    50 (vector-ref v $mstat.count-minor-runs-40-50))
+              (maybe  50    60 (vector-ref v $mstat.count-minor-runs-50-60))
+              (maybe  60    70 (vector-ref v $mstat.count-minor-runs-60-70))
+              (maybe  70    80 (vector-ref v $mstat.count-minor-runs-70-80))
+
+              (maybe  80    90 (vector-ref v $mstat.count-minor-runs-80-90))
+              (maybe  90   100 (vector-ref v $mstat.count-minor-runs-90-100))
+              (maybe 100   200 (vector-ref v $mstat.count-minor-runs-100-200))
+              (maybe 200   300 (vector-ref v $mstat.count-minor-runs-200-300))
+              (maybe 300   400 (vector-ref v $mstat.count-minor-runs-300-400))
+              (maybe 400   500 (vector-ref v $mstat.count-minor-runs-400-500))
+              (maybe 500   600 (vector-ref v $mstat.count-minor-runs-500-600))
+              (maybe 600   700 (vector-ref v $mstat.count-minor-runs-600-700))
+              (maybe 700   800 (vector-ref v $mstat.count-minor-runs-700-800))
+              (maybe 800   900 (vector-ref v $mstat.count-minor-runs-800-900))
+              (maybe 900  1000 (vector-ref v $mstat.count-minor-runs-900-1000))
+              (maybe 1000 2000 (vector-ref v $mstat.count-minor-runs-1000-2000))
+              (maybe '>=  2000 (vector-ref v $mstat.count-minor-runs-geq-2000))))))
 
   ; Fill in some of the removed fields:
   ;   - total elapsed gc+promotion time for slot 3
