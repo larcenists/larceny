@@ -145,11 +145,11 @@
             (vector-ref v $mstat.total-majorgc-pause)   ; # 70
             (vector-ref v $mstat.total-majorgc-pause-cpu)
             (vector-ref v $mstat.majorgc-pause-count)
-            (vector-ref v $mstat.max-sumrize-pause)
-            (vector-ref v $mstat.max-sumrize-pause-cpu)
-            (vector-ref v $mstat.total-sumrize-pause)
-            (vector-ref v $mstat.total-sumrize-pause-cpu)
-            (vector-ref v $mstat.sumrize-pause-count)
+            (vector-ref v $mstat.max-build-remset-summary)
+            (vector-ref v $mstat.max-build-remset-summary-cpu)
+            (vector-ref v $mstat.total-build-remset-summary)
+            (vector-ref v $mstat.total-build-remset-summary-cpu)
+            (vector-ref v $mstat.build-remset-summary-count)
             (build-collect-pause-histogram v)
             (build-minorgc-pause-histogram v)
             (build-majorgc-pause-histogram v)           ; # 80
