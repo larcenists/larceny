@@ -626,7 +626,7 @@ static void* update_remsets_visitor( word *addr, int tag, void *accum )
 {
   word w, words;
   gc_t *gc = (gc_t*)accum;
-  word *src = tagptr( addr, tag );
+  word src = tagptr( addr, tag );
   int src_gen = gen_of( src );
   assert(src_gen > 0);
 
@@ -734,7 +734,7 @@ static int popularity_analysis_addr2index( struct popularity_analysis_data *pa_d
 static int popularity_analysis_index2addr( struct popularity_analysis_data *pa_data,
 					   int index )
 {
-  return (((byte*)(pa_data->fst_obj&~0x7)) + (index<<3));
+  return (int)(((byte*)(((int)pa_data->fst_obj)&~0x7)) + (index<<3));
 }
 					   
 static void* calc_popularity_fcn( word obj, word src, void *data )
