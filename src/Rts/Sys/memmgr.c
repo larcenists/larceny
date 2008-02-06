@@ -1118,6 +1118,38 @@ static void completed_regional_cycle( gc_t *gc )
   }
 #endif
   
+  /* With an inverse load factor < 2.0, we can get into a situation
+   * where all of the candidate regions to be the tospace for a minor
+   * collection are also popular.  (In particular, we could have the
+   * situation where we have 2 regions, the first is popular, and the
+   * second is the emergency space.)
+   * 
+   * To catch this case, here is a last minute double check that
+   * ensures that some region other than the last is non-popular.
+   *
+   * (Felix is pretty sure this situation cannot occur with an inverse
+   * load factor >= 2.0, but has not proven this, so he's just going
+   * to do it unconditionally.)
+   */
+  { 
+    int i;
+    int area_count = DATA(gc)->ephemeral_area_count;
+    bool found_non_popular = FALSE;
+    for( i=0; i < area_count-1; i++) {
+      if (! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
+	found_non_popular = TRUE;
+	break;
+      }
+    }
+    if (! found_non_popular) {
+      assert(! DATA(gc)->ephemeral_area[ area_count-1 ]->has_popular_objects);
+      consolemsg("ALERT: All evacuation spaces are popular! "
+		 "Allocating fresh region! load: %lf", 
+		 DATA(gc)->rrof_load_factor);
+      gc_fresh_space(gc);
+    }
+  }
+
   if (DATA(gc)->region_count < DATA(gc)->ephemeral_area_count-1) {
     DATA(gc)->rrof_to_region = DATA(gc)->region_count+1;
     DATA(gc)->rrof_next_region = 1;
