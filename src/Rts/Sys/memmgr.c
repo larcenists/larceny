@@ -558,6 +558,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define PRINT_FLOAT_STATS_EACH_CYCLE 0
 #define CHECK_NURSERY_REMSET_VIA_SUM 0
 #define EXPAND_RGNS_FROM_LOAD_FACTOR 1
+#define INCLUDE_POP_RGNS_IN_LOADCALC 1
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
 #define POPULARITY_LIMIT 40000
@@ -1092,10 +1093,13 @@ static void completed_regional_cycle( gc_t *gc )
     int maximum_allotted = 0;
     int live_predicted_at_next_gc;
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
-      total_live_at_last_major_gc += 
-	DATA(gc)->ephemeral_area[ i ]->live_last_major_gc;
-      maximum_allotted += 
-	DATA(gc)->ephemeral_area[ i ]->maximum;
+      if (INCLUDE_POP_RGNS_IN_LOADCALC || 
+	  ! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
+	total_live_at_last_major_gc += 
+	  DATA(gc)->ephemeral_area[ i ]->live_last_major_gc;
+	maximum_allotted += 
+	  DATA(gc)->ephemeral_area[ i ]->maximum;
+      }
     }
     live_predicted_at_next_gc = 
       (int)(DATA(gc)->rrof_load_factor * total_live_at_last_major_gc);
