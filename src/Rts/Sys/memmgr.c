@@ -912,41 +912,68 @@ static void popularity_analysis( gc_t *gc, int rgn )
 struct visit_measuring_float_data {
   msgc_context_t *context;
   int float_word_count;
+  int total_word_count;
   int float_obj_count;
+  int total_obj_count;
   int float_pair_count;
+  int total_pair_count;
   int float_vec_count;
+  int total_vec_count;
   int float_bvec_count;
+  int total_bvec_count;
   int float_proc_count;
+  int total_proc_count;
 };
 static void* visit_measuring_float( word *addr, int tag, void *accum ) 
 {
   struct visit_measuring_float_data *data = 
     (struct visit_measuring_float_data*)accum;
-  word obj = tagptr( addr, tag );
-  if (msgc_object_marked_p( data->context, obj )) {
-    /* skip */
-  } else {
+  word obj; 
+  bool marked;
+
+  obj = tagptr( addr, tag );
+  marked = msgc_object_marked_p( data->context, obj );
+
+  data->total_obj_count += 1;
+  if (!marked) {
     data->float_obj_count += 1;
-    switch (tag) {
-    case PAIR_TAG:
+  }
+
+  switch (tag) {
+  case PAIR_TAG:
+    data->total_pair_count += 1;
+    data->total_word_count += 2;
+    if (!marked) {
       data->float_word_count += 2;
       data->float_pair_count += 1;
-      break;
-    case VEC_TAG:
+    }
+    break;
+  case VEC_TAG:
+    data->total_vec_count += 1;
+    data->total_word_count += roundup8((sizefield( *addr )+4)/4);
+    if (!marked) {
       data->float_vec_count += 1;
       data->float_word_count += roundup8((sizefield( *addr )+4)/4);
-      break;
-    case BVEC_TAG:
+    }
+    break;
+  case BVEC_TAG:
+    data->total_bvec_count += 1;
+    data->total_word_count += roundup8((sizefield( *addr )+4)/4);
+    if (!marked) {
       data->float_bvec_count += 1;
       data->float_word_count += roundup8((sizefield( *addr )+4)/4);
-      break;
-    case PROC_TAG:
+    }
+    break;
+  case PROC_TAG:
+    data->total_proc_count += 1;
+    data->total_word_count += roundup8((sizefield( *addr )+4)/4);
+    if (!marked) {
       data->float_proc_count += 1;
       data->float_word_count += roundup8((sizefield( *addr )+4)/4);
-      break;
-    default:
-      assert(0);
     }
+    break;
+  default:
+    assert(0);
   }
   return data;
 }
@@ -1016,21 +1043,30 @@ static void completed_regional_cycle( gc_t *gc )
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       data.context = context;
       data.float_word_count = 0;
+      data.total_word_count = 0;
       data.float_obj_count = 0;
+      data.total_obj_count = 0;
       data.float_pair_count = 0;
+      data.total_pair_count = 0;
       data.float_vec_count = 0;
+      data.total_vec_count = 0;
       data.float_bvec_count = 0;
+      data.total_bvec_count = 0;
       data.float_proc_count = 0;
+      data.total_proc_count = 0;
       rgn = i+1;
       DATA(gc)->ephemeral_area[ i ]->enumerate
 	( DATA(gc)->ephemeral_area[ i ], visit_measuring_float, &data );
-      consolemsg( "cycle count %d region %d "
-                  "float{ objs: %d words: %d / %d } %s", 
+      consolemsg( "cycle count %d region % 3d "
+		  "remset live: %7d "
+                  "float{ objs: %7d/%7d words: %7d/%7d } %s", 
 		  cycle_count, 
 		  rgn, 
+		  gc->remset[ rgn ]->live, 
 		  data.float_obj_count, 
+		  data.total_obj_count, 
 		  data.float_word_count,
-		  bytes2words(DATA(gc)->ephemeral_area[ i ]->allocated), 
+		  data.total_word_count /* bytes2words(DATA(gc)->ephemeral_area[ i ]->allocated) */, 
 		  (DATA(gc)->ephemeral_area[ i ]->has_popular_objects ?
 		   "(popular)" : "")
 		  );
