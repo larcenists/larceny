@@ -603,7 +603,7 @@ static void* update_remsets_msgc_fcn( word obj, word src, void *data )
   gc_t *gc = (gc_t*)data;
   if (isptr(src) && isptr(obj) &&
       gen_of(src) != gen_of(obj) &&
-      gen_of(obj) != DATA(gc)->static_generation) {
+      ! gc_is_nonmoving( gc, gen_of(obj) )) {
     assert( gen_of(src) > 0 );
     if (gen_of(src) > 0)
       rs_add_elem( gc->remset[ gen_of(src) ], src );
@@ -634,14 +634,14 @@ static void* update_remsets_visitor( word *addr, int tag, void *accum )
   case PAIR_TAG:
     if (isptr(*addr) &&
 	src_gen != gen_of( *addr ) &&
-	gen_of( *addr ) != DATA(gc)->static_generation) {
+	! gc_is_nonmoving( gc, gen_of( *addr ))) {
       rs_add_elem( gc->remset[ src_gen ], src );
       break;
     }
     addr++;
     if (isptr(*addr) &&
 	src_gen != gen_of( *addr ) &&
-	gen_of( *addr ) != DATA(gc)->static_generation) {
+	! gc_is_nonmoving( gc, gen_of( *addr ))) {
       rs_add_elem( gc->remset[ src_gen ], src );
       break;
     }
@@ -655,7 +655,7 @@ static void* update_remsets_visitor( word *addr, int tag, void *accum )
       words--;
       if (isptr(*addr) &&
 	  src_gen != gen_of( *addr ) &&
-	  gen_of( *addr ) != DATA(gc)->static_generation) {
+	  ! gc_is_nonmoving( gc, gen_of( *addr ))) {
 	rs_add_elem( gc->remset[ src_gen ], src );
 	break;
       }
@@ -1390,6 +1390,7 @@ static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt )
 {
   supremely_annoyingmsg( "check_remset_invs_rgnl( gc, 0x%08x (%d), 0x%08x (%d) )", 
 			 src, src?gen_of(src):0, tgt, gen_of(tgt) );
+  /* XXX Felix is not convinced this assertion is sound. */
   assert( src == 0 ||
 	  gen_of(src) != gen_of(tgt) ||
 	  gen_of(src) != 0 ||
@@ -1400,6 +1401,7 @@ static void check_remset_invs( gc_t *gc, word src, word tgt )
 {
   supremely_annoyingmsg( "check_remset_invs( gc, 0x%08x (%d), 0x%08x (%d) )", 
 			 src, src?gen_of(src):0, tgt, gen_of(tgt) );
+  /* XXX Felix is not convinced this assertion is sound. */
   assert( !src || 
 	  gen_of(src)  < gen_of(tgt) ||
 	  gen_of(src) != 0 ||
