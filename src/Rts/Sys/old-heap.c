@@ -104,6 +104,7 @@ clone_sc_area( old_heap_t *src_heap, int tgt_gen_no )
 
   tgt_data->current_space = create_semispace( GC_CHUNK_SIZE, tgt_gen_no );
   tgt_data->size_bytes = src_data->size_bytes;
+  tgt_heap->reallocate_whole_semispace = src_heap->reallocate_whole_semispace;
   memset( &tgt_data->gen_stats, 0, sizeof( gen_stats_t ) );
   memset( &tgt_data->gc_stats, 0, sizeof( gc_stats_t ) );
   
