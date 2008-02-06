@@ -1024,11 +1024,13 @@ static void completed_regional_cycle( gc_t *gc )
       rgn = i+1;
       DATA(gc)->ephemeral_area[ i ]->enumerate
 	( DATA(gc)->ephemeral_area[ i ], visit_measuring_float, &data );
-      consolemsg( "cycle count %d region %d float{ objs: %d words: %d } %s", 
+      consolemsg( "cycle count %d region %d "
+                  "float{ objs: %d words: %d / %d } %s", 
 		  cycle_count, 
 		  rgn, 
 		  data.float_obj_count, 
 		  data.float_word_count,
+		  bytes2words(DATA(gc)->ephemeral_area[ i ]->allocated), 
 		  (DATA(gc)->ephemeral_area[ i ]->has_popular_objects ?
 		   "(popular)" : "")
 		  );
