@@ -215,8 +215,8 @@
       (main))))
 
 (define (gc-benchmark . rest)
-  (let ((k 18)
-        (n (if (null? rest) 1 (car rest))))
+  (let ((n (if (null? rest) 1 (car rest)))
+        (k (if (or (null? rest) (null? (cdr rest))) 18 (cadr rest))))
     (display "The garbage collector should touch about ")
     (display (expt 2 (- k 13)))
     (display " megabytes of heap storage.")
@@ -224,7 +224,8 @@
     (display "The use of more or less memory will skew the results.")
     (newline)
     (set! stretch #t)
-    (run-benchmark (string-append "GCBench:" (number->string n))
+    (run-benchmark (string-append "GCBench:" (number->string n) ":" 
+                                  (number->string k))
                    n
                    (lambda () 
                      (gcbench k)
