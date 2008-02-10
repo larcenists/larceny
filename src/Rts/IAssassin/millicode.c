@@ -7,6 +7,8 @@
 
 #define NOGLOBALS
 
+#define MORECORE_ALWAYS_COLLECTS 0
+
 #include "larceny.h"            /* Includes config.h also */
 #include "gc.h"
 #include "gc_t.h"               /* For gc_allocate() macro */
@@ -17,6 +19,7 @@
 #include "petit-machine.h"
 #include "signals.h"
 #include "assert.h"
+#include "young_heap_t.h"       /* For yh_make_room() */
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
@@ -142,7 +145,11 @@ void EXPORT mc_alloci( word *globals )
 
 void EXPORT mc_morecore( word *globals )
 {
-  gc_collect(the_gc(globals), 0, 0, GCTYPE_COLLECT);
+  if (MORECORE_ALWAYS_COLLECTS) {
+    gc_collect(the_gc(globals), 0, 0, GCTYPE_COLLECT);
+  } else {
+    yh_make_room( (the_gc(globals))->young_area );
+  }
 }
 
 void EXPORT mc_stack_overflow( word *globals )
