@@ -439,6 +439,17 @@
 ;; for-each-textelem : 
 ;;     [Rendered TextModel] Gfx Fnt TextElemHandler [TextElemCont X] -> X
 (define (for-each-textelem textmodel g fnt proc at-end)
+  (define (char->textelem char)
+    (if (char=? char #\newline) #\newline (string char)))
+  (for-each-charpos textmodel 
+                    g 
+                    fnt 
+                    (lambda (char pos x y w h line-num col-num)
+                      (proc (char->textelem char) 
+                            pos 1 x y w h line-num col-num))
+                    at-end))
+
+(define (for-each-textelem/old textmodel g fnt proc at-end)
   ;; XXX this should also subdivide based on changes in font...
   (let* ((mytext ((textmodel 'textstring)))
          (start-pos ((textmodel 'visible-offset)))
