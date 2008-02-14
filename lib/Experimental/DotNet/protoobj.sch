@@ -30,12 +30,9 @@
 (define-syntax make-documented-root-object
   (syntax-rules ()
     ((root-object self ((OP-NAME . ARGS) DOC-STRING BODY ...) ...)
-     (letrec ((document (lambda (op-sym arglst docstr)
-                          (format #t "~a: ~a ~a" op-sym arglst)))
-              (doc-docstring
-               "documentation: (op) prints doc for operation symbol op")
-              (ops-docstring
-               "operations: () => list of operation symbols")
+     (letrec ((document (lambda (op-sym arglst docstr) 
+                          (format #t "~a: ~a ~a" op-sym arglst docstr)
+                          (newline)))
               (core-object
                ;; This use of the id 'self' is important (it is
                ;; semantically significant so that we actually
@@ -53,10 +50,15 @@
                       (case op 
                         ((OP-NAME) 
                          (let ((docstr (or DOC-STRING "undocumented")))
-                           (format #t "~a: ~a ~a" 'OP-NAME 'ARGS docstr)))
+                           (document 'OP-NAME 'ARGS docstr)))
                         ... 
-                        ((documentation) (format #t "~a" doc-docstring))
-                        ((operations) (format #t "~a" ops-docstring))
+                        ((documentation) 
+                         (let ((doc-string
+                                "prints documentation of operation symbol op"))
+                           (document 'documentation '(op) doc-string)))
+                        ((operations)
+                         (document 'operations '() 
+                                   "=> list of operation symbols"))
                         (else (error 'documentation 
                                      ": no method " op " in " self)))))
                    ((operations) 
@@ -114,7 +116,8 @@
                         ((OP-NAME) 
                          (let ((doc->annotated
                                 (lambda (str)
-                                  (format #t "~a: ~a ~a" 'OP-NAME 'ARGS str))))
+                                  (format #t "~a: ~a ~a" 'OP-NAME 'ARGS str)
+                                  (newline))))
                            (cond 
                             (DOC-STRING => doc->annotated)
                             ((memq op ((super-obj 'operations)))
