@@ -45,5 +45,5 @@
 (define (start-example)
   ((editor-wnd 'show))
   ((repl-wnd 'show))
-  ((((((repl-wnd 'agent)) 'backing-agent)) 'prompt!))
+  ((((repl-wnd 'agent)) 'prompt!))
   (busy-loop))
