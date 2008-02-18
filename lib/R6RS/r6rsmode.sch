@@ -425,9 +425,11 @@
            (load fname)
            #t)))
 
-  (display "Autoloading ")
-  (write libname)
-  (newline)
+  (if (eq? (cdr (assq 'execution-mode (system-features)))
+           'err5rs)
+      (begin (display "Autoloading ")
+             (write libname)
+             (newline)))
 
   (let* ((libpath (map symbol->string libname))
          (libpaths (do ((libpath (reverse libpath) (cdr libpath))
