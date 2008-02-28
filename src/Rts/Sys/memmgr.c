@@ -1067,14 +1067,15 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
     }
 
     { 
+      old_heap_t *heap = DATA(gc)->ephemeral_area[ i ];
       rgn = i+1;
       consolemsg( "%scycle count %d region% 4d "
-                  "remset live: %7d "
+                  "remset live: %7d lastmajor: %7d "
                   "float{ objs: %7d/%7d words: %7d/%7d }%s %s %s", 
                   caller_name,
                   cycle_count, 
                   rgn, 
-                  gc->remset[ rgn ]->live, 
+                  gc->remset[ rgn ]->live, heap->live_last_major_gc/4, 
                   data.objs.zzflt+data.objs.rsflt,
                   data.objs.total,
                   data.words.zzflt+data.words.rsflt,
@@ -1100,14 +1101,16 @@ static void print_float_stats( char *caller_name, gc_t *gc )
     msgc_context_t *context_incl_remsets;
     int i, rgn;
     int marked=0, traced=0, words_marked=0; 
+    int marked_incl=0, traced_incl=0, words_marked_incl=0; 
     int total_float_words = 0, total_float_objects = 0;
+    int estimated_live = 0;
     struct visit_measuring_float_data data;
     context = msgc_begin( gc );
     msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
     
     context_incl_remsets = msgc_begin( gc );
     msgc_mark_objects_from_roots_and_remsets
-      ( context_incl_remsets, &marked, &traced, &words_marked );
+      ( context_incl_remsets, &marked_incl, &traced_incl, &words_marked_incl );
 
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       data.context = context;
@@ -1118,12 +1121,18 @@ static void print_float_stats( char *caller_name, gc_t *gc )
       print_float_stats_for_rgn( caller_name, gc, i, data );
       total_float_objects += data.objs.zzflt;
       total_float_words += data.words.zzflt;
+      if (INCLUDE_POP_RGNS_IN_LOADCALC || 
+          ! DATA(gc)->ephemeral_area[i]->has_popular_objects)
+        estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc;
     }
-    consolemsg( "cycle count %d total float { objs: %d words: %d } nextrefine: %d",
+    consolemsg( "cycle count %d total float { objs: %d words: %d (%3d%%) } nextrefine: %d "
+                "estimated_live: %d actual_live: %d estdelta: %f ",
                 cycle_count, 
                 total_float_objects, 
                 total_float_words, 
-                DATA(gc)->rrof_refine_mark_countdown );
+                (int)(100.0*(double)total_float_words/(double)words_marked), 
+                DATA(gc)->rrof_refine_mark_countdown, 
+                estimated_live/4, words_marked, estimated_live?(((double)estimated_live/4.0)/(double)words_marked):0.0 );
 
     msgc_end( context_incl_remsets );
     msgc_end( context );
