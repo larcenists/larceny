@@ -828,7 +828,7 @@ parse_options( int argc, char **argv, opt_t *o )
 
     for ( i = 1 ; i <= areas ; i++ ) {
       if (o->size[i] == 0)
-        o->size[i] = prev_size + DEFAULT_EPHEMERAL_INCREMENT;
+        o->size[i] = prev_size;
       assert( o->size[i] > 0 );
       o->gc_info.ephemeral_info[i-1].size_bytes = o->size[i];
       prev_size = o->size[i];
