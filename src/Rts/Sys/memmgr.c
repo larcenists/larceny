@@ -556,6 +556,9 @@ static int next_rgn( int rgn, int num_rgns ) {
 }
 
 #define PRINT_FLOAT_STATS_EACH_CYCLE 0
+#define PRINT_FLOAT_STATS_EACH_MAJOR 0
+#define PRINT_FLOAT_STATS_EACH_MINOR 0
+#define PRINT_FLOAT_STATS_EACH_REFIN 0
 #define CHECK_NURSERY_REMSET_VIA_SUM 0
 #define EXPAND_RGNS_FROM_LOAD_FACTOR 1
 #define INCLUDE_POP_RGNS_IN_LOADCALC 1
@@ -910,72 +913,72 @@ static void popularity_analysis( gc_t *gc, int rgn )
   msgc_end( init_context );
 }
 
+struct float_counts {
+  int zzflt; /* float according to remsets and globals */
+  int rsflt; /* float according to globals; live according to remsets */
+  int total; /* total occupancy count */
+};
+
 struct visit_measuring_float_data {
   msgc_context_t *context;
-  int float_word_count;
-  int total_word_count;
-  int float_obj_count;
-  int total_obj_count;
-  int float_pair_count;
-  int total_pair_count;
-  int float_vec_count;
-  int total_vec_count;
-  int float_bvec_count;
-  int total_bvec_count;
-  int float_proc_count;
-  int total_proc_count;
+  msgc_context_t *context_incl_remsets;
+  struct float_counts words;
+  struct float_counts objs;
 };
+
+void zero_float_counts( struct float_counts *counts ) 
+{
+  counts->zzflt = 0;
+  counts->rsflt = 0;
+  counts->total = 0;
+}
+
+void zero_measuring_float_data( struct visit_measuring_float_data *data ) 
+{
+  zero_float_counts( &data->words );
+  zero_float_counts( &data->objs );
+}
+
 static void* visit_measuring_float( word *addr, int tag, void *accum ) 
 {
   struct visit_measuring_float_data *data = 
     (struct visit_measuring_float_data*)accum;
   word obj; 
   bool marked;
-
+  bool marked_via_remsets;
+  int words;
+  struct float_counts *type_counts;
   obj = tagptr( addr, tag );
-  marked = msgc_object_marked_p( data->context, obj );
+  marked = 
+    msgc_object_marked_p( data->context, obj );
+  marked_via_remsets = 
+    msgc_object_marked_p( data->context_incl_remsets, obj );
 
-  data->total_obj_count += 1;
-  if (!marked) {
-    data->float_obj_count += 1;
+  data->objs.total += 1 ;
+  if (!marked && !marked_via_remsets) {
+    data->objs.zzflt += 1;
+  }
+  if (!marked && marked_via_remsets) {
+    data->objs.rsflt += 1;
   }
 
   switch (tag) {
   case PAIR_TAG:
-    data->total_pair_count += 1;
-    data->total_word_count += 2;
-    if (!marked) {
-      data->float_word_count += 2;
-      data->float_pair_count += 1;
-    }
+    words = 2; 
     break;
   case VEC_TAG:
-    data->total_vec_count += 1;
-    data->total_word_count += roundup8((sizefield( *addr )+4)/4);
-    if (!marked) {
-      data->float_vec_count += 1;
-      data->float_word_count += roundup8((sizefield( *addr )+4)/4);
-    }
-    break;
   case BVEC_TAG:
-    data->total_bvec_count += 1;
-    data->total_word_count += roundup8((sizefield( *addr )+4)/4);
-    if (!marked) {
-      data->float_bvec_count += 1;
-      data->float_word_count += roundup8((sizefield( *addr )+4)/4);
-    }
-    break;
   case PROC_TAG:
-    data->total_proc_count += 1;
-    data->total_word_count += roundup8((sizefield( *addr )+4)/4);
-    if (!marked) {
-      data->float_proc_count += 1;
-      data->float_word_count += roundup8((sizefield( *addr )+4)/4);
-    }
+    words = roundup8((sizefield( *addr )+4)/4);
     break;
   default:
     assert(0);
   }
+  data->words.total += words;
+  if (!marked && !marked_via_remsets)
+    data->words.zzflt += words;
+  if (!marked && marked_via_remsets)
+    data->words.rsflt += words;
   return data;
 }
 
@@ -1025,15 +1028,76 @@ static void refine_remsets_via_marksweep( gc_t *gc )
 }
 
 static int cycle_count = 0;
-static void completed_regional_cycle( gc_t *gc ) 
-{
-  cycle_count += 1;
+#define BAR_LENGTH 20
+static void fill_up_to( char *bar, char mark, int amt, int max ) {
+  int i;
+  int count;
+  if (max == 0) 
+    return;
+  else
+    count = (int)((amt*BAR_LENGTH)/max);
+  assert(count >= 0);
+  assert(count <= BAR_LENGTH);
+  for(i = 0; i < count; i++) {
+    bar[i] = mark;
+  }
+}
 
-#if PRINT_FLOAT_STATS_EACH_CYCLE
+static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i, 
+                                       struct visit_measuring_float_data data )
+{
+  int rgn;
+  { 
+    char bars[BAR_LENGTH+2];
+    bars[BAR_LENGTH] = '\0';
+    bars[BAR_LENGTH+1] = '\0';
+    {
+      fill_up_to( bars, ' ', 
+                  DATA(gc)->ephemeral_area[i]->maximum,
+                  DATA(gc)->ephemeral_area[i]->maximum);
+      fill_up_to( bars, '.', 
+                  data.words.total*4,
+                  DATA(gc)->ephemeral_area[i]->maximum);
+      fill_up_to( bars, 'Z', 
+                  data.words.zzflt*4+data.words.rsflt*4,
+                  DATA(gc)->ephemeral_area[i]->maximum);
+      fill_up_to( bars, 'R', 
+                  data.words.rsflt*4,
+                  DATA(gc)->ephemeral_area[i]->maximum);
+    }
+
+    { 
+      rgn = i+1;
+      consolemsg( "%scycle count %d region% 4d "
+                  "remset live: %7d "
+                  "float{ objs: %7d/%7d words: %7d/%7d }%s %s %s", 
+                  caller_name,
+                  cycle_count, 
+                  rgn, 
+                  gc->remset[ rgn ]->live, 
+                  data.objs.zzflt+data.objs.rsflt,
+                  data.objs.total,
+                  data.words.zzflt+data.words.rsflt,
+                  data.words.total, 
+                  (( rgn == DATA(gc)->rrof_to_region &&
+                     rgn == DATA(gc)->rrof_next_region ) ? "*" :
+                   ( rgn == DATA(gc)->rrof_to_region )   ? "t" :
+                   ( rgn == DATA(gc)->rrof_next_region ) ? "n" :
+                   /* else                              */ " "),
+                  bars,
+                  (DATA(gc)->ephemeral_area[ i ]->
+                   has_popular_objects ? "(popular)" : "")
+                  );
+    }
+  }
+}
+static void print_float_stats( char *caller_name, gc_t *gc ) 
+{
   /* every collection cycle, lets use the mark/sweep system to 
    * measure how much float has accumulated. */
   {
     msgc_context_t *context;
+    msgc_context_t *context_incl_remsets;
     int i, rgn;
     int marked=0, traced=0, words_marked=0; 
     int total_float_words = 0, total_float_objects = 0;
@@ -1041,46 +1105,51 @@ static void completed_regional_cycle( gc_t *gc )
     context = msgc_begin( gc );
     msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
     
+    context_incl_remsets = msgc_begin( gc );
+    msgc_mark_objects_from_roots_and_remsets
+      ( context_incl_remsets, &marked, &traced, &words_marked );
+
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       data.context = context;
-      data.float_word_count = 0;
-      data.total_word_count = 0;
-      data.float_obj_count = 0;
-      data.total_obj_count = 0;
-      data.float_pair_count = 0;
-      data.total_pair_count = 0;
-      data.float_vec_count = 0;
-      data.total_vec_count = 0;
-      data.float_bvec_count = 0;
-      data.total_bvec_count = 0;
-      data.float_proc_count = 0;
-      data.total_proc_count = 0;
-      rgn = i+1;
+      data.context_incl_remsets = context_incl_remsets;
+      zero_measuring_float_data( &data );
       DATA(gc)->ephemeral_area[ i ]->enumerate
-	( DATA(gc)->ephemeral_area[ i ], visit_measuring_float, &data );
-      consolemsg( "cycle count %d region % 3d "
-		  "remset live: %7d "
-                  "float{ objs: %7d/%7d words: %7d/%7d } %s", 
-		  cycle_count, 
-		  rgn, 
-		  gc->remset[ rgn ]->live, 
-		  data.float_obj_count, 
-		  data.total_obj_count, 
-		  data.float_word_count,
-		  data.total_word_count /* bytes2words(DATA(gc)->ephemeral_area[ i ]->allocated) */, 
-		  (DATA(gc)->ephemeral_area[ i ]->has_popular_objects ?
-		   "(popular)" : "")
-		  );
-      total_float_objects += data.float_obj_count;
-      total_float_words += data.float_word_count;
+        ( DATA(gc)->ephemeral_area[ i ], visit_measuring_float, &data );
+      print_float_stats_for_rgn( caller_name, gc, i, data );
+      total_float_objects += data.objs.zzflt;
+      total_float_words += data.words.zzflt;
     }
-    consolemsg( "cycle count %d total float { objs: %d words: %d }",
-		cycle_count, 
-		total_float_objects, 
-		total_float_words );
+    consolemsg( "cycle count %d total float { objs: %d words: %d } nextrefine: %d",
+                cycle_count, 
+                total_float_objects, 
+                total_float_words, 
+                DATA(gc)->rrof_refine_mark_countdown );
 
+    msgc_end( context_incl_remsets );
     msgc_end( context );
   }
+}
+
+static void rrof_completed_major_collection( gc_t *gc ) 
+{
+#if PRINT_FLOAT_STATS_EACH_MAJOR
+  print_float_stats( "major ", gc );
+#endif
+}
+
+static void rrof_completed_minor_collection( gc_t *gc )
+{
+#if PRINT_FLOAT_STATS_EACH_MINOR
+  print_float_stats( "minor ", gc );
+#endif
+}
+
+static void rrof_completed_regional_cycle( gc_t *gc ) 
+{
+  cycle_count += 1;
+
+#if PRINT_FLOAT_STATS_EACH_CYCLE
+  print_float_stats( "cycle ", gc );
 #endif
 
 #if EXPAND_RGNS_FROM_LOAD_FACTOR
@@ -1210,6 +1279,17 @@ static void stop_refinem_timers( gc_t *gc,
   DATA(gc)->stat_last_ms_mark_refinement_cpu = ms_cpu;
 }
 
+static void handle_secondary_space( gc_t *gc ) 
+{
+  if (DATA(gc)->secondary_space != NULL) {
+    int gen_no = DATA(gc)->secondary_space->gen_no;
+    ss_sync( DATA(gc)->secondary_space );
+    oh_assimilate( DATA(gc)->ephemeral_area[ gen_no-1 ],
+		   DATA(gc)->secondary_space );
+    DATA(gc)->secondary_space = NULL;
+  }
+}
+
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
@@ -1293,7 +1373,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  DATA(gc)->rrof_next_region = n;
 	  if (n == rrof_first_region) {
 	    assert2( DATA(gc)->region_count == num_rgns );
-	    completed_regional_cycle( gc );
+	    rrof_completed_regional_cycle( gc );
 	    num_rgns = DATA(gc)->region_count;
 	  }
 	  goto collect_evacuate_nursery;
@@ -1301,6 +1381,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 	if (DATA(gc)->rrof_refine_mark_countdown == 0) {
 	  stats_id_t timer1, timer2;
+#if PRINT_FLOAT_STATS_EACH_REFIN
+	  print_float_stats( "prefin", gc );
+#endif
 	  start_timers( &timer1, &timer2 );
 	  refine_remsets_via_marksweep( gc );
 	  stop_refinem_timers( gc, &timer1, &timer2 );
@@ -1334,13 +1417,15 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  rs_clear( DATA(gc)->nursery_remset );
 	  DATA(gc)->rrof_last_tospace = rgn_idx;
 	  
+	  handle_secondary_space( gc );
+	  rrof_completed_major_collection( gc );
 	  /* choose next region for major collection so that we can summarize its remsets */
 	  /* TODO: add loop to skip to next if n is popular. */
 	  n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
 	  DATA(gc)->rrof_next_region = n;
 	  if (n == rrof_first_region) {
 	    assert2( DATA(gc)->region_count == num_rgns );
-	    completed_regional_cycle( gc );
+	    rrof_completed_regional_cycle( gc );
 	    num_rgns = DATA(gc)->region_count;
 	  }
 	} else {
@@ -1357,7 +1442,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  DATA(gc)->rrof_next_region = n;
 	  if (n == rrof_first_region) {
 	    assert2( DATA(gc)->region_count == num_rgns );
-	    completed_regional_cycle( gc );
+	    rrof_completed_regional_cycle( gc );
 	    num_rgns = DATA(gc)->region_count;
 	  }
 	  goto collect_evacuate_nursery;
@@ -1399,6 +1484,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	DATA(gc)->remset_summary_valid = remset_summary_valid;
 	DATA(gc)->rrof_last_tospace = rgn_idx;
 
+        handle_secondary_space( gc );
+        rrof_completed_minor_collection( gc );
 	/* TODO: add code to incrementally summarize by attempting to
 	 * predict how many minor collections will precede the next
 	 * major collection. */
@@ -1440,12 +1527,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
     assert(0); /* Regional collector only supports above collection types. */
   }
 
-  if (data->secondary_space != NULL) {
-    int gen_no = data->secondary_space->gen_no;
-    oh_assimilate( data->ephemeral_area[ gen_no-1 ],
-		   data->secondary_space );
-    data->secondary_space = NULL;
-  }
+  assert( data->secondary_space == NULL );
 
   assert( data->in_gc > 0 );
   
