@@ -560,6 +560,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define PRINT_FLOAT_STATS_EACH_MINOR 0
 #define PRINT_FLOAT_STATS_EACH_REFIN 0
 #define CHECK_NURSERY_REMSET_VIA_SUM 0
+/* The number represents how many cycles per expansion. (first guess is 1) */
 #define EXPAND_RGNS_FROM_LOAD_FACTOR 1
 #define INCLUDE_POP_RGNS_IN_LOADCALC 1
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
@@ -1162,10 +1163,10 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 #endif
 
 #if EXPAND_RGNS_FROM_LOAD_FACTOR
-  /* every collection cycle, lets check and see if we should expand
+  /* every K collection cycles, lets check and see if we should expand
    * the number of regions so that we can satisfy the inverse load
    * factor. */
-  {
+  if ((cycle_count % EXPAND_RGNS_FROM_LOAD_FACTOR) == 0) {
     int i;
     int total_live_at_last_major_gc = 0;
     int maximum_allotted = 0;
