@@ -95,6 +95,13 @@ struct gc_data {
        If negative, then that is number of nursery evacuations we've had
        since the mark was scheduled to occur. */
 
+  int rrof_last_live_estimate; 
+    /* In RROF collector, gradual approximation of live storage in bytes.
+     * (It is continually reset based on marking results and then 
+     *  refined by repeated averaging with the sum of major collection
+     *  sizes.)
+     */
+
   remset_t *remset_summary;     /* NULL or summarization of remset array */
   bool      remset_summary_valid;
 
@@ -565,6 +572,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 /* The number represents how many cycles per expansion. (first guess is 1) */
 #define EXPAND_RGNS_FROM_LOAD_FACTOR 1
 #define INCLUDE_POP_RGNS_IN_LOADCALC 1
+#define WEIGH_PREV_ESTIMATE_LOADCALC 0
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
 #define POPULARITY_LIMIT 40000
@@ -1022,6 +1030,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
 	    / ((double)gc->young_area->maximum));
     assert( new_countdown >= 0 );
     DATA(gc)->rrof_refine_mark_countdown += new_countdown;
+    DATA(gc)->rrof_last_live_estimate = sizeof(word)*words_marked;
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
   } else {
     assert(0);
@@ -1172,6 +1181,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     int i;
     int total_live_at_last_major_gc = 0;
     int maximum_allotted = 0;
+    int live_estimated_calc = 0;
     int live_predicted_at_next_gc;
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
@@ -1182,12 +1192,18 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 	  DATA(gc)->ephemeral_area[ i ]->maximum;
       }
     }
+    live_estimated_calc = 
+      ( DATA(gc)->rrof_last_live_estimate*WEIGH_PREV_ESTIMATE_LOADCALC 
+        + total_live_at_last_major_gc)
+      / (WEIGH_PREV_ESTIMATE_LOADCALC + 1);
     live_predicted_at_next_gc = 
-      (int)(DATA(gc)->rrof_load_factor * total_live_at_last_major_gc);
+      (int)(DATA(gc)->rrof_load_factor * live_estimated_calc);
+    DATA(gc)->rrof_last_live_estimate = live_estimated_calc;
 
-    annoyingmsg( "completed_regional_cycle total: %d max: %d predict: %d",
+    annoyingmsg( "completed_regional_cycle total: %d max: %d est: %d predict: %d",
 		 total_live_at_last_major_gc, 
 		 maximum_allotted, 
+		 live_estimated_calc, 
 		 live_predicted_at_next_gc );
 
     while (live_predicted_at_next_gc > maximum_allotted) {
@@ -2713,6 +2729,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_refinement_factor = 0.0;
   data->rrof_refine_mark_period = -1;
   data->rrof_refine_mark_countdown = -1;
+
+  data->rrof_last_live_estimate = 0;
 
   data->remset_summary = 0;
   data->remset_summary_valid = FALSE;
