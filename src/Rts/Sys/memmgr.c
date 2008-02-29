@@ -91,7 +91,9 @@ struct gc_data {
   double rrof_refinement_factor; /*   countdown = ceil((R*heap) / nursery) */
   int rrof_refine_mark_period;
   int rrof_refine_mark_countdown;
-    /* In RROF collector, #nursery evacuations until refine remset via mark */
+    /* In RROF collector, #nursery evacuations until refine remset via mark.
+       If negative, then that is number of nursery evacuations we've had
+       since the mark was scheduled to occur. */
 
   remset_t *remset_summary;     /* NULL or summarization of remset array */
   bool      remset_summary_valid;
@@ -1019,7 +1021,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
       (int)((R*(double)(sizeof(word)*words_marked)) 
 	    / ((double)gc->young_area->maximum));
     assert( new_countdown >= 0 );
-    DATA(gc)->rrof_refine_mark_countdown = new_countdown;
+    DATA(gc)->rrof_refine_mark_countdown += new_countdown;
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
   } else {
     assert(0);
@@ -1343,8 +1345,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
       int rgn_to, rgn_next, nursery_sz, rgn_to_cur, rgn_to_max;
       int num_rgns = DATA(gc)->region_count;
 
-      if (DATA(gc)->rrof_refine_mark_countdown > 0)
-	DATA(gc)->rrof_refine_mark_countdown -= 1;
+      DATA(gc)->rrof_refine_mark_countdown -= 1;
       
     collect_evacuate_nursery:
       rgn_to = DATA(gc)->rrof_to_region;
@@ -1389,7 +1390,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  goto collect_evacuate_nursery;
 	}
 
-	if (DATA(gc)->rrof_refine_mark_countdown == 0) {
+	if (DATA(gc)->rrof_refine_mark_countdown <= 0) {
 	  stats_id_t timer1, timer2;
 #if PRINT_FLOAT_STATS_EACH_REFIN
 	  print_float_stats( "prefin", gc );
