@@ -1016,7 +1016,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
     int new_countdown;
     new_countdown = 
       (int)((R*(double)(sizeof(word)*words_marked)) 
-	    / ((double)gc->young_area->allocated));
+	    / ((double)gc->young_area->maximum));
     assert( new_countdown >= 0 );
     DATA(gc)->rrof_refine_mark_countdown = new_countdown;
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
@@ -1119,8 +1119,8 @@ static void print_float_stats( char *caller_name, gc_t *gc )
       DATA(gc)->ephemeral_area[ i ]->enumerate
         ( DATA(gc)->ephemeral_area[ i ], visit_measuring_float, &data );
       print_float_stats_for_rgn( caller_name, gc, i, data );
-      total_float_objects += data.objs.zzflt;
-      total_float_words += data.words.zzflt;
+      total_float_objects += data.objs.zzflt+data.objs.rsflt;
+      total_float_words += data.words.zzflt+data.objs.rsflt;
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
           ! DATA(gc)->ephemeral_area[i]->has_popular_objects)
         estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc;
