@@ -1030,6 +1030,9 @@ static void refine_remsets_via_marksweep( gc_t *gc )
 	    / ((double)gc->young_area->maximum));
     assert( new_countdown >= 0 );
     DATA(gc)->rrof_refine_mark_countdown += new_countdown;
+    DATA(gc)->rrof_refine_mark_countdown = 
+      max( DATA(gc)->rrof_refine_mark_countdown,
+           DATA(gc)->region_count );
     DATA(gc)->rrof_last_live_estimate = sizeof(word)*words_marked;
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
   } else {
@@ -1096,6 +1099,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                      rgn == DATA(gc)->rrof_next_region ) ? "*" :
                    ( rgn == DATA(gc)->rrof_to_region )   ? "t" :
                    ( rgn == DATA(gc)->rrof_next_region ) ? "n" :
+                   ( rgn >= DATA(gc)->region_count     ) ? "e" : 
                    /* else                              */ " "),
                   bars,
                   (DATA(gc)->ephemeral_area[ i ]->
