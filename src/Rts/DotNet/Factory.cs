@@ -44,12 +44,12 @@ namespace Scheme.Rep {
             = new SImmediate("#f");
         public static readonly SImmediate Null
             = new SImmediate("()");
-        public static readonly SImmediate Eof 
-            = SImmediate.makeImmediate(2);
-        public static readonly SImmediate Unspecified
-            = SImmediate.makeImmediate(1);
-        public static readonly SImmediate Undefined
-            = SImmediate.makeImmediate(3);
+        public static SImmediate Eof 
+            = new SImmediate("#<eof>");
+        public static SImmediate Unspecified
+            = new SImmediate("#!unspecified");
+        public static SImmediate Undefined
+            = new SImmediate("#!undefined");
         
         // Used as "return value" in escaping procedures
         public static readonly SImmediate Impossible

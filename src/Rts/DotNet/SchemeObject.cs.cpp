@@ -60,6 +60,9 @@ namespace Scheme.Rep {
             immediates[2] = new SImmediate("#<eof>", 2);
             immediates[3] = new SImmediate("#!undefined", 3);
             immediates[4] = new SImmediate("#!fasl", 4);
+            Unspecified = immediates[1];
+            Eof = immediates[2];
+            Undefined = immediates[3];
         }
 
         public static SImmediate makeImmediate(int id) {
