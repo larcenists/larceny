@@ -36,9 +36,11 @@
    (lambda () (set! *request-kill-busy-loop* #t))))
   
 (define edit (make-mnu "Edit"))
-((edit 'append) "Cut"        (lambda () (displayln `(selected edit..cut))))
-((edit 'append) "Copy"       (lambda () (displayln `(selected edit..copy))))
-((edit 'append) "Paste"      (lambda () (displayln `(selected edit..paste))))
+(let ((displayln (lambda (x) (write x) (newline))))
+  ((edit 'append) "Cut"        (lambda () (displayln `(selected edit..cut))))
+  ((edit 'append) "Copy"       (lambda () (displayln `(selected edit..copy))))
+  ((edit 'append) "Paste"      (lambda () (displayln `(selected edit..paste))))
+  )
 
 ((editor-wnd 'push-menus) file edit)
 
