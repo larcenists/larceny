@@ -170,10 +170,10 @@
 ;; (clipboard-contains-filelist?)
 ;; (clipboard-contains-image?)
 ;; (clipboard-contains-text?)
-;; (clipboard-get-audio)     => [Oneof InputPort ByteVector]
-;; (clipboard-get-filelist)  => [Listof PathString]
-;; (clipboard-get-image)     => img
-;; (clipboard-get-text)      => string
+;; (clipboard-get-audio)     => [Maybe [Oneof InputPort ByteVector]]
+;; (clipboard-get-filelist)  => [Maybe [Listof PathString]]
+;; (clipboard-get-image)     => [Maybe img]
+;; (clipboard-get-text)      => [Maybe string]
 ;; (clipboard-set-audio! aud)    where aud in [Oneof OutputPort ByteVector]
 ;; (clipboard-set-filelist! lst) where lst in [Listof PathString]
 ;; (clipboard-set-image! img)
