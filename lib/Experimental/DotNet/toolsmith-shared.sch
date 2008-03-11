@@ -166,15 +166,12 @@
 ;; 
 ;; Clipboard related operations (global procedures):
 ;; (clipboard-clear!)
-;; (clipboard-contains-audio?)
 ;; (clipboard-contains-filelist?)
 ;; (clipboard-contains-image?)
 ;; (clipboard-contains-text?)
-;; (clipboard-get-audio)     => [Maybe [Oneof InputPort ByteVector]]
 ;; (clipboard-get-filelist)  => [Maybe [Listof PathString]]
 ;; (clipboard-get-image)     => [Maybe img]
 ;; (clipboard-get-text)      => [Maybe string]
-;; (clipboard-set-audio! aud)    where aud in [Oneof OutputPort ByteVector]
 ;; (clipboard-set-filelist! lst) where lst in [Listof PathString]
 ;; (clipboard-set-image! img)
 ;; (clipboard-set-text! string)
