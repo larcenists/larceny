@@ -157,6 +157,27 @@
 ;;  (append item action) ;; item is string or mnu; action is nullary procedure
 ;;  (append item action enabled?) ;; enabled? is nullary predicate
 ;;  (items) (mnuptr) (name)
+;; IMG: (make-blank-img w h) (make-img/bmp w h bv) (xpm->img s) (file->img f)
+;;  (sourcefile) => [Maybe PathString]
+;;  (bitmap)     => Bytevector
+
+;; TODO consider adopting something like the IDataObject interface for
+;; data stored on clipboard.
+;; 
+;; Clipboard related operations (global procedures):
+;; (clipboard-clear!)
+;; (clipboard-contains-audio?)
+;; (clipboard-contains-filelist?)
+;; (clipboard-contains-image?)
+;; (clipboard-contains-text?)
+;; (clipboard-get-audio)     => [Oneof InputPort ByteVector]
+;; (clipboard-get-filelist)  => [Listof PathString]
+;; (clipboard-get-image)     => img
+;; (clipboard-get-text)      => string
+;; (clipboard-set-audio! aud)    where aud in [Oneof OutputPort ByteVector]
+;; (clipboard-set-filelist! lst) where lst in [Listof PathString]
+;; (clipboard-set-image! img)
+;; (clipboard-set-text! string)
 
 (define (make-noisy-agent wnd width height)
   (define (displayln x) (write x) (newline))
