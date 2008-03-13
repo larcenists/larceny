@@ -243,9 +243,6 @@ TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
 
 mkdir -p ${DIR}
 
-# Initialize the Dart log
-echo '<?xml version="1.0" encoding="utf-8"?>'            >  $MY_DARTLOG
-
 function dartlog_goingaway {
    echo $@ >> $MY_DARTLOG
 }
@@ -295,6 +292,9 @@ function quotetestsfile { # esc_html
   # On non CCIS Sun, we don't have native2ascii.
   cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_DARTTESTSLOG}
 }
+
+# Initialize the Dart log
+dartbothlogs '<?xml version="1.0" encoding="utf-8"?>'
 
 dartbothlogs '<DartSubmission version="2.0" createdby="' $0 '">'
 dartbothlogs '<Site>'`hostname`'</Site>'
