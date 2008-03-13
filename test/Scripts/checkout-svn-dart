@@ -6,15 +6,21 @@ set -o errexit
 ##
 ## This script is meant to be first symlinked to under a file name
 ## indicating the host scheme and architecture, and then invoked in a
-## context with the following environment variables set: TRACK DARTLOG
-##
+## context with the following environment variables set: 
+##    TRACK DARTBUILDLOG DARTTESTSLOG
+## 
+## (A change to Dart between v1.0.7 and v1.0.9 has forced us to submit
+##  the build log and test logs separately.  But this is probably a
+##  better protocol anyway.)
+## 
 ## Here is a sample simple wrapper script meant to demonstrate how 
 ## to first invoke this script, and then send the resulting dart log
 ## to the dart server (uighur.ccs.neu.edu in this case)
 # 
 # LOGFILE=/home/henchman/build.`date +%F`.log
 # export TRACK="Nightly"
-# export DARTLOG="/home/henchman/larcenytest/dart-native-sub.xml"
+# export DARTBUILDLOG="/home/henchman/larcenytest/dart-native-build-sub.xml"
+# export DARTTESTSLOG="/home/henchman/larcenytest/dart-native-tests-sub.xml"
 # /home/henchman/bin/checkout-larceny-linux86-native >> $LOGFILE 2>&1
 # java -jar /home/henchman/jars/DartClient.jar -s uighur.ccs.neu.edu dart $DARTLOG >> $LOGFILE 2>&1
 # cat $LOGFILE | mail -s "Nightly build log" pnkfelix@pnkfx.org
@@ -224,8 +230,10 @@ esac
 # Perhaps add more to this, like the hour and minute?
 TODAY=`date +%Y-%m-%d` 
 DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TRACK}-${TODAY}
-DARTLOG=${DARTLOG:-"${DIR}/../dart-sub.xml"}
-MY_DARTLOG="${DIR}/dart-sub.xml"
+DARTBUILDLOG=${DARTBUILDLOG:-"${DIR}/../dart-build-sub.xml"}
+DARTTESTSLOG=${DARTTESTSLOG:-"${DIR}/../dart-tests-sub.xml"}
+MY_DARTBUILDLOG="${DIR}/dart-build-sub.xml"
+MY_DARTTESTSLOG="${DIR}/dart-tests-sub.xml"
 TEMPLOG="${DIR}/temp.log"
 TEMPSCM="${DIR}/temp.scm"
 REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
@@ -238,8 +246,21 @@ mkdir -p ${DIR}
 # Initialize the Dart log
 echo '<?xml version="1.0" encoding="utf-8"?>'            >  $MY_DARTLOG
 
-function dartlog {
+function dartlog_goingaway {
    echo $@ >> $MY_DARTLOG
+}
+
+function dartbuildlog {
+   echo $@ >> $MY_DARTBUILDLOG
+}
+
+function darttestslog {
+   echo $@ >> $MY_DARTTESTSLOG
+}
+
+function dartbothlogs {
+   dartbuildlog $@
+   darttestslog $@
 }
 
 function cmdsetstatus {
@@ -257,30 +278,36 @@ function cmdsetstatus {
 #    ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3 | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
 #}
 
-function quotetextfile_cdata { # doesn't work for some reason...
+function quotetextfile_cdata { # doesn't work for some reason... (dead code)
    dartlog '<![CDATA['
    cat $1 >> ${MY_DARTLOG}
    dartlog ']]>'
 }
 
-function quotetextfile { # esc_html
+function quotebuildfile { # esc_html
   # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
   # On non CCIS Sun, we don't have native2ascii.
-  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_DARTLOG}
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_DARTBUILDLOG}
 }
 
-dartlog '<DartSubmission version="2.0" createdby="' $0 '">'
-dartlog '<Site>'`hostname`'</Site>'
-dartlog '<BuildName>'`uname` $DIRNAME'</BuildName>'
-dartlog '<Track>'${TRACK}'</Track>'
-dartlog '<DateTimeStamp>'`$CALCDATEDART`'</DateTimeStamp>'
+function quotetestsfile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_DARTTESTSLOG}
+}
+
+dartbothlogs '<DartSubmission version="2.0" createdby="' $0 '">'
+dartbothlogs '<Site>'`hostname`'</Site>'
+dartbothlogs '<BuildName>'`uname` $DIRNAME'</BuildName>'
+dartbothlogs '<Track>'${TRACK}'</Track>'
+dartbothlogs '<DateTimeStamp>'`$CALCDATEDART`'</DateTimeStamp>'
 
 # args: DartStageName HumanStageName WorkingDir CmdString
 function eval_stage {
-   dartlog '<Test>'
-   dartlog '<Name>'.Build.Stage$1'</Name>'
-   dartlog '<Measurement name="StageName" type="text/string">'$2'</Measurement>'
-   dartlog '<Measurement name="StartDateTime" type="text/string">'`$CALCDATEDART`'</Measurement>'
+   dartbuildlog '<Test>'
+   dartbuildlog '<Name>'.Build.Stage$1'</Name>'
+   dartbuildlog '<Measurement name="StageName" type="text/string">'$2'</Measurement>'
+   dartbuildlog '<Measurement name="StartDateTime" type="text/string">'`$CALCDATEDART`'</Measurement>'
 
    pushd "$3" > /dev/null
    SECS_BEGIN=`date +%s`
@@ -289,31 +316,31 @@ function eval_stage {
    SECS_FINIS=`date +%s`
    popd     > /dev/null
 
-   dartlog '<Measurement name="ElapsedTime" type="numeric/float">'
-   dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
-   dartlog '</Measurement>'
-   dartlog '<Measurement name="Execution Time" type="numeric/float">'
-   dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
-   dartlog '</Measurement>'
-   dartlog '<Status>'
-   dartlog ${STATUS}
-   dartlog '</Status>'
-   dartlog '<Measurement name="EndDateTime"  type="text/string">'`$CALCDATEDART`'</Measurement>'
-   dartlog '<Measurement name="BuildStatus"  type="text/string">'${STATUS}'</Measurement>'
-   dartlog '<Measurement name="BuildCommand" type="text/string">'$4'</Measurement>'
-   dartlog '<Measurement name="Log" type="text/xml">' 
-   quotetextfile ${TEMPLOG}
-   dartlog '</Measurement>'
+   dartbuildlog '<Measurement name="ElapsedTime" type="numeric/float">'
+   dartbuildlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+   dartbuildlog '</Measurement>'
+   dartbuildlog '<Measurement name="Execution Time" type="numeric/float">'
+   dartbuildlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+   dartbuildlog '</Measurement>'
+   dartbuildlog '<Status>'
+   dartbuildlog ${STATUS}
+   dartbuildlog '</Status>'
+   dartbuildlog '<Measurement name="EndDateTime"  type="text/string">'`$CALCDATEDART`'</Measurement>'
+   dartbuildlog '<Measurement name="BuildStatus"  type="text/string">'${STATUS}'</Measurement>'
+   dartbuildlog '<Measurement name="BuildCommand" type="text/string">'$4'</Measurement>'
+   dartbuildlog '<Measurement name="Log" type="text/xml">' 
+   quotebuildfile ${TEMPLOG}
+   dartbuildlog '</Measurement>'
  
    # Warnings and such have to be _separate_ tests; if they appear as a 
    # subtree within this <Test>, the Dart server will ignore it.  :(
-   dartlog '</Test>'
+   dartbuildlog '</Test>'
 
    if grep -qi warning ${TEMPLOG} ; then
       grep -n -i warning ${TEMPLOG} | while read WARNINGLINE ; do
 	  WARNINGLINENUM=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\1/'`
 	  WARNINGLINETXT=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\2/'`
-	  cat >> ${MY_DARTLOG} <<EOF
+	  cat >> ${MY_DARTBUILDLOG} <<EOF
 <Test>
 <Name>.Build.Stage${1}.Warning${WARNINGNUM}</Name>
 <Measurement name="BuildLogLine" type="text/string">${WARNINGLINENUM}</Measurement>
@@ -352,18 +379,18 @@ eval_stage   kChkDiskUsage "9. measure disk usage" ${DIR}             "du -skh l
 BUILD_STATUS=${STATUS}
 
 function dart_post_test {
-    dartlog '<Status>'
-    dartlog ${STATUS}
-    dartlog '</Status>'
-    dartlog '<Measurement name="Output" type="text/text">'
-    quotetextfile ${TEMPLOG}
-    dartlog '</Measurement>'
+    darttestslog '<Status>'
+    darttestslog ${STATUS}
+    darttestslog '</Status>'
+    darttestslog '<Measurement name="Output" type="text/text">'
+    quotetestsfile ${TEMPLOG}
+    darttestslog '</Measurement>'
 }
 
 # usage: library_test TESTFILE TESTTYPE
 function library_test {
-    dartlog '<Test>'
-    dartlog '<Name>'.Test.Lib.$1.$2'</Name>'
+    darttestslog '<Test>'
+    darttestslog '<Name>'.Test.Lib.$1.$2'</Name>'
     pushd ${DIR}/larceny_src/test/Lib > /dev/null
     cat > ${TEMPSCM} <<EOF
 (error-handler (lambda l (display l) (newline) (exit 115)))
@@ -379,11 +406,11 @@ EOF
     SECS_BEGIN=`date +%s`
     cmdsetstatus "../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}" > ${TEMPLOG} 2>&1
     SECS_FINIS=`date +%s`
-    dartlog '<Measurement name="Execution Time" type="numeric/float">'
-    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
-    dartlog '</Measurement>'
+    darttestslog '<Measurement name="Execution Time" type="numeric/float">'
+    darttestslog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+    darttestslog '</Measurement>'
     dart_post_test
-    dartlog '</Test>'
+    darttestslog '</Test>'
     popd > /dev/null
 }
 
@@ -412,8 +439,8 @@ library_test enum       enumset
 
 # usage: compiler_tests SWITCHES
 function compiler_tests {
-    dartlog '<Test>'
-    dartlog '<Name>'.Test.Compiler.$1'</Name>'
+    darttestslog '<Test>'
+    darttestslog '<Name>'.Test.Compiler.$1'</Name>'
     pushd ${DIR}/larceny_src/test/Compiler > /dev/null
     cat > ${TEMPSCM} <<EOF
 (error-handler (lambda l (display l) (newline) (exit 116)))
@@ -426,15 +453,15 @@ EOF
     SECS_BEGIN=`date +%s`
     cmdsetstatus "../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}" > ${TEMPLOG} 2>&1
     SECS_FINIS=`date +%s`
-    dartlog '<Measurement name="Execution Time" type="numeric/float">'
-    dartlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
-    dartlog '</Measurement>'
+    darttestslog '<Measurement name="Execution Time" type="numeric/float">'
+    darttestslog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+    darttestslog '</Measurement>'
     dart_post_test
-    dartlog '<Status>'
-    dartlog ${STATUS}
-    dartlog '</Status>'
+    darttestslog '<Status>'
+    darttestslog ${STATUS}
+    darttestslog '</Status>'
 
-    dartlog '</Test>'
+    darttestslog '</Test>'
     popd > /dev/null
 }
 
@@ -502,7 +529,7 @@ cat > ${TEMPSCM} <<EOF
 (exit)
 EOF
 # This is not benchmarked, so use standard name rather than parameter $1
-../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${MY_DARTLOG}
+../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${MY_DARTTESTSLOG}
 
 cat results.Larceny-$2 >> Results/results.Larceny
 rm results.Larceny-$2
@@ -524,11 +551,12 @@ run_and_process_benchmarks ${FINAL_LARCENY_ROF_SCRIPT} r6rs r6rs-fake
 
 popd > /dev/null
 
-dartlog '</DartSubmission>'
+dartbothlogs '</DartSubmission>'
 
 # Now copy the log we've been building into the final location where
 # the caller expects to find it.
-cp $MY_DARTLOG $DARTLOG
+cp $MY_DARTBUILDLOG $DARTBUILDLOG
+cp $MY_DARTTESTSLOG $DARTTESTSLOG
 
 if [ $BUILD_STATUS == "failed" ] 
 then exit 1
