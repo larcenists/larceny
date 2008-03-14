@@ -379,6 +379,13 @@ eval_stage   kChkDiskUsage "9. measure disk usage" ${DIR}             "du -skh l
 
 BUILD_STATUS=${STATUS}
 
+dartbuildlog '</DartSubmission>'
+
+# Now copy the log we've been building into the final location where
+# the caller expects to find it.
+cp $MY_DARTBUILDLOG $DARTBUILDLOG
+java -jar $DARTJAR -s $DARTSERVER dart $DARTBUILDLOG
+
 function dart_post_test {
     darttestslog '<Status>'
     darttestslog ${STATUS}
@@ -552,14 +559,12 @@ run_and_process_benchmarks ${FINAL_LARCENY_ROF_SCRIPT} r6rs r6rs-fake
 
 popd > /dev/null
 
-dartbothlogs '</DartSubmission>'
+darttestslogs '</DartSubmission>'
 
 # Now copy the log we've been building into the final location where
 # the caller expects to find it.
-cp $MY_DARTBUILDLOG $DARTBUILDLOG
 cp $MY_DARTTESTSLOG $DARTTESTSLOG
 
-java -jar $DARTJAR -s $DARTSERVER dart $DARTBUILDLOG
 java -jar $DARTJAR -s $DARTSERVER dart $DARTTESTSLOG
 
 if [ $BUILD_STATUS == "failed" ] 
