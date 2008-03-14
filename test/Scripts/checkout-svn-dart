@@ -7,7 +7,7 @@ set -o errexit
 ## This script is meant to be first symlinked to under a file name
 ## indicating the host scheme and architecture, and then invoked in a
 ## context with the following environment variables set: 
-##    TRACK DARTBUILDLOG DARTTESTSLOG
+##    TRACK DARTBUILDLOG DARTTESTSLOG DARTSERVER DARTJAR
 ## 
 ## (A change to Dart between v1.0.7 and v1.0.9 has forced us to submit
 ##  the build log and test logs separately.  But this is probably a
@@ -21,8 +21,9 @@ set -o errexit
 # export TRACK="Nightly"
 # export DARTBUILDLOG="/home/henchman/larcenytest/dart-native-build-sub.xml"
 # export DARTTESTSLOG="/home/henchman/larcenytest/dart-native-tests-sub.xml"
+# export DARTSERVER="uighur.ccs.neu.edu"
+# export DARTJAR="~/jars/DartClient.jar"
 # /home/henchman/bin/checkout-larceny-linux86-native >> $LOGFILE 2>&1
-# java -jar /home/henchman/jars/DartClient.jar -s uighur.ccs.neu.edu dart $DARTLOG >> $LOGFILE 2>&1
 # cat $LOGFILE | mail -s "Nightly build log" pnkfelix@pnkfx.org
 #
 ########################################################################
@@ -557,6 +558,9 @@ dartbothlogs '</DartSubmission>'
 # the caller expects to find it.
 cp $MY_DARTBUILDLOG $DARTBUILDLOG
 cp $MY_DARTTESTSLOG $DARTTESTSLOG
+
+java -jar $DARTJAR -s $DARTSERVER dart $DARTBUILDLOG
+java -jar $DARTJAR -s $DARTSERVER dart $DARTTESTSLOG
 
 if [ $BUILD_STATUS == "failed" ] 
 then exit 1
