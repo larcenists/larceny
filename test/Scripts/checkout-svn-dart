@@ -559,7 +559,7 @@ run_and_process_benchmarks ${FINAL_LARCENY_ROF_SCRIPT} r6rs r6rs-fake
 
 popd > /dev/null
 
-darttestslogs '</DartSubmission>'
+darttestslog '</DartSubmission>'
 
 # Now copy the log we've been building into the final location where
 # the caller expects to find it.
