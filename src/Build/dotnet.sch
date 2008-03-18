@@ -329,6 +329,9 @@
     (build-twobit-base
       "Larceny"
       `(,@(param-filename 'compiler '("driver-larceny.sch"))
+        ;; Next two are prerequisites for seal-twobit
+        ,@(param-filename 'common-source '("toplevel.sch"))
+        ,@(param-filename 'source "Arch" "IL" '("toplevel-target.sch"))
         ,@(param-filename 'util '("seal-twobit.sch"))
         ,@(param-filename 'auxiliary '("dotnet-compile-file.sch"))
         ,@(param-filename 'common-asm '("link-lop.sch"))

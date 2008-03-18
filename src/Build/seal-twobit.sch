@@ -2,11 +2,16 @@
 ;; so that the heap will only provide a controlled interface to
 ;; the Twobit compiler.
 
+;; The three steps below are now a prerequisite for loading this file.
+;; (It was nice to try to do this magic on the client's behalf, but
+;;  Felix can not get the semantics right in the important case, Common
+;;  Larceny's Larceny.fasl, and so Felix is giving up on the magic.)
+
 '(load-compiler 'release)
 
-(compat:load (param-filename 'common-source "toplevel.sch"))
+'(compat:load (param-filename 'common-source "toplevel.sch"))
 
-(let ((arch (assq 'arch-name (system-features))))
+'(let ((arch (assq 'arch-name (system-features))))
   (case (string->symbol (string-downcase (cdr arch)))
     ((sparc) (compat:load (param-filename 'source "Arch" "Sparc"
                                           "toplevel-target.sch")))
