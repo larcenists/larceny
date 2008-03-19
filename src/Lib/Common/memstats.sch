@@ -434,6 +434,13 @@
 (define (memstats-dofgc-repeats v) (vector-ref v 47))
 (define (memstats-gc-accounting v) (vector-ref v 48))
 
+(define (memstats-mark-elapsed v)      (vector-ref v 60))
+(define (memstats-mark-cpu v)          (vector-ref v 61))
+(define (memstats-mark-count v)        (vector-ref v 62))
+(define (memstats-summarize-elapsed v) (vector-ref v 75))
+(define (memstats-summarize-cpu v)     (vector-ref v 76))
+(define (memstats-summarize-count v)   (vector-ref v 77))
+
 ; Accessors for GC accounting substructure
 
 (define (memstats-acc-gc v) (vector-ref v 0))
@@ -698,7 +705,10 @@
               maxscantime maxscancpu maxscanentries 
               avgscantime avgscancpu avgscanentries
               words-mem-max words-heap-max words-remset-max 
-              words-rts-max words-waste-max)
+              words-rts-max words-waste-max
+              marks marktime markcpu 
+              sumzs sumztime sumzcpu
+              )
     (mprint "Words allocated: " allocated)
     (mprint "Words reclaimed: " reclaimed)
     (mprint "Elapsed time...: " elapsed
@@ -714,6 +724,8 @@
     (mprint "{Max words, Mem: " words-mem-max " Heap: " words-heap-max
             " Remset: " words-remset-max " Rts: " words-rts-max 
             " Waste: " words-waste-max "}")
+    (mprint "Elapsed mark time: " marktime " (CPU: " markcpu " in " marks " marks.)")
+    (mprint "Elapsed summarization time: " sumztime " (CPU: " sumzcpu " in " sumzs " summarization.)")
     )
 
   (define (print-stats s1 s2)
@@ -768,6 +780,12 @@
         (memstats-remsets-allocated-max s2)
         (memstats-rts-allocated-max s2)
         (memstats-heap-fragmentation-max s2)
+        (- (memstats-mark-count s2)   (memstats-mark-count s1)) ;; mark related
+        (- (memstats-mark-elapsed s2) (memstats-mark-elapsed s1))
+        (- (memstats-mark-cpu s2)     (memstats-mark-cpu s1))
+        (- (memstats-summarize-count s2)   (memstats-summarize-count s1)) ;; summarization related
+        (- (memstats-summarize-elapsed s2) (memstats-summarize-elapsed s1))
+        (- (memstats-summarize-cpu s2)     (memstats-summarize-cpu s1))
 	))
   
   (let* ((s1 (memstats))
