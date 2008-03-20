@@ -171,6 +171,11 @@
 ;; dump-directive : symbol . (listof string)  -> void
 (define (dump-directive directive . args)
   (case directive
+    ((custom)
+     (cond ((and (= 1 (length args)) (string? (car args)))
+            (dump-source ".custom ~a" (car args)))
+           (else
+            (error 'dump-directive ": unsupported, custom ~a" args))))
     ((entrypoint)
      (dump-source ".entrypoint"))
     ((maxstack)

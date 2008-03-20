@@ -319,6 +319,11 @@
                 '(public hidebysig static cil managed))
   (emit ilc
         (il:directive 'entrypoint)
+        (il:directive 'custom 
+                      (string-append "instance void "
+                                     "[mscorlib]"
+                                     "System.STAThreadAttribute::.ctor()"
+                                     " = ( 01 00 00 00 )"))
         (il 'ldarg 0)
         (il:call '() iltype-void il-load "MainHelper"
                  (list iltype-string-array))

@@ -31,6 +31,11 @@
 ;; pickle-directive : symbol il . (listof string)  -> il
 (define (pickle-directive same directive . args)
   (case directive
+    ((custom)
+     (cond ((and (= 1 (length args)) (string? (car args)))
+            (twobit-format #f ".custom ~a" (car args)))
+           (else
+            (error 'pickle-directive ": unsupported, custom ~a" args))))
     ((entrypoint)
      ".entrypoint")
     ((maxstack)

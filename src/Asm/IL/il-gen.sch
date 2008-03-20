@@ -385,6 +385,7 @@
 ;; Represents a directive (.maxstack, .locals, ...)
 ;; One of: entrypoint maxstack module 
 ;;         assembly-extern assembly local line
+;;         custom
 (define (il:directive directive . args)
   (apply il 'directive directive args))
 

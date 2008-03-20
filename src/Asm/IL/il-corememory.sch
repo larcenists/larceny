@@ -813,6 +813,9 @@
     ;; codump-directive : symbol string ... -> void
     (define (codump-directive directive . args)
       (case directive 
+        ((custom)
+         (error 'codump-directive 
+                " custom ~a not yet supported for in-core il codegen." args))
 	((entrypoint) 
 	 (ilc/%set-entry-point! (current-assembly-name) 
                                 (current-method-builder)))
