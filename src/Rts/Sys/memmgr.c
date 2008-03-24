@@ -1160,15 +1160,16 @@ static void print_float_stats( char *caller_name, gc_t *gc )
           ! DATA(gc)->ephemeral_area[i]->has_popular_objects)
         estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc/sizeof(word);
     }
-    consolemsg( "cycle count %d total float { objs: %d words: %d (%3d%%,%3d%%) } nextrefine: %d "
-                "live{ est: %d act: %d max: %d } estdelta: %f ",
+    consolemsg( "cycle count %d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
+                "live{ est: %dK act: %dK max: %dK } estdelta: %0.2f ",
                 cycle_count, 
-                total_float_objects, 
-                total_float_words, 
+                total_float_objects/1000, 
+                total_float_words/1024, 
                 (int)(100.0*(double)total_float_words/(double)words_marked), 
                 DATA(gc)->max_live_words?(int)(100.0*(double)total_float_words/(double)DATA(gc)->max_live_words):0, 
                 DATA(gc)->rrof_refine_mark_countdown, 
-                estimated_live, words_marked, DATA(gc)->max_live_words, estimated_live?(((double)estimated_live)/(double)words_marked):0.0 );
+                estimated_live/1024, words_marked/1024, DATA(gc)->max_live_words/1024, 
+                estimated_live?(((double)estimated_live)/(double)words_marked):0.0 );
 
     msgc_end( context_incl_remsets );
     msgc_end( context );
