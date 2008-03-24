@@ -121,6 +121,8 @@ struct gc_data {
   bool print_float_stats_each_major;
   bool print_float_stats_each_minor;
   bool print_float_stats_each_refine;
+
+  int max_live_words;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
@@ -1049,6 +1051,8 @@ static void refine_remsets_via_marksweep( gc_t *gc )
       max( DATA(gc)->rrof_refine_mark_countdown,
            DATA(gc)->region_count );
     DATA(gc)->rrof_last_live_estimate = sizeof(word)*words_marked;
+    DATA(gc)->max_live_words = 
+      max( DATA(gc)->max_live_words, words_marked );
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
   } else {
     assert(0);
@@ -1156,14 +1160,15 @@ static void print_float_stats( char *caller_name, gc_t *gc )
           ! DATA(gc)->ephemeral_area[i]->has_popular_objects)
         estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc/sizeof(word);
     }
-    consolemsg( "cycle count %d total float { objs: %d words: %d (%3d%%) } nextrefine: %d "
-                "estimated_live: %d actual_live: %d estdelta: %f ",
+    consolemsg( "cycle count %d total float { objs: %d words: %d (%3d%%,%3d%%) } nextrefine: %d "
+                "live{ est: %d act: %d max: %d } estdelta: %f ",
                 cycle_count, 
                 total_float_objects, 
                 total_float_words, 
                 (int)(100.0*(double)total_float_words/(double)words_marked), 
+                DATA(gc)->max_live_words?(int)(100.0*(double)total_float_words/(double)DATA(gc)->max_live_words):0, 
                 DATA(gc)->rrof_refine_mark_countdown, 
-                estimated_live, words_marked, estimated_live?(((double)estimated_live)/(double)words_marked):0.0 );
+                estimated_live, words_marked, DATA(gc)->max_live_words, estimated_live?(((double)estimated_live)/(double)words_marked):0.0 );
 
     msgc_end( context_incl_remsets );
     msgc_end( context );
@@ -2758,6 +2763,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->remset_summary_valid = FALSE;
   data->remset_summary_words = 0;
   data->nursery_remset = 0;
+
+  data->max_live_words = 0;
 
   ret = 
     create_gc_t( "*invalid*",
