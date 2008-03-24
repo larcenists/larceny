@@ -71,6 +71,10 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   int  mark_period;		       /* In the regional system. */
   bool   has_refine_factor;	       /* In the regional system. */
   double refinement_factor;	       /* In the regional system. */
+  bool print_float_stats_cycle;        /* In the regional system. */
+  bool print_float_stats_major;        /* In the regional system. */
+  bool print_float_stats_minor;        /* In the regional system. */
+  bool print_float_stats_refine;       /* In the regional system. */
 
   /* Common parameters */
   word *globals;		/* globals table used by collector */

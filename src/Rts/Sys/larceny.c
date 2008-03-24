@@ -533,6 +533,14 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.has_refine_factor = TRUE;
       o->gc_info.refinement_factor = refine_factor;
     }
+    else if (hstrcmp( *argv, "-print_float_stats_cycle" ) == 0)
+      o->gc_info.print_float_stats_cycle = TRUE;
+    else if (hstrcmp( *argv, "-print_float_stats_major" ) == 0)
+      o->gc_info.print_float_stats_major = TRUE;
+    else if (hstrcmp( *argv, "-print_float_stats_minor" ) == 0)
+      o->gc_info.print_float_stats_minor = TRUE;
+    else if (hstrcmp( *argv, "-print_float_stats_refine" ) == 0)
+      o->gc_info.print_float_stats_refine = TRUE;
     else if (sizearg( "-rhash", &argc, &argv, (int*)&o->gc_info.rhash ))
       ;
     else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
@@ -1236,6 +1244,15 @@ static char *wizardhelptext[] = {
   "     (RROF) Turns on periodic mark pass during collection to refine",
   "     remembered sets.  The mark pass will be invoked every n nursery",
   "     evacuations.",
+  "  -print_float_stats_cycle",
+  "  -print_float_stats_major",
+  "  -print_float_stats_minor",
+  "  -print_float_stats_refine",
+  "     (RROF) Turns on instrumentation to print information about object",
+  "     float during various stages of regional collection.  The character",
+  "     'Z' represents trivially collectable storage, 'R' represents ",
+  "     dead storage referenced from unreachable objects in other regions",
+  "     (and thus not guaranteed to be reclaimed in next major collection).",
 #if ROF_COLLECTOR
   "  -steps n",
   "     Select the initial number of steps in the non-predictive collector.",

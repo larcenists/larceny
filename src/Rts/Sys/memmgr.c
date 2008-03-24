@@ -115,6 +115,11 @@ struct gc_data {
   int stat_last_ms_mark_refinement;
   int stat_last_ms_mark_refinement_cpu;
   int stat_length_minor_gc_run;
+
+  bool print_float_stats_each_cycle;
+  bool print_float_stats_each_major;
+  bool print_float_stats_each_minor;
+  bool print_float_stats_each_refine;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
@@ -578,10 +583,6 @@ static int next_rgn( int rgn, int num_rgns ) {
   return rgn;
 }
 
-#define PRINT_FLOAT_STATS_EACH_CYCLE 0
-#define PRINT_FLOAT_STATS_EACH_MAJOR 0
-#define PRINT_FLOAT_STATS_EACH_MINOR 0
-#define PRINT_FLOAT_STATS_EACH_REFIN 0
 #define CHECK_NURSERY_REMSET_VIA_SUM 0
 /* The number represents how many cycles per expansion. (first guess is 1) */
 #define EXPAND_RGNS_FROM_LOAD_FACTOR 1
@@ -1171,25 +1172,22 @@ static void print_float_stats( char *caller_name, gc_t *gc )
 
 static void rrof_completed_major_collection( gc_t *gc ) 
 {
-#if PRINT_FLOAT_STATS_EACH_MAJOR
-  print_float_stats( "major ", gc );
-#endif
+  if (DATA(gc)->print_float_stats_each_major)
+    print_float_stats( "major ", gc );
 }
 
 static void rrof_completed_minor_collection( gc_t *gc )
 {
-#if PRINT_FLOAT_STATS_EACH_MINOR
-  print_float_stats( "minor ", gc );
-#endif
+  if (DATA(gc)->print_float_stats_each_minor)
+    print_float_stats( "minor ", gc );
 }
 
 static void rrof_completed_regional_cycle( gc_t *gc ) 
 {
   cycle_count += 1;
 
-#if PRINT_FLOAT_STATS_EACH_CYCLE
-  print_float_stats( "cycle ", gc );
-#endif
+  if (DATA(gc)->print_float_stats_each_cycle)
+    print_float_stats( "cycle ", gc );
 
 #if EXPAND_RGNS_FROM_LOAD_FACTOR
   /* every K collection cycles, lets check and see if we should expand
@@ -1426,9 +1424,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 	if (DATA(gc)->rrof_refine_mark_countdown <= 0) {
 	  stats_id_t timer1, timer2;
-#if PRINT_FLOAT_STATS_EACH_REFIN
-	  print_float_stats( "prefin", gc );
-#endif
+	  if (DATA(gc)->print_float_stats_each_refine)
+	    print_float_stats( "prefin", gc );
 	  start_timers( &timer1, &timer2 );
 	  refine_remsets_via_marksweep( gc );
 	  stop_refinem_timers( gc, &timer1, &timer2 );
@@ -2695,6 +2692,11 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     data->rrof_refine_mark_countdown = countdown_to_first_mark;
     if (0) consolemsg("initial mark countdown: %d", countdown_to_first_mark );
   }
+
+  data->print_float_stats_each_cycle  = info->print_float_stats_cycle;
+  data->print_float_stats_each_major  = info->print_float_stats_major;
+  data->print_float_stats_each_minor  = info->print_float_stats_minor;
+  data->print_float_stats_each_refine = info->print_float_stats_refine;
 
   return gen_no;
 }
