@@ -105,6 +105,7 @@ struct gc_data {
   remset_t *remset_summary;     /* NULL or summarization of remset array */
   bool      remset_summary_valid;
   int       remset_summary_words;
+  int       popularity_limit;   /* Maximum summary size allowed (in words) */
 
   remset_t *nursery_remset;     /* Points-into remset for the nursery. */
 
@@ -590,7 +591,6 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define WEIGH_PREV_ESTIMATE_LOADCALC 0
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
-#define POPULARITY_LIMIT 2621440 /* 2 * 5 MB in words */
 
 /* set by -oracle command line option. */
 static bool use_oracle_to_update_remsets = FALSE;
@@ -1442,7 +1442,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	 * get more info on the popularity of the objects in region.
 	 */
 	if ( ANALYZE_POPULARITY &&
-	     DATA(gc)->remset_summary_words > POPULARITY_LIMIT) {
+	     DATA(gc)->remset_summary_words > DATA(gc)->popularity_limit) {
 	  consolemsg( "   large summary for region %d: %d objects", 
 		      rgn_idx, 
 		      DATA(gc)->remset_summary->live );
@@ -1450,7 +1450,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	}
 	
 	if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
-	     DATA(gc)->remset_summary_words <= POPULARITY_LIMIT ) {
+	     DATA(gc)->remset_summary_words <= DATA(gc)->popularity_limit) { 
 
 	  if (use_oracle_to_update_remsets) 
 	    gc->scan_update_remset = FALSE;
@@ -2611,6 +2611,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );
       size += info->ephemeral_info[i].size_bytes;
+      /* 2 * regionsize in words */
+      data->popularity_limit = info->ephemeral_info[i].size_bytes / (sizeof(word)/2);
       data->ephemeral_area[ i ] = 
 	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
 			OHTYPE_REGIONAL );
