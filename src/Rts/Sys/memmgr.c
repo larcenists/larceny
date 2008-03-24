@@ -104,6 +104,7 @@ struct gc_data {
 
   remset_t *remset_summary;     /* NULL or summarization of remset array */
   bool      remset_summary_valid;
+  int       remset_summary_words;
 
   remset_t *nursery_remset;     /* Points-into remset for the nursery. */
 
@@ -467,6 +468,7 @@ struct remset_summary_data {
   remset_t *remset;
   int objects_visited;
   int objects_added;
+  int words_added;
 };
 static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *count )
 {
@@ -518,6 +520,16 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
   remsum->objects_visited += 1;
   if (do_enqueue) {
     remsum->objects_added += 1;
+    { 
+      int words;
+      if (tagof(ptr) == PAIR_TAG) 
+        words = 2;
+      else {
+        assert( (tagof(ptr) == VEC_TAG) || (tagof(ptr) == PROC_TAG) );
+        words = sizefield( *ptrof(ptr) ) / 4;
+      }
+      remsum->words_added += words;
+    }
     rs_add_elem( remsum->remset, ptr );
   }
 
@@ -537,6 +549,7 @@ static void build_remset_summary( gc_t *gc, int gen )
   remsum.remset = DATA(gc)->remset_summary; 
   remsum.objects_visited = 0;
   remsum.objects_added = 0;
+  remsum.words_added = 0;
   for(i = 1; i < remset_count; i++) {
     if (gset_memberp(i, genset))
       continue;
@@ -546,6 +559,7 @@ static void build_remset_summary( gc_t *gc, int gen )
 		  (void*) &remsum );
   }
   DATA(gc)->remset_summary_valid = TRUE;
+  DATA(gc)->remset_summary_words = remsum.words_added;
   annoyingmsg( "remset summary for collecting {0, %d}, live: %d", 
 	       gen, DATA(gc)->remset_summary->live );
 
@@ -575,7 +589,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define WEIGH_PREV_ESTIMATE_LOADCALC 0
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
-#define POPULARITY_LIMIT 40000
+#define POPULARITY_LIMIT 2621440 /* 2 * 5 MB in words */
 
 /* set by -oracle command line option. */
 static bool use_oracle_to_update_remsets = FALSE;
@@ -1431,7 +1445,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	 * get more info on the popularity of the objects in region.
 	 */
 	if ( ANALYZE_POPULARITY &&
-	     DATA(gc)->remset_summary->live > POPULARITY_LIMIT) {
+	     DATA(gc)->remset_summary_words > POPULARITY_LIMIT) {
 	  consolemsg( "   large summary for region %d: %d objects", 
 		      rgn_idx, 
 		      DATA(gc)->remset_summary->live );
@@ -1439,7 +1453,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	}
 	
 	if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
-	     DATA(gc)->remset_summary->live <= POPULARITY_LIMIT ) {
+	     DATA(gc)->remset_summary_words <= POPULARITY_LIMIT ) {
 
 	  if (use_oracle_to_update_remsets) 
 	    gc->scan_update_remset = FALSE;
@@ -2738,6 +2752,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->remset_summary = 0;
   data->remset_summary_valid = FALSE;
+  data->remset_summary_words = 0;
   data->nursery_remset = 0;
 
   ret = 
