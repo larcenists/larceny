@@ -1154,7 +1154,7 @@ static void print_float_stats( char *caller_name, gc_t *gc )
       total_float_words += data.words.zzflt+data.objs.rsflt;
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
           ! DATA(gc)->ephemeral_area[i]->has_popular_objects)
-        estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc;
+        estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc/sizeof(word);
     }
     consolemsg( "cycle count %d total float { objs: %d words: %d (%3d%%) } nextrefine: %d "
                 "estimated_live: %d actual_live: %d estdelta: %f ",
@@ -1163,7 +1163,7 @@ static void print_float_stats( char *caller_name, gc_t *gc )
                 total_float_words, 
                 (int)(100.0*(double)total_float_words/(double)words_marked), 
                 DATA(gc)->rrof_refine_mark_countdown, 
-                estimated_live/4, words_marked, estimated_live?(((double)estimated_live/4.0)/(double)words_marked):0.0 );
+                estimated_live, words_marked, estimated_live?(((double)estimated_live)/(double)words_marked):0.0 );
 
     msgc_end( context_incl_remsets );
     msgc_end( context );
