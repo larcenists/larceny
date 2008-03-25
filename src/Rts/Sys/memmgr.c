@@ -122,6 +122,7 @@ struct gc_data {
   bool print_float_stats_each_minor;
   bool print_float_stats_each_refine;
 
+  int last_live_words;
   int max_live_words;
 };
 
@@ -1051,6 +1052,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
       max( DATA(gc)->rrof_refine_mark_countdown,
            DATA(gc)->region_count );
     DATA(gc)->rrof_last_live_estimate = sizeof(word)*words_marked;
+    DATA(gc)->last_live_words = words_marked;
     DATA(gc)->max_live_words = 
       max( DATA(gc)->max_live_words, words_marked );
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
@@ -1222,9 +1224,10 @@ static void rrof_completed_regional_cycle( gc_t *gc )
       (int)(DATA(gc)->rrof_load_factor * live_estimated_calc);
     DATA(gc)->rrof_last_live_estimate = live_estimated_calc;
 
-    annoyingmsg( "completed_regional_cycle total: %d max: %d est: %d predict: %d",
+    annoyingmsg( "completed_regional_cycle total: %d max: %d marked: %d est: %d predict: %d",
 		 total_live_at_last_major_gc, 
 		 maximum_allotted, 
+		 DATA(gc)->last_live_words*sizeof(word),
 		 live_estimated_calc, 
 		 live_predicted_at_next_gc );
 
@@ -2765,6 +2768,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->remset_summary_words = 0;
   data->nursery_remset = 0;
 
+  data->last_live_words = 0;
   data->max_live_words = 0;
 
   ret = 
