@@ -1212,7 +1212,8 @@ static void rrof_completed_regional_cycle( gc_t *gc )
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
 	  ! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
 	total_live_at_last_major_gc += 
-	  (DATA(gc)->ephemeral_area[ i ]->live_last_major_gc - nursery_size);
+	  max(0, (DATA(gc)->ephemeral_area[ i ]->live_last_major_gc 
+	          - nursery_size));
 	maximum_allotted += 
 	  DATA(gc)->ephemeral_area[ i ]->maximum;
       }
