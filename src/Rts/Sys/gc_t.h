@@ -34,6 +34,12 @@ struct gc {
   remset_t **remset;
     /* In precise collectors: An array of pointers to remembered sets, 
        or NULL.  Entry 0 in the array is unused.
+       These remsets track region-crossing pointers due to mutator activity.
+       */
+  remset_t **major_remset;
+    /* In precise collectors: An array of pointers to remembered sets, 
+       or NULL.  Entry 0 in the array is unused.
+       These remsets track region-crossing pointers due to collector activity.
        */
 
   seqbuf_t *ssb;

@@ -208,6 +208,7 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
       process_seqbuf( heap->collector, heap->collector->ssb );
       
       rs_clear( heap->collector->remset[ rgn_idx ] );
+      rs_clear( heap->collector->major_remset[ rgn_idx ] );
     }
 
     /* NOTE on the above: the standard collectors seem to do their

@@ -566,6 +566,9 @@ static void build_remset_summary( gc_t *gc, int gen )
     rs_enumerate( gc->remset[ i ], 
 		  scan_object_for_remset_summary,
 		  (void*) &remsum );
+    rs_enumerate( gc->major_remset[ i ], 
+		  scan_object_for_remset_summary,
+		  (void*) &remsum );
   }
   DATA(gc)->remset_summary_valid = TRUE;
   DATA(gc)->remset_summary_words = remsum.words_added;
@@ -607,11 +610,13 @@ static void* verify_remsets_fcn( word obj, word src, void *data )
     assert( gen_of(src) >= 0 );
     if (gen_of(src) > 0) {
       process_seqbuf( gc, gc->ssb );
-      if (!rs_isremembered( gc->remset[ gen_of(src) ], src )) {
+      if (!rs_isremembered( gc->remset[ gen_of(src) ], src ) &&
+	  !rs_isremembered( gc->major_remset[ gen_of(src) ], src )) {
 	consolemsg( " src: 0x%08x (%d) points to obj: 0x%08x (%d),"
-		    " but not in remset @0x%08x",
+		    " but not in remsets @0x%08x @0x%08x",
 		    src, gen_of(src), obj, gen_of(obj), 
-		    gc->remset[ gen_of(src) ]);
+		    gc->remset[ gen_of(src) ],
+		    gc->major_remset[ gen_of(src) ]);
 	assert( gc_is_address_mapped( gc, ptrof(src), TRUE ));
 	assert( gc_is_address_mapped( gc, ptrof(obj), TRUE ));
 	assert(0);
@@ -639,7 +644,7 @@ static void* update_remsets_msgc_fcn( word obj, word src, void *data )
       ! gc_is_nonmoving( gc, gen_of(obj) )) {
     assert( gen_of(src) > 0 );
     if (gen_of(src) > 0)
-      rs_add_elem( gc->remset[ gen_of(src) ], src );
+      rs_add_elem( gc->major_remset[ gen_of(src) ], src );
   }
   return data;
 }
@@ -668,14 +673,14 @@ static void* update_remsets_visitor( word *addr, int tag, void *accum )
     if (isptr(*addr) &&
 	src_gen != gen_of( *addr ) &&
 	! gc_is_nonmoving( gc, gen_of( *addr ))) {
-      rs_add_elem( gc->remset[ src_gen ], src );
+      rs_add_elem( gc->major_remset[ src_gen ], src );
       break;
     }
     addr++;
     if (isptr(*addr) &&
 	src_gen != gen_of( *addr ) &&
 	! gc_is_nonmoving( gc, gen_of( *addr ))) {
-      rs_add_elem( gc->remset[ src_gen ], src );
+      rs_add_elem( gc->major_remset[ src_gen ], src );
       break;
     }
     break;
@@ -689,7 +694,7 @@ static void* update_remsets_visitor( word *addr, int tag, void *accum )
       if (isptr(*addr) &&
 	  src_gen != gen_of( *addr ) &&
 	  ! gc_is_nonmoving( gc, gen_of( *addr ))) {
-	rs_add_elem( gc->remset[ src_gen ], src );
+	rs_add_elem( gc->major_remset[ src_gen ], src );
 	break;
       }
       addr++;
@@ -721,7 +726,7 @@ static void update_remsets_via_oracular_ss( gc_t *gc )
 
 static void update_remsets_via_oracle( gc_t *gc )
 {
-  if (gc->remset == NULL) 
+  if (gc->major_remset == NULL) 
     return;
   if (0)
     update_remsets_via_oracular_msgc( gc );
@@ -1035,6 +1040,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
     rgn = i+1;
     rs_enumerate( gc->remset[ rgn ], scan_refine_remset, context );
+    rs_enumerate( gc->major_remset[ rgn ], scan_refine_remset, context );
   }
   
   if (DATA(gc)->rrof_refine_mark_period > 0) {
@@ -1106,12 +1112,13 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
       old_heap_t *heap = DATA(gc)->ephemeral_area[ i ];
       rgn = i+1;
       consolemsg( "%scycle count %d region% 4d "
-                  "remset live: %7d lastmajor: %7d "
+                  "remset live: %7d %7d lastmajor: %7d "
                   "float{ objs: %7d/%7d words: %7d/%7d }%s %s %s", 
                   caller_name,
                   cycle_count, 
                   rgn, 
-                  gc->remset[ rgn ]->live, heap->live_last_major_gc/4, 
+                  gc->remset[ rgn ]->live, gc->major_remset[ rgn ]->live, 
+                  heap->live_last_major_gc/4, 
                   data.objs.zzflt+data.objs.rsflt,
                   data.objs.total,
                   data.words.zzflt+data.words.rsflt,
@@ -1306,7 +1313,8 @@ static bool print_object_not_in_summary( word ptr, void *data, unsigned *count )
 {
   gc_t *gc = (gc_t*)data;
   if ( ! rs_isremembered( DATA(gc)->remset_summary, ptr ) ) {
-    if (! rs_isremembered( gc->remset[ gen_of(ptr) ], ptr )) {
+    if (! rs_isremembered( gc->remset[ gen_of(ptr) ], ptr ) &&
+        ! rs_isremembered( gc->major_remset[ gen_of(ptr) ], ptr )) {
       consolemsg("object 0x%08x is in nursery remset but not in summary.nor in major remsets.", ptr);
     }
   }
@@ -1495,14 +1503,18 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	      old_heap_t *emergency = 
 		DATA(gc)->ephemeral_area[ emergency_gno-1 ];
 	      remset_t *curr_rs = gc->remset[ curr_gno ];
+	      remset_t *curr_mrs = gc->major_remset[ curr_gno ];
 	      remset_t *emergency_rs = gc->remset[ emergency_gno ];
+	      remset_t *emergency_mrs = gc->major_remset[ emergency_gno ];
 	      consolemsg("SWAP %d <=> %d", curr_gno, emergency_gno );
 	      oh_set_gen_no( curr, emergency_gno );
 	      oh_set_gen_no( emergency, curr_gno );
 	      DATA(gc)->ephemeral_area[ curr_gno-1 ] = emergency;
 	      DATA(gc)->ephemeral_area[ emergency_gno-1 ] = curr;
 	      gc->remset[ curr_gno ] = emergency_rs;
+	      gc->major_remset[ curr_gno ] = emergency_mrs;
 	      gc->remset[ emergency_gno ] = curr_rs;
+	      gc->major_remset[ emergency_gno ] = curr_mrs;
 	    }
 	  }
 	  rrof_completed_major_collection( gc );
@@ -1638,7 +1650,8 @@ static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt )
 	  gen_of(src) != gen_of(tgt) ||
 	  gen_of(src) != 0 ||
 	  gen_of(tgt) != DATA(gc)->static_generation ||
-	  rs_isremembered( gc->remset[ gen_of(src) ], tgt ));
+	  rs_isremembered( gc->remset[ gen_of(src) ], tgt ) ||
+	  rs_isremembered( gc->major_remset[ gen_of(src) ], tgt ));
 }
 static void check_remset_invs( gc_t *gc, word src, word tgt ) 
 {
@@ -1649,7 +1662,8 @@ static void check_remset_invs( gc_t *gc, word src, word tgt )
 	  gen_of(src)  < gen_of(tgt) ||
 	  gen_of(src) != 0 ||
 	  gen_of(tgt) != DATA(gc)->static_generation ||
-	  rs_isremembered( gc->remset[ gen_of(src) ], src ));
+	  rs_isremembered( gc->remset[ gen_of(src) ], src ) ||
+	  rs_isremembered( gc->major_remset[ gen_of(src) ], src ));
 }
 
 void gc_signal_moving_collection( gc_t *gc )
@@ -1759,6 +1773,12 @@ enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_da
       f( &data->handles[i], scan_data );
 }
 
+/* WARNING: this only enumerates elements of the remsets tracking
+ * mutator activity, not the major_remsets. 
+ * 
+ * If you want information from the major remsets, you need to
+ * propogate it via the remset summary.
+ */
 static void
 enumerate_remsets_complement( gc_t *gc,
 			      gset_t gset,
@@ -1815,7 +1835,7 @@ enumerate_remsets_complement( gc_t *gc,
   if (gc->static_area) {
     i = DATA(gc)->static_generation;
     { 
-      rs_enumerate( gc->remset[i], f, fdata ); 
+      rs_enumerate( gc->remset[i], f, fdata );
     }
   }
 
@@ -1882,7 +1902,7 @@ static int isremembered( gc_t *gc, word w )
   g = gen_of( w );
   assert( g >= 0 && g < gc->remset_count );
   if (g > 0)
-    return rs_isremembered( gc->remset[g], w );
+    return rs_isremembered( gc->remset[g], w ); /*XXX major_remsets too? XXX*/
   else
     return 0;
 }
@@ -2201,18 +2221,25 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   int new_remset_count = gc->remset_count + 1;
   remset_t** new_remset = 
     (remset_t**)must_malloc( sizeof( remset_t* )*new_remset_count );
+  remset_t** new_major_remset = 
+    (remset_t**)must_malloc( sizeof( remset_t* )*new_remset_count );
   assert( fresh_gno < new_remset_count );
 
   for( i = 0; i < fresh_gno; i++ ) {
     new_remset[i] = gc->remset[i];
+    new_major_remset[i] = gc->major_remset[i];
   }
   new_remset[fresh_gno] = create_remset( 0, 0 );
+  new_major_remset[fresh_gno] = create_remset( 0, 0 );
   for( i = fresh_gno+1; i < new_remset_count; i++ ) {
     new_remset[i] = gc->remset[i-1];
+    new_major_remset[i] = gc->major_remset[i-1];
   }
 
   free( gc->remset );
+  free( gc->major_remset );
   gc->remset = new_remset;
+  gc->major_remset = new_major_remset;
   gc->remset_count = new_remset_count;
   
 }
@@ -2597,10 +2624,15 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
     gc->remset_count = gen_no;
 
   gc->remset = (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
+  gc->major_remset = 
+    (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
 
   gc->remset[0] = (void*)0xDEADBEEF;
+  gc->major_remset[0] = (void*)0xDEADBEEF;
   for ( i = 1 ; i < gc->remset_count ; i++ ) {
     gc->remset[i] =
+      create_remset( info->rhash, 0 );
+    gc->major_remset[i] =
       create_remset( info->rhash, 0 );
   }
   gc->ssb =
@@ -2694,10 +2726,16 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     gc->remset_count = gen_no;
-    gc->remset = (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
+    gc->remset = 
+      (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
+    gc->major_remset = 
+      (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
     gc->remset[0] = (void*)0xDEADBEEF;
+    gc->major_remset[0] = (void*)0xDEADBEEF;
     for ( i = 1 ; i < gc->remset_count ; i++ ) {
       gc->remset[i] =
+	create_remset( info->rhash, 0 );
+      gc->major_remset[i] =
 	create_remset( info->rhash, 0 );
     }
 

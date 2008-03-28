@@ -334,7 +334,7 @@ static bool update_remset( cheney_env_t *e,
                            word target_ptr ) {
   if (e->points_across == NULL)
     return FALSE;
-  assert( origin_gen != 0 || e->gc->remset == NULL );
+  assert( origin_gen != 0 || e->gc->major_remset == NULL );
   if ( is_ptr(target_ptr) &&
        last_origin_gen_added != origin_ptr ) {
     int target_gen = gen_of(target_ptr);
@@ -365,10 +365,10 @@ static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
     {
       assert2(g_lhs > 0);
       assert2(g_rhs >= 0);
-      assert2(e->gc->remset != NULL);
+      assert2(e->gc->major_remset != NULL);
 
       /* enqueue lhs in remset. */
-      rs_add_elem_new( e->gc->remset[g_lhs], lhs );
+      rs_add_elem_new( e->gc->major_remset[g_lhs], lhs );
       return TRUE;
     }
   } else {
@@ -412,7 +412,7 @@ void init_env( cheney_env_t *e,
                           : remset_scanner_oflo );
 
   e->scan_from_tospace = scanner;
-  e->points_across = (e->gc->remset != NULL) ? points_across : points_across_noop;
+  e->points_across = (e->gc->major_remset != NULL) ? points_across : points_across_noop;
 }
 
 static unsigned objects_scanned;
