@@ -1044,7 +1044,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
     double R = DATA(gc)->rrof_refinement_factor;
     int new_countdown;
     new_countdown = 
-      (int)((R*(double)(sizeof(word)*words_marked)) 
+      (int)((R*(double)(sizeof(word)*traced))
 	    / ((double)gc->young_area->maximum));
     assert( new_countdown >= 0 );
     DATA(gc)->rrof_refine_mark_countdown += new_countdown;
@@ -1207,11 +1207,12 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     int maximum_allotted = 0;
     int live_estimated_calc = 0;
     int live_predicted_at_next_gc;
+    int nursery_size = gc->young_area->maximum;
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
 	  ! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
 	total_live_at_last_major_gc += 
-	  DATA(gc)->ephemeral_area[ i ]->live_last_major_gc;
+	  (DATA(gc)->ephemeral_area[ i ]->live_last_major_gc - nursery_size);
 	maximum_allotted += 
 	  DATA(gc)->ephemeral_area[ i ]->maximum;
       }
@@ -1231,7 +1232,14 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 		 live_estimated_calc, 
 		 live_predicted_at_next_gc );
 
-    while (live_predicted_at_next_gc > maximum_allotted) {
+    if (live_predicted_at_next_gc > maximum_allotted) {
+      semispace_t *ss = gc_fresh_space(gc);
+      int eidx = ss->gen_no - 1;
+      old_heap_t *fresh_heap = DATA(gc)->ephemeral_area[ eidx ];
+      assert2( fresh_heap->live_last_major_gc == 0 );
+      maximum_allotted += fresh_heap->maximum;
+    }
+    while ( (DATA(gc)->last_live_words*DATA(gc)->rrof_load_factor*sizeof(word)) > maximum_allotted) {
       semispace_t *ss = gc_fresh_space(gc);
       int eidx = ss->gen_no - 1;
       old_heap_t *fresh_heap = DATA(gc)->ephemeral_area[ eidx ];
@@ -1469,6 +1477,33 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  DATA(gc)->rrof_last_tospace = rgn_idx;
 	  
 	  handle_secondary_space( gc );
+	  /* Special case: if the emergency region has grown so large
+	   * that this region (immediately post major collection) is
+	   * smaller, then we swap them.
+	   */
+	  { 
+	    int curr_gno = rgn_idx;
+	    int emergency_gno = DATA(gc)->ephemeral_area_count;
+	    int curr_sz = 
+	      gc_allocated_to_areas( gc, gset_singleton( curr_gno ));
+	    int emergency_sz = 
+	      gc_allocated_to_areas( gc, gset_singleton( emergency_gno ));
+	    if (curr_sz < emergency_sz) {
+	      old_heap_t *curr = 
+		DATA(gc)->ephemeral_area[ curr_gno-1 ];
+	      old_heap_t *emergency = 
+		DATA(gc)->ephemeral_area[ emergency_gno-1 ];
+	      remset_t *curr_rs = gc->remset[ curr_gno ];
+	      remset_t *emergency_rs = gc->remset[ emergency_gno ];
+	      consolemsg("SWAP %d <=> %d", curr_gno, emergency_gno );
+	      oh_set_gen_no( curr, emergency_gno );
+	      oh_set_gen_no( emergency, curr_gno );
+	      DATA(gc)->ephemeral_area[ curr_gno-1 ] = emergency;
+	      DATA(gc)->ephemeral_area[ emergency_gno-1 ] = curr;
+	      gc->remset[ curr_gno ] = emergency_rs;
+	      gc->remset[ emergency_gno ] = curr_rs;
+	    }
+	  }
 	  rrof_completed_major_collection( gc );
 	  /* choose next region for major collection so that we can summarize its remsets */
 	  /* TODO: add loop to skip to next if n is popular. */
