@@ -52,6 +52,11 @@ void expand_los_gnos( los_t *los, int fresh_gno );
      Objects in los change their gno assignment to accomodate fresh_gno.
      */
 
+void los_swap_gnos( los_t *los, int gno1, int gno2 );
+  /* Changes the mapping between objects and generation numbers in the 
+     los structure, exchanging gno1 and gno2. 
+     */
+
 los_list_t *create_los_list(void);
   /* Create a free-standing LOS list.
      */

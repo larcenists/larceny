@@ -39,6 +39,7 @@ static void remove( word *w );
 static void insert_at_end( word *w, los_list_t *list );
 static void set_generation_number( los_list_t *list, int gen_no, bool clear );
 static void incr_generation_number_for( los_list_t *list, int fresh_gno );
+static void swap_generation_number_for( los_list_t *list, int gno1, int gno2 );
 static void append_and_clear( los_list_t *left, los_list_t *right );
 static void dump_list( los_list_t *l, char *tag, int nbytes );
 static void clear_list( los_list_t *l );
@@ -230,6 +231,19 @@ void los_list_set_gen_no( los_list_t *list, int gen_no )
   set_generation_number( list, gen_no, FALSE );
 }
 
+void los_swap_gnos( los_t *los, int gno1, int gno2 )
+{
+  los_list_t *list1, *list2;
+  list1 = los->object_lists[gno1];
+  list2 = los->object_lists[gno2];
+  set_generation_number( list1, gno2, FALSE );
+  set_generation_number( list2, gno1, FALSE );
+  los->object_lists[gno1] = list2;
+  los->object_lists[gno2] = list1;
+  swap_generation_number_for( los->mark1, gno1, gno2 );
+  swap_generation_number_for( los->mark2, gno1, gno2 );
+}
+
 word *los_walk_list( los_list_t *list, word *p )
 {
   word *n;
@@ -320,6 +334,31 @@ static void incr_generation_number_for( los_list_t *list, int fresh_gno )
     gno = gen_of( addr );
     if ( gno >= fresh_gno ) {
       gclib_set_generation( addr, size( this ), gno+1 );
+    }
+    this = next( this );
+  }
+}
+
+static void swap_generation_number_for( los_list_t *list, int gno1, int gno2 )
+{
+  word *header, *this;
+  word *addr;
+  int gno;
+  
+  /* Note that this code will break completely if the same object
+   * appears in this list multiple times!  (Likewise clients of LOS
+   * must ensure objects have at most one reference in all lists.) 
+   */
+
+  header = list->header;
+  this = next( header );
+  while (this != header) {
+    addr = this - HEADER_WORDS;
+    gno = gen_of( addr );
+    if ( gno == gno1 ) {
+      gclib_set_generation( addr, size( this ), gno2 );
+    } else if ( gno == gno2 ) {
+      gclib_set_generation( addr, size( this ), gno1 );
     }
     this = next( this );
   }

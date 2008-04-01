@@ -1515,6 +1515,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	      gc->major_remset[ curr_gno ] = emergency_mrs;
 	      gc->remset[ emergency_gno ] = curr_rs;
 	      gc->major_remset[ emergency_gno ] = curr_mrs;
+	      los_swap_gnos( gc->los, curr_gno, emergency_gno );
 	    }
 	  }
 	  rrof_completed_major_collection( gc );

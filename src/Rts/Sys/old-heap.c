@@ -594,6 +594,11 @@ static void set_gen_no( old_heap_t *heap, int gen_no )
 {
   DATA(heap)->gen_no = gen_no;
   ss_set_gen_no( DATA(heap)->current_space, gen_no );
+  /* XXX this method should be removed, since it is difficult
+   * to determine whether it is (or should be) responsible 
+   * for setting the gen_no of the LOS (which is a complicated
+   * operation if the gen_no is not freshly chosen). 
+   */
 }
 
 static semispace_t *current_space( old_heap_t *heap )
