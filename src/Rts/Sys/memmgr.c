@@ -527,7 +527,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
   } while (0);
   
   remsum->objects_visited += 1;
-  if (do_enqueue) {
+  if (do_enqueue && !rs_isremembered( remsum->remset, ptr )) {
     remsum->objects_added += 1;
     { 
       int words;
