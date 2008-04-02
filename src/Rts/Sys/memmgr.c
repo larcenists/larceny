@@ -1506,7 +1506,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	      remset_t *curr_mrs = gc->major_remset[ curr_gno ];
 	      remset_t *emergency_rs = gc->remset[ emergency_gno ];
 	      remset_t *emergency_mrs = gc->major_remset[ emergency_gno ];
-	      consolemsg("SWAP %d <=> %d", curr_gno, emergency_gno );
+	      annoyingmsg("SWAP %d <=> %d", curr_gno, emergency_gno );
 	      oh_set_gen_no( curr, emergency_gno );
 	      oh_set_gen_no( emergency, curr_gno );
 	      DATA(gc)->ephemeral_area[ curr_gno-1 ] = emergency;
