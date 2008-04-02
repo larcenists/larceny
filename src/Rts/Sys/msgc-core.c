@@ -539,6 +539,12 @@ msgc_mark_objects_from_roots_and_remsets( msgc_context_t *context,
                                    push_remset_entry, context, 
                                    FALSE /* todo kill this formal parameter! */
                                    );
+  { 
+    int i;
+    for( i = 1; i < context->gc->remset_count; i++ ) {
+      rs_enumerate( context->gc->major_remset[i], push_remset_entry, context );
+    }
+  }
   mark_from_stack( context );
 
   *marked += context->marked;
