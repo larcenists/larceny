@@ -434,7 +434,7 @@
   (apply setup args)
   (build-config-files)
   (load-compiler)
-  (build-heap) 
   (build-runtime)
+  (build-heap) 
   (build-executable)
   (build-larceny-files))
