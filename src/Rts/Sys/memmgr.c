@@ -2777,6 +2777,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     assert( countdown_to_first_mark >= 0 );
     data->rrof_refine_mark_countdown = countdown_to_first_mark;
     if (0) consolemsg("initial mark countdown: %d", countdown_to_first_mark );
+    /* XXX eventually I should be switching this on and off depending
+     * on whether a concurrent mark is actually happening... */
+    DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
   }
 
   data->print_float_stats_each_cycle  = info->print_float_stats_cycle;

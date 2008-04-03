@@ -554,8 +554,25 @@ void EXPORT mc_partial_barrier( word *globals )
     gc_compact_all_ssbs( the_gc(globals) );
 }
 
+#define FAKE_SATB_SSB_LEN 1024
+word fake_satb_ssb[FAKE_SATB_SSB_LEN];
+int  fake_satb_ssb_idx = 0;
+
+void satb_enqueue( word *globals, word ptr ) 
+{
+  if (0) consolemsg("satb enq: 0x%08x (%d)", ptr, gen_of(ptr));
+
+  fake_satb_ssb[fake_satb_ssb_idx] = ptr;
+  fake_satb_ssb_idx++;
+  if (fake_satb_ssb_idx == FAKE_SATB_SSB_LEN)
+    fake_satb_ssb_idx = 0;
+}
+
 void EXPORT mc_full_barrier( word *globals )
 {
+  word rTmp = *(word*)globals[ G_THIRD ];
+  if (globals[ G_CONCURRENT_MARK ] && isptr(rTmp))
+    satb_enqueue( globals, rTmp );
   if (isptr( globals[ G_SECOND ] ))
     mc_partial_barrier( globals );
 }

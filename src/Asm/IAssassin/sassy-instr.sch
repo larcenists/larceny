@@ -57,6 +57,8 @@
 (define (unsafe-globals)
   (unsafe-code))
 
+(define wb-dest-address-arg #t)
+
 (define-syntax define-sassy-instr
   (syntax-rules ()
     ((_ (NAME ARGS ...) BODY ...)
@@ -229,7 +231,7 @@
 
 (define-sassy-instr (ia86.write_barrier r1 r2)
   (cond
-   ((inline-assignment)
+   (#f ; (inline-assignment)
     (let ((l0 (fresh-label)))
       (cond (r2
              `(test	,r2 1)
@@ -417,13 +419,25 @@
            `(jmp short ,l0)
            `(label ,l1)))))
 
+(define-sassy-instr (ia86.wb-addr-third prefix temp-reg mem)
+  (cond (wb-dest-address-arg
+         prefix
+         `(lea ,temp-reg ,mem)
+         `(mov (& ,$r.globals ,$g.third) ,temp-reg))))
+
 (define-sassy-instr (ia86.t_setglbl x)
   `(mov	,$r.second ,$r.result)
+  (ia86.wb-addr-third (ia86.loadc $r.result x)
+                      $r.result
+                      `(& ,$r.result ,(- $tag.pair-tag)))
   (ia86.loadc	$r.result x)
   (ia86.mov/wb	`(& ,$r.result ,(- $tag.pair-tag)) $r.second))
 
 (define-sassy-instr (ia86.t_const_setglbl_imm x glbl)
   (ia86.const2regf $r.second x)
+  (ia86.wb-addr-third (ia86.loadc $r.result glbl) 
+                      $r.result 
+                      `(& ,$r.result ,(- $tag.pair-tag)))
   (ia86.loadc	$r.result glbl)
   (ia86.mov/wb	`(& ,$r.result ,(- $tag.pair-tag)) $r.second))
 
@@ -432,6 +446,9 @@
   (ia86.t_setglbl glbl))
 
 (define-sassy-instr (ia86.t_reg_setglbl regno x)
+  (ia86.wb-addr-third (ia86.loadc $r.result x)
+                      $r.result
+                      `(& ,$r.result ,(- $tag.pair-tag)))
   (ia86.loadc	$r.result x)
   (ia86.mov/wb `(& ,$r.result ,(- $tag.pair-tag)) (reg regno)))
 
@@ -1418,22 +1435,38 @@
 ;; FIXME: we should consistently use symbols or numbers for regs
 (define-sassy-instr (ia86.do_indexed_structure_set_word hwregno regno1 regno2 z)
   (cond ((and (is_hwreg regno2) (is_hwreg regno1))
+         (ia86.wb-addr-third 
+          '()
+          $r.temp
+          `(& ,(reg hwregno) ,(reg regno1) ,(+ (- z) $bytewidth.wordsize)))
          (ia86.mov/wb `(& ,(reg hwregno) ,(reg regno1) ,(+ (- z) $bytewidth.wordsize)) (reg regno2)))
         ((is_hwreg regno2)
+         (ia86.wb-addr-third
+          (ia86.loadr $r.temp regno1)
+          $r.temp
+          `(& ,(reg hwregno) ,$r.temp ,(+ (- z) $bytewidth.wordsize)))
          (with-write-barrier ((reg hwregno) (reg regno2))
             (ia86.loadr	$r.temp regno1)
             `(mov	(& ,(reg hwregno) ,$r.temp ,(+ (- z) $bytewidth.wordsize)) ,(reg regno2))))
         ((is_hwreg regno1)
+         (ia86.wb-addr-third 
+          '()
+          $r.temp
+          `(& ,(reg hwregno) ,(reg regno1) ,(+ (- z) $bytewidth.wordsize)))
          (ia86.loadr	$r.second regno2)
          (ia86.mov/wb `(& ,(reg hwregno) ,(reg regno1) ,(+ (- z) $bytewidth.wordsize)) $r.second))
-        (else
-         (ia86.loadr	$r.second regno2)
-         (with-write-barrier ((reg hwregno) #f)
-;;;   ;; Using $r.cont here is sketchy when it can alias esp
-           `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
-           (ia86.loadr	$r.cont regno1)
-           `(mov	(& ,(reg hwregno) ,$r.cont ,(+ (- z) $bytewidth.wordsize)) ,$r.second)
-           `(mov	,$r.cont (& ,$r.globals ,$g.stkp))))))
+        (else ;; regno1 and regno2 are *both* non-hw
+         (let ((freereg (if (eq? (reg hwregno) $r.reg2) $r.reg1 $r.reg2)))
+           `(mov (& ,$r.globals ,$g.writetmp) ,freereg)
+           (ia86.loadr $r.second regno2)
+           (ia86.loadr freereg regno1)
+           `(lea ,freereg (& ,(reg hwregno) ,freereg ,(+ (- z) $bytewidth.wordsize)))
+           (cond (wb-dest-address-arg
+                  `(mov (& ,$r.globals ,$g.third) ,freereg)))
+           (with-write-barrier ((reg hwregno) #f)
+             `(mov (& ,freereg) ,$r.second))
+           `(mov ,freereg (& ,$r.globals ,$g.writetmp)))
+         )))
 
 ;; Same as ia86.do_indexed_structure_set_word, but with no write barrier.
 ;; hwregno is either 'RESULT or a hardware regno.
@@ -2354,6 +2387,9 @@
 (define-sassy-instr/peep (or (ia86.t_op2_59* rs1 rd rs2)	; set-car!
                              (ia86.t_op2_59 rs2))
   (ia86.single_tag_test_ex (reg rs1) $tag.pair-tag $ex.setcar)
+  (ia86.wb-addr-third '() 
+                      $r.temp
+                      `(& ,(reg rs1) ,(- $tag.pair-tag)))
   (cond ((is_hwreg rs2)
          (ia86.mov/wb `(& ,(reg rs1) ,(- $tag.pair-tag)) (reg rs2)))
         (else
@@ -2363,6 +2399,10 @@
 (define-sassy-instr/peep (or (ia86.t_op2_60* rs1 rd rs2)	; set-cdr!
                              (ia86.t_op2_60 rs2))
   (ia86.single_tag_test_ex (reg rs1) $tag.pair-tag $ex.setcdr)
+  (ia86.wb-addr-third '()
+                      $r.temp
+                      `(& ,(reg rs1) 
+                          ,(+ (- $tag.pair-tag) $bytewidth.wordsize)))
   (cond ((is_hwreg rs2)
          (ia86.mov/wb `(& ,(reg rs1) ,(+ (- $tag.pair-tag) $bytewidth.wordsize)) (reg rs2)))
         (else
@@ -2504,6 +2544,9 @@
   (ia86.indexed_structure_ref regno $tag.procedure-tag  $ex.pref #f))
 
 (define-sassy-instr (ia86.t_op2_84 regno)		; cell-set!
+  (ia86.wb-addr-third '()
+                      $r.temp
+                      `(& ,$r.result ,(- $tag.pair-tag)))
   (cond ((is_hwreg regno)
          (ia86.mov/wb `(& ,$r.result ,(- $tag.pair-tag)) (reg regno)))
         (else
