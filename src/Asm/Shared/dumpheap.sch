@@ -43,13 +43,6 @@
 
 (define heap.version-number 9)          ; Heap version number
 
-(define heap.root-names                 ; Roots in heap version 9
-  '(result argreg2 argreg3 
-    reg0 reg1 reg2 reg3 reg3 reg5 reg6 reg7 reg8 reg9 reg10 reg11 reg12
-    reg13 reg14 reg15 reg16 reg17 reg18 reg19 reg20 reg21 reg22 reg23
-    reg24 reg25 reg26 reg27 reg28 reg29 reg30 reg31 
-    cont startup callouts schcall-arg4 alloci-tmp))
-    
 (define (build-heap-image output-file input-files)
 
   (define tmp-file "HEAPDATA.dat")
@@ -74,10 +67,10 @@
     (before-all-files heap output-file input-files)
     (process-input-files heap)
     (heap.set-root! heap
-                    'startup
+                    '$g.startup
                     (dump-startup-procedure! heap))
     (heap.set-root! heap
-                    'callouts
+                    '$g.callouts
                     (dump-global! heap 'millicode-support))
     (write-header heap output-file)
     (after-all-files heap output-file input-files)
