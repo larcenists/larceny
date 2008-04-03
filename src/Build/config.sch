@@ -182,6 +182,7 @@
   (define (lang.action x) (vector-ref x 3))
 
   (define (config-loop inp info)
+    (define root-names '())
     (let loop ((item (read inp)) (info info))
       (cond ((eof-object? item)
 	     #t)
@@ -200,12 +201,16 @@
 		    (config-loop inp info)))
 		(loop (read inp) info))
 	       ((start-roots)
+                (set! root-names '())
 		(loop (read inp) (define-const `(define-const
 						  first-root
 						  ,table-counter
 						  "FIRST_ROOT" #f #f)
 				   info)))
 	       ((end-roots)
+                (twobit-format (lang.port (info.sch info))
+                               "(define ~a ~a)~%"
+                               'heap.root-names `',(reverse root-names))
 		(loop (read inp) (define-const `(define-const
 						  last-root
 						  ,(- table-counter 1)
@@ -216,6 +221,10 @@
 				  (caddr item)
 				  (cadddr item)
 				  "???"))
+                (cond
+                 ((cadddr item)
+                  => (lambda (name)
+                       (set! root-names (cons name root-names)))))
 		(let ((i (define-const (cons 'define-const
 					     (cons (gensym "G_")
 						   (cons table-counter
