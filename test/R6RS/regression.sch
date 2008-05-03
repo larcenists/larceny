@@ -15,3 +15,8 @@
                  '(((1 2 3 a b c)) ((1 2 3 d e f)))))
     (assertion-violation #f "ticket:515"))
 
+; Regression test for ticket:536
+
+(if (not (equal? (cons* 1 2 3) '(1 2 . 3)))
+    (assertion-violation #f "ticket:536"))
+

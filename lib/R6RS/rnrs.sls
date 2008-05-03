@@ -115,7 +115,7 @@
    
    find for-all exists filter partition fold-left fold-right
    remp remove remq remv memp member memv memq
-   assp assoc assv assq
+   assp assoc assv assq cons*
    
    ;; From (rnrs sorting)
    
