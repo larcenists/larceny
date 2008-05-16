@@ -1449,6 +1449,60 @@
         (show-and-post-process-dialog d)))))
 
   
+;; Clipboard operations...
+(define clipboard-type (find-forms-type "Clipboard"))
+(define clipboard-clear!
+  (let ((f (make-static-method clipboard-type "Clear")))
+    (lambda ()
+      (f)
+      (unspecified))))
+(define clipboard-contains-audio?
+  (let ((f (make-static-method clipboard-type "ContainsAudio")))
+    (lambda ()
+      (clr/foreign->bool (f)))))
+(define clipboard-contains-filelist?
+  (let ((f (make-static-method clipboard-type "ContainFileDropList")))
+    (lambda ()
+      (clr/foreign->bool (f)))))
+(define clipboard-contains-image?
+  (let ((f (make-static-method clipboard-type "ContainsImage")))
+    (lambda () 
+      (clr/foreign->bool (f)))))
+(define clipboard-contains-text?
+  (let ((f (make-static-method clipboard-type "ContainsText")))
+    (lambda ()
+      (clr/foreign->bool (f)))))
+(define clipboard-get-filelist
+  (let ((f (make-static-method clipboard-type "GetFileDropList")))
+    (lambda ()
+      (stringcollection->list (f)))))
+(define clipboard-get-image
+  (let ((get-image (make-static-method clipboard-type "GetImage")))
+    (lambda ()
+      (error 'clipboard-get-image ": unimplemented"))))
+(define clipboard-get-text
+  (let ((get-text (make-static-method clipboard-type "GetText")))
+    (lambda ()
+      (let ((t (get-text)))
+        (clr/foreign->string t)))))
+(define clipboard-set-filelist!
+  (let ((set-files! (make-static-method 
+		     clipboard-type "SetFileDropList"
+		     stringcollection-type)))
+    (lambda (files)
+      (set-files! (list->stringcollection files))
+      (unspecified))))
+(define clipboard-set-image! 
+  (let ((set-image (make-static-method clipboard-type "SetImage" image-type)))
+    (lambda (img)
+      (error 'clipboard-set-image! ": unimplemented"))))
+(define clipboard-set-text!
+  (let ((set-text! (make-static-method
+		    clipboard-type "SetText" 
+		    clr-type-handle/system-string)))
+    (lambda (string)
+      (set-text! (clr/string->foreign string))
+      (unspecified))))
 
 
         

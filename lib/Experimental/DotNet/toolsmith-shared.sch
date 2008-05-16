@@ -372,7 +372,10 @@
            (values selection selection))
           (else
            (values (car selection) (cdr selection)))))
-
+   ((selectionstring) "=> string holding model's selection; false otherwise."
+    (cond ((pair? selection)
+	   (substring mytext (car selection) (cdr selection)))
+	  (else #f)))
    ((on-cursor-reposition) "event hook" 'default-hook-does-nothing)
    ((set-selection! start-pos-incl end-pos-excl) "Sets model's selection to 
  [start-pos-incl,end-pos-excl)."
