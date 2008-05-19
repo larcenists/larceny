@@ -84,6 +84,7 @@
    (for (only (core primitives) ...) expand)
    (for (core syntax-rules) expand)
    (rnrs base)
+   (rnrs lists)
    (larceny deprecated) ; [Larceny]
    (primitives
 

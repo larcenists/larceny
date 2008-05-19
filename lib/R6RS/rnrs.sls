@@ -186,6 +186,7 @@
    &i/o-port make-i/o-port-error i/o-port-error? i/o-error-port
 
    file-options                           ; deprecated syntax
+   no-create no-fail no-truncate          ; Larceny hack
    buffer-mode                            ; deprecated syntax
    buffer-mode?                           ; deprecated procedure
 
