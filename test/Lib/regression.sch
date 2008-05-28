@@ -306,6 +306,38 @@
             s
             (echochars (open-input-string s) (open-output-string))))
          #t)
+   (test "Ticket #521"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let ((bip (open-bytevector-input-port (string->utf8 "abcd"))))
+           (get-u8 bip)
+           (get-char (transcoded-port bip (native-transcoder))))
+         #\b)
+   (test "Ticket #523"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let* ((ip (open-string-input-port "12345678"))
+                (s1 (get-string-n ip 4))
+                (s2 (get-string-n ip 4)))
+           (list s1 s2))
+         '("1234" "5678"))
+   (test "Ticket #523"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let* ((ip (open-string-input-port "12345678"))
+                (s (make-string 8)))
+           (get-string-n! ip s 0 4)
+           (get-string-n! ip s 4 4)
+           s)
+         "12345678")
+   (test "Ticket #525"                  ; Bug in Larceny 0.96
+         (eof-object?                   ; contributed by Ray Racine
+          (get-bytevector-n! (open-bytevector-input-port (make-bytevector 0))
+                             (make-bytevector 32)
+                             0 16))
+         #t)
+   (test "Ticket #525"                  ; Bug in Larceny 0.96
+         (eof-object?                   ; contributed by Ray Racine
+          (get-bytevector-n (open-bytevector-input-port (make-bytevector 0))
+                            16))
+         #t)
    ))
 
 (define (bug-105-test1)

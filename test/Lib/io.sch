@@ -554,8 +554,6 @@
         (list->string
          (map (lambda (c) (if (< (char->integer c) 256) c #\?))
               (string->list s))))
-(set! ss s)
-(set! tt t)
       (let* ((codec (transcoder-codec t))
              (eolstyle (transcoder-eol-style t))
              (s (if (eq? codec 'latin-1)

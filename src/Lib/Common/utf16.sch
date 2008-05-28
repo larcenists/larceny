@@ -22,7 +22,7 @@
               #f))
          (set-position-method
           (if (port-has-set-port-position!? p)
-              (lambda (posn) (set-port-position! p posn))
+              #f ;FIXME (lambda (posn) (set-port-position! p posn))
               #f))
          (close-method
           (lambda () (close-port p))))
@@ -79,7 +79,8 @@
 
     (lambda (bv start count)
       (let* ((count (max 2 (quotient (min bufsize count) 2)))
-             (n (get-bytevector-n! p buffer 0 count)))
+             (n (get-bytevector-n! p buffer 0 count))
+             (n (if (eof-object? n) 0 n)))
 
         (define (loop i j)
           (if (= i n)
@@ -140,7 +141,8 @@
                       ((<= #xdc byte1)
                        (decoding-error i j))
                       ((= (+ i 2) n)
-                       (let ((r (get-bytevector-n! p buffer n 2)))
+                       (let* ((r (get-bytevector-n! p buffer n 2))
+                              (r (if (eof-object? r) 0 r)))
                          (if (= r 2)
                              (loop i j)
                              (decoding-error i j))))

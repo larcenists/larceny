@@ -182,7 +182,7 @@
 ; or character position minus the current value of the
 ; port.mainptr field.
 ;
-; For input ports, port.mainpos holds the current byte
+; For output ports, port.mainpos holds the current byte
 ; or character position minus the current value of the
 ; port.mainlim field.
 
@@ -1050,7 +1050,8 @@
         (let* ((mainbuf1 (vector-like-ref p port.mainbuf))
                (mainptr1 (vector-like-ref p port.mainptr))
                (mainlim1 (vector-like-ref p port.mainlim))
-               (mainbuf2 (make-bytevector (bytevector-length mainbuf1))))
+               (mainbuf2 (make-bytevector (bytevector-length mainbuf1)))
+               (mainlim2 (fx- mainlim1 mainptr1)))
 
           ; FIXME:  Unclear what port-position should do.
 
@@ -1058,8 +1059,10 @@
 
           (bytevector-copy! mainbuf1
                             mainptr1
-                            mainbuf2 0 (fx- mainlim1 mainptr1))
-          (vector-like-set! newport port.mainbuf mainbuf2))
+                            mainbuf2 0 mainlim2)
+          (vector-like-set! newport port.mainbuf mainbuf2)
+          (vector-like-set! newport port.mainptr 0)
+          (vector-like-set! newport port.mainlim mainlim2))
 
         ; close original port, destroying original mainbuf
 
