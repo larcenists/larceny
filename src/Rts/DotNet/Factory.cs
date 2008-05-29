@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using Scheme.RT;
 using Scheme.Rep;
+using DynamicMethod = System.Reflection.Emit.DynamicMethod;
 
 namespace Scheme.Rep {
     
@@ -412,6 +413,27 @@ namespace Scheme.Rep {
         }
         public static SObject wrapAsList(SObject[] items) {
             return arrayToList(items, 0);
+        }
+
+        public delegate CodeAddress CodeDelegate(int label);
+        public class DelegateCodeVector : CodeVector {
+          CodeDelegate mycode;
+          public DelegateCodeVector( int controlPointCount, 
+                                     CodeDelegate d ) 
+            : base( controlPointCount ) {
+            mycode = d;
+          }
+          public override CodeAddress call(int label) {
+            // System.Console.WriteLine("DelegateCodeVector.call({0})", label);
+            return mycode(label);
+          }
+        }
+
+        public static CodeVector makeCodeVector( int controlPointCount,
+                                                 DynamicMethod dm ) {
+          CodeDelegate d = 
+            (CodeDelegate) dm.CreateDelegate(typeof(CodeDelegate));
+          return new DelegateCodeVector( controlPointCount, d );
         }
     }
 }
