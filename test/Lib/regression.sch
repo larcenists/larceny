@@ -338,6 +338,18 @@
           (get-bytevector-n (open-bytevector-input-port (make-bytevector 0))
                             16))
          #t)
+   (test "Ticket #530"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let ((bv (make-bytevector 4 0)))
+           (bytevector-s32-set! bv 0 -1 'little)
+           (bytevector-s32-ref bv 0 'little))
+         -1)
+   (test "Ticket #530"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let ((bv (make-bytevector 4 0)))
+           (bytevector-s32-set! bv 0 -1 'big)
+           (bytevector-s32-ref bv 0 'big))
+         -1)
    ))
 
 (define (bug-105-test1)

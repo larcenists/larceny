@@ -272,7 +272,7 @@
 
 (define (bytevector-sint-set! bytevector index val endness size)
   (let ((uval (if (< val 0)
-                  (+ val (* 128 (expt 256 (- size 1))))
+                  (+ val (expt 256 size))
                   val)))
     (bytevector-uint-set! bytevector index uval endness size)))
   
