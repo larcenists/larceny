@@ -8536,39 +8536,50 @@
                                              (checked-integer->char sv))
                                 (loop i n newstring (+ j 1)))))
                             (else
-                             (cond
-                              ((or (char=? c2 #\return)
-                                   (char=? c2 #\linefeed)
-                                   (char=? c2 char:nel)
-                                   (char=? c2 char:ls))
-                               (string-set! newstring j c2)
-                               (let* ((i+2 (+ i 2))
-                                      (i+2 (if (and (char=? c2 #\return)
-                                                    (< i+2 n))
-                                               (let ((c3 (string-ref
-                                                          tokenValue i+2)))
-                                                 (if (or (char=? c3 #\linefeed)
-                                                         (char=? c3 char:nel))
-                                                     (begin
-                                                      (string-set! newstring
-                                                                   (+ j 1)
-                                                                   c3)
-                                                      (+ i 3))
-                                                     i+2))
-                                               i+2))
-                                      (j+1 (if (= i+2 (+ i 2))
-                                               (+ j 1)
-                                               (+ j 2))))
-                                 (loop i+2 n newstring j+1)))
-                              ((io/port-allows-larceny-weirdness? input-port)
-                               (string-set! newstring j c2)
-                               (loop (+ i 2) n newstring (+ j 1)))
-                              (else
-                               (scannerError errIllegalString))))))
+                             (ignore-escaped-line-ending (+ i 1)
+                                                         n newstring j #f))))
                      (scannerError errIllegalString)))
                     (else
                      (string-set! newstring j c)
                      (loop (+ i 1) n newstring (+ j 1)))))))
+
+      ; Ignores <intraline whitespace>* <line ending> <intraline whitespace>*
+      ; after? is true iff the <line ending> has already been ignored.
+      ; The other arguments are the same as for loop above.
+
+      (define (ignore-escaped-line-ending i n newstring j after?)
+        (cond ((< i n)
+               (let ((c (string-ref tokenValue i)))
+                 (cond ((or (char=? c #\tab)
+                            (eq? 'Zs (char-general-category c)))
+                        (ignore-escaped-line-ending (+ i 1)
+                                                    n newstring j after?))
+                       (after?
+                        (loop i n newstring j))
+                       ((or (char=? c #\return)
+                            (char=? c #\linefeed)
+                            (char=? c char:nel)
+                            (char=? c char:ls))
+                        (let* ((i+1 (+ i 1))
+                               (i+1 (if (and (char=? c #\return)
+                                             (< i+1 n))
+                                        (let ((c2 (string-ref
+                                                   tokenValue i+1)))
+                                          (if (or (char=? c2 #\linefeed)
+                                                  (char=? c2 char:nel))
+                                              (+ i 2)
+                                              i+1))
+                                        i+1)))
+                          (ignore-escaped-line-ending i+1 n newstring j #t)))
+                       ((io/port-allows-larceny-weirdness? input-port)
+                        (string-set! newstring j c)
+                        (loop (+ i 1) n newstring (+ j 1)))
+                       (else
+                        (scannerError errIllegalString)))))
+              (after?
+               (loop i n newstring j))
+              (else
+               (scannerError errIllegalString))))
 
       (let ((n (string-length tokenValue)))
         (loop 1 (- n 1) (make-string (- n 2)) 0)))
