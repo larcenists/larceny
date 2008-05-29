@@ -472,7 +472,7 @@ namespace Scheme.Rep {
         public CodeVector entrypoint;
         public Procedure parent;
         public SObject[] rib;
-        public SVL constantvector;
+        public SVL constantvector; /* used by runtime but not heap? */
         public SObject[] constants;
 
         public Procedure (CodeVector entrypoint,
@@ -505,7 +505,7 @@ namespace Scheme.Rep {
         public Procedure(CodeVector entrypoint, SObject constantvector)
             : this(entrypoint, (SVL) constantvector, null, null) {}
 
-        public Procedure(CodeVector entrypoint)
+        public Procedure(CodeVector entrypoint) /* used in Call.cs */
             : this(entrypoint, Factory.makeVector(1, Factory.False), null, null) {}
 
         public void setCode(SObject code) {
