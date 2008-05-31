@@ -180,6 +180,7 @@
 	(check result)))))
 
 (define (load-asm-il-lcg)
+  (load "src/Asm/IL-LCG/peepopt.sch")
   (load "src/Asm/IL-LCG/pass5p2.sch"))
 
 ;; Note that this definition gets overridden when it is invoked!
