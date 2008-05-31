@@ -364,6 +364,10 @@
   (lcg:static-method lcg:type:void lcg:type:reg (string-append "set_Register" (number->string n)) (list lcg:type:schemeobject)))
 (define (lcg:method:offset->get_register n)
   (lcg:static-method lcg:type:schemeobject lcg:type:reg (string-append "get_Register" (number->string n)) '()))
+(define (lcg:method:offset->reg_to_result n)
+  (lcg:static-method lcg:type:void lcg:type:instructions (string-append "reg" (number->string n)) '()))
+(define (lcg:method:offset->result_to_reg n)
+  (lcg:static-method lcg:type:void lcg:type:instructions (string-append "setreg" (number->string n)) '()))
 (define lcg:method:fault
   (lcg:static-method lcg:type:code-address lcg:type:exn "fault" (list lcg:type:int32)))
 
@@ -377,6 +381,72 @@
 (define lcg:method:setstk
   (lcg:static-method lcg:type:void lcg:type:instructions "setstk"
 		     (list lcg:type:int32)))
+(define lcg:method:op_eqp_int32
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject "op_eqp_int32" 
+		       (list lcg:type:int32)))
+(define lcg:method:op_plus_int32
+  (lcg:instance-method lcg:type:void lcg:type:schemeobject "op_plus_int32" 
+		       (list lcg:type:int32)))
+(define lcg:method:op_minus_int32
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject "op_minus_int32" 
+		       (list lcg:type:int32)))
+(define lcg:method:op_numeric_equals_int32
+  (lcg:instance-method lcg:type:void lcg:type:schemeobject "op_numeric_equals_int32" 
+		       (list lcg:type:int32)))
+(define lcg:method:op_fxless_int32
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject "op_fxless_int32" 
+		       (list lcg:type:int32)))
+
+(define lcg:method:op_vector_length_vec
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject "op_vector_length_vec" '()))
+(define lcg:method:op_greaterequal_fix_fix_int32
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject "op_greaterequal_fix_fix_int32" (list lcg:type:int32)))
+(define lcg:method:isEqpInt32
+  (lcg:instance-method lcg:type:boolean lcg:type:schemeobject "isEqpInt32" 
+		       (list lcg:type:int32)))
+(define lcg:method:isPair
+  (lcg:instance-method lcg:type:boolean lcg:type:schemeobject "isPair" '()))
+(define lcg:method:isFixnum
+  (lcg:instance-method lcg:type:boolean lcg:type:schemeobject "isFixnum" '()))
+(define lcg:method:isCharEqualsInt32
+  (lcg:instance-method lcg:type:boolean lcg:type:schemeobject "isCharEqualsInt32"
+		       (list lcg:type:int32)))
+(define lcg:method:makePair
+  (lcg:static-method lcg:type:schemepair lcg:type:factory "makePair" 
+		     (list lcg:type:schemeobject lcg:type:schemeobject)))
+(define lcg:method:makeBoolean
+  (lcg:static-method lcg:type:immediate lcg:type:factory "makeBoolean" 
+		     (list lcg:type:boolean)))
+(define lcg:method:op_charequals_int32
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject 
+		       "op_charequals_int32" (list lcg:type:int32)))
+(define lcg:method:op_vector_ref_trusted_int32 
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject
+		       "op_vector_ref_trusted_int32" (list lcg:type:int32)))
+(define lcg:method:op_less_fix_fix_int32
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject
+		       "op_less_fix_fix_int32" (list lcg:type:int32)))
+(define lcg:method:op_plus_idx_idx_int32
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject
+		       "op_plus_idx_idx_int32" (list lcg:type:int32)))
+(define lcg:method:op_char2integer
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject 
+		       "op_char2integer" '()))
+(define lcg:method:isVector
+  (lcg:instance-method lcg:type:boolean lcg:type:schemeobject
+		       "isVector" '()))
+(define lcg:method:op_charp
+  (lcg:instance-method lcg:type:schemeobject lcg:type:schemeobject
+		       "op_charp" '()))
+(define lcg:method:isChar
+  (lcg:instance-method lcg:type:boolean lcg:type:schemeobject
+		       "isChar" '()))
+(define lcg:method:isNumericEqualFixFixInt32
+  (lcg:instance-method lcg:type:boolean lcg:type:schemeobject
+		       "isNumericEqualFixFixInt32" (list lcg:type:int32)))
+(define lcg:method:isLessFixFixInt32
+  (lcg:instance-method lcg:type:boolean lcg:type:schemeobject
+		       "isLessFixFixInt32" (list lcg:type:int32)))
 
 (define lcg:field:null (lcg:fieldinfo lcg:type:immediate lcg:type:factory "Null"))
 (define lcg:field:true (lcg:fieldinfo lcg:type:immediate lcg:type:factory "True"))
@@ -397,6 +467,7 @@
 (define lcg:field:constants (lcg:fieldinfo lcg:type:schemeobject-array lcg:type:procedure "constants"))
 (define lcg:field:result (lcg:fieldinfo lcg:type:schemeobject lcg:type:reg "Result"))
 (define lcg:field:first (lcg:fieldinfo lcg:type:schemeobject lcg:type:schemepair "first"))
+(define lcg:field:rest (lcg:fieldinfo lcg:type:schemeobject lcg:type:schemepair "rest"))
 (define lcg:field:value (lcg:fieldinfo lcg:type:int32 lcg:type:fixnum "value"))
 (define lcg:field:second (lcg:fieldinfo lcg:type:schemeobject lcg:type:reg "Second"))
 (define lcg:field:third (lcg:fieldinfo lcg:type:schemeobject lcg:type:reg "Third"))
@@ -425,6 +496,7 @@
 (define (lcg:op:call p)       `(call ,p))
 (define (lcg:op:callvirt p)   `(callvirt ,p))
 (define (lcg:op:castclass p)  `(castclass ,p))
+(define (lcg:op:ceq)          `(ceq))
 (define (lcg:op:dup)          `(dup))
 (define (lcg:op:isinst p)     `(isinst ,p))
 (define (lcg:op:ldarg p)      `(ldarg ,p))
@@ -466,6 +538,7 @@
        (brfalse "Brfalse") (brfalse.s "Brfalse_S")
        (brtrue "Brtrue") (brtrue.s "Brtrue_S")
        (call "Call") (callvirt "Callvirt") (castclass "Castclass")
+       (ceq "Ceq")
        (dup "Dup")
        (isinst "Isinst")
        (ldarg "Ldarg")
@@ -606,7 +679,7 @@
       ((castclass isinst)
        (let ((type (cadr package)))
 	 (ilgen-msg! as 'emit-type (sym->op opc) type)))
-      ((dup ldelem.ref pop ret stelem.ref sub 
+      ((ceq dup ldelem.ref pop ret stelem.ref sub 
 	ldarg.0 ldarg.1 ldarg.2 ldarg.3) 
        (let ()
 	 (ilgen-msg! as 'emit (sym->op opc))))
@@ -679,7 +752,15 @@
 				      (string-append 
 				       "lcg:trace "
 				       (number->string n)))))
-(define (lcg:reach? n) (error 'pass5p2 ": reached" n))
+;; (define lcg:reach? (lambda (n) (error 'pass5p2 ": reached" n)))
+(define lcg:reach? 
+  (let ((reached '()))
+    (lambda (n) 
+      (cond ((not (member n reached))
+	     (set! reached (cons n reached))
+	     (display "pass5p2: lcg:reach reached ")
+	     (display n)
+	     (newline))))))
 
 ;; PSEUDO INSTRUCTIONS
 
@@ -1158,7 +1239,7 @@
 (define-instruction $save/storem-uniform
   (lambda (instruction as)
     (list-instruction "save/storem-uniform" instruction)
-    (lcg:reach? 18)
+    (lcg:cov as 18)
     (for-each
      (lambda (p) (ilgen! as p))
      (list
@@ -1168,7 +1249,7 @@
 (define-instruction $loadm-uniform
   (lambda (instruction as)
     (list-instruction "loadm-uniform" instruction)
-    (lcg:reach? 19)
+    (lcg:cov as 19)
     (for-each
      (lambda (p) (ilgen! as p))
      (list
@@ -1803,45 +1884,463 @@
 (define-instruction $reg/op1/setreg ; (opX 1 #f #t)
   (lambda (instruction as)
     (list-instruction "reg/op1/setreg" instruction)
-    (error 'assemble "$reg/op1/setreg unimplemented")))
+    (lcg:cov as 48)
+    (let ((primop (operand1 instruction))
+	  (rs (caddr instruction))    ;; XXX use appropos observers
+	  (rd (cadddr instruction)))  ;; XXX
+
+      (define (getreg rs)
+	(cond ((eq? rs 'result)
+	       (lcg:reach? 48.11)
+	       (lcg:op:ldsfld lcg:field:result))
+	      ((number? rs)
+	       (lcg:cov as 48.12)
+	       (lcg:op:call (lcg:method:offset->get_register rs)))
+	      (else (error 'reg/op1/setreg ": unknown register" rs))))
+
+      (define (setreg rd)
+	(cond ((eq? rd 'result)
+	       (lcg:cov as 48.21)
+	       (lcg:op:stsfld lcg:field:result))
+	      ((number? rd)
+	       (lcg:cov as 48.22)
+	       (lcg:op:call (lcg:method:offset->set_register rd)))
+	      (else (error 'reg/op1/setreg ": unknown register" rd))))
+
+      (define (match-constant rs const-field rd)
+	(list (getreg rs)
+	      (lcg:op:ldsfld const-field)
+	      (lcg:op:ceq)
+	      (lcg:op:call lcg:method:makeBoolean)
+	      (setreg rd)))
+
+      (define (gen-constant const-field rd)
+	(list (lcg:op:ldsfld const-field)
+	      (setreg rd)))
+
+      (define (op1-method rs method rd)
+	(list (getreg rs)
+	      (lcg:op:callvirt method)
+	      (setreg rd)))
+      
+      (for-each 
+       (lambda (p) (ilgen! as p))
+       (case primop
+	 ((creg) (lcg:reach? 48.91)
+	  (list (lcg:op:call lcg:method:getCC)
+		(setreg rd)))
+	 ((creg-set!) (lcg:reach? 48.92)
+	  (list (getreg rs)
+		(lcg:op:call lcg:method:setCC)
+		(setreg rd)))
+	 ((break)  (lcg:reach? 48.93)
+	  (list (lcg:op:ldc.i4 $ex.breakpoint)
+		(lcg:op:call lcg:method:fault)
+		(lcg:op:ret)))
+	 ((gc-counter)  (lcg:reach? 48.94)
+	  (list (lcg:op:ldsfld lcg:field:zero)
+		(setreg rd)))
+
+	 ((not) (lcg:reach? 48.951)
+          (match-constant rs lcg:field:false rd))
+	 ((null?)  (lcg:reach? 48.952)
+	  (match-constant rs lcg:field:null rd))
+	 ((unspecified?) (lcg:reach? 48.953)
+	  (match-constant rs lcg:field:unspecified rd))
+	 ((eof-object?) (lcg:reach? 48.954)
+	  (match-constant rs lcg:field:eof rd))
+	 ((undefined?)   (lcg:reach? 48.955)
+	  (match-constant rs lcg:field:undefined rd))
+	 ((fxzero?) (lcg:reach? 48.956)
+	  (match-constant rs lcg:field:zero rd))
+
+	 ((unspecified) (lcg:reach? 48.961)
+	  (gen-constant lcg:field:unspecified rd))
+	 ((undefined)    (lcg:reach? 48.962)
+	  (gen-constant lcg:field:undefined rd))
+	 ((eof-object)   (lcg:reach? 48.963)
+	  (gen-constant lcg:field:eof rd))
+
+	 ((make-cell) (lcg:reach? 48.97)
+	  (list (getreg rs)
+		(lcg:op:ldsfld lcg:field:false)
+		(lcg:op:call lcg:method:makePair)
+		(setreg rd)))
+	 ((car:pair) (lcg:cov as 48.981)
+	  (list (getreg rs)
+		(lcg:op:castclass lcg:type:schemepair)
+		(lcg:op:ldfld lcg:field:first)
+		(setreg rd)))
+	 ((cdr:pair) (lcg:cov as 48.982)
+	  (list (getreg rs)
+		(lcg:op:castclass lcg:type:schemepair)
+		(lcg:op:ldfld lcg:field:rest)
+		(setreg rd)))
+
+	 ((char->integer)     (lcg:cov as 48.991)
+	  (op1-method rs lcg:method:op_char2integer rd))
+	 ((vector-length:vec)  (lcg:cov as 48.992)
+	  (op1-method rs lcg:method:op_vector_length_vec rd))
+	 ((char?)              (lcg:cov as 48.993)
+	  (op1-method rs lcg:method:op_charp rd))
+	 ((cell-ref)           (lcg:cov as 48.994)
+	  (op1-method rs lcg:method:op_cell_ref rd))
+
+	 (else (error '$reg/op1/setreg ": unknown primop" primop)))))))
 
 (define-instruction $reg/op2/setreg ; (opX 2 #f #t)
   (lambda (instruction as)
     (list-instruction "reg/op2/setreg" instruction)
-    (error 'assemble "$reg/op2/setreg unimplemented")))
+    (lcg:cov as 49)
+    (let ((primop (operand1 instruction))
+	  (rs1 (caddr instruction))       ;; XXX use apropos observers
+	  (rd  (cadddr instruction))
+	  (rs2  (caddr (cddr instruction))))
+
+      (define (getreg rs)
+	(cond ((eq? rs 'result)
+	       (lcg:reach? 49.11)
+	       (lcg:op:ldsfld lcg:field:result))
+	      ((number? rs)
+	       (lcg:cov as 49.12)
+	       (lcg:op:call (lcg:method:offset->get_register rs)))
+	      (else (error 'reg/op2/setreg ": unknown register" rs))))
+
+      (define (setreg rd)
+	(cond ((eq? rd 'result)
+	       (lcg:cov as 49.21)
+	       (lcg:op:stsfld lcg:field:result))
+	      ((number? rd)
+	       (lcg:cov as 49.22)
+	       (lcg:op:call (lcg:method:offset->set_register rd)))
+	      (else (error 'reg/op2/setreg ": unknown register" rd))))
+
+      (case primop
+	((eq?)
+	 (ilgen! as (getreg rs1))
+	 (ilgen! as (getreg rs2))
+	 (ilgen! as (lcg:op:ceq))
+	 (ilgen! as (lcg:op:call lcg:method:makeBoolean))
+	 (ilgen! as (setreg rd)))
+	((cons) 
+	 (ilgen! as (getreg rs1))
+	 (ilgen! as (getreg rs2))
+	 (ilgen! as (lcg:op:call lcg:method:makePair))
+	 (ilgen! as (setreg rd)))
+	(else (error '$reg/op2/setreg ": unknown primop" primop))))))
   
 (define-instruction $reg/op2imm/setreg ; (opX 2 #t #t)
   (lambda (instruction as)
     (list-instruction "reg/op2imm/setreg" instruction)
-    (error 'assemble "$reg/op2imm/setreg unimplemented")))
+    (lcg:cov as 50)
+    (let ((primop (operand1 instruction))
+	  (rs     (operand2 instruction))
+	  (rd     (operand3 instruction))
+	  (imm    (operand4 instruction)))
+
+      (define (generic-arith-op2-imm method)
+	'(begin (display `(reg/op2imm/setreg ,instruction 
+			   in (generic-arith-op2-imm ,method)))
+		(newline))
+	(let* ((numeric (operand5 instruction))
+	       (label   (intern-label as numeric))
+	       (jump-idx (car label))
+	       (lcg-label (cdr label)))
+	  (lcg:cov as 50.3)
+	  (cond ((not (eqv? rs 'result))
+		 (lcg:cov as 50.31)
+		 ;; generic ops work via result reg, so uncond move rs to result
+		 (ilgen! as (lcg:op:call (lcg:method:offset->reg_to_result rs)))))
+	  (ilgen! as (lcg:op:ldc.i4 jump-idx))
+	  (ilgen! as (lcg:op:stsfld lcg:field:implicit-continuation))
+	  (ilgen! as (lcg:op:ldsfld lcg:field:result))
+	  (ilgen! as (lcg:op:ldc.i4 imm))
+	  (ilgen! as (lcg:op:callvirt method))
+	  (ilgen! as (lcg:op:ldc.i4 -1))
+	  (ilgen! as (lcg:op:stsfld lcg:field:implicit-continuation))
+	  (ilgen! as `(label ,lcg-label))
+	  (cond ((not (eqv? rd 'result))
+		 (lcg:cov as 50.32)
+		 (ilgen! as (lcg:op:call (lcg:method:offset->result_to_reg rd)))))))
+
+      (define (getreg rs)
+	(cond ((eq? rs 'result)
+	       (lcg:cov as 50.11)
+	       (lcg:op:ldsfld lcg:field:result))
+	      ((number? rs)
+	       (lcg:cov as 50.12)
+	       (lcg:op:call (lcg:method:offset->get_register rs)))
+	      (else (error 'reg/op2imm/setreg ": unknown register" rs))))
+
+      (define (setreg rd)
+	(cond ((eq? rd 'result)
+	       (lcg:cov as 50.21)
+	       (lcg:op:stsfld lcg:field:result))
+	      ((number? rd)
+	       (lcg:cov as 50.22)
+	       (lcg:op:call (lcg:method:offset->set_register rd)))
+	      (else (error 'reg/op2imm/setreg ": unknown register" rd))))
+
+      (define (fixed-arith-op2-imm method int32-imm)
+	;; [no implicit continuation]
+	(ilgen! as (getreg rs))
+	(ilgen! as (lcg:op:ldc.i4 int32-imm))
+	(ilgen! as (lcg:op:callvirt method))
+	(ilgen! as (setreg rd)))
+
+      (case primop
+	((eq?:int32)       (lcg:cov as 50.411)
+	 (fixed-arith-op2-imm lcg:method:op_eqp_int32 imm))
+	((+:idx:idx:int32) (lcg:cov as 50.412)
+	 (fixed-arith-op2-imm lcg:method:op_plus_idx_idx_int32 imm))
+	((-:idx:idx:int32) (lcg:reach? 50.413)
+	 (fixed-arith-op2-imm lcg:method:op_minus_idx_idx_int32 imm))
+	((=:int32)  (lcg:cov as 50.421)
+	 (generic-arith-op2-imm lcg:method:op_numeric_equals_int32))
+	((+:int32)  (lcg:cov as 50.422)
+	 (generic-arith-op2-imm lcg:method:op_plus_int32))
+	((-:int32)  (lcg:cov as 50.423)
+	 (generic-arith-op2-imm lcg:method:op_minus_int32))
+	((fx<:int32) (lcg:reach? 50.431)
+	 (fixed-arith-op2-imm lcg:method:op_fxless_int32 imm))
+	((>=:fix:fix:int32) (lcg:cov as 50.432)
+	 (fixed-arith-op2-imm lcg:method:op_greaterequal_fix_fix_int32 imm))
+	((<:fix:fix:int32) (lcg:trace as 50.433)
+	 (fixed-arith-op2-imm lcg:method:op_less_fix_fix_int32 imm))
+	((vector-ref:trusted:int32) (lcg:cov as 50.434)
+	 (fixed-arith-op2-imm lcg:method:op_vector_ref_trusted_int32 imm))
+	((char=?:char) (lcg:cov as 50.435)
+	 (fixed-arith-op2-imm lcg:method:op_charequals_int32 (char->integer imm)))
+	(else (error '$reg/op2imm/setreg ": unknown primop" primop))))))
 
 (define-instruction $reg/op1/branchf
   (lambda (instruction as)
     (list-instruction "reg/op1/branchf" instruction)
-    (error 'assemble "$reg/op1/branchf unimplemented")))
+    (lcg:cov as 51)
+    (let* ((primop (operand1 instruction))
+	   (rs (operand2 instruction))        ;; XXX use apropos observers
+	   (target-label (operand3 instruction))
+	   (no-branch-label (fresh-lcg-label as 'reg/op1/branchf:no-branch))
+	   (label (intern-label as target-label))
+	   (jump-idx (car label))
+	   (lcg-label (cdr label)))
+      
+      (define (branch-code)
+	(cond ((assq target-label (as-labels as))
+	       (for-each 
+		(lambda (p) (ilgen! as p))
+		(list (lcg:op:ldsfld lcg:field:timer)
+		      (lcg:op:ldc.i4 1)
+		      (lcg:op:sub)
+		      (lcg:op:dup)
+		      (lcg:op:stsfld lcg:field:timer)
+		      (lcg:op:brtrue lcg-label)
+		      (lcg:op:ldc.i4 jump-idx)
+		      (lcg:op:call lcg:method:faultTimer)
+		      (lcg:op:ret))))
+	      (else
+	       (ilgen! as (lcg:op:br lcg-label)))))
+
+      (define (getreg rs)
+	(cond ((eq? rs 'result)
+	       (lcg:cov as 51.21)
+	       (lcg:op:ldsfld lcg:field:result))
+	      ((number? rs)
+	       (lcg:reach? 51.22)
+	       (lcg:op:call (lcg:method:offset->get_register rs)))
+	      (else (error 'reg/op1/branchf ": unknown register" rs))))
+
+      (define (match-const const-field)
+	(ilgen! as (getreg rs))
+	(ilgen! as (lcg:op:ldsfld const-field))
+	(ilgen! as (lcg:op:beq.s no-branch-label))
+	(branch-code)
+	(ilgen! as `(label ,no-branch-label)))
+      
+      (define (match-pred pred-method)
+	(ilgen! as (getreg rs))
+	(ilgen! as (lcg:op:callvirt pred-method))
+	(ilgen! as (lcg:op:brtrue.s no-branch-label))
+	(branch-code)	
+	(ilgen! as `(label ,no-branch-label)))
+      
+      (case primop
+	((internal:branchf-null?)       (match-const lcg:field:null))
+	((internal:branchf-eof-object?) (match-const lcg:field:eof))
+	((internal:branchf-fxzero?)     (match-const lcg:field:zero))
+
+	((internal:branchf-pair?)   (match-pred lcg:method:isPair))
+	((internal:branchf-fixnum?) (match-pred lcg:method:isFixnum))
+	((internal:branchf-char?)   (match-pred lcg:method:isChar))
+	
+	(else 
+	 (error 'assemble "$reg/op1/branchf unknown primop" primop))))))
 
 (define-instruction $reg/op2/branchf
   (lambda (instruction as)
     (list-instruction "reg/op2/branchf" instruction)
-    (error 'assemble "$reg/op2/branchf unimplemented")))
+    (lcg:cov as 52)
+
+    '(begin (display instruction) (newline))
+
+    (let* ((primop          (operand1 instruction))
+	   (rs1             (operand2 instruction))
+	   (rs2             (operand3 instruction))
+	   (target-label    (operand4 instruction))
+	   (no-branch-label (fresh-lcg-label as 'reg/op1/branchf:no-branch))
+	   (label           (intern-label as target-label))
+	   (jump-idx        (car label))
+	   (lcg-label       (cdr label)))
+
+      (define (branch-code)
+	(cond ((assq target-label (as-labels as))
+	       (for-each 
+		(lambda (p) (ilgen! as p))
+		(list (lcg:op:ldsfld lcg:field:timer)
+		      (lcg:op:ldc.i4 1)
+		      (lcg:op:sub)
+		      (lcg:op:dup)
+		      (lcg:op:stsfld lcg:field:timer)
+		      (lcg:op:brtrue lcg-label)
+		      (lcg:op:ldc.i4 jump-idx)
+		      (lcg:op:call lcg:method:faultTimer)
+		      (lcg:op:ret))))
+	      (else
+	       (ilgen! as (lcg:op:br lcg-label)))))
+
+      (define (getreg rs)
+	(cond ((eq? rs 'result)
+	       (lcg:cov as 52.21)
+	       (lcg:op:ldsfld lcg:field:result))
+	      ((number? rs)
+	       (lcg:cov as 52.22)
+	       (lcg:op:call (lcg:method:offset->get_register rs)))
+	      (else (error 'reg/op2/branchf ": unknown register" rs))))
+
+      (case primop
+	((internal:branchf-eq?) 
+	 (ilgen! as (getreg rs1))
+	 (ilgen! as (getreg rs2))
+	 (ilgen! as (lcg:op:beq.s no-branch-label))
+	 (branch-code)
+	 (ilgen! as `(label ,no-branch-label)))
+	(else
+	 (error 'assemble "$reg/op2/branchf unknown primop" primop))))))
   
 (define-instruction $reg/op2imm/branchf
   (lambda (instruction as)
     (list-instruction "reg/op2imm/branchf" instruction)
-    (error 'assemble "$reg/op2imm/branchf unimplemented")))
+    (lcg:cov as 53)
+    (let* ((primop          (operand1 instruction))
+	   (rs              (operand2 instruction))
+	   (imm             (operand3 instruction))
+	   (target-label    (operand4 instruction))
+	   (no-branch-label (fresh-lcg-label as 'reg/op1/branchf:no-branch))
+	   (label           (intern-label as target-label))
+	   (jump-idx        (car label))
+	   (lcg-label       (cdr label)))
+
+      (define (branch-code)
+	(cond ((assq target-label (as-labels as))
+	       (for-each 
+		(lambda (p) (ilgen! as p))
+		(list (lcg:op:ldsfld lcg:field:timer)
+		      (lcg:op:ldc.i4 1)
+		      (lcg:op:sub)
+		      (lcg:op:dup)
+		      (lcg:op:stsfld lcg:field:timer)
+		      (lcg:op:brtrue lcg-label)
+		      (lcg:op:ldc.i4 jump-idx)
+		      (lcg:op:call lcg:method:faultTimer)
+		      (lcg:op:ret))))
+	      (else
+	       (ilgen! as (lcg:op:br lcg-label)))))
+
+      (define (getreg rs)
+	(cond ((eq? rs 'result)
+	       (lcg:cov as 53.21)
+	       (lcg:op:ldsfld lcg:field:result))
+	      ((number? rs)
+	       (lcg:cov as 53.22)
+	       (lcg:op:call (lcg:method:offset->get_register rs)))
+	      (else (error 'reg/op2imm/branchf ": unknown register" rs))))
+
+      (define (match-pred pred-method int-imm)
+	(ilgen! as (getreg rs))
+	(ilgen! as (lcg:op:ldc.i4 int-imm))
+	(ilgen! as (lcg:op:callvirt pred-method))
+	(ilgen! as (lcg:op:brtrue.s no-branch-label))
+	(branch-code)
+	(ilgen! as `(label ,no-branch-label)))
+
+      (case primop
+	((internal:branchf-eq?/imm-int32)       
+	 (match-pred lcg:method:isEqpInt32 imm))
+	((internal:branchf-fx</imm-int32)
+	 (match-pred lcg:method:isFxLessInt32 imm))
+	((internal:branchf-=:fix:fix/imm-int32)
+	 (match-pred lcg:method:isNumericEqualFixFixInt32 imm))
+	((internal:branchf-<:fix:fix/imm-int32) 
+	 (match-pred lcg:method:isLessFixFixInt32 imm))
+	((internal:branchf-char=?/imm-char) 
+	 (match-pred lcg:method:isCharEqualsInt32 (char->integer imm)))
+	(else
+	 (error 'assemble "$reg/op2imm/branchf unknown primop" primop))))))
 
 (define-instruction $reg/op1/check
   (lambda (instruction as)
     (list-instruction "reg/op1/check" instruction)
-    (error 'assemble "$reg/op1/check unimplemented")))
+    (lcg:cov as 54)
+    (let* ((primop       (operand1 instruction))
+	   (rs           (operand2 instruction))
+	   (target-label (operand3 instruction))
+	   (label        (intern-label as target-label))
+	   (jump-idx     (car label))
+	   (lcg-label    (cdr label)))
+
+      (define (getreg rs)
+	(cond ((eq? rs 'result)
+	       (lcg:cov as 54.11)
+	       (lcg:op:ldsfld lcg:field:result))
+	      ((number? rs)
+	       (lcg:cov as 54.12)
+	       (lcg:op:call (lcg:method:offset->get_register rs)))
+	      (else (error 'reg/op1/check ": unknown register" rs))))
+
+      (define (check-pred pred-method)
+	(ilgen! as (getreg rs))
+	(ilgen! as (lcg:op:callvirt pred-method))
+	(ilgen! as (lcg:op:brfalse lcg-label)))
+
+      (case primop
+	((internal:check-fixnum?) (check-pred lcg:method:isFixnum))
+	((internal:check-pair?)   (check-pred lcg:method:isPair))
+	((internal:check-vector?) (check-pred lcg:method:isVector))
+	((internal:check-string?) (check-pred lcg:method:isString))
+	(else
+	 (error 'assemble "$reg/op1/check unknown primop" primop))))))
 
 (define-instruction $reg/op2/check
   (lambda (instruction as)
     (list-instruction "reg/op2/check" instruction)
-    (error 'assemble "$reg/op2/check unimplemented")))
+    (lcg:reach? 55)
+    (let ((primop (operand1 instruction))
+	  (rs1    (operand2 instruction))
+	  (rd     (operand3 instruction))
+	  (rs2    (operand4 instruction)))
+      (case primop
+	(else
+	 (error 'assemble "$reg/op2/check unknown primop" primop))))))
   
 (define-instruction $reg/op2imm/check
   (lambda (instruction as)
     (list-instruction "reg/op2imm/check" instruction)
-    (error 'assemble "$reg/op2imm/check unimplemented")))
+    (lcg:reach? 56)
+    (let ((primop       (operand1 instruction))
+	  (rs1          (operand2 instruction))
+	  (imm          (operand3 instruction))
+	  (target-label (operand4 instruction)))
+      (case primop
+	(else
+	 (error 'assemble "$reg/op2imm/check unknown primop" primop))))))
 
