@@ -165,6 +165,7 @@
 	   (field:three (get-fieldinfo type:fixnum "three"))
 	   (field:four (get-fieldinfo type:fixnum "four"))
 	   (field:foreignbox-value (get-fieldinfo type:foreignbox "value"))
+	   (field:fixnum-value (get-fieldinfo type:fixnum "value"))
 	   (method:faultArgCount 
 	    (get-method type:exn "faultArgCount" (list type:int32)))
 	   (method:makeForeignBox 
@@ -195,7 +196,7 @@
 				   (error 'method->procedure "internal err")))))
 			(else
 			 (emit:castclass ilgen type:fixnum)
-			 (emit:ldfld ilgen field:value)
+			 (emit:ldfld ilgen field:fixnum-value)
 			 (emit:ldc.i4 ilgen (clr/int->foreign param-count))))
 		  (let ((okay-label (define-label ilgen)))
 		    (emit:beq.s ilgen okay-label)
