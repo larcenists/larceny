@@ -14,10 +14,11 @@
 	  (load-compiler 'release)
 	  ;; (peephole-optimization #f) ;; not there yet
 	  ))
+(prereq:load "LINK-LOP" "src/Asm/Shared/link-lop.sch")
 (prereq "IL-LCG" 
 	(lambda () 
 	  (if #f 
 	      (peephole-optimization #f) ;; not there yet
 	      (load "src/Asm/IL-LCG/peepopt.sch"))
+	  (load "src/Asm/IL-LCG/dotnet-ffi-lcg.sch")
 	  (load "src/Asm/IL-LCG/pass5p2.sch")))
-(prereq:load "LINK-LOP" "src/Asm/Shared/link-lop.sch")

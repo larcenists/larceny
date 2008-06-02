@@ -17,6 +17,9 @@
 
 (define (as.dyn-meth as) (vector-ref (as-code as) 0))
 (define (as.ilgen as)    (vector-ref (as-code as) 1))
+(define (as.msgcount as) (vector-ref (as-code as) 3))
+(define (as.incr-msgcount! as)
+  (vector-set! (as-code as) 3 (+ 1 (vector-ref (as-code as) 3))))
 
 ;; The establish-jump-points procedure traverses MacScheme source,
 ;; generating jump indices for both explcit label instructions in the
@@ -162,25 +165,19 @@
 	(as-jump-table! as new-index)
 	(cons jump-idx lcg-label))))))
 
-(define (lcg/%invoke meth recv argv)
-  ;; (display `(lcg/%invoke ,meth ,recv ,argv)) (newline)
-  (clr/%invoke meth recv argv))
-
-
 ;; (This function is redefined by Asm/IL/pass5p1, so I am redefining
 ;;  it here as well even though this code does not use the il:delay
 ;;  constructions.)
 ;; 
 ;; assemble-pasteup : assembler -> (cons code constants)
 (define (assemble-pasteup as)
-  ;; (begin (display `(assemble-pasteup ,as)) (newline))
+  '(begin (display `(assemble-pasteup as ,(as.msgcount as))) (newline))
   (let* ((dyn-meth (as.dyn-meth as))
 	 ;;(control-point-count (length (as-labels as)))
 	 (control-point-count (length (as-jump-table as)))
 	 (foreign-codevector 
-	  (lcg/%invoke lcg:method:makeCodeVector #f
-		       (vector (clr/int->foreign control-point-count) 
-			       dyn-meth)))
+	  (lcg:makeCodeVector (clr/int->foreign control-point-count) 
+			      dyn-meth))
 	 (code (clr/%foreign->schemeobject foreign-codevector))
 	 (constants (list->vector (as-constants as))))
     (cons code constants)))
@@ -270,8 +267,7 @@
       (clr/%invoke-constructor 
        ctor (vector (clr/string->foreign name)
 		    ret-type
-		    (vector->foreign-array (clr/%get-type "System.Type")
-					   arg-typev)
+		    (vector->foreign-array lcg:type:type arg-typev)
 		    class
 		    (clr/bool->foreign skip-checks))))))
 
@@ -283,22 +279,31 @@
 	 (ctor (clr/%get-constructor 
 		type-recv (vector type-arg1 type-arg2 type-arg3 ))))
     (define new-dynamic-method
-      (lambda (name ret-type arg-typev)
-	(clr/%invoke-constructor 
-	 ctor (vector (clr/string->foreign name)
-		      ret-type
-		      (vector->foreign-array
-		       (clr/%get-type "System.Type")
-		       arg-typev)))))
+      (lambda (name ret-type type-array)
+	(clr/%invoke-constructor ctor (vector name ret-type type-array))))
     new-dynamic-method))
+
+(define new-codevector-dynamic-method
+  (let ((type-array (vector->foreign-array 
+		     lcg:type:type
+		     (vector clr-type-handle/system-int32))))
+    (lambda (name)
+      (new-dynamic-method (clr/string->foreign name)
+			  lcg:type:code-address
+			  type-array))))
 
 (define dynamic-method->il-generator
   (let* ((type-recv lcg:type:dynamicmethod)
-	 (meth (clr/%get-method type-recv "GetILGenerator" '#())))
+	 (meth (clr/%get-method type-recv "GetILGenerator" '#()))
+	 (get-ilgen (clr-method->procedure meth)))
     (define dynamic-method->il-generator
       (lambda (dyn-meth)
-	(lcg/%invoke meth dyn-meth '#())))
+	(get-ilgen dyn-meth)))
     dynamic-method->il-generator))
+
+(define (lcg:iota n) 
+  (let loop ((i (- n 1)) (l '()))
+    (if (< i 0) l (loop (- i 1) (cons i l)))))
 
 (define (lcg:static-method ret-type recv-type method-name arg-types)
   (or (clr/%get-method recv-type method-name (list->vector arg-types))
@@ -315,6 +320,8 @@
 
 (define lcg:method:makeCodeVector
   (lcg:static-method lcg:type:codevector lcg:type:factory "makeCodeVector" (list lcg:type:int32 lcg:type:dynamicmethod)))
+(define lcg:makeCodeVector
+  (clr-method->procedure lcg:method:makeCodeVector))
 (define lcg:method:get_Register0
   (lcg:static-method lcg:type:schemeobject lcg:type:reg "get_Register0" '()))
 (define lcg:method:faultGlobal
@@ -347,27 +354,88 @@
   (lcg:static-method lcg:type:int32 lcg:type:call "applySetup" (list lcg:type:int32 lcg:type:int32)))
 (define lcg:method:save
   (lcg:static-method lcg:type:void lcg:type:instructions "save" (list lcg:type:int32)))
-(define (lcg:method:offset->save n)
-  (lcg:static-method lcg:type:void lcg:type:instructions (string-append "save" (number->string n)) '()))
+(define lcg:method:offset->save 
+  (let ((save-methods
+	 (let ((n->save-method 
+		(lambda (n)
+		  (lcg:static-method lcg:type:void
+				     lcg:type:instructions 
+				     (string-append "save" (number->string n)) 
+				     '()))))
+	   (list->vector (map n->save-method (lcg:iota 8))))))
+    (lambda (n)
+      (vector-ref save-methods n))))
+    
 (define lcg:method:save_storem_uniform
   (lcg:static-method lcg:type:void lcg:type:instructions "save_storem_uniform" (list lcg:type:int32)))
 (define lcg:method:loadm_uniform
   (lcg:static-method lcg:type:void lcg:type:instructions "loadm_uniform" (list lcg:type:int32)))
-(define (lcg:method:offset->pop n)
-  (lcg:static-method lcg:type:void lcg:type:instructions (string-append "pop" (number->string n)) '()))
+(define lcg:method:offset->pop 
+  (let ((pop-methods 
+	 (let ((n->pop-method 
+		(lambda (n)
+		  (lcg:static-method lcg:type:void
+				     lcg:type:instructions 
+				     (string-append "pop" (number->string n)) 
+				     '()))))
+	   (list->vector (map n->pop-method (lcg:iota 8))))))
+    (lambda (n)
+      (vector-ref pop-methods n))))
 ;; (define lcg:method:restore
 ;;   (lcg:static-method lcg:type:void lcg:type:instructions "restore" (list lcg:type:int32)))
 (define lcg:method:pop
   (lcg:static-method lcg:type:void lcg:type:instructions "pop" (list lcg:type:int32)))
 
-(define (lcg:method:offset->set_register n)
-  (lcg:static-method lcg:type:void lcg:type:reg (string-append "set_Register" (number->string n)) (list lcg:type:schemeobject)))
-(define (lcg:method:offset->get_register n)
-  (lcg:static-method lcg:type:schemeobject lcg:type:reg (string-append "get_Register" (number->string n)) '()))
-(define (lcg:method:offset->reg_to_result n)
-  (lcg:static-method lcg:type:void lcg:type:instructions (string-append "reg" (number->string n)) '()))
-(define (lcg:method:offset->result_to_reg n)
-  (lcg:static-method lcg:type:void lcg:type:instructions (string-append "setreg" (number->string n)) '()))
+(define lcg:method:offset->set_register 
+  (let ((methods 
+	 (let ((n->setreg-method
+		(lambda (n)
+		  (let* ((nstr (number->string n))
+			 (name (string-append "set_Register" nstr)))
+		    (lcg:static-method lcg:type:void
+				       lcg:type:reg
+				       name
+				       (list lcg:type:schemeobject))))))
+	   (list->vector (map n->setreg-method (lcg:iota 32))))))
+    (lambda (n) 
+      (vector-ref methods n))))
+(define lcg:method:offset->get_register
+  (let ((methods
+	 (let ((n->getreg-method 
+		(lambda (n)
+		  (let* ((nstr (number->string n))
+			 (name (string-append "get_Register" nstr)))
+		    (lcg:static-method lcg:type:schemeobject 
+				       lcg:type:reg 
+				       name
+				       '())))))
+	   (list->vector (map n->getreg-method (lcg:iota 32))))))
+    (lambda (n)
+      (vector-ref methods n))))
+(define lcg:method:offset->reg_to_result 
+  (let ((methods 
+	 (let ((n->reg-method 
+		(lambda (n)
+		  (let* ((nstr (number->string n))
+			 (name (string-append "reg" nstr)))
+		  (lcg:static-method lcg:type:void lcg:type:instructions 
+				     name
+				     '())))))
+	   (list->vector (map n->reg-method (lcg:iota 32))))))
+    (lambda (n)
+      (vector-ref methods n))))       
+(define lcg:method:offset->result_to_reg 
+  (let ((methods 
+	 (let ((n->setreg-method
+		(lambda (n)
+		  (let* ((nstr (number->string n))
+			 (name (string-append "setreg" nstr)))
+		    (lcg:static-method lcg:type:void lcg:type:instructions 
+				       name
+				       '())))))
+	   (list->vector (map n->setreg-method (lcg:iota 32))))))
+    (lambda (n)
+      (vector-ref methods n))))
 (define lcg:method:fault
   (lcg:static-method lcg:type:code-address lcg:type:exn "fault" (list lcg:type:int32)))
 
@@ -475,10 +543,17 @@
 (define lcg:field:timer (lcg:fieldinfo lcg:type:int32 lcg:type:reg "timer"))
 (define lcg:field:entrypoint (lcg:fieldinfo lcg:type:codevector lcg:type:procedure "entrypoint"))
 (define lcg:field:cont (lcg:fieldinfo lcg:type:cache-frame lcg:type:cont "cont"))
-(define (lcg:field:offset->slot n)
-  (if (zero? n) 
-      (lcg:fieldinfo lcg:type:procedure lcg:type:continuation-frame "s0")
-      (lcg:fieldinfo lcg:type:schemeobject lcg:type:continuation-frame (string-append "s" (number->string n)))))
+(define lcg:field:offset->slot 
+  (let ((slots
+	 (let ((n->fieldinfo
+		(lambda (n)
+		  (let* ((nstr (string-append "s" (number->string n)))
+			 (ftype (if (zero? n) 
+				    lcg:type:procedure lcg:type:schemeobject)))
+		    (lcg:fieldinfo ftype lcg:type:continuation-frame nstr)))))
+	   (list->vector (map n->fieldinfo (lcg:iota 8))))))
+    (lambda (n)
+      (vector-ref slots n))))
 (define lcg:field:overflowSlots (lcg:fieldinfo lcg:type:schemeobject-array lcg:type:continuation-frame "overflowSlots"))
 (define lcg:field:returnIndex (lcg:fieldinfo lcg:type:int32 lcg:type:continuation-frame "returnIndex"))
 (define lcg:field:parent (lcg:fieldinfo lcg:type:procedure lcg:type:procedure "parent"))
@@ -569,9 +644,11 @@
 	 (type-string       lcg:type:string)
 	 (type-typearr      lcg:type:type-array)
 	 (type-labelarr     lcg:type:label-array)
-	 (get-method (lambda (name . types)
-		       (or (clr/%get-method type-recv name (list->vector types))
-			   (error 'get-method ": failed for " name types))))
+	 (get-method 
+	  (lambda (name . types)
+	    (clr-method->procedure
+	     (or (clr/%get-method type-recv name (list->vector types))
+		 (error 'get-method ": failed for " name types)))))
 	 (define-label/meth    (get-method "DefineLabel"))
 	 (declare-local/meth   (get-method "DeclareLocal" type-type))
 	 (mark-label/meth      (get-method "MarkLabel" type-label))
@@ -598,9 +675,7 @@
 	 (emit-labelarr/meth     (get-emit-method type-labelarr))
 	 )
     (define (ilgen-msg! as msg . package)
-      (define (invoke meth recv argv)
-	;; (display `(ilgen-msg!..invoke ,meth ,recv ,argv)) (newline)
-	(clr/%invoke meth recv argv))
+      (as.incr-msgcount! as)
       ;; (begin (display `(ilgen-msg! as ,msg . ,package)) (newline))
       (let ((ilgen (as.ilgen as)))
 	(case msg
@@ -610,55 +685,51 @@
 	  ((begin-fault-block) ...)
 	  ((begin-finally-block) ...)
 	  ((begin-scope) ...)
-	  ((declare-local) (invoke declare-local/meth ilgen 
-					(vector (car package))))
-	  ((define-label)  (invoke define-label/meth ilgen '#()))
-	  ((emit-call)     (invoke emit-call/meth ilgen 
-				   (vector (car package) 
+	  ((declare-local) (declare-local/meth ilgen (car package)))
+	  ((define-label)  (define-label/meth ilgen))
+	  ((emit-call)     (emit-call/meth ilgen 
+					   (car package) 
 					   (cadr package) 
-					   (caddr package))))
-	  ((emit)          (invoke emit/meth ilgen 
-				   (vector (car package))))
-	  ((emit-byte)     (invoke emit-byte/meth ilgen 
-				   (vector (car package) 
-					   (cadr package))))
-	  ((emit-double)   (invoke emit-double/meth ilgen
-				   (vector (car package)
-					   (cadr package))))
-	  ((emit-int16)    (invoke emit-int16/meth ilgen 
-				   (vector (car package) 
-					   (cadr package))))
-	  ((emit-int32)    (invoke emit-int32/meth ilgen 
-				   (vector (car package) 
-					   (cadr package))))
-	  ((emit-int64)    (invoke emit-int64/meth ilgen 
-				   (vector (car package) 
-					   (cadr package))))
-	  ((emit-label)    (invoke emit-label/meth ilgen 
-				   (vector (car package) 
-					   (cadr package))))
-	  ((emit-labelarr) (invoke emit-labelarr/meth ilgen 
-				   (vector (car package) 
-					   (cadr package))))
-	  ((emit-string)   (invoke emit-string/meth ilgen 
-				   (vector (car package) 
-					   (cadr package))))
-	  ((emit-type)         (invoke emit-type/meth ilgen 
-				       (vector (car package) 
-					       (cadr package))))
-	  ((emit-fieldinfo)    (invoke emit-fieldinfo/meth ilgen
-				       (vector (car package)
-					       (cadr package))))
-	  ((emit-methodinfo)   (invoke emit-methodinfo/meth ilgen
-				       (vector (car package)
-					       (cadr package))))
-	  ((emit-localbuilder) (invoke emit-localbuilder/meth ilgen
-				       (vector (car package)
-					       (cadr package))))
-	  ((emit-write-line)   (invoke emit-write-line/meth ilgen
-				       (vector (car package))))
-	  ((mark-label!)       (invoke mark-label/meth ilgen
-				       (vector (car package))))
+					   (caddr package)))
+	  ((emit)          (emit/meth ilgen (car package)))
+	  ((emit-byte)     (emit-byte/meth ilgen 
+					   (car package)
+					   (cadr package)))
+	  ((emit-double)   (emit-double/meth ilgen
+					     (car package)
+					     (cadr package)))
+	  ((emit-int16)    (emit-int16/meth ilgen 
+					    (car package) 
+					    (cadr package)))
+	  ((emit-int32)    (emit-int32/meth ilgen 
+					    (car package) 
+					    (cadr package)))
+	  ((emit-int64)    (emit-int64/meth ilgen 
+					    (car package) 
+					    (cadr package)))
+	  ((emit-label)    (emit-label/meth ilgen 
+					    (car package) 
+					    (cadr package)))
+	  ((emit-labelarr) (emit-labelarr/meth ilgen 
+					       (car package) 
+					       (cadr package)))
+	  ((emit-string)   (emit-string/meth ilgen 
+					     (car package) 
+					     (cadr package)))
+	  ((emit-type)         (emit-type/meth ilgen 
+					       (car package) 
+					       (cadr package)))
+	  ((emit-fieldinfo)    (emit-fieldinfo/meth ilgen
+						    (car package)
+						    (cadr package)))
+	  ((emit-methodinfo)   (emit-methodinfo/meth ilgen
+						     (car package)
+						     (cadr package)))
+	  ((emit-localbuilder) (emit-localbuilder/meth ilgen
+						       (car package)
+						       (cadr package)))
+	  ((emit-write-line)   (emit-write-line/meth ilgen (car package)))
+	  ((mark-label!)       (mark-label/meth ilgen (car package)))
 	  (else
 	   (error 'ilgen-msg! ": unknown msg " msg))
 	  )))
@@ -784,13 +855,10 @@
 
     ;; note that in Asm/IL-LCG it is passed via param 0,
     ;; not param 1 like in Asm/IL.
-    (let* ((dyn-meth (new-dynamic-method 
-		      (string-append "someclosure " (number->string (operand2 instruction)))
-		      (clr/%get-type "Scheme.RT.CodeAddress")
-		      (vector clr-type-handle/system-int32)))
+    (let* ((dyn-meth (new-codevector-dynamic-method 
+		      (string-append "someclosure " (number->string (operand2 instruction)))))
 	   (ilgen (dynamic-method->il-generator dyn-meth)))
-
-      (as-code! as (vector dyn-meth ilgen #f)) ;; XXX evil
+      (as-code! as (vector dyn-meth ilgen #f 0)) ;; XXX evil
 
       (let* ((switch-table (jump-label-map->alist (operand1 instruction)))
 	     (switch-table (cons (list 0 'entry) switch-table))
@@ -808,7 +876,7 @@
 			     lcg-label)))
 		   switch-table))
 	     (entry-label (vector-ref switches 0)))
-	(as-code! as (vector dyn-meth ilgen jump-table))
+	(as-code! as (vector dyn-meth ilgen jump-table 0))
 	'(ilgen-msg! as 'emit-write-line 
 		    (clr/string->foreign (string-append "Starting someclosure "
 							(number->string (operand2 instruction)))))
