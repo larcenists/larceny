@@ -378,7 +378,8 @@
 	   (cond ((is-static? method-info)
 		  (static->segment method-info))
 		 ((and (is-virtual? method-info)
-		       (not (value-type? (method->declaring-type method-info))))
+		       (not (value-type? 
+			     (method->declaring-type method-info))))
 		  (virtual->segment method-info))
 		 (else
 		  (nonvirtual->segment method-info))
