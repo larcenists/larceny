@@ -252,7 +252,11 @@
 			(clr/%invoke method:makeCodeVector #f
 				     (vector (clr/int->foreign 1) dmethod)))
 		       (code (clr/%foreign->schemeobject foreign-codevector))
-		       (constants '#()))
+		       (constants
+			;; see procinfo.sch for doc layout
+			(let ((name (string->symbol name))
+			      (arity param-count))
+			  `#((data #(,name #f ,arity #f #f))))))
 		  (cons code constants)))))
 
 	   (value-type?
