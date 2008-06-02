@@ -386,4 +386,4 @@
 
       clr-method->procedure/lcg)))
 
-(define clr-method->procedure clr-method->procedure/clr-invoke)
+(define clr-method->procedure clr-method->procedure/lcg)
