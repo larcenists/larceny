@@ -4,15 +4,33 @@
 	 (is-static? ; : MethodInfo -> Boolean
 	  (lambda (method-info)
 	    (clr/foreign->bool 
-	     (clr/%property-ref is-static-prop method-info '#())))))
+	     (clr/%property-ref is-static-prop method-info '#()))))
+	 (method:is-instance-of-type
+	  (clr/%get-method (find-clr-type "System.Type")
+			   "IsInstanceOfType" 
+			   (vector (find-clr-type "System.Object"))))
+	 (type:constructorinfo
+	  (find-clr-type "System.Reflection.ConstructorInfo"))
+	 (is-ctor? ; : Any -> Boolean
+	  (lambda (method-info)
+	    (clr/foreign->bool
+	     (clr/%invoke method:is-instance-of-type
+			  type:constructorinfo
+			  (vector method-info)))))
+	 )
     (define clr-method->procedure/clr-invoke
-      (lambda (method-info)
-	(if (is-static? method-info)
-	    (lambda args
-	      (clr/%invoke method-info #f (list->vector args)))
-	    (lambda args
-	      (clr/%invoke method-info (car args) (list->vector (cdr args))))
-	    )))
+      (lambda (member-info)
+	(cond 
+	 ((is-ctor? member-info)
+	  (lambda args (clr/%invoke-constructor member-info
+						(list->vector args))))
+	 ((is-static? member-info)
+	  (lambda args (clr/%invoke member-info 
+				    #f (list->vector args))))
+	 (else 
+	  (lambda args (clr/%invoke member-info 
+				    (car args) (list->vector (cdr args))))
+	  ))))
     clr-method->procedure/clr-invoke))
 
 (define clr-method->procedure/lcg
@@ -31,9 +49,6 @@
 	    (lambda (method-info)
 	      (clr/foreign->bool
 	       (clr/%property-ref is-virtual-prop method-info '#()))))
-	   (get-parameters-method
-	    (clr/%get-method mi-type "GetParameters" '#()))
-	   
 	   (type-getter (lambda (prefix)
 			  (lambda (x)
 			    (must (clr/%get-type (string-append prefix x))))))
@@ -44,6 +59,7 @@
 	   (get-rts-type (type-getter "Scheme.RT."))
 	   (get-refl-type (type-getter "System.Reflection."))
 	   
+	   (type:object (get-sys-type "Object"))
 	   (type:type (get-sys-type "Type"))
 	   (type:string (get-sys-type "String"))
 	   (type:type-array (get-sys-type "Type[]"))
@@ -55,12 +71,13 @@
 	   (type:int32 (get-sys-type "Int32"))
 	   (type:label (get-emit-type "Label"))
 	   (type:methodinfo (get-refl-type "MethodInfo"))
+	   (type:constructorinfo (get-refl-type "ConstructorInfo"))
 	   (type:exn (get-rts-type "Exn"))
-	   (type:object (get-sys-type "Object"))
 	   (type:factory (get-rep-type "Factory"))
 	   (type:instructions (get-rts-type "Instructions"))
 	   (type:foreignbox (get-rep-type "ForeignBox"))
 	   (type:codeaddress (get-rts-type "CodeAddress"))
+	   (type:parameter-info (get-refl-type "ParameterInfo"))
 
 	   (get-method (lambda (recv-t name arg-ts) 
 			 (must (clr/%get-method recv-t name (list->vector arg-ts)))))
@@ -78,6 +95,8 @@
 	    (get-method type:ilgenerator "MarkLabel" (list type:label)))
 	   (method:emit-with-label (get-emit-method (list type:label)))
 	   (method:emit-with-method (get-emit-method (list type:methodinfo)))
+	   (method:emit-with-constructor 
+	    (get-emit-method (list type:constructorinfo)))
 	   (method:emit (get-emit-method '()))
 	   
 	   (get-opcode 
@@ -132,6 +151,9 @@
 	    (make-emit-for-op-and-onemore "Unbox" method:emit-with-type))
 	   (emit:unbox.any
 	    (make-emit-for-op-and-onemore "Unbox_Any" method:emit-with-type))
+	   (emit:newobj
+	    (make-emit-for-op-and-onemore "Newobj" 
+					  method:emit-with-constructor))
 
 	   (get-fieldinfo (lambda (recv-t name)
 			    (must (clr/%get-field recv-t name))))
@@ -290,17 +312,20 @@
 	      (lambda (method-info)
 		(clr/foreign->string
 		 (clr/%property-ref prop:name method-info '#())))))
+	   (prop:parameter-type 
+	    (clr/%get-property type:parameter-info "ParameterType" '#()))
 	   (method->param-types ; : MethodInfo -> [Listof Type]
 	    (let* ((type:parameter-info (get-refl-type "ParameterInfo")) 
-		   (prop:parameter-type 
-		    (clr/%get-property type:parameter-info "ParameterType" '#())))
+		   (get-parameters-method
+		    (clr/%get-method mi-type "GetParameters" '#())))
 	      (lambda (method-info)
 		(let* ((param-arr (clr/%invoke get-parameters-method 
 					       method-info '#()))
 		       (params (clr-array->list param-arr))
 		       (param-types
 			(map (lambda (param) 
-			       (clr/%property-ref prop:parameter-type param '#()))
+			       (clr/%property-ref prop:parameter-type 
+						  param '#()))
 			     params)))
 		  param-types))))
 	   (void-type? 
@@ -368,22 +393,83 @@
 		   (emit:call ilgen method-info))
 		 (method->emit-convert-result method-info)
 		 ))))
+	   (type:constructorinfo 
+	    (find-clr-type "System.Reflection.ConstructorInfo"))
+	   (constructor->name ; : ConstructorInfo -> String
+	    (let* ((prop:name
+		    (clr/%get-property type:constructorinfo "Name" '#())))
+	      (lambda (constructor-info)
+		(clr/foreign->string
+		 (clr/%property-ref prop:name constructor-info '#())))))
+	   (constructor->param-types
+	    (let* ((type:parameter-info (get-refl-type "ParameterInfo"))
+		   (prop:parameter-type
+		    (clr/%get-property type:parameter-info
+				       "ParameterType" '#()))
+		   (get-parameters-method 
+		    (clr/%get-method type:constructorinfo
+				     "GetParameters" '#())))
+	      (lambda (constructor-info)
+		(let* ((param-arr (clr/%invoke get-parameters-method 
+					       constructor-info '#()))
+		       (params (clr-array->list param-arr))
+		       (param-types
+			(map (lambda (param)
+			       (clr/%property-ref prop:parameter-type 
+						  param '#()))
+			     params)))
+		  param-types))))
+	   (constructor->segment
+	    (lambda (constructor-info)
+	      (let* ((name (constructor->name constructor-info))
+		     (param-types
+		      (constructor->param-types constructor-info)))
+		(name-and-params-and-call-and-convert->segment
+		 name
+		 #f
+		 param-types
+		 (lambda (ilgen)
+		   (emit:newobj ilgen constructor-info))
+		 (lambda (ilgen)
+		   (emit:call ilgen method:makeForeignBox)
+		   (emit:stsfld ilgen field:result-reg))))))
+	   (method-info->segment
+	    (lambda (method-info)
+	      (cond ((is-static? method-info)
+		     (static->segment method-info))
+		    ((and (is-virtual? method-info)
+			  (not (value-type? 
+				(method->declaring-type method-info))))
+		     (virtual->segment method-info))
+		    (else
+		     (nonvirtual->segment method-info)))))
+	   (type-matcher
+	    (let* ((is-instance-method
+		    (clr/%get-method type:type "IsInstanceOfType"
+				     (vector type:object))))
+	      (lambda (type)
+		(lambda (obj)
+		  (clr/foreign->bool 
+		   (clr/%invoke is-instance-method type (vector obj)))))))
+	   (is-method-info? (type-matcher type:methodinfo))
+	   (is-constructor-info? (type-matcher type:constructorinfo))
+	   (member-info->segment
+	    (lambda (member-info)
+	      (cond ((is-method-info? member-info)
+		     (method-info->segment member-info))
+		    ((is-constructor-info? member-info)
+		     (constructor->segment member-info))
+		    (else
+		     (error 'clr-method->procedure ": invalid info"
+			    member-info)))))
 	   )
 
       (define clr-method->procedure/lcg
-	(lambda (method-info . link-segment)
+	(lambda (member-info . link-segment)
 	  ((if (null? link-segment)
 	       (lambda (seg) (link-lop-segment seg (interaction-environment)))
 	       (car link-segment))
-	   (cond ((is-static? method-info)
-		  (static->segment method-info))
-		 ((and (is-virtual? method-info)
-		       (not (value-type? 
-			     (method->declaring-type method-info))))
-		  (virtual->segment method-info))
-		 (else
-		  (nonvirtual->segment method-info))
-		 ))))
+	   (member-info->segment member-info))))
 
       clr-method->procedure/lcg)))
 
