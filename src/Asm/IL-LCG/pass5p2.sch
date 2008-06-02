@@ -260,27 +260,28 @@
 	 (type-arg3 lcg:type:type-array)
 	 (type-arg4 lcg:type:type)
 	 (type-arg5 lcg:type:boolean)
-	 (ctor (clr/%get-constructor 
-		type-recv (vector type-arg1 type-arg2 type-arg3 
-				  type-arg4 type-arg5))))
+	 (ctor (clr-method->procedure
+		(clr/%get-constructor 
+		 type-recv (vector type-arg1 type-arg2 type-arg3 
+				   type-arg4 type-arg5)))))
     (lambda (name ret-type arg-typev class skip-checks)
-      (clr/%invoke-constructor 
-       ctor (vector (clr/string->foreign name)
-		    ret-type
-		    (vector->foreign-array lcg:type:type arg-typev)
-		    class
-		    (clr/bool->foreign skip-checks))))))
+      (ctor (clr/string->foreign name)
+	    ret-type
+	    (vector->foreign-array lcg:type:type arg-typev)
+	    class
+	    (clr/bool->foreign skip-checks)))))
 
 (define new-dynamic-method 
   (let* ((type-recv (clr/%get-type "System.Reflection.Emit.DynamicMethod"))
 	 (type-arg1 (clr/%get-type "System.String"))
 	 (type-arg2 (clr/%get-type "System.Type"))
 	 (type-arg3 (clr/%get-type "System.Type[]"))
-	 (ctor (clr/%get-constructor 
-		type-recv (vector type-arg1 type-arg2 type-arg3 ))))
+	 (ctor (clr-method->procedure 
+		(clr/%get-constructor 
+		 type-recv (vector type-arg1 type-arg2 type-arg3 )))))
     (define new-dynamic-method
       (lambda (name ret-type type-array)
-	(clr/%invoke-constructor ctor (vector name ret-type type-array))))
+	(ctor name ret-type type-array)))
     new-dynamic-method))
 
 (define new-codevector-dynamic-method
