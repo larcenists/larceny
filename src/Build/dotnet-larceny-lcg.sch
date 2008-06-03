@@ -6,10 +6,11 @@
 ;; and replaces the evaluator with one that does CompileOnEval.
  
 ;; These will be prerequisites of this file at some point in future.
-(define (prereq name thunk)
-  (run-benchmark name thunk))
-(define (prereq:load name file)
-  (prereq name (lambda () (load file))))
+
+(define (prereq name thunk) (run-benchmark name thunk))
+(define (prereq:load name file) (prereq name (lambda () (load file))))
+;(define (prereq name thunk) 'nop)
+;(define (prereq:load name file) 'nop)
 
 (prereq "DOTNET"
 	(lambda () 
@@ -28,6 +29,13 @@
 	      (load "src/Asm/IL-LCG/peepopt.sch"))
 	  (load "src/Asm/IL-LCG/dotnet-ffi-lcg.sch")
 	  (load "src/Asm/IL-LCG/pass5p2.sch")))
+(prereq:load "TOPLEVEL" 
+	     (param-filename 'common-source "toplevel.sch"))
+(prereq:load "LEVELTGT"
+	     (param-filename 'source "Arch" "IL" "toplevel-target.sch"))
+(prereq:load "SEAL2BIT" 
+	     "src/Build/seal-twobit.sch")
+
 (define ($$trace x) #f)                 ; Some code uses this
 
 (define toplevel-macro-expand #f)       ; A hack for the benefit of 
@@ -84,13 +92,6 @@
 		    4
 		    (the-usual-syntactic-environment))
   )
-
-(prereq:load "TOPLEVEL" 
-	     (param-filename 'common-source "toplevel.sch"))
-(prereq:load "LEVELTGT"
-	     (param-filename 'source "Arch" "IL" "toplevel-target.sch"))
-(prereq:load "SEAL2BIT" 
-	     "src/Build/seal-twobit.sch")
 
 (let ((proc-names 
        (append 

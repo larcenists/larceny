@@ -11,7 +11,7 @@
 
 (prereq "COMPILER"
 	(lambda () 
-	  (load-compiler 'release)
+	  (load-compiler)
 	  ;; (peephole-optimization #f) ;; not there yet
 	  ))
 (prereq:load "LINK-LOP" "src/Asm/Shared/link-lop.sch")
