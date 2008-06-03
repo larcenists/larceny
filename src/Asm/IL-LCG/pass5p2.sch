@@ -314,6 +314,79 @@
   (or (clr/%get-method recv-type method-name (list->vector arg-types))
       (error 'lcg:instance-method "unknown method " method-name 
 	     " with params " arg-types " for " recv-type)))
+(define lcg:op-instance-method
+  (let* ((op->method 
+	  (lambda (opcode arg-types)
+	    (let* ((method-name 
+		    (twobit-format #f "op_~a" (csharp-op-name opcode))))
+	      (lcg:instance-method lcg:type:void 
+				   lcg:type:schemeobject 
+				   method-name
+				   arg-types))))
+	 (op1->method (lambda (opcode) (op->method opcode '())))
+	 (op2->method (lambda (opcode) 
+			(op->method opcode (list lcg:type:schemeobject))))
+	 (op3->method (lambda (opcode) 
+			(op->method opcode (list lcg:type:schemeobject
+						 lcg:type:schemeobject)))))
+    (letrec-syntax
+	((method-cache 
+	  (syntax-rules (op1 op2 op3)
+	    ((_ () (METHOD-BINDING ...) (OP-CASE ...))
+	     (let (METHOD-BINDING ...)
+	       (lambda (ret-type opcode arg-types)
+		 (case opcode
+		   OP-CASE ...
+		   (else 
+		    (begin
+		      (display 
+		       `(lcg:op-instance-method ,opcode ,arg-types))
+		      (newline))
+		    (op->method opcode arg-types))))))
+	    ((_ ((OP->METHOD NAME) OPS ...) (METHOD-BINDING ...) (OP-CASE ...))
+	     (method-cache (OPS ...) 
+			   ((fresh (OP->METHOD 'NAME)) METHOD-BINDING ...)
+			   (((NAME) fresh) OP-CASE ...)))))
+	 (build-method-cache
+	  (syntax-rules ()
+	    ((build-method-cache (OP->METHOD NAME) ...)
+	     (method-cache ((OP->METHOD NAME) ...) () ()))))
+	 (gather-ops
+	  (syntax-rules (op1 op2 op3)
+	    ((gather-ops (op1 OP1-NAMES ...)
+			 (op2 OP2-NAMES ...)
+			 (op3 OP3-NAMES ...))
+	     (build-method-cache
+	      (op1->method OP1-NAMES) ...
+	      (op2->method OP2-NAMES) ...
+	      (op3->method OP3-NAMES) ...))))
+	 )
+      (gather-ops
+
+       (op1 -- break bytevector? bytevector-length 
+	    car car:pair cdr cdr:pair cell-ref 
+	    char? char->integer complex? 
+	    eof-object eof-object? exact? exact->inexact 
+	    fixnum? flonum? imag-part inexact? inexact->exact 
+	    integer? integer->char 
+	    make-bytevector make-cell make-procedure
+	    not null? pair? port? procedure? 
+	    rational? real-part structure? symbol? 
+	    undefined unspecified ustring? ustring-length:str 
+	    vector? vector-length:vec zero?)
+
+       (op2 * + = - > >= < <:fix:fix <= <=:fix:fix / 
+	    bytevector-ref cell-set! char=? char<=? cons 
+	    eq? eqv? fxlogand fxlogior fxlogxor fxlsh fxrshl 
+	    make-ustring make-vector procedure-ref quotient 
+	    remainder set-car! set-cdr! typetag-set! 
+	    ustring-ref:trusted vector-ref:trusted)
+
+       (op3 bytevector-like-set! bytevector-set! procedure-set!
+	    ustring-set!:trusted vector-like-set! vector-set!:trusted)
+
+       ))))
+
 (define (lcg:fieldinfo field-type recv-type field-name)
   (or (clr/%get-field recv-type field-name)
       (error 'lcg:fieldinfo "unknown field " field-name
@@ -1649,7 +1722,7 @@
 	  (lcg:op:call lcg:method:call)
 	  (lcg:op:ret)))
 	(else
-	 (lcg:reach? 37.3)
+	 (lcg:cov as 37.3)
 	 (let* ((label (intern-label as label))
 		(jump-idx (car label))
 		(lcg-label (cdr label)))
@@ -1741,13 +1814,13 @@
 (define-instruction $trap
   (lambda (instruction as)
     (list-instruction "trap" instruction)
-    (lcg:trace as 42)
+    (lcg:cov as 42)
     (let ((w (operand1 instruction))
 	  (x (operand2 instruction))
 	  (y (operand3 instruction))
 	  (excode (operand4 instruction)))
       (cond ((not (zero? w))
-	     (lcg:trace as 42.1)
+	     (lcg:cov as 42.1)
 	     (for-each
 	      (lambda (p) (ilgen! as p))
 	      (list
@@ -1755,7 +1828,7 @@
 	       (lcg:op:stsfld lcg:field:result)
 	       ))))
       (cond ((not (zero? x))
-	     (lcg:trace as 42.2)
+	     (lcg:cov as 42.2)
 	     (for-each
 	      (lambda (p) (ilgen! as p))
 	      (list
@@ -1792,8 +1865,7 @@
   (lambda (instruction as)
     (list-instruction "op1" instruction)
     (lcg:cov as 44)
-    (let* ((opcode (operand1 instruction))
-	   (opname (twobit-format #f "op_~a" (csharp-op-name opcode))))
+    (let* ((opcode (operand1 instruction)))
       (cond 
        ((op1-implicit-continuation? opcode)
 	(lcg:cov as 44.1)
@@ -1806,10 +1878,10 @@
 	   (list (lcg:op:ldc.i4 jump-idx)
 		 (lcg:op:stsfld lcg:field:implicit-continuation)
 		 (lcg:op:ldsfld lcg:field:result)
-		 (lcg:op:callvirt (lcg:instance-method lcg:type:void 
-						       lcg:type:schemeobject
-						       opname
-						       '()))
+		 (lcg:op:callvirt
+		  (lcg:op-instance-method lcg:type:void 
+					  opcode
+					  '()))
 		 (lcg:op:ldc.i4 -1)
 		 (lcg:op:stsfld lcg:field:implicit-continuation)
 		 `(label ,lcg-label)))))
@@ -1819,18 +1891,17 @@
 	  (for-each
 	   (lambda (p) (ilgen! as p))
 	   (list (lcg:op:ldsfld lcg:field:result)
-		 (lcg:op:callvirt (lcg:instance-method lcg:type:schemeobject
-						       lcg:type:schemeobject
-						       opname
-						       '()))
+		 (lcg:op:callvirt
+		  (lcg:op-instance-method lcg:type:schemeobject 
+					  opcode
+					  '()))
 		 (lcg:op:stsfld lcg:field:result)))))))))
   
 (define-instruction $op2 ; (opX 2 #f #f)
   (lambda (instruction as)
     (list-instruction "op2" instruction)
     (lcg:cov as 45)
-    (let* ((opcode (operand1 instruction))
-	   (opname (twobit-format #f "op_~a" (csharp-op-name opcode))))
+    (let* ((opcode (operand1 instruction)))
       (cond 
        ((op2-implicit-continuation? opcode)
 	(lcg:cov as 45.1)
@@ -1844,10 +1915,10 @@
 		 (lcg:op:stsfld lcg:field:implicit-continuation)
 		 (lcg:op:ldsfld lcg:field:result)
 		 (lcg:op:call (lcg:method:offset->get_register (operand2 instruction)))
-		 (lcg:op:callvirt (lcg:instance-method lcg:type:void
-						       lcg:type:schemeobject
-						       opname
-						       (list lcg:type:schemeobject)))
+		 (lcg:op:callvirt 
+		  (lcg:op-instance-method lcg:type:void 
+					  opcode
+					  (list lcg:type:schemeobject)))
 		 (lcg:op:ldc.i4 -1)
 		 (lcg:op:stsfld lcg:field:implicit-continuation)
 		 `(label ,lcg-label)))))
@@ -1858,18 +1929,17 @@
 	   (lambda (p) (ilgen! as p)) 
 	   (list (lcg:op:ldsfld lcg:field:result)
 		 (lcg:op:call (lcg:method:offset->get_register (operand2 instruction)))
-		 (lcg:op:callvirt (lcg:instance-method lcg:type:schemeobject
-						       lcg:type:schemeobject
-						       opname
-						       (list lcg:type:schemeobject)))
+		 (lcg:op:callvirt 
+		  (lcg:op-instance-method lcg:type:schemeobject
+					  opcode
+					  (list lcg:type:schemeobject)))
 		 (lcg:op:stsfld lcg:field:result)))))))))
 
 (define-instruction $op2imm ; (opX 2 #t #f)
   (lambda (instruction as)
     (list-instruction "op2imm" instruction)
     (lcg:cov as 46)
-    (let* ((opcode (operand1 instruction))
-	   (opname (twobit-format #f "op_~a" (csharp-op-name opcode))))
+    (let* ((opcode (operand1 instruction)))
       (cond 
        ((op2-implicit-continuation? opcode)
 	(lcg:cov as 46.1)
@@ -1886,10 +1956,10 @@
 	  (lcg:load-constant datum as)
 	  (for-each
 	   (lambda (p) (ilgen! as p))
-	   (list (lcg:op:callvirt (lcg:instance-method lcg:type:void
-						       lcg:type:schemeobject
-						       opname
-						       (list lcg:type:schemeobject)))
+	   (list (lcg:op:callvirt 
+		  (lcg:op-instance-method lcg:type:void
+					  opcode
+					  (list lcg:type:schemeobject)))
 		 (lcg:op:ldc.i4 -1)
 		 (lcg:op:stsfld lcg:field:implicit-continuation)
 		 `(label ,lcg-label)))))
@@ -1901,18 +1971,17 @@
 	  (for-each 
 	   (lambda (p) (ilgen! as p))
 	   (list
-	    (lcg:op:callvirt (lcg:instance-method lcg:type:schemeobject
-						  lcg:type:schemeobject
-						  opname
-						  (list lcg:type:schemeobject)))
+	    (lcg:op:callvirt 
+	     (lcg:op-instance-method lcg:type:schemeobject
+				     opcode
+				     (list lcg:type:schemeobject)))
 	    (lcg:op:stsfld lcg:field:result)))))))))
   
 (define-instruction $op3 ; (opX 3 #f #f)
   (lambda (instruction as)
     (list-instruction "op3" instruction)
     (lcg:cov as 47)
-    (let* ((opcode (operand1 instruction))
-	   (opname (twobit-format #f "op_~a" (csharp-op-name opcode))))
+    (let* ((opcode (operand1 instruction)))
       (cond 
        ((op3-implicit-continuation? opcode)
 	(lcg:reach? 47.1)
@@ -1927,11 +1996,11 @@
 		 (lcg:op:ldsfld lcg:field:result)
 		 (lcg:op:call (lcg:method:offset->get_register (operand2 instruction)))
 		 (lcg:op:call (lcg:method:offset->get_register (operand3 instruction)))
-		 (lcg:op:callvirt (lcg:instance-method lcg:type:void
-						       lcg:type:schemeobject
-						       opname
-						       (list lcg:type:schemeobject
-							     lcg:type:schemeobject)))
+		 (lcg:op:callvirt 
+		  (lcg:op-instance-method lcg:type:void
+					  opcode
+					  (list lcg:type:schemeobject
+						lcg:type:schemeobject)))
 		 (lcg:op:ldc.i4 -1)
 		 (lcg:op:stsfld lcg:field:implicit-continuation)
 		 `(label ,lcg-label)))))
@@ -1943,11 +2012,11 @@
 	   (list (lcg:op:ldsfld lcg:field:result)
 		 (lcg:op:call (lcg:method:offset->get_register (operand2 instruction)))
 		 (lcg:op:call (lcg:method:offset->get_register (operand3 instruction)))
-		 (lcg:op:callvirt (lcg:instance-method lcg:type:void
-						       lcg:type:schemeobject
-						       opname
-						       (list lcg:type:schemeobject
-							     lcg:type:schemeobject)))
+		 (lcg:op:callvirt
+		  (lcg:op-instance-method lcg:type:void
+					  opcode
+					  (list lcg:type:schemeobject
+						lcg:type:schemeobject)))
 		 (lcg:op:stsfld lcg:field:result)))))))))
 
 (define-instruction $reg/op1/setreg ; (opX 1 #f #t)
