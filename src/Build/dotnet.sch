@@ -342,6 +342,27 @@
                                       "trace.sch"))
         ,@(param-filename 'util '("dotnet-larceny.sch"))))))
 
+(define (build-larceny-lcg)
+  (cond ((file-exists? "LarcenyLcg.fasl")
+         (delete-file "LarcenyLcg.fasl")))
+  (parameterize ((compat:read-case-sensitive? #t)
+                 ((nbuild-key->parameter 'development?) #f))
+    (build-twobit-base
+      "LarcenyLcg"
+      `(,@(param-filename 'compiler '("driver-larceny.sch"))
+        ;; Next two are prerequisites for seal-twobit
+        ,@(param-filename 'common-source '("toplevel.sch"))
+        ,@(param-filename 'source "Arch" "IL" '("toplevel-target.sch"))
+        ,@(param-filename 'util '("seal-twobit.sch"))
+        ;; ,@(param-filename 'auxiliary '("dotnet-compile-file.sch"))
+        ,@(param-filename 'common-asm '("link-lop.sch"))
+        ,@(param-filename 'dotnet-asm ".." "IL-LCG" 
+			  '("peepopt.sch" "dotnet-ffi-lcg.sch" "pass5p2.sch"))
+        ,@(param-filename 'debugger '("debug.sch"
+                                      "inspect-cont.sch"
+                                      "trace.sch"))
+        ,@(param-filename 'util '("dotnet-larceny-lcg-application.sch"))))))
+
 ;; Convenience
 ;(define (load-debugger)
 ; (for-each load (param-filename 'debugger '("trace.sch"
