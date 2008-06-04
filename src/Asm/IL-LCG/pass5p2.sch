@@ -1704,7 +1704,7 @@
 	(lcg:op:call lcg:method:set_ProcRegister0)))
 
       ;; And call.
-      ;; FIXME: no fuel used on jump in either case!
+      ;; XXX FIXME: no fuel used on jump in either case!
       (for-each
        (lambda (p) (ilgen! as p))
        (cond
