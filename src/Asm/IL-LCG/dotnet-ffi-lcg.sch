@@ -34,7 +34,16 @@
     clr-method->procedure/clr-invoke))
 
 (define clr-method->procedure/lcg
-  (letrec-syntax ((must (syntax-rules () 
+  (letrec-syntax ((let*-renamethismacrototracebindings
+                   (syntax-rules ()
+                     ((let* () BODY ...)
+                      (let () BODY ...))
+                     ((let* ((ID EXP) REST ...) BODY ...)
+                      (let () 
+                        (display '(ID EXP)) (newline)
+                        (let ((ID EXP))
+                          (let* (REST ...) BODY ...))))))
+                  (must (syntax-rules () 
 			  ((must EXP)
 			   (or EXP (error 'method->procedure "internal err"))))))
     (let* ((link-lop-segment link-lop-segment) ; must have link-lop.sch loaded
@@ -222,7 +231,13 @@
 	   (new-dynamic-method
 	    (let* ((ctor (clr/%get-constructor
 			  type:dynamicmethod (vector type:string 
-						     type:type type:type-array))))
+						     type:type type:type-array)))
+                   (ctor 
+                    (or ctor
+                        (error 'dotnet-ffi-lcg 
+                               "missing appropriate dynamicmethod constructor"
+                               "LCG support requires at least"
+                               ".NET 2.0 Service Pack 1"))))
 	      (lambda (name ret-type arg-typev)
 		(clr/%invoke-constructor
 		 ctor (vector (clr/string->foreign name)
