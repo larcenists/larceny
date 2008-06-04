@@ -2243,7 +2243,7 @@
 	 (fixed-arith-op2-imm lcg:method:op_fxless_int32 imm))
 	((>=:fix:fix:int32) (lcg:cov as 50.432)
 	 (fixed-arith-op2-imm lcg:method:op_greaterequal_fix_fix_int32 imm))
-	((<:fix:fix:int32) (lcg:trace as 50.433)
+	((<:fix:fix:int32) (lcg:cov as 50.433)
 	 (fixed-arith-op2-imm lcg:method:op_less_fix_fix_int32 imm))
 	((vector-ref:trusted:int32) (lcg:cov as 50.434)
 	 (fixed-arith-op2-imm lcg:method:op_vector_ref_trusted_int32 imm))
