@@ -372,7 +372,7 @@
 	    integer? integer->char 
 	    make-bytevector make-cell make-procedure
 	    most-positive-fixnum
-	    not null? pair? port? procedure? 
+	    not null? pair? port? procedure? procedure-length
 	    rational? real-part structure? symbol? typetag
 	    undefined unspecified ustring? ustring-length:str 
 	    vector? vector-length:vec zero?)
@@ -1232,6 +1232,23 @@
     (ilgen! as (lcg:op:ldc.i4 (operand1 instruction)))
     (ilgen! as (lcg:op:call lcg:method:argsge))))
 
+(define (lcg:generate-timer-check as 
+				  timer-nonfault-label-object
+				  post-fault-jump-index)
+  (for-each 
+   (lambda (p) (ilgen! as p))
+   (list
+	  (lcg:op:ldsfld lcg:field:timer)
+	  (lcg:op:ldc.i4 1)
+	  (lcg:op:sub)
+	  (lcg:op:dup)
+	  (lcg:op:stsfld lcg:field:timer)
+	  (lcg:op:brtrue timer-nonfault-label-object)
+	  (lcg:op:ldc.i4 post-fault-jump-index)
+	  (lcg:op:call lcg:method:faultTimer)
+	  (lcg:op:ret)
+	  )))
+
 (define-instruction $invoke
   (lambda (instruction as)
     (list-instruction "invoke" instruction)
@@ -1283,16 +1300,8 @@
 	 (list
 	  (lcg:op:stsfld lcg:field:result)
 	  (lcg:op:ldloc procedure-local)
-	  (lcg:op:call lcg:method:set_ProcRegister0)
-	  (lcg:op:ldsfld lcg:field:timer)
-	  (lcg:op:ldc.i4 1)
-	  (lcg:op:sub)
-	  (lcg:op:dup)
-	  (lcg:op:stsfld lcg:field:timer)
-	  (lcg:op:brtrue label-okay)
-	  (lcg:op:ldc.i4 FIRST-JUMP-INDEX)
-	  (lcg:op:call lcg:method:faultTimer)
-	  (lcg:op:ret)))
+	  (lcg:op:call lcg:method:set_ProcRegister0)))
+	(lcg:generate-timer-check as label-okay FIRST-JUMP-INDEX)
 	(ilgen! as `(label ,label-okay))
 	(for-each
 	 (lambda (p) (ilgen! as p))
@@ -1338,16 +1347,8 @@
 	(lcg:op:call lcg:method:applySetup)
 	;; records N in RESULT
 	(lcg:op:call lcg:method:makeFixnum)
-	(lcg:op:stsfld lcg:field:result)
-	(lcg:op:ldsfld lcg:field:timer)
-	(lcg:op:ldc.i4 1)
-	(lcg:op:sub)
-	(lcg:op:dup)
-	(lcg:op:stsfld lcg:field:timer)
-	(lcg:op:brtrue time-okay-label)
-	(lcg:op:ldc.i4 FIRST-JUMP-INDEX)
-	(lcg:op:call lcg:method:faultTimer)
-	(lcg:op:ret)))
+	(lcg:op:stsfld lcg:field:result)))
+      (lcg:generate-timer-check as time-okay-label FIRST-JUMP-INDEX)
       (ilgen! as `(label ,time-okay-label))
       (for-each
        (lambda (p) (ilgen! as p))
@@ -1682,7 +1683,8 @@
   (lambda (instruction as)
     (list-instruction "jump" instruction)
     (lcg:cov as 37)
-    (let* ((up (operand1 instruction))
+    (let* ((time-okay-label (fresh-lcg-label as 'jump:timer-success))
+	   (up (operand1 instruction))
 	   (label (operand2 instruction))
 	   (offset (let loop ((as* as))
 		     (cond ((not as*) 
@@ -1707,30 +1709,27 @@
 
       ;; And call.
       ;; XXX FIXME: no fuel used on jump in either case!
-      (for-each
-       (lambda (p) (ilgen! as p))
-       (cond
-	(offset 
-	 (lcg:cov as 37.2)
+      (cond
+       (offset 
+	(lcg:cov as 37.2)
+	(lcg:generate-timer-check as time-okay-label offset)
+	(for-each
+	 (lambda (p) (ilgen! as p))
 	 (list
+	  `(label ,time-okay-label)
 	  ;; might use dup above to remove load here
 	  (lcg:op:call lcg:method:get_ProcRegister0)
 	  (lcg:op:ldfld lcg:field:entrypoint)
-	  (lcg:op:ldc.i4 
-	   (cond 
-	    (offset offset)
-	    (else
-	     (error "pass5p2: need to add support for jumps into self."))))
+	  (lcg:op:ldc.i4 offset)
 	  (lcg:op:call lcg:method:call)
-	  (lcg:op:ret)))
+	  (lcg:op:ret))))
 	(else
-	 (lcg:cov as 37.3)
+	 (lcg:trace as 37.3)
 	 (let* ((label (intern-label as label))
 		(jump-idx (car label))
 		(lcg-label (cdr label)))
-	   (list
-	    (lcg:op:br lcg-label))))
-	)))))
+	   (lcg:generate-timer-check as lcg-label jump-idx)))
+	))))
   
 (define-instruction $skip
   (lambda (instruction as)
@@ -1745,24 +1744,13 @@
   (lambda (instruction as)
     (list-instruction "branch" instruction)
     (lcg:cov as 39)
-    (let* ((label (intern-label as (operand1 instruction)))
+    (let* ((mal-label-num (operand1 instruction))
+	   (label (intern-label as mal-label-num))
 	   (jump-idx (car label))
 	   (lcg-label (cdr label)))
-      (cond ((assq label (as-labels as))
-	     (lcg:reach? 39.1)
-	     (for-each
-	      (lambda (p) (ilgen! as p))
-	      (list (lcg:op:ldsfld lcg:field:timer)
-		    (lcg:op:ldc.i4 1)
-		    (lcg:op:sub)
-		    (lcg:op:dup)
-		    (lcg:op:stsfld lcg:field:timer)
-		    (lcg:op:brtrue lcg-label)
-		    (lcg:op:ldc.i4 jump-idx)
-		    ;; No tail call! See above.
-		    (lcg:op:call lcg:method:faultTimer)
-		    (lcg:op:ret)
-		    )))
+      (cond ((assq mal-label-num (as-labels as))
+	     (lcg:cov as 39.1)
+	     (lcg:generate-timer-check as lcg-label jump-idx))
 	    (else
 	     (lcg:cov as 39.2)
 	     (ilgen! as (lcg:op:br lcg-label)))))))
@@ -1772,7 +1760,8 @@
     (list-instruction "branchf" instruction)
     (lcg:cov as 40)
     (let* ((no-branch-label (fresh-lcg-label as 'branchf:no-branch))
-	   (label (intern-label as (operand1 instruction)))
+	   (mal-label-num (operand1 instruction))
+	   (label (intern-label as mal-label-num))
 	   (jump-idx (car label))
 	   (lcg-label (cdr label)))
       (for-each
@@ -1780,22 +1769,14 @@
        (list (lcg:op:ldsfld lcg:field:result)
 	     (lcg:op:ldsfld lcg:field:false)
 	     (lcg:op:bne.un.s no-branch-label)))
-      (for-each
-       (lambda (p) (ilgen! as p))
-       (cond 
-	((assq label (as-labels as))
-	 (lcg:reach? 40.1)
-	 (list (lcg:op:ldsfld lcg:field:timer)
-	       (lcg:op:ldc.i4 1)
-	       (lcg:op:sub)
-	       (lcg:op:dup)
-	       (lcg:op:stsfld lcg:field:timer)
-	       (lcg:op:brtrue lcg-label)
-	       (lcg:op:ldc.i4 jump-idx)
-	       (lcg:op:call lcg:method:faultTimer)
-	       (lcg:op:ret)))
-	(else
-	 (lcg:cov as 40.2)
+      (cond 
+       ((assq mal-label-num (as-labels as))
+	(lcg:reach? 40.1)
+	(lcg:generate-timer-check as lcg-label jump-idx))
+       (else
+	(lcg:cov as 40.2)
+	(for-each
+	 (lambda (p) (ilgen! as p))
 	 (list (lcg:op:br lcg-label)))))
       (ilgen! as `(label ,no-branch-label))
       )))
@@ -2267,17 +2248,7 @@
       
       (define (branch-code)
 	(cond ((assq target-label (as-labels as))
-	       (for-each 
-		(lambda (p) (ilgen! as p))
-		(list (lcg:op:ldsfld lcg:field:timer)
-		      (lcg:op:ldc.i4 1)
-		      (lcg:op:sub)
-		      (lcg:op:dup)
-		      (lcg:op:stsfld lcg:field:timer)
-		      (lcg:op:brtrue lcg-label)
-		      (lcg:op:ldc.i4 jump-idx)
-		      (lcg:op:call lcg:method:faultTimer)
-		      (lcg:op:ret))))
+	       (lcg:generate-timer-check as lcg-label jump-idx))
 	      (else
 	       (ilgen! as (lcg:op:br lcg-label)))))
 
@@ -2334,17 +2305,7 @@
 
       (define (branch-code)
 	(cond ((assq target-label (as-labels as))
-	       (for-each 
-		(lambda (p) (ilgen! as p))
-		(list (lcg:op:ldsfld lcg:field:timer)
-		      (lcg:op:ldc.i4 1)
-		      (lcg:op:sub)
-		      (lcg:op:dup)
-		      (lcg:op:stsfld lcg:field:timer)
-		      (lcg:op:brtrue lcg-label)
-		      (lcg:op:ldc.i4 jump-idx)
-		      (lcg:op:call lcg:method:faultTimer)
-		      (lcg:op:ret))))
+	       (lcg:generate-timer-check as lcg-label jump-idx))
 	      (else
 	       (ilgen! as (lcg:op:br lcg-label)))))
 
@@ -2382,17 +2343,7 @@
 
       (define (branch-code)
 	(cond ((assq target-label (as-labels as))
-	       (for-each 
-		(lambda (p) (ilgen! as p))
-		(list (lcg:op:ldsfld lcg:field:timer)
-		      (lcg:op:ldc.i4 1)
-		      (lcg:op:sub)
-		      (lcg:op:dup)
-		      (lcg:op:stsfld lcg:field:timer)
-		      (lcg:op:brtrue lcg-label)
-		      (lcg:op:ldc.i4 jump-idx)
-		      (lcg:op:call lcg:method:faultTimer)
-		      (lcg:op:ret))))
+	       (lcg:generate-timer-check as lcg-label jump-idx))
 	      (else
 	       (ilgen! as (lcg:op:br lcg-label)))))
 
