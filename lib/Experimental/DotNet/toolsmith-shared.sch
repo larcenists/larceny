@@ -1346,7 +1346,8 @@
                           (decode-error args repl-output-port)
                           (escape-from-eval 'ignore-me))))
                      (val (parameterize ((error-handler repl-error-handler))
-                            (eval sexp my-own-env)))
+                            (parameterize ((interaction-environment my-own-env))
+                              (eval sexp my-own-env))))
                      (valstr 
                       (call-with-output-string
                        (lambda (strport)
