@@ -368,7 +368,7 @@
 	    char? char->integer complex? 
 	    enable-interrupts
 	    eof-object eof-object? exact? exact->inexact 
-	    fixnum? flonum? imag-part inexact? inexact->exact 
+	    fixnum? flonum? fxlognot imag-part inexact? inexact->exact 
 	    integer? integer->char 
 	    make-bytevector make-cell make-procedure
 	    most-positive-fixnum
@@ -379,7 +379,7 @@
 
        (op2 * + = - > >= < <:fix:fix <= <=:fix:fix / 
 	    bytevector-ref cell-set! char=? char<=? cons 
-	    eq? eqv? fxlogand fxlogior fxlognot fxlogxor fxlsh fxrshl 
+	    eq? eqv? fxlogand fxlogior fxlogxor fxlsh fxrshl 
 	    make-ustring make-vector procedure-ref quotient 
 	    remainder set-car! set-cdr! typetag-set! 
 	    ustring-ref:trusted vector-ref:trusted)
