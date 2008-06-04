@@ -7,10 +7,10 @@
  
 ;; These will be prerequisites of this file at some point in future.
 
-(define (prereq name thunk) (run-benchmark name thunk))
-(define (prereq:load name file) (prereq name (lambda () (load file))))
-;(define (prereq name thunk) 'nop)
-;(define (prereq:load name file) 'nop)
+;(define (prereq name thunk) (run-benchmark name thunk))
+;(define (prereq:load name file) (prereq name (lambda () (load file))))
+(define (prereq name thunk) 'nop)
+(define (prereq:load name file) 'nop)
 
 (prereq "DOTNET"
 	(lambda () 
