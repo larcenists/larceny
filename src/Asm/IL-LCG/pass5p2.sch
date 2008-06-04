@@ -366,12 +366,14 @@
        (op1 -- break bytevector? bytevector-length 
 	    car car:pair cdr cdr:pair cell-ref 
 	    char? char->integer complex? 
+	    enable-interrupts
 	    eof-object eof-object? exact? exact->inexact 
 	    fixnum? flonum? imag-part inexact? inexact->exact 
 	    integer? integer->char 
 	    make-bytevector make-cell make-procedure
+	    most-positive-fixnum
 	    not null? pair? port? procedure? 
-	    rational? real-part structure? symbol? 
+	    rational? real-part structure? symbol? typetag
 	    undefined unspecified ustring? ustring-length:str 
 	    vector? vector-length:vec zero?)
 
