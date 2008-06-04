@@ -379,7 +379,7 @@
 
        (op2 * + = - > >= < <:fix:fix <= <=:fix:fix / 
 	    bytevector-ref cell-set! char=? char<=? cons 
-	    eq? eqv? fxlogand fxlogior fxlogxor fxlsh fxrshl 
+	    eq? eqv? fxlogand fxlogior fxlognot fxlogxor fxlsh fxrshl 
 	    make-ustring make-vector procedure-ref quotient 
 	    remainder set-car! set-cdr! typetag-set! 
 	    ustring-ref:trusted vector-ref:trusted)
@@ -1724,7 +1724,7 @@
 	  (lcg:op:call lcg:method:call)
 	  (lcg:op:ret))))
 	(else
-	 (lcg:trace as 37.3)
+	 (lcg:cov as 37.3)
 	 (let* ((label (intern-label as label))
 		(jump-idx (car label))
 		(lcg-label (cdr label)))
