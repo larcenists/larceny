@@ -366,6 +366,7 @@
        (op1 -- break bytevector? bytevector-length 
 	    car car:pair cdr cdr:pair cell-ref 
 	    char? char->integer complex? 
+	    disable-interrupts
 	    enable-interrupts
 	    eof-object eof-object? exact? exact->inexact 
 	    fixnum? flonum? fxlognot imag-part inexact? inexact->exact 
