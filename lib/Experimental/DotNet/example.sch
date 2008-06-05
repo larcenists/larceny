@@ -5,6 +5,7 @@
 (load "lib/Experimental/DotNet/simple-reflection.sch")
 (load "lib/Experimental/DotNet/protoobj.sch")
 (load "lib/Experimental/DotNet/toolsmith-shared.sch")
+(load "lib/Experimental/DotNet/dotnet-ffi-lcg.sch")
 (load "lib/Experimental/DotNet/toolsmith-form.sch")
 (load "lib/Experimental/DotNet/gui-inspection.sch")
 
