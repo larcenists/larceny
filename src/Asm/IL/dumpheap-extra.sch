@@ -442,6 +442,7 @@
                  src-manifests)))
       (if fasl? (dump-fasl app app-exe src-manifests))
       (ilasm app-exe (cons assembly-il ordered-il-files))
+      (delete-file assembly-il)
       app-exe)))
 
 ;; build-heap-image : string (listof string) -> void
