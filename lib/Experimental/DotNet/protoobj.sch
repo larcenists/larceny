@@ -53,9 +53,9 @@
                            (document 'OP-NAME 'ARGS docstr)))
                         ... 
                         ((documentation) 
-                         (let ((doc-string
+                         (let ((doc-string-for-doc
                                 "prints documentation of operation symbol op"))
-                           (document 'documentation '(op) doc-string)))
+                           (document 'documentation '(op) doc-string-for-doc)))
                         ((operations)
                          (document 'operations '() 
                                    "=> list of operation symbols"))
