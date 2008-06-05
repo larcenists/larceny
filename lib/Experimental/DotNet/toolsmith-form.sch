@@ -1,5 +1,11 @@
 (clr/%load-assembly "System.Windows.Forms" "2.0.0.0" "" "b77a5c561934e089")
 
+(define clr/method2proc
+  (lambda args (clr-method->procedure (apply clr/%get-method args))))
+
+(define clr/constructor2proc
+  (lambda args (clr-method->procedure (apply clr/%get-constructor args))))
+
 (define (find-forms-type name)
   (find-clr-type (string-append "System.Windows.Forms." name)))
 (define (find-drawing-type name)
@@ -70,13 +76,13 @@
     (lambda (control . args)
       (setter control args))))
 (define control-set-bounds! 
-  (let ((method (clr/%get-method control-type "SetBounds" 
+  (let ((method (clr/method2proc control-type "SetBounds" 
                                  (vector clr-type-handle/system-int32 
                                          clr-type-handle/system-int32 
                                          clr-type-handle/system-int32 
                                          clr-type-handle/system-int32))))
     (lambda (control x y width height)
-      (clr/%invoke method control
+      (method control
                    (clr/%number->foreign x)
                    (clr/%number->foreign y)
                    (clr/%number->foreign width)
@@ -232,9 +238,9 @@
 ;; (e.g. when a buggy callback is making life difficult.)
 (define application-exit-thread!!!
   (let* ((application-type (find-forms-type "Application"))
-         (meth (clr/%get-method application-type "ExitThread" '#())))
+         (meth (clr/method2proc application-type "ExitThread" '#())))
     (lambda ()
-      (clr/%invoke meth clr/null '#()))))
+      (meth))))
 
 (define toolsmith-interrupt-handler
   (lambda ()
@@ -469,28 +475,28 @@
 
 (define graphics-type (find-drawing-type "Graphics"))
 (define graphics-dispose! 
-  (let ((dispose-method (clr/%get-method graphics-type "Dispose" '#())))
+  (let ((dispose-method (clr/method2proc graphics-type "Dispose" '#())))
     (lambda (g)
-      (clr/%invoke dispose-method g '#()))))
+      (dispose-method g))))
 (define pen-type      (find-drawing-type "Pen"))
 (define make-pen 
-  (let ((pen-ctor (clr/%get-constructor pen-type (vector color-type))))
+  (let ((pen-ctor (clr/constructor2proc pen-type (vector color-type))))
     (lambda (color)
-      (clr/%invoke-constructor pen-ctor (vector color)))))
+      (pen-ctor color))))
 (define pen-dispose! 
-  (let ((dispose-method (clr/%get-method pen-type "Dispose" '#())))
+  (let ((dispose-method (clr/method2proc pen-type "Dispose" '#())))
     (lambda (pen)
-      (clr/%invoke dispose-method pen '#()))))
+      (dispose-method pen))))
 (define brush-type    (find-drawing-type "Brush"))
 (define solid-brush-type    (find-drawing-type "SolidBrush"))
 (define make-solid-brush 
-  (let ((brush-ctor (clr/%get-constructor solid-brush-type (vector color-type))))
+  (let ((brush-ctor (clr/constructor2proc solid-brush-type (vector color-type))))
     (lambda (color)
-      (clr/%invoke-constructor brush-ctor (vector color)))))
+      (brush-ctor color))))
 (define brush-dispose! 
-  (let ((dispose-method (clr/%get-method brush-type "Dispose" '#())))
+  (let ((dispose-method (clr/method2proc brush-type "Dispose" '#())))
     (lambda (b)
-      (clr/%invoke dispose-method b '#()))))
+      (dispose-method b))))
 
 (define image-type    (find-drawing-type "Image"))
 
@@ -504,7 +510,7 @@
   (font-family-name (generic-font-family 'serif)))
 
 (define make-fnt 
-  (let* ((clone-method (clr/%get-method font-type "Clone" '#()))
+  (let* ((clone-method (clr/method2proc font-type "Clone" '#()))
          (make-bool-pset 
           (lambda (pname)  
             (make-property-setter font-type pname clr/bool->foreign)))
@@ -526,7 +532,7 @@
                (is-uline  (memq 'underline args))
                (em-size   (cond ((memq 'em-size args) => cadr)
                                 (else #f)))
-               (newptr (clr/%invoke fontptr clone-method '#())))
+               (newptr (clone-method fontptr)))
           (cond (is-italic (set-italic newptr #t)))
           (cond (is-bold   (set-bold   newptr #t)))
           (cond (is-uline  (set-uline  newptr #t)))
@@ -552,26 +558,24 @@
    ((colptr)   colorptr)))
 (define make-col
   (let ((from-argb-method
-         (clr/%get-method color-type "FromArgb"
+         (clr/method2proc color-type "FromArgb"
                           (vector clr-type-handle/system-int32
                                   clr-type-handle/system-int32
                                   clr-type-handle/system-int32
                                   clr-type-handle/system-int32))))
     (lambda (a r g b)
       (color->col
-       (clr/%invoke from-argb-method 
-                    #f (vector (clr/%number->foreign-int32 a)
-                               (clr/%number->foreign-int32 r)
-                               (clr/%number->foreign-int32 g)
-                               (clr/%number->foreign-int32 b)))))))
+       (from-argb-method (clr/%number->foreign-int32 a)
+			 (clr/%number->foreign-int32 r)
+			 (clr/%number->foreign-int32 g)
+			 (clr/%number->foreign-int32 b))))))
 (define name->col
   (let ((from-name-method
-         (clr/%get-method color-type "FromName"
+         (clr/method2proc color-type "FromName"
                           (vector clr-type-handle/system-string))))
     (lambda (name)
       (color->col
-       (clr/%invoke from-name-method
-                    #f (vector (clr/%string->foreign (name->string name))))))))
+       (from-name-method (clr/%string->foreign (name->string name)))))))
       
 (define available-colornames
   (let ((color-sym (string->symbol "Color")))
@@ -580,13 +584,13 @@
            (filter (lambda (x) (eq? color-sym (type->name (property-info->type x)))) 
                    (type->properties color-type))))))
 (define control-creategraphics 
-  (let ((method (clr/%get-method control-type "CreateGraphics" '#())))
+  (let ((method (clr/method2proc control-type "CreateGraphics" '#())))
     (lambda (c)
-      (clr/%invoke method c '#()))))
+      (method c))))
 (define graphics->gfx 
   (let* ((text-renderer-type (find-forms-type "TextRenderer"))
          (measure-text/text-renderer
-          (let ((measure-text-method (clr/%get-method
+          (let ((measure-text-method (clr/method2proc
                                       text-renderer-type
                                       "MeasureText"
                                       (vector (find-drawing-type "IDeviceContext")
@@ -598,13 +602,11 @@
               (let* ((string* (clr/%string->foreign (string-append string "a")))
                      (stringa (clr/%string->foreign "a"))
                      (fntptr ((fnt 'fntptr)))
-                     (sza (clr/%invoke measure-text-method #f 
-                                       (vector g stringa fntptr)))
-                     (szf (clr/%invoke measure-text-method #f
-                                       (vector g string* fntptr))))
+                     (sza (measure-text-method g stringa fntptr))
+                     (szf (measure-text-method g string* fntptr)))
                 (values (- (size-width szf) (size-width sza)) (size-height szf))))))
          (draw-text/text-renderer
-          (let ((draw-text-method (clr/%get-method 
+          (let ((draw-text-method (clr/method2proc
                                    text-renderer-type 
                                    "DrawText"
                                    (vector (find-drawing-type "IDeviceContext")
@@ -613,20 +615,19 @@
                                            pointi-type
                                            color-type))))
             (lambda (g string fnt x y col)
-              (clr/%invoke draw-text-method #f
-                           (vector g
+              (draw-text-method    g
                                    (clr/%string->foreign string)
                                    ((fnt 'fntptr))
                                    (make-pointi x y)
-                                   ((col 'colptr)))))))
+                                   ((col 'colptr))))))
 
          (string-format-type (find-drawing-type "StringFormat"))
          (string-format-flags-type (find-drawing-type "StringFormatFlags"))
          (make-string-format
-          (let ((ctor (clr/%get-constructor string-format-type 
+          (let ((ctor (clr/constructor2proc string-format-type 
                                             (vector string-format-type))))
             (lambda (x)
-              (clr/%invoke-constructor ctor (vector x)))))
+              (ctor x))))
          (format-flags->foreign (enum-type->symbol->foreign string-format-flags-type))
          (foreign->format-flags (enum-type->foreign->symbol string-format-flags-type))
          (generic-typographic-format-prop
@@ -651,7 +652,7 @@
                                   'measuretrailingspaces flags) '#())
                           fmt))
          (measure-text/graphics
-          (let ((measure-text-method (clr/%get-method
+          (let ((measure-text-method (clr/method2proc
                                       graphics-type
                                       "MeasureString"
                                       (vector clr-type-handle/system-string
@@ -667,17 +668,14 @@
                      (stringo (clr/%string->foreign string))
                      (fntptr ((fnt 'fntptr)))
                      (maxint30 (clr/%number->foreign-int32 (most-positive-fixnum)))
-                     (sza (clr/%invoke measure-text-method 
-                                       g (vector stringa fntptr maxint30 string-format)))
-                     (szf (clr/%invoke measure-text-method 
-                                       g (vector string* fntptr maxint30 string-format)))
-                     (szo (clr/%invoke measure-text-method
-                                       g (vector stringo fntptr maxint30 string-format))))
+                     (sza (measure-text-method g stringa fntptr maxint30 string-format))
+                     (szf (measure-text-method g string* fntptr maxint30 string-format))
+                     (szo (measure-text-method g stringo fntptr maxint30 string-format)))
                 (values (max (sizef-width szo) 
                              (- (sizef-width szf) (sizef-width sza)))
                         (sizef-height szf))))))
          (draw-text/graphics 
-          (let ((draw-string-method (clr/%get-method
+          (let ((draw-string-method (clr/method2proc
                                      graphics-type
                                      "DrawString"
                                      (vector clr-type-handle/system-string
@@ -692,11 +690,10 @@
                      (fntptr ((fnt 'fntptr)))
                      (x* (clr/%flonum->foreign-single (exact->inexact x)))
                      (y* (clr/%flonum->foreign-single (exact->inexact y))))
-                (clr/%invoke draw-string-method g
-                             (vector string* fntptr b x* y* string-format))
+                (draw-string-method g string* fntptr b x* y* string-format)
                 ))))
 
-         (draw-line-method/inexact (clr/%get-method
+         (draw-line-method/inexact (clr/method2proc
                                     graphics-type
                                     "DrawLine"
                                     (vector pen-type 
@@ -704,7 +701,7 @@
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single)))
-         (draw-line-method/exact   (clr/%get-method
+         (draw-line-method/exact   (clr/method2proc
                                     graphics-type
                                     "DrawLine"
                                     (vector pen-type
@@ -712,7 +709,7 @@
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32)))
-         (draw-rect-method/exact   (clr/%get-method
+         (draw-rect-method/exact   (clr/method2proc
                                     graphics-type
                                     "DrawRectangle"
                                     (vector pen-type
@@ -720,7 +717,7 @@
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32)))
-         (draw-rect-method/inexact (clr/%get-method
+         (draw-rect-method/inexact (clr/method2proc
                                     graphics-type
                                     "DrawRectangle"
                                     (vector pen-type
@@ -728,7 +725,7 @@
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single)))
-         (fill-rect-method/exact   (clr/%get-method
+         (fill-rect-method/exact   (clr/method2proc
                                     graphics-type
                                     "FillRectangle"
                                     (vector brush-type
@@ -736,7 +733,7 @@
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32)))
-         (fill-rect-method/inexact (clr/%get-method
+         (fill-rect-method/inexact (clr/method2proc
                                     graphics-type
                                     "FillRectangle"
                                     (vector brush-type
@@ -778,10 +775,10 @@
                     (y (num (min y1 y2)))
                     (w (num (abs (- x2 x1))))
                     (h (num (abs (- y2 y1)))))
-                (clr/%invoke meth g (vector ink x y w h))
+                (meth g ink x y w h)
                 (ink-dispose! ink)))))
           
-         (draw-image-method (clr/%get-method 
+         (draw-image-method (clr/method2proc
                              graphics-type
                              "DrawImage"
                              (vector image-type
@@ -799,19 +796,19 @@
        ((draw-line col x1 y1 x2 y2) 
         (let ((pen (make-pen ((col 'colptr)))))
           (cond ((and (fixnum? x1) (fixnum? y1) (fixnum? x2) (fixnum? y2))
-                 (clr/%invoke draw-line-method/exact g
-                              (vector pen
+                 (draw-line-method/exact g
+					 pen
                                       (clr/%number->foreign-int32 x1)
                                       (clr/%number->foreign-int32 y1)
                                       (clr/%number->foreign-int32 x2)
-                                      (clr/%number->foreign-int32 y2))))
+                                      (clr/%number->foreign-int32 y2)))
                 (else
-                 (clr/%invoke draw-line-method/inexact g
-                              (vector pen 
+                 (draw-line-method/inexact g
+					   pen 
                                       (clr/%flonum->foreign-single (exact->inexact x1))
                                       (clr/%flonum->foreign-single (exact->inexact y1))
                                       (clr/%flonum->foreign-single (exact->inexact x2))
-                                      (clr/%flonum->foreign-single (exact->inexact y2))))))
+                                      (clr/%flonum->foreign-single (exact->inexact y2)))))
           (pen-dispose! pen)))
 
        ((draw-rect col x1 y1 x2 y2) 
@@ -820,10 +817,10 @@
         (draw-or-fill-rect g 'fill col x1 y1 x2 y2))
                                
        ((draw-image img x y) 
-        (clr/%invoke draw-image-method g
-                     (vector (img 'imgptr) 
-                             (clr/%number->foreign-int32 x) 
-                             (clr/%number->foreign-int32 y))))
+        (draw-image-method g
+			   (img 'imgptr) 
+			   (clr/%number->foreign-int32 x) 
+			   (clr/%number->foreign-int32 y)))
        ((gfxptr) g)
        ))))
 
@@ -842,7 +839,7 @@
             'nonpublic 'instance)))
       (clr/%invoke get-method/private-meth
                    control-type 
-                   (vector (clr/string->foreign "set_DoubleBuffered") 
+		   (vector (clr/string->foreign "set_DoubleBuffered") 
                            non-public-instance-flags))))
   
   (define (create-type name supertype constructor-extension . 
@@ -865,9 +862,9 @@
 			     (emit! (ilgen->emitter ilgen)))
 			(extension emit!)))))
 		method-extensions)
-      (let* ((create-type-meth (clr/%get-method
+      (let* ((create-type-meth (clr/method2proc
                                 typebuilder-type "CreateType" '#()))
-             (type (clr/%invoke create-type-meth type-builder '#()))
+             (type (create-type-meth type-builder))
              (make-object (type->nullary-constructor type)))
         make-object)))
 
