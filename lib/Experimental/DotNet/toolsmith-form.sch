@@ -673,7 +673,7 @@
                      (szo (measure-text-method g stringo fntptr maxint30 string-format)))
                 (values (max (sizef-width szo) 
                              (- (sizef-width szf) (sizef-width sza)))
-                        (sizef-height szf))))))
+                        (sizef-height szo))))))
          (draw-text/graphics 
           (let ((draw-string-method (clr/method2proc
                                      graphics-type
