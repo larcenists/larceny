@@ -160,6 +160,10 @@
 ;; IMG: (make-blank-img w h) (make-img/bmp w h bv) (xpm->img s) (file->img f)
 ;;  (sourcefile) => [Maybe PathString]
 ;;  (bitmap)     => Bytevector
+;; BTN: (make-btn ['make-agent agent-ctor] ['title string])
+;;  (show) (hide) (title) (close) (dispose) (update)
+;;  (width) (height)
+;;  (press)
 
 ;; TODO consider adopting something like the IDataObject interface for
 ;; data stored on clipboard.
