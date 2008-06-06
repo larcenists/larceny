@@ -39,12 +39,12 @@
 (define (wnd->cut-cmd wnd)
   (lambda () 
     (let ((displayln (lambda (x) (write x) (newline)))
-	  (agent ((wnd 'agent))))
+	  (ra ((wnd 'agent))))
       (displayln 'edit..cut)
       (cond (((ra 'selectionstring))
 	     => (lambda (text)
 		  (clipboard-set-text! text)
-		  ((agent 'delete-char-at-point!)))))
+		  ((ra 'delete-char-at-point!)))))
       ;; XXX support Image cutting
       (unspecified))))
 
