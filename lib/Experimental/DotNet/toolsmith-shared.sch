@@ -556,7 +556,7 @@
     (inexact->exact (ceiling (count-visible-lines/fractional))))
   (define (count-visible-lines/fractional)
     (/ ((wnd 'height)) 
-       (call-with-values (lambda () ((wnd 'measure-text) "" fnt))
+       (call-with-values (lambda () ((wnd 'measure-text) "M" fnt))
 	 (lambda (w h) h))))
   (define (selection-start-pos self)
     (call-with-values (lambda () ((self 'selection)))
