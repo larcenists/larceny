@@ -393,26 +393,51 @@
    ((textstring) "=> string holding model's text." mytext)
    ((set-textstring! string) "Sets model's text to string parameter."
     (set! mytext string))
-   ((text-lines) "=> list of (line pos) for textstring"
+   ((text-lines) "=> list of (line pos line-no col-no) for textstring"
     (let* ((self textmodel)
+	   (select-range (if (number? selection) 
+			     (cons selection selection)
+			     selection))
 	   (mytext ((self 'textstring))))
       (let loop ((idx 0)
 		 (pos 0)
+		 (line-no 0)
+		 (col-no 0) ;; column number for elem under construction
 		 (line '())
 		 (lines '()))
 	(cond ((>= idx (string-length mytext))
-	       (map (lambda (x) (cons (list->string (reverse (car x))) 
+	       (map (lambda (x) (cons (if (list? (car x))
+					  (list->string (reverse (car x)))
+					  (car x))
 				      (cdr x)))
-		    (reverse (cons (list line pos) lines))))
+		    (reverse (cons (list line pos line-no col-no) lines))))
 	      ((char=? #\newline (string-ref mytext idx))
 	       (loop (+ 1 idx)
 		     (+ 1 idx)
+		     (+ 1 line-no)
+		     0
 		     '()
-		     (cons (list (cons #\newline line) pos)
+		     (cons (list #\newline idx line-no (+ col-no (length line)))
+			   (cons (list line pos line-no col-no)
+				 lines))))
+	      ((or (equal? idx (car select-range))
+		   (equal? (+ 1 idx) (car select-range))
+		   (equal? idx (cdr select-range)))
+	       (loop (+ 1 idx)
+		     (+ 1 idx)
+		     line-no
+		     (+ 1 (length line) col-no)
+		     '()
+		     (cons (list (cons (string-ref mytext idx) line)
+				 pos
+				 line-no
+				 col-no)
 			   lines)))
 	      (else 
 	       (loop (+ 1 idx)
 		     pos
+		     line-no
+		     col-no
 		     (cons (string-ref mytext idx) line)
 		     lines))))))
 	   
@@ -510,16 +535,47 @@
 ;; for-each-textelem : 
 ;;     [Rendered TextModel] Gfx Fnt TextElemHandler [TextElemCont X] -> X
 (define (for-each-textelem textmodel g fnt proc at-end)
-  (define (char->textelem char)
-    (if (char=? char #\newline) #\newline (string char)))
-  (for-each-charpos textmodel 
-                    g 
-                    fnt 
-                    (lambda (char pos x y w h line-num col-num)
-                      (proc (char->textelem char) 
-                            pos 1 x y w h line-num col-num))
-                    at-end))
-
+  (define initial-height
+    (call-with-values (lambda () ((g 'measure-text) "A" fnt))
+      (lambda (w h) h)))
+  (let loop ((text-lines ((textmodel 'visible-text-lines)))
+	     (x 0) 
+	     (y 0)
+	     (max-height-on-line initial-height)
+	     (line-no 0)
+	     (col-no 0)
+             (pos 0))
+    (cond 
+     ((null? text-lines)
+      (at-end x y max-height-on-line line-no col-no pos))
+     ((not (null? text-lines))
+      (let* ((line (car text-lines))
+	     (elem (car line))
+	     (pos (cadr line)))
+	(if (string? elem)
+	    (let* ((str elem)
+		   (len (string-length str)))
+	      (call-with-values (lambda () ((g 'measure-text) str fnt))
+		(lambda (te-w te-h)
+		  (proc str pos len x y te-w te-h line-no col-no)
+		  (loop (cdr text-lines)
+			(+ x te-w)
+			y
+			(max te-h max-height-on-line)
+			line-no
+			(+ col-no len)
+                        (+ pos len)))))
+	    (call-with-values (lambda () ((g 'measure-text) (string elem) fnt))
+	      (lambda (te-w te-h)
+		(proc elem pos 1 x y te-w te-h line-no col-no)
+		(loop (cdr text-lines) 
+		      0 
+		      (+ y max-height-on-line)
+		      initial-height
+		      (+ line-no 1)
+		      0
+                      (+ 1 pos))))))))))
+    
 ;; rendering-extender : Wnd -> T -> [Rendered T] where T <: TextModel
 (define (rendering-extender wnd)
   (define em-size 10)
@@ -603,7 +659,8 @@
                 g fnt
                 (lambda (telem pos span x y w h line column)
 		  '(begin (write `(background ,telem ,pos ,x ,y ,line ,column))
-			 (newline))                  (cond ((> line max-lines)
+			 (newline))
+		  (cond ((> line max-lines)
                          (abandon line)))
                   (let* ((bg-col (background pos))
                          (sel-bg-col (invert-col bg-col)))
@@ -917,12 +974,19 @@
    ((visible-text-lines) 
     (let ((renders-text-lines ((delegate textmodel 'visible-text-lines scrollable-textmodel))))
       (map (lambda (line)
-	     (let* ((len (string-length (car line)))
-		    (pos (cadr line))
-		    (start (min first-column-idx len))
-		    (finis len))
-	       (list (substring (car line) start finis)
-		     (+ start pos))))
+	     (if (string? (car line))
+		 (let* ((len (string-length (list-ref line 0)))
+			(pos (list-ref line 1))
+			(line-no (list-ref line 2))
+			(col-no (list-ref line 3)) 
+			(start (min len (max 0 (- first-column-idx col-no))))
+			(finis len))
+		   (list (substring (car line) start finis)
+			 (+ start pos)
+			 line-no
+			 (+ start col-no)
+			 ))
+		 line))
 	   renders-text-lines)))
    ))
 
