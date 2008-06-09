@@ -149,6 +149,7 @@
 ;;                ['bounds (x y w h)] 
 ;;                ['double-buffered] 
 ;;                ['title string])
+;;      (make-fake-wnd string nat nat)
 ;;  (show) (hide) (show-dialog) (title) (close) (dispose) (update)
 ;;  (width) (height)
 ;;  (measure-text txt-string font-obj) 
@@ -229,6 +230,28 @@
       ;;(begin (display `(on-paint temp-rect: ,temp-rect)) (newline))
       (cond (temp-rect (apply (g 'draw-rect) (name->col "Red") temp-rect)))
       ))))
+
+(define (make-fake-wnd title width height)
+  (make-root-object fake-wnd
+    ((show)        (display `(fake-wnd..show))        (unspecified))
+    ((hide)        (display `(fake-wnd..hide))        (unspecified))
+    ((show-dialog) (display `(fake-wnd..show-dialog)) (unspecified))
+    ((title)       (display `(fake-wnd..title))       title)
+    ((close)       (display `(fake-wnd..close))       (unspecified))
+    ((dispose)     (display `(fake-wnd..dispose))     (unspecified))
+    ((update)      (display `(fake-wnd..update))      (unspecified))
+    ((width)       (display `(fake-wnd..width))       width)
+    ((height)      (display `(fake-wnd..height))      height)
+    ((measure-text txt-string font-obj)
+     (display `(fake-wnd..measure-text ,txt-string ,font-obj))
+     (assert (not (member #\newline (string->list txt-string))))
+     (values (string-length txt-string) 1))
+    ((push-menus . menus) 
+     (display `(fake-wnd..push-menus . ,menus))
+     (unspecified))
+    ((pop-menus)
+     (display `(fake-wnd..pop-menus))
+     (unspecified))))
 
 (define (invert-col col)
   (define (inv num) (- 255 num))
@@ -370,6 +393,29 @@
    ((textstring) "=> string holding model's text." mytext)
    ((set-textstring! string) "Sets model's text to string parameter."
     (set! mytext string))
+   ((text-lines) "=> list of (line pos) for textstring"
+    (let* ((self textmodel)
+	   (mytext ((self 'textstring))))
+      (let loop ((idx 0)
+		 (pos 0)
+		 (line '())
+		 (lines '()))
+	(cond ((>= idx (string-length mytext))
+	       (map (lambda (x) (cons (list->string (reverse (car x))) 
+				      (cdr x)))
+		    (reverse (cons (list line pos) lines))))
+	      ((char=? #\newline (string-ref mytext idx))
+	       (loop (+ 1 idx)
+		     (+ 1 idx)
+		     '()
+		     (cons (list (cons #\newline line) pos)
+			   lines)))
+	      (else 
+	       (loop (+ 1 idx)
+		     pos
+		     (cons (string-ref mytext idx) line)
+		     lines))))))
+	   
    ((selection) "=> (values b e) where [b,e) is selected.  
  If b = e, then no text is selected, and the cursor resides at b."
     (cond ((number? selection)
@@ -409,7 +455,7 @@
     (call-with-wnd-update textmodel delete-char-at-point!))
    ))
 
-;; A CharPosHandler is a  (Char Pos X Y Width Height LineNo ColNo -> void)
+;; A CharPosHandler is a  (TextElem Pos X Y Width Height LineNo ColNo -> void)
 ;; A [CharPosCont X] is a (X Y Height LineNo ColNo Pos -> X)
 
 ;; for-each-charpos : String Nat Gfx Fnt CharPosHandler [CharPosCont X] -> X
@@ -474,75 +520,6 @@
                             pos 1 x y w h line-num col-num))
                     at-end))
 
-(define (for-each-textelem/old textmodel g fnt proc at-end)
-  ;; XXX this should also subdivide based on changes in font...
-  (let* ((mytext ((textmodel 'textstring)))
-         (start-pos ((textmodel 'visible-offset)))
-         (sel-start (call-with-values (textmodel 'selection)
-                      (lambda (s e) s)))
-         (sel-finis (call-with-values (textmodel 'selection)
-                      (lambda (s e) e)))
-         (measure-height
-          (lambda (s) 
-            (call-with-values (lambda () ((g 'measure-text) s fnt))
-              (lambda (w h) h))))
-         (cursor-height #f)
-         (initial-height (measure-height "A")))
-    (let loop ((x 0)
-               (y 0)
-               (max-height-on-line initial-height)
-               (line-num 0)
-               (col-num 0)
-               (curr-pos start-pos))
-      (cond
-       ((>= curr-pos (string-length mytext))
-        (at-end x y max-height-on-line line-num col-num curr-pos))
-       
-       (else
-        (let* ((<&<= (lambda (x y z) (and (< x y) (<= y z))))
-               (<=&< (lambda (x y z) (and (<= x y) (< y z))))
-               (telem 
-                (cond
-                 ((char=? #\newline (string-ref mytext curr-pos))
-                  #\newline)
-                 (else
-                  (let char-scan ((chars '())
-                                  (pos curr-pos))
-                    (cond
-                     ((or (>= pos (string-length mytext))
-                          (<&<= curr-pos sel-start pos)
-                          (<=&< curr-pos sel-start pos)
-                          (<&<= curr-pos sel-finis pos)
-                          (<=&< curr-pos sel-finis pos)
-                          (char=? #\newline (string-ref mytext pos)))
-                      (list->string (reverse chars)))
-                     (else
-                      (char-scan (cons (string-ref mytext pos) chars)
-                                 (+ pos 1)))))))))
-          (cond 
-           ((eqv? telem #\newline)
-            (call-with-values 
-                (lambda () ((g 'measure-text) (string telem) fnt))
-              (lambda (char-w char-h)
-                (proc telem curr-pos 1 x y char-w char-h line-num col-num)))
-            (let ((y* (+ y max-height-on-line))
-                  (line-num* (+ line-num 1))
-                  (curr-pos* (+ curr-pos 1)))
-              (loop 0 y* initial-height line-num* 0 curr-pos*)))
-           (else
-            (call-with-values (lambda () ((g 'measure-text) telem fnt))
-              (lambda (text-w text-h)
-                (let ((span (string-length telem)))
-                  (proc telem curr-pos span x y 
-                        text-w text-h ;; XXX
-                        line-num col-num)
-                  (loop (+ x text-w)
-                        y
-                        (max max-height-on-line text-h)
-                        line-num
-                        (+ col-num 1)
-                        (+ curr-pos span)))))))))))))
-
 ;; rendering-extender : Wnd -> T -> [Rendered T] where T <: TextModel
 (define (rendering-extender wnd)
   (define em-size 10)
@@ -558,6 +535,10 @@
     (/ ((wnd 'height)) 
        (call-with-values (lambda () ((wnd 'measure-text) "M" fnt))
 	 (lambda (w h) h))))
+  (define (count-visible-columns/fractional)
+    (/ ((wnd 'width))
+       (call-with-values (lambda () ((wnd 'measure-text) "x" fnt))
+	 (lambda (w h) w))))
   (define (selection-start-pos self)
     (call-with-values (lambda () ((self 'selection)))
       (lambda (s e) s)))
@@ -580,8 +561,20 @@
      ((on-resize) "handler for window resize event." #f)
      ((count-visible-lines)  "=> number of lines visible in buffer."
       (count-visible-lines/fractional))
+     ((count-visible-columns) "=> number of columns visible in buffer."
+      (count-visible-columns/fractional))
      ;; XXX adding this as a hook that can be potentially overridden, 
      ;; but I'm not sure it is a good idea.
+     ((visible-text-lines) "=> list of (line pos) for visible part of text"
+      (let* ((self renderable-textmodel)
+	     (text-lines ((self 'text-lines)))
+	     (visible-offset ((self 'visible-offset))))
+	(let loop ((visible-lines text-lines))
+	  (if (and (not (null? visible-lines))
+		   (let ((line (car visible-lines)))
+		     (< (cadr line) visible-offset)))
+	      (loop (cdr visible-lines))
+	      visible-lines))))
      ((visible-offset) "=> integer offset where the visible part of str begins.
  Override to change view behavior."
       0)
@@ -594,7 +587,6 @@
 	  (define max-lines (count-visible-lines/upper-bound))
 	  (let* ((self renderable-textmodel)
 		 (text ((self 'textstring)))
-		 (visible-offset ((self 'visible-offset)))
 		 (foreground (self 'foreground-color))
 		 (background (self 'background-color))
 		 (selection  (self 'selection))
@@ -781,6 +773,18 @@
                    (+ j (if (char=? #\newline (string-ref text i)) 1 0)))))))
   (define (line-count self)
     (count-newlines-in ((self 'textstring))))
+  (define (column-count self)
+    (let ((text ((self 'textstring))))
+      (let loop ((max-col 0)
+		 (counter 0)
+		 (chars (string->list text)))
+	(define (next counter) 
+	  (loop (max max-col counter) counter (cdr chars)))
+	(cond ((null? chars) max-col)
+	      ((char=? (car chars) #\newline) 
+	       (next 0))
+	      (else 
+	       (next (+ counter 1)))))))
 
   (define (cursor-line self)
     (let ((mytext ((self 'textstring)))
@@ -791,6 +795,7 @@
            j))))
   
   (define first-line-idx 0)
+  (define first-column-idx 0)
 
   ;; Bad rep; scrolling op's take O(n) time (where n is the size of
   ;; the entirety of the text).  A doubly linked list of lines may be
@@ -861,12 +866,12 @@
                    ((wnd 'attempt-scroll) 'vertical cursor-lines)))))))
     ((delegate textmodel 'on-cursor-reposition scrollable-textmodel)))
    ((on-hscroll new-idx event-type) "handler horizontal scroll to new-idx." 
-    #f)
+    '(begin (display `(on-hscroll ,new-idx ,event-type)) (newline))
+    (set! first-column-idx new-idx)
+    ((wnd 'update)))
    ((on-vscroll new-idx event-type) "handler vertical scroll to new-idx."
     (set! first-line-idx new-idx)
     ((wnd 'update)))
-   ((horizontal-scrollbar) #f)
-   ((vertical-scrollbar)
     ;; These do not have to be in pixels to be meaningful; we as the
     ;; client select our own unit of measurement, and are then
     ;; responsible for using it consistently.  In this case, we are
@@ -874,6 +879,24 @@
     ;; the horizontal scrollbars will use a column as the grain).
     ;; When image support is added, these grains might not remain
     ;; appropriate.
+   ((horizontal-scrollbar) 
+    (let* ((my-column-count (column-count scrollable-textmodel))
+	   (visible-columns
+	    (inexact->exact 
+	     (floor ((scrollable-textmodel 'count-visible-columns)))))
+	   (max-val (max 0 
+			 (- my-column-count visible-columns))))
+      (assert (<= 0 first-column-idx max-val))
+      (if (= max-val 0)
+	  #f
+	  `((min ,0)
+	    (max ,max-val)
+	    (value ,first-column-idx)
+	    (dsmall ,1)
+	    (dlarge ,(if (or #t (> (* 2 visible-columns) my-column-count))
+			 1
+			 (quotient visible-columns 2)))))))
+   ((vertical-scrollbar)
     (let* ((my-line-count (line-count scrollable-textmodel))
            (visible-lines 
 	    (inexact->exact (floor ((scrollable-textmodel 'count-visible-lines)))))
@@ -891,6 +914,16 @@
                      1
                      (quotient visible-lines 2)
                      )))))
+   ((visible-text-lines) 
+    (let ((renders-text-lines ((delegate textmodel 'visible-text-lines scrollable-textmodel))))
+      (map (lambda (line)
+	     (let* ((len (string-length (car line)))
+		    (pos (cadr line))
+		    (start (min first-column-idx len))
+		    (finis len))
+	       (list (substring (car line) start finis)
+		     (+ start pos))))
+	   renders-text-lines)))
    ))
 
 ;; extend-with-text-coloring 
