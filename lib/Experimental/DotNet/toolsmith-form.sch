@@ -1378,8 +1378,58 @@
 
     wnd))
 
+(define (make-btn . args)
+  (let* ((agent-ctor (cond ((memq 'make-agent args) => cadr)
+			   (else default-agent-ctor)))
+	 (title (cond ((memq 'title args) => cadr)
+		      (else #f)))
+	 (agent (undefined))
+	 (agent-ops (undefined))
+	 (core-control (make-button))
+	 )
 
+    (define (add-if-supported form op-name event-name mk-handler)
+      (cond ((memq op-name agent-ops)
+	     (add-event-handler form event-name (mk-handler (agent op-name))))
+	    (else
+	     (display "No support for button op ")
+	     (display op-name)
+	     (newline))))
 
+    (define (mouse-event-handler on-x)
+      (lambda (sender e)
+        (on-x
+         (mouse-event-args-x e)
+         (mouse-event-args-y e))))
+
+    (define btn
+      (make-root-object btn
+        ((title) title)
+	((btnptr) core-control)
+	((agent) agent)
+	((width) (control-width core-control))
+	((height) (control-height core-control))
+	((dispose) 
+	 (cond ((memq 'dispose agent-ops) ((agent 'dispose)))
+	       (else (display "dispose unhandled by button") 
+		     (newline)))
+	 (control-dispose! core-control))
+	))
+
+    (set! agent (agent-ctor btn 
+			    (control-width core-control)
+			    (control-height core-control)))
+    (set! agent-ops ((agent 'operations)))
+    (cond (title (set-control-text! core-control title)))
+    (for-each (lambda (opsym eventname)
+		(add-if-supported core-control 
+				  opsym eventname mouse-event-handler))
+	      '(on-mousedown on-mouseup on-mouseclick on-mousedoubleclick)
+	      '("MouseDown"  "MouseUp"  "MouseClick"  "MouseDoubleClick"))
+    btn))
+
+    
+    
 ;; A FileChoiceFilter is a (list String String String ...)
 ;; interpretation:
 ;; A FileChoiceFilter (list description ext-1 ... ext-n) tells the file chooser to
