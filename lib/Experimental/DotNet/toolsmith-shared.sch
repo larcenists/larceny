@@ -990,14 +990,68 @@
 	   renders-text-lines)))
    ))
 
+;; A ColRange is a (list [Maybe Pos] [Maybe Pos] Col)
+;; interpretation:
+;; ( m  n c) maps the number range [m, n) to c
+;; (#f  n c) maps the number range < n to c
+;; ( m #f c) maps the number range >= m to c  
+
+;; A TextLineInfo is a (list String Nat Nat Nat)
+;; interpretation:
+;; ( s p l c) is the text s located at global position p, 
+;; line l, and column c
+
+;; fragment : TextLineInfo ColRange -> [Maybe [Listof TextLineInfo]]
+;; breaks text up into segments so that every element of returned list
+;; is uniformly colored according to range; returns #f if no 
+;; breakup is necessary (or possible).
+(define (fragment-by-colrange text range)
+  (and
+   (string? (list-ref text 0))
+   (let* ((string    (list-ref text 0))
+	  (len       (string-length string))
+	  (pos-start (list-ref text 1))
+	  (lineno    (list-ref text 2))
+	  (colno     (list-ref text 3))
+	  (pos-finis (+ pos-start len))
+	  (rng-start (or (car range) 'bot))
+	  (rng-finis (or (cadr range) 'top))
+	  (cut (lambda (px py)
+		 (if (< px py)
+		     (let ((px* (- px pos-start))
+			   (py* (- py pos-start)))
+		       (list 
+			(list (substring string px* py*)
+			      px 
+			      lineno (+ colno px*))))
+		     (list))))
+	  (generalize-cmp
+	   (lambda (<<)
+	     (lambda (x y)
+	       (or (eq? x 'bot) (eq? y 'top)
+		   (and (number? x) (number? y) (<< x y))))))
+	  (<= (generalize-cmp <=)))
+     (if (or (<= rng-finis pos-start) 
+	     (<= pos-finis rng-start)
+	     (and (or (= pos-start rng-start) (not rng-start))
+		  (or (= pos-finis rng-finis) (not rng-finis))))
+	 #f
+	 (let ((p1 (if rng-start (min pos-start rng-start) pos-start))
+	       (p2 (if rng-start (max pos-start rng-start) pos-start))
+	       (p3 (if rng-finis (min pos-finis rng-finis) pos-finis))
+	       (p4 (if rng-finis (max pos-finis rng-finis) pos-finis)))
+	   (let ((lst (append (cut p1 p2)
+			      (cut p2 p3)
+			      (cut p3 p4))))
+	     (assert (> (length lst) 1))
+	     (assert (= len (apply + (map string-length (map car lst)))))
+	     (assert (for-all (lambda (x) (< (string-length (car x)) len)) 
+			      lst))
+	     lst))))))
+   
 ;; extend-with-text-coloring 
 ;;                    : T -> [Colorable T] where T <: [Rendered TextModel]
 (define (extend-with-text-coloring textmodel)
-  ;; A ColRange is a (list [Maybe Pos] [Maybe Pos] Col)
-  ;; interpretation:
-  ;; ( m  n c) maps the number range [m, n) to c
-  ;; (#f  n c) maps the number range < n to c
-  ;; ( m #f c) maps the number range >= m to c  
   
   ;; Pos ColRange -> [Maybe Col]
   (define (lookup-col pos col-ranges)
@@ -1124,6 +1178,24 @@
     (list transient-background-col-ranges
           stable-background-col-ranges
           default-background-col))
+   ((visible-text-lines)
+    (let ((text-lines 
+           ((delegate textmodel 'visible-text-lines colorable-textmodel))))
+      (let loop-lines ((text-lines text-lines))
+	(let loop-ranges ((col-ranges 
+			   (append stable-foreground-col-ranges
+				   stable-background-col-ranges
+				   transient-foreground-col-ranges
+				   transient-background-col-ranges)))
+	  (cond ((null? text-lines)
+		 text-lines)
+		((null? col-ranges)
+		 (cons (car text-lines) (loop-lines (cdr text-lines))))
+		((fragment-by-colrange (car text-lines) (car col-ranges))
+		 => (lambda (texts)
+		      (loop-lines (append texts (cdr text-lines)))))
+		(else
+		 (loop-ranges (cdr col-ranges))))))))
    ))
 
 ;; extend-with-auto-indentation : T -> T where T <: [Keyed T]
