@@ -942,8 +942,8 @@
 	    (inexact->exact 
 	     (floor ((scrollable-textmodel 'count-visible-columns)))))
 	   (max-val (max 0 
+			 first-column-idx
 			 (- my-column-count visible-columns))))
-      (assert (<= 0 first-column-idx max-val))
       (if (= max-val 0)
 	  #f
 	  `((min ,0)
