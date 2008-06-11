@@ -197,6 +197,7 @@
    ((on-mouseleave)             (displayln `(on-mouseleave)))
    ((on-paint g x y w h)        (displayln `(on-paint ,g ,x ,y ,w ,h)))
    ((on-dispose)                (displayln `(on-dispose)))
+   ((on-resize)                 (displayln `(on-resize)))
    ))
 
 (define (make-rectangle-drawing-agent wnd width height)
