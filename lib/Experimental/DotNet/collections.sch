@@ -120,7 +120,7 @@
 (define icollection-count
   (let ((prop (clr/%get-property icollection-type "Count" '#())))
     (lambda (ic)
-      (clr/%property-ref prop ic '#()))))
+      (clr/foreign->int (clr/%property-ref prop ic '#())))))
 
 ;; StringCollection <: IList
 (define stringcollection-type 
@@ -133,7 +133,7 @@
 
 (define stringcollection->list
   (lambda (sc)
-    (let ((count (clr/foreign->int(icollection-count sc))))
+    (let ((count (icollection-count sc)))
       (let loop ((idx (- count 1))
                  (lst '()))
         (cond ((>= idx 0)
