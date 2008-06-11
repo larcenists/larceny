@@ -1323,7 +1323,6 @@
     (add-controls (control-controls form)
 		  (list core-control))
     (set-control-size! core-control (control-client-size form))
-    (set-form-keypreview! form #t) ; XXX
     (begin
       (display `((hscroll min: ,(scrollbar-minimum horizontal-scrollbar))
                  (hscroll max: ,(scrollbar-maximum horizontal-scrollbar))
