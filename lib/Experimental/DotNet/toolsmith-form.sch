@@ -77,6 +77,9 @@
                                        (lambda (argl) (apply convert argl)))))
     (lambda (control . args)
       (setter control args))))
+(define control-dock
+  (make-property-ref control-type "Dock" (enum-type->foreign->symbol 
+					  (find-forms-type "DockStyle"))))
 (define set-control-dock!
   (let* ((dock-style-type (find-forms-type "DockStyle"))
          (convert (enum-type->symbol->foreign dock-style-type))
@@ -1005,6 +1008,9 @@
                               (else make-control)))
          (contents (contents-ctor))
          (core-control (make-panel))
+	 (make-core-fill-client-area!
+	  (lambda () 
+	    (set-control-size! core-control (control-client-size form))))
          (menu-stack '())
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
@@ -1322,7 +1328,13 @@
 			vertical-scrollbar))
     (add-controls (control-controls form)
 		  (list core-control))
-    (set-control-size! core-control (control-client-size form))
+
+    (cond ('one-way-to-make-core-fill-all-available-space
+	   (make-core-fill-client-area!)
+	   (set-control-anchor! core-control 'top 'bottom 'left 'right))
+	  ('and-another-way-to-get-the-same-effect
+	   (set-control-dock! core-control 'fill)))
+
     (begin
       (display `((hscroll min: ,(scrollbar-minimum horizontal-scrollbar))
                  (hscroll max: ,(scrollbar-maximum horizontal-scrollbar))
@@ -1397,13 +1409,11 @@
                               (let ((resize-op (agent 'on-resize))
                                     (update-op (wnd 'update)))
                                 (lambda (sender e) 
-				  (set-control-size! core-control (control-client-size form))
                                   (resize-op)
                                   (update-op))))
                              (else
                               (let ((update-op (wnd 'update)))
                                 (lambda (sender e) 
-				  (set-control-size! core-control (control-client-size form))
                                   (update-op))))))
 
     (add-if-supported contents 'on-paint "Paint"
