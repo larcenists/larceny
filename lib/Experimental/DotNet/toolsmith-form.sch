@@ -1004,7 +1004,7 @@
                                make-double-buffered-control)
                               (else make-control)))
          (contents (contents-ctor))
-         (core-control contents)
+         (core-control (make-panel))
          (menu-stack '())
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
@@ -1163,7 +1163,7 @@
         (lambda (form)
           '(begin (display `(update-scrollbars!))
                   (newline))
-          (let* ((client-size (control-client-size form))
+          (let* ((client-size (control-client-size core-control))
                  (cw (size-width client-size))
                  (ch (size-height client-size)))
             
@@ -1212,7 +1212,7 @@
       ;; Need to double-check this; for now this signals that a
       ;; control needs to be repainted.
       (update-scrollbars! form)
-      (invalidate! core-control)
+      (invalidate! contents)
       )
 
     (define wnd
@@ -1316,11 +1316,14 @@
                       (else (error 'horizontal-scroll! ": " val
                                    " is not in range [" min "," max "]")))))))
     
-    (add-controls (control-controls form) 
-                  `(,@(if (eq? contents core-control) (list contents) '())
-                    ,horizontal-scrollbar 
-                    ,vertical-scrollbar))
-    (set-form-keypreview! form #t)
+    (add-controls (control-controls core-control)
+		  (list contents 
+			horizontal-scrollbar
+			vertical-scrollbar))
+    (add-controls (control-controls form)
+		  (list core-control))
+    (set-control-size! core-control (control-client-size form))
+    (set-form-keypreview! form #t) ; XXX
     (begin
       (display `((hscroll min: ,(scrollbar-minimum horizontal-scrollbar))
                  (hscroll max: ,(scrollbar-maximum horizontal-scrollbar))
@@ -1348,9 +1351,9 @@
                            (scrolleventargs-newvalue e)
                            (scrolleventargs-gettype e)))))
     
-    (add-if-supported core-control 'on-keydown "KeyDown" key-event-handler)
-    (add-if-supported core-control 'on-keyup "KeyUp" key-event-handler)
-    (add-if-supported core-control 'on-keypress "KeyPress"
+    (add-if-supported contents 'on-keydown "KeyDown" key-event-handler)
+    (add-if-supported contents 'on-keyup "KeyUp" key-event-handler)
+    (add-if-supported contents 'on-keypress "KeyPress"
                       (lambda (on-keypress)
                         (lambda (sender e)
                           (on-keypress
@@ -1359,10 +1362,10 @@
                            (integer->char
                             (clr/%foreign->int
                              (key-press-event-args-keychar e)))))))
-    (add-if-supported core-control 'on-mousedown "MouseDown" mouse-event-handler)
-    (add-if-supported core-control 'on-mouseup "MouseUp" mouse-event-handler)
+    (add-if-supported contents 'on-mousedown "MouseDown" mouse-event-handler)
+    (add-if-supported contents 'on-mouseup "MouseUp" mouse-event-handler)
     (let ((add! (lambda (fcn) 
-                  (add-event-handler core-control "MouseMove" fcn)))
+                  (add-event-handler contents "MouseMove" fcn)))
           (has-move? (memq 'on-mousemove agent-ops))
           (has-drag? (memq 'on-mousedrag agent-ops)))
       (cond 
@@ -1384,10 +1387,10 @@
                   (case (mouse-event-args-button e)
                     ((none) 'do-nothing)
                     (else   (drag-handler sender e)))))))))
-    (add-if-supported core-control 'on-mouseenter "MouseEnter" trivial-handler)
-    (add-if-supported core-control 'on-mouseleave "MouseLeave" trivial-handler)
-    (add-if-supported core-control 'on-mouseclick "MouseClick" mouse-event-handler)
-    (add-if-supported core-control 'on-mousedoubleclick "MouseDoubleClick" 
+    (add-if-supported contents 'on-mouseenter "MouseEnter" trivial-handler)
+    (add-if-supported contents 'on-mouseleave "MouseLeave" trivial-handler)
+    (add-if-supported contents 'on-mouseclick "MouseClick" mouse-event-handler)
+    (add-if-supported contents 'on-mousedoubleclick "MouseDoubleClick" 
                       mouse-event-handler)
     
     (add-event-handler form "Resize" 
@@ -1395,14 +1398,16 @@
                               (let ((resize-op (agent 'on-resize))
                                     (update-op (wnd 'update)))
                                 (lambda (sender e) 
+				  (set-control-size! core-control (control-client-size form))
                                   (resize-op)
                                   (update-op))))
                              (else
                               (let ((update-op (wnd 'update)))
                                 (lambda (sender e) 
+				  (set-control-size! core-control (control-client-size form))
                                   (update-op))))))
 
-    (add-if-supported core-control 'on-paint "Paint"
+    (add-if-supported contents 'on-paint "Paint"
                       (lambda (on-paint)
                         (lambda (sender e)
                           (let* ((r (paint-event-args-cliprectangle e))
