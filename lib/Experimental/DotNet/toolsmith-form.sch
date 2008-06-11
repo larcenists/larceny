@@ -108,6 +108,12 @@
   (let ((add! (make-binary-method controls-collection-type "Add" control-type)))
     (lambda (collection controls)
       (for-each (lambda (c) (add! collection c)) controls))))
+(define clear-controls (make-unary-method controls-collection-type "Clear"))
+(define remove-controls
+  (let ((rem! (make-binary-method controls-collection-type 
+				  "Remove" control-type)))
+    (lambda (collection controls)
+      (for-each (lambda (c) (rem! collection c)) controls))))
 
 (define scrollable-control-type (find-forms-type "ScrollableControl"))
 (define scrollable-control-autoscroll 
@@ -1008,10 +1014,18 @@
                               (else make-control)))
          (contents (contents-ctor))
          (core-control (make-panel))
+	 (button-toolbar (if #f (make-panel) (make-flow-layout-panel)))
 	 (make-core-fill-client-area!
 	  (lambda () 
-	    (set-control-size! core-control (control-client-size form))))
+	    (let* ((client-area (control-client-size form))
+		   (w (size-width client-area))
+		   (h (size-height client-area))
+		   (buttons-height (control-height button-toolbar)))
+	      (set-control-top! core-control buttons-height)
+	      (set-control-size! core-control 
+				 (make-size w (- h buttons-height))))))
          (menu-stack '())
+	 (button-stack '())
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
          (unhandled (lambda (method-name)
@@ -1217,6 +1231,7 @@
     (define (update!)
       ;; Need to double-check this; for now this signals that a
       ;; control needs to be repainted.
+      (make-core-fill-client-area!)
       (update-scrollbars! form)
       (invalidate! contents)
       )
@@ -1253,6 +1268,24 @@
               (form-set-menu! form (car menu-stack)))
              (else
               (form-set-menu! form clr/null)))
+       (update!))
+      ((push-buttons . btns)
+       (set! button-stack (cons (map (lambda (btn) ((btn 'btnptr))) btns)
+				button-stack))
+       (clear-controls (control-controls button-toolbar))
+       (add-controls (control-controls button-toolbar) 
+		     (car button-stack))
+       (set-control-size! button-toolbar 
+		       (control-preferred-size button-toolbar))
+       (update!))
+      ((pop-buttons)
+       (set! button-stack (cdr button-stack))
+       (clear-controls (control-controls button-toolbar))
+       (cond ((not (null? button-stack))
+	      (add-controls (control-controls button-toolbar)
+			    (car button-stack))))
+       (set-control-size! button-toolbar 
+		       (control-preferred-size button-toolbar))
        (update!))
 
       ((attempt-scroll orient magnitude)
@@ -1326,8 +1359,11 @@
 		  (list contents 
 			horizontal-scrollbar
 			vertical-scrollbar))
+    (set-control-size! button-toolbar 
+		       (control-preferred-size button-toolbar))
     (add-controls (control-controls form)
-		  (list core-control))
+		  (list core-control
+			button-toolbar))
 
     (cond ('one-way-to-make-core-fill-all-available-space
 	   (make-core-fill-client-area!)
@@ -1373,6 +1409,11 @@
                            (integer->char
                             (clr/%foreign->int
                              (key-press-event-args-keychar e)))))))
+
+    ;; On *any* MouseDown event on the contents of the core-control,
+    ;; switch focus to that control.
+    (add-event-handler contents "MouseDown" 
+		       (lambda (sender e) (control-focus! sender)))
     (add-if-supported contents 'on-mousedown "MouseDown" mouse-event-handler)
     (add-if-supported contents 'on-mouseup "MouseUp" mouse-event-handler)
     (let ((add! (lambda (fcn) 
