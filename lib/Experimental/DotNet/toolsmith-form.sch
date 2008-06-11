@@ -34,8 +34,13 @@
 
 (define control-type             (find-forms-type "Control"))
 (define make-control      (type->nullary-constructor control-type))
-(define control-anchor    (make-property-ref control-type "Anchor"))
+(define control-anchor
+  (make-property-ref control-type "Anchor"
+		     (enum-type->foreign->symbol 
+		      (find-forms-type "AnchorStyles"))))
 (define control-controls  (make-property-ref control-type "Controls"))
+(define control-name      (make-property-ref control-type "Name"))
+(define set-control-name! (make-property-setter control-type "Name"))
 (define control-text      (make-property-ref control-type "Text"))
 (define set-control-text! (make-property-setter control-type "Text"))
 (define control-top       (make-property-ref control-type "Top"))
@@ -57,6 +62,10 @@
   (make-property-ref control-type "PreferredSize"))
 (define set-control-preferred-size! 
   (make-property-setter control-type "PreferredSize"))
+(define control-tab-index      (make-property-ref control-type "TabIndex"))
+(define set-control-tab-index! (make-property-setter control-type "TabIndex"))
+(define control-tab-stop      (make-property-ref control-type "TabStop"))
+(define set-control-tab-stop! (make-property-setter control-type "TabStop"))
 (define control-visible       (make-property-ref control-type "Visible"))
 (define set-control-visible!  (make-property-setter control-type "Visible"))
 (define control-font          (make-property-ref control-type "Font"))
@@ -102,6 +111,22 @@
   (make-property-ref scrollable-control-type "AutoScroll" clr/foreign->bool))
 (define set-scrollable-control-autoscroll!
   (make-property-setter scrollable-control-type "AutoScroll" clr/bool->foreign))
+(define containercontrol-type (find-forms-type "ContainerControl"))
+(define containercontrol-auto-scale-dimensions
+	(make-property-ref containercontrol-type "AutoScaleDimensions"))
+(define set-containercontrol-auto-scale-dimensions!
+	(make-property-setter containercontrol-type "AutoScaleDimensions"))
+(define containercontrol-auto-scale-mode
+  (make-property-ref containercontrol-type "AutoScaleMode"
+		     (enum-type->foreign->symbol
+		      (find-forms-type "AutoScaleMode"))))
+(define set-containercontrol-auto-scale-mode!
+  (let* ((autoscalemode-type (find-forms-type "AutoScaleMode"))
+	 (convert (enum-type->symbol->foreign autoscalemode-type))
+	 (setter (make-property-setter containercontrol-type "AutoScaleMode"
+				       (lambda (argl) (apply convert argl)))))
+    (lambda (control . args)
+      (setter control args))))
 
 (define form-type                (find-forms-type "Form"))
 (define make-form (type->nullary-constructor form-type))
@@ -111,6 +136,17 @@
 
 (define panel-type               (find-forms-type "Panel"))
 (define make-panel (type->nullary-constructor panel-type))
+
+(define listbox-type (find-forms-type "ListBox"))
+(define make-listbox (type->nullary-constructor listbox-type))
+(define set-listbox-formatting-enabled! 
+	(make-property-setter listbox-type "FormattingEnabled"))
+(define set-listbox-integral-height! 
+	(make-property-setter listbox-type "IntegralHeight"))
+(define listbox-items (make-property-ref listbox-type "Items"))
+(define listbox-item-height (make-property-ref listbox-type "ItemHeight"))
+(define listbox-top-index (make-property-ref listbox-type "TopIndex"))
+(define set-listbox-top-index! (make-property-setter listbox-type "TopIndex"))
 
 (define form1                    (make-form))
 (define form1-controls (control-controls form1))
@@ -449,7 +485,10 @@
 (define key-event-args-alt (make-property-ref key-event-args-type "Alt"))
 (define key-event-args-control (make-property-ref key-event-args-type "Control"))
 (define key-event-args-shift (make-property-ref key-event-args-type "Shift"))
-(define key-event-args-keycode (make-property-ref key-event-args-type "KeyCode"))
+(define key-event-args-keycode 
+  (make-property-ref key-event-args-type "KeyCode"
+		     (enum-type->foreign->symbol 
+		      (find-forms-type "Keys"))))
 (define key-event-args-keydata (make-property-ref key-event-args-type "KeyData"))
 (define key-event-args-keyvalue (make-property-ref key-event-args-type "KeyValue"))
 (define key-press-event-args-type (find-forms-type "KeyPressEventArgs"))
@@ -900,7 +939,6 @@
   )
 
 (define keys-type (find-forms-type "Keys"))
-(define keys-foreign->symbols (enum-type->foreign->symbol keys-type))
 
 (define scrollbar-type  (find-forms-type "ScrollBar"))
 (define hscrollbar-type (find-forms-type "HScrollBar"))
@@ -1084,12 +1122,12 @@
                (ctrl (key-event-args-control e))
                (shift (key-event-args-shift e))
                ;; code enum excludes modifiers
-               (code (key-event-args-keycode e))
+               (keysym (key-event-args-keycode e))
                ;; data enum includes modifiers
                (data (key-event-args-keydata e))
                ;; original bitset 
                (value (key-event-args-keyvalue e))
-               (keysym (keys-foreign->symbols code)))
+	       )
           (on-x
            (keysym->maybe-char keysym shift)
            keysym
