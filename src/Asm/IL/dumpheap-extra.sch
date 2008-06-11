@@ -442,7 +442,6 @@
                  src-manifests)))
       (if fasl? (dump-fasl app app-exe src-manifests))
       (ilasm app-exe (cons assembly-il ordered-il-files))
-      (delete-file assembly-il)
       app-exe)))
 
 ;; build-heap-image : string (listof string) -> void
@@ -497,7 +496,8 @@
       ;; command strings.
       (let ((big-il-file (rewrite-file-type exe-file ".exe" ".il")))
         (concatenate-files big-il-file il-files)
-        (invoke-ilasm exe-file (list big-il-file)))
+        (invoke-ilasm exe-file (list big-il-file))
+        (delete-file big-il-file))
       (invoke-ilasm exe-file il-files)))
 
 (define (concatenate-files target sources)
