@@ -340,7 +340,7 @@ function remove {
 
 function update_from_subversion {
   # CMD="svn checkout -q ${SVNTRUNK}"
-  CMD="svn up ../shared-checkout/larceny_src; cp -pR ../shared-checkout/larceny_src ."
+  CMD="svn up ../shared-checkout/larceny_src; cp -fpR ../shared-checkout/larceny_src ."
   remove $MY_CDASHUPDATELOG
   cdashupdatelog '<?xml version="1.0" encoding="utf-8"?>'
   
