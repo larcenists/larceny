@@ -7,28 +7,21 @@ set -o errexit
 ## This script is meant to be first symlinked to under a file name
 ## indicating the host scheme and architecture, and then invoked in a
 ## context with the following environment variables set: 
-##    TRACK DARTBUILDLOG DARTTESTSLOG DARTSERVER DARTJAR
-## 
-## (A change to Dart between v1.0.7 and v1.0.9 has forced us to submit
-##  the build log and test logs separately.  But this is probably a
-##  better protocol anyway.)
+##    TRACK CDASHSERVER
 ## 
 ## Here is a sample simple wrapper script meant to demonstrate how 
-## to first invoke this script, and then send the resulting dart log
-## to the dart server (uighur.ccs.neu.edu in this case)
+## to first invoke this script, and then send the resulting logs
+## to the CDash server at the url in CDASHSERVER.
 # 
 # LOGFILE=/home/henchman/build.`date +%F`.log
 # export TRACK="Nightly"
-# export DARTBUILDLOG="/home/henchman/larcenytest/dart-native-build-sub.xml"
-# export DARTTESTSLOG="/home/henchman/larcenytest/dart-native-tests-sub.xml"
-# export DARTSERVER="uighur.ccs.neu.edu"
-# export DARTJAR="~/jars/DartClient.jar"
+# export CDASHSERVER="http://cgibin.ccs.neu.edu/home/pnkfelix/cdash/"
 # /home/henchman/bin/checkout-larceny-linux86-native >> $LOGFILE 2>&1
 # cat $LOGFILE | mail -s "Nightly build log" pnkfelix@pnkfx.org
 #
 ########################################################################
 
-# Override this variable to submit to other Dart tracks.
+# Override this variable to submit to other tracks, e.g. Nightly or Continuous
 TRACK=${TRACK:-"Experimental"}
 
 # We should not have to do 'always-source here, but Larceny is
@@ -231,42 +224,79 @@ esac
 # Perhaps add more to this, like the hour and minute?
 TODAY=`date +%Y-%m-%d` 
 DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TRACK}-${TODAY}
-DARTBUILDLOG=${DARTBUILDLOG:-"${DIR}/../dart-build-sub.xml"}
-DARTTESTSLOG=${DARTTESTSLOG:-"${DIR}/../dart-tests-sub.xml"}
-MY_DARTBUILDLOG="${DIR}/dart-build-sub.xml"
-MY_DARTTESTSLOG="${DIR}/dart-tests-sub.xml"
+MY_CDASHUPDATELOG="${DIR}/cdash-update-sub.xml"
+MY_CDASHCONFIGLOG="${DIR}/cdash-config-sub.xml"
+MY_CDASHBUILDLOG="${DIR}/cdash-build-sub.xml"
+MY_CDASHTESTSLOG="${DIR}/cdash-tests-sub.xml"
 TEMPLOG="${DIR}/temp.log"
 TEMPSCM="${DIR}/temp.scm"
 REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
-CALCDATEDART="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
+CALCDATE="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
+CALCDATESTAMP="date +%Y%m%d-%H%M"
 LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
 TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
 
 mkdir -p ${DIR}
 
-function dartlog_goingaway {
-   echo $@ >> $MY_DARTLOG
+function cdashupdatelog {
+   echo "$@" >> $MY_CDASHUPDATELOG
 }
 
-function dartbuildlog {
-   echo $@ >> $MY_DARTBUILDLOG
+function cdashconfiglog {
+   echo "$@" >> $MY_CDASHCONFIGLOG
 }
 
-function darttestslog {
-   echo $@ >> $MY_DARTTESTSLOG
+function cdashbuildlog {
+   echo "$@" >> $MY_CDASHBUILDLOG
 }
 
-function dartbothlogs {
-   dartbuildlog $@
-   darttestslog $@
+function cdashtestslog {
+   echo "$@" >> $MY_CDASHTESTSLOG
 }
 
 function cmdsetstatus {
+    echo cmdsetstatus $1
+    SECS_BEGIN=`date +%s`
     if eval "$1" ; then
 	STATUS="passed" 
     else
 	STATUS="failed"
     fi
+    SECS_FINIS=`date +%s`
+    SECS_ELAPSED=`echo " ($SECS_FINIS - $SECS_BEGIN)             " | bc`
+    MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+}
+
+function cdash_submit {
+    # Curl does not seem to return an error exit code on the 403 and 405 
+    # responses that I am intermittently receiving from CDash.  So I 
+    # grep -v for that output and rely on that to set the status bit
+    # accordingly in those cases...
+    CMD="echo submit attempt; curl -T $1 '$CDASHSERVER/submit.php?project=Larceny' > /tmp/submit.log && ! grep '<title>40' /tmp/submit.log"
+    if echo ${CMD}; eval "${CMD}"; then 
+      echo submit attempt 1 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 2 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 3 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 4 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 5 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 6 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 7 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 8 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 9 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 10 successful
+    else 
+      echo NO submit attempts successfuls
+      exit 1
+    fi 
 }
 
 ##A trick for outputting stdout, stderr _and_ stdout&stderr to three separate files
@@ -276,130 +306,178 @@ function cmdsetstatus {
 #    ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3 | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
 #}
 
-function quotetextfile_cdata { # doesn't work for some reason... (dead code)
-   dartlog '<![CDATA['
-   cat $1 >> ${MY_DARTLOG}
-   dartlog ']]>'
+function quoteupdatefile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_CDASHUPDATELOG}
+}
+
+function quoteconfigfile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_CDASHCONFIGLOG}
 }
 
 function quotebuildfile { # esc_html
   # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
   # On non CCIS Sun, we don't have native2ascii.
-  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_DARTBUILDLOG}
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_CDASHBUILDLOG}
 }
 
 function quotetestsfile { # esc_html
   # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
   # On non CCIS Sun, we don't have native2ascii.
-  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_DARTTESTSLOG}
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_CDASHTESTSLOG}
 }
 
-# Initialize the Dart log
-dartbothlogs '<?xml version="1.0" encoding="utf-8"?>'
+MY_BUILDNAME="`uname -sp`-$DIRNAME"
+MY_BUILDSTAMP="`$CALCDATESTAMP`-${TRACK}"
+MY_GENERATOR="${0}"
 
-dartbothlogs '<DartSubmission version="2.0" createdby="' $0 '">'
-dartbothlogs '<Site>'`hostname`'</Site>'
-dartbothlogs '<BuildName>'`uname` $DIRNAME'</BuildName>'
-dartbothlogs '<Track>'${TRACK}'</Track>'
-dartbothlogs '<DateTimeStamp>'`$CALCDATEDART`'</DateTimeStamp>'
-
-# args: DartStageName HumanStageName WorkingDir CmdString
-function eval_stage {
-   dartbuildlog '<Test>'
-   dartbuildlog '<Name>'.Build.Stage$1'</Name>'
-   dartbuildlog '<Measurement name="StageName" type="text/string">'$2'</Measurement>'
-   dartbuildlog '<Measurement name="StartDateTime" type="text/string">'`$CALCDATEDART`'</Measurement>'
-
-   pushd "$3" > /dev/null
-   SECS_BEGIN=`date +%s`
-   cmdsetstatus "$4" > ${TEMPLOG} 2>&1
-   # cmdsetstatus "$4" 2>&1 | tee ${TEMPLOG}
-   SECS_FINIS=`date +%s`
-   popd     > /dev/null
-
-   dartbuildlog '<Measurement name="ElapsedTime" type="numeric/float">'
-   dartbuildlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
-   dartbuildlog '</Measurement>'
-   dartbuildlog '<Measurement name="Execution Time" type="numeric/float">'
-   dartbuildlog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
-   dartbuildlog '</Measurement>'
-   dartbuildlog '<Status>'
-   dartbuildlog ${STATUS}
-   dartbuildlog '</Status>'
-   dartbuildlog '<Measurement name="EndDateTime"  type="text/string">'`$CALCDATEDART`'</Measurement>'
-   dartbuildlog '<Measurement name="BuildStatus"  type="text/string">'${STATUS}'</Measurement>'
-   dartbuildlog '<Measurement name="BuildCommand" type="text/string">'$4'</Measurement>'
-   dartbuildlog '<Measurement name="Log" type="text/xml">' 
-   quotebuildfile ${TEMPLOG}
-   dartbuildlog '</Measurement>'
- 
-   # Warnings and such have to be _separate_ tests; if they appear as a 
-   # subtree within this <Test>, the Dart server will ignore it.  :(
-   dartbuildlog '</Test>'
-
-   if grep -qi warning ${TEMPLOG} ; then
-      grep -n -i warning ${TEMPLOG} | while read WARNINGLINE ; do
-	  WARNINGLINENUM=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\1/'`
-	  WARNINGLINETXT=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\2/'`
-	  cat >> ${MY_DARTBUILDLOG} <<EOF
-<Test>
-<Name>.Build.Stage${1}.Warning${WARNINGNUM}</Name>
-<Measurement name="BuildLogLine" type="text/string">${WARNINGLINENUM}</Measurement>
-<Measurement name="Text" type="text/string">${WARNINGLINETXT}</Measurement>
-</Test>
-EOF
-          # Each Warning needs a unique id in the dart submission. :(
-	  let WARNINGNUM+=1
-      done
-   fi 
+function remove {
+    if test -e $1; then rm $1; fi
 }
 
-function host_scm_cmd {
-   cat > ${TEMPSCM} <<EOF
+function update_from_subversion {
+  # CMD="svn checkout -q ${SVNTRUNK}"
+  CMD="svn up ../shared-checkout/larceny_src; cp -pR ../shared-checkout/larceny_src ."
+  remove $MY_CDASHUPDATELOG
+  cdashupdatelog '<?xml version="1.0" encoding="utf-8"?>'
+  
+  cdashupdatelog '<Update mode="Client" Generator="'"${MY_GENERATOR}"'">   '
+  cdashupdatelog '  <Site>'"`hostname`"'</Site>                            '
+  cdashupdatelog '  <BuildName>'"${MY_BUILDNAME}"'</BuildName>	           '
+  cdashupdatelog '  <BuildStamp>'"${MY_BUILDSTAMP}"'</BuildStamp>          '
+  cdashupdatelog '  <StartDateTime>'"`date`"'</StartDateTime>              '
+
+  cdashupdatelog '  <UpdateCommand>'"${CMD}"'</UpdateCommand>	           '
+  cdashupdatelog '  <UpdateType>SVN</UpdateType>		           '
+
+  pushd ${DIR} > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd         > /dev/null
+
+  cdashupdatelog '  <EndDateTime>'"`date`"'</EndDateTime>	           '
+  cdashupdatelog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>   '
+  cdashupdatelog '  <Log>                                                  '
+  quoteupdatefile ${TEMPLOG}
+  cdashupdatelog '  </Log>				                   '
+
+  cdashupdatelog '</Update>                                                '
+  
+  cdash_submit $MY_CDASHUPDATELOG
+  cp ${TEMPLOG} ${DIR}/update.log
+}
+
+function larceny_setup {
+  cat > ${TEMPSCM} <<EOF
 (load "setup.sch")
 (setup ${SETUP_ARGS} )
 (build-config-files)
-(load-compiler)
-;(set! *make-verbose* #f)
-$4
 (exit)
 EOF
-   eval_stage "$1" "$2" "$3" "${SCHEME_PGM} ${REALSCM}"
+  CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${REALSCM}"
+  remove $MY_CDASHCONFIGLOG
+  cdashconfiglog '<?xml version="1.0" encoding="utf-8"?>                          '
+  cdashconfiglog '<Site BuildName="'"${MY_BUILDNAME}"'"				  '
+  cdashconfiglog '      BuildStamp="'"${MY_BUILDSTAMP}"'" 			  '
+  cdashconfiglog '      Name="'"`hostname`"'"      				  '
+  cdashconfiglog '      Generator="'"${MY_GENERATOR}"'">			  '
+  cdashconfiglog ' <Configure>							  '
+  cdashconfiglog '  <StartDateTime>'"`date`"'</StartDateTime>		          '
+
+  cdashconfiglog '  <ConfigureCommand>'"${CMD}"'</ConfigureCommand>               '
+
+  pushd ${DIR}/larceny_src > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd                     > /dev/null
+
+  cdashconfiglog '  <Log>                                                         '
+  quoteconfigfile ${TEMPLOG}
+  cdashconfiglog '  </Log>				                          '
+  cdashconfiglog '  <ConfigureStatus>'"${STATUS}"'</ConfigureStatus>		  '
+
+  cdashconfiglog '  <EndDateTime>'"`date`"'</EndDateTime>			  '
+  cdashconfiglog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>	  '
+  cdashconfiglog ' </Configure>							  '
+  cdashconfiglog '</Site>                                                         '
+        
+  cdash_submit $MY_CDASHCONFIGLOG
+  cp ${TEMPLOG} ${DIR}/setup.log
 }
 
-eval_stage   bSvnCheckout  "1. svn checkout"       ${DIR}             "svn checkout -q ${SVNTRUNK}"
-host_scm_cmd dBuildHeap    "2. bootstrap heap"     ${DIR}/larceny_src "(build-heap)"
-host_scm_cmd eRuntime      "3. larceny runtime"    ${DIR}/larceny_src "(build-runtime)"
-host_scm_cmd fExecutable   "4. larceny executable" ${DIR}/larceny_src "(build-executable)"
-host_scm_cmd gLarcenyFasl  "5. larceny fasl files" ${DIR}/larceny_src "(build-larceny-files)"
-eval_stage   hLarcenyHeap  "6. larceny heap"       ${DIR}/larceny_src "echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}"
-host_scm_cmd iLarcenyFasl  "7. twobit fasl files"  ${DIR}/larceny_src "(build-twobit)"
-eval_stage   jTwobitHeap   "8. twobit heap"        ${DIR}/larceny_src "echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}"
-eval_stage   kChkDiskUsage "9. measure disk usage" ${DIR}             "du -skh larceny_src; df -kh"
+function larceny_build {
+  cat > ${TEMPSCM} <<EOF
+(load "setup.sch")
+(setup ${SETUP_ARGS} )
+(load-compiler)
+;(set! *make-verbose* #f)
 
-BUILD_STATUS=${STATUS}
+(build-heap)
+(build-runtime)
+(build-executable)
+(build-larceny-files)
+(build-twobit)
 
-dartbuildlog '</DartSubmission>'
+(exit)
+EOF
+  CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${REALSCM}; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}; du -skh .; df -kh"
+  remove $MY_CDASHBUILDLOG
+  cdashbuildlog '<?xml version="1.0" encoding="utf-8"?>                                     '
+  cdashbuildlog '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
+  cdashbuildlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"   				    '
+  cdashbuildlog '      Name="'"`hostname`"'"					            '
+  cdashbuildlog '      Generator="'"${MY_GENERATOR}"'">					    '
+  cdashbuildlog ' <Build>								    '
+  cdashbuildlog '  <StartDateTime>'"`date`"'</StartDateTime>			            '
 
-# Now copy the log we've been building into the final location where
-# the caller expects to find it.
-cp $MY_DARTBUILDLOG $DARTBUILDLOG
-java -jar $DARTJAR -s $DARTSERVER dart $DARTBUILDLOG
+  cdashbuildlog '  <BuildCommand>'"${CMD}"'</BuildCommand>'
 
-function dart_post_test {
-    darttestslog '<Status>'
-    darttestslog ${STATUS}
-    darttestslog '</Status>'
-    darttestslog '<Measurement name="Output" type="text/text">'
-    quotetestsfile ${TEMPLOG}
-    darttestslog '</Measurement>'
+  pushd ${DIR}/larceny_src > /dev/null
+  cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+  popd                     > /dev/null
+
+  if grep -qi warning ${TEMPLOG} ; then 
+     grep -n -i warning ${TEMPLOG} | while read WARNINGLINE ; do
+	 WARNINGLINENUM=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\1/'`
+	 WARNINGLINETXT=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\2/'`
+  cdashbuildlog '  <Warning>                                                                '
+  cdashbuildlog '   <BuildLogLine>'${WARNINGLINENUM}'</BuildLogLine>                        '
+  cdashbuildlog '   <Text>'${WARNINGLINETXT}'</Text>                                        '
+  cdashbuildlog '   <PreContext></PreContext>                                               '
+  cdashbuildlog '   <PostContext></PostContext>                                             '
+  cdashbuildlog '   <RepeatCount>0</RepeatCount>                                            '
+  cdashbuildlog '  </Warning>                                                               '
+     done 
+  fi
+
+  cdashbuildlog '  <Log encoding="utf-8">                                                   '
+  quotebuildfile ${TEMPLOG}
+  cdashbuildlog '  </Log>                                                                   '
+  cdashbuildlog '  <LogByHand encoding="utf-8">                                             '
+  cdashbuildlog '  A hand written build log entry...                                        '
+  cdashbuildlog '  (the real Log is named LogOld in the xml)                                '
+  cdashbuildlog '  </LogByHand>                                                             '
+  
+  cdashbuildlog '  <EndDateTime>'"`date`"'</EndDateTime>				    '
+  cdashbuildlog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>			    '
+  cdashbuildlog ' </Build>								    '
+  cdashbuildlog '</Site>                                                                    '
+  
+  cdash_submit $MY_CDASHBUILDLOG
+
+  # For some reason, submitting the build log causes the config log to
+  # be removed from the display provided by CDash.  I am working
+  # around this bug by submitting the config log again after the build
+  # log; this is however ridiculous and it would be better to figure
+  # out what is wrong with the server (or with the format of the logs
+  # I am submitting).
+  cdash_submit $MY_CDASHCONFIGLOG
+
+  cp ${TEMPLOG} ${DIR}/build.log
 }
 
-# usage: library_test TESTFILE TESTTYPE
 function library_test {
-    darttestslog '<Test>'
-    darttestslog '<Name>'.Test.Lib.$1.$2'</Name>'
-    pushd ${DIR}/larceny_src/test/Lib > /dev/null
     cat > ${TEMPSCM} <<EOF
 (error-handler (lambda l (display l) (newline) (exit 115)))
 (compile-file "test.sch")
@@ -411,16 +489,116 @@ function library_test {
   (run-$2-tests)
   (exit num-fails))
 EOF
-    SECS_BEGIN=`date +%s`
-    cmdsetstatus "../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}" > ${TEMPLOG} 2>&1
-    SECS_FINIS=`date +%s`
-    darttestslog '<Measurement name="Execution Time" type="numeric/float">'
-    darttestslog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
-    darttestslog '</Measurement>'
-    dart_post_test
-    darttestslog '</Test>'
+    CMD="cat ${TEMPSCM}; ../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}"
+
+    pushd ${DIR}/larceny_src/test/Lib > /dev/null
+    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
     popd > /dev/null
+
+echo library_test $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+
+  cdashtestslog  '  <Test Status="'"${STATUS}"'">					    '
+  cdashtestslog  '   <Name>'"$2"'</Name>                                                    '
+  cdashtestslog  '   <Path>'"library $1"'</Path>			                    '
+  cdashtestslog  '   <FullName>'"library $2"'</FullName>				    '
+  cdashtestslog  '   <FullCommandLine>'"$CMD"'</FullCommandLine>			    '
+  cdashtestslog  '   <Results>								    '
+  cdashtestslog  '    <NamedMeasurement type="numeric/double" name="Execution Time">	    '
+  cdashtestslog  '     <Value>'"${SECS_ELAPSED}"'</Value>				    '
+  cdashtestslog  '    </NamedMeasurement>						    '
+  cdashtestslog  '    <NamedMeasurement type="text/string" name="Completion Status">	    '
+  cdashtestslog  '     <Value>Completed</Value>						    '
+  cdashtestslog  '    </NamedMeasurement>						    '
+  cdashtestslog  '    <NamedMeasurement type="text/string" name="Command Line">		    '
+  cdashtestslog  '     <Value>'"$CMD"'</Value>						    '
+  cdashtestslog  '    </NamedMeasurement>						    '
+  cdashtestslog  '    <Measurement>							    '
+  cdashtestslog  '     <Value>                                                              '
+  quotetestsfile ${TEMPLOG}
+  cdashtestslog  '     </Value>								    '
+  cdashtestslog  '    </Measurement>							    '
+  cdashtestslog  '   </Results>								    '
+  cdashtestslog  '  </Test>								    '
+
+  cat ${TEMPLOG} >> ${DIR}/tests.log
 }
+
+function compiler_tests {
+    cat > ${TEMPSCM} <<EOF
+(error-handler (lambda l (display l) (newline) (exit 116)))
+(load "run-tests.sch")
+(let ((num-fails 0))
+  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
+  (run-compiler-tests $1)
+  (exit num-fails))
+EOF
+    CMD="cat ${TEMPSCM}; ../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}"
+
+echo compiler_tests $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+
+    pushd ${DIR}/larceny_src/test/Compiler > /dev/null
+    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+    popd > /dev/null
+
+  cdashtestslog  '  <Test Status="'"${STATUS}"'">					    '
+  cdashtestslog  '   <Name>'"$1"'</Name>                                                    '
+  cdashtestslog  '   <Path>'"compiler"'</Path>			                            '
+  cdashtestslog  '   <FullName>'"compiler $1"'</FullName>				    '
+  cdashtestslog  '   <FullCommandLine>'"$CMD"'</FullCommandLine>			    '
+  cdashtestslog  '   <Results>								    '
+  cdashtestslog  '    <NamedMeasurement type="numeric/double" name="Execution Time">	    '
+  cdashtestslog  '     <Value>'"${SECS_ELAPSED}"'</Value>				    '
+  cdashtestslog  '    </NamedMeasurement>						    '
+  cdashtestslog  '    <NamedMeasurement type="text/string" name="Completion Status">	    '
+  cdashtestslog  '     <Value>Completed</Value>						    '
+  cdashtestslog  '    </NamedMeasurement>						    '
+  cdashtestslog  '    <NamedMeasurement type="text/string" name="Command Line">		    '
+  cdashtestslog  '     <Value>'"$CMD"'</Value>						    '
+  cdashtestslog  '    </NamedMeasurement>						    '
+  cdashtestslog  '    <Measurement>							    '
+  cdashtestslog  '     <Value>                                                              '
+  quotetestsfile ${TEMPLOG}
+  cdashtestslog  '     </Value>								    '
+  cdashtestslog  '    </Measurement>							    '
+  cdashtestslog  '   </Results>								    '
+  cdashtestslog  '  </Test>								    '
+
+  cat ${TEMPLOG} >> ${DIR}/tests.log
+}
+
+function larceny_tests {
+  remove $MY_CDASHTESTSLOG
+
+  cdashtestslog  '<?xml version="1.0" encoding="utf-8"?>                                    '
+  cdashtestslog  '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
+  cdashtestslog  '      BuildStamp="'"${MY_BUILDSTAMP}"'" 				    '
+  cdashtestslog  '      Name="'"`hostname`"'"						    '
+  cdashtestslog  '      Generator="'"${MY_GENERATOR}"'">				    '
+  cdashtestslog  ' <Testing>								    '
+  cdashtestslog  '  <StartDateTime>'"`date`"'</StartDateTime>			            '
+  cdashtestslog  '  <TestList>								    '
+  cdashtestslog  '   <Test>library boolean</Test>					    '
+  cdashtestslog  '   <Test>library char</Test>						    '
+  cdashtestslog  '   <Test>library string</Test>					    '
+  cdashtestslog  '   <Test>library bytevector</Test>					    '
+  cdashtestslog  '   <Test>library io</Test>						    '
+  cdashtestslog  '   <Test>library hashtable</Test>					    '
+  cdashtestslog  '   <Test>library predicate</Test>					    '
+  cdashtestslog  '   <Test>library number</Test>					    '
+  cdashtestslog  '   <Test>library fact</Test>						    '
+  cdashtestslog  '   <Test>library fib</Test>						    '
+  cdashtestslog  '   <Test>library ctak</Test>						    '
+  cdashtestslog  '   <Test>library dynamic-wind</Test>					    '
+  cdashtestslog  '   <Test>library regression</Test>					    '
+  cdashtestslog  '   <Test>library fixnum</Test>					    '
+  cdashtestslog  '   <Test>library wcm</Test>						    '
+  cdashtestslog  '   <Test>library record</Test>					    '
+  cdashtestslog  '   <Test>library condition</Test>					    '
+  cdashtestslog  '   <Test>library enumset</Test>					    '
+  cdashtestslog  '   <Test>compiler sanity-switches</Test>				    '
+  cdashtestslog  '  </TestList>								    '
+
+  TEST_SECS_BEGIN=`date +%s`
 
 ## Library tests
 library_test bool       boolean
@@ -445,127 +623,25 @@ library_test record     record
 library_test condition  condition
 library_test enum       enumset
 
-# usage: compiler_tests SWITCHES
-function compiler_tests {
-    darttestslog '<Test>'
-    darttestslog '<Name>'.Test.Compiler.$1'</Name>'
-    pushd ${DIR}/larceny_src/test/Compiler > /dev/null
-    cat > ${TEMPSCM} <<EOF
-(error-handler (lambda l (display l) (newline) (exit 116)))
-(load "run-tests.sch")
-(let ((num-fails 0))
-  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
-  (run-compiler-tests $1)
-  (exit num-fails))
-EOF
-    SECS_BEGIN=`date +%s`
-    cmdsetstatus "../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}" > ${TEMPLOG} 2>&1
-    SECS_FINIS=`date +%s`
-    darttestslog '<Measurement name="Execution Time" type="numeric/float">'
-    darttestslog `echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
-    darttestslog '</Measurement>'
-    dart_post_test
-    darttestslog '<Status>'
-    darttestslog ${STATUS}
-    darttestslog '</Status>'
+compiler_tests sanity-switches 
 
-    darttestslog '</Test>'
-    popd > /dev/null
+  TEST_SECS_FINIS=`date +%s`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+
+  cdashtestslog  '  <EndDateTime>'"`date`"'</EndDateTime>				    '
+  cdashtestslog  '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>		    '
+  cdashtestslog  ' </Testing>								    '
+  cdashtestslog  '</Site>                                                                   '
+  
+  cdash_submit $MY_CDASHTESTSLOG
 }
 
-## Compiler tests (sanity switches only, but we could add extra passes...)
-compiler_tests sanity-switches
-## compiler_tests basic-switches
-## compiler_tests optimization-switches
-## compiler_tests backend-switches
+update_from_subversion;
+larceny_setup;
+larceny_build;
+larceny_tests;
 
-# Benchmarks
-pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
-
-# usage: run_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
-function run_benchmarks {
-LARCENY=`pwd`/../../../$1 ./bench -r 3 -s $2 larceny all > ${TEMPLOG} 2>&1
-}
-
-# usage: process_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
-function process_benchmarks {
-cat > ${TEMPSCM} <<EOF
-(error-handler (lambda l (display l) (newline) (exit 117)))
-(load "summarize.sch")
-(let ((os (open-output-string)))
-    (with-output-to-port os
-      (lambda () 
-	((summarize larceny-results) "results.Larceny-$2")))
-    (let* ((str (get-output-string os))
-	   (is (open-input-string str))
-	   (decoded (decode-summary is))
-	   (lines (caddr decoded))
-	   (format-measurement (lambda (name type val)
-                                 (format #t "<Measurement name=~s type=~s>~s</Measurement>" 
-                                         name type val)
-                                 (newline))))
-      (for-each 
-       (lambda (line)
-         (cond ((eq? (list-ref line 1) 'Error:)
-                (let ((name (list-ref line 0)))
-                  (format #t "<Test><Name>.DynamicAnalysis.~a.~a.~s</Name>" "$3" "$1" name)
-                  (format #t "<Status>failed</Status>")
-                  (newline)
-                  (format #t "<Measurement name=\"Output\" type=\"text/text\">~a ~a</Measurement>"
-                          (list-ref line 1)
-                          (list-ref line 2))
-                  (format #t "</Test>")
-                  (newline)))
-               (else
-                  (let ((name (list-ref line 0))
-                        (cpu  (list-ref line 1))
-                        (real (list-ref line 2))
-                        (gc   (list-ref line 3))
-                        (numt "numeric/integer"))
-                    (format #t "<Test><Name>.DynamicAnalysis.~a.~a.~s</Name>" "$3" "$1" name)
-                    (format #t "<Status>passed</Status>")
-                    (newline)
-                    (format-measurement "Execution Time" "numeric/float" 
-                                        (exact->inexact (/ real 60000)))
-                    (for-each format-measurement
-                              (list "cpu time" "real time" "gc time")
-                              (list numt       numt        numt)
-                              (list cpu        real        gc))
-                    (format #t "</Test>")
-                    (newline)))))
-       lines)))
-(exit)
-EOF
-# This is not benchmarked, so use standard name rather than parameter $1
-../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${MY_DARTTESTSLOG}
-
-cat results.Larceny-$2 >> Results/results.Larceny
-rm results.Larceny-$2
-}
-
-# usage: run_and_process_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
-function run_and_process_benchmarks {
-    run_benchmarks     $1 $2 $3
-    process_benchmarks $1 $2 $3
-}
-
-# Create the script that will use the ROF collector. 
-# (This is really only for autobuild purposes.)
-cp ../../../${FINAL_LARCENY_SCRIPT} ../../../${FINAL_LARCENY_ROF_SCRIPT}
-
-run_and_process_benchmarks ${FINAL_LARCENY_SCRIPT}     r5rs r5rs-real
-run_and_process_benchmarks ${FINAL_LARCENY_SCRIPT}     r6rs r6rs-fake
-run_and_process_benchmarks ${FINAL_LARCENY_ROF_SCRIPT} r6rs r6rs-fake
-
-popd > /dev/null
-
-darttestslog '</DartSubmission>'
-
-# Now copy the log we've been building into the final location where
-# the caller expects to find it.
-cp $MY_DARTTESTSLOG $DARTTESTSLOG
-
-java -jar $DARTJAR -s $DARTSERVER dart $DARTTESTSLOG
+BUILD_STATUS=${STATUS}
 
 if [ $BUILD_STATUS == "failed" ] 
 then exit 1
