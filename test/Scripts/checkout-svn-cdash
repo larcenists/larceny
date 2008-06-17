@@ -228,6 +228,7 @@ MY_CDASHUPDATELOG="${DIR}/cdash-update-sub.xml"
 MY_CDASHCONFIGLOG="${DIR}/cdash-config-sub.xml"
 MY_CDASHBUILDLOG="${DIR}/cdash-build-sub.xml"
 MY_CDASHTESTSLOG="${DIR}/cdash-tests-sub.xml"
+SUBMITLOG="${DIR}/submit.log"
 TEMPLOG="${DIR}/temp.log"
 TEMPSCM="${DIR}/temp.scm"
 REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
@@ -272,7 +273,7 @@ function cdash_submit {
     # responses that I am intermittently receiving from CDash.  So I 
     # grep -v for that output and rely on that to set the status bit
     # accordingly in those cases...
-    CMD="echo submit attempt; curl -T $1 '$CDASHSERVER/submit.php?project=Larceny' > /tmp/submit.log && ! grep '<title>40' /tmp/submit.log"
+    CMD="echo submit attempt; curl -T $1 '$CDASHSERVER/submit.php?project=Larceny' > ${SUBMITLOG} && ! grep '<title>40' ${SUBMITLOG}"
     if echo ${CMD}; eval "${CMD}"; then 
       echo submit attempt 1 successful
     elif eval "${CMD}"; then 
