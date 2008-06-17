@@ -504,7 +504,7 @@ EOF
 echo library_test $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
 
   cdashtestslog  '  <Test Status="'"${STATUS}"'">					    '
-  cdashtestslog  '   <Name>'"$2"'</Name>                                                    '
+  cdashtestslog  '   <Name>library '"$2"'</Name>                                                    '
   cdashtestslog  '   <Path>'"library $1"'</Path>			                    '
   cdashtestslog  '   <FullName>'"library $2"'</FullName>				    '
   cdashtestslog  '   <FullCommandLine>'"$CMD"'</FullCommandLine>			    '
@@ -547,7 +547,7 @@ echo compiler_tests $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
     popd > /dev/null
 
   cdashtestslog  '  <Test Status="'"${STATUS}"'">					    '
-  cdashtestslog  '   <Name>'"$1"'</Name>                                                    '
+  cdashtestslog  '   <Name>compiler '"$1"'</Name>                                                    '
   cdashtestslog  '   <Path>'"compiler"'</Path>			                            '
   cdashtestslog  '   <FullName>'"compiler $1"'</FullName>				    '
   cdashtestslog  '   <FullCommandLine>'"$CMD"'</FullCommandLine>			    '
@@ -684,7 +684,7 @@ cat > ${TEMPSCM} <<EOF
                       (numt "numeric/integer"))
                   (format #t "<Test Status=\"passed\">")
                   (format #t "<Status>passed</Status>")
-                  (format #t "<Name>~s</Name>" name)
+                  (format #t " <Name>benchmark ~a ~a ~s</Name>" "$3" "$1" name)
                   (format #t " <Path>benchmark ~a ~a ~s</Path>" "$3" "$1" name)
                   (format #t " <FullName>benchmark ~s</FullName>" name)
                   (format #t " <FullCommandLine></FullCommandLine>")
