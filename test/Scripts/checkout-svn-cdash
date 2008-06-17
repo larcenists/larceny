@@ -740,7 +740,7 @@ function larceny_bench {
   cdashbenchlog  ' </Testing>								    '
   cdashbenchlog  '</Site>                                                                   '
   
-  # cdash_submit $MY_CDASHBENCHLOG
+  cdash_submit $MY_CDASHBENCHLOG
 }
 
 update_from_subversion;
