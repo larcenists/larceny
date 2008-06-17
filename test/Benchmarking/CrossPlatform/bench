@@ -334,7 +334,7 @@ mzscheme_comp ()
 
 mzscheme_exec ()
 {
-  printf "$REPLCOMMANDS" "$1" | mzscheme $COMPOPTS
+  printf "$REPLCOMMANDS" "$1" | ${MZSCHEME} $COMPOPTS
 }
 
 # -----------------------------------------------------------------------------
