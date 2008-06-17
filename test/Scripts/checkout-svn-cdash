@@ -690,7 +690,7 @@ cat > ${TEMPSCM} <<EOF
                   (format #t " <FullCommandLine></FullCommandLine>")
                   (format #t " <Results>")
                   (format #t "  <NamedMeasurement type=\"numeric/integer\" name=\"Execution Time\">")
-                  (format #t "    <Value>~s</Value>" real)
+                  (format #t "    <Value>~s</Value>" (/ real 60.0))
                   (format #t "  </NamedMeasurement>")
                   (format #t "  <NamedMeasurement type=\"numeric/string\" name=\"Completion Status\">")
                   (format #t "    <Value>Completed</Value>")
