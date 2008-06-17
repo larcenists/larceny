@@ -502,11 +502,12 @@
           (n-wrong-key (string-length wrong-key))
           (name-width 20)
           (timing-width 10))
-      (let loop ((lines lines))
+      (let loop ((lines lines) (first-line #t))
         (if (null? lines)
             (newline out)
             (let ((line (car lines)))
               (cond ((substring=? system-key line 0 n-system-key)
+                     (cond ((not first-line) (newline out)))
                      (display line out)
                      (newline out)
                      (newline out)
@@ -541,7 +542,7 @@
                      (display line out)
                      (newline out)
                      (display (make-string name-width #\space) out)))
-              (loop (cdr lines))))))))
+              (loop (cdr lines) #f)))))))
 
 ; Chicken
 
@@ -730,12 +731,24 @@
           in
           (lambda (in) (decode-summary in))))
         ((input-port? in)
-         (decode-lines (readlines in)))
+         (let skip ((lines (readlines in))
+                    (decoded-summaries '()))
+           (cond
+            ((null? lines) (apply values (reverse decoded-summaries)))
+            ((decode-lines lines) => 
+             (lambda (decoded+remainder)
+               (let* ((rev (reverse decoded+remainder))
+                      (remainder (car rev))
+                      (decoded (reverse (cdr rev))))
+                 (skip remainder (cons decoded decoded-summaries)))))
+            (else
+             (skip (cdr lines) decoded-summaries)))))
         (else
          (bad-arguments))))
 
 ; Given the summary as a list of lines,
-; returns the decoded summary as for decode-summary.
+; returns the decoded summary as for decode-summary,
+; with remaining lines snoc'd on the end
 
 (define (decode-lines lines)
   (let ((system-key "Benchmarking ")
@@ -744,14 +757,27 @@
     (let ((n-system-key (string-length system-key))
           (n-date-key (string-length date-key))
           (n-header-key (string-length header-key)))
+      (define header-line? 
+        (lambda (line) (substring=? system-key line 0 n-system-key)))
       (and (not (null? lines))
-           (substring=? system-key (car lines) 0 n-system-key))
+           (header-line? (car lines))
            (let* ((line0 (car lines))
                   (n0 (string-length line0))
                   (n1 (substring? date-key line0))
                   (system (substring line0 n-system-key n1))
                   (hostname "unknown")
                   (date (substring line0 (+ n1 n-date-key) n0))
+                  (benchmark+remaining-lines
+                   (let loop ((lines (cdr lines))
+                              (bmark-lines '()))
+                     (cond ((or (null? lines)
+                                (header-line? (car lines)))
+                            (list (reverse bmark-lines) lines))
+                           (else
+                            (loop (cdr lines) 
+                                  (cons (car lines) bmark-lines))))))
+                  (benchmark-lines (car benchmark+remaining-lines))
+                  (remaining-lines (cadr benchmark+remaining-lines))
                   (benchmarks
                    (map (lambda (line)
                           (let* ((padding " #f #f #f #f")
@@ -790,7 +816,7 @@
                                                 (+ tot-real real)
                                                 (+ tot-gc   gc)
                                                 (+ count    1))))))))))
-                        (cdr lines)))
+                        benchmark-lines))
                   (benchmarks
                    (filter (lambda (x)
                              (or (and (car x)
@@ -805,4 +831,5 @@
                            benchmarks)))
              (list system
                    (list hostname date)
-                   benchmarks)))))
+                   benchmarks
+                   remaining-lines))))))
