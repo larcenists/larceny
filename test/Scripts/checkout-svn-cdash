@@ -228,6 +228,7 @@ MY_CDASHUPDATELOG="${DIR}/cdash-update-sub.xml"
 MY_CDASHCONFIGLOG="${DIR}/cdash-config-sub.xml"
 MY_CDASHBUILDLOG="${DIR}/cdash-build-sub.xml"
 MY_CDASHTESTSLOG="${DIR}/cdash-tests-sub.xml"
+MY_CDASHBENCHLOG="${DIR}/cdash-bench-sub.xml"
 SUBMITLOG="${DIR}/submit.log"
 TEMPLOG="${DIR}/temp.log"
 TEMPSCM="${DIR}/temp.scm"
@@ -253,6 +254,10 @@ function cdashbuildlog {
 
 function cdashtestslog {
    echo "$@" >> $MY_CDASHTESTSLOG
+}
+
+function cdashbenchlog {
+   echo "$@" >> $MY_CDASHBENCHLOG
 }
 
 function cmdsetstatus {
@@ -637,10 +642,112 @@ compiler_tests sanity-switches
   cdash_submit $MY_CDASHTESTSLOG
 }
 
+# usage: run_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
+function run_benchmarks {
+  LARCENY=`pwd`/../../../$1 ./bench -r 3 -s $2 larceny all > ${TEMPLOG} 2>&1
+}
+
+# usage: process_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
+function process_benchmarks {
+cat > ${TEMPSCM} <<EOF
+(error-handler (lambda l (display l) (newline) (exit 117)))
+(load "summarize.sch")
+(let ((os (open-output-string)))
+    (with-output-to-port os
+      (lambda () 
+	((summarize larceny-results) "results.Larceny-$2")))
+    (let* ((str (get-output-string os))
+	   (is (open-input-string str))
+	   (decoded (decode-summary is))
+	   (lines (caddr decoded))
+	   (format-measurement (lambda (name type val)
+                                 (format #t "<Measurement name=~s type=~s>~s</Measurement>" 
+                                         name type val)
+                                 (newline))))
+      (for-each 
+       (lambda (line)
+         (cond ((eq? (list-ref line 1) 'Error:)
+                (let ((name (list-ref line 0)))
+
+                  (format #t "<Test Status=\"failed\">")
+                  (format #t " <Name>benchmark ~a ~a ~s</Name>" "$3" "$1" name)
+                  (format #t " <Path>benchmark ~a ~a ~s</Path>" "$3" "$1" name)
+                  (format #t " <FullName>benchmark ~s</FullName>" name)
+                  (format #t " <FullCommandLine></FullCommandLine>")
+                  (format #t "</Test>")
+                  (newline)))
+               (else
+                (let ((name (list-ref line 0))
+                      (cpu  (list-ref line 1))
+                      (real (list-ref line 2))
+                      (gc   (list-ref line 3))
+                      (numt "numeric/integer"))
+                  (format #t "<Test Status=\"passed\">")
+                  (format #t "<Status>passed</Status>")
+                  (format #t "<Name>~s</Name>" name)
+                  (format #t " <Path>benchmark ~a ~a ~s</Path>" "$3" "$1" name)
+                  (format #t " <FullName>benchmark ~s</FullName>" name)
+                  (format #t " <FullCommandLine></FullCommandLine>")
+                  (format #t " <Results>")
+                  (format #t "  <NamedMeasurement type=\"numeric/integer\" name=\"Execution Time\">")
+                  (format #t "    <Value>~s</Value>" real)
+                  (format #t "  </NamedMeasurement>")
+                  (format #t "  <NamedMeasurement type=\"numeric/string\" name=\"Completion Status\">")
+                  (format #t "    <Value>Completed</Value>")
+                  (format #t "  </NamedMeasurement>")
+                  (format #t " </Results>")
+                  (format #t "</Test>")
+                  (newline)))))
+       lines)))
+(exit)
+EOF
+# This is not benchmarked, so use standard name rather than parameter $1
+../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${MY_CDASHBENCHLOG}
+
+cat results.Larceny-$2 >> Results/results.Larceny
+rm results.Larceny-$2
+}
+
+function larceny_bench {
+  remove $MY_CDASHBENCHLOG
+
+  cdashbenchlog  '<?xml version="1.0" encoding="utf-8"?>                                    '
+  cdashbenchlog  '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
+  cdashbenchlog  '      BuildStamp="'"${MY_BUILDSTAMP}"'" 				    '
+  cdashbenchlog  '      Name="'"`hostname`"'"						    '
+  cdashbenchlog  '      Generator="'"${MY_GENERATOR}"'">				    '
+  cdashbenchlog  ' <Testing>								    '
+  cdashbenchlog  '  <StartDateTime>'"`date`"'</StartDateTime>			            '
+  cdashbenchlog  '  <TestList>								    '
+  cdashbenchlog  '   <Test>benchmark XXX YYY ZZZ</Test>					    '
+  cdashbenchlog  '  </TestList>								    '
+
+  TEST_SECS_BEGIN=`date +%s`
+
+  pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
+  run_benchmarks     ${FINAL_LARCENY_SCRIPT} r5rs r5rs-real
+  popd                                                     > /dev/null
+
+  pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
+  process_benchmarks ${FINAL_LARCENY_SCRIPT} r5rs r5rs-real
+  popd                                                     > /dev/null
+
+  TEST_SECS_FINIS=`date +%s`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+
+  cdashbenchlog  '  <EndDateTime>'"`date`"'</EndDateTime>				    '
+  cdashbenchlog  '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>		    '
+  cdashbenchlog  ' </Testing>								    '
+  cdashbenchlog  '</Site>                                                                   '
+  
+  # cdash_submit $MY_CDASHBENCHLOG
+}
+
 update_from_subversion;
 larceny_setup;
 larceny_build;
 larceny_tests;
+larceny_bench;
 
 BUILD_STATUS=${STATUS}
 
