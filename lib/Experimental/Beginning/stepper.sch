@@ -19,7 +19,7 @@
                                     '()))
 
 (define (evaluate-beginning-expression exp env cont)
-  (if stepping? (display-step1 exp cont))
+  (if stepping? (display-step1 exp env cont))
   (step-beginning-expression exp env cont))
 
 (define (apply-beginning-continuation cont val)
@@ -47,12 +47,12 @@
 
 ; These procedures add a configuration to the history.
 
-(define (display-step1 exp cont)
+(define (display-step1 exp env cont)
   (if (and (not (null? stepping-history))
            (beginning-redex? (car stepping-history)))
       (begin
        (set! stepping-history
-             (cons (make-beginning-configuration-exp cont exp)
+             (cons (make-beginning-configuration-exp cont exp env)
                    stepping-history))
        (display-step))))
 
@@ -108,7 +108,8 @@
 (define (configuration->pseudocode config before?)
   (cond ((beginning-configuration-exp? config)
          (wrap-highlighted-with-continuation
-          (beginning-configuration-exp config)
+          (beginning-substitute (beginning-configuration-exp config)
+                                (beginning-configuration-env config))
           (beginning-configuration-cont config)))
         ((beginning-configuration-value? config)
          (let* ((code (value->pseudocode
@@ -255,6 +256,7 @@
   (cond ((if-cont? cont)
          (let* ((exp1 (if-cont-exp1 cont))
                 (exp2 (if-cont-exp2 cont))
+                (env (if-cont-env cont))
                 (exp (cond ((cond-cont? cont)
                             (if (and (pair? exp2)
                                      (eq? (car exp2) 'cond))
@@ -275,12 +277,16 @@
                                 (cons 'or (cons code (cdr exp2)))
                                 (list 'or code exp2)))
                            (else
-                            (list 'if code exp1 exp2)))))
+                            (list 'if code exp1 exp2))))
+                (exp (beginning-substitute exp env)))
             exp))
         ((call-cont? cont)
          (let* ((proc (call-cont-val0 cont))
                 (vals (call-cont-vals cont))
                 (exps (cons code (call-cont-exps cont)))
+                (env (call-cont-env cont))
+                (exps (map (lambda (exp) (beginning-substitute exp env))
+                           exps))
                 (call (cons (value->pseudocode proc)
                             (append (map value->pseudocode vals)
                                     exps))))
@@ -300,6 +306,38 @@
         (else
          code)))
 
+; Given pseudocode and an environment, replaces variables
+; (but not primop and procedure names!) with their values.
+
+(define (beginning-substitute exp env)
+  (cond ((pair? exp)
+         (case (car exp)
+          ((cond)
+           (cons 'cond
+                 (map (lambda (clause)
+                        (let ((exp1 (car clause))
+                              (exp2 (cadr clause)))
+                          (list (if (eq? 'else exp1)
+                                    exp1
+                                    (beginning-substitute exp1 env))
+                                (beginning-substitute exp2 env))))
+                      (cdr exp))))
+          ((quote)
+           exp)
+          (else
+           (cons (car exp)
+                 (map (lambda (exp) (beginning-substitute exp env))
+                      (cdr exp))))))
+        ((memq exp '(empty true false))
+         exp)
+        ((symbol? exp)
+         (let ((val (env-lookup env exp)))
+           (if (eq? val (unspecified))
+               exp
+               (value->pseudocode val))))
+        (else
+         exp)))
+
 ; Given two pseudocodes, compares them to find their difference.
 ; Returns three values:
 ;     a string containing the pretty-printed pseudocodes side by side
@@ -311,45 +349,48 @@
 
 ; Configurations that can appear in the stepping-history.
 
-(define beginning-configuration
-  (make-rtd 'beginning-configuration
+(define rtd:beginning-configuration
+  (make-rtd 'rtd:beginning-configuration
             '#((immutable cont))))
 (define beginning-configuration-cont
-  (rtd-accessor beginning-configuration 'cont))
+  (rtd-accessor rtd:beginning-configuration 'cont))
 
-(define beginning-configuration-exp
-  (make-rtd 'beginning-configuration-exp
-            '#((immutable exp))
-            beginning-configuration))
+(define rtd:beginning-configuration-exp
+  (make-rtd 'rtd:beginning-configuration-exp
+            '#((immutable exp)
+               (immutable env))
+            rtd:beginning-configuration))
 (define make-beginning-configuration-exp
-  (rtd-constructor beginning-configuration-exp))
+  (rtd-constructor rtd:beginning-configuration-exp))
 (define beginning-configuration-exp?
-  (rtd-predicate beginning-configuration-exp))
+  (rtd-predicate rtd:beginning-configuration-exp))
 (define beginning-configuration-exp
-  (rtd-accessor beginning-configuration-exp 'exp))
+  (rtd-accessor rtd:beginning-configuration-exp 'exp))
+(define beginning-configuration-env
+  (rtd-accessor rtd:beginning-configuration-exp 'env))
 
-(define beginning-configuration-value
-  (make-rtd 'beginning-configuration-value
+(define rtd:beginning-configuration-value
+  (make-rtd 'rtd:beginning-configuration-value
             '#((immutable value))
-            beginning-configuration))
+            rtd:beginning-configuration))
 (define make-beginning-configuration-value
-  (rtd-constructor beginning-configuration-value))
+  (rtd-constructor rtd:beginning-configuration-value))
 (define beginning-configuration-value?
-  (rtd-predicate beginning-configuration-value))
+  (rtd-predicate rtd:beginning-configuration-value))
 (define beginning-configuration-value
-  (rtd-accessor beginning-configuration-value 'value))
+  (rtd-accessor rtd:beginning-configuration-value 'value))
 
-(define beginning-configuration-call
-  (make-rtd 'beginning-configuration-call
+(define rtd:beginning-configuration-call
+  (make-rtd 'rtd:beginning-configuration-call
             '#((immutable proc)
                (immutable args))
-            beginning-configuration))
+            rtd:beginning-configuration))
 (define make-beginning-configuration-call
-  (rtd-constructor beginning-configuration-call))
+  (rtd-constructor rtd:beginning-configuration-call))
 (define beginning-configuration-call?
-  (rtd-predicate beginning-configuration-call))
+  (rtd-predicate rtd:beginning-configuration-call))
 (define beginning-configuration-proc
-  (rtd-accessor beginning-configuration-call 'proc))
+  (rtd-accessor rtd:beginning-configuration-call 'proc))
 (define beginning-configuration-args
-  (rtd-accessor beginning-configuration-call 'args))
+  (rtd-accessor rtd:beginning-configuration-call 'args))
 
