@@ -747,7 +747,10 @@ update_from_subversion;
 larceny_setup;
 larceny_build;
 larceny_tests;
-larceny_bench;
+if [ $FINAL_LARCENY_BIN == "petit-larceny.bin" ]
+then echo skipping larceny_bench as Petit is slooow.
+else larceny_bench;
+fi
 
 BUILD_STATUS=${STATUS}
 
