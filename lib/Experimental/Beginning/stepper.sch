@@ -30,70 +30,82 @@
   (if stepping? (display-step3 proc args cont))
   (step-beginning-procedure proc args cont))
 
-; These procedures add a configuration to the history.
-
-(define (display-step1 exp cont)
-  (set! stepping-history
-        (cons (make-beginning-configuration-exp cont exp)
-              stepping-history))
-  (display-step))
-
-(define (display-step2 value cont)
-  (set! stepping-history
-        (cons (make-beginning-configuration-value cont value)
-              stepping-history))
-  (display-step))
-
-(define (display-step3 proc args cont)
-  (set! stepping-history
-        (cons (make-beginning-configuration-call cont proc args)
-              stepping-history))
-  (display-step))
-
-; This procedure displays a step.
-;
-; FIXME
-;
 ; PLT Scheme appears to display redexes only when they
 ; are of one of the following forms:
 ;     applications whose arguments have been evaluated
 ;     if expressions whose arguments have been evaluated
-;
-; Capturing only the expansion of these redexes could be
-; done by changing the interpreter.  Better yet, it could
-; be done in the stepper with only slight cleverness.
+
+(define (beginning-redex? config)
+  (or (and (beginning-configuration-call? config)
+           (let ((proc (beginning-configuration-proc config))
+                 (cont (beginning-configuration-cont config)))
+             (or (beginning-primop? proc)
+                 (and (call-cont? cont)
+                      (null? (call-cont-exps cont))))))
+      (and (beginning-configuration-value? config)
+           (if-cont? (beginning-configuration-cont config)))))
+
+; These procedures add a configuration to the history.
+
+(define (display-step1 exp cont)
+  (if (and (not (null? stepping-history))
+           (beginning-redex? (car stepping-history)))
+      (begin
+       (set! stepping-history
+             (cons (make-beginning-configuration-exp cont exp)
+                   stepping-history))
+       (display-step))))
+
+(define (display-step2 value cont)
+  (let ((config (make-beginning-configuration-value cont value)))
+    (if (or (beginning-redex? config)
+            (and (not (null? stepping-history))
+                 (beginning-redex? (car stepping-history))))
+        (begin
+         (set! stepping-history
+               (cons config
+                     stepping-history))
+         (display-step)))))
+
+(define (display-step3 proc args cont)
+  (let ((config (make-beginning-configuration-call cont proc args)))
+    (if (or (beginning-redex? config)
+            (and (not (null? stepping-history))
+                 (beginning-redex? (car stepping-history))))
+        (begin
+         (set! stepping-history
+               (cons config
+                     stepping-history))
+         (display-step)))))
+
+; This procedure displays a step.
 
 (define (display-step)
   (if (and (pair? stepping-history)
            (pair? (cdr stepping-history))
-           (let ((config0 (cadr stepping-history)))
-             (or (and (beginning-configuration-call? config0)
-                      (let ((cont (beginning-configuration-cont config0)))
-                        (and (call-cont? cont)
-                             (null? (call-cont-exps cont)))))
-                 (and (beginning-configuration-value? config0)
-                      (if-cont? (beginning-configuration-cont config0))))))
+           (beginning-redex? (cadr stepping-history)))
       (really-display-step)))
 
 (define (really-display-step)
-  (define (display-configuration config)
+  (define (display-configuration config before?)
     (call-with-values
-     (lambda () (configuration->pseudocode config))
+     (lambda () (configuration->pseudocode config before?))
      (lambda (s range)
        (let ((s (fixme-highlighted s (car range) (cadr range))))
          (display s)
          (newline)))))
-  (display-configuration (cadr stepping-history))
-  (display-configuration (car stepping-history))
+  (display-configuration (cadr stepping-history) #t)
+  (display-configuration (car stepping-history) #f)
   (newline)
   (newline))
 
 ; Converts a configuration to pseudocode.
 ;
-; FIXME: we want to do the highlighting differently
-; depending on whether it's a redex or a result.
+; We want to do the highlighting differently
+; depending on whether it's a redex (before? is true)
+; or a result (before? is false).
 
-(define (configuration->pseudocode config)
+(define (configuration->pseudocode config before?)
   (cond ((beginning-configuration-exp? config)
          (wrap-highlighted-with-continuation
           (beginning-configuration-exp config)
@@ -102,11 +114,11 @@
          (let* ((code (value->pseudocode
                        (beginning-configuration-value config)))
                 (cont (beginning-configuration-cont config)))
-           (cond ((if-cont? cont)
+           (cond ((and before? (if-cont? cont))
                   (let ((code (wrap-with-continuation1 code cont))
                         (cont (if-cont-cont cont)))
                     (wrap-highlighted-with-continuation code cont)))
-                 ((call-cont? cont)
+                 ((and before? (call-cont? cont))
                   (let ((code (wrap-with-continuation1 code cont))
                         (cont (call-cont-cont cont)))
                     (wrap-highlighted-with-continuation code cont)))

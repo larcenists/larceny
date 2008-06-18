@@ -79,12 +79,31 @@
          (if (zero? x)
              y
              (g (- x 1) (+ y 1)))))
+     (f 10))
+    (55)))
+
+(define test14
+  '(((define (f n)
+       (cond ((= n 0)
+              0)
+             ((= n 1)
+              1)
+             ((and (or (odd? n) (even? n))
+                   (positive? n))
+              (g (f (- n 1))
+                 (f (- n 2))))
+             (else 0)))
+     (define g
+       (lambda (x y)
+         (if (zero? x)
+             y
+             (g (- x 1) (+ y 1)))))
      (f 20))
     (6765)))
 
 (define tests
   (list test1 test2 test3 test4 test5 test6 test7 test8
-        test11 test12 test13))
+        test11 test12 test13 test14))
 
 (for-each (lambda (t) (apply test t))
           tests)
