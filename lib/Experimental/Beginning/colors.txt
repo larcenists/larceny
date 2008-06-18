@@ -1,0 +1,46 @@
+From schanzer@ccs.neu.edu Tue Jun 10 13:15:48 2008
+Return-path: <schanzer@ccs.neu.edu>
+X-Spam-Checker-Version: SpamAssassin 3.2.3 (2007-08-08) on amber.ccs.neu.edu
+X-Spam-Level: 
+X-Spam-Status: No, score=-4.4 required=5.0 tests=ALL_TRUSTED,AWL,BAYES_00
+	autolearn=ham version=3.2.3
+Envelope-to: will@ccs.neu.edu
+Delivery-date: Tue, 10 Jun 2008 13:15:48 -0400
+Received: from c-24-63-114-198.hsd1.ma.comcast.net ([24.63.114.198] helo=[10.0.1.198])
+	by amber.ccs.neu.edu with esmtpsa (TLSv1:AES128-SHA:128)
+	(Exim 4.50)
+	id 1K67Rj-0006e6-SL; Tue, 10 Jun 2008 13:15:48 -0400
+Message-Id: <CE746B70-F871-4E25-8CAB-3829B445C0E3@ccs.neu.edu>
+From: Emmanuel Schanzer <schanzer@ccs.neu.edu>
+To: William D Clinger <will@ccs.neu.edu>
+Content-Type: text/plain; charset=US-ASCII; format=flowed; delsp=yes
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0 (Apple Message framework v924)
+Subject: Type Coloring
+Date: Tue, 10 Jun 2008 13:15:46 -0400
+Cc: Felix S Klock II <pnkfelix@ccs.neu.edu>
+X-Mailer: Apple Mail (2.924)
+Status: R
+Content-Length: 616
+
+Will,
+Good meeting today - I'm glad to hear we're ready to wrap this up. We  
+use Blue for Numbers, Red for Booleans, Green for Strings and Purple  
+for Images. Parens are colored according to the evaluated type of the  
+expression they contain. Functions are colored as black, though their  
+bodies are given the color of the output type. If the type cannot be  
+derived, an expression's type is also black.
+
+Let me know if there's anything else I can do.
+
+Thanks,
+Emmanuel Schanzer
+-----------------------------
+Program Director
+Bootstrap and Compass Computer Camps
+Northeastern University
+schanzer@ccs.neu.edu
+
+
+
+
