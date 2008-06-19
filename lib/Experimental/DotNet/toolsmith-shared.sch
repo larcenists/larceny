@@ -1454,7 +1454,7 @@
   ;; Maybe I should abstract over this above...
   (define my-own-env (environment-copy (interaction-environment)))
 
-  (define (evaluate-first-sexp-after-prompt alternative-behavior)
+  (define (evaluate-first-sexp-after-prompt repl-agent alternative-behavior)
     ;; I'm going to hack this up by making a custom port for reading
     ;; from the text.  If the reader ever requests to read past the
     ;; end of the input text, then we abandon the read attempt (via an
@@ -1520,8 +1520,7 @@
                           (decode-error args repl-output-port)
                           (escape-from-eval 'ignore-me))))
                      (val (parameterize ((error-handler repl-error-handler))
-                            (parameterize ((interaction-environment my-own-env))
-                              (eval sexp my-own-env))))
+			    ((repl-agent 'evaluate) sexp)))
                      (valstr 
                       (call-with-output-string
                        (lambda (strport)
@@ -1639,6 +1638,7 @@
                  (cond ((= end text-end)
 			(default-behavior-thunk)
 			(evaluate-first-sexp-after-prompt 
+			 repl-agent
 			 (lambda () 'no-alternative-behavior)))
 		       (else 
 			(default-behavior-thunk))))))))))
@@ -1670,6 +1670,10 @@
                   (lambda (strport)
                     ((repl-prompt) (repl-level) strport)))))
         (insert-string-at-point/bump! ea str))))
+
+   ((evaluate sexp)
+    (parameterize ((interaction-environment my-own-env))
+      (eval sexp my-own-env)))
    ))
 
 (define (make-read-eval-print-loop-agent wnd textmodel)
