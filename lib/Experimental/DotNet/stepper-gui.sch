@@ -29,14 +29,25 @@
 
   ;; Start by evaluating all of the definitions provided by the user
   ;; in their source text.
-  (let loop ((pgm initial-program))
-    (cond ((null? pgm) 'done-with-initial-program-evaluation)
-	  ((beginning-definition? (car pgm))
-	   (interpret-beginning-definition (car pgm) globals)
-	   (loop (cdr pgm)))
-	  (else
-	   (let ((exp-cont (make-defn-cont 'fake-globals #f)))
-	     (interpret-beginning-expression (car pgm) globals exp-cont)))))
+  (let ((saved-stepping? stepping?))
+    (dynamic-wind 
+	(lambda () 
+	  (set! saved-stepping? stepping?)
+	  (set! stepping? #f))
+	(lambda () 
+	  (let loop ((pgm initial-program))
+	    (cond ((null? pgm) 'done-with-initial-program-evaluation)
+		  ((beginning-definition? (car pgm))
+		   (interpret-beginning-definition (car pgm) globals)
+		   (loop (cdr pgm)))
+		  (else
+		   (let ((exp-cont (make-defn-cont 'fake-globals #f)))
+		     (interpret-beginning-expression (car pgm) 
+						     globals 
+						     exp-cont))))))
+	(lambda () 
+	  (set! stepping? saved-stepping?))
+      ))
   
   (let ((repl-agent
 	 (extend-with-repl
