@@ -27,29 +27,32 @@
                               (car handle-step-optional)))
             (jump-back-into-interpreter #f)
             (jump-back-from-stepper #f))
+        (define my-really-display-step
+          (lambda () 
+            '(begin 
+               (write `(override of really-display-step))
+               (newline))
+            (call-with-current-continuation
+             (lambda (back-to-the-interpreter)
+               (set! jump-back-into-interpreter
+                     (lambda () 
+                       (back-to-the-interpreter (unspecified))))
+               (handle-step! (cadr stepping-history)
+                             (car stepping-history))
+               (jump-back-from-stepper)))))
         (define step!
           (lambda ()
             (call-with-current-continuation
              (lambda (back-to-user)
                (set! jump-back-from-stepper 
-                     (lambda () (back-to-user #t)))
+                     (lambda () 
+                       (set! really-display-step really-display-step-orig)
+                       (back-to-user #t)))
                (cond
                 ((not jump-back-into-interpreter)
                  ;; set up machinery so that displaying a step returns
                  ;; control to the UI
-                 (set! really-display-step
-                       (lambda () 
-                         '(begin 
-                           (write `(override of really-display-step))
-                           (newline))
-                         (call-with-current-continuation
-                          (lambda (back-to-the-interpreter)
-                            (set! jump-back-into-interpreter
-                                  (lambda () 
-                                    (back-to-the-interpreter (unspecified))))
-                            (handle-step! (cadr stepping-history)
-                                          (car stepping-history))
-                            (jump-back-from-stepper)))))
+                 (set! really-display-step my-really-display-step)
                  ;; Now with the machinery in place, start the program
                  ;; evaluation.
                  (call-with-values 
@@ -59,8 +62,10 @@
                      ;; If we ever reach this point, then the 
                      ;; program has been completely evaluated, and 
                      ;; thus there are no further steps to take.
+                     (set! really-display-step really-display-step-orig)
                      (back-to-user #f))))
                 (else
+                 (set! really-display-step my-really-display-step)
                  (let ((val (jump-back-into-interpreter)))
                    ;; I do not think control should ever reach here
                    (display `(whoa the interpreter returned ,val two))
