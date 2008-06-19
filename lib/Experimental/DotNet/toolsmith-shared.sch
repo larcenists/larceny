@@ -1019,7 +1019,8 @@
 	  (rng-finis (or (cadr range) 'top))
 	  (cut (lambda (px py)
 		 (if (and (< px py)
-			  (< px pos-finis))
+			  (< px pos-finis)
+			  (> py pos-start))
 		     (let ((px* (- px pos-start))
 			   (py* (- py pos-start)))
 		       (list 
