@@ -1,0 +1,20 @@
+(require 'pretty)
+
+(load "lib/Experimental/DotNet/collections.sch")
+(load "lib/Experimental/DotNet/simple-inspection.sch")
+(load "lib/Experimental/DotNet/simple-reflection.sch")
+(load "lib/Experimental/DotNet/protoobj.sch")
+(load "lib/Experimental/DotNet/toolsmith-shared.sch")
+(load "lib/Experimental/DotNet/dotnet-ffi-lcg.sch")
+(load "lib/Experimental/DotNet/toolsmith-form.sch")
+
+(load "lib/Experimental/Beginning/posn.sch")
+(load "lib/Experimental/Beginning/syntax.sch")
+(load "lib/Experimental/Beginning/interpreter.sch")
+(load "lib/Experimental/Beginning/primops.sch")
+(load "lib/Experimental/Beginning/stepper.sch")
+
+(load "lib/Experimental/DotNet/stepper-overrides.sch")
+(load "lib/Experimental/DotNet/maybe-read.sch")
+(load "lib/Experimental/DotNet/stepper-menus.sch")
+(load "lib/Experimental/DotNet/stepper-gui.sch")
