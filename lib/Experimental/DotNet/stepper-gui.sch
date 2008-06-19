@@ -110,7 +110,7 @@
            (lambda (str1 hilite-range1)
 	    (c/vals (lambda () (configuration->pseudocode c2 #f))
 	     (lambda (str2 hilite-range2)
-	       (begin (display `(,stepper-agent handle-configurations! 
+	       '(begin (display `(,stepper-agent handle-configurations! 
 						,str1 ==> ,str2))
 		      (newline))
 
