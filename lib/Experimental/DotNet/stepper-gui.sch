@@ -120,8 +120,6 @@
 		   (green  (name->col "Green"))
 		   )
 	      
-	      ((stepper-agent 'reset-coloring!))
-
 	      ((stepper-agent 'set-textstring!) new-text)
 
 	      ((stepper-agent 'color-foreground-stably!) lo1 hi1 purple)
