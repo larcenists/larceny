@@ -1,6 +1,9 @@
-;; These will be prerequisites of this file at some point in future.
+;; These will be prerequisites of this file at some point
+;; in future.
+
 (define (prereq name thunk)
   (run-benchmark name thunk))
+
 (define (prereq:load name file)
   (prereq name (lambda () (load file))))
 
@@ -14,7 +17,9 @@
 	  (load-compiler)
 	  ;; (peephole-optimization #f) ;; not there yet
 	  ))
+
 (prereq:load "LINK-LOP" "src/Asm/Shared/link-lop.sch")
+
 (prereq "IL-LCG" 
 	(lambda () 
 	  (if #f 
