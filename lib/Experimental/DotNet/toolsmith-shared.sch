@@ -1018,7 +1018,8 @@
 	  (rng-start (or (car range) 'bot))
 	  (rng-finis (or (cadr range) 'top))
 	  (cut (lambda (px py)
-		 (if (< px py)
+		 (if (and (< px py)
+			  (< px pos-finis))
 		     (let ((px* (- px pos-start))
 			   (py* (- py pos-start)))
 		       (list 
@@ -1034,8 +1035,9 @@
 	  (<= (generalize-cmp <=)))
      (if (or (<= rng-finis pos-start) 
 	     (<= pos-finis rng-start)
-	     (and (or (= pos-start rng-start) (not rng-start))
-		  (or (= pos-finis rng-finis) (not rng-finis))))
+	     (and (or (<= rng-start pos-start) (not rng-start))
+		  (or (<= pos-finis rng-finis) (not rng-finis)))
+	     )
 	 #f
 	 (let ((p1 (if (number? rng-start) (min pos-start rng-start) pos-start))
 	       (p2 (if (number? rng-start) (max pos-start rng-start) pos-start))
