@@ -100,35 +100,43 @@
       (set! self stepper-agent)
       (incremental-step!))
      ((handle-configurations! c1 c2)
-      (c/vals (lambda () (configuration->pseudocode c1 #t))
-       (lambda (str1 hilite-range1)
-	 (c/vals (lambda () (configuration->pseudocode c2 #f))
-	  (lambda (str2 hilite-range2)
-	    (begin (display `(,stepper-agent handle-configurations! 
-					     ,str1 ==> ,str2))
-		   (newline))
+      (let* ((separator "\n==>\n")
+	     (col-count ((stepper-agent 'count-visible-columns)))
+	     (best-width 
+	      (inexact->exact
+	       (floor (/ (- col-count (string-length separator)) 2)))))
+	(parameterize ((pretty-line-length best-width))
+          (c/vals (lambda () (configuration->pseudocode c1 #t))
+           (lambda (str1 hilite-range1)
+	    (c/vals (lambda () (configuration->pseudocode c2 #f))
+	     (lambda (str2 hilite-range2)
+	       (begin (display `(,stepper-agent handle-configurations! 
+						,str1 ==> ,str2))
+		      (newline))
 
-	    (let* ((separator "\n==>\n")
-		   (new-text (string-append str1 separator str2))
-		   (lo1 (car hilite-range1))
-		   (hi1 (cadr hilite-range1))
-		   (lo2 (car hilite-range2))
-		   (hi2 (cadr hilite-range2))
-		   (lo2 (+ (string-length str1) (string-length separator) lo2))
-		   (hi2 (+ (string-length str1) (string-length separator) hi2))
-		   (purple (name->col "Purple"))
-		   (green  (name->col "Green"))
-		   )
-	      
-	      ((stepper-agent 'set-textstring!) new-text)
-
-	      ((stepper-agent 'color-foreground-stably!) lo1 hi1 purple)
-	      ((stepper-agent 'color-foreground-stably!) lo2 hi2 green)
-
-	      )
-
-	    ((((stepper-agent 'wnd)) 'update))
-	    ))))))))
+	       (let* ((separator "\n==>\n")
+		      (new-text (string-append str1 separator str2))
+		      (lo1 (car hilite-range1))
+		      (hi1 (cadr hilite-range1))
+		      (lo2 (car hilite-range2))
+		      (hi2 (cadr hilite-range2))
+		      (lo2 (+ (string-length str1) 
+			      (string-length separator) lo2))
+		      (hi2 (+ (string-length str1) 
+			      (string-length separator) hi2))
+		      (purple (name->col "Purple"))
+		      (green  (name->col "Green"))
+		      )
+	       
+		 ((stepper-agent 'set-textstring!) new-text)
+		 
+		 ((stepper-agent 'color-foreground-stably!) lo1 hi1 purple)
+		 ((stepper-agent 'color-foreground-stably!) lo2 hi2 green)
+		 
+		 )
+	       
+	       ((((stepper-agent 'wnd)) 'update))
+	       ))))))))))
 
 (define make-simple-button
   (lambda (title click-routine)
