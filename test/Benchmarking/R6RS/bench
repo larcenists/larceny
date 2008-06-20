@@ -89,6 +89,7 @@ setup ()
   LARCENY=${LARCENY:-"../../../larceny"}
   PETIT=${PETIT:-"../../../petit-larceny"}
   MZSCHEME=${MZSCHEME:-"mzscheme"}
+  YPSILON=${YPSILON:-"ypsilon"}
  
 }
 
@@ -107,6 +108,7 @@ Usage: bench [-r runs] <system> <benchmark>
   ikarus           for Ikarus
   larceny          for Larceny
   petit            for Petit Larceny
+  ypsilon          for Ypsilon
   all              for all of the above
 
 <benchmark> is the name of the benchmark(s) to run:
@@ -222,6 +224,19 @@ ikarus_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Ypsilon
+
+ypsilon_comp ()
+{
+  :
+}
+
+ypsilon_exec ()
+{
+  time "${YPSILON}" "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
 
 ## Arg processing...
 if [ "$#" -lt 2 ]; then
@@ -298,6 +313,16 @@ for system in $systems ; do
     ikarus) NAME='Ikarus'
             COMP=ikarus_comp
             EXEC=ikarus_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+   ypsilon) NAME='Ypsilon' # copied from Ikarus' settings...
+            COMP=ypsilon_comp
+            EXEC=ypsilon_exec
             COMPOPTS=""
             EXTENSION="sch"
             EXTENSIONCOMP="sch"
