@@ -73,6 +73,17 @@
     ;; "word.sch"             ;; defines syntax
     ))
 
+(load "setup.sch")
+(let ((arch-name (cdr (assq 'arch-name (system-features)))))
+  (cond ((equal? arch-name "Standard-C")
+         (setup))
+        ((or (equal? arch-name "IAssassin")
+             (equal? arch-name "SPARC"))
+         (setup 'native))
+        (else
+         (error 'compile-standard-libraries.sch ": unknown arch-name" arch-name))))
+(build-config-files)
+(load-compiler)
 (load "src/Build/compile-tools.sch")
 
 (define (compile-libraries-in-dir lib-dir files-to-compile)
