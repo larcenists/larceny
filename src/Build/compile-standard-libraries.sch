@@ -54,8 +54,8 @@
     "random.sch"
     ;; "record.sch"     ;; deprecated
     "regexp.sch"
-    "require0.sch"
-    "require.sch"
+    ;; "require0.sch"   ;; revised and moved to the bootstrap heap
+    ;; "require.sch"    ;; revised and moved to the bootstrap heap
     "sharp-dot.sch"
     ;; "shivers-syntax.sch"   ;; defines syntax
     ("socket.sch" srfi-0 define-record)
@@ -92,7 +92,8 @@
   '(
     ("socket.sch"          srfi-0 common-syntax foreign-ctools)
     ("unix.sch"            srfi-0 foreign-ctools)
-    ("unix-descriptor.sch" define-record))) 
+    ;; ("unix-descriptor.sch" define-record)  ;; moved to lib/Broken/
+    ))
 
 (compile-libraries-in-dir "lib/Experimental/"
                           experimental-lib-files-to-compile)
