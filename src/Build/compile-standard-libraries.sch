@@ -52,7 +52,7 @@
     "pretty.sch"
     ("queue.sch" assert)
     "random.sch"
-    "record.sch"
+    ;; "record.sch"     ;; deprecated
     "regexp.sch"
     "require0.sch"
     "require.sch"
