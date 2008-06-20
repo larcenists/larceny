@@ -82,9 +82,15 @@
         ((equal? arch-name "SPARC")
          (setup 'native))
         (else
-         (error 'compile-standard-libraries.sch ": unknown arch-name" arch-name))))
-(build-config-files)
-(load-compiler)
+         (error 'compile-standard-libraries.sch ": unknown arch-name" arch-name)))
+
+  (build-config-files)
+  (load-compiler)
+
+  (cond ((equal? arch-name "Standard-C")
+         (load "lib/Base/petit-compile-file.sch")))
+  )
+
 (load "src/Build/compile-tools.sch")
 
 (define (compile-libraries-in-dir lib-dir files-to-compile)
