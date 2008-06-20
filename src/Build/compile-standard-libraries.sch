@@ -77,8 +77,9 @@
 (let ((arch-name (cdr (assq 'arch-name (system-features)))))
   (cond ((equal? arch-name "Standard-C")
          (setup))
-        ((or (equal? arch-name "IAssassin")
-             (equal? arch-name "SPARC"))
+        ((equal? arch-name "IAssassin")
+         (setup 'sassy))
+        ((equal? arch-name "SPARC")
          (setup 'native))
         (else
          (error 'compile-standard-libraries.sch ": unknown arch-name" arch-name))))
