@@ -237,6 +237,7 @@ CALCDATE="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
 CALCDATESTAMP="date +%Y%m%d-%H%M"
 LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
 TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
+COMPILE_STDLIB_SCRIPT="src/Build/compile-standard-libraries.sch"
 
 mkdir -p ${DIR}
 
@@ -427,7 +428,7 @@ function larceny_build {
 
 (exit)
 EOF
-  CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${REALSCM}; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}; du -skh .; df -kh"
+  CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${REALSCM}; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_LARCENY_SCRIPT} -- ${COMPILE_STDLIB_SCRIPT} ; du -skh .; df -kh"
   remove $MY_CDASHBUILDLOG
   cdashbuildlog '<?xml version="1.0" encoding="utf-8"?>                                     '
   cdashbuildlog '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
