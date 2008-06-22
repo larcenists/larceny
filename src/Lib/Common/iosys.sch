@@ -387,9 +387,9 @@
                      x
                      (integer->char x))))
               (else
-               (error "read-char: not an input port: " p)
+               (error 'read-char "not a textual input port" p)
                #t)))
-      (begin (error "read-char: not an input port: " p)
+      (begin (error 'read-char "not a textual input port" p)
              #t)))
 
 ; FIXME:  See comments for io/read-char above.
@@ -410,9 +410,9 @@
                      x
                      (integer->char x))))
               (else
-               (error "peek-char: not an input port: " p)
+               (error 'peek-char "not a textual input port" p)
                #t)))
-      (begin (error "peek-char: not an input port: " p)
+      (begin (error 'peek-char "not a textual input port" p)
              #t)))
 
 ; FIXME: deprecated in Larceny.  This was dropped in R6RS
@@ -436,7 +436,7 @@
                      (eq? (vector-like-ref p port.state)
                           'eof))))
               (else #f)))
-      (error 'char-ready? "not an input port" p)))
+      (error 'char-ready? "not a textual input port" p)))
 
 ; FIXME:  For v0.94 only, io/write-char can write to binary
 ; ports, treating them as Latin-1.
@@ -457,9 +457,9 @@
               ((eq? type type:textual-output)
                (io/put-char p c))
               (else
-               (error 'write-char "not an output port" p)
+               (error 'write-char "not a textual output port" p)
                #t)))
-      (begin (error "write-char: not an output port: " p)
+      (begin (error 'write-char "not a textual output port" p)
              #t)))
 
 ; FIXME:  The name is misleading, since it now requires a bytevector.
