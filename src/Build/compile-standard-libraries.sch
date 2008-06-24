@@ -1,3 +1,6 @@
+(require 'r6rsmode)
+(larceny:compile-r6rs-runtime)
+
 ;; A CompileEntry is one of:
 ;; - Filename
 ;; - (list Filename RequireSpec ...) 
