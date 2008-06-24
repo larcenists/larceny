@@ -27,7 +27,8 @@ TRACK=${TRACK:-"Experimental"}
 # We should not have to do 'always-source here, but Larceny is
 # currently not smart enough to back off when encountering a fasl file
 # generated for a target that differs from the host.
-SETUP_ARGS="'exit-on-error 'quiet-load 'always-source"
+# SETUP_ARGS="'exit-on-error 'quiet-load 'always-source"
+SETUP_ARGS="'exit-on-error 'quiet-load "
 
 WARNINGNUM=1
 # SVNTRUNK="http://larceny.ccs.neu.edu/svn/trunk/larceny_src"
@@ -41,137 +42,6 @@ FINAL_TWOBIT_BIN=larceny.bin
 
 # Setup options (based on script's name)
 case "`basename "$0"`" in
-
-    checkout-larceny-solaris-native)
-	SCHEME_PGM="larceny -- "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat4"
-	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
-	DIRNAME=native
-	MAKETEXTSAFE=native2ascii
-    ;;
-    checkout-mzscheme-solaris-native)
-	SCHEME_PGM="mzscheme -f "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris 'native 'string-rep: 'flat4"
-	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
-	DIRNAME=mznative
-	MAKETEXTSAFE=native2ascii
-    ;;
-    checkout-larceny-solaris-petit)
-	SCHEME_PGM="larceny -- "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris"
-	FINAL_LARCENY_BIN=petit-larceny.bin
-	FINAL_TWOBIT_BIN=twobit.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=petit
-	MAKETEXTSAFE=native2ascii
-    ;;
-    checkout-mzscheme-solaris-petit)
-	SCHEME_PGM="mzscheme -f "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris"
-	FINAL_LARCENY_BIN=petit-larceny.bin
-	FINAL_TWOBIT_BIN=twobit.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=mzpetit
-	MAKETEXTSAFE=native2ascii
-    ;;
-
-    checkout-larceny-linux86-petit)
-	SCHEME_PGM="larceny -- "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86"
-	FINAL_LARCENY_BIN=petit-larceny.bin
-	FINAL_TWOBIT_BIN=twobit.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=petit
-	MAKETEXTSAFE="iconv -t utf8 -c"
-    ;;
-    checkout-larceny-linux86-petit-nasm)
-	SCHEME_PGM="larceny -- "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'nasm"
-	FINAL_LARCENY_BIN=petit-larceny.bin
-	FINAL_TWOBIT_BIN=twobit.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=petit
-    ;;
-    checkout-mzscheme-linux86-petit)
-	SCHEME_PGM="mzscheme -f "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86"
-	FINAL_LARCENY_BIN=petit-larceny.bin
-	FINAL_TWOBIT_BIN=twobit.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=mzpetit
-	MAKETEXTSAFE="iconv -t utf8 -c"
-    ;;
-    checkout-mzscheme-linux86-petit-nasm)
-	SCHEME_PGM="mzscheme -f "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'nasm"
-	FINAL_LARCENY_BIN=petit-larceny.bin
-	FINAL_TWOBIT_BIN=twobit.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=mzpetit
-    ;;
-#    checkout-larceny-linux86-dotnet)
-#	SCHEME_PGM=larceny
-#	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'dotnet"
-#	FINAL_LARCENY_BIN=dotnet.heap.exe
-#	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
-#	DIRNAME=dotnet
-#    ;;
-#    checkout-mzscheme-linux86-dotnet)
-#	SCHEME_PGM=mzscheme
-#	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'dotnet"
-#	FINAL_LARCENY_BIN=dotnet.heap.exe
-#	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
-#	DIRNAME=mzdotnet
-#    ;;
-    checkout-larceny-linux86-native)
-	SCHEME_PGM="larceny -- "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat4"
-	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
-	DIRNAME=native
-	MAKETEXTSAFE="iconv -t utf8 -c"
-    ;;
-    checkout-mzscheme-linux86-native)
-	SCHEME_PGM="mzscheme -f "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'sassy 'string-rep: 'flat4"
-	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
-	DIRNAME=mznative
-	MAKETEXTSAFE="iconv -t utf8 -c"
-    ;;
-
-    checkout-larceny-macosx-petit)   # PPC!
-	SCHEME_PGM="larceny -- "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx"
-	FINAL_LARCENY_BIN=petit-larceny.bin
-	FINAL_TWOBIT_BIN=twobit.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=petit
-	MAKETEXTSAFE=native2ascii
-    ;;
-    checkout-mzscheme-macosx-petit)  # PPC!
-	SCHEME_PGM="mzscheme -f "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx"
-	FINAL_LARCENY_BIN=petit-larceny.bin
-	FINAL_TWOBIT_BIN=twobit.bin
-	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
-	DIRNAME=mzpetit
-	MAKETEXTSAFE=native2ascii
-    ;;
-    checkout-larceny-macosx-native)  # IA32!
-	SCHEME_PGM="larceny -- "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
-	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
-	DIRNAME=native
-	MAKETEXTSAFE=native2ascii
-    ;;
-    checkout-mzscheme-macosx-native) # IA32!
-	SCHEME_PGM="mzscheme -f "
-	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx-el 'sassy 'string-rep: 'flat4"
-	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
-	DIRNAME=mznative
-	MAKETEXTSAFE=native2ascii
-    ;;
-
-
     *)
     case "`uname`" in
 	SunOS)
@@ -223,12 +93,15 @@ esac
 
 # Perhaps add more to this, like the hour and minute?
 TODAY=`date +%Y-%m-%d` 
-DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TRACK}-${TODAY}
+DIR=${HOME}/larcenytest/larceny-gcbench
 MY_CDASHUPDATELOG="${DIR}/cdash-update-sub.xml"
 MY_CDASHCONFIGLOG="${DIR}/cdash-config-sub.xml"
 MY_CDASHBUILDLOG="${DIR}/cdash-build-sub.xml"
-MY_CDASHTESTSLOG="${DIR}/cdash-tests-sub.xml"
-MY_CDASHBENCHLOG="${DIR}/cdash-bench-sub.xml"
+MY_CDASHBENCHLOG_DFLT="${DIR}/cdash-bench-dflt-sub.xml"
+MY_CDASHBENCHLOG_HROF="${DIR}/cdash-bench-hrof-sub.xml"
+MY_CDASHBENCHLOG_GEN2="${DIR}/cdash-bench-gen2-sub.xml"
+MY_CDASHBENCHLOG_GEN3="${DIR}/cdash-bench-gen3-sub.xml"
+MY_CDASHBENCHLOG_STCP="${DIR}/cdash-bench-stcp-sub.xml"
 SUBMITLOG="${DIR}/submit.log"
 TEMPLOG="${DIR}/temp.log"
 TEMPSCM="${DIR}/temp.scm"
@@ -253,12 +126,57 @@ function cdashbuildlog {
    echo "$@" >> $MY_CDASHBUILDLOG
 }
 
-function cdashtestslog {
-   echo "$@" >> $MY_CDASHTESTSLOG
+function remove_gclog {
+    case $1 in 
+       dflt) MY_LOG=$MY_CDASHBENCHLOG_DFLT 
+       ;;
+       hrof) MY_LOG=$MY_CDASHBENCHLOG_HROF
+       ;; 
+       gen2) MY_LOG=$MY_CDASHBENCHLOG_GEN2
+       ;; 
+       gen3) MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       ;; 
+       stcp) MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       ;; 
+    esac
+    remove ${MY_LOG}
 }
 
+function  cdash_submit_gclog {
+    case $1 in 
+       dflt) MY_LOG=$MY_CDASHBENCHLOG_DFLT 
+       ;;
+       hrof) MY_LOG=$MY_CDASHBENCHLOG_HROF
+       ;; 
+       gen2) MY_LOG=$MY_CDASHBENCHLOG_GEN2
+       ;; 
+       gen3) MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       ;; 
+       stcp) MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       ;; 
+    esac
+    cdash_submit ${MY_LOG}
+}
 function cdashbenchlog {
-   echo "$@" >> $MY_CDASHBENCHLOG
+   case $1 in
+       dflt) 
+	   MY_LOG=$MY_CDASHBENCHLOG_DFLT 
+	   ;;
+       hrof) 
+	   MY_LOG=$MY_CDASHBENCHLOG_HROF
+	   ;; 
+       gen2) 
+	   MY_LOG=$MY_CDASHBENCHLOG_GEN2
+	   ;; 
+       gen3) 
+	   MY_LOG=$MY_CDASHBENCHLOG_GEN3
+	   ;; 
+       stcp) 
+	   MY_LOG=$MY_CDASHBENCHLOG_GEN3
+	   ;; 
+   esac
+   shift 1; # (pop dispatch parameter)
+   echo "$@" >> ${MY_LOG}
 }
 
 function cmdsetstatus {
@@ -275,6 +193,10 @@ function cmdsetstatus {
 }
 
 function cdash_submit {
+    echo fake submission of $1 to web site
+}
+
+function cdash_submit_orig {
     # Curl does not seem to return an error exit code on the 403 and 405 
     # responses that I am intermittently receiving from CDash.  So I 
     # grep -v for that output and rely on that to set the status bit
@@ -331,12 +253,6 @@ function quotebuildfile { # esc_html
   cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_CDASHBUILDLOG}
 }
 
-function quotetestsfile { # esc_html
-  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
-  # On non CCIS Sun, we don't have native2ascii.
-  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_CDASHTESTSLOG}
-}
-
 MY_BUILDNAME="`uname -sp`-$DIRNAME"
 MY_BUILDSTAMP="`$CALCDATESTAMP`-${TRACK}"
 MY_GENERATOR="${0}"
@@ -347,7 +263,7 @@ function remove {
 
 function update_from_subversion {
   # CMD="svn checkout -q ${SVNTRUNK}"
-  CMD="svn up ../shared-checkout/larceny_src; cp -fpR ../shared-checkout/larceny_src ."
+  CMD="svn up ./larceny_src"
   remove $MY_CDASHUPDATELOG
   cdashupdatelog '<?xml version="1.0" encoding="utf-8"?>'
   
@@ -484,274 +400,51 @@ EOF
   cp ${TEMPLOG} ${DIR}/build.log
 }
 
-function library_test {
-    cat > ${TEMPSCM} <<EOF
-(error-handler (lambda l (display l) (newline) (exit 115)))
-(compile-file "test.sch")
-(compile-file "$1.sch")
-(load "test.fasl")
-(load "$1.fasl")
-(let ((num-fails 0))
-  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
-  (run-$2-tests)
-  (exit num-fails))
-EOF
-    CMD="cat ${TEMPSCM}; ../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}"
-
-    pushd ${DIR}/larceny_src/test/Lib > /dev/null
-    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
-    popd > /dev/null
-
-echo library_test $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
-
-  cdashtestslog  '  <Test Status="'"${STATUS}"'">					    '
-  cdashtestslog  '   <Name>library '"$2"'</Name>                                                    '
-  cdashtestslog  '   <Path>'"library $1"'</Path>			                    '
-  cdashtestslog  '   <FullName>'"library $2"'</FullName>				    '
-  cdashtestslog  '   <FullCommandLine>'"$CMD"'</FullCommandLine>			    '
-  cdashtestslog  '   <Results>								    '
-  cdashtestslog  '    <NamedMeasurement type="numeric/double" name="Execution Time">	    '
-  cdashtestslog  '     <Value>'"${SECS_ELAPSED}"'</Value>				    '
-  cdashtestslog  '    </NamedMeasurement>						    '
-  cdashtestslog  '    <NamedMeasurement type="text/string" name="Completion Status">	    '
-  cdashtestslog  '     <Value>Completed</Value>						    '
-  cdashtestslog  '    </NamedMeasurement>						    '
-  cdashtestslog  '    <NamedMeasurement type="text/string" name="Command Line">		    '
-  cdashtestslog  '     <Value>'"$CMD"'</Value>						    '
-  cdashtestslog  '    </NamedMeasurement>						    '
-  cdashtestslog  '    <Measurement>							    '
-  cdashtestslog  '     <Value>                                                              '
-  quotetestsfile ${TEMPLOG}
-  cdashtestslog  '     </Value>								    '
-  cdashtestslog  '    </Measurement>							    '
-  cdashtestslog  '   </Results>								    '
-  cdashtestslog  '  </Test>								    '
-
-  cat ${TEMPLOG} >> ${DIR}/tests.log
-}
-
-function compiler_tests {
-    cat > ${TEMPSCM} <<EOF
-(error-handler (lambda l (display l) (newline) (exit 116)))
-(load "run-tests.sch")
-(let ((num-fails 0))
-  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
-  (run-compiler-tests $1)
-  (exit num-fails))
-EOF
-    CMD="cat ${TEMPSCM}; ../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}"
-
-echo compiler_tests $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
-
-    pushd ${DIR}/larceny_src/test/Compiler > /dev/null
-    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
-    popd > /dev/null
-
-  cdashtestslog  '  <Test Status="'"${STATUS}"'">					    '
-  cdashtestslog  '   <Name>compiler '"$1"'</Name>                                                    '
-  cdashtestslog  '   <Path>'"compiler"'</Path>			                            '
-  cdashtestslog  '   <FullName>'"compiler $1"'</FullName>				    '
-  cdashtestslog  '   <FullCommandLine>'"$CMD"'</FullCommandLine>			    '
-  cdashtestslog  '   <Results>								    '
-  cdashtestslog  '    <NamedMeasurement type="numeric/double" name="Execution Time">	    '
-  cdashtestslog  '     <Value>'"${SECS_ELAPSED}"'</Value>				    '
-  cdashtestslog  '    </NamedMeasurement>						    '
-  cdashtestslog  '    <NamedMeasurement type="text/string" name="Completion Status">	    '
-  cdashtestslog  '     <Value>Completed</Value>						    '
-  cdashtestslog  '    </NamedMeasurement>						    '
-  cdashtestslog  '    <NamedMeasurement type="text/string" name="Command Line">		    '
-  cdashtestslog  '     <Value>'"$CMD"'</Value>						    '
-  cdashtestslog  '    </NamedMeasurement>						    '
-  cdashtestslog  '    <Measurement>							    '
-  cdashtestslog  '     <Value>                                                              '
-  quotetestsfile ${TEMPLOG}
-  cdashtestslog  '     </Value>								    '
-  cdashtestslog  '    </Measurement>							    '
-  cdashtestslog  '   </Results>								    '
-  cdashtestslog  '  </Test>								    '
-
-  cat ${TEMPLOG} >> ${DIR}/tests.log
-}
-
-function larceny_tests {
-  remove $MY_CDASHTESTSLOG
-
-  cdashtestslog  '<?xml version="1.0" encoding="utf-8"?>                                    '
-  cdashtestslog  '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
-  cdashtestslog  '      BuildStamp="'"${MY_BUILDSTAMP}"'" 				    '
-  cdashtestslog  '      Name="'"`hostname`"'"						    '
-  cdashtestslog  '      Generator="'"${MY_GENERATOR}"'">				    '
-  cdashtestslog  ' <Testing>								    '
-  cdashtestslog  '  <StartDateTime>'"`date`"'</StartDateTime>			            '
-  cdashtestslog  '  <TestList>								    '
-  cdashtestslog  '   <Test>library boolean</Test>					    '
-  cdashtestslog  '   <Test>library char</Test>						    '
-  cdashtestslog  '   <Test>library string</Test>					    '
-  cdashtestslog  '   <Test>library bytevector</Test>					    '
-  cdashtestslog  '   <Test>library io</Test>						    '
-  cdashtestslog  '   <Test>library hashtable</Test>					    '
-  cdashtestslog  '   <Test>library predicate</Test>					    '
-  cdashtestslog  '   <Test>library number</Test>					    '
-  cdashtestslog  '   <Test>library fact</Test>						    '
-  cdashtestslog  '   <Test>library fib</Test>						    '
-  cdashtestslog  '   <Test>library ctak</Test>						    '
-  cdashtestslog  '   <Test>library dynamic-wind</Test>					    '
-  cdashtestslog  '   <Test>library regression</Test>					    '
-  cdashtestslog  '   <Test>library fixnum</Test>					    '
-  cdashtestslog  '   <Test>library wcm</Test>						    '
-  cdashtestslog  '   <Test>library record</Test>					    '
-  cdashtestslog  '   <Test>library condition</Test>					    '
-  cdashtestslog  '   <Test>library enumset</Test>					    '
-  cdashtestslog  '   <Test>compiler sanity-switches</Test>				    '
-  cdashtestslog  '  </TestList>								    '
-
-  TEST_SECS_BEGIN=`date +%s`
-
-## Library tests
-library_test bool       boolean
-library_test char       char
-library_test string     string
-library_test normalization normalization
-## library_test complex
-library_test bytevector bytevector
-library_test io         io
-library_test hashtable  hashtable
-library_test pred       predicate
-library_test number     number
-library_test fact       fact 
-library_test fib        fib
-library_test ctak       ctak
-## library_test env       env
-library_test dynamic-wind dynamic-wind
-library_test regression regression
-library_test fixnums    fixnum
-library_test wcm        wcm
-library_test record     record
-library_test condition  condition
-library_test enum       enumset
-
-compiler_tests sanity-switches 
-
-  TEST_SECS_FINIS=`date +%s`
-  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
-
-  cdashtestslog  '  <EndDateTime>'"`date`"'</EndDateTime>				    '
-  cdashtestslog  '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>		    '
-  cdashtestslog  ' </Testing>								    '
-  cdashtestslog  '</Site>                                                                   '
-  
-  cdash_submit $MY_CDASHTESTSLOG
-}
-
-# usage: run_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
-function run_benchmarks {
-  LARCENY=`pwd`/../../../$1 ./bench -r 3 -s $2 larceny all > ${TEMPLOG} 2>&1
-}
-
-# usage: process_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
-function process_benchmarks {
-cat > ${TEMPSCM} <<EOF
-(error-handler (lambda l (display l) (newline) (exit 117)))
-(load "summarize.sch")
-(let ((os (open-output-string)))
-    (with-output-to-port os
-      (lambda () 
-	((summarize larceny-results) "results.Larceny-$2")))
-    (let* ((str (get-output-string os))
-	   (is (open-input-string str))
-	   (decoded (decode-summary is))
-	   (lines (caddr decoded))
-	   (format-measurement (lambda (name type val)
-                                 (format #t "<Measurement name=~s type=~s>~s</Measurement>" 
-                                         name type val)
-                                 (newline))))
-      (for-each 
-       (lambda (line)
-         (cond ((eq? (list-ref line 1) 'Error:)
-                (let ((name (list-ref line 0)))
-
-                  (format #t "<Test Status=\"failed\">")
-                  (format #t " <Name>benchmark ~a ~a ~s</Name>" "$3" "$1" name)
-                  (format #t " <Path>benchmark ~a ~a ~s</Path>" "$3" "$1" name)
-                  (format #t " <FullName>benchmark ~s</FullName>" name)
-                  (format #t " <FullCommandLine></FullCommandLine>")
-                  (format #t "</Test>")
-                  (newline)))
-               (else
-                (let ((name (list-ref line 0))
-                      (cpu  (list-ref line 1))
-                      (real (list-ref line 2))
-                      (gc   (list-ref line 3))
-                      (numt "numeric/integer"))
-                  (format #t "<Test Status=\"passed\">")
-                  (format #t "<Status>passed</Status>")
-                  (format #t " <Name>benchmark ~a ~a ~s</Name>" "$3" "$1" name)
-                  (format #t " <Path>benchmark ~a ~a ~s</Path>" "$3" "$1" name)
-                  (format #t " <FullName>benchmark ~s</FullName>" name)
-                  (format #t " <FullCommandLine></FullCommandLine>")
-                  (format #t " <Results>")
-                  (format #t "  <NamedMeasurement type=\"numeric/integer\" name=\"Execution Time\">")
-                  (format #t "    <Value>~s</Value>" (/ real 60.0))
-                  (format #t "  </NamedMeasurement>")
-                  (format #t "  <NamedMeasurement type=\"numeric/string\" name=\"Completion Status\">")
-                  (format #t "    <Value>Completed</Value>")
-                  (format #t "  </NamedMeasurement>")
-                  (format #t " </Results>")
-                  (format #t "</Test>")
-                  (newline)))))
-       lines)))
+function larceny_gcbench {
+  cat > ${TEMPSCM} <<EOF
+(current-directory "test/Benchmarking/GC")
+(load "compile-files.sch")
 (exit)
 EOF
-# This is not benchmarked, so use standard name rather than parameter $1
-../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${MY_CDASHBENCHLOG}
+  CMD="cat ${TEMPSCM}; echo | ./${FINAL_LARCENY_SCRIPT} -- ${REALSCM} ; du -skh .; df -kh"
+  remove_gclog $1
 
-cat results.Larceny-$2 >> Results/results.Larceny
-rm results.Larceny-$2
-}
-
-function larceny_bench {
-  remove $MY_CDASHBENCHLOG
-
-  cdashbenchlog  '<?xml version="1.0" encoding="utf-8"?>                                    '
-  cdashbenchlog  '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
-  cdashbenchlog  '      BuildStamp="'"${MY_BUILDSTAMP}"'" 				    '
-  cdashbenchlog  '      Name="'"`hostname`"'"						    '
-  cdashbenchlog  '      Generator="'"${MY_GENERATOR}"'">				    '
-  cdashbenchlog  ' <Testing>								    '
-  cdashbenchlog  '  <StartDateTime>'"`date`"'</StartDateTime>			            '
-  cdashbenchlog  '  <TestList>								    '
-  cdashbenchlog  '   <Test>benchmark XXX YYY ZZZ</Test>					    '
-  cdashbenchlog  '  </TestList>								    '
+  cdashbenchlog $1  '<?xml version="1.0" encoding="utf-8"?>                                    '
+  cdashbenchlog $1  '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
+  cdashbenchlog $1 '      BuildStamp="'"${MY_BUILDSTAMP}"'" 				    '
+  cdashbenchlog $1 '      Name="'"`hostname`"'"						    '
+  cdashbenchlog $1 '      Generator="'"${MY_GENERATOR}"'">				    '
+  cdashbenchlog $1 ' <Testing>								    '
+  cdashbenchlog $1 '  <StartDateTime>'"`date`"'</StartDateTime>			            '
+  cdashbenchlog $1 '  <TestList>								    '
+  cdashbenchlog $1 '   <Test>benchmark XXX YYY ZZZ</Test>					    '
+  cdashbenchlog $1 '  </TestList>								    '
 
   TEST_SECS_BEGIN=`date +%s`
 
-  pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
-  run_benchmarks     ${FINAL_LARCENY_SCRIPT} r5rs r5rs-real
-  popd                                                     > /dev/null
-
-  pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
-  process_benchmarks ${FINAL_LARCENY_SCRIPT} r5rs r5rs-real
-  popd                                                     > /dev/null
+  pushd ${DIR}/larceny_src > /dev/null
+  cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+  popd                     > /dev/null
 
   TEST_SECS_FINIS=`date +%s`
   TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
 
-  cdashbenchlog  '  <EndDateTime>'"`date`"'</EndDateTime>				    '
-  cdashbenchlog  '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>		    '
-  cdashbenchlog  ' </Testing>								    '
-  cdashbenchlog  '</Site>                                                                   '
+  cdashbenchlog $1  '  <EndDateTime>'"`date`"'</EndDateTime>				    '
+  cdashbenchlog $1 '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>		    '
+  cdashbenchlog $1 ' </Testing>								    '
+  cdashbenchlog $1 '</Site>                                                                   '
   
-  cdash_submit $MY_CDASHBENCHLOG
+  cdash_submit_gclog $1
 }
 
 update_from_subversion;
 larceny_setup;
 larceny_build;
-larceny_tests;
-if [ $FINAL_LARCENY_BIN == "petit-larceny.bin" ]
-then echo skipping larceny_bench as Petit is slooow.
-else larceny_bench;
-fi
+larceny_gcbench dflt ;
+larceny_gcbench hrof ;
+larceny_gcbench gen2 ;
+larceny_gcbench gen3 ;
+larceny_gcbench stcp ;
 
 BUILD_STATUS=${STATUS}
 
