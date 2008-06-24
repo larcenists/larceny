@@ -192,16 +192,16 @@ function cmdsetstatus {
     MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
 }
 
-function cdash_submit {
+function cdash_submit_fake {
     echo fake submission of $1 to web site
 }
 
-function cdash_submit_orig {
+function cdash_submit {
     # Curl does not seem to return an error exit code on the 403 and 405 
     # responses that I am intermittently receiving from CDash.  So I 
     # grep -v for that output and rely on that to set the status bit
     # accordingly in those cases...
-    CMD="echo submit attempt; curl -T $1 '$CDASHSERVER/submit.php?project=Larceny' > ${SUBMITLOG} && ! grep '<title>40' ${SUBMITLOG}"
+    CMD="echo submit attempt; curl -T $1 '$CDASHSERVER/submit.php?project=GCBench' > ${SUBMITLOG} && ! grep '<title>40' ${SUBMITLOG}"
     if echo ${CMD}; eval "${CMD}"; then 
       echo submit attempt 1 successful
     elif eval "${CMD}"; then 
@@ -342,9 +342,12 @@ function larceny_build {
 (build-larceny-files)
 (build-twobit)
 
+(current-directory "test/Benchmarking/GC")
+(load "compile-files.sch")
+
 (exit)
 EOF
-  CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${REALSCM}; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_LARCENY_SCRIPT} -- ${COMPILE_STDLIB_SCRIPT} ; du -skh .; df -kh"
+  CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${REALSCM}; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}; du -skh .; df -kh"
   remove $MY_CDASHBUILDLOG
   cdashbuildlog '<?xml version="1.0" encoding="utf-8"?>                                     '
   cdashbuildlog '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
@@ -400,17 +403,39 @@ EOF
   cp ${TEMPLOG} ${DIR}/build.log
 }
 
+function run_and_process_benchmark {
+  NAME="$2"
+  BMRK="$3"
+  EXPR="$4"
+
+  TEST_SECS_BEGIN=`date +%s`
+  CMD="echo '${EXPR}' | ${LARCENY} -- ${BMRK}.fasl"
+  cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+  TEST_SECS_FINIS=`date +%s`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+
+  cdashbenchlog $1  "<Test Status=\"passed\">"
+  cdashbenchlog $1  "<Status>passed</Status>"
+  cdashbenchlog $1  " <Name>gc benchmark ${NAME}</Name>"
+  cdashbenchlog $1  " <Path>gc benchmark ${EXPR}</Path>"
+  cdashbenchlog $1  " <FullName>gc benchmark ${NAME}</FullName>"
+  cdashbenchlog $1  " <FullCommandLine>${CMD}</FullCommandLine>"
+  cdashbenchlog $1  " <Results>"
+  cdashbenchlog $1  "  <NamedMeasurement type=\"numeric/integer\" name=\"Execution Time\">"
+  cdashbenchlog $1  "    <Value>${TEST_MINS_ELAPSED}</Value>"
+  cdashbenchlog $1  "  </NamedMeasurement>"
+  cdashbenchlog $1  "  <NamedMeasurement type=\"numeric/string\" name=\"Completion Status\">"
+  cdashbenchlog $1  "    <Value>Completed</Value>"
+  cdashbenchlog $1  "  </NamedMeasurement>"
+  cdashbenchlog $1  " </Results>"
+  cdashbenchlog $1  "</Test>"
+}
+
 function larceny_gcbench {
-  cat > ${TEMPSCM} <<EOF
-(current-directory "test/Benchmarking/GC")
-(load "compile-files.sch")
-(exit)
-EOF
-  CMD="cat ${TEMPSCM}; echo | ./${FINAL_LARCENY_SCRIPT} -- ${REALSCM} ; du -skh .; df -kh"
   remove_gclog $1
 
   cdashbenchlog $1  '<?xml version="1.0" encoding="utf-8"?>                                    '
-  cdashbenchlog $1  '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
+  cdashbenchlog $1  '<Site BuildName="'"${MY_BUILDNAME} $1"'"					    '
   cdashbenchlog $1 '      BuildStamp="'"${MY_BUILDSTAMP}"'" 				    '
   cdashbenchlog $1 '      Name="'"`hostname`"'"						    '
   cdashbenchlog $1 '      Generator="'"${MY_GENERATOR}"'">				    '
@@ -420,14 +445,36 @@ EOF
   cdashbenchlog $1 '   <Test>benchmark XXX YYY ZZZ</Test>					    '
   cdashbenchlog $1 '  </TestList>								    '
 
-  TEST_SECS_BEGIN=`date +%s`
+  pushd ${DIR}/larceny_src/test/Benchmarking/GC > /dev/null
 
-  pushd ${DIR}/larceny_src > /dev/null
+  run_and_process_benchmark $1 4nboyer:1 nboyer '(nboyer-benchmark 1 4)'
+  run_and_process_benchmark $1 4nboyer:2 nboyer '(nboyer-benchmark 2 4)'
+
+  CMD="echo '(nboyer-benchmark 2 4)' | ${LARCENY} -- nboyer.fasl"
   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-  popd                     > /dev/null
 
-  TEST_SECS_FINIS=`date +%s`
-  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+###   CMD="echo '(earley-benchmark 13 20)' | ${LARCENY} -- earley.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+###   CMD="echo '(gc-benchmark 5 20)' | ${LARCENY} -- gcbench.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+###   CMD="echo '(nboyer-benchmark 5 5)' | ${LARCENY} -- nboyer.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+###   CMD="echo '(nboyer-benchmark 6 5)' | ${LARCENY} -- nboyer.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+###   CMD="echo '(sboyer-benchmark 6 5)' | ${LARCENY} -- sboyer.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+###   CMD="echo '(MpermNKL-benchmark 200 9 10 1)' | ${LARCENY} -- perm.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+###   CMD="echo '(MpermNKL-benchmark 400 9 10 1)' | ${LARCENY} -- perm.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+###   CMD="echo '(twobit-benchmark (quote long) 5)' | ${LARCENY} -- twobit.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+###   CMD="echo '(GCOld 100 0 1    0 800)' | ${LARCENY} -- gcold.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+###   CMD="echo '(GCOld 100 0 1 1000 800)' | ${LARCENY} -- gcold.fasl"
+###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+
+  popd                     > /dev/null
 
   cdashbenchlog $1  '  <EndDateTime>'"`date`"'</EndDateTime>				    '
   cdashbenchlog $1 '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>		    '
@@ -440,10 +487,15 @@ EOF
 update_from_subversion;
 larceny_setup;
 larceny_build;
+LARCENY="${DIR}/larceny_src/larceny "
 larceny_gcbench dflt ;
+LARCENY="${DIR}/larceny_src/larceny -rof "
 larceny_gcbench hrof ;
+LARCENY="${DIR}/larceny_src/larceny -areas 2 "
 larceny_gcbench gen2 ;
+LARCENY="${DIR}/larceny_src/larceny -areas 3 "
 larceny_gcbench gen3 ;
+LARCENY="${DIR}/larceny_src/larceny -stopcopy "
 larceny_gcbench stcp ;
 
 BUILD_STATUS=${STATUS}
