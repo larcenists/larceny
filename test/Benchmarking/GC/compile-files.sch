@@ -7,7 +7,7 @@
     "nboyer.sch"
     "sboyer.sch"
     "gcbench.sch"
-    "gcold.scm"
+    "gcold.sch"
     "twobit.sch"
     "twobit-smaller.sch"
     ;; I can't get this working, even with directions in its comments.
