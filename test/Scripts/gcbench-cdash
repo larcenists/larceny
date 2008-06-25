@@ -136,7 +136,7 @@ function remove_gclog {
        ;; 
        gen3) MY_LOG=$MY_CDASHBENCHLOG_GEN3
        ;; 
-       stcp) MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       stcp) MY_LOG=$MY_CDASHBENCHLOG_STCP
        ;; 
     esac
     remove ${MY_LOG}
@@ -152,7 +152,7 @@ function  cdash_submit_gclog {
        ;; 
        gen3) MY_LOG=$MY_CDASHBENCHLOG_GEN3
        ;; 
-       stcp) MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       stcp) MY_LOG=$MY_CDASHBENCHLOG_STCP
        ;; 
     esac
     cdash_submit ${MY_LOG}
@@ -172,7 +172,7 @@ function cdashbenchlog {
 	   MY_LOG=$MY_CDASHBENCHLOG_GEN3
 	   ;; 
        stcp) 
-	   MY_LOG=$MY_CDASHBENCHLOG_GEN3
+	   MY_LOG=$MY_CDASHBENCHLOG_STCP
 	   ;; 
    esac
    shift 1; # (pop dispatch parameter)
@@ -412,6 +412,7 @@ function run_and_process_benchmark {
   CMD="echo '${EXPR}' | ${LARCENY} -- ${BMRK}.fasl"
   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
   TEST_SECS_FINIS=`date +%s`
+  TEST_SECS_ELAPSED=`echo " ($TEST_SECS_FINIS - $TEST_SECS_BEGIN) " | bc`
   TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
 
   cdashbenchlog $1  "<Test Status=\"passed\">"
@@ -422,7 +423,7 @@ function run_and_process_benchmark {
   cdashbenchlog $1  " <FullCommandLine>${CMD}</FullCommandLine>"
   cdashbenchlog $1  " <Results>"
   cdashbenchlog $1  "  <NamedMeasurement type=\"numeric/integer\" name=\"Execution Time\">"
-  cdashbenchlog $1  "    <Value>${TEST_MINS_ELAPSED}</Value>"
+  cdashbenchlog $1  "    <Value>${TEST_SECS_ELAPSED}</Value>"
   cdashbenchlog $1  "  </NamedMeasurement>"
   cdashbenchlog $1  "  <NamedMeasurement type=\"numeric/string\" name=\"Completion Status\">"
   cdashbenchlog $1  "    <Value>Completed</Value>"
@@ -447,37 +448,30 @@ function larceny_gcbench {
 
   pushd ${DIR}/larceny_src/test/Benchmarking/GC > /dev/null
 
-  run_and_process_benchmark $1 4nboyer:1 nboyer '(nboyer-benchmark 1 4)'
-  run_and_process_benchmark $1 4nboyer:2 nboyer '(nboyer-benchmark 2 4)'
+  BENCH_SECS_BEGIN=`date +%s`
 
-  CMD="echo '(nboyer-benchmark 2 4)' | ${LARCENY} -- nboyer.fasl"
-  cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+  run_and_process_benchmark $1 4nboyer:1 nboyer  '(nboyer-benchmark 1 4)'
+  run_and_process_benchmark $1 4nboyer:2 nboyer  '(nboyer-benchmark 2 4)'
+  run_and_process_benchmark $1 20earley:13 earley  '(earley-benchmark 13 20)'
+  run_and_process_benchmark $1 5nboyer:5 nboyer  '(nboyer-benchmark 5 5)'
+  run_and_process_benchmark $1 5nboyer:6 nboyer  '(nboyer-benchmark 6 5)'
+  run_and_process_benchmark $1 5sboyer:6 sboyer  '(sboyer-benchmark 6 5)'
+  run_and_process_benchmark $1 20gcbench:5 gcbench '(gc-benchmark 5 20)'
+  run_and_process_benchmark $1 200perm:9 perm '(MpermNKL-benchmark 200 9 10 1)'
+  run_and_process_benchmark $1 400perm:9 perm '(MpermNKL-benchmark 400 9 10 1)'
+  run_and_process_benchmark $1 5twobit:long twobit '(twobit-benchmark (quote long) 5)'
+  run_and_process_benchmark $1 gcold:100:0    gcold '(GCOld 100 0 1    0 800)'
+  run_and_process_benchmark $1 gcold:100:1000 gcold '(GCOld 100 0 1 1000 800)'
 
-###   CMD="echo '(earley-benchmark 13 20)' | ${LARCENY} -- earley.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-###   CMD="echo '(gc-benchmark 5 20)' | ${LARCENY} -- gcbench.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-###   CMD="echo '(nboyer-benchmark 5 5)' | ${LARCENY} -- nboyer.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-###   CMD="echo '(nboyer-benchmark 6 5)' | ${LARCENY} -- nboyer.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-###   CMD="echo '(sboyer-benchmark 6 5)' | ${LARCENY} -- sboyer.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-###   CMD="echo '(MpermNKL-benchmark 200 9 10 1)' | ${LARCENY} -- perm.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-###   CMD="echo '(MpermNKL-benchmark 400 9 10 1)' | ${LARCENY} -- perm.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-###   CMD="echo '(twobit-benchmark (quote long) 5)' | ${LARCENY} -- twobit.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-###   CMD="echo '(GCOld 100 0 1    0 800)' | ${LARCENY} -- gcold.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
-###   CMD="echo '(GCOld 100 0 1 1000 800)' | ${LARCENY} -- gcold.fasl"
-###   cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+  BENCH_SECS_FINIS=`date +%s`
+  BENCH_SECS_ELAPSED=`echo " ($BENCH_SECS_FINIS - $BENCH_SECS_BEGIN)             " | bc`
+  BENCH_MINS_ELAPSED=`echo "(($BENCH_SECS_FINIS - $BENCH_SECS_BEGIN) * 0.0166666)" | bc`
+
 
   popd                     > /dev/null
 
   cdashbenchlog $1  '  <EndDateTime>'"`date`"'</EndDateTime>				    '
-  cdashbenchlog $1 '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>		    '
+  cdashbenchlog $1 '  <ElapsedMinutes>'"${BENCH_MINS_ELAPSED}"'</ElapsedMinutes>		    '
   cdashbenchlog $1 ' </Testing>								    '
   cdashbenchlog $1 '</Site>                                                                   '
   
