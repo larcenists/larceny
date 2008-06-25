@@ -415,8 +415,8 @@ function run_and_process_benchmark {
   TEST_SECS_ELAPSED=`echo " ($TEST_SECS_FINIS - $TEST_SECS_BEGIN) " | bc`
   TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
 
-  cdashbenchlog $1  "<Test Status=\"passed\">"
-  cdashbenchlog $1  "<Status>passed</Status>"
+  cdashbenchlog $1  "<Test Status=\"${STATUS}\">"
+  cdashbenchlog $1  "<Status>${STATUS}</Status>"
   cdashbenchlog $1  " <Name>gc benchmark ${NAME}</Name>"
   cdashbenchlog $1  " <Path>gc benchmark ${EXPR}</Path>"
   cdashbenchlog $1  " <FullName>gc benchmark ${NAME}</FullName>"
