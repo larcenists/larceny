@@ -240,6 +240,8 @@ word copy_object( gc_t *gc, word obj );
 word box_double( double d );
 word box_int( int i );
 word box_uint( unsigned u );
+word box_longlong( long long ll );
+word box_ulonglong( unsigned long long ull );
 unsigned unbox_uint( word w );
 int unbox_int( word w );
 /* Some of the following may be supplied by the system libraries. */
