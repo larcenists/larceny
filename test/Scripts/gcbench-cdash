@@ -97,6 +97,7 @@ DIR=${HOME}/larcenytest/larceny-gcbench
 MY_CDASHUPDATELOG="${DIR}/cdash-update-sub.xml"
 MY_CDASHCONFIGLOG="${DIR}/cdash-config-sub.xml"
 MY_CDASHBUILDLOG="${DIR}/cdash-build-sub.xml"
+MY_CDASHBUILDLOG_FAKE="${DIR}/cdash-fake-build-sub.xml"
 MY_CDASHBENCHLOG_DFLT="${DIR}/cdash-bench-dflt-sub.xml"
 MY_CDASHBENCHLOG_HROF="${DIR}/cdash-bench-hrof-sub.xml"
 MY_CDASHBENCHLOG_GEN2="${DIR}/cdash-bench-gen2-sub.xml"
@@ -124,6 +125,10 @@ function cdashconfiglog {
 
 function cdashbuildlog {
    echo "$@" >> $MY_CDASHBUILDLOG
+}
+
+function cdashbuildlog_fake {
+   echo "$@" >> $MY_CDASHBUILDLOG_FAKE
 }
 
 function remove_gclog {
@@ -349,13 +354,14 @@ function larceny_build {
 EOF
   CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${REALSCM}; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}; du -skh .; df -kh"
   remove $MY_CDASHBUILDLOG
+  REAL_BUILD_START_DATE_TIME=`date`
   cdashbuildlog '<?xml version="1.0" encoding="utf-8"?>                                     '
   cdashbuildlog '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
   cdashbuildlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"   				    '
   cdashbuildlog '      Name="'"`hostname`"'"					            '
   cdashbuildlog '      Generator="'"${MY_GENERATOR}"'">					    '
   cdashbuildlog ' <Build>								    '
-  cdashbuildlog '  <StartDateTime>'"`date`"'</StartDateTime>			            '
+  cdashbuildlog '  <StartDateTime>'"${REAL_BUILD_START_DATE_TIME}"'</StartDateTime>			            '
 
   cdashbuildlog '  <BuildCommand>'"${CMD}"'</BuildCommand>'
 
@@ -385,7 +391,8 @@ EOF
   cdashbuildlog '  (the real Log is named LogOld in the xml)                                '
   cdashbuildlog '  </LogByHand>                                                             '
   
-  cdashbuildlog '  <EndDateTime>'"`date`"'</EndDateTime>				    '
+  REAL_BUILD_END_DATE_TIME=`date`
+  cdashbuildlog '  <EndDateTime>'"${REAL_BUILD_END_DATE_TIME}"'</EndDateTime>				    '
   cdashbuildlog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>			    '
   cdashbuildlog ' </Build>								    '
   cdashbuildlog '</Site>                                                                    '
@@ -401,6 +408,26 @@ EOF
   cdash_submit $MY_CDASHCONFIGLOG
 
   cp ${TEMPLOG} ${DIR}/build.log
+}
+
+function larceny_fake_build {
+  remove $MY_CDASHBUILDLOG_FAKE
+  cdashbuildlog_fake '<?xml version="1.0" encoding="utf-8"?>                                     '
+  cdashbuildlog_fake '<Site BuildName="'"${MY_BUILDNAME} $1"'"					    '
+  cdashbuildlog_fake '      BuildStamp="'"${MY_BUILDSTAMP}"'"   				    '
+  cdashbuildlog_fake '      Name="'"`hostname`"'"					            '
+  cdashbuildlog_fake '      Generator="'"${MY_GENERATOR}"'">					    '
+  cdashbuildlog_fake ' <Build>								    '
+  cdashbuildlog_fake '  <StartDateTime>'"${REAL_BUILD_START_DATE_TIME}"'</StartDateTime>			            '
+
+  cdashbuildlog_fake '  <BuildCommand>'"${CMD}"'</BuildCommand>'
+  
+  cdashbuildlog_fake '  <EndDateTime>'"${REAL_BUILD_END_DATE_TIME}"'</EndDateTime>				    '
+  cdashbuildlog_fake '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>			    '
+  cdashbuildlog_fake ' </Build>								    '
+  cdashbuildlog_fake '</Site>                                                                    '
+  
+  cdash_submit $MY_CDASHBUILDLOG_FAKE
 }
 
 function run_and_process_benchmark {
@@ -433,6 +460,8 @@ function run_and_process_benchmark {
 }
 
 function larceny_gcbench {
+  larceny_fake_build $1
+
   remove_gclog $1
 
   cdashbenchlog $1  '<?xml version="1.0" encoding="utf-8"?>                                    '
