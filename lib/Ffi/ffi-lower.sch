@@ -31,6 +31,8 @@
 			     ((ieee32) 2)
 			     ((ieee64) 3)
 			     ((pointer) 4)
+			     ((signed64) 5)
+			     ((unsigned64) 6)
 			     (else ???))))))
 
 (define (ffi/convert-ret-descriptor abi ret-descriptor)
@@ -40,6 +42,8 @@
     ((ieee64) 2)
     ((ieee32) 3)
     ((void) 4)
+    ((signed64) 5)
+    ((unsigned64) 6)
     (else ???)))
 
 (define (ffi/apply trampoline arg-encoding ret-encoding actuals)
