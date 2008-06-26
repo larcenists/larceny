@@ -26,6 +26,7 @@
 ;;             | (sizeof <scheme-name> <c-type>)
 ;;             | (struct <c-name> (<scheme-name> <c-field>) ...)
 ;;             | (fields <c-name> (<scheme-name> <c-field>) ...)
+;;             | (ifdefconst <scheme-name> <type> <c-name>)      ;; unspec o/w
 ;;
 ;; <type>    ::= int | uint | long | ulong
 ;;
@@ -75,6 +76,22 @@
                      ,@decls)))
               body)))
 
+        (define (gen-ifdefconst name type-spec cname)
+          (set! body
+            (cons
+              (call-with-values
+                (lambda () (types type-spec))
+                (lambda (fmt type)
+                  `(,name
+                     (ifdef ,cname
+                            (,fmt
+                             ,(string-append
+                               "(" type ")"
+                               "(" cname  ")"))
+                            ("%s"
+                             "\"#!unspecified\"")))))
+              body)))
+
         (define (gen-fields name fields)
           (for-each
             (lambda (field-exp)
@@ -112,6 +129,12 @@
 
              ((cmp (car form) 'const)
               (gen-const
+               (cadr form)
+               (caddr form)
+               (stringify (cadddr form))))
+
+             ((cmp (car form) 'ifdefconst)
+              (gen-ifdefconst
                (cadr form)
                (caddr form)
                (stringify (cadddr form))))
@@ -154,7 +177,9 @@
 ;;    (<c-prologue> ...)
 ;;    <decl> ...)
 ;;
-;; <decl> ::= (<scheme-name> <printf-fmt> <c-expr> <c-decls> ...)
+;; <desc> ::= (<printf-fmt> <c-expr> <c-decls> ...)
+;; <decl> ::= (<scheme-name> . <desc>)
+;;         |  (<scheme-name> (ifdef <id> <desc> <desc>))
 ;;
 (define-syntax define-c-values
   (transformer
@@ -222,15 +247,44 @@
                "#include <stdio.h>"
                "int main(int argc, char **argv) {"
                "   printf(\"\\n(\\n\");"
-               ,@(map (lambda (printf-fmt c-expr c-decls)
-                        (string-append
-                          "{ "
-                          (apply string-append c-decls)
-                          "  printf(\"" printf-fmt " \",(" c-expr "));"
-                          "}"))
-                      (map cadr   c-forms)
-                      (map caddr  c-forms)
-                      (map cdddr  c-forms))
+               ,@(let ((process-standard 
+                        (lambda (printf-fmt c-expr c-decls)
+                          (string-append
+                           "{ "
+                           (apply string-append c-decls)
+                           "  printf(\"" printf-fmt " \",(" c-expr "));"
+                           "}")))
+                       (process-ifdef
+                        (lambda (id then-fmt then-c-expr then-decls
+                                    else-fmt else-c-expr else-decls)
+                          (string-append
+                           "{ "
+                           "\n#ifdef " id "\n"
+                           (apply string-append then-decls)
+                           "  printf(\"" then-fmt " \",(" then-c-expr "));"
+                           "\n#else \n"
+                           (apply string-append else-decls)
+                           "  printf(\"" else-fmt " \",(" else-c-expr "));"
+                           "\n#endif \n"
+                           "}"))))
+                   (map (lambda (entry)
+                          (cond ((string? (cadr entry))
+                                 (process-standard (cadr entry)
+                                                   (caddr entry)
+                                                   (cdddr entry)))
+                                ((eq? 'ifdef (car (cadr entry)))
+                                 (let ((tst (cadr (cadr entry)))
+                                       (thn (caddr (cadr entry)))
+                                       (els (cadddr (cadr entry))))
+                                   (process-ifdef tst
+                                                  (car thn)
+                                                  (cadr thn)
+                                                  (cddr thn)
+                                                  (car els)
+                                                  (cadr els)
+                                                  (cddr els))))
+                                (else (error))))
+                        c-forms))
                "  printf(\"\\n)\\n\");"
                "  return 0;"
                "}")))
