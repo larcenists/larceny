@@ -131,6 +131,8 @@
 	     #x8B #x5D #x0C                             ; MOV EBX, [EBP+12]     get return pointer
 	     ,@(case (return-type tr)
 		 ((word)   '(#x89 #x03))                ; MOV [EBX], EAX
+		 ((word2)  '(#x89 #x03                  ; MOV [EBX], EAX
+		             #x89 #x53 #x04))           ; MOV [EBX+4], EDX
 		 ((ieee64) '(#xDD #x1B))                ; FSTP QWORD PTR [EBX]
 		 ((ieee32) '(#xD9 #x1B))                ; FSTP DWORD PTR [EBX]
 		 ((void)   '())
@@ -165,11 +167,12 @@
 	(case selector
 	  ((alloc)               alloc-trampoline)
 	  ((arg-word arg-ieee32) (lambda (tr) (copy-dword tr) (set-arg-length! tr (+ (arg-length tr) 1))))
-	  ((arg-ieee64)          (lambda (tr) (copy-qword tr) (set-arg-length! tr (+ (arg-length tr) 2))))
+	  ((arg-word2 arg-ieee64) (lambda (tr) (copy-qword tr) (set-arg-length! tr (+ (arg-length tr) 2))))
 	  ((ret-word)            (lambda (tr) (set-return-type! tr 'word)))
 	  ((ret-ieee64)          (lambda (tr) (set-return-type! tr 'ieee64)))
 	  ((ret-ieee32)          (lambda (tr) (set-return-type! tr 'ieee32)))
 	  ((ret-void)            (lambda (tr) (set-return-type! tr 'void)))
+	  ((ret-word2)           (lambda (tr) (set-return-type! tr 'word2)))
 	  ((change-fptr)         change-fptr)
 	  ((done)                callout-done)
 	  ((done-pasteup)        (lambda (tr) #t))
