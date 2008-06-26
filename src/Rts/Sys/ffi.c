@@ -28,6 +28,8 @@
  *         2   ieee32           flonum; compnum with 0 imag part
  *         3   ieee64           flonum; compnum with 0 imag part
  *         4   pointer          bytevector-like; vector-like; pair; 0
+ *         5   signed64         fixnum; -2^63 <= bignum < 2^63
+ *         6   unsigned64       positive fixnum; 0 <= bignum < 2^64
  *
  * The values for the return_descriptor are the following:
  *     value   type             C return type assumed
@@ -37,6 +39,8 @@
  *         2   double           double
  *         3   float            float
  *         4   void             void
+ *         5   signed64         long long 
+ *         6   unsigned64       unsigned long long
  *
  * Rules:
  * - The foreign code _may_not_ allocate memory from the Scheme heap.
@@ -51,6 +55,8 @@ typedef union {
   double   ieee64;
   float    ieee32;
   byte     *pointer;
+  long long signed64;
+  unsigned long long unsigned64;
 } ffi_arg;
 
 
@@ -64,12 +70,16 @@ larceny_C_ffi_apply( word trampoline_bytevector,
   typedef void (*tramp_float_t)( ffi_arg *, float * );
   typedef void (*tramp_word_t)( ffi_arg *, word * );
   typedef void (*tramp_void_t)( ffi_arg * );
+  typedef void (*tramp_ll_t)( ffi_arg *, long long * );
+  typedef void (*tramp_ull_t)( ffi_arg *, unsigned long long * );
 
   ffi_arg args[ 32 ];
   int i, limit, argc;
   word w_result;
   double d_result;
   float f_result;
+  long long ll_result;
+  unsigned long long ull_result;
 
   assert( sizeof( ffi_arg ) == 8 );
 
@@ -193,6 +203,78 @@ larceny_C_ffi_apply( word trampoline_bytevector,
 	}
       }
       break;
+    case 5 : 
+      /* signed64 */
+      switch(tagof(arg)) {
+      case FIX1_TAG :
+      case FIX2_TAG :
+	args[i].signed64 = nativeint( arg );
+	break;
+      case BVEC_TAG :
+	if (typetag(*ptrof( arg )) == BIG_SUBTAG && bignum_length( arg ) == 1){
+	  unsigned w = bignum_ref32( arg, 0 );
+	  if (bignum_sign( arg ) == 0)
+	    args[i].signed64 = (long long)w;
+	  else if (bignum_sign( arg ) == 1)
+	    args[i].signed64 = -(long long)w;
+	  else
+	    goto badarg_s64;
+	}
+	else if (typetag(*ptrof( arg )) == BIG_SUBTAG && 
+		 bignum_length( arg ) == 2){
+	  long long val = 0;
+	  unsigned w0 = bignum_ref32( arg, 0 );
+	  unsigned w1 = bignum_ref32( arg, 1 );
+	  val += w0;
+	  val += ((long long)w1) << 32;
+	  if (bignum_sign( arg ) == 0 && w1 < 0x80000000)
+	    args[i].signed64 = (long long)val;
+	  else if (bignum_sign( arg ) == 1 && w1 <= 0x80000000)
+	    args[i].signed64 = -(long long)val;
+	  else
+	    goto badarg_s64;
+	}
+	else
+	  goto badarg_s64;
+	break;
+      default :
+      badarg_s64:
+	hardconsolemsg( "FFICALL failed: bad arg to signed-word64, val=0x%08x",
+		        arg );
+	goto failed;
+      }
+      break;
+    case 6 : 
+      /* unsigned64 */
+      switch(tagof(arg)) {
+      case FIX1_TAG :
+      case FIX2_TAG :
+	args[i].unsigned64 = (unsigned)nativeint( arg );
+	break;
+      case BVEC_TAG :
+	if (typetag(*ptrof( arg )) == BIG_SUBTAG
+	    && bignum_length( arg ) == 1
+	    && bignum_sign( arg ) == 0) {
+	  args[i].unsigned64 = bignum_ref32( arg, 0 );
+	}
+	else if (typetag(*ptrof( arg )) == BIG_SUBTAG
+		 && bignum_length( arg ) == 2
+		 && bignum_sign( arg ) == 0) {
+	  unsigned long long val = 0;
+	  val += bignum_ref32( arg, 0 );
+	  val += ((unsigned long long)bignum_ref32( arg, 1 )) << 32;
+	  args[i].unsigned64 = val;
+	}
+	else
+	  goto badarg_u64;
+	break;
+      default :
+      badarg_u64:
+	hardconsolemsg( "FFICALL failed: bad arg to unsigned-word64, "
+			"val=0x%08x", arg );
+      goto failed;
+      }
+      break;
     default :
       hardconsolemsg( "FFICALL failed: bad argdesc value %d",
 		      bytevector_ref( argument_descriptor, i ) );
@@ -230,6 +312,14 @@ larceny_C_ffi_apply( word trampoline_bytevector,
   case 4 :  /* void */ /* FIXME: Is this broken? For stdcall? */
     ((tramp_void_t)(ptrof(trampoline_bytevector)+1))( args );
     globals[ G_RESULT ] = UNSPECIFIED_CONST;
+    return;
+  case 5 :  /* long long */
+    ((tramp_ll_t)(ptrof(trampoline_bytevector)+1))( args, &ll_result );
+    globals[ G_RESULT ] = box_longlong( ll_result );
+    return;
+  case 6 :  /* unsigned long long */
+    ((tramp_ull_t)(ptrof(trampoline_bytevector)+1))( args, &ull_result );
+    globals[ G_RESULT ] = box_ulonglong( ull_result );
     return;
   default :
     hardconsolemsg( "FFICALL failed: bad return descriptor %d", 
