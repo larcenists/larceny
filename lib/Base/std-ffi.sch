@@ -296,6 +296,7 @@
   (cond
    ((pair? t)
     (cond
+     ;; (-> (type ...) type)
      ((eq? '-> (car t))
       (let ((param-types (cadr t))
             (ret-type    (caddr t)))
@@ -306,6 +307,7 @@
                  name))
              ,(lambda (addr name)
                 (foreign-procedure-pointer addr param-types ret-type)))))
+     ;; (maybe type)
      ((eq? 'maybe (car t))
       (let* ((param-type (cadr t))
              (entry (ffi-attribute-entry param-type))
@@ -321,6 +323,27 @@
                 (if (foreign-null-pointer? x)
                     #f
                     (fth x name))))))
+     ;; (oneof (schemeval-i cint-i) ... type)
+     ((eq? 'oneof (car t))
+      (let* ((else-type (car (reverse (cdr t))))
+             (s2c-vals (reverse (cdr (reverse (cdr t)))))
+             (c2s-vals (map reverse s2c-vals))
+             (entry (ffi-attribute-entry else-type))
+             (thd (caddr entry))
+             (fth (cadddr entry)))
+        `(,t signed32 
+             ,(lambda (sval name) 
+                (cond ((assoc sval s2c-vals) => 
+                       (lambda (entry)
+                         (let ((cval (cadr entry)))
+                           cval)))
+                      (else (thd sval name))))
+             ,(lambda (cval name) 
+                (cond ((assoc cval c2s-vals) =>
+                       (lambda (entry)
+                         (let ((sval (cadr entry)))
+                           sval)))
+                      (else (fth cval name)))))))
      (else
       (error "FFI: " t " is not a valid type constructor."))))
    (else
