@@ -322,4 +322,20 @@
 (define get-h-errno
   (c-variable-getter "h_errno" "__h_errno_location"))
 
+(define (c-variable-setter varname locname)
+  (cond ((equal? "Linux" (cdr (assq 'os-name (system-features))))
+         ;; On Linux, varname is a macro that expands into a procedure
+         ;; that returns a ptr to thread-local errno-value.
+         (let ((get-loc (foreign-procedure locname '() 'uint)))
+           (lambda (x)
+             (%poke-pointer (get-loc) x))))
+        (else
+         (let ((accessor (foreign-variable varname 'int)))
+           (lambda (x)
+             (accessor x))))))
+
+(define set-errno!
+  (c-variable-setter "errno" "__errno_location"))
+  
+
 ; eof
