@@ -284,6 +284,14 @@
          (list high-level-name low-level-name high->low low->high)
          *ffi-attributes*)))
 
+(define *ffi-attribute-aliases*
+  '())
+
+(define (ffi-add-alias-of-attribute-entry! new-name t)
+  (set! *ffi-attribute-aliases*
+        (cons (cons new-name t)
+              *ffi-attribute-aliases*)))
+
 ;; This now handles the function type constructor -> to convert
 ;; between C function pointers and Scheme closures.  It might be good
 ;; to also add an array type constructor that converts between C
@@ -294,6 +302,8 @@
 ;;  for passing in.)
 (define (ffi-attribute-entry t)
   (cond
+   ((assq t *ffi-attribute-aliases*) =>
+    (lambda (t2) (ffi-attribute-entry (cdr t2))))
    ((pair? t)
     (cond
      ;; (-> (type ...) type)
