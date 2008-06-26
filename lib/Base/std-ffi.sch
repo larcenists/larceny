@@ -175,6 +175,21 @@
 	  (error "Foreign-procedure " name ": " x 
 		 " is out of range for a unsigned integer type.")))
 
+    (define (longlong-check x name)
+      (if (or (fixnum? x)
+	      (<= -9223372036854775808 x 9223372036854775807))
+	  x
+	  (error "Foreign-procedure " name ": " x 
+		 " is out of range for a signed integer type.")))
+
+    (define (ulonglong-check x name)
+      (if (or (and (fixnum? x)
+		   (>= x 0))
+	      (<= 0 x 18446744073709551615))
+	  x
+	  (error "Foreign-procedure " name ": " x 
+		 " is out of range for a signed integer type.")))
+
     (define (character->char x name)
       (if (char? x)
 	  (let ((c (char->integer x)))
@@ -265,6 +280,8 @@
       (ulong    unsigned32 ,unsigned-integer-check  ,id)
       (float    ieee32     ,flonum-check            ,id)
       (double   ieee64     ,flonum-check            ,id)
+      (longlong  signed64   ,longlong-check         ,id)
+      (ulonglong unsigned64 ,ulonglong-check        ,id)
       (bool     signed32   ,object->bool            ,int->boolean)
       (void     void       ,#f                      ,id)
       (boxed    pointer    ,boxed->pointer          ,#f)
