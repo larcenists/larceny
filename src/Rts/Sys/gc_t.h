@@ -85,6 +85,11 @@ struct gc {
        Returns a pointer to the allocated object.
        */
 
+  void (*make_room)( gc_t *gc );
+    /* Ensures that at least 4KB of contiguous space is available at 
+       the allocation pointer; does not perform any actual allocation.
+       */
+
   void (*collect)( gc_t *gc, int gen, int bytes_needed, gc_type_t type );
     /* A method that requests that a garbage collection be performed in
        generation `gen', such that at least `bytes_needed' bytes can be
@@ -175,6 +180,7 @@ struct gc {
 #define gc_initialize( gc )           ((gc)->initialize( gc ))
 #define gc_allocate( gc, n, nogc, a ) ((gc)->allocate( gc, n, nogc, a ))
 #define gc_allocate_nonmoving( gc,n,a ) ((gc)->allocate_nonmoving( gc, n,a ))
+#define gc_make_room( gc )            ((gc)->make_room( gc ))
 #define gc_collect( gc,gen,n,t )      ((gc)->collect( gc,gen,n,t ))
 #define gc_set_policy( gc,h,x,y )     ((gc)->set_policy( gc,h,x,y ))
 #define gc_data_load_area( gc,n )     ((gc)->data_load_area( gc,n ))
@@ -206,6 +212,7 @@ gc_t
 	     int  (*initialize)( gc_t *gc ),
 	     word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic),
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
+	     void (*make_room)( gc_t *gc ),
 	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
 	     void (*permute_remembered_sets)( gc_t *gc, int permutation[] ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),

@@ -353,6 +353,11 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
   return sh_allocate( gc->static_area, nbytes );
 }
 
+static void make_room( gc_t *gc ) 
+{
+  yh_make_room( gc->young_area );
+}
+
 /* Shuffle remembered sets
    Shuffle SSB pointer table entries
    Shuffle the pointers in the remsets to the ssb pointer tables
@@ -999,6 +1004,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 initialize, 
 		 allocate,
 		 allocate_nonmoving,
+		 make_room,
 #if DOF_COLLECTOR
 		 (info->use_dof_collector ? dof_collect : collect),
 #else

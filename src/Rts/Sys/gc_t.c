@@ -14,6 +14,7 @@ gc_t
 	     int  (*initialize)( gc_t *gc ),
 	     word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic),
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
+	     void (*make_room)( gc_t *gc ), 
 	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
 	     void (*permute_remembered_sets)( gc_t *gc, int permutation[] ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
@@ -63,6 +64,7 @@ gc_t
   gc->initialize = initialize;
   gc->allocate = allocate;
   gc->allocate_nonmoving = allocate_nonmoving;
+  gc->make_room = make_room;
   gc->collect = collect;
   gc->permute_remembered_sets = permute_remembered_sets;
   gc->set_policy = set_policy;

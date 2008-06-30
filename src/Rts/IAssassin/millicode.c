@@ -142,7 +142,7 @@ void EXPORT mc_alloci( word *globals )
 
 void EXPORT mc_morecore( word *globals )
 {
-  gc_collect(the_gc(globals), 0, 0, GCTYPE_COLLECT);
+  gc_make_room( the_gc(globals) );
 }
 
 void EXPORT mc_stack_overflow( word *globals )
