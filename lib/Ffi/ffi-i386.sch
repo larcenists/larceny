@@ -18,6 +18,8 @@
 ;   return-type     base+0  a symbol -- the return type (callout and callback)
 ;   arg-length      base+1  an integer -- the number of words of arguments so far
 
+#!no-fold-case
+
 (define ffi/i386-C-callout-stdcall)
 (define ffi/i386-C-callback-stdcall)
 (define ffi/i386-C-callout-cdecl)

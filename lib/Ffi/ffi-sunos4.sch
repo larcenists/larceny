@@ -4,6 +4,8 @@
 ;
 ; Larceny FFI -- ABI objects for sun4-sunos4.
 
+#!no-fold-case
+
 (define ffi/SPARC-sunos4-C-callout-stdabi
   (let ((parent ffi/SPARC-C-callout-stdabi))
 
