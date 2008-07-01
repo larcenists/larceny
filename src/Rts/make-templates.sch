@@ -486,7 +486,7 @@ realclean: clean
 
 (define make-template-rts-dependencies-1
 "LARCENY_H=$(INC_ROOT)/Sys/larceny-types.h $(INC_ROOT)/Sys/macros.h \\
-	  Sys/assert.h Sys/larceny.h \\
+	  Sys/assert.h Sys/larceny.h Sys/gc.h Sys/osdep.h \\
 	  $(INC_ROOT)/cdefs.h $(INC_ROOT)/config.h
 SPARC_ASM_H=$(INC_ROOT)/asmdefs.h Sparc/asmmacro.h
 PETIT_H=$(INC_ROOT)/Shared/millicode.h $(INC_ROOT)/Shared/petit-config.h \\
