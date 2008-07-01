@@ -25,7 +25,7 @@
 #include "gc.h"
 #include "stats.h"        /* for stats_init() */
 #include "gc_t.h"
-#include "young_heap_t.h"
+#include "young_heap_t.h" /* for yh_create_initial_stack() */
 
 opt_t command_line_options;
 
