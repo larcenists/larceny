@@ -346,7 +346,7 @@ function larceny_build {
 
 (exit)
 EOF
-  CMD="cat ${TEMPSCM} && ${SCHEME_PGM} ${REALSCM} && echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT} && ./${FINAL_LARCENY_SCRIPT} -- -e '(begin (current-directory \"test/Benchmarking/GC\") (load \"compile-files.sch\"))' && du -skh . && df -kh"
+  CMD="cat ${TEMPSCM} && ${SCHEME_PGM} ${REALSCM} && echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT} && echo | ./${FINAL_LARCENY_SCRIPT} -- -e '(begin (current-directory \"test/Benchmarking/GC\") (load \"compile-files.sch\"))' && du -skh . && df -kh"
   remove $MY_CDASHBUILDLOG
   REAL_BUILD_START_DATE_TIME=`date`
   cdashbuildlog '<?xml version="1.0" encoding="utf-8"?>                                     '
