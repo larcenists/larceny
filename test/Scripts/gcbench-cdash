@@ -89,8 +89,8 @@ esac
 
 # Perhaps add more to this, like the hour and minute?
 TODAY=`date +%Y-%m-%d` 
-DIR=${DIR:-"${HOME}/larcenytest/larceny-gcbench"}
 DIRNAME=${DIRNAME:-"default"}
+DIR=${DIR:-"${HOME}/larcenytest/${DIRNAME}-gcbench"}
 MY_CDASHUPDATELOG="${DIR}/cdash-update-sub.xml"
 MY_CDASHCONFIGLOG="${DIR}/cdash-config-sub.xml"
 MY_CDASHBUILDLOG="${DIR}/cdash-build-sub.xml"
