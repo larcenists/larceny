@@ -106,6 +106,7 @@ struct gc_data {
   bool      remset_summary_valid;
   int       remset_summary_words;
   int       popularity_limit;   /* Maximum summary size allowed (in words) */
+  summ_matrix_t *summ_matrix;
 
   remset_t *nursery_remset;     /* Points-into remset for the nursery. */
 
@@ -2741,7 +2742,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     }
 
     data->remset_summary = create_remset( 0, 0 );
-    
+    data->summ_matrix = 
+      create_summ_matrix( gc, 1, gc->remset_count, 0.25, 2.0 );
+
     data->nursery_remset = create_remset( 0, 0 );
 
     gc->ssb =

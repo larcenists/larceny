@@ -79,6 +79,7 @@
 # define MB_FREE           32     /* Memory is on Larceny free list */
 # define MB_LARGE_OBJECT   64     /* Memory is allocated to a large object */
 # define MB_FLONUMS        128    /* Memory is part of a flonum space */
+# define MB_SUMMARY_SETS   256    /* Memory belongs to summarization sets */
 #endif
 
 /* The following values are used in the desc_g array for 

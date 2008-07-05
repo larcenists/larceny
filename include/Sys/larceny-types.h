@@ -64,6 +64,9 @@ typedef struct static_heap static_heap_t;
 /* remset_t is elaborated in remset_t.h */
 typedef struct remset remset_t;
 
+/* summ_matrix_t is elaborated in summ_matrix_t.h */
+typedef struct summ_matrix summ_matrix_t;
+
 /* seqbuf_t is elaborated in seqbuf_t.h */
 typedef struct seqbuf seqbuf_t;
 
