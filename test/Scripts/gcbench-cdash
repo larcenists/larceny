@@ -7,7 +7,7 @@ set -o errexit
 ## This script is meant to be first symlinked to under a file name
 ## indicating the host scheme and architecture, and then invoked in a
 ## context with the following environment variables set: 
-##    TRACK CDASHSERVER
+##    TRACK CDASHSERVER GCSYSTEMS
 ## 
 ## Here is a sample simple wrapper script meant to demonstrate how 
 ## to first invoke this script, and then send the resulting logs
@@ -23,6 +23,9 @@ set -o errexit
 
 # Override this variable to submit to other tracks, e.g. Nightly or Continuous
 TRACK=${TRACK:-"Experimental"}
+
+# Override this variable to select which gc technologies to test.
+GCSYSTEMS=${GCSYSTEMS:-"dflt hrof gen2 gen3 stcp"}
 
 # We should not have to do 'always-source here, but Larceny is
 # currently not smart enough to back off when encountering a fasl file
@@ -97,6 +100,7 @@ MY_CDASHBUILDLOG="${DIR}/cdash-build-sub.xml"
 MY_CDASHBUILDLOG_FAKE="${DIR}/cdash-fake-build-sub.xml"
 MY_CDASHBENCHLOG_DFLT="${DIR}/cdash-bench-dflt-sub.xml"
 MY_CDASHBENCHLOG_HROF="${DIR}/cdash-bench-hrof-sub.xml"
+MY_CDASHBENCHLOG_RROF3="${DIR}/cdash-bench-rrof3-sub.xml"
 MY_CDASHBENCHLOG_GEN2="${DIR}/cdash-bench-gen2-sub.xml"
 MY_CDASHBENCHLOG_GEN3="${DIR}/cdash-bench-gen3-sub.xml"
 MY_CDASHBENCHLOG_STCP="${DIR}/cdash-bench-stcp-sub.xml"
@@ -130,15 +134,17 @@ function cdashbuildlog_fake {
 
 function remove_gclog {
     case $1 in 
-       dflt) MY_LOG=$MY_CDASHBENCHLOG_DFLT 
+       dflt)  MY_LOG=$MY_CDASHBENCHLOG_DFLT 
        ;;
-       hrof) MY_LOG=$MY_CDASHBENCHLOG_HROF
+       hrof)  MY_LOG=$MY_CDASHBENCHLOG_HROF
        ;; 
-       gen2) MY_LOG=$MY_CDASHBENCHLOG_GEN2
+       rrof3) MY_LOG=$MY_CDASHBENCHLOG_RROF3
        ;; 
-       gen3) MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       gen2)  MY_LOG=$MY_CDASHBENCHLOG_GEN2
        ;; 
-       stcp) MY_LOG=$MY_CDASHBENCHLOG_STCP
+       gen3)  MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       ;; 
+       stcp)  MY_LOG=$MY_CDASHBENCHLOG_STCP
        ;; 
     esac
     remove ${MY_LOG}
@@ -146,15 +152,17 @@ function remove_gclog {
 
 function  cdash_submit_gclog {
     case $1 in 
-       dflt) MY_LOG=$MY_CDASHBENCHLOG_DFLT 
+       dflt)  MY_LOG=$MY_CDASHBENCHLOG_DFLT 
        ;;
-       hrof) MY_LOG=$MY_CDASHBENCHLOG_HROF
+       hrof)  MY_LOG=$MY_CDASHBENCHLOG_HROF
        ;; 
-       gen2) MY_LOG=$MY_CDASHBENCHLOG_GEN2
+       rrof3) MY_LOG=$MY_CDASHBENCHLOG_RROF3
        ;; 
-       gen3) MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       gen2)  MY_LOG=$MY_CDASHBENCHLOG_GEN2
        ;; 
-       stcp) MY_LOG=$MY_CDASHBENCHLOG_STCP
+       gen3)  MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       ;; 
+       stcp)  MY_LOG=$MY_CDASHBENCHLOG_STCP
        ;; 
     esac
     cdash_submit ${MY_LOG}
@@ -166,6 +174,9 @@ function cdashbenchlog {
 	   ;;
        hrof) 
 	   MY_LOG=$MY_CDASHBENCHLOG_HROF
+	   ;; 
+       rrof3) 
+	   MY_LOG=$MY_CDASHBENCHLOG_RROF3
 	   ;; 
        gen2) 
 	   MY_LOG=$MY_CDASHBENCHLOG_GEN2
@@ -510,19 +521,26 @@ function larceny_gcbench {
   cdash_submit_gclog $1
 }
 
+function larceny_gcbench_sys {
+    case $1 in 
+       dflt)  LARCENY_ARGS="         " ;;
+       hrof)  LARCENY_ARGS="-rof     " ;;
+       rrof3) LARCENY_ARGS="-rrof -refinement 3.0 " ;;
+       gen2)  LARCENY_ARGS="-areas 2 " ;;
+       gen3)  LARCENY_ARGS="-areas 3 " ;;
+       stcp)  LARCENY_ARGS="-stopcopy" ;;
+    esac
+    LARCENY="${DIR}/larceny_src/larceny ${LARCENY_ARGS} "
+    larceny_gcbench $1 ;
+}
+
 update_from_subversion;
 larceny_setup;
 larceny_build;
-LARCENY="${DIR}/larceny_src/larceny "
-larceny_gcbench dflt ;
-LARCENY="${DIR}/larceny_src/larceny -rof "
-larceny_gcbench hrof ;
-LARCENY="${DIR}/larceny_src/larceny -areas 2 "
-larceny_gcbench gen2 ;
-LARCENY="${DIR}/larceny_src/larceny -areas 3 "
-larceny_gcbench gen3 ;
-LARCENY="${DIR}/larceny_src/larceny -stopcopy "
-larceny_gcbench stcp ;
+
+for gcsys in ${GCSYSTEMS} ; do 
+  larceny_gcbench_sys $gcsys
+done
 
 BUILD_STATUS=${STATUS}
 
