@@ -27,6 +27,7 @@ const char *larceny_gc_technology = "precise";
 #include "barrier.h"
 #include "stack.h"
 #include "msgc-core.h"
+#include "summary_t.h"
 
 /* Checking code */
 #define CHECK_HEAP_INVARIANTS 0
@@ -102,7 +103,8 @@ struct gc_data {
      *  sizes.)
      */
 
-  remset_t *remset_summary;     /* NULL or summarization of remset array */
+  summary_t summary;            /* NULL or summarization of remset array */
+  remset_t *remset_summary;     /* usual backing store for summary_t above */
   bool      remset_summary_valid;
   int       remset_summary_words;
   int       popularity_limit;   /* Maximum summary size allowed (in words) */
@@ -576,6 +578,9 @@ static void build_remset_summary( gc_t *gc, int gen )
   annoyingmsg( "remset summary for collecting {0, %d}, live: %d", 
 	       gen, DATA(gc)->remset_summary->live );
 
+  /* the backing remset has been constructed; now lets make an abstract
+   * summary_t view of it.
+   */
 }
 
 static void invalidate_remset_summary( gc_t *gc )
@@ -1461,7 +1466,12 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	{ 
 	  stats_id_t timer1, timer2;
 	  start_timers( &timer1, &timer2 );
+#if 0
+	  sm_prepare_cols( DATA(gc)->summ_matrix, rgn_idx, rgn_idx+1 );
+	  sm_construction_progress( DATA(gc)->summ_matrix, -1, -1 );
+#else
 	  build_remset_summary( gc, rgn_idx );
+#endif
 	  stop_sumrize_timers( gc, &timer1, &timer2 );
 	}
 
