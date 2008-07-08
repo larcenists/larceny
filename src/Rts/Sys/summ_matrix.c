@@ -13,6 +13,7 @@
 #include "larceny.h"
 #include "gclib.h"
 #include "summ_matrix_t.h"
+#include "gc_t.h"
 
 typedef struct pool pool_t;
 typedef struct summ_cell summ_cell_t;
@@ -258,6 +259,7 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   data->col_inprogress_first = -1;
   data->col_inprogress_lim = -1;
 
+  sm->collector = gc;
   sm->data = data;
 
   my_prepare_cols( sm, first_gno, first_gno + num_under_construction );
@@ -288,16 +290,35 @@ void sm_dispose_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim )
   print_matrix( summ );
 }
 
-word* sm_construction_progress( summ_matrix_t *summ, 
-                                word *bot, 
-                                word *top,
-                                int* word_countdown,
-                                int* object_countdown )
+void sm_construction_progress( summ_matrix_t *summ, 
+                               int* word_countdown,
+                               int* object_countdown )
 {
   print_matrix( summ );
+  /* This breaks this specification, since it
+   * - assumes that it always starts from a blank slate, and 
+   * - ignores the word and object scan limiting parameters.
+   * 
+   * But I want to get something up and running using a
+   * workable interface *now*
+   */
+  int i;
+  int fst, lim; 
+  int remset_count;
+  gset_t genset;
+
+  fst = DATA(summ)->col_inprogress_first;
+  lim = DATA(summ)->col_inprogress_lim;
+  genset = gset_range( fst, lim );
+  remset_count = summ->collector->remset_count;
+  /* Construct 
+   *   { x | x in Union all remsets | x has reference into [fst,lim) }
+   */ 
+  for( i = 1; i < remset_count ; i++ ) {
+    assert(FALSE);
+  }
   assert(FALSE);
   print_matrix( summ );
-  return bot; 
 }
 
 void sm_enumerate_row( summ_matrix_t *summ,
@@ -322,6 +343,13 @@ void sm_enumerate_col( summ_matrix_t *summ,
 
 
 void sm_add_entry( summ_matrix_t *summ, word source_obj, int target_gno )
+{
+  print_matrix( summ );
+  assert(FALSE);
+  print_matrix( summ );
+}
+
+void sm_next_summary( summ_matrix_t *summ, summary_t *column ) 
 {
   print_matrix( summ );
   assert(FALSE);

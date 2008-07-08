@@ -74,9 +74,7 @@ void sm_prepare_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim );
 
 void sm_dispose_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim );
 
-word* sm_construction_progress( summ_matrix_t *summ, 
-                                word *bot, 
-                                word *top,
+void sm_construction_progress( summ_matrix_t *summ, 
                                 int* word_countdown,
                                 int* object_countdown );
 
@@ -111,8 +109,21 @@ void sm_enumerate_col( summ_matrix_t *summ,
      */
 
 void sm_add_entry( summ_matrix_t *summ, word source_obj, int target_gno );
+  /* Records that source_obj contains a reference into target_gno.
+   * 
+   * (Note that this is not the main source of such information within
+   *  a summary; the summarization process is supposed to be gathering
+   *  data on its own.  This is a channel for asynchronous updates from
+   *  the write barrier.)
+   */
 
-void sm_add_entry_uniq( summ_matrix_t *summ, word source_obj, int target_gno );
+void sm_next_summary( summ_matrix_t *summ, 
+                      /* out parameter */ summary_t *column);
+  /* Initializes 'column' to iterate over first available column in summ.
+   * Note that this does *not* remove that column from the matrix
+   * (so repeated calls to this function without intervening invocations 
+   *  of sm_dispose_cols should return iterators for the same column).
+   */
 
 /* Functions below are for use when this structure is being used in a
  * concurrent (ie multi-threaded) regional collector. */
