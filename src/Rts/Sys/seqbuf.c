@@ -1,4 +1,4 @@
-/* Copyright 2007 Felix S Klock.
+/* Copyright 2007 Felix S Klock II.
  *
  * $Id$
  * 
