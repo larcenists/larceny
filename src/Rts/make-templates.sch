@@ -585,6 +585,7 @@ Sys/static-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h Sys/stats.h \
 	Sys/memmgr.h Sys/semispace_t.h Sys/static_heap_t.h
 Sys/stats.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h Sys/gclib.h \\
 	Sys/stats.h Sys/memmgr.h
+Sys/summary.$(O): $(LARCENY_H) Sys/summary_t.h
 Sys/summ_matrix.$(O): $(LARCENY_H) Sys/summ_matrix_t.h
 Sys/syscall.$(O): $(LARCENY_H) Sys/signals.h
 Sys/primitive.$(O): $(LARCENY_H)  Sys/gc_t.h Sys/signals.h
