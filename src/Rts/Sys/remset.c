@@ -492,6 +492,13 @@ bool rs_isremembered( remset_t *rs, word w )
   return b != 0;
 }
 
+void rs_via_summary( remset_t *rs, int max_words_per_step, 
+                     /* out parameter */ summary_t *s )
+{
+  s->entries = rs->live;
+  assert(FALSE);
+}
+
 static pool_t *allocate_pool_segment( unsigned pool_entries )
 {
   pool_t *p;

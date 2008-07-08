@@ -16,7 +16,7 @@
 
 #include "config.h"
 #include "larceny-types.h"
-#include "seqbuf_t.h"
+#include "summary_t.h"
 
 struct remset {
   int identity;
@@ -119,6 +119,39 @@ void rs_stats( remset_t *remset );
 bool rs_isremembered( remset_t *rs, word w );
   /* Returns TRUE if the object denoted by w is in the remembered set.
      */
+
+void rs_via_summary( remset_t *rs, int max_words_per_step, 
+                     /* out parameter */ summary_t *s );
+  /* Exposes iteration over 'rs' via the summary_t abstraction.
+     's' is mutated so that it traverses the elements of 'rs'.
+     If max_words_per_step is positive, then it bounds the number of 
+     words in the range established by each invocation of the 
+     's->next_chunk' method; if max_words_per_step is -1, then no such 
+     bound is imposed (though the summary_t may still choose to choose 
+     its own chunk size).
+
+     WARNING: modification to rs will invalidate the state of s, and 
+     this is unchecked!
+     (Checking this would require tracking summaries within the 
+      remset structure, which (while not patently absurd) would 
+      complicate the protocol for summary allocation and deallocation.)
+
+     NOTE: if all you need is monolithic iteration over the entirety
+     of 'rs' then rs_enumerate could be a better option (for the sake of 
+     code readability if not efficiency).
+     (On the other hand, Lars has old comments in remset.c source 
+      indicating that passing more than one object to the remset scanner 
+      would be an improvement.  The summary_t abstraction is designed 
+      with such iteration in mind, so maybe it is worth trying out in 
+      that context.)
+
+     The two main reasons to use the summary_t abstraction are:
+     - it is decoupled from the choice of representation for the 
+       underlying collection being traversed
+     - it allows for incremental traversal of a remset, as opposed 
+       to the monolithic traversal 
+
+   */
 
 #endif /* INCLUDED_REMSET_T_H */
 
