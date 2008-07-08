@@ -150,37 +150,44 @@
         (else (error "longer?: Improper list " left))))
 
 ; FIXME:  The performance of map can be improved.
+; That doesn't matter so much because map is usually inlined.
 
 (define (map f x . rest)
 
   (define (map1 f x)
     (if (pair? x)
-	(cons (f (car x)) (map1 f (cdr x)))
-	'()))
+        (let* ((a (f (car x)))
+               (b (map1 f (cdr x))))
+          (cons a b))
+        '()))
 
   (define (map2 f x y)
     (if (pair? x)
-	(cons (f (car x) (car y))
-	      (map2 f (cdr x) (cdr y)))
-	'()))
+        (let* ((a (f (car x) (car y)))
+               (b (map2 f (cdr x) (cdr y))))
+          (cons a b))
+        '()))
 
   (define (map3 f x y z)
     (if (pair? x)
-	(cons (f (car x) (car y) (car z))
-	      (map3 f (cdr x) (cdr y) (cdr z)))
-	'()))
+        (let* ((a (f (car x) (car y) (car z)))
+               (b (map3 f (cdr x) (cdr y) (cdr z))))
+          (cons a b))
+        '()))
 
   (define (map4 f x y z w)
     (if (pair? x)
-	(cons (f (car x) (car y) (car z) (car w))
-	      (map4 f (cdr x) (cdr y) (cdr z) (cdr w)))
-	'()))
+        (let* ((a (f (car x) (car y) (car z) (car w)))
+               (b (map4 f (cdr x) (cdr y) (cdr z) (cdr w))))
+          (cons a b))
+        '()))
 
   (define (mapn f lists)
     (if (pair? (car lists))
-	(cons (apply f (map car lists))
-	      (mapn f (map1 cdr lists)))
-	'()))
+        (let* ((a (apply f (map car lists)))
+               (b (mapn f (map1 cdr lists))))
+          (cons a b))
+        '()))
 
   (case (length rest)
     ((0)  (map1 f x))
@@ -193,32 +200,32 @@
 
   (define (map1 f x)
     (if (pair? x)
-	(append (f (car x)) (map1 f (cdr x)))
-	'()))
+        (append (f (car x)) (map1 f (cdr x)))
+        '()))
 
   (define (map2 f x y)
     (if (pair? x)
-	(append (f (car x) (car y))
+        (append (f (car x) (car y))
                 (map2 f (cdr x) (cdr y)))
-	'()))
+        '()))
 
   (define (map3 f x y z)
     (if (pair? x)
-	(append (f (car x) (car y) (car z))
+        (append (f (car x) (car y) (car z))
                 (map3 f (cdr x) (cdr y) (cdr z)))
-	'()))
+        '()))
 
   (define (map4 f x y z w)
     (if (pair? x)
-	(append (f (car x) (car y) (car z) (car w))
+        (append (f (car x) (car y) (car z) (car w))
                 (map4 f (cdr x) (cdr y) (cdr z) (cdr w)))
-	'()))
+        '()))
 
   (define (mapn f lists)
     (if (pair? (car lists))
-	(append (apply f (map car lists))
+        (append (apply f (map car lists))
                 (mapn f (map1 cdr lists)))
-	'()))
+        '()))
 
   (case (length rest)
     ((0)  (map1 f x))
@@ -231,32 +238,32 @@
 
   (define (map1 f x)
     (if (pair? x)
-	(append! (f (car x)) (map1 f (cdr x)))
-	'()))
+        (append! (f (car x)) (map1 f (cdr x)))
+        '()))
 
   (define (map2 f x y)
     (if (pair? x)
-	(append! (f (car x) (car y))
+        (append! (f (car x) (car y))
                 (map2 f (cdr x) (cdr y)))
-	'()))
+        '()))
 
   (define (map3 f x y z)
     (if (pair? x)
-	(append! (f (car x) (car y) (car z))
+        (append! (f (car x) (car y) (car z))
                 (map3 f (cdr x) (cdr y) (cdr z)))
-	'()))
+        '()))
 
   (define (map4 f x y z w)
     (if (pair? x)
-	(append! (f (car x) (car y) (car z) (car w))
+        (append! (f (car x) (car y) (car z) (car w))
                 (map4 f (cdr x) (cdr y) (cdr z) (cdr w)))
-	'()))
+        '()))
 
   (define (mapn f lists)
     (if (pair? (car lists))
-	(append! (apply f (map car lists))
+        (append! (apply f (map car lists))
                  (mapn f (map1 cdr lists)))
-	'()))
+        '()))
 
   (case (length rest)
     ((0)  (map1 f x))
@@ -270,38 +277,38 @@
 
   (define (map1 f x)
     (if (pair? x)
-	(cons (f (car x)) (map1 f (cdr x)))
-	'()))
+        (cons (f (car x)) (map1 f (cdr x)))
+        '()))
 
   (define (for-each1 f x)
     (if (pair? x)
-	(begin (f (car x))
-	       (for-each1 f (cdr x)))
-	(unspecified)))
+        (begin (f (car x))
+               (for-each1 f (cdr x)))
+        (unspecified)))
 
   (define (for-each2 f x y)
     (if (pair? x)
-	(begin (f (car x) (car y))
-	       (for-each2 f (cdr x) (cdr y)))
-	(unspecified)))
+        (begin (f (car x) (car y))
+               (for-each2 f (cdr x) (cdr y)))
+        (unspecified)))
 
   (define (for-each3 f x y z)
     (if (pair? x)
-	(begin (f (car x) (car y) (car z))
-	       (for-each3 f (cdr x) (cdr y) (cdr z)))
-	(unspecified)))
+        (begin (f (car x) (car y) (car z))
+               (for-each3 f (cdr x) (cdr y) (cdr z)))
+        (unspecified)))
 
   (define (for-each4 f x y z w)
     (if (pair? x)
-	(begin (f (car x) (car y) (car z) (car w))
-	       (for-each4 f (cdr x) (cdr y) (cdr z) (cdr w)))
-	(unspecified)))
+        (begin (f (car x) (car y) (car z) (car w))
+               (for-each4 f (cdr x) (cdr y) (cdr z) (cdr w)))
+        (unspecified)))
 
   (define (for-each-n f lists)
     (if (pair? (car lists))
-	(begin (apply f (map car lists))
-	       (for-each-n f (map1 cdr lists)))
-	(unspecified)))
+        (begin (apply f (map car lists))
+               (for-each-n f (map1 cdr lists)))
+        (unspecified)))
 
   (case (length rest)
     ((0)  (for-each1 f x))
@@ -323,6 +330,7 @@
   (revappend list '()))
 
 ; Probably due to JonL White.
+
 (define (revappend! l r)
   (define (loop0 prev curr next)
     (set-cdr! curr prev)
@@ -372,50 +380,43 @@
 
 (define (append . args)
 
-  (define (list-copy2 l receiver)
-    (define (loop l prev)
-      (if (pair? l)
-          (let ((q (cons (car l) '())))
-            (set-cdr! prev q)
-            (loop (cdr l) q))
-          prev))
-    (if (pair? l)
-        (let ((first (cons (car l) '())))
-          (receiver first (loop (cdr l) first)))
-        (receiver l l)))
+  (define (revapp x y)
+    (do ((x x (cdr x))
+         (r y (cons (car x) r)))
+        ((not (pair? x))
+         (if (null? x)
+             r
+             (assertion-violation 'append "illegal arguments" args)))))
+
+  (define (append2 x y)
+    (revapp (reverse x) y))
 
   (define (loop rest tail)
     (if (pair? rest)
         (loop (cdr rest)
-              (if (pair? (car rest))
-                  (list-copy2
-                   (car rest)
-                   (lambda (new-head new-tail)
-                     (set-cdr! new-tail tail)
-                     new-head))
-                  tail))
+              (append2 (car rest) tail))
         tail))
 
   (if (pair? args)
       (let ((a (reverse! args)))
-	(loop (cdr a) (car a)))
+        (loop (cdr a) (car a)))
       '()))
 
 (define (append! . args)
 
   (define (loop rest tail)
     (cond ((null? rest)
-	   tail)
-	  ((null? (car rest))
-	   (loop (cdr rest) tail))
-	  (else
-	   (loop (cdr rest)
-		 (begin (set-cdr! (last-pair (car rest)) tail)
-			(car rest))))))
+           tail)
+          ((null? (car rest))
+           (loop (cdr rest) tail))
+          (else
+           (loop (cdr rest)
+                 (begin (set-cdr! (last-pair (car rest)) tail)
+                        (car rest))))))
 
   (if (pair? args)
       (let ((a (reverse! args)))
-	(loop (cdr a) (car a)))
+        (loop (cdr a) (car a)))
       '()))
 
 
@@ -430,8 +431,8 @@
 
   (define (list-tail x k)
     (if (zero? k)
-	x
-	(list-tail (cdr x) (- k 1))))
+        x
+        (list-tail (cdr x) (- k 1))))
 
   (list-tail x k))
 
@@ -467,36 +468,49 @@
 (define (list-copy l)
   (define (loop l prev)
     (if (pair? l)
-	(let ((q (cons (car l) '())))
-	  (set-cdr! prev q)
-	  (loop (cdr l) q))
-	#t))
+        (let ((q (cons (car l) '())))
+          (set-cdr! prev q)
+          (loop (cdr l) q))
+        #t))
   (if (pair? l)
       (let ((first (cons (car l) '())))
-	(loop (cdr l) first)
-	first)
+        (loop (cdr l) first)
+        first)
       l))
 
-
-; Returns both the first and last pairs of the argument, or (),() if the
-; argument is ().
-
-(define (list-copy2 l)
-  (define (loop l prev)
-    (if (pair? l)
-	(let ((q (cons (car l) '())))
-	  (set-cdr! prev q)
-	  (loop (cdr l) q))
-	prev))
-  (if (pair? l)
-      (let ((first (cons (car l) '())))
-	(values first (loop (cdr l) first)))
-      (values l l)))
-
+(define (list-copy l)
+  (define (complain)
+    (assertion-violation 'list-copy "illegal argument" l))
+  (define (list-copy l)
+    (cond ((pair? l)
+           (let ((a (car l))
+                 (l2 (cdr l)))
+             (cond ((pair? l2)
+                    (let ((b (car l2))
+                          (l3 (cdr l2)))
+                      (cond ((pair? l3)
+                             (let ((c (car l3))
+                                   (l4 (cdr l3)))
+                               (cond ((pair? l4)
+                                      (let ((d (car l4))
+                                            (x (list-copy (cdr l4))))
+                                        (cons a (cons b (cons c (cons d x))))))
+                                     ((null? l4)
+                                      (list a b c))
+                                     (else (complain)))))
+                            ((null? l3)
+                             (list a b))
+                            (else (complain)))))
+                   ((null? l2)
+                    (list a))
+                   (else (complain)))))
+          ((null? l) '())
+          (else (complain))))
+  (list-copy l))
 
 (define member
   (letrec ((member
-	    (lambda (item list)
+            (lambda (item list)
               (cond ((pair? list) (if (equal? item (car list))
                                       list
                                       (member item (cdr list))))
@@ -592,7 +606,7 @@
 
 (define assoc
   (letrec ((assoc
-	    (lambda (key list)
+            (lambda (key list)
               (cond ((pair? list) (if (equal? key (caar list))
                                       (car list)
                                       (assoc key (cdr list))))
@@ -623,20 +637,20 @@
 
 (define (remove x l)
   (cond ((not (pair? l)) l)
-	((equal? x (car l)) (remove x (cdr l)))
-	(else (cons (car l) (remove x (cdr l))))))
+        ((equal? x (car l)) (remove x (cdr l)))
+        (else (cons (car l) (remove x (cdr l))))))
 
 
 (define (remv x l)
   (cond ((not (pair? l)) l)
-	((eqv? x (car l)) (remv x (cdr l)))
-	(else (cons (car l) (remv x (cdr l))))))
+        ((eqv? x (car l)) (remv x (cdr l)))
+        (else (cons (car l) (remv x (cdr l))))))
 
 
 (define (remq x l)
   (cond ((not (pair? l)) l)
-	((eq? x (car l)) (remq x (cdr l)))
-	(else (cons (car l) (remq x (cdr l))))))
+        ((eq? x (car l)) (remq x (cdr l)))
+        (else (cons (car l) (remq x (cdr l))))))
 
 (define (remp pred? l)
   (cond ((not (pair? l)) l)
@@ -645,36 +659,36 @@
 
 (define (remq! key list)
   (cond ((null? list) list)
-	((eq? key (car list))
-	 (remq! key (cdr list)))
-	(else
-	 (set-cdr! list (remq! key (cdr list)))
-	 list)))
+        ((eq? key (car list))
+         (remq! key (cdr list)))
+        (else
+         (set-cdr! list (remq! key (cdr list)))
+         list)))
 
 (define (remp! pred? list)
   (cond ((null? list) list)
-	((pred? (car list))
-	 (remp! pred? (cdr list)))
-	(else
-	 (set-cdr! list (remp! pred? (cdr list)))
-	 list)))
+        ((pred? (car list))
+         (remp! pred? (cdr list)))
+        (else
+         (set-cdr! list (remp! pred? (cdr list)))
+         list)))
 
 (define (remv! key list)
   (cond ((null? list) list)
-	((eqv? key (car list))
-	 (remv! key (cdr list)))
-	(else
-	 (set-cdr! list (remv! key (cdr list)))
-	 list)))
+        ((eqv? key (car list))
+         (remv! key (cdr list)))
+        (else
+         (set-cdr! list (remv! key (cdr list)))
+         list)))
 
 
 (define (remove! key list)
   (cond ((null? list) list)
-	((equal? key (car list))
-	 (remove! key (cdr list)))
-	(else
-	 (set-cdr! list (remove! key (cdr list)))
-	 list)))
+        ((equal? key (car list))
+         (remove! key (cdr list)))
+        (else
+         (set-cdr! list (remove! key (cdr list)))
+         list)))
 
 
 (define (list? x)
@@ -704,13 +718,13 @@
 
   (define (every2 a b)
     (cond ((null? (cdr a)) (p (car a) (car b)))
-	  ((p (car a) (car b)) (every2 (cdr a) (cdr b)))
-	  (else #f)))
+          ((p (car a) (car b)) (every2 (cdr a) (cdr b)))
+          (else #f)))
 
   (define (every3 a b c)
     (cond ((null? (cdr a)) (p (car a) (car b) (car c)))
-	  ((p (car a) (car b) (car c)) (every3 (cdr a) (cdr b) (cdr c)))
-	  (else #f)))
+          ((p (car a) (car b) (car c)) (every3 (cdr a) (cdr b) (cdr c)))
+          (else #f)))
 
   (define (every-n ls)
     (cond ((null? (cdar ls)) (apply p (map car ls)))
@@ -769,17 +783,17 @@
 
 (define (find selected? list)
   (cond ((null? list) #f)
-	((selected? (car list)) (car list))
-	(else (find selected? (cdr list)))))
+        ((selected? (car list)) (car list))
+        (else (find selected? (cdr list)))))
 
 ; Return a list of elements of `list' selected by the predicate.
 
 (define (filter select? list)
   (cond ((null? list) list)
-	((select? (car list))
-	 (cons (car list) (filter select? (cdr list))))
-	(else
-	 (filter select? (cdr list)))))
+        ((select? (car list))
+         (cons (car list) (filter select? (cdr list))))
+        (else
+         (filter select? (cdr list)))))
 
 ; Returns two lists: the list that filter would return,
 ; and a list consisting of the other elements.

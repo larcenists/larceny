@@ -149,6 +149,7 @@
 ;;                ['bounds (x y w h)] 
 ;;                ['double-buffered] 
 ;;                ['title string])
+;;      (make-fake-wnd string nat nat)
 ;;  (show) (hide) (show-dialog) (title) (close) (dispose) (update)
 ;;  (width) (height)
 ;;  (measure-text txt-string font-obj) 
@@ -157,6 +158,28 @@
 ;;  (append item action) ;; item is string or mnu; action is nullary procedure
 ;;  (append item action enabled?) ;; enabled? is nullary predicate
 ;;  (items) (mnuptr) (name)
+;; IMG: (make-blank-img w h) (make-img/bmp w h bv) (xpm->img s) (file->img f)
+;;  (sourcefile) => [Maybe PathString]
+;;  (bitmap)     => Bytevector
+;; BTN: (make-btn ['make-agent agent-ctor] ['title string])
+;;  (show) (hide) (title) (close) (dispose) (update)
+;;  (width) (height)
+;;  (press)
+
+;; TODO consider adopting something like the IDataObject interface for
+;; data stored on clipboard.
+;; 
+;; Clipboard related operations (global procedures):
+;; (clipboard-clear!)
+;; (clipboard-contains-filelist?)
+;; (clipboard-contains-image?)
+;; (clipboard-contains-text?)
+;; (clipboard-get-filelist)  => [Maybe [Listof PathString]]
+;; (clipboard-get-image)     => [Maybe img]
+;; (clipboard-get-text)      => [Maybe string]
+;; (clipboard-set-filelist! lst) where lst in [Listof PathString]
+;; (clipboard-set-image! img)
+;; (clipboard-set-text! string)
 
 (define (make-noisy-agent wnd width height)
   (define (displayln x) (write x) (newline))
@@ -174,6 +197,7 @@
    ((on-mouseleave)             (displayln `(on-mouseleave)))
    ((on-paint g x y w h)        (displayln `(on-paint ,g ,x ,y ,w ,h)))
    ((on-dispose)                (displayln `(on-dispose)))
+   ((on-resize)                 (displayln `(on-resize)))
    ))
 
 (define (make-rectangle-drawing-agent wnd width height)
@@ -207,6 +231,28 @@
       ;;(begin (display `(on-paint temp-rect: ,temp-rect)) (newline))
       (cond (temp-rect (apply (g 'draw-rect) (name->col "Red") temp-rect)))
       ))))
+
+(define (make-fake-wnd title width height)
+  (make-root-object fake-wnd
+    ((show)        (display `(fake-wnd..show))        (unspecified))
+    ((hide)        (display `(fake-wnd..hide))        (unspecified))
+    ((show-dialog) (display `(fake-wnd..show-dialog)) (unspecified))
+    ((title)       (display `(fake-wnd..title))       title)
+    ((close)       (display `(fake-wnd..close))       (unspecified))
+    ((dispose)     (display `(fake-wnd..dispose))     (unspecified))
+    ((update)      (display `(fake-wnd..update))      (unspecified))
+    ((width)       (display `(fake-wnd..width))       width)
+    ((height)      (display `(fake-wnd..height))      height)
+    ((measure-text txt-string font-obj)
+     (display `(fake-wnd..measure-text ,txt-string ,font-obj))
+     (assert (not (member #\newline (string->list txt-string))))
+     (values (string-length txt-string) 1))
+    ((push-menus . menus) 
+     (display `(fake-wnd..push-menus . ,menus))
+     (unspecified))
+    ((pop-menus)
+     (display `(fake-wnd..pop-menus))
+     (unspecified))))
 
 (define (invert-col col)
   (define (inv num) (- 255 num))
@@ -348,13 +394,64 @@
    ((textstring) "=> string holding model's text." mytext)
    ((set-textstring! string) "Sets model's text to string parameter."
     (set! mytext string))
+   ((text-lines) "=> list of (line pos line-no col-no) for textstring"
+    (let* ((self textmodel)
+	   (select-range (if (number? selection) 
+			     (cons selection selection)
+			     selection))
+	   (mytext ((self 'textstring))))
+      (let loop ((idx 0)
+		 (pos 0)
+		 (line-no 0)
+		 (col-no 0) ;; column number for elem under construction
+		 (line '())
+		 (lines '()))
+	(cond ((>= idx (string-length mytext))
+	       (map (lambda (x) (cons (if (list? (car x))
+					  (list->string (reverse (car x)))
+					  (car x))
+				      (cdr x)))
+		    (reverse (cons (list line pos line-no col-no) lines))))
+	      ((char=? #\newline (string-ref mytext idx))
+	       (loop (+ 1 idx)
+		     (+ 1 idx)
+		     (+ 1 line-no)
+		     0
+		     '()
+		     (cons (list #\newline idx line-no (+ col-no (length line)))
+			   (cons (list line pos line-no col-no)
+				 lines))))
+	      ((or (equal? idx (car select-range))
+		   (equal? (+ 1 idx) (car select-range))
+		   (equal? idx (cdr select-range)))
+	       (loop (+ 1 idx)
+		     (+ 1 idx)
+		     line-no
+		     (+ 1 (length line) col-no)
+		     '()
+		     (cons (list (cons (string-ref mytext idx) line)
+				 pos
+				 line-no
+				 col-no)
+			   lines)))
+	      (else 
+	       (loop (+ 1 idx)
+		     pos
+		     line-no
+		     col-no
+		     (cons (string-ref mytext idx) line)
+		     lines))))))
+	   
    ((selection) "=> (values b e) where [b,e) is selected.  
  If b = e, then no text is selected, and the cursor resides at b."
     (cond ((number? selection)
            (values selection selection))
           (else
            (values (car selection) (cdr selection)))))
-
+   ((selectionstring) "=> string holding model's selection; false otherwise."
+    (cond ((pair? selection)
+	   (substring mytext (car selection) (cdr selection)))
+	  (else #f)))
    ((on-cursor-reposition) "event hook" 'default-hook-does-nothing)
    ((set-selection! start-pos-incl end-pos-excl) "Sets model's selection to 
  [start-pos-incl,end-pos-excl)."
@@ -384,7 +481,7 @@
     (call-with-wnd-update textmodel delete-char-at-point!))
    ))
 
-;; A CharPosHandler is a  (Char Pos X Y Width Height LineNo ColNo -> void)
+;; A CharPosHandler is a  (TextElem Pos X Y Width Height LineNo ColNo -> void)
 ;; A [CharPosCont X] is a (X Y Height LineNo ColNo Pos -> X)
 
 ;; for-each-charpos : String Nat Gfx Fnt CharPosHandler [CharPosCont X] -> X
@@ -439,74 +536,47 @@
 ;; for-each-textelem : 
 ;;     [Rendered TextModel] Gfx Fnt TextElemHandler [TextElemCont X] -> X
 (define (for-each-textelem textmodel g fnt proc at-end)
-  ;; XXX this should also subdivide based on changes in font...
-  (let* ((mytext ((textmodel 'textstring)))
-         (start-pos ((textmodel 'visible-offset)))
-         (sel-start (call-with-values (textmodel 'selection)
-                      (lambda (s e) s)))
-         (sel-finis (call-with-values (textmodel 'selection)
-                      (lambda (s e) e)))
-         (measure-height
-          (lambda (s) 
-            (call-with-values (lambda () ((g 'measure-text) s fnt))
-              (lambda (w h) h))))
-         (cursor-height #f)
-         (initial-height (measure-height "A")))
-    (let loop ((x 0)
-               (y 0)
-               (max-height-on-line initial-height)
-               (line-num 0)
-               (col-num 0)
-               (curr-pos start-pos))
-      (cond
-       ((>= curr-pos (string-length mytext))
-        (at-end x y max-height-on-line line-num col-num curr-pos))
-       
-       (else
-        (let* ((<&<= (lambda (x y z) (and (< x y) (<= y z))))
-               (<=&< (lambda (x y z) (and (<= x y) (< y z))))
-               (telem 
-                (cond
-                 ((char=? #\newline (string-ref mytext curr-pos))
-                  #\newline)
-                 (else
-                  (let char-scan ((chars '())
-                                  (pos curr-pos))
-                    (cond
-                     ((or (>= pos (string-length mytext))
-                          (<&<= curr-pos sel-start pos)
-                          (<=&< curr-pos sel-start pos)
-                          (<&<= curr-pos sel-finis pos)
-                          (<=&< curr-pos sel-finis pos)
-                          (char=? #\newline (string-ref mytext pos)))
-                      (list->string (reverse chars)))
-                     (else
-                      (char-scan (cons (string-ref mytext pos) chars)
-                                 (+ pos 1)))))))))
-          (cond 
-           ((eqv? telem #\newline)
-            (call-with-values 
-                (lambda () ((g 'measure-text) (string telem) fnt))
-              (lambda (char-w char-h)
-                (proc telem curr-pos 1 x y char-w char-h line-num col-num)))
-            (let ((y* (+ y max-height-on-line))
-                  (line-num* (+ line-num 1))
-                  (curr-pos* (+ curr-pos 1)))
-              (loop 0 y* initial-height line-num* 0 curr-pos*)))
-           (else
-            (call-with-values (lambda () ((g 'measure-text) telem fnt))
-              (lambda (text-w text-h)
-                (let ((span (string-length telem)))
-                  (proc telem curr-pos span x y 
-                        text-w text-h ;; XXX
-                        line-num col-num)
-                  (loop (+ x text-w)
-                        y
-                        (max max-height-on-line text-h)
-                        line-num
-                        (+ col-num 1)
-                        (+ curr-pos span)))))))))))))
-
+  (define initial-height
+    (call-with-values (lambda () ((g 'measure-text) "A" fnt))
+      (lambda (w h) h)))
+  (let loop ((text-lines ((textmodel 'visible-text-lines)))
+	     (x 0) 
+	     (y 0)
+	     (max-height-on-line initial-height)
+	     (line-no 0)
+	     (col-no 0)
+             (pos 0))
+    (cond 
+     ((null? text-lines)
+      (at-end x y max-height-on-line line-no col-no pos))
+     ((not (null? text-lines))
+      (let* ((line (car text-lines))
+	     (elem (car line))
+	     (pos (cadr line)))
+	(if (string? elem)
+	    (let* ((str elem)
+		   (len (string-length str)))
+	      (call-with-values (lambda () ((g 'measure-text) str fnt))
+		(lambda (te-w te-h)
+		  (proc str pos len x y te-w te-h line-no col-no)
+		  (loop (cdr text-lines)
+			(+ x te-w)
+			y
+			(max te-h max-height-on-line)
+			line-no
+			(+ col-no len)
+                        (+ pos len)))))
+	    (call-with-values (lambda () ((g 'measure-text) (string elem) fnt))
+	      (lambda (te-w te-h)
+		(proc elem pos 1 x y te-w te-h line-no col-no)
+		(loop (cdr text-lines) 
+		      0 
+		      (+ y max-height-on-line)
+		      initial-height
+		      (+ line-no 1)
+		      0
+                      (+ 1 pos))))))))))
+    
 ;; rendering-extender : Wnd -> T -> [Rendered T] where T <: TextModel
 (define (rendering-extender wnd)
   (define em-size 10)
@@ -520,8 +590,12 @@
     (inexact->exact (ceiling (count-visible-lines/fractional))))
   (define (count-visible-lines/fractional)
     (/ ((wnd 'height)) 
-       (call-with-values (lambda () ((wnd 'measure-text) "" fnt))
+       (call-with-values (lambda () ((wnd 'measure-text) "M" fnt))
 	 (lambda (w h) h))))
+  (define (count-visible-columns/fractional)
+    (/ ((wnd 'width))
+       (call-with-values (lambda () ((wnd 'measure-text) "x" fnt))
+	 (lambda (w h) w))))
   (define (selection-start-pos self)
     (call-with-values (lambda () ((self 'selection)))
       (lambda (s e) s)))
@@ -544,8 +618,20 @@
      ((on-resize) "handler for window resize event." #f)
      ((count-visible-lines)  "=> number of lines visible in buffer."
       (count-visible-lines/fractional))
+     ((count-visible-columns) "=> number of columns visible in buffer."
+      (count-visible-columns/fractional))
      ;; XXX adding this as a hook that can be potentially overridden, 
      ;; but I'm not sure it is a good idea.
+     ((visible-text-lines) "=> list of (line pos) for visible part of text"
+      (let* ((self renderable-textmodel)
+	     (text-lines ((self 'text-lines)))
+	     (visible-offset ((self 'visible-offset))))
+	(let loop ((visible-lines text-lines))
+	  (if (and (not (null? visible-lines))
+		   (let ((line (car visible-lines)))
+		     (< (cadr line) visible-offset)))
+	      (loop (cdr visible-lines))
+	      visible-lines))))
      ((visible-offset) "=> integer offset where the visible part of str begins.
  Override to change view behavior."
       0)
@@ -558,7 +644,6 @@
 	  (define max-lines (count-visible-lines/upper-bound))
 	  (let* ((self renderable-textmodel)
 		 (text ((self 'textstring)))
-		 (visible-offset ((self 'visible-offset)))
 		 (foreground (self 'foreground-color))
 		 (background (self 'background-color))
 		 (selection  (self 'selection))
@@ -575,7 +660,8 @@
                 g fnt
                 (lambda (telem pos span x y w h line column)
 		  '(begin (write `(background ,telem ,pos ,x ,y ,line ,column))
-			 (newline))                  (cond ((> line max-lines)
+			 (newline))
+		  (cond ((> line max-lines)
                          (abandon line)))
                   (let* ((bg-col (background pos))
                          (sel-bg-col (invert-col bg-col)))
@@ -745,6 +831,18 @@
                    (+ j (if (char=? #\newline (string-ref text i)) 1 0)))))))
   (define (line-count self)
     (count-newlines-in ((self 'textstring))))
+  (define (column-count self)
+    (let ((text ((self 'textstring))))
+      (let loop ((max-col 0)
+		 (counter 0)
+		 (chars (string->list text)))
+	(define (next counter) 
+	  (loop (max max-col counter) counter (cdr chars)))
+	(cond ((null? chars) max-col)
+	      ((char=? (car chars) #\newline) 
+	       (next 0))
+	      (else 
+	       (next (+ counter 1)))))))
 
   (define (cursor-line self)
     (let ((mytext ((self 'textstring)))
@@ -755,6 +853,7 @@
            j))))
   
   (define first-line-idx 0)
+  (define first-column-idx 0)
 
   ;; Bad rep; scrolling op's take O(n) time (where n is the size of
   ;; the entirety of the text).  A doubly linked list of lines may be
@@ -825,12 +924,12 @@
                    ((wnd 'attempt-scroll) 'vertical cursor-lines)))))))
     ((delegate textmodel 'on-cursor-reposition scrollable-textmodel)))
    ((on-hscroll new-idx event-type) "handler horizontal scroll to new-idx." 
-    #f)
+    '(begin (display `(on-hscroll ,new-idx ,event-type)) (newline))
+    (set! first-column-idx new-idx)
+    ((wnd 'update)))
    ((on-vscroll new-idx event-type) "handler vertical scroll to new-idx."
     (set! first-line-idx new-idx)
     ((wnd 'update)))
-   ((horizontal-scrollbar) #f)
-   ((vertical-scrollbar)
     ;; These do not have to be in pixels to be meaningful; we as the
     ;; client select our own unit of measurement, and are then
     ;; responsible for using it consistently.  In this case, we are
@@ -838,6 +937,24 @@
     ;; the horizontal scrollbars will use a column as the grain).
     ;; When image support is added, these grains might not remain
     ;; appropriate.
+   ((horizontal-scrollbar) 
+    (let* ((my-column-count (column-count scrollable-textmodel))
+	   (visible-columns
+	    (inexact->exact 
+	     (floor ((scrollable-textmodel 'count-visible-columns)))))
+	   (max-val (max 0 
+			 first-column-idx
+			 (- my-column-count visible-columns))))
+      (if (= max-val 0)
+	  #f
+	  `((min ,0)
+	    (max ,max-val)
+	    (value ,first-column-idx)
+	    (dsmall ,1)
+	    (dlarge ,(if (or #t (> (* 2 visible-columns) my-column-count))
+			 1
+			 (quotient visible-columns 2)))))))
+   ((vertical-scrollbar)
     (let* ((my-line-count (line-count scrollable-textmodel))
            (visible-lines 
 	    (inexact->exact (floor ((scrollable-textmodel 'count-visible-lines)))))
@@ -855,16 +972,90 @@
                      1
                      (quotient visible-lines 2)
                      )))))
+   ((visible-text-lines) 
+    (let ((renders-text-lines ((delegate textmodel 'visible-text-lines scrollable-textmodel))))
+      (map (lambda (line)
+	     (if (string? (car line))
+		 (let* ((len (string-length (list-ref line 0)))
+			(pos (list-ref line 1))
+			(line-no (list-ref line 2))
+			(col-no (list-ref line 3)) 
+			(start (min len (max 0 (- first-column-idx col-no))))
+			(finis len))
+		   (list (substring (car line) start finis)
+			 (+ start pos)
+			 line-no
+			 (+ start col-no)
+			 ))
+		 line))
+	   renders-text-lines)))
    ))
 
+;; A ColRange is a (list [Maybe Pos] [Maybe Pos] Col)
+;; interpretation:
+;; ( m  n c) maps the number range [m, n) to c
+;; (#f  n c) maps the number range < n to c
+;; ( m #f c) maps the number range >= m to c  
+
+;; A TextLineInfo is a (list String Nat Nat Nat)
+;; interpretation:
+;; ( s p l c) is the text s located at global position p, 
+;; line l, and column c
+
+;; fragment : TextLineInfo ColRange -> [Maybe [Listof TextLineInfo]]
+;; breaks text up into segments so that every element of returned list
+;; is uniformly colored according to range; returns #f if no 
+;; breakup is necessary (or possible).
+(define (fragment-by-colrange text range)
+  (and
+   (string? (list-ref text 0))
+   (let* ((string    (list-ref text 0))
+	  (len       (string-length string))
+	  (pos-start (list-ref text 1))
+	  (lineno    (list-ref text 2))
+	  (colno     (list-ref text 3))
+	  (pos-finis (+ pos-start len))
+	  (rng-start (or (car range) 'bot))
+	  (rng-finis (or (cadr range) 'top))
+	  (cut (lambda (px py)
+		 (if (and (< px py)
+			  (< px pos-finis)
+			  (> py pos-start))
+		     (let ((px* (- px pos-start))
+			   (py* (- py pos-start)))
+		       (list 
+			(list (substring string px* py*)
+			      px 
+			      lineno (+ colno px*))))
+		     (list))))
+	  (generalize-cmp
+	   (lambda (<<)
+	     (lambda (x y)
+	       (or (eq? x 'bot) (eq? y 'top)
+		   (and (number? x) (number? y) (<< x y))))))
+	  (<= (generalize-cmp <=)))
+     (if (or (<= rng-finis pos-start) 
+	     (<= pos-finis rng-start)
+	     (and (or (<= rng-start pos-start) (not rng-start))
+		  (or (<= pos-finis rng-finis) (not rng-finis)))
+	     )
+	 #f
+	 (let ((p1 (if (number? rng-start) (min pos-start rng-start) pos-start))
+	       (p2 (if (number? rng-start) (max pos-start rng-start) pos-start))
+	       (p3 (if (number? rng-finis) (min pos-finis rng-finis) pos-finis))
+	       (p4 (if (number? rng-finis) (max pos-finis rng-finis) pos-finis)))
+	   (let ((lst (append (cut p1 p2)
+			      (cut p2 p3)
+			      (cut p3 p4))))
+	     (assert (> (length lst) 1))
+	     (assert (= len (apply + (map string-length (map car lst)))))
+	     (assert (for-all (lambda (x) (< (string-length (car x)) len)) 
+			      lst))
+	     lst))))))
+   
 ;; extend-with-text-coloring 
 ;;                    : T -> [Colorable T] where T <: [Rendered TextModel]
 (define (extend-with-text-coloring textmodel)
-  ;; A ColRange is a (list [Maybe Pos] [Maybe Pos] Col)
-  ;; interpretation:
-  ;; ( m  n c) maps the number range [m, n) to c
-  ;; (#f  n c) maps the number range < n to c
-  ;; ( m #f c) maps the number range >= m to c  
   
   ;; Pos ColRange -> [Maybe Col]
   (define (lookup-col pos col-ranges)
@@ -991,6 +1182,24 @@
     (list transient-background-col-ranges
           stable-background-col-ranges
           default-background-col))
+   ((visible-text-lines)
+    (let ((text-lines 
+           ((delegate textmodel 'visible-text-lines colorable-textmodel))))
+      (let loop-lines ((text-lines text-lines))
+	(let loop-ranges ((col-ranges 
+			   (append stable-foreground-col-ranges
+				   stable-background-col-ranges
+				   transient-foreground-col-ranges
+				   transient-background-col-ranges)))
+	  (cond ((null? text-lines)
+		 text-lines)
+		((null? col-ranges)
+		 (cons (car text-lines) (loop-lines (cdr text-lines))))
+		((fragment-by-colrange (car text-lines) (car col-ranges))
+		 => (lambda (texts)
+		      (loop-lines (append texts (cdr text-lines)))))
+		(else
+		 (loop-ranges (cdr col-ranges))))))))
    ))
 
 ;; extend-with-auto-indentation : T -> T where T <: [Keyed T]
@@ -1248,7 +1457,7 @@
   ;; Maybe I should abstract over this above...
   (define my-own-env (environment-copy (interaction-environment)))
 
-  (define (evaluate-first-sexp-after-prompt alternative-behavior)
+  (define (evaluate-first-sexp-after-prompt repl-agent alternative-behavior)
     ;; I'm going to hack this up by making a custom port for reading
     ;; from the text.  If the reader ever requests to read past the
     ;; end of the input text, then we abandon the read attempt (via an
@@ -1314,7 +1523,7 @@
                           (decode-error args repl-output-port)
                           (escape-from-eval 'ignore-me))))
                      (val (parameterize ((error-handler repl-error-handler))
-                            (eval sexp my-own-env)))
+			    ((repl-agent 'evaluate) sexp)))
                      (valstr 
                       (call-with-output-string
                        (lambda (strport)
@@ -1432,6 +1641,7 @@
                  (cond ((= end text-end)
 			(default-behavior-thunk)
 			(evaluate-first-sexp-after-prompt 
+			 repl-agent
 			 (lambda () 'no-alternative-behavior)))
 		       (else 
 			(default-behavior-thunk))))))))))
@@ -1463,6 +1673,10 @@
                   (lambda (strport)
                     ((repl-prompt) (repl-level) strport)))))
         (insert-string-at-point/bump! ea str))))
+
+   ((evaluate sexp)
+    (parameterize ((interaction-environment my-own-env))
+      (eval sexp my-own-env)))
    ))
 
 (define (make-read-eval-print-loop-agent wnd textmodel)

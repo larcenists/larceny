@@ -1,29 +1,132 @@
+[[LexicalChapter]]
+
 Lexical syntax
 --------------
 
-Larceny is now case-sensitive by default.
-This is controlled by Larceny's `case-sensitive?` parameter,
-which is affected by the following flags:
+Larceny's default lexical syntax extends the lexical syntax
+required by the R5RS, R6RS, and ERR5RS <<Standards, standards>>.
+
+The R6RS forbids most lexical extensions, however, so Larceny
+provides several mechanisms for turning its lexical extensions
+on and off.
 
 
-    #!r6rs
-    #!r5rs
-    #!err5rs
-    #!larceny
+[[FlagsSection]]
+
+Flags
+~~~~~
+
+By default, Larceny recognizes several Larceny-specific flags
+of the form permitted by the R6RS.  The flag you are most
+likely to encounter represents one of Larceny's unspecified
+values:
+
+----------------------------------------------------------------
+    #!unspecified
+----------------------------------------------------------------
+
+Certain other flags have special meanings to Larceny's
++read+ and +get-datum+ procedures.  They are described below.
+
+
+[[CaseFoldingSection]]
+
+Case-sensitivity
+~~~~~~~~~~~~~~~~
+
+By default, Larceny is case-sensitive.
+This global default can be overridden by specifying
++--foldcase+ or +--nofoldcase+ on Larceny's command line,
+or by changing the value of Larceny's +case-sensitive?+ parameter.
+
+The case-sensitivity of a particular textual input port
+is affected by reading one of the following flags from
+the port using the +read+ or +get-datum+ procedures:
+
+----------------------------------------------------------------
     #!fold-case
     #!no-fold-case
+----------------------------------------------------------------
+
+The +\#!fold-case+ flag enables case-folding on data read from
+the port by the +read+ and +get-datum+ procedures, while the
++\#!no-fold-case+ flag disables case-folding.  The behavior
+established by one of these flags extends to the next flag
+read from the port by +read+ or +get-datum+.
+
+Both +\#!fold-case+ and +\#!no-fold-case+ evaluate to an
+unspecified value.  To obtain the effect of one of these flags
+while treating it as a comment, place +#;+ in front of the flag.
 
 
-For the detailed semantics of these flags, please consult
+[[LexicalExtensionsSection]]
+
+Lexical extensions
+~~~~~~~~~~~~~~~~~~
+
+When a port is first opened, the Larceny-specific lexical
+extensions that are accepted on the port are determined
+by Larceny's <<LexicalParametersSection,lexical parameters>>.
+
+The following flags change the case-sensitivity and lexical
+extensions on the specific port from which they are read:
+
+----------------------------------------------------------------
+    #!r6rs         ; implies #!no-fold-case, negates other flags
+    #!r5rs         ; implies #!fold-case, #!err5rs
+    #!err5rs       ; allows Larceny-specific extensions
+    #!larceny      ; implies #!no-fold-case, #!err5rs
+----------------------------------------------------------------
+
+The +\#!r6rs+ flag is a comment, while all of Larceny's other
+flags evaluate to an unspecified value.  To obtain the effect
+of a flag other than +\#!r6rs+ while treating it as a comment,
+place +\#;+ in front of the flag.
+
+[WARNING]
+================================================================
+The R6RS requires implementations to treat +\#!r6rs+ as a
+comment; it is the only flag that implementations of the R6RS
+are required to treat as a comment.  Since the +\#!r6rs+ flag
+behaves differently from all other flags, it is deprecated.
+================================================================
+
+
+[[LexicalParametersSection]]
+
+Lexical parameters
+~~~~~~~~~~~~~~~~~~
+
+When given no argument, these parameters return the current
+default for some aspect of the lexical syntax that will be
+accepted on newly created ports.
+When given an argument, these procedures change the default
+as specified by the argument.
+
+proc:case-sensitive?[args="",optarg="boolean",result="boolean"]
+
+Determines whether newly created textual ports default to
+case-sensitive.
+
+proc:read-larceny-weirdness?[args="",optarg="boolean",result="boolean"]
+
+Determines whether newly created textual ports allow
+Larceny's usual extensions to R5RS lexical syntax.
+This parameter also determines whether newly created
+ports allow +\#+ as an insignificant digit; this is
+required by the R5RS, but disallowed by the R6RS.
+
+proc:read-traditional-weirdness?[args="",optarg="boolean",result="boolean"]
+
+Determines whether newly created textual ports allow
+certain lexical extensions that are deprecated in Larceny.
+These extensions include symbols enclosed by vertical
+bars and read-time evaluation.
+
+For the current semantics of these parameters, please consult
 the Larceny developers' web page that describes
 http://larceny.ccs.neu.edu/larceny-trac/wiki/LexicalConversion[Larceny's
 lexical syntax].
 
-Apart from case-sensitivity, Larceny extends both R5RS lexical
-syntax and the lexical syntax proposed by the
-http://www.r6rs.org/[R6RS].
-The R6RS does not permit extensions, however, so Larceny
-provides several mechanisms for turning its extensions on and
-off.
-For details, please consult the web page cited above.
+
 

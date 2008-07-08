@@ -11,7 +11,7 @@
 
 (load-compiler)
 
-(require 'petit-compile-file.sch)
+(require 'petit-compile-file)
 
 (require 'debug)
 (require 'inspect-cont)

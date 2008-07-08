@@ -1,0 +1,21 @@
+SRFI Support
+
+
+SRFIs, which are Scheme Requests for Implementation, are
+specifications of libraries that have been designed by
+Scheme programmers for Scheme programmers.  The SRFI
+project is open to anyone; see http://srfi.schemers.org
+
+Larceny currently supports many SRFIs, though not as many
+as it should.  Some SRFIs are built into Larceny, but
+most of the supported SRFIs must be loaded dynamically
+using Larceny's require procedure, as in
+
+    > (require 'srfi-0)
+    > (require 'srfi-1)
+
+Implementations of the SRFIs that Larceny supports via
+the require procedure can be found in lib/SRFI.
+
+If you need a SRFI that Larceny doesn't yet support,
+please let us know.

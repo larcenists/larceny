@@ -316,6 +316,7 @@
   ;; general
 
   (environment-set! r4rs 'load load)
+
   ; transcript-on and transcript-off are not in the primitive heap.
 
   r4rs)
@@ -392,6 +393,7 @@
   (environment-set! larc 'read-traditional-weirdness?
                     read-traditional-weirdness?)
   (environment-set! larc 'read-mzscheme-weirdness? read-mzscheme-weirdness?)
+  (environment-set! larc 'fasl-evaluator fasl-evaluator)
 
   ;; pairs and lists
 
@@ -912,6 +914,11 @@
 
   (environment-set! larc 'record-indexer record-indexer) ; MzScheme
 
+  ;; record printers
+
+  (environment-set! larc 'rtd-printer rtd-printer)
+  (environment-set! larc 'rtd-printer-set! rtd-printer-set!)
+
   ;; R6RS exception mechanism
 
   (environment-set! larc 'with-exception-handler with-exception-handler)
@@ -1004,6 +1011,11 @@
   (environment-set! larc 'get-output-string get-output-string)
   (environment-set! larc 'get-output-bytevector get-output-bytevector)
   (environment-set! larc 'hashtable-printer hashtable-printer)
+  (environment-set! larc 'io/make-port io/make-port) ; XXX
+  (environment-set! larc 'io/get-u8 io/get-u8)       ; FIXME (common.imp.sch)
+  (environment-set! larc 'io/put-u8 io/put-u8)       ; FIXME (common.imp.sch)
+  (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
+  (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
   (environment-set! larc 'lowlevel-write lowlevel-write)
   (environment-set! larc 'open-text-input-file open-text-input-file)
   (environment-set! larc 'open-text-output-file open-text-output-file)
@@ -1014,11 +1026,8 @@
   (environment-set! larc 'open-input/output-bytevector
                     open-input/output-bytevector)
   (environment-set! larc 'port-name port-name)
-  (environment-set! larc 'io/make-port io/make-port) ; XXX
-  (environment-set! larc 'io/get-u8 io/get-u8)       ; FIXME (common.imp.sch)
-  (environment-set! larc 'io/put-u8 io/put-u8)       ; FIXME (common.imp.sch)
-  (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
-  (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
+  (environment-set! larc 'port-folds-case? port-folds-case?)
+  (environment-set! larc 'port-folds-case! port-folds-case!)
   (environment-set! larc 'print-length print-length)
   (environment-set! larc 'print-level print-level)
   (environment-set! larc 'procedure-printer procedure-printer)
@@ -1531,6 +1540,7 @@
                     interpreted-expression-source)
 
   ;; Continuation marks
+
   (environment-set-macro! larc 'with-continuation-mark
 			  (usual-syntax 'with-continuation-mark))
   (environment-set! larc 'call-with-continuation-mark
@@ -1551,8 +1561,15 @@
                     call-if-continuation-mark-replace)
 
   ;; require (library system)
+
   (environment-set! larc 'current-larceny-root current-larceny-root)
   (environment-set! larc 'current-require-path current-require-path)
+  (environment-set! larc 'current-require-path-suffix-optional
+                    current-require-path-suffix-optional)
+  (environment-set! larc 'current-require-path-suffixes
+                    current-require-path-suffixes)
+  (environment-set! larc 'current-require-path-suffixes-compiled
+                    current-require-path-suffixes-compiled)
   (environment-set! larc 'current-library-resolver current-library-resolver)
   (environment-set! larc 'require require)
   (environment-set! larc 'clear-require-loaded-files!
@@ -1566,6 +1583,7 @@
   (environment-set! larc 'repl-prompt repl-prompt)
   (environment-set! larc 'repl-level repl-level)
   (environment-set! larc 'herald herald)
+  (environment-set! larc 'load-from-port load-from-port)
   (environment-set! larc 'load-evaluator load-evaluator)
   (environment-set! larc 'load-print load-print)
   (environment-set! larc 'load-verbose load-verbose)
@@ -1575,6 +1593,8 @@
   (environment-set! larc 'typetag-set! typetag-set!)
   (environment-set! larc 'unspecified unspecified)
   (environment-set! larc 'undefined undefined)
+
+  (environment-set! larc 'current-seconds current-seconds)
 
 
   ;; INSTALL-ENVIRONMENTS! is used by Util/std-heap.sch, at least.

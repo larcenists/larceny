@@ -198,7 +198,10 @@
   (eq? (denotation-class denotation) 'javadot))
 
 (define (make-macro-denotation rules env)
-  (list 'macro rules env))
+  (list 'macro rules env #f #f))
+
+(define (make-macro-denotation-optimized rules env h v)
+  (list 'macro rules env h v))
 
 (define (make-inline-denotation id rules env)
   (list 'inline rules env id))
@@ -211,6 +214,8 @@
 
 (define macro-rules        cadr)
 (define macro-env          caddr)
+(define macro-hash         cadddr)
+(define macro-rules-table  (lambda (d) (car (cddddr d))))
 
 (define inline-rules       macro-rules)
 (define inline-env         macro-env)

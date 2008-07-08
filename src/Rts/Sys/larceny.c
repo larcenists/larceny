@@ -25,7 +25,7 @@
 #include "gc.h"
 #include "stats.h"        /* for stats_init() */
 #include "gc_t.h"
-#include "young_heap_t.h"
+#include "young_heap_t.h" /* for yh_create_initial_stack() */
 
 opt_t command_line_options;
 
@@ -1133,9 +1133,8 @@ static char *helptext[] = {
   "       -but-not-that-pedantic",
   "          Modifies -pedantic, which must also be specified.",
   "  -path <directory>",
-  "     Search the directory when using require.",
-  "     Only one directory can be specified by a -path option, and the",
-  "     -path option is currently incompatible with the -r6rs option.",
+  "     Search the directory when using require or import.",
+  "     Only one directory can be specified by a -path option.",
   "  -quiet",
   "     Suppress nonessential messages.",
   "  -nobanner",
@@ -1143,7 +1142,8 @@ static char *helptext[] = {
   "  -- <argument> ...",
   "     Tell (command-line-arguments) to return #(<argument> ...)",
   "     This option, if present, must come last.",
-  "     Standard heaps recognize these command line arguments:",
+  "     In R5RS and ERR5RS modes, Larceny's standard heap interprets",
+  "     these command line arguments:",
   "         -e <expr>",
   "           Evaluate <expr> at startup.",
   "         <file>",
@@ -1163,7 +1163,7 @@ static char *wizardhelptext[] = {
   "  -annoy-user",
   "     Print a bunch of annoying debug messages, usually about GC.",
   "  -annoy-user-greatly",
-  "     Print a great deal of very annoying debug messages, usually about GC.",
+  "     Print a great many very annoying debug messages, usually about GC.",
   "  -stopcopy",
   "     Select the stop-and-copy collector." ,
   "  -gen",

@@ -1,12 +1,14 @@
 ;; Provides a procedure
-;; larceny-setup : host-sym OS-sym endianness codegen-option ... -> ???
+;; larceny-setup : host-sym OS-sym endianness codegen-option ...
+;;                   -> ???
 ;;
 ;; Loads appropriate system-dependent stuff
 
 ;; BEFORE LOADING THIS FILE:  Make sure your Scheme interpreter's
 ;; current-directory is the root of this source tree.
 
-;; TODO:  Umm... finish.  Also, fix nbuild.sch and nbuild-files.sch
+;; TODO:  Umm... finish.
+;; Also, fix nbuild.sch and nbuild-files.sch
 ;;   Gotta separate the new compiler sources from the old Std. C
 ;;   and add them to the larceny_src
 
@@ -15,16 +17,19 @@
 
 (define *larceny-root* #f)
 
-;; this needs to be global... it floats all around the build-system.
+;; this needs to be global... it floats all around the
+;; build-system.
 ;; it will be set to something meaningful by (larceny-setup ...).
 
 (define nbuild-parameter
   (lambda x
-    (display "!! nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
+    (display
+     "!! nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
 
 (define make-nbuild-parameter
   (lambda x 
-    (display "!! make-nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
+    (display
+     "!! make-nbuild-parameter not yet set! (src/Build/dotnet.sch)")))
 
 (define (param-filename param . components)
   (let* ((reversed (reverse components))
@@ -45,7 +50,8 @@
 (define option:codegen-options '())
 
 (define system-big-endian?
-  (lambda x (display "!! system-big-endian not set yet")(newline)))
+  (lambda x
+    (display "!! system-big-endian not set yet")(newline)))
 
 (define copy-file
   (lambda x (display "!! copy-file not set yet") (newline)))
@@ -60,13 +66,15 @@
     ((_ 2)
      (if #f #f))
     ((_ 1 EXP REST ...)
-     (begin (set! body-crock-1 (append body-crock-1 (list (quote EXP))))
-	    EXP
-	    (begin-crock 1 REST ...)))
+     (begin (set! body-crock-1
+                  (append body-crock-1 (list (quote EXP))))
+            EXP
+            (begin-crock 1 REST ...)))
     ((_ 2 EXP REST ...)
-     (begin (set! body-crock-2 (append body-crock-2 (list (quote EXP))))
-	    EXP
-	    (begin-crock 2 REST ...)))))
+     (begin (set! body-crock-2
+                  (append body-crock-2 (list (quote EXP))))
+            EXP
+            (begin-crock 2 REST ...)))))
 
 ;; FIXME:  figure out endian from host scheme system?
 
@@ -90,9 +98,13 @@
      (begin (display "Host = ") (display host)
             (error "unknown host!"))))
 
-  ;; pnkfelix: Some global state is collected here.  We should probably
-  ;; merge the *larceny-root* and *root-directory* global variables.
-  (load (make-filename "src" "Build" "petit-unix-defns-globals.sch"))
+  ;; pnkfelix: Some global state is collected here.
+  ;; We should probably merge the *larceny-root* and
+  ;; *root-directory* global variables.
+
+  (load (make-filename "src"
+                       "Build"
+                       "petit-unix-defns-globals.sch"))
   
   (begin-crock 2
     (set! *larceny-root* (make-filename ""))
@@ -108,22 +120,32 @@
             (option:development? #t))
         (make-nbuild-parameter
           'root                  dir
-          'machine-source        (pathname-append dir "src" "Lib" "IL")
-          'mzscheme-source       (pathname-append dir "lib" "MzScheme")
-          'dotnet-asm            (pathname-append dir "src" "Asm" "IL")
+          'machine-source        (pathname-append dir
+                                                  "src"
+                                                  "Lib" "IL")
+          'mzscheme-source       (pathname-append dir
+                                                  "lib"
+                                                  "MzScheme")
+          'dotnet-asm            (pathname-append dir
+                                                  "src"
+                                                  "Asm" "IL")
           'always-source?        option:source?
           'verbose-load?         option:verbose?
           'development?          option:development?
-          'compatibility         (pathname-append dir "src" "Compat" host)
+          'compatibility         (pathname-append dir
+                                                  "src"
+                                                  "Compat" host)
           'host-system           host
           'target-string-rep     'flat4  ; FIXME
           'target-machine        'dotnet
           'target-os             option:os
           'host-os               option:os
+
           ; We should be careful to use host-endianness or
-          ; target-endianness, because "endianness" alone doesn't mean
-          ; anything.
+          ; target-endianness, because "endianness" alone
+          ; doesn't mean anything.
           ; 'endianness            option:endian
+
           'target-endianness     option:endian
           'host-endianness       option:endian
           'word-size             32)))
@@ -131,11 +153,13 @@
 
   ;; Load the compatibility file, expander, and config system.
 
-  (load (string-append (nbuild-parameter 'compatibility) "compat.sch"))
+  (load (string-append (nbuild-parameter 'compatibility)
+                       "compat.sch"))
   (compat:initialize)
   (load (string-append (nbuild-parameter 'util) "expander.sch"))
   (load (string-append (nbuild-parameter 'util) "config.sch"))
-  (load (string-append (nbuild-parameter 'util) "csharp-config.sch"))
+  (load (string-append (nbuild-parameter 'util)
+                       "csharp-config.sch"))
   )
 
 
@@ -157,14 +181,16 @@
   (define cfg-names '("except" "globals" "layouts" "mprocs"))
 
   (for-each (lambda (f)
-              (config (param-filename 'rts (string-append f ".cfg"))))
+              (config (param-filename
+                       'rts (string-append f ".cfg"))))
             cfg-names)
 
   (let ((cdefs (param-filename 'include "cdefs.h")))
     (if (not (file-exists? cdefs))
         (catfiles
           (map (lambda (f)
-                 (param-filename 'include (string-append f ".ch")))
+                 (param-filename
+                  'include (string-append f ".ch")))
                cfg-names)
           cdefs)))
 
@@ -194,61 +220,66 @@
 
 (define (build-runtime-system)
   (let ((cmd-string 
-	 (twobit-format 
-	  #f (case (nbuild-parameter 'host-os)
-	       ((win32)
+         (twobit-format 
+          #f (case (nbuild-parameter 'host-os)
+               ((win32)
                 "cd src\\Rts\\DotNet && nmake.exe ~a ~a DEBUG_OPT=\"~a\" DEFINES=\"~a\"")
-	       ((unix macosx)
+               ((unix macosx)
                 "cd src/Rts/DotNet;    make      ~a ~a DEBUG_OPT='~a'   DEFINES='~a'")
-	       (else
-		(error "Unknown operating system: "
+               (else
+                (error "Unknown operating system: "
                        (nbuild-parameter 'host-os))))
-	  (if (codegen-option 'mono)
-	      "CSC=gmcs "
-	      "CSC=csc ")
+          (if (codegen-option 'mono)
+              "CSC=gmcs "
+              "CSC=csc ")
           (cond ((eq? (nbuild-parameter 'host-os) 'win32)
                  "CPP=\"cl /C /EP\" ")
                 ((eq? (nbuild-parameter 'host-os) 'macosx)
                  "CPP=\"gcc -E -P -C -nostdinc\" ")
                 (else
                  "CPP=\"cpp -P -C -nostdinc\" "))
-	  (if (codegen-option 'debug)
-	      "/checked+ /warn:4 /debug:full /d:DEBUG "
-	      "/optimize+ ")
-	  (string-append 
-	   (if (eq? (nbuild-parameter 'target-endianness) 'big) 
-	       "/d:BIG_ENDIAN " "")
-	   (if (codegen-option 'mono) 
-	       "/d:USING_MONO " "")
-	   (if (codegen-option 'rotor)
-	       "/d:USING_ROTOR " "")
-	   (if (and (not (codegen-option 'mono)) 
-		    (eq? (nbuild-parameter 'host-os) 'win32))
-	       "/d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS " "")
-	   (if (memq (nbuild-parameter 'host-os) '(unix macosx))
-	       "/d:USING_UNIX " "")
-	   (if (codegen-option 'clr-2.0)
-	       "/d:HAS_SETENV_SUPPORT " "")
-	   ))))
+          (if (codegen-option 'debug)
+              "/checked+ /warn:4 /debug:full /d:DEBUG "
+              "/optimize+ ")
+          (string-append 
+           (if (eq? (nbuild-parameter 'target-endianness) 'big) 
+               "/d:BIG_ENDIAN " "")
+           (if (codegen-option 'mono) 
+               "/d:USING_MONO " "")
+           (if (codegen-option 'rotor)
+               "/d:USING_ROTOR " "")
+           (if (and (not (codegen-option 'mono)) 
+                    (eq? (nbuild-parameter 'host-os) 'win32))
+               "/d:HAS_OSVERSION /d:HAS_PERFORMANCE_COUNTERS /d:HAS_WINDOWS_FORMS " "")
+           (if (memq (nbuild-parameter 'host-os) '(unix macosx))
+               "/d:USING_UNIX " "")
+           (if (codegen-option 'clr-2.0)
+               "/d:HAS_SETENV_SUPPORT " "")
+           ))))
     (display cmd-string) (newline)
     (system cmd-string)))
 
 (define (write-crock num port body)
   (define (displayln x) (display x port) (newline port))
   (define (writeln x) (write x port) (newline port))
-  (displayln (string-append 
-	      ";; This (autogenerated) file is part " (number->string num) 
-	      " of a two-part crock."))
-  (displayln  ";; Felix essentially took larceny-setup from dotnet.sch,      ")
-  (displayln  ";; split it into component pieces, interleaving the loading   ")
-  (displayln  ";; and global variable initialization as necessary, in order  ")
-  (displayln  ";; to create a parallel setup to that of larceny-setup itself.")
-  (displayln  ";; (larceny-setup \"Larceny\" os  endian)                     ")
+  (displayln
+   (string-append 
+    ";; This (autogenerated) file is part " (number->string num) 
+    " of a two-part crock."))
+  (displayln
+   ";; Felix essentially took larceny-setup from dotnet.sch,")
+  (displayln
+   ";; split it into component pieces, interleaving the loading")
+  (displayln
+   ";; and global variable initialization as necessary, in order")
+  (displayln
+   ";; to create a parallel setup to that of larceny-setup itself.")
+  (displayln  ";; (larceny-setup \"Larceny\" os  endian)")
   (writeln `(let ((host   "Larceny")
-		  (os     ',option:os)
-		  (endian ',option:endian)
-		  (codegen-options ',option:codegen-options))
-	      ,@body)))
+                  (os     ',option:os)
+                  (endian ',option:endian)
+                  (codegen-options ',option:codegen-options))
+              ,@body)))
 
 (define (write-crock-one file)
   (if (file-exists? file)
@@ -265,48 +296,52 @@
     (close-output-port p)))
   
 (define (build-twobit-base app-name additional-files)
-  (define crock-file-1 (param-filename 'util "dotnet-twobit-1.sch"))
-  (define crock-file-2 (param-filename 'util "dotnet-twobit-2.sch"))
+  (define crock-file-1
+    (param-filename 'util "dotnet-twobit-1.sch"))
+  (define crock-file-2
+    (param-filename 'util "dotnet-twobit-2.sch"))
 
   (write-crock-one crock-file-1)
   (write-crock-two crock-file-2)
 
   (compile-application 
    app-name
-   (append (param-filename 'util '("dotnet.sch")) 
+   (append
+    (param-filename 'util '("dotnet.sch")) 
 
-	   ;; Next bunch is the result of breaking down larceny-setup
-	   ;; into seperate components seperated by its calls to load
+     ;; Next bunch is the result of breaking down larceny-setup
+     ;; into seperate components seperated by its calls to load
 
-	   (list crock-file-1)
-           (param-filename 'util
-                           (case option:os 
-                             ((win32) '("sysdep-win32.sch"))
-                             ((unix macosx) '("sysdep-unix.sch"))))
-	   (param-filename 'util '("petit-unix-defns-globals.sch"))
-	   (list crock-file-2)
-           (param-filename 'larceny-compatibility
-                           '("compat.sch" "compat2.sch"))
-           (param-filename 'auxiliary '("list.sch" "pp.sch"))
-           (param-filename 'util '("expander.sch" "config.sch"
-                                   "csharp-config.sch"))
+     (list crock-file-1)
+     (param-filename 'util
+                     (case option:os 
+                       ((win32) '("sysdep-win32.sch"))
+                       ((unix macosx) '("sysdep-unix.sch"))))
+     (param-filename 'util '("petit-unix-defns-globals.sch"))
+     (list crock-file-2)
+     (param-filename 'larceny-compatibility
+                     '("compat.sch" "compat2.sch"))
+     (param-filename 'auxiliary '("list.sch" "pp.sch"))
+     (param-filename 'util '("expander.sch" "config.sch"
+                             "csharp-config.sch"))
 
-	   ;; Rest is from load-compiler
+     ;; Rest is from load-compiler
 
-           (param-filename 'util '("nbuild-files.sch" "nbuild-defns.sch"))
+     (param-filename 'util
+                     '("nbuild-files.sch" "nbuild-defns.sch"))
 
-           ;; "Util/nbuild.sch"
-           ;; This does the loading that's inlined below
+     ;; "Util/nbuild.sch"
+     ;; This does the loading that's inlined below
 
-	   (nbuild:twobit-files)
-	   (nbuild:common-asm-files)
-	   (nbuild:machine-asm-files)
-	   (nbuild:utility-files)
-           (param-filename 'rts '("make-templates.sch"))
-           (param-filename 'util '("cleanup.sch"))
+     (nbuild:twobit-files)
+     (nbuild:common-asm-files)
+     (nbuild:machine-asm-files)
+     (nbuild:utility-files)
+     (param-filename 'rts '("make-templates.sch"))
+     (param-filename 'util '("cleanup.sch"))
 
-           additional-files
-	   )))
+     additional-files
+     )))
 
 (define (nbuild-key->parameter key)
   (lambda args
@@ -314,12 +349,13 @@
 
 (define (build-twobit)
   (cond ((file-exists? "Twobit.fasl")
-	 (delete-file "Twobit.fasl")))
+         (delete-file "Twobit.fasl")))
   (parameterize ((compat:read-case-sensitive? #t)
                  ((nbuild-key->parameter 'development?) #t))
      (build-twobit-base
        "Twobit"
-       (list (param-filename 'auxiliary "dotnet-compile-file.sch")))))
+       (list (param-filename
+              'auxiliary "dotnet-compile-file.sch")))))
 
 (define (build-larceny)
   (cond ((file-exists? "Larceny.fasl")
@@ -329,8 +365,15 @@
     (build-twobit-base
       "Larceny"
       `(,@(param-filename 'compiler '("driver-larceny.sch"))
+
+        ;; Next two are prerequisites for seal-twobit
+
+        ,@(param-filename 'common-source '("toplevel.sch"))
+        ,@(param-filename
+           'source "Arch" "IL" '("toplevel-target.sch"))
         ,@(param-filename 'util '("seal-twobit.sch"))
-        ,@(param-filename 'auxiliary '("dotnet-compile-file.sch"))
+        ,@(param-filename
+           'auxiliary '("dotnet-compile-file.sch"))
         ,@(param-filename 'common-asm '("link-lop.sch"))
         ,@(param-filename 'dotnet-asm '("il-jdot-aliases.sch"
                                         "il-corememory.sch"))
@@ -338,6 +381,36 @@
                                       "inspect-cont.sch"
                                       "trace.sch"))
         ,@(param-filename 'util '("dotnet-larceny.sch"))))))
+
+(define (build-larceny-lcg)
+  (cond ((file-exists? "LarcenyLcg.fasl")
+         (delete-file "LarcenyLcg.fasl")))
+  (parameterize ((compat:read-case-sensitive? #t)
+                 ((nbuild-key->parameter 'development?) #f))
+    (build-twobit-base
+      "LarcenyLcg"
+      `(,@(param-filename 'compiler '("driver-larceny.sch"))
+
+        ;; Next two are prerequisites for seal-twobit
+
+        ,@(param-filename 'common-source '("toplevel.sch"))
+        ,@(param-filename
+           'source "Arch" "IL" '("toplevel-target.sch"))
+        ,@(param-filename 'util '("seal-twobit.sch"))
+
+        ;; ,@(param-filename
+        ;;    'auxiliary '("dotnet-compile-file.sch"))
+
+        ,@(param-filename 'common-asm '("link-lop.sch"))
+        ,@(param-filename 'dotnet-asm ".." "IL-LCG" 
+                          '("peepopt.sch"
+                            "dotnet-ffi-lcg.sch"
+                            "pass5p2.sch"))
+        ,@(param-filename 'debugger '("debug.sch"
+                                      "inspect-cont.sch"
+                                      "trace.sch"))
+        ,@(param-filename
+           'util '("dotnet-larceny-lcg-application.sch"))))))
 
 ;; Convenience
 ;(define (load-debugger)

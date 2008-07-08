@@ -1,9 +1,9 @@
+[[RunningChapter]]
+
 Running Larceny
 ---------------
 
-anchor:running[running]
-
-Larceny currently runs in any of four distinct modes:
+Larceny runs in any of four distinct modes:
 
     R5RS              traditional read/eval/print loop (the default)
     ERR5RS            ERR5RS read/eval/print loop
@@ -14,6 +14,8 @@ These modes correspond to the four distinct kinds of Scheme
 programs that are described by the current de facto standards
 for Scheme.  (IEEE/ANSI Std 1178 is so similar to the R5RS
 standard that Larceny implements both languages in R5RS mode.)
+
+[[R5rsSection]]
 
 R5RS mode
 ~~~~~~~~~
@@ -34,6 +36,18 @@ You can enter a Scheme expression at the prompt.
 After a complete expression has been read, it will
 be evaluated and its results printed.
 
+[NOTE]
+================================================================
+In native Larceny, the expression is evaluated by
+compiling it to native machine code, which is then executed.
+In Petit Larceny, the expression is evaluated by
+an interpreter because compiling to C, running the
+C compiler, and loading the compiled C code would
+take too long.  Interpreted code behaves like compiled code,
+so most of what this manual says about the compiler is also
+true of Petit Larceny's interpreter.
+================================================================
+
 By default, Larceny's Twobit compiler makes several
 assumptions that allow it to generate faster code;
 for example, the compiler assumes Scheme's standard
@@ -50,11 +64,10 @@ section of this user manual devoted to
 <<PerformanceSection, performance>>.
 
 
+[[Err5rsSection]]
+
 ERR5RS mode
 ~~~~~~~~~~~
-
-For the most current information on  Larceny's new
-ERR5RS-compatible read/eval/print loop, see `doc/HOWTO-ERR5RS`.
 
 To interact with Larceny's ERR5RS read/eval/print loop,
 specify the `-err5rs` option on Larceny's command line:
@@ -70,8 +83,7 @@ can evaluate are constant literals, variable references
 (but no variables have been imported!), procedure calls
 (but no procedure values are accessible!), library
 definitions, and import forms.  The first thing you'll
-want to do is to import some of the pre-loaded libraries,
-such as:
+want to do is to import some libraries, such as:
 
 ----------------------------------------------------------------
     > (import (rnrs base)
@@ -83,11 +95,57 @@ Once you have imported `(rnrs base)` or a composite library
 that includes it, you can evaluate definitions and use
 all other syntax and variables you have imported.
 
+
+[[Err5rsAutomaticLoadingSection]]
+
+==== Automatic loading
+
+As an extension to ERR5RS, Larceny attempts to load
+libraries automatically when they are first imported.
+Autoloading makes interactive development and
+<<CompilingChapter,separate compilation>>
+much more convenient.
+
+All of Larceny's
+<<Err5rsPreDefinedSection,predefined libraries>>
+can be autoloaded.
+
+To enable autoloading of other ERR5RS/R6RS libraries,
+you can:
+
+- use the `-path` command-line option
+- use <<current-require-path,`current-require-path`>>
+- edit `startup.sch` in Larceny's root directory
+- add the libraries to Larceny's `lib` directory
+
+
+[[Err5rsDynamicLoadingSection]]
+
 ==== Dynamic loading
 
-To load nonstandard libraries, top-level programs, or
-unadorned R5RS-style code from a file, you must first
-import a suitable load procedure:
+Larceny automatically loads ERR5RS/R6RS libraries when
+they are first imported.  This is usually the most
+convenient way to load a library, but autoloading
+can't be used to load a top-level program.  Explicit
+loading is needed for top-level programs, for libraries
+that don't reside in Larceny's
+<<current-require-path,`current-require-path`>>,
+and for libraries that are defined in files whose names
+do not follow Larceny's
+<<NamingChapter,standard naming conventions>>.
+
+Explicit loading is the only portable way for ERR5RS
+programs to load a library.
+
+Explicit loading also makes it possible to write portable
+programs whose source files conform to both the R5RS and
+ERR5RS.  Two different configuration files, one for the
+R5RS and one for ERR5RS, can perform all of the imports
+and loads needed to run the program.
+
+For explicit loading of nonstandard libraries, top-level
+programs, or unadorned R5RS-style code from a file, you
+must first import a suitable load procedure:
 
 ----------------------------------------------------------------
     > (import (err5rs load))
@@ -95,11 +153,10 @@ import a suitable load procedure:
 
 Loading a library does not automatically import it.
 To use the variables and syntax that are exported by a
-library, you must first load and then import that library
-explicitly:
+library, you must import that library explicitly:
 
 ----------------------------------------------------------------
-    > (load "lib/R6RS/benchmarking.sch")
+    > (load "lib/R6RS/larceny/benchmarking.sls")
     > (import (larceny benchmarking))
     > (time (vector-for-each + (make-vector 1000000 0)))
     Words allocated: 3095752
@@ -108,21 +165,27 @@ explicitly:
     Elapsed GC time: 4 ms (CPU: 4 in 8 collections.)
 ----------------------------------------------------------------
 
-Before you import a library or load a top-level program,
-you must first load all of the nonstandard libraries it
-imports.
+In Larceny, you may omit the call to `load` because the
+`(larceny benchmarking)` library will be autoloaded when
+it is imported.  In most other ERR5RS systems, however,
+you must load all of the nonstandard libraries that will
+be imported by a top-level program or library before you
+load that top-level program or library.
 
 You do not have to import those libraries into the ERR5RS
 top level, however, unless you want to use the variables
 and syntax exported by those libraries in the expressions
 and definitions you evaluate at the top level.
 
-==== Pre-loaded libraries
 
-For your convenience, Larceny pre-loads all of the standard
-R6RS libraries and several other libraries besides, so you
-can import from those libraries without having to load them
-yourself.  The pre-loaded libraries include:
+[[Err5rsPreDefinedSection]]
+
+==== Predefined libraries
+
+Larceny predefines several nonstandard libraries in addition
+to the standard ERR5RS and R6RS libraries, and autoloads them
+for your convenience.  The predefined, autoloadable libraries
+include:
 
 R6RS standard libraries:
 
@@ -150,31 +213,50 @@ R6RS standard libraries:
     (rnrs mutable-strings (6))       ; R6RS library chapter 18
     (rnrs r5rs (6))                  ; R6RS library chapter 19
 
-R6RS standard libraries that are pre-loaded but deprecated in Larceny:
+R6RS standard libraries that are autoloadable but deprecated in Larceny:
 
     (rnrs records procedural (6))    ; R6RS library section 6.3 (deprecated)
     (rnrs records inspection (6))    ; R6RS library section 6.4 (deprecated)
     (rnrs records syntactic (6))     ; R6RS library section 6.2 (deprecated)
 
-Other pre-loaded libraries:
+Other autoloadable libraries:
 
     (err5rs records procedural)      ; ERR5RS records (procedural API)
     (err5rs records inspection)      ; ERR5RS records (inspection API)
     (err5rs records syntactic)       ; ERR5RS records (syntactic API)
     (err5rs load)                    ; ERR5RS load procedure
     (rnrs load)                      ; equivalent to (err5rs load)
+    (larceny load)                   ; extension of (err5rs load)
+    (larceny compiler)               ; separate compilation for ERR5RS/R6RS
+    (larceny benchmarking)           ; timing facilities
+    (larceny records printer)        ; custom printing of records
     (r5rs)                           ; approximates the R5RS top level
-    (explicit-renaming)              ; a macro system with explicit renaming
+    (explicit-renaming)              ; macro system with explicit renaming
+
+
+[[ERR5RSLibraryPathSection]]
 
 ==== Library path
 
-For convenience, future versions of Larceny will automatically
-load libraries when they are imported, provided the library is
-standard or can be found in the directory specified by the
-`-path` option on Larceny's command line using Larceny's
-standard translation from library names to file names.
+Larceny's autoload feature locates ERR5RS/R6RS libraries
+by performing a depth-first search of the directories
+that belong to Larceny's
+<<current-require-path,`current-require-path`>>.
+Libraries will not be autoloaded unless they are defined
+in files whose names follow
+<<LibraryTranslationSection, Larceny's standard conventions>>.
 
-This feature is not implemented in Larceny v0.95 "First Safety".
+The
+<<current-require-path,`current-require-path`>>
+is initialized by the `startup.sch` file in Larceny's root
+directory.
+
+Larceny's `-path` command-line option adds a single directory
+to the directories in the
+<<current-require-path,`current-require-path`>>.
+
+
+[[R6rsSection]]
 
 R6RS mode
 ~~~~~~~~~
@@ -203,19 +285,48 @@ You probably don't want to do that.  Had you wanted
 to type R6RS code at Larceny, you'd be using ERR5RS
 mode instead.
 
-==== Pre-defined libraries
 
-R6RS top-level programs and Scheme scripts may import
-any R6RS standard libraries, and may also import any
-of the libraries that are pre-loaded in Larceny's
-ERR5RS mode.
+[[R6rsPreDefinedSection]]
 
-==== Defining libraries
+==== Predefined libraries
 
 The R6RS standard does not specify any way for a
 top-level program to define its own libraries.
 Portable R6RS programs are therefore limited to
 importing a subset of the R6RS standard libraries.
+
+As an extension to the R6RS, Larceny allows R6RS
+top-level programs and Scheme scripts to import
+any libraries that are
+<<Err5rsPreDefinedSection,predefined in Larceny's ERR5RS mode>>.
+
+
+[[R6RSLibraryPathSection]]
+
+==== Library path
+
+As another extension to the R6RS, Larceny allows
+R6RS top-level programs to import any libraries
+that can be found in the directory specified by the
+`-path` option on Larceny's command line using
+<<LibraryTranslationSection, Larceny's standard translation>>
+from library names to file names.
+Note that the `-path` option cannot be used by Scheme scripts,
+because command-line options are passed along to the Scheme
+script without being interpreted by the `scheme-script` processor.
+
+We emphasize that this extension is non-portable.
+It is not supported by Ikarus, which is currently
+the only other system that implements a substantial
+fraction of the R6RS.
+(Ikarus may provide a similar feature, but Ikarus's
+mapping from library names to file names is incompatible
+with Larceny's mapping.)
+
+
+[[DefiningLibrariesSection]]
+
+==== Defining libraries
 
 As an extension to the R6RS, Larceny allows a top-level
 program or Scheme script to define R6RS libraries within
@@ -226,41 +337,26 @@ library depends upon libraries that come later in the
 file.
 
 We emphasize that this extension is non-portable.
-It is not supported by Ikarus, which is currently the
-only other system that implements a substantial fraction
-of the R6RS.
+It is not supported by Ikarus.
 
-==== Library path
 
-As another extension to the R6RS, future versions of Larceny
-will allow top-level programs to import nonstandard libraries
-that can be found in the directory specified by the
-`-path` option on Larceny's command line using Larceny's
-standard translation from library names to file names.
-
-We emphasize that this extension too will be non-portable.
-Although Ikarus provides a similar feature, Ikarus's
-mapping from library names to file names is incompatible
-with Larceny's mapping.
-
-The library path feature is not implemented in Larceny v0.95
-"First Safety".
+[[SchemeScriptsSection]]
 
 Scheme scripts
 ~~~~~~~~~~~~~~
 
 On most Unix systems (including MacOS X and Linux), Larceny's
-scheme-script will execute Scheme scripts as described in R6RS
+`scheme-script` will execute Scheme scripts as described in R6RS
 non-normative appendix D, with or without the optional script
 header.  To make Scheme scripts executable in their own
-right, without executing scheme-script directly, add Larceny's
+right, without executing `scheme-script` directly, add Larceny's
 root directory to your path as described in `doc/HOWTO-INSTALL`.
 
 Suppose, for example, that `/home/myself/hello` is an R6RS
 Scheme script whose first line is the optional script header
-(#!/usr/bin/env scheme-script).  If you do not have execute
+(`#!/usr/bin/env scheme-script`).  If you do not have execute
 permission for this script, or Larceny's root directory is
-not in your path, then you can still run the script from
+not in your path, you can still run the script from
 Larceny's root directory as follows:
      
 ----------------------------------------------------------------
@@ -268,7 +364,7 @@ Larceny's root directory as follows:
 ----------------------------------------------------------------
 
 If you have execute permission for the script, and Larceny's
-root directory is in your path, then you can also run the
+root directory is in your path, you can also run the
 script as follows:
 
 ----------------------------------------------------------------
@@ -276,19 +372,14 @@ script as follows:
 ----------------------------------------------------------------
 
 If, in addition, the directory that contains the script is
-in your path, then you can run the script as follows:
+in your path, you can run the script as follows:
 
 ----------------------------------------------------------------
     % hello
 ----------------------------------------------------------------
 
-[WARNING]
-================================================================
-Arguments to Scheme scripts are not handled properly in
-Larceny v0.95 "First Safety".  This problem will be fixed
-in the next release of Larceny.
-================================================================
 
+[[R5rsScriptSection]]
 
 R5RS scripting
 ~~~~~~~~~~~~~~
@@ -323,6 +414,9 @@ creative uses of Larceny, ask for help:
 ----------------------------------------------------------------
     % larceny -help
 ----------------------------------------------------------------
+
+
+[[ErrorsSection]]
 
 Errors
 ~~~~~~
@@ -361,8 +455,8 @@ Troubleshooting
 ==== Errors when starting Larceny
 
 When attempting to run an R6RS program, you may see
-a warning about "loading source in favor of stale
-fasl file: `.../lib/R6RS/r6rs-standard-libraries.sch`",
+a warning about "`loading source in favor of stale
+fasl file`",
 following by a long series of error messages about
 syntactic keywords used as a variable, ending with
 the kind of error you'd expect to see when a large
@@ -371,7 +465,9 @@ expecting to see R5RS-compatible code.  That means
 the R6RS runtime and standard libraries were not
 installed correctly, or their source files have been
 touched or modified since they were last compiled.
-To fix the problem, repeat step 4 of `doc/HOWTO-BUILD`.
+To fix the problem,
+<<CompilingStdLibSection, recompile the R6RS standard
+libraries>> as described in step 4 of `doc/HOWTO-BUILD`.
 
 The precompiled binary forms of Larceny should run on
 most machines with the appropriate processor and operating
@@ -385,6 +481,55 @@ First, though, you should report the problem
 to us (`larceny@ccs.neu.edu`).
 Please report success stories as well.
 
+
+==== Errors when compiling the ERR5RS/R6RS runtime
+
+If something goes wrong while
+<<CompilingStdLibSection,compiling the ERR5RS/R6RS runtime>>,
+make sure you are running the copy of Larceny you think
+you are running and have read and write permission
+for +lib/R6RS+ and all its subdirectories and files.
+If you get an error message about something being
+"`expanded against a different build of this library`",
+then one or more of the compiled files in +lib/R6RS+
+and its subdirectories has gone
+<<CompilingChapter,stale>>.
+Removing all `.slfasl` files from +lib/R6RS+ and its
+subdirectories will eliminate the stale file(s).
+
+[WARNING]
+================================================================
+Don't remove the `.sch` or `.sls` files.
+================================================================
+
+
+[[AutoLoadErrorsSection]]
+
+==== Autoloading errors
+
+If Larceny attempts to autoload an imported ERR5RS/R6RS
+library but cannot find the library, then the library
+may be defined in a file that doesn't follow
+<<NamingChapter,Larceny's standard naming conventions>>.
+Another possibility is that the `-path` option was
+omitted or incorrect.
+
+If an ERR5RS/R6RS library is compiled, then all compiled
+libraries and top-level programs that depend upon it must
+also be recompiled.  In particular, recompiling the standard
+R6RS runtime will invalidate all compiled libraries and
+top-level programs.  Larceny's `compile-stale` script
+and the
+<<compile-stale-libraries,`compile-stale-libraries`>>
+procedure of `(larceny compiler)` make it convenient
+to recompile all of the libraries and top-level
+programs within any given directory in an order
+consistent with their dependencies.
+
+
+
+[[CrashesSection]]
+
 ==== Crashes
 
 Please report all crashes with as much information is possible;
@@ -393,6 +538,7 @@ do not mail the core dump without contacting us first).
 Larceny's run-time system is compiled with full debugging
 information by default and a debugger like GDB should be able
 to provide at least some clues.
+
 
 [[PerformanceSection]]
 
@@ -434,7 +580,9 @@ argument.
 // benchmark-block-mode broken for a long time; commenting out below
 
 ////////////////////////////////////////////////////////////////////////
-To make `compile-file` generate faster code, you can promise that none
+To make
+<<compile-file,`compile-file`>>
+generate faster code, you can promise that none
 of the top-level variables that are defined within a file of Scheme
 code are redefined or assigned outside of that file unless they are
 redefined or assigned within the file. To make this promise, evaluate
@@ -450,6 +598,9 @@ For more information, evaluate
         (help)
 ----------------------------------------------------------------
 
-Some of the help information that will be printed may be out of
-date or irrelevant to the heap image you are using,
-but most of it is still true.
+[NOTE]
+================================================================
+Some of the help information that will be printed may be
+irrelevant to the heap image you are using.
+================================================================
+

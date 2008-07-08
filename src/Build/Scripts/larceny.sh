@@ -70,8 +70,14 @@ case "`basename "$0"`" in
     ;;
 
     larceny-np)         #option
-	heap=larceny.heap
-	cmd=larceny.bin
+	cmd=petit-larceny.bin
+	heap=petit-larceny.heap
+        if test -x $LARCENY_ROOT/$cmd; then
+	    :
+	else
+	    cmd=larceny.bin
+	    heap=larceny.heap
+	fi
 	rtopts="-np"
     ;;
 

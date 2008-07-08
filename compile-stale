@@ -1,0 +1,32 @@
+#!/usr/bin/env scheme-script
+
+#!r6rs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Compiles all .sls files that lie within the directory (and
+;;; its subdirectories) from which this Scheme script is invoked.
+;;;
+;;; Compiling a large number of interdependent source files by
+;;; hand is inconvenient because files must be compiled in an
+;;; order consistent with their import dependencies:  Every
+;;; compiled library must be compiled before any compiled
+;;; files that import the library.
+;;;
+;;; If the files compiled by this script define libraries
+;;; that are imported by compiled files that lie outside the
+;;; directory from which this Scheme script is invoked, then
+;;; those compiled files will become stale, which means those
+;;; compiled files should be removed or replaced by freshly
+;;; compiled files.
+;;;
+;;; Larceny refuses to execute compiled code from a stale
+;;; file, because the compiled code in stale files may be
+;;; dangerously inconsistent with the compiled code of
+;;; libraries on which the stale file depends.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(import (larceny compiler))
+
+(compile-stale-libraries)

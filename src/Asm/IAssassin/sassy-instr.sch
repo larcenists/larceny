@@ -2029,6 +2029,8 @@
         (l2 (fresh-label)))
     `(test	,$r.result.low ,$tag.fixtagmask)
     `(je short	,l1)
+    (ia86.double_tag_test $r.result $tag.bytevector-tag $hdr.bignum)
+    `(jz short ,l1)
     (ia86.mcall	$m.integerp 'integerp)
     `(jmp short ,l2)
     `(label ,l1)

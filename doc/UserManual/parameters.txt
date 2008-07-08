@@ -10,6 +10,22 @@ it returns the current value of the parameter. If called with one
 argument, it sets the parameter's value to that of the argument and
 returns the new value.
 
+proc:make-parameter[args="name value",optarg="predicate",result="procedure"]
+
+Create a parameter with name _name,_ initial value _value,_ and
+optional setter predicate _predicate._ When the parameter is set the
+new value is first passed to _predicate,_, and if it returns `#f` then
+an error is signalled. _Name_ can be a symbol or a string.
+
+_Syntax parameterize_
+
+++ (parameterize ((parameter0 value0) ...) expr0 expr1 ...)++
+
+Parameterize overrides the values of a set of parameters in a dynamic
+scope -- it is like fluid-let for parameters.
+
+==== Larceny parameters
+
 The following list of parameters does not yet include the reader or
 compiler switches, which are also parameters.
 
@@ -53,16 +69,3 @@ link:structures.html#proc:structure-printer[Parameter ++structure-printer++]
 
 link:control.html#proc:timer-interrupt-handler[Parameter ++timer-interrupt-handler++]
 
-proc:make-parameter[args="name value",optarg="predicate",result="procedure"]
-
-Create a parameter with name _name,_ initial value _value,_ and
-optional setter predicate _predicate._ When the parameter is set the
-new value is first passed to _predicate,_, and if it returns `#f` then
-an error is signalled. _Name_ can be a symbol or a string.
-
-_Syntax parameterize_
-
-++ (parameterize ((parameter0 value0) ...) expr0 expr1 ...)++
-
-Parameterize overrides the values of a set of parameters in a dynamic
-scope -- it is like fluid-let for parameters.

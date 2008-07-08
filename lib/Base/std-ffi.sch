@@ -175,6 +175,21 @@
 	  (error "Foreign-procedure " name ": " x 
 		 " is out of range for a unsigned integer type.")))
 
+    (define (longlong-check x name)
+      (if (or (fixnum? x)
+	      (<= -9223372036854775808 x 9223372036854775807))
+	  x
+	  (error "Foreign-procedure " name ": " x 
+		 " is out of range for a signed integer type.")))
+
+    (define (ulonglong-check x name)
+      (if (or (and (fixnum? x)
+		   (>= x 0))
+	      (<= 0 x 18446744073709551615))
+	  x
+	  (error "Foreign-procedure " name ": " x 
+		 " is out of range for a signed integer type.")))
+
     (define (character->char x name)
       (if (char? x)
 	  (let ((c (char->integer x)))
@@ -253,7 +268,8 @@
 	  #f
           (%peek-string x)))
 
-    `((int      signed32   ,integer-check           ,id)
+    `((byte     signed32   ,integer-check           ,id)
+      (int      signed32   ,integer-check           ,id)
       (short    signed32   ,integer-check           ,id)
       (char     signed32   ,character->char         ,char->character)
       (unsigned unsigned32 ,unsigned-integer-check  ,id) ; avoid
@@ -264,6 +280,8 @@
       (ulong    unsigned32 ,unsigned-integer-check  ,id)
       (float    ieee32     ,flonum-check            ,id)
       (double   ieee64     ,flonum-check            ,id)
+      (longlong  signed64   ,longlong-check         ,id)
+      (ulonglong unsigned64 ,ulonglong-check        ,id)
       (bool     signed32   ,object->bool            ,int->boolean)
       (void     void       ,#f                      ,id)
       (boxed    pointer    ,boxed->pointer          ,#f)
@@ -283,6 +301,14 @@
          (list high-level-name low-level-name high->low low->high)
          *ffi-attributes*)))
 
+(define *ffi-attribute-aliases*
+  '())
+
+(define (ffi-add-alias-of-attribute-entry! new-name t)
+  (set! *ffi-attribute-aliases*
+        (cons (cons new-name t)
+              *ffi-attribute-aliases*)))
+
 ;; This now handles the function type constructor -> to convert
 ;; between C function pointers and Scheme closures.  It might be good
 ;; to also add an array type constructor that converts between C
@@ -293,8 +319,11 @@
 ;;  for passing in.)
 (define (ffi-attribute-entry t)
   (cond
+   ((assq t *ffi-attribute-aliases*) =>
+    (lambda (t2) (ffi-attribute-entry (cdr t2))))
    ((pair? t)
     (cond
+     ;; (-> (type ...) type)
      ((eq? '-> (car t))
       (let ((param-types (cadr t))
             (ret-type    (caddr t)))
@@ -305,6 +334,7 @@
                  name))
              ,(lambda (addr name)
                 (foreign-procedure-pointer addr param-types ret-type)))))
+     ;; (maybe type)
      ((eq? 'maybe (car t))
       (let* ((param-type (cadr t))
              (entry (ffi-attribute-entry param-type))
@@ -320,6 +350,27 @@
                 (if (foreign-null-pointer? x)
                     #f
                     (fth x name))))))
+     ;; (oneof (schemeval-i cint-i) ... type)
+     ((eq? 'oneof (car t))
+      (let* ((else-type (car (reverse (cdr t))))
+             (s2c-vals (reverse (cdr (reverse (cdr t)))))
+             (c2s-vals (map reverse s2c-vals))
+             (entry (ffi-attribute-entry else-type))
+             (thd (caddr entry))
+             (fth (cadddr entry)))
+        `(,t signed32 
+             ,(lambda (sval name) 
+                (cond ((assoc sval s2c-vals) => 
+                       (lambda (entry)
+                         (let ((cval (cadr entry)))
+                           cval)))
+                      (else (thd sval name))))
+             ,(lambda (cval name) 
+                (cond ((assoc cval c2s-vals) =>
+                       (lambda (entry)
+                         (let ((sval (cadr entry)))
+                           sval)))
+                      (else (fth cval name)))))))
      (else
       (error "FFI: " t " is not a valid type constructor."))))
    (else
@@ -465,9 +516,9 @@
 
   (define (check-for-obvious-type-problems param-types ret-type)
     (cond ((memq 'void param-types)
-           (error "FFI: \"void\" is not a valid parameter type."))
+           (error name "FFI: \"void\" is not a valid parameter type."))
           ((eq? 'boxed ret-type)
-           (error "FFI: \"boxed\" is not a valid return type.")))
+           (error name "FFI: \"boxed\" is not a valid return type.")))
     (let ((pointer-objects
            (filter (lambda (x) (or (eq? x 'boxed) (eq? x 'string)))
                    param-types))
@@ -478,7 +529,7 @@
                   (not (null? callbacks)))
              (for-each 
               display
-              (list "FFI warning: boxed objects"
+              (list name " FFI warning: boxed objects"
                     ", e.g. " pointer-objects ", can "
                     "become unstable when callbacks"
                     ", e.g. " callbacks ", are invoked."))

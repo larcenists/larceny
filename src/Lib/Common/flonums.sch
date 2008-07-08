@@ -227,4 +227,9 @@
 (define (flonum:cosh x)
   (syscall syscall:flonum-cosh x (make-flonum-datum)))
 
+; FIXME:  This seems out of place.
+
+(define (flonum:time)
+  (syscall syscall:time (make-flonum-datum)))
+
 ; eof

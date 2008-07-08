@@ -119,42 +119,46 @@
 ; Except for quoted values, the A-normal form does not share
 ; mutable structure with the original expression E.
 ;
-; KNOWN BUG:
+; OPTIONAL ARGUMENTS:
 ;
-; If you call A-normal on a form that has already been converted
-; to A-normal form, then the same temporaries will be generated
-; twice.  An optional argument lets you specify a different prefix
-; for temporaries the second time around.  Example:
+; The following optional arguments can be combined in either
+; order.
+;
+; If you call A-normal-form on a form that has already been
+; converted to A-normal form, then the same temporaries will
+; be generated twice.  An optional argument lets you specify
+; a different prefix for temporaries the second time around.
+; Example:
 ;
 ; (A-normal-form (A-normal-form E ".T")
 ;                ".U")
+;
+; An optional threshold n tells A-normal-form to give up by
+; returning #f if the A-normal form would contain more than
+; n new temporary variables.
 
 ; This is the declaration that is used to indicate A-normal form.
 
 (define A-normal-form-declaration (list 'anf))
 
+; Expressions larger than this threshold are definitely complicated.
+
 (define *anf-complication* 100)
+
+; Expressions larger than this will not be converted to A-normal form.
+; (One million corresponds to about 200,000 lines of dense source code.)
+
+(define anf-infinity 1000000)
+
+; If an input expression is larger than this, then its ANF size
+; will be printed during compilation.
+
+(define anf-large 10000)
 
 (define (A-normal-form E . rest)
   
   (define (A-normal-form E)
     (anf-make-let* (anf E '() '())))
-  
-  ; New temporaries.
-  
-  (define temp-counter 0)
-  
-  (define temp-prefix
-    (if (or (null? rest)
-            (not (string? (car rest))))
-        (string-append renaming-prefix "T")
-        (car rest)))
-  
-  (define (newtemp)
-    (set! temp-counter (+ temp-counter 1))
-    (string->symbol
-     (string-append temp-prefix
-                    (number->string temp-counter))))
   
   ; Given an expression E as output by pass 2,
   ; a list of surrounding LET* bindings,
@@ -559,4 +563,53 @@
               (else (error "Unrecognized expression" exp)))))
       (complicated? exp)))
   
-  (A-normal-form E))
+  ; New temporaries.
+  
+  (define (newtemp)
+    (set! temp-counter (+ temp-counter 1))
+    (if (> temp-counter temp-threshold)
+        (return))
+    (string->symbol
+     (string-append temp-prefix
+                    (number->string temp-counter))))
+  
+  (define temp-prefix
+    (let ()
+      (define (default-prefix)
+        (string-append renaming-prefix "T"))
+      (cond ((or (null? rest)
+                 (and (null? (cdr rest))
+                      (not (string? (car rest)))))
+             (default-prefix))
+            ((string? (car rest))
+             (car rest))
+            ((and (pair? (cdr rest))
+                  (string? (cadr rest)))
+             (cadr rest))
+            (else
+             (default-prefix)))))
+
+  (define temp-threshold
+    (cond ((null? rest) anf-infinity)
+          ((number? (car rest))
+           (car rest))
+          ((null? (cdr rest))
+           anf-infinity)
+          ((number? (cadr rest))
+           (cadr rest))
+          (else
+           anf-infinity)))
+  
+  (define temp-counter 0)
+
+  (define return (lambda () #f))
+
+  (call-with-current-continuation
+   (lambda (k)
+     (set! return (lambda () (k #f)))
+     (let ((anf (A-normal-form E)))
+       (if (> temp-counter anf-large)
+           (begin (display "ANF size: ")
+                  (write temp-counter)
+                  (newline)))
+       anf))))

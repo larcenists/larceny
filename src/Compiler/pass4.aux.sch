@@ -750,7 +750,7 @@
     (let ((syntaxenv (if (null? rest)
                          (the-usual-syntactic-environment)
                          (car rest))))
-      (pass4 (pass3 (pass2 (pass1 x syntaxenv)))
+      (pass4 (pass3 (pass2 (pass1 (pass0 x) syntaxenv)))
              (twobit-integrable-procedures)))))
 
 (define expand
@@ -758,7 +758,7 @@
     (let ((syntaxenv (if (null? rest)
                          (the-usual-syntactic-environment)
                          (car rest))))
-      (pass1 x syntaxenv))))
+      (pass1 (pass0 x) syntaxenv))))
 
 (define compile-block
   (lambda (x . rest)

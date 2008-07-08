@@ -1,5 +1,16 @@
+////////////////////////////////////////////////////////////////
+Larceny User Manual
+
+$Id$
+
+For documentation on AsciiDoc, see
+http://larceny.ccs.neu.edu/larceny-trac/wiki/AsciiDoc
+////////////////////////////////////////////////////////////////
+
 Larceny User Manual
 ===================
+
+[[LarcenyChapter]]
 
 Larceny
 -------
@@ -7,32 +18,24 @@ Larceny
 Larceny
 implements the Scheme programming language
 as defined by
-<<IeeeStd, IEEE Standard 1178-1990>>,
+<<Standards, IEEE Standard 1178-1990>>,
 the
-Revised^5^ Report,
+<<Standards, Revised^5^ Report>>,
 the
-Revised^6^ Report,
+<<Standards, Revised^6^ Report>>,
 and
-ERR5RS.
+<<Standards, ERR5RS>>.
 Those language standards serve as Larceny's primary documentation.
-The R5RS, R6RS, and ERR5RS standards are available online:
-
-----------------------------------------------------------------
-        R5RS:   http://www-swiss.ai.mit.edu/~jaffer/r5rs_toc.html
-        R6RS:   http://www.r6rs.org/
-        ERR5RS: http://scheme-punks.org/wiki/index.php?title=Main_Page
-----------------------------------------------------------------
 
 This manual describes aspects of Larceny that are not described
 by the IEEE standard, the Revised Reports, or ERR5RS.
-For the most current version of this manual, please
-visit
+For the most current version of this manual, please visit
 http://larceny.ccs.neu.edu/doc[Larceny's main web page].
 That page also links to the Common Larceny User
 Manual and to the Larceny mailing list.
 
 To report bugs, please send email to the Larceny
-developers at <larceny@ccs.neu.edu>, or submit a
+developers at `<larceny@ccs.neu.edu>`, or submit a
 bug ticket using Larceny's
 http://larceny.ccs.neu.edu/trac/[Trac system].
 
@@ -41,21 +44,38 @@ include::intro.txt[]
 
 include::running.txt[]
 
+include::lexical.txt[]
+
 include::naming.txt[]
 
-ERR5RS standard libraries
--------------------------
+include::compiling.txt[]
 
-[NOTE]
-================================================================
-FIXME: This chapter isn't written yet.
-================================================================
-
+include::err5rs.txt[]
 
 include::r6rs.txt[]
 
-Larceny libraries
------------------
+[[LarcenyErr5rsLibrariesChapter]]
+
+Larceny's ERR5RS/R6RS libraries
+-------------------------------
+
+Larceny provides libraries for loading and compiling
+ERR5RS/R6RS libraries and for timing benchmarks.
+Future versions of Larceny will offer more ERR5RS/R6RS
+libraries.
+
+include::load.txt[]
+
+include::compiler.txt[]
+
+include::benchmarking.txt[]
+
+include::recprinter.txt[]
+
+[[LarcenyR5rsLibrariesChapter]]
+
+Larceny's R5RS libraries
+------------------------
 
 The procedures described in this chapter are nonstandard.
 Some are deprecated after being rendered obsolete by ERR5RS
@@ -97,25 +117,29 @@ include::syscontrol.txt[]
 
 include::srfi.txt[]
 
+include::slib.txt[]
+
 include::ffi.txt[]
 
 include::debugging.txt[]
-
-include::compiling.txt[]
 
 ////////////////////////////////////////////////////////////////
 include::starting.txt[]
 ////////////////////////////////////////////////////////////////
 
-Reference
+[[Standards]]
+
+Standards
 ---------
 
+////////////////////////////////////////////////////////////////
 include::procidx.txt[]
+////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////
 Appendices
 ----------
-
-[[IeeeStd]]
+////////////////////////////////////////////////////////////////
 
 include::ieee-std.txt[]
 

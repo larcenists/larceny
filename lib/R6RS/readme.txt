@@ -2,6 +2,8 @@ This directory implements an R6RS mode for Larceny.  It should
 be part of the current-require-path when R6RS-style programs
 are being developed or executed.
 
+FIXME: no longer quite true
+
 The files in this directory are derived from Andre van Tonder's
 implementation of R6RS programs, libraries, and macros.
 The starting point was van Tonder's version 6.0, dated
@@ -23,7 +25,8 @@ feature, "r6rs-" has been prefixed to van Tonder's file names.
 
     r6rs-runtime.sch
 
-        identical to van Tonder's runtime.scm
+        same as van Tonder's runtime.scm except for a change
+        to ex:lookup-library that implements load-on-import
 
     r6rs-expander.sch
 

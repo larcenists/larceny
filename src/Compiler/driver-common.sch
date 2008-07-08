@@ -217,11 +217,7 @@
            ((3 fast-unsafe)      (fast-unsafe-code))
            ((default
              factory-settings)   (fast-safe-code)
-                                 (include-source-code #t)
-                                 (benchmark-mode #f)
-                                 (benchmark-block-mode #f)
-                                 (common-subexpression-elimination #f)
-                                 (representation-inference #f))
+                                 (benchmark-block-mode #f))
            (else 
             (error "Unrecognized flag " (car rest) " to compiler-switches.")))
          (unspecified))

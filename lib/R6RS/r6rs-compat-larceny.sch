@@ -6,23 +6,12 @@
 ;;;
 ;;;===============================================================================
 
-; Most of this was written by Will Clinger by copying
-; code written by Lars Hansen, Felix Klock, et cetera.
-;
 ; $Id$
 
 ;; A numeric string that uniquely identifies this run in the universe.
 
 (define (ex:unique-token)
-  (let ((arch-name
-         (string->symbol (cdr (assq 'arch-name (system-features)))))
-        (os-name
-         (string->symbol (cdr (assq 'os-name (system-features))))))
-    (cond ((and (memq arch-name '(SPARC IAssassin))
-                (memq os-name '(SunOS MacOS\x20;X Linux)))
-           (ex:unique-token1))
-          (else
-           (ex:unique-token2)))))
+  (larceny:number->compactstring (current-seconds)))
 
 ;; The letrec black hole and corresponding setter.
 
@@ -38,50 +27,24 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; There are three separate implementations of ex:unique-token,
-; because each has problems.  For now, pick your poison.
+; Short identifier names take up less space on disk and during
+; execution, and load faster too.  To conserve disk space and
+; speed loading, the names should require as few escapes as
+; possible.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; FIXME:  This doesn't work with Petit Larceny or Common Larceny
-; or Windows.
+; Given a non-negative integer, encodes it as a string.
 
-(define (ex:unique-token1)
-
-  ; Returns the number of seconds since Jan 1, 1970 00:00:00 GMT.
-  ; If the argument is non-#f then it should be a bytevector of length  
-  ; at least 4, in which to store the time.  See time(2).
-
-  (define unix:time
-    (let ((_time (foreign-procedure "time" '(boxed) 'int)))
-      (lambda (arg)
-        (if (and arg
-                 (not (and (bytevector? arg)
-                           (>= (bytevector-length arg) 4))))
-            (error "Invalid parameter to unix:time"))
-        (_time arg))))
-
-  (number->string (unix:time #f)))
-
-; FIXME:  This works with all varieties of Larceny, but isn't
-; as likely to be globally unique.
-
-(define (ex:unique-token2)
-  (number->string (memstats-elapsed-time (memstats))))
-
-; FIXME:  This works with all varieties of Larceny, but
-; writes a file in the current directory.
-
-(define (ex:unique-token3)
-  (let ((p (open-output-file "temp")))
-    (write #f p)
-    (close-output-port p))
-  (let ((time (file-modification-time "temp")))
-    (number->string
-     (+ (vector-ref time 5)
-        (* (vector-ref time 4) 60)
-        (* (vector-ref time 3) 3600)
-        (* (vector-ref time 2) 86400)
-        ; assumes 31 d/m - just need unique number
-        (* (vector-ref time 1) 2678400)
-        (* (- (vector-ref time 0) 2000) 32140800)))))
+(define (larceny:number->compactstring n)
+  (define digits
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ%&")
+  (assert (and (number? n) (integer? n) (exact? n) (not (negative? n))))
+  (do ((n n (div n 64))
+       (chars '()
+              (cons (string-ref digits (bitwise-and n 63))
+                    chars)))
+      ((= n 0)
+       (if (null? chars)
+           "0"
+           (list->string chars)))))

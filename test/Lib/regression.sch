@@ -238,6 +238,132 @@
    (test "Ticket #457"                  ; Bug in Sparc Larceny 0.93
          (* 2.0 (log -1.0))
          0.0+6.283185307179586i)
+   (test "Ticket #512"                  ; Bug in Larceny 0.95
+         (char->integer (string-ref "\x10FFFD;" 0))
+         #x10fffd)
+   (test "Ticket #512"                  ; Bug in Larceny 0.95
+         (char->integer (string-ref (symbol->string '\x10FFFD;) 0))
+         #x10fffd)
+   (test "Ticket #511"                  ; Bug in Larceny 0.95
+         (let ()                        ; contributed by R Kent Dybvig
+           (define x
+             (let ((x1 (vector 'h))
+                   (x2 (let ((x (list #f))) (set-car! x x) x)))
+               (vector x1 (vector 'h) x1 (vector 'h) x1 x2)))
+           (define y
+             (let ((y1 (vector 'h))
+                   (y2 (vector 'h))
+                   (y3 (let ((x (list #f))) (set-car! x x) x)))
+               (vector (vector 'h) y1 y1 y2 y2 y3)))
+           (equal? x y))
+         #t)
+   (test "Ticket #511"                  ; Bug in Larceny 0.95
+         (let ()                        ; contributed by R Kent Dybvig
+           (define x
+             (let ((x (cons (cons #f 'a) 'a)))
+               (set-car! (car x) x)
+               x))
+           (define y
+             (let ((y (cons (cons #f 'a) 'a)))
+               (set-car! (car y) (car y))
+               y))
+           (equal? x y))
+         #t)
+   (test "Ticket #511"                  ; Bug in Larceny 0.95
+         (let ((k 100))                 ; contributed by R Kent Dybvig
+           (define x
+             (let ((x1 (cons 
+                        (let f ((n k))
+                          (if (= n 0)
+                              (let ((x0 (cons #f #f)))
+                                (set-car! x0 x0)
+                                (set-cdr! x0 x0)
+                                x0)
+                              (let ((xi (cons #f (f (- n 1)))))
+                                (set-car! xi xi)
+                                xi)))
+                       #f)))
+               (set-cdr! x1 x1)
+               x1))
+           (define y
+             (let* ((y2 (cons #f #f)) (y1 (cons y2 y2)))
+               (set-car! y2 y1)
+               (set-cdr! y2 y1)
+               y1))
+           (equal? x y))
+         #t)
+   (test "Ticket #519"                  ; Bug in Larceny 0.96
+         (let ((s "abcdefgh"))          ; contributed by Ray Racine
+           (define echochars
+             (lambda (ip op)
+               (let loop ((ch (peek-char ip)))
+                 (cond ((eof-object? ch)
+                        (get-output-string op))
+                       (else
+                        (write-char (read-char ip) op)
+                        (loop (peek-char ip)))))))
+           (string=?
+            s
+            (echochars (open-input-string s) (open-output-string))))
+         #t)
+   (test "Ticket #521"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let ((bip (open-bytevector-input-port (string->utf8 "abcd"))))
+           (get-u8 bip)
+           (get-char (transcoded-port bip (native-transcoder))))
+         #\b)
+   (test "Ticket #523"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let* ((ip (open-string-input-port "12345678"))
+                (s1 (get-string-n ip 4))
+                (s2 (get-string-n ip 4)))
+           (list s1 s2))
+         '("1234" "5678"))
+   (test "Ticket #523"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let* ((ip (open-string-input-port "12345678"))
+                (s (make-string 8)))
+           (get-string-n! ip s 0 4)
+           (get-string-n! ip s 4 4)
+           s)
+         "12345678")
+   (test "Ticket #525"                  ; Bug in Larceny 0.96
+         (eof-object?                   ; contributed by Ray Racine
+          (get-bytevector-n! (open-bytevector-input-port (make-bytevector 0))
+                             (make-bytevector 32)
+                             0 16))
+         #t)
+   (test "Ticket #525"                  ; Bug in Larceny 0.96
+         (eof-object?                   ; contributed by Ray Racine
+          (get-bytevector-n (open-bytevector-input-port (make-bytevector 0))
+                            16))
+         #t)
+   (test "Ticket #530"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let ((bv (make-bytevector 4 0)))
+           (bytevector-s32-set! bv 0 -1 'little)
+           (bytevector-s32-ref bv 0 'little))
+         -1)
+   (test "Ticket #530"                  ; Bug in Larceny 0.96
+                                        ; contributed by Ray Racine
+         (let ((bv (make-bytevector 4 0)))
+           (bytevector-s32-set! bv 0 -1 'big)
+           (bytevector-s32-ref bv 0 'big))
+         -1)
+   (test "Ticket #526"                  ; Bug in Larceny 0.96
+                                        ; contributed by Abdulaziz Ghuloum
+         (let ((s0 (string
+                    #\"
+                    #\a #\\ #\tab #\xa0 #\newline #\x1680 #\x180e #\x2000
+                    #\b #\\ #\x2001 #\x2002 #\x2003 #\x2004 #\x2005 #\return
+                    #\c #\\ #\x2006 #\x2006 #\x2006 #\return #\linefeed #\x2007
+                    #\d #\\ #\x2008 #\x2009 #\x200a #\x85 #\x202f #\x205f
+                    #\e #\\ #\x3000 #\space #\return #\x85 #\space #\space
+                    #\f #\\ #\tab #\tab #\x2028 #\space #\space
+                    #\g
+                    #\")))
+           (call-with-input-string s0 get-datum))
+         "abcdefg")
    ))
 
 (define (bug-105-test1)

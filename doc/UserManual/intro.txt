@@ -1,10 +1,12 @@
+[[InstallationChapter]]
+
 Installing Larceny
 ------------------
 
-anchor:installation[installation]
+[[VarietiesSection]]
 
-System requirements
-~~~~~~~~~~~~~~~~~~~
+Varieties of Larceny
+~~~~~~~~~~~~~~~~~~~~
 
 There are three main varieties of Larceny.
 
@@ -21,6 +23,8 @@ Common Larceny compiles to JIT-compiled IL on Microsoft's
 Common Language Runtime (CLR) or Mono.  It provides access
 to the .NET libraries from Scheme.
 
+[[DownloadingSection]]
+
 Downloading
 ~~~~~~~~~~~
 
@@ -33,6 +37,8 @@ binary, or as source code that can be used to reconstruct
 any of the precompiled binary distributions.
 Unless you intend to modify Larceny yourself, you do not
 need to download the source code.
+
+[[InstallationSection]]
 
 Installing the programs
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -66,7 +72,8 @@ directory will contain the following files:
         larceny             Shell script that runs larceny.heap
         twobit              Shell script that runs twobit.heap
         scheme-script       Shell script that runs Scheme scripts
-        startup.sch         Pathnames for the require feature
+        compile-stale       Scheme script that compiles ERR5RS/R6RS libraries
+        startup.sch         Pathnames for the require and autoload features
     
 
 If you unpacked the source code there will be many other files and
@@ -96,15 +103,44 @@ Then move or copy `larceny.bin`, `larceny.heap`, `twobit.heap`,
 You should now be able to run Larceny by typing "`larceny`" at a
 Unix prompt.  On Windows, type "`larceny.bat`".
 
+
+[[CompilingStdLibSection]]
+
 ==== Compiling the R6RS standard libraries
 
 Before you can run Larceny in ERR5RS or R6RS modes, you may
-have to compile the ERR5RS/R6RS runtime and standard libraries
-as described by step 4 of `doc/HOWTO-BUILD`.
+have to compile the ERR5RS/R6RS runtime and standard libraries,
+which is accomplished as follows:
 
-This step is definitely required if you are using Petit Larceny,
-and is recommended even if you are using a prebuilt distribution
-of native Larceny.
+----------------------------------------------------------------
+    $ ./larceny
+    Larceny v0.96 "Fluoridation" (...)
+    > (require 'r6rsmode)
+    > (larceny:compile-r6rs-runtime)
+    > (exit)
+----------------------------------------------------------------
+
+This step is definitely required if you are using Petit Larceny
+or building any variety of Larceny from source code.
+With the prebuilt native varieties of Larceny, however, this step
+should not be necessary.
+
+[WARNING]
+================================================================
+Compiling the ERR5RS/R6RS runtime as shown above causes
+all previously compiled ERR5RS/R6RS libraries and top-level
+programs to become <<CompilingChapter,stale>>.  That means
+those previously compiled files will need to be recompiled
+or removed.
+================================================================
+
+[TIP]
+================================================================
+If the +lib/R6RS+ directory and its subdirectories are read-only,
+then the standard libraries will not be touched, modified, or
+recompiled by accident.
+================================================================
+
 
 ==== Twobit
 
@@ -129,8 +165,7 @@ compiler development can be a risky business, "`twobit.heap`" uses an
 interpreter to evaluate the Scheme code you load and type -- the
 interpreter is unaffected by changes to Twobit.
 
-Using "`twobit.heap`" is probably not useful unless you are doing
-compiler development, in which case you will need the source code as
-well as the binaries.
-
+If you are using "`twobit.heap`" for compiler development,
+you will need the source code as well as a binary distribution
+of Larceny.
 

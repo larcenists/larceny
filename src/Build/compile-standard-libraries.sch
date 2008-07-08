@@ -1,3 +1,6 @@
+(require 'r6rsmode)
+(larceny:compile-r6rs-runtime)
+
 ;; A CompileEntry is one of:
 ;; - Filename
 ;; - (list Filename RequireSpec ...) 
@@ -52,10 +55,10 @@
     "pretty.sch"
     ("queue.sch" assert)
     "random.sch"
-    "record.sch"
+    ;; "record.sch"     ;; deprecated
     "regexp.sch"
-    "require0.sch"
-    "require.sch"
+    ;; "require0.sch"   ;; revised and moved to the bootstrap heap
+    ;; "require.sch"    ;; revised and moved to the bootstrap heap
     "sharp-dot.sch"
     ;; "shivers-syntax.sch"   ;; defines syntax
     ("socket.sch" srfi-0 define-record)
@@ -72,6 +75,24 @@
     "uuencode.sch"
     ;; "word.sch"             ;; defines syntax
     ))
+
+(load "setup.sch")
+(let ((arch-name (cdr (assq 'arch-name (system-features)))))
+  (cond ((equal? arch-name "Standard-C")
+         (setup))
+        ((equal? arch-name "IAssassin")
+         (setup 'sassy))
+        ((equal? arch-name "SPARC")
+         (setup 'native))
+        (else
+         (error 'compile-standard-libraries.sch ": unknown arch-name" arch-name)))
+
+  (build-config-files)
+  (load-compiler)
+
+  (cond ((equal? arch-name "Standard-C")
+         (load "lib/Base/petit-compile-file.sch")))
+  )
 
 (load "src/Build/compile-tools.sch")
 
@@ -92,7 +113,8 @@
   '(
     ("socket.sch"          srfi-0 common-syntax foreign-ctools)
     ("unix.sch"            srfi-0 foreign-ctools)
-    ("unix-descriptor.sch" define-record))) 
+    ;; ("unix-descriptor.sch" define-record)  ;; moved to lib/Broken/
+    ))
 
 (compile-libraries-in-dir "lib/Experimental/"
                           experimental-lib-files-to-compile)

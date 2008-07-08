@@ -470,14 +470,17 @@
 (define (inexact z) (exact->inexact z))
 
 (define (finite? x)
-  (and (not (infinite? x))
+  (and (real? x)
+       (not (infinite? x))
        (not (nan? x))))
 
 (define (infinite? x)
-  (or (= x 1e500) (= x -1e500)))
+  (and (inexact? x) (or (= x 1e500) (= x -1e500))))
 
 (define (nan? x)
-  (not (= x x)))
+  (and (inexact? x) (not (= x x))))
+
+; FIXME: all of these should be faster
 
 (define (div-and-mod x y)
   (cond ((and (fixnum? x) (fixnum? y))
@@ -515,14 +518,28 @@
            (values (- q) r)))))
 
 (define (div x y)
-  (call-with-values
-   (lambda () (div-and-mod x y))
-   (lambda (q r) q)))
+  (if (and (exact? x)
+           (exact? y)
+           (integer? x)
+           (integer? y)
+           (>= x 0)
+           (> y 0))
+      (quotient x y)
+      (call-with-values
+       (lambda () (div-and-mod x y))
+       (lambda (q r) q))))
 
 (define (mod x y)
-  (call-with-values
-   (lambda () (div-and-mod x y))
-   (lambda (q r) r)))
+  (if (and (exact? x)
+           (exact? y)
+           (integer? x)
+           (integer? y)
+           (>= x 0)
+           (> y 0))
+      (remainder x y)
+      (call-with-values
+       (lambda () (div-and-mod x y))
+       (lambda (q r) r))))
 
 (define (div0-and-mod0 x y)
   (call-with-values

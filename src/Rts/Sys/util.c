@@ -77,6 +77,51 @@ word box_uint( unsigned n )
   }
 }
 
+word box_longlong( long long ll_orig ) 
+{
+  int neg = (ll_orig < 0);
+  long long ll = (ll_orig < 0) ? -ll_orig : ll_orig;
+  word w0 = (ll >> 8*sizeof(word)*0) & ((word)-1);
+  word w1 = (ll >> 8*sizeof(word)*1) & ((word)-1);
+  if (ll >= MOST_NEGATIVE_FIXNUM && ll <= MOST_POSITIVE_FIXNUM)
+    return fixnum((int)ll);
+  else if (w1 == 0) {
+    word *p = gc_allocate( the_gc(globals), 12, 0, 1 );
+    *p = mkheader( 8, BIGNUM_HDR );
+    *(p+1) = mkbignum_header( neg?1:0, 1 );
+    *(p+2) = w0;
+    return tagptr( p, BVEC_TAG );
+  } else {
+    word *p = gc_allocate( the_gc(globals), 16, 0, 1 );
+    *p = mkheader( 12, BIGNUM_HDR );
+    *(p+1) = mkbignum_header( neg?1:0, 2 );
+    *(p+2) = w0;
+    *(p+3) = w1;
+    return tagptr( p, BVEC_TAG );
+  }
+}
+word box_ulonglong( unsigned long long ull )
+{
+  word w0 = (ull >> 8*sizeof(word)*0) & ((word)-1);
+  word w1 = (ull >> 8*sizeof(word)*1) & ((word)-1);
+  if (ull <= MOST_POSITIVE_FIXNUM)
+    return fixnum((int)ull);
+  else if (w1 == 0) {
+    word *p = gc_allocate( the_gc(globals), 12, 0, 1 );
+    *p = mkheader( 8, BIGNUM_HDR );
+    *(p+1) = mkbignum_header( 0, 1 );
+    *(p+2) = w0;
+    return tagptr( p, BVEC_TAG );
+  } else {
+    word *p = gc_allocate( the_gc(globals), 16, 0, 1 );
+    *p = mkheader( 12, BIGNUM_HDR );
+    *(p+1) = mkbignum_header( 0, 2 );
+    *(p+2) = w0;
+    *(p+3) = w1;
+    return tagptr( p, BVEC_TAG );
+  }
+}
+
 word box_double( double d )
 {
   word *p = gc_allocate( the_gc(globals), 16, 0, 1 );

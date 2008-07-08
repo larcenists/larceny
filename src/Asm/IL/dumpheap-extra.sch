@@ -319,6 +319,11 @@
                 '(public hidebysig static cil managed))
   (emit ilc
         (il:directive 'entrypoint)
+        (il:directive 'custom 
+                      (string-append "instance void "
+                                     "[mscorlib]"
+                                     "System.STAThreadAttribute::.ctor()"
+                                     " = ( 01 00 00 00 )"))
         (il 'ldarg 0)
         (il:call '() iltype-void il-load "MainHelper"
                  (list iltype-string-array))
@@ -491,7 +496,8 @@
       ;; command strings.
       (let ((big-il-file (rewrite-file-type exe-file ".exe" ".il")))
         (concatenate-files big-il-file il-files)
-        (invoke-ilasm exe-file (list big-il-file)))
+        (invoke-ilasm exe-file (list big-il-file))
+        (delete-file big-il-file))
       (invoke-ilasm exe-file il-files)))
 
 (define (concatenate-files target sources)

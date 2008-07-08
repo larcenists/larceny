@@ -10,7 +10,7 @@
 
 typedef void (*fptr)();
 
-/* The ordering in this table is important, see Lib/unix.sch. */
+/* The ordering in this table is important; see Lib/Common/syscall-id.sch. */
 
 static struct {
   fptr proc;
@@ -65,6 +65,7 @@ static struct {
 		      { (fptr)primitive_setenv, 2, 0 },
 		      { (fptr)primitive_errno, 0, 0 },
 		      { (fptr)primitive_seterrno, 1, 0 },
+		      { (fptr)primitive_time, 1, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )

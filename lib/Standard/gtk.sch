@@ -148,10 +148,23 @@
       enum-type (decls ...)
       (scm-name c-name) ...))))
 
+(define-syntax define-gtk-enum-set
+  (syntax-rules ()
+    ((_ enum-type (decls ...) (scm-name c-name) ...)
+     (invoke-form/target-dep-paths
+      define-gtk-enum-set/swap-in-paths 
+      enum-type (decls ...)
+      (scm-name c-name) ...))))
+
 (define-syntax define-gtk-enum/swap-in-paths
   (syntax-rules ()
     ((_ (PATHS ...) enum-type (decls ...) . ARGS)
      (define-c-enum enum-type ((path PATHS) ... decls ...) . ARGS))))
+
+(define-syntax define-gtk-enum-set/swap-in-paths
+  (syntax-rules ()
+    ((_ (PATHS ...) enum-type (decls ...) . ARGS)
+     (define-c-enum-set enum-type ((path PATHS) ... decls ...) . ARGS))))
 
 (define-gtk-enum gtkanchortype ((include<> "gtk/gtkenums.h"))
   (center "GTK_ANCHOR_CENTER")
@@ -178,7 +191,7 @@
   (left  "GTK_ARROW_LEFT")
   (right "GTK_ARROW_RIGHT"))
 
-(define-gtk-enum gtkattachoptions ((include<> "gtk/gtkenums.h"))
+(define-gtk-enum-set gtkattachoptions ((include<> "gtk/gtkenums.h"))
   (expand "GTK_EXPAND")
   (shrink "GTK_SHRINK")
   (fill "GTK_FILL"))
@@ -407,7 +420,7 @@
   (callback "GTK_IM_STATUS_CALLBACK")
   (none     "GTK_IM_STATUS_NONE"))
 
-(define-gtk-enum gtkdialogflags ((include<> "gtk/gtkdialog.h")) 
+(define-gtk-enum-set gtkdialogflags ((include<> "gtk/gtkdialog.h")) 
   (modal               "GTK_DIALOG_MODAL")
   (destroy-with-parent "GTK_DIALOG_DESTROY_WITH_PARENT")
   (no-separator        "GTK_DIALOG_NO_SEPARATOR"))
@@ -438,7 +451,7 @@
   (yes/no    "GTK_BUTTONS_YES_NO")
   (ok/cancel "GTK_BUTTONS_OK_CANCEL"))
 
-(define-gtk-enum gdkwindowhints ((include<> "gdk/gdkwindow.h"))
+(define-gtk-enum-set gdkwindowhints ((include<> "gdk/gdkwindow.h"))
   (pos "GDK_HINT_POS")
   (min-size "GDK_HINT_MIN_SIZE")
   (max-size "GDK_HINT_MAX_SIZE")
@@ -461,7 +474,7 @@
   (south-east "GDK_GRAVITY_SOUTH_EAST")
   (static     "GDK_GRAVITY_STATIC"))
 
-(define-gtk-enum gdkmodifiertype ((include "gdk/gdktypes.h"))
+(define-gtk-enum-set gdkmodifiertype ((include "gdk/gdktypes.h"))
   (shift    "GDK_SHIFT_MASK")
   (lock     "GDK_LOCK_MASK")
   (control  "GDK_CONTROL_MASK")
@@ -508,12 +521,12 @@
   (bottom-to-top "GTK_PROGRESS_BOTTOM_TO_TOP")
   (top-to-bottom "GTK_PROGRESS_TOP_TO_BOTTOM"))
 
-(define-gtk-enum gtkaccelgroup ((include<> "gtk/gtkaccelgroup.h"))
+(define-gtk-enum-set gtkaccelgroup ((include<> "gtk/gtkaccelgroup.h"))
   (visible "GTK_ACCEL_VISIBLE")
   (locked "GTK_ACCEL_LOCKED")
   (mask "GTK_ACCEL_MASK"))
 
-(define-gtk-enum gtkwidgetflags ((include<> "gtk/gtkwidget.h"))
+(define-gtk-enum-set gtkwidgetflags ((include<> "gtk/gtkwidget.h"))
   (toplevel "GTK_TOPLEVEL")
   (no-window "GTK_NO_WINDOW")
   (realized "GTK_REALIZED")
@@ -567,7 +580,9 @@
 (define-foreign (gtk-widget-realize gtkwidget*) void)
 (define-foreign (gtk-widget-unrealize gtkwidget*) void)
 (define-foreign (gtk-widget-add-accelerator gtkwidget* string gtkaccelgroup* 
-                                            char uint uint) 
+                                            char
+                                            gdkmodifiertype 
+                                            gtkaccelgroup)
   void)
 (define-foreign (gtk-widget-get-parent gtkwidget*) gtkwidget*)
 (define-foreign (gtk-widget-set-parent gtkwidget* gtkwidget*) void)
@@ -582,7 +597,8 @@
   (void*-word-set! widget gtkobject-flags-offset 
                    (fxlogior 
                     (void*-word-ref widget gtkobject-flags-offset)
-                    flags)))
+                    ((enum->marshall-out gtkwidgetflags)
+                     flags))))
 
 (define-foreign (gtk-main) void)
 (define-foreign (gtk-main-level) uint)

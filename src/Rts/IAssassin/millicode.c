@@ -145,11 +145,7 @@ void EXPORT mc_alloci( word *globals )
 
 void EXPORT mc_morecore( word *globals )
 {
-  if (MORECORE_ALWAYS_COLLECTS) {
-    gc_collect(the_gc(globals), 0, 0, GCTYPE_COLLECT);
-  } else {
-    yh_make_room( (the_gc(globals))->young_area );
-  }
+  gc_make_room( the_gc(globals) );
 }
 
 void EXPORT mc_stack_overflow( word *globals )

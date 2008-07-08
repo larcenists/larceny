@@ -170,6 +170,8 @@ public class Load {
 	}  catch (Exception) {};
     Debug.WriteLine ("Initializing fixnum pool.");
     SFixnum.Initialize();
+    Debug.WriteLine ("Initializing immediates.");
+    SImmediate.Initialize();
     Debug.WriteLine ("Initializing char pool.");
     SChar.Initialize();
     Debug.WriteLine ("Initializing registers.");

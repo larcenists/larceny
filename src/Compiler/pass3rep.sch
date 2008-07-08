@@ -21,10 +21,12 @@
          (known (make-oldstyle-hashtable symbol-hash assq))
          (types (make-oldstyle-hashtable symbol-hash assq))
          (g (callgraph exp))
+         (exp-size (apply + (map callgraphnode.size g)))
          (schedule (list (callgraphnode.code (car g))))
+         (abandoned? #f)
          (changed? #f)
          (mutate? #f))
-    
+
     ; known is a hashtable that maps the name of a known local procedure
     ; to a list of the form (tv1 ... tvN), where tv1, ..., tvN
     ; are type variables that stand for the representation types of its
@@ -387,6 +389,12 @@
     (if debugging?
         (view-callgraph g))
     
+    ; Widening is explained in pass3rep.aux.sch.
+
+    (set! aeval:calls 0)
+    (set! aeval:threshold
+          (+ 100 (* aeval:multiplier exp-size)))
+    
     (for-each (lambda (node)
                 (let* ((name (callgraphnode.name node))
                        (code (callgraphnode.code node))
@@ -403,7 +411,12 @@
               g)
     
     (let loop ()
-      (cond ((not (null? schedule))
+      (cond ((> aeval:calls aeval:threshold)
+             (display "REPRESENTATION INFERENCE widening to object")
+             (newline)
+             (set! changed? #f)
+             (set! abandoned? #t))
+            ((not (null? schedule))
              (let ((job (car schedule)))
                (set! schedule (cdr schedule))
                (if (symbol? job)
@@ -416,10 +429,11 @@
              (if debugging?
                  (begin (display-all-types) (newline)))
              (loop))))
-    
+
     (if debugging?
         (display-types))
-    
+
+    (set! aeval:calls 0)
     (set! mutate? #t)
     
     ; We don't want to analyze known procedures that are never called.
@@ -435,19 +449,24 @@
                                  (callgraphnode.info! node #f)
                                  (and known? marked?)))
                              g))))
-    (let loop ()
-      (if (not (null? schedule))
-          (let ((job (car schedule)))
-            (set! schedule (cdr schedule))
-            (if (symbol? job)
-                (analyze-known-local-procedure job)
-                (analyze-unknown-lambda job))
-            (loop))))
+
+    (if (not abandoned?)
+        (let loop ()
+          (if (not (null? schedule))
+              (let ((job (car schedule)))
+                (set! schedule (cdr schedule))
+                (if (symbol? job)
+                    (analyze-known-local-procedure job)
+                    (analyze-unknown-lambda job))
+                (loop)))))
     
     (if changed?
         (error "Compiler bug in representation inference"))
     
     (if debugging?
-        (pretty-print (make-readable (callgraphnode.code (car g)) #t)))
+        (begin (pretty-print (make-readable (callgraphnode.code (car g)) #t))
+               (display "REPRESENTATION INFERENCE: ")
+               (write (list exp-size aeval:calls))
+               (newline)))
     
     exp))

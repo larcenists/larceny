@@ -25,7 +25,9 @@
       (let ((rator (make-enumerator obj-type "GetEnumerator")))
         (rator obj)))))
 
+;; IList <: ICollection
 (define ilist-type (find-clr-type "System.Collections.IList"))
+(define icollection-type (find-clr-type "System.Collections.ICollection"))
 
 (define (check-foreign obj)
   (cond ((not (%foreign? obj))
@@ -114,3 +116,38 @@
     (lambda (ilist idx)
       (clr/%invoke method ilist (vector (clr/int->foreign idx))))))
 
+;; ICollection -> Nat
+(define icollection-count
+  (let ((prop (clr/%get-property icollection-type "Count" '#())))
+    (lambda (ic)
+      (clr/foreign->int (clr/%property-ref prop ic '#())))))
+
+;; StringCollection <: IList
+(define stringcollection-type 
+  (find-clr-type "System.Collections.Specialized.StringCollection"))
+
+(define make-stringcollection
+  (let ((ctor (clr/%get-constructor stringcollection-type '#())))
+    (lambda ()
+      (clr/%invoke-constructor ctor '#()))))
+
+(define stringcollection->list
+  (lambda (sc)
+    (let ((count (icollection-count sc)))
+      (let loop ((idx (- count 1))
+                 (lst '()))
+        (cond ((>= idx 0)
+               (loop (- idx 1)
+                     (cons (clr/foreign->string (ilist-item sc idx))
+                           lst)))
+              (else lst))))))
+
+(define list->stringcollection
+  (lambda (lst)
+    (let loop ((sc (make-stringcollection))
+               (lst lst))
+      (cond
+       ((null? lst) sc)
+       (else 
+        (ilist-add! sc (clr/string->foreign (car lst)))
+        (loop sc (cdr lst)))))))

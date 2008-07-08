@@ -420,6 +420,11 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
   return sh_allocate( gc->static_area, nbytes );
 }
 
+static void make_room( gc_t *gc ) 
+{
+  yh_make_room( gc->young_area );
+}
+
 static void collect( gc_t *gc, int gen, int bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
@@ -2868,6 +2873,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 initialize, 
 		 allocate,
 		 allocate_nonmoving,
+		 make_room,
 		 my_collect,
 		 set_policy,
 		 data_load_area,

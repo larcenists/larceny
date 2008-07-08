@@ -23,7 +23,8 @@ WARNING: Some of this section is wildly out of date.  But other parts are unchan
 
 Larceny can be started in two distinct ways. Those users who use
 Larceny only for Scheme programming will usually install it as
-described in <<installation>> and will run it via the standard
+described in <<InstallationSection,installation>>
+and will run it via the standard
 shell script by typing larceny at the shell prompt.
 
 Those users who change Twobit and Larceny, on the other hand, will
@@ -35,7 +36,8 @@ will be run directly, as described below.
 The command line options in this section apply to both the shell
 scripts and the binary program. However, a heap file name may not be
 supplied to the shell scripts, and the option -small (described in
-<<installation>>) is not accepted by the binary program or by
+<<InstallationSection,installation>>)
+is not accepted by the binary program or by
 the twobit script.
 
 ==== Summary (precise gc)

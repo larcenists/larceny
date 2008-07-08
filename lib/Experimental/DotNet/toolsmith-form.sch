@@ -1,5 +1,11 @@
 (clr/%load-assembly "System.Windows.Forms" "2.0.0.0" "" "b77a5c561934e089")
 
+(define clr/method2proc
+  (lambda args (clr-method->procedure (apply clr/%get-method args))))
+
+(define clr/constructor2proc
+  (lambda args (clr-method->procedure (apply clr/%get-constructor args))))
+
 (define (find-forms-type name)
   (find-clr-type (string-append "System.Windows.Forms." name)))
 (define (find-drawing-type name)
@@ -28,8 +34,13 @@
 
 (define control-type             (find-forms-type "Control"))
 (define make-control      (type->nullary-constructor control-type))
-(define control-anchor    (make-property-ref control-type "Anchor"))
+(define control-anchor
+  (make-property-ref control-type "Anchor"
+		     (enum-type->foreign->symbol 
+		      (find-forms-type "AnchorStyles"))))
 (define control-controls  (make-property-ref control-type "Controls"))
+(define control-name      (make-property-ref control-type "Name"))
+(define set-control-name! (make-property-setter control-type "Name"))
 (define control-text      (make-property-ref control-type "Text"))
 (define set-control-text! (make-property-setter control-type "Text"))
 (define control-top       (make-property-ref control-type "Top"))
@@ -51,6 +62,10 @@
   (make-property-ref control-type "PreferredSize"))
 (define set-control-preferred-size! 
   (make-property-setter control-type "PreferredSize"))
+(define control-tab-index      (make-property-ref control-type "TabIndex"))
+(define set-control-tab-index! (make-property-setter control-type "TabIndex"))
+(define control-tab-stop      (make-property-ref control-type "TabStop"))
+(define set-control-tab-stop! (make-property-setter control-type "TabStop"))
 (define control-visible       (make-property-ref control-type "Visible"))
 (define set-control-visible!  (make-property-setter control-type "Visible"))
 (define control-font          (make-property-ref control-type "Font"))
@@ -62,6 +77,9 @@
                                        (lambda (argl) (apply convert argl)))))
     (lambda (control . args)
       (setter control args))))
+(define control-dock
+  (make-property-ref control-type "Dock" (enum-type->foreign->symbol 
+					  (find-forms-type "DockStyle"))))
 (define set-control-dock!
   (let* ((dock-style-type (find-forms-type "DockStyle"))
          (convert (enum-type->symbol->foreign dock-style-type))
@@ -70,13 +88,13 @@
     (lambda (control . args)
       (setter control args))))
 (define control-set-bounds! 
-  (let ((method (clr/%get-method control-type "SetBounds" 
+  (let ((method (clr/method2proc control-type "SetBounds" 
                                  (vector clr-type-handle/system-int32 
                                          clr-type-handle/system-int32 
                                          clr-type-handle/system-int32 
                                          clr-type-handle/system-int32))))
     (lambda (control x y width height)
-      (clr/%invoke method control
+      (method control
                    (clr/%number->foreign x)
                    (clr/%number->foreign y)
                    (clr/%number->foreign width)
@@ -90,12 +108,34 @@
   (let ((add! (make-binary-method controls-collection-type "Add" control-type)))
     (lambda (collection controls)
       (for-each (lambda (c) (add! collection c)) controls))))
+(define clear-controls (make-unary-method controls-collection-type "Clear"))
+(define remove-controls
+  (let ((rem! (make-binary-method controls-collection-type 
+				  "Remove" control-type)))
+    (lambda (collection controls)
+      (for-each (lambda (c) (rem! collection c)) controls))))
 
 (define scrollable-control-type (find-forms-type "ScrollableControl"))
 (define scrollable-control-autoscroll 
   (make-property-ref scrollable-control-type "AutoScroll" clr/foreign->bool))
 (define set-scrollable-control-autoscroll!
   (make-property-setter scrollable-control-type "AutoScroll" clr/bool->foreign))
+(define containercontrol-type (find-forms-type "ContainerControl"))
+(define containercontrol-auto-scale-dimensions
+	(make-property-ref containercontrol-type "AutoScaleDimensions"))
+(define set-containercontrol-auto-scale-dimensions!
+	(make-property-setter containercontrol-type "AutoScaleDimensions"))
+(define containercontrol-auto-scale-mode
+  (make-property-ref containercontrol-type "AutoScaleMode"
+		     (enum-type->foreign->symbol
+		      (find-forms-type "AutoScaleMode"))))
+(define set-containercontrol-auto-scale-mode!
+  (let* ((autoscalemode-type (find-forms-type "AutoScaleMode"))
+	 (convert (enum-type->symbol->foreign autoscalemode-type))
+	 (setter (make-property-setter containercontrol-type "AutoScaleMode"
+				       (lambda (argl) (apply convert argl)))))
+    (lambda (control . args)
+      (setter control args))))
 
 (define form-type                (find-forms-type "Form"))
 (define make-form (type->nullary-constructor form-type))
@@ -105,6 +145,17 @@
 
 (define panel-type               (find-forms-type "Panel"))
 (define make-panel (type->nullary-constructor panel-type))
+
+(define listbox-type (find-forms-type "ListBox"))
+(define make-listbox (type->nullary-constructor listbox-type))
+(define set-listbox-formatting-enabled! 
+	(make-property-setter listbox-type "FormattingEnabled"))
+(define set-listbox-integral-height! 
+	(make-property-setter listbox-type "IntegralHeight"))
+(define listbox-items (make-property-ref listbox-type "Items"))
+(define listbox-item-height (make-property-ref listbox-type "ItemHeight"))
+(define listbox-top-index (make-property-ref listbox-type "TopIndex"))
+(define set-listbox-top-index! (make-property-setter listbox-type "TopIndex"))
 
 (define form1                    (make-form))
 (define form1-controls (control-controls form1))
@@ -232,9 +283,9 @@
 ;; (e.g. when a buggy callback is making life difficult.)
 (define application-exit-thread!!!
   (let* ((application-type (find-forms-type "Application"))
-         (meth (clr/%get-method application-type "ExitThread" '#())))
+         (meth (clr/method2proc application-type "ExitThread" '#())))
     (lambda ()
-      (clr/%invoke meth clr/null '#()))))
+      (meth))))
 
 (define toolsmith-interrupt-handler
   (lambda ()
@@ -443,7 +494,10 @@
 (define key-event-args-alt (make-property-ref key-event-args-type "Alt"))
 (define key-event-args-control (make-property-ref key-event-args-type "Control"))
 (define key-event-args-shift (make-property-ref key-event-args-type "Shift"))
-(define key-event-args-keycode (make-property-ref key-event-args-type "KeyCode"))
+(define key-event-args-keycode 
+  (make-property-ref key-event-args-type "KeyCode"
+		     (enum-type->foreign->symbol 
+		      (find-forms-type "Keys"))))
 (define key-event-args-keydata (make-property-ref key-event-args-type "KeyData"))
 (define key-event-args-keyvalue (make-property-ref key-event-args-type "KeyValue"))
 (define key-press-event-args-type (find-forms-type "KeyPressEventArgs"))
@@ -469,28 +523,28 @@
 
 (define graphics-type (find-drawing-type "Graphics"))
 (define graphics-dispose! 
-  (let ((dispose-method (clr/%get-method graphics-type "Dispose" '#())))
+  (let ((dispose-method (clr/method2proc graphics-type "Dispose" '#())))
     (lambda (g)
-      (clr/%invoke dispose-method g '#()))))
+      (dispose-method g))))
 (define pen-type      (find-drawing-type "Pen"))
 (define make-pen 
-  (let ((pen-ctor (clr/%get-constructor pen-type (vector color-type))))
+  (let ((pen-ctor (clr/constructor2proc pen-type (vector color-type))))
     (lambda (color)
-      (clr/%invoke-constructor pen-ctor (vector color)))))
+      (pen-ctor color))))
 (define pen-dispose! 
-  (let ((dispose-method (clr/%get-method pen-type "Dispose" '#())))
+  (let ((dispose-method (clr/method2proc pen-type "Dispose" '#())))
     (lambda (pen)
-      (clr/%invoke dispose-method pen '#()))))
+      (dispose-method pen))))
 (define brush-type    (find-drawing-type "Brush"))
 (define solid-brush-type    (find-drawing-type "SolidBrush"))
 (define make-solid-brush 
-  (let ((brush-ctor (clr/%get-constructor solid-brush-type (vector color-type))))
+  (let ((brush-ctor (clr/constructor2proc solid-brush-type (vector color-type))))
     (lambda (color)
-      (clr/%invoke-constructor brush-ctor (vector color)))))
+      (brush-ctor color))))
 (define brush-dispose! 
-  (let ((dispose-method (clr/%get-method brush-type "Dispose" '#())))
+  (let ((dispose-method (clr/method2proc brush-type "Dispose" '#())))
     (lambda (b)
-      (clr/%invoke dispose-method b '#()))))
+      (dispose-method b))))
 
 (define image-type    (find-drawing-type "Image"))
 
@@ -504,7 +558,7 @@
   (font-family-name (generic-font-family 'serif)))
 
 (define make-fnt 
-  (let* ((clone-method (clr/%get-method font-type "Clone" '#()))
+  (let* ((clone-method (clr/method2proc font-type "Clone" '#()))
          (make-bool-pset 
           (lambda (pname)  
             (make-property-setter font-type pname clr/bool->foreign)))
@@ -526,7 +580,7 @@
                (is-uline  (memq 'underline args))
                (em-size   (cond ((memq 'em-size args) => cadr)
                                 (else #f)))
-               (newptr (clr/%invoke fontptr clone-method '#())))
+               (newptr (clone-method fontptr)))
           (cond (is-italic (set-italic newptr #t)))
           (cond (is-bold   (set-bold   newptr #t)))
           (cond (is-uline  (set-uline  newptr #t)))
@@ -552,26 +606,24 @@
    ((colptr)   colorptr)))
 (define make-col
   (let ((from-argb-method
-         (clr/%get-method color-type "FromArgb"
+         (clr/method2proc color-type "FromArgb"
                           (vector clr-type-handle/system-int32
                                   clr-type-handle/system-int32
                                   clr-type-handle/system-int32
                                   clr-type-handle/system-int32))))
     (lambda (a r g b)
       (color->col
-       (clr/%invoke from-argb-method 
-                    #f (vector (clr/%number->foreign-int32 a)
-                               (clr/%number->foreign-int32 r)
-                               (clr/%number->foreign-int32 g)
-                               (clr/%number->foreign-int32 b)))))))
+       (from-argb-method (clr/%number->foreign-int32 a)
+			 (clr/%number->foreign-int32 r)
+			 (clr/%number->foreign-int32 g)
+			 (clr/%number->foreign-int32 b))))))
 (define name->col
   (let ((from-name-method
-         (clr/%get-method color-type "FromName"
+         (clr/method2proc color-type "FromName"
                           (vector clr-type-handle/system-string))))
     (lambda (name)
       (color->col
-       (clr/%invoke from-name-method
-                    #f (vector (clr/%string->foreign (name->string name))))))))
+       (from-name-method (clr/%string->foreign (name->string name)))))))
       
 (define available-colornames
   (let ((color-sym (string->symbol "Color")))
@@ -580,13 +632,13 @@
            (filter (lambda (x) (eq? color-sym (type->name (property-info->type x)))) 
                    (type->properties color-type))))))
 (define control-creategraphics 
-  (let ((method (clr/%get-method control-type "CreateGraphics" '#())))
+  (let ((method (clr/method2proc control-type "CreateGraphics" '#())))
     (lambda (c)
-      (clr/%invoke method c '#()))))
+      (method c))))
 (define graphics->gfx 
   (let* ((text-renderer-type (find-forms-type "TextRenderer"))
          (measure-text/text-renderer
-          (let ((measure-text-method (clr/%get-method
+          (let ((measure-text-method (clr/method2proc
                                       text-renderer-type
                                       "MeasureText"
                                       (vector (find-drawing-type "IDeviceContext")
@@ -598,13 +650,11 @@
               (let* ((string* (clr/%string->foreign (string-append string "a")))
                      (stringa (clr/%string->foreign "a"))
                      (fntptr ((fnt 'fntptr)))
-                     (sza (clr/%invoke measure-text-method #f 
-                                       (vector g stringa fntptr)))
-                     (szf (clr/%invoke measure-text-method #f
-                                       (vector g string* fntptr))))
+                     (sza (measure-text-method g stringa fntptr))
+                     (szf (measure-text-method g string* fntptr)))
                 (values (- (size-width szf) (size-width sza)) (size-height szf))))))
          (draw-text/text-renderer
-          (let ((draw-text-method (clr/%get-method 
+          (let ((draw-text-method (clr/method2proc
                                    text-renderer-type 
                                    "DrawText"
                                    (vector (find-drawing-type "IDeviceContext")
@@ -613,20 +663,19 @@
                                            pointi-type
                                            color-type))))
             (lambda (g string fnt x y col)
-              (clr/%invoke draw-text-method #f
-                           (vector g
+              (draw-text-method    g
                                    (clr/%string->foreign string)
                                    ((fnt 'fntptr))
                                    (make-pointi x y)
-                                   ((col 'colptr)))))))
+                                   ((col 'colptr))))))
 
          (string-format-type (find-drawing-type "StringFormat"))
          (string-format-flags-type (find-drawing-type "StringFormatFlags"))
          (make-string-format
-          (let ((ctor (clr/%get-constructor string-format-type 
+          (let ((ctor (clr/constructor2proc string-format-type 
                                             (vector string-format-type))))
             (lambda (x)
-              (clr/%invoke-constructor ctor (vector x)))))
+              (ctor x))))
          (format-flags->foreign (enum-type->symbol->foreign string-format-flags-type))
          (foreign->format-flags (enum-type->foreign->symbol string-format-flags-type))
          (generic-typographic-format-prop
@@ -651,7 +700,7 @@
                                   'measuretrailingspaces flags) '#())
                           fmt))
          (measure-text/graphics
-          (let ((measure-text-method (clr/%get-method
+          (let ((measure-text-method (clr/method2proc
                                       graphics-type
                                       "MeasureString"
                                       (vector clr-type-handle/system-string
@@ -667,17 +716,14 @@
                      (stringo (clr/%string->foreign string))
                      (fntptr ((fnt 'fntptr)))
                      (maxint30 (clr/%number->foreign-int32 (most-positive-fixnum)))
-                     (sza (clr/%invoke measure-text-method 
-                                       g (vector stringa fntptr maxint30 string-format)))
-                     (szf (clr/%invoke measure-text-method 
-                                       g (vector string* fntptr maxint30 string-format)))
-                     (szo (clr/%invoke measure-text-method
-                                       g (vector stringo fntptr maxint30 string-format))))
+                     (sza (measure-text-method g stringa fntptr maxint30 string-format))
+                     (szf (measure-text-method g string* fntptr maxint30 string-format))
+                     (szo (measure-text-method g stringo fntptr maxint30 string-format)))
                 (values (max (sizef-width szo) 
                              (- (sizef-width szf) (sizef-width sza)))
-                        (sizef-height szf))))))
+                        (sizef-height szo))))))
          (draw-text/graphics 
-          (let ((draw-string-method (clr/%get-method
+          (let ((draw-string-method (clr/method2proc
                                      graphics-type
                                      "DrawString"
                                      (vector clr-type-handle/system-string
@@ -692,11 +738,10 @@
                      (fntptr ((fnt 'fntptr)))
                      (x* (clr/%flonum->foreign-single (exact->inexact x)))
                      (y* (clr/%flonum->foreign-single (exact->inexact y))))
-                (clr/%invoke draw-string-method g
-                             (vector string* fntptr b x* y* string-format))
+                (draw-string-method g string* fntptr b x* y* string-format)
                 ))))
 
-         (draw-line-method/inexact (clr/%get-method
+         (draw-line-method/inexact (clr/method2proc
                                     graphics-type
                                     "DrawLine"
                                     (vector pen-type 
@@ -704,7 +749,7 @@
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single)))
-         (draw-line-method/exact   (clr/%get-method
+         (draw-line-method/exact   (clr/method2proc
                                     graphics-type
                                     "DrawLine"
                                     (vector pen-type
@@ -712,7 +757,7 @@
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32)))
-         (draw-rect-method/exact   (clr/%get-method
+         (draw-rect-method/exact   (clr/method2proc
                                     graphics-type
                                     "DrawRectangle"
                                     (vector pen-type
@@ -720,7 +765,7 @@
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32)))
-         (draw-rect-method/inexact (clr/%get-method
+         (draw-rect-method/inexact (clr/method2proc
                                     graphics-type
                                     "DrawRectangle"
                                     (vector pen-type
@@ -728,7 +773,7 @@
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single
                                             clr-type-handle/system-single)))
-         (fill-rect-method/exact   (clr/%get-method
+         (fill-rect-method/exact   (clr/method2proc
                                     graphics-type
                                     "FillRectangle"
                                     (vector brush-type
@@ -736,7 +781,7 @@
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32
                                             clr-type-handle/system-int32)))
-         (fill-rect-method/inexact (clr/%get-method
+         (fill-rect-method/inexact (clr/method2proc
                                     graphics-type
                                     "FillRectangle"
                                     (vector brush-type
@@ -778,10 +823,10 @@
                     (y (num (min y1 y2)))
                     (w (num (abs (- x2 x1))))
                     (h (num (abs (- y2 y1)))))
-                (clr/%invoke meth g (vector ink x y w h))
+                (meth g ink x y w h)
                 (ink-dispose! ink)))))
           
-         (draw-image-method (clr/%get-method 
+         (draw-image-method (clr/method2proc
                              graphics-type
                              "DrawImage"
                              (vector image-type
@@ -799,19 +844,19 @@
        ((draw-line col x1 y1 x2 y2) 
         (let ((pen (make-pen ((col 'colptr)))))
           (cond ((and (fixnum? x1) (fixnum? y1) (fixnum? x2) (fixnum? y2))
-                 (clr/%invoke draw-line-method/exact g
-                              (vector pen
+                 (draw-line-method/exact g
+					 pen
                                       (clr/%number->foreign-int32 x1)
                                       (clr/%number->foreign-int32 y1)
                                       (clr/%number->foreign-int32 x2)
-                                      (clr/%number->foreign-int32 y2))))
+                                      (clr/%number->foreign-int32 y2)))
                 (else
-                 (clr/%invoke draw-line-method/inexact g
-                              (vector pen 
+                 (draw-line-method/inexact g
+					   pen 
                                       (clr/%flonum->foreign-single (exact->inexact x1))
                                       (clr/%flonum->foreign-single (exact->inexact y1))
                                       (clr/%flonum->foreign-single (exact->inexact x2))
-                                      (clr/%flonum->foreign-single (exact->inexact y2))))))
+                                      (clr/%flonum->foreign-single (exact->inexact y2)))))
           (pen-dispose! pen)))
 
        ((draw-rect col x1 y1 x2 y2) 
@@ -820,10 +865,10 @@
         (draw-or-fill-rect g 'fill col x1 y1 x2 y2))
                                
        ((draw-image img x y) 
-        (clr/%invoke draw-image-method g
-                     (vector (img 'imgptr) 
-                             (clr/%number->foreign-int32 x) 
-                             (clr/%number->foreign-int32 y))))
+        (draw-image-method g
+			   (img 'imgptr) 
+			   (clr/%number->foreign-int32 x) 
+			   (clr/%number->foreign-int32 y)))
        ((gfxptr) g)
        ))))
 
@@ -842,7 +887,7 @@
             'nonpublic 'instance)))
       (clr/%invoke get-method/private-meth
                    control-type 
-                   (vector (clr/string->foreign "set_DoubleBuffered") 
+		   (vector (clr/string->foreign "set_DoubleBuffered") 
                            non-public-instance-flags))))
   
   (define (create-type name supertype constructor-extension . 
@@ -865,9 +910,9 @@
 			     (emit! (ilgen->emitter ilgen)))
 			(extension emit!)))))
 		method-extensions)
-      (let* ((create-type-meth (clr/%get-method
+      (let* ((create-type-meth (clr/method2proc
                                 typebuilder-type "CreateType" '#()))
-             (type (clr/%invoke create-type-meth type-builder '#()))
+             (type (create-type-meth type-builder))
              (make-object (type->nullary-constructor type)))
         make-object)))
 
@@ -903,7 +948,6 @@
   )
 
 (define keys-type (find-forms-type "Keys"))
-(define keys-foreign->symbols (enum-type->foreign->symbol keys-type))
 
 (define scrollbar-type  (find-forms-type "ScrollBar"))
 (define hscrollbar-type (find-forms-type "HScrollBar"))
@@ -969,8 +1013,19 @@
                                make-double-buffered-control)
                               (else make-control)))
          (contents (contents-ctor))
-         (core-control contents)
+         (core-control (make-panel))
+	 (button-toolbar (if #f (make-panel) (make-flow-layout-panel)))
+	 (make-core-fill-client-area!
+	  (lambda () 
+	    (let* ((client-area (control-client-size form))
+		   (w (size-width client-area))
+		   (h (size-height client-area))
+		   (buttons-height (control-height button-toolbar)))
+	      (set-control-top! core-control buttons-height)
+	      (set-control-size! core-control 
+				 (make-size w (- h buttons-height))))))
          (menu-stack '())
+	 (button-stack '())
          (activate! (make-unary-method form-type "Activate"))
          (invalidate! (make-unary-method form-type "Invalidate"))
          (unhandled (lambda (method-name)
@@ -1087,12 +1142,12 @@
                (ctrl (key-event-args-control e))
                (shift (key-event-args-shift e))
                ;; code enum excludes modifiers
-               (code (key-event-args-keycode e))
+               (keysym (key-event-args-keycode e))
                ;; data enum includes modifiers
                (data (key-event-args-keydata e))
                ;; original bitset 
                (value (key-event-args-keyvalue e))
-               (keysym (keys-foreign->symbols code)))
+	       )
           (on-x
            (keysym->maybe-char keysym shift)
            keysym
@@ -1128,7 +1183,7 @@
         (lambda (form)
           '(begin (display `(update-scrollbars!))
                   (newline))
-          (let* ((client-size (control-client-size form))
+          (let* ((client-size (control-client-size core-control))
                  (cw (size-width client-size))
                  (ch (size-height client-size)))
             
@@ -1176,8 +1231,9 @@
     (define (update!)
       ;; Need to double-check this; for now this signals that a
       ;; control needs to be repainted.
+      (make-core-fill-client-area!)
       (update-scrollbars! form)
-      (invalidate! core-control)
+      (invalidate! contents)
       )
 
     (define wnd
@@ -1212,6 +1268,24 @@
               (form-set-menu! form (car menu-stack)))
              (else
               (form-set-menu! form clr/null)))
+       (update!))
+      ((push-buttons . btns)
+       (set! button-stack (cons (map (lambda (btn) ((btn 'btnptr))) btns)
+				button-stack))
+       (clear-controls (control-controls button-toolbar))
+       (add-controls (control-controls button-toolbar) 
+		     (car button-stack))
+       (set-control-size! button-toolbar 
+		       (control-preferred-size button-toolbar))
+       (update!))
+      ((pop-buttons)
+       (set! button-stack (cdr button-stack))
+       (clear-controls (control-controls button-toolbar))
+       (cond ((not (null? button-stack))
+	      (add-controls (control-controls button-toolbar)
+			    (car button-stack))))
+       (set-control-size! button-toolbar 
+		       (control-preferred-size button-toolbar))
        (update!))
 
       ((attempt-scroll orient magnitude)
@@ -1281,11 +1355,22 @@
                       (else (error 'horizontal-scroll! ": " val
                                    " is not in range [" min "," max "]")))))))
     
-    (add-controls (control-controls form) 
-                  `(,@(if (eq? contents core-control) (list contents) '())
-                    ,horizontal-scrollbar 
-                    ,vertical-scrollbar))
-    (set-form-keypreview! form #t)
+    (add-controls (control-controls core-control)
+		  (list contents 
+			horizontal-scrollbar
+			vertical-scrollbar))
+    (set-control-size! button-toolbar 
+		       (control-preferred-size button-toolbar))
+    (add-controls (control-controls form)
+		  (list core-control
+			button-toolbar))
+
+    (cond ('one-way-to-make-core-fill-all-available-space
+	   (make-core-fill-client-area!)
+	   (set-control-anchor! core-control 'top 'bottom 'left 'right))
+	  ('and-another-way-to-get-the-same-effect
+	   (set-control-dock! core-control 'fill)))
+
     (begin
       (display `((hscroll min: ,(scrollbar-minimum horizontal-scrollbar))
                  (hscroll max: ,(scrollbar-maximum horizontal-scrollbar))
@@ -1313,9 +1398,9 @@
                            (scrolleventargs-newvalue e)
                            (scrolleventargs-gettype e)))))
     
-    (add-if-supported core-control 'on-keydown "KeyDown" key-event-handler)
-    (add-if-supported core-control 'on-keyup "KeyUp" key-event-handler)
-    (add-if-supported core-control 'on-keypress "KeyPress"
+    (add-if-supported contents 'on-keydown "KeyDown" key-event-handler)
+    (add-if-supported contents 'on-keyup "KeyUp" key-event-handler)
+    (add-if-supported contents 'on-keypress "KeyPress"
                       (lambda (on-keypress)
                         (lambda (sender e)
                           (on-keypress
@@ -1324,10 +1409,15 @@
                            (integer->char
                             (clr/%foreign->int
                              (key-press-event-args-keychar e)))))))
-    (add-if-supported core-control 'on-mousedown "MouseDown" mouse-event-handler)
-    (add-if-supported core-control 'on-mouseup "MouseUp" mouse-event-handler)
+
+    ;; On *any* MouseDown event on the contents of the core-control,
+    ;; switch focus to that control.
+    (add-event-handler contents "MouseDown" 
+		       (lambda (sender e) (control-focus! sender)))
+    (add-if-supported contents 'on-mousedown "MouseDown" mouse-event-handler)
+    (add-if-supported contents 'on-mouseup "MouseUp" mouse-event-handler)
     (let ((add! (lambda (fcn) 
-                  (add-event-handler core-control "MouseMove" fcn)))
+                  (add-event-handler contents "MouseMove" fcn)))
           (has-move? (memq 'on-mousemove agent-ops))
           (has-drag? (memq 'on-mousedrag agent-ops)))
       (cond 
@@ -1349,10 +1439,10 @@
                   (case (mouse-event-args-button e)
                     ((none) 'do-nothing)
                     (else   (drag-handler sender e)))))))))
-    (add-if-supported core-control 'on-mouseenter "MouseEnter" trivial-handler)
-    (add-if-supported core-control 'on-mouseleave "MouseLeave" trivial-handler)
-    (add-if-supported core-control 'on-mouseclick "MouseClick" mouse-event-handler)
-    (add-if-supported core-control 'on-mousedoubleclick "MouseDoubleClick" 
+    (add-if-supported contents 'on-mouseenter "MouseEnter" trivial-handler)
+    (add-if-supported contents 'on-mouseleave "MouseLeave" trivial-handler)
+    (add-if-supported contents 'on-mouseclick "MouseClick" mouse-event-handler)
+    (add-if-supported contents 'on-mousedoubleclick "MouseDoubleClick" 
                       mouse-event-handler)
     
     (add-event-handler form "Resize" 
@@ -1367,7 +1457,7 @@
                                 (lambda (sender e) 
                                   (update-op))))))
 
-    (add-if-supported core-control 'on-paint "Paint"
+    (add-if-supported contents 'on-paint "Paint"
                       (lambda (on-paint)
                         (lambda (sender e)
                           (let* ((r (paint-event-args-cliprectangle e))
@@ -1381,8 +1471,58 @@
 
     wnd))
 
+(define (make-btn . args)
+  (let* ((agent-ctor (cond ((memq 'make-agent args) => cadr)
+			   (else default-agent-ctor)))
+	 (title (cond ((memq 'title args) => cadr)
+		      (else #f)))
+	 (agent (undefined))
+	 (agent-ops (undefined))
+	 (core-control (make-button))
+	 )
 
+    (define (add-if-supported form op-name event-name mk-handler)
+      (cond ((memq op-name agent-ops)
+	     (add-event-handler form event-name (mk-handler (agent op-name))))
+	    (else
+	     (display "No support for button op ")
+	     (display op-name)
+	     (newline))))
 
+    (define (mouse-event-handler on-x)
+      (lambda (sender e)
+        (on-x
+         (mouse-event-args-x e)
+         (mouse-event-args-y e))))
+
+    (define btn
+      (make-root-object btn
+        ((title) title)
+	((btnptr) core-control)
+	((agent) agent)
+	((width) (control-width core-control))
+	((height) (control-height core-control))
+	((dispose) 
+	 (cond ((memq 'dispose agent-ops) ((agent 'dispose)))
+	       (else (display "dispose unhandled by button") 
+		     (newline)))
+	 (control-dispose! core-control))
+	))
+
+    (set! agent (agent-ctor btn 
+			    (control-width core-control)
+			    (control-height core-control)))
+    (set! agent-ops ((agent 'operations)))
+    (cond (title (set-control-text! core-control title)))
+    (for-each (lambda (opsym eventname)
+		(add-if-supported core-control 
+				  opsym eventname mouse-event-handler))
+	      '(on-mousedown on-mouseup on-mouseclick on-mousedoubleclick)
+	      '("MouseDown"  "MouseUp"  "MouseClick"  "MouseDoubleClick"))
+    btn))
+
+    
+    
 ;; A FileChoiceFilter is a (list String String String ...)
 ;; interpretation:
 ;; A FileChoiceFilter (list description ext-1 ... ext-n) tells the file chooser to
@@ -1449,6 +1589,60 @@
         (show-and-post-process-dialog d)))))
 
   
+;; Clipboard operations...
+(define clipboard-type (find-forms-type "Clipboard"))
+(define clipboard-clear!
+  (let ((f (make-static-method clipboard-type "Clear")))
+    (lambda ()
+      (f)
+      (unspecified))))
+(define clipboard-contains-audio?
+  (let ((f (make-static-method clipboard-type "ContainsAudio")))
+    (lambda ()
+      (clr/foreign->bool (f)))))
+(define clipboard-contains-filelist?
+  (let ((f (make-static-method clipboard-type "ContainFileDropList")))
+    (lambda ()
+      (clr/foreign->bool (f)))))
+(define clipboard-contains-image?
+  (let ((f (make-static-method clipboard-type "ContainsImage")))
+    (lambda () 
+      (clr/foreign->bool (f)))))
+(define clipboard-contains-text?
+  (let ((f (make-static-method clipboard-type "ContainsText")))
+    (lambda ()
+      (clr/foreign->bool (f)))))
+(define clipboard-get-filelist
+  (let ((f (make-static-method clipboard-type "GetFileDropList")))
+    (lambda ()
+      (stringcollection->list (f)))))
+(define clipboard-get-image
+  (let ((get-image (make-static-method clipboard-type "GetImage")))
+    (lambda ()
+      (error 'clipboard-get-image ": unimplemented"))))
+(define clipboard-get-text
+  (let ((get-text (make-static-method clipboard-type "GetText")))
+    (lambda ()
+      (let ((t (get-text)))
+        (clr/foreign->string t)))))
+(define clipboard-set-filelist!
+  (let ((set-files! (make-static-method 
+		     clipboard-type "SetFileDropList"
+		     stringcollection-type)))
+    (lambda (files)
+      (set-files! (list->stringcollection files))
+      (unspecified))))
+(define clipboard-set-image! 
+  (let ((set-image (make-static-method clipboard-type "SetImage" image-type)))
+    (lambda (img)
+      (error 'clipboard-set-image! ": unimplemented"))))
+(define clipboard-set-text!
+  (let ((set-text! (make-static-method
+		    clipboard-type "SetText" 
+		    clr-type-handle/system-string)))
+    (lambda (string)
+      (set-text! (clr/string->foreign string))
+      (unspecified))))
 
 
         

@@ -4,6 +4,8 @@
 ;
 ; Larceny FFI -- simple load script.
 
+#!no-fold-case
+
 (define (load-ffi)
 
   (define architecture

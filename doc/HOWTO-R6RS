@@ -68,6 +68,28 @@ only other system that implements a substantial fraction
 of the R6RS.
 
 
+LIBRARY PATH
+
+As an extension to ERR5RS, Larceny automatically loads
+libraries when they are first imported, provided Larceny
+can find the libraries in its library search path.  The
+library search path defaults to a path that contains
+the predefined libraries listed in HOWTO-ERR5RS, but one
+additional directory can be added to the library search
+path using Larceny's --path command-line option.
+
+Autoloaded libraries must be defined in files that follow
+Larceny's standard naming conventions for ERR5RS/R6RS
+library files.  These naming conventions are described
+in Larceny's user manual (see doc/user-manual.*).
+
+We emphasize again that this extension is non-portable.
+In particular, it is not supported by Ikarus; although
+Ikarus may provide a similar feature, Ikarus's mapping
+from library names to file names is incompatible with
+Larceny's.
+
+
 RUNNING A TOP-LEVEL PROGRAM
 
 To run a Scheme script, just execute it the same way
@@ -96,16 +118,16 @@ mode instead.  See HOWTO-ERR5RS.
 
 When attempting to run an R6RS program, you may see
 a warning about "loading source in favor of stale
-fasl file: .../lib/R6RS/r6rs-standard-libraries.sch",
-following by a long series of error messages about
-syntactic keywords used as a variable, ending with
-the kind of error you'd expect to see when a large
-R6RS program is fed to a Scheme compiler that was
-expecting to see R5RS-compatible code.  That means
-the R6RS runtime and standard libraries were not
-installed correctly, or their source files have been
-touched or modified since they were last compiled.
-To fix the problem, repeat step 4 of HOWTO-BUILD.
+fasl file".  This message may be followed by a long
+series of error messages about syntactic keywords
+used as a variable, ending with the kind of error
+you'd expect to see when a large R6RS program is fed
+to a Scheme compiler that was expecting to see
+R5RS-compatible code.  That means the R6RS runtime
+and standard libraries were not installed correctly,
+or their source files have been touched or modified
+since they were last compiled.  To fix the problem,
+repeat step 4 of HOWTO-BUILD.
 
 
 PREDEFINED LIBRARIES

@@ -5,6 +5,7 @@
 (load "lib/Experimental/DotNet/simple-reflection.sch")
 (load "lib/Experimental/DotNet/protoobj.sch")
 (load "lib/Experimental/DotNet/toolsmith-shared.sch")
+(load "lib/Experimental/DotNet/dotnet-ffi-lcg.sch")
 (load "lib/Experimental/DotNet/toolsmith-form.sch")
 (load "lib/Experimental/DotNet/gui-inspection.sch")
 
@@ -34,16 +35,60 @@
 
   ((file 'append) "Kill Busy Loop" 
    (lambda () (set! *request-kill-busy-loop* #t))))
-  
+
+(define (wnd->cut-cmd wnd)
+  (lambda () 
+    (let ((displayln (lambda (x) (write x) (newline)))
+	  (ra ((wnd 'agent))))
+      (displayln 'edit..cut)
+      (cond (((ra 'selectionstring))
+	     => (lambda (text)
+		  (clipboard-set-text! text)
+		  ((ra 'delete-char-at-point!)))))
+      ;; XXX support Image cutting
+      (unspecified))))
+
+(define (wnd->copy-cmd wnd)
+  (lambda ()
+    (let ((displayln (lambda (x) (write x) (newline)))
+	  (ra ((wnd 'agent))))
+      (displayln 'edit..copy)
+      (clipboard-set-text! ((ra 'selectionstring)))
+      ;; XXX support Image copying
+      (unspecified))))
+
+(define (wnd->paste-cmd wnd)
+  (lambda () 
+    (let ((displayln (lambda (x) (write x) (newline)))
+	  (ra ((wnd 'agent)))
+	  (clip-text (clipboard-get-text)))
+      (displayln 'edit..paste)
+      (cond ((and clip-text
+		  (string? clip-text))
+	     (for-each (lambda (c)
+			 ((ra 'insert-char-at-point!) c))
+		       (string->list clip-text))))
+      ;; XXX support Image pasting
+      (unspecified))))
+
 (define edit (make-mnu "Edit"))
-((edit 'append) "Cut"        (lambda () (displayln `(selected edit..cut))))
-((edit 'append) "Copy"       (lambda () (displayln `(selected edit..copy))))
-((edit 'append) "Paste"      (lambda () (displayln `(selected edit..paste))))
+((edit 'append) "Cut"        (wnd->cut-cmd editor-wnd))
+((edit 'append) "Copy"       (wnd->copy-cmd editor-wnd))
+((edit 'append) "Paste"      (wnd->paste-cmd editor-wnd))
+
+(let* ((repl-edit (make-mnu "Edit"))
+       (displayln (lambda (x) (write `(selected ,x)) (newline))))
+
+  ((repl-edit 'append) "Cut"   (wnd->cut-cmd repl-wnd))
+  ((repl-edit 'append) "Copy"  (wnd->copy-cmd repl-wnd))
+  ((repl-edit 'append) "Paste" (wnd->paste-cmd repl-wnd))
+
+  ((repl-wnd 'push-menus) repl-edit))
 
 ((editor-wnd 'push-menus) file edit)
 
 (define (start-example)
   ((editor-wnd 'show))
   ((repl-wnd 'show))
-  ((((((repl-wnd 'agent)) 'backing-agent)) 'prompt!))
+  ((((repl-wnd 'agent)) 'prompt!))
   (busy-loop))

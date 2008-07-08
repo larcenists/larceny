@@ -180,6 +180,7 @@
 (define ex:environment               #f)
 (define ex:environment-bindings      #f)
 (define ex:eval                      #f)
+(define ex:load                      #f)
 (define ex:syntax-violation          #f)
 
 ;; System exports:
@@ -1140,7 +1141,7 @@
                              bound-variables))
                       ((define)
                        (call-with-values
-                           (lambda () (parse-definition form))
+                           (lambda () (parse-definition form #f))
                          (lambda (id rhs)
                            (check-valid-definition id common-env body-type form forms type)
                            (env-extend! (list (make-map 'variable id #f)) common-env)
@@ -1153,7 +1154,7 @@
                                  (cons (binding-name (binding id)) bound-variables)))))
                       ((define-syntax)
                        (call-with-values
-                           (lambda () (parse-definition form))
+                           (lambda () (parse-definition form #t))
                          (lambda (id rhs)
                            (check-valid-definition id common-env body-type form forms type)
                            (let ((mapping (make-map 'macro id #f)))
@@ -1216,13 +1217,15 @@
                  (cdr body-form)))
            body-forms))
 
-    (define (parse-definition exp)
+    (define (parse-definition exp syntax-def?)
       (match exp
         ((- (? identifier? id))
          (values id (rename 'variable 'ex:unspecified)))
         ((- (? identifier? id) e)
          (values id e))
         ((- ((? identifier? id) . (? formals? formals)) body ___)
+         (and syntax-def?
+              (invalid-form exp))
          (values id `(,(rename 'macro 'lambda) ,formals ,@body)))))
 
     (define (parse-local-syntax t)
@@ -1289,13 +1292,13 @@
               `(let ((,temp ,input))
                  ,(process-match temp pattern sk fk)))
             (match pattern
-              ((syntax _)            sk)
-              ((syntax ...)          (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
-              (()                    `(if (null? ,input) ,sk ,fk))
-              ((? literal? id)       `(if (and (ex:identifier? ,input)
-                                               (ex:free-identifier=? ,input ,(syntax-reflect id)))
-                                          ,sk
-                                          ,fk))
+              ((syntax _)         sk)
+              ((syntax ...)       (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
+              (()                 `(if (null? ,input) ,sk ,fk))
+              ((? literal? id)    `(if (and (ex:identifier? ,input)
+                                            (ex:free-identifier=? ,input ,(syntax-reflect id)))
+                                       ,sk
+                                       ,fk))
               ((? identifier? id) `(let ((,(binding-name (binding id)) ,input)) ,sk))
               ((p (syntax ...))
                (let ((mapped-pvars (map (lambda (pvar) (binding-name (binding pvar)))
@@ -1433,8 +1436,7 @@
          (process-template p dim #t))
         ((? (lambda (_) (not ellipses-quoted?))
             (t (syntax ...) . tail))
-         (let* ((depth (segment-depth template))
-                (seg-dim (+ dim depth))
+         (let* ((head (segment-head template)) 
                 (vars
                  (map (lambda (mapping)
                         (let ((id      (car mapping))
@@ -1442,27 +1444,28 @@
                           (check-binding-level id binding)
                           (register-use! id binding)
                           (binding-name binding)))
-                      (free-meta-variables t seg-dim '()))))
+                      (free-meta-variables head (+ dim 1) '() 0))))
            (if (null? vars)
                (syntax-violation 'syntax "Too many ...'s" template)
-               (let* ((x (process-template t seg-dim ellipses-quoted?))
+               (let* ((x (process-template head (+ dim 1) ellipses-quoted?))
                       (gen (if (equal? (list x) vars)   ; +++
                                x                        ; +++
-                               `(if (or (< (length ',vars) 2)
-                                        (= ,@(map (lambda (var) 
-                                                    `(length ,var))
-                                                  vars)))
-                                    (map (lambda ,vars ,x)
+                               (if (= (length vars) 1) 
+                                   `(map (lambda ,vars ,x)
                                          ,@vars)
-                                    (ex:syntax-violation 
-                                     'syntax 
-                                     "Pattern variables denoting lists of unequal length preceding ellipses"
-                                     ',(syntax->datum template) 
-                                     (list ,@vars)))))
-                      (gen (do ((d depth (- d 1))
-                                (gen gen `(apply append ,gen)))
-                               ((= d 1)
-                                gen))))
+                                   `(if (= ,@(map (lambda (var) 
+                                                    `(length ,var))
+                                                  vars))
+                                        (map (lambda ,vars ,x)
+                                             ,@vars)
+                                        (ex:syntax-violation 
+                                         'syntax 
+                                         "Pattern variables denoting lists of unequal length preceding ellipses"
+                                         ',(syntax->datum template) 
+                                         (list ,@vars))))))
+                      (gen (if (> (segment-depth template) 1)
+                               `(apply append ,gen)
+                               gen)))
                  (if (null? (segment-tail template))   ; +++
                      gen                               ; +++
                      `(append ,gen ,(process-template (segment-tail template) dim ellipses-quoted?)))))))
@@ -1473,10 +1476,8 @@
          `(list->vector ,(process-template ts dim ellipses-quoted?)))
         (other
          `(quote ,(expand other)))))
-
-    ;; Return a list of meta-variables of given higher dim
-
-    (define (free-meta-variables template dim free)
+    
+    (define (free-meta-variables template dim free deeper)
       (match template
         ((? identifier? id)
          (if (memp (lambda (x) (bound-identifier=? (car x) id)) free)
@@ -1485,17 +1486,23 @@
                (if (and binding
                         (eq? (binding-type binding) 'pattern-variable)
                         (let ((pdim (binding-dimension binding)))
-                          (>= pdim dim)))
+                          (and (> pdim 0) 
+                               (not (>= deeper pdim))
+                               (<= (- pdim deeper) 
+                                   dim))))
                    (cons (cons id binding) free)
                    free))))
-        ((t (syntax ...) . tail)
-         (free-meta-variables t dim (free-meta-variables tail dim free)))
+        ((t (syntax ...) . rest)
+         (free-meta-variables t 
+                              dim 
+                              (free-meta-variables (segment-tail template) dim free deeper)
+                              (+ deeper (segment-depth template))))  
         ((t1 . t2)
-         (free-meta-variables t1 dim (free-meta-variables t2 dim free)))
-        (#(ts ___)
-         (free-meta-variables ts dim free))
+         (free-meta-variables t1 dim (free-meta-variables t2 dim free deeper) deeper))
+        (#(ts ___) 
+         (free-meta-variables ts dim free deeper))
         (- free)))
-
+ 
     ;; Count the number of `...'s in PATTERN.
 
     (define (segment-depth pattern)
@@ -1503,6 +1510,21 @@
         ((p (syntax ...) . rest)
          (+ 1 (segment-depth (cdr pattern))))
         (- 0)))
+      
+    ;; All but the last ellipses
+    
+    (define (segment-head pattern)
+      (let ((head
+             (let recur ((pattern pattern))
+               (match pattern
+                 ((h (syntax ...) (syntax ...) . rest)
+                  (cons h (recur (cdr pattern))))
+                 ((h (syntax ...) . rest)
+                  (list h))))))
+        (match head 
+          ((h (syntax ...) . rest)
+           head)
+          (- (car head)))))   
 
     ;; Get whatever is after the `...'s in PATTERN.
 
@@ -1592,8 +1614,6 @@
                  (lambda () (scan-imports specs))
                (lambda (imported-libraries imports)
                  (fluid-let ((*usage-env*        (make-unit-env))
-                             (*env-table*        '())
-                             (*macro-table*      '())
                              (*current-library*  name)
                              (*syntax-reflected* #f))       ; +++ space
 
@@ -1687,22 +1707,18 @@
        builds
        phase
        (lambda (library phase imported)
-         (if (>= phase 0)
-             (let ((name (ex:library-name library)))
-               (if (not (memp (lambda (entry)
-                                (and (equal? (car entry) name)
-                                     (>= (cdr entry) 0)))
-                              imported))
-                   (fluid-let ((*phase* phase))
-                     (set! *env-table* (append ((ex:library-envs library)) *env-table*))
-                     ((ex:library-visiter library))))
-               (if (>= phase 1)
-                   (if (not (memp (lambda (entry)
-                                    (and (equal? (car entry) name)
-                                         (>= (cdr entry) 1)))
-                                  imported))
-                       (fluid-let ((*phase* phase))
-                         ((ex:library-invoker library))))))))))
+         (if (and (>= phase 0)
+                  (not (ex:library-visited? library)))
+             (begin
+               (set! *env-table* (append ((ex:library-envs library)) *env-table*))
+               ((ex:library-visiter library))
+               (ex:library-visited?-set! library #t)))
+         (if (and (>= phase 1)
+                  (not (ex:library-invoked? library)))
+             (begin 
+               ((ex:library-invoker library))
+               (ex:library-invoked?-set! library #t))))
+       'expand))
 
     ;; Returns ((<rename-identifier> <identifier> <level> ...) ...)
 
@@ -1995,7 +2011,6 @@
                       (pretty-print (syntax-debug exp)))
                     (newline))
                   *trace*)
-
         ;(error 'syntax-violation "Integrate with host error handling here")
 
         ; [Larceny]
@@ -2169,7 +2184,7 @@
                (if (memv (car (car sets)) rest)
                    rest
                    (cons (car (car sets)) rest))))))
-
+    
     (define (drop-tail list tail)
       (cond ((null? list)    '())
             ((eq? list tail) '())
@@ -2222,18 +2237,19 @@
     ;; the results.
 #|
     (define (repl exps)
-      (reset-toplevel!)
-      (for-each (lambda (exp)
-                  (for-each (lambda (exp)
-                              (for-each (lambda (result)
-                                          (display result)
-                                          (newline))
-                                        (call-with-values
+      (with-toplevel-parameters
+       (lambda ()
+         (for-each (lambda (exp)
+                     (for-each (lambda (exp)
+                                 (for-each (lambda (result)
+                                             (display result)
+                                             (newline))
+                                           (call-with-values
                                             (lambda ()
                                               (eval exp (interaction-environment)))
-                                          list)))
-                            (expand-toplevel-sequence (list exp))))
-                exps))
+                                            list)))
+                               (expand-toplevel-sequence (list exp))))
+                   exps))))
 |#
 
     ;; Larceny-specific version.
@@ -2257,8 +2273,9 @@
               (else
                (inner-loop (expand-toplevel-sequence (list (car exps))))
                (outer-loop (cdr exps)))))
-      (reset-toplevel!)
-      (outer-loop exps))
+      (with-toplevel-parameters
+       (lambda ()
+        (outer-loop exps))))
     
     ;; Evaluates a sequence of forms of the format
     ;; <library>* | <library>* <toplevel program>.
@@ -2269,35 +2286,28 @@
     ;; interactive environment, see REPL above.
     
     (define (run-r6rs-sequence forms)
-      (reset-toplevel!)
-      (for-each (lambda (exp) (eval exp (interaction-environment)))
-                (expand-toplevel-sequence (normalize forms))))
+      (with-toplevel-parameters
+       (lambda ()
+         (for-each (lambda (exp) (eval exp (interaction-environment)))
+                   (expand-toplevel-sequence (normalize forms))))))
     
     (define (run-r6rs-program filename)
       (run-r6rs-sequence (read-file filename)))
 
-    ;; Restores parameters to a consistent state
-    ;; in case they were left inconsistent by an error.
+    ;; Puts parameters to a consistent state for the toplevel
+    ;; Old state is restored afterwards so that things will be
+    ;; reentrant. 
 
-    (define reset-toplevel!
-      (let ((last-good-macro-table '()) 
-            (last-good-env-table   '()))
-        (lambda ()
-          (if (not (null? *current-library*))
-              (begin 
-                ;; an error occurred while library was being
-                ;; expanded so restore last good toplevel tables
-                (set! *macro-table* last-good-macro-table)
-                (set! *env-table*   last-good-env-table)))
-          (set! last-good-macro-table *macro-table*)
-          (set! last-good-env-table   *env-table*)
-          (set! *trace*            '())
-          (set! *current-library*  '())
-          (set! *phase*            0)
-          (set! *used*             (list '()))
-          (set! *color*            (generate-color))
-          (set! *usage-env*        *toplevel-env*)
-          (set! *syntax-reflected* #f))))
+    (define with-toplevel-parameters
+      (lambda (thunk)
+        (fluid-let ((*trace*            '())
+                    (*current-library*  '())
+                    (*phase*            0)
+                    (*used*             (list '()))
+                    (*color*            (generate-color))
+                    (*usage-env*        *toplevel-env*)
+                    (*syntax-reflected* #f))
+          (thunk))))
     
     (define (expand-toplevel-sequence forms)
       (scan-sequence 'toplevel
@@ -2306,12 +2316,20 @@
                      (lambda (forms syntax-definitions bound-variables)
                        (emit-body forms 'define))))
 
-    ;;==========================================================================
-    ;;
-    ;;  Expand-file:
-    ;;
-    ;;==========================================================================
-
+    ;; ERR5RS load:
+    ;; We take some care to make this reentrant so that 
+    ;; it can be used to recursively load libraries while
+    ;; expanding a client library or program.
+    
+    (define (r6rs-load filename)
+      (with-toplevel-parameters
+       (lambda ()
+         (for-each (lambda (exp)
+                     (for-each (lambda (exp)
+                                 (eval exp (interaction-environment)))
+                               (expand-toplevel-sequence (list exp))))
+                   (read-file filename)))))
+      
     ;; This may be used as a front end for the compiler.
     ;; It expands a file consisting of a possibly empty sequence
     ;; of libraries optionally followed by a <toplevel program>.
@@ -2319,9 +2337,10 @@
     ;; definitions and expressions.
 
     (define (expand-file filename target-filename)
-      (reset-toplevel!)
-      (write-file (expand-toplevel-sequence (normalize (read-file filename)))
-                  target-filename))
+      (with-toplevel-parameters
+       (lambda ()
+         (write-file (expand-toplevel-sequence (normalize (read-file filename)))
+                     target-filename))))
 
     ;; This approximates the common r5rs behaviour of
     ;; expanding a toplevel file but treating unbound identifiers
@@ -2338,18 +2357,19 @@
     ;; to be preloaded before it can be run.
 
     (define (expand-r5rs-file filename target-filename r6rs-env)
-      (reset-toplevel!)
-      (fluid-let ((make-free-name (lambda (symbol) symbol))
-                  (*usage-env*    (r6rs-environment-env r6rs-env))
-                  (*macro-table*  *macro-table*))
-        (let ((imported-libraries (r6rs-environment-imported-libraries r6rs-env)))
-          (import-libraries-for-expand (r6rs-environment-imported-libraries r6rs-env) (map not imported-libraries) 0)
-          (write-file (cons `(ex:import-libraries-for-run ',(r6rs-environment-imported-libraries r6rs-env)
-                                                          ',(current-builds imported-libraries)
-                                                          0)
-                            (expand-toplevel-sequence (read-file filename)))
-                      target-filename))))
-
+      (with-toplevel-parameters
+       (lambda ()
+         (fluid-let ((make-free-name (lambda (symbol) symbol))
+                     (*usage-env*    (r6rs-environment-env r6rs-env))
+                     (*macro-table*  *macro-table*))
+           (let ((imported-libraries (r6rs-environment-imported-libraries r6rs-env)))
+             (import-libraries-for-expand (r6rs-environment-imported-libraries r6rs-env) (map not imported-libraries) 0)
+             (write-file (cons `(ex:import-libraries-for-run ',(r6rs-environment-imported-libraries r6rs-env)
+                                                             ',(current-builds imported-libraries)
+                                                             0)
+                               (expand-toplevel-sequence (read-file filename)))
+                         target-filename))))))
+       
     ;; Keeps (<library> ...) the same.
     ;; Converts (<library> ... . <toplevel program>)
     ;; to (<library> ... (program . <toplevel program>))
@@ -2503,8 +2523,9 @@
     (set! ex:environment               environment)
     (set! ex:environment-bindings      environment-bindings)
     (set! ex:eval                      r6rs-eval)
+    (set! ex:load                      r6rs-load)
     (set! ex:syntax-violation          syntax-violation)
-
+    
     (set! ex:expand-file               expand-file)
     (set! ex:repl                      repl)
     (set! ex:expand-r5rs-file          expand-r5rs-file)
@@ -2523,3 +2544,5 @@
 
     ) ; let
   ) ; letrec-syntax
+
+

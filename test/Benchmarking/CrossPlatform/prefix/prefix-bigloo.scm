@@ -5,8 +5,10 @@
 
 ;INSERTCODE
 
+(define ticks/msec 100)
+
 (define (clock-to-msecs x)
-  (quotient (* x 1000) (pragma::int "CLK_TCK")))
+  (quotient (* x 1000) ticks/msec))
 
 (define (process-times)
   (let ()

@@ -34,23 +34,50 @@
   (command-line-arguments argv)
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
+
   (let* ((features (system-features))
+
          (get-feature
           (lambda (name)
             (let ((probe (assq name features)))
               (and probe (cdr probe)))))
+
          (adjust-case-sensitivity!
           (lambda ()
             (case-sensitive? (get-feature 'case-sensitivity))))
+
          (adjust-safety!
           (lambda (safety)
             (case safety
              ((0 1)
               (eval '(catch-undefined-globals #f)               ; FIXME
                     (interaction-environment))))))
+
          (add-require-path!
-          (lambda (path)
-            (current-require-path (cons path (current-require-path)))))
+          (lambda ()
+            (define (add-path! path)
+              (current-require-path (cons path (current-require-path))))
+            (let ((path (get-feature 'library-path)))
+              (cond ((string=? path "") #t)
+                    ((absolute-path-string? path)
+                     (add-path! path))
+                    (else
+                     (add-path!
+                      (string-append (current-directory) "/" path)))))))
+
+         (aeryn-mode!
+          (lambda ()
+            (let ((env (interaction-environment)))
+              (eval '(begin
+                      (require 'r6rsmode)
+                      (larceny:load-r6rs-package))
+                    env)
+              (let* ((aeryn-fasl-evaluator (eval 'aeryn-fasl-evaluator env))
+                     (aeryn-evaluator (eval 'aeryn-evaluator env)))
+                (fasl-evaluator aeryn-fasl-evaluator)
+                (load-evaluator aeryn-evaluator)
+                (repl-evaluator aeryn-evaluator)))))
+
          (emode (get-feature 'execution-mode)))
 
     (case emode
@@ -64,20 +91,10 @@
           (adjust-safety! 1))                             ; FIXME
       (let ((path (get-feature 'library-path)))
         (if (not (string=? path ""))
-            (add-require-path! path)))
+            (add-require-path!)))
       (if (eq? emode 'err5rs)
-          (let ((env (interaction-environment)))
-            (eval '(begin
-                    (require 'r6rsmode)
-                    (larceny:load-r6rs-package))
-                  env)
-            (let* ((ex:repl (eval 'ex:repl env))
-                   (aeryn-evaluator
-                    (lambda (exp . rest)
-                      (ex:repl (list exp)))))
-              (load-evaluator aeryn-evaluator)
-              (repl-evaluator aeryn-evaluator)
-              (writeln "ERR5RS mode (no libraries have been imported)"))))
+          (begin (aeryn-mode!)
+                 (writeln "ERR5RS mode (no libraries have been imported)")))
       (r5rs-entry-point argv))
 
      ; R6RS modes are batch modes, so we want to exit rather
@@ -85,7 +102,10 @@
 
      ((dargo)
       (adjust-safety! 1)                                  ; FIXME
-      (require 'r6rsmode)
+      (let ((path (get-feature 'library-path)))
+        (if (not (string=? path ""))
+            (add-require-path!)))
+      (aeryn-mode!)
       (parameterize ((error-handler
                       (lambda the-error
                         (parameterize ((print-length 7)

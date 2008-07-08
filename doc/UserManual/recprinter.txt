@@ -1,0 +1,27 @@
+[[RecordsPrinterSection]]
+
+Records printer
+~~~~~~~~~~~~~~~
+
+The `(larceny records printer)` library exports the
+two procedures described below.  These procedures
+can be used to override Larceny's usual printing
+of records and opaque types that were defined using
+the records libraries.
+
+proc:rtd-printer[args="rtd",result="maybe-procedure"]
+
+Given a record type descriptor, returns its custom
+print procedure, or returns false if the rtd has no
+custom print procedure.
+
+proc:rtd-printer-set![args="rtd printer"]
+
+Given a record type descriptor _rtd_ and a
+_printer_ for instances of that rtd, installs
+_printer_ as a custom print procedure for _rtd_.
+The _printer_ should be a procedure that,
+given an instance of the rtd and a textual
+output port, writes a representation of the
+instance to the port.
+

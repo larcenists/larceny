@@ -67,8 +67,7 @@
 (define (native-eol-style) 'none)   ; FIXME: for backward compatibility
 
 ; FIXME:  &i/o-decoding, &i/o-encoding, and their associated
-; operations aren't yet implemented because conditions aren't
-; implemented yet.
+; operations might not be implemented yet.
 
 ; The deprecated error-handling-mode syntax is supported only by R6RS modes.
 
@@ -252,10 +251,12 @@
         (port (bytevector-io/open-input-bytevector-no-copy (string->utf8 s))))
     (transcoded-port port transcoder)))
 
-; FIXME: not implemented yet
-
 (define (standard-input-port)
-  (assertion-violation 'standard-input-port "not yet implemented"))
+  (let ((fd (osdep/open-console 'input)))
+    (io/make-port console-io/ioproc
+                  (file-io/data fd "*console-input*")
+                  'input
+                  'binary)))
 
 ; FIXME: current-input-port is implemented elsewhere
 
@@ -426,20 +427,21 @@
             'open-file-input/output-port
             "illegal codec" t)))))
 
-; FIXME: not implemented yet
-
 (define (standard-output-port)
-  (assertion-violation 'standard-output-port "not yet implemented"))
-
-; FIXME: not implemented yet
+  (let ((fd (osdep/open-console 'output)))
+    (io/make-port console-io/ioproc
+                  (file-io/data fd "*console-output*")
+                  'output
+                  'flush
+                  'binary)))
 
 (define (standard-error-port)
-  (assertion-violation 'standard-error-port "not yet implemented"))
-
-; FIXME: not implemented yet
-
-(define (current-error-port)
-  (assertion-violation 'current-error-port "not yet implemented"))
+  (let ((fd (osdep/open-console 'output)))
+    (io/make-port console-io/ioproc
+                  (file-io/data fd "*console-output*")
+                  'output
+                  'flush
+                  'binary)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -517,11 +519,14 @@
            (binary-port? p)
            (fixnum? count)
            (fx<= 0 count))
-      (call-with-bytevector-output-port
-       (lambda (out)
-         (do ((count count (fx- count 1)))
-             ((or (port-eof? p) (fx= count 0)))
-           (put-u8 out (get-u8 p)))))
+      (let ((out (open-output-bytevector)))
+        (do ((count count (fx- count 1)))
+            ((or (fx= count 0) (port-eof? p))
+             (let ((bv (get-output-bytevector out)))
+               (if (> (bytevector-length bv) 0)
+                   bv
+                   (eof-object))))
+          (put-u8 out (get-u8 p))))
       (portio/illegal-arguments 'get-bytevector-n p count)))
 
 (define (get-bytevector-n! p bv start count)
@@ -535,8 +540,10 @@
            (fx<= (fx+ start count) (bytevector-length bv)))
       (do ((n    (fx+ start count))
            (i    start      (fx+ i 1)))
-          ((or (port-eof? p) (fx= i n))
-           (- i start))
+          ((or (fx= i n) (port-eof? p))
+           (if (fx= i start)
+               (eof-object)
+               (- i start)))
         (bytevector-set! bv i (get-u8 p)))
       (portio/illegal-arguments 'get-bytevector-n! p bv start count)))
 
@@ -572,12 +579,16 @@
            (textual-port? p)
            (fixnum? count)
            (fx<= 0 count))
-      (call-with-string-output-port
-       (lambda (out)
-         (do ((count count (fx- count 1))
-              (char (get-char p) (get-char p)))
-             ((or (eof-object? char) (fx<= count 0)))
-           (put-char out char))))
+      (let ((out (open-output-string)))
+        (do ((count count (fx- count 1))
+             (char (peek-char p) (peek-char p)))
+            ((or (fx<= count 0) (eof-object? char))
+             (let ((s (get-output-string out)))
+               (if (> (string-length s) 0)
+                   s
+                   (eof-object))))
+          (get-char p)
+          (put-char out char)))
       (portio/illegal-arguments 'get-string-n p count)))
 
 (define (get-string-n! p s start count)
@@ -588,12 +599,15 @@
            (fx<= 0 start)
            (fixnum? count)
            (fx<= 0 count)
-           (fx< (fx+ start count) (string-length s)))
+           (fx<= (fx+ start count) (string-length s)))
       (do ((n    (fx+ start count))
            (i    start      (fx+ i 1))
-           (char (get-char p) (get-char p)))
-          ((or (eof-object? char) (fx= i n))
-           (- i start))
+           (char (peek-char p) (peek-char p)))
+          ((or (fx= i n) (eof-object? char))
+           (if (fx= i start)
+               (eof-object)
+               (- i start)))
+        (get-char p)
         (string-set! s i char))
       (portio/illegal-arguments 'get-string-n! p s start count)))
 

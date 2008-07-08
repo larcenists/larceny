@@ -1,0 +1,549 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+########################################################################
+##
+## This script is meant to be first symlinked to under a file name
+## indicating the host scheme and architecture, and then invoked in a
+## context with the following environment variables set: 
+##    TRACK CDASHSERVER GCSYSTEMS
+## 
+## Here is a sample simple wrapper script meant to demonstrate how 
+## to first invoke this script, and then send the resulting logs
+## to the CDash server at the url in CDASHSERVER.
+# 
+# LOGFILE=/home/henchman/build.`date +%F`.log
+# export TRACK="Nightly"
+# export CDASHSERVER="http://cgibin.ccs.neu.edu/home/pnkfelix/cdash/"
+# /home/henchman/bin/checkout-larceny-linux86-native >> $LOGFILE 2>&1
+# cat $LOGFILE | mail -s "Nightly build log" pnkfelix@pnkfx.org
+#
+########################################################################
+
+# Override this variable to submit to other tracks, e.g. Nightly or Continuous
+TRACK=${TRACK:-"Experimental"}
+
+# Override this variable to select which gc technologies to test.
+GCSYSTEMS=${GCSYSTEMS:-"dflt hrof gen2 gen3 stcp"}
+
+# We should not have to do 'always-source here, but Larceny is
+# currently not smart enough to back off when encountering a fasl file
+# generated for a target that differs from the host.
+# SETUP_ARGS="'exit-on-error 'quiet-load 'always-source"
+SETUP_ARGS="'exit-on-error 'quiet-load 'always-source"
+
+WARNINGNUM=1
+# SVNTRUNK="http://larceny.ccs.neu.edu/svn/trunk/larceny_src"
+SVNTRUNK=${SVNTRUNK:-"https://trac.ccs.neu.edu/svn/larceny/trunk/larceny_src"}
+
+FINAL_LARCENY_SCRIPT=larceny
+FINAL_LARCENY_ROF_SCRIPT=larceny-np # (only for autobuilds)
+FIXPATH_CMD=echo
+FINAL_LARCENY_BIN=larceny.bin
+FINAL_TWOBIT_BIN=larceny.bin
+
+# Setup options (based on script's name)
+case "`basename "$0"`" in
+    *)
+    case "`uname`" in
+	SunOS)
+	echo "Setup arguments not specified; assuming Solaris native build."
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
+	MAKETEXTSAFE=native2ascii
+	;;
+	Linux)
+	echo "Setup arguments not specified; assuming linux86 native build."
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	MAKETEXTSAFE="iconv -t utf8 -c"
+	;;
+	Darwin)
+	echo "Setup arguments not specified; assuming macosx86 native build."	
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	MAKETEXTSAFE=native2ascii
+	;;
+        CYGWIN*)
+	echo "Setup arguments not specified; assuming win32 native build."	
+	HOME="`pwd`"
+	SCHEME_PGM="`pwd`/HostLarceny/larceny.bat --"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'win32 'sassy 'string-rep: 'flat4"
+	FINAL_LARCENY_BIN=larceny.bin.exe
+	FINAL_TWOBIT_BIN=larceny.bin.exe
+	FINAL_LARCENY_SCRIPT=larceny.bat
+	FINAL_LARCENY_ROF_SCRIPT=larceny-np.bat
+	FIXPATH_CMD="cygpath -w"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	### XXX This is bad:
+	MAKETEXTSAFE="cat"
+        ;;
+	*)
+	echo "Setup arguments not specified; unknown target architecture."
+	exit 1
+	;;
+    esac
+    ;;
+esac
+
+# Perhaps add more to this, like the hour and minute?
+TODAY=`date +%Y-%m-%d` 
+DIRNAME=${DIRNAME:-"default"}
+DIR=${DIR:-"${HOME}/larcenytest/${DIRNAME}-gcbench"}
+MY_CDASHUPDATELOG="${DIR}/cdash-update-sub.xml"
+MY_CDASHCONFIGLOG="${DIR}/cdash-config-sub.xml"
+MY_CDASHBUILDLOG="${DIR}/cdash-build-sub.xml"
+MY_CDASHBUILDLOG_FAKE="${DIR}/cdash-fake-build-sub.xml"
+MY_CDASHBENCHLOG_DFLT="${DIR}/cdash-bench-dflt-sub.xml"
+MY_CDASHBENCHLOG_HROF="${DIR}/cdash-bench-hrof-sub.xml"
+MY_CDASHBENCHLOG_RROF3="${DIR}/cdash-bench-rrof3-sub.xml"
+MY_CDASHBENCHLOG_GEN2="${DIR}/cdash-bench-gen2-sub.xml"
+MY_CDASHBENCHLOG_GEN3="${DIR}/cdash-bench-gen3-sub.xml"
+MY_CDASHBENCHLOG_STCP="${DIR}/cdash-bench-stcp-sub.xml"
+SUBMITLOG="${DIR}/submit.log"
+TEMPLOG="${DIR}/temp.log"
+TEMPSCM="${DIR}/temp.scm"
+REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
+CALCDATE="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
+CALCDATESTAMP="date +%Y%m%d-%H%M"
+LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
+TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
+COMPILE_STDLIB_SCRIPT="src/Build/compile-standard-libraries.sch"
+
+mkdir -p ${DIR}
+
+function cdashupdatelog {
+   echo "$@" >> $MY_CDASHUPDATELOG
+}
+
+function cdashconfiglog {
+   echo "$@" >> $MY_CDASHCONFIGLOG
+}
+
+function cdashbuildlog {
+   echo "$@" >> $MY_CDASHBUILDLOG
+}
+
+function cdashbuildlog_fake {
+   echo "$@" >> $MY_CDASHBUILDLOG_FAKE
+}
+
+function remove_gclog {
+    case $1 in 
+       dflt)  MY_LOG=$MY_CDASHBENCHLOG_DFLT 
+       ;;
+       hrof)  MY_LOG=$MY_CDASHBENCHLOG_HROF
+       ;; 
+       rrof3) MY_LOG=$MY_CDASHBENCHLOG_RROF3
+       ;; 
+       gen2)  MY_LOG=$MY_CDASHBENCHLOG_GEN2
+       ;; 
+       gen3)  MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       ;; 
+       stcp)  MY_LOG=$MY_CDASHBENCHLOG_STCP
+       ;; 
+    esac
+    remove ${MY_LOG}
+}
+
+function  cdash_submit_gclog {
+    case $1 in 
+       dflt)  MY_LOG=$MY_CDASHBENCHLOG_DFLT 
+       ;;
+       hrof)  MY_LOG=$MY_CDASHBENCHLOG_HROF
+       ;; 
+       rrof3) MY_LOG=$MY_CDASHBENCHLOG_RROF3
+       ;; 
+       gen2)  MY_LOG=$MY_CDASHBENCHLOG_GEN2
+       ;; 
+       gen3)  MY_LOG=$MY_CDASHBENCHLOG_GEN3
+       ;; 
+       stcp)  MY_LOG=$MY_CDASHBENCHLOG_STCP
+       ;; 
+    esac
+    cdash_submit ${MY_LOG}
+}
+function cdashbenchlog {
+   case $1 in
+       dflt) 
+	   MY_LOG=$MY_CDASHBENCHLOG_DFLT 
+	   ;;
+       hrof) 
+	   MY_LOG=$MY_CDASHBENCHLOG_HROF
+	   ;; 
+       rrof3) 
+	   MY_LOG=$MY_CDASHBENCHLOG_RROF3
+	   ;; 
+       gen2) 
+	   MY_LOG=$MY_CDASHBENCHLOG_GEN2
+	   ;; 
+       gen3) 
+	   MY_LOG=$MY_CDASHBENCHLOG_GEN3
+	   ;; 
+       stcp) 
+	   MY_LOG=$MY_CDASHBENCHLOG_STCP
+	   ;; 
+   esac
+   shift 1; # (pop dispatch parameter)
+   echo "$@" >> ${MY_LOG}
+}
+
+function cmdsetstatus {
+    echo cmdsetstatus $1
+    SECS_BEGIN=`date +%s`
+    if eval "$1" ; then
+	STATUS="passed" 
+    else
+	STATUS="failed"
+    fi
+    SECS_FINIS=`date +%s`
+    SECS_ELAPSED=`echo " ($SECS_FINIS - $SECS_BEGIN)             " | bc`
+    MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+}
+
+function cdash_submit_fake {
+    echo fake submission of $1 to web site
+}
+
+function cdash_submit {
+    # Curl does not seem to return an error exit code on the 403 and 405 
+    # responses that I am intermittently receiving from CDash.  So I 
+    # grep -v for that output and rely on that to set the status bit
+    # accordingly in those cases...
+    CMD="echo submit attempt && curl -T $1 '$CDASHSERVER/submit.php?project=GCBench' > ${SUBMITLOG} && ! grep '<title>40' ${SUBMITLOG}"
+    if echo ${CMD}; eval "${CMD}"; then 
+      echo submit attempt 1 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 2 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 3 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 4 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 5 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 6 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 7 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 8 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 9 successful
+    elif eval "${CMD}"; then 
+      echo submit attempt 10 successful
+    else 
+      echo NO submit attempts successfuls
+      exit 1
+    fi 
+}
+
+##A trick for outputting stdout, stderr _and_ stdout&stderr to three separate files
+##with the appropriate ordering on messages.  Does not preserve the status code of
+##the argument command (given as i$1)
+#function cmdlog {
+#    ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3 | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
+#}
+
+function quoteupdatefile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_CDASHUPDATELOG}
+}
+
+function quoteconfigfile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_CDASHCONFIGLOG}
+}
+
+function quotebuildfile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' >> ${MY_CDASHBUILDLOG}
+}
+
+MY_BUILDNAME="`uname -sp`-$DIRNAME"
+MY_BUILDSTAMP="`$CALCDATESTAMP`-${TRACK}"
+MY_GENERATOR="${0}"
+
+function remove {
+    if test -e $1; then rm $1; fi
+}
+
+function update_from_subversion {
+  # CMD="svn checkout -q ${SVNTRUNK}"
+  CMD="svn up ./larceny_src"
+  remove $MY_CDASHUPDATELOG
+  cdashupdatelog '<?xml version="1.0" encoding="utf-8"?>'
+  
+  cdashupdatelog '<Update mode="Client" Generator="'"${MY_GENERATOR}"'">   '
+  cdashupdatelog '  <Site>'"`hostname`"'</Site>                            '
+  cdashupdatelog '  <BuildName>'"${MY_BUILDNAME}"'</BuildName>	           '
+  cdashupdatelog '  <BuildStamp>'"${MY_BUILDSTAMP}"'</BuildStamp>          '
+  cdashupdatelog '  <StartDateTime>'"`date`"'</StartDateTime>              '
+
+  cdashupdatelog '  <UpdateCommand>'"${CMD}"'</UpdateCommand>	           '
+  cdashupdatelog '  <UpdateType>SVN</UpdateType>		           '
+
+  pushd ${DIR} > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd         > /dev/null
+
+  cdashupdatelog '  <EndDateTime>'"`date`"'</EndDateTime>	           '
+  cdashupdatelog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>   '
+  cdashupdatelog '  <Log>                                                  '
+  quoteupdatefile ${TEMPLOG}
+  cdashupdatelog '  </Log>				                   '
+
+  cdashupdatelog '</Update>                                                '
+  
+  cdash_submit $MY_CDASHUPDATELOG
+  cp ${TEMPLOG} ${DIR}/update.log
+}
+
+function larceny_setup {
+  cat > ${TEMPSCM} <<EOF
+(load "setup.sch")
+(setup ${SETUP_ARGS} )
+(build-config-files)
+(exit)
+EOF
+  CMD="cat ${TEMPSCM} && ${SCHEME_PGM} ${REALSCM}"
+  remove $MY_CDASHCONFIGLOG
+  cdashconfiglog '<?xml version="1.0" encoding="utf-8"?>                          '
+  cdashconfiglog '<Site BuildName="'"${MY_BUILDNAME}"'"				  '
+  cdashconfiglog '      BuildStamp="'"${MY_BUILDSTAMP}"'" 			  '
+  cdashconfiglog '      Name="'"`hostname`"'"      				  '
+  cdashconfiglog '      Generator="'"${MY_GENERATOR}"'">			  '
+  cdashconfiglog ' <Configure>							  '
+  cdashconfiglog '  <StartDateTime>'"`date`"'</StartDateTime>		          '
+
+  cdashconfiglog '  <ConfigureCommand>'`echo "${CMD}" | sed -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/\&/\&amp;/g'`'</ConfigureCommand>               '
+
+  pushd ${DIR}/larceny_src > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd                     > /dev/null
+
+  cdashconfiglog '  <Log>                                                         '
+  quoteconfigfile ${TEMPLOG}
+  cdashconfiglog '  </Log>				                          '
+  cdashconfiglog '  <ConfigureStatus>'"${STATUS}"'</ConfigureStatus>		  '
+
+  cdashconfiglog '  <EndDateTime>'"`date`"'</EndDateTime>			  '
+  cdashconfiglog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>	  '
+  cdashconfiglog ' </Configure>							  '
+  cdashconfiglog '</Site>                                                         '
+        
+  cdash_submit $MY_CDASHCONFIGLOG
+  cp ${TEMPLOG} ${DIR}/setup.log
+}
+
+function larceny_build {
+  cat > ${TEMPSCM} <<EOF
+(load "setup.sch")
+(setup ${SETUP_ARGS} )
+(load-compiler)
+;(set! *make-verbose* #f)
+
+(build-heap)
+(build-runtime)
+(build-executable)
+(build-larceny-files)
+(build-twobit)
+
+(exit)
+EOF
+  CMD="cat ${TEMPSCM} && ${SCHEME_PGM} ${REALSCM} && echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT} && echo | ./${FINAL_LARCENY_SCRIPT} -- -e '(begin (current-directory \"test/Benchmarking/GC\") (load \"compile-files.sch\"))' && du -skh . && df -kh"
+  remove $MY_CDASHBUILDLOG
+  REAL_BUILD_START_DATE_TIME=`date`
+  cdashbuildlog '<?xml version="1.0" encoding="utf-8"?>                                     '
+  cdashbuildlog '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
+  cdashbuildlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"   				    '
+  cdashbuildlog '      Name="'"`hostname`"'"					            '
+  cdashbuildlog '      Generator="'"${MY_GENERATOR}"'">					    '
+  cdashbuildlog ' <Build>								    '
+  cdashbuildlog '  <StartDateTime>'"${REAL_BUILD_START_DATE_TIME}"'</StartDateTime>			            '
+
+  cdashbuildlog '  <BuildCommand>'`echo "${CMD}" | sed -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/\&/\&amp;/g'`'</BuildCommand>'
+
+  pushd ${DIR}/larceny_src > /dev/null
+  cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+  popd                     > /dev/null
+
+  if grep -qi warning ${TEMPLOG} ; then 
+     grep -n -i warning ${TEMPLOG} | while read WARNINGLINE ; do
+	 WARNINGLINENUM=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\1/'`
+	 WARNINGLINETXT=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\2/'`
+  cdashbuildlog '  <Warning>                                                                '
+  cdashbuildlog '   <BuildLogLine>'${WARNINGLINENUM}'</BuildLogLine>                        '
+  cdashbuildlog '   <Text>'${WARNINGLINETXT}'</Text>                                        '
+  cdashbuildlog '   <PreContext></PreContext>                                               '
+  cdashbuildlog '   <PostContext></PostContext>                                             '
+  cdashbuildlog '   <RepeatCount>0</RepeatCount>                                            '
+  cdashbuildlog '  </Warning>                                                               '
+     done 
+  fi
+
+  if [ $STATUS == "failed" ]
+  then
+      cdashbuildlog '<Error>                '
+      cdashbuildlog ' <Text>                '
+      quotebuildfile ${TEMPLOG}
+      cdashbuildlog ' </Text>               '
+      cdashbuildlog '</Error>               '
+  fi
+
+  cdashbuildlog '  <Log encoding="utf-8">                                                   '
+  quotebuildfile ${TEMPLOG}
+  cdashbuildlog '  </Log>                                                                   '
+  cdashbuildlog '  <LogByHand encoding="utf-8">                                             '
+  cdashbuildlog '  A hand written build log entry...                                        '
+  cdashbuildlog '  (the real Log is named LogOld in the xml)                                '
+  cdashbuildlog '  </LogByHand>                                                             '
+  
+  REAL_BUILD_END_DATE_TIME=`date`
+  cdashbuildlog '  <EndDateTime>'"${REAL_BUILD_END_DATE_TIME}"'</EndDateTime>				    '
+  cdashbuildlog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>			    '
+  cdashbuildlog ' </Build>								    '
+  cdashbuildlog '</Site>                                                                    '
+  
+  cdash_submit $MY_CDASHBUILDLOG
+
+  # For some reason, submitting the build log causes the config log to
+  # be removed from the display provided by CDash.  I am working
+  # around this bug by submitting the config log again after the build
+  # log; this is however ridiculous and it would be better to figure
+  # out what is wrong with the server (or with the format of the logs
+  # I am submitting).
+  cdash_submit $MY_CDASHCONFIGLOG
+
+  cp ${TEMPLOG} ${DIR}/build.log
+}
+
+function larceny_fake_build {
+  remove $MY_CDASHBUILDLOG_FAKE
+  cdashbuildlog_fake '<?xml version="1.0" encoding="utf-8"?>                                     '
+  cdashbuildlog_fake '<Site BuildName="'"${MY_BUILDNAME} $1"'"					    '
+  cdashbuildlog_fake '      BuildStamp="'"${MY_BUILDSTAMP}"'"   				    '
+  cdashbuildlog_fake '      Name="'"`hostname`"'"					            '
+  cdashbuildlog_fake '      Generator="'"${MY_GENERATOR}"'">					    '
+  cdashbuildlog_fake ' <Build>								    '
+  cdashbuildlog_fake '  <StartDateTime>'"${REAL_BUILD_START_DATE_TIME}"'</StartDateTime>			            '
+
+  cdashbuildlog_fake '  <BuildCommand>'`echo "${CMD}" | sed -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/\&/&amp;/g'`'</BuildCommand>'
+  
+  cdashbuildlog_fake '  <EndDateTime>'"${REAL_BUILD_END_DATE_TIME}"'</EndDateTime>				    '
+  cdashbuildlog_fake '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>			    '
+  cdashbuildlog_fake ' </Build>								    '
+  cdashbuildlog_fake '</Site>                                                                    '
+  
+  cdash_submit $MY_CDASHBUILDLOG_FAKE
+}
+
+function run_and_process_benchmark {
+  NAME="$2"
+  BMRK="$3"
+  EXPR="$4"
+
+  TEST_SECS_BEGIN=`date +%s`
+  CMD="echo '${EXPR}' | ${LARCENY} -- ${BMRK}.fasl"
+  cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+  TEST_SECS_FINIS=`date +%s`
+  TEST_SECS_ELAPSED=`echo " ($TEST_SECS_FINIS - $TEST_SECS_BEGIN) " | bc`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+
+  cdashbenchlog $1  "<Test Status=\"${STATUS}\">"
+  cdashbenchlog $1  "<Status>${STATUS}</Status>"
+  cdashbenchlog $1  " <Name>gc benchmark ${NAME}</Name>"
+  cdashbenchlog $1  " <Path>gc benchmark ${EXPR}</Path>"
+  cdashbenchlog $1  " <FullName>gc benchmark ${NAME}</FullName>"
+  cdashbenchlog $1  " <FullCommandLine>${CMD}</FullCommandLine>"
+  cdashbenchlog $1  " <Results>"
+  cdashbenchlog $1  "  <NamedMeasurement type=\"numeric/integer\" name=\"Execution Time\">"
+  cdashbenchlog $1  "    <Value>${TEST_SECS_ELAPSED}</Value>"
+  cdashbenchlog $1  "  </NamedMeasurement>"
+  cdashbenchlog $1  "  <NamedMeasurement type=\"numeric/string\" name=\"Completion Status\">"
+  cdashbenchlog $1  "    <Value>Completed</Value>"
+  cdashbenchlog $1  "  </NamedMeasurement>"
+  cdashbenchlog $1  " </Results>"
+  cdashbenchlog $1  "</Test>"
+}
+
+function larceny_gcbench {
+  larceny_fake_build $1
+
+  remove_gclog $1
+
+  cdashbenchlog $1  '<?xml version="1.0" encoding="utf-8"?>                                    '
+  cdashbenchlog $1  '<Site BuildName="'"${MY_BUILDNAME} $1"'"					    '
+  cdashbenchlog $1 '      BuildStamp="'"${MY_BUILDSTAMP}"'" 				    '
+  cdashbenchlog $1 '      Name="'"`hostname`"'"						    '
+  cdashbenchlog $1 '      Generator="'"${MY_GENERATOR}"'">				    '
+  cdashbenchlog $1 ' <Testing>								    '
+  cdashbenchlog $1 '  <StartDateTime>'"`date`"'</StartDateTime>			            '
+  cdashbenchlog $1 '  <TestList>								    '
+  cdashbenchlog $1 '   <Test>benchmark XXX YYY ZZZ</Test>					    '
+  cdashbenchlog $1 '  </TestList>								    '
+
+  pushd ${DIR}/larceny_src/test/Benchmarking/GC > /dev/null
+
+  BENCH_SECS_BEGIN=`date +%s`
+
+  run_and_process_benchmark $1 4nboyer:1 nboyer  '(nboyer-benchmark 1 4)'
+  run_and_process_benchmark $1 4nboyer:2 nboyer  '(nboyer-benchmark 2 4)'
+  run_and_process_benchmark $1 20earley:13 earley  '(earley-benchmark 13 20)'
+  run_and_process_benchmark $1 5nboyer:5 nboyer  '(nboyer-benchmark 5 5)'
+  run_and_process_benchmark $1 5nboyer:6 nboyer  '(nboyer-benchmark 6 5)'
+  run_and_process_benchmark $1 5sboyer:6 sboyer  '(sboyer-benchmark 6 5)'
+  run_and_process_benchmark $1 20gcbench:5 gcbench '(gc-benchmark 5 20)'
+  run_and_process_benchmark $1 200perm:9 perm '(MpermNKL-benchmark 200 9 10 1)'
+  run_and_process_benchmark $1 400perm:9 perm '(MpermNKL-benchmark 400 9 10 1)'
+  run_and_process_benchmark $1 5twobit:long twobit '(twobit-benchmark (quote long) 5)'
+  run_and_process_benchmark $1 gcold:100:0    gcold '(GCOld 100 0 1    0 800)'
+  run_and_process_benchmark $1 gcold:100:1000 gcold '(GCOld 100 0 1 1000 800)'
+
+  BENCH_SECS_FINIS=`date +%s`
+  BENCH_SECS_ELAPSED=`echo " ($BENCH_SECS_FINIS - $BENCH_SECS_BEGIN)             " | bc`
+  BENCH_MINS_ELAPSED=`echo "(($BENCH_SECS_FINIS - $BENCH_SECS_BEGIN) * 0.0166666)" | bc`
+
+
+  popd                     > /dev/null
+
+  cdashbenchlog $1  '  <EndDateTime>'"`date`"'</EndDateTime>				    '
+  cdashbenchlog $1 '  <ElapsedMinutes>'"${BENCH_MINS_ELAPSED}"'</ElapsedMinutes>		    '
+  cdashbenchlog $1 ' </Testing>								    '
+  cdashbenchlog $1 '</Site>                                                                   '
+  
+  cdash_submit_gclog $1
+}
+
+function larceny_gcbench_sys {
+    case $1 in 
+       dflt)  LARCENY_ARGS="         " ;;
+       hrof)  LARCENY_ARGS="-rof     " ;;
+       rrof3) LARCENY_ARGS="-rrof -refinement 3.0 " ;;
+       gen2)  LARCENY_ARGS="-areas 2 " ;;
+       gen3)  LARCENY_ARGS="-areas 3 " ;;
+       stcp)  LARCENY_ARGS="-stopcopy" ;;
+    esac
+    LARCENY="${DIR}/larceny_src/larceny ${LARCENY_ARGS} "
+    larceny_gcbench $1 ;
+}
+
+update_from_subversion;
+larceny_setup;
+larceny_build;
+
+for gcsys in ${GCSYSTEMS} ; do 
+  larceny_gcbench_sys $gcsys
+done
+
+BUILD_STATUS=${STATUS}
+
+if [ $BUILD_STATUS == "failed" ] 
+then exit 1
+fi

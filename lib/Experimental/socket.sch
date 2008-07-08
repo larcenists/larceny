@@ -13,12 +13,23 @@
 (require 'common-syntax)
 (require 'srfi-0)
 
+(define-syntax define-for-include-syntax
+  (transformer
+   (lambda (exp ren cmp)
+
+     ;; this makes the binding available for eval calls during
+     ;; expansion of define-c-info
+
+     (eval (cons 'define (cdr exp)))
+
+     (cons (ren 'define) (cdr exp)))))
+
 (cond-expand
   (unix
     (require "Experimental/unix")
-    (define socket/sys/socket.h "sys/socket.h")
-    (define socket/netinet/in.h "netinet/in.h")
-    (define socket/netdb.h      "netdb.h")
+    (define-for-include-syntax socket/sys/socket.h "sys/socket.h")
+    (define-for-include-syntax socket/netinet/in.h "netinet/in.h")
+    (define-for-include-syntax socket/netdb.h      "netdb.h")
 
     (define (socket/invalid? s)
       (= s -1))
@@ -41,9 +52,9 @@
     )
   (win32
     (require "Experimental/winsock")
-    (define socket/sys/socket.h "Winsock2.h")
-    (define socket/netinet/in.h "Winsock2.h")
-    (define socket/netdb.h      "Winsock2.h")
+    (define-for-include-syntax socket/sys/socket.h "Winsock2.h")
+    (define-for-include-syntax socket/netinet/in.h "Winsock2.h")
+    (define-for-include-syntax socket/netdb.h      "Winsock2.h")
 
     (define (socket/invalid? s)
       (= s winsock/INVALID_SOCKET))

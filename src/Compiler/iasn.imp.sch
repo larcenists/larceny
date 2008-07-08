@@ -680,9 +680,6 @@
 (define $save/stores
   (make-mnemonic 'save/stores))           ; save/store         n,(k1 ...),(n1 ...)
 
-(define $inline-asm
-  (make-mnemonic 'inline-asm))
-
 ; misc
 
 (define $cons     'cons)

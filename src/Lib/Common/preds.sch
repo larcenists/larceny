@@ -92,7 +92,7 @@
 ; How long should we try the traditional recursive algorithm
 ; before switching to the terminating algorithm?
 
-(define equal:bound-on-recursion 100000)
+(define equal:bound-on-recursion 5000000)
 
 (define (equal? x y)
 
@@ -292,8 +292,8 @@
             (else
              (let ((class0 (append (cdr xclass) yclass)))
                (set-cdr! xclass class0)
-               (set-car! yclass (car xclass))
-               (set-cdr! yclass class0)))))
+               (for-each (lambda (y) (hashtable-set! table y xclass))
+                         yclass)))))
     table)
 
   (let ((result (equal? x y equal:bound-on-recursion)))

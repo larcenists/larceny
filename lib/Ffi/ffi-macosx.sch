@@ -1,3 +1,5 @@
+#!no-fold-case
+
 (define ffi/i386-macosx-C-callout-cdecl
   (let ((parent ffi/i386-C-callout-cdecl))
 

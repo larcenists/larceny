@@ -1,0 +1,25 @@
+[[LarcenyLoadSection]]
+
+Load
+~~~~
+
+The `(larceny load)` library exports both the
+`load` procedure of `(err5rs load)`
+and Larceny's
+<<require,`require`>> procedure.
+
+In Larceny's ERR5RS mode,
+the `load` and `require` procedures can load
+R5RS libraries and programs as well as ERR5RS/R6RS
+libraries.
+
+[WARNING]
+================================================================
+These procedures should be used only at an interactive top
+level and in files that will be loaded into an interactive top
+level.  Calls to these procedures have no effect at compile
+time, and should not appear in files that will be compiled
+separately; use the `library` and `import` syntaxes instead.
+================================================================
+
+

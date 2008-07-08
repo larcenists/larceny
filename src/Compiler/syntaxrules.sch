@@ -10,7 +10,12 @@
 ; the benefit of the Scheme community.
 ;
 ; 23 November 1998
-; Compiler for a <transformer spec>.
+;
+; $Id$
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Compiler for a <transformer spec>.
 ;
 ; References:
 ;
@@ -196,9 +201,14 @@
 ;
 ; A macro denotation is of the form
 ;
-;    (macro (<rule> ...) env)
+;    (macro (<rule> ...) env h v)
 ;
-; where each <rule> has been compiled as described above.
+; where
+; each <rule> has been compiled as described above;
+; h is #f or a hash function on inputs;
+; v is #f or a vector whose i-th element is a list
+;     of the (compiled) rules that could match an input
+;     that hashes to i.
 
 (define (m-compile-transformer-spec spec env)
   (if (and (> (safe-length spec) 1)
@@ -212,11 +222,12 @@
                                      (pair? (car rule))))
                               rules)))
             (m-error "Malformed syntax-rules" spec))
-        (list 'macro
-              (map (lambda (rule)
-                     (m-compile-rule rule literals env))
-                   rules)
-              env))
+        (m-optimize-macro-denotation
+         (make-macro-denotation
+          (map (lambda (rule)
+                 (m-compile-rule rule literals env))
+               rules)
+          env)))
       (m-error "Malformed syntax-rules" spec)))
 
 (define (m-compile-rule rule literals env)
@@ -459,10 +470,13 @@
 ; does the right thing.
 
 (define (m-transcribe0 exp env-use k inline?)
-  (let* ((m (syntactic-lookup env-use (car exp)))
-         (rules (macro-rules m))
+
+  (let* ((m       (syntactic-lookup env-use (car exp)))
+         (rules   (macro-rules m))
          (env-def (macro-env m))
-         (F (cdr exp)))
+         (hash    (macro-hash m))
+         (F       (cdr exp)))
+
     (define (loop rules)
       (if (null? rules)
           (if inline?
@@ -479,9 +493,13 @@
                   (k newexp
                      (syntactic-alias env-use alist2 env-def)))
                 (loop (cdr rules))))))
-    (if (procedure? rules)
-        (m-transcribe-low-level exp env-use k rules env-def)
-        (loop rules))))
+
+    (cond ((procedure? rules)
+           (m-transcribe-low-level exp env-use k rules env-def))
+          (hash
+           (loop (vector-ref (macro-rules-table m) (hash F env-def))))
+          (else
+           (loop rules)))))
 
 (define (m-transcribe exp env-use k)
   (m-transcribe0 exp env-use k #f))

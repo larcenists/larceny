@@ -1072,7 +1072,8 @@
                          #x00 #x00 #x00 #x64
                          #x01 #x00 #x00 #x65
                          #x00 #x00 #x00 #x65)
-                   'big))
+                   'big
+                   #t))
         #t)
 
   (test "utf-32, errors 5"
@@ -1118,7 +1119,8 @@
                          #x64 #x00 #x00 #x00
                          #x65 #x00 #x00 #x01
                          #x65 #x00 #x00 #x00)
-                   'little))
+                   'little
+                   #t))
         #t)
 
   (let ((tostring        utf32->string)

@@ -109,7 +109,7 @@ call to make-record-type that created the type represented by _rtd_,
 or a member of the field-names of the parent type of the type
 represented by _rtd._
 
-proc:record?[args="obj"]
+proctempl:record?[args="obj"]
 
 Returns a true value if _obj_ is a record of any type and a false value
 otherwise. Note that `record?` may be true of any Scheme value; of
@@ -155,17 +155,10 @@ it exists, is a subtype of _t._
 
 ==== Implementation
 
-Larceny's old-style records are implemented on top of Larceny's
-low-level structure data type.  In Larceny v0.95, R6RS records
-are implemented as an extension to old-style records, ERR5RS
-records are implemented on top of R6RS records, and the R6RS
-syntactic layer is implemented on top of ERR5RS records.
-
-In some future release, ERR5RS records will become the
-foundation of the implementation, with old-style and R6RS
-records implemented on top of ERR5RS records.
-
 The R6RS spouts some tendentious nonsense about procedural
 records being slower than syntactic records, but this is not
 true of Larceny's records, and is unlikely to be true of other
 implementations either.
+Larceny's procedural records are fairly efficient already,
+and will become even more efficient in future versions as
+interlibrary optimizations are added.

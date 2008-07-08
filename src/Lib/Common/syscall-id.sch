@@ -57,5 +57,6 @@
 (define syscall:setenv 46)
 (define syscall:errno 47)
 (define syscall:seterrno 48)
+(define syscall:time 49)
 
 ; eof

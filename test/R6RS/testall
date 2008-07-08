@@ -6,11 +6,15 @@ echo; ${LARCENY} -r6rs < grabbag.sch
 echo; ${LARCENY} -r6rs -program grabbag.sch
 echo; ${LARCENY} -r6rs -program cpoint.sch
 echo; ${LARCENY} -r6rs -program cpointR6.sch
+echo; ${LARCENY} -r6rs -program regression.sch
 
 echo
-echo "R5RS startup time"; time larceny < /dev/null
+echo "R5RS startup"; time ${LARCENY} < /dev/null
 echo
-echo "R6RS startup time"; time ${LARCENY} -r6rs -program nothing.sch
+echo "R6RS startup (rnrs base)"; time ${LARCENY} -r6rs -program nothing.sch
+echo
+echo "R6RS startup (rnrs)"; time ${LARCENY} -r6rs -program nothingBig.sch
+echo
 echo; time ${LARCENY} -r6rs -program hello.sch
 echo; time ${LARCENY} -r6rs -program fib.sch     < fib.input
 echo; time ${LARCENY} -r6rs -program earley.sch  < earley.input

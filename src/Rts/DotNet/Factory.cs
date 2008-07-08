@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using Scheme.RT;
 using Scheme.Rep;
+using DynamicMethod = System.Reflection.Emit.DynamicMethod;
 
 namespace Scheme.Rep {
     
@@ -44,12 +45,12 @@ namespace Scheme.Rep {
             = new SImmediate("#f");
         public static readonly SImmediate Null
             = new SImmediate("()");
-        public static readonly SImmediate Eof 
+        public static SImmediate Eof 
             = new SImmediate("#<eof>");
-        public static readonly SImmediate Unspecified
-            = new SImmediate("#<unspecified>");
-        public static readonly SImmediate Undefined
-            = new SImmediate("#<undefined>");
+        public static SImmediate Unspecified
+            = new SImmediate("#!unspecified");
+        public static SImmediate Undefined
+            = new SImmediate("#!undefined");
         
         // Used as "return value" in escaping procedures
         public static readonly SImmediate Impossible
@@ -412,6 +413,27 @@ namespace Scheme.Rep {
         }
         public static SObject wrapAsList(SObject[] items) {
             return arrayToList(items, 0);
+        }
+
+        public delegate CodeAddress CodeDelegate(int label);
+        public class DelegateCodeVector : CodeVector {
+          CodeDelegate mycode;
+          public DelegateCodeVector( int controlPointCount, 
+                                     CodeDelegate d ) 
+            : base( controlPointCount ) {
+            mycode = d;
+          }
+          public override CodeAddress call(int label) {
+            // System.Console.WriteLine("DelegateCodeVector.call({0})", label);
+            return mycode(label);
+          }
+        }
+
+        public static CodeVector makeCodeVector( int controlPointCount,
+                                                 DynamicMethod dm ) {
+          CodeDelegate d = 
+            (CodeDelegate) dm.CreateDelegate(typeof(CodeDelegate));
+          return new DelegateCodeVector( controlPointCount, d );
         }
     }
 }

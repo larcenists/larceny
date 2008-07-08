@@ -74,7 +74,7 @@
       (define (length1? l) (and (pair? l) (null? (cdr l))))
       (let ((head (car l)) (tail (cdr l)))
         (case head
-          ((QUOTE QUASIQUOTE UNQUOTE UNQUOTE-SPLICING) (length1? tail))
+          ((quote quasiquote unquote unquote-splicing) (length1? tail))
           (else                                        #f))))
 
     (define (read-macro-body l)
@@ -83,10 +83,10 @@
     (define (read-macro-prefix l)
       (let ((head (car l)) (tail (cdr l)))
         (case head
-          ((QUOTE)            "'")
-          ((QUASIQUOTE)       "`")
-          ((UNQUOTE)          ",")
-          ((UNQUOTE-SPLICING) ",@"))))
+          ((quote)            "'")
+          ((quasiquote)       "`")
+          ((unquote)          ",")
+          ((unquote-splicing) ",@"))))
 
     (define (out str col)
       (and col (output str) (+ col (string-length str))))
@@ -421,14 +421,14 @@
 
       (define (style head)
         (case head
-          ((LAMBDA LET* LETREC DEFINE) pp-LAMBDA)
-          ((SET!)                      pp-IF)     ; Used to handle IF, too.
-          ((COND)                      pp-COND)
-          ((CASE)                      pp-CASE)
-          ((AND OR)                    pp-AND)
-          ((LET)                       pp-LET)
-          ((BEGIN)                     pp-BEGIN)
-          ((DO)                        pp-DO)
+          ((lambda let* letrec define) pp-LAMBDA)
+          ((set!)                      pp-IF)     ; Used to handle IF, too.
+          ((cond)                      pp-COND)
+          ((case)                      pp-CASE)
+          ((and or)                    pp-AND)
+          ((let)                       pp-LET)
+          ((begin)                     pp-BEGIN)
+          ((do)                        pp-DO)
           (else                        #f)))
 
       (pr obj col 0 pp-expr))

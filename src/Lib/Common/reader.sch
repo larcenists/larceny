@@ -105,78 +105,6 @@
   #t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; If #t, symbols beginning with : are self-quoting.
-;;
-;; Note:  This affects macro expansion, but doesn't affect the reader
-;; apart from its mode setting in response to #!r6rs et cetera.
-
-(define recognize-keywords? (make-parameter "recognize-keywords?" #f))
-
-(define recognize-javadot-symbols?
-  (make-parameter "recognize-javadot-symbols?" #f boolean?))
-
-(define case-sensitive? (make-parameter "case-sensitive?" #f boolean?))
-
-(define read-square-bracket-as-paren
-  (make-parameter "read-square-bracket-as-paren" #t boolean?))
-
-;; If #t, the reader keeps track of source locations.
-
-(define datum-source-locations?
-  (make-parameter "datum-source-locations?" #f boolean?))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; New parameters and stuff.
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Enables #!r5rs and #!larceny
-
-(define read-r6rs-flags?
-  (make-parameter "read-r6rs-flags?" #t boolean?))
-
-;; Enables:
-;; #!null #!false #!true #!unspecified #!undefined
-;; #!slow #!fast #!safe #!unsafe
-;; embedded vertical bars within symbols
-;; #^B #^C #^F #^P #^G randomness (used in FASL files)
-
-(define read-larceny-weirdness?
-  (make-parameter "read-larceny-weirdness?" #t boolean?))
-
-;; Enables:
-;; vertical bars surrounding symbols
-;; backslash escaping of symbols (disables *all* case-folding in symbol)
-;; non-number implies symbol (at least for some things)
-;; some nonstandard peculiar identifiers (-- -1+ 1+ 1-)
-;; backslashes in strings before characters that don't have to be escaped
-;; unconditional downcasing of the character following #
-;; nonstandard character names (?)
-;; #! ... !# comments (see lib/Standard/exec-comment.sch)
-;; #.(...) read-time evaluation (see lib/Standard/sharp-dot.sch)
-;; #&... (see lib/Standard/box.sch)
-
-(define read-traditional-weirdness?
-  (make-parameter "read-traditional-weirdness?" #f boolean?))
-
-;; Enables
-;; MzScheme #\uXX character notation
-;; MzScheme #% randomness
-;; #"..." randomness
-
-(define read-mzscheme-weirdness?
-  (make-parameter "read-mzscheme-weirdness?" #f boolean?))
-
-;; The traditional and MzScheme weirdness is not yet supported.
-;; The following were supported in v0.93 but will not be in the
-;; future:
-;;
-;; #r randomness (regular expressions?)
-;; some kind of weirdness in flush-whitespace-until-rparen
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; This is the real parser.
 ;
@@ -253,14 +181,14 @@
                    (char=? c #\newline))
                (read-char input-port)
                (loop (peek-char input-port)))
-#;            ((char=? c #\;)
-               (scanner1))
-#;            ((char=? c #\()
-               (read-char input-port)
-               (accept 'lparen))
-#;            ((char=? c #\))
-               (read-char input-port)
-               (accept 'rparen))
+;             ((char=? c #\;)
+;              (scanner1))
+;             ((char=? c #\()
+;              (read-char input-port)
+;              (accept 'lparen))
+;             ((char=? c #\))
+;              (read-char input-port)
+;              (accept 'rparen))
               (else
                (state0 c))))
       (loop (peek-char input-port)))
@@ -296,11 +224,11 @@
        (begin
          (set! string_accumulator_length 0)
          (state0 (scanChar))))
-      ((#\;) (consumeChar) (state193 (scanChar)))
-      ((#\#) (consumeChar) (state192 (scanChar)))
+      ((#\;) (consumeChar) (state201 (scanChar)))
+      ((#\#) (consumeChar) (state200 (scanChar)))
       ((#\0 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state123 (scanChar)))
+       (state131 (scanChar)))
       ((#\a
         #\b
         #\c
@@ -810,7 +738,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -861,7 +788,7 @@
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
       ((#\#) (consumeChar) (state64 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       (else
        (if ((lambda (c)
               (and (char? c)
@@ -1505,7 +1432,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -1546,7 +1472,7 @@
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
       ((#\#) (consumeChar) (state64 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state14 (scanChar)))
@@ -1725,7 +1651,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -1765,7 +1690,7 @@
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
       ((#\#) (consumeChar) (state64 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state16 (scanChar)))
@@ -2021,12 +1946,12 @@
                (accept 'id))))))
   (define (state19 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state153 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state161 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state20 c)
@@ -2056,7 +1981,6 @@
         #\C
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\M
@@ -2093,7 +2017,7 @@
        (consumeChar)
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state20 (scanChar)))
@@ -2134,8 +2058,8 @@
                (accept 'id))))))
   (define (state21 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state154 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state162 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state22 c)
@@ -2173,7 +2097,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -2213,7 +2136,7 @@
        (consumeChar)
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state22 (scanChar)))
@@ -2360,14 +2283,14 @@
                (accept 'id))))))
   (define (state24 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state157 (scanChar)))
-      ((#\/) (consumeChar) (state156 (scanChar)))
-      ((#\.) (consumeChar) (state153 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state165 (scanChar)))
+      ((#\/) (consumeChar) (state164 (scanChar)))
+      ((#\.) (consumeChar) (state161 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state25 c)
@@ -2397,7 +2320,6 @@
         #\C
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\M
@@ -2432,7 +2354,7 @@
        (consumeChar)
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
-      ((#\i) (consumeChar) (state29 (scanChar)))
+      ((#\i #\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state25 (scanChar)))
@@ -2507,7 +2429,6 @@
         #\F
         #\G
         #\H
-        #\I
         #\J
         #\K
         #\L
@@ -2547,6 +2468,7 @@
        (state68 (scanChar)))
       ((#\\) (consumeChar) (state67 (scanChar)))
       ((#\#) (consumeChar) (state64 (scanChar)))
+      ((#\I) (consumeChar) (state29 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state25 (scanChar)))
@@ -4063,11 +3985,11 @@
                (accept 'id))))))
   (define (state40 c)
     (case c
-      ((#\#) (consumeChar) (state173 (scanChar)))
+      ((#\#) (consumeChar) (state181 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (accept 'number))))
   (define (state41 c)
@@ -4175,7 +4097,7 @@
                (accept 'number))))))
   (define (state42 c)
     (case c
-      ((#\#) (consumeChar) (state174 (scanChar)))
+      ((#\#) (consumeChar) (state182 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (accept 'number))))
   (define (state43 c)
@@ -4400,13 +4322,13 @@
                (accept 'id))))))
   (define (state45 c)
     (case c
-      ((#\#) (consumeChar) (state177 (scanChar)))
-      ((#\/) (consumeChar) (state176 (scanChar)))
-      ((#\.) (consumeChar) (state173 (scanChar)))
+      ((#\#) (consumeChar) (state185 (scanChar)))
+      ((#\/) (consumeChar) (state184 (scanChar)))
+      ((#\.) (consumeChar) (state181 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (accept 'number))))
   (define (state46 c)
@@ -5280,13 +5202,13 @@
                (accept 'id))))))
   (define (state54 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state118 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state126 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
       ((#\%) (consumeChar) (state68 (scanChar)))
       (else (accept 'number))))
   (define (state55 c)
@@ -5503,65 +5425,68 @@
                (accept 'period))))))
   (define (state57 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state123 (scanChar)))
-      ((#\#) (consumeChar) (state122 (scanChar)))
-      ((#\/) (consumeChar) (state121 (scanChar)))
+       (state131 (scanChar)))
+      ((#\#) (consumeChar) (state130 (scanChar)))
+      ((#\/) (consumeChar) (state129 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      ((#\.) (consumeChar) (state112 (scanChar)))
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      ((#\.) (consumeChar) (state120 (scanChar)))
       ((#\+ #\-) (consumeChar) (state58 (scanChar)))
       (else (accept 'number))))
   (define (state58 c)
     (case c
+      ((#\I) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state158 (scanChar)))
-      ((#\.) (consumeChar) (state146 (scanChar)))
-      ((#\n) (consumeChar) (state145 (scanChar)))
-      ((#\i) (consumeChar) (state140 (scanChar)))
+       (state166 (scanChar)))
+      ((#\.) (consumeChar) (state154 (scanChar)))
+      ((#\n) (consumeChar) (state153 (scanChar)))
+      ((#\i) (consumeChar) (state148 (scanChar)))
       (else (accept 'id))))
   (define (state59 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
+      ((#\i #\I) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\#) (consumeChar) (state184 (scanChar)))
-      ((#\/) (consumeChar) (state183 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\-) (consumeChar) (state159 (scanChar)))
+       (state193 (scanChar)))
+      ((#\#) (consumeChar) (state192 (scanChar)))
+      ((#\/) (consumeChar) (state191 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\-) (consumeChar) (state167 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      ((#\.) (consumeChar) (state132 (scanChar)))
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      ((#\.) (consumeChar) (state140 (scanChar)))
       ((#\+) (consumeChar) (state58 (scanChar)))
       (else (accept 'number))))
   (define (state60 c)
     (case c
       ((#\-) (consumeChar) (accept 'id))
+      ((#\I) (consumeChar) (accept 'number))
       ((#\0 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\.) (consumeChar) (state131 (scanChar)))
-      ((#\n) (consumeChar) (state130 (scanChar)))
-      ((#\i) (consumeChar) (state125 (scanChar)))
+       (state193 (scanChar)))
+      ((#\.) (consumeChar) (state139 (scanChar)))
+      ((#\n) (consumeChar) (state138 (scanChar)))
+      ((#\i) (consumeChar) (state133 (scanChar)))
       ((#\: #\>) (consumeChar) (state68 (scanChar)))
       ((#\1) (consumeChar) (state59 (scanChar)))
       (else (accept 'id))))
   (define (state61 c)
     (case c
+      ((#\I) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\.) (consumeChar) (state131 (scanChar)))
-      ((#\n) (consumeChar) (state130 (scanChar)))
-      ((#\i) (consumeChar) (state125 (scanChar)))
+       (state193 (scanChar)))
+      ((#\.) (consumeChar) (state139 (scanChar)))
+      ((#\n) (consumeChar) (state138 (scanChar)))
+      ((#\i) (consumeChar) (state133 (scanChar)))
       ((#\:) (consumeChar) (state68 (scanChar)))
       (else (accept 'id))))
   (define (state62 c)
@@ -5801,7 +5726,33 @@
         #\w
         #\x
         #\y
-        #\z)
+        #\z
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F
+        #\G
+        #\H
+        #\I
+        #\J
+        #\K
+        #\L
+        #\M
+        #\N
+        #\O
+        #\P
+        #\Q
+        #\R
+        #\S
+        #\T
+        #\U
+        #\V
+        #\W
+        #\X
+        #\Y
+        #\Z)
        (consumeChar)
        (state73 (scanChar)))
       (else (accept 'character))))
@@ -5834,25 +5785,10 @@
       (else (accept 'character))))
   (define (state75 c)
     (case c
-      ((#\a #\b #\c #\d #\e #\f)
+      ((#\a #\b #\c #\d #\e #\f #\A #\B #\C #\D #\E #\F)
        (consumeChar)
        (state75 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state74 (scanChar)))
       ((#\g
@@ -5874,7 +5810,27 @@
         #\w
         #\x
         #\y
-        #\z)
+        #\z
+        #\G
+        #\H
+        #\I
+        #\J
+        #\K
+        #\L
+        #\M
+        #\N
+        #\O
+        #\P
+        #\Q
+        #\R
+        #\S
+        #\T
+        #\U
+        #\V
+        #\W
+        #\X
+        #\Y
+        #\Z)
        (consumeChar)
        (state73 (scanChar)))
       (else (accept 'character))))
@@ -5905,7 +5861,33 @@
         #\v
         #\w
         #\y
-        #\z)
+        #\z
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F
+        #\G
+        #\H
+        #\I
+        #\J
+        #\K
+        #\L
+        #\M
+        #\N
+        #\O
+        #\P
+        #\Q
+        #\R
+        #\S
+        #\T
+        #\U
+        #\V
+        #\W
+        #\X
+        #\Y
+        #\Z)
        (consumeChar)
        (state73 (scanChar)))
       (else
@@ -5916,11 +5898,11 @@
     (case c
       ((#\i #\I #\e #\E)
        (consumeChar)
-       (state108 (scanChar)))
+       (state116 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state78 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state107 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state115 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -5949,14 +5931,14 @@
       (else (scannerError errIncompleteToken))))
   (define (state79 c)
     (case c
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
       ((#\#) (consumeChar) (state79 (scanChar)))
       (else (accept 'number))))
   (define (state80 c)
     (case c
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -6012,15 +5994,15 @@
       (else (scannerError errIncompleteToken))))
   (define (state82 c)
     (case c
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
       ((#\#) (consumeChar) (state82 (scanChar)))
       ((#\/) (consumeChar) (state81 (scanChar)))
       (else (accept 'number))))
   (define (state83 c)
     (case c
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -6059,8 +6041,8 @@
   (define (state86 c)
     (case c
       ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
       (else (accept 'number))))
   (define (state87 c)
     (case c
@@ -6080,187 +6062,40 @@
       (else (scannerError errIncompleteToken))))
   (define (state91 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state154 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state91 (scanChar)))
+      ((#\f) (consumeChar) (state95 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state92 c)
     (case c
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state91 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\n) (consumeChar) (state91 (scanChar)))
+      (else (accept 'number))))
   (define (state93 c)
     (case c
       ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state93 (scanChar)))
-      ((#\/) (consumeChar) (state92 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state94 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state94 (scanChar)))
-      ((#\#) (consumeChar) (state93 (scanChar)))
-      ((#\/) (consumeChar) (state92 (scanChar)))
+      ((#\0) (consumeChar) (state93 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state95 c)
     (case c
-      ((#\n) (consumeChar) (state145 (scanChar)))
-      ((#\i) (consumeChar) (state140 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state94 (scanChar)))
+      ((#\.) (consumeChar) (state94 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state96 c)
     (case c
-      ((#\#) (consumeChar) (state174 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state96 (scanChar)))
-      (else (accept 'number))))
+      ((#\n) (consumeChar) (state95 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state97 c)
     (case c
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state96 (scanChar)))
+      ((#\a) (consumeChar) (state96 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state98 c)
     (case c
+      ((#\i) (consumeChar) (accept 'number))
       ((#\#) (consumeChar) (state98 (scanChar)))
-      ((#\/) (consumeChar) (state97 (scanChar)))
-      (else (accept 'number))))
+      (else (scannerError errIncompleteToken))))
   (define (state99 c)
     (case c
+      ((#\i) (consumeChar) (accept 'number))
       ((#\0
         #\1
         #\2
@@ -6286,12 +6121,9 @@
        (consumeChar)
        (state99 (scanChar)))
       ((#\#) (consumeChar) (state98 (scanChar)))
-      ((#\/) (consumeChar) (state97 (scanChar)))
-      (else (accept 'number))))
+      (else (scannerError errIncompleteToken))))
   (define (state100 c)
     (case c
-      ((#\n) (consumeChar) (state165 (scanChar)))
-      ((#\i) (consumeChar) (state161 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -6319,42 +6151,42 @@
       (else (scannerError errIncompleteToken))))
   (define (state101 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state100 (scanChar)))
-      ((#\0
-        #\1
-        #\2
-        #\3
-        #\4
-        #\5
-        #\6
-        #\7
-        #\8
-        #\9
-        #\a
-        #\b
-        #\c
-        #\d
-        #\e
-        #\f
-        #\A
-        #\B
-        #\C
-        #\D
-        #\E
-        #\F)
-       (consumeChar)
-       (state99 (scanChar)))
+      ((#\i) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state101 (scanChar)))
+      ((#\/) (consumeChar) (state100 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state102 c)
     (case c
       ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state102 (scanChar)))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
-      (else (accept 'number))))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state102 (scanChar)))
+      ((#\#) (consumeChar) (state101 (scanChar)))
+      ((#\/) (consumeChar) (state100 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state103 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
       ((#\0
         #\1
         #\2
@@ -6378,13 +6210,13 @@
         #\E
         #\F)
        (consumeChar)
-       (state103 (scanChar)))
-      ((#\#) (consumeChar) (state102 (scanChar)))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
-      (else (accept 'number))))
+       (state102 (scanChar)))
+      ((#\n) (consumeChar) (state97 (scanChar)))
+      ((#\i) (consumeChar) (state92 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state104 c)
     (case c
+      ((#\#) (consumeChar) (state182 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -6408,19 +6240,10 @@
         #\E
         #\F)
        (consumeChar)
-       (state103 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+       (state104 (scanChar)))
+      (else (accept 'number))))
   (define (state105 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state105 (scanChar)))
-      ((#\/) (consumeChar) (state104 (scanChar)))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
-      (else (accept 'number))))
-  (define (state106 c)
-    (case c
-      ((#\i) (consumeChar) (accept 'number))
       ((#\0
         #\1
         #\2
@@ -6444,11 +6267,12 @@
         #\E
         #\F)
        (consumeChar)
-       (state106 (scanChar)))
-      ((#\#) (consumeChar) (state105 (scanChar)))
-      ((#\/) (consumeChar) (state104 (scanChar)))
-      ((#\@) (consumeChar) (state101 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state95 (scanChar)))
+       (state104 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state106 c)
+    (case c
+      ((#\#) (consumeChar) (state106 (scanChar)))
+      ((#\/) (consumeChar) (state105 (scanChar)))
       (else (accept 'number))))
   (define (state107 c)
     (case c
@@ -6475,13 +6299,204 @@
         #\E
         #\F)
        (consumeChar)
-       (state106 (scanChar)))
+       (state107 (scanChar)))
+      ((#\#) (consumeChar) (state106 (scanChar)))
+      ((#\/) (consumeChar) (state105 (scanChar)))
+      (else (accept 'number))))
+  (define (state108 c)
+    (case c
+      ((#\n) (consumeChar) (state173 (scanChar)))
+      ((#\i) (consumeChar) (state169 (scanChar)))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state107 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state109 c)
+    (case c
+      ((#\+ #\-) (consumeChar) (state108 (scanChar)))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state107 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state110 c)
+    (case c
+      ((#\i) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state110 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
+      (else (accept 'number))))
+  (define (state111 c)
+    (case c
+      ((#\i) (consumeChar) (accept 'number))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state111 (scanChar)))
+      ((#\#) (consumeChar) (state110 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
+      (else (accept 'number))))
+  (define (state112 c)
+    (case c
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state111 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state113 c)
+    (case c
+      ((#\i) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state113 (scanChar)))
+      ((#\/) (consumeChar) (state112 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
+      (else (accept 'number))))
+  (define (state114 c)
+    (case c
+      ((#\i) (consumeChar) (accept 'number))
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state114 (scanChar)))
+      ((#\#) (consumeChar) (state113 (scanChar)))
+      ((#\/) (consumeChar) (state112 (scanChar)))
+      ((#\@) (consumeChar) (state109 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state103 (scanChar)))
+      (else (accept 'number))))
+  (define (state115 c)
+    (case c
+      ((#\0
+        #\1
+        #\2
+        #\3
+        #\4
+        #\5
+        #\6
+        #\7
+        #\8
+        #\9
+        #\a
+        #\b
+        #\c
+        #\d
+        #\e
+        #\f
+        #\A
+        #\B
+        #\C
+        #\D
+        #\E
+        #\F)
+       (consumeChar)
+       (state114 (scanChar)))
       ((#\n) (consumeChar) (state90 (scanChar)))
       ((#\i) (consumeChar) (state85 (scanChar)))
       (else (scannerError errIncompleteToken))))
-  (define (state108 c)
+  (define (state116 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state107 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state115 (scanChar)))
       ((#\0
         #\1
         #\2
@@ -6507,505 +6522,442 @@
        (consumeChar)
        (state83 (scanChar)))
       (else (scannerError errIncompleteToken))))
-  (define (state109 c)
-    (case c
-      ((#\d #\D) (consumeChar) (state187 (scanChar)))
-      ((#\b #\B #\o #\O #\x #\X)
-       (consumeChar)
-       (state108 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state110 c)
-    (case c
-      ((#\+ #\-) (consumeChar) (state186 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state123 (scanChar)))
-      ((#\.) (consumeChar) (state111 (scanChar)))
-      ((#\#) (consumeChar) (state109 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state111 c)
-    (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state112 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state112 c)
-    (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state118 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state112 (scanChar)))
-      (else (accept 'number))))
-  (define (state113 c)
-    (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state113 (scanChar)))
-      (else (accept 'number))))
-  (define (state114 c)
-    (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state113 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state115 c)
-    (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state115 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      (else (accept 'number))))
-  (define (state116 c)
-    (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state115 (scanChar)))
-      (else (scannerError errIncompleteToken))))
   (define (state117 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state116 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+      ((#\d #\D) (consumeChar) (state195 (scanChar)))
+      ((#\b #\B #\o #\O #\x #\X)
        (consumeChar)
-       (state115 (scanChar)))
+       (state116 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state118 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state118 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+      ((#\+ #\-) (consumeChar) (state194 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      (else (accept 'number))))
+       (state131 (scanChar)))
+      ((#\.) (consumeChar) (state119 (scanChar)))
+      ((#\#) (consumeChar) (state117 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state119 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state119 (scanChar)))
-      (else (accept 'number))))
-  (define (state120 c)
-    (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state120 (scanChar)))
-      ((#\#) (consumeChar) (state119 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state120 c)
+    (case c
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state126 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state120 (scanChar)))
       (else (accept 'number))))
   (define (state121 c)
     (case c
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state120 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+       (state121 (scanChar)))
+      (else (accept 'number))))
   (define (state122 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state122 (scanChar)))
-      ((#\/) (consumeChar) (state121 (scanChar)))
-      ((#\.) (consumeChar) (state118 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      (else (accept 'number))))
+       (state121 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state123 c)
     (case c
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state123 (scanChar)))
-      ((#\#) (consumeChar) (state122 (scanChar)))
-      ((#\/) (consumeChar) (state121 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state117 (scanChar)))
-      ((#\|) (consumeChar) (state114 (scanChar)))
-      ((#\.) (consumeChar) (state112 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
       (else (accept 'number))))
   (define (state124 c)
     (case c
-      ((#\f) (consumeChar) (state128 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state123 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state125 c)
     (case c
-      ((#\n) (consumeChar) (state124 (scanChar)))
-      (else (accept 'number))))
+      ((#\+ #\-) (consumeChar) (state124 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state123 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state126 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state126 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
       (else (accept 'number))))
   (define (state127 c)
     (case c
-      ((#\0) (consumeChar) (state126 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state127 (scanChar)))
+      (else (accept 'number))))
   (define (state128 c)
     (case c
-      ((#\.) (consumeChar) (state127 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state128 (scanChar)))
+      ((#\#) (consumeChar) (state127 (scanChar)))
+      (else (accept 'number))))
   (define (state129 c)
     (case c
-      ((#\n) (consumeChar) (state128 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state128 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state130 c)
     (case c
-      ((#\a) (consumeChar) (state129 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state131 c)
-    (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state132 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state132 c)
-    (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state138 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state130 (scanChar)))
+      ((#\/) (consumeChar) (state129 (scanChar)))
+      ((#\.) (consumeChar) (state126 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      (else (accept 'number))))
+  (define (state131 c)
+    (case c
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state132 (scanChar)))
+       (state131 (scanChar)))
+      ((#\#) (consumeChar) (state130 (scanChar)))
+      ((#\/) (consumeChar) (state129 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state125 (scanChar)))
+      ((#\|) (consumeChar) (state122 (scanChar)))
+      ((#\.) (consumeChar) (state120 (scanChar)))
       (else (accept 'number))))
+  (define (state132 c)
+    (case c
+      ((#\f) (consumeChar) (state136 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state133 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state133 (scanChar)))
+      ((#\n) (consumeChar) (state132 (scanChar)))
       (else (accept 'number))))
   (define (state134 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state133 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      (else (accept 'number))))
   (define (state135 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state135 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      (else (accept 'number))))
+      ((#\0) (consumeChar) (state134 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state136 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state135 (scanChar)))
+      ((#\.) (consumeChar) (state135 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state137 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state136 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state135 (scanChar)))
+      ((#\n) (consumeChar) (state136 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state138 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\#) (consumeChar) (state138 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      (else (accept 'number))))
+      ((#\a) (consumeChar) (state137 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state139 c)
     (case c
-      ((#\f) (consumeChar) (state143 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state140 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state140 c)
     (case c
-      ((#\n) (consumeChar) (state139 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state146 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state140 (scanChar)))
       (else (accept 'number))))
   (define (state141 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      (else (scannerError errIncompleteToken))))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state141 (scanChar)))
+      (else (accept 'number))))
   (define (state142 c)
     (case c
-      ((#\0) (consumeChar) (state141 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state141 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state143 c)
     (case c
-      ((#\.) (consumeChar) (state142 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state143 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      (else (accept 'number))))
   (define (state144 c)
     (case c
-      ((#\n) (consumeChar) (state143 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state143 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state145 c)
     (case c
-      ((#\a) (consumeChar) (state144 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state144 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state143 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state146 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state147 (scanChar)))
-      (else (scannerError errIncompleteToken))))
-  (define (state147 c)
-    (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state153 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\#) (consumeChar) (state146 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state147 (scanChar)))
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      (else (accept 'number))))
+  (define (state147 c)
+    (case c
+      ((#\f) (consumeChar) (state151 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state148 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state148 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+      ((#\n) (consumeChar) (state147 (scanChar)))
+      (else (accept 'number))))
   (define (state149 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state148 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
       (else (scannerError errIncompleteToken))))
   (define (state150 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state150 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+      ((#\0) (consumeChar) (state149 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state151 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state150 (scanChar)))
+      ((#\.) (consumeChar) (state150 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state152 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state151 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state150 (scanChar)))
+      ((#\n) (consumeChar) (state151 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state153 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state153 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+      ((#\a) (consumeChar) (state152 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state154 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state154 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state155 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state155 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state161 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state155 (scanChar)))
-      ((#\#) (consumeChar) (state154 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state156 c)
     (case c
+      ((#\i #\I) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state155 (scanChar)))
+       (state156 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state157 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state157 (scanChar)))
-      ((#\/) (consumeChar) (state156 (scanChar)))
-      ((#\.) (consumeChar) (state153 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
+       (state156 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state158 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
+      ((#\i #\I) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state158 (scanChar)))
-      ((#\#) (consumeChar) (state157 (scanChar)))
-      ((#\/) (consumeChar) (state156 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state152 (scanChar)))
-      ((#\|) (consumeChar) (state149 (scanChar)))
-      ((#\.) (consumeChar) (state147 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state159 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state158 (scanChar)))
-      ((#\.) (consumeChar) (state146 (scanChar)))
-      ((#\n) (consumeChar) (state145 (scanChar)))
-      ((#\i) (consumeChar) (state140 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state160 c)
     (case c
-      ((#\f) (consumeChar) (state163 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state158 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state161 c)
     (case c
-      ((#\n) (consumeChar) (state160 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state161 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state162 c)
     (case c
-      ((#\0) (consumeChar) (accept 'number))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state162 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state163 c)
     (case c
-      ((#\.) (consumeChar) (state162 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state163 (scanChar)))
+      ((#\#) (consumeChar) (state162 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state164 c)
     (case c
-      ((#\n) (consumeChar) (state163 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state163 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state165 c)
     (case c
-      ((#\a) (consumeChar) (state164 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state165 (scanChar)))
+      ((#\/) (consumeChar) (state164 (scanChar)))
+      ((#\.) (consumeChar) (state161 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state166 c)
     (case c
+      ((#\i #\I) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state167 (scanChar)))
+       (state166 (scanChar)))
+      ((#\#) (consumeChar) (state165 (scanChar)))
+      ((#\/) (consumeChar) (state164 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state160 (scanChar)))
+      ((#\|) (consumeChar) (state157 (scanChar)))
+      ((#\.) (consumeChar) (state155 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state167 c)
     (case c
-      ((#\#) (consumeChar) (state173 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
+      ((#\I) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state167 (scanChar)))
-      (else (accept 'number))))
+       (state166 (scanChar)))
+      ((#\.) (consumeChar) (state154 (scanChar)))
+      ((#\n) (consumeChar) (state153 (scanChar)))
+      ((#\i) (consumeChar) (state148 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state168 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state168 (scanChar)))
-      (else (accept 'number))))
+      ((#\f) (consumeChar) (state171 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state169 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state168 (scanChar)))
+      ((#\n) (consumeChar) (state168 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state170 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state170 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
-      (else (accept 'number))))
+      ((#\0) (consumeChar) (accept 'number))
+      (else (scannerError errIncompleteToken))))
   (define (state171 c)
     (case c
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state170 (scanChar)))
+      ((#\.) (consumeChar) (state170 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state172 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state171 (scanChar)))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state170 (scanChar)))
+      ((#\n) (consumeChar) (state171 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state173 c)
     (case c
-      ((#\#) (consumeChar) (state173 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
-      (else (accept 'number))))
+      ((#\a) (consumeChar) (state172 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state174 c)
-    (case c
-      ((#\#) (consumeChar) (state174 (scanChar)))
-      (else (accept 'number))))
-  (define (state175 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state175 (scanChar)))
-      ((#\#) (consumeChar) (state174 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state175 c)
+    (case c
+      ((#\#) (consumeChar) (state181 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state175 (scanChar)))
       (else (accept 'number))))
   (define (state176 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state175 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+       (state176 (scanChar)))
+      (else (accept 'number))))
   (define (state177 c)
     (case c
-      ((#\#) (consumeChar) (state177 (scanChar)))
-      ((#\/) (consumeChar) (state176 (scanChar)))
-      ((#\.) (consumeChar) (state173 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
-      (else (accept 'number))))
+       (state176 (scanChar)))
+      (else (scannerError errIncompleteToken))))
   (define (state178 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state178 (scanChar)))
-      ((#\#) (consumeChar) (state177 (scanChar)))
-      ((#\/) (consumeChar) (state176 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state172 (scanChar)))
-      ((#\|) (consumeChar) (state169 (scanChar)))
-      ((#\.) (consumeChar) (state167 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
       (else (accept 'number))))
   (define (state179 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state178 (scanChar)))
-      ((#\.) (consumeChar) (state166 (scanChar)))
-      ((#\n) (consumeChar) (state165 (scanChar)))
-      ((#\i) (consumeChar) (state161 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state180 c)
     (case c
@@ -7013,93 +6965,158 @@
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
        (state178 (scanChar)))
-      ((#\.) (consumeChar) (state166 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state181 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
       ((#\#) (consumeChar) (state181 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
       (else (accept 'number))))
   (define (state182 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
-       (consumeChar)
-       (state182 (scanChar)))
-      ((#\#) (consumeChar) (state181 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+      ((#\#) (consumeChar) (state182 (scanChar)))
       (else (accept 'number))))
   (define (state183 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state182 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+       (state183 (scanChar)))
+      ((#\#) (consumeChar) (state182 (scanChar)))
+      (else (accept 'number))))
   (define (state184 c)
     (case c
-      ((#\i) (consumeChar) (accept 'number))
-      ((#\#) (consumeChar) (state184 (scanChar)))
-      ((#\/) (consumeChar) (state183 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
-      ((#\.) (consumeChar) (state138 (scanChar)))
-      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
-       (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      (else (accept 'number))))
-  (define (state185 c)
-    (case c
-      ((#\i) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\#) (consumeChar) (state184 (scanChar)))
-      ((#\/) (consumeChar) (state183 (scanChar)))
-      ((#\@) (consumeChar) (state180 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state159 (scanChar)))
+       (state183 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state185 c)
+    (case c
+      ((#\#) (consumeChar) (state185 (scanChar)))
+      ((#\/) (consumeChar) (state184 (scanChar)))
+      ((#\.) (consumeChar) (state181 (scanChar)))
       ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
        (consumeChar)
-       (state137 (scanChar)))
-      ((#\|) (consumeChar) (state134 (scanChar)))
-      ((#\.) (consumeChar) (state132 (scanChar)))
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
       (else (accept 'number))))
   (define (state186 c)
     (case c
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state185 (scanChar)))
-      ((#\.) (consumeChar) (state131 (scanChar)))
-      ((#\n) (consumeChar) (state130 (scanChar)))
-      ((#\i) (consumeChar) (state125 (scanChar)))
-      (else (scannerError errIncompleteToken))))
+       (state186 (scanChar)))
+      ((#\#) (consumeChar) (state185 (scanChar)))
+      ((#\/) (consumeChar) (state184 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state180 (scanChar)))
+      ((#\|) (consumeChar) (state177 (scanChar)))
+      ((#\.) (consumeChar) (state175 (scanChar)))
+      (else (accept 'number))))
   (define (state187 c)
     (case c
-      ((#\+ #\-) (consumeChar) (state186 (scanChar)))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state123 (scanChar)))
-      ((#\.) (consumeChar) (state111 (scanChar)))
+       (state186 (scanChar)))
+      ((#\.) (consumeChar) (state174 (scanChar)))
+      ((#\n) (consumeChar) (state173 (scanChar)))
+      ((#\i) (consumeChar) (state169 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state188 c)
     (case c
-      ((#\i #\I #\e #\E)
+      ((#\+ #\-) (consumeChar) (state187 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state187 (scanChar)))
+       (state186 (scanChar)))
+      ((#\.) (consumeChar) (state174 (scanChar)))
       (else (scannerError errIncompleteToken))))
   (define (state189 c)
     (case c
-      ((#\#) (consumeChar) (state188 (scanChar)))
-      ((#\+ #\-) (consumeChar) (state186 (scanChar)))
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state189 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      (else (accept 'number))))
+  (define (state190 c)
+    (case c
+      ((#\i #\I) (consumeChar) (accept 'number))
       ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
        (consumeChar)
-       (state123 (scanChar)))
-      ((#\.) (consumeChar) (state111 (scanChar)))
+       (state190 (scanChar)))
+      ((#\#) (consumeChar) (state189 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      (else (accept 'number))))
+  (define (state191 c)
+    (case c
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state190 (scanChar)))
       (else (scannerError errIncompleteToken))))
-  (define (state190 c)
+  (define (state192 c)
+    (case c
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\#) (consumeChar) (state192 (scanChar)))
+      ((#\/) (consumeChar) (state191 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\.) (consumeChar) (state146 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      (else (accept 'number))))
+  (define (state193 c)
+    (case c
+      ((#\i #\I) (consumeChar) (accept 'number))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state193 (scanChar)))
+      ((#\#) (consumeChar) (state192 (scanChar)))
+      ((#\/) (consumeChar) (state191 (scanChar)))
+      ((#\@) (consumeChar) (state188 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state167 (scanChar)))
+      ((#\e #\E #\s #\S #\f #\F #\d #\D #\l #\L)
+       (consumeChar)
+       (state145 (scanChar)))
+      ((#\|) (consumeChar) (state142 (scanChar)))
+      ((#\.) (consumeChar) (state140 (scanChar)))
+      (else (accept 'number))))
+  (define (state194 c)
+    (case c
+      ((#\I) (consumeChar) (accept 'number))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state193 (scanChar)))
+      ((#\.) (consumeChar) (state139 (scanChar)))
+      ((#\n) (consumeChar) (state138 (scanChar)))
+      ((#\i) (consumeChar) (state133 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state195 c)
+    (case c
+      ((#\+ #\-) (consumeChar) (state194 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state131 (scanChar)))
+      ((#\.) (consumeChar) (state119 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state196 c)
+    (case c
+      ((#\i #\I #\e #\E)
+       (consumeChar)
+       (state195 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state197 c)
+    (case c
+      ((#\#) (consumeChar) (state196 (scanChar)))
+      ((#\+ #\-) (consumeChar) (state194 (scanChar)))
+      ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+       (consumeChar)
+       (state131 (scanChar)))
+      ((#\.) (consumeChar) (state119 (scanChar)))
+      (else (scannerError errIncompleteToken))))
+  (define (state198 c)
     (case c
       ((#\a
         #\b
@@ -7165,9 +7182,9 @@
         #\9
         #\-)
        (consumeChar)
-       (state190 (scanChar)))
+       (state198 (scanChar)))
       (else (accept 'miscflag))))
-  (define (state191 c)
+  (define (state199 c)
     (case c
       ((#\a
         #\b
@@ -7222,9 +7239,9 @@
         #\Y
         #\Z)
        (consumeChar)
-       (state190 (scanChar)))
+       (state198 (scanChar)))
       (else (accept 'xcomment))))
-  (define (state192 c)
+  (define (state200 c)
     (case c
       ((#\&) (consumeChar) (accept 'xbox))
       ((#\.) (consumeChar) (accept 'xsharpdot))
@@ -7236,11 +7253,11 @@
        (accept 'boolean))
       ((#\;) (consumeChar) (accept 'commentdatum))
       ((#\|) (consumeChar) (accept 'comment))
-      ((#\!) (consumeChar) (state191 (scanChar)))
-      ((#\d #\D) (consumeChar) (state189 (scanChar)))
+      ((#\!) (consumeChar) (state199 (scanChar)))
+      ((#\d #\D) (consumeChar) (state197 (scanChar)))
       ((#\i #\I #\e #\E)
        (consumeChar)
-       (state110 (scanChar)))
+       (state118 (scanChar)))
       ((#\b #\B #\o #\O #\x #\X)
        (consumeChar)
        (state78 (scanChar)))
@@ -7271,78 +7288,78 @@
                             c)
                            (begin (consumeChar) (accept 'xfaslb))
                            (scannerError errIncompleteToken)))))))))
-  (define (state193 c)
+  (define (state201 c)
     (case c
       (else
        (if ((lambda (c)
               (and (char? c)
                    (not (char=? c (integer->char 10)))))
             c)
-           (begin (consumeChar) (state193 (scanChar)))
+           (begin (consumeChar) (state201 (scanChar)))
            (begin
              (set! string_accumulator_length 0)
              (state0 (scanChar)))))))
-  (define (state194 c)
+  (define (state202 c)
     (case c
       (else
        (begin
          (set! string_accumulator_length 0)
          (state0 (scanChar))))))
-  (define (state195 c)
-    (case c (else (accept 'comment))))
-  (define (state196 c)
-    (case c (else (accept 'commentdatum))))
-  (define (state197 c)
-    (case c (else (accept 'boolean))))
-  (define (state198 c)
-    (case c (else (accept 'number))))
-  (define (state199 c)
-    (case c (else (accept 'character))))
-  (define (state200 c)
-    (case c (else (accept 'vecstart))))
-  (define (state201 c)
-    (case c (else (accept 'bvecstart))))
-  (define (state202 c)
-    (case c (else (accept 'syntax))))
   (define (state203 c)
-    (case c (else (accept 'quasisyntax))))
+    (case c (else (accept 'comment))))
   (define (state204 c)
-    (case c (else (accept 'unsyntaxsplicing))))
+    (case c (else (accept 'commentdatum))))
   (define (state205 c)
-    (case c (else (accept 'xfaslb))))
+    (case c (else (accept 'boolean))))
   (define (state206 c)
-    (case c (else (accept 'xfaslc))))
+    (case c (else (accept 'number))))
   (define (state207 c)
-    (case c (else (accept 'xfaslf))))
+    (case c (else (accept 'character))))
   (define (state208 c)
-    (case c (else (accept 'xfaslg))))
+    (case c (else (accept 'vecstart))))
   (define (state209 c)
-    (case c (else (accept 'xfaslp))))
+    (case c (else (accept 'bvecstart))))
   (define (state210 c)
-    (case c (else (accept 'xsharpdot))))
+    (case c (else (accept 'syntax))))
   (define (state211 c)
-    (case c (else (accept 'xbox))))
+    (case c (else (accept 'quasisyntax))))
   (define (state212 c)
-    (case c (else (accept 'xstring))))
+    (case c (else (accept 'unsyntaxsplicing))))
   (define (state213 c)
-    (case c (else (accept 'eofobj))))
+    (case c (else (accept 'xfaslb))))
   (define (state214 c)
-    (case c (else (accept 'id))))
+    (case c (else (accept 'xfaslc))))
   (define (state215 c)
-    (case c (else (accept 'lparen))))
+    (case c (else (accept 'xfaslf))))
   (define (state216 c)
-    (case c (else (accept 'rparen))))
+    (case c (else (accept 'xfaslg))))
   (define (state217 c)
-    (case c (else (accept 'lbracket))))
+    (case c (else (accept 'xfaslp))))
   (define (state218 c)
-    (case c (else (accept 'rbracket))))
+    (case c (else (accept 'xsharpdot))))
   (define (state219 c)
-    (case c (else (accept 'quote))))
+    (case c (else (accept 'xbox))))
   (define (state220 c)
-    (case c (else (accept 'backquote))))
+    (case c (else (accept 'xstring))))
   (define (state221 c)
-    (case c (else (accept 'splicing))))
+    (case c (else (accept 'eofobj))))
   (define (state222 c)
+    (case c (else (accept 'id))))
+  (define (state223 c)
+    (case c (else (accept 'lparen))))
+  (define (state224 c)
+    (case c (else (accept 'rparen))))
+  (define (state225 c)
+    (case c (else (accept 'lbracket))))
+  (define (state226 c)
+    (case c (else (accept 'rbracket))))
+  (define (state227 c)
+    (case c (else (accept 'quote))))
+  (define (state228 c)
+    (case c (else (accept 'backquote))))
+  (define (state229 c)
+    (case c (else (accept 'splicing))))
+  (define (state230 c)
     (case c (else (accept 'string))))
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -8125,35 +8142,39 @@
       (loop 1))
 
 
-    ; This scanner may be in r6rs mode, or it may be in r6rs mode.
-    ; Implementations are allowed to provide other modes, which is
-    ; the reason for this stub.
+    ; Most reader modes are now port-specific.
+    ; Some, but not all, can be changed by reading a flag.
 
     (define (set-mode! m)
       (let ()
         (case m
-         ((r6rs err5rs)
-          (set-switches recognize-keywords?          #f
-                        recognize-javadot-symbols?   #f
-                        case-sensitive?              #t
-                        read-square-bracket-as-paren #t
-                       ;datum-source-locations?      (datum-source-locations?)
-                        read-r6rs-flags?             #t
-                        read-larceny-weirdness?      #f
-                        read-traditional-weirdness?  #f
-                        read-mzscheme-weirdness?     #f))
+         ((r6rs)
+          (set-port-switches input-port
+                             port-folds-case! #f
+                             io/port-allows-larceny-weirdness!     #f
+                             io/port-allows-traditional-weirdness! #f
+                             io/port-allows-mzscheme-weirdness!    #f
+                             io/port-recognizes-javadot-symbols!   #f))
+
+         ((err5rs)
+          (set-port-switches input-port
+                             io/port-allows-larceny-weirdness! #t))
+
          ((r5rs)
-          (set-switches read-larceny-weirdness?      #t
-                        case-sensitive?              #f))
+          (set-port-switches input-port
+                             port-folds-case! #t
+                             io/port-allows-larceny-weirdness! #t))
+
          ((fasl larceny)
-          (set-switches read-larceny-weirdness?      #t
-                        case-sensitive?              #t))
+          (set-port-switches input-port
+                             port-folds-case! #f
+                             io/port-allows-larceny-weirdness! #t))
 
          ((fold-case)
-          (set-switches case-sensitive?              #f))
+          (port-folds-case! input-port #t))
 
          ((no-fold-case)
-          (set-switches case-sensitive?              #t))
+          (port-folds-case! input-port #f))
 
          ; FIXME: these compiler switches might not be defined in all heaps.
 
@@ -8171,10 +8192,10 @@
 
     ; This looks weird but saves code space.
 
-    (define (set-switches . settings)
+    (define (set-port-switches port . settings)
       (do ((settings settings (cddr settings)))
           ((null? settings))
-        ((car settings) (cadr settings))))
+        ((car settings) port (cadr settings))))
   
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
@@ -8184,9 +8205,6 @@
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
     (define (scanChar)
-      ; For debugging, change #f to #t below.
-      (if #f
-          (if (char? c) (write-char (peek-char input-port))))
       (peek-char input-port))
 
     ; Consumes the current character.  Returns unspecified values.
@@ -8265,7 +8283,7 @@
                   (loop (+ i 1)
                         (+ (* 16 val)
                            10
-                           (- (char->integer c) (char->integer #\a)))))
+                           (- (char->integer c) (char->integer #\A)))))
                  ((#\;)
                   (values val (+ i 1)))
                  (else (scannerError errIllegalHexEscape))))))
@@ -8284,7 +8302,7 @@
     (define (list2bytevector octets) (u8-list->bytevector octets))
 
     (define (list2proc vals)
-      (if (read-larceny-weirdness?)
+      (if (io/port-allows-larceny-weirdness? input-port)
           (list->procedure vals)
           (parse-error '<datum> datum-starters)))
 
@@ -8305,7 +8323,9 @@
                 (string->number (substring tokenValue 3 n) 16)))
               (else
                (let* ((s (substring tokenValue 2 n))
-                      (s (if (case-sensitive?) s (string-foldcase s)))
+                      (s (if (port-folds-case? input-port)
+                             (string-foldcase s)
+                             s))
                       (sym (string->symbol s)))
                  (case sym
                   ((nul)       #\nul)
@@ -8353,7 +8373,7 @@
             (loop))
            (else
             (loop)))))
-      (if (read-larceny-weirdness?)
+      (if (io/port-allows-larceny-weirdness? input-port)
           (let ((c (scanChar)))
             (if (char=? c #\")
                 (begin (consumeChar)
@@ -8388,15 +8408,18 @@
       ; Note that the #!r6rs flag is a comment, handled by accept,
       ; so that flag will never be seen here.
 
-      (if (read-r6rs-flags?)
+      (if (io/port-allows-flags? input-port)
 
           (let* ((n (string-length tokenValue))
                  (flag (string->symbol (substring tokenValue 2 n))))
             (case flag
              ((fold-case no-fold-case
-               err5rs r5rs larceny fasl slow fast safe unsafe)
+               err5rs r5rs larceny slow fast safe unsafe)
               (set-mode! flag)
               (unspecified))
+             ((fasl)
+              (set-mode! flag)
+              ((fasl-evaluator)))
              ((unspecified) (unspecified))
              ((undefined)   (undefined))
              ((null)        '())
@@ -8507,39 +8530,50 @@
                                              (checked-integer->char sv))
                                 (loop i n newstring (+ j 1)))))
                             (else
-                             (cond
-                              ((or (char=? c2 #\return)
-                                   (char=? c2 #\linefeed)
-                                   (char=? c2 char:nel)
-                                   (char=? c2 char:ls))
-                               (string-set! newstring j c2)
-                               (let* ((i+2 (+ i 2))
-                                      (i+2 (if (and (char=? c2 #\return)
-                                                    (< i+2 n))
-                                               (let ((c3 (string-ref
-                                                          tokenValue i+2)))
-                                                 (if (or (char=? c3 #\linefeed)
-                                                         (char=? c3 char:nel))
-                                                     (begin
-                                                      (string-set! newstring
-                                                                   (+ j 1)
-                                                                   c3)
-                                                      (+ i 3))
-                                                     i+2))
-                                               i+2))
-                                      (j+1 (if (= i+2 (+ i 2))
-                                               (+ j 1)
-                                               (+ j 2))))
-                                 (loop i+2 n newstring j+1)))
-                              ((read-larceny-weirdness?)
-                               (string-set! newstring j c2)
-                               (loop (+ i 2) n newstring (+ j 1)))
-                              (else
-                               (scannerError errIllegalString))))))
+                             (ignore-escaped-line-ending (+ i 1)
+                                                         n newstring j #f))))
                      (scannerError errIllegalString)))
                     (else
                      (string-set! newstring j c)
                      (loop (+ i 1) n newstring (+ j 1)))))))
+
+      ; Ignores <intraline whitespace>* <line ending> <intraline whitespace>*
+      ; after? is true iff the <line ending> has already been ignored.
+      ; The other arguments are the same as for loop above.
+
+      (define (ignore-escaped-line-ending i n newstring j after?)
+        (cond ((< i n)
+               (let ((c (string-ref tokenValue i)))
+                 (cond ((or (char=? c #\tab)
+                            (eq? 'Zs (char-general-category c)))
+                        (ignore-escaped-line-ending (+ i 1)
+                                                    n newstring j after?))
+                       (after?
+                        (loop i n newstring j))
+                       ((or (char=? c #\return)
+                            (char=? c #\linefeed)
+                            (char=? c char:nel)
+                            (char=? c char:ls))
+                        (let* ((i+1 (+ i 1))
+                               (i+1 (if (and (char=? c #\return)
+                                             (< i+1 n))
+                                        (let ((c2 (string-ref
+                                                   tokenValue i+1)))
+                                          (if (or (char=? c2 #\linefeed)
+                                                  (char=? c2 char:nel))
+                                              (+ i 2)
+                                              i+1))
+                                        i+1)))
+                          (ignore-escaped-line-ending i+1 n newstring j #t)))
+                       ((io/port-allows-larceny-weirdness? input-port)
+                        (string-set! newstring j c)
+                        (loop (+ i 1) n newstring (+ j 1)))
+                       (else
+                        (scannerError errIllegalString)))))
+              (after?
+               (loop i n newstring j))
+              (else
+               (scannerError errIllegalString))))
 
       (let ((n (string-length tokenValue)))
         (loop 1 (- n 1) (make-string (- n 2)) 0)))
@@ -8556,24 +8590,25 @@
     (define (makeSym)
       (let ((n (string-length tokenValue)))
         (define (return sym)
-          (if (and (recognize-javadot-symbols?)
+          (if (and (io/port-recognizes-javadot-symbols? input-port)
                    (javadot-syntax? sym))
               (symbol->javadot-symbol! sym)
               sym))
         (define (loop i)
           (if (= i n)
-              (return (string->symbol (if (case-sensitive?)
-                                          tokenValue
-                                          (string-foldcase tokenValue))))
+              (return (string->symbol (if (port-folds-case? input-port)
+                                          (string-foldcase tokenValue)
+                                          tokenValue)))
               (let ((c (string-ref tokenValue i)))
                 (cond ((or (char=? c #\\)
                            (char=? c #\#))
                        (slow-loop i
                                   (reverse
                                    (string->list (substring tokenValue 0 i)))
-                                  (not (case-sensitive?))))
+                                  (port-folds-case? input-port)))
                       ((and (char=? c #\|)
-                            (not (read-larceny-weirdness?)))
+                            (not
+                             (io/port-allows-larceny-weirdness? input-port)))
                        (scannerError errIllegalSymbol))
                       (else
                        (loop (+ i 1)))))))
@@ -8593,7 +8628,8 @@
                                                   chars)
                                             fold-case?))))
                              ((and (< (+ i 1) n)
-                                   (read-larceny-weirdness?))
+                                   (io/port-allows-larceny-weirdness?
+                                    input-port))
                               (slow-loop (+ i 2)
                                          (cons (string-ref tokenValue (+ i 1))
                                                chars)
@@ -8602,7 +8638,7 @@
                               (scannerError errIllegalSymbol))))
                       ((char=? c #\#)
                        (if (and (< (+ i 1) n)
-                                (read-mzscheme-weirdness?)
+                                (io/port-allows-mzscheme-weirdness? input-port)
                                 (char=? (string-ref tokenValue (+ i 1))
                                         #\%))
                            (slow-loop (+ i 1) (cons c chars) fold-case?)
@@ -8610,31 +8646,31 @@
                       (else (slow-loop (+ i 1) (cons c chars) fold-case?))))))
         (let ((c (string-ref tokenValue 0)))
           (cond ((or (char=? c #\.) (char=? c #\@))
-                 (if (or (read-larceny-weirdness?)
+                 (if (or (io/port-allows-larceny-weirdness? input-port)
                          (string=? "..." tokenValue))
                      (loop 0)
                      (scannerError errIllegalSymbol)))
                 ((and (char=? c #\-)
                       (< 1 (string-length tokenValue))
                       (not (char=? (string-ref tokenValue 1) #\>)))
-                 (if (and (read-larceny-weirdness?)
+                 (if (and (io/port-allows-larceny-weirdness? input-port)
                           (or (member tokenValue '("--" "-1+"))
                               (char=? #\: (string-ref tokenValue 1))))
                      (loop 0)
                      (scannerError errIllegalSymbol)))
                 ((and (char=? c #\+)
                       (< 1 (string-length tokenValue)))
-                 (if (and (read-larceny-weirdness?)
+                 (if (and (io/port-allows-larceny-weirdness? input-port)
                           (char=? #\: (string-ref tokenValue 1)))
                      (loop 0)
                      (scannerError errIllegalSymbol)))
                 ((char=? c #\1)
-                 (if (and (read-larceny-weirdness?)
+                 (if (and (io/port-allows-larceny-weirdness? input-port)
                           (member tokenValue '("1+" "1-")))
                      (loop 0)
                      (scannerError errIllegalSymbol)))
                 ((char=? c #\|)
-                 (if (and (read-traditional-weirdness?)
+                 (if (and (io/port-allows-traditional-weirdness? input-port)
                           (< 1 n)
                           (char=? (string-ref tokenValue (- n 1)) #\|))
                      ; |...| symbols
@@ -8646,7 +8682,7 @@
     ; #"..." Ascii string syntax of MzScheme
 
     (define (makeXString)
-      (if (read-mzscheme-weirdness?)
+      (if (io/port-allows-mzscheme-weirdness? input-port)
           (begin (set! tokenValue
                        (substring
                         tokenValue 0 (- (string-length tokenValue) 1)))
@@ -8664,21 +8700,22 @@
     ; #.(...) read-time evaluation
 
     (define (sharpDot x)
-      (if (read-traditional-weirdness?)
+      (if (io/port-allows-traditional-weirdness? input-port)
           (eval x)
           (parse-error '<datum> datum-starters)))
 
     ; #^Gsym syntax used in .fasl files
 
     (define (sym2global sym)
-      (if (read-larceny-weirdness?)
+      (if (io/port-allows-larceny-weirdness? input-port)
           ((global-name-resolver) sym)
           (parse-error '<datum> datum-starters)))
 
     ; Oh, dear.  There's no excuse, but see lib/Standard/box.sch
 
     (define (symBox)
-      (if (and (read-traditional-weirdness?) (bound? box))
+      (if (and (io/port-allows-traditional-weirdness? input-port)
+               (bound? box))
           (box (parse-datum))
           (parse-error '<datum> datum-starters)))
   

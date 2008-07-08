@@ -21,6 +21,8 @@
 ;   arg-types       base+6  an integer -- a byte* handle
 ;   invoke-loc      base+7  an integer -- address of invoke instructions (co)
 
+#!no-fold-case
+
 (define ffi/SPARC-C-callout-stdabi)
 (define ffi/SPARC-C-callback-stdabi)
 

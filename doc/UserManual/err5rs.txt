@@ -1,0 +1,341 @@
+[[Err5rsChapter]]
+
+ERR5RS standard libraries
+-------------------------
+
+<<Standards,ERR5RS>> is still being developed, so the specifications
+described below are subject to change as its standard libraries
+are revised.
+
+
+[[Err5rsLoadSection]]
+
+Load
+~~~~
+
+This section describes the `(err5rs load)` library.
+
+proc:load[args="filename"]
+
+Loads ERR5RS code from _filename_, evaluating each form
+as though it had been entered at the interactive
+read/eval/print loop.
+
+[WARNING]
+================================================================
+The `load` procedure should be used only at an interactive top
+level and in files that will be loaded into an interactive top
+level.  Calls to the `load` procedure have no effect at compile
+time, and should not appear in files that will be compiled
+separately; use the `library` and `import` syntaxes instead.
+================================================================
+
+
+[[Err5rsRecordsSection]]
+
+Records
+~~~~~~~
+
+When a procedure is said to be equivalent to an R6RS
+procedure, the equivalence holds only when all arguments
+have the properties required of them by the R6RS
+specification.  ERR5RS does not mandate R6RS exception
+semantics for programs that violate the specification.
+
+
+[[Err5rsRecordsProceduralSection]]
+
+==== Procedural layer
+
+This section describes the `(err5rs records procedural)` library.
+
+proc:make-rtd[args="name fieldspecss",optargs="parent-rtd"]
+proctempl:make-rtd[args="name fieldspecss parent-rtd"]
+proctempl:make-rtd[args="name fieldspecss parent-rtd option ..."]
+
+_name_ is a symbol, which matters only to the
+<<rtd-name,`rtd-name`>> procedure of the inspection layer.
+_fieldspecs_ is a vector of field specifiers, where
+each field specifier is one of
+
+ * a symbol naming the (mutable) field;
+
+ * a list of the form `(mutable _name_)`,
+where _name_ is a symbol naming the mutable field;
+
+ * a list of the form `(immutable _name_)`,
+where _name_ is a symbol naming the immutable field. 
+
+The optional parent is an rtd or `#f`. It is an error for
+any of the symbols in fieldspecs to name more than one
+of the fields specified by fieldspecs, but the field names
+in fieldspecs may shadow field names in the parent rtd.
+
+<<make-rtd,`make-rtd`>> returns an R6RS-compatible record-type
+descriptor.
+
+Larceny allows the following optional arguments to follow
+the optional _parent-rtd_ argument:
+
+ * the symbol `sealed` means the new rtd cannot be used
+as the parent of other rtds;
+
+ * the symbol `opaque` means the <<record?,`record?`>> predicate
+will not recognize instances of the new rtd;
+
+ * the symbol `uid`, followed by another symbol _id_,
+means the new rtd is non-generative with uid _id_; the
+semantics of this extension is the same as in the R6RS.
+
+These Larceny-specific options may be used in any
+combination, giving Larceny's ERR5RS records the same
+expressive power as R6RS records, with which they are
+fully interoperable.
+
+
+proc:rtd?[args="obj"]
+
+This predicate returns true if and only if its argument
+is a record-type descriptor.
+`rtd?` is equivalent to the `record-type-descriptor?`
+procedure of the R6RS.
+
+
+proc:rtd-constructor[args="rtd"]
+proctempl:rtd-constructor[args="rtd fieldspecs"]
+
+_rtd_ is a record-type descriptor, and _fieldspecs_ is
+an optional vector of symbols.
+
+If no _fieldspecs_ argument is supplied,
+then `rtd-constructor` returns a procedure that expects
+one argument for each field of the record-type described
+by _rtd_ and returns an instance of that record-type
+with its fields initialized to the corresponding
+arguments.
+Arguments that correspond to the fields of the
+record-type's parent (if any) come first.
+
+If _fieldspecs_ is supplied, then `rtd-constructor`
+returns a procedure that expects one argument for each
+element of _fieldspecs_ and returns an instance of the
+record-type described by _rtd_ with the named fields
+initialized to the corresponding arguments.
+
+It is an error if some symbol occurs more than once in
+_fieldspecs_.  Fields of a derived record-type shadow
+fields of the same name in its parent; the _fieldspecs_
+argument cannot be used to initialize a shadowed field.
+
+
+proc:rtd-predicate[args="rtd"]
+
+Equivalent to the `record-predicate` procedure of the R6RS.
+
+
+proc:rtd-accessor[args="rtd field"]
+
+_field_ is a symbol that names a field of the
+record-type described by the record-type descriptor _rtd_.
+Returns a unary procedure that accepts instances of _rtd_
+(or any record-type that inherits from _rtd_) and
+returns the current value of the named field.
+
+Fields in derived record-types shadow fields of the same
+name in a parent record-type.
+
+
+proc:rtd-mutator[args="rtd field"]
+
+_field_ is a symbol that names a field of the
+record-type described by the record-type descriptor _rtd_.
+Returns a binary procedure that accepts instances of _rtd_
+(or any record-type that inherits from _rtd_) and a new
+value to be stored into the named field, performs that
+side effect, and returns an unspecified value.
+
+Fields in derived record-types shadow fields of the same
+name in a parent record-type.
+
+
+[[Err5rsRecordsInspectionSection]]
+
+==== Inspection layer
+
+This section describes the `(err5rs records inspection)` library.
+
+proc:record?[args="obj"]
+
+Equivalent to its R6RS namesake.
+
+proc:record-rtd[args="record"]
+
+Equivalent to its R6RS namesake.
+
+proc:rtd-name[args="rtd"]
+
+Equivalent to the `record-type-name` procedure of the R6RS.
+
+proc:rtd-parent[args="rtd"]
+
+Equivalent to the `record-type-parent` procedure of the R6RS.
+
+proc:rtd-field-names[args="rtd"]
+
+Equivalent to the `record-type-field-names` procedure of the R6RS.
+(That is, it returns a vector of the symbols that name the fields
+of the record-type represented by _rtd_, excluding the fields of
+parent record-types.)
+
+proc:rtd-all-field-names[args="rtd"]
+
+Returns a vector of the symbols that name the fields of
+the record-type represented by _rtd_, including the fields
+of its parent record-types, if any, with the fields of
+parent record-types coming before the fields of its children,
+with each subsequence in the same order as in the vectors
+that would be returned by calling <<rtd-field-names,`rtd-field-names`>>
+on _rtd_ and on all its ancestral record-type descriptors.
+
+proc:rtd-field-mutable?[args="rtd field"]
+
+_rtd_ is a record-type descriptor, and _field_ is a
+symbol naming a field of the record-type described by _rtd_.
+Returns `#t` if the named field is mutable; otherwise returns `#f`.
+
+
+[[Err5rsRecordsSyntacticSection]]
+
+==== Syntactic layer
+
+This section describes the `(err5rs records syntactic)` library.
+
+The syntactic layer consists of
+http://srfi.schemers.org/srfi-9/[SRFI 9]
+extended with single inheritance and (optional) implicit naming.
+
+All ERR5RS record-type definitions are generative (unless
+Larceny's optional +uid+ feature is used), but
+ERR5RS drops the SRFI 9 restriction to top level, mainly
+because the R6RS allows generative definitions wherever
+a definition may appear.
+
+The syntax of an ERR5RS record-type definition is
+
+----------------------------------------------------------------
+    <definition>           
+      -> <record type definition>           ; addition to 7.1.6 in R5RS
+
+    <record type definition>
+      -> (define-record-type <type spec>
+           <constructor spec>
+           <predicate spec>
+           <field spec> ...)
+
+    <type spec>  -> <type name>
+                 -> (<type name> <parent>)
+
+    <constructor spec>
+                 -> #f
+                 -> #t
+                 -> <constructor name>
+                 -> (<constructor name> <field name> ...)
+
+    <predicate spec>
+                 -> #f
+                 -> #t
+                 -> <predicate name>
+
+    <field spec> -> <field name>
+                 -> (<field name>)
+                 -> (<field name> <accessor name>)
+                 -> (<field name> <accessor name> <mutator name>)
+
+    <parent>           -> <expression>
+
+    <type name>        -> <identifier>
+    <constructor name> -> <identifier>
+    <predicate name>   -> <identifier>
+    <accessor name>    -> <identifier>
+    <mutator name>     -> <identifier>
+    <field name>       -> <identifier>
+----------------------------------------------------------------
+
+The semantics of a record type definition is the same
+as in SRFI 9: the record type definition macro-expands
+into a cluster of definitions that
+
+ * defines the `<type name>` as the record-type descriptor
+for the new record-type;
+
+ * defines a constructor for instances of the new
+record-type (unless the constructor spec is `#f`);
+
+ * defines a predicate that recognizes instances of the
+new record-type and its subtypes (unless the predicate spec is `#f`);
+
+ * defines an accessor for each field name;
+
+ * defines a mutator for each mutable field name. 
+
+An ERR5RS record type definition extends SRFI 9 with the
+following additional options:
+
+ * If a `<parent>` expression is specified, then it must
+evaluate to an rtd that serves as the parent record-type
+for the record-type being defined.
+
+ * If `#f` is specified for the constructor or predicate,
+then no constructor or predicate procedure is defined.
+(This is useful when the record-type being defined will
+be used as an abstract base class.)
+
+ * If `#t` is specified for the constructor or predicate,
+then the name of the constructor is the type name prefixed
+by `make-`, and the name of the predicate is the type name
+followed by a question mark (`?`).
+
+ * If the constructor name is specified as `#t` or as an
+identifier, then the constructor's arguments correspond
+to the fields of the parent (if any) followed by the new
+fields added by this record-type definition.
+
+ * If a field spec consists of a single identifier, then
+
+   - the field is immutable;
+
+   - the name of its accessor is the type name followed by
+a hyphen (`-`) followed by the field name. 
+
+ * If a field spec consists of a list of one identifier, then
+
+   - the field is mutable;
+
+   - the name of its accessor is the type name followed
+by a hyphen (`-`) followed by the field name;
+
+   - the name of its mutator is the type name followed by
+a hyphen (`-`) followed by the field name followed by `-set!`. 
+
+
+[[RecordIdentitySection]]
+
+==== Record identity
+
+Two ERR5RS records with fields are `eqv?` if and only if
+they were created by the same (dynamic) call to some
+record constructor.
+Two ERR5RS records are `eq?` if and only if they are `eqv?`.
+
+Apart from the usual constraint that equivalence according
+to `eqv?` implies equivalence according to `equal?`, the
+behavior of `equal?` on ERR5RS records is unspecified.
+(This is compatible with the R6RS.)
+
+A `define-record-type` form macro-expands into code that
+calls <<make-rtd,`make-rtd`>> each time the expanded record-type
+definition is executed.
+Two ERR5RS record-type descriptors are `eqv?` if and only if
+they were created by the same (dynamic) call to
+<<make-rtd,`make-rtd`>>.
+
