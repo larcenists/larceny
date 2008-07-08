@@ -3,6 +3,8 @@
 #ifndef INCLUDED_SUMMARY_T_H
 #define INCLUDED_SUMMARY_T_H
 
+#include "larceny-types.h"
+
 struct summary {
   int entries;
     /* Count of entries in summary.

@@ -77,6 +77,7 @@
 #include "gclib.h"
 #include "stats.h"
 #include "gc_t.h"
+#include "summary_t.h"
 
 /* This is an artifact of the low-level implementation of the hash pool;
    see comments above. */
@@ -492,11 +493,29 @@ bool rs_isremembered( remset_t *rs, word w )
   return b != 0;
 }
 
-void rs_via_summary( remset_t *rs, int max_words_per_step, 
-                     /* out parameter */ summary_t *s )
+static bool rs_pool_next_chunk( summary_t *this, word **start, word **lim, 
+                                bool *duplicate_entries ) 
 {
-  s->entries = rs->live;
-  assert(FALSE);
+  pool_t *ps = (pool_t*) this->cursor1;
+  if (ps != NULL) {
+
+    *start = ps->bot;
+    *lim = ps->top;
+    *duplicate_entries = FALSE;
+    this->cursor1 = ps->next;
+
+    return TRUE;
+  } else { 
+    return FALSE;
+  }
+}
+
+void rs_init_summary( remset_t *rs, int max_words_per_step, 
+                      /* out parameter */ summary_t *s )
+{
+  assert( max_words_per_step == -1 ); /* no support for incremental yet */
+  summary_init( s, rs->live, &rs_pool_next_chunk );
+  s->cursor1 = DATA(rs)->first_pool;
 }
 
 static pool_t *allocate_pool_segment( unsigned pool_entries )

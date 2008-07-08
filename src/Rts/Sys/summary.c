@@ -9,6 +9,7 @@
  *  implementations and/or monolithic summary enumeration function.)
  */ 
 
+#include "larceny.h"
 #include "summary_t.h"
 
 void summary_init( summary_t *summary, 

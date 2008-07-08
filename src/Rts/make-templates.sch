@@ -377,7 +377,8 @@ PRECISE_GC_OBJECTS=\\
 	Sys/old_heap_t.$(O) Sys/old-heap.$(O) \\
 	Sys/seqbuf.$(O) Sys/remset.$(O) Sys/remset-np.$(O) \\
 	Sys/sc-heap.$(O) Sys/semispace.$(O) Sys/static-heap.$(O) \\
-	Sys/stats.$(O) Sys/summ_matrix.$(O) Sys/young_heap_t.$(O)
+	Sys/stats.$(O) Sys/summary.$(O) Sys/summ_matrix.$(O) \\
+	Sys/young_heap_t.$(O)
 
 BOEHM_GC_OBJECTS=\\
 	Sys/bdw-gc.$(O) Sys/bdw-stats.$(O) Sys/bdw-collector.$(O) \\

@@ -120,8 +120,8 @@ bool rs_isremembered( remset_t *rs, word w );
   /* Returns TRUE if the object denoted by w is in the remembered set.
      */
 
-void rs_via_summary( remset_t *rs, int max_words_per_step, 
-                     /* out parameter */ summary_t *s );
+void rs_init_summary( remset_t *rs, int max_words_per_step, 
+                      /* out parameter */ summary_t *s );
   /* Exposes iteration over 'rs' via the summary_t abstraction.
      's' is mutated so that it traverses the elements of 'rs'.
      If max_words_per_step is positive, then it bounds the number of 

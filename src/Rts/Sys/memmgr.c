@@ -578,14 +578,15 @@ static void build_remset_summary( gc_t *gc, int gen )
 		  scan_object_for_remset_summary,
 		  (void*) &remsum );
   }
-  DATA(gc)->remset_summary_valid = TRUE;
-  DATA(gc)->remset_summary_words = remsum.words_added;
   annoyingmsg( "remset summary for collecting {0, %d}, live: %d", 
 	       gen, DATA(gc)->remset_summary->live );
 
   /* the backing remset has been constructed; now lets make an abstract
-   * summary_t view of it.
-   */
+   * summary_t view of it. */
+  rs_init_summary( DATA(gc)->remset_summary, -1, &(DATA(gc)->summary) );
+
+  DATA(gc)->remset_summary_valid = TRUE;
+  DATA(gc)->remset_summary_words = remsum.words_added;
 }
 
 static void invalidate_remset_summary( gc_t *gc )
