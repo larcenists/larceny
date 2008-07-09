@@ -845,6 +845,8 @@ static void popularity_analysis( gc_t *gc, int rgn )
   int marked, traced, words_marked;
   int range;
   
+  assert(FALSE);
+
   /* figure out bounds of the region's objects */
   init_context = msgc_begin( gc );
   msgc_set_object_visitor( init_context, find_bounds_fcn, &my_data );
@@ -1324,7 +1326,10 @@ static bool check_object_in_remset( word ptr, void *data, unsigned *count )
 
 static bool print_object_not_in_summary( word ptr, void *data, unsigned *count ) 
 {
-  gc_t *gc = (gc_t*)data;
+  gc_t *gc;
+
+  assert(FALSE);
+  gc = (gc_t*)data;
   if ( ! rs_isremembered( DATA(gc)->remset_summary, ptr ) ) {
     if (! rs_isremembered( gc->remset[ gen_of(ptr) ], ptr ) &&
         ! rs_isremembered( gc->major_remset[ gen_of(ptr) ], ptr )) {
@@ -1487,9 +1492,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	 */
 	if ( ANALYZE_POPULARITY &&
 	     DATA(gc)->remset_summary_words > DATA(gc)->popularity_limit) {
-	  consolemsg( "   large summary for region %d: %d objects", 
+	  consolemsg( "   large summary for region %d: %d words", 
 		      rgn_idx, 
-		      DATA(gc)->remset_summary->live );
+		      DATA(gc)->remset_summary_words );
 	  popularity_analysis( gc, rgn_idx );
 	}
 	
@@ -1590,15 +1595,14 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 #endif
 
 	process_seqbuf( gc, gc->ssb );
-	remset_summary = DATA(gc)->remset_summary;
 	remset_summary_valid = DATA(gc)->remset_summary_valid;
-	DATA(gc)->remset_summary = DATA(gc)->nursery_remset;
-	DATA(gc)->remset_summary_valid =  TRUE;
+
+	rs_init_summary( DATA(gc)->nursery_remset, -1, &(DATA(gc)->summary));
+	DATA(gc)->remset_summary_valid = TRUE;
 	if (use_oracle_to_update_remsets) 
 	  gc->scan_update_remset = FALSE;
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
 	rs_clear( DATA(gc)->nursery_remset );
-	DATA(gc)->remset_summary = remset_summary;
 	DATA(gc)->remset_summary_valid = remset_summary_valid;
 	DATA(gc)->rrof_last_tospace = rgn_idx;
 
@@ -1813,7 +1817,7 @@ enumerate_remsets_complement( gc_t *gc,
   if (DATA(gc)->remset_summary_valid) {
     /* If summarization complete, then just use that instead
      * of iterating over the remset array. */
-    rs_enumerate( DATA(gc)->remset_summary, f, fdata );
+    summary_enumerate( &DATA(gc)->summary, f, fdata );
     return;
   }
 
