@@ -72,6 +72,6 @@ void summary_init_dispose( summary_t *summary,
     ((summary)->next_chunk( summary, start_var, lim_var, dupl_var ))
 
 #define summary_dispose( summary ) \
-  do { if ((summary)->dispose) { (summmary)->dispose( summary ); } while (0)
+  do { if ((summary)->dispose) { (summary)->dispose( summary ); }} while (0)
 
 #endif
