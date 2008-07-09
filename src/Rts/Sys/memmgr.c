@@ -1575,11 +1575,6 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	/* if there's room, minor collect the nursery into current region. */
 	int rgn_idx = rgn_to; 
 
-	/* hack: stash away old remset_summary, then use the
-	   points-into nursery remset as the remset summary. */
-	remset_t *remset_summary;
-	bool remset_summary_valid;
-
 #if CHECK_NURSERY_REMSET_VIA_SUM
 	assert( DATA(gc)->remset_summary->live == 0 );
 	process_seqbuf( gc, gc->ssb );
@@ -1595,7 +1590,6 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 #endif
 
 	process_seqbuf( gc, gc->ssb );
-	remset_summary_valid = DATA(gc)->remset_summary_valid;
 
 	rs_init_summary( DATA(gc)->nursery_remset, -1, &(DATA(gc)->summary));
 	DATA(gc)->remset_summary_valid = TRUE;
@@ -1603,7 +1597,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  gc->scan_update_remset = FALSE;
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_idx-1 ], GCTYPE_PROMOTE );
 	rs_clear( DATA(gc)->nursery_remset );
-	DATA(gc)->remset_summary_valid = remset_summary_valid;
+	DATA(gc)->remset_summary_valid = FALSE;
+	summary_dispose( &(DATA(gc)->summary) );
 	DATA(gc)->rrof_last_tospace = rgn_idx;
 
         handle_secondary_space( gc );
