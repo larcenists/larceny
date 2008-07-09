@@ -496,16 +496,37 @@ bool rs_isremembered( remset_t *rs, word w )
 static bool rs_pool_next_chunk( summary_t *this, word **start, word **lim, 
                                 bool *duplicate_entries ) 
 {
-  pool_t *ps = (pool_t*) this->cursor1;
-  if (ps != NULL) {
+  pool_t *ps;
+  word *p, *q;
+  p = (word*) this->cursor1;
+  q = (word*) this->cursor2;
 
-    *start = ps->bot;
-    *lim = ps->top;
+  if (p < q) {
+    assert( WORDS_PER_POOL_ENTRY == 2 );
+    *start = p;
+    *lim = p+1;
     *duplicate_entries = FALSE;
-    this->cursor1 = ps->next;
 
+    /* set up next step of iteration */
+    p += 2;
+    this->cursor1 = p;
+    /* if p has reached q, then move on to the next pool segment. */
+    if (!(p < q)) {
+      ps = (pool_t*) this->cursor3;
+      while (ps != NULL) {
+        p = ps->bot;
+        q = ps->top;
+        ps = ps->next;
+        if (p < q) {
+          this->cursor1 = p;
+          this->cursor2 = q;
+          this->cursor3 = ps;
+          break;
+        }
+      }
+    }
     return TRUE;
-  } else { 
+  } else {
     return FALSE;
   }
 }
@@ -515,7 +536,18 @@ void rs_init_summary( remset_t *rs, int max_words_per_step,
 {
   assert( max_words_per_step == -1 ); /* no support for incremental yet */
   summary_init( s, rs->live, &rs_pool_next_chunk );
-  s->cursor1 = DATA(rs)->first_pool;
+  pool_t *ps = DATA(rs)->first_pool;
+  word *p, *q;
+  while (ps != NULL) {
+    p = ps->bot;
+    q = ps->top;
+    ps = ps->next;
+    if (p < q) 
+      break;
+  }
+  s->cursor1 = p;
+  s->cursor2 = q;
+  s->cursor3 = ps;
 }
 
 static pool_t *allocate_pool_segment( unsigned pool_entries )
