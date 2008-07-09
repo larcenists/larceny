@@ -17,10 +17,17 @@ struct summary {
      */
 
   bool (*next_chunk)( summary_t *this, /* remaining are "out" parameters */
-                      word **start, word **lim, bool *duplicate_entries );
+                      word **start, word **lim );
+    /* Simple wrapper around next_chunk_with_flags method; 
+       client must assume most conservative results for all flags. 
+    */ 
+
+  bool (*next_chunk_with_flags)( summary_t *this, /* remaining are "out" parameters */
+                                 word **start, word **lim, 
+                                 bool *all_unseen_before );
     /* If returns false, then this is exhausted, and values of out 
        parameters are unspecified.  If returns true, then [*start,*lim) 
-       are a range of words W held in this, and *duplicate_entries tells 
+       are a range of words W held in this, and *all_unseen_before tells 
        whether the members of W may be duplicates of words that may have 
        already been seen in the course of the iteration.
      */
@@ -58,18 +65,28 @@ void summary_init( summary_t *summary,
                    bool (*next_chunk)( summary_t *this, 
                                        word **start,
                                        word **lim,
-                                       bool *duplicate_entries ) );
+                                       bool *all_unseen_before ) );
 
 void summary_init_dispose( summary_t *summary, 
                            int entries, 
                            bool (*next_chunk)( summary_t *this, 
                                                word **start,
                                                word **lim,
-                                               bool *duplicate_entries ), 
+                                               bool *all_unseen_before ), 
                            void (*dispose)( summary_t *this ) );
 
-#define summary_next_chunk( summary, start_var, lim_var, dupl_var ) \
-    ((summary)->next_chunk( summary, start_var, lim_var, dupl_var ))
+void summary_enumerate( summary_t *summary,
+                        void (*scanner)(word loc, void *data, unsigned *stats),
+                        void *data );
+  /* Invokes scanner on each word produced by iterating through summary.
+     Does *not* call summary_dispose when enumeration is complete.
+   */
+
+#define summary_next_chunk( summary, start_var, lim_var ) \
+    ((summary)->next_chunk( summary, start_var, lim_var ))
+
+#define summary_next_chunk_with_flags( summary, start_var, lim_var, u_var ) \
+    ((summary)->next_chunk_with_flags( summary, start_var, lim_var, u_var ))
 
 #define summary_dispose( summary ) \
   do { if ((summary)->dispose) { (summary)->dispose( summary ); }} while (0)
