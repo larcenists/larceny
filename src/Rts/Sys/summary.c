@@ -54,7 +54,6 @@ void summary_enumerate( summary_t *summary,
   word *p, *q;
   unsigned word_count = 0;
   while( summary_next_chunk( summary, &p, &q ) ) {
-    consolemsg("summary_enumerate .. p: 0x%08x q: 0x%08x", p, q);
     while (p < q) {
       if (*p != 0) {
         scanner( *p, data, &word_count );
