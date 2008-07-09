@@ -175,19 +175,6 @@
 ;; something BUILD-EXECUTABLE does?
 
 (define (build-runtime)
-  (if (not (file-exists? (param-filename 'rts "Makefile")))
-      (build-makefile))
-
-;;; pnkfelix: added the following command, to setup the runtime post
-;;; calls into cleanup.sch.  The *right* way to do this would be to
-;;; figure out how to encode the dependency a la make; this solution
-;;; is fragile in that changes to arithmetic.mac will not be
-;;; propagated without an intervening removal of arithmetic.c
-
-  (if (not (file-exists? (param-filename 'rts "Shared" "arithmetic.c")))
-      (expand-file (param-filename 'rts "Shared" "arithmetic.mac")
-                   (param-filename 'rts "Shared" "arithmetic.c")))
-
   (let ((make-target (case *runtime-type* 
                        ((petit) 
 			(case *host:os*
@@ -199,12 +186,8 @@
 			  ((win32) "larceny.bin.exe")
 			  (else    "larceny.bin")))
 		       )))
-
-    ;; petit-win32.sch actually doesn't pass an arg to make...
-    ;; should I do same?
-
-    (execute-in-directory (nbuild-parameter 'rts)
-                          (string-append (make-command) " " make-target))))
+    (make:make larceny-runtime-project 
+               (param-filename 'rts make-target))))
 
 (define build-runtime-system build-runtime)  ; Old name
 

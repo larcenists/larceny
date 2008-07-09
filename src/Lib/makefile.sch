@@ -902,4 +902,40 @@
     (apply make-compat rest)
     (compile-file (param-filename 'source "makefile.sch"))))
 
+(define larceny-runtime-project 
+  (let* ((runtime-target-names '("libpetit.lib" 
+                                 "libpetit.a" 
+                                 "larceny.bin" 
+                                 "larceny.bin.exe"))
+         (runtimes (map (lambda (x) (param-filename 'rts x)) 
+                        runtime-target-names))
+         (makefile (param-filename 'rts "Makefile"))
+         (make-templates.sch (param-filename 'rts "make-templates.sch"))
+         (arithmetic.c (param-filename 'rts "Shared" "arithmetic.c"))
+         (create-invoke-make-command
+          (lambda (target-name)
+            (lambda (name dep-files) 
+              (let ((cmd (string-append (make-command) " " target-name)))
+                ;; petit-win32.sch actually doesn't pass an arg to make...
+                ;; should I do same?
+                (execute-in-directory (nbuild-parameter 'rts) cmd)))))
+         (expand-mac-to-c-source
+          (lambda (name dep-files)
+            (expand-file (car dep-files) name)))
+         (create-makefile 
+          (lambda (name dep-files)
+            (compat:load (car dep-files))
+            (build-makefile)))
+         )
+    (make:project 
+     "Larceny Runtime"
+     `(targets ,@(map (lambda (rt) 
+                        `(,(param-filename 'rts rt) 
+                          ,(create-invoke-make-command rt)))
+                      runtime-target-names)
+               (,arithmetic.c ,expand-mac-to-c-source)
+               (,makefile ,create-makefile))
+     `(dependencies ,@(map (lambda (rt) `(,rt (,makefile))) runtimes)
+                    (,makefile (,make-templates.sch))))))
+
 ; eof
