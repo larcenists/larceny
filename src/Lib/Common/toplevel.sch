@@ -1133,6 +1133,10 @@
   (environment-set! larc 'get-line        get-line)
   (environment-set! larc 'get-datum get-datum)
 
+  ; FIXME
+  (environment-set! larc 'get-datum-with-source-locations
+                    get-datum-with-source-locations)
+
   (environment-set! larc 'put-u8 put-u8)
   (environment-set! larc 'put-bytevector put-bytevector)
 

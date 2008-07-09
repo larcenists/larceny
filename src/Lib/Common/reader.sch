@@ -106,11 +106,27 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; Source code locations.
+; FIXME: temporary.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (make-source-location input-port)
+  (let* ((i (port-position input-port))
+         (j (port-lines-read input-port))
+         (k (- i (port-line-start input-port))))
+    (vector i j k)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; This is the real parser.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (get-datum input-port)
+  (get-datum-with-source-locations input-port #f))
+
+(define (get-datum-with-source-locations input-port keep-source-locations?)
 
   ; Constants and local variables.
 
@@ -160,6 +176,21 @@
 
          (string_accumulator_length 0)
 
+         ; Source location for the start of the current token.
+
+         (locationStart
+          (if keep-source-locations?
+              (make-source-location input-port)
+              #f))
+
+         ; Stack of source locations.
+
+         (locationStack '())
+
+         ; Association list of data and their source locations.
+
+         (locations '())
+
         )
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -190,6 +221,9 @@
 ;              (read-char input-port)
 ;              (accept 'rparen))
               (else
+               (if keep-source-locations?
+                   (set! locationStart
+                         (make-source-location input-port)))
                (state0 c))))
       (loop (peek-char input-port)))
 
@@ -8231,6 +8265,13 @@
             ((= i n))
           (string-set! new i (string-ref string_accumulator i)))
         (set! string_accumulator new)))
+
+    (define (record-source-location x start end)
+      (if keep-source-locations?
+          (set! locations
+                (cons (vector x start end)
+                      locations)))
+      x)
   
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
@@ -8309,39 +8350,44 @@
     (define (list2vector vals) (list->vector vals))
   
     (define (makeBool)
-      (case (string-ref tokenValue 1)
-       ((#\t #\T) #t)
-       ((#\f #\F) #f)
-       (else (scannerError errBug))))
+      (let ((x (case (string-ref tokenValue 1)
+                ((#\t #\T) #t)
+                ((#\f #\F) #f)
+                (else (scannerError errBug)))))
+        (record-source-location x
+                                locationStart
+                                (make-source-location input-port))))
   
     (define (makeChar)
-      (let ((n (string-length tokenValue)))
-        (cond ((= n 3)
-               (string-ref tokenValue 2))
-              ((char=? #\x (string-ref tokenValue 2))
-               (checked-integer->char
-                (string->number (substring tokenValue 3 n) 16)))
-              (else
-               (let* ((s (substring tokenValue 2 n))
-                      (s (if (port-folds-case? input-port)
-                             (string-foldcase s)
-                             s))
-                      (sym (string->symbol s)))
-                 (case sym
-                  ((nul)       #\nul)
-                  ((alarm)     char:alarm)
-                  ((backspace) #\backspace)
-                  ((tab)       #\tab)
-                  ((linefeed newline)
-                               #\linefeed)
-                  ((vtab)      #\vtab)
-                  ((page)      #\page)
-                  ((return)    #\return)
-                  ((esc)       char:esc)
-                  ((space)     #\space)
-                  ((delete)    char:delete)
-                  (else
-                   (scannerError errIllegalNamedChar))))))))
+      (let* ((n (string-length tokenValue))
+             (x (cond ((= n 3)
+                       (string-ref tokenValue 2))
+                      ((char=? #\x (string-ref tokenValue 2))
+                       (checked-integer->char
+                        (string->number (substring tokenValue 3 n) 16)))
+                      (else
+                       (let* ((s (substring tokenValue 2 n))
+                              (s (if (port-folds-case? input-port)
+                                     (string-foldcase s)
+                                     s))
+                              (sym (string->symbol s)))
+                         (case sym
+                          ((nul)               #\nul)
+                          ((alarm)             char:alarm)
+                          ((backspace)         #\backspace)
+                          ((tab)               #\tab)
+                          ((linefeed newline)  #\linefeed)
+                          ((vtab)              #\vtab)
+                          ((page)              #\page)
+                          ((return)            #\return)
+                          ((esc)               char:esc)
+                          ((space)             #\space)
+                          ((delete)            char:delete)
+                          (else
+                           (scannerError errIllegalNamedChar))))))))
+        (record-source-location x
+                                locationStart
+                                (make-source-location input-port))))
 
     ; #^B"..."
     ; Coding bytevectors as strings is inherently evil.
@@ -8399,8 +8445,11 @@
         (typetag-set! z sys$tag.compnum-typetag)
         z))
 
-    (define (makeEOF) (eof-object))
-  
+    (define (makeEOF)
+      (let ((x (eof-object))
+            (loc (make-source-location input-port)))
+        (record-source-location x loc loc)))
+
     (define (makeFlag)
 
       ; The draft R6RS allows implementation-specific extensions
@@ -8411,23 +8460,26 @@
       (if (io/port-allows-flags? input-port)
 
           (let* ((n (string-length tokenValue))
-                 (flag (string->symbol (substring tokenValue 2 n))))
-            (case flag
-             ((fold-case no-fold-case
-               err5rs r5rs larceny slow fast safe unsafe)
-              (set-mode! flag)
-              (unspecified))
-             ((fasl)
-              (set-mode! flag)
-              ((fasl-evaluator)))
-             ((unspecified) (unspecified))
-             ((undefined)   (undefined))
-             ((null)        '())
-             ((false)       #f)
-             ((true)        #t)
-             (else
-              (accept 'miscflag)
-              (parse-error '<miscflag> '(miscflag)))))
+                 (flag (string->symbol (substring tokenValue 2 n)))
+                 (x (case flag
+                     ((fold-case no-fold-case
+                       err5rs r5rs larceny slow fast safe unsafe)
+                      (set-mode! flag)
+                      (unspecified))
+                     ((fasl)
+                      (set-mode! flag)
+                      ((fasl-evaluator)))
+                     ((unspecified) (unspecified))
+                     ((undefined)   (undefined))
+                     ((null)        '())
+                     ((false)       #f)
+                     ((true)        #t)
+                     (else
+                      (accept 'miscflag)
+                      (parse-error '<miscflag> '(miscflag))))))
+            (record-source-location x
+                                    locationStart
+                                    (make-source-location input-port)))
 
           (begin (accept 'miscflag)
                  (parse-error '<miscflag> '(miscflag)))))
@@ -8452,14 +8504,18 @@
     (define (makeNum)
       (let ((x (string->number tokenValue)))
         (if x
-            x
+            (record-source-location x
+                                    locationStart
+                                    (make-source-location input-port))
             (begin (accept 'number)
                    (parse-error '<number> '(number))))))
   
     (define (makeOctet)
       (let ((n (string->number tokenValue)))
         (if (and (exact? n) (integer? n) (<= 0 n 255))
-            n
+            (record-source-location n
+                                    locationStart
+                                    (make-source-location input-port))
             (begin (accept 'octet)
                    (parse-error '<octet> '(octet))))))
   
@@ -8575,8 +8631,11 @@
               (else
                (scannerError errIllegalString))))
 
-      (let ((n (string-length tokenValue)))
-        (loop 1 (- n 1) (make-string (- n 2)) 0)))
+      (let* ((n (string-length tokenValue))
+             (s (loop 1 (- n 1) (make-string (- n 2)) 0)))
+        (record-source-location s
+                                locationStart
+                                (make-source-location input-port))))
 
     ; Several Larceny-specific extensions are handled here:
     ;     leading . or @ or +: or -:
@@ -8590,10 +8649,13 @@
     (define (makeSym)
       (let ((n (string-length tokenValue)))
         (define (return sym)
-          (if (and (io/port-recognizes-javadot-symbols? input-port)
-                   (javadot-syntax? sym))
-              (symbol->javadot-symbol! sym)
-              sym))
+          (let ((x (if (and (io/port-recognizes-javadot-symbols? input-port)
+                            (javadot-syntax? sym))
+                       (symbol->javadot-symbol! sym)
+                       sym)))
+            (record-source-location x
+                                    locationStart
+                                    (make-source-location input-port))))
         (define (loop i)
           (if (= i n)
               (return (string->symbol (if (port-folds-case? input-port)
@@ -8785,6 +8847,9 @@
         unsyntaxsplicing
         vecstart))
   
-    (parse-outermost-datum)))
+    (if keep-source-locations?
+        (let ((x (parse-outermost-datum)))
+          (values x locations))
+        (parse-outermost-datum))))
 
 ; eof
