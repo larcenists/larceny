@@ -70,11 +70,15 @@
 
       (rev-string-append l 0))
 
+    ; FIXME: the R6RS generalizes this syntax.
+
     (define (read-macro? l)
       (define (length1? l) (and (pair? l) (null? (cdr l))))
       (let ((head (car l)) (tail (cdr l)))
         (case head
-          ((quote quasiquote unquote unquote-splicing) (length1? tail))
+          ((quote quasiquote unquote unquote-splicing
+            syntax quasisyntax unsyntax unsyntax-splicing)
+           (length1? tail))
           (else                                        #f))))
 
     (define (read-macro-body l)
@@ -83,10 +87,14 @@
     (define (read-macro-prefix l)
       (let ((head (car l)) (tail (cdr l)))
         (case head
-          ((quote)            "'")
-          ((quasiquote)       "`")
-          ((unquote)          ",")
-          ((unquote-splicing) ",@"))))
+          ((quote)             "'")
+          ((quasiquote)        "`")
+          ((unquote)           ",")
+          ((unquote-splicing)  ",@")
+          ((syntax)            "#'")
+          ((quasisyntax)       "#`")
+          ((unsyntax)          "#,")
+          ((unsyntax-splicing) "#,@"))))
 
     (define (out str col)
       (and col (output str) (+ col (string-length str))))

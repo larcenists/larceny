@@ -47,23 +47,29 @@
 ; FIXME:  The readtable-ref and readtable-set! operations don't
 ; do anything except warn that they don't do anything.
 ;
-; FIXME:  This version doesn't track source locations either.
-; That should be easy to add by changing the LL(1) grammar and
-; writing appropriate action routines, but we should put some
-; thought into it first.
+; FIXME:  The old interface for obtaining source code locations,
+; consisting of datum->source-location and datum->source-locations-clear!,
+; is no longer supported.  The new interface is
 ;
-; The v0.93 comment for source locations says this:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; If the parameter datum-source-locations? is set, then the reader
-; associates a source location (a pair of a port name and port byte
-; offset) with each list item read, hashing on the cons cell of which
-; that item is the car.  For example, reading (x y z) will associate the
-; list (x y z) with source location of x, the list (y z) with the
-; location of y, and the list (z) with the location of z.  The
-; datum->source-location procedure looks up the source location
-; associated with a datam, returning #f if there is none.  The
-; datum-source-locations-clear! procedures removes all source/datum
-; associations.
+; Source code locations.
+;
+;     (get-datum-with-source-locations input-port keep-source-locations?)
+;
+; If keep-source-locations? is false, then this procedure behaves
+; just like get-datum.
+;
+; If keep-source-locations? is true, then this procedure returns
+; two values.  The first return value is the value that would be
+; returned by get-datum.  The second return value is an assocation
+; list that maps every subform to the half-open interval consisting
+; of its starting and ending positions, where each position is a
+; vector of the form #(i j k), where
+;
+;     i is the 0-origin character position
+;     j is the 0-origin line number
+;     k is the 0-origin column number
 
 ($$trace "reader")
 
@@ -107,7 +113,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Source code locations.
-; FIXME: temporary.
+;
+; Represented as a vector of three elements #(i j k) where
+;     i is the 0-origin character position
+;     j is the 0-origin line number
+;     k is the 0-origin column number
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -181,7 +191,7 @@
          (locationStart
           (if keep-source-locations?
               (make-source-location input-port)
-              #f))
+              '#(0 0 0)))
 
          ; Stack of source locations.
 
@@ -7410,23 +7420,19 @@
   
 (define (parse-outermost-datum)
   (case (next-token)
-    ((xsharpdot)
-     (begin
-       (consume-token!)
-       (let ((ast1 (parse-datum))) (sharpDot ast1))))
-    ((xfaslp)
-     (begin
-       (consume-token!)
-       (let ((ast1 (parse-datum))) (list2proc ast1))))
-    ((xfaslg)
-     (begin
-       (consume-token!)
-       (let ((ast1 (parse-symbol))) (sym2global ast1))))
-    ((bvecstart xfaslb)
-     (let ((ast1 (parse-bytevector))) (identity ast1)))
-    ((vecstart)
-     (let ((ast1 (parse-vector))) (identity ast1)))
-    ((lparen
+    ((boolean
+       number
+       xfaslc
+       xfaslf
+       character
+       string
+       xstring
+       id
+       miscflag
+       bvecstart
+       xfaslb
+       vecstart
+       lparen
        lbracket
        quote
        backquote
@@ -7436,18 +7442,11 @@
        quasisyntax
        unsyntax
        unsyntaxsplicing
-       xbox)
-     (let ((ast1 (parse-list))) (identity ast1)))
-    ((miscflag) (begin (consume-token!) (makeFlag)))
-    ((id) (begin (consume-token!) (makeSym)))
-    ((xstring)
-     (begin (consume-token!) (makeXString)))
-    ((string) (begin (consume-token!) (makeString)))
-    ((character) (begin (consume-token!) (makeChar)))
-    ((xfaslf) (begin (consume-token!) (makeFlonum)))
-    ((xfaslc) (begin (consume-token!) (makeCompnum)))
-    ((number) (begin (consume-token!) (makeNum)))
-    ((boolean) (begin (consume-token!) (makeBool)))
+       xbox
+       xfaslg
+       xfaslp
+       xsharpdot)
+     (let ((ast1 (parse-datum))) (identity ast1)))
     ((eofobj) (begin (consume-token!) (makeEOF)))
     (else
      (parse-error
@@ -7494,22 +7493,22 @@
      (begin
        (consume-token!)
        (let ((ast1 (parse-symbol))) (sym2global ast1))))
-    ((bvecstart xfaslb)
-     (let ((ast1 (parse-bytevector))) (identity ast1)))
-    ((vecstart)
-     (let ((ast1 (parse-vector))) (identity ast1)))
-    ((lparen
-       lbracket
-       quote
-       backquote
-       comma
-       splicing
-       syntax
-       quasisyntax
-       unsyntax
-       unsyntaxsplicing
-       xbox)
-     (let ((ast1 (parse-list))) (identity ast1)))
+    ((xbox unsyntaxsplicing
+           unsyntax
+           quasisyntax
+           syntax
+           splicing
+           comma
+           backquote
+           quote
+           lbracket
+           lparen
+           vecstart
+           xfaslb
+           bvecstart)
+     (let ((ast1 (parse-location)))
+       (let ((ast2 (parse-structured)))
+         (makeStructured ast1 ast2))))
     ((miscflag) (begin (consume-token!) (makeFlag)))
     ((id) (begin (consume-token!) (makeSym)))
     ((xstring)
@@ -7549,6 +7548,42 @@
           xfaslp
           xsharpdot
           xstring)))))
+
+(define (parse-structured)
+  (case (next-token)
+    ((bvecstart xfaslb)
+     (let ((ast1 (parse-bytevector))) (identity ast1)))
+    ((vecstart)
+     (let ((ast1 (parse-vector))) (identity ast1)))
+    ((lparen
+       lbracket
+       quote
+       backquote
+       comma
+       splicing
+       syntax
+       quasisyntax
+       unsyntax
+       unsyntaxsplicing
+       xbox)
+     (let ((ast1 (parse-list))) (identity ast1)))
+    (else
+     (parse-error
+       '<structured>
+       '(backquote
+          bvecstart
+          comma
+          lbracket
+          lparen
+          quasisyntax
+          quote
+          splicing
+          syntax
+          unsyntax
+          unsyntaxsplicing
+          vecstart
+          xbox
+          xfaslb)))))
 
 (define (parse-string)
   (case (next-token)
@@ -7608,20 +7643,20 @@
        xstring
        id
        miscflag
-       xbox
-       unsyntaxsplicing
-       unsyntax
-       quasisyntax
-       syntax
-       splicing
-       comma
-       backquote
-       quote
-       lbracket
-       lparen
-       vecstart
-       xfaslb
        bvecstart
+       xfaslb
+       vecstart
+       lparen
+       lbracket
+       quote
+       backquote
+       comma
+       splicing
+       syntax
+       quasisyntax
+       unsyntax
+       unsyntaxsplicing
+       xbox
        xfaslg
        xfaslp
        xsharpdot)
@@ -7666,20 +7701,20 @@
        xsharpdot
        xfaslp
        xfaslg
-       bvecstart
-       xfaslb
-       vecstart
-       lparen
-       lbracket
-       quote
-       backquote
-       comma
-       splicing
-       syntax
-       quasisyntax
-       unsyntax
-       unsyntaxsplicing
        xbox
+       unsyntaxsplicing
+       unsyntax
+       quasisyntax
+       syntax
+       splicing
+       comma
+       backquote
+       quote
+       lbracket
+       lparen
+       vecstart
+       xfaslb
+       bvecstart
        miscflag
        id
        xstring
@@ -7747,20 +7782,20 @@
        xstring
        id
        miscflag
-       xbox
-       unsyntaxsplicing
-       unsyntax
-       quasisyntax
-       syntax
-       splicing
-       comma
-       backquote
-       quote
-       lbracket
-       lparen
-       vecstart
-       xfaslb
        bvecstart
+       xfaslb
+       vecstart
+       lparen
+       lbracket
+       quote
+       backquote
+       comma
+       splicing
+       syntax
+       quasisyntax
+       unsyntax
+       unsyntaxsplicing
+       xbox
        xfaslg
        xfaslp
        xsharpdot)
@@ -7805,20 +7840,20 @@
        xsharpdot
        xfaslp
        xfaslg
-       bvecstart
-       xfaslb
-       vecstart
-       lparen
-       lbracket
-       quote
-       backquote
-       comma
-       splicing
-       syntax
-       quasisyntax
-       unsyntax
-       unsyntaxsplicing
        xbox
+       unsyntaxsplicing
+       unsyntax
+       quasisyntax
+       syntax
+       splicing
+       comma
+       backquote
+       quote
+       lbracket
+       lparen
+       vecstart
+       xfaslb
+       bvecstart
        miscflag
        id
        xstring
@@ -7965,20 +8000,20 @@
        xstring
        id
        miscflag
-       xbox
-       unsyntaxsplicing
-       unsyntax
-       quasisyntax
-       syntax
-       splicing
-       comma
-       backquote
-       quote
-       lbracket
-       lparen
-       vecstart
-       xfaslb
        bvecstart
+       xfaslb
+       vecstart
+       lparen
+       lbracket
+       quote
+       backquote
+       comma
+       splicing
+       syntax
+       quasisyntax
+       unsyntax
+       unsyntaxsplicing
+       xbox
        xfaslg
        xfaslp
        xsharpdot)
@@ -8030,6 +8065,40 @@
   (case (next-token)
     ((number) (begin (consume-token!) (makeOctet)))
     (else (parse-error '<octet> '(number)))))
+
+(define (parse-location)
+  (case (next-token)
+    ((xbox unsyntaxsplicing
+           unsyntax
+           quasisyntax
+           syntax
+           splicing
+           comma
+           backquote
+           quote
+           lbracket
+           lparen
+           vecstart
+           xfaslb
+           bvecstart)
+     (sourceLocation))
+    (else
+     (parse-error
+       '<location>
+       '(backquote
+          bvecstart
+          comma
+          lbracket
+          lparen
+          quasisyntax
+          quote
+          splicing
+          syntax
+          unsyntax
+          unsyntaxsplicing
+          vecstart
+          xbox
+          xfaslb)))))
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
@@ -8266,10 +8335,10 @@
           (string-set! new i (string-ref string_accumulator i)))
         (set! string_accumulator new)))
 
-    (define (record-source-location x start end)
+    (define (record-source-location x start)
       (if keep-source-locations?
           (set! locations
-                (cons (vector x start end)
+                (cons (vector x start (make-source-location input-port))
                       locations)))
       x)
   
@@ -8354,9 +8423,7 @@
                 ((#\t #\T) #t)
                 ((#\f #\F) #f)
                 (else (scannerError errBug)))))
-        (record-source-location x
-                                locationStart
-                                (make-source-location input-port))))
+        (record-source-location x locationStart)))
   
     (define (makeChar)
       (let* ((n (string-length tokenValue))
@@ -8385,9 +8452,7 @@
                           ((delete)            char:delete)
                           (else
                            (scannerError errIllegalNamedChar))))))))
-        (record-source-location x
-                                locationStart
-                                (make-source-location input-port))))
+        (record-source-location x locationStart)))
 
     ; #^B"..."
     ; Coding bytevectors as strings is inherently evil.
@@ -8445,10 +8510,7 @@
         (typetag-set! z sys$tag.compnum-typetag)
         z))
 
-    (define (makeEOF)
-      (let ((x (eof-object))
-            (loc (make-source-location input-port)))
-        (record-source-location x loc loc)))
+    (define (makeEOF) (eof-object))
 
     (define (makeFlag)
 
@@ -8477,9 +8539,7 @@
                      (else
                       (accept 'miscflag)
                       (parse-error '<miscflag> '(miscflag))))))
-            (record-source-location x
-                                    locationStart
-                                    (make-source-location input-port)))
+            (record-source-location x locationStart))
 
           (begin (accept 'miscflag)
                  (parse-error '<miscflag> '(miscflag)))))
@@ -8504,18 +8564,14 @@
     (define (makeNum)
       (let ((x (string->number tokenValue)))
         (if x
-            (record-source-location x
-                                    locationStart
-                                    (make-source-location input-port))
+            (record-source-location x locationStart)
             (begin (accept 'number)
                    (parse-error '<number> '(number))))))
   
     (define (makeOctet)
       (let ((n (string->number tokenValue)))
         (if (and (exact? n) (integer? n) (<= 0 n 255))
-            (record-source-location n
-                                    locationStart
-                                    (make-source-location input-port))
+            (record-source-location n locationStart)
             (begin (accept 'octet)
                    (parse-error '<octet> '(octet))))))
   
@@ -8633,9 +8689,10 @@
 
       (let* ((n (string-length tokenValue))
              (s (loop 1 (- n 1) (make-string (- n 2)) 0)))
-        (record-source-location s
-                                locationStart
-                                (make-source-location input-port))))
+        (record-source-location s locationStart)))
+
+    (define (makeStructured loc0 x)
+      (record-source-location x loc0))
 
     ; Several Larceny-specific extensions are handled here:
     ;     leading . or @ or +: or -:
@@ -8653,9 +8710,7 @@
                             (javadot-syntax? sym))
                        (symbol->javadot-symbol! sym)
                        sym)))
-            (record-source-location x
-                                    locationStart
-                                    (make-source-location input-port))))
+            (record-source-location x locationStart)))
         (define (loop i)
           (if (= i n)
               (return (string->symbol (if (port-folds-case? input-port)
@@ -8765,6 +8820,10 @@
       (if (io/port-allows-traditional-weirdness? input-port)
           (eval x)
           (parse-error '<datum> datum-starters)))
+
+    ; Returns the source location at the start of the previous token.
+
+    (define (sourceLocation) locationStart)
 
     ; #^Gsym syntax used in .fasl files
 
