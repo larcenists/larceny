@@ -592,6 +592,7 @@ static void build_remset_summary( gc_t *gc, int gen )
 static void invalidate_remset_summary( gc_t *gc )
 {
   rs_clear( DATA(gc)->remset_summary );
+  summary_dispose( &DATA(gc)->summary );
   DATA(gc)->remset_summary_valid = FALSE;
 }
 
