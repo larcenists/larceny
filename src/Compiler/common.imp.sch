@@ -402,6 +402,7 @@
                  fl+ fl- fl* fl/
                  eqv? memv assv memq
                  map for-each
+                 char=? char<? char>? char<=? char>=?
                  lookahead-u8 get-u8
                  lookahead-char get-char put-char
                  peek-char read-char write-char
@@ -598,8 +599,6 @@
 
 `  ((_ larceny bytevector-u8-set! (bytevector-u8-set! x y z))
     (bytevector-set! x y z))
-
-   ; FIXME: These are incorrect because ?e3 ... might not return.
 
 `  ((_ larceny = (= ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
@@ -1102,6 +1101,36 @@
                    (?f (car ?y1) (car ?y2) ...)))))))
       
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
+
+`  ((_ larceny char=? (char=? ?e1 ?e2 ?e3 ?e4 ...))
+    (let* ((t1 ?e1)
+           (t2 ?e2)
+           (t3 (char=? t2 ?e3 ?e4 ...)))
+      (if (char=? t1 t2) t3 #f)))
+
+`  ((_ larceny char<? (char<? ?e1 ?e2 ?e3 ?e4 ...))
+    (let* ((t1 ?e1)
+           (t2 ?e2)
+           (t3 (char<? t2 ?e3 ?e4 ...)))
+      (if (char<? t1 t2) t3 #f)))
+
+`  ((_ larceny char>? (char>? ?e1 ?e2 ?e3 ?e4 ...))
+    (let* ((t1 ?e1)
+           (t2 ?e2)
+           (t3 (char>? t2 ?e3 ?e4 ...)))
+      (if (char>? t1 t2) t3 #f)))
+
+`  ((_ larceny char<=? (char<=? ?e1 ?e2 ?e3 ?e4 ...))
+    (let* ((t1 ?e1)
+           (t2 ?e2)
+           (t3 (char<=? t2 ?e3 ?e4 ...)))
+      (if (char<=? t1 t2) t3 #f)))
+
+`  ((_ larceny char>=? (char>=? ?e1 ?e2 ?e3 ?e4 ...))
+    (let* ((t1 ?e1)
+           (t2 ?e2)
+           (t3 (char>=? t2 ?e3 ?e4 ...)))
+      (if (char>=? t1 t2) t3 #f)))
 
    ; The fast path for lookahead-u8 and get-u8.
    ; FIXME:  This can be bummed further.
