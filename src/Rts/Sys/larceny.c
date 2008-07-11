@@ -832,7 +832,7 @@ parse_options( int argc, char **argv, opt_t *o )
       (o->size[0] > 0 ? o->size[0] : DEFAULT_NURSERY_SIZE);
 
     /* Ephemeral generations */
-    prev_size = o->gc_info.nursery_info.size_bytes;
+    prev_size = 5*o->gc_info.nursery_info.size_bytes;
 
     for ( i = 1 ; i <= areas ; i++ ) {
       if (o->size[i] == 0)
