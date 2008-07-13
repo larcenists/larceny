@@ -486,69 +486,89 @@
                                           (lambda.args E)))
                              '()))))))))
           
+          ; Any variables bound by E1 and E2 will unavailable
+          ; outside E.  On the other hand, E1 and E2 can kill
+          ; variables and expressions that were available at E.
+
           ((conditional? E)
            (let ((E0 (if.test E))
                  (E1 (if.then E))
                  (E2 (if.else E)))
              (if (constant? E0)
-                 ; FIXME: E1 and E2 might not be a legal rhs,
+
+                 ; E1 and E2 might not be a legal rhs,
                  ; so we can't just return the simplified E1 or E2.
-                 (let ((E1 (if (constant.value E0) E1 E2)))
+
+                 (let ((E1 (if (constant.value E0) E1 E2))
+                       (available1 (copy-available-table available)))
                    (call-with-values
-                    (lambda () (scan E1 env available))
+                    (lambda () (scan E1 env available1))
                     (lambda (E1 F1 regbindings1)
-                      (cond ((or (not (call? E1))
-                                 (not (lambda? (call.proc E1))))
+                      (available-intersect! available available available1)
+                      (cond ((or (constant? E1)
+                                 (variable? E1)
+                                 (lambda? E1)
+                                 (and (call? E1)
+                                      (not (lambda? (call.proc E1))))
+                                 (assignment? E1)
+                                 (conditional? E1))
                              (values E1 F1 regbindings1))
                             (else
-                             ; FIXME: Must return a valid rhs.
+                             ; Must return a valid rhs.
                              (values (make-conditional
                                       (make-constant #t)
                                       E1
                                       (make-constant 0))
                                      F1
                                      regbindings1))))))
-                 (call-with-values
-                  (lambda () (scan E0 env available))
-                  (lambda (E0 F0 regbindings0)
-                    (if (not (null? regbindings0))
-                        (error 'scan-rhs 'if))
-                    (if (not (eq? E0 (if.test E)))
-                        (scan-rhs (make-conditional E0 E1 E2)
-                                  env available)
-                        (let ((available1
-                               (copy-available-table available))
-                              (available2
-                               (copy-available-table available)))
-                          (if (variable? E0)
-                              (let ((T0 (variable.name E0)))
-                                (available-add!
-                                 available2 T0 (make-constant #f)))
-                              (error (make-readable E #t)))
-                          (call-with-values
-                           (lambda () (scan E1 env available1))
-                           (lambda (E1 F1 regbindings1)
-                             (call-with-values
-                              (lambda ()
-                                (wrap-with-register-bindings
-                                 regbindings1 E1 F1))
-                              (lambda (E1 F1)
-                                (call-with-values
-                                 (lambda () (scan E2 env available2))
-                                 (lambda (E2 F2 regbindings2)
-                                   (call-with-values
-                                    (lambda ()
-                                      (wrap-with-register-bindings
-                                       regbindings2 E2 F2))
-                                    (lambda (E2 F2)
-                                      (let ((E (make-conditional
-                                                E0 E1 E2))
-                                            (F (union F0 F1 F2)))
-                                        (available-intersect!
-                                         available
-                                         available1
-                                         available2)
-                                        (values E F '())))))))))))))))))
+
+                 (let ((available0 (copy-available-table available)))
+                   (call-with-values
+                    (lambda () (scan E0 env available0))
+                    (lambda (E0 F0 regbindings0)
+                      (available-intersect! available available available0)
+                      (if (not (null? regbindings0))
+                          (error 'scan-rhs 'if))
+                      (if (not (eq? E0 (if.test E)))
+                          (scan-rhs (make-conditional E0 E1 E2)
+                                    env available)
+                          (let ((available1
+                                 (copy-available-table available))
+                                (available2
+                                 (copy-available-table available)))
+                            (if (variable? E0)
+                                (let ((T0 (variable.name E0)))
+                                  (available-add!
+                                   available2 T0 (make-constant #f)))
+                                (error (make-readable E #t)))
+                            (call-with-values
+                             (lambda () (scan E1 env available1))
+                             (lambda (E1 F1 regbindings1)
+                               (call-with-values
+                                (lambda ()
+                                  (wrap-with-register-bindings
+                                   regbindings1 E1 F1))
+                                (lambda (E1 F1)
+                                  (call-with-values
+                                   (lambda () (scan E2 env available2))
+                                   (lambda (E2 F2 regbindings2)
+                                     (call-with-values
+                                      (lambda ()
+                                        (wrap-with-register-bindings
+                                         regbindings2 E2 F2))
+                                      (lambda (E2 F2)
+                                        (let ((E (make-conditional
+                                                  E0 E1 E2))
+                                              (F (union F0 F1 F2)))
+                                          (available-intersect!
+                                           available1
+                                           available1
+                                           available2)
+                                          (available-intersect!
+                                           available
+                                           available
+                                           available1)
+                                          (values E F '()))))))))))))))))))
           
           
           ((assignment? E)

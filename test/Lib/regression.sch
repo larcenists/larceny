@@ -380,6 +380,23 @@
                (char>=? #\c #\b #\b)
                (char>=? #\c #\d #\c))
          '(#t #t #f #f #f #f #t #f #t #f #t #f #t #f))
+
+   ; This was really a bug in Twobit's pass 3.
+
+   (test "Ticket #543"                  ; Bug in Larceny 0.961
+         (let* ((f (hide (lambda (x y)
+                           (let* ((pos-finis (+ x 1))
+                                  (rng-finis (or (+ y 1) 'top)))
+                             (let ((p3 (if rng-finis
+                                           (min pos-finis rng-finis)
+                                           pos-finis))
+                                   (p4 (if rng-finis
+                                           (max pos-finis rng-finis)
+                                           pos-finis)))
+                               (list p3 p4)))))))
+           (f (hide 33) (hide 44)))
+         '(34 45))
+
    ))
 
 (define (bug-105-test1)
