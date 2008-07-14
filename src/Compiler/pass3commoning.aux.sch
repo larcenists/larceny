@@ -24,7 +24,7 @@
 ; available-variable:   Available x symbol                 -> Expr
 ; available-extend!:    Available x symbol x Expr x Killer ->
 ; available-kill!:      Available x Killer                 ->
-; available-intersect!: Available x Available x Available  ->a
+; available-intersect!: Available x Available x Available  ->
 ;
 ; where Expr is of the form
 ;
@@ -53,8 +53,8 @@
 ; (available-kill! available K)
 ;     removes all bindings whose Killer intersects K.
 ; (available-intersect! available0 available1 available2)
-;     destructively sets available0 to the intersection of
-;     available1 and available2
+;     destructively changes available0, making it the intersection
+;     of available1 and available2
 ;
 ; (available-extend! available T E K) is very fast if the previous
 ; operation on the table was (available-expression available E).

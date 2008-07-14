@@ -486,7 +486,7 @@
                                           (lambda.args E)))
                              '()))))))))
           
-          ; Any variables bound by E1 and E2 will unavailable
+          ; Any variables bound by E1 and E2 will be unavailable
           ; outside E.  On the other hand, E1 and E2 can kill
           ; variables and expressions that were available at E.
 
