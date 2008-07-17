@@ -90,7 +90,7 @@
             (let* ((path (get-feature 'library-path))
                    (os (get-feature 'os-name))
                    (separator (if (string=? os "Win32") #\; #\:)))
-              (for-each add-path! (list-of-paths path #\:)))))
+              (for-each add-path! (list-of-paths path separator)))))
 
          (aeryn-mode!
           (lambda ()
