@@ -80,6 +80,7 @@
           (cons 'case-sensitivity       (not (sys$system-feature 'foldcase)))
           (cons 'safety                 (sys$system-feature 'safety))
           (cons 'execution-mode         (sys$system-feature 'execmode))
+          (cons 'ignore-first-line      (sys$system-feature 'ignore1))
           (cons 'pedantic               (sys$system-feature 'pedantic))
           (cons 'library-path           (sys$system-feature 'r6path))
           (cons 'top-level-program      (sys$system-feature 'r6program))

@@ -120,6 +120,7 @@ int main( int argc, char **os_argv )
   command_line_options.r5rs = 0;
   command_line_options.err5rs = 0;
   command_line_options.r6rs = 0;
+  command_line_options.ignore1 = 0;
   command_line_options.r6fast = 0;
   command_line_options.r6slow = 0;
   command_line_options.r6pedantic = 0;
@@ -567,6 +568,9 @@ parse_options( int argc, char **argv, opt_t *o )
       o->r6rs = 1;
       o->nobanner = 1;
     }
+    else if (hstrcmp( *argv, "-ignore1" ) == 0) {
+      o->ignore1 = 1;
+    }
     else if (hstrcmp( *argv, "-unsafe" ) == 0)
       o->unsafe = 1;
     else if (hstrcmp( *argv, "-fast" ) == 0)
@@ -642,6 +646,9 @@ parse_options( int argc, char **argv, opt_t *o )
 
   if ((strcmp (o->r6program, "") != 0) && (! (o->r6rs)))
     param_error( "Missing -r6rs option." );
+
+  if (o->ignore1 && (! (o->r6program)))
+    param_error( "Missing -program option." );
 
   if (o->gc_info.is_conservative_system &&
       (o->gc_info.is_generational_system || o->gc_info.is_stopcopy_system))
@@ -1074,6 +1081,8 @@ static char *helptext[] = {
   "     The following options may also be specified:",
   "       -program <filename>",
   "          Execute the R6RS-style program found in the file.",
+  "       -ignore1",
+  "          Ignore the first line of that file.",
   "       -fast",
   "          Execute the R6RS-style program as compiled code (the default).",
   "       -slow",
