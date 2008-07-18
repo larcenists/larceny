@@ -8,11 +8,11 @@ If one of Larceny's procedures duplicates the semantics of
 an R6RS procedure whose name is different, then Larceny's
 name is deprecated.
 
-proc:close-open-files[args="none",result="unspecified"]
+proc:close-open-files[args="",result="unspecified"]
 
 Closes all open files.
 
-proc:console-input-port[args="none",result="input-port"]
+proc:console-input-port[args="",result="input-port"]
 
 Returns a character input port such that no read from the port has
 signalled an error or returned the end-of-file object.
@@ -34,7 +34,7 @@ generators installed in the parameters console-input-port-factory and
 console-output-port-factory, which allow user programs to install
 their own console port generators.
 
-proc:console-output-port[args="none",result="output-port"]
+proc:console-output-port[args="",result="output-port"]
 
 Returns a character output port such that no write to the port has
 signalled an error.
@@ -77,7 +77,7 @@ proc:delete-file[args="filename",result="unspecified"]
 Deletes the named file. No error is signalled if the file does not
 exist.
 
-proc:eof-object[args="none",result="end-of-file object"]
+proc:eof-object[args="",result="end-of-file object"]
 
 _Eof-object_ returns an end-of-file object.
 
@@ -100,7 +100,7 @@ timezone.
 
 ++     (file-modification-time "geekdom") => #f++
     
-proc:flush-output-port[args="none",result="unspecified"]
+proc:flush-output-port[args="",result="unspecified"]
 proctempl:flush-output-port[args="port",result="unspecified"]
 
 Write any buffered data in the port to the underlying output medium.
@@ -115,7 +115,7 @@ Creates an input port that reads from _string_. The string may be
 shared with the caller. A string input port does not need to be
 closed, although closing it will prevent further reads from it.
 
-proc:open-output-string[args="none",result="output-port"]
+proc:open-output-string[args="",result="output-port"]
 
 Creates an output port where any output is written to a string. The
 accumulated string can be retrieved with

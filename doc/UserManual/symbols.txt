@@ -6,7 +6,7 @@ proc:gensym[args="string",result="symbol"]
 Gensym returns a new uninterned symbol, the name of which contains the
 given _string._
 
-proc:oblist[args="none",result="list"]
+proc:oblist[args="",result="list"]
 
 Oblist returns the list of interned symbols.
 

@@ -113,7 +113,7 @@ can be autoloaded.
 To enable autoloading of other ERR5RS/R6RS libraries,
 you can:
 
-- use the `-path` command-line option
+- use the <<R6RSLibraryPathSection, `-path` command-line option>>
 - use <<current-require-path,`current-require-path`>>
 - edit `startup.sch` in Larceny's root directory
 - add the libraries to Larceny's `lib` directory
@@ -251,9 +251,40 @@ The
 is initialized by the `startup.sch` file in Larceny's root
 directory.
 
-Larceny's `-path` command-line option adds a single directory
-to the directories in the
+<<R6RSLibraryPathSection, Larceny's `-path` command-line option>>
+adds one or more directories to the directories in the
 <<current-require-path,`current-require-path`>>.
+
+
+[[ERR5RSprimitivesSection]]
+
+==== Importing Larceny's standard procedures
+
+Any of Larceny's R5RS-mode top-level procedures can be imported
+into an ERR5RS or R6RS library or program by using an import
+declaration with a `primitives` clause that names the R5RS
+procedures to be imported.  For example:
+
+----------------------------------------------------------------
+    (import (primitives ; the procedures defined by SRFI 6
+                        open-input-string open-output-string
+                        get-output-string
+                        ; other useful procedures
+                        random current-seconds
+                        getenv setenv system
+                        current-directory file-modification-time
+                        make-parameter system-features
+                        vector-like-cas!)
+            (rnrs base)
+            (rnrs control))
+----------------------------------------------------------------
+
+[WARNING]
+================================================================
+This feature is non-portable.
+Other implementations of ERR5RS or the R6RS may not even
+have an underlying implementation of the R5RS.
+================================================================
 
 
 [[R6rsSection]]
@@ -307,21 +338,29 @@ any libraries that are
 
 As another extension to the R6RS, Larceny allows
 R6RS top-level programs to import any libraries
-that can be found in the directory specified by the
+that can be found in the directories specified by the
 `-path` option on Larceny's command line using
 <<LibraryTranslationSection, Larceny's standard translation>>
 from library names to file names.
-Note that the `-path` option cannot be used by Scheme scripts,
+On most systems, you can specify multiple directories
+by separating them with a colon; under Windows, use a
+semicolon as separator instead.
+
+[NOTE]
+================================================================
+The `-path` option cannot be used by Scheme scripts,
 because command-line options are passed along to the Scheme
 script without being interpreted by the `scheme-script` processor.
+================================================================
 
+[WARNING]
+================================================================
 We emphasize that this extension is non-portable.
-It is not supported by Ikarus, which is currently
-the only other system that implements a substantial
-fraction of the R6RS.
-(Ikarus may provide a similar feature, but Ikarus's
-mapping from library names to file names is incompatible
-with Larceny's mapping.)
+Other implementations of the R6RS may not provide
+anything comparable to Larceny's `-path` option.
+Even if they do, their mappings from library names
+to file names may be incompatible with Larceny's.
+================================================================
 
 
 [[DefiningLibrariesSection]]
@@ -336,8 +375,28 @@ program.  These libraries must be arranged so that no
 library depends upon libraries that come later in the
 file.
 
+[WARNING]
+================================================================
 We emphasize that this extension is non-portable.
-It is not supported by Ikarus.
+Other implementations of the R6RS may not allow
+R6RS programs to define their own libraries.
+================================================================
+
+
+==== Importing procedures from Larceny's underlying R5RS system
+
+As an extension to the R6RS, Larceny allows any of the
+procedures that are predefined at top level in Larceny's
+R5RS mode to be imported by using
+<<ERR5RSprimitivesSection, a `primitives` clause>>
+in an `import` declaration.
+
+[WARNING]
+================================================================
+This extension is highly non-portable.
+Other implementations of the R6RS may not even
+have an underlying implementation of the R5RS.
+================================================================
 
 
 [[SchemeScriptsSection]]
@@ -354,9 +413,15 @@ root directory to your path as described in `doc/HOWTO-INSTALL`.
 
 Suppose, for example, that `/home/myself/hello` is an R6RS
 Scheme script whose first line is the optional script header
-(`#!/usr/bin/env scheme-script`).  If you do not have execute
-permission for this script, or Larceny's root directory is
-not in your path, you can still run the script from
+shown below:
+
+----------------------------------------------------------------
+#!/usr/bin/env scheme-script
+----------------------------------------------------------------
+
+If you do not have execute permission for this script,
+or Larceny's root directory is not in your path,
+you can still run the script from
 Larceny's root directory as follows:
      
 ----------------------------------------------------------------
@@ -378,13 +443,41 @@ in your path, you can run the script as follows:
     % hello
 ----------------------------------------------------------------
 
+You may also pass command-line arguments to a Scheme script.
+
+[WARNING]
+================================================================
+We emphasize that Scheme scripts are not portable.
+Scheme scripts are specified only by a non-binding appendix
+to the R6RS, not by the R6RS proper.
+Other implementations of the R6RS may not support Scheme
+scripts at all, or may give them a semantics incompatible
+with Larceny's.
+================================================================
+
+On Unix systems, standard input and output can be redirected
+in the usual way.  In Larceny, standard input corresponds to
+the textual port initially returned by `current-input-port`,
+and standard output corresponds to the textual port initially
+returned by `current-output-port`.
+
+[WARNING]
+================================================================
+We emphasize that redirection of standard input and output
+is non-portable.
+Other implementations of the R6RS may not allow redirection,
+or may identify the standard input and output with ports
+other than those initially returned by `current-input-port`
+and `current-output-port`.
+================================================================
+
 
 [[R5rsScriptSection]]
 
 R5RS scripting
 ~~~~~~~~~~~~~~
 
-Suppose hello.sch contains the following R5RS code:
+Suppose `hello.sch` contains the following R5RS code:
 
 ----------------------------------------------------------------
     (display "Hello world!")
@@ -392,7 +485,7 @@ Suppose hello.sch contains the following R5RS code:
     (exit)
 ----------------------------------------------------------------
 
-You can run hello.sch as a script by executing Larceny as
+You can run `hello.sch` as a script by executing Larceny as
 follows:
 
 ----------------------------------------------------------------
@@ -475,10 +568,8 @@ system, but the executable program "`larceny.bin`" may be
 incompatible with very old or with very new versions of
 the processor or operating system.  If that appears to be
 the case, you should see whether a newer version of Larceny
-fixes the problem.  If not, you may be able to use
-MzScheme v37x to recompile `larceny.bin` from source.
-First, though, you should report the problem
-to us (`larceny@ccs.neu.edu`).
+fixes the problem.  If not, please report the problem
+to us at `larceny@ccs.neu.edu`.
 Please report success stories as well.
 
 

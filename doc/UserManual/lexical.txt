@@ -103,12 +103,14 @@ accepted on newly created ports.
 When given an argument, these procedures change the default
 as specified by the argument.
 
-proc:case-sensitive?[args="",optarg="boolean",result="boolean"]
+proc:case-sensitive?[args="",result="boolean"]
+proctempl:case-sensitive?[args="boolean"]
 
 Determines whether newly created textual ports default to
 case-sensitive.
 
-proc:read-larceny-weirdness?[args="",optarg="boolean",result="boolean"]
+proc:read-larceny-weirdness?[args="",result="boolean"]
+proctempl:read-larceny-weirdness?[args="boolean"]
 
 Determines whether newly created textual ports allow
 Larceny's usual extensions to R5RS lexical syntax.
@@ -116,7 +118,8 @@ This parameter also determines whether newly created
 ports allow +\#+ as an insignificant digit; this is
 required by the R5RS, but disallowed by the R6RS.
 
-proc:read-traditional-weirdness?[args="",optarg="boolean",result="boolean"]
+proc:read-traditional-weirdness?[args="",result="boolean"]
+proctempl:read-traditional-weirdness?[args="boolean"]
 
 Determines whether newly created textual ports allow
 certain lexical extensions that are deprecated in Larceny.

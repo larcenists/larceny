@@ -29,10 +29,11 @@ Those language standards serve as Larceny's primary documentation.
 
 This manual describes aspects of Larceny that are not described
 by the IEEE standard, the Revised Reports, or ERR5RS.
-For the most current version of this manual, please visit
-http://larceny.ccs.neu.edu/doc[Larceny's main web page].
-That page also links to the Common Larceny User
-Manual and to the Larceny mailing list.
+For the most current version of this manual, please see
+http://larceny.ccs.neu.edu/doc[Larceny's online documentation page].
+For links to the Common Larceny User Manual and the Larceny
+mailing list, please visit
+http://larceny.ccs.neu.edu/[Larceny's main web page].
 
 To report bugs, please send email to the Larceny
 developers at `<larceny@ccs.neu.edu>`, or submit a

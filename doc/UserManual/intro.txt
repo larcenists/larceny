@@ -106,7 +106,7 @@ Unix prompt.  On Windows, type "`larceny.bat`".
 
 [[CompilingStdLibSection]]
 
-==== Compiling the R6RS standard libraries
+=== Compiling the R6RS standard libraries
 
 Before you can run Larceny in ERR5RS or R6RS modes, you may
 have to compile the ERR5RS/R6RS runtime and standard libraries,
@@ -142,7 +142,7 @@ recompiled by accident.
 ================================================================
 
 
-==== Twobit
+=== Twobit
 
 Unless you are doing compiler development, you should use the
 "`larceny`" script, not the "`twobit`" script. The difference

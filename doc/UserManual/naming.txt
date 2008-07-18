@@ -253,7 +253,8 @@ error is signalled.
 If the library has already been loaded, then `require`
 returns false without loading the library a second time.
 
-proc:current-require-path[args="",optarg="stringlist",result="stringlist"]
+proc:current-require-path[args="",result="stringlist"]
+proctempl:current-require-path[args="stringlist"]
 
 The optional argument is a list of directory names
 (without slashes at the end) that should be searched

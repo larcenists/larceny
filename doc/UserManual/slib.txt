@@ -5,8 +5,9 @@ http://www-swiss.ai.mit.edu/~jaffer/SLIB.html[SLIB]
 is a large collection of useful libraries that have been
 written or collected by Aubrey Jaffer.
 
-Larceny supports SLIB via SRFI 96, but SLIB is not shipped
-with Larceny; it must be downloaded separately and then
-installed.
+Larceny supports SLIB via
+http://srfi.schemers.org/srfi-96/[SRFI 96],
+but SLIB itself is not shipped with Larceny;
+it must be downloaded separately and then installed.
 For the most up-to-date information on installing and using
 SLIB with Larceny, see +doc/HOWTO-SLIB+.
