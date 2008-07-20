@@ -568,7 +568,7 @@
 (define assoc-string
   (letrec ((assoc
             (lambda (key list)
-              (cond ((pair? list) (if (string-=? key (caar list))
+              (cond ((pair? list) (if (string=? key (caar list))
                                       (car list)
                                       (assoc key (cdr list))))
                     ((null? list) #f)
