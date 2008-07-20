@@ -53,12 +53,13 @@ if [ -e larceny.np ]; then
 fi
 
 # Remove the include directory from the non-Petit distributions.
-if [ ! -e petit.bin ] && [ ! -e petit.bin.exe ]; then
+if [ ! -e petit.bin ] && [ ! -e petit-larceny.bin ] && [ ! -e petit.bin.exe ];
+  then
     rm -rf include
 fi
 
 # For Petit:
-if [ -e petit.bin ] || [ -e petit.bin.exe ]
+if [ -e petit.bin ] || [ -e petit-larceny.bin ] || [ -e petit.bin.exe ]
 #    remove the .o files
 then find . -name '*.o' -type f | xargs rm -f
 #    remove the generated .c files
