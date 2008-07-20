@@ -397,6 +397,10 @@
            (f (hide 33) (hide 44)))
          '(34 45))
 
+   (test "Ticket #552"                  ; Bug in Larceny 0.962
+         (assp odd?                     ; contributed by Ray Racine
+               '((0 . 5) (1 . 6)))
+         '(1 . 6))
    ))
 
 (define (bug-105-test1)

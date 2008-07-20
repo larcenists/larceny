@@ -600,7 +600,7 @@
                    ((pred (car x))
                     x)
                    (else
-                    (assp pred list)))))
+                    (assp pred (cdr list))))))
           (else #f)))
   (assp pred list0))
 
