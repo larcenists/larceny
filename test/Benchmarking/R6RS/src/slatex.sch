@@ -496,23 +496,23 @@
 
 (define slatex.display-space
   (lambda (s p)
-    (cond ((eq? s slatex.&plain-space) (display #\space p))
-          ((eq? s slatex.&init-plain-space) (display #\space p))
-          ((eq? s slatex.&init-space) (display "\\HL " p))
-          ((eq? s slatex.&paren-space) (display "\\PRN " p))
-          ((eq? s slatex.&bracket-space) (display "\\BKT " p))
-          ((eq? s slatex.&quote-space) (display "\\QUO " p))
-          ((eq? s slatex.&inner-space) (display "\\ " p)))))
+    (cond ((eqv? s slatex.&plain-space) (display #\space p))
+          ((eqv? s slatex.&init-plain-space) (display #\space p))
+          ((eqv? s slatex.&init-space) (display "\\HL " p))
+          ((eqv? s slatex.&paren-space) (display "\\PRN " p))
+          ((eqv? s slatex.&bracket-space) (display "\\BKT " p))
+          ((eqv? s slatex.&quote-space) (display "\\QUO " p))
+          ((eqv? s slatex.&inner-space) (display "\\ " p)))))
 
 (define slatex.display-tab
   (lambda (tab p)
-    (cond ((eq? tab slatex.&set-tab) (display "\\=" p))
-          ((eq? tab slatex.&move-tab) (display "\\>" p)))))
+    (cond ((eqv? tab slatex.&set-tab) (display "\\=" p))
+          ((eqv? tab slatex.&move-tab) (display "\\>" p)))))
 
 (define slatex.display-notab
   (lambda (notab p)
-    (cond ((eq? notab slatex.&begin-string) (display "\\dt{" p))
-          ((eq? notab slatex.&end-string) (display "}" p)))))
+    (cond ((eqv? notab slatex.&begin-string) (display "\\dt{" p))
+          ((eqv? notab slatex.&end-string) (display "}" p)))))
 
 (define slatex.get-line
   (let ((curr-notab slatex.&void-notab))
@@ -529,15 +529,15 @@
                    'not-yet)
                   (else (set! graphic-char-seen? #t)))
             (cond ((eof-object? c)
-                   (cond ((eq? curr-notab slatex.&mid-string)
+                   (cond ((eqv? curr-notab slatex.&mid-string)
                           (if (> i 0)
                             (string-set!
                               (vector-ref line slatex.=notab)
                               (- i 1)
                               slatex.&end-string)))
-                         ((eq? curr-notab slatex.&mid-comment)
+                         ((eqv? curr-notab slatex.&mid-comment)
                           (set! curr-notab slatex.&void-notab))
-                         ((eq? curr-notab slatex.&mid-math)
+                         ((eqv? curr-notab slatex.&mid-math)
                           (slatex.error
                             'slatex.get-line
                             'runaway-math-subformula)))
@@ -555,8 +555,8 @@
                      i
                      slatex.&void-notab)
                    (vector-set! line slatex.=rtedge i)
-                   (if (eq? (string-ref (vector-ref line slatex.=notab) 0)
-                            slatex.&mid-string)
+                   (if (eqv? (string-ref (vector-ref line slatex.=notab) 0)
+                             slatex.&mid-string)
                      (string-set!
                        (vector-ref line slatex.=notab)
                        0
@@ -566,15 +566,15 @@
                    (if (and (eq? *op-sys* 'dos) (char=? c slatex.*return*))
                      (if (char=? (peek-char slatex.*in*) #\newline)
                        (read-char slatex.*in*)))
-                   (cond ((eq? curr-notab slatex.&mid-string)
+                   (cond ((eqv? curr-notab slatex.&mid-string)
                           (if (> i 0)
                             (string-set!
                               (vector-ref line slatex.=notab)
                               (- i 1)
                               slatex.&end-string)))
-                         ((eq? curr-notab slatex.&mid-comment)
+                         ((eqv? curr-notab slatex.&mid-comment)
                           (set! curr-notab slatex.&void-notab))
-                         ((eq? curr-notab slatex.&mid-math)
+                         ((eqv? curr-notab slatex.&mid-math)
                           (slatex.error
                             'slatex.get-line
                             'runaway-math-subformula)))
@@ -595,14 +595,14 @@
                      i
                      slatex.&void-notab)
                    (vector-set! line slatex.=rtedge i)
-                   (if (eq? (string-ref (vector-ref line slatex.=notab) 0)
-                            slatex.&mid-string)
+                   (if (eqv? (string-ref (vector-ref line slatex.=notab) 0)
+                             slatex.&mid-string)
                      (string-set!
                        (vector-ref line slatex.=notab)
                        0
                        slatex.&begin-string))
                    #t)
-                  ((eq? curr-notab slatex.&mid-comment)
+                  ((eqv? curr-notab slatex.&mid-comment)
                    (string-set! (vector-ref line slatex.=char) i c)
                    (string-set!
                      (vector-ref line slatex.=space)
@@ -648,7 +648,7 @@
                        i+1
                        curr-notab)
                      (loop (+ i+1 1))))
-                  ((eq? curr-notab slatex.&mid-math)
+                  ((eqv? curr-notab slatex.&mid-math)
                    (if (char=? c slatex.*tab*) (set! c #\space))
                    (string-set!
                      (vector-ref line slatex.=space)
@@ -674,7 +674,7 @@
                             i
                             slatex.&mid-math)))
                    (loop (+ i 1)))
-                  ((eq? curr-notab slatex.&mid-string)
+                  ((eqv? curr-notab slatex.&mid-string)
                    (if (char=? c slatex.*tab*) (set! c #\space))
                    (string-set! (vector-ref line slatex.=char) i c)
                    (string-set!
@@ -809,8 +809,9 @@
             (begin
               (slatex.remove-some-tabs prev 0)
               (let ((prev-rtedge (vector-ref prev slatex.=rtedge)))
-                (if (eq? (string-ref (vector-ref prev slatex.=tab) prev-rtedge)
-                         slatex.&tabbed-crg-ret)
+                (if (eqv? (string-ref (vector-ref prev slatex.=tab)
+                                      prev-rtedge)
+                          slatex.&tabbed-crg-ret)
                   (string-set!
                     (vector-ref prev slatex.=tab)
                     (vector-ref prev slatex.=rtedge)
@@ -828,19 +829,19 @@
                       ((char=? (string-ref (vector-ref prev slatex.=char) i)
                                #\newline)
                        (set! remove-tabs-from #f))
-                      ((eq? (string-ref (vector-ref curr slatex.=space) i)
-                            slatex.&init-space)
-                       (if (eq? (string-ref (vector-ref prev slatex.=notab) i)
-                                slatex.&void-notab)
+                      ((eqv? (string-ref (vector-ref curr slatex.=space) i)
+                             slatex.&init-space)
+                       (if (eqv? (string-ref (vector-ref prev slatex.=notab) i)
+                                 slatex.&void-notab)
                          (begin
                            (cond ((or (char=? (string-ref
                                                 (vector-ref prev slatex.=char)
                                                 i)
                                               #\()
-                                      (eq? (string-ref
-                                             (vector-ref prev slatex.=space)
-                                             i)
-                                           slatex.&paren-space))
+                                      (eqv? (string-ref
+                                              (vector-ref prev slatex.=space)
+                                              i)
+                                            slatex.&paren-space))
                                   (string-set!
                                     (vector-ref curr slatex.=space)
                                     i
@@ -849,10 +850,10 @@
                                                 (vector-ref prev slatex.=char)
                                                 i)
                                               #\[)
-                                      (eq? (string-ref
-                                             (vector-ref prev slatex.=space)
-                                             i)
-                                           slatex.&bracket-space))
+                                      (eqv? (string-ref
+                                              (vector-ref prev slatex.=space)
+                                              i)
+                                            slatex.&bracket-space))
                                   (string-set!
                                     (vector-ref curr slatex.=space)
                                     i
@@ -861,15 +862,15 @@
                                               (vector-ref prev slatex.=char)
                                               i)
                                             '(#\' #\` #\,))
-                                      (eq? (string-ref
-                                             (vector-ref prev slatex.=space)
-                                             i)
-                                           slatex.&quote-space))
+                                      (eqv? (string-ref
+                                              (vector-ref prev slatex.=space)
+                                              i)
+                                            slatex.&quote-space))
                                   (string-set!
                                     (vector-ref curr slatex.=space)
                                     i
                                     slatex.&quote-space)))
-                           (if (memq (string-ref
+                           (if (memv (string-ref
                                        (vector-ref prev slatex.=tab)
                                        i)
                                      (list slatex.&set-tab slatex.&move-tab))
@@ -879,16 +880,16 @@
                                slatex.&move-tab))))
                        (loop (+ i 1)))
                       ((= i 0) (set! remove-tabs-from 0))
-                      ((not (eq? (string-ref (vector-ref prev slatex.=tab) i)
-                                 slatex.&void-tab))
+                      ((not (eqv? (string-ref (vector-ref prev slatex.=tab) i)
+                                  slatex.&void-tab))
                        (set! remove-tabs-from (+ i 1))
-                       (if (memq (string-ref (vector-ref prev slatex.=tab) i)
+                       (if (memv (string-ref (vector-ref prev slatex.=tab) i)
                                  (list slatex.&set-tab slatex.&move-tab))
                          (string-set!
                            (vector-ref curr slatex.=tab)
                            i
                            slatex.&move-tab)))
-                      ((memq (string-ref (vector-ref prev slatex.=space) i)
+                      ((memv (string-ref (vector-ref prev slatex.=space) i)
                              (list slatex.&init-space
                                    slatex.&init-plain-space
                                    slatex.&paren-space
@@ -899,10 +900,10 @@
                                       (vector-ref prev slatex.=char)
                                       (- i 1))
                                     #\space)
-                            (eq? (string-ref
-                                   (vector-ref prev slatex.=notab)
-                                   (- i 1))
-                                 slatex.&void-notab))
+                            (eqv? (string-ref
+                                    (vector-ref prev slatex.=notab)
+                                    (- i 1))
+                                  slatex.&void-notab))
                        (set! remove-tabs-from (+ i 1))
                        (string-set!
                          (vector-ref prev slatex.=tab)
@@ -916,28 +917,29 @@
                        (set! remove-tabs-from (+ i 1))
                        (let loop1 ((j (- i 1)))
                          (cond ((<= j 0) 'exit-loop1)
-                               ((not (eq? (string-ref
-                                            (vector-ref curr slatex.=tab)
-                                            j)
-                                          slatex.&void-tab))
+                               ((not (eqv? (string-ref
+                                             (vector-ref curr slatex.=tab)
+                                             j)
+                                           slatex.&void-tab))
                                 'exit-loop1)
-                               ((memq (string-ref
+                               ((memv (string-ref
                                         (vector-ref curr slatex.=space)
                                         j)
                                       (list slatex.&paren-space
                                             slatex.&bracket-space
                                             slatex.&quote-space))
                                 (loop1 (- j 1)))
-                               ((or (not (eq? (string-ref
-                                                (vector-ref prev slatex.=notab)
-                                                j)
-                                              slatex.&void-notab))
+                               ((or (not (eqv? (string-ref
+                                                 (vector-ref prev
+                                                             slatex.=notab)
+                                                 j)
+                                               slatex.&void-notab))
                                     (char=? (string-ref
                                               (vector-ref prev slatex.=char)
                                               j)
                                             #\space))
                                 (let ((k (+ j 1)))
-                                  (if (memq (string-ref
+                                  (if (memv (string-ref
                                               (vector-ref prev slatex.=notab)
                                               k)
                                             (list slatex.&mid-comment
@@ -947,10 +949,10 @@
                                                   slatex.&end-string))
                                     'skip
                                     (begin
-                                      (if (eq? (string-ref
-                                                 (vector-ref prev slatex.=tab)
-                                                 k)
-                                               slatex.&void-tab)
+                                      (if (eqv? (string-ref
+                                                  (vector-ref prev slatex.=tab)
+                                                  k)
+                                                slatex.&void-tab)
                                         (string-set!
                                           (vector-ref prev slatex.=tab)
                                           k
@@ -970,17 +972,17 @@
     (let loop ((i 1) (succ-parens? #f))
       (let ((c (string-ref (vector-ref line slatex.=char) i)))
         (cond ((char=? c #\newline) 'exit-loop)
-              ((not (eq? (string-ref (vector-ref line slatex.=notab) i)
-                         slatex.&void-notab))
+              ((not (eqv? (string-ref (vector-ref line slatex.=notab) i)
+                          slatex.&void-notab))
                (loop (+ i 1) #f))
               ((char=? c #\[)
-               (if (eq? (string-ref (vector-ref line slatex.=tab) i)
-                        slatex.&void-tab)
+               (if (eqv? (string-ref (vector-ref line slatex.=tab) i)
+                         slatex.&void-tab)
                  (string-set! (vector-ref line slatex.=tab) i slatex.&set-tab))
                (loop (+ i 1) #f))
               ((char=? c #\()
-               (if (eq? (string-ref (vector-ref line slatex.=tab) i)
-                        slatex.&void-tab)
+               (if (eqv? (string-ref (vector-ref line slatex.=tab) i)
+                         slatex.&void-tab)
                  (if succ-parens?
                    'skip
                    (string-set!
@@ -996,8 +998,8 @@
       (let loop ((i i))
         (cond ((char=? (string-ref (vector-ref line slatex.=char) i) #\newline)
                'exit)
-              ((eq? (string-ref (vector-ref line slatex.=tab) i)
-                    slatex.&set-tab)
+              ((eqv? (string-ref (vector-ref line slatex.=tab) i)
+                     slatex.&set-tab)
                (string-set! (vector-ref line slatex.=tab) i slatex.&void-tab)
                (loop (+ i 1)))
               (else (loop (+ i 1))))))))
@@ -1006,11 +1008,11 @@
   (lambda (line)
     (let loop ((i (vector-ref line slatex.=rtedge)))
       (cond ((< i 0) 'exit-loop)
-            ((eq? (string-ref (vector-ref line slatex.=tab) i)
-                  slatex.&move-tab)
+            ((eqv? (string-ref (vector-ref line slatex.=tab) i)
+                   slatex.&move-tab)
              (let loop2 ((i (- i 1)))
                (cond ((< i 0) 'exit-loop2)
-                     ((memq (string-ref (vector-ref line slatex.=space) i)
+                     ((memv (string-ref (vector-ref line slatex.=space) i)
                             (list slatex.&init-space
                                   slatex.&paren-space
                                   slatex.&bracket-space
@@ -1028,8 +1030,8 @@
     (let loop ((i 0) (succ-inner-spaces? #f))
       (cond ((char=? (string-ref (vector-ref line slatex.=char) i) #\newline)
              'exit-loop)
-            ((eq? (string-ref (vector-ref line slatex.=space) i)
-                  slatex.&inner-space)
+            ((eqv? (string-ref (vector-ref line slatex.=space) i)
+                   slatex.&inner-space)
              (if succ-inner-spaces?
                'skip
                (string-set!
@@ -1044,8 +1046,8 @@
     (let loop ((i 0))
       (let ((c (string-ref (vector-ref line slatex.=char) i)))
         (cond ((char=? c #\space)
-               (if (eq? (string-ref (vector-ref line slatex.=notab) i)
-                        slatex.&void-notab)
+               (if (eqv? (string-ref (vector-ref line slatex.=notab) i)
+                         slatex.&void-notab)
                  (loop (+ i 1))
                  #f))
               ((char=? c #\newline)
@@ -1064,8 +1066,8 @@
 (define slatex.flush-comment-line?
   (lambda (line)
     (and (char=? (string-ref (vector-ref line slatex.=char) 0) #\;)
-         (eq? (string-ref (vector-ref line slatex.=notab) 0)
-              slatex.&begin-comment)
+         (eqv? (string-ref (vector-ref line slatex.=notab) 0)
+               slatex.&begin-comment)
          (not (char=? (string-ref (vector-ref line slatex.=char) 1) #\;)))))
 
 (define slatex.do-all-lines
@@ -1118,8 +1120,8 @@
            (let loop ((i (if (slatex.flush-comment-line? line) 1 0)))
              (let ((c (string-ref (vector-ref line slatex.=char) i)))
                (if (char=? c #\newline)
-                 (if (eq? (string-ref (vector-ref line slatex.=tab) i)
-                          slatex.&void-tab)
+                 (if (eqv? (string-ref (vector-ref line slatex.=tab) i)
+                           slatex.&void-tab)
                    'skip
                    (newline slatex.*out*))
                  (begin (display c slatex.*out*) (loop (+ i 1))))))))))
@@ -1130,26 +1132,27 @@
       (let ((c (string-ref (vector-ref line slatex.=char) i)))
         (cond ((char=? c #\newline)
                (let ((tab (string-ref (vector-ref line slatex.=tab) i)))
-                 (cond ((eq? tab slatex.&tabbed-crg-ret)
+                 (cond ((eqv? tab slatex.&tabbed-crg-ret)
                         (display "\\\\" slatex.*out*)
                         (newline slatex.*out*))
-                       ((eq? tab slatex.&plain-crg-ret) (newline slatex.*out*))
-                       ((eq? tab slatex.&void-tab)
+                       ((eqv? tab slatex.&plain-crg-ret)
+                        (newline slatex.*out*))
+                       ((eqv? tab slatex.&void-tab)
                         (display #\% slatex.*out*)
                         (newline slatex.*out*)))))
-              ((eq? (string-ref (vector-ref line slatex.=notab) i)
-                    slatex.&begin-comment)
+              ((eqv? (string-ref (vector-ref line slatex.=notab) i)
+                     slatex.&begin-comment)
                (slatex.display-tab
                  (string-ref (vector-ref line slatex.=tab) i)
                  slatex.*out*)
                (display c slatex.*out*)
                (loop (+ i 1)))
-              ((eq? (string-ref (vector-ref line slatex.=notab) i)
-                    slatex.&mid-comment)
+              ((eqv? (string-ref (vector-ref line slatex.=notab) i)
+                     slatex.&mid-comment)
                (display c slatex.*out*)
                (loop (+ i 1)))
-              ((eq? (string-ref (vector-ref line slatex.=notab) i)
-                    slatex.&begin-string)
+              ((eqv? (string-ref (vector-ref line slatex.=notab) i)
+                     slatex.&begin-string)
                (slatex.display-tab
                  (string-ref (vector-ref line slatex.=tab) i)
                  slatex.*out*)
@@ -1160,16 +1163,16 @@
                    slatex.*out*)
                  (slatex.display-tex-char c slatex.*out*))
                (loop (+ i 1)))
-              ((eq? (string-ref (vector-ref line slatex.=notab) i)
-                    slatex.&mid-string)
+              ((eqv? (string-ref (vector-ref line slatex.=notab) i)
+                     slatex.&mid-string)
                (if (char=? c #\space)
                  (slatex.display-space
                    (string-ref (vector-ref line slatex.=space) i)
                    slatex.*out*)
                  (slatex.display-tex-char c slatex.*out*))
                (loop (+ i 1)))
-              ((eq? (string-ref (vector-ref line slatex.=notab) i)
-                    slatex.&end-string)
+              ((eqv? (string-ref (vector-ref line slatex.=notab) i)
+                     slatex.&end-string)
                (if (char=? c #\space)
                  (slatex.display-space
                    (string-ref (vector-ref line slatex.=space) i)
@@ -1177,14 +1180,14 @@
                  (slatex.display-tex-char c slatex.*out*))
                (display "}" slatex.*out*)
                (loop (+ i 1)))
-              ((eq? (string-ref (vector-ref line slatex.=notab) i)
-                    slatex.&begin-math)
+              ((eqv? (string-ref (vector-ref line slatex.=notab) i)
+                     slatex.&begin-math)
                (slatex.display-tab
                  (string-ref (vector-ref line slatex.=tab) i)
                  slatex.*out*)
                (display c slatex.*out*)
                (loop (+ i 1)))
-              ((memq (string-ref (vector-ref line slatex.=notab) i)
+              ((memv (string-ref (vector-ref line slatex.=notab) i)
                      (list slatex.&mid-math slatex.&end-math))
                (display c slatex.*out*)
                (loop (+ i 1)))
