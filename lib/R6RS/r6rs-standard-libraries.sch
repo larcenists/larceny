@@ -612,7 +612,7 @@
    
    ;; R5RS primitives:
    
-   * + - / < <= = > >= abs acos append apply asin atan 
+   * + - / < <= = > >= abs acos angle append apply asin atan 
    boolean? call-with-current-continuation 
    call-with-values car cdr caar cadr cdar cddr
    caaar caadr cadar caddr cdaar cdadr cddar cdddr
@@ -660,7 +660,7 @@
            
     ;; R5RS primitives:
            
-    * + - / < <= = > >= abs acos append apply asin atan 
+    * + - / < <= = > >= abs acos angle append apply asin atan 
     boolean? call-with-current-continuation 
     call-with-values car cdr caar cadr cdar cddr
     caaar caadr cadar caddr cdaar cdadr cddar cdddr

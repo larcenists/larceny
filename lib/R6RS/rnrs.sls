@@ -18,7 +18,7 @@
    
    ;; R5RS primitives:
    
-   * + - / < <= = > >= abs acos append apply asin atan 
+   * + - / < <= = > >= abs acos angle append apply asin atan 
    boolean? call-with-current-continuation 
    call-with-values car cdr caar cadr cdar cddr
    caaar caadr cadar caddr cdaar cdadr cddar cdddr
@@ -127,7 +127,7 @@
    
    ;; From (rnrs records procedural)
  
-   make-record-type-descriptor record-type-descriptor?
+   make-record-type-descriptor record-type-descriptor record-type-descriptor?
    make-record-constructor-descriptor record-constructor
    record-predicate record-accessor record-mutator
 
@@ -236,6 +236,7 @@
    call-with-string-output-port
    standard-output-port
   ;current-output-port                    ; would be duplicated below
+   standard-error-port
    current-error-port
    make-custom-binary-output-port make-custom-textual-output-port
 
