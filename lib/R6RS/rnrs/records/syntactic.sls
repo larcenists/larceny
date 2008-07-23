@@ -54,9 +54,11 @@
 
 #;
   (export define-record-type fields mutable immutable
-          parent protocol sealed opaque nongenerative parent-rtd)
+          parent protocol sealed opaque nongenerative parent-rtd
+          record-type-descriptor record-constructor-descriptor)
 
-  (export define-record-type)
+  (export define-record-type
+          record-type-descriptor record-constructor-descriptor)
 
   (import (for (core primitives) run expand)
           (for (rnrs base) run expand)
@@ -365,6 +367,18 @@
 
      ((_ rtd-name field-name mutator)
       (define mutator (rtd-mutator rtd-name 'field-name)))))
+
+  ; This is ridiculous.
+
+  (define-syntax record-type-descriptor
+    (syntax-rules ()
+     ((_ rtd)
+      rtd)))
+
+  (define-syntax record-constructor-descriptor
+    (syntax-rules ()
+     ((_ rtd)
+      (preferred-cd rtd))))
 
   ) ; rnrs records syntactic
 

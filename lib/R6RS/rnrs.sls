@@ -127,7 +127,7 @@
    
    ;; From (rnrs records procedural)
  
-   make-record-type-descriptor record-type-descriptor record-type-descriptor?
+   make-record-type-descriptor record-type-descriptor?
    make-record-constructor-descriptor record-constructor
    record-predicate record-accessor record-mutator
 
@@ -139,7 +139,7 @@
 
    ;; From (rnrs records syntactic)
 
-   define-record-type
+   define-record-type record-type-descriptor record-constructor-descriptor
 
    ;; From (rnrs exceptions)
 
