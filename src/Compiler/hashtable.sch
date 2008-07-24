@@ -86,7 +86,7 @@
 ;     key-value association, and returns a list of the results.  The
 ;     order of the calls is indeterminate.
 ;
-; (hashtable-copy <hashtable>)
+; (hashtable-copy <hashtable> <mutable>)
 ;
 ;     Returns a copy of the <hashtable>.
 
@@ -172,7 +172,7 @@
 (define hashtable-size      (lambda (ht) 0))
 (define hashtable-for-each  (lambda (ht proc) '*))
 (define hashtable-map       (lambda (ht proc) '()))
-(define hashtable-copy      (lambda (ht) ht))
+(define hashtable-copy      (lambda (ht mutable?) ht))
 
 ; Implementation.
 ; A hashtable is represented as a vector of the form

@@ -46,6 +46,23 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; Larceny extends the R6RS API internally with:
+;
+; (hashtable-reset! ht)
+;
+; This procedure forces the gc-sensitive parts of ht to be
+; rehashed on its next access.
+;
+; (reset-all-hashtables!)
+;
+; This procedure resets every eq? and eqv? hashtable that
+; exists within the heap.  If this procedure is called just
+; before a heap is dumped, then any eq? and eqv? hashtables
+; that may be present within the dumped heap will continue
+; to work properly.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Larceny's oldstyle hashtables.
 ;
 ; (make-hashtable <hash-function> <bucket-searcher> <size>)
@@ -209,6 +226,24 @@
 (define hashtable-equivalence-function (lambda (ht) equal?))
 (define hashtable-hash-function        (lambda (ht) equal-hash))
 (define hashtable-mutable?             (lambda (ht) #t))
+
+(define hashtable-reset!        (lambda (ht) (unspecified)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This procedure should be called just before dumping a heap
+; that contains eq? or eqv? hashtables.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (reset-all-hashtables!)
+  (let* ((record-like-objects (sro 3 5 -1))
+         (hashtables
+          (filter hashtable? (vector->list record-like-objects)))
+         (problematic-hashtables
+          (filter (lambda (ht) (not (hashtable-hash-function ht)))
+                  hashtables)))
+    (for-each hashtable-reset! problematic-hashtables)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -866,7 +901,7 @@
     (set! hashtable-keys      (lambda (ht)          (ht-keys ht)))
     (set! hashtable-entries   (lambda (ht)          (ht-entries ht)))
     (set! hashtable-copy      (lambda (ht . rest)
-                                (ht-copy ht (if (null? rest) #t (car rest)))))
+                                (ht-copy ht (if (null? rest) #f (car rest)))))
 
     (set! hashtable-equivalence-function (lambda (ht) (equiv ht)))
     (set! hashtable-hash-function        (lambda (ht)
@@ -874,6 +909,10 @@
                                                (hasher ht)
                                                #f)))
     (set! hashtable-mutable?             (lambda (ht) (mutable? ht)))
+
+    (set! hashtable-reset!    (lambda (ht)
+                                (timestamp0! ht -1)
+                                (timestamp1! ht -1)))
 
     #f))
 

@@ -489,6 +489,9 @@
   (environment-set! larc 'hashtable-for-each hashtable-for-each)
   (environment-set! larc 'hashtable-map hashtable-map)
 
+  (environment-set! larc 'hashtable-reset! hashtable-reset!)
+  (environment-set! larc 'reset-all-hashtables! reset-all-hashtables!)
+
   ;; symbols
 
   (environment-set! larc 'symbol-hash symbol-hash)

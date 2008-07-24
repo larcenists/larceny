@@ -506,6 +506,7 @@
 ; The exported procedures
 
 (define (bytevector-ieee-double-native-ref bytevector k)
+  (assert (eq? 0 (fxand k 7)))
   (let ((x (make-bytevector 12)))
     (bytevector-set! x 4  (bytevector-ref bytevector (+ k 0)))
     (bytevector-set! x 5  (bytevector-ref bytevector (+ k 1)))
@@ -519,6 +520,7 @@
     x))
 
 (define (bytevector-ieee-double-native-set! bytevector k x)
+  (assert (eq? 0 (fxand k 7)))
   (bytevector-set! bytevector (+ k 0) (bytevector-like-ref x 4))
   (bytevector-set! bytevector (+ k 1) (bytevector-like-ref x 5))
   (bytevector-set! bytevector (+ k 2) (bytevector-like-ref x 6))
@@ -529,6 +531,7 @@
   (bytevector-set! bytevector (+ k 7) (bytevector-like-ref x 11)))
 
 (define (bytevector-ieee-single-native-ref bytevector k)
+  (assert (eq? 0 (fxand k 3)))
   (let* ((origb0 (bytevector-u8-ref bytevector k))
          (origb1 (bytevector-u8-ref bytevector (+ k 1)))
          (origb2 (bytevector-u8-ref bytevector (+ k 2)))
@@ -565,6 +568,7 @@
              (if (= sign 0) +nan.0 -nan.0))))))
 
 (define (bytevector-ieee-single-native-set! bytevector k x)
+  (assert (eq? 0 (fxand k 3)))
   (call-with-values
    (lambda ()
      (bytevector:ieee-parts x bytevector:single-bias

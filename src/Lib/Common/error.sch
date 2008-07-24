@@ -69,7 +69,7 @@
 
 (define (assertion-violation who msg . irritants)
   (if (use-r6rs-mechanism? who msg)
-      (raise-r6rs-exception (make-violation) who msg irritants)
+      (raise-r6rs-exception (make-assertion-violation) who msg irritants)
       (apply error who msg irritants)))
 
 (define (reset)

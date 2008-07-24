@@ -764,7 +764,7 @@
                (p (car a))
                (or (p (car a))
                    (some1 (cdr a)))))
-          ((null? a) #t)
+          ((null? a) #f)
           (else (complain))))
 
   (define (some2 a b)
@@ -785,7 +785,7 @@
                (apply p (car arglists))
                (or (apply p (car arglists))
                    (some-n (cdr arglists)))))
-          ((null? arglists) #t)
+          ((null? arglists) #f)
           (else (complain))))
 
   (cond ((null? ls) (some1 l))
