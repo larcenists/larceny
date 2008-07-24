@@ -360,24 +360,36 @@
 
 ; FIXME:  end of problematic definitions.
 
-(define (string=? a b)
-  (= (string-compare 'string=? a b) 0))
+; make-nary-comparison is defined in src/Lib/Arch/*/primops.sch
+
+(define string=?
+  (make-nary-comparison 'string=?
+                        (lambda (a b)
+                          (= (string-compare a b) 0))))
 
 (define string-equal? string=?)       ; for backward compatibility
 
-(define (string<? a b)
-  (< (string-compare 'string<? a b) 0))
+(define string<?
+  (make-nary-comparison 'string<?
+                        (lambda (a b)
+                          (< (string-compare a b) 0))))
 
-(define (string<=? a b)
-  (<= (string-compare 'string<=? a b) 0))
+(define string<=?
+  (make-nary-comparison 'string<=?
+                        (lambda (a b)
+                          (<= (string-compare a b) 0))))
 
-(define (string>? a b)
-  (> (string-compare 'string>? a b) 0))
+(define string>?
+  (make-nary-comparison 'string>?
+                        (lambda (a b)
+                          (> (string-compare a b) 0))))
 
-(define (string>=? a b)
-  (>= (string-compare 'string>=? a b) 0))
+(define string>=?
+  (make-nary-comparison 'string>=?
+                        (lambda (a b)
+                          (>= (string-compare a b) 0))))
 
-(define (string-compare name a b)
+(define (string-compare a b)
   (let* ((na (string-length a))
          (nb (string-length b))
          (n (if (<= na nb) na nb)))

@@ -419,6 +419,58 @@
            (vector-sort! < v)
            v)
          '#(2 3 4 5 8))
+
+   (test "Ticket #565"                  ; Bug in Larceny 0.962
+         (for-all values '(1 2 3 4 5))  ; detected by PLT test suite
+         5)
+
+   (test "Ticket #565"                  ; Bug in Larceny 0.962
+         (exists list '(1 2 3 4)        ; detected by PLT test suite
+                      '(5 6 7 8)
+                      '(9 10 11 12))
+         '(1 5 9))
+
+   (test "Ticket #565"                  ; Bug in Larceny 0.962
+         (for-all list '(1 2 3 4)       ; detected by PLT test suite
+                       '(5 6 7 8)
+                       '(9 10 11 12))
+         '(4 8 12))
+
+   (test "Ticket #566"                  ; Bug in Larceny 0.962
+         (fold-left list                ; detected by PLT test suite
+                    '()
+                    '(1 2 3 4 5)
+                    '(6 7 8 9 10))
+         '(((((() 1 6) 2 7) 3 8) 4 9) 5 10))
+
+   (test "Ticket #566"                  ; Bug in Larceny 0.962
+         (fold-right list                ; detected by PLT test suite
+                     '()
+                     '(1 2 3 4 5)
+                     '(6 7 8 9 10)
+                     '(11 12 13 14 15))
+         '(1 6 11 (2 7 12 (3 8 13 (4 9 14 (5 10 15 ()))))))
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string=? "ab" "ab" "ab")      ; detected by PLT test suite
+         #t)
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string<? "ab" "ab" "ab")      ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string<=? "ab" "ab" "ac")     ; detected by PLT test suite
+         #t)
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string>? "ab" "ab" "ac")      ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string>=? "ab" "ab" "ac")     ; detected by PLT test suite
+         #f)
+
    ))
 
 (define (bug-105-test1)
