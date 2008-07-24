@@ -10,6 +10,6 @@
   ; [Larceny]
 
   (define (command-line)
-    (cons 'larceny (vector->list (command-line-arguments))))
+    (cons "larceny" (vector->list (command-line-arguments))))
   )
 
