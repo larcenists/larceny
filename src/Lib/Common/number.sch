@@ -373,21 +373,27 @@
 	(cond ((and (flonum? x) (flonum? y))
 	       (flonum:atan2 x y))
 	      ((not (and (real? x) (real? y)))
-	       (error "ATAN: domain error: " x " " y)
+	       (error "atan: domain error:" (list x y))
 	       #t)
 	      (else
 	       (flonum:atan2 (exact->inexact x) (exact->inexact y)))))))
 
 ; Complex/negative case from the R^4.95RS, p25.
 
-(define (log z)
-  (cond ((and (flonum? z) (> z 0.0))
+(define (log z . rest)
+  (cond ((pair? rest)
+         (let ((z2 (car rest)))
+           (if (and (complex? z2)
+                    (null? (cdr rest)))
+               (/ (log z) (log z2))
+               (error "log: domain error" (list x y)))))
+        ((and (flonum? z) (> z 0.0))
 	 (flonum:log z))
 	((or (not (real? z)) (< z 0))
 	 (+ (log (magnitude z)) (* +1.0i (angle z))))
 	((zero? z)
          (if (exact? z)
-             (error "log: Domain error: " z)
+             (error "log: domain error:" z)
              -1e500))
 	(else
 	 (flonum:log (exact->inexact z)))))

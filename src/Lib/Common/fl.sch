@@ -126,5 +126,5 @@
 ; no-nans-violation
 
 (define (fixnum->flonum n)
-  (fx:check! n)
+  (fx:check! 'fixnum->flonum n)
   (+ n 0.0))

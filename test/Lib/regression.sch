@@ -401,6 +401,24 @@
          (assp odd?                     ; contributed by Ray Racine
                '((0 . 5) (1 . 6)))
          '(1 . 6))
+
+   (test "Ticket #568"                  ; Bug in Larceny 0.962
+         (fixnum->flonum (hide -17))    ; detected by PLT test suite
+         -17.0)
+
+   (test "Ticket #557"                  ; Bug in Larceny 0.962
+         (log 1024 2)                   ; detected by PLT test suite
+         10.0)
+
+   (test "Ticket #557"                  ; Bug in Larceny 0.962
+         (log 2048.0 2.0)               ; detected by PLT test suite
+         11.0)
+
+   (test "Ticket #564"                  ; Bug in Larceny 0.962
+         (let ((v (vector 5 3 8 4 2)))  ; detected by PLT test suite
+           (vector-sort! < v)
+           v)
+         '#(2 3 4 5 8))
    ))
 
 (define (bug-105-test1)
