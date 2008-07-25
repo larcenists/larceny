@@ -85,8 +85,8 @@
 ; longer than the following threshold, its length is reduced
 ; to the nominal length.
 
-(define *max-available* 200)
-(define *nominal-available* 100)
+(define *max-available* 150)
+(define *nominal-available* 75)
 
 (define (limit-available! available)
   (define (limit! i)

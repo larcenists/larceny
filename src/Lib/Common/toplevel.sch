@@ -598,6 +598,10 @@
   (environment-set! larc 'fxarithmetic-shift-left fxarithmetic-shift-left)
   (environment-set! larc 'fxarithmetic-shift-right fxarithmetic-shift-right)
 
+  ; FIXME: Needed by src/Compiler/common.imp.sch
+
+  (environment-set! larc 'fx:check-result fx:check-result) ;FIXME
+
   (environment-set! larc 'real->flonum real->flonum)
   (environment-set! larc 'fl=? fl=?)
   (environment-set! larc 'fl<? fl<?)

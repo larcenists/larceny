@@ -26,7 +26,7 @@
       (newline)
       (exit 1))
      (else
-      (error 'raise "unhandled exception" x)))))
+      ((error-handler) x)))))
 
 ; Heuristically recognizes both R6RS-style and Larceny's old-style
 ; arguments.
@@ -101,39 +101,49 @@
      thunk
      (lambda () (reset-handler old-handler)))))
 
-; DECODE-ERROR takes an error and optionally a port to print on (defaults
-; to the current output port) and prints a human-readable error message 
-; to the port based on the information in the error.
+; DECODE-ERROR takes a list (describing an error) and optionally
+; a port to print on (defaults to the current output port) and
+; prints a human-readable error message to the port based on the
+; information in the error.
 ;
 ; The error is a list.  The first element is a key, the rest depend on the
 ; key.  There are three cases, depending on the key:
 ;  - a number:  The error is a primitive error.  There will be three
 ;               additional values, the contents of RESULT, SECOND, and
 ;               THIRD.
-;  - null:      The key is to be ignored, and the following arguments are
-;               to be interpreted as a user-level error: objects to be
-;               printed.
-;  - otherwise: The arguments are to be interpreted as a user-level error:
-;               objects to be printed.
+;  - null:      The key is to be ignored, and the following elements are
+;               to be interpreted as though they were arguments passed
+;               to the error procedure.
+;  - otherwise: The elements are to be interpreted as though they were
+;               arguments passed to the error procedure.
+;
+; There is also a special subcase of the third case above:
+; If the key is a condition, and there are no other elements
+; of the list, then the condition is assumed to describe an
+; unhandled exception that has been raised.
 
 (define (decode-error the-error . rest)
   (let ((who (car the-error))
         (port (if (null? rest) (current-output-port) (car rest))))
-    (if (number? who)
-        (decode-system-error who 
-                             (cadr the-error) 
-                             (caddr the-error)
-                             (cadddr the-error)
-                             port)
-        (begin
-          (newline port)
-          (display "Error: " port)
-          (if (not (null? who))
-              (begin (display who port)
-                     (display ": " port)))
-          (for-each (lambda (x) (display x port)) (cdr the-error))
-          (newline port)
-          (flush-output-port port)))))
+    (cond ((number? who)
+           (decode-system-error who 
+                                (cadr the-error) 
+                                (caddr the-error)
+                                (cadddr the-error)
+                                port))
+          (else
+           (newline port)
+           (display "Error: " port)
+           (cond ((and (condition? who) (null? (cdr the-error)))
+                  (display "unhandled condition:" port)
+                  (newline port)
+                  (display-condition who port))
+                 ((not (null? who))
+                  (display who port)
+                  (display ": " port)))
+           (for-each (lambda (x) (display x port)) (cdr the-error))
+           (newline port)
+           (flush-output-port port)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

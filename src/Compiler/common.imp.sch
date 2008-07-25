@@ -788,6 +788,9 @@
       (fxmax (if (fx>=? x y) x y) z)))
 
    ; These procedures accept only two arguments.
+   ; FIXME:  The calls to fx:check-result are necessary
+   ; in order to generate an &implementation-restriction
+   ; condition.
 
 `  ((_ larceny fx+ (fx+ ?x ?y))
     (let ((x ?x)
@@ -795,6 +798,8 @@
       (.check! (fixnum? x) ,$ex.fx+ x y)
       (.check! (fixnum? y) ,$ex.fx+ x y)
       (let ((z (+ x y)))
+        (if (not (fixnum? z))
+            (fx:check-result 'fx+ z))
         (.check! (fixnum? z) ,$ex.fx+ x y)
         z)))
 
@@ -804,6 +809,8 @@
       (.check! (fixnum? x) ,$ex.fx* x y)
       (.check! (fixnum? y) ,$ex.fx* x y)
       (let ((z (* x y)))
+        (if (not (fixnum? z))
+            (fx:check-result 'fx* z))
         (.check! (fixnum? z) ,$ex.fx* x y)
         z)))
 
@@ -813,6 +820,8 @@
       (.check! (fixnum? x) ,$ex.fx- x y)
       (.check! (fixnum? y) ,$ex.fx- x y)
       (let ((z (- x y)))
+        (if (not (fixnum? z))
+            (fx:check-result 'fx- z))
         (.check! (fixnum? z) ,$ex.fx- x y)
         z)))
 
@@ -820,6 +829,8 @@
     (let ((x ?x))
       (.check! (fixnum? x) ,$ex.fx-- x)
       (let ((z (- 0 x)))
+        (if (not (fixnum? z))
+            (fx:check-result 'fx- z))
         (.check! (fixnum? z) ,$ex.fx-- x)
         z)))
 
