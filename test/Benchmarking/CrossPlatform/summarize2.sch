@@ -11,11 +11,11 @@
 ;
 ; (summarize-usual-suspects)
 ; (define summaries (decode-usual-suspects))
-; (graph-benchmarks (summaries-with-geometric-means summaries) "temp.solaris")
+; (graph-benchmarks (summaries-with-geometric-means2 summaries) "temp.solaris")
 ;
 ; (summarize-usual-suspects-linux)
 ; (define summaries (decode-usual-suspects-linux))
-; (graph-benchmarks (summaries-with-geometric-means summaries) "temp.linux")
+; (graph-benchmarks (summaries-with-geometric-means2 summaries) "temp.linux")
 
 ; Given a list of summaries in the representation
 ; produced by decode-summary, and a filename or
@@ -104,9 +104,11 @@
     ("Ikarus"        "006040")
     ("Kawa"          "206020")
     ("MIT"           "2000c0")
-    ("MzScheme"      "008020")
+    ("MzScheme"      "408020")
+    ("PLT"           "408020")
     ("Petite"        "004080")
-    ("Scheme48"      "602040")))
+    ("Scheme48"      "602040")
+    ("Ypsilon"       "604080")))
 
 ; Returns a nice color for certain popular systems,
 ; or returns black.
@@ -180,7 +182,7 @@
 
 (define *arbitrary-relative-performance* 0.1)
 
-(define (relative-performance2 summary summaries)
+(define (relative-performance2 summary summaries names)
 
   (let* ((timings (summary:timings summary))
          (timings (map (lambda (t)
@@ -190,10 +192,13 @@
                                t
                                (make-timing (timing:benchmark t) 0 0 0))))
                        timings))
+         (timings (map (lambda (name)
+                         (let ((t (assq name timings)))
+                           (if t t (make-timing name 0 0 0))))
+                       names))
          (other-results (map summary:timings summaries)))
-    (map (lambda (t)
-           (let* ((name (timing:benchmark t))
-                  (timings (map (lambda (x) (assq name x))
+    (map (lambda (name t)
+           (let* ((timings (map (lambda (x) (assq name x))
                                 other-results))
                   (timings (filter positive?
                                    (map timing:real
@@ -208,7 +213,7 @@
                           (newline)
                           (* *arbitrary-relative-performance*
                              (/ best worst)))))))
-         timings)))
+         names timings)))
 
 ; Given a list of positive numbers,
 ; returns its geometric mean.
@@ -237,6 +242,9 @@
        summaries))
 
 ; Same as above, but uses relative-performance2.
+;
+; FIXME: assumes the first implementation in the list
+; has a timing for every benchmark.
 
 (define (summaries-with-geometric-means2 summaries)
 
@@ -245,7 +253,12 @@
   (map (lambda (summary)
          (define mean
            (* 1000
-              (/ (geometric-mean (relative-performance2 summary summaries)))))
+              (/ (geometric-mean
+                  (relative-performance2 summary
+                                         summaries
+                                         (map timing:benchmark
+                                              (summary:timings
+                                               (car summaries))))))))
          (make-summary (summary:system summary)
                        (summary:hostetc summary)
                        (cons

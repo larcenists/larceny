@@ -491,6 +491,10 @@
          (integer? +nan.0)              ; but let's test it anyway.
          #f)
 
+   (test "Ticket #573"                  ; Bug introduced while fixing #572
+         (flnumerator -inf.0)
+         -inf.0)
+
    ))
 
 (define (bug-105-test1)

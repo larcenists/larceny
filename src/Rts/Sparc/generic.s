@@ -712,7 +712,13 @@ EXTNAME(m_generic_quo):
 	bne,a	Lquotrem
 	set	TRUE_CONST, %ARGREG3
 
-/* Case 1: both operands are fixnums.  Perform fixnum division and
+/* Case 1: both operands are fixnums.
+ * If the divisor is -1, this is just a negation.
+ */
+	cmp	%ARGREG2, -4
+	beq	m_generic_neg
+
+/* Perform fixnum division and
  * return a fixnum result.
  */
 	set	EX_QUOTIENT, %TMP0			/* In case of */
@@ -1807,6 +1813,7 @@ Lintegerp_flo:
 	 * integer, and if so, return #t. Otherwise return #f.
 	 *
 	 * The real part is representible as an integer only if
+	 * it is neither an infinity nor a NaN and
 	 * all the bits to the right of the binary point are zero.
 	 *
 	 * The algorithm used needs to special case 0.0 and -0.0
@@ -1825,6 +1832,9 @@ Lintegerp_flo:
 
 	srl	%l0, 20, %l2				/* get at expt */
 	and	%l2, 0x7FF, %l2				/* get it */
+	cmp	%l2, 0x7FF
+	beq,a	Lintegerp_exit2				/* inf or NaN */
+	mov	FALSE_CONST, %SAVED_RESULT
 	subcc	%l2, 1023, %l2				/* unbias */
 
 	/* easy cases */

@@ -69,6 +69,8 @@
        (= (typetag x) sys$tag.ratnum-typetag)))
 
 (define (numerator ratnum)
+  (define (complain)
+    (assertion-violation 'numerator "not rational" ratnum))
   (cond ((ratnum? ratnum)
 	 (vector-like-ref ratnum 0))
 	((integer? ratnum)
@@ -76,10 +78,13 @@
 	((or (flonum? ratnum)
 	     (and (compnum? ratnum)
 		  (zero? (imag-part ratnum))))
-	 (exact->inexact (numerator (inexact->exact ratnum))))
+         (cond ((rational? ratnum)
+                (exact->inexact (numerator (inexact->exact ratnum))))
+               ((infinite? ratnum)
+                ratnum)
+               (else (complain))))
 	(else
-	 (error "numerator: not a rational" ratnum)
-	 #t)))
+	 (complain))))
 
 (define (denominator ratnum)
   (cond ((ratnum? ratnum)
