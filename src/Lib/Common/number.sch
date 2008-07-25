@@ -160,6 +160,8 @@
 ;
 ; This code was written by Alan Bawden.
 ; Its copyright status is unknown to me [i.e., to Will. --lars]
+;
+; Modified for R6RS semantics on infinities and NaNs.
 
 (define (rationalize x e)
   (define (simplest-rational x y)
@@ -182,10 +184,10 @@
            (simplest-rational y x))
           ((not (< x y))
            ;; X = Y so if either is a rational that is the answer, otherwise
-           ;; I don't know of anything implementation independent we can do.
+           ;; X and Y are both infinite or both NaN.
            (cond ((rational? x) x)
                  ((rational? y) y)
-                 (else (error "What should we do in this case? " x " " y) #t)))
+                 (else x)))
           ((positive? x) 
            ;; 0 < X < Y which is what SIMPLEST-RATIONAL-INTERNAL expects:
            (simplest-rational-internal x y))

@@ -495,6 +495,19 @@
          (flnumerator -inf.0)
          -inf.0)
 
+   (test "Ticket #574"                  ; Bug in Larceny 0.962
+         (rationalize +inf.0 3)         ; detected by PLT test suite
+         +inf.0)
+
+   (test "Ticket #574"                  ; Bug in Larceny 0.962
+         (nan?                          ; detected by PLT test suite
+          (rationalize +inf.0 +inf.0))
+         #t)
+
+   (test "Ticket #554"                  ; Bug in Larceny 0.962
+         (bitwise-and (expt 2 100) 17)  ; detected by PLT test suite
+         0)
+
    ))
 
 (define (bug-105-test1)
