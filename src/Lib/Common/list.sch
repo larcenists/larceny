@@ -733,7 +733,7 @@
                (and (p (car a) (car b))
                     (every2 (cdr a) (cdr b)))))
           ((and (null? a) (null? b))
-           #f)
+           #t)
           (else (complain))))
 
   (define (every-n arglists)

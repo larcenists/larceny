@@ -144,8 +144,8 @@
 
   (cond ((zero? x)
          (let ((result (cond ((= y 0) 1)
-                             ((> y 0) 0)
-                             (else (/ 1.0 0.0)))))
+                             ((> (real-part y) 0) 0)
+                             (else +nan.0))))
            (if (and (exact? x) (exact? y))
                result
                (exact->inexact result))))
@@ -194,9 +194,10 @@
           ((negative? y)
            ;; X < Y < 0 so 0 < -Y < -X and we negate the answer:
            (- (simplest-rational-internal (- y) (- x))))
-          (else
+          ((and (exact? x) (exact? e))
            ;; X <= 0 <= Y so zero is the answer:
-           0)))
+           0)
+          (else 0.0)))
   (simplest-rational (- x e) (+ x e)))
 
 ;---------------------------------------------------------------------------

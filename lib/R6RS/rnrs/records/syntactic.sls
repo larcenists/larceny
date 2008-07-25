@@ -109,7 +109,7 @@
                (sealed-clause (assq 'sealed clauses))
                (opaque-clause (assq 'opaque clauses))
                (nongenerative-clause (assq 'nongenerative clauses))
-               (parent-rtd-clause (assq 'parent-rtd-clause clauses))
+               (parent-rtd-clause (assq 'parent-rtd clauses))
                (okay?
                 (and (symbol? type-name)
                      (if (syntax->datum #'explicit?)
@@ -370,15 +370,11 @@
 
   ; This is ridiculous.
 
-  (define-syntax record-type-descriptor
-    (syntax-rules ()
-     ((_ rtd)
-      rtd)))
+  (define (record-type-descriptor rtd)
+    rtd)
 
-  (define-syntax record-constructor-descriptor
-    (syntax-rules ()
-     ((_ rtd)
-      (preferred-cd rtd))))
+  (define (record-constructor-descriptor rtd)
+    (preferred-cd rtd))
 
   ) ; rnrs records syntactic
 

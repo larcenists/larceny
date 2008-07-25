@@ -50,10 +50,11 @@
     (with-exception-handlers (cdr handlers)
       (lambda ()
         ((car handlers) obj)
-        (error 'raise
-               "handler returned"
-               (car handlers)
-               obj)))))
+         (let ((c0 (make-non-continuable-violation))
+               (c1 (make-who-condition 'raise))
+               (c2 (make-message-condition "handler returned"))
+               (c3 (make-irritants-condition (list (car handlers) obj))))
+           (raise (condition c0 c1 c2 c3)))))))
 
 (define (raise-continuable obj)
   (let ((handlers *current-exception-handlers*))

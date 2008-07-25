@@ -218,9 +218,12 @@
                 (ry (inexact->exact y)))
            (/ ry rx))
          2)
+
+   ; As of v0.963, (expt 0.0 -2.0) returns +nan.0 instead of +inf.0
+
    (test "Ticket #87 (1)"               ; Bug in Larceny through 0.92b
-         (expt 0.0 -2.0)
-         +inf.0)
+         (begin (expt 0.0 -2.0) 'okay)
+         'okay)
    (test "Ticket #87 (2)"               ; Bug in Larceny through 0.92b
          (expt 0.0 0.0)
          1.0)
