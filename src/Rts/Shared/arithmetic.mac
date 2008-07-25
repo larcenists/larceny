@@ -58,6 +58,7 @@ extern double aint( double x );
 #define round_to_zero( x )    aint( x )
 
 #define is_integer( f )       (f == round_any( f ))
+#define is_rational( f )      (0.0 == (f - f))
 
 static void generic_binary_operation( word *globals, int op, cont_t k );
 static void generic_unary_operation( word *globals, int op, cont_t k );
@@ -394,7 +395,9 @@ void EXPORT mc_quo( word *globals, cont_t k )
 #if defined(EXPLICIT_DIVZ_CHECK)
     if (y == 0) mc_exception( globals, EX_DIV );
 #endif
-    globals[ G_RESULT ] = fixnum((s_word)x / (s_word)y);
+/*  This doesn't work for (/ (least-fixnum) -1)          */
+/*  globals[ G_RESULT ] = fixnum((s_word)x / (s_word)y); */
+    ga_box_int(globals, (s_word)x / (s_word)y);
     return;
   }
   else if (tagof( x ) == BVEC_TAG && 
@@ -556,7 +559,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; mc_complexp
-; mc_rationalp
+; mc_rationalp  (which is now real?, not rational?)
 ; mc_integerp
 
 (let ((true "globals[ G_RESULT ] = TRUE_CONST;")
@@ -569,7 +572,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
       (false "globals[ G_RESULT ] = FALSE_CONST;"))
   (unary-decision-tree
    "mc_rationalp" "0/* none */"
-   true true 
+   true true
    (string-append "if (compnum_imag( x ) == 0.0) " true " else " false)
    true true false #f false))
 
@@ -579,7 +582,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
    "mc_integerp" "0/* none */"
    true 
    "double v = flonum_val( x );
-setcc( is_integer( v ) );
+setcc( is_integer( v ) && is_rational( v ) );
 "
    "double v = flonum_val( x );
 setcc( compnum_imag(x) == 0.0 && is_integer( v ) );

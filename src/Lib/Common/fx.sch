@@ -387,8 +387,7 @@
   (fx:range-check! 'fxrotate-bit-field start)
   (fx:range-check! 'fxrotate-bit-field end)
   (fx:range-check! 'fxrotate-bit-field count)
-  (if (and (fx<=? start end)
-           (fx<=? width (fx- end start)))
+  (if (fx<=? start end)
       (let* ((width (fx- end start)))
         (if (fx=? width 0)
             n

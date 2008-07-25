@@ -471,6 +471,26 @@
          (string>=? "ab" "ab" "ac")     ; detected by PLT test suite
          #f)
 
+   (test "Ticket #571"                  ; Bug in Larceny 0.962
+         (quotient (least-fixnum) -1)   ; detected with help of PLT test suite
+         (+ 1 (greatest-fixnum)))
+
+   (test "Ticket #572"                  ; Bug in Larceny 0.962
+         (rational? +inf.0)             ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #572"                  ; Bug in Larceny 0.962
+         (rational? +nan.0)             ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #572"                  ; Bug in Larceny 0.962
+         (integer? +inf.0)              ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #572"                  ; This wasn't a bug
+         (integer? +nan.0)              ; but let's test it anyway.
+         #f)
+
    ))
 
 (define (bug-105-test1)

@@ -230,7 +230,7 @@
     (number?          1 complex?         #f          #x20 ,:immortal ,:none)
     (complex?         1 complex?         #f          #x20 ,:immortal ,:none)
     (real?            1 rational?        #f          #x21 ,:immortal ,:none)
-    (rational?        1 rational?        #f          #x21 ,:immortal ,:none)
+;   (rational?        1 rational?        #f          #x21 ,:immortal ,:none)
     (integer?         1 integer?         #f          #x22 ,:immortal ,:none)
     (exact?           1 exact?           #f          #x24 ,:immortal ,:none)
     (inexact?         1 inexact?         #f          #x25 ,:immortal ,:none)

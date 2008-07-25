@@ -6,7 +6,15 @@
 
 ($$trace "number")
 
+; FIXME:  This could be computed by (acos -1.0)
+; if it were defined after acos.
+
 (define *pi* 3.14159265358979323846)           ; from <math.h>
+
+(define (rational? obj)
+  (and (real? obj)
+       (or (exact? obj)
+           (= 0.0 (- obj obj)))))
 
 (define positive? (lambda (x) (> x 0)))
 

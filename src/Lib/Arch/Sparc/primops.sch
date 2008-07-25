@@ -50,7 +50,7 @@
 (define number? (lambda (x) (number? x)))
 (define complex? (lambda (x) (complex? x)))
 (define real? (lambda (x) (real? x)))
-(define rational? (lambda (x) (rational? x)))
+;(define rational? (lambda (x) (rational? x)))
 (define integer? (lambda (x) (integer? x)))
 (define fixnum? (lambda (x) (fixnum? x)))
 (define flonum? (lambda (x) (flonum? x)))
