@@ -1602,6 +1602,7 @@
   (environment-set! larc 'undefined undefined)
 
   (environment-set! larc 'current-seconds current-seconds)
+  (environment-set! larc 'twobit-timer-hook twobit-timer-hook)
 
 
   ;; INSTALL-ENVIRONMENTS! is used by Util/std-heap.sch, at least.

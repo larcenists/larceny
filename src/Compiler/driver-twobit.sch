@@ -8,6 +8,13 @@
 ; environment (twobit.heap and the build script).  Uses basis functionality
 ; defined in driver-common.sch
 
+; FIXME:  This is here so it will be loaded during bootstrapping
+; and present in development heaps.  For released heaps, it is
+; defined in src/Lib/Common/timer.sch (for the time being).
+
+(define twobit-timer-hook
+  (make-parameter "twobit-timer-hook" #f))
+
 ; Compile and assemble a scheme source file and produce a FASL file.
 
 (define (compile-file infilename . rest)
