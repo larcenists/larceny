@@ -194,7 +194,7 @@
   (test "chaos6" (string-foldcase (string-append upper-chaos
                                                  (string upper-sigma)))
                  (string-append lower-chaos
-                                (string final-sigma)))
+                                (string lower-sigma)))
   (test "chaos7" (string-upcase final-chaos) upper-chaos)
   (test "chaos8" (string-upcase lower-chaos) upper-chaos)
 

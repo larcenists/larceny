@@ -239,30 +239,55 @@
       (if (= i n)
           s
           (let ((c (string-ref s i)))
-            (if (<= (char->integer c) #x7f)
-                (if (not (char-upper-case? c))
-                    (foldcase-without-allocating (+ i 1))
-                    (foldcase-ascii (make-string n) 0))
-                (string-foldcase-slow s)))))
+            (if (or (and (<= (char->integer c) #x7f)
+                         (not (char-upper-case? c)))
+                    (and (char=? c (char-downcase c))
+                         (not (binary-search (char->integer c)
+                                             full-foldcase-exceptions))))
+                (foldcase-without-allocating (+ i 1))
+                (foldcase-medium (make-string n) 0)))))
 
-    ; All characters of s before index i are ASCII,
-    ; and their downcased versions have been stored
+    ; All characters of s before index i fold to a single
+    ; character, and their folded versions have been stored
     ; into the corresponding elements of s2.
     ; If i is the length of s, then s2 is the result.
 
-    (define (foldcase-ascii s2 i)
+    (define (foldcase-medium s2 i)
       (if (= i n)
           s2
           (let ((c (string-ref s i)))
             (if (<= (char->integer c) #x7f)
                 (begin (string-set! s2 i (char-downcase c))
-                       (foldcase-ascii s2 (+ i 1)))
-                (string-foldcase-slow s)))))
+                       (foldcase-medium s2 (+ i 1)))
+                (let ((j (binary-search (char->integer c)
+                                        full-foldcase-exceptions)))
+                  (if j
+                      (let ((c2 (vector-ref full-foldcase-mappings j)))
+                        (if (char? c2)
+                            (begin (string-set! s2 i c2)
+                                   (foldcase-medium s2 (+ i 1)))
+                            (string-foldcase-slow s)))
+                      (begin (string-set! s2 i (char-downcase c))
+                             (foldcase-medium s2 (+ i 1)))))))))
 
-    ; The general case: easy but slow.
+    ; General case: the result may be longer than the original.
 
     (define (string-foldcase-slow s)
-      (string-downcase (string-upcase s)))
+      (define (loop i chars)
+        (if (= i n)
+            (list->string (reverse chars))
+            (let ((c (string-ref s i)))
+              (if (<= (char->integer c) #x7f)
+                  (loop (+ i 1) (cons (char-downcase c) chars))
+                  (let ((j (binary-search (char->integer c)
+                                          full-foldcase-exceptions)))
+                    (if j
+                        (let ((s3 (vector-ref full-foldcase-mappings j)))
+                          (loop (+ i 1)
+                                (append (reverse (string->list s3)) chars)))
+                        (loop (+ i 1)
+                              (cons (char-downcase c) chars))))))))
+      (loop 0 '()))
 
     (foldcase-without-allocating 0)))
 
@@ -394,7 +419,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; The following tables were generated from
-; UnicodeData.txt and SpecialCasing.txt.
+; UnicodeData.txt, CaseFolding.txt,
+; SpecialCasing.txt, PropList.txt,
+; WordBreakProperty.txt, and CompositionExclusions.txt.
 ; Use parseUCD.sch to regenerate these tables.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -409,7 +436,8 @@
 
 (define special-case-chars
   ;'#vu8(
-  (list->bytevector '(
+  (list->bytevector
+   '(
         #x0 #xdf #x1 #x30 #x1 #x49 #x1 #xf0 
         #x3 #x90 #x3 #xa3 #x3 #xb0 #x3 #xc3 
         #x5 #x87 #x1e #x96 #x1e #x97 #x1e #x98 
@@ -783,5 +811,199 @@
      (str #x54e #x546)
      (str #x544 #x53d)
 )))
+
+; Under full case folding, the scalar values
+; in this vector fold to the characters and strings
+; in the full-foldcase-mappings vector.
+; All other scalar values fold to their (simple)
+; downcased values.
+;
+; Each of those tables contains 156 elements.
+
+(define full-foldcase-exceptions
+  '#(
+        #xb5 #xdf #x130 #x149 #x17f #x1f0 #x345 #x390 
+        #x3b0 #x3c2 #x3d0 #x3d1 #x3d5 #x3d6 #x3f0 #x3f1 
+        #x3f5 #x587 #x1e96 #x1e97 #x1e98 #x1e99 #x1e9a #x1e9b 
+        #x1f50 #x1f52 #x1f54 #x1f56 #x1f80 #x1f81 #x1f82 #x1f83 
+        #x1f84 #x1f85 #x1f86 #x1f87 #x1f88 #x1f89 #x1f8a #x1f8b 
+        #x1f8c #x1f8d #x1f8e #x1f8f #x1f90 #x1f91 #x1f92 #x1f93 
+        #x1f94 #x1f95 #x1f96 #x1f97 #x1f98 #x1f99 #x1f9a #x1f9b 
+        #x1f9c #x1f9d #x1f9e #x1f9f #x1fa0 #x1fa1 #x1fa2 #x1fa3 
+        #x1fa4 #x1fa5 #x1fa6 #x1fa7 #x1fa8 #x1fa9 #x1faa #x1fab 
+        #x1fac #x1fad #x1fae #x1faf #x1fb2 #x1fb3 #x1fb4 #x1fb6 
+        #x1fb7 #x1fbc #x1fbe #x1fc2 #x1fc3 #x1fc4 #x1fc6 #x1fc7 
+        #x1fcc #x1fd2 #x1fd3 #x1fd6 #x1fd7 #x1fe2 #x1fe3 #x1fe4 
+        #x1fe6 #x1fe7 #x1ff2 #x1ff3 #x1ff4 #x1ff6 #x1ff7 #x1ffc 
+        #xfb00 #xfb01 #xfb02 #xfb03 #xfb04 #xfb05 #xfb06 #xfb13 
+        #xfb14 #xfb15 #xfb16 #xfb17 #x10400 #x10401 #x10402 #x10403 
+        #x10404 #x10405 #x10406 #x10407 #x10408 #x10409 #x1040a #x1040b 
+        #x1040c #x1040d #x1040e #x1040f #x10410 #x10411 #x10412 #x10413 
+        #x10414 #x10415 #x10416 #x10417 #x10418 #x10419 #x1041a #x1041b 
+        #x1041c #x1041d #x1041e #x1041f #x10420 #x10421 #x10422 #x10423 
+        #x10424 #x10425 #x10426 #x10427 ))
+
+(define full-foldcase-mappings
+  (let ((str (lambda args
+               (if (= 1 (length args))
+                   (integer->char (car args))
+                   (apply string (map integer->char args))))))
+    (vector
+        (str #x3bc)
+        (str #x73 #x73)
+        (str #x69 #x307)
+        (str #x2bc #x6e)
+        (str #x73)
+        (str #x6a #x30c)
+        (str #x3b9)
+        (str #x3b9 #x308 #x301)
+        (str #x3c5 #x308 #x301)
+        (str #x3c3)
+        (str #x3b2)
+        (str #x3b8)
+        (str #x3c6)
+        (str #x3c0)
+        (str #x3ba)
+        (str #x3c1)
+        (str #x3b5)
+        (str #x565 #x582)
+        (str #x68 #x331)
+        (str #x74 #x308)
+        (str #x77 #x30a)
+        (str #x79 #x30a)
+        (str #x61 #x2be)
+        (str #x1e61)
+        (str #x3c5 #x313)
+        (str #x3c5 #x313 #x300)
+        (str #x3c5 #x313 #x301)
+        (str #x3c5 #x313 #x342)
+        (str #x1f00 #x3b9)
+        (str #x1f01 #x3b9)
+        (str #x1f02 #x3b9)
+        (str #x1f03 #x3b9)
+        (str #x1f04 #x3b9)
+        (str #x1f05 #x3b9)
+        (str #x1f06 #x3b9)
+        (str #x1f07 #x3b9)
+        (str #x1f00 #x3b9)
+        (str #x1f01 #x3b9)
+        (str #x1f02 #x3b9)
+        (str #x1f03 #x3b9)
+        (str #x1f04 #x3b9)
+        (str #x1f05 #x3b9)
+        (str #x1f06 #x3b9)
+        (str #x1f07 #x3b9)
+        (str #x1f20 #x3b9)
+        (str #x1f21 #x3b9)
+        (str #x1f22 #x3b9)
+        (str #x1f23 #x3b9)
+        (str #x1f24 #x3b9)
+        (str #x1f25 #x3b9)
+        (str #x1f26 #x3b9)
+        (str #x1f27 #x3b9)
+        (str #x1f20 #x3b9)
+        (str #x1f21 #x3b9)
+        (str #x1f22 #x3b9)
+        (str #x1f23 #x3b9)
+        (str #x1f24 #x3b9)
+        (str #x1f25 #x3b9)
+        (str #x1f26 #x3b9)
+        (str #x1f27 #x3b9)
+        (str #x1f60 #x3b9)
+        (str #x1f61 #x3b9)
+        (str #x1f62 #x3b9)
+        (str #x1f63 #x3b9)
+        (str #x1f64 #x3b9)
+        (str #x1f65 #x3b9)
+        (str #x1f66 #x3b9)
+        (str #x1f67 #x3b9)
+        (str #x1f60 #x3b9)
+        (str #x1f61 #x3b9)
+        (str #x1f62 #x3b9)
+        (str #x1f63 #x3b9)
+        (str #x1f64 #x3b9)
+        (str #x1f65 #x3b9)
+        (str #x1f66 #x3b9)
+        (str #x1f67 #x3b9)
+        (str #x1f70 #x3b9)
+        (str #x3b1 #x3b9)
+        (str #x3ac #x3b9)
+        (str #x3b1 #x342)
+        (str #x3b1 #x342 #x3b9)
+        (str #x3b1 #x3b9)
+        (str #x3b9)
+        (str #x1f74 #x3b9)
+        (str #x3b7 #x3b9)
+        (str #x3ae #x3b9)
+        (str #x3b7 #x342)
+        (str #x3b7 #x342 #x3b9)
+        (str #x3b7 #x3b9)
+        (str #x3b9 #x308 #x300)
+        (str #x3b9 #x308 #x301)
+        (str #x3b9 #x342)
+        (str #x3b9 #x308 #x342)
+        (str #x3c5 #x308 #x300)
+        (str #x3c5 #x308 #x301)
+        (str #x3c1 #x313)
+        (str #x3c5 #x342)
+        (str #x3c5 #x308 #x342)
+        (str #x1f7c #x3b9)
+        (str #x3c9 #x3b9)
+        (str #x3ce #x3b9)
+        (str #x3c9 #x342)
+        (str #x3c9 #x342 #x3b9)
+        (str #x3c9 #x3b9)
+        (str #x66 #x66)
+        (str #x66 #x69)
+        (str #x66 #x6c)
+        (str #x66 #x66 #x69)
+        (str #x66 #x66 #x6c)
+        (str #x73 #x74)
+        (str #x73 #x74)
+        (str #x574 #x576)
+        (str #x574 #x565)
+        (str #x574 #x56b)
+        (str #x57e #x576)
+        (str #x574 #x56d)
+        (str #x10428)
+        (str #x10429)
+        (str #x1042a)
+        (str #x1042b)
+        (str #x1042c)
+        (str #x1042d)
+        (str #x1042e)
+        (str #x1042f)
+        (str #x10430)
+        (str #x10431)
+        (str #x10432)
+        (str #x10433)
+        (str #x10434)
+        (str #x10435)
+        (str #x10436)
+        (str #x10437)
+        (str #x10438)
+        (str #x10439)
+        (str #x1043a)
+        (str #x1043b)
+        (str #x1043c)
+        (str #x1043d)
+        (str #x1043e)
+        (str #x1043f)
+        (str #x10440)
+        (str #x10441)
+        (str #x10442)
+        (str #x10443)
+        (str #x10444)
+        (str #x10445)
+        (str #x10446)
+        (str #x10447)
+        (str #x10448)
+        (str #x10449)
+        (str #x1044a)
+        (str #x1044b)
+        (str #x1044c)
+        (str #x1044d)
+        (str #x1044e)
+        (str #x1044f))))
 
 ;)

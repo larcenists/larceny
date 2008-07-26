@@ -27,10 +27,9 @@
     (let* ((who (or who
                     (and (identifier? form)
                          (syntax->datum form))
-                    (let ((f (syntax->datum form)))
-                      (and (pair? f)
-                           (symbol? (car f))
-                           (car f)))))
+                    (and (pair? form)
+                         (identifier? (car form))
+                         (syntax->datum (car form)))))
            (maybe-subform (if (null? rest) #f (car rest)))
            (c1 (make-who-condition who))
            (c2 (make-message-condition msg))
