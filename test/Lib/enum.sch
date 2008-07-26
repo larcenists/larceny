@@ -31,16 +31,32 @@
      (test 7 (enum-set-subset? (make-color-set '(white))
                                (make-enumeration
                                 '(black white red green)))
+             => #f)
+     (test 8 (enum-set=? (make-color-set '(black white))
+                         ((enum-set-constructor
+                           (make-enumeration '(black white red green)))
+                          '(black white)))
+             => #f)
+     (test 9 (enum-set-subset? (make-color-set '(white))
+                               (make-enumeration
+                                '(maroon black purple red green white)))
              => #t)
-    (test 8 (enum-set=? (make-color-set '(black white))
-                        ((enum-set-constructor
-                          (make-enumeration '(black white red green)))
-                         '(black white)))
-            => #t)
-    (test 9 (enum-set->list (enum-set-projection
-                             (make-enumeration '(black white red green))
-                             colors))
-            => '(black white))
+     (test 10 (enum-set=? (make-color-set '(black white))
+                          ((enum-set-constructor
+                            (make-enumeration
+                             '(maroon black purple red green white)))
+                           '(black white)))
+              => #f)
+     (test 11 (enum-set=? (make-color-set '(black white))
+                          ((enum-set-constructor
+                            (make-enumeration
+                             '(maroon black purple white)))
+                           '(black white)))
+              => #t)
+     (test 12 (enum-set->list (enum-set-projection
+                               (make-enumeration '(black white red green))
+                               colors))
+              => '(black white))
     )
 
    #t))

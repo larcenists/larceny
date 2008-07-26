@@ -229,9 +229,10 @@
 ; is an element of its second argument.
 
 (define (enum-set-member? x set)
-  (if ((enum-set-indexer set) x)
-      #t
-      #f))
+  (let ((bits (enumeration:set-bits set))
+        (i ((enum-set-indexer set) x)))
+    (and i
+         (bitwise-bit-set? bits i))))
 
 ; Given two enum-sets, returns true if and only if the universe of its
 ; first argument is a subset of the universe of its second argument
@@ -243,14 +244,16 @@
         (type2 (enumeration:set-type set2))
         (bits1 (enumeration:set-bits set1))
         (bits2 (enumeration:set-bits set2)))
-    (cond ((eq? type1 type2)
-           (zero? (bitwise-and bits1 (bitwise-not bits2))))
-          ; FIXME: Isn't this redundant with the previous test?
-          ((eq? (enumeration:type-universe type1)
-                (enumeration:type-universe type2))
-           (zero? (bitwise-and bits1 (bitwise-not bits2))))
-          (else
-           (enum-set-subset? set1 (enum-set-projection set2 set1))))))
+    (if (eq? type1 type2)
+        (zero? (bitwise-and bits1 (bitwise-not bits2)))
+        (let ((u1 ((enumeration:type-universe type1)))
+              (u2 ((enumeration:type-universe type2))))
+          (cond ((eq? u1 u2)
+                 ; FIXME:  Can this code ever be executed?
+                 (zero? (bitwise-and bits1 (bitwise-not bits2))))
+                ((enum-set-subset? u1 (enum-set-projection u2 u1))
+                 (enum-set-subset? set1 (enum-set-projection set2 set1)))
+                (else #f))))))
 
 ; Given two enum-sets, returns true if and only if its first argument is a
 ; subset of its second and vice versa, as determined by the

@@ -53,6 +53,14 @@
               (eval '(catch-undefined-globals #f)               ; FIXME
                     (interaction-environment))))))
 
+         (adjust-optimization!
+          (lambda (opt)
+            (case opt
+             ((0 1)
+              (eval '(begin (control-optimization #f)
+                            (global-optimization #f))
+                    (interaction-environment))))))
+
          (add-require-path!
           (lambda ()
 
@@ -90,7 +98,8 @@
             (let* ((path (get-feature 'library-path))
                    (os (get-feature 'os-name))
                    (separator (if (string=? os "Win32") #\; #\:)))
-              (for-each add-path! (list-of-paths path separator)))))
+              (for-each add-path!
+                        (reverse (list-of-paths path separator))))))
 
          (aeryn-mode!
           (lambda ()
@@ -129,6 +138,7 @@
 
      ((dargo)
       (adjust-safety! 1)                                  ; FIXME
+      (adjust-optimization! 2)                            ; FIXME
       (let ((path (get-feature 'library-path)))
         (if (not (string=? path ""))
             (add-require-path!)))
