@@ -344,7 +344,18 @@ that can be found in the directories specified by the
 from library names to file names.
 On most systems, you can specify multiple directories
 by separating them with a colon; under Windows, use a
-semicolon as separator instead.
+semicolon as separator instead.  The first directory
+listed will be searched first.
+
+[TIP]
+================================================================
+If you have a set of portable libraries that run under more than
+one implementation of the R6RS, and you want to have a special
+version of some of those libraries for Larceny, you can put all
+your portable versions in one directory and the Larceny-specific
+versions in another.  When you run Larceny, use the `-path`
+option and specify the Larceny-specific directory first.
+================================================================
 
 [NOTE]
 ================================================================
