@@ -71,10 +71,6 @@
 
 ($$trace "str2num")
 
-(define (show msg)
-  (write msg)
-  (newline))
-
 ; String->number takes a number or a number and a radix.
 ; Its output is a number, or #f.
 
@@ -641,25 +637,11 @@
       (cond ((eq? exactness 'i)
              (if (inexact? x) x (exact->inexact x)))
             (else x)))
-'    
-    (set! string->number
-          (lambda (string . rest)
-            (let ((input (string->list string)))
-              (cond ((null? input)
-                     #f)
-                    ((null? rest)
-                     (parse-number input))
-                    ((null? (cdr rest))
-                     (if (memv (car rest) '(2 8 10 16))
-                         (parse-prefix input #f (car rest))
-                         (begin (error "string->number: Invalid radix: "
-                                       (car rest))
-                                #t)))
-                    (else 
-                     (begin (error "string->number: Too many arguments: "
-                                   rest)
-                            #t))))))
-    
+
+    (if (not (or (not radix)
+                 (memv radix '(2 8 10 16))))
+        (assertion-violation 'string->number "illegal radix" radix))
+
     (parse-number)))
 
 ; eof
