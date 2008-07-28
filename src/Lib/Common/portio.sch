@@ -124,8 +124,10 @@
                           ((eq? errmode 'replace)
                            (put-u8 out (char->integer #\?)))
                           ((eq? errmode 'raise)
-                           (assertion-violation
-                            'string->bytevector "encoding error" sv))
+                           (let ((c (integer->char sv)))
+                             (raise-r6rs-exception
+                              (make-i/o-encoding-error out c)
+                              'string->bytevector "encoding error" (list c))))
                           (else
                            'ignore)))))))
             ((utf-8)

@@ -14,6 +14,11 @@
 ;
 ;     ERR5RS allows trailing decimal digits to be #
 ;
+;     ERR5RS allows 3+4I.  Despite an erratum, it is
+;         still unclear whether the R6RS allows that.
+;         It is also unclear whether the R6RS allows
+;         +NaN.0 or -InF.0.
+;
 ; ERR5RS also allows extensions, but the R6RS doesn't.
 ;
 ; Uses a procedure named bellerophon, which should implement
@@ -175,7 +180,7 @@
       (if (>= i n)
           #f
           (case (string-ref s i)
-           ((#\i #\I)                  ; FIXME: the R6RS doesn't allow #\I
+           ((#\i #\I)               ; FIXME: does the R6RS allow #\I here?
             (cond ((= (+ i 1) n)
                    (coerce-exactness exactness -i))
                   ((and (<= (+ i 5) n)
@@ -242,7 +247,7 @@
       (if (>= i n)
           #f
           (case (string-ref s i)
-           ((#\i #\I)                  ; FIXME: the R6RS doesn't allow #\I
+           ((#\i #\I)                  ; FIXME
             (cond ((= (+ i 1) n)
                    (coerce-exactness exactness
                                      (make-rectangular areal sign)))
@@ -376,7 +381,6 @@
 
     (define (parse-uinteger i radix sign)
       (define (loop i k)
-;(show (list 'loop i k)) ;FIXME
         (if (>= i n)
             (values k i)
             (let* ((c (string-ref s i)))
@@ -394,7 +398,6 @@
                     (values k i)))
                (else
                 (values k i))))))
-;(show (list 'parse-uinteger i radix sign s)) ;FIXME
       (if (>= i n)
           (values #f i)
           (let ((c (string-ref s i)))
@@ -613,8 +616,6 @@
     ;   exponent    = an exact integer
     
     (define (create-number exactness sign numerator denominator exponent)
-;FIXME
-;(show (list 'create-number exactness sign numerator denominator exponent))
       (cond ((not (eq? denominator 1))
              ; exponent must be 0
              (if (eq? denominator 0)
@@ -637,7 +638,6 @@
     ; coerces x to the specified exactness.  #f means e.
 
     (define (coerce-exactness exactness x)
-;(show 'coerce-exactness);FIXME
       (cond ((eq? exactness 'i)
              (if (inexact? x) x (exact->inexact x)))
             (else x)))
@@ -661,14 +661,5 @@
                             #t))))))
     
     (parse-number)))
-
-; FIXME
-
-'
-(define f string->number)
-'
-(define (bellerophon x k)
-; (show (list x k))        ; FIXME
-  (+ 0.0 (* x (expt 10.0 k))))
 
 ; eof

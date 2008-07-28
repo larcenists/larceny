@@ -1298,7 +1298,9 @@
                                 ((fx= mode errmode:replace)
                                  (io/put-char p #\?))
                                 ((fx= mode errmode:raise)
-                                 (error 'put-char "encoding error" p c))
+                                 (raise-r6rs-exception
+                                  (make-i/o-encoding-error p)
+                                  'put-char "encoding error" (list p c)))
                                 (else
                                  (assertion-violation 'put-char
                                                       "internal error" p c)))))
@@ -1837,7 +1839,10 @@
             ((fx= errmode errmode:ignore)
              (io/get-char p lookahead?))
             (else
-             (error 'get-char "utf-8 decoding error" units)))))
+             (raise-r6rs-exception (make-i/o-decoding-error p)
+                                   'get-char
+                                   "utf-8 decoding error"
+                                   units)))))
 
   ; Forces at least one more byte into the active buffer,
   ; and retries.

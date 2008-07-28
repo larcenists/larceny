@@ -230,38 +230,4 @@
 
 (define already-warned '())
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; FIXME: temporary hack, doesn't belong here
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (display-condition x . rest)
-  (let ((out (if (null? rest) (current-output-port) (car rest))))
-    (if (compound-condition? x)
-        (begin (display "Compound condition has these components: ")
-               (newline)
-               (for-each (lambda (c) (display-record c out))
-                         (simple-conditions x)))
-        (apply display-record x rest))))
-
-(define (display-record x . rest)
-  (assert (record? x))
-  (parameterize ((print-length 7)
-                 (print-level 7))
-    (let* ((out (if (null? rest) (current-output-port) (car rest)))
-           (rtd (record-rtd x))
-           (name (rtd-name rtd))
-           (field-names (rtd-all-field-names rtd))
-           (n (vector-length field-names)))
-      (write x out)
-      (newline out)
-      (do ((i 0 (+ i 1)))
-          ((= i n))
-        (display "    " out)
-        (display (vector-ref field-names i) out)
-        (display " : " out)
-        (write ((record-accessor rtd i) x) out)
-        (newline out)))))
-
 ; eof
