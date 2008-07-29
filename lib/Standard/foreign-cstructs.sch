@@ -11,8 +11,8 @@
 ;
 (define-syntax define-c-struct
  (syntax-rules ()
-  ((define-c-struct (?name           #f . rest1) . rest2)
-   (define-c-struct (?name ignorin-ctor . rest1) . rest2))
+  ((define-c-struct (?name           #f ?include ...) . ?rest)
+   (define-c-struct (?name ignorin-ctor ?include ...) . ?rest))
   ((define-c-struct (?name ?constructor ?include ...)
                     (?field (?getter ?low-getter)
                             (?setter ?low-setter)) ...)
