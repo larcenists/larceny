@@ -186,3 +186,81 @@
                (lambda (x n) (low-setter x ?offset (conv n ?field))))) 
        ...
        ))))))
+
+;; Old interface to define-c-struct, provided for legacy code
+;; like lib/Experimental/socket.sch
+;; (the new interface automatically marshals values held in 
+;;  structure fields, which does not work for strings embedded
+;;  in structures.  The old interface provided the addresses 
+;;  *of* each field, which allowed one to use %peek-string to 
+;;  extract strings embedded in structures)
+;; 
+;; Example:
+;
+;   (define-c-struct ("struct pair" make-pair (include"pair.h"))
+;     ("fst"  (pair-fst      %get-uint)
+;             (pair-fst-set! %set-uint))
+;     ("snd"  (pair-snd      %get-uint)
+;             (pair-snd-set! %set-uint)))
+;
+; 
+(define-syntax define-c-offset-based-struct
+ (syntax-rules ()
+  ((define-c-offset-based-struct (?name           #f ?include ...) . ?rest)
+   (define-c-offset-based-struct (?name ignorin-ctor ?include ...) . ?rest))
+  ((define-c-offset-based-struct (?name ?constructor ?include ...)
+                    (?field (?getter ?low-getter)
+                            (?setter ?low-setter)) ...)
+   (define-c-offset-based-struct "offset-names" ()
+                  (?name ?constructor ?include ...)
+                  (?field (?getter ?low-getter)
+                          (?setter ?low-setter)) ...))
+  ((define-c-offset-based-struct (?name ?constructor ?include ...)
+                    (?field (?getter ?low-getter)) ...)
+   (define-c-offset-based-struct "offset-names" ()
+                  (?name ?constructor ?include ...)
+                  (?field (?getter ?low-getter)) ...))
+  ((define-c-offset-based-struct "offset-names" ?acc ?naming ?field . ?rest)
+   (define-c-offset-based-struct "offset-names" ((offset . ?field) . ?acc)
+                                   ?naming . ?rest))
+  ((define-c-offset-based-struct "offset-names" ?acc ?naming)
+   (define-c-offset-based-struct "finish" ?naming . ?acc))
+
+  ((define-c-offset-based-struct "finish" (?name ?constructor ?include ...)
+                             (?offset ?field (?getter ?low-getter)
+                                             (?setter ?low-setter)) ...)
+   (begin
+     (define ?constructor #f)
+     (define ?getter #f) ...
+     (define ?setter #f) ...
+     (let ()
+      (define-c-info
+        ?include ...
+        (sizeof size ?name)
+        (fields ?name (?offset ?field) ...))
+
+      (set! ?constructor
+         (lambda () (make-bytevector size 0)))
+
+      (set! ?getter
+         (lambda (x) (?low-getter x ?offset))) ...
+
+      (set! ?setter
+         (lambda (x n) (?low-setter x ?offset n))) ...)))
+  ((define-c-offset-based-struct "finish" (?name ?constructor ?include ...)
+                             (?offset ?field (?getter ?low-getter)) ...)
+   (begin
+     (define ?constructor #f)
+     (define ?getter #f) ...
+     (let ()
+      (define-c-info
+        ?include ...
+        (sizeof size ?name)
+        (fields ?name (?offset ?field) ...))
+
+      (set! ?constructor
+         (lambda () (make-bytevector size 0)))
+
+      (set! ?getter
+         (lambda (x) (?low-getter x ?offset))) ...)))))
+
