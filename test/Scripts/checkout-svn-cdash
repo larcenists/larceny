@@ -745,20 +745,21 @@ function larceny_bench {
 }
 
 update_from_subversion;
-if [ STATUS == "failed" ] then echo UPDATE FAILED ; goto nomoresteps; fi
+echo $STATUS;
+if [ $STATUS == "failed" ] 
+then echo UPDATE FAILED ; exit 1;
+fi
 larceny_setup;
-if [ STATUS == "failed" ] then echo SETUP FAILED ; goto nomoresteps; fi
+if [ $STATUS == "failed" ] then echo SETUP FAILED ; exit 1; fi
 larceny_build;
-if [ STATUS == "failed" ] then echo BUILD FAILED ; goto nomoresteps; fi
+if [ $STATUS == "failed" ] then echo BUILD FAILED ; exit 1; fi
 larceny_tests;
-if [ STATUS == "failed" ] then echo TESTS FAILED ; goto nomoresteps; fi
+if [ $STATUS == "failed" ] then echo TESTS FAILED ; exit 1; fi
 
 if [ $FINAL_LARCENY_BIN == "petit-larceny.bin" ]
 then echo skipping larceny_bench as Petit is slooow.
 else larceny_bench;
 fi
-
-nomoresteps:
 
 BUILD_STATUS=${STATUS}
 
