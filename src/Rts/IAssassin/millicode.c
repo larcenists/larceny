@@ -14,7 +14,7 @@
 #include "gclib.h"              /* For pageof() */
 #include "stack.h"
 #include "millicode.h"
-#include "petit-machine.h"
+#include "petit-machine.h"      /* XXX for LASTREG and NREGS XXX */
 #include "signals.h"
 #include "assert.h"
 #include <setjmp.h>
