@@ -142,7 +142,9 @@
 
         list-directory))
 
-    (define-values (stat-alist file-directory? file-length)
+    (define-values (stat-alist fstat-alist lstat-alist 
+                               mode-type
+                               file-directory? file-length)
       (let ()
         (define-c-info 
           (include<> "sys/stat.h") 
@@ -168,7 +170,19 @@
           (const s_ififo uint "S_IFIFO")
           (const s_ifreg uint "S_IFREG")
           (const s_ifdir uint "S_IFDIR")
-          (const s_iflnk uint "S_IFLNK"))
+          (const s_iflnk uint "S_IFLNK")
+          (const s_isuid uint "S_ISUID")
+          (const s_isgid uint "S_ISGID")
+          (const s_irusr uint "S_IRUSR")
+          (const s_iwusr uint "S_IWUSR")
+          (const s_ixusr uint "S_IXUSR")
+          (const s_irgrp uint "S_IRGRP")
+          (const s_iwgrp uint "S_IWGRP")
+          (const s_ixgrp uint "S_IXGRP")
+          (const s_iroth uint "S_IROTH")
+          (const s_iwoth uint "S_IWOTH")
+          (const s_ixoth uint "S_IXOTH")
+          )
         (define stat ;; XXX consider grabbing the impl from unix.sch
           (cond-expand 
            (linux 
@@ -178,6 +192,25 @@
               (lambda (name buf) (xstat stat_ver name buf))))
            (else 
             (foreign-procedure "stat" '(string boxed) 'int))))
+        (define fstat ;; XXX consider grabbing the impl from unix.sch
+          (cond-expand 
+           (linux 
+            (let ((xstat (foreign-procedure "__xfstat" '(int string boxed) 'int)))
+              (define-c-info (include<> "sys/stat.h") 
+                (const stat_ver int "_STAT_VER"))
+              (lambda (name buf) (xstat stat_ver name buf))))
+           (else 
+            (foreign-procedure "fstat" '(string boxed) 'int))))
+        (define lstat ;; XXX consider grabbing the impl from unix.sch
+          (cond-expand 
+           (linux 
+            (let ((xstat (foreign-procedure "__xlstat" '(int string boxed) 'int)))
+              (define-c-info (include<> "sys/stat.h") 
+                (const stat_ver int "_STAT_VER"))
+              (lambda (name buf) (xstat stat_ver name buf))))
+           (else 
+            (foreign-procedure "lstat" '(string boxed) 'int))))
+
         (let* ((names 
                 '(dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks))
                (offsets
@@ -196,25 +229,35 @@
                                  (else (error 'stat-alist-definition 
                                               "Unhandled size for getters")))))
                (getters (map size->getter sizes)))
-          (define (stat-bytes filename)
+          (define (stat-bytes stat filename)
             (let* ((stat-results (make-bytevector struct-stat-sz))
                    (errcode (stat filename stat-results)))
               (cond ((zero? errcode)
                      stat-results)
                     (else
                      (error 'stat ": something went wrong: " errcode " " filename)))))
-          (define (stat-alist filename)
-            (let ((stat-results (stat-bytes filename)))
-              (map (lambda (name get offset) (list name (get stat-results offset)))
-                   names getters offsets)))
+          (define (make-stat-alist stat)
+            (lambda (filename)
+              (let ((stat-results (stat-bytes stat filename)))
+                (map (lambda (name get offset) (list name (get stat-results offset)))
+                     names getters offsets))))
+          (define (mode-matches? mode s_xxx)
+            (= (fxlogand mode s_ifmt) s_xxx))
+          (define (mode-type mode)
+            (cond 
+             ((mode-matches? mode s_ifreg) 'regular)
+             ((mode-matches? mode s_ifdir) 'directory)
+             ((mode-matches? mode s_ifblk) 'block-special)
+             ((mode-matches? mode s_ifchr) 'character-special)
+             ((mode-matches? mode s_ififo) 'fifo)
+             ((mode-matches? mode s_iflnk) 'symbolic-link)
+             (else 'unknown)))
           (define (file-directory? filename)
-            (let* ((stat-results (stat-bytes filename))
-                   (mode ((size->getter mode-t-sz)
-                          stat-results *st_mode_offs*)))
-              (not (zero? (fxlogand mode s_ifdir)))))
+            (eq? (mode-type (cadr (assq 'mode (stat-alist filename)))) 'directory))
           (define (file-length filename)
-            (let* ((stat-results (stat-bytes filename)))
-              ((size->getter off-t-sz) stat-results *st_size_offs*)))
-          (values stat-alist file-directory? file-length))))))
+            (cadr (assq 'size (stat-alist filename))))
+          (values (make-stat-alist stat) (make-stat-alist fstat) (make-stat-alist lstat)
+                  mode-type file-directory? file-length
+                  ))))))
 
 ; eof
