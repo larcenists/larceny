@@ -347,7 +347,7 @@ function remove {
 
 function update_from_subversion {
   # CMD="svn checkout -q ${SVNTRUNK}"
-  CMD="svn up ../shared-checkout/larceny_src; cp -fpR ../shared-checkout/larceny_src ."
+  CMD="svn up ../shared-checkout/larceny_src && cp -fpR ../shared-checkout/larceny_src ."
   remove $MY_CDASHUPDATELOG
   cdashupdatelog '<?xml version="1.0" encoding="utf-8"?>'
   
@@ -745,13 +745,20 @@ function larceny_bench {
 }
 
 update_from_subversion;
+if [ STATUS == "failed" ] then echo UPDATE FAILED ; goto nomoresteps; fi
 larceny_setup;
+if [ STATUS == "failed" ] then echo SETUP FAILED ; goto nomoresteps; fi
 larceny_build;
+if [ STATUS == "failed" ] then echo BUILD FAILED ; goto nomoresteps; fi
 larceny_tests;
+if [ STATUS == "failed" ] then echo TESTS FAILED ; goto nomoresteps; fi
+
 if [ $FINAL_LARCENY_BIN == "petit-larceny.bin" ]
 then echo skipping larceny_bench as Petit is slooow.
 else larceny_bench;
 fi
+
+nomoresteps:
 
 BUILD_STATUS=${STATUS}
 
