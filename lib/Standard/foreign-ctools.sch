@@ -24,12 +24,20 @@
 ;;
 ;; <defn>    ::= (const <scheme-name> <type> <c-expr>)
 ;;             | (sizeof <scheme-name> <c-type>)
-;;             | (struct <c-name> (<scheme-name> <c-field>) ...)
-;;             | (fields <c-name> (<scheme-name> <c-field>) ...)
+;;             | (struct <c-name> <fldspec> ...)
+;;             | (fields <c-name> <fldspec> ...)
 ;;             | (ifdefconst <scheme-name> <type> <c-name>)      ;; unspec o/w
 ;;
+;; <fldspec> ::= (<offset> <c-field>)
+;;             | (<offset> <c-field> <size>)
+;; 
 ;; <type>    ::= int | uint | long | ulong
 ;;
+;; <c-field> ::= <string-literal>
+;; 
+;; <offset>  ::= <scheme-name>
+;; <size>    ::= <scheme-name>
+
 (define-syntax define-c-info
   (transformer
     (lambda (exp ren cmp)
@@ -102,7 +110,17 @@
                   "(char *)&s."
                   (stringify (cadr field-exp))
                   " - (char *)&s")
-                (string-append name " s;")))
+                (string-append name " s;"))
+
+              ;; Optional binding of field size 
+              (cond
+               ((not (null? (cddr field-exp)))
+                (gen-const
+                 (caddr field-exp)
+                 'ulong
+                 (string-append
+                  "sizeof( s." (stringify (cadr field-exp)) ")")
+                 (string-append name " s;")))))
             fields))
 
         (define (gen-include header)
