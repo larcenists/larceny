@@ -142,6 +142,8 @@
      (define ?constructor #f)
      (define ?getter #f) ...
      (define ?setter #f) ...
+     (define 
+      ignore-set!-results
      (let ((check-twoary
             (lambda (f)
               (let ((arity (procedure-arity f))
@@ -183,4 +185,4 @@
                (check-twoary conv)
                (lambda (x n) (low-setter x ?offset (conv n ?field))))) 
        ...
-       )))))
+       ))))))
