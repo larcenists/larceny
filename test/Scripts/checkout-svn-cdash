@@ -745,7 +745,6 @@ function larceny_bench {
 }
 
 update_from_subversion;
-echo $STATUS;
 if [ $STATUS == "failed" ] 
 then echo UPDATE FAILED ; exit 1;
 fi
