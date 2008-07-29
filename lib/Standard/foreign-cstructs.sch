@@ -3,7 +3,7 @@
 
 ;; Define getters and setters for a C struct.  Example:
 ;
-;   (define-c-struct ("struct pair" "pair.h" make-pair)
+;   (define-c-struct ("struct pair" make-pair (include"pair.h"))
 ;     ("fst"  (pair-fst      %get-uint)
 ;             (pair-fst-set! %set-uint))
 ;     ("snd"  (pair-snd      %get-uint)
@@ -11,6 +11,8 @@
 ;
 (define-syntax define-c-struct
  (syntax-rules ()
+  ((define-c-struct (?name           #f . rest1) . rest2)
+   (define-c-struct (?name ignorin-ctor . rest1) . rest2))
   ((define-c-struct (?name ?constructor ?include ...)
                     (?field (?getter ?low-getter)
                             (?setter ?low-setter)) ...)
