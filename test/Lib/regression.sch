@@ -218,9 +218,12 @@
                 (ry (inexact->exact y)))
            (/ ry rx))
          2)
+
+   ; As of v0.963, (expt 0.0 -2.0) returns +nan.0 instead of +inf.0
+
    (test "Ticket #87 (1)"               ; Bug in Larceny through 0.92b
-         (expt 0.0 -2.0)
-         +inf.0)
+         (begin (expt 0.0 -2.0) 'okay)
+         'okay)
    (test "Ticket #87 (2)"               ; Bug in Larceny through 0.92b
          (expt 0.0 0.0)
          1.0)
@@ -364,6 +367,150 @@
                     #\")))
            (call-with-input-string s0 get-datum))
          "abcdefg")
+   (test "Ticket #548"                  ; Bug in Larceny 0.961
+         (list (char=? #\a #\a #\a)
+               (char=? #\a #\a #\a #\a #\a #\a)
+               (char=? #\a #\a #\a #\a #\a #\b)
+               (char=? #\b #\a #\a)
+               (char=? #\a #\b #\a)
+               (char=? #\a #\a #\b)
+               (char<? #\a #\b #\c)
+               (char<? #\a #\b #\a)
+               (char>? #\c #\b #\a)
+               (char>? #\c #\a #\b)
+               (char<=? #\a #\b #\c)
+               (char<=? #\b #\a #\a)
+               (char>=? #\c #\b #\b)
+               (char>=? #\c #\d #\c))
+         '(#t #t #f #f #f #f #t #f #t #f #t #f #t #f))
+
+   ; This was really a bug in Twobit's pass 3.
+
+   (test "Ticket #543"                  ; Bug in Larceny 0.961
+         (let* ((f (hide (lambda (x y)
+                           (let* ((pos-finis (+ x 1))
+                                  (rng-finis (or (+ y 1) 'top)))
+                             (let ((p3 (if rng-finis
+                                           (min pos-finis rng-finis)
+                                           pos-finis))
+                                   (p4 (if rng-finis
+                                           (max pos-finis rng-finis)
+                                           pos-finis)))
+                               (list p3 p4)))))))
+           (f (hide 33) (hide 44)))
+         '(34 45))
+
+   (test "Ticket #552"                  ; Bug in Larceny 0.962
+         (assp odd?                     ; contributed by Ray Racine
+               '((0 . 5) (1 . 6)))
+         '(1 . 6))
+
+   (test "Ticket #568"                  ; Bug in Larceny 0.962
+         (fixnum->flonum (hide -17))    ; detected by PLT test suite
+         -17.0)
+
+   (test "Ticket #557"                  ; Bug in Larceny 0.962
+         (log 1024 2)                   ; detected by PLT test suite
+         10.0)
+
+   (test "Ticket #557"                  ; Bug in Larceny 0.962
+         (log 2048.0 2.0)               ; detected by PLT test suite
+         11.0)
+
+   (test "Ticket #564"                  ; Bug in Larceny 0.962
+         (let ((v (vector 5 3 8 4 2)))  ; detected by PLT test suite
+           (vector-sort! < v)
+           v)
+         '#(2 3 4 5 8))
+
+   (test "Ticket #565"                  ; Bug in Larceny 0.962
+         (for-all values '(1 2 3 4 5))  ; detected by PLT test suite
+         5)
+
+   (test "Ticket #565"                  ; Bug in Larceny 0.962
+         (exists list '(1 2 3 4)        ; detected by PLT test suite
+                      '(5 6 7 8)
+                      '(9 10 11 12))
+         '(1 5 9))
+
+   (test "Ticket #565"                  ; Bug in Larceny 0.962
+         (for-all list '(1 2 3 4)       ; detected by PLT test suite
+                       '(5 6 7 8)
+                       '(9 10 11 12))
+         '(4 8 12))
+
+   (test "Ticket #566"                  ; Bug in Larceny 0.962
+         (fold-left list                ; detected by PLT test suite
+                    '()
+                    '(1 2 3 4 5)
+                    '(6 7 8 9 10))
+         '(((((() 1 6) 2 7) 3 8) 4 9) 5 10))
+
+   (test "Ticket #566"                  ; Bug in Larceny 0.962
+         (fold-right list                ; detected by PLT test suite
+                     '()
+                     '(1 2 3 4 5)
+                     '(6 7 8 9 10)
+                     '(11 12 13 14 15))
+         '(1 6 11 (2 7 12 (3 8 13 (4 9 14 (5 10 15 ()))))))
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string=? "ab" "ab" "ab")      ; detected by PLT test suite
+         #t)
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string<? "ab" "ab" "ab")      ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string<=? "ab" "ab" "ac")     ; detected by PLT test suite
+         #t)
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string>? "ab" "ab" "ac")      ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #569"                  ; Bug in Larceny 0.962
+         (string>=? "ab" "ab" "ac")     ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #571"                  ; Bug in Larceny 0.962
+         (quotient (least-fixnum) -1)   ; detected with help of PLT test suite
+         (+ 1 (greatest-fixnum)))
+
+   (test "Ticket #572"                  ; Bug in Larceny 0.962
+         (rational? +inf.0)             ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #572"                  ; Bug in Larceny 0.962
+         (rational? +nan.0)             ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #572"                  ; Bug in Larceny 0.962
+         (integer? +inf.0)              ; detected by PLT test suite
+         #f)
+
+   (test "Ticket #572"                  ; This wasn't a bug
+         (integer? +nan.0)              ; but let's test it anyway.
+         #f)
+
+   (test "Ticket #573"                  ; Bug introduced while fixing #572
+         (flnumerator -inf.0)
+         -inf.0)
+
+   (test "Ticket #574"                  ; Bug in Larceny 0.962
+         (rationalize +inf.0 3)         ; detected by PLT test suite
+         +inf.0)
+
+   (test "Ticket #574"                  ; Bug in Larceny 0.962
+         (nan?                          ; detected by PLT test suite
+          (rationalize +inf.0 +inf.0))
+         #t)
+
+   (test "Ticket #554"                  ; Bug in Larceny 0.962
+         (bitwise-and (expt 2 100) 17)  ; detected by PLT test suite
+         0)
+
    ))
 
 (define (bug-105-test1)

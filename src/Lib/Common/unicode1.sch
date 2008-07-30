@@ -159,10 +159,10 @@
   (let ((cp (char->integer c)))
     (if (< cp #xb5)
         (char-downcase c)
-        (case (char->integer c)
-         ((#x130 #x131) c)
-         (else
-          (char-downcase (char-upcase c)))))))
+        (let ((i (binary-search cp simple-foldcase-exceptions)))
+          (if i
+              (integer->char (vector-ref simple-foldcase-mappings i))
+              (char-downcase c))))))
 
 ; Given a character, returns its Unicode general category.
 ; The tables used to implement this procedure occupy about 12869 bytes.
@@ -408,41 +408,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; The following tables were generated from
-; UnicodeData.txt and SpecialCasing.txt.
+; UnicodeData.txt, CaseFolding.txt,
+; SpecialCasing.txt, PropList.txt,
+; WordBreakProperty.txt, and CompositionExclusions.txt.
 ; Use parseUCD.sch to regenerate these tables.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; The following vector contains the general category for
-; characters whose Unicode scalar value is less than 256.
-;
-; This table contains 256 entries.
-
-(define general-category-indices-for-common-characters
-  (list->bytevector
-   (map
-    general-category-symbol->index
-    '(
-       Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc 
-       Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc 
-       Zs Po Po Po Sc Po Po Po Ps Pe Po Sm Po Pd Po Po 
-       Nd Nd Nd Nd Nd Nd Nd Nd Nd Nd Po Po Sm Sm Sm Po 
-       Po Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu 
-       Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Ps Po Pe Sk Pc 
-       Sk Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll 
-       Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ps Sm Pe Sm Cc 
-       Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc 
-       Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc 
-       Zs Po Sc Sc Sc Sc So So Sk So Ll Pi Sm Cf So Sk 
-       So Sm No No Sk Ll So Po Sk No Ll Pf No No No Po 
-       Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu 
-       Lu Lu Lu Lu Lu Lu Lu Sm Lu Lu Lu Lu Lu Lu Lu Ll 
-       Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll 
-       Ll Ll Ll Ll Ll Ll Ll Sm Ll Ll Ll Ll Ll Ll Ll Ll ))))
-
 ; The following array of bytes, together with the vector below it,
 ; implements an indirect mapping from all Unicode scalar values to
-; indices into the above vector.
+; indices into vector-of-general-category-symbols.
 ;
 ; This table contains 2497 entries.
 
@@ -932,21 +907,49 @@
      #xe0002 #xe0020 #xe0080 #xe0100 #xe01f0 #xf0000 #xffffe #x100000 
      #x10fffe ))
 
-; The following array of bytes implements a direct mapping
-; from small code points to indices into the above vector.
+; The following vector contains the general category for
+; characters whose Unicode scalar value is less than 256.
 ;
 ; This table contains 256 entries.
 
 (define general-category-indices-for-common-characters
-  (do ((i 0 (+ i 1))
-       (bv (make-bytevector 256)))
-      ((= i 256)
-       bv)
-    (bytevector-set! bv
-                     i
-                     (general-category-symbol->index
-                      (char-general-category
-                       (integer->char i))))))
+  (list->bytevector
+   (map
+    general-category-symbol->index
+    '(
+       Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc 
+       Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc 
+       Zs Po Po Po Sc Po Po Po Ps Pe Po Sm Po Pd Po Po 
+       Nd Nd Nd Nd Nd Nd Nd Nd Nd Nd Po Po Sm Sm Sm Po 
+       Po Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu 
+       Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Ps Po Pe Sk Pc 
+       Sk Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll 
+       Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ps Sm Pe Sm Cc 
+       Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc 
+       Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc Cc 
+       Zs Po Sc Sc Sc Sc So So Sk So Ll Pi Sm Cf So Sk 
+       So Sm No No Sk Ll So Po Sk No Ll Pf No No No Po 
+       Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu Lu 
+       Lu Lu Lu Lu Lu Lu Lu Sm Lu Lu Lu Lu Lu Lu Lu Ll 
+       Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll Ll 
+       Ll Ll Ll Ll Ll Ll Ll Sm Ll Ll Ll Ll Ll Ll Ll Ll ))))
+
+; The code below is commented out because it is
+; redundant with the table above.  The code
+; below remains because it might be useful in
+; case-insensitive systems that don't read the
+; table above correctly.
+
+;(define general-category-indices-for-common-characters
+;  (do ((i 0 (+ i 1))
+;       (bv (make-bytevector 256)))
+;      ((= i 256)
+;       bv)
+;    (bytevector-set! bv
+;                     i
+;                     (general-category-symbol->index
+;                      (char-general-category
+;                       (integer->char i))))))
 
 ; This vector contains the numerical adjustments to make
 ; when converting a character from one case to another.
@@ -977,7 +980,8 @@
 
 (define simple-upcase-chars-16bit
   ;'#vu8(
-  (list->bytevector '(
+  (list->bytevector
+    '(
         #x0 #x61 #x0 #x62 #x0 #x63 #x0 #x64 
         #x0 #x65 #x0 #x66 #x0 #x67 #x0 #x68 
         #x0 #x69 #x0 #x6a #x0 #x6b #x0 #x6c 
@@ -1225,7 +1229,8 @@
 
 (define simple-downcase-chars-16bit
   ;'#vu8(
-  (list->bytevector '(
+  (list->bytevector
+   '(
         #x0 #x41 #x0 #x42 #x0 #x43 #x0 #x44 
         #x0 #x45 #x0 #x46 #x0 #x47 #x0 #x48 
         #x0 #x49 #x0 #x4a #x0 #x4b #x0 #x4c 
@@ -1472,7 +1477,8 @@
 
 (define simple-upcase-adjustments
   ;'#vu8(
-  (list->bytevector '(
+  (list->bytevector
+    '(
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
@@ -1601,7 +1607,8 @@
 
 (define simple-downcase-adjustments
   ;'#vu8(
-  (list->bytevector '(
+  (list->bytevector
+   '(
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
         #x24 #x24 #x24 #x24 #x24 #x24 #x24 #x24 
@@ -1719,5 +1726,32 @@
         #x21 #x21 #x21 #x21 #x21 #x21 #x21 #x21 
         #x21 #x21 ))
 )
+
+; The scalar values in this vector fold to the
+; scalar values in the simple-foldcase-mappings
+; vector under simple case folding.  All other
+; scalar values fold to their downcased values.
+;
+; Each of those tables contains 53 elements.
+
+(define simple-foldcase-exceptions
+  '#(
+        #xb5 #x17f #x345 #x3c2 #x3d0 #x3d1 #x3d5 #x3d6 
+        #x3f0 #x3f1 #x3f5 #x1e9b #x1fbe #x10400 #x10401 #x10402 
+        #x10403 #x10404 #x10405 #x10406 #x10407 #x10408 #x10409 #x1040a 
+        #x1040b #x1040c #x1040d #x1040e #x1040f #x10410 #x10411 #x10412 
+        #x10413 #x10414 #x10415 #x10416 #x10417 #x10418 #x10419 #x1041a 
+        #x1041b #x1041c #x1041d #x1041e #x1041f #x10420 #x10421 #x10422 
+        #x10423 #x10424 #x10425 #x10426 #x10427 ))
+
+(define simple-foldcase-mappings
+  '#(
+        #x03BC #x0073 #x03B9 #x03C3 #x03B2 #x03B8 #x03C6 #x03C0 
+        #x03BA #x03C1 #x03B5 #x1E61 #x03B9 #x10428 #x10429 #x1042A 
+        #x1042B #x1042C #x1042D #x1042E #x1042F #x10430 #x10431 #x10432 
+        #x10433 #x10434 #x10435 #x10436 #x10437 #x10438 #x10439 #x1043A 
+        #x1043B #x1043C #x1043D #x1043E #x1043F #x10440 #x10441 #x10442 
+        #x10443 #x10444 #x10445 #x10446 #x10447 #x10448 #x10449 #x1044A 
+        #x1044B #x1044C #x1044D #x1044E #x1044F ))
 
 ;)

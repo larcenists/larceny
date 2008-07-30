@@ -305,6 +305,10 @@
 
 ; Called by interactive-entry-point in Lib/Repl/main.sch
 ;
+; If a Scheme script (but not a top-level R6RS program!)
+; begins with "#!\" or "#! ", then the first line should
+; be ignored.  Ugh.
+; 
 ; Fasl files must be raw Latin-1, while source files may be
 ; UTF-8 or UTF-16 on some platforms.
 ; To detect fasl files, we open the file as raw Latin-1 and
@@ -314,20 +318,27 @@
 
 (define (run-r6rs-program filename)
   (larceny:load-r6rs-package)
-  (if (call-with-port
-       (open-raw-latin-1-input-file filename)
-       (lambda (p)
-         (let ((first-line (get-line p)))
-           (cond ((and (string? first-line)
-                       (string=? first-line "#!fasl"))
-                  (aeryn-evaluator (aeryn-fasl-evaluator)
-                                   interaction-environment)
-                  (load-from-port p interaction-environment)
-                  #t)
-                 (else
-                  #f)))))
-      (unspecified)
-      (ex:run-r6rs-program filename)))
+  (cond ((cdr (assq 'ignore-first-line (system-features)))
+         (call-with-port
+          (open-input-file filename)
+          (lambda (p)
+            (get-line p)
+            (load-from-port p interaction-environment))))
+        ((call-with-port
+          (open-raw-latin-1-input-file filename)
+          (lambda (p)
+            (let ((first-line (get-line p)))
+              (cond ((and (string? first-line)
+                          (string=? first-line "#!fasl"))
+                     (aeryn-evaluator (aeryn-fasl-evaluator)
+                                      interaction-environment)
+                     (load-from-port p interaction-environment)
+                     #t)
+                    (else
+                     #f)))))
+         (unspecified))
+        (else
+         (ex:run-r6rs-program filename))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

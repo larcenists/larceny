@@ -56,12 +56,17 @@
 
   (define write-char io/write-char)
 
-  (define quoters '(quote quasiquote unquote unquote-splicing))
+  (define quoters '(quote quasiquote unquote unquote-splicing
+                    syntax quasisyntax unsyntax unsyntax-splicing))
 
   (define quoter-strings '((quote . "'")
 			   (quasiquote . "`")
 			   (unquote . ",")
-			   (unquote-splicing . ",@")))
+			   (unquote-splicing . ",@")
+                           (syntax . "#'")
+			   (quasisyntax . "#`")
+			   (unsyntax . "#,")
+			   (unsyntax-splicing . "#,@")))
 
  ;FIXME: R6RS won't allow a backslash before semicolon
  ;(define funny-characters (list #\" #\\ #\;))

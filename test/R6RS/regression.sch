@@ -38,4 +38,15 @@
               (eq? 'block (buffer-mode block))))
     (assertion-violation #f "ticket:540"))
 
+; Regression test for ticket:549
+
+(define-condition-type &wibble &condition
+    make-wibble
+    wibble?
+    (wobble wibble-wobble))
+
+(let ((w (make-wibble 549)))
+  (if (not (and (wibble? w)
+                (= 549 (wibble-wobble w))))
+      (assertion-violation #f "ticket:549")))
 

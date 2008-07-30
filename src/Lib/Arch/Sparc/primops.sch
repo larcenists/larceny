@@ -50,7 +50,7 @@
 (define number? (lambda (x) (number? x)))
 (define complex? (lambda (x) (complex? x)))
 (define real? (lambda (x) (real? x)))
-(define rational? (lambda (x) (rational? x)))
+;(define rational? (lambda (x) (rational? x)))
 (define integer? (lambda (x) (integer? x)))
 (define fixnum? (lambda (x) (fixnum? x)))
 (define flonum? (lambda (x) (flonum? x)))
@@ -116,75 +116,25 @@
 	  (/ 1 arg)
 	  (loop arg args)))))
 
-(define < 
+(define (make-nary-comparison name binop)
   (letrec ((loop (lambda (first rest)
 		   (cond ((null? rest)
 			  #t)
-			 ((< first (car rest))
+			 ((binop first (car rest))
 			  (loop (car rest) (cdr rest)))
 			 (else
 			  #f)))))
     (lambda (a b . rest)
       (if (null? rest)
-	  (< a b)
-	  (and (< a b)
+	  (binop a b)
+	  (and (binop a b)
 	       (loop b rest))))))
 
-(define <= 
-  (letrec ((loop (lambda (first rest)
-		   (cond ((null? rest)
-			  #t)
-			 ((<= first (car rest))
-			  (loop (car rest) (cdr rest)))
-			 (else
-			  #f)))))
-    (lambda (a b . rest)
-      (if (null? rest)
-	  (<= a b)
-	  (and (<= a b)
-	       (loop b rest))))))
-
-(define = 
-  (letrec ((loop (lambda (first rest)
-		   (cond ((null? rest)
-			  #t)
-			 ((= first (car rest))
-			  (loop (car rest) (cdr rest)))
-			 (else
-			  #f)))))
-    (lambda (a b . rest)
-      (if (null? rest)
-	  (= a b)
-	  (and (= a b)
-	       (loop b rest))))))
-
-(define >
-  (letrec ((loop (lambda (first rest)
-		   (cond ((null? rest)
-			  #t)
-			 ((> first (car rest))
-			  (loop (car rest) (cdr rest)))
-			 (else
-			  #f)))))
-    (lambda (a b . rest)
-      (if (null? rest)
-	  (> a b)
-	  (and (> a b)
-	       (loop b rest))))))
-
-(define >= 
-  (letrec ((loop (lambda (first rest)
-		   (cond ((null? rest)
-			  #t)
-			 ((>= first (car rest))
-			  (loop (car rest) (cdr rest)))
-			 (else
-			  #f)))))
-    (lambda (a b . rest)
-      (if (null? rest)
-	  (>= a b)
-	  (and (>= a b)
-	       (loop b rest))))))
+(define =  (make-nary-comparison '=  (lambda (x y) (=  x y))))
+(define <  (make-nary-comparison '<  (lambda (x y) (<  x y))))
+(define <= (make-nary-comparison '<= (lambda (x y) (<= x y))))
+(define >  (make-nary-comparison '>  (lambda (x y) (>  x y))))
+(define >= (make-nary-comparison '>= (lambda (x y) (>= x y))))
 
 (define =:fix:fix (lambda (x y) (= x y)))
 (define <:fix:fix (lambda (x y) (< x y)))
@@ -197,11 +147,11 @@
 (define char? (lambda (x) (char? x)))
 (define char->integer (lambda (x) (char->integer x)))
 (define integer->char (lambda (x) (integer->char x)))
-(define char<? (lambda (x y) (char<? x y)))
-(define char<=? (lambda (x y) (char<=? x y)))
-(define char=? (lambda (x y) (char=? x y)))
-(define char>? (lambda (x y) (char>? x y)))
-(define char>=? (lambda (x y) (char>=? x y)))
+(define char=?  (make-nary-comparison 'char=?  (lambda (x y) (char=?  x y))))
+(define char<?  (make-nary-comparison 'char<?  (lambda (x y) (char<?  x y))))
+(define char<=? (make-nary-comparison 'char<=? (lambda (x y) (char<=? x y))))
+(define char>?  (make-nary-comparison 'char>?  (lambda (x y) (char>?  x y))))
+(define char>=? (make-nary-comparison 'char>=? (lambda (x y) (char>=? x y))))
 
 ; Strings
 

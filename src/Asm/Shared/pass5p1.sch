@@ -38,16 +38,24 @@
 ; The main entry point.
 
 (define (assemble source . rest)
+  (define (instrumented! event x)
+    (let ((hook (twobit-timer-hook)))
+      (if hook
+          (hook 'assemble event x))
+      x))
+  (instrumented! 'begin source)
   (let* ((user (if (null? rest) (assembly-user-data) (car rest)))
-	 (as   (make-assembly-structure source (assembly-table) user)))
+         (as   (make-assembly-structure source (assembly-table) user)))
     (assembly-start as)
-    (assemble1 as
-	       (lambda (as)
-		 (let ((segment (assembly-postpass-segment 
-                                 as (assemble-pasteup as))))
-		   (assemble-finalize! as)
-		   (assembly-end as segment)))
-	       #f)))
+    (instrumented!
+     'end
+     (assemble1 as
+                (lambda (as)
+                  (let ((segment (assembly-postpass-segment 
+                                  as (assemble-pasteup as))))
+                    (assemble-finalize! as)
+                    (assembly-end as segment)))
+                  #f))))
 
 ; The following procedures are to be called by table routines.
 ;

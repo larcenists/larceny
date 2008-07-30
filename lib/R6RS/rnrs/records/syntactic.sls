@@ -54,9 +54,11 @@
 
 #;
   (export define-record-type fields mutable immutable
-          parent protocol sealed opaque nongenerative parent-rtd)
+          parent protocol sealed opaque nongenerative parent-rtd
+          record-type-descriptor record-constructor-descriptor)
 
-  (export define-record-type)
+  (export define-record-type
+          record-type-descriptor record-constructor-descriptor)
 
   (import (for (core primitives) run expand)
           (for (rnrs base) run expand)
@@ -107,7 +109,7 @@
                (sealed-clause (assq 'sealed clauses))
                (opaque-clause (assq 'opaque clauses))
                (nongenerative-clause (assq 'nongenerative clauses))
-               (parent-rtd-clause (assq 'parent-rtd-clause clauses))
+               (parent-rtd-clause (assq 'parent-rtd clauses))
                (okay?
                 (and (symbol? type-name)
                      (if (syntax->datum #'explicit?)
@@ -365,6 +367,14 @@
 
      ((_ rtd-name field-name mutator)
       (define mutator (rtd-mutator rtd-name 'field-name)))))
+
+  ; This is ridiculous.
+
+  (define (record-type-descriptor rtd)
+    rtd)
+
+  (define (record-constructor-descriptor rtd)
+    (preferred-cd rtd))
 
   ) ; rnrs records syntactic
 

@@ -69,7 +69,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 96;
-char *larceny_version_qualifier = "1 \"(dynregion branch)\"";
+char *larceny_version_qualifier = "3 \"(incrsumz branch)\"";
 
 char *date = DATE " " TIME;
 char *user = USER;

@@ -290,7 +290,7 @@
     (number?          1 complex?         #f        18 ,ak:immortal ,ak:none #f)
     (complex?         1 complex?         #f        18 ,ak:immortal ,ak:none #f)
     (real?            1 rational?        #f        20 ,ak:immortal ,ak:none #f)
-    (rational?        1 rational?        #f        20 ,ak:immortal ,ak:none #f)
+;   (rational?        1 rational?        #f        20 ,ak:immortal ,ak:none #f)
     (integer?         1 integer?         #f        22 ,ak:immortal ,ak:none #f)
     (exact?           1 exact?           #f        25 ,ak:immortal ,ak:none #f)
     (inexact?         1 inexact?         #f        26 ,ak:immortal ,ak:none #f)

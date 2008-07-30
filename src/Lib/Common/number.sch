@@ -6,7 +6,15 @@
 
 ($$trace "number")
 
+; FIXME:  This could be computed by (acos -1.0)
+; if it were defined after acos.
+
 (define *pi* 3.14159265358979323846)           ; from <math.h>
+
+(define (rational? obj)
+  (and (real? obj)
+       (or (exact? obj)
+           (= 0.0 (- obj obj)))))
 
 (define positive? (lambda (x) (> x 0)))
 
@@ -136,8 +144,8 @@
 
   (cond ((zero? x)
          (let ((result (cond ((= y 0) 1)
-                             ((> y 0) 0)
-                             (else (/ 1.0 0.0)))))
+                             ((> (real-part y) 0) 0)
+                             (else +nan.0))))
            (if (and (exact? x) (exact? y))
                result
                (exact->inexact result))))
@@ -152,6 +160,8 @@
 ;
 ; This code was written by Alan Bawden.
 ; Its copyright status is unknown to me [i.e., to Will. --lars]
+;
+; Modified for R6RS semantics on infinities and NaNs.
 
 (define (rationalize x e)
   (define (simplest-rational x y)
@@ -174,19 +184,20 @@
            (simplest-rational y x))
           ((not (< x y))
            ;; X = Y so if either is a rational that is the answer, otherwise
-           ;; I don't know of anything implementation independent we can do.
+           ;; X and Y are both infinite or both NaN.
            (cond ((rational? x) x)
                  ((rational? y) y)
-                 (else (error "What should we do in this case? " x " " y) #t)))
+                 (else x)))
           ((positive? x) 
            ;; 0 < X < Y which is what SIMPLEST-RATIONAL-INTERNAL expects:
            (simplest-rational-internal x y))
           ((negative? y)
            ;; X < Y < 0 so 0 < -Y < -X and we negate the answer:
            (- (simplest-rational-internal (- y) (- x))))
-          (else
+          ((and (exact? x) (exact? e))
            ;; X <= 0 <= Y so zero is the answer:
-           0)))
+           0)
+          (else 0.0)))
   (simplest-rational (- x e) (+ x e)))
 
 ;---------------------------------------------------------------------------
@@ -373,21 +384,27 @@
 	(cond ((and (flonum? x) (flonum? y))
 	       (flonum:atan2 x y))
 	      ((not (and (real? x) (real? y)))
-	       (error "ATAN: domain error: " x " " y)
+	       (error "atan: domain error:" (list x y))
 	       #t)
 	      (else
 	       (flonum:atan2 (exact->inexact x) (exact->inexact y)))))))
 
 ; Complex/negative case from the R^4.95RS, p25.
 
-(define (log z)
-  (cond ((and (flonum? z) (> z 0.0))
+(define (log z . rest)
+  (cond ((pair? rest)
+         (let ((z2 (car rest)))
+           (if (and (complex? z2)
+                    (null? (cdr rest)))
+               (/ (log z) (log z2))
+               (error "log: domain error" (list x y)))))
+        ((and (flonum? z) (> z 0.0))
 	 (flonum:log z))
 	((or (not (real? z)) (< z 0))
 	 (+ (log (magnitude z)) (* +1.0i (angle z))))
 	((zero? z)
          (if (exact? z)
-             (error "log: Domain error: " z)
+             (error "log: domain error:" z)
              -1e500))
 	(else
 	 (flonum:log (exact->inexact z)))))

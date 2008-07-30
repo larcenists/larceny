@@ -55,7 +55,7 @@
     (cond ((and (fixnum? x) (fixnum? y))
            (fxand x y))
           ((= x 0) 0)
-          ((= y 0) 1)
+          ((= y 0) 0)
           ((= x -1) y)
           ((= y -1) x)
           (else

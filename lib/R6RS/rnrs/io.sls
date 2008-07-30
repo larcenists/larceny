@@ -67,7 +67,8 @@
    open-string-output-port                ; deprecated procedure
    call-with-bytevector-output-port
    call-with-string-output-port
-   standard-output-port current-output-port current-error-port
+   standard-output-port current-output-port
+   standard-error-port current-error-port
    make-custom-binary-output-port make-custom-textual-output-port
 
    put-u8 put-bytevector
@@ -149,7 +150,8 @@
     open-string-output-port                ; deprecated procedure
     call-with-bytevector-output-port
     call-with-string-output-port
-    standard-output-port current-output-port current-error-port
+    standard-output-port current-output-port
+    standard-error-port current-error-port
     make-custom-binary-output-port make-custom-textual-output-port
 
     put-u8 put-bytevector

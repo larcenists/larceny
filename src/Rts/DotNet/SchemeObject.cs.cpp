@@ -377,7 +377,9 @@ namespace Scheme.Rep {
 
         private bool isIntegralFlonum() {
             double v = this.unsafeAsDouble(0);
-            bool b = (Math.Ceiling(v) == Math.Floor(v));
+            bool b = (Math.Ceiling(v) == Math.Floor(v))
+	      && (v != Double.PositiveInfinity)
+	      && (v != Double.NegativeInfinity);
             return b;
         }
 

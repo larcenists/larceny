@@ -74,6 +74,8 @@
         ((null? list) 0)
         (else 1)))
 
+;; Some of these things could be deprecated or even disappear.
+
 ;; #t if L is a proper list of the correct length
 
 (define (length=? l n)
@@ -568,7 +570,7 @@
 (define assoc-string
   (letrec ((assoc
             (lambda (key list)
-              (cond ((pair? list) (if (string-=? key (caar list))
+              (cond ((pair? list) (if (string=? key (caar list))
                                       (car list)
                                       (assoc key (cdr list))))
                     ((null? list) #f)
@@ -600,7 +602,7 @@
                    ((pred (car x))
                     x)
                    (else
-                    (assp pred list)))))
+                    (assp pred (cdr list))))))
           (else #f)))
   (assp pred list0))
 
@@ -710,62 +712,89 @@
 
 (define (every? p l . ls)
 
+  (define (complain)
+    (assertion-violation 'for-all "illegal arguments" (cons p (cons l ls))))
+
   (define (every1 a)
-    (if (pair? a)
-        (and (p (car a))
-             (every1 (cdr a)))
-        #t))
+    (cond ((pair? a)
+           (if (null? (cdr a))
+               (p (car a))
+               (and (p (car a))
+                    (every1 (cdr a)))))
+          ((null? a) #t)
+          (else (complain))))
 
   (define (every2 a b)
-    (cond ((null? (cdr a)) (p (car a) (car b)))
-          ((p (car a) (car b)) (every2 (cdr a) (cdr b)))
-          (else #f)))
+    (cond ((and (pair? a) (pair? b))
+           (if (null? (cdr a))
+               (if (null? (cdr b))
+                   (p (car a) (car b))
+                   (complain))
+               (and (p (car a) (car b))
+                    (every2 (cdr a) (cdr b)))))
+          ((and (null? a) (null? b))
+           #t)
+          (else (complain))))
 
-  (define (every3 a b c)
-    (cond ((null? (cdr a)) (p (car a) (car b) (car c)))
-          ((p (car a) (car b) (car c)) (every3 (cdr a) (cdr b) (cdr c)))
-          (else #f)))
-
-  (define (every-n ls)
-    (cond ((null? (cdar ls)) (apply p (map car ls)))
-          ((apply p (map car ls)) (every-n (map cdr ls)))
-          (else #f)))
+  (define (every-n arglists)
+    (cond ((pair? arglists)
+           (if (null? (cdr arglists))
+               (apply p (car arglists))
+               (and (apply p (car arglists))
+                    (every-n (cdr arglists)))))
+          ((null? arglists) #t)
+          (else (complain))))
 
   (cond ((null? ls) (every1 l))
         ((null? (cdr ls))
-         (or (null? l) (every2 l (car ls))))
-        ((null? (cddr ls))
-         (or (null? l) (every3 l (car ls) (cadr ls))))
+         (every2 l (car ls)))
         (else
-         (or (null? l) (every-n (cons l ls))))))
+         (let ((arglists (apply map list l ls)))
+           (every-n arglists)))))
 
 
 (define (some? p l . ls)
 
+  (define (complain)
+    (assertion-violation 'for-all "illegal arguments" (cons p (cons l ls))))
+
   (define (some1 a)
-    (and (pair? a)
-         (or (p (car a))
-             (some1 (cdr a)))))
+    (cond ((pair? a)
+           (if (null? (cdr a))
+               (p (car a))
+               (or (p (car a))
+                   (some1 (cdr a)))))
+          ((null? a) #f)
+          (else (complain))))
 
   (define (some2 a b)
-    (cond ((null? a) #f)
-          ((p (car a) (car b)))
-          (else (some2 (cdr a) (cdr b)))))
+    (cond ((and (pair? a) (pair? b))
+           (if (null? (cdr a))
+               (if (null? (cdr b))
+                   (p (car a) (car b))
+                   (complain))
+               (or (p (car a) (car b))
+                   (some2 (cdr a) (cdr b)))))
+          ((and (null? a) (null? b))
+           #f)
+          (else (complain))))
 
-  (define (some3 a b c)
-    (cond ((null? a) #f)
-          ((p (car a) (car b) (car c)))
-          (else (some3 (cdr a) (cdr b) (cdr c)))))
-
-  (define (some-n ls)
-    (cond ((null? (car ls)) #f)
-          ((apply p (map car ls)))
-          (else (some-n (map cdr ls)))))
+  (define (some-n arglists)
+    (cond ((pair? arglists)
+           (if (null? (cdr arglists))
+               (apply p (car arglists))
+               (or (apply p (car arglists))
+                   (some-n (cdr arglists)))))
+          ((null? arglists) #f)
+          (else (complain))))
 
   (cond ((null? ls) (some1 l))
-        ((null? (cdr ls)) (some2 l (car ls)))
-        ((null? (cddr ls)) (some3 l (car ls) (cadr ls)))
-        (else (some-n (cons l ls)))))
+        ((null? (cdr ls))
+         (some2 l (car ls)))
+        (else
+         (let ((arglists (apply map list l ls)))
+           (some-n arglists)))))
+
 
 ;; Lists as sets
 
@@ -810,17 +839,49 @@
 
 ; (fold-left p x (a b ...)) => (p (p (p x a) b) ...)
 
-(define (fold-left proc initial l)
-  (if (null? l)
-      initial
-      (fold-left proc (proc initial (car l)) (cdr l))))
+(define (fold-left proc initial l0 . rest)
+
+  (define (fold-left proc initial l)
+    (cond ((null? l)
+           initial)
+          ((pair? l)
+           (fold-left proc (proc initial (car l)) (cdr l)))
+          (else
+           (assertion-violation 'fold-left "non-list" l0))))
+
+  (define (fold-left-multi proc initial l)
+    (if (null? l)
+        initial
+        (fold-left-multi proc (apply proc initial (car l)) (cdr l))))
+
+  (if (null? rest)
+      (fold-left proc initial l0)
+      (let ((arglists (apply map list l0 rest)))
+        (fold-left-multi proc initial arglists))))
 
 ; (fold-right p x (a b ...)) => (p a (p b (p ... x)))
 
-(define (fold-right proc initial l)
-  (if (null? l)
-      initial
-      (proc (car l) (fold-right proc initial (cdr l)))))
+(define (fold-right proc initial l0 . rest)
+
+  (define (fold-right proc initial l)
+    (if (null? l)
+        initial
+        (proc (car l) (fold-right proc initial (cdr l)))))
+
+  ; The arglists in l have been reversed so this code
+  ; can use reverse instead of append.
+
+  (define (fold-right-multi proc initial l)
+    (if (null? l)
+        initial
+        (apply proc
+               (reverse (cons (fold-right-multi proc initial (cdr l))
+                              (car l))))))
+
+  (if (null? rest)
+      (fold-right proc initial l0)
+      (let ((rarglists (map reverse (apply map list l0 rest))))
+        (fold-right-multi proc initial rarglists))))
 
 (define for-all every?)
 (define exists some?)

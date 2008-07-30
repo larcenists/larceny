@@ -303,6 +303,21 @@ renamed to `make-oldstyle-hashtable`.  In Larceny v0.96,
 avoid that warning, call `make-r6rs-hashtable` instead.
 ================================================================
 
+[WARNING]
+================================================================
+Before using Larceny's R5RS or ERR5RS mode to dump a heap image
+that contains `eq?` or `eqv?` hashtables you have created, you
+should call `(reset-all-hashtables!)` to tell those hashtables
+to rehash themselves whenever you begin a new session with the
+dumped heap.  Alternatively, you may call
+`(reset-all-hashtables!)` whenever you begin a new session with
+the dumped heap.  If you do neither of those things, then
+attempts to access an `eq?` or `eqv?` hashtable in a new session
+are likely to generate assertion violations.  In future versions
+of Larceny, hashtables may reset themselves automatically when
+they are dumped to a heap image.
+================================================================
+
 
 [[R6rsEnumerationsSection]]
 

@@ -103,11 +103,11 @@ Returns _fix1_ shifted left _fix2_ places, shifting in zero bits at
 the low end. If the shift count exceeds the number of bits in the
 machine's word size, then the results are machine-dependent.
 
-proc:most-positive-fixnum[args="none",result="fixnum"]
+proc:most-positive-fixnum[args="",result="fixnum"]
 
 Returns the largest representable positive fixnum.
 
-proc:most-negative-fixnum[args="none",result="fixnum"]
+proc:most-negative-fixnum[args="",result="fixnum"]
 
 Returns the smallest representable negative fixnum.
 

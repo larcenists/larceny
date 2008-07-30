@@ -73,9 +73,9 @@
 
 (define (make-transcoder codec . rest)
   (cond ((null? rest)
-         (io/make-transcoder codec (native-eol-style) 'raise))
+         (io/make-transcoder codec (native-eol-style) 'replace))
         ((null? (cdr rest))
-         (io/make-transcoder codec (car rest) 'raise))
+         (io/make-transcoder codec (car rest) 'replace))
         ((null? (cddr rest))
          (io/make-transcoder codec (car rest) (cadr rest)))
         (else
@@ -124,8 +124,10 @@
                           ((eq? errmode 'replace)
                            (put-u8 out (char->integer #\?)))
                           ((eq? errmode 'raise)
-                           (assertion-violation
-                            'string->bytevector "encoding error" sv))
+                           (let ((c (integer->char sv)))
+                             (raise-r6rs-exception
+                              (make-i/o-encoding-error out c)
+                              'string->bytevector "encoding error" (list c))))
                           (else
                            'ignore)))))))
             ((utf-8)

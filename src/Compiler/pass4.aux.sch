@@ -745,6 +745,31 @@
 
 ; Compile and compile-block take an optional syntactic environment.
 
+(define compile                
+  (lambda (x . rest)
+    (define (twobit-instrumented f name)
+      (lambda (form . rest)
+        (let ((hook (twobit-timer-hook)))
+          (if hook
+              (hook name 'begin form))
+          (let* ((result (apply f form rest))
+                 (hook (twobit-timer-hook)))
+            (if hook
+                (hook name 'end result))
+            result))))
+    (let ((syntaxenv (if (null? rest)
+                         (the-usual-syntactic-environment)
+                         (car rest)))
+          (pass0 (twobit-instrumented pass0 'pass0))
+          (pass1 (twobit-instrumented pass1 'pass1))
+          (pass2 (twobit-instrumented pass2 'pass2))
+          (pass3 (twobit-instrumented pass3 'pass3))
+          (pass4 (twobit-instrumented pass4 'pass4)))
+      (pass4 (pass3 (pass2 (pass1 (pass0 x) syntaxenv)))
+             (twobit-integrable-procedures)))))
+
+; The old version of compile, without the timing hooks.
+'
 (define compile
   (lambda (x . rest)
     (let ((syntaxenv (if (null? rest)

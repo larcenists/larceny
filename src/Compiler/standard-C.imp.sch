@@ -355,7 +355,7 @@
     (number?          1 complex?         #f            18 ,:immortal ,:none #f)
     (complex?         1 complex?         #f            18 ,:immortal ,:none #f)
     (real?            1 rational?        #f            20 ,:immortal ,:none #f)
-    (rational?        1 rational?        #f            20 ,:immortal ,:none #f)
+;   (rational?        1 rational?        #f            20 ,:immortal ,:none #f)
     (integer?         1 integer?         #f            22 ,:immortal ,:none #f)
     (exact?           1 exact?           #f            25 ,:immortal ,:none #f)
     (inexact?         1 inexact?         #f            26 ,:immortal ,:none #f)

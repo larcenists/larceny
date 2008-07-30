@@ -37,7 +37,7 @@
   (lambda (enum-type-name sym2cval-table univ)
     (let ((high2low (enum-table->high2low enum-type-name sym2cval-table))
           (ctor (enum-set-constructor univ)))
-      (lambda (bits)
+      (lambda (bits . name)
         (ctor (filter
                (lambda (sym)
                  (not (zero? (fxlogand (high2low sym) bits))))

@@ -694,7 +694,7 @@
 ;     key-value association, and returns a list of the results.  The
 ;     order of the calls is indeterminate.
 ;
-; (hashtable-copy <hashtable>)
+; (hashtable-copy <hashtable> <mutable>)
 ;
 ;     Returns a copy of the <hashtable>.
 
@@ -710,7 +710,7 @@
 (define hashtable-size      (lambda (ht) 0))
 (define hashtable-for-each  (lambda (ht proc) '*))
 (define hashtable-map       (lambda (ht proc) '()))
-(define hashtable-copy      (lambda (ht) ht))
+(define hashtable-copy      (lambda (ht mutable?) ht))
 
 ; Implementation.
 ; A hashtable is represented as a vector of the form
@@ -944,7 +944,7 @@
     (set! hashtable-size      (lambda (ht)          (size ht)))
     (set! hashtable-for-each  (lambda (ht proc)     (ht-for-each ht proc)))
     (set! hashtable-map       (lambda (ht proc)     (ht-map ht proc)))
-    (set! hashtable-copy      (lambda (ht)          (ht-copy ht)))
+    (set! hashtable-copy      (lambda (ht mutable?) (ht-copy ht)))
     #f))
 ; Hash trees: a functional data structure analogous to hash tables.
 ;
@@ -5477,7 +5477,7 @@
         (make-vector number-of-basic-killers '())))
 
 (define (copy-constraints-table constraints)
-  (list (hashtable-copy (constraints.table constraints))
+  (list (hashtable-copy (constraints.table constraints) #t)
         (list->vector (vector->list (constraints.killed constraints)))))
 
 (define (constraints-for-variable constraints T)

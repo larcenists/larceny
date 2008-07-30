@@ -53,17 +53,53 @@
               (eval '(catch-undefined-globals #f)               ; FIXME
                     (interaction-environment))))))
 
+         (adjust-optimization!
+          (lambda (opt)
+            (case opt
+             ((0 1)
+              (eval '(begin (control-optimization #f)
+                            (global-optimization #f))
+                    (interaction-environment))))))
+
          (add-require-path!
           (lambda ()
-            (define (add-path! path)
+
+            ; Given a string containing a possibly empty sequence
+            ; of library paths separated by some special character
+            ; (a semicolon under Windows, otherwise a colon),
+            ; returns a list of the library paths (as strings).
+
+            (define (list-of-paths path separator)
+              (let* ((pchars (string->list path))
+                     (probe (memv separator pchars)))
+                (cond (probe
+                       (let ((path1 (substring path
+                                               0
+                                               (- (string-length path)
+                                                  (length probe))))
+                             (path2 (list->string (cdr probe))))
+                         (cons path1 (list-of-paths path2 separator))))
+                      ((string=? path "")
+                       '())
+                      (else
+                       (list path)))))
+
+            (define (add-absolute-path! path)
               (current-require-path (cons path (current-require-path))))
-            (let ((path (get-feature 'library-path)))
+
+            (define (add-path! path)
               (cond ((string=? path "") #t)
                     ((absolute-path-string? path)
-                     (add-path! path))
+                     (add-absolute-path! path))
                     (else
-                     (add-path!
-                      (string-append (current-directory) "/" path)))))))
+                     (add-absolute-path!
+                      (string-append (current-directory) "/" path)))))
+
+            (let* ((path (get-feature 'library-path))
+                   (os (get-feature 'os-name))
+                   (separator (if (string=? os "Win32") #\; #\:)))
+              (for-each add-path!
+                        (reverse (list-of-paths path separator))))))
 
          (aeryn-mode!
           (lambda ()
@@ -102,6 +138,7 @@
 
      ((dargo)
       (adjust-safety! 1)                                  ; FIXME
+      (adjust-optimization! 2)                            ; FIXME
       (let ((path (get-feature 'library-path)))
         (if (not (string=? path ""))
             (add-require-path!)))

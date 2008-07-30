@@ -54,9 +54,9 @@ heap="$LARCENY_ROOT/$heap"
 
 case "`head -n +1 $1 | sed -e 's/^[#][!][/ ].*/ignore/'`" in
     ignore)
-    exec tail -n +2 "$1" | "$cmd" -heap "$heap" -r6rs -- $@
+    exec "$cmd" -heap "$heap" -r6rs -program "$1" -ignore1 -- "$@"
     ;;
     *)
-    exec "$cmd" -heap "$heap" -r6rs -program "$1" -- $@
+    exec "$cmd" -heap "$heap" -r6rs -program "$1" -- "$@"
     ;;
 esac

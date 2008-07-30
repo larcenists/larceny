@@ -111,9 +111,9 @@
           ((and (pair? x) (pair? y))
            (if (eq? (car x) (car y))
                (equal? (cdr x) (cdr y) (- bound 1))
-               (let ((result (equal? (cdr x) (cdr y) (- bound 1))))
+               (let ((result (equal? (car x) (car y) (- bound 1))))
                  (if result
-                     (equal? (car x) (car y) result)
+                     (equal? (cdr x) (cdr y) result)
                      #f))))
           ((and (vector? x) (vector? y))
            (let ((nx (vector-length x))

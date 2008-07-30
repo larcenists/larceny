@@ -49,9 +49,9 @@ semantics for programs that violate the specification.
 
 This section describes the `(err5rs records procedural)` library.
 
-proc:make-rtd[args="name fieldspecss",optargs="parent-rtd"]
-proctempl:make-rtd[args="name fieldspecss parent-rtd"]
-proctempl:make-rtd[args="name fieldspecss parent-rtd option ..."]
+proc:make-rtd[args="name fieldspecs",optargs="parent-rtd"]
+proctempl:make-rtd[args="name fieldspecs parent-rtd"]
+proctempl:make-rtd[args="name fieldspecs parent-rtd option ..."]
 
 _name_ is a symbol, which matters only to the
 <<rtd-name,`rtd-name`>> procedure of the inspection layer.

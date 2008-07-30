@@ -281,8 +281,10 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       mode = 1;
     if (command_line_options.r6rs)
       mode = 2;
-    if (command_line_options.r6slow)
+    if (command_line_options.ignore1)
       mode = 3;
+    if (command_line_options.r6slow)
+      mode = 4;
     vector_set( v, 0, fixnum( mode ) );
     break;
   }

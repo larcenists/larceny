@@ -18,6 +18,15 @@
   (if (not (and (fx<=? 0 x) (fx<? x (fixnum-width))))
       (assertion-violation name "fixnum shift count out of range" x)))
 
+(define (fx:check-result name x)
+  (if (fixnum? x)
+      x
+      (let ((c0 (make-implementation-restriction-violation))
+            (c1 (make-who-condition name))
+            (c2 (make-message-condition "result out of fixnum range"))
+            (c3 (make-irritants-condition (list x))))
+        (raise (condition c0 c1 c2 c3)))))
+
 ; fixnum? is a primop; see Lib/Arch/*/primops.sch
 
 (define *fixnum-width* #f)
@@ -121,10 +130,7 @@
 (define (fx+ x y)
   (fx:check! 'fx+ x)
   (fx:check! 'fx+ y)
-  (let ((result (+ x y)))
-    (if (fixnum? result)
-        result
-        (assertion-violation 'fx+ "result out of range" x y))))
+  (fx:check-result 'fx+ (+ x y)))
 
 (define (fx- x . rest)
   (cond ((null? rest)
@@ -133,19 +139,13 @@
          (let ((y (car rest)))
            (fx:check! 'fx- x)
            (fx:check! 'fx- y)
-           (let ((result (- x y)))
-             (if (fixnum? result)
-                 result
-                 (assertion-violation 'fx- "result out of range" x y)))))
+           (fx:check-result 'fx- (- x y))))
         (assertion-violation 'fx- "too many arguments" (cons x rest))))
 
 (define (fx* x y)
   (fx:check! 'fx* x)
   (fx:check! 'fx* y)
-  (let ((result (* x y)))
-    (if (fixnum? result)
-        result
-        (assertion-violation 'fx* "result out of range" x y))))
+  (fx:check-result 'fx* (* x y)))
 
 ; This code is specialized from number.sch
 
@@ -158,11 +158,13 @@
          (values (quotient x y) (remainder x y)))
         ((fx<? y 0)
          ; x < 0, y < 0
-         (let* ((q (quotient x y))
-                (r (fx- x (fx* q y))))
-           (if (fx=? r 0)
-               (values q 0)
-               (values (fx+ q 1) (fx- r y)))))
+         (let ((q (quotient x y)))
+           (if (fixnum? q)
+               (let ((r (fx- x (fx* q y))))
+                 (if (fx=? r 0)
+                     (values q 0)
+                     (values (fx+ q 1) (fx- r y))))
+               (fx:check-result 'fxdiv-and-mod q))))
         (else
          ; x < 0, y > 0
          (let* ((q (quotient x y))
@@ -180,11 +182,13 @@
          (quotient x y))
         ((fx<? y 0)
          ; x < 0, y < 0
-         (let* ((q (quotient x y))
-                (r (fx- x (fx* q y))))
-           (if (fx=? r 0)
-               q
-               (fx+ q 1))))
+         (let ((q (quotient x y)))
+           (if (fixnum? q)
+               (let ((r (fx- x (fx* q y))))
+                 (if (fx=? r 0)
+                     q
+                     (fx+ q 1)))
+               (fx:check-result 'fxdiv q))))
         (else
          ; x < 0, y > 0
          (let* ((q (quotient x y))
@@ -387,8 +391,7 @@
   (fx:range-check! 'fxrotate-bit-field start)
   (fx:range-check! 'fxrotate-bit-field end)
   (fx:range-check! 'fxrotate-bit-field count)
-  (if (and (fx<=? start end)
-           (fx<=? width (fx- end start)))
+  (if (fx<=? start end)
       (let* ((width (fx- end start)))
         (if (fx=? width 0)
             n

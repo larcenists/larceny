@@ -55,7 +55,8 @@ Apart from its unwillingness to compile top-level
 programs, `compile-library` behaves the same as
 `compile-file` above.
 
-proc:compile-stale-libraries[args="",optarg="changedfile"]
+proc:compile-stale-libraries[args=""]
+proctempl:compile-stale-libraries[args="changedfile"]
 
 If no argument is supplied, then all "`.sls`" files that
 lie within the current directory or a subdirectory are

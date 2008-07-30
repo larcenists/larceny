@@ -24,12 +24,20 @@
 ;;
 ;; <defn>    ::= (const <scheme-name> <type> <c-expr>)
 ;;             | (sizeof <scheme-name> <c-type>)
-;;             | (struct <c-name> (<scheme-name> <c-field>) ...)
-;;             | (fields <c-name> (<scheme-name> <c-field>) ...)
+;;             | (struct <c-name> <fldspec> ...)
+;;             | (fields <c-name> <fldspec> ...)
 ;;             | (ifdefconst <scheme-name> <type> <c-name>)      ;; unspec o/w
 ;;
+;; <fldspec> ::= (<offset> <c-field>)
+;;             | (<offset> <c-field> <size>)
+;; 
 ;; <type>    ::= int | uint | long | ulong
 ;;
+;; <c-field> ::= <string-literal>
+;; 
+;; <offset>  ::= <scheme-name>
+;; <size>    ::= <scheme-name>
+
 (define-syntax define-c-info
   (transformer
     (lambda (exp ren cmp)
@@ -102,7 +110,17 @@
                   "(char *)&s."
                   (stringify (cadr field-exp))
                   " - (char *)&s")
-                (string-append name " s;")))
+                (string-append name " s;"))
+
+              ;; Optional binding of field size 
+              (cond
+               ((not (null? (cddr field-exp)))
+                (gen-const
+                 (caddr field-exp)
+                 'ulong
+                 (string-append
+                  "sizeof( s." (stringify (cadr field-exp)) ")")
+                 (string-append name " s;")))))
             fields))
 
         (define (gen-include header)
@@ -338,70 +356,4 @@
            `(begin
               ,@(map (lambda (name offset) `(define ,name ,offset))
                      scheme-names c-values))))))))
-
-;; Define getters and setters for a C struct.  Example:
-;
-;   (define-c-struct ("struct pair" "pair.h" make-pair)
-;     ("fst"  (pair-fst      %get-uint)
-;             (pair-fst-set! %set-uint))
-;     ("snd"  (pair-snd      %get-uint)
-;             (pair-snd-set! %set-uint)))
-;
-(define-syntax define-c-struct
- (syntax-rules ()
-  ((define-c-struct (?name ?constructor ?include ...)
-                    (?field (?getter ?low-getter)
-                            (?setter ?low-setter)) ...)
-   (define-c-struct "offset-names" ()
-                  (?name ?constructor ?include ...)
-                  (?field (?getter ?low-getter)
-                          (?setter ?low-setter)) ...))
-  ((define-c-struct (?name ?constructor ?include ...)
-                    (?field (?getter ?low-getter)) ...)
-   (define-c-struct "offset-names" ()
-                  (?name ?constructor ?include ...)
-                  (?field (?getter ?low-getter)) ...))
-  ((define-c-struct "offset-names" ?acc ?naming ?field . ?rest)
-   (define-c-struct "offset-names" ((offset . ?field) . ?acc)
-                                   ?naming . ?rest))
-  ((define-c-struct "offset-names" ?acc ?naming)
-   (define-c-struct "finish" ?naming . ?acc))
-
-  ((define-c-struct "finish" (?name ?constructor ?include ...)
-                             (?offset ?field (?getter ?low-getter)
-                                             (?setter ?low-setter)) ...)
-   (begin
-     (define ?constructor #f)
-     (define ?getter #f) ...
-     (define ?setter #f) ...
-     (let ()
-      (define-c-info
-        ?include ...
-        (sizeof size ?name)
-        (fields ?name (?offset ?field) ...))
-
-      (set! ?constructor
-         (lambda () (make-bytevector size 0)))
-
-      (set! ?getter
-         (lambda (x) (?low-getter x ?offset))) ...
-
-      (set! ?setter
-         (lambda (x n) (?low-setter x ?offset n))) ...)))
-  ((define-c-struct "finish" (?name ?constructor ?include ...)
-                             (?offset ?field (?getter ?low-getter)) ...)
-   (begin
-     (define ?constructor #f)
-     (define ?getter #f) ...
-     (let ()
-      (define-c-info
-        ?include ...
-        (sizeof size ?name)
-        (fields ?name (?offset ?field) ...))
-
-      (set! ?constructor
-         (lambda () (make-bytevector size 0)))
-
-      (set! ?getter
-         (lambda (x) (?low-getter x ?offset))) ...)))))
 

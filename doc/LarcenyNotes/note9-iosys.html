@@ -5,61 +5,184 @@
 
 <body>
 
-<center><h2>
+<center>
+<h2>
 Larceny Note #9: The I/O system
 </h2>
-Lars T Hansen / November 14, 1997
+Lars T Hansen / November 14, 1997<br>
+William D Clinger / 18 July 2008
 </center>
 
 <p>
 <em>This note is being written</em>
+</p>
 
 <h2>The I/O architecture</h2>
 
-The I/O system is strongly influenced by the Modula-3 I/O system presented
+<p>
+Larceny's I/O system is strongly influenced by
+the Modula-3 I/O system presented
 in Greg Nelson's book, <em>Systems Programming in Modula-3</em>.  The
 I/O system is designed with performance and user-extensibity in mind.
+</p>
 
 <p>
+Larceny's I/O system is composed of several layers:
+</p>
+<ul>
+<li>I/O facilities provided by the underlying operating system</li>
+<li>syscalls that make a slightly OS-dependent abstraction of
+    certain low-level I/O operations available to Scheme</li>
+<li>Scheme code that constructs an OS-independent abstraction
+    of certain low-level I/O operations</li>
+<li>the <a href="#ioproc"><code>ioproc</code> layer</a>,
+    which implements an
+    abstraction of binary input and output</li>
+<li>the <a href="#iosys"><code>iosys</code> layer</a>,
+    which implements buffering,
+    transcoding, and end-of-line handling</li>
+<li><a href="#specialized">specialized</a> and
+    <a href="#custom">custom</a> ports of the R6RS io system</li>
+<li>R5RS and R6RS io systems</li>
+</ul>
 
-Needs to be documented.
-
-<p>
-
+<!-- p>
 See <tt>Lib/iosys.sch</tt>, <tt>Lib/fileio.sch</tt>, <tt>Lib/conio.sch</tt>,
 <tt>Lib/stdio.sch</tt>, and (for the low-level stuff) <tt>Lib/unix.sch</tt>.
+</p -->
+
+<h2>
+<a name="lowlevel">
+Low-level operations
+</a>
+</h2>
+
+<p>
+Larceny translates some of the basic I/O operations provided
+by the underlying operating system into a small set of
+OS-independent operations that open, close, read, and write
+a slight abstraction of low-level file and console ports.
+This abstraction is implemented by the following files:
+</p>
+<ul>
+<li><code>src/Rts/Sys/syscall.c</code></li>
+<li><code>src/Rts/Sys/osdep-generic.c</code></li>
+<li><code>src/Rts/Sys/osdep-unix.c</code></li>
+<li><code>src/Rts/Sys/osdep-macos.c</code></li>
+<li><code>src/Rts/Sys/osdep-win32.c</code></li>
+<li><code>src/Lib/Common/sys-unix.sch</code></li>
+<li><code>src/Lib/Common/sys-macos.sch</code></li>
+<li><code>src/Lib/Common/sys-win32.sch</code></li>
+</ul>
+
+<h2>
+<a name="ioproc">
+The <code>ioproc</code> layer
+</a>
+</h2>
+
+<p>
+At the <code>ioproc</code> layer, a port is implemented
+using a Scheme procedure of one argument:
+a symbol that denotes the operation to perform.
+After dispatching on that symbol, the ioproc procedure
+returns a port-specific procedure that, when called,
+performs the operation.  The operations are:
+</p>
+<ul>
+<li><code>read : iodata * buffer &rarr; { fixnum, 'eof, 'error }</code></li>
+<li><code>write : iodata * buffer * count &rarr; { 'ok, 'error }</code></li>
+<li><code>close : iodata &rarr; { 'ok, 'error }</code></li>
+<li><code>name : iodata &rarr; string</code></li>
+<li><code>set-position! : iodata * posn &rarr; { 'ok, 'error }</code></li>
+</ul>
+<p>
+The <code>read</code> operation, which attempts to fill the
+given input buffer, is supported only for input ports;
+the <code>write</code> operation, which empties the given
+output buffer, is supported only for output ports; and the
+<code>set-position!</code> operation is supported only for
+ports that support <code>set-port-position!</code>.
+</p>
+
+<p>
+The <code>iodata</code> argument to an <code>ioproc</code>
+represents any additional state that may be associated with
+a port but encoded separately from the port's ioproc and its
+methods.  There is no standard representation for the
+<code>iodata</code> object; its nature and interpretation
+vary from one kind of port to another.
+</p>
+
+
+
+<h2>
+<a name="iosys">
+The <code>iosys</code> layer
+</a>
+</h2>
+
+<p>
+The <code>iosys</code> layer implements Scheme ports.
+Each port is an object that encapsulates:
+</p>
+<ul>
+<li>an <code>ioproc</code></li>
+<li>any <code>iodata</code> needed by the <code>ioproc</code></li>
+<li>buffers</li>
+<li>...</li>
+</ul>
+
+<h2>
+<a name="specialized">
+Specialized ports
+</a>
+</h2>
+
+<h2>
+<a name="specialized">
+Custom ports
+</a>
+</h2>
+
+<hr />
+
+
 
 <h2>Thread-aware I/O</h2>
 
+<p>
 To support thread-aware I/O, we need two things:
+</p>
 <ul>
-<li> Mutual exclusion in access to the I/O structures.
-<li> Blocking I/O that is compatible with the threads system.
+<li> Mutual exclusion in access to the I/O structures.</li>
+<li> Blocking I/O that is compatible with the threads system.</li>
 </ul>
 
+<p>
 Mutual exclusion is not hard; the procedures in <tt>Lib/stdio.sch</tt>
 can be wrapped in a <tt>without-interrupts</tt> form.  The lock should
 probably be a public part of the port structure so that it's possible 
 for (system) code to acquire it once and then call low-level primitives
 for better performance.
+</p>
 
 <p>
-
 Since the threads system is (currently) written in Scheme on top of
 continuation, blocking system calls are no good.  Instead, I/O system
 calls that may block indefinitely must be avoided.
+</p>
 
 <p>
-
 The right thing to do seems to consider two subtypes of I/O ports, along
 the lines of the Modula-3 I/O system.  A port is classified either as
 <em>intermittent</em> or not.  Intermittent ports may have to wait an
 unbounded amount of time before input is available or output is accepted.
 Currently, the only intermittent ports are console I/O ports, but when
 the extensible I/O system goes public, we'll have sockets pretty quickly.
+</p>
 
 <p>
-
 Intermittent ports havs the following unique attribute: the underlying
 read and write methods return <tt>would-block</tt> if no work was
 accomplished (no input was ready or no output would be accepted).  If
@@ -71,19 +194,23 @@ If not, the I/O system must register an I/O poll procedure for the port
 as a periodic system task.  In either event, the I/O system will then
 block the thread on a condition variable that will be signalled by the
 ready handler, whichever method is used.
+</p>
 
 <p>
-
 I think that the actual underlying mechanism chosen for unblocking
 threads can and should be independent of the Scheme I/O system.  This is
 possible if the I/O system supports an installable "ioblock" handler
 that it will call to wait for I/O on a port.  System code will then
 install the correct ioblock handler for the I/O event system chosen on
 the particular platform.
+</p>
 
-<p><hr>
+<hr />
+
+<p>
 <em>$Id: note9-iosys.html 87 1998-11-25 14:38:41Z lth $</em><br>
-<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+<a href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</a><br>
+</p>
 
 </body>
 </html>

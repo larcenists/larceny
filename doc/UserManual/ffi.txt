@@ -75,7 +75,7 @@ Types are described below.
 
 The address of the foreign procedure is obtained by searching for _name_ in the symbol tables of the foreign files that have been loaded with _foreign-file_. 
 
-proc:foreign-null-pointer[args="none",result="integer"]
+proc:foreign-null-pointer[args="",result="integer"]
 
 Returns a foreign null pointer. 
 

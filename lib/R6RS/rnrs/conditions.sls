@@ -22,6 +22,7 @@
 
   (import
    (rnrs base)
+   (err5rs records procedural)
    (primitives
     &condition condition simple-conditions condition?
     condition-predicate condition-accessor

@@ -50,21 +50,7 @@ xstring
 *productions
 
 <outermost-datum> ::=  eofobj                                   #makeEOF
-                  ::=  boolean                                  #makeBool
-                  ::=  number                                   #makeNum
-                  ::=  xfaslc                                   #makeCompnum
-                  ::=  xfaslf                                   #makeFlonum
-                  ::=  character                                #makeChar
-                  ::=  string                                   #makeString
-                  ::=  xstring                                  #makeXString
-                  ::=  id                                       #makeSym
-                  ::=  miscflag                                 #makeFlag
-                  ::=  <list>                                   #identity
-                  ::=  <vector>                                 #identity
-                  ::=  <bytevector>                             #identity
-                  ::=  xfaslg <symbol>                          #sym2global
-                  ::=  xfaslp <datum>                           #list2proc
-                  ::=  xsharpdot <datum>                        #sharpDot
+                  ::=  <datum>                                  #identity
 <datum>           ::=  boolean                                  #makeBool
                   ::=  number                                   #makeNum
                   ::=  xfaslc                                   #makeCompnum
@@ -74,12 +60,13 @@ xstring
                   ::=  xstring                                  #makeXString
                   ::=  id                                       #makeSym
                   ::=  miscflag                                 #makeFlag
-                  ::=  <list>                                   #identity
-                  ::=  <vector>                                 #identity
-                  ::=  <bytevector>                             #identity
+                  ::=  <location> <structured>                  #makeStructured
                   ::=  xfaslg <symbol>                          #sym2global
                   ::=  xfaslp <datum>                           #list2proc
                   ::=  xsharpdot <datum>                        #sharpDot
+<structured>      ::=  <list>                                   #identity
+                  ::=  <vector>                                 #identity
+                  ::=  <bytevector>                             #identity
 <string>          ::=  string                                   #makeString
                   ::=  xstring                                  #makeXString
 <symbol>          ::=  id                                       #makeSym
@@ -97,7 +84,7 @@ xstring
 <blst4>           ::=  rbracket                                 #emptyList
                   ::=  period <datum> rbracket                  #identity
 
-<abbreviation>    ::=  <abbrev-prefix> <datum>            #list
+<abbreviation>    ::=  <abbrev-prefix> <datum>                  #list
 <abbrev-prefix>   ::=  quote                              #symQuote
                   ::=  backquote                          #symBackquote
                   ::=  comma                              #symUnquote
@@ -116,5 +103,7 @@ xstring
 <octets>          ::=                                           #emptyList
                   ::=  <octet> <octets>                         #cons
 <octet>           ::=  number                                   #makeOctet
+
+<location>        ::=                                           #sourceLocation
 
 *end

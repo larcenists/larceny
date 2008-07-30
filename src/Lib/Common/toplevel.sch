@@ -489,6 +489,9 @@
   (environment-set! larc 'hashtable-for-each hashtable-for-each)
   (environment-set! larc 'hashtable-map hashtable-map)
 
+  (environment-set! larc 'hashtable-reset! hashtable-reset!)
+  (environment-set! larc 'reset-all-hashtables! reset-all-hashtables!)
+
   ;; symbols
 
   (environment-set! larc 'symbol-hash symbol-hash)
@@ -594,6 +597,10 @@
   (environment-set! larc 'fxarithmetic-shift fxarithmetic-shift)
   (environment-set! larc 'fxarithmetic-shift-left fxarithmetic-shift-left)
   (environment-set! larc 'fxarithmetic-shift-right fxarithmetic-shift-right)
+
+  ; FIXME: Needed by src/Compiler/common.imp.sch
+
+  (environment-set! larc 'fx:check-result fx:check-result) ;FIXME
 
   (environment-set! larc 'real->flonum real->flonum)
   (environment-set! larc 'fl=? fl=?)
@@ -1133,6 +1140,10 @@
   (environment-set! larc 'get-line        get-line)
   (environment-set! larc 'get-datum get-datum)
 
+  ; FIXME
+  (environment-set! larc 'get-datum-with-source-locations
+                    get-datum-with-source-locations)
+
   (environment-set! larc 'put-u8 put-u8)
   (environment-set! larc 'put-bytevector put-bytevector)
 
@@ -1595,6 +1606,7 @@
   (environment-set! larc 'undefined undefined)
 
   (environment-set! larc 'current-seconds current-seconds)
+  (environment-set! larc 'twobit-timer-hook twobit-timer-hook)
 
 
   ;; INSTALL-ENVIRONMENTS! is used by Util/std-heap.sch, at least.

@@ -107,6 +107,10 @@
   (list->vector (sort!! (vector->list seq) less?)))
 
 (define (vector-sort! less? seq)
-  (vector-sort less? seq))
+  (let ((sorted (sort!! (vector->list seq) less?)))
+    (do ((sorted sorted (cdr sorted))
+         (i 0 (+ i 1)))
+        ((null? sorted))
+      (vector-set! seq i (car sorted)))))
 
 ; eof

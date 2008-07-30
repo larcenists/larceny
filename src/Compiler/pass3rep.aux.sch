@@ -597,7 +597,7 @@
         (make-vector number-of-basic-killers '())))
 
 (define (copy-constraints-table constraints)
-  (list (hashtable-copy (constraints.table constraints))
+  (list (hashtable-copy (constraints.table constraints) #t)
         (list->vector (vector->list (constraints.killed constraints)))))
 
 (define (constraints-for-variable constraints T)

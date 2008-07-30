@@ -495,7 +495,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; The following tables were generated from
-; UnicodeData.txt and SpecialCasing.txt.
+; UnicodeData.txt, CaseFolding.txt,
+; SpecialCasing.txt, PropList.txt,
+; WordBreakProperty.txt, and CompositionExclusions.txt.
 ; Use parseUCD.sch to regenerate these tables.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

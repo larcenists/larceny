@@ -2,423 +2,587 @@
 ;
 ; $Id$
 ;
-; A parser for numeric constants in MacScheme.
-; Designed to be called by the reader.
-; Captures a procedure named bellerophon, which should implement
+; A parser for numeric constants in MacScheme,
+; upgraded to accept the union of R6RS and ERR5RS syntax.
+;
+; The differences between R6RS and ERR5RS syntax are:
+;
+;     ERR5RS does not allow the imaginary part of a
+;         rectangular notation to be an infinity or NaN
+;
+;     ERR5RS does not allow mantissa widths
+;
+;     ERR5RS allows trailing decimal digits to be #
+;
+;     ERR5RS allows 3+4I.  Despite an erratum, it is
+;         still unclear whether the R6RS allows that.
+;         It is also unclear whether the R6RS allows
+;         +NaN.0 or -InF.0.
+;
+; ERR5RS also allows extensions, but the R6RS doesn't.
+;
+; Uses a procedure named bellerophon, which should implement
 ; Algorithm Bellerophon for reading floating point numbers perfectly.
 ;
-; Number syntax; note the code also supports +inf.0, -inf.0, +nan.0, 
-; -nan.0, and their complex combinations:
+; The following syntax is from the R6RS, without ERR5RS
+; extensions.
+;
+; <number> -> <num 2> | <num 8>
+;          | <num 10> | <num 16>
+; <num R> -> <prefix R> <complex R>
+; <complex R> -> <real R> | <real R> @ <real R>
+;          | <real R> + <ureal R> i | <real R> - <ureal R> i
+;          | <real R> + <naninf> i | <real R> - <naninf> i
+;          | <real R> + i | <real R> - i
+;          | + <ureal R> i | - <ureal R> i
+;          | + <naninf> i | - <naninf> i
+;          | + i | - i
+; <real R> -> <sign> <ureal R>
+;          | + <naninf> | - <naninf>
+; <naninf> -> nan.0 | inf.0
+; <ureal R> -> <uinteger R>
+;          | <uinteger R> / <uinteger R>
+;          | <decimal R> <mantissa width>
+; <decimal 10> -> <uinteger 10> <suffix>
+;          | . <digit 10>+ <suffix>
+;          | <digit 10>+ . <digit 10>* <suffix>
+;          | <digit 10>+ . <suffix>
+; <uinteger R> -> <digit R>+
+; <prefix R> -> <radix R> <exactness>
+;          | <exactness> <radix R>
 ; 
-; <number>  -->  <num 2>  |  <num 8>  |  <num 10>  |  <num 16>
-; 
-; The following rules for <num R>, <complex R>, <real R>, <ureal R>,
-; <uinteger R>, and <prefix R> should be replicated for R = 2, 8, 10,
-; and 16.  There are no rules for <decimal 2>, <decimal 8>, and
-; <decimal 16>, which means that numbers containing decimal points
-; or exponents must be in decimal radix.
-; 
-; <num R>  --> <prefix R> <complex R>
-; <complex R> --> <real R> | <real R> @ <real R>
-;     | <real R> + <ureal R> i | <real R> - <ureal R> i
-;     | <real R> + i | <real R> - i
-;     | + <ureal R> i | - <ureal R> i | + i | - i
-; <real R> --> <sign> <ureal R>
-; <ureal R>  -->  <uinteger R>
-;     |  <uinteger R> / <uinteger R>
-;     |  <decimal R>
-; <decimal 10>  -->  <uinteger 10> <suffix>
-;     |  . <digit 10>+ #* <suffix>
-;     |  <digit 10>+ . <digit 10>* #* <suffix>
-;     |  <digit 10>+ #* . #* <suffix>
-; <uinteger R>  -->  <digit R>+ #*
-; <prefix R>  -->  <radix R> <exactness>
-;     |  <exactness> <radix R>
-; 
-; <suffix>  -->  <empty>
-;     |  <exponent marker> <sign> <digit>+
-; <exponent marker>  -->  e  |  s  |  f  |  d  |  l
-; <sign>  -->  <empty>  |  +  |  -
-; <exactness>  -->  <empty>  |  #i  |  #e
-; <radix 2>  -->  #b
-; <radix 8>  -->  #o
-; <radix 10>  -->  <empty>  |  #d
-; <radix 16>  -->  #x
-; <digit 2>  -->  0  |  1
-; <digit 8>  -->  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7
-; <digit 10>  -->  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9
-; <digit 16>  -->  <digit 10>  |  a  |  b  |  c  |  d  |  e  |  f
+; <suffix> -> <empty>
+;          | <exponent marker> <sign> <digit 10>+
+; <exponent marker> -> e | E | s | S | f | F
+;          | d | D | l | L
+; <mantissa width> -> <empty>
+;          | | <digit 10>+
+; <sign> -> <empty> | + | -
+; <exactness> -> <empty>
+;          | #i| #I | #e| #E
+; <radix 2> -> #b| #B
+; <radix 8> -> #o| #O
+; <radix 10> -> <empty> | #d | #D
+; <radix 16> -> #x| #X
+; <digit 2> -> 0 | 1
+; <digit 8> -> 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+; <digit 10> -> <digit>
+; <digit 16> -> <hex digit>
 
 ($$trace "str2num")
 
 ; String->number takes a number or a number and a radix.
 ; Its output is a number, or #f.
 
-(define string->number)
-
-
 ; Parse-number takes a list of characters to be parsed.
 ; Its output is a number, or #f.
 
-(define parse-number
+(define (string->number s . rest)
   
-  (let ((bellerophon  bellerophon))
+  (let ((radix (cond ((null? rest) #f)
+                     ((null? (cdr rest)) (car rest))
+                     (else (assertion-violation 'string->number
+                                                "too many arguments"
+                                                (cons s rest)))))
+        (n (string-length s)))
 
-    ; This is a procedure because at the time we wish to call make-flonum,
-    ; generic arithmetic is not yet fully operational.
+    ;; This is a procedure because at the time we wish to call make-flonum,
+    ;; generic arithmetic is not yet fully operational.
 
     (define (flonum:nan) (make-flonum 0 1 1024))
     
-    ; This is a procedure because flonum:nan is.
+    ;; This is a procedure because flonum:nan is.
 
     (define (flonum:inf) 1e500)
 
     (define (decimal-digit? c)
-      (and (char>=? c #\0) (char<=? c #\9)))
+      (char<=? #\0 c #\9))
 
     (define (decimal-value c)
-      (- (char->integer c) 48))
+      (- (char->integer c) (char->integer #\0)))
 
-    (define (parse-number input)
-      (let ((c (car input)))
-        (cond ((decimal-digit? c)
-	       ; (parse-decimal (cdr input) (decimal-value c) 1)
-	       (parse-complex input #f 10))
-	      ((memq c '(#\- #\+ #\.))
-	       (parse-complex input #f 10))
-              ((char=? c #\#)
-               (parse-prefix input #f #f))
-              (else #f))))
-    
-    ; Prefix has been consumed, but not anything else.
-    ; Simplified grammar for complexes:
-    ;   complex --> [+-]i 
-    ;             | <real>@<real>
-    ;             | <real>i
-    ;             | <real>[+-]i 
-    ;             | <real>[+-]<ureal>i
-
-    (define (parse-complex input exactness radix)
-
-      (define (stage1 input)
-	(let ((c (car input)))
-	  (cond ((char=? c #\-)
-		 (if (and (not (null? (cdr input)))
-			  (null? (cddr input))
-			  (char=? (char-downcase (cadr input)) #\i))
-		     (coerce-exactness exactness -i)
-		     (parse-ureal (cdr input) exactness radix -1)))
-		((char=? c #\+)
-		 (if (and (not (null? (cdr input)))
-			  (null? (cddr input))
-			  (char=? (char-downcase (cadr input)) #\i))
-		     (coerce-exactness exactness +i)
-		     (parse-ureal (cdr input) exactness radix 1)))
-		((char=? c #\.)
-		 (parse-ureal input 'i 10 1))
-		(else
-		 (parse-real input exactness radix)))))
-
-      (define (stage2 real input)
-	(let ((c (char-downcase (car input))))
-	  (cond ((char=? c #\@) 
-		 (let ((r (parse-real (cdr input) exactness radix)))
-		   (if (number? r)
-		       (make-polar real r)
-		       #f)))
-		((char=? c #\i)
-		 (if (null? (cdr input))
-		     (make-rectangular 0 real)
-		     #f))
-		((or (char=? c #\+) (char=? c #\-))
-		 (if (null? (cdr input))
-		     #f
-		     (let ((d (char-downcase (cadr input)))
-			   (s (if (char=? c #\+) 1 -1)))
-		       (if (and (char=? d #\i) (null? (cddr input)))
-			   (make-rectangular real s)
-			   (let ((v (parse-ureal (cdr input)
-						 exactness 
-						 radix
-						 s)))
-			     (if (not (pair? v))
-				 #f
-				 (stage3 real (car v) (cdr v))))))))
-		(else
-		 (error "Internal error in parse-complex: " c)
-		 #t))))
-
-      (define (stage3 real imag input)
-	(cond ((null? input)
-	       #f)
-	      ((not (null? (cdr input)))
-	       #f)
-	      ((char=? (char-downcase (car input)) #\i)
-	       (make-rectangular real imag))
-	      (else
-	       #f)))
-
-      (let ((v (stage1 input)))
-	(if (not (pair? v))
-	    v
-	    (let ((real  (car v))
-		  (input (cdr v)))
-	      (if (null? input)
-		  real
-		  (stage2 real input))))))
-
-
-    ; input = list of characters remaining to parse
-    ; exactness = the symbol e if #e has been read
-    ;             the symbol i if #i has been read
-    ;             otherwise #f
-    ; radix = 2, 8, 10, 16 or #f if no explicit radix prefix
-    ;   has yet been read
-    
-    (define (parse-prefix input exactness radix)
-      (cond ((null? input) #f)
-            ((char=? (car input) #\#)
-             (cond ((null? (cdr input)) #f)
-                   (else (let ((c (char-downcase (cadr input))))
-                           (case c
-                             ((#\e #\i)
-                              (if exactness
-                                  #f
-                                  (parse-prefix (cddr input)
-                                                (if (char=? c #\e) 'e 'i)
-                                                radix)))
-                             ((#\b #\o #\d #\x)
-                              (if radix
-                                  #f
-                                  (parse-prefix
-                                   (cddr input)
-                                   exactness
-                                   (cdr (assq c '((#\b . 2)
-                                                  (#\o . 8)
-                                                  (#\d . 10)
-                                                  (#\x . 16)))))))
-                             (else #f))))))
-            (else (parse-complex input exactness (if radix radix 10)))))
-    
-    ; The prefix has been consumed, but nothing else.
-    ; e is exactness prefix: e, i, or #f if no explicit prefix
-    ; r is the radix: 2, 8, 10, or 16
-    
-    (define (parse-real input e r)
-      (cond ((null? input) #f)
-            ((char=? (car input) #\+)
-             (parse-ureal (cdr input) e r 1))
-            ((char=? (car input) #\-)
-             (parse-ureal (cdr input) e r -1))
-            (else (parse-ureal input e r 1))))
-    
-    ; The prefix and sign have been consumed.
-    ; exactness = e, i, or #f if there is no explicit exactness.
-    ; radix = 2, 8, 10, or 16.
-    ; sign = 1 or -1.
-    ;
-    ; The numeric value of the number parsed is
-    ;   (/ (* numerator (expt 10 exponent)) denominator)
-    
-    (define (parse-ureal input exactness radix sign)
-      (cond ((null? input) #f)
-            ((and (= radix 10)
-                  (radix-digit? (car input) 10) (not exactness))
-             (parse-decimal (cdr input)
-                            (decimal-value (car input))
-                            sign))
-            ((radix-digit? (car input) radix)
-             (q1 (cdr input)
-                 exactness
-                 radix
-                 sign
-                 (radix-digit-value (car input) radix)))
-            ((and (= radix 10)
-                  (char=? (car input) #\.)
-                  (not (null? (cdr input)))
-                  (radix-digit? (cadr input) 10))
-             (q3 (cdr input) (or exactness 'i) sign 0 0))
-	    ((char=? (char-downcase (car input)) #\n)
-	     (special-syntax (cdr input) '(#\a #\n #\. #\0) (flonum:nan)))
-	    ((char=? (char-downcase (car input)) #\i)
-	     (special-syntax (cdr input) '(#\n #\f #\. #\0) 
-			     (* sign (flonum:inf))))
-            (else #f)))
-
-    ; Special syntax:
-    ; +inf.0 -inf.0 +nan.0 -nan.0 and complex combinations.
-    ;
-    ; The sign has been consumed, as has the first character.
-
-    (define (special-syntax input pattern val)
-      (let loop ((i input)
-		 (l pattern))
-	(cond ((null? i) 
-	       (if (null? l)
-		   (cons val i)
-		   #f))
-	      ((null? l) 
-	       (cons val i))
-	      ((char=? (char-downcase (car i)) (car l))
-	       (loop (cdr i) (cdr l)))
-	      (else #f))))
-    
-    ; At least one digit has been consumed.
-    ; This is an accepting state.
-    ;
-    ; MacScheme deliberately accepts numbers like 3#4 in order to save
-    ; code space.
-    
-    (define (q1 input e r s m)
-      (if (null? input)
-          (create-number (or e 'e) s m 1 0)
-          (let ((c (char-downcase (car input))))
-            (cond ((radix-digit? c r)
-                   (q1 (cdr input)
-                       e r s (+ (* r m) (radix-digit-value c r))))
-                  ((char=? c #\#)
-                   ; FIXME: should call q2 here
-                   (q1 (cdr input) (or e 'i) r s (* r m)))
-                  ((char=? c #\/)
-                   (q7 (cdr input) e r s m))
-                  ((not (= r 10)) #f)
-                  ((char=? c #\.)
-                   (q3 (cdr input) (or e 'i) s m 0))
-                  ((exponent-marker? c)
-                   (q5 (cdr input) (or e 'i) s m 0))
-		  ((follow-char? c)
-		   (cons (create-number (or e 'e) s m 1 0) input))
-                  (else #f)))))
-    
-    ; The parse-decimal procedure is a version of q1 for use when there is
-    ; no explicit exactness prefix and the radix is 10 (e = #f, r = 10).
-    ; Since it takes fewer arguments and doesn't have to call char-downcase,
-    ; it runs quicker.  I have also permuted its arguments so the compiler
-    ; will keep m in a hardware register.
-    ; Speed matters here because this is by far the most common case.
-    
-    (define (parse-decimal input m s)
-      (if (null? input)
-          (create-number 'e s m 1 0)
-          (let ((c (car input)))
-            (cond ((decimal-digit? c)
-                   (parse-decimal (cdr input)
-                                  (+ (* 10 m) (decimal-value c))
-                                  s))
-                  ((char=? c #\#)
-                   ; FIXME: should call q2 here
-                   (q1 (cdr input) 'i 10 s (* 10 m)))
-                  ((char=? c #\/)
-                   (q7 (cdr input) #f 10 s m))
-                  ((char=? c #\.)
-                   (q3 (cdr input) 'i s m 0))
-                  ((exponent-marker? (char-downcase c))
-                   (q5 (cdr input) 'i s m 0))
-		  ((follow-char? c)
-		   (cons (create-number 'e s m 1 0) input))
-                  (else #f)))))
-    
-    ; The radix is 10, a decimal point has been consumed,
-    ; and either a digit has been consumed or a digit is the next character.
-    ; The value read so far is (* m (expt 10 o)).
-    ; This is an accepting state.
-    ;
-    ; MacScheme deliberately accepts 3.#4 in order to save code space.
-    
-    (define (q3 input e s m o)
-      (if (null? input)
-          (create-number e s m 1 o)
-          (let ((c (char-downcase (car input))))
-            (cond ((radix-digit? c 10)
-                   (q3 (cdr input)
-                       e s (+ (* 10 m) (decimal-value c)) (- o 1)))
-                  ((char=? c #\#)
-                   ; FIXME: should call q4 here
-                   (q3 (cdr input) e s (* 10 m) (- o 1)))
-                  ((exponent-marker? c)
-                   (q5 (cdr input) (or e 'i) s m o))
-		  ((follow-char? c)
-		   (cons (create-number e s m 1 o) input))
-                  (else #f)))))
-    
-    ; The radix is 10 and an exponent marker has been consumed.
-    ; The value read so far is (* m (expt 10 o)).
-    
-    (define (q5 input e s m o)
-      (if (null? input)
+    (define (parse-number)
+      (if (= n 0)
           #f
-          (let ((c (car input)))
-            (cond ((and (or (char=? c #\+) (char=? c #\-))
-                        (not (null? (cdr input))))
-                   (let ((d (cadr input)))
-                     (if (radix-digit? d 10)
-                         (q6 (cddr input)
-                             e
-                             s
-                             m
-                             o
-                             (if (char=? c #\-) -1 1)
-                             (decimal-value d))
-                         #f)))
-                  ((radix-digit? c 10)
-                   (q6 (cdr input) e s m o 1 (decimal-value c)))
-                  (else #f)))))
+          (case (string-ref s 0)
+           ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\- #\+)
+            (parse-complex 0 #f (or radix 10)))
+           ((#\a #\b #\c #\d #\e #\f #\A #\B #\C #\D #\E #\F)
+            (case radix
+             ((16) (parse-complex 0 #f 16))
+             (else #f)))
+           ((#\.)
+            (case radix
+             ((#f 10) (parse-complex 0 #f 10))
+             (else #f)))
+           ((#\#)
+            (parse-prefix 0 #f #f))
+           (else #f))))
     
-    ; The radix is 10 and an exponent marker, the exponent sign (if any),
-    ; and the first digit of the exponent have been consumed.
-    ; This is an accepting state.
+    ;; exactness = the symbol e if #e has been read
+    ;;             the symbol i if #i has been read
+    ;;             otherwise #f
+    ;; radix = 2, 8, 10, 16 or #f if no explicit radix prefix read yet
     
-    (define (q6 input e s m o esign exp)
-      (if (null? input)
-          (create-number e s m 1 (+ o (* esign exp)))
-          (let ((c (car input)))
-            (cond ((radix-digit? c 10)
-		   (q6 (cdr input)
-		       e s m o esign (+ (* 10 exp) (decimal-value c))))
-		  ((follow-char? c)
-		   (cons (create-number e s m 1 (+ o (* esign exp)))
-			 input))
-		  (else #f)))))
-    
-    ; Here we are parsing the denominator of a ratio.
-    ; e = e, i, or #f if no exactness has been specified or inferred.
-    ; r is the radix
-    ; s is the sign
-    ; m is the numerator
-    
-    (define (q7 input e r s m)
-      (if (null? input)
+    (define (parse-prefix i exactness radix)
+      (if (>= i n)
           #f
-          (let ((c (car input)))
-            (cond ((radix-digit? c r)
-                   (q8 (cdr input) e r s m (radix-digit-value c r)))
-                  (else #f)))))
-    
-    ; A digit has been read while parsing the denominator of a ratio.
-    ; n is the denominator read so far.
-    ; This is an accepting state.
-    ;
-    ; MacScheme accepts 3/4#5 to save code space.
-    
-    (define (q8 input e r s m n)
-      (if (null? input)
-          (create-number (or e 'e) s m n 0)
-          (let ((c (car input)))
-            (cond ((radix-digit? c r)
-                   (q8 (cdr input)
-                       e r s m (+ (* r n) (radix-digit-value c r))))
-                  ((char=? c #\#)
-                   ; FIXME: should call q9 here
-                   (q8 (cdr input) (or e 'i) r s m (* r n)))
-		  ((follow-char? c)
-		   (cons (create-number (or e 'e) s m n 0) input))
-                  (else #f)))))
-    
-    (define (follow-char? c)
-      (memq c '(#\+ #\- #\@ #\i #\I)))
+          (case (string-ref s i)
+           ((#\#)
+            (let ((i (+ i 1)))
+              (if (>= i n)
+                  #f
+                  (case (string-ref s i)
+                   ((#\e #\E)
+                    (if exactness #f (parse-prefix (+ i 1) 'e radix)))
+                   ((#\i #\I)
+                    (if exactness #f (parse-prefix (+ i 1) 'i radix)))
+                   ((#\b #\B)
+                    (if radix #f (parse-prefix (+ i 1) exactness 2)))
+                   ((#\o #\O)
+                    (if radix #f (parse-prefix (+ i 1) exactness 8)))
+                   ((#\d #\D)
+                    (if radix #f (parse-prefix (+ i 1) exactness 10)))
+                   ((#\x #\X)
+                    (if radix #f (parse-prefix (+ i 1) exactness 16)))
+                   (else #f)))))
+           (else (parse-complex i exactness (or radix 10))))))
 
-    (define (exponent-marker? c)
-      (memq c '(#\e #\s #\f #\d #\l)))
+    ;; Prefix has been consumed, but not anything else.
+    ;; exactness = the symbol e if #e has been read
+    ;;             the symbol i if #i has been read
+    ;;             otherwise #f
+    ;; radix = 2, 8, 10, or 16
+
+    (define (parse-complex i exactness radix)
+      (if (>= i n)
+          #f
+          (case (string-ref s i)
+           ((#\-)
+            (parse-ucomplex (+ i 1) exactness radix -1))
+           ((#\+)
+            (parse-ucomplex (+ i 1) exactness radix 1))
+           (else
+            (call-with-values
+             (lambda () (parse-ureal i exactness radix 1))
+             (lambda (areal i)
+               (and areal
+                    (parse-imaginary i exactness radix areal))))))))
+
+    ;; An explicit sign has just been read.
+    ;; sign = 1 or -1
+
+    (define (parse-ucomplex i exactness radix sign)
+      (if (>= i n)
+          #f
+          (case (string-ref s i)
+           ((#\i #\I)               ; FIXME: does the R6RS allow #\I here?
+            (cond ((= (+ i 1) n)
+                   (coerce-exactness exactness -i))
+                  ((and (<= (+ i 5) n)
+                        (char=? #\n (string-ref s (+ i 1)))
+                        (char=? #\f (string-ref s (+ i 2)))
+                        (char=? #\. (string-ref s (+ i 3)))
+                        (char=? #\0 (string-ref s (+ i 4))))
+                   (parse-imaginary2 (+ i 5)
+                                     exactness radix
+                                     (* sign (flonum:inf))))
+                  (else #f)))
+           ((#\n)
+            (cond ((and (<= (+ i 5) n)
+                        (char=? #\a (string-ref s (+ i 1)))
+                        (char=? #\n (string-ref s (+ i 2)))
+                        (char=? #\. (string-ref s (+ i 3)))
+                        (char=? #\0 (string-ref s (+ i 4))))
+                                                       ; FIXME
+                   (parse-imaginary2 (+ i 5)
+                                     exactness radix
+                                     (* sign (flonum:nan))))
+                  (else #f)))
+           (else
+            (call-with-values
+             (lambda () (parse-ureal i exactness radix sign))
+             (lambda (areal i)
+               (and areal
+                    (parse-imaginary2 i exactness radix areal))))))))
+
+    ;; An unsigned real part has just been read.
+    ;; Note that 45i is not allowed, but +45i is.
+
+    (define (parse-imaginary i exactness radix areal)
+      (if (>= i n)
+          (coerce-exactness exactness areal)
+          (case (string-ref s i)
+           ((#\+)
+            (parse-uimaginary (+ i 1) exactness radix areal 1))
+           ((#\-)
+            (parse-uimaginary (+ i 1) exactness radix areal -1))
+           ((#\@)
+            (parse-angle (+ i 1) exactness radix areal))
+           (else #f))))
+
+    ;; An explicitly signed real part has just been read.
+    ;; parse-imaginary2 is like parse-imaginary except it
+    ;; allows i as a terminating character.
+
+    (define (parse-imaginary2 i exactness radix areal)
+      (if (>= i n)
+          (parse-imaginary i exactness radix areal)
+          (case (string-ref s i)
+           ((#\i #\I)               ; FIXME
+            (if (= (+ i 1) n)
+                (coerce-exactness exactness
+                                  (make-rectangular 0 areal))
+                #f))
+           (else
+            (parse-imaginary i exactness radix areal)))))
+
+    ;; The real part and an explicit sign have just been read.
+
+    (define (parse-uimaginary i exactness radix areal sign)
+      (if (>= i n)
+          #f
+          (case (string-ref s i)
+           ((#\i #\I)                  ; FIXME
+            (cond ((= (+ i 1) n)
+                   (coerce-exactness exactness
+                                     (make-rectangular areal sign)))
+                  ((and (<= (+ i 6) n)
+                        (char=? #\n (string-ref s (+ i 1)))
+                        (char=? #\f (string-ref s (+ i 2)))
+                        (char=? #\. (string-ref s (+ i 3)))
+                        (char=? #\0 (string-ref s (+ i 4)))
+                        (char=? #\i (string-ref s (+ i 5))))
+                   (coerce-exactness exactness
+                                     (make-rectangular areal
+                                                       (* sign (flonum:inf)))))
+                  (else #f)))
+           ((#\n)
+            (cond ((and (<= (+ i 6) n)
+                        (char=? #\a (string-ref s (+ i 1)))
+                        (char=? #\n (string-ref s (+ i 2)))
+                        (char=? #\. (string-ref s (+ i 3)))
+                        (char=? #\0 (string-ref s (+ i 4)))
+                        (char=? #\i (string-ref s (+ i 5))))
+                   (coerce-exactness exactness
+                                     (make-rectangular areal
+                                                       ; FIXME
+                                                       (* sign (flonum:nan)))))
+                  (else #f)))
+           (else
+            (call-with-values
+             (lambda () (parse-ureal i exactness radix sign))
+             (lambda (imag i)
+               (and imag
+                    (= (+ i 1) n)
+                    (char=? #\i (char-downcase (string-ref s i)))
+                    (coerce-exactness exactness
+                                      (make-rectangular areal
+                                                        imag)))))))))
+
+    ;; The real part and an @-sign have just been read.
+
+    (define (parse-angle i exactness radix areal)
+      (if (>= i n)
+          #f
+          (case (string-ref s i)
+           ((#\+)
+            (parse-angle2 (+ i 1) exactness radix areal 1))
+           ((#\-)
+            (parse-angle2 (+ i 1) exactness radix areal -1))
+           ((#\i #\I #\n #\N)
+            #f)
+           (else
+            (parse-angle2 i exactness radix areal 1)))))
+
+    ;; The real part and an @-sign have just been read.
+    ;; Either an explicit sign has just been read, or
+    ;; lookahead has determined that there is no sign.
+
+    (define (parse-angle2 i exactness radix areal sign)
+      (if (>= i n)
+          #f
+          (case (string-ref s i)
+           ((#\i)
+           (cond ((and (= (+ i 5) n)
+                       (char=? #\n (string-ref s (+ i 1)))
+                       (char=? #\f (string-ref s (+ i 2)))
+                       (char=? #\. (string-ref s (+ i 3)))
+                       (char=? #\0 (string-ref s (+ i 4))))
+                  (coerce-exactness exactness
+                                    (make-polar areal (* sign (flonum:inf)))))
+                 (else #f)))
+          ((#\n)
+           (cond ((and (= (+ i 5) n)
+                       (char=? #\a (string-ref s (+ i 1)))
+                       (char=? #\n (string-ref s (+ i 2)))
+                       (char=? #\. (string-ref s (+ i 3)))
+                       (char=? #\0 (string-ref s (+ i 4))))
+                                                      ; FIXME
+                  (coerce-exactness exactness
+                                    (make-polar areal (* sign (flonum:nan)))))
+                 (else #f)))
+           (else
+            (call-with-values
+             (lambda () (parse-ureal i exactness radix sign))
+             (lambda (angle i)
+               (and angle
+                    (= i n)
+                    (coerce-exactness exactness
+                                      (make-polar areal
+                                                  angle)))))))))
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;
+    ;; parse-ureal
+    ;;
+    ;; This procedure is called during parsing of the real part,
+    ;; imaginary part, and angle.
+    ;;
+    ;; exactness = the symbol e if #e has been read
+    ;;             the symbol i if #i has been read
+    ;;             otherwise #f
+    ;; radix = 2, 8, 10, or 16
+    ;; sign = 1 or -1
+    ;;
+    ;; Returns two values:
+    ;;     #f or a real value parsed from s
+    ;;     index of the first unconsumed character in s
+    ;;
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    (define (parse-ureal i exactness radix sign)
+      (if (= radix 10)
+          (parse-ureal10 i exactness sign)
+          (call-with-values
+           (lambda () (parse-uinteger i radix sign))
+           (lambda (numerator i)
+             (cond ((not numerator)
+                    (values #f i))
+                   ((and (< i n)
+                         (char=? #\/ (string-ref s i)))
+                    (call-with-values
+                     (lambda () (parse-uinteger (+ i 1) radix sign))
+                     (lambda (denominator i)
+                       (values (and denominator
+                                    (create-number exactness
+                                                   sign
+                                                   numerator
+                                                   denominator
+                                                   0))
+                               i))))
+                   (else
+                    (values (create-number exactness sign numerator 1 0)
+                            i)))))))
+
+    (define (parse-uinteger i radix sign)
+      (define (loop i k)
+        (if (>= i n)
+            (values k i)
+            (let* ((c (string-ref s i)))
+              (case c
+               ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+                (let ((j (decimal-value c)))
+                  (if (< j radix)
+                      (loop (+ i 1) (+ (* radix k) j))
+                      (values k i))))
+               ((#\a #\b #\c #\d #\e #\f #\A #\B #\C #\D #\E #\F)
+                (if (= radix 16)
+                    (let ((j (+ 10 (- (char->integer (char-downcase c))
+                                      (char->integer #\a)))))
+                      (loop (+ i 1) (+ (* radix k) j)))
+                    (values k i)))
+               (else
+                (values k i))))))
+      (if (>= i n)
+          (values #f i)
+          (let ((c (string-ref s i)))
+            (case radix
+             ((2)
+              (if (char<=? #\0 c #\1)
+                  (loop i 0)
+                  (values #f i)))
+             ((8)
+              (if (char<=? #\0 c #\7)
+                  (loop i 0)
+                  (values #f i)))
+             ((10)
+              (if (char<=? #\0 c #\9)
+                  (loop i 0)
+                  (values #f i)))
+             ((16)
+              (if (or (char<=? #\0 c #\9)
+                      (char<=? #\a (char-downcase c) #\f))
+                  (loop i 0)
+                  (values #f i)))
+             (else
+              (values #f i))))))
+
+    (define (parse-ureal10 i e sign)
+      (if (>= i n)
+          (values #f i)
+          (let ((c (string-ref s i)))
+            (cond ((char=? c #\.)
+                   (let ((i (+ i 1)))
+                     (if (and (< i n)
+                              (decimal-digit? (string-ref s i)))
+                         (parse-scientific-fraction i
+                                                    (or e 'i)
+                                                    sign 0 0 #f)
+                         (values #f i))))
+                  ((decimal-digit? c)
+                   (parse-ureal10a (+ i 1) e sign (decimal-value c)))
+                  (else
+                   (values #f i))))))
+
+    ;; A nonempty sequence of decimal digits has been read,
+    ;; and their value is (* sign k).
+
+    (define (parse-ureal10a i e sign k)
+      (if (>= i n)
+          (values (create-number e sign k 1 0) i)
+          (let ((c (string-ref s i)))
+            (if (decimal-digit? c)
+                (parse-ureal10a (+ i 1)
+                                e sign
+                                (+ (* 10 k) (decimal-value c)))
+                (parse-ureal10part2 i e sign k #f)))))
+
+    (define (parse-ureal10part2 i e sign k sharps-only?)
+      (if (>= i n)
+          (values (create-number e sign k 1 0) i)
+          (case (string-ref s i)
+           ((#\#)
+            (parse-ureal10part2 (+ i 1) (or e 'i) sign (* 10 k) #t))
+           ((#\.)
+            (parse-scientific-fraction (+ i 1)
+                                       (or e 'i) sign k 0 sharps-only?))
+           ((#\i #\I #\+ #\- #\@)                     ; FIXME
+            (values (create-number e sign k 1 0) i))
+           ((#\/)
+            (call-with-values
+             (lambda () (parse-uinteger (+ i 1) 10 1))
+             (lambda (denominator i)
+               (values (and denominator
+                            (create-number e sign k denominator 0))
+                       i))))
+           ((#\d #\e #\f #\l #\s #\D #\E #\F #\L #\S)
+            (let ((precision (char-downcase (string-ref s i))))
+              (parse-exponent (+ i 1) (or e 'i) sign k 0 precision)))
+           ((#\|)
+            (parse-mantissawidth (+ i 1) (or e 'i) sign k 0 #f))
+           (else
+            (values (create-number e sign k 1 0) i)))))
+
+    ;; A decimal point has been read, and the value of what
+    ;; has been read so far is (* sign p (expt 10 exponent)).
+    ;;
+    ;; e = the symbol e or the symbol i
+    ;; sign = 1 or -1
+    ;; p = an exact integer >= 0
+    ;; exponent = an exact integer
+    ;; sharps-only? = a boolean
+
+    (define (parse-scientific-fraction i e sign p exponent sharps-only?)
+      (if (>= i n)
+          (values (create-number e sign p 1 exponent) i)
+          (let ((c (string-ref s i)))
+            (case c
+             ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+              (if sharps-only?
+                  (values (create-number e sign p 1 exponent) i)
+                  (let ((p (+ (* 10 p) (decimal-value c))))
+                    (parse-scientific-fraction
+                     (+ i 1) e sign p (- exponent 1) sharps-only?))))
+             ((#\#)
+              (parse-scientific-fraction
+               (+ i 1) e sign (* 10 p) (- exponent 1) #t))
+             ((#\d #\e #\f #\l #\s #\D #\E #\F #\L #\S)
+              (let ((precision (char-downcase (string-ref s i))))
+                (parse-exponent (+ i 1) (or e 'i) sign p exponent precision)))
+             ((#\|)
+              (parse-mantissawidth (+ i 1) (or e 'i) sign p exponent #f))
+             (else
+              (values (create-number e sign p 1 exponent) i))))))
+
+    ;; An exponent marker has been read, and the value of what
+    ;; has been read so far is (* sign p (expt 10 exponent)).
+    ;;
+    ;; e = the symbol e or the symbol i
+    ;; sign = 1 or -1
+    ;; p = an exact integer >= 0
+    ;; exponent = an exact integer
+    ;; precision = #f or #\d or #\e or #\f or #\l or #\s
+    ;;
+    ;; FIXME: what happens to the precision when we create a number?
+
+    (define (parse-exponent i e sign p exponent precision)
+      (define (loop i k ksign)
+        (if (>= i n)
+            (values (create-number e sign p 1 (+ exponent (* ksign k)))
+                    i)
+            (let ((c (string-ref s i)))
+              (cond ((decimal-digit? c)
+                     (loop (+ i 1)
+                           (+ (* 10 k) (decimal-value c))
+                           ksign))
+                    ((char=? c #\|)
+                     (let ((exponent (+ exponent (* ksign k))))
+                       (parse-mantissawidth
+                        (+ i 1) e sign p exponent precision)))
+                    (else
+                     (values (create-number e sign
+                                            p 1 (+ exponent (* ksign k)))
+                             i))))))
+      (if (>= i n)
+          (values #f i)
+          (case (string-ref s i)
+           ((#\+ #\-)
+            (let* ((sign (string-ref s i))
+                   (i (+ i 1)))
+              (if (and (< i n)
+                       (decimal-digit? (string-ref s i)))
+                  (loop i 0 (if (char=? sign #\+) 1 -1))
+                  (values #f i))))
+           ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+            (loop i 0 1))
+           (else
+            (values #f i)))))
+
+    ;; A vertical bar has just been read, and the value of what
+    ;; has been read so far is (* sign p (expt 10 exponent)).
+    ;;
+    ;; e = the symbol e or the symbol i
+    ;; sign = 1 or -1
+    ;; p = an exact integer >= 0
+    ;; exponent = an exact integer
+    ;; precision = #f or #\d or #\e or #\f or #\l or #\s
+    ;;
+    ;; FIXME: what happens to the precision when we create a number?
+
+    (define (parse-mantissawidth i e sign p exponent precision)
+      (define (loop i k)
+        (if (>= i n)
+            (values (create-number e sign p 1 exponent)
+                    i)
+            (let ((c (string-ref s i)))
+              (cond ((decimal-digit? c)
+                     (loop (+ i 1)
+                           (+ (* 10 k) (decimal-value c))))
+                    (else
+                     ; FIXME: the mantissa width is k, but we ignore it
+                     (values (create-number e sign p 1 exponent)
+                             i))))))
+      (if (>= i n)
+          (values #f i)
+          (case (string-ref s i)
+           ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
+            (loop i 0))
+           (else
+            (values #f i)))))
+
+    ; FIXME: these two procedures are no longer used.
+    ; Maybe they should be.
     
     (define (radix-digit? c r)
       (if (eq? r 16)
@@ -441,8 +605,8 @@
     ; The arguments to create-number contain all the information needed to
     ; create a real number of the correct sign, magnitude, and exactness.
     ;
-    ;   sign        = 1 or -1
     ;   exactness   = a symbol, e or i
+    ;   sign        = 1 or -1
     ;   numerator   = an exact integer >= 0
     ;   denominator = an exact integer >= 0
     ;   exponent    = an exact integer
@@ -473,25 +637,11 @@
       (cond ((eq? exactness 'i)
              (if (inexact? x) x (exact->inexact x)))
             (else x)))
-    
-    (set! string->number
-          (lambda (string . rest)
-            (let ((input (string->list string)))
-              (cond ((null? input)
-		     #f)
-		    ((null? rest)
-                     (parse-number input))
-                    ((null? (cdr rest))
-		     (if (memv (car rest) '(2 8 10 16))
-			 (parse-prefix input #f (car rest))
-			 (begin (error "string->number: Invalid radix: "
-				       (car rest))
-				#t)))
-                    (else 
-		     (begin (error "string->number: Too many arguments: "
-				   rest)
-			    #t))))))
-    
-    parse-number))
+
+    (if (not (or (not radix)
+                 (memv radix '(2 8 10 16))))
+        (assertion-violation 'string->number "illegal radix" radix))
+
+    (parse-number)))
 
 ; eof

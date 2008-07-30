@@ -88,7 +88,7 @@ setup ()
 
   LARCENY=${LARCENY:-"../../../larceny"}
   PETIT=${PETIT:-"../../../petit-larceny"}
-  MZSCHEME=${MZSCHEME:-"mzscheme"}
+  PLTR6RS=${PLTR6RS:-"plt-r6rs"}
   YPSILON=${YPSILON:-"ypsilon"}
  
 }
@@ -109,6 +109,7 @@ Usage: bench [-r runs] <system> <benchmark>
   larceny          for Larceny
   petit            for Petit Larceny
   ypsilon          for Ypsilon
+  plt              for PLT Scheme
   all              for all of the above
 
 <benchmark> is the name of the benchmark(s) to run:
@@ -224,6 +225,19 @@ ikarus_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to PLT Scheme
+
+plt_comp ()
+{
+  echo | time "${PLTR6RS}" --compile "$1"
+}
+
+plt_exec ()
+{
+  time "${PLTR6RS}" "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
 # Definitions specific to Ypsilon
 
 ypsilon_comp ()
@@ -313,6 +327,16 @@ for system in $systems ; do
     ikarus) NAME='Ikarus'
             COMP=ikarus_comp
             EXEC=ikarus_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+       plt) NAME='PLT'
+            COMP=plt_comp
+            EXEC=plt_exec
             COMPOPTS=""
             EXTENSION="sch"
             EXTENSIONCOMP="sch"

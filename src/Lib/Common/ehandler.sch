@@ -39,8 +39,8 @@
 ;               printed.
 ;  - otherwise: The arguments are to be interpreted as a user-level error:
 ;               objects to be printed.
-; By design, this is the same kind of parameter list accepted by DECODE-ERROR,
-; in ERROR.SCH.  
+; By design, the list of all arguments to the error handler may be
+; passed as the first argument to DECODE-ERROR, in ERROR.SCH.
 ;
 ; Documented behavior: the default error handler prints all its
 ; arguments safely and then calls reset. The error handler may not 

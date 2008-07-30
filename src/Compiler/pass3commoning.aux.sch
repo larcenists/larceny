@@ -24,6 +24,7 @@
 ; available-variable:   Available x symbol                 -> Expr
 ; available-extend!:    Available x symbol x Expr x Killer ->
 ; available-kill!:      Available x Killer                 ->
+; available-intersect!: Available x Available x Available  ->
 ;
 ; where Expr is of the form
 ;
@@ -51,6 +52,9 @@
 ;         binding is killed.
 ; (available-kill! available K)
 ;     removes all bindings whose Killer intersects K.
+; (available-intersect! available0 available1 available2)
+;     destructively changes available0, making it the intersection
+;     of available1 and available2
 ;
 ; (available-extend! available T E K) is very fast if the previous
 ; operation on the table was (available-expression available E).
@@ -58,8 +62,11 @@
 ; Implementation.
 ;
 ; Quick and dirty.
-; The available expressions are represented as a vector of 2 association
-; lists.  The first list is used for common subexpression elimination,
+;
+; The available expressions are represented as a vector of
+; 2 association lists (and their current lengths).
+;
+; The first list is used for common subexpression elimination,
 ; and the second is used for copy and constant propagation.
 ;
 ; Each element of the first list is a binding of
@@ -70,13 +77,44 @@
 ; a symbol T to an expression E, with killer K,
 ; represented by the list (T E K).
 ; The expression E will be a constant or variable.
+;
+; FIXME:  For R5RS-portability, we don't use records here.
+;
+; FIXME:  Association lists are inefficient, so we limit their
+; length by brute force.  Whenever an association list gets
+; longer than the following threshold, its length is reduced
+; to the nominal length.
+
+(define *max-available* 150)
+(define *nominal-available* 75)
+
+(define (limit-available! available)
+  (define (limit! i)
+    (let ((n (vector-ref available (+ 2 i))))
+      (if (> n *max-available*)
+          (let* ((alist (vector-ref available i))
+                 (rlist (reverse alist))
+                 (n2 (length alist)))
+            (if (not (= n n2))
+                (error "compiler bug (limit-available!)" (list n n2)))
+#;          (display "Compiler: trimming list of available expressions...")
+#;          (newline)
+            (vector-set! available
+                         i
+                         (reverse
+                          (list-tail rlist (- n *nominal-available*))))
+            (vector-set! available (+ 2 i) *nominal-available*)))))
+  (limit! 0)
+  (limit! 1))
 
 (define (make-available-table)
-  (vector '() '()))
+  (vector '() '() 0 0))
 
 (define (copy-available-table available)
   (vector (vector-ref available 0)
-          (vector-ref available 1)))
+          (vector-ref available 1)
+          (vector-ref available 2)
+          (vector-ref available 3)))
 
 (define (available-expression available E)
   (let ((binding (assoc E (vector-ref available 0))))
@@ -91,7 +129,11 @@
         #f)))
 
 (define (available-extend! available T E K)
+  (limit-available! available)
   (cond ((constant? E)
+         (vector-set! available
+                      3
+                      (+ 1 (vector-ref available 3)))
          (vector-set! available
                       1
                       (cons (list T E K)
@@ -99,10 +141,16 @@
         ((and (variable? E)
               (eq? K available:killer:none))
          (vector-set! available
+                      3
+                      (+ 1 (vector-ref available 3)))
+         (vector-set! available
                       1
                       (cons (list T E K)
                             (vector-ref available 1))))
         (else
+         (vector-set! available
+                      2
+                      (+ 1 (vector-ref available 2)))
          (vector-set! available
                       0
                       (cons (list E T K)
@@ -122,7 +170,9 @@
                          (zero?
                           (fxlogand K
                                   (caddr binding))))
-                       (vector-ref available 1))))
+                       (vector-ref available 1)))
+  (vector-set! available 2 (length (vector-ref available 0)))
+  (vector-set! available 3 (length (vector-ref available 1))))
 
 (define (available-intersect! available0 available1 available2)
   (vector-set! available0
@@ -132,7 +182,9 @@
   (vector-set! available0
                1
                (intersection (vector-ref available1 1)
-                             (vector-ref available2 1))))
+                             (vector-ref available2 1)))
+  (vector-set! available0 2 (length (vector-ref available0 0)))
+  (vector-set! available0 3 (length (vector-ref available0 1))))
 
 ; The Killer concrete data type, represented as a fixnum.
 ;

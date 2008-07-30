@@ -39,7 +39,7 @@ proctempl:make-oldstyle-hashtable[args="hash-function",result="hashtable"]
 
 Equivalent to `(make-oldstyle-hashtable _hash-function_ assv)`.
 
-proctempl:make-oldstyle-hashtable[args="none",result="hashtable"]
+proctempl:make-oldstyle-hashtable[args="",result="hashtable"]
 
 Equivalent to `(make-oldstyle-hashtable object-hash assv)`.
 

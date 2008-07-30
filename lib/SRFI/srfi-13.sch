@@ -1668,7 +1668,7 @@
     ;; string starts.
     (let lp ((len 0) (nzlist #f) (lis string-list))
       (if (pair? lis)
-	  (let ((slen (string-length (car string-list))))
+	  (let ((slen (string-length (car lis))))
 	    (lp (+ len slen)
 		(if (or nzlist (zero? slen)) nzlist lis)
 		(cdr lis)))

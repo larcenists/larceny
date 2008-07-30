@@ -1,7 +1,7 @@
 Operating System Interface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-proc:command-line-arguments[args="none",result="vector"]
+proc:command-line-arguments[args="",result="vector"]
 
 Returns a vector of strings: the arguments supplied to the program by
 the user or the operating system.

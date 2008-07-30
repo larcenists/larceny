@@ -13,6 +13,9 @@
 (require 'common-syntax)
 (require 'srfi-0)
 
+(require 'foreign-ctools)
+(require 'foreign-cstructs)
+
 (define-syntax define-for-include-syntax
   (transformer
    (lambda (exp ren cmp)
@@ -260,8 +263,9 @@
 (define (%get-string object offset)
   (%peek-string (%get-pointer object offset)))
 
-(define-c-struct ("struct sockaddr_in" make-sockaddr_in
-                  (include<> socket/netinet/in.h))
+(define-c-offset-based-struct 
+  ("struct sockaddr_in" make-sockaddr_in
+                        (include<> socket/netinet/in.h))
   ("sin_family"
     (sockaddr_in.sin_family         %get-ushort)
     (sockaddr_in.sin_family-set!    %set-ushort))
@@ -273,8 +277,9 @@
     (sockaddr_in.sin_addr-set!      %set-uint)))
 
 
-(define-c-struct ("struct hostent" make-hostent
-                  (include<> socket/netdb.h))
+(define-c-offset-based-struct 
+  ("struct hostent" make-hostent
+                    (include<> socket/netdb.h))
   ("h_name"
     (hostent.h_name %get-string))
   ("h_aliases"
@@ -294,8 +299,9 @@
                                  (bytevector->list x))))))))
 
 
-(define-c-struct ("struct servent" make-servent
-                  (include<> socket/netdb.h))
+(define-c-offset-based-struct 
+  ("struct servent" make-servent
+                    (include<> socket/netdb.h))
   ("s_name"
     (servent.s_name %get-string))
   ("s_aliases"

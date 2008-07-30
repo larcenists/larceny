@@ -99,8 +99,8 @@
 ; routines defined in this file.
 ;
 ; FIXME:  For textual output ports, keeping the buffered bytes
-; between 0 and mainptr *might* be better.  This might affect
-; combined input/output ports, which aren't implemented yet.
+; between 0 and mainptr *might* be better.  This might improve
+; combined input/output ports.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -363,12 +363,15 @@
 ;
 ; FIXME:  After v0.94, io/read-char and io/peek-char should
 ; just delegate to io/get-char.
+;
+; FIXME:  For v0.963, uses of io/if have been removed, but
+; their old locations are still identified by FIXME comments.
 
-(define-syntax io/if
-  (syntax-rules ()
-   ((_ expr) #f)         ;FIXME: disabled for 0.95
-   ((_ expr) expr)
-   ))
+;(define-syntax io/if
+;  (syntax-rules ()
+;   ((_ expr) #f)         ;FIXME: disabled for 0.95
+;   ((_ expr) expr)
+;   ))
 
 (define (io/read-char p)
   (if (port? p)
@@ -381,7 +384,7 @@
                      (begin (vector-like-set! p port.mainptr (+ ptr 1))
                             (integer->char unit))
                      (io/get-char p #f))))
-              ((io/if (eq? type type:binary-input))
+              ((eq? type type:binary-input)                 ; FIXME (was io/if)
                (let ((x (io/get-u8 p #f)))
                  (if (eof-object? x)
                      x
@@ -404,7 +407,7 @@
                  (if (< unit 128)
                      (integer->char unit)
                      (io/get-char p #t))))
-              ((io/if (eq? type type:binary-input))
+              ((eq? type type:binary-input)                 ; FIXME (was io/if)
                (let ((x (io/get-u8 p #t)))
                  (if (eof-object? x)
                      x
@@ -447,7 +450,7 @@
 (define (io/write-char c p)
   (if (port? p)
       (let ((type (vector-like-ref p port.type)))
-        (cond ((io/if (eq? type type:binary-output))
+        (cond ((eq? type type:binary-output)                ; FIXME (was io/if)
                (let ((sv (char->integer c)))
                  (if (fx< sv 256)
                      (io/put-u8 p sv)
@@ -1298,7 +1301,9 @@
                                 ((fx= mode errmode:replace)
                                  (io/put-char p #\?))
                                 ((fx= mode errmode:raise)
-                                 (error 'put-char "encoding error" p c))
+                                 (raise-r6rs-exception
+                                  (make-i/o-encoding-error p c)
+                                  'put-char "encoding error" (list p c)))
                                 (else
                                  (assertion-violation 'put-char
                                                       "internal error" p c)))))
@@ -1360,7 +1365,7 @@
 ;
 ;     bytevector input/output ports
 ;     custom input/output ports
-;     transcoded input/output ports (FIXME: which don't work?)
+;     transcoded input/output ports
 ;
 ; These operations are invoked only when p is known to be an
 ; input/output port of the correct type (binary/textual).
@@ -1837,7 +1842,10 @@
             ((fx= errmode errmode:ignore)
              (io/get-char p lookahead?))
             (else
-             (error 'get-char "utf-8 decoding error" units)))))
+             (raise-r6rs-exception (make-i/o-decoding-error p)
+                                   'get-char
+                                   "utf-8 decoding error"
+                                   units)))))
 
   ; Forces at least one more byte into the active buffer,
   ; and retries.
