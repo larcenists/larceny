@@ -545,8 +545,8 @@ namespace Scheme.RT {
               v[0] = Factory.makeFixnum (0);
               break;
           case 1: // larceny-minor
-              v[0] = Factory.makeFixnum (95);  // FIXME
-//            v[0] = Factory.makeFixnum (Environment.AssemblyVersion.Minor);
+                v[0] = Factory.makeFixnum (96);  // FIXME
+//              v[0] = Factory.makeFixnum (Environment.AssemblyVersion.Minor);
               break;
 #if HAS_OSVERSION
           case 2: // os-major
