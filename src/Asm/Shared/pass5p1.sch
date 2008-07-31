@@ -109,14 +109,31 @@
 
 ; Given any Scheme object that may legally be quoted, returns an
 ; index into the constant vector for that constant.
+;
+; Constants are normally shared, with each constant appearing
+; only once within the constant vector no matter how many times
+; it appears within the code.
+;
+; The search required to implement that sharing currently takes
+; time proportional to the number of constants that have been
+; emitted so far.  To limit quadratic behavior, the search is
+; abandoned if the constant being emitted is not equal to one
+; of the first constants emitted.
+;
+; FIXME:  We'd like to use hashtables here instead of searching
+; a list, but hashtables would make this code less portable.
 
 (define (emit-constant as x)
+  (define emit-constant:limit 50)
   (do ((i 0 (+ i 1))
        (y (as-constants as) (cdr y)))
-      ((or (null? y) (equal? x (car y)))
-       (if (null? y)
-	   (as-constants! as (append! (as-constants as) (list x))))
-       i)))
+      ((or (null? y)
+           (>= i emit-constant:limit)
+           (equal? x (car y)))
+       (if (or (null? y)
+               (>= i emit-constant:limit))
+           (adjoin-constant as x)
+           i))))
 
 (define (emit-datum as x)
   (emit-constant as (list 'data x)))
@@ -144,9 +161,9 @@
 ; constant.
 
 (define (emit-constants as x . rest)
-  (let* ((constants (as-constants as))
-         (i         (length constants)))
-    (as-constants! as (append! constants (cons x rest)))
+  (let ((i (adjoin-constant as x)))
+    (for-each (lambda (y) (adjoin-constant as y))
+              rest)
     i))
 
 ; Defines the given label using the current location counter.
@@ -291,24 +308,42 @@
 
 ; An assembly structure is a vector consisting of
 ;
-;    table          (a table of assembly routines)
-;    source         (a list of symbolic instructions)
-;    lc             (location counter; an integer)
-;    code           (a list of bytevectors)
-;    constants      (a list)
-;    labels         (an alist of labels and values)
-;    fixups         (an alist of locations, sizes, and labels or fixnums)
-;    nested         (a list of assembly procedures for nested lambdas)
-;    values         (an assoc list)
-;    parent         (an assembly structure or #f)
-;    retry          (a thunk or #f)
-;    user-data      (anything)
-;    user-local     (anything)
+;    table            (a table of assembly routines)
+;    source           (a list of symbolic instructions)
+;    lc               (location counter; an integer)
+;    code             (a list of bytevectors)
+;    constants        (a list)
+;    constants-last   (a list of length 0 or 1; last pair of constants list)
+;    constants-length (an index; length of constants list)
+;    labels           (an alist of labels and values)
+;    fixups           (an alist of locations, sizes, and labels or fixnums)
+;    nested           (a list of assembly procedures for nested lambdas)
+;    values           (an assoc list)
+;    parent           (an assembly structure or #f)
+;    retry            (a thunk or #f)
+;    user-data        (anything)
+;    user-local       (anything)
 ;
 ; In fixups, labels are of the form (<L>) to distinguish them from fixnums.
 
 (define (label? x) (and (pair? x) (fixnum? (car x))))
 (define label.ident car)
+
+; Adds x to the end of the constants list, preserving invariants.
+; Returns the old length (1 less than the new length).
+
+(define (adjoin-constant as x)
+  (let ((last      (as-constants-last as))
+        (newlast   (list x))
+        (n         (as-constants-length as)))
+    (assert (begin 'adjoint-constant (eq? (null? last) (= n 0))))
+    (if (null? last)
+        (as-constants! as (append! (as-constants as) newlast))
+        (set-cdr! last newlast))
+    (as-constants-last! as newlast)
+    (as-constants-length! as (+ n 1))
+    n))
+        
 
 (define (make-assembly-structure source table user-data)
   (vector table
@@ -316,6 +351,8 @@
           0
           '()
           '()
+          '()
+          0
           '()
           '()
           '()
@@ -330,38 +367,44 @@
   (as-lc! as 0)
   (as-code! as '())
   (as-constants! as '())
+  (as-constants-last! as '())
+  (as-constants-length! as 0)
   (as-labels! as '())
   (as-fixups! as '())
   (as-nested! as '())
   (as-values! as '())
   (as-retry! as #f))
 
-(define (as-table as)     (vector-ref as 0))
-(define (as-source as)    (vector-ref as 1))
-(define (as-lc as)        (vector-ref as 2))
-(define (as-code as)      (vector-ref as 3))
-(define (as-constants as) (vector-ref as 4))
-(define (as-labels as)    (vector-ref as 5))
-(define (as-fixups as)    (vector-ref as 6))
-(define (as-nested as)    (vector-ref as 7))
-(define (as-values as)    (vector-ref as 8))
-(define (as-parent as)    (vector-ref as 9))
-(define (as-retry as)     (vector-ref as 10))
-(define (as-user as)      (vector-ref as 11))
-(define (as-user-local as)(vector-ref as 12))
+(define (as-table as)                 (vector-ref as 0))
+(define (as-source as)                (vector-ref as 1))
+(define (as-lc as)                    (vector-ref as 2))
+(define (as-code as)                  (vector-ref as 3))
+(define (as-constants as)             (vector-ref as 4))
+(define (as-constants-last as)        (vector-ref as 5))
+(define (as-constants-length as)      (vector-ref as 6))
+(define (as-labels as)                (vector-ref as 7))
+(define (as-fixups as)                (vector-ref as 8))
+(define (as-nested as)                (vector-ref as 9))
+(define (as-values as)                (vector-ref as 10))
+(define (as-parent as)                (vector-ref as 11))
+(define (as-retry as)                 (vector-ref as 12))
+(define (as-user as)                  (vector-ref as 13))
+(define (as-user-local as)            (vector-ref as 14))
 
-(define (as-source! as x)    (vector-set! as 1 x))
-(define (as-lc! as x)        (vector-set! as 2 x))
-(define (as-code! as x)      (vector-set! as 3 x))
-(define (as-constants! as x) (vector-set! as 4 x))
-(define (as-labels! as x)    (vector-set! as 5 x))
-(define (as-fixups! as x)    (vector-set! as 6 x))
-(define (as-nested! as x)    (vector-set! as 7 x))
-(define (as-values! as x)    (vector-set! as 8 x))
-(define (as-parent! as x)    (vector-set! as 9 x))
-(define (as-retry! as x)     (vector-set! as 10 x))
-(define (as-user! as x)      (vector-set! as 11 x))
-(define (as-user-local! as x)(vector-set! as 12 x))
+(define (as-source! as x)             (vector-set! as 1 x))
+(define (as-lc! as x)                 (vector-set! as 2 x))
+(define (as-code! as x)               (vector-set! as 3 x))
+(define (as-constants! as x)          (vector-set! as 4 x))
+(define (as-constants-last! as x)     (vector-set! as 5 x))
+(define (as-constants-length! as x)   (vector-set! as 6 x))
+(define (as-labels! as x)             (vector-set! as 7 x))
+(define (as-fixups! as x)             (vector-set! as 8 x))
+(define (as-nested! as x)             (vector-set! as 9 x))
+(define (as-values! as x)             (vector-set! as 10 x))
+(define (as-parent! as x)             (vector-set! as 11 x))
+(define (as-retry! as x)              (vector-set! as 12 x))
+(define (as-user! as x)               (vector-set! as 13 x))
+(define (as-user-local! as x)         (vector-set! as 14 x))
 
 ; The guts of the assembler.
 
@@ -494,6 +537,8 @@
       (or (label-value as (label.ident l))
 	  (asm-error "Assembler error -- undefined label " l)))
 
+    (assemble-finalize-report! as)                      ; FIXME: temporary hack
+
     (apply-fixups! (reverse! (as-fixups as)))
 
     (for-each (lambda (nested-as-proc)
@@ -596,5 +641,41 @@
 
 (define (compile&assemble x)
   (view-segment (assemble (compile x))))
+
+; FIXME: temporary hack
+;
+; (import (tests r6rs base))
+; (assemble-finalize-report! 4355 4355 3882 0 1454 0)    (twice!)
+
+(define (assemble-finalize-report! as)
+  (let ((report
+         (list 'assemble-finalize-report!
+               (cond ((list? (as-code as))
+                      (length (as-code as)))
+                     ((vector? (as-code as))
+                      (vector-length (as-code as)))
+                     (else #f))
+               (length (as-constants as))
+               (length (as-labels as))
+               (length (as-fixups as))
+               (length (as-nested as))
+               (length (as-values as)))))
+    (if (> (apply max (cdr report)) 50)
+        (begin (write report)
+               (newline)))))
+
+;    table          (a table of assembly routines)
+;    source         (a list of symbolic instructions)
+;    lc             (location counter; an integer)
+;    code           (a list of bytevectors)
+;    constants      (a list)
+;    labels         (an alist of labels and values)
+;    fixups         (an alist of locations, sizes, and labels or fixnums)
+;    nested         (a list of assembly procedures for nested lambdas)
+;    values         (an assoc list)
+;    parent         (an assembly structure or #f)
+;    retry          (a thunk or #f)
+;    user-data      (anything)
+;    user-local     (anything)
 
 ; eof
