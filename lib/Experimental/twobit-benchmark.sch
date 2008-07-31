@@ -12,7 +12,7 @@
 ; (time-twobit-usual)
 ;     Calls time-twobit for powers of 2 up to 65536.
 
-(require 'twobit-timer)
+(require 'Experimental/twobit-timer)
 
 (define tempfile "temporary.sch")
 
