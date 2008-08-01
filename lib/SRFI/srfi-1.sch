@@ -14,8 +14,42 @@
 ;;; NOTE that Twobit may open-code calls to MAP and FOR-EACH and thus
 ;;; ignore the definitions in this file.  The versions of MAP and
 ;;; FOR-EACH in Larceny are not compliant with SRFI-1: they fail on
-;;; lists of unequal length.  A workaround for this is to reduce the
-;;; optimization level when compiling.
+;;; lists of unequal length.  Here are three workarounds:
+;;;
+;;;     use map and for-each only when all list arguments are
+;;;         proper lists and have the same length
+;;;
+;;;     call srfi1:map and srfi1:for-each instead of map and for-each
+;;;
+;;;     use (integrate-procedures #f) before compiling or loading
+;;;         to disable inlining of all procedures, including
+;;;         map and for-each
+;;;
+;;; Modifications for Larceny appear both here and at the very end.
+;;; Here we just capture some of Larceny's procedures so we can use
+;;; them at the end of the file.
+
+(require 'srfi-0)
+
+(define larceny:map map)                ; incompatible with SRFI 1
+(define larceny:for-each for-each)      ; incompatible with SRFI 1
+(define larceny:member member)          ; incompatible with SRFI 1
+(define larceny:assoc assoc)            ; incompatible with SRFI 1
+
+(define larceny:cons* cons*)
+(define larceny:make-list make-list)
+(define larceny:list-copy list-copy)    ; incompatible with SRFI 1
+(define larceny:last last)
+(define larceny:last-pair last-pair)
+(define larceny:append! append!)
+(define larceny:reverse! reverse!)
+(define larceny:reduce reduce)          ; incompatible with SRFI 1
+(define larceny:fold-right fold-right)  ; incompatible with SRFI 1
+(define larceny:filter filter)
+(define larceny:partition partition)
+(define larceny:remove remove)          ; incompatible with SRFI 1
+(define larceny:remove! remove!)        ; incompatible with SRFI 1
+(define larceny:find find)
 
 ;;; Copyright (c) 1998, 1999 by Olin Shivers. You may do as you please with
 ;;; this code as long as you do not remove this copyright notice or
@@ -609,12 +643,10 @@
 
 (define (last lis) (car (last-pair lis)))
 
-; last-pair is in Larceny already
-;
-; (define (last-pair lis)
-;   (let lp ((lis lis))
-;     (let ((tail (cdr lis)))
-;       (if (pair? tail) (lp tail) lis))))
+(define (last-pair lis)
+  (let lp ((lis lis))
+    (let ((tail (cdr lis)))
+      (if (pair? tail) (lp tail) lis))))
 
 
 ;;; Unzippers -- 1 through 5
@@ -1414,13 +1446,12 @@
 ;(define (reverse! lis)
 ;  (pair-fold (lambda (pair tail) (set-cdr! pair tail) pair) '() lis))
 
-; Larceny has REVERSE! already.
-; (define (reverse! lis)
-;   (let lp ((lis lis) (ans '()))
-;     (if (null-list? lis) ans
-;         (let ((tail (cdr lis)))
-;           (set-cdr! lis ans)
-;           (lp tail lis)))))
+(define (reverse! lis)
+  (let lp ((lis lis) (ans '()))
+    (if (null-list? lis) ans
+        (let ((tail (cdr lis)))
+          (set-cdr! lis ans)
+          (lp tail lis)))))
 
 ;;; Lists-as-sets
 ;;;;;;;;;;;;;;;;;
@@ -1583,3 +1614,111 @@
 			    (not (any (lambda (lis) (member elt lis =))
 				      lists)))
 			  lis1))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Modifications for Larceny.
+;;;
+;;; In general, Larceny's implementations are more efficient
+;;; than those in the reference implementation for SRFI 1,
+;;; so we want to use Larceny's code whenever possible.
+;;;
+;;; Another complication is that IAssassin uses SRFI 1,
+;;; and the SRFI 1 definitions have been replacing Larceny's
+;;; at the top level in IAssassin.  Both (rnrs base) and
+;;; (rnrs lists) need to be rewritten to protect against
+;;; that.  The R6RS procedures that are incompatible with
+;;; those of SRFI 1 are:
+;;;
+;;;     map
+;;;     for-each
+;;;     member
+;;;     assoc
+;;;     fold-right
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; First we undo the redefinitions of Larceny procedures that
+;;; the same in Larceny as in SRFI 1.
+
+(define cons* larceny:cons*)
+(define make-list larceny:make-list)
+(define last larceny:last)
+(define last-pair larceny:last-pair)
+(define append! larceny:append!)
+(define reverse! larceny:reverse!)
+(define filter larceny:filter)
+(define partition larceny:partition)
+(define find larceny:find)
+
+;;; Now we remember the SRFI 1 definitions that generalize
+;;; Larceny's standard procedures.
+
+(define srfi1:map map)
+(define srfi1:for-each for-each)
+(define srfi1:member member)
+(define srfi1:assoc assoc)
+
+;;; Then we redefine those procedures to use Larceny's version
+;;; whenever possible.
+
+(define (map f lis1 . lists)
+  (cond ((null? lists)
+         (larceny:map f lis1))
+        ((null? (cdr lists))
+         (let ((lis2 (car lists)))
+           (if (and (list? lis1)
+                    (list? lis2)
+                    (= (length lis1) (length lis2)))
+               (larceny:map f lis1 lis2)
+               (srfi1:map f lis1 lis2))))
+        (else
+         (apply srfi1:map f lis1 lists))))
+
+(define (for-each f lis1 . lists)
+  (cond ((null? lists)
+         (larceny:for-each f lis1))
+        ((null? (cdr lists))
+         (let ((lis2 (car lists)))
+           (if (and (list? lis1)
+                    (list? lis2)
+                    (= (length lis1) (length lis2)))
+               (larceny:for-each f lis1 lis2)
+               (srfi1:for-each f lis1 lis2))))
+        (else
+         (apply srfi1:for-each f lis1 lists))))
+
+(define (member x lis . rest)
+  (define (complain)
+    (assertion-violation 'srfi1:member "illegal arguments" rest))
+  (cond ((null? rest)
+         (larceny:member x lis))
+        ((not (null? (cdr rest)))
+         (complain))
+        ((eq? eq? (car rest))
+         (memq x lis))
+        ((eq? eqv? (car rest))
+         (memv x lis))
+        ((procedure? (car rest))
+         (let ((same? (car rest)))
+           (do ((lis lis (cdr lis)))
+               ((or (null? lis)
+                    (same? x (car lis)))
+                lis))))
+        (else
+         (complain))))
+
+(define (assoc x lis . rest)
+  (define (complain)
+    (assertion-violation 'srfi1:assoc "illegal arguments" rest))
+  (cond ((null? rest)
+         (larceny:assoc x lis))
+        ((not (null? (cdr rest)))
+         (complain))
+        ((eq? eq? (car rest))
+         (assq x lis))
+        ((eq? eqv? (car rest))
+         (assv x lis))
+        (else
+         (srfi1:assoc x lis (car rest)))))
+

@@ -24,7 +24,7 @@
 ; Test cases are ordered as in the spec.  R5RS procedures are left out.
 
 (or (equal? (xcons 1 2) '(2 . 1))
-    (fail xcons:1))
+    (fail 'xcons:1))
 
 (or (equal? (cons* 1) 1)
     (fail 'cons*:1))
@@ -32,16 +32,16 @@
     (fail 'cons*:2))
 
 (or (equal? (make-list 5 #t) '(#t #t #t #t #t))
-    (fail make-list:1))
+    (fail 'make-list:1))
 (or (equal? (make-list 0 #f) '())
-    (fail make-list:2))
+    (fail 'make-list:2))
 (or (equal? (length (make-list 3)) 3)
-    (fail make-list:3))
+    (fail 'make-list:3))
 
 (or (equal? (list-tabulate 5 (lambda (x) x)) '(0 1 2 3 4))
-    (fail list-tabulate:1))
+    (fail 'list-tabulate:1))
 (or (equal? (list-tabulate 0 (lambda (x) (error "FOO!"))) '())
-    (fail list-tabluate:2))
+    (fail 'list-tabluate:2))
 
 (or (call-with-current-continuation
      (lambda (abort)

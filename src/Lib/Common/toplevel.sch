@@ -454,6 +454,16 @@
   (environment-set! larc 'some? some?)
   (environment-set! larc 'union union)
 
+  (environment-set! larc 'larceny:map larceny:map)                      ; FIXME
+  (environment-set! larc 'larceny:for-each larceny:for-each)            ; FIXME
+  (environment-set! larc 'larceny:member larceny:member)                ; FIXME
+  (environment-set! larc 'larceny:assoc larceny:assoc)                  ; FIXME
+
+  (environment-set! larc 'larceny:list-copy larceny:list-copy)          ; FIXME
+  (environment-set! larc 'larceny:fold-right larceny:fold-right)        ; FIXME
+  (environment-set! larc 'larceny:remove larceny:remove)                ; FIXME
+  (environment-set! larc 'larceny:remove! larceny:remove!)              ; FIXME
+
   ;; hash functions and hashtables
 
   (environment-set! larc 'object-hash object-hash)

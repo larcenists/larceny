@@ -669,11 +669,11 @@
     ceiling char? char->integer char=? char<? char>? char<=? char>=?
     complex? cons cos 
     denominator dynamic-wind 
-    eq? equal? eqv? even? exact? exp expt floor for-each
+    eq? equal? eqv? even? exact? exp expt floor larceny:for-each
     gcd imag-part inexact? integer->char integer?
     lcm length list list->string
     list->vector list-ref list-tail list? log magnitude make-polar
-    make-rectangular make-string make-vector map max min
+    make-rectangular make-string make-vector larceny:map max min
     negative? not null? number->string number? numerator
     odd? pair? 
     positive? procedure? rational? rationalize
@@ -694,6 +694,12 @@
     symbol=? string-for-each vector-map vector-for-each
     error assertion-violation
     call/cc))
+
+    ;; These are redefined by SRFI 1, which leaks into
+    ;; the IAssassin R5RS top level.
+
+    (define map larceny:map)
+    (define for-each larceny:for-each)
   
     (define-syntax assert
       (syntax-rules ()
