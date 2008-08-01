@@ -91,7 +91,7 @@
 
 (define (sassy-assemble as code)
   ;(begin (display code) (newline))
-  (check-for-free-ids code)
+; (check-for-free-ids code)
   (sassy `(,@(map (lambda (l) `(export ,(t_label (compiled-procedure as l))))
                   (user-data.labels (as-user as)))
            (org  ,$bytevector.header-bytes)
@@ -594,8 +594,7 @@
   (lambda (instruction as)
     (list-instruction "branch" instruction)
     (emit-sassy as
-	       (if (assq (operand1 instruction) 
-			 (as-labels as))
+	       (if (find-label-locally as (operand1 instruction))
 		   ia86.t_branch
 		   ia86.t_skip)
 	       (compiled-procedure as (operand1 instruction)))))
@@ -604,8 +603,7 @@
   (lambda (instruction as)
     (list-instruction "branchf" instruction)
     (emit-sassy as 
-	       (if (assq (operand1 instruction)
-			 (as-labels as))
+	       (if (find-label-locally as (operand1 instruction))
 		   ia86.t_branchf 
 		   ia86.t_skipf)
 	       (compiled-procedure as (operand1 instruction)))))
@@ -680,8 +678,7 @@
   (lambda (instruction as)
     (list-instruction "setrtn/branch" instruction)
     (emit-sassy as 	      
-                (if (assq (operand1 instruction) 
-                          (as-labels as))
+                (if (find-label-locally as (operand1 instruction))
                     ia86.t_setrtn_branch
                     ia86.t_setrtn_skip)
                 (compiled-procedure as (operand1 instruction)))))
@@ -699,7 +696,7 @@
     (emit-sassy as ia86.t_reg_branchf
                 (operand1 instruction) 
                 (compiled-procedure as (operand2 instruction))
-                (not (assq (operand2 instruction) (as-labels as))))))
+                (not (find-label-locally as (operand2 instruction))))))
 
 (define-instruction $reg/check
   (lambda (instruction as)
@@ -715,7 +712,7 @@
                 (operand1 instruction)
                 (operand2 instruction)
                 (compiled-procedure as (operand3 instruction))
-                (not (assq (operand3 instruction) (as-labels as))))))
+                (not (find-label-locally as (operand3 instruction))))))
 
 (define-instruction $reg/op2/branchf
   (lambda (instruction as)
@@ -725,7 +722,7 @@
                 (operand2 instruction)
                 (operand3 instruction)
                 (compiled-procedure as (operand4 instruction))
-                (not (assq (operand4 instruction) (as-labels as))))))
+                (not (find-label-locally as (operand4 instruction))))))
 
 (define-instruction $reg/op2imm/branchf
   (lambda (instruction as)
@@ -735,7 +732,7 @@
                 (operand2 instruction)
                 (constant-value (operand3 instruction))
                 (compiled-procedure as (operand4 instruction))
-                (not (assq (operand4 instruction) (as-labels as))))))
+                (not (find-label-locally as (operand4 instruction))))))
 
 (define-instruction $reg/op1/setreg
   (lambda (instruction as)

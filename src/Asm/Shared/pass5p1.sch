@@ -210,10 +210,13 @@
 
 ; This can use hashed lookup.
 
+(define (find-label-locally as l)
+  (label-hashtable-ref (as-labels-ht as) l #f))
+
 (define (find-label as l)
 
   (define (lookup-label-loop as parent)
-    (let ((entry (label-hashtable-ref (as-labels-ht as) l #f)))
+    (let ((entry (find-label-locally as l)))
       (cond (entry entry)
             (parent
              (lookup-label-loop parent (as-parent parent)))
