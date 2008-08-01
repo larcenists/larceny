@@ -646,36 +646,26 @@
 ;
 ; (import (tests r6rs base))
 ; (assemble-finalize-report! 4355 4355 3882 0 1454 0)    (twice!)
+;
+; (time-twobit 65536)
+; (assemble-finalize-report! 1 2 65536 196612 0 3) ; SPARC     ( 98M, 6M)
+; (assemble-finalize-report! 2 2 65536 0 0 0)      ; IAssassin (464M, 6M)
 
 (define (assemble-finalize-report! as)
   (let ((report
          (list 'assemble-finalize-report!
-               (cond ((list? (as-code as))
+               (cond ((list? (as-code as))             ; code segments
                       (length (as-code as)))
                      ((vector? (as-code as))
                       (vector-length (as-code as)))
                      (else #f))
-               (length (as-constants as))
-               (length (as-labels as))
-               (length (as-fixups as))
-               (length (as-nested as))
-               (length (as-values as)))))
+               (length (as-constants as))              ; constants
+               (length (as-labels as))                 ; labels
+               (length (as-fixups as))                 ; fixups
+               (length (as-nested as))                 ; nested
+               (length (as-values as)))))              ; values
     (if (> (apply max (cdr report)) 50)
         (begin (write report)
                (newline)))))
-
-;    table          (a table of assembly routines)
-;    source         (a list of symbolic instructions)
-;    lc             (location counter; an integer)
-;    code           (a list of bytevectors)
-;    constants      (a list)
-;    labels         (an alist of labels and values)
-;    fixups         (an alist of locations, sizes, and labels or fixnums)
-;    nested         (a list of assembly procedures for nested lambdas)
-;    values         (an assoc list)
-;    parent         (an assembly structure or #f)
-;    retry          (a thunk or #f)
-;    user-data      (anything)
-;    user-local     (anything)
 
 ; eof
