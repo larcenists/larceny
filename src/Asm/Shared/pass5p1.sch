@@ -205,21 +205,21 @@
     (if probe
 	probe
 	(let ((l (cons label #f)))
-	  (as-labels! as (cons l (as-labels as)))
+          (label-hashtable-set! (as-labels-ht as) label l)
 	  l))))
 
 ; This can use hashed lookup.
 
 (define (find-label as l)
 
-  (define (lookup-label-loop x labels parent)
-    (let ((entry (assq x labels)))
-      (cond (entry)
-	    ((not parent) #f)
-	    (else 
-	     (lookup-label-loop x (as-labels parent) (as-parent parent))))))
+  (define (lookup-label-loop as parent)
+    (let ((entry (label-hashtable-ref (as-labels-ht as) l #f)))
+      (cond (entry entry)
+            (parent
+             (lookup-label-loop parent (as-parent parent)))
+	    (else #f))))
     
-  (lookup-label-loop l (as-labels as) (as-parent as)))
+  (lookup-label-loop as (as-parent as)))
 
 ; Create a new assembler label, distinguishable from a MAL label.
 
@@ -343,7 +343,39 @@
     (as-constants-last! as newlast)
     (as-constants-length! as (+ n 1))
     n))
-        
+
+; This level of abstraction hides the hashtable API we use.
+;
+; We have to use old-style hashtables here because that's
+; the only kind we can count on when cross-compiling with
+; systems other than Larceny.
+;
+; FIXME:
+; Apparently each label represents a pair whose car is
+; a fixnum (the MAL label) and whose cdr is something
+; else (probably the offset or #f).  Although this pair
+; is probably just a relic of the association lists that
+; were originally used instead of a hashtable, the
+; IAssassin, IL-LCG, and IL assemblers now appear to
+; depend upon that relic.  That should be fixed.
+
+(define (make-label-hashtable)
+  (make-oldstyle-hashtable))
+
+(define (label-hashtable-clear! ht)
+  (hashtable-clear! ht))
+
+(define (label-hashtable-ref ht l default)
+  (hashtable-fetch ht l default))
+
+(define (label-hashtable-set! ht l x)
+  (hashtable-put! ht l x))
+
+(define (as-labels as)
+  (hashtable-map (lambda (x y) y)
+                 (as-labels-ht as)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;        
 
 (define (make-assembly-structure source table user-data)
   (vector table
@@ -353,7 +385,7 @@
           '()
           '()
           0
-          '()
+          (make-label-hashtable)
           '()
           '()
 	  '()
@@ -369,7 +401,7 @@
   (as-constants! as '())
   (as-constants-last! as '())
   (as-constants-length! as 0)
-  (as-labels! as '())
+  (label-hashtable-clear! (as-labels-ht as))
   (as-fixups! as '())
   (as-nested! as '())
   (as-values! as '())
@@ -382,7 +414,7 @@
 (define (as-constants as)             (vector-ref as 4))
 (define (as-constants-last as)        (vector-ref as 5))
 (define (as-constants-length as)      (vector-ref as 6))
-(define (as-labels as)                (vector-ref as 7))
+(define (as-labels-ht as)             (vector-ref as 7))
 (define (as-fixups as)                (vector-ref as 8))
 (define (as-nested as)                (vector-ref as 9))
 (define (as-values as)                (vector-ref as 10))
@@ -397,7 +429,7 @@
 (define (as-constants! as x)          (vector-set! as 4 x))
 (define (as-constants-last! as x)     (vector-set! as 5 x))
 (define (as-constants-length! as x)   (vector-set! as 6 x))
-(define (as-labels! as x)             (vector-set! as 7 x))
+;(define (as-labels-ht! as x)         (vector-set! as 7 x))
 (define (as-fixups! as x)             (vector-set! as 8 x))
 (define (as-nested! as x)             (vector-set! as 9 x))
 (define (as-values! as x)             (vector-set! as 10 x))
@@ -537,7 +569,7 @@
       (or (label-value as (label.ident l))
 	  (asm-error "Assembler error -- undefined label " l)))
 
-    (assemble-finalize-report! as)                      ; FIXME: temporary hack
+;   (assemble-finalize-report! as)                      ; FIXME: temporary hack
 
     (apply-fixups! (reverse! (as-fixups as)))
 
