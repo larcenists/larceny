@@ -16,6 +16,10 @@
 (require 'inspect-cont)
 
 (define (run-with-profiling thunk)
+  (if (not (procedure? thunk))
+      (assertion-violation 'run-with-profiling
+                           "argument should be thunk"
+                           thunk))
   (reset-profiler!)
   (start-profiler!)
   (thunk)
