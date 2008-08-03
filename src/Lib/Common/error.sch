@@ -125,7 +125,9 @@
 (define (decode-error the-error . rest)
   (let ((who (car the-error))
         (port (if (null? rest) (current-output-port) (car rest))))
-    (cond ((number? who)
+    (cond ((and (number? who)
+                (list? the-error)
+                (= 4 (length the-error)))
            (decode-system-error who 
                                 (cadr the-error) 
                                 (caddr the-error)

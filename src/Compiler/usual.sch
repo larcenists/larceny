@@ -627,7 +627,7 @@
                   (lambda ()
                     (let ((var condition))      ; clauses may SET! var
                       (guard-aux (handler-k (lambda ()
-                                              (raise condition)))
+                                              (raise-continuable condition)))
                                  clause ...))))))))
           (lambda ()
             (call-with-values
