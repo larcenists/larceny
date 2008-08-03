@@ -1683,7 +1683,10 @@
                                                     (values))))))
 
                                         ;; Register library for any further expansion.
-                                        (if (eq? library-type 'library)
+                                        ;; FIXME: expand-file shouldn't do this
+                                        (if (and (eq? library-type 'library)
+                                                 (not
+                                                  (larceny:r6rs-expand-only)))
                                             (eval expanded-library (interaction-environment)))
 
                                         expanded-library))))))))))))
@@ -2284,6 +2287,10 @@
     ;; between invocations of run-r6rs-sequence.  
     ;; For importing and evaluating stuff in the persistent 
     ;; interactive environment, see REPL above.
+
+    ;; FIXME:  Since expand-toplevel-sequence calls eval on every
+    ;; library in the sequence, the following procedure calls eval
+    ;; on every library twice.  That can double the compile time.
     
     (define (run-r6rs-sequence forms)
       (with-toplevel-parameters

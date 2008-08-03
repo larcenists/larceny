@@ -679,8 +679,20 @@
 
 ; FIXME: temporary hack
 ;
-; (import (tests r6rs base))
-; (assemble-finalize-report! 4355 4355 3882 0 1454 0)    (twice!)
+; The code for run-base-tests is being assembled twice, even
+; though only one copy shows up in base.slfasl:
+;
+; > (time (compile-library "tests/r6rs/base.sls"))
+; Compiling tests/r6rs/base.sls
+; Autoloading (tests r6rs test)
+; ANF size: 18787
+; (assemble-finalize-report! 2 6140 3796 0 1430 0)
+; ANF size: 18787
+; (assemble-finalize-report! 2 6140 3796 0 1430 0)
+; Words allocated: 1193358312
+; Words reclaimed: 0
+; Elapsed time...: 77693 ms (User: 68590 ms; System: 8949 ms)
+; Elapsed GC time: 16343 ms (CPU: 16330 in 4550 collections.)
 ;
 ; (time-twobit 65536)
 ; (assemble-finalize-report! 1 2 65536 196612 0 3) ; SPARC     ( 98M, 6M)
@@ -699,7 +711,7 @@
                (length (as-fixups as))                 ; fixups
                (length (as-nested as))                 ; nested
                (length (as-values as)))))              ; values
-    (if (> (apply max (cdr report)) 50)
+    (if (> (apply max (cdr report)) 4000)
         (begin (write report)
                (newline)))))
 

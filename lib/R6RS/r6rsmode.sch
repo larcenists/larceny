@@ -268,15 +268,22 @@
                                     (compile-libraries file)))
                               files)
                     (for-each (lambda (file)
-                                (if (and (file-type=? file ".sls")
-                                         (let ((slfasl
-                                                (rewrite-file-type file
-                                                                   ".sls"
-                                                                   ".slfasl")))
-                                           (or (not (file-exists? slfasl))
-                                               (file-newer? basefile
-                                                            slfasl))))
-                                    (compile-r6rs-file file #f #t)))
+                                (let ((slfasl
+                                       (and (file-type=? file ".sls")
+                                            (let ((slfasl
+                                                   (rewrite-file-type
+                                                    file ".sls" ".slfasl")))
+                                              (cond ((not
+                                                      (file-exists? slfasl))
+                                                     slfasl)
+                                                    ((file-newer? basefile
+                                                                  slfasl)
+                                                     slfasl)
+                                                    (else #f))))))
+                                  (if slfasl
+                                      (begin (compile-r6rs-file file slfasl #t)
+                                             (larceny:register! slfasl)
+                                             (load slfasl)))))
                               files)))))
           (compile-libraries path)))
        (else
@@ -365,6 +372,14 @@
 
 (define larceny:autoloaded-r6rs-library-files '())
 
+(define (larceny:register! fname)
+  (set! larceny:autoloaded-r6rs-library-files
+        (cons fname larceny:autoloaded-r6rs-library-files))
+ ;(display "    from ")
+ ;(display fname)
+ ;(newline)
+  #t)
+
 ; Called by ex:lookup-library in lib/R6RS/r6rs-runtime.sch
 ; Returns false is the library has previously been loaded,
 ; returns true if the file exists and loads successfully,
@@ -393,14 +408,6 @@
       (and (<= n1 n2)
            (string=? s1 (substring s2 0 n1)))))
 
-  (define (register! fname)
-    (set! larceny:autoloaded-r6rs-library-files
-          (cons fname larceny:autoloaded-r6rs-library-files))
-   ;(display "    from ")
-   ;(display fname)
-   ;(newline)
-    #t)
-
   (define (load-r6rs-library fname)
     (cond ((member fname larceny:autoloaded-r6rs-library-files)
            #f)
@@ -410,7 +417,7 @@
              (cond ((file-type=? fname ".sls")
                     (compile-r6rs-file fname #f #t)
                     (let ((fname (rewrite-file-type fname ".sls" ".slfasl")))
-                      (register! fname)
+                      (larceny:register! fname)
                       (load fname)
                       #t))
                    ((file-type=? fname ".slfasl")
@@ -421,18 +428,18 @@
                                     (in-same-directory? reference-file fname)
                                     (file-newer? reference-file fname))))
                           (begin (compile-r6rs-file src fname #t)
-                                 (register! fname)
+                                 (larceny:register! fname)
                                  (load fname)
                                  #t)
-                          (begin (register! fname)
+                          (begin (larceny:register! fname)
                                  (load fname)
                                  #t))))
                    (else
-                    (register! fname)
+                    (larceny:register! fname)
                     (load fname)
                     #t))))
           (else
-           (register! fname)
+           (larceny:register! fname)
            (load fname)
            #t)))
 
@@ -477,7 +484,8 @@
               require-paths)
              #f))))
     (if fname
-        (load-r6rs-library fname)
+        (parameterize ((larceny:r6rs-expand-only #f))
+          (load-r6rs-library fname))
         (assertion-violation 'lookup-library "library not loaded" libname))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -485,10 +493,34 @@
 ; Expands an R6RS program into an R5RS program that can be
 ; loaded by load-r6rs-program.  The target-filename can be
 ; compiled before it is loaded.
+;
+; FIXME:  This uses a hack to avoid compiling a library twice
+; in systems that compile on eval.  if the file contains only
+; one library, and nothing else, then we can compile to a file
+; and then load the file instead of calling eval on the result
+; of expansion.  That doesn't work if the file contains two
+; libraries and the second one imports from the first.
+;
+; FIXME:  The io here should be protected against errors.
 
 (define (expand-r6rs-program filename target-filename)
   (larceny:load-r6rs-package)
-  (ex:expand-file filename target-filename))
+  (let ((nlibs (call-with-input-file
+                filename
+                (lambda (in)
+                  (do ((x (read in) (read in))
+                       (n 0 (if (pair? x) (+ n 1) n)))
+                      ((or (eof-object? x) (> n 1))
+                       n))))))
+    (parameterize ((larceny:r6rs-expand-only (= nlibs 1)))
+      (ex:expand-file filename target-filename))))
+
+; This parameter determines whether expanded libraries
+; and programs are evaluated immediately, as in van Tonder's
+; original code, or just expanded.
+
+(define larceny:r6rs-expand-only
+  (make-parameter "larceny:r6rs-expand-only" #f boolean?))
 
 ; Loads (thereby running) an expanded R6RS program
 ; or a .fasl file compiled from an expanded R6RS program.
