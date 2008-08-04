@@ -351,6 +351,23 @@
 (let ((%hashtable? (rtd-predicate *hashtable-rtd*))
       (make-raw-ht
        (let ((raw-maker (rtd-constructor *hashtable-rtd*))
+             (make-safe-hasher-caching
+              (let ((cache #f))
+                (lambda (hf)
+                  (lambda (key)
+                    (let ((keyhash cache))
+                      (if (and keyhash (eq? key (car keyhash)))
+                          (cdr keyhash)
+                          (let ((h (hf key)))
+                            (cond ((and (fixnum? h) (<= 0 h))
+                                   (set! cache (cons key h))
+                                   h)
+                                  ((and (exact? h) (integer? h) (<= 0 h))
+                                   h)
+                                  (else
+                                   (assertion-violation
+                                    'hashtable
+                                    "illegal hash value" h))))))))))
              (make-safe-hasher
               (lambda (hf)
                 (lambda (key)
@@ -372,7 +389,10 @@
                   (b (make-vector n '()))
                   (b0 (if (eq? type 'usual) #f (make-vector n '())))
                   (b1 (if (eq? type 'usual) #f (make-vector n '()))))
-             (raw-maker 0 hf (make-safe-hasher hf)
+             (raw-maker 0 hf
+                        (if (eq? type 'usual)
+                            (make-safe-hasher hf)
+                            (make-safe-hasher-caching hf))
                         equiv searcher type
                         b b1 b0
                         (major-gc-counter)
@@ -424,7 +444,7 @@
                               'hashtable:unlock!
                               "hashtable not locked" ht))))))
 
-      (defaultn 10))
+      (defaultn 20))
 
   (let ((hashtable-error (lambda (procedure x mut?)
                            (assertion-violation
