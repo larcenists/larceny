@@ -224,6 +224,7 @@
                (let ((h (mod (+ %srfi69:counter %srfi69:increment)
                              %srfi69:modulus)))
                  (set! %srfi69:counter h)
+                 (hashtable-set! %srfi69:eq-table obj h)
                  h))))
         (else
          (set! %srfi69:eq-table (make-eq-table))
@@ -248,6 +249,7 @@
                (let ((h (mod (+ %srfi69:counter %srfi69:increment)
                              %srfi69:modulus)))
                  (set! %srfi69:counter h)
+                 (hashtable-set! %srfi69:eqv-table obj h)
                  h))))
         (else
          (set! %srfi69:eqv-table (make-eqv-table))

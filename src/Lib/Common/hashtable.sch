@@ -352,8 +352,8 @@
       (make-raw-ht
        (let ((raw-maker (rtd-constructor *hashtable-rtd*))
              (make-safe-hasher-caching
-              (let ((cache #f))
-                (lambda (hf)
+              (lambda (hf)
+                (let ((cache #f))
                   (lambda (key)
                     (let ((keyhash cache))
                       (if (and keyhash (eq? key (car keyhash)))
