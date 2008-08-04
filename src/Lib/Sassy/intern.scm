@@ -70,14 +70,100 @@
      list-of-field-pairs)
     exists))
 
-(define (sassy-symbol-ensure sassy-output symbol-name)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; About a third of the entire compile time is spent in this
+; one procedure.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (sassy-symbol-ensure:old sassy-output symbol-name)
+  (vector-set! sassy-symbol-ensure:calls 1
+               (+ 1 (vector-ref sassy-symbol-ensure:calls 1)))
   (or (sassy-symbol-exists-env? sassy-output symbol-name)
       (let ((new (make-sassy-symbol symbol-name 'local #f #f #f '() #f)))
 	(let iter ((t (sassy-symbol-table sassy-output)))
+          (vector-set! sassy-symbol-ensure:loops 1
+                       (+ 1 (vector-ref sassy-symbol-ensure:loops 1)))
 	  (if (hash-table? (car t))
 	      (begin (hash-table-set! (car t) symbol-name new)
 		     new)
 	      (iter (cdr t)))))))
+
+; Let's inline the call to sassy-symbol-exists-env?, simplify
+; a bit, and see whether it makes any difference.
+
+(define (sassy-symbol-ensure sassy-output symbol-name)
+  (let ((symtable (sassy-symbol-table sassy-output)))
+
+  ; Hmmm, this doesn't seem to be defined when cross-compiling.
+
+  (define (hash-table-ref/default ht key default)
+    (cond (default
+           (hash-table-ref ht key (lambda () default)))
+          (else
+           (hash-table-ref ht key thunk:false))))
+
+    ; symtable may be any of
+    ;     a hashtable
+    ;     an improper list of hashtables and Sassy symbols
+    ;         ending with a hashtable
+    ;     a list of hashtables and Sassy symbols
+    ;
+    ; We search the list as follows:
+    ;     if we get to a hashtable, we look up symbol-name
+    ;         within the hashtable and either return its
+    ;         associated Sassy symbol or create a new one
+    ;         and install it
+    ;     if we see a Sassy symbol, we compare it and stop
+    ;         if they match
+    ;
+    ; The improper list probably doesn't ever occur,
+    ; or if it does then the name is always found within
+    ; the hashtable; otherwise we'd be taking the car of
+    ; a hashtable and the original Sassy code would blow
+    ; up.  If it ever occurs, it will display a message.
+    ;
+    ; There's no point to searching the list twice, as
+    ; the original Sassy code was doing.  Once we've found
+    ; a hashtable, the search is over.
+
+    (define (loop1 rst)
+      (cond ((not (pair? rst))
+             (if (hash-table? rst)
+                 (begin
+                  (display "Unexpected case in sassy-symbol-ensure") ; FIXME
+                  (newline)                                          ; FIXME
+                  (or (hash-table-ref/default rst symbol-name #f)
+                      (assertion-violation 'sassy-symbol-ensure
+                                           "bug in Clinger's version"
+                                           rst)))
+                 (assertion-violation 'sassy-symbol-ensure
+                                      "bug in Sassy" rst)))
+            ((hash-table? (car rst))
+             (let ((ht (car rst)))
+               (or (hash-table-ref/default ht symbol-name #f)
+                   (let ((new (make-sassy-symbol
+                               symbol-name 'local #f #f #f '() #f)))
+                     (hash-table-set! ht symbol-name new)
+                     new))))
+            ((eq? symbol-name (sassy-symbol-name (car rst)))
+             (car rst))
+            (else
+             (loop1 (cdr rst)))))
+
+    (loop1 symtable)))
+
+; Defining this here eliminates the need to create a closure
+; on most calls to hash-table-ref.
+
+(define (thunk:false) #f)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; FIXME: end of temporary instrumentation
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; fast path cases used internally
 ; instead blah-foo-set! these are all blah-set-foo!

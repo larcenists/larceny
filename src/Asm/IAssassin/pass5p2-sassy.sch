@@ -32,7 +32,14 @@
     (as-source! as (cons (list $.entry e #t) (as-source as))))
   (current-sassy-assembly-structure as))
 
+; Checks for free identifiers in the given Sassy input,
+; which is a common error when writing new sequences of
+; assembly code.  The association lists make this check
+; too expensive for large inputs, however, so sassy-assemble
+; calls it only for small inputs.
+
 (define (check-for-free-ids code)
+
   (define (keyword? x)
     (case x
       ((eax ebx ecx edx edi esi esp ebp
@@ -44,6 +51,7 @@
          
   (let ((need-labels  '())
         (found-labels '()))
+
     (define (sym x)
       (cond ((and (not (keyword? x))
                   (not (memq x found-labels))
@@ -91,7 +99,8 @@
 
 (define (sassy-assemble as code)
   ;(begin (display code) (newline))
-; (check-for-free-ids code)
+  (if (< (length code) 100)                 ; FIXME
+      (check-for-free-ids code))
   (sassy `(,@(map (lambda (l) `(export ,(t_label (compiled-procedure as l))))
                   (user-data.labels (as-user as)))
            (org  ,$bytevector.header-bytes)
