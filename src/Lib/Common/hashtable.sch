@@ -391,8 +391,8 @@
                   (b1 (if (eq? type 'usual) #f (make-vector n '()))))
              (raw-maker 0 hf
                         (if (eq? type 'usual)
-                            (make-safe-hasher hf)
-                            (make-safe-hasher-caching hf))
+                            (make-safe-hasher-caching hf)
+                            (make-safe-hasher hf))
                         equiv searcher type
                         b b1 b0
                         (major-gc-counter)

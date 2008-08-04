@@ -77,18 +77,16 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (sassy-symbol-ensure:old sassy-output symbol-name)
-  (vector-set! sassy-symbol-ensure:calls 1
-               (+ 1 (vector-ref sassy-symbol-ensure:calls 1)))
-  (or (sassy-symbol-exists-env? sassy-output symbol-name)
-      (let ((new (make-sassy-symbol symbol-name 'local #f #f #f '() #f)))
-	(let iter ((t (sassy-symbol-table sassy-output)))
-          (vector-set! sassy-symbol-ensure:loops 1
-                       (+ 1 (vector-ref sassy-symbol-ensure:loops 1)))
-	  (if (hash-table? (car t))
-	      (begin (hash-table-set! (car t) symbol-name new)
-		     new)
-	      (iter (cdr t)))))))
+;(define (sassy-symbol-ensure sassy-output symbol-name)
+;  (or (sassy-symbol-exists-env? sassy-output symbol-name)
+;      (let ((new (make-sassy-symbol symbol-name 'local #f #f #f '() #f)))
+;        (let iter ((t (sassy-symbol-table sassy-output)))
+;          (vector-set! sassy-symbol-ensure:loops 1
+;                       (+ 1 (vector-ref sassy-symbol-ensure:loops 1)))
+;          (if (hash-table? (car t))
+;              (begin (hash-table-set! (car t) symbol-name new)
+;                     new)
+;              (iter (cdr t)))))))
 
 ; Let's inline the call to sassy-symbol-exists-env?, simplify
 ; a bit, and see whether it makes any difference.
@@ -96,13 +94,13 @@
 (define (sassy-symbol-ensure sassy-output symbol-name)
   (let ((symtable (sassy-symbol-table sassy-output)))
 
-  ; Hmmm, this doesn't seem to be defined when cross-compiling.
+    ; Hmmm, this doesn't seem to be defined when cross-compiling.
 
-  (define (hash-table-ref/default ht key default)
-    (cond (default
-           (hash-table-ref ht key (lambda () default)))
-          (else
-           (hash-table-ref ht key thunk:false))))
+    (define (hash-table-ref/default ht key default)
+      (cond (default
+             (hash-table-ref ht key (lambda () default)))
+            (else
+             (hash-table-ref ht key thunk:false))))
 
     ; symtable may be any of
     ;     a hashtable
@@ -161,7 +159,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; FIXME: end of temporary instrumentation
+; FIXME: end of changes to sassy-symbol-ensure
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
