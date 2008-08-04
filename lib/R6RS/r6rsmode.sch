@@ -154,6 +154,27 @@
            (loop (cdr rchars) (cons (car rchars) chars) #f))))
   (loop (reverse (string->list path)) '() #f))
 
+; Converts file names to absolute paths.
+;
+; FIXME: doesn't convert foo/bar/.. to foo.
+
+(define (larceny:absolute-path fname)
+  (if (absolute-path-string? fname)
+      fname
+      (string-append (larceny:directory-of fname)
+                     (larceny:separator)
+                     (larceny:file-name-only fname))))
+
+; FIXME: assumes (larceny:separator) is one character long.
+
+(define (larceny:file-name-only fname)
+  (let ((sep (string-ref (larceny:separator) 0)))   ; FIXME
+    (let loop ((chars (string->list fname)))
+      (let ((probe (memv sep chars)))
+        (if probe
+            (loop (cdr probe))
+            (list->string chars))))))
+
 (define (larceny:list-directory path)
   (if (not (larceny:directory? path))
       '()
@@ -373,15 +394,18 @@
 (define larceny:autoloaded-r6rs-library-files '())
 
 (define (larceny:register! fname)
-  (set! larceny:autoloaded-r6rs-library-files
-        (cons fname larceny:autoloaded-r6rs-library-files))
- ;(display "    from ")
- ;(display fname)
- ;(newline)
-  #t)
+  (if (absolute-path-string? fname)
+      (begin (set! larceny:autoloaded-r6rs-library-files
+                   (cons fname larceny:autoloaded-r6rs-library-files))
+             ;(display "    from ")
+             ;(display fname)
+             ;(newline)
+             #t)
+      (larceny:register!
+       (larceny:absolute-path fname))))
 
 ; Called by ex:lookup-library in lib/R6RS/r6rs-runtime.sch
-; Returns false is the library has previously been loaded,
+; Returns false if the library has previously been loaded,
 ; returns true if the file exists and loads successfully,
 ; or raises an exception.
 
