@@ -68,7 +68,7 @@
     "symbol.sch"
     ;; "tasking.sch"          ;; defines syntax
     ("tasking-with-io.sch" tasking)
-    ("time.sch" srfi-0)
+    ("time.sch" srfi-0 foreign-ctools foreign-cstructs)
     "trie.sch"
     "unify.sch"
     "unix.sch"
