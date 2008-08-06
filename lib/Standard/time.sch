@@ -15,7 +15,6 @@
 (require 'std-ffi)
 (require 'foreign-ctools)
 (require 'foreign-cstructs)
-(require 'foreign-cenums)
 
 (cond-expand 
  ((and larceny unix)
@@ -134,10 +133,6 @@
             (convert-100nanoseconds->seconds+milliseconds 
              count-since-unix-epoch)))))
 
-    (define-c-struct 
-      ("TIME_ZONE_INFORMATION" make-tz-info (include<> "Windows.h"))
-      ("Bias" (tz-info-bias)))
-        
     (define get-time-zone-information!
       (let ((p (foreign-procedure "GetTimeZoneInformation" '(boxed) 'int 
                                   'stdcall)))
