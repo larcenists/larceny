@@ -339,7 +339,7 @@
   (let ((last      (as-constants-last as))
         (newlast   (list x))
         (n         (as-constants-length as)))
-    (assert (begin 'adjoint-constant (eq? (null? last) (= n 0))))
+    (or (eq? (null? last) (= n 0)) (asm-error 'adjoin-constant "assert fail"))
     (if (null? last)
         (as-constants! as (append! (as-constants as) newlast))
         (set-cdr! last newlast))
