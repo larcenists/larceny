@@ -49,9 +49,9 @@
     ;; "md5.sch"        ;; defines syntax
     ;; "monitor.sch"    ;; defines syntax
     ("mutex.sch" tasking define-record)
-    ("nonblocking-console.sch" srfi-0)
+    ;; ("nonblocking-console.sch" srfi-0) ;; not ported to Win32 yet.
     "number.sch"
-    ("poll.sch" srfi-0)
+    ;; ("poll.sch" srfi-0) ;; not ported to Win32 yet
     "pretty.sch"
     ("queue.sch" assert)
     "random.sch"
@@ -109,12 +109,16 @@
 
 (compile-libraries-in-dir "lib/Standard/" standard-lib-files-to-compile)
 
+(require 'srfi-0) ;; for cond-expand below... hack hack!
+
 (define experimental-lib-files-to-compile
-  '(
-    ("socket.sch"          srfi-0 common-syntax foreign-ctools)
-    ("unix.sch"            srfi-0 foreign-ctools)
-    ;; ("unix-descriptor.sch" define-record)  ;; moved to lib/Broken/
-    ))
+  (append
+   '(("socket.sch"          srfi-0 common-syntax foreign-ctools))
+   (cond-expand
+    (unix '(("unix.sch"            srfi-0 foreign-ctools)))
+    (win32 '()))
+   ;; ("unix-descriptor.sch" define-record)  ;; moved to lib/Broken/
+   ))
 
 (compile-libraries-in-dir "lib/Experimental/"
                           experimental-lib-files-to-compile)
