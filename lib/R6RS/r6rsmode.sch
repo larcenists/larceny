@@ -1,7 +1,20 @@
 ; Copyright 2007 William D Clinger
 ;
 ; $Id$
-;
+
+; ERR5RS and R6RS programs may need to require or to load
+; R5RS libraries.
+
+(define r5rs:load-evaluator (load-evaluator))
+
+(define (r5rs:load . args)
+  (parameterize ((load-evaluator r5rs:load-evaluator))
+    (apply load args)))
+
+(define (r5rs:require . args)
+  (parameterize ((load-evaluator r5rs:load-evaluator))
+    (apply require args)))
+
 ; Larceny's ERR5RS and R6RS modes.
 ; Code names:
 ;     Aeryn    ERR5RS
