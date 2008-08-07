@@ -943,6 +943,10 @@
   (environment-set! larc 'raise raise)
   (environment-set! larc 'raise-continuable raise-continuable)
 
+  ;; Larceny's extensions to the R6RS exception mechanism
+
+  (environment-set! larc 'raise-r6rs-exception raise-r6rs-exception)
+
   ;; conditions
 
   (environment-set! larc '&condition &condition)

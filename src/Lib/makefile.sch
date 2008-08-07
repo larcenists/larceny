@@ -171,6 +171,7 @@
     "condition"         ; conditions
     "ecodes"            ; exception codes
     "ehandler"          ; exception handler
+    "errmsg"            ; error messages
     "error"             ; error/reset system
     "raise"             ; R6RS exception mechanism
     "timer"             ; timer interrupts
