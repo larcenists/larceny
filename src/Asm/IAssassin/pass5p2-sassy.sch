@@ -25,8 +25,7 @@
   (let ((u (as-user as)))
     (user-data.proc-counter! u 0)
     (user-data.toplevel-counter! u (+ 1 (user-data.toplevel-counter u)))
-    (user-data.local-counter! u 0)
-    (user-data.labels! u '()))
+    (user-data.local-counter! u 0))
   (reset-symbolic-label-cache!)
   (let ((e (new-proc-id as)))
     (as-source! as (cons (list $.entry e #t) (as-source as))))
@@ -101,8 +100,8 @@
   ;(begin (display code) (newline))
   (if (< (length code) 100)                 ; FIXME
       (check-for-free-ids code))
-  (sassy `(,@(map (lambda (l) `(export ,(t_label (compiled-procedure as l))))
-                  (user-data.labels (as-user as)))
+  (sassy `(,@(map (lambda (entry) `(export ,(t_label (compiled-procedure as (car entry)))))
+                  (as-labels as))
            (org  ,$bytevector.header-bytes)
            (text ,@code))
          'dont-expand))
@@ -156,19 +155,17 @@
 ; User-data structure has three fields:
 ;  toplevel-counter     Different for each compiled segment
 ;  proc-counter         A serial number for labels
-;  seen-labels          A list of labels at lower addresses
+;  [slot no longer used]
 ;  local-counter        A serial number for (local) labels
 
 (define (make-user-data) (list 0 0 '() 0 #f #f #f))
 
 (define (user-data.toplevel-counter u) (car u))
 (define (user-data.proc-counter u) (cadr u))
-(define (user-data.labels u) (caddr u))
 (define (user-data.local-counter u) (cadddr u))
 
 (define (user-data.toplevel-counter! u x) (set-car! u x))
 (define (user-data.proc-counter! u x) (set-car! (cdr u) x))
-(define (user-data.labels! u x) (set-car! (cddr u) x))
 (define (user-data.local-counter! u x) (set-car! (cdddr u) x))
 
 ;  sassy-output         <sassy-output> for code, or #f if none yet
@@ -329,8 +326,6 @@
 (define-instruction $.label
   (lambda (instruction as)
     (list-label instruction)
-    (let ((u (as-user as)))
-      (user-data.labels! u (cons (operand1 instruction) (user-data.labels u))))
     (make-asm-label as (operand1 instruction))
     (emit-sassy as ia86.t_label
                 (compiled-procedure as (operand1 instruction)))))
