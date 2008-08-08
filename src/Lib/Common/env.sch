@@ -11,12 +11,14 @@
 (define *null-environment*)
 (define *r4rs-environment*)
 (define *r5rs-environment*)
+(define *larceny-environment*)
 (define *interaction-environment*)
 
 (define (install-environments! null r4rs r5rs larceny)
   (set! *null-environment* null)
   (set! *r4rs-environment* r4rs)
   (set! *r5rs-environment* r5rs)
+  (set! *larceny-environment* (environment-copy larceny))
   (set! *interaction-environment* larceny)
   (unspecified))
 
@@ -33,6 +35,11 @@
 	(else
 	 (error "interaction-environment: too many arguments.")
 	 #t)))
+
+;; Returns environment most recently installed as the Larceny
+;; environment, as it was at install-environments! invocation
+(define (larceny-initialized-environment)
+  *larceny-environment*)
 
 (define (scheme-report-environment version)
   (case version

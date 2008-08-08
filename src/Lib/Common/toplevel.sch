@@ -539,6 +539,8 @@
   (environment-set! larc 'environment-get-macro environment-get-macro)
   (environment-set! larc 'environment-set-macro! environment-set-macro!)
   (environment-set! larc 'environment-macro? environment-macro?)
+  (environment-set! larc 'larceny-initialized-environment 
+                    larceny-initialized-environment)
 
   ;; numbers
 
