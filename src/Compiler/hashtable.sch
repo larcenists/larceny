@@ -112,7 +112,7 @@
 
 (define (make-r6rs-hashtable hash equiv? . rest)
   (define (searcher key bucket)
-    (assp equiv? key bucket))
+    (assp (lambda (x) (equiv? key x)) bucket))
   (cond ((null? rest)
          (make-oldstyle-hashtable hash searcher))
         (else
