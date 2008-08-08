@@ -28,6 +28,8 @@
 ;
 ;   OBJ       Scheme data value to transform.
 ;   DISPLAY?  Boolean, controls whether characters and strings are quoted.
+;   UNICODE?  Boolean, tells whether the output procedure is capable of
+;               printing any Unicode character.
 ;   WIDTH     Extended boolean, selects format:
 ;               #f = single line format
 ;               integer > 0 = pretty-print (value = max nb of chars per line)
@@ -49,7 +51,33 @@
 
 (let ()
 
-  (define (%generic-write obj display? width output)
+  (define (%generic-write obj display? unicode? width output)
+
+    ;; Which characters are written in hex and which are not
+    ;; is completely implementation-dependent, so long as
+    ;; get-datum can reconstruct the datum.
+    ;;
+    ;; Differences between this predicate and the rule for
+    ;; hexifying the characters of an identifier:
+    ;;     does not hexify Nd, Mc, or Me even at beginning of string
+    ;;     does not hexify Ps, Pe, Pi, or Pf
+    ;;     hexifies Co (private use)
+
+    (define (print-in-string-without-hexifying? c)
+      (let ((sv (char->integer c)))
+        (or (<= 32 sv 126)
+            (and (<= 128 sv)
+                 (not (memq (char-general-category c)
+                            '(Zs Zl Zp Cc Cf Cs Co Cn)))))))
+
+    ;; Same as above but also hexifies Mn, Mc, and Me.
+
+    (define (print-as-char-without-hexifying? c)
+      (let ((sv (char->integer c)))
+        (or (<= 32 sv 126)
+            (and (<= 128 sv)
+                 (not (memq (char-general-category c)
+                            '(Mn Mc Me Zs Zl Zp Cc Cf Cs Co Cn)))))))
 
     ; (reverse-string-append l) = (apply string-append (reverse l))
 
@@ -156,7 +184,19 @@
                                                  (< 1 n)
                                                  (char=? (string-ref s 1)
                                                          #\>))))
-                                       (else #f)))
+                                       (else
+                                        (if unicode?
+                                            (let ((cat
+                                                   (char-general-category c)))
+                                              (or (memq cat
+                                                        '(Lu Ll Lt Lm Lo
+                                                          Mn Nl No
+                                                          Pd Pc Po
+                                                          Sc Sm Sk So Co))
+                                                  (and (< 0 i)
+                                                       (memq cat
+                                                             '(Nd Mc Me)))))
+                                            #f))))
                                   (loop i (+ j 1) col))
                                  (else
                                   (let* ((col (out (substring s i j) col))
@@ -202,6 +242,10 @@
                                                       (out "\\x" col)))))))))
                                ((< k 127)
                                 (loop i (+ j 1) col))
+                               ((and (<= 128 k)
+                                     unicode?
+                                     (print-in-string-without-hexifying? c))
+                                (loop i (+ j 1) col))
                                (else
                                 (let ((col (out (substring obj i j) col))
                                       (j+1 (+ j 1))
@@ -237,6 +281,9 @@
                               ((< k 127)
                                (make-string 1 obj))
                               ((= k 127) "delete")
+                              ((and unicode?
+                                    (print-as-char-without-hexifying? obj))
+                               (make-string 1 obj))
                               (else
                                (string-append "x" (number->string k 16)))))
                       (out "#\\" col))))
@@ -292,7 +339,7 @@
         (if (or (pair? obj) (vector? obj)) ; may have to split on mult. lines
             (let ((result '())
                   (left (min (+ (- (- width col) extra) 1) max-expr-width)))
-              (%generic-write obj display? #f
+              (%generic-write obj display? unicode? #f
                               (lambda (str)
                                 (set! result (cons str result))
                                 (set! left (- left (string-length str)))
@@ -449,6 +496,8 @@
     (let ((port (if (pair? opt) (car opt) (current-output-port))))
       (%generic-write obj
                       #f
+                      (memq (transcoder-codec (port-transcoder port))
+                            '(utf-8 utf-16))
                       (line-length)
                       (lambda (s)
                         (display s port)

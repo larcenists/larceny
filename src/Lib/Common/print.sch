@@ -70,15 +70,43 @@
 
  ;FIXME: R6RS won't allow a backslash before semicolon
  ;(define funny-characters (list #\" #\\ #\;))
+
   (define funny-characters (list #\" #\\))
 
   (define ctrl-B (integer->char 2))
   (define ctrl-C (integer->char 3))
   (define ctrl-F (integer->char 6))
 
+  ;; Which characters are written in hex and which are not
+  ;; is completely implementation-dependent, so long as
+  ;; get-datum can reconstruct the datum.
+  ;;
+  ;; Differences between this predicate and the rule for
+  ;; hexifying the characters of an identifier:
+  ;;     does not hexify Nd, Mc, or Me even at beginning of string
+  ;;     does not hexify Ps, Pe, Pi, or Pf
+  ;;     hexifies Co (private use)
+
+  (define (print-in-string-without-hexifying? c)
+    (let ((sv (char->integer c)))
+      (or (<= 32 sv 126)
+          (and (<= 128 sv)
+               (not (memq (char-general-category c)
+                          '(Zs Zl Zp Cc Cf Cs Co Cn)))))))
+
+  ;; Same as above but also hexifies Mn, Mc, and Me.
+
+  (define (print-as-char-without-hexifying? c)
+    (let ((sv (char->integer c)))
+      (or (<= 32 sv 126)
+          (and (<= 128 sv)
+               (not (memq (char-general-category c)
+                          '(Mn Mc Me Zs Zl Zp Cc Cf Cs Co Cn)))))))
+
   ;; Don't print ellipsis when slashifying (that is, when
   ;; using WRITE rather than DISPLAY) because result is
   ;; being printed with intent to read it back in.
+
   (define (print x p slashify level)
     (cond ((and (not slashify)
                 (zero? level))
@@ -154,7 +182,16 @@
                                (and (char=? c #\-)
                                     (< (+ i 1) n)
                                     (char=? (string-ref s (+ i 1)) #\>))))
-                          (else #f)))
+                          (else
+                           (if (memq (transcoder-codec (port-transcoder p))
+                                     '(utf-8 utf-16))
+                               (let ((cat (char-general-category c)))
+                                 (or (memq cat
+                                           '(Lu Ll Lt Lm Lo Mn Nl No
+                                             Pd Pc Po Sc Sm Sk So Co))
+                                     (and (< 0 i)
+                                          (memq cat '(Nd Mc Me)))))
+                               #f))))
                      (write-char c p)
                      (loop (+ i 1)))
                     (else
@@ -177,6 +214,11 @@
                    (if (or (char=? c #\\)
                            (char=? c #\"))
                        (write-char #\\ p))
+                   (write-char c p))
+                  ((and (<= 128 sv)
+                        (memq (transcoder-codec (port-transcoder p))
+                              '(utf-8 utf-16))
+                        (print-in-string-without-hexifying? c))
                    (write-char c p))
                   (else
                    (write-char #\\ p)
@@ -284,6 +326,10 @@
                     (printstr (number->string k 16) p))))
             ((< k **delete**) (write-char c p))
             ((= k **delete**) (printstr "delete" p))
+            ((and (memq (transcoder-codec (port-transcoder p))
+                        '(utf-8 utf-16))
+                  (print-as-char-without-hexifying? c))
+             (write-char c p))
             (else
              (printstr "x" p)
              (printstr (number->string k 16) p)))))
