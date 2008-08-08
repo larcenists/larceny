@@ -100,7 +100,7 @@
   ;(begin (display code) (newline))
   (if (< (length code) 100)                 ; FIXME
       (check-for-free-ids code))
-  (sassy `(,@(map (lambda (entry) `(export ,(t_label (compiled-procedure as (car entry)))))
+  (sassy `(,@(map (lambda (entry) `(export ,(compiled-procedure as (car entry))))
                   (as-labels as))
            (org  ,$bytevector.header-bytes)
            (text ,@code))
@@ -125,7 +125,7 @@
                   (let* ((sym-table (sassy-symbol-table code))
                          (sassy-sym (hash-table-ref 
                                      sym-table 
-                                     (t_label (compiled-procedure as (car entry)))))
+                                     (compiled-procedure as (car entry))))
                          (offset (sassy-symbol-offset sassy-sym)))
                     (set-cdr! entry offset)))
                 (as-labels as))
