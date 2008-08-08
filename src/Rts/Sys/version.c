@@ -69,7 +69,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 96;
-char *larceny_version_qualifier = "3 \"Fluoridation\"";
+char *larceny_version_qualifier = "4+ \"Fluoridation\"";
 
 char *date = DATE " " TIME;
 char *user = USER;

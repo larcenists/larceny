@@ -132,6 +132,7 @@
 (define feature$r6path            15)
 (define feature$r6program         16)
 (define feature$unsafe            17)
+(define feature$transcoder        18)
 
 (define (sys$system-feature name)
 
@@ -266,6 +267,8 @@
      (case (get-feature feature$unsafe)
       ((0) 1)
       (else 0)))
+    ((transcoder)
+     (get-feature feature$transcoder))
     (else 
      (error "sys$system-feature: " name " is not a system feature name"))))
 

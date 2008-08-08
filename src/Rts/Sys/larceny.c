@@ -127,6 +127,7 @@ int main( int argc, char **os_argv )
   command_line_options.r6less_pedantic = 0;
   command_line_options.r6program = "";
   command_line_options.r6path = "";
+  command_line_options.transcoder = 0;
 
   if (larceny_version_qualifier[0] == '.') {
     /* If we our version qualifier starts with a period, then the
@@ -596,6 +597,26 @@ parse_options( int argc, char **argv, opt_t *o )
       else {
         param_error ( "Currently, only one path can be specified. " );
       }
+    }
+    else if (numbarg( "-transcoder", &argc, &argv, &(o->transcoder) )) {
+      if ((o->transcoder < 32) || (o->transcoder >= 128))
+        param_error( "Illegal transcoder" );
+    }
+    else if (hstrcmp( *argv, "-latin1" ) == 0) {
+      if (o->transcoder == 0)
+        o->transcoder = 33;
+      else param_error( "Only one default transcoder can be specified." );
+    }
+    else if (hstrcmp( *argv, "-utf8" ) == 0) {
+      if (o->transcoder == 0)
+        o->transcoder = 65;
+      else param_error( "Only one default transcoder can be specified." );
+    }
+    else if (hstrcmp( *argv, "-utf16" ) == 0) {
+      param_error( "UTF-16 console ports are not yet implemented." );
+      if (o->transcoder == 0)
+        o->transcoder = 97;
+      else param_error( "Only one default transcoder can be specified." );
     }
     else if (hstrcmp( *argv, "-args" ) == 0 ||
                strcmp( *argv, "--" ) == 0) {
@@ -1072,28 +1093,24 @@ static char *helptext[] = {
   "     Symbols are case-sensitive (the default; #!fold-case overrides).",
   "  -foldcase",
   "     Symbols are case-insensitive (#!no-fold-case overrides).",
+  "  -latin1",
+  "     Use Latin-1 transcoding for console io (the default).",
+  "  -utf8",
+  "     Use UTF-8 transcoding for console io.",
+  "  -utf16",
+  "     Use UTF-16 transcoding for console io (not yet implemented).",
   "  -r5rs",
   "     Enter Larceny's traditional read/eval/print loop (the default).",
   "  -err5rs",
   "     Enter an ERR5RS read/eval/print loop.",
   "  -r6rs",
   "     Execute an R6RS-style program in batch mode.",
-  "     The following options may also be specified:",
+  "     The following option should also be specified:",
   "       -program <filename>",
   "          Execute the R6RS-style program found in the file.",
-  "       -ignore1",
-  "          Ignore the first line of that file.",
-  "       -fast",
-  "          Execute the R6RS-style program as compiled code (the default).",
-  "       -slow",
-  "          Execute in Spanky mode; must be accompanied by -pedantic.",
-  "       -pedantic",
-  "          Execute in Spanky mode; must be accompanied by -slow.",
-  "       -but-not-that-pedantic",
-  "          Modifies -pedantic, which must also be specified.",
-  "  -path <directory>",
-  "     Search the directory when using require or import.",
-  "     Only one directory can be specified by a -path option.",
+  "  -path <directories>",
+  "     Search the directories when using require or import.",
+  "     Use colon (Unix) or semicolon (Windows) to separate directories.",
   "  -quiet",
   "     Suppress nonessential messages.",
   "  -nobanner",
@@ -1118,6 +1135,19 @@ static char *wizardhelptext[] = {
   "  (Wizard options below this point.)",
   "  -unsafe",
   "     Crash spectacularly when errors occur (not yet implemented).",
+  "  These five options may accompany the -r6rs option:",
+  "       -ignore1",
+  "          Ignore the first line of the file specified by -program.",
+  "       -fast",
+  "          Execute the R6RS-style program as compiled code (the default).",
+  "       -slow",
+  "          Execute in Spanky mode; must be accompanied by -pedantic.",
+  "       -pedantic",
+  "          Execute in Spanky mode; must be accompanied by -slow.",
+  "       -but-not-that-pedantic",
+  "          Modifies -pedantic, which must also be specified.",
+  "  -transcoder nn",
+  "     Use transcoder nn for console io.",
 #if !defined(BDW_GC)
   "  -annoy-user",
   "     Print a bunch of annoying debug messages, usually about GC.",

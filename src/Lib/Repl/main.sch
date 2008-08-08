@@ -46,6 +46,13 @@
           (lambda ()
             (case-sensitive? (get-feature 'case-sensitivity))))
 
+         (adjust-transcoder!
+          (lambda ()
+            (let ((t (get-feature 'transcoder)))
+              (if (and t (> t 0))
+                  (begin (default-transcoder t)
+                         (console-io/initialize))))))
+
          (adjust-safety!
           (lambda (safety)
             (case safety
@@ -123,6 +130,7 @@
       (if (herald)
           (writeln (herald)))
       (adjust-case-sensitivity!)
+      (adjust-transcoder!)
       (if (< (get-feature 'safety) 1)                     ; FIXME
           (adjust-safety! 1))                             ; FIXME
       (let ((path (get-feature 'library-path)))
@@ -137,6 +145,8 @@
      ; than enter the debugger.
 
      ((dargo)
+      (adjust-case-sensitivity!)
+      (adjust-transcoder!)
       (adjust-safety! 1)                                  ; FIXME
       (adjust-optimization! 2)                            ; FIXME
       (let ((path (get-feature 'library-path)))

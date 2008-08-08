@@ -330,6 +330,9 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
   case 17 : /* unsafe */
     vector_set( v, 0, fixnum( command_line_options.unsafe ) );
     break;
+  case 18 : /* transcoder */
+    vector_set( v, 0, fixnum( command_line_options.transcoder ) );
+    break;
   default : 
     panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
   }

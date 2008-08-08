@@ -78,6 +78,7 @@
 	  (cons 'flonum-bits            64)
 	  (cons 'flonum-representation  'ieee)
           (cons 'case-sensitivity       (not (sys$system-feature 'foldcase)))
+          (cons 'transcoder             (sys$system-feature 'transcoder))
           (cons 'safety                 (sys$system-feature 'safety))
           (cons 'execution-mode         (sys$system-feature 'execmode))
           (cons 'ignore-first-line      (sys$system-feature 'ignore1))

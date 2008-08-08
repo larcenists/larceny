@@ -950,6 +950,16 @@
 (define errmode:replace 1)
 (define errmode:raise   2)
 
+; May be redefined at startup as specified by system-features.
+; (See also command-line processing).
+
+(define default-transcoder
+  (make-parameter "default-transcoder"
+                  codec:latin-1
+                  (lambda (t)
+                    (and (fixnum? t)
+                         (<= codec:latin-1 t transcoder-mask:codec)))))
+
 ; In Larceny, *every* symbol names an end-of-line style,
 ; and *every* symbol names an error handling mode.
 

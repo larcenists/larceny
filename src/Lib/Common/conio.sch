@@ -71,9 +71,9 @@
 (define (console-io/ioproc op)
   (case op
     ((read)
-     (file-io/ioproc op))               ; wrong if console is intermittent
+     (console-io/with-retry (file-io/ioproc op)))
     ((write) 
-     (file-io/ioproc op))               ; ditto
+     (file-io/ioproc op))               ; wrong if console is intermittent
     ((close) 
      (lambda (data)
        (let ((r (osdep/close-console (file-io/fd data))))
@@ -90,17 +90,47 @@
      (error "console-io/ioproc: illegal operation: " op)
      #t)))
 
+; Retries once after an error.
+; Workaround for ^Z read errors on MacOS X.
+
+(define (console-io/with-retry proc)
+  (lambda args
+    (let ((r (apply proc args)))
+      (if (or (not (fixnum? r)) (< r 0))
+          (apply proc args)
+          r))))
+
+;(define (console-io/open-input-console)
+;  (let ((fd (osdep/open-console 'input)))
+;    (io/make-port console-io/ioproc
+;                  (file-io/data fd "*console-input*")
+;                  'input)))
+
+;(define (console-io/open-output-console)
+;  (let ((fd (osdep/open-console 'output)))
+;    (io/make-port console-io/ioproc
+;                  (file-io/data fd "*console-output*")
+;                  'output
+;                  'flush)))
+
+(define (console-transcoder)
+  (default-transcoder))
+
 (define (console-io/open-input-console)
-  (let ((fd (osdep/open-console 'input)))
-    (io/make-port console-io/ioproc
-                  (file-io/data fd "*console-input*")
-                  'input)))
+  (let* ((fd (osdep/open-console 'input))
+         (p (io/make-port console-io/ioproc
+                          (file-io/data fd "*console-input*")
+                          'binary
+                          'input)))
+    (transcoded-port p (console-transcoder))))
 
 (define (console-io/open-output-console)
-  (let ((fd (osdep/open-console 'output)))
-    (io/make-port console-io/ioproc
-                  (file-io/data fd "*console-output*")
-                  'output
-                  'flush)))
+  (let* ((fd (osdep/open-console 'output))
+         (p (io/make-port console-io/ioproc
+                          (file-io/data fd "*console-output*")
+                          'binary
+                          'output
+                          'flush)))
+    (transcoded-port p (console-transcoder))))
 
 ; eof
