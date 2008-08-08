@@ -133,7 +133,15 @@
 (define (compat:load-sassy)
   (define old-env (interaction-environment))
   (define new-env #f)
-  (set! new-env (environment-copy old-env))
+  (cond
+   ;; Guard to allow bootstrap under old Larceny versions
+   ((environment-variable? old-env 'larceny-initialized-environment)
+    (set! new-env (environment-copy (larceny-initialized-environment))))
+   (else 
+    ;; If control goes thru this path, bindings on which SRFI
+    ;; libraries rely may have been changed in interaction environment
+    ;; (by "changed", I mean "corrupted" -- see Ticket #585)
+    (set! new-env (environment-copy old-env))))
   (interaction-environment new-env)
   (for-each 
     require
