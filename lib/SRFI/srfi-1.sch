@@ -31,25 +31,38 @@
 
 (require 'srfi-0)
 
-(define larceny:map map)                ; incompatible with SRFI 1
-(define larceny:for-each for-each)      ; incompatible with SRFI 1
-(define larceny:member member)          ; incompatible with SRFI 1
-(define larceny:assoc assoc)            ; incompatible with SRFI 1
+(define-syntax save-binding
+  (syntax-rules ()
+    ((save-binding ID) 
+     (if (environment-variable? (interaction-environment) 'ID)
+         ID
+         (undefined)))))
+(define-syntax restore-binding
+  (syntax-rules ()
+    ((restore-binding ID OR-ID) 
+     (if (environment-variable? (interaction-environment) 'ID) 
+         ID 
+         OR-ID))))
 
-(define larceny:cons* cons*)
-(define larceny:make-list make-list)
-(define larceny:list-copy list-copy)    ; incompatible with SRFI 1
-(define larceny:last last)
-(define larceny:last-pair last-pair)
-(define larceny:append! append!)
-(define larceny:reverse! reverse!)
-(define larceny:reduce reduce)          ; incompatible with SRFI 1
-(define larceny:fold-right fold-right)  ; incompatible with SRFI 1
-(define larceny:filter filter)
-(define larceny:partition partition)
-(define larceny:remove remove)          ; incompatible with SRFI 1
-(define larceny:remove! remove!)        ; incompatible with SRFI 1
-(define larceny:find find)
+(define larceny:map (save-binding map))                ; incompatible with SRFI 1
+(define larceny:for-each (save-binding for-each))      ; incompatible with SRFI 1
+(define larceny:member (save-binding member))          ; incompatible with SRFI 1
+(define larceny:assoc (save-binding assoc))            ; incompatible with SRFI 1
+
+(define larceny:cons* (save-binding cons*))
+(define larceny:make-list (save-binding make-list))
+(define larceny:list-copy (save-binding list-copy))    ; incompatible with SRFI 1
+(define larceny:last (save-binding last))
+(define larceny:last-pair (save-binding last-pair))
+(define larceny:append! (save-binding append!))
+(define larceny:reverse! (save-binding reverse!))
+(define larceny:reduce (save-binding reduce))          ; incompatible with SRFI 1
+(define larceny:fold-right (save-binding fold-right))  ; incompatible with SRFI 1
+(define larceny:filter (save-binding filter))
+(define larceny:partition (save-binding partition))
+(define larceny:remove (save-binding remove))          ; incompatible with SRFI 1
+(define larceny:remove! (save-binding remove!))        ; incompatible with SRFI 1
+(define larceny:find (save-binding find))
 
 ;;; Copyright (c) 1998, 1999 by Olin Shivers. You may do as you please with
 ;;; this code as long as you do not remove this copyright notice or
@@ -1641,15 +1654,15 @@
 ;;; First we undo the redefinitions of Larceny procedures that
 ;;; the same in Larceny as in SRFI 1.
 
-(define cons* larceny:cons*)
-(define make-list larceny:make-list)
-(define last larceny:last)
-(define last-pair larceny:last-pair)
-(define append! larceny:append!)
-(define reverse! larceny:reverse!)
-(define filter larceny:filter)
-(define partition larceny:partition)
-(define find larceny:find)
+(define cons* (restore-binding larceny:cons* cons*))
+(define make-list (restore-binding larceny:make-list make-list))
+(define last (restore-binding larceny:last last))
+(define last-pair (restore-binding larceny:last-pair last-pair))
+(define append! (restore-binding larceny:append! append!))
+(define reverse! (restore-binding larceny:reverse! reverse!))
+(define filter (restore-binding larceny:filter filter))
+(define partition (restore-binding larceny:partition partition))
+(define find (restore-binding larceny:find find))
 
 ;;; Now we remember the SRFI 1 definitions that generalize
 ;;; Larceny's standard procedures.
