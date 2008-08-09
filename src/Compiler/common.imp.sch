@@ -28,7 +28,7 @@
 ; .>:fix:fix      (might not be necessary)
 ; .>=:fix:fix
 ; 
-; .--             (might not be necessary)
+; .--
 ; .+:idx:idx
 ; .-:idx:idx
 ;
@@ -649,7 +649,7 @@
       (* t1 t2)))
 
 `  ((_ larceny - (- ?e))
-    (- 0 ?e))
+    (-- ?e))
 `  ((_ larceny - (- ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 (+ ?e2 ?e3 ?e4 ...)))
@@ -998,7 +998,7 @@
 `  ((_ larceny fl- (fl- ?x))
     (let ((x ?x))
       (.check! (flonum? x) ,$ex.fl-- x)
-      (- 0.0 x)))
+      (-- x)))
 `  ((_ larceny fl- (fl- ?x ?y))
     (let ((x ?x)
           (y ?y))
