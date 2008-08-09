@@ -95,7 +95,7 @@
 ; symbol ('input' or 'output'), and tx-mode is a symbol ('text' or 'binary').
 ; A buffer is a bytevector-like structure.
 
-(define (osdep/open-file fn io-mode tx-mode)
+(define (osdep/open-file fn io-mode tx-mode . FIXME:ignored-for-now)
   (if (not (string? fn))
       (error "osdep/open-file: invalid filename " fn))
   (let ((binary-mode (if (eq? tx-mode 'binary) unix:open-binary 0)))

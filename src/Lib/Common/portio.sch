@@ -374,61 +374,6 @@
                               "wrong number of arguments"
                               (cons filename rest)))))
 
-; FIXME:  This belongs in fileio.sch, and should be implemented better.
-
-(define (file-io/open-file-input/output-port filename opts bufmode t)
-  (let ((dir (current-directory)))
-    (cond ((not t)
-           (let* ((initial-contents
-                   (call-with-port
-                    (open-file-input-port filename)
-                    get-bytevector-all))
-                  (bvport (open-input/output-bytevector initial-contents))
-                  (show
-                   (lambda ()
-                     (display " ")
-                     (write (vector-like-ref bvport 7))
-                     (newline)))
-                  (read-method
-                   (lambda (bv start count)
-                     (write (list 'reading start count))
-                     (show)
-                     (get-bytevector-n! bvport bv start count)))
-                  (write-method
-                   (lambda (bv start count)
-                     (write (list 'writing start count))
-                     (show)
-                     (put-bytevector bvport bv start count)
-                     count))
-                  (get-position-method
-                   (lambda () (port-position bvport)))
-                  (set-position-method
-                   (lambda (posn) (set-port-position! bvport posn)))
-                  (close-method
-                   (lambda ()
-                     (let* ((final-contents (get-output-bytevector bvport))
-                            (current-dir (current-directory)))
-                       (dynamic-wind
-                        (lambda () (current-directory dir))
-                        (lambda ()
-                          (call-with-port
-                           (open-file-output-port filename opts bufmode)
-                           (lambda (out)
-                             (put-bytevector out final-contents))))
-                        (lambda () (current-directory current-dir)))))))
-             (make-custom-binary-input/output-port
-              filename
-              read-method write-method
-              get-position-method set-position-method close-method)))
-          ((eq? (transcoder-codec t) 'latin-1)
-           (transcoded-port
-            (file-io/open-file-input/output-port filename opts bufmode #f)
-            t))
-          (else
-           (assertion-violation
-            'open-file-input/output-port
-            "illegal codec" t)))))
-
 (define (standard-output-port)
   (let ((fd (osdep/open-console 'output)))
     (io/make-port console-io/ioproc
@@ -576,21 +521,33 @@
             bv))
       (portio/illegal-arguments 'get-bytevector-all p)))
 
+; FIXME:  The R6RS specifications for get-string-n and
+; get-string-n! insist that (get-string-n p 0) returns
+; an end-of-file object instead of the empty string,
+; and (get-string-n! p s k 0) returns an end-of-file
+; object instead of the empty string, when p is at the
+; end of input.  I believe this is an error in the R6RS.
+
 (define (get-string-n p count)
   (if (and (input-port? p)
            (textual-port? p)
            (fixnum? count)
-           (fx<= 0 count))
+           (<= 0 count))
       (let ((out (open-output-string)))
-        (do ((count count (fx- count 1))
-             (char (peek-char p) (peek-char p)))
-            ((or (fx<= count 0) (eof-object? char))
-             (let ((s (get-output-string out)))
-               (if (> (string-length s) 0)
-                   s
-                   (eof-object))))
-          (get-char p)
-          (put-char out char)))
+        (define (loop count)
+          (cond ((<= count 0)
+                 (get-output-string out))
+                (else
+                 (let ((c (get-char p)))
+                   (cond ((eof-object? c)
+                          (let ((s (get-output-string out)))
+                            (if (= 0 (string-length s))
+                                c
+                                s)))
+                         (else
+                          (put-char out c)
+                          (loop (- count 1))))))))
+        (loop count))
       (portio/illegal-arguments 'get-string-n p count)))
 
 (define (get-string-n! p s start count)
@@ -598,19 +555,24 @@
            (textual-port? p)
            (string? s)
            (fixnum? start)
-           (fx<= 0 start)
+           (<= 0 start)
            (fixnum? count)
-           (fx<= 0 count)
-           (fx<= (fx+ start count) (string-length s)))
-      (do ((n    (fx+ start count))
-           (i    start      (fx+ i 1))
-           (char (peek-char p) (peek-char p)))
-          ((or (fx= i n) (eof-object? char))
-           (if (fx= i start)
-               (eof-object)
-               (- i start)))
-        (get-char p)
-        (string-set! s i char))
+           (<= 0 count)
+           (<= (fx+ start count) (string-length s)))
+      (let ((n (+ start count)))
+        (define (loop i)
+          (cond ((= i n)
+                 (- i start))
+                (else
+                 (let ((c (get-char p)))
+                   (cond ((eof-object? c)
+                          (if (= i start)
+                              c
+                              (- i start)))
+                         (else
+                          (string-set! s i c)
+                          (loop (+ i 1))))))))
+        (loop start))
       (portio/illegal-arguments 'get-string-n! p s start count)))
 
 (define (get-string-all p)

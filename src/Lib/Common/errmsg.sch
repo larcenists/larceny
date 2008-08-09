@@ -187,11 +187,13 @@
 (msg:zerodivide                 "zero divisor")
 (msg:fixnumshift                "fixnum shift count out of range")
 (msg:fixnumrange                "result out of fixnum range")
-(fixnum-range:idiotic-error
+(msg:fixnumrange:idiotic-error
  "the R6RS requires the third argument to be less than (fixnum-width)")
 
 (msg:incompatiblesets           "incompatible sets")
 
+(msg:nosuchfile                 "file does not exist")
+(msg:fileexists                 "output file already exists")
 (msg:openerror                  "unable to open file")
 (msg:readerror                  "read error on port")
 (msg:writeerror                 "permanent write error on port")
