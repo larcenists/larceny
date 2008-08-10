@@ -1193,8 +1193,7 @@ Lequal_rect2:
 
 /* Less-than.
  * Fixnums are done in-line.
- * Compnums and rectnums are not in the domain of this function, but compnums
- * with a 0 imaginary part are and have to be handled specially.
+ * Compnums and rectnums are not in the domain of this function.
  */
 EXTNAME(m_generic_lessp):
 	and	%RESULT, TAGMASK, %TMP0
@@ -1231,7 +1230,7 @@ Lless_bvec2:
 	cmp	%TMP1, FLONUM_HDR
 	cmp	%TMP0, COMPNUM_HDR
 	be,a	Lless_comp
-	cmp	%TMP1, COMPNUM_HDR
+	nop
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Lless_big
 	cmp	%TMP1, BIGNUM_HDR
@@ -1243,13 +1242,8 @@ Lless_flo:
 	cmp	%TMP1, COMPNUM_HDR
 	bne,a	_pcontagion
 	mov	MS_GENERIC_LESS, %TMP2
-	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f2
-	fcmpd	%f0, %f2
+	b       Lless_comp
 	nop
-	fbe,a	Lless_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
-	b	_pcontagion
-	mov	MS_GENERIC_LESS, %TMP2
 Lless_flo2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
 	fcmpd	%f2, %f4
@@ -1259,34 +1253,8 @@ Lless_flo2:
 	jmp	%o7+8
 	nop
 Lless_comp:
-	be,a	Lless_comp2
-	nop
-	/* op1 was a compnum, op2 was not. If op2 is a flonum and op1 has */
-	/* 0i, then we're fine. */
-	cmp	%TMP1, FLONUM_HDR
-	bne,a	_pcontagion
-	mov	MS_GENERIC_LESS, %TMP2
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
-	fcmpd	%f0, %f2
-	be,a	Lless_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 	b	Lnumeric_error
 	mov	EX_LESSP, %TMP0
-Lless_comp2:
-	/* op1 and op2 were both compnums; if they both have 0i, then */
-	/* we're fine. */
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
-	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
-	fcmpd	%f0, %f2
-	nop
-	fbne,a	Lnumeric_error
-	mov	EX_LESSP, %TMP0
-	fcmpd	%f0, %f4
-	nop
-	fbne,a	Lnumeric_error
-	mov	EX_LESSP, %TMP0
-	b	Lless_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 Lless_big:
 	be,a	Lless_big2
 	mov	2, %TMP1
@@ -1318,8 +1286,7 @@ Lless_rat2:
 
 /* Less-than-or-equal.
  * Fixnums are done in-line.
- * Compnums and rectnums are not in the domain of this function, but compnums
- * with a 0 imaginary part are and have to be handled specially.
+ * Compnums and rectnums are not in the domain of this function.
  */
 EXTNAME(m_generic_less_or_equalp):
 	and	%RESULT, TAGMASK, %TMP0
@@ -1356,7 +1323,7 @@ Llesseq_bvec2:
 	cmp	%TMP1, FLONUM_HDR
 	cmp	%TMP0, COMPNUM_HDR
 	be,a	Llesseq_comp
-	cmp	%TMP1, COMPNUM_HDR
+	nop
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Llesseq_big
 	cmp	%TMP1, BIGNUM_HDR
@@ -1368,13 +1335,8 @@ Llesseq_flo:
 	cmp	%TMP1, COMPNUM_HDR
 	bne,a	_pcontagion
 	mov	MS_GENERIC_LESSEQ, %TMP2
-	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f2
-	fcmpd	%f0, %f2
+	b	Llesseq_comp
 	nop
-	fbe,a	Llesseq_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
-	b	_pcontagion
-	mov	MS_GENERIC_LESSEQ, %TMP2
 Llesseq_flo2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
 	fcmpd	%f2, %f4
@@ -1384,34 +1346,8 @@ Llesseq_flo2:
 	jmp	%o7+8
 	nop
 Llesseq_comp:
-	be,a	Llesseq_comp2
-	nop
-	/* op1 was a compnum, op2 was not. If op2 is a flonum and op1 has */
-	/* 0i, then we're fine. */
-	cmp	%TMP1, FLONUM_HDR
-	bne,a	_pcontagion
-	mov	MS_GENERIC_LESSEQ, %TMP2
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
-	fcmpd	%f0, %f2
-	be,a	Llesseq_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 	b	Lnumeric_error
 	mov	EX_LESSEQP, %TMP0
-Llesseq_comp2:
-	/* op1 and op2 were both compnums; if they both have 0i, then */
-	/* we're fine. */
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
-	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
-	fcmpd	%f0, %f2
-	nop
-	fbne,a	Lnumeric_error
-	mov	EX_LESSEQP, %TMP0
-	fcmpd	%f0, %f4
-	nop
-	fbne,a	Lnumeric_error
-	mov	EX_LESSEQP, %TMP0
-	b	Llesseq_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 Llesseq_big:
 	be,a	Llesseq_big2
 	mov	2, %TMP1
@@ -1443,8 +1379,7 @@ Llesseq_rat2:
 
 /* Greater-than.
  * Fixnums are done in-line.
- * Compnums and rectnums are not in the domain of this function, but compnums
- * with a 0 imaginary part are and have to be handled specially.
+ * Compnums and rectnums are not in the domain of this function.
  */
 EXTNAME(m_generic_greaterp):
 	and	%RESULT, TAGMASK, %TMP0
@@ -1481,7 +1416,7 @@ Lgreater_bvec2:
 	cmp	%TMP1, FLONUM_HDR
 	cmp	%TMP0, COMPNUM_HDR
 	be,a	Lgreater_comp
-	cmp	%TMP1, COMPNUM_HDR
+	nop
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Lgreater_big
 	cmp	%TMP1, BIGNUM_HDR
@@ -1493,13 +1428,8 @@ Lgreater_flo:
 	cmp	%TMP1, COMPNUM_HDR
 	bne,a	_pcontagion
 	mov	MS_GENERIC_GREATER, %TMP2
-	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f2
-	fcmpd	%f0, %f2
+	b	Lgreater_comp
 	nop
-	fbe,a	Lgreater_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
-	b	_pcontagion
-	mov	MS_GENERIC_GREATER, %TMP2
 Lgreater_flo2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
 	fcmpd	%f2, %f4
@@ -1509,34 +1439,8 @@ Lgreater_flo2:
 	jmp	%o7+8
 	nop
 Lgreater_comp:
-	be,a	Lgreater_comp2
-	nop
-	/* op1 was a compnum, op2 was not. If op2 is a flonum and op1 has */
-	/* 0i, then we're fine. */
-	cmp	%TMP1, FLONUM_HDR
-	bne,a	_pcontagion
-	mov	MS_GENERIC_GREATER, %TMP2
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
-	fcmpd	%f0, %f2
-	be,a	Lgreater_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 	b	Lnumeric_error
 	mov	EX_GREATERP, %TMP0
-Lgreater_comp2:
-	/* op1 and op2 were both compnums; if they both have 0i, then */
-	/* we're fine. */
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
-	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
-	fcmpd	%f0, %f2
-	nop
-	fbne,a	Lnumeric_error
-	mov	EX_GREATERP, %TMP0
-	fcmpd	%f0, %f4
-	nop
-	fbne,a	Lnumeric_error
-	mov	EX_GREATERP, %TMP0
-	b	Lgreater_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 Lgreater_big:
 	be,a	Lgreater_big2
 	mov	2, %TMP1
@@ -1568,8 +1472,7 @@ Lgreater_rat2:
 
 /* Greater-than-or-equal
  * Fixnums are done in-line.
- * Compnums and rectnums are not in the domain of this function, but compnums
- * with a 0 imaginary part are and have to be handled specially.
+ * Compnums and rectnums are not in the domain of this function.
  */
 EXTNAME(m_generic_greater_or_equalp):
 	and	%RESULT, TAGMASK, %TMP0
@@ -1606,7 +1509,7 @@ Lgreatereq_bvec2:
 	cmp	%TMP1, FLONUM_HDR
 	cmp	%TMP0, COMPNUM_HDR
 	be,a	Lgreatereq_comp
-	cmp	%TMP1, COMPNUM_HDR
+	nop
 	cmp	%TMP0, BIGNUM_HDR
 	be,a	Lgreatereq_big
 	cmp	%TMP1, BIGNUM_HDR
@@ -1618,13 +1521,8 @@ Lgreatereq_flo:
 	cmp	%TMP1, COMPNUM_HDR
 	bne,a	_pcontagion
 	mov	MS_GENERIC_GREATEREQ, %TMP2
-	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f2
-	fcmpd	%f0, %f2
+	b	Lgreatereq_comp
 	nop
-	fbe,a	Lgreatereq_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
-	b	_pcontagion
-	mov	MS_GENERIC_GREATEREQ, %TMP2
 Lgreatereq_flo2:
 	ldd	[ %ARGREG2 - BVEC_TAG + 8 ], %f4
 	fcmpd	%f2, %f4
@@ -1634,34 +1532,8 @@ Lgreatereq_flo2:
 	jmp	%o7+8
 	nop
 Lgreatereq_comp:
-	be,a	Lgreatereq_comp2
-	nop
-	/* op1 was a compnum, op2 was not. If op2 is a flonum and op1 has */
-	/* 0i, then we're fine. */
-	cmp	%TMP1, FLONUM_HDR
-	bne,a	_pcontagion
-	mov	MS_GENERIC_GREATEREQ, %TMP2
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
-	fcmpd	%f0, %f2
-	be,a	Lgreatereq_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 	b	Lnumeric_error
 	mov	EX_GREATEREQP, %TMP0
-Lgreatereq_comp2:
-	/* op1 and op2 were both compnums; if they both have 0i, then */
-	/* we're fine. */
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
-	ldd	[ %ARGREG2 - BVEC_TAG + 16 ], %f4
-	fcmpd	%f0, %f2
-	nop
-	fbne,a	Lnumeric_error
-	mov	EX_GREATEREQP, %TMP0
-	fcmpd	%f0, %f4
-	nop
-	fbne,a	Lnumeric_error
-	mov	EX_GREATEREQP, %TMP0
-	b	Lgreatereq_flo2
-	ldd	[ %RESULT - BVEC_TAG + 8 ], %f2
 Lgreatereq_big:
 	be,a	Lgreatereq_big2
 	mov	2, %TMP1
@@ -1723,12 +1595,10 @@ Lcomplexp_vec:
 	jmp	%o7+8
 	mov	TRUE_CONST, %RESULT
 
-/* (define (real? x) 
- *   (rational? x))
- *
- * (define (rational? x)
- *   (or (and (compnum? x) (= (imag-part x) 0.0))
- *       (flonum? x)
+/* This is actually real?, not rational?.
+ * 
+ * (define (real? x)
+ *   (or (flonum? x)
  *       (ratnum? x)
  *       (integer? x)))
  */
@@ -1750,10 +1620,6 @@ Lrealp_bvec:
 	cmp	%TMP0, COMPNUM_HDR
 	bne	Lintegerp_bvec
 	nop
-	ldd	[ %RESULT - BVEC_TAG + 16 ], %f2
-	fcmpd	%f0, %f2
-	mov	TRUE_CONST, %RESULT
-	fbne,a	.+8
 	mov	FALSE_CONST, %RESULT
 Lrealp_exit:
 	jmp	%o7+8
@@ -2172,20 +2038,9 @@ EXTNAME(m_generic_imag_part):
 	mov	8-VEC_TAG, %TMP2
 
 Limag_part2:
-	/* Getting the imag part from a non-complex: return 0, with the
-	 * correct exactness. Recall that the exactness spec is in the
-	 * high bit of ARGREG3; if negative, then inexact.
+	/* Getting the imag part from a non-complex: just return 0.
 	 */
 
-	tst	%ARGREG3
-#if defined(SPARCV9)
-	blt,a	_box_flonum
-	fmovd	%f0, %f2
-#else
-	fmovs	%f0, %f2
-	blt,a	_box_flonum
-	fmovs	%f1, %f3
-#endif
 	jmp	%o7+8
 	mov	%g0, %RESULT
 
@@ -2407,16 +2262,8 @@ _box_flonum:
 /* Box the two doubles in %f2/%f3 and %f4/%f5 as a compnum.
  * Return tagged pointer in RESULT.
  * Scheme return address is in %o7.
- *
- * For now, we return a flonum if the imaginary part is zero.
- * This will probably have to change for R6RS, so leave it up
- * front where it is conspicuously inefficient and easy to find.
  */
 _box_compnum:
-	fcmpd	%f0, %f4
-	nop
-	fbe,a	_box_flonum
-	nop	
 #if !defined( BDW_GC )
 	add	%E_TOP, 24, %E_TOP
 	cmp	%E_TOP, %E_LIMIT
