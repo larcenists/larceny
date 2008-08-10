@@ -68,7 +68,7 @@
       (apply (error-handler) '() args)))
 
 (define (assertion-violation who msg . irritants)
-  (if (use-r6rs-mechanism? who msg)
+  (if (or #t (use-r6rs-mechanism? who msg)) ; FIXME
       (raise-r6rs-exception (make-assertion-violation) who msg irritants)
       (apply error who msg irritants)))
 

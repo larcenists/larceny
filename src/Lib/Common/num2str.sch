@@ -40,13 +40,12 @@
     (define (compnum->string x radix)
       (let ((r (real-part x))
 	    (i (imag-part x)))
-	(cond ((= i 0.0)
-	       (flonum->string r radix))
-	      ; FIXME: could convert to rectnum, then do #i.
-	      ((not (= radix 10))
-	       (error "number->string: can't do complexes in non-10 radix: " 
-		      x)
-	       #t)
+	(cond ((not (= radix 10))
+               ; FIXME: doesn't handle infinities, NaNs, 0.0+0.0i
+	       (string-append "#i"
+                              (number->string
+                               (make-rectangular (inexact->exact r)
+                                                 (inexact->exact i)))))
 	      (else
 	       ; A little mysterious, to deal with +/-inf.0, +nan.0
 	       (let ((rr (flonum->string r 10))

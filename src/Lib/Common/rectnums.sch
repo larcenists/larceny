@@ -94,13 +94,13 @@
 
 (define (rectnum->string r radix)
   (if (negative? (rectnum-imag-part r))
-      (string-append (number->string (rectnum-real-part r))
+      (string-append (number->string (rectnum-real-part r) radix)
 		     "-"
-		     (number->string (- (rectnum-imag-part r)))
+		     (number->string (- (rectnum-imag-part r)) radix)
 		     "i")
-      (string-append (number->string (rectnum-real-part r))
+      (string-append (number->string (rectnum-real-part r) radix)
 		     "+"
-		     (number->string (rectnum-imag-part r))
+		     (number->string (rectnum-imag-part r) radix)
 		     "i")))
 
 (define (rectnum-add x y) 

@@ -75,8 +75,9 @@
     #t)
 
   (define (oops-in-predicate a b retry)
-    (error "INTERNAL ERROR in pcontagion: illegal comparison: "
-	   "ops = " a ", " b "; code=" (contagion-error-code retry))
+    (assertion-violation (contagion-error-proc (contagion-error-code retry))
+                         (errmsg 'msg:notreal)
+                         a b)
     #t)
 
   (define (fun f1 f2)
@@ -114,16 +115,12 @@
         ; must be a ratnum, so return it
 	a))
 
-  (define (->flo a)			; 'a' flonum, compnum w/0i, bignum
+  (define (->flo a)			; 'a' flonum, bignum
     (if (bytevector-like? a)
 	(let ((t (typetag a)))
 	  (cond ((eq? t sys$tag.flonum-typetag) a)
 		((eq? t sys$tag.bignum-typetag) 
 		 (exact->inexact:rational a))
-		((eq? t sys$tag.compnum-typetag)
-		 (if (zero? (imag-part a))
-		     a
-		     #f))
 		(else
 		 #f)))
 	#f))
@@ -175,7 +172,7 @@
   ; Algorithm* for ordering predicates (<, <=, >, >=): if both are
   ; representable as exact integers, represent as bignums and compare. 
   ; Otherwise represent as flonums and compare.  One of the arguments
-  ; is a bignum, the other is a flonum or compnum.  Compnums with non-zero
+  ; is a bignum, the other is a flonum.  Compnums with non-zero
   ; imaginary parts are illegal and flagged as such.
 
   (define (algorithm*p a b retry)
@@ -201,7 +198,7 @@
   ; representable as exact rationals, represent as such and compare. 
   ; Otherwise the other involves an infinity or NaN, so 0.0 can be
   ; substituted for the ratnum.
-  ; One of the arguments is a ratnum, the other is a flonum or compnum.
+  ; One of the arguments is a ratnum, the other is a flonum.
   ; Compnums with non-zero imaginary parts are illegal
   ; and flagged as such.
 

@@ -424,12 +424,12 @@
 (define (make-rectangular a b) 
 
   (define (construct-compnum a b)
-    (if (= b 0.0)
+    (if (and (exact? b) (= b 0))
 	a
 	(make-compnum a b)))
 
   (define (construct-rectnum a b)
-    (if (= b 0)
+    (if (and (exact? b) (= b 0))
 	a
 	(make-rectnum a b)))
 
@@ -443,6 +443,8 @@
 		(if (= 0.0 (imag-part b))
 		    (construct-compnum a (real-part b))
 		    (fail b)))
+               ((and (exact? b) (= b 0))
+                a)
 	       (else
 		(make-rectangular a (exact->inexact b)))))
 	((compnum? a) 
@@ -475,7 +477,7 @@
 (define (rational-valued? obj)
   (and (number? obj)
        (zero? (imag-part obj))
-       (finite? obj)))
+       (finite? (real-part obj))))
 
 (define (integer-valued? obj)
   (and (number? obj)

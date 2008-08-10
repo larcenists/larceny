@@ -530,8 +530,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
 ; mc_greater_or_equalp
 ;
 ; Fixnums are done in-line.
-; Compnums and rectnums are not in the domain of this function, but compnums
-; with a 0 imaginary part are and have to be handled specially.
+; Compnums and rectnums are not in the domain of this function.
 
 (define (order-not-equal name name2 op)
   (expand-template
@@ -572,8 +571,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
       (false "globals[ G_RESULT ] = FALSE_CONST;"))
   (unary-decision-tree
    "mc_rationalp" "0/* none */"
-   true true
-   (string-append "if (compnum_imag( x ) == 0.0) " true " else " false)
+   true true false
    true true false #f false))
 
 (let ((true "globals[ G_RESULT ] = TRUE_CONST;")
@@ -584,9 +582,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
    "double v = flonum_val( x );
 setcc( is_integer( v ) && is_rational( v ) );
 "
-   "double v = flonum_val( x );
-setcc( compnum_imag(x) == 0.0 && is_integer( v ) );
-"
+   false
    true false false #f false))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -643,7 +639,7 @@ setcc( compnum_imag(x) == 0.0 && is_integer( v ) );
 (unary-decision-tree
  "mc_imag_part" "EX_IMAGPART"
  "globals[ G_RESULT ] = fixnum(0);"
- "ga_box_flonum( globals, 0.0 );"  ; FIXME?
+ "globals[ G_RESULT ] = fixnum(0);"
  "ga_box_flonum( globals, compnum_imag( x ) );"
  "globals[ G_RESULT ] = fixnum(0);"
  "globals[ G_RESULT ] = fixnum(0);"
@@ -796,7 +792,7 @@ static void ga_box_compnum( word *globals, double r, double i )
    * This will probably have to change for R6RS, so leave it up
    * front where it is conspicuously inefficient and easy to find.
    */
-  if (i == 0.0 && (1.0/i == posinf)) {
+  if (0 && i == 0.0 && (1.0/i == posinf)) {
     ga_box_flonum( globals, r );
   } else {
     globals[ G_RESULT ] = fixnum(6*sizeof(word));

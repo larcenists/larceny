@@ -187,18 +187,18 @@
          -inf.0)
    (test "Ticket #33 (1)"               ; Bug in Larceny through 0.90
          (/ (hide 3+4.5i) (hide 3+4.5i))
-         1.0)
+         1.0+0.0i)
    (test "Ticket #33 (2)"               ; Bug in Larceny through 0.90
          (/ (hide 4.5+3i) (hide 4.5+3i))
-         1.0)
+         1.0+0.0i)
    (test "Ticket #33 (3)"               ; Bug in Larceny through 0.90
          (number->string (hide (/ (hide +3.0i) (hide +3.0i))))
-         "1.0")
+         "1.0+0.0i")
    (test "Ticket #33 (4)"               ; Bug in Larceny through 0.90
-         (flonum? (/ (hide 3+4.5i) (hide 3+4.5i)))
+         (compnum? (/ (hide 3+4.5i) (hide 3+4.5i)))
          #t)
    (test "Ticket #33 (5)"               ; Bug in Larceny through 0.90
-         (flonum? (/ (hide 4.5+3i) (hide 4.5+3i)))
+         (compnum? (/ (hide 4.5+3i) (hide 4.5+3i)))
          #t)
    ; Long-time latent bug in Larceny through 0.91,
    ; discovered during reimplementation of multiple values for 0.92.
