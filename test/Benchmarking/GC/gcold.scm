@@ -3,6 +3,7 @@
 ;------------------------------------------------------------------------------
 
 (define (run-bench name count ok? run)
+  (display name) (newline)
   (let loop ((i 0) (result (list 'undefined)))
     (if (< i count)
       (loop (+ i 1) (run))
