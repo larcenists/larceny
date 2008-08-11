@@ -70,7 +70,7 @@
   do { word T_obj = *loc;                                         \
        if (isptr( T_obj )) {                                      \
           unsigned T_obj_gen = gen_of(T_obj);                     \
-          if ( gset_range_memberp( T_obj_gen, (genset))) {        \
+          if ( gset_memberp( T_obj_gen, (genset))) {        \
             forw_core_np( T_obj, loc, dest, lim, e );             \
           }                                                       \
           if (T_obj_gen < (old_obj_gen)) has_intergen_ptr=1;      \

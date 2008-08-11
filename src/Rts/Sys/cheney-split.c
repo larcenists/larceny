@@ -45,7 +45,7 @@
 
 #define forw_oflo2( loc, genset, dest, dest2, lim, lim2, e )          \
   do { word T_obj = *loc;                                                     \
-       if (isptr( T_obj ) && gset_range_memberp( gen_of(T_obj), (genset))) {   \
+       if (isptr( T_obj ) && gset_memberp( gen_of(T_obj), (genset))) {   \
           forw_core2( T_obj, loc, dest, dest2, lim, lim2, e, forw_limit_gen ); \
        }                                                                       \
   } while( 0 )
