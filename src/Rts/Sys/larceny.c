@@ -472,7 +472,10 @@ parse_options( int argc, char **argv, opt_t *o )
 {
   int i, loc, prev_size, areas = DEFAULT_AREAS;
   int mark_period;
+  double popular_factor = 0.0;
   double refine_factor = 0.0;
+  double sumz_budget = 0.0;
+  double sumz_coverage = 0.0;
 #if defined( BDW_GC )
   double load_factor = 0.0;                   /* Ignore it. */
 #else
@@ -533,6 +536,18 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (doublearg( "-refinement", &argc, &argv, &refine_factor)) {
       o->gc_info.has_refine_factor = TRUE;
       o->gc_info.refinement_factor = refine_factor;
+    }
+    else if (doublearg( "-sumzbudget", &argc, &argv, &sumz_budget)) {
+      o->gc_info.has_sumzbudget = TRUE;
+      o->gc_info.sumzbudget = sumz_budget;
+    }
+    else if (doublearg( "-sumzcoverage", &argc, &argv, &sumz_coverage)) {
+      o->gc_info.has_sumzcoverage = TRUE;
+      o->gc_info.sumzcoverage = sumz_coverage;
+    }
+    else if (doublearg( "-popularity", &argc, &argv, &popular_factor)) {
+      o->gc_info.has_popularity_factor = TRUE;
+      o->gc_info.popularity_factor = popular_factor;
     }
     else if (hstrcmp( *argv, "-print_float_stats_cycle" ) == 0)
       o->gc_info.print_float_stats_cycle = TRUE;
