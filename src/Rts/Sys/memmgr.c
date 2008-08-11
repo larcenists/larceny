@@ -2809,6 +2809,27 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   return gen_no;
 }
 
+static word last_origin_ptr_added = 0;
+static void points_across_callback( gc_t *gc, word lhs, word rhs ) 
+{
+  int g_lhs = gen_of(lhs);
+  int g_rhs = gen_of(rhs);
+  assert2( g_lhs != 0 ); /* gf_filter_remset_lhs == 0 */
+  if (! gc_is_nonmoving( gc, g_rhs )) {
+    {
+      assert2(g_lhs > 0);
+      assert2(g_rhs >= 0);
+      assert2(gc->major_remset != NULL);
+
+      /* enqueue lhs in remset. */
+      if (last_origin_ptr_added != lhs) {
+        rs_add_elem_new( gc->major_remset[g_lhs], lhs );
+        last_origin_ptr_added = lhs;
+      }
+    }
+  }
+}
+
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 {
   gc_data_t *data;
@@ -2902,7 +2923,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 maximum_allotted,
 		 is_nonmoving, 
 		 is_address_mapped,
-		 my_check_remset_invs
+		 my_check_remset_invs,
+		 points_across_callback
 		 );
   ret->scan_update_remset = info->is_regional_system;
   return ret;
