@@ -550,13 +550,13 @@ Sys/bdw-stats.$(O): Sys/stats.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/bdw-ffi.$(O): Sys/ffi.c $(LARCENY_H)
 Sys/callback.$(O): $(LARCENY_H)
-Sys/cheney.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h $(GCLIB_H) \\
+Sys/cheney.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
 	$(LOS_T_H) $(MEMMGR_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(STATS_H) \\
 	Sys/cheney.h
-Sys/cheney-np.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h $(GCLIB_H) \\
+Sys/cheney-np.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
 	$(LOS_T_H) $(MEMMGR_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) \\
 	Sys/cheney.h
-Sys/cheney-split.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h $(GCLIB_H) \\
+Sys/cheney-split.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
 	$(LOS_T_H) $(MEMMGR_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) \\
 	Sys/cheney.h
 Sys/cheney-check.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h $(GCLIB_H) \\
@@ -565,13 +565,13 @@ Sys/cheney-check.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h $(GCLIB_H) \\
 Sys/ffi.$(O): $(LARCENY_H)
 Sys/gc.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(HEAPIO_H) $(SEMISPACE_T_H) \\
 	$(STATIC_HEAP_T_H)
-Sys/gc_t.$(O): $(LARCENY_H) Sys/gc_t.h
+Sys/gc_t.$(O): $(LARCENY_H) Sys/gc_t.h Sys/gset_t.h
 Sys/heapio.$(O): $(LARCENY_H) $(HEAPIO_H) $(SEMISPACE_T_H) $(GCLIB_H)
 Sys/larceny.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(STATS_H) $(YOUNG_HEAP_T_H)
 Sys/ldebug.$(O): $(LARCENY_H)
 Sys/los.$(O): $(LARCENY_H) $(GCLIB_H) $(LOS_T_H)
 Sys/malloc.$(O): $(LARCENY_H)
-Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
+Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
 	$(STATS_H) $(HEAPIO_H) $(LOS_T_H) $(MEMMGR_H) \\
 	$(OLD_HEAP_T_H) $(REMSET_T_H) $(SEMISPACE_T_H) \\
 	$(STACK_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
@@ -605,7 +605,7 @@ Sys/static-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) $(STATS_H) \\
 Sys/stats.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/summary.$(O): $(LARCENY_H) Sys/summary_t.h
-Sys/summ_matrix.$(O): $(LARCENY_H) Sys/summ_matrix_t.h
+Sys/summ_matrix.$(O): $(LARCENY_H) Sys/gset_t.h Sys/summ_matrix_t.h
 Sys/syscall.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/primitive.$(O): $(LARCENY_H)  Sys/gc_t.h $(SIGNALS_H) $(STATS_H)
 Sys/osdep-unix.$(O): $(LARCENY_H) Sys/gc_t.h
