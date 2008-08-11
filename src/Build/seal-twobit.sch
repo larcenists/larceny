@@ -114,6 +114,7 @@
     compiler-flags
     global-optimization-flags
     runtime-safety-flags
+    compile-despite-errors
     issue-warnings
     include-procedure-names
     include-source-code

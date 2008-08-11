@@ -426,12 +426,12 @@
                     (fun id bignum->rectnum)
 		    (fun id ratnum->rectnum)
                     oops
-                    (fun id flonum->ratnum)      ;FIXME
+                    (fun id flonum->ratnum)
                     oops-in-predicate)
 	    (vector (fun id fixnum->flonum)
                     algorithm*p 
 		    algorithm*pratnum
-		    (fun flonum->compnum rectnum->compnum) ;FIXME
+		    (fun flonum->ratnum id)
 		    oops
                     oops-in-predicate)
 	    (vector oops-in-predicate

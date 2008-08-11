@@ -39,6 +39,9 @@
   
 ; Debugging and convenience.
 
+(define compile-despite-errors
+  (make-twobit-flag 'compile-despite-errors))
+
 (define issue-warnings
   (make-twobit-flag 'issue-warnings))
 
@@ -151,7 +154,8 @@
     #t))
 
 (define (twobit-all-flags)
-  (let ((i.w   (issue-warnings))
+  (let ((c.d.e (compile-despite-errors))
+        (i.w   (issue-warnings))
         (i.s.c (include-source-code))
         (i.v.n (include-variable-names))
         (i.p.n (include-procedure-names))
@@ -169,6 +173,7 @@
         (r.i   (representation-inference))
         (lo.o   (local-optimization)))
     (lambda ()
+      (compile-despite-errors c.d.e)
       (issue-warnings i.w)
       (include-source-code i.s.c)
       (include-variable-names i.v.n)
@@ -207,7 +212,8 @@
      (common-subexpression-elimination #f)
      (representation-inference #f)
      (local-optimization #f))
-    ((standard) 
+    ((standard)
+     (compile-despite-errors #t)
      (issue-warnings #t)
      (include-source-code #f)
      (include-procedure-names #t)
@@ -229,6 +235,7 @@
     ((fast-safe)
      (let ((bbmode (benchmark-block-mode)))
        (set-compiler-flags! 'standard)
+       (compile-despite-errors #f)
        (integrate-procedures 'larceny)
        (benchmark-mode #t)
        (benchmark-block-mode bbmode)))
@@ -241,6 +248,7 @@
 (define (display-twobit-flags which)
   (case which
     ((debugging)
+     (display-twobit-flag compile-despite-errors)
      (display-twobit-flag issue-warnings)
      (display-twobit-flag include-procedure-names)
      (display-twobit-flag include-variable-names)

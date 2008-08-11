@@ -100,7 +100,7 @@ void EXPORT @name@( word *globals, cont_t k )
     h1 = header_byte( x, BVEC_TAG );
     h2 = header_byte( y, BVEC_TAG );
     if (h1 == FLONUM_HDR) {
-      if (h2 == FLONUM_HDR || h2 == COMPNUM_HDR && compnum_imag( y ) == 0.0) {
+      if (h2 == FLONUM_HDR) {
 	@flonum+flonum@
       }
       else
@@ -109,9 +109,6 @@ void EXPORT @name@( word *globals, cont_t k )
     else if (h1 == COMPNUM_HDR) {
       if (h2 == COMPNUM_HDR) {
 	@compnum+compnum@
-      }
-      else if (h2 == FLONUM_HDR && compnum_imag( x ) == 0.0) {
-	@flonum+flonum@
       }
       else
 	goto mixed;
@@ -650,13 +647,7 @@ setcc( is_integer( v ) && is_rational( v ) );
  "mc_round" "EX_ROUND"
  #f					; fixnum - nothing
  "double v = flonum_val( x ); ga_box_flonum( globals, round_to_even( v ) );"
-"if (compnum_imag( x ) == 0.0) {
-  double v = flonum_val( x ); 
-  ga_box_flonum( globals, round_to_even( v ) );
-}
-else
-  goto error;
-"
+ "goto error;"                          ; compnum
  #f					; bignum - nothing
  "generic_unary_operation( globals, MS_RATNUM_ROUND, k );"  ; ratnum
  "goto error;"				; rectnum
@@ -667,14 +658,7 @@ else
  "mc_truncate" "EX_TRUNC"
  #f
  "double v = flonum_val( x ); ga_box_flonum( globals, round_to_zero( v ) );"
-"
-if (compnum_imag( x ) == 0.0) {
-  double v = flonum_val( x ); 
-  ga_box_flonum( globals, round_to_zero( v ) );
-}
-else
-  goto error;
-"
+ "goto error;"                          ; compnum
  #f 
  "generic_unary_operation( globals, MS_RATNUM_TRUNCATE, k );"
  "goto error;"
@@ -784,25 +768,13 @@ static void ga_box_flonum( word *globals, double d )
 static void ga_box_compnum( word *globals, double r, double i )
 {
   word *p;
-  double one = 1.0;
-  double zero = 0.0;
-  double posinf = one/zero; /* Microsoft has issues with 1.0/0.0 ... */
-  /* 
-   * For now, we return a flonum if the imaginary part is +0.0.
-   * This will probably have to change for R6RS, so leave it up
-   * front where it is conspicuously inefficient and easy to find.
-   */
-  if (0 && i == 0.0 && (1.0/i == posinf)) {
-    ga_box_flonum( globals, r );
-  } else {
-    globals[ G_RESULT ] = fixnum(6*sizeof(word));
-    mc_alloc_bv( globals );
-    p = (word*)globals[ G_RESULT ];
-    *p = mkheader( 5*sizeof(word), COMPNUM_HDR );
-    *(double*)(p+2) = r;
-    *(double*)(p+4) = i;
-    globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
-  }
+  globals[ G_RESULT ] = fixnum(6*sizeof(word));
+  mc_alloc_bv( globals );
+  p = (word*)globals[ G_RESULT ];
+  *p = mkheader( 5*sizeof(word), COMPNUM_HDR );
+  *(double*)(p+2) = r;
+  *(double*)(p+4) = i;
+  globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
 }
 
 "

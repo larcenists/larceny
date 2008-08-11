@@ -321,15 +321,34 @@
   (define (loop1 formals actuals rev-formals rev-actuals rev-for-effect)
     (cond ((null? formals)
            (if (not (null? actuals))
-               (pass2-error p2error:wna (make-readable exp #f)))
-           (return1 rev-formals rev-actuals rev-for-effect))
+               (begin (pass2-error p2error:wna (make-readable exp #f))
+                      (return1 rev-formals
+                               (map (lambda (x) (make-constant #f))
+                                    rev-formals)
+                               (cons (make-call-to-TRAP p2error:wna)
+                                     (append (reverse actuals)
+                                             (append rev-actuals
+                                                     rev-for-effect)))))
+               (return1 rev-formals rev-actuals rev-for-effect)))
           ((symbol? formals)
            (return1 (cons formals rev-formals)
                     (cons (make-call-to-LIST actuals) rev-actuals)
                     rev-for-effect))
           ((null? actuals)
            (pass2-error p2error:wna (make-readable exp #f))
-           (return1 rev-formals rev-actuals rev-for-effect))
+           (let* ((all-formals
+                   (append (reverse (make-null-terminated formals))
+                                    rev-formals))
+                  (fake-actuals
+                   (map (lambda (x) (make-constant #f))
+                        all-formals)))
+             (return1 all-formals
+                      (if (list? formals)
+                          fake-actuals
+                          (reverse (cons (make-constant '())
+                                         (cdr fake-actuals))))
+                      (cons (make-call-to-TRAP p2error:wna)
+                            (append rev-actuals rev-for-effect)))))
           ((ignored? (car formals))
            (loop1 (cdr formals)
                   (cdr actuals)
@@ -434,15 +453,36 @@
   (define (loop1 formals actuals processed-formals processed-actuals)
     (cond ((null? formals)
            (if (not (null? actuals))
-               (pass2-error p2error:wna (make-readable exp #t)))
-           (return1 processed-formals processed-actuals))
+               (begin (pass2-error p2error:wna (make-readable exp #t))
+                      (return1 (cons name:IGNORED processed-formals)
+                               (cons (make-begin
+                                      (append
+                                       (reverse processed-actuals)
+                                       actuals
+                                       (list
+                                        (make-call-to-TRAP p2error:wna))))
+                                     (map (lambda (x) (make-constant #f))
+                                          processed-actuals))))
+               (return1 processed-formals processed-actuals)))
           ((symbol? formals)
            (return1 (cons formals processed-formals)
                     (cons (make-call-to-LIST actuals) processed-actuals)))
           ((null? actuals)
            (pass2-error p2error:wna (make-readable exp #t))
-           (return1 processed-formals
-                    processed-actuals))
+           (let* ((rev-formals (append (reverse (make-null-terminated formals))
+                                       processed-formals))
+                  (fake-actuals
+                   (map (lambda (x) (make-constant #f))
+                        (cdr rev-formals)))
+                  (for-effect
+                   (make-begin
+                    (reverse (cons (make-call-to-TRAP p2error:wna)
+                                   processed-actuals)))))
+             (return1 rev-formals
+                      (cons (if (list? formals)
+                                for-effect
+                                (make-call-to-LIST (list for-effect)))
+                            fake-actuals))))
           ((and (lambda? (car actuals))
                 (let ((Rinfo (R-lookup (lambda.R proc) (car formals))))
                   (and (null? (R-entry.assignments Rinfo))
@@ -655,11 +695,37 @@
                                       (list
                                        (make-call-to-LIST
                                         (list-tail (call.args call) n)))))
-                             (pass2-error p2error:wna
-                                          (make-readable call #t))))
+                             (begin
+                              (pass2-error p2error:wna
+                                           (make-readable call #t))
+                              (call.args-set!
+                               call
+                               (reverse
+                                (cons (make-call-to-LIST
+                                       (list
+                                        (make-begin
+                                         (append
+                                          (call.args call)
+                                          (list
+                                           (make-call-to-TRAP p2error:wna))))))
+                                      (map (lambda (x) (make-constant #f))
+                                           (cdr newformals))))))))
                        calls)))
-          (else (let ((n (length formals)))
-                  (for-each (lambda (call)
-                              (if (not (= (length (call.args call)) n))
-                                  (pass2-error p2error:wna call)))
-                            calls))))))
+          (else
+           (let ((n (length formals)))
+             (for-each (lambda (call)
+                         (if (not (= (length (call.args call)) n))
+                             (let ((trap (make-call-to-TRAP p2error:wna)))
+                               (pass2-error p2error:wna call)
+                               (if (= n 0)
+                                   (call.proc-set!
+                                    call
+                                    (make-begin (list trap (call.proc call))))
+                                   (call.args-set!
+                                    call
+                                    (cons (make-begin
+                                           (append (call.args call)
+                                                   (list trap)))
+                                          (map (lambda (x) (make-constant #f))
+                                               (cdr formals))))))))
+                       calls))))))

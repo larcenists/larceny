@@ -1,10 +1,54 @@
 (library (larceny compiler)
   (export load require current-require-path
-          compile-file compile-library compile-stale-libraries)
+          compile-file compile-library compile-stale-libraries
+          compiler-switches
+          compile-despite-errors
+          issue-warnings
+          include-procedure-names include-variable-names include-source-code
+          avoid-space-leaks runtime-safety-checking catch-undefined-globals
+          integrate-procedures
+          control-optimization
+          parallel-assignment-optimization
+          lambda-optimization
+          benchmark-mode
+          global-optimization
+          interprocedural-inlining
+          interprocedural-constant-propagation
+          common-subexpression-elimination
+          representation-inference
+          local-optimization
+          peephole-optimization
+          inline-allocation
+          inline-assignment
+          optimize-c-code)
   (import (rnrs base)
           (err5rs load)
           (primitives require current-require-path
-                      compile-r6rs-file compile-stale-libraries))
+                      compile-r6rs-file compile-stale-libraries
+                      compiler-switches
+                      compile-despite-errors
+                      issue-warnings
+                      include-procedure-names
+                      include-variable-names
+                      include-source-code
+                      avoid-space-leaks
+                      runtime-safety-checking
+                      catch-undefined-globals
+                      integrate-procedures
+                      control-optimization
+                      parallel-assignment-optimization
+                      lambda-optimization
+                      benchmark-mode
+                      global-optimization
+                      interprocedural-inlining
+                      interprocedural-constant-propagation
+                      common-subexpression-elimination
+                      representation-inference
+                      local-optimization
+                      peephole-optimization
+                      inline-allocation
+                      inline-assignment
+                      optimize-c-code))
 
   (define (compile-file src . rest)
     (compile-file-shared src rest #f))

@@ -6,11 +6,6 @@
 
 ($$trace "number")
 
-; FIXME:  This could be computed by (acos -1.0)
-; if it were defined after acos.
-
-(define *pi* 3.14159265358979323846)           ; from <math.h>
-
 (define (rational? obj)
   (and (real? obj)
        (or (exact? obj)
@@ -27,7 +22,10 @@
        n)))
 
 (define min
-  (letrec ((min (lambda (x . y) (loop y x (exact? x))))
+  (letrec ((min (lambda (x . y)
+                  (if (<= x x)
+                      (loop y x (exact? x))
+                      x)))
            (loop (lambda (y x exact)
                    (if (null? y)
                        x
@@ -42,7 +40,10 @@
     min))
  
 (define max
-  (letrec ((max (lambda (x . y) (loop y x (exact? x))))
+  (letrec ((max (lambda (x . y)
+                  (if (<= x x)
+                      (loop y x (exact? x))
+                      x)))
            (loop (lambda (y x exact)
                    (if (null? y)
                        x
@@ -105,7 +106,7 @@
         ((null? (cddr args))
          (let ((x (abs (car args)))
                (y (abs (cadr args))))
-           (* x (quotient y (gcd x y)))))
+           (* x (quotient y (max 1 (gcd x y))))))
         (else (apply lcm
                      (cons (lcm (car args) (cadr args))
                            (cddr args))))))
@@ -357,6 +358,13 @@
 	((and (real? z)
 	      (<= -1.0 z 1.0))
 	 (flonum:asin (exact->inexact z)))
+        ((or (and (real? z)
+                  (< z -1.0))
+             (let ((y (imag-part z)))
+               (or (> y 0)
+                   (and (= y 0)
+                        (< (real-part z) 0)))))
+         (- (asin (- z))))
 	(else
 	 (* -1.0i (log (+ (* +1.0i z) (sqrt (- 1 (* z z)))))))))
 
@@ -368,7 +376,7 @@
 	      (<= -1.0 z 1.0))
 	 (flonum:acos (exact->inexact z)))
 	(else
-	 (- (/ *pi* 2) (asin z)))))
+         (- (/ (acos -1.0) 2.0) (asin z)))))
 
 (define (atan z . rest)
   (if (null? rest)
