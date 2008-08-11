@@ -544,6 +544,7 @@ void EXPORT mc_partial_barrier( word *globals )
   ssbtopv = (word**)globals[ G_SSBTOPV ];
   ssblimv = (word**)globals[ G_SSBLIMV ];
 
+  /* TODO: if (lhs == **ssbtopv) then no need to enqueue. */
   **ssbtopv = lhs;
   *ssbtopv = (*ssbtopv)+1;
   if (*ssbtopv == *ssblimv) 
