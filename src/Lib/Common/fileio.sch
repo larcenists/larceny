@@ -189,7 +189,7 @@
                     (initial-contents
                      (if (bytevector? initial-contents)
                          initial-contents
-                         '#vu8()))
+                         (make-bytevector 0)))
                     (bvport (open-input/output-bytevector initial-contents))
                     (show
                      (lambda ()
