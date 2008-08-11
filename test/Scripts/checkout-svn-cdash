@@ -223,7 +223,6 @@ esac
 
 # Perhaps add more to this, like the hour and minute?
 TODAY=`date +%Y-%m-%d` 
-YESTERDAY_DIR=`ls -trd *-${DIRNAME}-${TRACK}-*[0-9] | tail -1`
 DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TRACK}-${TODAY}
 MY_CDASHUPDATELOG="${DIR}/cdash-update-sub.xml"
 MY_CDASHCONFIGLOG="${DIR}/cdash-config-sub.xml"
@@ -240,8 +239,11 @@ LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
 TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
 COMPILE_STDLIB_SCRIPT="src/Build/compile-standard-libraries.sch"
 
+pushd ${HOME}/larcenytest
+YESTERDAY_DIR=`ls -trd *-${DIRNAME}-${TRACK}-*[0-9] | tail -1`
 echo compressing ${YESTERDAY_DIR} to ${YESTERDAY_DIR}.tar.gz
 tar czf ${YESTERDAY_DIR}.tar.gz ${YESTERDAY_DIR} && rm -rf ${YESTERDAY_DIR}
+popd
 
 mkdir -p ${DIR}
 
