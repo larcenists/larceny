@@ -423,8 +423,13 @@ void rs_enumerate( remset_t *rs,
     while (p < q) {
       if (*p != 0) {
 #if !GCLIB_LARGE_TABLE		/* These attributes not defined then */
-	assert2( (attr_of(*p) & (MB_ALLOCATED|MB_HEAP_MEMORY)) ==
-		 (MB_ALLOCATED|MB_HEAP_MEMORY) );
+#ifndef NDEBUG2
+	if ( (attr_of(*p) & (MB_ALLOCATED|MB_HEAP_MEMORY)) !=
+	     (MB_ALLOCATED|MB_HEAP_MEMORY) ) {
+	  assert2(attr_of(*p) & MB_ALLOCATED);
+	  assert2(attr_of(*p) & MB_HEAP_MEMORY);
+	}
+#endif 
 #endif
 	if (!scanner( *p, data, &word_count )) {
 	  /* Clear the slot by setting the pointer to 0. */
