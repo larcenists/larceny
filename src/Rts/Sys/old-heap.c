@@ -205,7 +205,7 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
        * FIXME: this may reflect a mistake in the control structure;
        * perhaps rs_enumerate should not be flushing the SSB.
        */
-      process_seqbuf( heap->collector, heap->collector->ssb );
+      process_seqbuf( heap->collector, heap->collector->ssb[rgn_idx] );
       
       rs_clear( heap->collector->remset[ rgn_idx ] );
       rs_clear( heap->collector->major_remset[ rgn_idx ] );

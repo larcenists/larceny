@@ -42,12 +42,12 @@ struct gc {
        These remsets track region-crossing pointers due to collector activity.
        */
 
-  seqbuf_t *ssb;
-    /* The sequential store buffer (SSB) for all regions.
-       The write barrier inserts pointers into the SSB, and 
-       when its full, the SSB processing function determines
-       how to distribute the contents of the SSB across the
-       remsets.
+  seqbuf_t **ssb;
+    /* ssb[i] is sequential store buffer for region i.
+       The barrier associated with an update to object o (in region j
+       with a reference into region i != j) inserts o into SSB[i].
+       When SSB[i] is full, the SSB processing function determines how
+       to distribute its contents across the remsets and summaries.
        */
 
   int remset_count;

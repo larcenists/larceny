@@ -312,16 +312,17 @@ Lpb4:	cmp	dword [GLOBALS+G_FILTER_REMSET_GEN_ORDER], 0
 	je	Lpb2		                ; filter lhs nursery
 	cmp	dword [GLOBALS+G_FILTER_REMSET_RHS_NUM], SECOND
 	je	Lpb2		                ; filter rhs static area
-Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
+Lpb3:	mov	RESULT, SECOND			; Preserve gen(rhs)
+	shl	RESULT, 2			; Gen(rhs) as byte offset
 	mov	REG1, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
 	mov	SECOND, [GLOBALS+G_WBDEST]	; The value to store (lhs)
-	mov	REG1, [REG1]			; The correct SSB ptr
+	mov	REG1, [REG1+RESULT]		; The correct SSB ptr
 	mov	[REG1], SECOND			; Store lhs
 	mov	SECOND, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
 	add	REG1, 4				; Move SSB ptr
-	mov	[SECOND], REG1			; Store moved ptr
+	mov	[SECOND+RESULT], REG1		; Store moved ptr
 	mov	SECOND, [GLOBALS+G_SSBLIMV]	; Array of SSB limit ptrs
-	mov	SECOND, [SECOND]		; The correct limit ptr
+	mov	SECOND, [SECOND+RESULT]		; The correct limit ptr
 	cmp	REG1, SECOND			; If ptr!=limit
 	jne	Lpb2				;   then no overflow, so done
 	xor	RESULT, RESULT			; Clear
