@@ -50,6 +50,15 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
  */
 int process_seqbuf( gc_t *gc, seqbuf_t *ssb );
 
+/* Switches in a new set of locations to link with the SSB log.
+ */
+void seqbuf_swap_in_ssb( seqbuf_t *ssb, 
+                         word **bot_loc, word **top_loc, word **lim_loc );
+
+/* Switches in a new sp_data to pass along to the seqbuf_processor. 
+ * Returns previous data value. */
+void* seqbuf_set_sp_data( seqbuf_t *ssb, void *sp_data );
+
 #define SSB_ENQUEUE( gc, ssb, word )        \
   do { seqbuf_t *ssb_tmp = (ssb);           \
        **(ssb_tmp->top) = (word);           \
