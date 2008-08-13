@@ -358,22 +358,8 @@ static bool points_across_noop( cheney_env_t* e, word lhs, word rhs )
 }
 
 static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
-  int g_lhs = gen_of(lhs);
-  int g_rhs = gen_of(rhs);
-  assert2( g_lhs != gf_filter_remset_lhs );
-  if (! gc_is_nonmoving( e->gc, g_rhs )) {
-    {
-      assert2(g_lhs > 0);
-      assert2(g_rhs >= 0);
-      assert2(e->gc->major_remset != NULL);
-
-      /* enqueue lhs in remset. */
-      rs_add_elem_new( e->gc->major_remset[g_lhs], lhs );
-      return TRUE;
-    }
-  } else {
-    return FALSE;
-  }
+  gc_points_across( e->gc, lhs, rhs );
+  return FALSE;
 }
 
 void init_env( cheney_env_t *e, 
@@ -551,6 +537,9 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
   objects_scanned++;
+  /* XXX consider adding an assert2 that object has not already been
+     forwarded, since I keep making the same mistake of trying to scan
+     a forwarded object and then waste time tracking it to here. */
   remset_scanner_core( e, object, loc, 
                        forw_oflo_record( loc, forward_nursery_and, forw_gset,
                                          dest, lim,
@@ -574,6 +563,9 @@ static bool remset_scanner_oflo_update_rs( word object, void *data, unsigned *co
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
   objects_scanned++;
+  /* XXX consider adding an assert2 that object has not already been
+     forwarded, since I keep making the same mistake of trying to scan
+     a forwarded object and then waste time tracking it to here. */
   remset_scanner_update_rs
     ( e, object, loc, 
       forw_oflo_record_update_rs( loc, 
