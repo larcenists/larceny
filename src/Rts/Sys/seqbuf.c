@@ -35,6 +35,8 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
 
   if (num_entries == 0) num_entries = DEFAULT_SSB_SIZE;
   
+  annoyingmsg( "Allocated seqbuf entries=%d", num_entries );
+
   ssb = (seqbuf_t*)must_malloc( sizeof( seqbuf_t ) );
   ssb_data = (seqbuf_data_t*)must_malloc( sizeof( seqbuf_data_t ) );
 
@@ -56,6 +58,25 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
   DATA(ssb)->sp_data = sp_data;
 
   return ssb;
+}
+
+void seqbuf_swap_in_ssb( seqbuf_t *ssb, 
+                         word **bot_loc, word **top_loc, word **lim_loc )
+{
+  *bot_loc = *ssb->bot;
+  *top_loc = *ssb->top;
+  *lim_loc = *ssb->lim;
+  ssb->bot = bot_loc;
+  ssb->top = top_loc;
+  ssb->lim = lim_loc;
+}
+
+void* seqbuf_set_sp_data( seqbuf_t *ssb, void *sp_data )
+{
+  void *old_sp_data;
+  old_sp_data = DATA(ssb)->sp_data;
+  DATA(ssb)->sp_data = sp_data;
+  return old_sp_data;
 }
 
 int process_seqbuf( gc_t *gc, seqbuf_t *ssb ) 
