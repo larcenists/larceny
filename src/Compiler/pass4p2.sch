@@ -486,7 +486,7 @@
                 (evalargs0 (cdr targets)
                            (cdr args)
                            (cdr temps)))))))
-  
+
   (if (parallel-assignment-optimization)
       (sortargs (reverse targets) (reverse args) '() '() '() '())
       (cg-evalargs output targets args regs frame env)))

@@ -143,6 +143,8 @@
 
 
 ; This is taken from the Numerical Programming in C book.
+; But it was wrong in Larceny for a long time.
+; Will corrected it based on high school algebra.
 ;
 (define (rectnum-div x y)
   (let ((a (rectnum-real-part x))
@@ -158,8 +160,8 @@
 			    (/ imag denominator)))
 	(let* ((r (/ c d))
 	       (denominator (+ d (* r c)))
-	       (real (+ b (* r a)))
-	       (imag (- a (* r b))))
+	       (real (+ (* r a) b))
+	       (imag (- (* r b) a)))
 	  (make-rectangular (/ real denominator) 
 			    (/ imag denominator))))))
 

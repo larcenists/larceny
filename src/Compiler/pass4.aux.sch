@@ -525,11 +525,15 @@
 ; release variables that may be stored into slot 0.
 
 (define (cgframe-release! frame var)
+  (define (remq1 x l)
+    (cond ((not (pair? l)) l)
+          ((eq? x (car l)) (cdr l))
+          (else (cons (car l) (remq1 x (cdr l))))))
   (let* ((slots (cgframe:slots frame))
          (entry (assq var slots)))
     (if (and entry
              (not (cgframe:slot.stalezero? entry)))
-        (begin (cgframe:slots-set! frame (remq entry slots))
+        (begin (cgframe:slots-set! frame (remq1 entry slots))
                (let ((n (cgframe:slot.offset entry)))
                  (if (and (not (eq? #f n))
                           (not (zero? n)))

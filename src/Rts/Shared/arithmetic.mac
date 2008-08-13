@@ -348,9 +348,9 @@ if (fabs( yr ) >= fabs( yi )) {
   ga_box_compnum( globals, (xr + r*xi) / den, (xi - r*xr) / den );
 }
 else {
-  double r = yr / xi;
+  double r = yr / yi;
   double den = yi + r * yr;
-  ga_box_compnum( globals, (xi + r*xr) / den, (xr - r*xi) / den );
+  ga_box_compnum( globals, (r*xr + xi) / den, (r*xi - xr) / den );
 }
 ")
 
