@@ -611,12 +611,12 @@ Ldiv_comp3:
 	faddd	%f12, %f16, %f16  /* den: (+ d (* r c))        */
 
 	fmuld	%f14, %f6, %f18   /* (* r a)                   */
-	faddd	%f18, %f8, %f2    /* (+ b (* r a))             */
-	fdivd	%f2, %f16, %f2	  /* (/ (+ b (* r a)) den)     */
+	faddd	%f8, %f18, %f2    /* (+ (* r a) b)             */
+	fdivd	%f2, %f16, %f2	  /* (/ (+ (* r a) b) den)     */
 
 	fmuld	%f14, %f8, %f20   /* (* r b)                   */
-	fsubd	%f6, %f20, %f4    /* (- a (* r b))             */
-	fdivd	%f4, %f16, %f4    /* (/ (- a (* r b)) den)     */
+	fsubd	%f20, %f6, %f4    /* (- (* r b) a)             */
+	fdivd	%f4, %f16, %f4    /* (/ (- (* r b) a) den)     */
 	b	_box_compnum
 	nop
 
@@ -851,6 +851,11 @@ EXTNAME(m_generic_mod):
 /* Negation
  * The fixnum case is always handled in line, except when the number is
  * the largest negative fixnum.
+ *
+ * That doesn't help, because m_generic_quo calls m_generic_neg
+ * when dividing by -1.  We can't just call m_generic_sub either,
+ * because m_generic_sub always returns a bignum when both its
+ * arguments are fixnums.
  */
 EXTNAME(m_generic_neg):
 	and	%RESULT, TAGMASK, %TMP0
@@ -865,6 +870,12 @@ EXTNAME(m_generic_neg):
 	mov	EX_NEG, %TMP0
 	/* fixnum: subtract from 0. */
 	mov	%RESULT, %ARGREG2
+	subcc   %g0, %ARGREG2, %RESULT
+	bvs,a   Lneg_hardfix
+	nop
+	jmp	%o7+8
+	nop
+Lneg_hardfix:
 	b	EXTNAME(m_generic_sub)
 	mov	0, %RESULT
 Lneg_bvec:
