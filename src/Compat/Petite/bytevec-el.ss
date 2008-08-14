@@ -42,6 +42,8 @@
 
 ; Little-endian
 
+; FIXME: Will believes the following is dead code.
+;
 #;(define (integer->bytevector f)
   (let ((b (bignum-alloc (inexact->exact (ceiling (/ (log (abs f))
 						     (log bignum-base)))))))

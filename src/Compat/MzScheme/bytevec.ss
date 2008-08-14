@@ -31,6 +31,8 @@
 
 (define bytevector-tag-set! (lambda (x y) '()))
 
+; FIXME: Will believes the following is dead code.
+;
 #;(define (integer->bytevector f)
   (let ((b (bignum-alloc (inexact->exact (ceiling (/ (log (abs f))
 						     (log bignum-base)))))))
@@ -67,14 +69,16 @@
 	(else
 	 ???)))
 
-(define bytevector-word-ref 
-  (let ((two^8  (expt 2 8))
-	(two^16 (expt 2 16))
-	(two^24 (expt 2 24)))
-    (lambda (bv i)
-      (+ (* (bytevector-ref bv i) two^24)
-	 (* (bytevector-ref bv (+ i 1)) two^16)
-	 (* (bytevector-ref bv (+ i 2)) two^8)
-	 (bytevector-ref bv (+ i 3))))))
+; FIXME: Will believes the following is dead code.
+;
+;(define bytevector-word-ref 
+;  (let ((two^8  (expt 2 8))
+;	(two^16 (expt 2 16))
+;	(two^24 (expt 2 24)))
+;    (lambda (bv i)
+;      (+ (* (bytevector-ref bv i) two^24)
+;	 (* (bytevector-ref bv (+ i 1)) two^16)
+;	 (* (bytevector-ref bv (+ i 2)) two^8)
+;	 (bytevector-ref bv (+ i 3))))))
 
 ; eof
