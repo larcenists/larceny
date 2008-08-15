@@ -162,9 +162,6 @@ namespace Scheme.Rep {
         }
 
         public static SByteVL makeCompnum(double real, double imag) {
-            if (imag == 0.0) {
-               return Factory.makeFlonum(real);
-            }
             byte[] bvec = new byte[20];
             byte[] realbytes = System.BitConverter.GetBytes(real);
             byte[] imagbytes = System.BitConverter.GetBytes(imag);
