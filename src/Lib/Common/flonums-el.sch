@@ -12,8 +12,8 @@
 ; IEEE flonum in native endianness.
 ;
 ; Larceny bignums are represented as a bytevector with word-sized data
-; in native endianness.  The first word contains the sign (high two bytes)
-; and the number of word-sized bigits (low two bytes).  The remaining
+; in native endianness.  The first word contains the sign (high byte)
+; and the number of word-sized bigits (low three bytes).  The remaining
 ; words contain bigits.
 
 ($$trace "flonums-el")

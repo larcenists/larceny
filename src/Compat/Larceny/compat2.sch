@@ -78,7 +78,12 @@
                 (bytevector-like-set! bv 2 0)
                 (bytevector-like-set! bv 3 0)
                 bv)))
-         (set! bignum->bytevector misc->bytevector)
+         (set! bignum->bytevector
+               (lambda (x)
+                 (let ((bv (misc->bytevector x)))
+                   ;FIXME: remove both of these after new bignums are stable
+                   (bytevector-like-set! bv 2 0)
+                   (bytevector-like-set! bv 3 (if (< x 0) 1 0)))))
          (set! flonum->bytevector
                (lambda (x)
                  (clear-first-word (misc->bytevector x))))

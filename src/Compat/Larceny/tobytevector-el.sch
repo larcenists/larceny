@@ -17,16 +17,16 @@
 (define (symbol->bytevector s)
   (flat1->bytevector (symbol->string s)))
 
-; Bignums are bytevector-like with the sign in the high halfword of
+; Bignums are bytevector-like with the sign in the high byte of
 ; the first word (0 for 0 or positive, 1 for negative), a digit
-; count in the low halfword (two bytes) and then base-2^32 digits
+; count in the low 24 bits (three bytes) and then base-2^32 digits
 ; in the next words with the least significant word first.
 ;
 ;       big end                  little end
 ;       +------------------------+--------+
 ;       |       length           | header |
 ;       +------------------------+--------+
-;       | sign          |   digitcount    |
+;       | sign   |          digitcount    |
 ;       +---------------------------------+
 ;       |              lsd                |
 ;       +---------------------------------+
@@ -47,16 +47,15 @@
         (divide (quotient b two^32)
                 (cons (split-int (remainder b two^32)) l))))
 
-  (let* ((sign   (if (negative? b) '(1 0) '(0 0)))
+  (let* ((sign   (if (negative? b) '(1) '(0)))
          (b      (abs b))
          (digits (divide b '()))
-         (len    (quotient (length digits) 4))
-         (count  (list (remainder len 256) (quotient len 256))))
+         (len    (quotient (length digits) 4)))
     (list->bytevector
-     (append count sign digits))))
+     (append (split-int (+ len (fxlsh sign 24))) digits))))
 
 
-; IEEE specific, and specific to Chez Scheme.
+; IEEE specific, and specific to Larceny.
 ;
 ; Flonums (IEEE double) are bytevector-like. The first word is unused. The two
 ; next words contain the double:

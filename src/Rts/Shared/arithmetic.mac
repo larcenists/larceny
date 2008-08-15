@@ -380,8 +380,8 @@ else {
 
 /* These operate on the bignum metaword (sign/length) */
 
-#define bigmeta_length( x ) (x & 0xFFFF)
-#define bigmeta_sign( x ) ((x >> 16) & 1)
+#define bigmeta_length( x ) (x & 0xFFFFFF)
+#define bigmeta_sign( x ) ((x >> 24) & 1)
 
 void EXPORT mc_quo( word *globals, cont_t k )
 {
@@ -731,7 +731,7 @@ static void ga_box_longint( word *globals, word hi, word lo )
       mc_alloc_bv( globals );
       p = (word*)globals[ G_RESULT ];
       p[0] = mkheader( 3*sizeof(word), BIGNUM_HDR );
-      p[1] = (sign << 16) | 2;   /* sign | 2 words */
+      p[1] = mkbignum_header( sign, 2 );
       p[2] = lo;
       p[3] = hi;
       globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
@@ -740,6 +740,7 @@ static void ga_box_longint( word *globals, word hi, word lo )
 }
 
 /* Box an sign/magnitude integer value in a one-word bignum */
+
 static void ga_box_word( word *globals, word x, int sign )
 {
   word *p;
@@ -748,7 +749,7 @@ static void ga_box_word( word *globals, word x, int sign )
   mc_alloc_bv( globals );
   p = (word*)globals[ G_RESULT ];
   p[0] = mkheader( 2*sizeof(word), BIGNUM_HDR );
-  p[1] = (sign << 16) | 1;   /* sign | 1 word */
+  p[1] = mkbignum_header( sign, 1 );
   p[2] = x;
   globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
 }

@@ -119,9 +119,9 @@
 #define bytevector_length(x)   (sizefield(*ptrof(x)))
 #define bytevector_ref(x,i)    (*((byte*)(ptrof(x)+1)+i))
 
-#define mkbignum_header( sign, length )  (((sign) << 16) | length)
-#define bignum_length( x )     (*(ptrof(x)+1) & 0x0000FFFF)
-#define bignum_sign( x )       ((*(ptrof(x)+1) >> 16) & 1)
+#define mkbignum_header( sign, length )  (((sign) << 24) | length)
+#define bignum_length( x )     (*(ptrof(x)+1) & 0x00FFFFFF)
+#define bignum_sign( x )       ((*(ptrof(x)+1) >> 24) & 1)
 #define bignum_ref32( x, i )   (*(ptrof(x)+2+i))
 
 #define real_part( x )         (*(double*)(ptrof(x)+2))

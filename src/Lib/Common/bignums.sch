@@ -89,7 +89,7 @@
 (define negative-sign 1)                     ; the sign of a negative bignum
 (define positive-sign 0)                     ; ditto of a positive one
 
-(define max-bignum-bytes (* 65535 4))        ; a lot of digits
+(define max-bignum-bytes 16000000)           ; don't let the allocator panic
 
 
 ;-----------------------------------------------------------------------------

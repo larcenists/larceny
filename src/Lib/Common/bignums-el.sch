@@ -9,8 +9,8 @@
 ; always interpreted as complete machine words with native endianness.
 ;
 ; The first word contains bignum metadata: sign and bignum-length.
-; The sign is kept in the upper two bytes and is 0 (positive) or 1 (negative).
-; The bignum-length is kept in the lower two bytes and denotes the number
+; The sign is kept in the upper byte and is 0 (positive) or 1 (negative).
+; The bignum-length is kept in the lower three bytes and denotes the number
 ; of 32-bit "bigits" in the number.  
 ;
 ; If the bignum's value is zero, then the sign is ignored and the length
@@ -32,10 +32,10 @@
 ($$trace "bignums-el")
 
 (define (bignum-sign b)
-  (bytevector-like-ref b 2))
+  (bytevector-like-ref b 3))
 
 (define (bignum-sign-set! b s)
-  (bytevector-like-set! b 2 s))
+  (bytevector-like-set! b 3 s))
 
 ; System constants
 
@@ -89,6 +89,8 @@
 
   (define (%bignum-length b)
     (let* ((l0 (bytevector-like-halfword-ref b 0))
+           (l2 (bytevector-like-ref b 2))
+           (l0 (fxlogior l0 (fxlsh l2 16)))
            (l  (+ l0 l0)))
       (cond ((zero? l) l)
             ((zero? (bignum-ref b (- l 1))) (- l 1))
@@ -103,7 +105,8 @@
 
   (define (%bignum-length-set! b l)
     (let ((l (fxrsha (+ l 1) 1)))
-      (bytevector-like-halfword-set! b 0 l)))
+      (bytevector-like-halfword-set! b 0 (fxand l 65535))
+      (bytevector-like-set! b 2 (fxrshl l 16))))
 
   ; This is like bignum-length-set!, except that it works also when the
   ; length is odd and the most significant half of the 32-bit bigit is not 
@@ -114,7 +117,8 @@
 
   (define (%bignum-truncate-length! b ln)
     (let ((l (fxrsha (+ ln 1) 1)))
-      (bytevector-like-halfword-set! b 0 l)
+      (bytevector-like-halfword-set! b 0 (fxand l 65535))
+      (bytevector-like-set! b 2 (fxrshl l 16))
       (if (not (= ln (+ l l)))
           (bignum-set! b ln 0))))
 
