@@ -750,7 +750,9 @@ namespace Scheme.RT
                         if (Number.getBignumLength(n) == 1) {
                             uint magn = (uint)(Number.bignumRef(n, 1) << 16)
                                       + (uint)Number.bignumRef(n, 0);
-                            int val = Number.getBignumSign(n);
+                            int val = magn;
+                            if (! (Number.getBignumSign(n)))
+                                magn = - magn;
                             return Factory.makeForeignBox (val);
                         }
                     }

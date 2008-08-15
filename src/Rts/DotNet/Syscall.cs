@@ -613,6 +613,9 @@ namespace Scheme.RT {
           case 17: // unsafe
               v[0] = Factory.makeFixnum (0);
               break;
+          case 18: // transcoder
+              v[0] = Factory.makeFixnum (0);
+              break;
           }
           Reg.Result = Factory.Unspecified;
         }
