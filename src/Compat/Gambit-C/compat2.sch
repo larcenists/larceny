@@ -35,18 +35,18 @@
 
   (define (loop rest tail)
     (cond ((null? rest)
-	   tail)
-	  ((null? (car rest))
-	   (loop (cdr rest) tail))
-	  (else
-	   (loop (cdr rest)
-		 (begin (set-cdr! (last-pair (car rest)) tail)
-			(car rest))))))
+           tail)
+          ((null? (car rest))
+           (loop (cdr rest) tail))
+          (else
+           (loop (cdr rest)
+                 (begin (set-cdr! (last-pair (car rest)) tail)
+                        (car rest))))))
 
   (if (null? args)
       '()
       (let ((a (reverse! args)))
-	(loop (cdr a) (car a)))))
+        (loop (cdr a) (car a)))))
 
 (define (last-pair l)
   (if (null? (cdr l))
@@ -77,8 +77,8 @@
 
   (define (loop l)
     (cond ((null? (cdr l)) (p (car l)))
-	  ((p (car l)) (loop (cdr l)))
-	  (else #f)))
+          ((p (car l)) (loop (cdr l)))
+          (else #f)))
 
   (if (null? l)
       #t
@@ -86,29 +86,29 @@
 
 (define (some? p l)
   (cond ((null? l) #f)
-	((p (car l)))
-	(else (some? p (cdr l)))))
+        ((p (car l)))
+        (else (some? p (cdr l)))))
 
 (define (remove x l)
   (cond ((not (pair? l)) l)
-	((equal? x (car l)) (remove x (cdr l)))
-	(else (cons (car l) (remove x (cdr l))))))
+        ((equal? x (car l)) (remove x (cdr l)))
+        (else (cons (car l) (remove x (cdr l))))))
 
 (define (remq! key list)
   (cond ((null? list) list)
-	((eq? key (car list))
-	 (remq! key (cdr list)))
-	(else
-	 (set-cdr! list (remq! key (cdr list)))
-	 list)))
+        ((eq? key (car list))
+         (remq! key (cdr list)))
+        (else
+         (set-cdr! list (remq! key (cdr list)))
+         list)))
 
 (define (string-hash string)
   (define (loop s i h)
     (if (< i 0)
-	h
-	(loop s
-	      (- i 1)
-	      (remainder (+ (char->integer (string-ref s i)) h h h) 65536))))
+        h
+        (loop s
+              (- i 1)
+              (remainder (+ (char->integer (string-ref s i)) h h h) 65536))))
   (let ((n (string-length string)))
     (loop string (- n 1) n)))
 
@@ -154,28 +154,28 @@
 ; Flonums (IEEE double) are bytevector-like. The first word is unused. The two
 ; next words contain the double:
 ;
-;	+---------------------------------+
-;	|      structure header           |
-;	+---------------------------------+
-;	|      unused                     |
-;	+---------------------------------+
-;	|      IEEE double precision      |
-;	|                                 |
-;	+---------------------------------+
+;       +---------------------------------+
+;       |      structure header           |
+;       +---------------------------------+
+;       |      unused                     |
+;       +---------------------------------+
+;       |      IEEE double precision      |
+;       |                                 |
+;       +---------------------------------+
 ;
 ; Compnums are similar:
 ;
-;	+---------------------------------+
-;	|      structure header           |
-;	+---------------------------------+
-;	|      unused                     |
-;	+---------------------------------+
-;	|      (real part)                |
-;	|      IEEE double precision      |
-;	+---------------------------------+
-;	|      (imaginary part)           |
-;	|      IEEE double precision      |
-;	+---------------------------------+
+;       +---------------------------------+
+;       |      structure header           |
+;       +---------------------------------+
+;       |      unused                     |
+;       +---------------------------------+
+;       |      (real part)                |
+;       |      IEEE double precision      |
+;       +---------------------------------+
+;       |      (imaginary part)           |
+;       |      IEEE double precision      |
+;       +---------------------------------+
 ;
 ; An IEEE number, in turn, is represented in native layout (64 bits):
 ;
@@ -204,7 +204,7 @@
 
 (define (compnum->bytevector c)
   (let ((f1 (flonum-bits (real-part c)))
-	(f2 (flonum-bits (imag-part c))))
+        (f2 (flonum-bits (imag-part c))))
     (list->bytevector (append '(0 0 0 0) f1 f2))))
 
 ; Return a list of byte values representing an IEEE double precision number
@@ -240,25 +240,25 @@
 ;
 ; On a big-endian architecture it looks like this:
 ;
-;	+------------------------+--------+
-;	|       length           | header |
-;	+------------------------+--------+
-;	| sign          |   digitcount    |
-;	+---------------------------------+
-;	|              lsd                |
-;	+---------------------------------+
-;	...
+;       +------------------------+--------+
+;       |       length           | header |
+;       +------------------------+--------+
+;       | sign          |   digitcount    |
+;       +---------------------------------+
+;       |              lsd                |
+;       +---------------------------------+
+;       ...
 ;
 ; On a little-endian architecture it looks like this:
 ;
-;	+--------+------------------------+
-;	| header |       length           |
-;	+---------------------------------+
-;	| digitcount    |   sign          |
-;	+---------------------------------+
-;	|              lsd                |
-;	+---------------------------------+
-;	...
+;       +--------+------------------------+
+;       | header |       length           |
+;       +---------------------------------+
+;       | digitcount    |   sign          |
+;       +---------------------------------+
+;       |              lsd                |
+;       +---------------------------------+
+;       ...
 
 (define (bignum->bytevector b)
 
@@ -277,15 +277,15 @@
 
   (define (divide b l)
     (if (< b two^32)
-	(flatten (reverse (cons (split-int32 b) l)))
-	(divide (quotient b two^32)
-		(cons (split-int32 (remainder b two^32)) l))))
+        (flatten (reverse (cons (split-int32 b) l)))
+        (divide (quotient b two^32)
+                (cons (split-int32 (remainder b two^32)) l))))
 
   (let* ((sign   (split-int16 (if (negative? b) 1 0)))
-	 (b      (abs b))
-	 (digits (divide b '()))
-	 (len    (quotient (length digits) 4))
-	 (count  (split-int16 len)))
+         (b      (abs b))
+         (digits (divide b '()))
+         (len    (quotient (length digits) 4))
+         (count  (split-int16 len)))
     (list->bytevector
      (append (meta-data sign count) digits))))
 
@@ -293,43 +293,43 @@
   (let ((endianness (nbuild-parameter 'endianness)))
     (lambda (x)
       (case endianness
-	((big)
-	 (list (quotient x 256) (remainder x 256)))
-	((little)
-	 (list (remainder x 256) (quotient x 256)))
-	(else ???)))))
+        ((big)
+         (list (quotient x 256) (remainder x 256)))
+        ((little)
+         (list (remainder x 256) (quotient x 256)))
+        (else ???)))))
 
 (define split-int32
   (let ((two^32 (expt 2 32))
-	(two^24 (expt 2 24))
-	(two^16 (expt 2 16))
-	(two^8  (expt 2 8))
-	(endianness (nbuild-parameter 'endianness)))
+        (two^24 (expt 2 24))
+        (two^16 (expt 2 16))
+        (two^8  (expt 2 8))
+        (endianness (nbuild-parameter 'endianness)))
     (lambda (b)
       (case endianness
-	((big)
-	 (list (quotient b two^24)
-	       (quotient (remainder b two^24) two^16)
-	       (quotient (remainder b two^16) two^8)
-	       (remainder b two^8)))
-	((little)
-	 (list (remainder b two^8)
-	       (quotient (remainder b two^16) two^8)
-	       (quotient (remainder b two^24) two^16)
-	       (quotient b two^24)))
-	(else ???)))))
+        ((big)
+         (list (quotient b two^24)
+               (quotient (remainder b two^24) two^16)
+               (quotient (remainder b two^16) two^8)
+               (remainder b two^8)))
+        ((little)
+         (list (remainder b two^8)
+               (quotient (remainder b two^16) two^8)
+               (quotient (remainder b two^24) two^16)
+               (quotient b two^24)))
+        (else ???)))))
 
 (define (write-bytevector-like bv . rest)
   (cond ((bytevector? bv)
-	 (let ((limit (vector-length bv))
-	       (port  (if (null? rest) (current-output-port) (car rest))))
-	   (do ((i 1 (+ i 1)))
-	       ((= i limit))
-	     (write-char (integer->char (vector-ref bv i)) port))))
-	((string? bv)
-	 (apply display bv rest))
-	(else
-	 ???)))
+         (let ((limit (vector-length bv))
+               (port  (if (null? rest) (current-output-port) (car rest))))
+           (do ((i 1 (+ i 1)))
+               ((= i limit))
+             (write-char (integer->char (vector-ref bv i)) port))))
+        ((string? bv)
+         (apply display bv rest))
+        (else
+         ???)))
 
 (define gensym
   (let ((gensym gensym))
@@ -338,11 +338,11 @@
 
 (define fixnum?
   (let ((smallest-fixnum (- (expt 2 29)))
-	(largest-fixnum (- (expt 2 29) 1)))
+        (largest-fixnum (- (expt 2 29) 1)))
     (lambda (x)
       (and (integer? x)
-	   (exact? x)
-	   (<= smallest-fixnum x largest-fixnum)))))
+           (exact? x)
+           (<= smallest-fixnum x largest-fixnum)))))
 
 (define *undefined-expression* ''*undefined*)
 (define *unspecified-expression* ''*unspecified*)

@@ -13,12 +13,12 @@
 #ifndef INCLUDED_MACROS_H
 #define INCLUDED_MACROS_H
 
-#include <stdlib.h>		/* for abs() */
+#include <stdlib.h>             /* for abs() */
 
 /* Various masks */
-#define ISHDR_MASK	0x00000083	/* extract bits 7, 1, and 0 */
-#define HDR_SIGN	0x00000082	/* header signature */
-#define HDR_MASK	0x000000E3	/* Mask to extract header info */
+#define ISHDR_MASK      0x00000083      /* extract bits 7, 1, and 0 */
+#define HDR_SIGN        0x00000082      /* header signature */
+#define HDR_MASK        0x000000E3      /* Mask to extract header info */
 #define FIXTAGMASK               3      /* FIXME: move to layouts.cfg */
 
 /* Convert integer to fixnum */
@@ -47,7 +47,7 @@
 #define header( w )         ((word)(w) & HDR_MASK)
 
 /* extract type tag from a header word */
-#define typetag( w )	    ((word)(w) & TYPETAG_MASK)
+#define typetag( w )        ((word)(w) & TYPETAG_MASK)
 
 /* strip type tag from a header word */
 #define striptypetag( w )   ((word)(w) & ~TYPETAG_MASK)

@@ -24,7 +24,7 @@
 
 #define NOGLOBALS
 
-#include \"larceny.h\"			/* includes config.h also */
+#include \"larceny.h\"                  /* includes config.h also */
 #include \"millicode.h\"
 #include \"macros.h\"
 
@@ -83,8 +83,8 @@ void initialize_generic_arithmetic( void )
 
 (define-template 'binary-decision-tree
   '(name retry-name contagion-name error-code
-	fixnum+fixnum flonum+flonum compnum+compnum 
-	bignum+bignum-code ratnum+ratnum-code rectnum+rectnum)
+        fixnum+fixnum flonum+flonum compnum+compnum 
+        bignum+bignum-code ratnum+ratnum-code rectnum+rectnum)
 "
 void EXPORT @name@( word *globals, cont_t k )
 {
@@ -101,23 +101,23 @@ void EXPORT @name@( word *globals, cont_t k )
     h2 = header_byte( y, BVEC_TAG );
     if (h1 == FLONUM_HDR) {
       if (h2 == FLONUM_HDR) {
-	@flonum+flonum@
+        @flonum+flonum@
       }
       else
-	goto mixed;
+        goto mixed;
     }
     else if (h1 == COMPNUM_HDR) {
       if (h2 == COMPNUM_HDR) {
-	@compnum+compnum@
+        @compnum+compnum@
       }
       else
-	goto mixed;
+        goto mixed;
     }
     else if (h1 == BIGNUM_HDR) {
       if (h2 == BIGNUM_HDR)
-	generic_binary_operation( globals, @bignum+bignum-code@, k );
+        generic_binary_operation( globals, @bignum+bignum-code@, k );
       else
-	goto mixed;
+        goto mixed;
     }
     else
       goto error;
@@ -131,16 +131,16 @@ void EXPORT @name@( word *globals, cont_t k )
     h2 = header_byte( y, VEC_TAG );
     if (h1 == RATNUM_HDR) {
       if (h2 == RATNUM_HDR) 
-	generic_binary_operation( globals, @ratnum+ratnum-code@, k );
+        generic_binary_operation( globals, @ratnum+ratnum-code@, k );
       else
-	goto mixed;
+        goto mixed;
     }
     else if (h1 == RECTNUM_HDR) {
       if (h2 == RECTNUM_HDR) {
         @rectnum+rectnum@
       }
       else
-	goto mixed;
+        goto mixed;
     }
     else
       goto error;
@@ -187,7 +187,7 @@ void EXPORT @name@( word *globals, cont_t k )
      (ratnum+ratnum-code ,(string-append "MS_RATNUM_" name2))
      (rectnum+rectnum
       ,(string-append 
-	"generic_binary_operation( globals, MS_RECTNUM_" name2 ", k );")))))
+        "generic_binary_operation( globals, MS_RECTNUM_" name2 ", k );")))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -538,10 +538,10 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
      (error-code ,(string-append "EX_" name2 "P"))
      (fixnum+fixnum 
       ,(apply string-append
-	      "setcc( (int)nativeint(x) " op " (int)nativeint(y) );" '()))
+              "setcc( (int)nativeint(x) " op " (int)nativeint(y) );" '()))
      (flonum+flonum 
       ,(apply string-append 
-	      "setcc( flonum_val(x) " op " flonum_val(y) );" '()))
+              "setcc( flonum_val(x) " op " flonum_val(y) );" '()))
      (compnum+compnum "goto error;")
      (bignum+bignum-code ,(string-append "MS_BIGNUM_" name2))
      (ratnum+ratnum-code ,(string-append "MS_RATNUM_" name2))
@@ -588,7 +588,7 @@ setcc( is_integer( v ) && is_rational( v ) );
 
 (define (exactness-test name exact? exception)
   (let ((true "globals[ G_RESULT ] = TRUE_CONST;")
-	(false "globals[ G_RESULT ] = FALSE_CONST;"))
+        (false "globals[ G_RESULT ] = FALSE_CONST;"))
     (unary-decision-tree
      name exception
      (if exact? true false)
@@ -645,13 +645,13 @@ setcc( is_integer( v ) && is_rational( v ) );
 
 (unary-decision-tree
  "mc_round" "EX_ROUND"
- #f					; fixnum - nothing
+ #f                                     ; fixnum - nothing
  "double v = flonum_val( x ); ga_box_flonum( globals, round_to_even( v ) );"
  "goto error;"                          ; compnum
- #f					; bignum - nothing
+ #f                                     ; bignum - nothing
  "generic_unary_operation( globals, MS_RATNUM_ROUND, k );"  ; ratnum
- "goto error;"				; rectnum
- #t					; has a continuation
+ "goto error;"                          ; rectnum
+ #t                                     ; has a continuation
  #f)
 
 (unary-decision-tree

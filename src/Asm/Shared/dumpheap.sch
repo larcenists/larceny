@@ -268,16 +268,16 @@
   (call-with-raw-latin-1-input-file filename
     (lambda (in)
       (let loop ((decls '()))
-	(let ((item (read in)))
-	  (if (string? item)
-	      (loop (cons item decls))
-	      (begin
-		(before-dump-file h filename (reverse decls))
-		(do ((segment item (read in))
-		     (thunks  '() (cons (dump-segment! h segment) thunks)))
-		    ((eof-object? segment)
-		     (after-dump-file h filename)
-		     (reverse thunks))))))))))
+        (let ((item (read in)))
+          (if (string? item)
+              (loop (cons item decls))
+              (begin
+                (before-dump-file h filename (reverse decls))
+                (do ((segment item (read in))
+                     (thunks  '() (cons (dump-segment! h segment) thunks)))
+                    ((eof-object? segment)
+                     (after-dump-file h filename)
+                     (reverse thunks))))))))))
 
 (define (before-dump-file h filename decls) #t)
 (define (after-dump-file h filename) #t)
@@ -677,15 +677,15 @@
 
 (define (append-file-shell-command-msdos file-to-append file-to-append-to)
   (let ((x (system (string-append "copy/b/y " 
-				  file-to-append-to "+" file-to-append 
-				  " TEMPCAT"))))
+                                  file-to-append-to "+" file-to-append 
+                                  " TEMPCAT"))))
     (if (not (zero? x))
-	#f
-	(let ((x (system (string-append "copy/b/y TEMPCAT " file-to-append-to))))
-	  (system "del TEMPCAT")
-	  (zero? x)))))
+        #f
+        (let ((x (system (string-append "copy/b/y TEMPCAT " file-to-append-to))))
+          (system "del TEMPCAT")
+          (zero? x)))))
   
-			 
+
 ; Quasi-portable: use read-char and write-char.
 ; Needs to be read-byte and write-byte.
 ; FIXME:  Should use binary i/o here, but that must wait

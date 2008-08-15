@@ -39,22 +39,22 @@
 
 ; System constants
 
-(define bignum-base       65536)	; number system base
-(define bignum-base/2     32767)	; ditto, divided by two
-(define bigit-mask        #xFFFF)	; to mask off a bigit
-(define bytes-per-bigit   2)		; number of bytes in a bigit
-(define bits-per-bigit    16)		; number of bits in a bigit
-(define bigit-shift       16)		; another name for it
-(define bigits-per-fixnum 2)		; how many bigits to we need to
+(define bignum-base       65536)        ; number system base
+(define bignum-base/2     32767)        ; ditto, divided by two
+(define bigit-mask        #xFFFF)       ; to mask off a bigit
+(define bytes-per-bigit   2)            ; number of bytes in a bigit
+(define bits-per-bigit    16)           ; number of bits in a bigit
+(define bigit-shift       16)           ; another name for it
+(define bigits-per-fixnum 2)            ; how many bigits to we need to
                                         ;   hold the value of a fixnum?
 
 ; Procedures, assigned below
 
-(define bignum-ref)			; get a bigit
-(define bignum-set!)			; set a bigit
-(define bignum-length)			; get the number of bigits
-(define bignum-length-set!)		; set the number of bigits
-(define bignum-truncate-length!)	; (complicated)
+(define bignum-ref)                     ; get a bigit
+(define bignum-set!)                    ; set a bigit
+(define bignum-length)                  ; get the number of bigits
+(define bignum-length-set!)             ; set the number of bigits
+(define bignum-truncate-length!)        ; (complicated)
 
 ; The following procedures are defined in a LET and exported to allow
 ; the compiler to generate fast calls to internal definitions (or inline 
@@ -69,12 +69,12 @@
   (define (bytevector-like-halfword-ref bv i)
     (let ((i (+ i i)))
       (fxlogior (fxlsh (bytevector-like-ref bv (+ i 1)) 8)
-	      (bytevector-like-ref bv i))))
+              (bytevector-like-ref bv i))))
 
   (define (bytevector-like-halfword-set! bv i v)
     (let ((hi (fxrsha v 8))
-	  (lo (fxlogand v 255))
-	  (i  (+ i i)))
+          (lo (fxlogand v 255))
+          (i  (+ i i)))
       (bytevector-like-set! bv (+ i 1) hi)
       (bytevector-like-set! bv i lo)))
 
@@ -89,10 +89,10 @@
 
   (define (%bignum-length b)
     (let* ((l0 (bytevector-like-halfword-ref b 0))
-	   (l  (+ l0 l0)))
+           (l  (+ l0 l0)))
       (cond ((zero? l) l)
-	    ((zero? (bignum-ref b (- l 1))) (- l 1))
-	    (else l))))
+            ((zero? (bignum-ref b (- l 1))) (- l 1))
+            (else l))))
 
   ; Set the number of 16-bit bigits. The number is converted to 32-bit bigits,
   ; which may involve adding a 0 bigit at the high end; see comments above.
@@ -116,7 +116,7 @@
     (let ((l (fxrsha (+ ln 1) 1)))
       (bytevector-like-halfword-set! b 0 l)
       (if (not (= ln (+ l l)))
-	  (bignum-set! b ln 0))))
+          (bignum-set! b ln 0))))
 
   (set! bignum-ref %bignum-ref)
   (set! bignum-set! %bignum-set!)
@@ -136,15 +136,15 @@
 ;(define (big-fits-in-fix? b)
 ;  (let ((s (bignum-length b)))
 ;    (cond ((< s 2)
-;	   #t)
-;	  ((= s 2)
-;	   (let* ((x (bignum-ref b 1))
-;		  (y (fxrshl x 13)))
-;	     (cond ((= y 0) #t)
-;		   ((= y 7) #t)
-;		   (else    #f))))
-;	  (else
-;	   #f))))
+;           #t)
+;          ((= s 2)
+;           (let* ((x (bignum-ref b 1))
+;                  (y (fxrshl x 13)))
+;             (cond ((= y 0) #t)
+;                   ((= y 7) #t)
+;                   (else    #f))))
+;          (else
+;           #f))))
 
 ; Old big-fits-in-fix? test; rather slow.
 

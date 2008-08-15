@@ -7,7 +7,7 @@
 ;
 ; 20 August 1999
 
-(define host-system 'larceny)		; Don't remove this!
+(define host-system 'larceny)           ; Don't remove this!
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -65,52 +65,52 @@
 (define compnum->bytevector)
 
 (cond ((eq? (nbuild-parameter 'host-endianness)
-	    (nbuild-parameter 'target-endianness))
+            (nbuild-parameter 'target-endianness))
        (let ((misc->bytevector
-	      (lambda (x)
-		(let ((bv (bytevector-like-copy x)))
-		  (typetag-set! bv $tag.bytevector-typetag)
-		  bv)))
-	     (clear-first-word 
-	      (lambda (bv)
-		(bytevector-like-set! bv 0 0)
-		(bytevector-like-set! bv 1 0)
-		(bytevector-like-set! bv 2 0)
-		(bytevector-like-set! bv 3 0)
-		bv)))
-	 (set! bignum->bytevector misc->bytevector)
-	 (set! flonum->bytevector
-	       (lambda (x)
-		 (clear-first-word (misc->bytevector x))))
-	 (set! compnum->bytevector
-	       (lambda (x)
-		 (clear-first-word (misc->bytevector x))))
-	 #t))
+              (lambda (x)
+                (let ((bv (bytevector-like-copy x)))
+                  (typetag-set! bv $tag.bytevector-typetag)
+                  bv)))
+             (clear-first-word 
+              (lambda (bv)
+                (bytevector-like-set! bv 0 0)
+                (bytevector-like-set! bv 1 0)
+                (bytevector-like-set! bv 2 0)
+                (bytevector-like-set! bv 3 0)
+                bv)))
+         (set! bignum->bytevector misc->bytevector)
+         (set! flonum->bytevector
+               (lambda (x)
+                 (clear-first-word (misc->bytevector x))))
+         (set! compnum->bytevector
+               (lambda (x)
+                 (clear-first-word (misc->bytevector x))))
+         #t))
       ((eq? (nbuild-parameter 'target-endianness) 'big)
        (compat:load (string-append (nbuild-parameter 'compatibility)
-				   "tobytevector-be.sch")))
+                                   "tobytevector-be.sch")))
       ((eq? (nbuild-parameter 'target-endianness) 'little)
        (compat:load (string-append (nbuild-parameter 'compatibility)
-				   "tobytevector-el.sch")))
+                                   "tobytevector-el.sch")))
       (else
        ???))
 
 (define (list->bytevector l)
   (let ((b (make-bytevector (length l))))
     (do ((i 0 (+ i 1))
-	 (l l (cdr l)))
-	((null? l) b)
+         (l l (cdr l)))
+        ((null? l) b)
       (bytevector-set! b i (car l)))))
 
 (define bytevector-word-ref 
   (let ((two^8  (expt 2 8))
-	(two^16 (expt 2 16))
-	(two^24 (expt 2 24)))
+        (two^16 (expt 2 16))
+        (two^24 (expt 2 24)))
     (lambda (bv i)
       (+ (* (bytevector-ref bv i) two^24)
-	 (* (bytevector-ref bv (+ i 1)) two^16)
-	 (* (bytevector-ref bv (+ i 2)) two^8)
-	 (bytevector-ref bv (+ i 3))))))
+         (* (bytevector-ref bv (+ i 1)) two^16)
+         (* (bytevector-ref bv (+ i 2)) two^8)
+         (bytevector-ref bv (+ i 3))))))
 
 ;(define (twobit-format fmt . rest)
 ;  (let ((out (open-output-string)))

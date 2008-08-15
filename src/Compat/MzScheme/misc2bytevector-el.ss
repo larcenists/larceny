@@ -24,14 +24,14 @@
 ; in the next words with the least significant word first.
 ;
 ;       big end                  little end
-;	+------------------------+--------+
-;	|       length           | header |
-;	+------------------------+--------+
-;	| sign          |   digitcount    |
-;	+---------------------------------+
-;	|              lsd                |
-;	+---------------------------------+
-;	...
+;       +------------------------+--------+
+;       |       length           | header |
+;       +------------------------+--------+
+;       | sign          |   digitcount    |
+;       +---------------------------------+
+;       |              lsd                |
+;       +---------------------------------+
+;       ...
 
 (define (bignum->bytevector b)
 
@@ -44,15 +44,15 @@
 
   (define (divide b l)
     (if (< b two^32)
-	(flatten (reverse (cons (split-int b) l)))
-	(divide (quotient b two^32)
-		(cons (split-int (remainder b two^32)) l))))
+        (flatten (reverse (cons (split-int b) l)))
+        (divide (quotient b two^32)
+                (cons (split-int (remainder b two^32)) l))))
 
   (let* ((sign   (if (negative? b) '(1 0) '(0 0)))
-	 (b      (abs b))
-	 (digits (divide b '()))
-	 (len    (quotient (length digits) 4))
-	 (count  (list (remainder len 256) (quotient len 256))))
+         (b      (abs b))
+         (digits (divide b '()))
+         (len    (quotient (length digits) 4))
+         (count  (list (remainder len 256) (quotient len 256))))
     (list->bytevector
      (append count sign digits))))
 
@@ -62,28 +62,28 @@
 ; Flonums (IEEE double) are bytevector-like. The first word is unused. The two
 ; next words contain the double:
 ;
-;	+------------------------+--------+
-;	|      length            | header |
-;	+------------------------+--------+
-;	|      unused                     |
-;	+---------------------------------+
-;	|      IEEE double precision      |
-;	|                                 |
-;	+---------------------------------+
+;       +------------------------+--------+
+;       |      length            | header |
+;       +------------------------+--------+
+;       |      unused                     |
+;       +---------------------------------+
+;       |      IEEE double precision      |
+;       |                                 |
+;       +---------------------------------+
 ;
 ; Compnums are similar:
 ;
-;	+------------------------+--------+
-;	|      length            | header |
-;	+------------------------+--------+
-;	|      unused                     |
-;	+---------------------------------+
-;	|      (real part)                |
-;	|      IEEE double precision      |
-;	+---------------------------------+
-;	|      (imaginary part)           |
-;	|      IEEE double precision      |
-;	+---------------------------------+
+;       +------------------------+--------+
+;       |      length            | header |
+;       +------------------------+--------+
+;       |      unused                     |
+;       +---------------------------------+
+;       |      (real part)                |
+;       |      IEEE double precision      |
+;       +---------------------------------+
+;       |      (imaginary part)           |
+;       |      IEEE double precision      |
+;       +---------------------------------+
 ;
 ; An IEEE number, in turn, is represented as follows (64 bits)
 ;
@@ -113,7 +113,7 @@
 
 (define (compnum->bytevector c)
   (let ((f1 (flonum-bits (real-part c)))
-	(f2 (flonum-bits (imag-part c))))
+        (f2 (flonum-bits (imag-part c))))
     (list->bytevector (append '(0 0 0 0) f1 f2))))
 
 ; Return a list of byte values representing an IEEE double precision number.
@@ -134,8 +134,8 @@
   (define two^8  (expt 2 8))
 
   (list (remainder b two^8)
-	(quotient (remainder b two^16) two^8)
-	(quotient (remainder b two^24) two^16)
-	(quotient b two^24)))
+        (quotient (remainder b two^16) two^8)
+        (quotient (remainder b two^24) two^16)
+        (quotient b two^24)))
 
 ; eof
