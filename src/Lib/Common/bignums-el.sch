@@ -105,7 +105,7 @@
 
   (define (%bignum-length-set! b l)
     (let ((l (fxrsha (+ l 1) 1)))
-      (bytevector-like-halfword-set! b 0 (fxand l 65535))
+      (bytevector-like-halfword-set! b 0 (fxlogand l 65535))
       (bytevector-like-set! b 2 (fxrshl l 16))))
 
   ; This is like bignum-length-set!, except that it works also when the
@@ -117,7 +117,7 @@
 
   (define (%bignum-truncate-length! b ln)
     (let ((l (fxrsha (+ ln 1) 1)))
-      (bytevector-like-halfword-set! b 0 (fxand l 65535))
+      (bytevector-like-halfword-set! b 0 (fxlogand l 65535))
       (bytevector-like-set! b 2 (fxrshl l 16))
       (if (not (= ln (+ l l)))
           (bignum-set! b ln 0))))

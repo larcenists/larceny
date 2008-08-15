@@ -765,11 +765,13 @@ Lquotrem:
 	cmp	%TMP0, BIGNUM_HDR			/* bignum? */
 	bne	Lquotrem2
 	nop
-	lduh	[ %RESULT - BVEC_TAG + 6 ], %TMP0	/* get digitcount */
+	ld	[ %RESULT - BVEC_TAG + 4 ], %TMP0	/* get digitcount */
+	sll     %TMP0, 8, %TMP0
+	srl	%TMP0, 8, %TMP0
 	cmp	%TMP0, 1				/* 1 digit? */
 	bne	Lquotrem2
 	nop
-	lduh	[ %RESULT - BVEC_TAG + 4 ], %TMP0	/* get sign */
+	ldub	[ %RESULT - BVEC_TAG + 4 ], %TMP0	/* get sign */
 	cmp	%TMP0, 0				/* positive? */
 	bne	Lquotrem2
 	nop
@@ -1038,7 +1040,7 @@ Lzero_comp:
 	jmp	%o7+8
 	nop
 Lzero_big:
-	set	0xFFFF, %TMP1
+	set	0xFFFFFF, %TMP1
 	andcc	%TMP0, %TMP1, %g0	/* get digitcount */
 	mov	TRUE_CONST, %RESULT
 	bne,a	.+8
@@ -2057,7 +2059,7 @@ Limag_part2:
 
 /* These will return the argument in the case of fixnum, bignum, or ratnum;
  * will return a new number in the case of a flonum (or compnum with 0i);
- * and will give a domain error for compnums with non-0i and rectnums.
+ * and will give a domain error for compnums and rectnums.
  */
 EXTNAME(m_generic_round):
 	set	Lround, %TMP1
@@ -2166,12 +2168,8 @@ Ltrund_flo:
 	jmp	%TMP1
 	nop
 Ltrund_comp:
-	fcmpd	%f0, %f2
-	nop
-	fbne,a	Lnumeric_error
+	b	Lnumeric_error
 	mov	%TMP2, %TMP0
-	jmp	%TMP1
-	nop
 Ltrund_vec:
 	cmp	%TMP0, RATNUM_HDR
 	bne,a	Lnumeric_error
@@ -2325,7 +2323,7 @@ _box_single_positive_bignum:
 	ld	[ %GLOBALS + G_RETADDR ], %o7
 	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %TMP0
 	ld	[ %GLOBALS + G_GENERIC_NRTMP2 ], %TMP2
-	sll	%TMP2, 16, %TMP2
+	sll	%TMP2, 24, %TMP2
 	add	%TMP2, 1, %TMP1
 	st	%TMP1, [ %RESULT + 4 ]		/* store sign, length */
 	st	%TMP0, [ %RESULT + 8 ]		/* store number */
@@ -2365,7 +2363,7 @@ _box_double_positive_bignum:
 	ld	[ %GLOBALS + G_GENERIC_NRTMP1 ], %TMP0
 	ld	[ %GLOBALS + G_GENERIC_NRTMP2 ], %TMP1
 	ld	[ %GLOBALS + G_GENERIC_NRTMP3 ], %TMP2
-	sll	%TMP2, 16, %TMP2
+	sll	%TMP2, 24, %TMP2
 	add	%TMP2, 2, %TMP2
 	st	%TMP2, [ %RESULT + 4 ]
 	st	%TMP0, [ %RESULT + 8 ]

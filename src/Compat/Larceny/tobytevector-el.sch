@@ -47,7 +47,7 @@
         (divide (quotient b two^32)
                 (cons (split-int (remainder b two^32)) l))))
 
-  (let* ((sign   (if (negative? b) '(1) '(0)))
+  (let* ((sign   (if (negative? b) 1 0))
          (b      (abs b))
          (digits (divide b '()))
          (len    (quotient (length digits) 4)))

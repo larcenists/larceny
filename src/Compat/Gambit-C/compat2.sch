@@ -228,33 +228,20 @@
   (let ((f (if (exact? f) (exact->inexact f) f)))
     (values (double-bits 0 f) (double-bits 1 f))))
 
-; In the following drawings, the lowest addresses are on the top left.
-;
 ; Bignums are represented in the same way on big-endian and little-
 ; endian architectures.  The first word is the header: the tag is
 ; in the low byte, the structure length is in the high three bytes.
-; The second word is the bignum meta-data: the length (in 32-bit 
-; bigits) is in the high two bytes, the sign is in the low two bytes; 
-; both fields are stored in native-endian format.  The remaining words
-; are 32-bit native-endian data.
 ;
-; On a big-endian architecture it looks like this:
+; Bignums are bytevector-like with the sign in the high byte of
+; the first word (0 for 0 or positive, 1 for negative), a digit
+; count in the low 24 bits (three bytes) and then base-2^32 digits
+; in the next words with the least significant word first.
 ;
+;       big end                  little end
 ;       +------------------------+--------+
 ;       |       length           | header |
 ;       +------------------------+--------+
-;       | sign          |   digitcount    |
-;       +---------------------------------+
-;       |              lsd                |
-;       +---------------------------------+
-;       ...
-;
-; On a little-endian architecture it looks like this:
-;
-;       +--------+------------------------+
-;       | header |       length           |
-;       +---------------------------------+
-;       | digitcount    |   sign          |
+;       | sign   |          digitcount    |
 ;       +---------------------------------+
 ;       |              lsd                |
 ;       +---------------------------------+
@@ -262,42 +249,26 @@
 
 (define (bignum->bytevector b)
 
-  (define (meta-data sign count)
-    (case (nbuild-parameter 'endianness)
-      ((little) (append count sign))
-      ((big) (append sign count))
-      (else ???)))
-
   (define two^32 (expt 2 32))
 
   (define (flatten x)
     (apply append x))
 
-  ; returned list has length divisible by 4.
+  ; returned list has length congruent to 0 mod 4.
 
   (define (divide b l)
     (if (< b two^32)
-        (flatten (reverse (cons (split-int32 b) l)))
+        (flatten (reverse (cons (split-int b) l)))
         (divide (quotient b two^32)
-                (cons (split-int32 (remainder b two^32)) l))))
+                (cons (split-int (remainder b two^32)) l))))
 
-  (let* ((sign   (split-int16 (if (negative? b) 1 0)))
+  (let* ((sign   (if (negative? b) 1 0))
          (b      (abs b))
          (digits (divide b '()))
-         (len    (quotient (length digits) 4))
-         (count  (split-int16 len)))
+         (len    (quotient (length digits) 4)))
     (list->bytevector
-     (append (meta-data sign count) digits))))
+     (append (split-int (+ len (fxlsh sign 24))) digits))))
 
-(define split-int16
-  (let ((endianness (nbuild-parameter 'endianness)))
-    (lambda (x)
-      (case endianness
-        ((big)
-         (list (quotient x 256) (remainder x 256)))
-        ((little)
-         (list (remainder x 256) (quotient x 256)))
-        (else ???)))))
 
 (define split-int32
   (let ((two^32 (expt 2 32))

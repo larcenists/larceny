@@ -9,8 +9,8 @@
 ; always interpreted as complete machine words with native endianness.
 ;
 ; The first word contains bignum metadata: sign and bignum-length.
-; The sign is kept in the upper two bytes and is 0 (positive) or 1 (negative).
-; The bignum-length is kept in the lower two bytes and denotes the number
+; The sign is kept in the upper byte and is 0 (positive) or 1 (negative).
+; The bignum-length is kept in the lower three bytes and denotes the number
 ; of 32-bit "bigits" in the number.  
 ;
 ; If the bignum's value is zero, then the sign is ignored and the length
@@ -37,10 +37,10 @@
 ($$trace "bignums-be")
 
 (define (bignum-sign b)
-  (bytevector-like-ref b 1))
+  (bytevector-like-ref b 0))
 
 (define (bignum-sign-set! b s)
-  (bytevector-like-set! b 1 s))
+  (bytevector-like-set! b 0 s))
 
 ; System constants
 
@@ -102,8 +102,9 @@
   ; bigit of the high 32-bit bigit is 0 and return length-1 if so. 
 
   (define (%bignum-length b)
-    (let* ((l0 (fxlogior (fxlsh (bytevector-like-ref b 2) 8)
-                       (bytevector-like-ref b 3)))
+    (let* ((l0 (fxlogior (fxlogior (fxlsh (bytevector-like-ref b 1) 16)
+                                   (fxlsh (bytevector-like-ref b 2) 8))
+                         (bytevector-like-ref b 3)))
            (l  (+ l0 l0)))
       (cond ((zero? l) l)
             ((zero? (bignum-ref b (- l 1))) (- l 1))
@@ -118,7 +119,8 @@
 
   (define (%bignum-length-set! b l)
     (let ((l (fxrsha (+ l 1) 1)))
-      (bytevector-like-set! b 2 (fxrshl l 8))
+      (bytevector-like-set! b 1 (fxrshl l 16))
+      (bytevector-like-set! b 2 (fxlogand (fxrshl l 8) 255))
       (bytevector-like-set! b 3 (fxlogand l 255))))
 
   ; This is like bignum-length-set!, except that it works also when the
@@ -130,7 +132,8 @@
 
   (define (%bignum-truncate-length! b ln)
     (let ((l (fxrsha (+ ln 1) 1)))
-      (bytevector-like-set! b 2 (fxrshl l 8))
+      (bytevector-like-set! b 1 (fxrshl l 16))
+      (bytevector-like-set! b 2 (fxlogand (fxrshl l 8) 255))
       (bytevector-like-set! b 3 (fxlogand l 255))
       (if (not (= ln (+ l l)))
           (bignum-set! b ln 0))))

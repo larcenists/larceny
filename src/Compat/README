@@ -1,0 +1,54 @@
+This directory contains compatibility files that add
+extensions to certain implementations of R5RS Scheme
+so they can be used to build Larceny on certain systems.
+
+At this time, the only implementations that can be
+used to build Larceny are Larceny itself and MzScheme
+v37x.  MzScheme v37x can be used only when building
+Larceny for a little-endian machine.
+
+The compatibility files for Chez Scheme, Petite Chez,
+Gambit-C, and MIT Scheme are woefully out of date.
+Here is a partial list of the known problems with our
+compatibility files for those systems:
+
+  * Most of those systems have never been used to
+    build Larceny for any system other than Sparc
+    Solaris.
+
+  * Modifications would be required when building
+    Larceny for a little-endian machine.
+
+  * Modifications would be required when building
+    Petit Larceny or Common Larceny.
+
+  * Modifications would be required to support
+    Larceny's current representations of strings
+    and bignums.
+
+  * Most of those systems have evolved in ways
+    that have obsoleted parts of our compatibility
+    files.
+
+  * Larceny's source code has evolved to use
+    lexical notations that may not be supported
+    by those systems.
+
+MzScheme v4 cannot be used to build Larceny.  Its
+R5RS support has been stripped of some extensions
+needed to build Larceny.  Its default language is
+not standard enough to build Larceny; for example,
+it does not support (if x y) and does not support
+mutable pairs.  Its R6RS support
+
+
+Future Plans
+============
+
+We would like to preserve our ability to build
+Larceny using an implementation other than Larceny
+itself.  MzScheme v37x serves that role for now.
+For the future, we should select a more stable
+implementation of R5RS Scheme that supports the
+extensions we need and could replace MzScheme as
+an alternative to Larceny for building Larceny.

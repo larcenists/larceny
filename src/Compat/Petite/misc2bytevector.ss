@@ -21,17 +21,16 @@
 (define (symbol->bytevector s)
   (string->bytevector (symbol->string s)))
 
-; SPARC specific.
+; Bignums are bytevector-like with the sign in the high byte of
+; the first word (0 for 0 or positive, 1 for negative), a digit
+; count in the low 24 bits (three bytes) and then base-2^32 digits
+; in the next words with the least significant word first.
 ;
-; Bignums are bytevector-like with the sign in the first two bytes
-; (0 for 0 or positive, 1 for negative), followed by a digit
-; count (two bytes) and then base-2^32 digits in the next words.
-; with the least significant word first.
-;
+;       big end                  little end
 ;       +------------------------+--------+
 ;       |       length           | header |
 ;       +------------------------+--------+
-;       | sign          |   digitcount    |
+;       | sign   |          digitcount    |
 ;       +---------------------------------+
 ;       |              lsd                |
 ;       +---------------------------------+
@@ -52,13 +51,12 @@
         (divide (quotient b two^32)
                 (cons (split-int (remainder b two^32)) l))))
 
-  (let* ((sign   (if (negative? b) '(0 1) '(0 0)))
+  (let* ((sign   (if (negative? b) 1 0))
          (b      (abs b))
          (digits (divide b '()))
-         (len    (quotient (length digits) 4))
-         (count  (list (quotient len 256) (remainder len 256))))
+         (len    (quotient (length digits) 4)))
     (list->bytevector
-     (append sign count digits))))
+     (append (split-int (+ len (fxlsh sign 24))) digits))))
 
 
 ; IEEE specific, and specific to Chez Scheme.
