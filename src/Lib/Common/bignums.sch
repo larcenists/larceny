@@ -807,44 +807,42 @@
 
 ; Subtract the digits of bignum b from the digits of bignum a, producing 
 ; a third, possibly negative, bignum c.
-
-'; FIXME
-(define (big-subtract-digits a b)
-  (let ((x (big-compare-magnitude a b)))  ; FIXME: Potentially expensive.
-    ;; Set up so that abs(a) >= abs(b)
-    (let ((a    (if (negative? x) b a))
-          (b    (if (negative? x) a b)))
-      (let* ((la   (bignum-length a))
-             (lb   (bignum-length b))
-             (lmax la)
-             (lmin lb)
-             (c    (bignum-alloc (+ lmax 1)))) ; FIXME: are you sure?
-
-        ; Subtract common segments
-
-        (define (loop-common i borrow)
-          (if (< i lmin)
-              (loop-common (+ i 1) (big2- a b c i borrow))
-              (loop-rest (if (= i la) b a) i borrow)))
-
-        ; Subtract borrow through longest number
-
-        (define (loop-rest rest i borrow)
-          (if (< i lmax)
-              (loop-rest rest (+ i 1) (big1- rest c i borrow))
-              (begin (if (negative? x)
-                         (big-flip-sign! c))
-                     c)))
-          
-        (loop-common 0 0)))))
+;
+;(define (big-subtract-digits a b)
+;  (let ((x (big-compare-magnitude a b)))  ; FIXME: Potentially expensive.
+;    ;; Set up so that abs(a) >= abs(b)
+;    (let ((a    (if (negative? x) b a))
+;          (b    (if (negative? x) a b)))
+;      (let* ((la   (bignum-length a))
+;             (lb   (bignum-length b))
+;             (lmax la)
+;             (lmin lb)
+;             (c    (bignum-alloc (+ lmax 1)))) ; FIXME: are you sure?
+;
+;        ; Subtract common segments
+;
+;        (define (loop-common i borrow)
+;          (if (< i lmin)
+;              (loop-common (+ i 1) (big2- a b c i borrow))
+;              (loop-rest (if (= i la) b a) i borrow)))
+;
+;        ; Subtract borrow through longest number
+;
+;        (define (loop-rest rest i borrow)
+;          (if (< i lmax)
+;              (loop-rest rest (+ i 1) (big1- rest c i borrow))
+;              (begin (if (negative? x)
+;                         (big-flip-sign! c))
+;                     c)))
+;          
+;        (loop-common 0 0)))))
 
 ; FIXME: this transitional code computes with 32-bit bigits.
 ; The size of c is increased by 1 16-bit bigit to make sure it has
 ; a full 32-bit bigit at its most significant end.
 
-; FIXME
 (define (big-subtract-digits a b)
-  (let ((x (big-compare-magnitude a b)))  ; FIXME: Potentially expensive.
+  (let ((x (big-compare-magnitude a b)))
     ;; Set up so that abs(a) >= abs(b)
     (let ((a    (if (negative? x) b a))
           (b    (if (negative? x) a b)))
@@ -1045,43 +1043,6 @@
                            (- (bignum-ref a i) (bignum-ref b i)))))))
           (loop (- la 1))))))
     
-; Normalize a bignum -- this involves removing leading zeroes, and, if the
-; number is small enough to fit in a fixnum, converting it to a fixum.
-; FIXME: commented out.
-
-';'  FIXME
-(define (big-normalize! b)
-  (letrec ((loop
-            (lambda (i)
-              (cond ((< i 0)
-                     0)
-                    ((= (bignum-ref b i) 0)
-                     (loop (- i 1)))
-                    (else
-                     (bignum-length-set! b (+ i 1))
-                     (if (big-fits-in-fix? b)
-                         (bignum->fixnum b)
-                         b))))))
-    (loop (- (bignum-length b) 1))))
-
-; Normalize, but do not convert.
-; FIXME: commented out.
-
-';'  FIXME
-(define (big-limited-normalize! b)
-  (letrec ((loop
-            (lambda (i)
-              (cond ((< i 0)
-                     (bignum-length-set! b 0)
-                     b)
-                    ((= (bignum-ref b i) 0)
-                     (loop (- i 1)))
-                    (else
-                     (bignum-length-set! b (+ i 1))
-                     b)))))
-    (loop (- (bignum-length b) 1))))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Debugging code
@@ -1169,33 +1130,32 @@
 
 ; Given two numbers, returns their product.
 ; Mainly for testing.
-
-';FIXME
-(define (karatsuba-multiplication u v)
-  (cond ((fixnum? u)
-         (* u v))
-        ((fixnum? v)
-         (* u v))
-        ((and (bignum? u) (bignum? v))
-         (cond ((< u 0)
-                (- (karatsuba-multiplication (- u) v)))
-               ((< v 0)
-                (- (karatsuba-multiplication u (- v))))
-               (else
-                (let ((ulength (bignum-length32 u))
-                      (vlength (bignum-length32 v)))
-                  (if (and (< karatsuba:threshold ulength)
-                           (< karatsuba:threshold vlength))
-                      (let ((result (karatsuba-algorithm u v)))
-                        ';FIXME
-                        (if (not (= result (* u v)))
-                            (begin (set! *u* u)
-                                   (set! *v* v)
-                                   (assert (begin 'karatsuba #f))))
-                        (big-normalize! result))
-                      (* u v))))))
-        (else
-         (* u v))))
+;
+;(define (karatsuba-multiplication u v)
+;  (cond ((fixnum? u)
+;         (* u v))
+;        ((fixnum? v)
+;         (* u v))
+;        ((and (bignum? u) (bignum? v))
+;         (cond ((< u 0)
+;                (- (karatsuba-multiplication (- u) v)))
+;               ((< v 0)
+;                (- (karatsuba-multiplication u (- v))))
+;               (else
+;                (let ((ulength (bignum-length32 u))
+;                      (vlength (bignum-length32 v)))
+;                  (if (and (< karatsuba:threshold ulength)
+;                           (< karatsuba:threshold vlength))
+;                      (let ((result (karatsuba-algorithm u v)))
+;                        ';FIXME
+;                        (if (not (= result (* u v)))
+;                            (begin (set! *u* u)
+;                                   (set! *v* v)
+;                                   (assert (begin 'karatsuba #f))))
+;                        (big-normalize! result))
+;                      (* u v))))))
+;        (else
+;         (* u v))))
 
 ; Given two positive bignums, returns their product as a bignum.
 ; FIXME: should take advantage of zeroes and ones.
@@ -1203,8 +1163,8 @@
 (define (karatsuba-algorithm u v)
   (let* ((ulength (bignum-length32 u))
          (vlength (bignum-length32 v))
-         (zlength (+ ulength vlength))
          (digits (quotient (+ 1 (max ulength vlength)) 2))
+         (zlength (+ digits digits digits digits 1))
 
          (u1 (karatsuba:bignum-hi u digits))
          (u0 (karatsuba:bignum-lo u digits))
@@ -1312,7 +1272,8 @@
   (assert (bignum? u))
   (let* ((nbigits (* karatsuba:bigits-per-digit digits))
          (z (bignum-alloc nbigits))
-         (n (bytevector-like-length z)))
+         (n (min (bytevector-like-length u)
+                 (bytevector-like-length z))))
     (do ((i 4 (+ i 1)))
         ((>= i n)
          (big-limited-normalize! z))
@@ -1323,7 +1284,7 @@
 
 (define (karatsuba:bignum-hi u digits)
   (assert (bignum? u))
-  (let* ((d (- (bignum-length32 u) digits))
+  (let* ((d (max 1 (- (bignum-length32 u) digits)))
          (nbigits (* karatsuba:bigits-per-digit d))
          (z (bignum-alloc nbigits)))
     (bignum-shift-right! u z (* karatsuba:bits-per-digit digits))
@@ -1386,26 +1347,25 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-';FIXME
-(define (test-karatsuba n m)
-  (define (test name actual expected)
-    (if (not (equal? actual expected))
-        (begin (display "***** TEST FAILED ***** ")
-               (display name)
-               (newline)
-               (display "Actual:   ")
-               (write actual)
-               (newline)
-               (display "Expected: ")
-               (write expected)
-               (newline))))
-  (if (positive? n)
-      (let ((u (random m))
-            (v (random m)))
-        (set! *u* u)
-        (set! *v* v)
-        (test "karatsuba" (karatsuba-multiplication u v) (* u v))
-        (test-karatsuba (- n 1) m))))
+;(define (test-karatsuba n m)
+;  (define (test name actual expected)
+;    (if (not (equal? actual expected))
+;        (begin (display "***** TEST FAILED ***** ")
+;               (display name)
+;               (newline)
+;               (display "Actual:   ")
+;               (write actual)
+;               (newline)
+;               (display "Expected: ")
+;               (write expected)
+;               (newline))))
+;  (if (positive? n)
+;      (let ((u (random m))
+;            (v (random m)))
+;        (set! *u* u)
+;        (set! *v* v)
+;        (test "karatsuba" (karatsuba-multiplication u v) (* u v))
+;        (test-karatsuba (- n 1) m))))
 
 
 ; For debugging.
@@ -1413,55 +1373,53 @@
 ;     u * v = (2^{2n} + 2^n) U1 V1
 ;           + 2^n (U1 - U0) (V0 - V1)
 ;           + (2^n + 1) U0 V0
+;
+;(define (g u v u1 u0 v1 v0 digits)
+;  (show u)
+;  (show v)
+;  (show u1 u0)
+;  (show v1 v0)
+;  (let* ((z0 (* u0 v0))
+;         (z1 (* (expt 2 (* 32 digits)) u0 v0))
+;         (z2 (* (expt 2 (* 32 digits)) (- u1 u0) (- v0 v1)))
+;         (z3 (* (expt 2 (* 32 digits)) u1 v1))
+;         (z4 (* (expt 2 (* 64 digits)) u1 v1))
+;         (z (+ z0 z1 z2 z3 z4)))
+;    (show z0)
+;    (show z1)
+;    (show z2)
+;    (show z3)
+;    (show z4)
+;    (show z)
+;    z))
 
-';FIXME
-(define (g u v u1 u0 v1 v0 digits)
-  (show u)
-  (show v)
-  (show u1 u0)
-  (show v1 v0)
-  (let* ((z0 (* u0 v0))
-         (z1 (* (expt 2 (* 32 digits)) u0 v0))
-         (z2 (* (expt 2 (* 32 digits)) (- u1 u0) (- v0 v1)))
-         (z3 (* (expt 2 (* 32 digits)) u1 v1))
-         (z4 (* (expt 2 (* 64 digits)) u1 v1))
-         (z (+ z0 z1 z2 z3 z4)))
-    (show z0)
-    (show z1)
-    (show z2)
-    (show z3)
-    (show z4)
-    (show z)
-    z))
-
-';FIXME
-(define (benchmark-karatsuba n bits)
-  (let* ((m (expt 2 bits))
-         (us (vector->list (make-vector n 0)))
-         (us (map (lambda (x) (random m)) us))
-         (vs (map (lambda (x) (random m)) us))
-         (nstr (number->string n))
-         (mstr (number->string bits))
-         (s1 (string-append "karatsuba:" mstr ":" nstr))
-         (s2 (string-append "classical:" mstr ":" nstr))
-         (r1 '())
-         (r2 '()))
-    (run-benchmark s1
-                   1
-                   (lambda ()
-                     (set! r1 (map karatsuba-multiplication us vs)))
-                   (lambda (x) #t))
-    (run-benchmark s2
-                   1
-                   (lambda ()
-                     (set! r2 (map * us vs)))
-                   (lambda (x) #t))
-    (if (not (equal? r1 r2))
-        (begin (set! *us* us)
-               (set! *vs* vs)
-               (set! *r1* r1)
-               (set! *r2* r2)
-               (display "***** INCORRECT RESULTS *****")
-               (newline)))))
+;(define (benchmark-karatsuba n bits)
+;  (let* ((m (expt 2 bits))
+;         (us (vector->list (make-vector n 0)))
+;         (us (map (lambda (x) (random m)) us))
+;         (vs (map (lambda (x) (random m)) us))
+;         (nstr (number->string n))
+;         (mstr (number->string bits))
+;         (s1 (string-append "karatsuba:" mstr ":" nstr))
+;         (s2 (string-append "classical:" mstr ":" nstr))
+;         (r1 '())
+;         (r2 '()))
+;    (run-benchmark s1
+;                   1
+;                   (lambda ()
+;                     (set! r1 (map karatsuba-multiplication us vs)))
+;                   (lambda (x) #t))
+;    (run-benchmark s2
+;                   1
+;                   (lambda ()
+;                     (set! r2 (map * us vs)))
+;                   (lambda (x) #t))
+;    (if (not (equal? r1 r2))
+;        (begin (set! *us* us)
+;               (set! *vs* vs)
+;               (set! *r1* r1)
+;               (set! *r2* r2)
+;               (display "***** INCORRECT RESULTS *****")
+;               (newline)))))
 
 ; eof
