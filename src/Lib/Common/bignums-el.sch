@@ -175,7 +175,6 @@
 ; Normalize a bignum -- this involves removing leading zeroes, and, if the
 ; number is small enough to fit in a fixnum, converting it to a fixum.
 
-; FIXME
 (define (big-normalize! b)
   (let* ((n (bignum-length32 b)))
     (define (loop i)
@@ -201,7 +200,6 @@
 
 ; Normalize, but do not convert.
 
-; FIXME
 (define (big-limited-normalize! b)
   (let* ((n (bignum-length32 b)))
     (define (loop i)
@@ -359,9 +357,9 @@
           ((= 0 k32bits)
            (fast-loop (fxlsh n 2)))
           ((= 0 k8bits)
-           (fast-byte-loop (fxlsh n 2)))
+           (fast-byte-loop (+ 3 (fxlsh n 2))))
           (else
-           (slow-loop (fxlsh n 2))))))
+           (slow-loop (+ 3 (fxlsh n 2)))))))
 
 ; Shift right.
 ; Stores b, right-shifted by k bits, into c.
