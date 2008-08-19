@@ -90,10 +90,7 @@
     (define (approximate-log2-of-integer p)
       (if (<= p two^n)
           (log2 (exact->inexact p))
-          (do ((q two^n (* q q))
-               (k n (+ k k)))
-              ((<= p q)
-               (- k (approximate-log2-of-integer (quotient q p)))))))
+          (bitwise-length p)))
     
     (define (log2 x)
       (/ (log x) log:2))
