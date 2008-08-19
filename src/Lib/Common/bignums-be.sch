@@ -67,7 +67,6 @@
 (define bignum-length)                  ; get the number of bigits
 (define bignum-length-set!)             ; set the number of bigits
 (define bignum-truncate-length!)        ; (complicated)
-(define bignum-alloc)                   ; allocate a bignum
 
 ; The following procedures are defined in a LET and exported to allow
 ; the compiler to generate fast calls to internal definitions (or inline 
@@ -324,14 +323,15 @@
   ; already been inlined by hand, so don't modify this code
   ; mindlessly.
 
-  (define (be:fixme i)
+  (define (be i)
     (+ (fxlogand #xfc i) (- 3 (fxlogand 3 i))))
 
   (let* ((n (bignum-length32 b))        ; 32-bit bigits
          (k8 (quotient k 8))
          (k32 (fxrshl k8 2))
          (k32bits (remainder k 32))
-         (k8bits (fxlogand k32bits #x07)))
+         (k8bits (fxlogand k32bits #x07))
+         (nbytes-c (bytevector-like-length c)))
 
     ;; Given the bytevector index of the most significant byte
     ;; that has not yet been cleared, finishes the job.
@@ -383,8 +383,14 @@
     (define (fast-byte-loop i)
       (if (< i 4)
           (zero-loop (+ 3 k8))
-          (let ((b0 (bytevector-like-ref b (be i))))
-            (bytevector-like-set! c (be (+ i k8)) b0)
+          (let ((b0 (bytevector-like-ref b (be i)))
+                (j (be (+ i k8))))
+            (cond ((< j nbytes-c)
+                   (bytevector-like-set! c j b0))
+                  ((> b0 0)
+                   (assertion-violation 'bignum-shift-left!
+                                        (errmsg 'msg:rangeerror)
+                                        k)))
             (fast-byte-loop (- i 1)))))
 
     ;; Given the bytevector index of the most significant byte
@@ -396,9 +402,14 @@
           (zero-loop (+ 3 k8))
           (let ((b0 (bytevector-like-ref b (be i)))
                 (mask (fxlsh #xff k8bits)))
-            (bytevector-like-set! c
-                                  (be (+ i k8))
-                                  (fxlogand #xff (fxlsh b0 k8bits)))
+            (let ((low-bits (fxlogand #xff (fxlsh b0 k8bits)))
+                  (j (be (+ i k8))))
+              (cond ((< j nbytes-c)
+                     (bytevector-like-set! c j low-bits))
+                    ((> low-bits 0)
+                     (assertion-violation 'bignum-shift-left!
+                                          (errmsg 'msg:rangeerror)
+                                          k))))
             (let ((extra-bits (fxrshl (fxlsh b0 k8bits) 8)))
               (if (> extra-bits 0)
                   (let ((c1 (bytevector-like-ref c (be (+ (+ i k8) 1)))))
