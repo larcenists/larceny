@@ -42,6 +42,9 @@
 (define (unix:write fd buffer nbytes offset)
   (syscall syscall:write fd buffer nbytes offset))
 
+(define (unix:lseek fd offset whence)
+  (syscall syscall:lseek fd offset whence))
+
 (define (unix:pollinput fd)                ; #t if ready
   (= (syscall syscall:pollinput fd) 1))
 
@@ -154,6 +157,9 @@
                 (<= (+ offset k) (bytevector-like-length buf))))
       (error "osdep/write-file4: invalid byte count or offset " k "/" offset))
   (unix:write fd buf k offset))
+
+(define (osdep/lseek-file fd offset whence)
+  (unix:lseek fd offset whence))
 
 (define (osdep/delete-file fn)
   (if (not (string? fn))
