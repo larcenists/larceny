@@ -34,6 +34,7 @@ old_heap_t *create_old_heap_t(
 		      void *visitor( word *addr, int tag, void *accum ),
 		      void *accum_init ),
   bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy ),
+  void (*synchronize)( old_heap_t *heap ),
   void *data
 )
 {
@@ -66,6 +67,7 @@ old_heap_t *create_old_heap_t(
   heap->has_popular_objects = FALSE;
   heap->live_last_major_gc = 0;
   heap->reallocate_whole_semispace = FALSE;
+  heap->synchronize = synchronize;
 
   return heap;
 }

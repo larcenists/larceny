@@ -31,12 +31,14 @@ struct old_heap {
 
   int maximum;
      /* The maximum storage that can be allocated in this generation.
-	This field is valid following a call to before_collection().
+	This field is valid following a call to before_collection()
+	and synchronize().
 	*/
 
   int allocated;
      /* The amount of storage currently allocated in this generation.
-	This field is valid following a call to before_collection().
+	This field is valid following a call to before_collection()
+	and synchronize().
 	*/
 
   bool has_popular_objects;
@@ -128,6 +130,11 @@ struct old_heap {
   bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy );
     /* Returns true iff 'addr' is an object in 'heap'. 
        */
+
+  void (*synchronize)( old_heap_t *heap );
+    /* Synchronizes internal state of heap, so that the maximim and allocated
+       fields are valid.
+     */
 };
 
 /* The initialize and set_policy arguments may be NULL. */
@@ -152,6 +159,7 @@ old_heap_t *create_old_heap_t(
 		      void *visitor( word *addr, int tag, void *accum ),
 		      void *accum_init ),
   bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy ),
+  void (*synchronize)( old_heap_t *heap ), 
   void *data
 );
 
@@ -166,6 +174,7 @@ old_heap_t *create_old_heap_t(
 #define oh_assimilate( oh, ss )    ((oh)->assimilate( oh, ss ))
 #define oh_current_space( oh )     ((oh)->current_space( oh ))
 #define oh_is_address_mapped( oh,a,n)((oh)->is_address_mapped( (oh), (a), (n) ))
+#define oh_synchronize( oh )       ((oh)->synchronize( oh ))
 
 #endif  /* INCLUDED_OLD_HEAP_T_H */
 

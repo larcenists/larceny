@@ -528,8 +528,9 @@ static void after_collection( old_heap_t *heap )
     /* FIXME: not accounted for in GC time measurement.  */
     rs_clear( heap->collector->remset[ data->gen_no ] );
 
+  heap->allocated = used_space( heap );
   annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d.", 
-	       data->gen_no, data->target_size, used_space( heap ),
+	       data->gen_no, data->target_size, heap->allocated, 
 	       heap->collector->remset[ data->gen_no ]->live );
 }
 
@@ -644,6 +645,14 @@ static bool is_address_mapped( old_heap_t *heap, word *addr, bool noisy )
   return ss_is_address_mapped( DATA(heap)->current_space, addr, noisy );
 }
 
+static void synchronize( old_heap_t *heap )
+{
+  old_data_t *data = DATA(heap);
+
+  heap->maximum = data->target_size;
+  heap->allocated = used_space( heap );
+}
+
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
 {
   old_heap_t *heap;
@@ -686,6 +695,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
 			    assimilate, 
 			    enumerate, 
 			    is_address_mapped,
+			    synchronize, 
 			    data );
   heap->collector = gc;
   static int total_gens = 0;
