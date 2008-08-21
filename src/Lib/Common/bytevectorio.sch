@@ -6,6 +6,16 @@
 ; Bytevector I/O ports.
 
 ; Offsets in the bytevector port data structure.
+;
+; The type is one of the symbols
+;     bytevector-input-port
+;     bytevector-output-port
+;     bytevector-input/output-port
+; The value of i is the current position in bytes;
+;     note that i may be greater than limit,
+;     thanks to the R6RS semantics of set-port-position!,
+;     which is modelled after the Posix semantics of lseek.
+; The value of limit is the current size of the output.
 
 (define bytevector-io.type 0)  ; symbol
 (define bytevector-io.bv 1)    ; bytevector
@@ -101,7 +111,7 @@
 	 (i     (vector-ref data bytevector-io.i))
          (limit (vector-ref data bytevector-io.limit))
          (n     (bytevector-length buffer))
-         (count (min n (- limit i))))
+         (count (max (min n (- limit i)))))
     (if (<= count 0)
         'eof
         (begin (bytevector-copy! b i buffer 0 count)
@@ -115,7 +125,7 @@
 	 (i     (vector-ref data bytevector-io.i))
          (limit (vector-ref data bytevector-io.limit))
          (n     1)
-         (count (min n (- limit i))))
+         (count (max 0 (min n (- limit i)))))
     (if (<= count 0)
         'eof
         (begin (bytevector-copy! b i buffer 0 count)
@@ -144,7 +154,7 @@
      bytevector-input/output-port)
     (let* ((bv (vector-ref data bytevector-io.bv))
            (n  (bytevector-length bv)))
-      (if (<= 0 posn n)
+      (if (<= 0 posn)
           (begin (vector-set! data bytevector-io.i posn)
                  'ok)
           'error)))

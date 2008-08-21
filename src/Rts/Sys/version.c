@@ -69,7 +69,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 97;
-char *larceny_version_qualifier = "a1 (bignums)";
+char *larceny_version_qualifier = "a2 (lseek)";
 
 char *date = DATE " " TIME;
 char *user = USER;

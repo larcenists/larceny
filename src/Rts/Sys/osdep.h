@@ -178,6 +178,20 @@ extern void osdep_writefile( word fd, word buf, word nbytes, word offset );
      FIXME: there is no way to distinguish between errors.
      */
 
+extern void osdep_lseekfile( word fd, word offset, word whence );
+  /* Set the file offset for fd as specified by offset and whence:
+     If whence is 0, set the file offset to offset bytes.
+     If whence is 1, increment the file offset by offset.
+     If whence is 2, set the file offset to the size of
+     the file plus offset.
+     Places the new file offset (from the beginning of the file)
+     in globals[G_RESULT], or -1 on error.
+     
+     FIXME: this function should have a less Unix-dependent interface.
+     FIXME: this function should take globals[] as a parameter.
+     FIXME: there is no way to distinguish between errors.
+     */
+
 extern void osdep_mtime( word fn, word buf );
   /* 'fn' is a filename and 'buf' is a vector of 6 elements.  Obtain the
      modification time of the file and store it in the vector as fixnums:

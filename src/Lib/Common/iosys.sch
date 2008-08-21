@@ -217,8 +217,9 @@
 ; all ports
 
 (define port.setposn   18) ; boolean: true iff supports set-port-position!
+(define port.alist     19) ; association list: used mainly by custom ports
 
-(define port.structure-size 19)      ; size of port structure
+(define port.structure-size 20)      ; size of port structure
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -331,6 +332,7 @@
                        readmode:binary))
 
     (vector-set! v port.setposn set-position?)
+    (vector-set! v port.alist '())
 
     (typetag-set! v sys$tag.port-typetag)
     (io/reset-buffers! v)                     ; inserts sentinel
@@ -850,6 +852,23 @@
 ; R6RS i/o (preliminary and incomplete)
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (io/port-alist p)
+  (cond ((port? p)
+         (vector-like-ref p port.alist))
+        (else
+         (error 'io/port-alist (errmsg 'msg:illegal) p)
+         #t)))
+
+(define (io/port-alist-set! p alist)
+  (cond ((not (port? p))
+         (error 'io/port-alist (errmsg 'msg:illegal1) p))
+        ((not (and (list? alist)
+                   (every? pair? alist)))
+         (error 'io/port-alist (errmsg 'msg:illegal2) p))
+        (else
+         (vector-like-set! p port.alist alist)
+         (unspecified))))
 
 (define (io/port-has-set-port-position!? p)
   (cond ((port? p)

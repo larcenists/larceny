@@ -398,6 +398,40 @@ void osdep_writefile( word w_fd, word w_buf, word w_cnt, word w_offset )
   fflush(fp); /* Larceny does its own buffering. */
 }
 
+/* FIXME: limits offset to the size of a fixnum. */
+
+void osdep_lseekfile( word w_fd, word w_offset, word w_whence )
+{
+  int fd = nativeint( w_fd );
+  off_t offset =  nativeint( w_offset );
+  int whence_code = nativeint( w_whence );
+  off_t whence;
+  FILE *fp;
+  int res;
+
+  if ( whence_code == 0 )
+    whence = SEEK_SET;
+  else if ( whence_code == 1 )
+    whence = SEEK_CUR;
+  else if ( whence_code == 2 )
+    whence = SEEK_END;
+  else assert( 0 );
+
+#ifdef USE_STDIO
+  check_standard_filedes();
+#endif
+
+  assert( fd >= 0 && fd < num_fds );
+
+  if (fdarray[fd].fp == 0) {
+    globals[ G_RESULT ] = fixnum(-1);
+    return;
+  }
+  fp = fdarray[fd].fp;
+  res = fseek( fp, offset, whence );
+  globals[G_RESULT]= fixnum(res);
+}
+
 /* Standard C does not have a procedure to check for input-ready.
    Return 1 always to indicate input ready.  This is correct for disk 
    files, but not for intermittent input sources (console, etc).

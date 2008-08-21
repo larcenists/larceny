@@ -47,6 +47,11 @@ namespace Scheme.RT {
 		chdir=44,
 		cwd=45,
 		setenv=46,
+                // missing:
+                //     errno=47,
+                //     seterrno=48,
+                //     time=49,
+                //     lseek= 50,
 		sysglobal = 91
 	};
 }

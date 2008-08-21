@@ -58,5 +58,6 @@
 (define syscall:errno 47)
 (define syscall:seterrno 48)
 (define syscall:time 49)
+(define syscall:lseek 50)
 
 ; eof

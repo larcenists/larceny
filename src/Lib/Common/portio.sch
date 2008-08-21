@@ -180,17 +180,19 @@
       (assertion-violation 'transcoded-port
                            "bad port or unsupported transcoder" p t)))
 
-; FIXME:  For now, all binary and textual ports support port-position.
+; All binary and textual ports support port-position internally
+; but custom ports may claim not to.
 
 (define (port-has-port-position? p)
-  (or (binary-port? p) (textual-port? p)))
+  (let ((probe (assq 'port-position (io/port-alist p))))
+    (cond ((not probe)
+           (or (binary-port? p) (textual-port? p)))
+          ((cdr probe) #t)
+          (else #f))))
+
+; FIXME:  Custom implementations of port-position are ignored.
 
 (define (port-position p) (io/port-position p))
-
-; FIXME:  Do these extensions to R6RS i/o belong in this file?
-
-(define (port-lines-read p) (io/port-lines-read p))
-(define (port-line-start p) (io/port-line-start p))
 
 (define (port-has-set-port-position!? p)
   (io/port-has-set-port-position!? p))
@@ -207,6 +209,11 @@
    (lambda results
      (if (io/open-port? p) (io/close-port p))
      (apply values results))))
+
+; FIXME:  Do these extensions to R6RS i/o belong in this file?
+
+(define (port-lines-read p) (io/port-lines-read p))
+(define (port-line-start p) (io/port-line-start p))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

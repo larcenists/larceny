@@ -147,6 +147,25 @@ word w_fd, w_buf, w_cnt, w_offset;
 				     nativeint( w_cnt ) ) );
 }
 
+/* FIXME: limits offset to the size of a fixnum. */
+
+void osdep_lseekfile( w_fd, w_offset, w_whence )
+word w_fd, w_offset, w_whence;
+{
+  int whence_code = nativeint( w_whence );
+  off_t whence;
+  if ( whence_code == 0 )
+    whence = SEEK_SET;
+  else if ( whence_code == 1 )
+    whence = SEEK_CUR;
+  else if ( whence_code == 2 )
+    whence = SEEK_END;
+  else assert( 0 );
+  globals[ G_RESULT ] = fixnum( lseek( nativeint( w_fd ),
+                                       nativeint( w_offset ),
+                                       whence ));
+}
+
 /* File modification time as six-element vector */
 void osdep_mtime( w_fn, w_buf )
 word w_fn, w_buf;

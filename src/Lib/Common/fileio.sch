@@ -27,25 +27,6 @@
      (set! *file-io/files* 
            (remq! (assq data *file-io/files*) *file-io/files*)))))
 
-(define (file-io/ioproc op)
-  (case op
-    ((read)
-     (lambda (data buffer)
-       (file-io/read-bytes (file-io/fd data) buffer)))
-    ((write)
-     (lambda (data buffer count)
-       (file-io/write-bytes (file-io/fd data) buffer count 0)))
-    ((close)
-     (lambda (data)
-       (file-io/close-file data)))
-    ((ready?)
-     (lambda (data) #t))
-    ((name) 
-     (lambda (data)
-       (file-io/name data)))
-    (else 
-     (error "file-io/ioproc: illegal operation: " op))))
-
 (define (file-io/data fd name)
   (cons fd name))
 
@@ -54,6 +35,49 @@
 
 (define (file-io/name datum)
   (cdr datum))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (file-io/ioproc op)
+  (case op
+    ((read)
+     file-io/read)
+    ((write)
+     file-io/write)
+    ((close)
+     file-io/close)
+    ((ready?)
+     file-io/ready?)
+    ((name)
+     file-io/name)
+    ((set-position!)
+     file-io/set-position!)
+    (else 
+     (error "file-io/ioproc: illegal operation: " op))))
+
+(define (file-io/read data buffer)
+  (file-io/read-bytes (file-io/fd data) buffer))
+
+(define (file-io/write data buffer count)
+  (file-io/write-bytes (file-io/fd data) buffer count 0))
+
+(define (file-io/close data)
+  (file-io/close-file data))
+
+(define (file-io/ready? data) #t)
+
+; Parameters for osdep/lseek-file; the magic numbers are portable
+; because they're interpreted by Rts/Sys/osdep-*.c
+
+(define whence:seek-set          0)     ; offset is absolute
+(define whence:seek-cur          1)     ; offset is relative to current
+(define whence:seek-end          2)     ; offset is relative to end
+
+(define (file-io/set-position! data offset)
+  (let ((r (osdep/lseek-file (file-io/fd data) offset whence:seek-set)))
+    (if (>= r 0) 'ok 'error)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (file-io/read-bytes fd buffer)
   (let ((r (osdep/read-file fd buffer (bytevector-like-length buffer))))
@@ -75,7 +99,10 @@
          (fd      (osdep/open-file filename io-mode tx-mode))) 
     (if (>= fd 0)
         (let* ((data (file-io/data fd filename))
-               (p    (io/make-port file-io/ioproc data io-mode tx-mode)))
+               (p    (if (eq? 'binary tx-mode)
+                         (io/make-port file-io/ioproc data io-mode tx-mode
+                                       'set-position!)
+                         (io/make-port file-io/ioproc data io-mode tx-mode))))
           (file-io/remember-file data p)
           p)
         (begin (error "Unable to open file " filename " for " io-mode)
@@ -90,7 +117,8 @@
   (let* ((fd      (osdep/open-file filename 'input 'binary)))
     (if (>= fd 0)
         (let* ((data (file-io/data fd filename))
-               (p    (io/make-port file-io/ioproc data 'input 'binary))
+               (p    (io/make-port file-io/ioproc data 'input
+                                   'binary 'set-position!))
                (p    (if (and transcoder (not (zero? transcoder)))
                          (io/transcoded-port p transcoder)
                          p)))
@@ -135,8 +163,8 @@
     (let ((fd (apply osdep/open-file filename 'output 'binary opts)))
       (if (>= fd 0)
           (let* ((data (file-io/data fd filename))
-                 (p    (io/make-port file-io/ioproc data
-                                     'output 'binary bufmode))
+                 (p    (io/make-port file-io/ioproc data 'output
+                                     'binary 'set-position! bufmode))
                  (p    (if (and transcoder (not (zero? transcoder)))
                            (io/transcoded-port p transcoder)
                            p)))
