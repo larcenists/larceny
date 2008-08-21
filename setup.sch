@@ -255,7 +255,7 @@
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
-      ((macosx solaris linux-el cygwin) 'unix)
+      ((macosx macosx-el solaris linux-el cygwin) 'unix)
       ((win32) 'win32)
       (else (error 'platform->os "Unhandled case: ~a" sym))))
 
