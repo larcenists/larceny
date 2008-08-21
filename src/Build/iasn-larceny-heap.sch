@@ -302,7 +302,7 @@
 (cond
  ((equal? (cdr (assq 'os-name (system-features)))
 	  "Win32")
-  (system "larceny.bin -reorganize-and-dump -heap larceny.heap")
+  (system ".\\larceny.bin.exe -reorganize-and-dump -heap larceny.heap")
   (system "move larceny.heap.split larceny.heap"))
  (else
   (system "./larceny.bin -reorganize-and-dump -heap larceny.heap")
