@@ -337,6 +337,7 @@
 
   (set! *host:endianness* (platform->endianness host-arch))
   (set! *target:endianness* (platform->endianness target-arch))
+  (set! *target:os* (platform->os target-arch))
   
   (cond (sassy
          (case target-arch

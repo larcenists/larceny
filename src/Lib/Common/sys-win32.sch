@@ -205,8 +205,8 @@
 
 ; For releases (and when we get tired of seeing all the startup msgs).
 
-;(define ($$trace msg)
-;  #f)
+(define ($$trace msg)
+  #f)
 
 ($$trace "Done loading sys-win32")
 
