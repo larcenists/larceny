@@ -664,6 +664,17 @@ static void build_remset_summaries( gc_t *gc, gset_t genset )
   remsum.objects_visited = 0;
   remsum.objects_added = 0;
   remsum.words_added = 0;
+
+  /* Optimistically assume that summarization will succeed for all
+   * elems of genset; if one of them overflows, it will be
+   * responsibility of scan_object_for_remset_summary to set valid
+   * field to FALSE.
+   */
+  for( i=0 ; i < DATA(gc)->ephemeral_area_count; i++ ) {
+    if (gset_memberp( i, genset ))
+      DATA(gc)->remset_summaries[i]->valid = TRUE;
+  }
+
   for(i = 1; i < remset_count; i++) {
     /* TODO: use rs_enumerate_partial here? XXX */
     rs_enumerate( gc->remset[ i ], 
@@ -987,7 +998,7 @@ static int fill_up_to( char *bar, char mark, char altmark, int amt, int max ) {
     count = (int)((amt*BAR_LENGTH)/max);
   assert(count >= 0);
   if (count > BAR_LENGTH) {
-    rtn = count;
+    rtn = amt;
     count = BAR_LENGTH;
     mark = altmark;
   }
@@ -1020,24 +1031,43 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
     }
 
     { 
+      bool rgn_summarized;
+      int rgn_summarized_live;
       old_heap_t *heap = DATA(gc)->ephemeral_area[ i ];
       rgn = i+1;
+      rgn_summarized = 
+        DATA(gc)->summarized_genset_valid && 
+        gset_memberp( rgn, DATA(gc)->summarized_genset );
+      if (rgn_summarized) {
+        if (DATA(gc)->remset_summaries[ rgn ]->sum_remset == NULL ) {
+          rgn_summarized_live = 0;
+        } else {
+          rgn_summarized_live = 
+            DATA(gc)->remset_summaries[ rgn ]->sum_remset->live;
+        }
+      } else {
+        rgn_summarized_live = -1;
+      }
+      oh_synchronize( heap );
       consolemsg( "%scycle count %d region% 4d "
-                  "remset live: %7d %7d lastmajor: %7d "
-                  "float{ objs: %7d/%7d words: %7d/%7d }%s %s %s", 
+                  "remset live: %7d %7d %7d lastmajor: %7d "
+                  "float{ objs: %7d/%7d words: %7d/%7d %7d %7d }%s %s %s", 
                   caller_name,
                   cycle_count, 
                   rgn, 
                   gc->remset[ rgn ]->live, gc->major_remset[ rgn ]->live, 
+                  rgn_summarized_live, 
                   heap->live_last_major_gc/4, 
                   data.objs.zzflt+data.objs.rsflt,
                   data.objs.total,
                   data.words.zzflt+data.words.rsflt,
                   data.words.total, 
+                  heap->allocated/4, heap->maximum/4, 
                   (( rgn == DATA(gc)->rrof_to_region &&
                      rgn == DATA(gc)->rrof_next_region ) ? "*" :
                    ( rgn == DATA(gc)->rrof_to_region )   ? "t" :
                    ( rgn == DATA(gc)->rrof_next_region ) ? "n" :
+                   ( rgn_summarized )                    ? "s" :
                    ( rgn >= DATA(gc)->region_count     ) ? "e" : 
                    /* else                              */ " "),
                   bars,
@@ -1274,8 +1304,6 @@ static bool filter_objects_from_sum_remset( word ptr,
   data = (struct filter_objects_from_sum_remset_data *)the_data;
   assert(isptr(ptr));
   if (gen_of(ptr) == data->gen) {
-    annoyingmsg("filter_objects_from_sum_remset kill 0x%08x (%d)",
-                ptr, gen_of(ptr));
     return FALSE;
   } else {
     return TRUE;
@@ -1493,9 +1521,12 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  { 
 	    int curr_gno = rgn_idx;
 	    int emergency_gno = DATA(gc)->ephemeral_area_count;
-	    int curr_sz = 
+	    int curr_sz, emergency_sz;
+	    oh_synchronize( DATA(gc)->ephemeral_area[ curr_gno-1 ] );
+	    oh_synchronize( DATA(gc)->ephemeral_area[ emergency_gno-1 ] );
+	    curr_sz = 
 	      gc_allocated_to_areas( gc, gset_singleton( curr_gno ));
-	    int emergency_sz = 
+	    emergency_sz = 
 	      gc_allocated_to_areas( gc, gset_singleton( emergency_gno ));
 	    if (curr_sz < emergency_sz) {
 	      old_heap_t *curr = 
