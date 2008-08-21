@@ -182,7 +182,10 @@
 (define (osdep/relative-path-string? path)
   (not (osdep/absolute-path-string? path)))
 
-; Why is this file used on Win32?  We'll support windows paths...for now.
+; FIXME: Why was this file used on Win32?
+; As of changeset:5768, this file is no longer used on Win32,
+; but we'll continue to support Windows paths...for now.
+
 (define (osdep/absolute-path-string? path)
   (or (char=? #\/ (string-ref path 0))
       (and (> (string-length path) 1)

@@ -91,19 +91,35 @@
 
 ; File system.
 ;
-; A file name is a string, a file descriptor is a fixnum, io-mode is a
-; symbol ('input' or 'output'), and tx-mode is a symbol ('text' or 'binary').
-; A buffer is a bytevector-like structure.
+; A file name is a string.
+; A file descriptor is a fixnum.
+; A buffer is a bytevector.
+;
+; io-mode is a symbol ('input' or 'output').
+; tx-mode is a symbol ('text' or 'binary').
+;
+; The optional arguments recognized by osdep/open-file are the symbols
+;     'no-create'
+;     'no-truncate'
+; These optional arguments are ignored if io-mode is 'input'.
 
-(define (osdep/open-file fn io-mode tx-mode . FIXME:ignored-for-now)
+(define (osdep/open-file fn io-mode tx-mode . optargs)
   (if (not (string? fn))
       (error "osdep/open-file: invalid filename " fn))
-  (let ((binary-mode (if (eq? tx-mode 'binary) unix:open-binary 0)))
+  (let ((binary-mode (if (eq? tx-mode 'binary) unix:open-binary 0))
+        (create-mode (if (and (eq? io-mode 'output)
+                              (memq 'no-create optargs))
+                         0
+                         unix:open-create))
+        (truncate-mode (if (and (eq? io-mode 'output)
+                                (memq 'no-truncate optargs))
+                           0
+                           unix:open-trunc)))
     (cond ((eq? io-mode 'input)
            (unix:open fn (+ unix:open-read binary-mode) 0))
           ((eq? io-mode 'output)
            (unix:open fn 
-                      (+ unix:open-write unix:open-create unix:open-trunc
+                      (+ unix:open-write create-mode truncate-mode
                          binary-mode)
                       unix:create-mode))
           (else
