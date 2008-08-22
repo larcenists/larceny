@@ -1051,7 +1051,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
       oh_synchronize( heap );
       consolemsg( "%scycle count %d region% 4d "
                   "remset live: %7d %7d %7d lastmajor: %7d "
-                  "float{ objs: %7d/%7d words: %7d/%7d %7d %7d }%s %s %s", 
+                  "float{ objs: %7d/%7d words: %7d/%7d %7d }%s %s %s", 
                   caller_name,
                   cycle_count, 
                   rgn, 
@@ -1062,7 +1062,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                   data.objs.total,
                   data.words.zzflt+data.words.rsflt,
                   data.words.total, 
-                  heap->allocated/4, heap->maximum/4, 
+                  heap->allocated/4, 
                   (( rgn == DATA(gc)->rrof_to_region &&
                      rgn == DATA(gc)->rrof_next_region ) ? "*" :
                    ( rgn == DATA(gc)->rrof_to_region )   ? "t" :
