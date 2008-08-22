@@ -902,7 +902,7 @@ static void* visit_measuring_float( word *addr, int tag, void *accum )
   case VEC_TAG:
   case BVEC_TAG:
   case PROC_TAG:
-    words = roundup8((sizefield( *addr )+4)/4);
+    words = roundup8( sizefield( *addr )+4 ) / 4;
     break;
   default:
     assert(0);
