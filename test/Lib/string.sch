@@ -200,8 +200,8 @@
 
   (test "stitle1" (string-titlecase "kNock KNoCK") "Knock Knock")
   (test "stitle2" (string-titlecase "who's there?") "Who's There?")
-  (test "stitle3" (string-titlecase "r6rs") "R6Rs")
-  (test "stitle4" (string-titlecase "R6RS") "R6Rs")
+  (test "stitle3" (string-titlecase "r6rs") "R6rs")
+  (test "stitle4" (string-titlecase "R6RS") "R6rs")
 
   (test "norm1" (string-normalize-nfd (string #\xE9))
                 (string #\x65 #\x301))
