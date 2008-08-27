@@ -19,6 +19,7 @@ old_heap_t *create_old_heap_t(
   word code,
   int  (*initialize)( old_heap_t *heap ),
   void (*collect)( old_heap_t *heap, gc_type_t request ),
+  void (*collect_into)( old_heap_t *heap, gc_type_t request, int gno ),
   void (*before_collection)( old_heap_t *heap ),
   void (*after_collection)( old_heap_t *heap ),
   void (*stats)( old_heap_t *heap ),
@@ -52,6 +53,7 @@ old_heap_t *create_old_heap_t(
 
   heap->initialize = (initialize ? initialize : default_initialize);
   heap->collect = collect;
+  heap->collect_into = collect_into;
   heap->before_collection = before_collection;
   heap->after_collection = after_collection;
   heap->stats = stats;

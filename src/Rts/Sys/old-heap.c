@@ -171,7 +171,7 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, oh_type_t oh_type )
   return heap;
 }
 
-static void collect_regional( old_heap_t *heap, gc_type_t request ) 
+static void collect_regional( old_heap_t *heap, gc_type_t request, int gno ) 
 {
   old_data_t *data = DATA(heap);
   semispace_t *from, *to;
@@ -264,7 +264,7 @@ static void collect_regional( old_heap_t *heap, gc_type_t request )
 	       bytes_copied, bytes_moved, &timer1, &timer2 );
 }
 
-static void collect_dynamic( old_heap_t *heap, gc_type_t request )
+static void collect_dynamic( old_heap_t *heap, gc_type_t request, int gno )
 {
   gc_t *gc = heap->collector;
   old_data_t *data = DATA(heap);
@@ -295,7 +295,7 @@ static void collect_dynamic( old_heap_t *heap, gc_type_t request )
   annoyingmsg( "Collection finished." );
 }
 
-static void collect_ephemeral( old_heap_t *heap, gc_type_t request )
+static void collect_ephemeral( old_heap_t *heap, gc_type_t request, int gno )
 {
   old_data_t *data = DATA(heap);
   int collected = 0, type;
@@ -653,26 +653,31 @@ static void synchronize( old_heap_t *heap )
   heap->allocated = used_space( heap );
 }
 
+static void collect( old_heap_t *heap, gc_type_t request ) 
+{
+  oh_collect_into( heap, request, DATA(heap)->gen_no );
+}
+
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
 {
   old_heap_t *heap;
   old_data_t *data;
 
   char *my_id;
-  void (*my_collect)( old_heap_t *heap, gc_type_t request );
+  void (*my_collect_into)( old_heap_t *heap, gc_type_t request, int gno );
 
   switch (oh_type) {
   case OHTYPE_EPHEMERAL:
     my_id = "sc/fixed";
-    my_collect = collect_ephemeral;
+    my_collect_into = collect_ephemeral;
     break;
   case OHTYPE_DYNAMIC:
     my_id = "sc/variable";
-    my_collect = collect_dynamic;
+    my_collect_into = collect_dynamic;
     break;
   case OHTYPE_REGIONAL:
     my_id = "sc/regional";
-    my_collect = collect_regional;
+    my_collect_into = collect_regional;
     break;
   default:
     assert(0);
@@ -682,7 +687,8 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
   heap = create_old_heap_t( my_id, 
 			    HEAPCODE_OLD_2SPACE,
 			    0,                    /* initialize */
-			    my_collect,
+			    collect, 
+			    my_collect_into,
 			    before_collection,
 			    after_collection,
 			    stats,

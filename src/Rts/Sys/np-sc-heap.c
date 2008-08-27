@@ -839,6 +839,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
                             HEAPCODE_OLD_2SPACE_NP,
                             0,               /* initialize */
                             collect,
+                            0,               /* FIXME: collect_into */
                             before_collection,
                             after_collection,
                             stats,
