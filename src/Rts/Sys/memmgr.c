@@ -2377,7 +2377,7 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
     new_ssb[i] = gc->ssb[i];
     seqbuf_swap_in_ssb( gc->ssb[i], &new_ssb_bot[i], 
                         &new_ssb_top[i], &new_ssb_lim[i] );
-    seqbuf_set_sp_data( gc->ssb[i], (void*) i ); /* XXX legal in C? */
+    seqbuf_set_sp_data( gc->ssb[i], /* XXX */(void*) i );
     new_remset_summaries[i] = DATA(gc)->remset_summaries[i];
   }
   new_remset[fresh_gno] = create_remset( 0, 0 );
@@ -2386,7 +2386,7 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
    * reasonable way to assert that precondition. */
   new_ssb[fresh_gno] = 
     create_seqbuf( 0, &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
-                   &new_ssb_lim[fresh_gno], ssb_process_rrof, fresh_gno );
+                   &new_ssb_lim[fresh_gno], ssb_process_rrof, /* XXX */(void*) fresh_gno );
   new_remset_summaries[fresh_gno] = 
     allocate_remset_as_summary( fresh_gno, DATA(gc)->popularity_limit );
   for( i = fresh_gno+1; i < new_remset_count; i++ ) {
@@ -2395,7 +2395,7 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
     new_ssb[i] = gc->ssb[i-1];
     seqbuf_swap_in_ssb( gc->ssb[i-1], 
                         &new_ssb_bot[i], &new_ssb_top[i], &new_ssb_lim[i] );
-    seqbuf_set_sp_data( gc->ssb[i-1], i );
+    seqbuf_set_sp_data( gc->ssb[i-1], /* XXX */(void*)i );
     new_remset_summaries[i] = DATA(gc)->remset_summaries[i-1];
   }
 
@@ -2412,8 +2412,8 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   DATA(gc)->ssb_bot = new_ssb_bot;
   DATA(gc)->ssb_top = new_ssb_top;
   DATA(gc)->ssb_lim = new_ssb_lim;
-  DATA(gc)->globals[ G_SSBTOPV ] = DATA(gc)->ssb_top;
-  DATA(gc)->globals[ G_SSBLIMV ] = DATA(gc)->ssb_lim;
+  DATA(gc)->globals[ G_SSBTOPV ] = /* XXX */(word) DATA(gc)->ssb_top;
+  DATA(gc)->globals[ G_SSBLIMV ] = /* XXX */(word) DATA(gc)->ssb_lim;
   gc->remset_count = new_remset_count;
   DATA(gc)->remset_summaries = new_remset_summaries;
   
