@@ -966,7 +966,8 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   int marked=0, traced=0, words_marked=0; 
   int total_float_words = 0, total_float_objects = 0;
   context = msgc_begin( gc );
-  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+  msgc_mark_objects_from_roots_and_a_remset
+    ( context, DATA(gc)->nursery_remset, &marked, &traced, &words_marked );
   
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
