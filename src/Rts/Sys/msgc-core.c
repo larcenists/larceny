@@ -525,6 +525,27 @@ static bool push_remset_entry( word obj, void* data, unsigned *count )
   return TRUE;
 }
 
+void
+msgc_mark_objects_from_roots_and_a_remset( msgc_context_t *context,
+                                           remset_t *remset, 
+                                           int *marked, 
+                                           int *traced, 
+                                           int *words_marked )
+{
+  context->marked = 0;
+  context->traced = 0;
+  context->words_marked = 0;
+  
+  gc_enumerate_roots( context->gc, push_root, (void*)context );
+  mark_from_stack( context );
+  pushing_entries_from_remset = 0;
+  rs_enumerate( remset, push_remset_entry, context );
+
+  *marked += context->marked;
+  *traced += context->traced;
+  *words_marked += context->words_marked;
+}
+
 void 
 msgc_mark_objects_from_roots_and_remsets( msgc_context_t *context,
                                           int *marked, 
