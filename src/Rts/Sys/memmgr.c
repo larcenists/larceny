@@ -2510,6 +2510,14 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
 
     if (DATA(gc)->secondary_space != NULL) {
       int gen_no = DATA(gc)->secondary_space->gen_no;
+
+      /* I do not know how to handle this case.  I thought I could
+       * assimilate seconary to reserve, replace secondary fresh, and
+       * continue collection, but that is unsound when cheney is in
+       * the midst of scanning secondary and requests more space.
+       * (Probably should just ensure this case can never happen.) */
+      assert(0);
+
       oh_assimilate( DATA(gc)->ephemeral_area[ gen_no-1 ],
 		     DATA(gc)->secondary_space );
       DATA(gc)->secondary_space = NULL;
