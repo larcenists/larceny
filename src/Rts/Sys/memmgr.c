@@ -968,10 +968,11 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   context = msgc_begin( gc );
   msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
   
-  for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
-    rgn = i+1;
-    rs_enumerate( gc->remset[ rgn ], scan_refine_remset, context );
-    rs_enumerate( gc->major_remset[ rgn ], scan_refine_remset, context );
+  /* static objects die; remset_count includes static remset (thus
+   * refinement eliminates corpses with dangling pointers). */
+  for( i=1; i < gc->remset_count; i++) {
+    rs_enumerate( gc->remset[ i ], scan_refine_remset, context );
+    rs_enumerate( gc->major_remset[ i ], scan_refine_remset, context );
   }
 
   /* XXX refining the summaries as well as the remsets based on the
