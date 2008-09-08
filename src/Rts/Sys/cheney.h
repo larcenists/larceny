@@ -54,6 +54,11 @@
 
 /* Parameter container data structure */
 
+typedef struct semispace_cursor semispace_cursor_t;
+struct semispace_cursor {
+  int  chunks_index;
+  word *chunk_ptr;
+};
 typedef struct cheney_env cheney_env_t;
 struct cheney_env {
   /* Controlling parameters */
@@ -117,6 +122,7 @@ struct cheney_env {
   int tospaces_cur_scan;        /* tospaces index of scanning semispace */
   int tospaces_cur_dest;        /* tospaces index of forw'ing semispace */
   semispace_t **tospaces;       /* The first tospace */
+  semispace_cursor_t *cursors;  /* Scanptr array for tospaces above */
   semispace_t *tospace2;        /* The second tospace, or 0 */
   word *dest;                   /* Copy pointer of tospace */
   word *dest2;                  /* Copy pointer of tospace2, or 0 */
