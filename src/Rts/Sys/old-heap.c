@@ -171,11 +171,12 @@ create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, oh_type_t oh_type )
   return heap;
 }
 
-static void collect_regional( old_heap_t *heap, gc_type_t request, int gno ) 
+static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap_t *heap_to ) 
 {
-  old_data_t *data = DATA(heap);
-  semispace_t *from, *to;
-  int rgn_idx = data->gen_no;
+  old_data_t *data_from = DATA(heap);
+  old_data_t *data_to = DATA(heap_to);
+  semispace_t *from, *to, *newspace;
+  int rgn_idx = data_from->gen_no;
   int used_before, tospace_before, los_before;
   stats_id_t timer1, timer2;
   int bytes_copied, bytes_moved;
@@ -189,7 +190,7 @@ static void collect_regional( old_heap_t *heap, gc_type_t request, int gno )
      * gc_find_space to decide where things go after that. 
      */
 
-    annoyingmsg("collect_rgnl major collect of %d", rgn_idx);
+    annoyingmsg("collect_rgnl major collect of %d into %d", rgn_idx, data_to->gen_no );
 
     start_timers( &timer1, &timer2 );
 
@@ -205,6 +206,7 @@ static void collect_regional( old_heap_t *heap, gc_type_t request, int gno )
        * FIXME: this may reflect a mistake in the control structure;
        * perhaps rs_enumerate should not be flushing the SSB.
        */
+      /* Potentially "fixed"; TODO: try assert(ssb empty) and kill process_seqbuf */
       process_seqbuf( heap->collector, heap->collector->ssb[rgn_idx] );
       
       rs_clear( heap->collector->remset[ rgn_idx ] );
@@ -217,44 +219,55 @@ static void collect_regional( old_heap_t *heap, gc_type_t request, int gno )
      * superior to the regional collector according to internal
      * measurements.  FIXME. */
     
-    from = data->current_space;
-    to = create_semispace( GC_CHUNK_SIZE, data->gen_no );
-    data->current_space = to;
+    from = data_from->current_space;
+    newspace = create_semispace( GC_CHUNK_SIZE, data_from->gen_no );
+    data_from->current_space = newspace;
+    if (data_from == data_to) {
+      to = newspace;
+    } else {
+      to = data_to->current_space;
+    }
+
+    tospace_before = to->used;
+    los_before = los_bytes_used( heap->collector->los, data_to->gen_no );
+
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( rgn_idx ),
 				   to );
     ss_free( from );
     ss_sync( to );
 
-    data->gen_stats.collections++;
-    bytes_copied = to->used;
+    data_from->gen_stats.collections++;
+    bytes_copied = to->used - tospace_before;
     bytes_moved = 
-      los_bytes_used( heap->collector->los, data->gen_no );
+      los_bytes_used( heap->collector->los, data_to->gen_no ) - los_before;
 
     heap->live_last_major_gc = bytes_copied + bytes_moved;
 
     break;
   case GCTYPE_PROMOTE: 
+    assert(data_from == data_to); /* (code below assumes heap == heap_to ) */
+    assert(heap == heap_to);
     /* Promote the nursery into this region. */
     annoyingmsg("collect_rgnl minor collect into %d", rgn_idx);
     gc_signal_minor_collection( heap->collector );
 
     start_timers( &timer1, &timer2 );
     used_before = used_space( heap );
-    to = data->current_space;
+    to = data_to->current_space;
     ss_sync( to );
     tospace_before = to->used;
-    los_before = los_bytes_used( heap->collector->los, data->gen_no );
+    los_before = los_bytes_used( heap->collector->los, data_to->gen_no );
 
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( 0 ), 
 				   to );
-    data->promoted_last_gc = used_space( heap ) - used_before;
+    data_to->promoted_last_gc = used_space( heap ) - used_before;
     
-    data->gen_stats.promotions++;
+    data_to->gen_stats.promotions++;
     bytes_copied = to->used - tospace_before;
     bytes_moved = 
-      los_bytes_used(heap->collector->los, data->gen_no)-los_before;
+      los_bytes_used(heap->collector->los, data_to->gen_no)-los_before;
 
     break;
   default:
@@ -264,7 +277,7 @@ static void collect_regional( old_heap_t *heap, gc_type_t request, int gno )
 	       bytes_copied, bytes_moved, &timer1, &timer2 );
 }
 
-static void collect_dynamic( old_heap_t *heap, gc_type_t request, int gno )
+static void collect_dynamic( old_heap_t *heap, gc_type_t request )
 {
   gc_t *gc = heap->collector;
   old_data_t *data = DATA(heap);
@@ -295,7 +308,7 @@ static void collect_dynamic( old_heap_t *heap, gc_type_t request, int gno )
   annoyingmsg( "Collection finished." );
 }
 
-static void collect_ephemeral( old_heap_t *heap, gc_type_t request, int gno )
+static void collect_ephemeral( old_heap_t *heap, gc_type_t request )
 {
   old_data_t *data = DATA(heap);
   int collected = 0, type;
@@ -653,9 +666,9 @@ static void synchronize( old_heap_t *heap )
   heap->allocated = used_space( heap );
 }
 
-static void collect( old_heap_t *heap, gc_type_t request ) 
+static void collect_into_self( old_heap_t *heap, gc_type_t request ) 
 {
-  oh_collect_into( heap, request, DATA(heap)->gen_no );
+  oh_collect_into( heap, request, heap );
 }
 
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
@@ -664,20 +677,25 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
   old_data_t *data;
 
   char *my_id;
-  void (*my_collect_into)( old_heap_t *heap, gc_type_t request, int gno );
+  void (*my_collect)( old_heap_t *heap, gc_type_t request );
+  void (*my_collect_into)( old_heap_t *heap, gc_type_t req, old_heap_t *to );
+
+  my_collect = 0;
+  my_collect_into = 0;
 
   switch (oh_type) {
   case OHTYPE_EPHEMERAL:
     my_id = "sc/fixed";
-    my_collect_into = collect_ephemeral;
+    my_collect = collect_ephemeral;
     break;
   case OHTYPE_DYNAMIC:
     my_id = "sc/variable";
-    my_collect_into = collect_dynamic;
+    my_collect = collect_dynamic;
     break;
   case OHTYPE_REGIONAL:
     my_id = "sc/regional";
-    my_collect_into = collect_regional;
+    my_collect = collect_into_self;
+    my_collect_into = collect_regional_into;
     break;
   default:
     assert(0);
@@ -687,7 +705,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
   heap = create_old_heap_t( my_id, 
 			    HEAPCODE_OLD_2SPACE,
 			    0,                    /* initialize */
-			    collect, 
+			    my_collect, 
 			    my_collect_into,
 			    before_collection,
 			    after_collection,

@@ -19,7 +19,7 @@ old_heap_t *create_old_heap_t(
   word code,
   int  (*initialize)( old_heap_t *heap ),
   void (*collect)( old_heap_t *heap, gc_type_t request ),
-  void (*collect_into)( old_heap_t *heap, gc_type_t request, int gno ),
+  void (*collect_into)( old_heap_t *heap, gc_type_t request, old_heap_t *to ),
   void (*before_collection)( old_heap_t *heap ),
   void (*after_collection)( old_heap_t *heap ),
   void (*stats)( old_heap_t *heap ),

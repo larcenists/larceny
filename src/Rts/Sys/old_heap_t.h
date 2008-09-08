@@ -60,10 +60,10 @@ struct old_heap {
 	Request is the type of GC requested.
 	*/
 
-  void (*collect_into)( old_heap_t *heap, gc_type_t request, int gno );
+  void (*collect_into)( old_heap_t *heap, gc_type_t request, old_heap_t *to );
      /* A method that requests a garbage collection in the heap.
 	Request is the type of GC requested.
-	Gno is initial target region (aka tospace).
+	To is initial target region (aka tospace).
 	*/
 
   void (*before_collection)( old_heap_t *heap );
@@ -150,7 +150,7 @@ old_heap_t *create_old_heap_t(
   word code,
   int  (*initialize)( old_heap_t *heap ), 
   void (*collect)( old_heap_t *heap, gc_type_t request ),
-  void (*collect_into)( old_heap_t *heap, gc_type_t request, int gno ),
+  void (*collect_into)( old_heap_t *heap, gc_type_t request, old_heap_t *to ),
   void (*before_collection)( old_heap_t *heap ),
   void (*after_collection)( old_heap_t *heap ),
   void (*stats)( old_heap_t *heap ),
@@ -172,7 +172,7 @@ old_heap_t *create_old_heap_t(
 
 #define oh_initialize( oh )        ((oh)->initialize( oh ))
 #define oh_collect( oh,r )         ((oh)->collect( oh,r ))
-#define oh_collect_into( oh,r,gno )((oh)->collect_into( oh,r,gno ))
+#define oh_collect_into( oh,r,to ) ((oh)->collect_into( oh,r,to ))
 #define oh_before_collection( oh ) ((oh)->before_collection( oh ))
 #define oh_after_collection( oh )  ((oh)->after_collection( oh ))
 #define oh_stats( oh )             ((oh)->stats( oh ))
