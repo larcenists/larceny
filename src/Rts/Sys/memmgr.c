@@ -1130,7 +1130,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
         rgn_summarized_live = -DATA(gc)->remset_summaries[ rgn ]->words - 1;
       }
       oh_synchronize( heap );
-      consolemsg( "%scycle count %d region% 4d "
+      consolemsg( "%scycle %d region% 4d "
                   "remset live: %7d %7d %8d lastmajor: %7d "
                   "float{ objs: %7d/%7d words: %7d/%7d %7d }%s %s %s", 
                   caller_name,
@@ -1191,7 +1191,7 @@ static void print_float_stats( char *caller_name, gc_t *gc )
           ! DATA(gc)->ephemeral_area[i]->has_popular_objects)
         estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc/sizeof(word);
     }
-    consolemsg( "cycle count %d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
+    consolemsg( "cycle %d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
                 "live{ est: %dK act: %dK max: %dK } estdelta: %0.2f ",
                 cycle_count, 
                 total_float_objects/1000, 
