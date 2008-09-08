@@ -1738,15 +1738,6 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	 * so fast that major GC hasn't had a chance to go (which should
 	 * only happen when a summary is abandoned. */
 	goto collect_evacuate_nursery;
-#if 0
-      } else {
-	/* if there's not room, major collect "eldest" region. */
-	int rgn_idx = DATA(gc)->rrof_next_region;
-	old_heap_t *oh = DATA(gc)->ephemeral_area[ rgn_idx-1 ];
-	semispace_t *tospace = oh_current_space( oh );
-	annoyingmsg("collect_rgnl major collect of %d", rgn_idx);
-	gclib_stopcopy_collect_genset( gc, gset_singleton( rgn_idx ), tospace );
-#endif
       }
     } else {
       /* explicit request for evacuation-style major collection of rgn. */
