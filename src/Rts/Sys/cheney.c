@@ -197,6 +197,19 @@ static bool forward_nursery_and( int gno, gset_t gset ) {
   return gno == 0 || gset_memberp( gno, gset ); }
 static const int tospaces_init_buf_size = 10;
 
+static void 
+init_env_with_cursors( cheney_env_t *e, 
+                       gc_t *gc,
+                       semispace_t **tospaces,
+                       int tospaces_len,
+                       int tospaces_cap,
+                       semispace_cursor_t *cursors, 
+                       semispace_t *tospace2,
+                       gset_t forw_gset,
+                       int attributes,
+                       void (*scanner)( cheney_env_t * ) );
+
+
 /* FIXME: Lars clearly avoided invoking malloc/free within the
  * collector (but they of course trickle through, via expand_semispace
  * invocation of ss_expand). Felix would also like to continue this
@@ -227,23 +240,54 @@ finis_semispaces_buffer( semispace_t** spaces, int capacity )
   free( spaces );
 }
 
+static semispace_cursor_t* 
+begin_semispace_cursors( int init_capacity ) 
+{
+  return (semispace_cursor_t*)
+    must_malloc( sizeof( semispace_cursor_t )*init_capacity); 
+}
+static void 
+finis_semispace_cursors( semispace_cursor_t *objs, int final_cap ) 
+{
+  free( objs ); 
+}
+static semispace_cursor_t* 
+enlarge_semispace_cursors( semispace_cursor_t *oldobjs, int len, int new_cap ) 
+{
+  int i;
+  semispace_cursor_t *newobjs = (semispace_cursor_t*) 
+    must_malloc( sizeof( semispace_cursor_t )*new_cap );
+  for( i=0 ; i < len; i++ ) { 
+    newobjs[i].chunks_index = oldobjs[i].chunks_index;
+    newobjs[i].chunk_ptr = oldobjs[i].chunk_ptr;
+  }
+  free( oldobjs ); 
+  return newobjs; 
+}
+
 void gclib_stopcopy_collect_genset( gc_t *gc, gset_t gs, semispace_t *tospace )
 {
   cheney_env_t e;
   semispace_t **spaces;
+  semispace_cursor_t *cursors;
   int init_size = tospaces_init_buf_size;
   
   spaces = begin_semispaces_buffer( init_size );
+  cursors = begin_semispace_cursors( init_size );
   spaces[0] = tospace;
+  cursors[0].chunks_index = tospace->current;
+  cursors[0].chunk_ptr = tospace->chunks[ tospace->current ].top;
 
   CHENEY_TYPE( 2 ); /* Felix has never used GC_HIRES_TIMERS... */
-  init_env( &e, gc, spaces, 1, init_size, 
-            0, gs, 0, 
-            gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
+  init_env_with_cursors
+    ( &e, gc, spaces, 1, init_size, cursors, 
+      0, gs, 0, 
+      gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects_in( gc, gs );
   stats_set_gc_event_stats( &cheney );
   
+  finis_semispace_cursors( e.cursors, e.tospaces_cap );
   finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
 }
 
@@ -251,18 +295,25 @@ void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
   semispace_t **spaces;
+  semispace_cursor_t *cursors; 
   int init_size = tospaces_init_buf_size;
   
   spaces = begin_semispaces_buffer( init_size );
+  cursors = begin_semispace_cursors( init_size );
   spaces[0] = tospace;
+  cursors[0].chunks_index = tospace->current;
+  cursors[0].chunk_ptr = tospace->chunks[ tospace->current ].top;
+
   CHENEY_TYPE( 0 );
-  init_env( &e, gc, spaces, 1, init_size, 
-            0, gset_younger_than( tospace->gen_no ), 0, 
-            gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
+  init_env_with_cursors
+    ( &e, gc, spaces, 1, init_size, cursors, 
+      0, gset_younger_than( tospace->gen_no ), 0, 
+      gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no-1, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
   
+  finis_semispace_cursors( e.cursors, e.tospaces_cap );
   finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
 }
 
@@ -270,17 +321,25 @@ void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
   semispace_t **spaces;
+  semispace_cursor_t *cursors;
   int init_size = tospaces_init_buf_size;
 
   spaces = begin_semispaces_buffer( init_size );
+  cursors = begin_semispace_cursors( init_size );
   spaces[0] = tospace;
+  cursors[0].chunks_index = tospace->current;
+  cursors[0].chunk_ptr = tospace->chunks[ tospace->current ].top;
+
   CHENEY_TYPE( 1 );
-  init_env( &e, gc, spaces, 1, init_size, 
-            0, gset_younger_than( tospace->gen_no+1 ), 0, 
-            gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
+  init_env_with_cursors
+    ( &e, gc, spaces, 1, init_size, cursors, 
+      0, gset_younger_than( tospace->gen_no+1 ), 0, 
+      gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
+
+  finis_semispace_cursors( e.cursors, e.tospaces_cap );
   finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
 }
 
@@ -288,17 +347,25 @@ void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
   semispace_t **spaces;
+  semispace_cursor_t *cursors;
   int init_size = tospaces_init_buf_size;
 
   spaces = begin_semispaces_buffer( init_size );
+  cursors = begin_semispace_cursors( init_size );
   spaces[0] = tospace;
+  cursors[0].chunks_index = tospace->current;
+  cursors[0].chunk_ptr = tospace->chunks[ tospace->current ].top;
+
   CHENEY_TYPE( 1 );
-  init_env( &e, gc, spaces, 1, init_size, 
-            0, gset_younger_than( tospace->gen_no+1 ), SCAN_STATIC, 
-            gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
+  init_env_with_cursors
+    ( &e, gc, spaces, 1, init_size, cursors, 
+      0, gset_younger_than( tospace->gen_no+1 ), SCAN_STATIC, 
+      gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
   oldspace_copy( &e );
   sweep_large_objects( gc, tospace->gen_no, tospace->gen_no, -1 );
   stats_set_gc_event_stats( &cheney );
+
+  finis_semispace_cursors( e.cursors, e.tospaces_cap );
   finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
 }
 
@@ -362,15 +429,17 @@ static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
   return FALSE;
 }
 
-void init_env( cheney_env_t *e, 
-               gc_t *gc,
-               semispace_t **tospaces,
-               int tospaces_len,
-               int tospaces_cap,
-               semispace_t *tospace2,
-               gset_t forw_gset,
-               int attributes,
-               void (*scanner)( cheney_env_t * ) )
+static void 
+init_env_with_cursors( cheney_env_t *e, 
+                       gc_t *gc,
+                       semispace_t **tospaces,
+                       int tospaces_len,
+                       int tospaces_cap,
+                       semispace_cursor_t *cursors, 
+                       semispace_t *tospace2,
+                       gset_t forw_gset,
+                       int attributes,
+                       void (*scanner)( cheney_env_t * ) )
 {
   memset( e, 0, sizeof( cheney_env_t ) );
   e->gc = gc;
@@ -382,6 +451,7 @@ void init_env( cheney_env_t *e,
   e->tospaces = tospaces;
   e->tospaces_len = tospaces_len;
   e->tospaces_cap = tospaces_cap;
+  e->cursors = cursors;
   assert( tospaces_len > 0 );
   e->tospaces_cur_scan = 0;
   e->tospaces_cur_dest = 0;
@@ -399,6 +469,17 @@ void init_env( cheney_env_t *e,
 
   e->scan_from_tospace = scanner;
   e->points_across = (e->gc->major_remset != NULL) ? points_across : points_across_noop;
+}
+
+void init_env( cheney_env_t *e, gc_t *gc,
+               semispace_t **tospaces, int tospaces_len, int tospaces_cap,
+               semispace_t *tospace2,
+               gset_t forw_gset,
+               int attributes,
+               void (*scanner)( cheney_env_t * ) )
+{
+  init_env_with_cursors( e, gc, tospaces, tospaces_len, tospaces_cap, NULL, 
+                         tospace2, forw_gset, attributes, scanner );
 }
 
 static unsigned objects_scanned;
@@ -602,10 +683,13 @@ void scan_oflo_normal( cheney_env_t *e )
         if (e->scan_idx > tospace_scan(e)->current) {
           e->tospaces_cur_scan++;
           assert(e->tospaces_cur_scan < e->tospaces_len);
-          e->scan_idx = 0;
+          e->scan_idx = e->cursors[ e->tospaces_cur_scan ].chunks_index;
+          scanptr     = e->cursors[ e->tospaces_cur_scan ].chunk_ptr;
+          scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
+        } else {
+          scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
+          scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
         }
-        scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
-        scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
         
         /* A corner case when we fill up all of the to-space chunk
          * (that is, when dest == copylim).  In this situation, dest
@@ -661,10 +745,13 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
         if (e->scan_idx > tospace_scan(e)->current) {
           e->tospaces_cur_scan++;
           assert(e->tospaces_cur_scan < e->tospaces_len);
-          e->scan_idx = 0;
+          e->scan_idx = e->cursors[ e->tospaces_cur_scan ].chunks_index;
+          scanptr     = e->cursors[ e->tospaces_cur_scan ].chunk_ptr;
+          scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
+        } else {
+          scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
+          scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
         }
-        scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
-        scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
         
         /* A corner case when we fill up all of the to-space chunk
          * (that is, when dest == copylim).  In this situation, dest
@@ -849,14 +936,22 @@ void seal_chunk( semispace_t *ss, word *lim, word *dest )
 static 
 void enqueue_tospace( cheney_env_t *e, semispace_t *ss ) 
 {
+  int idx;
+
   if (e->tospaces_len == e->tospaces_cap) {
     int new_cap = e->tospaces_cap * 2;
     e->tospaces = enlarge_semispaces_buffer( e->tospaces, e->tospaces_len, new_cap );
+    e->cursors = enlarge_semispace_cursors( e->cursors, e->tospaces_len, new_cap );
     e->tospaces_cap = new_cap;
   }
   
-  e->tospaces[e->tospaces_len] = ss;
-  e->tospaces_len++;
+  idx = e->tospaces_len;
+  e->tospaces[idx] = ss;
+  /* after reaching ss, scan objects forwarded into ss during this gc;
+   * i.e. those above top (as of now), *not* starting from bot. */
+  e->cursors[idx].chunks_index = ss->current;
+  e->cursors[idx].chunk_ptr = ss->chunks[ ss->current ].top;
+  e->tospaces_len = idx + 1;
 }
 
 void
