@@ -23,7 +23,7 @@
  * An ss_chunk_t `c' = s.chunks[i] where -1 <= i < s.n has invariants:
  *   c.bot <= c.top <= c.lim
  *   c.bot <= p < c.lim are dereferencable addresses
- *   c.bytes = (c.lim - c.top) * sizeof(word)
+ *   c.bytes = (c.lim - c.bot) * sizeof(word)
  */
 
 #ifndef INCLUDED_SEMISPACE_T_H
@@ -180,6 +180,9 @@ void* ss_enumerate( semispace_t *ss,
 bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy );
   /* Returns true iff 'addr' is an object in 'ss'.
      */
+
+void ss_check_rep( semispace_t *ss );
+  /* Signals error if ss does not satisfy internal invariants. */
 
 #endif  /* INCLUDED_SEMISPACE_T_H */
 

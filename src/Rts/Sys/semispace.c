@@ -659,4 +659,37 @@ static void free_chunk_memory( semispace_t *ss, int slot )
   clear( ss, slot );
 }
 
+static void ss_chunk_check_rep( ss_chunk_t *c, int i ) 
+{
+  word *p;
+  int delta;
+  assert( c->bot <= c->top );
+  assert( c->top <= c->lim );
+  delta = c->lim - c->bot;
+  if( c->bytes != delta*sizeof(word))
+    consolemsg( "i: %d lim: 0x%08x top: 0x%08x bot: 0x%08x delta: %d bytes: %d", 
+                i, c->lim, c->top, c->bot, delta, c->bytes );
+  assert( c->bytes == delta*sizeof(word));
+  for ( p = c->bot; p < c->lim; p++) {
+    *p; /* Attempt dereference to signal segfault if things are bogus. */
+  }
+}
+
+void ss_check_rep( semispace_t *s ) 
+{
+  int i, k;
+  ss_invariants( s );
+  assert( -1 <= s->current );
+  assert( s->current < s->n );
+  assert( s->allocated > 0 || s->current == -1 );
+  assert( s->chunks != NULL );
+  assert( s->chunks[-1].bytes == 0 );
+  for( k = 0; k <= s->current; k++ ) {
+    assert( s->chunks[k].bytes > 0 );
+  }
+  for( i = -1; i < s->n ; i++ ) {
+    ss_chunk_check_rep( &s->chunks[i], i );
+  }
+}
+
 /* eof */
