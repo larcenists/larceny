@@ -1237,6 +1237,8 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     int live_estimated_calc = 0;
     int live_predicted_at_next_gc;
     int nursery_size = gc->young_area->maximum;
+    /* Below does not account for role of reserve region at array end;
+     * arguably should distinquish "allotted" and "expected size." */
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
 	  ! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
@@ -1314,15 +1316,8 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     }
   }
 
-  if (DATA(gc)->region_count < DATA(gc)->ephemeral_area_count-1) {
-    DATA(gc)->rrof_to_region = DATA(gc)->region_count+1;
-    DATA(gc)->rrof_next_region = 1;
-    DATA(gc)->region_count = DATA(gc)->ephemeral_area_count-1;
-  } else {
-    assert(DATA(gc)->region_count == DATA(gc)->ephemeral_area_count-1);
-    DATA(gc)->rrof_to_region = 1;
-    DATA(gc)->rrof_next_region = 0;
-  }
+  DATA(gc)->rrof_next_region = 1;
+  DATA(gc)->region_count = DATA(gc)->ephemeral_area_count-1;
 }
 
 static void start_timers( stats_id_t *timer1, stats_id_t *timer2 )
@@ -1437,8 +1432,10 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
   case GCTYPE_EVACUATE: /* collect nursery and rgn, promoting _anywhere_. */
     if (rgn == 0) {
       /* only forward data out of the nursery, if possible */
-      int rgn_to, rgn_next, nursery_sz, rgn_to_cur, rgn_to_max;
+      int rgn_to, rgn_next, nursery_sz, rgn_to_cur, rgn_next_cur, rgn_to_max;
+      int free_rgn_space, nursery_max; 
       int num_rgns = DATA(gc)->region_count;
+      int num_occupied_rgns;
 
       DATA(gc)->rrof_refine_mark_countdown -= 1;
       
@@ -1451,14 +1448,39 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
       nursery_sz = gc_allocated_to_areas( gc, gset_singleton( 0 ));
       rgn_to_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
+      rgn_next_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_next ));
       rgn_to_max = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
+      { 
+        int allot, alloc;
+        assert(rgn_next > 0);
+        if (rgn_to == rgn_next) {
+          allot = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
+          alloc = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
+        } else if (rgn_to < rgn_next) {
+          /* (to,..., next) free; [1,..., to], [next,..., N/R] occupied */
+          allot = gc_maximum_allotted( gc, gset_range( rgn_to, rgn_next ));
+          alloc = gc_allocated_to_areas( gc, gset_range( rgn_to, rgn_next ));
+        } else {
+          /* (next,..., to) occupied; [1,..., next], [to,..., N/R-1] free */
+          allot = gc_maximum_allotted( gc, gset_range( 1, rgn_next )) +
+            gc_maximum_allotted( gc, gset_range( rgn_to, num_rgns ));
+          alloc = gc_allocated_to_areas( gc, gset_range( 1, rgn_next )) +
+            gc_allocated_to_areas( gc, gset_range( rgn_to, num_rgns ));
+        }
+        free_rgn_space = allot - alloc;
+        num_occupied_rgns = (num_rgns + rgn_to - rgn_next+1)%num_rgns;
+      }
+      nursery_max = gc->young_area->maximum;
 
-      annoyingmsg( "collect_rgnl rgn_to: %d rgn_next: %d nursery_sz: %d "
-		   "rgn_to_cur: %d rgn_to_max: %d ", 
-		   rgn_to, rgn_next, nursery_sz, rgn_to_cur, rgn_to_max );
-      
-      if (rgn_to == rgn_next /* && summarization is complete */) {
-	/* ideal case for major collect */
+      annoyingmsg( "collect_rgnl rgn_to: %d rgn_next: %d nursery_sz: %d nursery_max: %d num_occupied_rgns: %d "
+		   "rgn_to_cur: %d rgn_to_max: %d rgn_next_cur: %d free_rgn_space: %d", 
+		   rgn_to, rgn_next, nursery_sz, nursery_max, num_occupied_rgns, 
+		   rgn_to_cur, rgn_to_max, rgn_next_cur, free_rgn_space );
+
+      if (free_rgn_space < (rgn_next_cur + num_occupied_rgns*nursery_max)
+          /* XXX what is correct policy/logic here??? */) {
+
+	/* TODO: assert summarization complete (once it is incrementalized) */
 	int n;
 
 	assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
@@ -1558,7 +1580,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	      }
 	    }
 	  }
-	  oh_collect( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT );
+	  oh_collect_into( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT,
+	                   DATA(gc)->ephemeral_area[ rgn_to-1 ] );
 	
 	  summary_dispose( &DATA(gc)->summary );
 	  DATA(gc)->use_summary_instead_of_remsets = FALSE;
@@ -2489,6 +2512,8 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   int max_allocated = 
     gc_maximum_allotted( gc, gset_singleton( current_space->gen_no ));
   int expansion_amount = max( bytes_needed, GC_CHUNK_SIZE );
+  int to_rgn_old = DATA(gc)->rrof_to_region;
+  int to_rgn_new = next_rgn( to_rgn_old, DATA(gc)->region_count );
 
   ss_sync( current_space );
   cur_allocated = 
@@ -2497,7 +2522,21 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   if (cur_allocated + expansion_amount <= max_allocated) {
     ss_expand( current_space, expansion_amount );
     return current_space;
-  } else {
+  } else if ( to_rgn_new != DATA(gc)->rrof_next_region ) {
+    do {
+      if (gc_allocated_to_areas( gc, gset_singleton( to_rgn_new )) + expansion_amount
+          < gc_maximum_allotted( gc, gset_singleton( to_rgn_new ))) {
+        DATA(gc)->rrof_to_region = to_rgn_new;
+        return oh_current_space( DATA(gc)->ephemeral_area[ to_rgn_new-1 ] );
+      }
+      to_rgn_new = next_rgn( to_rgn_new, DATA(gc)->region_count );
+    } while (to_rgn_new != to_rgn_old );
+    /* failure! */
+    annoyingmsg("find_space_rgnl: failed shift of to");
+    DATA(gc)->rrof_to_region = to_rgn_new;
+  } 
+
+  {
     int last_gen_no = DATA(gc)->ephemeral_area_count;
     old_heap_t *heap = DATA(gc)->ephemeral_area[ last_gen_no-1 ];
     int allocated_there;
@@ -3152,7 +3191,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->dynamic_area = 0;
 
   data->rrof_to_region = 1;
-  data->rrof_next_region = 0;
+  data->rrof_next_region = 1;
   data->rrof_last_tospace = -1;
 
   data->rrof_has_refine_factor = TRUE;
