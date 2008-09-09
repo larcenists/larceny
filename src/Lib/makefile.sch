@@ -935,6 +935,21 @@
                       runtime-target-names)
                (,arithmetic.c ,expand-mac-to-c-source)
                (,makefile ,create-makefile))
+
+     ;; FSK: Arguably each runtime should depend on all of the C
+     ;; source files, so that invocations of (make:make ...) on the
+     ;; project will invoke the make command whenever a source file
+     ;; changed.  But doing that properly would require encoding a
+     ;; list of the source files in this project description, and
+     ;; keeping it in sync with the generated Makefile, which sounds
+     ;; like a big headache.  So instead, I am leaving the
+     ;; dependencies here alone, and will also change build-runtime
+     ;; (the main entry point from the user perspective) to
+     ;; *unconditionally* invoke the make command (even when the
+     ;; Makefile has itself not changed).  (If the Makefile is written
+     ;; appropriately, this extra invocation will impose no noticeable
+     ;; cost at build time.)
+
      `(dependencies ,@(map (lambda (rt) `(,rt (,makefile))) runtimes)
                     (,makefile (,make-templates.sch))))))
 
