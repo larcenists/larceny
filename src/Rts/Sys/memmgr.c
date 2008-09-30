@@ -747,6 +747,37 @@ static const double default_popularity_factor = 2.0;
 static const double default_sumz_budget_factor = 0.1;
 static const double default_sumz_coverage_factor = 0.1;
 
+static bool msvfy_object_marked_p( msgc_context_t *c, word x ) {
+  return msgc_object_marked_p( c, x );
+}
+static void msvfy_set_object_visitor( msgc_context_t *c, 
+                                      void* (*visitor)( word obj, 
+                                                        word src,
+                                                        void *data ), 
+                                      void *data ) {
+  msgc_set_object_visitor( c, visitor, data );
+}
+static void msvfy_mark_objects_from_roots( msgc_context_t *c ) {
+  int marked, traced, words_marked;
+  msgc_mark_objects_from_roots( c, &marked, &traced, &words_marked );
+}
+static void msvfy_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
+  int m, t, wm;
+  msgc_mark_objects_from_roots_and_remsets( c, &m, &t, &wm );
+}
+
+static bool msfloat_object_marked_p( msgc_context_t *c, word x ) {
+  return msgc_object_marked_p( c, x );
+}
+static void msfloat_mark_objects_from_roots( msgc_context_t *c ) {
+  int marked, traced, words_marked;
+  msgc_mark_objects_from_roots( c, &marked, &traced, &words_marked );
+}
+static void msfloat_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
+  int m, t, wm;
+  msgc_mark_objects_from_roots_and_remsets( c, &m, &t, &wm );
+}
+
 static void* verify_remsets_msgc_fcn( word obj, word src, void *data ) 
 {
   gc_t *gc = (gc_t*)data;
@@ -789,7 +820,7 @@ static bool verify_remsets_traverse_rs( word obj, void *d, unsigned *stats )
 {
   struct verify_remsets_traverse_rs_data *data;
   data = (struct verify_remsets_traverse_rs_data*)d;
-  assert( msgc_object_marked_p( data->conserv_context, obj ));
+  assert( msvfy_object_marked_p( data->conserv_context, obj ));
   return TRUE;
 }
 /* verify that (X in R implies X in minor_remset for X);
@@ -808,11 +839,11 @@ static void verify_remsets_via_oracle( gc_t *gc )
   int marked, traced, words_marked; 
   struct verify_remsets_traverse_rs_data data;
   context = msgc_begin( gc );
-  msgc_set_object_visitor( context, verify_remsets_msgc_fcn, gc );
-  msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
+  msvfy_set_object_visitor( context, verify_remsets_msgc_fcn, gc );
+  msvfy_mark_objects_from_roots( context );
   msgc_end( context );
   context = msgc_begin( gc );
-  msgc_mark_objects_from_roots_and_remsets( context, &marked, &traced, &words_marked );
+  msvfy_mark_objects_from_roots_and_remsets( context );
   data.conserv_context = context;
   data.gc = gc;
   data.region = 0;
@@ -863,9 +894,9 @@ static bool verify_summaries_remset_fcn( word obj,
    * union of roots+remsets */
   annoyingmsg( "VERIFY SUMM REMS 0x%08x (%d) marked {agg: %s, con: %s}", 
 	       obj, gen_of(obj), 
-	       msgc_object_marked_p( data->aggress_context, obj )?"Y":"N", 
-	       msgc_object_marked_p( data->conserv_context, obj )?"Y":"N" );
-  assert( msgc_object_marked_p( data->conserv_context, obj ));
+	       msvfy_object_marked_p( data->aggress_context, obj )?"Y":"N", 
+	       msvfy_object_marked_p( data->conserv_context, obj )?"Y":"N" );
+  assert( msvfy_object_marked_p( data->conserv_context, obj ));
   assert( gen_of(obj) != data->summary_for_region );
   return TRUE;
 }
@@ -877,20 +908,18 @@ static void verify_summaries_via_oracle( gc_t *gc )
   int marked, traced, words_marked;
   if (DATA(gc)->summarized_genset_valid) {
     conserv_context = msgc_begin( gc );
-    msgc_set_object_visitor( conserv_context, verify_summaries_msgc_fcn, gc );
+    msvfy_set_object_visitor( conserv_context, verify_summaries_msgc_fcn, gc );
     /* (useful to have a pre-pass over reachable(roots) so that the
        stack trace tells you whether a problem is due solely to a
        reference chain that somehow involves remembered sets.) */
-    msgc_mark_objects_from_roots
-      ( conserv_context, &marked, &traced, &words_marked );
+    msvfy_mark_objects_from_roots( conserv_context );
     /* Summaries are based on (conservative) info in remsets; 
        therefore they may have references to "dead" objects 
        that would not be identified as such if we used 
        only msgc_mark_objects_from_roots
     */
     assert(! DATA(gc)->use_summary_instead_of_remsets );
-    msgc_mark_objects_from_roots_and_remsets
-      ( conserv_context, &marked, &traced, &words_marked );
+    msvfy_mark_objects_from_roots_and_remsets( conserv_context );
 
     /* a postpass over the summaries to make sure that their contents
        are sane.
@@ -900,8 +929,7 @@ static void verify_summaries_via_oracle( gc_t *gc )
       int i;
       msgc_context_t *aggress_context;
       aggress_context = msgc_begin( gc );
-      msgc_mark_objects_from_roots( aggress_context, 
-                                    &marked, &traced, &words_marked );
+      msvfy_mark_objects_from_roots( aggress_context );
       data.conserv_context = conserv_context;
       data.aggress_context = aggress_context;
       for (i = 0; i < gc->remset_count; i++) {
@@ -962,9 +990,9 @@ static void* visit_measuring_float( word *addr, int tag, void *accum )
   struct float_counts *type_counts;
   obj = tagptr( addr, tag );
   marked = 
-    msgc_object_marked_p( data->context, obj );
+    msfloat_object_marked_p( data->context, obj );
   marked_via_remsets = 
-    msgc_object_marked_p( data->context_incl_remsets, obj );
+    msfloat_object_marked_p( data->context_incl_remsets, obj );
 
   data->objs.total += 1 ;
   if (!marked && !marked_via_remsets) {
@@ -1172,11 +1200,10 @@ static void print_float_stats( char *caller_name, gc_t *gc )
     int estimated_live = 0;
     struct visit_measuring_float_data data;
     context = msgc_begin( gc );
-    msgc_mark_objects_from_roots( context, &marked, &traced, &words_marked );
-    
+    msfloat_mark_objects_from_roots( context );
+
     context_incl_remsets = msgc_begin( gc );
-    msgc_mark_objects_from_roots_and_remsets
-      ( context_incl_remsets, &marked_incl, &traced_incl, &words_marked_incl );
+    msfloat_mark_objects_from_roots_and_remsets( context_incl_remsets );
 
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       data.context = context;
@@ -1849,7 +1876,7 @@ static void before_collection( gc_t *gc )
     int marked, traced, words_marked;
     msgc_context_t *msgc_ctxt = msgc_begin( gc );
     supremely_annoyingmsg("before GC, heap consistency check");
-    msgc_mark_objects_from_roots( msgc_ctxt, &marked, &traced, &words_marked );
+    msvfy_mark_objects_from_roots( msgc_ctxt );
     msgc_end( msgc_ctxt );
   }
 #endif
@@ -1890,7 +1917,7 @@ static void after_collection( gc_t *gc )
     int marked, traced, words_marked;
     msgc_context_t *msgc_ctxt = msgc_begin( gc );
     supremely_annoyingmsg("after  GC, heap consistency check");
-    msgc_mark_objects_from_roots( msgc_ctxt, &marked, &traced, &words_marked );
+    msvfy_mark_objects_from_roots( msgc_ctxt );
     msgc_end( msgc_ctxt );
   }
 #endif
