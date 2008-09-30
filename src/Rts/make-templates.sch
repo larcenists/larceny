@@ -378,6 +378,7 @@ PRECISE_GC_OBJECTS=\\
 	Sys/seqbuf.$(O) Sys/remset.$(O) Sys/remset-np.$(O) \\
 	Sys/sc-heap.$(O) Sys/semispace.$(O) Sys/static-heap.$(O) \\
 	Sys/stats.$(O) Sys/summary.$(O) Sys/summ_matrix.$(O) \\
+	Sys/smircy.$(O) \\
 	Sys/young_heap_t.$(O)
 
 BOEHM_GC_OBJECTS=\\
@@ -599,6 +600,7 @@ Sys/semispace.$(O): $(LARCENY_H) $(GCLIB_H) $(SEMISPACE_T_H)
 Sys/signals.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/sro.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) $(HEAPIO_H) \\
 	$(MEMMGR_H)
+Sys/smircy.$(O): $(LARCENY_H) Sys/smircy.h
 Sys/stack.$(O): $(LARCENY_H) $(STACK_H) $(STATS_H)
 Sys/static-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) $(STATS_H) \\
 	$(MEMMGR_H) $(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H)
