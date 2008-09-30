@@ -57,12 +57,24 @@ extern void msgc_mark_object( msgc_context_t *context, word obj );
   /* Mark the object referenced by the tagged _or untagged_ pointer OBJ.
      */
 
+extern void msgc_push_object( msgc_context_t *context, word obj );
+  /* OBJ must be a taged pointer to an object in the heap.  OBJ is
+     pushed on the mark stack and used as a root in next mark phase.
+     */
+
 extern void msgc_push_constituents( msgc_context_t *context, word obj );
   /* OBJ must be a taged pointer to an object in the heap.  All
      pointer members of the objects are pushed on the mark stack, 
      resulting in them being used as roots for the next mark phase.
      */
      
+extern void msgc_stack_pops( msgc_context_t *context, 
+                             int *marked, int *traced, int *words_marked );
+  /* Marks all objects reachable from mark stack.  Adds the number of
+     objects marked to *marked, number of words marked to
+     *words_marked, and number of pointers traced to *traced.
+     */
+
 extern bool msgc_object_marked_p( msgc_context_t *context, word obj );
   /* OBJ must be a tagged pointer to an object (note: _not_ to an
      arbitrary address) in the heap.  Returns TRUE iff the object

@@ -461,9 +461,28 @@ void msgc_mark_object( msgc_context_t *context, word obj )
   my_mark_object( context, obj );
 }
 
+void msgc_push_object( msgc_context_t *context, word obj ) 
+{
+  PUSH( context, obj, 0x0 );
+}
+
 void msgc_push_constituents( msgc_context_t *context, word obj )
 {
   push_constituents( context, obj );
+}
+
+void msgc_stack_pops( msgc_context_t *context, 
+                      int *marked, int *traced, int *words_marked ) 
+{
+  context->marked = 0;
+  context->traced = 0;
+  context->words_marked = 0;
+
+  mark_from_stack( context );
+
+  *marked += context->marked;
+  *traced += context->traced;
+  *words_marked += context->words_marked;
 }
 
 msgc_context_t *msgc_begin( gc_t *gc )
