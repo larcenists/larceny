@@ -27,6 +27,7 @@ const char *larceny_gc_technology = "precise";
 #include "barrier.h"
 #include "stack.h"
 #include "msgc-core.h"
+#include "smircy.h"
 #include "summary_t.h"
 #include "seqbuf_t.h"
 #include "math.h"
@@ -1024,8 +1025,8 @@ static void* visit_measuring_float( word *addr, int tag, void *accum )
 
 static bool scan_refine_remset( word loc, void *data, unsigned *stats )
 {
-  msgc_context_t *context = (msgc_context_t*)data;
-  if (msgc_object_marked_p( context, loc )) {
+  smircy_context_t *context = (smircy_context_t*)data;
+  if (smircy_object_marked_p( context, loc )) {
     return TRUE;
   } else {
     return FALSE;
@@ -1036,13 +1037,14 @@ static void refine_remsets_via_marksweep( gc_t *gc )
 {
   /* use the mark/sweep system to refine (*all* of) the
    * remembered sets. */
-  msgc_context_t *context;
+  smircy_context_t *context;
   int i, rgn;
   int marked=0, traced=0, words_marked=0; 
   int total_float_words = 0, total_float_objects = 0;
-  context = msgc_begin( gc );
-  msgc_mark_objects_from_roots_and_a_remset
-    ( context, DATA(gc)->nursery_remset, &marked, &traced, &words_marked );
+  context = smircy_begin( gc );
+  smircy_push_roots( context );
+  smircy_push_remset( context, DATA(gc)->nursery_remset );
+  smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
   
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
@@ -1092,7 +1094,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
     assert(0);
   }
   
-  msgc_end( context );
+  smircy_end( context );
 }
 
 static int cycle_count = 0;
