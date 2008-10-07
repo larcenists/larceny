@@ -91,6 +91,8 @@
 
 #define dbmsg( format, args... ) if (0) consolemsg( format, ## args )
 
+#define bounded_decrement( x, y ) if (x > 0) x = max( 0, x - (y) );
+
 #include "larceny.h"
 #include "gc_t.h"
 #include "gclib.h"
@@ -123,12 +125,12 @@ typedef struct obj_stack           obj_stack_t;
 typedef struct los_stack           los_stack_t;
 typedef struct large_object_cursor large_object_cursor_t;
 
-#define OBJ_STACK_SIZE 4095
-/* Should be large and chosen so that obj_stack occupies integral
+#define OBJ_STACK_SIZE 4094
+/* Should be large and chosen so that obj_stackseg occupies integral
  * number of pages. */
 
 #define LOS_STACK_SIZE 2047
-/* Should be large and chosen so that los_stack occupies integral
+/* Should be large and chosen so that los_stackseg occupies integral
  * number of pages.  (Since a los cursor is > 1 word, I may need to
  * add explicit padding to los_stack to get that effect...) */
 
@@ -188,6 +190,7 @@ struct smircy_context {
   int                words_in_bitmap;
   word               *bitmap;
   smircy_stack_t     *stacks;     /* One stack per region */
+  int                stk_cursor;  /* Index of stack we are manipulating */
   obj_stackseg_t     *freed_obj;  /* obj segments available for reuse */
   los_stackseg_t     *freed_los;  /* los segments available for reuse */
   int                total_traced;
@@ -221,6 +224,59 @@ static void print_stacks( smircy_context_t *context )
         stkbot = seg->data;
         consolemsg("     ---------- [0x%08x 0x%08x]", stkbot, stkp);
       }
+    }
+  }
+}
+
+static void print_stack_sizes( smircy_context_t *context ) 
+{
+  int gno;
+  obj_stack_t *obj_stack;
+  los_stack_t *los_stack;
+  obj_stackseg_t *objseg;
+  los_stackseg_t *losseg;
+  word w;
+  int full_objseg_count, full_losseg_count;
+  for( gno = 0; gno <= context->num_rgns; gno++ ) {
+    obj_stack = &context->stacks[gno].obj;
+    full_objseg_count = 0;
+    objseg = obj_stack->seg;
+    if (objseg != NULL) {
+      while (objseg->next != NULL) {
+        full_objseg_count += 1;
+        objseg = objseg->next;
+      }
+    }
+
+    los_stack = &context->stacks[gno].los;
+    full_losseg_count = 0;
+    losseg = los_stack->seg;
+    if (losseg != NULL) {
+      while (losseg->next != NULL) {
+        full_losseg_count += 1;
+        losseg = losseg->next;
+      }
+    }
+    if (full_objseg_count == 0 && full_losseg_count == 0) {
+      consolemsg( "OBJSTK[% 3d]:             % 5d " 
+                  "LOSSTK[% 3d]:             % 5d ",
+                  gno, obj_stack->stkp - obj_stack->stkbot,
+                  gno, los_stack->stkp - los_stack->stkbot);
+    } else if (full_objseg_count == 0) {
+      consolemsg( "OBJSTK[% 3d]:             % 5d " 
+                  "LOSSTK[% 3d]: % 4d*%d + % 5d ",
+                  gno, obj_stack->stkp - obj_stack->stkbot,
+                  gno, full_losseg_count, LOS_STACK_SIZE, los_stack->stkp - los_stack->stkbot);
+    } else if (full_losseg_count == 0) {
+      consolemsg( "OBJSTK[% 3d]: % 4d*%d + % 5d " 
+                  "LOSSTK[% 3d]:             % 5d ",
+                  gno, full_objseg_count, OBJ_STACK_SIZE, obj_stack->stkp - obj_stack->stkbot,
+                  gno, los_stack->stkp - los_stack->stkbot);
+    } else {
+      consolemsg( "OBJSTK[% 3d]: % 4d*%d + % 5d " 
+                  "LOSSTK[% 3d]: % 4d*%d + % 5d ",
+                  gno, full_objseg_count, OBJ_STACK_SIZE, obj_stack->stkp - obj_stack->stkbot,
+                  gno, full_losseg_count, LOS_STACK_SIZE, los_stack->stkp - los_stack->stkbot);
     }
   }
 }
@@ -469,6 +525,7 @@ smircy_context_t *smircy_begin( gc_t *gc, int num_rgns )
     gclib_alloc_rts( context->words_in_bitmap * sizeof(word), 0 );
   memset( context->bitmap, 0, context->words_in_bitmap*sizeof(word) );
   context->stacks = gclib_alloc_rts( sizeof(smircy_stack_t)*(num_rgns+1), 0 );
+  context->stk_cursor = 0;
   memset( context->stacks, 0, sizeof(smircy_stack_t)*(num_rgns+1) );
   { 
     int gno;
@@ -598,21 +655,23 @@ void smircy_progress( smircy_context_t *context,
   int rgn;
   smircy_stack_t *stack;
   int mark_budget, trace_budget, mark_words_budget;
-  int traced = 0, marked = 0, words_marked = 0;
+  int traced = 0, marked = 0, words_marked = 0, constituents;
   bool already_marked;
   bool all_stacks_empty;
-
-  assert( mark_max == -1);
-  assert( trace_max == -1);
-  assert( mark_words_max == -1);
 
   mark_budget = mark_max;
   trace_budget = trace_max;
   mark_words_budget = mark_words_max;
 
   do {
-    all_stacks_empty = TRUE;
-    for( rgn = 0; rgn < context->num_rgns; rgn++ ) {
+    /* only assume all stacks are empty if we are starting with the 
+     * first one */
+    all_stacks_empty = (context->stk_cursor == 0);
+
+    for( rgn = context->stk_cursor; 
+         rgn < context->num_rgns; 
+         rgn++ ) {
+      context->stk_cursor = rgn;
       stack = &context->stacks[rgn];
       dbmsg("smircy process stack for rgn %d, "
             "stk{bot,p,lim}:{0x%08x,0x%08x,0x%08x}", 
@@ -662,26 +721,47 @@ void smircy_progress( smircy_context_t *context,
          * as I debug what is wrong with this implementation. */
         assert( w != 0x0 );
 
-        trace_budget--;
         traced++;
+        bounded_decrement( trace_budget, 1 );
 
         already_marked = mark_object( context, w );
         if (already_marked) continue;
 
         marked++;
-        mark_budget--;
+        bounded_decrement( mark_budget, 1 );
 
-        words_marked += push_constituents( context, w );
+        constituents = push_constituents( context, w );
+        words_marked += constituents;
+        bounded_decrement( mark_words_budget, constituents );
+
+        if (mark_budget == 0 || trace_budget == 0 || mark_words_budget == 0)
+          goto budget_exhausted;
       }
     }
+
+    /* finished iterating over all stacks; reset cursor to 0 */
+    context->stk_cursor = 0;
+
   } while (! all_stacks_empty);
 
+  budget_exhausted:
+  done:
   *marked_recv = marked;
   *traced_recv = traced;
   *words_marked_recv = words_marked;
 
 #if !NDEBUG2
-  smircy_assert_conservative_approximation( context );
+  if (smircy_stack_empty_p( context )) {
+    smircy_assert_conservative_approximation( context );
+  }
+
+#if 0
+  if (smircy_stack_empty_p( context )) {
+    consolemsg("--------------------------------");
+  } else {
+    print_stack_sizes( context );
+  }
+#endif
 #endif
 }
 
@@ -735,7 +815,18 @@ static bool smircy_assert_conservative_approximation( smircy_context_t *context 
 
 bool smircy_stack_empty_p( smircy_context_t *context ) 
 {
-  assert(0); /* done? */
+  int gno;
+  obj_stack_t *obj_stk;
+  los_stack_t *los_stk;
+  for( gno = 0; gno <= context->num_rgns; gno++ ) {
+    obj_stk = &context->stacks[gno].obj;
+    if ((obj_stk->stkp > obj_stk->stkbot) || (obj_stk->seg != NULL))
+      return FALSE;
+    los_stk = &context->stacks[gno].los;
+    if ((los_stk->stkp > los_stk->stkbot) || (los_stk->seg != NULL))
+      return FALSE;
+  }
+  return TRUE;
 }
 
 bool smircy_object_marked_p( smircy_context_t *context, word obj )
