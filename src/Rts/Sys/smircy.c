@@ -587,6 +587,8 @@ void *visit_check_smircy_mark( word obj, word src, void *data )
   return data;
 }
 
+static bool smircy_assert_conservative_approximation( smircy_context_t *context );
+
 void smircy_progress( smircy_context_t *context, 
                       int mark_max, int trace_max, int mark_words_max,
                       int *marked_recv, int *traced_recv, 
@@ -678,6 +680,13 @@ void smircy_progress( smircy_context_t *context,
   *traced_recv = traced;
   *words_marked_recv = words_marked;
 
+#if !NDEBUG2
+  smircy_assert_conservative_approximation( context );
+#endif
+}
+
+static bool smircy_assert_conservative_approximation( smircy_context_t *context ) 
+{
   /* When debugging, if we're done with the marking lets check that it
    * is a conservative approximation of the true mark bitmap (that is,
    * a superset of objects marked by MSGC should be treated as live by
