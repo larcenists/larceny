@@ -502,6 +502,7 @@ REMSET_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h $(SEQBUF_T_H) Sy
 SEMISPACE_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/semispace_t.h
 SEQBUF_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/seqbuf_t.h
 SIGNALS_H=$(INC_ROOT)/config.h Sys/signals.h
+SMIRCY_H=Sys/smircy.h
 STACK_H=$(INC_ROOT)/Sys/larceny-types.h Sys/stack.h
 STATIC_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/static_heap_t.h
 STATS_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/stats.h
@@ -574,7 +575,7 @@ Sys/los.$(O): $(LARCENY_H) $(GCLIB_H) $(LOS_T_H)
 Sys/malloc.$(O): $(LARCENY_H)
 Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
 	$(STATS_H) $(HEAPIO_H) $(LOS_T_H) $(MEMMGR_H) \\
-	$(OLD_HEAP_T_H) $(REMSET_T_H) $(SEMISPACE_T_H) \\
+	$(OLD_HEAP_T_H) $(REMSET_T_H) $(SEMISPACE_T_H) $(SMIRCY_H) \\
 	$(STACK_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
 Sys/np-sc-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
 	$(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
