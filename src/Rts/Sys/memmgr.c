@@ -1041,7 +1041,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   int i, rgn;
   int marked=0, traced=0, words_marked=0; 
   int total_float_words = 0, total_float_objects = 0;
-  context = smircy_begin( gc );
+  context = smircy_begin( gc, gc->remset_count );
   smircy_push_roots( context );
   smircy_push_remset( context, DATA(gc)->nursery_remset );
   smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );

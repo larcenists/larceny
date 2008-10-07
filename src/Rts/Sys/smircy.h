@@ -9,7 +9,7 @@
 
 typedef struct smircy_context smircy_context_t;
 
-smircy_context_t *smircy_begin( gc_t *gc );
+smircy_context_t *smircy_begin( gc_t *gc, int num_rgns );
 
 void smircy_push_roots( smircy_context_t *context );
 
@@ -18,6 +18,8 @@ void smircy_push_remset( smircy_context_t *context, remset_t *rs );
 void smircy_progress( smircy_context_t *context, 
                       int mark_max, int trace_max, int mark_words_max,
                       int *marked, int *traced, int *words_marked );
+
+bool smircy_stack_empty_p( smircy_context_t *context );
 
 bool smircy_object_marked_p( smircy_context_t *context, word obj );
 
