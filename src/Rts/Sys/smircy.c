@@ -849,19 +849,19 @@ void smircy_end( smircy_context_t *context )
   obj_stackseg_t *obj, *obj_tmp;
   los_stackseg_t *los, *los_tmp;
 
-  free( context->bitmap );
-  free( context->stacks );
+  gclib_free( context->bitmap, context->words_in_bitmap * sizeof(word) );
+  gclib_free( context->stacks, (context->num_rgns+1) * sizeof(smircy_stack_t) );
   obj = context->freed_obj;
   while (obj != NULL) {
     obj_tmp = obj;
     obj = obj->next;
-    free( obj_tmp );
+    gclib_free( obj_tmp, sizeof( obj_stackseg_t ) );
   }
   los = context->freed_los;
   while (los != NULL) {
     los_tmp = los;
     los = los->next;
-    free( los_tmp );
+    gclib_free( los_tmp, sizeof( los_stackseg_t ) );
   }
   free( context );
 }
