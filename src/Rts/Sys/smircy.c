@@ -118,6 +118,7 @@
 # error "Must define SMIRCY macros for non-32 bit systems."
 #endif
 
+typedef struct obj_stack_entry     obj_stack_entry_t;
 typedef struct smircy_stack        smircy_stack_t;
 typedef struct obj_stackseg        obj_stackseg_t;
 typedef struct los_stackseg        los_stackseg_t;
@@ -125,11 +126,11 @@ typedef struct obj_stack           obj_stack_t;
 typedef struct los_stack           los_stack_t;
 typedef struct large_object_cursor large_object_cursor_t;
 
-#define OBJ_STACK_SIZE 4094
+#define OBJ_STACK_SIZE 2048
 /* Should be large and chosen so that obj_stackseg occupies integral
  * number of pages. */
 
-#define LOS_STACK_SIZE 2047
+#define LOS_STACK_SIZE 1365
 /* Should be large and chosen so that los_stackseg occupies integral
  * number of pages.  (Since a los cursor is > 1 word, I may need to
  * add explicit padding to los_stack to get that effect...) */
@@ -143,20 +144,29 @@ typedef struct large_object_cursor large_object_cursor_t;
 
 #define BITS_PER_WORD (8*sizeof(word))
 
+/* See pg. 78 of Jones and Lins.
+ * (Felix will probably commit to MARK_ON_PUSH soon.) */
+#define MARK_ON_PUSH 1
+#define MARK_ON_POP (! MARK_ON_PUSH)
+
 /* Calculates ceil(x/y); (unlike quotient, which does floor). */
 #define CEILDIV(x,y) (roundup((x),(y))/(y))
 
+struct obj_stack_entry { 
+  word              val;
+  obj_stack_entry_t *next_in_rgn;
+};
+
 struct obj_stack {
   obj_stackseg_t *seg;
-  word           *stkp;
-  word           *stkbot;
-  word           *stklim;
+  obj_stack_entry_t *stkp;
+  obj_stack_entry_t *stkbot;
+  obj_stack_entry_t *stklim;
 };
 
 struct obj_stackseg {
   obj_stackseg_t *next;
-  int             gno_owner;
-  word            data[OBJ_STACK_SIZE];
+  obj_stack_entry_t data[OBJ_STACK_SIZE];
 };
 
 struct los_stack {
@@ -169,6 +179,7 @@ struct los_stack {
 struct large_object_cursor {
   word       object;
   int        index; /* Resumption point for scan (from start of object) */
+  large_object_cursor_t    *next_in_rgn;
 };
 
 struct los_stackseg {
@@ -177,7 +188,6 @@ struct los_stackseg {
 };
 
 struct smircy_stack {
-  int            gno_owner;
   obj_stack_t    obj;         /* Object stack */
   los_stack_t    los;         /* LOS cursor stack */
 };
@@ -189,7 +199,9 @@ struct smircy_context {
   word               *highest_heap_address;
   int                words_in_bitmap;
   word               *bitmap;
-  smircy_stack_t     *stacks;     /* One stack per region */
+  smircy_stack_t     stack;
+  obj_stack_entry_t  **rgn_to_obj_entry;
+  large_object_cursor_t **rgn_to_los_entry;
   int                stk_cursor;  /* Index of stack we are manipulating */
   obj_stackseg_t     *freed_obj;  /* obj segments available for reuse */
   los_stackseg_t     *freed_los;  /* los segments available for reuse */
@@ -198,25 +210,24 @@ struct smircy_context {
   int                total_words_marked;
 };
 
-static void print_stacks( smircy_context_t *context )
+static void print_stack( smircy_context_t *context )
 {
-  int gno;
   obj_stack_t *obj_stack;
   los_stack_t *los_stack;
   obj_stackseg_t *seg;
-  word *stkp;
-  word *stkbot;
+  obj_stack_entry_t *stkp;
+  obj_stack_entry_t *stkbot;
   word w;
-  for( gno = 0; gno <= context->num_rgns; gno++ ) {
-    obj_stack = &context->stacks[gno].obj;
-    los_stack = &context->stacks[gno].los;
+  {
+    obj_stack = &context->stack.obj;
+    los_stack = &context->stack.los;
     seg = obj_stack->seg;
     stkp = obj_stack->stkp;
     stkbot = obj_stack->stkbot;
-    consolemsg(    "stack[% 4d]:    [0x%08x 0x%08x]", gno, stkbot, stkp);
+    consolemsg(    "stack[    ]:    [0x%08x 0x%08x]", stkbot, stkp);
     while (stkp > stkbot) {
       stkp--;
-      w = *stkp;
+      w = stkp->val;
       consolemsg(  "     0x%08x", w);
       if (stkp == stkbot && seg->next != NULL) {
         seg = seg->next;
@@ -230,15 +241,14 @@ static void print_stacks( smircy_context_t *context )
 
 static void print_stack_sizes( smircy_context_t *context ) 
 {
-  int gno;
   obj_stack_t *obj_stack;
   los_stack_t *los_stack;
   obj_stackseg_t *objseg;
   los_stackseg_t *losseg;
   word w;
   int full_objseg_count, full_losseg_count;
-  for( gno = 0; gno <= context->num_rgns; gno++ ) {
-    obj_stack = &context->stacks[gno].obj;
+  {
+    obj_stack = &context->stack.obj;
     full_objseg_count = 0;
     objseg = obj_stack->seg;
     if (objseg != NULL) {
@@ -248,7 +258,7 @@ static void print_stack_sizes( smircy_context_t *context )
       }
     }
 
-    los_stack = &context->stacks[gno].los;
+    los_stack = &context->stack.los;
     full_losseg_count = 0;
     losseg = los_stack->seg;
     if (losseg != NULL) {
@@ -258,25 +268,25 @@ static void print_stack_sizes( smircy_context_t *context )
       }
     }
     if (full_objseg_count == 0 && full_losseg_count == 0) {
-      consolemsg( "OBJSTK[% 3d]:             % 5d " 
-                  "LOSSTK[% 3d]:             % 5d ",
-                  gno, obj_stack->stkp - obj_stack->stkbot,
-                  gno, los_stack->stkp - los_stack->stkbot);
+      consolemsg( "OBJSTK[    ]:             % 5d " 
+                  "LOSSTK[    ]:             % 5d ",
+                  obj_stack->stkp - obj_stack->stkbot,
+                  los_stack->stkp - los_stack->stkbot);
     } else if (full_objseg_count == 0) {
-      consolemsg( "OBJSTK[% 3d]:             % 5d " 
-                  "LOSSTK[% 3d]: % 4d*%d + % 5d ",
-                  gno, obj_stack->stkp - obj_stack->stkbot,
-                  gno, full_losseg_count, LOS_STACK_SIZE, los_stack->stkp - los_stack->stkbot);
+      consolemsg( "OBJSTK[    ]:             % 5d " 
+                  "LOSSTK[    ]: % 4d*%d + % 5d ",
+                  obj_stack->stkp - obj_stack->stkbot,
+                  full_losseg_count, LOS_STACK_SIZE, los_stack->stkp - los_stack->stkbot);
     } else if (full_losseg_count == 0) {
-      consolemsg( "OBJSTK[% 3d]: % 4d*%d + % 5d " 
-                  "LOSSTK[% 3d]:             % 5d ",
-                  gno, full_objseg_count, OBJ_STACK_SIZE, obj_stack->stkp - obj_stack->stkbot,
-                  gno, los_stack->stkp - los_stack->stkbot);
+      consolemsg( "OBJSTK[    ]: % 4d*%d + % 5d " 
+                  "LOSSTK[    ]:             % 5d ",
+                  full_objseg_count, OBJ_STACK_SIZE, obj_stack->stkp - obj_stack->stkbot,
+                  los_stack->stkp - los_stack->stkbot);
     } else {
-      consolemsg( "OBJSTK[% 3d]: % 4d*%d + % 5d " 
-                  "LOSSTK[% 3d]: % 4d*%d + % 5d ",
-                  gno, full_objseg_count, OBJ_STACK_SIZE, obj_stack->stkp - obj_stack->stkbot,
-                  gno, full_losseg_count, LOS_STACK_SIZE, los_stack->stkp - los_stack->stkbot);
+      consolemsg( "OBJSTK[    ]: % 4d*%d + % 5d " 
+                  "LOSSTK[    ]: % 4d*%d + % 5d ",
+                  full_objseg_count, OBJ_STACK_SIZE, obj_stack->stkp - obj_stack->stkbot,
+                  full_losseg_count, LOS_STACK_SIZE, los_stack->stkp - los_stack->stkbot);
     }
   }
 }
@@ -301,7 +311,6 @@ static obj_stackseg_t *push_obj_segment( obj_stackseg_t *obj,
 
   if (*freed == NULL) {
     sp = gclib_alloc_rts( sizeof( obj_stackseg_t ), 0 );
-    sp->gno_owner = gno_owner;
 
     dbmsg( "SMIRCY push_obj_segment( 0x%08x, [0x%08x] ) => 0x%08x [%d]", 
            obj, *freed, sp, gno_owner );
@@ -311,7 +320,6 @@ static obj_stackseg_t *push_obj_segment( obj_stackseg_t *obj,
     return sp;
   } else {
     sp = *freed;
-    sp->gno_owner = gno_owner;
 
     dbmsg( "SMIRCY push_obj_segment( 0x%08x, [0x%08x] ) => 0x%08x [%d]", 
            obj, *freed, sp, gno_owner );
@@ -337,8 +345,8 @@ static obj_stackseg_t *pop_obj_segment( obj_stackseg_t *obj,
   assert( obj != NULL );
   sp = obj->next;
 
-  dbmsg( "SMIRCY  pop_obj_segment( 0x%08x, [0x%08x] ) => 0x%08x [%d]", 
-         obj, *freed, sp, obj->gno_owner );
+  dbmsg( "SMIRCY  pop_obj_segment( 0x%08x, [0x%08x] ) => 0x%08x", 
+         obj, *freed, sp );
 
 #if ATTEMPT_SEGMENT_REUSE
   obj->next = *freed;
@@ -405,31 +413,44 @@ static los_stackseg_t *pop_los_segment( los_stackseg_t *los,
   return sp;
 }
 
-static void free_obj_stacksegs( obj_stackseg_t *segs ) 
+static int free_obj_stacksegs( obj_stackseg_t *segs ) 
 {
+  int i = 0;
   if (segs != NULL) {
-    free_obj_stacksegs( segs->next ); /* (should be sufficiently shallow) */
+    /* (should be sufficiently shallow) */
+    i = 1 + free_obj_stacksegs( segs->next );
     gclib_free( segs, sizeof( obj_stackseg_t ) );
   }
+  return i;
 }
 
-static void free_los_stacksegs( los_stackseg_t *segs ) 
+static int free_los_stacksegs( los_stackseg_t *segs ) 
 {
+  int i = 0;
   if (segs != NULL) {
-    free_los_stacksegs( segs->next );
+    i = 1 + free_los_stacksegs( segs->next );
     gclib_free( segs, sizeof( los_stackseg_t ) );
   }
+  return i;
 }
+
+static bool mark_object( smircy_context_t *context, word obj );
 
 static void push( smircy_context_t *context, word obj, word src ) 
 {
   int gno;
   obj_stack_t *stack;
+  bool already_marked;
 
   if (isptr(obj)) {
 
+#if MARK_ON_PUSH
+    already_marked = mark_object( context, obj );
+    if (already_marked) return;
+#endif
+
     gno = gen_of(obj);
-    stack = &(context->stacks[gno].obj);
+    stack = &(context->stack.obj);
     if (stack->stkp == stack->stklim) {
       stack->seg = push_obj_segment( stack->seg, &context->freed_obj, gno );
       stack->stkbot = stack->seg->data;
@@ -437,7 +458,9 @@ static void push( smircy_context_t *context, word obj, word src )
       stack->stkp = stack->stkbot;
     }
 
-    *stack->stkp = obj;
+    stack->stkp->val = obj;
+    stack->stkp->next_in_rgn = context->rgn_to_obj_entry[gno];
+    context->rgn_to_obj_entry[gno] = stack->stkp;
     stack->stkp++;
   }
 }
@@ -448,7 +471,7 @@ static void los_push( smircy_context_t *context, word index, word obj )
   los_stack_t *stack;
   assert(isptr(obj));
   gno = gen_of(obj);
-  stack = &(context->stacks[gno].los);
+  stack = &(context->stack.los);
   if (stack->stkp == stack->stklim) {
     stack->seg = push_los_segment( stack->seg, &context->freed_los );
     stack->stkbot = stack->seg->data;
@@ -457,22 +480,24 @@ static void los_push( smircy_context_t *context, word index, word obj )
   }
   stack->stkp->object = obj;
   stack->stkp->index = index;
+  stack->stkp->next_in_rgn = context->rgn_to_los_entry[gno];
+  context->rgn_to_los_entry[gno] = stack->stkp;
   stack->stkp++;
 }
 
 /* Attempts to enqueue entries on object stack for gno by dequeuing them
  * from the los cursor stack for gno. */
-static bool fill_from_los_stack( smircy_context_t *context, int gno )
+static bool fill_from_los_stack( smircy_context_t *context )
 {
   obj_stack_t *obj_stack;
   los_stack_t *los_stack;
   word obj;
   int i, window_start, window_size, window_lim, objwords;
 
-  dbmsg("fill_from_los_stack( context, %d )", gno );
+  dbmsg("fill_from_los_stack( context )" );
 
-  obj_stack = &context->stacks[gno].obj;
-  los_stack = &context->stacks[gno].los;
+  obj_stack = &context->stack.obj;
+  los_stack = &context->stack.los;
   if (los_stack->seg == NULL) {
     return FALSE;
   } 
@@ -524,15 +549,21 @@ smircy_context_t *smircy_begin( gc_t *gc, int num_rgns )
   context->bitmap = 
     gclib_alloc_rts( context->words_in_bitmap * sizeof(word), 0 );
   memset( context->bitmap, 0, context->words_in_bitmap*sizeof(word) );
-  context->stacks = gclib_alloc_rts( sizeof(smircy_stack_t)*(num_rgns+1), 0 );
+
+  context->stack.obj.seg = NULL;
+  context->stack.obj.stkp = NULL;
+  context->stack.obj.stkbot = NULL;
+  context->stack.obj.stklim = NULL;
+  context->stack.los.seg = NULL;
+  context->stack.los.stkp = NULL;
+  context->stack.los.stkbot = NULL;
+  context->stack.los.stklim = NULL;
+
+  context->rgn_to_obj_entry = 
+    gclib_alloc_rts( sizeof(obj_stack_entry_t)*(num_rgns+1), 0 );
+  context->rgn_to_los_entry = 
+    gclib_alloc_rts( sizeof(large_object_cursor_t)*(num_rgns+1), 0 );
   context->stk_cursor = 0;
-  memset( context->stacks, 0, sizeof(smircy_stack_t)*(num_rgns+1) );
-  { 
-    int gno;
-    for ( gno = 0; gno <= num_rgns; gno++ ) {
-      context->stacks[gno].gno_owner = gno;
-    }
-  }
 
   context->freed_obj = NULL;
   context->freed_los = NULL;
@@ -541,8 +572,8 @@ smircy_context_t *smircy_begin( gc_t *gc, int num_rgns )
   context->total_marked = 0;
   context->total_words_marked = 0;
 
-  dbmsg( "smircy_begin( gc, %d ) bitmap: 0x%08x stacks: 0x%08x",
-              num_rgns, context->bitmap, context->stacks );
+  dbmsg( "smircy_begin( gc, %d ) bitmap: 0x%08x ", 
+         num_rgns, context->bitmap );
 
   return context;
 }
@@ -652,36 +683,26 @@ void smircy_progress( smircy_context_t *context,
                       int *words_marked_recv )
 {
   word w;
-  int rgn;
   smircy_stack_t *stack;
   int mark_budget, trace_budget, mark_words_budget;
   int traced = 0, marked = 0, words_marked = 0, constituents;
   bool already_marked;
-  bool all_stacks_empty;
 
   mark_budget = mark_max;
   trace_budget = trace_max;
   mark_words_budget = mark_words_max;
 
-  do {
-    /* only assume all stacks are empty if we are starting with the 
-     * first one */
-    all_stacks_empty = (context->stk_cursor == 0);
-
-    for( rgn = context->stk_cursor; 
-         rgn < context->num_rgns; 
-         rgn++ ) {
-      context->stk_cursor = rgn;
-      stack = &context->stacks[rgn];
-      dbmsg("smircy process stack for rgn %d, "
-            "stk{bot,p,lim}:{0x%08x,0x%08x,0x%08x}", 
-            rgn, stack->obj.stkbot, stack->obj.stkp, stack->obj.stklim );
-
+  stack = &context->stack;
+  dbmsg("smircy process stack, "
+        "stk{bot,p,lim}:{0x%08x,0x%08x,0x%08x}", 
+        stack->obj.stkbot, stack->obj.stkp, stack->obj.stklim );
+  {
+    {
       while(1) {
         /* pop */
         if (stack->obj.stkp == stack->obj.stkbot) { /* underflow */
           if (stack->obj.seg == NULL) {
-            if (fill_from_los_stack( context, rgn )) 
+            if (fill_from_los_stack( context )) 
               continue; /* restart processing of stacks[rgn] */
             else
               break; /* done with stacks[rgn] for now */
@@ -697,7 +718,7 @@ void smircy_progress( smircy_context_t *context,
               stack->obj.stklim = 0x0;
               stack->obj.stkp   = 0x0;
 
-              if (fill_from_los_stack( context, rgn ))
+              if (fill_from_los_stack( context ))
                 continue; /* restart processing of stacks[rgn] */
               else
                 break; /* done with stacks[rgn] for now */
@@ -707,12 +728,10 @@ void smircy_progress( smircy_context_t *context,
 
         assert( stack->obj.stkp > stack->obj.stkbot );
 
-        all_stacks_empty = FALSE;
         stack->obj.stkp--;
-        w = *stack->obj.stkp;
+        w = stack->obj.stkp->val;
 
-        dbmsg( "SMIRCY popped 0x%08x off of stack[%d]", 
-               w, stack->gno_owner );
+        dbmsg( "SMIRCY popped 0x%08x off of stack", w );
 
         /* XXX at some point, I may need to support removing words
          * from stacks, which will probably be implemented by setting
@@ -724,8 +743,10 @@ void smircy_progress( smircy_context_t *context,
         traced++;
         bounded_decrement( trace_budget, 1 );
 
+#if MARK_ON_POP
         already_marked = mark_object( context, w );
         if (already_marked) continue;
+#endif
 
         marked++;
         bounded_decrement( mark_budget, 1 );
@@ -738,11 +759,7 @@ void smircy_progress( smircy_context_t *context,
           goto budget_exhausted;
       }
     }
-
-    /* finished iterating over all stacks; reset cursor to 0 */
-    context->stk_cursor = 0;
-
-  } while (! all_stacks_empty);
+  }
 
   budget_exhausted:
   done:
@@ -815,14 +832,13 @@ static bool smircy_assert_conservative_approximation( smircy_context_t *context 
 
 bool smircy_stack_empty_p( smircy_context_t *context ) 
 {
-  int gno;
   obj_stack_t *obj_stk;
   los_stack_t *los_stk;
-  for( gno = 0; gno <= context->num_rgns; gno++ ) {
-    obj_stk = &context->stacks[gno].obj;
+  {
+    obj_stk = &context->stack.obj;
     if ((obj_stk->stkp > obj_stk->stkbot) || (obj_stk->seg != NULL))
       return FALSE;
-    los_stk = &context->stacks[gno].los;
+    los_stk = &context->stack.los;
     if ((los_stk->stkp > los_stk->stkbot) || (los_stk->seg != NULL))
       return FALSE;
   }
@@ -848,21 +864,22 @@ void smircy_end( smircy_context_t *context )
   /* deallocate state of context */
   obj_stackseg_t *obj, *obj_tmp;
   los_stackseg_t *los, *los_tmp;
+  int n;
 
   gclib_free( context->bitmap, context->words_in_bitmap * sizeof(word) );
-  gclib_free( context->stacks, (context->num_rgns+1) * sizeof(smircy_stack_t) );
-  obj = context->freed_obj;
-  while (obj != NULL) {
-    obj_tmp = obj;
-    obj = obj->next;
-    gclib_free( obj_tmp, sizeof( obj_stackseg_t ) );
-  }
-  los = context->freed_los;
-  while (los != NULL) {
-    los_tmp = los;
-    los = los->next;
-    gclib_free( los_tmp, sizeof( los_stackseg_t ) );
-  }
+  gclib_free( context->rgn_to_obj_entry, 
+              (context->num_rgns+1) * sizeof(obj_stack_entry_t) );
+  gclib_free( context->rgn_to_los_entry, 
+              (context->num_rgns+1) * sizeof(large_object_cursor_t) );
+
+  n = free_obj_stacksegs( context->freed_obj );
+  if (n > 1)
+    consolemsg( "  Warning: deep mark stack: >%d elements.", n*OBJ_STACK_SIZE );
+
+  n = free_los_stacksegs( context->freed_los );
+  if (n > 1)
+    consolemsg( "  Warning: deep mark stack: >%d elements.", n*LOS_STACK_SIZE );
+
   free( context );
 }
 
