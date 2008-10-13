@@ -1078,7 +1078,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
     double R = DATA(gc)->rrof_refinement_factor;
     int new_countdown;
     new_countdown = 
-      (int)((R*(double)(sizeof(word)*traced))
+      (int)((R*(double)(sizeof(word)*marked*2))
 	    / ((double)gc->young_area->maximum));
     assert( new_countdown >= 0 );
     DATA(gc)->rrof_refine_mark_countdown += new_countdown;
