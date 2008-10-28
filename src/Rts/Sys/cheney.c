@@ -135,6 +135,7 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
     *dest = *TMP_P;                                                    \
     *(dest+1) = next_obj = *(TMP_P+1);                                 \
     *loc = install_fwdptr( TMP_P, dest, PAIR_TAG);                     \
+    if (e->forwarded) e->forwarded( e, tagptr( TMP_P, PAIR_TAG),*loc );\
     check_memory( dest, 2 );                                           \
     dest += 2;                                                         \
   } while ( 0 )
@@ -429,6 +430,10 @@ static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
   return FALSE;
 }
 
+static void forwarded( cheney_env_t* e, word obj_orig, word obj_new ) {
+  smircy_when_object_forwarded( e->gc->smircy, obj_orig, obj_new );
+}
+
 static void 
 init_env_with_cursors( cheney_env_t *e, 
                        gc_t *gc,
@@ -469,6 +474,7 @@ init_env_with_cursors( cheney_env_t *e,
 
   e->scan_from_tospace = scanner;
   e->points_across = (e->gc->major_remset != NULL) ? points_across : points_across_noop;
+  e->forwarded = (e->gc->smircy != NULL) ? forwarded : NULL;
 }
 
 void init_env( cheney_env_t *e, gc_t *gc,
@@ -792,6 +798,7 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
 word forward( word p, word **dest, cheney_env_t *e )
 {
   word hdr, newptr, *p1, *p2, tag, *ptr;
+  word ret;
 
   tag = tagof( p ); 
   ptr = ptrof( p );
@@ -895,7 +902,9 @@ word forward( word p, word **dest, cheney_env_t *e )
   }
 #endif
 
-  return install_fwdptr( ptr, newptr, tag );
+  ret = install_fwdptr( ptr, newptr, tag );
+  if (e->forwarded != NULL) e->forwarded( e, tagptr( ptr, tag), ret);
+  return ret;
 }
 
 
@@ -1062,6 +1071,7 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_g
     was_marked = los_mark_and_set_generation( los, mark_list, new, gen_of( ptr ), tgt_gen );
     
     ret = install_fwdptr( ptr, new, tag );
+    if (e->forwarded != NULL) e->forwarded( e, tagptr( ptr, tag), ret);
   }
 
   if (e->np_promotion && !was_marked) {
