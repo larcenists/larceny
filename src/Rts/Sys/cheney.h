@@ -100,6 +100,11 @@ struct cheney_env {
        generations.  Returns true iff l is added to remset. 
        */
 
+  void (*forwarded)( cheney_env_t *e, word obj_orig, word obj_new );
+    /* callback (potentially) invoked by forwarder.
+     * (Only when the object is actually forwarded, not on subsequent
+     * encounters during scanning.) */
+
   void (*scan_from_globals)( word *loc, void *data );
     /* Scanner function for forwarding from globals[]
        */
