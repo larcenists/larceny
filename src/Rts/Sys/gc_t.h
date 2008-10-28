@@ -11,6 +11,7 @@
 #include "config.h"
 #include "larceny-types.h"
 #include "gset_t.h"
+#include "smircy.h"
 
 struct gc { 
   char *id;
@@ -40,6 +41,11 @@ struct gc {
     /* In precise collectors: An array of pointers to remembered sets, 
        or NULL.  Entry 0 in the array is unused.
        These remsets track region-crossing pointers due to collector activity.
+       */
+
+  smircy_context_t *smircy;
+    /* The current mark/refine context, or NULL if no mark has been
+       initiated since last refinement was completed.
        */
 
   seqbuf_t **ssb;
