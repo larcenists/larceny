@@ -364,7 +364,7 @@ static void init_from_old( word *bitmap_old, word *lo_addr_old, word *hi_addr_ol
   for (i = 0; i < words_in_old; i++) {
     bitmap_new[i+offset_word_idx] = bitmap_old[i];
     testobj = ((word)(&(lo_addr_old[2*i]))) | PAIR_TAG;
-    assert( isptr(testobj) && lo_addr_old <= ptrof(testobj) && ptrof(testobj) < hi_addr_new );
+    assert( isptr(testobj) && lo_addr_old <= ptrof(testobj) && ptrof(testobj) < hi_addr_old );
   }
   for (i = words_in_old+offset_word_idx; i < words_in_new; i++) {
     bitmap_new[i] = (~0);
