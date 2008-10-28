@@ -1,4 +1,4 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.              -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
@@ -770,9 +770,10 @@ static void msvfy_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
 static bool msfloat_object_marked_p( msgc_context_t *c, word x ) {
   return msgc_object_marked_p( c, x );
 }
-static void msfloat_mark_objects_from_roots( msgc_context_t *c ) {
-  int marked, traced, words_marked;
-  msgc_mark_objects_from_roots( c, &marked, &traced, &words_marked );
+static void msfloat_mark_objects_from_roots( msgc_context_t *c,
+                                             int *marked, int *traced, 
+                                             int *words_marked ) {
+  msgc_mark_objects_from_roots( c, marked, traced, words_marked );
 }
 static void msfloat_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
   int m, t, wm;
@@ -844,6 +845,7 @@ static void verify_remsets_via_oracle( gc_t *gc )
   msvfy_mark_objects_from_roots( context );
   msgc_end( context );
   context = msgc_begin( gc );
+  msvfy_set_object_visitor( context, verify_remsets_msgc_fcn, gc );
   msvfy_mark_objects_from_roots_and_remsets( context );
   data.conserv_context = context;
   data.gc = gc;
@@ -1033,6 +1035,15 @@ static bool scan_refine_remset( word loc, void *data, unsigned *stats )
   }
 }
 
+/* XXX This definition should be removed.  The budget for how much we
+ * can spend on marking per collection could be calculated from the
+ * refinement parameter.  (Once the marking is concurrent, we should
+ * dynamically determine the budget based on how much progress the
+ * concurrent marker has made, to ensure that we keep up with the
+ * policy determined by the refinement parameter.)
+ */
+const int BASE_BUDGET = -1; // 5;
+
 static void refine_remsets_via_marksweep( gc_t *gc ) 
 {
   /* use the mark/sweep system to refine (*all* of) the
@@ -1041,7 +1052,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   int i, rgn;
   int marked=0, traced=0, words_marked=0; 
   int total_float_words = 0, total_float_objects = 0;
-  context = smircy_begin( gc, gc->remset_count );
+  context = gc->smircy;
   smircy_push_roots( context );
   smircy_push_remset( context, DATA(gc)->nursery_remset );
   smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
@@ -1077,6 +1088,8 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   } else if (DATA(gc)->rrof_has_refine_factor) {
     double R = DATA(gc)->rrof_refinement_factor;
     int new_countdown;
+    marked = smircy_objs_marked( context );
+    words_marked = smircy_words_marked( context );
     new_countdown = 
       (int)((R*(double)(sizeof(word)*marked*2))
 	    / ((double)gc->young_area->maximum));
@@ -1095,6 +1108,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   }
   
   smircy_end( context );
+  gc->smircy = NULL;
 }
 
 static int cycle_count = 0;
@@ -1202,7 +1216,7 @@ static void print_float_stats( char *caller_name, gc_t *gc )
     int estimated_live = 0;
     struct visit_measuring_float_data data;
     context = msgc_begin( gc );
-    msfloat_mark_objects_from_roots( context );
+    msfloat_mark_objects_from_roots( context, &marked, &traced, &words_marked );
 
     context_incl_remsets = msgc_begin( gc );
     msfloat_mark_objects_from_roots_and_remsets( context_incl_remsets );
@@ -1293,7 +1307,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 		 live_estimated_calc, 
 		 live_predicted_at_next_gc );
 
-    if (live_predicted_at_next_gc > maximum_allotted) {
+    if (live_predicted_at_next_gc > maximum_allotted) { /* XXX if => while? */
       semispace_t *ss = gc_fresh_space(gc);
       int eidx = ss->gen_no - 1;
       old_heap_t *fresh_heap = DATA(gc)->ephemeral_area[ eidx ];
@@ -1421,6 +1435,27 @@ static void invalidate_summaries( gc_t *gc ) {
   }
   DATA(gc)->summarized_genset_valid = FALSE;
 }
+
+static void smircy_step( gc_t *gc, bool to_the_finish_line ) 
+{
+  stats_id_t timer1, timer2;
+  int marked_recv = 0, traced_recv = 0, words_marked_recv = 0;
+  start_timers( &timer1, &timer2 );
+  if (gc->smircy == NULL) {
+    gc->smircy = smircy_begin( gc, gc->remset_count );
+    smircy_push_roots( gc->smircy );
+    smircy_push_remset( gc->smircy, DATA(gc)->nursery_remset );
+  }
+  smircy_progress( gc->smircy, BASE_BUDGET, BASE_BUDGET, BASE_BUDGET, 
+                   &marked_recv, &traced_recv, &words_marked_recv );
+  if (to_the_finish_line) { 
+    if (DATA(gc)->print_float_stats_each_refine)
+      print_float_stats( "prefin", gc );
+    refine_remsets_via_marksweep( gc );
+  }
+  stop_refinem_timers( gc, &timer1, &timer2 );
+}
+
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
@@ -1497,7 +1532,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
             gc_allocated_to_areas( gc, gset_range( rgn_to, num_rgns ));
         }
         free_rgn_space = allot - alloc;
-        num_occupied_rgns = (num_rgns + rgn_to - rgn_next+1)%num_rgns;
+        num_occupied_rgns = (num_rgns + rgn_to - rgn_next)%num_rgns+1;
       }
       nursery_max = gc->young_area->maximum;
 
@@ -1526,14 +1561,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  goto collect_evacuate_nursery;
 	}
 
-	if (DATA(gc)->rrof_refine_mark_countdown <= 0) {
-	  stats_id_t timer1, timer2;
-	  if (DATA(gc)->print_float_stats_each_refine)
-	    print_float_stats( "prefin", gc );
-	  start_timers( &timer1, &timer2 );
-	  refine_remsets_via_marksweep( gc );
-	  stop_refinem_timers( gc, &timer1, &timer2 );
-	}
+	smircy_step( gc, DATA(gc)->rrof_refine_mark_countdown <= 0);
+	if (USE_ORACLE_TO_VERIFY_REMSETS)
+	  verify_remsets_via_oracle( gc );
 
 	if (!DATA(gc)->summarized_genset_valid) {
 	  stats_id_t timer1, timer2;
@@ -1653,6 +1683,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	      los_swap_gnos( gc->los, curr_gno, emergency_gno );
 	    }
 	  }
+	  if (gc->smircy != NULL) smircy_major_gc( gc->smircy, rgn_next );
 	  rrof_completed_major_collection( gc );
 
 	  /* clear the summary that guided this collection. */
@@ -1757,6 +1788,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
         /* check that SSB is flushed. */
         assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
 
+	smircy_step( gc, FALSE );
+
 	rs_init_summary( DATA(gc)->nursery_remset, -1, &(DATA(gc)->summary));
 	DATA(gc)->use_summary_instead_of_remsets = TRUE;
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
@@ -1766,6 +1799,7 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	DATA(gc)->rrof_last_tospace = rgn_to;
 
         handle_secondary_space( gc );
+        if (gc->smircy != NULL) smircy_minor_gc( gc->smircy );
         rrof_completed_minor_collection( gc );
 	/* TODO: add code to incrementally summarize by attempting to
 	 * predict how many minor collections will precede the next
@@ -2460,6 +2494,7 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   free( DATA(gc)->remset_summaries );
   gc->remset = new_remset;
   gc->major_remset = new_major_remset;
+  smircy_expand_gnos( gc->smircy, fresh_gno );
   gc->ssb = new_ssb;
   DATA(gc)->ssb_bot = new_ssb_bot;
   DATA(gc)->ssb_top = new_ssb_top;
