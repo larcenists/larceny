@@ -63,7 +63,9 @@ gc_t
   gc->static_area = 0; 
   gc->los = 0;
   gc->remset = 0;
+  gc->major_remset = 0;
   gc->remset_count = 0;
+  gc->smircy = 0;
   gc->np_remset = -1;
   gc->scan_update_remset = 0;
 
