@@ -2594,10 +2594,11 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
         return oh_current_space( DATA(gc)->ephemeral_area[ to_rgn_new-1 ] );
       }
       to_rgn_new = next_rgn( to_rgn_new, DATA(gc)->region_count );
-    } while (to_rgn_new != to_rgn_old );
+    } while (to_rgn_new != to_rgn_old && 
+             to_rgn_new != DATA(gc)->rrof_next_region );
     /* failure! */
     annoyingmsg("find_space_rgnl: failed shift of to");
-    DATA(gc)->rrof_to_region = to_rgn_new;
+    DATA(gc)->rrof_to_region = to_rgn_old;
   } 
 
   {
