@@ -120,6 +120,9 @@ struct gc_data {
   word **ssb_bot;
   word **ssb_top;
   word **ssb_lim;
+  word *satb_ssb_bot;
+  word *satb_ssb_top;
+  word *satb_ssb_lim;
 
   old_heap_t **ephemeral_area;
     /* In precise collectors: An array of pointers to ephemeral areas;
@@ -1109,6 +1112,7 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   
   smircy_end( context );
   gc->smircy = NULL;
+  DATA(gc)->globals[G_CONCURRENT_MARK] = 0;
 }
 
 static int cycle_count = 0;
@@ -1443,6 +1447,7 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
   start_timers( &timer1, &timer2 );
   if (gc->smircy == NULL) {
     gc->smircy = smircy_begin( gc, gc->remset_count );
+    DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
     smircy_push_roots( gc->smircy );
     smircy_push_remset( gc->smircy, DATA(gc)->nursery_remset );
   }
@@ -2844,6 +2849,13 @@ static int ssb_process_gen( gc_t *gc, word *bot, word *top, void *ep_data ) {
   return rs_add_elems_distribute( remset, bot, top );
 }
 
+static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
+  if (1) 
+    consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x )", bot, top );
+  smircy_push_elems( gc->smircy, bot, top );
+  return 0;
+}
+
 /* XXX stolen from remset.c; should be factored out to somewhere else */
 static word retagptr( word w ) 
 {
@@ -3019,6 +3031,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
                      &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i],
                      ssb_process_gen, 0 );
   }
+  gc->satb_ssb = NULL;
 
   if (info->use_non_predictive_collector)
     gc->np_remset = gc->remset_count - 1;
@@ -3152,6 +3165,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
                        &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i],
                        ssb_process_rrof, 0 );
     }
+    gc->satb_ssb = create_seqbuf( info->ssb, &data->satb_ssb_bot, 
+                                  &data->satb_ssb_top, &data->satb_ssb_lim, 
+                                  ssb_process_satb, 0 );
   }
 
   gc->id = strdup( buf );
@@ -3175,9 +3191,6 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     assert( countdown_to_first_mark >= 0 );
     data->rrof_refine_mark_countdown = countdown_to_first_mark;
     if (0) consolemsg("initial mark countdown: %d", countdown_to_first_mark );
-    /* XXX eventually I should be switching this on and off depending
-     * on whether a concurrent mark is actually happening... */
-    DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
   }
 
   data->print_float_stats_each_cycle  = info->print_float_stats_cycle;
