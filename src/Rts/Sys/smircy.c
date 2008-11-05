@@ -1133,4 +1133,19 @@ int smircy_words_marked( smircy_context_t *context ) {
   return context->total_words_marked;
 }
 
+void smircy_push_elems( smircy_context_t *context, word *bot, word *top ) 
+{
+  word *p, *q, w;
+  int gno;
+  p = bot;
+  q = top;
+  while (q > p) {
+    q--;
+    w = *q;
+    assert(w != 0x0);
+    gno = gen_of(w);
+    push( context, w, 0x0 );
+  }
+}
+
 /* eof */
