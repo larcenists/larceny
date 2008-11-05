@@ -18,6 +18,8 @@ void smircy_push_roots( smircy_context_t *context );
 
 void smircy_push_remset( smircy_context_t *context, remset_t *rs );
 
+void smircy_push_elems( smircy_context_t *context, word *bot, word *top );
+
 void smircy_progress( smircy_context_t *context, 
                       int mark_max, int trace_max, int mark_words_max,
                       int *marked, int *traced, int *words_marked );
