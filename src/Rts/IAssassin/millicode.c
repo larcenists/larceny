@@ -1,4 +1,4 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.              -*- indent-tabs-mode: nil -*-
  *
  * $Id: millicode.c 2543 2005-07-20 21:54:03Z pnkfelix $
  *
@@ -20,6 +20,7 @@
 #include "signals.h"
 #include "assert.h"
 #include "young_heap_t.h"       /* For yh_make_room() */
+#include "seqbuf_t.h"           /* For SSB_ENQUEUE */
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
@@ -551,25 +552,21 @@ void EXPORT mc_partial_barrier( word *globals )
     gc_compact_all_ssbs( the_gc(globals) );
 }
 
-#define FAKE_SATB_SSB_LEN 1024
-word fake_satb_ssb[FAKE_SATB_SSB_LEN];
-int  fake_satb_ssb_idx = 0;
-
-void satb_enqueue( word *globals, word ptr ) 
+static void satb_enqueue( word *globals, word ptr, word parent_ptr ) 
 {
+  gc_t *gc = the_gc(globals);
   if (0) consolemsg("satb enq: 0x%08x (%d)", ptr, gen_of(ptr));
-
-  fake_satb_ssb[fake_satb_ssb_idx] = ptr;
-  fake_satb_ssb_idx++;
-  if (fake_satb_ssb_idx == FAKE_SATB_SSB_LEN)
-    fake_satb_ssb_idx = 0;
+  SSB_ENQUEUE( gc, gc->satb_ssb, ptr );
 }
 
 void EXPORT mc_full_barrier( word *globals )
 {
   word rTmp = *(word*)globals[ G_THIRD ];
-  if (globals[ G_CONCURRENT_MARK ] && isptr(rTmp))
-    satb_enqueue( globals, rTmp );
+  word result = (word)globals[ G_RESULT ];
+  if (globals[ G_CONCURRENT_MARK ] && isptr(rTmp) &&
+      (gen_of(rTmp) != 0) && (gen_of(result) != 0)) {
+    satb_enqueue( globals, rTmp, result );
+  }
   if (isptr( globals[ G_SECOND ] ))
     mc_partial_barrier( globals );
 }
