@@ -520,9 +520,9 @@ static int used_space( young_heap_t *heap )
          los_bytes_used( heap->collector->los, 0 );
 }
 
-static bool is_address_mapped( young_heap_t *heap, word *addr, bool noisy ) 
+static bool is_address_mapped( young_heap_t *heap, word *addr ) 
 {
-  return ss_is_address_mapped( DATA(heap)->current_space, addr, noisy );
+  return ss_is_address_mapped( DATA(heap)->current_space, addr, FALSE );
 }
 
 static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
