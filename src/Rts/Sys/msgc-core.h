@@ -9,6 +9,9 @@
 
 typedef struct msgc_context msgc_context_t;
 
+extern msgc_context_t *msgc_begin_range( gc_t *gc, 
+                                         caddr_t lowest_heap_address,
+                                         caddr_t highest_heap_address );
 extern msgc_context_t *msgc_begin( gc_t *gc );
   /* Create a mark-sweep GC context for the given collector and
      return the context.
@@ -18,6 +21,10 @@ extern msgc_context_t *msgc_begin( gc_t *gc );
      former computes the heap size and allocates data structures 
      for marking.
      */
+
+extern void msgc_mark_objects_from_nil( msgc_context_t *context );
+  /* Mark all reachable from objects pushed into context via
+     msgc_push_object(). */
 
 extern void msgc_mark_objects_from_roots( msgc_context_t *context, 
                                           int *marked, int *traced,
@@ -53,8 +60,15 @@ extern void msgc_mark_range( msgc_context_t *context, void *bot, void *lim );
   /* Mark all words in the range [bot,lim) as reachable.
      */
 
+extern bool msgc_object_in_domain( msgc_context_t *context, word obj );
+  /* Returns true IFF obj falls in range covered by context's bitmap.
+     */
 extern void msgc_mark_object( msgc_context_t *context, word obj );
   /* Mark the object referenced by the tagged _or untagged_ pointer OBJ.
+     */
+
+extern void msgc_unmark_object( msgc_context_t *context, word obj );
+  /* Unmark the object referenced by the tagged _or untagged_ pointer OBJ.
      */
 
 extern void msgc_push_object( msgc_context_t *context, word obj );
@@ -66,13 +80,6 @@ extern void msgc_push_constituents( msgc_context_t *context, word obj );
   /* OBJ must be a taged pointer to an object in the heap.  All
      pointer members of the objects are pushed on the mark stack, 
      resulting in them being used as roots for the next mark phase.
-     */
-     
-extern void msgc_stack_pops( msgc_context_t *context, 
-                             int *marked, int *traced, int *words_marked );
-  /* Marks all objects reachable from mark stack.  Adds the number of
-     objects marked to *marked, number of words marked to
-     *words_marked, and number of pointers traced to *traced.
      */
 
 extern bool msgc_object_marked_p( msgc_context_t *context, word obj );
@@ -100,5 +107,14 @@ extern void msgc_set_object_visitor( msgc_context_t *context,
                                      void *visit_data );
 
 extern void* msgc_get_object_visitor_data( msgc_context_t *context );
+
+word 
+msgc_set_stop_when( msgc_context_t *context,
+                    bool (*pred)( word obj, word src, void *data ),
+                    void *data );
+
+bool
+msgc_get_stop_when_condition( msgc_context_t *context,
+                              word *obj_recv, word *src_recv );
 
 /* eof */

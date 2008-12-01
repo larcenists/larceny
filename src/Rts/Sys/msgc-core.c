@@ -54,7 +54,18 @@ struct msgc_context {
 
   void* (*object_visitor)( word obj, word src, void *data );
   void *object_visitor_data;
+
+  bool (*stop_when)( word obj, word src, void *data );
+  void *stop_when_data;
+  bool signal_stop;
+  word stopped_on_obj;
+  word stopped_on_src;
 };
+
+/* Only matter for debugging (to distinquish pushes from roots from
+ * pushes from objects). */
+#define ROOT_FIXNUM_SENTINEL 0x30010
+#define  OBJ_FIXNUM_SENTINEL 0x00310
 
 #define STACKSIZE  4094        /* Must be an even number of words */
   /* STACKSIZE should be large and should be selected so that 
@@ -139,9 +150,9 @@ static void assert2_basic_invs( msgc_context_t *context, word src, word obj )
 static void assert2_address_mapped( msgc_context_t *context, word obj )
 {
 #ifndef NDEBUG2
-  if (! yh_is_address_mapped( context->gc->young_area, obj ) &&
-      ! los_is_address_mapped( context->gc->los, obj, FALSE ) &&
-      ! sh_is_address_mapped( context->gc->static_area, obj, FALSE )) {
+  if (! yh_is_address_mapped( context->gc->young_area, ptrof(obj) ) &&
+      ! los_is_address_mapped( context->gc->los, ptrof(obj), FALSE ) &&
+      ! sh_is_address_mapped( context->gc->static_area, ptrof(obj), FALSE )) {
     assert( gc_is_address_mapped( context->gc, ptrof(obj), TRUE ));
     assert( yh_is_address_mapped( context->gc->young_area, ptrof(obj) ) ||
             los_is_address_mapped( context->gc->los, ptrof(obj), TRUE ) ||
@@ -159,7 +170,7 @@ static void assert2_los_addresses_mapped( msgc_context_t *context, word obj,
     if (isptr(vector_ref(obj, i+next)) &&
         ! gc_is_address_mapped( context->gc, 
                                 ptrof(vector_ref(obj, i+next)), FALSE )) {
-      assert( gc_is_address_mapped( context->gc, obj, TRUE ));
+      assert( gc_is_address_mapped( context->gc, ptrof(obj), TRUE ));
       consolemsg("unmapped address, los vector 0x%08x in gen %d, elem [%d] = 0x%08x",
                  obj, gen_of(obj), i+next, vector_ref(obj, i+next ));
       consolemsg("(remset count: %d)", context->gc->remset_count);
@@ -252,6 +263,13 @@ static void assert2_root_address_mapped( msgc_context_t *context, word *loc )
            (context)->object_visitor                                \
                       ( obj, src, (context)->object_visitor_data ); \
        }                                                            \
+       if ((context)->stop_when != NULL && !((context)->signal_stop)) { \
+         if ((context)->stop_when(obj,src,(context)->stop_when_data)) { \
+           (context)->signal_stop = TRUE;                               \
+           (context)->stopped_on_obj = obj;                             \
+           (context)->stopped_on_src = src;                             \
+         }                                                              \
+       }                                                                \
        if (isptr(TMP)) {                                        \
          if ((context)->stack.stkp == (context)->stack.stklim)  \
            push_segment( &((context)->stack) );                 \
@@ -274,6 +292,13 @@ static void PUSH( msgc_context_t *context, word obj, word src ) {
       (context)->object_visitor                                
       ( obj, src, (context)->object_visitor_data ); 
   }                                                            
+  if (((context)->stop_when != NULL) && !((context)->signal_stop)) {
+    if ((context)->stop_when(obj, src, (context)->stop_when_data)) {
+      (context)->signal_stop = TRUE;
+      (context)->stopped_on_obj = obj;
+      (context)->stopped_on_src = src;
+    }
+  }
   if (isptr(TMP)) {
     if ((context)->stack.stkp == (context)->stack.stklim)
       push_segment( &((context)->stack) );
@@ -360,9 +385,29 @@ static bool mark_word( word *bitmap, word obj, word first ) {
   return retval;
 }
 
+static bool unmark_word( word *bitmap, word obj, word first ) {
+  bool retval; 
+  word bit_idx, word_idx, bit;
+
+  /* Note: marks object only, not entire address range occupied
+     by object.  A "real" collector must mark the range.
+  */
+  bit_idx = (obj - first) >> BIT_IDX_SHIFT;
+  word_idx = bit_idx >> BITS_TO_WORDS;
+  bit = 1 << (bit_idx & BIT_IN_WORD_MASK);
+  retval = (bitmap[ word_idx ] & bit);
+  bitmap[ word_idx ] &= ~bit;
+  return retval;
+}
+
 static bool my_mark_object( msgc_context_t *context, word obj ) 
 {
   return mark_word( context->bitmap, obj, (word)context->lowest_heap_address );
+}
+
+static bool my_unmark_object( msgc_context_t *context, word obj ) 
+{
+  return unmark_word( context->bitmap, obj, (word)context->lowest_heap_address );
 }
 
 /* A couple ways to speed this up:
@@ -381,7 +426,7 @@ static void mark_from_stack( msgc_context_t *context )
   int traced=0, marked=0, words_marked=0;
   bool already_marked;
 
-  while (1) {
+  while (! context->signal_stop) {
     /* Pop */
     if (context->stack.stkp == context->stack.stkbot)  /* Stack underflow */
       if (!pop_segment( &context->stack )) 
@@ -407,7 +452,13 @@ static void mark_from_stack( msgc_context_t *context )
 static void push_root( word *loc, void *data )
 {
   assert2_root_address_mapped( (msgc_context_t*)data, loc );
-  PUSH( (msgc_context_t*)data, *loc, 0x0 );
+  PUSH( (msgc_context_t*)data, *loc, ROOT_FIXNUM_SENTINEL );
+}
+
+bool msgc_object_in_domain( msgc_context_t *context, word obj )
+{
+  return ( context->lowest_heap_address <= ptrof( obj ) &&
+           ptrof( obj ) < context->highest_heap_address );
 }
 
 bool msgc_object_marked_p( msgc_context_t *context, word obj )
@@ -461,9 +512,19 @@ void msgc_mark_object( msgc_context_t *context, word obj )
   my_mark_object( context, obj );
 }
 
+void msgc_unmark_object( msgc_context_t *context, word obj )
+{
+  word bit_idx, word_idx;
+
+  assert2( context->lowest_heap_address <= ptrof( obj ) &&
+           ptrof( obj ) < context->highest_heap_address );
+
+  my_unmark_object( context, obj );
+}
+
 void msgc_push_object( msgc_context_t *context, word obj ) 
 {
-  PUSH( context, obj, 0x0 );
+  PUSH( context, obj, OBJ_FIXNUM_SENTINEL );
 }
 
 void msgc_push_constituents( msgc_context_t *context, word obj )
@@ -471,30 +532,14 @@ void msgc_push_constituents( msgc_context_t *context, word obj )
   push_constituents( context, obj );
 }
 
-void msgc_stack_pops( msgc_context_t *context, 
-                      int *marked, int *traced, int *words_marked ) 
+msgc_context_t *msgc_begin_range( gc_t *gc, caddr_t lowest, caddr_t highest )
 {
-  context->marked = 0;
-  context->traced = 0;
-  context->words_marked = 0;
-
-  mark_from_stack( context );
-
-  *marked += context->marked;
-  *traced += context->traced;
-  *words_marked += context->words_marked;
-}
-
-msgc_context_t *msgc_begin( gc_t *gc )
-{
-  caddr_t lowest, highest;
   int doublewords;
   msgc_context_t *context;
 
   context = must_malloc( sizeof( msgc_context_t ) );
   context->gc = gc;
 
-  gclib_memory_range( &lowest, &highest );
   context->lowest_heap_address = (word*)lowest;
   context->highest_heap_address = (word*)highest;
   doublewords = roundup(highest-lowest,(2*sizeof(word)))/(2*sizeof(word));
@@ -504,6 +549,12 @@ msgc_context_t *msgc_begin( gc_t *gc )
     gclib_alloc_rts( context->words_in_bitmap * sizeof(word), 0 );
   context->object_visitor = NULL;
   context->object_visitor_data = NULL;
+
+  context->stop_when = NULL;
+  context->stop_when_data = NULL;
+  context->signal_stop = FALSE;
+  context->stopped_on_obj = 0x0;
+  context->stopped_on_src = 0x0;
 
   memset( context->bitmap, 0, context->words_in_bitmap*sizeof(word) );
   context->stack.seg = 0;
@@ -520,10 +571,25 @@ msgc_context_t *msgc_begin( gc_t *gc )
   return context;
 }
 
+msgc_context_t *msgc_begin( gc_t *gc )
+{
+  caddr_t lowest, highest;
+  gclib_memory_range( &lowest, &highest );
+  return msgc_begin_range( gc, lowest, highest );
+}
+
+void 
+msgc_mark_objects_from_nil( msgc_context_t *context ) 
+{
+  mark_from_stack( context );
+}
+
 void 
 msgc_mark_objects_from_roots( msgc_context_t *context, 
                               int *marked, int *traced, int *words_marked )
 {
+  word obj_recv, src_recv;
+
   context->marked = 0;
   context->traced = 0;
   context->words_marked = 0;
@@ -655,6 +721,31 @@ void msgc_set_object_visitor( msgc_context_t *context,
 void* msgc_get_object_visitor_data( msgc_context_t *context ) 
 {
   return context->object_visitor_data;
+}
+
+word 
+msgc_set_stop_when( msgc_context_t *context,
+                    bool (*pred)( word obj, word src, void *data ),
+                    void *data )
+{
+  context->stop_when = pred;
+  context->stop_when_data = data;
+  context->signal_stop = FALSE;
+  context->stopped_on_obj = 0x0;
+  context->stopped_on_src = 0x0;
+}
+
+bool
+msgc_get_stop_when_condition( msgc_context_t *context,
+                              word *obj_recv, word *src_recv )
+{
+  if (context->signal_stop) {
+    *obj_recv = context->stopped_on_obj;
+    *src_recv = context->stopped_on_src;
+    return TRUE;
+  } else {
+    return FALSE;
+  }
 }
 
 /* eof */
