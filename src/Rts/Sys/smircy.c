@@ -15,8 +15,9 @@
  * mutator, but *not* with the collector.  Therefore the marking
  * process must allow itself to be interrupted by the collector.
  * 
- * The marking machine maintains a mark stack for each region (rather
- * than a single stack for the entire heap).
+ * The marking machine maintains a mapping from each region to its
+ * portion of the mark stack; i.e. its portion of the frontier (of the
+ * developing snapshot of the heap).
  *
  * After the mark bitmap is complete, it is used to refine the
  * remembered sets, so that objects that were dead in the snapshot are
@@ -154,6 +155,7 @@ typedef struct large_object_cursor large_object_cursor_t;
 
 struct obj_stack_entry { 
   word              val;
+  int               gno;
   obj_stack_entry_t *next_in_rgn;
 };
 
@@ -202,7 +204,6 @@ struct smircy_context {
   smircy_stack_t     stack;
   obj_stack_entry_t  **rgn_to_obj_entry;
   large_object_cursor_t **rgn_to_los_entry;
-  int                stk_cursor;  /* Index of stack we are manipulating */
   obj_stackseg_t     *freed_obj;  /* obj segments available for reuse */
   los_stackseg_t     *freed_los;  /* los segments available for reuse */
   int                total_traced;
@@ -298,9 +299,12 @@ static int allocate_bitmap( smircy_context_t *context );
 /* expands the mark bitmap in context to cover current address space.
  * copies all old bitmap state into new bitmap, and sets remaining
  * bits in new bitmap to 1 (ie marked).  Returns size difference. */
-static int expand_bitmap( smircy_context_t *context ) {
-  word *lowest_heap_address_old, *lowest_heap_address_new;
-  word *highest_heap_address_old, *highest_heap_address_new;
+static int expand_bitmap_core( smircy_context_t *context, 
+                               word *lowest_heap_address_new, 
+                               word *highest_heap_address_new ) 
+{
+  word *lowest_heap_address_old;
+  word *highest_heap_address_old;
   int words_in_bitmap_old, words_in_bitmap_new;
   word *bitmap_new, *bitmap_old;
 
@@ -311,16 +315,121 @@ static int expand_bitmap( smircy_context_t *context ) {
   bitmap_old = context->bitmap;
   words_in_bitmap_old = context->words_in_bitmap;
 
+  dbmsg( "expand_bitmap_core( context, [0x%08x,0x%08x] ) from [0x%08x,0x%08x]",
+         lowest_heap_address_new, highest_heap_address_new,
+         lowest_heap_address_old, highest_heap_address_old );
+
   words_in_bitmap_new = allocate_bitmap( context ); /* (mutates context) */
   bitmap_new = context->bitmap;
-  highest_heap_address_old = context->highest_heap_address;
-  lowest_heap_address_new = context->lowest_heap_address;
+  highest_heap_address_new = max( highest_heap_address_new, context->highest_heap_address );
+  lowest_heap_address_new = min( lowest_heap_address_new, context->lowest_heap_address );
 
   init_from_old( bitmap_old, lowest_heap_address_old, highest_heap_address_old, words_in_bitmap_old, 
                  bitmap_new, lowest_heap_address_new, highest_heap_address_new, words_in_bitmap_new );
 
   gclib_free( bitmap_old, words_in_bitmap_old * sizeof(word) );
   return (words_in_bitmap_new - words_in_bitmap_old);
+}
+
+static void *smircy_enumerate_whole_stack3( smircy_context_t *context,
+                                            void *visit( word *pw, int *pgno, void *data ),
+                                            void *orig_data );
+
+static void *increment_gnos_geq( word *pw, int *pgno, void *data ) 
+{
+  int shift_geq_gno = *(int*)data;
+  word w = *pw;
+  if (*pgno >= shift_geq_gno) {
+    dbmsg("increment_gnos_geq: 0x%08x (%d) incr %d", w, gen_of(w), *pgno );
+    *pgno = *pgno+1;
+  }
+  return data;
+}
+
+/* expands the mark context to cover current regions and address space.
+ * returns size difference of mark bitmap.
+ */
+static void expand_context_plus_rgn( smircy_context_t *context, int shift_geq_gno ) 
+{
+  int num_rgns, num_rgns_old;
+  obj_stack_entry_t     **rgn_to_obj_entry_old;
+  obj_stack_entry_t     **rgn_to_obj_entry_new;
+  large_object_cursor_t **rgn_to_los_entry_old;
+  large_object_cursor_t **rgn_to_los_entry_new;
+  num_rgns = context->gc->remset_count;
+  num_rgns_old = context->num_rgns;
+
+  dbmsg( "expand_context_plus_rgn( context, %d ) "
+         "num_rgns_old: %d num_rgns_new: %d ",
+         shift_geq_gno, num_rgns_old, num_rgns );
+
+  rgn_to_obj_entry_old = context->rgn_to_obj_entry;
+  rgn_to_los_entry_old = context->rgn_to_los_entry;
+  rgn_to_obj_entry_new = 
+    gclib_alloc_rts( sizeof(obj_stack_entry_t)*(num_rgns+1), 0 );
+  rgn_to_los_entry_new = 
+    gclib_alloc_rts( sizeof(large_object_cursor_t)*(num_rgns+1), 0 );
+
+  /* XXX FIXME redundant zero-init's followed by copy-init's */
+  memset( rgn_to_obj_entry_new, 0, 
+          sizeof(obj_stack_entry_t*)*(num_rgns+1) );
+  memset( rgn_to_los_entry_new, 0, 
+          sizeof(large_object_cursor_t*)*(num_rgns+1) );
+
+  assert( shift_geq_gno > num_rgns || rgn_to_obj_entry_new[ shift_geq_gno ] == NULL ); 
+  assert( shift_geq_gno+1 > num_rgns || rgn_to_obj_entry_new[ shift_geq_gno+1 ] == NULL );
+  {                                           /* copy unshifted state */
+    int len = min(shift_geq_gno,(num_rgns_old+1));
+    assert( len < num_rgns );
+    dbmsg( "expand_context_plus_rgn unshifted [0,%d)", len );
+    assert( rgn_to_obj_entry_new[len] == NULL );
+    memcpy( &rgn_to_obj_entry_new[0], &rgn_to_obj_entry_old[0], 
+            sizeof(obj_stack_entry_t*)*len );
+    assert( rgn_to_obj_entry_new[len] == NULL );
+    memcpy( &rgn_to_los_entry_new[0], &rgn_to_los_entry_old[0], 
+            sizeof(large_object_cursor_t*)*len );
+  }
+  assert( shift_geq_gno > num_rgns || rgn_to_obj_entry_new[ shift_geq_gno ] == NULL );
+  assert( shift_geq_gno+1 > num_rgns || rgn_to_obj_entry_new[ shift_geq_gno+1 ] == NULL );
+
+  if ( (num_rgns_old+1 - shift_geq_gno) > 0 ) { /* copy shifted state */
+    int len = num_rgns_old+1 - shift_geq_gno;
+    dbmsg( "expand_context_plus_rgn 1-shifted [%d,%d)", shift_geq_gno, shift_geq_gno+len);
+    memcpy( &rgn_to_obj_entry_new[shift_geq_gno+1], &rgn_to_obj_entry_old[shift_geq_gno], 
+            sizeof(obj_stack_entry_t*)*len );
+    memcpy( &rgn_to_los_entry_new[shift_geq_gno+1], &rgn_to_los_entry_old[shift_geq_gno], 
+            sizeof(large_object_cursor_t*)*len );
+  }
+
+  /* update gno's in the stack XXX won't the gno's go away eventually? */
+  {
+    smircy_enumerate_whole_stack3( context, 
+                                   increment_gnos_geq, 
+                                   &shift_geq_gno );
+  }
+
+  assert( shift_geq_gno > num_rgns || 
+          rgn_to_obj_entry_new[ shift_geq_gno ] == NULL ||
+          (rgn_to_obj_entry_new[ shift_geq_gno ]->gno == shift_geq_gno) );
+  assert( shift_geq_gno+1 > num_rgns ||
+          rgn_to_obj_entry_new[ shift_geq_gno+1 ] == NULL ||
+          (rgn_to_obj_entry_new[ shift_geq_gno+1 ]->gno == shift_geq_gno+1 ));
+
+  gclib_free( rgn_to_obj_entry_old, 
+              (num_rgns_old+1) * sizeof(obj_stack_entry_t) );
+  gclib_free( rgn_to_los_entry_old,
+              (num_rgns_old+1) * sizeof(large_object_cursor_t) );
+
+  context->num_rgns = num_rgns;
+  context->rgn_to_obj_entry = rgn_to_obj_entry_new;
+  context->rgn_to_los_entry = rgn_to_los_entry_new;
+}
+
+static void expand_context( smircy_context_t *context ) 
+{
+  /* pass gno greater than any region's gno, so that all internal
+   * mapping remains the same. */
+  expand_context_plus_rgn( context, context->num_rgns+1 );
 }
 
 /* allocates new bitmap that covers current address range.
@@ -542,6 +651,8 @@ static void push( smircy_context_t *context, word obj, word src )
 #endif
 
     gno = gen_of(obj);
+    assert( gno != 0 ); /* we do not push objects in the nursery */
+    assert( gno >= 0 );  /* we should only encounter objects with valid gnos */
     stack = &(context->stack.obj);
     if (stack->stkp == stack->stklim) {
       stack->seg = push_obj_segment( stack->seg, &context->freed_obj, gno );
@@ -551,6 +662,7 @@ static void push( smircy_context_t *context, word obj, word src )
     }
 
     stack->stkp->val = obj;
+    stack->stkp->gno = gno;
     stack->stkp->next_in_rgn = context->rgn_to_obj_entry[gno];
     context->rgn_to_obj_entry[gno] = stack->stkp;
     stack->stkp++;
@@ -646,12 +758,11 @@ smircy_context_t *smircy_begin( gc_t *gc, int num_rgns )
   context->stack.los.stklim = NULL;
 
   context->rgn_to_obj_entry = 
-    gclib_alloc_rts( sizeof(obj_stack_entry_t)*(num_rgns+1), 0 );
-  memset( context->rgn_to_obj_entry, 0, sizeof(obj_stack_entry_t)*(num_rgns+1) );
+    gclib_alloc_rts( sizeof(obj_stack_entry_t*)*(num_rgns+1), 0 );
+  memset( context->rgn_to_obj_entry, 0, sizeof(obj_stack_entry_t*)*(num_rgns+1) );
   context->rgn_to_los_entry = 
-    gclib_alloc_rts( sizeof(large_object_cursor_t)*(num_rgns+1), 0 );
-  memset( context->rgn_to_los_entry, 0, sizeof(large_object_cursor_t)*(num_rgns+1) );
-  context->stk_cursor = 0;
+    gclib_alloc_rts( sizeof(large_object_cursor_t*)*(num_rgns+1), 0 );
+  memset( context->rgn_to_los_entry, 0, sizeof(large_object_cursor_t*)*(num_rgns+1) );
 
   context->freed_obj = NULL;
   context->freed_los = NULL;
@@ -778,32 +889,13 @@ static int push_constituents( smircy_context_t *context, word w )
   }
 }
 
-void *visit_check_smircy_mark( word obj, word src, void *data ) 
-{
-  smircy_context_t *c = (smircy_context_t*)data;
-  if ( isptr(obj) && gen_of(obj) != 0 && ! smircy_object_marked_p( c, obj )) {
-    if (! isptr(src)) {
-      dbmsg( "msgc: root ~> obj 0x%08x (%d); smircy: obj %s", 
-             obj, gen_of(obj), smircy_object_marked_p( c, obj )?"Y":"N" );
-    } else {
-      dbmsg( "msgc: src 0x%08x (%d) ~> obj 0x%08x (%d); smircy: src %s obj %s",
-             src, gen_of(src), obj, gen_of(obj), 
-             smircy_object_marked_p( c, src )?"Y":"N",
-             smircy_object_marked_p( c, obj )?"Y":"N" );
-    }
-    assert( gen_of(obj) == 0 || smircy_object_marked_p( c, obj ));
-  }
-  return data;
-}
-
-static bool smircy_assert_conservative_approximation( smircy_context_t *context );
-
 void smircy_progress( smircy_context_t *context, 
                       int mark_max, int trace_max, int mark_words_max,
                       int *marked_recv, int *traced_recv, 
                       int *words_marked_recv )
 {
   word w;
+  int w_gno;
   smircy_stack_t *stack;
   int mark_budget, trace_budget, mark_words_budget;
   int traced = 0, marked = 0, words_marked = 0, constituents;
@@ -852,9 +944,37 @@ void smircy_progress( smircy_context_t *context,
         stack->obj.stkp--;
         w = stack->obj.stkp->val;
 
+        if (w == 0x0) { // dead entry
+          // need to restablish soundness of rgn->stack mapping after the pop
+          // (the decrement of stkp above) before we continue the loop...
+          // XXX *strongly* consider fixing things so that when I kill entries,
+          // the threaded stack is updated appropriately...
+          { int rgn;
+            for( rgn = 1; rgn < context->num_rgns; rgn++ ) {
+              if (context->rgn_to_obj_entry[rgn] == stack->obj.stkp) {
+                context->rgn_to_obj_entry[rgn] = stack->obj.stkp->next_in_rgn;
+              }
+            }
+          }
+          continue;
+        }
+
         assert2( isptr( w ));
-        assert2( context->rgn_to_obj_entry[ gen_of( w ) ] == stack->obj.stkp );
-        context->rgn_to_obj_entry[ gen_of( w ) ] = stack->obj.stkp->next_in_rgn;
+        w_gno = gen_of(w);
+        assert( w_gno == stack->obj.stkp->gno );
+        assert( w_gno > 0 ); /* gno valid and non-nursery */
+        if (context->rgn_to_obj_entry[ w_gno ] != stack->obj.stkp ) {
+          consolemsg("w: 0x%08x (%d) "
+                     "context->rgn_to_obj_entry[ w_gno ]: 0x%08x "
+                     "*stack->obj.stkp: [0x%08x [%d],0x%08x]",
+                     w, w_gno, 
+                     context->rgn_to_obj_entry[ w_gno ], 
+                     stack->obj.stkp->val,
+                     stack->obj.stkp->gno, 
+                     stack->obj.stkp->next_in_rgn );
+        }
+        assert( context->rgn_to_obj_entry[ w_gno ] == stack->obj.stkp );
+        context->rgn_to_obj_entry[ w_gno ] = stack->obj.stkp->next_in_rgn;
 
         dbmsg( "SMIRCY popped 0x%08x off of stack", w );
 
@@ -895,109 +1015,18 @@ void smircy_progress( smircy_context_t *context,
   *traced_recv = traced;
   *words_marked_recv = words_marked;
 
-#if 0 && !NDEBUG2
-  if (smircy_stack_empty_p( context )) {
-    smircy_assert_conservative_approximation( context );
-  }
-#endif
 }
 
 #define FORWARD_HDR 0xFFFFFFFE /* XXX eek!  Factor from cheney.h elsewhere! */
 
-void smircy_minor_gc( smircy_context_t *context )
-{
-  dbmsg( "  smircy_minor_gc( context )" );
-
-  assert( smircy_stack_empty_p( context )); /* XXX */
-
-  { obj_stack_entry_t *obj_entry;
-    word newobj;
-    obj_entry = context->rgn_to_obj_entry[0];
-    while (obj_entry != NULL) {
-      consolemsg("minor_gc cleanup: entry 0x%08x{ val: 0x%08x, next: 0x%08x }",
-                 obj_entry, obj_entry->val, obj_entry->next_in_rgn );
-      if (! isptr( obj_entry->val )) {
-        consolemsg( "! isptr( obj_entry->val ): [0x%08x] = 0x%08x", 
-                    obj_entry, obj_entry->val );
-      }
-      assert( isptr( obj_entry->val ));
-      if (*ptrof( obj_entry->val ) == FORWARD_HDR ) {
-        newobj = *(ptrof( obj_entry->val )+1);
-        consolemsg( "was forwarded: [0x%08x] = 0x%08x so pushing: 0x%08x", 
-                    obj_entry, obj_entry->val, newobj );
-        push( context, newobj, FORWARD_HDR );
-      } else {
-        consolemsg( "was collected: [0x%08x] = 0x%08x ",
-                    obj_entry, obj_entry->val, newobj );
-      }
-      obj_entry->val = 0x0;
-      context->rgn_to_obj_entry[0] = obj_entry->next_in_rgn;
-      obj_entry = context->rgn_to_obj_entry[0];
-    }
-    assert( context->rgn_to_obj_entry[0] == NULL );
-  }
-  /* bogus assertion, but I'm curious to know if it ever arises. */
-  assert( context->rgn_to_los_entry[0] == NULL );
-}
-
-void smircy_major_gc( smircy_context_t *context, int rgn ) 
-{
-  dbmsg( "  smircy_major_gc( context, %d )", rgn );
-
-  assert( smircy_stack_empty_p( context )); /* XXX */
-}
-
 void smircy_expand_gnos( smircy_context_t *context, int gno ) 
 {
+  // note that at this point in the control flow, the stack invariants
+  // do not necessarily hold.  The point of this function is to try
+  // to reestablish them, but the caller may have further fixup's to do
+  // before our global invariants are established.
   dbmsg( "  smircy_expand_gnos( context, %d )", gno );
-}
-
-static bool smircy_assert_conservative_approximation( smircy_context_t *context ) 
-{
-  /* When debugging, if we're done with the marking lets check that it
-   * is a conservative approximation of the true mark bitmap (that is,
-   * a superset of objects marked by MSGC should be treated as live by
-   * SMIRCY.
-   * 
-   * XXX "treated as live" usually means marked, but Felix anticipates
-   * needing special treatment for blocks of memory that lie outside
-   * the bitmap... that can wait until things are running more
-   * smoothly though...
-   */
-  {
-    msgc_context_t *msgc_ctxt; 
-    word *low, *hgh, *ptr, tptr;
-    int marked, traced, words_marked;
-    msgc_ctxt = msgc_begin( context->gc );
-    msgc_set_object_visitor( msgc_ctxt, visit_check_smircy_mark, context );
-    msgc_mark_objects_from_roots( msgc_ctxt, &marked, &traced, &words_marked );
-    low = context->lowest_heap_address;
-    hgh = context->highest_heap_address;
-    for ( ptr = low; ptr < hgh; ptr += 2 ) {
-      tptr = ((word)ptr) | PAIR_TAG; /* artificial pair tag */
-      if (msgc_object_marked_p( msgc_ctxt, tptr )) {
-        switch (header(*ptr)) {
-        case VEC_HDR: 
-          tptr = ((word)ptr) | VEC_TAG; break;
-        case BV_HDR:
-          tptr = ((word)ptr) | BVEC_TAG; break;
-        case PROC_HDR:
-          tptr = ((word)ptr) | PROC_TAG; break;
-        default:
-          tptr = ((word)ptr) | PAIR_TAG; break;
-        }
-      }
-      if (msgc_object_marked_p( msgc_ctxt, tptr )) {
-        if (gen_of(tptr) != 0 && ! smircy_object_marked_p( context, tptr )) {
-          dbmsg( "SMIRCY: 0x%08x (%d) msgc says reachable smircy did not mark "
-                 "[low: 0x%08x, hgh: 0x%08x]",
-                 tptr, gen_of(tptr), low, hgh );
-        }
-        assert( (gen_of(tptr) == 0) || smircy_object_marked_p( context, tptr ));
-      }
-    }
-    msgc_end( msgc_ctxt );
-  }
+  expand_context_plus_rgn( context, gno );
 }
 
 bool smircy_stack_empty_p( smircy_context_t *context ) 
@@ -1062,12 +1091,120 @@ void smircy_end( smircy_context_t *context )
   free( context );
 }
 
+static void forcibly_push( smircy_context_t *context, word w, word src )
+{
+  /* marked objects won't be pushed if MARK_ON_PUSH is turned on.
+   * Dealing with this by first removing the mark before pushing.
+   */
+  unmark_object( context, w );
+  push( context, w, src );
+}
+void *smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
+                                     int rgn, 
+                                     void (*visit)(word *w, void *data),
+                                     void *orig_data )
+{
+  obj_stack_entry_t     *obj_entry;
+  obj_stack_entry_t     *obj_entry_next;
+  large_object_cursor_t *los_entry;
+  word old_word, new_word;
+
+  obj_entry = context->rgn_to_obj_entry[ rgn ];
+  los_entry = context->rgn_to_los_entry[ rgn ];
+  while (obj_entry != NULL) {
+    if (!  ( obj_entry->gno ==  -1 || obj_entry->gno == rgn )) {
+      consolemsg("smircy_enumerate_stack_of_rgn "
+                 "rgn: %d obj_entry gno: %d val: 0x%08x (%d)",
+                 rgn, obj_entry->gno, obj_entry->val, 
+                 isptr(obj_entry->val)?gen_of(obj_entry->val):-1);
+    }
+    assert2( obj_entry->gno ==  -1 || obj_entry->gno == rgn );
+    assert2( obj_entry->val == 0x0 || isptr( obj_entry->val ));
+
+    if (!  ( !isptr(obj_entry->val) || gen_of(obj_entry->val) == rgn )) {
+      consolemsg("smircy_enumerate_stack_of_rgn "
+                 "rgn: %d obj_entry gno: %d val: 0x%08x (%d)",
+                 rgn, obj_entry->gno, obj_entry->val, 
+                 isptr(obj_entry->val)?gen_of(obj_entry->val):-1);
+    }
+    /* FSK: sigh.  I cannot assert this in general, because 
+     * during a majorgc of rgn R, I use enumerate_stack_of_rgn 
+     * to traverse the stack of R (to process the elements on it
+     * that may be collected during the collection 
+     * process, to ensure snapshot sanity).
+     * But if I do that *after* the roots/remsets have otherwise
+     * been processed, then the gno's will not be consistent
+     * (in the particular case where the stack of R points to 
+     * object X that is also pointed to by the roots or remsets)
+     *
+     * As a band-aid, since I do not want to remove this assertion
+     * until I absolutely must, I am going to try doing the mark
+     * stack processing *before* the other roots/remsets.)
+     */
+    assert2( !isptr(obj_entry->val) || gen_of(obj_entry->val) == rgn );
+
+    if (obj_entry->val != 0x0) {
+      old_word = obj_entry->val;
+      obj_entry->val = 0x0;
+      obj_entry->gno = -1;
+      visit( &old_word, orig_data );
+      new_word = old_word;
+      if (gen_of(new_word) != rgn) { /* moved to different region; cleanup. */
+        obj_entry->val = 0x0;
+        obj_entry->gno = -1;
+        forcibly_push( context, new_word, 0x0 );
+        /* XXX should actually shift prev ptr downward; but I can
+         * avoid that for this first draft, I think ... */
+      } else {
+        /* XXX in the future, I'll need to deal with this case too; once
+         * I start shifting the prev ptr downward, I'll need to update
+         * the prev ptr here since I'm keeping this new new_word
+         * entry... */
+        forcibly_push( context, new_word, 0x0 );
+      }
+    }
+    obj_entry = obj_entry->next_in_rgn;
+  }
+
+  while (los_entry != NULL) {
+    assert2( los_entry->object == 0x0 || isptr( obj_entry->val ));
+    assert2( gen_of(los_entry->object) == rgn );
+    visit( &los_entry->object, orig_data );
+    new_word = los_entry->object;
+    if (gen_of(new_word) != rgn) { /* moved to different region; cleanup. */
+      los_entry->object = 0x0;
+      los_push( context, los_entry->index, new_word );
+      /* XXX see above notes for standard object stack.
+       * Same probably applies here. */
+    } else {
+      /* XXX see above notes for standard object stack.
+       * Same probably applies here. */
+    }
+    los_entry = los_entry->next_in_rgn;
+  }
+
+}
+
 void smircy_when_object_forwarded( smircy_context_t *context, 
-                                   word obj_orig, word obj_new )
+                                   word obj_orig, int gen_orig,
+                                   word obj_new, int gen_new )
 {
   bool old_is_marked, new_is_marked;
-  dbmsg( "smircy_when_object_forwarded( context, 0x%08x (%d), 0x%08x (%d) )", 
-         obj_orig, gen_of( obj_orig ), obj_new, gen_of( obj_new ) );
+
+  /* Absurdly conservative behavior here. Revisit later after I've
+   * ironed out other bugs... */
+  if (! is_address_in_bitmap( context, obj_new ) ||
+      ! is_address_in_bitmap( context, obj_orig ) ) {
+    dbmsg( "smircy_when_object_forwarded( context, 0x%08x (%d), 0x%08x (%d) ) "
+           " expanding bitmap",
+           obj_orig, gen_orig, obj_new, gen_new );
+    expand_bitmap_core( context,
+                        min( context->lowest_heap_address, 
+                             min( ptrof(obj_orig), ptrof(obj_new) )), 
+                        max( context->highest_heap_address, 
+                             1+max( ptrof(obj_orig), ptrof(obj_new) )));
+  }
+
   if (is_address_in_bitmap( context, obj_new )) {
     if (smircy_object_marked_p( context, obj_orig )) {
       mark_object( context, obj_new );
@@ -1092,12 +1229,18 @@ void smircy_when_object_forwarded( smircy_context_t *context,
       int newsz;
       oldsz = context->words_in_bitmap;
       assert2(! smircy_object_marked_p( context, obj_orig )); /* start sane? */
-      expand_bitmap( context ); /* expensive; hopefully uncommon! */
+      /* expensive; hopefully uncommon! */
+      expand_bitmap_core( context, 
+                          min( context->lowest_heap_address, 
+                               min( ptrof( obj_orig ), ptrof( obj_new ))),
+                          max( context->highest_heap_address,
+                               1+max( ptrof( obj_orig ), ptrof( obj_new ))));
+      expand_context( context ); /* expensive; hopefully uncommon! */
       assert2(! smircy_object_marked_p( context, obj_orig )); /* still sane? */
       newsz = context->words_in_bitmap;
       dbmsg("forwarding unmarked 0x%08x (%d) to 0x%08x (%d) in new area; "
             "expanding mark bitmap, old: %d new: %d delta: %d",
-            obj_orig, gen_of(obj_orig), obj_new, gen_of(obj_new), 
+            obj_orig, gen_orig, obj_new, gen_new, 
             oldsz, newsz, (newsz-oldsz));
 
       /* Unmark new address, since old object was not marked 
@@ -1146,6 +1289,36 @@ void smircy_push_elems( smircy_context_t *context, word *bot, word *top )
     gno = gen_of(w);
     push( context, w, 0x0 );
   }
+}
+
+static void *smircy_enumerate_whole_stack3( smircy_context_t *context,
+                                            void *visit( word *pw, int *pgno, void *data ),
+                                            void *orig_data ) 
+{
+  obj_stack_t *obj_stack;
+  los_stack_t *los_stack;
+  obj_stackseg_t *seg;
+  obj_stack_entry_t *stkp;
+  obj_stack_entry_t *stkbot;
+  word w;
+  void *data = orig_data;
+
+  obj_stack = &context->stack.obj;
+  los_stack = &context->stack.los;
+  seg = obj_stack->seg;
+  stkp = obj_stack->stkp;
+  stkbot = obj_stack->stkbot;
+  while (stkp > stkbot) {
+    stkp--;
+    w = stkp->val;
+    data = visit(&w, &stkp->gno, data);
+    if (stkp == stkbot && seg->next != NULL) {
+      seg = seg->next;
+      stkp = seg->data+OBJ_STACK_SIZE;
+      stkbot = seg->data;
+    }
+  }
+  return data;
 }
 
 /* eof */

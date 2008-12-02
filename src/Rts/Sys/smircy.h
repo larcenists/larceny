@@ -28,11 +28,14 @@ bool smircy_stack_empty_p( smircy_context_t *context );
 
 bool smircy_object_marked_p( smircy_context_t *context, word obj );
 
-void smircy_minor_gc( smircy_context_t *context );
-void smircy_major_gc( smircy_context_t *context, int rgn );
-
 void smircy_when_object_forwarded( smircy_context_t *context, 
-                                   word obj_orig, word obj_new );
+                                   word obj_orig, int gen_orig,
+                                   word obj_new, int gen_new );
+
+void *smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
+                                     int rgn, 
+                                     void (*visit)(word *w, void *data),
+                                     void *orig_data );
 
 void smircy_end( smircy_context_t *context );
 

@@ -1178,7 +1178,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
         rgn_summarized_live = -DATA(gc)->remset_summaries[ rgn ]->words - 1;
       }
       oh_synchronize( heap );
-      consolemsg( "%scycle %d region% 4d "
+      consolemsg( "%scycle % 3d region% 4d "
                   "remset live: %7d %7d %8d lastmajor: %7d "
                   "float{ objs: %7d/%7d words: %7d/%7d %7d }%s %s %s", 
                   caller_name,
@@ -1238,7 +1238,7 @@ static void print_float_stats( char *caller_name, gc_t *gc )
           ! DATA(gc)->ephemeral_area[i]->has_popular_objects)
         estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc/sizeof(word);
     }
-    consolemsg( "cycle %d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
+    consolemsg( "cycle % 3d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
                 "live{ est: %dK act: %dK max: %dK } estdelta: %0.2f ",
                 cycle_count, 
                 total_float_objects/1000, 
@@ -1444,6 +1444,10 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
 {
   stats_id_t timer1, timer2;
   int marked_recv = 0, traced_recv = 0, words_marked_recv = 0;
+
+  if (USE_ORACLE_TO_VERIFY_REMSETS) 
+    verify_remsets_via_oracle( gc );
+
   start_timers( &timer1, &timer2 );
   if (gc->smircy == NULL) {
     gc->smircy = smircy_begin( gc, gc->remset_count );
@@ -1459,6 +1463,9 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
     refine_remsets_via_marksweep( gc );
   }
   stop_refinem_timers( gc, &timer1, &timer2 );
+
+  if (USE_ORACLE_TO_VERIFY_REMSETS) 
+    verify_remsets_via_oracle( gc );
 }
 
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
@@ -1566,10 +1573,6 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  goto collect_evacuate_nursery;
 	}
 
-	smircy_step( gc, DATA(gc)->rrof_refine_mark_countdown <= 0);
-	if (USE_ORACLE_TO_VERIFY_REMSETS)
-	  verify_remsets_via_oracle( gc );
-
 	if (!DATA(gc)->summarized_genset_valid) {
 	  stats_id_t timer1, timer2;
 	  int coverage;
@@ -1653,6 +1656,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	  DATA(gc)->rrof_last_tospace = rgn_to;
 	  
 	  handle_secondary_space( gc );
+
+          smircy_step( gc, DATA(gc)->rrof_refine_mark_countdown <= 0);
+
 	  /* Special case: if the emergency region has grown so large
 	   * that this region (immediately post major collection) is
 	   * smaller, then we swap them.
@@ -1688,7 +1694,6 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	      los_swap_gnos( gc->los, curr_gno, emergency_gno );
 	    }
 	  }
-	  if (gc->smircy != NULL) smircy_major_gc( gc->smircy, rgn_next );
 	  rrof_completed_major_collection( gc );
 
 	  /* clear the summary that guided this collection. */
@@ -1793,8 +1798,6 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
         /* check that SSB is flushed. */
         assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
 
-	smircy_step( gc, FALSE );
-
 	rs_init_summary( DATA(gc)->nursery_remset, -1, &(DATA(gc)->summary));
 	DATA(gc)->use_summary_instead_of_remsets = TRUE;
 	oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
@@ -1804,7 +1807,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 	DATA(gc)->rrof_last_tospace = rgn_to;
 
         handle_secondary_space( gc );
-        if (gc->smircy != NULL) smircy_minor_gc( gc->smircy );
+	smircy_step( gc, FALSE );
+
         rrof_completed_minor_collection( gc );
 	/* TODO: add code to incrementally summarize by attempting to
 	 * predict how many minor collections will precede the next
@@ -1855,15 +1859,16 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 
 {
+  assert(isptr(tgt));
   supremely_annoyingmsg( "check_remset_invs_rgnl( gc, 0x%08x (%d), 0x%08x (%d) )", 
-			 src, src?gen_of(src):0, tgt, gen_of(tgt) );
+			 src, isptr(src)?gen_of(src):0, tgt, gen_of(tgt) );
   /* XXX Felix is not convinced this assertion is sound. */
-  assert( src == 0 ||
-	  gen_of(src) != gen_of(tgt) ||
+  assert( ! isptr(src) ||
+	  gen_of(src) != gen_of(tgt) ||   // FSK: why are below || (opposed to &&)
 	  gen_of(src) != 0 ||
 	  gen_of(tgt) != DATA(gc)->static_generation ||
-	  rs_isremembered( gc->remset[ gen_of(src) ], tgt ) ||
-	  rs_isremembered( gc->major_remset[ gen_of(src) ], tgt ));
+	  rs_isremembered( gc->remset[ gen_of(src) ], tgt ) ||      // FSK: typo?
+	  rs_isremembered( gc->major_remset[ gen_of(src) ], tgt )); // FSK: typo?
 }
 static void check_remset_invs( gc_t *gc, word src, word tgt ) 
 {
@@ -1908,6 +1913,9 @@ static void before_collection( gc_t *gc )
   DATA(gc)->stat_last_ms_mark_refinement_cpu = -1;
 
   gc_compact_all_ssbs( gc );
+
+  if (gc->satb_ssb != NULL) 
+    process_seqbuf( gc, gc->satb_ssb );
 
   /* For debugging of prototype;
    * double check heap consistency via mark/sweep routines.
@@ -1975,12 +1983,34 @@ static void set_policy( gc_t *gc, int gen, int op, int value )
     oh_set_policy( DATA(gc)->dynamic_area, op, value );
 }
 
+struct apply_f_data {
+  void (*f)( word *addr, void *scan_data );
+  void *scan_data;
+};
+
+static void apply_f( word *w, void *data_orig ) 
+{
+  struct apply_f_data *data;
+  data = (struct apply_f_data*)data_orig;
+  data->f( w, data->scan_data );
+}
+
 static void
 enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_data )
 {
   int i;
   gc_data_t *data = DATA(gc);
   word *globals = data->globals;
+
+  if (gc->smircy != NULL) {
+    struct apply_f_data smircy_data;
+    smircy_data.f = f;
+    smircy_data.scan_data = scan_data;
+    smircy_enumerate_stack_of_rgn( gc->smircy, 
+                                   DATA(gc)->rrof_next_region, 
+                                   apply_f, 
+                                   &smircy_data );
+  }
 
   for ( i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     f( &globals[ i ], scan_data );
@@ -2499,7 +2529,8 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   free( DATA(gc)->remset_summaries );
   gc->remset = new_remset;
   gc->major_remset = new_major_remset;
-  smircy_expand_gnos( gc->smircy, fresh_gno );
+  if (gc->smircy != NULL) 
+    smircy_expand_gnos( gc->smircy, fresh_gno );
   gc->ssb = new_ssb;
   DATA(gc)->ssb_bot = new_ssb_bot;
   DATA(gc)->ssb_top = new_ssb_top;
@@ -2850,7 +2881,7 @@ static int ssb_process_gen( gc_t *gc, word *bot, word *top, void *ep_data ) {
 }
 
 static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
-  if (1) 
+  if (0) 
     consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x )", bot, top );
   smircy_push_elems( gc->smircy, bot, top );
   return 0;

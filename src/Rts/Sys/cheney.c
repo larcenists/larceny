@@ -131,11 +131,16 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
 #define FORW_PAIR( TMP_P, loc, dest, lim, e, check_spaceI ) \
   do {                                                                 \
     word next_obj;                                                     \
+    word new_obj, old_obj; int new_gno, old_gno;                       \
     check_spaceI(dest,lim,8,0,e);                                           \
     *dest = *TMP_P;                                                    \
     *(dest+1) = next_obj = *(TMP_P+1);                                 \
-    *loc = install_fwdptr( TMP_P, dest, PAIR_TAG);                     \
-    if (e->forwarded) e->forwarded( e, tagptr( TMP_P, PAIR_TAG),*loc );\
+    new_obj = install_fwdptr( TMP_P, dest, PAIR_TAG);                  \
+    *loc = new_obj;                                                    \
+    old_obj = tagptr( TMP_P, PAIR_TAG );                               \
+    new_gno = gen_of( new_obj );   /* XXX gen_of slow? */              \
+    old_gno = gen_of( old_obj );   /* XXX gen_of slow? */              \
+    if (e->forwarded) e->forwarded( e, old_obj, old_gno, new_obj, new_gno ); \
     check_memory( dest, 2 );                                           \
     dest += 2;                                                         \
   } while ( 0 )
@@ -393,12 +398,12 @@ void sweep_large_objects( gc_t *gc,
   if (dest2 >= 0) los_append_and_clear_list( gc->los, gc->los->mark2, dest2 );
 }
 
-static int last_origin_gen_added; 
+static word *last_origin_gen_added; 
 static const int gf_filter_remset_lhs = 0;
 static word gf_last_lhs;
 
 static bool update_remset( cheney_env_t *e,
-                           word origin_ptr, int origin_gen, int origin_tag,
+                           word *origin_ptr, int origin_gen, int origin_tag,
                            word target_ptr ) {
   if (e->points_across == NULL)
     return FALSE;
@@ -430,8 +435,12 @@ static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
   return FALSE;
 }
 
-static void forwarded( cheney_env_t* e, word obj_orig, word obj_new ) {
-  smircy_when_object_forwarded( e->gc->smircy, obj_orig, obj_new );
+static void forwarded( cheney_env_t* e, 
+                       word obj_orig, int gen_orig, 
+                       word obj_new, int gen_new ) {
+  smircy_when_object_forwarded( e->gc->smircy, 
+                                obj_orig, gen_orig, 
+                                obj_new, gen_new );
 }
 
 static void 
@@ -500,7 +509,7 @@ void oldspace_copy( cheney_env_t *e )
   e->scan_lim = tospace_scan(e)->chunks[e->scan_idx].lim;
   e->scan_lim2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].lim : 0);
 
-  last_origin_gen_added = -1;
+  last_origin_gen_added = (word*)-1;
   gf_last_lhs = -1;
 
   /* Collect */
@@ -795,13 +804,13 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
  * Most objects are smallish, so this code should be biased in favor
  * of small objects.
  */
-word forward( word p, word **dest, cheney_env_t *e )
+word forward( const word p, word **dest, cheney_env_t *e )
 {
-  word hdr, newptr, *p1, *p2, tag, *ptr;
+  word hdr, *newptr, *p1, *p2;
   word ret;
 
-  tag = tagof( p ); 
-  ptr = ptrof( p );
+  const word tag = tagof( p ); 
+  word * const ptr = ptrof( p );
 
   /* experimentally keeping bytevectors 4-word aligned;
    * insert padding when dest is only 2-word aligned. */
@@ -819,7 +828,7 @@ word forward( word p, word **dest, cheney_env_t *e )
 
   /* Copy the structure into newspace and pad if necessary. */
   p1 = *dest;
-  newptr = (word)p1;    /* really *dest, but the compiler is dumb. */
+  newptr = p1;    /* really *dest, but the compiler is dumb. */
   p2 = ptr;
 
   hdr = *ptr;
@@ -903,7 +912,7 @@ word forward( word p, word **dest, cheney_env_t *e )
 #endif
 
   ret = install_fwdptr( ptr, newptr, tag );
-  if (e->forwarded != NULL) e->forwarded( e, tagptr( ptr, tag), ret);
+  if (e->forwarded != NULL) e->forwarded( e, p, gen_of(p), ret, gen_of(ret));
   return ret;
 }
 
@@ -1016,8 +1025,9 @@ expand_space( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
    behavior, though a large object might be added to the remembered
    set when it should not have been.
 */
-static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_gen )
+static word forward_large_object( cheney_env_t * const e, word * const ptr, const int tag, const int tgt_gen )
 {
+  const word p = tagptr( ptr, tag );
   los_t *los = e->los;
   los_list_t *mark_list;
   word hdr, ret;
@@ -1055,8 +1065,12 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_g
   }
 
   if (attr_of(ptr) & MB_LARGE_OBJECT) {
-    was_marked = los_mark_and_set_generation( los, mark_list, ptr, gen_of(ptr), tgt_gen );
+    int src_gen = gen_of(ptr);
+    was_marked = los_mark_and_set_generation( los, mark_list, ptr, src_gen, tgt_gen );
     ret = tagptr( ptr, tag );
+    /* This is a slight lie; ptr was not forwarded, but its gno 
+     * may have changed, which SMIRCY needs to know about... */
+    if (e->forwarded != NULL) e->forwarded( e, ret, src_gen, ret, tgt_gen);
   }
   else {
     /* The large object was not allocated specially, so we must move it. */
@@ -1071,7 +1085,7 @@ static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_g
     was_marked = los_mark_and_set_generation( los, mark_list, new, gen_of( ptr ), tgt_gen );
     
     ret = install_fwdptr( ptr, new, tag );
-    if (e->forwarded != NULL) e->forwarded( e, tagptr( ptr, tag), ret);
+    if (e->forwarded != NULL) e->forwarded( e, p, gen_of(p), ret, tgt_gen );
   }
 
   if (e->np_promotion && !was_marked) {
