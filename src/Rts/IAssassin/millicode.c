@@ -9,6 +9,8 @@
 
 #define MORECORE_ALWAYS_COLLECTS 0
 
+#define SSB_ENQUEUE_LOUDLY 0
+
 #include "larceny.h"            /* Includes config.h also */
 #include "gc.h"
 #include "gc_t.h"               /* For gc_allocate() macro */
@@ -546,6 +548,9 @@ void EXPORT mc_partial_barrier( word *globals )
   ssblimv = (word**)globals[ G_SSBLIMV ];
 
   /* XXX should we track the most recent entry and filter repeats? */
+  if (SSB_ENQUEUE_LOUDLY)
+    if (*(ssbtopv[gr]-1) != lhs) 
+      consolemsg("gbuf enq: 0x%08x (%d)", lhs, gen_of(lhs));
   *ssbtopv[gr] = lhs;
   ssbtopv[gr] = (ssbtopv[gr])+1;
   if (ssbtopv[gr] == ssblimv[gr]) 
@@ -555,7 +560,8 @@ void EXPORT mc_partial_barrier( word *globals )
 static void satb_enqueue( word *globals, word ptr, word parent_ptr ) 
 {
   gc_t *gc = the_gc(globals);
-  if (0) consolemsg("satb enq: 0x%08x (%d)", ptr, gen_of(ptr));
+  if (SSB_ENQUEUE_LOUDLY) 
+    consolemsg("satb enq: 0x%08x (%d)", ptr, gen_of(ptr));
   SSB_ENQUEUE( gc, gc->satb_ssb, ptr );
 }
 
