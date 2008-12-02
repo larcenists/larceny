@@ -1,4 +1,4 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.              -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
@@ -234,6 +234,8 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( rgn_idx ),
 				   to );
+
+    /* can two below be re-ordered? */
     ss_free( from );
     ss_sync( to );
 
