@@ -1,4 +1,4 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.              -*- indent-tabs-mode: nil -*-
  * 
  * $Id$
  *
