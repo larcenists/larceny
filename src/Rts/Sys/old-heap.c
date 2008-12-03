@@ -200,14 +200,7 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
      * the collection loop.
      */
     { 
-      /* first clear out the SSB, so that we don't inadvertantly re-add
-       * words after we do the clearing in the rs_clear invocation.
-       *
-       * FIXME: this may reflect a mistake in the control structure;
-       * perhaps rs_enumerate should not be flushing the SSB.
-       */
-      /* Potentially "fixed"; TODO: try assert(ssb empty) and kill process_seqbuf */
-      process_seqbuf( heap->collector, heap->collector->ssb[rgn_idx] );
+      assert( seqbuf_clearp( heap->collector->ssb[rgn_idx] ));
       
       rs_clear( heap->collector->remset[ rgn_idx ] );
       rs_clear( heap->collector->major_remset[ rgn_idx ] );
