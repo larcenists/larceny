@@ -50,6 +50,9 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
  */
 int process_seqbuf( gc_t *gc, seqbuf_t *ssb );
 
+/* Is the ssb clear? */
+bool seqbuf_clearp( seqbuf_t *ssb );
+
 /* Switches in a new set of locations to link with the SSB log.
  */
 void seqbuf_swap_in_ssb( seqbuf_t *ssb, 

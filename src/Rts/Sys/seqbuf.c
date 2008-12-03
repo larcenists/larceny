@@ -88,3 +88,8 @@ int process_seqbuf( gc_t *gc, seqbuf_t *ssb )
   *ssb->top = *ssb->bot;
   return retval;
 }
+
+bool seqbuf_clearp( seqbuf_t *ssb ) 
+{
+  return (*ssb->top == *ssb->bot);
+}
