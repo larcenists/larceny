@@ -15,6 +15,17 @@
   (parameterize ((load-evaluator r5rs:load-evaluator))
     (apply require args)))
 
+; Suffixes that get rewritten when compiling a file.
+
+(define *scheme-file-types* '(".sls" ".sch" ".scm"))
+(define *slfasl-file-type*    ".slfasl")
+
+; Suffixes recognized during the search for ERR5RS/R6RS libraries.
+; Note: no initial period here.
+
+(define *library-suffixes-source*   '("larceny.sls"    "sls"))
+(define *library-suffixes-compiled* '("larceny.slfasl" "slfasl"))
+
 ; Larceny's ERR5RS and R6RS modes.
 ; Code names:
 ;     Aeryn    ERR5RS
@@ -323,6 +334,22 @@
        (else
         (larceny:unsupported-os))))))
 
+; Given a string that is one component of an ERR5RS/R6RS library,
+; replaces any funny characters by a possibly Larceny-specific
+; sequence of characters that are more likely to be accepted by
+; the file system.
+;
+; FIXME: for now, just translates #\: to "%3a".
+
+(define (larceny:filename-mangler s)
+  (do ((rchars (reverse (string->list s)) (cdr rchars))
+       (chars '()
+              (cond ((char=? (car rchars) #\:)
+                     (append (string->list "%3a") chars))
+                    (else (cons (car rchars) chars)))))
+      ((null? rchars)
+       (list->string chars))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (larceny:load-r6rs-runtime)
@@ -487,6 +514,7 @@
              (newline)))
 
   (let* ((libpath (map symbol->string libname))
+         (libpath (map larceny:filename-mangler libpath))
          (libpaths (do ((libpath (reverse libpath) (cdr libpath))
                         (libpaths '() (cons libpath libpaths)))
                        ((null? libpath)
@@ -510,9 +538,10 @@
                               (parameterize
                                ((current-require-path (list path))
                                 (current-require-path-suffix-optional #f)
-                                (current-require-path-suffixes '("sls"))
+                                (current-require-path-suffixes
+                                 *library-suffixes-source*)
                                 (current-require-path-suffixes-compiled
-                                 '("slfasl")))
+                                 *library-suffixes-compiled*))
                                (let ((fname
                                       ((current-library-resolver) name)))
                                  (if fname
@@ -532,7 +561,7 @@
 ; compiled before it is loaded.
 ;
 ; FIXME:  This uses a hack to avoid compiling a library twice
-; in systems that compile on eval.  if the file contains only
+; in systems that compile on eval.  If the file contains only
 ; one library, and nothing else, then we can compile to a file
 ; and then load the file instead of calling eval on the result
 ; of expansion.  That doesn't work if the file contains two
@@ -581,14 +610,13 @@
           "contains non-library code" src))
         (dst
          (let ((tempfile (generate-temporary-name dst)))
-(display "Compiling ")
-;(newline)
-(display src)
-(newline)
-;(display tempfile)
-;(newline)
-;(display dst)
-;(newline)
+           (display "Compiling ")
+           (display src)
+           (newline)
+           ;(display tempfile)
+           ;(newline)
+           ;(display dst)
+           ;(newline)
            (dynamic-wind
             (lambda () #t)
             (lambda ()
@@ -627,9 +655,6 @@
   (rewrite-file-type fn
                      *scheme-file-types*
                      *slfasl-file-type*))
-
-(define *scheme-file-types* '(".sls" ".sch" ".scm"))
-(define *slfasl-file-type*    ".slfasl")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
