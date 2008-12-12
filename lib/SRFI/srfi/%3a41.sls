@@ -108,7 +108,7 @@
           stream-of stream-range stream-ref stream-reverse stream-scan stream-take
           stream-take-while stream-unfold stream-unfolds stream-zip)
 
-  (import (rnrs) (streams primitive))
+  (import (rnrs) (srfi :41 streams primitive))
 
   (define-syntax define-stream
     (syntax-rules ()
@@ -472,7 +472,7 @@
           stream-of stream-range stream-ref stream-reverse stream-scan stream-take
           stream-take-while stream-unfold stream-unfolds stream-zip)
 
-  (import (streams primitive) (streams derived)))
+  (import (srfi :41 streams primitive) (srfi :41 streams derived)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
