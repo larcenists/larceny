@@ -69,6 +69,12 @@
 
 ; Compiles Larceny's basic support for ERR5RS/R6RS and the
 ; standard ERR5RS/R6RS libraries.
+;
+; FIXME:  Should use the (current-require-path) instead of
+; hard-wiring the names of the standard directories that
+; contain ERR5RS/R6RS libraries, but the (current-require-path)
+; might contain directories that overlap, causing libraries
+; to be compiled twice, causing build inconsistencies.
 
 (define (larceny:compile-r6rs-runtime)
   (parameterize ((current-directory (current-larceny-root)))
@@ -87,12 +93,10 @@
                       "r6rs-standard-libraries.fasl")
         (require 'r6rs-standard-libraries)))
     (define (compile-source-libraries)
-      (parameterize ((compile-libraries-older-than-this-file
-                      (string-append
-                       (current-directory)
-                       "/lib/R6RS/r6rs-standard-libraries.fasl")))
-        (for-each larceny:compile-libraries
-                  (current-require-path))))
+      (for-each (lambda (dir)
+                  (parameterize ((current-directory dir))
+                    (compile-stale-libraries)))
+                '("lib/R6RS" "lib/SRFI")))
     (time (compile-r6rs-runtime-core))
     (time (compile-source-libraries))))
 
