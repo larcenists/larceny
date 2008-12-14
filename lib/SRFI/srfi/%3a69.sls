@@ -1,3 +1,8 @@
+;;; SRFI 69
+;;; Basic hash tables.
+;;;
+;;; $Id$
+;;;
 ;;; Copyright © Panu Kalliokoski (2005). All Rights Reserved.
 ;;; (with Larceny-specific updates by Felix Klock (2006))
 ;;; 
@@ -21,45 +26,49 @@
 ;;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ;;; DEALINGS IN THE SOFTWARE.
 
+(library (srfi :69 basic-hash-tables larceny)
+
+  (export larceny:string-hash larceny:string-ci-hash)
+
+  (import (rename (rnrs hashtables)
+            (string-hash larceny:string-hash)
+            (string-ci-hash larceny:string-ci-hash))))
+
+(library (srfi :69 basic-hash-tables)
+
+  (export make-hash-table hash-table? alist->hash-table
+          hash-table-equivalence-function hash-table-hash-function
+          hash-table-ref hash-table-ref/default
+          hash-table-set! hash-table-delete!
+          hash-table-exists?
+          hash-table-update! hash-table-update!/default 
+          hash-table-size
+          hash-table-keys hash-table-values
+          hash-table-walk hash-table-fold
+          hash-table->alist
+          hash-table-copy
+          hash-table-merge! 
+          hash string-hash string-ci-hash hash-by-identity)
+
+  (import (rnrs base)
+          (only (rnrs unicode) string-ci=?)
+          (rnrs control)
+          (rnrs arithmetic fixnums)
+          (except (rnrs hashtables) string-hash string-ci-hash)
+          (srfi :69 basic-hash-tables larceny))
+
 ;;; Modification history:
 ;;; 2006 Larceny-specific updates by Felix Klock
 ;;; 2008 completely rewritten by William D Clinger
 ;;; 
-;;; This implementation deviates from SRFI 69 in several ways:
+;;; This implementation deviates from SRFI 69 in at least one way:
 ;;; 
 ;;;     The hash table type is not disjoint from all other types,
 ;;;     because hash tables are the same as R6RS hashtables.
-;;; 
-;;;     The default hash functions do not accept a second
-;;;     argument.  This restriction makes it easier to use
-;;;     Larceny's usual hash functions.  This restriction
-;;;     could easily be lifted at some cost in performance,
-;;;     but few clients of SRFI 69 will even notice.
-;;; 
-;;;     The string-hash and string-ci-hash procedures do not
-;;;     accept a second argument.  This restriction allows
-;;;     them to be the same as the corresponding R6RS procedures
-;;;     in Larceny's R5RS top level.  In an ERR5RS/R6RS library
-;;;     version of SRFI 69, there would be no clash so this
-;;;     restriction could easily be removed.
-
-;; Hack to allow use of Larceny's built-in string-hash implementation
-;; and to keep it in the face of multiple loads of this srfi.
-;;
-;; The hack isn't needed here because we're going to restrict
-;; SRFI 69 instead of redefining string-hash and string-ci-hash.
-
-;(define %%string-hash 
-;  (if (environment-variable? (interaction-environment) '%%string-hash)
-;      %%string-hash
-;      string-hash))
-
-(define larceny:string-hash string-hash)
-(define larceny:string-ci-hash string-ci-hash)
 
 (define (make-hash-table . args)
   (cond ((null? args)
-         (make-r6rs-hashtable hash equal?))
+         (make-hashtable hash equal?))
         ((null? (cdr args))
          (let ((same? (car args)))
            (cond ((eq? same? eq?)
@@ -67,11 +76,11 @@
                  ((eq? same? eqv?)
                   (make-eqv-hashtable))
                  ((eq? same? equal?)
-                  (make-r6rs-hashtable hash equal?))
+                  (make-hashtable hash equal?))
                  ((eq? same? string=?)
-                  (make-r6rs-hashtable string-hash string=?))
+                  (make-hashtable string-hash string=?))
                  ((eq? same? string-ci=?)
-                  (make-r6rs-hashtable string-ci-hash string-ci=?))
+                  (make-hashtable string-ci-hash string-ci=?))
                  (else
                   (assertion-violation 'make-hash-table
                                        "unable to infer hash function"
@@ -86,7 +95,7 @@
                        (eq? hash %srfi69:hash-on-eqv))
                   (make-eqv-hashtable))
                  (else
-                  (make-r6rs-hashtable hash same?)))))
+                  (make-hashtable hash same?)))))
         (else
          (assertion-violation 'make-hash-table
                               "too many arguments"
@@ -276,16 +285,36 @@
       (equal-hash obj)
       (mod (equal-hash obj) (car rest))))
 
-;(define (string-hash obj . rest)
-;  (if (null? rest)
-;      (larceny:string-hash obj)
-;      (mod (larceny:string-hash obj) (car rest))))
+(define (string-hash obj . rest)
+  (if (null? rest)
+      (larceny:string-hash obj)
+      (mod (larceny:string-hash obj) (car rest))))
 
-;(define (string-ci-hash obj . rest)
-;  (if (null? rest)
-;      (larceny:string-ci-hash obj)
-;      (mod (larceny:string-ci-hash obj) (car rest))))
+(define (string-ci-hash obj . rest)
+  (if (null? rest)
+      (larceny:string-ci-hash obj)
+      (mod (larceny:string-ci-hash obj) (car rest))))
 
 (define hash-by-identity %srfi69:hash-on-eq)
+
+)
+
+(library (srfi :69)
+
+  (export make-hash-table hash-table? alist->hash-table
+          hash-table-equivalence-function hash-table-hash-function
+          hash-table-ref hash-table-ref/default
+          hash-table-set! hash-table-delete!
+          hash-table-exists?
+          hash-table-update! hash-table-update!/default 
+          hash-table-size
+          hash-table-keys hash-table-values
+          hash-table-walk hash-table-fold
+          hash-table->alist
+          hash-table-copy
+          hash-table-merge! 
+          hash string-hash string-ci-hash hash-by-identity)
+
+  (import (srfi :69 basic-hash-tables)))
 
 ;eof

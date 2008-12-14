@@ -69,6 +69,10 @@
 		 srfi-38		; I/O of shared structure
 		 srfi-39		; Parameter objects
 		 srfi-42		; Eager comprehensions
+                 srfi-59                ; Vicinity
+                 srfi-60                ; Integers as Bits
+                 srfi-66                ; Octet Vectors
+                 srfi-69                ; Basic hash tables
                  )
     ((cond-expand) 
      (syntax-error "Unfulfilled cond-expand"))
@@ -186,6 +190,14 @@
      (begin (require 'srfi-39) body ...))
     ((cond-expand (srfi-42 body ...) more-clauses ...)
      (begin (require 'srfi-42) body ...))
+    ((cond-expand (srfi-59 body ...) more-clauses ...)
+     (begin (require 'srfi-59) body ...))
+    ((cond-expand (srfi-60 body ...) more-clauses ...)
+     (begin (require 'srfi-60) body ...))
+    ((cond-expand (srfi-66 body ...) more-clauses ...)
+     (begin (require 'srfi-66) body ...))
+    ((cond-expand (srfi-69 body ...) more-clauses ...)
+     (begin (require 'srfi-69) body ...))
 
     ;; Other features are not supported!
     ((cond-expand (feature-id body ...) more-clauses ...)

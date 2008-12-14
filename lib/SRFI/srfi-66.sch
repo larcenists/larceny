@@ -1,3 +1,9 @@
+;;; SRFI 66: Octet Vectors
+;;;
+;;; $Id$
+
+(define u8vector? bytevector?)
+
 (define (ensure-octet thing)
   (if (not (and (integer? thing)
 		(exact? thing)
@@ -56,8 +62,8 @@
     (and (= size (u8vector-length u8vector-2))
 	 (let loop ((i 0))
 	   (or (>= i size)
-	       (and (= (u8vector-ref u8vector-1)
-		       (u8vector-ref u8vector-2))
+	       (and (= (u8vector-ref u8vector-1 i)
+		       (u8vector-ref u8vector-2 i))
 		    (loop (+ 1 i))))))))
 
 (define (u8vector-compare u8vector-1 u8vector-2)

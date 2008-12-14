@@ -2,7 +2,12 @@
 ;
 ; $Id$
 
-(cond-expand (srfi-69))
+(import (rnrs base)
+        (rnrs io simple)
+        (rnrs unicode)
+        (rnrs sorting)
+        (rnrs arithmetic fixnums)
+        (srfi :69 basic-hash-tables))
 
 (define (writeln . xs)
   (for-each display xs)
