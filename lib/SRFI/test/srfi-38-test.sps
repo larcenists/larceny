@@ -1,7 +1,13 @@
 ; Test suite for SRFI-38
 ; 2004-01-02 / lth
+;
+; $Id$
 
-(cond-expand ((and srfi-38 srfi-6)))
+(import (rnrs base)
+        (rnrs io simple)
+        (rnrs mutable-pairs)
+        (srfi :6 basic-string-ports)
+        (srfi :38 with-shared-structure))
 
 (define (writeln . xs)
   (for-each display xs)
@@ -12,38 +18,34 @@
   #f)
 
 (or (equal? "#1=(val1 . #1#)" 
-	    (let ((a (cons 'val1 'val2)))
-	      (set-cdr! a a)
-	      (let ((s (open-output-string)))
-		(write-with-shared-structure a s)
-		(get-output-string s))))
+            (let ((a (cons 'val1 'val2)))
+              (set-cdr! a a)
+              (let ((s (open-output-string)))
+                (write-with-shared-structure a s)
+                (get-output-string s))))
     (fail 'write-shared:1))
 
 (or (equal? "#1=#(val1 #1#)" 
-	    (let ((a (vector 'val1 'val2)))
-	      (vector-set! a 1 a)
-	      (let ((s (open-output-string)))
-		(with-output-to-port s
-		  (lambda ()
-		    (write-with-shared-structure a)))
-		(get-output-string s))))
+            (let ((a (vector 'val1 'val2)))
+              (vector-set! a 1 a)
+              (let ((s (open-output-string)))
+                (write-with-shared-structure a s)
+                (get-output-string s))))
     (fail 'write-shared:2))
 
 (or (equal? "#(#1=\"abc\" #1# #1#)"
-	    (let* ((d (string #\a #\b #\c))
-		   (a (vector d d d))
-		   (s (open-output-string)))
-	      (with-output-to-port s
-		(lambda ()
-		  (write-with-shared-structure a)))
-	      (get-output-string s)))
+            (let* ((d (string #\a #\b #\c))
+                   (a (vector d d d))
+                   (s (open-output-string)))
+              (write-with-shared-structure a s)
+              (get-output-string s)))
     (fail 'write-shared:3))
 
 (or (let* ((s (open-input-string "#1=(val1 . #1#)"))
-	   (a (read-with-shared-structure s)))
+           (a (read-with-shared-structure s)))
       (and (pair? a)
-	   (eq? (car a) 'val1)
-	   (eq? (cdr a) a)))
+           (eq? (car a) 'val1)
+           (eq? (cdr a) a)))
     (fail 'read-shared:1))
 
 (or (let* ((a (cons 1 2))
