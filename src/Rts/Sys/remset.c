@@ -606,6 +606,53 @@ static int ilog2( unsigned n )
   return -1;
 }
 
+void rs_describe_self( remset_t *rs ) 
+{
+  word *tbl, *b, mask, h; 
+  int tblsize, count, maxcount, sum_count, sum_sqrcount, num_nonzero, i;
+  remset_data_t *data = DATA(rs);
+
+#define HIST_LEN 500
+  int counthist[HIST_LEN];
+
+  tbl = data->tbl_bot;
+  tblsize = data->tbl_lim - tbl;
+  mask = tblsize-1;
+  h = 0;
+  consolemsg("TBL%d tblsize: %d", rs->identity, tblsize);
+
+  maxcount = -1;
+  sum_count = 0;
+  num_nonzero = 0;
+  for( i = 0; i < HIST_LEN; i++ ) {
+    counthist[i] = 0;
+  }
+  while ( h < tblsize ) {
+    count = 0;
+    b = (word*)tbl[ h ];
+    while ( b != NULL ) {
+      count++;
+      b = (word*)*(b+1);
+    }
+    sum_count += count;
+    sum_sqrcount += (count*count);
+    if (count > 0) {
+      assert( count < HIST_LEN );
+      counthist[count] += 1;
+      num_nonzero += 1;
+    }
+    if (count > maxcount)
+      maxcount = count;
+    h++;
+  }
+  consolemsg("tblsize: %d entries: %d sum_count: %d mean: %d max: %d\n", 
+             tblsize, num_nonzero, sum_count, sum_count/num_nonzero, maxcount);
+  for( i = 0; i < HIST_LEN; i++ ) {
+    if (counthist[i] != 0)
+      consolemsg("  #%d : %d", i, counthist[i]);
+  }
+}
+
 #if defined(REMSET_PROFILE)
 /* utility fn for remset_crossing_stats */
 
