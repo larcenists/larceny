@@ -1047,7 +1047,7 @@ static bool scan_refine_remset( word loc, void *data, unsigned *stats )
  */
 const int BASE_BUDGET = -1; // 5;
 
-static void refine_remsets_via_marksweep( gc_t *gc ) 
+static void refine_metadata_via_marksweep( gc_t *gc ) 
 {
   /* use the mark/sweep system to refine (*all* of) the
    * remembered sets. */
@@ -1460,7 +1460,7 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
   if (to_the_finish_line) { 
     if (DATA(gc)->print_float_stats_each_refine)
       print_float_stats( "prefin", gc );
-    refine_remsets_via_marksweep( gc );
+    refine_metadata_via_marksweep( gc );
   }
   stop_refinem_timers( gc, &timer1, &timer2 );
 
