@@ -1047,18 +1047,13 @@ static bool scan_refine_remset( word loc, void *data, unsigned *stats )
  */
 const int BASE_BUDGET = -1; // 5;
 
-static void refine_metadata_via_marksweep( gc_t *gc ) 
+static void refine_remsets_via_marksweep( gc_t *gc )
 {
   /* use the mark/sweep system to refine (*all* of) the
    * remembered sets. */
+  int i;
   smircy_context_t *context;
-  int i, rgn;
-  int marked=0, traced=0, words_marked=0; 
-  int total_float_words = 0, total_float_objects = 0;
   context = gc->smircy;
-  smircy_push_roots( context );
-  smircy_push_remset( context, DATA(gc)->nursery_remset );
-  smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
   
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
@@ -1066,6 +1061,12 @@ static void refine_metadata_via_marksweep( gc_t *gc )
     rs_enumerate( gc->remset[ i ], scan_refine_remset, context );
     rs_enumerate( gc->major_remset[ i ], scan_refine_remset, context );
   }
+}
+
+static void refine_summaries_via_marksweep( gc_t *gc ) 
+{
+  smircy_context_t *context;
+  context = gc->smircy;
 
   /* XXX refining the summaries as well as the remsets based on the
      marksweep info.  This may or may not be necessary in an improved
@@ -1084,6 +1085,13 @@ static void refine_metadata_via_marksweep( gc_t *gc )
       }
     }
   }
+}
+
+static void reset_countdown_to_next_refine( gc_t *gc )
+{
+  int marked, words_marked; 
+  smircy_context_t *context;
+  context = gc->smircy;
 
   if (DATA(gc)->rrof_refine_mark_period > 0) {
     DATA(gc)->rrof_refine_mark_countdown = 
@@ -1110,6 +1118,21 @@ static void refine_metadata_via_marksweep( gc_t *gc )
     assert(0);
   }
   
+}
+
+static void refine_metadata_via_marksweep( gc_t *gc ) 
+{
+  smircy_context_t *context;
+  int marked=0, traced=0, words_marked=0; 
+  context = gc->smircy;
+  smircy_push_roots( context );
+  smircy_push_remset( context, DATA(gc)->nursery_remset );
+  smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
+
+  refine_remsets_via_marksweep( gc );
+  refine_summaries_via_marksweep( gc );
+  reset_countdown_to_next_refine( gc );
+
   smircy_end( context );
   gc->smircy = NULL;
   DATA(gc)->globals[G_CONCURRENT_MARK] = 0;
