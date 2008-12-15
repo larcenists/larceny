@@ -1468,56 +1468,297 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
     verify_remsets_via_oracle( gc );
 }
 
-static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
+static void collect_rgnl_clear_summary( gc_t *gc, int rgn_next )
 {
-  gclib_stats_t stats;
-  gc_data_t *data = DATA(gc);
-
-  { 
-    char *type_str;
-    switch (request) {
-    case GCTYPE_PROMOTE:  type_str = "PROMOTE"; break;
-    case GCTYPE_COLLECT:  type_str = "COLLECT"; break;
-    case GCTYPE_EVACUATE: type_str = "EVACUATE"; break;
-    case GCTYPE_FULL:     type_str = "FULL"; break;
-    default: assert(0);
+  /* clear the summary that guided this collection. */
+  {
+    remset_t *rs = DATA(gc)->remset_summaries[ rgn_next ]->
+      sum_remset;
+    if (rs != NULL) { 
+      rs_clear( rs );
+      return_to_remset_pool( rs );
+      DATA(gc)->remset_summaries[ rgn_next ]->sum_remset = NULL;
+      DATA(gc)->remset_summaries[ rgn_next ]->words = 0;
     }
-    annoyingmsg("collect_rgnl(gc, %d, %d, %s)", rgn, bytes_needed, type_str );
+    DATA(gc)->summarized_genset = 
+      gset_remove( rgn_next, DATA(gc)->summarized_genset);
+
+    { 
+      gset_t genset = DATA(gc)->summarized_genset;
+      if (genset.tag == gs_singleton) {
+        assert(genset.g1 <  DATA(gc)->remset_summaries_count);
+      } else if (genset.tag == gs_range) {
+        assert(genset.g2 <= DATA(gc)->remset_summaries_count);
+      } else { 
+        assert(0); }
+    }
+
+    DATA(gc)->next_summary_to_use =
+      next_rgn( DATA(gc)->next_summary_to_use, 
+                DATA(gc)->region_count );
+    if (! gset_memberp( DATA(gc)->next_summary_to_use,
+                        DATA(gc)->summarized_genset)) {
+      annoyingmsg("   invalidate_summaries( gc )");
+      invalidate_summaries( gc );
+    }
   }
+}
 
-  assert( rgn >= 0 );
-  assert( rgn > 0 || bytes_needed >= 0 );
-  assert( data->in_gc >= 0 );
+static void collect_rgnl_choose_next_region( gc_t *gc, int num_rgns ) 
+{
+  int n;
+  /* choose next region for major collection so that we can summarize its remsets */
+  /* TODO: add loop to skip to next if n is popular. */
+  n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
+  DATA(gc)->rrof_next_region = n;
+  if (n == rrof_first_region) {
+    assert2( DATA(gc)->region_count == num_rgns );
+    rrof_completed_regional_cycle( gc );
+    num_rgns = DATA(gc)->region_count;
+  }
+}
 
-  if (data->in_gc++ >= 0) {
-    gc_signal_moving_collection( gc );
-    before_collection( gc );
+static void collect_rgnl_clear_contribution_to_summaries( gc_t *gc, 
+                                                          int rgn_next ) 
+{
+  /* clear contribution of rgn_next to all summaries */
+  { 
+    int i;
+    remset_t *rs;
+    struct filter_objects_from_sum_remset_data data;
+    data.gen = rgn_next;
+    for(i=0; i<DATA(gc)->remset_summaries_count; i++ ) {
+      if (i == rgn_next) 
+        continue; /* the entire summary for i is cleared down below */
+      /* (and shouldn't summary have nothing from region_i anyway?) */
+      annoyingmsg( "clear summary [%d] of entries from %d", i, rgn_next );
+      if (gset_memberp( i, DATA(gc)->summarized_genset ) &&
+          DATA(gc)->remset_summaries[ i ]->sum_remset != NULL) {
+        rs = DATA(gc)->remset_summaries[ i ]->sum_remset;
+        rs_enumerate( rs, 
+                      filter_objects_from_sum_remset, 
+                      &data );
+      }
+    }
+  }
+}
+
+static void collect_rgnl_fold_in_nursery_rs( gc_t *gc )
+{
+  /* XXX for now, fold the nursery remset into the remset
+   * we're using for this major collection.  Better long term
+   * approach may be to do two separate scans rather than a
+   * fold-then-scan-combined XXX */
+  {
+    remset_t *rs = 
+      DATA(gc)->
+      remset_summaries[ DATA(gc)->next_summary_to_use ]->
+      sum_remset;
+    if (rs != NULL) {
+      rs_enumerate( DATA(gc)->nursery_remset, fold_from_nursery, gc );
+    } else {
+      rs = DATA(gc)->nursery_remset;
+    }
+    annoyingmsg( "construct rs (%d) summary", rs->live);
+    rs_init_summary( rs, -1, &DATA(gc)->summary );
+    if (USE_ORACLE_TO_VERIFY_SUMMARIES)
+      verify_summaries_via_oracle( gc );
+    DATA(gc)->use_summary_instead_of_remsets = TRUE;
+  }
+}
+
+static void collect_rgnl_maybe_swap_in_reserve( gc_t *gc, int rgn_to )
+{
+  /* Special case: if the emergency region has grown so large
+   * that this region (immediately post major collection) is
+   * smaller, then we swap them.
+   */
+  { 
+    int curr_gno = rgn_to;
+    int emergency_gno = DATA(gc)->ephemeral_area_count;
+    int curr_sz, emergency_sz;
+    oh_synchronize( DATA(gc)->ephemeral_area[ curr_gno-1 ] );
+    oh_synchronize( DATA(gc)->ephemeral_area[ emergency_gno-1 ] );
+    curr_sz = 
+      gc_allocated_to_areas( gc, gset_singleton( curr_gno ));
+    emergency_sz = 
+      gc_allocated_to_areas( gc, gset_singleton( emergency_gno ));
+    if (curr_sz < emergency_sz) {
+      old_heap_t *curr = 
+        DATA(gc)->ephemeral_area[ curr_gno-1 ];
+      old_heap_t *emergency = 
+        DATA(gc)->ephemeral_area[ emergency_gno-1 ];
+      remset_t *curr_rs = gc->remset[ curr_gno ];
+      remset_t *curr_mrs = gc->major_remset[ curr_gno ];
+      remset_t *emergency_rs = gc->remset[ emergency_gno ];
+      remset_t *emergency_mrs = gc->major_remset[ emergency_gno ];
+      annoyingmsg("SWAP %d <=> %d", curr_gno, emergency_gno );
+      oh_set_gen_no( curr, emergency_gno );
+      oh_set_gen_no( emergency, curr_gno );
+      DATA(gc)->ephemeral_area[ curr_gno-1 ] = emergency;
+      DATA(gc)->ephemeral_area[ emergency_gno-1 ] = curr;
+      gc->remset[ curr_gno ] = emergency_rs;
+      gc->major_remset[ curr_gno ] = emergency_mrs;
+      gc->remset[ emergency_gno ] = curr_rs;
+      gc->major_remset[ emergency_gno ] = curr_mrs;
+      los_swap_gnos( gc->los, curr_gno, emergency_gno );
+    }
+  }
+}
+
+/* returns TRUE iff the collection took place.  If FALSE, reselect
+ * rgn_to and rgn_next (aka goto collect_evacuate_nursery). */
+static bool collect_rgnl_majorgc( gc_t *gc, 
+                                  int rgn_to, int rgn_next, int num_rgns ) 
+{
+  /* TODO: assert summarization complete (once it is incrementalized) */
+  int n;
+  
+  assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
+  if (DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects) {
+    /* choose next region for major collection so that we can summarize its remsets */
+    /* TODO: add loop to skip to next if n is popular. */
+    n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
+    DATA(gc)->rrof_next_region = n;
+    if (n == rrof_first_region) {
+      assert2( DATA(gc)->region_count == num_rgns );
+      rrof_completed_regional_cycle( gc );
+      num_rgns = DATA(gc)->region_count;
+    }
+    return FALSE;
   }
   
+  if (!DATA(gc)->summarized_genset_valid) {
+    stats_id_t timer1, timer2;
+    int coverage;
+    gset_t range;
+    
+    coverage = 
+      (int)ceil(DATA(gc)->region_count*DATA(gc)->rrof_sumz_coverage);
+    annoyingmsg("summary coverage: %d:%d of count: %d", 
+                rgn_next, coverage, DATA(gc)->region_count);
+    
+    start_timers( &timer1, &timer2 );
+#if 0 
+    /* when in doubt, can go back to this... */
+    build_remset_summaries( gc, gset_singleton(rgn_next) );
+#else
+    range = gset_range(rgn_next, min(DATA(gc)->region_count+1, 
+                                     rgn_next+coverage) );
+    build_remset_summaries( gc, range );
+#endif
+    stop_sumrize_timers( gc, &timer1, &timer2 );
+    
+    if (USE_ORACLE_TO_VERIFY_SUMMARIES)
+      verify_summaries_via_oracle( gc );
+    DATA(gc)->next_summary_to_use = rgn_next;
+  } else {
+    annoyingmsg("using preconstructed summary for %d", rgn_next );
+  }
+  assert(gset_memberp( DATA(gc)->next_summary_to_use, 
+                       DATA(gc)->summarized_genset ));
+  
+  assert( rgn_next == DATA(gc)->next_summary_to_use ); /* XXX */
+  
+  if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
+       (DATA(gc)->remset_summaries[ rgn_next ]->words 
+        <= DATA(gc)->popularity_limit)) { 
+    
+    collect_rgnl_fold_in_nursery_rs( gc );
+    collect_rgnl_clear_contribution_to_summaries( gc, rgn_next );
+    oh_collect_into( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT,
+                     DATA(gc)->ephemeral_area[ rgn_to-1 ] );
+    summary_dispose( &DATA(gc)->summary );
+    DATA(gc)->use_summary_instead_of_remsets = FALSE;
+    rs_clear( DATA(gc)->nursery_remset );
+    DATA(gc)->rrof_last_tospace = rgn_to;
+    handle_secondary_space( gc );
+    smircy_step( gc, DATA(gc)->rrof_refine_mark_countdown <= 0);
+    collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
+    rrof_completed_major_collection( gc );
+    collect_rgnl_clear_summary( gc, rgn_next );
+    collect_rgnl_choose_next_region( gc, num_rgns );
+    
+  } else {
+    annoyingmsg( "remset summary says region %d too popular to collect", 
+                 rgn_next );
+#if POP_RGNS_LIVE_FOREVER
+    DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects = TRUE;
+#endif
+    DATA(gc)->ephemeral_area[ rgn_next-1 ]->live_last_major_gc = 
+      DATA(gc)->ephemeral_area[ rgn_next-1 ]->allocated;
+    
+    collect_rgnl_clear_summary( gc, rgn_next );
+    collect_rgnl_choose_next_region( gc, num_rgns );
+    return FALSE;
+  }
+  
+  return TRUE;
+}
+
+static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
+{
+
+  /* if there's room, minor collect the nursery into current region. */
+  
+  /* check that SSB is flushed. */
+  assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
+  
+  rs_init_summary( DATA(gc)->nursery_remset, -1, &(DATA(gc)->summary));
+  DATA(gc)->use_summary_instead_of_remsets = TRUE;
+  oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
+  rs_clear( DATA(gc)->nursery_remset );
+  DATA(gc)->use_summary_instead_of_remsets = FALSE;
+  summary_dispose( &(DATA(gc)->summary) );
+  DATA(gc)->rrof_last_tospace = rgn_to;
+  
+  handle_secondary_space( gc );
+  smircy_step( gc, FALSE );
+  
+  rrof_completed_minor_collection( gc );
+  /* TODO: add code to incrementally summarize by attempting to
+   * predict how many minor collections will precede the next
+   * major collection. */
+}
+
+static void collect_rgnl_shift_the_to( gc_t *gc )
+{
+  /* the to-space is full, so shift to the next to-space */
+  int n;
+  int num_minor_rgns = 
+    max( DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
+  annoyingmsg("collect_rgnl shift to next to-space %d => %d out of %d max(%d,%d)",
+              DATA(gc)->rrof_to_region,
+              next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns),
+              num_minor_rgns, DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
+  n = next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns);
+  if (DATA(gc)->rrof_next_region == 0) {
+    DATA(gc)->rrof_next_region = 1;
+  }
+  DATA(gc)->rrof_to_region = n;
+}
+
+static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn, 
+                                          int bytes_needed, gc_type_t request )
+{
+  char *type_str;
   switch (request) {
-  case GCTYPE_COLLECT: /* collect nursery and rgn, promoting into rgn first. */
-    if (rgn == 0) {
-      /* (Both kinds of young heaps ignore request parameter.) */
-      yh_collect( gc->young_area, bytes_needed, request );
-    } else {
-      /* explicit request for major collection of rgn. */
-      oh_collect( DATA(gc)->ephemeral_area[ rgn - 1 ], request );
-      DATA(gc)->rrof_last_tospace = rgn;
-    }
-    break;
-  case GCTYPE_EVACUATE: /* collect nursery and rgn, promoting _anywhere_. */
-    if (rgn == 0) {
-      /* only forward data out of the nursery, if possible */
-      int rgn_to, rgn_next, nursery_sz, rgn_to_cur, rgn_next_cur, rgn_to_max;
+  case GCTYPE_PROMOTE:  type_str = "PROMOTE"; break;
+  case GCTYPE_COLLECT:  type_str = "COLLECT"; break;
+  case GCTYPE_EVACUATE: type_str = "EVACUATE"; break;
+  case GCTYPE_FULL:     type_str = "FULL"; break;
+  default: assert(0);
+  }
+  annoyingmsg("collect_rgnl(gc, %d, %d, %s)", rgn, bytes_needed, type_str );
+}
+
+static void collect_rgnl_policy( gc_t *gc, int rgn_to, int rgn_next, 
+                                 bool *p_can_do_major, bool *p_can_do_minor )
+{
+      int nursery_sz, rgn_to_cur, rgn_next_cur, rgn_to_max;
       int free_rgn_space, nursery_max; 
       int num_rgns = DATA(gc)->region_count;
       int num_occupied_rgns;
-
-      DATA(gc)->rrof_refine_mark_countdown -= 1;
-      
-    collect_evacuate_nursery:
-      rgn_to = DATA(gc)->rrof_to_region;
-      rgn_next = DATA(gc)->rrof_next_region;
 
       annoyingmsg("collect_rgnl decide major or minor.  to: %d next: %d",
 		  rgn_to, rgn_next );
@@ -1553,285 +1794,74 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 		   rgn_to, rgn_next, nursery_sz, nursery_max, num_occupied_rgns, 
 		   rgn_to_cur, rgn_to_max, rgn_next_cur, free_rgn_space );
 
-      if (free_rgn_space < (rgn_next_cur + num_occupied_rgns*nursery_max)
-          /* XXX what is correct policy/logic here??? */) {
+      *p_can_do_major = 
+        (free_rgn_space < (rgn_next_cur + num_occupied_rgns*nursery_max)
+         /* XXX what is correct policy/logic here??? */);
+      *p_can_do_minor = 
+        (rgn_to_cur + nursery_sz < rgn_to_max &&
+         ! DATA(gc)->ephemeral_area[ rgn_to ]->has_popular_objects );
+}
 
-	/* TODO: assert summarization complete (once it is incrementalized) */
-	int n;
+static void collect_rgnl_evacuate_nursery( gc_t *gc ) 
+{
+  /* only forward data out of the nursery, if possible */
+  int rgn_to, rgn_next;
+  int num_rgns = DATA(gc)->region_count;
+  bool can_do_major, can_do_minor;
 
-	assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
-	if (DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects) {
-	  /* choose next region for major collection so that we can summarize its remsets */
-	  /* TODO: add loop to skip to next if n is popular. */
-	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
-	  DATA(gc)->rrof_next_region = n;
-	  if (n == rrof_first_region) {
-	    assert2( DATA(gc)->region_count == num_rgns );
-	    rrof_completed_regional_cycle( gc );
-	    num_rgns = DATA(gc)->region_count;
-	  }
-	  goto collect_evacuate_nursery;
-	}
+  DATA(gc)->rrof_refine_mark_countdown -= 1;
 
-	if (!DATA(gc)->summarized_genset_valid) {
-	  stats_id_t timer1, timer2;
-	  int coverage;
-	  gset_t range;
-	  coverage = 
-	    (int)ceil(DATA(gc)->region_count*DATA(gc)->rrof_sumz_coverage);
-	  annoyingmsg("summary coverage: %d:%d of count: %d", 
-	              rgn_next, coverage, DATA(gc)->region_count);
-	  start_timers( &timer1, &timer2 );
-#if 0 
-	  /* when in doubt, can go back to this... */
-	  build_remset_summaries( gc, gset_singleton(rgn_next) );
-#else
-	  range = gset_range(rgn_next, min(DATA(gc)->region_count+1, 
-	                                   rgn_next+coverage) );
-	  build_remset_summaries( gc, range );
-#endif
-	  stop_sumrize_timers( gc, &timer1, &timer2 );
-	  if (USE_ORACLE_TO_VERIFY_SUMMARIES)
-	    verify_summaries_via_oracle( gc );
-	  DATA(gc)->next_summary_to_use = rgn_next;
-	} else {
-	  annoyingmsg("using preconstructed summary for %d", rgn_next );
-	}
-	assert(gset_memberp( DATA(gc)->next_summary_to_use, 
-                             DATA(gc)->summarized_genset ));
+ collect_evacuate_nursery:
+  rgn_to = DATA(gc)->rrof_to_region;
+  rgn_next = DATA(gc)->rrof_next_region;
 
-	assert( rgn_next == DATA(gc)->next_summary_to_use ); /* XXX */
+  collect_rgnl_policy( gc, rgn_to, rgn_next, 
+                       &can_do_major, &can_do_minor );
+  if (can_do_major) {
+    bool didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
+    if (!didit)
+      goto collect_evacuate_nursery;
+  } else if (can_do_minor) {
+    collect_rgnl_minorgc( gc, rgn_to );
+  } else {
+    collect_rgnl_shift_the_to( gc );
+    /* TODO: double check that minor gc's haven't filled up to-spaces
+     * so fast that major GC hasn't had a chance to go (which should
+     * only happen when a summary is abandoned. */
+    goto collect_evacuate_nursery;
+  }
+}
 
-	if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
-	     (DATA(gc)->remset_summaries[ rgn_next ]->words 
-	      <= DATA(gc)->popularity_limit)) { 
+static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
+{
+  gclib_stats_t stats;
+  gc_data_t *data = DATA(gc);
 
-	  /* XXX for now, fold the nursery remset into the remset
-	   * we're using for this major collection.  Better long term
-	   * approach may be to do two separate scans rather than a
-	   * fold-then-scan-combined XXX */
-	  {
-	    remset_t *rs = 
-	      DATA(gc)->
-	      remset_summaries[ DATA(gc)->next_summary_to_use ]->
-	      sum_remset;
-	    if (rs != NULL) {
-	      rs_enumerate( DATA(gc)->nursery_remset, fold_from_nursery, gc );
-	    } else {
-	      rs = DATA(gc)->nursery_remset;
-	    }
-	    annoyingmsg( "construct rs (%d) summary", rs->live);
-	    rs_init_summary( rs, -1, &DATA(gc)->summary );
-	    if (USE_ORACLE_TO_VERIFY_SUMMARIES)
-	      verify_summaries_via_oracle( gc );
-	    DATA(gc)->use_summary_instead_of_remsets = TRUE;
-	  }
+  collect_rgnl_annoy_re_inputs( gc, rgn, bytes_needed, request );
 
-	  /* clear contribution of rgn_next to all summaries */
-	  { 
-	    int i;
-	    remset_t *rs;
-	    struct filter_objects_from_sum_remset_data data;
-	    data.gen = rgn_next;
-	    for(i=0; i<DATA(gc)->remset_summaries_count; i++ ) {
-	      if (i == rgn_next) 
-	        continue; /* the entire summary for i is cleared down below */
-	      /* (and shouldn't summary have nothing from region_i anyway?) */
-	      annoyingmsg( "clear summary [%d] of entries from %d", i, rgn_next );
-	      if (gset_memberp( i, DATA(gc)->summarized_genset ) &&
-	          DATA(gc)->remset_summaries[ i ]->sum_remset != NULL) {
-	        rs = DATA(gc)->remset_summaries[ i ]->sum_remset;
-	        rs_enumerate( rs, 
-	                      filter_objects_from_sum_remset, 
-	                      &data );
-	      }
-	    }
-	  }
-	  oh_collect_into( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT,
-	                   DATA(gc)->ephemeral_area[ rgn_to-1 ] );
-	
-	  summary_dispose( &DATA(gc)->summary );
-	  DATA(gc)->use_summary_instead_of_remsets = FALSE;
-	  rs_clear( DATA(gc)->nursery_remset );
-	  DATA(gc)->rrof_last_tospace = rgn_to;
-	  
-	  handle_secondary_space( gc );
+  assert( rgn >= 0 );
+  assert( rgn > 0 || bytes_needed >= 0 );
+  assert( data->in_gc >= 0 );
 
-          smircy_step( gc, DATA(gc)->rrof_refine_mark_countdown <= 0);
-
-	  /* Special case: if the emergency region has grown so large
-	   * that this region (immediately post major collection) is
-	   * smaller, then we swap them.
-	   */
-	  { 
-	    int curr_gno = rgn_to;
-	    int emergency_gno = DATA(gc)->ephemeral_area_count;
-	    int curr_sz, emergency_sz;
-	    oh_synchronize( DATA(gc)->ephemeral_area[ curr_gno-1 ] );
-	    oh_synchronize( DATA(gc)->ephemeral_area[ emergency_gno-1 ] );
-	    curr_sz = 
-	      gc_allocated_to_areas( gc, gset_singleton( curr_gno ));
-	    emergency_sz = 
-	      gc_allocated_to_areas( gc, gset_singleton( emergency_gno ));
-	    if (curr_sz < emergency_sz) {
-	      old_heap_t *curr = 
-		DATA(gc)->ephemeral_area[ curr_gno-1 ];
-	      old_heap_t *emergency = 
-		DATA(gc)->ephemeral_area[ emergency_gno-1 ];
-	      remset_t *curr_rs = gc->remset[ curr_gno ];
-	      remset_t *curr_mrs = gc->major_remset[ curr_gno ];
-	      remset_t *emergency_rs = gc->remset[ emergency_gno ];
-	      remset_t *emergency_mrs = gc->major_remset[ emergency_gno ];
-	      annoyingmsg("SWAP %d <=> %d", curr_gno, emergency_gno );
-	      oh_set_gen_no( curr, emergency_gno );
-	      oh_set_gen_no( emergency, curr_gno );
-	      DATA(gc)->ephemeral_area[ curr_gno-1 ] = emergency;
-	      DATA(gc)->ephemeral_area[ emergency_gno-1 ] = curr;
-	      gc->remset[ curr_gno ] = emergency_rs;
-	      gc->major_remset[ curr_gno ] = emergency_mrs;
-	      gc->remset[ emergency_gno ] = curr_rs;
-	      gc->major_remset[ emergency_gno ] = curr_mrs;
-	      los_swap_gnos( gc->los, curr_gno, emergency_gno );
-	    }
-	  }
-	  rrof_completed_major_collection( gc );
-
-	  /* clear the summary that guided this collection. */
-	  {
-	    remset_t *rs = DATA(gc)->remset_summaries[ rgn_next ]->
-	      sum_remset;
-	    if (rs != NULL) { 
-	      rs_clear( rs );
-	      return_to_remset_pool( rs );
-	      DATA(gc)->remset_summaries[ rgn_next ]->sum_remset = NULL;
-	      DATA(gc)->remset_summaries[ rgn_next ]->words = 0;
-	    }
-	    DATA(gc)->summarized_genset = 
-	      gset_remove( rgn_next, DATA(gc)->summarized_genset);
-
-	    { 
-	      gset_t genset = DATA(gc)->summarized_genset;
-	      if (genset.tag == gs_singleton) {
-	        assert(genset.g1 <  DATA(gc)->remset_summaries_count);
-	      } else if (genset.tag == gs_range) {
-	        assert(genset.g2 <= DATA(gc)->remset_summaries_count);
-	      } else { 
-	        assert(0); }
-	    }
-
-	    DATA(gc)->next_summary_to_use =
-	      next_rgn( DATA(gc)->next_summary_to_use, 
-	                DATA(gc)->region_count );
-	    if (! gset_memberp( DATA(gc)->next_summary_to_use,
-	                        DATA(gc)->summarized_genset)) {
-	      annoyingmsg("   invalidate_summaries( gc )");
-	      invalidate_summaries( gc );
-	    }
-	  }
-
-	  /* choose next region for major collection so that we can summarize its remsets */
-	  /* TODO: add loop to skip to next if n is popular. */
-	  n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
-	  DATA(gc)->rrof_next_region = n;
-	  if (n == rrof_first_region) {
-	    assert2( DATA(gc)->region_count == num_rgns );
-	    rrof_completed_regional_cycle( gc );
-	    num_rgns = DATA(gc)->region_count;
-	  }
-	} else {
-	  annoyingmsg( "remset summary says region %d too popular to collect", 
-		       rgn_next );
-#if POP_RGNS_LIVE_FOREVER
-	  DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects = TRUE;
-#endif
-	  DATA(gc)->ephemeral_area[ rgn_next-1 ]->live_last_major_gc = 
-	    DATA(gc)->ephemeral_area[ rgn_next-1 ]->allocated;
-
-	  /* clear the summary that guided this collection. */
-	  {
-	    remset_t *rs = DATA(gc)->remset_summaries[ rgn_next ]->
-	      sum_remset;
-	    if (rs != NULL) { 
-	      rs_clear( rs );
-	      return_to_remset_pool( rs );
-	      DATA(gc)->remset_summaries[ rgn_next ]->sum_remset = NULL;
-	      DATA(gc)->remset_summaries[ rgn_next ]->words = 0;
-	    }
-	    DATA(gc)->summarized_genset = 
-	      gset_remove( rgn_next, DATA(gc)->summarized_genset);
-
-	    { 
-	      gset_t genset = DATA(gc)->summarized_genset;
-	      if (genset.tag == gs_singleton) {
-	        assert(genset.g1 <  DATA(gc)->remset_summaries_count);
-	      } else if (genset.tag == gs_range) {
-	        assert(genset.g2 <= DATA(gc)->remset_summaries_count);
-	      } else { 
-	        assert(0); }
-	    }
-
-	    DATA(gc)->next_summary_to_use =
-	      next_rgn( DATA(gc)->next_summary_to_use, 
-	                DATA(gc)->region_count );
-	    if (! gset_memberp( DATA(gc)->next_summary_to_use,
-	                        DATA(gc)->summarized_genset)) {
-	      annoyingmsg("   invalidate_summaries( gc )");
-	      invalidate_summaries( gc );
-	    }
-	  }
-
-	  /* choose next region for major collection so that we can summarize its remsets */
-	  /* TODO: add loop to skip to next if n is popular. */
-	  n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
-	  DATA(gc)->rrof_next_region = n;
-	  if (n == rrof_first_region) {
-	    assert2( DATA(gc)->region_count == num_rgns );
-	    rrof_completed_regional_cycle( gc );
-	    num_rgns = DATA(gc)->region_count;
-	  }
-	  goto collect_evacuate_nursery;
-	}
-      } else if (rgn_to_cur + nursery_sz < rgn_to_max &&
-		 ! DATA(gc)->ephemeral_area[ rgn_to ]->has_popular_objects ) {
-	/* if there's room, minor collect the nursery into current region. */
-
-        /* check that SSB is flushed. */
-        assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
-
-	rs_init_summary( DATA(gc)->nursery_remset, -1, &(DATA(gc)->summary));
-	DATA(gc)->use_summary_instead_of_remsets = TRUE;
-	oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
-	rs_clear( DATA(gc)->nursery_remset );
-	DATA(gc)->use_summary_instead_of_remsets = FALSE;
-	summary_dispose( &(DATA(gc)->summary) );
-	DATA(gc)->rrof_last_tospace = rgn_to;
-
-        handle_secondary_space( gc );
-	smircy_step( gc, FALSE );
-
-        rrof_completed_minor_collection( gc );
-	/* TODO: add code to incrementally summarize by attempting to
-	 * predict how many minor collections will precede the next
-	 * major collection. */
-      } else {
-	int n;
-	int num_minor_rgns = 
-	  max( DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
-	/* the to-space is full, so shift to the next to-space */
-	annoyingmsg("collect_rgnl shift to next to-space %d => %d out of %d max(%d,%d)",
-		    DATA(gc)->rrof_to_region,
-		    next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns),
-		    num_minor_rgns, DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
-	n = next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns);
-	if (DATA(gc)->rrof_next_region == 0) {
-	  DATA(gc)->rrof_next_region = 1;
-	}
-	DATA(gc)->rrof_to_region = n;
-	/* TODO: double check that minor gc's haven't filled up to-spaces
-	 * so fast that major GC hasn't had a chance to go (which should
-	 * only happen when a summary is abandoned. */
-	goto collect_evacuate_nursery;
-      }
+  if (data->in_gc++ >= 0) {
+    gc_signal_moving_collection( gc );
+    before_collection( gc );
+  }
+  
+  switch (request) {
+  case GCTYPE_COLLECT: /* collect nursery and rgn, promoting into rgn first. */
+    if (rgn == 0) {
+      /* (Both kinds of young heaps ignore request parameter.) */
+      yh_collect( gc->young_area, bytes_needed, request );
+    } else {
+      /* explicit request for major collection of rgn. */
+      oh_collect( DATA(gc)->ephemeral_area[ rgn - 1 ], request );
+      DATA(gc)->rrof_last_tospace = rgn;
+    }
+    break;
+  case GCTYPE_EVACUATE: /* collect nursery and rgn, promoting _anywhere_. */
+    if (rgn == 0) {
+      collect_rgnl_evacuate_nursery( gc );
     } else {
       /* explicit request for evacuation-style major collection of rgn. */
       oh_collect( DATA(gc)->ephemeral_area[ rgn - 1 ], request );
