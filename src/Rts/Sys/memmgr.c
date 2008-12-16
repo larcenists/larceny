@@ -2541,8 +2541,6 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   word **new_ssb_bot = (word**)must_malloc( sizeof(word*)*new_remset_count );
   word **new_ssb_top = (word**)must_malloc( sizeof(word*)*new_remset_count );
   word **new_ssb_lim = (word**)must_malloc( sizeof(word*)*new_remset_count );
-  remset_as_summary_t** new_remset_summaries = 
-    (remset_as_summary_t**)must_malloc( sizeof( remset_as_summary_t*)*new_remset_count );
   assert( fresh_gno < new_remset_count );
 
   for( i = 0; i < fresh_gno; i++ ) {
@@ -2552,7 +2550,6 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
     seqbuf_swap_in_ssb( gc->ssb[i], &new_ssb_bot[i], 
                         &new_ssb_top[i], &new_ssb_lim[i] );
     seqbuf_set_sp_data( gc->ssb[i], /* XXX */(void*) i );
-    new_remset_summaries[i] = DATA(gc)->remset_summaries[i];
   }
   new_remset[fresh_gno] = create_remset( 0, 0 );
   new_major_remset[fresh_gno] = create_remset( 0, 0 );
@@ -2561,8 +2558,6 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   new_ssb[fresh_gno] = 
     create_seqbuf( 0, &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
                    &new_ssb_lim[fresh_gno], ssb_process_rrof, /* XXX */(void*) fresh_gno );
-  new_remset_summaries[fresh_gno] = 
-    allocate_remset_as_summary( fresh_gno, DATA(gc)->popularity_limit );
   for( i = fresh_gno+1; i < new_remset_count; i++ ) {
     new_remset[i] = gc->remset[i-1];
     new_major_remset[i] = gc->major_remset[i-1];
@@ -2570,7 +2565,6 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
     seqbuf_swap_in_ssb( gc->ssb[i-1], 
                         &new_ssb_bot[i], &new_ssb_top[i], &new_ssb_lim[i] );
     seqbuf_set_sp_data( gc->ssb[i-1], /* XXX */(void*)i );
-    new_remset_summaries[i] = DATA(gc)->remset_summaries[i-1];
   }
 
   free( gc->remset );
@@ -2579,7 +2573,6 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   free( DATA(gc)->ssb_bot );
   free( DATA(gc)->ssb_top );
   free( DATA(gc)->ssb_lim );
-  free( DATA(gc)->remset_summaries );
   gc->remset = new_remset;
   gc->major_remset = new_major_remset;
   if (gc->smircy != NULL) 
@@ -2591,8 +2584,6 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   DATA(gc)->globals[ G_SSBTOPV ] = /* XXX */(word) DATA(gc)->ssb_top;
   DATA(gc)->globals[ G_SSBLIMV ] = /* XXX */(word) DATA(gc)->ssb_lim;
   gc->remset_count = new_remset_count;
-  DATA(gc)->remset_summaries = new_remset_summaries;
-  
 }
 
 static void expand_summary_gnos( gc_t *gc, int fresh_gno ) 
