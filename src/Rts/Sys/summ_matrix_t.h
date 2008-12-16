@@ -1,4 +1,4 @@
-/* Copyright 2008 Felix S Klock II
+/* Copyright 2008 Felix S Klock II              -*- indent-tabs-mode: nil -*-
  * 
  * $Id: $
  * 
@@ -82,7 +82,7 @@ struct summ_matrix {
 
 summ_matrix_t *
 create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns, 
-                    double c, double p );
+                    double c, double p, int popularity_limit );
 
 void sm_expand_gnos( summ_matrix_t *summ, int fresh_gno );
 
@@ -153,6 +153,20 @@ void sm_construction_concurrent( summ_matrix_t *summ,
                                  int grain_scan_objects );
 
 void sm_interrupt_construction( summ_matrix_t *summ );
+
+/* below refactored from memmgr.c */
+
+void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, 
+                                  word *bot, word *top, int g_rhs );
+void sm_build_remset_summaries( summ_matrix_t *summ, gset_t genset );
+void sm_verify_summaries_via_oracle( summ_matrix_t *summ );
+void sm_refine_summaries_via_marksweep( summ_matrix_t *summ );
+int  sm_summarized_live( summ_matrix_t *summ, int rgn );
+void sm_invalidate_summaries( summ_matrix_t *summ );
+void sm_clear_summary( summ_matrix_t *summ, int rgn_next );
+void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
+void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno );
+void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs );
 
 #endif /* INCLUDED_SUMM_MATRIX_T_H */
 
