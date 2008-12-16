@@ -29,6 +29,7 @@ const char *larceny_gc_technology = "precise";
 #include "msgc-core.h"
 #include "smircy.h"
 #include "summary_t.h"
+#include "summ_matrix_t.h"
 #include "seqbuf_t.h"
 #include "math.h"
 
@@ -91,15 +92,6 @@ static void return_to_remset_pool( remset_t *rs )
    for that remset are the last slots.  The index is indicated by the
    np_remset member of gc_t.
    */
-struct remset_as_summary { 
-  remset_t *sum_remset;
-  int       gen;
-  bool      valid;
-  int       words;
-  int       max_words;
-};
-typedef struct remset_as_summary remset_as_summary_t;
-
 struct gc_data {
   bool is_partitioned_system;   /* True if system has partitioned heap */
   bool use_np_collector;	/* True if dynamic area is non-predictive */
@@ -176,12 +168,8 @@ struct gc_data {
 
   summary_t summary;            /* NULL or summarization of remset array */
   bool      use_summary_instead_of_remsets;
-  remset_as_summary_t **remset_summaries; /* points-into summaries */
-  int       remset_summaries_count;
-  bool      summarized_genset_valid;
-  gset_t    summarized_genset;
   int       next_summary_to_use;
-  int       popularity_limit;   /* Maximum summary size allowed (in words) */
+  summ_matrix_t *summaries;
 
   remset_t *nursery_remset;     /* Points-into remset for the nursery. */
 
@@ -676,17 +664,17 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
   return TRUE; /* don't remove entries from the remembered set we are summarizing! */  
 }
 
-static void build_remset_summaries( gc_t *gc, gset_t genset )
+static void sm_build_remset_summaries( summ_matrix_t *summ, gset_t genset )
 {
   remset_summary_data_t remsum;
   int i;
-  int remset_count = gc->remset_count;
+  int remset_count = summ->collector->remset_count;
   int summ_len = gset_max_elem(genset); /* (some entries can be null) */
 
-  /* XXX potentially assert DATA(gc)->summarized_genset is nullset */
+  /* XXX potentially assert summ->summarized_genset is nullset */
 
   remsum.genset = genset;
-  remsum.remset_summaries = DATA(gc)->remset_summaries;
+  remsum.remset_summaries = summ->remset_summaries;
   remsum.objects_visited = 0;
   remsum.objects_added = 0;
   remsum.words_added = 0;
@@ -696,10 +684,10 @@ static void build_remset_summaries( gc_t *gc, gset_t genset )
    * responsibility of scan_object_for_remset_summary to set valid
    * field to FALSE.
    */
-  for( i=0 ; i < DATA(gc)->ephemeral_area_count; i++ ) {
+  for( i=0 ; i < summ->remset_summaries_count; i++ ) {
     if (gset_memberp( i, genset )) {
-      DATA(gc)->remset_summaries[i]->valid = TRUE;
-      DATA(gc)->remset_summaries[i]->words = 0;
+      summ->remset_summaries[i]->valid = TRUE;
+      summ->remset_summaries[i]->words = 0;
       /* Construction assumes that summaries start off empty. */
       assert2( remsum.remset_summaries[ i ]->sum_remset == NULL ||
                remsum.remset_summaries[ i ]->sum_remset->live == 0);
@@ -708,26 +696,26 @@ static void build_remset_summaries( gc_t *gc, gset_t genset )
 
   for(i = 1; i < remset_count; i++) {
     /* TODO: use rs_enumerate_partial here? XXX */
-    rs_enumerate( gc->remset[ i ], 
+    rs_enumerate( summ->collector->remset[ i ], 
 		  scan_object_for_remset_summary,
 		  (void*) &remsum );
-    rs_enumerate( gc->major_remset[ i ], 
+    rs_enumerate( summ->collector->major_remset[ i ], 
 		  scan_object_for_remset_summary,
 		  (void*) &remsum );
   }
   if (genset.tag == gs_singleton) {
     remset_t *rs = remsum.remset_summaries[genset.g1]->sum_remset;
-    assert( genset.g1 < DATA(gc)->remset_summaries_count );
+    assert( genset.g1 < summ->remset_summaries_count );
   } else if (genset.tag == gs_range ) {
     remset_t *rs1, *rs2;
-    assert( genset.g2 <= DATA(gc)->remset_summaries_count );
+    assert( genset.g2 <= summ->remset_summaries_count );
     rs1 = remsum.remset_summaries[genset.g1]->sum_remset;
     rs2 = remsum.remset_summaries[genset.g2-1]->sum_remset;
   } else { assert(0); }
 
   { /* XXX review me XXX */
-    DATA(gc)->summarized_genset = genset;
-    DATA(gc)->summarized_genset_valid = TRUE;
+    summ->summarized_genset = genset;
+    summ->summarized_genset_valid = TRUE;
   }
 }
 
@@ -864,21 +852,21 @@ static void verify_remsets_via_oracle( gc_t *gc )
 
 static void* verify_summaries_msgc_fcn( word obj, word src, void *data )
 {
-  gc_t *gc = (gc_t*)data;
+  summ_matrix_t *summ = (summ_matrix_t*)data;
   int src_gen, tgt_gen;
 
   if (isptr(src) && isptr(obj) &&
       ((src_gen = gen_of(src)) != (tgt_gen = gen_of(obj))) &&
-      ! gc_is_nonmoving( gc, tgt_gen )) {
+      ! gc_is_nonmoving( summ->collector, tgt_gen )) {
     assert( src_gen >= 0 );
     if (src_gen > 0) {
-      assert( *gc->ssb[src_gen]->bot == *gc->ssb[src_gen]->top );
-      assert( *gc->ssb[tgt_gen]->bot == *gc->ssb[tgt_gen]->top );
-      if (DATA(gc)->summarized_genset_valid &&
-          gset_memberp( tgt_gen, DATA(gc)->summarized_genset ) &&
-          DATA(gc)->remset_summaries[ tgt_gen ]->valid ) {
-        assert( (DATA(gc)->remset_summaries[ tgt_gen ]->sum_remset) != NULL );
-        assert( rs_isremembered( DATA(gc)->remset_summaries[ tgt_gen ]->sum_remset, src ));
+      assert( *summ->collector->ssb[src_gen]->bot == *summ->collector->ssb[src_gen]->top );
+      assert( *summ->collector->ssb[tgt_gen]->bot == *summ->collector->ssb[tgt_gen]->top );
+      if (summ->summarized_genset_valid &&
+          gset_memberp( tgt_gen, summ->summarized_genset ) &&
+          summ->remset_summaries[ tgt_gen ]->valid ) {
+        assert( (summ->remset_summaries[ tgt_gen ]->sum_remset) != NULL );
+        assert( rs_isremembered( summ->remset_summaries[ tgt_gen ]->sum_remset, src ));
       }
     }
   }
@@ -907,14 +895,17 @@ static bool verify_summaries_remset_fcn( word obj,
   return TRUE;
 }
 
-static void verify_summaries_via_oracle( gc_t *gc ) 
+static void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
 {
   msgc_context_t *conserv_context;
   msgc_context_t *aggress_context;
   int marked, traced, words_marked;
-  if (DATA(gc)->summarized_genset_valid) {
-    conserv_context = msgc_begin( gc );
-    msvfy_set_object_visitor( conserv_context, verify_summaries_msgc_fcn, gc );
+
+  if (summ->summarized_genset_valid) {
+    conserv_context = msgc_begin( summ->collector );
+    msvfy_set_object_visitor( conserv_context, 
+                              verify_summaries_msgc_fcn, 
+                              summ );
     /* (useful to have a pre-pass over reachable(roots) so that the
        stack trace tells you whether a problem is due solely to a
        reference chain that somehow involves remembered sets.) */
@@ -924,7 +915,6 @@ static void verify_summaries_via_oracle( gc_t *gc )
        that would not be identified as such if we used 
        only msgc_mark_objects_from_roots
     */
-    assert(! DATA(gc)->use_summary_instead_of_remsets );
     msvfy_mark_objects_from_roots_and_remsets( conserv_context );
 
     /* a postpass over the summaries to make sure that their contents
@@ -934,20 +924,20 @@ static void verify_summaries_via_oracle( gc_t *gc )
       struct verify_summaries_remset_fcn_data data;
       int i;
       msgc_context_t *aggress_context;
-      aggress_context = msgc_begin( gc );
+      aggress_context = msgc_begin( summ->collector );
       msvfy_mark_objects_from_roots( aggress_context );
       data.conserv_context = conserv_context;
       data.aggress_context = aggress_context;
-      for (i = 0; i < gc->remset_count; i++) {
-	if (gset_memberp( i, DATA(gc)->summarized_genset )){
-	  assert( DATA(gc)->remset_summaries[i] != NULL);
+      for (i = 0; i < summ->collector->remset_count; i++) {
+	if (gset_memberp( i, summ->summarized_genset )){
+	  assert( summ->remset_summaries[i] != NULL);
 
-	  assert( i < DATA(gc)->remset_summaries_count );
+	  assert( i < summ->remset_summaries_count );
 	  /* we do not grab a remset_t if no entries are added, 
 	     so this is a guard rather than an assertion. */
-	  if ( DATA(gc)->remset_summaries[i]->sum_remset != NULL) {
+	  if ( summ->remset_summaries[i]->sum_remset != NULL) {
 	    data.summary_for_region = i;
-	    rs_enumerate( DATA(gc)->remset_summaries[ i ]->sum_remset, 
+	    rs_enumerate( summ->remset_summaries[ i ]->sum_remset, 
 	                  verify_summaries_remset_fcn, 
 	                  &data );
 	  }
@@ -957,6 +947,14 @@ static void verify_summaries_via_oracle( gc_t *gc )
     }
     msgc_end( conserv_context );
   }
+}
+
+static void verify_summaries_via_oracle( gc_t *gc ) 
+{
+  summ_matrix_t *summ;
+  assert(! DATA(gc)->use_summary_instead_of_remsets );
+  summ = DATA(gc)->summaries;
+  sm_verify_summaries_via_oracle( summ );
 }
 
 struct float_counts {
@@ -1063,22 +1061,22 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   }
 }
 
-static void refine_summaries_via_marksweep( gc_t *gc ) 
+static void sm_refine_summaries_via_marksweep( summ_matrix_t *summ ) 
 {
   smircy_context_t *context;
-  context = gc->smircy;
+  context = summ->collector->smircy;
 
   /* XXX refining the summaries as well as the remsets based on the
      marksweep info.  This may or may not be necessary in an improved
      version of the refinement code.
   */
-  if (DATA(gc)->summarized_genset_valid) {
+  if (summ->summarized_genset_valid) {
     int i;
-    for (i = 0; i < gc->remset_count; i++) {
-      if (gset_memberp( i, DATA(gc)->summarized_genset)) {
-        assert( DATA(gc)->remset_summaries[i] != NULL);
-        if (DATA(gc)->remset_summaries[i]->sum_remset != NULL) {
-          rs_enumerate( DATA(gc)->remset_summaries[i]->sum_remset,
+    for (i = 0; i < summ->collector->remset_count; i++) {
+      if (gset_memberp( i, summ->summarized_genset)) {
+        assert( summ->remset_summaries[i] != NULL);
+        if (summ->remset_summaries[i]->sum_remset != NULL) {
+          rs_enumerate( summ->remset_summaries[i]->sum_remset,
                         scan_refine_remset, 
                         context );
         }
@@ -1130,7 +1128,7 @@ static void refine_metadata_via_marksweep( gc_t *gc )
   smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
 
   refine_remsets_via_marksweep( gc );
-  refine_summaries_via_marksweep( gc );
+  sm_refine_summaries_via_marksweep( DATA(gc)->summaries );
   reset_countdown_to_next_refine( gc );
 
   smircy_end( context );
@@ -1161,6 +1159,27 @@ static int fill_up_to( char *bar, char mark, char altmark, int amt, int max ) {
   return rtn;
 }
 
+static int sm_summarized_live( summ_matrix_t *summ, int rgn ) 
+{
+  bool rgn_summarized;
+  int rgn_summarized_live;
+
+  rgn_summarized = 
+    summ->summarized_genset_valid && 
+    gset_memberp( rgn, summ->summarized_genset );
+  if (rgn_summarized) {
+    if (summ->remset_summaries[ rgn ]->sum_remset == NULL ) {
+      rgn_summarized_live = 0;
+    } else {
+      rgn_summarized_live = 
+        summ->remset_summaries[ rgn ]->words;
+    }
+  } else {
+    rgn_summarized_live = -summ->remset_summaries[ rgn ]->words - 1;
+  }
+  return rgn_summarized_live;
+}
+
 static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i, 
                                        struct visit_measuring_float_data data )
 {
@@ -1187,19 +1206,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
       int rgn_summarized_live;
       old_heap_t *heap = DATA(gc)->ephemeral_area[ i ];
       rgn = i+1;
-      rgn_summarized = 
-        DATA(gc)->summarized_genset_valid && 
-        gset_memberp( rgn, DATA(gc)->summarized_genset );
-      if (rgn_summarized) {
-        if (DATA(gc)->remset_summaries[ rgn ]->sum_remset == NULL ) {
-          rgn_summarized_live = 0;
-        } else {
-          rgn_summarized_live = 
-            DATA(gc)->remset_summaries[ rgn ]->words;
-        }
-      } else {
-        rgn_summarized_live = -DATA(gc)->remset_summaries[ rgn ]->words - 1;
-      }
+      rgn_summarized_live = sm_summarized_live( DATA(gc)->summaries, rgn );
       oh_synchronize( heap );
       consolemsg( "%scycle % 3d region% 4d "
                   "remset live: %7d %7d %8d lastmajor: %7d "
@@ -1219,7 +1226,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                      rgn == DATA(gc)->rrof_next_region ) ? "*" :
                    ( rgn == DATA(gc)->rrof_to_region )   ? "t" :
                    ( rgn == DATA(gc)->rrof_next_region ) ? "n" :
-                   ( rgn_summarized )                    ? "s" :
+                   ( rgn_summarized_live >= 0 )          ? "s" :
                    ( rgn >= DATA(gc)->region_count     ) ? "e" : 
                    /* else                              */ " "),
                   bars,
@@ -1429,12 +1436,15 @@ static void handle_secondary_space( gc_t *gc )
   }
 }
 
-static bool fold_from_nursery( word ptr, void *data, unsigned *count ) {
-  gc_t *gc = (gc_t*)data;
-  if (gen_of(ptr) != DATA(gc)->next_summary_to_use) {
-    rs_add_elem( DATA(gc)->remset_summaries[ DATA(gc)->next_summary_to_use ]->
-		 sum_remset,
-                 ptr );
+struct fold_from_nursery_data {
+  int gen;
+  remset_t *rs;
+};
+static bool fold_from_nursery( word ptr, void *my_data, unsigned *count ) {
+  struct fold_from_nursery_data *data;
+  data = (struct fold_from_nursery_data*)my_data;
+  if (gen_of(ptr) != data->gen) {
+    rs_add_elem( data->rs, ptr );
   }
   return TRUE;
 }
@@ -1455,12 +1465,12 @@ static bool filter_objects_from_sum_remset( word ptr,
     return TRUE;
   }
 }
-static void invalidate_summaries( gc_t *gc ) {
+static void sm_invalidate_summaries( summ_matrix_t *summ ) {
   int i;
-  for (i=1; i<DATA(gc)->remset_summaries_count; i++) {
-    assert2( DATA(gc)->remset_summaries[i]->sum_remset == NULL );
+  for (i=1; i<summ->remset_summaries_count; i++) {
+    assert2( summ->remset_summaries[i]->sum_remset == NULL );
   }
-  DATA(gc)->summarized_genset_valid = FALSE;
+  summ->summarized_genset_valid = FALSE;
 }
 
 static void smircy_step( gc_t *gc, bool to_the_finish_line ) 
@@ -1491,38 +1501,47 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
     verify_remsets_via_oracle( gc );
 }
 
-static void collect_rgnl_clear_summary( gc_t *gc, int rgn_next )
+static void sm_clear_summary( summ_matrix_t *summ, int rgn_next )
 {
   /* clear the summary that guided this collection. */
   {
-    remset_t *rs = DATA(gc)->remset_summaries[ rgn_next ]->
-      sum_remset;
+    remset_t *rs = summ->remset_summaries[ rgn_next ]->sum_remset;
     if (rs != NULL) { 
       rs_clear( rs );
       return_to_remset_pool( rs );
-      DATA(gc)->remset_summaries[ rgn_next ]->sum_remset = NULL;
-      DATA(gc)->remset_summaries[ rgn_next ]->words = 0;
+      summ->remset_summaries[ rgn_next ]->sum_remset = NULL;
+      summ->remset_summaries[ rgn_next ]->words = 0;
     }
-    DATA(gc)->summarized_genset = 
-      gset_remove( rgn_next, DATA(gc)->summarized_genset);
+    summ->summarized_genset = 
+      gset_remove( rgn_next, summ->summarized_genset);
 
     { 
-      gset_t genset = DATA(gc)->summarized_genset;
+      gset_t genset = summ->summarized_genset;
       if (genset.tag == gs_singleton) {
-        assert(genset.g1 <  DATA(gc)->remset_summaries_count);
+        assert(genset.g1 <  summ->remset_summaries_count);
       } else if (genset.tag == gs_range) {
-        assert(genset.g2 <= DATA(gc)->remset_summaries_count);
+        assert(genset.g2 <= summ->remset_summaries_count);
       } else { 
-        assert(0); }
+        assert(0); 
+      }
     }
+  }
+}
+
+static void collect_rgnl_clear_summary( gc_t *gc, int rgn_next )
+{
+  summ_matrix_t *summ = DATA(gc)->summaries;
+
+  { 
+    sm_clear_summary( summ, rgn_next );
 
     DATA(gc)->next_summary_to_use =
       next_rgn( DATA(gc)->next_summary_to_use, 
                 DATA(gc)->region_count );
     if (! gset_memberp( DATA(gc)->next_summary_to_use,
-                        DATA(gc)->summarized_genset)) {
-      annoyingmsg("   invalidate_summaries( gc )");
-      invalidate_summaries( gc );
+                        summ->summarized_genset)) {
+      annoyingmsg("   sm_invalidate_summaries( summ )");
+      sm_invalidate_summaries( summ );
     }
   }
 }
@@ -1541,8 +1560,8 @@ static void collect_rgnl_choose_next_region( gc_t *gc, int num_rgns )
   }
 }
 
-static void collect_rgnl_clear_contribution_to_summaries( gc_t *gc, 
-                                                          int rgn_next ) 
+static void sm_clear_contribution_to_summaries( summ_matrix_t *summ, 
+                                                int rgn_next ) 
 {
   /* clear contribution of rgn_next to all summaries */
   { 
@@ -1550,14 +1569,14 @@ static void collect_rgnl_clear_contribution_to_summaries( gc_t *gc,
     remset_t *rs;
     struct filter_objects_from_sum_remset_data data;
     data.gen = rgn_next;
-    for(i=0; i<DATA(gc)->remset_summaries_count; i++ ) {
+    for(i=0; i<summ->remset_summaries_count; i++ ) {
       if (i == rgn_next) 
         continue; /* the entire summary for i is cleared down below */
       /* (and shouldn't summary have nothing from region_i anyway?) */
       annoyingmsg( "clear summary [%d] of entries from %d", i, rgn_next );
-      if (gset_memberp( i, DATA(gc)->summarized_genset ) &&
-          DATA(gc)->remset_summaries[ i ]->sum_remset != NULL) {
-        rs = DATA(gc)->remset_summaries[ i ]->sum_remset;
+      if (gset_memberp( i, summ->summarized_genset ) &&
+          summ->remset_summaries[ i ]->sum_remset != NULL) {
+        rs = summ->remset_summaries[ i ]->sum_remset;
         rs_enumerate( rs, 
                       filter_objects_from_sum_remset, 
                       &data );
@@ -1566,27 +1585,27 @@ static void collect_rgnl_clear_contribution_to_summaries( gc_t *gc,
   }
 }
 
-static void collect_rgnl_fold_in_nursery_rs( gc_t *gc )
+static void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ, 
+                                                 remset_t *nursery_rs, 
+                                                 int next_summ_idx, 
+                                                 summary_t *summary )
 {
   /* XXX for now, fold the nursery remset into the remset
    * we're using for this major collection.  Better long term
    * approach may be to do two separate scans rather than a
    * fold-then-scan-combined XXX */
   {
-    remset_t *rs = 
-      DATA(gc)->
-      remset_summaries[ DATA(gc)->next_summary_to_use ]->
-      sum_remset;
+    remset_t *rs = summ->remset_summaries[ next_summ_idx ]->sum_remset;
     if (rs != NULL) {
-      rs_enumerate( DATA(gc)->nursery_remset, fold_from_nursery, gc );
+      struct fold_from_nursery_data data;
+      data.gen = next_summ_idx;
+      data.rs  = rs;
+      rs_enumerate( nursery_rs, fold_from_nursery, &data );
     } else {
-      rs = DATA(gc)->nursery_remset;
+      rs = nursery_rs;
     }
     annoyingmsg( "construct rs (%d) summary", rs->live);
-    rs_init_summary( rs, -1, &DATA(gc)->summary );
-    if (USE_ORACLE_TO_VERIFY_SUMMARIES)
-      verify_summaries_via_oracle( gc );
-    DATA(gc)->use_summary_instead_of_remsets = TRUE;
+    rs_init_summary( rs, -1, summary );
   }
 }
 
@@ -1629,6 +1648,11 @@ static void collect_rgnl_maybe_swap_in_reserve( gc_t *gc, int rgn_to )
   }
 }
 
+static bool sm_majorgc_permitted( summ_matrix_t *summ, int rgn_next )
+{
+  return (summ->remset_summaries[ rgn_next ]->words <= summ->popularity_limit);
+}
+
 /* returns TRUE iff the collection took place.  If FALSE, reselect
  * rgn_to and rgn_next (aka goto collect_evacuate_nursery). */
 static bool collect_rgnl_majorgc( gc_t *gc, 
@@ -1651,7 +1675,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     return FALSE;
   }
   
-  if (!DATA(gc)->summarized_genset_valid) {
+  if (!DATA(gc)->summaries->summarized_genset_valid) {
     stats_id_t timer1, timer2;
     int coverage;
     gset_t range;
@@ -1662,16 +1686,12 @@ static bool collect_rgnl_majorgc( gc_t *gc,
                 rgn_next, coverage, DATA(gc)->region_count);
     
     start_timers( &timer1, &timer2 );
-#if 0 
-    /* when in doubt, can go back to this... */
-    build_remset_summaries( gc, gset_singleton(rgn_next) );
-#else
     range = gset_range(rgn_next, min(DATA(gc)->region_count+1, 
                                      rgn_next+coverage) );
-    build_remset_summaries( gc, range );
-#endif
+    sm_build_remset_summaries( DATA(gc)->summaries, range );
     stop_sumrize_timers( gc, &timer1, &timer2 );
-    
+
+    assert(! DATA(gc)->use_summary_instead_of_remsets );
     if (USE_ORACLE_TO_VERIFY_SUMMARIES)
       verify_summaries_via_oracle( gc );
     DATA(gc)->next_summary_to_use = rgn_next;
@@ -1679,16 +1699,23 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     annoyingmsg("using preconstructed summary for %d", rgn_next );
   }
   assert(gset_memberp( DATA(gc)->next_summary_to_use, 
-                       DATA(gc)->summarized_genset ));
+                       DATA(gc)->summaries->summarized_genset ));
   
   assert( rgn_next == DATA(gc)->next_summary_to_use ); /* XXX */
   
   if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
-       (DATA(gc)->remset_summaries[ rgn_next ]->words 
-        <= DATA(gc)->popularity_limit)) { 
-    
-    collect_rgnl_fold_in_nursery_rs( gc );
-    collect_rgnl_clear_contribution_to_summaries( gc, rgn_next );
+       sm_majorgc_permitted( DATA(gc)->summaries, rgn_next )) {
+
+    sm_fold_in_nursery_and_init_summary( DATA(gc)->summaries,
+                                         DATA(gc)->nursery_remset, 
+                                         DATA(gc)->next_summary_to_use, 
+                                         &DATA(gc)->summary );
+    assert(! DATA(gc)->use_summary_instead_of_remsets );
+    if (USE_ORACLE_TO_VERIFY_SUMMARIES)
+      verify_summaries_via_oracle( gc );
+    DATA(gc)->use_summary_instead_of_remsets = TRUE;
+
+    sm_clear_contribution_to_summaries( DATA(gc)->summaries, rgn_next );
     oh_collect_into( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT,
                      DATA(gc)->ephemeral_area[ rgn_to-1 ] );
     summary_dispose( &DATA(gc)->summary );
@@ -1991,6 +2018,8 @@ static void before_collection( gc_t *gc )
 
   if (USE_ORACLE_TO_VERIFY_REMSETS)
     verify_remsets_via_oracle( gc );
+
+  assert(! DATA(gc)->use_summary_instead_of_remsets );
   if (USE_ORACLE_TO_VERIFY_SUMMARIES)
     verify_summaries_via_oracle( gc );
 }
@@ -2003,6 +2032,8 @@ static void after_collection( gc_t *gc )
 
  if (USE_ORACLE_TO_VERIFY_REMSETS)
    verify_remsets_via_oracle( gc );
+
+  assert(! DATA(gc)->use_summary_instead_of_remsets );
  if (USE_ORACLE_TO_VERIFY_SUMMARIES) 
    verify_summaries_via_oracle( gc );
 
@@ -2586,14 +2617,14 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   gc->remset_count = new_remset_count;
 }
 
-static void expand_summary_gnos( gc_t *gc, int fresh_gno ) 
+static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno ) 
 {
   /* check that inserting fresh_gno does not upset
      the existing summarization data (that is, that there are *no*
      summaries pointing into regions >= fresh_gno
   */
-  if (DATA(gc)->summarized_genset_valid) {
-    assert( ! gset_min_elem_greater_than( DATA(gc)->summarized_genset, 
+  if (summ->summarized_genset_valid) {
+    assert( ! gset_min_elem_greater_than( summ->summarized_genset, 
                                           fresh_gno-1 ));
   }
 
@@ -2604,21 +2635,21 @@ static void expand_summary_gnos( gc_t *gc, int fresh_gno )
      regions
   */
   {
-    int len = DATA(gc)->remset_summaries_count+1;
+    int len = summ->remset_summaries_count+1;
     int i;
     remset_as_summary_t **remset_summaries;
     remset_summaries = 
       (remset_as_summary_t**)must_malloc(len*sizeof(remset_as_summary_t*));
     remset_summaries[0] = NULL;
     for( i = 1; i < fresh_gno; i++ )
-      remset_summaries[i] = DATA(gc)->remset_summaries[i];
+      remset_summaries[i] = summ->remset_summaries[i];
     remset_summaries[ fresh_gno ] = 
-      allocate_remset_as_summary( fresh_gno, DATA(gc)->popularity_limit );
+      allocate_remset_as_summary( fresh_gno, summ->popularity_limit );
     for( i = fresh_gno+1; i < len; i++ )
-      remset_summaries[i] = DATA(gc)->remset_summaries[i-1];
-    free(DATA(gc)->remset_summaries);
-    DATA(gc)->remset_summaries = remset_summaries;
-    DATA(gc)->remset_summaries_count = len;
+      remset_summaries[i] = summ->remset_summaries[i-1];
+    free(summ->remset_summaries);
+    summ->remset_summaries = remset_summaries;
+    summ->remset_summaries_count = len;
   }
 }
 
@@ -2635,7 +2666,7 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
   expand_dynamic_area_gnos( gc, fresh_gno );
   expand_static_area_gnos( gc, fresh_gno );
   expand_remset_gnos( gc, fresh_gno );
-  expand_summary_gnos( gc, fresh_gno );
+  sm_expand_summary_gnos( DATA(gc)->summaries, fresh_gno );
   
   ++(DATA(gc)->generations_after_gc);
   
@@ -2950,6 +2981,25 @@ static word retagptr( word w )
   }
 }
 
+static void add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *top, int g_rhs )
+{
+  word *p, *q, w;
+
+  if ( summ->summarized_genset_valid
+       && gset_memberp( g_rhs, summ->summarized_genset )) {
+    p = bot; 
+    q = top; 
+    while (q > p) {
+      q--;
+      w = *q;
+      w = retagptr(w);
+      if (!w) 
+        continue;
+      add_object_to_sum_rs( summ->remset_summaries[ g_rhs ], g_rhs, w );
+    }
+  }
+}
+
 static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data ) 
 {
   remset_t **remset;
@@ -2963,21 +3013,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   retval |= rs_add_elems_funnel( rs, bot, top );
 
   g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
-  if ( DATA(gc)->summarized_genset_valid &&
-       gset_memberp( g_rhs, DATA(gc)->summarized_genset )) {
-    p = bot; 
-    q = top; 
-    while (q > p) {
-      q--;
-      w = *q;
-      w = retagptr(w);
-      if (!w) 
-        continue;
-      add_object_to_sum_rs( DATA(gc)->remset_summaries[ g_rhs ],
-                            g_rhs, w );
-    }
-  }
-
+  add_ssb_elems_to_summary( DATA(gc)->summaries, bot, top, g_rhs );
   return retval;
 }
 
@@ -3159,13 +3195,6 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );
       size += info->ephemeral_info[i].size_bytes;
-      /* P * regionsize limits size of incoming summary */
-      { double popular_factor = (info->has_popularity_factor 
-	                         ? info->popularity_factor 
-	                         : default_popularity_factor);
-	data->popularity_limit = 
-	  info->ephemeral_info[i].size_bytes * popular_factor / sizeof(word);
-      }
       data->ephemeral_area[ i ] = 
 	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
 			OHTYPE_REGIONAL );
@@ -3215,16 +3244,37 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 	create_remset( info->rhash, 0 );
     }
 
+    /* P * regionsize limits size of incoming summary */
+    { double popular_factor = (info->has_popularity_factor 
+                               ? info->popularity_factor 
+                               : default_popularity_factor);
+
+      data->summaries = 
+        create_summ_matrix( gc, 1, data->region_count, 
+                            data->rrof_sumz_coverage, 
+                            (info->has_popularity_factor ? 
+                             info->popularity_factor : 
+                             default_popularity_factor));
+
+      data->summaries->remset_summaries = 0;
+      data->summaries->remset_summaries_count = 0;
+      data->summaries->summarized_genset_valid = FALSE;
+
+      /* data->summaries->region_count = data->region_count; */
+      data->summaries->popularity_limit = 
+        info->ephemeral_info[ data->region_count ].size_bytes * popular_factor / sizeof(word);
+    }
+
     {
       int len = gc->remset_count+1, i;
-      data->remset_summaries = 
+      data->summaries->remset_summaries = 
         (remset_as_summary_t**)must_malloc(len*sizeof(remset_as_summary_t*));
-      data->remset_summaries[0] = NULL;
+      data->summaries->remset_summaries[0] = NULL;
       for( i = 1; i < len; i++ ) {
-        data->remset_summaries[i] = 
-          allocate_remset_as_summary( i, data->popularity_limit );
+        data->summaries->remset_summaries[i] = 
+          allocate_remset_as_summary( i, data->summaries->popularity_limit );
       }
-      data->remset_summaries_count = len;
+      data->summaries->remset_summaries_count = len;
     }
 
     data->nursery_remset = create_remset( 0, 0 );
@@ -3276,6 +3326,15 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   return gen_no;
 }
 
+static void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs )
+{
+  if ( summ->summarized_genset_valid &&
+       gset_memberp( g_rhs, summ->summarized_genset )) {
+    add_object_to_sum_rs( summ->remset_summaries[ g_rhs ], 
+                          g_rhs, lhs );
+  }
+}
+
 static word last_origin_ptr_added = 0;
 static void points_across_callback( gc_t *gc, word lhs, word rhs ) 
 {
@@ -3294,11 +3353,7 @@ static void points_across_callback( gc_t *gc, word lhs, word rhs )
         last_origin_ptr_added = lhs;
       }
 
-      if ( DATA(gc)->summarized_genset_valid &&
-           gset_memberp( g_rhs, DATA(gc)->summarized_genset )) {
-        add_object_to_sum_rs( DATA(gc)->remset_summaries[ g_rhs ], 
-                              g_rhs, lhs );
-      }
+      sm_points_across_callback( DATA(gc)->summaries, lhs, g_rhs );
     }
   }
 }
@@ -3354,9 +3409,6 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->rrof_last_live_estimate = 0;
 
-  data->remset_summaries = 0;
-  data->remset_summaries_count = 0;
-  data->summarized_genset_valid = FALSE;
   data->next_summary_to_use = -2;
   data->nursery_remset = 0;
 

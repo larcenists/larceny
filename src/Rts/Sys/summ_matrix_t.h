@@ -57,9 +57,25 @@
 
 #include "larceny-types.h"
 
+struct remset_as_summary { 
+  remset_t *sum_remset;
+  int       gen;
+  bool      valid;
+  int       words;
+  int       max_words;
+};
+typedef struct remset_as_summary remset_as_summary_t;
+
 struct summ_matrix {
   gc_t *collector;
     /* The garbage collector that uses and controls these summaries. */
+
+  /* refactoring */
+  remset_as_summary_t **remset_summaries; /* points-into summaries */
+  int       remset_summaries_count;
+  bool      summarized_genset_valid;
+  gset_t    summarized_genset;
+  int       popularity_limit;   /* Maximum summary size allowed (in words) */
 
   void *data;                   /* Implementation's data */
 };
