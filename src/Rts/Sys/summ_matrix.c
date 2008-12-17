@@ -17,6 +17,7 @@
 #include "msgc-core.h"
 #include "gc_t.h"
 #include "seqbuf_t.h"
+#include "smircy.h"
 
 typedef struct pool pool_t;
 typedef struct summ_cell summ_cell_t;
@@ -261,6 +262,8 @@ static void  create_refactored_from_memmgr( summ_matrix_t *sm,
       allocate_remset_as_summary( i, popularity_limit );
   }
   DATA(sm)->remset_summaries_count = len;
+
+  sm->nursery_remset = create_remset( 0, 0 );
 }
 
 summ_matrix_t *
@@ -424,6 +427,14 @@ bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno )
 bool sm_has_valid_summaries( summ_matrix_t *summ )
 {
   return DATA(summ)->summarized_genset_valid;
+}
+void sm_push_nursery_summary( summ_matrix_t *summ, smircy_context_t *smircy )
+{
+  smircy_push_remset( smircy, summ->nursery_remset );
+}
+void sm_clear_nursery_summary( summ_matrix_t *summ )
+{
+  rs_clear( summ->nursery_remset );
 }
 
 /* below refactored from memmgr.c */
@@ -970,7 +981,11 @@ static bool fold_from_nursery( word ptr, void *my_data, unsigned *count ) {
   }
   return TRUE;
 }
-
+void sm_init_summary_from_nursery_alone( summ_matrix_t *summ, 
+                                         summary_t *summary ) 
+{
+  rs_init_summary( summ->nursery_remset, -1, summary);
+}
 void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ, 
                                           int next_summ_idx, 
                                           summary_t *summary )

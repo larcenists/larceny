@@ -151,7 +151,13 @@ void sm_interrupt_construction( summ_matrix_t *summ );
 
 bool sm_has_valid_summaries( summ_matrix_t *summ );
 bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno );
+void sm_push_nursery_summary( summ_matrix_t *summ, smircy_context_t *smircy );
 
+void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ, 
+                                          int next_summ_idx, 
+                                          summary_t *summary );
+void sm_init_summary_from_nursery_alone( summ_matrix_t *summ, 
+                                         summary_t *summary );
 /* below refactored from memmgr.c */
 
 void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, 
