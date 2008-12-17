@@ -409,6 +409,16 @@ void sm_interrupt_construction( summ_matrix_t *summ )
   assert(FALSE);
 }
 
+bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno ) 
+{
+  return summ->summarized_genset_valid &&
+    gset_memberp( gno, summ->summarized_genset );
+}
+bool sm_has_valid_summaries( summ_matrix_t *summ )
+{
+  return summ->summarized_genset_valid;
+}
+
 /* below refactored from memmgr.c */
 
 typedef struct remset_summary_data remset_summary_data_t;

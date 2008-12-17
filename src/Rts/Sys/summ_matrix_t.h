@@ -154,6 +154,9 @@ void sm_construction_concurrent( summ_matrix_t *summ,
 
 void sm_interrupt_construction( summ_matrix_t *summ );
 
+bool sm_has_valid_summaries( summ_matrix_t *summ );
+bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno );
+
 /* below refactored from memmgr.c */
 
 void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, 

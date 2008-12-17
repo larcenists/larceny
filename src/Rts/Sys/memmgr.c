@@ -629,10 +629,8 @@ static void verify_remsets_via_oracle( gc_t *gc )
 
 static void verify_summaries_via_oracle( gc_t *gc ) 
 {
-  summ_matrix_t *summ;
   assert(! DATA(gc)->use_summary_instead_of_remsets );
-  summ = DATA(gc)->summaries;
-  sm_verify_summaries_via_oracle( summ );
+  sm_verify_summaries_via_oracle( DATA(gc)->summaries );
 }
 
 struct float_counts {
@@ -1101,18 +1099,15 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
 
 static void collect_rgnl_clear_summary( gc_t *gc, int rgn_next )
 {
-  summ_matrix_t *summ = DATA(gc)->summaries;
-
   { 
-    sm_clear_summary( summ, rgn_next );
+    sm_clear_summary( DATA(gc)->summaries, rgn_next );
 
     DATA(gc)->next_summary_to_use =
       next_rgn( DATA(gc)->next_summary_to_use, 
                 DATA(gc)->region_count );
-    if (! gset_memberp( DATA(gc)->next_summary_to_use,
-                        summ->summarized_genset)) {
+    if (! sm_is_rgn_summarized( DATA(gc)->summaries, DATA(gc)->next_summary_to_use )) {
       annoyingmsg("   sm_invalidate_summaries( summ )");
-      sm_invalidate_summaries( summ );
+      sm_invalidate_summaries( DATA(gc)->summaries );
     }
   }
 }
@@ -1192,7 +1187,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     return FALSE;
   }
   
-  if (!DATA(gc)->summaries->summarized_genset_valid) {
+  if ( ! sm_has_valid_summaries( DATA(gc)->summaries )) {
     stats_id_t timer1, timer2;
     int coverage;
     gset_t range;
@@ -1215,9 +1210,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
   } else {
     annoyingmsg("using preconstructed summary for %d", rgn_next );
   }
-  assert(gset_memberp( DATA(gc)->next_summary_to_use, 
-                       DATA(gc)->summaries->summarized_genset ));
-  
+  assert(sm_is_rgn_summarized( DATA(gc)->summaries,
+                               DATA(gc)->next_summary_to_use ));
   assert( rgn_next == DATA(gc)->next_summary_to_use ); /* XXX */
   
   if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
