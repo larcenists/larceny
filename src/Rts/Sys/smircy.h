@@ -10,8 +10,6 @@
 
 #include "larceny-types.h"
 
-typedef struct smircy_context smircy_context_t;
-
 smircy_context_t *smircy_begin( gc_t *gc, int num_rgns );
 
 void smircy_push_roots( smircy_context_t *context );

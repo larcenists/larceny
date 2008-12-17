@@ -64,6 +64,9 @@ typedef struct static_heap static_heap_t;
 /* remset_t is elaborated in remset_t.h */
 typedef struct remset remset_t;
 
+/* smircy_context_t is elaborated in smircy.h */
+typedef struct smircy_context smircy_context_t;
+
 /* summary_t is elaborated in summary_t.h */
 typedef struct summary summary_t;
 
