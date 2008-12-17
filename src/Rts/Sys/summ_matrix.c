@@ -972,7 +972,6 @@ static bool fold_from_nursery( word ptr, void *my_data, unsigned *count ) {
 }
 
 void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ, 
-                                          remset_t *nursery_rs, 
                                           int next_summ_idx, 
                                           summary_t *summary )
 {
@@ -986,9 +985,9 @@ void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
       struct fold_from_nursery_data data;
       data.gen = next_summ_idx;
       data.rs  = rs;
-      rs_enumerate( nursery_rs, fold_from_nursery, &data );
+      rs_enumerate( summ->nursery_remset, fold_from_nursery, &data );
     } else {
-      rs = nursery_rs;
+      rs = summ->nursery_remset;
     }
     annoyingmsg( "construct rs (%d) summary", rs->live);
     rs_init_summary( rs, -1, summary );

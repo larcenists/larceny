@@ -1216,7 +1216,6 @@ static bool collect_rgnl_majorgc( gc_t *gc,
        sm_majorgc_permitted( DATA(gc)->summaries, rgn_next )) {
 
     sm_fold_in_nursery_and_init_summary( DATA(gc)->summaries,
-                                         DATA(gc)->summaries->nursery_remset, 
                                          DATA(gc)->next_summary_to_use, 
                                          &DATA(gc)->summary );
     assert(! DATA(gc)->use_summary_instead_of_remsets );
