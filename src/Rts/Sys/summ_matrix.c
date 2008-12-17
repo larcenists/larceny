@@ -563,6 +563,8 @@ void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *top, int
 {
   word *p, *q, w;
 
+  rs_add_elems_funnel( summ->nursery_remset, bot, top );
+
   if ( DATA(summ)->summarized_genset_valid
        && gset_memberp( g_rhs, DATA(summ)->summarized_genset )) {
     p = bot; 

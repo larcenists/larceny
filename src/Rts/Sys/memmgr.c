@@ -2427,14 +2427,11 @@ static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
 static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data ) 
 {
   remset_t **remset;
-  remset_t *rs;
   int retval = 0;
   int g_rhs;
   word *p, *q, w;
   remset = gc->remset;
-  rs = DATA(gc)->summaries->nursery_remset;
   retval |= rs_add_elems_distribute( remset, bot, top );
-  retval |= rs_add_elems_funnel( rs, bot, top );
 
   g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
   sm_add_ssb_elems_to_summary( DATA(gc)->summaries, bot, top, g_rhs );
