@@ -124,8 +124,6 @@ struct gc_data {
   int       next_summary_to_use;
   summ_matrix_t *summaries;
 
-  remset_t *nursery_remset;     /* Points-into remset for the nursery. */
-
   semispace_t *secondary_space; /* NULL or space for when tospace overflows */
 
   int stat_last_ms_remset_sumrize;
@@ -559,7 +557,7 @@ static void* verify_remsets_msgc_fcn( word obj, word src, void *data )
       assert( *gc->ssb[gen_of(src)]->bot == *gc->ssb[gen_of(src)]->top );
       assert( *gc->ssb[gen_of(obj)]->bot == *gc->ssb[gen_of(obj)]->top );
       if (gen_of(obj) == 0) {
-        assert( rs_isremembered( DATA(gc)->nursery_remset, src ));
+        assert( rs_isremembered( DATA(gc)->summaries->nursery_remset, src ));
       }
       if (!rs_isremembered( gc->remset[ gen_of(src) ], src ) &&
 	  !rs_isremembered( gc->major_remset[ gen_of(src) ], src )) {
@@ -620,8 +618,8 @@ static void verify_remsets_via_oracle( gc_t *gc )
   data.region = 0;
   data.major = FALSE;
   data.pointsinto = TRUE;
-  rs_enumerate( DATA(gc)->nursery_remset, verify_nursery_traverse_rs, &data );
-  rs_enumerate( DATA(gc)->nursery_remset, verify_remsets_traverse_rs, &data );
+  rs_enumerate( DATA(gc)->summaries->nursery_remset, verify_nursery_traverse_rs, &data );
+  rs_enumerate( DATA(gc)->summaries->nursery_remset, verify_remsets_traverse_rs, &data );
   /* Originally had code to verify_remsets_traverse_rs on all remsets,
    * but that does not seem like an interesting invariant to check. */
   msgc_end( context );
@@ -775,8 +773,8 @@ static void refine_metadata_via_marksweep( gc_t *gc )
   smircy_context_t *context;
   int marked=0, traced=0, words_marked=0; 
   context = gc->smircy;
-  smircy_push_roots( context );
-  smircy_push_remset( context, DATA(gc)->nursery_remset );
+  smircy_push_roots( context ); /* XXX unnecessary (and misleading) */
+  smircy_push_remset( context, DATA(gc)->summaries->nursery_remset );
   smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
 
   refine_remsets_via_marksweep( gc );
@@ -1081,7 +1079,7 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
     gc->smircy = smircy_begin( gc, gc->remset_count );
     DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
     smircy_push_roots( gc->smircy );
-    smircy_push_remset( gc->smircy, DATA(gc)->nursery_remset );
+    smircy_push_remset( gc->smircy, DATA(gc)->summaries->nursery_remset );
   }
   smircy_progress( gc->smircy, BASE_BUDGET, BASE_BUDGET, BASE_BUDGET, 
                    &marked_recv, &traced_recv, &words_marked_recv );
@@ -1218,7 +1216,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
        sm_majorgc_permitted( DATA(gc)->summaries, rgn_next )) {
 
     sm_fold_in_nursery_and_init_summary( DATA(gc)->summaries,
-                                         DATA(gc)->nursery_remset, 
+                                         DATA(gc)->summaries->nursery_remset, 
                                          DATA(gc)->next_summary_to_use, 
                                          &DATA(gc)->summary );
     assert(! DATA(gc)->use_summary_instead_of_remsets );
@@ -1231,7 +1229,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
                      DATA(gc)->ephemeral_area[ rgn_to-1 ] );
     summary_dispose( &DATA(gc)->summary );
     DATA(gc)->use_summary_instead_of_remsets = FALSE;
-    rs_clear( DATA(gc)->nursery_remset );
+    rs_clear( DATA(gc)->summaries->nursery_remset );
     DATA(gc)->rrof_last_tospace = rgn_to;
     handle_secondary_space( gc );
     smircy_step( gc, DATA(gc)->rrof_refine_mark_countdown <= 0);
@@ -1265,10 +1263,10 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   /* check that SSB is flushed. */
   assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
   
-  rs_init_summary( DATA(gc)->nursery_remset, -1, &(DATA(gc)->summary));
+  rs_init_summary( DATA(gc)->summaries->nursery_remset, -1, &(DATA(gc)->summary));
   DATA(gc)->use_summary_instead_of_remsets = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
-  rs_clear( DATA(gc)->nursery_remset );
+  rs_clear( DATA(gc)->summaries->nursery_remset );
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
   summary_dispose( &(DATA(gc)->summary) );
   DATA(gc)->rrof_last_tospace = rgn_to;
@@ -2435,7 +2433,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   int g_rhs;
   word *p, *q, w;
   remset = gc->remset;
-  rs = DATA(gc)->nursery_remset;
+  rs = DATA(gc)->summaries->nursery_remset;
   retval |= rs_add_elems_distribute( remset, bot, top );
   retval |= rs_add_elems_funnel( rs, bot, top );
 
@@ -2688,7 +2686,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 
     }
 
-    data->nursery_remset = create_remset( 0, 0 );
+    data->summaries->nursery_remset = create_remset( 0, 0 );
 
     data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->remset_count );
     data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->remset_count );
@@ -2812,7 +2810,6 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_last_live_estimate = 0;
 
   data->next_summary_to_use = -2;
-  data->nursery_remset = 0;
 
   data->last_live_words = 0;
   data->max_live_words = 0;

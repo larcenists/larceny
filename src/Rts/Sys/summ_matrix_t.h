@@ -70,6 +70,8 @@ struct summ_matrix {
   gc_t *collector;
     /* The garbage collector that uses and controls these summaries. */
 
+  remset_t *nursery_remset;     /* Points-into remset for the nursery. */
+
   void *data;                   /* Implementation's data */
 };
 
