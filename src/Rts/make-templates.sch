@@ -491,7 +491,7 @@ realclean: clean
 "LARCENY_H=$(INC_ROOT)/Sys/larceny-types.h $(INC_ROOT)/Sys/macros.h \\
 	  Sys/assert.h Sys/larceny.h Sys/gc.h Sys/osdep.h \\
 	  $(INC_ROOT)/cdefs.h $(INC_ROOT)/config.h
-BARRIER_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H)
+BARRIER_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H) Sys/barrier.h
 GCLIB_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/gclib.h
 HEAPIO_H=$(INC_ROOT)/cdefs.h $(INC_ROOT)/Sys/larceny-types.h Sys/heapio.h
 LOS_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/los_t.h
