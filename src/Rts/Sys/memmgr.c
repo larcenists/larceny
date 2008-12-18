@@ -393,6 +393,8 @@ static int initialize( gc_t *gc )
 	      data->globals,
 	      data->ssb_top,
 	      data->ssb_lim, 
+	      &data->satb_ssb_top,
+	      &data->satb_ssb_lim,
 	      (data->use_np_collector ? data->generations-1 : -1 ),
 	      gc->np_remset
 	     );

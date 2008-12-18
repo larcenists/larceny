@@ -31,8 +31,8 @@
  * will go away with the new WB.
  */
 
-static word **wb_ssbtopv;      /* [0..n] for SSB logs (0 *is* valid). */
-static word **wb_ssblimv;      /* ditto */
+static word **wb_genssbtopv;   /* [0..n] for SSB logs (0 *is* valid). */
+static word **wb_genssblimv;   /* ditto */
 static int wb_generations;     /* the value 'n' */
 static word *wb_globals;       /* the globals array */
 
@@ -40,21 +40,25 @@ void wb_setup( gclib_desc_t *genv, /* maps page number to generation number */
 	       byte *pagebase,     /* address of lowest page in arena: fixed */
 	       int generations,    /* the value 'n': fixed */
                word *globals,      /* the globals vector */
-	       word **ssbtopv,
-	       word **ssblimv,
+	       word **genssbtopv,
+	       word **genssblimv,
+	       word **satbssbtopv,
+	       word **satbssblimv,
 	       int  np_young_gen,  /* -1 or generation # for NP young */
 	       int  np_ssbidx      /* -1 or idx in vectors for magic remset */
              )
 {
   wb_generations = generations;
   wb_globals = globals;
-  wb_ssbtopv = ssbtopv;
-  wb_ssblimv = ssblimv;
+  wb_genssbtopv = genssbtopv;
+  wb_genssblimv = genssblimv;
 
   assert( generations > 1 );
 
-  globals[ G_SSBTOPV ] = (word)wb_ssbtopv;
-  globals[ G_SSBLIMV ] = (word)wb_ssblimv;
+  globals[ G_SSBTOPV ] = (word)wb_genssbtopv;
+  globals[ G_SSBLIMV ] = (word)wb_genssblimv;
+  globals[ G_SATBTOPV ] = (word)satbssbtopv;
+  globals[ G_SATBLIMV ] = (word)satbssblimv;
   globals[ G_GENV ] = (word)genv;
   globals[ G_PGBASE ] = (word)pagebase;
   globals[ G_NP_YOUNG_GEN ] = (word)np_young_gen;
