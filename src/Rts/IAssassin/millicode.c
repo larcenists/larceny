@@ -565,7 +565,7 @@ static void satb_enqueue( word *globals, word ptr, word parent_ptr )
   SSB_ENQUEUE( gc, gc->satb_ssb, ptr );
 }
 
-void EXPORT mc_full_barrier( word *globals )
+void EXPORT mc_satb_barrier( word *globals )
 {
   word rTmp = *(word*)globals[ G_THIRD ];
   word result = (word)globals[ G_RESULT ];
@@ -573,8 +573,31 @@ void EXPORT mc_full_barrier( word *globals )
       (gen_of(rTmp) != 0) && (gen_of(result) != 0)) {
     satb_enqueue( globals, rTmp, result );
   }
+}
+
+static void mc_gen_barrier( word *globals )
+{
   if (isptr( globals[ G_SECOND ] ))
     mc_partial_barrier( globals );
+}
+
+void EXPORT mc_compact_satb_ssb_and_genb( word *globals )
+{
+  gc_t *gc = the_gc(globals);
+  seqbuf_t *ssb = gc->satb_ssb;
+
+  assert( *ssb->top == *ssb->lim );
+
+  if (*ssb->top == *ssb->lim)
+    process_seqbuf( (gc), ssb );
+
+  mc_gen_barrier( globals );
+}
+
+void EXPORT mc_full_barrier( word *globals )
+{
+  mc_satb_barrier( globals );
+  mc_gen_barrier( globals );
 }
 
 /* Stack underflow handler. */

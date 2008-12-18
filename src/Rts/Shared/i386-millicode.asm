@@ -270,9 +270,51 @@ PUBLIC i386_restore_continuation
 	
 PUBLIC i386_full_barrier
 %if OPTIMIZE_MILLICODE && OPTIMIZE_BARRIER
+	cmp dword[GLOBALS+G_CONCURRENT_MARK], 0 ; If concurrent mark off
+	je	Lfullgenbarrier			;   skip to gen barrier
+	mov	[GLOBALS+G_WBVALUE], SECOND	; Free up working registers
+	mov	TEMP, [GLOBALS+G_THIRD]		; globals[G_THIRD] holds tgt slot
+	mov	TEMP, [TEMP]			; TEMP := *slot
+	test	TEMP, 1				; If *slot is not ptr
+	jz	LfullgenbarrierRestoreSecond	;   skip to gen barrier
+	mov	[GLOBALS+G_REG1], REG1		; Free up working registers
+	mov	REG1, [GLOBALS+G_GENV]		; Map page -> generation
+	sub	TEMP, [EXTNAME(gclib_pagebase)]	; Load
+	shr	TEMP, 12			;   generation number
+	shl	TEMP, 2				;     (using byte offset)
+	mov	TEMP, [REG1+TEMP]		;       for *slot
+	cmp	TEMP, 0				; If gno = 0
+	je	LfullgenbarrierRestoreBothRegs	;   skip to gen barrier
+	mov	TEMP, RESULT			; TEMP := lhs
+	sub	TEMP, [EXTNAME(gclib_pagebase)]	; Load
+	shr	TEMP, 12			;   generation number
+	shl	TEMP, 2				;     (using byte offset)
+	mov	TEMP, [REG1+TEMP]		;       for lhs
+	cmp	TEMP, 0				; If gno == 0
+	jne	Lsatbbarrier			;   skip satb to gen barrier
+LfullgenbarrierRestoreBothRegs:
+	mov	REG1, [GLOBALS+G_REG1]		; restore orig REG1
+LfullgenbarrierRestoreSecond:
+	mov 	SECOND, [GLOBALS+G_WBVALUE]
+Lfullgenbarrier:				;
 	test	SECOND, 1			; If rhs is ptr
 	jnz	EXTNAME(i386_partial_barrier)	;   enter the barrier
 	ret					; Otherwise return
+Lsatbbarrier:					;
+	mov	TEMP, [GLOBALS+G_THIRD]		; globals[G_THIRD] holds tgt slot
+	mov	REG1, [GLOBALS+G_SATBTOPV]	; ptr to SATB SSB
+	mov	REG1, [REG1]			; SATB SSB top
+	mov	[REG1], TEMP			; 
+	mov	TEMP, [GLOBALS+G_SATBTOPV]	; 
+	add	REG1, 4				; Move SATB SSB ptr
+	mov	[TEMP], REG1			; store moved ptr
+	mov	TEMP, [GLOBALS+G_SATBLIMV]	; ptr to SATB SSB limit ptr
+	mov	TEMP, [TEMP]			; the limit ptr
+	cmp	REG1, TEMP			; if ptr!=limit
+	jne	LfullgenbarrierRestoreBothRegs	;   then no overflow, so done
+	mov	REG1, [GLOBALS+G_REG1]		;
+	mov	[GLOBALS+G_WBDEST], RESULT
+	MC2g_wb	mc_compact_satb_ssb_and_genb
 %else  ; OPTIMIZE_MILLICODE
 	mov	[GLOBALS+G_WBDEST], RESULT
 	mov	[GLOBALS+G_WBVALUE], SECOND
