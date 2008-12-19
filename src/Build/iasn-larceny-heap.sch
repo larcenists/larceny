@@ -128,6 +128,7 @@
                             runtime-safety-checking
                             catch-undefined-globals
                             integrate-procedures
+                            faster-arithmetic
                             control-optimization
                             parallel-assignment-optimization
                             lambda-optimization

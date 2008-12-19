@@ -17,12 +17,20 @@
   (export write-with-shared-structure
           read-with-shared-structure)
 
-  (import (rnrs)
+  (import (rnrs base)
+          (rnrs unicode)
+          (rnrs bytevectors)
+          (only (rnrs lists) memq)
+          (rnrs control)
+          (only (rnrs io ports) port? textual-port?)
+          (rnrs io simple)
+          (rnrs hashtables)
           (rnrs mutable-strings)
           (rnrs mutable-pairs)
-          (srfi :99 records procedural))
+          (srfi :99 records procedural)
+          (only (srfi :99 records inspection) record?))
 
-;;; Copyright (C) Ray Dillinger 2008. All Rights Reserved. 
+;;; Copyright (C) Ray Dillinger 2003. All Rights Reserved. 
 ;;;
 ;;; This document and translations of it may be copied and furnished to
 ;;; others, and derivative works that comment on or otherwise explain it
@@ -290,10 +298,9 @@
          (errIllegalString 5)                   ; illegal string
          (errIllegalSymbol 6)                   ; illegal symbol
          (errNoDelimiter 7)      ; missing delimiter after token
-         (errSquareBracket 8)     ; square bracket when disabled
+         (errSRFI38 8)                           ; illegal #...#
          (errBug 9)            ; bug in reader, shouldn't happen
          (errLexGenBug 10)                        ; can't happen
-         (errSRFI38 11)                          ; illegal #...#
 
          ; Important but unnamed non-Ascii characters.
 
@@ -3462,8 +3469,6 @@
                "Illegal SRFI 38 syntax")
               ((= msg errNoDelimiter)
                "Missing delimiter")
-              ((= msg errSquareBracket)
-               "Square brackets are disabled")
               ((= msg errLexGenBug)
                "Bug in lexical analyzer (generated)")
               (else "Bug in lexical analyzer")))

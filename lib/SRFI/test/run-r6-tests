@@ -1,0 +1,32 @@
+#! /usr/bin/env bash
+
+LARCENY=${LARCENY:-"../../../larceny"}
+
+
+echo srfi-1-test; ${LARCENY} --r6rs --program srfi-1-test.sps; echo
+echo srfi-2-test; ${LARCENY} --r6rs --program srfi-2-test.sps; echo
+echo srfi-5-test; ${LARCENY} --r6rs --program srfi-5-test.sps; echo
+echo srfi-6-test; ${LARCENY} --r6rs --program srfi-6-test.sps; echo
+echo srfi-8-test; ${LARCENY} --r6rs --program srfi-8-test.sps; echo
+echo srfi-9-test; ${LARCENY} --r6rs --program srfi-9-test.sps; echo
+echo srfi-11-test; ${LARCENY} --r6rs --program srfi-11-test.sps; echo
+echo srfi-13-test; ${LARCENY} --r6rs --program srfi-13-test.sps; echo
+echo srfi-14-test; ${LARCENY} --r6rs --program srfi-14-test.sps; echo
+echo srfi-16-test; ${LARCENY} --r6rs --program srfi-16-test.sps; echo
+echo srfi-17-test; ${LARCENY} --r6rs --program srfi-17-test.sps; echo
+echo srfi-19-test; ${LARCENY} --r6rs --program srfi-19-test.sps; echo
+echo srfi-23-test; ${LARCENY} --r6rs --program srfi-23-test.sps; echo
+echo srfi-25-test; ${LARCENY} --r6rs --program srfi-25-test.sps; echo
+echo srfi-26-test; ${LARCENY} --r6rs --program srfi-26-test.sps; echo
+echo srfi-27-test; ${LARCENY} --r6rs --program srfi-27-test.sps; echo
+echo srfi-28-test; ${LARCENY} --r6rs --program srfi-28-test.sps; echo
+echo srfi-29-test; ${LARCENY} --r6rs --program srfi-29-test.sps; echo
+echo srfi-31-test; ${LARCENY} --r6rs --program srfi-31-test.sps; echo
+echo srfi-38-test; ${LARCENY} --r6rs --program srfi-38-test.sps; echo
+echo srfi-39-test; ${LARCENY} --r6rs --program srfi-39-test.sps; echo
+echo srfi-41-test; ${LARCENY} --r6rs --program srfi-41-test.sps; echo
+echo srfi-42-test; ${LARCENY} --r6rs --program srfi-42-test.sps; echo
+echo srfi-59-test; ${LARCENY} --r6rs --program srfi-59-test.sps; echo
+echo srfi-60-test; ${LARCENY} --r6rs --program srfi-60-test.sps; echo
+echo srfi-66-test; ${LARCENY} --r6rs --program srfi-66-test.sps; echo
+echo srfi-69-test; ${LARCENY} --r6rs --program srfi-69-test.sps; echo

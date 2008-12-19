@@ -1134,7 +1134,7 @@ static char *helptext[] = {
 static char *wizardhelptext[] = {
   "  (Wizard options below this point.)",
   "  -unsafe",
-  "     Crash spectacularly when errors occur (not yet implemented).",
+  "     Crash spectacularly when errors occur.",
   "  These five options may accompany the -r6rs option:",
   "       -ignore1",
   "          Ignore the first line of the file specified by -program.",

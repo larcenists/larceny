@@ -91,6 +91,9 @@
             (else
              (twobit-warning))))))
 
+(define faster-arithmetic
+  (make-twobit-flag 'faster-arithmetic))
+
 (define control-optimization
   (make-twobit-flag 'control-optimization))
 
@@ -201,6 +204,7 @@
      (set-compiler-flags! 'standard)
      (avoid-space-leaks #t)
      (integrate-procedures 'none)
+     (faster-arithmetic #f)
      (control-optimization #f)
      (parallel-assignment-optimization #f)
      (lambda-optimization #f)
@@ -221,6 +225,7 @@
      (avoid-space-leaks #f)
      (runtime-safety-checking #t)
      (integrate-procedures 'none)
+     (faster-arithmetic #f)
      (control-optimization #t)
      (parallel-assignment-optimization #t)
      (lambda-optimization #t)
@@ -241,7 +246,8 @@
        (benchmark-block-mode bbmode)))
     ((fast-unsafe) 
      (set-compiler-flags! 'fast-safe)
-     (runtime-safety-checking #f))
+     (runtime-safety-checking #f)
+     (faster-arithmetic #t))
     (else 
      (error "set-compiler-flags!: unknown mode " how))))
 
@@ -257,6 +263,7 @@
      (display-twobit-flag avoid-space-leaks))
     ((optimization)
      (display-twobit-flag integrate-procedures)
+     (display-twobit-flag faster-arithmetic)
      (display-twobit-flag control-optimization)
      (display-twobit-flag parallel-assignment-optimization)
      (display-twobit-flag lambda-optimization)

@@ -53,17 +53,30 @@
                   (begin (default-transcoder t)
                          (console-io/initialize))))))
 
+         ; FIXME: do all varieties support all these switches?
+
          (adjust-safety!
           (lambda (safety)
-            (case safety
-             ((0 1)
-              (eval '(catch-undefined-globals #f)               ; FIXME
-                    (interaction-environment))))))
+            (let* ((emode (get-feature 'execution-mode))
+                   (dargo? (eq? 'dargo emode))
+                   (settings
+                    (case safety
+                     ((0)  `(begin (runtime-safety-checking #f)
+                                   (faster-arithmetic #t)))
+                     ((1)  `(begin (runtime-safety-checking #t)
+                                   (catch-undefined-globals (not ,dargo?))
+                                   (faster-arithmetic #f)))
+                     (else `(begin (runtime-safety-checking #t)
+                                   (catch-undefined-globals #t)
+                                   (faster-arithmetic #f))))))
+              (eval settings (interaction-environment)))))
+
+         ; FIXME
 
          (adjust-optimization!
           (lambda (opt)
             (case opt
-             ((0 1)
+             ((0)
               (eval '(begin (control-optimization #f)
                             (global-optimization #f))
                     (interaction-environment))))))
@@ -103,10 +116,15 @@
                       (string-append (current-directory) "/" path)))))
 
             (let* ((path (get-feature 'library-path))
+                   (path (if (string=? path "")
+                             (getenv "LARCENYLIBPATH")  ; FIXME
+                             path))
+                   (path (if (string? path) path #f))
                    (os (get-feature 'os-name))
                    (separator (if (string=? os "Win32") #\; #\:)))
-              (for-each add-path!
-                        (reverse (list-of-paths path separator))))))
+              (if path
+                  (for-each add-path!
+                            (reverse (list-of-paths path separator)))))))
 
          (aeryn-mode!
           (lambda ()
@@ -131,11 +149,8 @@
           (writeln (herald)))
       (adjust-case-sensitivity!)
       (adjust-transcoder!)
-      (if (< (get-feature 'safety) 1)                     ; FIXME
-          (adjust-safety! 1))                             ; FIXME
-      (let ((path (get-feature 'library-path)))
-        (if (not (string=? path ""))
-            (add-require-path!)))
+      (adjust-safety! (get-feature 'safety))
+      (add-require-path!)
       (if (eq? emode 'err5rs)
           (begin (aeryn-mode!)
                  (writeln "ERR5RS mode (no libraries have been imported)")))
@@ -147,11 +162,9 @@
      ((dargo)
       (adjust-case-sensitivity!)
       (adjust-transcoder!)
-      (adjust-safety! 1)                                  ; FIXME
+      (adjust-safety! (get-feature 'safety))
       (adjust-optimization! 2)                            ; FIXME
-      (let ((path (get-feature 'library-path)))
-        (if (not (string=? path ""))
-            (add-require-path!)))
+      (add-require-path!)
       (aeryn-mode!)
       (parameterize ((error-handler
                       (lambda the-error

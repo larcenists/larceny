@@ -7,6 +7,7 @@
           include-procedure-names include-variable-names include-source-code
           avoid-space-leaks runtime-safety-checking catch-undefined-globals
           integrate-procedures
+          faster-arithmetic
           control-optimization
           parallel-assignment-optimization
           lambda-optimization
@@ -35,6 +36,7 @@
                       runtime-safety-checking
                       catch-undefined-globals
                       integrate-procedures
+                      faster-arithmetic
                       control-optimization
                       parallel-assignment-optimization
                       lambda-optimization
