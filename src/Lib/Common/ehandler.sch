@@ -182,14 +182,20 @@
           ((not (fixnum? arg2)) (not-a-fix name arg2))
           ((and (not (null? rest))
                 (not (fixnum? ((car rest) arg1 arg2))))
-           (error name ": fixnum overflow " arg1 " " arg2))
+           (raise-r6rs-exception (make-implementation-restriction-violation)
+                                 name
+                                 (errmsg 'msg:fixnumrange)
+                                 (list arg1 arg2)))
           (else (error "decode-system-error: confused about " name))))
 
   (define (fix-unop name arg1 . rest)
     (cond ((not (fixnum? arg1)) (not-a-fix name arg1))
           ((and (not (null? rest))
                 (not (fixnum? ((car rest) arg1))))
-           (error name ": fixnum overflow " arg1))
+           (raise-r6rs-exception (make-implementation-restriction-violation)
+                                 name
+                                 (errmsg 'msg:fixnumrange)
+                                 (list arg1)))
           (else (error "decode-system-error: confused about " name))))
 
   (define (flo-binop name arg1 arg2 . rest)

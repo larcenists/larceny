@@ -31,6 +31,8 @@
 ; .--
 ; .+:idx:idx
 ; .-:idx:idx
+; .+:fix:fix
+; .-:fix:fix
 ;
 ; .fxlognot
 ; .fxlogand
@@ -137,6 +139,33 @@
 (define op:UNSPECIFIED        'unspecified)
 (define op:FIXNUM?            'fixnum?)
 
+; The safety:checked? predicate is used to implement primops
+; whose code varies depending upon compiler switches
+; that determine the level of runtime safety checking.
+; The safety level is encoded as
+;
+; 0 -- unsafe (no runtime checking)
+; 1 -- R5RS-safe (check only if necessary to prevent a crash)
+; 2 -- R6RS-compatible (check as mandated by R6RS)
+; 3 -- R6RS-conforming (raise exceptions mandated by R6RS)
+;
+; Given a symbol that names a primop and one of the four encodings
+; above { 0, 1, 2, 3 }, returns #t if the current compiler switches
+; correspond to that encoding for that primop; returns #f otherwise.
+
+(define (safety:level? primop level)
+  (case level
+   ((0) (not (runtime-safety-checking)))
+   ((1) (and (runtime-safety-checking)
+             (or (and (memq primop
+                            '(fx<? fx<=? fx=? fx>? fx>=?
+                              fl<? fl<=? fl=? fl>? fl>=?
+                              fx+ fx- fx*
+                              fl+ fl- fl* fl/))
+                      (faster-arithmetic)))))
+   ((2) (and (runtime-safety-checking)
+             (not (safety:level? primop 1))))
+   ((3) #f)))
 
 ; Constant folding.
 ; Prototype, will probably change in the future.
@@ -149,6 +178,9 @@
 (define constant-folding-predicates cadr)
 (define constant-folding-folder caddr)
 
+; 0 -- (runtime-safety-checking #f)
+; 1 -- (and (runtime-safety-checking
+;
 ; FIXME: This table should hold more of the procedures that
 ; Twobit inserts prior to constant folding.
 
@@ -158,22 +190,13 @@
         (ratnum? (lambda (n)
                    (and (number? n)
                         (exact? n)
-                        (rational? n))))
-        (checked? (lambda (primop)
-                    (and (runtime-safety-checking)
-                         (if (faster-arithmetic)
-                             (not (memq primop
-                                        '(fx<? fx<=? fx=? fx>? fx>=?
-                                          fl<? fl<=? fl=? fl>? fl>=?
-                                          fx+ fx- fx*
-                                          fl+ fl- fl* fl/)))
-                             #t)))))
+                        (rational? n)))))
                            
     `(
       ; This makes some assumptions about the host system,
       ; notably that its char->integer procedure is compatible.
 
-      (.checked? (,always?) ,checked?)
+      (.safety:level? (,always? ,always?) ,safety:level?)
       
       (.fixnum? (,smallint?) ,smallint?)
       (.char? (,always?) ,char?)
@@ -304,6 +327,37 @@
 
 (define common-compiler-macros
   (list
+
+; The .case:safety macro is introduced only by compiler macros,
+; and expands into (the equivalent of) a cond expression whose
+; tests (after constant folding) are boolean constants, exactly
+; one of which is true.  See examples below.
+
+'
+(define-syntax .case:safety
+  (syntax-rules ()
+   ((_ primop (#t exp))
+    exp)
+   ((_ primop ((0 1 2 3) exp))
+    exp)
+   ((_ primop ((0 1 2) exp) clause ...)
+    (if (.safety:level? 'primop 3)
+        (.case:safety primop clause ...)
+        exp))
+   ((_ primop ((1 2 3) exp) clause ...)
+    (if (.safety:level? 'primop 0)
+        (.case:safety primop clause ...)
+        exp))
+   ((_ primop ((i j) exp) clause ...)
+    (if (.safety:level? 'primop i)
+        exp
+        (if (.safety:level? 'primop j)
+            exp
+            (.case:safety primop clause ...))))
+   ((_ primop ((i) exp) clause ...)
+    (if (.safety:level? 'primop i)
+        exp
+        (.case:safety primop clause ...)))))
 
 '
 (define-syntax .rewrite-eqv?
@@ -711,12 +765,14 @@
 `  ((_ larceny fx=? (fx=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fx=?)
-          (begin
-           (.check! (.fixnum? x) ,$ex.fx= x)
-           (.check! (.fixnum? y) ,$ex.fx= y)
-           (.=:fix:fix x y))
-          (.=:fix:fix x y))))
+      (.case:safety fx=?
+       ((0 1)
+        (.=:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx= x)
+         (.check! (.fixnum? y) ,$ex.fx= y)
+         (.=:fix:fix x y))))))
 `  ((_ larceny fx=? (fx=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -726,12 +782,14 @@
 `  ((_ larceny fx<? (fx<? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fx<?)
-          (begin
-           (.check! (.fixnum? x) ,$ex.fx< x)
-           (.check! (.fixnum? y) ,$ex.fx< y)
-           (.<:fix:fix x y))
-          (.<:fix:fix x y))))
+      (.case:safety fx<?
+       ((0 1)
+        (.<:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx< x)
+         (.check! (.fixnum? y) ,$ex.fx< y)
+         (.<:fix:fix x y))))))
 `  ((_ larceny fx<? (fx<? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -741,12 +799,14 @@
 `  ((_ larceny fx>? (fx>? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fx>?)
-          (begin
-           (.check! (.fixnum? x) ,$ex.fx> x)
-           (.check! (.fixnum? y) ,$ex.fx> y)
-           (.>:fix:fix x y))
-          (.>:fix:fix x y))))
+      (.case:safety fx>?
+       ((0 1)
+        (.>:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx> x)
+         (.check! (.fixnum? y) ,$ex.fx> y)
+         (.>:fix:fix x y))))))
 `  ((_ larceny fx>? (fx>? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -756,12 +816,14 @@
 `  ((_ larceny fx<=? (fx<=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fx<=?)
-          (begin
-           (.check! (.fixnum? x) ,$ex.fx<= x)
-           (.check! (.fixnum? y) ,$ex.fx<= y)
-           (.<=:fix:fix x y))
-          (.<=:fix:fix x y))))
+      (.case:safety fx<=?
+       ((0 1)
+        (.<=:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx<= x)
+         (.check! (.fixnum? y) ,$ex.fx<= y)
+         (.<=:fix:fix x y))))))
 `  ((_ larceny fx<=? (fx<=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -771,12 +833,14 @@
 `  ((_ larceny fx>=? (fx>=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fx>=?)
-          (begin
-           (.check! (.fixnum? x) ,$ex.fx>= x)
-           (.check! (.fixnum? y) ,$ex.fx>= y)
-           (.>=:fix:fix x y))
-          (.>=:fix:fix x y))))
+      (.case:safety fx>=?
+       ((0 1)
+        (.>=:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx>= x)
+         (.check! (.fixnum? y) ,$ex.fx>= y)
+         (.>=:fix:fix x y))))))
 `  ((_ larceny fx>=? (fx>=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -815,63 +879,73 @@
       (fxmax (if (fx>=? x y) x y) z)))
 
    ; These procedures accept only two arguments.
-   ; FIXME:  The calls to fx:check-result are necessary
-   ; in order to generate an &implementation-restriction
-   ; condition.
 
 `  ((_ larceny fx+ (fx+ ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fx+)
-          (begin
-           (.check! (fixnum? x) ,$ex.fx+ x y)
-           (.check! (fixnum? y) ,$ex.fx+ x y)
-           (let ((z (+ x y)))
-             (if (not (fixnum? z))
-                 (fx:check-result 'fx+ z))
-             (.check! (fixnum? z) ,$ex.fx+ x y)
-             z))
-          (.+:idx:idx x y))))
+      (.case:safety fx+
+       ((0)
+        (.+:idx:idx x y))
+       ((1)
+        (begin
+         (.check! (fixnum? x) ,$ex.fx+ x y)
+         (.check! (fixnum? y) ,$ex.fx+ x y)
+         (.+:idx:idx x y)))
+       (#t
+        (begin
+         (.check! (fixnum? x) ,$ex.fx+ x y)
+         (.check! (fixnum? y) ,$ex.fx+ x y)
+         (let ((z (.+:fix:fix x y)))
+           (.check! (fixnum? z) ,$ex.fx+ x y)
+           z))))))
+          
 
 `  ((_ larceny fx* (fx* ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fx*)
-          (begin
-           (.check! (fixnum? x) ,$ex.fx* x y)
-           (.check! (fixnum? y) ,$ex.fx* x y)
-           (let ((z (* x y)))
-             (if (not (fixnum? z))
-                 (fx:check-result 'fx* z))
-             (.check! (fixnum? z) ,$ex.fx* x y)
-             z))
-          (* x y))))
+      (.case:safety fx*                    ; FIXME
+       (#t
+        (begin
+         (.check! (fixnum? x) ,$ex.fx* x y)
+         (.check! (fixnum? y) ,$ex.fx* x y)
+         (let ((z (* x y)))
+           (.check! (fixnum? z) ,$ex.fx* x y)
+           z))))))
 
 `  ((_ larceny fx- (fx- ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fx-)
-          (begin
-           (.check! (fixnum? x) ,$ex.fx- x y)
-           (.check! (fixnum? y) ,$ex.fx- x y)
-           (let ((z (- x y)))
-             (if (not (fixnum? z))
-                 (fx:check-result 'fx- z))
-             (.check! (fixnum? z) ,$ex.fx- x y)
-             z))
-          (.-:idx:idx x y))))
+      (.case:safety fx-
+       ((0)
+         (.-:idx:idx x y))
+       ((1)
+        (begin
+         (.check! (fixnum? x) ,$ex.fx- x y)
+         (.check! (fixnum? y) ,$ex.fx- x y)
+         (.-:idx:idx x y)))
+       (#t
+        (begin
+         (.check! (fixnum? x) ,$ex.fx- x y)
+         (.check! (fixnum? y) ,$ex.fx- x y)
+         (let ((z (- x y)))
+           (.check! (fixnum? z) ,$ex.fx- x y)
+           z))))))
 
 `  ((_ larceny fx- (fx- ?x))
     (let ((x ?x))
-      (if (.checked? 'fx-)
-          (begin
-           (.check! (fixnum? x) ,$ex.fx-- x)
-           (let ((z (- 0 x)))
-             (if (not (fixnum? z))
-                 (fx:check-result 'fx- z))
-             (.check! (fixnum? z) ,$ex.fx-- x)
-             z))
-          (.-:idx:idx 0 x))))
+      (.case:safety fx-
+       ((0)
+        (.-:idx:idx 0 x))
+       ((1)
+        (begin
+         (.check! (fixnum? x) ,$ex.fx-- x)
+         (.-:idx:idx 0 x)))
+       (#t
+        (begin
+         (.check! (fixnum? x) ,$ex.fx-- x)
+         (let ((z (- 0 x)))
+           (.check! (fixnum? z) ,$ex.fx-- x)
+           z))))))
 
 `  ((_ larceny fxnot (fxnot ?x))
     (.fxlognot ?x))
@@ -916,12 +990,14 @@
 `  ((_ larceny fl=? (fl=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fl=?)
-          (begin
-           (.check! (flonum? x) ,$ex.fl= x)
-           (.check! (flonum? y) ,$ex.fl= y)
-           (= x y))
-          (= x y))))
+      (.case:safety fl=?
+       ((0 1)
+        (= x y))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl= x)
+         (.check! (flonum? y) ,$ex.fl= y)
+         (= x y))))))
 `  ((_ larceny fl=? (fl=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -931,12 +1007,14 @@
 `  ((_ larceny fl<? (fl<? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fl<?)
-          (begin
-           (.check! (flonum? x) ,$ex.fl< x)
-           (.check! (flonum? y) ,$ex.fl< y)
-           (< x y))
-          (< x y))))
+      (.case:safety fl<?
+       ((0 1)
+        (< x y))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl< x)
+         (.check! (flonum? y) ,$ex.fl< y)
+         (< x y))))))
 `  ((_ larceny fl<? (fl<? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -946,12 +1024,14 @@
 `  ((_ larceny fl>? (fl>? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fl>?)
-          (begin
-           (.check! (flonum? x) ,$ex.fl> x)
-           (.check! (flonum? y) ,$ex.fl> y)
-           (> x y))
-          (> x y))))
+      (.case:safety fl>?
+       ((0 1)
+        (> x y))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl> x)
+         (.check! (flonum? y) ,$ex.fl> y)
+         (> x y))))))
 `  ((_ larceny fl>? (fl>? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -961,12 +1041,14 @@
 `  ((_ larceny fl<=? (fl<=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fl<=?)
-          (begin
-           (.check! (flonum? x) ,$ex.fl<= x)
-           (.check! (flonum? y) ,$ex.fl<= y)
-           (<= x y))
-          (<= x y))))
+      (.case:safety fl<=?
+       ((0 1)
+        (<= x y))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl<= x)
+         (.check! (flonum? y) ,$ex.fl<= y)
+         (<= x y))))))
 `  ((_ larceny fl<=? (fl<=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -976,12 +1058,14 @@
 `  ((_ larceny fl>=? (fl>=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fl>=?)
-          (begin
-           (.check! (flonum? x) ,$ex.fl>= x)
-           (.check! (flonum? y) ,$ex.fl>= y)
-           (>= x y))
-          (>= x y))))
+      (.case:safety fl>=?
+       ((0 1)
+        (>= x y))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl>= x)
+         (.check! (flonum? y) ,$ex.fl>= y)
+         (>= x y))))))
 `  ((_ larceny fl>=? (fl>=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1028,12 +1112,14 @@
 `  ((_ larceny fl+ (fl+ ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fl+)
-          (begin
-           (.check! (flonum? x) ,$ex.fl+ x y)
-           (.check! (flonum? y) ,$ex.fl+ x y)
-           (+ x y))
-          (+ x y))))
+      (.case:safety fl+
+       ((0 1)
+        (+ x y))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl+ x y)
+         (.check! (flonum? y) ,$ex.fl+ x y)
+         (+ x y))))))
 `  ((_ larceny fl+ (fl+ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl+ x (fl+ y z))))
@@ -1045,52 +1131,62 @@
 `  ((_ larceny fl* (fl* ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fl*)
-          (begin
-           (.check! (flonum? x) ,$ex.fl* x y)
-           (.check! (flonum? y) ,$ex.fl* x y)
-           (* x y))
-          (* x y))))
+      (.case:safety fl*
+       ((0 1)
+        (* x y))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl* x y)
+         (.check! (flonum? y) ,$ex.fl* x y)
+         (* x y))))))
 `  ((_ larceny fl* (fl* ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl* x (fl* y z))))
 
 `  ((_ larceny fl- (fl- ?x))
     (let ((x ?x))
-      (if (.checked? 'fl-)
-          (begin
-           (.check! (flonum? x) ,$ex.fl-- x)
-           (-- x))
-          (-- x))))
+      (.case:safety fl-
+       ((0 1)
+        (-- x))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl-- x)
+         (-- x))))))
 `  ((_ larceny fl- (fl- ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fl-)
-          (begin
-           (.check! (flonum? x) ,$ex.fl- x y)
-           (.check! (flonum? y) ,$ex.fl- x y)
-           (- x y))
-          (- x y))))
+      (.case:safety fl-
+       ((0 1)
+        (- x y))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl- x y)
+         (.check! (flonum? y) ,$ex.fl- x y)
+         (- x y))))))
 `  ((_ larceny fl- (fl- ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl- x (fl+ y z))))
 
 `  ((_ larceny fl/ (fl/ ?x))
     (let ((x ?x))
-      (if (.checked? 'fl/)
-          (begin
-           (.check! (flonum? x) ,$ex.fl/ x)
-           (/ 1.0 x))
-          (/ 1.0 x))))
+      (.case:safety fl/
+       ((0 1)
+        (/ 1.0 x))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl/ x)
+         (/ 1.0 x))))))
 `  ((_ larceny fl/ (fl/ ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (if (.checked? 'fl/)
-          (begin
-           (.check! (flonum? x) ,$ex.fl/ x y)
-           (.check! (flonum? y) ,$ex.fl/ x y)
-           (/ x y))
-          (/ x y))))
+      (.case:safety fl/
+       ((0 1)
+        (/ x y))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl/ x y)
+         (.check! (flonum? y) ,$ex.fl/ x y)
+         (/ x y))))))
 `  ((_ larceny fl/ (fl/ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl/ x (fl* y z))))
