@@ -390,9 +390,9 @@
                   'binary)))
 
 (define (standard-error-port)
-  (let ((fd (osdep/open-console 'output)))
+  (let ((fd (osdep/open-console 'error)))
     (io/make-port console-io/ioproc
-                  (file-io/data fd "*console-output*")
+                  (file-io/data fd "*error-output*")
                   'output
                   'flush
                   'binary)))

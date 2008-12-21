@@ -150,10 +150,10 @@
 ; Larceny's old-style hashtables are now deprecated.
 
 (define (make-hashtable . args)
-  (display "WARNING: delegating to make-r6rs-hashtable;")
-  (newline)
-  (display "    for Larceny's old hashtables, call make-oldstyle-hashtable")
-  (newline)
+;  (display "WARNING: delegating to make-r6rs-hashtable;")
+;  (newline)
+;  (display "    for Larceny's old hashtables, call make-oldstyle-hashtable")
+;  (newline)
   (apply make-r6rs-hashtable args))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -249,13 +249,7 @@
 ;
 ; Implementation.
 ;
-; A hashtable is represented as a vector of the form
-;
-;     #(<doc> <count> <hasher> <equiv> <searcher> <htype>
-;       <buckets> <buckets1> <buckets0>
-;       <timestamp1> <timestamp0> <mutable> <lock>)
-;
-; where
+; A hashtable is represented as a record whose fields contain:
 ;
 ; <count> is the number of associations within the hashtable,
 ; <hasher> is the hash function,
@@ -595,9 +589,10 @@
                      (+ 1 attempts)))
               (else
                (if (issue-warnings)
-                   (begin (display "WARNING: hashtable too large ")
-                          (display "for this garbage collector")
-                          (newline)))
+                   (let ((out (current-error-port)))
+                     (display "WARNING: hashtable too large " out)
+                     (display "for this garbage collector" out)
+                     (newline out)))
                (let ((dst (make-vector 1 '())))
                  (rehash-buckets! src dst hf)
                  (buckets! ht dst)
@@ -643,15 +638,14 @@
                      j
                      (loop v (+ i 1) n (vector-ref v i) j)))
                 (else (error 'hashtable-entries
-                             "Illegal hashtable structure."))))
+                             "illegal hashtable structure"))))
         (let* ((j (if v0 (collect-entries v0 0) 0))
                (j (if v1 (collect-entries v1 j) j))
                (j (collect-entries v j)))
           (unlock! ht)
           (if (= j k)
               (values keys vals)
-              (begin (display "BUG in hashtable")
-                     (newline)
+              (begin (error 'ht-entries "BUG in hashtable")
                      (values '#() '#()))))))
 
     ; Returns the keys of the hashtable as a vector.

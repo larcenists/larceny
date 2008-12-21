@@ -58,23 +58,30 @@
 
 (define *conio-input-firsttime*)
 (define *conio-output-firsttime*)
+(define *conio-error-firsttime*)
 
 (define (osdep/initialize-console)     ; Must be called in every process.
   (set! *conio-input-firsttime* #t)
   (set! *conio-output-firsttime* #t)
+  (set! *conio-error-firsttime* #t)
   #t)
 
 (define (osdep/open-console io-mode)
   (case io-mode
-    ((input) 
+    ((input)
      (if *conio-input-firsttime* 
          (begin (set! *conio-input-firsttime* #f)
                 unix:stdin)
          (unix:open "/dev/tty" unix:open-read 0)))
-    ((output) 
+    ((output)
      (if *conio-output-firsttime*
          (begin (set! *conio-output-firsttime* #f)
                 unix:stdout)
+         (unix:open "/dev/tty" unix:open-write unix:create-mode)))
+    ((error)
+     (if *conio-error-firsttime*
+         (begin (set! *conio-error-firsttime* #f)
+                unix:stderr)
          (unix:open "/dev/tty" unix:open-write unix:create-mode)))
     (else
      (error "osdep/open-terminal: invalid mode: " io-mode)

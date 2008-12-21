@@ -79,9 +79,9 @@
     (assertion-violation who "operation no longer supported"))
 
   (define (deprecated-warning who)
-    (display "WARNING: ")
-    (display who)
-    (display " is no longer supported"))
+    (display "WARNING: " (standard-error-port))
+    (display who (standard-error-port))
+    (display " is no longer supported" (standard-error-port)))
 
   (set! read
         (lambda p

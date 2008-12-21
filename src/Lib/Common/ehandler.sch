@@ -95,11 +95,12 @@
 (define break-handler
   (make-parameter "break-handler"
                   (lambda (proc code-address)
-                    (display "Breakpoint: ")
-                    (display proc)
-                    (display " @ ")
-                    (display code-address)
-                    (newline))))
+                    (let ((out (current-error-port)))
+                      (display "Breakpoint: " out)
+                      (display proc out)
+                      (display " @ " out)
+                      (display code-address out)
+                      (newline out)))))
 
 ; The system signal handler is called when an asynchronous signal is received
 ; for which a lowlevel handler has been installed.  It takes one argument:
@@ -111,9 +112,10 @@
 (define system-signal-handler
   (make-parameter "system-signal-handler"
                   (lambda (sig)
-                    (display "Signal: ")
-                    (display sig)
-                    (newline))))
+                    (let ((out (current-error-port)))
+                      (display "Signal: " out)
+                      (display sig out)
+                      (newline out)))))
 
 ; DECODE-SYSTEM-ERROR takes an exception code and the exception argument
 ; values (RESULT, SECOND, THIRD), and a port onto which to print, and
@@ -221,7 +223,9 @@
              (error name " " (cadr rest) " cannot be stored in a " thing))
             (else
              (if (bignum? arg1)
-                 (begin (display "BIG: ") (bigdump* arg1) (newline)))
+                 (begin (display "BIG: " port)
+                        (bigdump* arg1 port)
+                        (newline port)))
              (error "decode-system-error: confused about " 
                     name " " arg1 " " arg2)))))
 

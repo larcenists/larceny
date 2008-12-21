@@ -15,6 +15,7 @@
 	 #t)
 	(else
 	 (display "; Dumping heap...") (newline)
+         (reset-all-hashtables!)
 	 (sys$dump-heap filename 
 			(lambda (argv)
 			  (command-line-arguments argv)

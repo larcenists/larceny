@@ -156,7 +156,7 @@
        (case arch
          ((0) "SPARC")
          ((1) "Standard-C")
-	 ((2) "X86-NASM")
+         ((2) "X86-NASM")
          ((3) "IAssassin")
          ((4) "CLR")
          (else "Unknown"))))
@@ -178,8 +178,8 @@
          ((4) "OSF")
          ((5) "Unix")
          ((6) "Generic")
-	 ((7) "BSD Unix")
-	 ((8) "MacOS X")
+         ((7) "BSD Unix")
+         ((8) "MacOS X")
          (else "Unknown"))))
     ((os-major)
      (get-feature feature$os-major))
@@ -301,13 +301,13 @@
     (lambda args
       (cond
         ((not (pair? args))
-                (getenv *name*))
+         (getenv *name*))
         ((not (null? (cdr args)))
-                (error *name* ": too many arguments."))
+         (error *name* ": too many arguments."))
         ((ok? (car args))
-                (setenv *name* (car args)))
+         (setenv *name* (car args)))
         (else
-                (error *name* ": Invalid value " (car args)))))))
+         (error *name* ": Invalid value " (car args)))))))
 
 (define (sro ptr hdr limit)
   (if (not (and (fixnum? ptr)
@@ -328,9 +328,9 @@
             (sys$cstring->string result)
             result))
       (let ((path (car rest)))
-	(if (not (string? path))
-	    (error "current-directory: " path " is not a string."))
-	(syscall syscall:chdir (sys$string->cstring path)))))
+        (if (not (string? path))
+            (error "current-directory: " path " is not a string."))
+        (syscall syscall:chdir (sys$string->cstring path)))))
 
 (define (sys$c-ffi-apply trampoline arg-encoding ret-encoding actuals)
   (syscall syscall:c-ffi-apply trampoline arg-encoding ret-encoding actuals))

@@ -26,7 +26,9 @@
   (console-io/initialize)
   (current-input-port (console-input-port))
   (current-output-port (console-output-port))
-  (current-error-port (console-output-port))
+; (current-error-port (console-output-port))
+  (current-error-port
+   (transcoded-port (standard-error-port) (default-transcoder)))
   (unspecified))
 
 (define (shutdown-io-system)

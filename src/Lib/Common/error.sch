@@ -15,16 +15,17 @@
   (let ((emode (cdr (assq 'execution-mode (system-features)))))
     (case emode
      ((dargo spanky)
-      (newline)
-      (display "Error: no handler for exception ")
-      (write x)
-      (newline)
-      (if (condition? x)
-          (display-condition x))
-      (newline)
-      (display "Terminating program execution.")
-      (newline)
-      (exit 1))
+      (let ((out (current-error-port)))
+        (newline out)
+        (display "Error: no handler for exception " out)
+        (write x out)
+        (newline out)
+        (if (condition? x)
+            (display-condition x out))
+        (newline out)
+        (display "Terminating program execution." out)
+        (newline out)
+        (exit 1)))
      (else
       ((error-handler) x)))))
 
@@ -102,7 +103,7 @@
      (lambda () (reset-handler old-handler)))))
 
 ; DECODE-ERROR takes a list (describing an error) and optionally
-; a port to print on (defaults to the current output port) and
+; a port to print on (defaults to the current error port) and
 ; prints a human-readable error message to the port based on the
 ; information in the error.
 ;
@@ -124,7 +125,7 @@
 
 (define (decode-error the-error . rest)
   (let ((who (car the-error))
-        (port (if (null? rest) (current-output-port) (car rest))))
+        (port (if (null? rest) (current-error-port) (car rest))))
     (cond ((and (number? who)
                 (list? the-error)
                 (= 4 (length the-error)))
@@ -215,14 +216,16 @@
       (begin
        (set! already-warned
              (cons name-of-deprecated-misfeature already-warned))
-       (display "WARNING: ")
-       (display name-of-deprecated-misfeature)
-       (newline)
-       (display "    is deprecated in Larceny.  See")
-       (newline)
-       (display "    ")
-       (display url:deprecated)
-       (newline))))
+       (if (issue-warnings)
+           (let ((out (current-error-port)))
+             (display "WARNING: " out)
+             (display name-of-deprecated-misfeature out)
+             (newline out)
+             (display "    is deprecated in Larceny.  See" out)
+             (newline out)
+             (display "    " out)
+             (display url:deprecated out)
+             (newline out))))))
 
 (define url:deprecated
   "http://larceny.ccs.neu.edu/larceny-trac/wiki/DeprecatedFeatures")

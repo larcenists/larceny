@@ -145,9 +145,10 @@
               ((r5rs) #t)
               ((err5rs)
                (if (issue-warnings)
-                   (begin (display "WARNING: output file already exists: ")
-                          (display filename)
-                          (newline))))
+                   (let ((out (current-error-port)))
+                     (display "WARNING: output file already exists: " out)
+                     (display filename out)
+                     (newline out))))
               (else
                (raise-r6rs-exception
                 (make-i/o-file-already-exists-error filename)
@@ -193,9 +194,10 @@
               ((r5rs) #t)
               ((err5rs)
                (if (issue-warnings)
-                   (begin (display "WARNING: output file already exists: ")
-                          (display filename)
-                          (newline))))
+                   (let ((out (current-error-port)))
+                     (display "WARNING: output file already exists: " out)
+                     (display filename out)
+                     (newline out))))
               (else
                (raise-r6rs-exception
                 (make-i/o-file-already-exists-error filename)
