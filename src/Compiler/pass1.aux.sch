@@ -58,6 +58,35 @@
             more)
   (m-quit (make-constant #f)))
 
+(define (twobit-warn msg . more)
+  (if (issue-warnings)
+      (begin
+       (display "WARNING from compiler:")
+       (newline)
+       (display msg)
+       (newline)
+       (for-each (lambda (x) (write x) (newline))
+                 more))))
+
+(define (twobit-error msg . more)
+  (display "ERROR detected by compiler:")
+  (newline)
+  (display msg)
+  (newline)
+  (for-each (lambda (x) (write x) (newline))
+            more)
+  (if (not (compile-despite-errors))
+      (reset)))
+
+(define (twobit-bug msg . more)
+  (display "BUG in compiler: ")
+  (newline)
+  (display msg)
+  (newline)
+  (for-each (lambda (x) (write x) (newline))
+            more)
+  (reset))
+
 ; Given a <formals>, returns a list of bound variables.
 
 '

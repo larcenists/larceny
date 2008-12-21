@@ -98,10 +98,10 @@
 ; Larceny's old-style hashtables are now deprecated.
 
 (define (make-hashtable . args)
-  (display "WARNING: delegating to make-r6rs-hashtable;")
-  (newline)
-  (display "    for Larceny's old hashtables, call make-oldstyle-hashtable")
-  (newline)
+  ;(display "WARNING: delegating to make-r6rs-hashtable;")
+  ;(newline)
+  ;(display "    for Larceny's old hashtables, call make-oldstyle-hashtable")
+  ;(newline)
   (apply make-r6rs-hashtable args))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

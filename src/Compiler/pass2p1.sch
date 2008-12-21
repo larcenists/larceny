@@ -111,7 +111,7 @@
         ((variable? exp) (notepad-var-add! notepad (variable.name exp)) exp)
         ((begin? exp) (simplify-sequential exp notepad))
         ((call? exp) (simplify-call exp notepad))
-        (else (error "Unrecognized expression" exp))))
+        (else (twobit-bug "unrecognized expression" exp))))
 
 ;(define (simplify exp notepad)
 ;  (case (car exp)

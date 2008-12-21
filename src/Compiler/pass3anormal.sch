@@ -176,7 +176,7 @@
      ((assignment? E)  (anf-assignment E bindings regvars))
      ((conditional? E) (anf-conditional E bindings regvars))
      ((call? E)        (anf-call E bindings regvars))
-     (else (error "Unrecognized expression" E))))
+     (else (twobit-bug "unrecognized expression" E))))
 
   (define anf:dummy (string->symbol "RESULT"))
   
@@ -486,15 +486,6 @@
   ; Given a call whose procedure is a lambda expression that has
   ; a rest argument, return a genuine let expression.
   
-  (define (normalize-let-error exp)
-    (if (issue-warnings)
-        (begin (display "WARNING from compiler: ")
-               (display "Wrong number of arguments ")
-               (display "to lambda expression")
-               (newline)
-               (pretty-print (make-readable exp) #t)
-               (newline))))
-  
   (define (normalize-let exp)
     (let* ((L (call.proc exp)))
       (let loop ((formals (lambda.args L))
@@ -529,6 +520,10 @@
                      newformals
                      newargs))))))
   
+  (define (normalize-let-error exp)
+    (twobit-error "Wrong number of arguments to lambda expression"
+                  (make-readable exp #t)))
+  
   ; For heuristic use only.
   ; An expression is complicated unless it can probably be evaluated
   ; without saving and restoring any registers, even if it occurs in
@@ -543,24 +538,25 @@
             #t
             (cond
               ((constant? exp)    #f)
-              ((lambda? exp)   #f)
-              ((assignment? exp)     (complicated? (assignment.rhs exp)))
-              ((conditional? exp)       (or (complicated? (if.test exp))
-                              (complicated? (if.then exp))
-                              (complicated? (if.else exp))))
-              ((variable? exp) #f)
-              ((begin? exp) (some? complicated?
-                                     (begin.exprs exp)))
-              ((call? exp) (let ((proc (call.proc exp)))
-                             (if (cond ((variable? proc)
-                                        (prim-entry (variable.name proc)))
-                                       ((lambda? proc)
-                                        (not (complicated? (lambda.body proc))))
-                                       (else #f))
-                                 (some? complicated?
-                                        (call.args exp))
-                                 #t)))
-              (else (error "Unrecognized expression" exp)))))
+              ((lambda? exp)      #f)
+              ((assignment? exp)  (complicated? (assignment.rhs exp)))
+              ((conditional? exp) (or (complicated? (if.test exp))
+                                      (complicated? (if.then exp))
+                                      (complicated? (if.else exp))))
+              ((variable? exp)    #f)
+              ((begin? exp)       (some? complicated?
+                                         (begin.exprs exp)))
+              ((call? exp)
+               (let ((proc (call.proc exp)))
+                 (if (cond ((variable? proc)
+                            (prim-entry (variable.name proc)))
+                           ((lambda? proc)
+                            (not (complicated? (lambda.body proc))))
+                           (else #f))
+                     (some? complicated?
+                            (call.args exp))
+                     #t)))
+              (else (twobit-bug "Unrecognized expression" exp)))))
       (complicated? exp)))
   
   ; New temporaries.
@@ -609,7 +605,6 @@
      (set! return (lambda () (k #f)))
      (let ((anf (A-normal-form E)))
        (if (> temp-counter anf-large)
-           (begin (display "ANF size: ")
-                  (write temp-counter)
-                  (newline)))
+           (twobit-warn (string-append "ANF size: "
+                                       (number->string temp-counter))))
        anf))))

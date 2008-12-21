@@ -392,14 +392,11 @@
 
 (define (pass2-error i . etc)
   (let ((msg (vector-ref pass2-error-messages i)))
-    (if (compile-despite-errors)
-        (begin (display "ERROR detected by compiler: ")
-               (newline)
-               (display msg)
-               (display " ")
-               (write etc)
-               (newline))
-        (apply assertion-violation 'compiler msg etc))))
+    (case i
+     ((0)
+      (apply twobit-bug msg etc))
+     (else
+      (apply twobit-error msg etc)))))
 
 (define pass2-error-messages
   '#("System error: violation of an invariant in pass 2 "

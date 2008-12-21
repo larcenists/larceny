@@ -34,6 +34,7 @@
 ; Compiler and assembler switches that are likely to interact.
 (define-options optimization-switches
   integrate-procedures
+  faster-arithmetic
   benchmark-mode
 ;  benchmark-block-mode
 ;  global-optimization ; must be on for some of these tests

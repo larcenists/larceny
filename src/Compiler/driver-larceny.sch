@@ -21,14 +21,12 @@
                                   *fasl-file-type*)))
           (user
            (assembly-user-data)))
-      (if (and (eq? (integrate-procedures) 'none)
-               (issue-warnings))
-          (begin 
-            (display "WARNING from compiler: ")
-            (display "integrate-procedures = none")
-            (newline)
-            (display "Performance is likely to be poor.")
-            (newline)))
+      (if (eq? (integrate-procedures) 'none)
+          (twobit-warn
+           (string-append
+            "integrate-procedures = none"
+            (string #\newline)
+            "Performance is likely to be poor.")))
       (let ((syntaxenv
              (syntactic-copy
               (environment-syntax-environment

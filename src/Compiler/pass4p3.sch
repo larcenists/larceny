@@ -482,7 +482,7 @@
           (backwards instructions filtered))
         
         (define (local-optimization-error op)
-          (error "Compiler bug: local optimization" op))
+          (twobit-bug "local optimization" op))
         
         (vector-fill! registers #f)
         (forwards instructions '())))))

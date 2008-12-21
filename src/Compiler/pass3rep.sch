@@ -412,7 +412,7 @@
     
     (let loop ()
       (cond ((> aeval:calls aeval:threshold)
-             (display "REPRESENTATION INFERENCE widening to object")
+             (twobit-warn "REPRESENTATION INFERENCE widening to object")
              (newline)
              (set! changed? #f)
              (set! abandoned? #t))

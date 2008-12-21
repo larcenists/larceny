@@ -408,7 +408,7 @@
   (let ((instruction (caddr entry)))
     (if (or (not (eq? #f (cadr entry)))
             (not (eq? $nop (car instruction))))
-        (error "Compiler bug: cgframe" entry)
+        (twobit-bug "cgframe" entry)
         (begin
          (set-car! (cdr entry) n)
          (set-car! instruction (cadr instruction))
@@ -512,7 +512,7 @@
           (if (eq? #f n)
               (let ((n (cgframe:unused-slot frame entry)))
                 (cgframe:slot.offset-set! entry n))))
-        (error "Compiler bug: cgframe-touch!" frame var))))
+        (twobit-bug "cgframe-touch!" frame var))))
 
 (define (cgframe-rename! frame alist)
   (for-each (lambda (entry)

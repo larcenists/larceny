@@ -15,7 +15,7 @@
           ((eq? name name:CALL-WITH-VALUES)
            (cg-call-with-values output exp target regs frame env tail?))
           (else
-           (error "Compiler bug: cg-special" (make-readable exp))))))
+           (twobit-bug "cg-special" (make-readable exp))))))
 
 (define (cg-special-result output exp target regs frame env tail?)
   (let ((name (variable.name (call.proc exp))))
@@ -27,7 +27,7 @@
           ((eq? name name:CALL-WITH-VALUES)
            (cg-call-with-values-result output exp target regs frame env tail?))
           (else
-           (error "Compiler bug: cg-special-result" (make-readable exp))))))
+           (twobit-bug "cg-special-result" (make-readable exp))))))
 
 (define (cg-check output exp target regs frame env tail?)
   (cg0 output (car (call.args exp)) 'result regs frame env #f)
@@ -87,7 +87,7 @@
                    (loop (cdr registers)
                          (cdr exps)
                          (cons (car registers) operands))))))
-        (error "Compiler bug: runtime check" (make-readable exp)))))
+        (twobit-bug "runtime check" (make-readable exp)))))
 
 ; Given an assembly stream and the description of a trap as recorded
 ; by cg-check above, generates a non-continuable trap at that label for
@@ -113,7 +113,7 @@
                                    (cadr registers)
                                    (caddr registers)
                                    exn))
-                 (else "Compiler bug: trap")))
+                 (else "trap")))
               ((number? (car operands))
                (loop (cdr operands)
                      (cons (car operands) registers)
@@ -204,7 +204,7 @@
   
   (if (< (length args) *nregs*)
       (eval-loop (cdr args) '() '())
-      (error "Bug detected by cg-primop-args" args)))
+      (twobit-bug "cg-primop-args" args)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -274,7 +274,7 @@
                  (cgframe-release! frame t)
                  (gen! output $args>= n)))))
         (else
-         (error "Compiler bug: cg-return-point" cont))))
+         (twobit-bug "cg-return-point" cont))))
 
 ; Given a call to values, generates optimized code for it.
 
@@ -567,5 +567,5 @@
              (gen-store! output frame 1 v)
              (cg0 output exp target regs frame env tail?)))
           (else
-           (error "Compiler bug: call-with-values-result")))))
+           (twobit-bug "call-with-values-result")))))
 

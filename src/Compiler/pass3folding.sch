@@ -177,10 +177,10 @@
                                (else (aeval1-error)))))
                       (else
                        (aeval1-error)))))))
-        (else (error "Unrecognized expression." exp))))
+        (else (twobit-bug "unrecognized expression." exp))))
 
     (define (aeval1-error)
-      (error "Compiler bug: constant propagation (aeval1)"))
+      (twobit-bug "Compiler bug: constant propagation (aeval1)"))
     
     ; Combines two <symbolic>s.
     
@@ -265,7 +265,7 @@
                        (collect! proc)
                        #t))))))
         (else
-         (error "Unrecognized expression" exp))))
+         (twobit-bug "unrecognized expression" exp))))
 
     (for-each (lambda (node)
                 (let* ((name (callgraphnode.name node))
@@ -544,7 +544,7 @@
                   (call.proc-set! exp proc)
                   (call.args-set! exp args)
                   exp))))
-         (else (error "Unrecognized expression" exp))))
+         (else (twobit-bug "unrecognized expression" exp))))
 
     (fold! L)
     changed?))

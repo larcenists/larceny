@@ -186,7 +186,7 @@
                           (inline (lambda.body proc) tail? budget))
                          (else
                           (inline proc #f budget))))))
-              (else (error "Unrecognized expression" exp)))
+              (else (twobit-bug "unrecognized expression" exp)))
             -1))
     
     (if (and #f debugging?)

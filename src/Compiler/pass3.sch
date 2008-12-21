@@ -94,11 +94,8 @@
       (if (not anf)
           (let ((msg1 "ANF size greater than ")
                 (msg2 "Some global optimizations were not performed."))
-            (display msg1)
-            (display anf-threshold)
-            (newline)
-            (display msg2)
-            (newline)))
+            (twobit-warn (string-append msg1 (number->string anf-threshold))
+                         msg2)))
       anf))
 
   (define (phase1 exp)

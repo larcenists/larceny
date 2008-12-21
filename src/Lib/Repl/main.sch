@@ -171,6 +171,7 @@
                         (parameterize ((print-length 7)
                                        (print-level 7))
                           (decode-and-raise-r6rs-exception the-error)))))
+        (eval '(issue-warnings #f) (interaction-environment))
         (let* ((pgm (get-feature 'top-level-program))
                (input (if (string=? pgm "")
                           (do ((x (read) (read))

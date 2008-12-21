@@ -16,7 +16,7 @@
 (define (cg-call/cont output exp target regs frame env tail? cont)
   (define (assert-normal-continuation!)
     (if cont
-        (error "Compiler bug: cg-call/cont" cont)))
+        (twobit-bug "cg-call/cont" cont)))
   (let ((proc (call.proc exp)))
     (cond ((and (lambda? proc)
                 (list? (lambda.args proc)))
@@ -40,7 +40,7 @@
                      (cg-known-call output
                                     exp
                                     target regs frame env tail? cont))
-                    (else (error "Bug in cg-call" exp))))))))
+                    (else (twobit-bug "cg-call" exp))))))))
 
 (define (cg-unknown-call output exp target regs frame env tail? cont)
   (let* ((proc (call.proc exp))
@@ -214,8 +214,8 @@
                                            entry
                                            args
                                            regs frame env))
-                 (else (error "Bug detected by cg-integrable-call"
-                              (make-readable exp))))
+                 (else (twobit-bug "cg-integrable-call"
+                                   (make-readable exp))))
                (if tail?
                    (begin (gen-pop! output frame)
                           (gen! output $return)
@@ -223,8 +223,10 @@
                    (cg-move output frame regs 'result target)))
         (if (negative? (entry.arity entry))
             (cg-special output exp target regs frame env tail?)
-            (error "Wrong number of arguments to integrable procedure"
-                   (make-readable exp))))))
+            (begin
+             (twobit-error "Wrong number of arguments to integrable procedure"
+                           (make-readable exp))
+             'result)))))
 
 (define (cg-integrable-call2 output entry args regs frame env)
   (let ((op (entry.op entry)))
@@ -385,7 +387,7 @@
   
   (if (< (length args) *nregs*)
       (eval-loop (cdr args) '() '())
-      (error "Bug detected by cg-primop-args" args)))
+      (twobit-bug "cg-primop-args" args)))
 
 
 ; Parallel assignment.
@@ -537,7 +539,7 @@
                                      (complicated? exp env))
                                    (call.args exp))
                             #t)))
-   (else (error "Unrecognized expression" exp))))
+   (else (twobit-bug "unrecognized expression" exp))))
 
 ; Returns a permutation of the src list, permuted the same way the
 ; key list was permuted to obtain newkey.
@@ -650,4 +652,4 @@
                             (map (lambda (arg)
                                    (freevars2 arg env))
                                  (call.args exp)))))
-        (else (error "Unrecognized expression" exp))))
+        (else (twobit-bug "unrecognized expression" exp))))
