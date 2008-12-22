@@ -21,7 +21,7 @@
 (or (condition?
      (call-with-current-continuation
       (lambda (abort)
-        (guard (c (#t (display-condition c) (abort c)))
+        (guard (c (#t #;(display-condition c) (abort c)))
           (error "This is an error" "with info" 37)
           #f))))
     (fail 'error))

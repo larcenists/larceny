@@ -211,12 +211,15 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define issue-deprecated-warnings?
+  (make-parameter "issue-deprecated-warnings?" #t))
+
 (define (issue-warning-deprecated name-of-deprecated-misfeature)
   (if (not (memq name-of-deprecated-misfeature already-warned))
       (begin
        (set! already-warned
              (cons name-of-deprecated-misfeature already-warned))
-       (if (issue-warnings)
+       (if (issue-deprecated-warnings?)
            (let ((out (current-error-port)))
              (display "WARNING: " out)
              (display name-of-deprecated-misfeature out)

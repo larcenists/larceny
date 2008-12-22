@@ -1263,6 +1263,8 @@
 
   ;; common and less common extensions to R4RS
 
+  (environment-set! larc
+                    'issue-deprecated-warnings? issue-deprecated-warnings?)
   (environment-set! larc 'issue-warning-deprecated issue-warning-deprecated)
   (environment-set! larc 'assertion-violation assertion-violation)
   (environment-set! larc 'error error)

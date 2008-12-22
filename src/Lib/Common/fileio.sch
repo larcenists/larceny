@@ -144,7 +144,7 @@
              (case exec-mode
               ((r5rs) #t)
               ((err5rs)
-               (if (issue-warnings)
+               (if (issue-deprecated-warnings?)
                    (let ((out (current-error-port)))
                      (display "WARNING: output file already exists: " out)
                      (display filename out)
@@ -193,7 +193,7 @@
              (case exec-mode
               ((r5rs) #t)
               ((err5rs)
-               (if (issue-warnings)
+               (if (issue-deprecated-warnings?)
                    (let ((out (current-error-port)))
                      (display "WARNING: output file already exists: " out)
                      (display filename out)

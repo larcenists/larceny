@@ -23,6 +23,7 @@
   (setup-interrupt-and-error-handlers)
   (evaluator interpret)
   (issue-warnings #t)              ; Warnings are off during bootstrapping
+  (issue-deprecated-warnings? #t)   ; Warnings are off during bootstrapping
   (interactive-entry-point argv))
 
 
@@ -171,8 +172,8 @@
                         (parameterize ((print-length 7)
                                        (print-level 7))
                           (decode-and-raise-r6rs-exception the-error))))
-                     (issue-warnings #f))
-        ; FIXME:  Twobit has its own issue-warnings switch.
+                     (issue-deprecated-warnings? #f))
+        ; Twobit has its own issue-warnings switch.
         (eval '(issue-warnings #f) (interaction-environment))
         (let* ((pgm (get-feature 'top-level-program))
                (input (if (string=? pgm "")

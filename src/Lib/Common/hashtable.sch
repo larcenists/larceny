@@ -588,11 +588,11 @@
                      (gc-counter)
                      (+ 1 attempts)))
               (else
-               (if (issue-warnings)
-                   (let ((out (current-error-port)))
-                     (display "WARNING: hashtable too large " out)
-                     (display "for this garbage collector" out)
-                     (newline out)))
+               ; FIXME: should this raise a warning exception?
+               (let ((out (current-error-port)))
+                 (display "WARNING: hashtable too large " out)
+                 (display "for this garbage collector" out)
+                 (newline out))
                (let ((dst (make-vector 1 '())))
                  (rehash-buckets! src dst hf)
                  (buckets! ht dst)

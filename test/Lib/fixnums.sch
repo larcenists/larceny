@@ -126,19 +126,19 @@
   (define fxneg (lambda (a) (fx-- a)))
   
   (allof "Fixnum error cases"
-   (mustfail "add#1" fxadd 10 1.5)                  ; 1.5 is not a fixnum
+   (mustfail "add#1" fxadd 10 1.5)                ; 1.5 is not a fixnum
    (mustfail "add#2" fxadd 413414123 123456789)   ; barely overflows (positive)
    (mustfail "add#3" fxadd -413414124 -123456789) ; barely overflows (negative)
 
-   (mustfail "sub#1" fxsub 10 1.5)                  ; 1.5 is not a fixnum
+   (mustfail "sub#1" fxsub 10 1.5)                ; 1.5 is not a fixnum
    (mustfail "sub#2" fxsub -413414124 123456789)  ; barely overflows (negative)
    (mustfail "sub#3" fxsub 413414123 -123456789)  ; barely overflows (positive)
 
    (mustfail "neg#1" fxneg -536870912)            ; barely overflows (positive)
    (mustfail "neg#2" fxneg 1.5)                   ; 1.5 is not a fixnum
 
-   (mustfail "mul#1" fxmul 10 1.5)                  ; 1.5 is not a fixnum
-   (mustfail "mul#2" fxmul 524288 1024)                  ; barely overflows (positive)
+   (mustfail "mul#1" fxmul 10 1.5)                ; 1.5 is not a fixnum
+   (mustfail "mul#2" fxmul 524288 1024)           ; barely overflows (positive)
    (mustfail "mul#3" fxmul 524288 -1025)          ; overflows (negative)
    ))
 

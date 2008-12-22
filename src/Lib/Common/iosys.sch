@@ -984,7 +984,7 @@
 
 (define (io/make-transcoder codec eol-style handling-mode)
   (define (local-error msg irritant)
-    (if (issue-warnings)
+    (if (issue-deprecated-warnings?)
         (let ((out (current-error-port)))
           (display "Warning: " out)
           (display msg out)
