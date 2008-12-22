@@ -191,12 +191,22 @@
 ;    (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
 
 ;    (.=:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;   ;(.=:obj:flo       2 =:obj:flo        #f            -1 ,:immortal ,:none)
-;   ;(.=:flo:obj       2 =:flo:obj        #f            -1 ,:immortal ,:none)
-;    (.<:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.<=:flo:flo      2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.>:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.>=:flo:flo      2 =:flo:flo        #f            -1 ,:immortal ,:none)
+;    (.<:flo:flo       2 <:flo:flo        #f            -1 ,:immortal ,:none)
+;    (.<=:flo:flo      2 <=:flo:flo       #f            -1 ,:immortal ,:none)
+;    (.>:flo:flo       2 >:flo:flo        #f            -1 ,:immortal ,:none)
+;    (.>=:flo:flo      2 >=:flo:flo       #f            -1 ,:immortal ,:none)
+
+     (.+:flo:flo       2 +                #f            -1 ,:immortal ,:none)
+     (.-:flo:flo       2 -                #f            -1 ,:immortal ,:none)
+     (.*:flo:flo       2 *                #f            -1 ,:immortal ,:none)
+     (./:flo:flo       2 /                #f            -1 ,:immortal ,:none)
+
+     (.=:flo:flo       2 =                #f            -1 ,:immortal ,:none)
+     (.<:flo:flo       2 <                #f            -1 ,:immortal ,:none)
+     (.<=:flo:flo      2 <=               #f            -1 ,:immortal ,:none)
+     (.>:flo:flo       2 >                #f            -1 ,:immortal ,:none)
+     (.>=:flo:flo      2 >=               #f            -1 ,:immortal ,:none)
+
     )))
 
 (define $r4rs-integrable-procedures$

@@ -57,8 +57,8 @@
 %endif
 	int3
 	add	eax, %2
-%%L1:	
-%endmacro	
+%%L1:
+%endmacro
 		
 ;;; The return address of the bottommost frame in the stack cache points
 ;;; to i386_stack_underflow; all we do is call the C function that
@@ -370,6 +370,22 @@ PUBLIC i386_bytevector_like_fill
 PUBLIC i386_bytevector_like_compare
 	MC2g	mc_bytevector_like_compare
 
+;;; general_tag2_predicate tag1 tag2
+
+%macro general_tag2_predicate 2
+	lea	RESULT, [RESULT - %1]
+	test	RESULT_LOW, 7
+	jnz	%%RETFALSE
+	mov	RESULT, [RESULT]
+	cmp	RESULT_LOW, %2
+	jnz	%%RETFALSE
+	mov	RESULT, TRUE_CONST
+	ret
+%%RETFALSE
+	mov	RESULT, FALSE_CONST
+	ret
+%endmacro
+
 ;;; generic_fp_unary opcode
 	
 %macro generic_fp_unary 1
@@ -401,6 +417,37 @@ PUBLIC i386_bytevector_like_compare
 	lea	RESULT, [RESULT - (8 - BVEC_TAG)]
 %endmacro
 
+;;; generic_fl_cmp eql-lit less-lit greater-lit indeterm-lit
+;;; performs no checking: the operands are known to be flonums
+	
+%macro generic_fl_cmp 4
+	;mov	TEMP, SECOND	; TEMP aliases SECOND
+	lea	RESULT, [RESULT + (8 - BVEC_TAG)]
+	lea	TEMP, [TEMP + (8 - BVEC_TAG)]
+	fld qword [TEMP]
+	fld qword [RESULT]
+	fcompp			; compare and pop both ST(0) & ST(1)
+	fstsw ax		; retrieve cmp result in ax
+	fwait
+	sahf			; transfer ax to cond codes
+	ja	%%GREATER
+	jb	%%LESS
+	jnz	%%INDETERM
+	;jz	%%EQL		; fall into %%EQL case
+%%EQL:
+	mov	RESULT, %1
+	ret
+%%LESS:
+	mov	RESULT, %2
+	ret
+%%GREATER:
+	mov	RESULT, %3
+	ret
+%%INDETERM:
+	mov	RESULT, %4
+	ret
+%endmacro
+	
 ;;; generic_fp_cmp eql-lit less-lit greater-lit indeterm-lit
 %macro generic_fp_cmp 4
 	mov	[GLOBALS+G_SECOND], SECOND
@@ -425,10 +472,10 @@ PUBLIC i386_bytevector_like_compare
 	fstsw ax		; retreive cmp result in ax
 	fwait
 	sahf			; transfer ax to cond codes
-	jpe 	%%INDETERM
 	ja	%%GREATER
 	jb	%%LESS
-	jz	%%EQL
+	jnz	%%INDETERM
+	;jz	%%EQL		; fall into %%EQL case
 %%EQL:
 	mov	RESULT, %1
 	ret
@@ -449,7 +496,36 @@ PUBLIC i386_bytevector_like_compare
 %endmacro
 	
 	
+;;; generic_fl_op opcode (binary operations)
+;;; performs no checking: the operands are known to be flonums
+	
+%macro generic_fl_op 1
+	lea	RESULT, [RESULT + (8 - BVEC_TAG)]
+	mov	[GLOBALS+G_SECOND], SECOND ; TEMP aliases SECOND
+	mov	TEMP, [GLOBALS+G_ETOP]
+	add	TEMP, 16+SCE_BUFFER	; try alloc 4 words
+	cmp	TEMP, CONT
+	ja	%%NOROOM
+	fld  qword [RESULT] 	; load the first fp arg
+	sub	TEMP, SCE_BUFFER
+	mov	RESULT, TEMP
+	mov	[GLOBALS+G_ETOP], TEMP ; commit the allocation
+	mov	TEMP, [GLOBALS+G_SECOND]
+	mov  dword  [RESULT-16], (12 << 8 | FLONUM_HDR)	; stash header bits
+	lea	TEMP, [TEMP + (8 - BVEC_TAG)]
+	%1   qword [TEMP]	; perform the fp computation
+	fstp qword [RESULT-8]	; store the computation result in flo object
+	lea	RESULT, [RESULT-16+BVEC_TAG] ; set the tag 
+	ret
+%%NOROOM:	
+	;; No room to allocate float; give up
+	;; Restore RESULT and SECOND before invoking C support routine
+	lea	RESULT, [RESULT - (8 - BVEC_TAG)]
+	mov	SECOND, [GLOBALS+G_SECOND]
+%endmacro
+			
 ;;; generic_fp_op opcode (binary operations)
+;;; performs full checking
 	
 %macro generic_fp_op 1
 	mov	[GLOBALS+G_SECOND], SECOND
@@ -491,24 +567,41 @@ PUBLIC i386_bytevector_like_compare
 %endmacro
 			
 	;; On entry, GLOBALS pointer is off by 4
+	
+PUBLIC i386_fladd
+%ifdef OPTIMIZE_MILLICODE
+	generic_fl_op fadd
+%endif
 PUBLIC i386_add
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_op fadd
 %endif
 	MC2gk	mc_add
 	
+PUBLIC i386_flsub
+%ifdef OPTIMIZE_MILLICODE
+	generic_fl_op fsub
+%endif
 PUBLIC i386_sub
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_op fsub
 %endif
 	MC2gk	mc_sub
 	
+PUBLIC i386_flmul
+%ifdef OPTIMIZE_MILLICODE
+	generic_fl_op fmul
+%endif
 PUBLIC i386_mul
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_op fmul
 %endif
 	MC2gk	mc_mul
 	
+PUBLIC i386_fldiv
+%ifdef OPTIMIZE_MILLICODE
+	generic_fl_op fdiv
+%endif
 PUBLIC i386_div
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_op fdiv
@@ -533,30 +626,50 @@ PUBLIC i386_abs
 %endif
 	MCgk	mc_abs
 	
+PUBLIC i386_flequalp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fl_cmp TRUE_CONST, FALSE_CONST, FALSE_CONST, FALSE_CONST
+%endif
 PUBLIC i386_equalp
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_cmp TRUE_CONST, FALSE_CONST, FALSE_CONST, FALSE_CONST
 %endif
 	MC2gk	mc_equalp
 	
+PUBLIC i386_fllessp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fl_cmp FALSE_CONST, TRUE_CONST, FALSE_CONST, FALSE_CONST
+%endif
 PUBLIC i386_lessp
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_cmp FALSE_CONST, TRUE_CONST, FALSE_CONST, FALSE_CONST
 %endif
 	MC2gk	mc_lessp
 	
+PUBLIC i386_flless_or_equalp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fl_cmp TRUE_CONST, TRUE_CONST, FALSE_CONST, FALSE_CONST
+%endif
 PUBLIC i386_less_or_equalp
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_cmp TRUE_CONST, TRUE_CONST, FALSE_CONST, FALSE_CONST
 %endif
 	MC2gk	mc_less_or_equalp
 	
+PUBLIC i386_flgreaterp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fl_cmp FALSE_CONST, FALSE_CONST, TRUE_CONST, FALSE_CONST
+%endif
 PUBLIC i386_greaterp
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_cmp FALSE_CONST, FALSE_CONST, TRUE_CONST, FALSE_CONST
 %endif
 	MC2gk	mc_greaterp
 	
+PUBLIC i386_flgreater_or_equalp
+%ifdef OPTIMIZE_MILLICODE
+	generic_fl_cmp TRUE_CONST, FALSE_CONST, TRUE_CONST, FALSE_CONST
+%endif
 PUBLIC i386_greater_or_equalp
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_cmp TRUE_CONST, FALSE_CONST, TRUE_CONST, FALSE_CONST
@@ -598,6 +711,9 @@ PUBLIC i386_exactp
 	
 PUBLIC i386_inexactp
 	MCg	mc_inexactp
+
+PUBLIC i386_flonump
+	general_tag2_predicate BVEC_TAG, FLONUM_HDR
 	
 PUBLIC i386_exception				; Exn encoded in instr stream
 	mov	[GLOBALS+G_SECOND], SECOND

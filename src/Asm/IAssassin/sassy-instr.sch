@@ -1720,6 +1720,16 @@
              ((502 -:idx:idx) ia86.t_op2_502) 
              ((503 -:fix:fix) ia86.t_op2_503)
              ((700 bytevector-ref:trusted) ia86.t_op2_700) 
+             ; FIXME: still using generic comparisons
+             ((=:flo:flo) ia86.t_op2_eq_floflo)
+             ((<:flo:flo) ia86.t_op2_lt_floflo)
+             ((<=:flo:flo) ia86.t_op2_lteq_floflo)
+             ((>=:flo:flo) ia86.t_op2_gteq_floflo)
+             ((>:flo:flo) ia86.t_op2_gt_floflo)
+             ((+:flo:flo) ia86.t_op2_add_floflo)
+             ((-:flo:flo) ia86.t_op2_sub_floflo)
+             ((*:flo:flo) ia86.t_op2_mul_floflo)
+             ((/:flo:flo) ia86.t_op2_div_floflo)
              (else (error 'ia86.t_op2 x))
              )))
     (f y)))
@@ -2009,8 +2019,11 @@
   (ia86.fixnum_test_temp_is_free rs)
   (ia86.setcc	(reg rd) 'z))
 	
+;(define-sassy-instr (ia86.t_op1_24)		; flonum?
+;  (ia86.double_tag_predicate $tag.bytevector-tag $hdr.flonum))
+
 (define-sassy-instr (ia86.t_op1_24)		; flonum?
-  (ia86.double_tag_predicate $tag.bytevector-tag $hdr.flonum))
+  (ia86.mcall	$m.flonump 'flonump))
 
 (define-sassy-instr (ia86.t_op1_25)		; exact?
   (ia86.mcall	$m.exactp 'exactp))
@@ -3161,6 +3174,46 @@
     (cond ((not (result-reg? rd))
            `(mov     ,(reg rd) ,$r.result)))
     `(label ,l1)))
+
+; Trusted flonum operations.
+
+(define-sassy-instr (ia86.t_op2_add_floflo regno)	; +:flo:flo
+  (ia86.loadr	$r.second regno)
+  (ia86.mcall	$m.fladd 'fladd))
+	
+(define-sassy-instr (ia86.t_op2_sub_floflo regno)	; -:flo:flo
+  (ia86.loadr	$r.second regno)
+  (ia86.mcall	$m.flsub 'flsub))
+
+(define-sassy-instr (ia86.t_op2_mul_floflo regno)	; *:flo:flo
+  (ia86.loadr	$r.second regno)
+  (ia86.mcall	$m.flmul 'flmul))
+	
+(define-sassy-instr (ia86.t_op2_div_floflo regno)	; /:flo:flo
+  (ia86.loadr	$r.second regno)
+  (ia86.mcall	$m.fldiv 'fldiv))
+	
+(define-sassy-instr (ia86.t_op2_lt_floflo regno)	; <:flo:flo
+  (ia86.loadr	$r.second regno)
+  (ia86.mcall	$m.fllt 'fllt))
+
+(define-sassy-instr (ia86.t_op2_lteq_floflo regno)	; <+:flo:flo
+  (ia86.loadr	$r.second regno)
+  (ia86.mcall	$m.flleq 'flleq))
+
+(define-sassy-instr (ia86.t_op2_gt_floflo regno)	; >:flo:flo
+  (ia86.loadr	$r.second regno)
+  (ia86.mcall	$m.flgt 'flgt))
+
+(define-sassy-instr (ia86.t_op2_gteq_floflo regno)	; >=:flo:flo
+  (ia86.loadr	$r.second regno)
+  (ia86.mcall	$m.flgeq 'flgeq))
+
+(define-sassy-instr (ia86.t_op2_eq_floflo regno)	; =:flo:flo
+  (ia86.loadr	$r.second regno)
+  (ia86.mcall	$m.fleq 'fleq))
+
+; End of flonum operations.
 
 (define-sassy-instr (ia86.reg_generic_compare_lowimm_branchf imm rs l a-skip?)
   (cond ((not a-skip?)

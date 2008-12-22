@@ -42,6 +42,18 @@
 ; .fxrsha
 ; .fxrshl
 ; 
+; .=:flo:flo
+; .<:flo:flo
+; .<=:flo:flo
+; .>:flo:flo
+; .>=:flo:flo
+; 
+; .--             (not yet implemented)
+; .+:flo:flo
+; .-:flo:flo
+; .*:flo:flo
+; ./:flo:flo
+;
 ; .integer->char:trusted
 ; .char->integer:chr
 ; 
@@ -232,7 +244,9 @@
                           (exact? n)
                           (rational? n))))
           ; smallint? is defined later.
-          (smallint? (lambda (n) (smallint? n))))
+          (smallint? (lambda (n) (smallint? n)))
+          (flonum? (lambda (x)
+                     (and (number? x) (inexact? x) (real? x)))))
       `(
         ; This makes some assumptions about the host system.
         
@@ -259,6 +273,7 @@
         (length (,list?) ,length)
         (-- (,ratnum?) ,(lambda (x) (- 0 x)))   ; FIXME: Larceny-specific
         (fixnum? (,smallint?) ,smallint?)       ; FIXME: Larceny-specific
+        (flonum? (,always?) ,flonum?)       ; FIXME: Larceny-specific
         ))))
 
 ; Compiler macros.
@@ -997,7 +1012,7 @@
         (begin
          (.check! (flonum? x) ,$ex.fl= x)
          (.check! (flonum? y) ,$ex.fl= y)
-         (= x y))))))
+         (.=:flo:flo x y))))))
 `  ((_ larceny fl=? (fl=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1014,7 +1029,7 @@
         (begin
          (.check! (flonum? x) ,$ex.fl< x)
          (.check! (flonum? y) ,$ex.fl< y)
-         (< x y))))))
+         (.<:flo:flo x y))))))
 `  ((_ larceny fl<? (fl<? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1031,7 +1046,7 @@
         (begin
          (.check! (flonum? x) ,$ex.fl> x)
          (.check! (flonum? y) ,$ex.fl> y)
-         (> x y))))))
+         (.>:flo:flo x y))))))
 `  ((_ larceny fl>? (fl>? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1048,7 +1063,7 @@
         (begin
          (.check! (flonum? x) ,$ex.fl<= x)
          (.check! (flonum? y) ,$ex.fl<= y)
-         (<= x y))))))
+         (.<=:flo:flo x y))))))
 `  ((_ larceny fl<=? (fl<=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1065,7 +1080,7 @@
         (begin
          (.check! (flonum? x) ,$ex.fl>= x)
          (.check! (flonum? y) ,$ex.fl>= y)
-         (>= x y))))))
+         (.>=:flo:flo x y))))))
 `  ((_ larceny fl>=? (fl>=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1119,7 +1134,7 @@
         (begin
          (.check! (flonum? x) ,$ex.fl+ x y)
          (.check! (flonum? y) ,$ex.fl+ x y)
-         (+ x y))))))
+         (.+:flo:flo x y))))))
 `  ((_ larceny fl+ (fl+ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl+ x (fl+ y z))))
@@ -1138,7 +1153,7 @@
         (begin
          (.check! (flonum? x) ,$ex.fl* x y)
          (.check! (flonum? y) ,$ex.fl* x y)
-         (* x y))))))
+         (.*:flo:flo x y))))))
 `  ((_ larceny fl* (fl* ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl* x (fl* y z))))
@@ -1151,6 +1166,7 @@
        (#t
         (begin
          (.check! (flonum? x) ,$ex.fl-- x)
+         ; FIXME
          (-- x))))))
 `  ((_ larceny fl- (fl- ?x ?y))
     (let ((x ?x)
@@ -1162,7 +1178,7 @@
         (begin
          (.check! (flonum? x) ,$ex.fl- x y)
          (.check! (flonum? y) ,$ex.fl- x y)
-         (- x y))))))
+         (.-:flo:flo x y))))))
 `  ((_ larceny fl- (fl- ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl- x (fl+ y z))))
@@ -1175,7 +1191,7 @@
        (#t
         (begin
          (.check! (flonum? x) ,$ex.fl/ x)
-         (/ 1.0 x))))))
+         (./:flo:flo 1.0 x))))))
 `  ((_ larceny fl/ (fl/ ?x ?y))
     (let ((x ?x)
           (y ?y))
@@ -1186,7 +1202,7 @@
         (begin
          (.check! (flonum? x) ,$ex.fl/ x y)
          (.check! (flonum? y) ,$ex.fl/ x y)
-         (/ x y))))))
+         (./:flo:flo x y))))))
 `  ((_ larceny fl/ (fl/ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl/ x (fl* y z))))
