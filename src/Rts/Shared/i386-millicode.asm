@@ -430,9 +430,9 @@ PUBLIC i386_bytevector_like_compare
 	fstsw ax		; retrieve cmp result in ax
 	fwait
 	sahf			; transfer ax to cond codes
+	jpe	%%INDETERM
 	ja	%%GREATER
 	jb	%%LESS
-	jnz	%%INDETERM
 	;jz	%%EQL		; fall into %%EQL case
 %%EQL:
 	mov	RESULT, %1
@@ -472,9 +472,9 @@ PUBLIC i386_bytevector_like_compare
 	fstsw ax		; retreive cmp result in ax
 	fwait
 	sahf			; transfer ax to cond codes
+	jpe	%%INDETERM
 	ja	%%GREATER
 	jb	%%LESS
-	jnz	%%INDETERM
 	;jz	%%EQL		; fall into %%EQL case
 %%EQL:
 	mov	RESULT, %1
