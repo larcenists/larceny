@@ -1005,14 +1005,9 @@
 `  ((_ larceny fl=? (fl=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.case:safety fl=?
-       ((0 1)
-        (= x y))
-       (#t
-        (begin
-         (.check! (flonum? x) ,$ex.fl= x)
-         (.check! (flonum? y) ,$ex.fl= y)
-         (.=:flo:flo x y))))))
+      (.check! (flonum? x) ,$ex.fl= x)
+      (.check! (flonum? y) ,$ex.fl= y)
+      (.=:flo:flo x y)))
 `  ((_ larceny fl=? (fl=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1022,14 +1017,9 @@
 `  ((_ larceny fl<? (fl<? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.case:safety fl<?
-       ((0 1)
-        (< x y))
-       (#t
-        (begin
-         (.check! (flonum? x) ,$ex.fl< x)
-         (.check! (flonum? y) ,$ex.fl< y)
-         (.<:flo:flo x y))))))
+      (.check! (flonum? x) ,$ex.fl< x)
+      (.check! (flonum? y) ,$ex.fl< y)
+      (.<:flo:flo x y)))
 `  ((_ larceny fl<? (fl<? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1039,14 +1029,9 @@
 `  ((_ larceny fl>? (fl>? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.case:safety fl>?
-       ((0 1)
-        (> x y))
-       (#t
-        (begin
-         (.check! (flonum? x) ,$ex.fl> x)
-         (.check! (flonum? y) ,$ex.fl> y)
-         (.>:flo:flo x y))))))
+      (.check! (flonum? x) ,$ex.fl> x)
+      (.check! (flonum? y) ,$ex.fl> y)
+      (.>:flo:flo x y)))
 `  ((_ larceny fl>? (fl>? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1056,14 +1041,9 @@
 `  ((_ larceny fl<=? (fl<=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.case:safety fl<=?
-       ((0 1)
-        (<= x y))
-       (#t
-        (begin
-         (.check! (flonum? x) ,$ex.fl<= x)
-         (.check! (flonum? y) ,$ex.fl<= y)
-         (.<=:flo:flo x y))))))
+      (.check! (flonum? x) ,$ex.fl<= x)
+      (.check! (flonum? y) ,$ex.fl<= y)
+      (.<=:flo:flo x y)))
 `  ((_ larceny fl<=? (fl<=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1073,14 +1053,9 @@
 `  ((_ larceny fl>=? (fl>=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.case:safety fl>=?
-       ((0 1)
-        (>= x y))
-       (#t
-        (begin
-         (.check! (flonum? x) ,$ex.fl>= x)
-         (.check! (flonum? y) ,$ex.fl>= y)
-         (.>=:flo:flo x y))))))
+      (.check! (flonum? x) ,$ex.fl>= x)
+      (.check! (flonum? y) ,$ex.fl>= y)
+      (.>=:flo:flo x y)))
 `  ((_ larceny fl>=? (fl>=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -1127,14 +1102,9 @@
 `  ((_ larceny fl+ (fl+ ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.case:safety fl+
-       ((0 1)
-        (+ x y))
-       (#t
-        (begin
-         (.check! (flonum? x) ,$ex.fl+ x y)
-         (.check! (flonum? y) ,$ex.fl+ x y)
-         (.+:flo:flo x y))))))
+      (.check! (flonum? x) ,$ex.fl+ x y)
+      (.check! (flonum? y) ,$ex.fl+ x y)
+      (.+:flo:flo x y)))
 `  ((_ larceny fl+ (fl+ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl+ x (fl+ y z))))
@@ -1146,14 +1116,9 @@
 `  ((_ larceny fl* (fl* ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.case:safety fl*
-       ((0 1)
-        (* x y))
-       (#t
-        (begin
-         (.check! (flonum? x) ,$ex.fl* x y)
-         (.check! (flonum? y) ,$ex.fl* x y)
-         (.*:flo:flo x y))))))
+      (.check! (flonum? x) ,$ex.fl* x y)
+      (.check! (flonum? y) ,$ex.fl* x y)
+      (.*:flo:flo x y)))
 `  ((_ larceny fl* (fl* ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl* x (fl* y z))))
@@ -1171,14 +1136,9 @@
 `  ((_ larceny fl- (fl- ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.case:safety fl-
-       ((0 1)
-        (- x y))
-       (#t
-        (begin
-         (.check! (flonum? x) ,$ex.fl- x y)
-         (.check! (flonum? y) ,$ex.fl- x y)
-         (.-:flo:flo x y))))))
+      (.check! (flonum? x) ,$ex.fl- x y)
+      (.check! (flonum? y) ,$ex.fl- x y)
+      (.-:flo:flo x y)))
 `  ((_ larceny fl- (fl- ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl- x (fl+ y z))))
@@ -1195,14 +1155,9 @@
 `  ((_ larceny fl/ (fl/ ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.case:safety fl/
-       ((0 1)
-        (/ x y))
-       (#t
-        (begin
-         (.check! (flonum? x) ,$ex.fl/ x y)
-         (.check! (flonum? y) ,$ex.fl/ x y)
-         (./:flo:flo x y))))))
+      (.check! (flonum? x) ,$ex.fl/ x y)
+      (.check! (flonum? y) ,$ex.fl/ x y)
+      (./:flo:flo x y)))
 `  ((_ larceny fl/ (fl/ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl/ x (fl* y z))))
