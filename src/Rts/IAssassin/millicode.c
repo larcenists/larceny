@@ -379,9 +379,19 @@ void EXPORT mc_typetag_set( word *globals )
 #define compnum_imag( x )  (*(double*)((word)x-BVEC_TAG+4*sizeof(word)))
 #define flonum_val( x )    (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
 
-/* returns true iff x and y are zeros with different sign bits. */
-static int diff_zeroes(double x, double y) {
-  return x == 0.0 && y == 0.0 && (1.0 / x != 1.0 / y);
+/* returns true iff x and y have the same bit-level representation. */
+
+static int same_bits(double x, double y) {
+  byte * xbits = (byte *) &x;
+  byte * ybits = (byte *) &y;
+  return xbits[0] == ybits[0] &&
+    xbits[1] == ybits[1] &&
+    xbits[2] == ybits[2] &&
+    xbits[3] == ybits[3] &&
+    xbits[4] == ybits[4] &&
+    xbits[5] == ybits[5] &&
+    xbits[6] == ybits[6] &&
+    xbits[7] == ybits[7];
 }
 
 void EXPORT mc_eqv( word *globals, cont_t k )
@@ -398,19 +408,19 @@ void EXPORT mc_eqv( word *globals, cont_t k )
     int t2 = *ptrof( y ) & 255;
     if (t1 == BIGNUM_HDR && t2 == BIGNUM_HDR)
       mc_equalp( globals, k );
-    else if ((t1 == FLONUM_HDR || t1 == COMPNUM_HDR) &&
-             (t2 == FLONUM_HDR || t2 == COMPNUM_HDR))
-      /* zeros with different signs are not eqv */
-      if ( t1 == FLONUM_HDR && t2 == FLONUM_HDR && 
-	   diff_zeroes( flonum_val(x), flonum_val(y)) ) {
-        globals[ G_RESULT ] = FALSE_CONST;
-      } else if ( t1 == COMPNUM_HDR && t2 == COMPNUM_HDR &&
-		  ( diff_zeroes( compnum_real(x), compnum_real(y)) 
-		    || diff_zeroes( compnum_imag(x), compnum_imag(y)) )) {
+    else if ( t1 == FLONUM_HDR && t2 == FLONUM_HDR ) {
+      if ( same_bits( flonum_val(x), flonum_val(y) ) )
+	globals[ G_RESULT ] = TRUE_CONST;
+      else
 	globals[ G_RESULT ] = FALSE_CONST;
-      } else {
-        mc_equalp( globals, k );
-      }
+    }
+    else if ( t1 == COMPNUM_HDR && t2 == COMPNUM_HDR ) {
+      if ( same_bits( compnum_real(x), compnum_real(y) ) &&
+	   same_bits( compnum_imag(x), compnum_imag(y) ) )
+	globals[ G_RESULT ] = TRUE_CONST;
+      else
+	globals[ G_RESULT ] = FALSE_CONST;
+    }
     else if (t1 == STR_HDR && t2 == STR_HDR &&
 	     (string_length(x) == 0) && (string_length(y) == 0))
       globals[ G_RESULT ] = TRUE_CONST; /* (eqv? "" "") */
