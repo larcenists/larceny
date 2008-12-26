@@ -539,6 +539,7 @@
 (define (peep-reg/op1/check as op rs l1 liveregs tail)
   (let ((op (case op
               ((fixnum?)      'internal:check-fixnum?)
+              ((flonum?)      'internal:check-flonum?)
               ((pair?)        'internal:check-pair?)
               ((vector?)      'internal:check-vector?)
               ((string?)      'internal:check-string?)    ;FIXME
@@ -622,6 +623,7 @@
               ((pair?)       'internal:branchf-pair?)
               ((zero?)       'internal:branchf-zero?)
               ((fixnum?)     'internal:branchf-fixnum?)
+              ((flonum?)     'internal:branchf-flonum?)
               ;;((char?)       'internal:branchf-char?)
               ;;((fxzero?)     'internal:branchf-fxzero?)
               ;;((fxnegative?) 'internal:branchf-fxnegative?)

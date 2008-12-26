@@ -1641,7 +1641,7 @@
              ((12 eof-object?) ia86.t_op1_12*)
              ((15 car) ia86.t_op1_15*)
              ((16 cdr) ia86.t_op1_16*)
-             ((23 fixnum?)    ia86.t_op1_23*)
+             ((23 fixnum?)    ia86.t_op1_23*)   ; FIXME: not being used
              ((47 procedure?) ia86.t_op1_47*)
              ((52 make-cell)  ia86.t_op1_52*)
              ((54 cell-ref)   ia86.t_op1_54*)
@@ -1838,6 +1838,7 @@
              ((internal:branchf-null?) ia86.t_reg_op1_branchf_null?)
              ((internal:branchf-eof-object?) ia86.t_reg_op1_branchf_eof_object?)
              ((internal:branchf-fixnum?) ia86.t_reg_op1_branchf_fixnum?)
+             ((internal:branchf-flonum?) ia86.t_reg_op1_branchf_flonum?)
              ((internal:branchf-pair?) ia86.t_reg_op1_branchf_pair?)
              ((internal:branchf-zero?) ia86.t_reg_op1_branchf_zero?)
              (else (error 'ia86.t_reg_op1_branchf op)))))
@@ -1846,6 +1847,7 @@
 (define-sassy-instr (ia86.t_reg_op1_check op rs l)
   (let ((f (case op
              ((internal:check-fixnum?) ia86.t_reg_op1_check_fixnum?)
+             ((internal:check-flonum?) ia86.t_reg_op1_check_flonum?)
              ((internal:check-pair?)   ia86.t_reg_op1_check_pair?)
              ((internal:check-vector?) ia86.t_reg_op1_check_vector?)
              ((internal:check-string?) ia86.t_reg_op1_check_string?)
@@ -2019,11 +2021,11 @@
   (ia86.fixnum_test_temp_is_free rs)
   (ia86.setcc	(reg rd) 'z))
 	
-;(define-sassy-instr (ia86.t_op1_24)		; flonum?
-;  (ia86.double_tag_predicate $tag.bytevector-tag $hdr.flonum))
-
 (define-sassy-instr (ia86.t_op1_24)		; flonum?
-  (ia86.mcall	$m.flonump 'flonump))
+  (ia86.double_tag_predicate $tag.bytevector-tag $hdr.flonum))
+
+;(define-sassy-instr (ia86.t_op1_24)		; flonum?
+;  (ia86.mcall	$m.flonump 'flonump))
 
 (define-sassy-instr (ia86.t_op1_25)		; exact?
   (ia86.mcall	$m.exactp 'exactp))
@@ -3272,6 +3274,16 @@
         (else
          `(mov ,$r.result ,(reg rs))
          `(test ,$r.result.low ,$tag.fixtagmask)))
+  `(jne ,l))
+
+(define-sassy-instr (ia86.t_reg_op1_branchf_flonum? rs l a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
+  (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.flonum)
+  `(jne ,l))
+
+(define-sassy-instr (ia86.t_reg_op1_check_flonum? rs l)
+  (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.flonum)
   `(jne ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_check_pair? rs l)
