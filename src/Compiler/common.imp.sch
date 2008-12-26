@@ -69,9 +69,9 @@
 ; .ustring-set!:trusted (deprecated, might not be necessary)
 ; 
 ; .vector-length:vec
-; .vector-ref:trusted
-; .vector-set!:trusted
-; .vector-set!:trusted:nwb
+; .vector-ref:trusted         (really vector-like-ref:trusted)
+; .vector-set!:trusted        (really vector-like-set!:trusted)
+; .vector-set!:trusted:nwb    (really vector-like-set!:trusted:nwb)
 
 (define twobit-sort
   (lambda (less? list) (compat:sort list less?)))
@@ -487,6 +487,8 @@
                  lookahead-u8 get-u8
                  lookahead-char get-char put-char
                  peek-char read-char write-char
+                 record-ref:bummed                    ; FIXME
+                 record-set!:bummed                   ; FIXME
                  )
 
    ; FIXME: Eliminating these next two should fix ticket #37.
@@ -1394,6 +1396,60 @@
 
 `  ((_ larceny write-char (write-char c p))
     (put-char p c))
+
+   ; Record accesses.
+   ; Checks that obj is a record of type rtd (or a subtype).
+   ; The hierarchy vector should be the one expected for the
+   ; most common case (usually rtd), and depth is the depth
+   ; at which rtd must be found within the hierarchy vector
+   ; of obj.  i is the 0-origin index of the field within obj.
+   ;
+   ; FIXME: this isn't being inlined yet.
+   ; FIXME: rtd is usually a lexical variable that isn't in a register,
+   ; and fetching it as an argument to .check! interferes with peephole
+   ; optimization.  That's why this is written using if expressions.
+
+`  ((_ larceny record-ref:bummed (record-ref:bummed obj0 rtd0 hvec0 depth0 i0))
+    (let ((obj obj0)
+          (rtd rtd0)
+          (hvec hvec0)
+          (depth depth0)
+          (i i0))
+      (define (record-ref)
+        (.vector-ref:trusted obj i))
+      (define (complain)
+        (.check! #f ,$ex.record obj rtd)
+        0)
+      (if (structure? obj)
+          (let ((hvec2 (.vector-ref:trusted obj 0)))
+            (if (eq? hvec hvec2)
+                (record-ref)
+                (if (eq? rtd (.vector-ref:trusted hvec2 depth))
+                    (record-ref)
+                    (complain))))
+          (complain))))
+
+`  ((_ larceny record-set!:bummed
+               (record-set!:bummed obj0 rtd0 hvec0 depth0 i0 x0))
+    (let ((obj obj0)
+          (rtd rtd0)
+          (hvec hvec0)
+          (depth depth0)
+          (i i0)
+          (x x0))
+      (define (record-set!)
+        (.vector-set!:trusted obj i x))
+      (define (complain)
+        (.check! #f ,$ex.record obj rtd)
+        0)
+      (if (structure? obj)
+          (let ((hvec2 (.vector-ref:trusted obj 0)))
+            (if (eq? hvec hvec2)
+                (record-set!)
+                (if (eq? rtd (.vector-ref:trusted hvec2 depth))
+                    (record-set!)
+                    (complain))))
+          (complain))))
 
    ; Default case: expand into the original expression.
 

@@ -104,9 +104,9 @@
 (define make-record-constructor-descriptor)
 
 ; The performance of records is mostly determined by these procedures.
-; FIXME: all of them could be made faster
+; FIXME: all of them could be made faster, mostly by inlining them.
 
-; Given the hierarchy vector that goes in element 0,
+; Given the rtd, the hierarchy vector that goes in element 0,
 ; the number of elements of the record to be created,
 ; the number of arguments to be passed to the creator,
 ; and a list of indices within the record structure for those arguments,
@@ -115,67 +115,46 @@
 (define (make-bummed-record-constructor rtd hierarchy-vector size n indices)
   (cond ((and (= size 1) (= n 0) (equal? indices '()))
          (lambda ()
-           (let ((r (make-structure 1)))
-             (vector-like-set! r 0 hierarchy-vector)
+           (let ((r (vector hierarchy-vector)))
+             (typetag-set! r sys$tag.structure-typetag)
              r)))
         ((and (= size (+ n 1)) (= n 1) (equal? indices '(1)))
          (lambda (a)
-           (let ((r (make-structure 2)))
-             (vector-like-set! r 0 hierarchy-vector)
-             (vector-like-set! r 1 a)
+           (let ((r (vector hierarchy-vector a)))
+             (typetag-set! r sys$tag.structure-typetag)
              r)))
         ((and (= size (+ n 1)) (= n 2) (equal? indices '(1 2)))
          (lambda (a b)
-           (let ((r (make-structure 3)))
-             (vector-like-set! r 0 hierarchy-vector)
-             (vector-like-set! r 1 a)
-             (vector-like-set! r 2 b)
+           (let ((r (vector hierarchy-vector a b)))
+             (typetag-set! r sys$tag.structure-typetag)
              r)))
         ((and (= size (+ n 1)) (= n 3) (equal? indices '(1 2 3)))
          (lambda (a b c)
-           (let ((r (make-structure 4)))
-             (vector-like-set! r 0 hierarchy-vector)
-             (vector-like-set! r 1 a)
-             (vector-like-set! r 2 b)
-             (vector-like-set! r 3 c)
+           (let ((r (vector hierarchy-vector a b c)))
+             (typetag-set! r sys$tag.structure-typetag)
              r)))
         ((and (= size (+ n 1)) (= n 4) (equal? indices '(1 2 3 4)))
          (lambda (a b c d)
-           (let ((r (make-structure 5)))
-             (vector-like-set! r 0 hierarchy-vector)
-             (vector-like-set! r 1 a)
-             (vector-like-set! r 2 b)
-             (vector-like-set! r 3 c)
-             (vector-like-set! r 4 d)
+           (let ((r (vector hierarchy-vector a b c d)))
+             (typetag-set! r sys$tag.structure-typetag)
              r)))
         ((and (= size (+ n 1)) (= n 5) (equal? indices '(1 2 3 4 5)))
          (lambda (a b c d e)
-           (let ((r (make-structure 6)))
-             (vector-like-set! r 0 hierarchy-vector)
-             (vector-like-set! r 1 a)
-             (vector-like-set! r 2 b)
-             (vector-like-set! r 3 c)
-             (vector-like-set! r 4 d)
-             (vector-like-set! r 5 e)
+           (let ((r (vector hierarchy-vector a b c d e)))
+             (typetag-set! r sys$tag.structure-typetag)
              r)))
         ((and (= size (+ n 1)) (= n 6) (equal? indices '(1 2 3 4 5 6)))
          (lambda (a b c d e f)
-           (let ((r (make-structure 7)))
-             (vector-like-set! r 0 hierarchy-vector)
-             (vector-like-set! r 1 a)
-             (vector-like-set! r 2 b)
-             (vector-like-set! r 3 c)
-             (vector-like-set! r 4 d)
-             (vector-like-set! r 5 e)
-             (vector-like-set! r 6 f)
+           (let ((r (vector hierarchy-vector a b c d e f)))
+             (typetag-set! r sys$tag.structure-typetag)
              r)))
         ((= n (length indices))
 
          ; FIXME: poor error message for wrong number of args
 
          (lambda vals0
-           (let ((r (make-structure size)))
-             (vector-like-set! r 0 hierarchy-vector)
+           (let ((r (make-vector size #f)))
+             (.vector-set!:trusted r 0 hierarchy-vector)
              (do ((indices indices (cdr indices))
                   (vals    vals0   (cdr vals)))
                  ((or (null? indices) (null? vals))
@@ -183,8 +162,9 @@
                       (error #f
                              "wrong number of arguments to record constructor"
                              rtd vals0))
+                  (typetag-set! r sys$tag.structure-typetag)
                   r)
-               (vector-like-set! r (car indices) (car vals))))))
+               (.vector-set!:trusted r (car indices) (car vals))))))
         (else
          (assertion-violation 'record-constructor
                               "internal error" rtd n indices))))
@@ -192,26 +172,16 @@
 (define (make-bummed-record-predicate rtd depth)
   (lambda (obj)
     (and (structure? obj)
-         (eq? (vector-ref (vector-like-ref obj 0) depth)
+         (eq? (.vector-ref:trusted (.vector-ref:trusted obj 0) depth)
               rtd))))
 
-(define (make-bummed-record-accessor rtd depth i)
+(define (make-bummed-record-accessor rtd hvec depth i)
   (lambda (obj)
-    (if (and (structure? obj)
-             (eq? (vector-ref (vector-like-ref obj 0) depth)
-                  rtd))
-        (vector-like-ref obj i)
-        (assertion-violation 'anonymous-record-accessor
-                             "illegal argument" rtd obj))))
+    (record-ref:bummed obj rtd hvec depth i)))
 
-(define (make-bummed-record-mutator rtd depth i)
+(define (make-bummed-record-mutator rtd hvec depth i)
   (lambda (obj x)
-    (if (and (structure? obj)
-             (eq? (vector-ref (vector-like-ref obj 0) depth)
-                  rtd))
-        (vector-like-set! obj i x)
-        (assertion-violation 'anonymous-record-mutator
-                             "illegal argument" rtd obj))))
+    (record-set!:bummed obj rtd hvec depth i x)))
 
 ;
 
@@ -294,7 +264,8 @@
                   (i (rtd-field-offset rtd field-name)))
              (if (and record:bummed?
                       (< depth record:hierarchy:min))
-                 (make-bummed-record-accessor rtd depth i)
+                 (make-bummed-record-accessor
+                  rtd (rtd-hierarchy-vector rtd) depth i)
                  (lambda (obj)
                    (assert-record-of-type obj rtd)
                    (vector-like-ref obj i)))))
@@ -306,7 +277,8 @@
                   (i (rtd-field-offset rtd field-name)))
              (if (and record:bummed?
                       (< depth record:hierarchy:min))
-                 (make-bummed-record-mutator rtd depth i)
+                 (make-bummed-record-mutator
+                  rtd (rtd-hierarchy-vector rtd) depth i)
                  (lambda (obj val)
                    (assert-record-of-type obj rtd)
                    (vector-like-set! obj i val)))))
@@ -824,7 +796,8 @@
              (if (< i n)
                  (if (and record:bummed?
                           (< depth record:hierarchy:min))
-                     (make-bummed-record-accessor rtd depth i)
+                     (make-bummed-record-accessor
+                      rtd (rtd-hierarchy-vector rtd) depth i)
                      (lambda (obj)
                        (assert-record-of-type obj rtd)
                        (vector-like-ref obj i)))
@@ -847,7 +820,8 @@
                          "record field is immutable" rtd k))
                        ((and record:bummed?
                              (< depth record:hierarchy:min))
-                        (make-bummed-record-mutator rtd depth i))
+                        (make-bummed-record-mutator
+                         rtd (rtd-hierarchy-vector rtd) depth i))
                        (else
                         (lambda (obj val)
                           (assert-record-of-type obj rtd)

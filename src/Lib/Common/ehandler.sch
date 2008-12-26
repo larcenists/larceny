@@ -398,6 +398,11 @@
        ((= code $ex.plen)
         (error "Procedure-length: " arg1 " is not a procedure."))
 
+       ;; Records
+
+       ((= code $ex.record)
+        (error "Record access: " arg1 " is not a " (rtd-name arg2)))
+
        ;; Vector-like
 
        ((= code $ex.mkvl)

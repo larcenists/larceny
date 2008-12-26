@@ -970,9 +970,10 @@
 
 (define-sassy-instr (ia86.double_tag_test hwreg x y)
   (let ((l1 (fresh-label)))
-    (ia86.single_tag_test hwreg x)
+    `(lea	,$r.temp (& ,hwreg ,(- x)))
+    `(test	,$r.temp.low 7)
     `(jnz short ,l1)
-    `(mov	,$r.temp (& ,hwreg ,(- x)))
+    `(mov	,$r.temp (& ,$r.temp))
     `(cmp	,$r.temp.low ,y)
     `(label ,l1)))
 	
@@ -1840,6 +1841,8 @@
              ((internal:branchf-fixnum?) ia86.t_reg_op1_branchf_fixnum?)
              ((internal:branchf-flonum?) ia86.t_reg_op1_branchf_flonum?)
              ((internal:branchf-pair?) ia86.t_reg_op1_branchf_pair?)
+             ((internal:branchf-vector?) ia86.t_reg_op1_branchf_vector?)
+             ((internal:branchf-structure?) ia86.t_reg_op1_branchf_structure?)
              ((internal:branchf-zero?) ia86.t_reg_op1_branchf_zero?)
              (else (error 'ia86.t_reg_op1_branchf op)))))
     (f rs l a-skip?)))
@@ -1852,6 +1855,7 @@
              ((internal:check-vector?) ia86.t_reg_op1_check_vector?)
              ((internal:check-string?) ia86.t_reg_op1_check_string?)
              ((internal:check-ustring?) ia86.t_reg_op1_check_ustring?)
+             ((internal:check-structure?) ia86.t_reg_op1_check_structure?)
              (else (error 'ia86.t_reg_op1_check op)))))
     (f rs l)))
 
@@ -2024,7 +2028,7 @@
 (define-sassy-instr (ia86.t_op1_24)		; flonum?
   (ia86.double_tag_predicate $tag.bytevector-tag $hdr.flonum))
 
-;(define-sassy-instr (ia86.t_op1_24)		; flonum?
+;(define-sassy-instr (ia86.t_op1_24)		; flonum?       ; FIXME
 ;  (ia86.mcall	$m.flonump 'flonump))
 
 (define-sassy-instr (ia86.t_op1_25)		; exact?
@@ -3290,8 +3294,26 @@
   (ia86.single_tag_test (reg rs) $tag.pair-tag)
   `(jne ,l))
 
+; FIXME: the op1/branchf code duplicates the op1/check code
+
+(define-sassy-instr (ia86.t_reg_op1_branchf_vector? rs l a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
+  (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.vector)
+  `(jne ,l))
+
 (define-sassy-instr (ia86.t_reg_op1_check_vector? rs l)
   (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.vector)
+  `(jne ,l))
+
+(define-sassy-instr (ia86.t_reg_op1_branchf_structure? rs l a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
+  (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.struct)
+  `(jne ,l))
+
+(define-sassy-instr (ia86.t_reg_op1_check_structure? rs l)
+  (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.struct)
   `(jne ,l))
 
 ;; "Reflective ops"; processor level performance measurement.
