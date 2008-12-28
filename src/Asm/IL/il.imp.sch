@@ -304,6 +304,8 @@
     (exact?           1 exact?           #f        25 ,ak:immortal ,ak:none #f)
     (inexact?         1 inexact?         #f        26 ,ak:immortal ,ak:none #f)
     (exact->inexact   1 exact->inexact   #f        27 ,ak:immortal ,ak:none #t)
+    (inexact          1 exact->inexact   #f        27 ,ak:immortal ,ak:none #t)
+    (exact            1 inexact->exact   #f        28 ,ak:immortal ,ak:none #t)
     (inexact->exact   1 inexact->exact   #f        28 ,ak:immortal ,ak:none #t)
     (round            1 round            #f        29 ,ak:immortal ,ak:none #t)
     (truncate         1 truncate         #f        30 ,ak:immortal ,ak:none #t)

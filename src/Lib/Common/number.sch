@@ -482,6 +482,7 @@
 ; Procedures added for R6RS
 ;
 ; FIXME:  Some of these should be integrable.
+; exact and inexact now are.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -552,28 +553,38 @@
            (values (- q) r)))))
 
 (define (div x y)
-  (if (and (exact? x)
-           (exact? y)
-           (integer? x)
-           (integer? y)
-           (>= x 0)
-           (> y 0))
-      (quotient x y)
-      (call-with-values
-       (lambda () (div-and-mod x y))
-       (lambda (q r) q))))
+  (cond ((and (fixnum? x)
+              (fixnum? y)
+              (fx>=? x 0))
+         (quotient x y))
+        ((and (exact? x)
+              (exact? y)
+              (integer? x)
+              (integer? y)
+              (>= x 0)
+              (> y 0))
+         (quotient x y))
+        (else
+         (call-with-values
+          (lambda () (div-and-mod x y))
+          (lambda (q r) q)))))
 
 (define (mod x y)
-  (if (and (exact? x)
-           (exact? y)
-           (integer? x)
-           (integer? y)
-           (>= x 0)
-           (> y 0))
-      (remainder x y)
-      (call-with-values
-       (lambda () (div-and-mod x y))
-       (lambda (q r) r))))
+  (cond ((and (fixnum? x)
+              (fixnum? y)
+              (fx>=? x 0))
+         (remainder x y))
+        ((and (exact? x)
+              (exact? y)
+              (integer? x)
+              (integer? y)
+              (>= x 0)
+              (> y 0))
+         (remainder x y))
+        (else
+         (call-with-values
+          (lambda () (div-and-mod x y))
+          (lambda (q r) r)))))
 
 (define (div0-and-mod0 x y)
   (call-with-values

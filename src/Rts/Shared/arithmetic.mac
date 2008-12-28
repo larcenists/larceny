@@ -390,7 +390,7 @@ void EXPORT mc_quo( word *globals, cont_t k )
 
   if (is_both_fixnums( x, y )) {
 #if defined(EXPLICIT_DIVZ_CHECK)
-    if (y == 0) mc_exception( globals, EX_DIV );
+    if (y == 0) mc_exception( globals, EX_QUOTIENT );
 #endif
 /*  This doesn't work for (/ (least-fixnum) -1)          */
 /*  globals[ G_RESULT ] = fixnum((s_word)x / (s_word)y); */
@@ -403,7 +403,7 @@ void EXPORT mc_quo( word *globals, cont_t k )
     word z = *(ptrof( x )+1);
     if (bigmeta_length(z) == 1 && bigmeta_sign(z) == 0) {
 #if defined(EXPLICIT_DIVZ_CHECK)
-      if (y == 0) mc_exception( globals, EX_DIV );
+      if (y == 0) mc_exception( globals, EX_QUOTIENT );
 #endif
       z = *(ptrof( x )+2) / (y >> 2);
       ga_box_longint( globals, 0, z );
@@ -420,7 +420,7 @@ void EXPORT mc_rem( word *globals, cont_t k )
 
   if (is_both_fixnums( x, y )) {
 #if defined(EXPLICIT_DIVZ_CHECK)
-    if (y == 0) mc_exception( globals, EX_DIV );
+    if (y == 0) mc_exception( globals, EX_REMAINDER );
 #endif
     globals[ G_RESULT ] = fixnum((s_word)nativeint(x) % (s_word)nativeint(y));
     return;
@@ -431,7 +431,7 @@ void EXPORT mc_rem( word *globals, cont_t k )
     word z = *(ptrof( x )+1);
     if (bigmeta_length(z) == 1 && bigmeta_sign(z) == 0) {
 #if defined(EXPLICIT_DIVZ_CHECK)
-      if (y == 0) mc_exception( globals, EX_DIV );
+      if (y == 0) mc_exception( globals, EX_REMAINDER );
 #endif
       z = *(ptrof( x )+2) % (y >> 2);
       ga_box_longint( globals, 0, z );

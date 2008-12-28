@@ -25,6 +25,12 @@
     (fl:check-args! name args)
     (apply proc args)))
 
+(define (flonum-restricted1 proc name)
+  (lambda (x)
+    (if (flonum? x)
+        (proc x)
+        (fl:check! name x))))
+
 (define (flonum-doubly-restricted proc name)
   (lambda args
     (fl:check-args! name args)
@@ -48,15 +54,15 @@
 (define fl<=? (flonum-restricted <= 'fl<=?))
 (define fl>=? (flonum-restricted >= 'fl>=?))
 
-(define flinteger? (flonum-restricted integer? 'flinteger?))
-(define flzero? (flonum-restricted zero? 'flzero?))
-(define flpositive? (flonum-restricted positive? 'flpositive?))
-(define flnegative? (flonum-restricted negative? 'flnegative?))
-(define flodd? (flonum-restricted odd? 'flodd?))
-(define fleven? (flonum-restricted even? 'fleven?))
-(define flfinite? (flonum-restricted finite? 'flfinite?))
-(define flinfinite? (flonum-restricted infinite? 'flinfinite?))
-(define flnan? (flonum-restricted nan? 'flnan?))
+(define flinteger? (flonum-restricted1 integer? 'flinteger?))
+(define flzero? (flonum-restricted1 zero? 'flzero?))
+(define flpositive? (flonum-restricted1 positive? 'flpositive?))
+(define flnegative? (flonum-restricted1 negative? 'flnegative?))
+(define flodd? (flonum-restricted1 odd? 'flodd?))
+(define fleven? (flonum-restricted1 even? 'fleven?))
+(define flfinite? (flonum-restricted1 finite? 'flfinite?))
+(define flinfinite? (flonum-restricted1 infinite? 'flinfinite?))
+(define flnan? (flonum-restricted1 nan? 'flnan?))
 
 (define flmax (flonum-restricted max 'flmax))
 (define flmin (flonum-restricted min 'flmin))
@@ -66,7 +72,7 @@
 (define fl- (flonum-restricted - 'fl-))
 (define fl/ (flonum-restricted / 'fl/))
 
-(define flabs (flonum-restricted abs 'flabs))
+(define flabs (flonum-restricted1 abs 'flabs))
 
 (define fldiv-and-mod (flonum-restricted div-and-mod 'fldiv-and-mod))
 (define fldiv (flonum-restricted div 'fldiv))
@@ -80,26 +86,32 @@
 ; until later.
 
 (define flnumerator
-  (flonum-restricted (lambda (x) (numerator x)) 'flnumerator))
+  (flonum-restricted1 (lambda (x) (numerator x)) 'flnumerator))
 
 (define fldenominator
-  (flonum-restricted (lambda (x) (denominator x)) 'fldenominator))
+  (flonum-restricted1 (lambda (x) (denominator x)) 'fldenominator))
 
-(define flfloor (flonum-restricted floor 'flfloor))
-(define flceiling (flonum-restricted ceiling 'flceiling))
-(define fltruncate (flonum-restricted truncate 'fltruncate))
-(define flround (flonum-restricted round 'flround))
+(define flfloor (flonum-restricted1 floor 'flfloor))
+(define flceiling (flonum-restricted1 ceiling 'flceiling))
+(define fltruncate (flonum-restricted1 truncate 'fltruncate))
+(define flround (flonum-restricted1 round 'flround))
 
-(define flexp (flonum-restricted exp 'flexp))
-(define fllog (flonum-doubly-restricted log 'fllog))
-(define flsin (flonum-restricted sin 'flsin))
-(define flcos (flonum-restricted cos 'flcos))
-(define fltan (flonum-restricted tan 'fltan))
-(define flasin (flonum-restricted asin 'flasin))
-(define flacos (flonum-restricted acos 'flacos))
+(define flexp (flonum-restricted1 (lambda (x) (flonum:exp x)) 'flexp))
+(define (fllog x)
+  (if (flonum? x)
+      (flonum:log x)
+      (fl:check! 'fllog x)))
+(define flsin (flonum-restricted1 (lambda (x) (flonum:sin x)) 'flsin))
+(define flcos (flonum-restricted1 (lambda (x) (flonum:cos x)) 'flcos))
+(define fltan (flonum-restricted1 (lambda (x) (flonum:tan x)) 'fltan))
+(define flasin (flonum-restricted1 (lambda (x) (flonum:asin x)) 'flasin))
+(define flacos (flonum-restricted1 (lambda (x) (flonum:acos x)) 'flacos))
 (define flatan (flonum-restricted atan 'flatan))
 
-(define flsqrt (flonum-doubly-restricted sqrt 'flsqrt))
+(define (flsqrt x)
+  (if (flonum? x)
+      (flonum:sqrt x)
+      (fl:check! 'flsqrt x)))
 
 (define (flexpt x y)
   (fl:check! 'flexpt x)

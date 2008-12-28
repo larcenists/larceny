@@ -369,6 +369,8 @@
     (exact?           1 exact?           #f            25 ,:immortal ,:none #f)
     (inexact?         1 inexact?         #f            26 ,:immortal ,:none #f)
     (exact->inexact   1 exact->inexact   #f            27 ,:immortal ,:none #t)
+    (inexact          1 exact->inexact   #f            27 ,:immortal ,:none #t)
+    (exact            1 inexact->exact   #f            28 ,:immortal ,:none #t)
     (inexact->exact   1 inexact->exact   #f            28 ,:immortal ,:none #t)
     (round            1 round            #f            29 ,:immortal ,:none #t)
     (truncate         1 truncate         #f            30 ,:immortal ,:none #t)

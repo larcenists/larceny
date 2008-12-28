@@ -1064,23 +1064,41 @@
          ;; would save one byte here.
          `(and	,$r.result ,(lognot $tag.fixtagmask)))))
 	
-;;; generic_arithmetic sregno, dregno, tmpreg, regno, operation, undo-operation, millicode
+;;; generic_arithmetic sregno, dregno, regno, operation, undo-operation, millicode
 ;;; Note that sregno and dregno are always hw registers
+;;;
+;;; Computes
+;;;     dregno := sregno operation regno
+;;;
+;;; Special cases:
+;;;     dregno is same as sregno
+;;;         eliminates copy of sregno to dregno
+;;;     regno is hardware register and distinct from dregno
+;;;         eliminates copy of regno to TEMP except for millicode case
+;;;     sregno is RESULT
+;;;         eliminates copy to RESULT in millicode case
+;;;     dregno is RESULT
+;;;         eliminates copy to dregno in millicode case
 	
 (define-sassy-instr (ia86.generic_arithmetic sregno dregno regno y z millicode)
   (let ((l1 (fresh-label))
-        (l2 (fresh-label)))
+        (l2 (fresh-label))
+        (defer-copy? (and (is_hwreg regno)
+                          (not (equal? dregno regno)))))
     (ia86.loadr	$r.temp regno)
     `(or	,$r.temp ,(reg sregno))
     `(test	,$r.temp.low ,$tag.fixtagmask)
-    (ia86.loadr	$r.temp regno)
+    (cond ((not defer-copy?)
+           (ia86.loadr	$r.temp regno)))
     `(jnz short ,l1)
     (cond ((not (equal? dregno sregno))
            `(mov ,(reg dregno) ,(reg sregno))))
-    `(,y	,(reg dregno) ,$r.temp)
+    `(,y	,(reg dregno) ,(if defer-copy? (reg regno) $r.temp))
     `(jno short ,l2)
-    `(,z	,(reg dregno) ,$r.temp)
+    `(,z	,(reg dregno) ,(if defer-copy? (reg regno) $r.temp))
     `(label ,l1)
+    (cond (defer-copy?
+           `(mov ,$r.temp ,(reg regno))))
     (cond ((not (result-reg? sregno))
            `(mov ,$r.result ,(reg sregno))))
     (ia86.mcall	millicode y)
@@ -2390,9 +2408,17 @@
          (ia86.loadr	$r.second rs2)
          (ia86.mov/wb `(& ,(reg rs1) ,(+ (- $tag.pair-tag) $bytewidth.wordsize)) $r.second))))
 
+;;; If rs1 is not the same as rd, and rs2 is a hardware register,
+;;; then we may get better code by reversing the arguments.
+
 (define-sassy-instr/peep (or (ia86.t_op2_61* rs1 rd rs2) ; +
                              (ia86.t_op2_61 rs2))
-  (ia86.generic_arithmetic rs1 rd rs2  'add  'sub  $m.add))
+  (cond ((equal? rd rs1)
+         (ia86.generic_arithmetic rs1 rd rs2 'add 'sub $m.add))
+        ((is_hwreg rs2)
+         (ia86.generic_arithmetic rs2 rd rs1 'add 'sub $m.add))
+        (else
+         (ia86.generic_arithmetic rs1 rd rs2 'add 'sub $m.add))))
 
 (define-sassy-instr/peep (or (ia86.t_op2_62* rs1 rd rs2) ; -
                              (ia86.t_op2_62 rs2))

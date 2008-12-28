@@ -471,6 +471,7 @@
                  bytevector-u8-ref bytevector-u8-set!
                  = < > <= >= + * - /
                  abs negative? positive? min max
+                 div mod
                  fx=? fx<? fx>? fx<=? fx>=?
                  fxzero? fxpositive? fxnegative?
                  fxmin fxmax
@@ -479,7 +480,8 @@
                  fxeven? fxodd?
                  fl=? fl<? fl>? fl<=? fl>=?
                  flzero? flpositive? flnegative?
-                 flmin flmax
+                 flmin flmax flabs
+                 flfloor flceiling fltruncate flround
                  fl+ fl- fl* fl/
                  eqv? memv assv memq
                  map for-each
@@ -776,6 +778,22 @@
 `  ((_ larceny max (max ?x ?y ?z ...))
     (let ((x ?x) (y (max ?y ?z ...)))
       (max x y)))
+
+`  ((_ larceny div (div ?x ?y))
+    (let ((x ?x) (y ?y))
+      (if (and (fixnum? x)
+               (fixnum? y)
+               (fx>=? x 0))
+          (quotient x y)
+          (apply div x y '()))))
+
+`  ((_ larceny mod (mod ?x ?y))
+    (let ((x ?x) (y ?y))
+      (if (and (fixnum? x)
+               (fixnum? y)
+               (fx>=? x 0))
+          (remainder x y)
+          (apply mod x y '()))))
 
    ; Special cases for two or three arguments.
 
@@ -1094,6 +1112,42 @@
           (y ?y)
           (z ?z))
       (flmax (if (fl>=? x y) x y) z)))
+
+`  ((_ larceny flabs (flabs ?x))
+    (let ((x ?x))
+      (if (fl<? x 0.0)
+          (fl- x)
+          x)))
+
+`  ((_ larceny flfloor (flfloor ?x))
+    (let ((x ?x))
+      (.check! (flonum? x) ,$ex.flfloor x)
+      (if (fl<? x 0.0)
+          (let ((g (fltruncate x)))
+            (if (not (fl=? g x))
+                (fl- g 1.0)
+                g))
+          (fltruncate x))))
+
+`  ((_ larceny flceiling (flceiling ?x))
+    (let ((x ?x))
+      (.check! (flonum? x) ,$ex.flceiling x)
+      (if (fl<? x 0.0)
+          (fltruncate x)
+          (let ((g (fltruncate x)))
+            (if (not (fl=? g x))
+                (fl+ g 1.0)
+                g)))))
+
+`  ((_ larceny fltruncate (fltruncate ?x))
+    (let ((x ?x))
+      (.check! (flonum? x) ,$ex.fltruncate x)
+      (truncate x)))
+
+`  ((_ larceny flround (flround ?x))
+    (let ((x ?x))
+      (.check! (flonum? x) ,$ex.flround x)
+      (round x)))
 
    ; Special cases for two, three, or more arguments.
 

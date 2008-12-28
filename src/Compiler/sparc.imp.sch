@@ -245,6 +245,8 @@
     (exact?           1 exact?           #f          #x24 ,:immortal ,:none)
     (inexact?         1 inexact?         #f          #x25 ,:immortal ,:none)
     (exact->inexact   1 exact->inexact   #f          #x26 ,:immortal ,:none)
+    (inexact          1 exact->inexact   #f            -1 ,:immortal ,:none)
+    (exact            1 inexact->exact   #f            -1 ,:immortal ,:none)
     (inexact->exact   1 inexact->exact   #f          #x27 ,:immortal ,:none)
     (round            1 round            #f          #x28 ,:immortal ,:none)
     (truncate         1 truncate         #f          #x29 ,:immortal ,:none)
