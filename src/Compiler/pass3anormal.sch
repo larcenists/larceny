@@ -153,7 +153,7 @@
 ; If an input expression is larger than this, then its ANF size
 ; will be printed during compilation.
 
-(define anf-large 10000)
+(define anf-large 50000)
 
 (define (A-normal-form E . rest)
   

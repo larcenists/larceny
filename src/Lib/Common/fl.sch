@@ -97,10 +97,22 @@
 (define flround (flonum-restricted1 round 'flround))
 
 (define flexp (flonum-restricted1 (lambda (x) (flonum:exp x)) 'flexp))
-(define (fllog x)
-  (if (flonum? x)
-      (flonum:log x)
-      (fl:check! 'fllog x)))
+
+(define (fllog x . rest)
+  (cond ((not (flonum? x))
+         (fl:check! 'fllog x))
+        ((null? rest)
+         (flonum:log x))
+        ((not (null? (cdr rest)))
+         (assertion-violation 'fllog (errmsg 'msg:wna) (cons x rest)))
+        ((not (flonum? (car rest)))
+         (fl:check! 'fllog (car rest)))
+        (else
+         (let ((result (log x (car rest))))
+           (if (flonum? result)
+               result
+               +nan.0)))))
+
 (define flsin (flonum-restricted1 (lambda (x) (flonum:sin x)) 'flsin))
 (define flcos (flonum-restricted1 (lambda (x) (flonum:cos x)) 'flcos))
 (define fltan (flonum-restricted1 (lambda (x) (flonum:tan x)) 'fltan))

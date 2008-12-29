@@ -85,7 +85,7 @@
 ;
 ; The reader's size is about 32000.
 
-(define anf-threshold 40000)
+(define anf-threshold 80000)
 
 (define (pass3 exp)
 

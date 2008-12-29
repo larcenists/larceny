@@ -472,6 +472,7 @@
                  = < > <= >= + * - /
                  abs negative? positive? min max
                  div mod
+                 fx= fx< fx> fx<= fx>=                ; FIXME
                  fx=? fx<? fx>? fx<=? fx>=?
                  fxzero? fxpositive? fxnegative?
                  fxmin fxmax
@@ -794,6 +795,19 @@
                (fx>=? x 0))
           (remainder x y)
           (apply mod x y '()))))
+
+   ; FIXME: these names are now deprecated
+
+`  ((_ larceny fx= (fx= ?x ?y))
+    (fx=? ?x ?y))
+`  ((_ larceny fx< (fx< ?x ?y))
+    (fx<? ?x ?y))
+`  ((_ larceny fx<= (fx<= ?x ?y))
+    (fx<=? ?x ?y))
+`  ((_ larceny fx> (fx> ?x ?y))
+    (fx>? ?x ?y))
+`  ((_ larceny fx>= (fx>= ?x ?y))
+    (fx>=? ?x ?y))
 
    ; Special cases for two or three arguments.
 

@@ -3136,6 +3136,8 @@
 
 
 ;;; Introduced by representation inference.  Trusted.
+;;;
+;;; FIXME: there should be peepholes for these as well
 
 (define-sassy-instr (ia86.t_op2_500 regno)		; +:idx:idx
   (cond ((is_hwreg regno)
@@ -3145,11 +3147,21 @@
 
 (define-sassy-instr (ia86.t_op2_501 regno)		; +:fix:fix
   (let ((l1 (fresh-label)))
-    (ia86.loadr	$r.temp regno)
-    `(add	,$r.result ,$r.temp)
-    `(jno short ,l1)
-    `(sub	,$r.result ,$r.temp)
-    (ia86.mcall	$m.add 'add)                          ; second is temp so 2nd arg is in place
+    (cond ((and (is_hwreg regno)
+                (not (result-reg? regno)))
+           `(add	,$r.result ,(reg regno))
+           `(jno short ,l1)
+           (ia86.loadr	$r.temp regno)
+           `(sub	,$r.result ,$r.temp)
+           ; second is temp so 2nd arg is now in place
+           (ia86.mcall	$m.add 'add))
+          (else
+           (ia86.loadr	$r.temp regno)
+           `(add	,$r.result ,$r.temp)
+           `(jno short ,l1)
+           `(sub	,$r.result ,$r.temp)
+           ; second is temp so 2nd arg is already in place
+           (ia86.mcall	$m.add 'add)))
     `(label ,l1)))
 
 (define-sassy-instr (ia86.t_op2_502 regno)		; -:idx:idx
@@ -3160,11 +3172,21 @@
 
 (define-sassy-instr (ia86.t_op2_503 regno)		; -:fix:fix
   (let ((l1 (fresh-label)))
-    (ia86.loadr	$r.temp regno)
-    `(sub	,$r.result ,$r.temp)
-    `(jno short ,l1)
-    `(add	,$r.result ,$r.temp)
-    (ia86.mcall	$m.subtract 'subtract)	; second is temp so 2nd arg is in place
+    (cond ((and (is_hwreg regno)
+                (not (result-reg? regno)))
+           `(sub	,$r.result ,(reg regno))
+           `(jno short ,l1)
+           (ia86.loadr	$r.temp regno)
+           `(add	,$r.result ,$r.temp)
+           ; second is temp so 2nd arg is now in place
+           (ia86.mcall	$m.subtract 'subtract))
+          (else
+           (ia86.loadr	$r.temp regno)
+           `(sub	,$r.result ,$r.temp)
+           `(jno short ,l1)
+           `(add	,$r.result ,$r.temp)
+           ; second is temp so 2nd arg is already in place
+           (ia86.mcall	$m.subtract 'subtract)))
     `(label ,l1)))
 
 (define-sassy-instr/peep (or (ia86.t_op2imm_520* rs1 rd imm)	; +:idx:idx
