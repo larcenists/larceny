@@ -586,7 +586,7 @@
 ;;;  definitions that used to be here.)
 	
 ;;; Allocate the frame but initialize only the basic slots
-;;; and any pad words.  Leave RESULT clear at the end; this
+;;; and any pad words.  Leave TEMP clear at the end; this
 ;;; fact is used by T_SAVE1 below.
 
 (define-sassy-instr (ia86.t_save0 n)
@@ -604,11 +604,11 @@
     `(mov (dword (& ,$r.cont ,$stk.contsize)) ,(recordedsize n))
     ;; Not necessary to store reg0 here, this is handled
     ;; explicitly by the generated code.
-    `(xor	,$r.result ,$r.result)
-    `(mov	(dword (& ,$r.cont ,$stk.retaddr)) ,$r.result)
+    `(xor	,$r.temp ,$r.temp)
+    `(mov	(dword (& ,$r.cont ,$stk.retaddr)) ,$r.temp)
     (cond ((= (- (framesize n) (recordedsize n)) 8)
            ;; We have a pad word at the end -- clear it
-           `(mov (dword ,(stkslot (+ n 1))) ,$r.result)))))
+           `(mov (dword ,(stkslot (+ n 1))) ,$r.temp)))))
 
 (define-sassy-instr (ia86.t_check_save n)
   (let ((l0 (fresh-label))
@@ -623,10 +623,10 @@
     `(label ,l1)))
 
 (define-sassy-instr (ia86.t_setup_save_stores n)
-  `(xor	,$r.result ,$r.result)
+  `(xor	,$r.temp ,$r.temp)
   (cond ((= (- (framesize n) (recordedsize n)) 8)
          ;; We have a pad word at the end -- clear it
-         `(push ,$r.result))))
+         `(push ,$r.temp))))
 
 (define-sassy-instr (ia86.t_push_store regno)
   (cond ((is_hwreg regno)
@@ -634,8 +634,8 @@
         (else
          `(push (& ,$r.globals ,(g-reg regno))))))
 
-(define-sassy-instr (ia86.t_push_result)
-  `(push ,$r.result))
+(define-sassy-instr (ia86.t_push_temp)
+  `(push ,$r.temp))
 
 (define-sassy-instr (ia86.t_finis_save_stores n)
   (let ((v (let ((v (make-vector 3)))
@@ -643,20 +643,18 @@
                           (let ((r (recordedsize n)))
                             ;; (push byte) sign-extends its argument
                             (if (>= r 128) `(dword ,r) `(byte ,r))))
-             (vector-set! v (quotient $stk.retaddr 4)  $r.result)
-             (vector-set! v (quotient $stk.dynlink 4)  $r.result)
+             (vector-set! v (quotient $stk.retaddr 4)  $r.temp)
+             (vector-set! v (quotient $stk.dynlink 4)  $r.temp)
              v)))
     `(push ,(vector-ref v 2))
     `(push ,(vector-ref v 1))
     `(push ,(vector-ref v 0))))
 
-;;; Initialize the numbered slot to the value of RESULT.
-;;; Using RESULT is probably OK because it is almost certainly 0
-;;; after executing T_SAVE0 and only T_STORE instructions
-;;; after that.
+;;; Initialize the numbered slot to the value of TEMP,
+;;; which was cleared by ia86.t_save0.
 
 (define-sassy-instr (ia86.t_save1 n)
-  `(mov	(dword ,(stkslot n)) ,$r.result))
+  `(mov	(dword ,(stkslot n)) ,$r.temp))
 
 ;;; T_SAVE may still be emitted by the assembler when peephole 
 ;;; optimization is disabled.

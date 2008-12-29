@@ -550,7 +550,7 @@
            (ns (operand3 instruction))
            (v (make-vector (+ n 1) 
                            (lambda ()
-                             (emit-sassy as ia86.t_push_result)))))
+                             (emit-sassy as ia86.t_push_temp)))))
       (emit-sassy as ia86.t_check_save n)
       ;; setup zeroed register; push PADWORD (sometimes)
       (emit-sassy as ia86.t_setup_save_stores n)
