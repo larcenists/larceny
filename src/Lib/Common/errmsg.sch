@@ -205,6 +205,7 @@
 (msg:nottextualinput            "not a textual input port")
 (msg:notoutput                  "not an output port")
 (msg:i/oport:nosetportposition  "input/output port without set-port-position!")
+(msg:uncachedposition           "position not obtained from port-position")
 
 (msg:keyboardinterrupt          "keyboard interrupt")
 

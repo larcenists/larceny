@@ -122,7 +122,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (make-source-location input-port)
-  (let* ((i (port-position input-port))
+  (let* ((i (port-position-nocache input-port))
          (j (port-lines-read input-port))
          (k (- i (port-line-start input-port))))
     (vector i j k)))

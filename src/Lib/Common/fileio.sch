@@ -73,11 +73,25 @@
 (define whence:seek-cur          1)     ; offset is relative to current
 (define whence:seek-end          2)     ; offset is relative to end
 
+(define (file-io/port-position-as-binary data)
+  (let ((r (osdep/lseek-file (file-io/fd data) 0 whence:seek-cur)))
+    (if (>= r 0) r 'error)))
+
 (define (file-io/set-position! data offset)
   (let ((r (osdep/lseek-file (file-io/fd data) offset whence:seek-set)))
     (if (>= r 0) 'ok 'error)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; FIXME: using the alist for this, but not for set-position!, is screwy.
+
+(define (file-io/install-port-position-as-binary! p data)
+  (let ((get-position
+         (lambda ()
+           (file-io/port-position-as-binary data))))
+    (io/port-alist-set! p
+                        (cons (cons 'port-position-in-bytes get-position)
+                              (io/port-alist p)))))
 
 (define (file-io/read-bytes fd buffer)
   (let ((r (osdep/read-file fd buffer (bytevector-like-length buffer))))
@@ -103,6 +117,7 @@
                          (io/make-port file-io/ioproc data io-mode tx-mode
                                        'set-position!)
                          (io/make-port file-io/ioproc data io-mode tx-mode))))
+          (file-io/install-port-position-as-binary! p data)
           (file-io/remember-file data p)
           p)
         (begin (error "Unable to open file " filename " for " io-mode)
@@ -122,6 +137,7 @@
                (p    (if (and transcoder (not (zero? transcoder)))
                          (io/transcoded-port p transcoder)
                          p)))
+          (file-io/install-port-position-as-binary! p data)
           (file-io/remember-file data p)
           p)
         (begin (error 'open-file-input-port "unable to open file" filename)
@@ -169,6 +185,7 @@
                  (p    (if (and transcoder (not (zero? transcoder)))
                            (io/transcoded-port p transcoder)
                            p)))
+            (file-io/install-port-position-as-binary! p data)
             (file-io/remember-file data p)
             p)
           (begin (error 'open-file-output-port "unable to open file" filename)

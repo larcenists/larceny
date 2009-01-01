@@ -27,6 +27,15 @@
 
 (define bytevector-io:headroom 10)
 
+; FIXME: using the alist for this, but not for set-position!, is screwy.
+
+(define (bytevector-io/install-port-position-as-binary! p data)
+  (let ((get-position
+         (lambda () (vector-ref data bytevector-io.i))))
+    (io/port-alist-set! p
+                        (cons (cons 'port-position-in-bytes get-position)
+                              (io/port-alist p)))))
+
 (define (bytevector-io/open-input-bytevector bv)
   (if (not (bytevector? bv))
       (assertion-violation 'open-input-bytevector "illegal argument" bv))
@@ -35,16 +44,20 @@
 (define (bytevector-io/open-input-bytevector-no-copy bv)
   (if (not (bytevector? bv))
       (assertion-violation 'open-bytevector-input-port "illegal argument" bv))
-  (io/make-port bytevector-io/ioproc
-                (vector 'bytevector-input-port bv 0 (bytevector-length bv))
-                'input 'binary 'set-position!))
+  (let* ((data (vector 'bytevector-input-port bv 0 (bytevector-length bv)))
+         (p (io/make-port bytevector-io/ioproc
+                          data 'input 'binary 'set-position!)))
+    (bytevector-io/install-port-position-as-binary! p data)
+    p))
 
 (define (bytevector-io/open-output-bytevector)
-  (io/make-port bytevector-io/ioproc
-                (vector 'bytevector-output-port
+  (let* ((data (vector 'bytevector-output-port
                         (make-bytevector bytevector-io:headroom 0)
-                        0 0)
-                'output 'binary 'set-position!))
+                        0 0))
+         (p (io/make-port bytevector-io/ioproc
+                          data 'output 'binary 'set-position!)))
+    (bytevector-io/install-port-position-as-binary! p data)
+    p))
 
 (define (bytevector-io/open-input/output-bytevector bv)
   (if (not (bytevector? bv))
@@ -53,10 +66,12 @@
   (bytevector-io/open-input/output-bytevector-no-copy (bytevector-copy bv)))
 
 (define (bytevector-io/open-input/output-bytevector-no-copy bv)
-  (io/make-port bytevector-io/ioproc1
-                (vector 'bytevector-input/output-port
-                        bv 0 (bytevector-length bv))
-                'input 'output 'binary 'set-position!))
+  (let* ((data (vector 'bytevector-input/output-port
+                       bv 0 (bytevector-length bv)))
+         (p (io/make-port bytevector-io/ioproc1
+                          data 'input 'output 'binary 'set-position!)))
+    (bytevector-io/install-port-position-as-binary! p data)
+    p))
 
 (define (bytevector-io/get-output-bytevector port)
   (if (not (bytevector-output-port? port))

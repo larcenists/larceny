@@ -293,6 +293,13 @@
     (error "setenv: not a string: " value))
   (unspecified))
 
+(define (get-errno)
+  (syscall syscall:errno))
+
+(define (set-errno! n)
+  (assert (fixnum? n))
+  (syscall syscall:seterrno n))
+
 (define (make-env-parameter name . rest)
   (let ((*name* (sys$check-env-var 'make-env-parameter name))
         (ok?    (if (null? rest)

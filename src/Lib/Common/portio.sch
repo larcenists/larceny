@@ -192,6 +192,8 @@
 
 ; FIXME:  Custom implementations of port-position are ignored.
 
+(define (port-position-nocache p) (io/port-position-nocache p))
+
 (define (port-position p) (io/port-position p))
 
 (define (port-has-set-port-position!? p)

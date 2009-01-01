@@ -1096,6 +1096,7 @@
   (environment-set! larc 'transcoded-port transcoded-port)
   (environment-set! larc 'port-has-port-position? port-has-port-position?)
   (environment-set! larc 'port-position port-position)
+  (environment-set! larc 'port-position-nocache port-position-nocache) ;FIXME
   (environment-set! larc 'port-lines-read port-lines-read) ;FIXME
   (environment-set! larc 'port-line-start port-line-start) ;FIXME
   (environment-set! larc 'port-has-set-port-position!?
@@ -1492,6 +1493,8 @@
   (environment-set! larc 'command-line-arguments command-line-arguments)
   (environment-set! larc 'getenv getenv)
   (environment-set! larc 'setenv setenv)
+  (environment-set! larc 'get-errno get-errno)
+  (environment-set! larc 'set-errno! set-errno!)
   (environment-set! larc 'make-env-parameter make-env-parameter)
   (environment-set! larc 'system system)
   (environment-set! larc 'current-directory current-directory)
