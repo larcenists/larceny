@@ -18,7 +18,8 @@
   #t)
 
 (define (file-io/remember p)
-  (set! *files-open* #t))
+  (if (output-port? p)
+      (set! *files-open* #t)))
 
 ; Actually closes all open ports, because custom output ports use
 ; the same mechanism to ensure they're flushed and closed on exit.

@@ -83,8 +83,11 @@
                               "wrong number of arguments"
                               (cons codec rest)))))
 
+; FIXME: let's see how far we get...
+
 (define (native-transcoder)
-  (make-transcoder (latin-1-codec) 'none 'ignore))
+  ;(make-transcoder (latin-1-codec) 'none 'ignore))
+  (default-transcoder))
 
 (define (transcoder-codec t)
   (io/transcoder-codec t))

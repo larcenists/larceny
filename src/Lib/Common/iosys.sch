@@ -1025,6 +1025,9 @@
          ; Lookup the corresponding byte position.
 
          (let* ((t (io/port-transcoder p))
+                (codec (io/transcoder-codec t))
+                (input? (io/input-port? p))
+                (output? (io/output-port? p))
                 (alist (io/port-alist p))
                 (probe1 (assq 'port-position alist))
                 (port-position-in-chars (if probe1 (cdr probe1) #f))
@@ -1034,12 +1037,30 @@
                 (ht (if probe3 (cdr probe3) #f))
                 (byte-posn (and ht (hashtable-ref ht posn #f))))
 
+           (define (reposition!)
+             (io/reset-buffers! p)
+             (vector-like-set! p port.mainpos posn)
+             (io/set-port-position-as-binary! p byte-posn))
+
            ; We can't enforce the R6RS restriction for combined
            ; input/output ports because it may be a lookahead correction.
 
-           (cond ((and (not byte-posn)
-                       (not (and (io/input-port? p)
-                                 (io/output-port? p))))
+           (cond ((or byte-posn
+                      (and input? output?))
+
+                  (if (and (not input?)
+                           output?
+                           (not (eq? codec 'latin-1))
+                           (not port-position-in-chars))
+                      (issue-warning-deprecated
+                       'set-port-position!...on_Unicode_output_port))
+
+                  (reposition!))
+
+                 (else
+
+                  ; error case: posn > 0 and not in cache
+
                   (if (not (issue-deprecated-warnings?))
 
                       (assertion-violation 'set-port-position!
@@ -1060,25 +1081,16 @@
 
                         (cond ((or port-position-in-chars
                                    (and
-                                    (eq? 'latin-1 (io/transcoder-codec t))
+                                    (eq? 'latin-1 codec)
                                     (eq? 'none (io/transcoder-eol-style t))))
-                               (io/reset-buffers! p)
-                               (vector-like-set! p port.mainpos posn)
-                               (io/set-port-position-as-binary! p posn))
+                               (reposition!))
                               ((io/input-port? p)
                                (io/set-port-position! p 0)
                                (do ((posn posn (- posn 1)))
                                    ((= posn 0))
                                  (read-char p)))
                               (else
-                               (io/reset-buffers! p)
-                               (vector-like-set! p port.mainpos posn)
-                               (io/set-port-position-as-binary! p posn))))))
-
-                 (else
-                  (io/reset-buffers! p)
-                  (vector-like-set! p port.mainpos posn)
-                  (io/set-port-position-as-binary! p byte-posn))))))
+                               (reposition!))))))))))
 
   (unspecified))
 
@@ -2148,10 +2160,13 @@
             ((fx= errmode errmode:ignore)
              (io/get-char p lookahead?))
             (else
-             (raise-r6rs-exception (make-i/o-decoding-error p)
-                                   'get-char
-                                   "utf-8 decoding error"
-                                   units)))))
+             (let* ((line (+ 1 (port-lines-read p)))
+                    (msg (string-append "utf-8 decoding error in line "
+                                        (number->string line))))
+               (raise-r6rs-exception (make-i/o-decoding-error p)
+                                     'get-char
+                                     msg
+                                     units))))))
 
   ; Forces at least one more byte into the active buffer,
   ; and retries.

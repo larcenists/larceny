@@ -13,17 +13,17 @@
 ;
 ; FIXME:  These definitions should go away after v0.95 is released.
 
-(define open-raw-latin-1-output-file open-output-file)
-(define open-raw-latin-1-input-file open-input-file)
-(define call-with-raw-latin-1-output-file call-with-output-file)
-(define call-with-raw-latin-1-input-file call-with-input-file)
+;(define open-raw-latin-1-output-file open-output-file)
+;(define open-raw-latin-1-input-file open-input-file)
+;(define call-with-raw-latin-1-output-file call-with-output-file)
+;(define call-with-raw-latin-1-input-file call-with-input-file)
 
 ; FIXME:  These names should go away as soon as possible.
 
-(define open-binary-input-file open-raw-latin-1-input-file)
-(define open-binary-output-file open-raw-latin-1-output-file)
-(define call-with-binary-input-file call-with-raw-latin-1-input-file)
-(define call-with-binary-output-file call-with-raw-latin-1-output-file)
+;(define open-binary-input-file open-raw-latin-1-input-file)
+;(define open-binary-output-file open-raw-latin-1-output-file)
+;(define call-with-binary-input-file call-with-raw-latin-1-input-file)
+;(define call-with-binary-output-file call-with-raw-latin-1-output-file)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -49,10 +49,15 @@
 
          (adjust-transcoder!
           (lambda ()
-            (let ((t (get-feature 'transcoder)))
-              (if (and t (> t 0))
-                  (begin (default-transcoder t)
-                         (console-io/initialize))))))
+            (let ((t (get-feature 'transcoder))
+                  (rep (get-feature 'char-representation)))
+              (cond ((and t (> t 0))
+                     (default-transcoder t)
+                     (console-io/initialize))
+                    ((eq? rep 'unicode)
+                     (default-transcoder
+                      (make-transcoder (utf-8-codec)))
+                     (console-io/initialize))))))
 
          ; FIXME: do all varieties support all these switches?
 
