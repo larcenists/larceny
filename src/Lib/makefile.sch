@@ -145,6 +145,7 @@
     ; Fundamental
 
     "malcode"           ; really basic things
+    "layouts"           ; generated from Rts/layouts.cfg
     "typetags"          ; type tags
     "syscall-id"        ; syscall ID numbers
     osdep               ; OS dependent system interface (to be substituted!)

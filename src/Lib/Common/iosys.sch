@@ -247,6 +247,10 @@
   ; Nothing, for the time being.
   #t)
 
+(define (io/finalize)
+  ; Nothing, for the time being.
+  #t)
+
 ; 'ioproc' is a procedure of one argument: a symbol that denotes the 
 ; operation to perform.  It returns a port-specific procedure that, when
 ; called, performs the operation.  The operations are:
@@ -871,7 +875,7 @@
 ; For set-port-position!, the situation is more complex:
 ;
 ; some ports do not support set-port-position!
-;     e.g. pipes, sockets, bytevector and string output ports
+;     e.g. pipes and sockets
 ; binary file ports support set-port-position!
 ; custom ports may support set-port-position!
 ;     If so, then Larceny assumes their positions are reported
@@ -896,6 +900,8 @@
 ;     Buffer corrections are implemented using caching and
 ;     a port-position-in-bytes procedure that is part of the
 ;     port structure.
+; bytevector and string ports support set-port-position!
+;     They mimic file ports.
 ;
 ; For textual ports, if the argument to set-port-position! is
 ; nonzero and is also not the result of a previous call to
@@ -905,7 +911,10 @@
 ; is maintained for textual ports that support set-port-position!.
 ; If the port uses variable-length transcoding (with a codec other
 ; than Latin-1, or an eol-style other than none), then the port
-; must supply port-position-in-bytes procedure in the port's alist.
+; must supply one of the following procedures in the port's alist:
+;
+;     port-position-in-bytes
+;     port-position-in-chars (used by custom ports)
 
 (define (io/port-position p)
   (if (io/binary-port? p)
@@ -1723,6 +1732,88 @@
                    (else
                     (io/set-error-state! p)
                     (io/put-char-input/output p c))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Bulk i/o.
+;;;
+;;; Most of these handle a common case by returning the same
+;;; value as a corresponding R6RS library procedure, but may
+;;; fail on complex or unusual cases by returning #f.
+;;;
+;;; These should be majorly bummed, else there's no point.
+;;;
+;;; FIXME: could add a few more, such as
+;;;     get-bytevector-n!
+;;;     get-string-n!
+;;;     put-bytevector
+;;;
+;;; Note, however, that io/put-string-maybe didn't help as much
+;;; as io/get-line-maybe, and probably wasn't worth the effort
+;;; and code size.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Handles the common case in which the line is all-Ascii,
+; terminated by a linefeed, and lies entirely within the buffer.
+
+(define (io/get-line-maybe p)
+  (and (port? p)
+       (let ((type (.vector-ref:trusted p port.type))
+             (buf  (.vector-ref:trusted p port.mainbuf))
+             (ptr  (.vector-ref:trusted p port.mainptr)))
+         (define (loop i)
+           (let ((unit (bytevector-ref buf i)))     ; FIXME: should be trusted
+             (cond ((and (.<:fix:fix 13 unit)       ; 13 = #\return
+                         (.<:fix:fix unit 128))
+                    (loop (.+:idx:idx i 1)))
+                   ((.=:fix:fix 10 unit)            ; 10 = #\linefeed
+                    (let* ((n (.-:idx:idx i ptr))
+                           (s (make-string n)))
+                      (loop2 ptr i s 0)))
+                   (else #f))))
+         (define (loop2 j k s i)
+           (cond ((.<:fix:fix j k)
+                  (.string-set!:trusted s i (.integer->char:trusted
+                                             (bytevector-ref buf j)))
+                  (loop2 (.+:idx:idx j 1) k s (.+:idx:idx i 1)))
+                 (else
+                  (.vector-set!:trusted:nwb p 2 (.+:idx:idx k 1))
+                  s)))
+         (and (eq? type type:textual-input)
+              (loop ptr)))))
+
+; Handles the common case in which the string is all-Ascii
+; and can be buffered without flushing.
+
+(define (io/put-string-maybe p s start count)
+  (and (port? p)
+       (string? s)
+       (fixnum? start)
+       (fixnum? count)
+       (.<=:fix:fix 0 start)
+       (let ((k (.+:fix:fix start count))
+             (n (.string-length:str s))
+             (type (.vector-ref:trusted p port.type))
+             (buf  (.vector-ref:trusted p port.mainbuf))
+             (lim  (.vector-ref:trusted p port.mainlim)))
+         (define (loop i j)
+           (cond ((.<:fix:fix i k)
+                  (let* ((c (.string-ref:trusted s i))
+                         (sv (.char->integer:chr c)))
+                    (if (and (.<:fix:fix 10 sv)    ; 10 = #\newline
+                             (.<:fix:fix sv 128))
+                        (begin (bytevector-set! buf j sv) ; FIXME
+                               (loop (.+:idx:idx i 1) (.+:idx:idx j 1)))
+                        #f)))
+                 (else
+                  (.vector-set!:trusted:nwb p port.mainlim j)
+                  #t)))
+         (and (.<:fix:fix start n)
+              (<= k n)
+              (eq? type type:textual-output)
+              (.<=:fix:fix (.+:idx:idx lim count) (bytevector-length buf))
+              (loop start lim)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;

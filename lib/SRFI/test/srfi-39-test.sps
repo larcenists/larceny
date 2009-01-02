@@ -15,15 +15,6 @@
   (writeln "Error: test failed: " token)
   #f)
 
-(define-syntax parameterize
-  (syntax-rules ()
-   ((_ ((parameter value)) form ...)
-    (let ((current-value (parameter)))
-      (dynamic-wind
-       (lambda () (parameter value))
-       (lambda () form ...)
-       (lambda () (parameter current-value)))))))
-
 (define radix
   (make-parameter "10" (lambda (x)
 			 (if (number? x)

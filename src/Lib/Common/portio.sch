@@ -597,7 +597,7 @@
             s))
       (portio/illegal-arguments 'get-string-all p)))
 
-(define (get-line p)
+(define (portio/get-line p)
   (if (and (input-port? p)
            (textual-port? p))
       (let* ((eof? #f)
@@ -610,7 +610,11 @@
         (if (and eof? (fx= 0 (string-length s)))
             (eof-object)
             s))
-      (portio/illegal-arguments 'get-string-all p)))
+      (portio/illegal-arguments 'get-line p)))
+
+(define (get-line p)
+  (or (io/get-line-maybe p)
+      (portio/get-line p)))
 
 (define (portio/illegal-arguments who . irritants)
   (apply assertion-violation who "illegal argument(s)" irritants))
@@ -653,7 +657,8 @@
                               "too many arguments" (cons p (cons bv rest))))))
 
 (define (put-string p s . rest)
-  (define (put-string p s start count)
+
+  (define (portio/put-string p s start count)
     (if (and (textual-port? p)
              (output-port? p)
              (string? s)
@@ -668,6 +673,11 @@
             (put-char p (string-ref s i))))
         (assertion-violation 'put-string
                              "illegal argument(s)" p s start count)))
+
+  (define (put-string p s start count)
+    (or (io/put-string-maybe p s start count)
+        (portio/put-string p s start count)))
+
   (cond ((null? rest)
          (put-string p s 0 (string-length s)))
         ((null? (cdr rest))

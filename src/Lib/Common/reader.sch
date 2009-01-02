@@ -8152,6 +8152,10 @@
               (else "Bug in lexical analyzer")))
       (let* ((c (scanChar))
              (next (if (char? c) (string c) ""))
+             (line (+ 1 (port-lines-read input-port)))
+             (msgtxt (string-append msgtxt
+                                    " in line "
+                                    (number->string line)))
              (msgtxt (string-append msgtxt
                                     ": "
                                     (substring string_accumulator
@@ -8863,7 +8867,9 @@
                   (string-append "illegal " culprit-as-string)
                   culprit-as-string))
              (msg (string-append
-                   "Syntax error while parsing "
+                   "Syntax error in line "
+                   (number->string (+ 1 (port-lines-read input-port)))
+                   " while parsing "
                    (symbol->string nonterminal)
                    (string #\newline)
                    "  Encountered "

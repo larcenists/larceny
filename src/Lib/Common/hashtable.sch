@@ -237,7 +237,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (reset-all-hashtables!)
-  (let* ((record-like-objects (sro 3 5 -1))
+  (let* ((record-like-objects
+          (sro sys$tag.vector-tag sys$tag.structure-typetag -1))
          (hashtables
           (filter hashtable? (vector->list record-like-objects)))
          (problematic-hashtables

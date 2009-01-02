@@ -11,14 +11,21 @@
 
 ($$trace "stdio")
 
+; Making current-input-port and current-output-port into parameters
+; lost the pure elegance of Lars Hansen's factory idea, but it still
+; works (to some extent) by going through an error handler.
+
 (define current-input-port 
   (make-parameter "current-input-port" #f (lambda (x) (input-port? x))))
 
 (define current-output-port 
   (make-parameter "current-output-port" #f (lambda (x) (output-port? x))))
 
-(define current-error-port 
-  (make-parameter "current-error-port" #f (lambda (x) (output-port? x))))
+; Rebinding the current-error-port can cause an infinite loop
+; when errors occur, so current-error-port isn't a parameter.
+
+(define (current-error-port)
+  (console-error-port))
 
 (define (initialize-io-system)
   (io/initialize)
@@ -26,13 +33,12 @@
   (console-io/initialize)
   (current-input-port (console-input-port))
   (current-output-port (console-output-port))
-; (current-error-port (console-output-port))
-  (current-error-port
-   (transcoded-port (standard-error-port) (default-transcoder)))
+; (current-error-port (console-error-port))     ; see comment above
   (unspecified))
 
 (define (shutdown-io-system)
-  (close-open-files)
+  (file-io/finalize)
+  (io/finalize)
   (unspecified))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -207,6 +213,9 @@
 (define (console-output-port)
   ((console-output-port-factory)))
 
+(define (console-error-port)
+  ((console-error-port-factory)))
+
 (define console-input-port-factory
   (make-parameter "console-input-port-factory" 
                   console-io/console-input-port
@@ -215,6 +224,11 @@
 (define console-output-port-factory
   (make-parameter "console-output-port-factory"
                   console-io/console-output-port
+                  procedure?))
+
+(define console-error-port-factory
+  (make-parameter "console-error-port-factory"
+                  console-io/console-error-port
                   procedure?))
 
 (define (open-input-string s)
@@ -326,9 +340,13 @@
       (with-output-to-port p thunk))))
 
 ; Close-open-files is useful for (interactive) error recovery.
+; FIXME: this actually closes all ports, so it's pretty drastic.
+
+(define (close-open-ports)
+  (file-io/close-open-files))
 
 (define (close-open-files)
-  (file-io/close-open-files))
+  (close-open-ports))
 
 ; The following are useful extensions for dealing with the file system.
 

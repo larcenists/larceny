@@ -13,10 +13,11 @@
 ; much-used synonym for "done here" under Unix, and it would be 
 ; criminal not to support it (though it is really a malfeasance).
 ;
-; To effect this there are two procedures CONSOLE-INPUT-PORT and
-; CONSOLE-OUTPUT-PORT that will return the console input and output
-; ports and that will create new console port(s) if the old ports are
-; closed, if EOF is seen, or if an error is detected, after first
+; To effect this there are three procedures CONSOLE-INPUT-PORT,
+; CONSOLE-OUTPUT-PORT, and CONSOLE-ERROR-PORT that normally
+; return the console input, output, and error ports but will
+; create new console port(s) if the old ports are closed, if
+; EOF is seen, or if an error is detected, after first
 ; returning the EOF or signalling the error once.  Interactive
 ; applications can use these procedures to get "sane" consoles in
 ; the presence of the Unix behavior.
@@ -25,7 +26,7 @@
 ; console ports are only slight variations on file ports.  That's
 ; appropriate for Unix but perhaps not for other systems.
 ;
-; FIXME: the two FIXMEs below need to be implemented but it's a 
+; FIXME: the three FIXMEs below need to be implemented but it's a 
 ;        little involved because we need to record that a descriptor
 ;        has been closed so it won't be closed again, without 
 ;        making it look like the port is closed (yeah, weird).  
@@ -37,6 +38,7 @@
 
 (define *current-console-input*  #f)    ; There is only one!
 (define *current-console-output* #f)    ; There is only one!
+(define *current-console-error* #f)     ; There is only one!
 
 (define (console-io/console-input-port)
   (call-without-interrupts
@@ -63,10 +65,23 @@
                          (console-io/open-output-console))))
         *current-console-output*))))
 
+(define (console-io/console-error-port)
+  (call-without-interrupts
+    (lambda ()
+      (let ((ccout *current-console-error*))
+        (if (or (not (io/open-port? ccout))
+                (io/port-error-condition? ccout))
+            (begin (if (io/open-port? ccout)
+                       #t)              ; FIXME: reap the descriptor
+                   (set! *current-console-error* 
+                         (console-io/open-error-console))))
+        *current-console-error*))))
+
 (define (console-io/initialize)
   (osdep/initialize-console)
   (set! *current-console-input* (console-io/open-input-console))
-  (set! *current-console-output* (console-io/open-output-console)))
+  (set! *current-console-output* (console-io/open-output-console))
+  (set! *current-console-error* (console-io/open-error-console)))
 
 (define (console-io/ioproc op)
   (case op
@@ -91,14 +106,19 @@
      #t)))
 
 ; Retries once after an error.
-; Workaround for ^Z read errors on MacOS X.
+; FIXME: This was a workaround for ^Z read errors on MacOS X,
+; but it caused more problems than it solved.
+
+;(define (console-io/with-retry proc)
+;  (lambda args
+;    (let ((r (apply proc args)))
+;      (if (or (not (fixnum? r)) (< r 0))
+;          (apply proc args)
+;          r))))
 
 (define (console-io/with-retry proc)
   (lambda args
-    (let ((r (apply proc args)))
-      (if (or (not (fixnum? r)) (< r 0))
-          (apply proc args)
-          r))))
+    (apply proc args)))
 
 ;(define (console-io/open-input-console)
 ;  (let ((fd (osdep/open-console 'input)))
@@ -128,6 +148,15 @@
   (let* ((fd (osdep/open-console 'output))
          (p (io/make-port console-io/ioproc
                           (file-io/data fd "*console-output*")
+                          'binary
+                          'output
+                          'flush)))
+    (transcoded-port p (console-transcoder))))
+
+(define (console-io/open-error-console)
+  (let* ((fd (osdep/open-console 'error))
+         (p (io/make-port console-io/ioproc
+                          (file-io/data fd "*console-error*")
                           'binary
                           'output
                           'flush)))

@@ -6,26 +6,30 @@
 
 ($$trace "fileio")
 
-; List of open files: assoc list on (file-data . port)
-
-(define *file-io/files* '())
+(define *files-open* #f)
 
 (define (file-io/initialize)
-  (call-without-interrupts               ; *file-io/files*
-   (lambda ()
-     (set! *file-io/files* '()))))
+  (set! *files-open* #f)
+  #t)
 
-(define (file-io/remember-file data p)
-  (call-without-interrupts               ; *file-io/files*
-   (lambda ()
-     (set! *file-io/files* 
-           (cons (cons data p) *file-io/files*)))))
+(define (file-io/finalize)
+  (if *files-open*
+      (file-io/close-open-files))
+  #t)
 
-(define (file-io/forget-file data)
-  (call-without-interrupts               ; *file-io/files*
-   (lambda ()
-     (set! *file-io/files* 
-           (remq! (assq data *file-io/files*) *file-io/files*)))))
+(define (file-io/remember p)
+  (set! *files-open* #t))
+
+; Actually closes all open ports, because custom output ports use
+; the same mechanism to ensure they're flushed and closed on exit.
+;
+; FIXME:  If we're going to close all open ports, it would be
+; better just to keep a list of them and avoid using sro.
+
+(define (file-io/close-open-files)
+  (let ((ports (sro sys$tag.vector-tag sys$tag.port-typetag -1)))
+    (set! *files-open* #f)
+    (vector-for-each io/close-port ports)))
 
 (define (file-io/data fd name)
   (cons fd name))
@@ -118,13 +122,12 @@
                                        'set-position!)
                          (io/make-port file-io/ioproc data io-mode tx-mode))))
           (file-io/install-port-position-as-binary! p data)
-          (file-io/remember-file data p)
+          (file-io/remember p)
           p)
         (begin (error "Unable to open file " filename " for " io-mode)
                #t))))
 
-; FIXME: ignores file options and buffer mode.
-; The R6RS says it's supposed to ignore the file options anyway,
+; The R6RS says it's supposed to ignore the file options,
 ; and the buffer mode doesn't appear to have any real semantics
 ; for files.
 
@@ -138,7 +141,7 @@
                          (io/transcoded-port p transcoder)
                          p)))
           (file-io/install-port-position-as-binary! p data)
-          (file-io/remember-file data p)
+          (file-io/remember p)
           p)
         (begin (error 'open-file-input-port "unable to open file" filename)
                #t))))
@@ -186,7 +189,7 @@
                            (io/transcoded-port p transcoder)
                            p)))
             (file-io/install-port-position-as-binary! p data)
-            (file-io/remember-file data p)
+            (file-io/remember p)
             p)
           (begin (error 'open-file-output-port "unable to open file" filename)
                  #t)))))
@@ -286,20 +289,9 @@
 
 (define (file-io/close-file data)
   (let ((r (osdep/close-file (file-io/fd data))))
-    (file-io/forget-file data)
     (if (< r 0) 
         'error
         'ok)))
-
-(define (file-io/close-open-files)
-  (let ((files (call-without-interrupts    ; *file-io/files*
-                (lambda ()
-                  (let ((x *file-io/files*))
-                    (set! *file-io/files* '())
-                    x)))))
-    (do ((l files (cdr l)))
-        ((null? l) (unspecified))
-      (io/close-port (cdar l)))))
 
 (define (file-io/file-modification-time filename)
   (osdep/file-modification-time filename))

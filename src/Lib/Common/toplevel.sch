@@ -1014,6 +1014,7 @@
   (environment-set! larc 'call-with-text-input-file call-with-text-input-file)
   (environment-set! larc 'call-with-text-output-file
                     call-with-text-output-file)
+  (environment-set! larc 'close-open-ports close-open-ports)
   (environment-set! larc 'close-open-files close-open-files)
   (environment-set! larc 'console-input-port console-input-port)
   (environment-set! larc 'console-input-port-factory
@@ -1021,6 +1022,9 @@
   (environment-set! larc 'console-output-port console-output-port)
   (environment-set! larc 'console-output-port-factory
                     console-output-port-factory)
+  (environment-set! larc 'console-error-port console-error-port)
+  (environment-set! larc 'console-error-port-factory
+                    console-error-port-factory)
   (environment-set! larc 'delete-file delete-file)
   (environment-set! larc 'environment-printer environment-printer)
   (environment-set! larc 'eof-object eof-object)
