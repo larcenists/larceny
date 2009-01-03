@@ -104,6 +104,7 @@
                 (let ((first-line (get-line p)))
                   (cond ((and (string? first-line)
                               (string=? first-line "#!fasl"))
+                         (set-port-position! p 0)
                          (load-from-port p get-environment)
                          #t)
                         (else

@@ -1945,7 +1945,10 @@
   (vector-like-set! p port.mainlim 0)
   (vector-like-set! p port.auxptr 0)
   (vector-like-set! p port.auxlim 0)
-  (bytevector-set! (vector-like-ref p port.mainbuf) 0 port.sentinel))
+  (bytevector-set! (vector-like-ref p port.mainbuf) 0 port.sentinel)
+  (case (vector-like-ref p port.state)
+   ((auxstart auxend)
+    (vector-like-set! p port.state 'textual))))
 
 ; Shallow-clones a port without closing it.
 

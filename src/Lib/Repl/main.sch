@@ -59,22 +59,27 @@
                       (make-transcoder (utf-8-codec)))
                      (console-io/initialize))))))
 
-         ; FIXME: do all varieties support all these switches?
+         ; Not all varieties of Larceny support all these switches.
 
          (adjust-safety!
           (lambda (safety)
             (let* ((emode (get-feature 'execution-mode))
                    (dargo? (eq? 'dargo emode))
+                   (arch (get-feature 'arch-name))
+                   (native? (or (string=? arch "SPARC")
+                                (string=? arch "IAssassin")))
                    (settings
-                    (case safety
-                     ((0)  `(begin (runtime-safety-checking #f)
-                                   (faster-arithmetic #t)))
-                     ((1)  `(begin (runtime-safety-checking #t)
-                                   (catch-undefined-globals (not ,dargo?))
-                                   (faster-arithmetic #f)))
-                     (else `(begin (runtime-safety-checking #t)
-                                   (catch-undefined-globals #t)
-                                   (faster-arithmetic #f))))))
+                    (if (not native?)
+                        #f
+                        (case safety
+                         ((0)  `(begin (runtime-safety-checking #f)
+                                       (faster-arithmetic #t)))
+                         ((1)  `(begin (runtime-safety-checking #t)
+                                       (catch-undefined-globals (not ,dargo?))
+                                       (faster-arithmetic #f)))
+                         (else `(begin (runtime-safety-checking #t)
+                                       (catch-undefined-globals #t)
+                                       (faster-arithmetic #f)))))))
               (eval settings (interaction-environment)))))
 
          ; FIXME
