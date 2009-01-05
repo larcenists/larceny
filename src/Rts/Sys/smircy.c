@@ -1208,7 +1208,7 @@ void smircy_when_object_forwarded( smircy_context_t *context,
   if (is_address_in_bitmap( context, obj_new )) {
     if (smircy_object_marked_p( context, obj_orig )) {
       mark_object( context, obj_new );
-    } else if ( gen_of( obj_orig ) == 0 ) {
+    } else if ( gen_orig == 0 ) {
       mark_object( context, obj_new );
     } else { /* obj_orig is unmarked. */
       /* Unmark new address, since old object was not marked 
@@ -1218,8 +1218,7 @@ void smircy_when_object_forwarded( smircy_context_t *context,
       unmark_object( context, obj_new );
     }
   } else { 
-    if (smircy_object_marked_p( context, obj_orig ) || 
-        ( gen_of( obj_orig ) == 0 )) {
+    if (smircy_object_marked_p( context, obj_orig ) || ( gen_orig == 0 )) {
       /* obj_orig was marked (or is in nursery and assumed to be
        * live); obj_new lies outside bitmap range and will be treated
        * as marked without taking any explicit steps here. */
