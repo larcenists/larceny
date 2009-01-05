@@ -261,9 +261,13 @@ stats_id_t stats_new_remembered_set( int major_id, int minor_id )
   return i;
 }
 
+/* Invariant: all timers in use must be nonzero. */
+
 stats_id_t stats_start_timer( stats_timer_t type )
 {
   int i;
+
+  /* Find the first nonzero timer (which will be the first one not in use). */
 
   for ( i=0 ; i < MAX_TIMERS && stats_state.timers[i].timer > 0 ; i++ )
     ;
@@ -280,7 +284,7 @@ stats_id_t stats_start_timer( stats_timer_t type )
     default :
       assert(0);
   }
-  assert( stats_state.timers[i].timer != 0 );
+  assert( stats_state.timers[i].timer != 0 );      /* enforce the invariant */
 
   return i;
 }
