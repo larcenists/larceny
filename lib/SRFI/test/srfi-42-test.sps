@@ -580,8 +580,12 @@
 ; Summary
 ; ==========================================================================
 
-(writeln "Correct examples : " my-check-correct)
-(writeln "Wrong examples   : " my-check-wrong)
+(if (and (= 154 my-check-correct)
+         (=   0 my-check-wrong))
+    (writeln "Done.")
+    (begin
+     (writeln "Correct examples : " my-check-correct)
+     (writeln "Wrong examples   : " my-check-wrong)))
 
 (if (file-exists? "tmp1")
     (delete-file "tmp1"))

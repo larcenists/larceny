@@ -128,7 +128,7 @@
 
             (let* ((path (get-feature 'library-path))
                    (path (if (string=? path "")
-                             (getenv "LARCENYLIBPATH")  ; FIXME
+                             (getenv "LARCENY_LIBPATH")  ; FIXME
                              path))
                    (path (if (string? path) path #f))
                    (os (get-feature 'os-name))

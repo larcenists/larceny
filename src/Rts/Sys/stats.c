@@ -223,6 +223,7 @@ static struct {
   bool initialized;
   struct {
     int           timer;	/* Base measurement */
+    int           used;         /* 0 iff not in use, 1 iff in use */
     stats_timer_t type;		/* What are we measuring? */
   } timers[ MAX_TIMERS ];
   FILE *dump_file;
@@ -261,17 +262,16 @@ stats_id_t stats_new_remembered_set( int major_id, int minor_id )
   return i;
 }
 
-/* Invariant: all timers in use must be nonzero. */
-
 stats_id_t stats_start_timer( stats_timer_t type )
 {
   int i;
 
   /* Find the first nonzero timer (which will be the first one not in use). */
 
-  for ( i=0 ; i < MAX_TIMERS && stats_state.timers[i].timer > 0 ; i++ )
+  for ( i=0 ; i < MAX_TIMERS && stats_state.timers[i].used != 0 ; i++ )
     ;
   assert(i < MAX_TIMERS);
+  stats_state.timers[i].used = 1;
 
   stats_state.timers[i].type = type;
   switch (type) {
@@ -284,7 +284,6 @@ stats_id_t stats_start_timer( stats_timer_t type )
     default :
       assert(0);
   }
-  assert( stats_state.timers[i].timer != 0 );      /* enforce the invariant */
 
   return i;
 }
@@ -295,10 +294,11 @@ int stats_stop_timer( stats_id_t timer )
 
   assert( 0 <= timer && 
 	  timer < MAX_TIMERS && 
-	  stats_state.timers[timer].timer != 0 );
+	  stats_state.timers[timer].used != 0 );
 
   then = stats_state.timers[timer].timer;
   stats_state.timers[timer].timer = 0;
+  stats_state_timers[timer].used = 0;
   switch (stats_state.timers[timer].type) {
     case TIMER_ELAPSED :
       return osdep_realclock() - then;

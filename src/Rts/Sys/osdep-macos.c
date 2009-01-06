@@ -300,10 +300,7 @@ unsigned osdep_realclock( void )
 
 unsigned osdep_cpuclock( void )
 {
-  // FIXME: It's wrong to return 0 here, because 0 means something magic
-  // to the client, but the client needs to change.
-
-  return max(1, clock() * 1000 / CLOCKS_PER_SEC);
+  return clock() * 1000 / CLOCKS_PER_SEC;
 }
 
 /* Fill in the structures with real, user, system times. */

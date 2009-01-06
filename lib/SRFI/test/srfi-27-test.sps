@@ -89,27 +89,27 @@
 (define (check-basics-1)
 
   ; generate increasingly large numbers
-  (display "; generating large numbers [bits]: ")
+  ; (display "; generating large numbers [bits]: ")
   (do ((k 0 (+ k 1))
        (n 1 (* n 2)))
       ((> k 1024))
-    (display k)
-    (display " ")
+    ; (display k)
+    ; (display " ")
     (my-random-integer n))
-  (display "ok")
-  (newline)
+  ; (display "ok")
+  ; (newline)
 
   ; generate some reals
-  (display "; generating reals [1000 times]: ")
+  ; (display "; generating reals [1000 times]: ")
   (do ((k 0 (+ k 1))
        (x (my-random-real) (+ x (my-random-real))))
       ((= k 1000)
        x))
-  (display "ok")
-  (newline)
+  ; (display "ok")
+  ; (newline)
 
   ; get/set the state
-  (display "; get/set state: ")
+  ; (display "; get/set state: ")
   (let* ((state1 (random-source-state-ref default-random-source))
          (x1 (my-random-integer (expt 2 32)))
          (state2 (random-source-state-ref default-random-source))
@@ -122,11 +122,11 @@
     (let ((y2 (my-random-integer (expt 2 32))))
       (if (not (= x2 y2))
           (error "state get/set doesn't work" x2 y2 state2))))
-  (display "ok")
-  (newline)
+  ; (display "ok")
+  ; (newline)
 
   ; randomize!
-  (display "; randomize!: ")
+  ; (display "; randomize!: ")
   (let* ((state1 (random-source-state-ref default-random-source))
          (x1 (my-random-integer (expt 2 32))))
     (random-source-state-set! default-random-source state1)
@@ -134,11 +134,11 @@
     (let ((y1 (my-random-integer (expt 2 32))))
       (if (= x1 y1)
           (error "random-source-randomize! didn't work" x1 state1))))
-  (display "ok")
-  (newline)
+  ; (display "ok")
+  ; (newline)
 
   ; pseudo-randomize!
-  (display "; pseudo-randomize!: ")
+  ; (display "; pseudo-randomize!: ")
   (let* ((state1 (random-source-state-ref default-random-source))
          (x1 (my-random-integer (expt 2 32))))
     (random-source-state-set! default-random-source state1)
@@ -151,9 +151,10 @@
     (let ((y1 (my-random-integer (expt 2 32))))
       (if (= x1 y1)
           (error "random-source-pseudo-randomize! didn't work" x1 state1))))
-  (display "ok")
-  (newline)
-  (newline))
+  ; (display "ok")
+  ; (newline)
+  ; (newline)
+  )
 
 
 ; Testing the MRG32k3a Generator (if implemented)
@@ -278,6 +279,7 @@
          
 ; run some tests
 (check-basics-1)
-(display "passed (check-basics-1)")
+;(display "passed (check-basics-1)")
+(display "Done.")
 (newline)
 

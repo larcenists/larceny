@@ -41,8 +41,8 @@
 ;
 ; Examples:
 ;
-;   (write obj)   = (generic-write obj #f #f display-string)
-;   (display obj) = (generic-write obj #t #f display-string)
+;   (write obj)   = (generic-write obj #f #f #f display-string)
+;   (display obj) = (generic-write obj #t #f #f display-string)
 ;
 ; where display-string = (lambda (s) (for-each write-char (string->list s)) #t)
 

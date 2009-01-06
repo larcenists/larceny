@@ -567,10 +567,7 @@ unsigned osdep_cpuclock( void )
     sec += 1;
   }
 
-  // FIXME: It's wrong to return 0 here, because 0 means something magic
-  // to the client, but the client needs to change.
-
-  return max(1, sec*1000 + usec / 1000);
+  return sec*1000 + usec / 1000;
 }
 
 

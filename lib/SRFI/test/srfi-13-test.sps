@@ -1748,5 +1748,6 @@
 
 ;;;
 
+(writeln "The two make-kmp-restart-vector failures are normal.")
 (writeln "Done.")
 

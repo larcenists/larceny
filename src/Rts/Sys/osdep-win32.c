@@ -205,12 +205,9 @@ void osdep_pagefaults( unsigned *major, unsigned *minor )
 
 unsigned osdep_cpuclock( void )
 {
-  // FIXME: It's wrong to return 0 here, because 0 means something magic
-  // to the client, but the client needs to change.
-
   // Looks like the API function to use is GetProcessTimes()
 
-  return max(1,(unsigned)((double)clock()*1000/CLOCKS_PER_SEC));
+  return (unsigned)((double)clock()*1000/CLOCKS_PER_SEC);
 }
 
 /* Fill in the structures with real, user, system times. */
