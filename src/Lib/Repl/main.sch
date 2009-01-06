@@ -50,10 +50,15 @@
          (adjust-transcoder!
           (lambda ()
             (let ((t (get-feature 'transcoder))
-                  (rep (get-feature 'char-representation)))
+                  (rep (get-feature 'char-representation))
+                  (os (get-feature 'os-name)))
               (cond ((and t (> t 0))
                      (default-transcoder t)
                      (console-io/initialize))
+                    ((string=? os "Win32")
+                     ; FIXME: Windows would prefer UTF-16
+                     (default-transcoder
+                      (make-transcoder (latin-1-codec))))
                     ((eq? rep 'unicode)
                      (default-transcoder
                       (make-transcoder (utf-8-codec)))

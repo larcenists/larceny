@@ -1790,9 +1790,10 @@
                                              (bytevector-ref buf j)))
                   (loop2 (.+:idx:idx j 1) k s (.+:idx:idx i 1)))
                  (else
-                  (.vector-set!:trusted:nwb p 2 (.+:idx:idx k 1))
+                  (.vector-set!:trusted:nwb p port.mainptr (.+:idx:idx k 1))
                   s)))
          (and (eq? type type:textual-input)
+              (not (vector-like-ref p port.wasreturn))
               (loop ptr)))))
 
 ; Handles the common case in which the string is all-Ascii
