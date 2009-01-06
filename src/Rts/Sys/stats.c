@@ -298,7 +298,7 @@ int stats_stop_timer( stats_id_t timer )
 
   then = stats_state.timers[timer].timer;
   stats_state.timers[timer].timer = 0;
-  stats_state_timers[timer].used = 0;
+  stats_state.timers[timer].used = 0;
   switch (stats_state.timers[timer].type) {
     case TIMER_ELAPSED :
       return osdep_realclock() - then;
