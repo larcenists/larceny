@@ -66,7 +66,7 @@ static struct {
 		      { (fptr)primitive_errno, 0, 0 },
 		      { (fptr)primitive_seterrno, 1, 0 },
 		      { (fptr)primitive_time, 1, 0 },
-		      { (fptr)osdep_lseekfile, 3, 0 },
+	/* 50 */      { (fptr)osdep_lseekfile, 3, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )

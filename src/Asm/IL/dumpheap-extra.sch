@@ -187,7 +187,7 @@
 
 ;; dump-fasl : string string (listof string) -> void
 (define (dump-fasl base exe manifests)
-  (with-output-to-file (string-append base ".fasl")
+  (with-output-to-raw-latin-1-file (string-append base ".fasl")
     (lambda ()
       (write-fasl-token (current-output-port))
       (for-each (lambda (manifest)

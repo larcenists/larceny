@@ -245,27 +245,27 @@
 
     ; Not yet implemented.
 
-;    (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.-:flo:flo       2 -:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.*:flo:flo       2 *:flo:flo        #f            -1 ,:immortal ,:none)
-;    (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
+;    (.+:flo:flo       2 +:flo:flo       #f        -1 ,ak:immortal ,ak:none)
+;    (.-:flo:flo       2 -:flo:flo       #f        -1 ,ak:immortal ,ak:none)
+;    (.*:flo:flo       2 *:flo:flo       #f        -1 ,ak:immortal ,ak:none)
+;    (./:flo:flo       2 /:flo:flo       #f        -1 ,ak:immortal ,ak:none)
 
-;    (.=:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.<:flo:flo       2 <:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.<=:flo:flo      2 <=:flo:flo       #f            -1 ,:immortal ,:none)
-;    (.>:flo:flo       2 >:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.>=:flo:flo      2 >=:flo:flo       #f            -1 ,:immortal ,:none)
+;    (.=:flo:flo       2 =:flo:flo       #f        -1 ,ak:immortal ,ak:none)
+;    (.<:flo:flo       2 <:flo:flo       #f        -1 ,ak:immortal ,ak:none)
+;    (.<=:flo:flo      2 <=:flo:flo      #f        -1 ,ak:immortal ,ak:none)
+;    (.>:flo:flo       2 >:flo:flo       #f        -1 ,ak:immortal ,ak:none)
+;    (.>=:flo:flo      2 >=:flo:flo      #f        -1 ,ak:immortal ,ak:none)
 
-     (.+:flo:flo       2 +                #f            -1 ,:immortal ,:none)
-     (.-:flo:flo       2 -                #f            -1 ,:immortal ,:none)
-     (.*:flo:flo       2 *                #f            -1 ,:immortal ,:none)
-     (./:flo:flo       2 /                #f            -1 ,:immortal ,:none)
+     (.+:flo:flo       2 +               #f        -1 ,ak:immortal ,ak:none)
+     (.-:flo:flo       2 -               #f        -1 ,ak:immortal ,ak:none)
+     (.*:flo:flo       2 *               #f        -1 ,ak:immortal ,ak:none)
+     (./:flo:flo       2 /               #f        -1 ,ak:immortal ,ak:none)
 
-     (.=:flo:flo       2 =                #f            -1 ,:immortal ,:none)
-     (.<:flo:flo       2 <                #f            -1 ,:immortal ,:none)
-     (.<=:flo:flo      2 <=               #f            -1 ,:immortal ,:none)
-     (.>:flo:flo       2 >                #f            -1 ,:immortal ,:none)
-     (.>=:flo:flo      2 >=               #f            -1 ,:immortal ,:none)
+     (.=:flo:flo       2 =               #f        -1 ,ak:immortal ,ak:none)
+     (.<:flo:flo       2 <               #f        -1 ,ak:immortal ,ak:none)
+     (.<=:flo:flo      2 <=              #f        -1 ,ak:immortal ,ak:none)
+     (.>:flo:flo       2 >               #f        -1 ,ak:immortal ,ak:none)
+     (.>=:flo:flo      2 >=              #f        -1 ,ak:immortal ,ak:none)
 
     )))
 

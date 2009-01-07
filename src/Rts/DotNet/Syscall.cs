@@ -22,26 +22,30 @@ namespace Scheme.RT {
     // of the Unix open(), close(), read(), write(), unlink() system calls.
     // This code aims to replicate that behavior.
     class Unix {
-        private static int descriptor;
+        private static int fake_errno;  // simulates libc's errno
         
+        private static int descriptor;
+
         // open_files : hashtable[int => Stream]
         private static Hashtable open_files;
                 
         // Reserve 0,1,2 for standard streams
         private const int STDIN = 0;
         private const int STDOUT = 1;
-        //private const int STDERR = 2;
+        private const int STDERR = 2;
 
         private const int min_descriptor = 3;
         private const int max_descriptor = SFixnum.maxPreAlloc;
                 
         static Unix() {
+            fake_errno = 0;
             // Reserve 0,1,2 for standard streams
             descriptor = min_descriptor;
             open_files = new Hashtable();
             
             open_files[STDIN] = System.Console.OpenStandardInput();
             open_files[STDOUT] = System.Console.OpenStandardOutput();
+            open_files[STDERR] = System.Console.OpenStandardError();
         }
 
         // 
@@ -58,6 +62,7 @@ namespace Scheme.RT {
             else
                 ++descriptor;
         }
+
         // return the next available descriptor as an int,
         // or throw an exception if no more are available.
         private static int next_descriptor(string file) {
@@ -178,6 +183,35 @@ namespace Scheme.RT {
                 return -1;
             }
         }
+
+        // return new stream position,
+        // -1 on error
+        public static long LSeek(int fd, long offset, int whence_code) {
+            SeekOrigin whence = SeekOrigin.Begin;
+            if (whence_code == 0)
+                whence = SeekOrigin.Begin;
+            else if (whence_code == 1)
+                whence = SeekOrigin.Current;
+            else if (whence_code == 2)
+                whence = SeekOrigin.End;
+            else Exn.fault(Constants.EX_ASSERT, "bad whence_code for lseek");
+            try {
+                return fd2stream(fd).Seek(offset, whence);
+            } catch (Exception) {
+                return -1;
+            }
+        }
+
+        // simulates libc's errno, just for compatibility with other
+        // varieties of Larceny.
+
+        public static int GetErrno() { return fake_errno; }
+
+        public static int SetErrno( int n ) {
+            int r = fake_errno;
+            fake_errno = n;
+            return r;
+        }
     }
 
     // Syscall magic numbers are defined in 
@@ -226,11 +260,17 @@ namespace Scheme.RT {
 
             case Sys.system : system(); break;
             case Sys.c_ffi_dlsym: FFI.ffi_syscall(); break;
-            case Sys.sys_feature : sys_feature(); break;
+            case Sys.sro:         fake_sro(); break;
+            case Sys.sys_feature: sys_feature(); break;
 
             case Sys.segment_code_address : segment_code_address() ; break;
             case Sys.chdir : chdir() ; break;
             case Sys.cwd : cwd() ; break;
+
+            case Sys.errno :    geterrno(); break;
+            case Sys.seterrno : seterrno(); break;
+//          case Sys.time :     gettime();  break;
+            case Sys.lseek :    lseek();    break;
 
             case Sys.sysglobal:
                 SObject g = (SObject) Reg.globals[((SByteVL)Reg.Register2).asString()];
@@ -306,6 +346,16 @@ namespace Scheme.RT {
             Reg.Result = Factory.makeFixnum(Unix.Write(fd, bytes, count));
         }
 
+        // FIXME: limits offset to the size of a fixnum.
+
+        private static void lseek() {
+            int fd = ((SFixnum)Reg.Register2).intValue();
+            long offset = (long) ((SFixnum)Reg.Register3).intValue();
+            int whence_code = ((SFixnum)Reg.Register4).intValue();
+            long r = Unix.LSeek(fd, offset, whence_code);
+            Reg.Result = Factory.makeFixnum((int) r);
+        }
+
         private static void get_resource_usage() {
             SObject zero = Factory.makeFixnum (0);
             SObject[] stats = ((SVL)Reg.Register2).elements;
@@ -325,6 +375,15 @@ namespace Scheme.RT {
         private static void exit() {
             int retval = ((SFixnum)Reg.Register2).intValue();
             Call.exit(retval);
+        }
+
+        private static void geterrno() {
+            Reg.Result = Factory.makeFixnum(Unix.GetErrno());
+        }
+
+        private static void seterrno() {
+            int n = ((SFixnum) Reg.Register2).intValue();
+            Reg.Result = Factory.makeFixnum(Unix.SetErrno(n));
         }
 
         // file modification time
@@ -534,6 +593,12 @@ namespace Scheme.RT {
           p.Dispose();
         }
 
+        // returns an empty vector
+
+        private static void fake_sro() {
+            Reg.Result = Factory.makeVector(0, Factory.makeFixnum(0));
+        }
+
         // These numbers are supposed to stay in sync 
         // with those in Lib/Common/system-interface.sch
         private static void sys_feature()
@@ -545,7 +610,7 @@ namespace Scheme.RT {
               v[0] = Factory.makeFixnum (0);
               break;
           case 1: // larceny-minor
-                v[0] = Factory.makeFixnum (96);  // FIXME
+                v[0] = Factory.makeFixnum (97);  // FIXME
 //              v[0] = Factory.makeFixnum (Environment.AssemblyVersion.Minor);
               break;
 #if HAS_OSVERSION

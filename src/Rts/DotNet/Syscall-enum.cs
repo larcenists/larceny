@@ -47,11 +47,14 @@ namespace Scheme.RT {
 		chdir=44,
 		cwd=45,
 		setenv=46,
-                // missing:
-                //     errno=47,
-                //     seterrno=48,
-                //     time=49,
-                //     lseek= 50,
+                // new:
+                errno=47,
+                seterrno=48,
+                time=49,
+                lseek= 50,
+
+                // Specific to Common Larceny
+
 		sysglobal = 91
 	};
 }
