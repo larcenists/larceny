@@ -269,7 +269,7 @@ namespace Scheme.RT {
 
             case Sys.errno :    geterrno(); break;
             case Sys.seterrno : seterrno(); break;
-//          case Sys.time :     gettime();  break;
+            case Sys.time :     gettime();  break;
             case Sys.lseek :    lseek();    break;
 
             case Sys.sysglobal:
@@ -384,6 +384,14 @@ namespace Scheme.RT {
         private static void seterrno() {
             int n = ((SFixnum) Reg.Register2).intValue();
             Reg.Result = Factory.makeFixnum(Unix.SetErrno(n));
+        }
+
+        private static void gettime() {
+            DateTime epoch = new DateTime(1970, 1, 1);
+            DateTime t0 = DateTime.Now;
+            TimeSpan t = t0.Subtract(epoch);
+            double x = (double) t.TotalSeconds;
+            Reg.Result = Factory.makeFlonum(x);
         }
 
         // file modification time
