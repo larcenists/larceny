@@ -36,6 +36,8 @@
           :dispatched
           :integers
           :do :let :parallel :while :until
+          :-dispatch-ref :-dispatch-set! make-initial-:-dispatch
+          dispatch-union :generator-proc
 
           ; auxiliary keywords
 

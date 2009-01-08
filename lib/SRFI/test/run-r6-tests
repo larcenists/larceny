@@ -30,3 +30,4 @@ echo srfi-59-test; ${LARCENY} --r6rs --program srfi-59-test.sps; echo
 echo srfi-60-test; ${LARCENY} --r6rs --program srfi-60-test.sps; echo
 echo srfi-66-test; ${LARCENY} --r6rs --program srfi-66-test.sps; echo
 echo srfi-69-test; ${LARCENY} --r6rs --program srfi-69-test.sps; echo
+echo srfi-78-test; ${LARCENY} --r6rs --program srfi-78-test.sps; echo

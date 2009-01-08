@@ -268,7 +268,8 @@
 ;; each entry is ( utc seconds since epoch . # seconds to add for tai )
 ;; note they go higher to lower, and end in 1972.
 (define tm:leap-second-table
-  '((915148800 . 32)
+  '((1136073600 . 33)
+    (915148800 . 32)
     (867715200 . 31)
     (820454400 . 30)
     (773020800 . 29)
@@ -324,18 +325,24 @@
 ;(define-struct time (type nanosecond second) (make-inspector))
 
 (define-record-type time-record
-  (make-time type nanosecond second)
+  (raw:make-time type nanosecond second)
   time?
   (type time-type set-time-type!)
   (nanosecond time-nanosecond set-time-nanosecond!)
   (second time-second set-time-second!))
 
+(define (make-time type nanosecond second)
+  (let* ((seconds-adjustment (div nanosecond tm:nano))
+         (nsec               (mod nanosecond tm:nano))
+         (seconds (+ second seconds-adjustment)))
+    (raw:make-time type nsec seconds)))
+
 ;; thanks, Martin Gasbichler ...
 
 (define (copy-time time)
-  (make-time (time-type time)
-             (time-second time)
-             (time-nanosecond time)))
+  (raw:make-time (time-type time)
+                 (time-nanosecond time)
+                 (time-second time)))
 
 
 ;;; current-time
@@ -493,7 +500,7 @@
   time3)
 
 (define (time-difference time1 time2)
-  (tm:time-difference time1 time2 (make-time #f #f #f)))
+  (tm:time-difference time1 time2 (raw:make-time #f #f #f)))
 
 (define (time-difference! time1 time2)
   (tm:time-difference time1 time2 time1))
@@ -518,7 +525,7 @@
           time3))))
 
 (define (add-duration time1 duration)
-  (tm:add-duration time1 duration (make-time (time-type time1) #f #f)))
+  (tm:add-duration time1 duration (raw:make-time (time-type time1) #f #f)))
 
 (define (add-duration! time1 duration)
   (tm:add-duration time1 duration time1))
@@ -542,7 +549,7 @@
           time3))))
 
 (define (subtract-duration time1 duration)
-  (tm:subtract-duration time1 duration (make-time (time-type time1) #f #f)))
+  (tm:subtract-duration time1 duration (raw:make-time (time-type time1) #f #f)))
 
 (define (subtract-duration! time1 duration)
   (tm:subtract-duration time1 duration time1))
@@ -561,7 +568,7 @@
   time-out)
 
 (define (time-tai->time-utc time-in)
-  (tm:time-tai->time-utc! time-in (make-time #f #f #f) 'time-tai->time-utc))
+  (tm:time-tai->time-utc! time-in (raw:make-time #f #f #f) 'time-tai->time-utc))
 
 
 (define (time-tai->time-utc! time-in)
@@ -580,7 +587,7 @@
 
 
 (define (time-utc->time-tai time-in)
-  (tm:time-utc->time-tai! time-in (make-time #f #f #f) 'time-utc->time-tai))
+  (tm:time-utc->time-tai! time-in (raw:make-time #f #f #f) 'time-utc->time-tai))
 
 (define (time-utc->time-tai! time-in)
   (tm:time-utc->time-tai! time-in time-in 'time-utc->time-tai!))
@@ -615,7 +622,7 @@
 (define (time-utc->time-monotonic time-in)
   (if (not (eq? (time-type time-in) time-utc))
       (tm:time-error 'time-utc->time-monotonic 'incompatible-time-types time-in))
-  (let ((ntime (tm:time-utc->time-tai! time-in (make-time #f #f #f)
+  (let ((ntime (tm:time-utc->time-tai! time-in (raw:make-time #f #f #f)
                                        'time-utc->time-monotonic)))
     (set-time-type! ntime time-monotonic)
     ntime))
@@ -717,9 +724,9 @@
 
 (define (tm:fractional-part r)
   (if (integer? r) "0"
-      (let ((str (number->string (exact->inexact r))))
-        (let ((ppos (tm:char-pos #\. str 0 (string-length str))))
-          (substring str  (+ ppos 1) (string-length str))))))
+      (let ((str (number->string (+ 1.0 r))))
+	(let ((ppos (tm:char-pos #\. str 0 (string-length str))))
+	  (substring str  (+ ppos 1) (string-length str))))))
 
 
 ;; gives the seconds/date/month/year 
@@ -1099,22 +1106,19 @@
                                     #\space 2)
                         port)))
    (cons #\f (lambda (date pad-with port)
-               (if (> (date-nanosecond date)
-                      tm:nano)
-                   (display (tm:padding (+ (date-second date) 1)
-                                        pad-with 2)
-                            port)
-                   (display (tm:padding (date-second date)
-                                        pad-with 2)
-                            port))
-               (let* ((ns (tm:fractional-part (/ 
-                                               (date-nanosecond date)
-                                               tm:nano 1.0)))
-                      (le (string-length ns)))
-                 (if (> le 2)
-                     (begin
-                       (display tm:locale-number-separator port)
-                       (display (substring ns 2 le) port))))))
+	       (if (> (date-nanosecond date)
+		      tm:nano)
+		   (display (tm:padding (+ (date-second date) 1)
+					pad-with 2)
+			    port)
+		   (display (tm:padding (date-second date)
+					pad-with 2)
+			    port))
+	       (let* ((ns (tm:fractional-part (/ 
+					       (date-nanosecond date)
+					       tm:nano 1.0))))
+                 (display tm:locale-number-separator port)
+                 (display ns port))))
    (cons #\h (lambda (date pad-with port)
                (display (date->string date "~b") port)))
    (cons #\H (lambda (date pad-with port)
@@ -1135,8 +1139,8 @@
                                     pad-with 3)
                         port)))
    (cons #\k (lambda (date pad-with port)
-               (display (tm:padding (date-hour date)
-                                    #\0 2)
+	       (display (tm:padding (date-hour date)
+				    #\space 2)
                         port)))
    (cons #\l (lambda (date pad-with port)
                (let ((hr (if (> (date-hour date) 12)
@@ -1154,9 +1158,9 @@
    (cons #\n (lambda (date pad-with port)
                (newline port)))
    (cons #\N (lambda (date pad-with port)
-               (display (tm:padding (date-nanosecond date)
-                                    pad-with 7)
-                        port)))
+	       (display (tm:padding (date-nanosecond date)
+				    pad-with 9)
+			port)))
    (cons #\p (lambda (date pad-with port)
                (display (tm:locale-am/pm (date-hour date)) port)))
    (cons #\r (lambda (date pad-with port)
@@ -1176,6 +1180,29 @@
                (display (integer->char 9) port)))
    (cons #\T (lambda (date pad-with port)
                (display (date->string date "~H:~M:~S") port)))
+
+   ;; FIXME:  Something is wrong with the SRFI 19 specification of
+   ;; the ~U, ~V, ~W, and ~x format strings.
+   ;;
+   ;; Comparing the specification with the reference implementation,
+   ;; it appears that the specification of ~x is completely wrong.
+   ;;
+   ;; The specifications of ~V and ~W are exactly the same.
+   ;; Furthermore both ~V and ~W are specified to return a result
+   ;; in the 01..52 range, which doesn't make sense.
+   ;;
+   ;; For the time being, Larceny will assume that both the
+   ;; specification and implementation of ~U are correct,
+   ;; so it returns a zero-origin index (counting Sunday as
+   ;; the beginning of a week).  Larceny will assume that
+   ;; the reference implementation of ~W is correct, and
+   ;; that its specification is correct except its result
+   ;; will be in 00..53 instead of 01..52.
+   ;;
+   ;; Larceny will assume that both the specification and the
+   ;; implementation of ~V are incorrect, but we don't know
+   ;; how to fix either so we won't try.
+
    (cons #\U (lambda (date pad-with port)
                (if (> (tm:days-before-first-week date 0) 0)
                    (display (tm:padding (+ (date-week-number date 0) 1)
@@ -1212,13 +1239,13 @@
    (cons #\1 (lambda (date pad-with port)
                (display (date->string date "~Y-~m-~d") port)))
    (cons #\2 (lambda (date pad-with port)
-               (display (date->string date "~k:~M:~S~z") port)))
+               (display (date->string date "~H:~M:~S~z") port)))
    (cons #\3 (lambda (date pad-with port)
-               (display (date->string date "~k:~M:~S") port)))
+               (display (date->string date "~H:~M:~S") port)))
    (cons #\4 (lambda (date pad-with port)
-               (display (date->string date "~Y-~m-~dT~k:~M:~S~z") port)))
+               (display (date->string date "~Y-~m-~dT~H:~M:~S~z") port)))
    (cons #\5 (lambda (date pad-with port)
-               (display (date->string date "~Y-~m-~dT~k:~M:~S") port)))
+               (display (date->string date "~Y-~m-~dT~H:~M:~S") port)))
    ))
 
 
