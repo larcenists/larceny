@@ -28,120 +28,17 @@ const char *larceny_gc_technology = "precise";
 #include "stack.h"
 #include "msgc-core.h"
 #include "smircy.h"
+#include "smircy_checking.h"
 #include "summary_t.h"
 #include "summ_matrix_t.h"
 #include "seqbuf_t.h"
 #include "math.h"
 
+#include "memmgr_internal.h"
+
 /* Checking code */
 #define CHECK_HEAP_INVARIANTS 0
 
-typedef struct gc_data gc_data_t;
-
-/* The 'remset' table in the gc structure has one extra element if the
-   collector uses the non-predictive dynamic area: that extra element is
-   the young->old remembered set for the non-predictive collector.  The
-   extra element is always the last one, and the slots in the SSB tables
-   for that remset are the last slots.  The index is indicated by the
-   np_remset member of gc_t.
-   */
-struct gc_data {
-  bool is_partitioned_system;   /* True if system has partitioned heap */
-  bool use_np_collector;	/* True if dynamic area is non-predictive */
-  bool shrink_heap;		/* True if heap can be shrunk */
-  bool fixed_ephemeral_area;    /* True iff ephemeral_area_count is invariant */
-
-  int  dynamic_min;		/* 0 or lower limit of expandable area */
-  int  dynamic_max;		/* 0 or upper limit of expandable area */
-  int  nonexpandable_size;	/* Size of nonexpandable areas (but RROF?) */
-
-  word *globals;
-  word *handles;               /* array of handles */
-  int  nhandles;               /* current array length */
-  int  in_gc;                  /* a counter: > 0 means in gc */
-  int  generations;            /* number of generations (incl. static) */
-  int  generations_after_gc;   /* number of generations in rts after gc complete */
-  int  static_generation;	/* Generation number of static area */
-  word **ssb_bot;
-  word **ssb_top;
-  word **ssb_lim;
-  word *satb_ssb_bot;
-  word *satb_ssb_top;
-  word *satb_ssb_lim;
-
-  old_heap_t **ephemeral_area;
-    /* In precise collectors: An array of pointers to ephemeral areas;
-       the number of entries is held in ephemeral_area_count.  May be NULL.
-       */
-  int ephemeral_area_count;
-    /* The number of entries in the ephemeral_area table.
-       */
-  int region_count;
-    /* For regional collector.  During cycle of collections, the regions
-        { ephemeral_area[i] | region_count <= i < ephemeral_area_count }
-       are new and should not be processed until cycle completes
-       */
-  old_heap_t *dynamic_area;
-    /* In precise collectors: A pointer to a dynamic area, or NULL.
-       */
-
-  int rrof_to_region;
-    /* In RROF collector, the to-space for minor collections. */
-  int rrof_next_region;
-    /* In RROF collector, the next region scheduled for major collection. */
-  int rrof_last_tospace;
-    /* In RROF collector, the region used as a to-space in the last collect */
-  double rrof_load_factor;
-    /* Lars put a load factor in each old-heap; RROF needs one load_factor */
-
-  double rrof_sumz_budget;
-    /* In RROF collector, B*N/R (where B = budget) is number of
-       summaries (and thus major collections) that we have available
-       before starting a wave of summary construction to support the
-       next major collection cycle. */
-  double rrof_sumz_coverage;
-    /* In RROF collector, C*N/R (where C = coverage) is initial number
-       of summaries that we will try to construct during each heap
-       scan during a wave of summary construction. */
-
-  bool   rrof_has_refine_factor; /* With factor R,                         */
-  double rrof_refinement_factor; /*   countdown = ceil((R*heap) / nursery) */
-  int rrof_refine_mark_period;
-  int rrof_refine_mark_countdown;
-    /* In RROF collector, #nursery evacuations until refine remset via mark.
-       If negative, then that is number of nursery evacuations we've had
-       since the mark was scheduled to occur. */
-
-  int rrof_last_live_estimate; 
-    /* In RROF collector, gradual approximation of live storage in bytes.
-     * (It is continually reset based on marking results and then 
-     *  refined by repeated averaging with the sum of major collection
-     *  sizes.)
-     */
-
-  summary_t summary;            /* NULL or summarization of remset array */
-  bool      use_summary_instead_of_remsets;
-  int       next_summary_to_use;
-  summ_matrix_t *summaries;
-
-  semispace_t *secondary_space; /* NULL or space for when tospace overflows */
-
-  int stat_last_ms_remset_sumrize;
-  int stat_last_ms_remset_sumrize_cpu;
-  int stat_last_ms_mark_refinement;
-  int stat_last_ms_mark_refinement_cpu;
-  int stat_length_minor_gc_run;
-
-  bool print_float_stats_each_cycle;
-  bool print_float_stats_each_major;
-  bool print_float_stats_each_minor;
-  bool print_float_stats_each_refine;
-
-  int last_live_words;
-  int max_live_words;
-};
-
-#define DATA(gc) ((gc_data_t*)(gc->data))
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
 static word *load_text_or_data( gc_t *gc, int size_bytes, int load_text );
@@ -505,202 +402,16 @@ static int next_rgn( int rgn, int num_rgns ) {
 
 /* The number represents how many cycles per expansion. (first guess is 1) */
 #define EXPAND_RGNS_FROM_LOAD_FACTOR 1
-#define INCLUDE_POP_RGNS_IN_LOADCALC 1
 #define WEIGH_PREV_ESTIMATE_LOADCALC 0
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
 #define POP_RGNS_LIVE_FOREVER 0
 #define USE_ORACLE_TO_VERIFY_SUMMARIES 0
+#define USE_ORACLE_TO_VERIFY_SMIRCY 0
 
 static const double default_popularity_factor = 2.0;
 static const double default_sumz_budget_factor = 0.1;
 static const double default_sumz_coverage_factor = 0.1;
-
-static bool msvfy_object_marked_p( msgc_context_t *c, word x ) {
-  return msgc_object_marked_p( c, x );
-}
-static void msvfy_set_object_visitor( msgc_context_t *c, 
-                                      void* (*visitor)( word obj, 
-                                                        word src,
-                                                        void *data ), 
-                                      void *data ) {
-  msgc_set_object_visitor( c, visitor, data );
-}
-static void msvfy_mark_objects_from_roots( msgc_context_t *c ) {
-  int marked, traced, words_marked;
-  msgc_mark_objects_from_roots( c, &marked, &traced, &words_marked );
-}
-static void msvfy_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
-  int m, t, wm;
-  msgc_mark_objects_from_roots_and_remsets( c, &m, &t, &wm );
-}
-
-static bool msfloat_object_marked_p( msgc_context_t *c, word x ) {
-  return msgc_object_marked_p( c, x );
-}
-static void msfloat_mark_objects_from_roots( msgc_context_t *c,
-                                             int *marked, int *traced, 
-                                             int *words_marked ) {
-  msgc_mark_objects_from_roots( c, marked, traced, words_marked );
-}
-static void msfloat_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
-  int m, t, wm;
-  msgc_mark_objects_from_roots_and_remsets( c, &m, &t, &wm );
-}
-
-static void* verify_remsets_msgc_fcn( word obj, word src, void *data ) 
-{
-  gc_t *gc = (gc_t*)data;
-  if (isptr(src) && isptr(obj) &&
-      gen_of(src) != gen_of(obj) &&
-      ! gc_is_nonmoving( gc, gen_of(obj) )) {
-    assert( gen_of(src) >= 0 );
-    if (gen_of(src) > 0) {
-      assert( *gc->ssb[gen_of(src)]->bot == *gc->ssb[gen_of(src)]->top );
-      assert( *gc->ssb[gen_of(obj)]->bot == *gc->ssb[gen_of(obj)]->top );
-      if (gen_of(obj) == 0) {
-        assert( rs_isremembered( DATA(gc)->summaries->nursery_remset, src ));
-      }
-      if (!rs_isremembered( gc->remset[ gen_of(src) ], src ) &&
-	  !rs_isremembered( gc->major_remset[ gen_of(src) ], src )) {
-	consolemsg( " src: 0x%08x (%d) points to obj: 0x%08x (%d),"
-		    " but not in remsets @0x%08x @0x%08x",
-		    src, gen_of(src), obj, gen_of(obj), 
-		    gc->remset[ gen_of(src) ],
-		    gc->major_remset[ gen_of(src) ]);
-	assert( gc_is_address_mapped( gc, ptrof(src), TRUE ));
-	assert( gc_is_address_mapped( gc, ptrof(obj), TRUE ));
-	assert(0);
-      }
-    }
-  }
-  return data;
-}
-
-struct verify_remsets_traverse_rs_data {
-  msgc_context_t *conserv_context;
-  gc_t *gc;
-  int region;
-  bool major;
-  bool pointsinto;
-};
-/* verify that (X in remset R implies X in reachable(roots+remsets));
- * (may be silly to check, except when R = nursery_remset...) */
-static bool verify_remsets_traverse_rs( word obj, void *d, unsigned *stats )
-{
-  struct verify_remsets_traverse_rs_data *data;
-  data = (struct verify_remsets_traverse_rs_data*)d;
-  assert( msvfy_object_marked_p( data->conserv_context, obj ));
-  return TRUE;
-}
-/* verify that (X in R implies X in minor_remset for X);
- * another invariant for R = nursery_remset. */
-static bool verify_nursery_traverse_rs( word obj, void *d, unsigned *stats )
-{
-  struct verify_remsets_traverse_rs_data *data;
-  data = (struct verify_remsets_traverse_rs_data*)d;
-  assert( rs_isremembered( data->gc->remset[ gen_of(obj) ], obj ));
-  return TRUE;
-}
-
-static void verify_remsets_via_oracle( gc_t *gc ) 
-{
-  msgc_context_t *context;
-  int marked, traced, words_marked; 
-  struct verify_remsets_traverse_rs_data data;
-  context = msgc_begin( gc );
-  msvfy_set_object_visitor( context, verify_remsets_msgc_fcn, gc );
-  msvfy_mark_objects_from_roots( context );
-  msgc_end( context );
-  context = msgc_begin( gc );
-  msvfy_set_object_visitor( context, verify_remsets_msgc_fcn, gc );
-  msvfy_mark_objects_from_roots_and_remsets( context );
-  data.conserv_context = context;
-  data.gc = gc;
-  data.region = 0;
-  data.major = FALSE;
-  data.pointsinto = TRUE;
-  rs_enumerate( DATA(gc)->summaries->nursery_remset, verify_nursery_traverse_rs, &data );
-  rs_enumerate( DATA(gc)->summaries->nursery_remset, verify_remsets_traverse_rs, &data );
-  /* Originally had code to verify_remsets_traverse_rs on all remsets,
-   * but that does not seem like an interesting invariant to check. */
-  msgc_end( context );
-}
-
-static void verify_summaries_via_oracle( gc_t *gc ) 
-{
-  assert(! DATA(gc)->use_summary_instead_of_remsets );
-  sm_verify_summaries_via_oracle( DATA(gc)->summaries );
-}
-
-struct float_counts {
-  int zzflt; /* float according to remsets and globals */
-  int rsflt; /* float according to globals; live according to remsets */
-  int total; /* total occupancy count */
-};
-
-struct visit_measuring_float_data {
-  msgc_context_t *context;
-  msgc_context_t *context_incl_remsets;
-  struct float_counts words;
-  struct float_counts objs;
-};
-
-void zero_float_counts( struct float_counts *counts ) 
-{
-  counts->zzflt = 0;
-  counts->rsflt = 0;
-  counts->total = 0;
-}
-
-void zero_measuring_float_data( struct visit_measuring_float_data *data ) 
-{
-  zero_float_counts( &data->words );
-  zero_float_counts( &data->objs );
-}
-
-static void* visit_measuring_float( word *addr, int tag, void *accum ) 
-{
-  struct visit_measuring_float_data *data = 
-    (struct visit_measuring_float_data*)accum;
-  word obj; 
-  bool marked;
-  bool marked_via_remsets;
-  int words;
-  struct float_counts *type_counts;
-  obj = tagptr( addr, tag );
-  marked = 
-    msfloat_object_marked_p( data->context, obj );
-  marked_via_remsets = 
-    msfloat_object_marked_p( data->context_incl_remsets, obj );
-
-  data->objs.total += 1 ;
-  if (!marked && !marked_via_remsets) {
-    data->objs.zzflt += 1;
-  }
-  if (!marked && marked_via_remsets) {
-    data->objs.rsflt += 1;
-  }
-
-  switch (tag) {
-  case PAIR_TAG:
-    words = 2; 
-    break;
-  case VEC_TAG:
-  case BVEC_TAG:
-  case PROC_TAG:
-    words = roundup8( sizefield( *addr )+4 ) / 4;
-    break;
-  default:
-    assert(0);
-  }
-  data->words.total += words;
-  if (!marked && !marked_via_remsets)
-    data->words.zzflt += words;
-  if (!marked && marked_via_remsets)
-    data->words.rsflt += words;
-  return data;
-}
 
 static bool scan_refine_remset( word loc, void *data, unsigned *stats )
 {
@@ -788,134 +499,6 @@ static void refine_metadata_via_marksweep( gc_t *gc )
   DATA(gc)->globals[G_CONCURRENT_MARK] = 0;
 }
 
-static int cycle_count = 0;
-#define BAR_LENGTH 20
-static int fill_up_to( char *bar, char mark, char altmark, int amt, int max ) {
-  int i;
-  int count;
-  int rtn = max;
-  if (max == 0) 
-    return rtn;
-  else
-    count = (int)((amt*BAR_LENGTH)/max);
-  assert(count >= 0);
-  if (count > BAR_LENGTH) {
-    rtn = amt;
-    count = BAR_LENGTH;
-    mark = altmark;
-  }
-  assert(count <= BAR_LENGTH);
-  for(i = 0; i < count; i++) {
-    bar[i] = mark;
-  }
-  return rtn;
-}
-
-
-static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i, 
-                                       struct visit_measuring_float_data data )
-{
-  int rgn;
-  int newmax;
-  int data_count, easy_float, hard_float;
-  { 
-    char bars[BAR_LENGTH+2];
-    bars[BAR_LENGTH] = '\0';
-    bars[BAR_LENGTH+1] = '\0';
-    {
-      data_count = data.words.total*4;
-      easy_float = data.words.zzflt*4+data.words.rsflt*4;
-      hard_float = data.words.rsflt*4;
-      newmax = DATA(gc)->ephemeral_area[i]->maximum;
-      newmax = fill_up_to( bars, ' ', '@', newmax, newmax );
-      newmax = fill_up_to( bars, '.', '!', data_count, newmax );
-      newmax = fill_up_to( bars, 'Z', 'z', easy_float, newmax );
-      newmax = fill_up_to( bars, 'R', 'r', hard_float, newmax );
-    }
-
-    { 
-      bool rgn_summarized;
-      int rgn_summarized_live;
-      old_heap_t *heap = DATA(gc)->ephemeral_area[ i ];
-      rgn = i+1;
-      rgn_summarized_live = sm_summarized_live( DATA(gc)->summaries, rgn );
-      oh_synchronize( heap );
-      consolemsg( "%scycle % 3d region% 4d "
-                  "remset live: %7d %7d %8d lastmajor: %7d "
-                  "float{ objs: %7d/%7d words: %7d/%7d %7d }%s %s %s", 
-                  caller_name,
-                  cycle_count, 
-                  rgn, 
-                  gc->remset[ rgn ]->live, gc->major_remset[ rgn ]->live, 
-                  rgn_summarized_live, 
-                  heap->live_last_major_gc/4, 
-                  data.objs.zzflt+data.objs.rsflt,
-                  data.objs.total,
-                  data.words.zzflt+data.words.rsflt,
-                  data.words.total, 
-                  heap->allocated/4, 
-                  (( rgn == DATA(gc)->rrof_to_region &&
-                     rgn == DATA(gc)->rrof_next_region ) ? "*" :
-                   ( rgn == DATA(gc)->rrof_to_region )   ? "t" :
-                   ( rgn == DATA(gc)->rrof_next_region ) ? "n" :
-                   ( rgn_summarized_live >= 0 )          ? "s" :
-                   ( rgn >= DATA(gc)->region_count     ) ? "e" : 
-                   /* else                              */ " "),
-                  bars,
-                  (DATA(gc)->ephemeral_area[ i ]->
-                   has_popular_objects ? "(popular)" : "")
-                  );
-    }
-  }
-}
-static void print_float_stats( char *caller_name, gc_t *gc ) 
-{
-  /* every collection cycle, lets use the mark/sweep system to 
-   * measure how much float has accumulated. */
-  {
-    msgc_context_t *context;
-    msgc_context_t *context_incl_remsets;
-    int i, rgn;
-    int marked=0, traced=0, words_marked=0; 
-    int marked_incl=0, traced_incl=0, words_marked_incl=0; 
-    int total_float_words = 0, total_float_objects = 0;
-    int estimated_live = 0;
-    struct visit_measuring_float_data data;
-    context = msgc_begin( gc );
-    msfloat_mark_objects_from_roots( context, &marked, &traced, &words_marked );
-
-    context_incl_remsets = msgc_begin( gc );
-    msfloat_mark_objects_from_roots_and_remsets( context_incl_remsets );
-
-    for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
-      data.context = context;
-      data.context_incl_remsets = context_incl_remsets;
-      zero_measuring_float_data( &data );
-      DATA(gc)->ephemeral_area[ i ]->enumerate
-        ( DATA(gc)->ephemeral_area[ i ], visit_measuring_float, &data );
-      print_float_stats_for_rgn( caller_name, gc, i, data );
-      total_float_objects += data.objs.zzflt+data.objs.rsflt;
-      total_float_words += data.words.zzflt+data.objs.rsflt;
-      if (INCLUDE_POP_RGNS_IN_LOADCALC || 
-          ! DATA(gc)->ephemeral_area[i]->has_popular_objects)
-        estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc/sizeof(word);
-    }
-    consolemsg( "cycle % 3d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
-                "live{ est: %dK act: %dK max: %dK } estdelta: %0.2f ",
-                cycle_count, 
-                total_float_objects/1000, 
-                total_float_words/1024, 
-                (int)(100.0*(double)total_float_words/(double)words_marked), 
-                DATA(gc)->max_live_words?(int)(100.0*(double)total_float_words/(double)DATA(gc)->max_live_words):0, 
-                DATA(gc)->rrof_refine_mark_countdown, 
-                estimated_live/1024, words_marked/1024, DATA(gc)->max_live_words/1024, 
-                estimated_live?(((double)estimated_live)/(double)words_marked):0.0 );
-
-    msgc_end( context_incl_remsets );
-    msgc_end( context );
-  }
-}
-
 static void rrof_completed_major_collection( gc_t *gc ) 
 {
   if (DATA(gc)->print_float_stats_each_major)
@@ -930,7 +513,7 @@ static void rrof_completed_minor_collection( gc_t *gc )
 
 static void rrof_completed_regional_cycle( gc_t *gc ) 
 {
-  cycle_count += 1;
+  DATA(gc)->rrof_cycle_count += 1;
 
   if (DATA(gc)->print_float_stats_each_cycle)
     print_float_stats( "cycle ", gc );
@@ -939,7 +522,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   /* every K collection cycles, lets check and see if we should expand
    * the number of regions so that we can satisfy the inverse load
    * factor. */
-  if ((cycle_count % EXPAND_RGNS_FROM_LOAD_FACTOR) == 0) {
+  if ((DATA(gc)->rrof_cycle_count % EXPAND_RGNS_FROM_LOAD_FACTOR) == 0) {
     int i;
     int total_live_at_last_major_gc = 0;
     int maximum_allotted = 0;
@@ -1076,6 +659,9 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
   if (USE_ORACLE_TO_VERIFY_REMSETS) 
     verify_remsets_via_oracle( gc );
 
+  if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
+    smircy_assert_conservative_approximation( gc->smircy );
+
   start_timers( &timer1, &timer2 );
   if (gc->smircy == NULL) {
     gc->smircy = smircy_begin( gc, gc->remset_count );
@@ -1083,8 +669,14 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
     smircy_push_roots( gc->smircy );
     sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
   }
+
+  if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
+    smircy_assert_conservative_approximation( gc->smircy );
   smircy_progress( gc->smircy, BASE_BUDGET, BASE_BUDGET, BASE_BUDGET, 
                    &marked_recv, &traced_recv, &words_marked_recv );
+  if (USE_ORACLE_TO_VERIFY_SMIRCY)
+    smircy_assert_conservative_approximation( gc->smircy );
+
   if (to_the_finish_line) { 
     if (DATA(gc)->print_float_stats_each_refine)
       print_float_stats( "prefin", gc );
@@ -1217,17 +809,33 @@ static bool collect_rgnl_majorgc( gc_t *gc,
   if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
        sm_majorgc_permitted( DATA(gc)->summaries, rgn_next )) {
 
+    if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
+      smircy_assert_conservative_approximation( gc->smircy );
+
     sm_fold_in_nursery_and_init_summary( DATA(gc)->summaries,
                                          DATA(gc)->next_summary_to_use, 
                                          &DATA(gc)->summary );
     assert(! DATA(gc)->use_summary_instead_of_remsets );
+
+    if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) ) {
+      smircy_assert_conservative_approximation( gc->smircy );
+    }
     if (USE_ORACLE_TO_VERIFY_SUMMARIES)
       verify_summaries_via_oracle( gc );
-    DATA(gc)->use_summary_instead_of_remsets = TRUE;
+    if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL)) {
+      gc->smircy_completion = smircy_clone_begin( gc->smircy, FALSE );
+      msgc_mark_objects_from_nil( gc->smircy_completion );
+    }
 
+    DATA(gc)->use_summary_instead_of_remsets = TRUE;
     sm_clear_contribution_to_summaries( DATA(gc)->summaries, rgn_next );
+
     oh_collect_into( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT,
                      DATA(gc)->ephemeral_area[ rgn_to-1 ] );
+    if (gc->smircy_completion != NULL) {
+      smircy_clone_end( gc->smircy_completion );
+      gc->smircy_completion = NULL;
+    }
     summary_dispose( &DATA(gc)->summary );
     DATA(gc)->use_summary_instead_of_remsets = FALSE;
     sm_clear_nursery_summary( DATA(gc)->summaries );
@@ -1532,6 +1140,12 @@ static void before_collection( gc_t *gc )
   assert(! DATA(gc)->use_summary_instead_of_remsets );
   if (USE_ORACLE_TO_VERIFY_SUMMARIES)
     verify_summaries_via_oracle( gc );
+
+  if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
+    smircy_assert_conservative_approximation( gc->smircy );
+
+  if (DATA(gc)->summaries != NULL)
+    sm_before_collection( DATA(gc)->summaries );
 }
 
 static void after_collection( gc_t *gc )
@@ -1539,6 +1153,12 @@ static void after_collection( gc_t *gc )
   int e;
 
   DATA(gc)->generations = DATA(gc)->generations_after_gc;
+
+  if (DATA(gc)->summaries != NULL)
+    sm_after_collection( DATA(gc)->summaries );
+
+  if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
+    smircy_assert_conservative_approximation( gc->smircy );
 
  if (USE_ORACLE_TO_VERIFY_REMSETS)
    verify_remsets_via_oracle( gc );
@@ -2130,7 +1750,7 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
   expand_dynamic_area_gnos( gc, fresh_gno );
   expand_static_area_gnos( gc, fresh_gno );
   expand_remset_gnos( gc, fresh_gno );
-  sm_expand_summary_gnos( DATA(gc)->summaries, fresh_gno );
+  sm_expand_gnos( DATA(gc)->summaries, fresh_gno );
   
   ++(DATA(gc)->generations_after_gc);
   
@@ -2804,6 +2424,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_refine_mark_countdown = -1;
 
   data->rrof_last_live_estimate = 0;
+  data->rrof_cycle_count = 0;
 
   data->next_summary_to_use = -2;
 

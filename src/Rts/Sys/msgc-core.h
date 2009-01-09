@@ -5,6 +5,9 @@
  * Mark/Sweep garbage collection core functionality.
  */
 
+#ifndef INCLUDED_MSGC_CORE_H
+#define INCLUDED_MSGC_CORE_H
+
 #include "larceny-types.h"
 
 typedef struct msgc_context msgc_context_t;
@@ -117,4 +120,5 @@ bool
 msgc_get_stop_when_condition( msgc_context_t *context,
                               word *obj_recv, word *src_recv );
 
+#endif
 /* eof */

@@ -26,7 +26,7 @@ void summary_init( summary_t *summary,
                                        word **lim,
                                        bool *all_unseen_before ) )
 {
-  summary_init_dispose( summary, entries, next_chunk, NULL );
+  summary_init_dispose( summary, entries, next_chunk, NULL, NULL );
 }
 
 void summary_init_dispose( summary_t *summary, 
@@ -35,12 +35,14 @@ void summary_init_dispose( summary_t *summary,
                                                word **start,
                                                word **lim,
                                                bool *all_unseen_before ), 
-                           void (*dispose)( summary_t *this ) )
+                           void (*dispose)( summary_t *this ),
+                           bool (*filter)( summary_t *this, word w ) )
 {
   summary->entries = entries; 
   summary->next_chunk = my_next_chunk_wrapper;
   summary->next_chunk_with_flags = next_chunk;
   summary->dispose = dispose;
+  summary->filter = filter;
   summary->cursor1 = summary->cursor2 = 
     summary->cursor3 = summary->cursor4 = NULL;
   summary->icursor1 = summary->icursor2 = 
@@ -56,6 +58,11 @@ void summary_enumerate( summary_t *summary,
   while( summary_next_chunk( summary, &p, &q ) ) {
     while (p < q) {
       if (*p != 0) {
+        if (summary->filter != NULL && 
+            ! summary->filter( summary, *p )) {
+          p++;
+          continue;
+        }
         scanner( *p, data, &word_count );
       }
       p++;

@@ -41,6 +41,11 @@ struct summary {
         macro once and only once after iteration is complete.)
     */
 
+  bool (*filter)( summary_t *this, word w );
+    /* If non-null, invoked on words during the enumeration; only
+     * words for which this returns TRUE are scanned.
+     */
+
   /*** Implementation private state follows ***/
 
   /* These fields give implementors option of saving cursor state
@@ -66,6 +71,11 @@ void summary_init( summary_t *summary,
                                        word **start,
                                        word **lim,
                                        bool *all_unseen_before ) );
+/*
+ * Creates a summary, using remaining arguments to initialize its
+ * fields.  For obligations of next_chunk fcn ptr, see description of
+ * next_chunk_with_flags field above.
+ */
 
 void summary_init_dispose( summary_t *summary, 
                            int entries, 
@@ -73,7 +83,14 @@ void summary_init_dispose( summary_t *summary,
                                                word **start,
                                                word **lim,
                                                bool *all_unseen_before ), 
-                           void (*dispose)( summary_t *this ) );
+                           void (*dispose)( summary_t *this ),
+                           bool (*filter)( summary_t *this, word w ));
+/*
+ * Creates a summary, using remaining arguments to initialize its
+ * fields.  For obligations of next_chunk fcn ptr, see description of
+ * next_chunk_with_flags field above.
+ * Any necessary cleanup can be encoded in the dispose fcn ptr.
+ */
 
 void summary_enumerate( summary_t *summary,
                         void (*scanner)(word loc, void *data, unsigned *stats),

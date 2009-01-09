@@ -66,6 +66,7 @@ gc_t
   gc->major_remset = 0;
   gc->remset_count = 0;
   gc->smircy = 0;
+  gc->smircy_completion = 0;
   gc->np_remset = -1;
   gc->scan_update_remset = 0;
 

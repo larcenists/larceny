@@ -28,13 +28,14 @@
  * cannot scan all of the objects in all of the O(N/R) summaries.
  * 
  * So we adopt a sparse matrix representation for the summary sets,
- * with c*N/R columns and N/R rows.  Each column of the matrix
- * corresponds to the summary for some region r, and the rows of the
- * matrix are the contributions of a region r to the current set of
- * summaries.  Updating the summaries in response migrations within a
- * region r is a matter of scanning the row associated with r; using a
- * summary to guide a collection of r is a matter of scanning the
- * column associated with r.
+ * with c*N/R columns and N/R+k rows (k is a fudge factor to represent
+ * contributions from e.g. the static area).  Each column of the
+ * matrix corresponds to the summary for some region r, and the rows
+ * of the matrix are the contributions of a remset to the current set
+ * of summaries.  Updating the summaries in response migrations within
+ * a region r is a matter of scanning the row associated with r's
+ * remset; using a summary to guide a collection of r is a matter of
+ * scanning the column associated with r.
  * 
  * == INCREMENTAL, CONCURRENT, PARALLEL ==
  * 
@@ -57,20 +58,9 @@
 
 #include "larceny-types.h"
 
-struct remset_as_summary { 
-  remset_t *sum_remset;
-  int       gen;
-  bool      valid;
-  int       words;
-  int       max_words;
-};
-typedef struct remset_as_summary remset_as_summary_t;
-
 struct summ_matrix {
   gc_t *collector;
     /* The garbage collector that uses and controls these summaries. */
-
-  remset_t *nursery_remset;     /* Points-into remset for the nursery. */
 
   void *data;                   /* Implementation's data */
 };
@@ -149,6 +139,9 @@ void sm_construction_concurrent( summ_matrix_t *summ,
 
 void sm_interrupt_construction( summ_matrix_t *summ );
 
+void sm_before_collection( summ_matrix_t *summ );
+void sm_after_collection( summ_matrix_t *summ );
+
 bool sm_has_valid_summaries( summ_matrix_t *summ );
 bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno );
 void sm_push_nursery_summary( summ_matrix_t *summ, smircy_context_t *smircy );
@@ -158,6 +151,11 @@ void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
                                           summary_t *summary );
 void sm_init_summary_from_nursery_alone( summ_matrix_t *summ, 
                                          summary_t *summary );
+bool sm_nursery_summary_contains( summ_matrix_t *summ, word obj );
+void sm_nursery_summary_enumerate( summ_matrix_t *summ, 
+                                   bool (*scanner)(word loc, void *data, unsigned *stats),
+                                   void *data );
+
 /* below refactored from memmgr.c */
 
 void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, 
@@ -169,7 +167,6 @@ int  sm_summarized_live( summ_matrix_t *summ, int rgn );
 void sm_invalidate_summaries( summ_matrix_t *summ );
 void sm_clear_summary( summ_matrix_t *summ, int rgn_next );
 void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
-void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno );
 void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs );
 
 #endif /* INCLUDED_SUMM_MATRIX_T_H */

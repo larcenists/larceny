@@ -69,40 +69,42 @@ echo "running LARCENY=${LARCENY}"
 AFTER_BENCH='(let ((m (memstats))) (newline) (display "{Max words, ") (for-each (lambda (nm+idx) (display (car nm+idx)) (display (vector-ref m (cadr nm+idx)))) (quote (("Mem: "  42) (" Heap: " 27) (" Remset: " 31) (" Rts: " 32) (" Waste: " 33)))) (display "}") (newline) (for-each (lambda (name+idxs) (let ((name (car name+idxs)) (idxs (cadr name+idxs))) (pretty-print (quasiquote ((unquote name) (unquote (map (lambda (idx) (vector-ref m idx)) idxs))))))) (quote (("MREFINE" (60 61 62 58 59)) ("MINORGC" (65 66 67 63 64)) ("MAJORGC" (70 71 72 68 69)) ("SUMRIZE" (75 76 77 73 74)) ("MINORS" (79)) ("MAJORS" (80)) ("SUMRIZES" (81)) ("MINORUN" (82))))))'
 # AFTER_BENCH='(let ((m (memstats))) (for-each (lambda (nm+idx) (display (car nm+idx)) (display (vector-ref m (cadr nm+idx))) (newline)) (quote (("Max Mem: "  42) ("Max Heap: " 27) ("Max Remset: " 31) ("Max Rts: " 32) ("Max Waste: " 33)))) (for-each (lambda (idx) (pretty-print (vector-ref m idx))) (list 56 57 58)))'
 
-echo '(earley-benchmark 12 5)' ${AFTER_BENCH}     | ${LARCENY} -- earley.fasl
-echo '(earley-benchmark 13 5)' ${AFTER_BENCH}     | ${LARCENY} -- earley.fasl
-echo '(earley-benchmark 14 5)' ${AFTER_BENCH}     | ${LARCENY} -- earley.fasl
+# echo '(earley-benchmark 12 5)' ${AFTER_BENCH}     | ${LARCENY} -- earley.fasl
+# echo '(earley-benchmark 13 5)' ${AFTER_BENCH}     | ${LARCENY} -- earley.fasl
+# echo '(earley-benchmark 14 5)' ${AFTER_BENCH}     | ${LARCENY} -- earley.fasl
+echo '(earley-benchmark 13 20)' ${AFTER_BENCH}     | ${LARCENY} -- earley.fasl
 
-echo '(gc-benchmark 5)' ${AFTER_BENCH} | ${LARCENY} -- gcbench.fasl
+echo '(gc-benchmark 5 20)' ${AFTER_BENCH} | ${LARCENY} -- gcbench.fasl
 
-echo '(nboyer-benchmark 3)' ${AFTER_BENCH}      | ${LARCENY} -- nboyer.fasl
-echo '(nboyer-benchmark 4)' ${AFTER_BENCH}      | ${LARCENY} -- nboyer.fasl
-echo '(nboyer-benchmark 5)' ${AFTER_BENCH}      | ${LARCENY} -- nboyer.fasl
-echo '(nboyer-benchmark 6)' ${AFTER_BENCH}      | ${LARCENY} -- nboyer.fasl
+# echo '(nboyer-benchmark 3)' ${AFTER_BENCH}      | ${LARCENY} -- nboyer.fasl
+# echo '(nboyer-benchmark 4)' ${AFTER_BENCH}      | ${LARCENY} -- nboyer.fasl
+# echo '(nboyer-benchmark 5)' ${AFTER_BENCH}      | ${LARCENY} -- nboyer.fasl
+# echo '(nboyer-benchmark 6)' ${AFTER_BENCH}      | ${LARCENY} -- nboyer.fasl
 
-echo '(nboyer-benchmark 3 5)' ${AFTER_BENCH}    | ${LARCENY} -- nboyer.fasl
-echo '(nboyer-benchmark 4 5)' ${AFTER_BENCH}    | ${LARCENY} -- nboyer.fasl
+# echo '(nboyer-benchmark 3 5)' ${AFTER_BENCH}    | ${LARCENY} -- nboyer.fasl
+# echo '(nboyer-benchmark 4 5)' ${AFTER_BENCH}    | ${LARCENY} -- nboyer.fasl
 echo '(nboyer-benchmark 5 5)' ${AFTER_BENCH}    | ${LARCENY} -- nboyer.fasl
 
-echo '(sboyer-benchmark 4 5)' ${AFTER_BENCH}    | ${LARCENY} -- sboyer.fasl
-echo '(sboyer-benchmark 5 5)' ${AFTER_BENCH}    | ${LARCENY} -- sboyer.fasl
+# echo '(sboyer-benchmark 4 5)' ${AFTER_BENCH}    | ${LARCENY} -- sboyer.fasl
+# echo '(sboyer-benchmark 5 5)' ${AFTER_BENCH}    | ${LARCENY} -- sboyer.fasl
 echo '(sboyer-benchmark 6 5)' ${AFTER_BENCH}    | ${LARCENY} -- sboyer.fasl
 
 # perm:M,N:K:L
-echo '(MpermNKL-benchmark 200 8 10  1)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
-echo '(MpermNKL-benchmark 25  8 10  8)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
+# echo '(MpermNKL-benchmark 200 8 10  1)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
+# echo '(MpermNKL-benchmark 25  8 10  8)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
 echo '(MpermNKL-benchmark 200 9 10  1)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
-echo '(MpermNKL-benchmark 25  9 10  8)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
-echo '(MpermNKL-benchmark 25  9 20 16)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
+# echo '(MpermNKL-benchmark 25  9 10  8)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
+# echo '(MpermNKL-benchmark 25  9 20 16)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
 echo '(MpermNKL-benchmark 400 9 20  1)' ${AFTER_BENCH} | ${LARCENY} -- perm.fasl
 
-echo '(twobit-benchmark (quote long))'  ${AFTER_BENCH} | ${LARCENY} -- twobit.fasl
-echo '(twobit-benchmark (quote short))' ${AFTER_BENCH} | ${LARCENY} -- twobit.fasl
-echo '(twobit-benchmark (quote short) 5)' ${AFTER_BENCH} | ${LARCENY} -- twobit.fasl
+# echo '(twobit-benchmark (quote long))'  ${AFTER_BENCH} | ${LARCENY} -- twobit.fasl
+# echo '(twobit-benchmark (quote short))' ${AFTER_BENCH} | ${LARCENY} -- twobit.fasl
+# echo '(twobit-benchmark (quote short) 5)' ${AFTER_BENCH} | ${LARCENY} -- twobit.fasl
+echo '(twobit-benchmark (quote long) 5)' ${AFTER_BENCH} | ${LARCENY} -- twobit.fasl
 
-echo '(GCOld 25  0 1  0 200)'    ${AFTER_BENCH}  | ${LARCENY} -- gcold.fasl
-echo '(GCOld 25  0 1  1000 200)' ${AFTER_BENCH}  | ${LARCENY} -- gcold.fasl
-echo '(GCOld 25  0 10 1000 200)' ${AFTER_BENCH}  | ${LARCENY} -- gcold.fasl
+# echo '(GCOld 25  0 1  0 200)'    ${AFTER_BENCH}  | ${LARCENY} -- gcold.fasl
+# echo '(GCOld 25  0 1  1000 200)' ${AFTER_BENCH}  | ${LARCENY} -- gcold.fasl
+# echo '(GCOld 25  0 10 1000 200)' ${AFTER_BENCH}  | ${LARCENY} -- gcold.fasl
 echo '(GCOld 100 0 1  0    800)' ${AFTER_BENCH}  | ${LARCENY} -- gcold.fasl
 echo '(GCOld 100 0 1  1000 800)' ${AFTER_BENCH}  | ${LARCENY} -- gcold.fasl
 

@@ -48,6 +48,10 @@ struct gc {
        initiated since last refinement was completed.
        */
 
+  void *smircy_completion;
+    /* A completed clone of the smircy object.  (Its a msgc_context_t*)
+       */
+
   seqbuf_t **ssb;
     /* ssb[i] is sequential store buffer for region i.
        The barrier associated with an update to object o (in region j

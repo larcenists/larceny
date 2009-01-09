@@ -18,6 +18,8 @@
 
 #define GC_INTERNAL
 
+#define PRINT_FORW 0
+
 #ifdef UNIX
 # include <sys/time.h>
 #endif
@@ -34,6 +36,9 @@
 #include "cheney.h"
 #include "remset_t.h"
 #include "seqbuf_t.h"
+#include "msgc-core.h"
+#include "smircy.h"
+#include "smircy_internal.h"
 
 /* Forwarding macros for normal copying collection and promotion.
 
@@ -70,8 +75,9 @@
    (fwdgens,fwdgens_data) are pure expressions that produce 
    Exists X : ((Gen X) -> Bool) * X
    */
-#define forw_oflo( loc, fwdgens, fwdgens_data, dest, lim, e, check_spaceI ) \
+#define forw_oflo( ctxt, loc, fwdgens, fwdgens_data, dest, lim, e, check_spaceI ) \
   do { word T_obj = *loc;                                                       \
+    if (PRINT_FORW) { printf("% 30s( *0x%08x = 0x%08x (%d)\n", ctxt, loc, T_obj, isptr(T_obj)?gen_of(T_obj):-1); fflush(0); } \
        if (isptr(T_obj) && fwdgens( gen_of(T_obj), (fwdgens_data))) {           \
           forw_core( T_obj, loc, dest, lim, e, check_spaceI);                   \
        }                                                                        \
@@ -91,6 +97,7 @@
 #define forw_oflo_record( loc, fwdgens, fwdgens_data, dest, lim, has_intergen_ptr, \
                           old_obj_gen, e, check_spaceI )                    \
   do { word T_obj = *loc;                                                   \
+    if (PRINT_FORW) { printf("% 27s( *0x%08x = 0x%08x (%d)\n", "forw_oflo_record", loc, T_obj, isptr(T_obj)?gen_of(T_obj):-1); fflush(0); } \
        if (isptr( T_obj )) {                                                \
           unsigned T_obj_gen = gen_of(T_obj);                               \
           if (fwdgens(T_obj_gen, fwdgens_data)) {                           \
@@ -103,6 +110,7 @@
 #define forw_oflo_record_update_rs( loc, fwdgens, fwdgens_data, dest, lim,  \
                           has_intergen_ptr, old_obj_gen, e, check_spaceI )  \
   do { word T_obj = *loc;                                                   \
+    if (PRINT_FORW) { printf("% 27s( *0x%08x = 0x%08x (%d)\n", "forw_oflo_record_update_rs", loc, T_obj, isptr(T_obj)?gen_of(T_obj):-1); fflush(0); }  \
        if (isptr( T_obj )) {                                                \
           unsigned T_obj_gen = gen_of(T_obj);                               \
           if (fwdgens(T_obj_gen, fwdgens_data)) {                           \
@@ -140,7 +148,7 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
     old_obj = tagptr( TMP_P, PAIR_TAG );                               \
     new_gno = gen_of( new_obj );   /* XXX gen_of slow? */              \
     old_gno = gen_of( old_obj );   /* XXX gen_of slow? */              \
-    if (e->forwarded) e->forwarded( e, old_obj, old_gno, new_obj, new_gno ); \
+    if (e->forwarded) e->forwarded( e, "FORW_PAIR", old_obj, old_gno, new_obj, new_gno ); \
     check_memory( dest, 2 );                                           \
     dest += 2;                                                         \
   } while ( 0 )
@@ -174,13 +182,13 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
 #define scan_and_forward( loc, iflush, fwdgens, fwdgens_data, \
                           dest, lim, e, check_spaceI )        \
   scan_core( e, loc, iflush,                                  \
-             forw_oflo( loc, fwdgens, fwdgens_data,           \
+             forw_oflo( "scan_and_forward forw_oflo", loc, fwdgens, fwdgens_data, \
                         dest, lim, e, check_spaceI ) )
 
 #define scan_and_forward_update_rs( loc, iflush, fwdgens, fwdgens_data, \
                                     dest, lim, e, check_spaceI )        \
   scan_update_rs( e, loc, iflush,                                       \
-                  forw_oflo( loc, fwdgens, fwdgens_data,                \
+                  forw_oflo( "scan_and_forward_update_rs forw_oflo", loc, fwdgens, fwdgens_data, \
                              dest, lim, e, check_spaceI ),              \
                   update_remset )
 
@@ -435,9 +443,38 @@ static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
   return FALSE;
 }
 
-static void forwarded( cheney_env_t* e, 
+#include <stdio.h>
+
+static void forwarded( cheney_env_t* e, char *ctxt, 
                        word obj_orig, int gen_orig, 
                        word obj_new, int gen_new ) {
+#if PRINT_FORW
+  printf( "forwarded( e, %s, 0x%08x, %d -> 0x%08x, %d )\n", 
+          ctxt, obj_orig, gen_orig, obj_new, gen_new );
+  fflush( 0 );
+#endif
+  { 
+    msgc_context_t *completion;
+    completion = e->gc->smircy_completion;
+    if (completion != NULL) {
+      word *low = e->gc->smircy->lowest_heap_address;
+      word *hgh = e->gc->smircy->highest_heap_address;
+      bool toolow = (ptrof(obj_orig) <  low);
+      bool toohgh = (ptrof(obj_orig) >= hgh);
+      bool nursed = (gen_orig == 0);
+      bool marked;
+      if (toolow || toohgh || nursed) {
+        /* skip: presumed live by smircy */
+      } else if ( msgc_object_marked_p( completion, obj_orig )) {
+        /* skip: reachable by smircy */
+      } else if (PRINT_FORW) {
+        printf( "forwarded: zombie 0x%08x (%d) -> 0x%08x (%d)\n", 
+                obj_orig, gen_orig, obj_new, gen_new );
+        fflush( 0 );
+      }
+    }
+  }
+
   smircy_when_object_forwarded( e->gc->smircy, 
                                 obj_orig, gen_orig, 
                                 obj_new, gen_new );
@@ -618,7 +655,7 @@ static void scan_static_area_update_rs( cheney_env_t *e )
 static void root_scanner_oflo( word *ptr, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
-  forw_oflo( ptr, forward_nursery_and, e->forw_gset, 
+  forw_oflo( "root_scanner_oflo forw_oflo", ptr, forward_nursery_and, e->forw_gset, 
              e->dest, e->lim, e, check_space_expand );
 }
 
@@ -912,7 +949,7 @@ word forward( const word p, word **dest, cheney_env_t *e )
 #endif
 
   ret = install_fwdptr( ptr, newptr, tag );
-  if (e->forwarded != NULL) e->forwarded( e, p, gen_of(p), ret, gen_of(ret));
+  if (e->forwarded != NULL) e->forwarded( e, "forward", p, gen_of(p), ret, gen_of(ret));
   return ret;
 }
 
@@ -1070,7 +1107,7 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
     ret = tagptr( ptr, tag );
     /* This is a slight lie; ptr was not forwarded, but its gno 
      * may have changed, which SMIRCY needs to know about... */
-    if (e->forwarded != NULL) e->forwarded( e, ret, src_gen, ret, tgt_gen);
+    if (e->forwarded != NULL) e->forwarded( e, "forwarded_large_object 1", ret, src_gen, ret, tgt_gen);
   }
   else {
     /* The large object was not allocated specially, so we must move it. */
@@ -1085,7 +1122,7 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
     was_marked = los_mark_and_set_generation( los, mark_list, new, gen_of( ptr ), tgt_gen );
     
     ret = install_fwdptr( ptr, new, tag );
-    if (e->forwarded != NULL) e->forwarded( e, p, gen_of(p), ret, tgt_gen );
+    if (e->forwarded != NULL) e->forwarded( e, "forwarded_large_object 2", p, gen_of(p), ret, tgt_gen );
   }
 
   if (e->np_promotion && !was_marked) {

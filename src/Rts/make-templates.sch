@@ -372,13 +372,14 @@ CC=cl
 PRECISE_GC_OBJECTS=\\
 	Sys/alloc.$(O) Sys/cheney.$(O) Sys/gc.$(O) \\
 	Sys/cheney-check.$(O) Sys/cheney-np.$(O) Sys/cheney-split.$(O) \\
-	Sys/heapio.$(O) Sys/los.$(O) Sys/memmgr.$(O) Sys/ffi.$(O) \\
+	Sys/heapio.$(O) Sys/los.$(O) Sys/ffi.$(O) \\
+	Sys/memmgr.$(O) Sys/memmgr_vfy.$(O) Sys/memmgr_flt.$(O) \\
 	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) \\
 	Sys/old_heap_t.$(O) Sys/old-heap.$(O) \\
 	Sys/seqbuf.$(O) Sys/remset.$(O) Sys/remset-np.$(O) \\
 	Sys/sc-heap.$(O) Sys/semispace.$(O) Sys/static-heap.$(O) \\
 	Sys/stats.$(O) Sys/summary.$(O) Sys/summ_matrix.$(O) \\
-	Sys/smircy.$(O) \\
+	Sys/smircy.$(O) Sys/smircy_checking.$(O) \\
 	Sys/young_heap_t.$(O)
 
 BOEHM_GC_OBJECTS=\\
@@ -576,7 +577,14 @@ Sys/malloc.$(O): $(LARCENY_H)
 Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
 	$(STATS_H) $(HEAPIO_H) $(LOS_T_H) $(MEMMGR_H) \\
 	$(OLD_HEAP_T_H) $(REMSET_T_H) $(SEMISPACE_T_H) $(SMIRCY_H) \\
-	$(STACK_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
+	$(STACK_H) $(MSGC_CORE_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H) \\
+	Sys/memmgr_internal.h
+Sys/memmgr_flt.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h \\
+	$(OLD_HEAP_T_H) $(REMSET_T_H) $(GCLIB_H) $(MSGC_CORE_H) \\
+	Sys/summary_t.h Sys/memmgr_internal.h
+Sys/memmgr_vfy.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h \\
+	$(GCLIB_H) $(MSGC_CORE_H) Sys/summary_t.h \\
+	Sys/summ_matrix_t.h Sys/seqbuf_t.h Sys/memmgr_internal.h
 Sys/np-sc-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
 	$(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
 	$(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
@@ -601,14 +609,15 @@ Sys/semispace.$(O): $(LARCENY_H) $(GCLIB_H) $(SEMISPACE_T_H)
 Sys/signals.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/sro.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) $(HEAPIO_H) \\
 	$(MEMMGR_H)
-Sys/smircy.$(O): $(LARCENY_H) Sys/smircy.h
+Sys/smircy.$(O): $(LARCENY_H) $(SMIRCY_H)
+Sys/smircy_checking.$(O): $(LARCENY_H) $(SMIRCY_H) $(MSGC_CORE_H)
 Sys/stack.$(O): $(LARCENY_H) $(STACK_H) $(STATS_H)
 Sys/static-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) $(STATS_H) \\
 	$(MEMMGR_H) $(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H)
 Sys/stats.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/summary.$(O): $(LARCENY_H) Sys/summary_t.h
-Sys/summ_matrix.$(O): $(LARCENY_H) Sys/gset_t.h Sys/summ_matrix_t.h
+Sys/summ_matrix.$(O): $(LARCENY_H) Sys/gc_t.h Sys/gset_t.h $(SEQBUF_T_H) $(SMIRCY_H) Sys/summ_matrix_t.h
 Sys/syscall.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/primitive.$(O): $(LARCENY_H)  Sys/gc_t.h $(SIGNALS_H) $(STATS_H)
 Sys/osdep-unix.$(O): $(LARCENY_H) Sys/gc_t.h

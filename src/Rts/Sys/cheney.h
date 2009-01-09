@@ -100,7 +100,7 @@ struct cheney_env {
        generations.  Returns true iff l is added to remset. 
        */
 
-  void (*forwarded)( cheney_env_t *e, 
+  void (*forwarded)( cheney_env_t *e, char *ctxt, 
                      word obj_orig, int gen_orig, word obj_new, int gen_new );
     /* callback (potentially) invoked by forwarder.
      * (Only when the object is actually forwarded, not on subsequent
