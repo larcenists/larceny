@@ -1,0 +1,64 @@
+This directory contains the core runtime for Common Larceny.
+(That is, it contains (almost?) all code that isn't written
+in Scheme or generated dynamically by Scheme code.)
+
+SchemeObject.cs is auto-generated from SchemeObject.cs.cpp,
+and should not be edited directly.  Edit one or more of the
+*.inc files instead.
+
+For information on adding new primops, see Ops_SObject.inc
+
+The main entry point is in Load.cs
+
+To change the version number, edit both AssemblyInfo.cs and
+Syscall.cs.
+
+****************************************************************
+
+Files in this directory:
+
+Macros.h
+Ops.h
+
+Ops_Procedure.inc
+Ops_SByteVL.inc
+Ops_SChar.inc
+Ops_SFixnum.inc
+Ops_SImmediate.inc
+Ops_SObject.inc
+Ops_SPair.inc
+Ops_STagged.inc
+Ops_SVL.inc
+
+AssemblyInfo.cs
+Call.cs
+ClassicOps.cs        apparently unused
+ClassicOpsSpecial.cs apparently unused
+CodeAddress.cs
+Constants.cs
+ContinuationISH.cs
+DynLoad.cs
+Exn.cs
+FFI.cs
+Instructions.cs
+Load.cs
+MapOps.cs            apparently unused
+MapOpsSpecial.cs     apparently unused, identical to OpsSpecial.cs
+Number.cs
+Ops.cs
+OpsSpecial.cs
+Perf.cs              apparently unused (by standard Makefile)
+Reg.cs
+SchemeObject.cs
+Syscall-enum.cs
+Syscall.cs
+
+DynLoad.exe
+Scheme.dll
+
+Makefile
+
+Scheme.csproj
+Scheme.csproj8
+
+****************************************************************
