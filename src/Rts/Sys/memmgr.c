@@ -499,6 +499,17 @@ static void refine_metadata_via_marksweep( gc_t *gc )
   DATA(gc)->globals[G_CONCURRENT_MARK] = 0;
 }
 
+static int add_region_to_expand_heap( gc_t *gc, int maximum_allotted )
+{
+  semispace_t *ss = gc_fresh_space(gc);
+  int eidx = ss->gen_no - 1;
+  old_heap_t *fresh_heap = DATA(gc)->ephemeral_area[ eidx ];
+  assert2( fresh_heap->live_last_major_gc == 0 );
+  return maximum_allotted + fresh_heap->maximum;
+}
+
+static void collect_rgnl_shift_the_to( gc_t *gc );
+
 static void rrof_completed_major_collection( gc_t *gc ) 
 {
   if (DATA(gc)->print_float_stats_each_major)
@@ -557,18 +568,12 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 		 live_predicted_at_next_gc );
 
     if (live_predicted_at_next_gc > maximum_allotted) { /* XXX if => while? */
-      semispace_t *ss = gc_fresh_space(gc);
-      int eidx = ss->gen_no - 1;
-      old_heap_t *fresh_heap = DATA(gc)->ephemeral_area[ eidx ];
-      assert2( fresh_heap->live_last_major_gc == 0 );
-      maximum_allotted += fresh_heap->maximum;
+      maximum_allotted = 
+        add_region_to_expand_heap( gc, maximum_allotted );
     }
     while ( (DATA(gc)->last_live_words*DATA(gc)->rrof_load_factor*sizeof(word)) > maximum_allotted) {
-      semispace_t *ss = gc_fresh_space(gc);
-      int eidx = ss->gen_no - 1;
-      old_heap_t *fresh_heap = DATA(gc)->ephemeral_area[ eidx ];
-      assert2( fresh_heap->live_last_major_gc == 0 );
-      maximum_allotted += fresh_heap->maximum;
+      maximum_allotted = 
+        add_region_to_expand_heap( gc, maximum_allotted );
     }
 
     annoyingmsg( "completed_regional_cycle region_count: %d ephemeral_area_count: %d", 
