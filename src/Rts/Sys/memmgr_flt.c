@@ -169,7 +169,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                    ( rgn == DATA(gc)->rrof_to_region )   ? "t" :
                    ( rgn == DATA(gc)->rrof_next_region ) ? "n" :
                    ( rgn_summarized_live >= 0 )          ? "s" :
-                   ( rgn >= DATA(gc)->region_count     ) ? "e" : 
+                   ( rgn >  DATA(gc)->region_count     ) ? "e" : 
                    /* else                              */ " "),
                   bars,
                   (DATA(gc)->ephemeral_area[ i ]->
