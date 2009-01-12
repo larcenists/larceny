@@ -51,7 +51,7 @@
 
 #define ADD_TO_SUMAR_ASSERTS_UNIQ_ENQ 0
 
-#define MAINTAIN_REDUNDANT_RS_AS_SM_REP 1
+#define MAINTAIN_REDUNDANT_RS_AS_SM_REP 0
 #define USE_REDUNDANT_RS_AS_SM_REP 0
 
 typedef struct objs_pool objs_pool_t;
@@ -150,7 +150,7 @@ typedef struct remset_as_summary remset_as_summary_t;
 #endif 
 
 struct summ_matrix_data {
-  double c;
+  double coverage;
   double p;
   int entries_per_objs_pool_segment;
 
@@ -705,7 +705,7 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   sm = (summ_matrix_t*)must_malloc( sizeof( summ_matrix_t ));
   data = (summ_matrix_data_t*)must_malloc( sizeof( summ_matrix_data_t ));
 
-  data->c = c;
+  data->coverage = c;
   data->p = p;
   data->entries_per_objs_pool_segment = DEFAULT_OBJS_POOL_SIZE;
   data->num_cols = num_cols;
@@ -1340,8 +1340,6 @@ static void add_object_to_sum_array( summ_matrix_t *summ,
 #endif
 
   if (col_words(col) <= pop_limit) {
-    /* Seeing if cell_enqueue's are somehow causing internal
-     * invariants to break down...*/
     summ_cell_t *cell = summ_cell( summ, src_gen, tgt_gen );
     if (cell == NULL) {
       /* do nothing */
@@ -1351,13 +1349,7 @@ static void add_object_to_sum_array( summ_matrix_t *summ,
 #if ADD_TO_SUMAR_ASSERTS_UNIQ_ENQ 
         assert( ! col_contains_ptr(summ, col, ptr) );
 #endif
-#if 0
-      { 
-        remset_as_summary_t *rast = DATA(summ)->remset_summaries[tgt_gen];
-        remset_t *rs = rast->sum_remset;
-        assert( rs == NULL || ! rs_isremembered(rs, ptr) );
-      }
-#endif
+
       cell_enqueue( summ, cell, ptr );
       incr_size_and_oflo_check( summ, tgt_gen, ptr, col_incr_w );
     }
