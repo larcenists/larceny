@@ -631,6 +631,10 @@ static bool fill_from_los_stack( smircy_context_t *context )
   /* at this point, los_stack->{stkbot,stklim,stkp} are established
    * and stkp > stkbot */
   los_stack->stkp--;
+  if (los_stack->stkp->object == 0x0) {
+    /* dead entry; move on. */
+    return fill_from_los_stack( context );
+  }
   obj = los_stack->stkp->object;
   assert2( context->rgn_to_los_entry[ gen_of( obj ) ] == los_stack->stkp );
   context->rgn_to_los_entry[ gen_of( obj ) ] = los_stack->stkp->next_in_rgn;
@@ -783,6 +787,7 @@ static int push_constituents( smircy_context_t *context, word w )
     push( context, pair_car( w ), w ); /* Do the CAR first */
     return 2;
   case VEC_TAG:
+    assert2(  (tagof(w) == VEC_TAG) == (header( *ptrof(w) ) == VEC_HDR) );
   case PROC_TAG:
     n = bytes2words( sizefield(*ptrof(w)) );
     if (n > WINDOW_SIZE_LIMIT) {
@@ -902,6 +907,7 @@ void smircy_progress( smircy_context_t *context,
         already_marked = mark_object( context, w );
         if (already_marked) continue;
 #endif
+        assert2( smircy_object_marked_p( context, w ));
 
         marked++;
         context->total_marked++;
@@ -1076,7 +1082,7 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
   }
 
   while (los_entry != NULL) {
-    assert2( los_entry->object == 0x0 || isptr( obj_entry->val ));
+    assert2( los_entry->object == 0x0 || isptr( los_entry->object ));
     assert2( gen_of(los_entry->object) == rgn );
     visit( &los_entry->object, orig_data );
     new_word = los_entry->object;
