@@ -35,6 +35,14 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
                                      void (*visit)(word *w, void *data),
                                      void *orig_data );
 
+void smircy_jit_process_stack_for_rgn( smircy_context_t *context, int rgn );
+  /* Iteratively marks all objects on stack for rgn and pushes their
+   * unmarked constituents, until the stack for rgn is empty.
+   * 
+   * (The crucial detail is that the processing is isolated to just
+   *  the stack for rgn; the stacks for other regions may grow but
+   *  will not be otherwised modified or traversed.) */
+
 void smircy_end( smircy_context_t *context );
 
 void smircy_set_object_visitor( smircy_context_t *context, 
