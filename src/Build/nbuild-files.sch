@@ -146,7 +146,7 @@
                          ;;"md5.sch"
                          )))
       '()))
-		    
+
 (define *nbuild:x86-nasm-files*
   (if (eq? 'x86-nasm (nbuild-parameter 'target-machine))
       (append
@@ -213,15 +213,15 @@
 
           *nbuild:build-files*
 
-	  (case (nbuild-parameter 'target-machine)
-	    ((sparc)      *nbuild:sparc/twobit-files*)
-	    ((standard-c) *nbuild:petit/twobit-files*)
-	    ((x86-sass)   *nbuild:iasn/twobit-files*)
-	    ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
+          (case (nbuild-parameter 'target-machine)
+            ((sparc)      *nbuild:sparc/twobit-files*)
+            ((standard-c) *nbuild:petit/twobit-files*)
+            ((x86-sass)   *nbuild:iasn/twobit-files*)
+            ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
             ((dotnet)     *nbuild:dotnet/twobit-files*) ; FIXME
-	    (else (error "nbuild:twobit-files: bad architecture.")))
+            (else (error "nbuild:twobit-files: bad architecture.")))
 
-	  *nbuild:twobit-files-2*))
+          *nbuild:twobit-files-2*))
 
 (define (nbuild:common-asm-files)
   (case (nbuild-parameter 'target-endianness)

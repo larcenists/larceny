@@ -97,7 +97,7 @@
 (compiler-switches 'default)
 (compiler-switches 'fast-safe)
 (initialize-help (nbuild-parameter 'compiler) 
-		 'full
+                 'full
                  (case (nbuild-parameter 'target-machine)
                    ((sparc x86-sass) 'native)
                    (else 'petit)))

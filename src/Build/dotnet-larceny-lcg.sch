@@ -13,28 +13,28 @@
 ;(define (prereq:load name file) 'nop)
 
 (prereq "DOTNET"
-	(lambda () 
-	  (load "src/Build/dotnet.sch")
-	  (larceny-setup "Larceny" 'win32 'little)))
+        (lambda () 
+          (load "src/Build/dotnet.sch")
+          (larceny-setup "Larceny" 'win32 'little)))
 
 (prereq "COMPILER"
-	(lambda () 
-	  (load-compiler 'release)
-	  ))
+        (lambda () 
+          (load-compiler 'release)
+          ))
 (prereq:load "LINK-LOP" "src/Asm/Shared/link-lop.sch")
 (prereq "IL-LCG" 
-	(lambda () 
-	  (if #f 
-	      (peephole-optimization #f) ;; not there yet
-	      (load "src/Asm/IL-LCG/peepopt.sch"))
-	  (load "src/Asm/IL-LCG/dotnet-ffi-lcg.sch")
-	  (load "src/Asm/IL-LCG/pass5p2.sch")))
+        (lambda () 
+          (if #f 
+              (peephole-optimization #f) ;; not there yet
+              (load "src/Asm/IL-LCG/peepopt.sch"))
+          (load "src/Asm/IL-LCG/dotnet-ffi-lcg.sch")
+          (load "src/Asm/IL-LCG/pass5p2.sch")))
 (prereq:load "TOPLEVEL" 
-	     (param-filename 'common-source "toplevel.sch"))
+             (param-filename 'common-source "toplevel.sch"))
 (prereq:load "LEVELTGT"
-	     (param-filename 'source "Arch" "IL" "toplevel-target.sch"))
+             (param-filename 'source "Arch" "IL" "toplevel-target.sch"))
 (prereq:load "SEAL2BIT" 
-	     "src/Build/seal-twobit.sch")
+             "src/Build/seal-twobit.sch")
 
 (define ($$trace x) #f)                 ; Some code uses this
 
@@ -43,7 +43,7 @@
 
 (define (displn x) (display x) (newline))
 
-(let ()	
+(let ()        
   ;; much of this was cut-and-pasted from iasn-larceny-heap (which in
   ;; turn was largely cut-and-pasted from the sparc version of that
   ;; file).
@@ -54,18 +54,18 @@
   ;; snapshot current values of some globals in
   ;; lexical environment procedure below
   (let ((interaction-environment interaction-environment)
-	(compile-expression compile-expression)
-	(link-lop-segment link-lop-segment)
-	(evaluator evaluator)	
-	(macro-expand-expression macro-expand-expression) ;; XXX copied from iasn-larceny-heap
-	)	
+        (compile-expression compile-expression)
+        (link-lop-segment link-lop-segment)
+        (evaluator evaluator)        
+        (macro-expand-expression macro-expand-expression) ;; XXX copied from iasn-larceny-heap
+        )        
 
     (define twobit
       (lambda (expr . rest)
-	(let ((env (if (null? rest)
-		       (interaction-environment)
-		       (car rest))))
-	  ((link-lop-segment (compile-expression expr env) env)))))
+        (let ((env (if (null? rest)
+                       (interaction-environment)
+                       (car rest))))
+          ((link-lop-segment (compile-expression expr env) env)))))
   
     (evaluator twobit))
 
@@ -75,22 +75,22 @@
   (displn "Install twobit's macro expander as the interpreter's ditto")
   
   (macro-expander (lambda (form environment)
-		    (let ((switches (compiler-switches 'get)))
-		      (dynamic-wind
-			  (lambda ()
-			    (compiler-switches 'standard))
-			  (lambda ()
-			    (twobit-expand
+                    (let ((switches (compiler-switches 'get)))
+                      (dynamic-wind
+                          (lambda ()
+                            (compiler-switches 'standard))
+                          (lambda ()
+                            (twobit-expand
                              form
                              (environment-syntax-environment environment)))
-			  (lambda ()
-			    (compiler-switches 'set! switches))))))
+                          (lambda ()
+                            (compiler-switches 'set! switches))))))
 
   ;; Kids, don't try this at home
   
   (vector-like-set! (interaction-environment) 
-		    4
-		    (the-usual-syntactic-environment))
+                    4
+                    (the-usual-syntactic-environment))
   )
 
 (let ((proc-names 
@@ -108,15 +108,15 @@
           dot-javadot-syntax-definition
           )
 
-	;; Exports
-	;; Felix is just copying everything from lib/MzScheme/init.sch, to ensure that a missing item will not cause the windows.sch demo to fail.  
-	;; XXX Remove items that we should not be exporting!  e.g. PLT-isms
-	'(
-	weird-printer)
+        ;; Exports
+        ;; Felix is just copying everything from lib/MzScheme/init.sch, to ensure that a missing item will not cause the windows.sch demo to fail.  
+        ;; XXX Remove items that we should not be exporting!  e.g. PLT-isms
+        '(
+        weird-printer)
 
-	;; Miscellaneous
-	'(
-	add1
+        ;; Miscellaneous
+        '(
+        add1
         arity-at-least?
         arity-at-least-value
         arity-plus
@@ -133,14 +133,14 @@
         make-arity-at-least
         %nary->fixed-arity
         )
-	
-	;; (uncommented)
-	'(
-	%instance)
+        
+        ;; (uncommented)
+        '(
+        %instance)
 
-	;; instance
-	'(
-	allocate-instance-state-vector
+        ;; instance
+        '(
+        allocate-instance-state-vector
         instance?
         instance/class
         instance/procedure
@@ -156,9 +156,9 @@
         set-instance-class-to-self!
         uninitialized-entity-procedure)
 
-	;; class
-	'(
-	%class-cpl
+        ;; class
+        '(
+        %class-cpl
         %class-default-initargs
         %class-direct-default-initargs
         %class-direct-slots
@@ -278,9 +278,9 @@
         subclasses-of?
         )
 
-	;; generic
-	'(
-	*default-class-class*
+        ;; generic
+        '(
+        *default-class-class*
         *default-entityclass-class*
         *default-generic-class*
         *default-method-class*
@@ -421,9 +421,9 @@
         updater-method
         )
 
-	;; gprint
+        ;; gprint
         '(
-	named-object-printer-method
+        named-object-printer-method
         print-object
         print-unreadable-object
         )

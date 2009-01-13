@@ -155,11 +155,11 @@
                      (flag always-source)
                      ;; Target variation options
                      (flag native)
-		     (flag nasm)
-		     (flag sassy)
-		     ;; Deprecated options
+                     (flag nasm)
+                     (flag sassy)
+                     ;; Deprecated options
                      (flag code-cov)
-		     (flag rebuild-code-cov))
+                     (flag rebuild-code-cov))
   (define (displn arg) (display arg) (newline))
   (define (help-text) 
     (displn "To setup Larceny, call ")
@@ -245,9 +245,9 @@
 ;; then calls UNIX-INITIALIZE
 
 (define (setup-real! host-scheme host-arch target-arch 
-		     c-compiler-choice string-rep-choice
+                     c-compiler-choice string-rep-choice
                      native code-cov rebuild-code-cov 
-		     sassy nasm)
+                     sassy nasm)
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris) 'big)
@@ -262,21 +262,21 @@
   ;; Warn about "semi-working" cases
 
   (cond ((and (not native)
-	      (memq host-arch '(cygwin win32)))
-	 (display "Warning: Petit/Standard-C on Windows is incomplete.")
-	 (newline)
-	 (display "Use at own risk, or try Petit/NASM")
-	 (newline)
-	 (newline)
+              (memq host-arch '(cygwin win32)))
+         (display "Warning: Petit/Standard-C on Windows is incomplete.")
+         (newline)
+         (display "Use at own risk, or try Petit/NASM")
+         (newline)
+         (newline)
 
-	 ;; In particular, control transfer points are not guaranteed
-	 ;; to be 4-byte aligned, and therefore on win32 we use the
-	 ;; CODEPTR_SHIFT2 feature to ensure they have a fixnum tag.
-	 ;; This almost works, except that addresses with significant
-	 ;; bits that are corrupted by the shift-by-2; thus things
-	 ;; break when dynamically loading compiled code on win32
-	 ;; non-native.
-	 ))
+         ;; In particular, control transfer points are not guaranteed
+         ;; to be 4-byte aligned, and therefore on win32 we use the
+         ;; CODEPTR_SHIFT2 feature to ensure they have a fixnum tag.
+         ;; This almost works, except that addresses with significant
+         ;; bits that are corrupted by the shift-by-2; thus things
+         ;; break when dynamically loading compiled code on win32
+         ;; non-native.
+         ))
 
   (case host-scheme
     ((mzscheme) 
@@ -307,18 +307,18 @@
                                 (nasm   'features-x86-nasm-linux)
                                 (native 'features-x86-nasm-linux)
                                 (else   'features-petit-linux)))
-	  ((cygwin)       'features-petit-cygwin)
-	  ((win32)        (cond (sassy  'features-x86-sassy-win32)
-				(nasm   'features-x86-nasm-win32)
-				(native 'features-x86-nasm-win32)
-				(else   'features-petit-win32)))
+          ((cygwin)       'features-petit-cygwin)
+          ((win32)        (cond (sassy  'features-x86-sassy-win32)
+                                (nasm   'features-x86-nasm-win32)
+                                (native 'features-x86-nasm-win32)
+                                (else   'features-petit-win32)))
 
           ;; if client says we're using unix,
           ;; then just use value set by features.sch
 
           ((unix)         *change-feature-set*)
 
-	  (else
+          (else
            (error 'petit-setup.sch "Must add support for target-arch"))
           ))
 
@@ -332,7 +332,7 @@
           ((macosx
             macosx-el) "petitmacosx")
           ((solaris) "petitsparcsolaris")
-	  ((cygwin)  "petitcygwinmswindows")
+          ((cygwin)  "petitcygwinmswindows")
           ((linux-el) "petitdebianlinux")))
 
   (set! *host:endianness* (platform->endianness host-arch))
@@ -341,13 +341,13 @@
   
   (cond (sassy
          (case target-arch
-	   ((win32)
+           ((win32)
             (set! *target:machine* 'x86-sass)
             (set! *target:machine-source* "IAssassin")
             (set! *makefile-configuration* 'x86-win32-static-visualc)
             (set! *heap-type* 'sassy)
             (set! *runtime-type* 'sassy-native))
-	   ((macosx-el)
+           ((macosx-el)
             (set! *target:machine* 'x86-sass)
             (set! *target:machine-source* "IAssassin")
             (set! *makefile-configuration* 'sassy-macosx-static-gcc-nasm)
@@ -360,7 +360,7 @@
             (set! *heap-type* 'sassy)
             (set! *runtime-type* 'sassy-native))))
 
-	(native
+        (native
          (case target-arch
            ((solaris)
             (set! *target:machine* 'sparc)
@@ -369,16 +369,16 @@
             (set! *heap-type* 'sparc-native)
             (set! *runtime-type* 'sparc-native))
 
-	   ;; Win32 native is just Petit with extasm of NASM rather than C
+           ;; Win32 native is just Petit with extasm of NASM rather than C
 
-	   ((win32)
+           ((win32)
             (set! *target:machine* 'x86-nasm)
             (set! *target:machine-source* "Standard-C")
             (set! *makefile-configuration* #f)
             (set! *heap-type* 'petit)
             (set! *runtime-type* 'petit))
 
-	   ;; Linux86 native is just Petit with extasm of NASM rather than C           
+           ;; Linux86 native is just Petit with extasm of NASM rather than C           
            ((linux-el)
             (set! *target:machine* 'x86-nasm)
             (set! *target:machine-source* "Standard-C")
@@ -400,17 +400,17 @@
 
   (set! *code-coverage* (or code-cov rebuild-code-cov))
   (set! *rebuild-code-coverage* rebuild-code-cov)
-	
+        
   ;; [usually #f; user may override with e.g. 'mwcc aka CodeWarrior]
 
   (set! *host:c-compiler* (or c-compiler-choice
-			      (and native (not sassy)
-				   (eq? target-arch 'win32)
-				   'nasm+msvc)
+                              (and native (not sassy)
+                                   (eq? target-arch 'win32)
+                                   'nasm+msvc)
                               (and native (not sassy)
                                    (eq? target-arch 'linux-el)
                                    'nasm+gcc)
-			      #f))
+                              #f))
 
   (set! *target:string-rep*
         (case string-rep-choice
@@ -426,7 +426,7 @@
                       string-rep-choice))))
   
   (if (or (eq? *target:machine* 'x86-nasm)
-	  (eq? *target:machine* 'x86-sass))
+          (eq? *target:machine* 'x86-sass))
       (set! *globals-table* "globals-nasm.cfg"))
  
   (unix-&-win32-initialize))

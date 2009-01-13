@@ -29,15 +29,15 @@
           dot-javadot-syntax-definition
           )
 
-	;; Exports
-	;; Felix is just copying everything from lib/MzScheme/init.sch, to ensure that a missing item will not cause the windows.sch demo to fail.  
-	;; XXX Remove items that we should not be exporting!  e.g. PLT-isms
-	'(
-	weird-printer)
+        ;; Exports
+        ;; Felix is just copying everything from lib/MzScheme/init.sch, to ensure that a missing item will not cause the windows.sch demo to fail.  
+        ;; XXX Remove items that we should not be exporting!  e.g. PLT-isms
+        '(
+        weird-printer)
 
-	;; Miscellaneous
-	'(
-	add1
+        ;; Miscellaneous
+        '(
+        add1
         arity-at-least?
         arity-at-least-value
         arity-plus
@@ -54,14 +54,14 @@
         make-arity-at-least
         %nary->fixed-arity
         )
-	
-	;; (uncommented)
-	'(
-	%instance)
+        
+        ;; (uncommented)
+        '(
+        %instance)
 
-	;; instance
-	'(
-	allocate-instance-state-vector
+        ;; instance
+        '(
+        allocate-instance-state-vector
         instance?
         instance/class
         instance/procedure
@@ -77,9 +77,9 @@
         set-instance-class-to-self!
         uninitialized-entity-procedure)
 
-	;; class
-	'(
-	%class-cpl
+        ;; class
+        '(
+        %class-cpl
         %class-default-initargs
         %class-direct-default-initargs
         %class-direct-slots
@@ -199,9 +199,9 @@
         subclasses-of?
         )
 
-	;; generic
-	'(
-	*default-class-class*
+        ;; generic
+        '(
+        *default-class-class*
         *default-entityclass-class*
         *default-generic-class*
         *default-method-class*
@@ -342,9 +342,9 @@
         updater-method
         )
 
-	;; gprint
+        ;; gprint
         '(
-	named-object-printer-method
+        named-object-printer-method
         print-object
         print-unreadable-object
         )
