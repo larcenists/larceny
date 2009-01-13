@@ -329,6 +329,44 @@ static void smircy_unmark_and_push_stack( msgc_context_t *context_new,
       stkbot = seg->data;
     }
   }
+  
+  { 
+    los_stackseg_t *seg = los_stack->seg;
+    large_object_cursor_t *stkp   = los_stack->stkp;
+    large_object_cursor_t *stkbot = los_stack->stkbot;
+    large_object_cursor_t *stklim = los_stack->stklim;
+    word obj;
+    int window_start, objwords, size, lim, i;
+    while (seg != NULL) {
+      assert( stkp >= stkbot );
+      if (stkp == stkbot) {
+        seg = seg->next;
+        if (seg == NULL) {
+          stkbot = 0;
+          stklim = 0;
+          stkp = 0;
+          break; /* done traversing los stack */
+        } else {
+          stkbot = seg->data;
+          stklim = seg->data+LOS_STACK_SIZE;
+          stkp = stklim;
+        }
+      }
+      assert( stkp > stkbot );
+      assert( seg != NULL );
+      stkp--;
+      obj = stkp->object;
+      window_start = stkp->index;
+      objwords = bytes2words( sizefield( *ptrof(obj) ));
+      size = objwords - window_start;
+      lim = window_start + size;
+      for ( i = window_start; i < lim ; i++ ) {
+        w = vector_ref( obj, i );
+        /* msgc_unmark_object( context_new, w ); */ /* los stk elems not marked on push */
+        msgc_push_object( context_new, w );
+      }
+    }
+  }
 }
 
 static void smircy_complete( smircy_context_t *context ) 
