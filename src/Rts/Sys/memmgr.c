@@ -408,6 +408,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define POP_RGNS_LIVE_FOREVER 0
 #define USE_ORACLE_TO_VERIFY_SUMMARIES 0
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
+#define SMIRCY_RGN_STACK_IN_ROOTS 1
 
 static const double default_popularity_factor = 2.0;
 static const double default_sumz_budget_factor = 0.1;
@@ -486,6 +487,13 @@ static void refine_metadata_via_marksweep( gc_t *gc )
   smircy_context_t *context;
   int marked=0, traced=0, words_marked=0; 
   context = gc->smircy;
+#if 0
+  if (! smircy_stack_empty_p( context )) {
+    consolemsg("refine_metadata_via_marksweep(gc) last ditch progress");
+  } else {
+    consolemsg("refine_metadata_via_marksweep(gc) finish on schedule");
+  }
+#endif
   smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
 
   refine_remsets_via_marksweep( gc );
@@ -814,6 +822,12 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 
     if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
       smircy_assert_conservative_approximation( gc->smircy );
+
+#if ! SMIRCY_RGN_STACK_IN_ROOTS
+    assert2( rgn_next == DATA(gc)->rrof_next_region );
+    if (gc->smircy != NULL)
+      smircy_jit_process_stack_for_rgn( gc->smircy, rgn_next );
+#endif
 
     sm_fold_in_nursery_and_init_summary( DATA(gc)->summaries,
                                          DATA(gc)->next_summary_to_use, 
@@ -1219,6 +1233,7 @@ enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_da
   gc_data_t *data = DATA(gc);
   word *globals = data->globals;
 
+#if SMIRCY_RGN_STACK_IN_ROOTS
   if (gc->smircy != NULL) {
     struct apply_f_data smircy_data;
     smircy_data.f = f;
@@ -1228,6 +1243,7 @@ enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_da
                                    apply_f, 
                                    &smircy_data );
   }
+#endif
 
   for ( i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     f( &globals[ i ], scan_data );
