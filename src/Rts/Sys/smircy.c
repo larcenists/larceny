@@ -803,6 +803,17 @@ static int push_constituents( smircy_context_t *context, word w )
   }
 }
 
+static void reestablish_rgn_to_obj_entry_post_pop( smircy_context_t *context,
+                                                   obj_stack_entry_t *stkp )
+{ 
+  int rgn;
+  for( rgn = 1; rgn < context->num_rgns; rgn++ ) {
+    if (context->rgn_to_obj_entry[rgn] == stkp) {
+      context->rgn_to_obj_entry[rgn] = stkp->next_in_rgn;
+    }
+  }
+}
+
 void smircy_progress( smircy_context_t *context, 
                       int mark_max, int trace_max, int mark_words_max,
                       int *marked_recv, int *traced_recv, 
@@ -863,13 +874,7 @@ void smircy_progress( smircy_context_t *context,
           // (the decrement of stkp above) before we continue the loop...
           // XXX *strongly* consider fixing things so that when I kill entries,
           // the threaded stack is updated appropriately...
-          { int rgn;
-            for( rgn = 1; rgn < context->num_rgns; rgn++ ) {
-              if (context->rgn_to_obj_entry[rgn] == stack->obj.stkp) {
-                context->rgn_to_obj_entry[rgn] = stack->obj.stkp->next_in_rgn;
-              }
-            }
-          }
+          reestablish_rgn_to_obj_entry_post_pop( context, stack->obj.stkp );
           continue;
         }
 
@@ -891,13 +896,6 @@ void smircy_progress( smircy_context_t *context,
         context->rgn_to_obj_entry[ w_gno ] = stack->obj.stkp->next_in_rgn;
 
         dbmsg( "SMIRCY popped 0x%08x off of stack", w );
-
-        /* XXX at some point, I may need to support removing words
-         * from stacks, which will probably be implemented by setting
-         * the slot holding them to NULL.  But for now that functionality
-         * is not needed, so it seems easier to disallow NULL for now 
-         * as I debug what is wrong with this implementation. */
-        assert( w != 0x0 );
 
         traced++;
         context->total_traced++;
@@ -1100,6 +1098,108 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
     los_entry = los_entry->next_in_rgn;
   }
 
+}
+
+void smircy_jit_process_stack_for_rgn( smircy_context_t *context, int rgn )
+{
+  obj_stack_entry_t *obj_entry;
+  large_object_cursor_t *los_entry;
+  word obj_word;
+  bool already_marked;
+  bool whole_stack_clean;
+  smircy_stack_t *stack;
+
+  stack = &context->stack;
+
+  whole_stack_clean = FALSE;
+  while ( ! whole_stack_clean ) {
+    whole_stack_clean = TRUE; /* assume until proven otherwise */
+
+    while (1) {
+      /* This uses the "standard" stack processing as long as the top
+       * entry is in rgn -- it should /only/ use the mappings provded by
+       * rgn_to_{obj,los}_entry when the top entry is in a different
+       * rgn.  (Right now its always using the rgn_to_{obj,los}_entry
+       * mappings, which means it is not popping the stack and thus
+       * memory usage is higher than it should be.) */
+      if (stack->obj.stkp == stack->obj.stkbot) { /* underflow */
+        if (stack->obj.seg == NULL) {
+          break; /* let code below snag entries from LOS */
+        } else {
+          stack->obj.seg = pop_obj_segment( stack->obj.seg, 
+                                            &context->freed_obj );
+          if (stack->obj.seg != NULL) {
+            stack->obj.stkbot = stack->obj.seg->data;
+            stack->obj.stklim = stack->obj.seg->data+OBJ_STACK_SIZE;
+            stack->obj.stkp   = stack->obj.stklim;
+          } else {
+            stack->obj.stkbot = 0x0;
+            stack->obj.stklim = 0x0;
+            stack->obj.stkp   = 0x0;
+
+            break; /* let code below snag entries from LOS */
+          }
+        }
+      }
+      assert( stack->obj.stkp > stack->obj.stkbot );
+      obj_word = stack->obj.stkp[-1].val;
+      if (obj_word == 0x0) {
+        stack->obj.stkp--; /* pop the dead entry */
+        reestablish_rgn_to_obj_entry_post_pop( context, stack->obj.stkp );
+        continue;
+      }
+      if ( gen_of( obj_word ) == rgn ) {
+        stack->obj.stkp--;
+        assert( context->rgn_to_obj_entry[rgn] == stack->obj.stkp );
+        context->rgn_to_obj_entry[rgn] = stack->obj.stkp->next_in_rgn;
+        whole_stack_clean = FALSE;
+#if MARK_ON_POP
+        already_marked = mark_object( context, obj_word );
+        if (already_marked) continue;
+#endif
+        assert2( smircy_object_marked_p( context, obj_word ));
+        push_constituents( context, obj_word );
+      } else {
+        break; /* let code below search for stack entries from rgn */
+      }
+    }
+
+    obj_entry = context->rgn_to_obj_entry[ rgn ];
+    for (; obj_entry != NULL; obj_entry = obj_entry->next_in_rgn) {
+      if (obj_entry->val != 0x0) {
+        whole_stack_clean = FALSE;
+        obj_word = obj_entry->val;
+        obj_entry->val = 0x0; /* kill entry directly */
+        assert2( isptr(obj_word) );
+#if MARK_ON_POP
+        already_marked = mark_object( context, obj_word );
+        if (already_marked) continue;
+#endif
+        assert2( smircy_object_marked_p( context, obj_word ));
+        push_constituents( context, obj_word );
+      }
+    }
+
+    los_entry = context->rgn_to_los_entry[ rgn ];
+    while (los_entry != NULL && los_entry->object == 0x0) {
+      los_entry = los_entry->next_in_rgn;
+    }
+    if (los_entry != NULL) {
+      word obj;
+      int window_lim, window_size, window_start, objwords, i;
+      whole_stack_clean = FALSE;
+      obj = los_entry->object;
+      los_entry->object = 0x0; /* kill entry directly */
+      window_start = los_entry->index;
+      objwords = bytes2words( sizefield( *ptrof(obj) ));
+      window_size = min( objwords-window_start, WINDOW_SIZE_LIMIT );
+      window_lim = window_start + window_size;
+      for (i = window_start; i < window_lim; i++ )
+        push( context, vector_ref( obj, i ), obj );
+      if (window_lim < objwords)
+        los_push( context, window_lim, obj );
+    }
+  }
 }
 
 void smircy_when_object_forwarded( smircy_context_t *context, 
