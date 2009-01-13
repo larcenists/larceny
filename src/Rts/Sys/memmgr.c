@@ -486,8 +486,6 @@ static void refine_metadata_via_marksweep( gc_t *gc )
   smircy_context_t *context;
   int marked=0, traced=0, words_marked=0; 
   context = gc->smircy;
-  smircy_push_roots( context ); /* XXX unnecessary (and misleading) */
-  sm_push_nursery_summary( DATA(gc)->summaries, context );
   smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
 
   refine_remsets_via_marksweep( gc );
