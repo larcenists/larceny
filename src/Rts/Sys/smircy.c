@@ -1082,18 +1082,20 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
   }
 
   while (los_entry != NULL) {
-    assert2( los_entry->object == 0x0 || isptr( los_entry->object ));
-    assert2( gen_of(los_entry->object) == rgn );
-    visit( &los_entry->object, orig_data );
-    new_word = los_entry->object;
-    if (gen_of(new_word) != rgn) { /* moved to different region; cleanup. */
-      los_entry->object = 0x0;
-      los_push( context, los_entry->index, new_word );
-      /* XXX see above notes for standard object stack.
-       * Same probably applies here. */
-    } else {
-      /* XXX see above notes for standard object stack.
-       * Same probably applies here. */
+    if (los_entry->object != 0x0) {
+      assert2( isptr( los_entry->object ));
+      assert2( gen_of(los_entry->object) == rgn );
+      visit( &los_entry->object, orig_data );
+      new_word = los_entry->object;
+      if (gen_of(new_word) != rgn) { /* moved to different region; cleanup. */
+        los_entry->object = 0x0;
+        los_push( context, los_entry->index, new_word );
+        /* XXX see above notes for standard object stack.
+         * Same probably applies here. */
+      } else {
+        /* XXX see above notes for standard object stack.
+         * Same probably applies here. */
+      }
     }
     los_entry = los_entry->next_in_rgn;
   }
