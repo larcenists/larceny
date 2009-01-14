@@ -1,11 +1,12 @@
 Building Larceny
-21 December 2007
+13 January 2009
 
 WHAT YOU NEED
 
 If you want to recompile the Scheme sources entirely from source, you
-will need a Scheme system to host the Larceny build process: MzScheme
-37x or Larceny itself [1].  See README-FIRST.txt for more details.
+will need the source code plus a Scheme system that can host Larceny's
+build process: either Larceny itself (recommended) or MzScheme 37x [1].
+See README-FIRST.txt for more details.
 
 If you want to build Larceny or Petit Larceny entirely from source,
 you will also need a C compiler (such as gcc).  For x86-32 targets,
@@ -18,27 +19,41 @@ WHAT TO DO
 
 Building Larceny has four major steps:
 
-1. Get the Larceny development environment working.
+1. Set up the Larceny development environment.
 
 Run your host Scheme (either another Larceny or MzScheme), and change to
 the root directory of the Larceny tree.
 
     > (load "setup.sch")
-    > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'sassy ]
+    > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'sassy | 'common ]
              'string-rep: ${STREP})
-    > (build-config-files)              ; [3]
-    > (load-compiler)
 
 The call to setup (above) has several options that let you
 declare which implementation of Scheme you want to use for
 the build process (SCHEME) and which OS you are using as
 both the host and target of the build (HOST):
 
-        SCHEME      ::= 'mzscheme | 'larceny | 'petite | 'chez
+        SCHEME      ::= 'larceny | 'mzscheme | 'petite | 'chez
         HOST        ::= 'macosx | 'macosx-el | 'solaris | 'linux86 | 'win32
         STRING-REP  ::= 'flat4  |  'flat1
 
 The HOST option macosx-el is for Intel-based Macintosh computers.
+
+The optional 'native flag will build native Larceny (SPARC)
+on Solaris.
+
+The optional 'sassy flag will build native Larceny (x86-32) on
+Linux, Windows, or Mac OS X.  The 'sassy flag is necessary if
+you want to use dynamic loading on Win32, and is strongly
+recommended for that operating system.  There are several
+other optional flags that change the compiler's behavior [3].
+
+[FIXME: support for Common Larceny is just a prototype.]
+The optional 'common flag will build Common Larceny for the CLR
+on Windows, and might work for Mono on other operating systems.
+If you are building Common Larceny, however, then you should
+follow the steps outlined in doc/CommonLarceny/user-manual.txt
+instead of the steps described below.
 
 The STRING-REP option determines the representation used
 for strings.  The flat4 representation uses 4 bytes per
@@ -52,15 +67,6 @@ representations; be sure to perform a full build when
 switching from one representation to the other.  (In the
 future, we expect to support yet another representation
 of Unicode strings.)
-
-The optional 'native flag will build native Larceny (SPARC)
-on Solaris; 'sassy will build native Larceny (x86-32) on
-Linux, Windows, or Mac OS X.
-
-The 'sassy flag is necessary if you want to use dynamic loading
-on Win32, and is strongly recommended for that operating system.
-There are several other optional flags that change the compiler's
-behavior [4].
 
 Some useful examples which are known to work:
 
@@ -83,6 +89,8 @@ To build Petit Larceny:
 After the development environment is setup, you should compile the core
 system:
 
+    > (build-config-files)              ; [4]
+    > (load-compiler)
     > (build-heap)
     > (build-runtime)
     > (build-executable)
@@ -178,10 +186,7 @@ more.
 For the 'sassy backend on 'win32, Microsoft's development tools
 and NASM must both be in your search path.
 
-[3] This is only strictly necessary the first time and when the options
-given to setup have changed, but it should be safe to do every time.
-
-[4] Some other potentially useful flags, given optionally at the end of
+[3] Some other potentially useful flags, given optionally at the end of
 the call to setup:
 
     'code-cov
@@ -204,6 +209,9 @@ the call to setup:
         the Sassy backend; indeed, we suspect that it no longer builds
         correctly now that we have added the string-rep: parameter to
         setup.
+
+[4] This is only strictly necessary the first time and when the options
+given to setup have changed, but it should be safe to do every time.
 
 [5] The quotation marks around "./larceny.bin" are a uniform syntax that
 works on both Microsoft Windows and UNIX-like shells.  The reason is

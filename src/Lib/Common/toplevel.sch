@@ -1055,6 +1055,14 @@
   (environment-set! larc 'port-name port-name)
   (environment-set! larc 'port-folds-case? port-folds-case?)
   (environment-set! larc 'port-folds-case! port-folds-case!)
+
+  ; FIXME (lib/MzScheme/dotnet.sch)
+
+  (environment-set! larc 'io/port-recognizes-javadot-symbols?
+                    io/port-recognizes-javadot-symbols?)
+  (environment-set! larc 'io/port-recognizes-javadot-symbols!
+                    io/port-recognizes-javadot-symbols!)
+
   (environment-set! larc 'print-length print-length)
   (environment-set! larc 'print-level print-level)
   (environment-set! larc 'procedure-printer procedure-printer)

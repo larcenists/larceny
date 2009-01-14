@@ -157,6 +157,7 @@
                      (flag native)
                      (flag nasm)
                      (flag sassy)
+                     (flag common)
                      ;; Deprecated options
                      (flag code-cov)
                      (flag rebuild-code-cov))
@@ -232,9 +233,12 @@
                            ((linux86) 'linux-el)
                            ((macosx86) 'macosx-el)
                            (else host:)))
-                (target: (if target: target: host:)))
+                (target: (cond (target: target:)
+                               (common 'clr-el)   ; FIXME
+                               (else host:))))
            (setup-real! scheme: host: target: c-compiler: string-rep:
-            (or native sassy nasm) code-cov rebuild-code-cov sassy nasm)))))
+            (or native sassy nasm) code-cov rebuild-code-cov
+            sassy nasm)))))
 
 ;; Can't use parameters for *host-dir* and such, because we have not
 ;; loaded the compatibility files yet at the time we get here.
@@ -250,13 +254,15 @@
                      sassy nasm)
   (define (platform->endianness sym)
     (case sym 
-      ((macosx solaris) 'big)
-      ((macosx-el linux-el cygwin win32)       'little)
+      ((macosx solaris clr-be)                  'big)
+      ((macosx-el linux-el cygwin win32 clr-el) 'little)
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
       ((macosx macosx-el solaris linux-el cygwin) 'unix)
       ((win32) 'win32)
+      ((clr-be) 'unix)     ; FIXME
+      ((clr-el) 'win32)    ; FIXME
       (else (error 'platform->os "Unhandled case: ~a" sym))))
 
   ;; Warn about "semi-working" cases
@@ -313,13 +319,14 @@
                                 (native 'features-x86-nasm-win32)
                                 (else   'features-petit-win32)))
 
-          ;; if client says we're using unix,
+          ;; if client says we're using unix or clr,
           ;; then just use value set by features.sch
 
-          ((unix)         *change-feature-set*)
+          ((unix clr-be clr-el)
+                          *change-feature-set*)
 
           (else
-           (error 'petit-setup.sch "Must add support for target-arch"))
+           (error 'setup.sch "Must add support for target-arch"))
           ))
 
   (case target-arch
@@ -333,7 +340,8 @@
             macosx-el) "petitmacosx")
           ((solaris) "petitsparcsolaris")
           ((cygwin)  "petitcygwinmswindows")
-          ((linux-el) "petitdebianlinux")))
+          ((linux-el) "petitdebianlinux")
+          ((clr-be clr-le) "common")))        ; FIXME
 
   (set! *host:endianness* (platform->endianness host-arch))
   (set! *target:endianness* (platform->endianness target-arch))
@@ -390,6 +398,13 @@
             (error "Unsupported architecture for native setup: "
                    target-arch))))
 
+        ((memq target-arch '(clr-be clr-el))
+         (set! *target:machine* 'clr)
+         (set! *target:machine-source* "IL")
+         (set! *makefile-configuration* #f)
+         (set! *heap-type* 'clr)
+         (set! *runtime-type* 'clr))
+
         (else
          (set! *target:machine* 'standard-c)
          (set! *target:machine-source* "Standard-C")
@@ -429,7 +444,12 @@
           (eq? *target:machine* 'x86-sass))
       (set! *globals-table* "globals-nasm.cfg"))
  
-  (unix-&-win32-initialize))
+  (case target-arch
+   ((clr-be clr-el)
+    (load "src/Build/dotnet.sch")
+    (larceny-setup "Larceny" *target:os* *target:endianness*))   ; FIXME
+   (else
+    (unix-&-win32-initialize))))
 
 (define (setup-load-build . args) 
   (apply setup args)

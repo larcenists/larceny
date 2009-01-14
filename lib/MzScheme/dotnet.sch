@@ -2366,6 +2366,7 @@
               (dotnet-message 0 "Initialize clr generics.")
               (initialize-clr-generics!)
               (recognize-javadot-symbols? #t)
+              (io/port-recognizes-javadot-symbols! (current-input-port) #t)
               (set! *dotnet-initialized* #t)
               (display "done."))
             (error (string-append full-version " not yet supported."))))))

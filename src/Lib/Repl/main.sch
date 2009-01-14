@@ -45,7 +45,9 @@
 
          (adjust-case-sensitivity!
           (lambda ()
-            (case-sensitive? (get-feature 'case-sensitivity))))
+            (let ((flag (get-feature 'case-sensitivity)))
+              (case-sensitive? flag)
+              (port-folds-case! (current-input-port) (not flag)))))
 
          (adjust-transcoder!
           (lambda ()
@@ -64,17 +66,16 @@
                       (make-transcoder (utf-8-codec)))
                      (console-io/initialize))))))
 
-         ; Not all varieties of Larceny support all these switches.
+         ; Compiler switches are defined only in released heaps,
+         ; so we use them only if safety is other than 1 or
+         ; the execution mode is other than r5rs.
 
          (adjust-safety!
           (lambda (safety)
             (let* ((emode (get-feature 'execution-mode))
-                   (dargo? (eq? 'dargo emode))
-                   (arch (get-feature 'arch-name))
-                   (native? (or (string=? arch "SPARC")
-                                (string=? arch "IAssassin")))
+                   (dargo? (eq? 'dargo emode)) 
                    (settings
-                    (if (not native?)
+                    (if (and (eq? emode 'r5rs) (= safety 1))
                         #f
                         (case safety
                          ((0)  `(begin (runtime-safety-checking #f)
@@ -163,8 +164,8 @@
       (failsafe-process-arguments)
       (if (herald)
           (writeln (herald)))
-      (adjust-case-sensitivity!)
       (adjust-transcoder!)
+      (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
       (add-require-path!)
       (if (eq? emode 'err5rs)
@@ -176,8 +177,8 @@
      ; than enter the debugger.
 
      ((dargo)
-      (adjust-case-sensitivity!)
       (adjust-transcoder!)
+      (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
       (adjust-optimization! 2)                            ; FIXME
       (add-require-path!)
