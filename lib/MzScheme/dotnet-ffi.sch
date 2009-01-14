@@ -15,6 +15,7 @@
 
 ;; Set this variable to an integer from 0 through 5 to trace execution
 ;; of the dotnet code.  0 is least verbose, 5 is very detailed.
+
 (define *dotnet-noise-level* (make-parameter "*dotnet-noise-level*" #f))
 
 (define (dotnet-message message-level text . objects)
@@ -37,6 +38,7 @@
 ;; JRM's code has the common pattern of defining syntax
 ;; and then injecting the same syntax into the
 ;; usual-syntactic-environment.  This macro abstracts that.
+
 (define-syntax define-and-install-syntax 
   (syntax-rules ()
     ((define-and-install-syntax NAME XFORMER)
@@ -54,68 +56,72 @@
        (apply syscall code ... args))
      )))
 
-(define-syscall clr/%clr-version        34  0)
-(define-syscall clr/%ffi-version        34  1)
-(define-syscall %foreign?               34  2)
-(define-syscall clr/%to-string          34  3)
-(define-syscall clr/%object-type        34  4)
-(define-syscall clr/%isa?               34  5)
-(define-syscall clr/%eq?                34  6)
+(define-syscall clr/%clr-version                 34  0)
+(define-syscall clr/%ffi-version                 34  1)
+(define-syscall %foreign?                        34  2)
+(define-syscall clr/%to-string                   34  3)
+(define-syscall clr/%object-type                 34  4)
+(define-syscall clr/%isa?                        34  5)
+(define-syscall clr/%eq?                         34  6)
 
-(define-syscall clr/%get-type           34  7)
-(define-syscall clr/%get-field          34  8)
-(define-syscall clr/%get-constructor    34  9)
-(define-syscall clr/%get-method         34 10)
-(define-syscall clr/%get-property       34 11)
+(define-syscall clr/%get-type                    34  7)
+(define-syscall clr/%get-field                   34  8)
+(define-syscall clr/%get-constructor             34  9)
+(define-syscall clr/%get-method                  34 10)
+(define-syscall clr/%get-property                34 11)
 
-(define-syscall clr/%field-ref          34 12)
-(define-syscall clr/%field-set!         34 13)
-(define-syscall clr/%invoke-constructor 34 14)
-(define-syscall clr/%invoke             34 15)
-(define-syscall clr/%property-ref       34 16)
-(define-syscall clr/%property-set!      34 17)
-(define-syscall clr/%foreign-aref       34 18)
+(define-syscall clr/%field-ref                   34 12)
+(define-syscall clr/%field-set!                  34 13)
+(define-syscall clr/%invoke-constructor          34 14)
+(define-syscall clr/%invoke                      34 15)
+(define-syscall clr/%property-ref                34 16)
+(define-syscall clr/%property-set!               34 17)
+(define-syscall clr/%foreign-aref                34 18)
 
-(define-syscall clr/%foreign-box            34 19 0)
-(define-syscall clr/%string->foreign        34 19 1)
-(define-syscall clr/%number->foreign-byte   34 19 2)
-(define-syscall clr/%number->foreign-uint16 34 19 3)
-(define-syscall clr/%number->foreign-uint32 34 19 4)
-(define-syscall clr/%number->foreign-sbyte  34 19 5)
-(define-syscall clr/%number->foreign-int16  34 19 6)
-(define-syscall clr/%number->foreign-int32  34 19 7)
-(define-syscall clr/%procedure->message-filter 34 19 8)
-;(define-syscall clr/%void->foreign         34 19 9)
-(define-syscall clr/%flonum->foreign-single 34 19 10)
-(define-syscall clr/%flonum->foreign-double 34 19 11)
-(define-syscall clr/%char->foreign          34 19 12)
-(define-syscall clr/%bytes->foreign         34 19 13)
+(define-syscall clr/%foreign-box                 34 19 0)
+(define-syscall clr/%string->foreign             34 19 1)
+(define-syscall clr/%number->foreign-byte        34 19 2)
+(define-syscall clr/%number->foreign-uint16      34 19 3)
+(define-syscall clr/%number->foreign-uint32      34 19 4)
+(define-syscall clr/%number->foreign-sbyte       34 19 5)
+(define-syscall clr/%number->foreign-int16       34 19 6)
+(define-syscall clr/%number->foreign-int32       34 19 7)
+(define-syscall clr/%procedure->message-filter   34 19 8)
+;(define-syscall clr/%void->foreign              34 19 9)
+(define-syscall clr/%flonum->foreign-single      34 19 10)
+(define-syscall clr/%flonum->foreign-double      34 19 11)
+(define-syscall clr/%char->foreign               34 19 12)
+(define-syscall clr/%bytes->foreign              34 19 13)
 
-(define-syscall clr/%foreign->object        34 20 0)
-(define-syscall clr/%foreign->schemeobject  34 20 1)
-(define-syscall clr/%foreign->string        34 20 2)
-;(define-syscall clr/%foreign->symbol       34 20 3)
-(define-syscall clr/%foreign->bytes         34 20 4)
-(define-syscall clr/%foreign->int           34 20 5)
-(define-syscall clr/%foreign-single->flonum 34 20 6)
-(define-syscall clr/%foreign-double->flonum 34 20 7)
-(define-syscall clr/%foreign->void          34 20 8)
+(define-syscall clr/%foreign->object             34 20 0)
+(define-syscall clr/%foreign->schemeobject       34 20 1)
+(define-syscall clr/%foreign->string             34 20 2)
+;(define-syscall clr/%foreign->symbol            34 20 3)
+(define-syscall clr/%foreign->bytes              34 20 4)
+(define-syscall clr/%foreign->int                34 20 5)
+(define-syscall clr/%foreign-single->flonum      34 20 6)
+(define-syscall clr/%foreign-double->flonum      34 20 7)
+(define-syscall clr/%foreign->void               34 20 8)
 
 ;; special for performance
-(define-syscall clr/%property-ref-bool     34 21)
-(define-syscall clr/%property-ref-int      34 22)
-(define-syscall clr/%property-ref-window   34 23)
-(define-syscall clr/%property-ref-intptr-int 34 24)
+
+(define-syscall clr/%property-ref-bool           34 21)
+(define-syscall clr/%property-ref-int            34 22)
+(define-syscall clr/%property-ref-window         34 23)
+(define-syscall clr/%property-ref-intptr-int     34 24)
 
 ;; event handling
-(define-syscall clr/%add-event-handler 34 25)
+
+(define-syscall clr/%add-event-handler           34 25)
 
 ;; assembly loading
-(define-syscall clr/%load-assembly 34 26)
+
+(define-syscall clr/%load-assembly               34 26)
 
 ;; Hook this asap to make it easy to debug this file.
 ;; Using the syscalls directly means that we can turn on
 ;; the debug printing above but not have it interfere here.
+
 (define print-foreign-object
   (let ((old-weird-printer (weird-printer)))
     (lambda (weird-object port slashify)
@@ -129,45 +135,57 @@
 ;;; Install the new weird printer.
 (weird-printer print-foreign-object)
 
-;;; Basic types needed to boostrap the rest of the dotnet interface.
-(define clr-type-handle/scheme-rt-ffi                   (clr/%get-type "Scheme.RT.FFI"))
-(define clr-type-handle/system-appdomain                (clr/%get-type "System.AppDomain"))
-(define clr-type-handle/system-array                    (clr/%get-type "System.Array"))
-(define clr-type-handle/system-boolean                  (clr/%get-type "System.Boolean"))
-(define clr-type-handle/system-byte                     (clr/%get-type "System.Byte"))
-(define clr-type-handle/system-char                     (clr/%get-type "System.Char"))
-(define clr-type-handle/system-convert                  (clr/%get-type "System.Convert"))
-(define clr-type-handle/system-double                   (clr/%get-type "System.Double"))
-(define clr-type-handle/system-enum                     (clr/%get-type "System.Enum"))
-(define clr-type-handle/system-guid                     (clr/%get-type "System.Guid"))
-(define clr-type-handle/system-int16                    (clr/%get-type "System.Int16"))
-(define clr-type-handle/system-int32                    (clr/%get-type "System.Int32"))
-(define clr-type-handle/system-int64                    (clr/%get-type "System.Int64"))
-(define clr-type-handle/system-object                   (clr/%get-type "System.Object"))
-(define clr-type-handle/system-reflection-assembly      (clr/%get-type "System.Reflection.Assembly"))
-(define clr-type-handle/system-reflection-bindingflags  (clr/%get-type "System.Reflection.BindingFlags"))
+;;; Basic types needed to bootstrap the rest of the dotnet interface.
+
+(define clr-type-handle/scheme-rt-ffi      (clr/%get-type "Scheme.RT.FFI"))
+(define clr-type-handle/system-appdomain   (clr/%get-type "System.AppDomain"))
+(define clr-type-handle/system-array       (clr/%get-type "System.Array"))
+(define clr-type-handle/system-boolean     (clr/%get-type "System.Boolean"))
+(define clr-type-handle/system-byte        (clr/%get-type "System.Byte"))
+(define clr-type-handle/system-char        (clr/%get-type "System.Char"))
+(define clr-type-handle/system-convert     (clr/%get-type "System.Convert"))
+(define clr-type-handle/system-double      (clr/%get-type "System.Double"))
+(define clr-type-handle/system-enum        (clr/%get-type "System.Enum"))
+(define clr-type-handle/system-guid        (clr/%get-type "System.Guid"))
+(define clr-type-handle/system-int16       (clr/%get-type "System.Int16"))
+(define clr-type-handle/system-int32       (clr/%get-type "System.Int32"))
+(define clr-type-handle/system-int64       (clr/%get-type "System.Int64"))
+(define clr-type-handle/system-object      (clr/%get-type "System.Object"))
+
+(define clr-type-handle/system-reflection-assembly
+  (clr/%get-type "System.Reflection.Assembly"))
+(define clr-type-handle/system-reflection-bindingflags
+  (clr/%get-type "System.Reflection.BindingFlags"))
 (define clr-type-handle/system-reflection-constructorinfo
   (clr/%get-type "System.Reflection.ConstructorInfo"))
 (define clr-type-handle/system-reflection-emit-constructorbuilder
   (clr/%get-type "System.Reflection.Emit.ConstructorBuilder"))
 (define clr-type-handle/system-reflection-emit-methodbuilder
   (clr/%get-type "System.Reflection.Emit.MethodBuilder"))
-(define clr-type-handle/system-reflection-fieldinfo     (clr/%get-type "System.Reflection.FieldInfo"))
-(define clr-type-handle/system-reflection-memberinfo    (clr/%get-type "System.Reflection.MemberInfo"))
-(define clr-type-handle/system-reflection-membertypes   (clr/%get-type "System.Reflection.MemberTypes"))
-(define clr-type-handle/system-reflection-methodbase    (clr/%get-type "System.Reflection.MethodBase"))
-(define clr-type-handle/system-reflection-methodinfo    (clr/%get-type "System.Reflection.MethodInfo"))
-(define clr-type-handle/system-reflection-parameterinfo (clr/%get-type "System.Reflection.ParameterInfo"))
-(define clr-type-handle/system-reflection-propertyinfo  (clr/%get-type "System.Reflection.PropertyInfo"))
-(define clr-type-handle/system-sbyte                    (clr/%get-type "System.SByte"))
-(define clr-type-handle/system-single                   (clr/%get-type "System.Single"))
-(define clr-type-handle/system-string                   (clr/%get-type "System.String"))
-(define clr-type-handle/system-byte-array               (clr/%get-type "System.Byte[]"))
-(define clr-type-handle/system-type                     (clr/%get-type "System.Type"))
-(define clr-type-handle/system-uint16                   (clr/%get-type "System.UInt16"))
-(define clr-type-handle/system-uint32                   (clr/%get-type "System.UInt32"))
-(define clr-type-handle/system-uint64                   (clr/%get-type "System.UInt64"))
-(define clr-type-handle/system-void                     (clr/%get-type "System.Void"))
+(define clr-type-handle/system-reflection-fieldinfo
+  (clr/%get-type "System.Reflection.FieldInfo"))
+(define clr-type-handle/system-reflection-memberinfo
+  (clr/%get-type "System.Reflection.MemberInfo"))
+(define clr-type-handle/system-reflection-membertypes
+  (clr/%get-type "System.Reflection.MemberTypes"))
+(define clr-type-handle/system-reflection-methodbase
+  (clr/%get-type "System.Reflection.MethodBase"))
+(define clr-type-handle/system-reflection-methodinfo
+  (clr/%get-type "System.Reflection.MethodInfo"))
+(define clr-type-handle/system-reflection-parameterinfo
+  (clr/%get-type "System.Reflection.ParameterInfo"))
+(define clr-type-handle/system-reflection-propertyinfo
+  (clr/%get-type "System.Reflection.PropertyInfo"))
+
+(define clr-type-handle/system-sbyte       (clr/%get-type "System.SByte"))
+(define clr-type-handle/system-single      (clr/%get-type "System.Single"))
+(define clr-type-handle/system-string      (clr/%get-type "System.String"))
+(define clr-type-handle/system-byte-array  (clr/%get-type "System.Byte[]"))
+(define clr-type-handle/system-type        (clr/%get-type "System.Type"))
+(define clr-type-handle/system-uint16      (clr/%get-type "System.UInt16"))
+(define clr-type-handle/system-uint32      (clr/%get-type "System.UInt32"))
+(define clr-type-handle/system-uint64      (clr/%get-type "System.UInt64"))
+(define clr-type-handle/system-void        (clr/%get-type "System.Void"))
 
 (define clr/false
   (clr/%field-ref (clr/%get-field clr-type-handle/scheme-rt-ffi "FALSE") #f))
@@ -181,23 +199,26 @@
 
 (define (clr/null? object) (clr/%null? object))
 
-(define (clr/bool->foreign   obj) (if obj clr/true clr/false))
+(define (clr/bool->foreign   obj)        (if obj clr/true clr/false))
 (define (clr/flonum->foreign-double obj) (clr/%flonum->foreign-double obj))
 (define (clr/flonum->foreign-single obj) (clr/%flonum->foreign-single obj))
-(define (clr/char->foreign   obj) (clr/%char->foreign obj))
-(define (clr/byte->foreign   obj) (clr/%number->foreign-byte obj))
-(define (clr/int->foreign    obj) (clr/%number->foreign-int32 obj))
-(define (clr/string->foreign obj) (clr/%string->foreign obj))
-(define (clr/bytes->foreign obj)  (clr/%bytes->foreign obj))
-(define (clr/symbol->foreign obj) (clr/%string->foreign (symbol->string obj)))
+(define (clr/char->foreign   obj)        (clr/%char->foreign obj))
+(define (clr/byte->foreign   obj)        (clr/%number->foreign-byte obj))
+(define (clr/int->foreign    obj)        (clr/%number->foreign-int32 obj))
+(define (clr/string->foreign obj)        (clr/%string->foreign obj))
+(define (clr/bytes->foreign obj)         (clr/%bytes->foreign obj))
+(define (clr/symbol->foreign obj)        (clr/%string->foreign
+                                          (symbol->string obj)))
 
-(define (clr/foreign->bool   obj) (not (clr/%eq? obj clr/false)))
-(define (clr/foreign->char   obj) (integer->char (clr/%foreign->int obj)))
-(define (clr/foreign->int    obj) (clr/%foreign->int obj))
-(define (clr/foreign->schemeobject obj) (clr/%foreign->schemeobject obj))
-(define (clr/foreign->string obj) (clr/%foreign->string obj))
-(define (clr/foreign->bytes obj)  (clr/%foreign->bytes obj))
-(define (clr/foreign->symbol obj) (string->symbol (clr/%foreign->string obj)))
+(define (clr/foreign->bool   obj)        (not (clr/%eq? obj clr/false)))
+(define (clr/foreign->char   obj)        (integer->char
+                                          (clr/%foreign->int obj)))
+(define (clr/foreign->int    obj)        (clr/%foreign->int obj))
+(define (clr/foreign->schemeobject obj)  (clr/%foreign->schemeobject obj))
+(define (clr/foreign->string obj)        (clr/%foreign->string obj))
+(define (clr/foreign->bytes obj)         (clr/%foreign->bytes obj))
+(define (clr/foreign->symbol obj)        (string->symbol
+                                          (clr/%foreign->string obj)))
 (define (clr/foreign-double->flonum obj) (clr/%foreign-double->flonum obj))
 (define (clr/foreign-single->flonum obj) (clr/%foreign-single->flonum obj))
 
@@ -205,21 +226,22 @@
   (clr/%to-string (clr/%object-type obj)))
 
 ;;; Some primitive predicates
+
 (define-syntax define-ffi-predicate
   (syntax-rules ()
     ((define-ffi-predicate name type-handle)
      (define (name object)
        (clr/%isa? object type-handle)))))
 
-(define-ffi-predicate %clr-array?      clr-type-handle/system-array)
-(define-ffi-predicate %clr-double?     clr-type-handle/system-double)
-(define-ffi-predicate %clr-enum?       clr-type-handle/system-enum)
-(define-ffi-predicate %clr-char?       clr-type-handle/system-char)
-(define-ffi-predicate %clr-int32?      clr-type-handle/system-int32)
-(define-ffi-predicate %clr-single?     clr-type-handle/system-single)
-(define-ffi-predicate %clr-string?     clr-type-handle/system-string)
-(define-ffi-predicate %clr-byte-array? clr-type-handle/system-byte-array)
-(define-ffi-predicate %clr-type?       clr-type-handle/system-type)
+(define-ffi-predicate %clr-array?        clr-type-handle/system-array)
+(define-ffi-predicate %clr-double?       clr-type-handle/system-double)
+(define-ffi-predicate %clr-enum?         clr-type-handle/system-enum)
+(define-ffi-predicate %clr-char?         clr-type-handle/system-char)
+(define-ffi-predicate %clr-int32?        clr-type-handle/system-int32)
+(define-ffi-predicate %clr-single?       clr-type-handle/system-single)
+(define-ffi-predicate %clr-string?       clr-type-handle/system-string)
+(define-ffi-predicate %clr-byte-array?   clr-type-handle/system-byte-array)
+(define-ffi-predicate %clr-type?         clr-type-handle/system-type)
 
 (define-syntax define-clr-property
   (syntax-rules ()
@@ -229,7 +251,9 @@
          (if handle
              (lambda (foreign-object)
                (clr/%property-ref handle foreign-object '#()))
-             (error (string-append "Property " property-name" not found."))))))))
+             (error (string-append "Property "
+                                   property-name
+                                   " not found."))))))))
 
 (define-syntax define-boolean-clr-property
   (syntax-rules ()
@@ -239,11 +263,14 @@
          (if handle
              (lambda (foreign-object)
                (clr/%property-ref-bool handle foreign-object '#()))
-             (error (string-append "Boolean property " property-name " not found."))))))
+             (error (string-append "Boolean property "
+                                   property-name
+                                   " not found."))))))
 
     ;; The fourth argument of #T allows us to refer to properties that
     ;; don't exist.  They will seem to always the value #F.  .NET version 2.0
     ;; adds new properties to types.
+
     ((define-boolean-clr-property name type-handle property-name #t)
      (define name
        (let ((handle (clr/%get-property type-handle property-name '#())))
@@ -254,6 +281,7 @@
                #f)))))
 
     ;; By default, though, error if we can't find the property.
+
     ((define-boolean-clr-property name type-handle property-name #f)
      (define-boolean-clr-property name type-handle property-name))))
 
@@ -265,7 +293,9 @@
          (if handle
              (lambda (foreign-object)
                (clr/%property-ref-int handle foreign-object '#()))
-             (error (string-append "Integer property " property-name" not found."))))))))
+             (error (string-append "Integer property "
+                                   property-name
+                                   " not found."))))))))
 
 (define-clr-property         clr-app-domain/%current-domain
   clr-type-handle/system-appdomain "CurrentDomain")
@@ -367,25 +397,33 @@
       (error "map-clr-array: not a foreign array" handle)))
 
 (define clr/%foreign-aset
-  (let ((method-handle (clr/%get-method clr-type-handle/system-array "SetValue"
-                                        (vector clr-type-handle/system-object
-                                                clr-type-handle/system-int32))))
+  (let ((method-handle
+         (clr/%get-method clr-type-handle/system-array "SetValue"
+                          (vector clr-type-handle/system-object
+                                  clr-type-handle/system-int32))))
     (lambda (array idx value)
-      (clr/%invoke method-handle array (vector value (clr/int->foreign idx))))))
+      (clr/%invoke method-handle
+                   array
+                   (vector value (clr/int->foreign idx))))))
 
 (define allocate-clr-array
-  (let* ((method-handle (clr/%get-method clr-type-handle/system-array "CreateInstance"
-                                         (vector clr-type-handle/system-type
-                                                 clr-type-handle/system-int32))))
+  (let* ((method-handle
+          (clr/%get-method clr-type-handle/system-array "CreateInstance"
+                           (vector clr-type-handle/system-type
+                                   clr-type-handle/system-int32))))
     (lambda (type-handle length)
-      (clr/%invoke method-handle #f (vector type-handle (clr/int->foreign length))))))
+      (clr/%invoke method-handle
+                   #f
+                   (vector type-handle (clr/int->foreign length))))))
 
 ;;; Some bootstrap Enums
+
 (define clr/parse-enum
-  (let* ((method-handle (clr/%get-method clr-type-handle/system-enum "Parse"
-                                         (vector clr-type-handle/system-type
-                                                 clr-type-handle/system-string
-                                                 clr-type-handle/system-boolean))))
+  (let* ((method-handle
+          (clr/%get-method clr-type-handle/system-enum "Parse"
+                           (vector clr-type-handle/system-type
+                                   clr-type-handle/system-string
+                                   clr-type-handle/system-boolean))))
     (lambda (enum-type name)
       ;; (dotnet-message 5 "Parse enum" name)
       (clr/%foreign->int
@@ -395,6 +433,7 @@
                             clr/true))))))
 
 ;;; System.Reflection.BindingFlags enumeration
+
 (define clr-binding-flags/instance
   (clr/parse-enum clr-type-handle/system-reflection-bindingflags "Instance"))
 (define clr-binding-flags/static
@@ -405,6 +444,7 @@
   (clr/parse-enum clr-type-handle/system-reflection-bindingflags "NonPublic"))
 
 ;;; System.Reflection.MemberTypes enumeration
+
 (define clr-member-type/constructor
   (clr/parse-enum clr-type-handle/system-reflection-membertypes "Constructor"))
 (define clr-member-type/event
@@ -454,10 +494,11 @@
 ;;; Methods that have unusual calling sequences.
 
 (define clr-assembly/%get-type
-  (let ((method (clr/%get-method clr-type-handle/system-reflection-assembly "GetType"
-                                 (vector clr-type-handle/system-string
-                                         clr-type-handle/system-boolean
-                                         clr-type-handle/system-boolean))))
+  (let ((method
+         (clr/%get-method clr-type-handle/system-reflection-assembly "GetType"
+                          (vector clr-type-handle/system-string
+                                  clr-type-handle/system-boolean
+                                  clr-type-handle/system-boolean))))
     (lambda (assembly typename)
       ;; (dotnet-message 5 "clr-assembly/%get-type" typename)
       (clr/%invoke method assembly (vector typename clr/false clr/true)))))
@@ -492,24 +533,33 @@
 
 ;;; For marshaling integers to enums.
 (define clr-enum/to-object
-  (let ((method-handle (clr/%get-method clr-type-handle/system-enum "ToObject"
-                                        (vector clr-type-handle/system-type
-                                                clr-type-handle/system-int32))))
+  (let ((method-handle
+         (clr/%get-method clr-type-handle/system-enum "ToObject"
+                          (vector clr-type-handle/system-type
+                                  clr-type-handle/system-int32))))
     (lambda (class-handle number)
       (dotnet-message 5 "clr-enum/to-object")
-      (clr/%invoke method-handle #f (vector class-handle (clr/%number->foreign-int32 number))))))
+      (clr/%invoke method-handle
+                   #f
+                   (vector class-handle
+                           (clr/%number->foreign-int32 number))))))
 
 (define clr-field-info/%get-value
-  (let ((method (clr/%get-method clr-type-handle/system-reflection-fieldinfo "GetValue"
-                                 (vector clr-type-handle/system-object))))
+  (let ((method
+         (clr/%get-method clr-type-handle/system-reflection-fieldinfo
+                          "GetValue"
+                          (vector clr-type-handle/system-object))))
     (lambda (object)
       ;; (dotnet-message 5 "clr-field-info/%get-value")
       (clr/%invoke method object (vector clr/null)))))
 
 ;;; TRUE argument means fetch private name, false means public only.
+
 (define clr-propertyinfo/%get-get-method
-  (let ((method-handle (clr/%get-method clr-type-handle/system-reflection-propertyinfo "GetGetMethod"
-                                        (vector clr-type-handle/system-boolean)))
+  (let ((method-handle
+         (clr/%get-method clr-type-handle/system-reflection-propertyinfo
+                          "GetGetMethod"
+                          (vector clr-type-handle/system-boolean)))
         (private-arglist (vector clr/true))
         (public-arglist  (vector clr/false)))
     (lambda (property-info allow-private?)
@@ -518,8 +568,9 @@
                    (if allow-private? private-arglist public-arglist)))))
 
 (define clr-type/%get-custom-attributes
-  (let ((method (clr/%get-method clr-type-handle/system-type "GetCustomAttributes"
-                                 (vector clr-type-handle/system-boolean)))
+  (let ((method
+         (clr/%get-method clr-type-handle/system-type "GetCustomAttributes"
+                          (vector clr-type-handle/system-boolean)))
         (args (vector clr/true)))
     (lambda (object)
       ;; (dotnet-message 5 "clr-type/%get-custom-attributes")
@@ -534,8 +585,10 @@
                        attributes))))
 
 (define clr-type/%get-members
-  (let ((method (clr/%get-method clr-type-handle/system-type "GetMembers"
-                                 (vector clr-type-handle/system-reflection-bindingflags)))
+  (let ((method
+         (clr/%get-method clr-type-handle/system-type "GetMembers"
+                          (vector
+                           clr-type-handle/system-reflection-bindingflags)))
         (arglist-instance-public
          (vector
           (clr-enum/to-object clr-type-handle/system-reflection-bindingflags
@@ -584,7 +637,8 @@
                (else (error "Cannot find clr type " clr-type-name)))))
 
     (or (clr/%get-type canonical-name)
-        (let ((assemblies (clr-app-domain/%get-assemblies (clr-app-domain/%current-domain clr/false)))
+        (let ((assemblies (clr-app-domain/%get-assemblies
+                           (clr-app-domain/%current-domain clr/false)))
               (name-as-string (clr/%string->foreign canonical-name)))
           (if (not (%clr-array? assemblies))
               (clr/type-not-found canonical-name)
@@ -593,7 +647,8 @@
                 (if (>= idx limit)
                     (clr/type-not-found canonical-name)
                     (let* ((this-assembly (clr/%foreign-aref assemblies idx))
-                           (probe (clr-assembly/%get-type this-assembly name-as-string)))
+                           (probe (clr-assembly/%get-type this-assembly
+                                                          name-as-string)))
                       (if (%clr-type? probe)
                           probe
                           (loop (+ idx 1) limit))))))))))

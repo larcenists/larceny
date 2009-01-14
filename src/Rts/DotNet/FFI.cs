@@ -28,7 +28,8 @@ namespace Scheme.RT
 
         public bool PreFilterMessage (ref Message m)
         {
-            return Call.callback (scheme_filter, Factory.makeForeignBox (m)) != Factory.False;
+            return Call.callback (scheme_filter, Factory.makeForeignBox (m))
+                != Factory.False;
         }
     }
 #endif
@@ -37,6 +38,7 @@ namespace Scheme.RT
     {
 
         // Public Constants
+
         public const bool TRUE = true;
         public const bool FALSE = false;
         public const object NULL = null;
@@ -65,32 +67,40 @@ namespace Scheme.RT
             {
 
                 case 0:  // clr-version
-                    // Return a list of integers indicating the version of the CLR runtime.
+                    // Return a list of integers indicating the version
+                    // of the CLR runtime.
                     {
                         Version v = Environment.Version;
                         // return a list of 2, 3, or 4 elements
                         Reg.Result =
                             Factory.makePair
-                            (Factory.makeNumber(v.Major),
-                             Factory.makePair
-                             (Factory.makeNumber(v.Minor),
-                              (v.Build == -1)
-                              ? (SObject)Factory.Null
-                              : (SObject)Factory.makePair(Factory.makeNumber(v.Build),
-                                                            (v.Revision == -1)
-                                                            ? (SObject)Factory.Null
-                                                            : (SObject)Factory.makePair(Factory.makeNumber(v.Revision),
-                                                                                          Factory.Null))));
+                             (Factory.makeNumber(v.Major),
+                              Factory.makePair
+                               (Factory.makeNumber(v.Minor),
+                                (v.Build == -1)
+                                ? (SObject)Factory.Null
+                                : (SObject)
+                                  Factory.makePair
+                                   (Factory.makeNumber(v.Build),
+                                    (v.Revision == -1)
+                                    ? (SObject)Factory.Null
+                                    : (SObject)
+                                      Factory.makePair
+                                       (Factory.makeNumber(v.Revision),
+                                        Factory.Null))));
                         return;
                     }
 
                 case 1: // ffi version
-                    // Return a list of integers indicating the version of this FFI.
+                    // Return a list of integers indicating the version of
+                    // this FFI.
                     {
                         // Should actually do real versioning here.
                         Reg.Result =
-                            Factory.makePair(Factory.makeNumber(0),
-                                              Factory.makePair(Factory.makeNumber(0), Factory.Null));
+                            Factory.makePair
+                             (Factory.makeNumber(0),
+                              Factory.makePair(Factory.makeNumber(0),
+                                               Factory.Null));
                         return;
                     }
 
@@ -101,7 +111,9 @@ namespace Scheme.RT
                         // SObject arg2 = Reg.Register4;
                         // SObject arg3 = Reg.Register5;
                         // SObject arg4 = Reg.Register6;
-                        Reg.Result = (Reg.Register3 is ForeignBox) ? Factory.True : Factory.False;
+                        Reg.Result
+                            = (Reg.Register3 is ForeignBox)
+                              ? Factory.True : Factory.False;
                         return;
                     }
 
@@ -109,14 +121,18 @@ namespace Scheme.RT
                     {
                         SObject arg1 = Reg.Register3;
                         object val = ((ForeignBox)arg1).value;
-                        Reg.Result = Factory.makeUString((val == null) ? "null" : val.ToString());
+                        Reg.Result
+                            = Factory.makeUString((val == null)
+                                                  ? "null" : val.ToString());
                         return;
                     }
 
                 case 4: // object-type
                     {
                         SObject arg1 = Reg.Register3;
-                        Reg.Result = Factory.makeForeignBox(((ForeignBox)arg1).value.GetType());
+                        Reg.Result
+                            = Factory.makeForeignBox
+                               (((ForeignBox)arg1).value.GetType());
                         return;
                     }
 
@@ -126,7 +142,9 @@ namespace Scheme.RT
                         SObject arg2 = Reg.Register4;
                         object obj = ((ForeignBox)arg1).value;
                         Type type = (Type)((ForeignBox)arg2).value;
-                        Reg.Result = type.IsInstanceOfType(obj) ? Factory.True : Factory.False;
+                        Reg.Result
+                            = type.IsInstanceOfType(obj)
+                              ? Factory.True : Factory.False;
                         return;
                     }
 
@@ -146,13 +164,16 @@ namespace Scheme.RT
                         {
                             if (arg2 is ForeignBox)
                             {
-                                // We can't use the Equals method on null objects,
-                                // so we have to test for those first.
+                                // We can't use the Equals method on null
+                                // objects, so we have to test for those
+                                // first.
+
                                 if (((ForeignBox)arg1).value == null)
                                 {
-                                    Reg.Result = (((ForeignBox)arg2).value == null)
-                                        ? Factory.True
-                                        : Factory.False;
+                                    Reg.Result
+                                        = (((ForeignBox)arg2).value == null)
+                                          ? Factory.True
+                                          : Factory.False;
                                 }
                                 else if (((ForeignBox)arg2).value == null)
                                 {
@@ -160,9 +181,11 @@ namespace Scheme.RT
                                 }
                                 else
                                 {
-                                    Reg.Result = ((((ForeignBox)arg1).value).Equals(((ForeignBox)arg2).value))
-                                        ? Factory.True
-                                        : Factory.False;
+                                    Reg.Result
+                                        = ((((ForeignBox)arg1).value)
+                                           .Equals(((ForeignBox)arg2).value))
+                                          ? Factory.True
+                                          : Factory.False;
                                 }
                             }
                             else if (arg2 is SFixnum)
@@ -180,9 +203,11 @@ namespace Scheme.RT
                         {
                             if (arg2 is SFixnum)
                             {
-                                Reg.Result = ((((ForeignBox)arg1).value) == (((ForeignBox)arg2).value))
-                                    ? Factory.True
-                                    : Factory.False;
+                                Reg.Result
+                                    = ((((ForeignBox)arg1).value)
+                                       == (((ForeignBox)arg2).value))
+                                      ? Factory.True
+                                      : Factory.False;
                             }
                             else if (arg2 is ForeignBox)
                             {
@@ -223,24 +248,33 @@ namespace Scheme.RT
                         // SObject arg1 = Reg.Register3;
                         // string name = ((SByteVL)arg1).asString();
                         // case insensitive lookup
-                        Type ft = Type.GetType(((SByteVL)(Reg.Register3)).asString(), false, true);
+                        Type ft = Type.GetType(((SByteVL)(Reg.Register3))
+                                               .asString(), false, true);
                         // Return #F if not found.
-                        Reg.Result = (ft == null) ? Factory.False : Factory.makeForeignBox(ft);
+                        Reg.Result = (ft == null)
+                                     ? Factory.False
+                                     : Factory.makeForeignBox(ft);
                         return;
                     }
 
-                // return the reflected field-info object associated with a named field.
-                // #F if not found
+                // return the reflected field-info object associated with
+                // a named field, or #F if not found
+
                 case 8: // get field
                     {
                         SObject arg1 = Reg.Register3;
                         SObject arg2 = Reg.Register4;
-                        FieldInfo fi = ((Type)((ForeignBox)arg1).value).GetField(((SByteVL)arg2).asString());
-                        Reg.Result = (fi == null) ? Factory.False : Factory.makeForeignBox(fi);
+                        FieldInfo fi = ((Type)((ForeignBox)arg1).value)
+                                       .GetField(((SByteVL)arg2).asString());
+                        Reg.Result = (fi == null)
+                                     ? Factory.False
+                                     : Factory.makeForeignBox(fi);
                         return;
                     }
+
                 // return the reflected constructor
                 // #F if not found
+
                 case 9: // get-constructor
                     {
                         SObject arg1 = Reg.Register3;
@@ -251,8 +285,11 @@ namespace Scheme.RT
                         {
                             types[i] = (Type)((ForeignBox)typev[i]).value;
                         }
-                        ConstructorInfo ci = ((Type)((ForeignBox)arg1).value).GetConstructor(types);
-                        Reg.Result = (ci == null) ? Factory.False : Factory.makeForeignBox(ci);
+                        ConstructorInfo ci = ((Type)((ForeignBox)arg1).value)
+                                             .GetConstructor(types);
+                        Reg.Result = (ci == null)
+                                     ? Factory.False
+                                     : Factory.makeForeignBox(ci);
                         return;
                     }
 
@@ -267,8 +304,12 @@ namespace Scheme.RT
                         {
                             types[i] = (Type)((ForeignBox)typev[i]).value;
                         }
-                        MethodInfo mi = ((Type)((ForeignBox)arg1).value).GetMethod(((SByteVL)arg2).asString(), types);
-                        Reg.Result = (mi == null) ? Factory.False : Factory.makeForeignBox(mi);
+                        MethodInfo mi = ((Type)((ForeignBox)arg1).value)
+                                        .GetMethod(((SByteVL)arg2).asString(),
+                                                   types);
+                        Reg.Result = (mi == null)
+                                     ? Factory.False
+                                     : Factory.makeForeignBox(mi);
                         return;
                     }
 
@@ -283,8 +324,13 @@ namespace Scheme.RT
                         {
                             types[i] = (Type)((ForeignBox)typev[i]).value;
                         }
-                        PropertyInfo pi = ((Type)((ForeignBox)arg1).value).GetProperty(((SByteVL)arg2).asString(), types);
-                        Reg.Result = (pi == null) ? Factory.False : Factory.makeForeignBox(pi);
+                        PropertyInfo
+                            pi = ((Type)((ForeignBox)arg1).value)
+                                 .GetProperty(((SByteVL)arg2).asString(),
+                                              types);
+                        Reg.Result = (pi == null)
+                                     ? Factory.False
+                                     : Factory.makeForeignBox(pi);
                         return;
                     }
 
@@ -295,7 +341,11 @@ namespace Scheme.RT
                         FieldInfo fi = (FieldInfo)((ForeignBox)arg1).value;
                         try
                         {
-                            Reg.Result = Factory.makeForeignBox(fi.GetValue(fi.IsStatic ? null : ((ForeignBox)arg2).value));
+                            Reg.Result
+                                = Factory.makeForeignBox
+                                   (fi.GetValue(fi.IsStatic
+                                                ? null
+                                                : ((ForeignBox)arg2).value));
                             return;
                         }
                         catch (Exception e)
@@ -313,7 +363,10 @@ namespace Scheme.RT
                         FieldInfo fi = (FieldInfo)((ForeignBox)arg1).value;
                         try
                         {
-                            fi.SetValue(fi.IsStatic ? null : ((ForeignBox)arg2).value, ((ForeignBox)arg3).value);
+                            fi.SetValue(fi.IsStatic
+                                            ? null
+                                            : ((ForeignBox)arg2).value,
+                                        ((ForeignBox)arg3).value);
                             Reg.Result = Factory.Unspecified;
                             return;
                         }
@@ -328,7 +381,8 @@ namespace Scheme.RT
                     {
                         SObject arg1 = Reg.Register3;
                         SObject arg2 = Reg.Register4;
-                        ConstructorInfo ci = (ConstructorInfo)((ForeignBox)arg1).value;
+                        ConstructorInfo ci
+                            = (ConstructorInfo)((ForeignBox)arg1).value;
                         SObject[] sargv = ((SVL)arg2).elements;
                         object[] args = new object[sargv.Length];
                         for (int i = 0; i < args.Length; ++i)
@@ -337,7 +391,8 @@ namespace Scheme.RT
                         }
                         try
                         {
-                            Reg.Result = Factory.makeForeignBox(ci.Invoke(args));
+                            Reg.Result
+                                = Factory.makeForeignBox(ci.Invoke(args));
                             return;
                         }
                         catch (Exception e)
@@ -359,17 +414,22 @@ namespace Scheme.RT
                             args[i] = ((ForeignBox)(sargv[i])).value;
 
                         // I wonder if this version is better?
-                        //                int i = 0;
-                        //                foreach (SObject sarg in sargv)
-                        //                  args [i++] = ((ForeignBox) sarg).value;
+                        //    int i = 0;
+                        //    foreach (SObject sarg in sargv)
+                        //      args [i++] = ((ForeignBox) sarg).value;
+
                         object result;
                         try
                         {
-                            result = mi.Invoke(mi.IsStatic ? null : ((ForeignBox)arg2).value, args);
+                            result = mi.Invoke(mi.IsStatic
+                                                   ? null
+                                                   : ((ForeignBox)arg2).value,
+                                               args);
                         }
                         catch (Exception e)
                         {
-                            Exn.error("ffi:invoke: error in foreign function: " + e);
+                            Exn.error
+                             ("ffi:invoke: error in foreign function: " + e);
                             return;
                         }
 
@@ -389,11 +449,14 @@ namespace Scheme.RT
                         object result;
                         try
                         {
-                            result = ((PropertyInfo)((ForeignBox)arg1).value).GetValue(((ForeignBox)arg2).value, args);
+                            result
+                                = ((PropertyInfo)((ForeignBox)arg1).value)
+                                  .GetValue(((ForeignBox)arg2).value, args);
                         }
                         catch (Exception e)
                         {
-                            Exn.error("ffi:invoke: error in foreign function: " + e);
+                            Exn.error
+                             ("ffi:invoke: error in foreign function: " + e);
                             return;
                         }
                         Reg.Result = Factory.makeForeignBox(result);
@@ -412,11 +475,16 @@ namespace Scheme.RT
                             args[i] = ((ForeignBox)(sargv[i])).value;
                         try
                         {
-                            ((PropertyInfo)((ForeignBox)arg1).value).SetValue(((ForeignBox)arg2).value, ((ForeignBox)arg3).value, args);
+                            ((PropertyInfo)
+                             ((ForeignBox)arg1).value)
+                            .SetValue(((ForeignBox)arg2).value,
+                                      ((ForeignBox)arg3).value,
+                                      args);
                         }
                         catch (Exception e)
                         {
-                            Exn.error("ffi:invoke: error in foreign function: " + e);
+                            Exn.error
+                             ("ffi:invoke: error in foreign function: " + e);
                             return;
                         }
                         Reg.Result = Factory.Unspecified;
@@ -427,8 +495,11 @@ namespace Scheme.RT
                     {
                         SObject arg1 = Reg.Register3;
                         SObject arg2 = Reg.Register4;
-                        Reg.Result =
-                            Factory.makeForeignBox(((Array)((ForeignBox)arg1).value).GetValue(((SFixnum)arg2).value));
+                        Reg.Result
+                            = Factory.makeForeignBox
+                               (((Array)
+                                 ((ForeignBox)arg1).value)
+                                .GetValue(((SFixnum)arg2).value));
                         return;
                     }
 
@@ -460,14 +531,19 @@ namespace Scheme.RT
                         object result;
                         try
                         {
-                            result = ((PropertyInfo)((ForeignBox)arg1).value).GetValue(((ForeignBox)arg2).value, args);
+                            result
+                                = ((PropertyInfo)
+                                   ((ForeignBox)arg1).value)
+                                  .GetValue(((ForeignBox)arg2).value, args);
                         }
                         catch (Exception e)
                         {
-                            Exn.error("ffi:invoke: error in foreign function: " + e);
+                            Exn.error
+                             ("ffi:invoke: error in foreign function: " + e);
                             return;
                         }
-                        Reg.Result = Factory.makeBoolean((bool)result != false);
+                        Reg.Result
+                            = Factory.makeBoolean((bool)result != false);
                         return;
                     }
                 case 22: // get-property-value-int
@@ -482,16 +558,21 @@ namespace Scheme.RT
                         object result;
                         try
                         {
-                            result = ((PropertyInfo)((ForeignBox)arg1).value).GetValue(((ForeignBox)arg2).value, args);
+                            result
+                                = ((PropertyInfo)
+                                   ((ForeignBox)arg1).value)
+                                  .GetValue(((ForeignBox)arg2).value, args);
                         }
                         catch (Exception e)
                         {
-                            Exn.error("ffi:invoke: error in foreign function: " + e);
+                            Exn.error
+                             ("ffi:invoke: error in foreign function: " + e);
                             return;
                         }
                         Reg.Result = Factory.makeNumber((int)result);
                         return;
                     }
+
 #if HAS_WINDOWS_FORMS
             case 23: // get-property-value-native-window
             {
@@ -504,13 +585,19 @@ namespace Scheme.RT
                     args[i] = ((ForeignBox)(sargv[i])).value;
                 object result;
                 try {
-                    result = ((PropertyInfo) ((ForeignBox) arg1).value).GetValue (((ForeignBox) arg2).value, args);
+                    result
+                        = ((PropertyInfo)
+                           ((ForeignBox) arg1).value)
+                          .GetValue (((ForeignBox) arg2).value, args);
                     }
                 catch (Exception e) {
                     Exn.error ("ffi:invoke: error in foreign function: " + e);
                     return;
                    }
-                Reg.Result = Factory.makeForeignBox (System.Windows.Forms.NativeWindow.FromHandle ((IntPtr)result));
+                Reg.Result
+                    = Factory.makeForeignBox
+                       (System.Windows.Forms.NativeWindow.FromHandle
+                        ((IntPtr)result));
                 return;
             }
 #else
@@ -520,6 +607,7 @@ namespace Scheme.RT
                         return;
                     }
 #endif
+
                 case 24: // get-property-value-intptr
                     {
                         SObject arg1 = Reg.Register3;
@@ -532,11 +620,15 @@ namespace Scheme.RT
                         object result;
                         try
                         {
-                            result = ((PropertyInfo)((ForeignBox)arg1).value).GetValue(((ForeignBox)arg2).value, args);
+                            result
+                                = ((PropertyInfo)
+                                   ((ForeignBox)arg1).value)
+                                  .GetValue(((ForeignBox)arg2).value, args);
                         }
                         catch (Exception e)
                         {
-                            Exn.error("ffi:invoke: error in foreign function: " + e);
+                            Exn.error
+                             ("ffi:invoke: error in foreign function: " + e);
                             return;
                         }
                         Reg.Result = Factory.makeNumber((int)((IntPtr)result));
@@ -554,13 +646,16 @@ namespace Scheme.RT
                             // cast arguments to appropriate types
                             object publisher = ((ForeignBox)arg1).value;
                             string eventName = ((SByteVL)arg2).asString();
-                            Procedure proc = (Procedure)(((ForeignBox)arg3).value);
+                            Procedure proc
+                                = (Procedure)(((ForeignBox)arg3).value);
                             
                             // get information about the event
-                            EventInfo ei = publisher.GetType().GetEvent(eventName);
+                            EventInfo ei
+                                = publisher.GetType().GetEvent(eventName);
 
                             // add handler for the event
-                            ei.AddEventHandler(publisher, proc.makeEventHandler(ei));
+                            ei.AddEventHandler(publisher,
+                                               proc.makeEventHandler(ei));
                         }
                         catch (Exception e)
                         {
@@ -585,7 +680,7 @@ namespace Scheme.RT
                         Load.LoadAssembly(name, version, culture, publickey);
                         Reg.Result = Factory.Unspecified;
                         return;
-		    }
+                    }
             }
 
             Exn.error("bad ffi syscall code");
@@ -637,44 +732,52 @@ namespace Scheme.RT
                 // String.
                 case 1:
                     {
-                        return Factory.makeForeignBox(((SByteVL)obj).asString());
+                        return Factory.makeForeignBox
+                                (((SByteVL)obj).asString());
                     }
 
                 // various integer forms
                 case 2:
                     {
-                        return Factory.makeForeignBox((Byte)((SFixnum)obj).value);
+                        return Factory.makeForeignBox
+                                ((Byte)((SFixnum)obj).value);
                     }
 
                 case 3:
                     {
-                        return Factory.makeForeignBox((UInt16)((SFixnum)obj).value);
+                        return Factory.makeForeignBox
+                                ((UInt16)((SFixnum)obj).value);
                     }
 
                 case 4:
                     {
-                        return Factory.makeForeignBox((UInt32)((SFixnum)obj).value);
+                        return Factory.makeForeignBox
+                                ((UInt32)((SFixnum)obj).value);
                     }
 
                 case 5:
                     {
-                        return Factory.makeForeignBox((SByte)((SFixnum)obj).value);
+                        return Factory.makeForeignBox
+                                ((SByte)((SFixnum)obj).value);
                     }
 
                 case 6:
                     {
-                        return Factory.makeForeignBox((Int16)((SFixnum)obj).value);
+                        return Factory.makeForeignBox
+                                ((Int16)((SFixnum)obj).value);
                     }
 
                 case 7:
                     {
-                        return Factory.makeForeignBox((Int32)((SFixnum)obj).value);
+                        return Factory.makeForeignBox
+                                ((Int32)((SFixnum)obj).value);
                     }
 
                 case 8: // message filter
                     {
 #if HAS_WINDOWS_FORMS
-                    return Factory.makeForeignBox (new FFI_message_filter ((Procedure) obj));
+                    return Factory.makeForeignBox
+                            (new FFI_message_filter ((Procedure) obj));
 #else
                         Exn.error("datum->foreign (message_filter) not supported in this version");
                         return Factory.Impossible;
@@ -683,12 +786,14 @@ namespace Scheme.RT
 
                 case 10: // single precision float
                     {
-                        return Factory.makeForeignBox((float)((SByteVL)obj).unsafeAsDouble(0));
+                        return Factory.makeForeignBox
+                                ((float)((SByteVL)obj).unsafeAsDouble(0));
                     }
 
                 case 11: //double precision float
                     {
-                        return Factory.makeForeignBox((double)((SByteVL)obj).unsafeAsDouble(0));
+                        return Factory.makeForeignBox
+                                ((double)((SByteVL)obj).unsafeAsDouble(0));
                     }
 
                 case 12: // character
@@ -729,15 +834,18 @@ namespace Scheme.RT
                 }
                 case 3: // symbol
                 {
-                    Exn.error("datum->foreign (symbol) not implemented in runtime");
+                    Exn.error
+                     ("datum->foreign (symbol) not implemented in runtime");
                     return Factory.Impossible;
                 }
                 case 4: // bytes
                 {
                     if (obj is SByteVL) {
-                        return Factory.makeForeignBox (((SByteVL)obj).elements);
+                        return Factory.makeForeignBox
+                                (((SByteVL)obj).elements);
                     } else {
-                        Exn.error("datum->foreign (bytes) expected bytevector");
+                        Exn.error
+                         ("datum->foreign (bytes) expected bytevector");
                         return Factory.Impossible;
                     }
                 }
@@ -787,9 +895,11 @@ namespace Scheme.RT
                 case 9: // message filter
                 {
                     if (obj is Procedure)
-                        return Factory.makeForeignBox (new FFI_message_filter ((Procedure) obj));
+                        return Factory.makeForeignBox
+                                (new FFI_message_filter ((Procedure) obj));
                     else {
-                        Exn.error("datum->foreign (message filter) expected procedure");
+                        Exn.error
+                         ("datum->foreign (message filter) expected procedure");
                         return Factory.Impossible;
                         }
                 }
@@ -799,6 +909,7 @@ namespace Scheme.RT
             Exn.error("datum->foreign: unknown conversion");
             return Factory.Impossible;
         }
+
         private static SObject foreign2datum(int conversion, SObject obj)
         {
             // foreign->datum : conversion F -> value
@@ -813,7 +924,8 @@ namespace Scheme.RT
             }
             else
             {
-                Exn.error("foreign->datum: argument is not foreign-box or fixnum");
+                Exn.error
+                 ("foreign->datum: argument is not foreign-box or fixnum");
                 return Factory.Impossible;
             }
 
@@ -849,7 +961,8 @@ namespace Scheme.RT
                     }
                 case 3:
                     { // symbol
-                        Exn.error("foreign->datum (symbol): not handled by runtime");
+                        Exn.error
+                         ("foreign->datum (symbol): not handled by runtime");
                         return Factory.Impossible;
                     }
                 case 4:
@@ -870,28 +983,47 @@ namespace Scheme.RT
                         if (value is Enum)
                         {
                             Type enum_type = value.GetType();
-                            Type underlying_type = Enum.GetUnderlyingType(enum_type);
-                            if (underlying_type == typeof(Byte)) return Factory.makeFixnum((byte)value);
-                            if (underlying_type == typeof(SByte)) return Factory.makeFixnum((sbyte)value);
-                            if (underlying_type == typeof(char)) return Factory.makeFixnum((char)value);
-                            if (underlying_type == typeof(short)) return Factory.makeFixnum((short)value);
-                            if (underlying_type == typeof(int)) return Factory.makeNumber((int)value);
-                            if (underlying_type == typeof(long)) return Factory.makeNumber((long)value);
-                            if (underlying_type == typeof(ushort)) return Factory.makeFixnum((ushort)value);
-                            if (underlying_type == typeof(uint)) return Factory.makeNumber((uint)value);
-                            if (underlying_type == typeof(ulong)) return Factory.makeNumber((ulong)value);
+                            Type underlying_type
+                                = Enum.GetUnderlyingType(enum_type);
+                            if (underlying_type == typeof(Byte))
+                                return Factory.makeFixnum((byte)value);
+                            if (underlying_type == typeof(SByte))
+                                return Factory.makeFixnum((sbyte)value);
+                            if (underlying_type == typeof(char))
+                                return Factory.makeFixnum((char)value);
+                            if (underlying_type == typeof(short))
+                                return Factory.makeFixnum((short)value);
+                            if (underlying_type == typeof(int))
+                                return Factory.makeNumber((int)value);
+                            if (underlying_type == typeof(long))
+                                return Factory.makeNumber((long)value);
+                            if (underlying_type == typeof(ushort))
+                                return Factory.makeFixnum((ushort)value);
+                            if (underlying_type == typeof(uint))
+                                return Factory.makeNumber((uint)value);
+                            if (underlying_type == typeof(ulong))
+                                return Factory.makeNumber((ulong)value);
                             Exn.error("foreign->datum (enum): not an integer");
                             return Factory.Impossible;
                         }
-                        if (value is Byte) return Factory.makeFixnum((byte)value);
-                        if (value is SByte) return Factory.makeFixnum((sbyte)value);
-                        if (value is char) return Factory.makeFixnum((char)value);
-                        if (value is short) return Factory.makeFixnum((short)value);
-                        if (value is int) return Factory.makeNumber((int)value);
-                        if (value is long) return Factory.makeNumber((long)value);
-                        if (value is ushort) return Factory.makeFixnum((ushort)value);
-                        if (value is uint) return Factory.makeNumber((uint)value);
-                        if (value is ulong) return Factory.makeNumber((ulong)value);
+                        if (value is Byte)
+                            return Factory.makeFixnum((byte)value);
+                        if (value is SByte)
+                            return Factory.makeFixnum((sbyte)value);
+                        if (value is char)
+                            return Factory.makeFixnum((char)value);
+                        if (value is short)
+                            return Factory.makeFixnum((short)value);
+                        if (value is int)
+                            return Factory.makeNumber((int)value);
+                        if (value is long)
+                            return Factory.makeNumber((long)value);
+                        if (value is ushort)
+                            return Factory.makeFixnum((ushort)value);
+                        if (value is uint)
+                            return Factory.makeNumber((uint)value);
+                        if (value is ulong)
+                            return Factory.makeNumber((ulong)value);
 
                         Exn.error("foreign->datum (int): not an integer");
                         return Factory.Impossible;
