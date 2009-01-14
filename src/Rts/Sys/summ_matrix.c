@@ -1691,6 +1691,7 @@ static void* verify_summaries_msgc_fcn( word obj, word src, void *data )
     }
   }
 #else
+  consolemsg("verify_summaries_msgc_fcn req MAINTAIN_REDUNDANT_RS_AS_SM_REP");
   assert(0);
 #endif
   return data;
