@@ -783,15 +783,10 @@ static bool collect_rgnl_majorgc( gc_t *gc,
   
   assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
   if (DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects) {
-    /* choose next region for major collection so that we can summarize its remsets */
-    /* TODO: add loop to skip to next if n is popular. */
-    n = next_rgn(DATA(gc)->rrof_next_region, num_rgns);
-    DATA(gc)->rrof_next_region = n;
-    if (n == rrof_first_region) {
-      assert2( DATA(gc)->region_count == num_rgns );
-      rrof_completed_regional_cycle( gc );
-      num_rgns = DATA(gc)->region_count;
-    }
+    annoyingmsg( "past summarization says region %d too popular to collect", 
+                 rgn_next );
+    collect_rgnl_clear_summary( gc, rgn_next );
+    collect_rgnl_choose_next_region( gc, num_rgns );
     return FALSE;
   }
   
