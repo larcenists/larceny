@@ -13,6 +13,13 @@
 #include "gset_t.h"
 #include "smircy.h"
 
+typedef enum {
+  gno_state_normal,  /* default */
+  gno_state_popular, /* points-into summary overflowed recently */
+  gno_state_polling, /* measuring current points-into state */
+  gno_state_hasbeen /* last measured points-into state was acceptably small */
+} gno_state_t;
+
 struct gc { 
   char *id;
     /* A human-readable string identifying the collector, its heaps,
@@ -198,6 +205,7 @@ struct gc {
 
   /* PRIVATE */
   /* Internal to the collector implementation. */
+  gno_state_t (*gno_state)( gc_t *gc, int gno );
   void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *), void * );
   void (*enumerate_smircy_roots)( gc_t *gc, void (*f)( word*, void *), void * );
   void (*enumerate_remsets_complement)( gc_t *gc, gset_t genset,
@@ -251,6 +259,7 @@ struct gc {
 #define gc_compact_np_ssb( gc )       ((gc)->compact_np_ssb( gc ))
 #define gc_dump_heap( gc, fn, c )     ((gc)->dump_heap( gc, fn, c ))
 #define gc_load_heap( gc, h )         ((gc)->load_heap( gc, h ))
+#define gc_gno_state( gc,n )          ((gc)->gno_state( (gc),(n) ))
 #define gc_enumerate_roots( gc,s,d )  ((gc)->enumerate_roots( gc, s, d ))
 #define gc_enumerate_smircy_roots( gc,s,d ) \
   ((gc)->enumerate_smircy_roots( (gc),(s),(d) ))
@@ -295,6 +304,7 @@ gc_t
 	     int  (*dump_heap)( gc_t *gc, const char *filename, bool compact ),
 	     word *(*make_handle)( gc_t *gc, word object ),
 	     void (*free_handle)( gc_t *gc, word *handle ),
+	     gno_state_t (*gno_state)( gc_t *gc, int gno ), 
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
 	     void (*enumerate_smircy_roots)( gc_t *gc, 

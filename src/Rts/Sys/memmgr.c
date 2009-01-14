@@ -1608,6 +1608,14 @@ static void free_handle( gc_t *gc, word *handle )
   *handle = 0;
 }
 
+static gno_state_t gno_state( gc_t *gc, int gno )
+{
+  if (DATA(gc)->ephemeral_area[ gno-1 ]->has_popular_objects)
+    return gno_state_popular;
+  else
+    return gno_state_normal;
+}
+
 /* Returns generation number appropriate for a fresh area.  The
  * returned number is not yet accomodated by gc; it is merely
  * suggested as an appropriate value to make room for in the internal
@@ -2480,6 +2488,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 dump_image,
 		 make_handle,
 		 free_handle,
+		 gno_state, 
 		 enumerate_roots,
 		 enumerate_smircy_roots,
 		 enumerate_remsets_complement,

@@ -34,6 +34,7 @@ gc_t
 	     int  (*dump_heap)( gc_t *gc, const char *filename, bool compact ),
 	     word *(*make_handle)( gc_t *gc, word obj ),
 	     void (*free_handle)( gc_t *gc, word *handle ),
+	     gno_state_t (*gno_state)( gc_t *gc, int gno ),
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
 	     void (*enumerate_smircy_roots)( gc_t *gc, 
@@ -110,6 +111,8 @@ gc_t
   gc->make_handle = make_handle;
   gc->free_handle = free_handle;
   
+  gc->gno_state = gno_state;
+
   gc->enumerate_roots = enumerate_roots;
   gc->enumerate_smircy_roots = enumerate_smircy_roots;
   gc->enumerate_remsets_complement = enumerate_remsets_complement;
