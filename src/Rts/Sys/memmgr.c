@@ -1231,24 +1231,28 @@ static void apply_f( word *w, void *data_orig )
   data->f( w, data->scan_data );
 }
 
+static void 
+enumerate_smircy_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_data )
+{ 
+#if SMIRCY_RGN_STACK_IN_ROOTS 
+  if (gc->smircy != NULL) { 
+    struct apply_f_data smircy_data; 
+    smircy_data.f = f; 
+    smircy_data.scan_data = scan_data; 
+    smircy_enumerate_stack_of_rgn( gc->smircy, 
+                                   DATA(gc)->rrof_next_region, 
+                                   apply_f, 
+                                   &smircy_data ); 
+  } 
+#endif 
+} 
+
 static void
 enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_data )
 {
   int i;
   gc_data_t *data = DATA(gc);
   word *globals = data->globals;
-
-#if SMIRCY_RGN_STACK_IN_ROOTS
-  if (gc->smircy != NULL) {
-    struct apply_f_data smircy_data;
-    smircy_data.f = f;
-    smircy_data.scan_data = scan_data;
-    smircy_enumerate_stack_of_rgn( gc->smircy, 
-                                   DATA(gc)->rrof_next_region, 
-                                   apply_f, 
-                                   &smircy_data );
-  }
-#endif
 
   for ( i = FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     f( &globals[ i ], scan_data );
@@ -2482,6 +2486,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 make_handle,
 		 free_handle,
 		 enumerate_roots,
+		 enumerate_smircy_roots,
 		 enumerate_remsets_complement,
 		 fresh_space,
 		 my_find_space,

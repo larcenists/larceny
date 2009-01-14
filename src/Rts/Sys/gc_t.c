@@ -36,6 +36,9 @@ gc_t
 	     void (*free_handle)( gc_t *gc, word *handle ),
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
+	     void (*enumerate_smircy_roots)( gc_t *gc, 
+	                                     void (*f)( word*, void *),
+	                                     void * ),
 	     void (*enumerate_remsets_complement)
 	        ( gc_t *gc, gset_t genset,
 		  bool (*f)(word, void*, unsigned * ),
@@ -108,6 +111,7 @@ gc_t
   gc->free_handle = free_handle;
   
   gc->enumerate_roots = enumerate_roots;
+  gc->enumerate_smircy_roots = enumerate_smircy_roots;
   gc->enumerate_remsets_complement = enumerate_remsets_complement;
   gc->fresh_space = fresh_space;
   gc->find_space = find_space;

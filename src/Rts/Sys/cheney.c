@@ -551,6 +551,7 @@ void oldspace_copy( cheney_env_t *e )
 
   /* Collect */
   start( &cheney.root_scan_prom, &cheney.root_scan_gc );
+  gc_enumerate_smircy_roots( e->gc, e->scan_from_globals, (void*)e );
   gc_enumerate_roots( e->gc, e->scan_from_globals, (void*)e );
   { 
     stats_id_t timer1, timer2;

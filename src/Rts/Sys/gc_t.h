@@ -199,6 +199,7 @@ struct gc {
   /* PRIVATE */
   /* Internal to the collector implementation. */
   void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *), void * );
+  void (*enumerate_smircy_roots)( gc_t *gc, void (*f)( word*, void *), void * );
   void (*enumerate_remsets_complement)( gc_t *gc, gset_t genset,
 				        bool (*f)(word, void*, unsigned * ),
 				        void *,
@@ -251,6 +252,8 @@ struct gc {
 #define gc_dump_heap( gc, fn, c )     ((gc)->dump_heap( gc, fn, c ))
 #define gc_load_heap( gc, h )         ((gc)->load_heap( gc, h ))
 #define gc_enumerate_roots( gc,s,d )  ((gc)->enumerate_roots( gc, s, d ))
+#define gc_enumerate_smircy_roots( gc,s,d ) \
+  ((gc)->enumerate_smircy_roots( (gc),(s),(d) ))
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
 #define gc_enumerate_remsets_complement( gc, gset, s, d, f ) \
   ((gc)->enumerate_remsets_complement( gc, gset, s, d, f ))
@@ -294,6 +297,9 @@ gc_t
 	     void (*free_handle)( gc_t *gc, word *handle ),
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
+	     void (*enumerate_smircy_roots)( gc_t *gc, 
+				             void (*f)( word*, void *),
+				             void * ),
 	     void (*enumerate_remsets_complement)
 	        ( gc_t *gc, gset_t genset,
 		  bool (*f)(word, void*, unsigned * ),
