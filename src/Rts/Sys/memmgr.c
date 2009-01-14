@@ -414,6 +414,14 @@ static const double default_popularity_factor = 2.0;
 static const double default_sumz_budget_factor = 0.1;
 static const double default_sumz_coverage_factor = 0.1;
 
+static void smircy_start( gc_t *gc ) 
+{
+  gc->smircy = smircy_begin( gc, gc->remset_count );
+  DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
+  smircy_push_roots( gc->smircy );
+  sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
+}
+
 static bool scan_refine_remset( word loc, void *data, unsigned *stats )
 {
   smircy_context_t *context = (smircy_context_t*)data;
@@ -675,10 +683,7 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
 
   start_timers( &timer1, &timer2 );
   if (gc->smircy == NULL) {
-    gc->smircy = smircy_begin( gc, gc->remset_count );
-    DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
-    smircy_push_roots( gc->smircy );
-    sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
+    smircy_start( gc );
   }
 
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
