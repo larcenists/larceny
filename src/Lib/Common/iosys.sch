@@ -779,8 +779,7 @@
                         (vector-like-ref p port.readmode))
               readmode:flags))
         (else
-         (io/complain-of-illegal-argument 'io/port-recognizes-javadot-symbols?
-                                          p))))
+         (io/complain-of-illegal-argument 'io/port-allows-flags? p))))
 
 (define (io/port-allows-larceny-weirdness? p)
   (cond ((io/input-port? p)
