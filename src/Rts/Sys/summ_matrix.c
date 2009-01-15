@@ -2517,7 +2517,6 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
  */
 EXPORT void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs )
 {
-  static word last_inserted = 0x0;
 
   if ( DATA(summ)->summarized_genset_valid &&
        gset_memberp( g_rhs, DATA(summ)->summarized_genset )) {
@@ -2526,11 +2525,12 @@ EXPORT void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs 
      * once I actually put in sumz arrays.  I have it here to lend
      * credence to the hypotheses above. :) */
 #if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
+    static word last_inserted = 0x0;
     assert( last_inserted == lhs ||
             DATA(summ)->remset_summaries[ g_rhs ]->sum_remset == NULL ||
             ! rs_isremembered( DATA(summ)->remset_summaries[ g_rhs ]->sum_remset, lhs ));
-#endif
     last_inserted = lhs;
+#endif
 
     /* XXX recomputing g_lhs wasteful here (plus it might not be valid
      * yet?  When does cheney change the gno for LOS, before or after
