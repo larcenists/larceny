@@ -409,6 +409,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define USE_ORACLE_TO_VERIFY_SUMMARIES 0
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
+#define SYNC_REFINEMENT_RROF_CYCLE 0
 
 static const double default_popularity_factor = 2.0;
 static const double default_sumz_budget_factor = 0.1;
@@ -542,6 +543,11 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 
   if (DATA(gc)->print_float_stats_each_cycle)
     print_float_stats( "cycle ", gc );
+
+#if SYNC_REFINEMENT_RROF_CYCLE
+  if (gc->smircy == NULL)
+    smircy_start( gc );
+#endif
 
 #if EXPAND_RGNS_FROM_LOAD_FACTOR
   /* every K collection cycles, lets check and see if we should expand
@@ -681,10 +687,17 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
     smircy_assert_conservative_approximation( gc->smircy );
 
+#if ! SYNC_REFINEMENT_RROF_CYCLE
   start_timers( &timer1, &timer2 );
   if (gc->smircy == NULL) {
     smircy_start( gc );
   }
+#else 
+  if (gc->smircy == NULL) {
+    return;
+  }
+  start_timers( &timer1, &timer2 );
+#endif
 
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
     smircy_assert_conservative_approximation( gc->smircy );
@@ -693,7 +706,8 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
   if (USE_ORACLE_TO_VERIFY_SMIRCY)
     smircy_assert_conservative_approximation( gc->smircy );
 
-  if (to_the_finish_line) { 
+  if (to_the_finish_line
+      || (SYNC_REFINEMENT_RROF_CYCLE && smircy_stack_empty_p( gc->smircy ))) {
     if (DATA(gc)->print_float_stats_each_refine)
       print_float_stats( "prefin", gc );
     refine_metadata_via_marksweep( gc );
@@ -858,7 +872,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     sm_clear_nursery_summary( DATA(gc)->summaries );
     DATA(gc)->rrof_last_tospace = rgn_to;
     handle_secondary_space( gc );
-    smircy_step( gc, DATA(gc)->rrof_refine_mark_countdown <= 0);
+    smircy_step( gc, (SYNC_REFINEMENT_RROF_CYCLE 
+                      ? FALSE
+                      : DATA(gc)->rrof_refine_mark_countdown <= 0));
     collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
     rrof_completed_major_collection( gc );
     collect_rgnl_clear_summary( gc, rgn_next );
