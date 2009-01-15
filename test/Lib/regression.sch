@@ -511,6 +511,10 @@
          (bitwise-and (expt 2 100) 17)  ; detected by PLT test suite
          0)
 
+   (test "Ticket #605"                  ; Bug in Larceny 0.97b1
+         (exact->inexact (- (expt 2 96) 1))
+         7.922816251426434e28)
+
    ))
 
 (define (bug-105-test1)
