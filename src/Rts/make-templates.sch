@@ -503,6 +503,8 @@ REMSET_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h $(SEQBUF_T_H) Sy
 SEMISPACE_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/semispace_t.h
 SEQBUF_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/seqbuf_t.h
 SIGNALS_H=$(INC_ROOT)/config.h Sys/signals.h
+SMIRCY_CHECKING_H=Sys/smircy_checking.h
+SMIRCY_INTERNAL_H=Sys/smircy_internal.h
 SMIRCY_H=Sys/smircy.h
 STACK_H=$(INC_ROOT)/Sys/larceny-types.h Sys/stack.h
 STATIC_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/static_heap_t.h
@@ -609,8 +611,8 @@ Sys/semispace.$(O): $(LARCENY_H) $(GCLIB_H) $(SEMISPACE_T_H)
 Sys/signals.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/sro.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) $(HEAPIO_H) \\
 	$(MEMMGR_H)
-Sys/smircy.$(O): $(LARCENY_H) $(SMIRCY_H)
-Sys/smircy_checking.$(O): $(LARCENY_H) $(SMIRCY_H) $(MSGC_CORE_H)
+Sys/smircy.$(O): $(LARCENY_H) Sys/gc_t.h $(GCLIB_H) $(SMIRCY_H) $(SMIRCY_INTERNAL_H)
+Sys/smircy_checking.$(O): $(LARCENY_H) Sys/gc_t.h $(GCLIB_H) $(SMIRCY_H) $(SMIRCY_CHECKING_H) $(MSGC_CORE_H) $(LOS_T_H) $(SMIRCY_INTERNAL_H)
 Sys/stack.$(O): $(LARCENY_H) $(STACK_H) $(STATS_H)
 Sys/static-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) $(STATS_H) \\
 	$(MEMMGR_H) $(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H)
