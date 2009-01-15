@@ -18,8 +18,6 @@
 
 #define GC_INTERNAL
 
-#define PRINT_FORW 0
-
 #ifdef UNIX
 # include <sys/time.h>
 #endif
@@ -77,7 +75,6 @@
    */
 #define forw_oflo( ctxt, loc, fwdgens, fwdgens_data, dest, lim, e, check_spaceI ) \
   do { word T_obj = *loc;                                                       \
-    if (PRINT_FORW) { printf("% 30s( *0x%08x = 0x%08x (%d)\n", ctxt, loc, T_obj, isptr(T_obj)?gen_of(T_obj):-1); fflush(0); } \
        if (isptr(T_obj) && fwdgens( gen_of(T_obj), (fwdgens_data))) {           \
           forw_core( T_obj, loc, dest, lim, e, check_spaceI);                   \
        }                                                                        \
@@ -97,7 +94,6 @@
 #define forw_oflo_record( loc, fwdgens, fwdgens_data, dest, lim, has_intergen_ptr, \
                           old_obj_gen, e, check_spaceI )                    \
   do { word T_obj = *loc;                                                   \
-    if (PRINT_FORW) { printf("% 27s( *0x%08x = 0x%08x (%d)\n", "forw_oflo_record", loc, T_obj, isptr(T_obj)?gen_of(T_obj):-1); fflush(0); } \
        if (isptr( T_obj )) {                                                \
           unsigned T_obj_gen = gen_of(T_obj);                               \
           if (fwdgens(T_obj_gen, fwdgens_data)) {                           \
@@ -110,7 +106,6 @@
 #define forw_oflo_record_update_rs( loc, fwdgens, fwdgens_data, dest, lim,  \
                           has_intergen_ptr, old_obj_gen, e, check_spaceI )  \
   do { word T_obj = *loc;                                                   \
-    if (PRINT_FORW) { printf("% 27s( *0x%08x = 0x%08x (%d)\n", "forw_oflo_record_update_rs", loc, T_obj, isptr(T_obj)?gen_of(T_obj):-1); fflush(0); }  \
        if (isptr( T_obj )) {                                                \
           unsigned T_obj_gen = gen_of(T_obj);                               \
           if (fwdgens(T_obj_gen, fwdgens_data)) {                           \
@@ -443,38 +438,9 @@ static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
   return FALSE;
 }
 
-#include <stdio.h>
-
 static void forwarded( cheney_env_t* e, char *ctxt, 
                        word obj_orig, int gen_orig, 
                        word obj_new, int gen_new ) {
-#if PRINT_FORW
-  printf( "forwarded( e, %s, 0x%08x, %d -> 0x%08x, %d )\n", 
-          ctxt, obj_orig, gen_orig, obj_new, gen_new );
-  fflush( 0 );
-#endif
-  { 
-    msgc_context_t *completion;
-    completion = e->gc->smircy_completion;
-    if (completion != NULL) {
-      word *low = e->gc->smircy->lowest_heap_address;
-      word *hgh = e->gc->smircy->highest_heap_address;
-      bool toolow = (ptrof(obj_orig) <  low);
-      bool toohgh = (ptrof(obj_orig) >= hgh);
-      bool nursed = (gen_orig == 0);
-      bool marked;
-      if (toolow || toohgh || nursed) {
-        /* skip: presumed live by smircy */
-      } else if ( msgc_object_marked_p( completion, obj_orig )) {
-        /* skip: reachable by smircy */
-      } else if (PRINT_FORW) {
-        printf( "forwarded: zombie 0x%08x (%d) -> 0x%08x (%d)\n", 
-                obj_orig, gen_orig, obj_new, gen_new );
-        fflush( 0 );
-      }
-    }
-  }
-
   smircy_when_object_forwarded( e->gc->smircy, 
                                 obj_orig, gen_orig, 
                                 obj_new, gen_new );
