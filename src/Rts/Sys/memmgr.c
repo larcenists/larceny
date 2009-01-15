@@ -707,7 +707,10 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
     smircy_assert_conservative_approximation( gc->smircy );
 
   if (to_the_finish_line
-      || (SYNC_REFINEMENT_RROF_CYCLE && smircy_stack_empty_p( gc->smircy ))) {
+#if (BASE_BUDGET != -1)
+      || (smircy_stack_empty_p( gc->smircy ))
+#endif
+      ) {
     if (DATA(gc)->print_float_stats_each_refine)
       print_float_stats( "prefin", gc );
     refine_metadata_via_marksweep( gc );
