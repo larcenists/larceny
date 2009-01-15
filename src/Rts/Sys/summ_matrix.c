@@ -51,6 +51,8 @@
 
 #define ADD_TO_SUMAR_ASSERTS_UNIQ_ENQ 0
 
+#define SUMMARIZE_KILLS_RS_ENTRIES 0
+
 #define MAINTAIN_REDUNDANT_RS_AS_SM_REP 0
 #define USE_REDUNDANT_RS_AS_SM_REP 0
 
@@ -1477,6 +1479,9 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
   remset_summary_data_t *remsum = (remset_summary_data_t*)data;
   gset_t genset = remsum->genset;
   int mygen = gen_of(ptr); 
+#if SUMMARIZE_KILLS_RS_ENTRIES
+  bool keep_in_remembered_set = FALSE;
+#endif
   /* XXX fixme: the way remset's are scanned, we should not need to reextract this */
 
   static const bool instrumented = FALSE;
@@ -1497,6 +1502,10 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
 
   if (remsum->skip_these != NULL 
       && rs_isremembered( remsum->skip_these, ptr )) {
+#if SUMMARIZE_KILLS_RS_ENTRIES
+    /* its in the other set, so we can remove it from this one. */
+    keep_in_remembered_set = FALSE;
+#endif
     goto end;
   }
 
@@ -1507,14 +1516,21 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
       if (instrumented) 
         annoyingmsg("scan_object_for_remset_summary "
                     "pair car: 0x%08d (%d)", *loc, gen);
-      if (mygen != gen && gset_memberp(gen,genset)) {
-        do_enqueue = TRUE;
-        add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                 col_incr_words_sm
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-                                 , ras_incr_words_sm 
+      if (mygen != gen) {
+#if SUMMARIZE_KILLS_RS_ENTRIES
+        if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
+          keep_in_remembered_set = TRUE;
+        }
 #endif
-);
+        if (gset_memberp(gen,genset)) {
+          do_enqueue = TRUE;
+          add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
+                                   col_incr_words_sm
+#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
+                                   , ras_incr_words_sm 
+#endif
+                                   );
+        }
       }
     }
     ++loc;
@@ -1524,14 +1540,21 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
       if (instrumented) 
         annoyingmsg("scan_object_for_remset_summary "
                     "pair cdr: 0x%08d (%d)", *loc, gen);
-      if (mygen != gen && gset_memberp(gen,genset)) {
-        do_enqueue = TRUE;
-        add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                 col_incr_words_sm
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-                                 , ras_incr_words_sm 
+      if (mygen != gen) {
+#if SUMMARIZE_KILLS_RS_ENTRIES
+        if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
+          keep_in_remembered_set = TRUE;
+        }
 #endif
-                                 );
+        if (gset_memberp(gen,genset)) {
+          do_enqueue = TRUE;
+          add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
+                                   col_incr_words_sm
+#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
+                                   , ras_incr_words_sm 
+#endif
+                                   );
+        }
       }
     }
     scanned = 2;
@@ -1547,14 +1570,21 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
         if (instrumented) 
           annoyingmsg("scan_object_for_remset_summary "
                       "vecproc : 0x%08d (%d)", *loc, gen);
-        if (mygen != gen && gset_memberp(gen,genset)) {
-          do_enqueue = TRUE;
-          add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                   col_incr_words_sm
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-                                   , ras_incr_words_sm 
+        if (mygen != gen) {
+#if SUMMARIZE_KILLS_RS_ENTRIES
+          if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
+            keep_in_remembered_set = TRUE;
+          }
 #endif
-                                   );
+          if (gset_memberp(gen,genset)) {
+            do_enqueue = TRUE;
+            add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
+                                     col_incr_words_sm
+#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
+                                     , ras_incr_words_sm 
+#endif
+                                     );
+          }
         }
       }
     }
@@ -1569,7 +1599,11 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
   *count += scanned;
 
  end:
+#if SUMMARIZE_KILLS_RS_ENTRIES
+  return keep_in_remembered_set;
+#else
   return TRUE; /* don't remove entries from the remembered set we are summarizing! */  
+#endif
 }
 
 static bool rsenum_assert_not_memberp( word loc, void *data, unsigned *stats )
