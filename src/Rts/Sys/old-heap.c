@@ -538,9 +538,10 @@ static void after_collection( old_heap_t *heap )
     rs_clear( heap->collector->remset[ data->gen_no ] );
 
   heap->allocated = used_space( heap );
-  annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d.", 
+  annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d+%d.", 
 	       data->gen_no, data->target_size, heap->allocated, 
-	       heap->collector->remset[ data->gen_no ]->live );
+	       heap->collector->remset[ data->gen_no ]->live,
+	       heap->collector->major_remset[ data->gen_no ]->live );
 }
 
 static void stats( old_heap_t *heap )
