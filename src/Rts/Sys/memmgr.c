@@ -960,51 +960,51 @@ static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn,
 static void collect_rgnl_policy( gc_t *gc, int rgn_to, int rgn_next, 
                                  bool *p_can_do_major, bool *p_can_do_minor )
 {
-      int nursery_sz, rgn_to_cur, rgn_next_cur, rgn_to_max;
-      int free_rgn_space, nursery_max; 
-      int num_rgns = DATA(gc)->region_count;
-      int num_occupied_rgns;
+  int nursery_sz, rgn_to_cur, rgn_next_cur, rgn_to_max;
+  int free_rgn_space, nursery_max; 
+  int num_rgns = DATA(gc)->region_count;
+  int num_occupied_rgns;
 
-      annoyingmsg("collect_rgnl decide major or minor.  to: %d next: %d",
-		  rgn_to, rgn_next );
+  annoyingmsg("collect_rgnl decide major or minor.  to: %d next: %d",
+              rgn_to, rgn_next );
 
-      nursery_sz = gc_allocated_to_areas( gc, gset_singleton( 0 ));
-      rgn_to_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
-      rgn_next_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_next ));
-      rgn_to_max = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
-      { 
-        int allot, alloc;
-        assert(rgn_next > 0);
-        if (rgn_to == rgn_next) {
-          allot = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
-          alloc = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
-        } else if (rgn_to < rgn_next) {
-          /* (to,..., next) free; [1,..., to], [next,..., N/R] occupied */
-          allot = gc_maximum_allotted( gc, gset_range( rgn_to, rgn_next ));
-          alloc = gc_allocated_to_areas( gc, gset_range( rgn_to, rgn_next ));
-        } else {
-          /* (next,..., to) occupied; [1,..., next], [to,..., N/R-1] free */
-          allot = gc_maximum_allotted( gc, gset_range( 1, rgn_next )) +
-            gc_maximum_allotted( gc, gset_range( rgn_to, num_rgns ));
-          alloc = gc_allocated_to_areas( gc, gset_range( 1, rgn_next )) +
-            gc_allocated_to_areas( gc, gset_range( rgn_to, num_rgns ));
-        }
-        free_rgn_space = allot - alloc;
-        num_occupied_rgns = (num_rgns + rgn_to - rgn_next)%num_rgns+1;
-      }
-      nursery_max = gc->young_area->maximum;
+  nursery_sz = gc_allocated_to_areas( gc, gset_singleton( 0 ));
+  rgn_to_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
+  rgn_next_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_next ));
+  rgn_to_max = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
+  { 
+    int allot, alloc;
+    assert(rgn_next > 0);
+    if (rgn_to == rgn_next) {
+      allot = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
+      alloc = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
+    } else if (rgn_to < rgn_next) {
+      /* (to,..., next) free; [1,..., to], [next,..., N/R] occupied */
+      allot = gc_maximum_allotted( gc, gset_range( rgn_to, rgn_next ));
+      alloc = gc_allocated_to_areas( gc, gset_range( rgn_to, rgn_next ));
+    } else {
+      /* (next,..., to) occupied; [1,..., next], [to,..., N/R-1] free */
+      allot = gc_maximum_allotted( gc, gset_range( 1, rgn_next )) +
+        gc_maximum_allotted( gc, gset_range( rgn_to, num_rgns ));
+      alloc = gc_allocated_to_areas( gc, gset_range( 1, rgn_next )) +
+        gc_allocated_to_areas( gc, gset_range( rgn_to, num_rgns ));
+    }
+    free_rgn_space = allot - alloc;
+    num_occupied_rgns = (num_rgns + rgn_to - rgn_next)%num_rgns+1;
+  }
+  nursery_max = gc->young_area->maximum;
 
-      annoyingmsg( "collect_rgnl rgn_to: %d rgn_next: %d nursery_sz: %d nursery_max: %d num_occupied_rgns: %d "
-		   "rgn_to_cur: %d rgn_to_max: %d rgn_next_cur: %d free_rgn_space: %d", 
-		   rgn_to, rgn_next, nursery_sz, nursery_max, num_occupied_rgns, 
-		   rgn_to_cur, rgn_to_max, rgn_next_cur, free_rgn_space );
+  annoyingmsg( "collect_rgnl rgn_to: %d rgn_next: %d nursery_sz: %d nursery_max: %d num_occupied_rgns: %d "
+               "rgn_to_cur: %d rgn_to_max: %d rgn_next_cur: %d free_rgn_space: %d", 
+               rgn_to, rgn_next, nursery_sz, nursery_max, num_occupied_rgns, 
+               rgn_to_cur, rgn_to_max, rgn_next_cur, free_rgn_space );
 
-      *p_can_do_major = 
-        (free_rgn_space < (rgn_next_cur + num_occupied_rgns*nursery_max)
-         /* XXX what is correct policy/logic here??? */);
-      *p_can_do_minor = 
-        (rgn_to_cur + nursery_sz < rgn_to_max &&
-         ! DATA(gc)->ephemeral_area[ rgn_to ]->has_popular_objects );
+  *p_can_do_major = 
+    (free_rgn_space < (rgn_next_cur + num_occupied_rgns*nursery_max)
+     /* XXX what is correct policy/logic here??? */);
+  *p_can_do_minor = 
+    (rgn_to_cur + nursery_sz < rgn_to_max &&
+     ! DATA(gc)->ephemeral_area[ rgn_to ]->has_popular_objects );
 }
 
 static void collect_rgnl_evacuate_nursery( gc_t *gc ) 
