@@ -112,9 +112,9 @@ struct young_heap {
 
   word *(*data_load_area)( young_heap_t *heap, int nbytes );
      /* A method that allocates a block of at least `nbytes'
-	consecutive bytes, suitable for loading data into.  A pointer
-	to the first word of the block is returned.  No garbage 
-	collection will be triggered.
+	consecutive bytes, suitable for loading data into.
+	Returns NULL or a pointer to the first word of the 
+	block.  No garbage collection will be triggered.
 
 	nbytes > 0
 	*/
