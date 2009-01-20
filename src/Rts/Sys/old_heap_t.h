@@ -43,6 +43,7 @@ struct old_heap {
 
   bool has_popular_objects;
   int bytes_live_last_major_gc;
+  int words_from_nursery_last_major_gc;
 
   bool reallocate_whole_semispace;
 

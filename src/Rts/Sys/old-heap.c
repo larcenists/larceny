@@ -240,6 +240,9 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
     /* XXX Felix does not trust the computation below 100%. */
     heap->bytes_live_last_major_gc = bytes_copied + bytes_moved;
 
+    heap->words_from_nursery_last_major_gc = 
+      heap->collector->words_from_nursery_last_gc;
+
     break;
   case GCTYPE_PROMOTE: 
     assert(data_from == data_to); /* (code below assumes heap == heap_to ) */
