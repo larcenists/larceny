@@ -926,6 +926,13 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
    * major collection. */
 }
 
+static int successor_of_to( gc_t *gc ) 
+{
+  int num_minor_rgns = 
+    max( DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
+  return next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns);
+}
+
 static void collect_rgnl_shift_the_to( gc_t *gc )
 {
   /* the to-space is full, so shift to the next to-space */
@@ -957,10 +964,14 @@ static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn,
   annoyingmsg("collect_rgnl(gc, %d, %d, %s)", rgn, bytes_needed, type_str );
 }
 
-static void collect_rgnl_policy( gc_t *gc, int rgn_to, int rgn_next, 
-                                 bool *p_can_do_major, bool *p_can_do_minor )
+static void collect_rgnl_policy( gc_t *gc, 
+                                 int rgn_to, int rgn_succ_to, int rgn_next, 
+                                 bool *p_can_do_major, 
+                                 bool *p_can_do_minor,
+                                 bool *p_succ_can_do_minor )
 {
-  int nursery_sz, rgn_to_cur, rgn_next_cur, rgn_to_max;
+  int nursery_sz, rgn_to_cur, rgn_succ_to_cur, 
+    rgn_next_cur, rgn_to_max, rgn_succ_to_max;
   int free_rgn_space, nursery_max; 
   int num_rgns = DATA(gc)->region_count;
   int num_occupied_rgns;
@@ -970,8 +981,10 @@ static void collect_rgnl_policy( gc_t *gc, int rgn_to, int rgn_next,
 
   nursery_sz = gc_allocated_to_areas( gc, gset_singleton( 0 ));
   rgn_to_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
+  rgn_succ_to_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_succ_to ));
   rgn_next_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_next ));
   rgn_to_max = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
+  rgn_succ_to_max = gc_maximum_allotted( gc, gset_singleton( rgn_succ_to ));
   { 
     int allot, alloc;
     assert(rgn_next > 0);
@@ -1005,29 +1018,36 @@ static void collect_rgnl_policy( gc_t *gc, int rgn_to, int rgn_next,
   *p_can_do_minor = 
     (rgn_to_cur + nursery_sz < rgn_to_max &&
      ! DATA(gc)->ephemeral_area[ rgn_to ]->has_popular_objects );
+  *p_succ_can_do_minor = 
+    (rgn_succ_to_cur + nursery_sz < rgn_succ_to_max &&
+     ! DATA(gc)->ephemeral_area[ rgn_succ_to ]->has_popular_objects );
 }
 
 static void collect_rgnl_evacuate_nursery( gc_t *gc ) 
 {
   /* only forward data out of the nursery, if possible */
-  int rgn_to, rgn_next;
+  int rgn_to, rgn_succ_to, rgn_next;
   int num_rgns = DATA(gc)->region_count;
-  bool can_do_major, can_do_minor;
+  bool can_do_major, can_do_minor, succ_can_do_minor;
 
   DATA(gc)->rrof_refine_mark_countdown -= 1;
 
  collect_evacuate_nursery:
   rgn_to = DATA(gc)->rrof_to_region;
+  rgn_succ_to = successor_of_to( gc );
   rgn_next = DATA(gc)->rrof_next_region;
 
-  collect_rgnl_policy( gc, rgn_to, rgn_next, 
-                       &can_do_major, &can_do_minor );
-  if (can_do_major) {
+  collect_rgnl_policy( gc, rgn_to, rgn_succ_to, rgn_next, 
+                       &can_do_major, &can_do_minor, &succ_can_do_minor );
+  if (rgn_succ_to == rgn_to)
+    succ_can_do_minor = FALSE;
+
+  if (can_do_minor && (succ_can_do_minor || ! can_do_major)) {
+    collect_rgnl_minorgc( gc, rgn_to );
+  } else if (can_do_major && ! succ_can_do_minor) {
     bool didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
     if (!didit)
       goto collect_evacuate_nursery;
-  } else if (can_do_minor) {
-    collect_rgnl_minorgc( gc, rgn_to );
   } else {
     collect_rgnl_shift_the_to( gc );
     /* TODO: double check that minor gc's haven't filled up to-spaces
