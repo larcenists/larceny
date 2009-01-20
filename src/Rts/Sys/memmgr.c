@@ -559,14 +559,16 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     int maximum_allotted = 0;
     int live_estimated_calc = 0;
     int live_predicted_at_next_gc;
-    int nursery_size = gc->young_area->maximum;
+    int contrib;
 
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
 	  ! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
-	total_live_at_last_major_gc += 
-	  max(0, (DATA(gc)->ephemeral_area[ i ]->bytes_live_last_major_gc 
-	          - nursery_size));
+	contrib = 
+	  (DATA(gc)->ephemeral_area[ i ]->bytes_live_last_major_gc 
+	   - (DATA(gc)->ephemeral_area[ i ]->words_from_nursery_last_major_gc
+	      * sizeof(word)));
+	total_live_at_last_major_gc += contrib;
 	maximum_allotted += 
 	  DATA(gc)->ephemeral_area[ i ]->maximum;
       }
