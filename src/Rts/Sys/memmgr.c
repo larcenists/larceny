@@ -560,8 +560,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     int live_estimated_calc = 0;
     int live_predicted_at_next_gc;
     int nursery_size = gc->young_area->maximum;
-    /* Below does not account for role of reserve region at array end;
-     * arguably should distinquish "allotted" and "expected size." */
+
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
 	  ! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
@@ -572,6 +571,10 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 	  DATA(gc)->ephemeral_area[ i ]->maximum;
       }
     }
+    /* deduct reserve region from "allotted"; it is only for emergencies 
+     * and is not part of the standard budget. */
+    maximum_allotted -= 
+      DATA(gc)->ephemeral_area[ DATA(gc)->ephemeral_area_count - 1]->maximum;
     live_estimated_calc = 
       ( DATA(gc)->rrof_last_live_estimate*WEIGH_PREV_ESTIMATE_LOADCALC 
         + total_live_at_last_major_gc)
