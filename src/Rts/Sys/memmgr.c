@@ -519,7 +519,7 @@ static int add_region_to_expand_heap( gc_t *gc, int maximum_allotted )
   semispace_t *ss = gc_fresh_space(gc);
   int eidx = ss->gen_no - 1;
   old_heap_t *fresh_heap = DATA(gc)->ephemeral_area[ eidx ];
-  assert2( fresh_heap->live_last_major_gc == 0 );
+  assert2( fresh_heap->bytes_live_last_major_gc == 0 );
   return maximum_allotted + fresh_heap->maximum;
 }
 
@@ -566,7 +566,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
 	  ! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
 	total_live_at_last_major_gc += 
-	  max(0, (DATA(gc)->ephemeral_area[ i ]->live_last_major_gc 
+	  max(0, (DATA(gc)->ephemeral_area[ i ]->bytes_live_last_major_gc 
 	          - nursery_size));
 	maximum_allotted += 
 	  DATA(gc)->ephemeral_area[ i ]->maximum;
@@ -887,7 +887,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 #if POP_RGNS_LIVE_FOREVER
     DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects = TRUE;
 #endif
-    DATA(gc)->ephemeral_area[ rgn_next-1 ]->live_last_major_gc = 
+    DATA(gc)->ephemeral_area[ rgn_next-1 ]->bytes_live_last_major_gc = 
       DATA(gc)->ephemeral_area[ rgn_next-1 ]->allocated;
     
     collect_rgnl_clear_summary( gc, rgn_next );

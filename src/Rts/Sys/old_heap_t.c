@@ -67,7 +67,7 @@ old_heap_t *create_old_heap_t(
   heap->enumerate = enumerate;
   heap->is_address_mapped = is_address_mapped;
   heap->has_popular_objects = FALSE;
-  heap->live_last_major_gc = 0;
+  heap->bytes_live_last_major_gc = 0;
   heap->reallocate_whole_semispace = FALSE;
   heap->synchronize = synchronize;
 

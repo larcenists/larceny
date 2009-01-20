@@ -238,7 +238,7 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
       los_bytes_used( heap->collector->los, data_to->gen_no ) - los_before;
 
     /* XXX Felix does not trust the computation below 100%. */
-    heap->live_last_major_gc = bytes_copied + bytes_moved;
+    heap->bytes_live_last_major_gc = bytes_copied + bytes_moved;
 
     break;
   case GCTYPE_PROMOTE: 

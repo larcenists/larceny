@@ -158,7 +158,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                   rgn, 
                   gc->remset[ rgn ]->live, gc->major_remset[ rgn ]->live, 
                   rgn_summarized_live, 
-                  heap->live_last_major_gc/4, 
+                  heap->bytes_live_last_major_gc/sizeof(word), 
                   data.objs.zzflt+data.objs.rsflt,
                   data.objs.total,
                   data.words.zzflt+data.words.rsflt,
@@ -209,7 +209,7 @@ void print_float_stats( char *caller_name, gc_t *gc )
       total_float_words += data.words.zzflt+data.objs.rsflt;
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
           ! DATA(gc)->ephemeral_area[i]->has_popular_objects)
-        estimated_live += DATA(gc)->ephemeral_area[ i ]->live_last_major_gc/sizeof(word);
+        estimated_live += DATA(gc)->ephemeral_area[ i ]->bytes_live_last_major_gc/sizeof(word);
     }
     consolemsg( "cycle % 3d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
                 "live{ est: %dK act: %dK max: %dK } estdelta: %0.2f ",
