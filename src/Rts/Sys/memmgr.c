@@ -1357,6 +1357,8 @@ static word *text_load_area( gc_t *gc, int size_bytes )
 
 static word *load_text_or_data( gc_t *gc, int nbytes, int load_text )
 {
+  word *rtn;
+
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
   
@@ -1370,8 +1372,11 @@ static word *load_text_or_data( gc_t *gc, int nbytes, int load_text )
     return sh_data_load_area( gc->static_area, nbytes );
   else if (DATA(gc)->dynamic_area)
     return oh_data_load_area( DATA(gc)->dynamic_area, nbytes );
-  else
-    return yh_data_load_area( gc->young_area, nbytes );
+  else {
+    rtn = yh_data_load_area( gc->young_area, nbytes );
+    assert( rtn != NULL ); /* FIXME (it can happen) */
+    return rtn;
+  }
 }
 
 static int iflush( gc_t *gc, int generation )
