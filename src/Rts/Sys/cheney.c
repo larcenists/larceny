@@ -570,6 +570,8 @@ void oldspace_copy( cheney_env_t *e )
   e->scan_from_tospace( e );
   stop();
 
+  e->gc->words_from_nursery_last_gc = e->words_forwarded_from_nursery;
+
   /* Shutdown */
   tospace_dest(e)->chunks[tospace_dest(e)->current].top = e->dest;
   if (e->tospace2)

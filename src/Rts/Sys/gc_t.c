@@ -82,6 +82,8 @@ gc_t
   gc->stat_total_remset_scan_cpu = 0;
   gc->stat_remset_scan_count     = 0;
 
+  gc->words_from_nursery_last_gc = 0;
+
   gc->initialize = initialize;
   gc->allocate = allocate;
   gc->allocate_nonmoving = allocate_nonmoving;

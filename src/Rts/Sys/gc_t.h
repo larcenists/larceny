@@ -100,6 +100,8 @@ struct gc {
   int stat_last_ms_gc_pause_cpu;
   int stat_last_gc_pause_ismajor;
 
+  int words_from_nursery_last_gc;
+
   void *data;
     /* Private data.
        */
