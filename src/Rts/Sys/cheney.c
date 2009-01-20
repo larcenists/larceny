@@ -133,6 +133,9 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
 
 #define FORWARDED( e, ctxt, old_obj, old_gno, new_obj, new_gno, words ) \
   do {                                                                  \
+    if (old_gno == 0) {                                                 \
+      e->words_forwarded_from_nursery += words;                         \
+    }                                                                   \
     if (e->forwarded) {                                                 \
       e->forwarded( e, ctxt, old_obj, old_gno, new_obj, new_gno );      \
     }                                                                   \
@@ -518,6 +521,7 @@ void oldspace_copy( cheney_env_t *e )
   e->scan_ptr2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].top : 0);
   e->scan_lim = tospace_scan(e)->chunks[e->scan_idx].lim;
   e->scan_lim2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].lim : 0);
+  e->words_forwarded_from_nursery = 0;
 
   last_origin_gen_added = (word*)-1;
   gf_last_lhs = -1;

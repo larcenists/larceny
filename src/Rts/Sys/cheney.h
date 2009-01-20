@@ -155,6 +155,8 @@ struct cheney_env {
     word **ssbtop;              /* For the NP 'extra' set */
     word **ssblim;              /* Ditto */
   } np;
+
+  int words_forwarded_from_nursery;
 };
 
 /* Attribute bits to be passed to init_env() */
