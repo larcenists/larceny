@@ -131,7 +131,7 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
   return ret;
 }
 
-#define FORWARDED( e, ctxt, old_obj, old_gno, new_obj, new_gno )        \
+#define FORWARDED( e, ctxt, old_obj, old_gno, new_obj, new_gno, words ) \
   do {                                                                  \
     if (e->forwarded) {                                                 \
       e->forwarded( e, ctxt, old_obj, old_gno, new_obj, new_gno );      \
@@ -150,7 +150,7 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
     old_obj = tagptr( TMP_P, PAIR_TAG );                               \
     new_gno = gen_of( new_obj );   /* XXX gen_of slow? */              \
     old_gno = gen_of( old_obj );   /* XXX gen_of slow? */              \
-    FORWARDED( e,"FORW_PAIR", old_obj,old_gno, new_obj,new_gno );      \
+    FORWARDED( e,"FORW_PAIR", old_obj,old_gno, new_obj,new_gno, 2 );   \
     check_memory( dest, 2 );                                           \
     dest += 2;                                                         \
   } while ( 0 )
@@ -819,6 +819,7 @@ word forward( const word p, word **dest, cheney_env_t *e )
 {
   word hdr, *newptr, *p1, *p2;
   word ret;
+  int wordsz;
 
   const word tag = tagof( p ); 
   word * const ptr = ptrof( p );
@@ -851,6 +852,7 @@ word forward( const word p, word **dest, cheney_env_t *e )
     /* gcc gets this right, so no sense in being obscure.
        words = (((hdr >> 8) + 11) >> 3) << 1; */
     words = roundup8( sizefield( hdr ) + 4 ) / 4;
+    wordsz = words;
 
 #if CHECK_EVERY_WORD
     switch (tag) {
@@ -886,6 +888,8 @@ word forward( const word p, word **dest, cheney_env_t *e )
   if (bytes > GC_LARGE_OBJECT_LIMIT && los) 
     return forward_large_object( e, ptr, tag, gen_of(p1) );
 
+  wordsz = bytes / sizeof(word);
+
   switch (bytes >> 3) {
     case 8  : *p1++ = *p2++;
               *p1++ = *p2++;
@@ -917,13 +921,15 @@ word forward( const word p, word **dest, cheney_env_t *e )
   if (bytes > GC_LARGE_OBJECT_LIMIT && los)
     return forward_large_object( e, ptr, tag, gen_of(p1) );
 
+  wordsz = bytes / sizeof(word);
+
   memcpy( p1, p2, bytes );
   *dest = p1 + (bytes >> 2);
   }
 #endif
 
   ret = install_fwdptr( ptr, newptr, tag );
-  FORWARDED( e, "forward", p, gen_of(p), ret, gen_of(ret));
+  FORWARDED( e, "forward", p, gen_of(p), ret, gen_of(ret), wordsz);
   return ret;
 }
 
@@ -1081,7 +1087,8 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
     ret = tagptr( ptr, tag );
     /* This is a slight lie; ptr was not copied, but its gno 
      * may have changed, which SMIRCY needs to know about... */
-    FORWARDED( e, "forwarded_large_object 1", ret, src_gen, ret, tgt_gen);
+    FORWARDED( e, "forwarded_large_object 1", ret, src_gen, ret, tgt_gen, 
+               (bytes/sizeof(word)) );
   }
   else {
     /* The large object was not allocated specially, so we must move it. */
@@ -1096,7 +1103,8 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
     was_marked = los_mark_and_set_generation( los, mark_list, new, gen_of( ptr ), tgt_gen );
     
     ret = install_fwdptr( ptr, new, tag );
-    FORWARDED( e,"forwarded_large_object 2", p, gen_of(p), ret, tgt_gen );
+    FORWARDED( e,"forwarded_large_object 2", p, gen_of(p), ret, tgt_gen,
+               (bytes/sizeof(word)) );
   }
 
   if (e->np_promotion && !was_marked) {
