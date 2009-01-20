@@ -131,6 +131,13 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
   return ret;
 }
 
+#define FORWARDED( e, ctxt, old_obj, old_gno, new_obj, new_gno )        \
+  do {                                                                  \
+    if (e->forwarded) {                                                 \
+      e->forwarded( e, ctxt, old_obj, old_gno, new_obj, new_gno );      \
+    }                                                                   \
+  } while( 0 )
+
 #define FORW_PAIR( TMP_P, loc, dest, lim, e, check_spaceI ) \
   do {                                                                 \
     word next_obj;                                                     \
@@ -143,7 +150,7 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
     old_obj = tagptr( TMP_P, PAIR_TAG );                               \
     new_gno = gen_of( new_obj );   /* XXX gen_of slow? */              \
     old_gno = gen_of( old_obj );   /* XXX gen_of slow? */              \
-    if (e->forwarded) e->forwarded( e, "FORW_PAIR", old_obj, old_gno, new_obj, new_gno ); \
+    FORWARDED( e,"FORW_PAIR", old_obj,old_gno, new_obj,new_gno );      \
     check_memory( dest, 2 );                                           \
     dest += 2;                                                         \
   } while ( 0 )
@@ -916,7 +923,7 @@ word forward( const word p, word **dest, cheney_env_t *e )
 #endif
 
   ret = install_fwdptr( ptr, newptr, tag );
-  if (e->forwarded != NULL) e->forwarded( e, "forward", p, gen_of(p), ret, gen_of(ret));
+  FORWARDED( e, "forward", p, gen_of(p), ret, gen_of(ret));
   return ret;
 }
 
@@ -1072,9 +1079,9 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
     int src_gen = gen_of(ptr);
     was_marked = los_mark_and_set_generation( los, mark_list, ptr, src_gen, tgt_gen );
     ret = tagptr( ptr, tag );
-    /* This is a slight lie; ptr was not forwarded, but its gno 
+    /* This is a slight lie; ptr was not copied, but its gno 
      * may have changed, which SMIRCY needs to know about... */
-    if (e->forwarded != NULL) e->forwarded( e, "forwarded_large_object 1", ret, src_gen, ret, tgt_gen);
+    FORWARDED( e, "forwarded_large_object 1", ret, src_gen, ret, tgt_gen);
   }
   else {
     /* The large object was not allocated specially, so we must move it. */
@@ -1089,7 +1096,7 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
     was_marked = los_mark_and_set_generation( los, mark_list, new, gen_of( ptr ), tgt_gen );
     
     ret = install_fwdptr( ptr, new, tag );
-    if (e->forwarded != NULL) e->forwarded( e, "forwarded_large_object 2", p, gen_of(p), ret, tgt_gen );
+    FORWARDED( e,"forwarded_large_object 2", p, gen_of(p), ret, tgt_gen );
   }
 
   if (e->np_promotion && !was_marked) {
