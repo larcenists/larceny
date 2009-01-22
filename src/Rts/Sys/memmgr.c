@@ -417,6 +417,11 @@ static const double default_sumz_coverage_factor = 0.1;
 
 static void smircy_start( gc_t *gc ) 
 {
+  if (DATA(gc)->region_count < 2) {
+    /* almost no reason to do mark refine on a single region.
+     * (only "benefit" I see is refining static area's remset.) */
+    return;
+  }
   gc->smircy = smircy_begin( gc, gc->remset_count );
   DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
   smircy_push_roots( gc->smircy );
@@ -692,17 +697,17 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
     smircy_assert_conservative_approximation( gc->smircy );
 
-#if ! SYNC_REFINEMENT_RROF_CYCLE
   start_timers( &timer1, &timer2 );
+
+#if ! SYNC_REFINEMENT_RROF_CYCLE
   if (gc->smircy == NULL) {
     smircy_start( gc );
   }
-#else 
-  if (gc->smircy == NULL) {
-    return;
-  }
-  start_timers( &timer1, &timer2 );
 #endif
+
+  if (gc->smircy == NULL) {
+    goto done;
+  }
 
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
     smircy_assert_conservative_approximation( gc->smircy );
@@ -718,6 +723,8 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
       print_float_stats( "prefin", gc );
     refine_metadata_via_marksweep( gc );
   }
+
+ done:
   stop_refinem_timers( gc, &timer1, &timer2 );
 
   if (USE_ORACLE_TO_VERIFY_REMSETS) 
