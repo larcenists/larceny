@@ -119,6 +119,15 @@
 /* Calculates ceil(x/y); (unlike quotient, which does floor). */
 #define CEILDIV(x,y) (roundup((x),(y))/(y))
 
+#if 0
+#define CHECK_REP(context)                      \
+  do { smircy_check_rep(context); } while (0)
+#else 
+#define CHECK_REP(context)                      \
+  do {                            } while (0)
+#endif
+
+void smircy_check_rep( smircy_context_t *context );
 
 static void print_stack( smircy_context_t *context )
 {
@@ -743,6 +752,8 @@ smircy_context_t *smircy_begin( gc_t *gc, int num_rgns )
   dbmsg( "smircy_begin( gc, %d ) bitmap: 0x%08x ", 
          num_rgns, context->bitmap );
 
+  CHECK_REP( context );
+
   return context;
 }
 
@@ -757,7 +768,11 @@ static void push_root( word *loc, void *data )
 
 void smircy_push_roots( smircy_context_t *context )
 {
+  CHECK_REP( context );
+
   gc_enumerate_roots( context->gc, push_root, (void*)context );
+
+  CHECK_REP( context );
 }
 
 static bool push_remset_entry( word obj, void *data, unsigned *stats ) 
@@ -772,7 +787,11 @@ static bool push_remset_entry( word obj, void *data, unsigned *stats )
 
 void smircy_push_remset( smircy_context_t *context, remset_t *rs ) 
 {
+  CHECK_REP( context );
+
   rs_enumerate( rs, push_remset_entry, context );
+
+  CHECK_REP( context );
 }
 
 /* Marks obj in bitmap.  Returns true iff obj already marked in bmp. */
@@ -882,6 +901,8 @@ void smircy_progress( smircy_context_t *context,
   int traced = 0, marked = 0, words_marked = 0, constituents;
   bool already_marked;
 
+  CHECK_REP( context );
+
   mark_budget = mark_max;
   trace_budget = trace_max;
   mark_words_budget = mark_words_max;
@@ -984,6 +1005,7 @@ void smircy_progress( smircy_context_t *context,
   *traced_recv = traced;
   *words_marked_recv = words_marked;
 
+  CHECK_REP( context );
 }
 
 #define FORWARD_HDR 0xFFFFFFFE /* XXX eek!  Factor from cheney.h elsewhere! */
@@ -1078,6 +1100,8 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
   large_object_cursor_t *los_entry;
   word old_word, new_word;
 
+  CHECK_REP( context );
+
   obj_entry = context->rgn_to_obj_entry[ rgn ];
   los_entry = context->rgn_to_los_entry[ rgn ];
   while (obj_entry != NULL) {
@@ -1154,6 +1178,7 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
     los_entry = los_entry->next_in_rgn;
   }
 
+  CHECK_REP( context );
 }
 
 void smircy_jit_process_stack_for_rgn( smircy_context_t *context, int rgn )
@@ -1164,6 +1189,8 @@ void smircy_jit_process_stack_for_rgn( smircy_context_t *context, int rgn )
   bool already_marked;
   bool whole_stack_clean;
   smircy_stack_t *stack;
+
+  CHECK_REP( context );
 
   stack = &context->stack;
 
@@ -1256,6 +1283,8 @@ void smircy_jit_process_stack_for_rgn( smircy_context_t *context, int rgn )
         los_push( context, window_lim, obj );
     }
   }
+
+  CHECK_REP( context );
 }
 
 void smircy_when_object_forwarded( smircy_context_t *context, 
@@ -1358,6 +1387,9 @@ void smircy_push_elems( smircy_context_t *context, word *bot, word *top )
 {
   word *p, *q, w;
   int gno;
+
+  CHECK_REP( context );
+
   p = bot;
   q = top;
   while (q > p) {
@@ -1367,6 +1399,8 @@ void smircy_push_elems( smircy_context_t *context, word *bot, word *top )
     gno = gen_of(w);
     push( context, w, 0x0 );
   }
+
+  CHECK_REP( context );
 }
 
 static void *smircy_enumerate_whole_stack3( smircy_context_t *context,
