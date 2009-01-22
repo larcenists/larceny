@@ -410,7 +410,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
 #define SYNC_REFINEMENT_RROF_CYCLE 0
-#define DONT_USE_REFINEMENT_COUNTDOWN 0
+#define DONT_USE_REFINEMENT_COUNTDOWN 1
 
 static const double default_popularity_factor = 2.0;
 static const double default_sumz_budget_factor = 0.1;
@@ -439,14 +439,13 @@ static bool scan_refine_remset( word loc, void *data, unsigned *stats )
   }
 }
 
-/* XXX This definition should be removed.  The budget for how much we
- * can spend on marking per collection could be calculated from the
- * refinement parameter.  (Once the marking is concurrent, we should
- * dynamically determine the budget based on how much progress the
- * concurrent marker has made, to ensure that we keep up with the
- * policy determined by the refinement parameter.)
+/* (Once the marking is concurrent, we should dynamically determine
+ * the budget based on how much progress the concurrent marker has
+ * made, to ensure that we keep up with the policy determined by the
+ * refinement parameter.)
  */
-const int BASE_BUDGET = -1; // 5;
+#define COPROMOTE_MARK_RATIO       0 // 100
+#define PROMOTE_MARK_RATIO         1
 
 static void refine_remsets_via_marksweep( gc_t *gc )
 {
@@ -712,8 +711,23 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
 
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
     smircy_assert_conservative_approximation( gc->smircy );
-  smircy_progress( gc->smircy, BASE_BUDGET, BASE_BUDGET, -1 /*BASE_BUDGET*/, 
-                   &marked_recv, &traced_recv, &words_marked_recv );
+  {
+    int promoted = gc->words_from_nursery_last_gc;
+    int unpromoted = gc->young_area->maximum - promoted;
+    int p_allows_marking = 
+      (PROMOTE_MARK_RATIO 
+       ? ((double)promoted / 
+          (DATA(gc)->rrof_refinement_factor * PROMOTE_MARK_RATIO)) 
+       : 0);
+    int u_allows_marking = 
+      (COPROMOTE_MARK_RATIO 
+       ? ((double)unpromoted / 
+          (DATA(gc)->rrof_refinement_factor * COPROMOTE_MARK_RATIO)) 
+       : 0);
+    int bound = p_allows_marking + u_allows_marking;
+    smircy_progress( gc->smircy, bound, bound, -1, 
+                     &marked_recv, &traced_recv, &words_marked_recv );
+  }
   if (USE_ORACLE_TO_VERIFY_SMIRCY)
     smircy_assert_conservative_approximation( gc->smircy );
 
