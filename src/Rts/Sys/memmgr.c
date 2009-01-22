@@ -410,6 +410,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
 #define SYNC_REFINEMENT_RROF_CYCLE 0
+#define DONT_USE_REFINEMENT_COUNTDOWN 0
 
 static const double default_popularity_factor = 2.0;
 static const double default_sumz_budget_factor = 0.1;
@@ -717,7 +718,7 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
     smircy_assert_conservative_approximation( gc->smircy );
 
   if (to_the_finish_line
-      || ((BASE_BUDGET != -1) && (smircy_stack_empty_p( gc->smircy )))
+      || (DONT_USE_REFINEMENT_COUNTDOWN && (smircy_stack_empty_p( gc->smircy )))
       ) {
     if (DATA(gc)->print_float_stats_each_refine)
       print_float_stats( "prefin", gc );
@@ -889,7 +890,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     sm_clear_nursery_summary( DATA(gc)->summaries );
     DATA(gc)->rrof_last_tospace = rgn_to;
     handle_secondary_space( gc );
-    smircy_step( gc, (SYNC_REFINEMENT_RROF_CYCLE 
+    smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE | DONT_USE_REFINEMENT_COUNTDOWN)
                       ? FALSE
                       : DATA(gc)->rrof_refine_mark_countdown <= 0));
     collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
