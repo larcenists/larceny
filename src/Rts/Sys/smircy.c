@@ -201,6 +201,62 @@ static void print_stack_sizes( smircy_context_t *context )
   }
 }
 
+int smircy_stack_size( smircy_context_t *context ) 
+{
+  obj_stack_t *obj_stack;
+  obj_stackseg_t *objseg;
+  int objcount_first;
+  int objcount_rest;
+  int full_objseg_count;
+
+  obj_stack = &context->stack.obj;
+  full_objseg_count = 0;
+  objseg = obj_stack->seg;
+  if (objseg != NULL) {
+    while (objseg->next != NULL) {
+      full_objseg_count += 1;
+      objseg = objseg->next;
+    }
+  }
+  objcount_first = obj_stack->stkp - obj_stack->stkbot;
+  objcount_rest = OBJ_STACK_SIZE*full_objseg_count;
+
+  return objcount_first + objcount_rest;
+}
+
+int smircy_stack_count( smircy_context_t *context ) 
+{
+  int objcount;
+  obj_stack_t *obj_stack;
+  obj_stackseg_t *objseg;
+  obj_stack_entry_t *stkp, *stkbot;
+  int objcount_first;
+  int objcount_rest;
+  int full_objseg_count;
+
+  objcount = 0;
+  obj_stack = &context->stack.obj;
+  full_objseg_count = 0;
+  objseg = obj_stack->seg;
+  stkp = obj_stack->stkp;
+  stkbot = obj_stack->stkbot;
+  stkp--;
+  while (objseg != NULL) {
+    while (stkp >= stkbot) {
+      if (stkp->val != 0x0)
+        objcount++;
+      stkp--;
+    }
+    objseg = objseg->next;
+    if (objseg != NULL) {
+      stkbot = objseg->data;
+      stkp = objseg->data+OBJ_STACK_SIZE;
+    }
+  }
+
+  return objcount;
+}
+
 static void init_from_old( word *bitmap_old, word *lo_addr_old, word *hi_addr_old, int words_in_old, 
                            word *bitmap_new, word *lo_addr_new, word *hi_addr_new, int words_in_new );
 static int allocate_bitmap( smircy_context_t *context );
