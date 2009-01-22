@@ -706,7 +706,7 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
 
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
     smircy_assert_conservative_approximation( gc->smircy );
-  smircy_progress( gc->smircy, BASE_BUDGET, BASE_BUDGET, BASE_BUDGET, 
+  smircy_progress( gc->smircy, BASE_BUDGET, BASE_BUDGET, -1 /*BASE_BUDGET*/, 
                    &marked_recv, &traced_recv, &words_marked_recv );
   if (USE_ORACLE_TO_VERIFY_SMIRCY)
     smircy_assert_conservative_approximation( gc->smircy );
@@ -789,6 +789,8 @@ static void collect_rgnl_maybe_swap_in_reserve( gc_t *gc, int rgn_to )
       gc->remset[ emergency_gno ] = curr_rs;
       gc->major_remset[ emergency_gno ] = curr_mrs;
       los_swap_gnos( gc->los, curr_gno, emergency_gno );
+      if (gc->smircy != NULL)
+        smircy_swap_gnos( gc->smircy, curr_gno, emergency_gno );
     }
   }
 }
@@ -845,8 +847,10 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 
 #if ! SMIRCY_RGN_STACK_IN_ROOTS
     assert2( rgn_next == DATA(gc)->rrof_next_region );
-    if (gc->smircy != NULL)
+    if (gc->smircy != NULL) {
       smircy_jit_process_stack_for_rgn( gc->smircy, rgn_next );
+      smircy_drop_cleared_stack_entries( gc->smircy, rgn_next );
+    }
 #endif
 
     sm_fold_in_nursery_and_init_summary( DATA(gc)->summaries,
@@ -911,6 +915,8 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   /* check that SSB is flushed. */
   assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
   
+  DATA(gc)->rrof_currently_minor_gc = TRUE;
+
   sm_init_summary_from_nursery_alone( DATA(gc)->summaries, &(DATA(gc)->summary));
   DATA(gc)->use_summary_instead_of_remsets = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
@@ -1187,6 +1193,8 @@ static void before_collection( gc_t *gc )
   }
 #endif
 
+  DATA(gc)->rrof_currently_minor_gc = FALSE;
+
   yh_before_collection( gc->young_area );
   for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
     oh_before_collection( DATA(gc)->ephemeral_area[ e ] );
@@ -1272,7 +1280,7 @@ static void
 enumerate_smircy_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_data )
 { 
 #if SMIRCY_RGN_STACK_IN_ROOTS 
-  if (gc->smircy != NULL) { 
+  if (gc->smircy != NULL && ! DATA(gc)->rrof_currently_minor_gc) { 
     struct apply_f_data smircy_data; 
     smircy_data.f = f; 
     smircy_data.scan_data = scan_data; 
@@ -1280,6 +1288,9 @@ enumerate_smircy_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *
                                    DATA(gc)->rrof_next_region, 
                                    apply_f, 
                                    &smircy_data ); 
+    if (DATA(gc)->rrof_to_region != DATA(gc)->rrof_next_region) {
+      smircy_drop_cleared_stack_entries( gc->smircy, DATA(gc)->rrof_next_region );
+    }
   } 
 #endif 
 } 
@@ -2121,7 +2132,9 @@ static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
   if (0) 
     consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x )", bot, top );
   if (gc->smircy != NULL) {
-    smircy_push_elems( gc->smircy, bot, top );
+    if (! smircy_stack_empty_p( gc->smircy )) {
+      smircy_push_elems( gc->smircy, bot, top );
+    }
   }
   return 0;
 }
@@ -2494,6 +2507,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->fixed_ephemeral_area = TRUE;
   data->dynamic_area = 0;
 
+  data->rrof_currently_minor_gc = FALSE;
   data->rrof_to_region = 1;
   data->rrof_next_region = 1;
   data->rrof_last_tospace = -1;
