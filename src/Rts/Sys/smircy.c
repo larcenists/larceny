@@ -882,7 +882,7 @@ static void reestablish_rgn_to_obj_entry_post_pop( smircy_context_t *context,
                                                    obj_stack_entry_t *stkp )
 { 
   int rgn;
-  for( rgn = 1; rgn < context->num_rgns; rgn++ ) {
+  for( rgn = 1; rgn <= context->num_rgns; rgn++ ) {
     if (context->rgn_to_obj_entry[rgn] == stkp) {
       context->rgn_to_obj_entry[rgn] = stkp->next_in_rgn;
     }
@@ -1018,6 +1018,34 @@ void smircy_expand_gnos( smircy_context_t *context, int gno )
   // before our global invariants are established.
   dbmsg( "  smircy_expand_gnos( context, %d )", gno );
   expand_context_plus_rgn( context, gno );
+}
+
+void smircy_swap_gnos( smircy_context_t *context, int gno1, int gno2 ) 
+{
+  obj_stack_entry_t *obj_stack_entry1, *obj_stack_entry2;
+  large_object_cursor_t *los_stack_entry1, *los_stack_entry2;
+
+  assert( gno1 <= context->num_rgns );
+  assert( gno2 <= context->num_rgns );
+
+  obj_stack_entry2 = context->rgn_to_obj_entry[gno1];
+  obj_stack_entry1 = context->rgn_to_obj_entry[gno2];
+  context->rgn_to_obj_entry[gno1] = obj_stack_entry1;
+  context->rgn_to_obj_entry[gno2] = obj_stack_entry2;
+
+  los_stack_entry2 = context->rgn_to_los_entry[gno1];
+  los_stack_entry1 = context->rgn_to_los_entry[gno2];
+  context->rgn_to_los_entry[gno1] = los_stack_entry1;
+  context->rgn_to_los_entry[gno2] = los_stack_entry2;
+
+  while (obj_stack_entry1 != NULL) {
+    obj_stack_entry1->gno = gno1;
+    obj_stack_entry1 = obj_stack_entry1->next_in_rgn;
+  }
+  while (obj_stack_entry2 != NULL) {
+    obj_stack_entry2->gno = gno2;
+    obj_stack_entry2 = obj_stack_entry2->next_in_rgn;
+  }
 }
 
 bool smircy_stack_empty_p( smircy_context_t *context ) 
@@ -1163,14 +1191,17 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
     if (los_entry->object != 0x0) {
       assert2( isptr( los_entry->object ));
       assert2( gen_of(los_entry->object) == rgn );
-      visit( &los_entry->object, orig_data );
-      new_word = los_entry->object;
+      old_word = los_entry->object;
+      visit( &old_word, orig_data );
+      new_word = old_word;
       if (gen_of(new_word) != rgn) { /* moved to different region; cleanup. */
         los_entry->object = 0x0;
         los_push( context, los_entry->index, new_word );
         /* XXX see above notes for standard object stack.
          * Same probably applies here. */
       } else {
+        los_entry->object = 0x0;
+        los_push( context, los_entry->index, new_word );
         /* XXX see above notes for standard object stack.
          * Same probably applies here. */
       }
@@ -1398,6 +1429,24 @@ void smircy_push_elems( smircy_context_t *context, word *bot, word *top )
     assert(w != 0x0);
     gno = gen_of(w);
     push( context, w, 0x0 );
+  }
+
+  CHECK_REP( context );
+}
+
+void smircy_drop_cleared_stack_entries( smircy_context_t *context, int gno ) 
+{
+  CHECK_REP( context );
+
+  while ((context->rgn_to_obj_entry[gno] != NULL) && 
+         (context->rgn_to_obj_entry[gno]->val == 0x0)) {
+    context->rgn_to_obj_entry[gno] = 
+      context->rgn_to_obj_entry[gno]->next_in_rgn;
+  }
+  while ((context->rgn_to_los_entry[gno] != NULL) &&
+         (context->rgn_to_los_entry[gno]->object == 0x0)) {
+    context->rgn_to_los_entry[gno] = 
+      context->rgn_to_los_entry[gno]->next_in_rgn;
   }
 
   CHECK_REP( context );
