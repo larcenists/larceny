@@ -2120,7 +2120,9 @@ static int ssb_process_gen( gc_t *gc, word *bot, word *top, void *ep_data ) {
 static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
   if (0) 
     consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x )", bot, top );
-  smircy_push_elems( gc->smircy, bot, top );
+  if (gc->smircy != NULL) {
+    smircy_push_elems( gc->smircy, bot, top );
+  }
   return 0;
 }
 
