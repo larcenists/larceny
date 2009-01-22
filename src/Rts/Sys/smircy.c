@@ -1343,4 +1343,105 @@ static void *smircy_enumerate_whole_stack3( smircy_context_t *context,
   return data;
 }
 
+void smircy_check_rep( smircy_context_t *context ) 
+{
+  /* for each region R, rgn_to_obj_entry[R] points to first entry associated
+   * with R in stack.obj, and rgn_to_los_entry[R] points to first entry associated
+   * with R in stack.los.  Furthermore, following the thread of ->next pointers
+   * in each will trace through the successor elements associated with R in the
+   * corresponding stack. 
+   */
+  int r;
+  obj_stack_entry_t *obj_entry;
+  large_object_cursor_t *los_entry;
+  obj_stackseg_t *obj_seg;
+  obj_stack_entry_t *obj_stkp;
+  obj_stack_entry_t *obj_stkbot;
+  los_stackseg_t *los_seg;
+  large_object_cursor_t *los_stkp;
+  large_object_cursor_t *los_stkbot;
+
+  for ( r = 1; r <= context->num_rgns; r++ ) {
+    obj_entry  = context->rgn_to_obj_entry[r];
+    obj_seg    = context->stack.obj.seg;
+    obj_stkp   = context->stack.obj.stkp;
+    obj_stkbot = context->stack.obj.stkbot;
+
+    obj_stkp--;
+    while (obj_entry != NULL && obj_seg != NULL) {
+      while (obj_stkp != obj_entry) {
+        obj_stkp--;
+        if (obj_stkp < obj_stkbot) {
+          obj_seg = obj_seg->next;
+          if (obj_seg != NULL) {
+            obj_stkp   = obj_seg->data+OBJ_STACK_SIZE;
+            obj_stkbot = obj_seg->data;
+          } else {
+            consolemsg("Smircy obj stack entry for region %d "
+                       "not in stack.", r);
+            assert(FALSE);
+          }
+        }
+      }
+      obj_entry = obj_entry->next_in_rgn;
+      assert( obj_stkp != obj_entry );
+      obj_stkp--;
+    }
+    assert( obj_entry == NULL );
+    while (obj_seg != NULL) {
+      while (obj_stkp >= obj_stkbot) {
+        assert( obj_stkp->val == 0x0 || 
+                (gen_of( obj_stkp->val ) == obj_stkp->gno) );
+        assert( obj_stkp->gno != r );
+        obj_stkp--;
+      }
+      obj_seg = obj_seg->next;
+      if (obj_seg != NULL) {
+        obj_stkbot = obj_seg->data;
+        obj_stkp   = obj_seg->data+OBJ_STACK_SIZE;
+        obj_stkp--;
+      }
+    }
+
+    los_entry  = context->rgn_to_los_entry[r];
+    los_seg    = context->stack.los.seg;
+    los_stkp   = context->stack.los.stkp;
+    los_stkbot = context->stack.los.stkbot;
+
+    los_stkp--;
+    while (los_entry != NULL && los_seg != NULL) {
+      while (los_stkp != los_entry) {
+        los_stkp--;
+        if (los_stkp < los_stkbot) {
+          los_seg = los_seg->next;
+          if (los_seg != NULL) {
+            los_stkp   = los_seg->data+LOS_STACK_SIZE;
+            los_stkbot = los_seg->data;
+          } else {
+            consolemsg("Smircy los stack entry for region %d "
+                       "not in stack.", r);
+            assert(FALSE);
+          }
+        }
+      }
+      los_entry = los_entry->next_in_rgn;
+      assert( los_stkp != los_entry );
+      los_stkp--;
+    }
+    assert( los_entry == NULL );
+    while (los_seg != NULL) {
+      while (los_stkp >= los_stkbot) {
+        assert( los_stkp->object == 0x0 || (gen_of(los_stkp->object) != r));
+        los_stkp--;
+      }
+      los_seg = los_seg->next;
+      if (los_seg != NULL) {
+        los_stkbot = los_seg->data;
+        los_stkp   = los_seg->data+OBJ_STACK_SIZE;
+        los_stkp--;
+      }
+    }
+  }
+}
+
 /* eof */
