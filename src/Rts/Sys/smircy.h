@@ -54,6 +54,9 @@ void smircy_set_object_visitor( smircy_context_t *context,
 void* smircy_get_object_visitor_data( smircy_context_t *context );
 
 void smircy_expand_gnos( smircy_context_t *context, int gno );
+void smircy_swap_gnos( smircy_context_t *context, int gno1, int gno2 );
+void smircy_drop_cleared_stack_entries( smircy_context_t *context, int gno );
+
 int smircy_objs_marked( smircy_context_t *context );
 int smircy_arcs_traced( smircy_context_t *context );
 int smircy_words_marked( smircy_context_t *context );
