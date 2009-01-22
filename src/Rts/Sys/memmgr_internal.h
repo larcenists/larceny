@@ -47,6 +47,8 @@ struct gc_data {
     /* In precise collectors: A pointer to a dynamic area, or NULL.
        */
 
+  bool rrof_currently_minor_gc;
+    /* true implies the collector is currently doing a minor collection. */
   int rrof_to_region;
     /* In RROF collector, the to-space for minor collections. */
   int rrof_next_region;
