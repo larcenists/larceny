@@ -786,6 +786,9 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
     if (DATA(gc)->print_float_stats_each_refine)
       print_float_stats( "prefin", gc );
     refine_metadata_via_marksweep( gc );
+    if (DATA(gc)->print_float_stats_each_refine && 
+        ! DATA(gc)->print_float_stats_each_major)
+      print_float_stats( "pstfin", gc );
   }
 
  done:
