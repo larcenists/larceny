@@ -107,8 +107,13 @@ struct gc_data {
   bool print_float_stats_each_minor;
   bool print_float_stats_each_refine;
 
+  /* these are precise measures according to heap snapshots */
   int last_live_words;
   int max_live_words;
+  int words_promoted_since_snapshot_completed;
+  int words_promoted_since_snapshot_began; 
+  /* need to track these separately, since storage is allocated
+   * concurrently with snapshotting. */
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
