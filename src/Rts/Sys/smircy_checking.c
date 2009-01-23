@@ -356,6 +356,9 @@ static void smircy_unmark_and_push_stack( msgc_context_t *context_new,
       assert( seg != NULL );
       stkp--;
       obj = stkp->object;
+      if (obj == 0x0) {
+        continue;
+      }
       window_start = stkp->index;
       objwords = bytes2words( sizefield( *ptrof(obj) ));
       size = objwords - window_start;
