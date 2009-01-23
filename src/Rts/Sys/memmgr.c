@@ -576,6 +576,8 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     int live_estimated_calc = 0;
     int live_predicted_at_next_gc;
     int contrib;
+    int snapshot_live_allowed;
+    int maximum_allotted_pre, maximum_allotted_post;
 
     for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
       if (INCLUDE_POP_RGNS_IN_LOADCALC || 
@@ -608,14 +610,35 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 		 live_estimated_calc, 
 		 live_predicted_at_next_gc );
 
+    maximum_allotted_pre = maximum_allotted;
+
     if (live_predicted_at_next_gc > maximum_allotted) { /* XXX if => while? */
       maximum_allotted = 
         add_region_to_expand_heap( gc, maximum_allotted );
     }
-    while ( (DATA(gc)->last_live_words*DATA(gc)->rrof_load_factor*sizeof(word)) > maximum_allotted) {
+
+    snapshot_live_allowed = 
+      DATA(gc)->last_live_words*DATA(gc)->rrof_load_factor*sizeof(word);
+    while ( snapshot_live_allowed > maximum_allotted) {
       maximum_allotted = 
         add_region_to_expand_heap( gc, maximum_allotted );
     }
+
+    maximum_allotted_post = maximum_allotted;
+
+#if 0
+      consolemsg( "completed_regional_cycle "
+                  " live_predicted_at_next_gc: % 5dM "
+                  " snapshot_live: % 5dM peak_snapshot: % 5dM "
+                  " promoted_since_snapshot_completed,began: % 5dM, % 5dM "
+                  " maximum_allotted: % 5dM -> % 5dM",
+                  live_predicted_at_next_gc/MEGABYTE, 
+                  DATA(gc)->last_live_words*sizeof(word)/MEGABYTE, 
+                  DATA(gc)->max_live_words*sizeof(word)/MEGABYTE, 
+                  DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word)/MEGABYTE, 
+                  DATA(gc)->words_promoted_since_snapshot_began*sizeof(word)/MEGABYTE, 
+                  maximum_allotted_pre/MEGABYTE, maximum_allotted_post/MEGABYTE );
+#endif
 
     annoyingmsg( "completed_regional_cycle region_count: %d ephemeral_area_count: %d", 
 		 DATA(gc)->region_count, DATA(gc)->ephemeral_area_count );
