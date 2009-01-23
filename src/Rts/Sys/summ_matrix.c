@@ -2128,6 +2128,7 @@ EXPORT void sm_clear_summary( summ_matrix_t *summ, int rgn_next )
         assert(genset.g2 <= DATA(summ)->remset_summaries_count);
       } else { 
         assert(genset.tag == gs_nil);
+        sm_invalidate_summaries( summ );
       }
     }
   }
