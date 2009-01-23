@@ -947,11 +947,6 @@ void smircy_progress( smircy_context_t *context,
         w = stack->obj.stkp->val;
 
         if (w == 0x0) { // dead entry
-          // need to restablish soundness of rgn->stack mapping after the pop
-          // (the decrement of stkp above) before we continue the loop...
-          // XXX *strongly* consider fixing things so that when I kill entries,
-          // the threaded stack is updated appropriately...
-          reestablish_rgn_to_obj_entry_post_pop( context, stack->obj.stkp );
           continue;
         }
 
