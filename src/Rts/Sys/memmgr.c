@@ -411,6 +411,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
 #define SYNC_REFINEMENT_RROF_CYCLE 0
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
+#define PRINT_SNAPSHOT_INFO_TO_CONSOLE 0
 
 static const double default_popularity_factor = 2.0;
 static const double default_sumz_budget_factor = 0.1;
@@ -512,6 +513,17 @@ static void refine_metadata_via_marksweep( gc_t *gc )
   }
 #endif
   smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
+
+#if PRINT_SNAPSHOT_INFO_TO_CONSOLE
+  consolemsg( "% 31s"
+              " snapshot_live: % 5dM peak_snapshot: % 5dM "
+              " promoted_since_snapshot_completed,began: % 5dM, % 5dM ", 
+              "refine_metadata_via_marksweep", 
+              DATA(gc)->last_live_words*sizeof(word)/MEGABYTE, 
+              DATA(gc)->max_live_words*sizeof(word)/MEGABYTE, 
+              DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word)/MEGABYTE, 
+              DATA(gc)->words_promoted_since_snapshot_began*sizeof(word)/MEGABYTE );
+#endif
 
   refine_remsets_via_marksweep( gc );
   sm_refine_summaries_via_marksweep( DATA(gc)->summaries );
@@ -626,17 +638,18 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 
     maximum_allotted_post = maximum_allotted;
 
-#if 0
-      consolemsg( "completed_regional_cycle "
-                  " live_predicted_at_next_gc: % 5dM "
+#if PRINT_SNAPSHOT_INFO_TO_CONSOLE
+      consolemsg( "% 31s"
                   " snapshot_live: % 5dM peak_snapshot: % 5dM "
                   " promoted_since_snapshot_completed,began: % 5dM, % 5dM "
+                  " live_predicted_at_next_gc: % 5dM "
                   " maximum_allotted: % 5dM -> % 5dM",
-                  live_predicted_at_next_gc/MEGABYTE, 
+                  "completed_regional_cycle",
                   DATA(gc)->last_live_words*sizeof(word)/MEGABYTE, 
                   DATA(gc)->max_live_words*sizeof(word)/MEGABYTE, 
                   DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word)/MEGABYTE, 
                   DATA(gc)->words_promoted_since_snapshot_began*sizeof(word)/MEGABYTE, 
+                  live_predicted_at_next_gc/MEGABYTE, 
                   maximum_allotted_pre/MEGABYTE, maximum_allotted_post/MEGABYTE );
 #endif
 
