@@ -114,6 +114,8 @@ struct gc_data {
   int words_promoted_since_snapshot_began; 
   /* need to track these separately, since storage is allocated
    * concurrently with snapshotting. */
+  int count_promotions_since_snapshot_completed;
+  int count_promotions_since_snapshot_began;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
