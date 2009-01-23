@@ -429,6 +429,7 @@ static void smircy_start( gc_t *gc )
   smircy_push_roots( gc->smircy );
   sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
   DATA(gc)->words_promoted_since_snapshot_began = 0;
+  DATA(gc)->count_promotions_since_snapshot_began = 0;
 }
 
 static bool scan_refine_remset( word loc, void *data, unsigned *stats )
@@ -493,6 +494,8 @@ static void reset_countdown_to_next_refine( gc_t *gc )
       max( DATA(gc)->max_live_words, words_marked );
     DATA(gc)->words_promoted_since_snapshot_completed =
       DATA(gc)->words_promoted_since_snapshot_began;
+    DATA(gc)->count_promotions_since_snapshot_completed = 
+      DATA(gc)->count_promotions_since_snapshot_began;
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
   } else {
     assert(0);
@@ -570,6 +573,8 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     DATA(gc)->max_live_words = max( DATA(gc)->max_live_words, live_words );
     DATA(gc)->words_promoted_since_snapshot_completed = 0;
     DATA(gc)->words_promoted_since_snapshot_began = 0;
+    DATA(gc)->count_promotions_since_snapshot_completed = 0;
+    DATA(gc)->count_promotions_since_snapshot_began = 0;
   }
 
 #if SYNC_REFINEMENT_RROF_CYCLE
@@ -791,6 +796,8 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
       max( DATA(gc)->max_live_words, words_marked );
     DATA(gc)->words_promoted_since_snapshot_completed =
       DATA(gc)->words_promoted_since_snapshot_began;
+    DATA(gc)->count_promotions_since_snapshot_completed = 
+      DATA(gc)->count_promotions_since_snapshot_began;
   }
 
   if ((finish_mode == smircy_step_must_refine) 
@@ -974,6 +981,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     handle_secondary_space( gc );
     DATA(gc)->words_promoted_since_snapshot_completed += gc->words_from_nursery_last_gc;
     DATA(gc)->words_promoted_since_snapshot_began     += gc->words_from_nursery_last_gc;
+    DATA(gc)->count_promotions_since_snapshot_completed += 1;
+    DATA(gc)->count_promotions_since_snapshot_began     += 1;
     smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || 
                        DONT_USE_REFINEMENT_COUNTDOWN ||
                        (DATA(gc)->rrof_refine_mark_countdown > 0))
@@ -1022,6 +1031,8 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   handle_secondary_space( gc );
   DATA(gc)->words_promoted_since_snapshot_completed += gc->words_from_nursery_last_gc;
   DATA(gc)->words_promoted_since_snapshot_began     += gc->words_from_nursery_last_gc;
+  DATA(gc)->count_promotions_since_snapshot_completed += 1;
+  DATA(gc)->count_promotions_since_snapshot_began     += 1;
   smircy_step( gc, smircy_step_dont_refine );
   
   rrof_completed_minor_collection( gc );
@@ -2627,6 +2638,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->max_live_words = 0;
   data->words_promoted_since_snapshot_began = 0;
   data->words_promoted_since_snapshot_completed = 0;
+  data->count_promotions_since_snapshot_began = 0;
+  data->count_promotions_since_snapshot_completed = 0;
 
   ret = 
     create_gc_t( "*invalid*",
