@@ -994,7 +994,8 @@ static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn,
   case GCTYPE_FULL:     type_str = "FULL"; break;
   default: assert(0);
   }
-  annoyingmsg("collect_rgnl(gc, %d, %d, %s)", rgn, bytes_needed, type_str );
+  supremely_annoyingmsg("collect_rgnl(gc, %d, %d, %s)", 
+                        rgn, bytes_needed, type_str );
 }
 
 static void collect_rgnl_policy( gc_t *gc, 
@@ -1009,8 +1010,8 @@ static void collect_rgnl_policy( gc_t *gc,
   int num_rgns = DATA(gc)->region_count;
   int num_occupied_rgns;
 
-  annoyingmsg("collect_rgnl decide major or minor.  to: %d next: %d",
-              rgn_to, rgn_next );
+  supremely_annoyingmsg("collect_rgnl decide major or minor.  to: %d next: %d",
+                        rgn_to, rgn_next );
 
   nursery_sz = gc_allocated_to_areas( gc, gset_singleton( 0 ));
   rgn_to_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
@@ -1040,10 +1041,14 @@ static void collect_rgnl_policy( gc_t *gc,
   }
   nursery_max = gc->young_area->maximum;
 
-  annoyingmsg( "collect_rgnl rgn_to: %d rgn_next: %d nursery_sz: %d nursery_max: %d num_occupied_rgns: %d "
-               "rgn_to_cur: %d rgn_to_max: %d rgn_next_cur: %d free_rgn_space: %d", 
-               rgn_to, rgn_next, nursery_sz, nursery_max, num_occupied_rgns, 
-               rgn_to_cur, rgn_to_max, rgn_next_cur, free_rgn_space );
+  supremely_annoyingmsg( "collect_rgnl rgn_to: %d rgn_next: %d "
+                         "nursery_sz: %d nursery_max: %d "
+                         "num_occupied_rgns: %d rgn_to_cur: %d rgn_to_max: %d "
+                         "rgn_next_cur: %d free_rgn_space: %d", 
+                         rgn_to, rgn_next, 
+                         nursery_sz, nursery_max, 
+                         num_occupied_rgns, rgn_to_cur, rgn_to_max, 
+                         rgn_next_cur, free_rgn_space );
 
   *p_can_do_major = 
     (free_rgn_space < (rgn_next_cur + num_occupied_rgns*nursery_max)
