@@ -686,7 +686,11 @@ static void handle_secondary_space( gc_t *gc )
   }
 }
 
-static void smircy_step( gc_t *gc, bool to_the_finish_line ) 
+typedef enum { 
+  smircy_step_dont_refine, smircy_step_can_refine, smircy_step_must_refine
+} smircy_step_finish_mode_t;
+
+static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode ) 
 {
   stats_id_t timer1, timer2;
   int marked_recv = 0, traced_recv = 0, words_marked_recv = 0;
@@ -731,9 +735,9 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
   if (USE_ORACLE_TO_VERIFY_SMIRCY)
     smircy_assert_conservative_approximation( gc->smircy );
 
-  if (to_the_finish_line
-      || (DONT_USE_REFINEMENT_COUNTDOWN && (smircy_stack_empty_p( gc->smircy )))
-      ) {
+  if ((finish_mode == smircy_step_must_refine) 
+      || ((finish_mode == smircy_step_can_refine) 
+          && smircy_stack_empty_p( gc->smircy ))) {
     if (DATA(gc)->print_float_stats_each_refine)
       print_float_stats( "prefin", gc );
     refine_metadata_via_marksweep( gc );
@@ -907,9 +911,10 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     sm_clear_nursery_summary( DATA(gc)->summaries );
     DATA(gc)->rrof_last_tospace = rgn_to;
     handle_secondary_space( gc );
-    smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE | DONT_USE_REFINEMENT_COUNTDOWN)
-                      ? FALSE
-                      : DATA(gc)->rrof_refine_mark_countdown <= 0));
+    smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || DONT_USE_REFINEMENT_COUNTDOWN ||
+                       (DATA(gc)->rrof_refine_mark_countdown > 0))
+                      ? smircy_step_can_refine
+                      : smircy_step_must_refine ));
     collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
     rrof_completed_major_collection( gc );
     collect_rgnl_clear_summary( gc, rgn_next );
@@ -951,7 +956,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   DATA(gc)->rrof_last_tospace = rgn_to;
   
   handle_secondary_space( gc );
-  smircy_step( gc, FALSE );
+  smircy_step( gc, smircy_step_dont_refine );
   
   rrof_completed_minor_collection( gc );
   /* TODO: add code to incrementally summarize by attempting to
