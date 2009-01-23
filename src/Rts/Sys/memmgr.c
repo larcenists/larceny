@@ -750,9 +750,7 @@ static void smircy_step( gc_t *gc, bool to_the_finish_line )
 static void collect_rgnl_clear_summary( gc_t *gc, int rgn_next )
 {
   { 
-    if (sm_is_rgn_summary_avail( DATA(gc)->summaries, rgn_next )) { 
-      sm_clear_summary( DATA(gc)->summaries, rgn_next );
-    }
+    sm_clear_summary( DATA(gc)->summaries, rgn_next );
 
     DATA(gc)->next_summary_to_use =
       next_rgn( DATA(gc)->next_summary_to_use, 
@@ -832,7 +830,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     annoyingmsg( "past summarization says region %d too popular to collect", 
                  rgn_next );
     assert2( ! sm_is_rgn_summary_avail( DATA(gc)->summaries, rgn_next ));
-    collect_rgnl_clear_summary( gc, rgn_next );
+    if (sm_is_rgn_summarized( DATA(gc)->summaries, rgn_next )) {
+      collect_rgnl_clear_summary( gc, rgn_next );
+    }
     collect_rgnl_choose_next_region( gc, num_rgns );
     return FALSE;
   }
