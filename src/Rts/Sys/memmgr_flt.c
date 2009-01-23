@@ -212,6 +212,7 @@ void print_float_stats( char *caller_name, gc_t *gc )
         estimated_live += DATA(gc)->ephemeral_area[ i ]->bytes_live_last_major_gc/sizeof(word);
     }
     consolemsg( "cycle % 3d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
+                "promoted % 10d/% 10d "
                 "live{ est: %dK act: %dK max: %dK } estdelta: %0.2f ",
                 DATA(gc)->rrof_cycle_count, 
                 total_float_objects/1000, 
@@ -219,6 +220,8 @@ void print_float_stats( char *caller_name, gc_t *gc )
                 (int)(100.0*(double)total_float_words/(double)words_marked), 
                 DATA(gc)->max_live_words?(int)(100.0*(double)total_float_words/(double)DATA(gc)->max_live_words):0, 
                 DATA(gc)->rrof_refine_mark_countdown, 
+                DATA(gc)->words_promoted_since_snapshot_completed, 
+                DATA(gc)->words_promoted_since_snapshot_began, 
                 estimated_live/1024, words_marked/1024, DATA(gc)->max_live_words/1024, 
                 estimated_live?(((double)estimated_live)/(double)words_marked):0.0 );
 
