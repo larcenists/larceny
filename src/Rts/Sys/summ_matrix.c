@@ -934,6 +934,13 @@ EXPORT void sm_interrupt_construction( summ_matrix_t *summ )
   check_rep_3( summ );
 }
 
+EXPORT bool sm_is_rgn_summary_avail( summ_matrix_t *summ, int gno ) 
+{
+  check_rep_1( summ );
+  return DATA(summ)->summarized_genset_valid &&
+    gset_memberp( gno, DATA(summ)->summarized_genset ) &&
+    ( ! DATA(summ)->cols[gno]->overly_popular );
+}
 EXPORT bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno ) 
 {
   check_rep_1( summ );
@@ -1651,17 +1658,33 @@ EXPORT void sm_build_remset_summaries( summ_matrix_t *summ, gset_t genset )
    */
   for( i=0 ; i < DATA(summ)->remset_summaries_count; i++ ) {
     if (gset_memberp( i, genset )) {
-      DATA(summ)->cols[i]->overly_popular = FALSE;
-      col_reset_words( DATA(summ)->cols[i] );
+      gno_state_t gno_state;
+      gno_state = gc_gno_state( summ->collector, i);
+      switch ( gno_state ) {
 
-      /* XXX kill below after shifting to cells rep */
+      case gno_state_normal:
+        DATA(summ)->cols[i]->overly_popular = FALSE;
+        col_reset_words( DATA(summ)->cols[i] );
+        /* XXX kill below after shifting to cells rep */
 #if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-      DATA(summ)->remset_summaries[i]->valid = TRUE;
-      ras_reset_words( DATA(summ)->remset_summaries[i] );
-      /* Construction assumes that summaries start off empty. */
-      assert2( DATA(remsum.summ)->remset_summaries[ i ]->sum_remset == NULL ||
-               DATA(remsum.summ)->remset_summaries[ i ]->sum_remset->live == 0);
+        DATA(summ)->remset_summaries[i]->valid = TRUE;
+        ras_reset_words( DATA(summ)->remset_summaries[i] );
+        /* Construction assumes that summaries start off empty. */
+        assert2( DATA(remsum.summ)->remset_summaries[ i ]->sum_remset == NULL ||
+                 DATA(remsum.summ)->remset_summaries[ i ]->sum_remset->live == 0);
 #endif
+        break;
+
+      case gno_state_popular:
+        DATA(summ)->cols[i]->overly_popular = TRUE;
+#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
+        DATA(summ)->remset_summaries[i]->valid = FALSE;
+#endif
+        break;
+      default: 
+        assert(0);
+      }
+
     }
   }
 
@@ -2104,7 +2127,7 @@ EXPORT void sm_clear_summary( summ_matrix_t *summ, int rgn_next )
       } else if (genset.tag == gs_range) {
         assert(genset.g2 <= DATA(summ)->remset_summaries_count);
       } else { 
-        assert(0); 
+        assert(genset.tag == gs_nil);
       }
     }
   }
