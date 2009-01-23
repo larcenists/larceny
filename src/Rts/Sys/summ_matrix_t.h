@@ -143,7 +143,12 @@ void sm_before_collection( summ_matrix_t *summ );
 void sm_after_collection( summ_matrix_t *summ );
 
 bool sm_has_valid_summaries( summ_matrix_t *summ );
+
 bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno );
+/* is gno part the set of summarized regions?  */
+bool sm_is_rgn_summary_avail( summ_matrix_t *summ, int gno );
+/* like above, but returns false for regions we've waved off */
+
 void sm_push_nursery_summary( summ_matrix_t *summ, smircy_context_t *smircy );
 
 void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ, 
