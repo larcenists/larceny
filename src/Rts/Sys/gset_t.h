@@ -80,7 +80,11 @@ static gset_t gset_remove( int gno, gset_t gs ) {
   case gs_nil: assert(0);
   case gs_singleton: rtn.tag = gs_nil; break;
   case gs_range: assert(gno == gs.g1); 
-    rtn.tag = gs_range; rtn.g1 = gs.g1+1; rtn.g2 = gs.g2;
+    if (gs.g1+1 == gs.g2) {
+      rtn.tag = gs_nil;
+    } else { assert2( gs.g1+1 < gs.g2 );
+      rtn.tag = gs_range; rtn.g1 = gs.g1+1; rtn.g2 = gs.g2;
+    }
   }
   return rtn;
 }
