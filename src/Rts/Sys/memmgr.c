@@ -911,7 +911,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     sm_clear_nursery_summary( DATA(gc)->summaries );
     DATA(gc)->rrof_last_tospace = rgn_to;
     handle_secondary_space( gc );
-    smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || DONT_USE_REFINEMENT_COUNTDOWN ||
+    smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || 
+                       DONT_USE_REFINEMENT_COUNTDOWN ||
                        (DATA(gc)->rrof_refine_mark_countdown > 0))
                       ? smircy_step_can_refine
                       : smircy_step_must_refine ));
