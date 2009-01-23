@@ -413,6 +413,8 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
 #define PRINT_SNAPSHOT_INFO_TO_CONSOLE 0
 
+#define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
+
 static const double default_popularity_factor = 2.0;
 static const double default_sumz_budget_factor = 0.1;
 static const double default_sumz_coverage_factor = 0.1;
@@ -519,13 +521,17 @@ static void refine_metadata_via_marksweep( gc_t *gc )
 
 #if PRINT_SNAPSHOT_INFO_TO_CONSOLE
   consolemsg( "% 31s"
-              " snapshot_live: % 5dM peak_snapshot: % 5dM "
-              " promoted_since_snapshot_completed,began: % 5dM, % 5dM ", 
+              " snapshot_live:% 5dM peak_snapshot:% 5dM "
+              " promoted_since_snapshot_completed,began:% 5dM,% 5dM (avg:% 5dK,% 5dK)", 
               "refine_metadata_via_marksweep", 
               DATA(gc)->last_live_words*sizeof(word)/MEGABYTE, 
               DATA(gc)->max_live_words*sizeof(word)/MEGABYTE, 
               DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word)/MEGABYTE, 
-              DATA(gc)->words_promoted_since_snapshot_began*sizeof(word)/MEGABYTE );
+              DATA(gc)->words_promoted_since_snapshot_began*sizeof(word)/MEGABYTE,
+              quotient2(DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word),
+                        DATA(gc)->count_promotions_since_snapshot_completed)/KILOBYTE, 
+              quotient2(DATA(gc)->words_promoted_since_snapshot_began*sizeof(word),
+                        DATA(gc)->count_promotions_since_snapshot_began)/KILOBYTE);
 #endif
 
   refine_remsets_via_marksweep( gc );
@@ -645,15 +651,19 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 
 #if PRINT_SNAPSHOT_INFO_TO_CONSOLE
       consolemsg( "% 31s"
-                  " snapshot_live: % 5dM peak_snapshot: % 5dM "
-                  " promoted_since_snapshot_completed,began: % 5dM, % 5dM "
-                  " live_predicted_at_next_gc: % 5dM "
+                  " snapshot_live:% 5dM peak_snapshot:% 5dM "
+                  " promoted_since_snapshot_completed,began:% 5dM,% 5dM (avg:% 5dK,% 5dK) "
+                  " live_predicted_at_next_gc:% 5dM "
                   " maximum_allotted: % 5dM -> % 5dM",
                   "completed_regional_cycle",
                   DATA(gc)->last_live_words*sizeof(word)/MEGABYTE, 
                   DATA(gc)->max_live_words*sizeof(word)/MEGABYTE, 
                   DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word)/MEGABYTE, 
                   DATA(gc)->words_promoted_since_snapshot_began*sizeof(word)/MEGABYTE, 
+                  quotient2(DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word),
+                            DATA(gc)->count_promotions_since_snapshot_completed)/KILOBYTE, 
+                  quotient2(DATA(gc)->words_promoted_since_snapshot_began*sizeof(word),
+                            DATA(gc)->count_promotions_since_snapshot_began)/KILOBYTE, 
                   live_predicted_at_next_gc/MEGABYTE, 
                   maximum_allotted_pre/MEGABYTE, maximum_allotted_post/MEGABYTE );
 #endif
