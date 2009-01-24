@@ -77,7 +77,7 @@
                  (b0+1 (+ b0 1))
                  (x1 (if (= b0+1 two^53)
                          (make-flonum 0 two^52 (+ e0 1))
-                         (make-flonum 0 (+ b0 1) e0)))
+                         (make-flonum 0 b0+1 e0)))
                  (d0 (- b (%flonum->bignum x0)))
                  (d1 (- (%flonum->bignum x1) b)))
             (cond ((< d0 d1) x0)

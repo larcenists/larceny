@@ -505,15 +505,20 @@
 (define (inexact z) (exact->inexact z))
 
 (define (finite? x)
-  (and (real? x)
-       (not (infinite? x))
-       (not (nan? x))))
+  (if (real? x)
+      (and (not (infinite? x))
+           (not (nan? x)))
+      (assertion-violation 'finite? (errmsg 'msg:notreal) x)))
 
 (define (infinite? x)
-  (and (inexact? x) (or (= x 1e500) (= x -1e500))))
+  (if (real? x)
+      (and (inexact? x) (or (= x 1e500) (= x -1e500)))
+      (assertion-violation 'infinite? (errmsg 'msg:notreal) x)))
 
 (define (nan? x)
-  (and (inexact? x) (not (= x x))))
+  (if (real? x)
+      (and (inexact? x) (not (= x x)))
+      (assertion-violation 'nan? (errmsg 'msg:notreal) x)))
 
 ; FIXME: all of these should be faster
 
