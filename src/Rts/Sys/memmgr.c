@@ -2018,8 +2018,7 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     return current_space;
   } else if ( to_rgn_new != DATA(gc)->rrof_next_region ) {
     do {
-      if (gc_allocated_to_areas( gc, gset_singleton( to_rgn_new )) + expansion_amount
-          < gc_maximum_allotted( gc, gset_singleton( to_rgn_new ))) {
+      if (gc_allocated_to_areas( gc, gset_singleton( to_rgn_new )) == 0) {
         DATA(gc)->rrof_to_region = to_rgn_new;
         return oh_current_space( DATA(gc)->ephemeral_area[ to_rgn_new-1 ] );
       }
