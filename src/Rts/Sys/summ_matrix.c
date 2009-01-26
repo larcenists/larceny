@@ -2095,6 +2095,88 @@ static void clear_col_mutator_rs( summ_matrix_t *summ, int col_idx )
   }
 }
 
+struct rs_scan_add_word_to_rs_data {
+  remset_t      *rs_to;
+  int            to_gen;
+};
+
+static bool rs_scan_add_word_to_rs( word loc, void *my_data, unsigned *stats )
+{
+  struct rs_scan_add_word_to_rs_data *data = 
+    (struct rs_scan_add_word_to_rs_data *) my_data;
+  if (gen_of(loc) != data->to_gen) {
+    rs_add_elem( data->rs_to, loc );
+  }
+  return TRUE; /* don't remove element from scanned remset */
+}
+
+EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
+{
+  struct rs_scan_add_word_to_rs_data scan_data;
+  check_rep_1( summ );
+
+#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP 
+  if ( gset_memberp( rgn_to, DATA(summ)->summarized_genset )) {
+    remset_t *rs_next;
+    remset_t *rs_to;
+    rs_next = DATA(summ)->remset_summaries[ rgn_next ]->sum_remset;
+    rs_to = DATA(summ)->remset_summaries[ rgn_to ]->sum_remset;
+    if (rs_next != NULL) {
+      if (rs_to == NULL) {
+        rs_to = grab_from_remset_pool();
+        DATA(summ)->remset_summaries[ rgn_to ]->sum_remset = rs_to;
+      }
+      scan_data.rs_to  = rs_to;
+      scan_data.to_gen = rgn_to;
+      rs_enumerate( rs_next, rs_scan_add_word_to_rs, &scan_data );
+    }
+  }
+#endif
+
+  if (gset_memberp( rgn_to, DATA(summ)->summarized_genset )) {
+    summ_col_t *col_next, *col_to;
+    summ_cell_t *sent, *cell;
+    col_next = DATA(summ)->cols[rgn_next];
+    col_to   = DATA(summ)->cols[rgn_to];
+
+    if (col_to->overly_popular) 
+      return;
+
+    if ( col_to->sum_mutator == NULL ) {
+      col_to->sum_mutator = grab_from_remset_pool();
+    }
+    sent = col_next->cell_top;
+    cell = sent->next_col;
+    while (cell != sent) {
+      objs_pool_t *objects;
+      for (objects = cell->objects; objects != NULL; objects = objects->next) {
+        word *wptr, w;
+        for ( wptr = objects->bot; wptr < objects->top; wptr++ ) {
+          w = *wptr;
+          if (w == 0x0) {
+            /* cleared entry; skip. */
+          } else {
+            if (gen_of(w) != rgn_to) {
+              rs_add_elem( col_to->sum_mutator, w );
+            }
+          }
+        }
+      }
+      cell = cell->next_col;
+    }
+
+    if (col_next->sum_mutator != NULL) {
+      scan_data.rs_to = col_to->sum_mutator;
+      scan_data.to_gen = rgn_to;
+      rs_enumerate( col_next->sum_mutator, 
+                    rs_scan_add_word_to_rs, 
+                    &scan_data );
+    }
+  }
+
+  check_rep_1( summ );
+}
+
 /* XXX
  * Should be straight-forward. 
  * 
