@@ -170,6 +170,7 @@ void sm_verify_summaries_via_oracle( summ_matrix_t *summ );
 void sm_refine_summaries_via_marksweep( summ_matrix_t *summ );
 int  sm_summarized_live( summ_matrix_t *summ, int rgn );
 void sm_invalidate_summaries( summ_matrix_t *summ );
+void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to );
 void sm_clear_summary( summ_matrix_t *summ, int rgn_next );
 void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
 void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs );
