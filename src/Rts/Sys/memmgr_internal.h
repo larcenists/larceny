@@ -1,3 +1,8 @@
+struct promotion_counts {
+  int words_promoted;
+  int count_promotions;
+};
+
 typedef struct gc_data gc_data_t;
 
 /* The 'remset' table in the gc structure has one extra element if the
@@ -112,12 +117,12 @@ struct gc_data {
   /* these are precise measures according to heap snapshots */
   int last_live_words;
   int max_live_words;
-  int words_promoted_since_snapshot_completed;
-  int words_promoted_since_snapshot_began; 
+
   /* need to track these separately, since storage is allocated
    * concurrently with snapshotting. */
-  int count_promotions_since_snapshot_completed;
-  int count_promotions_since_snapshot_began;
+  struct promotion_counts since_finished_snapshot_began;
+  struct promotion_counts since_developing_snapshot_began;
+  struct promotion_counts since_cycle_began;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))

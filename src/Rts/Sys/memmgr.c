@@ -430,8 +430,9 @@ static void smircy_start( gc_t *gc )
   DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
   smircy_push_roots( gc->smircy );
   sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
-  DATA(gc)->words_promoted_since_snapshot_began = 0;
-  DATA(gc)->count_promotions_since_snapshot_began = 0;
+
+  DATA(gc)->since_developing_snapshot_began.words_promoted = 0;
+  DATA(gc)->since_developing_snapshot_began.count_promotions = 0;
 }
 
 static bool scan_refine_remset( word loc, void *data, unsigned *stats )
@@ -468,6 +469,28 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   }
 }
 
+static void zeroed_promotion_counts( gc_t* gc ) 
+{
+  DATA(gc)->since_finished_snapshot_began.words_promoted     = 0;
+  DATA(gc)->since_developing_snapshot_began.words_promoted   = 0;
+  DATA(gc)->since_cycle_began.words_promoted                 = 0;
+
+  DATA(gc)->since_finished_snapshot_began.count_promotions   = 0;
+  DATA(gc)->since_developing_snapshot_began.count_promotions = 0;
+  DATA(gc)->since_cycle_began.count_promotions               = 0;
+}
+
+static void update_promotion_counts( gc_t *gc, int words_promoted )
+{
+  DATA(gc)->since_finished_snapshot_began.words_promoted   += words_promoted;
+  DATA(gc)->since_developing_snapshot_began.words_promoted += words_promoted;
+  DATA(gc)->since_cycle_began.words_promoted               += words_promoted;
+
+  DATA(gc)->since_finished_snapshot_began.count_promotions   += 1;
+  DATA(gc)->since_developing_snapshot_began.count_promotions += 1;
+  DATA(gc)->since_cycle_began.count_promotions               += 1;
+}
+
 static void reset_countdown_to_next_refine( gc_t *gc )
 {
   int marked, words_marked; 
@@ -494,10 +517,12 @@ static void reset_countdown_to_next_refine( gc_t *gc )
     DATA(gc)->last_live_words = words_marked;
     DATA(gc)->max_live_words = 
       max( DATA(gc)->max_live_words, words_marked );
-    DATA(gc)->words_promoted_since_snapshot_completed =
-      DATA(gc)->words_promoted_since_snapshot_began;
-    DATA(gc)->count_promotions_since_snapshot_completed = 
-      DATA(gc)->count_promotions_since_snapshot_began;
+
+    DATA(gc)->since_finished_snapshot_began.words_promoted =
+      DATA(gc)->since_developing_snapshot_began.words_promoted;
+    DATA(gc)->since_finished_snapshot_began.count_promotions =
+      DATA(gc)->since_developing_snapshot_began.count_promotions;
+
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
   } else {
     assert(0);
@@ -526,12 +551,12 @@ static void refine_metadata_via_marksweep( gc_t *gc )
               "refine_metadata_via_marksweep", 
               DATA(gc)->last_live_words*sizeof(word)/MEGABYTE, 
               DATA(gc)->max_live_words*sizeof(word)/MEGABYTE, 
-              DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word)/MEGABYTE, 
-              DATA(gc)->words_promoted_since_snapshot_began*sizeof(word)/MEGABYTE,
-              quotient2(DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word),
-                        DATA(gc)->count_promotions_since_snapshot_completed)/KILOBYTE, 
-              quotient2(DATA(gc)->words_promoted_since_snapshot_began*sizeof(word),
-                        DATA(gc)->count_promotions_since_snapshot_began)/KILOBYTE);
+              DATA(gc)->words_promoted_since_finished_snapshot_began*sizeof(word)/MEGABYTE, 
+              DATA(gc)->words_promoted_since_developing_snapshot_began*sizeof(word)/MEGABYTE,
+              quotient2(DATA(gc)->words_promoted_since_finished_snapshot_completed*sizeof(word),
+                        DATA(gc)->count_promotions_since_finished_snapshot_completed)/KILOBYTE, 
+              quotient2(DATA(gc)->words_promoted_since_developing_snapshot_began*sizeof(word),
+                        DATA(gc)->count_promotions_since_developing_snapshot_began)/KILOBYTE);
 #endif
 
   refine_remsets_via_marksweep( gc );
@@ -577,10 +602,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     int live_words = gc_allocated_to_areas( gc, gset_singleton( 1 ));
     DATA(gc)->last_live_words = live_words;
     DATA(gc)->max_live_words = max( DATA(gc)->max_live_words, live_words );
-    DATA(gc)->words_promoted_since_snapshot_completed = 0;
-    DATA(gc)->words_promoted_since_snapshot_began = 0;
-    DATA(gc)->count_promotions_since_snapshot_completed = 0;
-    DATA(gc)->count_promotions_since_snapshot_began = 0;
+    zeroed_promotion_counts( gc );
   }
 
 #if SYNC_REFINEMENT_RROF_CYCLE
@@ -804,10 +826,8 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
     DATA(gc)->last_live_words = words_marked;
     DATA(gc)->max_live_words = 
       max( DATA(gc)->max_live_words, words_marked );
-    DATA(gc)->words_promoted_since_snapshot_completed =
-      DATA(gc)->words_promoted_since_snapshot_began;
-    DATA(gc)->count_promotions_since_snapshot_completed = 
-      DATA(gc)->count_promotions_since_snapshot_began;
+    DATA(gc)->since_finished_snapshot_began =
+      DATA(gc)->since_developing_snapshot_began;
   }
 
   if ((finish_mode == smircy_step_must_refine) 
@@ -989,10 +1009,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     sm_clear_nursery_summary( DATA(gc)->summaries );
     DATA(gc)->rrof_last_tospace = rgn_to;
     handle_secondary_space( gc );
-    DATA(gc)->words_promoted_since_snapshot_completed += gc->words_from_nursery_last_gc;
-    DATA(gc)->words_promoted_since_snapshot_began     += gc->words_from_nursery_last_gc;
-    DATA(gc)->count_promotions_since_snapshot_completed += 1;
-    DATA(gc)->count_promotions_since_snapshot_began     += 1;
+    update_promotion_counts( gc, gc->words_from_nursery_last_gc );
     smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || 
                        DONT_USE_REFINEMENT_COUNTDOWN ||
                        (DATA(gc)->rrof_refine_mark_countdown > 0))
@@ -1039,10 +1056,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   DATA(gc)->rrof_last_tospace = rgn_to;
   
   handle_secondary_space( gc );
-  DATA(gc)->words_promoted_since_snapshot_completed += gc->words_from_nursery_last_gc;
-  DATA(gc)->words_promoted_since_snapshot_began     += gc->words_from_nursery_last_gc;
-  DATA(gc)->count_promotions_since_snapshot_completed += 1;
-  DATA(gc)->count_promotions_since_snapshot_began     += 1;
+  update_promotion_counts( gc, gc->words_from_nursery_last_gc );
   smircy_step( gc, smircy_step_dont_refine );
   
   rrof_completed_minor_collection( gc );
@@ -2646,11 +2660,6 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->last_live_words = 0;
   data->max_live_words = 0;
-  data->words_promoted_since_snapshot_began = 0;
-  data->words_promoted_since_snapshot_completed = 0;
-  data->count_promotions_since_snapshot_began = 0;
-  data->count_promotions_since_snapshot_completed = 0;
-
   ret = 
     create_gc_t( "*invalid*",
 		 (void*)data,
@@ -2691,6 +2700,9 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 points_across_callback
 		 );
   ret->scan_update_remset = info->is_regional_system;
+
+  zeroed_promotion_counts( ret );
+
   return ret;
 }
 

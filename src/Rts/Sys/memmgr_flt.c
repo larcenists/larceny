@@ -220,8 +220,8 @@ void print_float_stats( char *caller_name, gc_t *gc )
                 (int)(100.0*(double)total_float_words/(double)words_marked), 
                 DATA(gc)->max_live_words?(int)(100.0*(double)total_float_words/(double)DATA(gc)->max_live_words):0, 
                 DATA(gc)->rrof_refine_mark_countdown, 
-                DATA(gc)->words_promoted_since_snapshot_completed, 
-                DATA(gc)->words_promoted_since_snapshot_began, 
+                DATA(gc)->since_finished_snapshot_began.words_promoted, 
+                DATA(gc)->since_developing_snapshot_began.words_promoted, 
                 estimated_live/1024, words_marked/1024, DATA(gc)->max_live_words/1024, 
                 estimated_live?(((double)estimated_live)/(double)words_marked):0.0 );
 
