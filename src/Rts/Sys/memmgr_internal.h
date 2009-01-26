@@ -51,6 +51,8 @@ struct gc_data {
     /* true implies the collector is currently doing a minor collection. */
   int rrof_to_region;
     /* In RROF collector, the to-space for minor collections. */
+  int rrof_to_region_before_space_switch;
+    /* In RROF collector, to-space before gc switched b/c space exhaustion */
   int rrof_next_region;
     /* In RROF collector, the next region scheduled for major collection. */
   int rrof_last_tospace;
