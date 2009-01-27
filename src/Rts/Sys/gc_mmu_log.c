@@ -228,11 +228,11 @@ static int buf_min( gc_mmu_log_t *log, int idx_1, int idx_2 )
  * consider buffer circularity), which corresponds to the *most*
  * entries we can drop (from this window's perspective).
  */
-static int update_window( gc_mmu_log_t *log,
-                           struct event_window *w, 
-                           gc_log_phase_t incoming, 
-                           unsigned elapsed_real,
-                           unsigned elapsed_cpu )
+static int update_window_drop_outdated( gc_mmu_log_t *log,
+                                        struct event_window *w, 
+                                        gc_log_phase_t incoming, 
+                                        unsigned elapsed_real,
+                                        unsigned elapsed_cpu )
 {
   int new_buf_idx_real, new_buf_idx_cpu;
 
@@ -249,10 +249,10 @@ static int update_window( gc_mmu_log_t *log,
 
   return buf_min( log, new_buf_idx_real, new_buf_idx_cpu );
 }
-static void update_windows( gc_mmu_log_t *log, 
-                            gc_log_phase_t incoming, 
-                            unsigned elapsed_real,
-                            unsigned elapsed_cpu )
+static void update_windows_drop_outdated( gc_mmu_log_t *log, 
+                                          gc_log_phase_t incoming, 
+                                          unsigned elapsed_real,
+                                          unsigned elapsed_cpu )
 {
   struct event_window *w;
   int i;
@@ -260,7 +260,8 @@ static void update_windows( gc_mmu_log_t *log,
   int new_idx;
   for ( i = 0; i < log->windows.len; i++ ) {
     w = &log->windows.array[i];
-    new_idx = update_window( log, w, incoming, elapsed_real, elapsed_cpu );
+    new_idx = update_window_drop_outdated( log, w, incoming, 
+                                           elapsed_real, elapsed_cpu );
     if (choose_new_first < 0)
       choose_new_first = new_idx;
     else
@@ -293,7 +294,7 @@ static void enqueue( gc_mmu_log_t *log,
   }
   log->buffer.end = enq;
 
-  update_windows( log, incoming, elapsed_real, elapsed_cpu );
+  update_windows_drop_outdated( log, incoming, elapsed_real, elapsed_cpu );
 }
 
 EXPORT
