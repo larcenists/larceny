@@ -324,8 +324,41 @@ void gc_mmu_log_phase_shift( gc_mmu_log_t *log,
   log->in_progress.start_cpu  = start_cpu;
 }
 
+static void print_event_stats( gc_mmu_log_t *log, struct event_window *w, 
+                               char *name, struct event_phase_stats *s, 
+                               FILE *f )
+{
+  fprintf( f, "(%s ", name);
+  fprintf( f, "(min (real %d cpu %d)) ",  s->min_real,     s->min_cpu  );
+  fprintf( f, "(curr (real %d cpu %d)) ", s->current_real, s->current_cpu );
+  fprintf( f, "(max (real %d cpu %d)) ",  s->max_real,     s->max_cpu  );
+  fprintf( f, ") ");
+}
+static void print_window( gc_mmu_log_t *log, struct event_window *w, FILE *f )
+{
+  fprintf( f, "(window (size %d) ", w->size );
+  print_event_stats( log, w, "mutator",   &w->mutator,     f );
+  print_event_stats( log, w, "memmgr",    &w->misc_memmgr, f );
+  print_event_stats( log, w, "minorgc",   &w->minorgc,     f );
+  print_event_stats( log, w, "majorgc",   &w->majorgc,     f );
+  print_event_stats( log, w, "summarize", &w->summarize,   f );
+  print_event_stats( log, w, "smircy",    &w->smircy,      f );
+  fprintf( f, ") " );
+}
+static void print_windows( gc_mmu_log_t *log, FILE* f ) 
+{
+  struct event_window *w;
+  int i;
+  for ( i = 0; i < log->windows.len; i++ ) {
+    w = &log->windows.array[i];
+    print_window( log, w, f );
+  }
+}
+
 EXPORT
 void gc_mmu_log_print_data( gc_mmu_log_t *log, FILE *f )
 {
-  assert(0);
+  fprintf( f, "#(gc_mmu_log_t " );
+  print_windows( log, f );
+  fprintf( f, ") ");
 }
