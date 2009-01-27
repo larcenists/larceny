@@ -1431,17 +1431,33 @@ void smircy_push_elems( smircy_context_t *context, word *bot, word *top )
 
 void smircy_drop_cleared_stack_entries( smircy_context_t *context, int gno ) 
 {
+  obj_stack_entry_t **p_obj_cursor;
+  obj_stack_entry_t *obj_cursor;
+  large_object_cursor_t **p_los_cursor;
+  large_object_cursor_t *los_cursor;
+
   CHECK_REP( context );
 
-  while ((context->rgn_to_obj_entry[gno] != NULL) && 
-         (context->rgn_to_obj_entry[gno]->val == 0x0)) {
-    context->rgn_to_obj_entry[gno] = 
-      context->rgn_to_obj_entry[gno]->next_in_rgn;
+  p_obj_cursor = &context->rgn_to_obj_entry[gno];
+  obj_cursor = *p_obj_cursor;
+  while (obj_cursor != NULL) {
+    if (obj_cursor->val == 0x0) {
+      *p_obj_cursor = obj_cursor->next_in_rgn;
+    } else {
+      p_obj_cursor = &obj_cursor->next_in_rgn;
+    }
+    obj_cursor = *p_obj_cursor;
   }
-  while ((context->rgn_to_los_entry[gno] != NULL) &&
-         (context->rgn_to_los_entry[gno]->object == 0x0)) {
-    context->rgn_to_los_entry[gno] = 
-      context->rgn_to_los_entry[gno]->next_in_rgn;
+
+  p_los_cursor = &context->rgn_to_los_entry[gno];
+  los_cursor = *p_los_cursor;
+  while (los_cursor != NULL) {
+    if (los_cursor->object == 0x0) {
+      *p_los_cursor = los_cursor->next_in_rgn;
+    } else {
+      p_los_cursor = &los_cursor->next_in_rgn;
+    }
+    los_cursor = *p_los_cursor;
   }
 
   CHECK_REP( context );
