@@ -123,6 +123,12 @@ struct gc_data {
   struct promotion_counts since_finished_snapshot_began;
   struct promotion_counts since_developing_snapshot_began;
   struct promotion_counts since_cycle_began;
+
+  int last_live_words_at_time_cycle_began;
+  struct promotion_counts since_finished_snapshot_at_time_cycle_began_began;
+  /* parse the above name as ``promotions since the beginning of the
+     last completed snapshot at the time when this cycle itself
+     began.'' */
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
