@@ -1330,6 +1330,14 @@ static void stats_dump_state_now( FILE *f )
     PRINT_WORD( f, s, moved_by_prom );
     fprintf( f, ") " );
   }
+
+  /* Print minimum mutator utilization information */
+  {
+    /* lives in gc.c */
+    extern void dump_mmu_data( FILE *f );
+    dump_mmu_data( f );
+  }
+
   fprintf( f, ")" );
   fflush( f );
 }
