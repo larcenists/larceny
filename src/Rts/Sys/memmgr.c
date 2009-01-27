@@ -103,7 +103,7 @@ static gc_phase_shift( gc_t *gc, gc_log_phase_t prev, gc_log_phase_t next )
 #endif
 }
 
-gc_dump_mmu_data( gc_t *gc, FILE *f ) 
+void gc_dump_mmu_data( gc_t *gc, FILE *f ) 
 {
 #if GATHER_MMU_DATA
   gc_mmu_log_print_data( DATA(gc)->mmu_log, f );
