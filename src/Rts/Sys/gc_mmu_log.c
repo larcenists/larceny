@@ -191,9 +191,9 @@ static void update_ref_to_start( gc_mmu_log_t *log,
     shifted_plus_new = unshifted_plus_new;
     elapsed = ENTRY_ELAPSED( isreal_and_not_cpu, log->buffer.entries[i] );
     while ((shifted_plus_new - elapsed) > size) {
+      assert( i != log->buffer.end );
       shifted_plus_new -= elapsed;
       i = ((i+1) % log->buffer.capacity);
-      assert( i != log->buffer.end );
       elapsed = ENTRY_ELAPSED(isreal_and_not_cpu, log->buffer.entries[i]);
     }
     assert( elapsed == ENTRY_ELAPSED( isreal_and_not_cpu, log->buffer.entries[i] ));
@@ -204,20 +204,48 @@ static void update_ref_to_start( gc_mmu_log_t *log,
     r->entry_offset = size - (shifted_plus_new - elapsed);
   }
 }
+static int buf_min( gc_mmu_log_t *log, int idx_1, int idx_2 ) 
+{
+  int buf_end = log->buffer.end;
+  if ((idx_1 - buf_end) * (idx_2 - buf_end) < 0) {
+    /* one idx has wrapped around but other has not; the "min" is the
+     * one closest to buf_end ==> the max. */
+    return max( idx_1, idx_2 );
+  } else {
+    return min( idx_1, idx_2 );
+  }
+}
 
 /* shifts the buf_idx and buf_entry_offsets forward to reflect the
  * enqueuing of the incoming event.
  * (Note that this may require stepping through an arbitrary number of
  *  events in the log.)
+ * Assumes that the incoming event has already been enqueued in the log.
+ *
+ * Returns the "least" buf_idx installed (where the idx order must
+ * consider buffer circularity), which corresponds to the *most*
+ * entries we can drop (from this window's perspective).
  */
-static void update_window( gc_mmu_log_t *log,
+static int update_window( gc_mmu_log_t *log,
                            struct event_window *w, 
                            gc_log_phase_t incoming, 
                            unsigned elapsed_real,
                            unsigned elapsed_cpu )
 {
+  int new_buf_idx_real, new_buf_idx_cpu;
+
   update_ref_to_start( log, w, &w->window_start_real, elapsed_real, TRUE );
   update_ref_to_start( log, w, &w->window_start_cpu,  elapsed_cpu, FALSE );
+
+  new_buf_idx_real = w->window_start_real.buf_idx;
+  new_buf_idx_cpu  = w->window_start_cpu.buf_idx;
+
+  if (new_buf_idx_real < 0)
+    new_buf_idx_real = log->buffer.first;
+  if (new_buf_idx_cpu < 0)
+    new_buf_idx_cpu = log->buffer.first;
+
+  return buf_min( log, new_buf_idx_real, new_buf_idx_cpu );
 }
 static void update_windows( gc_mmu_log_t *log, 
                             gc_log_phase_t incoming, 
@@ -226,10 +254,22 @@ static void update_windows( gc_mmu_log_t *log,
 {
   struct event_window *w;
   int i;
+  int choose_new_first = -1;
+  int new_idx;
   for ( i = 0; i < log->windows.len; i++ ) {
     w = &log->windows.array[i];
-    update_window( log, w, incoming, elapsed_real, elapsed_cpu );
+    new_idx = update_window( log, w, incoming, elapsed_real, elapsed_cpu );
+    if (choose_new_first < 0)
+      choose_new_first = new_idx;
+    else
+      choose_new_first = buf_min( log, choose_new_first, new_idx );
   }
+
+#if 0
+  consolemsg("pre(first): %d post(first): %d", 
+             log->buffer.first, choose_new_first);
+#endif
+  log->buffer.first = choose_new_first;
 }
 
 static void enqueue( gc_mmu_log_t *log,
@@ -239,8 +279,6 @@ static void enqueue( gc_mmu_log_t *log,
 {
   int enq = log->buffer.end;
 
-  update_windows( log, incoming, elapsed_real, elapsed_cpu );
-
   log->buffer.entries[enq].phase = incoming;
   log->buffer.entries[enq].elapsed_real = elapsed_real;
   log->buffer.entries[enq].elapsed_cpu  = elapsed_cpu;
@@ -248,6 +286,8 @@ static void enqueue( gc_mmu_log_t *log,
   enq = (enq+1) % log->buffer.capacity;
   assert( enq != log->buffer.first );
   log->buffer.end = enq;
+
+  update_windows( log, incoming, elapsed_real, elapsed_cpu );
 }
 
 EXPORT
@@ -259,8 +299,8 @@ void gc_mmu_log_phase_shift( gc_mmu_log_t *log,
   unsigned start_real, start_cpu;
   unsigned elapsed_real, elapsed_cpu;
 
-  assert2( log->in_progress.phase == prev );
-  assert2( prev != next );
+  assert( log->in_progress.phase == prev );
+  assert( prev != next );
 
   start_real = log->in_progress.start_real;
   start_cpu  = log->in_progress.start_cpu;
