@@ -95,6 +95,9 @@ typedef struct swb_stats swb_stats_t;
 #endif
 typedef struct gc_event_stats gc_event_stats_t;
 
+/* gc_mmu_log.h */
+typedef struct gc_mmu_log gc_mmu_log_t;
+
 /* Currently these are in gc.h but should perhaps move? */
 typedef struct np_info np_info_t;
 typedef struct sc_info sc_info_t;
