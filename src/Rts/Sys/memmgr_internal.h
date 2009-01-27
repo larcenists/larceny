@@ -103,6 +103,8 @@ struct gc_data {
 
   semispace_t *secondary_space; /* NULL or space for when tospace overflows */
 
+  gc_mmu_log_t *mmu_log;
+
   int stat_last_ms_remset_sumrize;
   int stat_last_ms_remset_sumrize_cpu;
   int stat_last_ms_mark_refinement;
