@@ -1434,10 +1434,8 @@ enumerate_smircy_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *
                                    DATA(gc)->rrof_next_region, 
                                    apply_f, 
                                    &smircy_data ); 
-    if (DATA(gc)->rrof_to_region != DATA(gc)->rrof_next_region) {
-      smircy_drop_cleared_stack_entries( gc->smircy, DATA(gc)->rrof_next_region );
-    }
-  } 
+    smircy_drop_cleared_stack_entries( gc->smircy, DATA(gc)->rrof_next_region );
+  }
 #endif 
 } 
 
