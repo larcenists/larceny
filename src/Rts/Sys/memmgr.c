@@ -23,6 +23,7 @@ const char *larceny_gc_technology = "precise";
 #include "semispace_t.h"
 #include "gset_t.h"
 #include "gclib.h"
+#include "gc_mmu_log.h"
 #include "heapio.h"
 #include "barrier.h"
 #include "stack.h"
@@ -89,6 +90,16 @@ gc_t *create_gc( gc_param_t *info, int *generations )
 
   effect_heap_limits( gc );
   return gc;
+}
+
+#define GATHER_MMU_DATA 0
+
+static gc_phase_shift( gc_t *gc, gc_log_phase_t prev, gc_log_phase_t next )
+{
+#if GATHER_MMU_DATA
+  assert2( DATA(gc)->mmu_log != NULL );
+  gc_mmu_log_phase_shift( DATA(gc)->mmu_log, prev, next );
+#endif
 }
 
 /* The size of the dynamic (expandable) area is computed based on live data.
@@ -300,6 +311,8 @@ static int initialize( gc_t *gc )
     wb_disable_barrier( data->globals );
 
   annoyingmsg( "\nGC type: %s", gc->id );
+
+  gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_mutator );
 
   return 1;
 }
@@ -1273,6 +1286,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
   assert( rgn > 0 || bytes_needed >= 0 );
   assert( data->in_gc >= 0 );
 
+  gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_misc_memmgr );
+
   if (data->in_gc++ >= 0) {
     gc_signal_moving_collection( gc );
     before_collection( gc );
@@ -1315,6 +1330,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 		 stats.rts_allocated );
     annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
   }
+
+  gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_mutator );
 }
 
 static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 
@@ -2722,6 +2739,25 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->last_live_words = 0;
   data->max_live_words = 0;
+
+#if GATHER_MMU_DATA
+  { 
+    static int mmu_window_lengths[] = {
+      100, 
+      1000, 
+      10000, 
+      /*
+      100000,
+      1000000,
+      */
+      -1 /* end of array marker */
+    };
+
+    data->mmu_log = 
+      create_gc_mmu_log( mmu_window_lengths, 5000, gc_log_phase_misc_memmgr );
+  }
+#endif
+
   ret = 
     create_gc_t( "*invalid*",
 		 (void*)data,
