@@ -186,6 +186,8 @@ int reorganize_and_dump_static_heap( const char *filename )
 #endif
 }
 
+/* WARNING: this function is not declared in any header file; every
+ * invocation of it is a hack.  FIXME. */
 void dump_mmu_data( FILE *f )
 {
   gc_dump_mmu_data( gc, f );
