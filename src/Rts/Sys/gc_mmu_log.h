@@ -42,6 +42,10 @@ void gc_mmu_log_phase_shift( gc_mmu_log_t *log,
    * (client provides prev so that we can sanity check the phase shifts) 
    */
 
-void gc_mmu_log_print_data( gc_mmu_log_t *log );
-  /* prints current MMU log data to the console.
+void gc_mmu_log_print_data( gc_mmu_log_t *log, FILE *f );
+  /* prints current MMU log data to f as a Scheme s-exp.
+   * 
+   * (see format used in stats.c to get a rough idea of how it will
+   *  look, though Felix is planning to make this particular output
+   *  more self-documenting.)
    */

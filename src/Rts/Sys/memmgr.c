@@ -10,6 +10,7 @@ const char *larceny_gc_technology = "precise";
 #define GC_INTERNAL
 
 #include <string.h>
+#include <stdio.h>     /* gc_mmu_log_print_data uses FILE* type */
 #include "larceny.h"
 #include "gc.h"
 #include "gc_t.h"
@@ -99,6 +100,13 @@ static gc_phase_shift( gc_t *gc, gc_log_phase_t prev, gc_log_phase_t next )
 #if GATHER_MMU_DATA
   assert2( DATA(gc)->mmu_log != NULL );
   gc_mmu_log_phase_shift( DATA(gc)->mmu_log, prev, next );
+#endif
+}
+
+gc_dump_mmu_data( gc_t *gc, FILE *f ) 
+{
+#if GATHER_MMU_DATA
+  gc_mmu_log_print_data( DATA(gc)->mmu_log, f );
 #endif
 }
 

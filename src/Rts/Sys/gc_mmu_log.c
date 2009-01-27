@@ -6,6 +6,8 @@
  * utilization (MMU) data
  */
 
+#include <stdio.h>
+
 #include "larceny.h"
 #include "gc_mmu_log.h"
 
@@ -323,7 +325,7 @@ void gc_mmu_log_phase_shift( gc_mmu_log_t *log,
 }
 
 EXPORT
-void gc_mmu_log_print_data( gc_mmu_log_t *log )
+void gc_mmu_log_print_data( gc_mmu_log_t *log, FILE *f )
 {
   assert(0);
 }
