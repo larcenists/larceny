@@ -284,7 +284,11 @@ static void enqueue( gc_mmu_log_t *log,
   log->buffer.entries[enq].elapsed_cpu  = elapsed_cpu;
 
   enq = (enq+1) % log->buffer.capacity;
-  assert( enq != log->buffer.first );
+  if ( enq == log->buffer.first ) {
+    panic_exit( "Cannot enqueue event in MMU log of capacity %d entries "
+                "(disable MMU or increase its capacity).",
+                log->buffer.capacity );
+  }
   log->buffer.end = enq;
 
   update_windows( log, incoming, elapsed_real, elapsed_cpu );
