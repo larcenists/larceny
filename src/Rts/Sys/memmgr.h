@@ -8,6 +8,7 @@
 #ifndef INCLUDED_MEMMGR_H
 #define INCLUDED_MEMMGR_H
 
+#include <stdio.h>
 #include "larceny-types.h"
 #include "gclib.h"
 
@@ -55,6 +56,8 @@ void gc_signal_minor_collection( gc_t *gc );
      already survived a previous collection have not changed.
      */
     
+void gc_dump_mmu_data( gc_t *gc, FILE *f );
+
 /* In nursery.c */
 
 young_heap_t *
