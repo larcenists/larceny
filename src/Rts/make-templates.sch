@@ -373,6 +373,7 @@ PRECISE_GC_OBJECTS=\\
 	Sys/alloc.$(O) Sys/cheney.$(O) Sys/gc.$(O) \\
 	Sys/cheney-check.$(O) Sys/cheney-np.$(O) Sys/cheney-split.$(O) \\
 	Sys/heapio.$(O) Sys/los.$(O) Sys/ffi.$(O) \\
+	Sys/gc_mmu_log.$(O) \\
 	Sys/memmgr.$(O) Sys/memmgr_vfy.$(O) Sys/memmgr_flt.$(O) \\
 	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) \\
 	Sys/old_heap_t.$(O) Sys/old-heap.$(O) \\
@@ -494,6 +495,7 @@ realclean: clean
 	  $(INC_ROOT)/cdefs.h $(INC_ROOT)/config.h
 BARRIER_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H) Sys/barrier.h
 GCLIB_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/gclib.h
+GC_MMU_LOG_H=Sys/gc_mmu_log.h
 HEAPIO_H=$(INC_ROOT)/cdefs.h $(INC_ROOT)/Sys/larceny-types.h Sys/heapio.h
 LOS_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/los_t.h
 MEMMGR_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H) Sys/memmgr.h
@@ -570,6 +572,7 @@ Sys/cheney-check.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h $(GCLIB_H) \\
 Sys/ffi.$(O): $(LARCENY_H)
 Sys/gc.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(HEAPIO_H) $(SEMISPACE_T_H) \\
 	$(STATIC_HEAP_T_H)
+Sys/gc_mmu_log.$(O): $(LARCENY_H) $(GC_MMU_LOG_H)
 Sys/gc_t.$(O): $(LARCENY_H) Sys/gc_t.h Sys/gset_t.h
 Sys/heapio.$(O): $(LARCENY_H) $(HEAPIO_H) $(SEMISPACE_T_H) $(GCLIB_H)
 Sys/larceny.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(STATS_H) $(YOUNG_HEAP_T_H)
