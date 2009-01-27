@@ -571,7 +571,7 @@ Sys/cheney-check.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h $(GCLIB_H) \\
 	Sys/cheney.h
 Sys/ffi.$(O): $(LARCENY_H)
 Sys/gc.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(HEAPIO_H) $(SEMISPACE_T_H) \\
-	$(STATIC_HEAP_T_H)
+	$(STATIC_HEAP_T_H) $(MEMMGR_H)
 Sys/gc_mmu_log.$(O): $(LARCENY_H) $(GC_MMU_LOG_H)
 Sys/gc_t.$(O): $(LARCENY_H) Sys/gc_t.h Sys/gset_t.h
 Sys/heapio.$(O): $(LARCENY_H) $(HEAPIO_H) $(SEMISPACE_T_H) $(GCLIB_H)
