@@ -474,10 +474,14 @@ static void zeroed_promotion_counts( gc_t* gc )
   DATA(gc)->since_finished_snapshot_began.words_promoted     = 0;
   DATA(gc)->since_developing_snapshot_began.words_promoted   = 0;
   DATA(gc)->since_cycle_began.words_promoted                 = 0;
+  DATA(gc)->since_finished_snapshot_at_time_cycle_began_began
+    .words_promoted = 0;
 
   DATA(gc)->since_finished_snapshot_began.count_promotions   = 0;
   DATA(gc)->since_developing_snapshot_began.count_promotions = 0;
   DATA(gc)->since_cycle_began.count_promotions               = 0;
+  DATA(gc)->since_finished_snapshot_at_time_cycle_began_began
+    .count_promotions = 0;
 }
 
 static void update_promotion_counts( gc_t *gc, int words_promoted )
@@ -485,10 +489,14 @@ static void update_promotion_counts( gc_t *gc, int words_promoted )
   DATA(gc)->since_finished_snapshot_began.words_promoted   += words_promoted;
   DATA(gc)->since_developing_snapshot_began.words_promoted += words_promoted;
   DATA(gc)->since_cycle_began.words_promoted               += words_promoted;
+  DATA(gc)->since_finished_snapshot_at_time_cycle_began_began
+    .words_promoted += words_promoted;
 
   DATA(gc)->since_finished_snapshot_began.count_promotions   += 1;
   DATA(gc)->since_developing_snapshot_began.count_promotions += 1;
   DATA(gc)->since_cycle_began.count_promotions               += 1;
+  DATA(gc)->since_finished_snapshot_at_time_cycle_began_began 
+    .count_promotions += 1;
 }
 
 static void reset_countdown_to_next_refine( gc_t *gc )
@@ -605,6 +613,13 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     zeroed_promotion_counts( gc );
   }
 
+  DATA(gc)->since_cycle_began.words_promoted   = 0;
+  DATA(gc)->since_cycle_began.count_promotions = 0;
+  DATA(gc)->last_live_words_at_time_cycle_began = 
+    DATA(gc)->last_live_words;
+  DATA(gc)->since_finished_snapshot_at_time_cycle_began_began =
+    DATA(gc)->since_finished_snapshot_began;
+
 #if SYNC_REFINEMENT_RROF_CYCLE
   if (gc->smircy == NULL)
     smircy_start( gc );
@@ -674,7 +689,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 #if PRINT_SNAPSHOT_INFO_TO_CONSOLE
       consolemsg( "% 31s"
                   " snapshot_live:% 5dM peak_snapshot:% 5dM "
-                  " promoted_since_snapshot_completed,began:% 5dM,% 5dM (avg:% 5dK,% 5dK) "
+                  " promoted_since_snapshot_completed,began:% 5dM,% 5dM (avg:% 5dK,% 5dK)"
                   " live_predicted_at_next_gc:% 5dM "
                   " maximum_allotted: % 5dM -> % 5dM",
                   "completed_regional_cycle",
@@ -1174,12 +1189,40 @@ static void collect_rgnl_policy( gc_t *gc,
      ! DATA(gc)->ephemeral_area[ rgn_succ_to ]->has_popular_objects );
 }
 
+static int count_majors_togo( gc_t *gc ) 
+{
+  int rtn;
+  int i;
+  rtn = 0;
+
+  for ( i = DATA(gc)->rrof_next_region; i <= DATA(gc)->region_count; i++ ) {
+    if (gc_allocated_to_areas( gc, gset_singleton( i )) > 0) {
+      rtn++;
+    }
+  }
+  return rtn;
+}
+
 static void collect_rgnl_evacuate_nursery( gc_t *gc ) 
 {
   /* only forward data out of the nursery, if possible */
   int rgn_to, rgn_succ_to, rgn_next;
   int num_rgns = DATA(gc)->region_count;
   bool can_do_major, can_do_minor, succ_can_do_minor;
+
+  int majors_sofar = DATA(gc)->rrof_next_region;
+  int majors_togo = count_majors_togo( gc );
+  int majors_total = majors_sofar + majors_togo;
+  int N_old  = DATA(gc)->last_live_words_at_time_cycle_began;
+  int N_new  = DATA(gc)->since_finished_snapshot_at_time_cycle_began_began.words_promoted;
+  int N_this = DATA(gc)->since_cycle_began.words_promoted;
+  int N_target_1 = 3 * (N_new - N_this);
+  int N_target_2 = quotient2(N_old, 4);
+  int N_target_3 = N_old - (N_new - N_this);
+  int N_target = max( 5*MEGABYTE/sizeof(word),
+                      min( N_target_3, max( N_target_2, N_target_1 )));
+  bool will_says_should_major = 
+    ((majors_total * N_this) >= (majors_sofar * N_target));
 
   DATA(gc)->rrof_refine_mark_countdown -= 1;
 
@@ -1192,6 +1235,17 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
                        &can_do_major, &can_do_minor, &succ_can_do_minor );
   if (rgn_succ_to == rgn_to)
     succ_can_do_minor = FALSE;
+
+#if 0
+  consolemsg( "majors_sofar:% 3d majors_togo:% 3d majors_total:% 3d "
+              "N_old:% 5dK, N_new:% 5dK N_this:% 5dK "
+              "N_target:% 5dK = max(5M,min(% 5dK,max(% 5dK,% 5dK))) => will says: %s",
+              majors_sofar, majors_togo, majors_total, 
+              N_old/1000, N_new/1000, N_this/1000, 
+              N_target/1000, N_target_3/1000, N_target_2/1000, N_target_1/1000, 
+              will_says_should_major?"major":"minor");
+#endif 
+  assert( N_new >= N_this );
 
   if (can_do_minor && (succ_can_do_minor || ! can_do_major)) {
     collect_rgnl_minorgc( gc, rgn_to );
