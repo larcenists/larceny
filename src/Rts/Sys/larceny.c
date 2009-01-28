@@ -481,6 +481,7 @@ parse_options( int argc, char **argv, opt_t *o )
 #else
   double load_factor = DEFAULT_LOAD_FACTOR;
 #endif
+  double load_factor_hard = DEFAULT_LOAD_FACTOR_HARD;
   double expansion = 0.0;                     /* Ignore it. */
   int divisor = 0;                            /* Ignore it. */
   double feeling_lucky = 0.0;                 /* Not lucky at all. */
@@ -573,6 +574,10 @@ parse_options( int argc, char **argv, opt_t *o )
       if (load_factor < 1.0)
         param_error( "Load factor must be at least 1.0" );
 #endif
+    }
+    else if (doublearg( "-load_hard", &argc, &argv, &load_factor_hard )) {
+      if (load_factor_hard < 1.0)
+        param_error( "Load factor must be at least 1.0" );
     }
 #if ROF_COLLECTOR
     else if (hstrcmp( *argv, "-np" ) == 0 || hstrcmp( *argv, "-rof" ) == 0) {
@@ -865,6 +870,7 @@ parse_options( int argc, char **argv, opt_t *o )
     }
 
     o->gc_info.dynamic_sc_info.load_factor = load_factor;
+    o->gc_info.dynamic_sc_info.load_factor_hard = load_factor_hard;
     o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
     o->gc_info.dynamic_sc_info.dynamic_min = dynamic_min;
   }
