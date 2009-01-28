@@ -2752,7 +2752,23 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   { 
     static int mmu_window_lengths[] = {
       100, 
+      200,
+      300,
+      400,
+      500,
+      600,
+      700,
+      800,
+      900, 
       1000, 
+      2000,
+      3000,
+      4000,
+      5000,
+      6000,
+      7000,
+      8000,
+      9000,
       10000, 
       /*
       100000,
