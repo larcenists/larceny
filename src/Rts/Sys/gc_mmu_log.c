@@ -253,7 +253,8 @@ static void clear_phase_stats( struct event_phase_stats *s )
   s->max_real     = 0;
   s->max_cpu      = 0;
 
-  assert( (s->min_real > 0) && (s->min_real+1 < 0) );
+  assert( (s->min_real > 0) );
+  assert( (s->min_real+1 < 0) );
 }
 
 static void clear_event_window( struct event_window *e )
