@@ -26,6 +26,9 @@
 #define DEFAULT_STEPSIZE             (256*KILOBYTE)
 #define DEFAULT_LOAD_FACTOR          3.0
 
+/* RROF collector */
+#define DEFAULT_LOAD_FACTOR_HARD     10.0
+
 struct nursery_info {           /* Generational gc nursery */
   int size_bytes;               /* size of area in bytes, > 0 */
 };
@@ -33,6 +36,7 @@ struct nursery_info {           /* Generational gc nursery */
 struct sc_info {                /* Any two-space copying area */
   int    size_bytes;		/* Size of area in bytes, > 0 */
   double load_factor;           /* Inverse load factor (dynamic generation) */
+  double load_factor_hard;      /* Strict load bound (above target is soft) */
   int    dynamic_min;		/* 0 or lower bound on expandable area */
   int    dynamic_max;		/* 0 or upper bound on expandable area */
 };
