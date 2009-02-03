@@ -494,7 +494,9 @@ realclean: clean
 	  Sys/assert.h Sys/larceny.h Sys/gc.h Sys/osdep.h \\
 	  $(INC_ROOT)/cdefs.h $(INC_ROOT)/config.h
 BARRIER_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H) Sys/barrier.h
-GCLIB_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/gclib.h
+CHENEY_H=Sys/gset_t.h Sys/cheney.h
+GCLIB_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/gclib.h
+GC_T_H=Sys/gset_t.h Sys/gc_t.h
 GC_MMU_LOG_H=Sys/gc_mmu_log.h
 HEAPIO_H=$(INC_ROOT)/cdefs.h $(INC_ROOT)/Sys/larceny-types.h Sys/heapio.h
 LOS_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/los_t.h
@@ -511,16 +513,16 @@ SMIRCY_H=Sys/smircy.h
 STACK_H=$(INC_ROOT)/Sys/larceny-types.h Sys/stack.h
 STATIC_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/static_heap_t.h
 STATS_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/stats.h
-SUMM_MATRIX_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/summ_matrix_t.h
+SUMM_MATRIX_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/summ_matrix_t.h
 YOUNG_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/young_heap_t.h
 SPARC_ASM_H=$(INC_ROOT)/asmdefs.h Sparc/asmmacro.h
 PETIT_H=$(INC_ROOT)/Shared/millicode.h $(INC_ROOT)/Shared/petit-config.h \\
 	$(INC_ROOT)/Shared/petit-machine.h
 
 Shared/arithmetic.$(O): $(LARCENY_H) $(PETIT_H)
-Standard-C/millicode.$(O): $(LARCENY_H) $(PETIT_H) Sys/gc_t.h $(BARRIER_H) \\
+Standard-C/millicode.$(O): $(LARCENY_H) $(PETIT_H) $(GC_T_H) $(BARRIER_H) \\
 	$(STACK_H)
-IAssassin/millicode.$(O): $(LARCENY_H) $(PETIT_H) Sys/gc_t.h $(BARRIER_H) \\
+IAssassin/millicode.$(O): $(LARCENY_H) $(PETIT_H) $(GC_T_H) $(BARRIER_H) \\
 	$(STACK_H)
 Shared/i386-millicode.$(O): $(LARCENY_H)
 IAssassin/i386-driver.$(O): $(LARCENY_H) 
@@ -533,7 +535,7 @@ Sparc/barrier.$(O): $(SPARC_ASM_H)
 Sparc/bdw-memory.$(O): Sparc/memory.s $(SPARC_ASM_H)
 Sparc/cache.$(O): $(LARCENY_H)
 Sparc/cache0.$(O): $(SPARC_ASM_H)
-Sparc/cglue.$(O): $(LARCENY_H) Sys/gc_t.h $(SIGNALS_H)
+Sparc/cglue.$(O): $(LARCENY_H) $(GC_T_H) $(SIGNALS_H)
 Sparc/bdw-cglue.$(O): Sparc/cglue.c $(LARCENY_H) $(SIGNALS_H)
 Sparc/generic.$(O): $(SPARC_ASM_H)
 Sparc/bdw-generic.$(O): Sparc/generic.s $(SPARC_ASM_H)
@@ -546,90 +548,91 @@ Sparc/syscall2.$(O): $(LARCENY_H)")
 (define make-template-rts-dependencies-2 "
 
 Sys/alloc.$(O): $(LARCENY_H) $(BARRIER_H) $(GCLIB_H) $(STATS_H)
-Sys/argv.$(O): $(LARCENY_H) Sys/gc_t.h
+Sys/argv.$(O): $(LARCENY_H) $(GC_T_H)
 Sys/barrier.$(O): $(LARCENY_H) $(MEMMGR_H) $(BARRIER_H) $(GCLIB_H)
-Sys/bdw-collector.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h Sys/gc_t.h \\
+Sys/bdw-collector.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h $(GC_T_H) \\
 	$(GCLIB_H) $(STATS_H) $(MEMMGR_H) $(STACK_H) \\
 	bdw-gc/include/gc.h
-Sys/bdw-gc.$(O): Sys/gc.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(HEAPIO_H) \\
+Sys/bdw-gc.$(O): Sys/gc.c $(LARCENY_H) Sys/gc.h $(GC_T_H) $(HEAPIO_H) \\
 	$(STATIC_HEAP_T_H)
-Sys/bdw-larceny.$(O): Sys/larceny.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h
-Sys/bdw-stats.$(O): Sys/stats.c $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
+Sys/bdw-larceny.$(O): Sys/larceny.c $(LARCENY_H) Sys/gc.h $(GC_T_H)
+Sys/bdw-stats.$(O): Sys/stats.c $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/bdw-ffi.$(O): Sys/ffi.c $(LARCENY_H)
 Sys/callback.$(O): $(LARCENY_H)
-Sys/cheney.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
+Sys/cheney.$(O): $(LARCENY_H) $(BARRIER_H) $(GC_T_H) Sys/gset_t.h $(GCLIB_H) \\
 	$(LOS_T_H) $(MEMMGR_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(STATS_H) \\
-	Sys/cheney.h
-Sys/cheney-np.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
+	$(CHENEY_H)
+Sys/cheney-np.$(O): $(LARCENY_H) $(BARRIER_H) $(GC_T_H) Sys/gset_t.h $(GCLIB_H) \\
 	$(LOS_T_H) $(MEMMGR_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) \\
-	Sys/cheney.h
-Sys/cheney-split.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
+	$(CHENEY_H)
+Sys/cheney-split.$(O): $(LARCENY_H) $(BARRIER_H) $(GC_T_H) Sys/gset_t.h $(GCLIB_H) \\
 	$(LOS_T_H) $(MEMMGR_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) \\
-	Sys/cheney.h
-Sys/cheney-check.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc_t.h $(GCLIB_H) \\
+	$(CHENEY_H)
+Sys/cheney-check.$(O): $(LARCENY_H) $(BARRIER_H) $(GC_T_H) $(GCLIB_H) \\
 	$(LOS_T_H) $(MEMMGR_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) \\
-	Sys/cheney.h
+	$(CHENEY_H)
 Sys/ffi.$(O): $(LARCENY_H)
-Sys/gc.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(HEAPIO_H) $(SEMISPACE_T_H) \\
+Sys/gc.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(HEAPIO_H) $(SEMISPACE_T_H) \\
 	$(STATIC_HEAP_T_H) $(MEMMGR_H)
 Sys/gc_mmu_log.$(O): $(LARCENY_H) $(GC_MMU_LOG_H)
-Sys/gc_t.$(O): $(LARCENY_H) Sys/gc_t.h Sys/gset_t.h
+Sys/gc_t.$(O): $(LARCENY_H) $(GC_T_H) Sys/gset_t.h
 Sys/heapio.$(O): $(LARCENY_H) $(HEAPIO_H) $(SEMISPACE_T_H) $(GCLIB_H)
-Sys/larceny.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(STATS_H) $(YOUNG_HEAP_T_H)
+Sys/larceny.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(STATS_H) $(YOUNG_HEAP_T_H)
 Sys/ldebug.$(O): $(LARCENY_H)
 Sys/los.$(O): $(LARCENY_H) $(GCLIB_H) $(LOS_T_H)
 Sys/malloc.$(O): $(LARCENY_H)
-Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h Sys/gc_t.h Sys/gset_t.h $(GCLIB_H) \\
+Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h $(GC_T_H) Sys/gset_t.h $(GCLIB_H) \\
 	$(STATS_H) $(HEAPIO_H) $(LOS_T_H) $(MEMMGR_H) \\
 	$(OLD_HEAP_T_H) $(REMSET_T_H) $(SEMISPACE_T_H) $(SMIRCY_H) \\
 	$(STACK_H) $(MSGC_CORE_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H) \\
 	$(SUMM_MATRIX_T_H) Sys/memmgr_internal.h
-Sys/memmgr_flt.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h \\
+Sys/memmgr_flt.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
 	$(OLD_HEAP_T_H) $(REMSET_T_H) $(GCLIB_H) $(MSGC_CORE_H) \\
 	$(SUMM_MATRIX_T_H) Sys/summary_t.h Sys/memmgr_internal.h
-Sys/memmgr_vfy.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h \\
+Sys/memmgr_vfy.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
 	$(GCLIB_H) $(MSGC_CORE_H) Sys/summary_t.h \\
 	Sys/summ_matrix_t.h Sys/seqbuf_t.h Sys/memmgr_internal.h
-Sys/np-sc-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
-	$(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
+Sys/np-sc-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
+	Sys/gset_t.h $(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
 	$(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
-Sys/nursery.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
+Sys/nursery.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(STACK_H) \\
 	$(YOUNG_HEAP_T_H)
-Sys/msgc-core.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) Sys/msgc-core.h
+Sys/msgc-core.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) Sys/msgc-core.h
 Sys/old_heap_t.$(O): $(LARCENY_H) $(OLD_HEAP_T_H)
-Sys/old-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
-	$(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
+Sys/old-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
+	Sys/gset_t.h $(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
 	$(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
 Sys/osdep.$(O): $(LARCENY_H)
 Sys/seqbuf.$(O): $(LARCENY_H) $(GCLIB_H) $(SEQBUF_T_H)
-Sys/remset.$(O): $(LARCENY_H) Sys/gc_t.h $(GCLIB_H) $(MEMMGR_H) \\
+Sys/remset.$(O): $(LARCENY_H) $(GC_T_H) $(GCLIB_H) $(MEMMGR_H) \\
 	$(REMSET_T_H) $(STATS_H)
-Sys/remset-np.$(O): $(LARCENY_H) Sys/gc_t.h $(GCLIB_H) $(MEMMGR_H) \\
+Sys/remset-np.$(O): $(LARCENY_H) $(GC_T_H) $(GCLIB_H) $(MEMMGR_H) \\
 	$(REMSET_T_H)
-Sys/sc-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
+Sys/sc-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(SEMISPACE_T_H) \\
 	$(STACK_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
 Sys/semispace.$(O): $(LARCENY_H) $(GCLIB_H) $(SEMISPACE_T_H)
 Sys/signals.$(O): $(LARCENY_H) $(SIGNALS_H)
-Sys/sro.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) $(HEAPIO_H) \\
+Sys/sro.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) $(HEAPIO_H) \\
 	$(MEMMGR_H)
-Sys/smircy.$(O): $(LARCENY_H) Sys/gc_t.h $(GCLIB_H) $(SMIRCY_H) $(SMIRCY_INTERNAL_H)
-Sys/smircy_checking.$(O): $(LARCENY_H) Sys/gc_t.h $(GCLIB_H) $(SMIRCY_H) $(SMIRCY_CHECKING_H) $(MSGC_CORE_H) $(LOS_T_H) $(SMIRCY_INTERNAL_H)
+Sys/smircy.$(O): $(LARCENY_H) $(GC_T_H) $(GCLIB_H) $(SMIRCY_H) $(SMIRCY_INTERNAL_H)
+Sys/smircy_checking.$(O): $(LARCENY_H) $(GC_T_H) $(GCLIB_H) $(SMIRCY_H) $(SMIRCY_CHECKING_H) $(MSGC_CORE_H) $(LOS_T_H) $(SMIRCY_INTERNAL_H)
 Sys/stack.$(O): $(LARCENY_H) $(STACK_H) $(STATS_H)
-Sys/static-heap.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) $(STATS_H) \\
+Sys/static-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) $(STATS_H) \\
 	$(MEMMGR_H) $(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H)
-Sys/stats.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h $(GCLIB_H) \\
+Sys/stats.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/summary.$(O): $(LARCENY_H) Sys/summary_t.h
-Sys/summ_matrix.$(O): $(LARCENY_H) Sys/gc_t.h Sys/gset_t.h $(SEQBUF_T_H) $(SMIRCY_H) Sys/summ_matrix_t.h
+Sys/summ_matrix.$(O): $(LARCENY_H) $(GC_T_H) Sys/gset_t.h \\
+	$(SEQBUF_T_H) $(SMIRCY_H) Sys/summ_matrix_t.h
 Sys/syscall.$(O): $(LARCENY_H) $(SIGNALS_H)
-Sys/primitive.$(O): $(LARCENY_H)  Sys/gc_t.h $(SIGNALS_H) $(STATS_H)
-Sys/osdep-unix.$(O): $(LARCENY_H) Sys/gc_t.h
+Sys/primitive.$(O): $(LARCENY_H)  $(GC_T_H) $(SIGNALS_H) $(STATS_H)
+Sys/osdep-unix.$(O): $(LARCENY_H) $(GC_T_H)
 Sys/osdep-win32.$(O): $(LARCENY_H)
 Sys/osdep-generic.$(O): $(LARCENY_H)
-Sys/util.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h
+Sys/util.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H)
 Sys/version.$(O): $(INC_ROOT)/config.h
 Sys/young_heap_t.$(O): $(LARCENY_H) $(YOUNG_HEAP_T_H)")
 
