@@ -22,6 +22,7 @@
 #include "memmgr.h"
 #include "gc.h"
 #include "gc_t.h"
+#include "gset_t.h"
 #include "young_heap_t.h"
 #include "old_heap_t.h"
 #include "static_heap_t.h"

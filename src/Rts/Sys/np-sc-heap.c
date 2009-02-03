@@ -35,6 +35,7 @@
 #include "memmgr.h"
 #include "gc.h"
 #include "gclib.h"
+#include "gset_t.h"
 #include "los_t.h"
 #include "gc_t.h"
 #include "young_heap_t.h"

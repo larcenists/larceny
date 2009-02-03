@@ -34,6 +34,7 @@
 #include "remset_t.h"
 #include "msgc-core.h"
 #include "gc_t.h"
+#include "gset_t.h"
 #include "seqbuf_t.h"
 #include "smircy.h"
 
