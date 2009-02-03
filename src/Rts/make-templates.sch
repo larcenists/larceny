@@ -511,6 +511,7 @@ SMIRCY_H=Sys/smircy.h
 STACK_H=$(INC_ROOT)/Sys/larceny-types.h Sys/stack.h
 STATIC_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/static_heap_t.h
 STATS_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/stats.h
+SUMM_MATRIX_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/summ_matrix_t.h
 YOUNG_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/young_heap_t.h
 SPARC_ASM_H=$(INC_ROOT)/asmdefs.h Sparc/asmmacro.h
 PETIT_H=$(INC_ROOT)/Shared/millicode.h $(INC_ROOT)/Shared/petit-config.h \\
@@ -583,10 +584,10 @@ Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h Sys/gc_t.h Sys/gset_t.h $(GC
 	$(STATS_H) $(HEAPIO_H) $(LOS_T_H) $(MEMMGR_H) \\
 	$(OLD_HEAP_T_H) $(REMSET_T_H) $(SEMISPACE_T_H) $(SMIRCY_H) \\
 	$(STACK_H) $(MSGC_CORE_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H) \\
-	Sys/memmgr_internal.h
+	$(SUMM_MATRIX_T_H) Sys/memmgr_internal.h
 Sys/memmgr_flt.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h \\
 	$(OLD_HEAP_T_H) $(REMSET_T_H) $(GCLIB_H) $(MSGC_CORE_H) \\
-	Sys/summary_t.h Sys/memmgr_internal.h
+	$(SUMM_MATRIX_T_H) Sys/summary_t.h Sys/memmgr_internal.h
 Sys/memmgr_vfy.$(O): $(LARCENY_H) Sys/gc.h Sys/gc_t.h \\
 	$(GCLIB_H) $(MSGC_CORE_H) Sys/summary_t.h \\
 	Sys/summ_matrix_t.h Sys/seqbuf_t.h Sys/memmgr_internal.h
