@@ -592,7 +592,7 @@ Sys/memmgr_flt.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
 	$(SUMM_MATRIX_T_H) Sys/summary_t.h Sys/memmgr_internal.h
 Sys/memmgr_vfy.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
 	$(GCLIB_H) $(MSGC_CORE_H) Sys/summary_t.h \\
-	Sys/summ_matrix_t.h Sys/seqbuf_t.h Sys/memmgr_internal.h
+	$(SUMM_MATRIX_T_H) Sys/seqbuf_t.h Sys/memmgr_internal.h
 Sys/np-sc-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	Sys/gset_t.h $(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
 	$(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
