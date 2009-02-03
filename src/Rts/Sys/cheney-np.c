@@ -19,6 +19,7 @@
 #include "larceny.h"
 #include "memmgr.h"
 #include "gc_t.h"
+#include "gset_t.h"
 #include "semispace_t.h"
 #include "los_t.h"
 #include "static_heap_t.h"
