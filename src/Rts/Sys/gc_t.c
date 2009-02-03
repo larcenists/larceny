@@ -7,6 +7,7 @@
 
 #include "larceny.h"
 #include "gc_t.h"
+#include "gset_t.h"
 
 gc_t 
 *create_gc_t(char *id,
