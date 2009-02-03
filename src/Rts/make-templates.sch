@@ -626,7 +626,7 @@ Sys/stats.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/summary.$(O): $(LARCENY_H) Sys/summary_t.h
 Sys/summ_matrix.$(O): $(LARCENY_H) $(GC_T_H) Sys/gset_t.h \\
-	$(SEQBUF_T_H) $(SMIRCY_H) Sys/summ_matrix_t.h
+	$(SEQBUF_T_H) $(SMIRCY_H) $(SUMM_MATRIX_T_H)
 Sys/syscall.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/primitive.$(O): $(LARCENY_H)  $(GC_T_H) $(SIGNALS_H) $(STATS_H)
 Sys/osdep-unix.$(O): $(LARCENY_H) $(GC_T_H)
