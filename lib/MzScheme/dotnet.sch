@@ -1658,14 +1658,14 @@
 ;;; yet been loaded.  To solve this, we do the following:
 
 ;;;  1.  Iterate over all existing types probing for their members.
-;;;      This will instantiate new types who's methods are unknown.
+;;;      This will instantiate new types whose methods are unknown.
 ;;;
 ;;;  2.  Iterate over all new types just instantiated to get *their*
 ;;;      members.  This may instantiate even more types.
 ;;;
 ;;;  3.  Repeat step 2 until no new types are created.  At this point,
 ;;;      it should be possible to instantiate new methods without the
-;;;      possibility of inifite loops.
+;;;      possibility of infinite loops.
 ;;;
 ;;;  4.  Install the AFTER method so that methods are instantiated right
 ;;;      after instantiating the type.

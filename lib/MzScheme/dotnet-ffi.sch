@@ -532,6 +532,7 @@
   (map-clr-array clr/foreign->int (clr-enum/%get-values enum)))
 
 ;;; For marshaling integers to enums.
+
 (define clr-enum/to-object
   (let ((method-handle
          (clr/%get-method clr-type-handle/system-enum "ToObject"
