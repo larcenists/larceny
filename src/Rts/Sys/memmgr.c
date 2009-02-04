@@ -1034,6 +1034,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     DATA(gc)->use_summary_instead_of_remsets = TRUE;
     sm_clear_contribution_to_summaries( DATA(gc)->summaries, rgn_next );
 
+    DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
     oh_collect_into( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT,
                      DATA(gc)->ephemeral_area[ rgn_to-1 ] );
     if (gc->smircy_completion != NULL) {
@@ -1051,12 +1052,15 @@ static bool collect_rgnl_majorgc( gc_t *gc,
                        (DATA(gc)->rrof_refine_mark_countdown > 0))
                       ? smircy_step_can_refine
                       : smircy_step_must_refine ));
-    if (DATA(gc)->rrof_to_region_before_space_switch != -1) {
-      sm_copy_summary_to( DATA(gc)->summaries, rgn_next,
-                          DATA(gc)->rrof_to_region_before_space_switch );
-      DATA(gc)->rrof_to_region_before_space_switch = -1;
+    {
+      int i;
+      for (i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
+        if (DATA(gc)->ephemeral_area[i]->was_target_during_gc) {
+          sm_copy_summary_to( DATA(gc)->summaries, rgn_next, i+1 );
+        }
+      }
     }
-    sm_copy_summary_to( DATA(gc)->summaries, rgn_next, rgn_to );
+    DATA(gc)->rrof_to_region_before_space_switch = -1;
     collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
     rrof_completed_major_collection( gc );
     collect_rgnl_clear_summary( gc, rgn_next );
@@ -1091,7 +1095,9 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
 
   sm_init_summary_from_nursery_alone( DATA(gc)->summaries, &(DATA(gc)->summary));
   DATA(gc)->use_summary_instead_of_remsets = TRUE;
+  DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
+  sm_copy_summary_to( DATA(gc)->summaries, 0, rgn_to );
   sm_clear_nursery_summary( DATA(gc)->summaries );
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
   summary_dispose( &(DATA(gc)->summary) );
@@ -1420,8 +1426,10 @@ static void before_collection( gc_t *gc )
   DATA(gc)->rrof_currently_minor_gc = FALSE;
 
   yh_before_collection( gc->young_area );
-  for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
+  for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ ) {
     oh_before_collection( DATA(gc)->ephemeral_area[ e ] );
+    DATA(gc)->ephemeral_area[e]->was_target_during_gc = FALSE;
+  }
   if (DATA(gc)->dynamic_area)
     oh_before_collection( DATA(gc)->dynamic_area );
 
@@ -2095,8 +2103,14 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     return current_space;
   } else if ( to_rgn_new != DATA(gc)->rrof_next_region ) {
     do {
-      if (gc_allocated_to_areas( gc, gset_singleton( to_rgn_new )) == 0) {
+      if (gc_allocated_to_areas( gc, gset_singleton( to_rgn_new ))
+          + expansion_amount 
+          <=
+          gc_maximum_allotted( gc, gset_singleton( to_rgn_new ))) {
         DATA(gc)->rrof_to_region = to_rgn_new;
+        assert( DATA(gc)->ephemeral_area[to_rgn_old-1]->was_target_during_gc );
+        DATA(gc)->ephemeral_area[to_rgn_new-1]->was_target_during_gc = TRUE;
+        annoyingmsg("jump to space incr; %d becomes %d", to_rgn_old, to_rgn_new );
         return oh_current_space( DATA(gc)->ephemeral_area[ to_rgn_new-1 ] );
       }
       to_rgn_new = next_rgn( to_rgn_new, DATA(gc)->region_count );
@@ -2111,43 +2125,21 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     int last_gen_no = DATA(gc)->ephemeral_area_count;
     old_heap_t *heap = DATA(gc)->ephemeral_area[ last_gen_no-1 ];
     int allocated_there;
-    int allotted_there = 
-      gc_maximum_allotted( gc, gset_singleton( last_gen_no ));
+
+    assert( DATA(gc)->secondary_space == NULL );
     ss_sync( oh_current_space( heap ));
-    allocated_there = 
-      oh_current_space( heap )->used + 
-      los_bytes_used( gc->los, last_gen_no );
 
-    if (DATA(gc)->secondary_space != NULL) {
-      int gen_no = DATA(gc)->secondary_space->gen_no;
-
-      /* I do not know how to handle this case.  I thought I could
-       * assimilate seconary to reserve, replace secondary fresh, and
-       * continue collection, but that is unsound when cheney is in
-       * the midst of scanning secondary and requests more space.
-       * (Probably should just ensure this case can never happen.) */
-      assert(0);
-
-      oh_assimilate( DATA(gc)->ephemeral_area[ gen_no-1 ],
-		     DATA(gc)->secondary_space );
-      DATA(gc)->secondary_space = NULL;
-      return gc_fresh_space( gc );
-    }    
-    if (current_space->gen_no == last_gen_no) {
-      return gc_fresh_space( gc );
-    }
-
-    /* Putting in GC_CHUNK_SIZE as a fudge factor, since we sometimes
-     * end up with gaps in the tospace as we seal off chunks (and
-     * insert alignment padding). */
-    if (allocated_there + gc->young_area->allocated + GC_CHUNK_SIZE 
-	<= allotted_there ) {
-      assert(DATA(gc)->secondary_space == NULL);
-      DATA(gc)->secondary_space =
-	create_semispace( GC_CHUNK_SIZE, last_gen_no );
-      return DATA(gc)->secondary_space;
+    if (gc_allocated_to_areas( gc, gset_singleton( last_gen_no )) == 0) {
+      DATA(gc)->ephemeral_area[last_gen_no-1]->was_target_during_gc = TRUE;
+      annoyingmsg("jump to space last; %d becomes %d", to_rgn_old, last_gen_no );
+      return oh_current_space( heap );
     } else {
-      return gc_fresh_space( gc );
+      semispace_t *ss;
+      ss = gc_fresh_space( gc );
+      to_rgn_new = ss->gen_no;
+      DATA(gc)->ephemeral_area[to_rgn_new-1]->was_target_during_gc = TRUE;
+      annoyingmsg("fresh to space; %d becomes %d", to_rgn_old, to_rgn_new );
+      return ss;
     }
   }
 }
