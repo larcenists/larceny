@@ -1056,7 +1056,14 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       int i;
       for (i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
         if (DATA(gc)->ephemeral_area[i]->was_target_during_gc) {
-          sm_copy_summary_to( DATA(gc)->summaries, rgn_next, i+1 );
+          int target = i+1;
+          if (target == rgn_next) {
+            /* copying in this case would be silly (we're just going
+             * to delete it below).  We could avoid deleting it, but
+             * its not clear that would be sound... */
+          } else {
+            sm_copy_summary_to( DATA(gc)->summaries, rgn_next, target );
+          }
         }
       }
     }
