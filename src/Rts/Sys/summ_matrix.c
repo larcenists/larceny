@@ -55,9 +55,6 @@
 
 #define SUMMARIZE_KILLS_RS_ENTRIES 0
 
-#define MAINTAIN_REDUNDANT_RS_AS_SM_REP 0
-#define USE_REDUNDANT_RS_AS_SM_REP 0
-
 typedef struct objs_pool objs_pool_t;
 typedef struct summ_cell summ_cell_t;
 typedef struct summ_row summ_row_t;
@@ -140,19 +137,6 @@ struct summ_col {
    */
 };
 
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP 
-struct remset_as_summary { 
-  remset_t *sum_remset;
-  int       gen;
-  bool      valid;
-  int       summarize_words; /* contribution from summarization */
-  int       writebarr_words; /* contribution from mutator (via wb) */
-  int       collector_words; /* contribution from cheney (obj forw'ing) */
-  int       max_words;
-};
-typedef struct remset_as_summary remset_as_summary_t;
-#endif 
-
 struct summ_matrix_data {
   double coverage;
   double p;
@@ -182,9 +166,6 @@ struct summ_matrix_data {
   } row_cache;
 
   /* refactoring */
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-  remset_as_summary_t **remset_summaries; /* points-into summaries */
-#endif 
   int       remset_summaries_count;
   bool      summarized_genset_valid;
   gset_t    summarized_genset;
@@ -628,16 +609,9 @@ static summ_cell_t *scan_col_for_cell( summ_col_t *col, int src_gno,
   return NULL;
 }
 
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP 
-static remset_as_summary_t* allocate_remset_as_summary(int gen, int poplimit);
-#endif
-
 static void  create_refactored_from_memmgr( summ_matrix_t *sm,
                                             int popularity_limit )
 {
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-  DATA(sm)->remset_summaries = 0;
-#endif
   DATA(sm)->remset_summaries_count = 0;
   DATA(sm)->summarized_genset_valid = FALSE;
 
@@ -646,15 +620,6 @@ static void  create_refactored_from_memmgr( summ_matrix_t *sm,
 
   int len = sm->collector->remset_count+1;
   int i;
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-  DATA(sm)->remset_summaries = 
-    (remset_as_summary_t**)must_malloc(len*sizeof(remset_as_summary_t*));
-  DATA(sm)->remset_summaries[0] = NULL;
-  for( i = 1; i < len; i++ ) {
-    DATA(sm)->remset_summaries[i] = 
-      allocate_remset_as_summary( i, popularity_limit );
-  }
-#endif
   DATA(sm)->remset_summaries_count = len;
   DATA(sm)->nursery_remset = create_remset( 0, 0 );
 }
@@ -1029,46 +994,6 @@ static void return_to_remset_pool( remset_t *rs )
   assert(0); /* (should never get here) */
 }
 
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-static remset_as_summary_t* allocate_remset_as_summary(int gen, int poplimit) 
-{
-  remset_as_summary_t *rast;
-  rast = (remset_as_summary_t*)must_malloc(sizeof(remset_as_summary_t));
-  rast->sum_remset = NULL;
-  rast->gen        = gen;
-  rast->valid      = TRUE;
-  rast->summarize_words = 0;
-  rast->writebarr_words = 0;
-  rast->collector_words = 0;
-  rast->max_words  = poplimit;
-  return rast;
-}
-
-static int ras_words( remset_as_summary_t *r ) 
-{
-  return r->summarize_words + r->writebarr_words 
-    + r->collector_words;
-}
-static void ras_reset_words( remset_as_summary_t *r ) 
-{
-  r->summarize_words = 0; 
-  r->writebarr_words = 0;
-  r->collector_words = 0;
-}
-static void ras_incr_words_sm( remset_as_summary_t *r, int dwords ) 
-{
-  r->summarize_words += dwords;
-}
-static void ras_incr_words_wb( remset_as_summary_t *r, int dwords )
-{
-  r->writebarr_words += dwords;
-}
-static void ras_incr_words_gc( remset_as_summary_t *r, int dwords )
-{
-  r->collector_words += dwords;
-}
-#endif
-
 static int col_words( summ_col_t *c )
 {
   return c->summarize_word_count + c->writebarr_word_count 
@@ -1092,41 +1017,6 @@ static void col_incr_words_gc( summ_col_t *c, int dwords )
 {
   c->collector_word_count += dwords;
 }
-
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-static void add_object_to_sum_rs( summ_matrix_t *summ, 
-                                  int gen, 
-                                  word ptr,
-                                  void (*incr_words)( remset_as_summary_t *r,
-                                                      int dw ))
-{
-  remset_as_summary_t *rs_sum = DATA(summ)->remset_summaries[ gen ];
-
-  if (ras_words(rs_sum) <= rs_sum->max_words) {
-    if (rs_sum->sum_remset == NULL) {
-      rs_sum->sum_remset = grab_from_remset_pool();
-    }
-    if (!rs_isremembered( rs_sum->sum_remset, ptr )) {
-      if (tagof(ptr) == PAIR_TAG) {
-        incr_words( rs_sum, 2);
-      } else {
-        incr_words( rs_sum, sizefield( *ptrof(ptr) ) / 4);
-      }
-
-      if (ras_words(rs_sum) > rs_sum->max_words) {
-        dbmsg( "remssumm for rgn %d overflowed on 0x%08x (%d): %d max %d",
-               gen, ptr, gen_of(ptr), ras_words(rs_sum), rs_sum->max_words);
-        rs_clear( rs_sum->sum_remset );
-        return_to_remset_pool( rs_sum->sum_remset );
-        rs_sum->sum_remset = NULL;
-        rs_sum->valid = FALSE;
-      } else {
-        rs_add_elem( rs_sum->sum_remset, ptr );
-      }
-    }
-  }
-}
-#endif
 
 /* Returns cell of summ[tgt_gno] that holds objects from src_gno rgn,
  * or NULL if tgt_gno is not being summarized right now.
@@ -1343,15 +1233,6 @@ static void incr_size_and_oflo_check( summ_matrix_t *summ, int tgno, word w,
   }
 }
 
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-static bool word_counts_match( summ_col_t *col, remset_as_summary_t *ras )
-{
-  /* return (col_words(col) == ras_words(ras)); */
-  return (col->summarize_word_count == ras->summarize_words)
-    && (col->collector_word_count == ras->collector_words);
-}
-#endif
-
 /* Let A be summ[tgt_gen].cell[src_gen].objects.
  * requires: (ptr in A) implies (ptr is A's latest entry)
  * modifies: A
@@ -1362,20 +1243,10 @@ static void add_object_to_sum_array( summ_matrix_t *summ,
                                      word ptr, 
                                      int src_gen,
                                      void (*col_incr_w)(summ_col_t *c, 
-                                                        int dw ) 
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-                                     , 
-                                     void (*ras_incr_w)(remset_as_summary_t *r,
-                                                        int dw )
-#endif
-)
+                                                        int dw ))
 {
   int pop_limit = DATA(summ)->popularity_limit;
   summ_col_t *col = DATA(summ)->cols[tgt_gen];
-
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-  assert2( word_counts_match(col, DATA(summ)->remset_summaries[tgt_gen]) );
-#endif
 
   if (col_words(col) <= pop_limit) {
     summ_cell_t *cell = summ_cell( summ, src_gen, tgt_gen );
@@ -1391,11 +1262,6 @@ static void add_object_to_sum_array( summ_matrix_t *summ,
       cell_enqueue( summ, cell, ptr );
       incr_size_and_oflo_check( summ, tgt_gen, ptr, col_incr_w );
     }
-  } else {
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-    assert( col->overly_popular 
-            && ! DATA(summ)->remset_summaries[tgt_gen]->valid );
-#endif
   }
 
   /* XXX */
@@ -1421,11 +1287,6 @@ static void add_object_to_sum_array( summ_matrix_t *summ,
   /* Adding ptr to the Col's hashset *always* be a sound addition,
    * since there can be overlap between a Col's cells and its hashset.
    */
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-  add_object_to_sum_rs( summ, tgt_gen, ptr, ras_incr_w ); /* XXX remove when above "works" */
-
-  assert2( word_counts_match(col, DATA(summ)->remset_summaries[tgt_gen]) );
-#endif
 }
 
 /* XXX stolen from remset.c; should be factored out to somewhere else */
@@ -1491,16 +1352,7 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
       if (col_words(col) <= pop_limit) {
         add_object_to_mut_rs( summ, g_rhs, w );
         incr_size_and_oflo_check( summ, g_rhs, w, col_incr_words_wb );
-      } else {
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-        assert( col->overly_popular 
-                && ! DATA(summ)->remset_summaries[g_rhs]->valid );
-#endif
       }
-
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-      add_object_to_sum_rs( summ, g_rhs, w, ras_incr_words_wb ); /* XXX remove when above "works" */
-#endif
     }
   }
 
@@ -1561,11 +1413,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
         if (gset_memberp(gen,genset)) {
           do_enqueue = TRUE;
           add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                   col_incr_words_sm
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-                                   , ras_incr_words_sm 
-#endif
-                                   );
+                                   col_incr_words_sm );
         }
       }
     }
@@ -1585,11 +1433,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
         if (gset_memberp(gen,genset)) {
           do_enqueue = TRUE;
           add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                   col_incr_words_sm
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-                                   , ras_incr_words_sm 
-#endif
-                                   );
+                                   col_incr_words_sm );
         }
       }
     }
@@ -1615,11 +1459,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
           if (gset_memberp(gen,genset)) {
             do_enqueue = TRUE;
             add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                     col_incr_words_sm
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-                                     , ras_incr_words_sm 
-#endif
-                                     );
+                                     col_incr_words_sm );
           }
         }
       }
@@ -1695,20 +1535,10 @@ EXPORT void sm_build_remset_summaries( summ_matrix_t *summ, gset_t genset )
         DATA(summ)->cols[i]->overly_popular = FALSE;
         col_reset_words( DATA(summ)->cols[i] );
         /* XXX kill below after shifting to cells rep */
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-        DATA(summ)->remset_summaries[i]->valid = TRUE;
-        ras_reset_words( DATA(summ)->remset_summaries[i] );
-        /* Construction assumes that summaries start off empty. */
-        assert2( DATA(remsum.summ)->remset_summaries[ i ]->sum_remset == NULL ||
-                 DATA(remsum.summ)->remset_summaries[ i ]->sum_remset->live == 0);
-#endif
         break;
 
       case gno_state_popular:
         DATA(summ)->cols[i]->overly_popular = TRUE;
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-        DATA(summ)->remset_summaries[i]->valid = FALSE;
-#endif
         break;
       default: 
         assert(0);
@@ -1735,17 +1565,8 @@ EXPORT void sm_build_remset_summaries( summ_matrix_t *summ, gset_t genset )
 		  (void*) &remsum );
   }
   if (genset.tag == gs_singleton) {
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-    remset_t *rs = DATA(remsum.summ)->remset_summaries[genset.g1]->sum_remset;
-#endif
     assert( genset.g1 < DATA(summ)->remset_summaries_count );
   } else if (genset.tag == gs_range ) {
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-    remset_t *rs1, *rs2;
-    assert( genset.g2 <= DATA(summ)->remset_summaries_count );
-    rs1 = DATA(remsum.summ)->remset_summaries[genset.g1]->sum_remset;
-    rs2 = DATA(remsum.summ)->remset_summaries[genset.g2-1]->sum_remset;
-#endif
   } else { assert(0); }
 
   { /* XXX review me XXX */
@@ -2053,24 +1874,11 @@ EXPORT int sm_summarized_live( summ_matrix_t *summ, int rgn )
   rgn_summarized = 
     DATA(summ)->summarized_genset_valid && 
     gset_memberp( rgn, DATA(summ)->summarized_genset );
-#if USE_REDUNDANT_RS_AS_SM_REP
-  if (rgn_summarized) {
-    if (DATA(summ)->remset_summaries[ rgn ]->sum_remset == NULL ) {
-      rgn_summarized_live = 0;
-    } else {
-      rgn_summarized_live = 
-        ras_words( DATA(summ)->remset_summaries[ rgn ] );
-    }
-  } else {
-    rgn_summarized_live = -ras_words(DATA(summ)->remset_summaries[ rgn ]) - 1;
-  }
-#else
   if (rgn_summarized) { /* XXX */
     rgn_summarized_live = col_words( DATA(summ)->cols[rgn] );
   } else {
     rgn_summarized_live = -col_words( DATA(summ)->cols[rgn] ) - 1;
   }
-#endif
 
   check_rep_3( summ );
   return rgn_summarized_live;
@@ -2093,11 +1901,6 @@ EXPORT void sm_invalidate_summaries( summ_matrix_t *summ )
 
   check_rep_1( summ );
 
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-  for (i=1; i<DATA(summ)->remset_summaries_count; i++) {
-    assert2( DATA(summ)->remset_summaries[i]->sum_remset == NULL );
-  }
-#endif
   DATA(summ)->summarized_genset_valid = FALSE;
 
   check_rep_1( summ );
@@ -2218,24 +2021,6 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
   struct rs_scan_add_word_to_rs_data scan_data;
   check_rep_1( summ );
 
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP 
-  if ( gset_memberp( rgn_to, DATA(summ)->summarized_genset )) {
-    remset_t *rs_next;
-    remset_t *rs_to;
-    rs_next = DATA(summ)->remset_summaries[ rgn_next ]->sum_remset;
-    rs_to = DATA(summ)->remset_summaries[ rgn_to ]->sum_remset;
-    if (rs_next != NULL) {
-      if (rs_to == NULL) {
-        rs_to = grab_from_remset_pool();
-        DATA(summ)->remset_summaries[ rgn_to ]->sum_remset = rs_to;
-      }
-      scan_data.rs_to  = rs_to;
-      scan_data.to_gen = rgn_to;
-      rs_enumerate( rs_next, rs_scan_add_word_to_rs, &scan_data );
-    }
-  }
-#endif
-
   if (gset_memberp( rgn_to, DATA(summ)->summarized_genset )) {
     summ_col_t *col_next, *col_to;
     summ_cell_t *sent, *cell;
@@ -2292,16 +2077,6 @@ EXPORT void sm_clear_summary( summ_matrix_t *summ, int rgn_next )
 
   /* clear the summary that guided this collection. */
   {
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-    remset_t *rs = DATA(summ)->remset_summaries[ rgn_next ]->sum_remset;
-    if (rs != NULL) { 
-      rs_clear( rs );
-      return_to_remset_pool( rs );
-      DATA(summ)->remset_summaries[ rgn_next ]->sum_remset = NULL;
-    }
-    ras_reset_words( DATA(summ)->remset_summaries[ rgn_next ] );
-#endif
-
     DATA(summ)->summarized_genset = 
       gset_remove( rgn_next, DATA(summ)->summarized_genset);
 
@@ -2360,32 +2135,6 @@ static bool filter_objects_from_sum_remset( word ptr,
 EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next ) 
 {
   check_rep_1( summ );
-
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-  /* clear contribution of rgn_next to all summaries */
-  { 
-    int i;
-    remset_t *rs;
-    struct filter_objects_from_sum_remset_data data;
-    data.gc  = summ->collector;
-    data.gen = rgn_next;
-    for(i=0; i<DATA(summ)->remset_summaries_count; i++ ) {
-      if (i == rgn_next) 
-        continue; /* the entire summary for i is cleared down below */
-      /* (and shouldn't summary have nothing from region_i anyway?) */
-      annoyingmsg( "clear summary [%d] of entries from %d", i, rgn_next );
-      if (gset_memberp( i, DATA(summ)->summarized_genset ) &&
-          DATA(summ)->remset_summaries[ i ]->sum_remset != NULL) {
-        rs = DATA(summ)->remset_summaries[ i ]->sum_remset;
-        rs_enumerate( rs, 
-                      filter_objects_from_sum_remset, 
-                      &data );
-      }
-    }
-  }
-#endif
-
-  /* XXX kill above when I switch from remset-rep to cells-rep */
 
   DATA(summ)->row_cache.last_cell_valid = FALSE;
 
@@ -2549,39 +2298,6 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
                                           summary_t *summary )
 {
   check_rep_1( summ );
-#if USE_REDUNDANT_RS_AS_SM_REP
-  /* XXX for now, fold the nursery remset into the remset
-   * we're using for this major collection.  Better long term
-   * approach may be to do two separate scans rather than a
-   * fold-then-scan-combined XXX */
-  {
-    remset_t *rs = DATA(summ)->remset_summaries[ next_summ_idx ]->sum_remset;
-    if (rs != NULL) {
-      struct fold_from_nursery_data data;
-      data.gen = next_summ_idx;
-      data.rs  = rs;
-      rs_enumerate( DATA(summ)->nursery_remset, rsenum_fold_from_nursery, &data );
-
-      /* XXX this is to maintain consistency between cells-rep and
-       * remset-rep
-       * Eventually all of this will initialize the summary so that it
-       * traverses the column cells + sum_mutator + nursery_remset 
-       */
-      if (DATA(summ)->cols[ next_summ_idx ]->sum_mutator == NULL) {
-        DATA(summ)->cols[ next_summ_idx ]->sum_mutator = grab_from_remset_pool();
-      }
-      data.rs = DATA(summ)->cols[ next_summ_idx ]->sum_mutator;
-      rs_enumerate( DATA(summ)->nursery_remset, rsenum_fold_from_nursery, &data );
-    } else {
-      rs_enumerate( DATA(summ)->nursery_remset,
-                    rsenum_filter_tgt_gen, 
-                    &next_summ_idx );
-      rs = DATA(summ)->nursery_remset;
-    }
-    annoyingmsg( "construct rs (%d) summary", rs->live);
-    rs_init_summary( rs, -1, summary );
-  }
-#else
   {
     summ_col_t *col;
     int entries;
@@ -2618,7 +2334,7 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
       summary->filter = filter_gen;
     }
   }
-#endif
+
   check_rep_1( summ );
 }
 
@@ -2645,13 +2361,8 @@ EXPORT void sm_nursery_summary_enumerate( summ_matrix_t *summ,
 EXPORT bool sm_majorgc_permitted( summ_matrix_t *summ, int rgn_next )
 {
   check_rep_3( summ );
-#if USE_REDUNDANT_RS_AS_SM_REP
-  return (ras_words( DATA(summ)->remset_summaries[ rgn_next ])
-          <= DATA(summ)->popularity_limit);
-#else 
   return (col_words( DATA(summ)->cols[ rgn_next ])
           <= DATA(summ)->popularity_limit);
-#endif
 }
 
 /* 
@@ -2680,20 +2391,6 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
   {
     int len = DATA(summ)->remset_summaries_count+1;
     int i;
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-    remset_as_summary_t **remset_summaries;
-    remset_summaries = 
-      (remset_as_summary_t**)must_malloc(len*sizeof(remset_as_summary_t*));
-    remset_summaries[0] = NULL;
-    for( i = 1; i < fresh_gno; i++ )
-      remset_summaries[i] = DATA(summ)->remset_summaries[i];
-    remset_summaries[ fresh_gno ] = 
-      allocate_remset_as_summary( fresh_gno, DATA(summ)->popularity_limit );
-    for( i = fresh_gno+1; i < len; i++ )
-      remset_summaries[i] = DATA(summ)->remset_summaries[i-1];
-    free(DATA(summ)->remset_summaries);
-    DATA(summ)->remset_summaries = remset_summaries;
-#endif
     DATA(summ)->remset_summaries_count = len;
   }
 }
@@ -2730,26 +2427,11 @@ EXPORT void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs 
   if ( DATA(summ)->summarized_genset_valid &&
        gset_memberp( g_rhs, DATA(summ)->summarized_genset )) {
 
-    /* This assertion is not long for this world; it will disappear
-     * once I actually put in sumz arrays.  I have it here to lend
-     * credence to the hypotheses above. :) */
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-    static word last_inserted = 0x0;
-    assert( last_inserted == lhs ||
-            DATA(summ)->remset_summaries[ g_rhs ]->sum_remset == NULL ||
-            ! rs_isremembered( DATA(summ)->remset_summaries[ g_rhs ]->sum_remset, lhs ));
-    last_inserted = lhs;
-#endif
-
     /* XXX recomputing g_lhs wasteful here (plus it might not be valid
      * yet?  When does cheney change the gno for LOS, before or after
      * scan?); so perhaps change callback to pass g_lhs along too. */
     add_object_to_sum_array( summ, g_rhs, lhs, gen_of(lhs),
-                             col_incr_words_gc
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-                             , ras_incr_words_gc
-#endif
-                             );
+                             col_incr_words_gc );
   }
 }
 
@@ -2799,21 +2481,18 @@ static void check_cells_against_rs( summ_matrix_t *summ )
     if (col->sum_mutator != NULL)
       rs_enumerate( col->sum_mutator, rsenum_add_elem, cell_rs );
 
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-    /* check that popularity measure matches */
-    assert( col->overly_popular == (! DATA(summ)->remset_summaries[i]->valid) );
-
-    /* check that word count matches where expected 
+    /* XXX there used to be code here to assert that the constructed
+     * cell_rs was consistent with a redundant representation; the
+     * redundant rep has been entirely removed and so this loop seems
+     * to serve no purpose.  However, I suspect it will be important
+     * to check the rep in the future, and there are assertions that
+     * can be added above; for example, could check that there are no
+     * duplicate entries with appropriate logic immediate preceding
+     * rs_add_elem.
+     * 
+     * if none of this ever happens, then the entire
+     * check_cells_against_rs function can be thrown out.
      */
-    { 
-      remset_as_summary_t *ras = DATA(summ)->remset_summaries[i];
-      assert( word_counts_match(col, ras) );
-    }
-
-    /* check that copy of column cells matches remset_summary */
-    assert_subseteq( cell_rs, DATA(summ)->remset_summaries[i]->sum_remset );
-    assert_subseteq( DATA(summ)->remset_summaries[i]->sum_remset, cell_rs );
-#endif
 
     /* clean up */
     rs_clear(cell_rs);
