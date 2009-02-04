@@ -51,6 +51,7 @@
 #define FREE_CELL_ASSERTS_UNREACHABLE 0
 
 #define ADD_TO_SUMAR_ASSERTS_UNIQ_ENQ 0
+#define POOL_ENQUEUE_ASSERTS_UNIQ_ENQ 0
 
 #define SUMMARIZE_KILLS_RS_ENTRIES 0
 
@@ -1222,13 +1223,40 @@ static word pool_last_entry( objs_pool_t *objects )
   return 0x0;
 }
 
+static void assert_not_present_in_pool( summ_matrix_t *summ,
+                                        objs_pool_t *objects,
+                                        word ptr )
+{
+  objs_pool_t *objs = objects;
+  int i;
+  i = 0;
+  while (objs != NULL) {
+    word *p = objs->bot;
+    word *top = objs->top;
+    while ( p < top ) {
+      if (*p != 0x0) {
+        assert( ptr != *p );
+      }
+      p++;
+      i++;
+    }
+    objs = objs->next;
+  }
+}
+
 /* requires: ptr not in objects
  * modifies: objects
  * effects: returns a pool p = objects u { ptr }
  */
 static objs_pool_t *pool_enqueue( summ_matrix_t *summ, objs_pool_t *objects, word ptr )
 {
-  int entries = DATA(summ)->entries_per_objs_pool_segment;
+  int entries;
+
+#if POOL_ENQUEUE_ASSERTS_UNIQ_ENQ
+  assert_not_present_in_pool( summ, objects, ptr ); /* (expensive) */
+#endif
+
+  entries = DATA(summ)->entries_per_objs_pool_segment;
   if ( objects->top == objects->lim ) {
     objs_pool_t *p = allocate_pool_segment( entries );
     p->next = objects;
@@ -1728,11 +1756,19 @@ EXPORT void sm_build_remset_summaries( summ_matrix_t *summ, gset_t genset )
   check_rep_1( summ );
 }
 
-static void* verify_summaries_msgc_fcn( word obj, word src, void *data )
+struct verify_summaries_msgc_fcn_data {
+  summ_matrix_t *summ;
+  remset_t **summaries;
+};
+
+static void* verify_summaries_msgc_fcn( word obj, word src, void *my_data )
 {
-  summ_matrix_t *summ = (summ_matrix_t*)data;
+  struct verify_summaries_msgc_fcn_data *data =
+    (struct verify_summaries_msgc_fcn_data*)my_data;
+  summ_matrix_t *summ = data->summ;
+  remset_t **summaries = data->summaries;
   int src_gen, tgt_gen;
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
+
   if (isptr(src) && isptr(obj) &&
       ((src_gen = gen_of(src)) != (tgt_gen = gen_of(obj))) &&
       ! gc_is_nonmoving( summ->collector, tgt_gen )) {
@@ -1742,16 +1778,15 @@ static void* verify_summaries_msgc_fcn( word obj, word src, void *data )
       assert( *summ->collector->ssb[tgt_gen]->bot == *summ->collector->ssb[tgt_gen]->top );
       if (DATA(summ)->summarized_genset_valid &&
           gset_memberp( tgt_gen, DATA(summ)->summarized_genset ) &&
-          DATA(summ)->remset_summaries[ tgt_gen ]->valid ) {
-        assert( (DATA(summ)->remset_summaries[ tgt_gen ]->sum_remset) != NULL );
-        assert( rs_isremembered( DATA(summ)->remset_summaries[ tgt_gen ]->sum_remset, src ));
+          ! DATA(summ)->cols[tgt_gen]->overly_popular) {
+        assert( summaries[ tgt_gen ] != NULL );
+        assert( rs_isremembered( summaries[ tgt_gen ], src ));
       }
+      /* XXX when introducing incremental sumz, more (and semi-tricky) logic goes here
+       * to validate in-progress summarization. */
     }
   }
-#else
-  consolemsg("verify_summaries_msgc_fcn req MAINTAIN_REDUNDANT_RS_AS_SM_REP");
-  assert(0);
-#endif
+
   return data;
 }
 
@@ -1796,18 +1831,96 @@ static bool verify_summaries_remset_fcn( word obj,
   return TRUE;
 }
 
+struct rsscan_check_nursery_rs_data {
+  summ_matrix_t  *summ;
+  msgc_context_t *conserv_context;
+  msgc_context_t *aggress_context;
+};
+
+static bool rsscan_check_nursery_rs( word loc, void *my_data, unsigned *stats )
+{
+  struct rsscan_check_nursery_rs_data *data;
+  data = (struct rsscan_check_nursery_rs_data*)my_data;
+
+  assert( msvfy_object_marked_p( data->conserv_context, loc ));
+  return TRUE;
+}
+
+static bool rsscan_add_loc( word loc, void *data, unsigned *stats ) 
+{
+  remset_t *rs = (remset_t*)data;
+  rs_add_elem( rs, loc );
+  return TRUE;
+}
+
+static void fold_col_into_remset( summ_matrix_t *summ, int i, remset_t *rs ) 
+{
+  summ_col_t *col;
+
+  assert( rs->live == 0 );
+
+  col = DATA(summ)->cols[i];
+  {
+    summ_cell_t *sent = col->cell_top;
+    summ_cell_t *curr = sent->next_col;
+    while (curr != sent) {
+      objs_pool_t *objs = curr->objects;
+      while (objs != NULL) {
+        word *p = objs->bot;
+        word *top = objs->top;
+        while( p < top ) {
+          if (*p != 0x0) {
+            assert( ! rs_isremembered( rs, *p ));
+            rs_add_elem( rs, *p );
+          }
+          p++;
+        }
+        objs = objs->next;
+      }
+      curr = curr->next_col;
+    }
+  }
+
+  if (col->sum_mutator != NULL) {
+    rs_enumerate( col->sum_mutator, rsscan_add_loc, rs );
+  }
+}
+
 EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
 {
   msgc_context_t *conserv_context;
   msgc_context_t *aggress_context;
   int marked, traced, words_marked;
+  remset_t **summaries;
 
   check_rep_1( summ );
-  if (DATA(summ)->summarized_genset_valid) {
+
+  /* set up simpler summary abstract representation */
+  {
+    int i;
+    summaries = 
+      must_malloc( DATA(summ)->num_cols * sizeof(remset_t*));
+    for ( i = 1; i < DATA(summ)->num_cols; i++ ) {
+      summaries[i] = grab_from_remset_pool();
+      consolemsg("col[i=%d]:words{sm:%d,wb:%d,gc:%d}", 
+                 i, 
+                 DATA(summ)->cols[i]->summarize_word_count,
+                 DATA(summ)->cols[i]->writebarr_word_count,
+                 DATA(summ)->cols[i]->collector_word_count );
+      fold_col_into_remset( summ, i, summaries[i] );
+      consolemsg("summaries[i=%d]->live: %d", i, summaries[i]->live);
+    }
+  }
+
+  {
+    struct verify_summaries_msgc_fcn_data data;
+    data.summ = summ;
+    data.summaries = summaries;
+
     conserv_context = msgc_begin( summ->collector );
     msvfy_set_object_visitor( conserv_context, 
                               verify_summaries_msgc_fcn, 
-                              summ );
+                              &data );
     /* (useful to have a pre-pass over reachable(roots) so that the
        stack trace tells you whether a problem is due solely to a
        reference chain that somehow involves remembered sets.) */
@@ -1819,7 +1932,6 @@ EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
     */
     msvfy_mark_objects_from_roots_and_remsets( conserv_context );
 
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
     /* a postpass over the summaries to make sure that their contents
        are sane.
     */
@@ -1832,25 +1944,38 @@ EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
       data.conserv_context = conserv_context;
       data.aggress_context = aggress_context;
       for (i = 0; i < summ->collector->remset_count; i++) {
-	if (gset_memberp( i, DATA(summ)->summarized_genset )){
-	  assert( DATA(summ)->remset_summaries[i] != NULL);
-	  assert( i < DATA(summ)->remset_summaries_count );
-	  /* we do not grab a remset_t if no entries are added, 
-	     so this is a guard rather than an assertion. */
-	  if ( DATA(summ)->remset_summaries[i]->sum_remset != NULL) {
-	    data.summary_for_region = i;
-	    rs_enumerate( DATA(summ)->remset_summaries[ i ]->sum_remset, 
-	                  verify_summaries_remset_fcn, 
-	                  &data );
-	  }
-	}
+        if (gset_memberp( i, DATA(summ)->summarized_genset )){
+          consolemsg("sanity check summary[i=%d]", i);
+          data.summary_for_region = i;
+          rs_enumerate( summaries[i], 
+                        verify_summaries_remset_fcn,
+                        &data );
+        }
       }
+
+      {
+        struct rsscan_check_nursery_rs_data data;
+        data.summ = summ;
+        data.conserv_context = conserv_context;
+        data.aggress_context = aggress_context;
+        rs_enumerate( DATA(summ)->nursery_remset,
+                      rsscan_check_nursery_rs,
+                      &data );
+      }
+
       msgc_end( aggress_context );
     }
-#else
-    assert(0);
-#endif
     msgc_end( conserv_context );
+  }
+
+  /* clean up */
+  {
+    int i;
+    for (i = 1; i < DATA(summ)->num_cols; i++) {
+      rs_clear( summaries[i] );
+      return_to_remset_pool( summaries[i] );
+    }
+    free( summaries );
   }
 
   check_rep_1( summ );
@@ -1881,29 +2006,6 @@ EXPORT void sm_refine_summaries_via_marksweep( summ_matrix_t *summ )
   check_rep_1( summ );
 
   context = summ->collector->smircy;
-
-  /* XXX refining the summaries as well as the remsets based on the
-     marksweep info.  This may or may not be necessary in an improved
-     version of the refinement code.
-
-     XXX its definitely going away as part of the shift from 
-     remset-rep to cells-rep
-  */
-#if MAINTAIN_REDUNDANT_RS_AS_SM_REP || USE_REDUNDANT_RS_AS_SM_REP
-  if (DATA(summ)->summarized_genset_valid) {
-    int i;
-    for (i = 0; i < summ->collector->remset_count; i++) {
-      if (gset_memberp( i, DATA(summ)->summarized_genset)) {
-        assert( DATA(summ)->remset_summaries[i] != NULL);
-        if (DATA(summ)->remset_summaries[i]->sum_remset != NULL) {
-          rs_enumerate( DATA(summ)->remset_summaries[i]->sum_remset,
-                        scan_refine_remset, 
-                        context );
-        }
-      }
-    }
-  }
-#endif
 
   /* refine cells-rep based on smircy state */
   {
