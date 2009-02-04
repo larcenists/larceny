@@ -668,3 +668,12 @@
 (eval dot-javadot-syntax-definition)
 
 ;; (install-debugger)
+(define install-debugger)
+
+"Install pretty printer as default printer."
+
+(repl-printer
+ (lambda (x port)
+   (if (not (eq? x (unspecified)))
+       (pretty-print x port))))
+

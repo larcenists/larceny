@@ -8,6 +8,9 @@
 
 (let ((proc-names 
        (append 
+
+        ;; From Base/pp.sch
+        '(pretty-line-length pretty-print)
         
         ;; From Asm/IL/il-corememory.sch
         '(link-lop-segment/clr 
@@ -590,6 +593,16 @@
 (eval dot-javadot-syntax-definition)
 
 (install-debugger)
+(define install-debugger)
+
+"Install pretty printer as default printer."
+
+(repl-printer
+ (lambda (x port)
+   (if (not (eq? x (unspecified)))
+       (pretty-print x port))))
+
+
 
 ; It's necessary to set the interaction environment so that any uses of 
 ; EVAL in the loaded file will reference the correct environment.
