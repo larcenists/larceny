@@ -62,8 +62,6 @@ struct gc_data {
     /* In RROF collector, the next region scheduled for major collection. */
   int rrof_last_tospace;
     /* In RROF collector, the region used as a to-space in the last collect */
-  double rrof_load_factor;
-    /* Lars put a load factor in each old-heap; RROF needs one load_factor */
 
   double rrof_sumz_budget;
     /* In RROF collector, B*N/R (where B = budget) is number of
@@ -74,6 +72,13 @@ struct gc_data {
     /* In RROF collector, C*N/R (where C = coverage) is initial number
        of summaries that we will try to construct during each heap
        scan during a wave of summary construction. */
+  double rrof_load_factor_soft; /* L_soft */
+  double rrof_load_factor_hard; /* L_hard */
+    /* Lars put a load factor in each old-heap; RROF uses a uniform policy
+       for all the regions.  The two factors serve distinct roles: 
+       we aim to keep the heap at size L_soft*Peak
+       and *guarantee* that the heap never exceeds L_hard*Peak
+       (where Peak is the peak size for past snapshots). */
 
   bool   rrof_has_refine_factor; /* With factor R,                         */
   double rrof_refinement_factor; /*   countdown = ceil((R*heap) / nursery) */

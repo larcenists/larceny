@@ -681,7 +681,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
         + total_live_at_last_major_gc)
       / (WEIGH_PREV_ESTIMATE_LOADCALC + 1);
     live_predicted_at_next_gc = 
-      (int)(DATA(gc)->rrof_load_factor * live_estimated_calc);
+      (int)(DATA(gc)->rrof_load_factor_soft * live_estimated_calc);
     DATA(gc)->rrof_last_live_estimate = live_estimated_calc;
 
     annoyingmsg( "completed_regional_cycle total: %d max: %d marked: %d est: %d predict: %d",
@@ -699,7 +699,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     }
 
     snapshot_live_allowed = 
-      DATA(gc)->last_live_words*DATA(gc)->rrof_load_factor*sizeof(word);
+      DATA(gc)->last_live_words*DATA(gc)->rrof_load_factor_soft*sizeof(word);
     while ( snapshot_live_allowed > maximum_allotted) {
       maximum_allotted = 
         add_region_to_expand_heap( gc, maximum_allotted );
@@ -758,7 +758,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
       assert(! DATA(gc)->ephemeral_area[ area_count-1 ]->has_popular_objects);
       consolemsg("ALERT: All evacuation spaces are popular! "
 		 "Allocating fresh region! load: %lf", 
-		 DATA(gc)->rrof_load_factor);
+		 DATA(gc)->rrof_load_factor_soft);
       gc_fresh_space(gc);
     }
   }
@@ -1245,18 +1245,22 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
   bool can_do_major, can_do_minor, succ_can_do_minor;
 
   int majors_sofar = DATA(gc)->rrof_next_region;
-  int majors_togo = count_majors_togo( gc );
-  int majors_total = majors_sofar + majors_togo;
+  int majors_total = DATA(gc)->region_count;
+  double L_hard = DATA(gc)->rrof_load_factor_hard;
+  double L_soft = DATA(gc)->rrof_load_factor_soft;
   int N_old  = DATA(gc)->last_live_words_at_time_cycle_began;
-  int N_new  = DATA(gc)->since_finished_snapshot_at_time_cycle_began_began.words_promoted;
-  int N_this = DATA(gc)->since_cycle_began.words_promoted;
-  int N_target_1 = 3 * (N_new - N_this);
-  int N_target_2 = quotient2(N_old, 4);
-  int N_target_3 = N_old - (N_new - N_this);
-  int N_target = max( 5*MEGABYTE/sizeof(word),
-                      min( N_target_3, max( N_target_2, N_target_1 )));
+  int P_old  = DATA(gc)->max_live_words;
+  int A_this = DATA(gc)->since_cycle_began.words_promoted;
+  int F_3    = 2; /* XXX FIXME see Will for calculation of F_3 */
+  int N = /* FIXME should be incrementally calculated via collection delta */
+    gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->region_count ));
+  int A_target_1 = (((int)(L_hard*P_old) - N_old - quotient2( N*(F_3 - 1), F_3 ))
+                    / 2);
+  int A_target_2 = ((int)(L_soft*N_old));
+  int A_target   = max( 5*MEGABYTE/sizeof(word), min( A_target_1, A_target_2 ));
+
   bool will_says_should_major = 
-    ((majors_total * N_this) >= (majors_sofar * N_target));
+    ((majors_total * A_this) >= (majors_sofar * A_target));
 
   DATA(gc)->rrof_refine_mark_countdown -= 1;
 
@@ -1271,15 +1275,14 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
     succ_can_do_minor = FALSE;
 
 #if 0
-  consolemsg( "majors_sofar:% 3d majors_togo:% 3d majors_total:% 3d "
-              "N_old:% 5dK, N_new:% 5dK N_this:% 5dK "
-              "N_target:% 5dK = max(5M,min(% 5dK,max(% 5dK,% 5dK))) => will says: %s",
-              majors_sofar, majors_togo, majors_total, 
-              N_old/1000, N_new/1000, N_this/1000, 
-              N_target/1000, N_target_3/1000, N_target_2/1000, N_target_1/1000, 
+  consolemsg( "majors_sofar:% 3d majors_total:% 3d "
+              "N_old:% 5dK, P_old:% 5dK, A_this:% 5dK "
+              "A_target:% 5dK = max(5M,min(% 5dK,% 5dK)) => will says: %s",
+              majors_sofar, majors_total, 
+              N_old/1000, P_old/1000, A_this/1000, 
+              A_target/1000, A_target_1/1000, A_target_2/1000, 
               will_says_should_major?"major":"minor");
 #endif 
-  assert( N_new >= N_this );
 
   if (can_do_minor && (succ_can_do_minor || ! can_do_major)) {
     collect_rgnl_minorgc( gc, rgn_to );
@@ -2526,7 +2529,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   
   data->dynamic_max = info->dynamic_sc_info.dynamic_max;
   data->dynamic_min = info->dynamic_sc_info.dynamic_min;
-  data->rrof_load_factor = info->dynamic_sc_info.load_factor;
+  data->rrof_load_factor_soft = info->dynamic_sc_info.load_factor;
+  data->rrof_load_factor_hard = info->dynamic_sc_info.load_factor_hard;
 
   /* Create nursery. */
   gc->young_area = 
