@@ -2016,12 +2016,29 @@ static bool rs_scan_add_word_to_rs( word loc, void *my_data, unsigned *stats )
   return TRUE; /* don't remove element from scanned remset */
 }
 
+static bool rsenum_fold_from_nursery_minorgc( word ptr, void *my_data, unsigned *count ) {
+  struct rs_scan_add_word_to_rs_data *data;
+  data = (struct rs_scan_add_word_to_rs_data*)my_data;
+  if (gen_of(ptr) != data->to_gen && gen_of(ptr) != 0) {
+    rs_add_elem( data->rs_to, ptr );
+  }
+  return TRUE; 
+}
+
 EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
 {
   struct rs_scan_add_word_to_rs_data scan_data;
   check_rep_1( summ );
 
-  if (gset_memberp( rgn_to, DATA(summ)->summarized_genset )) {
+  if ( DATA(summ)->summarized_genset_valid &&
+       gset_memberp( rgn_to, DATA(summ)->summarized_genset )) {
+    consolemsg("sm_copy_summary_to( summ, rgn_next=%d, rgn_to=%d );",
+               rgn_next, rgn_to );
+  }
+
+  if ( DATA(summ)->summarized_genset_valid &&
+       gset_memberp( rgn_to, DATA(summ)->summarized_genset ) && 
+       (rgn_next > 0) ) {
     summ_col_t *col_next, *col_to;
     summ_cell_t *sent, *cell;
     col_next = DATA(summ)->cols[rgn_next];
@@ -2060,6 +2077,17 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
                     rs_scan_add_word_to_rs, 
                     &scan_data );
     }
+  } else if ( DATA(summ)->summarized_genset_valid &&
+              gset_memberp( rgn_to, DATA(summ)->summarized_genset ) && 
+              (rgn_next == 0) ) {
+    scan_data.rs_to  = DATA(summ)->cols[ rgn_to ]->sum_mutator;
+    scan_data.to_gen = rgn_to;
+    if (DATA(summ)->cols[ rgn_to ]->sum_mutator == NULL) {
+      DATA(summ)->cols[ rgn_to ]->sum_mutator = grab_from_remset_pool();
+    }
+    rs_enumerate( DATA(summ)->nursery_remset,
+                  rsenum_fold_from_nursery_minorgc,
+                  &scan_data );
   }
 
   check_rep_1( summ );
@@ -2190,21 +2218,6 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
   check_rep_1( summ );
 }
 
-struct fold_from_nursery_data {
-  int gen;
-  remset_t *rs;
-};
-static bool rsenum_fold_from_nursery( word ptr, void *my_data, unsigned *count ) {
-  struct fold_from_nursery_data *data;
-  data = (struct fold_from_nursery_data*)my_data;
-  if (gen_of(ptr) != data->gen) {
-    rs_add_elem( data->rs, ptr );
-  }
-
-  /* maybe use FALSE, thus source rs would be cleared?  Would it matter? */
-  return TRUE; 
-}
-
 static bool rsenum_filter_tgt_gen( word ptr, void *my_data, unsigned *count ) 
 {
   int tgt_gen = *(int*)my_data;
@@ -2305,16 +2318,16 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
 
     if (col->sum_mutator == NULL) {
       /* XXX consider delaying this until its actually 
-       * needed within rsenum_fold_from_nursery */
+       * needed within rs_scan_add_word_to_rs */
       col->sum_mutator = grab_from_remset_pool();
     }
     {
       /* fold nursery into mutator rs if present */
-      struct fold_from_nursery_data data;
-      data.gen = next_summ_idx;
-      data.rs  = col->sum_mutator;
+      struct rs_scan_add_word_to_rs_data data;
+      data.to_gen = next_summ_idx;
+      data.rs_to  = col->sum_mutator;
       rs_enumerate( DATA(summ)->nursery_remset, 
-                    rsenum_fold_from_nursery,
+                    rs_scan_add_word_to_rs, 
                     &data );
     }
 
