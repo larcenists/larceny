@@ -1069,6 +1069,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
     DATA(gc)->rrof_to_region_before_space_switch = -1;
     collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
+    oh_synchronize( DATA(gc)->ephemeral_area[ rgn_to-1 ] );
+    oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
     rrof_completed_major_collection( gc );
     collect_rgnl_clear_summary( gc, rgn_next );
     collect_rgnl_choose_next_region( gc, num_rgns );
@@ -1217,10 +1219,10 @@ static void collect_rgnl_policy( gc_t *gc,
      /* XXX what is correct policy/logic here??? */);
   *p_can_do_minor = 
     (rgn_to_cur + nursery_sz < rgn_to_max &&
-     ! DATA(gc)->ephemeral_area[ rgn_to ]->has_popular_objects );
+     ! DATA(gc)->ephemeral_area[ rgn_to-1 ]->has_popular_objects );
   *p_succ_can_do_minor = 
     (rgn_succ_to_cur + nursery_sz < rgn_succ_to_max &&
-     ! DATA(gc)->ephemeral_area[ rgn_succ_to ]->has_popular_objects );
+     ! DATA(gc)->ephemeral_area[ rgn_succ_to-1 ]->has_popular_objects );
 }
 
 static int count_majors_togo( gc_t *gc ) 
@@ -1253,7 +1255,7 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
   int A_this = DATA(gc)->since_cycle_began.words_promoted;
   int F_3    = 2; /* XXX FIXME see Will for calculation of F_3 */
   int N = /* FIXME should be incrementally calculated via collection delta */
-    gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->region_count ));
+    gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count ));
   int A_target_1 = (((int)(L_hard*P_old) - N_old - quotient2( N*(F_3 - 1), F_3 ))
                     / 2);
   int A_target_2 = ((int)(L_soft*N_old));
@@ -1284,6 +1286,15 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
               will_says_should_major?"major":"minor");
 #endif 
 
+#if 0
+  if (will_says_should_major) {
+    bool didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
+    if (! didit) 
+      goto collect_evacuate_nursery;
+  } else { /* ! will_says_should_major */
+    collect_rgnl_minorgc( gc, rgn_to );
+  }
+#else 
   if (can_do_minor && (succ_can_do_minor || ! can_do_major)) {
     collect_rgnl_minorgc( gc, rgn_to );
   } else if (can_do_major && ! succ_can_do_minor) {
@@ -1297,6 +1308,7 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
      * only happen when a summary is abandoned. */
     goto collect_evacuate_nursery;
   }
+#endif
 }
 
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
@@ -2104,6 +2116,8 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   int to_rgn_old = DATA(gc)->rrof_to_region;
   int to_rgn_new = next_rgn( to_rgn_old, DATA(gc)->region_count );
 
+  oh_synchronize( DATA(gc)->ephemeral_area[ to_rgn_old-1 ] );
+
   ss_sync( current_space );
   cur_allocated = 
     current_space->used+los_bytes_used( gc->los, current_space->gen_no );
@@ -2120,7 +2134,8 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
         DATA(gc)->rrof_to_region = to_rgn_new;
         assert( DATA(gc)->ephemeral_area[to_rgn_old-1]->was_target_during_gc );
         DATA(gc)->ephemeral_area[to_rgn_new-1]->was_target_during_gc = TRUE;
-        annoyingmsg("jump to space incr; %d becomes %d", to_rgn_old, to_rgn_new );
+        annoyingmsg("next: %d jump to space incr; %d becomes %d", 
+                   DATA(gc)->rrof_next_region, to_rgn_old, to_rgn_new );
         return oh_current_space( DATA(gc)->ephemeral_area[ to_rgn_new-1 ] );
       }
       to_rgn_new = next_rgn( to_rgn_new, DATA(gc)->region_count );
@@ -2128,27 +2143,34 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
              to_rgn_new != DATA(gc)->rrof_next_region );
     /* failure! */
     annoyingmsg("find_space_rgnl: failed shift of to");
-    DATA(gc)->rrof_to_region = to_rgn_old;
   } 
 
   {
     int last_gen_no = DATA(gc)->ephemeral_area_count;
-    old_heap_t *heap = DATA(gc)->ephemeral_area[ last_gen_no-1 ];
+    old_heap_t *heap;
     int allocated_there;
 
     assert( DATA(gc)->secondary_space == NULL );
+    heap = DATA(gc)->ephemeral_area[ last_gen_no-1 ];
     ss_sync( oh_current_space( heap ));
+    oh_synchronize( heap );
 
     if (gc_allocated_to_areas( gc, gset_singleton( last_gen_no )) == 0) {
+      assert( to_rgn_old != last_gen_no );
       DATA(gc)->ephemeral_area[last_gen_no-1]->was_target_during_gc = TRUE;
-      annoyingmsg("jump to space last; %d becomes %d", to_rgn_old, last_gen_no );
+      DATA(gc)->rrof_to_region = last_gen_no;
+      annoyingmsg("next: %d jump to space last; %d becomes %d", 
+                 DATA(gc)->rrof_next_region, to_rgn_old, last_gen_no );
       return oh_current_space( heap );
     } else {
       semispace_t *ss;
       ss = gc_fresh_space( gc );
+      assert( to_rgn_old != ss->gen_no );
       to_rgn_new = ss->gen_no;
       DATA(gc)->ephemeral_area[to_rgn_new-1]->was_target_during_gc = TRUE;
-      annoyingmsg("fresh to space; %d becomes %d", to_rgn_old, to_rgn_new );
+      DATA(gc)->rrof_to_region = to_rgn_new;
+      annoyingmsg("next: %d fresh to space; %d becomes %d", 
+                 DATA(gc)->rrof_next_region, to_rgn_old, to_rgn_new );
       return ss;
     }
   }
@@ -2204,7 +2226,7 @@ static int allocated_to_area( gc_t *gc, int gno )
       annoyingmsg("gno: %d area thinks: %d but actually: %d", 
                   gno, area_thinks_allocated, retval);
     }
-    /* assert( area_thinks_allocated == retval ); */ /* XXX was this ever right? */
+    assert( area_thinks_allocated == retval ); /* XXX was this ever right? */
     return retval;
 #endif
   } else {
