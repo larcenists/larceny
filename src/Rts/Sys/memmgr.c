@@ -1066,7 +1066,6 @@ static bool collect_rgnl_majorgc( gc_t *gc,
         }
       }
     }
-    DATA(gc)->rrof_to_region_before_space_switch = -1;
     collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
     oh_synchronize( DATA(gc)->ephemeral_area[ rgn_to-1 ] );
     oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
@@ -1115,7 +1114,6 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   update_promotion_counts( gc, gc->words_from_nursery_last_gc );
   smircy_step( gc, smircy_step_dont_refine );
   
-  DATA(gc)->rrof_to_region_before_space_switch = -1;
   rrof_completed_minor_collection( gc );
   /* TODO: add code to incrementally summarize by attempting to
    * predict how many minor collections will precede the next
@@ -1419,8 +1417,6 @@ static void before_collection( gc_t *gc )
 {
   int e;
 
-  assert( DATA(gc)->rrof_to_region_before_space_switch == -1 );
-
   gc->stat_last_ms_gc_pause = 0;
   gc->stat_last_ms_gc_pause_cpu = 0;
   gc->stat_last_gc_pause_ismajor = -1;
@@ -1511,7 +1507,6 @@ static void after_collection( gc_t *gc )
   }
 #endif
 
-  assert( DATA(gc)->rrof_to_region_before_space_switch == -1 );
 }
 
 static void set_policy( gc_t *gc, int gen, int op, int value )
@@ -2761,7 +2756,6 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->rrof_currently_minor_gc = FALSE;
   data->rrof_to_region = 1;
-  data->rrof_to_region_before_space_switch = -1;
   data->rrof_next_region = 1;
   data->rrof_last_tospace = -1;
 
