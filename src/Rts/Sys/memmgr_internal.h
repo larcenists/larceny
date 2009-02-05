@@ -100,6 +100,7 @@ struct gc_data {
      *  of the cycle has been considered to take part in a major
      *  collection.)
      */
+  bool rrof_last_gc_rolled_cycle;
 
   summary_t summary;            /* NULL or summarization of remset array */
   bool      use_summary_instead_of_remsets;

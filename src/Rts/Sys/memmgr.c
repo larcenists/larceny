@@ -763,7 +763,6 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     }
   }
 
-  DATA(gc)->rrof_next_region = 1;
   DATA(gc)->region_count = DATA(gc)->ephemeral_area_count-1;
 }
 
@@ -909,7 +908,7 @@ static void collect_rgnl_choose_next_region( gc_t *gc, int num_rgns )
   DATA(gc)->rrof_next_region = n;
   if (n == rrof_first_region) {
     assert2( DATA(gc)->region_count == num_rgns );
-    rrof_completed_regional_cycle( gc );
+    DATA(gc)->rrof_last_gc_rolled_cycle = TRUE;
     num_rgns = DATA(gc)->region_count;
   }
 }
@@ -1357,6 +1356,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
   assert( data->in_gc > 0 );
   
+  if (data->rrof_last_gc_rolled_cycle)
+    rrof_completed_regional_cycle( gc );
+
   if (--data->in_gc == 0) {
     after_collection( gc );
     stats_following_gc( gc );
@@ -1426,6 +1428,9 @@ static void before_collection( gc_t *gc )
   DATA(gc)->stat_last_ms_remset_sumrize_cpu = -1;
   DATA(gc)->stat_last_ms_mark_refinement = -1;
   DATA(gc)->stat_last_ms_mark_refinement_cpu = -1;
+
+  /* assume it does not roll over until we discover otherwise */
+  DATA(gc)->rrof_last_gc_rolled_cycle = FALSE;
 
   gc_compact_all_ssbs( gc );
 
@@ -2769,6 +2774,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_cycle_count = 0;
 
   data->next_summary_to_use = -2;
+  data->rrof_last_gc_rolled_cycle = FALSE;
 
   data->last_live_words = 0;
   data->max_live_words = 0;
