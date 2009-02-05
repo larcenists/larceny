@@ -2080,11 +2080,13 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
   } else if ( DATA(summ)->summarized_genset_valid &&
               gset_memberp( rgn_to, DATA(summ)->summarized_genset ) && 
               (rgn_next == 0) ) {
-    scan_data.rs_to  = DATA(summ)->cols[ rgn_to ]->sum_mutator;
-    scan_data.to_gen = rgn_to;
-    if (DATA(summ)->cols[ rgn_to ]->sum_mutator == NULL) {
-      DATA(summ)->cols[ rgn_to ]->sum_mutator = grab_from_remset_pool();
+    summ_col_t *col_to;
+    col_to = DATA(summ)->cols[ rgn_to ];
+    if ( col_to->sum_mutator == NULL ) {
+      col_to->sum_mutator = grab_from_remset_pool();
     }
+    scan_data.rs_to  = col_to->sum_mutator;
+    scan_data.to_gen = rgn_to;
     rs_enumerate( DATA(summ)->nursery_remset,
                   rsenum_fold_from_nursery_minorgc,
                   &scan_data );
