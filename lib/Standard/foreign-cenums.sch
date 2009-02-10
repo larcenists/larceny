@@ -17,8 +17,10 @@
 
 (define enum-table->set-high2low
   (lambda (enum-type-name sym2cval-table univ)
-    (let ((high2low (enum-table->high2low enum-type-name sym2cval-table)))
+    (let ((enum-set? (record-predicate (record-type-descriptor (make-enumeration '()))))
+          (high2low (enum-table->high2low enum-type-name sym2cval-table)))
       (lambda (eset . name)
+        (assert (enum-set? eset))
         (assert (enum-set-subset? eset univ))
         (foldr fxlogior 0 (map high2low (enum-set->list eset)))))))
 
