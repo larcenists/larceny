@@ -278,6 +278,7 @@
       (uchar    unsigned32 ,character->uchar        ,uchar->character)
       (long     signed32   ,integer-check           ,id)
       (ulong    unsigned32 ,unsigned-integer-check  ,id)
+      (size_t   unsigned32 ,unsigned-integer-check  ,id)
       (float    ieee32     ,flonum-check            ,id)
       (double   ieee64     ,flonum-check            ,id)
       (longlong  signed64   ,longlong-check         ,id)
@@ -740,7 +741,7 @@
     (%set32u x offs v)))
 
 ;; (size is in 8-bit bytes, not in bits here)
-(define (size->%getter size)
+(define (size->%integer-getter size)
   (if (eq? 'little (cdr (assq 'arch-endianness (system-features))))
       (lambda (x offs)
         (let rec ((accum 0) (size size) (offs offs) (mult 1))
@@ -758,7 +759,7 @@
                    (- size 1)
                    (- offs 1)
                    (* mult 256)))))))
-(define (size->%setter size)
+(define (size->%integer-setter size)
   (let ((init-divisor (expt 2 (* (- size 1) 8))))
     (if (eq? 'little (cdr (assq 'arch-endianness (system-features))))
         (lambda (x offs n)
@@ -771,6 +772,14 @@
             (cond ((not (zero? size))
                  (bytevector-set! x offs (remainder (quotient n d) 256))
                  (rec (- size 1) (+ offs 1) (/ d 256)))))))))
+(define (size->%bytevector-getter size)
+  (lambda (x offs)
+    (let ((rtn (make-bytevector size)))
+      (bytevector-copy! x offs rtn 0 size)
+      rtn)))
+(define (size->%bytevector-setter size)
+  (lambda (x offs src)
+    (bytevector-copy! src 0 x offs size)))
 
 ; %get-* and %set-*: get and set values in bytevectors in C language terms.
 
