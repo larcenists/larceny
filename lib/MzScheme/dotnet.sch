@@ -119,6 +119,8 @@
 
 ;;; End of primitive accessors
 
+;;; Marshalling from Scheme to .NET representations.
+
 (define clr/default-marshal-out
   (make-generic 'clr/default-marshal-out '(object)
 
@@ -140,12 +142,19 @@
              :procedure (lambda (call-next-method null-object)
                           clr/null))
 
+    ;; FIXME: clr/%schemeobject->foreign is undefined.
+
     :method (make-method
               :arity 1
               :specializers (list <procedure>)
               :procedure (lambda (call-next-method proc)
                            (clr/%schemeobject->foreign proc)))
 
+    :method (make-method
+              :arity 1
+              :specializers (list <char>)
+              :procedure (lambda (call-next-method char)
+                           (clr/%char->foreign char)))
     :method (make-method
               :arity 1
               :specializers (list <string>)
@@ -777,7 +786,7 @@
 
             ;; Set up the System.RuntimeType to be an instance
             ;; of itself (using some magic).  This *must* be done first
-            ;; so that any clases created on demand while we initialize
+            ;; so that any classes created on demand while we initialize
             ;; will have the correct inheritance chain.
 
             (dotnet-message  5 "set-instance-class-to-self!")
@@ -2650,6 +2659,7 @@
 
               ;; Bootstrap the classes needed to represent CLR objects.
               ;; After this, we can use the marshaling routines.
+
               (dotnet-message 0 "Bootstrap clr classes.")
               (bootstrap-clr-classes! root-clr-object)
               (dotnet-message 0 "Initialize clr generics.")
@@ -2658,6 +2668,7 @@
               (io/port-recognizes-javadot-symbols! (current-input-port) #t)
               (set! *dotnet-initialized* #t)
               (display "done."))
+
             (error (string-append full-version " not yet supported."))))))
 
 ;;;; Utilities
