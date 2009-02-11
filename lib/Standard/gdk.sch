@@ -75,9 +75,10 @@
          (path "/sw/include/glib-2.0")
          (path "/sw/lib/glib-2.0/include")
          (path "/sw/lib/gtk-2.0/include") 
-         (path "/sw/include/pango-1.0")
+         (path "/sw/lib/pango-ft219/include/pango-1.0")
          (path "/sw/include/atk-1.0")
          (path "/sw/include/gtk-2.0")
+         (path "/sw/include/cairo")
          (include<> HEADERS) ...
          FORMS ...))
       (unix
