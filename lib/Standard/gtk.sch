@@ -110,7 +110,8 @@
          "/sw/include/glib-2.0"
          "/sw/lib/glib-2.0/include"
          "/sw/lib/gtk-2.0/include"
-         "/sw/include/pango-1.0"
+         "/sw/lib/pango-ft219/include/pango-1.0"
+         "/sw/include/cairo"
          "/sw/include/atk-1.0"
          "/sw/include/gtk-2.0")
         . ARGS))
@@ -1099,6 +1100,14 @@
 (define-foreign (gtk-clipboard-set-image gtkclipboard* gdkpixbuf*) void)
 
 (define-foreign (gtk-dialog-new) gtkdialog*)
+(define gtk-dialog-new-with-buttons 
+  (lambda (s w f . names)
+    (let ((p (foreign-procedure "gtk_dialog_new_with_buttons"
+                                `(string gtkwindow* gtkdialogflags
+                                         ,@(map (lambda (x) 'string) names)
+                                         string) ;; marked end of names
+                                'gtkdialog*)))
+      (apply p s w f (reverse (cons #f (reverse names)))))))
 (define-foreign (gtk-dialog-run gtkdialog*) int)
 (define-foreign (gtk-dialog-response gtkdialog* int) void)
 (define-foreign (gtk-dialog-add-button gtkdialog* string int) gtkwidget*)
