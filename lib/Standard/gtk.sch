@@ -598,7 +598,7 @@
   (void*-word-set! widget gtkobject-flags-offset 
                    (fxlogior 
                     (void*-word-ref widget gtkobject-flags-offset)
-                    ((enum->marshall-out gtkwidgetflags)
+                    ((ffi/arg-converter 'gtkwidgetflags)
                      flags))))
 
 (define-foreign (gtk-main) void)
