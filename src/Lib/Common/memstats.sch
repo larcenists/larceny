@@ -129,7 +129,7 @@
             (vector-ref v $mstat.total-remset-scan-cpu)
             (vector-ref v $mstat.remset-scan-count)
             (vector-ref v $mstat.max-entries-remset-scan)
-            (vector-ref v $mstat.total-entries-remset-scan)
+            (bignum     v $mstat.total-entries-remset-scan-hi)
             (vector-ref v $mstat.max-mark-pause)
             (vector-ref v $mstat.max-mark-pause-cpu)
             (vector-ref v $mstat.total-mark-pause)     ;  # 60

@@ -95,7 +95,7 @@ struct gclib_memstat {
   word total_remset_scan_cpu;
   word remset_scan_count;
   word max_entries_remset_scan;
-  word total_entries_remset_scan;
+  DWORD( total_entries_remset_scan );
 
   word max_mark_pause;
   word max_mark_pause_cpu;
@@ -481,7 +481,7 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   PUT_WORD( stats, s, total_remset_scan_cpu );
   PUT_WORD( stats, s, remset_scan_count );
   PUT_WORD( stats, s, max_entries_remset_scan );
-  PUT_WORD( stats, s, total_entries_remset_scan );
+  PUTBIG_DWORD( stats, s, total_entries_remset_scan );
 
 #define RANGECASE(lo, hi, recv_prefix, recv_suffix, arg)     \
   else if (lo <= arg && arg < hi)            \
@@ -835,7 +835,10 @@ static void fill_main_entries( word *vp )
   vp[ STAT_MARK_PAUSE_COUNT ]        = gclib->mark_pause_count;
 
   vp[ STAT_MAX_ENTRIES_REMSET_SCAN ]   = gclib->max_entries_remset_scan;
-  vp[ STAT_TOTAL_ENTRIES_REMSET_SCAN ] = gclib->total_entries_remset_scan;
+  STAT_PUT_DWORD( vp, 
+                  TOTAL_ENTRIES_REMSET_SCAN,
+                  gclib,
+                  total_entries_remset_scan );
 
   vp[ STAT_MAX_BUILD_REMSET_SUMMARY ]       = 
     gclib->max_build_remset_summary;
