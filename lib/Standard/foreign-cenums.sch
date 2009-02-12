@@ -80,7 +80,6 @@
                                                        univ)))
              (ffi-add-attribute-core-entry! 'enum-type 'signed32 
                                             high->low low->high)
-             (list sym2cval-table high->low low->high univ)
              (enum-set-constructor univ)
              )))))))
 
