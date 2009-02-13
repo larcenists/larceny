@@ -12,6 +12,10 @@
         ;; From Base/pp.sch
         '(pretty-line-length pretty-print)
         
+        ;; From Base/defaults.sch
+
+        '(set-parameter-defaults-for-a-standard-heap!)
+
         ;; From Asm/IL/il-corememory.sch
         '(link-lop-segment/clr 
           eval/clr 
@@ -590,18 +594,72 @@
 
   (seal-twobit proc-names))
 
+
+;;; Load a bunch of useful things.  
+;;; FIXME: Some of these files could usefully be loaded in private namespaces.
+
+;;; FIXME: Common Larceny doesn't support heap dumping,
+;;; so we can't just load files here and dump the heap.
+;;; As a temporary expedient, it's easiest just to copy
+;;; certain files into this file:
+
+(define auxiliary-syntax-definitions
+  '(begin
+
+;;; FIXME: copied from lib/Base/macros.sch
+
+(define-syntax bound?
+  (syntax-rules ()
+    ((bound? x)
+     (bound? x (interaction-environment)))
+    ((bound? ?x ?env)
+     (let ((env ?env)
+           (name (quote ?x)))
+       (or (environment-variable? env name)
+           (environment-macro? env name))))))
+
+(define-syntax time
+  (syntax-rules ()
+    ((time ?expr)
+     (run-with-stats (lambda () ?expr)))))
+
+;;; End of copied text.
+
+)) ; end of auxiliary-syntax-definitions
+
+
+;;; Improve some definitions
+
+(define (procedure-documentation-string p)
+  (let ((e (procedure-expression p)))
+    (if (and (list? e)
+             (> (length e) 2)
+             (string? (caddr e))
+             (not (null? (cdddr e))))
+        (caddr e)
+        #f)))
+
+;;; Set parameters to their defaults.
+
+(set-parameter-defaults-for-a-standard-heap!)
+(set! set-parameter-defaults-for-a-standard-heap! (undefined))
+
+;;; Eval the syntax definitions.
+
 (eval dot-javadot-syntax-definition)
+(eval auxiliary-syntax-definitions)
+
+;;; Install debugger.
 
 (install-debugger)
 (define install-debugger)
 
-"Install pretty printer as default printer."
+;;; Install pretty printer as default printer.
 
 (repl-printer
  (lambda (x port)
    (if (not (eq? x (unspecified)))
        (pretty-print x port))))
-
 
 
 ; It's necessary to set the interaction environment so that any uses of 
@@ -632,3 +690,5 @@
                 (interaction-environment old-env)))))))
 
 (load-evaluator new-load-eval)
+
+; eof

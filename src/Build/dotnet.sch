@@ -395,6 +395,8 @@
         ,@(param-filename 'debugger '("debug.sch"
                                       "inspect-cont.sch"
                                       "trace.sch"))
+        ,@(param-filename
+           'auxiliary '("macros.sch" "defaults.sch"))
         ,@(param-filename 'util '("dotnet-larceny.sch"))))))
 
 (define (build-larceny-lcg)

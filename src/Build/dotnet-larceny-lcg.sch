@@ -665,15 +665,101 @@
 
   (seal-twobit proc-names))
 
-(eval dot-javadot-syntax-definition)
 
-;; (install-debugger)
+;;; Load a bunch of useful things.  
+;;; FIXME: Some of these files could usefully be loaded in private namespaces.
+
+;;; FIXME: Common Larceny doesn't support heap dumping,
+;;; so we can't just load files here and dump the heap.
+;;; As a temporary expedient, it's easiest just to copy
+;;; certain files into this file:
+
+(define auxiliary-syntax-definitions
+  '(begin
+
+;;; FIXME: copied from lib/Base/macros.sch
+
+(define-syntax bound?
+  (syntax-rules ()
+    ((bound? x)
+     (bound? x (interaction-environment)))
+    ((bound? ?x ?env)
+     (let ((env ?env)
+           (name (quote ?x)))
+       (or (environment-variable? env name)
+           (environment-macro? env name))))))
+
+(define-syntax time
+  (syntax-rules ()
+    ((time ?expr)
+     (run-with-stats (lambda () ?expr)))))
+
+;;; End of copied text.
+
+)) ; end of auxiliary-syntax-definitions
+
+
+;;; Improve some definitions
+
+(define (procedure-documentation-string p)
+  (let ((e (procedure-expression p)))
+    (if (and (list? e)
+             (> (length e) 2)
+             (string? (caddr e))
+             (not (null? (cdddr e))))
+        (caddr e)
+        #f)))
+
+;;; Set parameters to their defaults.
+
+(set-parameter-defaults-for-a-standard-heap!)
+(set! set-parameter-defaults-for-a-standard-heap! (undefined))
+
+;;; Eval the syntax definitions.
+
+(eval dot-javadot-syntax-definition)
+(eval auxiliary-syntax-definitions)
+
+;;; Install debugger.
+
+(install-debugger)
 (define install-debugger)
 
-"Install pretty printer as default printer."
+;;; Install pretty printer as default printer.
 
 (repl-printer
  (lambda (x port)
    (if (not (eq? x (unspecified)))
        (pretty-print x port))))
 
+
+; It's necessary to set the interaction environment so that any uses of 
+; EVAL in the loaded file will reference the correct environment.
+
+(define new-load-eval
+  (lambda (expr env)
+    (let ((old-env (interaction-environment)))
+      (define (literal? x)
+        (or (procedure? x) (number? x) (string? x)))
+      (dynamic-wind 
+          (lambda ()
+            (interaction-environment env))
+          (lambda ()
+            ;; Filter out procedure literals (.fasl files)
+            ;; Keep in sync w/ dump-fasl in Asm/IL/dumpheap-extra.sch
+            (if (and (pair? expr) 
+                     (pair? (car expr))
+                     (eq? '@common-patch-procedure (caar expr))
+                     (every? literal? (cdar expr)))
+                (let ((proc
+                       (apply (eval '@common-patch-procedure env)
+                              (cdar expr))))
+                  (proc))
+                (eval/clr expr env)))
+          (lambda ()
+            (if (eq? (interaction-environment) env)
+                (interaction-environment old-env)))))))
+
+(load-evaluator new-load-eval)
+
+; eof
