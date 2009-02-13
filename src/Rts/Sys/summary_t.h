@@ -1,4 +1,4 @@
-/* Copyright 2008 Felix S Klock II 
+/* Copyright 2008 Felix S Klock II              -*- indent-tabs-mode: nil -*-
  */
 #ifndef INCLUDED_SUMMARY_T_H
 #define INCLUDED_SUMMARY_T_H
@@ -15,6 +15,10 @@ struct summary {
        (The process of iteration does not modify this value; it is 
        set at construction time and left alone thereafter.)
      */
+
+  bool composed_summary;
+    /* (set by summary_compose to establish that this is the
+       composition of several sub-summaries.) */
 
   bool (*next_chunk)( summary_t *this, /* remaining are "out" parameters */
                       word **start, word **lim );
@@ -91,6 +95,11 @@ void summary_init_dispose( summary_t *summary,
  * next_chunk_with_flags field above.
  * Any necessary cleanup can be encoded in the dispose fcn ptr.
  */
+
+void summary_compose( summary_t *fst, summary_t *snd, 
+                      summary_t *thd, summary_t *fth, summary_t *recv );
+  /* Initializes recv so that it iterates through fst, snd, and thd
+     each in turn. */
 
 void summary_enumerate( summary_t *summary,
                         void (*scanner)(word loc, void *data, unsigned *stats),
