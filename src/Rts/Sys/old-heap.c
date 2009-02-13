@@ -517,6 +517,21 @@ static void perform_promote_then_promote( old_heap_t *heap )
   /* FIXME */
 }
 
+static void check_budget( old_heap_t *heap, char *where ) 
+{
+#if 0
+  if (heap->allocated > heap->maximum) {
+    int nonlos_allocated = DATA(heap)->current_space->used;
+    int los_allocated = 
+      los_bytes_used( heap->collector->los, DATA(heap)->gen_no );
+    consolemsg("old-heap[%d] allocated=%d=%d+%d more than maximum=%d %s",
+               DATA(heap)->gen_no, 
+               heap->allocated, nonlos_allocated, los_allocated, 
+               heap->maximum, "synchronize" );
+  }
+#endif
+}
+
 static void before_collection( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
@@ -525,6 +540,7 @@ static void before_collection( old_heap_t *heap )
   data->must_clear_remset = 0;
   heap->maximum = data->target_size;
   heap->allocated = used_space( heap );
+  check_budget( heap, "before_collection" );
 }
 
 static void after_collection( old_heap_t *heap )
@@ -542,6 +558,7 @@ static void after_collection( old_heap_t *heap )
     rs_clear( heap->collector->remset[ data->gen_no ] );
 
   heap->allocated = used_space( heap );
+  check_budget( heap, "after_collection" );
   annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d+%d.", 
 	       data->gen_no, data->target_size, heap->allocated, 
 	       heap->collector->remset[ data->gen_no ]->live,
@@ -665,6 +682,7 @@ static void synchronize( old_heap_t *heap )
 
   heap->maximum = data->target_size;
   heap->allocated = used_space( heap );
+  check_budget( heap, "synchronize" );
 }
 
 static void collect_into_self( old_heap_t *heap, gc_type_t request ) 
