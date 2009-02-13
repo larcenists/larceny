@@ -511,7 +511,7 @@ void init_env( cheney_env_t *e, gc_t *gc,
                          tospace2, forw_gset, attributes, scanner );
 }
 
-static unsigned objects_scanned;
+static signed objects_scanned;
 
 void oldspace_copy( cheney_env_t *e )
 {
@@ -553,6 +553,7 @@ void oldspace_copy( cheney_env_t *e )
     gc->stat_max_remset_scan = max( gc->stat_max_remset_scan, elapsed );
     gc->stat_max_remset_scan_cpu = max( gc->stat_max_remset_scan_cpu, cpu );
     gc->stat_total_entries_remset_scan += objects_scanned;
+    assert( gc->stat_total_entries_remset_scan >= 0 );
     gc->stat_total_remset_scan += elapsed;
     gc->stat_total_remset_scan_cpu += cpu;
     gc->stat_remset_scan_count++;
@@ -651,6 +652,7 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
   objects_scanned++;
+  assert( objects_scanned >= 0 );
   assert2( *ptrof(object) != FORWARD_HDR );
   remset_scanner_core( e, object, loc, 
                        forw_oflo_record( loc, forward_nursery_and, forw_gset,
@@ -675,6 +677,7 @@ static bool remset_scanner_oflo_update_rs( word object, void *data, unsigned *co
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
   objects_scanned++;
+  assert( objects_scanned >= 0 );
   assert2( *ptrof(object) != FORWARD_HDR );
   remset_scanner_update_rs
     ( e, object, loc, 
@@ -817,7 +820,11 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
  * "*dest" is a pointer into newspace, the destination of the next object.
  *
  * Forward() returns the forwarding value of "ptr"; it does this by
- * copying the object and returning the new address.
+ * copying the object and returning the new address (or, in the case
+ * of an unmoved large objects, returning ptr (but still marking 
+ * it within the LOS; see forward_large_object(..)).
+ *
+ * *dest is updated to reflect allocation of a copy in the to-space.
  *
  * Most objects are smallish, so this code should be biased in favor
  * of small objects.
