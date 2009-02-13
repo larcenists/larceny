@@ -3037,7 +3037,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_last_tospace = -1;
 
   data->rrof_has_refine_factor = TRUE;
-  data->rrof_refinement_factor = 3.0;
+  data->rrof_refinement_factor = 1.0;
   data->rrof_refine_mark_period = -1;
   data->rrof_refine_mark_countdown = -1;
 
