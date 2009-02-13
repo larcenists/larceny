@@ -334,6 +334,12 @@ static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
     panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
 	        nbytes, LARGEST_OBJECT );
 
+  if (DATA(gc)->ephemeral_area_count > 0 && 
+      nbytes > DATA(gc)->ephemeral_area[ 0 ]->maximum ) {
+    consolemsg("allocate: holy cow; nbytes=%d and max=%d",
+               nbytes, DATA(gc)->ephemeral_area[0]->maximum );
+  }
+
   return yh_allocate( gc->young_area, nbytes, no_gc );
 }
 
@@ -430,15 +436,16 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define USE_ORACLE_TO_VERIFY_SUMMARIES 0
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
-#define SYNC_REFINEMENT_RROF_CYCLE 0
+#define SYNC_REFINEMENT_RROF_CYCLE 1
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
 #define PRINT_SNAPSHOT_INFO_TO_CONSOLE 0
+#define USE_ORACLE_TO_CHECK_SUMMARY_SANITY 0
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
 static const double default_popularity_factor = 2.0;
-static const double default_sumz_budget_factor = 0.1;
-static const double default_sumz_coverage_factor = 0.1;
+static const double default_sumz_budget_inv = 3.0;
+static const double default_sumz_coverage_inv = 3.0;
 
 static void smircy_start( gc_t *gc ) 
 {
@@ -607,6 +614,7 @@ static int add_region_to_expand_heap( gc_t *gc, int maximum_allotted )
 }
 
 static void collect_rgnl_shift_the_to( gc_t *gc );
+static void initialize_summaries( gc_t *gc, bool about_to_major );
 
 static void rrof_completed_major_collection( gc_t *gc ) 
 {
@@ -693,10 +701,12 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 
     maximum_allotted_pre = maximum_allotted;
 
+#if 0
     if (live_predicted_at_next_gc > maximum_allotted) { /* XXX if => while? */
       maximum_allotted = 
         add_region_to_expand_heap( gc, maximum_allotted );
     }
+#endif
 
     snapshot_live_allowed = 
       DATA(gc)->last_live_words*DATA(gc)->rrof_load_factor_soft*sizeof(word);
@@ -764,6 +774,10 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   }
 
   DATA(gc)->region_count = DATA(gc)->ephemeral_area_count-1;
+
+  if ((DATA(gc)->summaries == NULL) && (DATA(gc)->region_count > 1)) {
+    initialize_summaries( gc, FALSE );
+  }
 }
 
 static void start_timers( stats_id_t *timer1, stats_id_t *timer2 )
@@ -803,6 +817,29 @@ static void handle_secondary_space( gc_t *gc )
 		   DATA(gc)->secondary_space );
     DATA(gc)->secondary_space = NULL;
   }
+}
+
+static void summarization_step( gc_t *gc, bool about_to_major )
+{
+  stats_id_t timer1, timer2;
+  int word_countdown = -1, object_countdown = -1;
+
+  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
+    verify_summaries_via_oracle( gc );
+
+  start_timers( &timer1, &timer2 );
+
+  sm_construction_progress( DATA(gc)->summaries, 
+                            &word_countdown,
+                            &object_countdown, 
+                            DATA(gc)->rrof_next_region, 
+                            DATA(gc)->region_count,
+                            about_to_major );
+
+  stop_sumrize_timers( gc, &timer1, &timer2 );
+
+  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
+    verify_summaries_via_oracle( gc );
 }
 
 typedef enum { 
@@ -883,23 +920,28 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
     verify_remsets_via_oracle( gc );
 }
 
+static void initialize_summaries( gc_t *gc, bool about_to_major ) 
+{
+  DATA(gc)->summaries =
+    create_summ_matrix( gc, 1, DATA(gc)->region_count,
+                        1.0 / DATA(gc)->rrof_sumz_params.coverage_inv,
+                        1.0 / (DATA(gc)->rrof_sumz_params.budget_inv
+                               * DATA(gc)->rrof_sumz_params.coverage_inv),
+                        DATA(gc)->rrof_sumz_params.popularity_factor,
+                        DATA(gc)->rrof_sumz_params.popularity_limit_words, 
+                        about_to_major,
+                        DATA(gc)->rrof_next_region );
+}
 
 static void collect_rgnl_clear_summary( gc_t *gc, int rgn_next )
 {
-  { 
-    sm_clear_summary( DATA(gc)->summaries, rgn_next );
-
-    DATA(gc)->next_summary_to_use =
-      next_rgn( DATA(gc)->next_summary_to_use, 
-                DATA(gc)->region_count );
-    if (! sm_is_rgn_summarized( DATA(gc)->summaries, DATA(gc)->next_summary_to_use )) {
-      annoyingmsg("   sm_invalidate_summaries( summ )");
-      sm_invalidate_summaries( DATA(gc)->summaries );
-    }
+  if ( DATA(gc)->summaries != NULL ) { 
+    sm_clear_summary( DATA(gc)->summaries, rgn_next, DATA(gc)->region_count );
   }
 }
 
-static void collect_rgnl_choose_next_region( gc_t *gc, int num_rgns ) 
+static void collect_rgnl_choose_next_region( gc_t *gc, int num_rgns, 
+                                             bool about_to_major ) 
 {
   int n;
   /* choose next region for major collection so that we can summarize its remsets */
@@ -954,6 +996,120 @@ static void collect_rgnl_maybe_swap_in_reserve( gc_t *gc, int rgn_to )
   }
 }
 
+struct msgc_visit_check_summary_data {
+  gc_t *gc;
+  int rgn_next;
+  remset_t *summary_as_rs;
+};
+
+static void* msgc_visit_check_summary( word obj, word src, void *my_data )
+{
+  struct msgc_visit_check_summary_data *data;
+  data = (struct msgc_visit_check_summary_data*)my_data;
+  if (isptr(obj) && isptr(src)) {
+    int obj_gno = gen_of(obj);
+    int src_gno = gen_of(src);
+    if ((obj_gno == data->rgn_next) && 
+        (src_gno != obj_gno) &&
+        (src_gno != 0)) {
+      assert( rs_isremembered( data->summary_as_rs, src ));
+    }
+  }
+  return my_data;
+}
+
+static void assert_summary_as_rs_complete( gc_t *gc, 
+                                           int rgn_next, 
+                                           remset_t *summary_as_rs )
+{
+  msgc_context_t *msgc;
+  int ignm, ignt, ignw;
+  struct msgc_visit_check_summary_data data;
+  data.gc = gc;
+  data.rgn_next = rgn_next;
+  data.summary_as_rs = summary_as_rs;
+
+  msgc = msgc_begin( gc );
+  msgc_set_object_visitor( msgc, msgc_visit_check_summary, &data );
+  msgc_mark_objects_from_roots( msgc, &ignw, &ignt, &ignw );
+  msgc_end( msgc );
+}
+struct rsscan_summary_sound_data {
+  msgc_context_t *msgc;
+  int rgn_next;
+};
+static bool rsscan_summary_sound( word loc, void *my_data, unsigned *stats )
+{
+  struct rsscan_summary_sound_data *data;
+  msgc_context_t *msgc;
+  data = (struct rsscan_summary_sound_data*)my_data;
+  msgc = data->msgc;
+  assert( gen_of(loc) != data->rgn_next );
+  assert( msgc_object_marked_p( msgc, loc ));
+  return TRUE;
+}
+
+static void assert_summary_as_rs_sound( gc_t *gc,
+                                        int rgn_next, remset_t *summary_as_rs )
+{
+  msgc_context_t *msgc;
+  int ignm, ignt, ignw;
+  if (gc->smircy != NULL) {
+    msgc = smircy_clone_begin( gc->smircy, FALSE );
+    /* WANT to use msgc_mark_objects_from_roots_and_remsets as given
+     * below (rather than msgc_mark_objects_from_nil) because smircy
+     * is snapshot of the past that may not have objects that ARE in
+     * the heap NOW. */
+  } else {
+    msgc = msgc_begin( gc );
+  }
+  msgc_mark_objects_from_roots_and_remsets( msgc, &ignw, &ignt, &ignw );
+  { 
+    struct rsscan_summary_sound_data data;
+    data.msgc = msgc;
+    data.rgn_next = rgn_next;
+    rs_enumerate( summary_as_rs, rsscan_summary_sound, (void*)&data );
+  }
+  msgc_end( msgc );
+}
+struct summaryscan_buildup_rs_data {
+  remset_t *target_rs;
+  int rgn_next;
+};
+static void summaryscan_buildup_rs( word loc, void *my_data, unsigned *stats ) 
+{ 
+  struct summaryscan_buildup_rs_data *data;
+  remset_t *target_rs;
+  data = (struct summaryscan_buildup_rs_data*)my_data;
+  target_rs = (remset_t*)data->target_rs;
+  assert( ! rs_isremembered( target_rs, loc ));
+  assert( gen_of(loc) != data->rgn_next );
+  rs_add_elem( target_rs, loc );
+}
+
+static void assert_summary_sanity( gc_t *gc, int rgn_next )
+{
+  static remset_t *summary_as_rs;
+  if (summary_as_rs == NULL) {
+    summary_as_rs = create_remset( 0, 0 );
+  }
+  rs_clear( summary_as_rs );
+  { 
+    struct summaryscan_buildup_rs_data data;
+    data.target_rs = summary_as_rs;
+    data.rgn_next = rgn_next;
+    summary_enumerate( &DATA(gc)->summary, summaryscan_buildup_rs, &data );
+    summary_dispose( &DATA(gc)->summary );
+  }
+
+  consolemsg( "using summary_as_rs for rgn_next=%d, live: %d",
+              rgn_next, summary_as_rs->live );
+  assert_summary_as_rs_complete( gc, rgn_next, summary_as_rs );
+  assert_summary_as_rs_sound( gc, rgn_next, summary_as_rs );
+
+  rs_init_summary( summary_as_rs, -1, &DATA(gc)->summary );
+}
+
 /* returns TRUE iff the collection took place.  If FALSE, reselect
  * rgn_to and rgn_next (aka goto collect_evacuate_nursery). */
 static bool collect_rgnl_majorgc( gc_t *gc, 
@@ -961,48 +1117,62 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 {
   /* TODO: assert summarization complete (once it is incrementalized) */
   int n;
-  
+  bool summarization_active, summarization_active_rgn_next;
+
+  assert2( DATA(gc)->rrof_to_region == rgn_to );
   assert( *gc->ssb[rgn_to]->bot == *gc->ssb[rgn_to]->top );
+
+  if (DATA(gc)->print_float_stats_each_major && 
+      ! DATA(gc)->print_float_stats_each_minor)
+    print_float_stats( "premaj", gc );
+
   if (DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects) {
     annoyingmsg( "past summarization says region %d too popular to collect", 
                  rgn_next );
     assert2( ! sm_is_rgn_summary_avail( DATA(gc)->summaries, rgn_next ));
-    if (sm_is_rgn_summarized( DATA(gc)->summaries, rgn_next )) {
-      collect_rgnl_clear_summary( gc, rgn_next );
-    }
-    collect_rgnl_choose_next_region( gc, num_rgns );
+
+    collect_rgnl_clear_summary( gc, rgn_next );
+    collect_rgnl_choose_next_region( gc, num_rgns, TRUE );
     return FALSE;
   }
-  
-  if ( ! sm_has_valid_summaries( DATA(gc)->summaries )) {
-    stats_id_t timer1, timer2;
-    int coverage;
-    gset_t range;
-    
-    coverage = 
-      (int)ceil(DATA(gc)->region_count*DATA(gc)->rrof_sumz_coverage);
-    annoyingmsg("summary coverage: %d:%d of count: %d", 
-                rgn_next, coverage, DATA(gc)->region_count);
-    
-    start_timers( &timer1, &timer2 );
-    range = gset_range(rgn_next, min(DATA(gc)->region_count+1, 
-                                     rgn_next+coverage) );
-    sm_build_remset_summaries( DATA(gc)->summaries, range );
-    stop_sumrize_timers( gc, &timer1, &timer2 );
 
-    assert(! DATA(gc)->use_summary_instead_of_remsets );
-    if (USE_ORACLE_TO_VERIFY_SUMMARIES)
-      verify_summaries_via_oracle( gc );
-    DATA(gc)->next_summary_to_use = rgn_next;
-  } else {
-    annoyingmsg("using preconstructed summary for %d", rgn_next );
+  if (USE_ORACLE_TO_VERIFY_REMSETS) {
+    verify_remsets_via_oracle( gc );
   }
-  assert(sm_is_rgn_summarized( DATA(gc)->summaries,
-                               DATA(gc)->next_summary_to_use ));
-  assert( rgn_next == DATA(gc)->next_summary_to_use ); /* XXX */
-  
-  if ( ! NO_COPY_COLLECT_FOR_POP_RGNS ||
+
+  summarization_active = (DATA(gc)->summaries != NULL);
+
+  assert( (! summarization_active) || (rgn_next != rgn_to) );
+
+  if (summarization_active)
+    summarization_step( gc, TRUE );
+
+  if (USE_ORACLE_TO_VERIFY_REMSETS) {
+    verify_remsets_via_oracle( gc );
+  }
+
+  summarization_active_rgn_next = 
+    (summarization_active &&
+     sm_is_rgn_summarized( DATA(gc)->summaries, rgn_next ));
+
+  if (0) consolemsg("collect_rgnl_majorgc( gc, rgn_to=%d, rgn_next=%d, num_rgns=%d ) "
+             "summarization %s",
+             rgn_to, rgn_next, num_rgns,
+             ( (! summarization_active)
+               ? "inactive"
+               : (( summarization_active_rgn_next )
+                  ? "*USABLE*"
+                  : "unusable")));
+
+  assert(! DATA(gc)->use_summary_instead_of_remsets );
+
+  if ( ! summarization_active_rgn_next ||
+       ! NO_COPY_COLLECT_FOR_POP_RGNS ||
        sm_majorgc_permitted( DATA(gc)->summaries, rgn_next )) {
+
+    if (USE_ORACLE_TO_VERIFY_REMSETS) {
+      verify_remsets_via_oracle( gc );
+    }
 
     if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
       smircy_assert_conservative_approximation( gc->smircy );
@@ -1015,63 +1185,106 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
 #endif
 
-    sm_fold_in_nursery_and_init_summary( DATA(gc)->summaries,
-                                         DATA(gc)->next_summary_to_use, 
-                                         &DATA(gc)->summary );
+    if (summarization_active_rgn_next) {
+      sm_fold_in_nursery_and_init_summary( DATA(gc)->summaries,
+                                           rgn_next, 
+                                           &DATA(gc)->summary );
+      if (0) consolemsg("folded nursery into summary, entries: %d", 
+                 DATA(gc)->summary.entries);
+    }
     assert(! DATA(gc)->use_summary_instead_of_remsets );
 
     if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) ) {
       smircy_assert_conservative_approximation( gc->smircy );
     }
-    if (USE_ORACLE_TO_VERIFY_SUMMARIES)
+    if (USE_ORACLE_TO_VERIFY_SUMMARIES && DATA(gc)->summaries != NULL)
       verify_summaries_via_oracle( gc );
     if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL)) {
       gc->smircy_completion = smircy_clone_begin( gc->smircy, FALSE );
       msgc_mark_objects_from_nil( gc->smircy_completion );
     }
 
-    DATA(gc)->use_summary_instead_of_remsets = TRUE;
-    sm_clear_contribution_to_summaries( DATA(gc)->summaries, rgn_next );
+    if (summarization_active) {
+      sm_clear_contribution_to_summaries( DATA(gc)->summaries, rgn_next );
+    }
 
+    if (USE_ORACLE_TO_CHECK_SUMMARY_SANITY &&
+        summarization_active_rgn_next) {
+      assert_summary_sanity( gc, rgn_next );
+    }
+    if (summarization_active_rgn_next) {
+      DATA(gc)->use_summary_instead_of_remsets = TRUE;
+    }
+
+    assert2( DATA(gc)->rrof_to_region == rgn_to );
     DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
     oh_collect_into( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT,
                      DATA(gc)->ephemeral_area[ rgn_to-1 ] );
+    /* at this point, rrof_to_region and rgn_to have no guaranteed relationship */
+    DATA(gc)->use_summary_instead_of_remsets = FALSE;
+
     if (gc->smircy_completion != NULL) {
       smircy_clone_end( gc->smircy_completion );
       gc->smircy_completion = NULL;
     }
-    summary_dispose( &DATA(gc)->summary );
-    DATA(gc)->use_summary_instead_of_remsets = FALSE;
-    sm_clear_nursery_summary( DATA(gc)->summaries );
+
+    if (USE_ORACLE_TO_VERIFY_REMSETS) 
+      verify_remsets_via_oracle( gc );
+
+    if (summarization_active_rgn_next) {
+      summary_dispose( &DATA(gc)->summary );
+    }
     DATA(gc)->rrof_last_tospace = rgn_to;
     handle_secondary_space( gc );
     update_promotion_counts( gc, gc->words_from_nursery_last_gc );
+
+    if (summarization_active_rgn_next) {
+      int i;
+      for (i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
+        if (DATA(gc)->ephemeral_area[i]->was_target_during_gc) {
+          int target = i+1;
+          oh_synchronize( DATA(gc)->ephemeral_area[i] );
+          if (target == rgn_next) {
+            /* copying in this case would be silly (we're just going
+             * to delete it below).  We could avoid deleting it, but
+             * its not clear that would be sound... */
+            consolemsg( "  skip sm_copy_summary_to( summaries, rgn_next=%d, target=%d );",
+                        rgn_next, target );
+          } else {
+            sm_copy_summary_to( DATA(gc)->summaries, rgn_next, target );
+            sm_copy_summary_to( DATA(gc)->summaries, 0, target );
+          }
+        }
+      }
+    }
+
+    if (summarization_active) {
+      sm_clear_nursery_summary( DATA(gc)->summaries );
+    }
+
+
+#if 0
+    collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
+#endif
+
+    oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
+    rrof_completed_major_collection( gc );
+
+    collect_rgnl_clear_summary( gc, rgn_next );
+    collect_rgnl_choose_next_region( gc, num_rgns, FALSE );
+
+    if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
+      verify_summaries_via_oracle( gc );
+
     smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || 
                        DONT_USE_REFINEMENT_COUNTDOWN ||
                        (DATA(gc)->rrof_refine_mark_countdown > 0))
                       ? smircy_step_can_refine
                       : smircy_step_must_refine ));
-    {
-      int i;
-      for (i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
-        if (DATA(gc)->ephemeral_area[i]->was_target_during_gc) {
-          int target = i+1;
-          if (target == rgn_next) {
-            /* copying in this case would be silly (we're just going
-             * to delete it below).  We could avoid deleting it, but
-             * its not clear that would be sound... */
-          } else {
-            sm_copy_summary_to( DATA(gc)->summaries, rgn_next, target );
-          }
-        }
-      }
-    }
-    collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
-    oh_synchronize( DATA(gc)->ephemeral_area[ rgn_to-1 ] );
-    oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
-    rrof_completed_major_collection( gc );
-    collect_rgnl_clear_summary( gc, rgn_next );
-    collect_rgnl_choose_next_region( gc, num_rgns );
+
+    if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
+      verify_summaries_via_oracle( gc );
+
     
   } else {
     annoyingmsg( "remset summary says region %d too popular to collect", 
@@ -1083,7 +1296,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       DATA(gc)->ephemeral_area[ rgn_next-1 ]->allocated;
     
     collect_rgnl_clear_summary( gc, rgn_next );
-    collect_rgnl_choose_next_region( gc, num_rgns );
+    collect_rgnl_choose_next_region( gc, num_rgns, TRUE );
     return FALSE;
   }
   
@@ -1092,6 +1305,15 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 
 static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
 {
+  bool summarization_active;
+
+  summarization_active = (DATA(gc)->summaries != NULL);
+
+  if (summarization_active)
+    summarization_step( gc, FALSE );
+
+  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
+    verify_summaries_via_oracle( gc );
 
   /* if there's room, minor collect the nursery into current region. */
   
@@ -1100,24 +1322,44 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   
   DATA(gc)->rrof_currently_minor_gc = TRUE;
 
-  sm_init_summary_from_nursery_alone( DATA(gc)->summaries, &(DATA(gc)->summary));
-  DATA(gc)->use_summary_instead_of_remsets = TRUE;
+  if (summarization_active) {
+    sm_init_summary_from_nursery_alone( DATA(gc)->summaries, &(DATA(gc)->summary));
+    DATA(gc)->use_summary_instead_of_remsets = TRUE;
+  }
   DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
-  sm_copy_summary_to( DATA(gc)->summaries, 0, rgn_to );
-  sm_clear_nursery_summary( DATA(gc)->summaries );
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
-  summary_dispose( &(DATA(gc)->summary) );
+
+  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
+    verify_summaries_via_oracle( gc );
+
+  if (summarization_active) {
+    int i;
+    for (i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
+      if (DATA(gc)->ephemeral_area[i]->was_target_during_gc) {
+        oh_synchronize( DATA(gc)->ephemeral_area[i] );
+        sm_copy_summary_to( DATA(gc)->summaries, 0, rgn_to );
+      }
+    }
+
+    sm_clear_nursery_summary( DATA(gc)->summaries );
+    summary_dispose( &(DATA(gc)->summary) );
+  }
+
   DATA(gc)->rrof_last_tospace = rgn_to;
   
   handle_secondary_space( gc );
   update_promotion_counts( gc, gc->words_from_nursery_last_gc );
-  smircy_step( gc, smircy_step_dont_refine );
-  
+
+  DATA(gc)->total_heap_words_allocated != gc->words_from_nursery_last_gc;
+  if (summarization_active) {
+    smircy_step( gc, smircy_step_can_refine );
+  }
+
   rrof_completed_minor_collection( gc );
-  /* TODO: add code to incrementally summarize by attempting to
-   * predict how many minor collections will precede the next
-   * major collection. */
+
+  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL)) 
+    verify_summaries_via_oracle( gc );
 }
 
 static int successor_of_to( gc_t *gc ) 
@@ -1264,9 +1506,9 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
   DATA(gc)->rrof_refine_mark_countdown -= 1;
 
  collect_evacuate_nursery:
+  rgn_next = DATA(gc)->rrof_next_region;
   rgn_to = DATA(gc)->rrof_to_region;
   rgn_succ_to = successor_of_to( gc );
-  rgn_next = DATA(gc)->rrof_next_region;
 
   collect_rgnl_policy( gc, rgn_to, rgn_succ_to, rgn_next, 
                        &can_do_major, &can_do_minor, &succ_can_do_minor );
@@ -1283,9 +1525,36 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
               will_says_should_major?"major":"minor");
 #endif 
 
-#if 0
+#if 1
+  if (0) { /* hack to force major collections while I get true incrsumz going. */
+    bool didit;
+    if (rgn_to == rgn_next) {
+      rgn_to = successor_of_to( gc );
+    }
+    if (rgn_to == rgn_next) {
+      add_region_to_expand_heap( gc, 0 );
+      rgn_to = successor_of_to( gc );
+    }
+    assert( rgn_to != rgn_next );
+    DATA(gc)->rrof_to_region = rgn_to;
+    didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
+    if (!didit)
+      goto collect_evacuate_nursery;
+  } else 
+#endif
+#if 1
   if (will_says_should_major) {
-    bool didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
+    bool didit;
+    if (rgn_to == rgn_next) {
+      rgn_to = successor_of_to( gc );
+    }
+    if (rgn_to == rgn_next) {
+      add_region_to_expand_heap( gc, 0 );
+      rgn_to = successor_of_to( gc );
+    }
+    assert( rgn_to != rgn_next );
+    DATA(gc)->rrof_to_region = rgn_to;
+    didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
     if (! didit) 
       goto collect_evacuate_nursery;
   } else { /* ! will_says_should_major */
@@ -1460,7 +1729,7 @@ static void before_collection( gc_t *gc )
     verify_remsets_via_oracle( gc );
 
   assert(! DATA(gc)->use_summary_instead_of_remsets );
-  if (USE_ORACLE_TO_VERIFY_SUMMARIES)
+  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
     verify_summaries_via_oracle( gc );
 
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
@@ -1485,8 +1754,8 @@ static void after_collection( gc_t *gc )
  if (USE_ORACLE_TO_VERIFY_REMSETS)
    verify_remsets_via_oracle( gc );
 
-  assert(! DATA(gc)->use_summary_instead_of_remsets );
- if (USE_ORACLE_TO_VERIFY_SUMMARIES) 
+ assert(! DATA(gc)->use_summary_instead_of_remsets );
+ if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
    verify_summaries_via_oracle( gc );
 
   yh_after_collection( gc->young_area );
@@ -2092,7 +2361,8 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
   expand_dynamic_area_gnos( gc, fresh_gno );
   expand_static_area_gnos( gc, fresh_gno );
   expand_remset_gnos( gc, fresh_gno );
-  sm_expand_gnos( DATA(gc)->summaries, fresh_gno );
+  if (DATA(gc)->summaries != NULL)
+    sm_expand_gnos( DATA(gc)->summaries, fresh_gno );
   
   ++(DATA(gc)->generations_after_gc);
   
@@ -2112,11 +2382,17 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   int cur_allocated;
   int max_allocated = 
     gc_maximum_allotted( gc, gset_singleton( current_space->gen_no ));
-  int expansion_amount = max( bytes_needed, GC_CHUNK_SIZE );
+  int expansion_amount = max( roundup_page(bytes_needed), GC_CHUNK_SIZE );
   int to_rgn_old = DATA(gc)->rrof_to_region;
   int to_rgn_new = next_rgn( to_rgn_old, DATA(gc)->region_count );
 
   oh_synchronize( DATA(gc)->ephemeral_area[ to_rgn_old-1 ] );
+  oh_synchronize( DATA(gc)->ephemeral_area[ to_rgn_new-1 ] );
+
+  if (expansion_amount > DATA(gc)->ephemeral_area[ to_rgn_new-1 ]->maximum ) {
+    consolemsg("find_space_rgnl: holy cow; bytes_needed=%d and max=%d",
+               bytes_needed, DATA(gc)->ephemeral_area[ to_rgn_new-1]->maximum );
+  }
 
   ss_sync( current_space );
   cur_allocated = 
@@ -2223,7 +2499,7 @@ static int allocated_to_area( gc_t *gc, int gno )
     ss_sync( space );
     retval = space->used + los_bytes_used( gc->los, gno );
     if (area_thinks_allocated != retval) {
-      annoyingmsg("gno: %d area thinks: %d but actually: %d", 
+      consolemsg("gno: %d area thinks: %d but actually: %d", 
                   gno, area_thinks_allocated, retval);
     }
     assert( area_thinks_allocated == retval ); /* XXX was this ever right? */
@@ -2395,7 +2671,9 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   retval |= rs_add_elems_distribute( remset, bot, top );
 
   g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
-  sm_add_ssb_elems_to_summary( DATA(gc)->summaries, bot, top, g_rhs );
+  if (DATA(gc)->summaries != NULL) {
+    sm_add_ssb_elems_to_summary( DATA(gc)->summaries, bot, top, g_rhs );
+  }
   return retval;
 }
 
@@ -2566,14 +2844,26 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     int e = data->ephemeral_area_count = info->ephemeral_area_count;
+    double popular_factor;
     data->region_count = e-1;
     data->fixed_ephemeral_area = FALSE;
     data->ephemeral_area = (old_heap_t**)must_malloc( e*sizeof( old_heap_t* ));
     
-    data->rrof_sumz_budget = 
-      (info->has_sumzbudget?info->sumzbudget_inv:default_sumz_budget_factor);
-    data->rrof_sumz_coverage = 
-      (info->has_sumzcoverage?info->sumzcoverage_inv:default_sumz_coverage_factor);
+    popular_factor = (info->has_popularity_factor 
+                      ? info->popularity_factor
+                      : default_popularity_factor);
+    data->rrof_sumz_params.popularity_factor = popular_factor;
+    data->rrof_sumz_params.popularity_limit_words =
+      (info->ephemeral_info[ data->region_count ].size_bytes
+       * popular_factor / sizeof(word));
+    data->rrof_sumz_params.budget_inv = 
+      (info->has_sumzbudget
+       ? info->sumzbudget_inv
+       : default_sumz_budget_inv);
+    data->rrof_sumz_params.coverage_inv = 
+      (info->has_sumzcoverage
+       ? info->sumzcoverage_inv
+       : default_sumz_coverage_inv);
 
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );
@@ -2627,23 +2917,6 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 	create_remset( info->rhash, 0 );
     }
 
-    /* P * regionsize limits size of incoming summary */
-    { double popular_factor = (info->has_popularity_factor 
-                               ? info->popularity_factor 
-                               : default_popularity_factor);
-
-      data->summaries = 
-        create_summ_matrix( gc, 1, data->region_count, 
-                            data->rrof_sumz_coverage, 
-                            (info->has_popularity_factor ? 
-                             info->popularity_factor : 
-                             default_popularity_factor),
-                            (info->ephemeral_info[ data->region_count ].size_bytes 
-                             * popular_factor / sizeof(word))
-                            );
-
-    }
-
     data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->remset_count );
     data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->remset_count );
     data->ssb_lim = (word**)must_malloc( sizeof(word*)*gc->remset_count );
@@ -2688,6 +2961,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   data->print_float_stats_each_minor  = info->print_float_stats_minor;
   data->print_float_stats_each_refine = info->print_float_stats_refine;
 
+  DATA(gc)->summaries = NULL;
+
   return gen_no;
 }
 
@@ -2709,7 +2984,9 @@ static void points_across_callback( gc_t *gc, word lhs, word rhs )
         last_origin_ptr_added = lhs;
       }
 
-      sm_points_across_callback( DATA(gc)->summaries, lhs, g_rhs );
+      if (DATA(gc)->summaries != NULL) {
+        sm_points_across_callback( DATA(gc)->summaries, lhs, g_rhs );
+      }
     }
   }
 }
@@ -2767,11 +3044,12 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_last_live_estimate = 0;
   data->rrof_cycle_count = 0;
 
-  data->next_summary_to_use = -2;
   data->rrof_last_gc_rolled_cycle = FALSE;
 
   data->last_live_words = 0;
   data->max_live_words = 0;
+
+  data->total_heap_words_allocated = 0;
 
 #if GATHER_MMU_DATA
   { 

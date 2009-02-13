@@ -68,7 +68,8 @@ struct summ_matrix {
 
 summ_matrix_t *
 create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns, 
-                    double c, double p, int popularity_limit );
+                    double c, double g, double p, int popularity_limit,
+                    bool about_to_major, int rgn_next );
 
 void sm_expand_gnos( summ_matrix_t *summ, int fresh_gno );
 
@@ -77,8 +78,9 @@ void sm_prepare_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim );
 void sm_dispose_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim );
 
 void sm_construction_progress( summ_matrix_t *summ, 
-                                int* word_countdown,
-                                int* object_countdown );
+                               int* word_countdown, int* object_countdown, 
+                               int rgn_next, int region_count, 
+                               bool about_to_major );
 
 void sm_enumerate_row( summ_matrix_t *summ,
                        int row_gno, 
@@ -146,9 +148,23 @@ void sm_after_collection( summ_matrix_t *summ );
 bool sm_has_valid_summaries( summ_matrix_t *summ );
 
 bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno );
-/* is gno part the set of summarized regions?  */
+/* Is gno part of the set of summarized regions?  */
 bool sm_is_rgn_summary_avail( summ_matrix_t *summ, int gno );
-/* like above, but returns false for regions we've waved off */
+/* Like above, but returns false for regions we've waved off.  */
+
+bool sm_will_rgn_be_summarized_next( summ_matrix_t *summ, int gno );
+/* Is gno part of the next wave of summarized regions?  */
+bool sm_is_rgn_summarized_next( summ_matrix_t *summ, int gno );
+/* Has the summary for gno been comnpletely constructed?
+ * requires: gno is part of the next wave of summarized regions. */
+bool sm_is_rgn_summary_avail_next( summ_matrix_t *summ, int gno );
+/* Returns false iff gno was waved off.
+ * requires: gno is part of next wave of summarized regions 
+ *           and gno's summary is complete */
+bool sm_is_rgn_summary_over_pop( summ_matrix_t *summ, int gno );
+/* Returns true iff gno was waved off.
+ * requires: gno is either part of set of summarized regions or next 
+ *           wave of summarized regions. */
 
 void sm_push_nursery_summary( summ_matrix_t *summ, smircy_context_t *smircy );
 
@@ -166,13 +182,11 @@ void sm_nursery_summary_enumerate( summ_matrix_t *summ,
 
 void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, 
                                   word *bot, word *top, int g_rhs );
-void sm_build_remset_summaries( summ_matrix_t *summ, gset_t genset );
 void sm_verify_summaries_via_oracle( summ_matrix_t *summ );
 void sm_refine_summaries_via_marksweep( summ_matrix_t *summ );
 int  sm_summarized_live( summ_matrix_t *summ, int rgn );
-void sm_invalidate_summaries( summ_matrix_t *summ );
 void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to );
-void sm_clear_summary( summ_matrix_t *summ, int rgn_next );
+void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int region_count );
 void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
 void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs );
 

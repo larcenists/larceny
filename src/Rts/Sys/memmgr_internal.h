@@ -61,15 +61,6 @@ struct gc_data {
   int rrof_last_tospace;
     /* In RROF collector, the region used as a to-space in the last collect */
 
-  double rrof_sumz_budget;
-    /* In RROF collector, B*N/R (where B = budget) is number of
-       summaries (and thus major collections) that we have available
-       before starting a wave of summary construction to support the
-       next major collection cycle. */
-  double rrof_sumz_coverage;
-    /* In RROF collector, C*N/R (where C = coverage) is initial number
-       of summaries that we will try to construct during each heap
-       scan during a wave of summary construction. */
   double rrof_load_factor_soft; /* L_soft */
   double rrof_load_factor_hard; /* L_hard */
     /* Lars put a load factor in each old-heap; RROF uses a uniform policy
@@ -77,6 +68,25 @@ struct gc_data {
        we aim to keep the heap at size L_soft*Peak
        and *guarantee* that the heap never exceeds L_hard*Peak
        (where Peak is the peak size for past snapshots). */
+
+  struct {
+    /* limits size of summaries */
+    double popularity_factor; /* Will calls this S. */
+    int popularity_limit_words; 
+
+    double coverage_inv;
+    /* denoted by C in comments below; Will calls this F1 */
+    double budget_inv;
+    /* denoted by B in comments below; Will calls this F2 */
+
+    /* In RROF collector, (1/C)*(N/R) is number of summaries that we
+       will try to construct ("summary coverage") during each heap 
+       scan during a wave of summary construction, and 
+       (1/C)*(1/B)*(N/R) is the number of summaries that we need to
+       have fully constructed (ie none waved off) before we declare
+       that wave of summary construction complete ("met budget").
+    */
+  } rrof_sumz_params;
 
   bool   rrof_has_refine_factor; /* With factor R,                         */
   double rrof_refinement_factor; /*   countdown = ceil((R*heap) / nursery) */
@@ -123,6 +133,9 @@ struct gc_data {
   /* these are precise measures according to heap snapshots */
   int last_live_words;
   int max_live_words;
+
+  int total_heap_words_allocated; 
+  int allocation_target_for_cycle; /* Will's A variable */
 
   /* need to track these separately, since storage is allocated
    * concurrently with snapshotting. */

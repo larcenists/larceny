@@ -25,8 +25,13 @@
 #define GC_INTERNAL
 
 #define dbmsg( format, args... ) if (0) consolemsg( format, ## args )
+#define db_printgset( prefix, arg ) if (0) console_printgset( prefix, arg )
+
+#define assertmsg( format, args... ) if (1) consolemsg( format, ## args )
+#define verifymsg( format, args... ) if (1) consolemsg( format, ## args )
 
 #include <stdio.h>
+#include <math.h>
 
 #include "larceny.h"
 #include "gclib.h"
@@ -101,6 +106,7 @@ struct summ_col {
   int summarize_word_count; /* contribution from summarization */
   int writebarr_word_count; /* contribution from mutator (via write-barrier) */
   int collector_word_count; /* contribution from cheney (obj forwarding) */
+  int summacopy_word_count; /* contribution from gc    (summary copying) */
   bool overly_popular;
   bool construction_inprogress;
   bool construction_complete;
@@ -139,6 +145,7 @@ struct summ_col {
 
 struct summ_matrix_data {
   double coverage;
+  double goal;
   double p;
   int entries_per_objs_pool_segment;
 
@@ -167,11 +174,27 @@ struct summ_matrix_data {
 
   /* refactoring */
   int       remset_summaries_count;
-  bool      summarized_genset_valid;
   gset_t    summarized_genset;
   int       popularity_limit;   /* Maximum summary size allowed (in words) */
 
+  struct {
+    int    goal; /* number of usable summaries needed before we say "done" */
+    gset_t goal_genset; /* all regions of the goal summaries */
+    gset_t curr_genset; /* regions of *this* summary iteration */
+    bool   complete;
+    int    rs_cursor; /* start remset for next sm_build_summaries_partial() */
+    int    rs_num; /* #remsets to scan in each sm_build_summaries_partial() */
+    /* XXX what about when the #regions changes during summary 
+     * construction; do I need to potentially adjust rs_num after each
+     * invocation of sm_construction_progress() ? */
+
+  } summarizing;
+
   remset_t *nursery_remset;     /* Points-into remset for the nursery. */
+
+  summary_t nursery_summary;
+  summary_t mutrems_summary;
+  summary_t summcol_summary;
 };
 
 #define DATA(sm)                ((summ_matrix_data_t*)(sm->data))
@@ -414,6 +437,7 @@ static summ_col_t* alloc_col( int target_gno )
   col->summarize_word_count = 0;
   col->writebarr_word_count = 0;
   col->collector_word_count = 0;
+  col->summacopy_word_count = 0;
   col->target_gno = target_gno;
   col->overly_popular = FALSE;
   col->construction_inprogress = FALSE;
@@ -463,8 +487,6 @@ static void my_prepare_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim )
   DATA(summ)->col_inprogress_lim = col_gno_lim;
 
   for( i = col_gno; i < col_gno_lim; i++ ) {
-    assert( DATA(summ)->cols[i]->cell_top == NULL );
-    assert( DATA(summ)->cols[i]->cell_bot == NULL );
     assert( DATA(summ)->cols[i]->summarize_word_count == 0 );
     assert( DATA(summ)->cols[i]->writebarr_word_count == 0 );
     assert( DATA(summ)->cols[i]->construction_inprogress == FALSE );
@@ -613,7 +635,6 @@ static void  create_refactored_from_memmgr( summ_matrix_t *sm,
                                             int popularity_limit )
 {
   DATA(sm)->remset_summaries_count = 0;
-  DATA(sm)->summarized_genset_valid = FALSE;
 
   /* data->summaries->region_count = data->region_count; */
   DATA(sm)->popularity_limit = popularity_limit;
@@ -653,9 +674,23 @@ static void delayed_check_rep( summ_matrix_t *summ )
   }
 }
 
+static void sm_build_summaries_partial( summ_matrix_t *summ, 
+                                        int rgn_next,
+                                        int region_count );
+static void sm_build_summaries_iteration_complete( summ_matrix_t *summ, 
+                                                   int region_count );
+static void sm_build_remset_summaries( summ_matrix_t *summ,
+                                       int region_count,
+                                       int rgn_next,
+                                       bool about_to_major );
+static void advance_to_next_summary_set( summ_matrix_t *summ,
+                                         int region_count,
+                                         bool about_to_major );
+
 EXPORT summ_matrix_t *
 create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns, 
-                    double c, double p, int popularity_limit )
+                    double c, double g, double p, int popularity_limit, 
+                    bool about_to_major, int rgn_next )
 {
   summ_matrix_t *sm; 
   summ_matrix_data_t *data;
@@ -675,6 +710,7 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   data = (summ_matrix_data_t*)must_malloc( sizeof( summ_matrix_data_t ));
 
   data->coverage = c;
+  data->goal = g;
   data->p = p;
   data->entries_per_objs_pool_segment = DEFAULT_OBJS_POOL_SIZE;
   data->num_cols = num_cols;
@@ -691,12 +727,33 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
 
   data->row_cache.last_cell_valid = FALSE;
 
+  data->summarized_genset = gset_null();
+
   sm->collector = gc;
   sm->data = data;
 
   my_prepare_cols( sm, first_gno, first_gno + num_under_construction );
 
   create_refactored_from_memmgr( sm, popularity_limit );
+
+  {
+    int goal = (int)ceil(((double)initial_num_rgns) * g);
+    int curr = (int)ceil(((double)initial_num_rgns) * c);
+    gset_t curr_genset = gset_range( first_gno, first_gno+curr );
+
+    assert( gset_disjointp( DATA(sm)->summarized_genset,
+                            curr_genset ));
+
+    DATA(sm)->summarizing.goal = goal;
+    DATA(sm)->summarizing.goal_genset = curr_genset;
+    DATA(sm)->summarizing.curr_genset = curr_genset;
+    DATA(sm)->summarizing.complete = FALSE;
+    DATA(sm)->summarizing.rs_cursor = 1;
+    DATA(sm)->summarizing.rs_num = gc->remset_count;
+  }
+
+  sm_build_remset_summaries( sm, initial_num_rgns, rgn_next,
+                             about_to_major );
 
   check_rep_1(sm);
 
@@ -803,37 +860,58 @@ EXPORT void sm_dispose_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim )
   check_rep_1( summ );
 }
 
+static bool prev_summarized_p( summ_matrix_t *summ, int rgn );
+static void console_printgset( char *prefix, gset_t g );
+
+static void sm_ensure_available( summ_matrix_t *summ, int gno,
+                                 int region_count, bool about_to_major );
+
 EXPORT void sm_construction_progress( summ_matrix_t *summ, 
-                               int* word_countdown,
-                               int* object_countdown )
+                                      int* word_countdown,
+                                      int* object_countdown,
+                                      int rgn_next,
+                                      int rgn_count,
+                                      bool about_to_major )
 {
-  /* This breaks this specification, since it
-   * - assumes that it always starts from a blank slate, and 
-   * - ignores the word and object scan limiting parameters.
-   * 
-   * But I want to get something up and running using a
-   * workable interface *now*
-   */
-  int i;
-  int fst, lim; 
-  int remset_count;
-  gset_t genset;
+  int start, coverage;
 
-  check_rep_2( summ );
+  dbmsg("sm_construction_progress( summ, rgn_next=%d, region_count=%d );",
+             rgn_next, rgn_count);
+  db_printgset( "sm_construction_progress: summarized: ", 
+                     DATA(summ)->summarized_genset );
+  db_printgset( "sm_construction_progress: zing goals: ",
+                     DATA(summ)->summarizing.goal_genset );
+  db_printgset( "sm_construction_progress: zing currs: ", 
+                     DATA(summ)->summarizing.curr_genset );
+  dbmsg( "sm_construction_progress: "
+              "goal: %d complete: %s rs_cursor: %d rs_num: %d",
+              DATA(summ)->summarizing.goal,
+              DATA(summ)->summarizing.complete ? "TRUE":"FALSE",
+              DATA(summ)->summarizing.rs_cursor, 
+              DATA(summ)->summarizing.rs_num );
 
-  fst = DATA(summ)->col_inprogress_first;
-  lim = DATA(summ)->col_inprogress_lim;
-  genset = gset_range( fst, lim );
-  remset_count = summ->collector->remset_count;
-  /* Construct 
-   *   { x | x in Union all remsets | x has reference into [fst,lim) }
-   */ 
-  for( i = 1; i < remset_count ; i++ ) {
-    assert(FALSE);
+  check_rep_1( summ );
+
+  assert( gset_count( DATA(summ)->summarizing.curr_genset ) > 0 );
+
+  if (! DATA(summ)->summarizing.complete) {
+    /* make progress on next wave. */
+    sm_build_summaries_partial( summ, rgn_next, rgn_count );
+  } else {
+    /* next wave complete; shift if appropriate. */
+    if ( gset_emptyp( DATA(summ)->summarized_genset )) {
+      sm_ensure_available( summ, rgn_next, rgn_count, about_to_major );
+    }
   }
-  assert(FALSE);
 
-  check_rep_2( summ );
+  if (about_to_major) {
+    sm_ensure_available( summ, rgn_next, rgn_count, about_to_major );
+
+    /* rgn_next is part of previous summarization wave */
+    assert( prev_summarized_p( summ, rgn_next ));
+  }
+
+  check_rep_1( summ );
 }
 
 EXPORT void sm_enumerate_row( summ_matrix_t *summ,
@@ -904,20 +982,45 @@ EXPORT void sm_interrupt_construction( summ_matrix_t *summ )
 EXPORT bool sm_is_rgn_summary_avail( summ_matrix_t *summ, int gno ) 
 {
   check_rep_1( summ );
-  return DATA(summ)->summarized_genset_valid &&
-    gset_memberp( gno, DATA(summ)->summarized_genset ) &&
+  return gset_memberp( gno, DATA(summ)->summarized_genset ) &&
     ( ! DATA(summ)->cols[gno]->overly_popular );
 }
 EXPORT bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno ) 
 {
   check_rep_1( summ );
-  return DATA(summ)->summarized_genset_valid &&
-    gset_memberp( gno, DATA(summ)->summarized_genset );
+  return gset_memberp( gno, DATA(summ)->summarized_genset );
 }
+EXPORT bool sm_will_rgn_be_summarized_next( summ_matrix_t *summ, int gno )
+{
+  check_rep_1( summ );
+  return gset_memberp( gno, DATA(summ)->summarizing.goal_genset );
+}
+EXPORT bool sm_is_rgn_summarized_next( summ_matrix_t *summ, int gno ) 
+{
+  check_rep_1( summ );
+  return DATA(summ)->summarizing.complete &&
+    gset_memberp( gno, DATA(summ)->summarizing.goal_genset );
+}
+EXPORT bool sm_is_rgn_summary_avail_next( summ_matrix_t *summ, int gno )
+{
+  check_rep_1( summ );
+  return DATA(summ)->summarizing.complete &&
+    gset_memberp( gno, DATA(summ)->summarizing.goal_genset ) && 
+    ( ! DATA(summ)->cols[gno]->overly_popular );
+}
+EXPORT bool sm_is_rgn_summary_over_pop( summ_matrix_t *summ, int gno )
+{
+  check_rep_1( summ );
+  assert( gset_memberp( gno, DATA(summ)->summarized_genset ) || 
+          gset_memberp( gno, DATA(summ)->summarizing.goal_genset ));
+  return DATA(summ)->cols[gno]->overly_popular;
+}
+
 EXPORT bool sm_has_valid_summaries( summ_matrix_t *summ )
 {
   check_rep_1( summ );
-  return DATA(summ)->summarized_genset_valid;
+  assert( 0 );
+  return 0;
 }
 EXPORT void sm_push_nursery_summary( summ_matrix_t *summ, smircy_context_t *smircy )
 {
@@ -928,6 +1031,7 @@ EXPORT void sm_push_nursery_summary( summ_matrix_t *summ, smircy_context_t *smir
 EXPORT void sm_clear_nursery_summary( summ_matrix_t *summ )
 {
   check_rep_1( summ );
+  dbmsg("sm_clear_nursery_summary( summ )");
   rs_clear( DATA(summ)->nursery_remset );
   check_rep_1( summ );
 }
@@ -990,32 +1094,35 @@ static void return_to_remset_pool( remset_t *rs )
       return;
     }
   }
-  consolemsg("no NULL entries in a pool of length %d", remset_pool.len);
+  assertmsg("no NULL entries in a pool of length %d", remset_pool.len);
   assert(0); /* (should never get here) */
 }
 
 static int col_words( summ_col_t *c )
 {
   return c->summarize_word_count + c->writebarr_word_count 
-    + c->collector_word_count;
+    + c->collector_word_count 
+    /*+ c->summarize_word_count*/ /* This was always bogus */
+    + c->summacopy_word_count /* willnot be (as) bogus after I fix stuff */;
 }
 static void col_reset_words( summ_col_t *c ) 
 {
   c->summarize_word_count = 0;
   c->writebarr_word_count = 0;
   c->collector_word_count = 0;
+  c->summacopy_word_count = 0;
 }
 static void col_incr_words_sm( summ_col_t *c, int dwords ) 
 {
-  c->summarize_word_count += dwords;
+  c->summarize_word_count += 2/*dwords*/;
 }
 static void col_incr_words_wb( summ_col_t *c, int dwords ) 
 {
-  c->writebarr_word_count += dwords;
+  c->writebarr_word_count += 2/*dwords*/;
 }
 static void col_incr_words_gc( summ_col_t *c, int dwords ) 
 {
-  c->collector_word_count += dwords;
+  c->collector_word_count += 2/*dwords*/;
 }
 
 /* Returns cell of summ[tgt_gno] that holds objects from src_gno rgn,
@@ -1057,7 +1164,7 @@ static summ_cell_t* summ_cell( summ_matrix_t *summ, int src_gno, int tgt_gno )
   col_cell = scan_col_for_cell( col, src_gno, &n, &s );
 
   if (row_cell != col_cell ) {
-    consolemsg("  %s( summ, src: %d, tgt: %d ) num_rows: %d num_cols: %d"
+    assertmsg("  %s( summ, src: %d, tgt: %d ) num_rows: %d num_cols: %d"
                " => via row: %d, via col: %d", 
                "summ_cell", src_gno, tgt_gno, 
                DATA(summ)->num_rows, DATA(summ)->num_cols,
@@ -1338,8 +1445,8 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
 
   rs_add_elems_funnel( DATA(summ)->nursery_remset, bot, top );
 
-  if ( DATA(summ)->summarized_genset_valid
-       && gset_memberp( g_rhs, DATA(summ)->summarized_genset )) {
+  if ( gset_memberp( g_rhs, DATA(summ)->summarized_genset ) ||
+       gset_memberp( g_rhs, DATA(summ)->summarizing.goal_genset )) {
     p = bot; 
     q = top; 
     while (q > p) {
@@ -1493,32 +1600,49 @@ static void assert_disjoint( remset_t *ra, remset_t *rb ) {
   rs_enumerate( rb, rsenum_assert_not_memberp, ra );
 }
 
-/* These come from the collector's remsets; therefore no duplication.
- * XXX
- * Build a row at a time ("pROWducer").
- * Put entries into the columns' sequential arrays.
- *
- * FIXME: currently monolithic, iterating over all rows in a single
- * invocation.  This must be fixed; the pROWduction loop must be 
- * broken down so that it yields control in between rows, at least.
- */
-EXPORT void sm_build_remset_summaries( summ_matrix_t *summ, gset_t genset )
+static bool prev_summarized_p( summ_matrix_t *summ, int rgn ) 
 {
-  remset_summary_data_t remsum;
+  return gset_memberp( rgn, DATA(summ)->summarized_genset );
+}
+
+static bool next_summarized_p( summ_matrix_t *summ, int rgn )
+{
+  return
+    (DATA(summ)->summarizing.complete &&
+     gset_memberp( rgn, DATA(summ)->summarizing.goal_genset ));
+}
+
+#define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
+
+static void sm_build_summaries_setup( summ_matrix_t *summ, gset_t genset,
+                                      int majors, int region_count,
+                                      int rgn_next )
+{
   int i;
-  int remset_count = summ->collector->remset_count;
-  int summ_len = gset_max_elem(genset); /* (some entries can be null) */
+  int num_under_construction;
+  int goal;
 
-  check_rep_1( summ );
+  goal = (int)ceil(((double)region_count) * DATA(summ)->goal);
 
-  /* XXX potentially assert summ->summarized_genset is nullset */
+  dbmsg("sm_build_summaries_setup(summ, genset, majors=%d, region_count=%d, rgn_next=%d ) goal:%d",
+             majors, region_count, rgn_next, goal );
+  db_printgset( "sm_build_summaries_setup: arized:", 
+                     DATA(summ)->summarized_genset );
+  db_printgset( "sm_build_summaries_setup: genset:", genset );
 
-  remsum.genset = genset;
-  remsum.summ = summ;
-  remsum.skip_these = NULL;
-  remsum.objects_visited = 0;
-  remsum.objects_added = 0;
-  remsum.words_added = 0;
+  assert2( gset_count( genset ) >= goal );
+  assert2( majors > 0 );
+
+  num_under_construction = quotient2( summ->collector->remset_count, majors );
+
+  assert2( num_under_construction > 0 );
+
+  DATA(summ)->summarizing.goal = goal;
+  DATA(summ)->summarizing.goal_genset = genset;
+  DATA(summ)->summarizing.curr_genset = genset;
+  DATA(summ)->summarizing.complete = FALSE;
+  DATA(summ)->summarizing.rs_cursor = 1;
+  DATA(summ)->summarizing.rs_num = num_under_construction;
 
   /* Optimistically assume that summarization will succeed for all
    * elems of genset; if one of them overflows, it will be
@@ -1547,34 +1671,278 @@ EXPORT void sm_build_remset_summaries( summ_matrix_t *summ, gset_t genset )
     }
   }
 
-  for(i = 1; i < remset_count; i++) {
+  assert( gset_disjointp( DATA(summ)->summarized_genset,
+                          DATA(summ)->summarizing.goal_genset ));
+}
+
+static void sm_build_summaries_by_scanning( summ_matrix_t *summ,
+                                            int start_remset,
+                                            int finis_remset,
+                                            remset_summary_data_t *p_remsum )
+{
+  int i;
+
+  dbmsg( "sm_build_summaries_by_scanning"
+              "( summ, start_remset=%d, finis_remset=%d, p_remset );",
+              start_remset, finis_remset );
+
+  for ( i = start_remset; i < finis_remset; i++ ) {
     /* enumerating all *rows*; thus this is the pROWduction loop. */
-
-    /* TODO: use rs_enumerate_partial here? XXX */
     dbmsg("enum remsets of %d, live minor: %d major: %d", i, 
-          summ->collector->remset[ i ]->live, 
-          summ->collector->major_remset[ i ]->live );
-    remsum.skip_these = NULL;
+               summ->collector->remset[ i ]->live, 
+               summ->collector->major_remset[ i ]->live );
+    p_remsum->skip_these = NULL;
     rs_enumerate( summ->collector->remset[ i ], 
-		  scan_object_for_remset_summary,
-		  (void*) &remsum );
+                  scan_object_for_remset_summary,
+                  (void*) p_remsum );
     /* don't allow duplicate scans */
-    remsum.skip_these = summ->collector->remset[ i ];
+    p_remsum->skip_these = summ->collector->remset[ i ];
     rs_enumerate( summ->collector->major_remset[ i ], 
-		  scan_object_for_remset_summary,
-		  (void*) &remsum );
+                  scan_object_for_remset_summary,
+                  (void*) p_remsum );
   }
-  if (genset.tag == gs_singleton) {
-    assert( genset.g1 < DATA(summ)->remset_summaries_count );
-  } else if (genset.tag == gs_range ) {
-  } else { assert(0); }
+}
 
-  { /* XXX review me XXX */
-    DATA(summ)->summarized_genset = genset;
-    DATA(summ)->summarized_genset_valid = TRUE;
+static void sm_clear_col( summ_matrix_t *summ, int i );
+static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset );
+
+static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
+                                                   int region_count ) 
+{
+  dbmsg("sm_build_summaries_iteration_complete"
+             "( summ, region_count=%d );",
+             region_count );
+
+  /* Update construction complete fields for all 
+   * elements of curr_genset */
+  {
+    gset_t curr_genset = DATA(summ)->summarizing.curr_genset;
+    int s, e, i, count;
+    s = gset_min_elem_greater_than( curr_genset, 0 );
+    e = gset_max_elem( curr_genset );
+    assert( s > 0 );
+    assert( s <= e );
+    count = 0;
+    for (i = s; i <= e; i++ ) {
+      if (gset_memberp( i, curr_genset )) {
+        DATA(summ)->cols[i]->construction_complete = TRUE;
+        DATA(summ)->cols[i]->construction_inprogress = FALSE;
+        dbmsg( "sm_build_iteration_complete( summ, region_count=%d )"
+                    ": completed construction on %d",
+                    region_count, i );
+      }
+    }
+  } 
+
+  /* count how many successful summaries we constructed.  If it 
+   * satisfies our budget, then we're complete.  If budget is
+   * not yet satisfied (ie due to popular regions), then set
+   * curr_genset to the next set of regions to summarize and 
+   * expand goal_genset := (goal_genset union curr_genset). */
+  {
+    gset_t goal_genset;
+    int s, e, i, count, goal;
+    goal_genset = DATA(summ)->summarizing.goal_genset;
+    goal = DATA(summ)->summarizing.goal;
+
+    s = gset_min_elem_greater_than( goal_genset, 0 );
+    e = gset_max_elem( goal_genset );
+    assert( s > 0 );
+    count = 0;
+    for (i = s; i <= e; i++) {
+      if (gset_memberp( i, goal_genset )) {
+        assert( DATA(summ)->cols[i]->construction_complete );
+
+        if (! DATA(summ)->cols[i]->overly_popular) {
+          /* if count passes goal, we have option of clearin g
+           * cols[i].  While doing so might be regarded as a lost
+           * opportunity, note that we may need to do a new scan
+           * anyway (for the next set of summaries) and can gather
+           * (slightly) more precise information about cols[i] at that
+           * time... (on the other hand, it may be easier to get the
+           * code working if I do not clear cols[i]...)
+           */
+          if (FALSE && (count >= goal)) {
+            sm_clear_col( summ, i );
+          } else {
+            count += 1;
+          }
+        }
+      }
+    }
+
+    assert2( count == count_usable_summaries_in( summ, goal_genset ));
+
+    /* see note above about count potentially passing budget */
+
+    if (count >= goal ) {
+      dbmsg( "count:%d meets goal:%d.", count, goal );
+      db_printgset( "sm_build_summaries_iteration_complete: genset", 
+                         goal_genset );
+      DATA(summ)->summarizing.complete = TRUE;
+    } else {
+      dbmsg( "count:%d did not meet goal.");
+      /* count did not meet goal; therefore iterate. */
+      gset_t new_curr_genset, new_goal_genset;
+      int start, upto;
+      int coverage;
+
+      coverage = 
+        (int)ceil(((double)region_count) * DATA(summ)->coverage);
+      assert( coverage > 0 );
+
+      start = gset_max_elem( goal_genset )+1;
+      upto = min( region_count+1, start+coverage );
+      new_curr_genset = gset_range( start, upto );
+      new_goal_genset = gset_union( goal_genset, new_curr_genset );
+
+      if ( gset_count( new_curr_genset ) < coverage ) {
+        int extra_cov;
+        gset_t new_curr_genset2;
+        assert2( upto = (region_count + 1) );
+        extra_cov = coverage - gset_count( new_curr_genset );
+        start = 1;
+        upto = 1+extra_cov;
+        new_curr_genset2 = gset_range( start, upto );
+        new_curr_genset = gset_union( new_curr_genset, new_curr_genset2 );
+        new_goal_genset = gset_union( new_goal_genset, new_curr_genset2 );
+      }
+
+      assert( gset_count(new_curr_genset) == coverage );
+
+      DATA(summ)->summarizing.goal_genset = new_goal_genset;
+      DATA(summ)->summarizing.curr_genset = new_curr_genset;
+      DATA(summ)->summarizing.rs_cursor = 1;
+    }
   }
+
+  assert( gset_disjointp( DATA(summ)->summarized_genset,
+                          DATA(summ)->summarizing.goal_genset ));
+
+}
+
+static void sm_clear_col( summ_matrix_t *summ, int i )
+{
+  { 
+    /* clear contribution from summarization */
+    clear_col_cells( summ, i );
+    /* clear contribution from mutator */
+    clear_col_mutator_rs( summ, i );
+
+    col_reset_words( DATA(summ)->cols[i] );
+  }
+
+  DATA(summ)->cols[i]->construction_complete = FALSE;
+}
+
+static void sm_build_summaries_partial( summ_matrix_t *summ, 
+                                        int rgn_next,
+                                        int region_count )
+{
+  remset_summary_data_t remsum;
+  gset_t genset;
+  int remset_count;
+  int start;
+  int finis;
+
+  dbmsg( "sm_build_summaries_partial( summ, rgn_next=%d, region_count=%d );",
+              rgn_next, region_count );
+
+  genset = DATA(summ)->summarizing.curr_genset;
+
+  db_printgset( "sm_construction_progress: zing: ", genset );
+
+  assert2( gset_count( genset ) > 0 );
+
+  remsum.genset = genset;
+  remsum.summ = summ;
+  remsum.skip_these = NULL;
+  remsum.objects_visited = 0;
+  remsum.objects_added = 0;
+  remsum.words_added = 0;
+
+  remset_count = summ->collector->remset_count;
+  /* Construct
+   *   { x | x in summarizing range | x has reference into [fst,lilm) }
+   */
+  start = DATA(summ)->summarizing.rs_cursor;
+  finis = min( start+DATA(summ)->summarizing.rs_num, remset_count );
+  assert2( start < finis );
+
+  sm_build_summaries_by_scanning( summ, start, finis, &remsum );
+
+  if (finis == remset_count) {
+    sm_build_summaries_iteration_complete( summ, region_count );
+    DATA(summ)->summarizing.rs_cursor = 1; /* or set to remset_count? */
+  } else {
+    /* set up rs_cursor for next invocation.
+     * 
+     * XXX (potentially update rs_num as well, as the number of
+     * regions may have increased) */
+    assert2( finis < remset_count );
+    DATA(summ)->summarizing.rs_cursor = finis;
+  }
+
+  assert( gset_disjointp( DATA(summ)->summarized_genset,
+                          DATA(summ)->summarizing.goal_genset ));
+}
+
+static void sm_build_remset_summaries( summ_matrix_t *summ,
+                                       int region_count,
+                                       int rgn_next,
+                                       bool about_to_major )
+{
+  remset_summary_data_t remsum;
+  int i;
+  int remset_count = summ->collector->remset_count;
+  gset_t genset;
+  int goal;
 
   check_rep_1( summ );
+
+  goal = (int)ceil(((double)region_count) * DATA(summ)->goal);
+
+  genset = gset_range( rgn_next, min(region_count+1,rgn_next+goal) );
+  if ( gset_count( genset ) < goal ) {
+    gset_t genset_next2;
+    genset_next2 = gset_range( 1, 1+(region_count - gset_count( genset )));
+    genset = gset_union( genset, genset_next2 );
+  }
+
+  /* XXX potentially assert summ->summarized_genset is nullset */
+
+  remsum.genset = genset;
+  remsum.summ = summ;
+  remsum.skip_these = NULL;
+  remsum.objects_visited = 0;
+  remsum.objects_added = 0;
+  remsum.words_added = 0;
+  sm_build_summaries_setup( summ, genset, 1, region_count, rgn_next );
+  sm_build_summaries_by_scanning( summ, 1, remset_count, &remsum );
+
+  sm_build_summaries_iteration_complete( summ, region_count );
+
+#if 0
+  assert( gset_disjointp( DATA(summ)->summarized_genset,
+                          DATA(summ)->summarizing.goal_genset ));
+
+  advance_to_next_summary_set( summ, region_count, about_to_major );
+#endif
+
+  check_rep_1( summ );
+}
+
+static void console_printgset( char *prefix, gset_t g ) 
+{
+  if (g.tag == gs_range) {
+    consolemsg("%s(rang,%d,%d)", prefix, g.g1, g.g2 );
+  } else if (g.tag == gs_twrng) {
+    consolemsg("%s(trng,%d,%d,%d,%d)", prefix, g.g1, g.g2, g.g3, g.g4 );
+  } else if (g.tag == gs_singleton) { 
+    consolemsg("%s(ones,%d)", prefix, g.g1 );
+  } else if (g.tag == gs_nil ) {
+    consolemsg("%s(nil)", prefix );
+   } else { assert(0); }
 }
 
 struct verify_summaries_msgc_fcn_data {
@@ -1593,18 +1961,41 @@ static void* verify_summaries_msgc_fcn( word obj, word src, void *my_data )
   if (isptr(src) && isptr(obj) &&
       ((src_gen = gen_of(src)) != (tgt_gen = gen_of(obj))) &&
       ! gc_is_nonmoving( summ->collector, tgt_gen )) {
+
     assert( src_gen >= 0 );
     if (src_gen > 0) {
       assert( *summ->collector->ssb[src_gen]->bot == *summ->collector->ssb[src_gen]->top );
       assert( *summ->collector->ssb[tgt_gen]->bot == *summ->collector->ssb[tgt_gen]->top );
-      if (DATA(summ)->summarized_genset_valid &&
-          gset_memberp( tgt_gen, DATA(summ)->summarized_genset ) &&
+      if (gset_memberp( tgt_gen, DATA(summ)->summarized_genset ) &&
           ! DATA(summ)->cols[tgt_gen]->overly_popular) {
+        if ( ((summaries[ tgt_gen ] == NULL ) )) {
+          assertmsg("verify_summaries_msgc_fcn  null summ[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+                     tgt_gen, src, src_gen, obj, tgt_gen );
+        } else if ( ! rs_isremembered( summaries[ tgt_gen ], src )) {
+          assertmsg("verify_summaries_msgc_fcn notin summ[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+                     tgt_gen, src, src_gen, obj, tgt_gen );
+        }
         assert( summaries[ tgt_gen ] != NULL );
         assert( rs_isremembered( summaries[ tgt_gen ], src ));
       }
+
       /* XXX when introducing incremental sumz, more (and semi-tricky) logic goes here
        * to validate in-progress summarization. */
+      if (gset_memberp( tgt_gen, DATA(summ)->summarizing.goal_genset ) &&
+          ( DATA(summ)->summarizing.complete 
+            || ( ! gset_memberp( tgt_gen, DATA(summ)->summarizing.curr_genset ))
+            || gen_of(src) < DATA(summ)->summarizing.rs_cursor )) {
+        if ( ((summaries[ tgt_gen ] == NULL ) )) {
+          assertmsg("verify_summaries_msgc_fcn  null zing[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+                     tgt_gen, src, src_gen, obj, tgt_gen );
+        } else if ( ! rs_isremembered( summaries[ tgt_gen ], src )) {
+          assertmsg("verify_summaries_msgc_fcn notin zing[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+                     tgt_gen, src, src_gen, obj, tgt_gen );
+        }
+        assert( summaries[ tgt_gen ] != NULL );
+        assert( rs_isremembered( summaries[ tgt_gen ], src ));
+      }
+
     }
   }
 
@@ -1723,13 +2114,14 @@ EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
       must_malloc( DATA(summ)->num_cols * sizeof(remset_t*));
     for ( i = 1; i < DATA(summ)->num_cols; i++ ) {
       summaries[i] = grab_from_remset_pool();
-      consolemsg("col[i=%d]:words{sm:%d,wb:%d,gc:%d}", 
+      verifymsg("col[i=%d]:words{sm:%d,wb:%d,gc:%d,sc:%d}", 
                  i, 
                  DATA(summ)->cols[i]->summarize_word_count,
                  DATA(summ)->cols[i]->writebarr_word_count,
-                 DATA(summ)->cols[i]->collector_word_count );
+                 DATA(summ)->cols[i]->collector_word_count,
+                 DATA(summ)->cols[i]->summacopy_word_count );
       fold_col_into_remset( summ, i, summaries[i] );
-      consolemsg("summaries[i=%d]->live: %d", i, summaries[i]->live);
+      verifymsg("summaries[i=%d]->live: %d", i, summaries[i]->live);
     }
   }
 
@@ -1766,7 +2158,8 @@ EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
       data.aggress_context = aggress_context;
       for (i = 0; i < summ->collector->remset_count; i++) {
         if (gset_memberp( i, DATA(summ)->summarized_genset )){
-          consolemsg("sanity check summary[i=%d]", i);
+          verifymsg("sanity check summary[i=%d] live: %d", 
+                     i, summaries[i]->live);
           data.summary_for_region = i;
           rs_enumerate( summaries[i], 
                         verify_summaries_remset_fcn,
@@ -1872,7 +2265,6 @@ EXPORT int sm_summarized_live( summ_matrix_t *summ, int rgn )
   check_rep_3( summ );
 
   rgn_summarized = 
-    DATA(summ)->summarized_genset_valid && 
     gset_memberp( rgn, DATA(summ)->summarized_genset );
   if (rgn_summarized) { /* XXX */
     rgn_summarized_live = col_words( DATA(summ)->cols[rgn] );
@@ -1882,28 +2274,6 @@ EXPORT int sm_summarized_live( summ_matrix_t *summ, int rgn )
 
   check_rep_3( summ );
   return rgn_summarized_live;
-}
-
-/* XXX 
- * should be straight-forward to implement.
- * (Although maybe not; this method may be contrary to the overall 
- *  design, because the goal is to use one set of summaries while
- *  constructing the next set, so you never should invalidate
- *  /all/ of the summaries at once...) 
- * 
- * This function is only invoked by collect_rgnl_clear_summary; it
- * seems like it was a general "reset" operation, and so it will
- * probably go out the window when I shift to a two-stage pipelined
- * algorithm. */
-EXPORT void sm_invalidate_summaries( summ_matrix_t *summ ) 
-{
-  int i;
-
-  check_rep_1( summ );
-
-  DATA(summ)->summarized_genset_valid = FALSE;
-
-  check_rep_1( summ );
 }
 
 static void assert_unreachable( summ_matrix_t *sm, summ_cell_t *ucell )
@@ -2002,6 +2372,7 @@ static void clear_col_mutator_rs( summ_matrix_t *summ, int col_idx )
 }
 
 struct rs_scan_add_word_to_rs_data {
+  summ_matrix_t *summ;
   remset_t      *rs_to;
   int            to_gen;
 };
@@ -2012,6 +2383,7 @@ static bool rs_scan_add_word_to_rs( word loc, void *my_data, unsigned *stats )
     (struct rs_scan_add_word_to_rs_data *) my_data;
   if (gen_of(loc) != data->to_gen) {
     rs_add_elem( data->rs_to, loc );
+    DATA(data->summ)->cols[data->to_gen]->summacopy_word_count += 1;
   }
   return TRUE; /* don't remove element from scanned remset */
 }
@@ -2019,8 +2391,13 @@ static bool rs_scan_add_word_to_rs( word loc, void *my_data, unsigned *stats )
 static bool rsenum_fold_from_nursery_minorgc( word ptr, void *my_data, unsigned *count ) {
   struct rs_scan_add_word_to_rs_data *data;
   data = (struct rs_scan_add_word_to_rs_data*)my_data;
+  if (gen_of(ptr) == 2) {
+    dbmsg("rsenum_fold_from_nursery_minorgc( ptr=0x%08x (%d), data{to_gen:%d}, count )",
+               ptr, gen_of(ptr), data->to_gen);
+  }
   if (gen_of(ptr) != data->to_gen && gen_of(ptr) != 0) {
     rs_add_elem( data->rs_to, ptr );
+    DATA(data->summ)->cols[data->to_gen]->summacopy_word_count += 1;
   }
   return TRUE; 
 }
@@ -2030,14 +2407,14 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
   struct rs_scan_add_word_to_rs_data scan_data;
   check_rep_1( summ );
 
-  if ( DATA(summ)->summarized_genset_valid &&
-       gset_memberp( rgn_to, DATA(summ)->summarized_genset )) {
-    consolemsg("sm_copy_summary_to( summ, rgn_next=%d, rgn_to=%d );",
+  if ( gset_memberp( rgn_to, DATA(summ)->summarized_genset ) 
+       || gset_memberp( rgn_to, DATA(summ)->summarizing.goal_genset )) {
+    dbmsg("sm_copy_summary_to( summ, rgn_next=%d, rgn_to=%d );",
                rgn_next, rgn_to );
   }
 
-  if ( DATA(summ)->summarized_genset_valid &&
-       gset_memberp( rgn_to, DATA(summ)->summarized_genset ) && 
+  if ( (gset_memberp( rgn_to, DATA(summ)->summarized_genset ) 
+        || gset_memberp( rgn_to, DATA(summ)->summarizing.goal_genset )) && 
        (rgn_next > 0) ) {
     summ_col_t *col_next, *col_to;
     summ_cell_t *sent, *cell;
@@ -2063,6 +2440,7 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
           } else {
             if (gen_of(w) != rgn_to) {
               rs_add_elem( col_to->sum_mutator, w );
+              col_to->summacopy_word_count += 1;
             }
           }
         }
@@ -2071,20 +2449,22 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
     }
 
     if (col_next->sum_mutator != NULL) {
+      scan_data.summ = summ;
       scan_data.rs_to = col_to->sum_mutator;
       scan_data.to_gen = rgn_to;
       rs_enumerate( col_next->sum_mutator, 
                     rs_scan_add_word_to_rs, 
                     &scan_data );
     }
-  } else if ( DATA(summ)->summarized_genset_valid &&
-              gset_memberp( rgn_to, DATA(summ)->summarized_genset ) && 
+  } else if ( (gset_memberp( rgn_to, DATA(summ)->summarized_genset ) 
+               || gset_memberp( rgn_to, DATA(summ)->summarizing.goal_genset )) && 
               (rgn_next == 0) ) {
     summ_col_t *col_to;
     col_to = DATA(summ)->cols[ rgn_to ];
     if ( col_to->sum_mutator == NULL ) {
       col_to->sum_mutator = grab_from_remset_pool();
     }
+    scan_data.summ   = summ;
     scan_data.rs_to  = col_to->sum_mutator;
     scan_data.to_gen = rgn_to;
     rs_enumerate( DATA(summ)->nursery_remset,
@@ -2095,44 +2475,141 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
   check_rep_1( summ );
 }
 
+static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset ) 
+{
+  int i, s, e, count;
+  s = gset_min_elem_greater_than( gset, 0 );
+  e = gset_max_elem( gset );
+  assert( s > 0 );
+  count = 0;
+  for (i = s; i <= e; i++) {
+    if ( gset_memberp( i, gset ) &&
+         ! DATA(summ)->cols[i]->overly_popular &&
+         DATA(summ)->cols[i]->construction_complete ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+static void advance_to_next_summary_set( summ_matrix_t *summ,
+                                         int region_count,
+                                         bool about_to_major ) 
+{
+  gset_t genset_old, genset_to_consume, genset_next;
+  int start, coverage, budget;
+
+  assert2( DATA(summ)->summarizing.complete );
+
+  genset_old = DATA(summ)->summarized_genset;
+
+  /* 1. Free state associated with prev wave. */
+  /* XXX the summaries are freed as they are consued; I do not think 
+   * anything is necessary here... */
+
+  /* 2. Deploy next wave; prev := next */
+  genset_to_consume = DATA(summ)->summarizing.goal_genset;
+  DATA(summ)->summarized_genset = genset_to_consume;
+
+  budget = count_usable_summaries_in(summ, genset_to_consume );
+  if (about_to_major && budget > 1) {
+    /* if we're about to collect, we've already spent our budget for it. */
+    budget -= 1;
+  }
+  assert2( budget > 0 );
+
+  /* 3. Set up new next wave. */
+  start = (gset_last_elem( genset_to_consume ) % region_count)+1;
+  coverage = (int)ceil(((double)region_count) * DATA(summ)->coverage);
+
+  dbmsg("advance_to_next_summary_set( summ, region_count=%d ): "
+             "start:%d coverage:%f=>%d budget:%d",
+             region_count, start, DATA(summ)->coverage, coverage, budget );
+
+  genset_next = gset_range( start,
+                            min(region_count+1, start+coverage) );
+
+  assert2( gset_disjointp( genset_to_consume, genset_next ));
+
+  db_printgset( "advance_to_next_summary_set: budg: ", genset_to_consume );
+  db_printgset( "advance_to_next_summary_set: covr: ", genset_next );
+
+  if ( gset_count( genset_next ) < coverage ) {
+    gset_t genset_next2;
+    genset_next2 = gset_range( 1, 1+(coverage - gset_count(genset_next)) );
+    genset_next = gset_union( genset_next, genset_next2 );
+  }
+
+  assert2( gset_disjointp( genset_to_consume, genset_next ));
+
+  assert( gset_count( genset_next ) == coverage );
+  sm_build_summaries_setup( summ, genset_next, budget, region_count,
+                            gset_first_elem( genset_next ));
+}
+
+static void sm_ensure_available( summ_matrix_t *summ, int gno,
+                                 int region_count, bool about_to_major )
+{
+  bool summed_prev, summed_next;
+
+  check_rep_2( summ );
+
+  summed_prev = sm_is_rgn_summarized( summ, gno );
+  summed_next = sm_is_rgn_summarized_next( summ, gno );
+
+  dbmsg( "sm_ensure_available( summ, gno=%d, region_count=%d ):"
+              " prev: %s, next: %s", gno, region_count, 
+              summed_prev?"TRUE":"FALSE", summed_next?"TRUE":"FALSE");
+  db_printgset( "sm_ensure_available: summarized: ",
+                     DATA(summ)->summarized_genset );
+  db_printgset( "sm_ensure_available: zing goals: ",
+                     DATA(summ)->summarizing.goal_genset );
+  db_printgset( "sm_ensure_available: zing currs: ",
+                     DATA(summ)->summarizing.curr_genset );
+
+  if ( sm_is_rgn_summarized( summ, gno )) {
+    /* no op */
+  } else if ( sm_is_rgn_summarized_next( summ, gno )) {
+    advance_to_next_summary_set( summ, region_count, about_to_major );
+  } else {
+    assert( FALSE );
+  }
+
+  check_rep_2( summ );
+  return;
+}
+
 /* XXX
  * Should be straight-forward. 
  * 
  * This clears a column in the matrix; just return its cells (and
  * hashset) to pool.
  */
-EXPORT void sm_clear_summary( summ_matrix_t *summ, int rgn_next )
+EXPORT void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int region_count )
 {
+  gset_t genset;
+
+  dbmsg("sm_clear_summary( summ, rgn_next=%d, region_count=%d ):%s",
+             rgn_next, region_count,
+             (sm_is_rgn_summarized( summ, rgn_next )?"Sumz":"Unsm"));
+
   check_rep_1( summ );
 
-  /* clear the summary that guided this collection. */
-  {
-    DATA(summ)->summarized_genset = 
-      gset_remove( rgn_next, DATA(summ)->summarized_genset);
+  sm_clear_col( summ, rgn_next );
+  genset = gset_remove( rgn_next, DATA(summ)->summarized_genset );
 
-    { 
-      gset_t genset = DATA(summ)->summarized_genset;
-      if (genset.tag == gs_singleton) {
-        assert(genset.g1 <  DATA(summ)->remset_summaries_count);
-      } else if (genset.tag == gs_range) {
-        assert(genset.g2 <= DATA(summ)->remset_summaries_count);
-      } else { 
-        assert(genset.tag == gs_nil);
-        sm_invalidate_summaries( summ );
-      }
-    }
+  if (genset.tag == gs_singleton) {
+    assert(genset.g1 <  DATA(summ)->remset_summaries_count);
+  } else if (genset.tag == gs_range) {
+    assert(genset.g2 <= DATA(summ)->remset_summaries_count);
+  } else if (genset.tag == gs_twrng) {
+    assert(genset.g2 <= DATA(summ)->remset_summaries_count);
+    assert(genset.g4 <= DATA(summ)->remset_summaries_count);
+  } else { 
+    assert(genset.tag == gs_nil);
   }
 
-  /* XXX above is cruft adapted from prior refactoring. */
-
-  {
-    /* clear contribution from summarization */
-    clear_col_cells( summ, rgn_next );
-    /* clear contribution from mutator */
-    clear_col_mutator_rs( summ, rgn_next );
-
-    col_reset_words( DATA(summ)->cols[rgn_next] );
-  }
+  DATA(summ)->summarized_genset = genset;
 
   check_rep_1( summ );
 }
@@ -2140,6 +2617,7 @@ EXPORT void sm_clear_summary( summ_matrix_t *summ, int rgn_next )
 struct filter_objects_from_sum_remset_data {
   gc_t *gc;
   int gen; /* collected gen */
+  int col_idx; /* col index of mutator remset */
 };
 static bool filter_objects_from_sum_remset( word ptr, 
                                             void *the_data, 
@@ -2147,7 +2625,13 @@ static bool filter_objects_from_sum_remset( word ptr,
 {
   struct filter_objects_from_sum_remset_data *data;
   data = (struct filter_objects_from_sum_remset_data *)the_data;
+
   assert(isptr(ptr));
+  /* When collecting region R, we should never encounter an object
+   * from R in the summary for R; summaries contain only objects
+   * *outside* of R. */
+  assert( data->col_idx != gen_of(ptr));
+
   if (gen_of(ptr) == data->gen) {
     return FALSE;
   } else {
@@ -2180,6 +2664,9 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
     sent->prev_row = sent; /*   now trivial    */
     row->cell_rgt = sent;  /*    cycle)        */
     while (cell != sent) {
+      dbmsg("sm_clear_contribution_to_summaries( summ, rgn_next=%d ): "
+                 "free_cell( cell{src: %d, tgt:%d} )",
+                 rgn_next, cell->source_gno, cell->target_gno );
       next = cell->next_row;
       cell->prev_col->next_col = cell->next_col;
       cell->next_col->prev_col = cell->prev_col;
@@ -2208,10 +2695,23 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
       for (i = 0; i < DATA(summ)->num_cols; i++) {
         summ_col_t *col;
         col = DATA(summ)->cols[i];
+        data.col_idx = i;
         if ( col->sum_mutator != NULL ) {
-          rs_enumerate( col->sum_mutator,
-                        filter_objects_from_sum_remset,
-                        &data );
+          if (col->sum_mutator->live != 0) {
+            dbmsg("sm_clear_contribution_to_summaries( summ, rgn_next=%d ): "
+                       "filter sum_mutator[col=%d] live: %d",
+                       rgn_next, i, col->sum_mutator->live );
+            rs_enumerate( col->sum_mutator,
+                          filter_objects_from_sum_remset,
+                          &data );
+            dbmsg("sm_clear_contribution_to_summaries( summ, rgn_next=%d ): "
+                       "post filter sum_mu[col=%d] live: %d",
+                       rgn_next, i, col->sum_mutator->live );
+          } else {
+            rs_enumerate( col->sum_mutator,
+                          filter_objects_from_sum_remset,
+                          &data );
+          }
         }
       }
     }
@@ -2230,7 +2730,7 @@ static bool rsenum_assert_not_forwarded( word object, void *data, unsigned *stat
 {
 #define FORWARD_HDR 0xFFFFFFFE /* XXX eek!  Factor from cheney.h elsewhere! */
   if ( *ptrof(object) == FORWARD_HDR ) {
-    consolemsg( " eek object 0x%08x (%d) has been forwarded but is in nurs rs.", 
+    assertmsg( " eek object 0x%08x (%d) has been forwarded but is in nurs rs.", 
                 object, gen_of(object) );
   }
   assert( *ptrof(object) != FORWARD_HDR );
@@ -2268,7 +2768,6 @@ static bool filter_mutated_elems( summary_t *s, word w )
 static bool filter_gen( summary_t *s, word w )
 {
   bool ret = (gen_of(w) != s->icursor2);
-  if (0) consolemsg("filter_gen( s, w=0x%08x (%d) ) => %s", w, gen_of(w), ret?"T":"F");
   return ret;
 }
 
@@ -2281,12 +2780,7 @@ static bool next_chunk( summary_t *s, word **start, word **lim, bool *all_unseen
   objs_pool_t *pool = (objs_pool_t*) s->cursor4;
 
   if (cell == col->cell_top) {
-    /* XXX this *replaces* s->next_chunk/dispose/filter with the ones
-     * for the mutator remset.  (Its an incredibly ugly hack that I
-     * want to replace with something easier to comprehend when I have
-     * time!) */
-    rs_init_summary( col->sum_mutator, -1, s );
-    return summary_next_chunk_with_flags( s, start, lim, all_unseen );
+    return FALSE;
   } else {
     *all_unseen = FALSE;
     *start = pool->bot;
@@ -2302,6 +2796,28 @@ static bool next_chunk( summary_t *s, word **start, word **lim, bool *all_unseen
   }
 }
 
+static bool filter_icursor1( summary_t *this, word w ) {
+  return (gen_of(w) != this->icursor1);
+}
+
+struct rs_scan_filter_entries {
+  summ_matrix_t *summ;
+  int next_gen;
+  remset_t *sum_mut;
+};
+static bool rsscan_filter_entries( word loc, void *my_data, unsigned *stats )
+{
+  struct rs_scan_filter_entries *data;
+  bool ret;
+  data = (struct rs_scan_filter_entries*)my_data;
+  ret = ((gen_of(loc) != data->next_gen) 
+          && ! rs_isremembered( data->sum_mut, loc ));
+  dbmsg( "rsscan_filter_entries(loc=0x%08x (%d),data{next_gen=%d},stats)"
+              " => %s",
+              loc, gen_of(loc), data->next_gen, ret?"TRUE":"FALSE" );
+  return ret;
+}
+
 /* 
  * XXX
  * 
@@ -2313,6 +2829,8 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
                                           summary_t *summary )
 {
   check_rep_1( summ );
+
+
   {
     summ_col_t *col;
     int entries;
@@ -2323,30 +2841,65 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
        * needed within rs_scan_add_word_to_rs */
       col->sum_mutator = grab_from_remset_pool();
     }
+#if 0
     {
       /* fold nursery into mutator rs if present */
       struct rs_scan_add_word_to_rs_data data;
+      data.summ   = summ;
       data.to_gen = next_summ_idx;
       data.rs_to  = col->sum_mutator;
       rs_enumerate( DATA(summ)->nursery_remset, 
                     rs_scan_add_word_to_rs, 
                     &data );
     }
+#else
+    {
+      struct rs_scan_filter_entries data;
+      data.summ     = summ;
+      data.next_gen = next_summ_idx;
+      data.sum_mut  = col->sum_mutator;
+      rs_enumerate( DATA(summ)->nursery_remset, 
+                    rsscan_filter_entries, 
+                    &data );
 
-    entries = col_words(col) + DATA(summ)->nursery_remset->live;
-    if (col->cell_top->next_col != col->cell_top) {
-      summary_init_dispose( summary, entries, next_chunk, 
-                            NULL, filter_mutated_elems );
-      /* 1: summ, 2: col, 3: cell, 4: objs_pool */
-      summary->cursor1 = summ;
-      summary->cursor2 = col;
-      summary->cursor3 = col->cell_top->next_col;
-      summary->cursor4 = col->cell_top->next_col->objects;
-      assert( summary->cursor4 != NULL );
-    } else {
-      rs_init_summary( DATA(summ)->nursery_remset, -1, summary );
-      summary->icursor2 = col->target_gno;
-      summary->filter = filter_gen;
+      rs_init_summary( DATA(summ)->nursery_remset, -1, 
+                       &DATA(summ)->nursery_summary );
+    }
+#endif
+
+    {
+      rs_init_summary( col->sum_mutator, -1,
+                       &DATA(summ)->mutrems_summary );
+    }
+
+    { 
+      entries = col_words(col);
+      if (col->cell_top->next_col != col->cell_top) {
+        dbmsg("sm_fold_in_nursery_and_init_summary"
+                   "(summ, next_summ_idx=%d, summary ) "
+                   "cell iter", 
+                   next_summ_idx );
+        summary_init_dispose( &DATA(summ)->summcol_summary, entries, 
+                              next_chunk, NULL, filter_mutated_elems );
+        /* 1: summ, 2: col, 3: cell, 4: objs_pool */
+        DATA(summ)->summcol_summary.cursor1 = summ;
+        DATA(summ)->summcol_summary.cursor2 = col;
+        DATA(summ)->summcol_summary.cursor3 = col->cell_top->next_col;
+        DATA(summ)->summcol_summary.cursor4 = col->cell_top->next_col->objects;
+        assert( DATA(summ)->summcol_summary.cursor4 != NULL );
+
+        summary_compose( &DATA(summ)->nursery_summary, 
+                         &DATA(summ)->mutrems_summary,
+                         &DATA(summ)->summcol_summary, 
+                         NULL, 
+                         summary );
+      } else {
+        summary_compose( &DATA(summ)->nursery_summary,
+                         &DATA(summ)->mutrems_summary, 
+                         NULL,
+                         NULL,
+                         summary );
+      }
     }
   }
 
@@ -2392,7 +2945,7 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
      the existing summarization data (that is, that there are *no*
      summaries pointing into regions >= fresh_gno
   */
-  if (DATA(summ)->summarized_genset_valid) {
+  {
     assert( ! gset_min_elem_greater_than( DATA(summ)->summarized_genset, 
                                           fresh_gno-1 ));
   }
@@ -2439,8 +2992,30 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
 EXPORT void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs )
 {
 
-  if ( DATA(summ)->summarized_genset_valid &&
-       gset_memberp( g_rhs, DATA(summ)->summarized_genset )) {
+  /* Below condition is subtle.
+   * 1. If we've already summarized g_rhs and its part of our current budget for
+   *    future summarizations, then we will not be summarizing it again and 
+   *    must update it's summary.
+   * 2. If g_rhs is part of the goal summarizing set, but *not* part of the 
+   *    current targets of summarization, then case is analogous to (1) above.
+   * 3. If g_rhs is part of the curr summarizing set, but the remset 
+   *    cursor has already gone past gen_of(lhs), then case is analogous to (1).
+   * 4. If g_rhs is part of the curr summarizing set, but the remset
+   *    cursor has not yet encountered gen_of(lhs), then we must *NOT*
+   *    enter lhs into the summary, because we are not allowed to 
+   *    have duplicate entries in the columns of the summ matrix. 
+   *
+   * (And maybe this still not quite right, since progress invocations can lead to 
+   *  a summarizing.curr_genset that is complete... but I think in that situation
+   *  the rs_cursor should be past the remset_count...)
+   */
+  if ( gset_memberp( g_rhs, DATA(summ)->summarized_genset )
+       || ( gset_memberp( g_rhs, DATA(summ)->summarizing.curr_genset )
+            && (DATA(summ)->summarizing.complete || 
+                gen_of(lhs) < DATA(summ)->summarizing.rs_cursor ))
+       || ( gset_memberp( g_rhs, DATA(summ)->summarizing.goal_genset ) 
+            && ! gset_memberp( g_rhs, DATA(summ)->summarizing.curr_genset ))
+       ) {
 
     /* XXX recomputing g_lhs wasteful here (plus it might not be valid
      * yet?  When does cheney change the gno for LOS, before or after
@@ -2462,6 +3037,20 @@ EXPORT void sm_after_collection( summ_matrix_t *summ )
   if (0) print_matrix( "sm_after_collection", summ );
   assert_no_forwarded_objects( DATA(summ)->nursery_remset );
   check_rep_2( summ );
+}
+
+struct check_cells_against_rs_data {
+  summ_matrix_t *summ;
+  summ_col_t *col;
+  int col_idx;
+};
+
+static bool rsscan_check_cells_against_rs( word loc, void *my_data, unsigned *stats )
+{
+  struct check_cells_against_rs_data *data;
+  data = (struct check_cells_against_rs_data*)my_data;
+  assert( gen_of(loc) != data->col_idx );
+  return TRUE;
 }
 
 /* INV: forall i in [1..num_cols) :
@@ -2496,18 +3085,15 @@ static void check_cells_against_rs( summ_matrix_t *summ )
     if (col->sum_mutator != NULL)
       rs_enumerate( col->sum_mutator, rsenum_add_elem, cell_rs );
 
-    /* XXX there used to be code here to assert that the constructed
-     * cell_rs was consistent with a redundant representation; the
-     * redundant rep has been entirely removed and so this loop seems
-     * to serve no purpose.  However, I suspect it will be important
-     * to check the rep in the future, and there are assertions that
-     * can be added above; for example, could check that there are no
-     * duplicate entries with appropriate logic immediate preceding
-     * rs_add_elem.
-     * 
-     * if none of this ever happens, then the entire
-     * check_cells_against_rs function can be thrown out.
-     */
+    /* At this point, cell_rs is a remset_t representation of the 
+     * summary for col. */
+    {
+      struct check_cells_against_rs_data data;
+      data.summ = summ;
+      data.col = col;
+      data.col_idx = i;
+      rs_enumerate( cell_rs, rsscan_check_cells_against_rs, (void*)&data );
+    }
 
     /* clean up */
     rs_clear(cell_rs);
@@ -2515,7 +3101,40 @@ static void check_cells_against_rs( summ_matrix_t *summ )
   return_to_remset_pool( cell_rs );
 }
 
+static void check_row_consistency( summ_matrix_t *sm, summ_row_t *row, int i )
+{
+  summ_cell_t *sent = row->cell_lft;
+  summ_cell_t *cell = sent;
+  do {
+    assert( cell->source_gno == i );
+    cell = cell->next_row;
+  } while ( cell != sent );
+}
+
+static void check_col_consistency( summ_matrix_t *sm, summ_col_t *col, int i )
+{
+  summ_cell_t *sent = col->cell_top;
+  summ_cell_t *cell = sent;
+  do {
+    assert( cell->target_gno == i );
+    cell = cell->next_col;
+  } while ( cell != sent );
+}
+
+static void check_matrix_consistency( summ_matrix_t *sm )
+{
+  int i;
+  for (i = 0; i < DATA(sm)->num_rows; i++)
+    check_row_consistency( sm, DATA(sm)->rows[i], i );
+  for (i = 0; i < DATA(sm)->num_cols; i++)
+    check_col_consistency( sm, DATA(sm)->cols[i], i );
+}
+
 static void check_rep( summ_matrix_t *summ ) {
+  assert( summ != NULL );
+  assert( gset_disjointp( DATA(summ)->summarized_genset,
+                          DATA(summ)->summarizing.goal_genset ));
+  check_matrix_consistency( summ );
   check_cells_against_rs( summ );
 }
 
