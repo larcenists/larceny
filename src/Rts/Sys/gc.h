@@ -78,9 +78,9 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   bool   has_refine_factor;	       /* In the regional system. */
   double refinement_factor;	       /* In the regional system. */
   bool   has_sumzbudget;	       /* In the regional system. */
-  double sumzbudget;		       /* In the regional system. */
+  double sumzbudget_inv;	       /* In the regional system. */
   bool   has_sumzcoverage;	       /* In the regional system. */
-  double sumzcoverage;		       /* In the regional system. */
+  double sumzcoverage_inv;	       /* In the regional system. */
   bool print_float_stats_cycle;        /* In the regional system. */
   bool print_float_stats_major;        /* In the regional system. */
   bool print_float_stats_minor;        /* In the regional system. */

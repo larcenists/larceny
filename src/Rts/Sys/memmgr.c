@@ -2571,9 +2571,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     data->ephemeral_area = (old_heap_t**)must_malloc( e*sizeof( old_heap_t* ));
     
     data->rrof_sumz_budget = 
-      (info->has_sumzbudget?info->sumzbudget:default_sumz_budget_factor);
+      (info->has_sumzbudget?info->sumzbudget_inv:default_sumz_budget_factor);
     data->rrof_sumz_coverage = 
-      (info->has_sumzcoverage?info->sumzcoverage:default_sumz_coverage_factor);
+      (info->has_sumzcoverage?info->sumzcoverage_inv:default_sumz_coverage_factor);
 
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );

@@ -540,11 +540,11 @@ parse_options( int argc, char **argv, opt_t *o )
     }
     else if (doublearg( "-sumzbudget", &argc, &argv, &sumz_budget)) {
       o->gc_info.has_sumzbudget = TRUE;
-      o->gc_info.sumzbudget = sumz_budget;
+      o->gc_info.sumzbudget_inv = sumz_budget;
     }
     else if (doublearg( "-sumzcoverage", &argc, &argv, &sumz_coverage)) {
       o->gc_info.has_sumzcoverage = TRUE;
-      o->gc_info.sumzcoverage = sumz_coverage;
+      o->gc_info.sumzcoverage_inv = sumz_coverage;
     }
     else if (doublearg( "-popularity", &argc, &argv, &popular_factor)) {
       o->gc_info.has_popularity_factor = TRUE;
