@@ -148,7 +148,10 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
       int rgn_summarized_live;
       old_heap_t *heap = DATA(gc)->ephemeral_area[ i ];
       rgn = i+1;
-      rgn_summarized_live = sm_summarized_live( DATA(gc)->summaries, rgn );
+      rgn_summarized_live = 
+        ((DATA(gc)->summaries != NULL)
+         ? sm_summarized_live( DATA(gc)->summaries, rgn )
+         : 0);
       oh_synchronize( heap );
       consolemsg( "%scycle % 3d region% 4d "
                   "remset live: %7d %7d %8d lastmajor: %7d "
@@ -168,7 +171,20 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                      rgn == DATA(gc)->rrof_next_region ) ? "*" :
                    ( rgn == DATA(gc)->rrof_to_region )   ? "t" :
                    ( rgn == DATA(gc)->rrof_next_region ) ? "n" :
-                   ( rgn_summarized_live >= 0 )          ? "s" :
+
+                   ( (DATA(gc)->summaries != NULL) &&
+                     sm_is_rgn_summarized( DATA(gc)->summaries, rgn ) && 
+                     sm_is_rgn_summary_avail( DATA(gc)->summaries, rgn ))        ? "s" :
+                   ( (DATA(gc)->summaries != NULL) &&
+                     ( sm_is_rgn_summarized( DATA(gc)->summaries, rgn ) ||
+                       sm_will_rgn_be_summarized_next( DATA(gc)->summaries, rgn )) &&
+                     sm_is_rgn_summary_over_pop( DATA(gc)->summaries, rgn ))     ? "P" :
+
+                   ( (DATA(gc)->summaries != NULL) && 
+                     sm_will_rgn_be_summarized_next( DATA(gc)->summaries, rgn ) && 
+                     (! sm_is_rgn_summarized_next( DATA(gc)->summaries, rgn ) ||
+                      sm_is_rgn_summary_avail_next( DATA(gc)->summaries, rgn ))) ? "S" :
+
                    ( rgn >  DATA(gc)->region_count     ) ? "e" : 
                    /* else                              */ " "),
                   bars,
