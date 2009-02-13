@@ -21,6 +21,8 @@
 #define DEFAULT_EPHEMERAL_INCREMENT  MEGABYTE
 #define DEFAULT_DYNAMIC_INCREMENT    MEGABYTE
 
+#define DEFAULT_MMU_BUFFER_SIZE      5000
+
 /* NP collector */
 #define DEFAULT_STEPS                8
 #define DEFAULT_STEPSIZE             (256*KILOBYTE)
@@ -105,6 +107,8 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   /* Remembered-set values (could be set-by-set; are global) */
   unsigned rhash;		/* # elements in each remset hash tbl */
   unsigned ssb;			/* # elements in each remset SSB */
+
+  int mmu_buf_size;             /* If 0, use default; if < 0, no MMU stats */
 };
 
 /* In memmgr.c */

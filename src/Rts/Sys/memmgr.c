@@ -93,20 +93,23 @@ gc_t *create_gc( gc_param_t *info, int *generations )
   return gc;
 }
 
-#define GATHER_MMU_DATA 0
+#define GATHER_MMU_DATA 1
 
 static gc_phase_shift( gc_t *gc, gc_log_phase_t prev, gc_log_phase_t next )
 {
 #if GATHER_MMU_DATA
-  assert2( DATA(gc)->mmu_log != NULL );
-  gc_mmu_log_phase_shift( DATA(gc)->mmu_log, prev, next );
+  if ( DATA(gc)->mmu_log != NULL ) {
+    gc_mmu_log_phase_shift( DATA(gc)->mmu_log, prev, next );
+  }
 #endif
 }
 
 void gc_dump_mmu_data( gc_t *gc, FILE *f ) 
 {
 #if GATHER_MMU_DATA
-  gc_mmu_log_print_data( DATA(gc)->mmu_log, f );
+  if ( DATA(gc)->mmu_log != NULL ) {
+    gc_mmu_log_print_data( DATA(gc)->mmu_log, f );
+  }
 #endif
 }
 
@@ -3052,7 +3055,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->total_heap_words_allocated = 0;
 
 #if GATHER_MMU_DATA
-  { 
+  if (info->mmu_buf_size >= 0) { 
+    int mmu_buf_size;
     static int mmu_window_lengths[] = {
       100, 
       200,
@@ -3080,8 +3084,15 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
       -1 /* end of array marker */
     };
 
+    mmu_buf_size = ((info->mmu_buf_size == 0) 
+                    ? DEFAULT_MMU_BUFFER_SIZE 
+                    : info->mmu_buf_size );
     data->mmu_log = 
-      create_gc_mmu_log( mmu_window_lengths, 5000, gc_log_phase_misc_memmgr );
+      create_gc_mmu_log( mmu_window_lengths, 
+                         mmu_buf_size, 
+                         gc_log_phase_misc_memmgr );
+  } else {
+    data->mmu_log = NULL;
   }
 #endif
 

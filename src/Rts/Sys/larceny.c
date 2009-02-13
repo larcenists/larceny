@@ -109,6 +109,7 @@ int main( int argc, char **os_argv )
   command_line_options.restv = 0;
   command_line_options.gc_info.ephemeral_info = 0;
   command_line_options.gc_info.use_static_area = 1;
+  command_line_options.gc_info.mmu_buf_size = -1;
   command_line_options.gc_info.globals = globals;
 #if defined( BDW_GC )
   command_line_options.gc_info.is_conservative_system = 1;
@@ -471,6 +472,7 @@ static void
 parse_options( int argc, char **argv, opt_t *o )
 {
   int i, loc, prev_size, areas = DEFAULT_AREAS;
+  int mmu_size;
   int mark_period;
   double popular_factor = 0.0;
   double refine_factor = 0.0;
@@ -524,6 +526,9 @@ parse_options( int argc, char **argv, opt_t *o )
       } else if (o->gc_info.is_regional_system) {
         o->size[loc] = val;
       }
+    }
+    else if (numbarg( "-mmusize", &argc, &argv, &mmu_size)) {
+      o->gc_info.mmu_buf_size = mmu_size;
     }
     else if (numbarg( "-regions", &argc, &argv, &areas))  {
       init_regional( o, areas, "-regions" );
@@ -1246,7 +1251,14 @@ static char *wizardhelptext[] = {
   "     parameter).  The -expansion and -load parameters are mutually",
   "     exclusive.",
 #endif
+  /* need double indirection to get a number in output rather than just the
+   * literal "DEFAULT_MMU_BUFFER_SIZE" */
+#define STRINGIZE(val) #val
+#define STRINGIZE2(val) STRINGIZE(val)
 #if !defined(BDW_GC)
+  "  -mmusize n", 
+  "     If n >= 0, activates MMU data gathering, with MMU buffer size n.",
+  "     Use n = 0 to indicate default size (" STRINGIZE2(DEFAULT_MMU_BUFFER_SIZE) ").",
   "  -nostatic",
   "     Do not use the static area, but load the heap image into the",
   "     garbage-collected heap." ,
