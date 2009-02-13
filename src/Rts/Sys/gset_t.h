@@ -20,6 +20,9 @@ typedef struct { gset_tag_t tag; int g1; int g2; int g3; int g4; } gset_t;
  *
  * (the two ranges of gs_twrng must not overlap; should be assert2'ing this)
  */
+static gset_t gset_null() { 
+  gset_t g; g.tag = gs_nil; return g; 
+}
 static gset_t gset_singleton( int g1 ) { 
   gset_t g; g.tag = gs_singleton; g.g1 = g1; return g; 
 }
@@ -51,7 +54,7 @@ static bool gset_emptyp( gset_t gs ) {
   switch (gs.tag) {
   case gs_nil: return TRUE;
   case gs_singleton: return FALSE;
-  case gs_range: return (gs.g1 > gs.g2);
+  case gs_range: return (gs.g1 >= gs.g2);
   case gs_twrng: return ((gs.g1 > gs.g2) && (gs.g3 > gs.g4));
   }
 }
@@ -151,6 +154,8 @@ static gset_t gset_remove( int gno, gset_t gs ) {
 
 static gset_t gset_union( gset_t gs1, gset_t gs2 ) {
   gset_t rtn;
+  if (gset_emptyp( gs1 )) return gs2;
+  if (gset_emptyp( gs2 )) return gs1;
   assert2( gs1.tag == gs_range );
   assert2( gs2.tag == gs_range );
   rtn.tag = gs_twrng;
