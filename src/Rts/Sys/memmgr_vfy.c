@@ -39,24 +39,40 @@ static void msvfy_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
 
 static void* verify_remsets_msgc_fcn( word obj, word src, void *data ) 
 {
+  int src_gen, obj_gen;
   gc_t *gc = (gc_t*)data;
-  if (isptr(src) && isptr(obj) &&
-      gen_of(src) != gen_of(obj) &&
-      ! gc_is_nonmoving( gc, gen_of(obj) )) {
-    assert( gen_of(src) >= 0 );
-    if (gen_of(src) > 0) {
-      assert( *gc->ssb[gen_of(src)]->bot == *gc->ssb[gen_of(src)]->top );
-      assert( *gc->ssb[gen_of(obj)]->bot == *gc->ssb[gen_of(obj)]->top );
-      if (gen_of(obj) == 0) {
-        assert( sm_nursery_summary_contains( DATA(gc)->summaries, src ));
+  if (!isptr(src))
+    return data;
+  if (!isptr(obj))
+    return data;
+ 
+  src_gen = gen_of(src);
+  obj_gen = gen_of(obj);
+  assert( src_gen >= 0);
+  assert( obj_gen >= 0);
+  if ((src_gen != obj_gen) &&
+      ! gc_is_nonmoving( gc, obj_gen )) {
+    assert( src_gen >= 0 );
+    if (src_gen > 0) {
+      assert( *gc->ssb[src_gen]->bot == *gc->ssb[src_gen]->top );
+      assert( *gc->ssb[obj_gen]->bot == *gc->ssb[obj_gen]->top );
+      if (obj_gen == 0) {
+        if (! ((DATA(gc)->summaries == NULL) ||
+               sm_nursery_summary_contains( DATA(gc)->summaries, src ))) {
+          consolemsg(" src: 0x%08x (%d) points to obj: 0x%08x (%d),"
+                     " but not in nursery remset of summaries.",
+                     src, src_gen, obj, obj_gen);
+        }
+        assert( (DATA(gc)->summaries == NULL) ||
+                sm_nursery_summary_contains( DATA(gc)->summaries, src ));
       }
-      if (!rs_isremembered( gc->remset[ gen_of(src) ], src ) &&
-	  !rs_isremembered( gc->major_remset[ gen_of(src) ], src )) {
+      if (!rs_isremembered( gc->remset[ src_gen ], src ) &&
+	  !rs_isremembered( gc->major_remset[ src_gen ], src )) {
 	consolemsg( " src: 0x%08x (%d) points to obj: 0x%08x (%d),"
 		    " but not in remsets @0x%08x @0x%08x",
-		    src, gen_of(src), obj, gen_of(obj), 
-		    gc->remset[ gen_of(src) ],
-		    gc->major_remset[ gen_of(src) ]);
+		    src, src_gen, obj, obj_gen, 
+		    gc->remset[ src_gen ],
+		    gc->major_remset[ src_gen ]);
 	assert( gc_is_address_mapped( gc, ptrof(src), TRUE ));
 	assert( gc_is_address_mapped( gc, ptrof(obj), TRUE ));
 	assert(0);
@@ -109,8 +125,10 @@ void verify_remsets_via_oracle( gc_t *gc )
   data.region = 0;
   data.major = FALSE;
   data.pointsinto = TRUE;
-  sm_nursery_summary_enumerate( DATA(gc)->summaries, verify_nursery_traverse_rs, &data );
-  sm_nursery_summary_enumerate( DATA(gc)->summaries, verify_remsets_traverse_rs, &data );
+  if (DATA(gc)->summaries != NULL) {
+    sm_nursery_summary_enumerate( DATA(gc)->summaries, verify_nursery_traverse_rs, &data );
+    sm_nursery_summary_enumerate( DATA(gc)->summaries, verify_remsets_traverse_rs, &data );
+  }
   /* Originally had code to verify_remsets_traverse_rs on all remsets,
    * but that does not seem like an interesting invariant to check. */
   msgc_end( context );
