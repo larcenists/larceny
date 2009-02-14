@@ -158,11 +158,17 @@ static gset_t gset_union( gset_t gs1, gset_t gs2 ) {
   if (gset_emptyp( gs2 )) return gs1;
   assert2( gs1.tag == gs_range );
   assert2( gs2.tag == gs_range );
-  rtn.tag = gs_twrng;
-  rtn.g1 = gs1.g1;
-  rtn.g2 = gs1.g2;
-  rtn.g3 = gs2.g1;
-  rtn.g4 = gs2.g2;
+  if (gs2.g1 == gs1.g2) {
+    rtn.tag = gs_range;
+    rtn.g1 = gs1.g1;
+    rtn.g2 = gs2.g2;
+  } else {
+    rtn.tag = gs_twrng;
+    rtn.g1 = gs1.g1;
+    rtn.g2 = gs1.g2;
+    rtn.g3 = gs2.g1;
+    rtn.g4 = gs2.g2;
+  }
   return rtn;
 }
 static bool gset_disjointp( gset_t gs1, gset_t gs2 ) {
