@@ -156,18 +156,35 @@ static gset_t gset_union( gset_t gs1, gset_t gs2 ) {
   gset_t rtn;
   if (gset_emptyp( gs1 )) return gs2;
   if (gset_emptyp( gs2 )) return gs1;
-  assert2( gs1.tag == gs_range );
-  assert2( gs2.tag == gs_range );
-  if (gs2.g1 == gs1.g2) {
-    rtn.tag = gs_range;
-    rtn.g1 = gs1.g1;
-    rtn.g2 = gs2.g2;
-  } else {
+  if ( gs1.tag == gs_range &&
+       gs2.tag == gs_range ) {
+    if (gs2.g1 == gs1.g2) {
+      rtn.tag = gs_range;
+      rtn.g1 = gs1.g1;
+      rtn.g2 = gs2.g2;
+    } else {
+      rtn.tag = gs_twrng;
+      rtn.g1 = gs1.g1;
+      rtn.g2 = gs1.g2;
+      rtn.g3 = gs2.g1;
+      rtn.g4 = gs2.g2;
+    }
+  } else if ( gs1.tag == gs_twrng &&
+              gs2.tag == gs_range ) {
+    assert2( gs1.g1 < gs1.g2 );
+    assert( gs2.g2 <= gs1.g1 );
+    assert( gs1.g3 <= gs2.g1 );
+    assert( gs2.g1 <= gs1.g4 );
     rtn.tag = gs_twrng;
-    rtn.g1 = gs1.g1;
-    rtn.g2 = gs1.g2;
-    rtn.g3 = gs2.g1;
-    rtn.g4 = gs2.g2;
+    rtn.g1  = gs1.g1;
+    rtn.g2  = gs1.g2;
+    rtn.g3  = gs1.g3;
+    rtn.g4  = gs2.g2;
+  } else if ( gs1.tag == gs_range &&
+              gs2.tag == gs_twrng ) {
+    assert( FALSE );
+  } else {
+    assert( FALSE );
   }
   return rtn;
 }
