@@ -28,6 +28,7 @@
 #define db_printgset( prefix, arg ) if (0) console_printgset( prefix, arg )
 
 #define assertmsg( format, args... ) if (1) consolemsg( format, ## args )
+#define assert_printgset( prefix, arg ) if (1) console_printgset( prefix, arg )
 #define verifymsg( format, args... ) if (1) consolemsg( format, ## args )
 
 #include <stdio.h>
@@ -1143,10 +1144,6 @@ static summ_cell_t* summ_cell( summ_matrix_t *summ, int src_gno, int tgt_gno )
   summ_col_t *col;
   summ_cell_t *row_cell, *col_cell;
 
-  dbmsg( "  %s( summ, src: %d, tgt: %d ) num_rows: %d num_cols: %d", 
-         "summ_cell", src_gno, tgt_gno, 
-         DATA(summ)->num_rows, DATA(summ)->num_cols );
-
   assert( src_gno < DATA(summ)->num_rows );
   assert( tgt_gno < DATA(summ)->num_cols );
 
@@ -1622,7 +1619,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ, gset_t genset,
   int num_under_construction;
   int goal;
 
-  goal = (int)ceil(((double)region_count) * DATA(summ)->goal);
+  goal = max(1,(int)floor(((double)region_count) * DATA(summ)->goal));
 
   dbmsg("sm_build_summaries_setup(summ, genset, majors=%d, region_count=%d, rgn_next=%d ) goal:%d",
              majors, region_count, rgn_next, goal );
@@ -1671,6 +1668,14 @@ static void sm_build_summaries_setup( summ_matrix_t *summ, gset_t genset,
     }
   }
 
+#ifndef NDEBUG2
+  if (! gset_disjointp( DATA(summ)->summarized_genset,
+                        DATA(summ)->summarizing.goal_genset )) {
+    assertmsg( "initial sumz setup, non disjoint region sets" );
+    assert_printgset( "summarized:       ", DATA(summ)->summarized_genset );
+    assert_printgset( "summarizing goal: ", DATA(summ)->summarizing.goal_genset );
+  }
+#endif
   assert( gset_disjointp( DATA(summ)->summarized_genset,
                           DATA(summ)->summarizing.goal_genset ));
 }
@@ -1767,6 +1772,8 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
           } else {
             count += 1;
           }
+        } else {
+          dbmsg(" region[%d] is too popular; dropped from summarizing.", i );
         }
       }
     }
@@ -1816,6 +1823,14 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
     }
   }
 
+#ifndef NDEBUG2
+  if (! gset_disjointp( DATA(summ)->summarized_genset,
+                        DATA(summ)->summarizing.goal_genset )) {
+    assertmsg( "iteration complete, non disjoint region sets" );
+    console_printgset( "summarized:       ", DATA(summ)->summarized_genset );
+    console_printgset( "summarizing goal: ", DATA(summ)->summarizing.goal_genset );
+  }
+#endif
   assert( gset_disjointp( DATA(summ)->summarized_genset,
                           DATA(summ)->summarizing.goal_genset ));
 
@@ -1917,6 +1932,8 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
   remsum.objects_visited = 0;
   remsum.objects_added = 0;
   remsum.words_added = 0;
+
+  assert2( gset_disjointp( DATA(summ)->summarized_genset, genset ));
   sm_build_summaries_setup( summ, genset, 1, region_count, rgn_next );
   sm_build_summaries_by_scanning( summ, 1, remset_count, &remsum );
 
@@ -2520,7 +2537,7 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
 
   /* 3. Set up new next wave. */
   start = (gset_last_elem( genset_to_consume ) % region_count)+1;
-  coverage = (int)ceil(((double)region_count) * DATA(summ)->coverage);
+  coverage = max(1,(int)floor(((double)region_count) * DATA(summ)->coverage));
 
   dbmsg("advance_to_next_summary_set( summ, region_count=%d ): "
              "start:%d coverage:%f=>%d budget:%d",
@@ -2531,18 +2548,26 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
 
   assert2( gset_disjointp( genset_to_consume, genset_next ));
 
-  db_printgset( "advance_to_next_summary_set: budg: ", genset_to_consume );
-  db_printgset( "advance_to_next_summary_set: covr: ", genset_next );
-
   if ( gset_count( genset_next ) < coverage ) {
     gset_t genset_next2;
     genset_next2 = gset_range( 1, 1+(coverage - gset_count(genset_next)) );
     genset_next = gset_union( genset_next, genset_next2 );
   }
 
+  db_printgset( "advance_to_next_summary_set: budg: ", genset_to_consume );
+  db_printgset( "advance_to_next_summary_set: covr: ", genset_next );
+
+#ifndef NDEBUG2
+  if (! gset_disjointp( genset_to_consume, genset_next )) {
+    assertmsg( "initial sumz setup, non disjoint region sets" );
+    assert_printgset( "summarized:       ", genset_to_consume );
+    assert_printgset( "summarizing goal: ", genset_next );
+  }
+#endif
   assert2( gset_disjointp( genset_to_consume, genset_next ));
 
   assert( gset_count( genset_next ) == coverage );
+  assert( gset_disjointp( DATA(summ)->summarized_genset, genset_next ));
   sm_build_summaries_setup( summ, genset_next, budget, region_count,
                             gset_first_elem( genset_next ));
 }
