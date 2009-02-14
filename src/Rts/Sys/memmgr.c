@@ -1333,9 +1333,6 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
 
-  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
-    verify_summaries_via_oracle( gc );
-
   if (summarization_active) {
     int i;
     for (i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
