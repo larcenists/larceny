@@ -169,6 +169,10 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                   heap->allocated/4, 
                   (( rgn == DATA(gc)->rrof_to_region &&
                      rgn == DATA(gc)->rrof_next_region ) ? "*" :
+                   ( rgn == DATA(gc)->rrof_to_region &&
+                     (DATA(gc)->summaries != NULL) &&
+                     (sm_is_rgn_summarized( DATA(gc)->summaries, rgn ) ||
+                      sm_will_rgn_be_summarized_next( DATA(gc)->summaries, rgn )) ) ? "T" :
                    ( rgn == DATA(gc)->rrof_to_region )   ? "t" :
                    ( rgn == DATA(gc)->rrof_next_region ) ? "n" :
 
