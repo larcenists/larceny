@@ -171,6 +171,9 @@ static gset_t gset_union( gset_t gs1, gset_t gs2 ) {
     }
   } else if ( gs1.tag == gs_twrng &&
               gs2.tag == gs_range ) {
+    /* gs1: [a..d]          [l..m]
+     * gs2:    [d..g]
+     */
     assert2( gs1.g1 < gs1.g2 );
     assert( gs2.g2 <= gs1.g1 );
     assert( gs1.g3 <= gs2.g1 );
@@ -182,31 +185,56 @@ static gset_t gset_union( gset_t gs1, gset_t gs2 ) {
     rtn.g4  = gs2.g2;
   } else if ( gs1.tag == gs_range &&
               gs2.tag == gs_twrng ) {
-    assert( FALSE );
+    /* gs1:             [l..m]
+     * gs2: [a..d]         [m..z]
+     */
+    assert( gs2.g4 <= gs1.g1 );
+    assert( gs1.g1 <= gs2.g1 );
+    assert( gs2.g1 <= gs1.g2 );
+    rtn.tag = gs_twrng;
+    rtn.g1  = gs1.g1;
+    rtn.g2  = gs2.g2;
+    rtn.g3  = gs2.g3;
+    rtn.g4  = gs2.g4;
   } else {
     assert( FALSE );
   }
   return rtn;
 }
+static bool ranges_disjointp( int ralow, int ralim, int rblow, int rblim )
+{
+  return (ralim <= rblow) || (rblim <= ralow);
+}
 static bool gset_disjointp( gset_t gs1, gset_t gs2 ) {
   switch (gs1.tag) {
   case gs_nil: return TRUE;
   case gs_singleton: return ! gset_memberp( gs1.g1, gs2 );
-  case gs_range: 
-    return ! gset_memberp( gset_min_elem_greater_than( gs2, gs1.g1-1 ), gs1 );
+  case gs_range: /* fall through */
   case gs_twrng: /* fall through */
     break;
   }
   switch (gs2.tag) {
   case gs_nil: return TRUE;
   case gs_singleton: return ! gset_memberp( gs2.g1, gs1 );
-  case gs_range: 
-    return ! gset_memberp( gset_min_elem_greater_than( gs1, gs2.g1-1 ), gs2 );
+  case gs_range: /* fall through */
   case gs_twrng: /* fall through */
     break;
   }
-  /* if here, both are gs_twrng, for which union is unsupported */
-  assert( FALSE ); /* figure this out later. */
+  if (gs1.tag == gs_range && gs2.tag == gs_range) {
+    return ranges_disjointp( gs1.g1, gs1.g2, gs2.g1, gs2.g2 );
+  } else if (gs1.tag == gs_range && gs2.tag == gs_twrng) {
+    return ranges_disjointp( gs1.g1, gs1.g2, gs2.g1, gs2.g2 ) &&
+      ranges_disjointp( gs1.g1, gs1.g2, gs2.g3, gs2.g4 );
+  } else if (gs1.tag == gs_twrng && gs2.tag == gs_range) {
+    return ranges_disjointp( gs1.g1, gs1.g2, gs2.g1, gs2.g2 ) &&
+      ranges_disjointp( gs1.g3, gs1.g4, gs2.g1, gs2.g2 );
+  } else if (gs1.tag == gs_twrng && gs2.tag == gs_twrng) {
+    return ranges_disjointp( gs1.g1, gs1.g2, gs2.g1, gs2.g2 ) &&
+      ranges_disjointp( gs1.g3, gs1.g4, gs2.g1, gs2.g2 ) &&
+      ranges_disjointp( gs1.g1, gs1.g2, gs2.g3, gs2.g4 ) &&
+      ranges_disjointp( gs1.g3, gs1.g4, gs2.g3, gs2.g4 );
+  }
+  assert( FALSE ); /* unreachable. */
   return FALSE;
 }
 
