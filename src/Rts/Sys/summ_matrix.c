@@ -179,9 +179,15 @@ struct summ_matrix_data {
   int       popularity_limit;   /* Maximum summary size allowed (in words) */
 
   struct {
+
+    /* TODO: factor this out.  Felix now thinks goal involves the currently
+     * built summaries and the ones under construction, which means that this
+     * state does not really belong here... */
     int    goal; /* number of usable summaries needed before we say "done" */
+
     gset_t goal_genset; /* all regions of the goal summaries */
     gset_t curr_genset; /* regions of *this* summary iteration */
+    bool   waiting;
     bool   complete;
     int    rs_cursor; /* start remset for next sm_build_summaries_partial() */
     int    rs_num; /* #remsets to scan in each sm_build_summaries_partial() */
@@ -199,6 +205,11 @@ struct summ_matrix_data {
 };
 
 #define DATA(sm)                ((summ_matrix_data_t*)(sm->data))
+
+static int calc_goal( summ_matrix_t *summ, int region_count ) 
+{ 
+  return max(1,(int)floor(((double)region_count) * DATA(summ)->goal));
+}
 
 static bool rsenum_assert_memberp( word loc, void *data, unsigned *stats) 
 {
@@ -867,6 +878,9 @@ static void console_printgset( char *prefix, gset_t g );
 static void sm_ensure_available( summ_matrix_t *summ, int gno,
                                  int region_count, bool about_to_major );
 
+static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset );
+static void setup_next_wave( summ_matrix_t *summ, int region_count );
+
 EXPORT void sm_construction_progress( summ_matrix_t *summ, 
                                       int* word_countdown,
                                       int* object_countdown,
@@ -892,6 +906,19 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
               DATA(summ)->summarizing.rs_num );
 
   check_rep_1( summ );
+
+  if ( DATA(summ)->summarizing.waiting ) {
+    int goal_budget = calc_goal( summ, rgn_count );
+    int usable = 
+      count_usable_summaries_in( summ, DATA(summ)->summarized_genset );
+    if ( usable > goal_budget ) {
+      /* continue waiting to setup next wave */
+      return;
+    } else {
+      DATA(summ)->summarizing.waiting = FALSE;
+      setup_next_wave( summ, rgn_count );
+    }
+  }
 
   assert( gset_count( DATA(summ)->summarizing.curr_genset ) > 0 );
 
@@ -1619,15 +1646,22 @@ static void sm_build_summaries_setup( summ_matrix_t *summ, gset_t genset,
   int num_under_construction;
   int goal;
 
-  goal = max(1,(int)floor(((double)region_count) * DATA(summ)->goal));
+  goal = calc_goal( summ, region_count );
 
+  /* genset_next does not actually go up to coverage
+   * when that would overlap already summarized area. 
+   * (and Felix can't get the new logic right...) */
+#if 0
+  assert2( gset_count( genset ) >= goal );
+#else
+  goal = min( goal, gset_count(genset) );
+#endif
   dbmsg("sm_build_summaries_setup(summ, genset, majors=%d, region_count=%d, rgn_next=%d ) goal:%d",
              majors, region_count, rgn_next, goal );
   db_printgset( "sm_build_summaries_setup: arized:", 
                      DATA(summ)->summarized_genset );
   db_printgset( "sm_build_summaries_setup: genset:", genset );
 
-  assert2( gset_count( genset ) >= goal );
   assert2( majors > 0 );
 
   num_under_construction = quotient2( summ->collector->remset_count, majors );
@@ -1709,7 +1743,7 @@ static void sm_build_summaries_by_scanning( summ_matrix_t *summ,
 }
 
 static void sm_clear_col( summ_matrix_t *summ, int i );
-static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset );
+static void wait_to_setup_next_wave( summ_matrix_t *summ );
 
 static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
                                                    int region_count ) 
@@ -1746,7 +1780,7 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
    * expand goal_genset := (goal_genset union curr_genset). */
   {
     gset_t goal_genset;
-    int s, e, i, count, goal;
+    int s, e, i, count, goal, total_count;
     goal_genset = DATA(summ)->summarizing.goal_genset;
     goal = DATA(summ)->summarizing.goal;
 
@@ -1780,19 +1814,28 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
 
     assert2( count == count_usable_summaries_in( summ, goal_genset ));
 
-    /* see note above about count potentially passing budget */
+    total_count = 
+      count_usable_summaries_in( summ,
+                                 gset_union( DATA(summ)->summarized_genset, 
+                                             goal_genset ));
 
-    if (count >= goal ) {
-      dbmsg( "count:%d meets goal:%d.", count, goal );
+    /* see note above about count potentially passing budget */
+    if (total_count >= goal ) {
+      dbmsg( "total_count:%d (adding count:%d) meets goal:%d.", 
+             total_count, count, goal );
       db_printgset( "sm_build_summaries_iteration_complete: genset", 
-                         goal_genset );
+                    goal_genset );
       DATA(summ)->summarizing.complete = TRUE;
+      DATA(summ)->summarized_genset = 
+        gset_union( DATA(summ)->summarized_genset, goal_genset );
+      wait_to_setup_next_wave( summ );
     } else {
-      dbmsg( "count:%d did not meet goal.");
       /* count did not meet goal; therefore iterate. */
       gset_t new_curr_genset, new_goal_genset;
       int start, upto;
       int coverage;
+
+      dbmsg( "count:%d did not meet goal:%d.", count, goal);
 
       coverage = 
         (int)ceil(((double)region_count) * DATA(summ)->coverage);
@@ -1810,12 +1853,44 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
         extra_cov = coverage - gset_count( new_curr_genset );
         start = 1;
         upto = 1+extra_cov;
+
+        /* Don't overlap with already summarized area. */
+        upto = min( upto, 
+                    gset_min_elem_greater_than( DATA(summ)->summarized_genset, 
+                                                0 ));
         new_curr_genset2 = gset_range( start, upto );
+
+        assert2( gset_disjointp( new_curr_genset2, 
+                                 DATA(summ)->summarized_genset ));
         new_curr_genset = gset_union( new_curr_genset, new_curr_genset2 );
         new_goal_genset = gset_union( new_goal_genset, new_curr_genset2 );
+
+#ifndef NDEBUG2
+        if (! gset_disjointp( new_curr_genset, 
+                              DATA(summ)->summarized_genset ) ||
+            ! gset_disjointp( new_goal_genset, 
+                              DATA(summ)->summarized_genset )) {
+    assertmsg( "overlapping budget and construction" );
+    assert_printgset( "summarized:       ", DATA(summ)->summarized_genset );
+    assert_printgset( "construction curr:", new_curr_genset );
+    assert_printgset( "construction goal:", new_goal_genset );
+  }
+#endif
+        assert2( gset_disjointp( new_curr_genset, 
+                                 DATA(summ)->summarized_genset ));
+        assert2( gset_disjointp( new_goal_genset, 
+                                 DATA(summ)->summarized_genset ));
       }
 
-      assert( gset_count(new_curr_genset) == coverage );
+      /* new curr does not actually go up to coverage
+       * when that would overlap already summarized area. 
+       * (and Felix can't get the new logic right...) */
+#if 0
+      assert( gset_count(new_curr_genset) == coverage 
+              ||
+              (gset_last_elem( new_curr_genset )+1 ==
+               gset_min_elem_greater_than( DATA(summ)->summarized_genset , 0 ))); 
+#endif
 
       DATA(summ)->summarizing.goal_genset = new_goal_genset;
       DATA(summ)->summarizing.curr_genset = new_curr_genset;
@@ -1999,6 +2074,7 @@ static void* verify_summaries_msgc_fcn( word obj, word src, void *my_data )
       /* XXX when introducing incremental sumz, more (and semi-tricky) logic goes here
        * to validate in-progress summarization. */
       if (gset_memberp( tgt_gen, DATA(summ)->summarizing.goal_genset ) &&
+          ! DATA(summ)->cols[tgt_gen]->overly_popular &&
           ( DATA(summ)->summarizing.complete 
             || ( ! gset_memberp( tgt_gen, DATA(summ)->summarizing.curr_genset ))
             || gen_of(src) < DATA(summ)->summarizing.rs_cursor )) {
@@ -2509,14 +2585,29 @@ static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset )
   return count;
 }
 
+static void wait_to_setup_next_wave( summ_matrix_t *summ )
+{
+  DATA(summ)->summarizing.waiting = TRUE;
+  DATA(summ)->summarizing.goal = 0;
+  DATA(summ)->summarizing.goal_genset = gset_null();
+  DATA(summ)->summarizing.curr_genset = gset_null();
+  DATA(summ)->summarizing.complete = TRUE;
+  DATA(summ)->summarizing.rs_cursor = 1;
+  DATA(summ)->summarizing.rs_num = 0;
+}
+
 static void advance_to_next_summary_set( summ_matrix_t *summ,
                                          int region_count,
                                          bool about_to_major ) 
 {
   gset_t genset_old, genset_to_consume, genset_next;
-  int start, coverage, budget;
+  int start, coverage, budget, goal_budget;
 
   assert2( DATA(summ)->summarizing.complete );
+
+  dbmsg( "advance_to_next_summary_set"
+         "( summ, region_count=%d, about_to_major=%s );",
+         region_count, about_to_major?"TRUE":"FALSE" );
 
   genset_old = DATA(summ)->summarized_genset;
 
@@ -2535,27 +2626,57 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
   }
   assert2( budget > 0 );
 
-  /* 3. Set up new next wave. */
+  goal_budget = calc_goal( summ, region_count );
+
+  if (gset_count(genset_to_consume) > goal_budget) {
+    consolemsg( "sets: %d (budget: %d) exceeds goal: %d; wait to start next wave.",
+                gset_count(genset_to_consume), budget, goal_budget );
+    wait_to_setup_next_wave( summ );
+  } else {
+    /* 3. Set up new next wave. */
+    setup_next_wave( summ, region_count );
+  }
+}
+
+static void setup_next_wave( summ_matrix_t *summ, int region_count )
+{
+  gset_t genset_to_consume, genset_next;
+  int start, coverage, budget;
+
+  genset_to_consume = DATA(summ)->summarized_genset;
+
   start = (gset_last_elem( genset_to_consume ) % region_count)+1;
   coverage = max(1,(int)floor(((double)region_count) * DATA(summ)->coverage));
+  budget = count_usable_summaries_in(summ, genset_to_consume );
 
-  dbmsg("advance_to_next_summary_set( summ, region_count=%d ): "
-             "start:%d coverage:%f=>%d budget:%d",
-             region_count, start, DATA(summ)->coverage, coverage, budget );
+  dbmsg("setup_next_wave( summ, region_count=%d ): "
+        "start:%d coverage:%f=>%d budget:%d",
+        region_count, 
+        start, DATA(summ)->coverage, coverage, budget );
 
   genset_next = gset_range( start,
                             min(region_count+1, start+coverage) );
 
-  assert2( gset_disjointp( genset_to_consume, genset_next ));
-
   if ( gset_count( genset_next ) < coverage ) {
     gset_t genset_next2;
     genset_next2 = gset_range( 1, 1+(coverage - gset_count(genset_next)) );
+
+    /* Don't overlap with already summarized area. */
+    if (gset_memberp( gset_first_elem( genset_to_consume ), 
+                      genset_next2 )) {
+      genset_next2 = gset_range( 1, gset_first_elem( genset_to_consume ));
+    }
     genset_next = gset_union( genset_next, genset_next2 );
+  } else {
+    /* Don't overlap with already summarized area. */
+    if (gset_memberp( gset_first_elem( genset_to_consume ),
+                      genset_next )) {
+      genset_next = gset_range( start, gset_first_elem( genset_to_consume ));
+    }
   }
 
-  db_printgset( "advance_to_next_summary_set: budg: ", genset_to_consume );
-  db_printgset( "advance_to_next_summary_set: covr: ", genset_next );
+  db_printgset( "setup_next_wave: budg: ", genset_to_consume );
+  db_printgset( "setup_next_wave: covr: ", genset_next );
 
 #ifndef NDEBUG2
   if (! gset_disjointp( genset_to_consume, genset_next )) {
@@ -2566,7 +2687,13 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
 #endif
   assert2( gset_disjointp( genset_to_consume, genset_next ));
 
+  /* genset_next does not actually go up to coverage
+   * when that would overlap already summarized area. 
+   * (and Felix can't get the new logic right...) */
+#if 0
   assert( gset_count( genset_next ) == coverage );
+#endif
+
   assert( gset_disjointp( DATA(summ)->summarized_genset, genset_next ));
   sm_build_summaries_setup( summ, genset_next, budget, region_count,
                             gset_first_elem( genset_next ));
