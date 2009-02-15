@@ -180,8 +180,10 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                      sm_is_rgn_summarized( DATA(gc)->summaries, rgn ) && 
                      sm_is_rgn_summary_avail( DATA(gc)->summaries, rgn ))        ? "s" :
                    ( (DATA(gc)->summaries != NULL) &&
-                     ( sm_is_rgn_summarized( DATA(gc)->summaries, rgn ) ||
-                       sm_will_rgn_be_summarized_next( DATA(gc)->summaries, rgn )) &&
+                     sm_is_rgn_summarized( DATA(gc)->summaries, rgn ) &&
+                     sm_is_rgn_summary_over_pop( DATA(gc)->summaries, rgn ))     ? "p" :
+                   ( (DATA(gc)->summaries != NULL) &&
+                     sm_will_rgn_be_summarized_next( DATA(gc)->summaries, rgn ) &&
                      sm_is_rgn_summary_over_pop( DATA(gc)->summaries, rgn ))     ? "P" :
 
                    ( (DATA(gc)->summaries != NULL) && 
