@@ -14980,12 +14980,12 @@
             (newline)))
       (if (benchmark-block-mode)
           (process-file-block infilename
-                              outfilename
+                              (list outfilename 'binary)
                               dump-fasl-segment-to-port
                               (lambda (forms)
                                 (assemble (compile-block forms) user)))
           (process-file infilename
-                        outfilename
+                        (list outfilename 'binary)
                         dump-fasl-segment-to-port
                         (lambda (expr)
                           (assemble (compile expr) user))))
@@ -15011,7 +15011,7 @@
           (user
            (assembly-user-data)))
       (process-file infilename
-                    outfilename
+                    (list outfilename 'binary)
                     dump-fasl-segment-to-port
                     (lambda (x) (assemble (if malfile? (eval x) x) user)))
       (unspecified)))
@@ -15104,7 +15104,7 @@
         (user
          (assembly-user-data)))
     (process-file file
-                  outputfile
+                  (list outputfile 'binary)
                   write-lop
                   (lambda (x) (assemble (if malfile? (eval x) x) user)))
     (unspecified)))
@@ -15123,11 +15123,11 @@
          (assembly-user-data)))
     (if (benchmark-block-mode)
         (process-file-block input-file
-                            output-file
+                            (list output-file 'binary)
                             write-lop
                             (lambda (x) (assemble (compile-block x) user)))
         (process-file input-file
-                      output-file
+                      (list output-file 'binary)
                       write-lop
                       (lambda (x) (assemble (compile x) user))))
     (unspecified)))
@@ -15144,7 +15144,7 @@
                                   *lop-file-type*
                                   *fasl-file-type*))))
       (process-file infilename
-                    outfilename
+                    (list outfilename 'binary)
                     dump-fasl-segment-to-port
                     (lambda (x) x))
       (unspecified)))
@@ -15293,58 +15293,87 @@
          (error "Too many arguments to compiler-switches."))))
 
 ; Read and process one file, producing another.
-; Preserves the global syntactic environment.
+; Filenames can be simple strings or list (filename mode) where mode
+; is a symbol, "text" or "binary".
 
 (define (process-file infilename outfilename writer processer)
-  (define (doit)
+  (process-files (list infilename) outfilename writer processer))
+
+(define (process-files infilenames outfilename writer processer)
+  (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
+	(outfilefn   (if (and (pair? outfilename) 
+			      (eq? 'binary (cadr outfilename)))
+			 call-with-raw-latin-1-output-file
+			 call-with-output-file)))
+    (define (attempt-compilation)
+      (outfilefn outfilename
+                 (lambda (outport)
+                   (for-each
+                    (lambda (infilename)
+                      (let ((infilename  (if (pair? infilename) 
+                                             (car infilename) 
+                                             infilename))
+                            (infilefn    (if (and (pair? infilename)
+                                                  (eq? 'binary
+                                                       (cadr infilename)))
+                                             call-with-raw-latin-1-input-file
+                                             call-with-input-file)))
+                        (infilefn infilename
+                                  (lambda (inport)
+                                    (do ((x (read inport) (read inport)))
+                                        ((eof-object? x))
+                                      (writer (processer x) outport))))))
+                    infilenames))))
+    
     (delete-file outfilename)
-    (call-with-output-file
-     outfilename
-     (lambda (outport)
-       (call-with-input-file
-        infilename
-        (lambda (inport)
-          (let loop ((x (read inport)))
-            (if (eof-object? x)
-                #t
-                (begin (writer (processer x) outport)
-                       (loop (read inport))))))))))
-  (let ((current-syntactic-environment
-         (syntactic-copy global-syntactic-environment)))
-    (dynamic-wind
-     (lambda () #t)
-     (lambda () (doit))
-     (lambda ()
-       (set! global-syntactic-environment
-             current-syntactic-environment)))))
+    (let ((compilation-complete #f))
+      (dynamic-wind
+          (lambda () 
+            (cond (compilation-complete
+                   (error "Attempted to resume an abandoned compilation."))))
+          (lambda () (attempt-compilation) (set! compilation-complete #t))
+          (lambda () 
+            (cond ((not compilation-complete)
+                   (delete-file outfilename)
+                   (set! compilation-complete #t))))))))
 
 ; Same as above, but passes a list of the entire file's contents
-; to the processer.
+; to the processer.  Note, processes one input file at a time, though
+; plausibly it should read all the files and process the collected
+; input together.
+;
 ; FIXME:  Both versions of PROCESS-FILE always delete the output file.
 ; Shouldn't it be left alone if the input file can't be opened?
 
 (define (process-file-block infilename outfilename writer processer)
-  (define (doit)
-    (delete-file outfilename)
-    (call-with-output-file
-     outfilename
-     (lambda (outport)
-       (call-with-input-file
-        infilename
-        (lambda (inport)
-          (do ((x (read inport) (read inport))
-               (forms '() (cons x forms)))
-              ((eof-object? x)
-               (writer (processer (reverse forms)) outport))))))))
-  (let ((current-syntactic-environment
-         (syntactic-copy global-syntactic-environment)))
-    (dynamic-wind
-     (lambda () #t)
-     (lambda () (doit))
-     (lambda ()
-       (set! global-syntactic-environment
-             current-syntactic-environment)))))
+  (process-files-block (list infilename) outfilename writer processer))
 
+(define (process-files-block infilenames outfilename writer processer)
+  (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
+	(outfilefn   (if (and (pair? outfilename) 
+			      (eq? 'binary (cadr outfilename)))
+			 call-with-raw-latin-1-output-file
+			 call-with-output-file)))
+    (delete-file outfilename)
+    (outfilefn outfilename
+      (lambda (outport)
+	(for-each
+	 (lambda (infilename)
+	   (let ((infilename  (if (pair? infilename) 
+				  (car infilename)
+				  infilename))
+		 (infilefn    (if (and (pair? infilename)
+				       (eq? 'binary (cadr infilename)))
+				  call-with-raw-latin-1-input-file
+				  call-with-input-file)))
+	     (infilefn infilename
+		       (lambda (inport)
+			 (do ((x (read inport) (read inport))
+			      (forms '() (cons x forms)))
+			     ((eof-object? x)
+			      (writer (processer (reverse forms)) 
+				      outport)))))))
+	 infilenames)))))
 
 ; Given a file name with some type, produce another with some other type.
 
@@ -16535,16 +16564,18 @@
 	       (loop (cdr files)
 		     (append inits (list (dump-file! heap filename)))))))))
 
+  ; FIXME:  Should use binary i/o here...
+
   (delete-file tmp-file)
-  (let ((heap  (make-heap #f (open-output-file tmp-file))))
+  (let ((heap  (make-heap #f (open-raw-latin-1-output-file tmp-file))))
     (before-all-files heap output-file input-files)
     (process-input-files heap)
     (heap.set-root! heap
-		    'startup
-		    (dump-startup-procedure! heap))
+                    'startup
+                    (dump-startup-procedure! heap))
     (heap.set-root! heap
-		    'callouts
-		    (dump-global! heap 'millicode-support))
+                    'callouts
+                    (dump-global! heap 'millicode-support))
     (write-header heap output-file)
     (after-all-files heap output-file input-files)
     (close-output-port (heap.output-port heap))
