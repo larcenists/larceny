@@ -15293,6 +15293,7 @@
          (error "Too many arguments to compiler-switches."))))
 
 ; Read and process one file, producing another.
+; Preserves the global syntactic environment.
 ; Filenames can be simple strings or list (filename mode) where mode
 ; is a symbol, "text" or "binary".
 
@@ -15326,13 +15327,17 @@
                     infilenames))))
     
     (delete-file outfilename)
-    (let ((compilation-complete #f))
+    (let ((compilation-complete #f)
+          (current-syntactic-environment
+           (syntactic-copy global-syntactic-environment)))
       (dynamic-wind
           (lambda () 
             (cond (compilation-complete
                    (error "Attempted to resume an abandoned compilation."))))
           (lambda () (attempt-compilation) (set! compilation-complete #t))
           (lambda () 
+            (set! global-syntactic-environment
+                  current-syntactic-environment)
             (cond ((not compilation-complete)
                    (delete-file outfilename)
                    (set! compilation-complete #t))))))))
@@ -15353,7 +15358,9 @@
 	(outfilefn   (if (and (pair? outfilename) 
 			      (eq? 'binary (cadr outfilename)))
 			 call-with-raw-latin-1-output-file
-			 call-with-output-file)))
+			 call-with-output-file))
+        (current-syntactic-environment
+         (syntactic-copy global-syntactic-environment)))
     (delete-file outfilename)
     (outfilefn outfilename
       (lambda (outport)
@@ -15373,7 +15380,8 @@
 			     ((eof-object? x)
 			      (writer (processer (reverse forms)) 
 				      outport)))))))
-	 infilenames)))))
+	 infilenames)
+       (set! global-syntactic-environment current-syntactic-environment)))))
 
 ; Given a file name with some type, produce another with some other type.
 
