@@ -77,6 +77,38 @@
             (- n two^52)
             n)))))
 
+; Return the high-order 29 bits of a flonum's significand
+; as a nonnegative exact integer (which is a fixnum in most
+; varieties of Larceny).
+
+(define float-significand-high-bits
+  (let ((two^28 268435456))
+    (lambda (f)
+      (let* ((r (fxlogior 16
+                          (fxlogand 15 
+                                    (bytevector-like-ref f 10))))
+             (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 9)))
+             (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 8)))
+             (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 7))))
+
+        ; Subtract hidden bit if x is denormalized or zero.
+
+        (if (and (zero? (fxlogand 127 (bytevector-like-ref f 11)))
+                 (zero? (fxlogand -16 (bytevector-like-ref f 10))))
+            (- r two^28)
+            r)))))
+
+; Return the low-order 24 bits of a flonum's significand
+; as a nonnegative exact integer (which is a fixnum in most
+; varieties of Larceny).
+
+(define float-significand-low-bits
+  (lambda (f)
+    (let* ((r (bytevector-like-ref f 6))
+           (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 5)))
+           (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 4))))
+      r)))
+
 ; Return the unbiased exponent of a flonum as a fixnum.
 ;
 ; The returned value is the "natural" exponent in the sense that if

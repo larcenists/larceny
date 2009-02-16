@@ -135,7 +135,15 @@
   ; Convert a flonum to an exact integer.
 
   (define (%flonum->integer a)
-    (big-normalize! (%flonum->bignum a)))
+    (let* ((a (flround a))
+           (e (float-exponent a)))
+      (if (fx<=? -53 e -24)
+          (let ((n (div (float-significand-high-bits a)
+                        (expt 2 (fx- (fx+ e 24))))))
+            (if (fl<? a 0.0)
+                (- n)
+                n))
+          (big-normalize! (%flonum->bignum a)))))
 
   ; Given two flonums 'real' and 'imag' create a compnum from the two.
   ; Independent of endianness.

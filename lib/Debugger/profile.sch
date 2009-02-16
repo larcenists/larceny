@@ -7,6 +7,7 @@
 ;
 ; Usage:
 ; (run-with-profiling <thunk>)
+; (profile <expr>)
 ;
 ; The idea is to generate an interrupt at reasonably regular
 ; intervals and record:
@@ -22,9 +23,15 @@
                            thunk))
   (reset-profiler!)
   (start-profiler!)
-  (thunk)
-  (stop-profiler!)
-  (report-profiler!))
+  (let ((r (thunk)))
+    (stop-profiler!)
+    (report-profiler!)
+    r))
+
+(define-syntax profile
+  (syntax-rules ()
+   ((_ expr)
+    (run-with-profiling (lambda () expr)))))
 
 (define original-tih (timer-interrupt-handler))
 

@@ -704,7 +704,7 @@
     (define-syntax assert
       (syntax-rules ()
         ((_ expression)
-         (if (not expression)
+         (or expression
              (assertion-violation #f "assertion failed" 'expression)))))
   
   ) ;; rnrs base

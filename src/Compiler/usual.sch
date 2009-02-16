@@ -545,11 +545,10 @@
 
 (define-syntax assert
   (syntax-rules ()
-   ((_ x)
-    (if (not x)
-        (begin (assertion-violation #f "assertion failure" 'x)
-               (unspecified))))))
-
+    ((_ expression)
+     (or expression
+         (assertion-violation #f "assertion failed" 'expression)))))
+  
 ; Syntax defined within various R6RS libraries.
 
 (define-syntax when
