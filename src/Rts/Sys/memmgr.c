@@ -860,17 +860,19 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
     smircy_assert_conservative_approximation( gc->smircy );
 
-  start_timers( &timer1, &timer2 );
 
 #if ! SYNC_REFINEMENT_RROF_CYCLE
+  start_timers( &timer1, &timer2 );
   if (gc->smircy == NULL) {
     smircy_start( gc );
   }
+#else 
+  if (gc->smircy == NULL) {
+    return;
+  }
+  start_timers( &timer1, &timer2 );
 #endif
 
-  if (gc->smircy == NULL) {
-    goto done;
-  }
 
   if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
     smircy_assert_conservative_approximation( gc->smircy );
@@ -916,7 +918,6 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
       print_float_stats( "pstfin", gc );
   }
 
- done:
   stop_refinem_timers( gc, &timer1, &timer2 );
 
   if (USE_ORACLE_TO_VERIFY_REMSETS) 
