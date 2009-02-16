@@ -77,6 +77,10 @@ void sm_prepare_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim );
 
 void sm_dispose_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim );
 
+bool sm_progress_would_no_op( summ_matrix_t *summ, int rgn_count );
+  /* Returns TRUE implies an invocation of sm_construction_progress
+     would just return without any useful internal progress. */
+
 void sm_construction_progress( summ_matrix_t *summ, 
                                int* word_countdown, int* object_countdown, 
                                int rgn_next, int region_count, 

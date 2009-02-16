@@ -830,6 +830,12 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
     verify_summaries_via_oracle( gc );
 
+  assert( DATA(gc)->summaries != NULL );
+  if (sm_progress_would_no_op( DATA(gc)->summaries, 
+                               DATA(gc)->region_count )) {
+    return;
+  }
+
   start_timers( &timer1, &timer2 );
 
   sm_construction_progress( DATA(gc)->summaries, 

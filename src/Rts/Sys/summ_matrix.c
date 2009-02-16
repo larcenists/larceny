@@ -881,6 +881,33 @@ static void sm_ensure_available( summ_matrix_t *summ, int gno,
 static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset );
 static void setup_next_wave( summ_matrix_t *summ, int region_count );
 
+EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int rgn_count ) 
+{
+  /* (must be kept in sync with sm_construction_progress below) */
+
+  check_rep_1( summ );
+
+  if ( DATA(summ)->summarizing.waiting ) {
+    int goal_budget = calc_goal( summ, rgn_count );
+    int usable = 
+      count_usable_summaries_in( summ, DATA(summ)->summarized_genset );
+    if ( usable > goal_budget ) {
+      return TRUE;
+    } else {
+      return FALSE;
+    }
+  }  else {
+    if (! DATA(summ)->summarizing.complete) {
+      return FALSE;
+    } else if (gset_emptyp( DATA(summ)->summarized_genset )) {
+      return FALSE;
+    } else {
+      return TRUE;
+    }
+  }
+}
+
+
 EXPORT void sm_construction_progress( summ_matrix_t *summ, 
                                       int* word_countdown,
                                       int* object_countdown,
@@ -888,6 +915,7 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
                                       int rgn_count,
                                       bool about_to_major )
 {
+  /* (must be kept in sync with sm_progress_would_no_op above) */
   int start, coverage;
 
   dbmsg("sm_construction_progress( summ, rgn_next=%d, region_count=%d );",
