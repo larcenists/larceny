@@ -266,6 +266,46 @@ int smircy_stack_count( smircy_context_t *context )
   return objcount;
 }
 
+static obj_stack_entry_t **alloc_obj_stk_entries( int n ) 
+{
+  return gclib_alloc_rts( sizeof(obj_stack_entry_t)*n, 0 );
+}
+static void free_obj_stk_entries( obj_stack_entry_t **entries, int n )
+{
+  gclib_free( entries, n * sizeof(obj_stack_entry_t) );
+}
+
+static large_object_cursor_t **alloc_los_stk_entries( int n )
+{
+  return gclib_alloc_rts( sizeof(large_object_cursor_t)*n, 0 );
+}
+static void free_los_stk_entries( large_object_cursor_t **entries, int n ) 
+{
+  gclib_free( entries, n );
+}
+static obj_stackseg_t *alloc_obj_stackseg() {
+  return gclib_alloc_rts( sizeof( obj_stackseg_t ), 0 );
+}
+static void free_obj_stackseg( obj_stackseg_t *obj ) 
+{
+  gclib_free( obj, sizeof( obj_stackseg_t ) );
+}
+static los_stackseg_t *alloc_los_stackseg() {
+  return gclib_alloc_rts( sizeof( los_stackseg_t ), 0 );
+}
+static void free_los_stackseg( los_stackseg_t *los ) 
+{
+  gclib_free( los, sizeof( los_stackseg_t ) );
+}
+static word* alloc_bitmap( int words_in_bitmap )
+{
+  return gclib_alloc_rts( words_in_bitmap * sizeof(word), 0 );
+}
+static void free_bitmap( word *bitmap, int words_in_bitmap )
+{
+  gclib_free( bitmap, words_in_bitmap * sizeof(word) );
+}
+
 static void init_from_old( word *bitmap_old, word *lo_addr_old, word *hi_addr_old, int words_in_old, 
                            word *bitmap_new, word *lo_addr_new, word *hi_addr_new, int words_in_new );
 static int allocate_bitmap( smircy_context_t *context );
@@ -301,7 +341,7 @@ static int expand_bitmap_core( smircy_context_t *context,
   init_from_old( bitmap_old, lowest_heap_address_old, highest_heap_address_old, words_in_bitmap_old, 
                  bitmap_new, lowest_heap_address_new, highest_heap_address_new, words_in_bitmap_new );
 
-  gclib_free( bitmap_old, words_in_bitmap_old * sizeof(word) );
+  free_bitmap( bitmap_old, words_in_bitmap_old );
   return (words_in_bitmap_new - words_in_bitmap_old);
 }
 
@@ -339,10 +379,8 @@ static void expand_context_plus_rgn( smircy_context_t *context, int shift_geq_gn
 
   rgn_to_obj_entry_old = context->rgn_to_obj_entry;
   rgn_to_los_entry_old = context->rgn_to_los_entry;
-  rgn_to_obj_entry_new = 
-    gclib_alloc_rts( sizeof(obj_stack_entry_t)*(num_rgns+1), 0 );
-  rgn_to_los_entry_new = 
-    gclib_alloc_rts( sizeof(large_object_cursor_t)*(num_rgns+1), 0 );
+  rgn_to_obj_entry_new = alloc_obj_stk_entries( num_rgns+1 );
+  rgn_to_los_entry_new = alloc_los_stk_entries( num_rgns+1 );
 
   /* XXX FIXME redundant zero-init's followed by copy-init's */
   memset( rgn_to_obj_entry_new, 0, 
@@ -389,10 +427,8 @@ static void expand_context_plus_rgn( smircy_context_t *context, int shift_geq_gn
           rgn_to_obj_entry_new[ shift_geq_gno+1 ] == NULL ||
           (rgn_to_obj_entry_new[ shift_geq_gno+1 ]->gno == shift_geq_gno+1 ));
 
-  gclib_free( rgn_to_obj_entry_old, 
-              (num_rgns_old+1) * sizeof(obj_stack_entry_t) );
-  gclib_free( rgn_to_los_entry_old,
-              (num_rgns_old+1) * sizeof(large_object_cursor_t) );
+  free_obj_stk_entries( rgn_to_obj_entry_old, (num_rgns_old+1) );
+  free_los_stk_entries( rgn_to_los_entry_old, (num_rgns_old+1) );
 
   context->num_rgns = num_rgns;
   context->rgn_to_obj_entry = rgn_to_obj_entry_new;
@@ -420,7 +456,7 @@ static word *allocate_new_bitmap( char **lowest_recv, char **highest_recv,
   /* Upper bound on number of objects that fit in memory range. */
   max_obj_count = CEILDIV(highest-lowest,MIN_BYTES_PER_OBJECT);
   words_in_bitmap = CEILDIV(max_obj_count,BITS_PER_WORD);
-  bitmap = gclib_alloc_rts( words_in_bitmap * sizeof(word), 0 );
+  bitmap = alloc_bitmap( words_in_bitmap );
 
   *lowest_recv = lowest;
   *highest_recv = highest;
@@ -485,7 +521,7 @@ static obj_stackseg_t *push_obj_segment( obj_stackseg_t *obj,
 #endif
 
   if (*freed == NULL) {
-    sp = gclib_alloc_rts( sizeof( obj_stackseg_t ), 0 );
+    sp = alloc_obj_stackseg();
 
     dbmsg( "SMIRCY push_obj_segment( 0x%08x, [0x%08x] ) => 0x%08x [%d]", 
            obj, *freed, sp, gno_owner );
@@ -527,7 +563,7 @@ static obj_stackseg_t *pop_obj_segment( obj_stackseg_t *obj,
   obj->next = *freed;
   *freed = obj;
 #else
-  gclib_free( obj, sizeof( obj_stackseg_t ) );
+  free_obj_stackseg( obj );
 #endif
   return sp;
 }
@@ -547,7 +583,7 @@ static los_stackseg_t *push_los_segment( los_stackseg_t *los,
 #endif
 
   if (*freed == NULL) {
-    sp = gclib_alloc_rts( sizeof( los_stackseg_t ), 0 );
+    sp = alloc_los_stackseg();
 
     dbmsg( "SMIRCY push_los_segment( 0x%08x, [0x%08x] ) => 0x%08x", 
            los, *freed, sp );
@@ -583,7 +619,7 @@ static los_stackseg_t *pop_los_segment( los_stackseg_t *los,
   los->next = *freed;
   *freed = los;
 #else
-  gclib_free( los, sizeof( los_stackseg_t ) );
+  free_los_stackseg( los );
 #endif
   return sp;
 }
@@ -594,7 +630,7 @@ static int free_obj_stacksegs( obj_stackseg_t *segs )
   if (segs != NULL) {
     /* (should be sufficiently shallow) */
     i = 1 + free_obj_stacksegs( segs->next );
-    gclib_free( segs, sizeof( obj_stackseg_t ) );
+    free_obj_stackseg( segs );
   }
   return i;
 }
@@ -604,7 +640,7 @@ static int free_los_stacksegs( los_stackseg_t *segs )
   int i = 0;
   if (segs != NULL) {
     i = 1 + free_los_stacksegs( segs->next );
-    gclib_free( segs, sizeof( los_stackseg_t ) );
+    free_los_stackseg( segs );
   }
   return i;
 }
@@ -735,11 +771,9 @@ smircy_context_t *smircy_begin( gc_t *gc, int num_rgns )
   context->stack.los.stkbot = NULL;
   context->stack.los.stklim = NULL;
 
-  context->rgn_to_obj_entry = 
-    gclib_alloc_rts( sizeof(obj_stack_entry_t*)*(num_rgns+1), 0 );
+  context->rgn_to_obj_entry = alloc_obj_stk_entries( num_rgns+1 );
   memset( context->rgn_to_obj_entry, 0, sizeof(obj_stack_entry_t*)*(num_rgns+1) );
-  context->rgn_to_los_entry = 
-    gclib_alloc_rts( sizeof(large_object_cursor_t*)*(num_rgns+1), 0 );
+  context->rgn_to_los_entry = alloc_los_stk_entries( num_rgns+1 );
   memset( context->rgn_to_los_entry, 0, sizeof(large_object_cursor_t*)*(num_rgns+1) );
 
   context->freed_obj = NULL;
@@ -1088,11 +1122,9 @@ void smircy_end( smircy_context_t *context )
   los_stackseg_t *los, *los_tmp;
   int n;
 
-  gclib_free( context->bitmap, context->words_in_bitmap * sizeof(word) );
-  gclib_free( context->rgn_to_obj_entry, 
-              (context->num_rgns+1) * sizeof(obj_stack_entry_t) );
-  gclib_free( context->rgn_to_los_entry, 
-              (context->num_rgns+1) * sizeof(large_object_cursor_t) );
+  free_bitmap( context->bitmap, context->words_in_bitmap );
+  free_obj_stk_entries( context->rgn_to_obj_entry, context->num_rgns+1 );
+  free_los_stk_entries( context->rgn_to_los_entry, context->num_rgns+1 );
 
   n = free_obj_stacksegs( context->freed_obj );
   if (n > 1)
