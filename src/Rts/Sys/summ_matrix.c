@@ -44,7 +44,7 @@
 #include "seqbuf_t.h"
 #include "smircy.h"
 
-#define DEFAULT_OBJS_POOL_SIZE 256
+#define DEFAULT_OBJS_POOL_SIZE 1024
 
 #define EXPORT
 
