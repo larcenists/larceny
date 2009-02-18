@@ -266,9 +266,21 @@ int smircy_stack_count( smircy_context_t *context )
   return objcount;
 }
 
+static void *my_gclib_alloc_rts( int bytes, unsigned attribute, char *where )
+{
+#if 0
+  consolemsg( "gclib_alloc_rts from: %22s bytes=%8d {frag: %4d approx 0.%02d}",
+              where, bytes, 
+              (roundup_page(bytes)-bytes), 
+              (roundup_page(bytes)-bytes)*100 / max(PAGESIZE,bytes) );
+#endif
+  return gclib_alloc_rts( bytes, attribute );
+}
+
 static obj_stack_entry_t **alloc_obj_stk_entries( int n ) 
 {
-  return gclib_alloc_rts( sizeof(obj_stack_entry_t)*n, 0 );
+  return my_gclib_alloc_rts( sizeof(obj_stack_entry_t)*n, 0, 
+                             "alloc_obj_stk_entries" );
 }
 static void free_obj_stk_entries( obj_stack_entry_t **entries, int n )
 {
@@ -277,21 +289,22 @@ static void free_obj_stk_entries( obj_stack_entry_t **entries, int n )
 
 static large_object_cursor_t **alloc_los_stk_entries( int n )
 {
-  return gclib_alloc_rts( sizeof(large_object_cursor_t)*n, 0 );
+  return my_gclib_alloc_rts( sizeof(large_object_cursor_t)*n, 0, 
+                             "alloc_los_stk_entries" );
 }
 static void free_los_stk_entries( large_object_cursor_t **entries, int n ) 
 {
   gclib_free( entries, n );
 }
 static obj_stackseg_t *alloc_obj_stackseg() {
-  return gclib_alloc_rts( sizeof( obj_stackseg_t ), 0 );
+  return my_gclib_alloc_rts( sizeof( obj_stackseg_t ), 0, "alloc_obj_stackseg" );
 }
 static void free_obj_stackseg( obj_stackseg_t *obj ) 
 {
   gclib_free( obj, sizeof( obj_stackseg_t ) );
 }
 static los_stackseg_t *alloc_los_stackseg() {
-  return gclib_alloc_rts( sizeof( los_stackseg_t ), 0 );
+  return my_gclib_alloc_rts( sizeof( los_stackseg_t ), 0, "alloc_los_stackseg" );
 }
 static void free_los_stackseg( los_stackseg_t *los ) 
 {
@@ -299,7 +312,7 @@ static void free_los_stackseg( los_stackseg_t *los )
 }
 static word* alloc_bitmap( int words_in_bitmap )
 {
-  return gclib_alloc_rts( words_in_bitmap * sizeof(word), 0 );
+  return my_gclib_alloc_rts( words_in_bitmap * sizeof(word), 0, "alloc_bitmap" );
 }
 static void free_bitmap( word *bitmap, int words_in_bitmap )
 {
