@@ -461,6 +461,7 @@ static void expand_context( smircy_context_t *context )
 static word *allocate_new_bitmap( char **lowest_recv, char **highest_recv,
                                   int *words_in_bitmap_recv ) {
   char *lowest, *highest;
+  char *highest_adjusted;
   int max_obj_count;
   int words_in_bitmap; 
   word *bitmap;
@@ -469,10 +470,20 @@ static word *allocate_new_bitmap( char **lowest_recv, char **highest_recv,
   /* Upper bound on number of objects that fit in memory range. */
   max_obj_count = CEILDIV(highest-lowest,MIN_BYTES_PER_OBJECT);
   words_in_bitmap = CEILDIV(max_obj_count,BITS_PER_WORD);
+
+#if 1
+  /* (allocated to page boundary; utilize (expectedly small) space) */
+  words_in_bitmap = roundup_page(words_in_bitmap*sizeof(word))/sizeof(word);
+  highest_adjusted = lowest+words_in_bitmap*BITS_PER_WORD*MIN_BYTES_PER_OBJECT;
+#else 
+  highest_adjusted = highest;
+#endif
+  assert2( highest_adjusted >= highest );
+
   bitmap = alloc_bitmap( words_in_bitmap );
 
   *lowest_recv = lowest;
-  *highest_recv = highest;
+  *highest_recv = highest_adjusted;
   *words_in_bitmap_recv = words_in_bitmap;
   return bitmap;
 }
