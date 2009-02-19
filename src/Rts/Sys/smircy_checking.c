@@ -17,7 +17,9 @@
 bool smircy_assert_conservative_approximation( smircy_context_t *context );
 static void check_rgn_stkp_all_present( smircy_context_t *context );
 static void check_stack_invs( smircy_context_t *context );
-static void check_gnos_match( smircy_context_t *context );
+static bool is_stkp_already_present( smircy_context_t *context, 
+                                     obj_stack_entry_t *the_stkp);
+#if MAINTAIN_GNO_IN_OBJ_STACK
 static void *smircy_enumerate_stack_of_rgn2( smircy_context_t *context, 
                                              int rgn, 
                                              void* (*visit)(word *pw, int *pgno,
@@ -25,12 +27,11 @@ static void *smircy_enumerate_stack_of_rgn2( smircy_context_t *context,
                                              void *orig_data );
 static void *visit_check_gnos_match( word w, int gno, void *data );
 static void *visit_check_gno_matches( word *pw, int *pgno, void *data );
-static bool is_stkp_already_present( smircy_context_t *context, 
-                                     obj_stack_entry_t *the_stkp);
 static void check_gnos_match( smircy_context_t *context );
 static void *smircy_enumerate_whole_stack2( smircy_context_t *context,
                                             void *visit(word w, int gno, void *data),
                                             void *orig_data );
+#endif
 
 void smircy_check_internal_invs( smircy_context_t *context ) {
   check_stack_invs( context );
@@ -52,7 +53,9 @@ static void *visit_check_gnos_match( word w, int gno, void *data )
 
 static void check_stack_invs( smircy_context_t *context ) {
   check_rgn_stkp_all_present( context );
+#if MAINTAIN_GNO_IN_OBJ_STACK
   check_gnos_match( context );
+#endif
 }
 
 static void check_rgn_stkp_all_present( smircy_context_t *context )
@@ -115,6 +118,7 @@ static bool is_stkp_already_present( smircy_context_t *context,
   return FALSE;
 }
 
+#if MAINTAIN_GNO_IN_OBJ_STACK
 static void check_gnos_match( smircy_context_t *context ) {
   int rgn;
   smircy_enumerate_whole_stack2( context, visit_check_gnos_match, NULL );
@@ -209,6 +213,7 @@ static void *smircy_enumerate_stack_of_rgn2( smircy_context_t *context,
     los_entry = los_entry->next_in_rgn;
   }
 }
+#endif
 
 static void *smircy_enumerate_whole_stack( smircy_context_t *context,
                                            void *visit(word w, void *data),
@@ -240,6 +245,7 @@ static void *smircy_enumerate_whole_stack( smircy_context_t *context,
   return data;
 }
 
+#if MAINTAIN_GNO_IN_OBJ_STACK
 static void *smircy_enumerate_whole_stack2( smircy_context_t *context,
                                             void *visit(word w, int gno, void *data),
                                             void *orig_data )
@@ -269,6 +275,7 @@ static void *smircy_enumerate_whole_stack2( smircy_context_t *context,
   }
   return data;
 }
+#endif 
 
 static void *visit_check_gno_matches( word *pw, int *pgno, void *data )
 {

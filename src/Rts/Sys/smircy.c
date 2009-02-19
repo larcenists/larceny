@@ -429,7 +429,8 @@ static void expand_context_plus_rgn( smircy_context_t *context, int shift_geq_gn
             sizeof(large_object_cursor_t*)*len );
   }
 
-  /* update gno's in the stack XXX won't the gno's go away eventually? */
+#if MAINTAIN_GNO_IN_OBJ_STACK
+  /* update gno's in the stack */
   {
     smircy_enumerate_whole_stack3( context, 
                                    increment_gnos_geq, 
@@ -442,6 +443,7 @@ static void expand_context_plus_rgn( smircy_context_t *context, int shift_geq_gn
   assert( shift_geq_gno+1 > num_rgns ||
           rgn_to_obj_entry_new[ shift_geq_gno+1 ] == NULL ||
           (rgn_to_obj_entry_new[ shift_geq_gno+1 ]->gno == shift_geq_gno+1 ));
+#endif
 
   free_obj_stk_entries( rgn_to_obj_entry_old, (num_rgns_old+1) );
   free_los_stk_entries( rgn_to_los_entry_old, (num_rgns_old+1) );
@@ -699,7 +701,9 @@ static void push( smircy_context_t *context, word obj, word src )
     }
 
     stack->stkp->val = obj;
+#if MAINTAIN_GNO_IN_OBJ_STACK
     stack->stkp->gno = gno;
+#endif
     stack->stkp->next_in_rgn = context->rgn_to_obj_entry[gno];
     context->rgn_to_obj_entry[gno] = stack->stkp;
     stack->stkp++;
@@ -1013,16 +1017,17 @@ void smircy_progress( smircy_context_t *context,
 
         assert2( isptr( w ));
         w_gno = gen_of(w);
+#if MAINTAIN_GNO_IN_OBJ_STACK
         assert( w_gno == stack->obj.stkp->gno );
+#endif
         assert( w_gno > 0 ); /* gno valid and non-nursery */
         if (context->rgn_to_obj_entry[ w_gno ] != stack->obj.stkp ) {
           consolemsg("w: 0x%08x (%d) "
                      "context->rgn_to_obj_entry[ w_gno ]: 0x%08x "
-                     "*stack->obj.stkp: [0x%08x [%d],0x%08x]",
+                     "*stack->obj.stkp: [0x%08x,0x%08x]",
                      w, w_gno, 
                      context->rgn_to_obj_entry[ w_gno ], 
                      stack->obj.stkp->val,
-                     stack->obj.stkp->gno, 
                      stack->obj.stkp->next_in_rgn );
         }
         assert( context->rgn_to_obj_entry[ w_gno ] == stack->obj.stkp );
@@ -1094,6 +1099,7 @@ void smircy_swap_gnos( smircy_context_t *context, int gno1, int gno2 )
   context->rgn_to_los_entry[gno1] = los_stack_entry1;
   context->rgn_to_los_entry[gno2] = los_stack_entry2;
 
+#if MAINTAIN_GNO_IN_OBJ_STACK
   while (obj_stack_entry1 != NULL) {
     obj_stack_entry1->gno = gno1;
     obj_stack_entry1 = obj_stack_entry1->next_in_rgn;
@@ -1102,6 +1108,7 @@ void smircy_swap_gnos( smircy_context_t *context, int gno1, int gno2 )
     obj_stack_entry2->gno = gno2;
     obj_stack_entry2 = obj_stack_entry2->next_in_rgn;
   }
+#endif
 }
 
 bool smircy_stack_empty_p( smircy_context_t *context ) 
@@ -1187,6 +1194,7 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
   obj_entry = context->rgn_to_obj_entry[ rgn ];
   los_entry = context->rgn_to_los_entry[ rgn ];
   while (obj_entry != NULL) {
+#if MAINTAIN_GNO_IN_OBJ_STACK
     if (!  ( obj_entry->gno ==  -1 || obj_entry->gno == rgn )) {
       consolemsg("smircy_enumerate_stack_of_rgn "
                  "rgn: %d obj_entry gno: %d val: 0x%08x (%d)",
@@ -1194,12 +1202,13 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
                  isptr(obj_entry->val)?gen_of(obj_entry->val):-1);
     }
     assert2( obj_entry->gno ==  -1 || obj_entry->gno == rgn );
+#endif
     assert2( obj_entry->val == 0x0 || isptr( obj_entry->val ));
 
     if (!  ( !isptr(obj_entry->val) || gen_of(obj_entry->val) == rgn )) {
       consolemsg("smircy_enumerate_stack_of_rgn "
-                 "rgn: %d obj_entry gno: %d val: 0x%08x (%d)",
-                 rgn, obj_entry->gno, obj_entry->val, 
+                 "rgn: %d obj_entry val: 0x%08x (%d)",
+                 rgn, obj_entry->val, 
                  isptr(obj_entry->val)?gen_of(obj_entry->val):-1);
     }
     /* FSK: sigh.  I cannot assert this in general, because 
@@ -1221,12 +1230,16 @@ void *smircy_enumerate_stack_of_rgn( smircy_context_t *context,
     if (obj_entry->val != 0x0) {
       old_word = obj_entry->val;
       obj_entry->val = 0x0;
+#if MAINTAIN_GNO_IN_OBJ_STACK
       obj_entry->gno = -1;
+#endif
       visit( &old_word, orig_data );
       new_word = old_word;
       if (gen_of(new_word) != rgn) { /* moved to different region; cleanup. */
         obj_entry->val = 0x0;
+#if MAINTAIN_GNO_IN_OBJ_STACK
         obj_entry->gno = -1;
+#endif
         forcibly_push( context, new_word, 0x0 );
         /* XXX should actually shift prev ptr downward; but I can
          * avoid that for this first draft, I think ... */
@@ -1522,6 +1535,7 @@ void smircy_drop_cleared_stack_entries( smircy_context_t *context, int gno )
   CHECK_REP( context );
 }
 
+#if MAINTAIN_GNO_IN_OBJ_STACK
 static void *smircy_enumerate_whole_stack3( smircy_context_t *context,
                                             void *visit( word *pw, int *pgno, void *data ),
                                             void *orig_data ) 
@@ -1551,6 +1565,7 @@ static void *smircy_enumerate_whole_stack3( smircy_context_t *context,
   }
   return data;
 }
+#endif
 
 void smircy_check_rep( smircy_context_t *context ) 
 {
@@ -1599,9 +1614,11 @@ void smircy_check_rep( smircy_context_t *context )
     assert( obj_entry == NULL );
     while (obj_seg != NULL) {
       while (obj_stkp >= obj_stkbot) {
+#if MAINTAIN_GNO_IN_OBJ_STACK
         assert( obj_stkp->val == 0x0 || 
                 (gen_of( obj_stkp->val ) == obj_stkp->gno) );
         assert( obj_stkp->gno != r );
+#endif
         obj_stkp--;
       }
       obj_seg = obj_seg->next;

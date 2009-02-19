@@ -38,9 +38,16 @@ typedef struct obj_stack           obj_stack_t;
 typedef struct los_stack           los_stack_t;
 typedef struct large_object_cursor large_object_cursor_t;
 
+#ifndef NDEBUG2
+#define MAINTAIN_GNO_IN_OBJ_STACK 1
+#else
+#define MAINTAIN_GNO_IN_OBJ_STACK 0
+#endif
 struct obj_stack_entry { 
   word              val;
+#ifdef MAINTAIN_GNO_IN_OBJ_STACK
   int               gno;
+#endif
   obj_stack_entry_t *next_in_rgn;
 };
 
