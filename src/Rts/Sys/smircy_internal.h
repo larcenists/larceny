@@ -17,7 +17,7 @@
 # error "Must define SMIRCY macros for non-32 bit systems."
 #endif
 
-#define OBJ_STACK_SIZE 2048
+#define OBJ_STACK_SIZE 2047
 /* Should be large and chosen so that obj_stackseg occupies integral
  * number of pages. */
 
