@@ -348,8 +348,11 @@ static int expand_bitmap_core( smircy_context_t *context,
 
   words_in_bitmap_new = allocate_bitmap( context ); /* (mutates context) */
   bitmap_new = context->bitmap;
-  highest_heap_address_new = max( highest_heap_address_new, context->highest_heap_address );
-  lowest_heap_address_new = min( lowest_heap_address_new, context->lowest_heap_address );
+
+  assert( highest_heap_address_new <= context->highest_heap_address );
+  assert( lowest_heap_address_new  >= context->lowest_heap_address );
+  highest_heap_address_new = context->highest_heap_address;
+  lowest_heap_address_new = context->lowest_heap_address;
 
   init_from_old( bitmap_old, lowest_heap_address_old, highest_heap_address_old, words_in_bitmap_old, 
                  bitmap_new, lowest_heap_address_new, highest_heap_address_new, words_in_bitmap_new );
