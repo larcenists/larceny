@@ -321,7 +321,8 @@ static void free_bitmap( word *bitmap, int words_in_bitmap )
 
 static void init_from_old( word *bitmap_old, word *lo_addr_old, word *hi_addr_old, int words_in_old, 
                            word *bitmap_new, word *lo_addr_new, word *hi_addr_new, int words_in_new );
-static int allocate_bitmap( smircy_context_t *context );
+static int allocate_bitmap_expanding_from( smircy_context_t *context,
+                                           word *lowest_old, word *highest_old );
 
 /* expands the mark bitmap in context to cover current address space.
  * copies all old bitmap state into new bitmap, and sets remaining
@@ -346,7 +347,11 @@ static int expand_bitmap_core( smircy_context_t *context,
          lowest_heap_address_new, highest_heap_address_new,
          lowest_heap_address_old, highest_heap_address_old );
 
-  words_in_bitmap_new = allocate_bitmap( context ); /* (mutates context) */
+  words_in_bitmap_new = 
+    allocate_bitmap_expanding_from( context /* (mutates context) */ ,
+                                    lowest_heap_address_old, 
+                                    highest_heap_address_old);
+
   bitmap_new = context->bitmap;
 
   assert( highest_heap_address_new <= context->highest_heap_address );
@@ -460,10 +465,21 @@ static void expand_context( smircy_context_t *context )
   expand_context_plus_rgn( context, context->num_rgns+1 );
 }
 
+static void memory_range( char **lowest_inout, char **highest_inout )
+{
+  char *lowest, *highest;
+  gclib_memory_range( &lowest, &highest );
+  *lowest_inout  = min( lowest, *lowest_inout );
+  *highest_inout = max( highest, *highest_inout );
+}
+
 /* allocates new bitmap that covers current address range.
  * does *not* initialize the bitmap.
+ *
+ * old address range should be passed via _inout parameters
+ * which are modified to reflect any expansion.
  */
-static word *allocate_new_bitmap( char **lowest_recv, char **highest_recv,
+static word *allocate_new_bitmap( char **lowest_inout, char **highest_inout,
                                   int *words_in_bitmap_recv ) {
   char *lowest, *highest;
   char *highest_adjusted;
@@ -471,7 +487,9 @@ static word *allocate_new_bitmap( char **lowest_recv, char **highest_recv,
   int words_in_bitmap; 
   word *bitmap;
 
-  gclib_memory_range( &lowest, &highest );
+  memory_range( lowest_inout, highest_inout );
+  lowest = *lowest_inout;
+  highest = *highest_inout;
   /* Upper bound on number of objects that fit in memory range. */
   max_obj_count = CEILDIV(highest-lowest,MIN_BYTES_PER_OBJECT);
   words_in_bitmap = CEILDIV(max_obj_count,BITS_PER_WORD);
@@ -487,8 +505,8 @@ static word *allocate_new_bitmap( char **lowest_recv, char **highest_recv,
 
   bitmap = alloc_bitmap( words_in_bitmap );
 
-  *lowest_recv = lowest;
-  *highest_recv = highest_adjusted;
+  *lowest_inout = lowest;
+  *highest_inout = highest_adjusted;
   *words_in_bitmap_recv = words_in_bitmap;
   return bitmap;
 }
@@ -519,10 +537,26 @@ static void init_from_old( word *bitmap_old, word *lo_addr_old, word *hi_addr_ol
   }
 }
 
+static int allocate_bitmap_expanding_from( smircy_context_t *context,
+                                           word *lowest_old, word *highest_old ) {
+  char *lowest, *highest;
+  int words_in_bitmap;
+  word *bitmap;
+  lowest = (char*)lowest_old;
+  highest = (char*)highest_old;
+  bitmap = allocate_new_bitmap( &lowest, &highest, &words_in_bitmap );
+  context->bitmap = bitmap;
+  context->lowest_heap_address = (word*)lowest;
+  context->highest_heap_address = (word*)highest;
+  context->words_in_bitmap = words_in_bitmap;
+  return words_in_bitmap;
+}
+
 static int allocate_bitmap( smircy_context_t *context ) {
   char *lowest, *highest;
   int words_in_bitmap;
   word *bitmap;
+  gclib_memory_range( &lowest, &highest );
   bitmap = allocate_new_bitmap( &lowest, &highest, &words_in_bitmap );
   context->bitmap = bitmap;
   context->lowest_heap_address = (word*)lowest;
