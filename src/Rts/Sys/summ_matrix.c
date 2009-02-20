@@ -3141,6 +3141,17 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
     int i;
     DATA(summ)->remset_summaries_count = len;
   }
+
+  /* check that we will complete summarization on schedule. */
+  if (! DATA(summ)->summarizing.complete) {
+    int fuel, capability, required;
+    fuel = count_usable_summaries_in( summ, DATA(summ)->summarized_genset );
+    capability = DATA(summ)->summarizing.rs_num * fuel;
+    required = (DATA(summ)->remset_summaries_count - 
+                DATA(summ)->summarizing.rs_cursor);
+
+    assert( capability >= required );
+  }
 }
 
 /* 
