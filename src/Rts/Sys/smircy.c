@@ -550,7 +550,7 @@ static word *allocate_new_bitmap( char **lowest_inout, char **highest_inout,
   max_obj_count = CEILDIV(highest-lowest,MIN_BYTES_PER_OBJECT);
   words_in_bitmap = CEILDIV(max_obj_count,BITS_PER_WORD);
 
-#if 0
+#if 1
   /* (allocated to page boundary; utilize (expectedly small) space) */
   words_in_bitmap = roundup_page(words_in_bitmap*sizeof(word))/sizeof(word);
   highest_adjusted = lowest+words_in_bitmap*BITS_PER_WORD*MIN_BYTES_PER_OBJECT;
