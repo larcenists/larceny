@@ -277,24 +277,80 @@ static void *my_gclib_alloc_rts( int bytes, unsigned attribute, char *where )
   return gclib_alloc_rts( bytes, attribute );
 }
 
+#define SMALL_ENTRY_COUNT 1024
+static struct {
+  bool obj_in_use;
+  bool los_in_use;
+  obj_stack_entry_t     *obj[SMALL_ENTRY_COUNT];
+  large_object_cursor_t *los[SMALL_ENTRY_COUNT];
+} the_small_stk_entries[2];
+
 static obj_stack_entry_t **alloc_obj_stk_entries( int n ) 
 {
-  return my_gclib_alloc_rts( sizeof(obj_stack_entry_t)*n, 0, 
-                             "alloc_obj_stk_entries" );
+  if (n < SMALL_ENTRY_COUNT) {
+    if ( ! the_small_stk_entries[0].obj_in_use) {
+      the_small_stk_entries[0].obj_in_use = TRUE;
+      return the_small_stk_entries[0].obj;
+    } else if ( ! the_small_stk_entries[1].obj_in_use) {
+      the_small_stk_entries[1].obj_in_use = TRUE;
+      return the_small_stk_entries[1].obj;
+    } else {
+      assert( FALSE );
+    }
+  } else {
+    return my_gclib_alloc_rts( sizeof(obj_stack_entry_t)*n, 0, 
+                               "alloc_obj_stk_entries" );
+  }
 }
 static void free_obj_stk_entries( obj_stack_entry_t **entries, int n )
 {
-  gclib_free( entries, n * sizeof(obj_stack_entry_t) );
+  if (n < SMALL_ENTRY_COUNT) {
+    if (entries == the_small_stk_entries[0].obj) {
+      assert2( the_small_stk_entries[0].obj_in_use );
+      the_small_stk_entries[0].obj_in_use = FALSE;
+    } else if (entries == the_small_stk_entries[1].obj) {
+      assert2( the_small_stk_entries[1].obj_in_use );
+      the_small_stk_entries[1].obj_in_use = FALSE;
+    } else {
+      assert( FALSE );
+    }
+  } else {
+    gclib_free( entries, n * sizeof(obj_stack_entry_t) );
+  }
 }
 
 static large_object_cursor_t **alloc_los_stk_entries( int n )
 {
-  return my_gclib_alloc_rts( sizeof(large_object_cursor_t)*n, 0, 
-                             "alloc_los_stk_entries" );
+  if (n < SMALL_ENTRY_COUNT) {
+    if ( ! the_small_stk_entries[0].los_in_use) {
+      the_small_stk_entries[0].los_in_use = TRUE;
+      return the_small_stk_entries[0].los;
+    } else if ( ! the_small_stk_entries[1].los_in_use) {
+      the_small_stk_entries[1].los_in_use = TRUE;
+      return the_small_stk_entries[1].los;
+    } else {
+      assert( FALSE );
+    }
+  } else {
+    return my_gclib_alloc_rts( sizeof(large_object_cursor_t)*n, 0, 
+                               "alloc_los_stk_entries" );
+  }
 }
 static void free_los_stk_entries( large_object_cursor_t **entries, int n ) 
 {
-  gclib_free( entries, n );
+  if (n < SMALL_ENTRY_COUNT) {
+    if (entries == the_small_stk_entries[0].los) {
+      assert2( the_small_stk_entries[0].los_in_use );
+      the_small_stk_entries[0].los_in_use = FALSE;
+    } else if (entries == the_small_stk_entries[1].los) {
+      assert2( the_small_stk_entries[1].los_in_use );
+      the_small_stk_entries[1].los_in_use = FALSE;
+    } else {
+      assert( FALSE );
+    }
+  } else {
+    gclib_free( entries, n );
+  }
 }
 static obj_stackseg_t *alloc_obj_stackseg() {
   return my_gclib_alloc_rts( sizeof( obj_stackseg_t ), 0, "alloc_obj_stackseg" );
@@ -527,9 +583,9 @@ static void init_from_old( word *bitmap_old, word *lo_addr_old, word *hi_addr_ol
   for (i = 0; i < offset_word_idx; i++) {
     bitmap_new[i] = (~0);
   }
-  for (i = 0; i < words_in_old; i++) {
-    bitmap_new[i+offset_word_idx] = bitmap_old[i];
-    testobj = ((word)(&(lo_addr_old[2*i]))) | PAIR_TAG;
+  for (i = offset_word_idx; i < words_in_old+offset_word_idx; i++) {
+    bitmap_new[i] = bitmap_old[i-offset_word_idx];
+    testobj = ((word)(&(lo_addr_old[2*(i-offset_word_idx)]))) | PAIR_TAG;
     assert( isptr(testobj) && lo_addr_old <= ptrof(testobj) && ptrof(testobj) < hi_addr_old );
   }
   for (i = words_in_old+offset_word_idx; i < words_in_new; i++) {
