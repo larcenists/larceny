@@ -405,7 +405,6 @@ void gclib_free( void *addr, int bytes )
   supremely_annoyingmsg( "Freeing: bytes=%d addr=[0x%08x,0x%08x)", bytes, (void*)addr, (void*)(((byte*)addr)+bytes) );
   
   free_aligned( addr, bytes );
-  data.wastage_bytes -= PAGESIZE;
 
   pages = bytes/PAGESIZE;
   pageno = pageof( addr );
