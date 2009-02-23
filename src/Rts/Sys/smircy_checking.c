@@ -520,10 +520,16 @@ bool smircy_assert_conservative_approximation( smircy_context_t *context )
     hgh = max( (word*)msg_hgh, context->highest_heap_address );
     for ( ptr = low; ptr < hgh; ptr += 2 ) {
       tptr = ((word)ptr) | PAIR_TAG; /* artificial pair tag */
-      if ((caddr_t)ptr < msg_low) {  /* assume unreachable in current heap */
-        assert( ! msgc_object_marked_p( clone, tptr ));
-      } else if ((caddr_t)ptr >= msg_hgh) { /* assume unreachable in current heap */
-        assert( ! msgc_object_marked_p( clone, tptr ));
+      if ((caddr_t)ptr < msg_low || (caddr_t)ptr >= msg_hgh) {
+
+        /* unreachable in current heap; but mark bitmap conservatively
+         * assumes storage beyond its initial range is newly allocated
+         * and live with respect to the snapshot.
+         * 
+         * Thus such addresses are marked, unless the conservative
+         * assumption is explicitly contradicted; see
+         * smircy_when_object_forwarded(..) */
+
       } else if (msgc_object_marked_p( msgc_ctxt, tptr )) {
         switch (header(*ptr)) {
         case VEC_HDR: 
