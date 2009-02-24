@@ -469,7 +469,7 @@ void osdep_free_aligned( void *p, int bytes )
 }
 
 #define NUM_8K_BLOCKS_PER_ENTRY 16
-#define ALL_ENTRIES_FILLED_MASK 0xFFFF
+#define ALL_ENTRIES_FILLED_MASK ~(~0<<NUM_8K_BLOCKS_PER_ENTRY)
 struct r8Kentry {
   byte *start;
   struct r8Kentry *next;
@@ -503,14 +503,6 @@ static void *alloc_aligned_8k()
     parcels.partial->start = package;
     parcels.partial->next = NULL;
     parcels.partial->inuse = (1<<0);
-#if PARCELING_MSGS
-    consolemsg( "alloc_aligned_8k: fresh, "
-                "frag: %d*8K partial: %d filled; %d",
-                fragmentation/(8*KILOBYTE), 
-                r8Kentry_length( parcels.partial ),
-                r8Kentry_length( parcels.filled ) );
-#endif
-    return package;
   } else {
     int j;
     for( j=0; j < NUM_8K_BLOCKS_PER_ENTRY; j++ ) {
@@ -518,25 +510,27 @@ static void *alloc_aligned_8k()
         package = parcels.partial->start + j*8*KILOBYTE;
         parcels.partial->inuse |= (1<<j);
         fragmentation -= 8*KILOBYTE;
-#if PARCELING_MSGS
-        consolemsg( "alloc_aligned_8k: added %d to bitset %x, "
-                    "frag: %d*8K partial: %d filled: %d", 
-                    j, parcels.partial->inuse, fragmentation/(8*KILOBYTE),
-                    r8Kentry_length( parcels.partial ),
-                    r8Kentry_length( parcels.filled ) );
-#endif
-        if ( parcels.partial->inuse == ALL_ENTRIES_FILLED_MASK ) {
-          struct r8Kentry *intransit;
-          intransit = parcels.partial;
-          parcels.partial = parcels.partial->next;
-          intransit->next = parcels.filled;
-          parcels.filled = intransit;
-        }
-        return package;
       }
     }
-    assert( FALSE );
   }
+
+  /* at this point, parcels.partial is the block we are allocating
+   * from, and package is the 8K block we are going to return. */
+#if PARCELING_MSGS
+  consolemsg( "alloc_aligned_8k: added %d to bitset %x, "
+              "frag: %d*8K partial: %d filled: %d", 
+              j, parcels.partial->inuse, fragmentation/(8*KILOBYTE),
+              r8Kentry_length( parcels.partial ),
+              r8Kentry_length( parcels.filled ) );
+#endif
+  if ( parcels.partial->inuse == ALL_ENTRIES_FILLED_MASK ) {
+    struct r8Kentry *intransit;
+    intransit = parcels.partial;
+    parcels.partial = parcels.partial->next;
+    intransit->next = parcels.filled;
+    parcels.filled = intransit;
+  }
+  return package;
 }
 
 static void free_aligned_8k( void *p )
