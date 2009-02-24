@@ -481,6 +481,17 @@ static struct {
   struct r8Kentry *filled;
 } parcels = {0,0};
 
+static int r8Kentry_length( struct r8Kentry *lst ) 
+{
+  int len;
+  len = 0;
+  while (lst != NULL) {
+    len += 1;
+    lst = lst->next;
+  }
+  return len;
+}
+
 static void *alloc_aligned_8k()
 {
   void *package;
@@ -493,7 +504,11 @@ static void *alloc_aligned_8k()
     parcels.partial->next = NULL;
     parcels.partial->inuse = (1<<0);
 #if PARCELING_MSGS
-    consolemsg("alloc_aligned_8k: fresh");
+    consolemsg( "alloc_aligned_8k: fresh, "
+                "frag: %d*8K partial: %d filled; %d",
+                fragmentation/(8*KILOBYTE), 
+                r8Kentry_length( parcels.partial ),
+                r8Kentry_length( parcels.filled ) );
 #endif
     return package;
   } else {
@@ -504,8 +519,11 @@ static void *alloc_aligned_8k()
         parcels.partial->inuse |= (1<<j);
         fragmentation -= 8*KILOBYTE;
 #if PARCELING_MSGS
-        consolemsg( "alloc_aligned_8k: added %d to bitset %x", 
-                    j, parcels.partial->inuse );
+        consolemsg( "alloc_aligned_8k: added %d to bitset %x, "
+                    "frag: %d*8K partial: %d filled: %d", 
+                    j, parcels.partial->inuse, fragmentation/(8*KILOBYTE),
+                    r8Kentry_length( parcels.partial ),
+                    r8Kentry_length( parcels.filled ) );
 #endif
         if ( parcels.partial->inuse == ALL_ENTRIES_FILLED_MASK ) {
           struct r8Kentry *intransit;
@@ -569,19 +587,26 @@ static void free_aligned_8k( void *p )
   assert2( 0 <= offs && offs < NUM_8K_BLOCKS_PER_ENTRY );
   entries->inuse &= ~(1<<offs);
   if (entries->inuse == 0) {
-#if PARCELING_MSGS
-    consolemsg( "alloc_aligned_8k: considered %d; removed %d yielding empty", 
-                len, offs );
-#endif
     *p_entries = entries->next;
     fragmentation -= 8*KILOBYTE*(NUM_8K_BLOCKS_PER_ENTRY - 1);
+#if PARCELING_MSGS
+    consolemsg( "alloc_aligned_8k: considered %d; removed %d yielding empty, "
+                "frag: %d*8K partial: %d filled; %d",
+                len, offs, fragmentation/(8*KILOBYTE), 
+                r8Kentry_length( parcels.partial ),
+                r8Kentry_length( parcels.filled ) );
+#endif
     free_aligned( entries->start, 8*KILOBYTE*NUM_8K_BLOCKS_PER_ENTRY );
     free( entries );
   } else {
     fragmentation += 8*KILOBYTE;
 #if PARCELING_MSGS
-    consolemsg( "alloc_aligned_8k: considered %d; removed %d yielding %x", 
-                len, offs, entries->inuse );
+    consolemsg( "alloc_aligned_8k: considered %d; removed %d yielding %x, "
+                "frag: %d*8K partial: %d filled; %d",
+                len, offs, entries->inuse, 
+                fragmentation/(8*KILOBYTE), 
+                r8Kentry_length( parcels.partial ),
+                r8Kentry_length( parcels.filled ) );
 #endif
   }
 }
