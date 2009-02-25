@@ -651,7 +651,7 @@ static void  create_refactored_from_memmgr( summ_matrix_t *sm,
   int len = sm->collector->remset_count+1;
   int i;
   DATA(sm)->remset_summaries_count = len;
-  DATA(sm)->nursery_remset = create_remset( 0, 0 );
+  DATA(sm)->nursery_remset = create_summset( 0, 0 );
 }
 
 static void check_rep( summ_matrix_t *summ );
@@ -1133,7 +1133,7 @@ static remset_t* grab_from_remset_pool()
     /* we do not store the new remset in the pool yet; that will
      * happen when it is freed. */
     memset(elem, 0, newlen*sizeof(remset_t*));
-    return create_remset( 0, 0 );
+    return create_summset( 0, 0 );
   }
 }
 

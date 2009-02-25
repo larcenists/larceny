@@ -57,6 +57,18 @@ create_remset( int tbl_ent,	   /* Number of entries in hash table */
      */
 
 remset_t *
+create_summset( int tbl_ent, 
+                int pool_ent );
+  /* Leaking a hack within the summ_matrix module into this interface,
+     where I am using a remset_t to represent the hashtable storing
+     mutator originated modifications to the summary set.
+
+     (By introducing a distinct entry point from create_rmeset, I have
+      a chance to charge the space occupied by these remsets to
+      MB_SUMMARY_SETS instead of MB_REMSET.)
+  */
+
+remset_t *
 create_labelled_remset( int tbl_ent,
 			int pool_ent,
 			int major_id,

@@ -134,6 +134,14 @@ create_remset( int tbl_entries,    /* size of hash table, 0 = default */
 }
 
 remset_t *
+create_summset( int tbl_entries,    /* size of hash table, 0 = default */
+	        int pool_entries    /* size of remset, 0 = default */
+	      )
+{
+  return create_remset( tbl_entries, pool_entries );
+}
+
+remset_t *
 create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
 			int pool_entries,   /* size of remset, 0 = default */
 			int major_id,       /* for stats */
