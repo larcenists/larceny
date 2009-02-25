@@ -80,6 +80,7 @@
 # define MB_LARGE_OBJECT   64     /* Memory is allocated to a large object */
 # define MB_FLONUMS        128    /* Memory is part of a flonum space */
 # define MB_SUMMARY_SETS   256    /* Memory belongs to summarization sets */
+# define MB_SMIRCY_MARK    512     /* Memory belongs to marking state */
 #endif
 
 /* The following values are used in the desc_g array for 
