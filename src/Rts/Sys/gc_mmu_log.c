@@ -244,27 +244,24 @@ static void check_rep( gc_mmu_log_t *log )
   check_rep_windows( log );
 }
 
-static void clear_phase_stats( struct event_phase_stats *s )
+static void clear_phase_stats( struct event_phase_stats *s, int size )
 {
   s->current_real = 0;
   s->current_cpu  = 0;
-  s->min_real     = (int)(((unsigned)~0) >> 1);
-  s->min_cpu      = (int)(((unsigned)~0) >> 1);
+  s->min_real     = size;
+  s->min_cpu      = size;
   s->max_real     = 0;
   s->max_cpu      = 0;
-
-  assert( (s->min_real > 0) );
-  assert( (s->min_real+1 < 0) );
 }
 
 static void clear_event_window( struct event_window *e )
 {
-  clear_phase_stats( &e->mutator );
-  clear_phase_stats( &e->misc_memmgr );
-  clear_phase_stats( &e->minorgc );
-  clear_phase_stats( &e->majorgc );
-  clear_phase_stats( &e->summarize );
-  clear_phase_stats( &e->smircy );
+  clear_phase_stats( &e->mutator, e->size );
+  clear_phase_stats( &e->misc_memmgr, e->size );
+  clear_phase_stats( &e->minorgc, e->size );
+  clear_phase_stats( &e->majorgc, e->size );
+  clear_phase_stats( &e->summarize, e->size );
+  clear_phase_stats( &e->smircy, e->size );
 
   e->window_start_real.buf_idx = -1;
   e->window_start_real.entry_offset = 0;
@@ -299,8 +296,8 @@ create_gc_mmu_log( int *window_lens, int buffer_length, gc_log_phase_t init )
     log->windows.array = (struct event_window*)
       must_malloc( log->windows.len*sizeof( struct event_window ));
     for ( i = 0; i < log->windows.len; i++ ) {
-      clear_event_window( &log->windows.array[i] );
       log->windows.array[i].size = window_lens[i];
+      clear_event_window( &log->windows.array[i] );
     }
   }
 
