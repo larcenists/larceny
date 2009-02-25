@@ -381,6 +381,7 @@ static void collect_generational( gc_t *gc,
 
   if (data->in_gc++ == 0) {
     gc_signal_moving_collection( gc ); /* should delegate to collector */
+    gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_misc_memmgr );
     before_collection( gc );
   }
   
@@ -420,6 +421,7 @@ static void collect_generational( gc_t *gc,
 		 stats.heap_allocated, stats.remset_allocated, 
 		 stats.rts_allocated );
     annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_mutator );
   }
 }
 
