@@ -155,6 +155,10 @@
             (build-majorgc-pause-histogram v)           ; # 80
             (build-summarize-pause-histogram v)
             (build-minorgc-run-length-histogram v)
+            (vector-ref v $mstat.words-summsets)
+            (vector-ref v $mstat.summsets-max)
+            (vector-ref v $mstat.words-smircy)
+            (vector-ref v $mstat.smircy-max)
             ))
 
   (define (make-gc-event-vector v)
@@ -399,6 +403,10 @@
 (define (memstats-heap-live-now v) (vector-ref v 4))
 (define (memstats-remsets-allocated-now v) (vector-ref v 14))
 (define (memstats-remsets-allocated-max v) (vector-ref v 31))
+(define (memstats-summsets-allocated-now v) (vector-ref v 83))
+(define (memstats-summsets-allocated-max v) (vector-ref v 84))
+(define (memstats-marking-allocated-now v) (vector-ref v 85))
+(define (memstats-marking-allocated-max v) (vector-ref v 86))
 (define (memstats-rts-allocated-now v) (vector-ref v 15))
 (define (memstats-rts-allocated-max v) (vector-ref v 32))
 (define (memstats-heap-fragmentation-now v) (vector-ref v 30))
@@ -705,6 +713,7 @@
               maxscantime maxscancpu maxscanentries 
               avgscantime avgscancpu avgscanentries
               words-mem-max words-heap-max words-remset-max 
+              words-summsets-max words-marking-max
               words-rts-max words-waste-max
               marks marktime markcpu 
               sumzs sumztime sumzcpu
@@ -722,7 +731,10 @@
     (mprint "{Avg remset scan elapsed: " avgscantime " ms"
             ", CPU: " avgscancpu " ms, entries: " avgscanentries "} ")
     (mprint "{Max words, Mem: " words-mem-max " Heap: " words-heap-max
-            " Remset: " words-remset-max " Rts: " words-rts-max 
+            " Remset: " words-remset-max
+            " Summaries: " words-summsets-max
+            " Marking: " words-marking-max
+            " Rts: " words-rts-max 
             " Waste: " words-waste-max "}")
     (mprint "Elapsed mark time: " marktime " (CPU: " markcpu " in " marks " marks.)")
     (mprint "Elapsed summarization time: " sumztime " (CPU: " sumzcpu " in " sumzs " summarization.)")
@@ -778,6 +790,8 @@
         (memstats-mem-allocated-max s2)
         (memstats-heap-allocated-max s2)
         (memstats-remsets-allocated-max s2)
+        (memstats-summsets-allocated-max s2)
+        (memstats-marking-allocated-max s2)
         (memstats-rts-allocated-max s2)
         (memstats-heap-fragmentation-max s2)
         (- (memstats-mark-count s2)   (memstats-mark-count s1)) ;; mark related

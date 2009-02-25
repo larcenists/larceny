@@ -100,12 +100,22 @@ static struct {
   int     heap_bytes_limit;	/* Maximum allowed heap allocation */
   int     heap_bytes;		/* bytes allocated to heap */
   int     max_heap_bytes;	/* max ditto */
+  int     peak_heap_bytes;	/* max_mem_bytes ditto */
   int     remset_bytes;		/* bytes allocated to remset */
   int     max_remset_bytes;	/* max ditto */
+  int     peak_remset_bytes;	/* max_mem_bytes ditto */
+  int     summ_bytes;		/* bytes allocated to summary sets */
+  int     max_summ_bytes;	/* max ditto */
+  int     peak_summ_bytes;	/* max_mem_bytes ditto */
+  int     smircy_bytes;		/* bytes allocated to marking state */
+  int     max_smircy_bytes;	/* max ditto */
+  int     peak_smircy_bytes;	/* max_mem_bytes ditto */
   int     rts_bytes;		/* bytes allocated to RTS "other" */
   int     max_rts_bytes;	/* max ditto */
+  int     peak_rts_bytes;	/* max_mem_bytes ditto */
   int     wastage_bytes;	/* amount of wasted space */
   int     max_wastage_bytes;	/* max ditto */
+  int     peak_wastage_bytes;	/* max_mem_bytes ditto */
   int     mem_bytes;		/* amount of heap + remset + RTS + frag */
   int     max_mem_bytes;	/* max ditto */
 } data;
@@ -231,7 +241,17 @@ void *gclib_alloc_rts( int bytes, unsigned attribute )
     data.remset_bytes += bytes;
     data.max_remset_bytes = max( data.max_remset_bytes, data.remset_bytes );
   }
-  else {
+  else if (attribute & MB_SUMMARY_SETS) {
+    data.summ_bytes += bytes;
+    data.max_summ_bytes = max( data.max_summ_bytes, data.summ_bytes );
+  } else if (attribute & MB_SMIRCY_MARK) {
+    data.smircy_bytes += bytes;
+    data.max_smircy_bytes = 
+      max( data.max_smircy_bytes, data.smircy_bytes );
+  } else {
+    /* For better or worse, *anything* else is charged to the runtime
+     * system.  (Hint: don't repeat Felix's mistakes; explicitly
+     * account for all growth beyond initial RTS image.) */
     data.rts_bytes += bytes;
     data.max_rts_bytes = max( data.max_rts_bytes, data.rts_bytes );
   }
@@ -247,8 +267,18 @@ void *gclib_alloc_rts( int bytes, unsigned attribute )
 static void update_mem_bytes( void )
 {
   data.mem_bytes = 
-    data.heap_bytes + data.remset_bytes + data.rts_bytes + data.wastage_bytes;
-  data.max_mem_bytes = max( data.max_mem_bytes, data.mem_bytes );
+    data.heap_bytes + data.remset_bytes + 
+    data.summ_bytes + data.smircy_bytes + 
+    data.rts_bytes + data.wastage_bytes;
+  if ( data.mem_bytes > data.max_mem_bytes ) {
+    data.max_mem_bytes = data.mem_bytes;
+    data.peak_heap_bytes = data.heap_bytes;
+    data.peak_remset_bytes = data.remset_bytes;
+    data.peak_summ_bytes = data.summ_bytes;
+    data.peak_smircy_bytes = data.smircy_bytes;
+    data.peak_rts_bytes = data.rts_bytes;
+    data.peak_wastage_bytes = data.wastage_bytes;
+  }
 }
 
 /* The descriptor tables have to be expanded only when the allocated
@@ -426,6 +456,10 @@ void gclib_free( void *addr, int bytes )
       data.heap_bytes -= bytes;
     else if (gclib_desc_b[pageno] & MB_REMSET)
       data.remset_bytes -= bytes;
+    else if (gclib_desc_b[pageno] & MB_SUMMARY_SETS)
+      data.summ_bytes -= bytes;
+    else if (gclib_desc_b[pageno] & MB_SMIRCY_MARK)
+      data.smircy_bytes -= bytes;
     else
       data.rts_bytes -= bytes;
 #endif
@@ -488,6 +522,10 @@ void gclib_stats( gclib_stats_t *stats )
   stats->heap_allocated_max     = bytes2words( data.max_heap_bytes );
   stats->remset_allocated       = bytes2words( data.remset_bytes );
   stats->remset_allocated_max   = bytes2words( data.max_remset_bytes );
+  stats->summ_allocated         = bytes2words( data.summ_bytes );
+  stats->summ_allocated_max     = bytes2words( data.max_summ_bytes );
+  stats->smircy_allocated       = bytes2words( data.smircy_bytes );
+  stats->smircy_allocated_max   = bytes2words( data.max_smircy_bytes );
   stats->rts_allocated          = bytes2words( data.rts_bytes );
   stats->rts_allocated_max      = bytes2words( data.max_rts_bytes );
   stats->heap_fragmentation     = bytes2words( data.wastage_bytes );

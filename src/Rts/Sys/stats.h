@@ -18,12 +18,22 @@ struct gclib_stats {
   int heap_limit;		/* 0 or the current heap limit */
   int remset_allocated;		/* words allocated to remembered sets */
   int remset_allocated_max;	/* max of remset_allocated over time */
+  int summ_allocated;		/* words allocated to summary sets */
+  int summ_allocated_max;	/* max of summ_allocated over time */
+  int smircy_allocated;		/* words allocated to marking state */
+  int smircy_allocated_max;	/* max of smircy_allocated over time */
   int rts_allocated;		/* words allocated to run-time systems */
   int rts_allocated_max;	/* max of rts_allocated over time */
   int heap_fragmentation;	/* words of fragmentation in heap areas */
   int heap_fragmentation_max;	/* max of heap_fragmentation over time */
   int mem_allocated;		/* words of allocation: heap+rts+remset+frag */
   int mem_allocated_max;	/* max of mem_allocated over time */
+  int heap_allocated_peak;	/* words allocated to heap areas when mem_allocated_max was last set. */
+  int remset_allocated_peak;	/* words allocated to remembered sets when mem_allocated_max was last set. */
+  int summ_allocated_peak;	/* words allocated to summary sets when mem_allocated_max was last set. */
+  int smircy_allocated_peak;	/* words allocated to marking state */
+  int rts_allocated_peak;	/* words allocated to run-time systems when mem_allocated_max was last set. */
+  int heap_fragmentation_peak;	/* words allocated to run-time systems when mem_allocated_max was last set. */
 
   int max_remset_scan;
   int max_remset_scan_cpu;

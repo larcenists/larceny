@@ -82,6 +82,10 @@ struct gclib_memstat {
   word heap_allocated_max;	/* max words allocated to heap */
   word remset_allocated;	/* words allocated to remembered sets */
   word remset_allocated_max;	/* max words allocated to remset */
+  word summ_allocated;		/* words allocated to summary sets */
+  word summ_allocated_max;	/* max of summ_allocated over time */
+  word smircy_allocated;	/* words allocated to marking state */
+  word smircy_allocated_max;	/* max of smircy_allocated over time */
   word rts_allocated;		/* words allocated to RTS "other" */
   word rts_allocated_max;	/* max words allocated to rts */
   word heap_fragmentation;	/* words of external heap framgentation */
@@ -468,6 +472,10 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   PUT_WORD( stats, s, heap_allocated_max );
   PUT_WORD( stats, s, remset_allocated );
   PUT_WORD( stats, s, remset_allocated_max );
+  PUT_WORD( stats, s, summ_allocated );
+  PUT_WORD( stats, s, summ_allocated_max );
+  PUT_WORD( stats, s, smircy_allocated );
+  PUT_WORD( stats, s, smircy_allocated_max );
   PUT_WORD( stats, s, rts_allocated );
   PUT_WORD( stats, s, rts_allocated_max );
   PUT_WORD( stats, s, heap_fragmentation );
@@ -815,6 +823,10 @@ static void fill_main_entries( word *vp )
   vp[ STAT_HEAP_MAX ]      = gclib->heap_allocated_max;
   vp[ STAT_WORDS_REMSET ]  = gclib->remset_allocated;
   vp[ STAT_REMSET_MAX ]    = gclib->remset_allocated_max;
+  vp[ STAT_WORDS_SUMMSETS ]= gclib->summ_allocated;
+  vp[ STAT_SUMMSETS_MAX ]  = gclib->summ_allocated_max;
+  vp[ STAT_WORDS_SMIRCY ]  = gclib->smircy_allocated;
+  vp[ STAT_SMIRCY_MAX ]    = gclib->smircy_allocated_max;
   vp[ STAT_WORDS_RTS ]     = gclib->rts_allocated;
   vp[ STAT_RTS_MAX ]       = gclib->rts_allocated_max;
   vp[ STAT_WORDS_WASTAGE ] = gclib->heap_fragmentation;
@@ -1240,6 +1252,10 @@ static void stats_dump_state_now( FILE *f )
     PRINT_WORD( f, s, heap_allocated_max );
     PRINT_WORD( f, s, remset_allocated );
     PRINT_WORD( f, s, remset_allocated_max );
+    PRINT_WORD( f, s, summ_allocated );
+    PRINT_WORD( f, s, summ_allocated_max );
+    PRINT_WORD( f, s, smircy_allocated );
+    PRINT_WORD( f, s, smircy_allocated_max );
     PRINT_WORD( f, s, rts_allocated );
     PRINT_WORD( f, s, rts_allocated_max );
     PRINT_WORD( f, s, heap_fragmentation );
