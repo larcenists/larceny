@@ -298,7 +298,8 @@ static obj_stack_entry_t **alloc_obj_stk_entries( int n )
       assert( FALSE );
     }
   } else {
-    return my_gclib_alloc_rts( sizeof(obj_stack_entry_t)*n, 0, 
+    return my_gclib_alloc_rts( sizeof(obj_stack_entry_t)*n, 
+                               MB_SMIRCY_MARK, 
                                "alloc_obj_stk_entries" );
   }
 }
@@ -332,7 +333,8 @@ static large_object_cursor_t **alloc_los_stk_entries( int n )
       assert( FALSE );
     }
   } else {
-    return my_gclib_alloc_rts( sizeof(large_object_cursor_t)*n, 0, 
+    return my_gclib_alloc_rts( sizeof(large_object_cursor_t)*n, 
+                               MB_SMIRCY_MARK, 
                                "alloc_los_stk_entries" );
   }
 }
@@ -353,14 +355,16 @@ static void free_los_stk_entries( large_object_cursor_t **entries, int n )
   }
 }
 static obj_stackseg_t *alloc_obj_stackseg() {
-  return my_gclib_alloc_rts( sizeof( obj_stackseg_t ), 0, "alloc_obj_stackseg" );
+  return my_gclib_alloc_rts( sizeof( obj_stackseg_t ), 
+                             MB_SMIRCY_MARK, "alloc_obj_stackseg" );
 }
 static void free_obj_stackseg( obj_stackseg_t *obj ) 
 {
   gclib_free( obj, sizeof( obj_stackseg_t ) );
 }
 static los_stackseg_t *alloc_los_stackseg() {
-  return my_gclib_alloc_rts( sizeof( los_stackseg_t ), 0, "alloc_los_stackseg" );
+  return my_gclib_alloc_rts( sizeof( los_stackseg_t ), 
+                             MB_SMIRCY_MARK, "alloc_los_stackseg" );
 }
 static void free_los_stackseg( los_stackseg_t *los ) 
 {
@@ -368,7 +372,8 @@ static void free_los_stackseg( los_stackseg_t *los )
 }
 static word* alloc_bitmap( int words_in_bitmap )
 {
-  return my_gclib_alloc_rts( words_in_bitmap * sizeof(word), 0, "alloc_bitmap" );
+  return my_gclib_alloc_rts( words_in_bitmap * sizeof(word), 
+                             MB_SMIRCY_MARK, "alloc_bitmap" );
 }
 static void free_bitmap( word *bitmap, int words_in_bitmap )
 {
