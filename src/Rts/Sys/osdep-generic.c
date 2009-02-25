@@ -468,7 +468,7 @@ void osdep_free_aligned( void *p, int bytes )
   }
 }
 
-#define NUM_8K_BLOCKS_PER_ENTRY 16
+#define NUM_8K_BLOCKS_PER_ENTRY 4
 #define ALL_ENTRIES_FILLED_MASK ~(~0<<NUM_8K_BLOCKS_PER_ENTRY)
 struct r8Kentry {
   byte *start;
