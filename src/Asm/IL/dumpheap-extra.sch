@@ -7,6 +7,7 @@
 ; It's OK to load this file repeatedly.
 
 ; Segments are lists: (code-vector constant-vector function-info).
+
 (define segment.code car)
 (define segment.constants cadr)
 (define segment.function-info caddr)
@@ -21,12 +22,14 @@
 ;; ----------------------
 
 ;; il:build-constant : value -> ilpackage
+
 (define (il:build-constant x)
   (il:load-constant x))
 
 ;; dump-nested-codevectors : (listof TaggedConstant) -> void
 ;; Creates classes for each codevector in the constant vector.
 ;; Does not create a class for the top-level codevector.
+
 (define (dump-nested-codevectors cv)
   (for-each (lambda (x)
               (case (car x)
@@ -39,6 +42,7 @@
 
 ;; dump-codevector : cvclass -> void
 ;; Takes a cvclass (defined in pass5p2) and emits a full class.
+
 (define (dump-nested-codevector codevector)
   (let* ((id (cvclass-id codevector))
          (il-namespace (cvclass-il-namespace codevector))
@@ -69,7 +73,8 @@
     (emit ilc
           (il 'ldarg 0)
           (il 'ldc.i4 label-count)
-          (il:call '(instance) iltype-void il-codevector ".ctor" (list iltype-int32))
+          (il:call '(instance)
+                   iltype-void il-codevector ".ctor" (list iltype-int32))
           (il 'ret))
     (method-finish)
 
@@ -100,6 +105,7 @@
 ;; Dumps all codevectors in the segment. In addition, a Loader is defined 
 ;; which creates a Procedure representing the top-level form of the segment.
 ;; Returns the pair of Loader classname and namespace.
+
 (define (dump-segment segment)
   (let* ((entrypoint (dump-codevector-prototypes
                       (segment.function-info segment)))
@@ -173,6 +179,7 @@
 ;;; Dumps a fasl file containing the file base (no extension) of the
 ;;; source .lop file, the generated namespace for all classes in that
 ;;; segment, 0 (?), and the number of the segment.
+;
 ;(define (dump-fasl segment filename out)
 ;  (twobit-format 
 ;   out
@@ -186,6 +193,7 @@
 ;  (twobit-format out "))~%"))
 
 ;; dump-fasl : string string (listof string) -> void
+
 (define (dump-fasl base exe manifests)
   (with-output-to-raw-latin-1-file (string-append base ".fasl")
     (lambda ()
@@ -195,6 +203,7 @@
                 manifests))))
 
 ;; dump-fasl/manifest : String String -> Void
+
 (define (dump-fasl/manifest base manifest)
   (with-input-from-file manifest
     (lambda ()
@@ -203,6 +212,7 @@
 	 (dump-fasl/pmanifest base entry))))))
 
 ;; dump-fasl/pmanifest : String PseudoManifest -> Void
+
 (define (dump-fasl/pmanifest base pmanifest)
   (twobit-format (current-output-port)
 		 "((@common-patch-procedure ~s ~s ~s ~s~%  "
@@ -219,6 +229,7 @@
 ;; A PseudoManifest is a (list string string num num constant-vector)
 
 ;; extract-manifest : segment string -> PseudoManifest
+
 (define (extract-manifest segment filename)
   (list (rewrite-file-type filename ".lop" "")
 	(cvclass-il-namespace (segment.code segment))
@@ -228,16 +239,19 @@
 	 (segment.constants segment))))
 
 ;; dump-manifest : segment string output-port -> void
+
 (define (dump-manifest segment filename out)
   (write (extract-manifest segment filename) out)
   (newline out))
 
 ;; copy-constant-vector/strip-code : constant-vector -> constant-vector
+
 (define (copy-constant-vector/strip-code constant-vector)
   (list->vector
    (map copy-constant/strip-code (vector->list constant-vector))))
 
 ;; copy-constant/strip-code : constant -> constant
+
 (define (copy-constant/strip-code constant)
   (case (car constant)
     ((data) constant)
@@ -252,6 +266,7 @@
 ;; ENTRY POINT for creating .il files in larceny-csharp
 ;; Turns a single .lop file into a single .il file, without
 ;; an assembly manifest.
+
 (define (create-loadable-file filename)
   (init-variables)
   (let ((entrypoints '())
@@ -285,6 +300,7 @@
     (set! *c-output* #f)))
 
 ;; create-assembly : string (listof string) -> string
+
 (define (create-assembly file manifests)
   (init-variables)
   (let ((il-name (rewrite-file-type file ".exe" ".asm-il"))
@@ -310,6 +326,7 @@
     il-name))
 
 ;; dump-main-function : (listof string) string -> void
+
 (define (dump-main-function classes filename)
   (class-start "Main"
                #f
@@ -332,6 +349,7 @@
   (class-finish))
 
 ;; manifest-get-loaders : string -> (listof string)
+
 (define (manifest-get-loaders manifest)
   (with-input-from-file manifest
     (lambda ()
@@ -343,6 +361,7 @@
            (make-il-class #f il-namespace (il:loader-name segment))))))))
 
 ;; dump-debug-info : (listof (string . string)) -> void
+
 (define (dump-debug-info nspairs)
   (method-add
    "DebugInfo"
@@ -356,6 +375,7 @@
      (reverse instrs))))
 
 ;; il:set-namespace-map : (string . string) -> ilpackage
+
 (define (il:set-namespace-map nspair)
   (list (il:ldstr (car nspair))
         (il:ldstr (cdr nspair))
@@ -363,6 +383,7 @@
                  (list iltype-string iltype-string))))
 
 ;; manifest-get-namespace : string -> [Maybe (string . string)]
+
 (define (manifest-get-namespace fasl)
   (with-input-from-file fasl
     (lambda ()
@@ -374,6 +395,7 @@
             (cons il-namespace file-base)))))))
 
 ;; dump-toplevels : (listof string) -> void
+
 (define (dump-toplevels loaders)
   (method-add
    "TopLevel"
@@ -406,6 +428,7 @@
 ;;   where function-info is (name il-namespace definite? entry?)
 ;; (Potentially print empty class declarations for each codevector class).
 ;; Returns the unique entry point.
+
 (define (dump-codevector-prototypes funs)
 ;  (twobit-format (current-output-port)
 ;                 "dump-codevector-prototypes: ~s~%" funs)
@@ -425,6 +448,7 @@
 ;; Helpers for building programs
 
 ;; ilasm-executable : string
+
 (define (ilasm-executable)
   (cond ((and (codegen-option 'clr-2.0)
               (codegen-option 'mono))
@@ -447,6 +471,7 @@
 ;; build-heap-image : string (listof string) -> void
 ;; Input files: ?.manifest ?.code-il -> base.exe base.fasl
 ;; Overrides definition in Asm/Common/dumpheap.sch
+
 (define (build-heap-image output-file input-files)
   (create-application output-file input-files #f))
 
@@ -468,10 +493,12 @@
 
                                (else "")))
 
-                        (else (error "No valid CLR version set in codegen options."))))
+                        (else
+                         (error
+                          "No valid CLR version set in codegen options."))))
 
 
-         (command-line (twobit-format #f "~a ~a ~a /output:~a ~a"
+         (command-line (twobit-format #f "~a ~a ~a /output:\"~a\" ~a"
                            (ilasm-executable)
                            (cond ((codegen-option 'mono)
 				  "")
@@ -483,7 +510,9 @@
                                   (map/separated
                                    values
                                    (lambda () " ")
-                                   il-files)))))
+                                   (map (lambda (file)
+                                          (string-append "\"" file "\""))
+                                        il-files))))))
     (newline)
     (display command-line)
     (newline)
@@ -525,6 +554,7 @@
 ;; Given an application name and a list of LOP files, creates
 ;; an EXE file and a FASL file (each LOP file must have a corresponding
 ;; MANIFEST file).
+
 (define (build-application app lopfiles)
   (for-each create-loadable-file lopfiles)
   (create-application
@@ -536,11 +566,13 @@
 ;; compile-application : string (listof string) -> void
 ;; Given an application name and a list of scheme source files, creates
 ;; an EXE file and a FASL file.
+
 (define (compile-application app files)
   (for-each scheme->il files)
   (create-application 
    app
-   (map (lambda (f) (rewrite-file-type f *scheme-suffixes* *manifest-file-type*))
+   (map (lambda (f)
+          (rewrite-file-type f *scheme-suffixes* *manifest-file-type*))
         files)
    #t)
   (twobit-format #t "  Application created (fasl + exe)~%"))
@@ -563,7 +595,8 @@
 
 (define (make-sch->X mal->X-proc)
   (lambda (filename)
-    (let ((lap-name (rewrite-file-type filename *scheme-file-types* *lap-file-type*)))
+    (let ((lap-name
+           (rewrite-file-type filename *scheme-file-types* *lap-file-type*)))
       (compile313 filename)
       (parameterize ((compat:read-case-sensitive? #t))
         (twobit-format (current-output-port) "  compiled  -> ~s~%" lap-name)
@@ -571,6 +604,7 @@
         (mal->X-proc lap-name)))))
 
 ;; For cheesy, but effective debugging
+
 (define (wash-filename filename)
   (list->string
    (map wash-char
