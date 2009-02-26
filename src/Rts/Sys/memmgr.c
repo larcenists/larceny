@@ -778,7 +778,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     }
   }
 
-  DATA(gc)->region_count = DATA(gc)->ephemeral_area_count-1;
+  DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
 
   if ((DATA(gc)->summaries == NULL) && (DATA(gc)->region_count > 1)) {
     initialize_summaries( gc, FALSE );
