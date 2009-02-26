@@ -1378,6 +1378,40 @@ static int successor_of_to( gc_t *gc )
   return next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns);
 }
 
+static bool rgn_has_summary_p( gc_t *gc, int rgn )
+{
+  if (DATA(gc)->summaries == NULL) {
+    return FALSE;
+  } else {
+    return (sm_is_rgn_summarized( DATA(gc)->summaries, rgn ) ||
+            sm_will_rgn_be_summarized_next( DATA(gc)->summaries, rgn ));
+  }
+}
+
+static int find_appropriate_to( gc_t *gc ) 
+{
+  int to_curr;
+  int rgn_next;
+  int num_minor_rgns;
+  num_minor_rgns = 
+    max( DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
+  rgn_next = DATA(gc)->rrof_next_region;
+  to_curr = DATA(gc)->rrof_to_region;
+  if ( to_curr == rgn_next || 
+       rgn_has_summary_p( gc, to_curr )) {
+    do {
+      to_curr = next_rgn( to_curr, num_minor_rgns );
+      if (to_curr == rgn_next) {
+        add_region_to_expand_heap( gc, 0 );
+        to_curr = DATA(gc)->ephemeral_area_count;
+        break;
+      }
+    } while ( rgn_has_summary_p( gc, to_curr ) 
+              && to_curr != rgn_next );
+  }
+  return to_curr;
+}
+
 static void collect_rgnl_shift_the_to( gc_t *gc )
 {
   /* the to-space is full, so shift to the next to-space */
@@ -1554,19 +1588,15 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
 #if 1
   if (will_says_should_major) {
     bool didit;
-    if (rgn_to == rgn_next) {
-      rgn_to = successor_of_to( gc );
-    }
-    if (rgn_to == rgn_next) {
-      add_region_to_expand_heap( gc, 0 );
-      rgn_to = successor_of_to( gc );
-    }
-    assert( rgn_to != rgn_next );
+    rgn_to = find_appropriate_to( gc );
+    assert2( rgn_to != rgn_next && ! rgn_has_summary_p( gc, rgn_to ));
     DATA(gc)->rrof_to_region = rgn_to;
     didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
     if (! didit) 
       goto collect_evacuate_nursery;
   } else { /* ! will_says_should_major */
+    rgn_to = find_appropriate_to( gc );
+    DATA(gc)->rrof_to_region = rgn_to;
     collect_rgnl_minorgc( gc, rgn_to );
   }
 #else 
