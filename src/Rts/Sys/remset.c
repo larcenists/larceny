@@ -106,6 +106,7 @@ struct remset_data {
   int            pool_entries;	/* Number of entries in a pool */
   int            numpools;	/* Number of pools */
   remset_stats_t stats;		/* Remset statistics */
+  unsigned       mem_attribute;	/* Attr identifying which Rts part owns mem */
 };
 
 #define DATA(rs)                ((remset_data_t*)(rs->data))
@@ -119,8 +120,17 @@ static int identity = 0;
      */
 
 static int    ilog2( unsigned n );
-static pool_t *allocate_pool_segment( unsigned entries );
+static pool_t *allocate_pool_segment( unsigned entries, unsigned attr );
 static void   free_pool_segments( pool_t *first, unsigned entries );
+
+static remset_t *
+create_labelled_remset_with_owner_attrib
+  ( int tbl_entries,    /* size of hash table, 0=default */
+    int pool_entries,   /* size of remset, 0 = default */
+    int major_id,       /* for stats */
+    int minor_id,       /* for stats */
+    unsigned owner_attrib
+    );
 
 remset_t *
 create_remset( int tbl_entries,    /* size of hash table, 0 = default */
@@ -138,7 +148,11 @@ create_summset( int tbl_entries,    /* size of hash table, 0 = default */
 	        int pool_entries    /* size of remset, 0 = default */
 	      )
 {
-  return create_remset( tbl_entries, pool_entries );
+  return create_labelled_remset_with_owner_attrib( tbl_entries,
+						   pool_entries,
+						   ++identity,
+						   0,
+						   MB_SUMMARY_SETS );
 }
 
 remset_t *
@@ -147,6 +161,22 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
 			int major_id,       /* for stats */
 			int minor_id        /* for stats */
 			)
+{
+  return create_labelled_remset_with_owner_attrib( tbl_entries,
+						   pool_entries,
+						   major_id,
+						   minor_id,
+						   MB_REMSET );
+}
+
+static remset_t *
+create_labelled_remset_with_owner_attrib
+  ( int tbl_entries,    /* size of hash table, 0=default */
+    int pool_entries,   /* size of remset, 0 = default */
+    int major_id,       /* for stats */
+    int minor_id,       /* for stats */
+    unsigned owner_attrib
+    )
 {
   word *heapptr;
   remset_t *rs;
@@ -167,7 +197,7 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
 
   while(1) {
     heapptr = gclib_alloc_rts( tbl_entries*sizeof(word), 
-			       MB_REMSET );
+			       owner_attrib );
     if (heapptr != 0) break;
     memfail( MF_RTS, "Can't allocate table and SSB for remembered set." );
   }
@@ -178,7 +208,7 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
   data->tbl_lim = heapptr;
 
   /* Node pool */
-  p = allocate_pool_segment( pool_entries );
+  p = allocate_pool_segment( pool_entries, data->mem_attribute );
   data->first_pool = data->curr_pool = p;
   data->free_pool = 0;
   assert( data->curr_pool != 0 );
@@ -188,6 +218,7 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
   memset( &data->stats, 0, sizeof( data->stats ));
   data->pool_entries = pool_entries;
   data->self = stats_new_remembered_set( major_id, minor_id );
+  data->mem_attribute = owner_attrib;
 
   rs->live = 0;
   rs->has_overflowed = FALSE;
@@ -265,7 +296,9 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
   if (DATA(rs)->curr_pool->next == 0) {
 #if ATTEMPT_TO_REUSE_POOL_SEGMENTS
     if (DATA(rs)->free_pool == 0) {
-      DATA(rs)->curr_pool->next = allocate_pool_segment( DATA(rs)->pool_entries );
+      DATA(rs)->curr_pool->next = 
+        allocate_pool_segment( DATA(rs)->pool_entries, 
+                               DATA(rs)->mem_attribute );
     } else {
       pool_t* p = DATA(rs)->free_pool;
       p->top = p->bot;
@@ -274,7 +307,9 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
       DATA(rs)->free_pool = p->next;
     }
 #else
-    DATA(rs)->curr_pool->next = allocate_pool_segment( DATA(rs)->pool_entries );
+    DATA(rs)->curr_pool->next = 
+      allocate_pool_segment( DATA(rs)->pool_entries,
+                             DATA(rs)->mem_attribute );
 #endif
     DATA(rs)->numpools++;
   }
@@ -563,7 +598,7 @@ void rs_init_summary( remset_t *rs, int max_words_per_step,
   s->cursor3 = ps;
 }
 
-static pool_t *allocate_pool_segment( unsigned pool_entries )
+static pool_t *allocate_pool_segment( unsigned pool_entries, unsigned attr )
 {
   pool_t *p;
   word *heapptr;
@@ -572,7 +607,7 @@ static pool_t *allocate_pool_segment( unsigned pool_entries )
 
   while (1) {
     heapptr = gclib_alloc_rts( pool_entries*WORDS_PER_POOL_ENTRY*sizeof(word), 
-			       MB_REMSET );
+			       attr );
     if (heapptr != 0) break;
     memfail( MF_RTS, "Can't allocate remset hash pool." );
   }
