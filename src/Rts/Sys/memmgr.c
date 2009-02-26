@@ -2442,7 +2442,8 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     ss_sync( oh_current_space( heap ));
     oh_synchronize( heap );
 
-    if (gc_allocated_to_areas( gc, gset_singleton( last_gen_no )) == 0) {
+    if ((gc_allocated_to_areas( gc, gset_singleton( last_gen_no )) == 0) &&
+        last_gen_no != DATA(gc)->rrof_next_region) {
       assert( to_rgn_old != last_gen_no );
       DATA(gc)->ephemeral_area[last_gen_no-1]->was_target_during_gc = TRUE;
       DATA(gc)->rrof_to_region = last_gen_no;
