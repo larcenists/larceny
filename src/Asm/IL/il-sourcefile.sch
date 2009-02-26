@@ -3,6 +3,7 @@
 ;; IL assembler.
 
 ;; dump-source-text : string . (listof value) -> void
+
 (define (dump-source-text fmt . args)
   (if *c-output*
       (begin
@@ -11,6 +12,7 @@
 
 
 ;; dump-source : (oneof string IL-ref) any ... -> void
+
 (define (dump-source fmt . args)
   (define (->formattable arg)
     (cond ((il-class? arg)  (il-class->string arg))
@@ -31,6 +33,7 @@
 	 (map ->formattable args)))
 
 ;; indenting control
+
 (define (dump-newline)
   (dump-source-text "~%")
   (set! beginning-of-line? #t))
@@ -45,6 +48,7 @@
   (set! source-indent-string (make-string source-indent #\space)))
 
 ;; dump-as-nested-block : (-> void) -> void
+
 (define (dump-as-nested-block thunk)
   (dump-source "{")
   (indent-up!)
@@ -57,6 +61,7 @@
 ;; ----------------------------------
 
 ;; dump-top-level : -> void
+
 (define (dump-top-level)
   (for-each (lambda (tli)
               (cond ((clr-class? tli) (dump-class tli))
@@ -66,6 +71,7 @@
             (reverse *il-top-level*)))
 
 ;; dump-class : class -> void
+
 (define (dump-class class)
   (let ((il-namespace (clr-class-il-namespace class)))
     (if il-namespace
@@ -76,6 +82,7 @@
         (dump-naked-class class))))
 
 ;; dump-naked-class : class -> void
+
 (define (dump-naked-class class)
   (let ((name (clr-class-name class))
         (super (clr-class-super class))
@@ -90,6 +97,7 @@
      (lambda () (for-each dump-member (reverse members))))))
 
 ;; dump-member : field | method -> void
+
 (define (dump-member member)
   (cond ((field? member)
          (dump-field member))
@@ -97,6 +105,7 @@
          (dump-method member))))
 
 ;; dump-field : field -> void
+
 (define (dump-field field)
   (let ((name (field-name field))
         (type (field-type field))
@@ -108,6 +117,7 @@
     (dump-newline)))
 
 ;; dump-method : method -> void
+
 (define (dump-method method)
   (let ((name (clr-method-name method))
         (type (clr-method-type method))
@@ -133,6 +143,7 @@
     (dump-newline)))
 
 ;; filter-intersect : (listof symbol) (listof symbol) -> (listof symbol)
+
 (define (filter-intersect a b)
   (cond ((null? a) '())
         ((memq (car a) b) (cons (car a) (filter-intersect (cdr a) b)))
@@ -143,6 +154,7 @@
 (define after-options '(cil managed))
 
 ;; dump-il : il -> void
+
 (define (dump-il il)
   (if (string? il)
       (begin (dump-source "~a" il) (dump-newline))
@@ -164,11 +176,13 @@
           (else (dump-instr bytecode args))))))
 
 ;; dump-comment : string -> void
+
 (define (dump-comment str)
   (dump-source "~a" str)
   (dump-newline))
 
 ;; dump-directive : symbol . (listof string)  -> void
+
 (define (dump-directive directive . args)
   (case directive
     ((custom)
@@ -201,6 +215,7 @@
   (dump-newline))
 
 ;; dump-label : string -> void
+
 (define (dump-label str)
   (indent-down!)
   (dump-source "~a" str)
@@ -209,6 +224,7 @@
   (dump-newline))
 
 ;; dump-instr : symbol (listof string) -> void
+
 (define (dump-instr bytecode args)
   (dump-source bytecode)
   (cond ((null? args) #t)
@@ -242,6 +258,7 @@
         (else (dump-instr bytecode (list datum)))))
 
 ;; dump-switch : (listof string) -> void
+
 (define (dump-switch labels)
   (dump-source "switch (")
   (for-each/separated 

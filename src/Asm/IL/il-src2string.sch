@@ -4,6 +4,7 @@
 ;; ----------------------------------
 
 ;; pickle-il : il -> il
+
 (define (pickle-il il)
   (if (il? il)
       (let ((bytecode (il.code il))
@@ -25,10 +26,12 @@
       il))
 
 ;; pickle-comment : string -> il
+
 (define (pickle-comment str)
   str)
 
 ;; pickle-directive : symbol il . (listof string)  -> il
+
 (define (pickle-directive same directive . args)
   (case directive
     ((custom)
@@ -48,6 +51,7 @@
     (else same)))
 
 ;; pickle-instr : symbol (listof string) -> il
+
 (define (pickle-instr bytecode args)
   (cond ((null? args)
          (twobit-format #f "~a" bytecode))
