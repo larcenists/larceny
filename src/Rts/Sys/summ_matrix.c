@@ -685,7 +685,8 @@ static void delayed_check_rep( summ_matrix_t *summ )
 
 static void sm_build_summaries_partial( summ_matrix_t *summ, 
                                         int rgn_next,
-                                        int region_count );
+                                        int region_count,
+                                        bool about_to_major );
 static void sm_build_summaries_iteration_complete( summ_matrix_t *summ, 
                                                    int region_count );
 static void sm_build_remset_summaries( summ_matrix_t *summ,
@@ -950,7 +951,7 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
 
   if (! DATA(summ)->summarizing.complete) {
     /* make progress on next wave. */
-    sm_build_summaries_partial( summ, rgn_next, rgn_count );
+    sm_build_summaries_partial( summ, rgn_next, rgn_count, about_to_major );
   } else {
     /* next wave complete; shift if appropriate. */
     if ( gset_emptyp( DATA(summ)->summarized_genset )) {
@@ -2007,7 +2008,8 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
 
 static void sm_build_summaries_partial( summ_matrix_t *summ, 
                                         int rgn_next,
-                                        int region_count )
+                                        int region_count,
+                                        bool about_to_major )
 {
   sm_build_summaries_partial_n( summ, rgn_next, region_count,
                                 DATA(summ)->summarizing.rs_num );
