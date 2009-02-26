@@ -1627,9 +1627,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
   assert( rgn > 0 || bytes_needed >= 0 );
   assert( data->in_gc >= 0 );
 
-  gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_misc_memmgr );
 
-  if (data->in_gc++ >= 0) {
+  if (data->in_gc++ == 0) {
+    gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_misc_memmgr );
     gc_signal_moving_collection( gc );
     before_collection( gc );
   }
@@ -1673,9 +1673,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 		 stats.heap_allocated, stats.remset_allocated, 
 		 stats.rts_allocated );
     annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_mutator );
   }
 
-  gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_mutator );
 }
 
 static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 
