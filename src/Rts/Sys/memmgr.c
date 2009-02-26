@@ -2412,10 +2412,12 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     return current_space;
   } else if ( to_rgn_new != DATA(gc)->rrof_next_region ) {
     do {
-      if (gc_allocated_to_areas( gc, gset_singleton( to_rgn_new ))
-          + expansion_amount 
-          <=
-          gc_maximum_allotted( gc, gset_singleton( to_rgn_new ))) {
+      int potential_allocated, allowed;
+      potential_allocated = 
+        (gc_allocated_to_areas( gc, gset_singleton( to_rgn_new ))
+         + expansion_amount);
+      allowed = gc_maximum_allotted( gc, gset_singleton( to_rgn_new ));
+      if (potential_allocated <= allowed) {
         DATA(gc)->rrof_to_region = to_rgn_new;
         assert( DATA(gc)->ephemeral_area[to_rgn_old-1]->was_target_during_gc );
         DATA(gc)->ephemeral_area[to_rgn_new-1]->was_target_during_gc = TRUE;
