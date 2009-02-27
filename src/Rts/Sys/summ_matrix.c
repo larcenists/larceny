@@ -950,8 +950,44 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
   assert( gset_count( DATA(summ)->summarizing.curr_genset ) > 0 );
 
   if (! DATA(summ)->summarizing.complete) {
-    /* make progress on next wave. */
-    sm_build_summaries_partial( summ, rgn_next, rgn_count, about_to_major );
+    bool shall_we_progress;
+
+    if (! about_to_major ) {
+      shall_we_progress = TRUE; /* yes, lets! */
+    } else {
+      int fuel, capability, required;
+
+      fuel = count_usable_summaries_in( summ, DATA(summ)->summarized_genset );
+      capability = DATA(summ)->summarizing.rs_num * fuel;
+      required = DATA(summ)->summarizing.rs_cursor;
+
+      assert( capability >= required );
+
+      /* the major collection itself will use one unit of fuel. */
+      capability = DATA(summ)->summarizing.rs_num * (fuel - 1);
+      if ( capability >= required ) {
+        /* no need to progress further; we're on budget. */
+        shall_we_progress = FALSE;
+
+        /* XXX but should we be eager beavers?  Perhaps invoking
+         * sm_build_summaries_partial_n with a smaller count than
+         * summarizing.rs_num?
+         * 
+         * In any case, to bring back behavior from circa SVN revision
+         * 6110, set shall_we_progress to TRUE here. */
+
+      } else {
+        consolemsg("summ_matrix.c: had to step summarization "
+                   "during major gc pause to meet budget");
+        shall_we_progress = TRUE;
+      }
+    }
+
+    if ( shall_we_progress ) {
+      /* make progress on next wave. */
+      sm_build_summaries_partial( summ, rgn_next, rgn_count, about_to_major );
+    }
+
   } else {
     /* next wave complete; shift if appropriate. */
     if ( gset_emptyp( DATA(summ)->summarized_genset )) {
@@ -2874,6 +2910,10 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
       cell->next_row->prev_row = cell->prev_row;
       if (DATA(summ)->cols[ cell->target_gno ]->cell_bot == cell) {
         DATA(summ)->cols[ cell->target_gno ]->cell_bot = cell->prev_col;
+
+        /* Keep below in sync with col_incr_words_sm */
+        DATA(summ)->cols[ cell->target_gno ]->summarize_word_count -= 
+          2*pool_count_objects( cell->objects );
       }
       assert_unreachable( summ, cell ); /* XXX expensive */
       free_cell( cell, DATA(summ)->entries_per_objs_pool_segment );
