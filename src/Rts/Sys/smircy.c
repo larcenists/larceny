@@ -626,6 +626,33 @@ static int allocate_bitmap( smircy_context_t *context ) {
   return words_in_bitmap;
 }
 
+/* INVARIANT: once full_cov_bmp is established (by invoking smircy_begin_opt with 
+ * a cover_full_address_range parameter set to TRUE), then it is *never* freed,
+ * but instead reused in all subsequent invocations where cover_full_address_range
+ * is set to TRUE. */
+static word *full_cov_bmp = NULL;
+
+static int allocate_bitmap_full_cov( smircy_context_t *context ) {
+  char *lowest, *highest;
+  int words_in_bitmap;
+  int max_obj_count;
+  word *bitmap;
+  lowest  = (char*)0x00000000;
+  highest = (char*)0xffffff00;
+  max_obj_count = CEILDIV(highest-lowest, MIN_BYTES_PER_OBJECT);
+  words_in_bitmap = CEILDIV(max_obj_count,BITS_PER_WORD);
+  if (full_cov_bmp == NULL) {
+    full_cov_bmp = alloc_bitmap( words_in_bitmap );
+  }
+  bitmap = full_cov_bmp;
+  context->bitmap = bitmap;
+  context->lowest_heap_address = (word*)lowest;
+  context->highest_heap_address = (word*)highest;
+  context->words_in_bitmap = words_in_bitmap;
+  assert( words_in_bitmap > 0 );
+  return words_in_bitmap;
+}
+
 /* (setting this to 0 might catch problems when debugging.) */
 #define ATTEMPT_SEGMENT_REUSE 1
 
@@ -876,7 +903,8 @@ static bool fill_from_los_stack( smircy_context_t *context )
   return TRUE;
 }
 
-smircy_context_t *smircy_begin( gc_t *gc, int num_rgns ) 
+smircy_context_t *smircy_begin_opt( gc_t *gc, int num_rgns, 
+                                    bool cover_full_address_range ) 
 {
   smircy_context_t *context;
   int words_in_bitmap;
@@ -885,7 +913,11 @@ smircy_context_t *smircy_begin( gc_t *gc, int num_rgns )
   context->gc = gc;
   context->num_rgns = num_rgns;
 
-  words_in_bitmap = allocate_bitmap( context );
+  if ( cover_full_address_range ) {
+    words_in_bitmap = allocate_bitmap_full_cov( context );
+  } else {
+    words_in_bitmap = allocate_bitmap( context );
+  }
   memset( context->bitmap, 0, words_in_bitmap*sizeof(word) );
 
   context->stack.obj.seg = NULL;
@@ -915,6 +947,11 @@ smircy_context_t *smircy_begin( gc_t *gc, int num_rgns )
   CHECK_REP( context );
 
   return context;
+}
+
+smircy_context_t *smircy_begin( gc_t *gc, int num_rgns ) 
+{
+  return smircy_begin_opt( gc, num_rgns, FALSE );
 }
 
 static void push_root( word *loc, void *data ) 
@@ -1251,7 +1288,11 @@ void smircy_end( smircy_context_t *context )
   los_stackseg_t *los, *los_tmp;
   int n;
 
-  free_bitmap( context->bitmap, context->words_in_bitmap );
+  if (context->bitmap == full_cov_bmp) {
+    /* do nothing; in this mode, reuse the bitmap between invocations. */
+  } else {
+    free_bitmap( context->bitmap, context->words_in_bitmap );
+  }
   free_obj_stk_entries( context->rgn_to_obj_entry, context->num_rgns+1 );
   free_los_stk_entries( context->rgn_to_los_entry, context->num_rgns+1 );
 
