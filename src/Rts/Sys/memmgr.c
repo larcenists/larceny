@@ -1521,13 +1521,10 @@ static int count_majors_togo( gc_t *gc )
   return rtn;
 }
 
-static void collect_rgnl_evacuate_nursery( gc_t *gc ) 
+static void rrof_gc_policy( gc_t *gc, 
+                            bool *will_says_should_major_recv, 
+                            bool calculate_loudly )
 {
-  /* only forward data out of the nursery, if possible */
-  int rgn_to, rgn_succ_to, rgn_next;
-  int num_rgns = DATA(gc)->region_count;
-  bool can_do_major, can_do_minor, succ_can_do_minor;
-
   int majors_sofar = DATA(gc)->rrof_next_region;
   int majors_total = DATA(gc)->region_count;
   double L_hard = DATA(gc)->rrof_load_factor_hard;
@@ -1546,6 +1543,30 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
   bool will_says_should_major = 
     ((majors_total * A_this) >= (majors_sofar * A_target));
 
+  if (calculate_loudly) {
+    consolemsg( "majors_sofar:% 3d majors_total:% 3d "
+                "N_old:% 5dK, P_old:% 5dK, A_this:% 5dK "
+                "A_target:% 5dK = max(5M,min(% 5dK,% 5dK)) => will says: %s",
+                majors_sofar, majors_total, 
+                N_old/1000, P_old/1000, A_this/1000, 
+                A_target/1000, A_target_1/1000, A_target_2/1000, 
+                will_says_should_major?"major":"minor");
+  }
+
+  *will_says_should_major_recv = will_says_should_major;
+}
+
+static void collect_rgnl_evacuate_nursery( gc_t *gc ) 
+{
+  /* only forward data out of the nursery, if possible */
+  int rgn_to, rgn_succ_to, rgn_next;
+  int num_rgns = DATA(gc)->region_count;
+  bool can_do_major, can_do_minor, succ_can_do_minor;
+
+  bool will_says_should_major;
+
+  rrof_gc_policy( gc, &will_says_should_major, FALSE );
+
   DATA(gc)->rrof_refine_mark_countdown -= 1;
 
  collect_evacuate_nursery:
@@ -1558,15 +1579,6 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
   if (rgn_succ_to == rgn_to)
     succ_can_do_minor = FALSE;
 
-#if 0
-  consolemsg( "majors_sofar:% 3d majors_total:% 3d "
-              "N_old:% 5dK, P_old:% 5dK, A_this:% 5dK "
-              "A_target:% 5dK = max(5M,min(% 5dK,% 5dK)) => will says: %s",
-              majors_sofar, majors_total, 
-              N_old/1000, P_old/1000, A_this/1000, 
-              A_target/1000, A_target_1/1000, A_target_2/1000, 
-              will_says_should_major?"major":"minor");
-#endif 
 
 #if 1
   if (0) { /* hack to force major collections while I get true incrsumz going. */
