@@ -15,6 +15,7 @@
 #include "gclib.h"
 #include "msgc-core.h"
 #include "summary_t.h"
+#include "summ_matrix_t.h"
 
 #include "memmgr_internal.h"
 
