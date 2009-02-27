@@ -79,6 +79,7 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   double popularity_factor;	       /* In the regional system. */
   bool   has_refine_factor;	       /* In the regional system. */
   double refinement_factor;	       /* In the regional system. */
+  bool   alloc_mark_bmp_once;	       /* In the regional system. */
   bool   has_sumzbudget;	       /* In the regional system. */
   double sumzbudget_inv;	       /* In the regional system. */
   bool   has_sumzcoverage;	       /* In the regional system. */

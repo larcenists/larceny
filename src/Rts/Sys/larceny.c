@@ -543,6 +543,9 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.has_refine_factor = TRUE;
       o->gc_info.refinement_factor = refine_factor;
     }
+    else if (hstrcmp( *argv, "-alloc_mark_bmp_once" ) == 0) {
+      o->gc_info.alloc_mark_bmp_once = 1;
+    } 
     else if (doublearg( "-sumzbudget", &argc, &argv, &sumz_budget)) {
       o->gc_info.has_sumzbudget = TRUE;
       o->gc_info.sumzbudget_inv = sumz_budget;
