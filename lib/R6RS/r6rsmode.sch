@@ -79,7 +79,8 @@
 (define (larceny:compile-r6rs-runtime)
   (parameterize ((current-directory (current-larceny-root)))
     (define (compile-r6rs-runtime-core)
-      (parameterize ((current-directory "lib/R6RS"))
+      (parameterize ((current-directory
+                      (larceny:canonical-path "lib/R6RS")))
         (compile-file "r6rsmode.sch")
         (compile-file "r6rs-compat-larceny.sch")
         (compile-file "r6rs-runtime.sch")
@@ -94,7 +95,8 @@
         (require 'r6rs-standard-libraries)))
     (define (compile-source-libraries)
       (for-each (lambda (dir)
-                  (parameterize ((current-directory dir))
+                  (parameterize ((current-directory
+                                  (larceny:canonical-path dir)))
                     (compile-stale-libraries)))
                 '("lib/R6RS" "lib/SRFI")))
     (time (compile-r6rs-runtime-core))
@@ -355,8 +357,9 @@
 
 (define (compile-stale-libraries . rest)
   (cond ((null? rest)
-         (let ((fname (generate-temporary-name
-                       (string-append (current-directory) "/temporary"))))
+         (let* ((fname (generate-temporary-name
+                        (string-append (current-directory) "/temporary")))
+                (fname (larceny:canonical-path fname)))
            (call-with-output-file fname values)
            (dynamic-wind
             (lambda () #t)
@@ -583,8 +586,10 @@
    ((windows) "\\")
    (else "/")))
 
-; Converts Windows pathnames to a canonical form
-; by replacing forward slashes with backslashes
+; On Unix systems, this procedure just returns its argument.
+;
+; On Windows, this procedure converts pathnames to canonical
+; form by replacing forward slashes with backslashes
 ; and by ignoring all but the first of each sequence
 ; of consecutive slashes.
 
@@ -598,7 +603,10 @@
                  #t))
           (else
            (loop (cdr rchars) (cons (car rchars) chars) #f))))
-  (loop (reverse (string->list path)) '() #f))
+  (case (larceny:os)
+   ((windows)
+    (loop (reverse (string->list path)) '() #f))
+   (else path)))
 
 ; Converts file names to absolute paths.
 ;
@@ -633,7 +641,7 @@
               (case (larceny:os)
                ((unix)
                 (system
-                 (string-append "ls -1 " path " > " tempfile)))
+                 (string-append "ls -1 '" path "' > '" tempfile "'")))
                ((windows)
                 (system
                  (string-append "dir /B \"" path "\" > \"" tempfile "\"")))
@@ -687,7 +695,7 @@
 (define (larceny:directory? path)
   (case (larceny:os)
    ((unix)
-    (zero? (system (string-append "ls " path "/* 2>/dev/null >/dev/null"))))
+    (zero? (system (string-append "ls '" path "/*' 2>/dev/null >/dev/null"))))
    ((windows)
     (zero? (system (string-append
                     "dir /AD /B \"" (larceny:canonical-path path) "\""))))
@@ -711,7 +719,7 @@
     (if (absolute-path-string? fname)
         (do ((i (- (string-length fname) 1) (- i 1)))
             ((or (< i 0)
-                 (memv (string-ref fname i)'(#\\ #\/)))
+                 (memv (string-ref fname i) '(#\\ #\/)))
              (larceny:canonical-path (substring fname 0 (max i 0)))))
         (larceny:directory-of
          (string-append (current-directory) "\\" fname))))
