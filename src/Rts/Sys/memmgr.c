@@ -459,7 +459,8 @@ static void smircy_start( gc_t *gc )
      * (only "benefit" I see is refining static area's remset.) */
     return;
   }
-  gc->smircy = smircy_begin( gc, gc->remset_count );
+  gc->smircy = smircy_begin_opt( gc, gc->remset_count, 
+                                 DATA(gc)->rrof_alloc_mark_bmp_once );
   DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
   smircy_push_roots( gc->smircy );
   sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
@@ -3011,6 +3012,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     data->rrof_refine_mark_countdown = countdown_to_first_mark;
     if (0) consolemsg("initial mark countdown: %d", countdown_to_first_mark );
   }
+  data->rrof_alloc_mark_bmp_once = info->alloc_mark_bmp_once;
 
   data->print_float_stats_each_cycle  = info->print_float_stats_cycle;
   data->print_float_stats_each_major  = info->print_float_stats_major;
