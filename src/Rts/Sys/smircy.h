@@ -12,6 +12,9 @@
 
 smircy_context_t *smircy_begin( gc_t *gc, int num_rgns );
 
+smircy_context_t *smircy_begin_opt( gc_t *gc, int num_rgns, 
+                                    bool cover_full_address_range );
+
 void smircy_push_roots( smircy_context_t *context );
 
 void smircy_push_remset( smircy_context_t *context, remset_t *rs );
