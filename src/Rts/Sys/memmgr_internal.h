@@ -90,6 +90,10 @@ struct gc_data {
 
   bool   rrof_has_refine_factor; /* With factor R,                         */
   double rrof_refinement_factor; /*   countdown = ceil((R*heap) / nursery) */
+  bool rrof_alloc_mark_bmp_once;
+    /* Allocate one bitmap to cover *entire* addr range at outset. 
+     * (band-aid for hack of expanding bitmap on the fly during 
+     *  cheney object forwards). */
   int rrof_refine_mark_period;
   int rrof_refine_mark_countdown;
     /* In RROF collector, #nursery evacuations until refine remset via mark.
