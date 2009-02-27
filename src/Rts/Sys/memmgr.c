@@ -2909,6 +2909,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );
+      data->max_live_words = 
+        info->ephemeral_info[i].size_bytes;
       size += info->ephemeral_info[i].size_bytes;
       data->ephemeral_area[ i ] = 
 	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
