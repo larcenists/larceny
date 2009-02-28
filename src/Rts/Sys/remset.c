@@ -102,7 +102,6 @@ struct remset_data {
   word           *tbl_lim;	/* Hash table limit */
   pool_t         *first_pool;	/* Pointer to first pool */
   pool_t         *curr_pool;	/* Pointer to current pool */
-  pool_t         *free_pool;	/* Pointer to unused pool */
   int            pool_entries;	/* Number of entries in a pool */
   int            numpools;	/* Number of pools */
   remset_stats_t stats;		/* Remset statistics */
@@ -114,6 +113,9 @@ struct remset_data {
 
 
 /* Internal */
+
+static pool_t *recycled_pool = NULL;
+static int recycled_pool_entries_per = -1;
 
 static int identity = 0;
   /* Counter for assigning identity to remembered sets.
@@ -210,7 +212,6 @@ create_labelled_remset_with_owner_attrib
   /* Node pool */
   p = allocate_pool_segment( pool_entries, data->mem_attribute );
   data->first_pool = data->curr_pool = p;
-  data->free_pool = 0;
   assert( data->curr_pool != 0 );
   data->numpools = 1;
 
@@ -229,7 +230,7 @@ create_labelled_remset_with_owner_attrib
   return rs;
 }
 
-void rs_clear( remset_t *rs )
+static void rs_clear_opt( remset_t *rs, bool use_recycle_pool )
 {
   remset_data_t *data = DATA(rs);
   word *p;
@@ -244,26 +245,38 @@ void rs_clear( remset_t *rs )
   /* Clear pools */
   data->first_pool->top = data->first_pool->bot;
   data->curr_pool = data->first_pool;
-#if ATTEMPT_TO_REUSE_POOL_SEGMENTS
-  { 
-    pool_t *q;
-    for( q = data->first_pool->next; q != NULL; q = q->next ) {
-      if (q->next == NULL) {
-	q->next = data->free_pool;
-	break;
-      }
-    }
+  if (use_recycle_pool) {
+    assert( recycled_pool == NULL );
+    assert( recycled_pool_entries_per <= 0 );
+    recycled_pool = data->first_pool->next;
+    recycled_pool_entries_per = data->pool_entries;
+  } else {
+    free_pool_segments( data->first_pool->next, data->pool_entries );
   }
-  data->free_pool = data->first_pool->next;
-#else
-  free_pool_segments( data->first_pool->next, data->pool_entries );
-#endif
   data->first_pool->next = 0;
 
   rs->has_overflowed = FALSE;
   rs->live = 0;
   data->numpools = 1;
   data->stats.cleared++;
+}
+
+void rs_clear( remset_t *rs ) 
+{
+  rs_clear_opt( rs, FALSE );
+}
+
+void rs_recycle( remset_t *rs ) 
+{
+  rs_clear_opt( rs, TRUE );
+}
+
+void rs_empty_recycling() 
+{
+  assert( recycled_pool_entries_per > 0 );
+  free_pool_segments( recycled_pool, recycled_pool_entries_per );
+  recycled_pool = NULL;
+  recycled_pool_entries_per = -1;
 }
 
 static word retagptr( word w ) 
@@ -294,23 +307,18 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
   
   rs->has_overflowed = TRUE;
   if (DATA(rs)->curr_pool->next == 0) {
-#if ATTEMPT_TO_REUSE_POOL_SEGMENTS
-    if (DATA(rs)->free_pool == 0) {
+    
+    if ( recycled_pool == NULL ) {
       DATA(rs)->curr_pool->next = 
         allocate_pool_segment( DATA(rs)->pool_entries, 
                                DATA(rs)->mem_attribute );
     } else {
-      pool_t* p = DATA(rs)->free_pool;
+      pool_t* p = recycled_pool;
       p->top = p->bot;
       p->next = 0;
       DATA(rs)->curr_pool->next = p;
-      DATA(rs)->free_pool = p->next;
+      recycled_pool = p->next;
     }
-#else
-    DATA(rs)->curr_pool->next = 
-      allocate_pool_segment( DATA(rs)->pool_entries,
-                             DATA(rs)->mem_attribute );
-#endif
     DATA(rs)->numpools++;
   }
   DATA(rs)->curr_pool = DATA(rs)->curr_pool->next;
