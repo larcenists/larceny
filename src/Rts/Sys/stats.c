@@ -124,6 +124,9 @@ struct gclib_memstat {
   word total_build_remset_summary;
   word total_build_remset_summary_cpu;
   word build_remset_summary_count;
+
+  word max_ms_mutator_paused;
+  word max_ms_mutator_paused_cpu;
   
   word count_collect_00_10_ms;
   word count_collect_10_20_ms;
@@ -264,8 +267,11 @@ struct gc_memstat {
   DWORD( full_words_marked );
   DWORD( full_pointers_traced );
 
-  word max_ms_collection;       /* Max milliseconds collecting in an area */
-  word max_ms_collection_cpu;   /* ditto, CPU time */
+  /* N.B.: both of the below only measure time spent in the cheney 
+   * semispace collection code, not other time spent in the memory 
+   * management system. */
+  word max_ms_cheney_collection;       /* Max milliseconds collecting in an area */
+  word max_ms_cheney_collection_cpu;   /* ditto, CPU time */
 };
 
 struct stack_memstat {
@@ -564,10 +570,10 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   
   /* okay, now that we have the above helper macros,
    * here's the actual code to put in the values. */
-  RANGECASES( s->count_collect_, _ms, stats->last_ms_gc_pause );
+  RANGECASES( s->count_collect_, _ms, stats->last_ms_gc_cheney_pause );
   if (stats->last_gc_pause_ismajor) {
-    word ms_major     = stats->last_ms_gc_pause;
-    word ms_major_cpu = stats->last_ms_gc_pause_cpu;
+    word ms_major     = stats->last_ms_gc_cheney_pause;
+    word ms_major_cpu = stats->last_ms_gc_cheney_pause_cpu;
     RANGECASES( s->count_majorgc_, _ms, ms_major );
     RANGECASES_FINE( s->count_minor_, _runs, stats->length_minor_gc_run );
     s->max_ms_major        = max( fixnum(ms_major),     s->max_ms_major );
@@ -576,8 +582,8 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
     s->total_ms_major     += fixnum( ms_major );
     s->total_ms_major_cpu += fixnum( ms_major_cpu );
   } else {
-    word ms_minor     = stats->last_ms_gc_pause;
-    word ms_minor_cpu = stats->last_ms_gc_pause_cpu;
+    word ms_minor     = stats->last_ms_gc_cheney_pause;
+    word ms_minor_cpu = stats->last_ms_gc_cheney_pause_cpu;
     RANGECASES( s->count_minorgc_, _ms, ms_minor );
     s->max_ms_minor        = max( fixnum(ms_minor),     s->max_ms_minor );
     s->max_ms_minor_cpu    = max( fixnum(ms_minor_cpu), s->max_ms_minor_cpu );
@@ -607,6 +613,17 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
     s->mark_pause_count     += fixnum(1);
     s->total_mark_pause     += ms;
     s->total_mark_pause_cpu += ms_cpu;
+  }
+
+  {
+    word ms     = stats->last_ms_gc_truegc_pause;
+    word ms_cpu = stats->last_ms_gc_truegc_pause_cpu;
+    stats->max_ms_mutator_paused = 
+      max( ms, stats->max_ms_mutator_paused );
+    stats->max_ms_mutator_paused_cpu = 
+      max( ms_cpu, stats->max_ms_mutator_paused_cpu );
+    MAX_WORD( stats, s, max_ms_mutator_paused );
+    MAX_WORD( stats, s, max_ms_mutator_paused_cpu );
   }
 }
 
@@ -638,8 +655,8 @@ void stats_add_gc_stats( gc_stats_t *stats )
   ADD_DWORD( stats, s, full_pointers_traced );
 
   /* RROF collector (but why not others...) */
-  MAX_WORD( stats, s, max_ms_collection );
-  MAX_WORD( stats, s, max_ms_collection_cpu );
+  MAX_WORD( stats, s, max_ms_cheney_collection );
+  MAX_WORD( stats, s, max_ms_cheney_collection_cpu );
 }
 
 void stats_add_stack_stats( stack_stats_t *stats )
@@ -1030,8 +1047,10 @@ static void fill_main_entries( word *vp )
   vp[ STAT_FULL_WMARKED_LO ] = gc->full_words_marked_lo;
   vp[ STAT_FULL_PTRACED_HI ] = gc->full_pointers_traced_hi;
   vp[ STAT_FULL_PTRACED_LO ] = gc->full_pointers_traced_lo;
-  vp[ STAT_MAX_GCTIME ]     = gc->max_ms_collection;
-  vp[ STAT_MAX_GCTIME_CPU ] = gc->max_ms_collection_cpu;
+  vp[ STAT_MAX_CHENEY_GCTIME ]     = gc->max_ms_cheney_collection;
+  vp[ STAT_MAX_CHENEY_GCTIME_CPU ] = gc->max_ms_cheney_collection_cpu;
+  vp[ STAT_MAX_MUTATOR_PAUSED ]     = gclib->max_ms_mutator_paused;
+  vp[ STAT_MAX_MUTATOR_PAUSED_CPU ] = gclib->max_ms_mutator_paused_cpu;
 
   /* stack */
   vp[ STAT_STK_CREATED ]   = stack->stacks_created;

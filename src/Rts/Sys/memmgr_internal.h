@@ -123,6 +123,11 @@ struct gc_data {
 
   gc_mmu_log_t *mmu_log;
 
+  stats_id_t pause_timer_elapsed;
+  stats_id_t pause_timer_cpu;
+  int last_pause_elapsed;
+  int last_pause_cpu;
+
   int stat_last_ms_remset_sumrize;
   int stat_last_ms_remset_sumrize_cpu;
   int stat_last_ms_mark_refinement;

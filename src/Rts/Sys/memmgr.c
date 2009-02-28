@@ -381,6 +381,8 @@ static void collect_generational( gc_t *gc,
 
   if (data->in_gc++ == 0) {
     gc_signal_moving_collection( gc ); /* should delegate to collector */
+    data->pause_timer_elapsed = stats_start_timer( TIMER_ELAPSED );
+    data->pause_timer_cpu = stats_start_timer( TIMER_CPU );
     gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_misc_memmgr );
     before_collection( gc );
   }
@@ -413,7 +415,25 @@ static void collect_generational( gc_t *gc,
   assert( data->in_gc > 0 );
 
   if (--data->in_gc == 0) {
+    int pause_elapsed, pause_cpu;
     after_collection( gc );
+
+    /* XXX where should the phase shift go?
+     * 
+     * The stats_following_gc invocation needs the pause time
+     * measurement, so the question is whether we would prefer for the
+     * max pause time to include time spent maintaining the MMU log,
+     * or if we want the MMU log to include the time spent updating
+     * the stats data.
+     * 
+     * (Felix does not think we can have it both ways.)
+     */
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_mutator );
+    DATA(gc)->last_pause_cpu = 
+      stats_stop_timer( data->pause_timer_cpu );
+    DATA(gc)->last_pause_elapsed = 
+      stats_stop_timer( data->pause_timer_elapsed );
+
     stats_following_gc( gc );
 
     gclib_stats( &stats );
@@ -421,7 +441,6 @@ static void collect_generational( gc_t *gc,
 		 stats.heap_allocated, stats.remset_allocated, 
 		 stats.rts_allocated );
     annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
-    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_mutator );
   }
 }
 
@@ -1642,8 +1661,10 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 
   if (data->in_gc++ == 0) {
-    gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_misc_memmgr );
     gc_signal_moving_collection( gc );
+    data->pause_timer_elapsed = stats_start_timer( TIMER_ELAPSED );
+    data->pause_timer_cpu = stats_start_timer( TIMER_CPU );
+    gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_misc_memmgr );
     before_collection( gc );
   }
   
@@ -1680,6 +1701,23 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
   if (--data->in_gc == 0) {
     after_collection( gc );
+
+    /* XXX where should the phase shift go?
+     * 
+     * The stats_following_gc invocation needs the pause time
+     * measurement, so the question is whether we would prefer for the
+     * max pause time to include time spent maintaining the MMU log,
+     * or if we want the MMU log to include the time spent updating
+     * the stats data.
+     * 
+     * (Felix does not think we can have it both ways.)
+     */
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_mutator );
+    DATA(gc)->last_pause_cpu = 
+      stats_stop_timer( data->pause_timer_cpu );
+    DATA(gc)->last_pause_elapsed =
+      stats_stop_timer( data->pause_timer_elapsed );
+
     stats_following_gc( gc );
     gclib_stats( &stats );
     annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
@@ -1738,8 +1776,8 @@ static void before_collection( gc_t *gc )
 {
   int e;
 
-  gc->stat_last_ms_gc_pause = 0;
-  gc->stat_last_ms_gc_pause_cpu = 0;
+  gc->stat_last_ms_gc_cheney_pause = 0;
+  gc->stat_last_ms_gc_cheney_pause_cpu = 0;
   gc->stat_last_gc_pause_ismajor = -1;
   DATA(gc)->stat_last_ms_remset_sumrize = -1;
   DATA(gc)->stat_last_ms_remset_sumrize_cpu = -1;
@@ -2074,8 +2112,12 @@ static void stats_following_gc( gc_t *gc )
   assert_geq_and_assign(stats_gclib.total_entries_remset_scan,
 			gc->stat_total_entries_remset_scan);
 
-  stats_gclib.last_ms_gc_pause           = gc->stat_last_ms_gc_pause;
-  stats_gclib.last_ms_gc_pause_cpu       = gc->stat_last_ms_gc_pause_cpu;
+  stats_gclib.last_ms_gc_truegc_pause = DATA(gc)->last_pause_elapsed;
+  stats_gclib.last_ms_gc_truegc_pause_cpu = DATA(gc)->last_pause_cpu;
+  stats_gclib.last_ms_gc_cheney_pause = 
+    gc->stat_last_ms_gc_cheney_pause;
+  stats_gclib.last_ms_gc_cheney_pause_cpu = 
+    gc->stat_last_ms_gc_cheney_pause_cpu;
   stats_gclib.last_gc_pause_ismajor      = gc->stat_last_gc_pause_ismajor;
   if (gc->stat_last_gc_pause_ismajor) {
     stats_gclib.length_minor_gc_run = DATA(gc)->stat_length_minor_gc_run;

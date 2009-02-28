@@ -43,14 +43,22 @@ struct gclib_stats {
   int max_entries_remset_scan;
   long long total_entries_remset_scan;
 
-  int last_ms_gc_pause;           /* Time in core gc methods in last gc. */
-  int last_ms_gc_pause_cpu;
+  int last_ms_gc_cheney_pause;    /* Time in core gc methods in last gc. */
+  int last_ms_gc_cheney_pause_cpu;
   int last_gc_pause_ismajor;      /* 1 for major, 0 for minor */
   int last_ms_remset_sumrize;     /* Time in remset summarizing in last gc. */
   int last_ms_remset_sumrize_cpu;
   int last_ms_mark_refinement;    /* Time in remset refinement in last gc. */
   int last_ms_mark_refinement_cpu;
+  int last_ms_gc_truegc_pause;    /* Total time spent away from the mtuator */
+  int last_ms_gc_truegc_pause_cpu;
   int length_minor_gc_run;        /* Num of consecutive minor gc's (so far) */
+
+  /* N.B.: both the below measure time mutator is interrupted;
+   * it should include cheney collection time as well as time 
+   * spent maintaining structure internal to the memory manager. */
+  word max_ms_mutator_paused;
+  word max_ms_mutator_paused_cpu;
 };
 
 struct gc_stats {
@@ -78,8 +86,12 @@ struct gc_stats {
   int full_ms_collection;	/* ditto */
   int full_ms_collection_cpu;	/* ditto */
 
-  int max_ms_collection;        /* Max milliseconds collecting in an area */
-  int max_ms_collection_cpu;    /* ditto, CPU time */
+  /* N.B.: both of the below only measure time spent in the cheney 
+   * semispace collection code, not other time spent in the memory 
+   * management system. */
+  int max_ms_cheney_collection;        /* Max milliseconds collecting in an area */
+  int max_ms_cheney_collection_cpu;    /* ditto, CPU time */
+
 };
 
 struct gen_stats {

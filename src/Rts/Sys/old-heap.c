@@ -427,8 +427,8 @@ static void stop_timers( bool is_promotion,
 
   ms = stats_stop_timer( *timer1 );
   ms_cpu = stats_stop_timer( *timer2 );
-  heap->collector->stat_last_ms_gc_pause = ms;
-  heap->collector->stat_last_ms_gc_pause_cpu = ms_cpu;
+  heap->collector->stat_last_ms_gc_cheney_pause = ms;
+  heap->collector->stat_last_ms_gc_cheney_pause_cpu = ms_cpu;
   if (is_promotion) {
     data->gen_stats.ms_promotion += ms;
     data->gen_stats.ms_promotion_cpu += ms_cpu;
@@ -438,10 +438,10 @@ static void stop_timers( bool is_promotion,
     data->gen_stats.ms_collection_cpu += ms_cpu;
     heap->collector->stat_last_gc_pause_ismajor = 1;
   }
-  data->gc_stats.max_ms_collection = 
-    max( data->gc_stats.max_ms_collection, ms );
-  data->gc_stats.max_ms_collection_cpu =
-    max( data->gc_stats.max_ms_collection_cpu, ms_cpu );
+  data->gc_stats.max_ms_cheney_collection = 
+    max( data->gc_stats.max_ms_cheney_collection, ms );
+  data->gc_stats.max_ms_cheney_collection_cpu =
+    max( data->gc_stats.max_ms_cheney_collection_cpu, ms_cpu );
 #if GC_EVENT_COUNTERS
   data->event_stats.copied_by_gc += bytes2words( bytes_copied );
   data->event_stats.moved_by_gc  += bytes2words( bytes_moved );

@@ -16,6 +16,7 @@
 #include "summ_matrix_t.h"
 #include "seqbuf_t.h"
 
+#include "stats.h"
 #include "memmgr_internal.h"
 
 static bool msvfy_object_marked_p( msgc_context_t *c, word x ) {

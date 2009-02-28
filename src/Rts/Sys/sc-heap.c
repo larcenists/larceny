@@ -259,13 +259,13 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
     int ms_cpu = stats_stop_timer( timer2 );
     data->gen_stats.ms_collection += ms;
     data->gen_stats.ms_collection_cpu += ms_cpu;
-    heap->collector->stat_last_ms_gc_pause = ms;
-    heap->collector->stat_last_ms_gc_pause_cpu = ms_cpu;
+    heap->collector->stat_last_ms_gc_cheney_pause = ms;
+    heap->collector->stat_last_ms_gc_cheney_pause_cpu = ms_cpu;
     heap->collector->stat_last_gc_pause_ismajor = 1;
-    data->gc_stats.max_ms_collection = 
-      max( data->gc_stats.max_ms_collection, ms );
-    data->gc_stats.max_ms_collection_cpu = 
-      max( data->gc_stats.max_ms_collection_cpu, ms_cpu );
+    data->gc_stats.max_ms_cheney_collection = 
+      max( data->gc_stats.max_ms_cheney_collection, ms );
+    data->gc_stats.max_ms_cheney_collection_cpu = 
+      max( data->gc_stats.max_ms_cheney_collection_cpu, ms_cpu );
   }
 
   annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
