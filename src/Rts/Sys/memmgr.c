@@ -1724,7 +1724,6 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 		 stats.heap_allocated, stats.remset_allocated, 
 		 stats.rts_allocated );
     annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
-    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_mutator );
   }
 
 }
