@@ -1725,7 +1725,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ, gset_t genset,
                      DATA(summ)->summarized_genset );
   db_printgset( "sm_build_summaries_setup: genset:", genset );
 
-  assert2( majors > 0 );
+  assert( majors > 0 );
 
   /* XXX This value should be bounded by a constant dependant on the
    * sumzbudget, sumzcoverage, and popularity; and the code should be
