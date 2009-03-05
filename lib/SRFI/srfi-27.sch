@@ -79,14 +79,14 @@
 ; the actual generator
 
 (define (mrg32k3a-random-m1 state) ; from Brad Lucier
-  (let* ((x10 (- (* 1403580.0 (vector-ref state 1)) 
-		 (* 810728.0 (vector-ref state 2))))
-	 (y10 (- x10 (* (floor (/ x10 4294967087.0)) 4294967087.0)))
-	 (x20 (- (* 527612.0 (vector-ref state 3)) 
-		 (* 1370589.0 (vector-ref state 5))))
-	 (y20 (- x20 (* (floor (/ x20 4294944443.0)) 4294944443.0)))
-	 (dx (- y10 y20))
-	 (dy (- dx (* (floor (/ dx 4294967087.0)) 4294967087.0))))
+  (let* ((x10 (fl- (fl* 1403580.0 (vector-ref state 1)) 
+		   (fl* 810728.0 (vector-ref state 2))))
+	 (y10 (fl- x10 (fl* (flfloor (fl/ x10 4294967087.0)) 4294967087.0)))
+	 (x20 (fl- (fl* 527612.0 (vector-ref state 3)) 
+		   (fl* 1370589.0 (vector-ref state 5))))
+	 (y20 (fl- x20 (fl* (flfloor (fl/ x20 4294944443.0)) 4294944443.0)))
+	 (dx (fl- y10 y20))
+	 (dy (fl- dx (fl* (flfloor (fl/ dx 4294967087.0)) 4294967087.0))))
     (vector-set! state 5 (vector-ref state 4))
     (vector-set! state 4 (vector-ref state 3))
     (vector-set! state 3 y20)
@@ -108,11 +108,11 @@
 
 (define (mrg32k3a-random-integer state range) ; from Brad Lucier
   (let* ((n (exact->inexact range))
-	 (q (floor (/ 4294967087.0 n)))
-	 (qn (* q n)))
+	 (q (flfloor (fl/ 4294967087.0 n)))
+	 (qn (fl* q n)))
     (do ((x (mrg32k3a-random-m1 state) (mrg32k3a-random-m1 state)))
-	((< x qn) 
-	 (inexact->exact (floor (/ x q)))))))
+	((fl<? x qn) 
+	 (inexact->exact (flfloor (fl/ x q)))))))
 
 (define (mrg32k3a-random-real state)
   (* 0.0000000002328306549295728 (+ 1.0 (mrg32k3a-random-m1 state))))
@@ -547,10 +547,10 @@
      (lambda ()
        (lambda (n)
          (cond
+          ((and (fixnum? n) (fx<=? 0 n))
+           (mrg32k3a-random-integer state n))
           ((not (and (integer? n) (exact? n) (positive? n)))
            (error "range must be exact positive integer" n))           
-          ((<= n mrg32k3a-m-max)
-           (mrg32k3a-random-integer state n))
           (else
            (mrg32k3a-random-large state n)))))
      (lambda args
