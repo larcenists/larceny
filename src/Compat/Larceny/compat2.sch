@@ -64,8 +64,8 @@
 (define flonum->bytevector)
 (define compnum->bytevector)
 
-(cond ((eq? (nbuild-parameter 'host-endianness)
-	    (nbuild-parameter 'target-endianness))
+(cond (#f (eq? (nbuild-parameter 'host-endianness)
+               (nbuild-parameter 'target-endianness))
        (let ((misc->bytevector
 	      (lambda (x)
 		(let ((bv (bytevector-like-copy x)))
