@@ -641,7 +641,7 @@
               (case (larceny:os)
                ((unix)
                 (system
-                 (string-append "ls -1 '" path "' > '" tempfile "'")))
+                 (string-append "ls -1 " path " > '" tempfile "'")))
                ((windows)
                 (system
                  (string-append "dir /B \"" path "\" > \"" tempfile "\"")))
@@ -695,7 +695,7 @@
 (define (larceny:directory? path)
   (case (larceny:os)
    ((unix)
-    (zero? (system (string-append "ls '" path "/*' 2>/dev/null >/dev/null"))))
+    (zero? (system (string-append "ls " path "/* 2>/dev/null >/dev/null"))))
    ((windows)
     (zero? (system (string-append
                     "dir /AD /B \"" (larceny:canonical-path path) "\""))))
