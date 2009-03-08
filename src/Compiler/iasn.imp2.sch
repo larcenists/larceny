@@ -168,7 +168,8 @@
      (>                  (flonum flonum)             .>:flo:flo)
      (>=                 (flonum flonum)             .>=:flo:flo)
      
-    ;(vector-set!:trusted (vector fixnum nonpointer) vector-set!:trusted:imm)
+     (.vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
+     (.vector-set!:trusted (vector fixnum fixnum) .vector-set!:trusted:nwb)
      )))
 
 (define rep-result
@@ -236,6 +237,8 @@
      
      (make-vector       (object object)             (vector))
      (.vector-length:vec (vector)                   (index))
+     (.vector-set!:trusted (object object object)   (object))
+     (.vector-set!:trusted:nwb (object object object) (object))
 
      (make-string       (object object)             (string))
      (.string-length:str (string)                   (index))
@@ -284,10 +287,22 @@
    ; returns false.
    
    '(
-     (fixnum?     (object)           (fixnum)          (object))
-     (flonum?     (object)           (flonum)          (object))
+     (boolean?    (object)           (boolean)         (object))
+     (procedure?  (object)           (procedure)       (object))
      (vector?     (object)           (vector)          (object))
+     (bytevector? (object)           (bytevector)      (object))
+     (string?     (object)           (string)          (object))
      (pair?       (object)           (pair)            (object))
+     (null?       (object)           (emptylist)       (object))
+     (symbol?     (object)           (symbol)          (object))
+     (.symbol?    (object)           (symbol)          (object))
+     (char?       (object)           (char)            (object))
+     (.char?      (object)           (char)            (object))
+     (fixnum?     (object)           (fixnum)          (object))
+     (.fixnum?    (object)           (fixnum)          (object))
+     (flonum?     (object)           (flonum)          (object))
+     (exact?      (object)           (exact)           (object))
+     (inexact?    (object)           (inexact)         (object))
      
      (=           (exactint index)   (index index)     (exactint index))
      (=           (index exactint)   (index index)     (index exactint))

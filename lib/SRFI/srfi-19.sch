@@ -89,9 +89,16 @@
 ;; 'fractional part'. Will Fitzgerald 5/16/2003.
 ;; --------------------------------------------------------------
 
+;; changed 10000 to nsec/msec and defined nsec/msec as 1000000.
+;; Will Clinger 8 March 2009.
+
 (cond-expand (srfi-6))			; string ports
 (cond-expand (srfi-8))			; RECEIVE
 (cond-expand (srfi-9))			; records
+
+;; BUG FIX [Clinger, 8 March 2009]
+
+(define nsec/msec 1000000)
 
 ;; BEGIN PLATFORM DEPENDENT
 
@@ -309,20 +316,20 @@
 
 (define (tm:current-time-utc)
   (receive (seconds ms) (tm:get-time-of-day)
-           (make-time  time-utc (* ms 10000) seconds )))
+           (make-time  time-utc (* ms nsec/msec) seconds )))
 
 (define (tm:current-time-tai)
   (receive (seconds ms) (tm:get-time-of-day)
            (make-time time-tai
-                      (* ms 10000)
+                      (* ms nsec/msec)
                       (+ seconds (tm:leap-second-delta seconds))
                       )))
 
 (define (tm:current-time-ms-time time-type proc)
   (let ((current-ms (proc)))
     (make-time time-type 
-               (* (remainder current-ms 1000) 10000)
-               (quotient current-ms 10000)
+               (* (remainder current-ms 1000) nsec/msec)
+               (quotient current-ms nsec/msec)
                )))
 
 (define tm:local-tz-offset
@@ -338,7 +345,7 @@
 (define (tm:current-time-monotonic)
   (receive (seconds ms) (tm:get-time-of-day)
            (make-time time-monotonic
-                      (* ms 10000)
+                      (* ms nsec/msec)
                       (+ seconds (tm:leap-second-delta seconds))
                       )))
 
@@ -358,12 +365,12 @@
 (define (time-resolution . clock-type)
   (let ((clock-type (:optional-19 clock-type time-utc)))
     (cond
-      ((eq? clock-type time-tai) 10000)
-      ((eq? clock-type time-utc) 10000)
-      ((eq? clock-type time-monotonic) 10000)
-      ((eq? clock-type time-thread) 10000)
-      ((eq? clock-type time-process) 10000)
-      ((eq? clock-type time-gc) 10000)
+      ((eq? clock-type time-tai) nsec/msec)
+      ((eq? clock-type time-utc) nsec/msec)
+      ((eq? clock-type time-monotonic) nsec/msec)
+      ((eq? clock-type time-thread) nsec/msec)
+      ((eq? clock-type time-process) nsec/msec)
+      ((eq? clock-type time-gc) nsec/msec)
       (else (tm:time-error 'time-resolution 'invalid-clock-type clock-type)))))
 
 ;;; END PLATFORM DEPENDENT

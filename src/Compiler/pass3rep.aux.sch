@@ -469,8 +469,7 @@
   (let* ((debugging? #f)
          (T (constraint.lhs new))
          (E (constraint.rhs new))
-         (K (constraint.killer new))
-         (cs (constraints-for-variable constraints T)))
+         (K (constraint.killer new)))
     
     (define (loop type K cs newcs)
       (if (null? cs)
