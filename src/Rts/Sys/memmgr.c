@@ -1582,25 +1582,28 @@ static void rrof_gc_policy( gc_t *gc,
   double L_hard = DATA(gc)->rrof_load_factor_hard;
   double L_soft = DATA(gc)->rrof_load_factor_soft;
   int N_old  = DATA(gc)->last_live_words_at_time_cycle_began;
-  int P_old  = DATA(gc)->max_live_words;
-  int A_this = DATA(gc)->since_cycle_began.words_promoted;
+  long long P_old  = DATA(gc)->max_live_words;
+  long long A_this = DATA(gc)->since_cycle_began.words_promoted;
   int F_3    = 2; /* XXX FIXME see Will for calculation of F_3 */
   int N = /* FIXME should be incrementally calculated via collection delta */
     gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count ));
-  int A_target_1 = (((int)(L_hard*P_old) - N_old - quotient2( N*(F_3 - 1), F_3 ))
-                    / 2);
-  int A_target_2 = ((int)(L_soft*N_old));
-  int A_target   = max( 5*MEGABYTE/sizeof(word), min( A_target_1, A_target_2 ));
+
+  long long A_target_1a = (long long)(L_hard*P_old);
+  long long A_target_1b = A_target_1a - N_old;
+  long long A_target_1c = A_target_1b - quotient2( N*(F_3 - 1), F_3 );
+  long long A_target_1  = A_target_1c / 2;
+  long long A_target_2 = ((L_soft*N_old));
+  long long A_target   = max( 5*MEGABYTE/sizeof(word), min( A_target_1, A_target_2 ));
 
   bool will_says_should_major = 
     ((majors_total * A_this) >= (majors_sofar * A_target));
 
   if (calculate_loudly) {
     consolemsg( "majors_sofar:% 3d majors_total:% 3d "
-                "N_old:% 5dK, P_old:% 5dK, A_this:% 5dK "
-                "A_target:% 5dK = max(5M,min(% 5dK,% 5dK)) => will says: %s",
+                "N_old:% 5dK, N:% 5dK, P_old:% 5lldK, A_this:% 5lldK "
+                "A_target:% 5lldK = max(5M,min(% 5lldK,% 5lldK)) => will says: %s",
                 majors_sofar, majors_total, 
-                N_old/1000, P_old/1000, A_this/1000, 
+                N_old/1000, N/1000, P_old/1000, A_this/1000, 
                 A_target/1000, A_target_1/1000, A_target_2/1000, 
                 will_says_should_major?"major":"minor");
   }
