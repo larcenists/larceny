@@ -123,6 +123,15 @@ static int free_stack( msgc_stackseg_t *stack )
   return n;
 }
 
+#if 1
+static void assert2_basic_invs( msgc_context_t *context, word src, word obj ) {}
+static void assert2_address_mapped( msgc_context_t *context, word obj ) {}
+static void assert2_los_addresses_mapped( msgc_context_t *context, word obj, int k, int next ) {}
+static void assert2_pair_addresses_mapped( msgc_context_t *context, word w ) {}
+static void assert2_tag_hdr_consistency( msgc_context_t *context, word w ) {}
+static void assert2_object_contents_mapped( msgc_context_t *context, word w, int n ) {}
+static void assert2_root_address_mapped( msgc_context_t *context, word *loc ) {}
+#else
 static void assert2_basic_invs( msgc_context_t *context, word src, word obj )
 {
 #ifndef NDEBUG2
@@ -254,6 +263,7 @@ static void assert2_root_address_mapped( msgc_context_t *context, word *loc )
   }
 #endif
 }
+#endif
 
 #if 1
 #define PUSH( context, obj, src )                               \
