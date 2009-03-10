@@ -13,6 +13,8 @@ typedef enum {
   gc_log_phase_smircy
 } gc_log_phase_t;
 
+void gc_phase_shift( gc_t *gc, gc_log_phase_t prev, gc_log_phase_t next );
+
 gc_mmu_log_t *
 create_gc_mmu_log( int *window_lens, int buffer_length, gc_log_phase_t init );
   /* Creates an event log accumulating N windows, where N = the length
