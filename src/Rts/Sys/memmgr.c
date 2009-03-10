@@ -95,7 +95,7 @@ gc_t *create_gc( gc_param_t *info, int *generations )
 
 #define GATHER_MMU_DATA 1
 
-static gc_phase_shift( gc_t *gc, gc_log_phase_t prev, gc_log_phase_t next )
+void gc_phase_shift( gc_t *gc, gc_log_phase_t prev, gc_log_phase_t next )
 {
 #if GATHER_MMU_DATA
   if ( DATA(gc)->mmu_log != NULL ) {
