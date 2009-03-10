@@ -241,29 +241,16 @@
     (.fxrsha          2 fxrsha           #f            75 ,:immortal ,:none #f)
     (.fxrshl          2 fxrshl           #f            76 ,:immortal ,:none #f)
 
-    ; Not yet implemented.
+    (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
+    (.-:flo:flo       2 -:flo:flo        #f            -1 ,:immortal ,:none)
+    (.*:flo:flo       2 *:flo:flo        #f            -1 ,:immortal ,:none)
+    (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
 
-;    (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.-:flo:flo       2 -:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.*:flo:flo       2 *:flo:flo        #f            -1 ,:immortal ,:none)
-;    (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
-
-;    (.=:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.<:flo:flo       2 <:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.<=:flo:flo      2 <=:flo:flo       #f            -1 ,:immortal ,:none)
-;    (.>:flo:flo       2 >:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.>=:flo:flo      2 >=:flo:flo       #f            -1 ,:immortal ,:none)
-
-     (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
-     (.-:flo:flo       2 -:flo:flo        #f            -1 ,:immortal ,:none)
-     (.*:flo:flo       2 *:flo:flo        #f            -1 ,:immortal ,:none)
-     (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
-
-     (.=:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-     (.<:flo:flo       2 <:flo:flo        #f            -1 ,:immortal ,:none)
-     (.<=:flo:flo      2 <=:flo:flo       #f            -1 ,:immortal ,:none)
-     (.>:flo:flo       2 >:flo:flo        #f            -1 ,:immortal ,:none)
-     (.>=:flo:flo      2 >=:flo:flo       #f            -1 ,:immortal ,:none)
+    (.=:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
+    (.<:flo:flo       2 <:flo:flo        #f            -1 ,:immortal ,:none)
+    (.<=:flo:flo      2 <=:flo:flo       #f            -1 ,:immortal ,:none)
+    (.>:flo:flo       2 >:flo:flo        #f            -1 ,:immortal ,:none)
+    (.>=:flo:flo      2 >=:flo:flo       #f            -1 ,:immortal ,:none)
 
     ;; FIXME: This is not a good place for these, because the compiler
     ;; doesn't need to see them:
