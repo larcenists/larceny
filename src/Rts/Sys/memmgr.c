@@ -1163,7 +1163,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
                  rgn_next );
     assert2( ! sm_is_rgn_summary_avail( DATA(gc)->summaries, rgn_next ));
 
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     collect_rgnl_clear_summary( gc, rgn_next );
+    gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     collect_rgnl_choose_next_region( gc, num_rgns, TRUE );
     return FALSE;
   }
@@ -1176,8 +1178,11 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 
   assert( (! summarization_active) || (rgn_next != rgn_to) );
 
-  if (summarization_active)
+  if (summarization_active) {
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     summarization_step( gc, TRUE );
+    gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
+  }
 
   if (USE_ORACLE_TO_VERIFY_REMSETS) {
     verify_remsets_via_oracle( gc );
@@ -1212,15 +1217,19 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 #if ! SMIRCY_RGN_STACK_IN_ROOTS
     assert2( rgn_next == DATA(gc)->rrof_next_region );
     if (gc->smircy != NULL) {
+      gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
       smircy_jit_process_stack_for_rgn( gc->smircy, rgn_next );
       smircy_drop_cleared_stack_entries( gc->smircy, rgn_next );
+      gc_phase_shift( gc, gc_log_phase_smircy, gc_log_phase_misc_memmgr );
     }
 #endif
 
     if (summarization_active_rgn_next) {
+      gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
       sm_fold_in_nursery_and_init_summary( DATA(gc)->summaries,
                                            rgn_next, 
                                            &DATA(gc)->summary );
+      gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
       if (0) consolemsg("folded nursery into summary, entries: %d", 
                  DATA(gc)->summary.entries);
     }
@@ -1237,7 +1246,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
 
     if (summarization_active) {
+      gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
       sm_clear_contribution_to_summaries( DATA(gc)->summaries, rgn_next );
+      gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     }
 
     if (USE_ORACLE_TO_CHECK_SUMMARY_SANITY &&
@@ -1283,15 +1294,19 @@ static bool collect_rgnl_majorgc( gc_t *gc,
             consolemsg( "  skip sm_copy_summary_to( summaries, rgn_next=%d, target=%d );",
                         rgn_next, target );
           } else {
+            gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
             sm_copy_summary_to( DATA(gc)->summaries, rgn_next, target );
             sm_copy_summary_to( DATA(gc)->summaries, 0, target );
+            gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
           }
         }
       }
     }
 
     if (summarization_active) {
+      gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
       sm_clear_nursery_summary( DATA(gc)->summaries );
+      gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     }
 
 
@@ -1302,17 +1317,21 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
     rrof_completed_major_collection( gc );
 
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     collect_rgnl_clear_summary( gc, rgn_next );
+    gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     collect_rgnl_choose_next_region( gc, num_rgns, FALSE );
 
     if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
       verify_summaries_via_oracle( gc );
 
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
     smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || 
                        DONT_USE_REFINEMENT_COUNTDOWN ||
                        (DATA(gc)->rrof_refine_mark_countdown > 0))
                       ? smircy_step_can_refine
                       : smircy_step_must_refine ));
+    gc_phase_shift( gc, gc_log_phase_smircy, gc_log_phase_misc_memmgr );
 
     if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
       verify_summaries_via_oracle( gc );
@@ -1327,7 +1346,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     DATA(gc)->ephemeral_area[ rgn_next-1 ]->bytes_live_last_major_gc = 
       DATA(gc)->ephemeral_area[ rgn_next-1 ]->allocated;
     
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     collect_rgnl_clear_summary( gc, rgn_next );
+    gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     collect_rgnl_choose_next_region( gc, num_rgns, TRUE );
     return FALSE;
   }
@@ -1341,8 +1362,11 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
 
   summarization_active = (DATA(gc)->summaries != NULL);
 
-  if (summarization_active)
+  if (summarization_active) {
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     summarization_step( gc, FALSE );
+    gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
+  }
 
   if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
     verify_summaries_via_oracle( gc );
@@ -1355,7 +1379,9 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   DATA(gc)->rrof_currently_minor_gc = TRUE;
 
   if (summarization_active) {
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     sm_init_summary_from_nursery_alone( DATA(gc)->summaries, &(DATA(gc)->summary));
+    gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     DATA(gc)->use_summary_instead_of_remsets = TRUE;
   }
   DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
@@ -1367,12 +1393,16 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
     for (i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
       if (DATA(gc)->ephemeral_area[i]->was_target_during_gc) {
         oh_synchronize( DATA(gc)->ephemeral_area[i] );
+        gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
         sm_copy_summary_to( DATA(gc)->summaries, 0, rgn_to );
+        gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
       }
     }
 
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     sm_clear_nursery_summary( DATA(gc)->summaries );
     summary_dispose( &(DATA(gc)->summary) );
+    gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
   }
 
   DATA(gc)->rrof_last_tospace = rgn_to;
@@ -1381,8 +1411,10 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   update_promotion_counts( gc, gc->words_from_nursery_last_gc );
 
   DATA(gc)->total_heap_words_allocated != gc->words_from_nursery_last_gc;
-  if (summarization_active) {
+  if (summarization_active) { /* ????   what??? */
+    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
     smircy_step( gc, smircy_step_can_refine );
+    gc_phase_shift( gc, gc_log_phase_smircy, gc_log_phase_misc_memmgr );
   }
 
   rrof_completed_minor_collection( gc );
