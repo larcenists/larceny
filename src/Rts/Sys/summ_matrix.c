@@ -29,7 +29,7 @@
 
 #define assertmsg( format, args... ) if (1) consolemsg( format, ## args )
 #define assert_printgset( prefix, arg ) if (1) console_printgset( prefix, arg )
-#define verifymsg( format, args... ) if (1) consolemsg( format, ## args )
+#define verifymsg( format, args... ) if (0) consolemsg( format, ## args )
 
 #include <stdio.h>
 #include <math.h>
