@@ -31,6 +31,7 @@
 #include "gclib.h"
 #include "remset_t.h"
 #include "stats.h"
+#include "gc_mmu_log.h"
 
 #define PROMOTE_WITHOUT_COLLECTING       0
 #define PROMOTE_WHILE_COLLECTING         1
@@ -225,9 +226,11 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
     tospace_before = to->used;
     los_before = los_bytes_used( heap->collector->los, data_to->gen_no );
 
+    gc_phase_shift( heap->collector, gc_log_phase_misc_memmgr, gc_log_phase_majorgc );
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( rgn_idx ),
 				   to );
+    gc_phase_shift( heap->collector, gc_log_phase_majorgc, gc_log_phase_misc_memmgr );
 
     /* can two below be re-ordered? */
     ss_free( from );
@@ -259,9 +262,11 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
     tospace_before = to->used;
     los_before = los_bytes_used( heap->collector->los, data_to->gen_no );
 
+    gc_phase_shift( heap->collector, gc_log_phase_misc_memmgr, gc_log_phase_minorgc );
     gclib_stopcopy_collect_genset( heap->collector, 
 				   gset_singleton( 0 ), 
 				   to );
+    gc_phase_shift( heap->collector, gc_log_phase_minorgc, gc_log_phase_misc_memmgr );
     data_to->promoted_last_gc = used_space( heap ) - used_before;
     
     data_to->gen_stats.promotions++;
@@ -466,7 +471,9 @@ static void perform_collect( old_heap_t *heap )
   to = create_semispace( GC_CHUNK_SIZE, data->gen_no );
   data->current_space = to;
   
+  gc_phase_shift( heap->collector, gc_log_phase_misc_memmgr, gc_log_phase_majorgc );
   gclib_stopcopy_collect( heap->collector, to );
+  gc_phase_shift( heap->collector, gc_log_phase_majorgc, gc_log_phase_misc_memmgr );
 
   ss_free( from );
   ss_sync( to );
@@ -500,7 +507,9 @@ static void perform_promote( old_heap_t *heap )
   tospace_before = data->current_space->used;
   los_before = los_bytes_used( heap->collector->los, data->gen_no );
 
+  gc_phase_shift( heap->collector, gc_log_phase_misc_memmgr, gc_log_phase_minorgc );
   gclib_stopcopy_promote_into( heap->collector, data->current_space );
+  gc_phase_shift( heap->collector, gc_log_phase_minorgc, gc_log_phase_misc_memmgr );
 
   data->promoted_last_gc = used_space( heap ) - used_before;
 
