@@ -74,9 +74,13 @@ static void* verify_remsets_msgc_fcn( word obj, word src, void *data )
 		    src, src_gen, obj, obj_gen, 
 		    gc->remset[ src_gen ],
 		    gc->major_remset[ src_gen ]);
-	assert( gc_is_address_mapped( gc, ptrof(src), TRUE ));
-	assert( gc_is_address_mapped( gc, ptrof(obj), TRUE ));
-	assert(0);
+	if (! gc_is_address_mapped( gc, ptrof(src), FALSE)) {
+          assert( gc_is_address_mapped( gc, ptrof(src), TRUE ));
+        }
+        if (! gc_is_address_mapped( gc, ptrof(obj), FALSE)) {
+          assert( gc_is_address_mapped( gc, ptrof(obj), TRUE ));
+        }
+        assert(0);
       }
     }
   }
