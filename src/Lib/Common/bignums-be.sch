@@ -54,9 +54,11 @@
 (define bignum-base       65536)        ; number system base
 (define bignum-base/2     32767)        ; ditto, divided by two
 (define bigit-mask        #xFFFF)       ; to mask off a bigit
+(define bigit-half-mask   #xFF)         ; for the low-order half of a bigit
 (define bytes-per-bigit   2)            ; number of bytes in a bigit
 (define bits-per-bigit    16)           ; number of bits in a bigit
 (define bigit-shift       16)           ; another name for it
+(define bigit-half-shift  8)            ; to shift off the low-order half
 (define bigits-per-fixnum 2)            ; how many bigits to we need to
                                         ;   hold the value of a fixnum?
 
