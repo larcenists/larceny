@@ -666,6 +666,23 @@ static cont_t internal_fixnum_to_retaddr( word *globals, word off ) {
   }
 }
 
+/* Inverse of internal_fixnum_to_retaddr. */
+
+static word internal_retaddr_to_fixnum( word *globals, cont_t k ) {
+  word off;
+  if (globals[ G_REG0 ]) {
+    assert(tagof(globals[ G_REG0 ]) == PROC_TAG);
+    assert(tagof(procedure_ref( globals[ G_REG0 ], 0)) == BVEC_TAG);
+    off = k
+      - (procedure_ref( globals[ G_REG0 ], 0)
+	 - BVEC_TAG
+	 + BVEC_HEADER_BYTES);
+    return off;
+  } else {
+    return k;
+  }
+}
+
 /* Call Scheme when the VM is in Scheme mode already. The problem here is
    that when Scheme code calls a millicode procedure, it is not required to
    save any of its registers.  Thus, when the millicode must call out to 
@@ -764,14 +781,21 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   globals[ G_REG0 ] = vector_ref( callouts, index );
   globals[ G_RESULT ] = fixnum( argc );
 
-  my_longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
+  /* To call the procedure, return to its offset 0. */
+  /* Note: that is IAssassin-dependent. */
+
+  globals[ G_RETADDR ] = 0;
+  return;
 }
 
-/* Return address for scheme-to-scheme call frame. 
-   */
+/* Return address for scheme-to-scheme call frame. */
+
 RTYPE return_from_scheme( CONT_PARAMS )
 {
-  my_longjmp( dispatch_jump_buffer, DISPATCH_RETURN_FROM_S2S_CALL );
+  cont_t k = restore_context( globals );
+  word off = internal_retaddr_to_fixnum( globals, k );
+  globals[ G_RETADDR ] = off;
+  return 0;
 }
 
 /* Restore all registers.
