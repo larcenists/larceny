@@ -21,6 +21,10 @@
 	
 %define OPTIMIZE_MILLICODE
 
+;;; Assertion checking is turned on:
+
+%define CHECK_ASSERTIONS
+
 	section	.text align=4
 	
 	global  EXTNAME(i386_scheme_jump)
@@ -42,6 +46,7 @@
 ;;; that REG0 points to a procedure object.
 ;;; XXX turn off before release.
 %macro CHECKZEROREG 2
+%ifdef CHECK_ASSERTIONS
 %ifdef REG0
 	mov	eax, REG0
 %else
@@ -58,6 +63,7 @@
 	int3
 	add	eax, %2
 %%L1:
+%endif
 %endmacro
 		
 ;;; The return address of the bottommost frame in the stack cache points

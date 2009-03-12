@@ -651,38 +651,6 @@ static void check_signals( word *globals, cont_t k )
   }
 }
 
-static cont_t internal_fixnum_to_retaddr( word *globals, word off ) {
-  cont_t k;
-  if (globals[ G_REG0 ]) {
-    assert(tagof(globals[ G_REG0 ]) == PROC_TAG);
-    assert(tagof(procedure_ref( globals[ G_REG0 ], 0)) == BVEC_TAG);
-    k = off
-      + (procedure_ref( globals[ G_REG0 ], 0)
-	 - BVEC_TAG
-	 + BVEC_HEADER_BYTES);
-    return k;
-  } else {
-    return off;
-  }
-}
-
-/* Inverse of internal_fixnum_to_retaddr. */
-
-static word internal_retaddr_to_fixnum( word *globals, cont_t k ) {
-  word off;
-  if (globals[ G_REG0 ]) {
-    assert(tagof(globals[ G_REG0 ]) == PROC_TAG);
-    assert(tagof(procedure_ref( globals[ G_REG0 ], 0)) == BVEC_TAG);
-    off = k
-      - (procedure_ref( globals[ G_REG0 ], 0)
-	 - BVEC_TAG
-	 + BVEC_HEADER_BYTES);
-    return off;
-  } else {
-    return k;
-  }
-}
-
 /* Call Scheme when the VM is in Scheme mode already. The problem here is
    that when Scheme code calls a millicode procedure, it is not required to
    save any of its registers.  Thus, when the millicode must call out to 
@@ -793,9 +761,8 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
 RTYPE return_from_scheme( CONT_PARAMS )
 {
   cont_t k = restore_context( globals );
-  word off = internal_retaddr_to_fixnum( globals, k );
-  globals[ G_RETADDR ] = off;
-  return 0;
+  globals[ G_RETADDR ] = k;
+  return k;
 }
 
 /* Restore all registers.
@@ -813,7 +780,7 @@ cont_t restore_context( word *globals )
   for ( i=0 ; i < NREGS ; i++ )
     globals[ G_REG0+i ] = stkp[ 5+i ];
   
-  k = internal_fixnum_to_retaddr( globals, stkp[ 4 ]);
+  k = stkp[ 4 ];
 
   if (stkp[ 5+NREGS+1 ] == TRUE_CONST)
     globals[ G_RESULT ] = stkp[ 5+NREGS ];

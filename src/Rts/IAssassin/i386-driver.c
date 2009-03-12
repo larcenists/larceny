@@ -66,8 +66,7 @@ void scheme_start( word *globals )
     dispatch_jump_buffer = old_jump_buffer;
     return;
   case DISPATCH_RETURN_FROM_S2S_CALL :
-    f = restore_context( globals );
-    assert2( tagof( globals[ G_REG0 ]) == PROC_TAG );
+    panic_exit( "DISPATCH_RETURN_FROM_S2S_CALL shouldn't happen." );
     break;
   case DISPATCH_STKUFLOW :
     f = refill_stack_cache( globals );
