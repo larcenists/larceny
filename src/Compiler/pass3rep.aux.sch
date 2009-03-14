@@ -346,12 +346,13 @@
 ;
 ; The multiplier isn't critical.  A multiplier of 1000 would be
 ; small enough to cause widening on pathological cases, but
-; would waste a lot of time first.  A multiplier of 12 is just
-; large enough to avoid widening on Larceny's current code.
-; A multiplier of 5 would be large enough to avoid widening on
-; all but 3 expressions.
+; would waste a lot of time first.  A multiplier of 12 used
+; to be just large enough to avoid widening on Larceny's code,
+; and a multiplier of 5 used to be large enough to avoid widening
+; on all but 3 expressions.
+; Larceny's bignum code now needs a larger multiplier.
 
-(define aeval:multiplier 25)
+(define aeval:multiplier 75)
 
 (define aeval:calls 0)
 (define aeval:threshold 0)

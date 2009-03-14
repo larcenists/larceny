@@ -210,14 +210,20 @@
 
     ; Added for CSE, representation analysis.
 
-    (,name:CHECK!    -1 check!                  #f         -1 ,:dead     ,:none #f)
-    (.vector-length:vec 1 vector-length:vec     #f        401 ,:immortal ,:none #f)
-    (.vector-ref:trusted 2 vector-ref:trusted ,stdc-imm?  402 ,:vector   ,:none #f)
-    (.vector-set!:trusted 3 vector-set!:trusted #f        403 ,:dead     ,:vector #f)
-    (.vector-set!:trusted:nwb 3 vector-set!:trusted:nwb #f 403 ,:dead     ,:vector #f)   ; FIXME
-    (.string-length:str 1 ustring-length:str    #f         40 ,:immortal ,:none #f)
-    (.string-ref:trusted 2 ustring-ref:trusted  #f         78 ,:string   ,:none #f)
-    (.string-set!:trusted 3 ustring-set!:trusted ,stdc-imm? 79 ,:dead    ,:string #f)
+    (,name:CHECK!    -1 check!           #f            -1 ,:dead     ,:none #f)
+    (.vector-length:vec 1 vector-length:vec #f        401 ,:immortal ,:none #f)
+    (.vector-ref:trusted
+                      2 vector-ref:trusted ,stdc-imm? 402 ,:vector   ,:none #f)
+    (.vector-set!:trusted
+                      3 vector-set!:trusted #f        403 ,:dead   ,:vector #f)
+    (.vector-set!:trusted:nwb
+                      3 vector-set!:trusted:nwb #f    403 ,:dead   ,:vector #f)
+    (.string-length:str
+                      1 ustring-length:str #f          40 ,:immortal ,:none #f)
+    (.string-ref:trusted
+                      2 ustring-ref:trusted #f         78 ,:string   ,:none #f)
+    (.string-set!:trusted
+                      3 ustring-set!:trusted ,stdc-imm? 79 ,:dead  ,:string #f)
 
     (.car:pair        1 car:pair         #f           404 ,:car      ,:none #f)
     (.cdr:pair        1 cdr:pair         #f           405 ,:cdr      ,:none #f)
@@ -557,7 +563,9 @@
     (unspecified      0 unspecified      #f             3 ,:dead     ,:none #f)
     (undefined        0 undefined        #f             4 ,:dead     ,:none #f)
 
-    (bytevector-ref:trusted 2 bytevector-ref:trusted ,stdc-imm? 700 ,:immortal ,:none #f)
+    (bytevector-ref:trusted
+                      2 bytevector-ref:trusted
+                                         ,stdc-imm?   700 ,:string   ,:none #f)
 
     ;; For Intel; read reflective registers (perhaps its time for iasn.imp.sch)
     ;; These take a bytevector as argument and write the results into it.

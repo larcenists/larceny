@@ -168,8 +168,8 @@
      (>                  (flonum flonum)             .>:flo:flo)
      (>=                 (flonum flonum)             .>=:flo:flo)
      
+     (vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
      (.vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
-     (.vector-set!:trusted (vector fixnum fixnum) .vector-set!:trusted:nwb)
      )))
 
 (define rep-result

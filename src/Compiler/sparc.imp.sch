@@ -161,6 +161,15 @@
     (.string-ref:trusted 2 ustring-ref:trusted #f       -1 ,:string   ,:none)
     (.string-set!:trusted 3 ustring-set!:trusted #f     -1 ,:dead     ,:string)
 
+    ; FIXME: should support immediate index for bytevector-ref
+
+    (.bytevector-like-length:bvl
+                      1 bytevector-like-length:bvl #f  -1 ,:immortal ,:none)
+    (.bytevector-like-ref:trusted
+                      2 bytevector-like-ref:trusted #f -1 ,:string   ,:none)
+    (.bytevector-like-set!:trusted
+                      3 bytevector-like-set!:trusted #f -1 ,:dead    ,:string)
+
     (.car:pair        1 car:pair         #f            -1 ,:car      ,:none)
     (.cdr:pair        1 cdr:pair         #f            -1 ,:cdr      ,:none)
 
