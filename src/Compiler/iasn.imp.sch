@@ -225,6 +225,15 @@
     (.string-set!:trusted
                       3 ustring-set!:trusted ,stdc-imm? 79 ,:dead  ,:string #f)
 
+    ; FIXME: should support immediate index for bytevector-ref
+
+    (.bytevector-like-length:bvl
+                      1 bytevector-like-length:bvl #f  -1 ,:immortal ,:none #f)
+    (.bytevector-like-ref:trusted
+                      2 bytevector-like-ref:trusted #f -1 ,:string   ,:none #f)
+    (.bytevector-like-set!:trusted
+                      3 bytevector-like-set!:trusted #f -1 ,:dead  ,:string #f)
+
     (.car:pair        1 car:pair         #f           404 ,:car      ,:none #f)
     (.cdr:pair        1 cdr:pair         #f           405 ,:cdr      ,:none #f)
 
@@ -562,10 +571,6 @@
     (--               1 --               #f            32 ,:immortal ,:none #t)
     (unspecified      0 unspecified      #f             3 ,:dead     ,:none #f)
     (undefined        0 undefined        #f             4 ,:dead     ,:none #f)
-
-    (bytevector-ref:trusted
-                      2 bytevector-ref:trusted
-                                         ,stdc-imm?   700 ,:string   ,:none #f)
 
     ;; For Intel; read reflective registers (perhaps its time for iasn.imp.sch)
     ;; These take a bytevector as argument and write the results into it.

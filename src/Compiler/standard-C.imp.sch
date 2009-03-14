@@ -209,6 +209,16 @@
     (.string-ref:trusted 2 ustring-ref:trusted   #f        802 ,:string   ,:none #f)
     (.string-set!:trusted 3 ustring-set!:trusted ,stdc-imm? 803 ,:dead     ,:string #f)
 
+    ; FIXME: not yet implemented
+    ; FIXME: should support immediate index for bytevector-ref
+
+    (.bytevector-like-length:bvl
+                      1 bytevector-like-length #f     102 ,:immortal ,:none #f)
+    (.bytevector-like-ref:trusted
+                      2 bytevector-like-ref #f         96 ,:string   ,:none #f)
+    (.bytevector-like-set!:trusted
+                      3 bytevector-like-set! #f        97 ,:dead   ,:string #f)
+
     (.car:pair        1 car:pair         #f           404 ,:car      ,:none #f)
     (.cdr:pair        1 cdr:pair         #f           405 ,:cdr      ,:none #f)
 

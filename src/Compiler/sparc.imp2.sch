@@ -237,8 +237,8 @@
      (exact?            (index)                     (truth))  ; FIXME
      (exact?            (zero)                      (truth))  ; FIXME
      (exact?            (flonum)                    (false))
-     (inexact?          (inexact)                   (true))
-     (inexact?          (flonum)                    (true))   ; FIXME
+     (inexact?          (inexact)                   (truth))
+     (inexact?          (flonum)                    (truth))  ; FIXME
      (inexact?          (fixnum)                    (false))  ; FIXME
      (inexact?          (!fixnum)                   (false))  ; FIXME
      (inexact?          (fixnum!)                   (false))  ; FIXME

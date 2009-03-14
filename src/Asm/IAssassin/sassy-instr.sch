@@ -1237,6 +1237,9 @@
 	
 (define-sassy-instr (ia86.indexed_structure_length ptrtag ex byte?)
   (ia86.single_tag_test_ex $r.result ptrtag ex)
+  (ia86.indexed_structure_length_trusted ptrtag byte?))
+
+(define-sassy-instr (ia86.indexed_structure_length_trusted ptrtag byte?)
   `(mov	,$r.result (& ,$r.result ,(- ptrtag)))
   `(shr	,$r.result 8)
   (cond (byte?
@@ -1418,6 +1421,9 @@
 
 (define-sassy-instr (ia86.indexed_structure_set_byte regno1 regno2 z hdrtag ex)
   (ia86.indexed_structure_test regno1 regno2 z hdrtag ex #t ia86.check_fixnum)
+  (ia86.indexed_structure_set_byte_trusted regno1 regno2 z))
+
+(define-sassy-instr (ia86.indexed_structure_set_byte_trusted regno1 regno2 z)
 ;;;   ;; Using $r.cont here is sketchy when it can alias esp
   `(mov	(& ,$r.globals ,$g.stkp) ,$r.cont)
   (ia86.loadr	$r.cont regno1)
@@ -1622,7 +1628,8 @@
              ((94 bytevector-like?) ia86.t_op1_94)
              ((95 vector-like?) ia86.t_op1_95)
              ((101 vector-like-length) ia86.t_op1_101) 
-             ((102 bytevector-like-length) ia86.t_op1_102) 
+             ((102 bytevector-like-length) ia86.t_op1_102)
+             ((    bytevector-like-length:bvl) ia86.t_op1_bvllength:bvl)
              ;((104 petit-patch-boot-code) ia86.t_op1_104)
              ((105 syscall) ia86.t_op1_105)
              ((106 creg) ia86.t_op1_106) 
@@ -1736,8 +1743,7 @@
              ((501 +:fix:fix) ia86.t_op2_501) 
              ((502 -:idx:idx) ia86.t_op2_502) 
              ((503 -:fix:fix) ia86.t_op2_503)
-             ((700 bytevector-ref:trusted) ia86.t_op2_700) 
-             ; FIXME: still using generic comparisons
+             ((    bytevector-like-ref:trusted) ia86.t_op2_bvlref:trusted)
              ((=:flo:flo) ia86.t_op2_eq_floflo)
              ((<:flo:flo) ia86.t_op2_lt_floflo)
              ((<=:flo:flo) ia86.t_op2_lteq_floflo)
@@ -1812,7 +1818,7 @@
              ((521 +:fix:fix) ia86.t_op2imm_521) 
              ((522 -:idx:idx) ia86.t_op2imm_522) 
              ((523 -:fix:fix) ia86.t_op2imm_523)
-             ((700 bytevector-ref:trusted) ia86.t_op2imm_700) 
+             ((    bytevector-like-ref:trusted) ia86.t_op2imm_bvlref:trusted)
              (else (error 'ia86.t_op2imm x))
              )))
     (f y)))
@@ -1843,6 +1849,7 @@
              ((92 bytevector-set!) ia86.t_op3_92) 
              ((93 procedure-set!) ia86.t_op3_93) 
              ((97 bytevector-like-set!) ia86.t_op3_97)
+             ((   bytevector-like-set!:trusted) ia86.t_op3_bvlset:trusted)
              ((100 vector-like-set!) ia86.t_op3_100)
              ((403 vector-set!:trusted) ia86.t_op3_403)
              ((vector-set!:trusted:nwb) ia86.t_op3_403:nwb)
@@ -2541,10 +2548,6 @@
   (ia86.indexed_structure_ref/hdr regno $tag.bytevector-tag  $hdr.bytevector  $ex.bvref #t)
   `(shl	,$r.result 2))
 
-(define-sassy-instr (ia86.t_op2_700  rs2)	; bytevector-ref:trusted
-  (ia86.load_from_indexed_structure rs2 $tag.bytevector-tag #t)
-  `(shl ,$r.result 2))
-
 (define-sassy-instr (ia86.t_op2_83 regno)		; procedure-ref
   (ia86.indexed_structure_ref regno $tag.procedure-tag  $ex.pref #f))
 
@@ -2605,7 +2608,19 @@
   `(shl	,$r.result 2))
 
 (define-sassy-instr (ia86.t_op3_97 regno y)		; bytevector-like-set!
-  (ia86.indexed_structure_set_byte regno y  $tag.bytevector-tag  0  $ex.bvlset))
+  (ia86.indexed_structure_set_byte regno y $tag.bytevector-tag  0  $ex.bvlset))
+
+(define-sassy-instr (ia86.t_op1_bvllength:bvl)     ; bytevector-like-length:bvl
+  (ia86.indexed_structure_length_trusted $tag.bytevector-tag #t))
+
+                                                  ; bytevector-like-ref:trusted
+(define-sassy-instr (ia86.t_op2_bvlref:trusted rs2)
+  (ia86.load_from_indexed_structure rs2 $tag.bytevector-tag #t)
+  `(shl ,$r.result 2))
+
+                                                 ; bytevector-like-set!:trusted
+(define-sassy-instr (ia86.t_op3_bvlset:trusted regno y)
+  (ia86.indexed_structure_set_byte_trusted regno y $tag.bytevector-tag))
 
 (define-sassy-instr (ia86.t_op2_98 regno)		; sys$bvlcmp
   (ia86.loadr	$r.second regno)
@@ -3058,7 +3073,8 @@
                              (ia86.t_op2imm_450 imm))
   `(mov	,(reg rd) (& ,(reg rs1) ,imm ,(- $bytewidth.wordsize $tag.vector-tag))))
 
-(define-sassy-instr (ia86.t_op2imm_700  idx)	; bytevector-ref:trusted
+                                                  ; bytevector-like-ref:trusted
+(define-sassy-instr (ia86.t_op2imm_bvlref:trusted idx)
   (ia86.load_from_indexed_structure_imm idx $tag.bytevector-tag #t)
   `(shl ,$r.result 2))
 
