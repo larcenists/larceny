@@ -749,11 +749,17 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   globals[ G_REG0 ] = vector_ref( callouts, index );
   globals[ G_RESULT ] = fixnum( argc );
 
-  /* To call the procedure, return to its offset 0. */
-  /* Note: that is IAssassin-dependent. */
+  if (k == 0) {
+    my_longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
+  }
+  else {
 
-  globals[ G_RETADDR ] = 0;
-  return;
+    /* To call the procedure, return to its offset 0. */
+    /* Note: that is IAssassin-dependent. */
+
+    globals[ G_RETADDR ] = 0;
+    return;
+  }
 }
 
 /* Return address for scheme-to-scheme call frame. */
