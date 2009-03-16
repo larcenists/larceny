@@ -145,25 +145,24 @@
    ; arguments described in the middle column, then the procedure
    ; in the last column can be called instead.
    
-   '(
-    ;(+                  (index index)               +:idx:idx)
-    ;(+                  (fixnum fixnum)             +:fix:fix)
-    ;(-                  (index index)               -:idx:idx)
-    ;(-                  (fixnum fixnum)             -:fix:fix)
+   '((+                  (index index)               .+:idx:idx)
+     (+                  (fixnum fixnum)             .+:fix:fix)
+     (-                  (index index)               .-:idx:idx)
+     (-                  (fixnum fixnum)             .-:fix:fix)
      
-     (=                  (fixnum fixnum)             =:fix:fix)
-     (<                  (fixnum fixnum)             <:fix:fix)
-     (<=                 (fixnum fixnum)             <=:fix:fix)
-     (>                  (fixnum fixnum)             >:fix:fix)
-     (>=                 (fixnum fixnum)             >=:fix:fix)
+     (=                  (fixnum fixnum)             .=:fix:fix)
+     (<                  (fixnum fixnum)             .<:fix:fix)
+     (<=                 (fixnum fixnum)             .<=:fix:fix)
+     (>                  (fixnum fixnum)             .>:fix:fix)
+     (>=                 (fixnum fixnum)             .>=:fix:fix)
      
-    ;(+                  (flonum flonum)             +:flo:flo)
-    ;(-                  (flonum flonum)             -:flo:flo)
-    ;(=                  (flonum flonum)             =:flo:flo)
-    ;(<                  (flonum flonum)             <:flo:flo)
-    ;(<=                 (flonum flonum)             <=:flo:flo)
-    ;(>                  (flonum flonum)             >:flo:flo)
-    ;(>=                 (flonum flonum)             >=:flo:flo)
+    ;(+                  (flonum flonum)             .+:flo:flo)
+    ;(-                  (flonum flonum)             .-:flo:flo)
+    ;(=                  (flonum flonum)             .=:flo:flo)
+    ;(<                  (flonum flonum)             .<:flo:flo)
+    ;(<=                 (flonum flonum)             .<=:flo:flo)
+    ;(>                  (flonum flonum)             .>:flo:flo)
+    ;(>=                 (flonum flonum)             .>=:flo:flo)
      
     ;(vector-set!:trusted (vector fixnum nonpointer) vector-set!:trusted:imm)
     ;(.vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
@@ -300,13 +299,13 @@
      
      (eq?               (object object)             (boolean))
      (eqv?              (object object)             (boolean))
-     
+
      (=                 (number number)             (boolean))
      (<                 (number number)             (boolean))
      (<=                (number number)             (boolean))
      (>                 (number number)             (boolean))
      (>=                (number number)             (boolean))
-     
+
      (.=:fix:fix        (fixnum fixnum)             (boolean))
      (.<:fix:fix        (fixnum fixnum)             (boolean))
      (.<=:fix:fix       (fixnum fixnum)             (boolean))
