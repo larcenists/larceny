@@ -16,14 +16,23 @@
 
 (require 'inspect-cont)
 
+; The vector hacks defeat Twobit's first-order closure analysis,
+; and the non-tail call to thunk ensures that the closure for
+; program-being-profiled remains visible on the continuation
+; stack.
+
 (define (run-with-profiling thunk)
+  (define (program-being-profiled)
+    (let ((v (make-vector 2 (thunk))))
+      (vector-ref v 0)))
   (if (not (procedure? thunk))
       (assertion-violation 'run-with-profiling
                            "argument should be thunk"
                            thunk))
   (reset-profiler!)
   (start-profiler!)
-  (let ((r (thunk)))
+  (let* ((thunk (vector-ref (make-vector 2 program-being-profiled) 0))
+         (r (thunk)))
     (stop-profiler!)
     (report-profiler!)
     r))

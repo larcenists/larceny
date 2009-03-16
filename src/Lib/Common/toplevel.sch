@@ -876,6 +876,7 @@
   (environment-set! larc 'procedure-source-position
                     procedure-source-position)
   (environment-set! larc 'procedure-expression procedure-expression)
+  (environment-set! larc 'procedure-formals procedure-formals)
   (environment-set! larc 'procedure-environment procedure-environment)
 
   (environment-set! larc 'call/cc call/cc)

@@ -20,6 +20,7 @@
 (define doc.arity 2)
 (define doc.file-name 3)
 (define doc.file-position 4)
+(define doc.formals 5)
 
 ; PROC[1] is the constant vector.
 ; CV[0] is the documentation slot.
@@ -67,6 +68,7 @@
 (define procedure-source-file (doc-accessor doc.file-name))
 (define procedure-source-position (doc-accessor doc.file-position))
 (define procedure-expression (doc-accessor doc.source-code))
+(define procedure-formals (doc-accessor doc.formals))
 
 (define (procedure-documentation-string proc)
   #f)
