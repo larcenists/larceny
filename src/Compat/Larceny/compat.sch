@@ -60,6 +60,9 @@
   (let ((eh (error-handler)))
     (error-handler (lambda args
 		     (error-handler eh)
+                     (parameterize ((print-length 7)
+                                    (print-level 7))
+                       (decode-error args))
 		     (thunk2)
 		     (apply eh args)))
     (thunk1)
