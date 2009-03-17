@@ -125,7 +125,11 @@
   (if (not (environment-variable? env1 'open-raw-latin-1-output-file))
       (set! open-raw-latin-1-output-file open-output-file))
   (if (not (environment-variable? env1 'open-raw-latin-1-input-file))
-      (set! open-raw-latin-1-input-file open-input-file)))
+      (set! open-raw-latin-1-input-file open-input-file))
+  (if (not (environment-variable? env1 'with-output-to-raw-latin-1-file))
+      (set! with-output-to-raw-latin-1-file with-output-to-file))
+  (if (not (environment-variable? env1 'with-input-from-raw-latin-1-file))
+      (set! with-input-from-raw-latin-1-file with-input-from-file)))
 
 ;; Doing the same trick to handle fx* on older
 ;; versions of Larceny.
