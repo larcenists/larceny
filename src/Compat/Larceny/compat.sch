@@ -119,7 +119,13 @@
 ;; Doing the same trick to handle IO on older versions of Larceny
 (let ((env1 (interaction-environment)))
   (if (not (environment-variable? env1 'call-with-raw-latin-1-output-file))
-      (set! call-with-raw-latin-1-output-file call-with-output-file)))
+      (set! call-with-raw-latin-1-output-file call-with-output-file))
+  (if (not (environment-variable? env1 'call-with-raw-latin-1-input-file))
+      (set! call-with-raw-latin-1-input-file call-with-input-file))
+  (if (not (environment-variable? env1 'open-raw-latin-1-output-file))
+      (set! open-raw-latin-1-output-file open-output-file))
+  (if (not (environment-variable? env1 'open-raw-latin-1-input-file))
+      (set! open-raw-latin-1-input-file open-input-file)))
 
 ;; Doing the same trick to handle fx* on older
 ;; versions of Larceny.
