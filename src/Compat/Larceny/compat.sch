@@ -113,6 +113,11 @@
   (if (not (environment-variable? env1 'recognize-javadot-symbols?))
       (set! recognize-javadot-symbols? (lambda l #f))))
 
+;; Doing the same trick to handle IO on older versions of Larceny
+(let ((env1 (interaction-environment)))
+  (if (not (environment-variable? env1 'call-with-raw-latin-1-output-file))
+      (set! call-with-raw-latin-1-output-file call-with-output-file)))
+
 ;; Doing the same trick to handle fx* on older
 ;; versions of Larceny.
 (let ((env1 (interaction-environment)))
