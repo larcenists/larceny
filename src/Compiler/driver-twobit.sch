@@ -40,6 +40,7 @@
                                 `(,outfilename binary)
                                 (cons write-fasl-token
                                       (assembly-declarations user))
+                                read
                                 dump-fasl-segment-to-port
                                 (lambda (forms)
                                   (assemble (compile-block forms syntaxenv) 
@@ -48,6 +49,7 @@
                           `(,outfilename binary)
                           (cons write-fasl-token
                                 (assembly-declarations user))
+                          read
                           dump-fasl-segment-to-port
                           (lambda (expr)
                             (assemble (compile expr syntaxenv) user)))))
@@ -77,12 +79,14 @@
           (process-file-block infilename 
 			      outfilename 
 			      '()
+                              read
 			      write-lap 
                               (lambda (x)
                                 (compile-block x syntaxenv)))
           (process-file infilename 
 			outfilename 
 			'()
+                        read
 			write-lap 
                         (lambda (x) 
 			  (compile x syntaxenv)))))
@@ -105,6 +109,7 @@
     (process-file file
                   `(,outputfile binary)
 		  (assembly-declarations user)
+                  read
                   write-lop
                   (lambda (x) 
 		    (assemble (if malfile? (eval x) x) user)))
@@ -127,12 +132,14 @@
           (process-file-block input-file
                               `(,output-file binary)
 			      (assembly-declarations user)
+                              read
                               write-lop
                               (lambda (x)
 				(assemble (compile-block x syntaxenv) user)))
           (process-file input-file
                         `(,output-file binary)
 			(assembly-declarations user)
+                        read
                         write-lop
                         (lambda (x) 
 			  (assemble (compile x syntaxenv) user)))))
@@ -152,6 +159,7 @@
       (process-file `(,infilename binary)
                     `(,outfilename binary)
 		    (list write-fasl-token)
+                    read
                     dump-fasl-segment-to-port
                     (lambda (x) x))
       (unspecified)))

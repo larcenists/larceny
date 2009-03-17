@@ -8,6 +8,11 @@
 ; heap (twobit exposed only through COMPILE-FILE and COMPILE-EXPRESSION).
 ; Uses basis functionality defined in driver-common.sch
 
+; The code in this file is used only in Larceny heaps,
+; so it can assume Larceny-specific extensions to Scheme.
+; In particular, it can record source code locations for
+; use by Twobit's pass 1.
+
 ; Compile and assemble a scheme source file and produce a FASL file.
 
 (define (compile-file infilename . rest)
@@ -27,15 +32,27 @@
             "integrate-procedures = none"
             (string #\newline)
             "Performance is likely to be poor.")))
-      (let ((syntaxenv
-             (syntactic-copy
-              (environment-syntax-environment
-               (interaction-environment)))))
+      (let* ((syntaxenv
+              (syntactic-copy
+               (environment-syntax-environment
+                (interaction-environment))))
+             (receiver
+              (lambda (exp position-table)
+                (set! source-file-positions position-table)
+                exp))
+             (reader
+              (lambda (in)
+                (call-with-values
+                 (lambda () (get-datum-with-source-locations in #t))
+                 receiver))))
+        (set! source-file-name
+              (string->symbol infilename))
         (if (benchmark-block-mode)
             (process-file-block infilename
                                 `(,outfilename binary)
                                 (cons write-fasl-token
                                       (assembly-declarations user))
+                                reader
                                 dump-fasl-segment-to-port
                                 (lambda (forms)
                                   (assemble (compile-block forms syntaxenv) 
@@ -44,9 +61,12 @@
                           `(,outfilename binary)
                           (cons write-fasl-token
                                 (assembly-declarations user))
+                          reader
                           dump-fasl-segment-to-port
                           (lambda (expr)
                             (assemble (compile expr syntaxenv) user)))))
+      (set! source-file-name #f)
+      (set! source-file-positions #f)
       (unspecified)))
 
   (if (eq? (nbuild-parameter 'target-machine) 'standard-c)
@@ -101,12 +121,14 @@
           (process-file-block infilename 
                               outfilename 
                               '()
+                              read
                               write-lap 
                               (lambda (x)
                                 (compile-block x syntaxenv)))
           (process-file infilename 
                         outfilename 
                         '()
+                        read
                         write-lap 
                         (lambda (x) 
                           (compile x syntaxenv)))))
@@ -129,6 +151,7 @@
     (process-file file
                   `(,outputfile binary)
                   (assembly-declarations user)
+                  read
                   write-lop
                   (lambda (x) 
                     (assemble (if malfile? (eval x) x) user)))
@@ -153,12 +176,14 @@
           (process-file-block input-file
                               `(,output-file binary)
                               (assembly-declarations user)
+                              read
                               write-lop
                               (lambda (x)
                                 (assemble (compile-block x syntaxenv) user)))
           (process-file input-file
                         `(,output-file binary)
                         (assembly-declarations user)
+                        read
                         write-lop
                         (lambda (x) 
                           (assemble (compile x syntaxenv) user)))))
@@ -178,6 +203,7 @@
       (process-file `(,infilename binary)
                     `(,outfilename binary)
                     (list write-fasl-token)
+                    read
                     dump-fasl-segment-to-port
                     (lambda (x) x))
       (unspecified)))

@@ -291,10 +291,10 @@
 ; Filenames can be simple strings or list (filename mode) where mode
 ; is a symbol, "text" or "binary".
 
-(define (process-file infilename outfilename decls writer processer)
-  (process-files (list infilename) outfilename decls writer processer))
+(define (process-file infilename outfilename decls reader writer processer)
+  (process-files (list infilename) outfilename decls reader writer processer))
 
-(define (process-files infilenames outfilename decls writer processer)
+(define (process-files infilenames outfilename decls reader writer processer)
   (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
 	(outfilefn   (if (and (pair? outfilename) 
 			      (eq? 'binary (cadr outfilename)))
@@ -316,7 +316,7 @@
                                              call-with-input-file)))
                         (infilefn infilename
                                   (lambda (inport)
-                                    (do ((x (read inport) (read inport)))
+                                    (do ((x (reader inport) (reader inport)))
                                         ((eof-object? x))
                                       (writer (processer x) outport))))))
                     infilenames))))
@@ -341,10 +341,13 @@
 ; FIXME:  Both versions of PROCESS-FILE always delete the output file.
 ; Shouldn't it be left alone if the input file can't be opened?
 
-(define (process-file-block infilename outfilename decls writer processer)
-  (process-files-block (list infilename) outfilename decls writer processer))
+(define (process-file-block infilename outfilename decls
+                            reader writer processer)
+  (process-files-block (list infilename)
+                       outfilename decls reader writer processer))
 
-(define (process-files-block infilenames outfilename decls writer processer)
+(define (process-files-block infilenames outfilename decls
+                             reader writer processer)
   (let ((outfilename (if (pair? outfilename) (car outfilename) outfilename))
 	(outfilefn   (if (and (pair? outfilename) 
 			      (eq? 'binary (cadr outfilename)))
@@ -365,7 +368,7 @@
 				  call-with-input-file)))
 	     (infilefn infilename
 		       (lambda (inport)
-			 (do ((x (read inport) (read inport))
+			 (do ((x (reader inport) (reader inport))
 			      (forms '() (cons x forms)))
 			     ((eof-object? x)
 			      (writer (processer (reverse forms)) 

@@ -59,8 +59,8 @@
 
 ($$trace "pass1")
 
-(define source-file-name #f)
-(define source-file-position #f)
+(define source-file-name #f)           ; assigned by compile-file, load
+(define source-file-positions #f)      ; assigned by compile-file, load
 
 (define pass1-block-compiling? #f)
 (define pass1-block-assignments '())
@@ -70,8 +70,6 @@
 ; environment, which is just a second (but immutable) syntax environment.
 
 (define (pass1 def-or-exp syntaxenv . rest)
-  (set! source-file-name #f)
-  (set! source-file-position #f)
   (set! pass1-block-compiling? #f)
   (set! pass1-block-assignments '())
   (set! pass1-block-inlines '())
@@ -267,3 +265,27 @@
   (set! source-file-name #f)
   (set! source-file-position #f)
   (part1))
+
+; Source positions are represented as a list of vectors of the form
+;
+; #(expression #(i0 j0 k0) #(i1 j1 k1))
+;
+; where #(i0 j0 k0) and #(i1 j1 k1) describe the half-open interval
+; of positions for the expression.
+
+; Given an expression, returns #f or its starting position.
+; If more arguments are given, they are used as alternatives
+; when the starting position for the expression can't be found.
+
+(define (pass1-lookup-source-position exp . rest)
+  (do ((info (or source-file-positions '()) (cdr info)))
+      ((or (null? info)
+           (equal? exp (vector-ref (car info) 0)))
+       (cond ((not (null? info))
+              (vector-ref (car info) 1))
+             ((pair? rest)
+              (apply pass1-lookup-source-position rest))
+             ((pair? source-file-positions)
+              (vector-ref (car source-file-positions) 1))
+             (else
+              #f)))))

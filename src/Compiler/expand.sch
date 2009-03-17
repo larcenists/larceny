@@ -286,7 +286,9 @@
       (let* ((formals (cadr exp))
              (alist (rename-vars formals))
              (env (syntactic-rename env alist))
-             (body (cddr exp)))
+             (body (cddr exp))
+             (source-file-position
+              (pass1-lookup-source-position exp formals body)))
 
         (do ((alist alist (cdr alist)))
             ((null? alist))

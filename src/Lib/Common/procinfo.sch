@@ -8,10 +8,17 @@
 ; Documentation format is documented in Larceny Note #12.
 ; Summary:  documentation structure is a vector:
 ;
-;   #(procedure-name source-code arity file-name file-position)
+;   #(procedure-name source-code arity file-name file-position formals)
 ;
 ; Any of the entries can be #f, and if the tail of the vector is all #f,
 ; then it may be omitted.
+;
+; The file-position may be #f, or an exact non-negative integer,
+; or a vector of three exact non-negative integers specifying
+; (0) the zero-origin offset in characters, (2) the zero-origin
+; line number, and (3) the zero-origin column number.
+;
+; FIXME: source positions should specify both start and end.
 
 ($$trace "procinfo")
 
@@ -66,9 +73,28 @@
 (define procedure-arity (doc-accessor doc.arity))
 (define procedure-name (doc-accessor doc.procedure-name))
 (define procedure-source-file (doc-accessor doc.file-name))
-(define procedure-source-position (doc-accessor doc.file-position))
+(define procedure-source-position-larceny (doc-accessor doc.file-position))
 (define procedure-expression (doc-accessor doc.source-code))
 (define procedure-formals (doc-accessor doc.formals))
+
+(define (procedure-source-position proc)
+  (let ((k (procedure-source-position-larceny proc)))
+    (cond ((fixnum? k) k)
+          ((and (vector? k) (= 3 (vector-length k)))
+           (vector-ref k 0))
+          (else #f))))
+
+(define (procedure-source-line proc)
+  (let ((k (procedure-source-position-larceny proc)))
+    (cond ((and (vector? k) (= 3 (vector-length k)))
+           (vector-ref k 1))
+          (else #f))))
+
+(define (procedure-source-column proc)
+  (let ((k (procedure-source-position-larceny proc)))
+    (cond ((and (vector? k) (= 3 (vector-length k)))
+           (vector-ref k 2))
+          (else #f))))
 
 (define (procedure-documentation-string proc)
   #f)

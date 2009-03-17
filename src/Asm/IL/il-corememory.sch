@@ -1648,6 +1648,7 @@
 		infilename
 		`(,outfilename binary)
 		(assembly-declarations user)
+                read
 		dump-fasl-segment-to-port
 		(lambda (expr)
 		  (let ((lop-segment (assemble (compile expr syntaxenv) user)))
