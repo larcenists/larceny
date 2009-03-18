@@ -319,11 +319,12 @@
          ((parameterize-aux
            (... (syntax-rules ()
                   ((parameterize-aux (t ...) ((p0 e0) x ...) body1 body2 ...)
-                   (let ((temp e0))
-                     (parameterize-aux ((temp e0 p0) t ...) 
+                   (let ((tempE e0)
+                         (tempP p0))
+                     (parameterize-aux ((tempE tempP) t ...) 
                                        (x ...) 
                                        body1 body2 ...)))
-                  ((parameterize-aux ((t e p) ...) () body1 body2 ...)
+                  ((parameterize-aux ((tE tP) ...) () body1 body2 ...)
                    (let-syntax ((swap!
                                  (syntax-rules ()
                                    ((swap! var param)
@@ -332,11 +333,11 @@
                                       (param tmp))))))
                      (dynamic-wind
                       (lambda ()
-                        (swap! t p) ...)
+                        (swap! tE tP) ...)
                       (lambda ()
                         body1 body2 ...)
                       (lambda ()
-                        (swap! t p) ...))))))))
+                        (swap! tE tP) ...))))))))
        (parameterize-aux () ((p1 e1) ...) b1 b2 ...)))))
 
 ; SRFI-11 LET-VALUES and LET*-VALUES
