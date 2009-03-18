@@ -748,6 +748,7 @@ static los_stackseg_t *push_los_segment( los_stackseg_t *los,
            los, *freed, sp );
 
     *freed = sp->next;
+    sp->next = los;
     return sp;
   }
 }
