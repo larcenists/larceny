@@ -302,6 +302,7 @@ Lfullgenbarrier:				;
 	ret					; Otherwise return
 Lsatbbarrier:					;
 	mov	TEMP, [GLOBALS+G_THIRD]		; globals[G_THIRD] holds tgt slot
+	mov	TEMP, [TEMP]			; oldval = *slot
 	mov	REG1, [GLOBALS+G_SATBTOPV]	; ptr to SATB SSB
 	mov	REG1, [REG1]			; SATB SSB top
 	mov	[REG1], TEMP			; 
