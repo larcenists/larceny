@@ -69,8 +69,11 @@
 		 srfi-38		; I/O of shared structure
 		 srfi-39		; Parameter objects
 		 srfi-42		; Eager comprehensions
+                 srfi-43                ; Vector Library
+                 srfi-45                ; Iterative Lazy Algorithms
                  srfi-59                ; Vicinity
                  srfi-60                ; Integers as Bits
+                 srfi-63                ; Homogeneous and Heterogeneous Arrays
                  srfi-66                ; Octet Vectors
                  srfi-69                ; Basic hash tables
                  )
@@ -190,10 +193,16 @@
      (begin (require 'srfi-39) body ...))
     ((cond-expand (srfi-42 body ...) more-clauses ...)
      (begin (require 'srfi-42) body ...))
+    ((cond-expand (srfi-43 body ...) more-clauses ...)
+     (begin (require 'srfi-43) body ...))
+    ((cond-expand (srfi-45 body ...) more-clauses ...)
+     (begin (require 'srfi-45) body ...))
     ((cond-expand (srfi-59 body ...) more-clauses ...)
      (begin (require 'srfi-59) body ...))
     ((cond-expand (srfi-60 body ...) more-clauses ...)
      (begin (require 'srfi-60) body ...))
+    ((cond-expand (srfi-63 body ...) more-clauses ...)
+     (begin (require 'srfi-63) body ...))
     ((cond-expand (srfi-66 body ...) more-clauses ...)
      (begin (require 'srfi-66) body ...))
     ((cond-expand (srfi-69 body ...) more-clauses ...)

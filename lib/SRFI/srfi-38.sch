@@ -391,3 +391,6 @@
                        (vector-set! obj i (unthunk elt))
                        (fill-in-parts elt))))))))
     obj))
+
+(define write/ss write-with-shared-structure)
+(define read/ss read-with-shared-structure)

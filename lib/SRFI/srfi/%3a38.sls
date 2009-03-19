@@ -14,8 +14,8 @@
 
 (library (srfi :38 with-shared-structure)
 
-  (export write-with-shared-structure
-          read-with-shared-structure)
+  (export write-with-shared-structure write/ss
+          read-with-shared-structure  read/ss)
 
   (import (rnrs base)
           (rnrs unicode)
@@ -4060,12 +4060,14 @@
   
     (srfi38-postpass (parse-outermost-datum))))
 
+  (define write/ss write-with-shared-structure)
+  (define read/ss read-with-shared-structure)
 )
 
 (library (srfi :38)
 
-  (export write-with-shared-structure
-          read-with-shared-structure)
+  (export write-with-shared-structure write/ss
+          read-with-shared-structure  read/ss)
 
   (import (srfi :38 with-shared-structure)))
 
