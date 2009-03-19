@@ -487,3 +487,5 @@
 (or (equal? (reverse-list->vector '(a b c))
             '#(c b a))
     (fail 'reverse-list->vector:1))
+
+(writeln "Done.")

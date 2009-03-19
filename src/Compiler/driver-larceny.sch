@@ -13,6 +13,29 @@
 ; In particular, it can record source code locations for
 ; use by Twobit's pass 1.
 
+; This definition overrides the stub in pass1.sch.
+; It returns the value of the current-source-file parameter,
+; after converting a string to a symbol to avoid duplication
+; of filename strings in the heap.
+
+(define (source-file-name)
+  (let ((fn (current-source-file)))
+    (if (string? fn)
+        (let ((sym (string->symbol fn)))
+          (current-source-file sym)
+          sym)
+        fn)))
+
+; The source-location-recorder parameter hooks both load and
+; compile-file to the macro expander's source-file-positions
+; variable.
+
+(define (twobit:source-location-recorder position-table)
+  (set! source-file-positions position-table)
+  (unspecified))
+
+(source-location-recorder twobit:source-location-recorder)
+
 ; Compile and assemble a scheme source file and produce a FASL file.
 
 (define (compile-file infilename . rest)
@@ -35,38 +58,27 @@
       (let* ((syntaxenv
               (syntactic-copy
                (environment-syntax-environment
-                (interaction-environment))))
-             (receiver
-              (lambda (exp position-table)
-                (set! source-file-positions position-table)
-                exp))
-             (reader
-              (lambda (in)
-                (call-with-values
-                 (lambda () (get-datum-with-source-locations in #t))
-                 receiver))))
-        (set! source-file-name
-              (string->symbol infilename))
-        (if (benchmark-block-mode)
-            (process-file-block infilename
-                                `(,outfilename binary)
-                                (cons write-fasl-token
-                                      (assembly-declarations user))
-                                reader
-                                dump-fasl-segment-to-port
-                                (lambda (forms)
-                                  (assemble (compile-block forms syntaxenv) 
-                                            user)))
-            (process-file infilename
-                          `(,outfilename binary)
-                          (cons write-fasl-token
-                                (assembly-declarations user))
-                          reader
-                          dump-fasl-segment-to-port
-                          (lambda (expr)
-                            (assemble (compile expr syntaxenv) user)))))
-      (set! source-file-name #f)
-      (set! source-file-positions #f)
+                (interaction-environment)))))
+        (parameterize ((current-source-file infilename))
+          (if (benchmark-block-mode)
+              (process-file-block infilename
+                                  `(,outfilename binary)
+                                  (cons write-fasl-token
+                                        (assembly-declarations user))
+                                  read-source-code
+                                  dump-fasl-segment-to-port
+                                  (lambda (forms)
+                                    (assemble (compile-block forms syntaxenv) 
+                                              user)))
+              (process-file infilename
+                            `(,outfilename binary)
+                            (cons write-fasl-token
+                                  (assembly-declarations user))
+                            read-source-code
+                            dump-fasl-segment-to-port
+                            (lambda (expr)
+                              (assemble (compile expr syntaxenv) user))))))
+      ((source-location-recorder) #f)
       (unspecified)))
 
   (if (eq? (nbuild-parameter 'target-machine) 'standard-c)

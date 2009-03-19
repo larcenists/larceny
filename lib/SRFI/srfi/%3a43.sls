@@ -6,8 +6,10 @@
 ;;;     vector-fill!     (adds two optional arguments)
 ;;;     vector->list     (adds two optional arguments)
 ;;;     list->vector     (adds two optional arguments; note bug in SRFI spec)
-;;;     vector-map       (allows vectors to be of different lengths)
-;;;     vector-for-each  (allows vectors to be of different lengths)
+;;;     vector-map       (allows vectors to be of different lengths,
+;;;                       passes the index to the proc)
+;;;     vector-for-each  (allows vectors to be of different lengths,
+;;;                       passes the index to the proc)
 ;;;
 ;;; Taylor Campbell wrote this code; he places it in the public domain.
 ;;; Will Clinger [wdc] made some corrections, also in the public domain.

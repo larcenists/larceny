@@ -86,3 +86,6 @@
 ; -- reporting --
 
 (check-report)
+
+(write "Done.")
+(newline)

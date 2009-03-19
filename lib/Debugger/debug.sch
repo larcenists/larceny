@@ -234,7 +234,19 @@
        (debug/display "interpreted expression ")
        (debug/print-object expr))
       ((compiled-procedure)
-       (debug/display "compiled procedure " (procedure-name proc)))
+       (debug/display "compiled procedure "
+                      (procedure-name proc)
+                      " "
+                      (let ((file (procedure-source-file proc))
+                            (line (procedure-source-line proc))
+                            (col  (procedure-source-column proc)))
+                        (cond ((and file line col)
+                               (list file ":" (+ line 1) ":" (+ col 1)))
+                              ((and file line)
+                               (list file ":" (+ line 1)))
+                              (file
+                               (list file))
+                              (else "")))))
       (else
        (error "debug/summarize-frame: Unknown class " class)))
     (debug/displayln)))

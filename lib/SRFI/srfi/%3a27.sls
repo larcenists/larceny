@@ -154,7 +154,7 @@
   (most-positive-fixnum))
 
 ;;; Larceny: commented out in favor of patch at end.
-#;
+
 (define (mrg32k3a-random-integer state range) ; from Brad Lucier
   (let* ((n (exact->inexact range))
          (q (floor (/ 4294967087.0 n)))
@@ -654,65 +654,6 @@
 
 (define random-real
   (random-source-make-reals default-random-source))
-
-;;; FIXME:  This is a temporary workaround that avoids
-;;; calling Larceny's inexact->exact because it is so slow.
-;;; The long-term fix is to make inexact->exact run faster.
-
-(define (mrg32k3a-random-integer state range) ; from Brad Lucier
-  (let* ((n (exact->inexact range))
-	 (q (flfloor (fl/ 4294967087.0 n)))
-	 (qn (fl* q n)))
-    (do ((x (mrg32k3a-random-m1 state) (mrg32k3a-random-m1 state)))
-	((fl<? x qn) 
-	 (larceny:flonum->integer (flfloor (fl/ x q)))))))
-
-;;; Converts a flonum to an exact integer.
-
-(define (larceny:flonum->integer a)
-  (let ((flonum:minexponent-51 -1074)
-        (two^28 268435456))
-
-    (define float-exponent
-      (lambda (f)
-        (let ((e (fxlogior (fxlsh (fxlogand 127 (bytevector-ref f 7)) 4)
-                         (fxrshl (bytevector-ref f 6) 4))))
-          (if (zero? e)
-              flonum:minexponent-51        ; no hidden bit
-              (- e (+ 1023 52))))))
-
-    (define float-significand-high-bits
-      (lambda (f)
-        (let* ((r (fxlogior 16
-                            (fxlogand 15 
-                                      (bytevector-ref f 6))))
-               (r (fxlogior (fxlsh r 8) (bytevector-ref f 5)))
-               (r (fxlogior (fxlsh r 8) (bytevector-ref f 4)))
-               (r (fxlogior (fxlsh r 8) (bytevector-ref f 3))))
-
-          ; Subtract hidden bit if x is denormalized or zero.
-
-          (if (and (zero? (fxlogand 127 (bytevector-ref f 7)))
-                   (zero? (fxlogand -16 (bytevector-ref f 6))))
-              (- r two^28)
-              r))))
-
-    (let* ((a (flround a))
-           (b (make-bytevector 8))
-           (ignored (bytevector-ieee-double-set! b 0 a 'little))
-           (e (float-exponent b)))
-      (cond ((fx<=? -53 e -24)
-             (let ((n (fxrsha (float-significand-high-bits b)
-                              (fx- (fx+ e 24)))))
-               (if (fl<? a 0.0)
-                   (- n)
-                   n)))
-            ((fl=? a 0.0)
-             0)
-            (else
-             (inexact->exact a))))))
-
-;;; end of Larceny workaround
 
 )
 

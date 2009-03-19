@@ -85,3 +85,5 @@
 ; -- reporting --
 
 (check-report)
+
+(writeln "Done.")

@@ -218,3 +218,5 @@
               (or (array? a)
                    (fail 'prototype)))
             prototypes))
+
+(writeln "Done.")

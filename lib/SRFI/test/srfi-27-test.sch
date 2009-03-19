@@ -279,3 +279,4 @@
 (display "passed (check-basics-1)")
 (newline)
 
+(writeln "Done.")

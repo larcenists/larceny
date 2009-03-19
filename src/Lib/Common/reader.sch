@@ -222,14 +222,8 @@
                    (char=? c #\newline))
                (read-char input-port)
                (loop (peek-char input-port)))
-;             ((char=? c #\;)
-;              (scanner1))
-;             ((char=? c #\()
-;              (read-char input-port)
-;              (accept 'lparen))
-;             ((char=? c #\))
-;              (read-char input-port)
-;              (accept 'rparen))
+              ((char=? c #\;)
+               (scanner1))
               (else
                (if keep-source-locations?
                    (set! locationStart

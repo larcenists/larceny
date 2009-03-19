@@ -17,7 +17,6 @@
    8
    9
    11
-   12
    13
    14
    16
@@ -36,8 +35,11 @@
    38
    39
    42
+   45
    60
+   63
    66
    69
+   43 ;; redefines vector-map etc, so it has to come near the end
    78
    ))

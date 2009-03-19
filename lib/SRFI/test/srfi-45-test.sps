@@ -244,3 +244,4 @@
 (force (times3 7))
 ;(force (times3 100000000))                        ;==> bounded space
 
+(writeln "Done.")
