@@ -2018,14 +2018,16 @@
 
         ; [Larceny]
 
-        (let ((form (syntax-debug form))
-              (subforms (if subform (list (syntax-debug subform)) '()))
-              (msg (cond ((symbol? who)
-                          (string-append (symbol->string who) ": " message))
-                         ((string? who)
-                          (string-append who ": " message))
-                         (else message))))
-          (apply error 'syntax-violation msg form subforms))))
+        (let* ((form (syntax-debug form))
+;              (subforms (if subform (list (syntax-debug subform)) '()))
+               (c1 (make-who-condition who))
+               (c2 (make-message-condition message))
+               (c3 (make-syntax-violation form subform))
+               (c (if who
+                      (condition c1 c2 c3)
+                      (condition c2 c3))))
+;         (apply error 'syntax-violation msg form subforms))))
+          (raise c))))
 
     (define (syntax-debug exp)
       (sexp-map (lambda (leaf)
