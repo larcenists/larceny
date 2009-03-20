@@ -368,7 +368,7 @@
   (parameterize ((compat:read-case-sensitive? #t)
                  ((nbuild-key->parameter 'development?) #t))
      (build-twobit-base
-       "Twobit"
+       "Twobit.fasl"
        (list (param-filename
               'auxiliary "dotnet-compile-file.sch")))))
 
@@ -378,7 +378,7 @@
   (parameterize ((compat:read-case-sensitive? #t)
                  ((nbuild-key->parameter 'development?) #f))
     (build-twobit-base
-      "Larceny"
+      "Larceny.fasl"
       `(,@(param-filename 'compiler '("driver-larceny.sch"))
 
         ;; Next two are prerequisites for seal-twobit
@@ -405,7 +405,7 @@
   (parameterize ((compat:read-case-sensitive? #t)
                  ((nbuild-key->parameter 'development?) #f))
     (build-twobit-base
-      "LarcenyLcg"
+      "LarcenyLcg.fasl"
       `(,@(param-filename 'compiler '("driver-larceny.sch"))
 
         ;; Next two are prerequisites for seal-twobit

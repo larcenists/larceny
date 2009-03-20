@@ -175,6 +175,8 @@
       (class-finish)
       (cons loadable-classname il-namespace))))
 
+;;; FIXME: this comment is obsolete; dump-fasl is local to this file
+;;; 
 ;;; dump-fasl : segment string output-port -> void
 ;;; Dumps a fasl file containing the file base (no extension) of the
 ;;; source .lop file, the generated namespace for all classes in that
@@ -194,8 +196,8 @@
 
 ;; dump-fasl : string string (listof string) -> void
 
-(define (dump-fasl base exe manifests)
-  (with-output-to-raw-latin-1-file (string-append base ".fasl")
+(define (dump-fasl base outfile manifests)
+  (with-output-to-raw-latin-1-file outfile
     (lambda ()
       (write-fasl-token (current-output-port))
       (for-each (lambda (manifest)
@@ -458,13 +460,14 @@
 
 (define (create-application app src-manifests fasl?)
   (parameterize ((compat:read-case-sensitive? #t))
-    (let* ((app-exe (string-append app ".exe"))
+    (let* ((app-base (rewrite-file-type app '(".fasl" ".slfasl") ""))    ;FIXME
+           (app-exe (string-append app-base ".exe"))
            (assembly-il 
             (create-assembly app-exe src-manifests))
            (ordered-il-files
             (map (lambda (f) (rewrite-file-type f ".manifest" ".code-il"))
                  src-manifests)))
-      (if fasl? (dump-fasl app app-exe src-manifests))
+      (if fasl? (dump-fasl app-base app src-manifests))
       (ilasm app-exe (cons assembly-il ordered-il-files))
       app-exe)))
 
