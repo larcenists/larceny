@@ -72,7 +72,18 @@
 		 (vector-ref doc x)
 		 #f)))
 	  ((not proc) proc)
-	  (else (error "doc-accessor: " proc " is not a procedure or #f.")))))
+	  (else
+           (assertion-violation 'doc-accessor (errmsg 'msg:notproc) proc)))))
+
+(define (doc-mutator x)
+  (lambda (proc newval)
+    (cond ((procedure? proc)
+	   (let ((doc (procedure-documentation proc)))
+	     (if (and (vector? doc) (< x (vector-length doc)))
+		 (vector-set! doc x newval)
+		 #f)))
+	  (else
+           (assertion-violation 'doc-mutator (errmsg 'msg:notproc) proc)))))
 
 (define procedure-arity (doc-accessor doc.arity))
 (define procedure-name (doc-accessor doc.procedure-name))
@@ -80,6 +91,8 @@
 (define procedure-source-position-larceny (doc-accessor doc.file-position))
 (define procedure-expression (doc-accessor doc.source-code))
 (define procedure-formals (doc-accessor doc.formals))
+
+(define procedure-name-set! (doc-mutator doc.procedure-name))
 
 (define (procedure-source-file proc)
   (let ((sf (procedure-source-file-larceny proc)))

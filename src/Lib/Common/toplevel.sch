@@ -880,6 +880,7 @@
   (environment-set! larc 'procedure-expression procedure-expression)
   (environment-set! larc 'procedure-formals procedure-formals)
   (environment-set! larc 'procedure-environment procedure-environment)
+  (environment-set! larc 'procedure-name-set! procedure-name-set!)      ; FIXME
 
   (environment-set! larc 'call/cc call/cc)
 

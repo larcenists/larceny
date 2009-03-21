@@ -251,6 +251,20 @@
         (caddr e)
         #f)))
 
+;;; Give names to all procedures in the interaction environment.
+
+(let* ((env (interaction-environment))
+       (vars (environment-variables env))
+       (cells (map (lambda (var) (environment-get-cell env var))
+                   vars)))
+  (for-each (lambda (var cell)
+              (let ((val (.cell-ref cell)))
+                (if (and (procedure? val)
+                         (not (procedure-name val)))
+                    (procedure-name-set! val var))))
+            vars
+            cells))
+
 ;;; Set parameters to their defaults.
 
 (compat:load (param-filename 'auxiliary "defaults.sch"))
