@@ -290,6 +290,9 @@
       (tramp    unsigned32 ,trampoline->pointer     ,#f)
       (string   pointer    ,string->asciiz          ,asciiz->string))))
 
+(define (ffi-attribute-core? t)
+  (not (not (assq t *ffi-attributes*))))
+
 (define (ffi-attribute-core-entry t)
   (let ((probe (assq t *ffi-attributes*)))
     (if probe
