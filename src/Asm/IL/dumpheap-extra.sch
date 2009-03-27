@@ -613,12 +613,15 @@
    (map wash-char
         (string->list filename))))
 
-;; FIXME: We need reliable translation from file names to identifiers here.
-
 (define (wash-char c)
-  (if (memv c '(#\\ #\/ #\- #\. #\space #\:))
-      #\_
-      (char-downcase c)))
+  (cond ((char>? c #\delete)
+         #\_)
+        ((char-alphabetic? c)
+         (char-downcase c))
+        ((char-numeric? c)
+         c)
+        (else
+         #\_)))
 
 (define (filename->id-cookie filename)
   (string-append "_" (wash-filename filename) "_"))

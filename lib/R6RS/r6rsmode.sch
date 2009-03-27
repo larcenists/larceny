@@ -56,7 +56,8 @@
                           (primitives .petit-shared-object
                                       .petit-patch-procedure)))
                 ((string=? arch-name "CLR")
-                 (unspecified))
+                 '(import (rnrs base)
+                          (primitives @common-patch-procedure)))
                 (else
                  (unspecified)))))
     (lambda () fasl-value)))
