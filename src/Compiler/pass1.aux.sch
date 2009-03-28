@@ -307,7 +307,7 @@
            ((lambda) (make-lambda
                            (cadr exp)
                            '(begin)
-                           (list '() '() '() '())
+                           '() '() '() '() #f
                            (make-unreadable (cons 'begin (cddr exp)))))
            ((set!) (make-assignment (cadr exp) (make-unreadable (caddr exp))))
            ((if) (make-conditional

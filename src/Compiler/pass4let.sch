@@ -210,11 +210,8 @@
                    (cg-move output frame regs 'result target)))
         (if (negative? (entry.arity entry))
             (cg-special-result output exp target regs frame env tail?)
-            (begin
-             (twobit-error "wrong number of arguments to integrable procedure"
-                           (make-readable exp))
-             ; calls with incorrect arity just return the first argument
-             'result)))))
+            ; cg-integrable-call knows how to deal with this
+            (cg-integrable-call output exp target regs frame env tail?)))))
 
 (define (cg-primop2-result! output entry args regs frame env)
   (let ((op (entry.op entry))

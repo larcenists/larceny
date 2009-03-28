@@ -388,7 +388,8 @@
   (make-call (make-variable name:CHECK!)
              (list (make-constant #f)
                    (make-constant $ex.assert)
-                   (make-constant (vector-ref pass2-error-messages msgcode)))))
+                   (make-constant (vector-ref pass2-error-messages msgcode))
+                   (make-constant -1))))
 
 (define (pass2-error i . etc)
   (let ((msg (vector-ref pass2-error-messages i)))
@@ -427,7 +428,9 @@
 
 (define (R-lookup R I)
   (or (assq I R)
-      (pass2-error p2error:violation-of-invariant R I)))
+      (if (eq? I name:IGNORED)
+          (make-R-entry I '() '() '())
+          (pass2-error p2error:violation-of-invariant R I))))
 
 (define (references R I)
   (cadr (R-lookup R I)))

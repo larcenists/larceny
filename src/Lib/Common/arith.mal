@@ -62,7 +62,7 @@
              (,$global generic+)        ; call the
              (,$invoke 1))              ;   expensive operation
             0
-            #(+ #f 0.0))
+            #(+ #f 0.0 arith.mal #f #f))
   (,$setglbl +)
   (,$const +)
   (,$return))
@@ -105,7 +105,7 @@
              (,$global generic-)        ; call the
              (,$invoke 1))              ;   expensive operation
             0
-            #(- #f 0.0))
+            #(- #f 0.0 arith.mal #f #f))
   (,$setglbl -)
   (,$const -)
   (,$return))
@@ -147,7 +147,7 @@
              (,$pop 1)
              (,$return))
             0
-            #(> #f 0.0))
+            #(> #f 0.0 arith.mal #f #f))
   (,$setglbl >)
   (,$const >)
   (,$return))

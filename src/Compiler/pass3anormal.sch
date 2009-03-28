@@ -215,7 +215,7 @@
                                           '()
                                           '()
                                           (list A-normal-form-declaration)
-                                          '()
+                                          #f
                                           body)
                              (list E1))))))
     (loop (cdr bindings)

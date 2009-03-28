@@ -190,7 +190,7 @@
                     result))))
     
     (add-vertex! #t
-                 (make-lambda '() '() '() '() '() '() '() exp)
+                 (make-lambda '() '() '() '() '() '() #f exp)
                  '()
                  '())
     result))

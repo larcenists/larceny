@@ -226,7 +226,9 @@
             (begin
              (twobit-error "Wrong number of arguments to integrable procedure"
                            (make-readable exp))
-             'result)))))
+             (cg-special output
+                         (make-call-to-TRAP p2error:wna)
+                         target regs frame env tail?))))))
 
 (define (cg-integrable-call2 output entry args regs frame env)
   (let ((op (entry.op entry)))
