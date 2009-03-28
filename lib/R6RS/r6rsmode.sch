@@ -46,8 +46,6 @@
 (define (aeryn-evaluator exp . rest)
   (ex:repl (list exp)))
 
-; FIXME:  This probably isn't right for Common Larceny.
-
 (define aeryn-fasl-evaluator
   (let* ((arch-name (cdr (assq 'arch-name (system-features))))
          (fasl-value
@@ -168,6 +166,24 @@
          (unspecified))
         (else
          (ex:run-r6rs-program filename))))
+
+(define (load-r6rs-library-or-program filename)
+  (larceny:load-r6rs-package)
+  (cond ((call-with-port
+          (open-raw-latin-1-input-file filename)
+          (lambda (p)
+            (let ((first-line (get-line p)))
+              (cond ((and (string? first-line)
+                          (string=? first-line "#!fasl"))
+                     (aeryn-evaluator (aeryn-fasl-evaluator)
+                                      interaction-environment)
+                     (load-from-port p interaction-environment)
+                     #t)
+                    (else
+                     #f)))))
+         (unspecified))
+        (else
+         (ex:load filename))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

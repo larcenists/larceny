@@ -4,5 +4,6 @@
 ;; which are then dynamically loaded.  
 
 (library (rnrs load)
-  (export (rename (ex:load load)))
-  (import (primitives ex:load)))
+  (export (rename (load-r6rs-library-or-program load)))
+  (import (primitives load-r6rs-library-or-program)))
+

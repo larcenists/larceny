@@ -186,9 +186,10 @@
                            (if (memq (transcoder-codec (port-transcoder p))
                                      '(utf-8 utf-16))
                                (let ((cat (char-general-category c)))
-                                 (or (memq cat
-                                           '(Lu Ll Lt Lm Lo Mn Nl No
-                                             Pd Pc Po Sc Sm Sk So Co))
+                                 (or (and (< 127 (char->integer c))
+                                          (memq cat
+                                                '(Lu Ll Lt Lm Lo Mn Nl No
+                                                  Pd Pc Po Sc Sm Sk So Co)))
                                      (and (< 0 i)
                                           (memq cat '(Nd Mc Me)))))
                                #f))))
