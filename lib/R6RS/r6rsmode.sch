@@ -182,21 +182,17 @@
 ; each call to require, and then recursive calls to
 ; larceny:autoload-r6rs-library would be executed with
 ; the wrong (current-require-path).
-;
-; FIXME:  Do we need to detect circular dependencies?
 
 (define larceny:autoloaded-r6rs-library-files '())
 
 (define (larceny:register! fname)
-  (if (absolute-path-string? fname)
-      (begin (set! larceny:autoloaded-r6rs-library-files
-                   (cons fname larceny:autoloaded-r6rs-library-files))
-             ;(display "    from ")
-             ;(display fname)
-             ;(newline)
-             #t)
-      (larceny:register!
-       (larceny:absolute-path fname))))
+  (set! larceny:autoloaded-r6rs-library-files
+        (cons (larceny:absolute-path fname)
+              larceny:autoloaded-r6rs-library-files)))
+
+(define (larceny:registered? fname)
+  (member (larceny:absolute-path fname)
+          larceny:autoloaded-r6rs-library-files))
 
 ; Called by ex:lookup-library in lib/R6RS/r6rs-runtime.sch
 ; Returns false if the library has previously been loaded,
@@ -206,7 +202,7 @@
 (define (larceny:autoload-r6rs-library libname)
 
   (define (load-r6rs-library fname)
-    (cond ((member fname larceny:autoloaded-r6rs-library-files)
+    (cond ((larceny:registered? fname)
            #f)
           ((compile-libraries-older-than-this-file)
            =>
@@ -224,7 +220,7 @@
                                    (and
                                     (in-same-directory? reference-file fname)
                                     (file-newer? reference-file fname))))
-                          (begin
+                          (begin (larceny:register! src)
                                  (compile-r6rs-file src fname #t)
                                  (larceny:register! fname)
                                  (load fname)
@@ -408,7 +404,8 @@
                                                      slfasl)
                                                     (else #f))))))
                                   (if slfasl
-                                      (begin (compile-r6rs-file file slfasl #t)
+                                      (begin (larceny:register! file)
+                                             (compile-r6rs-file file slfasl #t)
                                              (larceny:register! slfasl)
                                              (load slfasl)))))
                               files)))))
@@ -612,13 +609,13 @@
 ; Converts file names to absolute paths.
 ;
 ; FIXME: doesn't convert foo/bar/.. to foo.
+;
+; FIXME: must call larceny:directory-of to work around OS renaming
 
 (define (larceny:absolute-path fname)
-  (if (absolute-path-string? fname)
-      fname
-      (string-append (larceny:directory-of fname)
-                     (larceny:separator)
-                     (larceny:file-name-only fname))))
+  (string-append (larceny:directory-of fname)
+                 (larceny:separator)
+                 (larceny:file-name-only fname)))
 
 ; FIXME: assumes (larceny:separator) is one character long.
 
@@ -707,6 +704,9 @@
 ; replaces backward slashes by forward slashes
 ; and ignores all but the first of a sequence of consecutive slashes.
 ; FIXME: doesn't handle . or ..
+;
+; FIXME: the parameterize form is a workaround for OS conversions
+; from /tmp to /private/tmp and the like.
 
 (define (larceny:directory-of fname)
   (case (larceny:os)
@@ -714,7 +714,8 @@
     (if (absolute-path-string? fname)
         (do ((i (- (string-length fname) 1) (- i 1)))
             ((char=? (string-ref fname i) #\/)
-             (substring fname 0 i)))
+             (parameterize ((current-directory (substring fname 0 i))) ; FIXME
+               (current-directory))))
         (larceny:directory-of (string-append (current-directory) "/" fname))))
    ((windows)
     (if (absolute-path-string? fname)
