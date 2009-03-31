@@ -348,7 +348,7 @@
 
          (let ((c-values     (read-output))
                (scheme-names (map car c-forms)))
-           ;(delete-temps)
+           (delete-temps)
 
            ;; arguably I should invoke the rename procedure on 'begin
            ;; and define here.  But maybe we *want* this macro to
