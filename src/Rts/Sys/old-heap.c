@@ -56,13 +56,17 @@ struct old_data {
   bool        must_clear_remset;  /* Clear remset after collection */
 
   int         promoted_last_gc;	  /* For policy use */
+  region_group_t group;
+  old_heap_t *prev_in_group;
+  old_heap_t *next_in_group;
   gen_stats_t gen_stats;	  /* accumulates collections and time */
   gc_stats_t  gc_stats;		  /* accumulates words copied/moved */
   gc_event_stats_t event_stats;	  /* Instrumentation data */
 };
 
-
 #define DATA(x)  ((old_data_t*)((x)->data))
+
+old_heap_t *group_to_heap[region_group_limit_elem];
 
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type );
 
@@ -694,6 +698,81 @@ static void synchronize( old_heap_t *heap )
   check_budget( heap, "synchronize" );
 }
 
+static region_group_t get_group( old_heap_t *heap ) 
+{
+  return DATA(heap)->group;
+}
+static void unlink_group( old_heap_t *heap ) 
+{
+  old_heap_t *p, *n;
+#if 0
+  consolemsg( "unlink_group( heap=0x%08x [%d] )", 
+              heap, oh_current_space(heap)->gen_no );
+#endif
+  p = DATA(heap)->prev_in_group;
+  n = DATA(heap)->next_in_group;
+
+  if (p != NULL) {
+    assert( DATA(p)->next_in_group == heap );
+    DATA(p)->next_in_group = n;
+  }
+  if (n != NULL) {
+    assert( DATA(n)->prev_in_group == heap );
+    DATA(n)->prev_in_group = p;
+  }
+
+  if (group_to_heap[DATA(heap)->group] == heap)
+    group_to_heap[DATA(heap)->group] = n;
+  DATA(heap)->prev_in_group = NULL;
+  DATA(heap)->next_in_group = NULL;
+}
+static void link_group( old_heap_t *heap, region_group_t group )
+{
+  old_heap_t *prev, *next;
+#if 0
+  consolemsg( "link_group( heap=0x%08x [%d], new_grp=%s )", 
+              heap, oh_current_space(heap)->gen_no, region_group_name(group) );
+#endif
+  next = group_to_heap[group];
+  prev = NULL;
+  assert( (next == NULL) || (DATA(next)->prev_in_group == prev) );
+  assert( (next == NULL) || (DATA(next)->group == group) );
+
+  DATA(heap)->prev_in_group = prev;
+  DATA(heap)->next_in_group = next;
+  if (next != NULL) {
+    DATA(next)->prev_in_group = heap;
+  }
+  group_to_heap[group] = heap;
+  DATA(heap)->group = group;
+}
+char *region_group_name( region_group_t grp )
+{
+  switch (grp) {
+  case region_group_nonrrof:  return "n";
+  case region_group_unfilled: return "u";
+  case region_group_waiting:  return "w";
+  case region_group_filled:   return "f";
+  case region_group_popular:  return "p";
+  default: assert(0); return NULL;
+  }
+}
+static void switch_group( old_heap_t *heap, region_group_t new_grp ) 
+{
+  old_heap_t *new_next, *new_prev;
+#if 0
+  consolemsg( "switch_group( heap=0x%08x [%d], new_grp=%s )", 
+              heap, oh_current_space(heap)->gen_no, region_group_name(new_grp) );
+#endif
+  unlink_group( heap );
+  link_group( heap, new_grp );
+}
+static old_heap_t *get_next_in_group( old_heap_t *heap ) 
+{
+  return DATA(heap)->next_in_group;
+}
+
+
 static void collect_into_self( old_heap_t *heap, gc_type_t request ) 
 {
   oh_collect_into( heap, request, heap );
@@ -748,6 +827,9 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
 			    enumerate, 
 			    is_address_mapped,
 			    synchronize, 
+			    get_group,
+			    switch_group,
+			    get_next_in_group,
 			    data );
   heap->collector = gc;
   static int total_gens = 0;
@@ -759,6 +841,10 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
   data->target_size = 0;
   data->must_clear_area = 0;
   data->must_clear_remset = 0;
+
+  data->group = region_group_nonrrof;
+  data->prev_in_group = NULL;
+  data->next_in_group = NULL;
 
   return heap;
 }

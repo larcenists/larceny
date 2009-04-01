@@ -38,10 +38,6 @@ const char *larceny_gc_technology = "precise";
 
 #include "memmgr_internal.h"
 
-/* Checking code */
-#define CHECK_HEAP_INVARIANTS 0
-
-
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
 static word *load_text_or_data( gc_t *gc, int size_bytes, int load_text );
 static int allocate_generational_system( gc_t *gc, gc_param_t *params );
@@ -452,7 +448,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 }
 
 /* The number represents how many cycles per expansion. (first guess is 1) */
-#define EXPAND_RGNS_FROM_LOAD_FACTOR 1
+#define EXPAND_RGNS_FROM_LOAD_FACTOR 0
 #define WEIGH_PREV_ESTIMATE_LOADCALC 0
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define NO_COPY_COLLECT_FOR_POP_RGNS 1
@@ -464,6 +460,25 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
 #define PRINT_SNAPSHOT_INFO_TO_CONSOLE 0
 #define USE_ORACLE_TO_CHECK_SUMMARY_SANITY 0
+
+#define REMSET_VERIFICATION_POINT( gc )         \
+  do {                                          \
+    if (USE_ORACLE_TO_VERIFY_REMSETS)           \
+      verify_remsets_via_oracle( gc );          \
+  } while (0)
+
+#define SUMMMTX_VERIFICATION_POINT( gc )        \
+  do {                                          \
+    if (USE_ORACLE_TO_VERIFY_SUMMARIES &&       \
+        (DATA(gc)->summaries != NULL))          \
+      verify_summaries_via_oracle( gc );        \
+  } while (0)
+
+#define SMIRCY_VERIFICATION_POINT( gc )                         \
+  do {                                                          \
+    if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc)->smircy != NULL)    \
+      smircy_assert_conservative_approximation( (gc)->smircy ); \
+  } while (0)
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
@@ -503,8 +518,6 @@ static bool scan_refine_remset( word loc, void *data, unsigned *stats )
  * made, to ensure that we keep up with the policy determined by the
  * refinement parameter.)
  */
-#define COPROMOTE_MARK_RATIO       0 // 100
-#define PROMOTE_MARK_RATIO         1
 
 static void refine_remsets_via_marksweep( gc_t *gc )
 {
@@ -596,13 +609,6 @@ static void refine_metadata_via_marksweep( gc_t *gc )
   smircy_context_t *context;
   int marked=0, traced=0, words_marked=0; 
   context = gc->smircy;
-#if 0
-  if (! smircy_stack_empty_p( context )) {
-    consolemsg("refine_metadata_via_marksweep(gc) last ditch progress");
-  } else {
-    consolemsg("refine_metadata_via_marksweep(gc) finish on schedule");
-  }
-#endif
   smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
 
 #if PRINT_SNAPSHOT_INFO_TO_CONSOLE
@@ -726,13 +732,6 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 
     maximum_allotted_pre = maximum_allotted;
 
-#if 0
-    if (live_predicted_at_next_gc > maximum_allotted) { /* XXX if => while? */
-      maximum_allotted = 
-        add_region_to_expand_heap( gc, maximum_allotted );
-    }
-#endif
-
     snapshot_live_allowed = 
       DATA(gc)->last_live_words*DATA(gc)->rrof_load_factor_soft*sizeof(word);
     while ( snapshot_live_allowed > maximum_allotted) {
@@ -849,8 +848,7 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   stats_id_t timer1, timer2;
   int word_countdown = -1, object_countdown = -1;
 
-  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
-    verify_summaries_via_oracle( gc );
+  SUMMMTX_VERIFICATION_POINT(gc);
 
   assert( DATA(gc)->summaries != NULL );
   if (sm_progress_would_no_op( DATA(gc)->summaries, 
@@ -869,8 +867,7 @@ static void summarization_step( gc_t *gc, bool about_to_major )
 
   stop_sumrize_timers( gc, &timer1, &timer2 );
 
-  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
-    verify_summaries_via_oracle( gc );
+  SUMMMTX_VERIFICATION_POINT(gc);
 }
 
 typedef enum { 
@@ -882,12 +879,8 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   stats_id_t timer1, timer2;
   int marked_recv = 0, traced_recv = 0, words_marked_recv = 0;
 
-  if (USE_ORACLE_TO_VERIFY_REMSETS) 
-    verify_remsets_via_oracle( gc );
-
-  if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
-    smircy_assert_conservative_approximation( gc->smircy );
-
+  REMSET_VERIFICATION_POINT(gc);
+  SMIRCY_VERIFICATION_POINT(gc);
 
 #if ! SYNC_REFINEMENT_RROF_CYCLE
   start_timers( &timer1, &timer2 );
@@ -901,28 +894,16 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   start_timers( &timer1, &timer2 );
 #endif
 
+  SMIRCY_VERIFICATION_POINT(gc);
 
-  if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
-    smircy_assert_conservative_approximation( gc->smircy );
   {
     int promoted = gc->words_from_nursery_last_gc;
-    int unpromoted = gc->young_area->maximum - promoted;
-    int p_allows_marking = 
-      (PROMOTE_MARK_RATIO 
-       ? ((double)promoted / 
-          (DATA(gc)->rrof_refinement_factor * PROMOTE_MARK_RATIO)) 
-       : 0);
-    int u_allows_marking = 
-      (COPROMOTE_MARK_RATIO 
-       ? ((double)unpromoted / 
-          (DATA(gc)->rrof_refinement_factor * COPROMOTE_MARK_RATIO)) 
-       : 0);
-    int bound = p_allows_marking + u_allows_marking;
+    int bound = ((double)promoted / (DATA(gc)->rrof_refinement_factor));
     smircy_progress( gc->smircy, bound, bound, -1, 
                      &marked_recv, &traced_recv, &words_marked_recv );
   }
-  if (USE_ORACLE_TO_VERIFY_SMIRCY)
-    smircy_assert_conservative_approximation( gc->smircy );
+
+  SMIRCY_VERIFICATION_POINT(gc);
 
   if (smircy_stack_empty_p( gc->smircy )) {
     int words_marked;
@@ -948,8 +929,7 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 
   stop_refinem_timers( gc, &timer1, &timer2 );
 
-  if (USE_ORACLE_TO_VERIFY_REMSETS) 
-    verify_remsets_via_oracle( gc );
+  REMSET_VERIFICATION_POINT(gc);
 }
 
 static void initialize_summaries( gc_t *gc, bool about_to_major ) 
@@ -976,56 +956,10 @@ static void collect_rgnl_choose_next_region( gc_t *gc, int num_rgns,
                                              bool about_to_major ) 
 {
   int n;
-  /* choose next region for major collection so that we can summarize its remsets */
-  /* TODO: add loop to skip to next if n is popular. */
   n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
   DATA(gc)->rrof_next_region = n;
-  if (n == rrof_first_region) {
-    assert2( DATA(gc)->region_count == num_rgns );
+  if (n == rrof_first_region)
     DATA(gc)->rrof_last_gc_rolled_cycle = TRUE;
-    num_rgns = DATA(gc)->region_count;
-  }
-}
-
-static void collect_rgnl_maybe_swap_in_reserve( gc_t *gc, int rgn_to )
-{
-  /* Special case: if the emergency region has grown so large
-   * that this region (immediately post major collection) is
-   * smaller, then we swap them.
-   */
-  { 
-    int curr_gno = rgn_to;
-    int emergency_gno = DATA(gc)->ephemeral_area_count;
-    int curr_sz, emergency_sz;
-    oh_synchronize( DATA(gc)->ephemeral_area[ curr_gno-1 ] );
-    oh_synchronize( DATA(gc)->ephemeral_area[ emergency_gno-1 ] );
-    curr_sz = 
-      gc_allocated_to_areas( gc, gset_singleton( curr_gno ));
-    emergency_sz = 
-      gc_allocated_to_areas( gc, gset_singleton( emergency_gno ));
-    if (curr_sz < emergency_sz) {
-      old_heap_t *curr = 
-        DATA(gc)->ephemeral_area[ curr_gno-1 ];
-      old_heap_t *emergency = 
-        DATA(gc)->ephemeral_area[ emergency_gno-1 ];
-      remset_t *curr_rs = gc->remset[ curr_gno ];
-      remset_t *curr_mrs = gc->major_remset[ curr_gno ];
-      remset_t *emergency_rs = gc->remset[ emergency_gno ];
-      remset_t *emergency_mrs = gc->major_remset[ emergency_gno ];
-      annoyingmsg("SWAP %d <=> %d", curr_gno, emergency_gno );
-      oh_set_gen_no( curr, emergency_gno );
-      oh_set_gen_no( emergency, curr_gno );
-      DATA(gc)->ephemeral_area[ curr_gno-1 ] = emergency;
-      DATA(gc)->ephemeral_area[ emergency_gno-1 ] = curr;
-      gc->remset[ curr_gno ] = emergency_rs;
-      gc->major_remset[ curr_gno ] = emergency_mrs;
-      gc->remset[ emergency_gno ] = curr_rs;
-      gc->major_remset[ emergency_gno ] = curr_mrs;
-      los_swap_gnos( gc->los, curr_gno, emergency_gno );
-      if (gc->smircy != NULL)
-        smircy_swap_gnos( gc->smircy, curr_gno, emergency_gno );
-    }
-  }
 }
 
 struct msgc_visit_check_summary_data {
@@ -1147,7 +1081,6 @@ static void assert_summary_sanity( gc_t *gc, int rgn_next )
 static bool collect_rgnl_majorgc( gc_t *gc, 
                                   int rgn_to, int rgn_next, int num_rgns ) 
 {
-  /* TODO: assert summarization complete (once it is incrementalized) */
   int n;
   bool summarization_active, summarization_active_rgn_next;
 
@@ -1170,9 +1103,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     return FALSE;
   }
 
-  if (USE_ORACLE_TO_VERIFY_REMSETS) {
-    verify_remsets_via_oracle( gc );
-  }
+  REMSET_VERIFICATION_POINT(gc);
 
   summarization_active = (DATA(gc)->summaries != NULL);
 
@@ -1184,22 +1115,11 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
   }
 
-  if (USE_ORACLE_TO_VERIFY_REMSETS) {
-    verify_remsets_via_oracle( gc );
-  }
+  REMSET_VERIFICATION_POINT(gc);
 
   summarization_active_rgn_next = 
     (summarization_active &&
      sm_is_rgn_summarized( DATA(gc)->summaries, rgn_next ));
-
-  if (0) consolemsg("collect_rgnl_majorgc( gc, rgn_to=%d, rgn_next=%d, num_rgns=%d ) "
-             "summarization %s",
-             rgn_to, rgn_next, num_rgns,
-             ( (! summarization_active)
-               ? "inactive"
-               : (( summarization_active_rgn_next )
-                  ? "*USABLE*"
-                  : "unusable")));
 
   assert(! DATA(gc)->use_summary_instead_of_remsets );
 
@@ -1207,12 +1127,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
        ! NO_COPY_COLLECT_FOR_POP_RGNS ||
        sm_majorgc_permitted( DATA(gc)->summaries, rgn_next )) {
 
-    if (USE_ORACLE_TO_VERIFY_REMSETS) {
-      verify_remsets_via_oracle( gc );
-    }
-
-    if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
-      smircy_assert_conservative_approximation( gc->smircy );
+    REMSET_VERIFICATION_POINT(gc);
+    SMIRCY_VERIFICATION_POINT(gc);
 
 #if ! SMIRCY_RGN_STACK_IN_ROOTS
     assert2( rgn_next == DATA(gc)->rrof_next_region );
@@ -1235,11 +1151,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
     assert(! DATA(gc)->use_summary_instead_of_remsets );
 
-    if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) ) {
-      smircy_assert_conservative_approximation( gc->smircy );
-    }
-    if (USE_ORACLE_TO_VERIFY_SUMMARIES && DATA(gc)->summaries != NULL)
-      verify_summaries_via_oracle( gc );
+    SMIRCY_VERIFICATION_POINT(gc);
+    SUMMMTX_VERIFICATION_POINT(gc);
+
     if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL)) {
       gc->smircy_completion = smircy_clone_begin( gc->smircy, FALSE );
       msgc_mark_objects_from_nil( gc->smircy_completion );
@@ -1271,8 +1185,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       gc->smircy_completion = NULL;
     }
 
-    if (USE_ORACLE_TO_VERIFY_REMSETS) 
-      verify_remsets_via_oracle( gc );
+    REMSET_VERIFICATION_POINT(gc);
 
     if (summarization_active_rgn_next) {
       summary_dispose( &DATA(gc)->summary );
@@ -1309,12 +1222,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     }
 
-
-#if 0
-    collect_rgnl_maybe_swap_in_reserve( gc, rgn_to );
-#endif
-
     oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
+    oh_switch_group( DATA(gc)->ephemeral_area[ rgn_next-1 ], 
+                     region_group_unfilled );
     rrof_completed_major_collection( gc );
 
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
@@ -1322,8 +1232,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     collect_rgnl_choose_next_region( gc, num_rgns, FALSE );
 
-    if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
-      verify_summaries_via_oracle( gc );
+    SUMMMTX_VERIFICATION_POINT(gc);
 
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
     smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || 
@@ -1333,13 +1242,14 @@ static bool collect_rgnl_majorgc( gc_t *gc,
                       : smircy_step_must_refine ));
     gc_phase_shift( gc, gc_log_phase_smircy, gc_log_phase_misc_memmgr );
 
-    if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
-      verify_summaries_via_oracle( gc );
+    SUMMMTX_VERIFICATION_POINT(gc);
 
     
   } else {
     annoyingmsg( "remset summary says region %d too popular to collect", 
                  rgn_next );
+    oh_switch_group( DATA(gc)->ephemeral_area[ rgn_next-1 ],
+                     region_group_popular );
 #if POP_RGNS_LIVE_FOREVER
     DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects = TRUE;
 #endif
@@ -1368,8 +1278,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
   }
 
-  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
-    verify_summaries_via_oracle( gc );
+  SUMMMTX_VERIFICATION_POINT(gc);
 
   /* if there's room, minor collect the nursery into current region. */
   
@@ -1419,8 +1328,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
 
   rrof_completed_minor_collection( gc );
 
-  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL)) 
-    verify_summaries_via_oracle( gc );
+  SUMMMTX_VERIFICATION_POINT(gc);
 }
 
 static int successor_of_to( gc_t *gc ) 
@@ -1634,25 +1542,6 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
   if (rgn_succ_to == rgn_to)
     succ_can_do_minor = FALSE;
 
-
-#if 1
-  if (0) { /* hack to force major collections while I get true incrsumz going. */
-    bool didit;
-    if (rgn_to == rgn_next) {
-      rgn_to = successor_of_to( gc );
-    }
-    if (rgn_to == rgn_next) {
-      add_region_to_expand_heap( gc, 0 );
-      rgn_to = successor_of_to( gc );
-    }
-    assert( rgn_to != rgn_next );
-    DATA(gc)->rrof_to_region = rgn_to;
-    didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
-    if (!didit)
-      goto collect_evacuate_nursery;
-  } else 
-#endif
-#if 1
   if (will_says_should_major) {
     bool didit;
     rgn_to = find_appropriate_to( gc );
@@ -1666,21 +1555,6 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
     DATA(gc)->rrof_to_region = rgn_to;
     collect_rgnl_minorgc( gc, rgn_to );
   }
-#else 
-  if (can_do_minor && (succ_can_do_minor || ! can_do_major)) {
-    collect_rgnl_minorgc( gc, rgn_to );
-  } else if (can_do_major && ! succ_can_do_minor) {
-    bool didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
-    if (!didit)
-      goto collect_evacuate_nursery;
-  } else {
-    collect_rgnl_shift_the_to( gc );
-    /* TODO: double check that minor gc's haven't filled up to-spaces
-     * so fast that major GC hasn't had a chance to go (which should
-     * only happen when a summary is abandoned. */
-    goto collect_evacuate_nursery;
-  }
-#endif
 }
 
 static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
@@ -1826,19 +1700,6 @@ static void before_collection( gc_t *gc )
   if (gc->satb_ssb != NULL) 
     process_seqbuf( gc, gc->satb_ssb );
 
-  /* For debugging of prototype;
-   * double check heap consistency via mark/sweep routines.
-   * (before collection means that mutator introduced inconsistency) */
-#if CHECK_HEAP_INVARIANTS
-  {
-    int marked, traced, words_marked;
-    msgc_context_t *msgc_ctxt = msgc_begin( gc );
-    supremely_annoyingmsg("before GC, heap consistency check");
-    msvfy_mark_objects_from_roots( msgc_ctxt );
-    msgc_end( msgc_ctxt );
-  }
-#endif
-
   DATA(gc)->rrof_currently_minor_gc = FALSE;
 
   yh_before_collection( gc->young_area );
@@ -1849,15 +1710,12 @@ static void before_collection( gc_t *gc )
   if (DATA(gc)->dynamic_area)
     oh_before_collection( DATA(gc)->dynamic_area );
 
-  if (USE_ORACLE_TO_VERIFY_REMSETS)
-    verify_remsets_via_oracle( gc );
+  REMSET_VERIFICATION_POINT(gc);
 
   assert(! DATA(gc)->use_summary_instead_of_remsets );
-  if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
-    verify_summaries_via_oracle( gc );
 
-  if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
-    smircy_assert_conservative_approximation( gc->smircy );
+  SUMMMTX_VERIFICATION_POINT(gc);
+  SMIRCY_VERIFICATION_POINT(gc);
 
   if (DATA(gc)->summaries != NULL)
     sm_before_collection( DATA(gc)->summaries );
@@ -1872,33 +1730,17 @@ static void after_collection( gc_t *gc )
   if (DATA(gc)->summaries != NULL)
     sm_after_collection( DATA(gc)->summaries );
 
-  if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL) )
-    smircy_assert_conservative_approximation( gc->smircy );
+  SMIRCY_VERIFICATION_POINT(gc);
+  REMSET_VERIFICATION_POINT(gc);
 
- if (USE_ORACLE_TO_VERIFY_REMSETS)
-   verify_remsets_via_oracle( gc );
-
- assert(! DATA(gc)->use_summary_instead_of_remsets );
- if (USE_ORACLE_TO_VERIFY_SUMMARIES && (DATA(gc)->summaries != NULL))
-   verify_summaries_via_oracle( gc );
+  assert(! DATA(gc)->use_summary_instead_of_remsets );
+  SUMMMTX_VERIFICATION_POINT(gc);
 
   yh_after_collection( gc->young_area );
   for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
     oh_after_collection( DATA(gc)->ephemeral_area[ e ] );
   if (DATA(gc)->dynamic_area)
     oh_after_collection( DATA(gc)->dynamic_area );
-
-#if CHECK_HEAP_INVARIANTS
-  /* For debugging of prototype;
-   * double check heap consistency via mark/sweep routines. */
- {
-    int marked, traced, words_marked;
-    msgc_context_t *msgc_ctxt = msgc_begin( gc );
-    supremely_annoyingmsg("after  GC, heap consistency check");
-    msvfy_mark_objects_from_roots( msgc_ctxt );
-    msgc_end( msgc_ctxt );
-  }
-#endif
 
 }
 
@@ -2375,6 +2217,7 @@ static old_heap_t* expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
   
   new_heap = 
     clone_sc_area( DATA(gc)->ephemeral_area[ old_area_count-1 ], fresh_gno );
+  oh_switch_group( new_heap, region_group_unfilled );
 
   for( i=0 ; i < old_area_count; i++) {
     new_ephemeral_area[ i ] = DATA(gc)->ephemeral_area[ i ];
@@ -2529,7 +2372,12 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   if (cur_allocated + expansion_amount <= max_allocated) {
     ss_expand( current_space, expansion_amount );
     return current_space;
-  } else if ( to_rgn_new != DATA(gc)->rrof_next_region ) {
+  }
+
+  oh_switch_group( DATA(gc)->ephemeral_area[ to_rgn_old-1 ],
+                   region_group_filled );
+
+  if ( to_rgn_new != DATA(gc)->rrof_next_region ) {
     do {
       int potential_allocated, allowed;
       potential_allocated = 
@@ -3004,6 +2852,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       data->ephemeral_area[ i ] = 
 	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
 			OHTYPE_REGIONAL );
+      oh_switch_group( data->ephemeral_area[ i ], region_group_unfilled );
       gen_no += 1;
     }
   }
