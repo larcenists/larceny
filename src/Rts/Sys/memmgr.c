@@ -609,7 +609,12 @@ static void refine_metadata_via_marksweep( gc_t *gc )
   smircy_context_t *context;
   int marked=0, traced=0, words_marked=0; 
   context = gc->smircy;
+#if 1
+  assert2( smircy_stack_empty_p( context ));
+#else
   smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
+  assert( (marked == 0) && (traced == 0) && (words_marked == 0) );
+#endif
 
 #if PRINT_SNAPSHOT_INFO_TO_CONSOLE
   consolemsg( "% 31s"
@@ -1223,8 +1228,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
 
     oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
-    oh_switch_group( DATA(gc)->ephemeral_area[ rgn_next-1 ], 
-                     region_group_unfilled );
+    region_group_switch( DATA(gc)->ephemeral_area[ rgn_next-1 ], 
+                         region_group_unfilled );
     rrof_completed_major_collection( gc );
 
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
@@ -1248,8 +1253,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
   } else {
     annoyingmsg( "remset summary says region %d too popular to collect", 
                  rgn_next );
-    oh_switch_group( DATA(gc)->ephemeral_area[ rgn_next-1 ],
-                     region_group_popular );
+    region_group_switch( DATA(gc)->ephemeral_area[ rgn_next-1 ],
+                         region_group_popular );
 #if POP_RGNS_LIVE_FOREVER
     DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects = TRUE;
 #endif
@@ -2217,7 +2222,7 @@ static old_heap_t* expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
   
   new_heap = 
     clone_sc_area( DATA(gc)->ephemeral_area[ old_area_count-1 ], fresh_gno );
-  oh_switch_group( new_heap, region_group_unfilled );
+  region_group_switch( new_heap, region_group_unfilled );
 
   for( i=0 ; i < old_area_count; i++) {
     new_ephemeral_area[ i ] = DATA(gc)->ephemeral_area[ i ];
@@ -2374,8 +2379,8 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     return current_space;
   }
 
-  oh_switch_group( DATA(gc)->ephemeral_area[ to_rgn_old-1 ],
-                   region_group_filled );
+  region_group_switch( DATA(gc)->ephemeral_area[ to_rgn_old-1 ],
+                       region_group_filled );
 
   if ( to_rgn_new != DATA(gc)->rrof_next_region ) {
     do {
@@ -2852,7 +2857,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       data->ephemeral_area[ i ] = 
 	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
 			OHTYPE_REGIONAL );
-      oh_switch_group( data->ephemeral_area[ i ], region_group_unfilled );
+      region_group_switch( data->ephemeral_area[ i ], region_group_unfilled );
       gen_no += 1;
     }
   }

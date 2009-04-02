@@ -377,7 +377,8 @@ PRECISE_GC_OBJECTS=\\
 	Sys/memmgr.$(O) Sys/memmgr_vfy.$(O) Sys/memmgr_flt.$(O) \\
 	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) \\
 	Sys/old_heap_t.$(O) Sys/old-heap.$(O) \\
-	Sys/seqbuf.$(O) Sys/remset.$(O) Sys/remset-np.$(O) \\
+	Sys/region_group.$(O) Sys/remset.$(O) Sys/remset-np.$(O) \\
+	Sys/seqbuf.$(O) \\
 	Sys/sc-heap.$(O) Sys/semispace.$(O) Sys/static-heap.$(O) \\
 	Sys/stats.$(O) Sys/summary.$(O) Sys/summ_matrix.$(O) \\
 	Sys/smircy.$(O) Sys/smircy_checking.$(O) \\

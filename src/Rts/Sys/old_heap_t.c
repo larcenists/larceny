@@ -36,9 +36,6 @@ old_heap_t *create_old_heap_t(
 		      void *accum_init ),
   bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy ),
   void (*synchronize)( old_heap_t *heap ),
-  region_group_t (*get_group)( old_heap_t *heap ),
-  void (*switch_group)( old_heap_t *heap, region_group_t new_grp ),
-  old_heap_t *(*get_next_in_group)( old_heap_t *heap ),
   void *data
 )
 {
@@ -74,9 +71,6 @@ old_heap_t *create_old_heap_t(
   heap->words_from_nursery_last_major_gc = 0;
   heap->reallocate_whole_semispace = FALSE;
   heap->synchronize = synchronize;
-  heap->get_group = get_group;
-  heap->switch_group = switch_group;
-  heap->get_next_in_group = get_next_in_group;
   return heap;
 }
 

@@ -10,6 +10,7 @@
 #include "larceny.h"
 #include "gc.h"
 #include "gc_t.h"
+#include "region_group_t.h"
 #include "old_heap_t.h"
 #include "remset_t.h"
 #include "gclib.h"
@@ -170,11 +171,12 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                   data.words.total, 
                   heap->allocated/4, 
 
-                  ( (oh_get_group(heap) == region_group_nonrrof)  ? "n" :
-                    (oh_get_group(heap) == region_group_unfilled) ? "u" :
-                    (oh_get_group(heap) == region_group_waiting)  ? "w" :
-                    (oh_get_group(heap) == region_group_filled)   ? "f" :
-                    (oh_get_group(heap) == region_group_popular)  ? "p" : NULL ),
+                  ( (region_group_of(heap) == region_group_nonrrof)  ? "n" :
+                    (region_group_of(heap) == region_group_unfilled) ? "u" :
+                    (region_group_of(heap) == region_group_waiting)  ? "w" :
+                    (region_group_of(heap) == region_group_filled)   ? "f" :
+                    (region_group_of(heap) == region_group_popular)  ? "p" : 
+                    NULL ),
 
                   (( rgn == DATA(gc)->rrof_to_region &&
                      rgn == DATA(gc)->rrof_next_region ) ? "*" :

@@ -15,22 +15,6 @@
 
 #include "larceny-types.h"
 
-typedef enum {
-  region_group_nonrrof,  /* heap not handled by RROF GC */
-  region_group_unfilled, /* to-space candidates */
-  region_group_waiting,  /* uncollected from-space candidates */
-  region_group_filled,   /* processed to-spaces */
-  region_group_popular,  /* skipped from-spaces */
-  region_group_limit_elem
-} region_group_t;
-
-extern char* region_group_name( region_group_t group );
-extern old_heap_t *group_to_heap[region_group_limit_elem];
-  /* Table mapping each element of region_group_t to NULL or a heap in
-   * the group; use get_next_in_group method to find the others.  Note
-   * that nonrrof is always mapped to NULL and heaps set to the
-   * nonrrof group are not maintained in the table. */
-
 struct old_heap {
   gc_t *collector;
     /* The garbage collector that controls this heap.
@@ -63,6 +47,10 @@ struct old_heap {
   bool was_target_during_gc;
 
   bool reallocate_whole_semispace;
+
+  region_group_t group;
+  old_heap_t *prev_in_group;
+  old_heap_t *next_in_group;
 
   void *data;
      /* Data private to the heap implementation.
@@ -193,9 +181,6 @@ old_heap_t *create_old_heap_t(
 		      void *accum_init ),
   bool (*is_address_mapped)( old_heap_t *heap, word *addr, bool noisy ),
   void (*synchronize)( old_heap_t *heap ), 
-  region_group_t (*get_group)( old_heap_t *heap ),
-  void (*switch_group)( old_heap_t *heap, region_group_t new_grp ),
-  old_heap_t *(*get_next_in_group)( old_heap_t *heap ),
   void *data
 );
 
@@ -215,9 +200,6 @@ void oh_switch_group( old_heap_t *heap, region_group_t group );
 #define oh_current_space( oh )     ((oh)->current_space( oh ))
 #define oh_is_address_mapped( oh,a,n)((oh)->is_address_mapped( (oh), (a), (n) ))
 #define oh_synchronize( oh )       ((oh)->synchronize( oh ))
-#define oh_get_group( oh )         ((oh)->get_group( oh ))
-#define oh_switch_group( oh, ng )  ((oh)->switch_group( oh, ng ))
-#define oh_get_next_in_group( oh ) ((oh)->get_next_in_group( oh ))
 
 #endif  /* INCLUDED_OLD_HEAP_T_H */
 
