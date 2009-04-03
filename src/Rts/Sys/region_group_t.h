@@ -20,7 +20,7 @@ void region_group_switch_all( region_group_t old_grp, region_group_t new_grp );
 
 extern
 old_heap_t *region_group_first_heap( region_group_t grp );
-/* Produces first heap in grp.
+/* Produces first heap in grp, or NULL if grp is empty.
  * See also region_group_next_heap below. */
 
 extern
