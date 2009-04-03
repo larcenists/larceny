@@ -20,12 +20,13 @@ void region_group_switch_all( region_group_t old_grp, region_group_t new_grp );
 
 extern
 old_heap_t *region_group_first_heap( region_group_t grp );
-/* Produces group for heap. */
+/* Produces first heap in grp.
+ * See also region_group_next_heap below. */
 
 extern
 old_heap_t *region_group_next_heap( old_heap_t *heap );
 /* Iterates through group; produces NULL when none are left.
- * See also group_to_heap above. */
+ * See also region_group_first_heap above. */
 
 #endif  /* INCLUDED_OLD_HEAP_T_H */
 
