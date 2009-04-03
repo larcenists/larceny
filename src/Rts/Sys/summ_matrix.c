@@ -41,6 +41,8 @@
 #include "msgc-core.h"
 #include "gc_t.h"
 #include "gset_t.h"
+#include "old_heap_t.h"
+#include "region_group_t.h"
 #include "seqbuf_t.h"
 #include "smircy.h"
 
@@ -750,11 +752,11 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   {
     int goal = (int)ceil(((double)initial_num_rgns) * g);
     int curr = (int)ceil(((double)initial_num_rgns) * c);
+    int gno;
     gset_t curr_genset = gset_range( first_gno, first_gno+curr );
 
     assert( gset_disjointp( DATA(sm)->summarized_genset,
                             curr_genset ));
-
     DATA(sm)->summarizing.goal = goal;
     DATA(sm)->summarizing.goal_genset = curr_genset;
     DATA(sm)->summarizing.curr_genset = curr_genset;
@@ -899,6 +901,7 @@ EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int rgn_count )
     if (! DATA(summ)->summarizing.complete) {
       return FALSE;
     } else if (gset_emptyp( DATA(summ)->summarized_genset )) {
+      assert( region_group_count( region_group_waiting ) == 0 );
       return FALSE;
     } else {
       return TRUE;
@@ -991,6 +994,7 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
   } else {
     /* next wave complete; shift if appropriate. */
     if ( gset_emptyp( DATA(summ)->summarized_genset )) {
+      assert( region_group_count( region_group_waiting ) == 0 );
       sm_ensure_available( summ, rgn_next, rgn_count, about_to_major );
     }
   }
@@ -1072,39 +1076,83 @@ EXPORT void sm_interrupt_construction( summ_matrix_t *summ )
 
 EXPORT bool sm_is_rgn_summary_avail( summ_matrix_t *summ, int gno ) 
 {
+  bool rtn;
+  region_group_t grp;
   check_rep_1( summ );
-  return gset_memberp( gno, DATA(summ)->summarized_genset ) &&
+  rtn = gset_memberp( gno, DATA(summ)->summarized_genset ) &&
     ( ! DATA(summ)->cols[gno]->overly_popular );
+  if (rtn) {
+    grp = region_group_of( gc_heap_for_gno( summ->collector, gno ));
+    assert( (grp == region_group_waiting)
+            || (grp == region_group_filled) );
+  }
+  return rtn;
 }
 EXPORT bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno ) 
 {
+  bool rtn;
+  region_group_t grp; 
   check_rep_1( summ );
-  return gset_memberp( gno, DATA(summ)->summarized_genset );
+  rtn = gset_memberp( gno, DATA(summ)->summarized_genset );
+  if (rtn) {
+    grp = region_group_of( gc_heap_for_gno( summ->collector, gno ) );
+    assert( (grp == region_group_waiting) || (grp == region_group_popular) 
+            || (grp == region_group_filled) /* XXX */ );
+  }
+  return rtn;
 }
 EXPORT bool sm_will_rgn_be_summarized_next( summ_matrix_t *summ, int gno )
 {
+  bool rtn;
   check_rep_1( summ );
-  return gset_memberp( gno, DATA(summ)->summarizing.goal_genset );
+  rtn = gset_memberp( gno, DATA(summ)->summarizing.goal_genset );
+  if (rtn) {
+    assert( (region_group_of( gc_heap_for_gno( summ->collector, gno ) ) 
+             == region_group_summzing) || 
+            (region_group_of( gc_heap_for_gno( summ->collector, gno ) ) 
+             == region_group_popular) );
+  }
+  return rtn;
 }
 EXPORT bool sm_is_rgn_summarized_next( summ_matrix_t *summ, int gno ) 
 {
+  bool rtn;
   check_rep_1( summ );
-  return DATA(summ)->summarizing.complete &&
+  rtn = DATA(summ)->summarizing.complete &&
     gset_memberp( gno, DATA(summ)->summarizing.goal_genset );
+  if (rtn) {
+    assert( (region_group_of( gc_heap_for_gno( summ->collector, gno ) )
+             == region_group_summzing) ||
+            (region_group_of( gc_heap_for_gno( summ->collector, gno ) )
+             == region_group_popular) );
+  }
+  return rtn;
 }
 EXPORT bool sm_is_rgn_summary_avail_next( summ_matrix_t *summ, int gno )
 {
   check_rep_1( summ );
-  return DATA(summ)->summarizing.complete &&
+  bool rtn;
+  rtn = DATA(summ)->summarizing.complete &&
     gset_memberp( gno, DATA(summ)->summarizing.goal_genset ) && 
     ( ! DATA(summ)->cols[gno]->overly_popular );
+  if (rtn) {
+    assert( (region_group_of( gc_heap_for_gno( summ->collector, gno ) )
+             == region_group_summzing) );
+  }
+  return rtn;
 }
 EXPORT bool sm_is_rgn_summary_over_pop( summ_matrix_t *summ, int gno )
 {
+  bool rtn;
   check_rep_1( summ );
   assert( gset_memberp( gno, DATA(summ)->summarized_genset ) || 
           gset_memberp( gno, DATA(summ)->summarizing.goal_genset ));
-  return DATA(summ)->cols[gno]->overly_popular;
+  rtn = DATA(summ)->cols[gno]->overly_popular;
+  if (rtn) {
+    assert( (region_group_of( gc_heap_for_gno( summ->collector, gno ) )
+             == region_group_popular) );
+  }
+  return rtn;
 }
 
 EXPORT bool sm_has_valid_summaries( summ_matrix_t *summ )
@@ -1748,6 +1796,14 @@ static void sm_build_summaries_setup( summ_matrix_t *summ, gset_t genset,
    */
   for( i=0 ; i < DATA(summ)->remset_summaries_count; i++ ) {
     if (gset_memberp( i, genset )) {
+      region_group_t grp;
+      grp = gc_heap_for_gno( summ->collector, i )->group;
+      assert( grp == region_group_filled || grp == region_group_popular 
+              || grp == region_group_unfilled /* XXX */ );
+      region_group_switch( gc_heap_for_gno( summ->collector, i ),
+                           grp, region_group_summzing );
+    }
+    if (gset_memberp( i, genset )) {
       gno_state_t gno_state;
       gno_state = gc_gno_state( summ->collector, i);
       switch ( gno_state ) {
@@ -1859,6 +1915,9 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
         assert( DATA(summ)->cols[i]->construction_complete );
 
         if (! DATA(summ)->cols[i]->overly_popular) {
+          region_group_switch( gc_heap_for_gno( summ->collector, i ),
+                               region_group_summzing, 
+                               region_group_waiting );
           /* if count passes goal, we have option of clearin g
            * cols[i].  While doing so might be regarded as a lost
            * opportunity, note that we may need to do a new scan
@@ -1874,6 +1933,9 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
           }
         } else {
           dbmsg(" region[%d] is too popular; dropped from summarizing.", i );
+          region_group_switch( gc_heap_for_gno( summ->collector, i ),
+                               region_group_summzing, 
+                               region_group_popular );
         }
       }
     }
@@ -1894,6 +1956,7 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
       DATA(summ)->summarizing.complete = TRUE;
       DATA(summ)->summarized_genset = 
         gset_union( DATA(summ)->summarized_genset, goal_genset );
+      region_group_switch_all( region_group_summzing, region_group_waiting );
       wait_to_setup_next_wave( summ );
     } else {
       /* count did not meet goal; therefore iterate. */
@@ -1911,6 +1974,17 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
       upto = min( region_count+1, start+coverage );
       new_curr_genset = gset_range( start, upto );
       new_goal_genset = gset_union( goal_genset, new_curr_genset );
+      { 
+        int gno; 
+        region_group_t grp;
+        for ( gno = start; gno < upto; gno += 1 ) {
+          grp = gc_heap_for_gno( summ->collector, gno )->group;
+          assert( grp == region_group_filled || grp == region_group_popular );
+          region_group_switch( gc_heap_for_gno( summ->collector, gno ),
+                               grp, 
+                               region_group_summzing );
+        }
+      }
 
       if ( gset_count( new_curr_genset ) < coverage ) {
         int extra_cov;
@@ -2700,6 +2774,7 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
   /* 2. Deploy next wave; prev := next */
   genset_to_consume = DATA(summ)->summarizing.goal_genset;
   DATA(summ)->summarized_genset = genset_to_consume;
+  region_group_switch_all( region_group_summzing, region_group_waiting );
 
   budget = count_usable_summaries_in(summ, genset_to_consume );
   if (about_to_major && budget > 1) {

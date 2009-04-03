@@ -54,7 +54,8 @@ gc_t
 	     bool (*is_nonmoving)( gc_t *gc, int gen_no ), 
 	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
-	     void (*points_across)( gc_t *gc, word lhs, word rhs )
+	     void (*points_across)( gc_t *gc, word lhs, word rhs ),
+	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no )
 	     )
 {
   gc_t *gc;
@@ -128,6 +129,7 @@ gc_t
   gc->is_address_mapped = is_address_mapped;
   gc->check_remset_invs = check_remset_invs;
   gc->points_across = points_across;
+  gc->heap_for_gno = heap_for_gno;
 
   return gc;
 }

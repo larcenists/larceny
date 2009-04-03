@@ -10,8 +10,13 @@ region_group_t region_group_of( old_heap_t *heap );
 /* Produces group for heap. */
 
 extern
-void region_group_switch( old_heap_t *heap, region_group_t new_grp );
+void region_group_switch( old_heap_t *heap, 
+                          region_group_t old_grp, region_group_t new_grp );
 /* Reassigns heap to new_grp, removing it from its old group. */
+
+extern
+void region_group_switch_all( region_group_t old_grp, region_group_t new_grp );
+/* Moves all heaps in old_grp to new grp. */
 
 extern
 old_heap_t *region_group_first_heap( region_group_t grp );

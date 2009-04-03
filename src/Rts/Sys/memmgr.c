@@ -29,6 +29,7 @@ const char *larceny_gc_technology = "precise";
 #include "barrier.h"
 #include "stack.h"
 #include "msgc-core.h"
+#include "region_group_t.h"
 #include "smircy.h"
 #include "smircy_checking.h"
 #include "summary_t.h"
@@ -1132,6 +1133,16 @@ static bool collect_rgnl_majorgc( gc_t *gc,
        ! NO_COPY_COLLECT_FOR_POP_RGNS ||
        sm_majorgc_permitted( DATA(gc)->summaries, rgn_next )) {
 
+    { 
+      old_heap_t *heap;
+      region_group_t grp;
+      heap = DATA(gc)->ephemeral_area[ rgn_next-1 ];
+      grp = heap->group;
+      assert( (grp == region_group_waiting)
+              || (heap->allocated == 0) /* XXX */
+              || (grp == region_group_filled) /* XXX */);
+    }
+
     REMSET_VERIFICATION_POINT(gc);
     SMIRCY_VERIFICATION_POINT(gc);
 
@@ -1179,6 +1190,11 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
 
     assert2( DATA(gc)->rrof_to_region == rgn_to );
+    {
+      region_group_t grp = gc_heap_for_gno( gc, rgn_to )->group;
+      assert( (grp == region_group_unfilled)
+              || (grp == region_group_waiting) /* XXX */ );
+    }
     DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
     oh_collect_into( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT,
                      DATA(gc)->ephemeral_area[ rgn_to-1 ] );
@@ -1228,12 +1244,20 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
 
     oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
-    region_group_switch( DATA(gc)->ephemeral_area[ rgn_next-1 ], 
-                         region_group_unfilled );
     rrof_completed_major_collection( gc );
 
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     collect_rgnl_clear_summary( gc, rgn_next );
+    {
+      old_heap_t *heap;
+      region_group_t grp;
+      heap = gc_heap_for_gno(gc, rgn_next);
+      grp = heap->group;
+      assert( grp == region_group_waiting
+              || (heap->allocated == 0) /* XXX */);
+      region_group_switch( heap, grp, region_group_unfilled );
+    }
+
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     collect_rgnl_choose_next_region( gc, num_rgns, FALSE );
 
@@ -1253,8 +1277,6 @@ static bool collect_rgnl_majorgc( gc_t *gc,
   } else {
     annoyingmsg( "remset summary says region %d too popular to collect", 
                  rgn_next );
-    region_group_switch( DATA(gc)->ephemeral_area[ rgn_next-1 ],
-                         region_group_popular );
 #if POP_RGNS_LIVE_FOREVER
     DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects = TRUE;
 #endif
@@ -1297,6 +1319,12 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
     sm_init_summary_from_nursery_alone( DATA(gc)->summaries, &(DATA(gc)->summary));
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     DATA(gc)->use_summary_instead_of_remsets = TRUE;
+  }
+  {
+    region_group_t grp;
+    grp = gc_heap_for_gno( gc, rgn_to )->group;
+    assert( (grp == region_group_unfilled) ||
+            (grp == region_group_waiting) /* XXX */ );
   }
   DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
@@ -2222,7 +2250,8 @@ static old_heap_t* expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
   
   new_heap = 
     clone_sc_area( DATA(gc)->ephemeral_area[ old_area_count-1 ], fresh_gno );
-  region_group_switch( new_heap, region_group_unfilled );
+  region_group_switch( new_heap, 
+                       region_group_nonrrof, region_group_unfilled );
 
   for( i=0 ; i < old_area_count; i++) {
     new_ephemeral_area[ i ] = DATA(gc)->ephemeral_area[ i ];
@@ -2379,8 +2408,15 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     return current_space;
   }
 
-  region_group_switch( DATA(gc)->ephemeral_area[ to_rgn_old-1 ],
-                       region_group_filled );
+  {
+    region_group_t grp;
+    grp = DATA(gc)->ephemeral_area[ to_rgn_old-1 ]->group;
+    assert( (grp == region_group_unfilled) ||
+            (grp == region_group_waiting) /* XXX */ );
+
+    region_group_switch( DATA(gc)->ephemeral_area[ to_rgn_old-1 ],
+                         grp, region_group_filled );
+  }
 
   if ( to_rgn_new != DATA(gc)->rrof_next_region ) {
     do {
@@ -2417,6 +2453,8 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     if ((gc_allocated_to_areas( gc, gset_singleton( last_gen_no )) == 0) &&
         last_gen_no != DATA(gc)->rrof_next_region) {
       assert( to_rgn_old != last_gen_no );
+      assert( gc_heap_for_gno( gc, last_gen_no )->group
+              == region_group_unfilled );
       DATA(gc)->ephemeral_area[last_gen_no-1]->was_target_during_gc = TRUE;
       DATA(gc)->rrof_to_region = last_gen_no;
       annoyingmsg("next: %d jump to space last; %d becomes %d", 
@@ -2427,6 +2465,8 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
       ss = gc_fresh_space( gc );
       assert( to_rgn_old != ss->gen_no );
       to_rgn_new = ss->gen_no;
+      assert( gc_heap_for_gno( gc, to_rgn_new )->group
+              == region_group_unfilled );
       DATA(gc)->ephemeral_area[to_rgn_new-1]->was_target_during_gc = TRUE;
       DATA(gc)->rrof_to_region = to_rgn_new;
       annoyingmsg("next: %d fresh to space; %d becomes %d", 
@@ -2857,7 +2897,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       data->ephemeral_area[ i ] = 
 	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
 			OHTYPE_REGIONAL );
-      region_group_switch( data->ephemeral_area[ i ], region_group_unfilled );
+      region_group_switch( data->ephemeral_area[ i ], 
+                           region_group_nonrrof, region_group_unfilled );
       gen_no += 1;
     }
   }
@@ -2977,6 +3018,11 @@ static void points_across_callback( gc_t *gc, word lhs, word rhs )
       }
     }
   }
+}
+
+static 
+old_heap_t *heap_for_gno(gc_t *gc, int gen_no ) {
+  return DATA(gc)->ephemeral_area[ gen_no-1 ];
 }
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
@@ -3118,7 +3164,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 is_nonmoving, 
 		 is_address_mapped,
 		 my_check_remset_invs,
-		 points_across_callback
+		 points_across_callback,
+		 heap_for_gno
 		 );
   ret->scan_update_remset = info->is_regional_system;
 

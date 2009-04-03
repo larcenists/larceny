@@ -14,7 +14,7 @@ static old_heap_t *group_to_heap[region_group_limit_elem];
  * the group; use get_next_in_group method to find the others.  Note
  * that nonrrof is always mapped to NULL and heaps set to the
  * nonrrof group are not maintained in the table. */
-static unsigned group_to_count[region_group_limit_elem];
+static int group_to_count[region_group_limit_elem];
 /* Table mapping each element of region_group_t to count of heaps
  * on the associated linked list.  Note that nonrrof is always 
  * mapped to 0. */
@@ -35,6 +35,10 @@ char *region_group_name( region_group_t grp )
 region_group_t region_group_of( old_heap_t *heap ) 
 {
   return heap->group;
+}
+int region_group_count( region_group_t grp ) 
+{
+  return group_to_count[ grp ];
 }
 old_heap_t *region_group_first_heap( region_group_t grp ) 
 {
@@ -89,13 +93,16 @@ static void link_group( old_heap_t *heap, region_group_t group )
   group_to_heap[group] = heap;
   heap->group = group;
 }
-void region_group_switch( old_heap_t *heap, region_group_t new_grp ) 
+void region_group_switch( old_heap_t *heap, 
+                          region_group_t old_grp, region_group_t new_grp ) 
 {
   old_heap_t *new_next, *new_prev;
 #if 0
   consolemsg( "switch_group( heap=0x%08x [%d], new_grp=%s )", 
               heap, oh_current_space(heap)->gen_no, region_group_name(new_grp) );
 #endif
+  assert( heap->group == old_grp );
+
   if (heap->group != region_group_nonrrof) {
     group_to_count[ heap->group ] -= 1;
   }
@@ -105,5 +112,15 @@ void region_group_switch( old_heap_t *heap, region_group_t new_grp )
 
   if (heap->group != region_group_nonrrof) {
     group_to_count[ heap->group ] += 1;
+  }
+}
+
+void region_group_switch_all( region_group_t old_grp, region_group_t new_grp )
+{
+  old_heap_t *h, *n;
+  h = group_to_heap[ old_grp ];
+  while (h != NULL) {
+    region_group_switch( h, old_grp, new_grp );
+    h = group_to_heap[ old_grp ];
   }
 }

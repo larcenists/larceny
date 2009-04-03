@@ -585,7 +585,8 @@ Sys/los.$(O): $(LARCENY_H) $(GCLIB_H) $(LOS_T_H)
 Sys/malloc.$(O): $(LARCENY_H)
 Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h $(GC_T_H) Sys/gset_t.h $(GCLIB_H) \\
 	$(STATS_H) $(HEAPIO_H) $(LOS_T_H) $(MEMMGR_H) \\
-	$(OLD_HEAP_T_H) $(REMSET_T_H) $(SEMISPACE_T_H) $(SMIRCY_H) \\
+	$(OLD_HEAP_T_H) $(REMSET_T_H) Sys/region_group_t.h \\
+	$(SEMISPACE_T_H) $(SMIRCY_H) \\
 	$(STACK_H) $(MSGC_CORE_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H) \\
 	$(SUMM_MATRIX_T_H) Sys/summary_t.h Sys/memmgr_internal.h
 Sys/memmgr_flt.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
@@ -604,7 +605,8 @@ Sys/msgc-core.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) Sys/msgc-core.h
 Sys/old_heap_t.$(O): $(LARCENY_H) $(OLD_HEAP_T_H)
 Sys/old-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	Sys/gset_t.h $(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
-	$(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
+	$(REMSET_T_H) Sys/region_group_t.h \\
+	$(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
 Sys/osdep.$(O): $(LARCENY_H)
 Sys/seqbuf.$(O): $(LARCENY_H) $(GCLIB_H) $(SEQBUF_T_H)
 Sys/remset.$(O): $(LARCENY_H) $(GC_T_H) $(GCLIB_H) $(MEMMGR_H) \\
@@ -627,7 +629,7 @@ Sys/stats.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/summary.$(O): $(LARCENY_H) Sys/summary_t.h
 Sys/summ_matrix.$(O): $(LARCENY_H) $(GC_T_H) Sys/gset_t.h \\
-	$(SEQBUF_T_H) $(SMIRCY_H) $(SUMM_MATRIX_T_H)
+	Sys/region_group_t.h $(SEQBUF_T_H) $(SMIRCY_H) $(SUMM_MATRIX_T_H)
 Sys/syscall.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/primitive.$(O): $(LARCENY_H)  $(GC_T_H) $(SIGNALS_H) $(STATS_H)
 Sys/osdep-unix.$(O): $(LARCENY_H) $(GC_T_H)

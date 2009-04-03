@@ -150,11 +150,22 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
       bool rgn_summarized;
       int rgn_summarized_live;
       old_heap_t *heap = DATA(gc)->ephemeral_area[ i ];
+      char *rgn_grp_str;
       rgn = i+1;
       rgn_summarized_live = 
         ((DATA(gc)->summaries != NULL)
          ? sm_summarized_live( DATA(gc)->summaries, rgn )
          : 0);
+      rgn_grp_str = 
+        (region_group_of(heap) == region_group_nonrrof)  ? "n" :
+        (region_group_of(heap) == region_group_unfilled) ? "u" :
+        (region_group_of(heap) == region_group_waiting)  ? "w" :
+        (region_group_of(heap) == region_group_summzing) ? "s" :
+        (region_group_of(heap) == region_group_filled)   ? "f" :
+        (region_group_of(heap) == region_group_popular)  ? "p" :
+        NULL;
+      assert( rgn_grp_str != NULL );
+
       oh_synchronize( heap );
       consolemsg( "%scycle % 3d region% 4d "
                   "remset live: %7d %7d %8d lastmajor: %7d "
@@ -171,12 +182,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                   data.words.total, 
                   heap->allocated/4, 
 
-                  ( (region_group_of(heap) == region_group_nonrrof)  ? "n" :
-                    (region_group_of(heap) == region_group_unfilled) ? "u" :
-                    (region_group_of(heap) == region_group_waiting)  ? "w" :
-                    (region_group_of(heap) == region_group_filled)   ? "f" :
-                    (region_group_of(heap) == region_group_popular)  ? "p" : 
-                    NULL ),
+                  rgn_grp_str,
 
                   (( rgn == DATA(gc)->rrof_to_region &&
                      rgn == DATA(gc)->rrof_next_region ) ? "*" :

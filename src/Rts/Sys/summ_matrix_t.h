@@ -57,7 +57,6 @@
 #define INCLUDED_SUMM_MATRIX_T_H
 
 #include "larceny-types.h"
-#include "gset_t.h"
 
 struct summ_matrix {
   gc_t *collector;
