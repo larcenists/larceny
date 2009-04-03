@@ -650,7 +650,6 @@ static int add_region_to_expand_heap( gc_t *gc, int maximum_allotted )
   return maximum_allotted + fresh_heap->maximum;
 }
 
-static void collect_rgnl_shift_the_to( gc_t *gc );
 static void initialize_summaries( gc_t *gc, bool about_to_major );
 
 static void rrof_completed_major_collection( gc_t *gc ) 
@@ -1383,43 +1382,14 @@ static bool rgn_has_summary_p( gc_t *gc, int rgn )
 
 static int find_appropriate_to( gc_t *gc ) 
 {
-  int to_curr;
-  int rgn_next;
-  int num_minor_rgns;
-  num_minor_rgns = 
-    max( DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
-  rgn_next = DATA(gc)->rrof_next_region;
-  to_curr = DATA(gc)->rrof_to_region;
-  if ( to_curr == rgn_next || 
-       rgn_has_summary_p( gc, to_curr )) {
-    do {
-      to_curr = next_rgn( to_curr, num_minor_rgns );
-      if (to_curr == rgn_next) {
-        add_region_to_expand_heap( gc, 0 );
-        to_curr = DATA(gc)->ephemeral_area_count;
-        break;
-      }
-    } while ( rgn_has_summary_p( gc, to_curr ) 
-              && to_curr != rgn_next );
+  old_heap_t *first_unfilled;
+  first_unfilled = region_group_first_heap( region_group_unfilled );
+  if (first_unfilled == NULL) {
+    add_region_to_expand_heap( gc, 0 );
+    first_unfilled = region_group_first_heap( region_group_unfilled );
+    assert( first_unfilled != NULL );
   }
-  return to_curr;
-}
-
-static void collect_rgnl_shift_the_to( gc_t *gc )
-{
-  /* the to-space is full, so shift to the next to-space */
-  int n;
-  int num_minor_rgns = 
-    max( DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
-  annoyingmsg("collect_rgnl shift to next to-space %d => %d out of %d max(%d,%d)",
-              DATA(gc)->rrof_to_region,
-              next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns),
-              num_minor_rgns, DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
-  n = next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns);
-  if (DATA(gc)->rrof_next_region == 0) {
-    DATA(gc)->rrof_next_region = 1;
-  }
-  DATA(gc)->rrof_to_region = n;
+  return oh_current_space( first_unfilled )->gen_no;
 }
 
 static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn, 
