@@ -79,9 +79,9 @@
     (assertion-violation who "operation no longer supported"))
 
   (define (deprecated-warning who)
-    (display "WARNING: " (standard-error-port))
-    (display who (standard-error-port))
-    (display " is no longer supported" (standard-error-port)))
+    (display "WARNING: " (current-error-port))
+    (display who (current-error-port))
+    (display " is no longer supported" (current-error-port)))
 
   (set! read
         (lambda p
@@ -8126,24 +8126,24 @@
     (define (scannerError msg)
       (define msgtxt
         (cond ((= msg errLongToken)
-               "Amazingly long token")
+               "amazingly long token")
               ((= msg errIncompleteToken)
-               "Incomplete or illegal token")
+               "incomplete or illegal token")
               ((= msg errIllegalHexEscape)
-               "Illegal hex escape")
+               "illegal hex escape")
               ((= msg errIllegalNamedChar)
-               "Illegal character syntax")
+               "illegal character syntax")
               ((= msg errIllegalString)
-               "Illegal string syntax")
+               "illegal string syntax")
               ((= msg errIllegalSymbol)
-               "Illegal symbol syntax")
+               "illegal symbol syntax")
               ((= msg errNoDelimiter)
-               "Missing delimiter")
+               "missing delimiter")
               ((= msg errSquareBracket)
-               "Square brackets are disabled")
+               "square brackets are disabled")
               ((= msg errLexGenBug)
-               "Bug in lexical analyzer (generated)")
-              (else "Bug in lexical analyzer")))
+               "bug in lexical analyzer (generated)")
+              (else "bug in lexical analyzer")))
       (let* ((c (scanChar))
              (next (if (char? c) (string c) ""))
              (line (+ 1 (port-lines-read input-port)))
@@ -8158,11 +8158,17 @@
                                     next)))
 
         ; must avoid infinite loop on current input port
+        ;
+        ; FIXME: the R6RS says the exception must (in some cases)
+        ; be both &lexical and &i/o-read, but the &i/o-read
+        ; part appears to have been a mistake.
 
         (consumeChar)
-        (error 'get-datum
-               (string-append "Lexical Error: " msgtxt " ")
-               input-port))
+        (raise-r6rs-exception
+         (make-lexical-violation)
+         'get-datum
+          (string-append "lexical error: " msgtxt " ")
+          input-port))
       (next-token))
   
     ; Accepts a token of the given kind, returning that kind.
@@ -8882,7 +8888,8 @@
                                                    (symbol->string terminal)))
                                   expected-terminals)))))
                    (string #\newline))))
-        (error 'get-datum msg input-port)))
+        (raise-r6rs-exception (make-lexical-violation)
+                              'get-datum msg input-port)))
 
     ; The list of tokens that can start a datum in R6RS mode.
 

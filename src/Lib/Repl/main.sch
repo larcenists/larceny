@@ -188,7 +188,10 @@
                         (parameterize ((print-length 7)
                                        (print-level 7))
                           (decode-and-raise-r6rs-exception the-error))))
-                     (issue-deprecated-warnings? #f))
+                     (issue-deprecated-warnings? #f)
+                     (read-larceny-weirdness? #f)
+                     (read-traditional-weirdness? #f)
+                     (read-mzscheme-weirdness? #f))
         ; Twobit has its own issue-warnings switch.
         (eval '(issue-warnings #f) (interaction-environment))
         (let* ((pgm (get-feature 'top-level-program))

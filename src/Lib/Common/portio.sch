@@ -80,7 +80,7 @@
          (io/make-transcoder codec (car rest) (cadr rest)))
         (else
          (assertion-violation 'make-transcoder
-                              "wrong number of arguments"
+                              (errmsg 'msg:wna)
                               (cons codec rest)))))
 
 ; FIXME: let's see how far we get...
@@ -130,7 +130,9 @@
                            (let ((c (integer->char sv)))
                              (raise-r6rs-exception
                               (make-i/o-encoding-error out c)
-                              'string->bytevector "encoding error" (list c))))
+                              'string->bytevector
+                              (errmsg 'msg:encoding)
+                              (list c))))
                           (else
                            'ignore)))))))
             ((utf-8)
@@ -139,7 +141,7 @@
              (string->utf16 s))
             (else
              (assertion-violation 'string->bytevector
-                                  "illegal arguments" s t))))
+                                  (errmsg 'msg:illegalarg2) s t))))
           ((eq? codec 'utf-8)
            (call-with-port
             (string-io/open-output-string t)
@@ -181,7 +183,7 @@
                #t))
       (io/transcoded-port p t)
       (assertion-violation 'transcoded-port
-                           "bad port or unsupported transcoder" p t)))
+                           (errmsg 'msg:illegalargs) p t)))
 
 ; All binary and textual ports support port-position internally
 ; but custom ports may claim not to.
@@ -250,7 +252,7 @@
                                   (car rest) (cadr rest) (caddr rest)))
         (else
          (assertion-violation 'open-file-input-port
-                              "wrong number of arguments"
+                              (errmsg 'msg:wna)
                               (cons filename rest)))))
 
 (define (open-bytevector-input-port bv . rest)
@@ -287,7 +289,8 @@
 (define (output-port-buffer-mode p)
   (if (output-port? p)
       (io/buffer-mode p)
-      (assertion-violation 'output-port-buffer-mode "not an output port" p)))
+      (assertion-violation 'output-port-buffer-mode
+                           (errmsg 'msg:notoutput) p)))
 
 ; FIXME: fakes file options
 
@@ -303,7 +306,7 @@
                                   (car rest) (cadr rest) (caddr rest)))
         (else
          (assertion-violation 'open-file-output-port
-                              "wrong number of arguments"
+                              (errmsg 'msg:wna)
                               (cons filename rest)))))
 
 ; FIXME:  Doesn't check legitimacy of the transcoder.
@@ -347,7 +350,7 @@
                (f out)
                (get-output-bytevector out)))))
       (assertion-violation 'call-with-bytevector-output-port
-                           "illegal argument(s)" f)))
+                           (errmsg 'msg:illegalargs) f)))
 
 (define (open-string-output-port)
   (issue-warning-deprecated 'open-string-output-port)
@@ -367,7 +370,7 @@
        (open-output-string)
        (lambda (out) (f out) (get-output-string out)))
       (assertion-violation 'call-with-string-output-port
-                           "illegal argument" f)))
+                           (errmsg 'msg:illegalarg) f)))
 
 (define (open-file-input/output-port filename . rest)
   (cond ((null? rest)
@@ -383,7 +386,7 @@
                                   (car rest) (cadr rest) (caddr rest)))
         (else
          (assertion-violation 'open-file-input/output-port
-                              "wrong number of arguments"
+                              (errmsg 'msg:wna)
                               (cons filename rest)))))
 
 (define (standard-output-port)
@@ -630,7 +633,7 @@
       (portio/get-line p)))
 
 (define (portio/illegal-arguments who . irritants)
-  (apply assertion-violation who "illegal argument(s)" irritants))
+  (apply assertion-violation who (errmsg 'msg:illegalargs) irritants))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -656,7 +659,7 @@
               ((fx= i n))
             (put-u8 p (bytevector-ref bv i))))
         (assertion-violation 'put-bytevector
-                             "illegal argument(s)" p bv start count)))
+                             (errmsg 'msg:illegalargs) p bv start count)))
   (cond ((null? rest)
          (put-bytevector p bv 0 (bytevector-length bv)))
         ((null? (cdr rest))
@@ -667,7 +670,8 @@
          (put-bytevector p bv (car rest) (cadr rest)))
         (else
          (assertion-violation 'put-bytevector
-                              "too many arguments" (cons p (cons bv rest))))))
+                              (errmsg 'msg:toomanyargs)
+                              (cons p (cons bv rest))))))
 
 (define (put-string p s . rest)
 
@@ -685,7 +689,7 @@
               ((fx= i n))
             (put-char p (string-ref s i))))
         (assertion-violation 'put-string
-                             "illegal argument(s)" p s start count)))
+                             (errmsg 'msg:illegalargs) p s start count)))
 
   (define (put-string p s start count)
     (or (io/put-string-maybe p s start count)
@@ -699,7 +703,8 @@
          (put-string p s (car rest) (cadr rest)))
         (else
          (assertion-violation 'put-string
-                              "too many arguments" (cons p (cons s rest))))))
+                              (errmsg 'msg:toomanyargs)
+                              (cons p (cons s rest))))))
 
 (define (put-datum p x)
   (write x p))
