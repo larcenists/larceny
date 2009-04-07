@@ -36,7 +36,11 @@
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
 
-  (let* ((features (system-features))
+  (let* ((clr? (equal? "CLR" (cdr (assq 'arch-name (system-features)))))
+
+         (ignored (if clr? (clr-process-arguments))) ; FIXME
+
+         (features (system-features))
 
          (get-feature
           (lambda (name)
@@ -273,7 +277,7 @@
        ((>= i (vector-length argv)) #t)
        (else
         (let ((arg (vector-ref argv i)))
-          (cond 
+          (cond
            ((or (string=? arg "-e")
                 (string=? arg "--eval"))
             (failsafe-eval-thunk 
@@ -290,6 +294,90 @@
             (if (file-exists? arg)
                 (failsafe-load-file arg))
             (loop (+ i 1))))))))))
+
+; FIXME: Native and Petit Larceny use C code to parse the command line,
+; but Common Larceny duplicates some of that parsing here.
+; FIXME: no checking of library-path and top-level-program parameters
+
+(define (clr-process-arguments)
+  (let* ((features (system-features))
+         (argv (command-line-arguments))
+         (clr? (equal? "CLR" (cdr (assq 'arch-name features))))
+
+         (clr:case-sensitivity #f)
+         (clr:execution-mode #f)
+         (clr:library-path #f)
+         (clr:top-level-program #f))
+
+    (define (return! args)
+      (command-line-arguments args)
+      (if clr:case-sensitivity
+          (set! features
+                (cons (cons 'case-sensitivity clr:case-sensitivity)
+                      features)))
+      (if clr:execution-mode
+          (set! features
+                (cons (cons 'execution-mode clr:execution-mode)
+                      features)))
+      (if clr:library-path
+          (set! features
+                (cons (cons 'library-path clr:library-path)
+                      features)))
+      (if clr:top-level-program
+          (set! features
+                (cons (cons 'top-level-program clr:top-level-program)
+                      features)))
+      (set! system-features
+            (lambda () features))
+      (unspecified))
+
+    (let loop ((i 0)
+               (args '()))
+      (cond 
+       ((>= i (vector-length argv))
+        (return! (list->vector (reverse args))))
+       (else
+        (let ((arg (vector-ref argv i)))
+          (cond
+           ((member arg '("-fold-ccase" "--fold-case" "//fold-case"))
+            (set! clr:case-sensitivity? #t)
+            (loop (+ i 1) args))
+           ((member arg '("-err5rs" "--err5rs" "//err5rs"))
+            (set! clr:execution-mode 'err5rs)
+            (loop (+ i 1) args))
+           ((member arg '("-r6rs" "--r6rs" "//r6rs"))
+            (set! clr:execution-mode 'dargo)
+            (loop (+ i 1) args))
+           ((and (member arg '("-path" "--path" "//path"))
+                 (< (+ i 1) (vector-length argv)))
+            (set! clr:library-path (vector-ref argv (+ i 1)))
+            (loop (+ i 2) args))
+           ((and (member arg '("-program" "--program" "//program"))
+                 (< (+ i 1) (vector-length argv)))
+            (set! clr:top-level-program (vector-ref argv (+ i 1)))
+            (loop (+ i 2) args))
+           ((string=? arg "--")
+            (let ((args (reverse
+                         (append
+                          (cdr (member "--" (vector->list argv)))
+                          args))))
+              (return! (list->vector args))))
+           ((or (string=? arg "-e")
+                (string=? arg "--eval"))
+            (failsafe-eval-thunk 
+             (lambda () 
+               (retract-eof 
+                (read (open-input-string (vector-ref argv (+ i 1))))))
+             (list "Error parsing argument " (+ i 1)))
+            (loop (+ i 2) args))
+           ((and (> (string-length arg) 0)
+                 (char=? (string-ref arg 0) #\-))
+            (writeln "Error unrecognized option " arg)
+            (loop (+ i 1) args))
+           (else
+            (if (file-exists? arg)
+                (failsafe-load-file arg))
+            (loop (+ i 1) args)))))))))
 
 ;; retract-eof : Any -> Any
 

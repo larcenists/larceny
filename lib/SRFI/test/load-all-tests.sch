@@ -21,12 +21,12 @@
    14
    16
    17
-   19
+   ;; 19 ;; depends on C FFI, which doesn't work in Common Larceny; see below
    ;; 22 ;; this is not a normal srfi test...
    23
    25
    26
-   27
+   ;; 27 ;; depends on SRFI 19; see below
    28
    29
    30
@@ -40,6 +40,11 @@
    63
    66
    69
+<<<<<<< .mine
+   19 ;; depends on C FFI, which doesn't work in Common Larceny
+   27 ;; depends on SRFI 19
+=======
    43 ;; redefines vector-map etc, so it has to come near the end
+>>>>>>> .r6172
    78
    ))
