@@ -238,6 +238,7 @@ struct gc {
   void (*check_remset_invs)( gc_t *gc, word src, word tgt );
   void (*points_across)( gc_t *gc, word lhs, word rhs );
   old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no );
+  region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no );
 };
 
 /* Operations.  For prototypes, see the method specs above. */
@@ -281,6 +282,7 @@ struct gc {
 #define gc_check_remset_invs( gc,s,t )  ((gc)->check_remset_invs( (gc), (s), (t) ))
 #define gc_points_across( gc,l,r )      ((gc)->points_across( (gc), (l), (r) ))
 #define gc_heap_for_gno( gc,gno )       ((gc)->heap_for_gno( (gc), (gno) ))
+#define gc_region_group_for_gno( gc,gno ) ((gc)->region_group_for_gno( (gc), (gno) ))
 
 gc_t 
 *create_gc_t(char *id,
@@ -329,7 +331,8 @@ gc_t
 	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
 	     void (*points_across)( gc_t *gc, word lhs, word rhs ),
-	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no )
+	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no ),
+	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no )
 	     );
 
 void gc_parameters( gc_t *gc, int op, int *ans );

@@ -453,7 +453,7 @@ static void init_generational( opt_t *o, int areas, char *name )
 
 static void init_regional( opt_t *o, int areas, char *name )
 {
-  if (areas < 2)
+  if (areas < 1)
     invalid( name );
 
   if (o->gc_info.ephemeral_info != 0) {

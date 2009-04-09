@@ -609,6 +609,7 @@ Sys/old-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
 Sys/osdep.$(O): $(LARCENY_H)
 Sys/seqbuf.$(O): $(LARCENY_H) $(GCLIB_H) $(SEQBUF_T_H)
+Sys/region_group.$(O): $(LARCENY_H) Sys/region_group_t.h $(OLD_HEAP_T_H)
 Sys/remset.$(O): $(LARCENY_H) $(GC_T_H) $(GCLIB_H) $(MEMMGR_H) \\
 	$(REMSET_T_H) $(STATS_H)
 Sys/remset-np.$(O): $(LARCENY_H) $(GC_T_H) $(GCLIB_H) $(MEMMGR_H) \\

@@ -49,6 +49,11 @@ static void* verify_remsets_msgc_fcn( word obj, word src, void *data )
  
   src_gen = gen_of(src);
   obj_gen = gen_of(obj);
+  if (src_gen < 0 || obj_gen < 0) {
+    consolemsg( "verify_remsets_msgc_fcn( "
+                "obj=0x%08x (%d), src=0x%08x (%d), data )",
+                obj, obj_gen, src, src_gen );
+  }
   assert( src_gen >= 0);
   assert( obj_gen >= 0);
   if ((src_gen != obj_gen) &&

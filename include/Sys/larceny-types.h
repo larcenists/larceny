@@ -59,12 +59,13 @@ typedef struct old_heap old_heap_t;
 typedef enum { OHTYPE_EPHEMERAL, OHTYPE_DYNAMIC, OHTYPE_REGIONAL } oh_type_t;
 
 typedef enum {
-  region_group_nonrrof,  /* heap not handled by RROF GC */
-  region_group_unfilled, /* to-space candidates */
-  region_group_waiting,  /* uncollected from-space candidates */
-  region_group_summzing, /* enqueued to be from-space candidates */
-  region_group_filled,   /* processed to-spaces */
-  region_group_popular,  /* skipped from-spaces */
+  region_group_nonrrof,    /* heap not handled by RROF GC */
+  region_group_unfilled,   /* to-space candidates */
+  region_group_wait_nosum, /* uncollected from-space candidates */
+  region_group_wait_w_sum, /* ibid, with a constructed summary */
+  region_group_summzing,   /* enqueued to be from-space candidates */
+  region_group_filled,     /* processed to-spaces */
+  region_group_popular,    /* skipped from-spaces */
   region_group_limit_elem
 } region_group_t;
 

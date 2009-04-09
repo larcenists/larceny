@@ -449,11 +449,8 @@ static int next_rgn( int rgn, int num_rgns ) {
 }
 
 /* The number represents how many cycles per expansion. (first guess is 1) */
-#define EXPAND_RGNS_FROM_LOAD_FACTOR 0
 #define WEIGH_PREV_ESTIMATE_LOADCALC 0
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
-#define NO_COPY_COLLECT_FOR_POP_RGNS 1
-#define POP_RGNS_LIVE_FOREVER 0
 #define USE_ORACLE_TO_VERIFY_SUMMARIES 0
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
@@ -483,8 +480,8 @@ static int next_rgn( int rgn, int num_rgns ) {
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
-static const double default_popularity_factor = 2.0;
-static const double default_sumz_budget_inv = 3.0;
+static const double default_popularity_factor = 8.0;
+static const double default_sumz_budget_inv = 2.0;
 static const double default_sumz_coverage_inv = 3.0;
 
 static void smircy_start( gc_t *gc ) 
@@ -498,7 +495,9 @@ static void smircy_start( gc_t *gc )
                                  DATA(gc)->rrof_alloc_mark_bmp_once );
   DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
   smircy_push_roots( gc->smircy );
-  sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
+  if (DATA(gc)->summaries != NULL) {
+    sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
+  }
 
   DATA(gc)->since_developing_snapshot_began.words_promoted = 0;
   DATA(gc)->since_developing_snapshot_began.count_promotions = 0;
@@ -633,7 +632,9 @@ static void refine_metadata_via_marksweep( gc_t *gc )
 #endif
 
   refine_remsets_via_marksweep( gc );
-  sm_refine_summaries_via_marksweep( DATA(gc)->summaries );
+  if (DATA(gc)->summaries != NULL) {
+    sm_refine_summaries_via_marksweep( DATA(gc)->summaries );
+  }
   reset_countdown_to_next_refine( gc );
 
   smircy_end( context );
@@ -690,121 +691,11 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     smircy_start( gc );
 #endif
 
-#if EXPAND_RGNS_FROM_LOAD_FACTOR
-  /* every K collection cycles, lets check and see if we should expand
-   * the number of regions so that we can satisfy the inverse load
-   * factor. */
-  if ((DATA(gc)->rrof_cycle_count % EXPAND_RGNS_FROM_LOAD_FACTOR) == 0) {
-    int i;
-    int total_live_at_last_major_gc = 0;
-    int maximum_allotted = 0;
-    int live_estimated_calc = 0;
-    int live_predicted_at_next_gc;
-    int contrib;
-    int snapshot_live_allowed;
-    int maximum_allotted_pre, maximum_allotted_post;
-
-    for( i=0; i < DATA(gc)->ephemeral_area_count; i++) {
-      if (INCLUDE_POP_RGNS_IN_LOADCALC || 
-	  ! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
-	contrib = 
-	  (DATA(gc)->ephemeral_area[ i ]->bytes_live_last_major_gc 
-	   - (DATA(gc)->ephemeral_area[ i ]->words_from_nursery_last_major_gc
-	      * sizeof(word)));
-	total_live_at_last_major_gc += contrib;
-	maximum_allotted += 
-	  DATA(gc)->ephemeral_area[ i ]->maximum;
-      }
-    }
-    /* deduct reserve region from "allotted"; it is only for emergencies 
-     * and is not part of the standard budget. */
-    maximum_allotted -= 
-      DATA(gc)->ephemeral_area[ DATA(gc)->ephemeral_area_count - 1]->maximum;
-    live_estimated_calc = 
-      ( DATA(gc)->rrof_last_live_estimate*WEIGH_PREV_ESTIMATE_LOADCALC 
-        + total_live_at_last_major_gc)
-      / (WEIGH_PREV_ESTIMATE_LOADCALC + 1);
-    live_predicted_at_next_gc = 
-      (int)(DATA(gc)->rrof_load_factor_soft * live_estimated_calc);
-    DATA(gc)->rrof_last_live_estimate = live_estimated_calc;
-
-    annoyingmsg( "completed_regional_cycle total: %d max: %d marked: %d est: %d predict: %d",
-		 total_live_at_last_major_gc, 
-		 maximum_allotted, 
-		 DATA(gc)->last_live_words*sizeof(word),
-		 live_estimated_calc, 
-		 live_predicted_at_next_gc );
-
-    maximum_allotted_pre = maximum_allotted;
-
-    snapshot_live_allowed = 
-      DATA(gc)->last_live_words*DATA(gc)->rrof_load_factor_soft*sizeof(word);
-    while ( snapshot_live_allowed > maximum_allotted) {
-      maximum_allotted = 
-        add_region_to_expand_heap( gc, maximum_allotted );
-    }
-
-    maximum_allotted_post = maximum_allotted;
-
-#if PRINT_SNAPSHOT_INFO_TO_CONSOLE
-      consolemsg( "% 31s"
-                  " snapshot_live:% 5dM peak_snapshot:% 5dM "
-                  " promoted_since_snapshot_completed,began:% 5dM,% 5dM (avg:% 5dK,% 5dK)"
-                  " live_predicted_at_next_gc:% 5dM "
-                  " maximum_allotted: % 5dM -> % 5dM",
-                  "completed_regional_cycle",
-                  DATA(gc)->last_live_words*sizeof(word)/MEGABYTE, 
-                  DATA(gc)->max_live_words*sizeof(word)/MEGABYTE, 
-                  DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word)/MEGABYTE, 
-                  DATA(gc)->words_promoted_since_snapshot_began*sizeof(word)/MEGABYTE, 
-                  quotient2(DATA(gc)->words_promoted_since_snapshot_completed*sizeof(word),
-                            DATA(gc)->count_promotions_since_snapshot_completed)/KILOBYTE, 
-                  quotient2(DATA(gc)->words_promoted_since_snapshot_began*sizeof(word),
-                            DATA(gc)->count_promotions_since_snapshot_began)/KILOBYTE, 
-                  live_predicted_at_next_gc/MEGABYTE, 
-                  maximum_allotted_pre/MEGABYTE, maximum_allotted_post/MEGABYTE );
-#endif
-
-    annoyingmsg( "completed_regional_cycle region_count: %d ephemeral_area_count: %d", 
-		 DATA(gc)->region_count, DATA(gc)->ephemeral_area_count );
-  }
-#endif
-  
-  /* With an inverse load factor < 2.0, we can get into a situation
-   * where all of the candidate regions to be the tospace for a minor
-   * collection are also popular.  (In particular, we could have the
-   * situation where we have 2 regions, the first is popular, and the
-   * second is the emergency space.)
-   * 
-   * To catch this case, here is a last minute double check that
-   * ensures that some region other than the last is non-popular.
-   *
-   * (Felix is pretty sure this situation cannot occur with an inverse
-   * load factor >= 2.0, but has not proven this, so he's just going
-   * to do it unconditionally.)
-   */
-  { 
-    int i;
-    int area_count = DATA(gc)->ephemeral_area_count;
-    bool found_non_popular = FALSE;
-    for( i=0; i < area_count-1; i++) {
-      if (! DATA(gc)->ephemeral_area[ i ]->has_popular_objects) {
-	found_non_popular = TRUE;
-	break;
-      }
-    }
-    if (! found_non_popular) {
-      assert(! DATA(gc)->ephemeral_area[ area_count-1 ]->has_popular_objects);
-      consolemsg("ALERT: All evacuation spaces are popular! "
-		 "Allocating fresh region! load: %lf", 
-		 DATA(gc)->rrof_load_factor_soft);
-      gc_fresh_space(gc);
-    }
-  }
-
   DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
+  DATA(gc)->rrof_cycle_remaining = DATA(gc)->region_count;
+  DATA(gc)->rrof_cycle_majors = 0;
 
-  if ((DATA(gc)->summaries == NULL) && (DATA(gc)->region_count > 1)) {
+  if ((DATA(gc)->summaries == NULL) && (DATA(gc)->region_count > 4)) {
     initialize_summaries( gc, FALSE );
   }
 }
@@ -939,6 +830,13 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 
 static void initialize_summaries( gc_t *gc, bool about_to_major ) 
 {
+  assert( region_group_count( region_group_filled ) >= 2 );
+  {
+    /* prime the pump */
+    old_heap_t *oh;
+    oh = region_group_first_heap( region_group_filled );
+    region_group_enq( oh, region_group_filled, region_group_wait_nosum );
+  }
   DATA(gc)->summaries =
     create_summ_matrix( gc, 1, DATA(gc)->region_count,
                         1.0 / DATA(gc)->rrof_sumz_params.coverage_inv,
@@ -1096,18 +994,6 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       ! DATA(gc)->print_float_stats_each_minor)
     print_float_stats( "premaj", gc );
 
-  if (DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects) {
-    annoyingmsg( "past summarization says region %d too popular to collect", 
-                 rgn_next );
-    assert2( ! sm_is_rgn_summary_avail( DATA(gc)->summaries, rgn_next ));
-
-    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
-    collect_rgnl_clear_summary( gc, rgn_next );
-    gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
-    collect_rgnl_choose_next_region( gc, num_rgns, TRUE );
-    return FALSE;
-  }
-
   REMSET_VERIFICATION_POINT(gc);
 
   summarization_active = (DATA(gc)->summaries != NULL);
@@ -1128,8 +1014,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 
   assert(! DATA(gc)->use_summary_instead_of_remsets );
 
-  if ( ! summarization_active_rgn_next ||
-       ! NO_COPY_COLLECT_FOR_POP_RGNS ||
+  if ( ! summarization_active || 
        sm_majorgc_permitted( DATA(gc)->summaries, rgn_next )) {
 
     { 
@@ -1137,7 +1022,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       region_group_t grp;
       heap = DATA(gc)->ephemeral_area[ rgn_next-1 ];
       grp = heap->group;
-      assert( (grp == region_group_waiting)
+      assert( (grp == region_group_wait_nosum)
+              || (grp == region_group_wait_w_sum)
               || (heap->allocated == 0) /* XXX */
               || (grp == region_group_filled) /* XXX */);
     }
@@ -1186,19 +1072,24 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
     if (summarization_active_rgn_next) {
       DATA(gc)->use_summary_instead_of_remsets = TRUE;
+    } else {
+      DATA(gc)->enumerate_major_with_minor_remsets = TRUE;
     }
 
     assert2( DATA(gc)->rrof_to_region == rgn_to );
     {
-      region_group_t grp = gc_heap_for_gno( gc, rgn_to )->group;
+      region_group_t grp = gc_region_group_for_gno( gc, rgn_to );
       assert( (grp == region_group_unfilled)
-              || (grp == region_group_waiting) /* XXX */ );
+              || (grp == region_group_wait_nosum) /* XXX */
+              || (grp == region_group_wait_w_sum) /* XXX */ );
     }
+
     DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
     oh_collect_into( DATA(gc)->ephemeral_area[ rgn_next-1 ], GCTYPE_COLLECT,
                      DATA(gc)->ephemeral_area[ rgn_to-1 ] );
     /* at this point, rrof_to_region and rgn_to have no guaranteed relationship */
     DATA(gc)->use_summary_instead_of_remsets = FALSE;
+    DATA(gc)->enumerate_major_with_minor_remsets = FALSE;
 
     if (gc->smircy_completion != NULL) {
       smircy_clone_end( gc->smircy_completion );
@@ -1243,6 +1134,10 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
 
     oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
+    DATA(gc)->rrof_cycle_remaining -= 1;
+    DATA(gc)->rrof_cycle_majors += 1;
+    if (DATA(gc)->rrof_cycle_remaining <= 0)
+      DATA(gc)->rrof_last_gc_rolled_cycle = TRUE;
     rrof_completed_major_collection( gc );
 
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
@@ -1252,9 +1147,10 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       region_group_t grp;
       heap = gc_heap_for_gno(gc, rgn_next);
       grp = heap->group;
-      assert( grp == region_group_waiting
+      assert( (grp == region_group_wait_nosum)
+              || (grp == region_group_wait_w_sum)
               || (heap->allocated == 0) /* XXX */);
-      region_group_switch( heap, grp, region_group_unfilled );
+      region_group_enq( heap, grp, region_group_unfilled );
     }
 
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
@@ -1274,11 +1170,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 
     
   } else {
+
     annoyingmsg( "remset summary says region %d too popular to collect", 
                  rgn_next );
-#if POP_RGNS_LIVE_FOREVER
-    DATA(gc)->ephemeral_area[ rgn_next-1 ]->has_popular_objects = TRUE;
-#endif
     DATA(gc)->ephemeral_area[ rgn_next-1 ]->bytes_live_last_major_gc = 
       DATA(gc)->ephemeral_area[ rgn_next-1 ]->allocated;
     
@@ -1321,9 +1215,10 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   }
   {
     region_group_t grp;
-    grp = gc_heap_for_gno( gc, rgn_to )->group;
-    assert( (grp == region_group_unfilled) ||
-            (grp == region_group_waiting) /* XXX */ );
+    grp = gc_region_group_for_gno( gc, rgn_to );
+    assert( (grp == region_group_unfilled)
+            || (grp == region_group_wait_nosum) /* XXX */
+            || (grp == region_group_wait_w_sum) /* XXX */ );
   }
   DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
@@ -1363,13 +1258,6 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   SUMMMTX_VERIFICATION_POINT(gc);
 }
 
-static int successor_of_to( gc_t *gc ) 
-{
-  int num_minor_rgns = 
-    max( DATA(gc)->region_count, DATA(gc)->ephemeral_area_count - 1 );
-  return next_rgn(DATA(gc)->rrof_to_region,  num_minor_rgns);
-}
-
 static bool rgn_has_summary_p( gc_t *gc, int rgn )
 {
   if (DATA(gc)->summaries == NULL) {
@@ -1383,6 +1271,10 @@ static bool rgn_has_summary_p( gc_t *gc, int rgn )
 static int find_appropriate_to( gc_t *gc ) 
 {
   old_heap_t *first_unfilled;
+  if ( gc_region_group_for_gno( gc, DATA(gc)->rrof_to_region )
+       == region_group_unfilled ) {
+    return DATA(gc)->rrof_to_region;
+  }
   first_unfilled = region_group_first_heap( region_group_unfilled );
   if (first_unfilled == NULL) {
     add_region_to_expand_heap( gc, 0 );
@@ -1390,6 +1282,26 @@ static int find_appropriate_to( gc_t *gc )
     assert( first_unfilled != NULL );
   }
   return oh_current_space( first_unfilled )->gen_no;
+}
+
+static int find_appropriate_next( gc_t *gc )
+{
+  old_heap_t *first_waiting;
+  first_waiting = region_group_first_heap( region_group_wait_nosum );
+  if (first_waiting == NULL) {
+    /* (this is actually the common case, but we want to get above out
+     * of the way; otherwise it will just sit around) */
+    first_waiting = region_group_first_heap( region_group_wait_w_sum );
+  }
+  if (first_waiting == NULL) {
+    old_heap_t *first_filled;
+    assert( DATA(gc)->summaries == NULL );
+    first_filled = region_group_first_heap( region_group_filled );
+    assert( first_filled != NULL );
+    return oh_current_space( first_filled )->gen_no;
+  } else {
+    return oh_current_space( first_waiting )->gen_no;
+  }
 }
 
 static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn, 
@@ -1407,117 +1319,46 @@ static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn,
                         rgn, bytes_needed, type_str );
 }
 
-static void collect_rgnl_policy( gc_t *gc, 
-                                 int rgn_to, int rgn_succ_to, int rgn_next, 
-                                 bool *p_can_do_major, 
-                                 bool *p_can_do_minor,
-                                 bool *p_succ_can_do_minor )
-{
-  int nursery_sz, rgn_to_cur, rgn_succ_to_cur, 
-    rgn_next_cur, rgn_to_max, rgn_succ_to_max;
-  int free_rgn_space, nursery_max; 
-  int num_rgns = DATA(gc)->region_count;
-  int num_occupied_rgns;
-
-  supremely_annoyingmsg("collect_rgnl decide major or minor.  to: %d next: %d",
-                        rgn_to, rgn_next );
-
-  nursery_sz = gc_allocated_to_areas( gc, gset_singleton( 0 ));
-  rgn_to_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
-  rgn_succ_to_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_succ_to ));
-  rgn_next_cur = gc_allocated_to_areas( gc, gset_singleton( rgn_next ));
-  rgn_to_max = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
-  rgn_succ_to_max = gc_maximum_allotted( gc, gset_singleton( rgn_succ_to ));
-  { 
-    int allot, alloc;
-    assert(rgn_next > 0);
-    if (rgn_to == rgn_next) {
-      allot = gc_maximum_allotted( gc, gset_singleton( rgn_to ));
-      alloc = gc_allocated_to_areas( gc, gset_singleton( rgn_to ));
-    } else if (rgn_to < rgn_next) {
-      /* (to,..., next) free; [1,..., to], [next,..., N/R] occupied */
-      allot = gc_maximum_allotted( gc, gset_range( rgn_to, rgn_next ));
-      alloc = gc_allocated_to_areas( gc, gset_range( rgn_to, rgn_next ));
-    } else {
-      /* (next,..., to) occupied; [1,..., next], [to,..., N/R-1] free */
-      allot = gc_maximum_allotted( gc, gset_range( 1, rgn_next )) +
-        gc_maximum_allotted( gc, gset_range( rgn_to, num_rgns ));
-      alloc = gc_allocated_to_areas( gc, gset_range( 1, rgn_next )) +
-        gc_allocated_to_areas( gc, gset_range( rgn_to, num_rgns ));
-    }
-    free_rgn_space = allot - alloc;
-    num_occupied_rgns = (num_rgns + rgn_to - rgn_next)%num_rgns+1;
-  }
-  nursery_max = gc->young_area->maximum;
-
-  supremely_annoyingmsg( "collect_rgnl rgn_to: %d rgn_next: %d "
-                         "nursery_sz: %d nursery_max: %d "
-                         "num_occupied_rgns: %d rgn_to_cur: %d rgn_to_max: %d "
-                         "rgn_next_cur: %d free_rgn_space: %d", 
-                         rgn_to, rgn_next, 
-                         nursery_sz, nursery_max, 
-                         num_occupied_rgns, rgn_to_cur, rgn_to_max, 
-                         rgn_next_cur, free_rgn_space );
-
-  *p_can_do_major = 
-    (free_rgn_space < (rgn_next_cur + num_occupied_rgns*nursery_max)
-     /* XXX what is correct policy/logic here??? */);
-  *p_can_do_minor = 
-    (rgn_to_cur + nursery_sz < rgn_to_max &&
-     ! DATA(gc)->ephemeral_area[ rgn_to-1 ]->has_popular_objects );
-  *p_succ_can_do_minor = 
-    (rgn_succ_to_cur + nursery_sz < rgn_succ_to_max &&
-     ! DATA(gc)->ephemeral_area[ rgn_succ_to-1 ]->has_popular_objects );
-}
-
-static int count_majors_togo( gc_t *gc ) 
-{
-  int rtn;
-  int i;
-  rtn = 0;
-
-  for ( i = DATA(gc)->rrof_next_region; i <= DATA(gc)->region_count; i++ ) {
-    if (gc_allocated_to_areas( gc, gset_singleton( i )) > 0) {
-      rtn++;
-    }
-  }
-  return rtn;
-}
-
 static void rrof_gc_policy( gc_t *gc, 
                             bool *will_says_should_major_recv, 
                             bool calculate_loudly )
 {
-  int majors_sofar = DATA(gc)->rrof_next_region;
+  int majors_sofar = DATA(gc)->rrof_cycle_majors;
   int majors_total = DATA(gc)->region_count;
   double L_hard = DATA(gc)->rrof_load_factor_hard;
   double L_soft = DATA(gc)->rrof_load_factor_soft;
   int N_old  = DATA(gc)->last_live_words_at_time_cycle_began;
   long long P_old  = DATA(gc)->max_live_words;
   long long A_this = DATA(gc)->since_cycle_began.words_promoted;
+  double F_2    = DATA(gc)->rrof_sumz_params.budget_inv;
   int F_3    = 2; /* XXX FIXME see Will for calculation of F_3 */
   int N = /* FIXME should be incrementally calculated via collection delta */
-    gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count ));
+    gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count )) 
+    / sizeof(word);
 
   long long A_target_1a = (long long)(L_hard*P_old);
-  long long A_target_1b = A_target_1a - N_old;
-  long long A_target_1c = A_target_1b - quotient2( N*(F_3 - 1), F_3 );
-  long long A_target_1  = A_target_1c / 2;
-  long long A_target_2 = ((L_soft*N_old));
+  long long A_target_1b = quotient2( A_target_1a, F_2 * F_3 ) - 1;
+  long long A_target_1  = quotient2( A_target_1b, 2);
+  long long A_target_2 = (((L_soft-1)*P_old));
   long long A_target   = max( 5*MEGABYTE/sizeof(word), min( A_target_1, A_target_2 ));
 
-  bool will_says_should_major = 
-    ((majors_total * A_this) >= (majors_sofar * A_target));
+  bool will_says_should_major = /* XXX need to figure out what to do about majors_sofar = 0 case (when no regions are waiting for major gc) ... */
+    (((long long)(majors_total+1) * A_this) > ((long long)(majors_sofar+1) * A_target));
 
   if (calculate_loudly) {
     consolemsg( "majors_sofar:% 3d majors_total:% 3d "
-                "N_old:% 5dK, N:% 5dK, P_old:% 5lldK, A_this:% 5lldK "
-                "A_target:% 5lldK = max(5M,min(% 5lldK,% 5lldK)) => will says: %s",
+                "N_old:% 6dK, N:% 6dK, P_old:% 6lldK, A_this:% 6lldK "
+                "A_target:% 6lldK = max(5M,min(% 6lldK,% 6lldK)) => will says: %s",
                 majors_sofar, majors_total, 
                 N_old/1000, N/1000, P_old/1000, A_this/1000, 
                 A_target/1000, A_target_1/1000, A_target_2/1000, 
                 will_says_should_major?"major":"minor");
   }
+
+  assert( !will_says_should_major || 
+          (region_group_first_heap( region_group_wait_w_sum ) != NULL ) ||
+          (region_group_first_heap( region_group_wait_nosum ) != NULL ) ||
+          (region_group_first_heap( region_group_filled ) != NULL ) );
 
   *will_says_should_major_recv = will_says_should_major;
 }
@@ -1525,31 +1366,33 @@ static void rrof_gc_policy( gc_t *gc,
 static void collect_rgnl_evacuate_nursery( gc_t *gc ) 
 {
   /* only forward data out of the nursery, if possible */
-  int rgn_to, rgn_succ_to, rgn_next;
+  int rgn_to;
   int num_rgns = DATA(gc)->region_count;
-  bool can_do_major, can_do_minor, succ_can_do_minor;
 
   bool will_says_should_major;
 
-  rrof_gc_policy( gc, &will_says_should_major, FALSE );
+  if ((region_group_count( region_group_wait_nosum ) 
+       + region_group_count( region_group_wait_w_sum ) 
+       + region_group_count( region_group_filled ) /* XXX */) 
+      > 0) {
+    rrof_gc_policy( gc, &will_says_should_major, FALSE );
+  } else {
+    will_says_should_major = FALSE;
+  }
 
   DATA(gc)->rrof_refine_mark_countdown -= 1;
 
  collect_evacuate_nursery:
-  rgn_next = DATA(gc)->rrof_next_region;
-  rgn_to = DATA(gc)->rrof_to_region;
-  rgn_succ_to = successor_of_to( gc );
-
-  collect_rgnl_policy( gc, rgn_to, rgn_succ_to, rgn_next, 
-                       &can_do_major, &can_do_minor, &succ_can_do_minor );
-  if (rgn_succ_to == rgn_to)
-    succ_can_do_minor = FALSE;
-
   if (will_says_should_major) {
     bool didit;
+    int rgn_next; 
     rgn_to = find_appropriate_to( gc );
-    assert2( rgn_to != rgn_next && ! rgn_has_summary_p( gc, rgn_to ));
+    rgn_next = find_appropriate_next( gc );
+    assert2( (DATA(gc)->summaries == NULL) 
+             || (rgn_to != rgn_next 
+                 && ! rgn_has_summary_p( gc, rgn_to )));
     DATA(gc)->rrof_to_region = rgn_to;
+    DATA(gc)->rrof_next_region = rgn_next;
     didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
     if (! didit) 
       goto collect_evacuate_nursery;
@@ -1850,6 +1693,13 @@ enumerate_remsets_complement( gc_t *gc,
   for( i = 1; i <= ecount; i++ ) {
     if (! gset_memberp( i, gset )) {
       rs_enumerate( gc->remset[i], f, fdata);
+    }
+  }
+  if (DATA(gc)->enumerate_major_with_minor_remsets) {
+    for( i = 1; i <= ecount; i++ ) {
+      if (! gset_memberp( i, gset )) {
+        rs_enumerate( gc->major_remset[i], f, fdata);
+      }
     }
   }
   
@@ -2163,10 +2013,7 @@ static void free_handle( gc_t *gc, word *handle )
 
 static gno_state_t gno_state( gc_t *gc, int gno )
 {
-  if (DATA(gc)->ephemeral_area[ gno-1 ]->has_popular_objects)
-    return gno_state_popular;
-  else
-    return gno_state_normal;
+  return gno_state_normal;
 }
 
 /* Returns generation number appropriate for a fresh area.  The
@@ -2220,8 +2067,8 @@ static old_heap_t* expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
   
   new_heap = 
     clone_sc_area( DATA(gc)->ephemeral_area[ old_area_count-1 ], fresh_gno );
-  region_group_switch( new_heap, 
-                       region_group_nonrrof, region_group_unfilled );
+  region_group_enq( new_heap, 
+                    region_group_nonrrof, region_group_unfilled );
 
   for( i=0 ; i < old_area_count; i++) {
     new_ephemeral_area[ i ] = DATA(gc)->ephemeral_area[ i ];
@@ -2380,70 +2227,20 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
 
   {
     region_group_t grp;
-    grp = DATA(gc)->ephemeral_area[ to_rgn_old-1 ]->group;
-    assert( (grp == region_group_unfilled) ||
-            (grp == region_group_waiting) /* XXX */ );
+    grp = gc_region_group_for_gno( gc, to_rgn_old );
+    assert( (grp == region_group_unfilled)
+            || (grp == region_group_wait_nosum) /* XXX */
+            || (grp == region_group_wait_w_sum) /* XXX */ );
 
-    region_group_switch( DATA(gc)->ephemeral_area[ to_rgn_old-1 ],
-                         grp, region_group_filled );
+    region_group_enq( DATA(gc)->ephemeral_area[ to_rgn_old-1 ],
+                      grp, region_group_filled );
   }
 
-  if ( to_rgn_new != DATA(gc)->rrof_next_region ) {
-    do {
-      int potential_allocated, allowed;
-      potential_allocated = 
-        (gc_allocated_to_areas( gc, gset_singleton( to_rgn_new ))
-         + expansion_amount);
-      allowed = gc_maximum_allotted( gc, gset_singleton( to_rgn_new ));
-      if (potential_allocated <= allowed) {
-        DATA(gc)->rrof_to_region = to_rgn_new;
-        assert( DATA(gc)->ephemeral_area[to_rgn_old-1]->was_target_during_gc );
-        DATA(gc)->ephemeral_area[to_rgn_new-1]->was_target_during_gc = TRUE;
-        annoyingmsg("next: %d jump to space incr; %d becomes %d", 
-                   DATA(gc)->rrof_next_region, to_rgn_old, to_rgn_new );
-        return oh_current_space( DATA(gc)->ephemeral_area[ to_rgn_new-1 ] );
-      }
-      to_rgn_new = next_rgn( to_rgn_new, DATA(gc)->region_count );
-    } while (to_rgn_new != to_rgn_old && 
-             to_rgn_new != DATA(gc)->rrof_next_region );
-    /* failure! */
-    annoyingmsg("find_space_rgnl: failed shift of to");
-  } 
-
-  {
-    int last_gen_no = DATA(gc)->ephemeral_area_count;
-    old_heap_t *heap;
-    int allocated_there;
-
-    assert( DATA(gc)->secondary_space == NULL );
-    heap = DATA(gc)->ephemeral_area[ last_gen_no-1 ];
-    ss_sync( oh_current_space( heap ));
-    oh_synchronize( heap );
-
-    if ((gc_allocated_to_areas( gc, gset_singleton( last_gen_no )) == 0) &&
-        last_gen_no != DATA(gc)->rrof_next_region) {
-      assert( to_rgn_old != last_gen_no );
-      assert( gc_heap_for_gno( gc, last_gen_no )->group
-              == region_group_unfilled );
-      DATA(gc)->ephemeral_area[last_gen_no-1]->was_target_during_gc = TRUE;
-      DATA(gc)->rrof_to_region = last_gen_no;
-      annoyingmsg("next: %d jump to space last; %d becomes %d", 
-                 DATA(gc)->rrof_next_region, to_rgn_old, last_gen_no );
-      return oh_current_space( heap );
-    } else {
-      semispace_t *ss;
-      ss = gc_fresh_space( gc );
-      assert( to_rgn_old != ss->gen_no );
-      to_rgn_new = ss->gen_no;
-      assert( gc_heap_for_gno( gc, to_rgn_new )->group
-              == region_group_unfilled );
-      DATA(gc)->ephemeral_area[to_rgn_new-1]->was_target_during_gc = TRUE;
-      DATA(gc)->rrof_to_region = to_rgn_new;
-      annoyingmsg("next: %d fresh to space; %d becomes %d", 
-                 DATA(gc)->rrof_next_region, to_rgn_old, to_rgn_new );
-      return ss;
-    }
-  }
+  to_rgn_new = find_appropriate_to( gc );
+  assert( region_group_of( gc_heap_for_gno( gc, to_rgn_new )) 
+          == region_group_unfilled );
+  DATA(gc)->rrof_to_region = to_rgn_new;
+  return oh_current_space( DATA(gc)->ephemeral_area[ to_rgn_new-1 ] );
 }
 
 static semispace_t *fresh_space( gc_t *gc ) 
@@ -2551,10 +2348,6 @@ static int maximum_allotted( gc_t *gc, gset_t gs )
 static bool is_nonmoving( gc_t *gc, int gen_no ) 
 {
   if (gen_no == DATA(gc)->static_generation)
-    return TRUE;
-  if (gen_no > 0 &&
-      gen_no < DATA(gc)->ephemeral_area_count &&
-      DATA(gc)->ephemeral_area[ gen_no-1 ]->has_popular_objects)
     return TRUE;
   
   return FALSE;
@@ -2665,7 +2458,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   retval |= rs_add_elems_distribute( remset, bot, top );
 
   g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
-  if (DATA(gc)->summaries != NULL) {
+  if (DATA(gc)->summaries != NULL && g_rhs <= DATA(gc)->region_count) {
     sm_add_ssb_elems_to_summary( DATA(gc)->summaries, bot, top, g_rhs );
   }
   return retval;
@@ -2839,7 +2632,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     int i;
     int e = data->ephemeral_area_count = info->ephemeral_area_count;
     double popular_factor;
-    data->region_count = e-1;
+    assert( e > 0 );
+    data->region_count = e;
     data->fixed_ephemeral_area = FALSE;
     data->ephemeral_area = (old_heap_t**)must_malloc( e*sizeof( old_heap_t* ));
     
@@ -2848,8 +2642,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
                       : default_popularity_factor);
     data->rrof_sumz_params.popularity_factor = popular_factor;
     data->rrof_sumz_params.popularity_limit_words =
-      (info->ephemeral_info[ data->region_count ].size_bytes
+      (info->ephemeral_info[ e-1 ].size_bytes
        * popular_factor / sizeof(word));
+    assert( data->rrof_sumz_params.popularity_limit_words > 0 );
     data->rrof_sumz_params.budget_inv = 
       (info->has_sumzbudget
        ? info->sumzbudget_inv
@@ -2862,13 +2657,13 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );
       data->max_live_words = 
-        info->ephemeral_info[i].size_bytes;
+        info->ephemeral_info[i].size_bytes/sizeof(word);
       size += info->ephemeral_info[i].size_bytes;
       data->ephemeral_area[ i ] = 
 	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
 			OHTYPE_REGIONAL );
-      region_group_switch( data->ephemeral_area[ i ], 
-                           region_group_nonrrof, region_group_unfilled );
+      region_group_enq( data->ephemeral_area[ i ], 
+                        region_group_nonrrof, region_group_unfilled );
       gen_no += 1;
     }
   }
@@ -2992,7 +2787,23 @@ static void points_across_callback( gc_t *gc, word lhs, word rhs )
 
 static 
 old_heap_t *heap_for_gno(gc_t *gc, int gen_no ) {
+  assert( gen_no > 0 );
+  assert( (gen_no-1) < DATA(gc)->ephemeral_area_count );
   return DATA(gc)->ephemeral_area[ gen_no-1 ];
+}
+
+static 
+region_group_t region_group_for_gno(gc_t *gc, int gen_no ) {
+  assert( gen_no >= 0 );
+  if (gen_no == 0) {
+    return region_group_nonrrof;
+  } else if ((gen_no-1) < DATA(gc)->ephemeral_area_count ) {
+    return DATA(gc)->ephemeral_area[ gen_no-1 ]->group;
+  } else if ( gen_no == DATA(gc)->static_generation ) {
+    return region_group_nonrrof;
+  } else {
+    assert(0);
+  }
 }
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
@@ -3039,6 +2850,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_to_region = 1;
   data->rrof_next_region = 1;
   data->rrof_last_tospace = -1;
+  data->rrof_cycle_remaining = 1;
+  data->rrof_cycle_majors = 0;
 
   data->rrof_has_refine_factor = TRUE;
   data->rrof_refinement_factor = 1.0;
@@ -3135,7 +2948,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 is_address_mapped,
 		 my_check_remset_invs,
 		 points_across_callback,
-		 heap_for_gno
+		 heap_for_gno, 
+		 region_group_for_gno
 		 );
   ret->scan_update_remset = info->is_regional_system;
 
