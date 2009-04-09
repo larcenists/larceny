@@ -110,6 +110,10 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   unsigned ssb;			/* # elements in each remset SSB */
 
   int mmu_buf_size;             /* If 0, use default; if < 0, no MMU stats */
+
+  bool rrof_prefer_big_summ;
+  bool rrof_prefer_lil_summ;
+  bool rrof_prefer_lat_summ;
 };
 
 /* In memmgr.c */
