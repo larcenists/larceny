@@ -119,6 +119,10 @@ struct gc_data {
      */
   bool rrof_last_gc_rolled_cycle;
 
+  bool rrof_prefer_big_summ;
+  bool rrof_prefer_lil_summ;
+  bool rrof_prefer_lat_summ;
+
   bool enumerate_major_with_minor_remsets;
   summary_t summary;            /* NULL or summarization of remset array */
   bool      use_summary_instead_of_remsets;
