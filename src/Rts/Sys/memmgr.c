@@ -1284,6 +1284,33 @@ static int find_appropriate_to( gc_t *gc )
   return oh_current_space( first_unfilled )->gen_no;
 }
 
+static bool oh_summ_geq( old_heap_t *oh1, old_heap_t *oh2, void *data ) 
+{
+  gc_t *gc = (gc_t*) data;
+  int summ_sz1, summ_sz2;
+  summ_sz1 = sm_summarized_live( DATA(gc)->summaries, 
+                                 oh_current_space(oh1)->gen_no );
+  summ_sz2 = sm_summarized_live( DATA(gc)->summaries, 
+                                 oh_current_space(oh2)->gen_no );
+  return summ_sz1 >= summ_sz2;
+}
+
+static bool oh_summ_leq( old_heap_t *oh1, old_heap_t *oh2, void *data ) 
+{
+  gc_t *gc = (gc_t*) data;
+  int summ_sz1, summ_sz2;
+  summ_sz1 = sm_summarized_live( DATA(gc)->summaries, 
+                                 oh_current_space(oh1)->gen_no );
+  summ_sz2 = sm_summarized_live( DATA(gc)->summaries, 
+                                 oh_current_space(oh2)->gen_no );
+  return summ_sz1 <= summ_sz2;
+}
+
+static bool oh_last( old_heap_t *oh1, old_heap_t *oh2, void *data ) 
+{
+  return TRUE;
+}
+
 static int find_appropriate_next( gc_t *gc )
 {
   old_heap_t *first_waiting;
@@ -1291,7 +1318,26 @@ static int find_appropriate_next( gc_t *gc )
   if (first_waiting == NULL) {
     /* (this is actually the common case, but we want to get above out
      * of the way; otherwise it will just sit around) */
-    first_waiting = region_group_first_heap( region_group_wait_w_sum );
+
+    if ( ! DATA(gc)->rrof_prefer_big_summ &&
+         ! DATA(gc)->rrof_prefer_lil_summ &&
+         ! DATA(gc)->rrof_prefer_lat_summ ) {
+      first_waiting = region_group_first_heap( region_group_wait_w_sum );
+    } else if (DATA(gc)->rrof_prefer_big_summ) {
+      first_waiting = 
+        region_group_largest( region_group_wait_w_sum, 
+                              oh_summ_geq, 1000, gc );
+    } else if (DATA(gc)->rrof_prefer_lil_summ ) {
+      first_waiting = 
+        region_group_largest( region_group_wait_w_sum, 
+                              oh_summ_leq, 1000, gc );
+    } else if (DATA(gc)->rrof_prefer_lat_summ ) {
+      first_waiting = 
+        region_group_largest( region_group_wait_w_sum, 
+                              oh_last, 1000, gc );
+    } else {
+      assert(0);
+    } 
   }
   if (first_waiting == NULL) {
     old_heap_t *first_filled;
@@ -2909,6 +2955,10 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
     data->mmu_log = NULL;
   }
 #endif
+
+  data->rrof_prefer_big_summ = info->rrof_prefer_big_summ;
+  data->rrof_prefer_lil_summ = info->rrof_prefer_lil_summ;
+  data->rrof_prefer_lat_summ = info->rrof_prefer_lat_summ;
 
   ret = 
     create_gc_t( "*invalid*",
