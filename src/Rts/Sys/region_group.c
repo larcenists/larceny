@@ -52,6 +52,24 @@ old_heap_t *region_group_first_heap( region_group_t grp )
 {
   return group_to_first_heap[ grp ];
 }
+old_heap_t *region_group_largest( region_group_t grp,
+                                  bool (*oh_geq)
+                                  (old_heap_t *oh1, old_heap_t *oh2, void *data),
+                                  int sample_count, 
+                                  void *data )
+{
+  old_heap_t *oh, *oh_max;
+  oh = group_to_first_heap[ grp ];
+  oh_max = oh;
+  while (oh != NULL && (sample_count > 0)) {
+    if ( oh_geq( oh, oh_max, data ) ) {
+      oh_max = oh;
+    }
+    oh = oh->next_in_group;
+    sample_count -= 1;
+  }
+  return oh_max;
+}
 old_heap_t *region_group_next_heap( old_heap_t *heap ) 
 {
   return heap->next_in_group;
