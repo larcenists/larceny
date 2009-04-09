@@ -33,6 +33,18 @@ old_heap_t *region_group_first_heap( region_group_t grp );
 /* Produces first heap in grp, or NULL if grp is empty.
  * See also region_group_next_heap below. */
 
+extern 
+old_heap_t *region_group_largest( region_group_t grp,
+                                  bool (*oh_geq)
+                                  (old_heap_t *oh1, 
+                                   old_heap_t *oh2, 
+                                   void *data),
+                                  int sample_count, 
+                                  void *data );
+/* Produces largest heap of first N in region_group_wait_w_sum, 
+ * where N = sample_count and heaps are compared by oh_geq, 
+ * or NULL if grp is empty. */
+
 extern
 old_heap_t *region_group_next_heap( old_heap_t *heap );
 /* Iterates through group; produces NULL when none are left.
