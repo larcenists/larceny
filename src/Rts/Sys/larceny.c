@@ -536,6 +536,21 @@ parse_options( int argc, char **argv, opt_t *o )
              hstrcmp( *argv, "-regional" ) == 0) {
       init_regional( o, areas, *argv );
     }
+    else if (hstrcmp( *argv, "-rrof_prefer_big_summ" ) == 0) {
+      o->gc_info.rrof_prefer_big_summ = TRUE;
+      o->gc_info.rrof_prefer_lil_summ = FALSE;
+      o->gc_info.rrof_prefer_lat_summ = FALSE;
+    }
+    else if (hstrcmp( *argv, "-rrof_prefer_lil_summ" ) == 0) {
+      o->gc_info.rrof_prefer_lil_summ = TRUE;
+      o->gc_info.rrof_prefer_big_summ = FALSE;
+      o->gc_info.rrof_prefer_lat_summ = FALSE;
+    }
+    else if (hstrcmp( *argv, "-rrof_prefer_late_summ" ) == 0) {
+      o->gc_info.rrof_prefer_lat_summ = TRUE;
+      o->gc_info.rrof_prefer_lil_summ = FALSE;
+      o->gc_info.rrof_prefer_big_summ = FALSE;
+    }
     else if (numbarg( "-mark_period", &argc, &argv, &mark_period)) {
       o->gc_info.mark_period = mark_period;
     }
