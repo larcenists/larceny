@@ -99,9 +99,12 @@
   (io/transcoder-error-handling-mode t))
 
 (define (bytevector->string bv t)
-  (call-with-port
-   (transcoded-port (open-input-bytevector bv) t)
-   get-string-all))
+  (let ((s (call-with-port
+            (transcoded-port (open-input-bytevector bv) t)
+            get-string-all)))
+    (if (eof-object? s)
+        ""
+        s)))
 
 ; When converting a string to a bytevector using the UTF-8
 ; or UTF-16 encoding forms, no encoding errors are possible

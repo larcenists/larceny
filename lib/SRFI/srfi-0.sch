@@ -76,6 +76,7 @@
                  srfi-63                ; Homogeneous and Heterogeneous Arrays
                  srfi-66                ; Octet Vectors
                  srfi-69                ; Basic hash tables
+                 srfi-98                ; os-environment-variables
                  )
     ((cond-expand) 
      (syntax-error "Unfulfilled cond-expand"))
@@ -207,6 +208,8 @@
      (begin (require 'srfi-66) body ...))
     ((cond-expand (srfi-69 body ...) more-clauses ...)
      (begin (require 'srfi-69) body ...))
+    ((cond-expand (srfi-98 body ...) more-clauses ...)
+     (begin (require 'srfi-98) body ...))
 
     ;; Other features are not supported!
     ((cond-expand (feature-id body ...) more-clauses ...)

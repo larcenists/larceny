@@ -8,25 +8,20 @@
 ($$trace "system-interface")
 
 ; FIXME: temporary infrastructure for Unicode conversion
+; FIXME: defaults to (native-transcoder), which iosys.sch defines later
 
 (define (sys$string->cstring s)
   (cond ((bytevector? s) s)
         ((string? s)
-         (let* ((n (string-length s))
-                (bv (make-bytevector n)))
-           (do ((i 0 (+ i 1)))
-               ((= i n) bv)
-             (bytevector-set! bv i (char->integer (string-ref s i))))))
-        (else (error "sys$string->cstring: bad string " s))))
+         (string->bytevector s (native-transcoder)))
+        (else (error 'sys$string->cstring "bad string" s))))
 
-(define (sys$cstring->string bvl)
-  (cond ((bytevector-like? bvl)
-         (let* ((n (bytevector-like-length bvl))
-                (s (make-string n)))
-           (do ((i 0 (+ i 1)))
-               ((= i n) s)
-             (string-set! s i (integer->char (bytevector-like-ref bvl i))))))
-        (else (error "sys$cstring->string: bad cstring " bvl))))
+(define (sys$cstring->string bv)
+  (cond ((bytevector? bv)
+         (bytevector->string bv (native-transcoder)))
+        (else (error 'sys$cstring->string "bad cstring" bv))))
+
+; FIXME: temporary instrumentation for C <--> Scheme string conversions.
 
 (define **syscall-magic-cookie** (make-vector 50 #f))
 

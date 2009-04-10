@@ -26,7 +26,7 @@
    23
    25
    26
-   ;; 27 ;; depends on SRFI 19; see below
+   27
    28
    29
    30
@@ -40,11 +40,8 @@
    63
    66
    69
-<<<<<<< .mine
+   98
    19 ;; depends on C FFI, which doesn't work in Common Larceny
-   27 ;; depends on SRFI 19
-=======
    43 ;; redefines vector-map etc, so it has to come near the end
->>>>>>> .r6172
    78
    ))

@@ -32,8 +32,11 @@
 ;;; DEALINGS IN THE SOFTWARE.
 
 
-(cond-expand (srfi-9))			; records
-(require 'time)				; CURRENT-UTC-TIME
+(cond-expand (srfi-9))                    ; records
+
+;;; SRFIs are more portable when they don't depend on the FFI.
+
+;(require 'time)                          ; CURRENT-UTC-TIME
 
 ; MODULE DEFINITION FOR SRFI-27
 ; =============================
@@ -72,9 +75,12 @@
   (a4 :random-source-make-integers)
   (a5 :random-source-make-reals))
 
+; (define (:random-source-current-time)
+;   (let-values (((secs usecs) (current-utc-time)))
+;     (+ secs usecs)))
+
 (define (:random-source-current-time)
-  (let-values (((secs usecs) (current-utc-time)))
-    (+ secs usecs)))
+  (current-seconds))
 
 
 ; 54-BIT FLONUM IMPLEMENTATION OF THE "MRG32K3A"-GENERATOR
