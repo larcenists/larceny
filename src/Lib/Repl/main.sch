@@ -90,7 +90,8 @@
                          (else `(begin (runtime-safety-checking #t)
                                        (catch-undefined-globals #t)
                                        (faster-arithmetic #f)))))))
-              (eval settings (interaction-environment)))))
+              (if (not clr?)                                            ; FIXME
+                  (eval settings (interaction-environment))))))
 
          ; FIXME
 
@@ -98,9 +99,10 @@
           (lambda (opt)
             (case opt
              ((0)
-              (eval '(begin (control-optimization #f)
-                            (global-optimization #f))
-                    (interaction-environment))))))
+              (if (not clr?)                                            ; FIXME
+                  (eval '(begin (control-optimization #f)
+                                (global-optimization #f))
+                        (interaction-environment)))))))
 
          (add-require-path!
           (lambda ()
@@ -181,6 +183,9 @@
      ; than enter the debugger.
 
      ((dargo)
+      (if clr?                                            ; FIXME
+          (begin (failsafe-load-init-files)
+                 (failsafe-process-arguments)))
       (adjust-transcoder!)
       (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
@@ -197,7 +202,9 @@
                      (read-traditional-weirdness? #f)
                      (read-mzscheme-weirdness? #f))
         ; Twobit has its own issue-warnings switch.
-        (eval '(issue-warnings #f) (interaction-environment))
+        ; FIXME: not working in Common Larceny
+        (if (not clr?)
+            (eval '(issue-warnings #f) (interaction-environment)))
         (let* ((pgm (get-feature 'top-level-program))
                (input (if (string=? pgm "")
                           (do ((x (read) (read))
@@ -286,6 +293,12 @@
                 (read (open-input-string (vector-ref argv (+ i 1))))))
              (list "Error parsing argument " (+ i 1)))
             (loop (+ i 2)))
+           ((and (string=? arg "--")
+                 (string=? "CLR" (cdr (assq 'arch-name (system-features)))))
+            ; FIXME: Common Larceny is the oddball here
+            (command-line-arguments
+             (list->vector
+              (cdr (member "--" (vector->list argv))))))
            ((and (> (string-length arg) 0)
                  (char=? (string-ref arg 0) #\-))
             (writeln "Error unrecognized option " arg)
@@ -302,7 +315,6 @@
 (define (clr-process-arguments)
   (let* ((features (system-features))
          (argv (command-line-arguments))
-         (clr? (equal? "CLR" (cdr (assq 'arch-name features))))
 
          (clr:case-sensitivity #f)
          (clr:execution-mode #f)
@@ -329,6 +341,9 @@
                       features)))
       (set! system-features
             (lambda () features))
+      (eval `(set! system-features
+                   (lambda () ',features))
+            (interaction-environment))
       (unspecified))
 
     (let loop ((i 0)
@@ -339,45 +354,42 @@
        (else
         (let ((arg (vector-ref argv i)))
           (cond
-           ((member arg '("-fold-ccase" "--fold-case" "//fold-case"))
-            (set! clr:case-sensitivity? #t)
+           ((member arg '("-fold-ccase" "--fold-case" "/fold-case"))
+            (set! clr:case-sensitivity? #f)
             (loop (+ i 1) args))
-           ((member arg '("-err5rs" "--err5rs" "//err5rs"))
+           ((member arg '("-err5rs" "--err5rs" "/err5rs"))
             (set! clr:execution-mode 'err5rs)
             (loop (+ i 1) args))
-           ((member arg '("-r6rs" "--r6rs" "//r6rs"))
+           ((member arg '("-r6rs" "--r6rs" "/r6rs"))
             (set! clr:execution-mode 'dargo)
             (loop (+ i 1) args))
-           ((and (member arg '("-path" "--path" "//path"))
+           ((and (member arg '("-path" "--path" "/path"))
                  (< (+ i 1) (vector-length argv)))
             (set! clr:library-path (vector-ref argv (+ i 1)))
             (loop (+ i 2) args))
-           ((and (member arg '("-program" "--program" "//program"))
+           ((and (member arg '("-program" "--program" "/program"))
                  (< (+ i 1) (vector-length argv)))
             (set! clr:top-level-program (vector-ref argv (+ i 1)))
             (loop (+ i 2) args))
            ((string=? arg "--")
-            (let ((args (reverse
-                         (append
-                          (cdr (member "--" (vector->list argv)))
-                          args))))
+            (let ((args (append (reverse args)
+                                (member "--" (vector->list argv)))))
               (return! (list->vector args))))
-           ((or (string=? arg "-e")
-                (string=? arg "--eval"))
-            (failsafe-eval-thunk 
-             (lambda () 
-               (retract-eof 
-                (read (open-input-string (vector-ref argv (+ i 1))))))
-             (list "Error parsing argument " (+ i 1)))
-            (loop (+ i 2) args))
+
+           ;; All other command-line arguments are saved for later.
+
+           ((and (or (string=? arg "-e")
+                     (string=? arg "--eval"))
+                 (< (+ i 1) (vector-length argv)))
+            (loop (+ i 2)
+                  (cons (vector-ref argv (+ i 1))
+                        (cons arg args))))
            ((and (> (string-length arg) 0)
                  (char=? (string-ref arg 0) #\-))
             (writeln "Error unrecognized option " arg)
             (loop (+ i 1) args))
            (else
-            (if (file-exists? arg)
-                (failsafe-load-file arg))
-            (loop (+ i 1) args)))))))))
+            (loop (+ i 1) (cons arg args))))))))))
 
 ;; retract-eof : Any -> Any
 

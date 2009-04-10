@@ -202,6 +202,12 @@
 (define larceny:autoloaded-r6rs-library-files '())
 
 (define (larceny:register! fname)
+  (if (larceny:registered? fname)
+      (begin (display "Already registered: ")
+             (write fname)
+             (newline)
+             (display "Continue? ")
+             (read)))
   (set! larceny:autoloaded-r6rs-library-files
         (cons (larceny:absolute-path fname)
               larceny:autoloaded-r6rs-library-files)))
