@@ -157,8 +157,14 @@
             (let ((first-line (get-line p)))
               (cond ((and (string? first-line)
                           (string=? first-line "#!fasl"))
-                     (aeryn-evaluator (aeryn-fasl-evaluator)
-                                      interaction-environment)
+
+                     ;; FIXME: resetting the port to position 0
+                     ;; should have the same effect
+
+                     ;; (aeryn-evaluator (aeryn-fasl-evaluator)
+                     ;;                  interaction-environment)
+
+                     (set-port-position! p 0)
                      (load-from-port p interaction-environment)
                      #t)
                     (else
@@ -175,8 +181,14 @@
             (let ((first-line (get-line p)))
               (cond ((and (string? first-line)
                           (string=? first-line "#!fasl"))
-                     (aeryn-evaluator (aeryn-fasl-evaluator)
-                                      interaction-environment)
+
+                     ;; FIXME: resetting the port to position 0
+                     ;; should have the same effect
+
+                     ;; (aeryn-evaluator (aeryn-fasl-evaluator)
+                     ;;                  interaction-environment)
+
+                     (set-port-position! p 0)
                      (load-from-port p interaction-environment)
                      #t)
                     (else
