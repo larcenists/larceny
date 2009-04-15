@@ -161,4 +161,14 @@
 	   (time=? ct-tai (date->time-tai cd))))
     (fail "TZ Offset conversions"))
 
+;;; regression test for bug reported by Eduardo Cavazos
+
+(let ((nsec (let loop ((old 0))
+              (let ((new (time-nanosecond (current-time))))
+                (if (< new old)
+                    old
+                    (loop new))))))
+  (or (> nsec 900000000)
+      (fail "nanosecond regression")))
+
 (writeln "Done.")
