@@ -50,3 +50,9 @@
                 (= 549 (wibble-wobble w))))
       (assertion-violation #f "ticket:549")))
 
+; Regression test for ticket:637
+
+(if (not (equal? '(... foo)
+                 (syntax->datum (syntax (... (... foo))))))
+    (assertion-violation #f "ticket:637"))
+

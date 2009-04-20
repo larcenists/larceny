@@ -1433,7 +1433,10 @@
                  (else
                   (syntax-reflect id)))))
         (((syntax ...) p)
-         (process-template p dim #t))
+         ; FIXME: this may fix ticket #637, but Will isn't sure
+         (if ellipses-quoted?
+             `(quote ,template)                        ; this may be too simple
+             (process-template p dim #t)))
         ((? (lambda (_) (not ellipses-quoted?))
             (t (syntax ...) . tail))
          (let* ((head (segment-head template)) 
