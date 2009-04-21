@@ -1432,10 +1432,10 @@
                            (syntax-violation 'syntax "Template dimension error (too few ...'s?)" id))))
                  (else
                   (syntax-reflect id)))))
-        (((syntax ...) p)
-         ; FIXME: this may fix ticket #637, but Will isn't sure
-         (if ellipses-quoted?
-             `(quote ,template)                        ; this may be too simple
+        (((syntax ...) p)                          ; Andre van Tonder gave us
+         (if ellipses-quoted?                      ; this patch for ticket #637
+             `(list ,(process-template (car template) dim #t)
+                    ,(process-template p dim #t))
              (process-template p dim #t)))
         ((? (lambda (_) (not ellipses-quoted?))
             (t (syntax ...) . tail))
