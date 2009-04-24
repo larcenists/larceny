@@ -12,6 +12,7 @@ include/mprocs.ah
 include/mprocs.ch
 include/regs.ah
 larceny
+twobit
 larceny.bin
 src/Lib/Common/ecodes.sch
 src/Lib/Common/globals.sch
