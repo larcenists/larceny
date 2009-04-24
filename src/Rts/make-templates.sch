@@ -152,7 +152,7 @@ ASFLAGS   = -I$(INC_ROOT)/ -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/
 CC=gcc
 DEBUGINFO=#-gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS+=-c -falign-functions=4 -I$(INC_ROOT)/Standard-C
+CFLAGS+=-c -fno-stack-protector -falign-functions=4 -I$(INC_ROOT)/Standard-C
 AS=nasm
 ASFLAGS+=-f elf -I$(INC_ROOT)/Nasm/ -DLINUX"))
 
@@ -163,7 +163,7 @@ ASFLAGS+=-f elf -I$(INC_ROOT)/Nasm/ -DLINUX"))
 CC=gcc
 DEBUGINFO=#-g -gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS+=-c -falign-functions=4 -m32
+CFLAGS+=-c -fno-stack-protector -falign-functions=4 -m32
 LIBS=-ldl -lm
 AS=nasm
 ASFLAGS+=-f elf -g -DLINUX"))
