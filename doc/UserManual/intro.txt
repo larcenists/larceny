@@ -61,47 +61,60 @@ as one of the following:
         tar -xzf larceny-X.Y-src.tar.gz
     
 
-This will create a directory called `larceny` in your current working
-directory.  Assuming you have unpacked a binary distribution, that
+That will create a directory with a similar name (but without
+the `.tar.gz` suffix) in your current working directory.
+That is the Larceny root directory, which you may rename
+to something shorter, such as `larceny`; the rest of this
+section will refer to it by that name.
+
+Assuming you have unpacked a binary distribution, the `larceny`
 directory will contain the following files:
     
     
         larceny.bin         Run-time system
         larceny.heap        Heap image with all libraries, FFI, and compiler
-        twobit.heap         Heap image with some libraries and compiler
         larceny             Shell script that runs larceny.heap
-        twobit              Shell script that runs twobit.heap
         scheme-script       Shell script that runs Scheme scripts
         compile-stale       Scheme script that compiles ERR5RS/R6RS libraries
         startup.sch         Pathnames for the require and autoload features
     
 
+If you unpacked a binary distribution, then you should be able to
+run it immediately by making the `larceny` directory your current
+working directory and invoking `./larceny` or perhaps just `larceny`.
+
 If you unpacked the source code there will be many other files and
-directories, but `larceny.bin`, `larceny.heap`, and `twobit.heap`
-will not be present.  You can reconstruct those files from their
+directories, but `larceny.bin` and `larceny.heap` will not be present.
+
+[TIP]
+================================================================
+You can reconstruct the `larceny.bin` and `larceny.heap` files from their
 source code, but that process requires a working version of Larceny
-or MzScheme; unless you're porting Larceny or Petit Larceny to a
-brand new target architecture, it's easier to obtain those three
+or PLT Scheme v37x; unless you're porting Larceny or Petit Larceny to a
+brand new target architecture, it's easier to obtain those
 files from a binary distribution of Larceny.
+================================================================
 
-The scripts and heap images are discussed in the following section. 
+You may add the `larceny` directory to your standard path,
+or you may install Larceny into a directory that is already
+part of your standard path.
 
-You should decide where you want to install Larceny;
-let's suppose you want to install it in `/usr/local/bin` and
-`/usr/local/lib/larceny`.  Copy `larceny`, `twobit`,
-and `scheme-script` to `/usr/local/bin` and edit the definition of
-`LARCENY_PATH` at the head of each file to point to the correct
-directory:
+Suppose, for example, that you want to install Larceny
+in `/usr/local/bin` and `/usr/local/lib/larceny`.
+Copy `larceny` and `scheme-script` to `/usr/local/bin`
+and edit the definition of `LARCENY_PATH` at the head
+of each file to point to the correct directory:
     
     
         LARCENY_PATH=/usr/local/lib/larceny
     
 
-Then move or copy `larceny.bin`, `larceny.heap`, `twobit.heap`,
-`startup.sch`, and the `lib` directory to `/usr/local/lib/larceny`.
+Then move the entire `larceny` directory to `/usr/local/lib/larceny`,
+or copy `larceny.bin`, `larceny.heap`, `startup.sch`, and the `lib`
+directory to `/usr/local/lib/larceny`.
 
-You should now be able to run Larceny by typing "`larceny`" at a
-Unix prompt.  On Windows, type "`larceny.bat`".
+You should now be able to run Larceny from any directory
+by typing "`larceny`" at a prompt.
 
 
 [[CompilingStdLibSection]]
@@ -109,8 +122,22 @@ Unix prompt.  On Windows, type "`larceny.bat`".
 === Compiling the R6RS standard libraries
 
 Before you can run Larceny in ERR5RS or R6RS modes, you may
-have to compile the ERR5RS/R6RS runtime and standard libraries,
-which is accomplished as follows:
+have to compile the ERR5RS/R6RS runtime and standard libraries.
+This step is definitely required if you are using Petit Larceny
+or building any variety of Larceny from source code.
+With the prebuilt native varieties of Larceny, however, this step
+should not be necessary unless you change one of the files in
++lib/R6RS+ or +lib/SRFI+.
+
+[TIP]
+================================================================
+If the +lib/R6RS+ directory and its subdirectories are read-only,
+then the standard libraries will not be touched, modified, or
+recompiled by accident.
+================================================================
+
+Compiling the ERR5RS/R6RS runtime and standard libraries is
+accomplished as follows:
 
 ----------------------------------------------------------------
     $ ./larceny
@@ -120,10 +147,6 @@ which is accomplished as follows:
     > (exit)
 ----------------------------------------------------------------
 
-This step is definitely required if you are using Petit Larceny
-or building any variety of Larceny from source code.
-With the prebuilt native varieties of Larceny, however, this step
-should not be necessary.
 
 [WARNING]
 ================================================================
@@ -134,14 +157,7 @@ those previously compiled files will need to be recompiled
 or removed.
 ================================================================
 
-[TIP]
-================================================================
-If the +lib/R6RS+ directory and its subdirectories are read-only,
-then the standard libraries will not be touched, modified, or
-recompiled by accident.
-================================================================
-
-
+////////////////////////////////////////////////////////////////////////
 === Twobit
 
 Unless you are doing compiler development, you should use the
@@ -168,4 +184,5 @@ interpreter is unaffected by changes to Twobit.
 If you are using "`twobit.heap`" for compiler development,
 you will need the source code as well as a binary distribution
 of Larceny.
+////////////////////////////////////////////////////////////////////////
 
