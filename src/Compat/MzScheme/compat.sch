@@ -2,7 +2,7 @@
 
 (define (require-4.x-id require-spec id)
   (let ((ns0 (make-namespace)))
-    (eval `(require (only-in ,require-spec ,id)) ns0)
+    (eval `(require ,require-spec) ns0)
     (eval id ns0)))
 
 (define (version-greater-or-equal-to? n)
