@@ -1,6 +1,76 @@
-(define version-299? (> (string->number (version)) 299))
-(define version-301? (>= (string->number (version)) 301))
-(define version-370? (>= (string->number (version)) 370))
+(#%require (only mzscheme version))
+(#%require (only mzscheme regexp-match))
+(#%require (only mzscheme require))
+(#%require (only mzscheme read-byte))
+(#%require (only mzscheme write-byte))
+(#%require (only mzscheme void))
+(#%require (only mzscheme open-input-string))
+(#%require (only mzscheme open-output-string))
+(#%require (only mzscheme get-output-string))
+(#%require (only mzscheme namespace-require/copy))
+(#%require (only scheme make-base-namespace))
+(#%require (only mzscheme file-or-directory-modify-seconds))
+(#%require (only mzscheme current-directory))
+(#%require (only mzscheme path->string))
+(#%require (only mzscheme read-case-sensitive))
+(#%require (only mzscheme bitwise-ior))
+(#%require (only mzscheme bitwise-and))
+(#%require (only mzscheme bitwise-xor))
+(#%require (only mzscheme bitwise-not))
+(#%require (only mzscheme arithmetic-shift))
+(#%require (only mzscheme print-vector-length))
+(#%require (only mzscheme file-exists?))
+(#%require (only mzscheme port?))
+(#%require (only mzscheme format))
+(#%require (only mzscheme string->uninterned-symbol))
+(#%require (only mzscheme getenv))
+(#%require (only mzscheme system-type))
+(#%require (only mzscheme sub1))
+
+
+;; require-4.x-id : Sexp Symbol -> Any
+
+(define (require-4.x-id require-spec id)
+  (let ((ns0 (make-base-namespace)))
+    (eval `(require (only-in ,require-spec ,id)) ns0)
+    (eval id ns0)))
+
+(define (version-greater-or-equal-to? n)
+  (cond 
+   ((and (number? n) (integer? n) (>= n 200) (< n 400))
+    (lambda (version-string)
+      ;; Below based on Danny Yoo's version-case PLaneT package
+      (cond 
+       ;; Old-style version string
+       ((regexp-match "^([0-9][0-9][0-9])[.0-9]*$" version-string)
+	=> (lambda (full-and-part)
+	     (>= (list-ref full-and-part 1) n)))
+       ;; New-style version string; (x.y.z where x >= 4)
+       ;; inherently >= 400
+       ((regexp-match "^([.0-9])*$"               version-string)
+	#t))))
+   ;; Strings *only* denote new-style versions!
+   ((string? n)
+    (lambda (version-string)
+      (cond
+       ((regexp-match "^([0-9][0-9][0-9])[.0-9]*$" version-string)
+	;; Old-style version can't possibly be >= n.
+	#f)
+       (else
+	;; If we have a new style version, use PLT's library 
+	;; to do the comparison.
+	(let ((version<=?
+	       (require-4.x-id 'version/utils 'version<=?)))
+	  (version<=? n version-string))))))))
+
+(define version-299? 
+  ((version-greater-or-equal-to? 299) (version)))
+(define version-301? 
+  ((version-greater-or-equal-to? 301) (version)))
+(define version-370? 
+  ((version-greater-or-equal-to? 370) (version)))
+(define version-4.x? 
+  ((version-greater-or-equal-to? "4.0.0") (version)))
 
 ;; When *exit-on-error* is set, make our error handler die loudly
 (cond (*exit-on-error*
@@ -15,12 +85,44 @@
                  (newline)
                  (exit 113)))))))
 
+;; import "old" syntax and procedures that handle mutable lists
+;; reasonably, but *after* code below so we can convert mlist->list
+
+(define namespace-require/copy namespace-require/copy)
+(namespace-require/copy 'r5rs)
+(cond 
+ (version-4.x?
+  (set! namespace-require/copy
+	(let ((n-r/c namespace-require/copy)
+	      (mlist->list 
+	       (require-4.x-id 'scheme/mpair 'mlist->list)))
+	  (lambda (form)
+	    (n-r/c (mlist->list form)))))))
+
 ;; Why not just require?
 ;; Well... that doesn't work on certain versions of DrScheme.
-(namespace-require/copy '(lib "list.ss"))
+;; More specifically, namespace-require/copy imports bindings
+;; into the top-level in a "destructive" way that will change
+;; the behavior of (some/most) previously resolved identifiers.
+;(namespace-require/copy '(lib "list.ss"))
+(define (ormap f l)
+  (cond ((null? l) #f) (else (or (f (car l)) (ormap f (cdr l))))))
+(define (andmap f l)
+  (cond ((null? l) #t) (else (and (f (car l)) (andmap f (cdr l))))))
+
 (namespace-require/copy '(lib "etc.ss"))
 (namespace-require/copy '(lib "process.ss"))
 (namespace-require/copy '(prefix mz: mzscheme))
+
+(define eval eval)
+(cond (version-4.x?
+       (set! eval 
+	     (let ((old-eval eval))
+	       (lambda args
+		 (if (null? (cdr args))
+		     (old-eval (car args) 
+			       (interaction-environment))
+		     (apply old-eval args)))))))
 
 (define ($$trace x) #t)
 (define host-system 'mzscheme)
@@ -84,7 +186,7 @@
 
 (define (call-with-error-control thunk1 thunk2) 
   (with-handlers 
-   [(values (lambda (exn)
+   ((values (lambda (exn)
 
 	      ;; delay lookup of print-error-trace as long 
 	      ;; as possible, to allow errortrace.ss to be
@@ -98,12 +200,12 @@
 		  (newline)
 		  (print-error-trace (current-output-port) exn))))
 
-	      (thunk2)))]
+	      (thunk2))))
     (thunk1)))
 
 
 (define (call-with-error-handler handler thunk)
-  (with-handlers [(values handler)]
+  (with-handlers ((values handler))
     (thunk)))
 
 (define (call-without-interrupts thunk)
@@ -147,7 +249,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; A well-defined sorting procedure
-(define compat:sort quicksort)
+(define compat:sort 
+  (cond
+   (version-4.x?
+    (let ((mlist->ilist (require-4.x-id 'scheme/mpair 'mlist->list))
+	  (ilist->mlist (require-4.x-id 'scheme/mpair 'list->mlist))
+	  (quicksort (require-4.x-id 'mzlib/list 'quicksort)))
+      (lambda args 
+	(ilist->mlist
+	 (apply quicksort
+		(mlist->ilist (car args))
+		(cdr args))))))
+   (else
+    quicksort)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -162,7 +276,7 @@
 
 (define error
   (lambda (msg . irritants)
-    (let [(err (open-output-string))]
+    (let ((err (open-output-string)))
       (display msg err)
       (for-each (lambda (x) (display " " err) (display x err)) irritants)
       (mz:error 'error (get-output-string err)))))
@@ -349,20 +463,26 @@
              (lambda () BODY   ...)
              (lambda () (PARAM ORIG) ...)))))))
 
-(set! copy-file mz:copy-file)
+(define copy-file mz:copy-file)
 
 (require (lib "pretty.ss"))
 
+(define alist->hash-table 'not-yet-defined)
 ;; for Sassy
 (define (compat:load-sassy)
   (parameterize ((current-directory "src/Lib/Sassy/"))
-    (load (if version-301?
-              "inits/mzscheme-301.scm"
-              "inits/mzscheme-299.400.scm"))
+    (load (cond
+	   (version-4.x?
+	    "inits/mzscheme-4.1.5.scm")
+	   (version-301?
+	    "inits/mzscheme-301.scm")
+	   (else
+	    "inits/mzscheme-299.400.scm")))
     (load "sassy.scm")
     (set! sassy-text-bytevector
           (lambda (sassy-output)
             (list->bytevector (sassy-text-list sassy-output))))
+	    
     ))
 
 ;; Parameter to control reader behavior
