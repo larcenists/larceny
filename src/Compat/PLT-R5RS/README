@@ -28,7 +28,11 @@ support mode).
 ----
 
 These compatibilty files have also been used with DrScheme v372 when
-using the "Standard (R5RS)" language level.
+using the "Standard (R5RS)" language level.  To use these files with
+DrScheme v4.1.5 using the "R5RS" language level (under "Legacy"),
+first uncheck the "Disallow redefinition of initial bindings" checkbox
+in the Details section of the Language menu (this is analogous to
+passing the --no-prim option when running plt-r5rs).
 
 Note that these compatility files do not work when invoking PLT Scheme
 via the mzscheme application.
