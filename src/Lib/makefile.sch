@@ -507,7 +507,7 @@
   (define (sassy-file ext)
     (lambda (name)
       (param-filename 'source "Sassy" (string-append name ext))))
-  (define sassy-deps
+  (let ((sassy-deps
     (map (lambda (file-and-deps)
 	   (list
 	     ((sassy-file ".fasl") (car file-and-deps))
@@ -528,7 +528,7 @@
 	   ("main")
 	   ("flat-bin")
 	   ("elf"))))
-  (define srfi-deps
+	(srfi-deps
     (map (lambda (file-and-deps)
            (list
 	     ((srfi-file ".fasl") (car file-and-deps))
@@ -537,8 +537,8 @@
         ("srfi-56")
         ("srfi-60")
         ("srfi-66")
-        ("srfi-69" "srfi-9"))))
-  (make:project "sassy.date"
+        ("srfi-69" "srfi-9")))))
+    (make:project "sassy.date"
     `(rules
        (".fasl" ".scm" ,make-compile-file/with-syntax)
        (".fasl" ".sch" ,make-compile-file/with-syntax))
@@ -548,7 +548,7 @@
        ("sassy.date" ,(map car sassy-deps))
        ("sassy.date" ,(map car srfi-deps))
        ,@sassy-deps
-       ,@srfi-deps)))
+       ,@srfi-deps))))
 
 (define (make-sassy . rest)
   (make:pretend (not (null? rest)))
