@@ -1,0 +1,33 @@
+This directory holds compatibility files for hosting under plt-r5rs,
+the r5rs-compatible language provided by PLT Scheme v4.
+
+To select these compatibility files when setting up the Larceny build
+environment, use 'plt-r5rs as the 'scheme: argument to the setup
+procedure in setup.sch.
+
+----
+
+These compatibilty files have also been used with DrScheme v372 when
+using the "Standard (R5RS)" language level.
+
+Note that these compatility files do not work when invoking PLT Scheme
+via the mzscheme application.
+
+----
+
+This compatibility layer has been explicitly designed to be a thin
+veneer over the Compat/MzScheme/ compatibility layer.  The only one of
+any real interest, compat.sch, uses PLT's special #%require form to
+import several non-R5RS procedures into the top-level environment;
+after all anticipated dependencies have been satisified, the file
+dispatches to load the Compat/MzScheme/compat.sch file.
+
+There are a number of other files in here, but they all immediately
+load their counterparts in Compat/MzScheme.
+
+----
+
+The main disadvantage of this design is that changes to
+Compat/MzScheme/ code could necessitate changes to
+Compat/PLT-R5RS/compat.sch (or elsewhere).  The main advantage is
+conceptual simplicity for this compatibility layer.
