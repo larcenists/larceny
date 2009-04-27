@@ -29,6 +29,7 @@
 (#%require (only mzscheme with-handlers))
 (#%require (only mzscheme bytes->list))
 (#%require (only mzscheme real->floating-point-bytes))
+(#%require (only mzscheme write-string))
 
 
 ;; require-4.x-id : Sexp Symbol -> Any
