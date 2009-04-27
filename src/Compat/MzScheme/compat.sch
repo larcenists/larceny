@@ -8,7 +8,7 @@
 (#%require (only mzscheme open-output-string))
 (#%require (only mzscheme get-output-string))
 (#%require (only mzscheme namespace-require/copy))
-(#%require (only scheme make-base-namespace))
+(#%require (only mzscheme make-namespace))
 (#%require (only mzscheme file-or-directory-modify-seconds))
 (#%require (only mzscheme current-directory))
 (#%require (only mzscheme path->string))
@@ -35,7 +35,7 @@
 ;; require-4.x-id : Sexp Symbol -> Any
 
 (define (require-4.x-id require-spec id)
-  (let ((ns0 (make-base-namespace)))
+  (let ((ns0 (make-namespace)))
     (eval `(require (only-in ,require-spec ,id)) ns0)
     (eval id ns0)))
 
@@ -48,7 +48,7 @@
        ;; Old-style version string
        ((regexp-match "^([0-9][0-9][0-9])[.0-9]*$" version-string)
 	=> (lambda (full-and-part)
-	     (>= (list-ref full-and-part 1) n)))
+	     (>= (string->number (list-ref full-and-part 1)) n)))
        ;; New-style version string; (x.y.z where x >= 4)
        ;; inherently >= 400
        ((regexp-match "^([.0-9])*$"               version-string)
@@ -103,7 +103,9 @@
 ;; reasonably, but *after* code below so we can convert mlist->list
 
 (define namespace-require/copy namespace-require/copy)
-(namespace-require/copy 'r5rs)
+(cond
+ (version-4.x?
+  (namespace-require/copy 'r5rs)))
 (cond 
  (version-4.x?
   (set! namespace-require/copy
@@ -287,6 +289,7 @@
 		(mlist->ilist (car args))
 		(cdr args))))))
    (else
+    (namespace-require/copy '(only (lib "list.ss") quicksort))
     quicksort)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
