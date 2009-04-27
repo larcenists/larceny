@@ -285,6 +285,9 @@
          ))
 
   (case host-scheme
+    ((plt-r5rs)
+     (set! *host-dir*  "PLT-R5RS")
+     (set! *host-name* "PLT-R5RS"))
     ((mzscheme) 
      (set! *host-dir*  "MzScheme") 
      (set! *host-name* "MzScheme"))
