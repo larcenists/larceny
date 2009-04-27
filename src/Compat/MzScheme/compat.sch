@@ -26,6 +26,8 @@
 (#%require (only mzscheme getenv))
 (#%require (only mzscheme system-type))
 (#%require (only mzscheme sub1))
+(#%require (only mzscheme with-handlers))
+
 
 
 ;; require-4.x-id : Sexp Symbol -> Any
@@ -114,6 +116,15 @@
 (namespace-require/copy '(lib "process.ss"))
 (namespace-require/copy '(prefix mz: mzscheme))
 
+(define namespace-mapped-symbols
+  (cond
+   (version-4.x?
+    (let ((ilist->mlist (require-4.x-id 'scheme/mpair 'list->mlist)))
+      (lambda args
+	(ilist->mlist (apply mz:namespace-mapped-symbols args)))))
+   (else
+    mz:namespace-mapped-symbols)))
+
 (define eval eval)
 (cond (version-4.x?
        (set! eval 
@@ -187,12 +198,15 @@
 (define (call-with-error-control thunk1 thunk2) 
   (with-handlers 
    ((values (lambda (exn)
-
+	      (display "Hola from compat.sch call-with-error-control")
+	      (display " thunk2 proxy")
+	      (display exn)
+	      (newline)
 	      ;; delay lookup of print-error-trace as long 
 	      ;; as possible, to allow errortrace.ss to be
 	      ;; required after this file is loaded.
 	      (cond 
-	       ((memq 'print-error-trace (mz:namespace-mapped-symbols))
+	       ((memq 'print-error-trace (namespace-mapped-symbols))
 		(let* ((ns-var-val mz:namespace-variable-value)
 		       (exn-message (ns-var-val 'exn-message))
 		       (print-error-trace (ns-var-val 'print-error-trace)))
@@ -276,6 +290,7 @@
 
 (define error
   (lambda (msg . irritants)
+    (begin (display "Hola from compat.sch error") (newline))
     (let ((err (open-output-string)))
       (display msg err)
       (for-each (lambda (x) (display " " err) (display x err)) irritants)
@@ -487,3 +502,45 @@
 
 ;; Parameter to control reader behavior
 (define compat:read-case-sensitive? read-case-sensitive)
+
+(define (append! . args)
+
+  (define (loop rest tail)
+    (cond ((null? rest)
+           tail)
+          ((null? (car rest))
+           (loop (cdr rest) tail))
+          (else
+           (loop (cdr rest)
+                 (begin (set-cdr! (last-pair (car rest)) tail)
+                        (car rest))))))
+
+  (if (null? args)
+      '()
+      (let ((a (reverse! args)))
+        (loop (cdr a) (car a)))))
+
+(define (last-pair l)
+  (if (null? (cdr l))
+      l
+      (last-pair (cdr l))))
+
+(define (reverse! l)
+  (define (loop0 prev curr next)
+    (set-cdr! curr prev)
+    (if (null? next)
+        curr
+        (loop1 (cdr next) curr next)))
+  (define (loop1 next prev curr)
+    (set-cdr! curr prev)
+    (if (null? next)
+        curr
+        (loop2 next (cdr next) curr)))
+  (define (loop2 curr next prev)
+    (set-cdr! curr prev)
+    (if (null? next)
+        curr
+        (loop0 curr next (cdr next))))
+  (if (null? l)
+      '()
+      (loop0 '() l (cdr l))))
