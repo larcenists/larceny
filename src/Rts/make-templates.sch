@@ -81,21 +81,29 @@
      . ,(lambda ()
 	  (values make-template-sparc-solaris-cc-as 
 		  make-template-target-sparc-solaris-bdw)))
-    (petit-unix-shared-gcc
+    (petit-unix-shared-gcc-v3
      . ,(lambda ()
-	  (values make-template-petit-unix-gcc
+	  (values make-template-petit-unix-gcc-v3
+		  make-template-target-petit-unix-shared)))
+    (petit-unix-shared-gcc-v4
+     . ,(lambda ()
+	  (values make-template-petit-unix-gcc-v4
 		  make-template-target-petit-unix-shared)))
     (petit-macosx-shared-gcc
      . ,(lambda ()
 	  (values make-template-petit-macosx-gcc-shared 
 		  make-template-target-petit-macosx-shared)))
-    (petit-unix-static-gcc
+    (petit-unix-static-gcc-v3
      . ,(lambda () 
-	  (values make-template-petit-unix-gcc
+	  (values make-template-petit-unix-gcc-v3
 		  make-template-target-petit-unix-static)))
-    (petit-win32-static-mingw
+    (petit-unix-static-gcc-v4
      . ,(lambda () 
-	  (values make-template-petit-unix-gcc
+	  (values make-template-petit-unix-gcc-v4
+		  make-template-target-petit-unix-static)))
+    (petit-win32-static-mingw-v3
+     . ,(lambda () 
+	  (values make-template-petit-unix-gcc-v3
 		  make-template-target-petit-unix-static)))
     (petit-win32-static-codewarrior
      . ,(lambda () 
@@ -117,9 +125,9 @@
      . ,(lambda ()
 	  (values make-template-sassy-win32-visualc
 		  make-template-target-sassy-win32)))
-    (x86-unix-static-gcc-nasm
+    (x86-unix-static-gcc-v3-nasm
      . ,(lambda () 
-	  (values make-template-petit-unix-gcc
+	  (values make-template-petit-unix-gcc-v3
 		  make-template-target-nasm-x86-unix-static)))
     (sassy-macosx-static-gcc-nasm
      . ,(lambda () 
@@ -146,15 +154,31 @@ ASFLAGS   = -I$(INC_ROOT)/ -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/
 ; Petit Larceny: Win32: gcc under cygwin or mingw
 ; Petit Larceny: MacOS X: gcc (not building a shared library)
 ; Petit Larceny with x86 back-end: Unix: NASM macro assembler
-(define make-template-petit-unix-gcc
-  (template-common
-"O=o
-CC=gcc
-DEBUGINFO=#-gstabs+
-OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS+=-c -fno-stack-protector -falign-functions=4 -I$(INC_ROOT)/Standard-C
-AS=nasm
-ASFLAGS+=-f elf -I$(INC_ROOT)/Nasm/ -DLINUX"))
+(define (make-cflag-augment version)
+  (string-append 
+   "CFLAGS+=-c "
+   (case version
+     ((gcc-v3) " ")
+     ((gcc-v4) " -fno-stack-protector "))
+   " -falign-functions=4 -I$(INC_ROOT)/Standard-C"))
+(define (makefile-variable-definitions version)
+  (let ((lines (lambda strings
+                 (apply string-append 
+                        (map (lambda (s) (string-append s "\n"))
+                             strings)))))
+    (lines
+"O=o"
+"CC=gcc"
+"DEBUGINFO=#-gstabs+"
+"OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG"
+(make-cflag-augment version)
+"AS=nasm"
+"ASFLAGS+=-f elf -I$(INC_ROOT)/Nasm/ -DLINUX")))
+
+(define make-template-petit-unix-gcc-v3
+  (template-common (makefile-variable-definitions 'gcc-v3)))
+(define make-template-petit-unix-gcc-v4
+  (template-common (makefile-variable-definitions 'gcc-v4)))
 
 ; Native Larceny with Sassy back-end: Unix: NASM macro assembler for Rts
 (define make-template-sassy-unix-gcc
