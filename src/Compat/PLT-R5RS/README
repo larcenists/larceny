@@ -1,9 +1,29 @@
 This directory holds compatibility files for hosting under plt-r5rs,
 the r5rs-compatible language provided by PLT Scheme v4.
 
+The setup process mutates bindings in the standard environment
+(e.g. load); to allow this in PLT Scheme v4.1.5, one must start
+plt-r5rs using the --no-prim flag.
+
 To select these compatibility files when setting up the Larceny build
 environment, use 'plt-r5rs as the 'scheme: argument to the setup
 procedure in setup.sch.
+
+The follow shell and REPL interactions illustrate the above
+instructions showing a load of the Larceny build environment (in R5RS
+support mode).
+
+  % /usr/local/lib/plt/bin/plt-r5rs --no-prim
+  Welcome to MzScheme v4.1.5 [3m], Copyright (c) 2004-2009 PLT Scheme Inc.
+  R5RS legacy support loaded
+  > (load "setup.sch")
+  > (setup 'scheme: 'plt-r5rs 'host: 'linux86)
+  Loading PLT-R5RS compatibility package.
+  src/Build/expander.sch
+  src/Build/config.sch
+  #t
+  > 
+
 
 ----
 
