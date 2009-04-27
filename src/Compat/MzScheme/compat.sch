@@ -27,7 +27,8 @@
 (#%require (only mzscheme system-type))
 (#%require (only mzscheme sub1))
 (#%require (only mzscheme with-handlers))
-
+(#%require (only mzscheme bytes->list))
+(#%require (only mzscheme real->floating-point-bytes))
 
 
 ;; require-4.x-id : Sexp Symbol -> Any
@@ -73,6 +74,16 @@
   ((version-greater-or-equal-to? 370) (version)))
 (define version-4.x? 
   ((version-greater-or-equal-to? "4.0.0") (version)))
+
+(define bytes->list
+  (cond (version-4.x?
+	 (let ((b->i-l bytes->list)
+	       (ilist->mlist 
+		(require-4.x-id 'scheme/mpair 'list->mlist)))
+	   (lambda args
+	     (ilist->mlist (apply b->i-l args)))))
+	(else
+	 bytes->list)))
 
 ;; When *exit-on-error* is set, make our error handler die loudly
 (cond (*exit-on-error*
