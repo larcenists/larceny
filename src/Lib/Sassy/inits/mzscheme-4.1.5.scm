@@ -9,8 +9,8 @@
 (load "other/srfi-60-pieces.scm")
 
 (define (require-4.x-id require-spec id)
-  (let ((ns0 (make-base-namespace)))
-    (eval `(require (only-in ,require-spec ,id)) ns0)
+  (let ((ns0 (make-namespace)))
+    (eval `(require ,require-spec) ns0)
     (eval id ns0)))
 
 ;; captures common pattern; hopefully "good enough"
