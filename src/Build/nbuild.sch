@@ -91,7 +91,9 @@
 (writeln "Loading utility functions.")
 (compat:load (param-filename 'rts "make-templates.sch"))
 (compat:load (param-filename 'util "cleanup.sch"))
-(compat:load (param-filename 'util "build-entry-defns.sch"))
+(cond 
+ ((not (eq? 'dotnet (nbuild-parameter 'target-machine)))
+  (compat:load (param-filename 'util "build-entry-defns.sch"))))
 
 ; Initialize Twobit and help system.
 
