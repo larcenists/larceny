@@ -83,7 +83,8 @@
                 (changed? (constant-folding! L variables)))
            (if changed?
                (constant-propagation (lambda.body L) (+ i 1))
-               (lambda.body L))))))
+               (lambda.body L))))
+        exp))
   (constant-propagation exp 0))
 
 ; Given a callgraph, returns a hashtable of abstract values for

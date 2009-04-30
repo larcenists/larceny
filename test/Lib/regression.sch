@@ -515,6 +515,26 @@
          (exact->inexact (- (expt 2 96) 1))
          7.922816251426434e28)
 
+   (test "Ticket #641"                  ; Bug in Larceny 0.97b1
+         ((lambda (f_2_3)               ; compiler bug
+            (f_2_3 '1 '2))
+          (lambda (ta_5_8 ta_6_8)
+            ((lambda (a_11)
+               ((lambda (b_14)
+                  ((lambda ()
+                     ((lambda (c_19)
+                        ((lambda (d_21)
+                           ((lambda (e_23) '99)
+                            (+ a_11
+                               b_14
+                               c_19
+                               d_21)))
+                         (+ a_11 b_14 c_19)))
+                      a_11))))
+                ta_6_8))
+             ta_5_8)))
+         99)
+
    ))
 
 (define (bug-105-test1)
