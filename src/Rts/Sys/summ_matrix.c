@@ -1546,6 +1546,7 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
   check_rep_3( summ );
 
   pop_limit = DATA(summ)->popularity_limit;
+  assert2( g_rhs < DATA(summ)->num_cols );
   col = DATA(summ)->cols[g_rhs];
 
   rs_add_elems_funnel( DATA(summ)->nursery_remset, bot, top );
