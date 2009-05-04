@@ -2504,7 +2504,11 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   retval |= rs_add_elems_distribute( remset, bot, top );
 
   g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
-  if (DATA(gc)->summaries != NULL && g_rhs <= DATA(gc)->region_count) {
+  if (DATA(gc)->summaries != NULL
+#if 0
+      && g_rhs <= DATA(gc)->region_count /* XXX is region_count sane? */
+#endif
+      ) {
     sm_add_ssb_elems_to_summary( DATA(gc)->summaries, bot, top, g_rhs );
   }
   return retval;
