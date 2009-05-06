@@ -351,9 +351,30 @@
     
     ; Given a known lambda expression L, its original formal parameters,
     ; and a list of all calls to L, deletes arguments that are now
-    ; ignored because of constant propagation.
-    
+    ; ignored because of constant propagation, moving side effects
+    ; (which can arise only from arguments that are begin expressions)
+    ; to some other argument.
+    ;
+    ; FIXME: for now, this procedure does nothing if any ignored
+    ; argument in any call might have a side effect.
+
     (define (delete-ignored-args! L formals0 calls)
+      (let ((formals1 (lambda.args L))
+            (side-effects? #f))
+        (for-each (lambda (call)
+                    (do ((formals0 formals0 (cdr formals0))
+                         (formals1 formals1 (cdr formals1))
+                         (args (call.args call)
+                               (cdr args)))
+                        ((null? formals0))
+                      (if (and (eq? (car formals1) name:IGNORED)
+                               (begin? (car args)))
+                          (set! side-effects? #t))))
+                  calls)
+        (if (not side-effects?)
+            (really-delete-ignored-args! L formals0 calls))))
+    
+    (define (really-delete-ignored-args! L formals0 calls)
       (let ((formals1 (lambda.args L)))
         (for-each (lambda (call)
                     (do ((formals0 formals0 (cdr formals0))
