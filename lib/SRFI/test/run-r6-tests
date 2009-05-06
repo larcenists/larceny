@@ -27,11 +27,22 @@ echo srfi-41-test; ${LARCENY} --r6rs --program srfi-41-test.sps; echo
 echo srfi-42-test; ${LARCENY} --r6rs --program srfi-42-test.sps; echo
 echo srfi-43-test; ${LARCENY} --r6rs --program srfi-43-test.sps; echo
 echo srfi-45-test; ${LARCENY} --r6rs --program srfi-45-test.sps; echo
+echo srfi-48-test; ${LARCENY} --r6rs --program srfi-48-test.sps; echo
+echo srfi-51-test; ${LARCENY} --r6rs --program srfi-51-test.sps; echo
+echo srfi-54-test; ${LARCENY} --r6rs --program srfi-54-test.sps; echo
 echo srfi-59-test; ${LARCENY} --r6rs --program srfi-59-test.sps; echo
 echo srfi-60-test; ${LARCENY} --r6rs --program srfi-60-test.sps; echo
+echo srfi-61-test; ${LARCENY} --r6rs --program srfi-61-test.sps; echo
 echo srfi-63-test; ${LARCENY} --r6rs --program srfi-63-test.sps; echo
+echo srfi-64-test; ${LARCENY} --r6rs --program srfi-64-test.sps; echo
 echo srfi-66-test; ${LARCENY} --r6rs --program srfi-66-test.sps; echo
+echo srfi-67-test; ${LARCENY} --r6rs --program srfi-67-test.sps; echo
 echo srfi-69-test; ${LARCENY} --r6rs --program srfi-69-test.sps; echo
+echo srfi-71-test; ${LARCENY} --r6rs --program srfi-71-test.sps; echo
+echo srfi-74-test; ${LARCENY} --r6rs --program srfi-74-test.sps; echo
+echo srfi-86-test; ${LARCENY} --r6rs --program srfi-86-test.sps; echo
+echo srfi-87-test; ${LARCENY} --r6rs --program srfi-87-test.sps; echo
+echo srfi-95-test; ${LARCENY} --r6rs --program srfi-95-test.sps; echo
 echo srfi-98-test; ${LARCENY} --r6rs --program srfi-98-test.sps; echo
 echo srfi-78-test; ${LARCENY} --r6rs --program srfi-78-test.sps; echo
 

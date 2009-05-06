@@ -3,8 +3,9 @@
 ;;;
 ;;; $Id$
 ;;;
-;;; Conflicts with (rnrs lists):
+;;; Conflicts with (rnrs base):
 ;;;     map, for-each: allow list arguments of different lengths
+;;; Conflicts with (rnrs lists):
 ;;;     member, assoc: accept an optional third argument
 ;;;     fold-right: different arguments, different semantics
 ;;;

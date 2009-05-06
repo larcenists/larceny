@@ -36,10 +36,21 @@
    39
    42
    45
+   48
+   51
+   54
    60
+   61
    63
+   64
    66
+   67
    69
+   71
+   74
+   86
+   87
+   95
    98
    19 ;; depends on C FFI, which doesn't work in Common Larceny
    43 ;; redefines vector-map etc, so it has to come near the end
