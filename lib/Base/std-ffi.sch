@@ -190,17 +190,21 @@
 	  (error "Foreign-procedure " name ": " x 
 		 " is out of range for a signed integer type.")))
 
+    (define (ascii-char? x)
+      (and (char? x)
+           (< -1 (char->integer x) 256)))
+
     (define (character->char x name)
-      (if (char? x)
+      (if (ascii-char? x)
 	  (let ((c (char->integer x)))
 	    (if (> c 127)
-		(- 256 c)
+	        (- c 256)
 		c))
 	  (error "Foreign-procedure " name ": " x
 		 " is not a character.")))
 
     (define (character->uchar x name)
-      (if (char? x)
+      (if (ascii-char? x)
 	  (char->integer x)
 	  (error "Foreign-procedure " name ": " x
 		 " is not a character.")))
