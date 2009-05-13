@@ -395,7 +395,7 @@ has been a low priority item for the Larceny development
 team.
 ================================================================
 
-.Maybe Type Constructors
+.Maybe Type Constructor
 
 +(maybe _t_)+ captures the 
 pattern of passing +NULL+ in C and +#f+ in Scheme
@@ -414,21 +414,60 @@ unmarshaling of _t_.
  are not as fully-developed as the two above, and are intended
  for use only for internal development for now.)
 
-===== +void*+ Type Hierarchies
+===== void* Type Hierarchies
 
-FIXME: add documentation for the ** void* ** type, the
-corresponding _void*-rt_ record type descriptor, and the
-procedures
-void*->address
-void*-byte-ref
-void*-byte-set!
-void*-word-ref
-void*-word-set!
-void*-void*-ref
-void*-void*-set!
-void*-double-ref
-void*-double-set!
+Using the +void*+ attribute 
+wraps foreign addresses up in a Larceny record, 
+so that standard numeric
+operations cannot be directly applied by accident.
+The FFI uses two features of Larceny's record system:
+the record type descriptor is a first class
+value with an inspectable name, and 
+record types are extensible via single-inheritance.
 
+.Basic Operations on +void*+
+
+The FFI provides +void*-rt+, a record type
+descriptor with a single field (a wrapped address).
+There is also a family of functions for dereferencing the 
+pointer within a +void*-rt+ and manipulating the 
+state it references.
+
+proc:void*->address[args="x",result="number"]
+Extracts the underlying address held in a +void*+.
+
+proc:void*?[args="x",result="boolean"]
+Distinquishes +void*+'s from other Scheme values.
+
+proc:void*-byte-ref[args="x idx",result="number"]
+Extracts byte at offset from address within 'x'.
+
+proc:void*-byte-set![args="x idx val",result="unspecified"]
+Modifies byte at offset from address within 'x'.
+
+proc:void*-word-ref[args="x idx",result="number"]
+Extracts word-sized integer at offset from address within 'x'.
+
+proc:void*-word-set![args="x idx val",result="unspecified"]
+Modifies word-sized integer at offset from address within 'x'.
+
+proc:void*-void*-ref[args="x idx",result="void*"]
+Extracts address (and wraps it in a +void*+) at offset from address within 'x'.
+
+proc:void*-void*-set![args="x idx val",result="unspecified"]
+Modifies address at offset from address within 'x'.
+
+proc:void*-double-ref[args="x idx",result="number"]
+Extracts 64-bit flonum at offset from address within 'x'.
+
+proc:void*-double-set![args="x idx val",result="unspecified"]
+Modifies 64-bit flonum at offset from address within 'x'.
+
+.Type Hierarchies
+
+Procedures for establishing type hierarchies are provided by the
++lib/Standard/foreign-stdlib.sch+ library; see
+<<ffi-install-void*-subtype>> and <<establish-void*-subhierarchy!>>.
 
 [[FfiCompiliing, Creating loadable modules]]
 ==== Creating loadable modules
@@ -785,7 +824,29 @@ proctempl:ffi-install-void*-subtype[args="rtd",result="rtd"]
 proctempl:ffi-install-void*-subtype[args="string",optarg="parent-rtd",result="rtd"]
 proctempl:ffi-install-void*-subtype[args="symbol",optarg="parent-rtd",result="rtd"]
 
+<<ffi-install-void*-subtype>>
+extends the core attribute registry with a new primitive
+entry for _subtype_.
+The _parent-rtd_ argument should be a subtype of +void*-rt+
+and defaults to +void*-rt+.
+In the case of the _symbol_ or _string_ inputs, the 
+procedure constructs a new record type subtyping the _parent_ argument.
+In the case of the _rtd_ input, the _rtd_ record type 
+must extend +void*-rt+.
+<<ffi-install-void*-subtype>> returns the subtype record type.
+
+The returned record type represents a tagged wrapped C pointer,
+allowing one to encode type hierarchies.
+
 proc:establish-void*-subhierarchy![args="symbol-tree",result="unspecified"]
+
+<<establish-void*-subhierarchy!>> is a convenience function 
+for constructing large object hierarchies. 
+It descends the _symbol-tree_, 
+creates a record type descriptor for each symbol
+(where the root of the tree has the parent +void*-rt+), 
+and invokes <<ffi-install-void*-subtype>> on all 
+of the introduced types.
 
 _Type char*_ extends _void*_
 proc:string->char*[args="string",result="char*"]
