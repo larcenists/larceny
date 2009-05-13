@@ -13,6 +13,7 @@ Some of the information in this section may be out of date.
 ================================================================
 
 [[FfiOverview, Introducing the FFI]]
+==== Introducing the FFI
 
 There are a number of different potential ways to use the FFI.
 One client may want to develop code in C and load it into Larceny.
@@ -31,7 +32,7 @@ There are four main steps to interacting with foreign code:
 
 1. identifying the space of values manipulated by the 
    foreign code that will also be manipulated in Scheme, 
-2. choosing how to marshal values between foreign and
+2. describing how to marshal values between foreign and
    Scheme code, and 
 3. loading library file(s) holding foreign object code, 
 4. linking procedures from the loaded library.
@@ -40,6 +41,7 @@ Step 1 is conceptual, while steps 2 through 4
 yield artifacts in Scheme source code.
 
 [[FfiForeignValues, The space of foreign values]]
+==== The space of foreign values
 
 At the lowest level, foreign values are uninterpreted 
 sequences of bits.  Often foreign object code is oriented
@@ -149,81 +151,43 @@ adapter code in C that marshals between values handled
 by the FFI and the C +struct+.
 ================================================================
 
+The conclusion is: when designing an interface to a foreign
+library, you should analyze the values manipulated on the 
+foreign side and identify their relationship with values 
+on the Scheme side.
+After you have identified the domains of interest, 
+you then describe how the values will be marshaled 
+back and forth between the two domains.
 
-[[FfiCompiliing, Creating loadable modules]]
-==== Creating loadable modules
+[[FfiMarshalling, Marshalling via ffi-attributes]]
+==== Marshalling via ffi-attributes
 
-You must first compile your C code and create one or more loadable object modules. These object modules may then be loaded into Larceny, and Scheme foreign functions may link to specific functions in the loaded module. Defining foreign functions in Scheme is covered in a later section. 
+This section describes the marshalling protocol defined in
++lib/Base/std-ffi.sch+.
 
-The method for creating a loadable object module varies from platform to platform. In the following, assume you have to C source files file1.c and file2.c that define functions that you want to make available as foreign functions in Larceny. 
+Foreign functions automatically marshal their inputs and outputs
+according to type-descriptors attached to each foreign
+function.
+These type-descriptors are S-expressions made up of
+symbolic references to _ffi-attributes_.
+A central registry maps symbols to a foreign
+representation and two conversion routines:
+one to convert a Scheme value to a foreign argument, and 
+another to convert a foreign result back back to a Scheme value.
+The denoted components are collectively referred to as a _type_
+within the FFI documentation.
 
-===== SunOS 4
-
-Compile your source files and create a shared library. Using GCC, the command line might look like this: 
-    
-    
-      gcc -fPIC -shared file1.c file2.c -o my-library.so
-    
-
-The command creates my-library.so in the current directory. This library can now be loaded into Larceny using <<foreign-file>>. Any other shared libraries used by your library files should also be loaded into Larceny using <<foreign-file>> before any procedures are linked using <<foreign-procedure>>. 
-
-By default, /lib/libc.so is made available to the dynamic linker and to the foreign function interface, so there is no need for you to load that library explicitly. 
-
-===== SunOS 5
-
-Compile your source files and create a shared library, linking with all the necessary libraries. Using GCC, the command line might look like this: 
-    
-    
-      gcc -fPIC -shared file1.c file2.c -lc -lm -lsocket -o my-library.so
-    
-
-Now you can use foreign-file to load my-library.so into Larceny. 
-
-By default, /lib/libc.so is made available to the foreign function interface, so there is no need for you to load that library explicitly. 
-
-[[FfiInterface, Loading and linking foreign functions]]
-==== The Interface
-
-===== Procedures
-
-proc:foreign-file[args="filename",result="unspecified"]
-
-     Foreign-file loads the named object file into Larceny and makes it available for dynamic linking. 
-
-Larceny uses the operating system provided dynamic linker to do dynamic linking. The operation of the dynamic linker varies from platform to platform: 
-
-  * On some versions of SunOS 4, if the linker is given a file that does not exist, it will terminate the process. (Most likely this is a bug.) This means you should never call foreign-file with the name of a file that does not exist. 
-  * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the `LD_LIBRARY_PATH` environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
-
-proc:foreign-procedure[args="name (arg-type ...) return-type",result="unspecified"]
-
-FIXME: The interface to this function has been extended to support
-hooking into Windows procedures that use the Pascal calling convention
-instead of the C one.  The way to select which convention to use
-should be documented.
-
-Returns a Scheme procedure _p_ that calls the foreign procedure whose
-name is _name_. When _p_ is called, it will convert its parameters to
-representations indicated by the __arg-type__s and invoke the foreign
-procedure, passing the converted values as parameters. When the
-foreign procedure returns, its return value is converted to a Scheme
-value according to _return-type_.
-
-Types are described below. 
-
-The address of the foreign procedure is obtained by searching for _name_ in the symbol tables of the foreign files that have been loaded with _foreign-file_. 
-
-proc:foreign-null-pointer[args="",result="integer"]
-
-Returns a foreign null pointer. 
-
-proc:foreign-null-pointer?[args="integer",result="boolean"]
-
-Tests whether its argument is a foreign null pointer. 
+////////////////////////////////////////////////////////////////////
+For example the symbol +'char+ denotes a type with procedures that
+convert Scheme characters to a corresponding signed byte
+representation and back again, while the symbol
++'uchar+ denotes similar procedures that convert
+between Scheme characters and unsigned bytes.
+////////////////////////////////////////////////////////////////////
 
 ===== Types
 
-A _type_ is denoted by a symbol. The following is a list of the accepted types and their conversions at the call-out to the foreign procedure: 
+The following is a list of the accepted types and their conversions at the call-out to the foreign procedure: 
 
 **int** Any exact integer value in the range [-2^31^,2^31^-1] is
   acceptable and is converted to a C "int". 
@@ -330,6 +294,76 @@ Also document
 ffi-add-attribute-core-entry! 
 (and perhaps ffi-attribute-core-entry ?)
 
+[[FfiCompiliing, Creating loadable modules]]
+==== Creating loadable modules
+
+You must first compile your C code and create one or more loadable object modules. These object modules may then be loaded into Larceny, and Scheme foreign functions may link to specific functions in the loaded module. Defining foreign functions in Scheme is covered in a later section. 
+
+The method for creating a loadable object module varies from platform to platform. In the following, assume you have to C source files file1.c and file2.c that define functions that you want to make available as foreign functions in Larceny. 
+
+===== SunOS 4
+
+Compile your source files and create a shared library. Using GCC, the command line might look like this: 
+    
+    
+      gcc -fPIC -shared file1.c file2.c -o my-library.so
+    
+
+The command creates my-library.so in the current directory. This library can now be loaded into Larceny using <<foreign-file>>. Any other shared libraries used by your library files should also be loaded into Larceny using <<foreign-file>> before any procedures are linked using <<foreign-procedure>>. 
+
+By default, /lib/libc.so is made available to the dynamic linker and to the foreign function interface, so there is no need for you to load that library explicitly. 
+
+===== SunOS 5
+
+Compile your source files and create a shared library, linking with all the necessary libraries. Using GCC, the command line might look like this: 
+    
+    
+      gcc -fPIC -shared file1.c file2.c -lc -lm -lsocket -o my-library.so
+    
+
+Now you can use foreign-file to load my-library.so into Larceny. 
+
+By default, /lib/libc.so is made available to the foreign function interface, so there is no need for you to load that library explicitly. 
+
+[[FfiInterface, Loading and linking foreign functions]]
+==== The Interface
+
+===== Procedures
+
+proc:foreign-file[args="filename",result="unspecified"]
+
+<<foreign-file>> loads the named object file into Larceny and makes it available for dynamic linking. 
+
+Larceny uses the operating system provided dynamic linker to do dynamic linking. The operation of the dynamic linker varies from platform to platform: 
+
+  * On some versions of SunOS 4, if the linker is given a file that does not exist, it will terminate the process. (Most likely this is a bug.) This means you should never call foreign-file with the name of a file that does not exist. 
+  * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the `LD_LIBRARY_PATH` environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
+
+proc:foreign-procedure[args="name (arg-type ...) return-type",result="unspecified"]
+
+FIXME: The interface to this function has been extended to support
+hooking into Windows procedures that use the Pascal calling convention
+instead of the C one.  The way to select which convention to use
+should be documented.
+
+Returns a Scheme procedure _p_ that calls the foreign procedure whose
+name is _name_. When _p_ is called, it will convert its parameters to
+representations indicated by the __arg-type__s and invoke the foreign
+procedure, passing the converted values as parameters. When the
+foreign procedure returns, its return value is converted to a Scheme
+value according to _return-type_.
+
+Types are described below. 
+
+The address of the foreign procedure is obtained by searching for _name_ in the symbol tables of the foreign files that have been loaded with _foreign-file_. 
+
+proc:foreign-null-pointer[args="",result="integer"]
+
+Returns a foreign null pointer. 
+
+proc:foreign-null-pointer?[args="integer",result="boolean"]
+
+Tests whether its argument is a foreign null pointer. 
 
 [[FfiAccess, Foreign data access]]
 ==== Foreign Data Access
