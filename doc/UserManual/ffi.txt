@@ -12,6 +12,144 @@ a derived FFI. It is not yet fully evolved, but it is useful.
 Some of the information in this section may be out of date.
 ================================================================
 
+[[FfiOverview, Introducing the FFI]]
+
+There are a number of different potential ways to use the FFI.
+One client may want to develop code in C and load it into Larceny.
+Another client may want to load native libraries 
+provided by the host operating system, enabling invocation
+of foreign code from Scheme expressions without developing
+any C code or even running a C compiler.
+Larceny's FFI can be used for both of these cases, 
+but many of its facilities target a third client 
+in between the two extremes: a client with a C compiler and
+the header files and object code for the foreign libraries, 
+but who wishes to avoid writing glue code in C to interface 
+with the libraries.
+
+There are four main steps to interacting with foreign code:
+
+1. identifying the space of values manipulated by the 
+   foreign code that will also be manipulated in Scheme, 
+2. choosing how to marshal values between foreign and
+   Scheme code, and 
+3. loading library file(s) holding foreign object code, 
+4. linking procedures from the loaded library.
+
+Step 1 is conceptual, while steps 2 through 4 
+yield artifacts in Scheme source code.
+
+[[FfiForeignValues, The space of foreign values]]
+
+At the lowest level, foreign values are uninterpreted 
+sequences of bits.  Often foreign object code is oriented
+around manipulating word-sized bit-sequences ('words')
+or arrays and tuples of words.
+
+Of course, many libraries are written with a particular
+interpretation of such words.  In C code, explicit types are 
+often used hints to guide such interpretation; for example, 
+a +0+ of type +bool+ is usually interpreted as 'false', 
+while a +1+ (or other non-zero value) of type +bool+ is 
+usually interpreted as 'true'.
+Another example are C enumerations (or 'enums').
+an enum declaration defines a set of named 
+integral constants.  After the declaration
+------------------------------------------------
+enum months { JAN = 1, FEB, MAR, APR, MAY, JUN, 
+              JUL, AUG, SEP, OCT, NOV, DEC };
+------------------------------------------------
+then a +JAN+ in C code denotes +1+, +FEB+ is +2+, and so on; 
+furthermore, tools like debuggers will render a +2+ of 
+type +enum months+ as +FEB+.  Thus the enum declaration
+intoduces a new interpretation for a set of words.
+
+This leads to questions for a client of an FFI.
+Should foreign words be passed over to 
+the Scheme world as uninterpreted numbers (and thus
+be converted into Scheme integers, usually fixnums), 
+or should they be marshaled into interpreted values, such as 
++#f+ and +#t+ for the +bool+ type or the Scheme symbols
+{+JAN+, +FEB+, +MAR+, +APR+, +MAY+, +JUN+, 
+ +JUL+, +AUG+, +SEP+, +OCT+, +NOV+, +DEC+ }
+for the +enum months+ type?
+Similarly, how should Scheme values be marshaled into 
+foreign words?
+
+Furthermore, a foreign library might leave the mapping 
+of names like +FEB+ to words like +2+ 'unspecified' 
+in the library interface.
+That is, while the C compiler will know +FEB+ maps to +2+ 
+according to a particular version of the library's header file, 
+the library designer may intend to change this mapping 
+in the future, and therefore clients should 'only' use 
+the names to refer to a +enum months+ value, and 'not' integer
+expressions.
+How should this constraint be handled in the FFI; should 
+the library client revise their code in reaction to
+such changes to the mapping?  Or should the system derive
+the mapping from the header files, in the same manner that
+the C compiler does?
+
+Foreign libraries often manipulate
+mutable entities, like arrays of words where
+modifications can be observed (often by design).
+How should such values be marshaled?  Is it sound
+to copy it to the Scheme heap?
+Answering these questions may require deep knowledge 
+of the intended usage of the foreign library.
+
+Will the foreign code hold references to heap-allocated
+objects?  Heap-allocated objects that 'leak' out to 
+foreign memory must be treated with care.
+The garbage collector presents two problems.
+First, such objects must not move during a garbage collection; 
+(TODO does material post-semicolon belong, or put elsewhere?)
+Larceny supports this via special-purpose allocation routines 
+(TODO: reference +syscall:make-nonrelocatable+
+ +make-nonrelocatable-bytevector+
+ +cons-nonrelocatable+
+ +make-nonrelocatable-vector+).
+Second, the garbage collector must know to 'trace' 
+such values as long as they are needed by foreign code; 
+otherwise the objects or their referents may be 
+collected without the knowledge of the foreign code.
+
+[WARNING]
+================================================================
+Foreign C code developed to work in concert with Larceny 
+could hypothetically deal with the garbage collector moving 
+objects, but there is currently no significant support 
+for this use-case.
+================================================================
+
+The Larceny FFI attempts to ease interfacing with 
+foreign code in the presence of the above concerns, 
+but the nature of the header files included with
+most foreign libraries means that the FFI cannot infer 
+the answers unassisted.
+
+[NOTE]
+================================================================
+One class of foreign values is not addressed
+by the Larceny FFI: structures passed by value (as
+opposed to by reference, ie pointers to structures).
+There is no way to describe the interface to a
+foreign procedure that accepts or produces a 
+C +struct+ (at least not properly nor portably).
+
+This tends to not matter for many foreign libraries
+(since many C programmers eschew passing structures
+by value), but it can arise.
+
+If the foreign library of interest has procedures that
+accept or produce a C +struct+, we currently recommend
+either avoiding linking to such procedures, or writing
+adapter code in C that marshals between values handled 
+by the FFI and the C +struct+.
+================================================================
+
+
 [[FfiCompiliing, Creating loadable modules]]
 ==== Creating loadable modules
 
