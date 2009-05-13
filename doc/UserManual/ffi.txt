@@ -326,21 +326,19 @@ proc:ffi-add-attribute-core-entry![args="entry-name rep-sym marshal unmarshal",r
 <<ffi-add-attribute-core-entry!>> extends the 
 internal registry with the new entry specified by its arguments.
 
-_entry-name_ is a symbol (the symbolic type name being
+- _entry-name_ is a symbol (the symbolic type name being
 introduced to the ffi).
-
-_rep-name_ is a low-level type descriptor symbol, one of 
+- _rep-name_ is a low-level type descriptor symbol, one of 
 +signed32+, +unsigned32+, +signed64+, +unsigned64+
 (representing varieties of fixed width integers), 
 +ieee32+ (representing ``floats''), 
 +ieee64+ (representing ``doubles''), or 
 +pointer+ (representing ``+(void*)+'' in C).
-
-_marshal_ is a marshaling function that accepts a Scheme object and a symbol
+- _marshal_ is a marshaling function that accepts a Scheme object and a symbol
 (the name of the invoking procedure); it is responsible for checking
 the Scheme object's validity and then producing a corresponding 
 instance of the low-level representation.
-_unmarshal_ is either +#f+ or an unmarshalling function that 
+- _unmarshal_ is either +#f+ or an unmarshalling function that 
 accepts an instance of the low-level representation
 and produces a corresponding Scheme object.
 
@@ -827,7 +825,7 @@ All of the +<c-decl>+ variants are optional.
 //////////////////////////////////////////
 
 The +<c-defn>+ clauses bind identifiers.
-A +(const _x_ _t_ "_ae_")} clause binds _x_ to 
+A +(const _x_ _t_ "_ae_")+ clause binds _x_ to 
 the integer value of _ae_ according to the C language;
 _ae_ can be any C arithmetic expression that evaluates
 to a value of type _t_.
