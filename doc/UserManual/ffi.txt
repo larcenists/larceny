@@ -257,7 +257,7 @@ at the boundary between Scheme and foreign code:
 +short+:: 
   Synonymous with +int+ in the current implementation. 
 +ushort+:: 
-  Synonymous to +unsigned+ in the current implementation. 
+  Synonymous with +unsigned+ in the current implementation. 
 +char+:: 
   Scheme ASCII characters are converted to and from C "+char+".
 +uchar+::
