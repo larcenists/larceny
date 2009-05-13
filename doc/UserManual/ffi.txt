@@ -14,6 +14,14 @@ not all of the material has been properly vetted.
 Some of the information in this section may be out of date.
 ================================================================
 
+[NOTE]
+================================================================
+Some of the text below is adapted from the 2008 Scheme Workshop 
+paper, ``The Layers of Larceny's Foreign Function Interface,'' 
+by Felix S Klock II.  That paper may provide additional insight 
+for those searching for implementation details and motivations.
+================================================================
+
 [[FfiOverview, Introducing the FFI]]
 ==== Introducing the FFI
 
@@ -306,14 +314,103 @@ at the boundary between Scheme and foreign code:
    functions are not expected to return direct references 
    to heap-allocated values.)
 
+===== Extending the Core Attribute Registry
+
+The public interface to many foreign libraries is written
+in terms of types defined within that foreign library.
+One can introduce new types to the Larceny FFI
+by extending the core attribute entry table.
+
+proc:ffi-add-attribute-core-entry![args="entry-name rep-sym marshal unmarshal",result="unspecified"]
+
+<<ffi-add-attribute-core-entry!>> extends the 
+internal registry with the new entry specified by its arguments.
+
+_entry-name_ is a symbol (the symbolic type name being
+introduced to the ffi).
+
+_rep-name_ is a low-level type descriptor symbol, one of 
++signed32+, +unsigned32+, +signed64+, +unsigned64+
+(representing varieties of fixed width integers), 
++ieee32+ (representing ``floats''), 
++ieee64+ (representing ``doubles''), or 
++pointer+ (representing ``+(void*)+'' in C).
+
+_marshal_ is a marshaling function that accepts a Scheme object and a symbol
+(the name of the invoking procedure); it is responsible for checking
+the Scheme object's validity and then producing a corresponding 
+instance of the low-level representation.
+_unmarshal_ is either +#f+ or an unmarshalling function that 
+accepts an instance of the low-level representation
+and produces a corresponding Scheme object.
+
+////////////////////////////////////////////////////////////////////
+Perhaps document ffi-attribute-core-entry ?
+////////////////////////////////////////////////////////////////////
+
 ===== Attribute Type Constructors
 
-FIXME: add documentation for the ** -> ** and ** maybe ** type
-constructors.  Make sure to note that ** -> ** currently has a space
-leak on _every_ marshalling (because I believe it generates a fresh
-trampoline on every invocation).  We could at least tighten the leak
-here if we kept a cache of generated trampolines and reused them, but
-currently do not do so.
+Core attributes suffice for linking to simple
+functions.
+Constructured FFI attributes express more complex 
+marshaling protocols
+
+.Arrow Type Constructors
+
+A structured FFI attribute
+of the form +(-> (_s_1_ ... _s_n_) _s_r_)+ 
+(called an _arrow type_)
+allows passing functions from Scheme to C
+and back again.  Each of the _s_1_, ..., _s_n_, _s_r_ 
+is an FFI attribute.
+When an arrow type describes an input to a foreign
+function, it marshals a Scheme procedure to a 
+C function pointer by generating glue code to hook the two together
+and marshal values as described by the FFI attributes 
+within the arrow type.
+Likewise, when an arrow type describes an output from a
+foreign function, it marshals a C function pointer 
+to a Scheme procedure, again by generating glue code.
+These two mappings naturally generalize to arbitrary nesting 
+of arrow types, so one can create callbacks that consume
+callouts, return callouts that consume callbacks, and so on.
+
+[WARNING]
+================================================================
+The current implementation of arrow types introduces an 
+unnecessary space leak, because none of Larceny's current
+garbage collectors attempt to reclaim some of the structure
+allocated (in particular, the so-called trampolines) 
+when functions are marshaled via arrow types.
+
+The FFI could be revised to reduce the leak
+(e.g. it could keep a cache of generated trampolines and 
+reuse them, but currently do not do so).
+
+Many foreign libraries have a structure where one only
+sets up a fixed set of callbacks, and then all further
+computation does not require arrow type marshaling.
+This is one reason why fixing this problem 
+has been a low priority item for the Larceny development 
+team.
+================================================================
+
+.Maybe Type Constructors
+
++(maybe _t_)+ captures the 
+pattern of passing +NULL+ in C and +#f+ in Scheme
+to represent the absence of information.
+The FFI attribute _t_ within the maybe type
+describes the typical information passed; 
+the constructed maybe type 
+marshals +#f+ to the foreign null pointer or +0+ (as appropriate), 
+and otherwise applies the marshaling of _t_.
+Likewise, it unmarshals the foreign
+null pointer and +0+ to +#f+, and otherwise applies the 
+unmarshaling of _t_.
+
+(There are a few other built-in type constructors, but they 
+ are not as fully-developed as the two above.)
 
 ===== +void*+ Type Hierarchies
 
@@ -330,11 +427,6 @@ void*-void*-set!
 void*-double-ref
 void*-double-set!
 
-===== Extending the Core Attribute Registry
-
-Also document
-ffi-add-attribute-core-entry! 
-(and perhaps ffi-attribute-core-entry ?)
 
 [[FfiCompiliing, Creating loadable modules]]
 ==== Creating loadable modules
