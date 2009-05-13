@@ -874,6 +874,8 @@ static void sm_ensure_available( summ_matrix_t *summ, int gno,
 static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset );
 static void setup_next_wave( summ_matrix_t *summ, int rgn_next, int region_count );
 
+#define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
+
 EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int rgn_count ) 
 {
   /* (must be kept in sync with sm_construction_progress below) */
@@ -882,10 +884,11 @@ EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int rgn_count )
 
   if ( DATA(summ)->summarizing.waiting ) {
     int goal_budget = calc_goal( summ, rgn_count );
+    int max_pop = quotient2( rgn_count, DATA(summ)->p );
     int usable = 
       region_group_count( region_group_wait_nosum ) +
       region_group_count( region_group_wait_w_sum );
-    if ( usable > goal_budget ) {
+    if ( usable - max_pop > goal_budget ) {
       return TRUE;
     } else {
       return FALSE;
@@ -925,10 +928,11 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
 
   if ( DATA(summ)->summarizing.waiting ) {
     int goal_budget = calc_goal( summ, rgn_count );
+    int max_pop = quotient2( rgn_count, DATA(summ)->p );
     int usable = 
       region_group_count( region_group_wait_w_sum ) +
       region_group_count( region_group_wait_nosum );
-    if ( usable > goal_budget ) {
+    if ( usable-max_pop > goal_budget ) {
       /* continue waiting to setup next wave */
       return;
     } else {
@@ -1546,7 +1550,6 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
   check_rep_3( summ );
 
   pop_limit = DATA(summ)->popularity_limit;
-  assert2( g_rhs < DATA(summ)->num_cols );
   col = DATA(summ)->cols[g_rhs];
 
   rs_add_elems_funnel( DATA(summ)->nursery_remset, bot, top );
@@ -1704,8 +1707,6 @@ static bool next_summarized_p( summ_matrix_t *summ, int rgn )
   return
     (DATA(summ)->summarizing.complete && region_summarizing_goal( summ, rgn ));
 }
-
-#define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
 /* resets (reinitializes) summary state for all in region_group_summzing */
 static void sm_build_summaries_setup( summ_matrix_t *summ,
