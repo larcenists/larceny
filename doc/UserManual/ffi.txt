@@ -409,8 +409,10 @@ Likewise, it unmarshals the foreign
 null pointer and +0+ to +#f+, and otherwise applies the 
 unmarshaling of _t_.
 
-(There are a few other built-in type constructors, but they 
- are not as fully-developed as the two above.)
+(There are a few other built-in type constructors, such as
+ the +oneof+ type constructor, but they 
+ are not as fully-developed as the two above, and are intended
+ for use only for internal development for now.)
 
 ===== +void*+ Type Hierarchies
 
