@@ -765,18 +765,89 @@ forms work by dynamically generating, compiling, and running C code at
 expansion time to determine the desired values of structure offsets or
 macro constants.
 
-_Syntax define-c-values_
+Here is a grammar for the +define-c-info+ form provided by 
+the +foreign-ctools+ library.
 
-++ (define-c-values <cc-spec> (<include-path> ...) (<c-prologue> ...) (<scheme-name> <printf-fmt> <c-expr> <c-decls> ...))++
+................................................................
+<exp>     ::= (define-c-info <c-decl> ... <c-defn> ...)
+
+<c-decl>  ::= (compiler <cc-spec>)
+           |  (path <include-path>)
+           |  (include <header>)
+           |  (include<> <header>)
+
+<cc-spec> ::= cc | cl
+
+<c-defn>  ::= (const <id> <c-type> <c-expr>)
+           |  (sizeof <id> <c-type-expr>)
+           |  (struct <c-name> <field-clause> ...)
+           |  (fields <c-name> <field-clause> ...)
+           |  (ifdefconst <id> <c-type> <c-name>)
+
+<c-type>  ::= int | uint | long | ulong
+
+<include-path> 
+          ::= <string-literal>
+
+<header>  ::= <string-literal>
+
+<field-clause>
+          ::= (<offset-id> <c-field>)
+           |  (<offset-id> <c-field> <size-id>)
+
+<c-expr>  ::= <string-literal>
+
+<c-type-expr>
+          ::= <string-literal>
+
+<c-name>  ::= <string-literal>
+
+<c-field> ::= <string-literal>
+................................................................
 
 
 _Syntax define-c-info_
 
-++ (define-c-info <decl> ... <defn> ...)++
-where  ++<decl> ::= (compiler <cc-spec>) | (path <include-path>) | (include <header>) | (include<> <header>)++
-and ++<cc-spec> ::= cc | cl++
-and ++<defn>    ::= (const <scheme-name> <type> <c-expr>) | (sizeof <scheme-name> <c-type>) | (struct <c-name> (<scheme-name> <c-field>) ...) | (fields <c-name> (<scheme-name> <c-field>) ...)++
-and ++<type>    ::= int | uint | long | ulong++
+++ (define-c-info <c-decl> ... <c-defn> ...)++
+
+The +<c-decl>+ clauses of +define-c-info+
+control how header files are processed.
+The +compiler+ clause selects between +cc+
+(the default UNIX system compiler) and +cl+
+(the compiler included with Microsoft's Windows SDK).
+The +path+ clause adds a directory to search when
+looking for header files.
+The +include+ and +include<>+ clauses indicate
+header files to include when executing the 
++<c-defn>+ clauses;
+the two variants correspond to the quoted and bracketed
+forms of the C preprocessor's +#include+ directive.
+//////////////////////////////////////////
+All of the +<c-decl>+ variants are optional.
+//////////////////////////////////////////
+
+The +<c-defn>+ clauses bind identifiers.
+A +(const _x_ _t_ "_ae_")} clause binds _x_ to 
+the integer value of _ae_ according to the C language;
+_ae_ can be any C arithmetic expression that evaluates
+to a value of type _t_.
+(The expected usage is for _ae_ to be an 
+expression that the C preprocessor expands to an arithmetic expression.)
+
+The remaining clauses provide similar functionality: 
+
+- +(sizeof _x_ "_te_")+ 
+ binds _x_ to the size occupied by values 
+ of type _te_, where _te_ is any C type expression.
+- +(struct "_cn_" ... (_x_ "_cf_" _y_) ...)+
+ binds _x_ to the offset from the start of a
+ structure of type +struct _cn_+ to its
+ _cf_ field, and binds _y_, if present, to the field's size.
+ A +fields+ clause is similar, but it applies 
+ to structures of type +_cn_+ rather than +struct _cn_+.
+- +(ifdefconst _x_ _t_ "_cn_")+ 
+ binds _x_ to the value of +_cn_+ if +_cn_+ is defined; 
+ _x_ is otherwise bound to Larceny's unspecified value.
 
 ===== foreign-sugar
 
