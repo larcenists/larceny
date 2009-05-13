@@ -55,7 +55,7 @@ proc:foreign-file[args="filename",result="unspecified"]
 Larceny uses the operating system provided dynamic linker to do dynamic linking. The operation of the dynamic linker varies from platform to platform: 
 
   * On some versions of SunOS 4, if the linker is given a file that does not exist, it will terminate the process. (Most likely this is a bug.) This means you should never call foreign-file with the name of a file that does not exist. 
-  * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the LD_LIBRARY_PATH environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
+  * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the `LD_LIBRARY_PATH` environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
 
 proc:foreign-procedure[args="name (arg-type ...) return-type",result="unspecified"]
 
@@ -87,9 +87,11 @@ Tests whether its argument is a foreign null pointer.
 
 A _type_ is denoted by a symbol. The following is a list of the accepted types and their conversions at the call-out to the foreign procedure: 
 
-**int** Any exact integer value in the range [-2^31,2^31-1] is
-  acceptable and is converted to a C "int". **unsigned** Any exact
-  integer value in the range [0,2^32-1] is acceptable and is converted
+**int** Any exact integer value in the range [-2^31^,2^31^-1] is
+  acceptable and is converted to a C "int". 
+
+**unsigned** Any exact
+  integer value in the range [0,2^32^-1] is acceptable and is converted
   to a C "unsigned". 
 
 **short** Synonymous with **int** in the current implementation. 
@@ -109,17 +111,17 @@ A _type_ is denoted by a symbol. The following is a list of the accepted types a
 **double** A flonum is acceptable. It is converted to a C "double". 
 
 **bool** Any object is acceptable. It is converted to a C "int":
-#f is converted to 0, and all other objects to 1. 
+`#f` is converted to 0, and all other objects to 1. 
 
 **boxed** Any heap-allocated data structure (pair,
   bytevector-like, vector-like, procedure) is acceptable. It is
-  converted to a C "void*" to the first element of the structure. The
-  value #f is also acceptable. It is converted to a C "(void*)0"
+  converted to a C "`void*`" to the first element of the structure. The
+  value `#f` is also acceptable. It is converted to a C "`(void*)0`"
   value. 
 
-**string** A string or #f is acceptable. A string is _copied_
+**string** A string or `#f` is acceptable. A string is _copied_
   into a NUL-terminated bytevector, and the resulting pointer is
-  passed. #f is converted to a C "(char*)0" value.
+  passed. `#f` is converted to a C "(char*)0" value.
 
 
 Additionally, the types can be used as the return type, where conversions back to Scheme values take place: 
@@ -155,13 +157,13 @@ Additionally, the types can be used as the return type, where conversions back t
   converted to a flonum. 
 
 **bool** A C "int" is expected. 0 is
-  converted to #f, all other values to #t.
+  converted to `#f`, all other values to `#t`.
 
 **void** No return
   value. **string** A C "char*" is expected. If it is non-null, it is
   expected to point to a NUL-terminated string, which is copied into a
   newly allocated Scheme string which is then returned. If the return
-  value is null, then #f is returned.
+  value is null, then `#f` is returned.
 
 FIXME: add documentation for the ** tramp ** type, which marsalls
 a callback trampoline.
