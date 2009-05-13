@@ -54,7 +54,7 @@ while a +1+ (or other non-zero value) of type +bool+ is
 usually interpreted as 'true'.
 Another example are C enumerations (or 'enums').
 an enum declaration defines a set of named 
-integral constants.  After the declaration
+integral constants.  After the C declaration
 ------------------------------------------------
 enum months { JAN = 1, FEB, MAR, APR, MAY, JUN, 
               JUL, AUG, SEP, OCT, NOV, DEC };
@@ -144,7 +144,7 @@ by value), but it can arise.
 
 If the foreign library of interest has procedures that
 accept or produce a C +struct+, we currently recommend
-either avoiding linking to such procedures, or writing
+either avoiding such procedures, or writing
 adapter code in C that marshals between values handled 
 by the FFI and the C +struct+.
 ================================================================
