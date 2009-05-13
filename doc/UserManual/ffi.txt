@@ -935,9 +935,86 @@ proc:CallWithDoubleStar[var="call-with-double*",args="num-vector function",resul
 FIXME: (There are other functions, but I want to test and document the
 ones above first...)
 
+===== foreign-cstructs
+
+The +foreign-cstructs+ library provides a 
+more direct interface to C structures.
+It provides the +define-c-struct+ special form.
+This form is layered on top of +define-c-info+; 
+the latter provides the structure field offsets 
+and sizes used to generate constructors
+(which produce appropriately sized bytevectors, 
+not record instances).
+The +define-c-struct+ form combines these 
+with marshaling and unmarshaling procedures to 
+provide high-level access to a structure. 
+
+The grammar for the +define-c-struct+ form is presented below.
+.....................................................................
+<exp>    ::= (define-c-struct (<struct-type> <ctor-id> <c-decl> ...)
+                <field-clause> ...)
+
+<field-clause>
+         ::= (<c-field> <getter>) | (<c-field> <getter> <setter>)
+
+<getter> ::= (<id>) | (<id> <unmarshal>)
+
+<setter> ::= (<id>) | (<id> <marshal>)
+
+<marshal> ::= <ffi-attr-symbol> | <marshal-proc-exp>
+
+<unmarshal> ::= <ffi-attr-symbol> | <unmarshal-proc-exp>
+
+<struct-type> ::= <string-literal>
+.....................................................................
+
 ===== foreign-cenums
 
-Provides the special form ++define-c-enum++
+This library provides the special forms
+ ++define-c-enum++ and ++define-c-enum-set++,
+which associate the identifiers of 
+a C +enum+ type declaration 
+with the integer values they denote.
 
-FIXME: add the doc
+The +define-c-enum+ form describes enums
+encoding a discriminated sum; 
++define-c-enum-set+ describes bitmasks, 
+mapping them to R^6^RS enum-sets in Scheme.
+
+The +(define-c-enum _en_ (<c-decl> ...)  (_x_ "_cn_") ...)+
+form adds the +_en_+ FFI attribute.
+The attribute marshals each symbol +_x_+ to 
+the integer value that +_cn_+ denotes in C; 
+unmarshaling does the inverse translation.
+
+The +(define-c-enum-set _ens_ (<c-decl> ...) (_x_ "_cn_") ...)+
+form binds _ens_ to an R^6^RS enum-set constructor
+with universe resulting from 
++(make-enumeration '(_x_ ...))+; it also adds the +_ens_+
+FFI attribute.  The attribute marshals an
+enum-set _s_ constructed by _ens_ 
+to the corresponding bitmask in C (that is,
+the integer one would get by logically or'ing
+all _cn_ such that the corresponding _x_ is in _s_).
+Unmarshaling attempts to do the inverse translation.
+
+//////////////////////////////////////////////////////////
+The inverse uniquely exists when the high-to-low mapping 
+is a bijection, which 
+depends on the denotations of  _cn_ ... assigned
+by the header files.
+//////////////////////////////////////////////////////////
+
+
+The grammar for the two forms is presented below.
+................................................................
+<exp> ::= (define-c-enum <enum-id> (<c-decl> ...)
+            (<id> <c-name>) ...)
+
+<exp> ::= (define-c-enum-set <enum-id> (<c-decl> ...)
+            (<id> <c-name>) ...)
+
+<enum-id> ::= <id>
+................................................................
+
 
