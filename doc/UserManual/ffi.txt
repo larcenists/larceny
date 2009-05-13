@@ -9,127 +9,136 @@ a derived FFI. It is not yet fully evolved, but it is useful.
 
 [WARNING]
 ================================================================
+This section has undergone signficant revision, but 
+not all of the material has been properly vetted.
 Some of the information in this section may be out of date.
 ================================================================
 
 [[FfiOverview, Introducing the FFI]]
 ==== Introducing the FFI
 
-There are a number of different potential ways to use the FFI.
-One client may want to develop code in C and load it into Larceny.
+There are a number of different potential ways to use the FFI. 
+One client may want to develop code in C and load it into Larceny. 
 Another client may want to load native libraries 
-provided by the host operating system, enabling invocation
-of foreign code from Scheme expressions without developing
-any C code or even running a C compiler.
+provided by the host operating system, enabling invocation 
+of foreign code from Scheme expressions without developing 
+any C code or even running a C compiler. 
 Larceny's FFI can be used for both of these cases, 
 but many of its facilities target a third client 
-in between the two extremes: a client with a C compiler and
+in between the two extremes: a client with a C compiler and 
 the header files and object code for the foreign libraries, 
 but who wishes to avoid writing glue code in C to interface 
-with the libraries.
+with the libraries. 
 
-There are four main steps to interacting with foreign code:
+There are four main steps to interacting with foreign code: 
 
 1. identifying the space of values manipulated by the 
    foreign code that will also be manipulated in Scheme, 
-2. describing how to marshal values between foreign and
+2. describing how to marshal values between foreign and 
    Scheme code, and 
 3. loading library file(s) holding foreign object code, 
-4. linking procedures from the loaded library.
+4. linking procedures from the loaded library. 
 
 Step 1 is conceptual, while steps 2 through 4 
-yield artifacts in Scheme source code.
+yield artifacts in Scheme source code. 
 
 [[FfiForeignValues, The space of foreign values]]
 ==== The space of foreign values
 
-At the lowest level, foreign values are uninterpreted 
-sequences of bits.  Often foreign object code is oriented
-around manipulating word-sized bit-sequences ('words')
-or arrays and tuples of words.
+At the machine code level, foreign values are uninterpreted 
+sequences of bits.  Often foreign object code is oriented 
+around manipulating word-sized bit-sequences ('words') 
+or arrays and tuples of words. 
 
-Of course, many libraries are written with a particular
-interpretation of such words.  In C code, explicit types are 
+Many libraries are written with a particular 
+interpretation of such values.  In C code, explicit types are 
 often used hints to guide such interpretation; for example, 
 a +0+ of type +bool+ is usually interpreted as 'false', 
 while a +1+ (or other non-zero value) of type +bool+ is 
-usually interpreted as 'true'.
+usually interpreted as 'true'. 
 Another example are C enumerations (or 'enums').
-an enum declaration defines a set of named 
-integral constants.  After the C declaration
-------------------------------------------------
-enum months { JAN = 1, FEB, MAR, APR, MAY, JUN, 
-              JUL, AUG, SEP, OCT, NOV, DEC };
-------------------------------------------------
-then a +JAN+ in C code denotes +1+, +FEB+ is +2+, and so on; 
-furthermore, tools like debuggers will render a +2+ of 
-type +enum months+ as +FEB+.  Thus the enum declaration
-intoduces a new interpretation for a set of words.
+An enum declaration defines a set of named 
+integral constants.  After the C declaration:
+-------------------------------------------------------------------------------
+enum months { JAN = 1, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV, DEC };
+-------------------------------------------------------------------------------
+a +JAN+ in C code now denotes +1+, +FEB+ is +2+, and so on.
+Furthermore, tools like debuggers may render a variable +x+ 
+dynamically assigned the value +2+ (and of static type +enum months+)
+as +FEB+.  Thus the enum declaration 
+intoduces a new interpretation for a finite set of integers. 
 
-This leads to questions for a client of an FFI.
-Should foreign words be passed over to 
+This leads to questions for a client of an FFI; 
+we explore some below. 
+
+- Should foreign words be passed over to 
 the Scheme world as uninterpreted numbers (and thus
 be converted into Scheme integers, usually fixnums), 
 or should they be marshaled into interpreted values, such as 
-+#f+ and +#t+ for the +bool+ type or the Scheme symbols
++#f+ and +#t+ for the +bool+ type, or the Scheme symbols
 {+JAN+, +FEB+, +MAR+, +APR+, +MAY+, +JUN+, 
- +JUL+, +AUG+, +SEP+, +OCT+, +NOV+, +DEC+ }
-for the +enum months+ type?
-Similarly, how should Scheme values be marshaled into 
+ +JUL+, +AUG+, +SEP+, +OCT+, +NOV+, +DEC+}
+for the +enum months+ type? 
+- Similarly, how should Scheme values be marshaled into 
 foreign words?
 
-Furthermore, a foreign library might leave the mapping 
+- A foreign library might leave the mapping 
 of names like +FEB+ to words like +2+ 'unspecified' 
-in the library interface.
+in the library interface. 
 That is, while the C compiler will know +FEB+ maps to +2+ 
 according to a particular version of the library's header file, 
 the library designer may intend to change this mapping 
-in the future, and therefore clients should 'only' use 
-the names to refer to a +enum months+ value, and 'not' integer
-expressions.
-How should this constraint be handled in the FFI; should 
-the library client revise their code in reaction to
-such changes to the mapping?  Or should the system derive
-the mapping from the header files, in the same manner that
-the C compiler does?
+in the future, and clients writing C code should 'only' use 
+the names to refer to a +enum months+ value, and 'not' integer 
+expressions. 
+* How should this constraint be handled in the FFI; should 
+ the library client revise their code in reaction to 
+ such changes to the mapping? 
+* Or should the system derive
+ the mapping from the header files, in the same manner that
+ the C compiler does? 
 
-Foreign libraries often manipulate
-mutable entities, like arrays of words where
-modifications can be observed (often by design).
-How should such values be marshaled?  Is it sound
-to copy it to the Scheme heap?
-Answering these questions may require deep knowledge 
-of the intended usage of the foreign library.
+- Foreign libraries often manipulate 
+mutable entities, like arrays of words where 
+modifications can be observed (often by design). 
+* How should such values be marshaled? 
+* Is it sound to copy such values to the Scheme heap? 
+  If so, is a shallow copy sufficient? 
 
-Will the foreign code hold references to heap-allocated
+- Will the foreign code hold references to heap-allocated 
 objects?  Heap-allocated objects that 'leak' out to 
-foreign memory must be treated with care.
-The garbage collector presents two problems.
-First, such objects must not move during a garbage collection; 
-(TODO does material post-semicolon belong, or put elsewhere?)
-Larceny supports this via special-purpose allocation routines 
-(TODO: reference +syscall:make-nonrelocatable+
- +make-nonrelocatable-bytevector+
- +cons-nonrelocatable+
- +make-nonrelocatable-vector+).
-Second, the garbage collector must know to 'trace' 
+foreign memory must be treated with care; 
+garbage collection presents two main problems. 
+* First, such objects must not move during a garbage collection; 
+Larceny supports this via special-purpose allocation routines: 
+ +cons-nonrelocatable+, +make-nonrelocatable-bytevector+, 
+ and +make-nonrelocatable-vector+.
+////////////////////////////////////////////////////////////////////
++syscall:make-nonrelocatable+
+////////////////////////////////////////////////////////////////////
+* Second, the garbage collector must know to hold on to 
+(i.e. trace)
 such values as long as they are needed by foreign code; 
 otherwise the objects or their referents may be 
 collected without the knowledge of the foreign code.
 
-[WARNING]
-================================================================
-Foreign C code developed to work in concert with Larceny 
-could hypothetically deal with the garbage collector moving 
-objects, but there is currently no significant support 
-for this use-case.
-================================================================
+Answering these questions may require deep knowledge 
+of the intended usage of the foreign library.
 
 The Larceny FFI attempts to ease interfacing with 
 foreign code in the presence of the above concerns, 
 but the nature of the header files included with
 most foreign libraries means that the FFI cannot infer 
 the answers unassisted.
+
+[NOTE]
+================================================================
+Foreign C code developed to work in concert with Larceny 
+could hypothetically be written to cope with holding 
+handles for objects managed by the the garbage collector, 
+but there is currently no significant support 
+for this use-case.
+================================================================
 
 [NOTE]
 ================================================================
@@ -154,7 +163,7 @@ by the FFI and the C +struct+.
 The conclusion is: when designing an interface to a foreign
 library, you should analyze the values manipulated on the 
 foreign side and identify their relationship with values 
-on the Scheme side.
+on the Scheme side. 
 After you have identified the domains of interest, 
 you then describe how the values will be marshaled 
 back and forth between the two domains.
@@ -168,14 +177,53 @@ This section describes the marshalling protocol defined in
 Foreign functions automatically marshal their inputs and outputs
 according to type-descriptors attached to each foreign
 function.
-These type-descriptors are S-expressions made up of
-symbolic references to _ffi-attributes_.
-A central registry maps symbols to a foreign
-representation and two conversion routines:
+
+Type-descriptors are S-expressons formed according to the following
+grammar:
+
+................................................................
+TypeDesc ::= CoreAttr | ArrowT | MaybeT | OneOfT
+
+CoreAttr ::= PrimAttr | VoidStar | ---
+
+PrimAttr ::= CurrentPrimAttr | DeprecatedPrimAttr
+
+CurrentPrimAttr
+         ::= int | uint | byte | short | ushort | char | uchar
+          |  long | ulong | longlong | ulonglong
+          |  size_t | float | double |  bool | string | void
+
+DeprecatedPrimAttr
+         ::= unsigned | boxed
+
+VoidStar ::= void* | ---
+
+ArrowT   ::= (-> (TypeDesc ...) TypeDesc) 
+
+MaybeT   ::= (maybe TypeDesc)
+
+OneOfT   ::= (oneof (Any Fixnum) ... TypeDesc)
+................................................................
+where +---+ represents a user-extensible part of the grammar
+(see below),
++Any+ represents any Scheme value, and +Fixnum+ represents 
+any word-sized integer.
+
+A central registry maps +CoreAttr+'s to a foreign
+representation and two conversion routines: 
 one to convert a Scheme value to a foreign argument, and 
-another to convert a foreign result back back to a Scheme value.
+another to convert a foreign result back back to a Scheme value. 
 The denoted components are collectively referred to as a _type_
-within the FFI documentation.
+within the FFI documentation. 
+The registry is extensible; the +ffi-add-attribute-core-entry!+
+procedure adds new +CoreAttr's+ to the registry, and 
+one can alternatively add short-hands for
+type-descriptors via the +ffi-add-alias-of-attribute-entry!+
+procedure. 
+Finally, one can add new +VoidStar+ productions 
+(subtypes of the +void*+ type-descriptor)
+via the +ffi-install-void*-subtype+ procedure
+(defined in the +lib/Standard/foreign-stdlib.sch+ library). 
 
 ////////////////////////////////////////////////////////////////////
 For example the symbol +'char+ denotes a type with procedures that
@@ -185,90 +233,80 @@ representation and back again, while the symbol
 between Scheme characters and unsigned bytes.
 ////////////////////////////////////////////////////////////////////
 
-===== Types
+===== Primitive Attribute Types
 
-The following is a list of the accepted types and their conversions at the call-out to the foreign procedure: 
+The following is a list of the accepted types and their conversions 
+at the boundary between Scheme and foreign code:
 
-**int** Any exact integer value in the range [-2^31^,2^31^-1] is
-  acceptable and is converted to a C "int". 
++int+:: 
+  Exact integer values in the range [-2^31^,2^31^-1].
+  Scheme integers in that range are converted to and from C "+int+".
++uint+:: 
+  Exact integer values in the range [0,2^32^-1].
+  Scheme integers in that ranges are converted to and from C "+unsigned int+".
++byte+:: 
+  Synonymous with +int+ in the current implementation. 
++short+:: 
+  Synonymous with +int+ in the current implementation. 
++ushort+:: 
+  Synonymous to +unsigned+ in the current implementation. 
++char+:: 
+  Scheme ASCII characters are converted to and from C "+char+".
++uchar+::
+  Scheme ASCII characters are converted to and from C "+unsigned char+".
++long+::
+  Synonymous with +int+ in the current implementation. 
++ulong+:: 
+  Synonymous with +unsigned+ in the current implementation. 
++longlong+::
+  Exact integer values in the range [-2^63^,2^63^-1].
+  Scheme integers in that range are converted 
+  to and from C "+long long+".
++ulonglong+::
+  Exact integer values in the range [0,2^64^-1].
+  Scheme integers in that range are converted 
+  to and from C "+unsigned long long+".
++size_t+::
+  Synonymous with +uint+ in the current implementation.
++float+:: 
+  Scheme flonums are converted to and from C "+float+".
+  The conversion to +float+ is performed via 
+  a C +(float)+ cast from a C +double+.
++double+:: 
+  Scheme flonums are converted to and from C "double".
++bool+:: 
+  Scheme objects are converted to C "+int+"; 
+  +#f+ is converted to 0, and all other objects to 1. 
+  In the reverse direction, 0 is converted to +#f+ and
+  all other integers to +#t+.
++string+::
+  A Scheme string holding ASCII characters 
+  is _copied_ into a NUL-terminated bytevector, 
+  passing a pointer to its first byte to the foreign procedure;
+  +#f+ is converted to a C "+(char*)0+" value.
+  In the reverse direction, a pointer to a NUL-terminated sequence
+  of bytes interpreted as ASCII characters is 
+  copied into a freshly allocated Scheme string; a NULL pointer is
+  converted to +#f+.
++void+:: 
+  No return value.
+  (Only used in return position for foreign functions; 
+  all Scheme procedures passed to the FFI are invoked in a context
+  expecting one value.)
 
-**unsigned** Any exact
-  integer value in the range [0,2^32^-1] is acceptable and is converted
-  to a C "unsigned". 
-
-**short** Synonymous with **int** in the current implementation. 
-
-**ushort** Synonymous to **unsigned** in the current implementation. 
-
-**char** A character is acceptable. It is converted to a C "int" type. 
-
-**uchar** A character is acceptable. It is converted to a C "unsigned" type. 
-
-**long** Synonymous with **int** in the current implementation. 
-
-**ulong** Synonymous with **unsigned** in the current implementation. 
-
-**float** A flonum is acceptable. It is converted to a C "float". 
-
-**double** A flonum is acceptable. It is converted to a C "double". 
-
-**bool** Any object is acceptable. It is converted to a C "int":
-`#f` is converted to 0, and all other objects to 1. 
-
-**boxed** Any heap-allocated data structure (pair,
-  bytevector-like, vector-like, procedure) is acceptable. It is
-  converted to a C "`void*`" to the first element of the structure. The
++unsigned+::
+  Synonymous with +uint+; deprecated.
++boxed+:: 
+  Any heap-allocated data structure (pair,
+  bytevector-like, vector-like, procedure) is converted to 
+  a C "`void*`" to the first element of the structure. The
   value `#f` is also acceptable. It is converted to a C "`(void*)0`"
-  value. 
+  value.
+  (Only used in argument position for foreign functions; foreign
+   functions are not expected to return direct references 
+   to heap-allocated values.)
 
-**string** A string or `#f` is acceptable. A string is _copied_
-  into a NUL-terminated bytevector, and the resulting pointer is
-  passed. `#f` is converted to a C "(char*)0" value.
-
-
-Additionally, the types can be used as the return type, where conversions back to Scheme values take place: 
-
-**int** A C "int" is expected; it is converted to an exact
-  integer. 
-
-**unsigned** A C "unsigned" is expected; it is converted to
-  an exact integer. 
-
-**short** Synonymous with **int** in the current
-  implementation. 
-
-**ushort** Synonymous with **unsigned** in the
-  current implementation. 
-
-**char** A C "int" is expected; it is
-  converted to a character. 
-
-**uchar** A C "unsigned" is expected; it
-  is converted to a character. 
-
-**long** Synonymous with **int** in the
-  current implementation. 
-
-**ulong** Synonymous with **unsigned** in
-  the current implementation. 
-
-**float** A C "float" is expected. It is
-  converted to a flonum. 
-
-**double** A C "double" is expected. It is
-  converted to a flonum. 
-
-**bool** A C "int" is expected. 0 is
-  converted to `#f`, all other values to `#t`.
-
-**void** No return
-  value. **string** A C "char*" is expected. If it is non-null, it is
-  expected to point to a NUL-terminated string, which is copied into a
-  newly allocated Scheme string which is then returned. If the return
-  value is null, then `#f` is returned.
-
-FIXME: add documentation for the ** tramp ** type, which marsalls
-a callback trampoline.
+===== Attribute Type Constructors
 
 FIXME: add documentation for the ** -> ** and ** maybe ** type
 constructors.  Make sure to note that ** -> ** currently has a space
@@ -276,6 +314,8 @@ leak on _every_ marshalling (because I believe it generates a fresh
 trampoline on every invocation).  We could at least tighten the leak
 here if we kept a cache of generated trampolines and reused them, but
 currently do not do so.
+
+===== +void*+ Type Hierarchies
 
 FIXME: add documentation for the ** void* ** type, the
 corresponding _void*-rt_ record type descriptor, and the
@@ -289,6 +329,8 @@ void*-void*-ref
 void*-void*-set!
 void*-double-ref
 void*-double-set!
+
+===== Extending the Core Attribute Registry
 
 Also document
 ffi-add-attribute-core-entry! 
