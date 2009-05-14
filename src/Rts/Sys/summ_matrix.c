@@ -888,7 +888,12 @@ EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int rgn_count )
     int usable = 
       region_group_count( region_group_wait_nosum ) +
       region_group_count( region_group_wait_w_sum );
+    int filled =
+      region_group_count( region_group_filled );
+
     if ( usable - max_pop > goal_budget ) {
+      return TRUE;
+    } else if (filled < goal_budget) {
       return TRUE;
     } else {
       return FALSE;
@@ -932,8 +937,14 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
     int usable = 
       region_group_count( region_group_wait_w_sum ) +
       region_group_count( region_group_wait_nosum );
+    int filled  =
+      region_group_count( region_group_filled );
+
     if ( usable-max_pop > goal_budget ) {
       /* continue waiting to setup next wave */
+      return;
+    } else if (filled < goal_budget) {
+      /* continue allocating more storage before setup of next wave */
       return;
     } else {
       DATA(summ)->summarizing.waiting = FALSE;
