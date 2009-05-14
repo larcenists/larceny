@@ -187,8 +187,8 @@ struct summ_matrix_data {
      * state does not really belong here... */
     int    goal; /* number of usable summaries needed before we say "done" */
 
-    bool   waiting;
-    bool   complete;
+    bool   waiting;   /* TRUE only if currently delaying next round of summz */
+    bool   complete;  /* TRUE only if done with current round of sumz. */
     int    rs_cursor; /* start remset for next sm_build_summaries_partial() */
     int    rs_num; /* #remsets to scan in each sm_build_summaries_partial() */
 
@@ -1735,6 +1735,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
   assert2( num_under_construction > 0 );
 
   DATA(summ)->summarizing.goal = goal;
+  DATA(summ)->summarizing.waiting = FALSE;
   DATA(summ)->summarizing.complete = FALSE;
   DATA(summ)->summarizing.rs_cursor = summ->collector->remset_count;
   DATA(summ)->summarizing.rs_num = num_under_construction;
