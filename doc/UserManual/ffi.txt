@@ -43,8 +43,8 @@ There are four main steps to interacting with foreign code:
 1. identifying the space of values manipulated by the 
    foreign code that will also be manipulated in Scheme, 
 2. describing how to marshal values between foreign and 
-   Scheme code, and 
-3. loading library file(s) holding foreign object code, 
+   Scheme code, 
+3. loading library file(s) holding foreign object code, and 
 4. linking procedures from the loaded library. 
 
 Step 1 is conceptual, while steps 2 through 4 
