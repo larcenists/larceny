@@ -1371,7 +1371,7 @@ static void rrof_gc_policy( gc_t *gc,
   int majors_total = DATA(gc)->region_count;
   double L_hard = DATA(gc)->rrof_load_factor_hard;
   double L_soft = DATA(gc)->rrof_load_factor_soft;
-  int N_old  = DATA(gc)->last_live_words_at_time_cycle_began;
+  long long N_old  = DATA(gc)->last_live_words_at_time_cycle_began;
   long long P_old  = DATA(gc)->max_live_words;
   long long A_this = DATA(gc)->since_cycle_began.words_promoted;
   double F_2    = DATA(gc)->rrof_sumz_params.budget_inv;
@@ -1383,7 +1383,7 @@ static void rrof_gc_policy( gc_t *gc,
   long long A_target_1a = (long long)(L_hard*P_old);
   long long A_target_1b = quotient2( A_target_1a, F_2 * F_3 ) - 1;
   long long A_target_1  = quotient2( A_target_1b, 2);
-  long long A_target_2 = (((L_soft-1)*P_old));
+  long long A_target_2 = ((L_soft*P_old)-N_old);
   long long A_target   = max( 5*MEGABYTE/sizeof(word), min( A_target_1, A_target_2 ));
 
   bool will_says_should_major = /* XXX need to figure out what to do about majors_sofar = 0 case (when no regions are waiting for major gc) ... */
@@ -1391,7 +1391,7 @@ static void rrof_gc_policy( gc_t *gc,
 
   if (calculate_loudly) {
     consolemsg( "majors_sofar:% 3d majors_total:% 3d "
-                "N_old:% 6dK, N:% 6dK, P_old:% 6lldK, A_this:% 6lldK "
+                "N_old:% 6lldK, N:% 6dK, P_old:% 6lldK, A_this:% 6lldK "
                 "A_target:% 6lldK = max(5M,min(% 6lldK,% 6lldK)) => will says: %s",
                 majors_sofar, majors_total, 
                 N_old/1000, N/1000, P_old/1000, A_this/1000, 
