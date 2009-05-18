@@ -861,8 +861,6 @@ static void collect_rgnl_choose_next_region( gc_t *gc, int num_rgns,
   int n;
   n = next_rgn(DATA(gc)->rrof_next_region,  num_rgns);
   DATA(gc)->rrof_next_region = n;
-  if (n == rrof_first_region)
-    DATA(gc)->rrof_last_gc_rolled_cycle = TRUE;
 }
 
 struct msgc_visit_check_summary_data {
