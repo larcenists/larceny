@@ -31,14 +31,14 @@
          (data-vals (apply append (map car data-and-xtics)))
          (xtics (apply append (map cadr data-and-xtics))))
     (gnuplot/keep-files
-     (lambda (files) 
+     (lambda (data-file) 
        `((set style fill pattern 1 border)
          (set xrange \[ 0 : * \] )
          (set yrange \[ 0 : * \] )
          (set xtics rotate (,(list->vector xtics)))
          (plot ,(list->vector 
                  (map (lambda (bar-name i) 
-                        `(,(vector-ref files 0)
+                        `(,data-file
                           using 1 : ,(+ i 2) with boxes
                           title ,bar-name))
                       (reverse bar-names)
@@ -55,7 +55,7 @@
  )
 
 (define (plot-mmu . args)
-  (gnuplot (lambda (files)
+  (gnuplot (lambda files
              `((plot ,(list->vector (map (lambda (file) `(,file with lines))
-                                         (vector->list files))))))
+                                         files)))))
            (apply render-mmu args)))

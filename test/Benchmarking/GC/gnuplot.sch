@@ -280,7 +280,7 @@
 ;; - a list is a record of its contents
 ;;   as a special case, an empty list rendered as a blank line
 
-;; gnuplot : (Vectorof[String] -> Listof[PlotCmd]) DataSet ... -> unspecified
+;; gnuplot : (String ... -> Listof[PlotCmd]) DataSet ... -> unspecified
 ;; gnuplot : Dataset ... -> unspecified
 
 ;; gnuplot/interactive like above, but brings up gnuplot repl as well
@@ -292,7 +292,8 @@
 (define (gnuplot/core interact? keep-files? . args)
   (let* ((data-files->plot-cmds (if (procedure? (car args))
                                     (car args)
-                                    (lambda (files) `((plot ,files)))))
+                                    (lambda files 
+                                      `((plot ,(list->vector files))))))
          (args (if (procedure? (car args)) (cdr args) args))
          (plot-file (make-temporary-file "go~a.plot")))
     (define (build-file cmds port)
@@ -319,7 +320,7 @@
 
       (call-with-output-file plot-file
         (lambda (plot-port) 
-          (build-file (data-files->plot-cmds (list->vector data-files))
+          (build-file (apply data-files->plot-cmds data-files)
                       plot-port)))
       (let ((result (run-gnuplot plot-file)))
         (cond ((zero? result)
@@ -340,7 +341,7 @@
 (gnuplot (map (lambda (x) (list x (* x x))) (iota 20)) 
          (map (lambda (x) (list x (* 2 x))) (iota 10)))
 
-(gnuplot (lambda (files) 
-           `((plot x**2 + x*2 + 1) (replot cos(x)) (replot ,files))) 
+(gnuplot (lambda (file1 file2)
+           `((plot x**2 + x*2 + 1) (replot cos(x)) (replot #(,file1 ,file2))))
          '((1 2) (3 4)) '((10 20) (30 40)))
 |#
