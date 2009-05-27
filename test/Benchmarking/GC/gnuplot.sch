@@ -285,10 +285,11 @@
 
 ;; gnuplot/interactive like above, but brings up gnuplot repl as well
 
-(define (gnuplot             . args) (apply gnuplot/core #f args))
-(define (gnuplot/interactive . args) (apply gnuplot/core #t args))
+(define (gnuplot             . args) (apply gnuplot/core #f #f args))
+(define (gnuplot/interactive . args) (apply gnuplot/core #t #f args))
+(define (gnuplot/keep-files  . args) (apply gnuplot/core #f #t args))
 
-(define (gnuplot/core interact? . args)
+(define (gnuplot/core interact? keep-files? . args)
   (let* ((data-files->plot-cmds (if (procedure? (car args))
                                     (car args)
                                     (lambda (files) `((plot ,files)))))
@@ -322,9 +323,12 @@
                       plot-port)))
       (let ((result (run-gnuplot plot-file)))
         (cond ((zero? result)
-               (for-each cleanup-file data-files)
-               (cleanup-file plot-file)
-               (values))
+               (cond (keep-files?
+                      (cons plot-file data-files))
+                     (else
+                      (for-each cleanup-file data-files)
+                      (cleanup-file plot-file)
+                      (values))))
               (else 
                (cons plot-file data-files)))))))
 
