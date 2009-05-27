@@ -1376,6 +1376,170 @@ static void stats_dump_state_now( FILE *f )
     dump_mmu_data( f );
   }
 
+#define PRINT_HISTOGRAM_ENTRY( prefix, low, mid, hgh, suffix )   \
+  do {                                                           \
+    fprintf( f, "((%s %s) ", #low, #hgh );             \
+    PRINT_WORD( f, s, prefix ## low ## mid ## hgh ## suffix );   \
+    fprintf( f, ") " );                                           \
+  } while (0)
+
+  /* Print pause time histogram data */
+  {
+    gclib_memstat_t *s = &stats_state.gclib_stats;
+    fprintf( f, "#(histograms " );
+    {
+      fprintf( f, "#(collect_pause " );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   00, _, 10, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   10, _, 20, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   20, _, 30, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   30, _, 40, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   40, _, 50, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   50, _, 60, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   60, _, 70, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   70, _, 80, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   80, _, 90, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   90, _, 100, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  100, _, 200, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  200, _, 300, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  300, _, 400, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  400, _, 500, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  500, _, 600, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  600, _, 700, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  700, _, 800, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  800, _, 900, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  900, _, 1000, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ , 1000, _, 2000, _ms );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_collect_geq_2000_ms );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ") " );
+    }
+
+    {
+      fprintf( f, "#(minorgc_pause " );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   00, _, 10, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   10, _, 20, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   20, _, 30, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   30, _, 40, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   40, _, 50, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   50, _, 60, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   60, _, 70, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   70, _, 80, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   80, _, 90, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   90, _, 100, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  100, _, 200, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  200, _, 300, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  300, _, 400, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  400, _, 500, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  500, _, 600, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  600, _, 700, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  700, _, 800, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  800, _, 900, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  900, _, 1000, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ , 1000, _, 2000, _ms );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_minorgc_geq_2000_ms );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ") " );
+    }
+    {
+      fprintf( f, "#(majorgc_pause " );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   00, _, 10, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   10, _, 20, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   20, _, 30, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   30, _, 40, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   40, _, 50, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   50, _, 60, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   60, _, 70, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   70, _, 80, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   80, _, 90, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   90, _, 100, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  100, _, 200, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  200, _, 300, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  300, _, 400, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  400, _, 500, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  500, _, 600, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  600, _, 700, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  700, _, 800, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  800, _, 900, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  900, _, 1000, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ , 1000, _, 2000, _ms );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_majorgc_geq_2000_ms );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ") " );
+    }
+    {
+      fprintf( f, "#(sumrize_pause " );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   00, _, 10, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   10, _, 20, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   20, _, 30, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   30, _, 40, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   40, _, 50, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   50, _, 60, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   60, _, 70, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   70, _, 80, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   80, _, 90, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   90, _, 100, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  100, _, 200, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  200, _, 300, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  300, _, 400, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  400, _, 500, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  500, _, 600, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  600, _, 700, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  700, _, 800, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  800, _, 900, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  900, _, 1000, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ , 1000, _, 2000, _ms );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_sumrize_geq_2000_ms );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ") " );
+    }
+    {
+      fprintf( f, "#(minor_runs " );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   00, _, 02, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   02, _, 04, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   04, _, 06, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   06, _, 08, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   08, _, 10, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   10, _, 20, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   20, _, 30, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   30, _, 40, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   40, _, 50, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   50, _, 60, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   60, _, 70, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   70, _, 80, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   80, _, 90, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   90, _, 100, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  100, _, 200, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  200, _, 300, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  300, _, 400, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  400, _, 500, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  500, _, 600, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  600, _, 700, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  700, _, 800, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  800, _, 900, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  900, _, 1000, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ , 1000, _, 2000, _runs );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_minor_geq_2000_runs );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ")" );
+    }
+
+    fprintf( f, ")" );
+  }
   fprintf( f, ")" );
   fflush( f );
 }
