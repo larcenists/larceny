@@ -186,3 +186,41 @@
 (gnuplot (lambda () `((splot x*x - y*y with line palette))))
 (gnuplot (lambda () `((splot #((x*x - y*y with pm3d)
                                (x*x + y*y with pm3d at t)    )))))
+
+;; Illustrations of set arrow (43.2 from gnuplot-4.2.3 manual)
+(gnuplot
+ (lambda (file) `((set arrow to #(1 2) linestyle 5)
+                  (plot \[ -10 : 10 \] \[ 0 : \] ,file)))
+ '(103 55 34 24 10))
+(gnuplot
+ (lambda (file) `((set arrow 3 from graph #(0 0) to #(-5 5 3))
+                  (plot \[ -10 : 10 \] \[ 0 : \] ,file)))
+ '(103 55 34 24 10))
+(gnuplot
+ (lambda (file) `((set arrow 3 from graph #(0 0) to #(-5 5 3))
+                  (set arrow 3 to #(1 1 1) nohead linewidth 2)
+                  (plot \[ -10 : 10 \] \[ 0 : \] ,file)))
+ '(103 55 34 24 10))
+(gnuplot
+ (lambda (file) `((set arrow from #(3 (graph 0)) to #(3 (graph 1)) nohead)
+                  (plot \[ -10 : 10 \] \[ 0 : \] ,file)))
+ '(103 55 34 24 10))
+(gnuplot
+ (lambda (file) `((set arrow 3 from #(0 -5) to #(0 5) 
+                       heads size screen #(0.1 90))
+                  (plot \[ -10 : 10 \] \[ 0 : \] ,file)))
+ '(103 55 34 24 10))
+(gnuplot
+ (lambda (file) `((set arrow from #(0 -5) rto graph #(0.1 0.1))
+                  (plot \[ 0 : 10 \] \[ 0 : \] ,file)))
+ '(103 55 34 24 10))
+
+;; below is meant to illustrate log-scaling of just x axis, but 
+;; it does not seem to work as I intended...
+(gnuplot
+ (lambda (file) `((set logscale x)
+                  (set arrow from #(100 -5) rto graph #(10 10))
+                  (plot \[ 1 : 10000 \] \[ 0 : \] ,file)
+                  (replot log(x))
+                  ))
+ '(103 55 34 24 10))
