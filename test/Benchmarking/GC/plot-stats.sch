@@ -54,3 +54,8 @@
  '(("c1" 15 18 22) ("c2" 24 25 28) ("c3" 37 37 38))
  )
 
+(define (plot-mmu . args)
+  (gnuplot (lambda (files)
+             `((plot ,(list->vector (map (lambda (file) `(,file with lines))
+                                         (vector->list files))))))
+           (apply render-mmu args)))
