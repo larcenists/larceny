@@ -110,3 +110,50 @@
                        ,(max-line 6 "max summarize")
                        ,(max-line 7 "max rs refine")))))
            (apply render-mmu2 args)))
+
+
+;; A StackedBarSexp is a 
+;;   (cons L[k,String] Listof[(cons String L[k,Number])])
+;; where
+;; An L[i,X] is a Listof[X] of length i.
+;; 
+;; see contract of plot-stacked-bars for a use of this class of data
+
+;; However, StackedBarSexp is not what I ended up using below for
+;; render-memory-usage and plot-memory-usage, b/c plot-stacked-bars is
+;; intended for plotting the combination of many results.
+;; 
+;; One could use render-memory-usage after each benchmark run, writing
+;; the s-exp result to a file, and then combine all of the results
+;; (and pass that to plot-stacked-bars) after all desired benchmarks
+;; have been run.
+
+;; render-memory-usage : GclibStatVector -> (list L[k,String] L[k,Number])
+;; render-memory-usage :                 -> (list L[k,String] L[k,Number])
+(define (render-memory-usage . args)
+  (let* ((vec (if (null? args) (extract-gclib-memstats) (car args)))
+         (lst (vector->list vec))
+         (get (lambda (key) (cadr (memq key lst)))))
+    (let ((heap-max   (get 'heap_allocated_max))
+          (remset-max (get 'remset_allocated_max))
+          (summ-max   (get 'summ_allocated_max))
+          (smircy-max (get 'smircy_allocated_max))
+          (rts-max    (get 'rts_allocated_max))
+          (frag-max   (get 'heap_fragmentation_max))
+          (mem-max    (get 'mem_allocated_max))
+          (accum*vals (let ((tot 0) (vals '()))
+                        (list (lambda (n) 
+                                (set! tot (+ tot n)) 
+                                (set! vals (cons tot vals)))
+                              (lambda () (reverse vals))))))
+      (let* ((accum! (car accum*vals))
+             (vallst (cadr accum*vals)))
+        (for-each accum! 
+                  (list heap-max rts-max remset-max
+                        summ-max smircy-max frag-max))
+        (list '("heap" "runtime" "remset"
+                "summaries" "marker" "waste" "total")
+              (append (vallst) (list mem-max)))))))
+
+;; plot-memory-usage : GclibStatVector -> unspecified
+;; plot-memory-usage :                 -> unspecified
