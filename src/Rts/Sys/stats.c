@@ -1224,6 +1224,18 @@ void stats_dumpstate_stdout( void )
 #define PRINT_WORD( f, s, fld ) \
   fprintf( f, "%lu ", nativeuint( s->fld ) )
 
+#define PRINT_DFIELD( f, s, fld ) \
+  do {                            \
+    fprintf( f, "%s ", #fld );    \
+    PRINT_DWORD( f, s, fld );     \
+  } while (0)
+
+#define PRINT_FIELD( f, s, fld ) \
+  do {                            \
+    fprintf( f, "%s ", #fld );    \
+    PRINT_WORD( f, s, fld );     \
+  } while (0)
+
 static void stats_dump_state_now( FILE *f )
 {
   assert( f != 0 );
@@ -1247,40 +1259,40 @@ static void stats_dump_state_now( FILE *f )
   { gc_memstat_t *s = &stats_state.gc_stats;
 
     fprintf( f, "#(gc_memstat_t " );
-    PRINT_DWORD( f, s, allocated );
-    PRINT_DWORD( f, s, reclaimed );
-    PRINT_DWORD( f, s, objects_copied );
-    PRINT_DWORD( f, s, words_copied );
-    PRINT_DWORD( f, s, objects_moved );
-    PRINT_DWORD( f, s, words_moved );
-    PRINT_WORD( f, s, np_k );
-    PRINT_WORD( f, s, np_j );
-    PRINT_WORD( f, s, full_collections );
-    PRINT_WORD( f, s, full_ms_collection );
-    PRINT_WORD( f, s, full_ms_collection_cpu );
-    PRINT_DWORD( f, s, full_objects_marked );
-    PRINT_DWORD( f, s, full_words_marked );
-    PRINT_DWORD( f, s, full_pointers_traced );
+    PRINT_DFIELD( f, s, allocated );
+    PRINT_DFIELD( f, s, reclaimed );
+    PRINT_DFIELD( f, s, objects_copied );
+    PRINT_DFIELD( f, s, words_copied );
+    PRINT_DFIELD( f, s, objects_moved );
+    PRINT_DFIELD( f, s, words_moved );
+    PRINT_FIELD( f, s, np_k );
+    PRINT_FIELD( f, s, np_j );
+    PRINT_FIELD( f, s, full_collections );
+    PRINT_FIELD( f, s, full_ms_collection );
+    PRINT_FIELD( f, s, full_ms_collection_cpu );
+    PRINT_DFIELD( f, s, full_objects_marked );
+    PRINT_DFIELD( f, s, full_words_marked );
+    PRINT_DFIELD( f, s, full_pointers_traced );
     fprintf( f, ") " );
   }
 
   { gclib_memstat_t *s = &stats_state.gclib_stats;
 
     fprintf( f, "#(gclib_memstat_t " );
-    PRINT_WORD( f, s, heap_allocated );
-    PRINT_WORD( f, s, heap_allocated_max );
-    PRINT_WORD( f, s, remset_allocated );
-    PRINT_WORD( f, s, remset_allocated_max );
-    PRINT_WORD( f, s, summ_allocated );
-    PRINT_WORD( f, s, summ_allocated_max );
-    PRINT_WORD( f, s, smircy_allocated );
-    PRINT_WORD( f, s, smircy_allocated_max );
-    PRINT_WORD( f, s, rts_allocated );
-    PRINT_WORD( f, s, rts_allocated_max );
-    PRINT_WORD( f, s, heap_fragmentation );
-    PRINT_WORD( f, s, heap_fragmentation_max );
-    PRINT_WORD( f, s, mem_allocated );
-    PRINT_WORD( f, s, mem_allocated_max );
+    PRINT_FIELD( f, s, heap_allocated );
+    PRINT_FIELD( f, s, heap_allocated_max );
+    PRINT_FIELD( f, s, remset_allocated );
+    PRINT_FIELD( f, s, remset_allocated_max );
+    PRINT_FIELD( f, s, summ_allocated );
+    PRINT_FIELD( f, s, summ_allocated_max );
+    PRINT_FIELD( f, s, smircy_allocated );
+    PRINT_FIELD( f, s, smircy_allocated_max );
+    PRINT_FIELD( f, s, rts_allocated );
+    PRINT_FIELD( f, s, rts_allocated_max );
+    PRINT_FIELD( f, s, heap_fragmentation );
+    PRINT_FIELD( f, s, heap_fragmentation_max );
+    PRINT_FIELD( f, s, mem_allocated );
+    PRINT_FIELD( f, s, mem_allocated_max );
     fprintf( f, ") " );
   }
 
@@ -1305,10 +1317,10 @@ static void stats_dump_state_now( FILE *f )
   { stack_memstat_t *s = &stats_state.stack_stats;
 
     fprintf( f, "#(stack_memstat_t " );
-    PRINT_WORD( f, s, stacks_created );
-    PRINT_DWORD( f, s, words_flushed );
-    PRINT_DWORD( f, s, frames_flushed );
-    PRINT_DWORD( f, s, frames_restored );
+    PRINT_FIELD( f, s, stacks_created );
+    PRINT_DFIELD( f, s, words_flushed );
+    PRINT_DFIELD( f, s, frames_flushed );
+    PRINT_DFIELD( f, s, frames_restored );
     fprintf( f, ") " );
   }
 
@@ -1316,12 +1328,12 @@ static void stats_dump_state_now( FILE *f )
   { swb_memstat_t *s = &stats_state.swb_stats;
 
     fprintf( f, "#(swb_memstat_t " );
-    PRINT_WORD( f, s, total_assignments );
-    PRINT_WORD( f, s, array_assignments );
-    PRINT_WORD( f, s, lhs_young_or_remembered );
-    PRINT_WORD( f, s, rhs_constant );
-    PRINT_WORD( f, s, cross_gen_check );
-    PRINT_WORD( f, s, transactions );
+    PRINT_FIELD( f, s, total_assignments );
+    PRINT_FIELD( f, s, array_assignments );
+    PRINT_FIELD( f, s, lhs_young_or_remembered );
+    PRINT_FIELD( f, s, rhs_constant );
+    PRINT_FIELD( f, s, cross_gen_check );
+    PRINT_FIELD( f, s, transactions );
     fprintf( f, ") " );
   }
 #else
@@ -1331,41 +1343,41 @@ static void stats_dump_state_now( FILE *f )
   { gc_event_memstat_t *s = &stats_state.gc_event_stats;
   
     fprintf( f, "#(gc_event_memstat_t " );
-    PRINT_DWORD( f, s, gctime );
-    PRINT_DWORD( f, s, promtime );
-    PRINT_DWORD( f, s, free_unused );
-    PRINT_DWORD( f, s, root_scan_gc );
-    PRINT_DWORD( f, s, root_scan_prom );
-    PRINT_DWORD( f, s, los_sweep_gc );
-    PRINT_DWORD( f, s, los_sweep_prom );
-    PRINT_DWORD( f, s, remset_scan_gc );
-    PRINT_DWORD( f, s, remset_scan_prom );
-    PRINT_DWORD( f, s, tospace_scan_gc );
-    PRINT_DWORD( f, s, tospace_scan_prom );
-    PRINT_DWORD( f, s, reset_after_gc );
-    PRINT_DWORD( f, s, decrement_after_gc );
-    PRINT_DWORD( f, s, dof_remset_scan );
-    PRINT_DWORD( f, s, sweep_shadow );
-    PRINT_DWORD( f, s, msgc_mark );
-    PRINT_DWORD( f, s, sweep_dof_sets );
-    PRINT_DWORD( f, s, sweep_remset );
-    PRINT_DWORD( f, s, sweep_los );
-    PRINT_DWORD( f, s, assimilate_prom );
-    PRINT_DWORD( f, s, assimilate_gc );
-    PRINT_WORD( f, s, copied_by_gc );
-    PRINT_WORD( f, s, copied_by_prom );
-    PRINT_WORD( f, s, words_forwarded );
-    PRINT_WORD( f, s, ptrs_forwarded );
-    PRINT_WORD( f, s, gc_barrier_hit );
-    PRINT_WORD( f, s, remset_large_objs_scanned );
-    PRINT_WORD( f, s, remset_large_obj_words_scanned );
+    PRINT_DFIELD( f, s, gctime );
+    PRINT_DFIELD( f, s, promtime );
+    PRINT_DFIELD( f, s, free_unused );
+    PRINT_DFIELD( f, s, root_scan_gc );
+    PRINT_DFIELD( f, s, root_scan_prom );
+    PRINT_DFIELD( f, s, los_sweep_gc );
+    PRINT_DFIELD( f, s, los_sweep_prom );
+    PRINT_DFIELD( f, s, remset_scan_gc );
+    PRINT_DFIELD( f, s, remset_scan_prom );
+    PRINT_DFIELD( f, s, tospace_scan_gc );
+    PRINT_DFIELD( f, s, tospace_scan_prom );
+    PRINT_DFIELD( f, s, reset_after_gc );
+    PRINT_DFIELD( f, s, decrement_after_gc );
+    PRINT_DFIELD( f, s, dof_remset_scan );
+    PRINT_DFIELD( f, s, sweep_shadow );
+    PRINT_DFIELD( f, s, msgc_mark );
+    PRINT_DFIELD( f, s, sweep_dof_sets );
+    PRINT_DFIELD( f, s, sweep_remset );
+    PRINT_DFIELD( f, s, sweep_los );
+    PRINT_DFIELD( f, s, assimilate_prom );
+    PRINT_DFIELD( f, s, assimilate_gc );
+    PRINT_FIELD( f, s, copied_by_gc );
+    PRINT_FIELD( f, s, copied_by_prom );
+    PRINT_FIELD( f, s, words_forwarded );
+    PRINT_FIELD( f, s, ptrs_forwarded );
+    PRINT_FIELD( f, s, gc_barrier_hit );
+    PRINT_FIELD( f, s, remset_large_objs_scanned );
+    PRINT_FIELD( f, s, remset_large_obj_words_scanned );
     /* FIXME: These perhaps belong with the "copied" elements above, but
        I don't want to mess with the order because it'd break working
        code.  Perhaps fix in v0.50, when processing code can distinguish
        between the two layouts.  
        */
-    PRINT_WORD( f, s, moved_by_gc );
-    PRINT_WORD( f, s, moved_by_prom );
+    PRINT_FIELD( f, s, moved_by_gc );
+    PRINT_FIELD( f, s, moved_by_prom );
     fprintf( f, ") " );
   }
 
@@ -1547,37 +1559,37 @@ static void stats_dump_state_now( FILE *f )
 static void dump_gen_stats( FILE *f, gen_memstat_t *s )
 {
   fprintf( f, "#(gen_memstat_t " );
-  PRINT_WORD( f, s, major_id );
-  PRINT_WORD( f, s, minor_id );
-  PRINT_WORD( f, s, target );
-  PRINT_WORD( f, s, allocated );
-  PRINT_WORD( f, s, used );
-  PRINT_WORD( f, s, promotions );
-  PRINT_WORD( f, s, collections );
-  PRINT_WORD( f, s, ms_promotion );
-  PRINT_WORD( f, s, ms_promotion_cpu );
-  PRINT_WORD( f, s, ms_collection );
-  PRINT_WORD( f, s, ms_collection_cpu );
+  PRINT_FIELD( f, s, major_id );
+  PRINT_FIELD( f, s, minor_id );
+  PRINT_FIELD( f, s, target );
+  PRINT_FIELD( f, s, allocated );
+  PRINT_FIELD( f, s, used );
+  PRINT_FIELD( f, s, promotions );
+  PRINT_FIELD( f, s, collections );
+  PRINT_FIELD( f, s, ms_promotion );
+  PRINT_FIELD( f, s, ms_promotion_cpu );
+  PRINT_FIELD( f, s, ms_collection );
+  PRINT_FIELD( f, s, ms_collection_cpu );
   fprintf( f, ") " );
 }
 
 static void dump_remset_stats( FILE *f, remset_memstat_t *s )
 {
   fprintf( f, "#(remset_memstat_t " );
-  PRINT_WORD( f, s, major_id );  
-  PRINT_WORD( f, s, minor_id );
-  PRINT_WORD( f, s, allocated );
-  PRINT_WORD( f, s, max_allocated );
-  PRINT_WORD( f, s, used );
-  PRINT_WORD( f, s, live );
-  PRINT_DWORD( f, s, ssb_recorded );
-  PRINT_DWORD( f, s, recorded );
-  PRINT_DWORD( f, s, objs_scanned );
-  PRINT_DWORD( f, s, words_scanned );
-  PRINT_DWORD( f, s, removed );
-  PRINT_WORD( f, s, cleared );
-  PRINT_WORD( f, s, scanned );
-  PRINT_WORD( f, s, compacted );
+  PRINT_FIELD( f, s, major_id );  
+  PRINT_FIELD( f, s, minor_id );
+  PRINT_FIELD( f, s, allocated );
+  PRINT_FIELD( f, s, max_allocated );
+  PRINT_FIELD( f, s, used );
+  PRINT_FIELD( f, s, live );
+  PRINT_DFIELD( f, s, ssb_recorded );
+  PRINT_DFIELD( f, s, recorded );
+  PRINT_DFIELD( f, s, objs_scanned );
+  PRINT_DFIELD( f, s, words_scanned );
+  PRINT_DFIELD( f, s, removed );
+  PRINT_FIELD( f, s, cleared );
+  PRINT_FIELD( f, s, scanned );
+  PRINT_FIELD( f, s, compacted );
   fprintf( f, ") " );
 }
 
