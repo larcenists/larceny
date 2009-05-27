@@ -26,6 +26,11 @@
 ;; (This probably turns into XPath and/or Demeter in the limit, so
 ;;  I should investigate those options before spending much time on
 ;;  such hacks, though...)
+;; 
+;; The other problem with such hacks is that they might not compose
+;; properly, depending on how the resulting structure is formatted...
+;; (this is what I discovered when I tried an "obvious" generalization
+;; to allow queries using Listof[Symbol] as the key).
 
 ;; extract-entry : Dataset Symbol -> Maybe[Entry]
 (define (extract-entry s k)
