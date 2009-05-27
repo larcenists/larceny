@@ -1317,10 +1317,32 @@
                     memstats-gc-total-elapsed-time)
   (environment-set! larc 'memstats-gc-total-cpu-time
                     memstats-gc-total-cpu-time)
+  (environment-set! larc 'memstats-gc-max-cheney-elapsed-time
+                    memstats-gc-max-cheney-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-cheney-cpu-time
+                    memstats-gc-max-cheney-cpu-time)
+  (environment-set! larc 'memstats-gc-max-truegc-elapsed-time
+                    memstats-gc-max-truegc-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-truegc-cpu-time
+                    memstats-gc-max-truegc-cpu-time)
   (environment-set! larc 'memstats-gc-max-elapsed-time
                     memstats-gc-max-elapsed-time)
   (environment-set! larc 'memstats-gc-max-cpu-time
                     memstats-gc-max-cpu-time)
+  (environment-set! larc 'memstats-gc-max-remset-scan-elapsed-time
+                    memstats-gc-max-remset-scan-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-remset-scan-cpu-time
+                    memstats-gc-max-remset-scan-cpu-time)
+  (environment-set! larc 'memstats-gc-total-remset-scan-elapsed-time
+                    memstats-gc-total-remset-scan-elapsed-time)
+  (environment-set! larc 'memstats-gc-total-remset-scan-cpu-time
+                    memstats-gc-total-remset-scan-cpu-time)
+  (environment-set! larc 'memstats-gc-remset-scan-count
+                    memstats-gc-remset-scan-count)
+  (environment-set! larc 'memstats-gc-max-entries-remset-scan
+                    memstats-gc-max-entries-remset-scan)
+  (environment-set! larc 'memstats-gc-total-entries-remset-scan
+                    memstats-gc-total-entries-remset-scan)
   (environment-set! larc 'memstats-gc-promotion-elapsed-time
                     memstats-gc-promotion-elapsed-time)
   (environment-set! larc 'memstats-gc-promotion-cpu-time
@@ -1334,6 +1356,14 @@
                     memstats-remsets-allocated-now)
   (environment-set! larc 'memstats-remsets-allocated-max
                     memstats-remsets-allocated-max)
+  (environment-set! larc 'memstats-summsets-allocated-now
+                    memstats-summsets-allocated-now)
+  (environment-set! larc 'memstats-summsets-allocated-max
+                    memstats-summsets-allocated-max)
+  (environment-set! larc 'memstats-marking-allocated-now
+                    memstats-marking-allocated-now)
+  (environment-set! larc 'memstats-marking-allocated-max
+                    memstats-marking-allocated-max)
   (environment-set! larc 'memstats-rts-allocated-now
                     memstats-rts-allocated-now)
   (environment-set! larc 'memstats-rts-allocated-max
@@ -1377,10 +1407,19 @@
   (environment-set! larc 'memstats-fullgc-copied memstats-fullgc-copied)
   (environment-set! larc 'memstats-fullgc-moved memstats-fullgc-moved)
   (environment-set! larc 'memstats-fullgc-marked memstats-fullgc-marked)
+  (environment-set! larc 'memstats-fullgc-words-marked 
+                    memstats-fullgc-words-marked)
   (environment-set! larc 'memstats-fullgc-traced memstats-fullgc-traced)
   (environment-set! larc 'memstats-dofgc-resets memstats-dofgc-resets)
   (environment-set! larc 'memstats-dofgc-repeats memstats-dofgc-repeats)
   (environment-set! larc 'memstats-gc-accounting memstats-gc-accounting)
+  (environment-set! larc 'memstats-mark-elapsed memstats-mark-elapsed)
+  (environment-set! larc 'memstats-mark-cpu memstats-mark-cpu)
+  (environment-set! larc 'memstats-mark-count memstats-mark-count)
+  (environment-set! larc 'memstats-summarize-elapsed 
+                    memstats-summarize-elapsed)
+  (environment-set! larc 'memstats-summarize-cpu memstats-summarize-cpu)
+  (environment-set! larc 'memstats-summarize-count memstats-summarize-count)
   (environment-set! larc 'memstats-acc-gc memstats-acc-gc)
   (environment-set! larc 'memstats-acc-promotion memstats-acc-promotion)
   (environment-set! larc 'memstats-acc-free-unused memstats-acc-free-unused)
