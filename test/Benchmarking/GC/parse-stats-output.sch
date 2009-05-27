@@ -64,6 +64,22 @@
 (define extract-mmu 
   (key->extractor 'gc_mmu_log_t))
 
+(define extract-gc-memstats
+  (key->extractor 'gc_memstat_t))
+
+(define extract-gclib-memstats
+  (key->extractor 'gclib_memstat_t))
+
+(define extract-gc-event-memstats
+  (key->extractor 'gc_event_memstat_t))
+
+(define extract-gc-general-memstats
+  (lambda args
+    (let ((gcm (apply extract-gc-memstats args))
+          (gcl (apply extract-gclib-memstats args))
+          (gce (apply extract-gc-event-memstats args)))
+      (list->vector (apply append (map vector->list (list gcm gcl gce)))))))
+
 (define (render-mmu . args)
   (let* ((mmu-entry (if (null? args) (extract-mmu) (car args)))
          (extract-size    (key->extractor 'size))
