@@ -533,6 +533,13 @@ void gclib_stats( gclib_stats_t *stats )
   stats->mem_allocated          = bytes2words( data.mem_bytes );
   stats->mem_allocated_max      = bytes2words( data.max_mem_bytes );
   stats->heap_limit             = bytes2words( data.heap_bytes_limit );
+
+  stats->heap_allocated_peak     = bytes2words( data.peak_heap_bytes );
+  stats->remset_allocated_peak   = bytes2words( data.peak_remset_bytes );
+  stats->summ_allocated_peak     = bytes2words( data.peak_summ_bytes );
+  stats->smircy_allocated_peak   = bytes2words( data.peak_smircy_bytes );
+  stats->rts_allocated_peak      = bytes2words( data.peak_rts_bytes );
+  stats->heap_fragmentation_peak = bytes2words( data.peak_wastage_bytes );
 }
 
 

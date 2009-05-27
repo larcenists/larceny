@@ -80,16 +80,22 @@ typedef struct gc_event_memstat gc_event_memstat_t;
 struct gclib_memstat {
   word heap_allocated;		/* words allocated to heap areas */
   word heap_allocated_max;	/* max words allocated to heap */
+  word heap_allocated_peak;	/* words allocated to heap at mem peak */
   word remset_allocated;	/* words allocated to remembered sets */
   word remset_allocated_max;	/* max words allocated to remset */
+  word remset_allocated_peak;	/* words allocated to remset at mem peak */
   word summ_allocated;		/* words allocated to summary sets */
   word summ_allocated_max;	/* max of summ_allocated over time */
+  word summ_allocated_peak;	/* summ_allocated at mem peak */
   word smircy_allocated;	/* words allocated to marking state */
   word smircy_allocated_max;	/* max of smircy_allocated over time */
+  word smircy_allocated_peak;	/* smircy_allocated at mem peak */
   word rts_allocated;		/* words allocated to RTS "other" */
   word rts_allocated_max;	/* max words allocated to rts */
+  word rts_allocated_peak;	/* words allocated to rts at mem peak */
   word heap_fragmentation;	/* words of external heap framgentation */
   word heap_fragmentation_max;	/* max words of external heap fragmentation */
+  word heap_fragmentation_peak;	/* heap_fragmentation at mem peak */
   word mem_allocated;		/* total words of allocation */
   word mem_allocated_max;	/* max total words of allocation */
 
@@ -488,6 +494,13 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   PUT_WORD( stats, s, heap_fragmentation_max );
   PUT_WORD( stats, s, mem_allocated );
   PUT_WORD( stats, s, mem_allocated_max );
+
+  PUT_WORD( stats, s, heap_allocated_peak );
+  PUT_WORD( stats, s, remset_allocated_peak );
+  PUT_WORD( stats, s, summ_allocated_peak );
+  PUT_WORD( stats, s, smircy_allocated_peak );
+  PUT_WORD( stats, s, rts_allocated_peak );
+  PUT_WORD( stats, s, heap_fragmentation_peak );
 
   PUT_WORD( stats, s, max_remset_scan );
   PUT_WORD( stats, s, max_remset_scan_cpu );
@@ -1281,16 +1294,22 @@ static void stats_dump_state_now( FILE *f )
     fprintf( f, "#(gclib_memstat_t " );
     PRINT_FIELD( f, s, heap_allocated );
     PRINT_FIELD( f, s, heap_allocated_max );
+    PRINT_FIELD( f, s, heap_allocated_peak );
     PRINT_FIELD( f, s, remset_allocated );
     PRINT_FIELD( f, s, remset_allocated_max );
+    PRINT_FIELD( f, s, remset_allocated_peak );
     PRINT_FIELD( f, s, summ_allocated );
     PRINT_FIELD( f, s, summ_allocated_max );
+    PRINT_FIELD( f, s, summ_allocated_peak );
     PRINT_FIELD( f, s, smircy_allocated );
     PRINT_FIELD( f, s, smircy_allocated_max );
+    PRINT_FIELD( f, s, smircy_allocated_peak );
     PRINT_FIELD( f, s, rts_allocated );
     PRINT_FIELD( f, s, rts_allocated_max );
+    PRINT_FIELD( f, s, rts_allocated_peak );
     PRINT_FIELD( f, s, heap_fragmentation );
     PRINT_FIELD( f, s, heap_fragmentation_max );
+    PRINT_FIELD( f, s, heap_fragmentation_peak );
     PRINT_FIELD( f, s, mem_allocated );
     PRINT_FIELD( f, s, mem_allocated_max );
     fprintf( f, ") " );
