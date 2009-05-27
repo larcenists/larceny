@@ -9,7 +9,7 @@
 ;; renders each arg of form ((a1 .. a_k) (b1 .. b_k) ...)
 (define (plot-stacked-bars bar-names . data-args)
   (define (massage-data-arg data bar-x-coord)
-    (let* ((entries (append '(("")) ;; shifts bars over within group
+    (let* ((entries (append ; '(("")) ;; shifts bars over within group
                             data))
            (count (+ 1 (length entries)))
            (factor (/ 1 count))
@@ -18,7 +18,7 @@
                    (let ((x-coord (+ bar-x-coord (* c factor)))
                          (data-w/o-xtic (cdr e)))
                      (cons x-coord data-w/o-xtic)))
-                 entries (iota count)))
+                 entries (map (lambda (i) (+ i 1)) (iota count))))
            (x-tics (map (lambda (e n)
                           (let ((xtic (car e)) (x-coord (car n)))
                             (list xtic x-coord)))
@@ -26,14 +26,15 @@
       (list (cons '() ;; breaks between data-args separate bar grps in plot
                   numbers)
             x-tics)))
-  (let* ((data-and-xtics 
-          (map massage-data-arg data-args (iota (length data-args))))
+  (let* ((count (length data-args))
+         (data-and-xtics 
+          (map massage-data-arg data-args (iota count)))
          (data-vals (apply append (map car data-and-xtics)))
          (xtics (apply append (map cadr data-and-xtics))))
     (gnuplot/keep-files
      (lambda (data-file) 
        `((set style fill pattern 1 border)
-         (set xrange \[ 0 : * \] )
+         (set xrange \[ 0 : ,count \] )
          (set yrange \[ 0 : * \] )
          (set xtics rotate (,(list->vector xtics)))
          (plot ,(list->vector 
