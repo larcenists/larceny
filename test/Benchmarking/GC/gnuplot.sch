@@ -47,7 +47,7 @@
     ceil cos cosh erf erfc exp floor gamma inverf imag invnorm int
     iambertw lgamma log log10 norm rand real sgn sign sinh sqrt 
     tan tanh strlen system words 
-    column ; defined (deprecated)
+    column ;; (`defined' is deprecated)
     exists stringcolumn timecolumn
     tm_hour tm_mday tm_min tm_mon tm_sec tm_wday tm_yday tm_year 
     valid))
