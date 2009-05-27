@@ -158,3 +158,7 @@
 
 ;; plot-memory-usage : GclibStatVector -> unspecified
 ;; plot-memory-usage :                 -> unspecified
+(define (plot-memory-usage . args)
+  (let ((rendered (apply render-memory-usage args)))
+    (plot-stacked-bars (car rendered)
+                       (list (cons "" (cadr rendered))))))
