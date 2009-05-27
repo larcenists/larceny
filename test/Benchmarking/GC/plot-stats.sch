@@ -8,9 +8,9 @@
 ;; renders each arg of form ((a1 .. a_k) (b1 .. b_k) ...)
 (define (plot-stacked-bars bar-names . data-args)
   (define (massage-data-arg data x-coord)
-    (let* ((entries data)
+    (let* ((entries (cons '() ;; shifts bars over within group
+                          data))
            (count (+ 1 (length entries)))
-           (height (length (car entries)))
            (factor (/ 1 count)))
       (cons '() ;; breaks between data-args separate bar grps in plot
             (map (lambda (e c)
