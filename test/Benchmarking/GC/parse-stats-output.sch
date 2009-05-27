@@ -109,7 +109,10 @@
 ;; render-mmu :      -> Listof[(list Nat Real0..1)]
 ;; Produces min. mutator data as several (list window-size percentage) entries.
 (define (render-mmu . args)
-  (let* ((mmu-entry (if (null? args) (extract-mmu) (car args)))
+  (let* ((mmu-entry
+          (or (if (null? args) (extract-mmu) (car args))
+              (error 'render-mmu 
+                     "must pass mmu or run larceny with mmu enabled.")))
          (extract-size    (key->extractor 'size))
          (extract-mutator (key->extractor 'mutator))
          (extract-min     (key->extractor 'min))
