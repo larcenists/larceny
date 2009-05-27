@@ -8,7 +8,7 @@ if [ -z "$LARCENY" ] ; then
   exit
 fi
 
-DATE=`date +"%Y%b%d-at-%H-%M-S"`
+DATE=`date +"%Y%b%d-at-%H-%M-%S"`
 
 if [ -z $1 ] ; then
     OUTPUT=bench-auto-log.$DATE.log
