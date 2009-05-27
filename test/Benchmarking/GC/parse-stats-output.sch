@@ -96,6 +96,9 @@
 (define extract-gc-event-memstats
   (key->extractor 'gc_event_memstat_t))
 
+(define extract-histograms
+  (key->extractor 'histograms))
+
 ;; extract-gc-event-memstats : Extractor
 ;; pulls out global stats data (ie, data not per-generation/per-region)
 (define extract-gc-general-memstats
