@@ -286,6 +286,11 @@
           (list 'cheney: (elapsed 'gc-max-cheney: pause-sexp))
           (list 'rsscan: (elapsed 'gc-max-remset-scan: pause-sexp)))))
 
+;; A BenchDescriptionSexps is a Listof[BenchDescriptionSexp]
+;;
+;; A BenchDescriptionSexp is a (semi) self-describing s-exp
+
+;; describe-stats-of-logfile : String -> BenchDescriptionSexps
 (define (describe-stats-of-logfile filename)
   (let* ((real-filename 
           (cond ((file-exists? filename) filename)
@@ -302,9 +307,8 @@
          (bench-entries (cddr stats-log))
          (bench-memory-usage
           (lambda (b)
-            (render-memory-usage 
-             (extract-gclib-memstats
-              (bench-sexp->memstats-dataset b)))))
+            (extract-gclib-memstats
+             (bench-sexp->memstats-dataset b))))
          (describe-bench
           (lambda (b)
             (list (bench-sexp->benchmark-description b) 
@@ -312,6 +316,84 @@
                   'pauses: (bench-sexp->pause-times b)
                   'memory: (bench-memory-usage b)))))
     (map describe-bench bench-entries)))
+
+;; plot-stacked-bars consumes a list of bar names and then lists
+;; of the data to plot.
+;; 
+;; Following helpers extract bars names from the data in each case,
+;; put it at the front of the s-exp, and transpose each benchmark's
+;; name into the value lists for the bars
+
+;; bench-descriptions->elapsed-stacked-bars : BenchDescriptionSexps -> Sexp
+(define (bench-descriptions->elapsed-stacked-bars bds)
+  (let ((overall-time (lambda (bd) (cadr (memq 'overall: bd)))))
+    (list
+     '("mutator" "gc" "summarize" "mark")
+     (map (lambda (bd)
+            (let* ((ot (overall-time bd))
+                   (ot-hdr (map car ot))
+                   (ot-vals (map cadr ot)))
+              (assert (equal? ot-hdr '(overall: gc: mark: summarize:)))
+              ;; These timings are separate; they need to be
+              ;; accumulated together to form a proper nest of times
+              (let* ((val-overall (list-ref ot-vals 0))
+                     (val-gc      (list-ref ot-vals 1))
+                     (val-mark    (list-ref ot-vals 2))
+                     (val-summ    (list-ref ot-vals 3))
+                     (val-mut (- val-overall (+ val-gc val-mark val-summ)))
+                     (val-gc*   (+ val-mut val-gc))
+                     (val-summ* (+ val-gc* val-summ))
+                     (val-mark* (+ val-summ* val-mark)))
+                (list (car bd) val-mut val-gc* val-summ* val-mark*))))
+          bds))))
+
+;; bench-descriptions->pause-stacked-bars   : BenchDescriptionSexps -> Sexp
+(define (bench-descriptions->pause-stacked-bars bds)
+  (let ((pause-time (lambda (bd) (cadr (memq 'pauses: bd)))))
+    (list
+     '("remset scan" "cheney" "gc pause")
+     (map (lambda (bd)
+            (let* ((pt (pause-time bd))
+                   (pt-hdr (map car pt))
+                   (pt-vals (map cadr pt)))
+              (assert (equal? pt-hdr '(gc: cheney: rsscan:)))
+              ;; These timings are already nested
+              (let* ((val-gc     (list-ref pt-vals 0))
+                     (val-cheney (list-ref pt-vals 1))
+                     (val-rsscan (list-ref pt-vals 2)))
+                (list (car bd) val-rsscan val-cheney val-gc))))
+          bds))))
+
+;; bench-descriptions->mem-use-stacked-bars : BenchDescriptionSexps -> Sexp
+(define (bench-descriptions->mem-use-stacked-bars bds)
+  (let ((memory-use (lambda (bd) 
+                      (render-memory-usage (cadr (memq 'memory: bd))))))
+    (foldr (lambda (bd ents) 
+             (let* ((mu (memory-use bd))
+                    (ents-hdr (car ents))
+                    (ents-vals (cadr ents))
+                    (bd-hdr (car mu))
+                    (bd-vals (cadr mu)))
+               (assert (or (not ents-hdr) 
+                           (equal? bd-hdr ents-hdr)))
+               (list bd-hdr (cons (cons (car bd) bd-vals)
+                                  ents-vals))))
+           (list #f '())
+           bds)))
+
+;; plot-bench-descriptions : Listof[BenchDescriptionSexp] -> unspecified
+;; plot-bench-descriptions :                       String -> unspecified
+(define (plot-bench-descriptions x)
+  (cond
+   ((string? x) 
+    (plot-bench-descriptions (describe-stats-of-logfile x)))
+   (else
+    (let ((plot-one (lambda (s) (apply plot-stacked-bars s))))
+      (for-each 
+       plot-one
+       (list (bench-descriptions->elapsed-stacked-bars x)
+             (bench-descriptions->pause-stacked-bars x)
+             (bench-descriptions->mem-use-stacked-bars x)))))))
 
 ;; bench-sexp->memstats-dataset : BenchSexp -> Dataset
 (define (bench-sexp->memstats-dataset s)
