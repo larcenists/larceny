@@ -45,12 +45,35 @@
            => car)
           (else #f))))
 
+;; extract-sublist : Listof[Any] Symbol -> Maybe[Listof[Any]]
+;; extracts all non-symbol values immediately following k in l, or #f if none
+(define extract-sublist 
+  (let ()
+    (define (take-nonsymbols l*)
+      (let loop ((l* l*))
+        (cond ((null? l*) '())
+              (else (cond ((symbol? (car l*)) '())
+                          (else (cons (car l*) 
+                                      (loop (cdr l*)))))))))
+    (lambda (l k)
+      (let loop ((l l))
+        (cond 
+         ((null? l) #f)
+         (else (cond ((eq? (car l) k)
+                      (take-nonsymbols (cdr l)))
+                     (else 
+                      (loop (cdr l))))))))))
+
 ;; An Extractor is the *intersection* of:
 ;; - (        -> Maybe[Dataset])
 ;; - (String  -> Maybe[Dataset])
 ;; - (Dataset -> Maybe[Dataset])
+;;
+;; Extractors are for easy key lookup (in the stats) at Larceny REPL.
+;; With no args, queries host; o/w stats source inferred (see below).
 
 ;; key->extractor : Symbol -> Extractor
+;; Builds an extractor for key.
 (define (key->extractor key)
   (lambda args
     (let ((stats (cond ((null? args)         (stats-read))
@@ -73,6 +96,8 @@
 (define extract-gc-event-memstats
   (key->extractor 'gc_event_memstat_t))
 
+;; extract-gc-event-memstats : Extractor
+;; pulls out global stats data (ie, data not per-generation/per-region)
 (define extract-gc-general-memstats
   (lambda args
     (let ((gcm (apply extract-gc-memstats args))
@@ -80,6 +105,9 @@
           (gce (apply extract-gc-event-memstats args)))
       (list->vector (apply append (map vector->list (list gcm gcl gce)))))))
 
+;; render-mmu : Sexp -> Listof[(list Nat Real0..1)]
+;; render-mmu :      -> Listof[(list Nat Real0..1)]
+;; Produces min. mutator data as several (list window-size percentage) entries.
 (define (render-mmu . args)
   (let* ((mmu-entry (if (null? args) (extract-mmu) (car args)))
          (extract-size    (key->extractor 'size))
