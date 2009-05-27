@@ -21,6 +21,8 @@
 ;;   memstats-gc-remset-scan-count
 ;;
 
+(define *last-stashed-stats* #f)
+
 ;; tree-diff : [F number] [F Number] -> [F Number]
 (define (tree-diff t2-orig t1-orig)
   (let rec ((t2 t2-orig) (t1 t1-orig))
@@ -98,6 +100,7 @@
       (lambda (ignore-return-val stashed-stats)
         (if (not (ok? result))
             (error "Benchmark program returned wrong result: " result))
+        (set! *last-stashed-stats* stashed-stats)
         stashed-stats))))
 
 
