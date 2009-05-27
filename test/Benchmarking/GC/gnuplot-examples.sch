@@ -62,11 +62,11 @@
    (1976 34  3)
    (1981 24 10)
    (1986 10  1985 1988 9 12))
- '((1967 103 5)
+ '((1967 103 5 8) ;; xyerrorbars only accepts 4 column input
    (1972 55  48 57)
-   (1977 34  3)
-   (1982 24 10)
-   (1987 10  1986 1989 9 12)))
+   (1977 34  3 4)
+   (1982 24 10 12)
+   (1987 10  3 4)))
 
 ;; Illustration of errorlines (34.3 from gnuplot-4.2.3 manual)
 (gnuplot
@@ -84,11 +84,11 @@
    (1976 34  3)
    (1981 24 10)
    (1986 10  1985 1988 9 12))
- '((1967 103 5)
+ '((1967 103 5 8) ;; xyerrorlines only accepts 4 column input
    (1972 55  48 57)
-   (1977 34  3)
-   (1982 24 10)
-   (1987 10  1986 1989 9 12)))
+   (1977 34  3 4)
+   (1982 24 10 12)
+   (1987 10  3 4)))
 
 ;; Illustration of parametric mode
 ;; (vectors are rendered as comma-separated sequences)
@@ -122,3 +122,67 @@
 ;; (there's an example involving timefmt and time series data,
 ;;  but Felix can't get something plausible going so he's 
 ;;  skipping it.)
+
+;; Illustrations of with keyword (34.7 from gnuplot-4.2.3 manual)
+(gnuplot
+ (lambda () `((plot sin(x) with impulses))))
+(gnuplot
+ (lambda () `((plot #((x with points) (x**2))))))
+(gnuplot
+ (lambda (data) `((plot \[ \] \[ -2 : 5 \] 
+                        #((tan(x))
+                          (,data with lines)      ))))
+ '(1 1 2 4 1))
+(gnuplot 
+ (lambda (data) `((plot ,data with impulses)))
+ '(1 1 2 4 1 0.5))
+(gnuplot
+ (lambda (data) `((plot ,data with boxes)))
+ '(1 1 2 4 1 0.5))
+(gnuplot (lambda (data) `((plot #((,data with lines)
+                                  (,data notitle with errorbars)))))
+         '((0 10  1)
+           (1 10  1)
+           (2 20  1)
+           (3 40  1) 
+           (4 10  1) 
+           (5 5.5 1)))
+(gnuplot (lambda (data) `((plot ,data with errorlines)))
+         '((0 10  1)
+           (1 10  1)
+           (2 20  1)
+           (3 40  1) 
+           (4 10  1) 
+           (5 5.5 1)))
+(gnuplot 
+ (lambda () `((plot #((sin(x) 
+                          with linespoints linetype 1 pointtype 3)
+                      (cos(x) 
+                          with linespoints linetype 1 pointtype 4))
+                    ))))
+(gnuplot
+ (lambda (data) `((plot ,data with points pointtype 3 pointsize 2)))
+ '(1 1 2 4 1 0.5))
+(gnuplot (lambda (data) `((plot ,data using \1:2:4 
+                                with points pointtype 5 pointsize variable)))
+         '((0 10  1 1)
+           (1 10  1 2)
+           (2 20  1 3)
+           (3 40  1 2) 
+           (4 10  1 1) 
+           (5 5.5 1 2)))
+(gnuplot (lambda (d1 d2) `((plot 
+                            #((,d1 title "good" 
+                                   with lines linetype 2 linewidth 3)
+                              (,d2 title "bad"
+                                   with lines linetype 2 linewidth 1)   ))))
+         '(12  8 22 42  8 5.5)
+         '(10 10 20 40 10 8.5))
+(gnuplot (lambda () `((plot #((x*x with filledcurve closed)
+                              ( 40 with filledcurve y1=10)   )))))
+(gnuplot (lambda () `((plot #((x*x)
+                              ((x >= -5 && x <= 5 ? 40 : 1 / 0)
+                               with filledcurve y1=10 linetype 8))))))
+(gnuplot (lambda () `((splot x*x - y*y with line palette))))
+(gnuplot (lambda () `((splot #((x*x - y*y with pm3d)
+                               (x*x + y*y with pm3d at t)    )))))
