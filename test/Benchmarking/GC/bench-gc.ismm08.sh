@@ -23,7 +23,7 @@ fi
 
 # all fasls exist check
 f( ) {
-  if [ -z $1.fasl ] ; then
+  if [ ! -e $1.fasl ] ; then
      echo "You need to build $1.fasl before running this script" >&2
      echo "One way is to run the Scheme program "                >&2
      echo "compile-files.sch in this directory."                 >&2
