@@ -1,6 +1,7 @@
 ;; format is either a Filename, or a (Filename . [List RequireSym])
 (define benchmarks 
-  '("dynamic.sch"
+  '("overwrite-run-benchmark.sch"
+    "dynamic.sch"
     "earley.sch"
     "graphs.sch"
     "perm.sch"
