@@ -31,9 +31,9 @@ struct gclib_stats {
   int heap_allocated_peak;	/* words allocated to heap areas when mem_allocated_max was last set. */
   int remset_allocated_peak;	/* words allocated to remembered sets when mem_allocated_max was last set. */
   int summ_allocated_peak;	/* words allocated to summary sets when mem_allocated_max was last set. */
-  int smircy_allocated_peak;	/* words allocated to marking state */
+  int smircy_allocated_peak;	/* words allocated to marking state when mem_allocated_max was last set. */
   int rts_allocated_peak;	/* words allocated to run-time systems when mem_allocated_max was last set. */
-  int heap_fragmentation_peak;	/* words allocated to run-time systems when mem_allocated_max was last set. */
+  int heap_fragmentation_peak;	/* words of fragmentation when mem_allocated_max was last set. */
 
   int max_remset_scan;
   int max_remset_scan_cpu;
