@@ -27,6 +27,7 @@
                   numbers)
             x-tics)))
   (let* ((count (length data-args))
+         (max-group-width (+ 1 (apply max (map length data-args))))
          (data-and-xtics 
           (map massage-data-arg data-args (iota count)))
          (data-vals (apply append (map car data-and-xtics)))
@@ -36,6 +37,7 @@
        `((set style fill pattern 1 border)
          (set xrange \[ 0 : ,count \] )
          (set yrange \[ 0 : * \] )
+         (set boxwidth ,(inexact (min 0.5 (/ 1 max-group-width))))
          (set xtics rotate (,(list->vector xtics)))
          (plot ,(list->vector 
                  (map (lambda (bar-name i) 
