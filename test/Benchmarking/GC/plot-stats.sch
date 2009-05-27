@@ -59,3 +59,54 @@
              `((plot ,(list->vector (map (lambda (file) `(,file with lines))
                                          files)))))
            (apply render-mmu args)))
+
+;; render-mmu2 :              -> Listof[(list Nat Nat Nat Nat Nat Nat Nat)]
+;; render-mmu2 : MmuLogVector -> Listof[(list Nat Nat Nat Nat Nat Nat Nat)]
+;; Each entry is (Window MinMut MaxMgr MaxMinor MaxMajor MaxSumz MaxRefine)
+(define (render-mmu2 . args)
+  (define (extract w real/cpu min/max category)
+    (let* ((cat   (assq category (cdr w)))
+           (times (assq min/max  (cdr cat)))
+           (time  (cadr (memq real/cpu (cadr times)))))
+      time))
+  (define (window->stats w)
+    (assert (eq? 'window (car w)))
+    (let* ((window-size (cadr (assq 'size (cdr w))))
+           (norm (lambda (t) (inexact (/ t window-size)))))
+      (list window-size 
+            (norm (extract w 'real 'min 'mutator))
+            (norm (extract w 'real 'max 'memmgr))
+            (norm (extract w 'real 'max 'minorgc))
+            (norm (extract w 'real 'max 'majorgc))
+            (norm (extract w 'real 'max 'summarize))
+            (norm (extract w 'real 'max 'smircy)))))
+  (define (mmu-log->window-data mmu-log)
+    (map window->stats (cdr (vector->list mmu-log))))
+
+  (let ((log (if (null? args) (extract-mmu) (car args))))
+    (mmu-log->window-data log)))
+
+;; render-mmu2 :              -> unspecified
+;; render-mmu2 : MmuLogVector -> unspecified
+(define (plot-mmu2 . args)
+  (gnuplot (lambda (file)
+             (define (min-line col title)
+               `(,file using 1 : ,col 
+                       axis x1y1
+                       with lines 
+                       title ,title))
+             (define (max-line col title)
+               `(,file using 1 : ,col 
+                       axis x1y1
+                       with linespoints
+                       title ,title))
+             `((set logscale x)
+               (set yrange  \[ 0 : 1 \] )
+               (set y2range \[ 1 : 0 \] )
+               (plot #(,(min-line 2 "min mutator")
+                       ,(max-line 3 "max misc")
+                       ,(max-line 4 "max minor gc")
+                       ,(max-line 5 "max major gc")
+                       ,(max-line 6 "max summarize")
+                       ,(max-line 7 "max rs refine")))))
+           (apply render-mmu2 args)))
