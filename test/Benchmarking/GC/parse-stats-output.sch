@@ -138,3 +138,28 @@
          )
     percentage-mmus))
 
+;; render-max-mem : Sexp -> Listof[(list Symbol Nat)]
+;; render-max-mem :      -> Listof[(list Symbol Nat)]
+;; Produces max mem usage data as (list memory-type word-count) entries.
+(define (render-max-mem . args)
+  (let* ((memstat-v (if (null? args) (extract-gc-general-memstats) (car args)))
+         (memstats (vector->list memstat-v)))
+    (map (lambda (stats-name-and-memory-type)
+           (let* ((stats-name (car stats-name-and-memory-type))
+                  (memory-type (cadr stats-name-and-memory-type))
+                  (elems (extract-sublist memstats stats-name)))
+             (list memory-type
+                   (cond
+                    ((not elems) #f)
+                    ((= 1 (length elems)) (car elems))
+                    ((and (= 2 (length elems))
+                          (zero? (car elems))) (cadr elems))
+                    (else (error 'render-max-mem 
+                                 "no support for nonzero hi word yet."))))))
+          '((mem_allocated_max      total)
+            (heap_allocated_max     heap)
+            (remset_allocated_max   remsets)
+            (summ_allocated_max     summaries)
+            (smircy_allocated_max   markstate)
+            (rts_allocated_max      runtime)
+            (heap_fragmentation_max waste)))))
