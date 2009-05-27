@@ -1,4 +1,4 @@
-(load "temp-files.sch")
+(require "Experimental/temp-files")
 
 (define (stats-read)
   (let ((f (make-temporary-file "larcenystats~a")))
