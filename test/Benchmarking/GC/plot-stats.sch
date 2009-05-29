@@ -98,7 +98,7 @@
   (plot-mmu/core (apply render-mmu2 args)))
 
 ;; plot-mmu/core : RenderedMMU -> unspecified
-(define (plot-mmu2/core rmmu2)
+(define (plot-mmu2/core rmmu2 . args)
   (gnuplot (lambda (file)
              (define (min-line col title)
                `(,file using 1 : ,col 
@@ -110,7 +110,12 @@
                        axis x1y1
                        with linespoints
                        title ,title))
-             `((set logscale x)
+             `(,@(cond ((memq 'title: args) => 
+                        (lambda (suffix)
+                          (let ((title (cadr suffix)))
+                            `((set title ,title)))))
+                       (else '()))
+               (set logscale x)
                (set yrange  \[ 0 : 1 \] )
                (set y2range \[ 1 : 0 \] )
                (plot #(,(min-line 2 "min mutator")
