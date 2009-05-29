@@ -309,12 +309,18 @@
           (lambda (b)
             (extract-gclib-memstats
              (bench-sexp->memstats-dataset b))))
+         (bench-utilization
+          (lambda (b)
+            (extract-mmu 
+             (bench-sexp->memstats-dataset b))))
          (describe-bench
           (lambda (b)
             (list (bench-sexp->benchmark-description b) 
                   'overall: (bench-sexp->elapsed-times b)
                   'pauses: (bench-sexp->pause-times b)
-                  'memory: (bench-memory-usage b)))))
+                  'memory: (bench-memory-usage b)
+                  'utilization: (bench-utilization b)
+                  ))))
     (map describe-bench bench-entries)))
 
 ;; plot-stacked-bars consumes a list of bar names and then lists
