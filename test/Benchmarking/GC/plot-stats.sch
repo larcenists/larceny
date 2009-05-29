@@ -63,8 +63,11 @@
                                          files)))))
            (apply render-mmu args)))
 
-;; render-mmu2 :              -> Listof[(list Nat Nat Nat Nat Nat Nat Nat)]
-;; render-mmu2 : MmuLogVector -> Listof[(list Nat Nat Nat Nat Nat Nat Nat)]
+;; A RenderedMMU is Listof[(list Nat Nat Nat Nat Nat Nat Nat)]
+;; Each entry is (Window MinMut MaxMgr MaxMinor MaxMajor MaxSumz MaxRefine)
+
+;; render-mmu2 :              -> RenderedMMU
+;; render-mmu2 : MmuLogVector -> RenderedMMU
 ;; Each entry is (Window MinMut MaxMgr MaxMinor MaxMajor MaxSumz MaxRefine)
 (define (render-mmu2 . args)
   (define (extract w real/cpu min/max category)
@@ -89,9 +92,13 @@
   (let ((log (if (null? args) (extract-mmu) (car args))))
     (mmu-log->window-data log)))
 
-;; render-mmu2 :              -> unspecified
-;; render-mmu2 : MmuLogVector -> unspecified
+;; plot-mmu2 :              -> unspecified
+;; plot-mmu2 : MmuLogVector -> unspecified
 (define (plot-mmu2 . args)
+  (plot-mmu/core (apply render-mmu2 args)))
+
+;; plot-mmu/core : RenderedMMU -> unspecified
+(define (plot-mmu2/core rmmu2)
   (gnuplot (lambda (file)
              (define (min-line col title)
                `(,file using 1 : ,col 
@@ -112,7 +119,7 @@
                        ,(max-line 5 "max major gc")
                        ,(max-line 6 "max summarize")
                        ,(max-line 7 "max rs refine")))))
-           (apply render-mmu2 args)))
+           rmmu2))
 
 
 ;; A StackedBarSexp is a 
@@ -386,6 +393,38 @@
                                   ents-vals))))
            (list #f '())
            bds)))
+
+;; bench-descriptions->mmu-data : BenchDescriptionSexps -> RenderedMMU
+;; (takes the min/max as appropriate over all benchmarks in input)
+(define (bench-descriptions->rendered-mmu2 bds)
+  (collapse-rendered-mmus (bench-descriptions->rendered-mmu2* bds)))
+
+;; collapse-rendered-mmus : Listof[RenderedMMU] -> RenderedMMU
+;; (takes the min/max as appropriate over all mmu data in input)
+(define (collapse-rendered-mmus rmmu2s)
+  (foldr (lambda (rmmu2 rmmu2*)
+           (map (lambda (entry entry2)
+                  (map (lambda (e1 e2 op) (op e1 e2))
+                       entry entry2
+                       (list (lambda (w w2) 
+                               (assert (= w w2)) w) ; window size
+                             min ; mut
+                             max ; mgr
+                             max ; minor
+                             max ; major
+                             max ; sumz
+                             max ; refine
+                             )))
+                rmmu2 rmmu2*))
+         (car rmmu2s)
+         (cdr rmmu2s)))
+
+;; bench-descriptions->mmu-data : BenchDescriptionSexps -> Listof[RenderedMMU]
+(define (bench-descriptions->rendered-mmu2* bds)
+  (let* ((mmu (lambda (bd) 
+                (render-mmu2 (cadr (memq 'utilization: bd)))))
+         (rmmu2s (map mmu bds)))
+    rmmu2s))
 
 ;; plot-bench-descriptions : Listof[BenchDescriptionSexp] -> unspecified
 ;; plot-bench-descriptions :                       String -> unspecified
