@@ -9,7 +9,7 @@
 ; where <port> can be an output port or #t, and the following formatting
 ; characters are valid:
 ;   ~a   - write as with 'display'
-;   ~w   - write as with 'write'
+;   ~s   - write as with 'write'
 ;   ~c   - write character as with 'write-char'
 ;   ~b   - write bytevector elements (decimal)
 ;   ~B   - write bytevector elements (hexadecimal)
