@@ -77,7 +77,7 @@
 (define (key->extractor key)
   (lambda args
     (let ((stats (cond ((null? args)         (stats-read))
-                       ((string? (car args)) (call-with-file (car args) read))
+                       ((string? (car args)) (call-with-input-file (car args) read))
                        (else                 (car args)))))
       (extract-entry stats key))))
 
