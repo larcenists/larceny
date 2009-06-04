@@ -38,6 +38,7 @@
                  ((list? s)   s))))
     (cond ((memf (lambda (e)
                    (or (and (vector? e)
+                            (> (vector-length e) 0)
                             (eq? k (vector-ref e 0)))
                        (and (pair? e)
                             (eq? k (car e)))))
