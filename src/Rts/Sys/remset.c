@@ -56,14 +56,6 @@
  * (an array of two-word structures would have been more natural) is
  * to allow the remembered-set forwarding scanner to scan more than one
  * object at a time, an optimization that is not currently implemented.
- *
- * NOTE 2 The SSB may contain raw pointers (pointers where the tag is #b000).
- * These pointers are placed in the SSB by the large-object allocator in
- * the generational collector; it was either that or requiring every 
- * allocation call to pass a type descriptor.  When compacting the SSB,
- * we must follow the pointer and tag it with a tag that corresponds to the
- * object header (always bytevector, vector, or procedure) before placing 
- * it in the remembered set.
  */
 
 #define GC_INTERNAL
@@ -279,24 +271,6 @@ void rs_empty_recycling()
   recycled_pool_entries_per = -1;
 }
 
-static word retagptr( word w ) 
-{
-  if (tagof(w) == 0) {
-    switch (header(*(word*)w)) {
-    case VEC_HDR :
-      return (word)tagptr( w, VEC_TAG );
-    case BV_HDR : 
-      return 0; /* signal that entry should be removed! */
-    case PROC_HDR :
-      return (word)tagptr( w, PROC_TAG );
-    default:
-      panic_abort( "remset.c: word is nonptr." );
-    }
-  } else {
-    return w;
-  }
-}
-
 static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop ) 
 {
   DATA(rs)->stats.recorded += recorded;
@@ -413,9 +387,7 @@ bool rs_add_elems_distribute( remset_t **remset, word *bot, word *top )
   while (q > p) {
     q--;
     w = *q;
-    w = retagptr(w);           /* See NOTE 2 above. */
-    if (!w) 
-      continue;                /* Remove the entry! */
+    assert( tagof(w) != 0 );
     gno = gen_of(w);
     rs = remset[gno];
     overflowed |= rs_add_elem( rs, w );
@@ -441,9 +413,7 @@ bool rs_add_elems_funnel( remset_t *rs, word *bot, word *top )
   while (q > p) {
     q--;
     w = *q;
-    w = retagptr(w);           /* See NOTE 2 above. */
-    if (!w) 
-      continue;                /* Remove the entry! */
+    assert( tagof(w) != 0 );
     overflowed |= rs_add_elem( rs, w );
   }
 
