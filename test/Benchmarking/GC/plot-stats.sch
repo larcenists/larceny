@@ -95,7 +95,7 @@
 ;; plot-mmu2 :              -> unspecified
 ;; plot-mmu2 : MmuLogVector -> unspecified
 (define (plot-mmu2 . args)
-  (plot-mmu/core (apply render-mmu2 args)))
+  (plot-mmu2/core (apply render-mmu2 args)))
 
 ;; plot-mmu/core : RenderedMMU -> unspecified
 (define (plot-mmu2/core rmmu2 . args)
