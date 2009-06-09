@@ -1512,25 +1512,6 @@ static void add_object_to_sum_array( summ_matrix_t *summ,
    */
 }
 
-/* XXX stolen from remset.c; should be factored out to somewhere else */
-static word retagptr( word w ) 
-{
-  if (tagof(w) == 0) {
-    switch (header(*(word*)w)) {
-    case VEC_HDR :
-      return (word)tagptr( w, VEC_TAG );
-    case BV_HDR : 
-      return 0; /* signal that entry should be removed! */
-    case PROC_HDR :
-      return (word)tagptr( w, PROC_TAG );
-    default:
-      panic_abort( "memmgr.c: word is nonptr." );
-    }
-  } else {
-    return w;
-  }
-}
-
 static void add_object_to_mut_rs( summ_matrix_t *summ, int g_rhs, word w ) 
 {
   remset_t *rs; 
@@ -1572,10 +1553,7 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
     while (q > p) {
       q--;
       w = *q;
-      w = retagptr(w);
-      if (!w) 
-        continue; /* XXX put above retagptr invoc above? */
-
+      assert( tagof(w) != 0 );
       if (col_words(col) <= pop_limit) {
         add_object_to_mut_rs( summ, g_rhs, w );
         incr_size_and_oflo_check( summ, g_rhs, w, col_incr_words_wb );
