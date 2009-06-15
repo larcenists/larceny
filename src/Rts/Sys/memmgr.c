@@ -653,6 +653,16 @@ static int add_region_to_expand_heap( gc_t *gc, int maximum_allotted )
 
 static void initialize_summaries( gc_t *gc, bool about_to_major );
 
+static int nonempty_region_count( gc_t *gc ) 
+{
+  int region_count;
+  region_count = 
+    (DATA(gc)->region_count 
+     + 1 /* unfilled may contain one non-empty to-space region */
+     - region_group_count( region_group_unfilled ));
+  return region_count;
+}
+
 static void rrof_completed_major_collection( gc_t *gc ) 
 {
   if (DATA(gc)->print_float_stats_each_major)
@@ -692,8 +702,8 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 #endif
 
   DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
-  DATA(gc)->rrof_cycle_remaining = DATA(gc)->region_count;
-  DATA(gc)->rrof_cycle_majors = 0;
+  DATA(gc)->rrof_cycle_majors_total = nonempty_region_count( gc );
+  DATA(gc)->rrof_cycle_majors_sofar = 0;
 
   if ((DATA(gc)->summaries == NULL) && (DATA(gc)->region_count > 4)) {
     initialize_summaries( gc, FALSE );
@@ -743,12 +753,13 @@ static void summarization_step( gc_t *gc, bool about_to_major )
 {
   stats_id_t timer1, timer2;
   int word_countdown = -1, object_countdown = -1;
+  int ne_rgn_count;
 
   SUMMMTX_VERIFICATION_POINT(gc);
 
   assert( DATA(gc)->summaries != NULL );
-  if (sm_progress_would_no_op( DATA(gc)->summaries, 
-                               DATA(gc)->region_count )) {
+  ne_rgn_count = nonempty_region_count( gc );
+  if (sm_progress_would_no_op( DATA(gc)->summaries, ne_rgn_count )) {
     return;
   }
 
@@ -758,7 +769,7 @@ static void summarization_step( gc_t *gc, bool about_to_major )
                             &word_countdown,
                             &object_countdown, 
                             DATA(gc)->rrof_next_region, 
-                            DATA(gc)->region_count,
+                            ne_rgn_count, 
                             about_to_major );
 
   stop_sumrize_timers( gc, &timer1, &timer2 );
@@ -1132,9 +1143,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
 
     oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
-    DATA(gc)->rrof_cycle_remaining -= 1;
-    DATA(gc)->rrof_cycle_majors += 1;
-    if (DATA(gc)->rrof_cycle_remaining <= 0)
+    DATA(gc)->rrof_cycle_majors_sofar += 1;
+    if (DATA(gc)->rrof_cycle_majors_sofar >= 
+        DATA(gc)->rrof_cycle_majors_total)
       DATA(gc)->rrof_last_gc_rolled_cycle = TRUE;
     rrof_completed_major_collection( gc );
 
@@ -1367,8 +1378,8 @@ static void rrof_gc_policy( gc_t *gc,
                             bool *will_says_should_major_recv, 
                             bool calculate_loudly )
 {
-  int majors_sofar = DATA(gc)->rrof_cycle_majors;
-  int majors_total = DATA(gc)->region_count;
+  int majors_sofar = DATA(gc)->rrof_cycle_majors_sofar;
+  int majors_total = DATA(gc)->rrof_cycle_majors_total;
   double L_hard = DATA(gc)->rrof_load_factor_hard;
   double L_soft = DATA(gc)->rrof_load_factor_soft;
   long long N_old  = DATA(gc)->last_live_words_at_time_cycle_began;
@@ -2898,8 +2909,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_to_region = 1;
   data->rrof_next_region = 1;
   data->rrof_last_tospace = -1;
-  data->rrof_cycle_remaining = 1;
-  data->rrof_cycle_majors = 0;
+  data->rrof_cycle_majors_sofar = 0;
+  data->rrof_cycle_majors_total = 1;
 
   data->rrof_has_refine_factor = TRUE;
   data->rrof_refinement_factor = 1.0;

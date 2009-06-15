@@ -60,10 +60,10 @@ struct gc_data {
     /* In RROF collector, the next region scheduled for major collection. */
   int rrof_last_tospace;
     /* In RROF collector, the region used as a to-space in the last collect */
-  int rrof_cycle_majors;
+  int rrof_cycle_majors_sofar;
     /* In RROF collector, number of major gc's so far during current cycle. */
-  int rrof_cycle_remaining;
-    /* In RROF collector, number of major gc's before current cycle complete.
+  int rrof_cycle_majors_total;
+    /* In RROF collector, number of major gc's of complete current cycle.
      */
 
   double rrof_load_factor_soft; /* L_soft */
