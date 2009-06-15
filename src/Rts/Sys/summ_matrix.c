@@ -64,6 +64,8 @@
 
 #define SUMMARIZE_KILLS_RS_ENTRIES 0
 
+#define CONSERVATIVE_REGION_COUNT 0
+
 typedef struct objs_pool objs_pool_t;
 typedef struct summ_cell summ_cell_t;
 typedef struct summ_row summ_row_t;
@@ -974,10 +976,16 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
       capability = DATA(summ)->summarizing.rs_num * fuel;
       required = DATA(summ)->summarizing.rs_cursor;
 
+#if CONSERVATIVE_REGION_COUNT
       assert( capability >= required );
+#endif
 
       /* the major collection itself will use one unit of fuel. */
       capability = DATA(summ)->summarizing.rs_num * (fuel - 1);
+
+      /* XXX Hmm these calculations are now bogus because the required
+       * value is too conservative; doesnt filter out empty remembered
+       * sets in the remaining remsets to traverse.  What to do? */
       if ( capability >= required ) {
         /* no need to progress further; we're on budget. */
         shall_we_progress = FALSE;
@@ -1734,7 +1742,11 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
    * the code should be checking that the bound is satisfied. */
   {
     int N_over_R, U, W, dA_over_R;
+#if CONSERVATIVE_REGION_COUNT
     N_over_R = summ->collector->remset_count;
+#else
+    N_over_R = region_count;
+#endif
     U = region_group_count( region_group_unfilled );
     W = region_group_count( region_group_wait_w_sum ) +
       region_group_count( region_group_wait_nosum );
@@ -1796,12 +1808,13 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
   }
 }
 
-static void sm_build_summaries_by_scanning( summ_matrix_t *summ,
-                                            int start_remset,
-                                            int finis_remset,
-                                            remset_summary_data_t *p_remsum )
+static int sm_build_summaries_by_scanning( summ_matrix_t *summ,
+                                           int start_remset,
+                                           int finis_remset,
+                                           remset_summary_data_t *p_remsum )
 {
   int i;
+  int nontrivial_scans = 0;
 
   dbmsg( "sm_build_summaries_by_scanning"
               "( summ, start_remset=%d, finis_remset=%d, p_remset );",
@@ -1821,7 +1834,13 @@ static void sm_build_summaries_by_scanning( summ_matrix_t *summ,
     rs_enumerate( summ->collector->major_remset[ i ], 
                   scan_object_for_remset_summary,
                   (void*) p_remsum );
+    if ( (summ->collector->remset[ i ]->live > 0) || 
+         (summ->collector->major_remset[ i ]->live > 0) ) {
+      nontrivial_scans += 1;
+    }
   }
+
+  return nontrivial_scans;
 }
 
 static void sm_clear_col( summ_matrix_t *summ, int i );
@@ -1963,10 +1982,12 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
   int remset_count;
   int start;
   int finis;
+  int nontrivial_scans;
 
   dbmsg( "sm_build_summaries_partial( summ, rgn_next=%d, region_count=%d );",
               rgn_next, region_count );
 
+ again:
   remsum.summ = summ;
   remsum.skip_these = NULL;
   remsum.objects_visited = 0;
@@ -1981,7 +2002,8 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
   start = max( finis-rs_num, 1 );
   assert2( start < finis );
 
-  sm_build_summaries_by_scanning( summ, start, finis, &remsum );
+  nontrivial_scans =
+    sm_build_summaries_by_scanning( summ, start, finis, &remsum );
 
   if (start == 1) {
     sm_build_summaries_iteration_complete( summ, region_count );
@@ -1991,6 +2013,21 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
     assert2( finis <= remset_count );
     assert2( start > 1 );
     DATA(summ)->summarizing.rs_cursor = start;
+    if (nontrivial_scans < rs_num) {
+      dbmsg("sm_build_summaries_partial_n does a loop"
+            " rs_num:%d nontrivial_scans:%d", 
+            rs_num, nontrivial_scans );
+
+      /* selects between explicit/implicit tail-call */
+#if 0
+      sm_build_summaries_partial_n( summ, rgn_next, region_count, 
+                                    (rs_num - nontrivial_scans) );
+#else
+      rs_num = (rs_num - nontrivial_scans);
+      goto again;
+#endif
+
+    }
   }
 }
 
