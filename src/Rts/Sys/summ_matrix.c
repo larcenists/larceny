@@ -872,7 +872,8 @@ static void sm_ensure_available( summ_matrix_t *summ, int gno,
                                  int region_count, bool about_to_major );
 
 static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset );
-static void setup_next_wave( summ_matrix_t *summ, int rgn_next, int region_count );
+static void setup_next_wave( summ_matrix_t *summ, int rgn_next, 
+                             int region_count, bool about_to_major );
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
@@ -948,7 +949,7 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
       return;
     } else {
       DATA(summ)->summarizing.waiting = FALSE;
-      setup_next_wave( summ, rgn_next, rgn_count );
+      setup_next_wave( summ, rgn_next, rgn_count, about_to_major );
     }
   }
 
@@ -1700,26 +1701,31 @@ static bool next_summarized_p( summ_matrix_t *summ, int rgn )
 /* resets (reinitializes) summary state for all in region_group_summzing */
 static void sm_build_summaries_setup( summ_matrix_t *summ,
                                       int majors, int region_count,
-                                      int rgn_next )
+                                      int rgn_next, int about_to_major )
 {
   int i;
   int num_under_construction;
   int goal;
+  int gc_budget; 
 
   goal = calc_goal( summ, region_count );
 
   /* genset_next does not actually go up to coverage
    * when that would overlap already summarized area. 
    * (and Felix can't get the new logic right...) */
-  dbmsg("sm_build_summaries_setup(summ, majors=%d, region_count=%d, rgn_next=%d ) goal:%d",
-             majors, region_count, rgn_next, goal );
+  dbmsg("sm_build_summaries_setup"
+        "(summ, majors=%d, region_count=%d, rgn_next=%d, about_to_major=%s )"
+        " goal:%d",
+        majors, region_count, rgn_next, about_to_major?"TRUE":"FALSE", goal );
 
-  assert( majors > 0 );
+  gc_budget = about_to_major ? majors : (majors+1);
+
+  assert( gc_budget > 0 );
 
   /* XXX This value should be bounded by a constant dependant on the
    * sumzbudget, sumzcoverage, and popularity; and the code should be
    * checking that the bound is satisfied. */
-  num_under_construction = quotient2( summ->collector->remset_count, majors );
+  num_under_construction = quotient2( summ->collector->remset_count, gc_budget );
 
   assert2( num_under_construction > 0 );
 
@@ -1996,7 +2002,7 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
   remsum.objects_added = 0;
   remsum.words_added = 0;
 
-  sm_build_summaries_setup( summ, 1, region_count, rgn_next );
+  sm_build_summaries_setup( summ, 1, region_count, rgn_next, about_to_major );
   sm_build_summaries_by_scanning( summ, 1, remset_count, &remsum );
 
   sm_build_summaries_iteration_complete( summ, region_count );
@@ -2609,11 +2615,12 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
     wait_to_setup_next_wave( summ );
   } else {
     /* 3. Set up new next wave. */
-    setup_next_wave( summ, rgn_next, region_count );
+    setup_next_wave( summ, rgn_next, region_count, about_to_major );
   }
 }
 
-static void setup_next_wave( summ_matrix_t *summ, int rgn_next, int region_count )
+static void setup_next_wave( summ_matrix_t *summ, int rgn_next, 
+                             int region_count, bool about_to_major )
 {
   int coverage, budget;
 
@@ -2629,7 +2636,8 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next, int region_count
 
   switch_some_to_summarizing( summ, coverage );
 
-  sm_build_summaries_setup( summ, budget, region_count, rgn_next );
+  sm_build_summaries_setup( summ, budget, region_count, 
+                            rgn_next, about_to_major );
   /* a small hack to ensure rs_cursor is always past any newly added areas */
   sm_build_summaries_just_static_area( summ, rgn_next, region_count );
 }
