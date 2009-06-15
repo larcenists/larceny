@@ -232,6 +232,10 @@
 (define-sassy-instr (ia86.write_barrier r1 r2)
   (cond
    (#f ; (inline-assignment)
+    ;; Note that this code path is unsound in the presence of the
+    ;; concurrent SATB marker unless you have a proof that you do not
+    ;; need to preserve the overwritten slot in the object for r1.
+    ;; That is why this code path is disabled.
     (let ((l0 (fresh-label)))
       (cond (r2
              `(test	,r2 1)
