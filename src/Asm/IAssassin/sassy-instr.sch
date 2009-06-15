@@ -236,6 +236,10 @@
     ;; concurrent SATB marker unless you have a proof that you do not
     ;; need to preserve the overwritten slot in the object for r1.
     ;; That is why this code path is disabled.
+    ;; 
+    ;; However, there is an flag in the globals array that indicates
+    ;; if the concurrent marker is active; I probably could reenable
+    ;; this path if it also checked that flag too.
     (let ((l0 (fresh-label)))
       (cond (r2
              `(test	,r2 1)
