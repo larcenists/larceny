@@ -2320,15 +2320,9 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     gc_maximum_allotted( gc, gset_singleton( current_space->gen_no ));
   int expansion_amount = max( roundup_page(bytes_needed), GC_CHUNK_SIZE );
   int to_rgn_old = DATA(gc)->rrof_to_region;
-  int to_rgn_new = next_rgn( to_rgn_old, DATA(gc)->region_count );
+  int to_rgn_new;
 
   oh_synchronize( DATA(gc)->ephemeral_area[ to_rgn_old-1 ] );
-  oh_synchronize( DATA(gc)->ephemeral_area[ to_rgn_new-1 ] );
-
-  if (expansion_amount > DATA(gc)->ephemeral_area[ to_rgn_new-1 ]->maximum ) {
-    consolemsg("find_space_rgnl: holy cow; bytes_needed=%d and max=%d",
-               bytes_needed, DATA(gc)->ephemeral_area[ to_rgn_new-1]->maximum );
-  }
 
   ss_sync( current_space );
   cur_allocated = 
@@ -2351,6 +2345,12 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   }
 
   to_rgn_new = find_appropriate_to( gc );
+
+  if (expansion_amount > DATA(gc)->ephemeral_area[ to_rgn_new-1 ]->maximum ) {
+    consolemsg("find_space_rgnl: holy cow; bytes_needed=%d and max=%d",
+               bytes_needed, DATA(gc)->ephemeral_area[ to_rgn_new-1]->maximum );
+  }
+
   assert( region_group_of( gc_heap_for_gno( gc, to_rgn_new )) 
           == region_group_unfilled );
   DATA(gc)->rrof_to_region = to_rgn_new;
