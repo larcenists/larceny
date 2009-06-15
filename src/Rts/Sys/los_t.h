@@ -73,6 +73,14 @@ int los_bytes_used( los_t *los, int gen_no );
   or gen_no == LOS_MARK2
      */
 
+int los_bytes_used_include_marklists( los_t *los, int gen_no );
+  /* Returns the number of bytes allocated to large objects in generation
+     `gen_no', including objects on the mark lists that belong to `gen_no'
+
+     This function is suited for determining how many bytes are
+     assigned to a generation even when in the *midst* of collection.
+     */
+
 word *los_allocate( los_t *los, int nbytes, int gen_no );
   /* Allocate nbytes from the large object space with the given generation
      and return a pointer to the block.  The large object is allocated

@@ -114,6 +114,39 @@ int los_bytes_used( los_t *los, int gen_no )
     return los->object_lists[gen_no]->bytes;
 }
 
+static int count_bytes_on_marklist( los_t *los, los_list_t *mark, 
+                                    int match_gen_no )
+{
+  word *p, *n, *h;
+  int rtn, nbytes, gen_no;
+  h = mark->header;
+  p = next( h );
+  rtn = 0;
+  while ( p != h ) {
+    n = next( p );
+    gen_no = gen_of( p - HEADER_WORDS );
+    assert2( 0 <= gen_no && gen_no < los->generations );
+    if (match_gen_no == gen_no) {
+      nbytes = size( p );
+      rtn += nbytes;
+    }
+    p = n;
+  }
+  return rtn;
+}
+
+int los_bytes_used_include_marklists( los_t *los, int gen_no )
+{
+  int rtn;
+  assert( 0 <= gen_no && gen_no < los->generations );
+
+  rtn = los->object_lists[gen_no]->bytes 
+    + count_bytes_on_marklist( los, los->mark1, gen_no )
+    + count_bytes_on_marklist( los, los->mark2, gen_no );
+
+  return rtn;
+}
+
 word *los_allocate( los_t *los, int nbytes, int gen_no )
 {
   word *w;

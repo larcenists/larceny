@@ -74,6 +74,7 @@ static void perform_promote( old_heap_t *heap );
 static void perform_promote_then_promote( old_heap_t *heap );
 static int  compute_dynamic_size( old_heap_t *heap, int live, int los );
 static int  used_space( old_heap_t *heap );
+static int  used_space_amid_gc( old_heap_t *heap );
 #if FLOAT_REDUCTION
 static void full_collection( old_heap_t *heap );
 #endif
@@ -633,6 +634,16 @@ static int used_space( old_heap_t *heap )
            los_bytes_used( heap->collector->los, data->gen_no );
 }
 
+static int used_space_amid_gc( old_heap_t *heap )
+{
+  old_data_t *data = DATA(heap);
+
+  ss_sync( data->current_space );
+  return data->current_space->used +
+           los_bytes_used_include_marklists( heap->collector->los, 
+                                             data->gen_no );
+}
+
 static void set_gen_no( old_heap_t *heap, int gen_no ) 
 {
   DATA(heap)->gen_no = gen_no;
@@ -692,7 +703,7 @@ static void synchronize( old_heap_t *heap )
   old_data_t *data = DATA(heap);
 
   heap->maximum = data->target_size;
-  heap->allocated = used_space( heap );
+  heap->allocated = used_space_amid_gc( heap );
   check_budget( heap, "synchronize" );
 }
 
