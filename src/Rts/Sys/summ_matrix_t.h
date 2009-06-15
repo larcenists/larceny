@@ -83,7 +83,9 @@ bool sm_progress_would_no_op( summ_matrix_t *summ, int rgn_count );
 void sm_construction_progress( summ_matrix_t *summ, 
                                int* word_countdown, int* object_countdown, 
                                int rgn_next, int region_count, 
-                               bool about_to_major );
+                               bool about_to_major, 
+                               int allocation_per_majgc );
+  /* allocation_per_majgc unit is words/rgnsz (count *regions* of alloc) */
 
 void sm_enumerate_row( summ_matrix_t *summ,
                        int row_gno, 

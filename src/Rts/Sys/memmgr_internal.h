@@ -123,6 +123,9 @@ struct gc_data {
   bool rrof_prefer_lil_summ;
   bool rrof_prefer_lat_summ;
 
+  int rrof_words_per_region_max; /* opts allows region sizes to differ; */
+  int rrof_words_per_region_min; /* track min and max for policy calc's */
+
   bool enumerate_major_with_minor_remsets;
   summary_t summary;            /* NULL or summarization of remset array */
   bool      use_summary_instead_of_remsets;

@@ -916,13 +916,15 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
                                       int* object_countdown,
                                       int rgn_next,
                                       int rgn_count,
-                                      bool about_to_major )
+                                      bool about_to_major,
+                                      int alloc_per_majgc )
 {
   /* (must be kept in sync with sm_progress_would_no_op above) */
   int start, coverage;
 
-  dbmsg("sm_construction_progress( summ, rgn_next=%d, region_count=%d );",
-             rgn_next, rgn_count);
+  dbmsg("sm_construction_progress"
+        "( summ, rgn_next=%d, region_count=%d, about_to_major=%s, dA=%d );",
+        rgn_next, rgn_count, about_to_major?"TRUE":"FALSE", alloc_per_majgc );
   dbmsg( "sm_construction_progress: "
               "goal: %d complete: %s rs_cursor: %d rs_num: %d",
               DATA(summ)->summarizing.goal,

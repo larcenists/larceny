@@ -675,8 +675,21 @@ static void rrof_completed_minor_collection( gc_t *gc )
     print_float_stats( "minor ", gc );
 }
 
+static void rrof_calc_target_allocation( gc_t *gc, 
+                                         long long *N_recv, 
+                                         long long *N_old_recv,
+                                         long long *P_old_recv,
+                                         long long *A_this_recv, 
+                                         long long *A_target_1a_recv,
+                                         long long *A_target_1b_recv,
+                                         long long *A_target_1_recv,
+                                         long long *A_target_2_recv, 
+                                         long long *A_target_recv );
+
 static void rrof_completed_regional_cycle( gc_t *gc ) 
 {
+  long long allocation_target;
+
   DATA(gc)->rrof_cycle_count += 1;
 
   if (DATA(gc)->print_float_stats_each_cycle)
@@ -704,6 +717,12 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   DATA(gc)->region_count = DATA(gc)->ephemeral_area_count;
   DATA(gc)->rrof_cycle_majors_total = nonempty_region_count( gc );
   DATA(gc)->rrof_cycle_majors_sofar = 0;
+
+  rrof_calc_target_allocation( gc, NULL, NULL, NULL, NULL, 
+                               NULL, NULL, NULL, NULL, &allocation_target );
+
+  assert( allocation_target == (long long)((int)allocation_target) );
+  DATA(gc)->allocation_target_for_cycle = (int) allocation_target;
 
   if ((DATA(gc)->summaries == NULL) && (DATA(gc)->region_count > 4)) {
     initialize_summaries( gc, FALSE );
@@ -754,6 +773,7 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   stats_id_t timer1, timer2;
   int word_countdown = -1, object_countdown = -1;
   int ne_rgn_count;
+  int dA;
 
   SUMMMTX_VERIFICATION_POINT(gc);
 
@@ -765,12 +785,17 @@ static void summarization_step( gc_t *gc, bool about_to_major )
 
   start_timers( &timer1, &timer2 );
 
+  dA = quotient2(DATA(gc)->allocation_target_for_cycle, 
+                 (DATA(gc)->rrof_words_per_region_min 
+                  * DATA(gc)->rrof_cycle_majors_total));
+
   sm_construction_progress( DATA(gc)->summaries, 
                             &word_countdown,
                             &object_countdown, 
                             DATA(gc)->rrof_next_region, 
                             ne_rgn_count, 
-                            about_to_major );
+                            about_to_major,
+                            dA );
 
   stop_sumrize_timers( gc, &timer1, &timer2 );
 
@@ -1374,12 +1399,17 @@ static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn,
                         rgn, bytes_needed, type_str );
 }
 
-static void rrof_gc_policy( gc_t *gc, 
-                            bool *will_says_should_major_recv, 
-                            bool calculate_loudly )
+static void rrof_calc_target_allocation( gc_t *gc, 
+                                         long long *N_recv, 
+                                         long long *N_old_recv,
+                                         long long *P_old_recv,
+                                         long long *A_this_recv, 
+                                         long long *A_target_1a_recv,
+                                         long long *A_target_1b_recv,
+                                         long long *A_target_1_recv,
+                                         long long *A_target_2_recv, 
+                                         long long *A_target_recv ) 
 {
-  int majors_sofar = DATA(gc)->rrof_cycle_majors_sofar;
-  int majors_total = DATA(gc)->rrof_cycle_majors_total;
   double L_hard = DATA(gc)->rrof_load_factor_hard;
   double L_soft = DATA(gc)->rrof_load_factor_soft;
   long long N_old  = DATA(gc)->last_live_words_at_time_cycle_began;
@@ -1392,12 +1422,38 @@ static void rrof_gc_policy( gc_t *gc,
     / sizeof(word);
 
   long long A_target_1a = (long long)(L_hard*P_old);
-  long long A_target_1b = quotient2( A_target_1a, F_2 * F_3 ) - 1;
+  long long A_target_1b = quotient2( A_target_1a, ((int)F_2) * F_3 ) - 1;
   long long A_target_1  = quotient2( A_target_1b, 2);
   long long A_target_2 = ((L_soft*P_old)-N_old);
   long long A_target   = max( 5*MEGABYTE/sizeof(word), min( A_target_1, A_target_2 ));
 
-  bool will_says_should_major = /* XXX need to figure out what to do about majors_sofar = 0 case (when no regions are waiting for major gc) ... */
+  if (N_recv != NULL)           *N_recv           = N;
+  if (N_old_recv != NULL)       *N_old_recv       = N_old;
+  if (P_old_recv != NULL)       *P_old_recv       = P_old;
+  if (A_this_recv != NULL)      *A_this_recv      = A_this;
+  if (A_target_1a_recv != NULL) *A_target_1a_recv = A_target_1a;
+  if (A_target_1b_recv != NULL) *A_target_1b_recv = A_target_1b;
+  if (A_target_1_recv != NULL)  *A_target_1_recv  = A_target_1;
+  if (A_target_2_recv != NULL)  *A_target_2_recv  = A_target_2;
+  if (A_target_recv != NULL)    *A_target_recv    = A_target;
+}
+
+static void rrof_gc_policy( gc_t *gc, 
+                            bool *will_says_should_major_recv, 
+                            bool calculate_loudly )
+{
+  int majors_sofar = DATA(gc)->rrof_cycle_majors_sofar;
+  int majors_total = DATA(gc)->rrof_cycle_majors_total;
+
+  long long N, N_old, P_old, A_this; 
+  long long A_target_1a, A_target_1b, A_target_1, A_target_2, A_target;
+  bool will_says_should_major;
+
+  rrof_calc_target_allocation( gc, &N, &N_old, &P_old, &A_this, 
+                               &A_target_1a, &A_target_1b, 
+                               &A_target_1, &A_target_2, &A_target );
+
+  will_says_should_major = /* XXX need to figure out what to do about majors_sofar = 0 case (when no regions are waiting for major gc) ... */
     (((long long)(majors_total+1) * A_this) > ((long long)(majors_sofar+1) * A_target));
 
   if (calculate_loudly) {
@@ -1506,6 +1562,9 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
   assert( data->in_gc > 0 );
   
+  oh_synchronize( DATA(gc)->ephemeral_area[ DATA(gc)->rrof_next_region-1 ] );
+  oh_synchronize( DATA(gc)->ephemeral_area[ DATA(gc)->rrof_to_region - 1 ] );
+
   if (data->rrof_last_gc_rolled_cycle)
     rrof_completed_regional_cycle( gc );
 
@@ -2690,6 +2749,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     int e = data->ephemeral_area_count = info->ephemeral_area_count;
+    int words;
     double popular_factor;
     assert( e > 0 );
     data->region_count = e;
@@ -2715,9 +2775,14 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );
-      data->max_live_words = 
-        info->ephemeral_info[i].size_bytes/sizeof(word);
+      words = info->ephemeral_info[i].size_bytes/sizeof(word); 
+      data->max_live_words = words;
       size += info->ephemeral_info[i].size_bytes;
+      DATA(gc)->rrof_words_per_region_max = 
+        max( words, DATA(gc)->rrof_words_per_region_max );
+      DATA(gc)->rrof_words_per_region_min = 
+        ((DATA(gc)->rrof_words_per_region_min < 0) ? 
+         words : min( words, DATA(gc)->rrof_words_per_region_min ));
       data->ephemeral_area[ i ] = 
 	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
 			OHTYPE_REGIONAL );
@@ -2726,6 +2791,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       gen_no += 1;
     }
   }
+  assert( data->rrof_words_per_region_min > 0 );
+  assert( data->rrof_words_per_region_max > 0 );
   if (data->ephemeral_area_count > 0) {
     sprintf( buf2, "+%d*%s",
 	     DATA(gc)->ephemeral_area_count, DATA(gc)->ephemeral_area[0]->id );
@@ -2926,6 +2993,10 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->max_live_words = 0;
 
   data->total_heap_words_allocated = 0;
+  data->allocation_target_for_cycle = 0;
+
+  data->rrof_words_per_region_max = 0;
+  data->rrof_words_per_region_min = -1;
 
 #if GATHER_MMU_DATA
   if (info->mmu_buf_size >= 0) { 
