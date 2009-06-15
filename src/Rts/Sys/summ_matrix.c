@@ -696,7 +696,8 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
 static void advance_to_next_summary_set( summ_matrix_t *summ,
                                          int rgn_next, 
                                          int region_count,
-                                         bool about_to_major );
+                                         bool about_to_major,
+                                         int dA );
 
 EXPORT summ_matrix_t *
 create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns, 
@@ -869,11 +870,11 @@ static bool prev_summarized_p( summ_matrix_t *summ, int rgn );
 static void console_printgset( char *prefix, gset_t g );
 
 static void sm_ensure_available( summ_matrix_t *summ, int gno,
-                                 int region_count, bool about_to_major );
+                                 int region_count, bool about_to_major, int dA );
 
 static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset );
 static void setup_next_wave( summ_matrix_t *summ, int rgn_next, 
-                             int region_count, bool about_to_major );
+                             int region_count, bool about_to_major, int dA );
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
@@ -951,7 +952,8 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
       return;
     } else {
       DATA(summ)->summarizing.waiting = FALSE;
-      setup_next_wave( summ, rgn_next, rgn_count, about_to_major );
+      setup_next_wave( summ, rgn_next, rgn_count, about_to_major, 
+                       alloc_per_majgc );
     }
   }
 
@@ -1002,12 +1004,14 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
   } else {
     /* next wave complete; shift if appropriate. */
     if ( region_group_count( region_group_wait_w_sum ) == 0 ) {
-      sm_ensure_available( summ, rgn_next, rgn_count, about_to_major );
+      sm_ensure_available( summ, rgn_next, rgn_count, about_to_major, 
+                           alloc_per_majgc );
     }
   }
 
   if (about_to_major) {
-    sm_ensure_available( summ, rgn_next, rgn_count, about_to_major );
+    sm_ensure_available( summ, rgn_next, rgn_count, about_to_major,
+                         alloc_per_majgc );
 
     /* rgn_next is part of previous summarization wave */
     assert( prev_summarized_p( summ, rgn_next ));
@@ -1703,7 +1707,8 @@ static bool next_summarized_p( summ_matrix_t *summ, int rgn )
 /* resets (reinitializes) summary state for all in region_group_summzing */
 static void sm_build_summaries_setup( summ_matrix_t *summ,
                                       int majors, int region_count,
-                                      int rgn_next, int about_to_major )
+                                      int rgn_next, int about_to_major,
+                                      int dA )
 {
   int i;
   int num_under_construction;
@@ -1724,10 +1729,31 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
 
   assert( gc_budget > 0 );
 
-  /* XXX This value should be bounded by a constant dependant on the
-   * sumzbudget, sumzcoverage, and popularity; and the code should be
-   * checking that the bound is satisfied. */
-  num_under_construction = quotient2( summ->collector->remset_count, gc_budget );
+  /* XXX num_under_construction should be bounded by a constant
+   * dependant on the sumzbudget, sumzcoverage, and popularity; and
+   * the code should be checking that the bound is satisfied. */
+  {
+    int N_over_R, U, W, dA_over_R;
+    N_over_R = summ->collector->remset_count;
+    U = region_group_count( region_group_unfilled );
+    W = region_group_count( region_group_wait_w_sum ) +
+      region_group_count( region_group_wait_nosum );
+    if (! about_to_major)
+      W = W+1;
+    dA_over_R = dA;
+    num_under_construction = 
+      (quotient2( (N_over_R + 1 - U), W ) + dA_over_R );
+#if 0
+    num_under_construction = 
+      quotient2( summ->collector->remset_count, gc_budget );
+#endif
+
+    dbmsg("sm_build_summaries_setup"
+          "( summ, majors=%d, region_count=%d, rgn_next=%d, about_to_major=%d, dA=%d )"
+          " N/R=%d U=%d W=%d dA/R=%d ==> rs_num=%d ",
+          majors, region_count, rgn_next, about_to_major, dA, 
+          N_over_R, U, W, dA_over_R, num_under_construction );
+  }
 
   assert2( num_under_construction > 0 );
 
@@ -2004,14 +2030,11 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
   remsum.objects_added = 0;
   remsum.words_added = 0;
 
-  sm_build_summaries_setup( summ, 1, region_count, rgn_next, about_to_major );
+  sm_build_summaries_setup( summ, 1, region_count, rgn_next, about_to_major, 
+                            0 /* dA does not matter when non-incremental */ );
   sm_build_summaries_by_scanning( summ, 1, remset_count, &remsum );
 
   sm_build_summaries_iteration_complete( summ, region_count );
-
-#if 0
-  advance_to_next_summary_set( summ, region_count, about_to_major );
-#endif
 
   check_rep_1( summ );
 }
@@ -2588,15 +2611,16 @@ static void wait_to_setup_next_wave( summ_matrix_t *summ )
 static void advance_to_next_summary_set( summ_matrix_t *summ,
                                          int rgn_next, 
                                          int region_count,
-                                         bool about_to_major ) 
+                                         bool about_to_major,
+                                         int dA ) 
 {
   int start, coverage, budget, goal_budget;
 
   assert2( DATA(summ)->summarizing.complete );
 
   dbmsg( "advance_to_next_summary_set"
-         "( summ, rgn_next=%d, region_count=%d, about_to_major=%s );",
-         rgn_next, region_count, about_to_major?"TRUE":"FALSE" );
+         "( summ, rgn_next=%d, region_count=%d, about_to_major=%s, dA=%d );",
+         rgn_next, region_count, about_to_major?"TRUE":"FALSE", dA );
 
   /* 1. Free state associated with prev wave. */
   /* XXX the summaries are freed as they are consued; I do not think 
@@ -2617,12 +2641,13 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
     wait_to_setup_next_wave( summ );
   } else {
     /* 3. Set up new next wave. */
-    setup_next_wave( summ, rgn_next, region_count, about_to_major );
+    setup_next_wave( summ, rgn_next, region_count, about_to_major, dA );
   }
 }
 
 static void setup_next_wave( summ_matrix_t *summ, int rgn_next, 
-                             int region_count, bool about_to_major )
+                             int region_count, bool about_to_major,
+                             int dA )
 {
   int coverage, budget;
 
@@ -2639,13 +2664,14 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
   switch_some_to_summarizing( summ, coverage );
 
   sm_build_summaries_setup( summ, budget, region_count, 
-                            rgn_next, about_to_major );
+                            rgn_next, about_to_major, dA );
   /* a small hack to ensure rs_cursor is always past any newly added areas */
   sm_build_summaries_just_static_area( summ, rgn_next, region_count );
 }
 
 static void sm_ensure_available( summ_matrix_t *summ, int gno,
-                                 int region_count, bool about_to_major )
+                                 int region_count, bool about_to_major, 
+                                 int dA )
 {
   bool summed_prev, summed_next;
 
@@ -2654,14 +2680,14 @@ static void sm_ensure_available( summ_matrix_t *summ, int gno,
   summed_prev = sm_is_rgn_summarized( summ, gno );
   summed_next = sm_is_rgn_summarized_next( summ, gno );
 
-  dbmsg( "sm_ensure_available( summ, gno=%d, region_count=%d ):"
-              " prev: %s, next: %s", gno, region_count, 
+  dbmsg( "sm_ensure_available( summ, gno=%d, region_count=%d, dA=%d ):"
+              " prev: %s, next: %s", gno, region_count, dA, 
               summed_prev?"TRUE":"FALSE", summed_next?"TRUE":"FALSE");
 
   if ( sm_is_rgn_summarized( summ, gno )) {
     /* no op */
   } else if ( sm_is_rgn_summarized_next( summ, gno )) {
-    advance_to_next_summary_set( summ, gno, region_count, about_to_major );
+    advance_to_next_summary_set( summ, gno, region_count, about_to_major, dA );
   } else {
     assert( FALSE );
   }
