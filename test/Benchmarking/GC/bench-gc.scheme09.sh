@@ -72,6 +72,7 @@ g( ) {
     cat $TMPOUTPUT >> $OUTPUT
     echo ") "      >> $OUTPUT
     echo           >> $OUTPUT
+    rm $TMPOUTPUT
 }
 
 g '(earley-benchmark 10 20)' earley
