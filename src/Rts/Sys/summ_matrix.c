@@ -3104,6 +3104,7 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
     DATA(summ)->remset_summaries_count = len;
   }
 
+#if CONSERVATIVE_REGION_COUNT
   /* check that we will complete summarization on schedule. */
   if (! DATA(summ)->summarizing.complete) {
     int fuel, capability, required;
@@ -3113,6 +3114,7 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
 
     assert( capability >= required );
   }
+#endif
 }
 
 static bool region_summarized( summ_matrix_t *summ, int gno ) 
