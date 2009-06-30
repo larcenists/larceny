@@ -66,17 +66,30 @@
 
 #define CONSERVATIVE_REGION_COUNT 0
 
+typedef struct loc loc_t;
+typedef struct locs_pool locs_pool_t;
 typedef struct objs_pool objs_pool_t;
 typedef struct summ_cell summ_cell_t;
 typedef struct summ_row summ_row_t;
 typedef struct summ_col summ_col_t;
 typedef struct summ_matrix_data summ_matrix_data_t;
 
+struct loc {
+  word obj;
+  int  offset;
+};
+
 struct objs_pool {
   word *bot;
   word *top;
   word *lim;
   objs_pool_t *next;
+};
+struct locs_pool {
+  loc_t *bot;
+  loc_t *top;
+  loc_t *lim;
+  locs_pool_t *next;
 };
 /* REP INV: bot < lim && bot <= top <= lim.
  * interpretation: each objs_pool is filled with objects from
@@ -85,6 +98,7 @@ struct objs_pool {
 
 struct summ_cell {
   objs_pool_t *objects;
+  locs_pool_t *locations;
   int source_gno;
   int target_gno;
   summ_cell_t *prev_row; /* left elem; sentinel cell at end */
@@ -250,6 +264,24 @@ static objs_pool_t *alloc_objpool_segment( unsigned entries_per_pool_segment )
   return p;
 }
 
+static locs_pool_t *alloc_locpool_segment( unsigned entries_per_pool_segment )
+{
+  locs_pool_t *p;
+  loc_t *heapptr;
+  p = (locs_pool_t*) must_malloc( sizeof(locs_pool_t) );
+  while (1) {
+    heapptr = gclib_alloc_rts( entries_per_pool_segment*sizeof(loc_t), MB_SUMMARY_SETS );
+    if (heapptr != 0) break;
+    memfail( MF_RTS, "Can't allocate summary matrix pool.");
+  }
+
+  p->bot = p->top = heapptr;
+  p->lim = heapptr + entries_per_pool_segment;
+  p->next = NULL;
+
+  return p;
+}
+
 static summ_cell_t* make_cell( int source_gno, int target_gno, int entries_per_pool_segment ) {
   summ_cell_t *e;
   int dbg_id;
@@ -260,6 +292,7 @@ static summ_cell_t* make_cell( int source_gno, int target_gno, int entries_per_p
 
   e = (summ_cell_t*) must_malloc( sizeof(summ_cell_t) );
   e->objects = alloc_objpool_segment( entries_per_pool_segment );
+  e->locations = alloc_locpool_segment( entries_per_pool_segment );
   e->source_gno = source_gno;
   e->target_gno = target_gno;
   e->dbg_id = dbg_id;
@@ -291,6 +324,7 @@ static summ_cell_t* make_sentinel_cell( int src_gno, int tgt_gno )
   assert( src_gno == -1 || tgt_gno == -1 );
   e = (summ_cell_t*) must_malloc( sizeof(summ_cell_t) );
   e->objects = NULL;
+  e->locations = NULL;
   e->source_gno = src_gno;
   e->target_gno = tgt_gno;
   e->dbg_id = next_dbg_id();
@@ -312,15 +346,27 @@ static int pool_count_objects( objs_pool_t *objects )
   }
 }
 
+static int pool_count_locations( locs_pool_t *locations ) 
+{
+  /* The pool for any one cell shouldn't get too deep. */
+  if (locations == NULL) {
+    return 0;
+  } else {
+    return (locations->top - locations->bot) + 
+      pool_count_locations( locations->next );
+  }
+}
+
 static char* row_templ = "%-5s";
 static char* col_templ = "%-5s";
 static char* cell_templ = "%-27s";
 
 static void print_cell( summ_cell_t *cell ) 
 {
-  printf("[%3d(%2d,%2d)%-4d,l%3d,r%3d,u%3d,d%3d] ",
+  printf("[%3d(%2d,%2d)%-4d+%-4d,l%3d,r%3d,u%3d,d%3d] ",
          cell->dbg_id, cell->source_gno, cell->target_gno, 
          pool_count_objects( cell->objects ),
+         pool_count_locations( cell->locations ),
          cell->prev_row->dbg_id, 
          cell->next_row->dbg_id, 
          cell->prev_col->dbg_id, 
@@ -1239,19 +1285,41 @@ static void col_reset_words( summ_col_t *c )
   c->summacopy_word_count = 0;
 }
 
-/* XXX these need to be changed back to refer to dwords; if necessary
- * move the 2's into the calling context. XXX */
+static void col_incr_once_sm( summ_col_t *c, int dwords ) 
+{
+  c->summarize_word_count += 1;
+}
+static void col_incr_once_wb( summ_col_t *c, int dwords ) 
+{
+  c->writebarr_word_count += 1;
+}
+static void col_incr_once_gc( summ_col_t *c, int dwords ) 
+{
+  c->collector_word_count += 1;
+}
+static void col_incr_twice_sm( summ_col_t *c, int dwords ) 
+{
+  c->summarize_word_count += 2;
+}
+static void col_incr_twice_wb( summ_col_t *c, int dwords ) 
+{
+  c->writebarr_word_count += 2;
+}
+static void col_incr_twice_gc( summ_col_t *c, int dwords ) 
+{
+  c->collector_word_count += 2;
+}
 static void col_incr_words_sm( summ_col_t *c, int dwords ) 
 {
-  c->summarize_word_count += 2/*dwords*/;
+  c->summarize_word_count += dwords;
 }
 static void col_incr_words_wb( summ_col_t *c, int dwords ) 
 {
-  c->writebarr_word_count += 2/*dwords*/;
+  c->writebarr_word_count += dwords;
 }
 static void col_incr_words_gc( summ_col_t *c, int dwords ) 
 {
-  c->collector_word_count += 2/*dwords*/;
+  c->collector_word_count += dwords;
 }
 
 /* Returns cell of summ[tgt_gno] that holds objects from src_gno rgn,
@@ -1598,12 +1666,12 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
         q--;
         if (col_words(col) <= pop_limit) {
           add_location_to_mut_rs( summ, g_rhs, w, w2 );
-          incr_size_and_oflo_check( summ, g_rhs, w, col_incr_words_wb );
+          incr_size_and_oflo_check( summ, g_rhs, w, col_incr_once_wb );
         }
       } else {
         if (col_words(col) <= pop_limit) {
           add_object_to_mut_rs( summ, g_rhs, w );
-          incr_size_and_oflo_check( summ, g_rhs, w, col_incr_words_wb );
+          incr_size_and_oflo_check( summ, g_rhs, w, col_incr_twice_wb );
         }
       }
     }
@@ -1652,7 +1720,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
              == region_group_summzing ) {
           do_enqueue = TRUE;
           add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                   col_incr_words_sm );
+                                   col_incr_twice_sm );
         }
       }
     }
@@ -1673,7 +1741,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
              == region_group_summzing ) {
           do_enqueue = TRUE;
           add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                   col_incr_words_sm );
+                                   col_incr_twice_sm );
         }
       }
     }
@@ -1700,7 +1768,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
                == region_group_summzing ) {
             do_enqueue = TRUE;
             add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                     col_incr_words_sm );
+                                     col_incr_twice_sm );
           }
         }
       }
@@ -3228,7 +3296,7 @@ EXPORT void sm_points_across_callback( summ_matrix_t *summ,
      * yet?  When does cheney change the gno for LOS, before or after
      * scan?); so perhaps change callback to pass g_lhs along too. */
     add_object_to_sum_array( summ, g_rhs, lhs, gen_of(lhs),
-                             col_incr_words_gc );
+                             col_incr_twice_gc );
   }
 }
 
