@@ -20,7 +20,7 @@
 ;;; is not an indication of the required porting effort.
 	
 %define OPTIMIZE_MILLICODE 1
-%define OPTIMIZE_BARRIER 1
+%define OPTIMIZE_BARRIER 0
 	
 	section	.text align=4
 	

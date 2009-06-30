@@ -10,6 +10,7 @@
 #define MORECORE_ALWAYS_COLLECTS 0
 
 #define SSB_ENQUEUE_LOUDLY 0
+#define SSB_ENQUEUE_OFFSET_AS_FIXNUM 1
 
 #include "larceny.h"            /* Includes config.h also */
 #include "gc.h"
@@ -552,9 +553,18 @@ void EXPORT mc_partial_barrier( word *globals )
     if (*(ssbtopv[gr]-1) != lhs) 
       consolemsg("gbuf enq: 0x%08x (%d)", lhs, gen_of(lhs));
   *ssbtopv[gr] = lhs;
+  assert( tagof(lhs) != 0 );
+#if SSB_ENQUEUE_OFFSET_AS_FIXNUM
+  assert( is_fixnum( ((word)globals[G_THIRD] - (word)ptrof(lhs)) ));
+  *(ssbtopv[gr]+1) = ((word)globals[G_THIRD] - (word)ptrof(lhs));
+  ssbtopv[gr] = (ssbtopv[gr])+2;
+  if (ssbtopv[gr]+1 >= ssblimv[gr]) 
+    gc_compact_all_ssbs( the_gc(globals) );
+#else
   ssbtopv[gr] = (ssbtopv[gr])+1;
   if (ssbtopv[gr] == ssblimv[gr]) 
     gc_compact_all_ssbs( the_gc(globals) );
+#endif
 }
 
 static void satb_enqueue( word *globals, word ptr, word parent_ptr ) 

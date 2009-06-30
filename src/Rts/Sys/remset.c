@@ -387,7 +387,10 @@ bool rs_add_elems_distribute( remset_t **remset, word *bot, word *top )
   while (q > p) {
     q--;
     w = *q;
-    assert( tagof(w) != 0 );
+    if ( is_fixnum(w) ) {
+      /* fixnums in SSB log indicate which field was written to. */
+      continue;
+    }
     gno = gen_of(w);
     rs = remset[gno];
     overflowed |= rs_add_elem( rs, w );
@@ -413,7 +416,10 @@ bool rs_add_elems_funnel( remset_t *rs, word *bot, word *top )
   while (q > p) {
     q--;
     w = *q;
-    assert( tagof(w) != 0 );
+    if ( is_fixnum(w) ) {
+      /* fixnums in SSB log indicate which field was written to. */
+      continue;
+    }
     overflowed |= rs_add_elem( rs, w );
   }
 
