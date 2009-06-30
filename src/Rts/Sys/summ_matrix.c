@@ -1334,7 +1334,7 @@ static summ_cell_t* summ_cell( summ_matrix_t *summ, int src_gno, int tgt_gno )
   return row_cell;
 }
 
-static word pool_last_entry( objs_pool_t *objects ) 
+static word objpool_last_entry( objs_pool_t *objects ) 
 {
   while (objects != NULL) {
     if ( objects->top > objects->bot ) {
@@ -1391,7 +1391,7 @@ static objs_pool_t *pool_enq_obj( summ_matrix_t *summ, objs_pool_t *objects, wor
 
 static word cell_last_entry( summ_matrix_t *summ, summ_cell_t *cell )
 {
-  return pool_last_entry( cell->objects );
+  return objpool_last_entry( cell->objects );
 }
 
 static void cell_enqueue( summ_matrix_t *summ, summ_cell_t *cell, word ptr )
