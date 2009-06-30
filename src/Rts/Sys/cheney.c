@@ -13,6 +13,7 @@
  *   gclib_stopcopy_collect 
  *   gclib_stopcopy_collect_and_scan_static
  *   gclib_stopcopy_collect_genset
+ *   gclib_stopcopy_collect_locs
  * 
  */
 
@@ -313,6 +314,34 @@ void gclib_stopcopy_collect_genset( gc_t *gc, gset_t gs, semispace_t *tospace )
   finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
 }
 
+void oldspace_copy_using_locations( cheney_env_t *e );
+
+void gclib_stopcopy_collect_locs( gc_t *gc, gset_t gs, semispace_t *tospace )
+{
+  cheney_env_t e;
+  semispace_t **spaces;
+  semispace_cursor_t *cursors;
+  int init_size = tospaces_init_buf_size;
+  
+  spaces = begin_semispaces_buffer( init_size );
+  cursors = begin_semispace_cursors( init_size );
+  spaces[0] = tospace;
+  cursors[0].chunks_index = tospace->current;
+  cursors[0].chunk_ptr = tospace->chunks[ tospace->current ].top;
+
+  CHENEY_TYPE( 2 ); /* Felix has never used GC_HIRES_TIMERS... */
+  init_env_with_cursors
+    ( &e, gc, spaces, 1, init_size, cursors, 
+      0, gs, 0, 
+      gc->scan_update_remset ? scan_oflo_normal_update_rs : scan_oflo_normal );
+  oldspace_copy_using_locations( &e );
+  sweep_large_objects_in( gc, gs );
+  stats_set_gc_event_stats( &cheney );
+  
+  finis_semispace_cursors( e.cursors, e.tospaces_cap );
+  finis_semispaces_buffer( e.tospaces, e.tospaces_cap );
+}
+
 void gclib_stopcopy_promote_into( gc_t *gc, semispace_t *tospace )
 {
   cheney_env_t e;
@@ -547,6 +576,74 @@ void oldspace_copy( cheney_env_t *e )
                                      e->scan_from_remsets,
                                      (void*)e,
                                      e->enumerate_np_remset );
+
+    elapsed = stats_stop_timer( timer1 );
+    cpu     = stats_stop_timer( timer2 );
+    
+    gc->stat_max_entries_remset_scan =
+      max( gc->stat_max_entries_remset_scan, objects_scanned );
+    gc->stat_max_remset_scan = max( gc->stat_max_remset_scan, elapsed );
+    gc->stat_max_remset_scan_cpu = max( gc->stat_max_remset_scan_cpu, cpu );
+    gc->stat_total_entries_remset_scan += objects_scanned;
+    assert( gc->stat_total_entries_remset_scan >= 0 );
+    gc->stat_total_remset_scan += elapsed;
+    gc->stat_total_remset_scan_cpu += cpu;
+    gc->stat_remset_scan_count++;
+    objects_scanned = 0;
+  }
+  if (e->scan_static && e->gc->static_area) {
+    if (e->gc->scan_update_remset) {
+      scan_static_area_update_rs( e );
+    } else {
+      scan_static_area( e );
+    }
+  }
+  stop();
+
+  start( &cheney.tospace_scan_prom, &cheney.tospace_scan_gc );
+  e->scan_from_tospace( e );
+  stop();
+
+  e->gc->words_from_nursery_last_gc = e->words_forwarded_from_nursery;
+
+  /* Shutdown */
+  tospace_dest(e)->chunks[tospace_dest(e)->current].top = e->dest;
+  if (e->tospace2)
+    e->tospace2->chunks[e->tospace2->current].top = e->dest2;
+  assert2( tospace_dest(e) == tospace_scan(e) );
+  assert2( tospace_dest(e)->chunks[tospace_dest(e)->current].bot
+           <= tospace_dest(e)->chunks[tospace_dest(e)->current].top );
+}
+
+void oldspace_copy_using_locations( cheney_env_t *e )
+{
+  /* Setup */
+  e->scan_idx = tospace_scan(e)->current;
+  e->scan_idx2 = (e->tospace2 ? e->tospace2->current : 0);
+  e->scan_ptr = tospace_scan(e)->chunks[e->scan_idx].top;
+  e->scan_ptr2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].top : 0);
+  e->scan_lim = tospace_scan(e)->chunks[e->scan_idx].lim;
+  e->scan_lim2 = (e->tospace2 ? e->tospace2->chunks[e->scan_idx2].lim : 0);
+  e->words_forwarded_from_nursery = 0;
+
+  last_origin_gen_added = (word*)-1;
+  gf_last_lhs = -1;
+
+  /* Collect */
+  start( &cheney.root_scan_prom, &cheney.root_scan_gc );
+  gc_enumerate_smircy_roots( e->gc, e->scan_from_globals, (void*)e );
+  gc_enumerate_roots( e->gc, e->scan_from_globals, (void*)e );
+
+  { 
+    stats_id_t timer1, timer2;
+    int elapsed, cpu;
+    gc_t *gc = e->gc;
+    timer1 = stats_start_timer( TIMER_ELAPSED );
+    timer2 = stats_start_timer( TIMER_CPU );
+    objects_scanned = 0;
+
+    gc_enumerate_remembered_locations
+      ( e->gc, e->forw_gset, e->scan_from_globals, (void*)e );
 
     elapsed = stats_stop_timer( timer1 );
     cpu     = stats_stop_timer( timer2 );

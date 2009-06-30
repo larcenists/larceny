@@ -184,6 +184,19 @@ void gclib_stopcopy_collect_genset( gc_t *gc, gset_t s, semispace_t *tospace );
      implemented by gc's find_space method.
      */
 
+void gclib_stopcopy_collect_locs( gc_t *gc, gset_t s, semispace_t *tospace );
+  /* Garbage collect the generation of 'tospace', copying all live objects
+     belonging to 's' into 'tospace', finding new space according to policy
+     implemented by gc's find_space method.
+
+     Main differences from gclib_stopcopy_collect_genset:
+     1. Potentially narrows focus on _particular_ locations within
+        remembered objects
+     2. Locations of remembered objects are treated like any other
+        root; there is no special filters applied or information
+        extracted from them.
+     */
+
 void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *to );
   /* Garbage collect the generation of 'tospace', copying all live objects
      and all live younger objects into 'tospace', growing 'tospace' as
