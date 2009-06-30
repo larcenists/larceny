@@ -97,19 +97,12 @@
 
 #define CONSERVATIVE_REGION_COUNT 0
 
-typedef struct loc loc_t;
 typedef struct locs_pool locs_pool_t;
 typedef struct objs_pool objs_pool_t;
 typedef struct summ_cell summ_cell_t;
 typedef struct summ_row summ_row_t;
 typedef struct summ_col summ_col_t;
 typedef struct summ_matrix_data summ_matrix_data_t;
-
-struct loc {
-  word obj;
-  int  offset; /* measured in bytes */
-               /* (happens to match tagged fixnum word-count, for now) */
-};
 
 struct objs_pool {
   word *bot;

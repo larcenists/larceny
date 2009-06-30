@@ -40,10 +40,37 @@ void summary_init_dispose( summary_t *summary,
 {
   summary->entries = entries; 
   summary->composed_summary = FALSE;
+  summary->enumerate_locations_not_objects = FALSE;
   summary->next_chunk = my_next_chunk_wrapper;
   summary->next_chunk_with_flags = next_chunk;
+  summary->next_chunk_enum_locs = NULL;
   summary->dispose = dispose;
   summary->filter = filter;
+  summary->filter_loc = NULL;
+  summary->cursor1 = summary->cursor2 = 
+    summary->cursor3 = summary->cursor4 = NULL;
+  summary->icursor1 = summary->icursor2 = 
+    summary->icursor3 = summary->icursor4 = 0;
+}
+
+void summary_init_locs_dispose( summary_t *summary,
+                                int entries,
+                                bool (*next_chunk)( summary_t *this,
+                                                    loc_t **start,
+                                                    loc_t **lim,
+                                                    bool *all_unseen_before ),
+                                void (*dispose)( summary_t *this ),
+                                bool (*filter)( summary_t *this, loc_t l ))
+{
+  summary->entries = entries;
+  summary->composed_summary = FALSE;
+  summary->enumerate_locations_not_objects = TRUE;
+  summary->next_chunk = NULL;
+  summary->next_chunk_with_flags = NULL;
+  summary->next_chunk_enum_locs = next_chunk;
+  summary->dispose = dispose;
+  summary->filter = NULL;
+  summary->filter_loc = filter;
   summary->cursor1 = summary->cursor2 = 
     summary->cursor3 = summary->cursor4 = NULL;
   summary->icursor1 = summary->icursor2 = 
@@ -131,9 +158,10 @@ static void apply_f_to_summary_obj_entry( word obj, void *data_orig,
   }
 }
 
-void summary_enumerate_locs( summary_t *summary, 
-                             void (*scanner)(word *loc, void *data ), 
-                             void *data )
+static
+void summary_enumerate_locs_dispatch( summary_t *summary, 
+                                      void (*scanner)(word *loc, void *data ), 
+                                      void *data )
 {
   struct apply_f_to_summary_obj_entry_data summary_data;
   summary_data.f = scanner;
@@ -141,6 +169,102 @@ void summary_enumerate_locs( summary_t *summary,
   summary_enumerate( summary, 
                      apply_f_to_summary_obj_entry, 
                      (void*) &summary_data );
+}
+
+static
+void summary_enumerate_locs_composed( summary_t *summary, 
+                                      void (*scanner)(word *loc, void *data ),
+                                      void *data )
+{
+  if (summary->cursor1 != NULL) 
+    summary_enumerate_locs( (summary_t*)summary->cursor1, scanner, data );
+  if (summary->cursor2 != NULL) 
+    summary_enumerate_locs( (summary_t*)summary->cursor2, scanner, data );
+  if (summary->cursor3 != NULL) 
+    summary_enumerate_locs( (summary_t*)summary->cursor3, scanner, data );
+  if (summary->cursor4 != NULL) 
+    summary_enumerate_locs( (summary_t*)summary->cursor4, scanner, data );
+}
+
+void summary_enumerate_locs( summary_t *summary, 
+                             void (*scanner)(word *loc, void *data ), 
+                             void *data )
+{
+  if (summary->composed_summary)
+    summary_enumerate_locs_composed( summary, scanner, data );
+  else
+    summary_enumerate_locs_dispatch( summary, scanner, data );
+}
+
+struct apply_f_to_summary_obj_entry2_data {
+  void (*f)( word obj, int offset, void *scan_data );
+  void *scan_data;
+};
+
+static void apply_f_to_summary_obj_entry2( word obj, void *data_orig, 
+                                           unsigned *count )
+{
+  word *w;
+  struct apply_f_to_summary_obj_entry2_data *data;
+  void *scan_data;
+  data = (struct apply_f_to_summary_obj_entry2_data*)data_orig;
+  void (*f)( word obj, int offset, void *scan_data );
+
+  scan_data = data->scan_data;
+  f         = data->f;
+  w = ptrof(obj);
+  if (tagof(obj) == PAIR_TAG) {
+    f( obj, (w-ptrof(obj)), scan_data );
+    w += 1;
+    f( obj, (w-ptrof(obj)), scan_data );
+  } else {
+    word words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
+    while (words--) {
+      w += 1;
+      f( obj, (w-ptrof(obj)), scan_data );
+    }
+  }
+}
+
+static
+void summary_enumerate_locs2_dispatch( summary_t *summary, 
+                                       void (*scanner)(word obj, int offset,
+                                                       void *data ), 
+                                       void *data )
+{
+  struct apply_f_to_summary_obj_entry2_data summary_data;
+  summary_data.f = scanner;
+  summary_data.scan_data = data;
+  summary_enumerate( summary, 
+                     apply_f_to_summary_obj_entry2, 
+                     (void*) &summary_data );
+}
+
+static
+void summary_enumerate_locs2_composed( summary_t *summary, 
+                                       void (*scanner)(word obj, int offset,
+                                                       void *data ),
+                                       void *data )
+{
+  if (summary->cursor1 != NULL) 
+    summary_enumerate_locs2( (summary_t*)summary->cursor1, scanner, data );
+  if (summary->cursor2 != NULL) 
+    summary_enumerate_locs2( (summary_t*)summary->cursor2, scanner, data );
+  if (summary->cursor3 != NULL) 
+    summary_enumerate_locs2( (summary_t*)summary->cursor3, scanner, data );
+  if (summary->cursor4 != NULL) 
+    summary_enumerate_locs2( (summary_t*)summary->cursor4, scanner, data );
+}
+
+void summary_enumerate_locs2( summary_t *summary, 
+                              void (*scanner)(word obj, int offset,
+                                              void *data ), 
+                              void *data )
+{
+  if (summary->composed_summary) 
+    summary_enumerate_locs2_composed( summary, scanner, data );
+  else 
+    summary_enumerate_locs2_dispatch( summary, scanner, data );
 }
 
 static bool next_chunk_compose( summary_t *this,

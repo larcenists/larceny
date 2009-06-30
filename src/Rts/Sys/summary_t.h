@@ -5,6 +5,12 @@
 
 #include "larceny-types.h"
 
+struct loc {
+  word obj;
+  int  offset; /* measured in bytes */
+               /* (happens to match tagged fixnum word-count, for now) */
+};
+
 struct summary {
   int entries;
     /* Count of entries in summary.
@@ -20,10 +26,13 @@ struct summary {
     /* (set by summary_compose to establish that this is the
        composition of several sub-summaries.) */
 
+  bool enumerate_locations_not_objects;
+
   bool (*next_chunk)( summary_t *this, /* remaining are "out" parameters */
                       word **start, word **lim );
     /* Simple wrapper around next_chunk_with_flags method; 
        client must assume most conservative results for all flags. 
+       Valid only if ! enumerate_locations_not_objects.
     */ 
 
   bool (*next_chunk_with_flags)( summary_t *this, /* remaining are "out" parameters */
@@ -34,6 +43,18 @@ struct summary {
        are a range of words W held in this, and *all_unseen_before tells 
        whether the members of W may be duplicates of words that may have 
        already been seen in the course of the iteration.
+       Valid only if ! enumerate_locations_not_objects.
+     */
+
+  bool (*next_chunk_enum_locs)( summary_t *this, /* "out" params remain */
+                                loc_t **start, loc_t **lim,
+                                bool *all_unseen_before );
+    /* If returns false, then this is exhausted, and values of out 
+       parameters are unspecified.  If returns true, then [*start,*lim) 
+       are a range of locations L held in this, and *all_unseen_before tells 
+       whether the members of L may be duplicates of locations that may have 
+       already been seen in the course of the iteration.
+       Valid only if enumerate_locations_not_objects.
      */
 
   void (*dispose)( summary_t *this );
@@ -48,6 +69,13 @@ struct summary {
   bool (*filter)( summary_t *this, word w );
     /* If non-null, invoked on words during the enumeration; only
      * words for which this returns TRUE are scanned.
+     * Valid only if ! enumerate_locations_not_objects
+     */
+
+  bool (*filter_loc)( summary_t *this, loc_t l );
+    /* If non-null, invoked on words during the enumeration; only
+     * words for which this returns TRUE are scanned.
+     * Valid only if enumerate_locations_not_objects
      */
 
   /*** Implementation private state follows ***/
@@ -96,6 +124,16 @@ void summary_init_dispose( summary_t *summary,
  * Any necessary cleanup can be encoded in the dispose fcn ptr.
  */
 
+void summary_init_locs_dispose
+                         ( summary_t *summary, 
+                           int entries, 
+                           bool (*next_chunk)( summary_t *this, 
+                                               loc_t **start,
+                                               loc_t **lim,
+                                               bool *all_unseen_before ), 
+                           void (*dispose)( summary_t *this ),
+                           bool (*filter)( summary_t *this, loc_t l ));
+
 void summary_compose( summary_t *fst, summary_t *snd, 
                       summary_t *thd, summary_t *fth, summary_t *recv );
   /* Initializes recv so that it iterates through fst, snd, and thd
@@ -111,6 +149,14 @@ void summary_enumerate( summary_t *summary,
 void summary_enumerate_locs( summary_t *summary,
                              void (*scanner)(word *loc, void *data),
                              void *data );
+  /* Invokes scanner on each location produced by iterating through summary.
+     Does *not* call summary_dispose when enumeration is complete.
+   */
+
+void summary_enumerate_locs2( summary_t *summary,
+                              void (*scanner)(word obj, int offset, 
+                                              void *data),
+                              void *data );
   /* Invokes scanner on each location produced by iterating through summary.
      Does *not* call summary_dispose when enumeration is complete.
    */
