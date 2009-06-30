@@ -1714,15 +1714,15 @@ static void set_policy( gc_t *gc, int gen, int op, int value )
     oh_set_policy( DATA(gc)->dynamic_area, op, value );
 }
 
-struct apply_f_data {
+struct apply_f_to_smircy_stack_entry_data {
   void (*f)( word *addr, void *scan_data );
   void *scan_data;
 };
 
-static void apply_f( word *w, void *data_orig ) 
+static void apply_f_to_smircy_stack_entry( word *w, void *data_orig ) 
 {
-  struct apply_f_data *data;
-  data = (struct apply_f_data*)data_orig;
+  struct apply_f_to_smircy_stack_entry_data *data;
+  data = (struct apply_f_to_smircy_stack_entry_data*)data_orig;
   data->f( w, data->scan_data );
 }
 
@@ -1731,12 +1731,12 @@ enumerate_smircy_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *
 { 
 #if SMIRCY_RGN_STACK_IN_ROOTS 
   if (gc->smircy != NULL && ! DATA(gc)->rrof_currently_minor_gc) { 
-    struct apply_f_data smircy_data; 
+    struct apply_f_to_smircy_stack_entry_data smircy_data; 
     smircy_data.f = f; 
     smircy_data.scan_data = scan_data; 
     smircy_enumerate_stack_of_rgn( gc->smircy, 
                                    DATA(gc)->rrof_next_region, 
-                                   apply_f, 
+                                   apply_f_to_smircy_stack_entry, 
                                    &smircy_data ); 
     smircy_drop_cleared_stack_entries( gc->smircy, DATA(gc)->rrof_next_region );
   }
