@@ -230,9 +230,9 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
     los_before = los_bytes_used( heap->collector->los, data_to->gen_no );
 
     gc_phase_shift( heap->collector, gc_log_phase_misc_memmgr, gc_log_phase_majorgc );
-    gclib_stopcopy_collect_genset( heap->collector, 
-				   gset_singleton( rgn_idx ),
-				   to );
+    gclib_stopcopy_collect_locs( heap->collector, 
+                                 gset_singleton( rgn_idx ),
+                                 to );
     gc_phase_shift( heap->collector, gc_log_phase_majorgc, gc_log_phase_misc_memmgr );
 
     /* can two below be re-ordered? */
@@ -266,9 +266,9 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
     los_before = los_bytes_used( heap->collector->los, data_to->gen_no );
 
     gc_phase_shift( heap->collector, gc_log_phase_misc_memmgr, gc_log_phase_minorgc );
-    gclib_stopcopy_collect_genset( heap->collector, 
-				   gset_singleton( 0 ), 
-				   to );
+    gclib_stopcopy_collect_locs( heap->collector, 
+                                 gset_singleton( 0 ), 
+                                 to );
     gc_phase_shift( heap->collector, gc_log_phase_minorgc, gc_log_phase_misc_memmgr );
     data_to->promoted_last_gc = used_space( heap ) - used_before;
     
