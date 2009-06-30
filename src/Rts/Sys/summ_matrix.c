@@ -48,6 +48,7 @@
 #include "smircy.h"
 
 #define DEFAULT_OBJS_POOL_SIZE 2048 /* 2K elements = 8KB */
+#define DEFAULT_LOCS_POOL_SIZE 1024 /* 1K elements = 8KB */
 
 #define EXPORT
 
@@ -168,6 +169,7 @@ struct summ_matrix_data {
   double goal;
   double p;
   int entries_per_objs_pool_segment;
+  int entries_per_locs_pool_segment;
 
   summ_row_t **rows;
   summ_col_t **cols;
@@ -282,17 +284,17 @@ static locs_pool_t *alloc_locpool_segment( unsigned entries_per_pool_segment )
   return p;
 }
 
-static summ_cell_t* make_cell( int source_gno, int target_gno, int entries_per_pool_segment ) {
+static summ_cell_t* make_cell( int source_gno, int target_gno ) {
   summ_cell_t *e;
   int dbg_id;
 
   dbg_id = next_dbg_id();
-  dbmsg("   make_cell( src: %d, tgt: %d, entries: %d ) => id:%d",
-        source_gno, target_gno, entries_per_pool_segment, dbg_id );
+  dbmsg("   make_cell( src=%d, tgt=%d ) => id:%d",
+        source_gno, target_gno, dbg_id );
 
   e = (summ_cell_t*) must_malloc( sizeof(summ_cell_t) );
-  e->objects = alloc_objpool_segment( entries_per_pool_segment );
-  e->locations = alloc_locpool_segment( entries_per_pool_segment );
+  e->objects = NULL;
+  e->locations = NULL;
   e->source_gno = source_gno;
   e->target_gno = target_gno;
   e->dbg_id = dbg_id;
@@ -774,6 +776,7 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   data->goal = g;
   data->p = p;
   data->entries_per_objs_pool_segment = DEFAULT_OBJS_POOL_SIZE;
+  data->entries_per_locs_pool_segment = DEFAULT_LOCS_POOL_SIZE;
   data->num_cols = num_cols;
   data->num_rows = num_rows;
 
@@ -1375,9 +1378,7 @@ static summ_cell_t* summ_cell( summ_matrix_t *summ, int src_gno, int tgt_gno )
     assert( s->prev_col == n );
     assert( n->next_col == s );
     assert( s != NULL );
-    row_cell = make_cell( src_gno, 
-                          tgt_gno, 
-                          DATA(summ)->entries_per_objs_pool_segment );
+    row_cell = make_cell( src_gno, tgt_gno );
     e->prev_row = row_cell;
     row_cell->next_row = e;
     w->next_row = row_cell;
@@ -1447,7 +1448,7 @@ static objs_pool_t *pool_enq_obj( summ_matrix_t *summ, objs_pool_t *objects, wor
 #endif
 
   entries = DATA(summ)->entries_per_objs_pool_segment;
-  if ( objects->top == objects->lim ) {
+  if ( (objects == NULL) || (objects->top == objects->lim) ) {
     objs_pool_t *p = alloc_objpool_segment( entries );
     p->next = objects;
     objects = p;
