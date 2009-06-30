@@ -163,12 +163,16 @@ void summary_enumerate_locs_dispatch( summary_t *summary,
                                       void (*scanner)(word *loc, void *data ), 
                                       void *data )
 {
-  struct apply_f_to_summary_obj_entry_data summary_data;
-  summary_data.f = scanner;
-  summary_data.scan_data = data;
-  summary_enumerate( summary, 
-                     apply_f_to_summary_obj_entry, 
-                     (void*) &summary_data );
+  if (! summary->enumerate_locations_not_objects) {
+    struct apply_f_to_summary_obj_entry_data summary_data;
+    summary_data.f = scanner;
+    summary_data.scan_data = data;
+    summary_enumerate( summary, 
+                       apply_f_to_summary_obj_entry, 
+                       (void*) &summary_data );
+  } else {
+    assert(0);
+  }
 }
 
 static
@@ -232,12 +236,16 @@ void summary_enumerate_locs2_dispatch( summary_t *summary,
                                                        void *data ), 
                                        void *data )
 {
-  struct apply_f_to_summary_obj_entry2_data summary_data;
-  summary_data.f = scanner;
-  summary_data.scan_data = data;
-  summary_enumerate( summary, 
-                     apply_f_to_summary_obj_entry2, 
-                     (void*) &summary_data );
+  if (! summary->enumerate_locations_not_objects) {
+    struct apply_f_to_summary_obj_entry2_data summary_data;
+    summary_data.f = scanner;
+    summary_data.scan_data = data;
+    summary_enumerate( summary, 
+                       apply_f_to_summary_obj_entry2, 
+                       (void*) &summary_data );
+  } else {
+    assert(0);
+  }
 }
 
 static
