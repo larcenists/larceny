@@ -1170,8 +1170,8 @@ typedef struct remset_summary_data remset_summary_data_t;
 struct remset_summary_data {
   summ_matrix_t *summ;
   remset_t *skip_these; /* if non-null, don't traverse words in this remset */
-  int objects_visited;
-  int objects_added;
+  int count_objects_visited;
+  int count_objects_added;
   int words_added;
 };
 
@@ -1707,9 +1707,9 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
     }
   }
   
-  remsum->objects_visited += 1;
+  remsum->count_objects_visited += 1;
   if (do_enqueue) {
-    remsum->objects_added += 1;
+    remsum->count_objects_added += 1;
     remsum->words_added += scanned;
   }
 
@@ -2023,8 +2023,8 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
  again:
   remsum.summ = summ;
   remsum.skip_these = NULL;
-  remsum.objects_visited = 0;
-  remsum.objects_added = 0;
+  remsum.count_objects_visited = 0;
+  remsum.count_objects_added = 0;
   remsum.words_added = 0;
 
   remset_count = summ->collector->remset_count;
@@ -2096,8 +2096,8 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
 
   remsum.summ = summ;
   remsum.skip_these = NULL;
-  remsum.objects_visited = 0;
-  remsum.objects_added = 0;
+  remsum.count_objects_visited = 0;
+  remsum.count_objects_added = 0;
   remsum.words_added = 0;
 
   sm_build_summaries_setup( summ, 1, region_count, rgn_next, about_to_major, 
