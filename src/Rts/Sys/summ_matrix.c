@@ -232,7 +232,7 @@ static void assert_subseteq( remset_t* a, remset_t *b )
   }
 }
 
-static objs_pool_t *allocate_pool_segment( unsigned entries_per_pool_segment ) 
+static objs_pool_t *alloc_objpool_segment( unsigned entries_per_pool_segment )
 {
   objs_pool_t *p;
   word *heapptr;
@@ -259,7 +259,7 @@ static summ_cell_t* make_cell( int source_gno, int target_gno, int entries_per_p
         source_gno, target_gno, entries_per_pool_segment, dbg_id );
 
   e = (summ_cell_t*) must_malloc( sizeof(summ_cell_t) );
-  e->objects = allocate_pool_segment( entries_per_pool_segment );
+  e->objects = alloc_objpool_segment( entries_per_pool_segment );
   e->source_gno = source_gno;
   e->target_gno = target_gno;
   e->dbg_id = dbg_id;
@@ -1380,7 +1380,7 @@ static objs_pool_t *pool_enqueue( summ_matrix_t *summ, objs_pool_t *objects, wor
 
   entries = DATA(summ)->entries_per_objs_pool_segment;
   if ( objects->top == objects->lim ) {
-    objs_pool_t *p = allocate_pool_segment( entries );
+    objs_pool_t *p = alloc_objpool_segment( entries );
     p->next = objects;
     objects = p;
   }
