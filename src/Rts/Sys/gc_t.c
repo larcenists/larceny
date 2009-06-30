@@ -46,6 +46,9 @@ gc_t
 		  bool (*f)(word, void*, unsigned * ),
 		  void *data, 
 		  bool enumerate_np_remset ),
+	     void (*enumerate_remembered_locations)
+	        ( gc_t *gc, gset_t genset,
+	          void (*f)( word*, void* ), void* ),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
 	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
 					 semispace_t *cur ),
@@ -121,6 +124,7 @@ gc_t
   gc->enumerate_roots = enumerate_roots;
   gc->enumerate_smircy_roots = enumerate_smircy_roots;
   gc->enumerate_remsets_complement = enumerate_remsets_complement;
+  gc->enumerate_remembered_locations = enumerate_remembered_locations;
   gc->fresh_space = fresh_space;
   gc->find_space = find_space;
 

@@ -1836,7 +1836,78 @@ enumerate_remsets_complement( gc_t *gc,
   }
 }
 
-static word *data_load_area( gc_t *gc, int size_bytes )
+struct apply_f_to_summary_loc_entry_data {
+  void (*f)( word *addr, void *scan_data );
+  void *scan_data;
+};
+
+static void apply_f_to_summary_loc_entry( word *w, void *data_orig ) 
+{
+  struct apply_f_to_summary_loc_entry_data *data;
+  data = (struct apply_f_to_summary_loc_entry_data*)data_orig;
+  data->f( w, data->scan_data );
+}
+
+struct apply_f_to_summary_obj_entry_data {
+  void (*f)( word *addr, void *scan_data );
+  void *scan_data;
+};
+
+static void apply_f_to_summary_obj_entry( word obj, void *data_orig, 
+                                          unsigned *count )
+{
+  word *w;
+  struct apply_f_to_summary_obj_entry_data *data;
+  void *scan_data;
+  data = (struct apply_f_to_summary_obj_entry_data*)data_orig;
+  void (*f)( word *addr, void *scan_data );
+
+  scan_data = data->scan_data;
+  f         = data->f;
+  w = ptrof(obj);
+  if (tagof(obj) == PAIR_TAG) {
+    f( w, scan_data );
+    w += 1;
+    f( w, scan_data );
+  } else {
+    word words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
+    while (words--) {
+      w += 1;
+      f( w, scan_data );
+    }
+  }
+}
+
+static bool apply_f_to_remset_obj_entry( word obj, void *data_orig,
+                                         unsigned *count )
+{
+  apply_f_to_summary_obj_entry( obj, data_orig, count );
+  return TRUE;
+}
+
+static void enumerate_remembered_locations( gc_t *gc, gset_t genset, 
+                                            void (*f)(word *addr, 
+                                                      void *scan_data), 
+                                            void *scan_data )
+{
+  if ( DATA(gc)->use_summary_instead_of_remsets) {
+    struct apply_f_to_summary_loc_entry_data summary_data;
+    summary_data.f = f;
+    summary_data.scan_data = scan_data;
+    summary_enumerate( &DATA(gc)->summary, 
+                       apply_f_to_summary_obj_entry, 
+                       (void*) &summary_data );
+  } else {
+    struct apply_f_to_summary_loc_entry_data remsets_data;
+    remsets_data.f = f;
+    remsets_data.scan_data = scan_data;
+    gc_enumerate_remsets_complement( gc, genset, 
+                                     apply_f_to_remset_obj_entry, 
+                                     (void*) &remsets_data, FALSE );
+  }
+}
+
+word *data_load_area( gc_t *gc, int size_bytes )
 {
   return load_text_or_data( gc, size_bytes, 0 );
 }
@@ -3074,6 +3145,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 enumerate_roots,
 		 enumerate_smircy_roots,
 		 enumerate_remsets_complement,
+		 enumerate_remembered_locations, 
 		 fresh_space,
 		 my_find_space,
 		 allocated_to_areas,

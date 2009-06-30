@@ -219,6 +219,12 @@ struct gc {
         being traversed; otherwise word is removed (see interface for 
         rs_enumerate() for more info).
         */
+  void (*enumerate_remembered_locations)( gc_t *gc, gset_t genset, 
+                                          void (*f)( word*, void* ), void* );
+     /* Invokes f on a superset of locations in the remembered set,
+      * passing along the accumulator scan_data.
+      */
+
   semispace_t *(*fresh_space)(gc_t *gc);
      /* Creates a fresh space to copy objects into with a 
       * distinct generation number.
@@ -270,6 +276,8 @@ struct gc {
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
 #define gc_enumerate_remsets_complement( gc, gset, s, d, f ) \
   ((gc)->enumerate_remsets_complement( gc, gset, s, d, f ))
+#define gc_enumerate_remembered_locations( gc, gset, s, d) \
+  ((gc)->enumerate_remembered_locations( gc, gset, s, d ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
 #define gc_free_handle( gc, h )       ((gc)->free_handle( gc, h ))
 #define gc_find_space( gc, n, ss )    ((gc)->find_space( gc, n, ss ))
@@ -321,10 +329,11 @@ gc_t
 		  bool (*f)(word, void*, unsigned * ),
 		  void *data,
 		  bool enumerate_np_remset ),
+	     void (*enumerate_remembered_locations)
+	        ( gc_t *gc, gset_t genset, void (*f)( word*, void* ), void* ),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
 	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
 					 semispace_t *ss ),
-	     
 	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
 	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
 	     bool (*is_nonmoving)( gc_t *gc, int gen_no ),
