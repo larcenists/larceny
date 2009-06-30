@@ -979,15 +979,24 @@ struct summaryscan_buildup_rs_data {
   remset_t *target_rs;
   int rgn_next;
 };
-static void summaryscan_buildup_rs( word loc, void *my_data, unsigned *stats ) 
+static void summaryscan_buildup_rs( word obj, int offset, void *my_data ) 
 { 
   struct summaryscan_buildup_rs_data *data;
   remset_t *target_rs;
+  static word last_obj = 0x0;
+  static int last_offset = 0x0;
   data = (struct summaryscan_buildup_rs_data*)my_data;
   target_rs = (remset_t*)data->target_rs;
-  assert( ! rs_isremembered( target_rs, loc ));
-  assert( gen_of(loc) != data->rgn_next );
-  rs_add_elem( target_rs, loc );
+
+  /* Had to loosen assertion below because summaries can now hold and
+   * enumerate over distinct locations within the same object; may be
+   * better off removing the assertion entirely. */
+  assert( ! rs_isremembered( target_rs, obj ) 
+          || (last_obj == obj && last_offset != offset) );
+  assert( gen_of(obj) != data->rgn_next );
+  rs_add_elem( target_rs, obj );
+  last_obj = obj;
+  last_offset = offset;
 }
 
 static void assert_summary_sanity( gc_t *gc, int rgn_next )
@@ -1001,7 +1010,7 @@ static void assert_summary_sanity( gc_t *gc, int rgn_next )
     struct summaryscan_buildup_rs_data data;
     data.target_rs = summary_as_rs;
     data.rgn_next = rgn_next;
-    summary_enumerate( &DATA(gc)->summary, summaryscan_buildup_rs, &data );
+    summary_enumerate_locs2( &DATA(gc)->summary, summaryscan_buildup_rs, &data );
     summary_dispose( &DATA(gc)->summary );
   }
 
@@ -1775,12 +1784,7 @@ enumerate_remsets_complement( gc_t *gc,
 
   if (!DATA(gc)->is_partitioned_system) return;
 
-  if (DATA(gc)->use_summary_instead_of_remsets) {
-    void (*g)(word obj, void *data, unsigned *count);
-    g = (void*)f;
-    summary_enumerate( &DATA(gc)->summary, g, fdata );
-    return;
-  }
+  assert( ! DATA(gc)->use_summary_instead_of_remsets );
 
   /* Felix is pretty sure that this method is intended only
    * for use by clients who are always attempting to enumerate
