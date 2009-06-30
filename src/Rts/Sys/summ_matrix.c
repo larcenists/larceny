@@ -3222,12 +3222,11 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
       if (DATA(summ)->cols[ cell->target_gno ]->cell_bot == cell) {
         DATA(summ)->cols[ cell->target_gno ]->cell_bot = cell->prev_col;
 
-
-        /* XXX this needs to be updated to account locations too */
-
         /* Keep below in sync with col_incr_words_sm */
         DATA(summ)->cols[ cell->target_gno ]->summarize_word_count -= 
           2*pool_count_objects( cell->objects );
+        DATA(summ)->cols[ cell->target_gno ]->summarize_word_count -= 
+          pool_count_locations( cell->locations );
       }
       assert_unreachable( summ, cell ); /* XXX expensive */
       free_cell( cell, 
