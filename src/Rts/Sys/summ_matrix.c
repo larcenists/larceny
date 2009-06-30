@@ -63,6 +63,36 @@
 #define ADD_TO_SUMAR_ASSERTS_UNIQ_ENQ 0
 #define POOL_ENQUEUE_ASSERTS_UNIQ_ENQ 0
 
+/* Since each pair has at _most_ two locations holding region-crossing
+ * pointers, it does not make much sense in practice to waste one
+ * (relatively large) location entry to represent the contribution of
+ * a slot in a pair (especially since if both slots cross, then an
+ * explicit pair of location entries is massive compared to the pair
+ * itself).
+ * 
+ * So I am keeping the object pool code alive, and am planning to
+ * allow one to use it to represent (imprecisely) the region-crossing
+ * pointers of pairs by listing just the pairs themselves.
+ * 
+ * (I should eventually generalize this to also allow locations of
+ *  _small_ vectorlikes to be stored in the same manner; perhaps
+ *  it should also be further generalized to allow locations 
+ *  towards the beginning of large vectorlikes.)
+ *
+ * However, enqueuing the fields of pairs as individual locations is a
+ * sensible way to stress-test the summarization code, so that is why
+ * this flag is here.
+ */
+#define POOL_ENQUEUE_PAIRS_AS_OBJECTS 0
+
+/* Adding locations can be approximated by adding whole objects and
+ * then "forgetting" the extra overhead that scanning a whole object
+ * entails.  This may be useful for debugging, or at least to roll the
+ * system back to earlier behavior, so I am making it easy to toggle
+ * back and forth for the short term.
+ */
+#define ADDLOC_DELEGATES_TO_ADDOBJECT 1
+
 #define SUMMARIZE_KILLS_RS_ENTRIES 0
 
 #define CONSERVATIVE_REGION_COUNT 0
@@ -77,7 +107,8 @@ typedef struct summ_matrix_data summ_matrix_data_t;
 
 struct loc {
   word obj;
-  int  offset;
+  int  offset; /* measured in bytes */
+               /* (happens to match tagged fixnum word-count, for now) */
 };
 
 struct objs_pool {
@@ -1288,6 +1319,8 @@ static void col_reset_words( summ_col_t *c )
   c->summacopy_word_count = 0;
 }
 
+typedef enum { incr_ctxt_sm, incr_ctxt_wb, incr_ctxt_gc } incr_ctxt_t;
+
 static void col_incr_once_sm( summ_col_t *c, int dwords ) 
 {
   c->summarize_word_count += 1;
@@ -1458,6 +1491,30 @@ static objs_pool_t *pool_enq_obj( summ_matrix_t *summ, objs_pool_t *objects, wor
   return objects;
 }
 
+/* requires: loc not in locations
+ * modifies: locations
+ * effects: returns a pool p = locations u { loc }
+ */
+static locs_pool_t *pool_enq_loc( summ_matrix_t *summ, 
+                                  locs_pool_t *locations, loc_t loc )
+{
+  int entries;
+
+#if POOL_ENQUEUE_ASSERTS_UNIQ_ENQ
+  assert_not_present_in_locpool( summ, locations, loc ); /* (expensive) */
+#endif
+
+  entries = DATA(summ)->entries_per_locs_pool_segment;
+  if ( (locations == NULL) || (locations->top == locations->lim) ) {
+    locs_pool_t *p = alloc_locpool_segment( entries );
+    p->next   = locations;
+    locations = p;
+  }
+  *locations->top = loc;
+  locations->top += 1;
+  return locations;
+}
+
 static word cell_last_entry( summ_matrix_t *summ, summ_cell_t *cell )
 {
   return objpool_last_entry( cell->objects );
@@ -1467,6 +1524,11 @@ static void cell_enq_obj( summ_matrix_t *summ, summ_cell_t *cell, word ptr )
 {
   /* assert2( ptr occurs nowhere in summ[cell->tgt].row[cell->src] */
   cell->objects = pool_enq_obj( summ, cell->objects, ptr );
+}
+
+static void cell_enq_loc( summ_matrix_t *summ, summ_cell_t *cell, loc_t loc )
+{
+  cell->locations = pool_enq_loc( summ, cell->locations, loc );
 }
 
 static void clear_col_cells( summ_matrix_t *summ, int col_idx );
@@ -1512,12 +1574,17 @@ static void col_print_ptr( summ_matrix_t *summ, summ_col_t *col )
   fflush(0);
 }
 
+static void oflo_check_word( summ_matrix_t *summ, 
+                             int tgno, word w, summ_col_t *col );
+
+static void oflo_check_loc( summ_matrix_t *summ, 
+                            int tgno, loc_t loc, summ_col_t *col );
+
 static void incr_size_and_oflo_check( summ_matrix_t *summ, int tgno, word w,
                                       void (*incr_words)( summ_col_t *c, int dw ))
 {
   int word_count;
   summ_col_t *col = DATA(summ)->cols[tgno];
-  int pop_limit = DATA(summ)->popularity_limit;
   if (tagof(w) == PAIR_TAG) {
     word_count = 2;
   } else {
@@ -1525,6 +1592,13 @@ static void incr_size_and_oflo_check( summ_matrix_t *summ, int tgno, word w,
   }
 
   incr_words( col, word_count );
+  oflo_check_word( summ, tgno, w, col );
+} 
+
+static void oflo_check_word( summ_matrix_t *summ, 
+                             int tgno, word w, summ_col_t *col )
+{
+  int pop_limit = DATA(summ)->popularity_limit;
   if (col_words(col) > pop_limit) {
     dbmsg( "cellsumm for rgn %d overflowed on 0x%08x (%d): %d max %d",
            tgno, w, gen_of(w), col_words(col), pop_limit );
@@ -1543,6 +1617,12 @@ static void incr_size_and_oflo_check( summ_matrix_t *summ, int tgno, word w,
   }
 }
 
+static void oflo_check_loc( summ_matrix_t *summ, 
+                            int tgno, loc_t loc, summ_col_t *col )
+{
+  oflo_check_word( summ, tgno, loc.obj, col );
+}
+
 /* Let A be summ[tgt_gen].cell[src_gen].objects.
  * requires: (ptr in A) implies (ptr is A's latest entry)
  * modifies: A
@@ -1552,8 +1632,7 @@ static void add_object_to_sum_array( summ_matrix_t *summ,
                                      int tgt_gen,
                                      word ptr, 
                                      int src_gen,
-                                     void (*col_incr_w)(summ_col_t *c, 
-                                                        int dw ))
+                                     void (*col_incr_w)(summ_col_t *c, int dw))
 {
   int pop_limit = DATA(summ)->popularity_limit;
   summ_col_t *col = DATA(summ)->cols[tgt_gen];
@@ -1599,6 +1678,51 @@ static void add_object_to_sum_array( summ_matrix_t *summ,
    */
 }
 
+static void incr_once( summ_col_t *col, incr_ctxt_t incr_ctxt )
+{
+  void (*col_incr_w)(summ_col_t *c, int dw);
+  switch (incr_ctxt) {
+  case incr_ctxt_sm: col_incr_once_sm(col, 1); break;
+  case incr_ctxt_wb: col_incr_once_wb(col, 1); break;
+  case incr_ctxt_gc: col_incr_once_gc(col, 1); break;
+  default: assert(0);
+  }
+}
+
+static void add_loc_to_sum_array( summ_matrix_t *summ, 
+                                  int tgt_gen, loc_t loc, int src_gen, 
+                                  incr_ctxt_t incr_ctxt )
+{
+#if ADDLOC_DELEGATES_TO_ADDOBJECT
+  void (*col_incr_w)(summ_col_t *c, int dw);
+  switch (incr_ctxt) {
+  case incr_ctxt_sm: col_incr_w = col_incr_twice_sm; break;
+  case incr_ctxt_wb: col_incr_w = col_incr_twice_wb; break;
+  case incr_ctxt_gc: col_incr_w = col_incr_twice_gc; break;
+  } 
+  add_object_to_sum_array( summ, tgt_gen, loc.obj, src_gen, col_incr_w );
+#else
+  int pop_limit = DATA(summ)->popularity_limit;
+  summ_col_t *col = DATA(summ)->cols[tgt_gen];
+
+  if (col_words(col) <= pop_limit) {
+    summ_cell_t *cell = summ_cell( summ, src_gen, tgt_gen );
+    if (cell == NULL) { 
+      /* do nothing */
+    } else {
+#if ADD_TO_SUMAR_ASSERTS_UNIQ_ENQ
+      /* XXX add check here for _loc_ in cell's col */
+#endif
+
+      cell_enq_loc( summ, cell, loc );
+      incr_once( col, incr_ctxt );
+      oflo_check_loc( summ, tgt_gen, loc, col );
+    }
+  }
+#endif
+}
+
+
 static void add_object_to_mut_rs( summ_matrix_t *summ, int g_rhs, word w ) 
 {
   remset_t *rs; 
@@ -1612,11 +1736,14 @@ static void add_object_to_mut_rs( summ_matrix_t *summ, int g_rhs, word w )
   rs_add_elem( rs, w );
 }
 
-static void add_location_to_mut_rs( summ_matrix_t *summ, int g_rhs, 
-                                    word w, int offset ) 
+static void add_location_to_mut_rs( summ_matrix_t *summ, int g_rhs, loc_t loc )
 {
-  /* XXX of course this is not the right thing XXX */
-  add_object_to_mut_rs( summ, g_rhs, w );
+#if ADDLOC_DELEGATES_TO_ADDOBJECT
+  add_object_to_mut_rs( summ, g_rhs, loc.obj );
+#else
+  /* XXX FIXME XXX */
+  add_object_to_mut_rs( summ, g_rhs, loc.obj );
+#endif
 }
 
 static bool region_summarized( summ_matrix_t *summ, int gno );
@@ -1666,7 +1793,10 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
 #endif
         q--;
         if (col_words(col) <= pop_limit) {
-          add_location_to_mut_rs( summ, g_rhs, w, w2 );
+          loc_t loc;
+          loc.obj = w;
+          loc.offset = w2;
+          add_location_to_mut_rs( summ, g_rhs, loc );
           incr_size_and_oflo_check( summ, g_rhs, w, col_incr_once_wb );
         }
       } else {
@@ -1720,8 +1850,17 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
         if ( gc_region_group_for_gno( remsum->summ->collector, gen )
              == region_group_summzing ) {
           do_enqueue = TRUE;
+#if POOL_ENQUEUE_PAIRS_AS_OBJECTS
           add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
                                    col_incr_twice_sm );
+#else
+          { loc_t loc;
+            loc.obj = ptr;
+            loc.offset = 0;
+            add_loc_to_sum_array( remsum->summ, 
+                                  gen, loc, mygen, incr_ctxt_sm );
+          }
+#endif
         }
       }
     }
@@ -1741,19 +1880,30 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
         if ( gc_region_group_for_gno( remsum->summ->collector, gen )
              == region_group_summzing ) {
           do_enqueue = TRUE;
+#if POOL_ENQUEUE_PAIRS_AS_OBJECTS
           add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
                                    col_incr_twice_sm );
+#else
+          { loc_t loc;
+            loc.obj = ptr;
+            loc.offset = sizeof(word); /* offset is in bytes */
+            add_loc_to_sum_array( remsum->summ, 
+                                  gen, loc, mygen, incr_ctxt_sm );
+          }
+#endif
         }
       }
     }
     scanned = 2;
   } else { /* vector or procedure */
     word words;
+    int offset;
     assert( (tagof(ptr) == VEC_TAG) || (tagof(ptr) == PROC_TAG) );
     words = sizefield( *loc ) / 4;
     scanned = words;
     while (words--) {
       ++loc;
+      offset += sizeof(word);
       if (isptr(*loc)) {
         int gen = gen_of(*loc);
         if (instrumented) 
@@ -1767,9 +1917,12 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
 #endif
           if ( gc_region_group_for_gno( remsum->summ->collector, gen )
                == region_group_summzing ) {
+            loc_t loc;
             do_enqueue = TRUE;
-            add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                     col_incr_twice_sm );
+            loc.obj = ptr;
+            loc.offset = offset;
+            add_loc_to_sum_array( remsum->summ, 
+                                  gen, loc, mygen, incr_ctxt_sm );
           }
         }
       }
@@ -3296,8 +3449,10 @@ EXPORT void sm_points_across_callback( summ_matrix_t *summ,
     /* XXX recomputing g_lhs wasteful here (plus it might not be valid
      * yet?  When does cheney change the gno for LOS, before or after
      * scan?); so perhaps change callback to pass g_lhs along too. */
-    add_object_to_sum_array( summ, g_rhs, lhs, gen_of(lhs),
-                             col_incr_twice_gc );
+    loc_t loc;
+    loc.obj = lhs;
+    loc.offset = offset;
+    add_loc_to_sum_array( summ, g_rhs, loc, gen_of(lhs), incr_ctxt_gc );
   }
 }
 
