@@ -1891,12 +1891,7 @@ static void enumerate_remembered_locations( gc_t *gc, gset_t genset,
                                             void *scan_data )
 {
   if ( DATA(gc)->use_summary_instead_of_remsets) {
-    struct apply_f_to_summary_loc_entry_data summary_data;
-    summary_data.f = f;
-    summary_data.scan_data = scan_data;
-    summary_enumerate( &DATA(gc)->summary, 
-                       apply_f_to_summary_obj_entry, 
-                       (void*) &summary_data );
+    summary_enumerate_locs( &DATA(gc)->summary, f, scan_data );
   } else {
     struct apply_f_to_summary_loc_entry_data remsets_data;
     remsets_data.f = f;

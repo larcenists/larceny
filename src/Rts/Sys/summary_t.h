@@ -108,6 +108,13 @@ void summary_enumerate( summary_t *summary,
      Does *not* call summary_dispose when enumeration is complete.
    */
 
+void summary_enumerate_locs( summary_t *summary,
+                             void (*scanner)(word *loc, void *data),
+                             void *data );
+  /* Invokes scanner on each location produced by iterating through summary.
+     Does *not* call summary_dispose when enumeration is complete.
+   */
+
 #define summary_next_chunk( summary, start_var, lim_var ) \
     ((summary)->next_chunk( summary, start_var, lim_var ))
 

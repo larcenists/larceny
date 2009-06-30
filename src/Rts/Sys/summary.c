@@ -101,6 +101,48 @@ void summary_enumerate( summary_t *summary,
     summary_enumerate_dispatch( summary, scanner, data );
 }
 
+struct apply_f_to_summary_obj_entry_data {
+  void (*f)( word *addr, void *scan_data );
+  void *scan_data;
+};
+
+static void apply_f_to_summary_obj_entry( word obj, void *data_orig, 
+                                          unsigned *count )
+{
+  word *w;
+  struct apply_f_to_summary_obj_entry_data *data;
+  void *scan_data;
+  data = (struct apply_f_to_summary_obj_entry_data*)data_orig;
+  void (*f)( word *addr, void *scan_data );
+
+  scan_data = data->scan_data;
+  f         = data->f;
+  w = ptrof(obj);
+  if (tagof(obj) == PAIR_TAG) {
+    f( w, scan_data );
+    w += 1;
+    f( w, scan_data );
+  } else {
+    word words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
+    while (words--) {
+      w += 1;
+      f( w, scan_data );
+    }
+  }
+}
+
+void summary_enumerate_locs( summary_t *summary, 
+                             void (*scanner)(word *loc, void *data ), 
+                             void *data )
+{
+  struct apply_f_to_summary_obj_entry_data summary_data;
+  summary_data.f = scanner;
+  summary_data.scan_data = data;
+  summary_enumerate( summary, 
+                     apply_f_to_summary_obj_entry, 
+                     (void*) &summary_data );
+}
+
 static bool next_chunk_compose( summary_t *this,
                                 word **start, word **lim,
                                 bool *all_unseen_before )
