@@ -3162,7 +3162,8 @@ static bool region_summarizing_curr( summ_matrix_t *summ, int gno )
  * to the one I plan to use for the summarize pROWduction loop: 
  * keep transient table that maps (SZED u SZING) -> [Maybe Cell].
  */
-EXPORT void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs )
+EXPORT void sm_points_across_callback( summ_matrix_t *summ, 
+                                       word lhs, int offset, int g_rhs )
 {
 
   /* Below condition is subtle.

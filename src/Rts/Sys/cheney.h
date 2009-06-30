@@ -95,8 +95,8 @@ struct cheney_env {
        address of codevectors.
        */
 
-  bool (*points_across)( cheney_env_t *e, word l, word r);
-    /* (potentially) invoked by scanner when l points to r across 
+  bool (*points_across)( cheney_env_t *e, word l, int offset, word r);
+    /* (potentially) invoked by scanner when l[offset] points to r across 
        generations.  Returns true iff l is added to remset. 
        */
 
@@ -281,7 +281,9 @@ static void stop( void )
           FORW;                                                                \
           updated =                                                            \
             UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                        \
-                           ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG), *ptr );        \
+                           ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG),                \
+                           ((ptr - scan_core_old_ptr) >> 2),                   \
+                           *ptr );                                             \
           ptr++;                                                               \
           if (updated) break;                                                  \
         }                                                                      \
@@ -295,12 +297,16 @@ static void stop( void )
     else {                                                                     \
       bool upd;                                                                \
       FORW;                                                                    \
-      upd = UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );      \
+      upd = UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,              \
+                           ((ptr - scan_core_old_ptr) >> 2),                   \
+                           *ptr );                                             \
       ptr++;                                                                   \
       FORW;                                                                    \
       if (!upd)                                                                \
         upd =                                                                  \
-          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG, *ptr );        \
+          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,                \
+                         ((ptr - scan_core_old_ptr) >> 2),                     \
+                         *ptr );                                               \
       ptr++;                                                                   \
     }                                                                          \
   } while (0)

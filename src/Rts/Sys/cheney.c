@@ -418,6 +418,7 @@ static word gf_last_lhs;
 
 static bool update_remset( cheney_env_t *e,
                            word *origin_ptr, int origin_gen, int origin_tag,
+                           int offset, 
                            word target_ptr ) {
   if (e->points_across == NULL)
     return FALSE;
@@ -427,7 +428,7 @@ static bool update_remset( cheney_env_t *e,
     int target_gen = gen_of(target_ptr);
     if (origin_gen != target_gen) {
       bool added = e->points_across( e, tagptr(origin_ptr,origin_tag),
-                                     target_ptr );
+                                     offset, target_ptr );
       if (added)
         last_origin_gen_added = origin_ptr;
       return added;
@@ -439,13 +440,13 @@ static bool update_remset( cheney_env_t *e,
   }
 }
 
-static bool points_across_noop( cheney_env_t* e, word lhs, word rhs ) 
+static bool points_across_noop( cheney_env_t* e, word lhs, int offset, word rhs ) 
 {
   return FALSE;
 }
 
-static bool points_across( cheney_env_t* e, word lhs, word rhs ) {
-  gc_points_across( e->gc, lhs, rhs );
+static bool points_across( cheney_env_t* e, word lhs, int offset, word rhs ) {
+  gc_points_across( e->gc, lhs, offset, rhs );
   return FALSE;
 }
 

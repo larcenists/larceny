@@ -236,7 +236,7 @@ struct gc {
   bool (*is_nonmoving)( gc_t *gc, int gen_no );
   bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy );
   void (*check_remset_invs)( gc_t *gc, word src, word tgt );
-  void (*points_across)( gc_t *gc, word lhs, word rhs );
+  void (*points_across)( gc_t *gc, word lhs, int offset, word rhs );
   old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no );
   region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no );
 };
@@ -280,7 +280,7 @@ struct gc {
 #define gc_is_nonmoving( gc, gno )      ((gc)->is_nonmoving( (gc), (gno) ))
 #define gc_is_address_mapped( gc,a,n )  ((gc)->is_address_mapped( (gc), (a), (n) ))
 #define gc_check_remset_invs( gc,s,t )  ((gc)->check_remset_invs( (gc), (s), (t) ))
-#define gc_points_across( gc,l,r )      ((gc)->points_across( (gc), (l), (r) ))
+#define gc_points_across( gc,l,o,r )    ((gc)->points_across( (gc), (l), (o), (r) ))
 #define gc_heap_for_gno( gc,gno )       ((gc)->heap_for_gno( (gc), (gno) ))
 #define gc_region_group_for_gno( gc,gno ) ((gc)->region_group_for_gno( (gc), (gno) ))
 
@@ -330,7 +330,7 @@ gc_t
 	     bool (*is_nonmoving)( gc_t *gc, int gen_no ),
 	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
-	     void (*points_across)( gc_t *gc, word lhs, word rhs ),
+	     void (*points_across)( gc_t *gc, word lhs, int offset, word rhs ),
 	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no ),
 	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no )
 	     );

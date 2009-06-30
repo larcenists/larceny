@@ -193,7 +193,7 @@ int  sm_summarized_live( summ_matrix_t *summ, int rgn );
 void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to );
 void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int region_count );
 void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
-void sm_points_across_callback( summ_matrix_t *summ, word lhs, int g_rhs );
+void sm_points_across_callback( summ_matrix_t *summ, word lhs, int offset, int g_rhs );
 
 #endif /* INCLUDED_SUMM_MATRIX_T_H */
 

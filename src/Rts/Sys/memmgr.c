@@ -2887,7 +2887,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 }
 
 static word last_origin_ptr_added = 0;
-static void points_across_callback( gc_t *gc, word lhs, word rhs ) 
+static void points_across_callback( gc_t *gc, word lhs, int offset, word rhs ) 
 {
   int g_lhs = gen_of(lhs);
   int g_rhs = gen_of(rhs);
@@ -2905,7 +2905,7 @@ static void points_across_callback( gc_t *gc, word lhs, word rhs )
       }
 
       if (DATA(gc)->summaries != NULL) {
-        sm_points_across_callback( DATA(gc)->summaries, lhs, g_rhs );
+        sm_points_across_callback( DATA(gc)->summaries, lhs, offset, g_rhs );
       }
     }
   }
