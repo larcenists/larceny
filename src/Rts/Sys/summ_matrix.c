@@ -1370,7 +1370,7 @@ static void assert_not_present_in_pool( summ_matrix_t *summ,
  * modifies: objects
  * effects: returns a pool p = objects u { ptr }
  */
-static objs_pool_t *pool_enqueue( summ_matrix_t *summ, objs_pool_t *objects, word ptr )
+static objs_pool_t *pool_enq_obj( summ_matrix_t *summ, objs_pool_t *objects, word ptr )
 {
   int entries;
 
@@ -1397,7 +1397,7 @@ static word cell_last_entry( summ_matrix_t *summ, summ_cell_t *cell )
 static void cell_enqueue( summ_matrix_t *summ, summ_cell_t *cell, word ptr )
 {
   /* assert2( ptr occurs nowhere in summ[cell->tgt].row[cell->src] */
-  cell->objects = pool_enqueue( summ, cell->objects, ptr );
+  cell->objects = pool_enq_obj( summ, cell->objects, ptr );
 }
 
 static void clear_col_cells( summ_matrix_t *summ, int col_idx );
