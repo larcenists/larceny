@@ -1394,7 +1394,7 @@ static word cell_last_entry( summ_matrix_t *summ, summ_cell_t *cell )
   return objpool_last_entry( cell->objects );
 }
 
-static void cell_enqueue( summ_matrix_t *summ, summ_cell_t *cell, word ptr )
+static void cell_enq_obj( summ_matrix_t *summ, summ_cell_t *cell, word ptr )
 {
   /* assert2( ptr occurs nowhere in summ[cell->tgt].row[cell->src] */
   cell->objects = pool_enq_obj( summ, cell->objects, ptr );
@@ -1500,7 +1500,7 @@ static void add_object_to_sum_array( summ_matrix_t *summ,
         assert( ! col_contains_ptr(summ, col, ptr) );
 #endif
 
-      cell_enqueue( summ, cell, ptr );
+      cell_enq_obj( summ, cell, ptr );
       incr_size_and_oflo_check( summ, tgt_gen, ptr, col_incr_w );
     }
   }
