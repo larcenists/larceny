@@ -11,7 +11,7 @@ fi
 DATE=`date +"%Y%b%d-at-%H-%M-%S"`
 
 if [ -z $1 ] ; then
-    OUTPUT=bench-auto-log.$DATE.log
+    OUTPUT=bench-quick-auto-log.$DATE.log
 else 
     OUTPUT=$1
 fi
@@ -66,32 +66,13 @@ AFTER_BENCH="(call-with-output-file \"$TMPOUTPUT\"  \
                        (stats-read)))))"
 
 g( ) {
-    echo "($2 $1"  >> $OUTPUT
+    echo "($2 $1"  >> $OUTPUT && \
     echo "(begin $1 (values))" ${AFTER_BENCH} | \
-        ${LARCENY} -- overwrite-run-benchmark.fasl $2.fasl
-    cat $TMPOUTPUT >> $OUTPUT
-    echo ") "      >> $OUTPUT
-    echo           >> $OUTPUT
+        ${LARCENY} -- overwrite-run-benchmark.fasl $2.fasl && \
+    cat $TMPOUTPUT >> $OUTPUT && \
+    echo ") "      >> $OUTPUT && \
+    echo           >> $OUTPUT && \
     rm $TMPOUTPUT
 }
 
-g '(earley-benchmark 10 20)' earley
-g '(earley-benchmark 11 20)' earley
-# g '(earley-benchmark 13 20)' earley
-
-g '(gc-benchmark 5 20)'      gcbench
-
 g '(nboyer-benchmark 5 5)'   nboyer
-# g '(nboyer-benchmark 6 5)'   nboyer
-
-# g '(sboyer-benchmark 6 5)'   sboyer
-
-# perm:M,N:K:L
-# g '(MpermNKL-benchmark 200 9 10  1)' perm
-# g '(MpermNKL-benchmark 400 9 20  1)' perm
-
-g '(twobit-benchmark (quote long) 5)' twobit
-
-# g '(GCOld 100 0 1  0    800)' gcold
-# g '(GCOld 100 0 1  1000 800)' gcold
-
