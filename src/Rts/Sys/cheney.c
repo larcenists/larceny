@@ -92,8 +92,9 @@
    reset pointers and so on, I forego the expense of fixing this macro.
    Same goes for forw_np_record.
    */
-#define forw_oflo_record( loc, fwdgens, fwdgens_data, dest, lim, has_intergen_ptr, \
-                          old_obj_gen, e, check_spaceI )                    \
+#define forw_oflo_record_track_old2young( loc, fwdgens, fwdgens_data,       \
+                                          dest, lim, has_intergen_ptr,      \
+                                          old_obj_gen, e, check_spaceI )    \
   do { word T_obj = *loc;                                                   \
        if (isptr( T_obj )) {                                                \
           unsigned T_obj_gen = gen_of(T_obj);                               \
@@ -104,8 +105,9 @@
        }                                                                    \
   } while( 0 )
 
-#define forw_oflo_record_update_rs( loc, fwdgens, fwdgens_data, dest, lim,  \
-                          has_intergen_ptr, old_obj_gen, e, check_spaceI )  \
+#define forw_oflo_record_track_any2other( loc, fwdgens, fwdgens_data,       \
+                                          dest, lim, has_intergen_ptr,      \
+                                          old_obj_gen, e, check_spaceI )    \
   do { word T_obj = *loc;                                                   \
        if (isptr( T_obj )) {                                                \
           unsigned T_obj_gen = gen_of(T_obj);                               \
@@ -656,7 +658,8 @@ static bool remset_scanner_oflo( word object, void *data, unsigned *count )
   assert( objects_scanned >= 0 );
   assert2( *ptrof(object) != FORWARD_HDR );
   remset_scanner_core( e, object, loc, 
-                       forw_oflo_record( loc, forward_nursery_and, forw_gset,
+                       forw_oflo_record_track_old2young 
+                                       ( loc, forward_nursery_and, forw_gset,
                                          dest, lim,
                                          has_intergen_ptr, old_obj_gen, e, 
                                          check_space_expand ),
@@ -682,7 +685,7 @@ static bool remset_scanner_oflo_update_rs( word object, void *data, unsigned *co
   assert2( *ptrof(object) != FORWARD_HDR );
   remset_scanner_update_rs
     ( e, object, loc, 
-      forw_oflo_record_update_rs( loc, 
+      forw_oflo_record_track_any2other( loc, 
                         forward_nursery_and, forw_gset, dest, lim,
                         has_intergen_ptr, old_obj_gen, e, 
                         check_space_expand ),
