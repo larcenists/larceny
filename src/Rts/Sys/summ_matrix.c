@@ -1345,9 +1345,9 @@ static word objpool_last_entry( objs_pool_t *objects )
   return 0x0;
 }
 
-static void assert_not_present_in_pool( summ_matrix_t *summ,
-                                        objs_pool_t *objects,
-                                        word ptr )
+static void assert_not_present_in_objpool( summ_matrix_t *summ,
+                                           objs_pool_t *objects,
+                                           word ptr )
 {
   objs_pool_t *objs = objects;
   int i;
@@ -1375,7 +1375,7 @@ static objs_pool_t *pool_enq_obj( summ_matrix_t *summ, objs_pool_t *objects, wor
   int entries;
 
 #if POOL_ENQUEUE_ASSERTS_UNIQ_ENQ
-  assert_not_present_in_pool( summ, objects, ptr ); /* (expensive) */
+  assert_not_present_in_objpool( summ, objects, ptr ); /* (expensive) */
 #endif
 
   entries = DATA(summ)->entries_per_objs_pool_segment;
