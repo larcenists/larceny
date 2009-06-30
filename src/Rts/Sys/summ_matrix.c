@@ -1238,6 +1238,9 @@ static void col_reset_words( summ_col_t *c )
   c->collector_word_count = 0;
   c->summacopy_word_count = 0;
 }
+
+/* XXX these need to be changed back to refer to dwords; if necessary
+ * move the 2's into the calling context. XXX */
 static void col_incr_words_sm( summ_col_t *c, int dwords ) 
 {
   c->summarize_word_count += 2/*dwords*/;
@@ -1540,6 +1543,13 @@ static void add_object_to_mut_rs( summ_matrix_t *summ, int g_rhs, word w )
   rs_add_elem( rs, w );
 }
 
+static void add_location_to_mut_rs( summ_matrix_t *summ, int g_rhs, 
+                                    word w, int offset ) 
+{
+  /* XXX of course this is not the right thing XXX */
+  add_object_to_mut_rs( summ, g_rhs, w );
+}
+
 static bool region_summarized( summ_matrix_t *summ, int gno );
 static bool region_summarizing_goal( summ_matrix_t *summ, int gno );
 static bool region_summarizing_curr( summ_matrix_t *summ, int gno );
@@ -1550,7 +1560,7 @@ static bool region_summarizing_curr( summ_matrix_t *summ, int gno );
  */
 EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *top, int g_rhs )
 {
-  word *p, *q, w;
+  word *p, *q, w, w2;
   int pop_limit;
   summ_col_t *col;
 
@@ -1568,10 +1578,33 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
     while (q > p) {
       q--;
       w = *q;
-      assert( tagof(w) != 0 );
-      if (col_words(col) <= pop_limit) {
-        add_object_to_mut_rs( summ, g_rhs, w );
-        incr_size_and_oflo_check( summ, g_rhs, w, col_incr_words_wb );
+      if (is_fixnum(w)) {
+        assert( q > p );
+        w2 = w;
+        q--;
+        w = *q;
+      } else {
+        w2 = w; /* *any* non-fixnum for w2 will do. */
+      }
+
+      assert( ! is_fixnum(w) );
+      assert( is_ptr(w) );
+
+      if (is_fixnum(w2)) {
+#if 0
+        consolemsg("w=0x%08x w2=0x%08x typetag(w,w2)=(%d,%d)", 
+                   w, w2, typetag(w), typetag(w2));
+#endif
+        q--;
+        if (col_words(col) <= pop_limit) {
+          add_location_to_mut_rs( summ, g_rhs, w, w2 );
+          incr_size_and_oflo_check( summ, g_rhs, w, col_incr_words_wb );
+        }
+      } else {
+        if (col_words(col) <= pop_limit) {
+          add_object_to_mut_rs( summ, g_rhs, w );
+          incr_size_and_oflo_check( summ, g_rhs, w, col_incr_words_wb );
+        }
       }
     }
   }
