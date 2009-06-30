@@ -103,7 +103,7 @@
         (set! *last-stashed-stats* stashed-stats)
         stashed-stats))))
 
-(define run-wth-stats/stashing
+(define run-with-stats/stashing
   (let ((run-with-stats run-with-stats))
     (lambda (thunk)
       (run-with-stats/stashing* (lambda () (run-with-stats thunk))))))
