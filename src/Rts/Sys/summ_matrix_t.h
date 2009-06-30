@@ -76,13 +76,13 @@ void sm_prepare_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim );
 
 void sm_dispose_cols( summ_matrix_t *summ, int col_gno, int col_gno_lim );
 
-bool sm_progress_would_no_op( summ_matrix_t *summ, int rgn_count );
+bool sm_progress_would_no_op( summ_matrix_t *summ, int ne_rgn_count );
   /* Returns TRUE implies an invocation of sm_construction_progress
      would just return without any useful internal progress. */
 
 void sm_construction_progress( summ_matrix_t *summ, 
                                int* word_countdown, int* object_countdown, 
-                               int rgn_next, int region_count, 
+                               int rgn_next, int ne_rgn_count, 
                                bool about_to_major, 
                                int allocation_per_majgc );
   /* allocation_per_majgc unit is words/rgnsz (count *regions* of alloc) */
@@ -191,7 +191,7 @@ void sm_verify_summaries_via_oracle( summ_matrix_t *summ );
 void sm_refine_summaries_via_marksweep( summ_matrix_t *summ );
 int  sm_summarized_live( summ_matrix_t *summ, int rgn );
 void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to );
-void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int region_count );
+void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int ne_rgn_count );
 void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
 void sm_points_across_callback( summ_matrix_t *summ, word lhs, int offset, int g_rhs );
 

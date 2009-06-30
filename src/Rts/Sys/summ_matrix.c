@@ -789,17 +789,17 @@ static void delayed_check_rep( summ_matrix_t *summ )
 
 static void sm_build_summaries_partial( summ_matrix_t *summ, 
                                         int rgn_next,
-                                        int region_count,
+                                        int ne_rgn_count,
                                         bool about_to_major );
 static void sm_build_summaries_iteration_complete( summ_matrix_t *summ, 
-                                                   int region_count );
+                                                   int ne_rgn_count );
 static void sm_build_remset_summaries( summ_matrix_t *summ,
-                                       int region_count,
+                                       int ne_rgn_count,
                                        int rgn_next,
                                        bool about_to_major );
 static void advance_to_next_summary_set( summ_matrix_t *summ,
                                          int rgn_next, 
-                                         int region_count,
+                                         int ne_rgn_count,
                                          bool about_to_major,
                                          int dA );
 
@@ -975,23 +975,23 @@ static bool prev_summarized_p( summ_matrix_t *summ, int rgn );
 static void console_printgset( char *prefix, gset_t g );
 
 static void sm_ensure_available( summ_matrix_t *summ, int gno,
-                                 int region_count, bool about_to_major, int dA );
+                                 int ne_rgn_count, bool about_to_major, int dA );
 
 static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset );
 static void setup_next_wave( summ_matrix_t *summ, int rgn_next, 
-                             int region_count, bool about_to_major, int dA );
+                             int ne_rgn_count, bool about_to_major, int dA );
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
-EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int rgn_count ) 
+EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count ) 
 {
   /* (must be kept in sync with sm_construction_progress below) */
 
   check_rep_1( summ );
 
   if ( DATA(summ)->summarizing.waiting ) {
-    int goal_budget = calc_goal( summ, rgn_count );
-    int max_pop = quotient2( rgn_count, DATA(summ)->p );
+    int goal_budget = calc_goal( summ, ne_rgn_count );
+    int max_pop = quotient2( ne_rgn_count, DATA(summ)->p );
     int usable = 
       region_group_count( region_group_wait_nosum ) +
       region_group_count( region_group_wait_w_sum );
@@ -1021,7 +1021,7 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
                                       int* word_countdown,
                                       int* object_countdown,
                                       int rgn_next,
-                                      int rgn_count,
+                                      int ne_rgn_count,
                                       bool about_to_major,
                                       int alloc_per_majgc )
 {
@@ -1029,8 +1029,8 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
   int start, coverage;
 
   dbmsg("sm_construction_progress"
-        "( summ, rgn_next=%d, region_count=%d, about_to_major=%s, dA=%d );",
-        rgn_next, rgn_count, about_to_major?"TRUE":"FALSE", alloc_per_majgc );
+        "( summ, rgn_next=%d, ne_rgn_count=%d, about_to_major=%s, dA=%d );",
+        rgn_next, ne_rgn_count, about_to_major?"TRUE":"FALSE", alloc_per_majgc );
   dbmsg( "sm_construction_progress: "
               "goal: %d complete: %s rs_cursor: %d rs_num: %d",
               DATA(summ)->summarizing.goal,
@@ -1040,9 +1040,12 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
 
   check_rep_1( summ );
 
+  assert( DATA(summ)->summarizing.waiting || 
+          (DATA(summ)->summarizing.rs_num > 0) );
+
   if ( DATA(summ)->summarizing.waiting ) {
-    int goal_budget = calc_goal( summ, rgn_count );
-    int max_pop = quotient2( rgn_count, DATA(summ)->p );
+    int goal_budget = calc_goal( summ, ne_rgn_count );
+    int max_pop = quotient2( ne_rgn_count, DATA(summ)->p );
     int usable = 
       region_group_count( region_group_wait_w_sum ) +
       region_group_count( region_group_wait_nosum );
@@ -1057,7 +1060,7 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
       return;
     } else {
       DATA(summ)->summarizing.waiting = FALSE;
-      setup_next_wave( summ, rgn_next, rgn_count, about_to_major, 
+      setup_next_wave( summ, rgn_next, ne_rgn_count, about_to_major, 
                        alloc_per_majgc );
     }
   }
@@ -1067,6 +1070,9 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
 
   if (! DATA(summ)->summarizing.complete) {
     bool shall_we_progress;
+
+    assert2( ! DATA(summ)->summarizing.waiting );
+    assert2( DATA(summ)->summarizing.rs_num > 0 );
 
     if (! about_to_major ) {
       shall_we_progress = TRUE; /* yes, lets! */
@@ -1109,13 +1115,13 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
 
     if ( shall_we_progress ) {
       /* make progress on next wave. */
-      sm_build_summaries_partial( summ, rgn_next, rgn_count, about_to_major );
+      sm_build_summaries_partial( summ, rgn_next, ne_rgn_count, about_to_major );
     }
 
   } else {
     /* next wave complete; shift if appropriate. */
     if ( region_group_count( region_group_wait_w_sum ) == 0 ) {
-      sm_ensure_available( summ, rgn_next, rgn_count, about_to_major, 
+      sm_ensure_available( summ, rgn_next, ne_rgn_count, about_to_major, 
                            alloc_per_majgc );
     }
   }
@@ -1123,7 +1129,7 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
   if (about_to_major 
       && ( gc_region_group_for_gno( summ->collector, rgn_next )
            != region_group_wait_nosum )) {
-    sm_ensure_available( summ, rgn_next, rgn_count, about_to_major,
+    sm_ensure_available( summ, rgn_next, ne_rgn_count, about_to_major,
                          alloc_per_majgc );
 
     /* rgn_next is part of previous summarization wave */
@@ -1993,7 +1999,7 @@ static bool next_summarized_p( summ_matrix_t *summ, int rgn )
 
 /* resets (reinitializes) summary state for all in region_group_summzing */
 static void sm_build_summaries_setup( summ_matrix_t *summ,
-                                      int majors, int region_count,
+                                      int majors, int ne_rgn_count,
                                       int rgn_next, int about_to_major,
                                       int dA )
 {
@@ -2002,15 +2008,15 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
   int goal;
   int gc_budget; 
 
-  goal = calc_goal( summ, region_count );
+  goal = calc_goal( summ, ne_rgn_count );
 
   /* genset_next does not actually go up to coverage
    * when that would overlap already summarized area. 
    * (and Felix can't get the new logic right...) */
   dbmsg("sm_build_summaries_setup"
-        "(summ, majors=%d, region_count=%d, rgn_next=%d, about_to_major=%s )"
+        "(summ, majors=%d, ne_rgn_count=%d, rgn_next=%d, about_to_major=%s )"
         " goal:%d",
-        majors, region_count, rgn_next, about_to_major?"TRUE":"FALSE", goal );
+        majors, ne_rgn_count, rgn_next, about_to_major?"TRUE":"FALSE", goal );
 
   gc_budget = about_to_major ? majors : (majors+1);
 
@@ -2020,33 +2026,32 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
    * dependant on the sumzbudget, sumzcoverage, and popularity; and
    * the code should be checking that the bound is satisfied. */
   {
-    int N_over_R, U, W, dA_over_R;
+    int W, dA_over_R;
 #if CONSERVATIVE_REGION_COUNT
     N_over_R = summ->collector->remset_count;
-#else
-    N_over_R = region_count;
-#endif
     U = region_group_count( region_group_unfilled );
+#endif
     W = region_group_count( region_group_wait_w_sum ) +
       region_group_count( region_group_wait_nosum );
     if (! about_to_major)
       W = W+1;
     dA_over_R = dA;
     num_under_construction = 
-      (quotient2( (N_over_R + 1 - U), W ) + dA_over_R );
+      (quotient2( ne_rgn_count, W ) + dA_over_R );
 #if 0
     num_under_construction = 
       quotient2( summ->collector->remset_count, gc_budget );
 #endif
 
     dbmsg("sm_build_summaries_setup"
-          "( summ, majors=%d, region_count=%d, rgn_next=%d, about_to_major=%d, dA=%d )"
-          " N/R=%d U=%d W=%d dA/R=%d ==> rs_num=%d ",
-          majors, region_count, rgn_next, about_to_major, dA, 
-          N_over_R, U, W, dA_over_R, num_under_construction );
+          "( summ, majors=%d, ne_rgn_count=%d, rgn_next=%d, about_to_major=%d, dA=%d )"
+          " W=%d dA/R=%d ==> rs_num=%d ",
+          majors, ne_rgn_count, rgn_next, about_to_major, dA, 
+          W, dA_over_R, num_under_construction );
+
+    assert2( num_under_construction > 0 );
   }
 
-  assert2( num_under_construction > 0 );
 
   DATA(summ)->summarizing.goal = goal;
   DATA(summ)->summarizing.waiting = FALSE;
@@ -3172,10 +3177,10 @@ static void sm_ensure_available( summ_matrix_t *summ, int gno,
  * This clears a column in the matrix; just return its cells (and
  * hashset) to pool.
  */
-EXPORT void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int region_count )
+EXPORT void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int ne_rgn_count )
 {
-  dbmsg("sm_clear_summary( summ, rgn_next=%d, region_count=%d ):%s",
-             rgn_next, region_count,
+  dbmsg("sm_clear_summary( summ, rgn_next=%d, ne_rgn_count=%d ):%s",
+             rgn_next, ne_rgn_count,
              (sm_is_rgn_summarized( summ, rgn_next )?"Sumz":"Unsm"));
 
   check_rep_1( summ );
