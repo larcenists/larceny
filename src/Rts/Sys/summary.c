@@ -171,7 +171,21 @@ void summary_enumerate_locs_dispatch( summary_t *summary,
                        apply_f_to_summary_obj_entry, 
                        (void*) &summary_data );
   } else {
-    assert(0);
+    loc_t *p, *q;
+    bool ign_all_unseen;
+    while( summary_next_chunk_enum_locs( summary, &p, &q, &ign_all_unseen )) {
+      while (p < q) {
+        if (p->obj != 0) {
+          if (summary->filter_loc != NULL &&
+              ! summary->filter_loc( summary, *p )) {
+            p++;
+            continue;
+          }
+          scanner( (word*)((byte*)ptrof(p->obj)+p->offset), data );
+        }
+        p++;
+      }
+    }
   }
 }
 
@@ -218,14 +232,14 @@ static void apply_f_to_summary_obj_entry2( word obj, void *data_orig,
   f         = data->f;
   w = ptrof(obj);
   if (tagof(obj) == PAIR_TAG) {
-    f( obj, (w-ptrof(obj)), scan_data );
+    f( obj, ((byte*)w-(byte*)ptrof(obj)), scan_data );
     w += 1;
-    f( obj, (w-ptrof(obj)), scan_data );
+    f( obj, ((byte*)w-(byte*)ptrof(obj)), scan_data );
   } else {
     word words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
     while (words--) {
       w += 1;
-      f( obj, (w-ptrof(obj)), scan_data );
+      f( obj, ((byte*)w-(byte*)ptrof(obj)), scan_data );
     }
   }
 }
@@ -244,7 +258,21 @@ void summary_enumerate_locs2_dispatch( summary_t *summary,
                        apply_f_to_summary_obj_entry2, 
                        (void*) &summary_data );
   } else {
-    assert(0);
+    loc_t *p, *q;
+    bool ign_all_unseen;
+    while( summary_next_chunk_enum_locs( summary, &p, &q, &ign_all_unseen )) {
+      while (p < q) {
+        if (p->obj != 0) {
+          if (summary->filter_loc != NULL &&
+              ! summary->filter_loc( summary, *p )) {
+            p++;
+            continue;
+          }
+          scanner( p->obj, p->offset, data );
+        }
+        p++;
+      }
+    }
   }
 }
 
@@ -273,24 +301,6 @@ void summary_enumerate_locs2( summary_t *summary,
     summary_enumerate_locs2_composed( summary, scanner, data );
   else 
     summary_enumerate_locs2_dispatch( summary, scanner, data );
-}
-
-static bool next_chunk_compose( summary_t *this,
-                                word **start, word **lim,
-                                bool *all_unseen_before )
-{
- retry:
-  if (this->cursor1 == NULL) {
-    return FALSE;
-  } else if (summary_next_chunk( (summary_t*)this->cursor1, start, lim )) {
-    return TRUE;
-  } else {
-    this->cursor1 = this->cursor2;
-    this->cursor2 = this->cursor3;
-    this->cursor3 = this->cursor4;
-    this->cursor4 = NULL;
-    goto retry;
-  }
 }
 
 void summary_compose( summary_t *fst, summary_t *snd, summary_t *thd, summary_t *fth, 

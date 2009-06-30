@@ -545,6 +545,13 @@ void init_env( cheney_env_t *e, gc_t *gc,
 
 static signed objects_scanned;
 
+static void remset_loc_scanner_oflo( word obj, int offset, void *data ) {
+  word *addr;
+  assert( (offset % sizeof(word)) == 0 );
+  addr = (word*)(((byte*)ptrof(obj))+offset);
+  root_scanner_oflo( addr, data );
+}
+
 void oldspace_copy( cheney_env_t *e )
 {
   /* Setup */
@@ -643,7 +650,7 @@ void oldspace_copy_using_locations( cheney_env_t *e )
     objects_scanned = 0;
 
     gc_enumerate_remembered_locations
-      ( e->gc, e->forw_gset, e->scan_from_globals, (void*)e );
+      ( e->gc, e->forw_gset, remset_loc_scanner_oflo, (void*)e );
 
     elapsed = stats_stop_timer( timer1 );
     cpu     = stats_stop_timer( timer2 );

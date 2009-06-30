@@ -167,6 +167,9 @@ void summary_enumerate_locs2( summary_t *summary,
 #define summary_next_chunk_with_flags( summary, start_var, lim_var, u_var ) \
     ((summary)->next_chunk_with_flags( summary, start_var, lim_var, u_var ))
 
+#define summary_next_chunk_enum_locs( summary, start_var, lim_var, u_var ) \
+  ((summary)->next_chunk_enum_locs( summary, start_var, lim_var, u_var ))
+
 #define summary_dispose( summary ) \
   do { if ((summary)->dispose) { (summary)->dispose( summary ); }} while (0)
 

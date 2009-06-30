@@ -282,7 +282,7 @@ static void stop( void )
           updated =                                                            \
             UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                        \
                            ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG),                \
-                           ((ptr - scan_core_old_ptr) >> 2),                   \
+                           ((byte*)ptr - (byte*)scan_core_old_ptr),            \
                            *ptr );                                             \
           ptr++;                                                               \
           if (updated) break;                                                  \
@@ -298,14 +298,14 @@ static void stop( void )
       bool upd;                                                                \
       FORW;                                                                    \
       upd = UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,              \
-                           ((ptr - scan_core_old_ptr) >> 2),                   \
+                           ((byte*)ptr - (byte*)scan_core_old_ptr),            \
                            *ptr );                                             \
       ptr++;                                                                   \
       FORW;                                                                    \
       if (!upd)                                                                \
         upd =                                                                  \
           UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,                \
-                         ((ptr - scan_core_old_ptr) >> 2),                     \
+                         ((byte*)ptr - (byte*)scan_core_old_ptr),              \
                          *ptr );                                               \
       ptr++;                                                                   \
     }                                                                          \

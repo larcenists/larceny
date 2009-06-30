@@ -48,7 +48,7 @@ gc_t
 		  bool enumerate_np_remset ),
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset,
-	          void (*f)( word*, void* ), void* ),
+	          void (*f)( word, int, void* ), void* ),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
 	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
 					 semispace_t *cur ),

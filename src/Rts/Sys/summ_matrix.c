@@ -91,7 +91,7 @@
  * system back to earlier behavior, so I am making it easy to toggle
  * back and forth for the short term.
  */
-#define ADDLOC_DELEGATES_TO_ADDOBJECT 1
+#define ADDLOC_DELEGATES_TO_ADDOBJECT 0
 
 #define SUMMARIZE_KILLS_RS_ENTRIES 0
 
@@ -240,10 +240,23 @@ struct summ_matrix_data {
 
   summary_t nursery_summary;
   summary_t mutrems_summary;
-  summary_t summcol_summary;
+  summary_t summcol_summary_locs;
+  summary_t summcol_summary_objs;
 };
 
 #define DATA(sm)                ((summ_matrix_data_t*)(sm->data))
+
+static loc_t make_loc( word obj, int offset ) 
+{
+  loc_t loc;
+
+  /* offset is in bytes */
+  assert((offset % sizeof(word)) == 0);
+
+  loc.obj = obj;
+  loc.offset = offset;
+  return loc;
+}
 
 static int calc_goal( summ_matrix_t *summ, int region_count ) 
 { 
@@ -325,21 +338,38 @@ static summ_cell_t* make_cell( int source_gno, int target_gno ) {
   return e;
 }
 
-static void free_cell( summ_cell_t *e, int entries_per_pool_segment ) 
+static void free_cell( summ_cell_t *e, 
+                       int entries_per_objs_pool_segment,
+                       int entries_per_locs_pool_segment ) 
 {
-  objs_pool_t *p; 
-  objs_pool_t *n;
-
-  dbmsg("   free_cell( id:%d src: %d tgt: %d, entries: %d )",
+  dbmsg("   free_cell( id:%d src: %d tgt: %d, entries: %d %d )",
         e->dbg_id, e->source_gno, e->target_gno, 
-        entries_per_pool_segment );
+        entries_per_objs_pool_segment, entries_per_locs_pool_segment );
 
-  p = e->objects;
-  while (p != NULL) {
-    gclib_free( p->bot, entries_per_pool_segment*sizeof(word) );
-    n = p->next; /* save across free(p) call */
-    free(p);
-    p = n;
+  {
+    objs_pool_t *p; 
+    objs_pool_t *n;
+
+    p = e->objects;
+    while (p != NULL) {
+      gclib_free( p->bot, entries_per_objs_pool_segment*sizeof(word) );
+      n = p->next; /* save across free(p) call */
+      free(p);
+      p = n;
+    }
+  }
+
+  {
+    locs_pool_t *p; 
+    locs_pool_t *n;
+
+    p = e->locations;
+    while (p != NULL) {
+      gclib_free( p->bot, entries_per_locs_pool_segment*sizeof(loc_t) );
+      n = p->next; /* save across free(p) call */
+      free(p);
+      p = n;
+    }
   }
   free(e);
 }
@@ -1255,7 +1285,6 @@ static struct {
 
 static remset_t* grab_from_remset_pool() 
 {
-  annoyingmsg("            grab_from_remset_pool");
   { int i; 
     for (i = 0; i < remset_pool.len; i++) {
       if (remset_pool.elem[i] != NULL) {
@@ -1285,7 +1314,6 @@ static remset_t* grab_from_remset_pool()
 static void return_to_remset_pool( remset_t *rs ) 
 {
   int i;
-  annoyingmsg("            return_to_remset_pool");
   assert2(rs->live == 0);
   for (i = 0; i < remset_pool.len; i++) {
     if (remset_pool.elem[i] == NULL) {
@@ -1787,8 +1815,7 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
         q--;
         if (col_words(col) <= pop_limit) {
           loc_t loc;
-          loc.obj = w;
-          loc.offset = w2;
+          loc = make_loc( w, w2 );
           add_location_to_mut_rs( summ, g_rhs, loc );
           incr_size_and_oflo_check( summ, g_rhs, w, col_incr_once_wb );
         }
@@ -1833,7 +1860,8 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
       int gen = gen_of(*loc);
       if (instrumented) 
         annoyingmsg("scan_object_for_remset_summary "
-                    "pair car: 0x%08d (%d)", *loc, gen);
+                    "pair 0x%08x (%d) car: 0x%08d (%d)", 
+                    ptr, gen_of(ptr), *loc, gen);
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
         if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
@@ -1848,8 +1876,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
                                    col_incr_twice_sm );
 #else
           { loc_t loc;
-            loc.obj = ptr;
-            loc.offset = 0;
+            loc = make_loc( ptr, 0 );
             add_loc_to_sum_array( remsum->summ, 
                                   gen, loc, mygen, incr_ctxt_sm );
           }
@@ -1863,7 +1890,8 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
       int gen = gen_of(*loc);
       if (instrumented) 
         annoyingmsg("scan_object_for_remset_summary "
-                    "pair cdr: 0x%08d (%d)", *loc, gen);
+                    "pair 0x%08x (%d) cdr: 0x%08d (%d)", 
+                    ptr, gen_of(ptr), *loc, gen);
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
         if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
@@ -1878,8 +1906,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
                                    col_incr_twice_sm );
 #else
           { loc_t loc;
-            loc.obj = ptr;
-            loc.offset = sizeof(word); /* offset is in bytes */
+            loc = make_loc( ptr, sizeof(word)); /* offset is in bytes */
             add_loc_to_sum_array( remsum->summ, 
                                   gen, loc, mygen, incr_ctxt_sm );
           }
@@ -1894,14 +1921,17 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
     assert( (tagof(ptr) == VEC_TAG) || (tagof(ptr) == PROC_TAG) );
     words = sizefield( *loc ) / 4;
     scanned = words;
+    offset = 0;
     while (words--) {
       ++loc;
       offset += sizeof(word);
       if (isptr(*loc)) {
         int gen = gen_of(*loc);
+        assert2( gen >= 0 );
         if (instrumented) 
           annoyingmsg("scan_object_for_remset_summary "
-                      "vecproc : 0x%08d (%d)", *loc, gen);
+                      "vecproc 0x%08x (%d) : 0x%08x (%d)", 
+                      ptr, gen_of(ptr), *loc, gen);
         if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
           if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
@@ -1912,8 +1942,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
                == region_group_summzing ) {
             loc_t loc;
             do_enqueue = TRUE;
-            loc.obj = ptr;
-            loc.offset = offset;
+            loc = make_loc( ptr, offset );
             add_loc_to_sum_array( remsum->summ, 
                                   gen, loc, mygen, incr_ctxt_sm );
           }
@@ -2427,10 +2456,15 @@ static bool verify_summaries_remset_fcn( word obj,
   data = (struct verify_summaries_remset_fcn_data*)the_data;
   /* Any object in a summary should be reachable from the 
    * union of roots+remsets */
-  annoyingmsg( "VERIFY SUMM REMS 0x%08x (%d) marked {agg: %s, con: %s}", 
-	       obj, gen_of(obj), 
-	       msvfy_object_marked_p( data->aggress_context, obj )?"Y":"N", 
-	       msvfy_object_marked_p( data->conserv_context, obj )?"Y":"N" );
+  if ( msvfy_object_marked_p( data->conserv_context, obj ) &&
+       ( gen_of(obj) != data->summary_for_region )) {
+  } else {
+    consolemsg(  "VERIFY SUMM REMS 0x%08x (%d) marked {agg: %s, con: %s}", 
+                 obj, gen_of(obj), 
+                 msvfy_object_marked_p( data->aggress_context, obj )?"Y":"N", 
+                 msvfy_object_marked_p( data->conserv_context, obj )?"Y":"N" );
+  }
+
   assert( msvfy_object_marked_p( data->conserv_context, obj ));
   assert( gen_of(obj) != data->summary_for_region );
   return TRUE;
@@ -2465,7 +2499,7 @@ static void fold_col_into_remset( summ_matrix_t *summ, int i, remset_t *rs )
   assert( rs->live == 0 );
 
   col = DATA(summ)->cols[i];
-  {
+  { /* enumerate objects */
     summ_cell_t *sent = col->cell_top;
     summ_cell_t *curr = sent->next_col;
     while (curr != sent) {
@@ -2475,6 +2509,10 @@ static void fold_col_into_remset( summ_matrix_t *summ, int i, remset_t *rs )
         word *top = objs->top;
         while( p < top ) {
           if (*p != 0x0) {
+            assert( rs_isremembered( summ->collector->remset[gen_of(*p)],
+                                     *p ) ||
+                    rs_isremembered( summ->collector->major_remset[gen_of(*p)],
+                                     *p ) );
             assert( ! rs_isremembered( rs, *p ));
             rs_add_elem( rs, *p );
           }
@@ -2486,10 +2524,102 @@ static void fold_col_into_remset( summ_matrix_t *summ, int i, remset_t *rs )
     }
   }
 
+  { /* enumerate locations */
+    /* (note that this approach leads to an *over*-approximation of
+     *  the true content of the summary)
+     */
+    /* (I should probably add a representation for set-of-locations
+     *  and use that as the basis of the construction instead of the
+     *  hack of using a remset for each column.)
+     */
+    summ_cell_t *sent = col->cell_top;
+    summ_cell_t *curr = sent->next_col;
+    while (curr != sent) {
+      locs_pool_t *locs = curr->locations;
+      while (locs != NULL) {
+        loc_t *p = locs->bot;
+        loc_t *top = locs->top;
+        while( p < top ) {
+          if (p->obj != 0x0) {
+            /* note that p->obj may already be present in rs */
+            /* assert( ! rs_isremembered( rs, p->obj )); */
+            rs_add_elem( rs, p->obj );
+          }
+          p++;
+        }
+        locs = locs->next;
+      }
+      curr = curr->next_col;
+    }
+  }
+
   if (col->sum_mutator != NULL) {
     rs_enumerate( col->sum_mutator, rsscan_add_loc, rs );
   }
 }
+
+static 
+void check_col_on_own_vfy_sm_rs( summ_matrix_t *summ,
+                                 int col_idx, 
+                                 struct verify_summaries_remset_fcn_data *data)
+{
+  summ_col_t *col;
+  unsigned ign_stats;
+
+  col = DATA(summ)->cols[col_idx];
+
+  { /* enumerate objects */
+    summ_cell_t *sent = col->cell_top;
+    summ_cell_t *curr = sent->next_col;
+    while (curr != sent) {
+      objs_pool_t *objs = curr->objects;
+      while (objs != NULL) {
+        word *p = objs->bot;
+        word *top = objs->top;
+        while( p < top ) {
+          if (*p != 0x0) {
+            verify_summaries_remset_fcn( *p, data, &ign_stats);
+          }
+          p++;
+        }
+        objs = objs->next;
+      }
+      curr = curr->next_col;
+    }
+  }
+
+  { /* enumerate locations */
+    /* (note that this approach leads to an *over*-approximation of
+     *  the true content of the summary)
+     */
+    /* (I should probably add a representation for set-of-locations
+     *  and use that as the basis of the construction instead of the
+     *  hack of using a remset for each column.)
+     */
+    summ_cell_t *sent = col->cell_top;
+    summ_cell_t *curr = sent->next_col;
+    while (curr != sent) {
+      locs_pool_t *locs = curr->locations;
+      while (locs != NULL) {
+        loc_t *p = locs->bot;
+        loc_t *top = locs->top;
+        while( p < top ) {
+          if (p->obj != 0x0) {
+            verify_summaries_remset_fcn( p->obj, data, &ign_stats);
+          }
+          p++;
+        }
+        locs = locs->next;
+      }
+      curr = curr->next_col;
+    }
+  }
+
+  if (col->sum_mutator != NULL) {
+    rs_enumerate( col->sum_mutator, verify_summaries_remset_fcn, data );
+  }
+}
+
 
 EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
 {
@@ -2549,6 +2679,12 @@ EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
       msvfy_mark_objects_from_roots( aggress_context );
       data.conserv_context = conserv_context;
       data.aggress_context = aggress_context;
+
+      for ( i = 1; i < DATA(summ)->num_cols; i++ ) {
+        data.summary_for_region = i;
+        check_col_on_own_vfy_sm_rs( summ, i, &data );
+      }
+
       for (i = 0; i < summ->collector->remset_count; i++) {
         if (region_summarized( summ, i )){
           verifymsg("sanity check summary[i=%d] live: %d", 
@@ -2623,14 +2759,35 @@ EXPORT void sm_refine_summaries_via_marksweep( summ_matrix_t *summ )
       summ_cell_t *sent = col->cell_top;
       summ_cell_t *cell = sent->next_col;
       while ( cell != sent ) {
-        objs_pool_t *objects;
-        for( objects = cell->objects; objects != NULL; objects = objects->next ) {
-          word *wptr;
-          for ( wptr = objects->bot; wptr < objects->top; wptr++ ) {
-            if (*wptr == 0x0) {
-              /* entry already clear */
-            } else if (! smircy_object_marked_p( context, *wptr )) {
-              *wptr = 0x0; /* clear entry */
+
+        { /* refine object pools */ 
+          objs_pool_t *objects;
+          for( objects = cell->objects; 
+               objects != NULL; 
+               objects = objects->next ) {
+            word *wptr;
+            for ( wptr = objects->bot; wptr < objects->top; wptr++ ) {
+              if (*wptr == 0x0) {
+                /* entry already clear */
+              } else if (! smircy_object_marked_p( context, *wptr )) {
+                *wptr = 0x0; /* clear entry */
+              }
+            }
+          }
+        }
+
+        { /* refine location pools */
+          locs_pool_t *locations;
+          for( locations = cell->locations;
+               locations != NULL;
+               locations = locations->next ) {
+            loc_t *loc;
+            for ( loc = locations->bot; loc < locations->top; loc++ ) {
+              if (loc->obj == 0x0) {
+                /* entry already clear */
+              } else if (! smircy_object_marked_p( context, loc->obj )) {
+                loc->obj = 0x0; /* clear entry */
+              }
             }
           }
         }
@@ -2744,7 +2901,9 @@ static void clear_col_cells( summ_matrix_t *summ, int col_idx )
         DATA(summ)->rows[ cell->source_gno ]->cell_rgt = cell->prev_row;
       }
       assert_unreachable( summ, cell ); /* XXX expensive */
-      free_cell( cell, DATA(summ)->entries_per_objs_pool_segment );
+      free_cell( cell, 
+                 DATA(summ)->entries_per_objs_pool_segment,
+                 DATA(summ)->entries_per_locs_pool_segment );
       cell = next;
     }
     assert( (sent->next_col == sent) && (sent->prev_col == sent) );
@@ -2812,6 +2971,8 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
     summ_cell_t *sent, *cell;
     col_next = DATA(summ)->cols[rgn_next];
     col_to   = DATA(summ)->cols[rgn_to];
+
+    assert(0); /* below has not been updated to account for locations field */
 
     if (col_to->overly_popular) 
       return;
@@ -3061,12 +3222,17 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
       if (DATA(summ)->cols[ cell->target_gno ]->cell_bot == cell) {
         DATA(summ)->cols[ cell->target_gno ]->cell_bot = cell->prev_col;
 
+
+        /* XXX this needs to be updated to account locations too */
+
         /* Keep below in sync with col_incr_words_sm */
         DATA(summ)->cols[ cell->target_gno ]->summarize_word_count -= 
           2*pool_count_objects( cell->objects );
       }
       assert_unreachable( summ, cell ); /* XXX expensive */
-      free_cell( cell, DATA(summ)->entries_per_objs_pool_segment );
+      free_cell( cell, 
+                 DATA(summ)->entries_per_objs_pool_segment,
+                 DATA(summ)->entries_per_locs_pool_segment );
       cell = next;
     }
 
@@ -3155,13 +3321,22 @@ static bool filter_mutated_elems( summary_t *s, word w )
   remset_t      *mut_rs = col->sum_mutator;
   return ! rs_isremembered( mut_rs, w );
 }
+static bool filter_mutated_elem_locs( summary_t *s, loc_t l )
+{
+  summ_matrix_t *summ   = (summ_matrix_t*) s->cursor1;
+  summ_col_t    *col    = (summ_col_t*) s->cursor2;
+  remset_t      *nur_rs = DATA(summ)->nursery_remset;
+  remset_t      *mut_rs = col->sum_mutator;
+  return ! rs_isremembered( mut_rs, l.obj );
+}
 static bool filter_gen( summary_t *s, word w )
 {
   bool ret = (gen_of(w) != s->icursor2);
   return ret;
 }
 
-static bool next_chunk( summary_t *s, word **start, word **lim, bool *all_unseen)
+static bool next_chunk_objs( summary_t *s, 
+                             word **start, word **lim, bool *all_unseen)
 {
   summ_matrix_t *summ   = (summ_matrix_t*) s->cursor1;
   summ_col_t    *col    = (summ_col_t*)    s->cursor2;
@@ -3185,6 +3360,32 @@ static bool next_chunk( summary_t *s, word **start, word **lim, bool *all_unseen
     }
   }
 }
+
+static bool next_chunk_locs( summary_t *s, 
+                             loc_t **start, loc_t **lim, bool *all_unseen)
+{
+  summ_matrix_t *summ   = (summ_matrix_t*) s->cursor1;
+  summ_col_t    *col    = (summ_col_t*)    s->cursor2;
+
+  summ_cell_t *cell = (summ_cell_t*) s->cursor3;
+  locs_pool_t *pool = (locs_pool_t*) s->cursor4;
+
+  if (cell == col->cell_top) {
+    return FALSE;
+  } else {
+    *all_unseen = FALSE;
+    *start = pool->bot;
+    *lim   = pool->top;
+    if (pool->next != NULL) {
+      s->cursor4 = pool->next;
+    } else {
+      s->cursor4 = cell->next_col->locations;
+      s->cursor3 = cell->next_col;
+    }
+    return TRUE;
+  }
+}
+
 
 static bool filter_icursor1( summary_t *this, word w ) {
   return (gen_of(w) != this->icursor1);
@@ -3269,19 +3470,40 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
                    "(summ, next_summ_idx=%d, summary ) "
                    "cell iter", 
                    next_summ_idx );
-        summary_init_dispose( &DATA(summ)->summcol_summary, entries, 
-                              next_chunk, NULL, filter_mutated_elems );
-        /* 1: summ, 2: col, 3: cell, 4: objs_pool */
-        DATA(summ)->summcol_summary.cursor1 = summ;
-        DATA(summ)->summcol_summary.cursor2 = col;
-        DATA(summ)->summcol_summary.cursor3 = col->cell_top->next_col;
-        DATA(summ)->summcol_summary.cursor4 = col->cell_top->next_col->objects;
-        assert( DATA(summ)->summcol_summary.cursor4 != NULL );
+
+        if (col->cell_top->next_col->objects != NULL) {
+          summary_init_dispose
+            ( &DATA(summ)->summcol_summary_objs, entries, 
+              next_chunk_objs, NULL, filter_mutated_elems );
+          /* 1: summ, 2: col, 3: cell, 4: objs_pool */
+          DATA(summ)->summcol_summary_objs.cursor1 = summ;
+          DATA(summ)->summcol_summary_objs.cursor2 = col;
+          DATA(summ)->summcol_summary_objs.cursor3 = col->cell_top->next_col;
+          DATA(summ)->summcol_summary_objs.cursor4 = 
+            col->cell_top->next_col->objects;
+        }
+
+        if (col->cell_top->next_col->locations != NULL) {
+          summary_init_locs_dispose
+            ( &DATA(summ)->summcol_summary_locs, entries, 
+              next_chunk_locs, NULL, filter_mutated_elem_locs );
+          /* 1: summ, 2: col, 3: cell, 4: objs_pool */
+          DATA(summ)->summcol_summary_locs.cursor1 = summ;
+          DATA(summ)->summcol_summary_locs.cursor2 = col;
+          DATA(summ)->summcol_summary_locs.cursor3 = col->cell_top->next_col;
+          DATA(summ)->summcol_summary_locs.cursor4 = 
+            col->cell_top->next_col->locations;
+        }
+
+        assert( (col->cell_top->next_col->objects != NULL) ||
+                (col->cell_top->next_col->locations != NULL) );
 
         summary_compose( &DATA(summ)->nursery_summary, 
                          &DATA(summ)->mutrems_summary,
-                         &DATA(summ)->summcol_summary, 
-                         NULL, 
+                         ((col->cell_top->next_col->objects == NULL) ? NULL 
+                          : &DATA(summ)->summcol_summary_objs), 
+                         ((col->cell_top->next_col->locations == NULL) ? NULL 
+                          : &DATA(summ)->summcol_summary_locs), 
                          summary );
       } else {
         summary_compose( &DATA(summ)->nursery_summary,
@@ -3443,8 +3665,7 @@ EXPORT void sm_points_across_callback( summ_matrix_t *summ,
      * yet?  When does cheney change the gno for LOS, before or after
      * scan?); so perhaps change callback to pass g_lhs along too. */
     loc_t loc;
-    loc.obj = lhs;
-    loc.offset = offset;
+    loc = make_loc( lhs, offset );
     add_loc_to_sum_array( summ, g_rhs, loc, gen_of(lhs), incr_ctxt_gc );
   }
 }

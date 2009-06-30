@@ -988,11 +988,6 @@ static void summaryscan_buildup_rs( word obj, int offset, void *my_data )
   data = (struct summaryscan_buildup_rs_data*)my_data;
   target_rs = (remset_t*)data->target_rs;
 
-  /* Had to loosen assertion below because summaries can now hold and
-   * enumerate over distinct locations within the same object; may be
-   * better off removing the assertion entirely. */
-  assert( ! rs_isremembered( target_rs, obj ) 
-          || (last_obj == obj && last_offset != offset) );
   assert( gen_of(obj) != data->rgn_next );
   rs_add_elem( target_rs, obj );
   last_obj = obj;
@@ -1841,19 +1836,12 @@ enumerate_remsets_complement( gc_t *gc,
 }
 
 struct apply_f_to_summary_loc_entry_data {
-  void (*f)( word *addr, void *scan_data );
+  void (*f)( word obj, int offset, void *scan_data );
   void *scan_data;
 };
 
-static void apply_f_to_summary_loc_entry( word *w, void *data_orig ) 
-{
-  struct apply_f_to_summary_loc_entry_data *data;
-  data = (struct apply_f_to_summary_loc_entry_data*)data_orig;
-  data->f( w, data->scan_data );
-}
-
 struct apply_f_to_summary_obj_entry_data {
-  void (*f)( word *addr, void *scan_data );
+  void (*f)( word obj, int offset, void *scan_data );
   void *scan_data;
 };
 
@@ -1864,20 +1852,20 @@ static void apply_f_to_summary_obj_entry( word obj, void *data_orig,
   struct apply_f_to_summary_obj_entry_data *data;
   void *scan_data;
   data = (struct apply_f_to_summary_obj_entry_data*)data_orig;
-  void (*f)( word *addr, void *scan_data );
+  void (*f)( word obj, int offset, void *scan_data );
 
   scan_data = data->scan_data;
   f         = data->f;
   w = ptrof(obj);
   if (tagof(obj) == PAIR_TAG) {
-    f( w, scan_data );
-    w += 1;
-    f( w, scan_data );
+    f( obj, 0, scan_data );
+    f( obj, sizeof(word), scan_data );
   } else {
     word words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
+    int offset = 0;
     while (words--) {
-      w += 1;
-      f( w, scan_data );
+      offset += sizeof(word);
+      f( obj, offset, scan_data );
     }
   }
 }
@@ -1890,12 +1878,13 @@ static bool apply_f_to_remset_obj_entry( word obj, void *data_orig,
 }
 
 static void enumerate_remembered_locations( gc_t *gc, gset_t genset, 
-                                            void (*f)(word *addr, 
+                                            void (*f)(word addr, 
+                                                      int offset, 
                                                       void *scan_data), 
                                             void *scan_data )
 {
   if ( DATA(gc)->use_summary_instead_of_remsets) {
-    summary_enumerate_locs( &DATA(gc)->summary, f, scan_data );
+    summary_enumerate_locs2( &DATA(gc)->summary, f, scan_data );
   } else {
     struct apply_f_to_summary_loc_entry_data remsets_data;
     remsets_data.f = f;

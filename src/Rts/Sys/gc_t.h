@@ -220,9 +220,10 @@ struct gc {
         rs_enumerate() for more info).
         */
   void (*enumerate_remembered_locations)( gc_t *gc, gset_t genset, 
-                                          void (*f)( word*, void* ), void* );
-     /* Invokes f on a superset of locations in the remembered set,
-      * passing along the accumulator scan_data.
+                                          void (*f)( word, int, void* ), void* );
+     /* Invokes f on a superset of locations (each represented as
+      * tagged-word + byte offset) in the remembered set, passing
+      * along the accumulator scan_data.
       */
 
   semispace_t *(*fresh_space)(gc_t *gc);
@@ -330,7 +331,8 @@ gc_t
 		  void *data,
 		  bool enumerate_np_remset ),
 	     void (*enumerate_remembered_locations)
-	        ( gc_t *gc, gset_t genset, void (*f)( word*, void* ), void* ),
+	        ( gc_t *gc, gset_t genset, 
+	          void (*f)( word, int, void* ), void* ),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
 	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
 					 semispace_t *ss ),
