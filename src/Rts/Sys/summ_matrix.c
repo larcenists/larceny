@@ -1120,7 +1120,9 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
     }
   }
 
-  if (about_to_major) {
+  if (about_to_major 
+      && ( gc_region_group_for_gno( summ->collector, rgn_next )
+           != region_group_wait_nosum )) {
     sm_ensure_available( summ, rgn_next, rgn_count, about_to_major,
                          alloc_per_majgc );
 
@@ -3135,6 +3137,28 @@ static void sm_ensure_available( summ_matrix_t *summ, int gno,
   } else if ( sm_is_rgn_summarized_next( summ, gno )) {
     advance_to_next_summary_set( summ, gno, region_count, about_to_major, dA );
   } else {
+    char *(*f)(region_group_t grp);
+    int (*g)(region_group_t grp);
+    f = region_group_name;
+    g = region_group_count;
+    consolemsg("region_group_counts");
+    consolemsg("%s:%d %s:%d %s:%d %s:%d %s:%d %s:%d %s:%d",
+               f( region_group_nonrrof ),    g( region_group_nonrrof ),
+               f( region_group_unfilled ),   g( region_group_unfilled ),
+               f( region_group_wait_w_sum ), g( region_group_wait_w_sum ),
+               f( region_group_wait_nosum ), g( region_group_wait_nosum ),
+               f( region_group_summzing ),   g( region_group_summzing ),
+               f( region_group_filled ),     g( region_group_filled ),
+               f( region_group_popular ),    g( region_group_popular ));
+
+    consolemsg("failure sm_ensure_available"
+               "( summ, gno=%d, region_count=%d, about_to_major=%s, dA=%d )"
+               " region_group_of(gno):%s"
+               , 
+               gno, region_count, (about_to_major?"TRUE":"FALSE"), dA,
+               region_group_name
+               ( region_group_of( gc_heap_for_gno( summ->collector, gno ))) );
+
     assert( FALSE );
   }
 
