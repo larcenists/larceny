@@ -20,7 +20,8 @@
 ;;; is not an indication of the required porting effort.
 	
 %define OPTIMIZE_MILLICODE 1
-%define OPTIMIZE_BARRIER 0
+%define OPTIMIZE_BARRIER 1
+%define SSB_ENQUEUE_OFFSET_AS_FIXNUM 1
 	
 	section	.text align=4
 	
@@ -361,6 +362,25 @@ Lpb3:	mov	RESULT, SECOND			; Preserve gen(rhs)
 	mov	SECOND, [GLOBALS+G_WBDEST]	; The value to store (lhs)
 	mov	REG1, [REG1+RESULT]		; The correct SSB ptr
 	mov	[REG1], SECOND			; Store lhs
+%if SSB_ENQUEUE_OFFSET_AS_FIXNUM
+	add	REG1, 4				; Move SSB ptr
+	and	SECOND, ~TAGMASK		; ptrof(lhs)
+	sub	SECOND, [GLOBALS+G_THIRD]	;  THIRD holds dest's offset
+	neg	SECOND				;   = offset - ptrof(lhs)
+	mov	[REG1], SECOND
+	mov	SECOND, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
+	add	REG1, 4				; Move SSB ptr
+	mov	[SECOND+RESULT], REG1		; Store moved ptr
+	mov	SECOND, [GLOBALS+G_SSBLIMV]	; Array of SSB limit ptrs
+	add	REG1, 4				;  SSB needs +1 slot (offset)
+	mov	SECOND, [SECOND+RESULT]		; The correct limit ptr
+	cmp	REG1, SECOND			; If ptr < limit
+	jl	Lpb2				;   then no overflow, so done
+	xor	RESULT, RESULT			; Clear
+	xor	SECOND, SECOND			;   state
+	mov	REG1, [GLOBALS+G_REG1]		;     and
+	MCg_wb	mc_compact_ssbs			;       handle overflow
+%else  ; SSB_ENQUEUE_OFFSET_AS_FIXNUM
 	mov	SECOND, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
 	add	REG1, 4				; Move SSB ptr
 	mov	[SECOND+RESULT], REG1		; Store moved ptr
@@ -372,6 +392,7 @@ Lpb3:	mov	RESULT, SECOND			; Preserve gen(rhs)
 	xor	SECOND, SECOND			;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	MCg_wb	mc_compact_ssbs			;       handle overflow
+%endif
 %else  ; OPTIMIZE_MILLICODE
 	mov	[GLOBALS+G_WBDEST], RESULT	; Save 
 	mov	[GLOBALS+G_WBVALUE], SECOND	;   state
