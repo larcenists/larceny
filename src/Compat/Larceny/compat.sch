@@ -170,7 +170,8 @@
 
   (for-each (lambda (x)
 	      (compat:load (param-filename 'source "Sassy" x)))
-   '("extras.scm"
+   '("inits/larceny-0.97.scm"
+     "extras.scm"
      "push-stacks.scm"
      "api.scm"
      "intern.scm"

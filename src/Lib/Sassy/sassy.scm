@@ -23,6 +23,15 @@
 
 ; see file COPYING in the top of Sassy's distribution directory
 
+;; When relocation fails, sassy-signal-labels-out-of-range is invoked
+;; with a list of labels (symbols) that could not be fixed up.
+;; 
+;; Definition here matches original behavior and allows host override
+;; (e.g. invoke continuation that recovers and retries assembly).
+;; Any proper override should raise a non-continuable exception.
+
+(define (sassy-signal-labels-out-of-range labels offsets)
+  (error "sassy: out of range" labels offsets))
 
 ; *****************************************
 ; USER CONFIGURATION. UNCOMMENT ONE OF THE 

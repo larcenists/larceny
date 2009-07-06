@@ -38,13 +38,14 @@
 
 (define (sassy input . options)
 
-  ; the only option so far...
   (define expand? #t)
+  (define recover-fixup-errors? #f)
 
   (do ((o options (cdr o)))
       ((null? o))
     (case (car o)
       ((dont-expand) (set! expand? #f))
+      ((recover-from-fixup-errors) (set! recover-fixup-errors? #t))
       (else (error "sassy: unrecognized option" (car o)))))
 
   (let ((output (make-sassy-output
@@ -58,7 +59,9 @@
 		 16                       ; default text align
 		 0                        ; initial heap size
 		 0                        ; default text org
-		 32)))                    ; default bits size
+		 32                       ; default bits size
+		 recover-fixup-errors?    ; continue post reloc fail
+		 '())))                   ; failed reloc (target offset)'s
 
     (set! sassy-current output)
 
@@ -72,6 +75,13 @@
 
     (sassy-symbol-table-set! output (car (sassy-symbol-table output)))
     
+    (let ((elabels (sassy-erroneous-reloc-labels output)))
+      (cond ((not (null? elabels))
+             ;; below signals a (non-continuable) exception.
+             (sassy-signal-labels-out-of-range (map car elabels) 
+                                               (map cadr elabels)))))
+
+
     output))
 
 ; TODO: also want option called "traditional" (only labels and opcodes
