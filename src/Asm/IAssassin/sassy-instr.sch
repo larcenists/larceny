@@ -1873,6 +1873,7 @@
              ((internal:branchf-flonum?) ia86.t_reg_op1_branchf_flonum?)
              ((internal:branchf-pair?) ia86.t_reg_op1_branchf_pair?)
              ((internal:branchf-vector?) ia86.t_reg_op1_branchf_vector?)
+             ((internal:branchf-bytevector?) ia86.t_reg_op1_branchf_bytevector?)
              ((internal:branchf-structure?) ia86.t_reg_op1_branchf_structure?)
              ((internal:branchf-zero?) ia86.t_reg_op1_branchf_zero?)
              (else (error 'ia86.t_reg_op1_branchf op)))))
@@ -1884,6 +1885,7 @@
              ((internal:check-flonum?) ia86.t_reg_op1_check_flonum?)
              ((internal:check-pair?)   ia86.t_reg_op1_check_pair?)
              ((internal:check-vector?) ia86.t_reg_op1_check_vector?)
+             ((internal:check-bytevector?) ia86.t_reg_op1_check_bytevector?)
              ((internal:check-string?) ia86.t_reg_op1_check_string?)
              ((internal:check-ustring?) ia86.t_reg_op1_check_ustring?)
              ((internal:check-structure?) ia86.t_reg_op1_check_structure?)
@@ -3374,6 +3376,16 @@
 
 (define-sassy-instr (ia86.t_reg_op1_check_vector? rs l)
   (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.vector)
+  `(jne try-short ,l))
+
+(define-sassy-instr (ia86.t_reg_op1_branchf_bytevector? rs l a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
+  (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.bytevector)
+  `(jne try-short ,l))
+
+(define-sassy-instr (ia86.t_reg_op1_check_bytevector? rs l)
+  (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.bytevector)
   `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_branchf_structure? rs l a-skip?)

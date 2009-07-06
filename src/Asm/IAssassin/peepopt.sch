@@ -542,6 +542,7 @@
               ((flonum?)      'internal:check-flonum?)
               ((pair?)        'internal:check-pair?)
               ((vector?)      'internal:check-vector?)
+              ((bytevector?)  'internal:check-bytevector?)
               ((structure?)   'internal:check-structure?)
               ((string?)      'internal:check-string?)    ;FIXME
               ((ustring?)     'internal:check-ustring?)   ;FIXME
@@ -626,6 +627,7 @@
               ((fixnum?)     'internal:branchf-fixnum?)
               ((flonum?)     'internal:branchf-flonum?)
               ((vector?)     'internal:branchf-vector?)
+              ((bytevector?) 'internal:branchf-bytevector?)
               ((structure?)  'internal:branchf-structure?)
               ;;((char?)       'internal:branchf-char?)
               ;;((fxzero?)     'internal:branchf-fxzero?)
