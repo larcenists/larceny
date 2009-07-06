@@ -305,6 +305,7 @@
                 cdr:pair
                 not
                 null?
+                fixnum?
                 procedure?
                 bytevector-like?
                 vector-like?
