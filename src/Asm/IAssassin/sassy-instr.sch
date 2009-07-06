@@ -145,6 +145,10 @@
     ((ebp)    'ebp)
     (else (error 'try-low hwreg " is not a symbolic hwreg..."))))
  
+;; has-low? : RegSymbol -> Boolean
+;; Returns true if hwreg has low variant (see try-low above)
+(define (has-low? hwreg)
+  (memq hwreg '(eax ebx ecx edx)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
@@ -353,6 +357,9 @@
 	((= const -1)
          `(xor ,hwreg ,hwreg) ; 3 bytes
          `(dec ,hwreg))
+        ((and (has-low? hwreg) (<= 0 const 255))
+         `(xor ,hwreg ,hwreg) ; 4 bytes
+         `(mov ,(try-low hwreg) ,const))
 	(else
 	 `(mov ,hwreg ,const)))); 5 bytes
 		
