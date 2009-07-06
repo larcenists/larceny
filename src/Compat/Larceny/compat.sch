@@ -194,6 +194,10 @@
      '(sassy 
        sassy-text-bytevector sassy-symbol-table sassy-symbol-offset
        read-byte ;; (for append-file-shell-command-portable)
+
+       ;; from inits/larceny-0.97.scm
+       relocs-out-of-range-condition? relocs-out-of-range-labels 
+
        logand logior lognot hash-table-ref arithmetic-shift)))
   (clear-require-loaded-files!)
   (interaction-environment old-env))

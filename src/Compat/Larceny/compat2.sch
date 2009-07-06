@@ -122,6 +122,22 @@
          (* (bytevector-ref bv (+ i 2)) two^8)
          (bytevector-ref bv (+ i 3))))))
 
+;; A Predicate[X] is a (Any -> Boolean) that produces #t for instances
+;; of X and a #f for all other values.
+
+;; twobit-iterative-try/fallback 
+;;    : X (X -> Y) Predicate[Z] (X Z -> X) (X -> Y) -> Y
+;; Invokes try on input repeatedly, responding to exceptional condition Z
+;; by attempting to revise the input (passing along  and try again.
+;; No matter what, the system should behave sanely (if sub-optimally)
+;; when last-resort is invoked on (revise^n input) for all n in Nat.
+
+(define (twobit-iterative-try/fallback input try fail? revise last-resort)
+  (let loop ((x input))
+    (guard (con ((fail? con)
+                 (loop (revise x con))))
+      (try x))))
+
 ;(define (twobit-format fmt . rest)
 ;  (let ((out (open-output-string)))
 ;    (apply format out fmt rest)
