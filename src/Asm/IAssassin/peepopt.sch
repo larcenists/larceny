@@ -180,7 +180,10 @@
   (lambda (as i1 i2 i3 t1 t2 t3)
     (cond ((= (car i2) $op1)
            (cond ((= (car i3) $load)
-                  (stack-op1-load as i1 i2 i3 t3)))))))
+                  (stack-op1-load as i1 i2 i3 t3))))
+          ((= (car i2) $setreg)
+           (stack-setreg as i1 i2 t2))
+          )))
 
 ; Reg-setreg is not restricted to hardware registers, as $movereg is 
 ; a standard instruction.
@@ -677,3 +680,9 @@
                                    (list $reg m)
                                    (list $op1 op))
                              tail))))))
+
+(define (stack-setreg as i:stack i:setreg tail)
+  (let ((n  (operand1 i:stack))
+        (rd (operand1 i:setreg)))
+    (if (is_hwreg rd)
+        (as-source! as (cons (list $load rd n) tail)))))
