@@ -132,11 +132,15 @@
 ;; No matter what, the system should behave sanely (if sub-optimally)
 ;; when last-resort is invoked on (revise^n input) for all n in Nat.
 
-(define (twobit-iterative-try/fallback input try fail? revise last-resort)
-  (let loop ((x input))
-    (guard (con ((fail? con)
-                 (loop (revise x con))))
-      (try x))))
+(define twobit-iterative-try/fallback 
+  (if compat:has-exception-support
+      (lambda (input try fail? revise last-resort)
+        (let loop ((x input))
+          (guard (con ((fail? con)
+                       (loop (revise x con))))
+            (try x))))
+      (lambda (input try fail? revise last-resort)
+        (last-resort input))))
 
 ;(define (twobit-format fmt . rest)
 ;  (let ((out (open-output-string)))

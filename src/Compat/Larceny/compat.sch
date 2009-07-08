@@ -147,6 +147,10 @@
     (establish! fxrsha   rsha)
     ))
 
+(define compat:has-exception-support
+  (and (environment-macro? (interaction-environment) 'guard)
+       (environment-variable? (interaction-environment) '&serious)))
+
 ;; for Sassy
 (define (compat:load-sassy)
   (define old-env (interaction-environment))
@@ -170,7 +174,7 @@
 
   (for-each (lambda (x)
 	      (compat:load (param-filename 'source "Sassy" x)))
-   '("inits/larceny-0.97.scm"
+   `(,@(if compat:has-exception-support '("inits/larceny-0.97.scm") '())
      "extras.scm"
      "push-stacks.scm"
      "api.scm"
